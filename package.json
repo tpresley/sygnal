@@ -1,0 +1,44 @@
+{
+  "name": "sygnal",
+  "version": "0.0.0",
+  "description": "A Cycle.js based framework",
+  "main": "./dist/index.js",
+  "exports": "./dist/index.js",
+  "scripts": {
+    "test": "echo \"Tests to come...\"",
+    "build": "npx babel src --out-dir dist",
+    "build-min": "npx babel src --presets minify --no-comments --out-file dist/sygnal.min.js",
+    "start": "npx babel src --out-dir dist --watch"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tpresley/sygnal.git"
+  },
+  "keywords": [
+    "cycle",
+    "cyclejs",
+    "component",
+    "functional reactive",
+    "SPA"
+  ],
+  "author": "Troy Presley <troy.presley@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/tpresley/sygnal/issues"
+  },
+  "homepage": "https://github.com/tpresley/sygnal#readme",
+  "dependencies": {
+    "@cycle/dom": "^23.1.0",
+    "@cycle/isolate": "^5.2.0",
+    "@cycle/run": "^5.7.0",
+    "@cycle/state": "^1.7.0",
+    "xstream": "^11.14.0"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.17.10",
+    "@babel/core": "^7.17.10",
+    "@babel/preset-env": "^7.17.10",
+    "babel-loader": "^8.2.5",
+    "babel-preset-minify": "^0.5.2"
+  }
+}
