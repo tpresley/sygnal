@@ -1,13 +1,13 @@
 # Sygnal
 
-Simple library for making clean Cycle.js components
+An intuitive framework for building fast and small components or applications based on Cycle.js
 
 
 ## Cycle.js
 
 Cycle.js is a functional reactive coding framework that asks 'what if the user was a function?'
 
-It is worth reading the summary on the [Cycle.js homepage](https://cycle.js.org/ "Cycle.js Homepage"), but essentially Cycle.js allows you to write simple, concise, extensible, and testable code.
+It is worth reading the summary on the [Cycle.js homepage](https://cycle.js.org/ "Cycle.js Homepage"), but essentially Cycle.js allows you to write simple, concise, extensible, and testable code using a functional reactive style, and helps ensure that all side-effects are isolated away from your component code.
 
 ## Sygnal
 
