@@ -315,5 +315,5 @@ export default component({
 Sygnal is the result of several years of building Cycle.js apps, and our attempts to make that process more enjoyable.  It has been used for moderate scale production applications, and we are making it available to the world in the hopes it is useful, and brings more attention to the wonderful work of the Cycle.js team.
 
 Until better documentation is available, here are some well-commented projects using most of Sygnal's features:
-- [Sygnal ToDoMVC](https://github.com/tpresley/sygnal-todomvc) - The [ToDoMVC](https://todomvc.com/) framework comparison app implemented in Sygnal
-- [Sygnal 2048](https://github.com/tpresley/sygnal-2048) - The [2048 Game](https://github.com/gabrielecirulli/2048 "Original 2048 GitHub repo") implemeted in Sygnal
+- Sygnal ToDoMVC ( [GitHub](https://github.com/tpresley/sygnal-todomvc) | [Live Demo](https://tpresley.github.io/sygnal-todomvc/) ) - The [ToDoMVC](https://todomvc.com/) framework comparison app implemented in Sygnal
+- Sygnal 2048 ( [GitHub](https://github.com/tpresley/sygnal-2048) | [Live Demo](https://tpresley.github.io/sygnal-2048/) ) - The [2048 Game](https://github.com/gabrielecirulli/2048 "Original 2048 GitHub repo") implemeted in Sygnal
