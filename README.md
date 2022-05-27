@@ -42,7 +42,7 @@ Sygnal's component() function is the only thing needed to create a stand-alone c
 The 3 most common/useful parameters to component() are:
 - **model**: an object that maps 'action' names to the commands or reducers that tell Cycle.js drivers **WHAT** to do
 - **intent**: a function that receives Cycle.js sources and returns a map of 'action' names to observable streams telling the application **WHEN** that action should happen.
-- **view**: a function receiving the current application state and returning virtual DOM elements (using either Preact style h() functions from snabbdom or by using JSX transpiling using snabbdom-pragma)
+- **view**: a function receiving the current application state and returning virtual DOM elements (using either Preact style h() functions or by using JSX transpiling using snabbdom-pragma)
 
 Essentially the **'model'** parameter determines **WHAT** should happnen, the **'intent'** parameter determines **WHEN** things happen, the **'view'** parameter determines **WHERE** everything is rendered in the browser, and the provided Cycle.js **'drivers'** determine **HOW** things happen.
 
@@ -83,9 +83,9 @@ A very common task in web pages and browser applications is to work with form in
 
 ## Prerequisites
 
-The only prerequisites to use Sygnal are Cycle.js itself and either @cycle/dom or snabbdom-pragma for virtual dom rendering.  However, to handle more advanced observable/stream operations, it's helpful to install [xstream](https://github.com/staltz/xstream "xstream reactive stream library"), an observable library similar to Most or RxJS that is extremely small and fast, and is tailored for use in browser based functional reactive applications.
+For plain Javascript usage, Sygnal has no prerequisites as all dependencies are pre-bundled.
 
-To bootstrap a minimal Sygnal application using Vite and JSX:
+To bootstrap a minimal Sygnal application using Vite and that supports JSX:
 
 ```bash
 npx degit tpresley/sygnal-template my-awesome-app
@@ -106,7 +106,7 @@ The results will be in the 'dist' folder, and you can serve it locally by runnin
 npm preview
 ```
 
-Alternatively, you can use any other bundler of your choice (Webpack, Babel, Rollup, etc.).  In order to generate the required virtual DOM in your 'view' function, you will either need to include [@cycle/dom](https://cycle.js.org/api/dom.html#api-h) to get access to virtual DOM helper functions, or you will need to install [snabbdom-pragma](https://www.npmjs.com/package/snabbdom-pragma) and configure your bundler to use it for transforming JSX (see [examples here](https://www.npmjs.com/package/snabbdom-pragma#usage "snabbdom-pragma bundler configuration examples")).
+Alternatively, you can use any other bundler of your choice (Webpack, Babel, Rollup, etc.).  To use JSX in your components while using alternative bundlers, you will need to install [snabbdom-pragma](https://www.npmjs.com/package/snabbdom-pragma) and configure your bundler to use it for transforming JSX (see [examples here](https://www.npmjs.com/package/snabbdom-pragma#usage "snabbdom-pragma bundler configuration examples")).
 
 
 ## Initialization
@@ -161,7 +161,7 @@ export default component({
   //
   //   view: ({ state }) => h('h2', `Hello ${ state.who }`)
   //
-  // but you will need to add "import { h } from @cycle/dom" to the top of your file
+  // but you will need to add "import { h } from 'sygnal'" to the top of your file
 })
 ```
 
@@ -314,4 +314,6 @@ export default component({
 
 Sygnal is the result of several years of building Cycle.js apps, and our attempts to make that process more enjoyable.  It has been used for moderate scale production applications, and we are making it available to the world in the hopes it is useful, and brings more attention to the wonderful work of the Cycle.js team.
 
-We will continue to add documentation, example code, and live demonstrations over the coming days and weeks!
+Until better documentation is available, here are some well-commented projects using most of Sygnal's features:
+- [ToDoMVC](https://github.com/tpresley/sygnal-todomvc) - The [ToDoMVC](https://todomvc.com/) framework comparison app implemented in Sygnal
+- [2040](https://github.com/tpresley/sygnal-2048) - The [2048 Game](https://github.com/gabrielecirulli/2048 "Original 2048 GitHub repo") implemeted in Sygnal
