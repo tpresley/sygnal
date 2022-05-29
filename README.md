@@ -317,3 +317,4 @@ Sygnal is the result of several years of building Cycle.js apps, and our attempt
 Until better documentation is available, here are some well-commented projects using most of Sygnal's features:
 - Sygnal ToDoMVC ( [GitHub](https://github.com/tpresley/sygnal-todomvc) | [Live Demo](https://tpresley.github.io/sygnal-todomvc/) ) - The [ToDoMVC](https://todomvc.com/) framework comparison app implemented in Sygnal
 - Sygnal 2048 ( [GitHub](https://github.com/tpresley/sygnal-2048) | [Live Demo](https://tpresley.github.io/sygnal-2048/) ) - The [2048 Game](https://github.com/gabrielecirulli/2048 "Original 2048 GitHub repo") implemeted in Sygnal
+- Sygnal Calculator ( [GitHub](https://github.com/tpresley/sygnal-calculator) | [Live Demo](https://tpresley.github.io/sygnal-calculator/) ) - A simple calculator implemeted in Sygnal
