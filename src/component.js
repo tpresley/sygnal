@@ -554,7 +554,7 @@ class Component {
             sink$ = factory(sources)
           }
           const originalDOMSink = sink$[this.DOMSourceName]
-          sink$[this.DOMSourceName] = propState.stream.map(state => originalDOMSink.compose(debounce(2))).flatten()
+          sink$[this.DOMSourceName] = propState.stream.map(state => originalDOMSink.compose(debounce(10))).flatten()
           acc[id] = { sink$, props$, children$ }
           return acc
         }, rootEntry)
