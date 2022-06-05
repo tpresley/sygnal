@@ -24,7 +24,7 @@ Sygnal provides a structured way to create Cycle.js components that accomplishes
 - Handle all stream plumbing between components
 - Support arbitrarily complex applications with deep component hierarchies
 - Reuse the best patterns from popular frameworks like React and Vue while avoiding the pitfalls
-- Support pure Javascript, Typescript, and JSX
+- Support pure Javascript, Typescript, and JSX (including fragments)
 - Provide application state out of the box, and make it easy to use
 - Use reasonable defaults while providing access to low-level Cycle.js functionality wherever possible
 - Provide automatic debugging information
@@ -106,7 +106,22 @@ The results will be in the 'dist' folder, and you can serve it locally by runnin
 npm preview
 ```
 
-Alternatively, you can use any other bundler of your choice (Webpack, Babel, Rollup, etc.).  To use JSX in your components while using alternative bundlers, you will need to install [snabbdom-pragma](https://www.npmjs.com/package/snabbdom-pragma) and configure your bundler to use it for transforming JSX (see [examples here](https://www.npmjs.com/package/snabbdom-pragma#usage "snabbdom-pragma bundler configuration examples")).
+Alternatively, you can use any other bundler of your choice (Webpack, Babel, Rollup, etc.).  To use JSX in your components while using alternative bundlers, you will need to configure your bundler to use Sygnal's JSX pragma. This is slightly different for each bundler, but looks generally like:
+
+```javascript
+// this example is for Vite or esbuild, but most bundlers have options similar to this for handling JSX transpiling
+{
+  ...,
+  esbuild: {
+    // add the import for Sygnal's JSX and Fragment handler to the top of each .jsx and .tsx page automatically
+    jsxInject: `import { jsx, Fragment } from 'sygnal/jsx'`
+    // tell the transpiler to use Sygnal's 'jsx' funtion to render JSX elements
+    jsxFactory: `jsx`,
+    // tell the transpiler to use Sygnal's 'Fragment' funtion to render JSX fragments (<>...</>)
+    jsxFragment: 'Fragment',
+  },
+}
+```
 
 
 ## Initialization
