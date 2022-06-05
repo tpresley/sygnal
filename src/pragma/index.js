@@ -85,6 +85,9 @@ export const createElementWithModules = (modules) => {
       cnosole.error('JSX Error: Capitalized HTML element without corresponding Sygnal factory.  Components with names where the first letter is capital MUST be defined or included at the parent component\'s file scope.')
     }
     if (is.fun(sel)) {
+      if (sel.name === 'Fragment') {
+        return sel(data || {}, children)
+      }
       const factory = sel
       sel = sel.name || 'sygnal-factory'
       data ||= {}

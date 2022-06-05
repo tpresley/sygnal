@@ -36,6 +36,7 @@
     "@cycle/run": "^5.7.0",
     "@cycle/state": "^1.7.0",
     "extend": "^3.0.2",
+    "snabbdom": "^3.5.0",
     "xstream": "^11.14.0"
   },
   "devDependencies": {
