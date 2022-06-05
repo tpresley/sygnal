@@ -114,11 +114,11 @@ Alternatively, you can use any other bundler of your choice (Webpack, Babel, Rol
   ...,
   esbuild: {
     // add the import for Sygnal's JSX and Fragment handler to the top of each .jsx and .tsx page automatically
-    jsxInject: `import { jsx, Fragment } from 'sygnal/jsx'`
+    jsxInject: `import { jsx, Fragment } from 'sygnal/jsx'`,
     // tell the transpiler to use Sygnal's 'jsx' funtion to render JSX elements
     jsxFactory: `jsx`,
     // tell the transpiler to use Sygnal's 'Fragment' funtion to render JSX fragments (<>...</>)
-    jsxFragment: 'Fragment',
+    jsxFragment: 'Fragment'
   },
 }
 ```
