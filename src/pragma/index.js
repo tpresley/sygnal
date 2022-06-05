@@ -26,7 +26,7 @@ const considerSvg = (vnode) => !is.svg(vnode) ? vnode :
   )
 
 const rewrites = {
-  for: 'attrs',
+  // for: 'attrs',
   role: 'attrs',
   tabindex: 'attrs',
   'aria-*': 'attrs',
@@ -80,9 +80,15 @@ const defaultModules = {
 
 export const createElementWithModules = (modules) => {
   return (sel, data, ...children) => {
+    if (typeof sel === 'undefined') {
+      sel = 'UNDEFINED'
+      cnosole.error('JSX Error: Capitalized HTML element without corresponding Sygnal factory.  Components with names where the first letter is capital MUST be defined or included at the parent component\'s file scope.')
+    }
     if (is.fun(sel)) {
-      sel = sel.name || 'unnamed'
-      console.error('JSX Error: A capitalized tag name was used, but was transpiled to a nameless function.  Either use a named function or a lower case tag name to avoid this problem')
+      const factory = sel
+      sel = sel.name || 'sygnal-factory'
+      data ||= {}
+      data.sygnalFactory = factory
     }
     const text = sanitizeText(children, modules)
     return considerSvg({

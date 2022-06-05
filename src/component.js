@@ -526,15 +526,34 @@ class Component {
             return acc
           }
 
-          const factory   = this.components[componentName]
+          const factory   = componentName === 'sygnal-factory' ? props.sygnalFactory : (this.components[componentName] || props.sygnalFactory)
+          if (!factory && !isCollection && !isSwitchable) {
+            if (componentName === 'sygnal-factory') throw new Error(`Component not found on element with Capitalized selector and nameless function: JSX transpilation replaces selectors starting with upper case letters with functions in-scope with the same name, Sygnal cannot see the name of the resulting component.`)
+            throw new Error(`Component not found: ${ componentName }`)
+          }
           const props$    = xs.create().startWith(props)
           const children$ = xs.create().startWith(children)
           let propState
           let sink$
           if (isCollection) {
-            propState = new StateSource(props$.map(val => val.value).remember())
+            let stream, field
+            if (typeof data.props.for === 'string') {
+              field  = data.props.for
+              stream = this.sources[this.stateSourceName].stream
+            } else {
+              field  = 'for'
+              stream = props$
+            }
+            propState = new StateSource(stream.map(val => {
+              const arr = val[field]
+              if (!Array.isArray(arr)) {
+                console.warn(`Collection of ${ data.props.of } does not have a valid array in the 'for' property: expects either an array or a string of the name of an array property on the state`)
+                return []
+              }
+              return arr
+            }).remember())
             const sources   = { ...this.sources, [this.stateSourceName]: propState, props$, children$ }
-            const factory   = this.components[data.component]
+            const factory   = this.components[data.props.of]
             const lense     = { get: state => state, set: state => state }
             sink$ = collection(factory, lense)(sources)
           } else if (isSwitchable) {
@@ -751,7 +770,7 @@ function getComponents(currentElement, componentNames, isNestedElement=false) {
   const sel          = currentElement.sel
   const isCollection = sel && sel.toLowerCase() === 'collection'
   const isSwitchable = sel && sel.toLowerCase() === 'switchable'
-  const isComponent  = sel && (['collection', 'swtichable', ...componentNames].includes(currentElement.sel))
+  const isComponent  = sel && (['collection', 'swtichable', 'sygnal-factory', ...componentNames].includes(currentElement.sel)) || typeof currentElement.data?.props?.sygnalFactory === 'function'
   const props        = (currentElement.data && currentElement.data.props) || {}
   const children     = currentElement.children || []
 
@@ -760,10 +779,10 @@ function getComponents(currentElement, componentNames, isNestedElement=false) {
   if (isComponent) {
     const id  = getComponentIdFromElement(currentElement)
     if (isCollection) {
-      if (!props.component)                            throw new Error(`Collection element missing required 'component' property`)
-      if (typeof props.component !== 'string')         throw new Error(`Invalid 'component' property of collection element: found ${ typeof props.component } requires string`)
-      if (!componentNames.includes(props.component))   throw new Error(`Specified component for collection not found: ${ props.component }`)
-      if (!props.value || !Array.isArray(props.value)) console.warn(`No valid array found in the 'value' property of collection ${ props.component }: no collection components will be created`)
+      if (!props.of)                            throw new Error(`Collection element missing required 'component' property`)
+      if (typeof props.of !== 'string')         throw new Error(`Invalid 'component' property of collection element: found ${ typeof props.of } requires string`)
+      if (!componentNames.includes(props.of))   throw new Error(`Specified component for collection not found: ${ props.of }`)
+      if (!props.for || !(typeof props.for === 'string' || Array.isArray(props.for))) console.warn(`No valid array found in the 'value' property of collection ${ props.of }: no collection components will be created`)
       currentElement.data.isCollection = true
       currentElement.data.component = props.component
       // currentElement.data.componentArray = props.value
@@ -801,7 +820,7 @@ function injectComponents(currentElement, components, componentNames, isNestedEl
 
 
   const sel          = currentElement.sel || 'NO SELECTOR'
-  const isComponent  = ['collection', 'swtichable', ...componentNames].includes(sel)
+  const isComponent  = ['collection', 'swtichable', 'sygnal-factory', ...componentNames].includes(sel) || typeof currentElement.data?.props?.sygnalFactory === 'function'
   const isCollection = currentElement?.data?.isCollection
   const isSwitchable = currentElement?.data?.isSwitchable
   const props        = (currentElement.data && currentElement.data.props) || {}
