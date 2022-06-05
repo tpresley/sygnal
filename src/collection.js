@@ -9,7 +9,7 @@ export default function collection(component, stateLense, combineList=['DOM'], g
   return (sources) => {
     const collectionOpts = {
       item:         component,
-      itemKey:      (state, ind) => state.id || ind,
+      itemKey:      (state, ind) => typeof state.id !== 'undefined' ? state.id : ind,
       itemScope:    key => key,
       channel:      stateSourceName,
       collectSinks: instances => {
