@@ -2,6 +2,7 @@
 
 import isolate from '@cycle/isolate'
 import collection from './collection.js'
+import switchable from './switchable.js'
 import { StateSource } from '@cycle/state'
 
 import { default as xs, Stream } from 'xstream'
@@ -557,7 +558,27 @@ class Component {
             const lense     = { get: state => state, set: state => state }
             sink$ = collection(factory, lense)(sources)
           } else if (isSwitchable) {
-
+            const stateField = data.props.state
+            if (typeof stateField === 'string') {
+              const stream = this.sources[this.stateSourceName].stream
+              propState = new StateSource(stream.map(val => {
+                if (typeof val !== 'object') {
+                  console.error(`Switchable Error: Invalid or undefined state`)
+                  return
+                }
+                const newVal = val[stateField]
+                if (typeof newVal === 'undefined') {
+                  console.warn(`Specified state field '${ stateField }' for switchable element not found`)
+                  return
+                }
+                return newVal
+              }))
+            } else {
+              propState = this.sources[this.stateSourceName]
+            }
+            const switchableComponents = data.props.of
+            const sources = { ...this.sources, [this.stateSourceName]: propState, props$, children$ }
+            sink$ = switchable(switchableComponents, props$.map(props => props.current))(sources)
           } else {
             const lense = (props) => {
               const state = props.state
@@ -770,7 +791,7 @@ function getComponents(currentElement, componentNames, isNestedElement=false) {
   const sel          = currentElement.sel
   const isCollection = sel && sel.toLowerCase() === 'collection'
   const isSwitchable = sel && sel.toLowerCase() === 'switchable'
-  const isComponent  = sel && (['collection', 'swtichable', 'sygnal-factory', ...componentNames].includes(currentElement.sel)) || typeof currentElement.data?.props?.sygnalFactory === 'function'
+  const isComponent  = sel && (['collection', 'switchable', 'sygnal-factory', ...componentNames].includes(currentElement.sel)) || typeof currentElement.data?.props?.sygnalFactory === 'function'
   const props        = (currentElement.data && currentElement.data.props) || {}
   const children     = currentElement.children || []
 
@@ -784,19 +805,15 @@ function getComponents(currentElement, componentNames, isNestedElement=false) {
       if (!componentNames.includes(props.of))   throw new Error(`Specified component for collection not found: ${ props.of }`)
       if (!props.for || !(typeof props.for === 'string' || Array.isArray(props.for))) console.warn(`No valid array found in the 'value' property of collection ${ props.of }: no collection components will be created`)
       currentElement.data.isCollection = true
-      currentElement.data.component = props.component
-      // currentElement.data.componentArray = props.value
     } else if (isSwitchable) {
-      if (!props.components)                    throw new Error(`Switchable element missing required 'components' property`)
-      if (typeof props.components !== 'object') throw new Error(`Invalid 'components' property of switchable element: found ${ typeof props.components } requires object mapping names to component factories`)
-      const switchableComponents = Object.values(props.components)
-      if (!switchableComponents.every(comp => typeof comp === 'function')) throw new Error(`One or more invalid component factories for switchable element is not a valid component factory`)
-      if (!props.current || typeof props.current !== 'string')             throw new Error(`Missing or invalid 'current' property for switchable element: found ${ typeof props.current } requires string`)
-      const switchableComponentNames = Object.keys(props.components)
-      if (!switchableComponentNames.includes(props.current))               throw new Error(`Component '${ props.current }' not found in switchable element`)
+      if (!props.of)                    throw new Error(`Switchable element missing required 'of' property`)
+      if (typeof props.of !== 'object') throw new Error(`Invalid 'components' property of switchable element: found ${ typeof props.of } requires object mapping names to component factories`)
+      const switchableComponents = Object.values(props.of)
+      if (!switchableComponents.every(comp => typeof comp === 'function')) throw new Error(`One or more components provided to switchable element is not a valid component factory`)
+      if (!props.current || (typeof props.current !== 'string' && typeof props.current !== 'function')) throw new Error(`Missing or invalid 'current' property for switchable element: found '${ typeof props.current }' requires string or function`)
+      const switchableComponentNames = Object.keys(props.of)
+      if (!switchableComponentNames.includes(props.current)) throw new Error(`Component '${ props.current }' not found in switchable element`)
       currentElement.data.isSwitchable = true
-      currentElement.data.components = props.components
-      currentElement.data.currentComponent = props.current
     } else {
 
     }
@@ -820,7 +837,7 @@ function injectComponents(currentElement, components, componentNames, isNestedEl
 
 
   const sel          = currentElement.sel || 'NO SELECTOR'
-  const isComponent  = ['collection', 'swtichable', 'sygnal-factory', ...componentNames].includes(sel) || typeof currentElement.data?.props?.sygnalFactory === 'function'
+  const isComponent  = ['collection', 'switchable', 'sygnal-factory', ...componentNames].includes(sel) || typeof currentElement.data?.props?.sygnalFactory === 'function'
   const isCollection = currentElement?.data?.isCollection
   const isSwitchable = currentElement?.data?.isSwitchable
   const props        = (currentElement.data && currentElement.data.props) || {}
@@ -834,6 +851,8 @@ function injectComponents(currentElement, components, componentNames, isNestedEl
       delete currentElement.elm
       currentElement.children = component
       return currentElement
+    } else if (isSwitchable) {
+      return component
     } else {
       return component
     }
