@@ -5,8 +5,18 @@ import { makeCollection } from '@cycle/state'
 
 
 
-export default function collection(component, stateLense, combineList=['DOM'], globalList=['EVENTS'], stateSourceName='STATE') {
+export default function collection(component, stateLense, opts={}) {
+  const {
+    combineList     = ['DOM'],
+    globalList      = ['EVENTS'],
+    stateSourceName = 'STATE',
+    domSourceName   = 'DOM',
+    container       = 'div',
+    containerClass  = ''
+  } = opts
+
   return (sources) => {
+    const key = Date.now()
     const collectionOpts = {
       item:         component,
       itemKey:      (state, ind) => typeof state.id !== 'undefined' ? state.id : ind,
@@ -15,7 +25,13 @@ export default function collection(component, stateLense, combineList=['DOM'], g
       collectSinks: instances => {
         return Object.entries(sources).reduce((acc, [name, stream]) => {
           if (combineList.includes(name)) {
-            acc[name] = instances.pickCombine(name)
+            const combined = instances.pickCombine(name)
+            if (name === domSourceName && container) {
+              acc.DOM = combined.map(children => ({ sel: container, data: { props: { className: containerClass } }, children, key, text: undefined, elm: undefined}))
+            } else {
+              console.warn('Collections without wrapping containers will fail in unpredictable ways when used inside JSX fragments')
+              acc[name] = combined
+            }
           } else {
             acc[name] = instances.pickMerge(name)
           }
