@@ -26,7 +26,7 @@ const considerSvg = (vnode) => !is.svg(vnode) ? vnode :
   )
 
 const rewrites = {
-  // for: 'attrs',
+  for: 'attrs',
   role: 'attrs',
   tabindex: 'attrs',
   'aria-*': 'attrs',

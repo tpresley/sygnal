@@ -793,6 +793,7 @@ function getComponents(currentElement, componentNames, isNestedElement=false) {
   const isSwitchable = sel && sel.toLowerCase() === 'switchable'
   const isComponent  = sel && (['collection', 'switchable', 'sygnal-factory', ...componentNames].includes(currentElement.sel)) || typeof currentElement.data?.props?.sygnalFactory === 'function'
   const props        = (currentElement.data && currentElement.data.props) || {}
+  const attrs        = (currentElement.data && currentElement.data.attrs) || {}
   const children     = currentElement.children || []
 
   let found    = {}
@@ -801,10 +802,11 @@ function getComponents(currentElement, componentNames, isNestedElement=false) {
     const id  = getComponentIdFromElement(currentElement)
     if (isCollection) {
       if (!props.of)                            throw new Error(`Collection element missing required 'component' property`)
-      if (typeof props.of !== 'string')         throw new Error(`Invalid 'component' property of collection element: found ${ typeof props.of } requires string`)
-      if (!componentNames.includes(props.of))   throw new Error(`Specified component for collection not found: ${ props.of }`)
-      if (!props.for || !(typeof props.for === 'string' || Array.isArray(props.for))) console.warn(`No valid array found in the 'value' property of collection ${ props.of }: no collection components will be created`)
+      if (!attrs.for || !(typeof attrs.for === 'string' || Array.isArray(attrs.for))) console.warn(`No valid array found in the 'value' property of collection ${ props.of }: no collection components will be created`)
       currentElement.data.isCollection = true
+      currentElement.data.props ||= {}
+      currentElement.data.props.for = attrs.for
+      currentElement.data.attrs = undefined
     } else if (isSwitchable) {
       if (!props.of)                    throw new Error(`Switchable element missing required 'of' property`)
       if (typeof props.of !== 'object') throw new Error(`Invalid 'components' property of switchable element: found ${ typeof props.of } requires object mapping names to component factories`)
@@ -849,7 +851,7 @@ function injectComponents(currentElement, components, componentNames, isNestedEl
     if (isCollection) {
       currentElement.sel = 'div'
       delete currentElement.elm
-      currentElement.children = component
+      currentElement.children = Array.isArray(component) ? component : [component]
       return currentElement
     } else if (isSwitchable) {
       return component
