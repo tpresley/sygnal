@@ -534,34 +534,46 @@ class Component {
           }
           const props$    = xs.create().startWith(props)
           const children$ = xs.create().startWith(children)
-          let propState
+          let stateSource
           let sink$
           if (isCollection) {
-            let stream, field
-            if (typeof data.props.for === 'string') {
-              field  = data.props.for
-              stream = this.sources[this.stateSourceName].stream
-            } else {
-              field  = 'for'
-              stream = props$
-            }
-            propState = new StateSource(stream.map(val => {
-              const arr = val[field]
+            let field, lense
+
+            const stateGetter = state => {
+              const arr = state[field]
               if (!Array.isArray(arr)) {
                 console.warn(`Collection of ${ data.props.of } does not have a valid array in the 'for' property: expects either an array or a string of the name of an array property on the state`)
                 return []
               }
               return arr
-            }).remember())
-            const sources   = { ...this.sources, [this.stateSourceName]: propState, props$, children$ }
-            const factory   = this.components[data.props.of]
-            const lense     = { get: state => state, set: state => state }
+            }
+
+            if (typeof props.for === 'string') {
+              field  = props.for
+              stateSource = this.sources[this.stateSourceName]
+              lense = {
+                get: stateGetter,
+                set: (state, arr) => ({ ...state, [field]: arr })
+              }
+            } else {
+              field  = 'for'
+              stateSource = new StateSource(props$.remember())
+              lense = {
+                get: stateGetter,
+                set: (state, arr) => state
+              }
+            }
+            const sources   = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$ }
+            const factory   = typeof data.props.of === 'function' ? data.props.of : this.components[data.props.of]
             sink$ = collection(factory, lense)(sources)
+            if (typeof sink$ !== 'object') {
+              throw new Error('Invalid sinks returned from component factory of collection element')
+            }
           } else if (isSwitchable) {
             const stateField = data.props.state
             if (typeof stateField === 'string') {
               const stream = this.sources[this.stateSourceName].stream
-              propState = new StateSource(stream.map(val => {
+              stateSource = new StateSource(stream.map(val => {
                 if (typeof val !== 'object') {
                   console.error(`Switchable Error: Invalid or undefined state`)
                   return
@@ -574,11 +586,14 @@ class Component {
                 return newVal
               }))
             } else {
-              propState = this.sources[this.stateSourceName]
+              stateSource = this.sources[this.stateSourceName]
             }
             const switchableComponents = data.props.of
-            const sources = { ...this.sources, [this.stateSourceName]: propState, props$, children$ }
+            const sources = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$ }
             sink$ = switchable(switchableComponents, props$.map(props => props.current))(sources)
+            if (typeof sink$ !== 'object') {
+              throw new Error('Invalid sinks returned from component factory of switchable element')
+            }
           } else {
             const lense = (props) => {
               const state = props.state
@@ -589,12 +604,16 @@ class Component {
               delete copy.state
               return { ...copy, ...state }
             }
-            propState = new StateSource(props$.map(lense))
-            const sources   = { ...this.sources, [this.stateSourceName]: propState, props$, children$ }
+            stateSource = new StateSource(props$.map(lense))
+            const sources   = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$ }
             sink$ = factory(sources)
+            if (typeof sink$ !== 'object') {
+              const name = componentName === 'sygnal-factory' ? 'custom element' : componentName
+              throw new Error('Invalid sinks returned from component factory:', name)
+            }
           }
-          const originalDOMSink = sink$[this.DOMSourceName]
-          sink$[this.DOMSourceName] = propState.stream.map(state => originalDOMSink.compose(debounce(10))).flatten()
+          const originalDOMSink = sink$[this.DOMSourceName].remember()
+          sink$[this.DOMSourceName] = stateSource.stream.map(state => originalDOMSink.compose(debounce(10))).flatten()
           acc[id] = { sink$, props$, children$ }
           return acc
         }, rootEntry)
@@ -802,6 +821,8 @@ function getComponents(currentElement, componentNames, isNestedElement=false) {
     const id  = getComponentIdFromElement(currentElement)
     if (isCollection) {
       if (!props.of)                            throw new Error(`Collection element missing required 'component' property`)
+      if (typeof props.of !== 'string' && typeof props.of !== 'function')         throw new Error(`Invalid 'component' property of collection element: found ${ typeof props.of } requires string or component factory function`)
+      if (typeof props.of !== 'function' && !componentNames.includes(props.of))   throw new Error(`Specified component for collection not found: ${ props.of }`)
       if (!attrs.for || !(typeof attrs.for === 'string' || Array.isArray(attrs.for))) console.warn(`No valid array found in the 'value' property of collection ${ props.of }: no collection components will be created`)
       currentElement.data.isCollection = true
       currentElement.data.props ||= {}
