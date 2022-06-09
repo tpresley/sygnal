@@ -76,7 +76,7 @@ function _switchable (factories, sources, name$, switched=['DOM'], stateSourceNa
           })
           .flatten()
           .remember()
-          .startWith('')
+          .startWith(undefined)
       } else {
         const definedSinks = sinks.filter(([_,sink]) => sink[sinkName] !== undefined)
                                   .map(([_,sink]) => sink[sinkName])

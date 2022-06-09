@@ -492,7 +492,7 @@ class Component {
     const merged = xs.combine(...pulled.streams)
 
     const throttled = merged
-      .compose(debounce(1))
+      .compose(debounce(5))
       .map(arr => {
         return pulled.names.reduce((acc, name, index) => {
           acc[name] = arr[index]
@@ -501,15 +501,23 @@ class Component {
       })
 
     const componentNames = Object.keys(this.components)
-    this.vdom$ = throttled
-      .fold((previousComponents, renderParams) => {
-        const vDom = this.view(renderParams) || { sel: 'div', data: {}, children: [] }
+
+    const subComponentRenderedProxy$ = xs.create()
+    const vDom$ = throttled.map((params) => params).map(this.view).map(vDom => vDom || { sel: 'div', data: {}, children: [] })
+
+
+    const componentInstances$ = vDom$
+      .fold((previousComponents, vDom) => {
         const foundComponents = getComponents(vDom, componentNames)
         const entries = Object.entries(foundComponents)
 
         const rootEntry = { '::ROOT::': vDom }
 
-        if (entries.length === 0) return rootEntry
+        if (entries.length === 0) {
+          return rootEntry
+        }
+
+        const sinkArrsByType = {}
 
         const newComponents =  entries.reduce((acc, [id, el]) => {
           const componentName = el.sel
@@ -532,10 +540,13 @@ class Component {
             if (componentName === 'sygnal-factory') throw new Error(`Component not found on element with Capitalized selector and nameless function: JSX transpilation replaces selectors starting with upper case letters with functions in-scope with the same name, Sygnal cannot see the name of the resulting component.`)
             throw new Error(`Component not found: ${ componentName }`)
           }
+
           const props$    = xs.create().startWith(props)
           const children$ = xs.create().startWith(children)
-          let stateSource
+          let stateSource = new StateSource(this.sources[this.stateSourceName].stream.startWith(this.currentState))
           let sink$
+          let preventStateUpdates = true
+
           if (isCollection) {
             let field, lense
 
@@ -548,13 +559,31 @@ class Component {
               return arr
             }
 
-            if (typeof props.for === 'string') {
+            if (typeof props.for === 'undefined') {
+              lense = {
+                get: state => {
+                  if (!Array.isArray(state)) {
+                    console.warn(`Collection sub-component of ${ this.name } has no 'for' attribute and the parent state is not an array: Provide a 'for' attribute with either an array or the name of a state property containing an array`)
+                    return []
+                  }
+                  return state
+                },
+                set: (oldState, newState) => newState
+              }
+              preventStateUpdates = false
+            } else if (typeof props.for === 'string') {
               field  = props.for
-              stateSource = this.sources[this.stateSourceName]
               lense = {
                 get: stateGetter,
-                set: (state, arr) => ({ ...state, [field]: arr })
+                set: (state, arr) => {
+                  if (this.calculated && field in this.calculated) {
+                    console.warn(`Collection sub-component of ${ this.name } attempted to update state on a calculated field '${ field }': Update ignored`)
+                    return state
+                  }
+                  return { ...state, [field]: arr }
+                }
               }
+              preventStateUpdates = false
             } else {
               field  = 'for'
               stateSource = new StateSource(props$.remember())
@@ -565,98 +594,143 @@ class Component {
             }
             const sources   = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$ }
             const factory   = typeof data.props.of === 'function' ? data.props.of : this.components[data.props.of]
-            sink$ = collection(factory, lense)(sources)
+            sink$ = collection(factory, lense, { container: null })(sources)
             if (typeof sink$ !== 'object') {
               throw new Error('Invalid sinks returned from component factory of collection element')
             }
           } else if (isSwitchable) {
             const stateField = data.props.state
+            let isolateSwitchable = false
+            let lense
             if (typeof stateField === 'string') {
-              const stream = this.sources[this.stateSourceName].stream
-              stateSource = new StateSource(stream.map(val => {
-                if (typeof val !== 'object') {
-                  console.error(`Switchable Error: Invalid or undefined state`)
-                  return
+              isolateSwitchable = true
+              lense = {
+                get: state => {
+                  return state[stateField]
+                },
+                set: (oldState, newState) => {
+                  if (this.calculated && stateField in this.calculated) {
+                    console.warn(`Switchable sub-component of ${ this.name } attempted to update state on a calculated field '${ stateField }': Update ignored`)
+                    return oldState
+                  }
+                  return { ...oldState, [stateField]: newState }
                 }
-                const newVal = val[stateField]
-                if (typeof newVal === 'undefined') {
-                  console.warn(`Specified state field '${ stateField }' for switchable element not found`)
-                  return
-                }
-                return newVal
-              }))
+              }
+              preventStateUpdates = false
+            } else if (typeof stateField === 'undefined') {
+              isolateSwitchable = true
+              lense = {
+                get: state => state,
+                set: (oldState, newState) => newState
+              }
+              preventStateUpdates = false
+            } else if (typeof stateField === 'object') {
+              stateSource = new StateSource(props$.map(props => props.state))
             } else {
-              stateSource = this.sources[this.stateSourceName]
+              throw new Error(`Invalid state provided to collection sub-component of ${ this.name }: Expecting string, object, or none, but found ${ typeof stateField }`)
             }
             const switchableComponents = data.props.of
             const sources = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$ }
-            sink$ = switchable(switchableComponents, props$.map(props => props.current))(sources)
+            if (isolateSwitchable) {
+              sink$ = isolate(switchable(switchableComponents, props$.map(props => props.current)), { [this.stateSourceName]: lense })(sources)
+            } else {
+              sink$ = switchable(switchableComponents, props$.map(props => props.current))(sources)
+            }
             if (typeof sink$ !== 'object') {
               throw new Error('Invalid sinks returned from component factory of switchable element')
             }
           } else {
-            const lense = (props) => {
-              const state = props.state
-              if (typeof state === 'undefined') return props
-              if (typeof state !== 'object')    return state
+            const { state: stateProp, sygnalFactory, id, ...sanitizedProps } = props
+            if (typeof stateProp === 'undefined' && (typeof sanitizedProps !== 'object' || Object.keys(sanitizedProps).length === 0)) {
+              const sources = { ...this.sources, [this.stateSourceName]: stateSource, props$: xs.never().startWith(null), children$ }
+              sink$ = factory(sources)
+              preventStateUpdates = false
+            } else {
+              const lense = (props) => {
+                const state = props.state
+                if (typeof state === 'undefined') return props
+                if (typeof state !== 'object')    return state
 
-              const copy = { ...props }
-              delete copy.state
-              return { ...copy, ...state }
+                const copy = { ...props }
+                delete copy.state
+                return { ...copy, ...state }
+              }
+              stateSource = new StateSource(props$.map(lense))
+              const sources   = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$ }
+              sink$ = factory(sources)
             }
-            stateSource = new StateSource(props$.map(lense))
-            const sources   = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$ }
-            sink$ = factory(sources)
             if (typeof sink$ !== 'object') {
               const name = componentName === 'sygnal-factory' ? 'custom element' : componentName
               throw new Error('Invalid sinks returned from component factory:', name)
             }
           }
+
+          if (preventStateUpdates) {
+            const originalStateSink = sink$[this.stateSourceName]
+            sink$[this.stateSourceName] = originalStateSink.filter(state => {
+              console.warn('State update attempt from component with inderect link to state: Components with state set through HTML properties/attributes cannot update application state directly')
+              return false
+            })
+          }
+
           const originalDOMSink = sink$[this.DOMSourceName].remember()
-          sink$[this.DOMSourceName] = stateSource.stream.map(state => originalDOMSink.compose(debounce(10))).flatten()
+          const repeatChecker = (a, b) => {
+            const aa = JSON.stringify(a)
+            const bb = JSON.stringify(b)
+            return aa === bb
+          }
+          sink$[this.DOMSourceName] = stateSource.stream.compose(dropRepeats(repeatChecker)).map(state => {
+            subComponentRenderedProxy$.shamefullySendNext(null)
+            return originalDOMSink
+          }).compose(debounce(10)).flatten().remember()
           acc[id] = { sink$, props$, children$ }
+
+          Object.entries(sink$).map(([name, stream]) => {
+            sinkArrsByType[name] ||= []
+            if (name !== this.DOMSourceName) sinkArrsByType[name].push(stream)
+          })
+
           return acc
         }, rootEntry)
 
+        const mergedSinksByType = Object.entries(sinkArrsByType).reduce((acc, [name, streamArr]) => {
+          if (streamArr.length === 0) return acc
+          acc[name] = streamArr.length === 1 ? streamArr[0] : xs.merge(...streamArr)
+          return acc
+        }, {})
+
+        this.newSubComponentSinks(mergedSinksByType)
+
+        // subComponentRenderedProxy$.shamefullySendNext(null)
         return newComponents
       }, {})
-      .map(components => {
+
+
+    this.vdom$ = xs.combine(subComponentRenderedProxy$.startWith(null), componentInstances$).map(([_, components]) => {
+
         const root  = components['::ROOT::']
         let ids = []
         const entries = Object.entries(components).filter(([id]) => id !== '::ROOT::')
 
-        if (entries.length === 0) return xs.of(root)
-
-        const sinkArrays = entries
-          .reduce((acc, [id, val]) => {
-            Object.entries(val.sink$).forEach(([name, stream]) => {
-              if (!acc[name]) acc[name] = []
-              if (name !== this.DOMSourceName) acc[name].push(stream)
-            })
-            return acc
-          }, {})
-
-        const sink$ = Object.entries(sinkArrays).reduce((acc, [sink, streams]) => {
-          acc[sink] = xs.merge(...streams)
-          return acc
-        }, {})
-
-        this.newSubComponentSinks(sink$)
+        if (entries.length === 0) {
+          return xs.of(root)
+        }
 
         const vdom$ = entries
           .map(([id, val]) => {
             ids.push(id)
-            return val.sink$[this.DOMSourceName]
+            return val.sink$[this.DOMSourceName].startWith(undefined)
           })
 
         if (vdom$.length === 0) return xs.of(root)
 
-        return xs.combine(...vdom$).map(vdoms => {
+        return xs.combine(...vdom$).compose(debounce(5)).map(vdoms => {
           const withIds = vdoms.reduce((acc, vdom, index) => {
             acc[ids[index]] = vdom
             return acc
           }, {})
-          const injected = injectComponents(root, withIds, componentNames)
+          const rootCopy = deepCopyVdom(root)
+          const injected = injectComponents(rootCopy, withIds, componentNames)
           return injected
         })
       })
@@ -671,7 +745,7 @@ class Component {
       if (name == this.DOMSourceName) return acc
       const subComponentSink$ = this.subComponentSink$ ? this.subComponentSink$.map(sinks => sinks[name]).filter(sink => !!sink).flatten() : xs.never()
       if (name === this.stateSourceName) {
-        acc[name] = xs.merge((this.model$[name] || xs.never()), this.sources[this.stateSourceName].stream.filter(_ => false), ...this.children$[name])
+        acc[name] = xs.merge((this.model$[name] || xs.never()), subComponentSink$, this.sources[this.stateSourceName].stream.filter(_ => false), ...this.children$[name])
       } else {
         acc[name] = xs.merge((this.model$[name] || xs.never()), subComponentSink$, ...this.children$[name])
       }
@@ -871,7 +945,6 @@ function injectComponents(currentElement, components, componentNames, isNestedEl
     const component = components[id]
     if (isCollection) {
       currentElement.sel = 'div'
-      delete currentElement.elm
       currentElement.children = Array.isArray(component) ? component : [component]
       return currentElement
     } else if (isSwitchable) {
@@ -892,4 +965,9 @@ function getComponentIdFromElement(el) {
   const props = (el.data && el.data.props) || {}
   const id = (props.id && JSON.stringify(props.id)) || JSON.stringify(props)
   return `${ sel }::${ id }`
+}
+
+
+function deepCopyVdom(obj) {
+  return { ...obj, children: Array.isArray(obj.children) ? obj.children.map(deepCopyVdom) : undefined, data: obj.data && { ...obj.data, componentsInjected: false } }
 }
