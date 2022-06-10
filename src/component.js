@@ -877,11 +877,11 @@ class Component {
 
 
 
-function getComponents(currentElement, componentNames, isNestedElement=false) {
+function getComponents(currentElement, componentNames, depth=0, index=0) {
   if (!currentElement) return {}
 
   if (currentElement.data?.componentsProcessed) return {}
-  if (!isNestedElement) currentElement.data.componentsProcessed = true
+  if (depth === 0) currentElement.data.componentsProcessed = true
 
   const sel          = currentElement.sel
   const isCollection = sel && sel.toLowerCase() === 'collection'
@@ -894,7 +894,7 @@ function getComponents(currentElement, componentNames, isNestedElement=false) {
   let found    = {}
 
   if (isComponent) {
-    const id  = getComponentIdFromElement(currentElement)
+    const id  = getComponentIdFromElement(currentElement, depth, index)
     if (isCollection) {
       if (!props.of)                            throw new Error(`Collection element missing required 'component' property`)
       if (typeof props.of !== 'string' && typeof props.of !== 'function')         throw new Error(`Invalid 'component' property of collection element: found ${ typeof props.of } requires string or component factory function`)
@@ -920,7 +920,7 @@ function getComponents(currentElement, componentNames, isNestedElement=false) {
   }
 
   if (children.length > 0) {
-    children.map(child => getComponents(child, componentNames, true))
+    children.map((child, i) => getComponents(child, componentNames, depth + 1, i))
             .forEach((child) => {
               Object.entries(child).forEach(([id, el]) => found[id] = el)
             })
@@ -929,10 +929,10 @@ function getComponents(currentElement, componentNames, isNestedElement=false) {
   return found
 }
 
-function injectComponents(currentElement, components, componentNames, isNestedElement=false) {
+function injectComponents(currentElement, components, componentNames, depth=0, index) {
   if (!currentElement) return
   if (currentElement.data?.componentsInjected) return currentElement
-  if (!isNestedElement && currentElement.data) currentElement.data.componentsInjected = true
+  if (depth === 0 && currentElement.data) currentElement.data.componentsInjected = true
 
 
   const sel          = currentElement.sel || 'NO SELECTOR'
@@ -943,7 +943,7 @@ function injectComponents(currentElement, components, componentNames, isNestedEl
   const children     = currentElement.children || []
 
   if (isComponent) {
-    const id  = getComponentIdFromElement(currentElement)
+    const id  = getComponentIdFromElement(currentElement, depth, index)
     const component = components[id]
     if (isCollection) {
       currentElement.sel = 'div'
@@ -955,18 +955,29 @@ function injectComponents(currentElement, components, componentNames, isNestedEl
       return component
     }
   } else if (children.length > 0) {
-    currentElement.children = children.map(child => injectComponents(child, components, componentNames)).flat()
+    currentElement.children = children.map((child, i) => injectComponents(child, components, componentNames, depth + 1, i)).flat()
     return currentElement
   } else {
     return currentElement
   }
 }
 
-function getComponentIdFromElement(el) {
-  const sel   = el.sel
-  const props = (el.data && el.data.props) || {}
-  const id = (props.id && JSON.stringify(props.id)) || JSON.stringify(props)
-  return `${ sel }::${ id }`
+const selMap = new Map()
+function getComponentIdFromElement(el, depth, index) {
+  const sel  = el.sel
+  const name = typeof sel === 'string' ? sel : 'functionComponent'
+  let base = selMap.get(sel)
+  if (!base) {
+    const date = Date.now()
+    const rand = Math.floor(Math.random() * 10000)
+    base = `${date}-${rand}`
+    selMap.set(sel, base)
+  }
+  const uid = `${base}-${depth}-${index}`
+  const props   = (el.data && el.data.props) || {}
+  const id      = (props.id && JSON.stringify(props.id)) || uid
+  const fullId = `${ name }::${ id }`
+  return fullId
 }
 
 
