@@ -5,7 +5,11 @@ import dropRepeats from 'xstream/extra/dropRepeats'
 
 
 
-export default function switchable(factories, name$, initial, switched=['DOM'], stateSourceName='STATE') {
+export default function switchable(factories, name$, initial, opts={}) {
+  const {
+    switched=['DOM'],
+    stateSourceName='STATE'
+  } = opts
   const nameType     = typeof name$
 
   if (!name$) throw new Error(`Missing 'name$' parameter for switchable()`)
