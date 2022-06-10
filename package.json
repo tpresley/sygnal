@@ -1,6 +1,6 @@
 {
   "name": "sygnal",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "description": "An intuitive framework for building fast and small components or applications based on Cycle.js",
   "main": "./dist/index.js",
   "exports": {
