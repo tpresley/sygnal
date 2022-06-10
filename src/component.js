@@ -900,7 +900,7 @@ function getComponents(currentElement, componentNames, depth=0, index=0) {
       if (!props.of)                            throw new Error(`Collection element missing required 'component' property`)
       if (typeof props.of !== 'string' && typeof props.of !== 'function')         throw new Error(`Invalid 'component' property of collection element: found ${ typeof props.of } requires string or component factory function`)
       if (typeof props.of !== 'function' && !componentNames.includes(props.of))   throw new Error(`Specified component for collection not found: ${ props.of }`)
-      if (!attrs.for || !(typeof attrs.for === 'string' || Array.isArray(attrs.for))) console.warn(`No valid array found in the 'value' property of collection ${ props.of }: no collection components will be created`)
+      if (typeof attrs.for !== 'undefined' && !(typeof attrs.for === 'string' || Array.isArray(attrs.for))) console.warn(`No valid array found in the 'value' property of collection ${ typeof props.of === 'string' ? props.of : 'function component' }: no collection components will be created`)
       currentElement.data.isCollection = true
       currentElement.data.props ||= {}
       currentElement.data.props.for = attrs.for
