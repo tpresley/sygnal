@@ -552,8 +552,10 @@ class Component {
 
             const stateGetter = state => {
               const arr = state[field]
+              if (typeof arr === 'undefined') return
               if (!Array.isArray(arr)) {
-                console.warn(`Collection of ${ data.props.of } does not have a valid array in the 'for' property: expects either an array or a string of the name of an array property on the state`)
+                const label = typeof data.props.of === 'string' ? data.props.of : 'components'
+                console.warn(`Collection of ${ label } does not have a valid array in the 'for' property: expects either an array or a string of the name of an array property on the state`)
                 return []
               }
               return arr
@@ -969,5 +971,6 @@ function getComponentIdFromElement(el) {
 
 
 function deepCopyVdom(obj) {
+  if (typeof obj === 'undefined') return obj
   return { ...obj, children: Array.isArray(obj.children) ? obj.children.map(deepCopyVdom) : undefined, data: obj.data && { ...obj.data, componentsInjected: false } }
 }
