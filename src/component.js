@@ -738,6 +738,7 @@ class Component {
       })
       .flatten()
       .filter(val => !!val)
+      .compose(debounce(5))
       .remember()
       .compose(this.log('View Rendered'))
   }
