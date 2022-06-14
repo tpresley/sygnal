@@ -2,16 +2,27 @@
   "name": "sygnal",
   "version": "2.4.0",
   "description": "An intuitive framework for building fast and small components or applications based on Cycle.js",
-  "main": "./dist/index.js",
+  "main": "./dist/index.cjs.js",
+  "module": "./dist/index.esm.js",
+  "browser": "./dist/sygnal.min.js",
   "exports": {
-    ".": "./dist/index.js",
-    "./jsx": "./dist/jsx.js"
+    ".": {
+      "browser": "./dist/sygnal.min.js",
+      "import": "./dist/index.esm.js",
+      "require": "./dist/index.cjs.js"
+    },
+    "./jsx": {
+      "import": "./dist/jsx.esm.js",
+      "require": "./dist/jsx.cjs.js"
+    }
   },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "test": "echo \"Tests to come...\"",
-    "build": "npx babel src --out-dir dist",
-    "build-min": "npx babel src --presets minify --no-comments --out-file dist/sygnal.min.js",
-    "start": "npx babel src --out-dir dist --watch"
+    "build": "npx rollup -c",
+    "start": "npx rollup -c -w"
   },
   "repository": {
     "type": "git",
@@ -40,10 +51,9 @@
     "xstream": "^11.14.0"
   },
   "devDependencies": {
-    "@babel/cli": "^7.17.10",
-    "@babel/core": "^7.17.10",
-    "@babel/preset-env": "^7.17.10",
-    "babel-loader": "^8.2.5",
-    "babel-preset-minify": "^0.5.2"
+    "@rollup/plugin-commonjs": "^22.0.0",
+    "@rollup/plugin-node-resolve": "^13.3.0",
+    "rollup": "^2.75.6",
+    "rollup-plugin-terser": "^7.0.2"
   }
 }
