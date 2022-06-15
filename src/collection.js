@@ -27,12 +27,12 @@ export default function collection(component, stateLense, opts={}) {
           if (combineList.includes(name)) {
             const combined = instances.pickCombine(name)
             if (name === domSourceName && container) {
-              acc.DOM = combined.map(children => {
+              acc[domSourceName] = combined.map(children => {
                 const data = (containerClass) ? { props: { className: containerClass } } : {}
                 return { sel: container, data, children, key, text: undefined, elm: undefined}
               })
             } else {
-              console.warn('Collections without wrapping containers will fail in unpredictable ways when used inside JSX fragments')
+              // console.warn('Collections without wrapping containers will fail in unpredictable ways when used inside JSX fragments')
               acc[name] = combined
             }
           } else {
