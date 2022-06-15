@@ -4,10 +4,8 @@
   "description": "An intuitive framework for building fast and small components or applications based on Cycle.js",
   "main": "./dist/index.cjs.js",
   "module": "./dist/index.esm.js",
-  "browser": "./dist/sygnal.min.js",
   "exports": {
     ".": {
-      "browser": "./dist/sygnal.min.js",
       "import": "./dist/index.esm.js",
       "require": "./dist/index.cjs.js"
     },

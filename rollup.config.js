@@ -9,7 +9,7 @@ export default [
 		input: 'src/index.js',
 		output: {
 			name: 'Sygnal',
-			file: pkg.browser,
+			file: "./dist/sygnal.min.js",
 			format: 'umd'
 		},
 		plugins: [
@@ -25,6 +25,10 @@ export default [
 		output: [
 			{ file: pkg.main, format: 'cjs' },
 			{ file: pkg.module, format: 'es' }
+		],
+		plugins: [
+			resolve(),
+			commonjs()
 		]
 	},
 
@@ -34,6 +38,10 @@ export default [
     output: [
       { file: pkg.exports['./jsx'].require, format: 'cjs' },
       { file: pkg.exports['./jsx'].import, format: 'es' }
-    ]
+    ],
+		plugins: [
+			resolve(),
+			commonjs()
+		]
   }
 ];
