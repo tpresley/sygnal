@@ -560,7 +560,7 @@ class Component {
   }
 
   addCalculated(state) {
-    if (!this.calculated || typeof state !== 'object') return state
+    if (!this.calculated || typeof state !== 'object' || state instanceof Array) return state
     if (typeof this.calculated !== 'object') throw new Error(`'calculated' parameter must be an object mapping calculated state field named to functions`)
     const entries = Object.entries(this.calculated)
     const calculated = entries.reduce((acc, [field, fn]) => {
@@ -575,11 +575,13 @@ class Component {
     return { ...state, ...calculated }
   }
 
-  cleanupCalculated(state) {
-    if (this.storeCalculatedInState) return this.addCalculated(state)
-    if (!this.calculated || !state || typeof state !== 'object') return state
+  cleanupCalculated(incomingState) {
+    if (!incomingState || typeof incomingState !== 'object' || incomingState instanceof Array) return incomingState
+    const state = this.storeCalculatedInState ? this.addCalculated(incomingState) : incomingState
+    const { __props, __children, ...sanitized } = state
+    const copy  = { ...sanitized }
+    if (!this.calculated) return copy
     const keys = Object.keys(this.calculated)
-    const copy = { ...state }
     keys.forEach(key => {
       if (this.initialState && typeof this.initialState[key] !== 'undefined') {
         copy[key] = this.initialState[key]
@@ -601,11 +603,11 @@ class Component {
     renderParams[this.stateSourceName] = stateStream
 
     if (this.sources.props$) {
-      renderParams.props = this.sources.props$
+      renderParams.__props = this.sources.props$
     }
 
     if (this.sources.children$) {
-      renderParams.children = this.sources.children$
+      renderParams.__children = this.sources.children$
     }
 
     const names   = []
@@ -671,17 +673,9 @@ class Component {
           instantiator = this.instantiateCustomComponent.bind(this)
         }
 
-        const { sink$, preventStateUpdates } = instantiator(el, props$, children$)
+        const sink$ = instantiator(el, props$, children$)
 
-        if (preventStateUpdates) {
-          const originalStateSink = sink$[this.stateSourceName]
-          sink$[this.stateSourceName] = originalStateSink.filter(state => {
-            console.warn('State update attempt from component with inderect link to state: Components with state set through HTML properties/attributes cannot update application state directly')
-            return false
-          })
-        }
-
-        sink$[this.DOMSourceName] = this.makeCoordinatedSubComponentDomSink(sink$[this.DOMSourceName])
+        sink$[this.DOMSourceName] = sink$[this.DOMSourceName] ? this.makeCoordinatedSubComponentDomSink(sink$[this.DOMSourceName]) : xs.never()
 
         acc[id] = { sink$, props$, children$ }
 
@@ -724,115 +718,160 @@ class Component {
     const data      = el.data
     const props     = data.props || {}
     const children  = el.children || []
-    let stateSource = new StateSource(this.sources[this.stateSourceName].stream.startWith(this.currentState))
 
-    let preventStateUpdates = false
-    let sink$, field, lense
+    const combined$ = xs.combine(this.sources[this.stateSourceName].stream.startWith(this.currentState), props$, children$)
+      .map(([state, __props, __children]) => {
+        return typeof state === 'object' ? { ...this.addCalculated(state), __props, __children } : { value: state, __props, __children }
+      })
 
-    const stateGetter = state => {
-      const arr = state[field]
-      if (typeof arr === 'undefined') return
-      if (!Array.isArray(arr)) {
-        const label = typeof props.of === 'string' ? props.of : 'components'
-        console.warn(`Collection of ${ label } does not have a valid array in the 'for' property: expects either an array or a string of the name of an array property on the state`)
-        return []
+    const stateSource = new StateSource(combined$)
+    const stateField  = props.from
+    let lense
+
+    const factory = typeof props.of === 'function' ? props.of : this.components[props.of]
+
+    const sanitizeItems = item => {
+      if (typeof item === 'object') {
+        const { __props, __children, ...sanitized } = item
+        return sanitized
+      } else {
+        return item
       }
-      return arr
     }
 
-    if (typeof props.for === 'undefined') {
+    const fieldLense = {
+      get: state => {
+        const { __props, __children } = state
+        if (!Array.isArray(state[stateField])) return []
+        return state[stateField].map(item => {
+          return typeof item === 'object' ? { ...item, __props, __children } : { value: item, __props, __children }
+        })
+      },
+      set: (oldState, newState) => {
+        if (this.calculated && stateField in this.calculated) {
+          console.warn(`Collection sub-component of ${ this.name } attempted to update state on a calculated field '${ stateField }': Update ignored`)
+          return oldState
+        }
+        return { ...oldState, [stateField]: newState.map(sanitizeItems) }
+      }
+    }
+
+    if (stateField === undefined) {
       lense = {
         get: state => {
-          if (!Array.isArray(state)) {
-            console.warn(`Collection sub-component of ${ this.name } has no 'for' attribute and the parent state is not an array: Provide a 'for' attribute with either an array or the name of a state property containing an array`)
-            return []
-          }
+          if (!(state instanceof Array) && state.value && state.value instanceof Array) return state.value
           return state
         },
-        set: (oldState, newState) => newState
-      }
-    } else if (typeof props.for === 'string') {
-      field  = props.for
-      lense = {
-        get: stateGetter,
-        set: (state, arr) => {
-          if (this.calculated && field in this.calculated) {
-            console.warn(`Collection sub-component of ${ this.name } attempted to update state on a calculated field '${ field }': Update ignored`)
-            return state
-          }
-          return { ...state, [field]: arr }
+        set: (oldState, newState) => {
+          console.log('COLL SET', newState)
+          return newState
         }
       }
-    } else {
-      field  = 'for'
-      stateSource = new StateSource(props$.remember())
-      lense = {
-        get: stateGetter,
-        set: (state, arr) => state
+    } else if (typeof stateField === 'string') {
+      if (typeof this.currentState === 'object') {
+        if(!(stateField in this.currentState)) {
+          console.error(`Collection component in ${ this.name } is attempting to use non-existent state property '${ stateField }': To fix this error, specify a valid array property on the state.  Attempting to use parent component state.`)
+          lense = undefined
+        } else if (!Array.isArray(this.currentState[stateField])) {
+          console.warn(`State property '${ stateField }' in collection comopnent of ${ this.name } is not an array: No components will be instantiated in the collection.`)
+          lense = fieldLense
+        } else {
+          lense = fieldLense
+        }
+      } else {
+        if (!Array.isArray(this.currentState[stateField])) {
+          console.warn(`State property '${ stateField }' in collection comopnent of ${ this.name } is not an array: No components will be instantiated in the collection.`)
+          lense = fieldLense
+        } else {
+          lense = fieldLense
+        }
       }
-      preventStateUpdates = true
+    } else if (typeof stateField === 'object') {
+      if (typeof stateField.get !== 'function') {
+        console.error(`Collection component in ${ this.name } has an invalid 'from' field: Expecting 'undefined', a string indicating an array property in the state, or an object with 'get' and 'set' functions for retrieving and setting child state from the current state. Attempting to use parent component state.`)
+        lense = undefined
+      } else {
+        lense = { get: stateField.get, set: stateField.set }
+      }
+    } else {
+      console.error(`Collection component in ${ this.name } has an invalid 'from' field: Expecting 'undefined', a string indicating an array property in the state, or an object with 'get' and 'set' functions for retrieving and setting child state from the current state. Attempting to use parent component state.`)
+      lense = undefined
     }
-    const sources   = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$ }
-    const factory   = typeof props.of === 'function' ? props.of : this.components[props.of]
-    sink$ = collection(factory, lense, { container: null })(sources)
+
+    const sources = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$ }
+    const sink$   = collection(factory, lense, { container: null })(sources)
     if (typeof sink$ !== 'object') {
       throw new Error('Invalid sinks returned from component factory of collection element')
     }
-    return { sink$, preventStateUpdates }
+    return sink$
   }
 
   instantiateSwitchable(el, props$, children$) {
     const data      = el.data
     const props     = data.props  || {}
     const children  = el.children || []
-    let stateSource = new StateSource(this.sources[this.stateSourceName].stream.startWith(this.currentState))
 
-    const stateField        = props.state
-    let preventStateUpdates = false
-    let isolateSwitchable   = false
-    let sink$, lense
+    const combined$ = xs.combine(this.sources[this.stateSourceName].stream.startWith(this.currentState), props$, children$)
+      .map(([state, __props, __children]) => {
+        return typeof state === 'object' ? { ...this.addCalculated(state), __props, __children } : { value: state, __props, __children }
+      })
 
-    if (typeof stateField === 'string') {
-      isolateSwitchable = true
-      lense = {
-        get: state => {
-          return state[stateField]
-        },
-        set: (oldState, newState) => {
-          if (this.calculated && stateField in this.calculated) {
-            console.warn(`Switchable sub-component of ${ this.name } attempted to update state on a calculated field '${ stateField }': Update ignored`)
-            return oldState
-          }
-          return { ...oldState, [stateField]: newState }
+    const stateSource  = new StateSource(combined$)
+    const stateField = props.state
+    let lense
+
+    const fieldLense = {
+      get: state => {
+        const { __props, __children } = state
+        return (typeof state[stateField] === 'object' && !(state[stateField] instanceof Array)) ? { ...state[stateField], __props, __children } : { value: state[stateField], __props, __children }
+      },
+      set: (oldState, newState) => {
+        if (this.calculated && stateField in this.calculated) {
+          console.warn(`Switchable sub-component of ${ this.name } attempted to update state on a calculated field '${ stateField }': Update ignored`)
+          return oldState
         }
+        console.log('SWITCH SET', newState)
+        if (typeof newState !== 'object' || newState instanceof Array) return { ...oldState, [stateField]: newState }
+        const { __props, __children, ...sanitized } = newState
+        return { ...oldState, [stateField]: sanitized }
       }
-      preventStateUpdates = false
-    } else if (typeof stateField === 'undefined') {
-      isolateSwitchable = true
-      lense = {
-        get: state => state,
-        set: (oldState, newState) => newState
-      }
-      preventStateUpdates = false
-    } else if (typeof stateField === 'object') {
-      stateSource = new StateSource(props$.map(props => props.state))
-    } else {
-      throw new Error(`Invalid state provided to collection sub-component of ${ this.name }: Expecting string, object, or none, but found ${ typeof stateField }`)
     }
 
-    const switchableComponents = data.props.of
-    const sources = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$ }
-    if (isolateSwitchable) {
-      sink$ = isolate(switchable(switchableComponents, props$.map(props => props.current)), { [this.stateSourceName]: lense })(sources)
-    } else {
-      sink$ = switchable(switchableComponents, props$.map(props => props.current))(sources)
+    const baseLense = {
+      get: state => state,
+      set: (oldState, newState) => {
+        if (typeof newState !== 'object' || newState instanceof Array) return newState
+        const { __props, __children, ...sanitized } = newState
+        return sanitized
+      }
     }
+
+    if (typeof stateField === 'undefined') {
+      lense = baseLense
+    } else if (typeof stateField === 'string') {
+      lense = fieldLense
+    } else if (typeof stateField === 'object') {
+      if (typeof stateField.get !== 'function') {
+        console.error(`Switchable component in ${ this.name } has an invalid 'state' field: Expecting 'undefined', a string indicating an array property in the state, or an object with 'get' and 'set' functions for retrieving and setting sub-component state from the current state. Attempting to use parent component state.`)
+        lense = baseLense
+      } else {
+        lense = { get: stateField.get, set: stateField.set }
+      }
+    } else {
+      console.error(`Invalid state provided to switchable sub-component of ${ this.name }: Expecting string, object, or undefined, but found ${ typeof stateField }. Attempting to use parent component state.`)
+      lense = baseLense
+    }
+
+    const switchableComponents = props.of
+    const sources = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$ }
+
+    const sink$ = isolate(switchable(switchableComponents, props$.map(props => props.current)), { [this.stateSourceName]: lense })(sources)
 
     if (typeof sink$ !== 'object') {
       throw new Error('Invalid sinks returned from component factory of switchable element')
     }
 
-    return { sink$, preventStateUpdates }
+    return sink$
   }
 
   instantiateCustomComponent(el, props$, children$) {
@@ -840,43 +879,71 @@ class Component {
     const data      = el.data
     const props     = data.props  || {}
     const children  = el.children || []
-    let stateSource = new StateSource(this.sources[this.stateSourceName].stream.startWith(this.currentState))
+
+    const combined$ = xs.combine(this.sources[this.stateSourceName].stream.startWith(this.currentState), props$, children$)
+      .map(([state, __props, __children]) => {
+        return typeof state === 'object' ? { ...this.addCalculated(state), __props, __children } : { value: state, __props, __children }
+      })
+
+    const stateSource = new StateSource(combined$)
+    const stateField  = props.state
 
     const factory   = componentName === 'sygnal-factory' ? props.sygnalFactory : (this.components[componentName] || props.sygnalFactory)
-    if (!factory && !isCollection && !isSwitchable) {
+    if (!factory) {
       if (componentName === 'sygnal-factory') throw new Error(`Component not found on element with Capitalized selector and nameless function: JSX transpilation replaces selectors starting with upper case letters with functions in-scope with the same name, Sygnal cannot see the name of the resulting component.`)
       throw new Error(`Component not found: ${ componentName }`)
     }
 
-    let preventStateUpdates = false
-    let sink$, lense
+    let lense
 
-    const { state: stateProp, sygnalFactory, id, ...sanitizedProps } = props
-    if (typeof stateProp === 'undefined' && (typeof sanitizedProps !== 'object' || Object.keys(sanitizedProps).length === 0)) {
-      const sources = { ...this.sources, [this.stateSourceName]: stateSource, props$: xs.never().startWith(null), children$ }
-      sink$ = factory(sources)
-      preventStateUpdates = false
-    } else {
-      const lense = (props) => {
-        const state = props.state
-        if (typeof state === 'undefined') return props
-        if (typeof state !== 'object')    return state
-
-        const copy = { ...props }
-        delete copy.state
-        return { ...copy, ...state }
+    const fieldLense = {
+      get: state => {
+        const { __props, __children } = state
+        return typeof state[stateField] === 'object' ? { ...state[stateField], __props, __children } : { value: state[stateField], __props, __children }
+      },
+      set: (oldState, newState) => {
+        if (this.calculated && stateField in this.calculated) {
+          console.warn(`Sub-component of ${ this.name } attempted to update state on a calculated field '${ stateField }': Update ignored`)
+          return oldState
+        }
+        return { ...oldState, [stateField]: newState }
       }
-      stateSource = new StateSource(props$.map(lense))
-      const sources   = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$ }
-      sink$ = factory(sources)
     }
+
+    const baseLense = {
+      get: state => state,
+      set: (oldState, newState) => {
+        if (typeof newState !== 'object' || newState instanceof Array) return newState
+        const { __props, __children, ...sanitized } = newState
+        return sanitized
+      }
+    }
+
+    if (typeof stateField === 'undefined') {
+      lense = baseLense
+    } else if (typeof stateField === 'string') {
+      lense = fieldLense
+    } else if (typeof stateField === 'object') {
+      if (typeof stateField.get !== 'function') {
+        console.error(`Sub-component in ${ this.name } has an invalid 'state' field: Expecting 'undefined', a string indicating an array property in the state, or an object with 'get' and 'set' functions for retrieving and setting sub-component state from the current state. Attempting to use parent component state.`)
+        lense = baseLense
+      } else {
+        lense = { get: stateField.get, set: stateField.set }
+      }
+    } else {
+      console.error(`Invalid state provided to sub-component of ${ this.name }: Expecting string, object, or undefined, but found ${ typeof stateField }. Attempting to use parent component state.`)
+      lense = baseLense
+    }
+
+    const sources = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$ }
+    const sink$   = isolate(factory, { [this.stateSourceName]: lense })(sources)
 
     if (typeof sink$ !== 'object') {
       const name = componentName === 'sygnal-factory' ? 'custom element' : componentName
       throw new Error('Invalid sinks returned from component factory:', name)
     }
 
-    return { sink$, preventStateUpdates }
+    return sink$
   }
 
   renderVdom(componentInstances$) {
@@ -976,11 +1043,9 @@ function getComponents(currentElement, componentNames, depth=0, index=0) {
       if (!props.of)                            throw new Error(`Collection element missing required 'component' property`)
       if (typeof props.of !== 'string' && typeof props.of !== 'function')         throw new Error(`Invalid 'component' property of collection element: found ${ typeof props.of } requires string or component factory function`)
       if (typeof props.of !== 'function' && !componentNames.includes(props.of))   throw new Error(`Specified component for collection not found: ${ props.of }`)
-      if (typeof attrs.for !== 'undefined' && !(typeof attrs.for === 'string' || Array.isArray(attrs.for))) console.warn(`No valid array found in the 'value' property of collection ${ typeof props.of === 'string' ? props.of : 'function component' }: no collection components will be created`)
+      if (typeof props.from !== 'undefined' && !(typeof props.from === 'string' || Array.isArray(props.from))) console.warn(`No valid array found in the 'value' property of collection ${ typeof props.of === 'string' ? props.of : 'function component' }: no collection components will be created`)
       currentElement.data.isCollection = true
       currentElement.data.props ||= {}
-      currentElement.data.props.for = attrs.for
-      currentElement.data.attrs = undefined
     } else if (isSwitchable) {
       if (!props.of)                    throw new Error(`Switchable element missing required 'of' property`)
       if (typeof props.of !== 'object') throw new Error(`Invalid 'components' property of switchable element: found ${ typeof props.of } requires object mapping names to component factories`)
