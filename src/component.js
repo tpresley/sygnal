@@ -769,7 +769,7 @@ class Component {
       }
     } else if (typeof stateField === 'string') {
       if (typeof this.currentState === 'object') {
-        if(!(stateField in this.currentState)) {
+        if(!(stateField in this.currentState) && !(stateField in this.calculated)) {
           console.error(`Collection component in ${ this.name } is attempting to use non-existent state property '${ stateField }': To fix this error, specify a valid array property on the state.  Attempting to use parent component state.`)
           lense = undefined
         } else if (!Array.isArray(this.currentState[stateField])) {
@@ -780,7 +780,7 @@ class Component {
         }
       } else {
         if (!Array.isArray(this.currentState[stateField])) {
-          console.warn(`State property '${ stateField }' in collection comopnent of ${ this.name } is not an array: No components will be instantiated in the collection.`)
+          console.warn(`State property '${ stateField }' in collection component of ${ this.name } is not an array: No components will be instantiated in the collection.`)
           lense = fieldLense
         } else {
           lense = fieldLense
