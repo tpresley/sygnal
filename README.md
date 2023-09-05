@@ -123,6 +123,22 @@ Alternatively, you can use any other bundler of your choice (Webpack, Babel, Rol
 }
 ```
 
+NOTE: Some minifiers will cause JSX fragments to fail by renaming the Fragment pragma function. This can be fixed by preventing renaming of 'Fragment'. For Vite this is done by installing terser, and adding the following to your vite.config.js file:
+
+```javascript
+{
+  ...,
+  build: {
+    minify: 'terser',
+    terserOptions: {
+      mangle: {
+        reserved: ['Fragment'],
+      },
+    }
+  },
+}
+```
+
 
 ## Initialization
 
