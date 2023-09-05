@@ -12,17 +12,6 @@ import debounce from 'xstream/extra/debounce.js'
 import { default as dropRepeats } from 'xstream/extra/dropRepeats.js'
 
 
-// import syntax has bugs for xstream in Node context
-// this attempts to normalize to work in both Node and browser
-// if (!xs.never && xs.default && xs.default.never) {
-//   xs.never = xs.default.never
-//   xs.merge = xs.default.merge
-//   xs.of    = xs.default.of
-// }
-// const concat = (Concat && Concat.default) ? Concat.default : Concat
-// const delay  = (Delay && Delay.default) ? Delay.default : Delay
-// const dropRepeats = (DropRepeats && DropRepeats.default) ? DropRepeats.default : DropRepeats
-
 const ENVIRONMENT = ((typeof window != 'undefined' && window) || (process && process.env)) || {}
 
 
@@ -82,6 +71,7 @@ class Component {
   // response
   // view
   // children
+  // components
   // initialState
   // calculated
   // storeCalculatedInState
@@ -138,6 +128,8 @@ class Component {
       }))
     }
 
+    // TODO: this is a hack to allow the root component to be created without an intent or model
+    //       refactor to avoid using a global variable
     if (IS_ROOT_COMPONENT && typeof this.intent === 'undefined' && typeof this.model === 'undefined') {
       this.initialState = initialState || true
       this.intent = _ => ({__NOOP_ACTION__:xs.never()})
@@ -763,7 +755,6 @@ class Component {
           return state
         },
         set: (oldState, newState) => {
-          console.log('COLL SET', newState)
           return newState
         }
       }
@@ -830,7 +821,6 @@ class Component {
           console.warn(`Switchable sub-component of ${ this.name } attempted to update state on a calculated field '${ stateField }': Update ignored`)
           return oldState
         }
-        console.log('SWITCH SET', newState)
         if (typeof newState !== 'object' || newState instanceof Array) return { ...oldState, [stateField]: newState }
         const { __props, __children, ...sanitized } = newState
         return { ...oldState, [stateField]: sanitized }
