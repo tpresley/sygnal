@@ -1048,7 +1048,7 @@ function getComponents(currentElement, componentNames, depth=0, index=0) {
       currentElement.data.props ||= {}
     } else if (isSwitchable) {
       if (!props.of)                    throw new Error(`Switchable element missing required 'of' property`)
-      if (typeof props.of !== 'object') throw new Error(`Invalid 'components' property of switchable element: found ${ typeof props.of } requires object mapping names to component factories`)
+      if (typeof props.of !== 'object') throw new Error(`Invalid 'of' property of switchable element: found ${ typeof props.of } requires object mapping names to component factories`)
       const switchableComponents = Object.values(props.of)
       if (!switchableComponents.every(comp => typeof comp === 'function')) throw new Error(`One or more components provided to switchable element is not a valid component factory`)
       if (!props.current || (typeof props.current !== 'string' && typeof props.current !== 'function')) throw new Error(`Missing or invalid 'current' property for switchable element: found '${ typeof props.current }' requires string or function`)
