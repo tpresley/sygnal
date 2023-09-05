@@ -782,7 +782,17 @@ class Component {
         console.error(`Collection component in ${ this.name } has an invalid 'from' field: Expecting 'undefined', a string indicating an array property in the state, or an object with 'get' and 'set' functions for retrieving and setting child state from the current state. Attempting to use parent component state.`)
         lense = undefined
       } else {
-        lense = { get: stateField.get, set: stateField.set }
+        lense = {
+          get: (state) => {
+            const newState = stateField.get(state)
+            if (!Array.isArray(newState)) {
+              console.warn(`State getter function in collection component of ${ this.name } did not return an array: No components will be instantiated in the collection. Returned value:`, newState)
+              return []
+            }
+            return newState
+          },
+          set: stateField.set
+        }
       }
     } else {
       console.error(`Collection component in ${ this.name } has an invalid 'from' field: Expecting 'undefined', a string indicating an array property in the state, or an object with 'get' and 'set' functions for retrieving and setting child state from the current state. Attempting to use parent component state.`)
@@ -1033,7 +1043,7 @@ function getComponents(currentElement, componentNames, depth=0, index=0) {
       if (!props.of)                            throw new Error(`Collection element missing required 'component' property`)
       if (typeof props.of !== 'string' && typeof props.of !== 'function')         throw new Error(`Invalid 'component' property of collection element: found ${ typeof props.of } requires string or component factory function`)
       if (typeof props.of !== 'function' && !componentNames.includes(props.of))   throw new Error(`Specified component for collection not found: ${ props.of }`)
-      if (typeof props.from !== 'undefined' && !(typeof props.from === 'string' || Array.isArray(props.from))) console.warn(`No valid array found in the 'value' property of collection ${ typeof props.of === 'string' ? props.of : 'function component' }: no collection components will be created`)
+      if (typeof props.from !== 'undefined' && !(typeof props.from === 'string' || Array.isArray(props.from) || typeof props.from.get === 'function')) console.warn(`No valid array found for collection ${ typeof props.of === 'string' ? props.of : 'function component' }: no collection components will be created`, props.from)
       currentElement.data.isCollection = true
       currentElement.data.props ||= {}
     } else if (isSwitchable) {
