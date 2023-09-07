@@ -327,6 +327,9 @@ class Component {
     }
 
     const initial  = { type: INITIALIZE_ACTION, data: this.initialState }
+    if (this.isSubComponent && this.initialState) {
+      console.warn(`[${ this.name }] Initial state provided to sub-component. This will overwrite any state provided by the parent component.`)
+    }
     const shimmed$ = this.initialState ? concat(xs.of(initial), this.action$).compose(delay(0)) : this.action$
     const onState  = this.makeOnAction(shimmed$, true, this.action$)
     const onNormal = this.makeOnAction(this.action$, false, this.action$)
