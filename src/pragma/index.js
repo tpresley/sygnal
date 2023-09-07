@@ -82,7 +82,7 @@ export const createElementWithModules = (modules) => {
   return (sel, data, ...children) => {
     if (typeof sel === 'undefined') {
       sel = 'UNDEFINED'
-      cnosole.error('JSX Error: Capitalized HTML element without corresponding Sygnal factory.  Components with names where the first letter is capital MUST be defined or included at the parent component\'s file scope.')
+      console.error('JSX Error: Capitalized HTML element without corresponding Sygnal factory.  Components with names where the first letter is capital MUST be defined or included at the parent component\'s file scope.')
     }
     if (is.fun(sel)) {
       if (sel.name === 'Fragment') {

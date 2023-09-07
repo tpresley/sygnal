@@ -22,6 +22,7 @@ const HYDRATE_ACTION          = 'HYDRATE'
 
 
 let IS_ROOT_COMPONENT = true
+let COMPONENT_COUNT   = 0
 
 
 export const ABORT = '~#~#~ABORT~#~#~'
@@ -45,16 +46,19 @@ export default function component (opts) {
   }
 
   const currySources = typeof sources === 'undefined'
+  let returnFunction
 
   if (typeof fixedIsolateOpts == 'object') {
     const wrapped = (sources) => {
       const fixedOpts = { ...opts, sources }
       return (new Component(fixedOpts)).sinks
     }
-    return currySources ? isolate(wrapped, fixedIsolateOpts) : isolate(wrapped, fixedIsolateOpts)(sources)
+    returnFunction = currySources ? isolate(wrapped, fixedIsolateOpts) : isolate(wrapped, fixedIsolateOpts)(sources)
   } else {
-    return currySources ? (sources) => (new Component({ ...opts, sources })).sinks : (new Component(opts)).sinks
+    returnFunction = currySources ? (sources) => (new Component({ ...opts, sources })).sinks : (new Component(opts)).sinks
   }
+
+  return returnFunction
 }
 
 
@@ -152,6 +156,12 @@ class Component {
     this.initSubComponentsRendered$()
     this.initVdom$()
     this.initSinks()
+
+    this.sinks.__index = COMPONENT_COUNT++
+
+    if (ENVIRONMENT.DEBUG === true) {
+      console.log(`[${ this.name }] Instantiated (#${ this.sinks.__index })`)
+    }
   }
 
   initIntent$() {
@@ -1062,7 +1072,7 @@ function getComponents(currentElement, componentNames, depth=0, index=0) {
   }
 
   if (children.length > 0) {
-    children.map((child, i) => getComponents(child, componentNames, depth + 1, i))
+    children.map((child, i) => getComponents(child, componentNames, depth + 1, index + i))
             .forEach((child) => {
               Object.entries(child).forEach(([id, el]) => found[id] = el)
             })
@@ -1071,7 +1081,7 @@ function getComponents(currentElement, componentNames, depth=0, index=0) {
   return found
 }
 
-function injectComponents(currentElement, components, componentNames, depth=0, index) {
+function injectComponents(currentElement, components, componentNames, depth=0, index=0) {
   if (!currentElement) return
   if (currentElement.data?.componentsInjected) return currentElement
   if (depth === 0 && currentElement.data) currentElement.data.componentsInjected = true
@@ -1097,7 +1107,7 @@ function injectComponents(currentElement, components, componentNames, depth=0, i
       return component
     }
   } else if (children.length > 0) {
-    currentElement.children = children.map((child, i) => injectComponents(child, components, componentNames, depth + 1, i)).flat()
+    currentElement.children = children.map((child, i) => injectComponents(child, components, componentNames, depth + 1, index + i)).flat()
     return currentElement
   } else {
     return currentElement
