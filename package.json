@@ -1,6 +1,6 @@
 {
   "name": "sygnal",
-  "version": "2.6.5",
+  "version": "2.6.6",
   "description": "An intuitive framework for building fast and small components or applications based on Cycle.js",
   "main": "./dist/index.cjs.js",
   "module": "./dist/index.esm.js",
