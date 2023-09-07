@@ -516,14 +516,15 @@ class Component {
       let returnStream$
       if (typeof reducer === 'function') {
         returnStream$ = filtered$.map(action => {
-          const next = (type, data) => {
+          const next = (type, data, delay=10) => {
+            if (typeof delay !== 'number') throw new Error(`[${ this.name } ] Invalid delay value provided to next() function in model action '${ name }'. Must be a number in ms.`)
             const _reqId = action._reqId || (action.req && action.req.id)
             const _data  = _reqId ? (typeof data == 'object' ? { ...data, _reqId, _action: name } : { data, _reqId, _action: name }) : data
             // put the "next" action request at the end of the event loop so the "current" action completes first
             setTimeout(() => {
               // push the "next" action request into the action$ stream
               rootAction$.shamefullySendNext({ type, data: _data })
-            }, 10)
+            }, delay)
           }
 
           let data = action.data
