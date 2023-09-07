@@ -466,7 +466,7 @@ class Component {
   initSubComponentsRendered$() {
     const stream = xs.create({
       start: (listener) => {
-        this.subComponentsRendered = listener.next.bind(listener)
+        this.triggerSubComponentsRendered = listener.next.bind(listener)
       },
       stop: _ => {
 
@@ -711,7 +711,7 @@ class Component {
       .map(state => remembered$)
       .compose(debounce(10))
       .flatten()
-      .debug(_ => this.subComponentsRendered())
+      .debug(_ => this.triggerSubComponentsRendered())
       .remember()
 
     return coordinated
