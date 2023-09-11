@@ -95,7 +95,6 @@ class Component {
   // subComponentSink$
   // unmountRequest$
   // unmount()
-  // hasBeenRendered
 
   // [ INSTANTIATED STREAM OPERATOR ]
   // log
@@ -122,16 +121,6 @@ class Component {
     this.stateSourceName   = stateSourceName
     this.requestSourceName = requestSourceName
     this.sourceNames       = Object.keys(sources)
-    this.hasBeenRendered   = false
-    this.unmountRequest$   = xs.create({
-      start: listener => {
-        this.unmount = _ => {
-          if (ENVIRONMENT.DEBUG) console.log(`[${ this.name }] Unmounting`)
-          listener.next(null)
-        }
-      },
-      stop: _ => {}
-    })
 
     this.isSubComponent = this.sourceNames.includes('props$')
 
@@ -144,23 +133,6 @@ class Component {
         return val
       }))
     }
-
-    // This is a bit hacky, but it works. We need to know when the DOM has stopped rendering so we can unmount the component.
-    // The DOMSource has a private property called _ils (internal listeners) that is an array of all the listeners that have been added to the stream.
-    // When the DOMSource stops rendering, it removes all the listeners from the stream, so we can use that to know when the DOM has stopped rendering.
-    const DOMStoppedListener = {
-      next: _ => {
-        if (this.hasBeenRendered && this.vdom$?._ils?.length === 0) {
-          if (ENVIRONMENT.DEBUG) console.log(`[${ this.name }] Removed from DOM`)
-          this.hasBeenRendered = false
-          this.unmount?.()
-        }
-      },
-      error: _ => {},
-      complete: _ => {}
-    }
-    // we use setDebugListener() to avoid subscribing to the stream, which would cause the stream to continue emitting values
-    state$ && state$.setDebugListener(DOMStoppedListener)
 
     // TODO: this is a hack to allow the root component to be created without an intent or model
     //       refactor to avoid using a global variable
@@ -392,7 +364,6 @@ class Component {
         const on$ = on(action, reducer)
 
         const wrapped$ = on$
-          .endWhen(this.unmountRequest$)
           .compose(this.log(data => {
             if (isStateSink) {
               return `State reducer added: <${ action }>`
@@ -691,11 +662,20 @@ class Component {
         const isCollection = data.isCollection || false
         const isSwitchable = data.isSwitchable || false
 
+        const addSinks = (sinks) => {
+          Object.entries(sinks).map(([name, stream]) => {
+            sinkArrsByType[name] ||= []
+            if (name !== this.DOMSourceName) sinkArrsByType[name].push(stream)
+          })
+        }
+
+
         if (previousComponents[id]) {
           const entry = previousComponents[id]
           acc[id] = entry
           entry.props$.shamefullySendNext(props)
           entry.children$.shamefullySendNext(children)
+          addSinks(entry.sink$)
           return acc
         }
 
@@ -718,10 +698,7 @@ class Component {
 
         acc[id] = { sink$, props$, children$ }
 
-        Object.entries(sink$).map(([name, stream]) => {
-          sinkArrsByType[name] ||= []
-          if (name !== this.DOMSourceName) sinkArrsByType[name].push(stream)
-        })
+        addSinks(sink$)
 
         return acc
       }, rootEntry)
@@ -1030,7 +1007,6 @@ class Component {
       .flatten()
       .filter(val => !!val)
       .remember()
-      .debug(_ => this.hasBeenRendered = true)
       .compose(this.log('View Rendered'))
   }
 
