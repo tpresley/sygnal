@@ -196,9 +196,7 @@ class Component {
       runner = xs.merge(xs.never(), ...mapped)
     }
 
-    const action$  = ((runner instanceof Stream) ? runner : (runner.apply && runner(this.sources) || xs.never()))
-    const wrapped$ = concat(xs.of({ type: BOOTSTRAP_ACTION }), action$)
-      .compose(delay(10))
+    const bootstrap$ = xs.of({ type: BOOTSTRAP_ACTION }).compose(delay(10))
 
     let initialApiData
     if (requestSource && typeof requestSource.select == 'function') {
