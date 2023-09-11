@@ -21,7 +21,6 @@ const INITIALIZE_ACTION       = 'INITIALIZE'
 const HYDRATE_ACTION          = 'HYDRATE'
 
 
-let IS_ROOT_COMPONENT = true
 let COMPONENT_COUNT   = 0
 
 
@@ -134,16 +133,15 @@ class Component {
       }))
     }
 
-    // TODO: this is a hack to allow the root component to be created without an intent or model
-    //       refactor to avoid using a global variable
-    if (IS_ROOT_COMPONENT && typeof this.intent === 'undefined' && typeof this.model === 'undefined') {
+    // Ensure that the root component has an intent and model
+    // This is necessary to ensure that the component tree's state sink is subscribed to
+    if (!this.isSubComponent && typeof this.intent === 'undefined' && typeof this.model === 'undefined') {
       this.initialState = initialState || true
       this.intent = _ => ({__NOOP_ACTION__:xs.never()})
       this.model = {
         __NOOP_ACTION__: state => state
       }
     }
-    IS_ROOT_COMPONENT = false
 
     this.log = makeLog(name)
 
