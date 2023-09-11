@@ -699,8 +699,6 @@ class Component {
           return acc
         }
 
-        if (!this.isSubComponent) console.log(`[${ this.name }] Instantiating sub-component:`, id, props)
-
         const props$    = xs.create().startWith(props)
         const children$ = xs.create().startWith(children)
 
