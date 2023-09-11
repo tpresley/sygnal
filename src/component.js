@@ -1108,6 +1108,7 @@ function getComponents(currentElement, componentNames, depth=0, index=0) {
     } else {
 
     }
+    if (typeof props.key === 'undefined') currentElement.data.props.key = id
     found[id] = currentElement
   }
 
