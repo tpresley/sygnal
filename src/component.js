@@ -332,8 +332,8 @@ class Component {
       console.warn(`[${ this.name }] Initial state provided to sub-component. This will overwrite any state provided by the parent component.`)
     }
     const shimmed$ = this.initialState ? concat(xs.of(initial), this.action$).compose(delay(0)) : this.action$
-    const onState  = this.makeOnAction(shimmed$, true, this.action$)
-    const onNormal = this.makeOnAction(this.action$, false, this.action$)
+    const onState  = () => this.makeOnAction(shimmed$, true, this.action$)
+    const onNormal = () => this.makeOnAction(this.action$, false, this.action$)
 
 
     const modelEntries = Object.entries(this.model)
@@ -358,10 +358,10 @@ class Component {
 
         const isStateSink = (sink == this.stateSourceName)
 
-        const on = isStateSink ? onState : onNormal
-        const onned = on(action, reducer)
+        const on  = isStateSink ? onState() : onNormal()
+        const on$ = on(action, reducer)
 
-        const wrapped = onned.compose(this.log(data => {
+        const wrapped$ = on$
             if (isStateSink) {
               return `State reducer added: <${ action }>`
             } else {
@@ -371,9 +371,9 @@ class Component {
           }))
 
         if (Array.isArray(reducers[sink])) {
-          reducers[sink].push(wrapped)
+          reducers[sink].push(wrapped$)
         } else {
-          reducers[sink] = [wrapped]
+          reducers[sink] = [wrapped$]
         }
       })
     })
