@@ -81,6 +81,7 @@ class Component {
   // DOMSourceName
   // stateSourceName
   // requestSourceName
+  // debug
 
   // [ PRIVATE / CALCULATED VALUES ]
   // sourceNames
@@ -94,6 +95,7 @@ class Component {
   // subComponentSink$
   // unmountRequest$
   // unmount()
+  // _debug
 
   // [ INSTANTIATED STREAM OPERATOR ]
   // log
@@ -101,7 +103,7 @@ class Component {
   // [ OUTPUT ]
   // sinks
 
-  constructor({ name='NO NAME', sources, intent, request, model, response, view, children={}, components={}, initialState, calculated, storeCalculatedInState=true, DOMSourceName='DOM', stateSourceName='STATE', requestSourceName='HTTP' }) {
+  constructor({ name='NO NAME', sources, intent, request, model, response, view, children={}, components={}, initialState, calculated, storeCalculatedInState=true, DOMSourceName='DOM', stateSourceName='STATE', requestSourceName='HTTP', debug=false }) {
     if (!sources || typeof sources != 'object') throw new Error('Missing or invalid sources')
 
     this.name       = name
@@ -120,6 +122,7 @@ class Component {
     this.stateSourceName   = stateSourceName
     this.requestSourceName = requestSourceName
     this.sourceNames       = Object.keys(sources)
+    this._debug             = debug
 
     this.isSubComponent = this.sourceNames.includes('props$')
 
@@ -143,6 +146,7 @@ class Component {
       }
     }
 
+    this.addCalculated = this.createMemoizedAddCalculated()
     this.log = makeLog(name)
 
     this.initIntent$()
@@ -159,9 +163,13 @@ class Component {
 
     this.sinks.__index = COMPONENT_COUNT++
 
-    if (ENVIRONMENT.DEBUG === true) {
+    if (debug) {
       console.log(`[${ this.name }] Instantiated (#${ this.sinks.__index })`)
     }
+  }
+
+  get debug() {
+    return this._debug || (ENVIRONMENT.DEBUG === 'true' || ENVIRONMENT.DEBUG === true)
   }
 
   initIntent$() {
@@ -261,7 +269,7 @@ class Component {
 
               console.log(`${ timestamp } ${ ip } ${ req.method } ${ req.url }`)
 
-              if (ENVIRONMENT.DEBUG) {
+              if (this.debug) {
                 this.action$.setDebugListener({next: ({ type }) => console.log(`[${ this.name }] Action from ${ this.requestSourceName } request: <${ type }>`)})
               }
 
@@ -567,20 +575,39 @@ class Component {
     }
   }
 
-  addCalculated(state) {
-    if (!this.calculated || typeof state !== 'object' || state instanceof Array) return state
-    if (typeof this.calculated !== 'object') throw new Error(`'calculated' parameter must be an object mapping calculated state field named to functions`)
-    const entries = Object.entries(this.calculated)
-    const calculated = entries.reduce((acc, [field, fn]) => {
-      if (typeof fn !== 'function') throw new Error(`Missing or invalid calculator function for calculated field '${ field }`)
-      try {
-        acc[field] = fn(state)
-      } catch(e) {
-        console.warn(`Calculated field '${ field }' threw an error during calculation: ${ e.message }`)
+  createMemoizedAddCalculated() {
+    let lastState
+    let lastResult
+
+    return function(state) {
+      if (!this.calculated || typeof state !== 'object' || state instanceof Array) return state
+      if (state === lastState) {
+        return lastResult
       }
-      return acc
-    }, {})
-    return { ...state, ...calculated }
+      if (typeof this.calculated !== 'object') throw new Error(`'calculated' parameter must be an object mapping calculated state field named to functions`)
+      const entries = Object.entries(this.calculated)
+      if (entries.length === 0) {
+        lastState = state
+        lastResult = state
+        return state
+      }
+      const calculated = entries.reduce((acc, [field, fn]) => {
+        if (typeof fn !== 'function') throw new Error(`Missing or invalid calculator function for calculated field '${ field }`)
+        try {
+          acc[field] = fn(state)
+        } catch(e) {
+          console.warn(`Calculated field '${ field }' threw an error during calculation: ${ e.message }`)
+        }
+        return acc
+      }, {})
+
+      const newState = { ...state, ...calculated }
+
+      lastState = state
+      lastResult = newState
+
+      return newState
+    }
   }
 
   cleanupCalculated(incomingState) {
@@ -607,15 +634,33 @@ class Component {
     const enhancedState = state && state.isolateSource(state, { get: state => this.addCalculated(state) })
     const stateStream   = (enhancedState && enhancedState.stream) || xs.never()
 
-    renderParams.state                 = stateStream
-    renderParams[this.stateSourceName] = stateStream
+    const objRepeatChecker = (a, b) => {
+      const { state, sygnalFactory, __props, __children, ...sanitized } = a
+      const keys = Object.keys(sanitized)
+      if (keys.length === 0) {
+        const { state, sygnalFactory, __props, __children, ...sanitizedB } = b
+        return Object.keys(sanitizedB).length === 0
+      }
+      return keys.every(key => a[key] === b[key])
+    }
+    
+    const arrRepeatChecker = (a, b) => {
+      if (a === b) return true
+      if (a.length !== b.length) return false
+      for (let i=0; i < a.length; i++) {
+        if (a[i] !== b[i]) return false
+      }
+      return true
+    }
+    
+    renderParams.state  = stateStream.compose(dropRepeats(objRepeatChecker))
 
     if (this.sources.props$) {
-      renderParams.__props = this.sources.props$
+      renderParams.__props = this.sources.props$.compose(dropRepeats(objRepeatChecker))
     }
 
     if (this.sources.children$) {
-      renderParams.__children = this.sources.children$
+      renderParams.__children = this.sources.children$.compose(dropRepeats(arrRepeatChecker))
     }
 
     const names   = []
@@ -631,6 +676,7 @@ class Component {
       .map(arr => {
         return names.reduce((acc, name, index) => {
           acc[name] = arr[index]
+          if (name === 'state') acc[this.stateSourceName] = arr[index]
           return acc
         }, {})
       })
@@ -1033,7 +1079,7 @@ class Component {
     const fixedMsg = (typeof msg === 'function') ? msg : _ => msg
     return stream => {
       return stream.debug(msg => {
-        if (ENVIRONMENT.DEBUG == 'true' || ENVIRONMENT.DEBUG === true) {
+        if (this.debug) {
           console.log(`[${context}] ${fixedMsg(msg)}`)
         }
       })
