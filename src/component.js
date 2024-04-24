@@ -57,6 +57,9 @@ export default function component (opts) {
     returnFunction = currySources ? (sources) => (new Component({ ...opts, sources })).sinks : (new Component(opts)).sinks
   }
 
+  returnFunction.componentName = name
+  returnFunction.isSygnalComponent = true
+
   return returnFunction
 }
 
@@ -1098,7 +1101,7 @@ function getComponents(currentElement, componentNames, depth=0, index=0) {
   const sel          = currentElement.sel
   const isCollection = sel && sel.toLowerCase() === 'collection'
   const isSwitchable = sel && sel.toLowerCase() === 'switchable'
-  const isComponent  = sel && (['collection', 'switchable', 'sygnal-factory', ...componentNames].includes(currentElement.sel)) || typeof currentElement.data?.props?.sygnalFactory === 'function'
+  const isComponent  = sel && (['collection', 'switchable', 'sygnal-factory', ...componentNames].includes(sel)) || typeof currentElement.data?.props?.sygnalFactory === 'function'
   const props        = (currentElement.data && currentElement.data.props) || {}
   const attrs        = (currentElement.data && currentElement.data.attrs) || {}
   const children     = currentElement.children || []
@@ -1184,9 +1187,9 @@ function getComponentIdFromElement(el, depth, index) {
     base = `${date}-${rand}`
     selMap.set(sel, base)
   }
-  const uid = `${base}-${depth}-${index}`
-  const props   = (el.data && el.data.props) || {}
-  const id      = (props.id && JSON.stringify(props.id)) || uid
+  const uid    = `${base}-${depth}-${index}`
+  const props  = (el.data && el.data.props) || {}
+  const id     = (props.id && JSON.stringify(props.id)) || uid
   const fullId = `${ name }::${ id }`
   return fullId
 }

@@ -89,7 +89,7 @@ export const createElementWithModules = (modules) => {
         return sel(data || {}, children)
       }
       const factory = sel
-      sel = sel.name || 'sygnal-factory'
+      sel = sel.name || sel.componentName || 'sygnal-factory'
       data ||= {}
       data.sygnalFactory = factory
     }
