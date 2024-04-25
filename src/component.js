@@ -74,6 +74,7 @@ class Component {
   // intent
   // request
   // model
+  // context
   // response
   // view
   // children
@@ -91,10 +92,13 @@ class Component {
   // intent$
   // action$
   // model$
+  // context$
   // response$
   // sendResponse$
   // children$
   // vdom$
+  // currentState
+  // currentContext
   // subComponentSink$
   // unmountRequest$
   // unmount()
@@ -106,7 +110,7 @@ class Component {
   // [ OUTPUT ]
   // sinks
 
-  constructor({ name='NO NAME', sources, intent, request, model, response, view, children={}, components={}, initialState, calculated, storeCalculatedInState=true, DOMSourceName='DOM', stateSourceName='STATE', requestSourceName='HTTP', debug=false }) {
+  constructor({ name='NO NAME', sources, intent, request, model, context, response, view, children={}, components={}, initialState, calculated, storeCalculatedInState=true, DOMSourceName='DOM', stateSourceName='STATE', requestSourceName='HTTP', debug=false }) {
     if (!sources || typeof sources != 'object') throw new Error('Missing or invalid sources')
 
     this.name       = name
@@ -114,6 +118,7 @@ class Component {
     this.intent     = intent
     this.request    = request
     this.model      = model
+    this.context    = context
     this.response   = response
     this.view       = view
     this.children   = children
@@ -133,7 +138,7 @@ class Component {
 
     if (state$) {
       this.currentState = initialState || {}
-      this.sources[this.stateSourceName] = new StateSource(state$.map(val => {
+      this.sources[stateSourceName] = new StateSource(state$.map(val => {
         this.currentState = val
         return val
       }))
@@ -156,6 +161,7 @@ class Component {
     this.initAction$()
     this.initResponse$()
     this.initState()
+    this.initContext()
     this.initModel$()
     this.initSendResponse$()
     this.initChildren$()
@@ -329,6 +335,61 @@ class Component {
     }
   }
 
+  initContext() {
+    if (!this.context && !this.sources.__parentContext$) {
+      this.context$ = xs.of({})
+      return
+    }
+    const repeatChecker = (a, b) => {
+      if (a === b) return true
+      if (typeof a !== 'object' || typeof b !== 'object') {
+        return a === b
+      }
+      const entriesA = Object.entries(a)
+      const entriesB = Object.entries(b)
+      if (entriesA.length === 0 && entriesB.length === 0) return true
+      if (entriesA.length !== entriesB.length) return false
+      return entriesA.every(([name, value]) => {
+        return b[name] === value
+      })
+    }
+
+    const state$ = this.sources[this.stateSourceName]?.stream.startWith({}).compose(dropRepeats(repeatChecker)) || xs.never()
+    const parentContext$ = this.sources.__parentContext$.startWith({}).compose(dropRepeats(repeatChecker)) || xs.of({})
+    if (this.context && typeof this.context !== 'object') {
+      console.error(`[${this.name}] Context must be an object mapping names to values of functions: ignoring provided ${ typeof this.context }`)
+    }
+    this.context$ = xs.combine(state$, parentContext$)
+      .map(([_, parent]) => {
+        const _parent = typeof parent === 'object' ? parent : {}
+        const context = typeof this.context === 'object' ? this.context : {}
+        const state = this.currentState
+        const values = Object.entries(context).reduce((acc, current) => {
+          const [name, value] = current
+          let _value
+          const valueType = typeof value
+          if (valueType === 'string') {
+            _value = state[value]
+          } else if (valueType === 'boolean') {
+            _value = state[name]
+          } else if (valueType === 'function') {
+            _value = value(state)
+          } else {
+            console.error(`[${ this.name }] Invalid context entry '${ name }': must be the name of a state property or a function returning a value to use`)
+            return acc
+          }
+          acc[name] = _value
+          return acc
+        }, {})
+        const newContext = { ..._parent, ...values }
+        this.currentContext = newContext
+        return newContext
+      })
+      .compose(dropRepeats(repeatChecker))
+      .startWith({})
+    this.context$.subscribe({ next: _ => _ })
+  }
+
   initModel$() {
     if (typeof this.model == 'undefined') {
       this.model$ = this.sourceNames.reduce((a,s) => {
@@ -378,7 +439,7 @@ class Component {
               return `State reducer added: <${ action }>`
             } else {
               const extra = data && (data.type || data.command || data.name || data.key || (Array.isArray(data) && 'Array') || data)
-              return `Data sent to [${ sink }]: <${ action }> ${ extra }`
+              return `Data sent to [${ sink }]: <${ action }> ${ JSON.stringify(extra) }`
             }
           }))
 
@@ -604,7 +665,7 @@ class Component {
         return acc
       }, {})
 
-      const newState = { ...state, ...calculated }
+      const newState = { ...state, ...calculated, __context: this.currentContext }
 
       lastState = state
       lastResult = newState
@@ -616,7 +677,7 @@ class Component {
   cleanupCalculated(incomingState) {
     if (!incomingState || typeof incomingState !== 'object' || incomingState instanceof Array) return incomingState
     const state = this.storeCalculatedInState ? this.addCalculated(incomingState) : incomingState
-    const { __props, __children, ...sanitized } = state
+    const { __props, __children, __context, ...sanitized } = state
     const copy  = { ...sanitized }
     if (!this.calculated) return copy
     const keys = Object.keys(this.calculated)
@@ -638,10 +699,10 @@ class Component {
     const stateStream   = (enhancedState && enhancedState.stream) || xs.never()
 
     const objRepeatChecker = (a, b) => {
-      const { state, sygnalFactory, __props, __children, ...sanitized } = a
+      const { state, sygnalFactory, __props, __children, __context, ...sanitized } = a
       const keys = Object.keys(sanitized)
       if (keys.length === 0) {
-        const { state, sygnalFactory, __props, __children, ...sanitizedB } = b
+        const { state, sygnalFactory, __props, __children, __context, ...sanitizedB } = b
         return Object.keys(sanitizedB).length === 0
       }
       return keys.every(key => a[key] === b[key])
@@ -666,6 +727,10 @@ class Component {
       renderParams.__children = this.sources.children$.compose(dropRepeats(arrRepeatChecker))
     }
 
+    if (this.context$) {
+      renderParams.__context = this.context$.compose(dropRepeats(objRepeatChecker))
+    }
+
     const names   = []
     const streams = []
 
@@ -677,11 +742,12 @@ class Component {
     const combined = xs.combine(...streams)
       // map the streams from an array back to an object with the render parameter names as the keys
       .map(arr => {
-        return names.reduce((acc, name, index) => {
+        const params = names.reduce((acc, name, index) => {
           acc[name] = arr[index]
           if (name === 'state') acc[this.stateSourceName] = arr[index]
           return acc
         }, {})
+        return params
       })
 
     return combined
@@ -784,7 +850,7 @@ class Component {
 
     const combined$ = xs.combine(this.sources[this.stateSourceName].stream.startWith(this.currentState), props$, children$)
       .map(([state, __props, __children]) => {
-        return typeof state === 'object' ? { ...this.addCalculated(state), __props, __children } : { value: state, __props, __children }
+        return typeof state === 'object' ? { ...this.addCalculated(state), __props, __children, __context: this.currentContext } : { value: state, __props, __children, __context: this.currentContext }
       })
 
     const stateSource = new StateSource(combined$)
@@ -795,7 +861,7 @@ class Component {
 
     const sanitizeItems = item => {
       if (typeof item === 'object') {
-        const { __props, __children, ...sanitized } = item
+        const { __props, __children, __context, ...sanitized } = item
         return sanitized
       } else {
         return item
@@ -807,7 +873,7 @@ class Component {
         const { __props, __children } = state
         if (!Array.isArray(state[stateField])) return []
         return state[stateField].map(item => {
-          return typeof item === 'object' ? { ...item, __props, __children } : { value: item, __props, __children }
+          return typeof item === 'object' ? { ...item, __props, __children, __context: this.currentContext } : { value: item, __props, __children, __context: this.currentContext }
         })
       },
       set: (oldState, newState) => {
@@ -831,7 +897,7 @@ class Component {
       }
     } else if (typeof stateField === 'string') {
       if (typeof this.currentState === 'object') {
-        if(!(stateField in this.currentState) && !(stateField in this.calculated)) {
+        if(!(this.currentState && stateField in this.currentState) && !(this.calculated && stateField in this.calculated)) {
           console.error(`Collection component in ${ this.name } is attempting to use non-existent state property '${ stateField }': To fix this error, specify a valid array property on the state.  Attempting to use parent component state.`)
           lense = undefined
         } else if (!Array.isArray(this.currentState[stateField])) {
@@ -870,7 +936,7 @@ class Component {
       lense = undefined
     }
 
-    const sources = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$ }
+    const sources = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$, __parentContext$: this.context$ }
     const sink$   = collection(factory, lense, { container: null })(sources)
     if (typeof sink$ !== 'object') {
       throw new Error('Invalid sinks returned from component factory of collection element')
@@ -885,7 +951,7 @@ class Component {
 
     const combined$ = xs.combine(this.sources[this.stateSourceName].stream.startWith(this.currentState), props$, children$)
       .map(([state, __props, __children]) => {
-        return typeof state === 'object' ? { ...this.addCalculated(state), __props, __children } : { value: state, __props, __children }
+        return typeof state === 'object' ? { ...this.addCalculated(state), __props, __children, __context: this.currentContext } : { value: state, __props, __children, __context: this.currentContext }
       })
 
     const stateSource  = new StateSource(combined$)
@@ -895,7 +961,7 @@ class Component {
     const fieldLense = {
       get: state => {
         const { __props, __children } = state
-        return (typeof state[stateField] === 'object' && !(state[stateField] instanceof Array)) ? { ...state[stateField], __props, __children } : { value: state[stateField], __props, __children }
+        return (typeof state[stateField] === 'object' && !(state[stateField] instanceof Array)) ? { ...state[stateField], __props, __children, __context: this.currentContext } : { value: state[stateField], __props, __children, __context: this.currentContext }
       },
       set: (oldState, newState) => {
         if (this.calculated && stateField in this.calculated) {
@@ -903,7 +969,7 @@ class Component {
           return oldState
         }
         if (typeof newState !== 'object' || newState instanceof Array) return { ...oldState, [stateField]: newState }
-        const { __props, __children, ...sanitized } = newState
+        const { __props, __children, __context, ...sanitized } = newState
         return { ...oldState, [stateField]: sanitized }
       }
     }
@@ -912,7 +978,7 @@ class Component {
       get: state => state,
       set: (oldState, newState) => {
         if (typeof newState !== 'object' || newState instanceof Array) return newState
-        const { __props, __children, ...sanitized } = newState
+        const { __props, __children, __context, ...sanitized } = newState
         return sanitized
       }
     }
@@ -934,7 +1000,7 @@ class Component {
     }
 
     const switchableComponents = props.of
-    const sources = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$ }
+    const sources = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$, __parentContext$: this.context$ }
 
     const sink$ = isolate(switchable(switchableComponents, props$.map(props => props.current)), { [this.stateSourceName]: lense })(sources)
 
@@ -953,7 +1019,7 @@ class Component {
 
     const combined$ = xs.combine(this.sources[this.stateSourceName].stream.startWith(this.currentState), props$, children$)
       .map(([state, __props, __children]) => {
-        return typeof state === 'object' ? { ...this.addCalculated(state), __props, __children } : { value: state, __props, __children }
+        return typeof state === 'object' ? { ...this.addCalculated(state), __props, __children, __context: this.currentContext } : { value: state, __props, __children, __context: this.currentContext }
       })
 
     const stateSource = new StateSource(combined$)
@@ -970,7 +1036,7 @@ class Component {
     const fieldLense = {
       get: state => {
         const { __props, __children } = state
-        return typeof state[stateField] === 'object' ? { ...state[stateField], __props, __children } : { value: state[stateField], __props, __children }
+        return typeof state[stateField] === 'object' ? { ...state[stateField], __props, __children, __context: this.currentContext } : { value: state[stateField], __props, __children, __context: this.currentContext }
       },
       set: (oldState, newState) => {
         if (this.calculated && stateField in this.calculated) {
@@ -985,7 +1051,7 @@ class Component {
       get: state => state,
       set: (oldState, newState) => {
         if (typeof newState !== 'object' || newState instanceof Array) return newState
-        const { __props, __children, ...sanitized } = newState
+        const { __props, __children, __context, ...sanitized } = newState
         return sanitized
       }
     }
@@ -1006,7 +1072,7 @@ class Component {
       lense = baseLense
     }
 
-    const sources = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$ }
+    const sources = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$, __parentContext$: this.context$ }
     const sink$   = isolate(factory, { [this.stateSourceName]: lense })(sources)
 
     if (typeof sink$ !== 'object') {
