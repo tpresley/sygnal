@@ -154,8 +154,10 @@ class Component {
       }
     }
 
+    const componentNumber = COMPONENT_COUNT++
+
     this.addCalculated = this.createMemoizedAddCalculated()
-    this.log = makeLog(name)
+    this.log = makeLog(`${componentNumber} | ${name}`)
 
     this.initIntent$()
     this.initAction$()
@@ -170,11 +172,9 @@ class Component {
     this.initVdom$()
     this.initSinks()
 
-    this.sinks.__index = COMPONENT_COUNT++
+    this.sinks.__index = componentNumber
 
-    if (debug) {
-      console.log(`[${ this.name }] Instantiated (#${ this.sinks.__index })`)
-    }
+    this.log(`Instantiated`, true)
   }
 
   get debug() {
@@ -229,7 +229,7 @@ class Component {
     const hydrate$ = initialApiData.map(data => ({ type: HYDRATE_ACTION, data }))
 
     this.action$   = xs.merge(wrapped$, hydrate$)
-      .compose(this.log(({ type }) => `Action triggered: <${ type }>`))
+      .compose(this.log(({ type }) => `<${ type }> Action triggered`))
   }
 
   initResponse$() {
@@ -279,7 +279,7 @@ class Component {
               console.log(`${ timestamp } ${ ip } ${ req.method } ${ req.url }`)
 
               if (this.debug) {
-                this.action$.setDebugListener({next: ({ type }) => console.log(`[${ this.name }] Action from ${ this.requestSourceName } request: <${ type }>`)})
+                this.action$.setDebugListener({next: ({ type }) => this.log(`[${ this.name }] Action from ${ this.requestSourceName } request: <${ type }>`, true)})
               }
 
               if (actionType === 'function') {
@@ -436,10 +436,10 @@ class Component {
         const wrapped$ = on$
           .compose(this.log(data => {
             if (isStateSink) {
-              return `State reducer added: <${ action }>`
+              return `<${ action }> State reducer added`
             } else {
               const extra = data && (data.type || data.command || data.name || data.key || (Array.isArray(data) && 'Array') || data)
-              return `Data sent to [${ sink }]: <${ action }> ${ JSON.stringify(extra) }`
+              return `<${ action }> Data sent to [${ sink }]: ${ JSON.stringify(extra).replaceAll('"', '') }`
             }
           }))
 
@@ -562,6 +562,7 @@ class Component {
 
     this.vdom$ = renderParameters$
       .map(this.view)
+      .compose(this.log('View rendered'))
       .map(vDom => vDom || { sel: 'div', data: {}, children: [] })
       .compose(this.instantiateSubComponents.bind(this))
       .filter(val => val !== undefined)
@@ -602,6 +603,7 @@ class Component {
               // push the "next" action request into the action$ stream
               rootAction$.shamefullySendNext({ type, data: _data })
             }, delay)
+            this.log(`<${ name }> Triggered a next() action: <${ type }> ${ delay }ms delay`, true)
           }
 
           let data = action.data
@@ -698,37 +700,19 @@ class Component {
     const enhancedState = state && state.isolateSource(state, { get: state => this.addCalculated(state) })
     const stateStream   = (enhancedState && enhancedState.stream) || xs.never()
 
-    const objRepeatChecker = (a, b) => {
-      const { state, sygnalFactory, __props, __children, __context, ...sanitized } = a
-      const keys = Object.keys(sanitized)
-      if (keys.length === 0) {
-        const { state, sygnalFactory, __props, __children, __context, ...sanitizedB } = b
-        return Object.keys(sanitizedB).length === 0
-      }
-      return keys.every(key => a[key] === b[key])
-    }
     
-    const arrRepeatChecker = (a, b) => {
-      if (a === b) return true
-      if (a.length !== b.length) return false
-      for (let i=0; i < a.length; i++) {
-        if (a[i] !== b[i]) return false
-      }
-      return true
-    }
-    
-    renderParams.state  = stateStream.compose(dropRepeats(objRepeatChecker))
+    renderParams.state  = stateStream.compose(dropRepeats(objIsEqual))
 
     if (this.sources.props$) {
-      renderParams.__props = this.sources.props$.compose(dropRepeats(objRepeatChecker))
+      renderParams.__props = this.sources.props$.compose(dropRepeats(objIsEqual))
     }
 
     if (this.sources.children$) {
-      renderParams.__children = this.sources.children$.compose(dropRepeats(arrRepeatChecker))
+      renderParams.__children = this.sources.children$.compose(dropRepeats(objIsEqual))
     }
 
     if (this.context$) {
-      renderParams.__context = this.context$.compose(dropRepeats(objRepeatChecker))
+      renderParams.__context = this.context$.compose(dropRepeats(objIsEqual))
     }
 
     const names   = []
@@ -740,11 +724,15 @@ class Component {
     })
 
     const combined = xs.combine(...streams)
+      .compose(debounce(1))
       // map the streams from an array back to an object with the render parameter names as the keys
       .map(arr => {
         const params = names.reduce((acc, name, index) => {
           acc[name] = arr[index]
           if (name === 'state') acc[this.stateSourceName] = arr[index]
+          if (name === '__props') acc.props = arr[index]
+          if (name === '__children') acc.children = arr[index]
+          if (name === '__context') acc.context = arr[index]
           return acc
         }, {})
         return params
@@ -766,6 +754,7 @@ class Component {
       }
 
       const sinkArrsByType = {}
+      let newInstanceCount = 0
 
       const newComponents =  entries.reduce((acc, [id, el]) => {
         const data     = el.data
@@ -805,6 +794,8 @@ class Component {
           instantiator = this.instantiateCustomComponent.bind(this)
         }
 
+        newInstanceCount++
+
         const sink$ = instantiator(el, props$, children$)
 
         sink$[this.DOMSourceName] = sink$[this.DOMSourceName] ? this.makeCoordinatedSubComponentDomSink(sink$[this.DOMSourceName]) : xs.never()
@@ -824,18 +815,18 @@ class Component {
 
       this.newSubComponentSinks(mergedSinksByType)
 
+      if (newInstanceCount > 0) this.log(`New sub components instantiated: ${ newInstanceCount }`, true)
+
       return newComponents
     }, {})
   }
 
   makeCoordinatedSubComponentDomSink(domSink$) {
     const remembered$   = domSink$.remember()
-    const repeatChecker = (a, b) => JSON.stringify(a) === JSON.stringify(b)
 
     const coordinated = this.sources[this.stateSourceName].stream
-      .compose(dropRepeats(repeatChecker))
+      .compose(dropRepeats(objIsEqual))
       .map(state => remembered$)
-      .compose(debounce(10))
       .flatten()
       .debug(_ => this.triggerSubComponentsRendered())
       .remember()
@@ -1085,7 +1076,7 @@ class Component {
 
   renderVdom(componentInstances$) {
     return xs.combine(this.subComponentsRendered$, componentInstances$)
-      .compose(debounce(5))
+      .compose(debounce(1))
       .map(([_, components]) => {
         const componentNames = Object.keys(this.components)
 
@@ -1106,7 +1097,7 @@ class Component {
         if (vdom$.length === 0) return xs.of(root)
 
         return xs.combine(...vdom$)
-          .compose(debounce(10))
+          .compose(debounce(1))
           .map(vdoms => {
             const withIds = vdoms.reduce((acc, vdom, index) => {
               acc[ids[index]] = vdom
@@ -1120,7 +1111,6 @@ class Component {
       .flatten()
       .filter(val => !!val)
       .remember()
-      .compose(this.log('View Rendered'))
   }
 
 }
@@ -1144,14 +1134,21 @@ class Component {
  * ONLY outputs if the global `DEBUG` variable is set to `true`
  */
  function makeLog (context) {
-  return function (msg) {
+  return function (msg, immediate=false) {
     const fixedMsg = (typeof msg === 'function') ? msg : _ => msg
-    return stream => {
-      return stream.debug(msg => {
-        if (this.debug) {
-          console.log(`[${context}] ${fixedMsg(msg)}`)
-        }
-      })
+    if (immediate) {
+      if (this.debug) {
+        console.log(`[${context}] ${fixedMsg(msg)}`)
+      }
+      return
+    } else {
+      return stream => {
+        return stream.debug(msg => {
+          if (this.debug) {
+            console.log(`[${context}] ${fixedMsg(msg)}`)
+          }
+        })
+      }
     }
   }
 }
@@ -1259,4 +1256,63 @@ function getComponentIdFromElement(el, depth, index, parentId) {
 function deepCopyVdom(obj) {
   if (typeof obj === 'undefined') return obj
   return { ...obj, children: Array.isArray(obj.children) ? obj.children.map(deepCopyVdom) : undefined, data: obj.data && { ...obj.data, componentsInjected: false } }
+}
+
+function objIsEqual(objA, objB, maxDepth = 5, depth = 0) {
+  const obj1 = sanitizeObject(objA)
+  const obj2 = sanitizeObject(objB)
+  // Base case: if the current depth exceeds maxDepth, return true
+  if (depth > maxDepth) {
+      return false;
+  }
+
+  // If both are the same object or are both exactly null or undefined
+  if (obj1 === obj2) {
+      return true;
+  }
+
+  // If either is not an object (null, undefined, or primitive), directly compare
+  if (typeof obj1 !== 'object' || obj1 === null || typeof obj2 !== 'object' || obj2 === null) {
+      return false;
+  }
+
+  // Special handling for arrays
+  if (Array.isArray(obj1) && Array.isArray(obj2)) {
+    if (obj1.length !== obj2.length) {
+        return false;
+    }
+    for (let i = 0; i < obj1.length; i++) {
+        if (!isEqual(obj1[i], obj2[i], maxDepth, depth + 1)) {
+            return false;
+        }
+    }
+    return true;
+  }
+
+  // Get keys of both objects
+  const keys1 = Object.keys(obj1);
+  const keys2 = Object.keys(obj2);
+
+  // Check if the number of properties is different
+  if (keys1.length !== keys2.length) {
+      return false;
+  }
+
+  // Recursively check each property
+  for (const key of keys1) {
+      if (!keys2.includes(key)) {
+          return false;
+      }
+      if (!objIsEqual(obj1[key], obj2[key], maxDepth, depth + 1)) {
+          return false;
+      }
+  }
+
+  return true;
+}
+
+function sanitizeObject(obj) {
+  if (typeof obj !== 'object' || obj === null) return obj
+  const {state, of, from, _reqId, _action, __props, __children, __context, ...sanitized} = obj
+  return sanitized
 }
