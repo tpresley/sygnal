@@ -1282,7 +1282,7 @@ function objIsEqual(objA, objB, maxDepth = 5, depth = 0) {
         return false;
     }
     for (let i = 0; i < obj1.length; i++) {
-        if (!isEqual(obj1[i], obj2[i], maxDepth, depth + 1)) {
+        if (!objIsEqual(obj1[i], obj2[i], maxDepth, depth + 1)) {
             return false;
         }
     }
