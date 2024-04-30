@@ -1016,6 +1016,10 @@ class Component {
     const stateSource = new StateSource(combined$)
     const stateField  = props.state
 
+    if (typeof props.sygnalFactory !== 'function' && typeof props.sygnalOptions === 'object') {
+      props.sygnalFactory = component(props.sygnalOptions)
+    }
+
     const factory   = componentName === 'sygnal-factory' ? props.sygnalFactory : (this.components[componentName] || props.sygnalFactory)
     if (!factory) {
       if (componentName === 'sygnal-factory') throw new Error(`Component not found on element with Capitalized selector and nameless function: JSX transpilation replaces selectors starting with upper case letters with functions in-scope with the same name, Sygnal cannot see the name of the resulting component.`)
@@ -1164,7 +1168,7 @@ function getComponents(currentElement, componentNames, depth=0, index=0, parentI
   const sel          = currentElement.sel
   const isCollection = sel && sel.toLowerCase() === 'collection'
   const isSwitchable = sel && sel.toLowerCase() === 'switchable'
-  const isComponent  = sel && (['collection', 'switchable', 'sygnal-factory', ...componentNames].includes(sel)) || typeof currentElement.data?.props?.sygnalFactory === 'function'
+  const isComponent  = sel && (['collection', 'switchable', 'sygnal-factory', ...componentNames].includes(sel)) || typeof currentElement.data?.props?.sygnalFactory === 'function' || typeof currentElement.data?.props?.sygnalOptions === 'object'
   const props        = (currentElement.data && currentElement.data.props) || {}
   const attrs        = (currentElement.data && currentElement.data.attrs) || {}
   const children     = currentElement.children || []
@@ -1214,7 +1218,7 @@ function injectComponents(currentElement, components, componentNames, depth=0, i
 
 
   const sel          = currentElement.sel || 'NO SELECTOR'
-  const isComponent  = ['collection', 'switchable', 'sygnal-factory', ...componentNames].includes(sel) || typeof currentElement.data?.props?.sygnalFactory === 'function'
+  const isComponent  = ['collection', 'switchable', 'sygnal-factory', ...componentNames].includes(sel) || typeof currentElement.data?.props?.sygnalFactory === 'function' || typeof currentElement.data?.props?.sygnalOptions === 'object'
   const isCollection = currentElement?.data?.isCollection
   const isSwitchable = currentElement?.data?.isSwitchable
   const props        = (currentElement.data && currentElement.data.props) || {}
