@@ -2,6 +2,8 @@
 import * as is from './is'
 import * as fn from './fn'
 
+import component from '../component'
+
 // Const fnName = (...params) => guard ? default : ...
 
 const createTextElement = (text) => !is.text(text) ? undefined : {
@@ -80,16 +82,24 @@ const defaultModules = {
 
 export const createElementWithModules = (modules) => {
   return (sel, data, ...children) => {
+    let factory
     if (typeof sel === 'undefined') {
       sel = 'UNDEFINED'
-      console.error('JSX Error: Capitalized HTML element without corresponding Sygnal factory.  Components with names where the first letter is capital MUST be defined or included at the parent component\'s file scope.')
+      console.error('JSX Error: Capitalized HTML element without corresponding factory function.  Components with names where the first letter is capital MUST be defined or included at the parent component\'s file scope.')
     }
     if (is.fun(sel)) {
       if (sel.name === 'Fragment') {
         return sel(data || {}, children)
       }
-      const factory = sel
-      sel = sel.name || sel.componentName || 'sygnal-factory'
+      if (!sel.isSygnalComponent) {
+        const name = (typeof sel.name === 'string') ? `FC:${ sel.name }` : 'FUNCTION_COMPONENT'
+        const view = sel
+        factory = component({ name, view })
+        sel = name
+      } else {
+        factory = sel
+        sel = sel.name || sel.componentName || 'sygnal-factory'
+      }
       data ||= {}
       data.sygnalFactory = factory
     }
@@ -97,7 +107,7 @@ export const createElementWithModules = (modules) => {
     return considerSvg({
       sel,
       data: data ? sanitizeData(data, modules) : {},
-      children: typeof text !== 'undefined' ? undefined : sanitizeChildren(children),
+      children: typeof text !== 'undefined' ? createTextElement(text) : sanitizeChildren(children),
       text,
       elm: undefined,
       key: data ? data.key : undefined

@@ -130,7 +130,7 @@ class Component {
     this.stateSourceName   = stateSourceName
     this.requestSourceName = requestSourceName
     this.sourceNames       = Object.keys(sources)
-    this._debug             = debug
+    this._debug            = debug
 
     this.isSubComponent = this.sourceNames.includes('props$')
 
