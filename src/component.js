@@ -846,9 +846,30 @@ class Component {
 
     const stateSource = new StateSource(combined$)
     const stateField  = props.from
-    let lense
 
-    const factory = typeof props.of === 'function' ? props.of : this.components[props.of]
+    if (typeof props.sygnalFactory !== 'function' && typeof props.sygnalOptions === 'object') {
+      props.sygnalFactory = component(props.sygnalOptions)
+    }
+
+    const collectionOf = props.of
+    let lense
+    let factory
+
+    if (typeof collectionOf === 'function') {
+      if (collectionOf.isSygnalComponent) {
+        factory = collectionOf
+      } else {
+        const name = (typeof collectionOf.name === 'string') ? collectionOf.name : 'FUNCTION_COMPONENT'
+        const view = collectionOf
+        const { model, intent, context, children, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, debug } = collectionOf
+        const options = { name, view, model, intent, context, children, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, debug }
+        factory = component(options)
+      }
+    } else if (this.components[collectionOf]) {
+      factory = this.components[collectionOf]
+    } else {
+      throw new Error(`[${this.name}] Invalid 'of' propery in collection: ${ collectionOf }`)
+    }
 
     const sanitizeItems = item => {
       if (typeof item === 'object') {
@@ -991,6 +1012,17 @@ class Component {
     }
 
     const switchableComponents = props.of
+    const keys = Object.keys(switchableComponents)
+    keys.forEach(key => {
+      const current = switchableComponents[key]
+      if (!current.isSygnalComponent) {
+        const name = (typeof current.name === 'string') ? current.name : 'FUNCTION_COMPONENT'
+        const view = current
+        const { model, intent, context, children, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, debug } = current
+        const options = { name, view, model, intent, context, children, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, debug }
+        switchableComponents[key] = component(options)
+      }
+    })
     const sources = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$, __parentContext$: this.context$ }
 
     const sink$ = isolate(switchable(switchableComponents, props$.map(props => props.current)), { [this.stateSourceName]: lense })(sources)
