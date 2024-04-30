@@ -3,9 +3,18 @@ import { withState } from "@cycle/state"
 import { makeDOMDriver } from "@cycle/dom"
 import eventBusDriver from "./eventDriver"
 import logDriver from "./logDriver"
+import component from "../component"
 
 export default function run(app, drivers={}, options={}) {
   const { mountPoint='#root', fragments=true } = options
+  if (!app.isSygnalComponent) {
+    const name = app.name || "FUNCTIONAL_COMPONENT"
+    const view = app
+    const { model, intent, context, children, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, debug } = app
+    const options = { name, view, model, intent, context, children, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, debug }
+
+    app = component(options)
+  }
 
   const wrapped = withState(app, 'STATE')
 
