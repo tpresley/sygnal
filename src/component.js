@@ -15,7 +15,6 @@ import { default as dropRepeats } from 'xstream/extra/dropRepeats.js'
 const ENVIRONMENT = ((typeof window != 'undefined' && window) || (process && process.env)) || {}
 
 
-const REQUEST_SELECTOR_METHOD = 'request'
 const BOOTSTRAP_ACTION        = 'BOOTSTRAP'
 const INITIALIZE_ACTION       = 'INITIALIZE'
 const HYDRATE_ACTION          = 'HYDRATE'
@@ -72,10 +71,8 @@ class Component {
   // name
   // sources
   // intent
-  // request
   // model
   // context
-  // response
   // view
   // children
   // components
@@ -93,15 +90,15 @@ class Component {
   // action$
   // model$
   // context$
-  // response$
-  // sendResponse$
   // children$
   // vdom$
   // currentState
+  // currentProps
+  // currentChildren
   // currentContext
   // subComponentSink$
-  // unmountRequest$
-  // unmount()
+  // unmountRequest$ <- TODO
+  // unmount() <- TODO
   // _debug
 
   // [ INSTANTIATED STREAM OPERATOR ]
@@ -110,13 +107,12 @@ class Component {
   // [ OUTPUT ]
   // sinks
 
-  constructor({ name='NO NAME', sources, intent, request, model, context, response, view, children={}, components={}, initialState, calculated, storeCalculatedInState=true, DOMSourceName='DOM', stateSourceName='STATE', requestSourceName='HTTP', debug=false }) {
+  constructor({ name='NO NAME', sources, intent, model, context, response, view, children={}, components={}, initialState, calculated, storeCalculatedInState=true, DOMSourceName='DOM', stateSourceName='STATE', requestSourceName='HTTP', debug=false }) {
     if (!sources || !isObj(sources)) throw new Error('Missing or invalid sources')
 
     this.name       = name
     this.sources    = sources
     this.intent     = intent
-    this.request    = request
     this.model      = model
     this.context    = context
     this.response   = response
@@ -144,6 +140,23 @@ class Component {
       }))
     }
 
+    const props$ = sources.props$
+    if (props$) {
+      this.sources.props$ = props$.map(val => {
+        this.currentProps = val
+        return val
+      })
+    }
+
+    const children$ = sources.children$
+    if (children$) {
+      this.sources.children$ = children$.map(val => {
+        this.currentChildren = val
+        return val
+      })
+    }
+
+
     // Ensure that the root component has an intent and model
     // This is necessary to ensure that the component tree's state sink is subscribed to
     if (!this.isSubComponent && typeof this.intent === 'undefined' && typeof this.model === 'undefined') {
@@ -161,11 +174,9 @@ class Component {
 
     this.initIntent$()
     this.initAction$()
-    this.initResponse$()
     this.initState()
     this.initContext()
     this.initModel$()
-    this.initSendResponse$()
     this.initChildren$()
     this.initSubComponentSink$()
     this.initSubComponentsRendered$()
@@ -230,92 +241,6 @@ class Component {
 
     this.action$   = xs.merge(wrapped$, hydrate$)
       .compose(this.log(({ type }) => `<${ type }> Action triggered`))
-  }
-
-  initResponse$() {
-    if (typeof this.request == 'undefined') {
-      return
-    } else if (!isObj(this.request)) {
-      throw new Error('The request parameter must be an object')
-    }
-
-    const router$ = this.sources[this.requestSourceName]
-    const methods = Object.entries(this.request)
-
-    const wrapped = methods.reduce((acc, [method, routes]) => {
-      const _method = method.toLowerCase()
-      if (typeof router$[_method] != 'function') {
-        throw new Error('Invalid method in request object:', method)
-      }
-      const entries = Object.entries(routes)
-      const mapped = entries.reduce((acc, [route, action]) => {
-        const routeString = `[${_method.toUpperCase()}]:${route || 'none'}`
-        const actionType = typeof action
-        if (actionType === 'undefined') {
-          throw new Error(`Action for '${ route }' route in request object not specified`)
-        } else if (actionType !== 'string' && actionType !== 'function') {
-          throw new Error(`Invalid action for '${ route }' route: expecting string or function`)
-        }
-        const actionString = (actionType === 'function') ? '[ FUNCTION ]' : `< ${ action } >`
-        console.log(`[${ this.name }] Adding ${ this.requestSourceName } route:`, _method.toUpperCase(), `'${ route }' <${ actionString }>`)
-        const route$ = router$[_method](route)
-          .compose(dropRepeats((a, b) => a.id == b.id))
-          .map(req => {
-            if (!req || !req.id) {
-              throw new Error(`No id found in request: ${ routeString }`)
-            }
-            try {
-              const _reqId  = req.id
-              const params  = req.params
-              const body    = req.body
-              const cookies = req.cookies
-              const type    = (actionType === 'function') ? 'FUNCTION' : action
-              const data    = { params, body, cookies, req }
-              const obj     = { type, data: body, req, _reqId, _action: type }
-
-              const timestamp = (new Date()).toISOString()
-              const ip = req.get ? req.get('host') : '0.0.0.0'
-
-              console.log(`${ timestamp } ${ ip } ${ req.method } ${ req.url }`)
-
-              if (this.debug) {
-                this.action$.setDebugListener({next: ({ type }) => this.log(`[${ this.name }] Action from ${ this.requestSourceName } request: <${ type }>`, true)})
-              }
-
-              if (actionType === 'function') {
-                const enhancedState = this.addCalculated(this.currentState)
-                const result = action(enhancedState, req)
-                return xs.of({ ...obj, data: result })
-              } else {
-                this.action$.shamefullySendNext(obj)
-
-                const sourceEntries = Object.entries(this.sources)
-                const responses     = sourceEntries.reduce((acc, [name, source]) => {
-                  if (!source || typeof source[REQUEST_SELECTOR_METHOD] != 'function') return acc
-                  const selected$ = source[REQUEST_SELECTOR_METHOD](_reqId)
-                  return [ ...acc, selected$ ]
-                }, [])
-                return xs.merge(...responses)
-              }
-            } catch(err) {
-              console.error(err)
-            }
-          }).flatten()
-        return [ ...acc, route$ ]
-      }, [])
-      const mapped$ = xs.merge(...mapped)
-      return [ ...acc, mapped$ ]
-    }, [])
-
-    this.response$ = xs.merge(...wrapped)
-      .compose(this.log(res => {
-        if (res._action) return `[${ this.requestSourceName }] response data received for Action: <${ res._action }>`
-        return `[${ this.requestSourceName }] response data received from FUNCTION`
-      }))
-
-    if (typeof this.response != 'undefined' && typeof this.response$ == 'undefined') {
-      throw new Error('Cannot have a response parameter without a request parameter')
-    }
   }
 
   initState() {
@@ -447,50 +372,6 @@ class Component {
     this.model$ = model$
   }
 
-  initSendResponse$() {
-    const responseType = typeof this.response
-    if (responseType != 'function' && responseType != 'undefined') {
-      throw new Error('The response parameter must be a function')
-    }
-
-    if (responseType == 'undefined') {
-      if (this.response$) {
-        this.response$.subscribe({
-          next: this.log(({ _reqId, _action }) => `Unhandled response for request: ${ _action } ${ _reqId }`)
-        })
-      }
-      this.sendResponse$ = xs.never()
-      return
-    }
-
-    const selectable = {
-      select: (actions) => {
-        if (typeof actions == 'undefined') return this.response$
-        if (!Array.isArray(actions)) actions = [actions]
-        return this.response$.filter(({_action}) => (actions.length > 0) ? (_action === 'FUNCTION' || actions.includes(_action)) : true)
-      }
-    }
-
-    const out = this.response(selectable)
-    if (!isObj(out)) {
-      throw new Error('The response function must return an object')
-    }
-
-    const entries = Object.entries(out)
-    const out$    = entries.reduce((acc, [command, response$]) => {
-      const mapped$ = response$.map(({ _reqId, _action, data }) => {
-        if (!_reqId) {
-          throw new Error(`No request id found for response for: ${ command }`)
-        }
-        return { _reqId, _action, command, data }
-      })
-      return [ ...acc, mapped$ ]
-    }, [])
-
-    this.sendResponse$ = xs.merge(...out$)
-      .compose(this.log(({ _reqId, _action }) => `[${ this.requestSourceName }] response sent for: <${ _action }>`))
-  }
-
   initChildren$() {
     const initial = this.sourceNames.reduce((acc, name) => {
       if (name == this.DOMSourceName) {
@@ -570,7 +451,6 @@ class Component {
     }, {})
 
     this.sinks[this.DOMSourceName]     = this.vdom$
-    this.sinks[this.requestSourceName] = xs.merge(this.sendResponse$ ,this.sinks[this.requestSourceName])
   }
 
   makeOnAction(action$, isStateSink=true, rootAction$) {
@@ -583,33 +463,30 @@ class Component {
         returnStream$ = filtered$.map(action => {
           const next = (type, data, delay=10) => {
             if (typeof delay !== 'number') throw new Error(`[${ this.name } ] Invalid delay value provided to next() function in model action '${ name }'. Must be a number in ms.`)
-            const _reqId = action._reqId || (action.req && action.req.id)
-            const _data  = _reqId ? (isObj(data) ? { ...data, _reqId, _action: name } : { data, _reqId, _action: name }) : data
             // put the "next" action request at the end of the event loop so the "current" action completes first
             setTimeout(() => {
               // push the "next" action request into the action$ stream
-              rootAction$.shamefullySendNext({ type, data: _data })
+              rootAction$.shamefullySendNext({ type, data })
             }, delay)
             this.log(`<${ name }> Triggered a next() action: <${ type }> ${ delay }ms delay`, true)
           }
 
+          const extra = { props: this.currentProps, children: this.currentChildren, context: this.currentContext }
+
           let data = action.data
-          if (data && data.data && data._reqId) data = data.data
           if (isStateSink) {
             return (state) => {
               const _state = this.isSubComponent ? this.currentState : state
               const enhancedState = this.addCalculated(_state)
-              const newState = reducer(enhancedState, data, next, action.req)
+              const newState = reducer(enhancedState, data, next, extra)
               if (newState == ABORT) return _state
               return this.cleanupCalculated(newState)
             }
           } else {
             const enhancedState = this.addCalculated(this.currentState)
-            const reduced = reducer(enhancedState, data, next, action.req)
+            const reduced = reducer(enhancedState, data, next, extra)
             const type = typeof reduced
-            const _reqId = action._reqId || (action.req && action.req.id)
-            if (['string', 'number', 'boolean', 'function'].includes(type)) return reduced
-            if (isObj(reduced)) return { ...reduced, _reqId, _action: name }
+            if (isObj(reduced) || ['string', 'number', 'boolean', 'function'].includes(type)) return reduced
             if (type == 'undefined') {
               console.warn(`'undefined' value sent to ${ name }`)
               return reduced
@@ -638,23 +515,15 @@ class Component {
         return lastResult
       }
       if (!isObj(this.calculated)) throw new Error(`'calculated' parameter must be an object mapping calculated state field named to functions`)
-      const entries = Object.entries(this.calculated)
-      if (entries.length === 0) {
+
+      const calculated = this.getCalculatedValues(state)
+      if (!calculated) {
         lastState = state
         lastResult = state
         return state
       }
-      const calculated = entries.reduce((acc, [field, fn]) => {
-        if (typeof fn !== 'function') throw new Error(`Missing or invalid calculator function for calculated field '${ field }`)
-        try {
-          acc[field] = fn(state)
-        } catch(e) {
-          console.warn(`Calculated field '${ field }' threw an error during calculation: ${ e.message }`)
-        }
-        return acc
-      }, {})
 
-      const newState = { ...state, ...calculated, __context: this.currentContext }
+      const newState = { ...state, ...calculated }
 
       lastState = state
       lastResult = newState
@@ -663,11 +532,26 @@ class Component {
     }
   }
 
+  getCalculatedValues(state) {
+    const entries = Object.entries(this.calculated)
+    if (entries.length === 0) {
+      return
+    }
+    return entries.reduce((acc, [field, fn]) => {
+      if (typeof fn !== 'function') throw new Error(`Missing or invalid calculator function for calculated field '${ field }`)
+      try {
+        acc[field] = fn(state)
+      } catch(e) {
+        console.warn(`Calculated field '${ field }' threw an error during calculation: ${ e.message }`)
+      }
+      return acc
+    }, {})
+  }
+
   cleanupCalculated(incomingState) {
     if (!incomingState || !isObj(incomingState) || Array.isArray(incomingState)) return incomingState
     const state = this.storeCalculatedInState ? this.addCalculated(incomingState) : incomingState
-    const { __props, __children, __context, ...sanitized } = state
-    const copy  = { ...sanitized }
+    const copy  = { ...state }
     if (!this.calculated || this.storeCalculatedInState) return copy
     const keys = Object.keys(this.calculated)
     keys.forEach(key => {
@@ -691,15 +575,15 @@ class Component {
     renderParams.state  = stateStream.compose(dropRepeats(objIsEqual))
 
     if (this.sources.props$) {
-      renderParams.__props = this.sources.props$.compose(dropRepeats(objIsEqual))
+      renderParams.props = this.sources.props$.compose(dropRepeats(propsIsEqual))
     }
 
     if (this.sources.children$) {
-      renderParams.__children = this.sources.children$.compose(dropRepeats(objIsEqual))
+      renderParams.children = this.sources.children$.compose(dropRepeats(objIsEqual))
     }
 
     if (this.context$) {
-      renderParams.__context = this.context$.compose(dropRepeats(objIsEqual))
+      renderParams.context = this.context$.compose(dropRepeats(objIsEqual))
     }
 
     const names   = []
@@ -716,10 +600,10 @@ class Component {
       .map(arr => {
         const params = names.reduce((acc, name, index) => {
           acc[name] = arr[index]
-          if (name === 'state') acc[this.stateSourceName] = arr[index]
-          if (name === '__props') acc.props = arr[index]
-          if (name === '__children') acc.children = arr[index]
-          if (name === '__context') acc.context = arr[index]
+          if (name === 'state') {
+            acc[this.stateSourceName] = arr[index]
+            acc.calculated = this.getCalculatedValues(arr[index]) || {}
+          }
           return acc
         }, {})
         return params
@@ -824,20 +708,30 @@ class Component {
   instantiateCollection(el, props$, children$) {
     const data      = el.data
     const props     = data.props || {}
-    const children  = el.children || []
     let filter      = typeof props.filter === 'function' ? props.filter : undefined
     let sort        = sortFunctionFromProp(props.sort)
 
-    const combined$ = xs.combine(this.sources[this.stateSourceName].stream.startWith(this.currentState), props$, children$)
-      .map(([state, __props, __children]) => {
-        if (__props.filter && typeof __props.filter === 'function') {
-          filter = typeof __props.filter === 'function' ? __props.filter : undefined
-          sort   = sortFunctionFromProp(__props.sort)
+    const arrayOperators = {
+      filter,
+      sort
+    }
+    
+    const state$ = xs.combine(this.sources[this.stateSourceName].stream.startWith(this.currentState), props$.startWith(props))
+      // this debounce is important. it forces state and prop updates to happen at the same time
+      // without this, changes to sort or filter won't happen properly
+      .compose(debounce(1))
+      .map(([state, props]) => {
+        if (props.filter !== arrayOperators.filter) {
+          arrayOperators.filter = typeof props.filter === 'function' ? props.filter : undefined
         }
-        return isObj(state) ? { ...this.addCalculated(state), __props, __children, __context: this.currentContext } : { value: state, __props, __children, __context: this.currentContext }
+        if (props.sort !== arrayOperators.sort) {
+          arrayOperators.sort = sortFunctionFromProp(props.sort)
+        }
+        
+        return isObj(state) ? this.addCalculated(state) : state
       })
 
-    const stateSource  = new StateSource(combined$)
+    const stateSource  = new StateSource(state$)
     const stateField   = props.from
     const collectionOf = props.of
     const idField      = props.idfield || 'id'
@@ -861,24 +755,14 @@ class Component {
       throw new Error(`[${this.name}] Invalid 'of' propery in collection: ${ collectionOf }`)
     }
 
-    const sanitizeItems = item => {
-      if (isObj(item)) {
-        const { __props, __children, __context, ...sanitized } = item
-        return sanitized
-      } else {
-        return item
-      }
-    }
-
     const fieldLense = {
       get: state => {
-        const { __props, __children } = state
         if (!Array.isArray(state[stateField])) return []
         const items = state[stateField]
-        const filtered = filter ? items.filter(filter) : items
-        const sorted = sort ? filtered.sort(sort) : filtered
+        const filtered = typeof arrayOperators.filter === 'function' ? items.filter(arrayOperators.filter) : items
+        const sorted = typeof arrayOperators.sort ? filtered.sort(arrayOperators.sort) : filtered
         const mapped = sorted.map((item, index) => {
-          return (isObj(item)) ? { ...item, [idField]: item[idField] || index, __props, __children, __context: this.currentContext } : { value: item, [idField]: index, __props, __children, __context: this.currentContext }
+          return (isObj(item)) ? { ...item, [idField]: item[idField] || index } : { value: item, [idField]: index }
         })
 
         return mapped
@@ -890,14 +774,14 @@ class Component {
         }
         const updated = []
         for (const oldItem of oldState[stateField].map((item, index) => (isObj(item) ? { ...item, [idField]: item[idField] || index } : { __primitive: true, value: item, [idField]: index }))) {
-          if (!filter(oldItem)) {
+          if (typeof arrayOperators.filter === 'function' && !arrayOperators.filter(oldItem)) {
             updated.push(oldItem.__primitive ? oldItem.value : oldItem)
           } else {
             const newItem = newState.find(item => item[idField] === oldItem[idField])
             if (typeof newItem !== 'undefined') updated.push(oldItem.__primitive ? newItem.value : newItem)
           }
         }
-        return { ...oldState, [stateField]: updated.map(sanitizeItems) }
+        return { ...oldState, [stateField]: updated }
       }
     }
 
@@ -963,40 +847,31 @@ class Component {
   instantiateSwitchable(el, props$, children$) {
     const data      = el.data
     const props     = data.props  || {}
-    const children  = el.children || []
 
-    const combined$ = xs.combine(this.sources[this.stateSourceName].stream.startWith(this.currentState), props$, children$)
-      .map(([state, __props, __children]) => {
-        return isObj(state) ? { ...this.addCalculated(state), __props, __children, __context: this.currentContext } : { value: state, __props, __children, __context: this.currentContext }
+    const state$ = this.sources[this.stateSourceName].stream.startWith(this.currentState)
+      .map((state) => {
+        return isObj(state) ? this.addCalculated(state) : state
       })
 
-    const stateSource  = new StateSource(combined$)
-    const stateField = props.state
+    const stateSource = new StateSource(state$)
+    const stateField  = props.state
     let lense
 
     const fieldLense = {
-      get: state => {
-        const { __props, __children } = state
-        return (isObj(state[stateField])) ? { ...state[stateField], __props, __children, __context: this.currentContext } : { value: state[stateField], __props, __children, __context: this.currentContext }
-      },
+      get: state => state[stateField],
       set: (oldState, newState) => {
         if (this.calculated && stateField in this.calculated) {
           console.warn(`Switchable sub-component of ${ this.name } attempted to update state on a calculated field '${ stateField }': Update ignored`)
           return oldState
         }
         if (!isObj(newState) || Array.isArray(newState)) return { ...oldState, [stateField]: newState }
-        const { __props, __children, __context, ...sanitized } = newState
-        return { ...oldState, [stateField]: sanitized }
+        return { ...oldState, [stateField]: newState }
       }
     }
 
     const baseLense = {
       get: state => state,
-      set: (oldState, newState) => {
-        if (!isObj(newState) || Array.isArray(newState)) return newState
-        const { __props, __children, __context, ...sanitized } = newState
-        return sanitized
-      }
+      set: (oldState, newState) => newState
     }
 
     if (typeof stateField === 'undefined') {
@@ -1042,14 +917,13 @@ class Component {
     const componentName = el.sel
     const data      = el.data
     const props     = data.props  || {}
-    const children  = el.children || []
 
-    const combined$ = xs.combine(this.sources[this.stateSourceName].stream.startWith(this.currentState), props$, children$)
-      .map(([state, __props, __children]) => {
-        return isObj(state) ? { ...this.addCalculated(state), __props, __children, __context: this.currentContext } : { value: state, __props, __children, __context: this.currentContext }
+    const state$ = this.sources[this.stateSourceName].stream.startWith(this.currentState)
+      .map((state) => {
+        return isObj(state) ? this.addCalculated(state) : state
       })
 
-    const stateSource = new StateSource(combined$)
+    const stateSource = new StateSource(state$)
     const stateField  = props.state
 
     if (typeof props.sygnalFactory !== 'function' && isObj(props.sygnalOptions)) {
@@ -1065,10 +939,7 @@ class Component {
     let lense
 
     const fieldLense = {
-      get: state => {
-        const { __props, __children } = state
-        return isObj(state[stateField]) ? { ...state[stateField], __props, __children, __context: this.currentContext } : { value: state[stateField], __props, __children, __context: this.currentContext }
-      },
+      get: state => state[stateField],
       set: (oldState, newState) => {
         if (this.calculated && stateField in this.calculated) {
           console.warn(`Sub-component of ${ this.name } attempted to update state on a calculated field '${ stateField }': Update ignored`)
@@ -1080,11 +951,7 @@ class Component {
 
     const baseLense = {
       get: state => state,
-      set: (oldState, newState) => {
-        if (!isObj(newState) || Array.isArray(newState)) return newState
-        const { __props, __children, __context, ...sanitized } = newState
-        return sanitized
-      }
+      set: (oldState, newState) => newState
     }
 
     if (typeof stateField === 'undefined') {
@@ -1298,9 +1165,11 @@ function deepCopyVdom(obj) {
   return { ...obj, children: Array.isArray(obj.children) ? obj.children.map(deepCopyVdom) : undefined, data: obj.data && { ...obj.data, componentsInjected: false } }
 }
 
-function objIsEqual(objA, objB, maxDepth = 5, depth = 0) {
-  const obj1 = sanitizeObject(objA)
-  const obj2 = sanitizeObject(objB)
+function propsIsEqual(obj1, obj2) {
+  return objIsEqual(sanitizeObject(obj1, sanitizeObject(obj2)))
+}
+
+function objIsEqual(obj1, obj2, maxDepth = 5, depth = 0) {
   // Base case: if the current depth exceeds maxDepth, return true
   if (depth > maxDepth) {
       return false;
@@ -1353,7 +1222,7 @@ function objIsEqual(objA, objB, maxDepth = 5, depth = 0) {
 
 function sanitizeObject(obj) {
   if (!isObj(obj)) return obj
-  const {state, of, from, _reqId, _action, __props, __children, __context, ...sanitized} = obj
+  const {state, of, from, filter, ...sanitized} = obj
   return sanitized
 }
 
