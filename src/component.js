@@ -668,7 +668,7 @@ class Component {
     const state = this.storeCalculatedInState ? this.addCalculated(incomingState) : incomingState
     const { __props, __children, __context, ...sanitized } = state
     const copy  = { ...sanitized }
-    if (!this.calculated) return copy
+    if (!this.calculated || this.storeCalculatedInState) return copy
     const keys = Object.keys(this.calculated)
     keys.forEach(key => {
       if (this.initialState && typeof this.initialState[key] !== 'undefined') {
@@ -825,12 +825,14 @@ class Component {
     const data      = el.data
     const props     = data.props || {}
     const children  = el.children || []
-    let filter      = typeof props.filter === 'function' ? props.filter : _ => true
+    let filter      = typeof props.filter === 'function' ? props.filter : undefined
+    let sort        = sortFunctionFromProp(props.sort)
 
     const combined$ = xs.combine(this.sources[this.stateSourceName].stream.startWith(this.currentState), props$, children$)
       .map(([state, __props, __children]) => {
         if (__props.filter && typeof __props.filter === 'function') {
-          filter = __props.filter
+          filter = typeof __props.filter === 'function' ? __props.filter : undefined
+          sort   = sortFunctionFromProp(__props.sort)
         }
         return isObj(state) ? { ...this.addCalculated(state), __props, __children, __context: this.currentContext } : { value: state, __props, __children, __context: this.currentContext }
       })
@@ -872,9 +874,14 @@ class Component {
       get: state => {
         const { __props, __children } = state
         if (!Array.isArray(state[stateField])) return []
-        return state[stateField].filter(filter).map((item, index) => {
+        const items = state[stateField]
+        const filtered = filter ? items.filter(filter) : items
+        const sorted = sort ? filtered.sort(sort) : filtered
+        const mapped = sorted.map((item, index) => {
           return (isObj(item)) ? { ...item, [idField]: item[idField] || index, __props, __children, __context: this.currentContext } : { value: item, [idField]: index, __props, __children, __context: this.currentContext }
         })
+
+        return mapped
       },
       set: (oldState, newState) => {
         if (this.calculated && stateField in this.calculated) {
@@ -882,15 +889,15 @@ class Component {
           return oldState
         }
         const updated = []
-        for (const oldItem of oldState[stateField].map((item, index) => ({ __primitive: true, value: item, [idField]: index }))) {
+        for (const oldItem of oldState[stateField].map((item, index) => (isObj(item) ? { ...item, [idField]: item[idField] || index } : { __primitive: true, value: item, [idField]: index }))) {
           if (!filter(oldItem)) {
             updated.push(oldItem.__primitive ? oldItem.value : oldItem)
           } else {
-            const newItem = newState.find(newItem => newItem.id === oldItem.id)
+            const newItem = newState.find(item => item[idField] === oldItem[idField])
             if (typeof newItem !== 'undefined') updated.push(oldItem.__primitive ? newItem.value : newItem)
           }
         }
-        return { ...oldState, [stateField]: newState.map(sanitizeItems) }
+        return { ...oldState, [stateField]: updated.map(sanitizeItems) }
       }
     }
 
@@ -1352,4 +1359,78 @@ function sanitizeObject(obj) {
 
 function isObj(obj) {
   return typeof obj === 'object' && obj !== null && !Array.isArray(obj)
+}
+
+function __baseSort(a, b, ascending=true) {
+  const direction = ascending ? 1 : -1
+  switch(true) {
+    case a > b: return 1 * direction
+    case a < b: return -1 * direction
+    default: return 0
+  }
+}
+
+function __sortFunctionFromObj(item) {
+  const entries = Object.entries(item)
+  if (entries.length > 1) {
+    console.error('Sort objects can only have one key:', item)
+    return undefined
+  }
+  const entry = entries[0]
+  const [field, directionRaw] = entry
+  if (!['string', 'number'].includes(typeof directionRaw)) {
+    console.error('Sort object properties must be a string or number:', item)
+    return undefined
+  }
+  let ascending = true
+  if (typeof directionRaw === 'string') {
+    if (!['asc', 'dec'].includes(directionRaw.toLowerCase())) {
+      console.error('Sort object string values must be asc or dec:', item)
+      return undefined
+    }
+    ascending = directionRaw.toLowerCase() === 'asc'
+  }
+  if (typeof directionRaw === 'number') {
+    if (directionRaw !== 1 && directionRaw !== -1) {
+      console.error('Sort object number values must be 1 or -1:', item)
+      return undefined
+    }
+    ascending = directionRaw === 1
+  }
+  return (a, b) => __baseSort(a[field], b[field], ascending)
+}
+
+function sortFunctionFromProp(sortProp) {
+  if (!sortProp) return undefined
+  const propType = typeof sortProp
+  // if function do nothing
+  if (propType === 'function') return sortProp
+  if (propType === 'string') {
+    // if passed either 'asc' or 'dec' sort on the entire item
+    if (sortProp.toLowerCase() === 'asc' || sortProp.toLowerCase() === 'dec') {
+      const ascending = sortProp.toLowerCase() === 'asc'
+      return (a, b) => __baseSort(a, b, ascending)
+    }
+    // assume it's a field/property name, and sort it ascending
+    const field = sortProp
+    return (a, b) => __baseSort(a[field], b[field], true)
+  } else if (Array.isArray(sortProp)) {
+    const sorters = sortProp.map(item => {
+      if (typeof item === 'function') return item
+      if (typeof item === 'string' && !['asc', 'dec'].includes(item.toLowerCase())) return (a, b) => __baseSort(a[item], b[item], true)
+      if (isObj(item)) {
+        return __sortFunctionFromObj(item)
+      }
+    })
+    
+    return (a, b) => sorters.filter(sorter => typeof sorter === 'function').reduce((comparisonSoFar, currentSorter) => {
+      if (comparisonSoFar !== 0) return comparisonSoFar
+      return currentSorter(a, b)
+    }, 0)
+  } else if (isObj(sortProp)) {
+    return __sortFunctionFromObj(sortProp)
+  } else {
+    console.error('Invalid sort option (ignoring):', item)
+    return undefined
+  }
 }
