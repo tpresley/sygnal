@@ -314,7 +314,7 @@ DOM.select('.increment-button').events('click')
 
 This will result in an Observable that fires every time the button is clicked. You might think, "That's great, but you don't look like you're doing anything when it fires!". Good observation! We don't do anything here because we pass this Observable back to Sygnal, and it will take care of watching our Observable, and doing things when needed. The only thing you'll ever need to get good at to build Sygnal components is 'finding' or 'composing' the Observables to pass to `actions`, and in most cases that's done with a simple call to one of the driver source objects like we did with DOM.
 
-> If you follow the evolution of Javascript frameworks, then you've alomost certainly heard about Observables, RxJS, or more recently Signals being incorporated more and more into popular frameworks. These concepts can be very confusing, and as powerful as they are, a common view is that using them can increase learning curves and make debugging harder. There is truth to that, but Sygnal does most of the heavy lifting for you, and adds easy to understand and actionable debug logs and error messages to keep the pain as small as possible.
+> If you follow the evolution of Javascript frameworks, then you've almost certainly heard about Observables, RxJS, or more recently Signals being incorporated more and more into popular frameworks. These concepts can be very confusing, and as powerful as they are, a common view is that using them can increase learning curves and make debugging harder. There is truth to that, but Sygnal does most of the heavy lifting for you, and adds easy to understand and actionable debug logs and error messages to keep the pain as small as possible.
 >
 > Sygnal uses an Observable library called [xstream](https://github.com/staltz/xstream "xstream GitHub page") which was written by the same team that created Cycle.js, and is specifically tailored to work well with components, and is extremely small and fast. We may add support for other Observable libraries like RxJS, most.js, or Bacon in the future, but unless you have a specific need for those other libraries, xtream is almost always the best choice anyways.
 
@@ -439,8 +439,9 @@ function RootComponent() {
 }
 ```
 
-> NOTE: State Lenses give you maximum flexibility to handle how state flows from parent to child components, but are rarely actually needed.
-> If you find yourself reaching to State Lenses often, there's probably an easier way to do what you want using normal Sygnal features
+> NOTE: State Lenses give you maximum flexibility to handle how state flows from parent to child components, but are rarely actually needed,
+> and can be difficult to debug. If you find yourself reaching to State Lenses often, there's probably an easier way to do what you want 
+> using normal Sygnal features
 
 
 
@@ -494,52 +495,173 @@ DOM.select('.increment-button').events('click').map(event => event.target.datase
 If we use this for the INCREMENT action in the component .intent, then 'Hello!' will get logged to the browser console whenever the button is clicked.
 
 
+### Do Multiple Things For One Action
+
+In some cases you'll need to do more than one thing when a single 'action' is triggered. Sygnal provides a couple of tools to help with that.
+
+In the case that you want to do multiple separate things with different drivers, you can simply add extra entries for each driver in the action
+object:
+
+```javascript
+// This will both update the count in the state,
+// and print 'Updating count' to the browser console
+// whenever SOME_ACTION is triggered
+MyComponent.model = {
+  SOME_ACTION: {
+    STATE: (state) => ({ ...state, count: state.count + 1 }),
+    LOG: (state) => 'Updating count'
+  }
+}
+```
+
+In other cases, you might want to tigger other actions to happen based on certain conditions. For that, Sygnal provides a `next()` function as
+the 3rd argument to all 'reducer' functions which can be used to manually trigger any other action in your component:
+
+```javascript
+// When SOME_ACTION is triggered...
+// If 'logIt' on the state is true, then the next() function triggers
+// the ANOTHER_ACTION action to be run with the 'data' set to 'Log Me!'
+// since that action uses the LOG driver sink, and passes 'data',
+// 'Log Me!' will be printed to the browser console
+MyComponent.model = {
+  SOME_ACTION: (state, data, next) => {
+    if (state.logIt === true) next('ANOTHER_ACTION', 'Log Me!')
+    return { ...state, itGotLogged: true }
+  },
+  ANOTHER_ACTION: {
+    LOG: (state, data) => data
+    // setting any driver sink entry to 'true' will cause anything in data
+    // to be passed on directly, so the following is exactly the same
+    // LOG: true
+  }
+}
+```
 
 
 ## Common Tasks Made Easy
 
-
+There are a few things that almost any application will have that can be challenging for people new to functional reactive programming to do.
+To keep you from pulling your hair out, and even make these tasks look easy, Sygnal provides several features and helpers.
 
 ### Collections of Components
 
+Pretty much any application will at some point will have lists, arrays, or some other place where many of the same component is shown,
+and may even need to dynamically change the list size, filter what's shown, or sort items on some criteria.
+For this, Sygnal provides a built-in `<collection>` element that takes a provided component and an array on your state
+and handles everything else for you.
+
+In this example, a new ListItemComponent will be created for each item in the `list` state property. It will be filtered to only show items
+where showMe is true, and will be sorted by name.
+
+Each instance created will have it's associated item as its state, and if it updates state, the item in the list will get updated properly as well.
+An item can even delete itself by setting its own state to 'undefined', in which case it will be automatically removed from the array on state.
+
+```javascript
+function RootComponent({ state }) {
+  return (
+    <div>
+      <collection of={ ListItemComponent } from="list" filter={ item => item.showMe === true } sort="name" />
+    </div>
+  )
+}
+
+RootComponent.initialState = {
+  list: [
+    { name: 'Bob', showMe: true },
+    { name: 'Sarah', showMe: true },
+    { name: 'David', showMe: true },
+    { name: 'Joe', showMe: false }
+  ]
+}
+
+function ListItemComponent({ state }) => {
+  return <div>{ state.name }</div>
+}
+```
+> NOTE: notice `collection` is lower case. This is to avoid problems with JSX conversion.
 
 
+### Switchable Components
 
+Another common use case is to show different content based on some criteria, like changing things when a different tab is clicked.
+For this, Sygnal provides a built-in `<switchable>` element that takes an object mapping names to components, and the name of the 
+component to show now.
 
+In this example, clicking the buttons will switch back and forth between showing FirstComponent or SecondComponent by changing
+the value of the `whichItemToShow` state.
 
+```javascript
+function RootComponent({ state }) {
+  return (
+    <div>
+      <button className="show-item1">Item 1</button>
+      <button className="show-item2">Item 2</button>
+      <switchable of={ item1: FirstComponent, item2: SecondComponent } current={ state.whichItemToShow } />
+    </div>
+  )
+}
 
+RootComponent.intent = ({ DOM }) => {
+  const item1$ = DOM.select('.show-item1').events('click').mapTo('item1')
+  const item2$ = DOM.select('.show-item2').events('click').mapTo('item2')
 
-### The collection() Function
+  return {
+    // xs.merge() is an Observable function that merges multiple Observables together
+    // the result is a new Observable that fires whenever any of the original ones do
+    // and forwards the data on. xs can be imported from sygnal.
+    SET_ITEM: xs.merge(item1$, item2$)
+  }
+}
 
-Sygnal's collection() function is a wrapper for Cycle.js's makeCollection() function (See the [documentation here](https://cycle.js.org/api/state.html#cycle-state-source-usage-how-to-handle-a-dynamic-list-of-nested-components "@cycle/state makeComponent documentation")) that provides an extremely simplified API for creating dynamic lists of components from an array, and automatically grows, shrinks and updates with changes to the state. The collection() function is designed to work 'as is' for the vast majority of use cases, and provides configuration options for more advanced use cases.  And in the rare case that collection() is not powerful enough, Sygnal components can seamlessly work with the results of Cycle.js's makeCollection() instead.
-
-
-### The switchable() Function
-
-Sygnal's switchable() function provides an easy way to create a new component that 'switches' between multiple other components (for switching content based on tab or menu navigation for example).
-
-The 'active' component (the component which is made visible) can be set by either providing an observable that emits component names, or by a function that takes the current application state and returns the component name.
-
-
-### The run() Function
-
-Sygnal's run() function is a wrapper for Cycle.js's run() function with the following additions/defaults:
-- Automatically adds application level state (add a 'source' and 'sink' with the name 'STATE')
-- Adds a DOM driver (providing user events and accepting new virtual DOM)
-- Adds an EVENTS driver to allow easy messaging between components or the entire application
-- Adds a LOG driver that simply console.log's any data passed to it
-- Looks for and mounts to an HTML element with an id of root (#root)
-
-*NOTE: Sygnal currently only supports xstream as its observable library despite Cycle.js supporting Most and RxJS as well.  Support for these alternative observable libraries will be added in the near future.*
+RootComponent.model = {
+  SET_ITEM: (state, data) => ({ ...state, whichItemToShow: data })
+}
+```
 
 
 ### The processForm() Function
 
-A very common task in web pages and browser applications is to work with form inputs.  Unfortunately, the logic and stream plumbing required to do this routine task can be challenging to developers new to observables (and is frustrating even for most veterans).  Sygnal's processForm() helper function takes any HTML form element, and automatically extracts the values from all input fields contained within it.  By default processForm() listens to both 'input' and 'submit' events, but can be configured to listen to any combination of standard or custom events on the form itself or its inputs.
+Another very common task in web pages and browser applications is to work with form inputs.  Unfortunately, the logic and stream plumbing required to do this routine task can be challenging to developers new to observables (and is frustrating even for most veterans).  Sygnal's processForm() helper function takes any HTML form element, and automatically extracts the values from all input fields contained within it.  By default processForm() listens to both 'input' and 'submit' events, but can be configured to listen to any combination of standard or custom events on the form itself or its inputs.
+
+The Observable from `processForm` always returns objects with the current value of every field in the form, so the following will print something like:
+
+```javascript
+{
+  'first-name': 'First',
+  'last-name': 'Last'
+}
+```
+
+```javascript
+import { processForm } from 'sygnal'
+
+function MyComponent({ state }) {
+  return (
+    <form className="my-form">
+      <input name="first-name" />
+      <input name="last-name" />
+      <button type="submit">Submit</button>
+    </form>
+  )
+}
+
+MyComponent.intent = ({ DOM }) => {
+  const submit$ = processForm(DOM.select('.my-form'), { events: 'submit' })
+  
+  return {
+    HANDLE_FORM: submit$
+  }
+}
+
+MyComponent.model = {
+  HANDLE_FORM: {
+    LOG: (state, data) => data
+  }
+}
+```
 
 
-
-## Prerequisites
+## Prerequisites / Using a Starter Template
 
 For plain Javascript usage, Sygnal has no prerequisites as all dependencies are pre-bundled.
 
@@ -597,109 +719,6 @@ NOTE: Some minifiers will cause JSX fragments to fail by renaming the Fragment p
 }
 ```
 
-
-## Initialization
-
-If you used the Vite based sygnal-template above, then the initialization code was already added to a script block in index.html for you.  Otherwise, you can initialize a Sygnal app by adding the following to your project entry point (usually index.js):
-
-```javascript
-import { run } from 'sygnal'
-// replace the following line with your app's root component
-import App from './app'
-
-run(App) // <-- automatically binds to a #root HTML element (make sure you have an element with id="root" or the app won't start)
-```
-
-Now you're all set to create components! If you used the Vite based sygnal-template above then you can start a Vite dev server that watches for file changes with:
-
-```bash
-npm run dev
-```
-
-
-## Basic Examples
-
-### Hello World
-
-The most basic (and not very useful) component
-
-```javascript
-// app.jsx
-import { component } from 'sygnal'
-
-export default component({
-  view: () => <h1>Hello World!</h1>
-})
-```
-
-
-### Using state (basic)
-
-All Sygnal components get state out of the box.  Sub or child components will get state passed from their parent component, but the root component will need an initial state to get things rolling.
-
-This can be provided using the 'initialState' parameter of component().
-
-```javascript
-// app.jsx
-import { component } from 'sygnal'
-
-export default component({
-  initialState: { who: 'World!' },
-  view: ({ state }) => <h1>Hello { state.who }</h1>
-  // if you prefer not to use JSX, the above is equivalent to:
-  //
-  //   view: ({ state }) => h('h2', `Hello ${ state.who }`)
-  //
-  // but you will need to add "import { h } from 'sygnal'" to the top of your file
-})
-```
-
-As shown here, the current state of the application (equal to the value of 'initialState' for now) will be passed to the view() function, and can be used in any valid Javascript/JSX syntax that results in virtual DOM.
-
-
-### DOM Events
-
-To make components capable of responding to users interacting with the DOM, you will need to add the 'model' and 'intent' parameters.
-
-The 'model' parameter is an object that maps 'action' names to what should be done when that action happens.
-
-The 'intent' parameter is a function that takes Cycle.js 'sources' and returns an object mapping 'action' names to streams/observables which fire/emit when that action should occur.
-
-This sounds more complicated than it is... basically the 'model' answers **WHAT** can/should happen, and the 'intent' answers **WHEN** those things will happen.
-
-To illustrate, here's a basic counter that increments when the user clicks anywhere in the page:
-
-```javascript
-// app.jsx
-import { component } from 'sygnal'
-
-export default component({
-  // initialize the count to 0
-  initialState: { count: 0 },
-  model: {
-    // when the 'INCREMENT' action happens, run this 'reducer' function
-    // which takes the current state and returns the updated state,
-    // in this case incrementing the count by 1
-    INCREMENT: (state) => {
-      return { count: state.count + 1 }
-    }
-  },
-  // the 'sources' passed to intent() is an object containing an entry for each Cycle.js 'driver'
-  // Sygnal automatically adds STATE, DOM, EVENTS, and LOG drivers and their resulting sources and sinks
-  // the DOM source allows you to select DOM elements by any valid CSS selector, and listen for any DOM events
-  // because we map document click events to the 'INCREMENT' action, it will cause the 'INCREMENT' action in 'model' to fire
-  // whenever the document is clicked
-  intent: (sources) => {
-    return {
-      INCREMENT: sources.DOM.select('document').events('click')
-    }
-  },
-  // every time the state is changed, the view will automatically be efficiently rerendered (only DOM elements that have changed will be impacted)
-  view: ({ state }) => <h1>Current Count: { state.count }</h1>
-})
-```
-
-*NOTE: action names (like INCREMENT in the above example) can be any valid Javascript object key name*
 
 
 ### DOM Events (part 2)
