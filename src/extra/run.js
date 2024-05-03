@@ -8,10 +8,10 @@ import component from "../component"
 export default function run(app, drivers={}, options={}) {
   const { mountPoint='#root', fragments=true } = options
   if (!app.isSygnalComponent) {
-    const name = app.name || "FUNCTIONAL_COMPONENT"
+    const name = app.name || app.componentName || app.label || "FUNCTIONAL_COMPONENT"
     const view = app
-    const { model, intent, context, children, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, debug } = app
-    const options = { name, view, model, intent, context, children, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, debug }
+    const { model, intent, context, peers, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, debug } = app
+    const options = { name, view, model, intent, context, peers, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, debug }
 
     app = component(options)
   }

@@ -15,9 +15,11 @@ import { default as dropRepeats } from 'xstream/extra/dropRepeats.js'
 const ENVIRONMENT = ((typeof window != 'undefined' && window) || (process && process.env)) || {}
 
 
-const BOOTSTRAP_ACTION        = 'BOOTSTRAP'
-const INITIALIZE_ACTION       = 'INITIALIZE'
-const HYDRATE_ACTION          = 'HYDRATE'
+const BOOTSTRAP_ACTION  = 'BOOTSTRAP'
+const INITIALIZE_ACTION = 'INITIALIZE'
+const HYDRATE_ACTION    = 'HYDRATE'
+const PARENT_SINK_NAME  = 'PARENT'
+const CHILD_SOURCE_NAME = 'CHILD'
 
 
 let COMPONENT_COUNT   = 0
@@ -74,7 +76,7 @@ class Component {
   // model
   // context
   // view
-  // children
+  // peers
   // components
   // initialState
   // calculated
@@ -90,7 +92,8 @@ class Component {
   // action$
   // model$
   // context$
-  // children$
+  // peers$
+  // childSources
   // vdom$
   // currentState
   // currentProps
@@ -107,7 +110,7 @@ class Component {
   // [ OUTPUT ]
   // sinks
 
-  constructor({ name='NO NAME', sources, intent, model, context, response, view, children={}, components={}, initialState, calculated, storeCalculatedInState=true, DOMSourceName='DOM', stateSourceName='STATE', requestSourceName='HTTP', debug=false }) {
+  constructor({ name='NO NAME', sources, intent, model, context, response, view, peers={}, components={}, initialState, calculated, storeCalculatedInState=true, DOMSourceName='DOM', stateSourceName='STATE', requestSourceName='HTTP', debug=false }) {
     if (!sources || !isObj(sources)) throw new Error('Missing or invalid sources')
 
     this.name       = name
@@ -117,7 +120,7 @@ class Component {
     this.context    = context
     this.response   = response
     this.view       = view
-    this.children   = children
+    this.peers      = peers
     this.components = components
     this.initialState      = initialState
     this.calculated        = calculated
@@ -172,12 +175,13 @@ class Component {
     this.addCalculated = this.createMemoizedAddCalculated()
     this.log = makeLog(`${componentNumber} | ${name}`)
 
+    this.initChildSources$()
     this.initIntent$()
     this.initAction$()
     this.initState()
     this.initContext()
     this.initModel$()
-    this.initChildren$()
+    this.initPeers$()
     this.initSubComponentSink$()
     this.initSubComponentsRendered$()
     this.initVdom$()
@@ -189,7 +193,7 @@ class Component {
   }
 
   get debug() {
-    return this._debug || (ENVIRONMENT.DEBUG === 'true' || ENVIRONMENT.DEBUG === true)
+    return this._debug || (ENVIRONMENT.SYGNAL_DEBUG === 'true' || ENVIRONMENT.SYGNAL_DEBUG === true)
   }
 
   initIntent$() {
@@ -226,7 +230,7 @@ class Component {
 
     const action$    = ((runner instanceof Stream) ? runner : (runner.apply && runner(this.sources) || xs.never()))
     const bootstrap$ = xs.of({ type: BOOTSTRAP_ACTION }).compose(delay(10))
-    const wrapped$   = concat(bootstrap$, action$)
+    const wrapped$   = this.model[BOOTSTRAP_ACTION] ? concat(bootstrap$, action$) : action$
 
 
     let initialApiData
@@ -340,15 +344,18 @@ class Component {
       sinkEntries.forEach((entry) => {
         const [sink, reducer] = entry
 
-        const isStateSink = (sink == this.stateSourceName)
+        const isStateSink  = (sink === this.stateSourceName)
+        const isParentSink = (sink === PARENT_SINK_NAME)
 
         const on  = isStateSink ? onState() : onNormal()
-        const on$ = on(action, reducer)
+        const on$ = isParentSink ? on(action, reducer).map(value => ({ name: this.name, value })) : on(action, reducer)
 
         const wrapped$ = on$
           .compose(this.log(data => {
             if (isStateSink) {
               return `<${ action }> State reducer added`
+            } else if (isParentSink) {
+              return `<${ action }> Data sent to parent component: ${ JSON.stringify(data.value).replaceAll('"', '') }`
             } else {
               const extra = data && (data.type || data.command || data.name || data.key || (Array.isArray(data) && 'Array') || data)
               return `<${ action }> Data sent to [${ sink }]: ${ JSON.stringify(extra).replaceAll('"', '') }`
@@ -372,7 +379,7 @@ class Component {
     this.model$ = model$
   }
 
-  initChildren$() {
+  initPeers$() {
     const initial = this.sourceNames.reduce((acc, name) => {
       if (name == this.DOMSourceName) {
         acc[name] = {}
@@ -382,17 +389,44 @@ class Component {
       return acc
     }, {})
 
-    this.children$ = Object.entries(this.children).reduce((acc, [childName, childFactory]) => {
-      const child$ = childFactory(this.sources)
+    this.peers$ = Object.entries(this.peers).reduce((acc, [peerName, peerFactory]) => {
+      const peer$ = peerFactory(this.sources)
       this.sourceNames.forEach(source => {
         if (source == this.DOMSourceName) {
-          acc[source][childName] = child$[source]
+          acc[source][peerName] = peer$[source]
         } else {
-          acc[source].push(child$[source])
+          acc[source].push(peer$[source])
         }
       })
       return acc
     }, initial)
+  }
+
+  initChildSources$() {
+    let newSourcesNext
+    const childSources$ = xs.create({
+      start: listener => {
+        newSourcesNext = listener.next.bind(listener)
+      },
+      stop: _ => {
+
+      }
+    }).map(sources => xs.merge(...sources)).flatten()
+
+    // childSources$.subscribe({ next: _ => _})
+
+    this.sources[CHILD_SOURCE_NAME] = {
+      select: (name) => {
+        const all$ = childSources$
+        const filtered$ = name ? all$.filter(entry => entry.name === name) : all$
+        const unwrapped$ = filtered$.map(entry => entry.value)
+        return unwrapped$
+      }
+    }
+
+    this.newChildSources = (sources) => {
+      if (typeof newSourcesNext === 'function') newSourcesNext(sources)
+    }
   }
 
   initSubComponentSink$() {
@@ -441,16 +475,17 @@ class Component {
   initSinks() {
     this.sinks = this.sourceNames.reduce((acc, name) => {
       if (name == this.DOMSourceName) return acc
-      const subComponentSink$ = this.subComponentSink$ ? this.subComponentSink$.map(sinks => sinks[name]).filter(sink => !!sink).flatten() : xs.never()
+      const subComponentSink$ = (this.subComponentSink$ && name !== PARENT_SINK_NAME) ? this.subComponentSink$.map(sinks => sinks[name]).filter(sink => !!sink).flatten() : xs.never()
       if (name === this.stateSourceName) {
-        acc[name] = xs.merge((this.model$[name] || xs.never()), subComponentSink$, this.sources[this.stateSourceName].stream.filter(_ => false), ...this.children$[name])
+        acc[name] = xs.merge((this.model$[name] || xs.never()), subComponentSink$, this.sources[this.stateSourceName].stream.filter(_ => false), ...(this.peers$[name] || []))
       } else {
-        acc[name] = xs.merge((this.model$[name] || xs.never()), subComponentSink$, ...this.children$[name])
+        acc[name] = xs.merge((this.model$[name] || xs.never()), subComponentSink$, ...(this.peers$[name] || []))
       }
       return acc
     }, {})
 
-    this.sinks[this.DOMSourceName]     = this.vdom$
+    this.sinks[this.DOMSourceName] = this.vdom$
+    this.sinks[PARENT_SINK_NAME] = this.model$[PARENT_SINK_NAME] || xs.never()
   }
 
   makeOnAction(action$, isStateSink=true, rootAction$) {
@@ -533,7 +568,7 @@ class Component {
   }
 
   getCalculatedValues(state) {
-    const entries = Object.entries(this.calculated)
+    const entries = Object.entries(this.calculated || {})
     if (entries.length === 0) {
       return
     }
@@ -566,7 +601,7 @@ class Component {
 
   collectRenderParameters() {
     const state        = this.sources[this.stateSourceName]
-    const renderParams = { ...this.children$[this.DOMSourceName] }
+    const renderParams = { ...this.peers$[this.DOMSourceName] }
 
     const enhancedState = state && state.isolateSource(state, { get: state => this.addCalculated(state) })
     const stateStream   = (enhancedState && enhancedState.stream) || xs.never()
@@ -602,7 +637,7 @@ class Component {
           acc[name] = arr[index]
           if (name === 'state') {
             acc[this.stateSourceName] = arr[index]
-            acc.calculated = this.getCalculatedValues(arr[index]) || {}
+            acc.calculated = (arr[index] && this.getCalculatedValues(arr[index])) || {}
           }
           return acc
         }, {})
@@ -625,6 +660,7 @@ class Component {
       }
 
       const sinkArrsByType = {}
+      const childSources = []
       let newInstanceCount = 0
 
       const newComponents =  entries.reduce((acc, [id, el]) => {
@@ -636,9 +672,13 @@ class Component {
         const isSwitchable = data.isSwitchable || false
 
         const addSinks = (sinks) => {
-          Object.entries(sinks).map(([name, stream]) => {
+          Object.entries(sinks).forEach(([name, stream]) => {
             sinkArrsByType[name] ||= []
-            if (name !== this.DOMSourceName) sinkArrsByType[name].push(stream)
+            if (name === PARENT_SINK_NAME) {
+              childSources.push(stream)
+            } else if (name !== this.DOMSourceName) {
+              sinkArrsByType[name].push(stream)
+            }
           })
         }
 
@@ -685,6 +725,8 @@ class Component {
       }, {})
 
       this.newSubComponentSinks(mergedSinksByType)
+      this.newChildSources(childSources)
+
 
       if (newInstanceCount > 0) this.log(`New sub components instantiated: ${ newInstanceCount }`, true)
 
@@ -743,10 +785,10 @@ class Component {
       if (collectionOf.isSygnalComponent) {
         factory = collectionOf
       } else {
-        const name = (typeof collectionOf.name === 'string') ? collectionOf.name : 'FUNCTION_COMPONENT'
+        const name = collectionOf.componentName || collectionOf.label || collectionOf.name || 'FUNCTION_COMPONENT'
         const view = collectionOf
-        const { model, intent, context, children, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, debug } = collectionOf
-        const options = { name, view, model, intent, context, children, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, debug }
+        const { model, intent, context, peers, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, debug } = collectionOf
+        const options = { name, view, model, intent, context, peers, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, debug }
         factory = component(options)
       }
     } else if (this.components[collectionOf]) {
@@ -836,7 +878,7 @@ class Component {
       lense = undefined
     }
 
-    const sources = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$, __parentContext$: this.context$ }
+    const sources = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$, __parentContext$: this.context$, PARENT: null }
     const sink$   = collection(factory, lense, { container: null })(sources)
     if (!isObj(sink$)) {
       throw new Error('Invalid sinks returned from component factory of collection element')
@@ -895,10 +937,10 @@ class Component {
     keys.forEach(key => {
       const current = switchableComponents[key]
       if (!current.isSygnalComponent) {
-        const name = (typeof current.name === 'string') ? current.name : 'FUNCTION_COMPONENT'
+        const name = current.componentName || current.label || current.name || 'FUNCTION_COMPONENT'
         const view = current
-        const { model, intent, context, children, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, debug } = current
-        const options = { name, view, model, intent, context, children, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, debug }
+        const { model, intent, context, peers, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, debug } = current
+        const options = { name, view, model, intent, context, peers, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, debug }
         switchableComponents[key] = component(options)
       }
     })

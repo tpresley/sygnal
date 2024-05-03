@@ -90,15 +90,15 @@ export const createElementWithModules = (modules) => {
       }
       data ||= {}
       if (!sel.isSygnalComponent) {
-        const name = (typeof sel.name === 'string') ? sel.name : 'FUNCTION_COMPONENT'
+        const name = sel.componentName || sel.label || sel.name || 'FUNCTION_COMPONENT'
         const view = sel
-        const { model, intent, context, children, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, debug } = sel
-        const options = { name, view, model, intent, context, children, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, debug }
+        const { model, intent, context, peers, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, debug } = sel
+        const options = { name, view, model, intent, context, peers, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, debug }
         data.sygnalOptions = options
         sel = name
       } else {
         const factory = sel
-        sel = sel.name || sel.componentName || 'sygnal-factory'
+        sel = sel.componentName || sel.label || sel.name || 'sygnal-factory'
         data.sygnalFactory = factory
       }
     }
