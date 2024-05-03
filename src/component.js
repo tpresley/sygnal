@@ -230,7 +230,7 @@ class Component {
 
     const action$    = ((runner instanceof Stream) ? runner : (runner.apply && runner(this.sources) || xs.never()))
     const bootstrap$ = xs.of({ type: BOOTSTRAP_ACTION }).compose(delay(10))
-    const wrapped$   = this.model[BOOTSTRAP_ACTION] ? concat(bootstrap$, action$) : action$
+    const wrapped$   = this.model[BOOTSTRAP_ACTION] ? concat(bootstrap$, action$) : concat(xs.of({}).compose(delay(1)), action$)
 
 
     let initialApiData
@@ -412,8 +412,6 @@ class Component {
 
       }
     }).map(sources => xs.merge(...sources)).flatten()
-
-    // childSources$.subscribe({ next: _ => _})
 
     this.sources[CHILD_SOURCE_NAME] = {
       select: (name) => {
