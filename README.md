@@ -158,7 +158,7 @@ Sygnal components should always be pure, meaning they should never produce side 
 
 But in order for components to decide what to do, they need to know what's happening around them. Drivers take care of that as well.
 
-Drivers in a Sygnal application act as both a 'source' and a 'sink'. They provide information to components throught their 'source' objects, and get commands from components to do things in their 'sink'.
+Drivers in a Sygnal application act as both a 'source' and a 'sink'. They provide information to components through their 'source' objects, and get commands from components to do things in their 'sink'.
 
 Some drivers only provide sources, and others only accept sinks, but most are both sources *and* sinks. And for most applications, the drivers you'll be using the most are the `STATE` and `DOM` drivers, both of which are included automatically in all Sygnal applications.
 
@@ -286,7 +286,7 @@ RootComponent.model = {
     return { count: state.count + 1 }
   }
 
-  // you can make this even shorter using the shortenned arrow function object return syntax like:
+  // you can make this even shorter using the shortened arrow function object return syntax like:
   // INCREMENT: (state) => ({ count: state.count + 1 })
 }
 ```
