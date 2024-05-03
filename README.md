@@ -719,108 +719,96 @@ NOTE: Some minifiers will cause JSX fragments to fail by renaming the Fragment p
 }
 ```
 
+## More Examples
 
-
-### DOM Events (part 2)
-
-Now let's improve our Hello World app with 2-way binding on an input field
+### Two Way Binding
 
 ```javascript
-// app.jsx
-import { component } from 'sygnal'
+function TwoWay({ state }) {
+  return (
+    <div>
+      <h1>Hello { state.name }</h1>
+      {/* set the 'value' of the input to the current state */}
+      <input className="name" value={ state.name } />
+    </div>
+  )
+}
 
-export default component({
-  // initial name
-  initialState: { name: 'World!' },
-  model: {
-    // update the name in the state whenever the 'CHANGE_NAME' action is triggered
-    // this time we use the 2nd parameter of the reducer function which gets the value passed
-    // by the stream that triggered the action
-    CHANGE_NAME: (state, data) => {
-      return { name: data }
-    }
-  },
-  // it's usually more convenient to use destructuring to 'get' the individual sources you need, like DOM in this case
-  intent: ({ DOM }) => {
-    return {
-      // select the input DOM element using it's class name
-      // then map changes to the value ('input' event) to extract the value
-      // that value will then be passed to the 2nd parameter of reducers in 'model'
-      CHANGE_NAME: DOM.select('.name').events('input').map(e => e.target.value)
-    }
-  },
-  view: ({ state }) => {
-    return (
-      <div>
-        <h1>Hello { state.name }</h1>
-        {/* set the 'value' of the input to the current state */}
-        <input className="name" value={ state.name } />
-      </div>
-    )
+TwoWay.initialState = { name: 'World!' }
+
+TwoWay.intent = ({ DOM }) => {
+  return {
+    // select the input DOM element using it's class name
+    // then map changes to the value ('input' event) to extract the value
+    // that value will then be passed to the 2nd parameter of reducers in 'model'
+    CHANGE_NAME: DOM.select('.name').events('input').map(e => e.target.value)
   }
-})
-```
+}
 
-*NOTE: The expression DOM.select('.name').events('input') results in an observable that 'fires' or 'emits' whenever the DOM 'input' event occurs*
+TwoWay.model = {
+  // update the name in the state whenever the 'CHANGE_NAME' action is triggered
+  // this time we use the 2nd parameter of the reducer function which gets the value passed
+  // by the stream that triggered the action
+  CHANGE_NAME: (state, data) => {
+    return { name: data }
+  }
+}
+```
 
 
 ### Multiple Actions
 
-Now let's improve the counter app with increment and decrement buttons as well as an input field to set the count to any value
-
 ```javascript
-// app.jsx
-import { component } from 'sygnal'
-
 // import the xtream observable library so we can do some stream operations
-import xs from 'xstream'
+import { xs } from 'sygnal'
 
-export default component({
-  initialState: { count: 0 },
-  model: {
-    // add the value passed from the stream that triggered the action to the current count
-    // this will either be 1 or -1, so will increment or decrement the count accordingly
-    INCREMENT: (state, data) => ({ count: state.count + data }),
-    SET_COUNT: (state, data) => ({ count: parseInt(data || 0) })
-  },
-  intent: ({ DOM }) => {
-    // rather than pass streams directly to the actions, it is sometimes helpful
-    // to collect them in variables first
-    // it is convention (but not required) to name variables containing streams with a trailing '$'
-    // the 'mapTo' function causes the stream to emit the specified value whenever the stream fires
-    // so the increment$ stream will emit a '1' and the decrement$ stream a '-1' whenever their
-    // respective buttons are pressed, and as usual those values will be passed to the 2nd parameter
-    // of the reducer functions in the 'model'
-    const increment$ = DOM.select('.increment').events('click').mapTo(1)
-    const decrement$ = DOM.select('.decrement').events('click').mapTo(-1)
-    const setCount$  = DOM.select('.number').events('input').map(e => e.target.value)
+function Counter({ state }) {
+  return (
+    <div>
+      <h1>Current Count: { state.count }</h1>
+      <input type="button" className="increment" value="+" />
+      <input type="button" className="decrement" value="-" />
+      <input className="number" value={ state.count } />
+    </div>
+  )
+}
 
-    return {
-      // the 'merge' function merges the events from all streams passed to it
-      // this causes the 'INCREMENT' action to fire when either the increment$ or decrement$
-      // streams fire, and will pass the value that the stream emeits (1 or -1 in this case)
-      INCREMENT: xs.merge(increment$, decrement$),
-      SET_COUNT: setCount$
-    }
-  },
-  view: ({ state }) => {
-    return (
-      <div>
-        <h1>Current Count: { state.count }</h1>
-        <input type="button" className="increment" value="+" />
-        <input type="button" className="decrement" value="-" />
-        <input className="number" value={ state.count } />
-      </div>
-    )
+Counter.initialState = { count: 0 }
+
+Counter.intent = ({ DOM }) => {
+  // rather than pass Observables directly to the actions, it is sometimes helpful
+  // to collect them in variables first
+  // it is convention (but not required) to name variables containing Observables with a trailing '$'
+  // the 'mapTo' function causes the Observable to emit the specified value whenever the stream fires
+  // so the increment$ stream will emit a '1' and the decrement$ stream a '-1' whenever their
+  // respective buttons are pressed, and as usual those values will be passed to the 2nd parameter
+  // of the reducer functions in the 'model'
+  const increment$ = DOM.select('.increment').events('click').mapTo(1)
+  const decrement$ = DOM.select('.decrement').events('click').mapTo(-1)
+  const setCount$  = DOM.select('.number').events('input').map(e => e.target.value)
+
+  return {
+    // the 'merge' function merges the events from all streams passed to it
+    // this causes the 'INCREMENT' action to fire when either the increment$ or decrement$
+    // streams fire, and will pass the value that the stream emeits (1 or -1 in this case)
+    INCREMENT: xs.merge(increment$, decrement$),
+    SET_COUNT: setCount$
   }
-})
+}
+
+Counter.model = {
+  // add the value passed from the stream that triggered the action to the current count
+  // this will either be 1 or -1, so will increment or decrement the count accordingly
+  INCREMENT: (state, data) => ({ count: state.count + data }),
+  SET_COUNT: (state, data) => ({ count: parseInt(data || 0) })
+}
 ```
 
 
 
 ## More Documentation To Come...
 
-Sygnal is the result of several years of building Cycle.js apps, and our attempts to make that process more enjoyable.  It has been used for moderate scale production applications, and we are making it available to the world in the hopes it is useful, and brings more attention to the wonderful work of the Cycle.js team.
+Sygnal is the result of several years of building Cycle.js apps, and our attempts to make that process more enjoyable.  It has been used for moderate scale production applications, and we are making it available to the world in the hopes it is useful.
 
 Until better documentation is available, here are some well-commented projects using most of Sygnal's features:
 - Sygnal ToDoMVC ( [GitHub](https://github.com/tpresley/sygnal-todomvc) | [Live Demo](https://tpresley.github.io/sygnal-todomvc/) ) - The [ToDoMVC](https://todomvc.com/) framework comparison app implemented in Sygnal
