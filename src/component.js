@@ -230,7 +230,7 @@ class Component {
 
     const action$    = ((runner instanceof Stream) ? runner : (runner.apply && runner(this.sources) || xs.never()))
     const bootstrap$ = xs.of({ type: BOOTSTRAP_ACTION }).compose(delay(10))
-    const wrapped$   = this.model[BOOTSTRAP_ACTION] ? concat(bootstrap$, action$) : concat(xs.of({}).compose(delay(1)), action$)
+    const wrapped$   = this.model[BOOTSTRAP_ACTION] ? concat(bootstrap$, action$) : concat(xs.of().compose(delay(1)).filter(_ => false), action$)
 
 
     let initialApiData
@@ -248,12 +248,12 @@ class Component {
   }
 
   initState() {
-    if (this.model != undefined) {
+    if (this.model !== undefined) {
       if (this.model[INITIALIZE_ACTION] === undefined) {
         this.model[INITIALIZE_ACTION] = {
           [this.stateSourceName]: (_, data) => ({ ...this.addCalculated(data) })
         }
-      } else {
+      } else if (isObj(this.model[INITIALIZE_ACTION])) {
         Object.keys(this.model[INITIALIZE_ACTION]).forEach(name => {
           if (name !== this.stateSourceName) {
             console.warn(`${ INITIALIZE_ACTION } can only be used with the ${ this.stateSourceName } source... disregarding ${ name }`)

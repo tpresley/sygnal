@@ -683,7 +683,7 @@ npm run build
 The results will be in the 'dist' folder, and you can serve it locally by running:
 
 ```bash
-npm preview
+npm run preview
 ```
 
 Alternatively, you can use any other bundler of your choice (Webpack, Babel, Rollup, etc.).  To use JSX in your components while using alternative bundlers, you will need to configure your bundler to use Sygnal's JSX pragma. This is slightly different for each bundler, but looks generally like:
