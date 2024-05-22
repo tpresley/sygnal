@@ -92,8 +92,8 @@ export const createElementWithModules = (modules) => {
       if (!sel.isSygnalComponent) {
         const name = sel.componentName || sel.label || sel.name || 'FUNCTION_COMPONENT'
         const view = sel
-        const { model, intent, context, peers, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, debug } = sel
-        const options = { name, view, model, intent, context, peers, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, debug }
+        const { model, intent, hmrActions, context, peers, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, debug } = sel
+        const options = { name, view, model, intent, hmrActions, context, peers, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, debug }
         data.sygnalOptions = options
         sel = name
       } else {

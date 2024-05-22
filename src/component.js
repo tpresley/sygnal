@@ -110,13 +110,14 @@ class Component {
   // [ OUTPUT ]
   // sinks
 
-  constructor({ name='NO NAME', sources, intent, model, context, response, view, peers={}, components={}, initialState, calculated, storeCalculatedInState=true, DOMSourceName='DOM', stateSourceName='STATE', requestSourceName='HTTP', debug=false }) {
+  constructor({ name='NO NAME', sources, intent, model, hmrActions, context, response, view, peers={}, components={}, initialState, calculated, storeCalculatedInState=true, DOMSourceName='DOM', stateSourceName='STATE', requestSourceName='HTTP', debug=false }) {
     if (!sources || !isObj(sources)) throw new Error('Missing or invalid sources')
 
     this.name       = name
     this.sources    = sources
     this.intent     = intent
     this.model      = model
+    this.hmrActions = hmrActions
     this.context    = context
     this.response   = response
     this.view       = view
@@ -177,6 +178,7 @@ class Component {
 
     this.initChildSources$()
     this.initIntent$()
+    this.initHmrActions()
     this.initAction$()
     this.initState()
     this.initContext()
@@ -211,6 +213,23 @@ class Component {
     }
   }
 
+  initHmrActions() {
+    if (typeof this.hmrActions === 'undefined') {
+      this.hmrAction$ = xs.of().filter(_ => false)
+      return
+    }
+    if (typeof this.hmrActions === 'string') {
+      this.hmrActions = [this.hmrActions]
+    }
+    if (!Array.isArray(this.hmrActions)) {
+      throw new Error(`[${ this.name }] hmrActions must be the name of an action or an array of names of actions to run when a component is hot-reloaded`)
+    }
+    if (this.hmrActions.some(action => typeof action !== 'string')) {
+      throw new Error(`[${ this.name }] hmrActions must be the name of an action or an array of names of actions to run when a component is hot-reloaded`)
+    }
+    this.hmrAction$ = xs.fromArray(this.hmrActions.map(action => ({ type: action })))
+  }
+
   initAction$() {
     const requestSource  = (this.sources && this.sources[this.requestSourceName]) || null
 
@@ -230,11 +249,12 @@ class Component {
 
     const action$    = ((runner instanceof Stream) ? runner : (runner.apply && runner(this.sources) || xs.never()))
     const bootstrap$ = xs.of({ type: BOOTSTRAP_ACTION }).compose(delay(10))
-    const wrapped$   = this.model[BOOTSTRAP_ACTION] ? concat(bootstrap$, action$) : concat(xs.of().compose(delay(1)).filter(_ => false), action$)
+    const hmrAction$ = window?.__SYGNAL_HMR_UPDATING === true ? this.hmrAction$ : xs.of().filter(_ => false)
+    const wrapped$   = (this.model[BOOTSTRAP_ACTION] && window?.__SYGNAL_HMR_UPDATING !== true) ? concat(bootstrap$, action$) : concat(xs.of().compose(delay(1)).filter(_ => false), hmrAction$, action$)
 
 
     let initialApiData
-    if (requestSource && typeof requestSource.select == 'function') {
+    if (window?.__SYGNAL_HMR_UPDATING !== true && requestSource && typeof requestSource.select == 'function') {
       initialApiData = requestSource.select('initial')
         .flatten()
     } else {
@@ -319,7 +339,7 @@ class Component {
     if (this.isSubComponent && this.initialState) {
       console.warn(`[${ this.name }] Initial state provided to sub-component. This will overwrite any state provided by the parent component.`)
     }
-    const shimmed$ = this.initialState ? concat(xs.of(initial), this.action$).compose(delay(0)) : this.action$
+    const shimmed$ = (this.initialState && window?.__SYGNAL_HMR_UPDATING !== true) ? concat(xs.of(initial), this.action$).compose(delay(0)) : this.action$
     const onState  = () => this.makeOnAction(shimmed$, true, this.action$)
     const onNormal = () => this.makeOnAction(this.action$, false, this.action$)
 
@@ -785,8 +805,8 @@ class Component {
       } else {
         const name = collectionOf.componentName || collectionOf.label || collectionOf.name || 'FUNCTION_COMPONENT'
         const view = collectionOf
-        const { model, intent, context, peers, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, debug } = collectionOf
-        const options = { name, view, model, intent, context, peers, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, debug }
+        const { model, intent, hmrActions, context, peers, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, debug } = collectionOf
+        const options = { name, view, model, intent, hmrActions, context, peers, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, debug }
         factory = component(options)
       }
     } else if (this.components[collectionOf]) {
@@ -937,8 +957,8 @@ class Component {
       if (!current.isSygnalComponent) {
         const name = current.componentName || current.label || current.name || 'FUNCTION_COMPONENT'
         const view = current
-        const { model, intent, context, peers, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, debug } = current
-        const options = { name, view, model, intent, context, peers, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, debug }
+        const { model, intent, hmrActions, context, peers, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, debug } = current
+        const options = { name, view, model, intent, hmrActions, context, peers, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, debug }
         switchableComponents[key] = component(options)
       }
     })
