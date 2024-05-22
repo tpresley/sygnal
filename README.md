@@ -623,12 +623,13 @@ RootComponent.model = {
 
 Another very common task in web pages and browser applications is to work with form inputs.  Unfortunately, the logic and stream plumbing required to do this routine task can be challenging to developers new to observables (and is frustrating even for most veterans).  Sygnal's processForm() helper function takes any HTML form element, and automatically extracts the values from all input fields contained within it.  By default processForm() listens to both 'input' and 'submit' events, but can be configured to listen to any combination of standard or custom events on the form itself or its inputs.
 
-The Observable from `processForm` always returns objects with the current value of every field in the form, so the following will print something like:
+The Observable from `processForm` always returns objects with the current value of every field in the form along with the name of the JS event that initiated it, so the following will print something like:
 
 ```javascript
 {
-  'first-name': 'First',
-  'last-name': 'Last'
+  'first-name': 'Bob',
+  'last-name': 'Smith',
+  eventType: 'submit'
 }
 ```
 
