@@ -2,6 +2,7 @@
 
 import isolate from '@cycle/isolate'
 import { makeCollection } from '@cycle/state'
+import { h } from '@cycle/dom'
 
 
 
@@ -64,3 +65,12 @@ export default function collection(component, stateLense, opts={}) {
  function makeIsolatedCollection (collectionOpts, isolateOpts, sources) {
   return isolate(makeCollection(collectionOpts), isolateOpts)(sources)
 }
+
+const Collection = (props) => {
+  const { children, ...sanitizedProps } = props
+  return h('collection', { props: sanitizedProps }, children)
+}
+Collection.label = 'collection'
+Collection.preventInstantiation = true
+
+export { Collection }

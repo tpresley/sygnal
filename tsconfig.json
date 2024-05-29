@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "target": "ES5",                       // Specify ECMAScript target version
+    "module": "ESNext",                    // Specify module code generation
+    "moduleResolution": "bundler",
+    "declaration": true,                   // Generates corresponding '.d.ts' file
+    "emitDeclarationOnly": true,           // Only emit `.d.ts` declaration files
+    "outDir": "./dist",                    // Redirect output structure to the directory
+    "strict": true,                        // Enable all strict type-checking options
+    "baseUrl": ".",                        // Base directory to resolve non-relative module names
+    "rootDir": "./src"
+  },
+  "include": ["src/index.d.ts"],           // Include your type definitions from 'src'
+  "exclude": ["node_modules", "dist"]      // Exclude unnecessary directories
+}

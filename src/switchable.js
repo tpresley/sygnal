@@ -2,6 +2,7 @@
 
 import { default as xs, Stream } from 'xstream'
 import dropRepeats from 'xstream/extra/dropRepeats'
+import { h } from '@cycle/dom'
 
 
 
@@ -91,3 +92,12 @@ function _switchable (factories, sources, name$, switched=['DOM'], stateSourceNa
 
   return switchedSinks
 }
+
+const Switchable = (props) => {
+  const { children, ...sanitizedProps } = props
+  return h('switchable', { props: sanitizedProps }, children)
+}
+Switchable.label = 'switchable'
+Switchable.preventInstantiation = true;
+
+export { Switchable }

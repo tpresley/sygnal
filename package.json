@@ -3,6 +3,7 @@
   "version": "3.1.0",
   "description": "An intuitive framework for building fast and small components or applications based on Cycle.js",
   "main": "./dist/index.cjs.js",
+  "types": "./dist/index.d.ts",
   "module": "./dist/index.esm.js",
   "exports": {
     ".": {
@@ -12,14 +13,21 @@
     "./jsx": {
       "import": "./dist/jsx.esm.js",
       "require": "./dist/jsx.cjs.js"
+    },
+    "./types": {
+      "import": "./dist/index.d.ts",
+      "reauire": "./dist/index.d.ts"
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "src"
   ],
   "scripts": {
     "test": "echo \"Tests to come...\"",
     "build": "npx rollup -c",
+    "build:types": "npx rollup -c rollup.config.dts.mjs",
+    "build:all": "npm run build && npm run build:types",
     "start": "npx rollup -c -w"
   },
   "repository": {
@@ -55,6 +63,10 @@
     "@rollup/plugin-commonjs": "^25.0.4",
     "@rollup/plugin-node-resolve": "^15.2.1",
     "@rollup/plugin-terser": "^0.4.3",
-    "rollup": "^3.28.1"
+    "@rollup/plugin-typescript": "^11.1.6",
+    "rollup": "^3.28.1",
+    "rollup-plugin-dts": "^6.1.1",
+    "tslib": "^2.6.2",
+    "typescript": "^5.4.5"
   }
 }

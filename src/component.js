@@ -147,7 +147,8 @@ class Component {
     const props$ = sources.props$
     if (props$) {
       this.sources.props$ = props$.map(val => {
-        this.currentProps = val
+        const { sygnalFactory, sygnalOptions, ...sanitizedProps } = val
+        this.currentProps = sanitizedProps
         return val
       })
     }
@@ -291,7 +292,7 @@ class Component {
     }
 
     const state$ = this.sources[this.stateSourceName]?.stream.startWith({}).compose(dropRepeats(objIsEqual)) || xs.never()
-    const parentContext$ = this.sources.__parentContext$.startWith({}).compose(dropRepeats(objIsEqual)) || xs.of({})
+    const parentContext$ = this.sources.__parentContext$?.startWith({}).compose(dropRepeats(objIsEqual)) || xs.of({})
     if (this.context && !isObj(this.context)) {
       console.error(`[${this.name}] Context must be an object mapping names to values of functions: ignoring provided ${ typeof this.context }`)
     }
@@ -481,7 +482,11 @@ class Component {
     const renderParameters$ = this.collectRenderParameters()
 
     this.vdom$ = renderParameters$
-      .map(this.view)
+      .map(params => {
+        const { props, state, children, context, ...peers } = params
+        const { sygnalFactory, sygnalOptions, ...sanitizedProps} = props || {}
+        return this.view({ ...sanitizedProps, state, children, context, peers }, state, context, peers)
+      })
       .compose(this.log('View rendered'))
       .map(vDom => vDom || { sel: 'div', data: {}, children: [] })
       .compose(this.instantiateSubComponents.bind(this))
@@ -524,20 +529,22 @@ class Component {
             this.log(`<${ name }> Triggered a next() action: <${ type }> ${ delay }ms delay`, true)
           }
 
-          const extra = { props: this.currentProps, children: this.currentChildren, context: this.currentContext }
+          const props = { ...this.currentProps, children: this.currentChildren, context: this.currentContext }
 
           let data = action.data
           if (isStateSink) {
             return (state) => {
               const _state = this.isSubComponent ? this.currentState : state
               const enhancedState = this.addCalculated(_state)
-              const newState = reducer(enhancedState, data, next, extra)
+              props.state = enhancedState
+              const newState = reducer(enhancedState, data, next, props)
               if (newState == ABORT) return _state
               return this.cleanupCalculated(newState)
             }
           } else {
             const enhancedState = this.addCalculated(this.currentState)
-            const reduced = reducer(enhancedState, data, next, extra)
+            props.state = enhancedState
+            const reduced = reducer(enhancedState, data, next, props)
             const type = typeof reduced
             if (isObj(reduced) || ['string', 'number', 'boolean', 'function'].includes(type)) return reduced
             if (type == 'undefined') {

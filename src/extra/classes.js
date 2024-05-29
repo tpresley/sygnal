@@ -3,8 +3,8 @@
 /**
  * return a validated and properly separated string of CSS class names from any number of strings, arrays, and objects
  *
- * @param  {...String|Array|Object} args any number of strings or arrays with valid CSS class names, or objects where the keys are valid class names and the values evaluate to true or false
- * @return {String} list of `active` classes separated by spaces
+ * @param  { ...String | Array | Object } args any number of strings or arrays with valid CSS class names, or objects where the keys are valid class names and the values evaluate to true or false
+ * @return { String } list of `active` classes separated by spaces
  *
  * any `string` or `array` arguments are simply validated and appended to the result
  * `objects` will evaluate the values (which can be booleans or functions), and the keys with `thruthy` values will be validated and appended to the result

@@ -92,7 +92,18 @@ export const createElementWithModules = (modules) => {
       if (!sel.isSygnalComponent) {
         const name = sel.componentName || sel.label || sel.name || 'FUNCTION_COMPONENT'
         const view = sel
-        const { model, intent, hmrActions, context, peers, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, debug } = sel
+        const { model, intent, hmrActions, context, peers, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, debug, preventInstantiation } = sel
+        if (preventInstantiation) {
+          const text = sanitizeText(children, modules)
+          return considerSvg({
+            sel: name,
+            data: data ? sanitizeData(data, modules) : {},
+            children: typeof text !== 'undefined' ? createTextElement(text) : sanitizeChildren(children),
+            text,
+            elm: undefined,
+            key: data ? data.key : undefined
+          })
+        }
         const options = { name, view, model, intent, hmrActions, context, peers, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, debug }
         data.sygnalOptions = options
         sel = name

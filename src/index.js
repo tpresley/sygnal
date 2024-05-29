@@ -2,8 +2,8 @@
 
 // export sygnal core functions
 export { default as component, ABORT } from "./component"
-export { default as collection } from "./collection"
-export { default as switchable } from "./switchable"
+export { default as collection, Collection } from "./collection"
+export { default as switchable, Switchable } from "./switchable"
 export { driverFromAsync } from "./extra/driverFactories"
 export { default as processForm } from "./extra/processForm"
 export { default as run } from './extra/run'
