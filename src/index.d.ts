@@ -63,7 +63,7 @@ type DefaultSinks<STATE, PROPS, ACTIONS, DATA> = {
 type CustomDriverSinks<STATE, PROPS, DRIVERS, ACTIONS, ACTION_ENTRY> = keyof DRIVERS extends never ? {
   [driver: string]: SinkValue<STATE, PROPS, ACTIONS, any, any>;
 } : {
-  [DRIVER_KEY in keyof DRIVERS]: SinkValue<STATE, PROPS, ACTIONS, ACTION_ENTRY, DRIVERS[DRIVER_KEY]>;
+  [DRIVER_KEY in keyof DRIVERS]: SinkValue<STATE, PROPS, ACTIONS, ACTION_ENTRY, DRIVERS[DRIVER_KEY] extends { source: any, sink: any } ? DRIVERS[DRIVER_KEY]["sink"] : any>;
 }
 
 type ModelEntry<STATE, PROPS, DRIVERS, ACTIONS, ACTION_ENTRY> = SinkValue<STATE, PROPS, ACTIONS, ACTION_ENTRY, STATE> | Partial<DefaultSinks<STATE, PROPS, ACTIONS, ACTION_ENTRY> & CustomDriverSinks<STATE, PROPS, DRIVERS, ACTIONS, ACTION_ENTRY>>;
@@ -75,7 +75,7 @@ type WithDefaultActions<STATE, ACTIONS> = ACTIONS & {
 } 
 
 type ComponentModel<STATE, PROPS, DRIVERS, ACTIONS> = keyof ACTIONS extends never ? {
-  [action: string]: ModelEntry<STATE, PROPS, DRIVERS, WithDefaultActions<STATE, ACTIONS>, any>;
+  [action: string]: ModelEntry<STATE, PROPS, DRIVERS, WithDefaultActions<STATE, { [action: string]: any }>, any>;
 } : {
   [ACTION_KEY in keyof WithDefaultActions<STATE, ACTIONS>]?: ModelEntry<STATE, PROPS, DRIVERS, WithDefaultActions<STATE, ACTIONS>, WithDefaultActions<STATE, ACTIONS>[ACTION_KEY]>;
 };
@@ -140,7 +140,7 @@ export type Lense<PARENT_STATE=any, CHILD_STATE=any> = {
   set: (state: PARENT_STATE, childState: CHILD_STATE) => PARENT_STATE;
 }
 
-export type Filter<ARRAY=any[]> = (array: ARRAY) => ARRAY
+export type Filter<ITEM=any> = (item: ITEM) => boolean
 
 export type SortFunction<ITEM=any> = (a: ITEM, b: ITEM) => number
 export type SortObject<ITEM=any> = {
@@ -162,17 +162,17 @@ type FixDrivers<DRIVERS> =
  * @template CALCULATED - Calculated state values (key = calculated variable name; value = type of the calculated variable)
  * @template CONTEXT - Context (key = context variable name; value = type of the context variable)
  */
-export type Component<STATE=any, PROPS={[prop: string]: any}, DRIVERS={}, ACTIONS={}, CALCULATED={}, CONTEXT={}> = ComponentProps<STATE, PROPS, CONTEXT> & {
+export type Component<STATE=any, PROPS={[prop: string]: any}, DRIVERS={}, ACTIONS={}, CALCULATED={}, CONTEXT={}> = ComponentProps<STATE & CALCULATED, PROPS, CONTEXT> & {
   label?: string;
   DOMSourceName?: string;
   stateSourceName?: string;
   requestSourceName?: string;
-  model?: ComponentModel<STATE, PROPS, FixDrivers<DRIVERS>, ACTIONS>;
-  intent?: ComponentIntent<STATE, FixDrivers<DRIVERS>, ACTIONS>;
+  model?: ComponentModel<STATE & CALCULATED, PROPS, FixDrivers<DRIVERS>, ACTIONS>;
+  intent?: ComponentIntent<STATE & CALCULATED, FixDrivers<DRIVERS>, ACTIONS>;
   initialState?: STATE;
   calculated?: Calculated<STATE, CALCULATED>;
   storeCalculatedInState?: boolean;
-  context?: Context<STATE, CONTEXT>;
+  context?: Context<STATE & CALCULATED, CONTEXT>;
   peers?: { [name: string]: Component };
   components?: { [name: string]: Component };
   debug?: boolean;
@@ -186,7 +186,7 @@ export type Component<STATE=any, PROPS={[prop: string]: any}, DRIVERS={}, ACTION
  * @template CALCULATED - Calculated state values (key = calculated variable name; value = type of the calculated variable)
  * @template CONTEXT - Context (key = context variable name; value = type of the context variable)
  */
-export type RootComponent<STATE=any, DRIVERS={}, ACTIONS=any, CALCULATED=any, CONTEXT=any> = Component<STATE, any, DRIVERS, ACTIONS, CALCULATED, CONTEXT>
+export type RootComponent<STATE=any, DRIVERS={}, ACTIONS={}, CALCULATED=any, CONTEXT=any> = Component<STATE, any, DRIVERS, ACTIONS, CALCULATED, CONTEXT>
 
 export type CollectionProps<PROPS=any> = {
   of: any;

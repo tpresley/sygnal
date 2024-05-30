@@ -3,7 +3,7 @@ type Lense<PARENT_STATE=any, CHILD_STATE=any> = {
   set: (state: PARENT_STATE, childState: CHILD_STATE) => PARENT_STATE;
 }
 
-type Filter<ARRAY=any[]> = (array: ARRAY) => ARRAY
+type Filter<ITEM=any> = (item: ITEM) => boolean
 
 type SortFunction<ITEM=any> = (a: ITEM, b: ITEM) => number
 type SortObject<ITEM=any> = {
@@ -23,13 +23,15 @@ type SwitchableProps<PROPS=any> = {
   state?: string | Lense;
 } & Omit<PROPS, 'of' | 'state' | 'current'>;
 
-type ClassesType = (string | string[] | { [className: string]: boolean })[]
+type ClassesType = (string | string[] | { [className: string]: boolean | undefined })[]
 
 
 declare module 'sygnal' {
+  import { MainDOMSource } from '@cycle/dom';
+  import { Stream } from 'xstream';
   export function run(component: any, drivers?: any, options?: any): { hmr: (newComponent: any) => void }
   export function classes(...classes: ClassesType): string;
-  export function processForm<FIELDS extends { [field: string]: any }>(target: HTMLFormElement, options: { events: string | string[], preventDefault: boolean }): FIELDS & { event: Event, eventType: string };
+  export function processForm<FIELDS extends { [field: string]: any }>(target: MainDOMSource, options?: { events?: string | string[], preventDefault?: boolean }): Stream<FIELDS & { event: Event, eventType: string }>;
   export function Collection<PROPS extends { [prop: string]: any }>(
     props: CollectionProps<PROPS>
   ): JSX.Element;
