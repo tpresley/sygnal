@@ -51,22 +51,22 @@ export type Event<DATA=any> = { type: string, data: DATA }
  * - true: Whatever value is received from the intent for this action is passed on as-is.
  * - Function: A reducer
  */
-type SinkValue<STATE, PROPS, ACTIONS, DATA, RETURN> = true | Reducer<STATE, PROPS, ACTIONS, DATA, RETURN> 
+type SinkValue<STATE, PROPS, ACTIONS, DATA, RETURN, CALCULATED> = true | Reducer<STATE & CALCULATED, PROPS, ACTIONS, DATA, RETURN> 
 
-type DefaultSinks<STATE, PROPS, ACTIONS, DATA> = {
-  STATE?: SinkValue<STATE, PROPS, ACTIONS, DATA, STATE>;
-  EVENTS?: SinkValue<STATE, PROPS, ACTIONS, DATA, Event>;
-  LOG?: SinkValue<STATE, PROPS, ACTIONS, DATA, any>;
-  PARENT?: SinkValue<STATE, PROPS, ACTIONS, DATA, any>;
+type DefaultSinks<STATE, PROPS, ACTIONS, DATA, CALCULATED> = {
+  STATE?: SinkValue<STATE, PROPS, ACTIONS, DATA, STATE, CALCULATED>;
+  EVENTS?: SinkValue<STATE, PROPS, ACTIONS, DATA, Event, CALCULATED>;
+  LOG?: SinkValue<STATE, PROPS, ACTIONS, DATA, any, CALCULATED>;
+  PARENT?: SinkValue<STATE, PROPS, ACTIONS, DATA, any, CALCULATED>;
 };
 
-type CustomDriverSinks<STATE, PROPS, DRIVERS, ACTIONS, ACTION_ENTRY> = keyof DRIVERS extends never ? {
-  [driver: string]: SinkValue<STATE, PROPS, ACTIONS, any, any>;
+type CustomDriverSinks<STATE, PROPS, DRIVERS, ACTIONS, ACTION_ENTRY, CALCULATED> = keyof DRIVERS extends never ? {
+  [driver: string]: SinkValue<STATE, PROPS, ACTIONS, any, any, CALCULATED>;
 } : {
-  [DRIVER_KEY in keyof DRIVERS]: SinkValue<STATE, PROPS, ACTIONS, ACTION_ENTRY, DRIVERS[DRIVER_KEY] extends { source: any, sink: any } ? DRIVERS[DRIVER_KEY]["sink"] : any>;
+  [DRIVER_KEY in keyof DRIVERS]: SinkValue<STATE, PROPS, ACTIONS, ACTION_ENTRY, DRIVERS[DRIVER_KEY] extends { source: any, sink: any } ? DRIVERS[DRIVER_KEY]["sink"] : any, CALCULATED>;
 }
 
-type ModelEntry<STATE, PROPS, DRIVERS, ACTIONS, ACTION_ENTRY> = SinkValue<STATE, PROPS, ACTIONS, ACTION_ENTRY, STATE> | Partial<DefaultSinks<STATE, PROPS, ACTIONS, ACTION_ENTRY> & CustomDriverSinks<STATE, PROPS, DRIVERS, ACTIONS, ACTION_ENTRY>>;
+type ModelEntry<STATE, PROPS, DRIVERS, ACTIONS, ACTION_ENTRY, CALCULATED> = SinkValue<STATE, PROPS, ACTIONS, ACTION_ENTRY, STATE, CALCULATED> | Partial<DefaultSinks<STATE, PROPS, ACTIONS, ACTION_ENTRY, CALCULATED> & CustomDriverSinks<STATE, PROPS, DRIVERS, ACTIONS, ACTION_ENTRY, CALCULATED>>;
 
 type WithDefaultActions<STATE, ACTIONS> = ACTIONS & {
   BOOTSTRAP?: never;
@@ -74,10 +74,10 @@ type WithDefaultActions<STATE, ACTIONS> = ACTIONS & {
   HYDRATE?: any;
 } 
 
-type ComponentModel<STATE, PROPS, DRIVERS, ACTIONS> = keyof ACTIONS extends never ? {
-  [action: string]: ModelEntry<STATE, PROPS, DRIVERS, WithDefaultActions<STATE, { [action: string]: any }>, any>;
+type ComponentModel<STATE, PROPS, DRIVERS, ACTIONS, CALCULATED> = keyof ACTIONS extends never ? {
+  [action: string]: ModelEntry<STATE, PROPS, DRIVERS, WithDefaultActions<STATE, { [action: string]: any }>, any, CALCULATED>;
 } : {
-  [ACTION_KEY in keyof WithDefaultActions<STATE, ACTIONS>]?: ModelEntry<STATE, PROPS, DRIVERS, WithDefaultActions<STATE, ACTIONS>, WithDefaultActions<STATE, ACTIONS>[ACTION_KEY]>;
+  [ACTION_KEY in keyof WithDefaultActions<STATE, ACTIONS>]?: ModelEntry<STATE, PROPS, DRIVERS, WithDefaultActions<STATE, ACTIONS>, WithDefaultActions<STATE, ACTIONS>[ACTION_KEY], CALCULATED>;
 };
 
 type ChildSource = {
@@ -167,7 +167,7 @@ export type Component<STATE=any, PROPS={[prop: string]: any}, DRIVERS={}, ACTION
   DOMSourceName?: string;
   stateSourceName?: string;
   requestSourceName?: string;
-  model?: ComponentModel<STATE & CALCULATED, PROPS, FixDrivers<DRIVERS>, ACTIONS>;
+  model?: ComponentModel<STATE, PROPS, FixDrivers<DRIVERS>, ACTIONS, CALCULATED>;
   intent?: ComponentIntent<STATE & CALCULATED, FixDrivers<DRIVERS>, ACTIONS>;
   initialState?: STATE;
   calculated?: Calculated<STATE, CALCULATED>;
