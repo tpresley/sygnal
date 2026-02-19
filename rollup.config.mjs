@@ -43,5 +43,44 @@ export default [
 			resolve(),
 			commonjs()
 		]
+  },
+
+  {
+    input: 'src/astro/index.js',
+    external: [],
+    output: [
+      { file: pkg.exports['./astro'].require, format: 'cjs' },
+      { file: pkg.exports['./astro'].import, format: 'es' }
+    ],
+		plugins: [
+			resolve(),
+			commonjs()
+		]
+  },
+
+  {
+    input: 'src/astro/client.js',
+    external: ['@cycle/run', '@cycle/state', '@cycle/dom', '@cycle/isolate', 'xstream', 'snabbdom'],
+    output: [
+      { file: pkg.exports['./astro/client'].require, format: 'cjs' },
+      { file: pkg.exports['./astro/client'].import, format: 'es' }
+    ],
+		plugins: [
+			resolve(),
+			commonjs()
+		]
+  },
+
+  {
+    input: 'src/astro/server.js',
+    external: [],
+    output: [
+      { file: pkg.exports['./astro/server'].require, format: 'cjs' },
+      { file: pkg.exports['./astro/server'].import, format: 'es' }
+    ],
+		plugins: [
+			resolve(),
+			commonjs()
+		]
   }
 ];

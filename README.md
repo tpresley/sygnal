@@ -61,6 +61,29 @@ npm install sygnal
 >
 > Import `h()` from the sygnal package with `import { h } from 'sygnal'`
 
+### Astro Integration
+
+Sygnal includes an Astro integration so it can be added in `astro.config` like other framework integrations:
+
+```javascript
+import { defineConfig } from 'astro/config'
+import sygnal from 'sygnal/astro'
+
+export default defineConfig({
+  integrations: [sygnal()]
+})
+```
+
+Then you can use Sygnal components in `.astro` files and hydrate with Astro client directives:
+
+```astro
+---
+import Counter from '../components/Counter.jsx'
+---
+
+<Counter client:load />
+```
+
 ### React Style Functional Components
 
 If you're coming from React, Sygnal components will feel familiar.  Just as with React Functional Components, Sygnal components begin with a function which defines the component's view (what HTML elements are rendered).

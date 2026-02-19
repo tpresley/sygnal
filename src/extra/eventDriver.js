@@ -1,6 +1,6 @@
 'use strict'
 
-import xs from 'xstream'
+import xs from './xstreamCompat.js'
 import { adapt } from '@cycle/run/lib/adapt'
 
 

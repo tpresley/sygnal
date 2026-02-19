@@ -1,8 +1,10 @@
 'use strict'
 
-import { default as xs, Stream } from 'xstream'
-import dropRepeats from 'xstream/extra/dropRepeats'
+import xs, { Stream, resolveInteropDefault } from './extra/xstreamCompat.js'
+import * as dropRepeatsModule from 'xstream/extra/dropRepeats'
 import { h } from '@cycle/dom'
+
+const dropRepeats = resolveInteropDefault(dropRepeatsModule)
 
 
 

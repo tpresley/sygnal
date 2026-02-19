@@ -8,12 +8,12 @@ export { driverFromAsync } from "./extra/driverFactories"
 export { default as processForm } from "./extra/processForm"
 export { default as run } from './extra/run'
 export { default as classes } from './extra/classes'
+export { default as xs } from './extra/xstreamCompat.js'
 
 // export dom helper functions (h, div, ...)
 export * from '@cycle/dom'
 
 // export xstream and most used extra operators
-export { default as xs } from 'xstream'
 export { default as debounce } from "xstream/extra/debounce"
 export { default as throttle } from 'xstream/extra/throttle'
 export { default as delay } from "xstream/extra/delay"

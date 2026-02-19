@@ -5,11 +5,16 @@ import collection from './collection.js'
 import switchable from './switchable.js'
 import { StateSource } from '@cycle/state'
 
-import { default as xs, Stream } from 'xstream'
-import { default as delay } from 'xstream/extra/delay.js'
-import { default as concat } from 'xstream/extra/concat.js'
-import debounce from 'xstream/extra/debounce.js'
-import { default as dropRepeats } from 'xstream/extra/dropRepeats.js'
+import xs, { Stream, resolveInteropDefault } from './extra/xstreamCompat.js'
+import * as delayModule from 'xstream/extra/delay.js'
+import * as concatModule from 'xstream/extra/concat.js'
+import * as debounceModule from 'xstream/extra/debounce.js'
+import * as dropRepeatsModule from 'xstream/extra/dropRepeats.js'
+
+const delay = resolveInteropDefault(delayModule)
+const concat = resolveInteropDefault(concatModule)
+const debounce = resolveInteropDefault(debounceModule)
+const dropRepeats = resolveInteropDefault(dropRepeatsModule)
 
 
 const ENVIRONMENT = ((typeof window != 'undefined' && window) || (process && process.env)) || {}

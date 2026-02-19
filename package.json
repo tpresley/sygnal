@@ -7,16 +7,33 @@
   "module": "./dist/index.esm.js",
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.esm.js",
       "require": "./dist/index.cjs.js"
     },
     "./jsx": {
+      "types": "./dist/index.d.ts",
       "import": "./dist/jsx.esm.js",
       "require": "./dist/jsx.cjs.js"
     },
+    "./astro": {
+      "types": "./src/astro/index.d.ts",
+      "import": "./dist/astro/index.mjs",
+      "require": "./dist/astro/index.cjs.js"
+    },
+    "./astro/client": {
+      "types": "./src/astro/client.d.ts",
+      "import": "./dist/astro/client.mjs",
+      "require": "./dist/astro/client.cjs.js"
+    },
+    "./astro/server": {
+      "types": "./src/astro/server.d.ts",
+      "import": "./dist/astro/server.mjs",
+      "require": "./dist/astro/server.cjs.js"
+    },
     "./types": {
       "import": "./dist/index.d.ts",
-      "reauire": "./dist/index.d.ts"
+      "require": "./dist/index.d.ts"
     }
   },
   "files": [

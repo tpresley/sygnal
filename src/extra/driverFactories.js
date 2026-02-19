@@ -1,6 +1,6 @@
 'use strict'
 
-import xs from 'xstream'
+import xs from './xstreamCompat.js'
 
 function driverFromAsync(promiseReturningFunction, opts = {}) {
   const {

@@ -1,6 +1,6 @@
 'use strict'
 
-import { default as xs } from 'xstream'
+import xs from './xstreamCompat.js'
 
 export default function processForm(form, options={}) {
   let { events = ['input', 'submit'], preventDefault = true } = options
