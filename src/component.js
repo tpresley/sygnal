@@ -341,11 +341,15 @@ class Component {
       return
     }
 
-    const initial  = { type: INITIALIZE_ACTION, data: this.initialState }
+    const hmrState = ENVIRONMENT?.__SYGNAL_HMR_STATE
+    const effectiveInitialState = (typeof hmrState !== 'undefined') ? hmrState : this.initialState
+    const initial  = { type: INITIALIZE_ACTION, data: effectiveInitialState }
     if (this.isSubComponent && this.initialState) {
       console.warn(`[${ this.name }] Initial state provided to sub-component. This will overwrite any state provided by the parent component.`)
     }
-    const shimmed$ = (this.initialState && window?.__SYGNAL_HMR_UPDATING !== true) ? concat(xs.of(initial), this.action$).compose(delay(0)) : this.action$
+    const hasInitialState = (typeof effectiveInitialState !== 'undefined')
+    const shouldInjectInitialState = hasInitialState && (ENVIRONMENT?.__SYGNAL_HMR_UPDATING !== true || typeof hmrState !== 'undefined')
+    const shimmed$ = shouldInjectInitialState ? concat(xs.of(initial), this.action$).compose(delay(0)) : this.action$
     const onState  = () => this.makeOnAction(shimmed$, true, this.action$)
     const onNormal = () => this.makeOnAction(this.action$, false, this.action$)
 

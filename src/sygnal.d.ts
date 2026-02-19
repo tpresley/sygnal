@@ -29,7 +29,25 @@ type ClassesType = (string | string[] | { [className: string]: boolean | undefin
 declare module 'sygnal' {
   import { MainDOMSource } from '@cycle/dom';
   import { Stream } from 'xstream';
-  export function run(component: any, drivers?: any, options?: any): { hmr: (newComponent: any) => void }
+  type SygnalApp = {
+    sources: any;
+    sinks: any;
+    dispose: () => void;
+    hmr: (newComponent: any, state?: any) => void;
+  }
+
+  type HotModuleAPI = {
+    accept: (...args: any[]) => any;
+    dispose?: (callback: () => void) => void;
+  }
+
+  export function run(component: any, drivers?: any, options?: any): SygnalApp
+  export function enableHMR(
+    app: SygnalApp,
+    hot: HotModuleAPI,
+    loadComponent?: () => Promise<any> | any,
+    acceptDependencies?: string | string[]
+  ): SygnalApp
   export function classes(...classes: ClassesType): string;
   export function processForm<FIELDS extends { [field: string]: any }>(target: MainDOMSource, options?: { events?: string | string[], preventDefault?: boolean }): Stream<FIELDS & { event: Event, eventType: string }>;
   export function Collection<PROPS extends { [prop: string]: any }>(

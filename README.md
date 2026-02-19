@@ -149,6 +149,29 @@ run(RootComponent)
 run(RootComponent, {}, { mountPoint: '#css-selector' })
 ```
 
+### Hot Module Replacement (HMR)
+
+Sygnal supports app-level HMR by exposing an `hmr` callback from `run()`.
+
+For Vite, set up your app entry point like this:
+
+```javascript
+import { run } from 'sygnal'
+import RootComponent from './RootComponent.jsx'
+
+const { hmr, dispose } = run(RootComponent)
+
+if (import.meta.hot) {
+  import.meta.hot.accept('./RootComponent.jsx', hmr)
+  import.meta.hot.dispose(dispose)
+}
+```
+
+For Webpack style HMR, use `module.hot.accept('./RootComponent', hmr)`.
+Make sure the `accept()` path matches the import specifier for your root component module.
+
+> Note: Sygnal HMR preserves application state, but currently replaces the running app instance (app-level HMR), not individual sub-module instances in place.
+
 
 ### State (The Basics)
 

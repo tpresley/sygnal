@@ -3,7 +3,7 @@ import { withState } from "@cycle/state"
 import { makeDOMDriver } from "@cycle/dom"
 import eventBusDriver from "./eventDriver"
 import logDriver from "./logDriver"
-import component from "../component"
+import component, { ABORT } from "../component"
 
 export default function run(app, drivers={}, options={}) {
   const { mountPoint='#root', fragments=true, useDefaultDrivers=true } = options
@@ -14,6 +14,10 @@ export default function run(app, drivers={}, options={}) {
     const options = { name, view, model, intent, hmrActions, context, peers, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, debug }
 
     app = component(options)
+  }
+
+  if (typeof window !== 'undefined' && window.__SYGNAL_HMR_UPDATING === true && typeof window.__SYGNAL_HMR_PERSISTED_STATE !== 'undefined') {
+    app.initialState = window.__SYGNAL_HMR_PERSISTED_STATE
   }
 
   const wrapped = withState(app, 'STATE')
@@ -27,33 +31,111 @@ export default function run(app, drivers={}, options={}) {
   const combinedDrivers = { ...baseDrivers, ...drivers }
 
   const { sources, sinks, run: _run } = setup(wrapped, combinedDrivers)
-  const dispose = _run()
+  const rawDispose = _run()
+  let persistListener = null
+
+  if (typeof window !== 'undefined' && sources?.STATE?.stream && typeof sources.STATE.stream.addListener === 'function') {
+    persistListener = {
+      next: (state) => {
+        window.__SYGNAL_HMR_PERSISTED_STATE = state
+      },
+      error: () => {},
+      complete: () => {}
+    }
+    sources.STATE.stream.addListener(persistListener)
+  }
+
+  const dispose = () => {
+    if (persistListener && sources?.STATE?.stream && typeof sources.STATE.stream.removeListener === 'function') {
+      sources.STATE.stream.removeListener(persistListener)
+      persistListener = null
+    }
+    rawDispose()
+  }
 
   const exposed = { sources, sinks, dispose }
 
-  const hmr = (newComponent) => {
-    exposed.sinks.STATE.shamefullySendNext((state) => {
+  const swapToComponent = (newComponent, state) => {
+    const persistedState = (typeof window !== 'undefined') ? window.__SYGNAL_HMR_PERSISTED_STATE : undefined
+    const fallbackState = typeof persistedState !== 'undefined' ? persistedState : app.initialState
+    const resolvedState = typeof state === 'undefined' ? fallbackState : state
+    if (typeof window !== 'undefined') {
       window.__SYGNAL_HMR_UPDATING = true
-      exposed.dispose()
-      const App = newComponent.default
-      App.initialState = state
-      const updated = run(App, drivers)
-      exposed.sources = updated.sources;
-      exposed.sinks = updated.sinks;
-      exposed.dispose = updated.dispose;
-      updated.sinks.STATE.shamefullySendNext(() => {
-        return { ...state }
-      })
+      window.__SYGNAL_HMR_STATE = resolvedState
+      window.__SYGNAL_HMR_PERSISTED_STATE = resolvedState
+    }
+    exposed.dispose()
+    const App = newComponent.default || newComponent
+    App.initialState = resolvedState
+    const updated = run(App, drivers, options)
+    exposed.sources = updated.sources
+    exposed.sinks = updated.sinks
+    exposed.dispose = updated.dispose
+
+    if (typeof resolvedState !== 'undefined' && updated?.sinks?.STATE && typeof updated.sinks.STATE.shamefullySendNext === 'function') {
+      const restore = () => updated.sinks.STATE.shamefullySendNext(() => ({ ...resolvedState }))
+      setTimeout(restore, 0)
+      setTimeout(restore, 20)
+    }
+
+    if (typeof window !== 'undefined' && updated?.sources?.STATE?.stream && typeof updated.sources.STATE.stream.setDebugListener === 'function') {
       updated.sources.STATE.stream.setDebugListener({
         next: () => {
-          exposed.sources.STATE.stream.setDebugListener(null)
+          updated.sources.STATE.stream.setDebugListener(null)
+          window.__SYGNAL_HMR_STATE = undefined
           setTimeout(() => {
             window.__SYGNAL_HMR_UPDATING = false
           }, 100)
         }
       })
-      return ABORT
-    })
+    } else if (typeof window !== 'undefined') {
+      window.__SYGNAL_HMR_STATE = undefined
+      window.__SYGNAL_HMR_UPDATING = false
+    }
+  }
+
+  const resolveHotModule = (incoming) => {
+    if (!incoming) return null
+    if (Array.isArray(incoming)) return resolveHotModule(incoming.find(Boolean))
+    if (incoming.default && typeof incoming.default === 'function') return incoming
+    if (typeof incoming === 'function') return { default: incoming }
+    return null
+  }
+
+  const hmr = (newComponent, explicitState) => {
+    const normalizedModule = resolveHotModule(newComponent)
+    const moduleToUse = normalizedModule || { default: app }
+
+    if (typeof explicitState !== 'undefined') {
+      if (typeof window !== 'undefined') window.__SYGNAL_HMR_LAST_CAPTURED_STATE = explicitState
+      swapToComponent(moduleToUse, explicitState)
+      return
+    }
+
+    const persistedState = (typeof window !== 'undefined') ? window.__SYGNAL_HMR_PERSISTED_STATE : undefined
+    if (typeof persistedState !== 'undefined') {
+      if (typeof window !== 'undefined') window.__SYGNAL_HMR_LAST_CAPTURED_STATE = persistedState
+      swapToComponent(moduleToUse, persistedState)
+      return
+    }
+
+    const sourceState = exposed?.sources?.STATE?.stream?._v
+    if (typeof sourceState !== 'undefined') {
+      if (typeof window !== 'undefined') window.__SYGNAL_HMR_LAST_CAPTURED_STATE = sourceState
+      swapToComponent(moduleToUse, sourceState)
+      return
+    }
+
+    if (exposed?.sinks?.STATE && typeof exposed.sinks.STATE.shamefullySendNext === 'function') {
+      exposed.sinks.STATE.shamefullySendNext((state) => {
+        if (typeof window !== 'undefined') window.__SYGNAL_HMR_LAST_CAPTURED_STATE = state
+        swapToComponent(moduleToUse, state)
+        return ABORT
+      })
+      return
+    }
+
+    swapToComponent(moduleToUse)
   }
 
   exposed.hmr = hmr

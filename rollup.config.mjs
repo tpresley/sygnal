@@ -15,7 +15,7 @@ export default [
 		plugins: [
 			resolve(),
 			commonjs(),
-      terser()
+      terser({ maxWorkers: 1 })
 		]
 	},
 
