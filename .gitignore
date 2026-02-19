@@ -50,3 +50,4 @@ dist
 
 # Apple DS_store
 .DS_Store
+examples/*/package-lock.json
