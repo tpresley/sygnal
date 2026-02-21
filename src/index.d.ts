@@ -1,93 +1,149 @@
-/// <reference path="./sygnal.d.ts" />
+import type { MainDOMSource } from '@cycle/dom'
+import type { StateSource } from '@cycle/state'
+import xsDefault from 'xstream'
+import type { MemoryStream, Stream } from 'xstream'
 
-import { Stream } from 'xstream'
-import { MainDOMSource } from '@cycle/dom'
-import { StateSource } from '@cycle/state'
+export type ABORT = '~#~#~ABORT~#~#~'
 
-type ABORT = '~#~#~ABORT~#~#~'
+export type DriverSpec<SOURCE = any, SINK = any> = {
+  source: SOURCE;
+  sink: SINK;
+}
+
+export type DriverSpecs = Record<string, DriverSpec<any, any>>
+
+export type CycleDriver<SINK = any, SOURCE = any> =
+  SINK extends void
+    ? (() => SOURCE)
+    : ((sink$: Stream<SINK>) => SOURCE)
+
+export type DriverFactories<DRIVERS extends DriverSpecs = DriverSpecs> = {
+  [DRIVER_KEY in keyof DRIVERS]: CycleDriver<DRIVERS[DRIVER_KEY]['sink'], DRIVERS[DRIVER_KEY]['source']>
+}
 
 /**
  * A function that takes component properties and returns a JSX element.
- *
- * @template STATE - State type
- * @template PROPS - Props type
- * @template CONTEXT - Context type
- *
- * @param { PROPS & { state?: STATE, children?: JSX.Element | JSX.Element[], context?: CONTEXT } } props - Component props augmented with the current state, children, context, and any peers
- * @returns { JSX.Element } The JSX element rendered by the component.
  */
 type ComponentProps<STATE, PROPS, CONTEXT> = (
-  props: PROPS & { state?: STATE, children?: JSX.Element | JSX.Element[], context?: CONTEXT },
+  props: PROPS & { state?: STATE; children?: JSX.Element | JSX.Element[]; context?: CONTEXT },
   state: STATE,
   context: CONTEXT,
   peers: { [peer: string]: JSX.Element | JSX.Element[] }
-) => JSX.Element;
+) => JSX.Element
 
-
-type NextFunction<ACTIONS=any> = ACTIONS extends object
+type NextFunction<ACTIONS = any> = ACTIONS extends object
   ? <ACTION_KEY extends keyof ACTIONS>(
       action: ACTION_KEY,
       data?: ACTIONS[ACTION_KEY],
       delay?: number
     ) => void
-  : (action: string, data?: any, delay?: number) => void;
+  : (action: string, data?: any, delay?: number) => void
 
 type Reducer<STATE, PROPS, ACTIONS = any, DATA = any, RETURN = any> = (
   state: STATE,
   args: DATA,
   next: NextFunction<ACTIONS>,
   props: PROPS
-) => RETURN | ABORT | undefined;
+) => RETURN | ABORT | undefined
+
+export type ExactShape<EXPECTED, ACTUAL extends EXPECTED> = ACTUAL &
+  Record<Exclude<keyof ACTUAL, keyof EXPECTED>, never>
 
 type StateOnlyReducer<STATE, RETURN = any> = (
   state: STATE
-) => RETURN | ABORT;
+) => RETURN | ABORT
 
-export type Event<DATA=any> = { type: string, data: DATA }
+export type Event<DATA = any> = { type: string; data: DATA }
+
+export type NonStateSinkReturns = {
+  EVENTS?: any;
+  LOG?: any;
+  PARENT?: any;
+}
+
+type ResolvedNonStateSinkReturns<SINK_RETURNS extends NonStateSinkReturns = {}> = {
+  EVENTS: SINK_RETURNS extends { EVENTS: infer EVENTS_RETURN } ? EVENTS_RETURN : Event<any>;
+  LOG: SINK_RETURNS extends { LOG: infer LOG_RETURN } ? LOG_RETURN : any;
+  PARENT: SINK_RETURNS extends { PARENT: infer PARENT_RETURN } ? PARENT_RETURN : any;
+}
 
 /**
  * Valid values for a sink
- * 
+ *
  * - true: Whatever value is received from the intent for this action is passed on as-is.
  * - Function: A reducer
  */
-type SinkValue<STATE, PROPS, ACTIONS, DATA, RETURN, CALCULATED> = true | Reducer<STATE & CALCULATED, PROPS, ACTIONS, DATA, RETURN> 
+type SinkValue<STATE, PROPS, ACTIONS, DATA, RETURN, CALCULATED> =
+  | true
+  | Reducer<STATE & CALCULATED, PROPS, ACTIONS, DATA, RETURN>
 
-type DefaultSinks<STATE, PROPS, ACTIONS, DATA, CALCULATED> = {
+type DefaultSinks<STATE, PROPS, ACTIONS, DATA, CALCULATED, SINK_RETURNS extends NonStateSinkReturns = {}> = {
   STATE?: SinkValue<STATE, PROPS, ACTIONS, DATA, STATE, CALCULATED>;
-  EVENTS?: SinkValue<STATE, PROPS, ACTIONS, DATA, Event, CALCULATED>;
-  LOG?: SinkValue<STATE, PROPS, ACTIONS, DATA, any, CALCULATED>;
-  PARENT?: SinkValue<STATE, PROPS, ACTIONS, DATA, any, CALCULATED>;
-};
-
-type CustomDriverSinks<STATE, PROPS, DRIVERS, ACTIONS, ACTION_ENTRY, CALCULATED> = keyof DRIVERS extends never ? {
-  [driver: string]: SinkValue<STATE, PROPS, ACTIONS, any, any, CALCULATED>;
-} : {
-  [DRIVER_KEY in keyof DRIVERS]: SinkValue<STATE, PROPS, ACTIONS, ACTION_ENTRY, DRIVERS[DRIVER_KEY] extends { source: any, sink: any } ? DRIVERS[DRIVER_KEY]["sink"] : any, CALCULATED>;
+  EVENTS?: SinkValue<STATE, PROPS, ACTIONS, DATA, ResolvedNonStateSinkReturns<SINK_RETURNS>['EVENTS'], CALCULATED>;
+  LOG?: SinkValue<STATE, PROPS, ACTIONS, DATA, ResolvedNonStateSinkReturns<SINK_RETURNS>['LOG'], CALCULATED>;
+  PARENT?: SinkValue<STATE, PROPS, ACTIONS, DATA, ResolvedNonStateSinkReturns<SINK_RETURNS>['PARENT'], CALCULATED>;
 }
 
-type ModelEntry<STATE, PROPS, DRIVERS, ACTIONS, ACTION_ENTRY, CALCULATED> = SinkValue<STATE, PROPS, ACTIONS, ACTION_ENTRY, STATE, CALCULATED> | Partial<DefaultSinks<STATE, PROPS, ACTIONS, ACTION_ENTRY, CALCULATED> & CustomDriverSinks<STATE, PROPS, DRIVERS, ACTIONS, ACTION_ENTRY, CALCULATED>>;
+type CustomDriverSinks<STATE, PROPS, DRIVERS, ACTIONS, ACTION_ENTRY, CALCULATED> = keyof DRIVERS extends never
+  ? {
+      [driver: string]: SinkValue<STATE, PROPS, ACTIONS, any, any, CALCULATED>
+    }
+  : {
+      [DRIVER_KEY in keyof DRIVERS]: SinkValue<
+        STATE,
+        PROPS,
+        ACTIONS,
+        ACTION_ENTRY,
+        DRIVERS[DRIVER_KEY] extends { source: any; sink: any } ? DRIVERS[DRIVER_KEY]['sink'] : any,
+        CALCULATED
+      >
+    }
+
+type ModelEntry<STATE, PROPS, DRIVERS, ACTIONS, ACTION_ENTRY, CALCULATED, SINK_RETURNS extends NonStateSinkReturns = {}> =
+  | SinkValue<STATE, PROPS, ACTIONS, ACTION_ENTRY, STATE, CALCULATED>
+  | Partial<
+      DefaultSinks<STATE, PROPS, ACTIONS, ACTION_ENTRY, CALCULATED, SINK_RETURNS> &
+      CustomDriverSinks<STATE, PROPS, DRIVERS, ACTIONS, ACTION_ENTRY, CALCULATED>
+    >
 
 type WithDefaultActions<STATE, ACTIONS> = ACTIONS & {
   BOOTSTRAP?: never;
   INITIALIZE?: STATE;
   HYDRATE?: any;
-} 
+}
 
-type ComponentModel<STATE, PROPS, DRIVERS, ACTIONS, CALCULATED> = keyof ACTIONS extends never ? {
-  [action: string]: ModelEntry<STATE, PROPS, DRIVERS, WithDefaultActions<STATE, { [action: string]: any }>, any, CALCULATED>;
-} : {
-  [ACTION_KEY in keyof WithDefaultActions<STATE, ACTIONS>]?: ModelEntry<STATE, PROPS, DRIVERS, WithDefaultActions<STATE, ACTIONS>, WithDefaultActions<STATE, ACTIONS>[ACTION_KEY], CALCULATED>;
-};
+type ComponentModel<STATE, PROPS, DRIVERS, ACTIONS, CALCULATED, SINK_RETURNS extends NonStateSinkReturns = {}> = keyof ACTIONS extends never
+  ? {
+      [action: string]: ModelEntry<
+        STATE,
+        PROPS,
+        DRIVERS,
+        WithDefaultActions<STATE, { [action: string]: any }>,
+        any,
+        CALCULATED,
+        SINK_RETURNS
+      >
+    }
+  : {
+      [ACTION_KEY in keyof WithDefaultActions<STATE, ACTIONS>]?: ModelEntry<
+        STATE,
+        PROPS,
+        DRIVERS,
+        WithDefaultActions<STATE, ACTIONS>,
+        WithDefaultActions<STATE, ACTIONS>[ACTION_KEY],
+        CALCULATED,
+        SINK_RETURNS
+      >
+    }
 
 type ChildSource = {
   select: (type: string) => Stream<any>
 }
 
-type DefaultDrivers<STATE, EVENTS=any> = {
+export type DefaultDrivers<STATE, EVENTS = any> = {
   STATE: {
     source: StateSource<STATE>;
-    sink: STATE; 
+    sink: STATE;
   };
   DOM: {
     source: MainDOMSource;
@@ -100,74 +156,74 @@ type DefaultDrivers<STATE, EVENTS=any> = {
   LOG: {
     source: never;
     sink: any;
-  }
+  };
   CHILD: {
     source: ChildSource;
     sink: never;
-  }
+  };
 }
 
 type Sources<DRIVERS> = {
-  [DRIVER_KEY in keyof DRIVERS]: DRIVERS[DRIVER_KEY] extends { source: infer SOURCE } ? SOURCE : never;
+  [DRIVER_KEY in keyof DRIVERS]: DRIVERS[DRIVER_KEY] extends { source: infer SOURCE } ? SOURCE : never
 }
 
-type Actions<ACTIONS> = keyof ACTIONS extends never ? {
-  [action: string]: Stream<any>;
-} : {
-  [ACTION_KEY in keyof ACTIONS]: Stream<ACTIONS[ACTION_KEY]>;
-}
+type Actions<ACTIONS> = keyof ACTIONS extends never
+  ? { [action: string]: Stream<any> }
+  : { [ACTION_KEY in keyof ACTIONS]: Stream<ACTIONS[ACTION_KEY]> }
 
-type CombinedSources<STATE, DRIVERS> = Sources<DefaultDrivers<STATE> & DRIVERS>;
+export type FixDrivers<DRIVERS> =
+  0 extends (1 & DRIVERS)
+    ? {}
+    : DRIVERS extends DriverSpecs
+      ? DRIVERS
+      : {}
+
+type CombinedSources<STATE, DRIVERS> = Sources<DefaultDrivers<STATE> & DRIVERS>
 
 interface ComponentIntent<STATE, DRIVERS, ACTIONS> {
-  (args: CombinedSources<STATE, DRIVERS>): Partial<Actions<ACTIONS>>;
+  (args: CombinedSources<STATE, DRIVERS>): Partial<Actions<ACTIONS>>
 }
 
-type Calculated<STATE, CALCULATED> = keyof CALCULATED extends never ? {
-  [field: string]: boolean | StateOnlyReducer<STATE, any>;
-} : {
-  [CALCULATED_KEY in keyof CALCULATED]: boolean | StateOnlyReducer<STATE, CALCULATED[CALCULATED_KEY]>;
-}
+type Calculated<STATE, CALCULATED> = keyof CALCULATED extends never
+  ? { [field: string]: boolean | StateOnlyReducer<STATE, any> }
+  : { [CALCULATED_KEY in keyof CALCULATED]: boolean | StateOnlyReducer<STATE, CALCULATED[CALCULATED_KEY]> }
 
-type Context<STATE, CONTEXT> = keyof CONTEXT extends never ? {
-  [field: string]: boolean | StateOnlyReducer<STATE, any>;
-} : {
-  [CONTEXT_KEY in keyof CONTEXT]: boolean | StateOnlyReducer<STATE, CONTEXT[CONTEXT_KEY]>;
-}
+type Context<STATE, CONTEXT> = keyof CONTEXT extends never
+  ? { [field: string]: boolean | StateOnlyReducer<STATE, any> }
+  : { [CONTEXT_KEY in keyof CONTEXT]: boolean | StateOnlyReducer<STATE, CONTEXT[CONTEXT_KEY]> }
 
-export type Lense<PARENT_STATE=any, CHILD_STATE=any> = {
+export type Lense<PARENT_STATE = any, CHILD_STATE = any> = {
   get: (state: PARENT_STATE) => CHILD_STATE;
   set: (state: PARENT_STATE, childState: CHILD_STATE) => PARENT_STATE;
 }
 
-export type Filter<ITEM=any> = (item: ITEM) => boolean
+export type Lens<PARENT_STATE = any, CHILD_STATE = any> = Lense<PARENT_STATE, CHILD_STATE>
 
-export type SortFunction<ITEM=any> = (a: ITEM, b: ITEM) => number
-export type SortObject<ITEM=any> = {
-  [field: string]: 'asc' | 'dec' | SortFunction<ITEM>;
+export type Filter<ITEM = any> = (item: ITEM) => boolean
+
+export type SortFunction<ITEM = any> = (a: ITEM, b: ITEM) => number
+
+export type SortObject<ITEM = any> = {
+  [field: string]: 'asc' | 'dec' | SortFunction<ITEM>
 }
 
-type FixDrivers<DRIVERS> = 
-    0 extends (1 & DRIVERS) 
-        ? {} 
-        : DRIVERS extends object 
-            ? DRIVERS 
-            : {};
 /**
  * Sygnal Component
- * @template STATE - State
- * @template PROPS - Props (from JSX element)
- * @template DRIVERS - Custom Drivers (default drivers are automatically applied)
- * @template ACTIONS - Actions (key = action name; value = type expected for Observable values for that action)
- * @template CALCULATED - Calculated state values (key = calculated variable name; value = type of the calculated variable)
- * @template CONTEXT - Context (key = context variable name; value = type of the context variable)
  */
-export type Component<STATE=any, PROPS={[prop: string]: any}, DRIVERS={}, ACTIONS={}, CALCULATED={}, CONTEXT={}> = ComponentProps<STATE & CALCULATED, PROPS, CONTEXT> & {
+export type Component<
+  STATE = any,
+  PROPS = { [prop: string]: any },
+  DRIVERS = {},
+  ACTIONS = {},
+  CALCULATED = {},
+  CONTEXT = {},
+  SINK_RETURNS extends NonStateSinkReturns = {}
+> = ComponentProps<STATE & CALCULATED, PROPS, CONTEXT> & {
   label?: string;
   DOMSourceName?: string;
   stateSourceName?: string;
   requestSourceName?: string;
-  model?: ComponentModel<STATE, PROPS, FixDrivers<DRIVERS>, ACTIONS, CALCULATED>;
+  model?: ComponentModel<STATE, PROPS, FixDrivers<DRIVERS>, ACTIONS, CALCULATED, SINK_RETURNS>;
   intent?: ComponentIntent<STATE & CALCULATED, FixDrivers<DRIVERS>, ACTIONS>;
   initialState?: STATE;
   calculated?: Calculated<STATE, CALCULATED>;
@@ -176,30 +232,173 @@ export type Component<STATE=any, PROPS={[prop: string]: any}, DRIVERS={}, ACTION
   peers?: { [name: string]: Component };
   components?: { [name: string]: Component };
   debug?: boolean;
-};
+}
 
 /**
  * Sygnal Root Component
- * @template STATE - State
- * @template DRIVERS - Custom Drivers (default drivers are automatically applied)
- * @template ACTIONS - Actions (key = action name; value = type expected for Observable values for that action)
- * @template CALCULATED - Calculated state values (key = calculated variable name; value = type of the calculated variable)
- * @template CONTEXT - Context (key = context variable name; value = type of the context variable)
  */
-export type RootComponent<STATE=any, DRIVERS={}, ACTIONS={}, CALCULATED=any, CONTEXT=any> = Component<STATE, any, DRIVERS, ACTIONS, CALCULATED, CONTEXT>
+export type RootComponent<
+  STATE = any,
+  DRIVERS = {},
+  ACTIONS = {},
+  CALCULATED = {},
+  CONTEXT = {},
+  SINK_RETURNS extends NonStateSinkReturns = {}
+> = Component<STATE, any, DRIVERS, ACTIONS, CALCULATED, CONTEXT, SINK_RETURNS>
 
-export type CollectionProps<PROPS=any> = {
-  of: any;
+export type CollectionProps<PROPS = any> = {
+  of: Component<any, PROPS, any, any, any, any> | ((props: PROPS) => JSX.Element);
   from: string | Lense;
   filter?: Filter;
   sort?: string | SortFunction | SortObject;
-} & Omit<PROPS, 'of' | 'from' | 'filter' | 'sort'>;
+} & Omit<PROPS, 'of' | 'from' | 'filter' | 'sort'>
 
-export type SwitchableProps<PROPS=any> = {
-  of: any;
+export type SwitchableProps<PROPS = any> = {
+  of: Record<string, Component<any, PROPS, any, any, any, any> | ((props: PROPS) => JSX.Element)>;
   current: string;
   state?: string | Lense;
-} & Omit<PROPS, 'of' | 'state' | 'current'>;
+} & Omit<PROPS, 'of' | 'state' | 'current'>
+
+export type ClassesType = (string | string[] | { [className: string]: boolean | undefined })[]
+
+export type RunOptions = {
+  mountPoint?: string;
+  fragments?: boolean;
+  useDefaultDrivers?: boolean;
+}
+
+export type SygnalSinks<STATE = any, DRIVERS = {}> = {
+  [SINK_NAME in keyof (DefaultDrivers<STATE> & FixDrivers<DRIVERS>) | string]?: Stream<any>
+}
+
+export type AnyComponentModule<COMPONENT = any> =
+  | COMPONENT
+  | { default: COMPONENT }
+  | Array<COMPONENT | { default: COMPONENT } | null | undefined>
+  | null
+  | undefined
+
+export type SygnalApp<STATE = any, DRIVERS = {}> = {
+  sources: CombinedSources<STATE, FixDrivers<DRIVERS>>;
+  sinks: SygnalSinks<STATE, DRIVERS>;
+  dispose: () => void;
+  hmr: (newComponent?: AnyComponentModule<RootComponent<STATE, DRIVERS>>, state?: STATE) => void;
+}
+
+export type HotModuleAPI = {
+  accept: (...args: any[]) => any;
+  dispose?: (callback: () => void) => void;
+}
+
+export function run<
+  STATE = any,
+  DRIVERS = {},
+  ACTIONS = {},
+  CALCULATED = {},
+  CONTEXT = {}
+>(
+  component: RootComponent<STATE, DRIVERS, ACTIONS, CALCULATED, CONTEXT>,
+  drivers?: Partial<DriverFactories<FixDrivers<DRIVERS>>> & Record<string, CycleDriver<any, any>>,
+  options?: RunOptions
+): SygnalApp<STATE & CALCULATED, FixDrivers<DRIVERS>>
+
+export function run(
+  component: any,
+  drivers?: Record<string, CycleDriver<any, any>>,
+  options?: RunOptions
+): SygnalApp<any, {}>
+
+export function enableHMR<STATE = any, DRIVERS = {}>(
+  app: SygnalApp<STATE, DRIVERS>,
+  hot: HotModuleAPI,
+  loadComponent?: () => Promise<AnyComponentModule<RootComponent<STATE, DRIVERS>>> | AnyComponentModule<RootComponent<STATE, DRIVERS>>,
+  acceptDependencies?: string | string[]
+): SygnalApp<STATE, DRIVERS>
+
+export function classes(...classes: ClassesType): string
+export function exactState<STATE>(): <ACTUAL extends STATE>(state: ExactShape<STATE, ACTUAL>) => STATE
+
+export type FormSource = {
+  events: (eventName: string) => Stream<Event>
+}
+
+export function processForm<FIELDS extends { [field: string]: any }>(
+  target: FormSource,
+  options?: { events?: string | string[]; preventDefault?: boolean }
+): Stream<FIELDS & { event: Event; eventType: string }>
+
+export type ComponentFactoryOptions<
+  STATE = any,
+  PROPS = any,
+  DRIVERS = {},
+  ACTIONS = {},
+  CALCULATED = {},
+  CONTEXT = {},
+  SINK_RETURNS extends NonStateSinkReturns = {}
+> = {
+  name?: string;
+  view: Component<STATE, PROPS, DRIVERS, ACTIONS, CALCULATED, CONTEXT, SINK_RETURNS>;
+  model?: Component<STATE, PROPS, DRIVERS, ACTIONS, CALCULATED, CONTEXT, SINK_RETURNS>['model'];
+  intent?: Component<STATE, PROPS, DRIVERS, ACTIONS, CALCULATED, CONTEXT, SINK_RETURNS>['intent'];
+  hmrActions?: string | string[];
+  context?: Component<STATE, PROPS, DRIVERS, ACTIONS, CALCULATED, CONTEXT, SINK_RETURNS>['context'];
+  peers?: { [name: string]: Component };
+  components?: { [name: string]: Component };
+  initialState?: STATE;
+  calculated?: Component<STATE, PROPS, DRIVERS, ACTIONS, CALCULATED, CONTEXT, SINK_RETURNS>['calculated'];
+  storeCalculatedInState?: boolean;
+  DOMSourceName?: string;
+  stateSourceName?: string;
+  requestSourceName?: string;
+  debug?: boolean;
+}
+
+export function component<
+  STATE = any,
+  PROPS = any,
+  DRIVERS = {},
+  ACTIONS = {},
+  CALCULATED = {},
+  CONTEXT = {},
+  SINK_RETURNS extends NonStateSinkReturns = {}
+>(
+  options: ComponentFactoryOptions<STATE, PROPS, DRIVERS, ACTIONS, CALCULATED, CONTEXT, SINK_RETURNS>
+): Component<STATE, PROPS, DRIVERS, ACTIONS, CALCULATED, CONTEXT, SINK_RETURNS>
+
+export function collection(...args: any[]): any
+export function switchable(...args: any[]): any
+
+export function Collection<PROPS extends { [prop: string]: any }>(props: CollectionProps<PROPS>): JSX.Element
+export function Switchable<PROPS extends { [prop: string]: any }>(props: SwitchableProps<PROPS>): JSX.Element
+
+export type AsyncDriverFromFunction<INCOMING = any, OUTGOING = any> = {
+  select: (selector?: string | ((value: OUTGOING) => boolean)) => Stream<OUTGOING>
+}
+
+export type DriverFromAsyncOptions<INCOMING = any, OUTGOING = any, RETURN = any> = {
+  selector?: string;
+  args?: string | string[] | ((incoming: INCOMING) => any | any[]);
+  return?: string | undefined;
+  pre?: (incoming: INCOMING) => INCOMING;
+  post?: (value: RETURN, incoming: INCOMING) => OUTGOING | Promise<OUTGOING>;
+}
+
+export function driverFromAsync<INCOMING = any, RETURN = any, OUTGOING = any>(
+  promiseReturningFunction: (...args: any[]) => Promise<RETURN>,
+  options?: DriverFromAsyncOptions<INCOMING, OUTGOING, RETURN>
+): (fromApp$: Stream<INCOMING>) => AsyncDriverFromFunction<INCOMING, OUTGOING>
+
+export const ABORT: ABORT
+export const xs: typeof xsDefault
+
+export { default as debounce } from 'xstream/extra/debounce'
+export { default as throttle } from 'xstream/extra/throttle'
+export { default as delay } from 'xstream/extra/delay'
+export { default as dropRepeats } from 'xstream/extra/dropRepeats'
+export { default as sampleCombine } from 'xstream/extra/sampleCombine'
+
+export * from '@cycle/dom'
+export type { MemoryStream, Stream }
 
 /**
  * JSX Types
@@ -215,7 +414,9 @@ declare global {
     interface Element {
       children?: JSX.Element;
     }
+
+    interface ElementChildrenAttribute {
+      children: {};
+    }
   }
 }
-
-export type { Stream, MemoryStream } from 'xstream'

@@ -6,6 +6,7 @@ export { default as collection, Collection } from "./collection"
 export { default as switchable, Switchable } from "./switchable"
 export { driverFromAsync } from "./extra/driverFactories"
 export { default as processForm } from "./extra/processForm"
+export { default as exactState } from "./extra/exactState"
 export { default as run } from './extra/run'
 export { default as enableHMR } from './extra/hmr'
 export { default as classes } from './extra/classes'
