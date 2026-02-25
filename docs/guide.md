@@ -1,0 +1,1311 @@
+# Sygnal Guide
+
+This guide covers all of Sygnal's features in depth. If you're new to Sygnal, start with the [Getting Started](./getting-started.md) guide first.
+
+## Table of Contents
+
+- [Architecture Overview](#architecture-overview)
+- [Components](#components)
+- [View (The Component Function)](#view-the-component-function)
+- [Intent](#intent)
+- [Model](#model)
+- [State Management](#state-management)
+- [Observables](#observables)
+- [Drivers](#drivers)
+- [Collections](#collections)
+- [Switchable Components](#switchable-components)
+- [Context](#context)
+- [Calculated Fields](#calculated-fields)
+- [Peer Components](#peer-components)
+- [Form Handling](#form-handling)
+- [Custom Drivers](#custom-drivers)
+- [Hot Module Replacement](#hot-module-replacement)
+- [The classes() Utility](#the-classes-utility)
+- [Debugging](#debugging)
+- [TypeScript](#typescript)
+- [Astro Integration](#astro-integration)
+- [Bundler Configuration](#bundler-configuration)
+
+---
+
+## Architecture Overview
+
+Sygnal is built on [Cycle.js](https://cycle.js.org/) and uses the **Model-View-Intent (MVI)** architecture. This pattern separates application logic into three concerns:
+
+```
+DOM Events ──→ Intent (WHEN) ──→ Model (WHAT) ──→ State ──→ View (HOW) ──→ DOM
+                  ↑                                                          │
+                  └──────────────────────────────────────────────────────────┘
+```
+
+- **Intent** — Determines *when* actions should happen by observing driver sources (DOM events, API responses, timers, etc.)
+- **Model** — Determines *what* should happen by defining reducers that produce new state or commands for drivers
+- **View** — Determines *how* things are displayed by rendering the current state as virtual DOM
+
+All side effects (DOM updates, network calls, storage) are handled by **drivers**, keeping your component code 100% pure.
+
+### Why This Matters
+
+Pure components mean:
+- No hidden mutations or surprise side effects
+- Predictable, testable behavior
+- Easy state restoration, undo/redo, and time-travel debugging
+- Components can be safely re-created or hot-reloaded at any time
+
+---
+
+## Components
+
+A Sygnal component is a function with optional static properties attached to it. At minimum, a component is just a function that returns JSX:
+
+```jsx
+function MyComponent() {
+  return <div>Hello World</div>
+}
+```
+
+To make a component interactive, attach `.initialState`, `.intent`, and `.model` properties:
+
+```jsx
+function Counter({ state }) {
+  return <div>Count: {state.count}</div>
+}
+
+Counter.initialState = { count: 0 }
+
+Counter.intent = ({ DOM }) => ({
+  INCREMENT: DOM.select('.btn').events('click')
+})
+
+Counter.model = {
+  INCREMENT: (state) => ({ count: state.count + 1 })
+}
+```
+
+### Component Properties Summary
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `.initialState` | Object | The starting state for the component |
+| `.intent` | Function | Maps driver sources to named action streams |
+| `.model` | Object | Defines what happens for each action |
+| `.calculated` | Object | Derived state fields computed from base state |
+| `.context` | Object | Values passed down to all descendants |
+| `.peers` | Object | Sibling components that share the same sources |
+| `.components` | Object | Named child components |
+| `.storeCalculatedInState` | Boolean | Whether calculated fields are stored in state (default: `true`) |
+| `.debug` | Boolean | Enable debug logging for this component |
+| `.DOMSourceName` | String | Custom name for the DOM driver (default: `'DOM'`) |
+| `.stateSourceName` | String | Custom name for the state driver (default: `'STATE'`) |
+
+---
+
+## View (The Component Function)
+
+The component function is the view. It receives a single object where props from the parent are spread at the top level alongside `state`, `children`, and `context`:
+
+```jsx
+function MyComponent({ state, className, children, context, ...peers }) {
+  return (
+    <div className={className}>
+      <h1>{state.title}</h1>
+      {children}
+    </div>
+  )
+}
+```
+
+### View Parameters
+
+| Parameter | Description |
+|-----------|-------------|
+| `state` | The current component state |
+| `children` | Child elements passed between the component's opening and closing tags |
+| `context` | Values from ancestor components' `.context` definitions |
+| Named peers | Any peer components defined in `.peers` are available by name |
+| Individual props | Props from the parent (e.g., `title`, `className`) are spread at the top level |
+
+> Props are **not** nested under a `props` key. If a parent renders `<MyChild title="Hello" />`, the child destructures `title` directly: `function MyChild({ title, state }) { ... }`.
+
+The view function must be **pure**: it should only use the values it receives to produce virtual DOM. Never perform side effects (API calls, direct DOM manipulation, etc.) inside the view.
+
+### Using the Second Positional Argument
+
+The view function also receives `state` as a second positional argument, which can be convenient:
+
+```jsx
+const MyComponent = (_props, state) => {
+  return <div>{state.count}</div>
+}
+```
+
+---
+
+## Intent
+
+The `.intent` property defines **when** actions should happen. It's a function that receives all available driver sources and returns an object mapping action names to Observable streams.
+
+```jsx
+MyComponent.intent = ({ DOM, STATE, EVENTS }) => {
+  return {
+    // Fire INCREMENT when the button is clicked
+    INCREMENT: DOM.select('.increment-btn').events('click'),
+
+    // Fire CHANGE_NAME when the input value changes, passing the new value
+    CHANGE_NAME: DOM.select('.name-input').events('input').map(e => e.target.value),
+
+    // Fire SAVE on form submission
+    SAVE: DOM.select('.save-form').events('submit')
+  }
+}
+```
+
+### Available Sources
+
+By default, every Sygnal application provides these sources:
+
+| Source | Description |
+|--------|-------------|
+| `DOM` | Observe DOM events. Use `.select(cssSelector).events(eventName)` |
+| `STATE` | Access the state stream via `STATE.stream` |
+| `EVENTS` | Custom event bus. Use `.select(eventType)` to listen |
+| `LOG` | Log driver (sink-only — no source) |
+| `props$` | Stream of props from the parent component |
+| `children$` | Stream of children from the parent component |
+| `context$` | Stream of context values from ancestors |
+| `CHILD` | Access child component events. Use `.select(type)` |
+
+### Key Points
+
+- Action names can be any valid JavaScript property name. Convention is `ALL_CAPS`.
+- Each action maps to exactly one Observable stream.
+- If multiple events should trigger the same action, merge them with `xs.merge()`.
+- **Never** attach event handlers in the view. All event handling goes through intent.
+- The DOM source is isolated to the current component — selectors won't match elements in parent or sibling components.
+
+### Accessing Global DOM Events
+
+To listen for events outside your component's DOM (like keyboard events on `document`):
+
+```jsx
+MyComponent.intent = ({ DOM }) => ({
+  KEY_PRESS: DOM.select('document').events('keydown').map(e => e.key)
+})
+```
+
+---
+
+## Model
+
+The `.model` property defines **what** happens for each action. It maps action names to reducers or driver commands.
+
+### Simple State Reducers
+
+The most common case is updating state. A function provided directly as an action value is treated as a state reducer:
+
+```jsx
+MyComponent.model = {
+  INCREMENT: (state) => ({ ...state, count: state.count + 1 }),
+  SET_NAME: (state, data) => ({ ...state, name: data })
+}
+```
+
+Reducer arguments:
+1. `state` — The current component state
+2. `data` — The value emitted by the triggering stream in intent
+3. `next` — A function to trigger other actions (see [Chaining Actions](#chaining-actions))
+4. `extra` — An object containing `{ context, props, children }`
+
+### Multi-Driver Actions
+
+When an action needs to do more than just update state, use an object to specify multiple driver sinks:
+
+```jsx
+MyComponent.model = {
+  SAVE: {
+    STATE: (state, data) => ({ ...state, saved: true }),
+    LOG: (state, data) => `Saved: ${JSON.stringify(data)}`,
+    EVENTS: (state, data) => ({ type: 'saved', data })
+  }
+}
+```
+
+### Passthrough with `true`
+
+Setting a driver sink to `true` passes the intent data through as-is:
+
+```jsx
+MyComponent.model = {
+  LOG_DATA: {
+    LOG: true  // passes whatever data came from intent directly to LOG
+  }
+}
+```
+
+### Chaining Actions with `next()`
+
+The `next()` function (third argument to any reducer) lets you trigger other actions:
+
+```jsx
+MyComponent.model = {
+  SUBMIT: (state, data, next) => {
+    // Trigger VALIDATE after this action completes
+    next('VALIDATE', data)
+    return { ...state, submitting: true }
+  },
+
+  // next() with a delay (in milliseconds)
+  START: (state, data, next) => {
+    next('DELAYED_ACTION', null, 1000)  // fires after 1 second
+    return state
+  },
+
+  VALIDATE: (state, data) => {
+    // handle validation
+    return { ...state, valid: true }
+  }
+}
+```
+
+You can call `next()` multiple times in a single reducer, and optionally add a delay as the third argument.
+
+### Aborting an Action
+
+Import `ABORT` from Sygnal and return it to cancel a state update:
+
+```jsx
+import { ABORT } from 'sygnal'
+
+MyComponent.model = {
+  MOVE: (state, data) => {
+    if (state.locked) return ABORT  // skip this action entirely
+    return { ...state, position: data }
+  }
+}
+```
+
+### Built-in Actions
+
+Sygnal provides three built-in actions that fire automatically:
+
+| Action | When It Fires |
+|--------|---------------|
+| `BOOTSTRAP` | Once when the component is first instantiated (similar to React's `useEffect(() => {}, [])`) |
+| `INITIALIZE` | When the component receives its first state |
+| `HYDRATE` | When the component receives its first state during HMR |
+
+```jsx
+MyComponent.model = {
+  BOOTSTRAP: {
+    LOG: () => 'Component mounted!',
+    STATE: (state, data, next) => {
+      next('LOAD_DATA')
+      return state
+    }
+  },
+  INITIALIZE: (state) => {
+    // runs once when state is first available
+    return state
+  }
+}
+```
+
+---
+
+## State Management
+
+### Monolithic State
+
+Sygnal uses a single, monolithic state tree for the entire application. Every component shares this state, though each component typically works with just a slice of it.
+
+Benefits:
+- Trivial undo/redo — just restore a previous state snapshot
+- Easy debugging — inspect the entire app state in one place
+- No state synchronization bugs between components
+
+### Setting Initial State
+
+Set `.initialState` on your root component:
+
+```jsx
+RootComponent.initialState = {
+  user: { name: 'Alice', age: 30 },
+  items: [],
+  settings: { theme: 'light' }
+}
+```
+
+### State in Reducers
+
+Reducers receive the current state and must return the **complete** new state. The return value replaces the state entirely — there is no automatic merging of partial updates:
+
+```jsx
+// If state is { count: 0, name: 'World' }
+MyComponent.model = {
+  // WRONG — this would lose the 'name' property!
+  // INCREMENT: (state) => ({ count: state.count + 1 })
+
+  // CORRECT — spread the existing state and override what changed
+  INCREMENT: (state) => ({ ...state, count: state.count + 1 })
+  // Result: { count: 1, name: 'World' }
+}
+```
+
+### Passing State to Child Components
+
+#### Property-Based (Simple)
+
+Pass a state property name as a string:
+
+```jsx
+function RootComponent({ state }) {
+  return (
+    <div>
+      {/* UserProfile sees state.user as its root state */}
+      <UserProfile state="user" />
+
+      {/* ItemList sees state.items as its root state */}
+      <ItemList state="items" />
+    </div>
+  )
+}
+
+RootComponent.initialState = {
+  user: { name: 'Alice' },
+  items: [{ text: 'First' }]
+}
+```
+
+If the child updates its state, the change flows back up to the correct property on the parent state.
+
+If you specify a name that doesn't exist on the current state, it gets added when the child first updates.
+
+#### Lens-Based (Advanced)
+
+For more control over how state maps between parent and child, use a lens:
+
+```jsx
+const userLens = {
+  get: (parentState) => ({
+    name: parentState.userName,
+    email: parentState.userEmail
+  }),
+  set: (parentState, childState) => ({
+    ...parentState,
+    userName: childState.name,
+    userEmail: childState.email
+  })
+}
+
+function RootComponent() {
+  return <UserForm state={userLens} />
+}
+```
+
+The `get` function extracts child state from parent state. The `set` function merges child state updates back into parent state.
+
+> Use lenses sparingly. In most cases, property-based state passing is sufficient and much easier to debug.
+
+---
+
+## Observables
+
+Sygnal uses [xstream](https://github.com/staltz/xstream) as its Observable library. Observables are like Promises that can emit multiple values over time.
+
+```javascript
+// Promise: resolves once
+somePromise.then(value => console.log(value))
+
+// Observable: emits many times
+someObservable.map(value => console.log(value))
+```
+
+### Common Stream Operations
+
+You'll mostly use these operations in your `.intent` functions:
+
+```jsx
+import { xs } from 'sygnal'
+
+MyComponent.intent = ({ DOM }) => {
+  const click$ = DOM.select('.btn').events('click')
+
+  return {
+    // .map() — Transform the emitted value
+    CLICK_X: click$.map(e => e.clientX),
+
+    // .mapTo() — Always emit the same value
+    CLICKED: click$.mapTo(true),
+
+    // .filter() — Only pass values that match a condition
+    RIGHT_CLICK: click$.filter(e => e.button === 2),
+
+    // xs.merge() — Combine multiple streams into one
+    ANY_BUTTON: xs.merge(
+      DOM.select('.btn-a').events('click').mapTo('a'),
+      DOM.select('.btn-b').events('click').mapTo('b')
+    ),
+
+    // .startWith() — Emit an initial value immediately
+    WITH_DEFAULT: click$.mapTo('clicked').startWith('waiting')
+  }
+}
+```
+
+### Imported Stream Operators
+
+Sygnal re-exports commonly used xstream extra operators:
+
+```javascript
+import { xs, debounce, throttle, delay, dropRepeats, sampleCombine } from 'sygnal'
+
+// Debounce rapid inputs (wait 300ms of inactivity)
+const search$ = input$.compose(debounce(300))
+
+// Throttle to at most once per 500ms
+const scroll$ = scrollEvents$.compose(throttle(500))
+
+// Delay emissions by 1000ms
+const delayed$ = click$.compose(delay(1000))
+
+// Drop consecutive duplicate values
+const unique$ = values$.compose(dropRepeats())
+
+// Combine latest value from another stream
+const withState$ = click$.compose(sampleCombine(state$))
+```
+
+### Creating Custom Streams
+
+```javascript
+import { xs } from 'sygnal'
+
+// Create a stream that emits on an interval
+const timer$ = xs.periodic(1000)  // emits 0, 1, 2, ... every second
+
+// Create a stream from a value
+const value$ = xs.of('hello')
+
+// Combine latest values from multiple streams
+const combined$ = xs.combine(stream1$, stream2$)
+
+// Create an empty stream (never emits)
+const empty$ = xs.never()
+```
+
+---
+
+## Drivers
+
+Drivers handle all side effects in a Sygnal application. They are the bridge between your pure component code and the outside world.
+
+Every driver has two sides:
+- **Source** — Provides data *to* your component (e.g., DOM events, API responses)
+- **Sink** — Receives commands *from* your component (e.g., state updates, log messages)
+
+### Default Drivers
+
+Sygnal's `run()` function automatically includes these drivers:
+
+| Driver | Source | Sink |
+|--------|--------|------|
+| `DOM` | `.select(css).events(event)` — Observe DOM events | Handled automatically by the view |
+| `STATE` | `.stream` — The state Observable | Reducer functions from model |
+| `EVENTS` | `.select(type)` — Custom event bus | Event objects `{ type, data }` |
+| `LOG` | None | Any value — logged to the console |
+
+### Adding Custom Drivers
+
+Pass additional drivers as the second argument to `run()`:
+
+```javascript
+import { run } from 'sygnal'
+import RootComponent from './RootComponent.jsx'
+import myCustomDriver from './drivers/myCustomDriver'
+
+run(RootComponent, {
+  CUSTOM: myCustomDriver
+})
+```
+
+The driver is then available as both a source (in intent) and a sink (in model):
+
+```jsx
+MyComponent.intent = ({ DOM, CUSTOM }) => ({
+  DATA_RECEIVED: CUSTOM.select('some-category')
+})
+
+MyComponent.model = {
+  FETCH: {
+    CUSTOM: (state) => ({ category: 'some-category', url: '/api/data' })
+  }
+}
+```
+
+### The Event Bus (EVENTS Driver)
+
+The EVENTS driver provides a lightweight pub/sub system for cross-component communication:
+
+```jsx
+// Publishing events (in model)
+Publisher.model = {
+  NOTIFY: {
+    EVENTS: (state) => ({ type: 'notification', data: { message: 'Hello!' } })
+  }
+}
+
+// Subscribing to events (in intent)
+Subscriber.intent = ({ EVENTS }) => ({
+  HANDLE_NOTIFICATION: EVENTS.select('notification')
+})
+```
+
+### The LOG Driver
+
+The LOG driver sends values to the browser console:
+
+```jsx
+MyComponent.model = {
+  SOME_ACTION: {
+    STATE: (state) => ({ ...state, updated: true }),
+    LOG: (state, data) => `Action triggered with: ${data}`
+  }
+}
+```
+
+---
+
+## Collections
+
+The `<collection>` element renders a list of components from an array on your state. It handles dynamic addition, removal, filtering, and sorting automatically.
+
+```jsx
+function TodoList({ state }) {
+  return (
+    <div>
+      <collection of={TodoItem} from="items" />
+    </div>
+  )
+}
+
+TodoList.initialState = {
+  items: [
+    { id: 1, text: 'Learn Sygnal', done: false },
+    { id: 2, text: 'Build something', done: false }
+  ]
+}
+```
+
+Each item in the `items` array becomes the state for one `TodoItem` instance. If a `TodoItem` updates its state, the corresponding array entry is updated. If a `TodoItem` sets its state to `undefined`, it is removed from the array.
+
+### Collection Props
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `of` | Component | The component to render for each item |
+| `from` | String or Lens | The state property (or lens) containing the array |
+| `filter` | Function | Filter function — only items returning `true` are shown |
+| `sort` | String or Function | Sort by a property name, or provide a custom sort function |
+| `className` | String | CSS class for the wrapping container |
+
+### Filtering and Sorting
+
+```jsx
+<collection
+  of={TodoItem}
+  from="items"
+  filter={item => !item.done}
+  sort="text"
+/>
+```
+
+### Item Keys
+
+Collections automatically use the `id` property of each item for efficient rendering. If items don't have an `id`, the array index is used.
+
+### Self-Removal
+
+An item can remove itself from the collection by returning `undefined` from a reducer:
+
+```jsx
+TodoItem.model = {
+  DELETE: () => undefined  // removes this item from the array
+}
+```
+
+### Using `Collection` (capitalized)
+
+You can also import and use the capitalized `Collection` component:
+
+```jsx
+import { Collection } from 'sygnal'
+
+function TodoList({ state }) {
+  return (
+    <div>
+      <Collection of={TodoItem} from="items" className="todo-list" />
+    </div>
+  )
+}
+```
+
+---
+
+## Switchable Components
+
+The `<switchable>` element conditionally renders one of several components based on a state value. This is useful for tabs, views, or any UI that switches between different content.
+
+```jsx
+import { xs } from 'sygnal'
+
+function TabContainer({ state }) {
+  return (
+    <div>
+      <button className="tab-home">Home</button>
+      <button className="tab-settings">Settings</button>
+      <switchable
+        of={{ home: HomePanel, settings: SettingsPanel }}
+        current={state.activeTab}
+      />
+    </div>
+  )
+}
+
+TabContainer.initialState = { activeTab: 'home' }
+
+TabContainer.intent = ({ DOM }) => ({
+  SET_TAB: xs.merge(
+    DOM.select('.tab-home').events('click').mapTo('home'),
+    DOM.select('.tab-settings').events('click').mapTo('settings')
+  )
+})
+
+TabContainer.model = {
+  SET_TAB: (state, data) => ({ ...state, activeTab: data })
+}
+```
+
+### Switchable Props
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `of` | Object | Maps names to components: `{ name: Component }` |
+| `current` | String | The name of the currently active component |
+| `state` | String or Lens | Optional state slice for the switched components |
+
+### How It Works
+
+- Only the `current` component's DOM is rendered
+- Non-DOM sinks (like EVENTS) from *all* components remain active
+- Switching is efficient — components are pre-instantiated
+
+### Using `Switchable` (capitalized)
+
+```jsx
+import { Switchable } from 'sygnal'
+
+<Switchable of={{ home: HomePanel, settings: SettingsPanel }} current={state.activeTab} />
+```
+
+---
+
+## Context
+
+Context lets you pass values to all descendant components regardless of depth, without threading them through every intermediate component.
+
+### Defining Context
+
+Set `.context` on any component. Each key maps to a function that derives a value from state:
+
+```jsx
+RootComponent.context = {
+  theme: (state) => state.settings.theme,
+  currentUser: (state) => state.auth.user
+}
+```
+
+### Using Context in the View
+
+```jsx
+function DeepChild({ state, context }) {
+  return (
+    <div className={context.theme === 'dark' ? 'dark-mode' : ''}>
+      Welcome, {context.currentUser.name}
+    </div>
+  )
+}
+```
+
+### Using Context in Reducers
+
+Context is available on the fourth argument (`extra`) of any reducer:
+
+```jsx
+DeepChild.model = {
+  SOME_ACTION: {
+    LOG: (state, data, next, extra) => {
+      return `Current theme: ${extra.context.theme}`
+    }
+  }
+}
+```
+
+Context values are automatically recalculated when the source component's state changes.
+
+---
+
+## Calculated Fields
+
+Calculated fields are derived values computed from the current state. They're added to the state object automatically and available in both the view and reducers.
+
+### Defining Calculated Fields
+
+```jsx
+UserProfile.calculated = {
+  fullName: (state) => `${state.firstName} ${state.lastName}`,
+  isAdult: (state) => state.age >= 18,
+  itemCount: (state) => state.items.length
+}
+
+function UserProfile({ state }) {
+  return (
+    <div>
+      <h1>{state.fullName}</h1>
+      <p>{state.isAdult ? 'Adult' : 'Minor'}</p>
+      <p>Items: {state.itemCount}</p>
+    </div>
+  )
+}
+```
+
+### Controlling Storage
+
+By default, calculated fields are stored in the actual state. To prevent this:
+
+```jsx
+UserProfile.storeCalculatedInState = false
+```
+
+When set to `false`, calculated fields are still available in the view and reducers but don't persist in the state tree. This is useful when calculated values are expensive or transient.
+
+---
+
+## Peer Components
+
+Peers are sibling components that share the same sources as your component. They're useful for breaking up complex UIs into manageable pieces while keeping them tightly coupled.
+
+### Defining Peers
+
+```jsx
+Dashboard.peers = {
+  Sidebar: SidebarComponent,
+  Toolbar: ToolbarComponent
+}
+```
+
+### Using Peers in the View
+
+Peer component output is available by name in the view's destructured arguments:
+
+```jsx
+function Dashboard({ state, Sidebar, Toolbar }) {
+  return (
+    <div className="dashboard">
+      {Toolbar}
+      <div className="main-area">
+        {Sidebar}
+        <div className="content">{state.content}</div>
+      </div>
+    </div>
+  )
+}
+```
+
+---
+
+## Form Handling
+
+Sygnal provides `processForm()` to simplify working with HTML forms:
+
+```jsx
+import { processForm } from 'sygnal'
+
+function ContactForm({ state }) {
+  return (
+    <form className="contact-form">
+      <input name="name" value={state.name} />
+      <input name="email" value={state.email} />
+      <textarea name="message">{state.message}</textarea>
+      <button type="submit">Send</button>
+    </form>
+  )
+}
+
+ContactForm.initialState = { name: '', email: '', message: '' }
+
+ContactForm.intent = ({ DOM }) => ({
+  // Listen only to submit events
+  SUBMIT: processForm(DOM.select('.contact-form'), { events: 'submit' }),
+
+  // Listen to all input changes (default: both 'input' and 'submit')
+  FIELD_CHANGE: processForm(DOM.select('.contact-form'))
+})
+
+ContactForm.model = {
+  FIELD_CHANGE: (state, data) => ({
+    ...state,
+    name: data.name,
+    email: data.email,
+    message: data.message
+  }),
+  SUBMIT: {
+    STATE: (state, data) => ({ ...state, submitted: true }),
+    LOG: (state, data) => data  // { name: '...', email: '...', message: '...', eventType: 'submit' }
+  }
+}
+```
+
+### processForm() Options
+
+```javascript
+processForm(domSource, options?)
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `events` | String or Array | `['input', 'submit']` | Which form events to listen for |
+| `preventDefault` | Boolean | `true` | Whether to call `preventDefault()` on events |
+
+### Return Value
+
+The stream emits an object with:
+- All form field values keyed by their `name` attribute
+- `event` — The raw DOM event
+- `eventType` — The event type string (e.g., `'submit'`, `'input'`)
+
+---
+
+## Custom Drivers
+
+### Writing a Driver from Scratch
+
+A Cycle.js driver is a function that takes a sink stream and returns a source object:
+
+```javascript
+function myDriver(sink$) {
+  // Listen to commands from the app
+  sink$.addListener({
+    next: (command) => {
+      // Perform side effects here
+      console.log('Received command:', command)
+    }
+  })
+
+  // Return a source for the app to observe
+  return {
+    select: (type) => {
+      // Return a filtered stream
+    }
+  }
+}
+```
+
+### Using driverFromAsync()
+
+For the common case of wrapping a Promise-returning function as a driver, use `driverFromAsync()`:
+
+```javascript
+import { driverFromAsync } from 'sygnal'
+
+const apiDriver = driverFromAsync(
+  async (url) => {
+    const response = await fetch(url)
+    return response.json()
+  },
+  {
+    selector: 'endpoint',  // Property name for categorizing requests
+    args: 'url',           // Property to extract as function arguments
+    return: 'data',        // Property name for the return value
+    pre: (incoming) => incoming,         // Pre-process incoming commands
+    post: (result, incoming) => result   // Post-process results
+  }
+)
+
+// Register the driver
+run(RootComponent, { API: apiDriver })
+```
+
+#### driverFromAsync() Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `selector` | String | `'category'` | Property used to categorize/filter responses |
+| `args` | String, Array, or Function | `'value'` | How to extract function arguments from incoming commands |
+| `return` | String | `'value'` | Property name to wrap the return value in |
+| `pre` | Function | Identity | Pre-process incoming sink values |
+| `post` | Function | Identity | Post-process results before sending to source |
+
+#### Using the Driver in Components
+
+```jsx
+// Intent — receive API responses
+MyComponent.intent = ({ API }) => ({
+  DATA_LOADED: API.select('users')  // Filter by the selector property
+})
+
+// Model — send API requests
+MyComponent.model = {
+  FETCH_USERS: {
+    API: (state) => ({ endpoint: 'users', url: '/api/users' })
+  },
+  DATA_LOADED: (state, data) => ({ ...state, users: data.data })
+}
+```
+
+---
+
+## Hot Module Replacement
+
+Sygnal has built-in HMR support that preserves application state across code changes.
+
+### Vite Setup
+
+```javascript
+// src/main.js
+import { run } from 'sygnal'
+import RootComponent from './RootComponent.jsx'
+
+const { hmr, dispose } = run(RootComponent)
+
+if (import.meta.hot) {
+  import.meta.hot.accept('./RootComponent.jsx', hmr)
+  import.meta.hot.dispose(dispose)
+}
+```
+
+### Webpack Setup
+
+```javascript
+import { run } from 'sygnal'
+import RootComponent from './RootComponent'
+
+const { hmr, dispose } = run(RootComponent)
+
+if (module.hot) {
+  module.hot.accept('./RootComponent', hmr)
+  module.hot.dispose(dispose)
+}
+```
+
+### How It Works
+
+1. When a file changes, the bundler triggers the `accept` callback
+2. Sygnal captures the current application state
+3. The old application instance is disposed
+4. A new instance is created with the updated code
+5. The captured state is restored into the new instance
+
+State is preserved across reloads via `window.__SYGNAL_HMR_PERSISTED_STATE`.
+
+### TypeScript HMR
+
+For TypeScript projects, you may need to cast the module:
+
+```typescript
+import { run } from 'sygnal'
+import App from './app'
+
+const { hmr } = run(App)
+
+if (import.meta.hot) {
+  import.meta.hot.accept('./app', (mod) => {
+    hmr((mod as { default?: typeof App })?.default ?? App)
+  })
+}
+```
+
+---
+
+## The classes() Utility
+
+The `classes()` function builds CSS class strings safely from multiple input types:
+
+```jsx
+import { classes } from 'sygnal'
+
+// Strings
+classes('btn', 'primary')
+// → 'btn primary'
+
+// Arrays
+classes(['btn', 'primary'])
+// → 'btn primary'
+
+// Objects (only truthy values are included)
+classes({ active: true, disabled: false, highlighted: isHighlighted })
+// → 'active' (if isHighlighted is false)
+// → 'active highlighted' (if isHighlighted is true)
+
+// Mixed
+classes('btn', { active: isActive }, ['extra-class'])
+// → 'btn active extra-class' (when isActive is true)
+```
+
+Object values can be booleans or functions that return booleans:
+
+```jsx
+classes({ visible: () => someCondition() })
+```
+
+Class names are validated and deduplicated automatically.
+
+---
+
+## Debugging
+
+### Per-Component Debug
+
+Enable debug logging for a specific component:
+
+```jsx
+MyComponent.debug = true
+```
+
+### Global Debug
+
+Set the environment variable:
+
+```
+SYGNAL_DEBUG=true
+```
+
+### Debug Output
+
+When enabled, Sygnal logs:
+- Component instantiation with a unique component number
+- Action triggers and the data they carry
+- State changes before and after reducers
+- Driver interactions
+
+Each log entry is prefixed with the component number and name (e.g., `3 | MyComponent`) for easy identification.
+
+---
+
+## TypeScript
+
+Sygnal ships with full TypeScript type definitions. Use the `Component` and `RootComponent` types for type safety:
+
+```tsx
+import type { Component, RootComponent } from 'sygnal'
+
+// Define your types
+type AppState = {
+  count: number
+  name: string
+}
+
+type AppActions = {
+  INCREMENT: null
+  SET_NAME: string
+}
+
+// Type the component
+const App: RootComponent<AppState, {}, AppActions> = ({ state }) => {
+  return (
+    <div>
+      <h1>{state.name}: {state.count}</h1>
+    </div>
+  )
+}
+
+App.initialState = { count: 0, name: 'Counter' }
+
+App.intent = ({ DOM }) => ({
+  INCREMENT: DOM.select('.btn').events('click'),
+  SET_NAME: DOM.select('.input').events('input').map(e => (e.target as HTMLInputElement).value)
+})
+
+App.model = {
+  INCREMENT: (state) => ({ ...state, count: state.count + 1 }),
+  SET_NAME: (state, data) => ({ ...state, name: data })
+}
+
+export default App
+```
+
+### Component Type Parameters
+
+```typescript
+Component<STATE, PROPS, DRIVERS, ACTIONS, CALCULATED, CONTEXT, SINK_RETURNS>
+```
+
+| Parameter | Description |
+|-----------|-------------|
+| `STATE` | Shape of the component's state |
+| `PROPS` | Shape of props received from parent |
+| `DRIVERS` | Custom driver type specifications |
+| `ACTIONS` | Map of action names to their data types |
+| `CALCULATED` | Shape of calculated field values |
+| `CONTEXT` | Shape of context values |
+| `SINK_RETURNS` | Return types for non-state sinks |
+
+### Typed Tiles Example (from 2048)
+
+```tsx
+import type { Component } from 'sygnal'
+
+type Tile = {
+  id: number
+  row: number
+  column: number
+  value: number
+  new?: boolean
+  deleted?: boolean
+}
+
+type TileActions = {
+  DELETE: null
+}
+
+const TILE: Component<Tile, any, any, TileActions> = (_props, state) => {
+  return (
+    <div className="tile" id={`tile-${state.id}`}>
+      {state.value}
+    </div>
+  )
+}
+```
+
+### exactState() Helper
+
+Use `exactState()` to enforce that state updates match your type exactly (no extra properties):
+
+```tsx
+import { exactState } from 'sygnal'
+import type { AppState } from './types'
+
+const asAppState = exactState<AppState>()
+
+App.model = {
+  UPDATE: (state) => asAppState({ ...state, count: state.count + 1 })
+  // TypeScript error if you add properties not in AppState
+}
+```
+
+---
+
+## Astro Integration
+
+Sygnal includes a first-class Astro integration for using Sygnal components in Astro sites.
+
+### Setup
+
+```javascript
+// astro.config.mjs
+import { defineConfig } from 'astro/config'
+import sygnal from 'sygnal/astro'
+
+export default defineConfig({
+  integrations: [sygnal()]
+})
+```
+
+### Usage
+
+Use Sygnal components in `.astro` files with client directives for hydration:
+
+```astro
+---
+import Counter from '../components/Counter.jsx'
+---
+
+<Counter client:load />
+<Counter client:visible />
+<Counter client:idle />
+```
+
+### How It Works
+
+- The server renders an empty placeholder
+- The client-side code hydrates Sygnal components using `run()`
+- Props passed in the Astro template are injected into the component
+- Previous instances are cleaned up before rehydration
+
+---
+
+## Bundler Configuration
+
+### Vite
+
+```javascript
+// vite.config.js
+import { defineConfig } from 'vite'
+
+export default defineConfig({
+  esbuild: {
+    jsxInject: `import { jsx, Fragment } from 'sygnal/jsx'`,
+    jsxFactory: 'jsx',
+    jsxFragment: 'Fragment'
+  }
+})
+```
+
+### Fragment Fix for Production Builds
+
+Some minifiers rename the `Fragment` function, causing JSX fragments to break. To fix this with Vite, install terser and add:
+
+```javascript
+// vite.config.js
+export default defineConfig({
+  // ...esbuild config above...
+  build: {
+    minify: 'terser',
+    terserOptions: {
+      mangle: {
+        reserved: ['Fragment']
+      }
+    }
+  }
+})
+```
+
+### Other Bundlers
+
+For Webpack, Rollup, or other bundlers, configure the JSX pragma to use Sygnal's `jsx` function:
+
+```javascript
+// General pattern (varies by bundler)
+{
+  jsxFactory: 'jsx',
+  jsxFragment: 'Fragment',
+  // Ensure this import is added to every JSX/TSX file:
+  // import { jsx, Fragment } from 'sygnal/jsx'
+}
+```
+
+### Using Without JSX
+
+If you prefer not to use JSX, use the `h()` function from Sygnal (re-exported from `@cycle/dom`):
+
+```javascript
+import { h } from 'sygnal'
+
+function MyComponent({ state }) {
+  return h('div', [
+    h('h1', `Hello ${state.name}`),
+    h('button.increment', 'Click me')
+  ])
+}
+```
+
+---
+
+## Further Reading
+
+- **[Getting Started](./getting-started.md)** — Quick setup and first steps
+- **[API Reference](./api-reference.md)** — Complete reference for all exports
+- **[Cycle.js Documentation](https://cycle.js.org/)** — The framework Sygnal is built on
+- **[xstream Documentation](https://github.com/staltz/xstream)** — The Observable library used by Sygnal
+- **[Sygnal ToDoMVC](https://github.com/tpresley/sygnal-todomvc)** ([Live Demo](https://tpresley.github.io/sygnal-todomvc/))
+- **[Sygnal 2048](https://github.com/tpresley/sygnal-2048)** ([Live Demo](https://tpresley.github.io/sygnal-2048/))
+- **[Sygnal Calculator](https://github.com/tpresley/sygnal-calculator)** ([Live Demo](https://tpresley.github.io/sygnal-calculator/))

@@ -1,0 +1,385 @@
+---
+import HelloWorld from '../components/HelloWorld.jsx'
+import Counter from '../components/Counter.jsx'
+import Greeter from '../components/Greeter.jsx'
+import CounterWithHeader from '../components/CounterWithHeader.jsx'
+import UserCardDemo from '../components/UserCardDemo.jsx'
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Getting Started with Sygnal</title>
+    <link rel="stylesheet" href="/styles/guide.css" />
+  </head>
+  <body>
+    <div class="container">
+      <header class="hero">
+        <h1>Getting Started with Sygnal</h1>
+        <p class="subtitle">
+          An interactive guide to building applications with Sygnal.
+          Each example below shows the code alongside a <strong>live, working component</strong> you can interact with.
+        </p>
+      </header>
+
+      <nav class="toc">
+        <h2>Contents</h2>
+        <ol>
+          <li><a href="#hello-world">Your First Component</a></li>
+          <li><a href="#counter">Interactive Counter</a></li>
+          <li><a href="#mvi">Model-View-Intent</a></li>
+          <li><a href="#greeter">Working with User Input</a></li>
+          <li><a href="#child-components">Adding Child Components</a></li>
+          <li><a href="#state-passing">Passing State to Children</a></li>
+          <li><a href="#next-steps">Next Steps</a></li>
+        </ol>
+      </nav>
+
+      <!-- ─── Section 1: Hello World ─── -->
+
+      <section id="hello-world">
+        <h2>Your First Component</h2>
+        <p>
+          The simplest Sygnal component is a function that returns JSX, with an
+          <code>.initialState</code> property providing the starting state.
+        </p>
+
+        <div class="example">
+          <div class="example-code">
+            <h3>Code</h3>
+            <pre><code>function HelloWorld(&#123; state &#125;) &#123;
+  return (
+    &lt;div&gt;
+      &lt;h1&gt;Hello &#123;state.name&#125;!&lt;/h1&gt;
+    &lt;/div&gt;
+  )
+&#125;
+
+HelloWorld.initialState = &#123;
+  name: 'World'
+&#125;</code></pre>
+          </div>
+          <div class="example-demo">
+            <h3>Live Demo</h3>
+            <div class="demo-frame">
+              <HelloWorld client:load />
+            </div>
+          </div>
+        </div>
+
+        <p>
+          This component reads <code>state.name</code> and renders it. The state is
+          set once via <code>.initialState</code> and provided to the function
+          automatically. No hooks, no setup &mdash; just a function and a property.
+        </p>
+      </section>
+
+      <!-- ─── Section 2: Counter ─── -->
+
+      <section id="counter">
+        <h2>Interactive Counter</h2>
+        <p>
+          Static content isn't very exciting. To make things interactive, we add
+          two more properties: <code>.intent</code> and <code>.model</code>.
+        </p>
+
+        <div class="example">
+          <div class="example-code">
+            <h3>Code</h3>
+            <pre><code>function Counter(&#123; state &#125;) &#123;
+  return (
+    &lt;div&gt;
+      &lt;h1&gt;Count: &#123;state.count&#125;&lt;/h1&gt;
+      &lt;button className="increment"&gt;+&lt;/button&gt;
+      &lt;button className="decrement"&gt;-&lt;/button&gt;
+    &lt;/div&gt;
+  )
+&#125;
+
+Counter.initialState = &#123; count: 0 &#125;
+
+// Intent: WHEN should things happen?
+Counter.intent = (&#123; DOM &#125;) =&gt; (&#123;
+  INCREMENT: DOM.select('.increment').events('click'),
+  DECREMENT: DOM.select('.decrement').events('click')
+&#125;)
+
+// Model: WHAT should happen?
+Counter.model = &#123;
+  INCREMENT: (state) =&gt; (&#123; count: state.count + 1 &#125;),
+  DECREMENT: (state) =&gt; (&#123; count: state.count - 1 &#125;)
+&#125;</code></pre>
+          </div>
+          <div class="example-demo">
+            <h3>Live Demo</h3>
+            <div class="demo-frame">
+              <Counter client:load />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── Section 3: MVI Explanation ─── -->
+
+      <section id="mvi">
+        <h2>Model-View-Intent (MVI)</h2>
+        <p>
+          Sygnal uses a pattern called <strong>Model-View-Intent</strong>. The
+          counter above demonstrates all three pieces:
+        </p>
+        <ol class="mvi-list">
+          <li>
+            <strong>View</strong> (the function) &mdash; <em>How</em> things look.
+            Renders the UI based on the current state.
+          </li>
+          <li>
+            <strong>Intent</strong> (<code>.intent</code>) &mdash; <em>When</em>
+            things happen. Listens for DOM events and maps them to named actions.
+          </li>
+          <li>
+            <strong>Model</strong> (<code>.model</code>) &mdash; <em>What</em>
+            happens. Defines how each action updates the state.
+          </li>
+        </ol>
+        <p>Data flows in one direction:</p>
+        <div class="flow-diagram">
+          DOM Events &rarr; Intent &rarr; Model &rarr; State &rarr; View &rarr; DOM
+        </div>
+        <p>
+          Notice that event handlers are <strong>never</strong> attached in the
+          JSX. Instead, <code>.intent</code> uses the DOM driver's
+          <code>.select()</code> and <code>.events()</code> methods to observe DOM
+          events declaratively. The DOM selector is isolated to the current
+          component, so simple class names work perfectly.
+        </p>
+      </section>
+
+      <!-- ─── Section 4: Greeter ─── -->
+
+      <section id="greeter">
+        <h2>Working with User Input</h2>
+        <p>
+          Two-way data binding is easy. The <code>.map()</code> method on a stream
+          lets you extract data from DOM events before passing it to the model.
+          Try typing in the input below:
+        </p>
+
+        <div class="example">
+          <div class="example-code">
+            <h3>Code</h3>
+            <pre><code>function Greeter(&#123; state &#125;) &#123;
+  return (
+    &lt;div&gt;
+      &lt;h1&gt;Hello &#123;state.name&#125;!&lt;/h1&gt;
+      &lt;input className="name-input" value=&#123;state.name&#125; /&gt;
+    &lt;/div&gt;
+  )
+&#125;
+
+Greeter.initialState = &#123; name: 'World' &#125;
+
+Greeter.intent = (&#123; DOM &#125;) =&gt; (&#123;
+  CHANGE_NAME: DOM.select('.name-input')
+    .events('input')
+    .map(e =&gt; e.target.value)
+&#125;)
+
+Greeter.model = &#123;
+  CHANGE_NAME: (state, data) =&gt; (&#123; name: data &#125;)
+&#125;</code></pre>
+          </div>
+          <div class="example-demo">
+            <h3>Live Demo</h3>
+            <div class="demo-frame">
+              <Greeter client:load />
+            </div>
+          </div>
+        </div>
+
+        <p>
+          The <code>.map(e =&gt; e.target.value)</code> in the intent extracts the
+          input's value from the DOM event. The <code>data</code> parameter in the
+          model reducer receives whatever the intent stream emits.
+        </p>
+      </section>
+
+      <!-- ─── Section 5: Child Components ─── -->
+
+      <section id="child-components">
+        <h2>Adding Child Components</h2>
+        <p>
+          Components nest naturally, just like in React. Import a child and use it
+          in the parent's view. Props are passed as attributes:
+        </p>
+
+        <div class="example">
+          <div class="example-code">
+            <h3>Code</h3>
+            <pre><code>// Header.jsx
+function Header(&#123; title &#125;) &#123;
+  return &lt;h1&gt;&#123;title&#125;&lt;/h1&gt;
+&#125;
+
+// CounterWithHeader.jsx
+import Header from './Header.jsx'
+
+function CounterWithHeader(&#123; state &#125;) &#123;
+  return (
+    &lt;div&gt;
+      &lt;Header title="My App" /&gt;
+      &lt;p&gt;Count: &#123;state.count&#125;&lt;/p&gt;
+      &lt;button className="increment"&gt;+&lt;/button&gt;
+    &lt;/div&gt;
+  )
+&#125;
+
+CounterWithHeader.initialState = &#123; count: 0 &#125;
+
+CounterWithHeader.intent = (&#123; DOM &#125;) =&gt; (&#123;
+  INCREMENT: DOM.select('.increment').events('click')
+&#125;)
+
+CounterWithHeader.model = &#123;
+  INCREMENT: (state) =&gt; (&#123; count: state.count + 1 &#125;)
+&#125;</code></pre>
+          </div>
+          <div class="example-demo">
+            <h3>Live Demo</h3>
+            <div class="demo-frame">
+              <CounterWithHeader client:load />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── Section 6: State Passing ─── -->
+
+      <section id="state-passing">
+        <h2>Passing State to Children</h2>
+        <p>
+          By default, child components receive the entire application state. To
+          give a child only a slice, use the <code>state</code> prop with the name
+          of the property to pass:
+        </p>
+
+        <div class="example">
+          <div class="example-code">
+            <h3>Code</h3>
+            <pre><code>// UserCard.jsx
+function UserCard(&#123; state &#125;) &#123;
+  return (
+    &lt;div className="user-card"&gt;
+      &lt;h2&gt;&#123;state.name&#125;&lt;/h2&gt;
+      &lt;p&gt;Age: &#123;state.age&#125;&lt;/p&gt;
+      &lt;button className="birthday"&gt;
+        Have Birthday
+      &lt;/button&gt;
+    &lt;/div&gt;
+  )
+&#125;
+
+UserCard.intent = (&#123; DOM &#125;) =&gt; (&#123;
+  BIRTHDAY: DOM.select('.birthday').events('click')
+&#125;)
+
+UserCard.model = &#123;
+  BIRTHDAY: (state) =&gt;
+    (&#123; ...state, age: state.age + 1 &#125;)
+&#125;
+
+// UserCardDemo.jsx
+import UserCard from './UserCard.jsx'
+
+function UserCardDemo(&#123; state &#125;) &#123;
+  return (
+    &lt;div&gt;
+      &lt;p&gt;Full app state: &#123;JSON.stringify(state)&#125;&lt;/p&gt;
+      &lt;UserCard state="user" /&gt;
+    &lt;/div&gt;
+  )
+&#125;
+
+UserCardDemo.initialState = &#123;
+  user: &#123; name: 'Alice', age: 30 &#125;,
+  settings: &#123; theme: 'dark' &#125;
+&#125;</code></pre>
+          </div>
+          <div class="example-demo">
+            <h3>Live Demo</h3>
+            <div class="demo-frame">
+              <UserCardDemo client:load />
+            </div>
+          </div>
+        </div>
+
+        <p>
+          <code>UserCard</code> only sees <code>&#123; name: 'Alice', age: 30 &#125;</code>
+          as its state &mdash; not the entire app state. When it updates its state
+          (via the birthday button), the change flows back up to
+          <code>state.user</code> in the parent automatically. Watch the full state
+          JSON update above the card when you click.
+        </p>
+      </section>
+
+      <!-- ─── Section 7: Next Steps ─── -->
+
+      <section id="next-steps">
+        <h2>Next Steps</h2>
+        <p>You've seen the core patterns. Here's where to go from here:</p>
+        <ul class="next-steps-list">
+          <li>
+            <strong>Collections</strong> &mdash; Render dynamic lists with filtering
+            and sorting using <code>&lt;collection&gt;</code>.
+          </li>
+          <li>
+            <strong>Switchable Views</strong> &mdash; Swap between components based
+            on state for routing-like behavior with <code>&lt;switchable&gt;</code>.
+          </li>
+          <li>
+            <strong>Custom Drivers</strong> &mdash; Wrap APIs, localStorage, or any
+            async operation as a driver with <code>driverFromAsync()</code>.
+          </li>
+          <li>
+            <strong>Context</strong> &mdash; Pass values to all descendants
+            regardless of depth.
+          </li>
+          <li>
+            <strong>TypeScript</strong> &mdash; Full type definitions included for
+            type-safe components.
+          </li>
+        </ul>
+        <p>
+          Read the full
+          <a href="https://github.com/tpresley/sygnal/blob/main/docs/guide.md">Guide</a>
+          and
+          <a href="https://github.com/tpresley/sygnal/blob/main/docs/api-reference.md">API Reference</a>
+          for details on every feature.
+        </p>
+
+        <h3>Example Projects</h3>
+        <ul>
+          <li>
+            <a href="https://github.com/tpresley/sygnal-todomvc">Sygnal ToDoMVC</a>
+            (<a href="https://tpresley.github.io/sygnal-todomvc/">Live Demo</a>)
+          </li>
+          <li>
+            <a href="https://github.com/tpresley/sygnal-2048">Sygnal 2048</a>
+            (<a href="https://tpresley.github.io/sygnal-2048/">Live Demo</a>)
+          </li>
+          <li>
+            <a href="https://github.com/tpresley/sygnal-calculator">Sygnal Calculator</a>
+            (<a href="https://tpresley.github.io/sygnal-calculator/">Live Demo</a>)
+          </li>
+        </ul>
+      </section>
+
+      <footer>
+        <p>
+          Built with <a href="https://github.com/tpresley/sygnal">Sygnal</a> +
+          <a href="https://astro.build">Astro</a>
+        </p>
+      </footer>
+    </div>
+  </body>
+</html>
