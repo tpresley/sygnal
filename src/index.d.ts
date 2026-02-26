@@ -341,6 +341,38 @@ export function processDrag(
   drop$: Stream<DragEvent>
 }
 
+export type DragDriverEntry = { selector: string; type: string }
+
+export type DragDriverConfig = {
+  draggable?:  string;
+  dropZone?:   string;
+  draggables?: DragDriverEntry[];
+  dropZones?:  DragDriverEntry[];
+}
+
+export type DragStartPayload = {
+  element: HTMLElement;
+  dataset: Record<string, string>;
+}
+
+export type DropPayload = {
+  dropZone:     HTMLElement;
+  insertBefore: HTMLElement | null;
+}
+
+export type DragDriverSource = {
+  select(eventType: 'dragstart'):           Stream<DragStartPayload>;
+  select(eventType: 'dragend'):             Stream<null>;
+  select(eventType: 'drop'):                Stream<DropPayload>;
+  select(eventType: `${string}/dragstart`): Stream<DragStartPayload>;
+  select(eventType: `${string}/dragend`):   Stream<null>;
+  select(eventType: `${string}/drop`):      Stream<DropPayload>;
+  select(eventType: string):                Stream<any>;
+  dispose(): void;
+}
+
+export function makeDragDriver(config: DragDriverConfig): () => DragDriverSource
+
 export type ComponentFactoryOptions<
   STATE = any,
   PROPS = any,

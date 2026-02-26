@@ -7,6 +7,7 @@ export { default as switchable, Switchable } from "./switchable"
 export { driverFromAsync } from "./extra/driverFactories"
 export { default as processForm } from "./extra/processForm"
 export { default as processDrag } from "./extra/processDrag"
+export { makeDragDriver } from "./extra/dragDriver"
 export { default as exactState } from "./extra/exactState"
 export { default as run } from './extra/run'
 export { default as enableHMR } from './extra/hmr'

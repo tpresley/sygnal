@@ -52,11 +52,11 @@ RootComponent.context = {
   draggingTaskId: state => state.dragging?.taskId ?? null,
 }
 
-RootComponent.intent = ({ DOM, EVENTS }) => ({
+RootComponent.intent = ({ DOM, DND, EVENTS }) => ({
   ADD_LANE:        DOM.select('.add-lane-btn').events('click'),
-  DRAG_START:      EVENTS.select('DRAG_START'),
-  DROP:            EVENTS.select('DROP'),
-  DRAG_END:        EVENTS.select('DRAG_END'),
+  DRAG_START:      DND.select('dragstart'),
+  DROP:            DND.select('drop'),
+  DRAG_END:        DND.select('dragend'),
   DELETE_LANE:     EVENTS.select('DELETE_LANE'),
   MOVE_LANE_LEFT:  EVENTS.select('MOVE_LANE_LEFT'),
   MOVE_LANE_RIGHT: EVENTS.select('MOVE_LANE_RIGHT'),
@@ -96,20 +96,24 @@ RootComponent.model = {
     return { ...state, lanes: withPositions(lanes) }
   },
 
-  DRAG_START: (state, { taskId }) => ({
+  DRAG_START: (state, { dataset }) => ({
     ...state,
-    dragging: { taskId },
+    dragging: { taskId: dataset.taskId },
   }),
 
-  DROP: (state, { toLaneId, insertBeforeTaskId }) => {
+  DROP: (state, { dropZone, insertBefore }) => {
     if (!state.dragging) return ABORT
     const { taskId } = state.dragging
+    const toLaneId = dropZone.dataset.laneId
+    const insertBeforeTaskId = insertBefore?.dataset.taskId ?? null
+
     let task = null, fromLaneId = null
     for (const lane of state.lanes) {
       const found = lane.tasks.find(t => t.id === taskId)
       if (found) { task = found; fromLaneId = lane.id; break }
     }
     if (!task) return { ...state, dragging: null }
+
     const insertTask = (tasks) => {
       const without = tasks.filter(t => t.id !== taskId)
       if (!insertBeforeTaskId) return [...without, task]
@@ -117,6 +121,7 @@ RootComponent.model = {
       if (idx === -1) return [...without, task]
       return [...without.slice(0, idx), task, ...without.slice(idx)]
     }
+
     return {
       ...state,
       dragging: null,
