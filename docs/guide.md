@@ -18,7 +18,9 @@ This guide covers all of Sygnal's features in depth. If you're new to Sygnal, st
 - [Calculated Fields](#calculated-fields)
 - [Peer Components](#peer-components)
 - [Form Handling](#form-handling)
+- [Focus Management](#focus-management)
 - [Custom Drivers](#custom-drivers)
+- [Drag and Drop](#drag-and-drop)
 - [Hot Module Replacement](#hot-module-replacement)
 - [The classes() Utility](#the-classes-utility)
 - [Debugging](#debugging)
@@ -182,6 +184,29 @@ By default, every Sygnal application provides these sources:
 - If multiple events should trigger the same action, merge them with `xs.merge()`.
 - **Never** attach event handlers in the view. All event handling goes through intent.
 - The DOM source is isolated to the current component — selectors won't match elements in parent or sibling components.
+
+### Event Shorthands
+
+The DOM source provides shorthand methods for every event type. Instead of chaining `.select(selector).events(eventName)`, you can call `DOM.eventName(selector)` directly:
+
+```jsx
+MyComponent.intent = ({ DOM }) => ({
+  // These are equivalent:
+  CLICK:    DOM.select('.btn').events('click'),
+  CLICK:    DOM.click('.btn'),
+
+  // Works with any DOM event
+  BLUR:     DOM.blur('.input'),
+  DBLCLICK: DOM.dblclick('.title'),
+  KEYDOWN:  DOM.keydown('.input'),
+  INPUT:    DOM.input('.field'),
+  SUBMIT:   DOM.submit('.form'),
+})
+```
+
+The shorthand is powered by a JavaScript Proxy, so any valid DOM event name works — `DOM.mouseenter(sel)`, `DOM.touchstart(sel)`, `DOM.animationend(sel)`, etc.
+
+The longhand `.select().events()` syntax is still fully supported and is needed when you want to chain additional stream operators directly off the DOM source selection.
 
 ### Accessing Global DOM Events
 
@@ -885,6 +910,55 @@ The stream emits an object with:
 
 ---
 
+## Focus Management
+
+Sygnal components are pure functions — they never touch real DOM elements. But web apps frequently need to focus an element programmatically, for example when an input appears for inline editing.
+
+The `autoFocus` and `autoSelect` JSX props handle this declaratively. No imperative code in your view, no drivers, no hooks.
+
+### autoFocus
+
+Add `autoFocus={true}` to any element. When that element enters the DOM, it receives focus automatically:
+
+```jsx
+function SearchBar({ state }) {
+  return (
+    <div>
+      {state.isOpen &&
+        <input autoFocus={true} className="search-input" placeholder="Search..." />
+      }
+    </div>
+  )
+}
+```
+
+### autoSelect
+
+Add `autoSelect={true}` alongside `autoFocus` to select all text in the element after focusing. This is ideal for edit-in-place patterns where the user typically wants to replace the existing value:
+
+```jsx
+function EditableTitle({ state }) {
+  return (
+    <div>
+      {state.isEditing
+        ? <input autoFocus={true} autoSelect={true} value={state.title} className="title-input" />
+        : <h2 className="title">{state.title}</h2>
+      }
+    </div>
+  )
+}
+```
+
+When the user double-clicks to edit, the input appears focused with all text selected — ready to type a replacement.
+
+### How It Works
+
+These props are intercepted by the JSX pragma before they reach the DOM. Under the hood, a snabbdom `insert` hook calls `.focus()` (and optionally `.select()`) when the element is first inserted. The props are never passed to the actual DOM element.
+
+If you also set a manual `hook={{ insert: fn }}` on the same element, both hooks run — yours first, then the focus behavior.
+
+---
+
 ## Custom Drivers
 
 ### Writing a Driver from Scratch
@@ -961,6 +1035,130 @@ MyComponent.model = {
   DATA_LOADED: (state, data) => ({ ...state, users: data.data })
 }
 ```
+
+---
+
+## Drag and Drop
+
+Sygnal provides a dedicated drag-and-drop driver that handles HTML5 drag events at the document level, bypassing Cycle.js component isolation. This means drag interactions work seamlessly across deeply nested, isolated components.
+
+### Setup
+
+Create the driver with `makeDragDriver()` and pass it to `run()`:
+
+```javascript
+import { run, makeDragDriver } from 'sygnal'
+import RootComponent from './RootComponent.jsx'
+
+run(RootComponent, { DND: makeDragDriver() })
+```
+
+### Registering Drag Categories
+
+Register drag categories from your model, typically in `BOOTSTRAP`. Each category describes a set of draggable elements and/or drop zones identified by CSS selectors:
+
+```jsx
+RootComponent.model = {
+  BOOTSTRAP: {
+    DND: () => ({
+      configs: [
+        { category: 'task', draggable: '.task-card' },
+        { category: 'lane', dropZone: '.lane-drop-zone', accepts: 'task' },
+      ],
+    }),
+  },
+}
+```
+
+#### Registration Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `category` | `string` | Required. Name for this group of drag elements |
+| `draggable` | `string` | CSS selector for elements that can be dragged |
+| `dropZone` | `string` | CSS selector for elements that accept drops |
+| `accepts` | `string` | Only accept drops from this dragging category. Omit to accept any |
+| `dragImage` | `string` | CSS selector for a custom drag preview. Resolved via `.closest()` from the draggable element |
+
+A single category can have both `draggable` and `dropZone` — for example, sortable lists where items are both dragged and dropped onto:
+
+```javascript
+{ category: 'lane-sort', draggable: '.lane-drag-handle',
+                          dropZone:  '.lane-header',
+                          accepts:   'lane-sort',
+                          dragImage: '.lane' }
+```
+
+### Listening to Drag Events
+
+Use the `DND` source in intent. It supports the same shorthand pattern as the DOM source:
+
+```jsx
+RootComponent.intent = ({ DND, EVENTS }) => ({
+  // Shorthand (preferred)
+  DRAG_START: DND.dragstart('task'),
+  DROP:       DND.drop('lane'),
+  DRAG_END:   DND.dragend('task'),
+
+  // Longhand (equivalent)
+  DRAG_START: DND.select('task').events('dragstart'),
+  DROP:       DND.select('lane').events('drop'),
+  DRAG_END:   DND.select('task').events('dragend'),
+})
+```
+
+#### Event Payloads
+
+| Event | Payload | Description |
+|-------|---------|-------------|
+| `dragstart` | `{ element, dataset }` | The dragged element and its `data-*` attributes |
+| `dragend` | `null` | Fires when the drag ends (drop or cancel) |
+| `drop` | `{ dropZone, insertBefore }` | The drop zone element, and the sibling element at the cursor position (for ordering) |
+| `dragover` | `null` | Fires continuously while dragging over a valid drop zone. `preventDefault()` is called automatically |
+
+### Handling Drops
+
+The `drop` event provides the drop zone element and an `insertBefore` reference for ordering. Use `dataset` attributes on your elements to identify items:
+
+```jsx
+// In the view, put identifying data on elements
+<div className="task-card" data={{ taskId: state.id }}>
+  {state.title}
+</div>
+
+// In the model, use the drop payload to move items
+RootComponent.model = {
+  DROP: (state, { dropZone, insertBefore }) => {
+    const toLaneId = dropZone.dataset.laneId
+    const insertBeforeTaskId = insertBefore?.dataset.taskId ?? null
+    // ... move the task to the target lane at the correct position
+  },
+}
+```
+
+### Visual Feedback with Context
+
+Use context to communicate drag state down to child components for styling:
+
+```jsx
+RootComponent.context = {
+  draggingTaskId: state => state.dragging?.taskId ?? null,
+}
+
+// In a child component's view
+function TaskCard({ state, context }) {
+  const isDragging = context.draggingTaskId === state.id
+  return (
+    <div className={'task-card' + (isDragging ? ' dragging' : '')} data={{ taskId: state.id }}>
+      {state.title}
+    </div>
+  )
+}
+```
+
+### Complete Example
+
+See the [Kanban board example](../examples/kanban/) for a full working implementation with task drag-and-drop between lanes, lane reordering with custom drag images, and visual drag feedback.
 
 ---
 

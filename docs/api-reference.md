@@ -8,6 +8,7 @@ Complete reference for all Sygnal exports, types, and configuration options.
 - [component()](#component)
 - [collection()](#collection--collection)
 - [switchable()](#switchable--switchable)
+- [makeDragDriver()](#makedragdriver)
 - [processForm()](#processform)
 - [driverFromAsync()](#driverfromasync)
 - [classes()](#classes)
@@ -16,6 +17,8 @@ Complete reference for all Sygnal exports, types, and configuration options.
 - [ABORT](#abort)
 - [xs (xstream)](#xs)
 - [Stream Operators](#stream-operators)
+- [Event Shorthands](#event-shorthands)
+- [Focus Management Props](#focus-management-props)
 - [DOM Helpers](#dom-helpers)
 - [TypeScript Types](#typescript-types)
 - [Package Exports](#package-exports)
@@ -263,6 +266,122 @@ const MySwitchable = switchable(
 
 - **Switched sinks** (default: `DOM`) — Only the active component's output is used
 - **Non-switched sinks** — Merged from all components (they all remain active)
+
+---
+
+## makeDragDriver()
+
+Creates a Cycle.js driver for HTML5 drag-and-drop that works across isolated components.
+
+```typescript
+function makeDragDriver(): (sink$: Stream<DragDriverRegistration | DragDriverRegistration[]>) => DragDriverSource
+```
+
+### Setup
+
+```javascript
+import { run, makeDragDriver } from 'sygnal'
+import RootComponent from './RootComponent.jsx'
+
+run(RootComponent, { DND: makeDragDriver() })
+```
+
+### DragDriverRegistration
+
+Configuration objects emitted via the model sink to register drag categories:
+
+```typescript
+type DragDriverRegistration = {
+  category:   string    // Required: name for this group of drag elements
+  draggable?: string    // CSS selector for draggable elements
+  dropZone?:  string    // CSS selector for drop zones
+  accepts?:   string    // Only accept drops from this dragging category
+  dragImage?: string    // CSS selector for custom drag preview (resolved via .closest())
+}
+```
+
+Register categories from `BOOTSTRAP` in the model. Wrap in `{ configs: [...] }` because model sinks cannot return bare arrays:
+
+```javascript
+RootComponent.model = {
+  BOOTSTRAP: {
+    DND: () => ({
+      configs: [
+        { category: 'task', draggable: '.task-card' },
+        { category: 'lane', dropZone: '.lane-drop-zone', accepts: 'task' },
+      ],
+    }),
+  },
+}
+```
+
+### DragDriverSource
+
+The source object returned by the driver, available in intent as `DND`:
+
+```typescript
+type DragDriverSource = {
+  select(category: string): DragDriverCategory
+  dragstart(category: string): Stream<DragStartPayload>
+  dragend(category: string): Stream<null>
+  drop(category: string): Stream<DropPayload>
+  dragover(category: string): Stream<any>
+  dispose(): void
+}
+```
+
+The shorthand methods (`dragstart`, `dragend`, `drop`, `dragover`) are equivalent to `select(category).events(eventName)`.
+
+### DragDriverCategory
+
+Returned by `DND.select(category)`:
+
+```typescript
+type DragDriverCategory = {
+  events(eventType: 'dragstart'): Stream<DragStartPayload>
+  events(eventType: 'dragend'):   Stream<null>
+  events(eventType: 'drop'):      Stream<DropPayload>
+  events(eventType: string):      Stream<any>
+}
+```
+
+### Event Payloads
+
+```typescript
+type DragStartPayload = {
+  element: HTMLElement          // The dragged element
+  dataset: Record<string, string>  // The element's data-* attributes
+}
+
+type DropPayload = {
+  dropZone:     HTMLElement        // The drop zone element
+  insertBefore: HTMLElement | null // Sibling element at the cursor (for ordering)
+}
+```
+
+### Example
+
+```javascript
+RootComponent.intent = ({ DND }) => ({
+  DRAG_START: DND.dragstart('task'),
+  DROP:       DND.drop('lane'),
+  DRAG_END:   DND.dragend('task'),
+})
+
+RootComponent.model = {
+  DRAG_START: (state, { dataset }) => ({
+    ...state,
+    dragging: { taskId: dataset.taskId },
+  }),
+
+  DROP: (state, { dropZone, insertBefore }) => {
+    const toLaneId = dropZone.dataset.laneId
+    // ... move the dragged task
+  },
+
+  DRAG_END: (state) => ({ ...state, dragging: null }),
+}
+```
 
 ---
 
@@ -602,6 +721,95 @@ const withState$ = click$.compose(sampleCombine(state$))
 
 ---
 
+## Event Shorthands
+
+### DOM Source
+
+The DOM source wraps `@cycle/dom`'s `MainDOMSource` with a Proxy that adds shorthand event methods. Any property access that doesn't already exist on the source becomes an event listener factory:
+
+```typescript
+type SygnalDOMSource = MainDOMSource & {
+  [eventName: string]: (selector: string) => Stream<Event>
+}
+```
+
+```javascript
+// DOM.eventName(selector) is equivalent to DOM.select(selector).events(eventName)
+
+DOM.click('.btn')        // DOM.select('.btn').events('click')
+DOM.dblclick('.title')   // DOM.select('.title').events('dblclick')
+DOM.keydown('.input')    // DOM.select('.input').events('keydown')
+DOM.blur('.field')       // DOM.select('.field').events('blur')
+DOM.submit('.form')      // DOM.select('.form').events('submit')
+DOM.mouseenter('.card')  // DOM.select('.card').events('mouseenter')
+```
+
+Any valid DOM event name works. The original `.select().events()` API is unchanged.
+
+### DND Source
+
+The DND driver source provides equivalent shorthands as explicit methods:
+
+```javascript
+DND.dragstart('task')  // DND.select('task').events('dragstart')
+DND.dragend('task')    // DND.select('task').events('dragend')
+DND.drop('lane')       // DND.select('lane').events('drop')
+DND.dragover('lane')   // DND.select('lane').events('dragover')
+```
+
+See [makeDragDriver()](#makedragdriver) for full DND source documentation.
+
+---
+
+## Focus Management Props
+
+Declarative JSX props for managing element focus. These are handled by the pragma layer and never reach the DOM.
+
+### autoFocus
+
+```jsx
+<input autoFocus={true} />
+```
+
+When the element is inserted into the DOM, `.focus()` is called on it. Works on any focusable element (`input`, `textarea`, `select`, `button`, elements with `tabindex`, etc.).
+
+### autoSelect
+
+```jsx
+<input autoFocus={true} autoSelect={true} value={state.title} />
+```
+
+When used alongside `autoFocus`, `.select()` is called after `.focus()`, selecting all text in the element. Only meaningful on elements that support text selection (`input`, `textarea`).
+
+### Behavior
+
+- Props are removed from the element before rendering — they do not become HTML attributes
+- A snabbdom `insert` hook is injected automatically
+- If you set your own `hook={{ insert: fn }}`, both hooks run (yours first, then focus)
+- `autoSelect` without `autoFocus` still triggers focus (both imply focusing the element)
+
+### Example
+
+```jsx
+function EditableTitle({ state }) {
+  return (
+    <div>
+      {state.isEditing
+        ? <input
+            autoFocus={true}
+            autoSelect={true}
+            value={state.title}
+            className="title-input"
+          />
+        : <h2 className="title">{state.title}</h2>
+      }
+    </div>
+  )
+}
+```
+
+---
+
 ## DOM Helpers
 
 Sygnal re-exports all DOM helpers from `@cycle/dom`:
@@ -724,6 +932,57 @@ type SwitchableProps<PROPS = any> = {
 }
 ```
 
+### SygnalDOMSource
+
+```typescript
+type SygnalDOMSource = MainDOMSource & {
+  [eventName: string]: (selector: string) => Stream<Event>
+}
+```
+
+### DragDriverSource
+
+```typescript
+type DragDriverSource = {
+  select(category: string): DragDriverCategory
+  dragstart(category: string): Stream<DragStartPayload>
+  dragend(category: string): Stream<null>
+  drop(category: string): Stream<DropPayload>
+  dragover(category: string): Stream<any>
+  dispose(): void
+}
+```
+
+### DragDriverRegistration
+
+```typescript
+type DragDriverRegistration = {
+  category: string
+  draggable?: string
+  dropZone?: string
+  accepts?: string
+  dragImage?: string
+}
+```
+
+### DragStartPayload
+
+```typescript
+type DragStartPayload = {
+  element: HTMLElement
+  dataset: Record<string, string>
+}
+```
+
+### DropPayload
+
+```typescript
+type DropPayload = {
+  dropZone: HTMLElement
+  insertBefore: HTMLElement | null
+}
+```
+
 ### DriverFromAsyncOptions
 
 ```typescript
@@ -779,7 +1038,7 @@ import { run, component, ABORT } from 'sygnal'
 import { collection, Collection, switchable, Switchable } from 'sygnal'
 
 // Utilities
-import { processForm, classes, exactState, driverFromAsync, enableHMR } from 'sygnal'
+import { processForm, classes, exactState, driverFromAsync, enableHMR, makeDragDriver } from 'sygnal'
 
 // Streams
 import { xs, debounce, throttle, delay, dropRepeats, sampleCombine } from 'sygnal'
@@ -788,5 +1047,8 @@ import { xs, debounce, throttle, delay, dropRepeats, sampleCombine } from 'sygna
 import { h, div, span, a, button, input, form, label, ul, li, p, ... } from 'sygnal'
 
 // Types
-import type { Component, RootComponent, Lens, Stream, MemoryStream, RunOptions, SygnalApp } from 'sygnal'
+import type {
+  Component, RootComponent, Lens, Stream, MemoryStream, RunOptions, SygnalApp,
+  SygnalDOMSource, DragDriverSource, DragDriverRegistration, DragStartPayload, DropPayload
+} from 'sygnal'
 ```
