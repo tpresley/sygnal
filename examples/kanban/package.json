@@ -1,0 +1,14 @@
+{
+  "name": "sygnal-kanban",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "sygnal": "file:../..",
+    "vite": "^6.4.1"
+  }
+}
