@@ -45,24 +45,40 @@ RootComponent.initialState = {
     },
   ]),
   dragging: null,
+  draggingLane: null,
   nextId: 4,
 }
 
 RootComponent.context = {
   draggingTaskId: state => state.dragging?.taskId ?? null,
+  draggingLaneId: state => state.draggingLane ?? null,
 }
 
 RootComponent.intent = ({ DOM, DND, EVENTS }) => ({
   ADD_LANE:        DOM.select('.add-lane-btn').events('click'),
-  DRAG_START:      DND.select('dragstart'),
-  DROP:            DND.select('drop'),
-  DRAG_END:        DND.select('dragend'),
+  DRAG_START:      DND.select('task').events('dragstart'),
+  DROP:            DND.select('lane').events('drop'),
+  DRAG_END:        DND.select('task').events('dragend'),
+  LANE_DRAG_START: DND.select('lane-sort').events('dragstart'),
+  LANE_DROP:       DND.select('lane-sort').events('drop'),
+  LANE_DRAG_END:   DND.select('lane-sort').events('dragend'),
   DELETE_LANE:     EVENTS.select('DELETE_LANE'),
   MOVE_LANE_LEFT:  EVENTS.select('MOVE_LANE_LEFT'),
   MOVE_LANE_RIGHT: EVENTS.select('MOVE_LANE_RIGHT'),
 })
 
 RootComponent.model = {
+  BOOTSTRAP: {
+    DND: () => ({
+      configs: [
+        { category: 'task',      draggable: '.task-card' },
+        { category: 'lane',      dropZone:  '.lane-drop-zone',   accepts: 'task'      },
+        { category: 'lane-sort', draggable: '.lane-drag-handle', dropZone: '.lane-header',
+                                  accepts:   'lane-sort',         dragImage: '.lane'   },
+      ],
+    }),
+  },
+
   ADD_LANE: (state) => {
     const id = `lane-${state.nextId}`
     return {
@@ -137,6 +153,34 @@ RootComponent.model = {
   DRAG_END: (state) => {
     if (!state.dragging) return ABORT
     return { ...state, dragging: null }
+  },
+
+  LANE_DRAG_START: (state, { dataset }) => ({
+    ...state,
+    draggingLane: dataset.laneId,
+  }),
+
+  LANE_DROP: (state, { dropZone }) => {
+    if (!state.draggingLane) return ABORT
+    const fromLaneId = state.draggingLane
+    const toLaneId = dropZone.dataset.laneId
+    if (!toLaneId || fromLaneId === toLaneId) return { ...state, draggingLane: null }
+
+    const fromIdx = state.lanes.findIndex(l => l.id === fromLaneId)
+    const toIdx   = state.lanes.findIndex(l => l.id === toLaneId)
+    if (fromIdx === -1 || toIdx === -1) return { ...state, draggingLane: null }
+
+    const lanes = [...state.lanes]
+    const [dragged] = lanes.splice(fromIdx, 1)
+    const newToIdx  = lanes.findIndex(l => l.id === toLaneId)
+    // Insert after the target when moving right, before when moving left
+    lanes.splice(toIdx > fromIdx ? newToIdx + 1 : newToIdx, 0, dragged)
+    return { ...state, draggingLane: null, lanes: withPositions(lanes) }
+  },
+
+  LANE_DRAG_END: (state) => {
+    if (!state.draggingLane) return ABORT
+    return { ...state, draggingLane: null }
   },
 }
 

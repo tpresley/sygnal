@@ -86,6 +86,10 @@ body {
 
 /* ── Lane ── */
 
+.lane.dragging {
+  opacity: 0.4;
+}
+
 .lane {
   flex-shrink: 0;
   width: 280px;
@@ -103,6 +107,26 @@ body {
   padding: 12px 14px 10px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   gap: 6px;
+}
+
+.lane-drag-handle {
+  color: rgba(255, 255, 255, 0.25);
+  cursor: grab;
+  font-size: 1rem;
+  line-height: 1;
+  flex-shrink: 0;
+  padding: 2px 4px;
+  border-radius: 3px;
+  transition: color 0.12s;
+  user-select: none;
+}
+
+.lane-drag-handle:hover {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.lane-drag-handle:active {
+  cursor: grabbing;
 }
 
 .lane-title {

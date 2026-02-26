@@ -1,10 +1,13 @@
 import { xs, ABORT, Collection } from 'sygnal'
 import TaskCard from './TaskCard.jsx'
 
-function LaneComponent({ state }) {
+function LaneComponent({ state, context }) {
+  const isDragging = context?.draggingLaneId === state.id
+
   return (
-    <div className="lane">
-      <div className="lane-header">
+    <div className={'lane' + (isDragging ? ' dragging' : '')}>
+      <div className="lane-header" data={{ laneId: state.id }}>
+        <span className="lane-drag-handle" draggable={true} data={{ laneId: state.id }}>⠿</span>
         {state.isEditing
           ? <input
               className="lane-title-input"

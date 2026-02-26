@@ -3,10 +3,7 @@ import RootComponent from './RootComponent.jsx'
 import './styles.css'
 
 const { hmr, dispose } = run(RootComponent, {
-  DND: makeDragDriver({
-    draggable: '.task-card',
-    dropZone:  '.lane-drop-zone',
-  }),
+  DND: makeDragDriver(),
 })
 
 if (import.meta.hot) {

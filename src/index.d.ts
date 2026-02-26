@@ -341,13 +341,14 @@ export function processDrag(
   drop$: Stream<DragEvent>
 }
 
-export type DragDriverEntry = { selector: string; type: string }
-
-export type DragDriverConfig = {
-  draggable?:  string;
-  dropZone?:   string;
-  draggables?: DragDriverEntry[];
-  dropZones?:  DragDriverEntry[];
+export type DragDriverRegistration = {
+  category:   string;
+  draggable?: string;
+  dropZone?:  string;
+  /** Restricts which dragging category this drop zone will accept. Omit to accept any. */
+  accepts?:   string;
+  /** CSS selector for a drag preview element. Resolved as the nearest ancestor of the draggable element. */
+  dragImage?: string;
 }
 
 export type DragStartPayload = {
@@ -360,18 +361,19 @@ export type DropPayload = {
   insertBefore: HTMLElement | null;
 }
 
+export type DragDriverCategory = {
+  events(eventType: 'dragstart'): Stream<DragStartPayload>;
+  events(eventType: 'dragend'):   Stream<null>;
+  events(eventType: 'drop'):      Stream<DropPayload>;
+  events(eventType: string):      Stream<any>;
+}
+
 export type DragDriverSource = {
-  select(eventType: 'dragstart'):           Stream<DragStartPayload>;
-  select(eventType: 'dragend'):             Stream<null>;
-  select(eventType: 'drop'):                Stream<DropPayload>;
-  select(eventType: `${string}/dragstart`): Stream<DragStartPayload>;
-  select(eventType: `${string}/dragend`):   Stream<null>;
-  select(eventType: `${string}/drop`):      Stream<DropPayload>;
-  select(eventType: string):                Stream<any>;
+  select(category: string): DragDriverCategory;
   dispose(): void;
 }
 
-export function makeDragDriver(config: DragDriverConfig): () => DragDriverSource
+export function makeDragDriver(): (sink$: Stream<DragDriverRegistration | DragDriverRegistration[]>) => DragDriverSource
 
 export type ComponentFactoryOptions<
   STATE = any,
