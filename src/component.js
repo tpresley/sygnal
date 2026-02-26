@@ -30,6 +30,18 @@ const CHILD_SOURCE_NAME = 'CHILD'
 let COMPONENT_COUNT   = 0
 
 
+function wrapDOMSource(domSource) {
+  return new Proxy(domSource, {
+    get(target, prop, receiver) {
+      if (typeof prop === 'symbol' || prop in target) {
+        return Reflect.get(target, prop, receiver)
+      }
+      return (selector) => target.select(selector).events(prop)
+    }
+  })
+}
+
+
 export const ABORT = '~#~#~ABORT~#~#~'
 
 export default function component (opts) {
@@ -166,6 +178,9 @@ class Component {
       })
     }
 
+    if (this.sources[DOMSourceName]) {
+      this.sources[DOMSourceName] = wrapDOMSource(this.sources[DOMSourceName])
+    }
 
     // Ensure that the root component has an intent and model
     // This is necessary to ensure that the component tree's state sink is subscribed to

@@ -14,7 +14,7 @@ function TaskCard({ state, context }) {
 }
 
 TaskCard.intent = ({ DOM }) => ({
-  DELETE: DOM.select('.delete-task-btn').events('click'),
+  DELETE: DOM.click('.delete-task-btn'),
 })
 
 TaskCard.model = {

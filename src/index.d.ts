@@ -140,13 +140,17 @@ type ChildSource = {
   select: (type: string) => Stream<any>
 }
 
+export type SygnalDOMSource = MainDOMSource & {
+  [eventName: string]: (selector: string) => Stream<Event>
+}
+
 export type DefaultDrivers<STATE, EVENTS = any> = {
   STATE: {
     source: StateSource<STATE>;
     sink: STATE;
   };
   DOM: {
-    source: MainDOMSource;
+    source: SygnalDOMSource;
     sink: never;
   };
   EVENTS: {
@@ -370,6 +374,10 @@ export type DragDriverCategory = {
 
 export type DragDriverSource = {
   select(category: string): DragDriverCategory;
+  dragstart(category: string): Stream<DragStartPayload>;
+  dragend(category: string): Stream<null>;
+  drop(category: string): Stream<DropPayload>;
+  dragover(category: string): Stream<any>;
   dispose(): void;
 }
 

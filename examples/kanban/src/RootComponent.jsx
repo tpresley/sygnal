@@ -55,13 +55,13 @@ RootComponent.context = {
 }
 
 RootComponent.intent = ({ DOM, DND, EVENTS }) => ({
-  ADD_LANE:        DOM.select('.add-lane-btn').events('click'),
-  DRAG_START:      DND.select('task').events('dragstart'),
-  DROP:            DND.select('lane').events('drop'),
-  DRAG_END:        DND.select('task').events('dragend'),
-  LANE_DRAG_START: DND.select('lane-sort').events('dragstart'),
-  LANE_DROP:       DND.select('lane-sort').events('drop'),
-  LANE_DRAG_END:   DND.select('lane-sort').events('dragend'),
+  ADD_LANE:        DOM.click('.add-lane-btn'),
+  DRAG_START:      DND.dragstart('task'),
+  DROP:            DND.drop('lane'),
+  DRAG_END:        DND.dragend('task'),
+  LANE_DRAG_START: DND.dragstart('lane-sort'),
+  LANE_DROP:       DND.drop('lane-sort'),
+  LANE_DRAG_END:   DND.dragend('lane-sort'),
   DELETE_LANE:     EVENTS.select('DELETE_LANE'),
   MOVE_LANE_LEFT:  EVENTS.select('MOVE_LANE_LEFT'),
   MOVE_LANE_RIGHT: EVENTS.select('MOVE_LANE_RIGHT'),

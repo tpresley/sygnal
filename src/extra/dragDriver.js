@@ -139,7 +139,7 @@ export function makeDragDriver() {
       }
     })
 
-    return {
+    const source = {
       select(category) {
         return {
           events(eventType) {
@@ -158,10 +158,17 @@ export function makeDragDriver() {
         }
       },
 
+      dragstart(category) { return source.select(category).events('dragstart') },
+      dragend(category)   { return source.select(category).events('dragend') },
+      drop(category)      { return source.select(category).events('drop') },
+      dragover(category)  { return source.select(category).events('dragover') },
+
       /** Release document-level listeners. Call when the app is disposed. */
       dispose() {
         domListeners.forEach(([type, fn]) => document.removeEventListener(type, fn))
       },
     }
+
+    return source
   }
 }

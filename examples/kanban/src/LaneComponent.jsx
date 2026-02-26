@@ -42,24 +42,24 @@ function LaneComponent({ state, context }) {
 }
 
 LaneComponent.intent = ({ DOM, CHILD }) => ({
-  START_EDIT:  DOM.select('.lane-title').events('dblclick'),
+  START_EDIT:  DOM.dblclick('.lane-title'),
   FINISH_EDIT: xs.merge(
-    DOM.select('.lane-title-input').events('blur')
+    DOM.blur('.lane-title-input')
       .map(e => e.target.value),
-    DOM.select('.lane-title-input').events('keydown')
+    DOM.keydown('.lane-title-input')
       .filter(e => e.key === 'Enter')
       .map(e => e.target.value),
   ),
 
-  SHOW_ADD_TASK:   DOM.select('.add-task-btn').events('click'),
-  ADD_TASK:        DOM.select('.new-task-input').events('keydown')
+  SHOW_ADD_TASK:   DOM.click('.add-task-btn'),
+  ADD_TASK:        DOM.keydown('.new-task-input')
     .filter(e => e.key === 'Enter')
     .map(e => e.target.value),
-  CANCEL_ADD_TASK: DOM.select('.new-task-input').events('blur'),
+  CANCEL_ADD_TASK: DOM.blur('.new-task-input'),
 
-  DELETE_LANE:  DOM.select('.delete-lane-btn').events('click'),
-  MOVE_LEFT:    DOM.select('.move-lane-left').events('click'),
-  MOVE_RIGHT:   DOM.select('.move-lane-right').events('click'),
+  DELETE_LANE:  DOM.click('.delete-lane-btn'),
+  MOVE_LEFT:    DOM.click('.move-lane-left'),
+  MOVE_RIGHT:   DOM.click('.move-lane-right'),
 
   DELETE_TASK: CHILD.select('TaskCard')
     .filter(e => e.type === 'DELETE')
