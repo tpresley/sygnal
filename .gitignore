@@ -36,6 +36,9 @@ jspm_packages
 # Optional npm cache directory
 .npm
 
+# Astro cache dir
+.astro
+
 # Optional eslint cache
 .eslintcache
 

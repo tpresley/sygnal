@@ -327,6 +327,20 @@ export function processForm<FIELDS extends { [field: string]: any }>(
   options?: { events?: string | string[]; preventDefault?: boolean }
 ): Stream<FIELDS & { event: Event; eventType: string }>
 
+export type DragSource = {
+  events: (eventName: string) => Stream<Event>
+}
+
+export function processDrag(
+  sources?: { draggable?: DragSource; dropZone?: DragSource },
+  options?: { effectAllowed?: string }
+): {
+  dragStart$: Stream<DragEvent>
+  dragEnd$: Stream<null>
+  dragOver$: Stream<null>
+  drop$: Stream<DragEvent>
+}
+
 export type ComponentFactoryOptions<
   STATE = any,
   PROPS = any,
