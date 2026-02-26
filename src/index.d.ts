@@ -458,6 +458,10 @@ export type { MemoryStream, Stream }
 
 /**
  * JSX Types
+ *
+ * Focus management props (available on all HTML elements):
+ * - `autoFocus={true}` — Focus the element when it enters the DOM
+ * - `autoSelect={true}` — Select the element's text after focusing (input/textarea)
  */
 declare global {
   namespace JSX {

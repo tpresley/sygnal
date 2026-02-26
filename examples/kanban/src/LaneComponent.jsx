@@ -13,6 +13,8 @@ function LaneComponent({ state, context }) {
               className="lane-title-input"
               type="text"
               value={state.title}
+              autoFocus={true}
+              autoSelect={true}
             />
           : <h2 className="lane-title">{state.title}</h2>
         }
@@ -33,6 +35,7 @@ function LaneComponent({ state, context }) {
               className="new-task-input"
               type="text"
               placeholder="Task title, then Enter"
+              autoFocus={true}
             />
           : <button type="button" className="add-task-btn">+ Add Task</button>
         }

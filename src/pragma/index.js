@@ -57,7 +57,29 @@ const rewriteModules = (data, modules) => fn.mapObject(data, (key, val) => {
   return inner
 })
 
-const sanitizeData = (data, modules) => considerSvg(rewriteModules(fn.deepifyKeys(data, modules), modules))
+const applyFocusProps = (data) => {
+  if (!data.props) return data
+  const { autoFocus, autoSelect, ...rest } = data.props
+  if (!autoFocus && !autoSelect) return data
+
+  data.props = rest
+  const existingInsert = data.hook?.insert
+  data.hook = {
+    ...data.hook,
+    insert: (vnode) => {
+      if (existingInsert) existingInsert(vnode)
+      if (vnode.elm && typeof vnode.elm.focus === 'function') {
+        vnode.elm.focus()
+        if (autoSelect && typeof vnode.elm.select === 'function') {
+          vnode.elm.select()
+        }
+      }
+    },
+  }
+  return data
+}
+
+const sanitizeData = (data, modules) => applyFocusProps(considerSvg(rewriteModules(fn.deepifyKeys(data, modules), modules)))
 
 const sanitizeText = (children) => children.length > 1 || !is.text(children[0]) ? undefined : children[0].toString()
 
