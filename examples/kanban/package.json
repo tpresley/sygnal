@@ -5,10 +5,15 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "sygnal": "file:../..",
     "vite": "^6.4.1"
+  },
+  "devDependencies": {
+    "vitest": "^3.0.0"
   }
 }
