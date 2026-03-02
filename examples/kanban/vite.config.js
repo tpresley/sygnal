@@ -5,5 +5,8 @@ export default defineConfig({
     jsxInject: `import { jsx, Fragment } from 'sygnal/jsx'`,
     jsxFactory: 'jsx',
     jsxFragment: 'Fragment'
-  }
+  },
+  test: {
+    include: ['src/**/*.test.{js,jsx}'],
+  },
 })
