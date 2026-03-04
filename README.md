@@ -186,11 +186,21 @@ For Vite:
 // vite.config.js
 export default defineConfig({
   esbuild: {
-    jsxInject: `import { jsx, Fragment } from 'sygnal/jsx'`,
-    jsxFactory: 'jsx',
-    jsxFragment: 'Fragment'
+    jsx: 'automatic',
+    jsxImportSource: 'sygnal',
   }
 })
+```
+
+For TypeScript projects, also add to `tsconfig.json`:
+
+```json
+{
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "jsxImportSource": "sygnal"
+  }
+}
 ```
 
 Without JSX, use `h()`:

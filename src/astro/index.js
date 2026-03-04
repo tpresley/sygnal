@@ -14,8 +14,8 @@ export default function sygnalAstroIntegration() {
         updateConfig({
           vite: {
             esbuild: {
-              jsxFactory: 'jsx',
-              jsxInject: `import { jsx } from 'sygnal/jsx'`,
+              jsx: 'automatic',
+              jsxImportSource: 'sygnal',
             },
           },
         })

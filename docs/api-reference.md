@@ -1022,7 +1022,9 @@ Sygnal provides multiple entry points:
 | Import Path | Description |
 |-------------|-------------|
 | `sygnal` | Main entry — all core functions, types, and DOM helpers |
-| `sygnal/jsx` | JSX pragma (`jsx` and `Fragment` functions) |
+| `sygnal/jsx-runtime` | Automatic JSX transform runtime (`jsx`, `jsxs`, `Fragment`) |
+| `sygnal/jsx-dev-runtime` | Automatic JSX transform runtime (development mode) |
+| `sygnal/jsx` | Classic JSX pragma (`jsx` and `Fragment` functions) |
 | `sygnal/astro` | Astro integration plugin |
 | `sygnal/astro/client` | Astro client-side hydration renderer |
 | `sygnal/astro/server` | Astro server-side renderer |

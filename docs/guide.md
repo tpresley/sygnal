@@ -1435,10 +1435,50 @@ import Counter from '../components/Counter.jsx'
 
 ### Vite
 
+Sygnal supports the automatic JSX transform, which is the modern standard used by React, Preact, Solid, and others. The bundler automatically inserts the necessary imports — no manual injection needed.
+
 ```javascript
 // vite.config.js
 import { defineConfig } from 'vite'
 
+export default defineConfig({
+  esbuild: {
+    jsx: 'automatic',
+    jsxImportSource: 'sygnal',
+  }
+})
+```
+
+For TypeScript projects, also add to `tsconfig.json`:
+
+```json
+{
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "jsxImportSource": "sygnal"
+  }
+}
+```
+
+### Other Bundlers
+
+For Webpack, Rollup, or other bundlers that support the automatic JSX transform, configure them with `sygnal` as the JSX import source. The general pattern is:
+
+```javascript
+// General pattern (varies by bundler)
+{
+  jsx: 'automatic',           // or equivalent setting
+  jsxImportSource: 'sygnal',  // or equivalent setting
+}
+```
+
+<details>
+<summary>Classic JSX transform (legacy, still supported)</summary>
+
+If your bundler does not support the automatic JSX transform, you can use the classic transform:
+
+```javascript
+// vite.config.js
 export default defineConfig({
   esbuild: {
     jsxInject: `import { jsx, Fragment } from 'sygnal/jsx'`,
@@ -1448,38 +1488,21 @@ export default defineConfig({
 })
 ```
 
-### Fragment Fix for Production Builds
-
-Some minifiers rename the `Fragment` function, causing JSX fragments to break. To fix this with Vite, install terser and add:
+Note: With the classic transform, some minifiers may rename the `Fragment` function, causing JSX fragments to break. To fix this with Vite, install terser and add:
 
 ```javascript
-// vite.config.js
-export default defineConfig({
-  // ...esbuild config above...
-  build: {
-    minify: 'terser',
-    terserOptions: {
-      mangle: {
-        reserved: ['Fragment']
-      }
+build: {
+  minify: 'terser',
+  terserOptions: {
+    mangle: {
+      reserved: ['Fragment']
     }
   }
-})
-```
-
-### Other Bundlers
-
-For Webpack, Rollup, or other bundlers, configure the JSX pragma to use Sygnal's `jsx` function:
-
-```javascript
-// General pattern (varies by bundler)
-{
-  jsxFactory: 'jsx',
-  jsxFragment: 'Fragment',
-  // Ensure this import is added to every JSX/TSX file:
-  // import { jsx, Fragment } from 'sygnal/jsx'
 }
 ```
+
+This is not an issue with the automatic transform.
+</details>
 
 ### Using Without JSX
 

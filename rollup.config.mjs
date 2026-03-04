@@ -46,6 +46,32 @@ export default [
   },
 
   {
+    input: 'src/jsx-runtime.js',
+    external: ['extend'],
+    output: [
+      { file: pkg.exports['./jsx-runtime'].require, format: 'cjs' },
+      { file: pkg.exports['./jsx-runtime'].import, format: 'es' }
+    ],
+		plugins: [
+			resolve(),
+			commonjs()
+		]
+  },
+
+  {
+    input: 'src/jsx-dev-runtime.js',
+    external: ['extend'],
+    output: [
+      { file: pkg.exports['./jsx-dev-runtime'].require, format: 'cjs' },
+      { file: pkg.exports['./jsx-dev-runtime'].import, format: 'es' }
+    ],
+		plugins: [
+			resolve(),
+			commonjs()
+		]
+  },
+
+  {
     input: 'src/astro/index.js',
     external: [],
     output: [

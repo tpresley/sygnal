@@ -16,6 +16,16 @@
       "import": "./dist/jsx.esm.js",
       "require": "./dist/jsx.cjs.js"
     },
+    "./jsx-runtime": {
+      "types": "./src/jsx-runtime.d.ts",
+      "import": "./dist/jsx-runtime.esm.js",
+      "require": "./dist/jsx-runtime.cjs.js"
+    },
+    "./jsx-dev-runtime": {
+      "types": "./src/jsx-runtime.d.ts",
+      "import": "./dist/jsx-dev-runtime.esm.js",
+      "require": "./dist/jsx-dev-runtime.cjs.js"
+    },
     "./astro": {
       "types": "./src/astro/index.d.ts",
       "import": "./dist/astro/index.mjs",

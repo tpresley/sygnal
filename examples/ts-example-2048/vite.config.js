@@ -14,7 +14,7 @@ export default defineConfig({
     port: 5173
   },
   esbuild: {
-    jsxFactory: `jsx`,
-    jsxInject: `import { jsx } from 'sygnal/jsx'`,
+    jsx: 'automatic',
+    jsxImportSource: 'sygnal',
   }
 });

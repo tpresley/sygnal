@@ -100,17 +100,8 @@ import { defineConfig } from 'vite'
 
 export default defineConfig({
   esbuild: {
-    jsxInject: `import { jsx, Fragment } from 'sygnal/jsx'`,
-    jsxFactory: 'jsx',
-    jsxFragment: 'Fragment'
-  },
-  build: {
-    minify: 'terser',
-    terserOptions: {
-      mangle: {
-        reserved: ['Fragment']
-      }
-    }
+    jsx: 'automatic',
+    jsxImportSource: 'sygnal',
   }
 })
 ```
@@ -235,8 +226,9 @@ import { h } from 'sygnal'
 // Types (TypeScript)
 import type { Component, RootComponent, Lens, Stream, MemoryStream } from 'sygnal'
 
-// JSX pragma (auto-injected by bundler config, do NOT manually import in .jsx files)
-import { jsx, Fragment } from 'sygnal/jsx'
+// JSX pragma (auto-injected by the automatic JSX transform, do NOT manually import in .jsx files)
+// Configured via jsxImportSource: 'sygnal' in vite.config.js
+import { jsx, jsxs, Fragment } from 'sygnal/jsx-runtime'
 ```
 
 ## Default Drivers
