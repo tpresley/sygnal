@@ -13,17 +13,29 @@ const createTextElement = (text) => !is.text(text) ? undefined : {
   key: undefined
 }
 
-const considerSvg = (vnode) => !is.svg(vnode) ? vnode :
-  fn.assign(vnode,
-    { data: fn.omit('props', fn.extend(vnode.data,
-      { ns: 'http://www.w3.org/2000/svg', attrs: fn.omit('className', fn.extend(vnode.data.props,
-        { class: vnode.data.props ? vnode.data.props.className : undefined }
-      )) }
+const applySvg = (vnode) => {
+  // Skip text vnodes (sel is undefined) and nullish values
+  if (!vnode || is.undefinedv(vnode.sel)) return vnode
+
+  const data = vnode.data || {}
+  const props = data.props || {}
+  const propsWithoutClassName = fn.omit('className', props)
+  const classAttr = props.className !== undefined ? { class: props.className } : {}
+  const mergedAttrs = fn.assign({}, propsWithoutClassName, classAttr, data.attrs || {})
+
+  return fn.assign(vnode,
+    { data: fn.omit('props', fn.assign({}, data,
+      { ns: 'http://www.w3.org/2000/svg', attrs: mergedAttrs }
     )) },
-    { children: is.undefinedv(vnode.children) ? undefined :
-      vnode.children.map((child) => considerSvg(child))
+    // foreignObject contains HTML, not SVG — do not recurse into its children
+    { children: (!Array.isArray(vnode.children) || vnode.sel === 'foreignObject')
+      ? vnode.children
+      : vnode.children.map((child) => applySvg(child))
     }
   )
+}
+
+const considerSvg = (vnode) => !is.svg(vnode) ? vnode : applySvg(vnode)
 
 const rewrites = {
   for: 'attrs',
@@ -79,7 +91,7 @@ const applyFocusProps = (data) => {
   return data
 }
 
-const sanitizeData = (data, modules) => applyFocusProps(considerSvg(rewriteModules(fn.deepifyKeys(data, modules), modules)))
+const sanitizeData = (data, modules) => applyFocusProps(rewriteModules(fn.deepifyKeys(data, modules), modules))
 
 const sanitizeText = (children) => children.length > 1 || !is.text(children[0]) ? undefined : children[0].toString()
 
