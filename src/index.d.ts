@@ -189,9 +189,13 @@ interface ComponentIntent<STATE, DRIVERS, ACTIONS> {
   (args: CombinedSources<STATE, DRIVERS>): Partial<Actions<ACTIONS>>
 }
 
+type CalculatedFieldValue<FULL_STATE, RETURN> =
+  | StateOnlyReducer<FULL_STATE, RETURN>
+  | [ReadonlyArray<string & keyof FULL_STATE>, StateOnlyReducer<FULL_STATE, RETURN>]
+
 type Calculated<STATE, CALCULATED> = keyof CALCULATED extends never
-  ? { [field: string]: boolean | StateOnlyReducer<STATE, any> }
-  : { [CALCULATED_KEY in keyof CALCULATED]: boolean | StateOnlyReducer<STATE, CALCULATED[CALCULATED_KEY]> }
+  ? { [field: string]: boolean | CalculatedFieldValue<STATE, any> }
+  : { [CALCULATED_KEY in keyof CALCULATED]: boolean | CalculatedFieldValue<STATE & CALCULATED, CALCULATED[CALCULATED_KEY]> }
 
 type Context<STATE, CONTEXT> = keyof CONTEXT extends never
   ? { [field: string]: boolean | StateOnlyReducer<STATE, any> }

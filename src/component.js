@@ -44,6 +44,20 @@ function wrapDOMSource(domSource) {
 
 export const ABORT = Symbol('ABORT')
 
+
+function normalizeCalculatedEntry(field, entry) {
+  if (typeof entry === 'function') {
+    return { fn: entry, deps: null }
+  }
+  if (Array.isArray(entry) && entry.length === 2
+      && Array.isArray(entry[0]) && typeof entry[1] === 'function') {
+    return { fn: entry[1], deps: entry[0] }
+  }
+  throw new Error(
+    `Invalid calculated field '${field}': expected a function or [depsArray, function]`
+  )
+}
+
 export default function component (opts) {
   const { name, sources, isolateOpts, stateSourceName='STATE' } = opts
 
@@ -148,6 +162,123 @@ class Component {
     this.requestSourceName = requestSourceName
     this.sourceNames       = Object.keys(sources)
     this._debug            = debug
+
+    // Warn if calculated fields shadow base state keys
+    if (this.calculated && this.initialState
+        && isObj(this.calculated) && isObj(this.initialState)) {
+      for (const key of Object.keys(this.calculated)) {
+        if (key in this.initialState) {
+          console.warn(
+            `[${name}] Calculated field '${key}' shadows a key in initialState. ` +
+            `The initialState value will be overwritten on every state update.`
+          )
+        }
+      }
+    }
+
+    // Normalize calculated entries, build dependency graph, topological sort
+    if (this.calculated && isObj(this.calculated)) {
+      const calcEntries = Object.entries(this.calculated)
+
+      // Normalize all entries to { fn, deps } shape
+      this._calculatedNormalized = {}
+      for (const [field, entry] of calcEntries) {
+        this._calculatedNormalized[field] = normalizeCalculatedEntry(field, entry)
+      }
+
+      this._calculatedFieldNames = new Set(Object.keys(this._calculatedNormalized))
+
+      // Warn on deps referencing nonexistent keys
+      for (const [field, { deps }] of Object.entries(this._calculatedNormalized)) {
+        if (deps !== null) {
+          for (const dep of deps) {
+            if (!this._calculatedFieldNames.has(dep)
+                && this.initialState && !(dep in this.initialState)) {
+              console.warn(
+                `[${name}] Calculated field '${field}' declares dependency '${dep}' ` +
+                `which is not in initialState or calculated fields`
+              )
+            }
+          }
+        }
+      }
+
+      // Build adjacency: for each field, which other calculated fields must run first?
+      const calcDeps = {}
+      for (const [field, { deps }] of Object.entries(this._calculatedNormalized)) {
+        if (deps === null) {
+          calcDeps[field] = []
+        } else {
+          calcDeps[field] = deps.filter(d => this._calculatedFieldNames.has(d))
+        }
+      }
+
+      // Kahn's algorithm for topological sort
+      const inDegree = {}
+      const reverseGraph = {}
+      for (const field of this._calculatedFieldNames) {
+        inDegree[field] = 0
+        reverseGraph[field] = []
+      }
+      for (const [field, depList] of Object.entries(calcDeps)) {
+        inDegree[field] = depList.length
+        for (const dep of depList) {
+          reverseGraph[dep].push(field)
+        }
+      }
+
+      const queue = []
+      for (const [field, degree] of Object.entries(inDegree)) {
+        if (degree === 0) queue.push(field)
+      }
+
+      const sorted = []
+      while (queue.length > 0) {
+        const current = queue.shift()
+        sorted.push(current)
+        for (const dependent of reverseGraph[current]) {
+          inDegree[dependent]--
+          if (inDegree[dependent] === 0) queue.push(dependent)
+        }
+      }
+
+      if (sorted.length !== this._calculatedFieldNames.size) {
+        // Cycle detected — build error message with cycle path
+        const inCycle = [...this._calculatedFieldNames].filter(f => !sorted.includes(f))
+        const visited = new Set()
+        const path = []
+        const traceCycle = (node) => {
+          if (visited.has(node)) { path.push(node); return true }
+          visited.add(node)
+          path.push(node)
+          for (const dep of calcDeps[node]) {
+            if (inCycle.includes(dep) && traceCycle(dep)) return true
+          }
+          path.pop()
+          visited.delete(node)
+          return false
+        }
+        traceCycle(inCycle[0])
+        const start = path[path.length - 1]
+        const cycle = path.slice(path.indexOf(start))
+        throw new Error(`Circular calculated dependency: ${cycle.join(' \u2192 ')}`)
+      }
+
+      this._calculatedOrder = sorted.map(f => [f, this._calculatedNormalized[f]])
+
+      // Initialize per-field memoization caches for fields with declared deps
+      this._calculatedFieldCache = {}
+      for (const [field, { deps }] of this._calculatedOrder) {
+        if (deps !== null) {
+          this._calculatedFieldCache[field] = { lastDepValues: undefined, lastResult: undefined }
+        }
+      }
+    } else {
+      this._calculatedOrder = null
+      this._calculatedNormalized = null
+      this._calculatedFieldNames = null
+      this._calculatedFieldCache = null
+    }
 
     this.isSubComponent = this.sourceNames.includes('props$')
 
@@ -617,19 +748,55 @@ class Component {
   }
 
   getCalculatedValues(state) {
-    const entries = Object.entries(this.calculated || {})
-    if (entries.length === 0) {
+    if (!this._calculatedOrder || this._calculatedOrder.length === 0) {
       return
     }
-    return entries.reduce((acc, [field, fn]) => {
-      if (typeof fn !== 'function') throw new Error(`Missing or invalid calculator function for calculated field '${ field }`)
-      try {
-        acc[field] = fn(state)
-      } catch(e) {
-        console.warn(`Calculated field '${ field }' threw an error during calculation: ${ e.message }`)
+
+    const mergedState = { ...state }
+    const computedSoFar = {}
+
+    for (const [field, { fn, deps }] of this._calculatedOrder) {
+      if (deps !== null && this._calculatedFieldCache) {
+        const cache = this._calculatedFieldCache[field]
+        const currentDepValues = deps.map(d => mergedState[d])
+
+        if (cache.lastDepValues !== undefined) {
+          let unchanged = true
+          for (let i = 0; i < currentDepValues.length; i++) {
+            if (currentDepValues[i] !== cache.lastDepValues[i]) {
+              unchanged = false
+              break
+            }
+          }
+          if (unchanged) {
+            computedSoFar[field] = cache.lastResult
+            mergedState[field] = cache.lastResult
+            continue
+          }
+        }
+
+        try {
+          const result = fn(mergedState)
+          cache.lastDepValues = currentDepValues
+          cache.lastResult = result
+          computedSoFar[field] = result
+          mergedState[field] = result
+        } catch (e) {
+          console.warn(`Calculated field '${field}' threw an error during calculation: ${e.message}`)
+        }
+      } else {
+        // No deps declared — always recompute
+        try {
+          const result = fn(mergedState)
+          computedSoFar[field] = result
+          mergedState[field] = result
+        } catch (e) {
+          console.warn(`Calculated field '${field}' threw an error during calculation: ${e.message}`)
+        }
       }
-      return acc
-    }, {})
+    }
+
+    return computedSoFar
   }
 
   cleanupCalculated(incomingState) {

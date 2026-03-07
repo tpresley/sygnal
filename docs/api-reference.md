@@ -105,7 +105,7 @@ function component(options: ComponentFactoryOptions): Component
 | `model` | `object` | — | Action-to-reducer mapping |
 | `intent` | `Function` | — | Maps sources to action streams |
 | `initialState` | `object` | — | Starting state |
-| `calculated` | `object` | — | Derived state field definitions |
+| `calculated` | `object` | — | Derived state field definitions. Values are either `(state) => value` or `[[...deps], (state) => value]` for dependency-tracked memoization. Deps can reference base state keys or other calculated field names. Circular dependencies throw at creation time. |
 | `storeCalculatedInState` | `boolean` | `true` | Whether to store calculated fields in state |
 | `context` | `object` | — | Context values for descendants |
 | `peers` | `object` | — | Peer component definitions |
