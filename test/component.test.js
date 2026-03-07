@@ -720,4 +720,40 @@ describe('component integration (mockDOMSource)', () => {
       expect(testEnv.states[testEnv.states.length - 1].name).toBe('World')
     })
   })
+
+
+  describe('component ID uniqueness', () => {
+    it('same-name components under different non-component parents do not collide', async () => {
+      let renderCount = 0
+
+      function Child({ state }) {
+        renderCount++
+        return createElement('span', null, String(state.value))
+      }
+      Child.initialState = { value: 0 }
+
+      function IDParent({ state }) {
+        return createElement('div', null,
+          createElement('div', null,
+            createElement('span', null, 'spacer'),
+            createElement(Child, null),
+          ),
+          createElement('div', null,
+            createElement(Child, null),
+          ),
+        )
+      }
+      IDParent.initialState = {}
+      IDParent.intent = ({ DOM }) => ({
+        _NOOP: DOM.select('.__noop__').events('click'),
+      })
+      IDParent.model = {}
+
+      testEnv = createTestComponent(IDParent)
+      await settle()
+
+      // Both Child instances should be instantiated — if IDs collide, only one renders
+      expect(renderCount).toBeGreaterThanOrEqual(2)
+    })
+  })
 })

@@ -1320,11 +1320,11 @@ class Component {
 
 
 
-function getComponents(currentElement, componentNames, depth=0, index=0, parentId) {
+function getComponents(currentElement, componentNames, path='r', parentId) {
   if (!currentElement) return {}
 
   if (currentElement.data?.componentsProcessed) return {}
-  if (depth === 0) currentElement.data.componentsProcessed = true
+  if (path === 'r') currentElement.data.componentsProcessed = true
 
   const sel          = currentElement.sel
   const isCollection = sel && sel.toLowerCase() === 'collection'
@@ -1338,7 +1338,7 @@ function getComponents(currentElement, componentNames, depth=0, index=0, parentI
   
   let id = parentId
   if (isComponent) {
-    id  = getComponentIdFromElement(currentElement, depth, index, parentId)
+    id  = getComponentIdFromElement(currentElement, path, parentId)
     if (isCollection) {
       if (!props.of)   throw new Error(`Collection element missing required 'component' property`)
       if (typeof props.of !== 'string' && typeof props.of !== 'function')         throw new Error(`Invalid 'component' property of collection element: found ${ typeof props.of } requires string or component factory function`)
@@ -1363,7 +1363,7 @@ function getComponents(currentElement, componentNames, depth=0, index=0, parentI
   }
 
   if (children.length > 0) {
-    children.map((child, i) => getComponents(child, componentNames, depth + 1, index + i, id))
+    children.map((child, i) => getComponents(child, componentNames, `${path}.${i}`, id))
             .forEach((child) => {
               Object.entries(child).forEach(([id, el]) => found[id] = el)
             })
@@ -1372,10 +1372,10 @@ function getComponents(currentElement, componentNames, depth=0, index=0, parentI
   return found
 }
 
-function injectComponents(currentElement, components, componentNames, depth=0, index=0, parentId) {
+function injectComponents(currentElement, components, componentNames, path='r', parentId) {
   if (!currentElement) return
   if (currentElement.data?.componentsInjected) return currentElement
-  if (depth === 0 && currentElement.data) currentElement.data.componentsInjected = true
+  if (path === 'r' && currentElement.data) currentElement.data.componentsInjected = true
 
 
   const sel          = currentElement.sel || 'NO SELECTOR'
@@ -1387,7 +1387,7 @@ function injectComponents(currentElement, components, componentNames, depth=0, i
 
   let id = parentId
   if (isComponent) {
-    id  = getComponentIdFromElement(currentElement, depth, index, parentId)
+    id  = getComponentIdFromElement(currentElement, path, parentId)
     const component = components[id]
     if (isCollection) {
       currentElement.sel = 'div'
@@ -1399,19 +1399,18 @@ function injectComponents(currentElement, components, componentNames, depth=0, i
       return component
     }
   } else if (children.length > 0) {
-    currentElement.children = children.map((child, i) => injectComponents(child, components, componentNames, depth + 1, index + i, id)).flat()
+    currentElement.children = children.map((child, i) => injectComponents(child, components, componentNames, `${path}.${i}`, id)).flat()
     return currentElement
   } else {
     return currentElement
   }
 }
 
-function getComponentIdFromElement(el, depth, index, parentId) {
+function getComponentIdFromElement(el, path, parentId) {
   const sel    = el.sel
   const name   = typeof sel === 'string' ? sel : 'functionComponent'
-  const uid    = `${depth}:${index}`
   const props  = el.data?.props || {}
-  const id     = (props.id && JSON.stringify(props.id).replaceAll('"', '')) || uid
+  const id     = (props.id && JSON.stringify(props.id).replaceAll('"', '')) || path
   const parentString = parentId ? `${parentId}|` : ''
   const fullId = `${parentString}${name}::${id}`
   return fullId

@@ -4,7 +4,7 @@ import isolate from '@cycle/isolate'
 import { makeCollection } from '@cycle/state'
 import { h } from '@cycle/dom'
 
-
+let COLLECTION_COUNT = 0
 
 export default function collection(component, stateLense, opts={}) {
   if (typeof component !== 'function') {
@@ -20,7 +20,7 @@ export default function collection(component, stateLense, opts={}) {
   } = opts
 
   return (sources) => {
-    const key = Date.now()
+    const key = `sygnal-collection-${COLLECTION_COUNT++}`
     const collectionOpts = {
       item:         component,
       itemKey:      (state, ind) => typeof state.id !== 'undefined' ? state.id : ind,
