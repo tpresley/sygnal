@@ -30,7 +30,7 @@ export default function switchable(factories, name$, initial, opts={}) {
     const mapFunction = (nameType === 'function' && name$) || (state => state[name$])
     return sources => {
       const state$ = sources && ((typeof stateSourceName === 'string' && sources[stateSourceName]) || sources.STATE || sources.state).stream
-      if (!state$ instanceof Stream) throw new Error(`Could not find the state source: ${ stateSourceName }`)
+      if (!(state$ instanceof Stream)) throw new Error(`Could not find the state source: ${stateSourceName}`)
       const _name$ = state$
         .map(mapFunction)
         .filter(name => typeof name === 'string')

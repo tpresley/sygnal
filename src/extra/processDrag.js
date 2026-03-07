@@ -3,6 +3,12 @@
 import xs from './xstreamCompat.js'
 
 export default function processDrag({ draggable, dropZone } = {}, options = {}) {
+  if (draggable && typeof draggable.events !== 'function') {
+    throw new Error('processDrag: draggable must have an .events() method (e.g. DOM.select(...))')
+  }
+  if (dropZone && typeof dropZone.events !== 'function') {
+    throw new Error('processDrag: dropZone must have an .events() method (e.g. DOM.select(...))')
+  }
   const { effectAllowed = 'move' } = options
 
   const dragStart$ = draggable

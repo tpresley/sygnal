@@ -661,6 +661,51 @@ describe('component integration (mockDOMSource)', () => {
   })
 
 
+  describe('error messages include component name', () => {
+    it('sources validation error includes component name', () => {
+      expect(() => {
+        component({
+          name: 'BadSources',
+          view: () => createElement('div'),
+        })('not-a-sources-object')
+      }).toThrow('[BadSources]')
+    })
+
+    it('sources validation error for null sources includes name', () => {
+      expect(() => {
+        component({
+          name: 'NullSources',
+          view: () => createElement('div'),
+        })(null)
+      }).toThrow('[NullSources]')
+    })
+
+    it('intent validation error includes component name', () => {
+      function BadIntent({ state }) {
+        return createElement('div', null, 'test')
+      }
+      BadIntent.initialState = { x: 1 }
+      BadIntent.intent = 'not a function'
+
+      expect(() => {
+        createTestComponent(BadIntent)
+      }).toThrow('[BadIntent]')
+    })
+
+    it('intent return type error includes component name', () => {
+      function BadReturn({ state }) {
+        return createElement('div', null, 'test')
+      }
+      BadReturn.initialState = { x: 1 }
+      BadReturn.intent = () => 'not an object or stream'
+
+      expect(() => {
+        createTestComponent(BadReturn)
+      }).toThrow('[BadReturn]')
+    })
+  })
+
+
   describe('component with no intent/model (view-only)', () => {
     it('renders initial state without actions', async () => {
       function ViewOnly({ state }) {

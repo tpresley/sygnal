@@ -7,6 +7,9 @@ import { h } from '@cycle/dom'
 
 
 export default function collection(component, stateLense, opts={}) {
+  if (typeof component !== 'function') {
+    throw new Error('collection: first argument (component) must be a function')
+  }
   const {
     combineList     = ['DOM'],
     globalList      = ['EVENTS'],

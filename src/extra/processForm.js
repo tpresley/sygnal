@@ -3,6 +3,9 @@
 import xs from './xstreamCompat.js'
 
 export default function processForm(form, options={}) {
+  if (!form || typeof form.events !== 'function') {
+    throw new Error('processForm: first argument must have an .events() method (e.g. DOM.select(...))')
+  }
   let { events = ['input', 'submit'], preventDefault = true } = options
   if (typeof events === 'string') events = [events]
 

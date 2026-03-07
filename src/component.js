@@ -62,7 +62,7 @@ export default function component (opts) {
   const { name, sources, isolateOpts, stateSourceName='STATE' } = opts
 
   if (sources && !isObj(sources)) {
-    throw new Error('Sources must be a Cycle.js sources object:', name)
+    throw new Error(`[${name}] Sources must be a Cycle.js sources object`)
   }
 
   let fixedIsolateOpts
@@ -142,7 +142,7 @@ class Component {
   // sinks
 
   constructor({ name='NO NAME', sources, intent, model, hmrActions, context, response, view, peers={}, components={}, initialState, calculated, storeCalculatedInState=true, DOMSourceName='DOM', stateSourceName='STATE', requestSourceName='HTTP', debug=false }) {
-    if (!sources || !isObj(sources)) throw new Error('Missing or invalid sources')
+    if (!sources || !isObj(sources)) throw new Error(`[${name}] Missing or invalid sources`)
 
     this.name       = name
     this.sources    = sources
@@ -355,13 +355,13 @@ class Component {
       return
     }
     if (typeof this.intent != 'function') {
-      throw new Error('Intent must be a function')
+      throw new Error(`[${this.name}] Intent must be a function`)
     }
 
     this.intent$ = this.intent(this.sources)
 
     if (!(this.intent$ instanceof Stream) && (!isObj(this.intent$))) {
-      throw new Error('Intent must return either an action$ stream or map of event streams')
+      throw new Error(`[${this.name}] Intent must return either an action$ stream or map of event streams`)
     }
   }
 
@@ -374,10 +374,10 @@ class Component {
       this.hmrActions = [this.hmrActions]
     }
     if (!Array.isArray(this.hmrActions)) {
-      throw new Error(`[${ this.name }] hmrActions must be the name of an action or an array of names of actions to run when a component is hot-reloaded`)
+      throw new Error(`[${this.name}] hmrActions must be the name of an action or an array of names of actions to run when a component is hot-reloaded`)
     }
     if (this.hmrActions.some(action => typeof action !== 'string')) {
-      throw new Error(`[${ this.name }] hmrActions must be the name of an action or an array of names of actions to run when a component is hot-reloaded`)
+      throw new Error(`[${this.name}] hmrActions must be the name of an action or an array of names of actions to run when a component is hot-reloaded`)
     }
     this.hmrAction$ = xs.fromArray(this.hmrActions.map(action => ({ type: action })))
   }
@@ -416,7 +416,7 @@ class Component {
     const hydrate$ = initialApiData.map(data => ({ type: HYDRATE_ACTION, data }))
 
     this.action$   = xs.merge(wrapped$, hydrate$)
-      .compose(this.log(({ type }) => `<${ type }> Action triggered`))
+      .compose(this.log(({ type }) => `<${type}> Action triggered`))
   }
 
   initState() {
@@ -428,7 +428,7 @@ class Component {
       } else if (isObj(this.model[INITIALIZE_ACTION])) {
         Object.keys(this.model[INITIALIZE_ACTION]).forEach(name => {
           if (name !== this.stateSourceName) {
-            console.warn(`${ INITIALIZE_ACTION } can only be used with the ${ this.stateSourceName } source... disregarding ${ name }`)
+            console.warn(`${INITIALIZE_ACTION} can only be used with the ${this.stateSourceName} source... disregarding ${name}`)
             delete this.model[INITIALIZE_ACTION][name]
           }
         })
@@ -463,7 +463,7 @@ class Component {
           } else if (valueType === 'function') {
             _value = value(state)
           } else {
-            console.error(`[${ this.name }] Invalid context entry '${ name }': must be the name of a state property or a function returning a value to use`)
+            console.error(`[${this.name}] Invalid context entry '${name}': must be the name of a state property or a function returning a value to use`)
             return acc
           }
           acc[name] = _value
@@ -475,7 +475,7 @@ class Component {
       })
       .compose(dropRepeats(objIsEqual))
       .startWith({})
-    this.context$.subscribe({ next: _ => _ })
+    this.context$.subscribe({ next: _ => _, error: err => console.error(`[${this.name}] Error in context stream:`, err) })
   }
 
   initModel$() {
@@ -491,7 +491,7 @@ class Component {
     const effectiveInitialState = (typeof hmrState !== 'undefined') ? hmrState : this.initialState
     const initial  = { type: INITIALIZE_ACTION, data: effectiveInitialState }
     if (this.isSubComponent && this.initialState) {
-      console.warn(`[${ this.name }] Initial state provided to sub-component. This will overwrite any state provided by the parent component.`)
+      console.warn(`[${this.name}] Initial state provided to sub-component. This will overwrite any state provided by the parent component.`)
     }
     const hasInitialState = (typeof effectiveInitialState !== 'undefined')
     const shouldInjectInitialState = hasInitialState && (ENVIRONMENT?.__SYGNAL_HMR_UPDATING !== true || typeof hmrState !== 'undefined')
@@ -512,7 +512,7 @@ class Component {
       }
 
       if (!isObj(sinks)) {
-        throw new Error(`Entry for each action must be an object: ${ this.name } ${ action }`)
+        throw new Error(`[${this.name}] Entry for each action must be an object: ${action}`)
       }
 
       const sinkEntries = Object.entries(sinks)
@@ -529,12 +529,12 @@ class Component {
         const wrapped$ = on$
           .compose(this.log(data => {
             if (isStateSink) {
-              return `<${ action }> State reducer added`
+              return `<${action}> State reducer added`
             } else if (isParentSink) {
-              return `<${ action }> Data sent to parent component: ${ JSON.stringify(data.value).replaceAll('"', '') }`
+              return `<${action}> Data sent to parent component: ${JSON.stringify(data.value).replaceAll('"', '')}`
             } else {
               const extra = data && (data.type || data.command || data.name || data.key || (Array.isArray(data) && 'Array') || data)
-              return `<${ action }> Data sent to [${ sink }]: ${ JSON.stringify(extra).replaceAll('"', '') }`
+              return `<${action}> Data sent to [${sink}]: ${JSON.stringify(extra).replaceAll('"', '')}`
             }
           }))
 
@@ -612,7 +612,7 @@ class Component {
 
       }
     })
-    subComponentSink$.subscribe({ next: _ => _ })
+    subComponentSink$.subscribe({ next: _ => _, error: err => console.error(`[${this.name}] Error in sub-component sink stream:`, err) })
     this.subComponentSink$ = subComponentSink$.filter(sinks => Object.keys(sinks).length > 0)
   }
 
@@ -675,13 +675,13 @@ class Component {
       if (typeof reducer === 'function') {
         returnStream$ = filtered$.map(action => {
           const next = (type, data, delay=10) => {
-            if (typeof delay !== 'number') throw new Error(`[${ this.name } ] Invalid delay value provided to next() function in model action '${ name }'. Must be a number in ms.`)
+            if (typeof delay !== 'number') throw new Error(`[${this.name}] Invalid delay value provided to next() function in model action '${name}'. Must be a number in ms.`)
             // put the "next" action request at the end of the event loop so the "current" action completes first
             setTimeout(() => {
               // push the "next" action request into the action$ stream
               rootAction$.shamefullySendNext({ type, data })
             }, delay)
-            this.log(`<${ name }> Triggered a next() action: <${ type }> ${ delay }ms delay`, true)
+            this.log(`<${name}> Triggered a next() action: <${type}> ${delay}ms delay`, true)
           }
 
           const props = { ...this.currentProps, children: this.currentChildren, context: this.currentContext }
@@ -693,7 +693,7 @@ class Component {
               const enhancedState = this.addCalculated(_state)
               props.state = enhancedState
               const newState = reducer(enhancedState, data, next, props)
-              if (newState == ABORT) return _state
+              if (newState === ABORT) return _state
               return this.cleanupCalculated(newState)
             }
           } else {
@@ -702,13 +702,13 @@ class Component {
             const reduced = reducer(enhancedState, data, next, props)
             const type = typeof reduced
             if (isObj(reduced) || ['string', 'number', 'boolean', 'function'].includes(type)) return reduced
-            if (type == 'undefined') {
-              console.warn(`'undefined' value sent to ${ name }`)
+            if (type === 'undefined') {
+              console.warn(`[${this.name}] 'undefined' value sent to ${name}`)
               return reduced
             }
-            throw new Error(`Invalid reducer type for ${ name } ${ type }`)
+            throw new Error(`[${this.name}] Invalid reducer type for action '${name}': ${type}`)
           }
-        }).filter(result => result != ABORT)
+        }).filter(result => result !== ABORT)
       } else if (reducer === undefined || reducer === true) {
         returnStream$ = filtered$.map(({data}) => data)
       } else {
@@ -729,7 +729,7 @@ class Component {
       if (state === lastState) {
         return lastResult
       }
-      if (!isObj(this.calculated)) throw new Error(`'calculated' parameter must be an object mapping calculated state field named to functions`)
+      if (!isObj(this.calculated)) throw new Error(`[${this.name}] 'calculated' parameter must be an object mapping calculated state field names to functions`)
 
       const calculated = this.getCalculatedValues(state)
       if (!calculated) {
@@ -944,7 +944,7 @@ class Component {
       this.newChildSources(childSources)
 
 
-      if (newInstanceCount > 0) this.log(`New sub components instantiated: ${ newInstanceCount }`, true)
+      if (newInstanceCount > 0) this.log(`New sub components instantiated: ${newInstanceCount}`, true)
 
       return newComponents
     }, {})
@@ -1010,7 +1010,7 @@ class Component {
     } else if (this.components[collectionOf]) {
       factory = this.components[collectionOf]
     } else {
-      throw new Error(`[${this.name}] Invalid 'of' propery in collection: ${ collectionOf }`)
+      throw new Error(`[${this.name}] Invalid 'of' property in collection: ${collectionOf}`)
     }
 
     const fieldLense = {
@@ -1018,7 +1018,7 @@ class Component {
         if (!Array.isArray(state[stateField])) return []
         const items = state[stateField]
         const filtered = typeof arrayOperators.filter === 'function' ? items.filter(arrayOperators.filter) : items
-        const sorted = typeof arrayOperators.sort ? filtered.sort(arrayOperators.sort) : filtered
+        const sorted = typeof arrayOperators.sort === 'function' ? filtered.sort(arrayOperators.sort) : filtered
         const mapped = sorted.map((item, index) => {
           return (isObj(item)) ? { ...item, [idField]: item[idField] || index } : { value: item, [idField]: index }
         })
@@ -1027,7 +1027,7 @@ class Component {
       },
       set: (oldState, newState) => {
         if (this.calculated && stateField in this.calculated) {
-          console.warn(`Collection sub-component of ${ this.name } attempted to update state on a calculated field '${ stateField }': Update ignored`)
+          console.warn(`Collection sub-component of ${this.name} attempted to update state on a calculated field '${stateField}': Update ignored`)
           return oldState
         }
         const updated = []
@@ -1056,17 +1056,17 @@ class Component {
     } else if (typeof stateField === 'string') {
       if (isObj(this.currentState)) {
         if(!(this.currentState && stateField in this.currentState) && !(this.calculated && stateField in this.calculated)) {
-          console.error(`Collection component in ${ this.name } is attempting to use non-existent state property '${ stateField }': To fix this error, specify a valid array property on the state.  Attempting to use parent component state.`)
+          console.error(`Collection component in ${this.name} is attempting to use non-existent state property '${stateField}': To fix this error, specify a valid array property on the state.  Attempting to use parent component state.`)
           lense = undefined
         } else if (!Array.isArray(this.currentState[stateField])) {
-          console.warn(`State property '${ stateField }' in collection comopnent of ${ this.name } is not an array: No components will be instantiated in the collection.`)
+          console.warn(`[${this.name}] State property '${stateField}' in collection component is not an array: No components will be instantiated in the collection.`)
           lense = fieldLense
         } else {
           lense = fieldLense
         }
       } else {
         if (!Array.isArray(this.currentState[stateField])) {
-          console.warn(`State property '${ stateField }' in collection component of ${ this.name } is not an array: No components will be instantiated in the collection.`)
+          console.warn(`[${this.name}] State property '${stateField}' in collection component is not an array: No components will be instantiated in the collection.`)
           lense = fieldLense
         } else {
           lense = fieldLense
@@ -1074,14 +1074,14 @@ class Component {
       }
     } else if (isObj(stateField)) {
       if (typeof stateField.get !== 'function') {
-        console.error(`Collection component in ${ this.name } has an invalid 'from' field: Expecting 'undefined', a string indicating an array property in the state, or an object with 'get' and 'set' functions for retrieving and setting child state from the current state. Attempting to use parent component state.`)
+        console.error(`Collection component in ${this.name} has an invalid 'from' field: Expecting 'undefined', a string indicating an array property in the state, or an object with 'get' and 'set' functions for retrieving and setting child state from the current state. Attempting to use parent component state.`)
         lense = undefined
       } else {
         lense = {
           get: (state) => {
             const newState = stateField.get(state)
             if (!Array.isArray(newState)) {
-              console.warn(`State getter function in collection component of ${ this.name } did not return an array: No components will be instantiated in the collection. Returned value:`, newState)
+              console.warn(`State getter function in collection component of ${this.name} did not return an array: No components will be instantiated in the collection. Returned value:`, newState)
               return []
             }
             return newState
@@ -1090,14 +1090,14 @@ class Component {
         }
       }
     } else {
-      console.error(`Collection component in ${ this.name } has an invalid 'from' field: Expecting 'undefined', a string indicating an array property in the state, or an object with 'get' and 'set' functions for retrieving and setting child state from the current state. Attempting to use parent component state.`)
+      console.error(`Collection component in ${this.name} has an invalid 'from' field: Expecting 'undefined', a string indicating an array property in the state, or an object with 'get' and 'set' functions for retrieving and setting child state from the current state. Attempting to use parent component state.`)
       lense = undefined
     }
 
     const sources = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$, __parentContext$: this.context$, PARENT: null }
     const sink$   = collection(factory, lense, { container: null })(sources)
     if (!isObj(sink$)) {
-      throw new Error('Invalid sinks returned from component factory of collection element')
+      throw new Error(`[${this.name}] Invalid sinks returned from component factory of collection element`)
     }
     return sink$
   }
@@ -1119,7 +1119,7 @@ class Component {
       get: state => state[stateField],
       set: (oldState, newState) => {
         if (this.calculated && stateField in this.calculated) {
-          console.warn(`Switchable sub-component of ${ this.name } attempted to update state on a calculated field '${ stateField }': Update ignored`)
+          console.warn(`Switchable sub-component of ${this.name} attempted to update state on a calculated field '${stateField}': Update ignored`)
           return oldState
         }
         if (!isObj(newState) || Array.isArray(newState)) return { ...oldState, [stateField]: newState }
@@ -1138,13 +1138,13 @@ class Component {
       lense = fieldLense
     } else if (isObj(stateField)) {
       if (typeof stateField.get !== 'function') {
-        console.error(`Switchable component in ${ this.name } has an invalid 'state' field: Expecting 'undefined', a string indicating an array property in the state, or an object with 'get' and 'set' functions for retrieving and setting sub-component state from the current state. Attempting to use parent component state.`)
+        console.error(`Switchable component in ${this.name} has an invalid 'state' field: Expecting 'undefined', a string indicating an array property in the state, or an object with 'get' and 'set' functions for retrieving and setting sub-component state from the current state. Attempting to use parent component state.`)
         lense = baseLense
       } else {
         lense = { get: stateField.get, set: stateField.set }
       }
     } else {
-      console.error(`Invalid state provided to switchable sub-component of ${ this.name }: Expecting string, object, or undefined, but found ${ typeof stateField }. Attempting to use parent component state.`)
+      console.error(`Invalid state provided to switchable sub-component of ${this.name}: Expecting string, object, or undefined, but found ${typeof stateField}. Attempting to use parent component state.`)
       lense = baseLense
     }
 
@@ -1165,7 +1165,7 @@ class Component {
     const sink$ = isolate(switchable(switchableComponents, props$.map(props => props.current)), { [this.stateSourceName]: lense })(sources)
 
     if (!isObj(sink$)) {
-      throw new Error('Invalid sinks returned from component factory of switchable element')
+      throw new Error(`[${this.name}] Invalid sinks returned from component factory of switchable element`)
     }
 
     return sink$
@@ -1191,7 +1191,7 @@ class Component {
     const factory   = componentName === 'sygnal-factory' ? props.sygnalFactory : (this.components[componentName] || props.sygnalFactory)
     if (!factory) {
       if (componentName === 'sygnal-factory') throw new Error(`Component not found on element with Capitalized selector and nameless function: JSX transpilation replaces selectors starting with upper case letters with functions in-scope with the same name, Sygnal cannot see the name of the resulting component.`)
-      throw new Error(`Component not found: ${ componentName }`)
+      throw new Error(`Component not found: ${componentName}`)
     }
 
     let lense
@@ -1200,7 +1200,7 @@ class Component {
       get: state => state[stateField],
       set: (oldState, newState) => {
         if (this.calculated && stateField in this.calculated) {
-          console.warn(`Sub-component of ${ this.name } attempted to update state on a calculated field '${ stateField }': Update ignored`)
+          console.warn(`Sub-component of ${this.name} attempted to update state on a calculated field '${stateField}': Update ignored`)
           return oldState
         }
         return { ...oldState, [stateField]: newState }
@@ -1218,13 +1218,13 @@ class Component {
       lense = fieldLense
     } else if (isObj(stateField)) {
       if (typeof stateField.get !== 'function') {
-        console.error(`Sub-component in ${ this.name } has an invalid 'state' field: Expecting 'undefined', a string indicating an array property in the state, or an object with 'get' and 'set' functions for retrieving and setting sub-component state from the current state. Attempting to use parent component state.`)
+        console.error(`Sub-component in ${this.name} has an invalid 'state' field: Expecting 'undefined', a string indicating an array property in the state, or an object with 'get' and 'set' functions for retrieving and setting sub-component state from the current state. Attempting to use parent component state.`)
         lense = baseLense
       } else {
         lense = { get: stateField.get, set: stateField.set }
       }
     } else {
-      console.error(`Invalid state provided to sub-component of ${ this.name }: Expecting string, object, or undefined, but found ${ typeof stateField }. Attempting to use parent component state.`)
+      console.error(`Invalid state provided to sub-component of ${this.name}: Expecting string, object, or undefined, but found ${typeof stateField}. Attempting to use parent component state.`)
       lense = baseLense
     }
 
@@ -1342,7 +1342,7 @@ function getComponents(currentElement, componentNames, depth=0, index=0, parentI
     if (isCollection) {
       if (!props.of)   throw new Error(`Collection element missing required 'component' property`)
       if (typeof props.of !== 'string' && typeof props.of !== 'function')         throw new Error(`Invalid 'component' property of collection element: found ${ typeof props.of } requires string or component factory function`)
-      if (typeof props.of !== 'function' && !componentNames.includes(props.of))   throw new Error(`Specified component for collection not found: ${ props.of }`)
+      if (typeof props.of !== 'function' && !componentNames.includes(props.of))   throw new Error(`Specified component for collection not found: ${props.of}`)
       if (typeof props.from !== 'undefined' && !(typeof props.from === 'string' || Array.isArray(props.from) || typeof props.from.get === 'function')) console.warn(`No valid array found for collection ${ typeof props.of === 'string' ? props.of : 'function component' }: no collection components will be created`, props.from)
       currentElement.data.isCollection = true
       currentElement.data.props ||= {}
@@ -1353,7 +1353,7 @@ function getComponents(currentElement, componentNames, depth=0, index=0, parentI
       if (!switchableComponents.every(comp => typeof comp === 'function')) throw new Error(`One or more components provided to switchable element is not a valid component factory`)
       if (!props.current || (typeof props.current !== 'string' && typeof props.current !== 'function')) throw new Error(`Missing or invalid 'current' property for switchable element: found '${ typeof props.current }' requires string or function`)
       const switchableComponentNames = Object.keys(props.of)
-      if (!switchableComponentNames.includes(props.current)) throw new Error(`Component '${ props.current }' not found in switchable element`)
+      if (!switchableComponentNames.includes(props.current)) throw new Error(`Component '${props.current}' not found in switchable element`)
       currentElement.data.isSwitchable = true
     } else {
 
@@ -1412,8 +1412,8 @@ function getComponentIdFromElement(el, depth, index, parentId) {
   const uid    = `${depth}:${index}`
   const props  = el.data?.props || {}
   const id     = (props.id && JSON.stringify(props.id).replaceAll('"', '')) || uid
-  const parentString = parentId ? `${ parentId }|` : ''
-  const fullId = `${ parentString }${ name }::${ id }`
+  const parentString = parentId ? `${parentId}|` : ''
+  const fullId = `${parentString}${name}::${id}`
   return fullId
 }
 
@@ -1557,7 +1557,7 @@ function sortFunctionFromProp(sortProp) {
   } else if (isObj(sortProp)) {
     return __sortFunctionFromObj(sortProp)
   } else {
-    console.error('Invalid sort option (ignoring):', item)
+    console.error('Invalid sort option (ignoring):', sortProp)
     return undefined
   }
 }

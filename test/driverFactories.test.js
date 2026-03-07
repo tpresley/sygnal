@@ -280,6 +280,60 @@ describe('extra/driverFactories', () => {
     })
   })
 
+  describe('nested promise path', () => {
+    it('handles async function that returns a nested promise', async () => {
+      // This exercises the code path on line 86 (formerly `rocessedOutgoing`)
+      const mockFn = async (data) => {
+        return Promise.resolve({ nested: data })
+      }
+
+      const results = []
+      const { stream: input$, emit } = manualStream()
+      const driver = driverFromAsync(mockFn, {
+        args: 'payload',
+        return: 'result',
+      })
+      const output = driver(input$)
+
+      output.select().addListener({
+        next: v => results.push(v),
+        error() {},
+        complete() {},
+      })
+
+      emit({ category: 'test', payload: 'hello' })
+
+      await new Promise(r => setTimeout(r, 100))
+      expect(results.length).toBe(1)
+      expect(results[0].result).toEqual({ nested: 'hello' })
+    })
+
+    it('handles post function that returns a promise', async () => {
+      const mockFn = async (data) => data * 2
+      const driver = driverFromAsync(mockFn, {
+        args: 'value',
+        return: 'result',
+        post: async (result) => result + 100,
+      })
+
+      const results = []
+      const { stream: input$, emit } = manualStream()
+      const output = driver(input$)
+
+      output.select().addListener({
+        next: v => results.push(v),
+        error() {},
+        complete() {},
+      })
+
+      emit({ category: 'test', value: 5 })
+
+      await new Promise(r => setTimeout(r, 100))
+      expect(results.length).toBe(1)
+      expect(results[0].result).toBe(110) // 5 * 2 = 10, + 100 = 110
+    })
+  })
+
   describe('error handling', () => {
     it('logs error when promise rejects', async () => {
       const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})

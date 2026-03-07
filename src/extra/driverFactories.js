@@ -14,11 +14,11 @@ function driverFromAsync(promiseReturningFunction, opts = {}) {
   const functionName = promiseReturningFunction.name || '[anonymous function]'
   const functionArgsType = typeof functionArgs
   if (functionArgsType !== 'string' && functionArgsType !== 'function' && !(Array.isArray(functionArgs) && functionArgs.every((arg) => typeof arg === 'string'))) {
-    throw new Error(`The 'args' option for driverFromAsync(${ functionName }) must be a string, array of strings, or a function.  Received ${functionArgsType}`)
+    throw new Error(`The 'args' option for driverFromAsync(${functionName}) must be a string, array of strings, or a function.  Received ${functionArgsType}`)
   }
 
   if (typeof selectorProperty !== 'string') {
-    throw new Error(`The 'selector' option for driverFromAsync(${ functionName }) must be a string.  Received ${typeof selectorProperty}`)
+    throw new Error(`The 'selector' option for driverFromAsync(${functionName}) must be a string.  Received ${typeof selectorProperty}`)
   }
 
   return (fromApp$) => {
@@ -47,7 +47,7 @@ function driverFromAsync(promiseReturningFunction, opts = {}) {
             argArr = functionArgs.map((arg) => preProcessed[arg])
           }
         }
-        const errMsg = `Error in driver created using driverFromAsync(${ functionName })`
+        const errMsg = `Error in driver created using driverFromAsync(${functionName})`
         promiseReturningFunction(...argArr)
           .then((innerVal) => {
             const constructReply = (rawVal) => {
@@ -57,7 +57,7 @@ function driverFromAsync(promiseReturningFunction, opts = {}) {
                 if (typeof outgoing === 'object' && outgoing !== null) {
                   outgoing[selectorProperty] = incoming[selectorProperty]
                 } else {
-                  console.warn(`The 'return' option for driverFromAsync(${ functionName }) was not set, but the promise returned an non-object.  The result will be returned as-is, but the '${selectorProperty}' property will not be set, so will not be filtered by the 'select' method of the driver.`)
+                  console.warn(`The 'return' option for driverFromAsync(${functionName}) was not set, but the promise returned an non-object.  The result will be returned as-is, but the '${selectorProperty}' property will not be set, so will not be filtered by the 'select' method of the driver.`)
                 }
               } else if (typeof returnProperty === 'string') {
                 outgoing = {
@@ -65,7 +65,7 @@ function driverFromAsync(promiseReturningFunction, opts = {}) {
                   [selectorProperty]: incoming[selectorProperty]
                 }
               } else {
-                throw new Error(`The 'return' option for driverFromAsync(${ functionName }) must be a string.  Received ${typeof returnProperty}`)
+                throw new Error(`The 'return' option for driverFromAsync(${functionName}) must be a string.  Received ${typeof returnProperty}`)
               }
               return outgoing
             }
@@ -81,12 +81,12 @@ function driverFromAsync(promiseReturningFunction, opts = {}) {
                       .then((innerProcessedOutgoing) => {
                         sendFn(constructReply(innerProcessedOutgoing))
                       })
-                      .catch((err) => console.error(`${ errMsg }: ${ err }`))
+                      .catch((err) => console.error(`${errMsg}: ${err}`))
                   } else {
-                    sendFn(constructReply(rocessedOutgoing))
+                    sendFn(constructReply(processedOutgoing))
                   }
                 })
-                .catch((err) => console.error(`${ errMsg }: ${ err }`))
+                .catch((err) => console.error(`${errMsg}: ${err}`))
             } else {
               const processedOutgoing = postFunction(innerVal, incoming)
               if (typeof processedOutgoing.then === 'function') {
@@ -94,19 +94,19 @@ function driverFromAsync(promiseReturningFunction, opts = {}) {
                   .then((innerProcessedOutgoing) => {
                     sendFn(constructReply(innerProcessedOutgoing))
                   })
-                  .catch((err) => console.error(`${ errMsg }: ${ err }`))
+                  .catch((err) => console.error(`${errMsg}: ${err}`))
               } else {
                 sendFn(constructReply(processedOutgoing))
               }
             }
           })
-          .catch((err) => console.error(`${ errMsg }: ${ err }`))
+          .catch((err) => console.error(`${errMsg}: ${err}`))
       },
       error: (err) => {
-        console.error(`Error recieved from sink stream in driver created using driverFromAsync(${ functionName }): ${ err }`)
+        console.error(`Error received from sink stream in driver created using driverFromAsync(${functionName}):`, err)
       },
       complete: () => {
-        console.warn(`Unexpected completion of sink stream to driver created using driverFromAsync(${ functionName })`)
+        console.warn(`Unexpected completion of sink stream to driver created using driverFromAsync(${functionName})`)
       }
     })
 

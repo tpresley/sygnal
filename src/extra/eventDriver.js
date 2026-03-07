@@ -9,7 +9,8 @@ export default function eventBusDriver(out$) {
   const events = new EventTarget()
 
   out$.subscribe({
-    next: event => events.dispatchEvent(new CustomEvent('data', { detail: event }))
+    next: event => events.dispatchEvent(new CustomEvent('data', { detail: event })),
+    error: err => console.error('[EVENTS driver] Error in sink stream:', err)
   })
 
   return {
