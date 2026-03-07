@@ -42,7 +42,7 @@ function wrapDOMSource(domSource) {
 }
 
 
-export const ABORT = '~#~#~ABORT~#~#~'
+export const ABORT = Symbol('ABORT')
 
 export default function component (opts) {
   const { name, sources, isolateOpts, stateSourceName='STATE' } = opts

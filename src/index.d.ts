@@ -3,7 +3,8 @@ import type { StateSource } from '@cycle/state'
 import xsDefault from 'xstream'
 import type { MemoryStream, Stream } from 'xstream'
 
-export type ABORT = '~#~#~ABORT~#~#~'
+export declare const ABORT: unique symbol
+export type ABORT = typeof ABORT
 
 export type DriverSpec<SOURCE = any, SINK = any> = {
   source: SOURCE;
@@ -444,7 +445,6 @@ export function driverFromAsync<INCOMING = any, RETURN = any, OUTGOING = any>(
   options?: DriverFromAsyncOptions<INCOMING, OUTGOING, RETURN>
 ): (fromApp$: Stream<INCOMING>) => AsyncDriverFromFunction<INCOMING, OUTGOING>
 
-export const ABORT: ABORT
 export const xs: typeof xsDefault
 
 export { default as debounce } from 'xstream/extra/debounce'
