@@ -4,8 +4,15 @@ import { makeDOMDriver } from "@cycle/dom"
 import eventBusDriver from "./eventDriver"
 import logDriver from "./logDriver"
 import component, { ABORT } from "../component"
+import { getDevTools } from "./devtools"
 
 export default function run(app, drivers={}, options={}) {
+  // Initialize DevTools instrumentation bridge early (before component creation)
+  if (typeof window !== 'undefined') {
+    const dt = getDevTools()
+    dt.init()
+  }
+
   const { mountPoint='#root', fragments=true, useDefaultDrivers=true } = options
   if (!app.isSygnalComponent) {
     const name = app.name || app.componentName || app.label || "FUNCTIONAL_COMPONENT"
@@ -54,6 +61,11 @@ export default function run(app, drivers={}, options={}) {
   }
 
   const exposed = { sources, sinks, dispose }
+
+  // Store app reference for time-travel
+  if (typeof window !== 'undefined') {
+    window.__SYGNAL_DEVTOOLS_APP__ = exposed
+  }
 
   const swapToComponent = (newComponent, state) => {
     const persistedState = (typeof window !== 'undefined') ? window.__SYGNAL_HMR_PERSISTED_STATE : undefined

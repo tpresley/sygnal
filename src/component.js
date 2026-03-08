@@ -144,6 +144,8 @@ class Component {
   constructor({ name='NO NAME', sources, intent, model, hmrActions, context, response, view, peers={}, components={}, initialState, calculated, storeCalculatedInState=true, DOMSourceName='DOM', stateSourceName='STATE', requestSourceName='HTTP', debug=false }) {
     if (!sources || !isObj(sources)) throw new Error(`[${name}] Missing or invalid sources`)
 
+    this._componentNumber = COMPONENT_COUNT++
+
     this.name       = name
     this.sources    = sources
     this.intent     = intent
@@ -288,6 +290,9 @@ class Component {
       this.currentState = initialState || {}
       this.sources[stateSourceName] = new StateSource(state$.map(val => {
         this.currentState = val
+        if (typeof window !== 'undefined' && window.__SYGNAL_DEVTOOLS__?.connected) {
+          window.__SYGNAL_DEVTOOLS__.onStateChanged(this._componentNumber, this.name, val)
+        }
         return val
       }))
     }
@@ -323,10 +328,8 @@ class Component {
       }
     }
 
-    const componentNumber = COMPONENT_COUNT++
-
     this.addCalculated = this.createMemoizedAddCalculated()
-    this.log = makeLog(`${componentNumber} | ${name}`)
+    this.log = makeLog(`${this._componentNumber} | ${name}`)
 
     this.initChildSources$()
     this.initIntent$()
@@ -341,9 +344,20 @@ class Component {
     this.initVdom$()
     this.initSinks()
 
-    this.sinks.__index = componentNumber
+    this.sinks.__index = this._componentNumber
 
     this.log(`Instantiated`, true)
+
+    // Hook 1: Register with DevTools
+    if (typeof window !== 'undefined' && window.__SYGNAL_DEVTOOLS__) {
+      window.__SYGNAL_DEVTOOLS__.onComponentCreated(this._componentNumber, name, this)
+
+      // Hook 1b: Register parent-child relationship
+      const parentNum = sources?.__parentComponentNumber
+      if (typeof parentNum === 'number') {
+        window.__SYGNAL_DEVTOOLS__.onSubComponentRegistered(parentNum, this._componentNumber)
+      }
+    }
   }
 
   get debug() {
@@ -417,6 +431,14 @@ class Component {
 
     this.action$   = xs.merge(wrapped$, hydrate$)
       .compose(this.log(({ type }) => `<${type}> Action triggered`))
+      .map(action => {
+        if (typeof window !== 'undefined' && window.__SYGNAL_DEVTOOLS__?.connected) {
+          window.__SYGNAL_DEVTOOLS__.onActionDispatched(
+            this._componentNumber, this.name, action.type, action.data
+          )
+        }
+        return action
+      })
   }
 
   initState() {
@@ -471,6 +493,9 @@ class Component {
         }, {})
         const newContext = { ..._parent, ...values }
         this.currentContext = newContext
+        if (typeof window !== 'undefined' && window.__SYGNAL_DEVTOOLS__?.connected) {
+          window.__SYGNAL_DEVTOOLS__.onContextChanged(this._componentNumber, this.name, newContext)
+        }
         return newContext
       })
       .compose(dropRepeats(objIsEqual))
@@ -1094,7 +1119,7 @@ class Component {
       lense = undefined
     }
 
-    const sources = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$, __parentContext$: this.context$, PARENT: null }
+    const sources = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$, __parentContext$: this.context$, PARENT: null, __parentComponentNumber: this._componentNumber }
     const sink$   = collection(factory, lense, { container: null })(sources)
     if (!isObj(sink$)) {
       throw new Error(`[${this.name}] Invalid sinks returned from component factory of collection element`)
@@ -1160,7 +1185,7 @@ class Component {
         switchableComponents[key] = component(options)
       }
     })
-    const sources = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$, __parentContext$: this.context$ }
+    const sources = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$, __parentContext$: this.context$, __parentComponentNumber: this._componentNumber }
 
     const sink$ = isolate(switchable(switchableComponents, props$.map(props => props.current)), { [this.stateSourceName]: lense })(sources)
 
@@ -1228,7 +1253,7 @@ class Component {
       lense = baseLense
     }
 
-    const sources = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$, __parentContext$: this.context$ }
+    const sources = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$, __parentContext$: this.context$, __parentComponentNumber: this._componentNumber }
     const sink$   = isolate(factory, { [this.stateSourceName]: lense })(sources)
 
     if (!isObj(sink$)) {
@@ -1303,14 +1328,22 @@ class Component {
     const fixedMsg = (typeof msg === 'function') ? msg : _ => msg
     if (immediate) {
       if (this.debug) {
-        console.log(`[${context}] ${fixedMsg(msg)}`)
+        const text = `[${context}] ${fixedMsg(msg)}`
+        console.log(text)
+        if (typeof window !== 'undefined' && window.__SYGNAL_DEVTOOLS__?.connected) {
+          window.__SYGNAL_DEVTOOLS__.onDebugLog(this._componentNumber, text)
+        }
       }
       return
     } else {
       return stream => {
         return stream.debug(msg => {
           if (this.debug) {
-            console.log(`[${context}] ${fixedMsg(msg)}`)
+            const text = `[${context}] ${fixedMsg(msg)}`
+            console.log(text)
+            if (typeof window !== 'undefined' && window.__SYGNAL_DEVTOOLS__?.connected) {
+              window.__SYGNAL_DEVTOOLS__.onDebugLog(this._componentNumber, text)
+            }
           }
         })
       }

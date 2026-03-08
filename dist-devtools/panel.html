@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Sygnal DevTools</title>
+  <link rel="stylesheet" href="panel.css">
+</head>
+<body>
+  <div class="toolbar">
+    <span class="toolbar-title">Sygnal DevTools</span>
+    <label class="toolbar-toggle">
+      <input type="checkbox" id="debug-all">
+      Debug All
+    </label>
+    <button id="refresh-btn" title="Refresh tree">&#x21bb;</button>
+  </div>
+
+  <div class="main">
+    <div class="sidebar" id="component-tree">
+      <div class="section-header">Components</div>
+      <div id="tree-container"></div>
+    </div>
+
+    <div class="content">
+      <div class="inspector-panel">
+        <div class="section-header">
+          <span id="inspector-title">Select a component</span>
+        </div>
+        <div class="tabs">
+          <button class="tab active" data-tab="state">State</button>
+          <button class="tab" data-tab="context">Context</button>
+          <button class="tab" data-tab="props">Props</button>
+        </div>
+        <div class="tab-content" id="inspector-content">
+          <pre id="inspector-json" class="json-view"></pre>
+        </div>
+      </div>
+
+      <div class="history-panel">
+        <div class="section-header">
+          State History
+          <button id="clear-history-btn" class="small-btn" title="Clear history">Clear</button>
+        </div>
+        <div id="history-container"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="panel.js"></script>
+</body>
+</html>

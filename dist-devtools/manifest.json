@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "Sygnal DevTools",
+  "version": "1.0.0",
+  "description": "DevTools for debugging Sygnal applications — component tree, state inspection, time-travel, and debug toggling.",
+  "devtools_page": "devtools.html",
+  "permissions": [],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content-script.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
