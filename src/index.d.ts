@@ -138,7 +138,7 @@ type ComponentModel<STATE, PROPS, DRIVERS, ACTIONS, CALCULATED, SINK_RETURNS ext
     }
 
 type ChildSource = {
-  select: (type: string) => Stream<any>
+  select: (typeOrComponent: string | Function) => Stream<any>
 }
 
 export type SygnalDOMSource = MainDOMSource & {

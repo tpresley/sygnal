@@ -549,7 +549,7 @@ class Component {
         const isParentSink = (sink === PARENT_SINK_NAME)
 
         const on  = isStateSink ? onState() : onNormal()
-        const on$ = isParentSink ? on(action, reducer).map(value => ({ name: this.name, value })) : on(action, reducer)
+        const on$ = isParentSink ? on(action, reducer).map(value => ({ name: this.name, component: this.view, value })) : on(action, reducer)
 
         const wrapped$ = on$
           .compose(this.log(data => {
@@ -615,9 +615,13 @@ class Component {
     }).map(sources => xs.merge(...sources)).flatten()
 
     this.sources[CHILD_SOURCE_NAME] = {
-      select: (name) => {
+      select: (nameOrComponent) => {
         const all$ = childSources$
-        const filtered$ = name ? all$.filter(entry => entry.name === name) : all$
+        const filtered$ = typeof nameOrComponent === 'function'
+          ? all$.filter(entry => entry.component === nameOrComponent)
+          : nameOrComponent
+            ? all$.filter(entry => entry.name === nameOrComponent)
+            : all$
         const unwrapped$ = filtered$.map(entry => entry.value)
         return unwrapped$
       }

@@ -64,7 +64,7 @@ LaneComponent.intent = ({ DOM, CHILD }) => ({
   MOVE_LEFT:    DOM.click('.move-lane-left'),
   MOVE_RIGHT:   DOM.click('.move-lane-right'),
 
-  DELETE_TASK: CHILD.select('TaskCard')
+  DELETE_TASK: CHILD.select(TaskCard)
     .filter(e => e.type === 'DELETE')
     .map(e => e.taskId),
 })

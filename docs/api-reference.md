@@ -995,6 +995,19 @@ type DriverFromAsyncOptions<INCOMING = any, OUTGOING = any, RETURN = any> = {
 }
 ```
 
+### ChildSource
+
+```typescript
+type ChildSource = {
+  select: (typeOrComponent: string | Function) => Stream<any>
+}
+```
+
+`select()` accepts either a **component function reference** (preferred) or a string name:
+
+- `CHILD.select(TaskCard)` — matches by function identity. Minification-safe.
+- `CHILD.select('TaskCard')` — matches by component name. Not recommended for production builds as minification mangles function names.
+
 ### DefaultDrivers
 
 ```typescript
