@@ -89,7 +89,43 @@ const applyFocusProps = (data: any): any => {
   return data
 }
 
-const sanitizeData = (data: any, modules: Record<string, any>): any => applyFocusProps(rewriteModules(fn.deepifyKeys(data, modules), modules))
+const applyRefProps = (data: any, ref: any): any => {
+  if (!ref) return data
+
+  const setRef = (elm: any) => {
+    if (typeof ref === 'function') {
+      ref(elm)
+    } else if (ref && typeof ref === 'object' && 'current' in ref) {
+      ref.current = elm
+    }
+  }
+
+  const existingInsert = data.hook?.insert
+  const existingDestroy = data.hook?.destroy
+  const existingPostpatch = data.hook?.postpatch
+  data.hook = {
+    ...data.hook,
+    insert: (vnode: any) => {
+      if (existingInsert) existingInsert(vnode)
+      setRef(vnode.elm)
+    },
+    postpatch: (_oldVnode: any, vnode: any) => {
+      if (existingPostpatch) existingPostpatch(_oldVnode, vnode)
+      setRef(vnode.elm)
+    },
+    destroy: (vnode: any) => {
+      if (existingDestroy) existingDestroy(vnode)
+      setRef(null)
+    },
+  }
+  return data
+}
+
+const sanitizeData = (data: any, modules: Record<string, any>): any => {
+  const { ref, ...rest } = data
+  const sanitized = applyFocusProps(rewriteModules(fn.deepifyKeys(rest, modules), modules))
+  return applyRefProps(sanitized, ref)
+}
 
 const sanitizeText = (children: any[]): string | undefined => children.length > 1 || !is.text(children[0]) ? undefined : children[0].toString()
 

@@ -6,6 +6,7 @@ import CounterWithHeader from '../components/CounterWithHeader.jsx'
 import UserCardDemo from '../components/UserCardDemo.jsx'
 import CalculatedTest from '../components/CalculatedTest.jsx'
 import ErrorBoundaryDemo from '../components/ErrorBoundaryDemo.jsx'
+import RefDemo from '../components/RefDemo.jsx'
 ---
 
 <html lang="en">
@@ -35,6 +36,7 @@ import ErrorBoundaryDemo from '../components/ErrorBoundaryDemo.jsx'
           <li><a href="#child-components">Adding Child Components</a></li>
           <li><a href="#state-passing">Passing State to Children</a></li>
           <li><a href="#error-boundaries">Error Boundaries</a></li>
+          <li><a href="#refs">Refs (DOM Access)</a></li>
           <li><a href="#next-steps">Next Steps</a></li>
         </ol>
       </nav>
@@ -392,7 +394,86 @@ BrokenCounter.onError = (error) =&gt; (
         </p>
       </section>
 
-      <!-- ─── Section 8: Next Steps ─── -->
+      <!-- ─── Section 8: Refs ─── -->
+
+      <section id="refs">
+        <h2>Refs (DOM Access)</h2>
+        <p>
+          Sometimes you need direct access to a DOM element &mdash; measuring
+          dimensions, integrating a third-party library, or managing focus.
+          Sygnal's <code>ref</code> prop and <code>createRef()</code> helper
+          give you a mutable reference to the DOM element, accessible in model
+          reducers.
+        </p>
+
+        <div class="example">
+          <div class="example-code">
+            <h3>Code</h3>
+            <pre><code>import &#123; createRef &#125; from 'sygnal'
+
+const boxRef = createRef()
+
+function RefDemo(&#123; state &#125;) &#123;
+  return (
+    &lt;div&gt;
+      &lt;div className="box" ref=&#123;boxRef&#125;
+           style=&#123;&#123; width: state.expanded
+             ? '100%' : '50%' &#125;&#125;&gt;
+        Resize me!
+      &lt;/div&gt;
+      &lt;p&gt;&#123;state.width&#125; &times; &#123;state.height&#125;px&lt;/p&gt;
+      &lt;button className="toggle"&gt;
+        &#123;state.expanded ? 'Shrink' : 'Expand'&#125;
+      &lt;/button&gt;
+      &lt;button className="measure"&gt;Measure&lt;/button&gt;
+    &lt;/div&gt;
+  )
+&#125;
+
+RefDemo.initialState = &#123;
+  expanded: false, width: 0, height: 0
+&#125;
+
+RefDemo.intent = (&#123; DOM &#125;) =&gt; (&#123;
+  TOGGLE: DOM.select('.toggle')
+    .events('click'),
+  MEASURE: DOM.select('.measure')
+    .events('click'),
+&#125;)
+
+RefDemo.model = &#123;
+  TOGGLE: (state) =&gt;
+    (&#123; ...state, expanded: !state.expanded &#125;),
+  MEASURE: (state) =&gt; &#123;
+    if (!boxRef.current) return state
+    const rect = boxRef.current
+      .getBoundingClientRect()
+    return &#123; ...state,
+      width: Math.round(rect.width),
+      height: Math.round(rect.height)
+    &#125;
+  &#125;,
+&#125;</code></pre>
+          </div>
+          <div class="example-demo">
+            <h3>Live Demo</h3>
+            <div class="demo-frame">
+              <RefDemo client:load />
+            </div>
+          </div>
+        </div>
+
+        <p>
+          <code>createRef()</code> returns a <code>&#123; current &#125;</code>
+          container. The <code>ref</code> prop automatically sets
+          <code>.current</code> to the DOM element on mount and <code>null</code>
+          on unmount. Access it in model reducers to read element properties.
+          Callback refs (<code>ref=&#123;(el) =&gt; ...&#125;</code>) and
+          reactive stream refs (<code>createRef$()</code>) also work.
+        </p>
+      </section>
+
+      <!-- ─── Section 9: Next Steps ─── -->
 
       <section id="next-steps">
         <h2>Next Steps</h2>

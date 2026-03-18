@@ -12,6 +12,7 @@ export { default as exactState } from "./extra/exactState"
 export { default as run } from './extra/run'
 export { default as enableHMR } from './extra/hmr'
 export { default as classes } from './extra/classes'
+export { createRef, createRef$ } from './extra/ref'
 export { default as xs } from './extra/xstreamCompat'
 export { getDevTools } from './extra/devtools'
 

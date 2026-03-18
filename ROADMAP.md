@@ -2,6 +2,8 @@
 
 Features identified by comparing React and Vue capabilities against Sygnal's functional reactive architecture. Each feature includes a Sygnal-idiomatic implementation approach — declarative, stream-based, and driver-oriented where possible.
 
+> **Version note:** These features target a **major release**. Breaking changes are allowed when they **clearly improve developer experience** with no loss of functionality — but not arbitrarily.
+
 ---
 
 ## Tier 1 — High Value
@@ -24,16 +26,16 @@ Catch and recover from errors in child component rendering or lifecycle processi
 
 ### 2. Refs (Direct DOM Access)
 
-**Status:** `NOT STARTED`
+**Status:** `DONE`
 
 Imperative access to DOM elements is sometimes unavoidable — measuring dimensions, integrating third-party libraries (maps, charts, video players), or managing focus beyond `autoFocus`. Currently requires chaining `DOM.select().element()` streams, which is verbose for common cases.
 
-**Implementation Plan:**
-- Add a `ref` prop recognized by the JSX pragma (`src/pragma/index.ts`) that accepts a callback `(element: HTMLElement | null) => void`
-- Implement via snabbdom `insert` and `destroy` hooks: call the callback with the element on insert, and `null` on destroy
-- Export a `createRef()` helper from sygnal that returns `{ current: null, callback }` — the callback sets `.current` and can optionally push to a stream
-- For the stream-based pattern, export `createRef$()` which returns a `MemoryStream<HTMLElement | null>` and a callback — fully reactive, works in intent
-- Document that `DOM.select().element()` remains the idiomatic FRP approach; refs are the escape hatch for imperative integrations
+**Implementation:**
+- `ref` prop on any JSX element: accepts a callback `(el: HTMLElement | null) => void` or an object `{ current: HTMLElement | null }`
+- Implemented via snabbdom `insert` hook (element on insert) and `destroy` hook (`null` on destroy), following the existing `autoFocus` pattern
+- `createRef<T>()` — returns `{ current: T | null }`, a simple mutable container (like React's `useRef`)
+- `createRef$<T>()` — returns `{ current: T | null, stream: MemoryStream<T | null> }`, a reactive ref that pushes to a stream for use in intent
+- `DOM.select().element()` remains the idiomatic FRP approach; refs are the escape hatch for imperative integrations
 
 ---
 

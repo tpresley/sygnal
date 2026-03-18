@@ -455,6 +455,17 @@ export function driverFromAsync<INCOMING = any, RETURN = any, OUTGOING = any>(
   options?: DriverFromAsyncOptions<INCOMING, OUTGOING, RETURN>
 ): (fromApp$: Stream<INCOMING>) => AsyncDriverFromFunction<INCOMING, OUTGOING>
 
+export interface Ref<T = HTMLElement> {
+  current: T | null;
+}
+
+export interface Ref$<T = HTMLElement> extends Ref<T> {
+  stream: MemoryStream<T | null>;
+}
+
+export function createRef<T = HTMLElement>(): Ref<T>
+export function createRef$<T = HTMLElement>(): Ref$<T>
+
 export const xs: typeof xsDefault
 
 export { default as debounce } from 'xstream/extra/debounce'
