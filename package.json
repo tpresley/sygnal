@@ -53,7 +53,7 @@
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
-    "build": "npx rollup -c",
+    "build": "npx rollup -c && cp src/index.d.ts dist/index.d.ts",
     "build:types": "npx rollup -c rollup.config.dts.mjs",
     "build:all": "npm run build && npm run build:types",
     "build:devtools": "node devtools/build.mjs",
