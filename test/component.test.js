@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest'
-import { setup } from '@cycle/run'
-import { withState } from '@cycle/state'
-import { mockDOMSource } from '@cycle/dom'
+import { setup } from '../src/cycle/run/index'
+import { withState } from '../src/cycle/state/index'
+import { mockDOMSource } from '../src/cycle/dom/index'
 import xs from 'xstream'
 
 // Ensure `window` is defined so component.js `window?.` optional chaining

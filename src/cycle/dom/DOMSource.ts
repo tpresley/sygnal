@@ -1,0 +1,14 @@
+import {MemoryStream, Stream} from 'xstream';
+import {PreventDefaultOpt} from './fromEvent';
+import {MainDOMSource} from './MainDOMSource';
+import {DocumentDOMSource} from './DocumentDOMSource';
+import {BodyDOMSource} from './BodyDOMSource';
+
+export interface EventsFnOptions {
+  useCapture?: boolean;
+  passive?: boolean;
+  bubbles?: boolean;
+  preventDefault?: PreventDefaultOpt;
+}
+
+export type DOMSource = MainDOMSource | DocumentDOMSource | BodyDOMSource;

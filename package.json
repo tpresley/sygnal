@@ -80,12 +80,8 @@
   },
   "homepage": "https://github.com/tpresley/sygnal#readme",
   "dependencies": {
-    "@cycle/dom": "^23.1.0",
-    "@cycle/isolate": "^5.2.0",
-    "@cycle/run": "^5.7.0",
-    "@cycle/state": "^1.7.0",
     "extend": "^3.0.2",
-    "snabbdom": "^3.5.0",
+    "snabbdom": "~3.5.0",
     "xstream": "^11.14.0"
   },
   "devDependencies": {

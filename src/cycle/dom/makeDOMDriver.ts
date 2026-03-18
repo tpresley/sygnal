@@ -1,0 +1,166 @@
+import {Driver} from '../run/types';
+import {init, Module, Options as SnabbdomOptions, VNode, toVNode} from 'snabbdom';
+import xs, {Stream, Listener} from 'xstream';
+import concat from 'xstream/extra/concat';
+import sampleCombine from 'xstream/extra/sampleCombine';
+import {MainDOMSource} from './MainDOMSource';
+import {VNodeWrapper} from './VNodeWrapper';
+import {getValidNode, checkValidContainer} from './utils';
+import defaultModules from './modules';
+import {IsolateModule} from './IsolateModule';
+import {EventDelegator} from './EventDelegator';
+
+function makeDOMDriverInputGuard(modules: any) {
+  if (!Array.isArray(modules)) {
+    throw new Error(
+      `Optional modules option must be an array for snabbdom modules`
+    );
+  }
+}
+
+function domDriverInputGuard(view$: Stream<VNode>): void {
+  if (
+    !view$ ||
+    typeof view$.addListener !== `function` ||
+    typeof view$.fold !== `function`
+  ) {
+    throw new Error(
+      `The DOM driver function expects as input a Stream of ` +
+        `virtual DOM elements`
+    );
+  }
+}
+
+export interface DOMDriverOptions {
+  modules?: Array<Partial<Module>>;
+  reportSnabbdomError?(err: any): void;
+  snabbdomOptions?: SnabbdomOptions;
+}
+
+function dropCompletion<T>(input: Stream<T>): Stream<T> {
+  return xs.merge(input, xs.never());
+}
+
+function unwrapElementFromVNode(vnode: VNode): Element {
+  return vnode.elm as Element;
+}
+
+function defaultReportSnabbdomError(err: any): void {
+  (console.error || console.log)(err);
+}
+
+function makeDOMReady$(): Stream<null> {
+  return xs.create<null>({
+    start(lis: Listener<null>) {
+      if (document.readyState === 'loading') {
+        document.addEventListener('readystatechange', () => {
+          const state = document.readyState;
+          if (state === 'interactive' || state === 'complete') {
+            lis.next(null);
+            lis.complete();
+          }
+        });
+      } else {
+        lis.next(null);
+        lis.complete();
+      }
+    },
+    stop() {},
+  });
+}
+
+function addRootScope(vnode: VNode): VNode {
+  vnode.data = vnode.data || {};
+  (vnode.data as any).isolate = [];
+  return vnode;
+}
+
+function makeDOMDriver(
+  container: string | Element | DocumentFragment,
+  options: DOMDriverOptions = {}
+): Driver<Stream<VNode>, MainDOMSource> {
+  checkValidContainer(container);
+  const modules = options.modules || defaultModules;
+  makeDOMDriverInputGuard(modules);
+  const isolateModule = new IsolateModule();
+  const snabbdomOptions = options && options.snabbdomOptions || undefined;
+  const patch = init([isolateModule.createModule() as Partial<Module>].concat(modules), undefined, snabbdomOptions);
+  const domReady$ = makeDOMReady$();
+  let vnodeWrapper: VNodeWrapper;
+  let mutationObserver: MutationObserver;
+  const mutationConfirmed$ = xs.create<null>({
+    start(listener) {
+      mutationObserver = new MutationObserver(() => listener.next(null));
+    },
+    stop() {
+      mutationObserver.disconnect();
+    },
+  });
+
+  function DOMDriver(vnode$: Stream<VNode>, name = 'DOM'): MainDOMSource {
+    domDriverInputGuard(vnode$);
+    const sanitation$ = xs.create<null>();
+
+    const firstRoot$ = domReady$.map(() => {
+      const firstRoot = getValidNode(container) || document.body;
+      vnodeWrapper = new VNodeWrapper(firstRoot);
+      return firstRoot;
+    });
+
+    const rememberedVNode$ = vnode$.remember();
+    rememberedVNode$.addListener({});
+
+    mutationConfirmed$.addListener({});
+
+    const elementAfterPatch$ = firstRoot$
+      .map(
+        firstRoot =>
+          xs
+            .merge(rememberedVNode$.endWhen(sanitation$), sanitation$)
+            .map(vnode => vnodeWrapper.call(vnode))
+            .startWith(addRootScope(toVNode(firstRoot)))
+            .fold(patch, toVNode(firstRoot))
+            .drop(1)
+            .map(unwrapElementFromVNode)
+            .startWith(firstRoot as any)
+            .map(el => {
+              mutationObserver.observe(el, {
+                childList: true,
+                attributes: true,
+                characterData: true,
+                subtree: true,
+                attributeOldValue: true,
+                characterDataOldValue: true,
+              });
+              return el;
+            })
+            .compose(dropCompletion)
+      )
+      .flatten();
+
+    const rootElement$ = concat(domReady$, mutationConfirmed$)
+      .endWhen(sanitation$)
+      .compose(sampleCombine(elementAfterPatch$))
+      .map(arr => arr[1])
+      .remember();
+
+    rootElement$.addListener({
+      error: options.reportSnabbdomError || defaultReportSnabbdomError,
+    });
+
+    const delegator = new EventDelegator(rootElement$, isolateModule);
+
+    return new MainDOMSource(
+      rootElement$,
+      sanitation$,
+      [],
+      isolateModule,
+      delegator,
+      name
+    );
+  }
+
+  return DOMDriver as any;
+}
+
+export {makeDOMDriver};

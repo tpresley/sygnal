@@ -15,8 +15,8 @@ export { default as classes } from './extra/classes'
 export { default as xs } from './extra/xstreamCompat'
 export { getDevTools } from './extra/devtools'
 
-// export dom helper functions (h, div, ...)
-export * from '@cycle/dom'
+// export dom helper functions (h, makeDOMDriver, etc.)
+export * from './cycle/dom/index'
 
 // export xstream and most used extra operators
 export { default as debounce } from "xstream/extra/debounce"

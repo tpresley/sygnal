@@ -1,6 +1,6 @@
 import {setup} from '../cycle/run/index';
 import {withState} from '../cycle/state/index';
-import {makeDOMDriver} from '@cycle/dom';
+import {makeDOMDriver} from '../cycle/dom/index';
 import eventBusDriver from './eventDriver';
 import logDriver from './logDriver';
 import component, {ABORT} from '../component';

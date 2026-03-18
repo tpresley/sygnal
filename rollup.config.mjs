@@ -23,7 +23,7 @@ export default [
 
 	{
 		input: 'src/index.ts',
-		external: ['@cycle/dom', 'snabbdom', 'xstream', 'xstream/extra/dropRepeats', 'xstream/extra/concat'],
+		external: ['snabbdom', 'xstream', 'xstream/extra/dropRepeats', 'xstream/extra/concat', 'xstream/extra/sampleCombine'],
 		output: [
 			{ file: pkg.main, format: 'cjs' },
 			{ file: pkg.module, format: 'es' }

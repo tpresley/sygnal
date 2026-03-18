@@ -1,6 +1,6 @@
 import xs, {Stream, resolveInteropDefault} from './extra/xstreamCompat';
 import * as dropRepeatsModule from 'xstream/extra/dropRepeats';
-import {h} from '@cycle/dom';
+import {h} from './cycle/dom/index';
 
 const dropRepeats = resolveInteropDefault(dropRepeatsModule);
 

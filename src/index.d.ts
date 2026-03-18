@@ -1,5 +1,5 @@
-import type { MainDOMSource } from '@cycle/dom'
-import type { StateSource } from '@cycle/state'
+import type { MainDOMSource } from './cycle/dom/MainDOMSource'
+import type { StateSource } from './cycle/state/index'
 import xsDefault from 'xstream'
 import type { MemoryStream, Stream } from 'xstream'
 
@@ -457,7 +457,7 @@ export { default as delay } from 'xstream/extra/delay'
 export { default as dropRepeats } from 'xstream/extra/dropRepeats'
 export { default as sampleCombine } from 'xstream/extra/sampleCombine'
 
-export * from '@cycle/dom'
+export * from './cycle/dom/index'
 export type { MemoryStream, Stream }
 
 /**

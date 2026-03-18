@@ -1,6 +1,6 @@
 import isolate from './cycle/isolate/index';
 import {makeCollection} from './cycle/state/index';
-import {h} from '@cycle/dom';
+import {h} from './cycle/dom/index';
 
 let COLLECTION_COUNT = 0;
 
