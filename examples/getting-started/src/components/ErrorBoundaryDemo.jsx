@@ -1,4 +1,4 @@
-function BrokenCounter({ state }) {
+function BrokenCounter({ state } = {}) {
   if (state.count >= 3) {
     throw new Error('Count too high!')
   }

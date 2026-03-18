@@ -1,4 +1,4 @@
-function UserCard({ state }) {
+function UserCard({ state } = {}) {
   return (
     <div className="user-card">
       <h2>{state.name}</h2>

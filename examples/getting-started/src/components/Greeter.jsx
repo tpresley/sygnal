@@ -1,4 +1,4 @@
-function Greeter({ state }) {
+function Greeter({ state } = {}) {
   return (
     <div>
       <h1>Hello {state.name}!</h1>

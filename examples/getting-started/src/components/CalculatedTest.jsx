@@ -1,4 +1,4 @@
-function CalculatedTest({ state }) {
+function CalculatedTest({ state } = {}) {
   return (
     <div>
       <h2>Calculated Fields Test</h2>

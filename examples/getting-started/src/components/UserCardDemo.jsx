@@ -1,6 +1,6 @@
 import UserCard from './UserCard.jsx'
 
-function UserCardDemo({ state }) {
+function UserCardDemo({ state } = {}) {
   return (
     <div>
       <p className="state-debug">

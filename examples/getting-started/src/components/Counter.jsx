@@ -1,4 +1,4 @@
-function Counter({ state }) {
+function Counter({ state } = {}) {
   return (
     <div>
       <h1>Count: {state.count}</h1>

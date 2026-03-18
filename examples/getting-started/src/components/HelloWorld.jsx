@@ -1,4 +1,4 @@
-function HelloWorld({ state }) {
+function HelloWorld({ state } = {}) {
   return (
     <div>
       <h1>Hello {state.name}!</h1>

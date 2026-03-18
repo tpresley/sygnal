@@ -1,6 +1,6 @@
 import Header from './Header.jsx'
 
-function CounterWithHeader({ state }) {
+function CounterWithHeader({ state } = {}) {
   return (
     <div>
       <Header title="My App" />
