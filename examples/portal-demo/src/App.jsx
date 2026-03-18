@@ -3,60 +3,73 @@ import { Portal } from 'sygnal'
 function App({ state } = {}) {
   return (
     <div className="app">
-      <h1>Portal Event Handling Test</h1>
-      <p>
-        Testing whether DOM events work when the portal target is
-        <strong> inside</strong> the component's own DOM tree.
-      </p>
+      <h1>Portal Event Handling Tests</h1>
 
-      <div className="controls">
-        <button type="button" className="toggle-btn">
-          {state.showPortal ? 'Hide Portal' : 'Show Portal'}
-        </button>
-        <span className="click-count">
-          Portal button clicked: <strong>{state.portalClicks}</strong> times
-        </span>
-      </div>
+      {/* Test 1: Internal target with regular DOM.select */}
+      <section className="test-section">
+        <h2>Test 1: Internal Target + DOM.select()</h2>
+        <p>Portal target is <strong>inside</strong> the component. Events via <code>DOM.select('.selector')</code>.</p>
+        <div className="controls">
+          <button type="button" className="toggle-internal">
+            {state.showInternal ? 'Hide' : 'Show'} Portal
+          </button>
+          <span>Clicks: <strong>{state.internalClicks}</strong></span>
+        </div>
+        <div className="target-box">
+          <div id="internal-target"></div>
+        </div>
+        {state.showInternal && (
+          <Portal target="#internal-target">
+            <div className="portal-content internal">
+              <p>Internal portal content</p>
+              <button type="button" className="internal-btn">Click me</button>
+            </div>
+          </Portal>
+        )}
+      </section>
 
-      {/* Portal target is INSIDE this component's DOM */}
-      <div className="portal-target-container">
-        <h3>Portal Target (inside component tree)</h3>
-        <div id="inner-portal-target" className="target-box"></div>
-      </div>
-
-      {state.showPortal && (
-        <Portal target="#inner-portal-target">
-          <div className="portal-content">
-            <h4>I'm portaled content!</h4>
-            <p>Rendered into #inner-portal-target above.</p>
-            <button type="button" className="portal-btn">
-              Click me (from inside portal)
-            </button>
-            <p className="status">
-              {state.portalClicks > 0
-                ? `Button works! Clicked ${state.portalClicks} times.`
-                : 'Click the button to test event handling.'}
-            </p>
-          </div>
-        </Portal>
-      )}
+      {/* Test 2: External target with DOM.select('document').select() */}
+      <section className="test-section">
+        <h2>Test 2: External Target + DOM.select('document').select()</h2>
+        <p>Portal target is <strong>outside</strong> the component (#external-portal-target in body). Events via <code>DOM.select('document').select('.selector')</code>.</p>
+        <div className="controls">
+          <button type="button" className="toggle-external">
+            {state.showExternal ? 'Hide' : 'Show'} Portal
+          </button>
+          <span>Clicks: <strong>{state.externalClicks}</strong></span>
+        </div>
+        {state.showExternal && (
+          <Portal target="#external-portal-target">
+            <div className="portal-content external">
+              <p>External portal content (rendered outside #root)</p>
+              <button type="button" className="external-btn">Click me</button>
+            </div>
+          </Portal>
+        )}
+      </section>
     </div>
   )
 }
 
 App.initialState = {
-  showPortal: false,
-  portalClicks: 0,
+  showInternal: false,
+  showExternal: false,
+  internalClicks: 0,
+  externalClicks: 0,
 }
 
 App.intent = ({ DOM }) => ({
-  TOGGLE: DOM.select('.toggle-btn').events('click'),
-  PORTAL_CLICK: DOM.select('.portal-btn').events('click'),
+  TOGGLE_INTERNAL: DOM.select('.toggle-internal').events('click'),
+  TOGGLE_EXTERNAL: DOM.select('.toggle-external').events('click'),
+  INTERNAL_CLICK: DOM.select('.internal-btn').events('click'),
+  EXTERNAL_CLICK: DOM.select('document').select('.external-btn').events('click'),
 })
 
 App.model = {
-  TOGGLE: (state) => ({ ...state, showPortal: !state.showPortal }),
-  PORTAL_CLICK: (state) => ({ ...state, portalClicks: state.portalClicks + 1 }),
+  TOGGLE_INTERNAL: (state) => ({ ...state, showInternal: !state.showInternal }),
+  TOGGLE_EXTERNAL: (state) => ({ ...state, showExternal: !state.showExternal }),
+  INTERNAL_CLICK: (state) => ({ ...state, internalClicks: state.internalClicks + 1 }),
+  EXTERNAL_CLICK: (state) => ({ ...state, externalClicks: state.externalClicks + 1 }),
 }
 
 export default App

@@ -34,7 +34,7 @@ PortalDemo.initialState = { showModal: false }
 PortalDemo.intent = ({ DOM }) => ({
   TOGGLE: DOM.select('.toggle-modal').events('click'),
   CLOSE: DOM.select('document').events('click')
-    .filter(e => e.target && e.target.closest && e.target.closest('.close-modal-btn')),
+    .filter(e => e.target && e.target.closest && !!e.target.closest('.close-modal-btn')),
 })
 
 PortalDemo.model = {

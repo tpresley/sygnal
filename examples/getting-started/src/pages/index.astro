@@ -503,8 +503,8 @@ function PortalDemo(&#123; state &#125;) &#123;
         &lt;Portal target="#portal-root"&gt;
           &lt;div className="modal-overlay"&gt;
             &lt;h3&gt;I'm a Portal!&lt;/h3&gt;
-            &lt;p&gt;Rendered outside the
-              component tree.&lt;/p&gt;
+            &lt;button className="close-btn"&gt;
+              Close&lt;/button&gt;
           &lt;/div&gt;
         &lt;/Portal&gt;
       )&#125;
@@ -516,14 +516,24 @@ PortalDemo.initialState = &#123;
   showModal: false
 &#125;
 
+// Portal content is outside the
+// component's DOM scope.
+// Use DOM.select('document') to listen
+// for events on portal elements.
 PortalDemo.intent = (&#123; DOM &#125;) =&gt; (&#123;
   TOGGLE: DOM.select('.toggle-modal')
     .events('click'),
+  CLOSE: DOM.select('document')
+    .events('click')
+    .filter(e =&gt; !!e.target
+      .closest('.close-btn')),
 &#125;)
 
 PortalDemo.model = &#123;
   TOGGLE: (state) =&gt;
     (&#123; showModal: !state.showModal &#125;),
+  CLOSE: () =&gt;
+    (&#123; showModal: false &#125;),
 &#125;</code></pre>
           </div>
           <div class="example-demo">

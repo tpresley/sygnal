@@ -5,13 +5,24 @@ import {EventsFnOptions} from './DOMSource';
 import {fromEvent} from './fromEvent';
 
 export class DocumentDOMSource {
-  constructor(private _name: string) {}
+  private _selector: string | null;
 
-  public select(selector: string): DocumentDOMSource {
-    return this;
+  constructor(private _name: string, selector?: string) {
+    this._selector = selector || null;
   }
 
-  public elements(): MemoryStream<Array<Document>> {
+  public select(selector: string): DocumentDOMSource {
+    return new DocumentDOMSource(this._name, selector);
+  }
+
+  public elements(): MemoryStream<Array<Document | Element>> {
+    if (this._selector) {
+      const out: DevToolEnabledSource & MemoryStream<Array<Element>> = adapt(
+        xs.of(Array.from(document.querySelectorAll(this._selector)))
+      );
+      out._isCycleSource = this._name;
+      return out;
+    }
     const out: DevToolEnabledSource & MemoryStream<Array<Document>> = adapt(
       xs.of([document])
     );
@@ -19,7 +30,14 @@ export class DocumentDOMSource {
     return out;
   }
 
-  public element(): MemoryStream<Document> {
+  public element(): MemoryStream<Document | Element | null> {
+    if (this._selector) {
+      const out: DevToolEnabledSource & MemoryStream<Element | null> = adapt(
+        xs.of(document.querySelector(this._selector))
+      );
+      out._isCycleSource = this._name;
+      return out;
+    }
     const out: DevToolEnabledSource & MemoryStream<Document> = adapt(
       xs.of(document)
     );
@@ -45,6 +63,15 @@ export class DocumentDOMSource {
       options.useCapture,
       options.preventDefault
     );
+
+    if (this._selector) {
+      const selector = this._selector;
+      stream = stream.filter((ev: Event) => {
+        const target = ev.target;
+        if (!(target instanceof Element)) return false;
+        return target.matches(selector) || target.closest(selector) !== null;
+      });
+    }
 
     const out: DevToolEnabledSource & Stream<Event> = adapt(stream);
     out._isCycleSource = this._name;
