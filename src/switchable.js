@@ -1,6 +1,6 @@
 'use strict'
 
-import xs, { Stream, resolveInteropDefault } from './extra/xstreamCompat.js'
+import xs, { Stream, resolveInteropDefault } from './extra/xstreamCompat'
 import * as dropRepeatsModule from 'xstream/extra/dropRepeats'
 import { h } from '@cycle/dom'
 

@@ -15,7 +15,7 @@ export default [
 		},
 		plugins: [
 			typescript({ tsconfig: './tsconfig.json' }),
-			resolve(),
+			resolve({ extensions: ['.mjs', '.js', '.ts', '.json'] }),
 			commonjs(),
       terser({ maxWorkers: 1 })
 		]
@@ -30,7 +30,7 @@ export default [
 		],
 		plugins: [
 			typescript({ tsconfig: './tsconfig.json' }),
-			resolve(),
+			resolve({ extensions: ['.mjs', '.js', '.ts', '.json'] }),
 			commonjs()
 		]
 	},
@@ -44,7 +44,7 @@ export default [
     ],
 		plugins: [
 			typescript({ tsconfig: './tsconfig.json' }),
-			resolve(),
+			resolve({ extensions: ['.mjs', '.js', '.ts', '.json'] }),
 			commonjs()
 		]
   },
@@ -58,7 +58,7 @@ export default [
     ],
 		plugins: [
 			typescript({ tsconfig: './tsconfig.json' }),
-			resolve(),
+			resolve({ extensions: ['.mjs', '.js', '.ts', '.json'] }),
 			commonjs()
 		]
   },
@@ -72,7 +72,7 @@ export default [
     ],
 		plugins: [
 			typescript({ tsconfig: './tsconfig.json' }),
-			resolve(),
+			resolve({ extensions: ['.mjs', '.js', '.ts', '.json'] }),
 			commonjs()
 		]
   },
@@ -86,7 +86,7 @@ export default [
     ],
 		plugins: [
 			typescript({ tsconfig: './tsconfig.json' }),
-			resolve(),
+			resolve({ extensions: ['.mjs', '.js', '.ts', '.json'] }),
 			commonjs()
 		]
   },
@@ -100,7 +100,7 @@ export default [
     ],
 		plugins: [
 			typescript({ tsconfig: './tsconfig.json' }),
-			resolve(),
+			resolve({ extensions: ['.mjs', '.js', '.ts', '.json'] }),
 			commonjs()
 		]
   },
@@ -114,7 +114,7 @@ export default [
     ],
 		plugins: [
 			typescript({ tsconfig: './tsconfig.json' }),
-			resolve(),
+			resolve({ extensions: ['.mjs', '.js', '.ts', '.json'] }),
 			commonjs()
 		]
   }
