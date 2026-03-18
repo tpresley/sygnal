@@ -18,7 +18,9 @@ export type DevToolEnabledSource = {
   _isCycleSource: string;
 };
 
-export type SinkProxies<Si> = {[P in keyof Si]: Stream<any>};
+export type SinkProxies<Si> = {
+  [P in keyof Si]: Si[P] extends Stream<infer T> ? Stream<T> : Stream<any>
+};
 
 export type Driver<Si, So> = Si extends void
   ? (() => So)

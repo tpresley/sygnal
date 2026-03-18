@@ -75,8 +75,8 @@ export function setup<
   const engine = setupReusable(drivers);
   const sinks = main(engine.sources);
   if (typeof window !== 'undefined') {
-    (window as any).Cyclejs = (window as any).Cyclejs || {};
-    (window as any).Cyclejs.sinks = sinks;
+    window.Cyclejs = window.Cyclejs || {};
+    window.Cyclejs.sinks = sinks;
   }
   function _run(): DisposeFunction {
     const disposeRun = engine.run(sinks);
@@ -141,9 +141,9 @@ export function run<
   const program = setup(main, drivers);
   if (
     typeof window !== 'undefined' &&
-    (window as any).CyclejsDevTool_startGraphSerializer
+    window.CyclejsDevTool_startGraphSerializer
   ) {
-    (window as any).CyclejsDevTool_startGraphSerializer(program.sinks);
+    window.CyclejsDevTool_startGraphSerializer(program.sinks);
   }
   return program.run();
 }

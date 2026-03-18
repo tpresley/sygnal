@@ -57,9 +57,9 @@ type StateOnlyReducer<STATE, RETURN = any> = (
 export type Event<DATA = any> = { type: string; data: DATA }
 
 export type NonStateSinkReturns = {
-  EVENTS?: any;
-  LOG?: any;
-  PARENT?: any;
+  EVENTS?: unknown;
+  LOG?: unknown;
+  PARENT?: unknown;
 }
 
 type ResolvedNonStateSinkReturns<SINK_RETURNS extends NonStateSinkReturns = {}> = {
@@ -138,11 +138,16 @@ type ComponentModel<STATE, PROPS, DRIVERS, ACTIONS, CALCULATED, SINK_RETURNS ext
     }
 
 type ChildSource = {
-  select: (typeOrComponent: string | Function) => Stream<any>
+  select<T = any>(component: (...args: any[]) => any): Stream<T>;
+  select<T = any>(name: string): Stream<T>;
 }
 
 export type SygnalDOMSource = MainDOMSource & {
   [eventName: string]: (selector: string) => Stream<Event>
+}
+
+export type EventsSource<EVENTS = any> = Stream<Event<EVENTS>> & {
+  select<T = any>(type: string): Stream<T>;
 }
 
 export type DefaultDrivers<STATE, EVENTS = any> = {
@@ -155,7 +160,7 @@ export type DefaultDrivers<STATE, EVENTS = any> = {
     sink: never;
   };
   EVENTS: {
-    source: Stream<Event<EVENTS>>;
+    source: EventsSource<EVENTS>;
     sink: EVENTS;
   };
   LOG: {

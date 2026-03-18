@@ -2,6 +2,23 @@ const DEVTOOLS_SOURCE = '__SYGNAL_DEVTOOLS_PAGE__';
 const EXTENSION_SOURCE = '__SYGNAL_DEVTOOLS_EXTENSION__';
 const DEFAULT_MAX_HISTORY = 200;
 
+declare global {
+  interface Window {
+    __SYGNAL_DEVTOOLS__?: SygnalDevTools;
+    __SYGNAL_DEVTOOLS_APP__?: {
+      sinks?: { STATE?: { shamefullySendNext: (fn: any) => void } };
+    };
+    __SYGNAL_DEVTOOLS_PAGE__?: boolean;
+    SYGNAL_DEBUG?: string | false;
+    __SYGNAL_HMR_UPDATING?: boolean;
+    __SYGNAL_HMR_STATE?: unknown;
+    __SYGNAL_HMR_PERSISTED_STATE?: unknown;
+    __SYGNAL_HMR_LAST_CAPTURED_STATE?: unknown;
+    Cyclejs?: { sinks?: any };
+    CyclejsDevTool_startGraphSerializer?: (sinks: any) => void;
+  }
+}
+
 interface StateHistoryEntry {
   componentId: number;
   componentName: string;
@@ -51,7 +68,7 @@ class SygnalDevTools {
   init(): void {
     if (typeof window === 'undefined') return;
 
-    (window as any).__SYGNAL_DEVTOOLS__ = this;
+    window.__SYGNAL_DEVTOOLS__ = this;
 
     window.addEventListener('message', (event: MessageEvent) => {
       if (event.source !== window) return;
@@ -176,7 +193,7 @@ class SygnalDevTools {
 
   _setDebug({componentId, enabled}: {componentId?: number; enabled: boolean}): void {
     if (typeof componentId === 'undefined' || componentId === null) {
-      if (typeof window !== 'undefined') (window as any).SYGNAL_DEBUG = enabled ? 'true' : false;
+      if (typeof window !== 'undefined') window.SYGNAL_DEBUG = enabled ? 'true' : false;
       this._post('DEBUG_TOGGLED', {global: true, enabled});
       return;
     }
@@ -196,7 +213,7 @@ class SygnalDevTools {
     const entry = this._stateHistory[historyIndex];
     if (!entry) return;
 
-    const app = typeof window !== 'undefined' && (window as any).__SYGNAL_DEVTOOLS_APP__;
+    const app = typeof window !== 'undefined' && window.__SYGNAL_DEVTOOLS_APP__;
     if (app?.sinks?.STATE?.shamefullySendNext) {
       app.sinks.STATE.shamefullySendNext(() => ({...entry.state}));
       this._post('TIME_TRAVEL_APPLIED', {

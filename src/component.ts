@@ -53,7 +53,28 @@ function normalizeCalculatedEntry(field: string, entry: any): {fn: (...args: any
   )
 }
 
-export default function component(opts: any): any {
+export interface ComponentOptions {
+  name?: string;
+  sources?: Record<string, any>;
+  intent?: ((sources: Record<string, any>) => Stream<any> | Record<string, Stream<any>>) | Record<string, Stream<any>>;
+  model?: Record<string, any>;
+  hmrActions?: string | string[];
+  context?: Record<string, boolean | ((state: any) => any)>;
+  response?: Record<string, any>;
+  view?: (...args: any[]) => any;
+  peers?: Record<string, (...args: any[]) => any>;
+  components?: Record<string, any>;
+  initialState?: Record<string, any>;
+  calculated?: Record<string, ((state: any) => any) | [string[], (...args: any[]) => any]>;
+  storeCalculatedInState?: boolean;
+  DOMSourceName?: string;
+  stateSourceName?: string;
+  requestSourceName?: string;
+  isolateOpts?: string | boolean | Record<string, any>;
+  debug?: boolean;
+}
+
+export default function component(opts: ComponentOptions): any {
   const { name, sources, isolateOpts, stateSourceName='STATE' } = opts
 
   if (sources && !isObj(sources)) {
@@ -139,7 +160,7 @@ class Component {
   _calculatedOrder: Array<[string, {fn: (...args: any[]) => any; deps: string[] | null}]> | null;
   _calculatedFieldCache: Record<string, {lastDepValues: any; lastResult: any}> | null;
 
-  constructor({name = 'NO NAME', sources, intent, model, hmrActions, context, response, view, peers = {}, components = {}, initialState, calculated, storeCalculatedInState = true, DOMSourceName = 'DOM', stateSourceName = 'STATE', requestSourceName = 'HTTP', debug = false}: any) {
+  constructor({name = 'NO NAME', sources, intent, model, hmrActions, context, response, view, peers = {}, components = {}, initialState, calculated, storeCalculatedInState = true, DOMSourceName = 'DOM', stateSourceName = 'STATE', requestSourceName = 'HTTP', debug = false}: ComponentOptions) {
     if (!sources || !isObj(sources)) throw new Error(`[${name}] Missing or invalid sources`)
 
     this._componentNumber = COMPONENT_COUNT++
@@ -288,8 +309,8 @@ class Component {
       this.currentState = initialState || {}
       this.sources[stateSourceName] = new StateSource(state$.map(val => {
         this.currentState = val
-        if (typeof window !== 'undefined' && (window as any).__SYGNAL_DEVTOOLS__?.connected) {
-          (window as any).__SYGNAL_DEVTOOLS__.onStateChanged(this._componentNumber, this.name, val)
+        if (typeof window !== 'undefined' && window.__SYGNAL_DEVTOOLS__?.connected) {
+          window.__SYGNAL_DEVTOOLS__.onStateChanged(this._componentNumber, this.name, val)
         }
         return val
       }))
@@ -347,13 +368,13 @@ class Component {
     this.log(`Instantiated`, true)
 
     // Hook 1: Register with DevTools
-    if (typeof window !== 'undefined' && (window as any).__SYGNAL_DEVTOOLS__) {
-      (window as any).__SYGNAL_DEVTOOLS__.onComponentCreated(this._componentNumber, name, this)
+    if (typeof window !== 'undefined' && window.__SYGNAL_DEVTOOLS__) {
+      window.__SYGNAL_DEVTOOLS__.onComponentCreated(this._componentNumber, name, this)
 
       // Hook 1b: Register parent-child relationship
       const parentNum = sources?.__parentComponentNumber
       if (typeof parentNum === 'number') {
-        (window as any).__SYGNAL_DEVTOOLS__.onSubComponentRegistered(parentNum, this._componentNumber)
+        window.__SYGNAL_DEVTOOLS__.onSubComponentRegistered(parentNum, this._componentNumber)
       }
     }
   }
@@ -413,12 +434,13 @@ class Component {
 
     const action$    = ((runner instanceof Stream) ? runner : (runner.apply && runner(this.sources) || xs.never()))
     const bootstrap$ = xs.of({ type: BOOTSTRAP_ACTION }).compose(delay(10))
-    const hmrAction$ = (window as any)?.__SYGNAL_HMR_UPDATING === true ? this.hmrAction$ : xs.of().filter(_ => false)
-    const wrapped$   = (this.model[BOOTSTRAP_ACTION] && (window as any)?.__SYGNAL_HMR_UPDATING !== true) ? concat(bootstrap$, action$) : concat(xs.of().compose(delay(1)).filter(_ => false), hmrAction$, action$)
+    const _hmrUpdating = typeof window !== 'undefined' && window.__SYGNAL_HMR_UPDATING === true
+    const hmrAction$ = _hmrUpdating ? this.hmrAction$ : xs.of().filter(_ => false)
+    const wrapped$   = (this.model[BOOTSTRAP_ACTION] && !_hmrUpdating) ? concat(bootstrap$, action$) : concat(xs.of().compose(delay(1)).filter(_ => false), hmrAction$, action$)
 
 
     let initialApiData
-    if ((window as any)?.__SYGNAL_HMR_UPDATING !== true && requestSource && typeof requestSource.select == 'function') {
+    if (!_hmrUpdating && requestSource && typeof requestSource.select == 'function') {
       initialApiData = requestSource.select('initial')
         .flatten()
     } else {
@@ -430,8 +452,8 @@ class Component {
     this.action$   = xs.merge(wrapped$, hydrate$)
       .compose(this.log(({ type }) => `<${type}> Action triggered`))
       .map(action => {
-        if (typeof window !== 'undefined' && (window as any).__SYGNAL_DEVTOOLS__?.connected) {
-          (window as any).__SYGNAL_DEVTOOLS__.onActionDispatched(
+        if (typeof window !== 'undefined' && window.__SYGNAL_DEVTOOLS__?.connected) {
+          window.__SYGNAL_DEVTOOLS__.onActionDispatched(
             this._componentNumber, this.name, action.type, action.data
           )
         }
@@ -491,8 +513,8 @@ class Component {
         }, {})
         const newContext = { ..._parent, ...values }
         this.currentContext = newContext
-        if (typeof window !== 'undefined' && (window as any).__SYGNAL_DEVTOOLS__?.connected) {
-          (window as any).__SYGNAL_DEVTOOLS__.onContextChanged(this._componentNumber, this.name, newContext)
+        if (typeof window !== 'undefined' && window.__SYGNAL_DEVTOOLS__?.connected) {
+          window.__SYGNAL_DEVTOOLS__.onContextChanged(this._componentNumber, this.name, newContext)
         }
         return newContext
       })
@@ -808,8 +830,8 @@ class Component {
           cache.lastResult = result
           computedSoFar[field] = result
           mergedState[field] = result
-        } catch (e: any) {
-          console.warn(`Calculated field '${field}' threw an error during calculation: ${e.message}`)
+        } catch (e: unknown) {
+          console.warn(`Calculated field '${field}' threw an error during calculation: ${e instanceof Error ? e.message : e}`)
         }
       } else {
         // No deps declared — always recompute
@@ -817,8 +839,8 @@ class Component {
           const result = fn(mergedState)
           computedSoFar[field] = result
           mergedState[field] = result
-        } catch (e: any) {
-          console.warn(`Calculated field '${field}' threw an error during calculation: ${e.message}`)
+        } catch (e: unknown) {
+          console.warn(`Calculated field '${field}' threw an error during calculation: ${e instanceof Error ? e.message : e}`)
         }
       }
     }
@@ -1332,8 +1354,8 @@ class Component {
       if (this.debug) {
         const text = `[${context}] ${fixedMsg(msg)}`
         console.log(text)
-        if (typeof window !== 'undefined' && (window as any).__SYGNAL_DEVTOOLS__?.connected) {
-          (window as any).__SYGNAL_DEVTOOLS__.onDebugLog(this._componentNumber, text)
+        if (typeof window !== 'undefined' && window.__SYGNAL_DEVTOOLS__?.connected) {
+          window.__SYGNAL_DEVTOOLS__.onDebugLog(this._componentNumber, text)
         }
       }
       return
@@ -1343,8 +1365,8 @@ class Component {
           if (this.debug) {
             const text = `[${context}] ${fixedMsg(msg)}`
             console.log(text)
-            if (typeof window !== 'undefined' && (window as any).__SYGNAL_DEVTOOLS__?.connected) {
-              (window as any).__SYGNAL_DEVTOOLS__.onDebugLog(this._componentNumber, text)
+            if (typeof window !== 'undefined' && window.__SYGNAL_DEVTOOLS__?.connected) {
+              window.__SYGNAL_DEVTOOLS__.onDebugLog(this._componentNumber, text)
             }
           }
         })

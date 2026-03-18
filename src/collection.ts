@@ -1,6 +1,7 @@
 import isolate from './cycle/isolate/index';
 import {makeCollection} from './cycle/state/index';
 import {h} from './cycle/dom/index';
+import type {Lens} from './cycle/state/types';
 
 let COLLECTION_COUNT = 0;
 
@@ -15,7 +16,7 @@ interface CollectionOptions {
 
 export default function collection(
   component: (...args: any[]) => any,
-  stateLense: any,
+  stateLense: string | Lens<any, any>,
   opts: CollectionOptions = {}
 ): (sources: any) => any {
   if (typeof component !== 'function') {

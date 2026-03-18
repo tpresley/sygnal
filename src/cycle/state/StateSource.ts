@@ -88,7 +88,7 @@ export class StateSource<S> {
   private _stream: MemoryStream<S>;
   private _name: string;
 
-  constructor(stream: Stream<any>, name: string) {
+  constructor(stream: Stream<S>, name: string) {
     this._stream = stream
       .filter(s => typeof s !== 'undefined')
       .compose(dropRepeats())

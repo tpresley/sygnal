@@ -70,10 +70,10 @@ export default function run(
 
   if (
     typeof window !== 'undefined' &&
-    (window as any).__SYGNAL_HMR_UPDATING === true &&
-    typeof (window as any).__SYGNAL_HMR_PERSISTED_STATE !== 'undefined'
+    window.__SYGNAL_HMR_UPDATING === true &&
+    typeof window.__SYGNAL_HMR_PERSISTED_STATE !== 'undefined'
   ) {
-    app.initialState = (window as any).__SYGNAL_HMR_PERSISTED_STATE;
+    app.initialState = window.__SYGNAL_HMR_PERSISTED_STATE;
   }
 
   const wrapped = withState(app, 'STATE');
@@ -99,7 +99,7 @@ export default function run(
   ) {
     persistListener = {
       next: (state: any) => {
-        (window as any).__SYGNAL_HMR_PERSISTED_STATE = state;
+        window.__SYGNAL_HMR_PERSISTED_STATE = state;
       },
       error: () => {},
       complete: () => {},
@@ -123,18 +123,18 @@ export default function run(
 
   // Store app reference for time-travel
   if (typeof window !== 'undefined') {
-    (window as any).__SYGNAL_DEVTOOLS_APP__ = exposed;
+    window.__SYGNAL_DEVTOOLS_APP__ = exposed;
   }
 
   const swapToComponent = (newComponent: any, state?: any) => {
     const persistedState =
-      typeof window !== 'undefined' ? (window as any).__SYGNAL_HMR_PERSISTED_STATE : undefined;
+      typeof window !== 'undefined' ? window.__SYGNAL_HMR_PERSISTED_STATE : undefined;
     const fallbackState = typeof persistedState !== 'undefined' ? persistedState : app.initialState;
     const resolvedState = typeof state === 'undefined' ? fallbackState : state;
     if (typeof window !== 'undefined') {
-      (window as any).__SYGNAL_HMR_UPDATING = true;
-      (window as any).__SYGNAL_HMR_STATE = resolvedState;
-      (window as any).__SYGNAL_HMR_PERSISTED_STATE = resolvedState;
+      window.__SYGNAL_HMR_UPDATING = true;
+      window.__SYGNAL_HMR_STATE = resolvedState;
+      window.__SYGNAL_HMR_PERSISTED_STATE = resolvedState;
     }
     exposed.dispose();
     const App = newComponent.default || newComponent;
@@ -162,15 +162,15 @@ export default function run(
       updated.sources.STATE.stream.setDebugListener({
         next: () => {
           updated.sources.STATE.stream.setDebugListener(null);
-          (window as any).__SYGNAL_HMR_STATE = undefined;
+          window.__SYGNAL_HMR_STATE = undefined;
           setTimeout(() => {
-            (window as any).__SYGNAL_HMR_UPDATING = false;
+            window.__SYGNAL_HMR_UPDATING = false;
           }, 100);
         },
       });
     } else if (typeof window !== 'undefined') {
-      (window as any).__SYGNAL_HMR_STATE = undefined;
-      (window as any).__SYGNAL_HMR_UPDATING = false;
+      window.__SYGNAL_HMR_STATE = undefined;
+      window.__SYGNAL_HMR_UPDATING = false;
     }
   };
 
@@ -188,16 +188,16 @@ export default function run(
 
     if (typeof explicitState !== 'undefined') {
       if (typeof window !== 'undefined')
-        (window as any).__SYGNAL_HMR_LAST_CAPTURED_STATE = explicitState;
+        window.__SYGNAL_HMR_LAST_CAPTURED_STATE = explicitState;
       swapToComponent(moduleToUse, explicitState);
       return;
     }
 
     const persistedState =
-      typeof window !== 'undefined' ? (window as any).__SYGNAL_HMR_PERSISTED_STATE : undefined;
+      typeof window !== 'undefined' ? window.__SYGNAL_HMR_PERSISTED_STATE : undefined;
     if (typeof persistedState !== 'undefined') {
       if (typeof window !== 'undefined')
-        (window as any).__SYGNAL_HMR_LAST_CAPTURED_STATE = persistedState;
+        window.__SYGNAL_HMR_LAST_CAPTURED_STATE = persistedState;
       swapToComponent(moduleToUse, persistedState);
       return;
     }
@@ -205,7 +205,7 @@ export default function run(
     const sourceState = exposed?.sources?.STATE?.stream?._v;
     if (typeof sourceState !== 'undefined') {
       if (typeof window !== 'undefined')
-        (window as any).__SYGNAL_HMR_LAST_CAPTURED_STATE = sourceState;
+        window.__SYGNAL_HMR_LAST_CAPTURED_STATE = sourceState;
       swapToComponent(moduleToUse, sourceState);
       return;
     }
@@ -216,7 +216,7 @@ export default function run(
     ) {
       exposed.sinks.STATE.shamefullySendNext((state: any) => {
         if (typeof window !== 'undefined')
-          (window as any).__SYGNAL_HMR_LAST_CAPTURED_STATE = state;
+          window.__SYGNAL_HMR_LAST_CAPTURED_STATE = state;
         swapToComponent(moduleToUse, state);
         return ABORT;
       });
