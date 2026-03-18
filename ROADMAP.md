@@ -1,0 +1,204 @@
+# Sygnal Feature Roadmap
+
+Features identified by comparing React and Vue capabilities against Sygnal's functional reactive architecture. Each feature includes a Sygnal-idiomatic implementation approach — declarative, stream-based, and driver-oriented where possible.
+
+---
+
+## Tier 1 — High Value
+
+### 1. Error Boundaries
+
+**Status:** `NOT STARTED`
+
+Catch and recover from errors in child component rendering or lifecycle processing. Without this, a single broken child can crash the entire application. React's `componentDidCatch` and Vue's `onErrorCaptured` are essential for production resilience.
+
+**Implementation Plan:**
+- Add an `onError` static property to components: a function receiving `(error, componentInfo)` and returning fallback VNode(s)
+- Wrap the component's render cycle (view function call, sub-component instantiation) in a try/catch inside `src/component.ts`
+- On catch, render the fallback VNode instead of the failed subtree and emit an error event on the EVENTS bus with type `COMPONENT_ERROR`
+- Propagate uncaught errors upward through the component tree — parent error boundaries catch errors from any descendant, not just direct children
+- Provide a built-in `<ErrorBoundary fallback={<div>Error</div>}>` JSX wrapper component as syntactic sugar
+
+---
+
+### 2. Refs (Direct DOM Access)
+
+**Status:** `NOT STARTED`
+
+Imperative access to DOM elements is sometimes unavoidable — measuring dimensions, integrating third-party libraries (maps, charts, video players), or managing focus beyond `autoFocus`. Currently requires chaining `DOM.select().element()` streams, which is verbose for common cases.
+
+**Implementation Plan:**
+- Add a `ref` prop recognized by the JSX pragma (`src/pragma/index.ts`) that accepts a callback `(element: HTMLElement | null) => void`
+- Implement via snabbdom `insert` and `destroy` hooks: call the callback with the element on insert, and `null` on destroy
+- Export a `createRef()` helper from sygnal that returns `{ current: null, callback }` — the callback sets `.current` and can optionally push to a stream
+- For the stream-based pattern, export `createRef$()` which returns a `MemoryStream<HTMLElement | null>` and a callback — fully reactive, works in intent
+- Document that `DOM.select().element()` remains the idiomatic FRP approach; refs are the escape hatch for imperative integrations
+
+---
+
+### 3. Portals / Teleport
+
+**Status:** `NOT STARTED`
+
+Render component output into a DOM node outside the component's own mount point. Essential for modals, tooltips, dropdown menus, and toast notifications that need to escape overflow/z-index stacking contexts.
+
+**Implementation Plan:**
+- Create a `<Portal target=".modal-root">` JSX component (`src/extra/portal.ts`) that intercepts its children's VNodes
+- In the DOM driver sink processing, detect portal VNodes and patch them into the target container instead of the component's own DOM tree
+- Use a snabbdom `insert` hook to mount portal children into `document.querySelector(target)`, and `destroy` to clean up
+- Portal children remain part of the Sygnal component tree for state, context, and event propagation — only the DOM placement changes
+- Export `Portal` from `src/index.ts` and add `portal` to `JSX.IntrinsicElements`
+
+---
+
+### 4. Transition / Animation Components
+
+**Status:** `NOT STARTED`
+
+Declarative enter/leave animations for conditionally rendered elements and collection items. Snabbdom already supports `delayed` and `remove` style hooks, but there's no high-level component to orchestrate CSS class-based transitions.
+
+**Implementation Plan:**
+- Create a `<Transition name="fade">` wrapper component (`src/extra/transition.ts`) that applies CSS classes during enter/leave phases
+- Enter: apply `.fade-enter-from` on insert, swap to `.fade-enter-to` on next frame (via `requestAnimationFrame`), remove classes after `transitionend`
+- Leave: apply `.fade-leave-from`, swap to `.fade-leave-to`, delay VNode removal until `transitionend` fires (use snabbdom's `remove` hook)
+- Support props: `name` (class prefix), `duration` (explicit ms override), `appear` (animate on initial render), `mode` (`in-out` or `out-in`)
+- For collection items, create `<TransitionGroup>` that tracks entering/leaving items and applies the same class lifecycle per item
+- Leverage snabbdom's existing `delayed`, `remove`, and `destroy` style hooks internally
+
+---
+
+### 5. Lazy Loading / Code Splitting
+
+**Status:** `NOT STARTED`
+
+Defer loading of component code until it's needed, reducing initial bundle size. Critical for larger applications with many routes or heavy feature panels.
+
+**Implementation Plan:**
+- Export a `lazy(() => import('./HeavyComponent'))` function (`src/extra/lazy.ts`) that returns a Sygnal component
+- The lazy wrapper renders nothing (or a Suspense fallback) until the dynamic import resolves, then renders the loaded component
+- Cache the resolved module so subsequent renders don't re-import
+- Integrate with `<Suspense>` (see below) — a lazy component inside a Suspense boundary triggers the fallback
+- Handle import failures by forwarding to the nearest error boundary
+
+---
+
+## Tier 2 — Medium Value
+
+### 6. Component Cleanup / Disposal Hooks
+
+**Status:** `NOT STARTED`
+
+Run cleanup logic when a component unmounts — close WebSocket connections, clear intervals, disconnect ResizeObservers, release resources. Currently there's no component-level teardown; disposal only exists at the app level.
+
+**Implementation Plan:**
+- Add a `DISPOSE` model action that fires when a component's VNode is destroyed (detected via snabbdom `destroy` hook in `src/component.ts`)
+- The `DISPOSE` action receives the final state and can emit to EVENTS, LOG, or custom driver sinks — keeping side effects declarative
+- For the common case of stream-based subscriptions, document that streams created in intent are automatically disposed when the component's sink cycle ends
+- For external resource cleanup, the `DISPOSE` action's driver sinks are the idiomatic path (e.g., `{ WEBSOCKET: 'close' }`)
+
+---
+
+### 7. Suspense (Loading States)
+
+**Status:** `NOT STARTED`
+
+Show fallback UI while waiting for async children to resolve. Pairs with lazy-loaded components and async data fetching to provide a declarative loading experience.
+
+**Implementation Plan:**
+- Create a `<Suspense fallback={<Loading />}>` JSX component (`src/extra/suspense.ts`)
+- Child components signal "pending" status via a stream or by being a lazy wrapper that hasn't resolved yet
+- Suspense renders the fallback VNode until all children signal ready, then swaps to the real content
+- Track pending count: increment when a lazy child starts loading, decrement when it resolves
+- Integrate with the Transition component to animate the swap from fallback to content
+
+---
+
+### 8. Slots (Named Children)
+
+**Status:** `NOT STARTED`
+
+Pass multiple named content regions from parent to child — headers, footers, sidebars, actions — rather than a single flat `children` array. Vue's named slots and React's compound component patterns solve this.
+
+**Implementation Plan:**
+- Define a `<Slot name="header">` JSX component that marks children for named placement
+- In the parent's JSX, wrap content in `<Slot>` tags: `<Card><Slot name="header"><h1>Title</h1></Slot></Card>`
+- The child component receives slots via the `peers` parameter (4th argument to the view function), already partially supported by Sygnal's peer system
+- Extend the pragma to extract `<Slot>` children and pass them as a `slots` object: `{ header: VNode[], default: VNode[] }`
+- Unnamed children become the `default` slot
+
+---
+
+### 9. Forward Refs / Imperative Handle
+
+**Status:** `NOT STARTED`
+
+Let a parent invoke actions on a child component — play/pause a video player, reset a form, scroll to a position. Currently achievable via EVENTS but without a direct parent-to-specific-child channel.
+
+**Implementation Plan:**
+- Formalize a `COMMAND` pattern: parent emits a command stream as a prop, child subscribes to it in intent
+- Export a `createCommand<T>()` helper that returns `{ send: (value: T) => void, stream: Stream<T> }` — parent calls `send()`, child reads `stream`
+- The parent passes the command object as a prop: `<VideoPlayer commands={playerCommands} />`
+- The child maps `props.commands.stream` to actions in intent: `{ PLAY: props.commands.stream.filter(c => c === 'play') }`
+- This stays declarative — the parent declares *what* to command, the child declares *how* to handle it
+
+---
+
+## Tier 3 — Lower Priority
+
+### 10. SSR Utilities
+
+**Status:** `NOT STARTED`
+
+Render Sygnal components to HTML strings on the server for initial page load performance and SEO. Currently Astro integration handles SSR for Astro projects, but standalone SSR (Next.js-style) isn't supported.
+
+**Implementation Plan:**
+- Create `renderToString(component, {state, props})` in `src/extra/ssr.ts` using snabbdom's VNode serialization
+- Run the component's view function with the provided state to produce a VNode tree, then serialize to HTML
+- Handle sub-components recursively — instantiate each child component's view with its scoped state
+- Skip intent/model processing (SSR is render-only); include serialized state as `<script>` for client hydration
+- Integrate with the existing `HYDRATE` action for client-side rehydration
+
+---
+
+### 11. Testing Utilities
+
+**Status:** `NOT STARTED`
+
+A lightweight test helper for rendering components in isolation and asserting on their outputs. Currently tests use vitest with manual stream setup, which is verbose.
+
+**Implementation Plan:**
+- Export `renderComponent(Component, {initialState, props, drivers})` from `src/extra/testing.ts`
+- Returns `{ state$, dom$, events$, sinks, dispose }` — streams of component outputs that tests can subscribe to
+- Internally creates a minimal Cycle.js runtime with mock DOM and state drivers
+- Add `simulateAction(actionName, data)` helper to push values into the intent→model pipeline
+- Provide `waitForState(predicate)` and `waitForDom(predicate)` async helpers for assertion timing
+
+---
+
+### 12. Concurrent Rendering
+
+**Status:** `NOT STARTED`
+
+Break large render trees into chunks scheduled via `requestIdleCallback` to avoid blocking the main thread. Useful for apps with hundreds of components or expensive calculated fields.
+
+**Implementation Plan:**
+- Add an optional `concurrent: true` flag to `run()` options
+- When enabled, batch VNode diffing across multiple frames using `requestIdleCallback` (with `requestAnimationFrame` fallback)
+- Prioritize user-interaction-driven updates (intent→model) over background re-renders
+- Keep the default synchronous rendering unchanged — concurrent mode is opt-in
+- Measure frame budget and yield when approaching 16ms to maintain 60fps
+
+---
+
+### 13. Scoped Slots
+
+**Status:** `NOT STARTED`
+
+Let a child component pass data back to the parent's slot content — the parent provides a render template, the child fills it with data. Vue's scoped slots and React's render props pattern.
+
+**Implementation Plan:**
+- Extend the `<Slot>` system (feature #8) to accept a render function as children: `<Slot name="item">{(data) => <span>{data.label}</span>}</Slot>`
+- The child component calls the slot function with its own data when rendering: `slots.item({ label: state.name })`
+- Detect function children in the pragma and preserve them as callbacks rather than evaluating them immediately
+- Falls back to static children if no function is provided
+- Requires Slots (feature #8) to be implemented first
