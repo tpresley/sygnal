@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sygnal Playground</title>
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <header>
+    <h1>Sygnal Playground</h1>
+    <div class="controls">
+      <select id="examples">
+        <option value="counter">Counter</option>
+        <option value="greeter">Greeter</option>
+        <option value="todo">Todo List</option>
+      </select>
+      <button id="run-btn">Run</button>
+      <label><input type="checkbox" id="auto-run" checked /> Auto-run</label>
+    </div>
+  </header>
+  <main>
+    <div class="editor-pane">
+      <div class="pane-header">Code</div>
+      <textarea id="editor" spellcheck="false"></textarea>
+    </div>
+    <div class="preview-pane">
+      <div class="pane-header">Preview</div>
+      <div id="preview"></div>
+    </div>
+  </main>
+  <div id="error-panel"></div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

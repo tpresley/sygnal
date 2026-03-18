@@ -1,0 +1,17 @@
+{
+  "name": "sygnal-playground",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "sygnal": "file:../../",
+    "@babel/standalone": "^7.26.0"
+  },
+  "devDependencies": {
+    "vite": "^6.0.0"
+  }
+}
