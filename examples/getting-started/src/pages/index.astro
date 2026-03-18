@@ -7,6 +7,7 @@ import UserCardDemo from '../components/UserCardDemo.jsx'
 import CalculatedTest from '../components/CalculatedTest.jsx'
 import ErrorBoundaryDemo from '../components/ErrorBoundaryDemo.jsx'
 import RefDemo from '../components/RefDemo.jsx'
+import PortalDemo from '../components/PortalDemo.jsx'
 ---
 
 <html lang="en">
@@ -37,6 +38,7 @@ import RefDemo from '../components/RefDemo.jsx'
           <li><a href="#state-passing">Passing State to Children</a></li>
           <li><a href="#error-boundaries">Error Boundaries</a></li>
           <li><a href="#refs">Refs (DOM Access)</a></li>
+          <li><a href="#portals">Portals</a></li>
           <li><a href="#next-steps">Next Steps</a></li>
         </ol>
       </nav>
@@ -473,7 +475,76 @@ RefDemo.model = &#123;
         </p>
       </section>
 
-      <!-- ─── Section 9: Next Steps ─── -->
+      <!-- ─── Section 9: Portals ─── -->
+
+      <section id="portals">
+        <h2>Portals</h2>
+        <p>
+          Sometimes UI needs to escape its parent's DOM hierarchy &mdash; modals,
+          tooltips, and dropdown menus that need to break out of
+          <code>overflow: hidden</code> or z-index stacking contexts. The
+          <code>&lt;Portal&gt;</code> component renders its children into a
+          different DOM container.
+        </p>
+
+        <div class="example">
+          <div class="example-code">
+            <h3>Code</h3>
+            <pre><code>import &#123; Portal &#125; from 'sygnal'
+
+function PortalDemo(&#123; state &#125;) &#123;
+  return (
+    &lt;div&gt;
+      &lt;button className="toggle-modal"&gt;
+        &#123;state.showModal
+          ? 'Close Modal' : 'Open Modal'&#125;
+      &lt;/button&gt;
+      &#123;state.showModal &amp;&amp; (
+        &lt;Portal target="#portal-root"&gt;
+          &lt;div className="modal-overlay"&gt;
+            &lt;h3&gt;I'm a Portal!&lt;/h3&gt;
+            &lt;p&gt;Rendered outside the
+              component tree.&lt;/p&gt;
+          &lt;/div&gt;
+        &lt;/Portal&gt;
+      )&#125;
+    &lt;/div&gt;
+  )
+&#125;
+
+PortalDemo.initialState = &#123;
+  showModal: false
+&#125;
+
+PortalDemo.intent = (&#123; DOM &#125;) =&gt; (&#123;
+  TOGGLE: DOM.select('.toggle-modal')
+    .events('click'),
+&#125;)
+
+PortalDemo.model = &#123;
+  TOGGLE: (state) =&gt;
+    (&#123; showModal: !state.showModal &#125;),
+&#125;</code></pre>
+          </div>
+          <div class="example-demo">
+            <h3>Live Demo</h3>
+            <div class="demo-frame">
+              <PortalDemo client:load />
+            </div>
+          </div>
+        </div>
+
+        <p>
+          The <code>&lt;Portal target="#portal-root"&gt;</code> component renders
+          its children into the element matching the CSS selector. The modal
+          content appears in <code>#portal-root</code> (at the bottom of the page),
+          not inside the component's own DOM tree. This lets it escape any
+          <code>overflow</code> or <code>z-index</code> constraints from parent
+          elements.
+        </p>
+      </section>
+
+      <!-- ─── Section 10: Next Steps ─── -->
 
       <section id="next-steps">
         <h2>Next Steps</h2>
@@ -543,5 +614,6 @@ RefDemo.model = &#123;
         </p>
       </footer>
     </div>
+    <div id="portal-root"></div>
   </body>
 </html>

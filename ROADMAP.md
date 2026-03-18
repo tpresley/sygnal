@@ -41,16 +41,17 @@ Imperative access to DOM elements is sometimes unavoidable — measuring dimensi
 
 ### 3. Portals / Teleport
 
-**Status:** `NOT STARTED`
+**Status:** `DONE`
 
 Render component output into a DOM node outside the component's own mount point. Essential for modals, tooltips, dropdown menus, and toast notifications that need to escape overflow/z-index stacking contexts.
 
-**Implementation Plan:**
-- Create a `<Portal target=".modal-root">` JSX component (`src/extra/portal.ts`) that intercepts its children's VNodes
-- In the DOM driver sink processing, detect portal VNodes and patch them into the target container instead of the component's own DOM tree
-- Use a snabbdom `insert` hook to mount portal children into `document.querySelector(target)`, and `destroy` to clean up
-- Portal children remain part of the Sygnal component tree for state, context, and event propagation — only the DOM placement changes
-- Export `Portal` from `src/index.ts` and add `portal` to `JSX.IntrinsicElements`
+**Implementation:**
+- `<Portal target="#selector">children</Portal>` JSX component with `preventInstantiation` pattern (`src/portal.ts`)
+- Portal VNodes detected and replaced by `processPortals()` before sub-component instantiation in the render pipeline
+- Uses a separate snabbdom `init()` patch instance to render children into the target container
+- Snabbdom hooks manage lifecycle: `insert` (first render into target), `postpatch` (update on re-render), `destroy` (cleanup on unmount)
+- Hidden placeholder `<div>` remains in the component tree; portal content renders in the target container
+- Note: Portal content is outside the component's DOM event delegation scope — use the parent component's own DOM elements for interaction (e.g., toggle buttons), or the EVENTS driver for cross-component communication
 
 ---
 

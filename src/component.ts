@@ -2,6 +2,8 @@ import isolate from './cycle/isolate/index';
 import collection from './collection';
 import switchable from './switchable';
 import {StateSource} from './cycle/state/index';
+import {init as snabbdomInit} from './cycle/dom/snabbdom';
+import defaultModules from './cycle/dom/modules';
 
 import xs, {Stream, resolveInteropDefault} from './extra/xstreamCompat';
 import * as delayModule from 'xstream/extra/delay.js';
@@ -711,6 +713,7 @@ class Component {
       })
       .compose(this.log('View rendered'))
       .map((vDom: any) => vDom || { sel: 'div', data: {}, children: [] })
+      .map(processPortals)
       .compose(this.instantiateSubComponents.bind(this))
       .filter((val: any) => val !== undefined)
       .compose(this.renderVdom.bind(this))
@@ -1514,6 +1517,72 @@ function getComponentIdFromElement(el: any, path: string, parentId?: string): st
   const parentString = parentId ? `${parentId}|` : ''
   const fullId = `${parentString}${name}::${id}`
   return fullId
+}
+
+
+const portalPatch = snabbdomInit(defaultModules);
+
+function processPortals(vnode: any): any {
+  if (!vnode || !vnode.sel) return vnode
+  if (vnode.sel === 'portal') {
+    const target = vnode.data?.props?.target
+    const children = vnode.children || []
+    return createPortalPlaceholder(target, children)
+  }
+  if (vnode.children && vnode.children.length > 0) {
+    vnode.children = vnode.children.map(processPortals)
+  }
+  return vnode
+}
+
+function createPortalPlaceholder(target: string, children: any[]): any {
+  const portalChildren = children || []
+
+  return {
+    sel: 'div',
+    data: {
+      style: { display: 'none' },
+      attrs: { 'data-sygnal-portal': target },
+      portalChildren,
+      hook: {
+        insert: (vnode: any) => {
+          const container = document.querySelector(target)
+          if (!container) {
+            console.warn(`[Portal] Target "${target}" not found in DOM`)
+            return
+          }
+          const anchor = document.createElement('div')
+          container.appendChild(anchor)
+          vnode.data._portalVnode = portalPatch(anchor, {
+            sel: 'div', data: {}, children: portalChildren,
+            text: undefined, elm: undefined, key: undefined,
+          })
+          vnode.data._portalContainer = container
+        },
+        postpatch: (oldVnode: any, newVnode: any) => {
+          const prevPortalVnode = oldVnode.data?._portalVnode
+          const container = oldVnode.data?._portalContainer
+          if (!prevPortalVnode || !container) return
+          const newChildren = newVnode.data?.portalChildren || []
+          newVnode.data._portalVnode = portalPatch(prevPortalVnode, {
+            sel: 'div', data: {}, children: newChildren,
+            text: undefined, elm: undefined, key: undefined,
+          })
+          newVnode.data._portalContainer = container
+        },
+        destroy: (vnode: any) => {
+          const pv = vnode.data?._portalVnode
+          if (pv && pv.elm && pv.elm.parentNode) {
+            pv.elm.parentNode.removeChild(pv.elm)
+          }
+        },
+      },
+    },
+    children: [],
+    text: undefined,
+    elm: undefined,
+    key: undefined,
+  }
 }
 
 

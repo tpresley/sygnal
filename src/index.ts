@@ -4,6 +4,7 @@
 export { default as component, ABORT } from "./component"
 export { default as collection, Collection } from "./collection"
 export { default as switchable, Switchable } from "./switchable"
+export { Portal, default as portal } from "./portal"
 export { driverFromAsync } from "./extra/driverFactories"
 export { default as processForm } from "./extra/processForm"
 export { default as processDrag } from "./extra/processDrag"
