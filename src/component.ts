@@ -1,36 +1,31 @@
-'use strict'
+import isolate from './cycle/isolate/index';
+import collection from './collection';
+import switchable from './switchable';
+import {StateSource} from './cycle/state/index';
 
-import isolate from './cycle/isolate/index'
-import collection from './collection'
-import switchable from './switchable'
-import { StateSource } from './cycle/state/index'
+import xs, {Stream, resolveInteropDefault} from './extra/xstreamCompat';
+import * as delayModule from 'xstream/extra/delay.js';
+import * as concatModule from 'xstream/extra/concat.js';
+import * as debounceModule from 'xstream/extra/debounce.js';
+import * as dropRepeatsModule from 'xstream/extra/dropRepeats.js';
 
-import xs, { Stream, resolveInteropDefault } from './extra/xstreamCompat'
-import * as delayModule from 'xstream/extra/delay.js'
-import * as concatModule from 'xstream/extra/concat.js'
-import * as debounceModule from 'xstream/extra/debounce.js'
-import * as dropRepeatsModule from 'xstream/extra/dropRepeats.js'
+const delay = resolveInteropDefault(delayModule);
+const concat = resolveInteropDefault(concatModule);
+const debounce = resolveInteropDefault(debounceModule);
+const dropRepeats = resolveInteropDefault(dropRepeatsModule);
 
-const delay = resolveInteropDefault(delayModule)
-const concat = resolveInteropDefault(concatModule)
-const debounce = resolveInteropDefault(debounceModule)
-const dropRepeats = resolveInteropDefault(dropRepeatsModule)
+const ENVIRONMENT: any =
+  (typeof window != 'undefined' && window) || (typeof process !== 'undefined' && process.env) || {};
 
+const BOOTSTRAP_ACTION = 'BOOTSTRAP';
+const INITIALIZE_ACTION = 'INITIALIZE';
+const HYDRATE_ACTION = 'HYDRATE';
+const PARENT_SINK_NAME = 'PARENT';
+const CHILD_SOURCE_NAME = 'CHILD';
 
-const ENVIRONMENT = ((typeof window != 'undefined' && window) || (process && process.env)) || {}
+let COMPONENT_COUNT = 0;
 
-
-const BOOTSTRAP_ACTION  = 'BOOTSTRAP'
-const INITIALIZE_ACTION = 'INITIALIZE'
-const HYDRATE_ACTION    = 'HYDRATE'
-const PARENT_SINK_NAME  = 'PARENT'
-const CHILD_SOURCE_NAME = 'CHILD'
-
-
-let COMPONENT_COUNT   = 0
-
-
-function wrapDOMSource(domSource) {
+function wrapDOMSource(domSource: any): any {
   return new Proxy(domSource, {
     get(target, prop, receiver) {
       if (typeof prop === 'symbol' || prop in target) {
@@ -45,7 +40,7 @@ function wrapDOMSource(domSource) {
 export const ABORT = Symbol('ABORT')
 
 
-function normalizeCalculatedEntry(field, entry) {
+function normalizeCalculatedEntry(field: string, entry: any): {fn: (...args: any[]) => any; deps: string[] | null} {
   if (typeof entry === 'function') {
     return { fn: entry, deps: null }
   }
@@ -58,7 +53,7 @@ function normalizeCalculatedEntry(field, entry) {
   )
 }
 
-export default function component (opts) {
+export default function component(opts: any): any {
   const { name, sources, isolateOpts, stateSourceName='STATE' } = opts
 
   if (sources && !isObj(sources)) {
@@ -100,48 +95,51 @@ export default function component (opts) {
 
 
 class Component {
-  // [ PASSED PARAMETERS ]
-  // name
-  // sources
-  // intent
-  // model
-  // context
-  // view
-  // peers
-  // components
-  // initialState
-  // calculated
-  // storeCalculatedInState
-  // DOMSourceName
-  // stateSourceName
-  // requestSourceName
-  // debug
+  _componentNumber: number;
+  name: string;
+  sources: any;
+  intent: any;
+  model: any;
+  hmrActions: any;
+  context: any;
+  response: any;
+  view: any;
+  peers: Record<string, any>;
+  components: Record<string, any>;
+  initialState: any;
+  calculated: any;
+  storeCalculatedInState: boolean;
+  DOMSourceName: string;
+  stateSourceName: string;
+  requestSourceName: string;
+  sourceNames: string[];
+  _debug: boolean;
+  isSubComponent: boolean;
+  currentState: any;
+  currentProps: any;
+  currentChildren: any;
+  currentContext: any;
+  intent$: any;
+  hmrAction$: any;
+  action$: any;
+  model$: any;
+  context$: any;
+  peers$: any;
+  subComponentSink$: any;
+  subComponentsRendered$: any;
+  vdom$: any;
+  sinks: any;
+  log: any;
+  addCalculated: (state: any) => any;
+  newChildSources: (sources: any) => void;
+  newSubComponentSinks: (sinks: any) => void;
+  triggerSubComponentsRendered: (() => void);
+  _calculatedNormalized: Record<string, {fn: (...args: any[]) => any; deps: string[] | null}> | null;
+  _calculatedFieldNames: Set<string> | null;
+  _calculatedOrder: Array<[string, {fn: (...args: any[]) => any; deps: string[] | null}]> | null;
+  _calculatedFieldCache: Record<string, {lastDepValues: any; lastResult: any}> | null;
 
-  // [ PRIVATE / CALCULATED VALUES ]
-  // sourceNames
-  // intent$
-  // action$
-  // model$
-  // context$
-  // peers$
-  // childSources
-  // vdom$
-  // currentState
-  // currentProps
-  // currentChildren
-  // currentContext
-  // subComponentSink$
-  // unmountRequest$ <- TODO
-  // unmount() <- TODO
-  // _debug
-
-  // [ INSTANTIATED STREAM OPERATOR ]
-  // log
-
-  // [ OUTPUT ]
-  // sinks
-
-  constructor({ name='NO NAME', sources, intent, model, hmrActions, context, response, view, peers={}, components={}, initialState, calculated, storeCalculatedInState=true, DOMSourceName='DOM', stateSourceName='STATE', requestSourceName='HTTP', debug=false }) {
+  constructor({name = 'NO NAME', sources, intent, model, hmrActions, context, response, view, peers = {}, components = {}, initialState, calculated, storeCalculatedInState = true, DOMSourceName = 'DOM', stateSourceName = 'STATE', requestSourceName = 'HTTP', debug = false}: any) {
     if (!sources || !isObj(sources)) throw new Error(`[${name}] Missing or invalid sources`)
 
     this._componentNumber = COMPONENT_COUNT++
@@ -290,8 +288,8 @@ class Component {
       this.currentState = initialState || {}
       this.sources[stateSourceName] = new StateSource(state$.map(val => {
         this.currentState = val
-        if (typeof window !== 'undefined' && window.__SYGNAL_DEVTOOLS__?.connected) {
-          window.__SYGNAL_DEVTOOLS__.onStateChanged(this._componentNumber, this.name, val)
+        if (typeof window !== 'undefined' && (window as any).__SYGNAL_DEVTOOLS__?.connected) {
+          (window as any).__SYGNAL_DEVTOOLS__.onStateChanged(this._componentNumber, this.name, val)
         }
         return val
       }))
@@ -349,22 +347,22 @@ class Component {
     this.log(`Instantiated`, true)
 
     // Hook 1: Register with DevTools
-    if (typeof window !== 'undefined' && window.__SYGNAL_DEVTOOLS__) {
-      window.__SYGNAL_DEVTOOLS__.onComponentCreated(this._componentNumber, name, this)
+    if (typeof window !== 'undefined' && (window as any).__SYGNAL_DEVTOOLS__) {
+      (window as any).__SYGNAL_DEVTOOLS__.onComponentCreated(this._componentNumber, name, this)
 
       // Hook 1b: Register parent-child relationship
       const parentNum = sources?.__parentComponentNumber
       if (typeof parentNum === 'number') {
-        window.__SYGNAL_DEVTOOLS__.onSubComponentRegistered(parentNum, this._componentNumber)
+        (window as any).__SYGNAL_DEVTOOLS__.onSubComponentRegistered(parentNum, this._componentNumber)
       }
     }
   }
 
-  get debug() {
+  get debug(): boolean {
     return this._debug || (ENVIRONMENT.SYGNAL_DEBUG === 'true' || ENVIRONMENT.SYGNAL_DEBUG === true)
   }
 
-  initIntent$() {
+  initIntent$(): void {
     if (!this.intent) {
       return
     }
@@ -379,7 +377,7 @@ class Component {
     }
   }
 
-  initHmrActions() {
+  initHmrActions(): void {
     if (typeof this.hmrActions === 'undefined') {
       this.hmrAction$ = xs.of().filter(_ => false)
       return
@@ -396,7 +394,7 @@ class Component {
     this.hmrAction$ = xs.fromArray(this.hmrActions.map(action => ({ type: action })))
   }
 
-  initAction$() {
+  initAction$(): void {
     const requestSource  = (this.sources && this.sources[this.requestSourceName]) || null
 
     if (!this.intent$) {
@@ -415,12 +413,12 @@ class Component {
 
     const action$    = ((runner instanceof Stream) ? runner : (runner.apply && runner(this.sources) || xs.never()))
     const bootstrap$ = xs.of({ type: BOOTSTRAP_ACTION }).compose(delay(10))
-    const hmrAction$ = window?.__SYGNAL_HMR_UPDATING === true ? this.hmrAction$ : xs.of().filter(_ => false)
-    const wrapped$   = (this.model[BOOTSTRAP_ACTION] && window?.__SYGNAL_HMR_UPDATING !== true) ? concat(bootstrap$, action$) : concat(xs.of().compose(delay(1)).filter(_ => false), hmrAction$, action$)
+    const hmrAction$ = (window as any)?.__SYGNAL_HMR_UPDATING === true ? this.hmrAction$ : xs.of().filter(_ => false)
+    const wrapped$   = (this.model[BOOTSTRAP_ACTION] && (window as any)?.__SYGNAL_HMR_UPDATING !== true) ? concat(bootstrap$, action$) : concat(xs.of().compose(delay(1)).filter(_ => false), hmrAction$, action$)
 
 
     let initialApiData
-    if (window?.__SYGNAL_HMR_UPDATING !== true && requestSource && typeof requestSource.select == 'function') {
+    if ((window as any)?.__SYGNAL_HMR_UPDATING !== true && requestSource && typeof requestSource.select == 'function') {
       initialApiData = requestSource.select('initial')
         .flatten()
     } else {
@@ -432,8 +430,8 @@ class Component {
     this.action$   = xs.merge(wrapped$, hydrate$)
       .compose(this.log(({ type }) => `<${type}> Action triggered`))
       .map(action => {
-        if (typeof window !== 'undefined' && window.__SYGNAL_DEVTOOLS__?.connected) {
-          window.__SYGNAL_DEVTOOLS__.onActionDispatched(
+        if (typeof window !== 'undefined' && (window as any).__SYGNAL_DEVTOOLS__?.connected) {
+          (window as any).__SYGNAL_DEVTOOLS__.onActionDispatched(
             this._componentNumber, this.name, action.type, action.data
           )
         }
@@ -441,7 +439,7 @@ class Component {
       })
   }
 
-  initState() {
+  initState(): void {
     if (this.model !== undefined) {
       if (this.model[INITIALIZE_ACTION] === undefined) {
         this.model[INITIALIZE_ACTION] = {
@@ -458,7 +456,7 @@ class Component {
     }
   }
 
-  initContext() {
+  initContext(): void {
     if (!this.context && !this.sources.__parentContext$) {
       this.context$ = xs.of({})
       return
@@ -493,8 +491,8 @@ class Component {
         }, {})
         const newContext = { ..._parent, ...values }
         this.currentContext = newContext
-        if (typeof window !== 'undefined' && window.__SYGNAL_DEVTOOLS__?.connected) {
-          window.__SYGNAL_DEVTOOLS__.onContextChanged(this._componentNumber, this.name, newContext)
+        if (typeof window !== 'undefined' && (window as any).__SYGNAL_DEVTOOLS__?.connected) {
+          (window as any).__SYGNAL_DEVTOOLS__.onContextChanged(this._componentNumber, this.name, newContext)
         }
         return newContext
       })
@@ -503,7 +501,7 @@ class Component {
     this.context$.subscribe({ next: _ => _, error: err => console.error(`[${this.name}] Error in context stream:`, err) })
   }
 
-  initModel$() {
+  initModel$(): void {
     if (typeof this.model == 'undefined') {
       this.model$ = this.sourceNames.reduce((a,s) => {
         a[s] = xs.never()
@@ -580,7 +578,7 @@ class Component {
     this.model$ = model$
   }
 
-  initPeers$() {
+  initPeers$(): void {
     const initial = this.sourceNames.reduce((acc, name) => {
       if (name == this.DOMSourceName) {
         acc[name] = {}
@@ -603,7 +601,7 @@ class Component {
     }, initial)
   }
 
-  initChildSources$() {
+  initChildSources$(): void {
     let newSourcesNext
     const childSources$ = xs.create({
       start: listener => {
@@ -632,7 +630,7 @@ class Component {
     }
   }
 
-  initSubComponentSink$() {
+  initSubComponentSink$(): void {
     const subComponentSink$ = xs.create({
       start: listener => {
         this.newSubComponentSinks = listener.next.bind(listener)
@@ -645,7 +643,7 @@ class Component {
     this.subComponentSink$ = subComponentSink$.filter(sinks => Object.keys(sinks).length > 0)
   }
 
-  initSubComponentsRendered$() {
+  initSubComponentsRendered$(): void {
     const stream = xs.create({
       start: (listener) => {
         this.triggerSubComponentsRendered = listener.next.bind(listener)
@@ -657,7 +655,7 @@ class Component {
     this.subComponentsRendered$ = stream.startWith(null)
   }
 
-  initVdom$() {
+  initVdom$(): void {
     if (typeof this.view != 'function') {
       this.vdom$ = xs.of(null)
       return
@@ -679,7 +677,7 @@ class Component {
 
   }
 
-  initSinks() {
+  initSinks(): void {
     this.sinks = this.sourceNames.reduce((acc, name) => {
       if (name == this.DOMSourceName) return acc
       const subComponentSink$ = (this.subComponentSink$ && name !== PARENT_SINK_NAME) ? this.subComponentSink$.map(sinks => sinks[name]).filter(sink => !!sink).flatten() : xs.never()
@@ -695,7 +693,7 @@ class Component {
     this.sinks[PARENT_SINK_NAME] = this.model$[PARENT_SINK_NAME] || xs.never()
   }
 
-  makeOnAction(action$, isStateSink=true, rootAction$) {
+  makeOnAction(action$: any, isStateSink: boolean = true, rootAction$?: any): (name: string, reducer: any) => any {
     rootAction$ = rootAction$ || action$
     return (name, reducer) => {
       const filtered$ = action$.filter(({type}) => type == name)
@@ -749,7 +747,7 @@ class Component {
     }
   }
 
-  createMemoizedAddCalculated() {
+  createMemoizedAddCalculated(): (state: any) => any {
     let lastState
     let lastResult
 
@@ -776,7 +774,7 @@ class Component {
     }
   }
 
-  getCalculatedValues(state) {
+  getCalculatedValues(state: any): Record<string, any> | undefined {
     if (!this._calculatedOrder || this._calculatedOrder.length === 0) {
       return
     }
@@ -810,7 +808,7 @@ class Component {
           cache.lastResult = result
           computedSoFar[field] = result
           mergedState[field] = result
-        } catch (e) {
+        } catch (e: any) {
           console.warn(`Calculated field '${field}' threw an error during calculation: ${e.message}`)
         }
       } else {
@@ -819,7 +817,7 @@ class Component {
           const result = fn(mergedState)
           computedSoFar[field] = result
           mergedState[field] = result
-        } catch (e) {
+        } catch (e: any) {
           console.warn(`Calculated field '${field}' threw an error during calculation: ${e.message}`)
         }
       }
@@ -828,7 +826,7 @@ class Component {
     return computedSoFar
   }
 
-  cleanupCalculated(incomingState) {
+  cleanupCalculated(incomingState: any): any {
     if (!incomingState || !isObj(incomingState) || Array.isArray(incomingState)) return incomingState
     const state = this.storeCalculatedInState ? this.addCalculated(incomingState) : incomingState
     const copy  = { ...state }
@@ -844,7 +842,7 @@ class Component {
     return copy
   }
 
-  collectRenderParameters() {
+  collectRenderParameters(): any {
     const state        = this.sources[this.stateSourceName]
     const renderParams = { ...this.peers$[this.DOMSourceName] }
 
@@ -892,7 +890,7 @@ class Component {
     return combined
   }
 
-  instantiateSubComponents(vDom$) {
+  instantiateSubComponents(vDom$: any): any {
     return vDom$.fold((previousComponents, vDom) => {
       const componentNames  = Object.keys(this.components)
       const foundComponents = getComponents(vDom, componentNames)
@@ -979,7 +977,7 @@ class Component {
     }, {})
   }
 
-  makeCoordinatedSubComponentDomSink(domSink$) {
+  makeCoordinatedSubComponentDomSink(domSink$: any): any {
     const remembered$   = domSink$.remember()
 
     const coordinated = this.sources[this.stateSourceName].stream
@@ -992,7 +990,7 @@ class Component {
     return coordinated
   }
 
-  instantiateCollection(el, props$, children$) {
+  instantiateCollection(el: any, props$: any, children$: any): any {
     const data      = el.data
     const props     = data.props || {}
     let filter      = typeof props.filter === 'function' ? props.filter : undefined
@@ -1131,7 +1129,7 @@ class Component {
     return sink$
   }
 
-  instantiateSwitchable(el, props$, children$) {
+  instantiateSwitchable(el: any, props$: any, children$: any): any {
     const data      = el.data
     const props     = data.props  || {}
 
@@ -1200,7 +1198,7 @@ class Component {
     return sink$
   }
 
-  instantiateCustomComponent(el, props$, children$) {
+  instantiateCustomComponent(el: any, props$: any, children$: any): any {
     const componentName = el.sel
     const data      = el.data
     const props     = data.props  || {}
@@ -1268,7 +1266,7 @@ class Component {
     return sink$
   }
 
-  renderVdom(componentInstances$) {
+  renderVdom(componentInstances$: any): any {
     return xs.combine(this.subComponentsRendered$, componentInstances$)
       .compose(debounce(1))
       .map(([_, components]) => {
@@ -1327,15 +1325,15 @@ class Component {
  * all output will be prepended with the `context` (ex. "[CONTEXT] My output")
  * ONLY outputs if the global `DEBUG` variable is set to `true`
  */
- function makeLog (context) {
-  return function (msg, immediate=false) {
+ function makeLog(context: string): any {
+  return function (this: Component, msg: any, immediate: boolean = false) {
     const fixedMsg = (typeof msg === 'function') ? msg : _ => msg
     if (immediate) {
       if (this.debug) {
         const text = `[${context}] ${fixedMsg(msg)}`
         console.log(text)
-        if (typeof window !== 'undefined' && window.__SYGNAL_DEVTOOLS__?.connected) {
-          window.__SYGNAL_DEVTOOLS__.onDebugLog(this._componentNumber, text)
+        if (typeof window !== 'undefined' && (window as any).__SYGNAL_DEVTOOLS__?.connected) {
+          (window as any).__SYGNAL_DEVTOOLS__.onDebugLog(this._componentNumber, text)
         }
       }
       return
@@ -1345,8 +1343,8 @@ class Component {
           if (this.debug) {
             const text = `[${context}] ${fixedMsg(msg)}`
             console.log(text)
-            if (typeof window !== 'undefined' && window.__SYGNAL_DEVTOOLS__?.connected) {
-              window.__SYGNAL_DEVTOOLS__.onDebugLog(this._componentNumber, text)
+            if (typeof window !== 'undefined' && (window as any).__SYGNAL_DEVTOOLS__?.connected) {
+              (window as any).__SYGNAL_DEVTOOLS__.onDebugLog(this._componentNumber, text)
             }
           }
         })
@@ -1357,7 +1355,7 @@ class Component {
 
 
 
-function getComponents(currentElement, componentNames, path='r', parentId) {
+function getComponents(currentElement: any, componentNames: string[], path: string = 'r', parentId?: string): Record<string, any> {
   if (!currentElement) return {}
 
   if (currentElement.data?.componentsProcessed) return {}
@@ -1409,7 +1407,7 @@ function getComponents(currentElement, componentNames, path='r', parentId) {
   return found
 }
 
-function injectComponents(currentElement, components, componentNames, path='r', parentId) {
+function injectComponents(currentElement: any, components: Record<string, any>, componentNames: string[], path: string = 'r', parentId?: string): any {
   if (!currentElement) return
   if (currentElement.data?.componentsInjected) return currentElement
   if (path === 'r' && currentElement.data) currentElement.data.componentsInjected = true
@@ -1443,7 +1441,7 @@ function injectComponents(currentElement, components, componentNames, path='r', 
   }
 }
 
-function getComponentIdFromElement(el, path, parentId) {
+function getComponentIdFromElement(el: any, path: string, parentId?: string): string {
   const sel    = el.sel
   const name   = typeof sel === 'string' ? sel : 'functionComponent'
   const props  = el.data?.props || {}
@@ -1454,16 +1452,16 @@ function getComponentIdFromElement(el, path, parentId) {
 }
 
 
-function deepCopyVdom(obj) {
+function deepCopyVdom(obj: any): any {
   if (typeof obj === 'undefined') return obj
   return { ...obj, children: Array.isArray(obj.children) ? obj.children.map(deepCopyVdom) : undefined, data: obj.data && { ...obj.data, componentsInjected: false } }
 }
 
-function propsIsEqual(obj1, obj2) {
+function propsIsEqual(obj1: any, obj2: any): boolean {
   return objIsEqual(sanitizeObject(obj1, sanitizeObject(obj2)))
 }
 
-function objIsEqual(obj1, obj2, maxDepth = 5, depth = 0) {
+function objIsEqual(obj1: any, obj2?: any, maxDepth: number = 5, depth: number = 0): boolean {
   // Base case: if the current depth exceeds maxDepth, return true
   if (depth > maxDepth) {
       return false;
@@ -1514,17 +1512,17 @@ function objIsEqual(obj1, obj2, maxDepth = 5, depth = 0) {
   return true;
 }
 
-function sanitizeObject(obj) {
+function sanitizeObject(obj: any): any {
   if (!isObj(obj)) return obj
   const {state, of, from, filter, ...sanitized} = obj
   return sanitized
 }
 
-function isObj(obj) {
+function isObj(obj: any): obj is Record<string, any> {
   return typeof obj === 'object' && obj !== null && !Array.isArray(obj)
 }
 
-function __baseSort(a, b, ascending=true) {
+function __baseSort(a: any, b: any, ascending: boolean = true): number {
   const direction = ascending ? 1 : -1
   switch(true) {
     case a > b: return 1 * direction
@@ -1533,7 +1531,7 @@ function __baseSort(a, b, ascending=true) {
   }
 }
 
-function __sortFunctionFromObj(item) {
+function __sortFunctionFromObj(item: Record<string, any>): ((a: any, b: any) => number) | undefined {
   const entries = Object.entries(item)
   if (entries.length > 1) {
     console.error('Sort objects can only have one key:', item)
@@ -1563,7 +1561,7 @@ function __sortFunctionFromObj(item) {
   return (a, b) => __baseSort(a[field], b[field], ascending)
 }
 
-function sortFunctionFromProp(sortProp) {
+function sortFunctionFromProp(sortProp: any): ((a: any, b: any) => number) | undefined {
   if (!sortProp) return undefined
   const propType = typeof sortProp
   // if function do nothing

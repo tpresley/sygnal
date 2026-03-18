@@ -7,7 +7,7 @@ import pkg from './package.json' with { type: "json" };
 export default [
 	// browser-friendly UMD build
 	{
-		input: 'src/index.js',
+		input: 'src/index.ts',
 		output: {
 			name: 'Sygnal',
 			file: "./dist/sygnal.min.js",
@@ -22,7 +22,7 @@ export default [
 	},
 
 	{
-		input: 'src/index.js',
+		input: 'src/index.ts',
 		external: ['@cycle/dom', 'snabbdom', 'xstream', 'xstream/extra/dropRepeats', 'xstream/extra/concat'],
 		output: [
 			{ file: pkg.main, format: 'cjs' },
