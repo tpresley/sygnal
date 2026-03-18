@@ -213,7 +213,8 @@ class SygnalDevTools {
     const entry = this._stateHistory[historyIndex];
     if (!entry) return;
 
-    const app = typeof window !== 'undefined' && window.__SYGNAL_DEVTOOLS_APP__;
+    if (typeof window === 'undefined') return;
+    const app = window.__SYGNAL_DEVTOOLS_APP__;
     if (app?.sinks?.STATE?.shamefullySendNext) {
       app.sinks.STATE.shamefullySendNext(() => ({...entry.state}));
       this._post('TIME_TRAVEL_APPLIED', {

@@ -1,4 +1,5 @@
 // TODO: stop using extend here
+// @ts-ignore — no type declarations for 'extend'
 import _extend from 'extend'
 
 import * as is from './is'

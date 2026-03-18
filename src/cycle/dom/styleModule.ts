@@ -108,7 +108,7 @@ function applyRemoveStyle(vnode: VNode, rm: () => void) {
     (elm.style as any)[name] = style[name];
   }
   const compStyle = getComputedStyle(elm);
-  const props = compStyle['transition-property'].split(', ');
+  const props = (compStyle as any)['transition-property'].split(', ');
   for (; i < props.length; ++i) {
     if (applied.indexOf(props[i]) !== -1) amount++;
   }

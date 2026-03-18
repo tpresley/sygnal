@@ -10,7 +10,7 @@
  */
 
 // Core
-export {h, Fragment as HFragment} from 'snabbdom/build/h';
+export {h, fragment as HFragment} from 'snabbdom/build/h';
 export {init} from 'snabbdom/build/init';
 export type {Options} from 'snabbdom/build/init';
 export {toVNode} from 'snabbdom/build/tovnode';

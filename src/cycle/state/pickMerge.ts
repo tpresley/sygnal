@@ -78,8 +78,8 @@ class PickMerge<Si, T> implements Operator<InternalInstances<Si>, T> {
     // add
     for (let i = 0; i < n; ++i) {
       const sinks = arrSinks[i];
-      const key = (sinks._key as any) as string;
-      const sink: Stream<any> = xs.fromObservable(sinks[sel] || xs.never());
+      const key = (sinks as any)._key as string;
+      const sink: Stream<any> = xs.fromObservable((sinks as any)[sel] || xs.never());
       if (!ils.has(key)) {
         ils.set(key, new PickMergeListener(out, this, sink));
         sink._add(ils.get(key) as PickMergeListener<Si, T>);

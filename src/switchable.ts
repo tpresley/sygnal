@@ -11,7 +11,7 @@ interface SwitchableOptions {
 
 export default function switchable(
   factories: Record<string, (sources: any) => any>,
-  name$: Stream<string> | string | ((state: any) => string),
+  name$: any,
   initial: string,
   opts: SwitchableOptions = {}
 ): (sources: any) => any {
@@ -66,7 +66,7 @@ export default function switchable(
 function _switchable(
   factories: Record<string, (sources: any) => any>,
   sources: any,
-  name$: Stream<string>,
+  name$: any,
   switched: string | string[] = ['DOM'],
   stateSourceName: string = 'STATE'
 ): Record<string, any> {

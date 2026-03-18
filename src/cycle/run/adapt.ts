@@ -1,6 +1,7 @@
 import {Stream} from 'xstream';
 
 declare var window: any;
+declare var global: any;
 
 function getGlobal(this: any): any {
   let globalObj: any;
@@ -13,7 +14,7 @@ function getGlobal(this: any): any {
   }
   globalObj.Cyclejs = globalObj.Cyclejs || {};
   globalObj = globalObj.Cyclejs;
-  globalObj.adaptStream = globalObj.adaptStream || ((x => x) as AdaptStream);
+  globalObj.adaptStream = globalObj.adaptStream || ((x: any) => x);
   return globalObj;
 }
 

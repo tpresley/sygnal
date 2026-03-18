@@ -14,6 +14,8 @@ const concat = resolveInteropDefault(concatModule);
 const debounce = resolveInteropDefault(debounceModule);
 const dropRepeats = resolveInteropDefault(dropRepeatsModule);
 
+declare var process: { env: Record<string, any> };
+
 const ENVIRONMENT: any =
   (typeof window != 'undefined' && window) || (typeof process !== 'undefined' && process.env) || {};
 
@@ -31,7 +33,7 @@ function wrapDOMSource(domSource: any): any {
       if (typeof prop === 'symbol' || prop in target) {
         return Reflect.get(target, prop, receiver)
       }
-      return (selector) => target.select(selector).events(prop)
+      return (selector: any) => target.select(selector).events(prop)
     }
   })
 }
@@ -56,7 +58,7 @@ function normalizeCalculatedEntry(field: string, entry: any): {fn: (...args: any
 export interface ComponentOptions {
   name?: string;
   sources?: Record<string, any>;
-  intent?: ((sources: Record<string, any>) => Stream<any> | Record<string, Stream<any>>) | Record<string, Stream<any>>;
+  intent?: ((sources: Record<string, any>) => any) | Record<string, any>;
   model?: Record<string, any>;
   hmrActions?: string | string[];
   context?: Record<string, boolean | ((state: any) => any)>;
@@ -96,13 +98,13 @@ export default function component(opts: ComponentOptions): any {
   let returnFunction
 
   if (isObj(fixedIsolateOpts)) {
-    const wrapped = (sources) => {
+    const wrapped = (sources: any) => {
       const fixedOpts = { ...opts, sources }
       return (new Component(fixedOpts)).sinks
     }
     returnFunction = currySources ? isolate(wrapped, fixedIsolateOpts) : isolate(wrapped, fixedIsolateOpts)(sources)
   } else {
-    returnFunction = currySources ? (sources) => (new Component({ ...opts, sources })).sinks : (new Component(opts)).sinks
+    returnFunction = currySources ? (sources: any) => (new Component({ ...opts, sources })).sinks : (new Component(opts)).sinks
   }
 
   returnFunction.componentName = name
@@ -152,9 +154,9 @@ class Component {
   sinks: any;
   log: any;
   addCalculated: (state: any) => any;
-  newChildSources: (sources: any) => void;
-  newSubComponentSinks: (sinks: any) => void;
-  triggerSubComponentsRendered: (() => void);
+  newChildSources!: (sources: any) => void;
+  newSubComponentSinks!: (sinks: any) => void;
+  triggerSubComponentsRendered!: (() => void);
   _calculatedNormalized: Record<string, {fn: (...args: any[]) => any; deps: string[] | null}> | null;
   _calculatedFieldNames: Set<string> | null;
   _calculatedOrder: Array<[string, {fn: (...args: any[]) => any; deps: string[] | null}]> | null;
@@ -225,18 +227,18 @@ class Component {
       }
 
       // Build adjacency: for each field, which other calculated fields must run first?
-      const calcDeps = {}
+      const calcDeps: Record<string, string[]> = {}
       for (const [field, { deps }] of Object.entries(this._calculatedNormalized)) {
         if (deps === null) {
           calcDeps[field] = []
         } else {
-          calcDeps[field] = deps.filter(d => this._calculatedFieldNames.has(d))
+          calcDeps[field] = deps.filter(d => this._calculatedFieldNames!.has(d))
         }
       }
 
       // Kahn's algorithm for topological sort
-      const inDegree = {}
-      const reverseGraph = {}
+      const inDegree: Record<string, number> = {}
+      const reverseGraph: Record<string, string[]> = {}
       for (const field of this._calculatedFieldNames) {
         inDegree[field] = 0
         reverseGraph[field] = []
@@ -253,9 +255,9 @@ class Component {
         if (degree === 0) queue.push(field)
       }
 
-      const sorted = []
+      const sorted: string[] = []
       while (queue.length > 0) {
-        const current = queue.shift()
+        const current: string = queue.shift()!
         sorted.push(current)
         for (const dependent of reverseGraph[current]) {
           inDegree[dependent]--
@@ -267,8 +269,8 @@ class Component {
         // Cycle detected — build error message with cycle path
         const inCycle = [...this._calculatedFieldNames].filter(f => !sorted.includes(f))
         const visited = new Set()
-        const path = []
-        const traceCycle = (node) => {
+        const path: string[] = []
+        const traceCycle = (node: any) => {
           if (visited.has(node)) { path.push(node); return true }
           visited.add(node)
           path.push(node)
@@ -285,7 +287,7 @@ class Component {
         throw new Error(`Circular calculated dependency: ${cycle.join(' \u2192 ')}`)
       }
 
-      this._calculatedOrder = sorted.map(f => [f, this._calculatedNormalized[f]])
+      this._calculatedOrder = sorted.map(f => [f, this._calculatedNormalized![f]])
 
       // Initialize per-field memoization caches for fields with declared deps
       this._calculatedFieldCache = {}
@@ -307,19 +309,19 @@ class Component {
 
     if (state$) {
       this.currentState = initialState || {}
-      this.sources[stateSourceName] = new StateSource(state$.map(val => {
+      this.sources[stateSourceName] = new StateSource(state$.map((val: any) => {
         this.currentState = val
         if (typeof window !== 'undefined' && window.__SYGNAL_DEVTOOLS__?.connected) {
           window.__SYGNAL_DEVTOOLS__.onStateChanged(this._componentNumber, this.name, val)
         }
         return val
-      }))
+      }), stateSourceName)
     }
 
     const props$ = sources.props$
     if (props$) {
-      this.sources.props$ = props$.map(val => {
-        const { sygnalFactory, sygnalOptions, ...sanitizedProps } = val
+      this.sources.props$ = props$.map((val: any) => {
+        const { sygnalFactory, sygnalOptions, ...sanitizedProps }: any = val
         this.currentProps = sanitizedProps
         return val
       })
@@ -327,7 +329,7 @@ class Component {
 
     const children$ = sources.children$
     if (children$) {
-      this.sources.children$ = children$.map(val => {
+      this.sources.children$ = children$.map((val: any) => {
         this.currentChildren = val
         return val
       })
@@ -341,9 +343,9 @@ class Component {
     // This is necessary to ensure that the component tree's state sink is subscribed to
     if (!this.isSubComponent && typeof this.intent === 'undefined' && typeof this.model === 'undefined') {
       this.initialState = initialState || true
-      this.intent = _ => ({__NOOP_ACTION__:xs.never()})
+      this.intent = (_: any) => ({__NOOP_ACTION__:xs.never()})
       this.model = {
-        __NOOP_ACTION__: state => state
+        __NOOP_ACTION__: (state: any) => state
       }
     }
 
@@ -400,7 +402,7 @@ class Component {
 
   initHmrActions(): void {
     if (typeof this.hmrActions === 'undefined') {
-      this.hmrAction$ = xs.of().filter(_ => false)
+      this.hmrAction$ = xs.of().filter((_: any) => false)
       return
     }
     if (typeof this.hmrActions === 'string') {
@@ -428,15 +430,15 @@ class Component {
       runner = this.intent$
     } else {
       const mapped = Object.entries(this.intent$)
-                           .map(([type, data$]) => data$.map(data => ({type, data})))
+                           .map(([type, data$]: [string, any]) => data$.map((data: any) => ({type, data})))
       runner = xs.merge(xs.never(), ...mapped)
     }
 
     const action$    = ((runner instanceof Stream) ? runner : (runner.apply && runner(this.sources) || xs.never()))
     const bootstrap$ = xs.of({ type: BOOTSTRAP_ACTION }).compose(delay(10))
     const _hmrUpdating = typeof window !== 'undefined' && window.__SYGNAL_HMR_UPDATING === true
-    const hmrAction$ = _hmrUpdating ? this.hmrAction$ : xs.of().filter(_ => false)
-    const wrapped$   = (this.model[BOOTSTRAP_ACTION] && !_hmrUpdating) ? concat(bootstrap$, action$) : concat(xs.of().compose(delay(1)).filter(_ => false), hmrAction$, action$)
+    const hmrAction$ = _hmrUpdating ? this.hmrAction$ : xs.of().filter((_: any) => false)
+    const wrapped$   = (this.model[BOOTSTRAP_ACTION] && !_hmrUpdating) ? concat(bootstrap$, action$) : concat(xs.of().compose(delay(1)).filter((_: any) => false), hmrAction$, action$)
 
 
     let initialApiData
@@ -447,11 +449,11 @@ class Component {
       initialApiData = xs.never()
     }
 
-    const hydrate$ = initialApiData.map(data => ({ type: HYDRATE_ACTION, data }))
+    const hydrate$ = initialApiData.map((data: any) => ({ type: HYDRATE_ACTION, data }))
 
     this.action$   = xs.merge(wrapped$, hydrate$)
-      .compose(this.log(({ type }) => `<${type}> Action triggered`))
-      .map(action => {
+      .compose(this.log(({ type }: any) => `<${type}> Action triggered`))
+      .map((action: any) => {
         if (typeof window !== 'undefined' && window.__SYGNAL_DEVTOOLS__?.connected) {
           window.__SYGNAL_DEVTOOLS__.onActionDispatched(
             this._componentNumber, this.name, action.type, action.data
@@ -465,7 +467,7 @@ class Component {
     if (this.model !== undefined) {
       if (this.model[INITIALIZE_ACTION] === undefined) {
         this.model[INITIALIZE_ACTION] = {
-          [this.stateSourceName]: (_, data) => ({ ...this.addCalculated(data) })
+          [this.stateSourceName]: (_: any, data: any) => ({ ...this.addCalculated(data) })
         }
       } else if (isObj(this.model[INITIALIZE_ACTION])) {
         Object.keys(this.model[INITIALIZE_ACTION]).forEach(name => {
@@ -490,7 +492,7 @@ class Component {
       console.error(`[${this.name}] Context must be an object mapping names to values of functions: ignoring provided ${ typeof this.context }`)
     }
     this.context$ = xs.combine(state$, parentContext$)
-      .map(([_, parent]) => {
+      .map(([_, parent]: [any, any]) => {
         const _parent = isObj(parent) ? parent : {}
         const context = isObj(this.context) ? this.context : {}
         const state = this.currentState
@@ -510,7 +512,7 @@ class Component {
           }
           acc[name] = _value
           return acc
-        }, {})
+        }, {} as Record<string, any>)
         const newContext = { ..._parent, ...values }
         this.currentContext = newContext
         if (typeof window !== 'undefined' && window.__SYGNAL_DEVTOOLS__?.connected) {
@@ -520,15 +522,15 @@ class Component {
       })
       .compose(dropRepeats(objIsEqual))
       .startWith({})
-    this.context$.subscribe({ next: _ => _, error: err => console.error(`[${this.name}] Error in context stream:`, err) })
+    this.context$.subscribe({ next: (_: any) => _, error: (err: any) => console.error(`[${this.name}] Error in context stream:`, err) })
   }
 
   initModel$(): void {
     if (typeof this.model == 'undefined') {
-      this.model$ = this.sourceNames.reduce((a,s) => {
+      this.model$ = this.sourceNames.reduce((a: Record<string, any>, s) => {
         a[s] = xs.never()
         return a
-      }, {})
+      }, {} as Record<string, any>)
       return
     }
 
@@ -547,10 +549,10 @@ class Component {
 
     const modelEntries = Object.entries(this.model)
 
-    const reducers = {}
+    const reducers: Record<string, any[]> = {}
 
     modelEntries.forEach((entry) => {
-      let [action, sinks] = entry
+      let [action, sinks]: [string, any] = entry
 
       if (typeof sinks === 'function') {
         sinks = { [this.stateSourceName]: sinks }
@@ -569,10 +571,10 @@ class Component {
         const isParentSink = (sink === PARENT_SINK_NAME)
 
         const on  = isStateSink ? onState() : onNormal()
-        const on$ = isParentSink ? on(action, reducer).map(value => ({ name: this.name, component: this.view, value })) : on(action, reducer)
+        const on$ = isParentSink ? on(action, reducer).map((value: any) => ({ name: this.name, component: this.view, value })) : on(action, reducer)
 
         const wrapped$ = on$
-          .compose(this.log(data => {
+          .compose(this.log((data: any) => {
             if (isStateSink) {
               return `<${action}> State reducer added`
             } else if (isParentSink) {
@@ -591,26 +593,26 @@ class Component {
       })
     })
 
-    const model$ = Object.entries(reducers).reduce((acc, entry) => {
+    const model$ = Object.entries(reducers).reduce((acc: Record<string, any>, entry: [string, any]) => {
       const [sink, streams] = entry
       acc[sink] = xs.merge(xs.never(), ...streams)
       return acc
-    }, {})
+    }, {} as Record<string, any>)
 
     this.model$ = model$
   }
 
   initPeers$(): void {
-    const initial = this.sourceNames.reduce((acc, name) => {
+    const initial: Record<string, any> = this.sourceNames.reduce((acc: Record<string, any>, name) => {
       if (name == this.DOMSourceName) {
         acc[name] = {}
       } else {
         acc[name] = []
       }
       return acc
-    }, {})
+    }, {} as Record<string, any>)
 
-    this.peers$ = Object.entries(this.peers).reduce((acc, [peerName, peerFactory]) => {
+    this.peers$ = Object.entries(this.peers).reduce((acc: Record<string, any>, [peerName, peerFactory]) => {
       const peer$ = peerFactory(this.sources)
       this.sourceNames.forEach(source => {
         if (source == this.DOMSourceName) {
@@ -624,53 +626,53 @@ class Component {
   }
 
   initChildSources$(): void {
-    let newSourcesNext
+    let newSourcesNext: any
     const childSources$ = xs.create({
-      start: listener => {
+      start: (listener: any) => {
         newSourcesNext = listener.next.bind(listener)
       },
-      stop: _ => {
+      stop: (_: any) => {
 
       }
-    }).map(sources => xs.merge(...sources)).flatten()
+    }).map((sources: any) => xs.merge(...sources)).flatten()
 
     this.sources[CHILD_SOURCE_NAME] = {
-      select: (nameOrComponent) => {
+      select: (nameOrComponent: any) => {
         const all$ = childSources$
         const filtered$ = typeof nameOrComponent === 'function'
-          ? all$.filter(entry => entry.component === nameOrComponent)
+          ? all$.filter((entry: any) => entry.component === nameOrComponent)
           : nameOrComponent
-            ? all$.filter(entry => entry.name === nameOrComponent)
+            ? all$.filter((entry: any) => entry.name === nameOrComponent)
             : all$
-        const unwrapped$ = filtered$.map(entry => entry.value)
+        const unwrapped$ = filtered$.map((entry: any) => entry.value)
         return unwrapped$
       }
     }
 
-    this.newChildSources = (sources) => {
+    this.newChildSources = (sources: any) => {
       if (typeof newSourcesNext === 'function') newSourcesNext(sources)
     }
   }
 
   initSubComponentSink$(): void {
     const subComponentSink$ = xs.create({
-      start: listener => {
+      start: (listener: any) => {
         this.newSubComponentSinks = listener.next.bind(listener)
       },
-      stop: _ => {
+      stop: (_: any) => {
 
       }
     })
-    subComponentSink$.subscribe({ next: _ => _, error: err => console.error(`[${this.name}] Error in sub-component sink stream:`, err) })
-    this.subComponentSink$ = subComponentSink$.filter(sinks => Object.keys(sinks).length > 0)
+    subComponentSink$.subscribe({ next: (_: any) => _, error: (err: any) => console.error(`[${this.name}] Error in sub-component sink stream:`, err) })
+    this.subComponentSink$ = subComponentSink$.filter((sinks: any) => Object.keys(sinks).length > 0)
   }
 
   initSubComponentsRendered$(): void {
     const stream = xs.create({
-      start: (listener) => {
+      start: (listener: any) => {
         this.triggerSubComponentsRendered = listener.next.bind(listener)
       },
-      stop: _ => {
+      stop: (_: any) => {
 
       }
     })
@@ -686,30 +688,30 @@ class Component {
     const renderParameters$ = this.collectRenderParameters()
 
     this.vdom$ = renderParameters$
-      .map(params => {
-        const { props, state, children, context, ...peers } = params
-        const { sygnalFactory, sygnalOptions, ...sanitizedProps} = props || {}
+      .map((params: any) => {
+        const { props, state, children, context, ...peers }: any = params
+        const { sygnalFactory, sygnalOptions, ...sanitizedProps}: any = props || {}
         return this.view({ ...sanitizedProps, state, children, context, peers }, state, context, peers)
       })
       .compose(this.log('View rendered'))
-      .map(vDom => vDom || { sel: 'div', data: {}, children: [] })
+      .map((vDom: any) => vDom || { sel: 'div', data: {}, children: [] })
       .compose(this.instantiateSubComponents.bind(this))
-      .filter(val => val !== undefined)
+      .filter((val: any) => val !== undefined)
       .compose(this.renderVdom.bind(this))
 
   }
 
   initSinks(): void {
-    this.sinks = this.sourceNames.reduce((acc, name) => {
+    this.sinks = this.sourceNames.reduce((acc: Record<string, any>, name) => {
       if (name == this.DOMSourceName) return acc
-      const subComponentSink$ = (this.subComponentSink$ && name !== PARENT_SINK_NAME) ? this.subComponentSink$.map(sinks => sinks[name]).filter(sink => !!sink).flatten() : xs.never()
+      const subComponentSink$ = (this.subComponentSink$ && name !== PARENT_SINK_NAME) ? this.subComponentSink$.map((sinks: any) => sinks[name]).filter((sink: any) => !!sink).flatten() : xs.never()
       if (name === this.stateSourceName) {
-        acc[name] = xs.merge((this.model$[name] || xs.never()), subComponentSink$, this.sources[this.stateSourceName].stream.filter(_ => false), ...(this.peers$[name] || []))
+        acc[name] = xs.merge((this.model$[name] || xs.never()), subComponentSink$, this.sources[this.stateSourceName].stream.filter((_: any) => false), ...(this.peers$[name] || []))
       } else {
         acc[name] = xs.merge((this.model$[name] || xs.never()), subComponentSink$, ...(this.peers$[name] || []))
       }
       return acc
-    }, {})
+    }, {} as Record<string, any>)
 
     this.sinks[this.DOMSourceName] = this.vdom$
     this.sinks[PARENT_SINK_NAME] = this.model$[PARENT_SINK_NAME] || xs.never()
@@ -718,12 +720,12 @@ class Component {
   makeOnAction(action$: any, isStateSink: boolean = true, rootAction$?: any): (name: string, reducer: any) => any {
     rootAction$ = rootAction$ || action$
     return (name, reducer) => {
-      const filtered$ = action$.filter(({type}) => type == name)
+      const filtered$ = action$.filter(({type}: any) => type == name)
 
       let returnStream$
       if (typeof reducer === 'function') {
-        returnStream$ = filtered$.map(action => {
-          const next = (type, data, delay=10) => {
+        returnStream$ = filtered$.map((action: any) => {
+          const next = (type: any, data: any, delay=10) => {
             if (typeof delay !== 'number') throw new Error(`[${this.name}] Invalid delay value provided to next() function in model action '${name}'. Must be a number in ms.`)
             // put the "next" action request at the end of the event loop so the "current" action completes first
             setTimeout(() => {
@@ -737,7 +739,7 @@ class Component {
 
           let data = action.data
           if (isStateSink) {
-            return (state) => {
+            return (state: any) => {
               const _state = this.isSubComponent ? this.currentState : state
               const enhancedState = this.addCalculated(_state)
               props.state = enhancedState
@@ -757,9 +759,9 @@ class Component {
             }
             throw new Error(`[${this.name}] Invalid reducer type for action '${name}': ${type}`)
           }
-        }).filter(result => result !== ABORT)
+        }).filter((result: any) => result !== ABORT)
       } else if (reducer === undefined || reducer === true) {
-        returnStream$ = filtered$.map(({data}) => data)
+        returnStream$ = filtered$.map(({data}: any) => data)
       } else {
         const value = reducer
         returnStream$ = filtered$.mapTo(value)
@@ -770,10 +772,10 @@ class Component {
   }
 
   createMemoizedAddCalculated(): (state: any) => any {
-    let lastState
-    let lastResult
+    let lastState: any
+    let lastResult: any
 
-    return function(state) {
+    return function(this: Component, state: any) {
       if (!this.calculated || !isObj(state) || Array.isArray(state)) return state
       if (state === lastState) {
         return lastResult
@@ -801,8 +803,8 @@ class Component {
       return
     }
 
-    const mergedState = { ...state }
-    const computedSoFar = {}
+    const mergedState: Record<string, any> = { ...state }
+    const computedSoFar: Record<string, any> = {}
 
     for (const [field, { fn, deps }] of this._calculatedOrder) {
       if (deps !== null && this._calculatedFieldCache) {
@@ -868,7 +870,7 @@ class Component {
     const state        = this.sources[this.stateSourceName]
     const renderParams = { ...this.peers$[this.DOMSourceName] }
 
-    const enhancedState = state && state.isolateSource(state, { get: state => this.addCalculated(state) })
+    const enhancedState = state && state.isolateSource(state, { get: (state: any) => this.addCalculated(state) })
     const stateStream   = (enhancedState && enhancedState.stream) || xs.never()
 
     
@@ -886,10 +888,10 @@ class Component {
       renderParams.context = this.context$.compose(dropRepeats(objIsEqual))
     }
 
-    const names   = []
-    const streams = []
+    const names: string[] = []
+    const streams: any[] = []
 
-    Object.entries(renderParams).forEach(([name, stream]) => {
+    Object.entries(renderParams).forEach(([name, stream]: [string, any]) => {
       names.push(name)
       streams.push(stream)
     })
@@ -897,15 +899,15 @@ class Component {
     const combined = xs.combine(...streams)
       .compose(debounce(1))
       // map the streams from an array back to an object with the render parameter names as the keys
-      .map(arr => {
-        const params = names.reduce((acc, name, index) => {
+      .map((arr: any) => {
+        const params = names.reduce((acc: Record<string, any>, name, index) => {
           acc[name] = arr[index]
           if (name === 'state') {
             acc[this.stateSourceName] = arr[index]
             acc.calculated = (arr[index] && this.getCalculatedValues(arr[index])) || {}
           }
           return acc
-        }, {})
+        }, {} as Record<string, any>)
         return params
       })
 
@@ -913,19 +915,19 @@ class Component {
   }
 
   instantiateSubComponents(vDom$: any): any {
-    return vDom$.fold((previousComponents, vDom) => {
+    return vDom$.fold((previousComponents: any, vDom: any) => {
       const componentNames  = Object.keys(this.components)
       const foundComponents = getComponents(vDom, componentNames)
       const entries         = Object.entries(foundComponents)
 
-      const rootEntry = { '::ROOT::': vDom }
+      const rootEntry: Record<string, any> = { '::ROOT::': vDom }
 
       if (entries.length === 0) {
         return rootEntry
       }
 
-      const sinkArrsByType = {}
-      const childSources = []
+      const sinkArrsByType: Record<string, any[]> = {}
+      const childSources: any[] = []
       let newInstanceCount = 0
 
       const newComponents =  entries.reduce((acc, [id, el]) => {
@@ -936,8 +938,8 @@ class Component {
         const isCollection = data.isCollection || false
         const isSwitchable = data.isSwitchable || false
 
-        const addSinks = (sinks) => {
-          Object.entries(sinks).forEach(([name, stream]) => {
+        const addSinks = (sinks: any) => {
+          Object.entries(sinks).forEach(([name, stream]: [string, any]) => {
             sinkArrsByType[name] ||= []
             if (name === PARENT_SINK_NAME) {
               childSources.push(stream)
@@ -983,11 +985,11 @@ class Component {
         return acc
       }, rootEntry)
 
-      const mergedSinksByType = Object.entries(sinkArrsByType).reduce((acc, [name, streamArr]) => {
+      const mergedSinksByType = Object.entries(sinkArrsByType).reduce((acc: Record<string, any>, [name, streamArr]: [string, any]) => {
         if (streamArr.length === 0) return acc
         acc[name] = streamArr.length === 1 ? streamArr[0] : xs.merge(...streamArr)
         return acc
-      }, {})
+      }, {} as Record<string, any>)
 
       this.newSubComponentSinks(mergedSinksByType)
       this.newChildSources(childSources)
@@ -1004,9 +1006,9 @@ class Component {
 
     const coordinated = this.sources[this.stateSourceName].stream
       .compose(dropRepeats(objIsEqual))
-      .map(state => remembered$)
+      .map((state: any) => remembered$)
       .flatten()
-      .debug(_ => this.triggerSubComponentsRendered())
+      .debug((_: any) => this.triggerSubComponentsRendered())
       .remember()
 
     return coordinated
@@ -1027,7 +1029,7 @@ class Component {
       // this debounce is important. it forces state and prop updates to happen at the same time
       // without this, changes to sort or filter won't happen properly
       .compose(debounce(1))
-      .map(([state, props]) => {
+      .map(([state, props]: [any, any]) => {
         if (props.filter !== arrayOperators.filter) {
           arrayOperators.filter = typeof props.filter === 'function' ? props.filter : undefined
         }
@@ -1038,7 +1040,7 @@ class Component {
         return isObj(state) ? this.addCalculated(state) : state
       })
 
-    const stateSource  = new StateSource(state$)
+    const stateSource  = new StateSource(state$, this.stateSourceName)
     const stateField   = props.from
     const collectionOf = props.of
     const idField      = props.idfield || 'id'
@@ -1063,28 +1065,28 @@ class Component {
     }
 
     const fieldLense = {
-      get: state => {
+      get: (state: any) => {
         if (!Array.isArray(state[stateField])) return []
         const items = state[stateField]
         const filtered = typeof arrayOperators.filter === 'function' ? items.filter(arrayOperators.filter) : items
         const sorted = typeof arrayOperators.sort === 'function' ? filtered.sort(arrayOperators.sort) : filtered
-        const mapped = sorted.map((item, index) => {
+        const mapped = sorted.map((item: any, index: any) => {
           return (isObj(item)) ? { ...item, [idField]: item[idField] || index } : { value: item, [idField]: index }
         })
 
         return mapped
       },
-      set: (oldState, newState) => {
+      set: (oldState: any, newState: any) => {
         if (this.calculated && stateField in this.calculated) {
           console.warn(`Collection sub-component of ${this.name} attempted to update state on a calculated field '${stateField}': Update ignored`)
           return oldState
         }
         const updated = []
-        for (const oldItem of oldState[stateField].map((item, index) => (isObj(item) ? { ...item, [idField]: item[idField] || index } : { __primitive: true, value: item, [idField]: index }))) {
+        for (const oldItem of oldState[stateField].map((item: any, index: any) => (isObj(item) ? { ...item, [idField]: item[idField] || index } : { __primitive: true, value: item, [idField]: index }))) {
           if (typeof arrayOperators.filter === 'function' && !arrayOperators.filter(oldItem)) {
             updated.push(oldItem.__primitive ? oldItem.value : oldItem)
           } else {
-            const newItem = newState.find(item => item[idField] === oldItem[idField])
+            const newItem = newState.find((item: any) => item[idField] === oldItem[idField])
             if (typeof newItem !== 'undefined') updated.push(oldItem.__primitive ? newItem.value : newItem)
           }
         }
@@ -1094,11 +1096,11 @@ class Component {
 
     if (stateField === undefined) {
       lense = {
-        get: state => {
+        get: (state: any) => {
           if (!(state instanceof Array) && state.value && state.value instanceof Array) return state.value
           return state
         },
-        set: (oldState, newState) => {
+        set: (oldState: any, newState: any) => {
           return newState
         }
       }
@@ -1127,7 +1129,7 @@ class Component {
         lense = undefined
       } else {
         lense = {
-          get: (state) => {
+          get: (state: any) => {
             const newState = stateField.get(state)
             if (!Array.isArray(newState)) {
               console.warn(`State getter function in collection component of ${this.name} did not return an array: No components will be instantiated in the collection. Returned value:`, newState)
@@ -1144,7 +1146,7 @@ class Component {
     }
 
     const sources = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$, __parentContext$: this.context$, PARENT: null, __parentComponentNumber: this._componentNumber }
-    const sink$   = collection(factory, lense, { container: null })(sources)
+    const sink$   = collection(factory, lense as any, { container: null as any })(sources)
     if (!isObj(sink$)) {
       throw new Error(`[${this.name}] Invalid sinks returned from component factory of collection element`)
     }
@@ -1156,17 +1158,17 @@ class Component {
     const props     = data.props  || {}
 
     const state$ = this.sources[this.stateSourceName].stream.startWith(this.currentState)
-      .map((state) => {
+      .map((state: any) => {
         return isObj(state) ? this.addCalculated(state) : state
       })
 
-    const stateSource = new StateSource(state$)
+    const stateSource = new StateSource(state$, this.stateSourceName)
     const stateField  = props.state
     let lense
 
     const fieldLense = {
-      get: state => state[stateField],
-      set: (oldState, newState) => {
+      get: (state: any) => state[stateField],
+      set: (oldState: any, newState: any) => {
         if (this.calculated && stateField in this.calculated) {
           console.warn(`Switchable sub-component of ${this.name} attempted to update state on a calculated field '${stateField}': Update ignored`)
           return oldState
@@ -1177,8 +1179,8 @@ class Component {
     }
 
     const baseLense = {
-      get: state => state,
-      set: (oldState, newState) => newState
+      get: (state: any) => state,
+      set: (oldState: any, newState: any) => newState
     }
 
     if (typeof stateField === 'undefined') {
@@ -1211,7 +1213,7 @@ class Component {
     })
     const sources = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$, __parentContext$: this.context$, __parentComponentNumber: this._componentNumber }
 
-    const sink$ = isolate(switchable(switchableComponents, props$.map(props => props.current)), { [this.stateSourceName]: lense })(sources)
+    const sink$ = isolate(switchable(switchableComponents, props$.map((props: any) => props.current), ''), { [this.stateSourceName]: lense })(sources)
 
     if (!isObj(sink$)) {
       throw new Error(`[${this.name}] Invalid sinks returned from component factory of switchable element`)
@@ -1226,11 +1228,11 @@ class Component {
     const props     = data.props  || {}
 
     const state$ = this.sources[this.stateSourceName].stream.startWith(this.currentState)
-      .map((state) => {
+      .map((state: any) => {
         return isObj(state) ? this.addCalculated(state) : state
       })
 
-    const stateSource = new StateSource(state$)
+    const stateSource = new StateSource(state$, this.stateSourceName)
     const stateField  = props.state
 
     if (typeof props.sygnalFactory !== 'function' && isObj(props.sygnalOptions)) {
@@ -1246,8 +1248,8 @@ class Component {
     let lense
 
     const fieldLense = {
-      get: state => state[stateField],
-      set: (oldState, newState) => {
+      get: (state: any) => state[stateField],
+      set: (oldState: any, newState: any) => {
         if (this.calculated && stateField in this.calculated) {
           console.warn(`Sub-component of ${this.name} attempted to update state on a calculated field '${stateField}': Update ignored`)
           return oldState
@@ -1257,8 +1259,8 @@ class Component {
     }
 
     const baseLense = {
-      get: state => state,
-      set: (oldState, newState) => newState
+      get: (state: any) => state,
+      set: (oldState: any, newState: any) => newState
     }
 
     if (typeof stateField === 'undefined') {
@@ -1282,7 +1284,7 @@ class Component {
 
     if (!isObj(sink$)) {
       const name = componentName === 'sygnal-factory' ? 'custom element' : componentName
-      throw new Error('Invalid sinks returned from component factory:', name)
+      throw new Error(`Invalid sinks returned from component factory: ${name}`)
     }
 
     return sink$
@@ -1291,7 +1293,7 @@ class Component {
   renderVdom(componentInstances$: any): any {
     return xs.combine(this.subComponentsRendered$, componentInstances$)
       .compose(debounce(1))
-      .map(([_, components]) => {
+      .map(([_, components]: [any, any]) => {
         const componentNames = Object.keys(this.components)
 
         const root  = components['::ROOT::']
@@ -1301,9 +1303,9 @@ class Component {
           return xs.of(root)
         }
 
-        const ids = []
+        const ids: string[] = []
         const vdom$ = entries
-          .map(([id, val]) => {
+          .map(([id, val]: [string, any]) => {
             ids.push(id)
             return val.sink$[this.DOMSourceName].startWith(undefined)
           })
@@ -1312,18 +1314,18 @@ class Component {
 
         return xs.combine(...vdom$)
           .compose(debounce(1))
-          .map(vdoms => {
-            const withIds = vdoms.reduce((acc, vdom, index) => {
+          .map((vdoms: any) => {
+            const withIds = vdoms.reduce((acc: Record<string, any>, vdom: any, index: any) => {
               acc[ids[index]] = vdom
               return acc
-            }, {})
+            }, {} as Record<string, any>)
             const rootCopy = deepCopyVdom(root)
             const injected = injectComponents(rootCopy, withIds, componentNames)
             return injected
           })
       })
       .flatten()
-      .filter(val => !!val)
+      .filter((val: any) => !!val)
       .remember()
   }
 
@@ -1349,7 +1351,7 @@ class Component {
  */
  function makeLog(context: string): any {
   return function (this: Component, msg: any, immediate: boolean = false) {
-    const fixedMsg = (typeof msg === 'function') ? msg : _ => msg
+    const fixedMsg = (typeof msg === 'function') ? msg : (_: any) => msg
     if (immediate) {
       if (this.debug) {
         const text = `[${context}] ${fixedMsg(msg)}`
@@ -1360,8 +1362,8 @@ class Component {
       }
       return
     } else {
-      return stream => {
-        return stream.debug(msg => {
+      return (stream: any) => {
+        return stream.debug((msg: any) => {
           if (this.debug) {
             const text = `[${context}] ${fixedMsg(msg)}`
             console.log(text)
@@ -1391,8 +1393,8 @@ function getComponents(currentElement: any, componentNames: string[], path: stri
   const attrs        = (currentElement.data && currentElement.data.attrs) || {}
   const children     = currentElement.children || []
 
-  let found    = {}
-  
+  let found: Record<string, any>    = {}
+
   let id = parentId
   if (isComponent) {
     id  = getComponentIdFromElement(currentElement, path, parentId)
@@ -1420,9 +1422,9 @@ function getComponents(currentElement: any, componentNames: string[], path: stri
   }
 
   if (children.length > 0) {
-    children.map((child, i) => getComponents(child, componentNames, `${path}.${i}`, id))
-            .forEach((child) => {
-              Object.entries(child).forEach(([id, el]) => found[id] = el)
+    children.map((child: any, i: any) => getComponents(child, componentNames, `${path}.${i}`, id))
+            .forEach((child: any) => {
+              Object.entries(child).forEach(([id, el]: [string, any]) => found[id] = el)
             })
   }
 
@@ -1456,7 +1458,7 @@ function injectComponents(currentElement: any, components: Record<string, any>, 
       return component
     }
   } else if (children.length > 0) {
-    currentElement.children = children.map((child, i) => injectComponents(child, components, componentNames, `${path}.${i}`, id)).flat()
+    currentElement.children = children.map((child: any, i: any) => injectComponents(child, components, componentNames, `${path}.${i}`, id)).flat()
     return currentElement
   } else {
     return currentElement
@@ -1480,7 +1482,7 @@ function deepCopyVdom(obj: any): any {
 }
 
 function propsIsEqual(obj1: any, obj2: any): boolean {
-  return objIsEqual(sanitizeObject(obj1, sanitizeObject(obj2)))
+  return objIsEqual(sanitizeObject(obj1), sanitizeObject(obj2))
 }
 
 function objIsEqual(obj1: any, obj2?: any, maxDepth: number = 5, depth: number = 0): boolean {
@@ -1600,7 +1602,7 @@ function sortFunctionFromProp(sortProp: any): ((a: any, b: any) => number) | und
   } else if (Array.isArray(sortProp)) {
     const sorters = sortProp.map(item => {
       if (typeof item === 'function') return item
-      if (typeof item === 'string' && !['asc', 'dec'].includes(item.toLowerCase())) return (a, b) => __baseSort(a[item], b[item], true)
+      if (typeof item === 'string' && !['asc', 'dec'].includes(item.toLowerCase())) return (a: any, b: any) => __baseSort(a[item], b[item], true)
       if (isObj(item)) {
         return __sortFunctionFromObj(item)
       }

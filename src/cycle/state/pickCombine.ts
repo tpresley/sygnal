@@ -86,7 +86,7 @@ class PickCombine<Si, R> implements Operator<InternalInstances<Si>, Array<R>> {
     const outArr: Array<R> = Array(n);
     for (let i = 0; i < n; ++i) {
       const sinks = arr[i];
-      const key = (sinks._key as any) as string;
+      const key = (sinks as any)._key as string;
       if (!ils.has(key)) {
         return;
       }
@@ -126,11 +126,11 @@ class PickCombine<Si, R> implements Operator<InternalInstances<Si>, Array<R>> {
     // add
     for (let i = 0; i < n; ++i) {
       const sinks = arrSinks[i];
-      const key = (sinks._key as any) as string;
-      if (!sinks[sel]) {
+      const key = (sinks as any)._key as string;
+      if (!(sinks as any)[sel]) {
         throw new Error('pickCombine found an undefined child sink stream');
       }
-      const sink: Stream<any> = xs.fromObservable(sinks[sel]);
+      const sink: Stream<any> = xs.fromObservable((sinks as any)[sel]);
       if (!ils.has(key)) {
         ils.set(key, new PickCombineListener(key, out, this, sink));
         sink._add(ils.get(key) as PickCombineListener<Si, R>);

@@ -29,7 +29,7 @@ export function withState<
       .fold((state, reducer) => reducer(state), void 0 as T | undefined)
       .drop(1);
     const innerSources: So = sources as any;
-    innerSources[name] = new StateSource<any>(state$, name);
+    (innerSources as any)[name] = new StateSource<any>(state$, name);
     const sinks = main(innerSources);
     if (sinks[name]) {
       const stream$ = concat(

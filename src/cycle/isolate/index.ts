@@ -49,22 +49,22 @@ function normalizeScopes<So>(
   randomScope: string
 ): ScopesPerChannel<So> {
   const perChannel = {} as ScopesPerChannel<So>;
-  Object.keys(sources).forEach(channel => {
+  Object.keys(sources as any).forEach(channel => {
     if (typeof scopes === 'string') {
-      perChannel[channel] = scopes;
+      (perChannel as any)[channel] = scopes;
       return;
     }
-    const candidate = (scopes as ScopesPerChannel<So>)[channel];
+    const candidate = (scopes as any)[channel];
     if (typeof candidate !== 'undefined') {
-      perChannel[channel] = candidate;
+      (perChannel as any)[channel] = candidate;
       return;
     }
     const wildcard = (scopes as WildcardScope)['*'];
     if (typeof wildcard !== 'undefined') {
-      perChannel[channel] = wildcard;
+      (perChannel as any)[channel] = wildcard;
       return;
     }
-    perChannel[channel] = randomScope;
+    (perChannel as any)[channel] = randomScope;
   });
   return perChannel;
 }
@@ -77,7 +77,7 @@ function isolateAllSources<So extends Sources>(
   for (const channel in outerSources) {
     const outerSource = outerSources[channel] as IsolateableSource;
     if (
-      outerSources.hasOwnProperty(channel) &&
+      Object.prototype.hasOwnProperty.call(outerSources, channel) &&
       outerSource &&
       scopes[channel] !== null &&
       typeof outerSource.isolateSource === 'function'
@@ -86,7 +86,7 @@ function isolateAllSources<So extends Sources>(
         outerSource,
         scopes[channel]
       ) as any;
-    } else if (outerSources.hasOwnProperty(channel)) {
+    } else if (Object.prototype.hasOwnProperty.call(outerSources, channel)) {
       innerSources[channel] = outerSources[channel];
     }
   }
@@ -103,7 +103,7 @@ function isolateAllSinks<So extends Sources, Si>(
     const source = sources[channel] as IsolateableSource;
     const innerSink = innerSinks[channel];
     if (
-      innerSinks.hasOwnProperty(channel) &&
+      Object.prototype.hasOwnProperty.call(innerSinks, channel) &&
       source &&
       scopes[channel] !== null &&
       typeof source.isolateSink === 'function'
@@ -111,7 +111,7 @@ function isolateAllSinks<So extends Sources, Si>(
       outerSinks[channel] = adapt(
         source.isolateSink(xs.fromObservable(innerSink as any), scopes[channel])
       );
-    } else if (innerSinks.hasOwnProperty(channel)) {
+    } else if (Object.prototype.hasOwnProperty.call(innerSinks, channel)) {
       outerSinks[channel] = innerSinks[channel];
     }
   }

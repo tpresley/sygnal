@@ -11,8 +11,8 @@ import {
 export function makeSinkProxies<D extends Drivers>(drivers: D): SinkProxies<D> {
   const sinkProxies: SinkProxies<D> = {} as SinkProxies<D>;
   for (const name in drivers) {
-    if (drivers.hasOwnProperty(name)) {
-      sinkProxies[name] = xs.create<any>();
+    if (Object.prototype.hasOwnProperty.call(drivers, name)) {
+      (sinkProxies as any)[name] = xs.create<any>();
     }
   }
   return sinkProxies;
@@ -24,10 +24,10 @@ export function callDrivers<D extends Drivers>(
 ): Sources<D> {
   const sources: Sources<D> = {} as Sources<D>;
   for (const name in drivers) {
-    if (drivers.hasOwnProperty(name)) {
-      sources[name as any] = (drivers[name] as any)(sinkProxies[name], name);
-      if (sources[name as any] && typeof sources[name as any] === 'object') {
-        (sources[name as any] as DevToolEnabledSource)._isCycleSource = name;
+    if (Object.prototype.hasOwnProperty.call(drivers, name)) {
+      (sources as any)[name] = (drivers[name] as any)((sinkProxies as any)[name], name);
+      if ((sources as any)[name] && typeof (sources as any)[name] === 'object') {
+        ((sources as any)[name] as DevToolEnabledSource)._isCycleSource = name;
       }
     }
   }
@@ -38,12 +38,12 @@ export function callDrivers<D extends Drivers>(
 export function adaptSources<So>(sources: So): So {
   for (const name in sources) {
     if (
-      sources.hasOwnProperty(name) &&
-      sources[name] &&
-      typeof ((sources[name] as any) as Stream<any>).shamefullySendNext ===
+      Object.prototype.hasOwnProperty.call(sources, name) &&
+      (sources as any)[name] &&
+      typeof ((sources as any)[name] as Stream<any>).shamefullySendNext ===
         'function'
     ) {
-      sources[name] = adapt((sources[name] as any) as Stream<any>);
+      (sources as any)[name] = adapt((sources as any)[name] as Stream<any>);
     }
   }
   return sources;
@@ -76,9 +76,9 @@ export function replicateMany<Si extends any>(
   sinks: Si,
   sinkProxies: SinkProxies<Si>
 ): DisposeFunction {
-  const sinkNames: Array<keyof Si> = Object.keys(sinks).filter(
-    name => !!sinkProxies[name]
-  );
+  const sinkNames: Array<keyof Si> = Object.keys(sinks as any).filter(
+    name => !!(sinkProxies as any)[name]
+  ) as Array<keyof Si>;
 
   let buffers: ReplicationBuffers<Si> = {} as ReplicationBuffers<Si>;
   const replicators: SinkReplicators<Si> = {} as SinkReplicators<Si>;
@@ -96,7 +96,7 @@ export function replicateMany<Si extends any>(
   );
 
   sinkNames.forEach(name => {
-    const listener = sinkProxies[name];
+    const listener = (sinkProxies as any)[name];
     const next = (x: any) => {
       queueMicrotask(() => listener._n(x));
     };
@@ -123,17 +123,17 @@ export function replicateMany<Si extends any>(
 }
 
 export function disposeSinkProxies<Si>(sinkProxies: SinkProxies<Si>) {
-  Object.keys(sinkProxies).forEach(name => sinkProxies[name]._c());
+  Object.keys(sinkProxies as any).forEach(name => (sinkProxies as any)[name]._c());
 }
 
 export function disposeSources<So>(sources: So) {
   for (const k in sources) {
     if (
-      sources.hasOwnProperty(k) &&
-      sources[k] &&
-      (sources[k] as any).dispose
+      Object.prototype.hasOwnProperty.call(sources, k) &&
+      (sources as any)[k] &&
+      (sources as any)[k].dispose
     ) {
-      (sources[k] as any).dispose();
+      (sources as any)[k].dispose();
     }
   }
 }

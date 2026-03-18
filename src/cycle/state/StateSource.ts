@@ -9,7 +9,7 @@ function updateArrayEntry<T>(
   scope: number | string,
   newVal: any
 ): Array<T> {
-  if (newVal === array[scope]) {
+  if (newVal === (array as any)[scope]) {
     return array;
   }
   const index = parseInt(scope as string);
@@ -21,11 +21,11 @@ function updateArrayEntry<T>(
 
 function makeGetter<T, R>(scope: Scope<T, R>): Getter<T, R> {
   if (typeof scope === 'string' || typeof scope === 'number') {
-    return function lensGet(state) {
-      if (typeof state === 'undefined') {
+    return function lensGet(state: T | undefined) {
+      if (typeof state === 'undefined' || state === null) {
         return void 0;
       } else {
-        return state[scope];
+        return (state as any)[scope];
       }
     };
   } else {
@@ -105,7 +105,7 @@ export class StateSource<S> {
    */
   public select<R>(scope: Scope<S, R>): StateSource<R> {
     const get = makeGetter(scope);
-    return new StateSource<R>(this._stream.map(get), this._name);
+    return new StateSource<R>(this._stream.map(get) as Stream<R>, this._name);
   }
 
   public isolateSource = isolateSource;
