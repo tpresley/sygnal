@@ -1,6 +1,29 @@
 import run from '../extra/run'
 
-function looksLikeSygnalComponent(Component) {
+interface SygnalComponent {
+  (args: any): any;
+  isSygnalComponent?: boolean;
+  model?: any;
+  intent?: any;
+  hmrActions?: any;
+  context?: any;
+  peers?: any;
+  components?: any;
+  initialState?: any;
+  calculated?: any;
+  storeCalculatedInState?: any;
+  DOMSourceName?: string;
+  stateSourceName?: string;
+  debug?: boolean;
+  componentName?: string;
+  name?: string;
+}
+
+interface AstroMetadata {
+  client?: string;
+}
+
+function looksLikeSygnalComponent(Component: any): Component is SygnalComponent {
   if (typeof Component !== 'function') return false
   return Boolean(
     Component.isSygnalComponent ||
@@ -11,8 +34,8 @@ function looksLikeSygnalComponent(Component) {
   )
 }
 
-export default (element) => {
-  return async (Component, props, _slotted, metadata) => {
+export default (element: any) => {
+  return async (Component: any, props: any, _slotted: any, metadata: AstroMetadata) => {
     if (!looksLikeSygnalComponent(Component)) return
 
     const mountPoint = element
@@ -26,7 +49,7 @@ export default (element) => {
       previous.dispose()
     }
 
-    const Wrapped = (args) => Component({ ...args, props: { ...(props || {}) } })
+    const Wrapped: any = (args: any) => Component({ ...args, props: { ...(props || {}) } })
     Wrapped.model = Component.model
     Wrapped.intent = Component.intent
     Wrapped.hmrActions = Component.hmrActions

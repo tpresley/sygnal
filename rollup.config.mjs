@@ -36,7 +36,7 @@ export default [
 	},
 
   {
-    input: 'src/jsx.js',
+    input: 'src/jsx.ts',
     external: ['extend'],
     output: [
       { file: pkg.exports['./jsx'].require, format: 'cjs' },
@@ -50,7 +50,7 @@ export default [
   },
 
   {
-    input: 'src/jsx-runtime.js',
+    input: 'src/jsx-runtime.ts',
     external: ['extend'],
     output: [
       { file: pkg.exports['./jsx-runtime'].require, format: 'cjs' },
@@ -64,7 +64,7 @@ export default [
   },
 
   {
-    input: 'src/jsx-dev-runtime.js',
+    input: 'src/jsx-dev-runtime.ts',
     external: ['extend'],
     output: [
       { file: pkg.exports['./jsx-dev-runtime'].require, format: 'cjs' },
@@ -78,7 +78,7 @@ export default [
   },
 
   {
-    input: 'src/astro/index.js',
+    input: 'src/astro/index.ts',
     external: [],
     output: [
       { file: pkg.exports['./astro'].require, format: 'cjs' },
@@ -92,7 +92,7 @@ export default [
   },
 
   {
-    input: 'src/astro/client.js',
+    input: 'src/astro/client.ts',
     external: ['@cycle/dom', 'xstream', 'snabbdom', 'xstream/extra/dropRepeats', 'xstream/extra/concat'],
     output: [
       { file: pkg.exports['./astro/client'].require, format: 'cjs' },
@@ -106,7 +106,7 @@ export default [
   },
 
   {
-    input: 'src/astro/server.js',
+    input: 'src/astro/server.ts',
     external: [],
     output: [
       { file: pkg.exports['./astro/server'].require, format: 'cjs' },

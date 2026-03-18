@@ -2,9 +2,7 @@
 import * as is from './is'
 import * as fn from './fn'
 
-// Const fnName = (...params) => guard ? default : ...
-
-const createTextElement = (text) => !is.text(text) ? undefined : {
+const createTextElement = (text: any): any => !is.text(text) ? undefined : {
   text,
   sel: undefined,
   data: undefined,
@@ -13,7 +11,7 @@ const createTextElement = (text) => !is.text(text) ? undefined : {
   key: undefined
 }
 
-const applySvg = (vnode) => {
+const applySvg = (vnode: any): any => {
   // Skip text vnodes (sel is undefined) and nullish values
   if (!vnode || is.undefinedv(vnode.sel)) return vnode
 
@@ -30,14 +28,14 @@ const applySvg = (vnode) => {
     // foreignObject contains HTML, not SVG — do not recurse into its children
     { children: (!Array.isArray(vnode.children) || vnode.sel === 'foreignObject')
       ? vnode.children
-      : vnode.children.map((child) => applySvg(child))
+      : vnode.children.map((child: any) => applySvg(child))
     }
   )
 }
 
-const considerSvg = (vnode) => !is.svg(vnode) ? vnode : applySvg(vnode)
+const considerSvg = (vnode: any): any => !is.svg(vnode) ? vnode : applySvg(vnode)
 
-const rewrites = {
+const rewrites: Record<string, string | null> = {
   for: 'attrs',
   role: 'attrs',
   tabindex: 'attrs',
@@ -45,10 +43,10 @@ const rewrites = {
   key: null
 }
 
-const rewriteModules = (data, modules) => fn.mapObject(data, (key, val) => {
+const rewriteModules = (data: any, modules: Record<string, any>): any => fn.mapObject(data, (key: string, val: any) => {
   const inner = { [key]: val }
-  if (rewrites[key] && modules[rewrites[key]] !== undefined) {
-    return { [rewrites[key]]: inner }
+  if (rewrites[key] && modules[rewrites[key] as string] !== undefined) {
+    return { [rewrites[key] as string]: inner }
   }
   if (rewrites[key] === null) {
     return {}
@@ -56,8 +54,8 @@ const rewriteModules = (data, modules) => fn.mapObject(data, (key, val) => {
   const keys = Object.keys(rewrites)
   for (let i = 0; i < keys.length; i++) {
     const k = keys[i]
-    if (k.charAt(k.length - 1) === '*' && key.indexOf(k.slice(0, -1)) === 0 && modules[rewrites[k]] !== undefined) {
-      return { [rewrites[k]]: inner }
+    if (k.charAt(k.length - 1) === '*' && key.indexOf(k.slice(0, -1)) === 0 && modules[rewrites[k] as string] !== undefined) {
+      return { [rewrites[k] as string]: inner }
     }
   }
   if (modules[key] !== undefined) {
@@ -69,7 +67,7 @@ const rewriteModules = (data, modules) => fn.mapObject(data, (key, val) => {
   return inner
 })
 
-const applyFocusProps = (data) => {
+const applyFocusProps = (data: any): any => {
   if (!data.props) return data
   const { autoFocus, autoSelect, ...rest } = data.props
   if (!autoFocus && !autoSelect) return data
@@ -78,7 +76,7 @@ const applyFocusProps = (data) => {
   const existingInsert = data.hook?.insert
   data.hook = {
     ...data.hook,
-    insert: (vnode) => {
+    insert: (vnode: any) => {
       if (existingInsert) existingInsert(vnode)
       if (vnode.elm && typeof vnode.elm.focus === 'function') {
         vnode.elm.focus()
@@ -91,18 +89,18 @@ const applyFocusProps = (data) => {
   return data
 }
 
-const sanitizeData = (data, modules) => applyFocusProps(rewriteModules(fn.deepifyKeys(data, modules), modules))
+const sanitizeData = (data: any, modules: Record<string, any>): any => applyFocusProps(rewriteModules(fn.deepifyKeys(data, modules), modules))
 
-const sanitizeText = (children) => children.length > 1 || !is.text(children[0]) ? undefined : children[0].toString()
+const sanitizeText = (children: any[]): string | undefined => children.length > 1 || !is.text(children[0]) ? undefined : children[0].toString()
 
-const sanitizeChildren = (children) => fn.reduceDeep(children, (acc, child) => {
+const sanitizeChildren = (children: any[]): any[] => fn.reduceDeep(children, (acc: any[], child: any) => {
   const vnode = is.vnode(child) ? child : createTextElement(child)
   acc.push(vnode)
   return acc
 }
 , [])
 
-const defaultModules = {
+const defaultModules: Record<string, string> = {
   attrs: '',
   props: '',
   class: '',
@@ -112,8 +110,8 @@ const defaultModules = {
   on: ''
 }
 
-export const createElementWithModules = (modules) => {
-  return (sel, data, ...children) => {
+export const createElementWithModules = (modules: Record<string, any>) => {
+  return (sel: any, data: any, ...children: any[]) => {
     if (typeof sel === 'undefined') {
       sel = 'UNDEFINED'
       console.error('JSX Error: Capitalized HTML element without corresponding factory function.  Components with names where the first letter is capital MUST be defined or included at the parent component\'s file scope.')
@@ -123,12 +121,12 @@ export const createElementWithModules = (modules) => {
         return sel(data || {}, children)
       }
       data ||= {}
-      if (!sel.isSygnalComponent) {
-        const name = sel.componentName || sel.label || sel.name || 'FUNCTION_COMPONENT'
+      if (!(sel as any).isSygnalComponent) {
+        const name = (sel as any).componentName || (sel as any).label || sel.name || 'FUNCTION_COMPONENT'
         const view = sel
-        const { model, intent, hmrActions, context, peers, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, debug, preventInstantiation } = sel
+        const { model, intent, hmrActions, context, peers, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, debug, preventInstantiation } = sel as any
         if (preventInstantiation) {
-          const text = sanitizeText(children, modules)
+          const text = sanitizeText(children)
           return considerSvg({
             sel: name,
             data: data ? sanitizeData(data, modules) : {},
@@ -143,11 +141,11 @@ export const createElementWithModules = (modules) => {
         sel = name
       } else {
         const factory = sel
-        sel = sel.componentName || sel.label || sel.name || 'sygnal-factory'
+        sel = (sel as any).componentName || (sel as any).label || sel.name || 'sygnal-factory'
         data.sygnalFactory = factory
       }
     }
-    const text = sanitizeText(children, modules)
+    const text = sanitizeText(children)
     return considerSvg({
       sel,
       data: data ? sanitizeData(data, modules) : {},

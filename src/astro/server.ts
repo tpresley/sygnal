@@ -1,4 +1,4 @@
-function looksLikeSygnalComponent(Component) {
+function looksLikeSygnalComponent(Component: any): boolean {
   if (typeof Component !== 'function') return false
   return Boolean(
     Component.isSygnalComponent ||
@@ -9,11 +9,11 @@ function looksLikeSygnalComponent(Component) {
   )
 }
 
-export function check(Component) {
+export function check(Component: any): boolean {
   return looksLikeSygnalComponent(Component)
 }
 
-export function renderToStaticMarkup() {
+export function renderToStaticMarkup(): { html: string; attrs: Record<string, any> } {
   return {
     html: '',
     attrs: {},

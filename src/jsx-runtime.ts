@@ -1,7 +1,7 @@
 import { createElement } from './pragma/index'
 export { Fragment } from 'snabbdom'
 
-export function jsx(type, props, key) {
+export function jsx(type: any, props: any, key?: any): any {
   if (props == null) return createElement(type, null)
   const { children, ...rest } = props
   if (key !== undefined) rest.key = key
