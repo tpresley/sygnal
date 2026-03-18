@@ -46,6 +46,7 @@ export default function run(
       storeCalculatedInState,
       DOMSourceName,
       stateSourceName,
+      onError,
       debug,
     } = app;
     const componentOptions = {
@@ -62,6 +63,7 @@ export default function run(
       storeCalculatedInState,
       DOMSourceName,
       stateSourceName,
+      onError,
       debug,
     };
 

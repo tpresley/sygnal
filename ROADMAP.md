@@ -8,16 +8,17 @@ Features identified by comparing React and Vue capabilities against Sygnal's fun
 
 ### 1. Error Boundaries
 
-**Status:** `NOT STARTED`
+**Status:** `DONE`
 
 Catch and recover from errors in child component rendering or lifecycle processing. Without this, a single broken child can crash the entire application. React's `componentDidCatch` and Vue's `onErrorCaptured` are essential for production resilience.
 
-**Implementation Plan:**
-- Add an `onError` static property to components: a function receiving `(error, componentInfo)` and returning fallback VNode(s)
-- Wrap the component's render cycle (view function call, sub-component instantiation) in a try/catch inside `src/component.ts`
-- On catch, render the fallback VNode instead of the failed subtree and emit an error event on the EVENTS bus with type `COMPONENT_ERROR`
-- Propagate uncaught errors upward through the component tree — parent error boundaries catch errors from any descendant, not just direct children
-- Provide a built-in `<ErrorBoundary fallback={<div>Error</div>}>` JSX wrapper component as syntactic sugar
+**Implementation:**
+- `onError` static property on components: a function receiving `(error, { componentName })` and returning fallback VNode(s)
+- View function call wrapped in try/catch — on error, renders fallback from `onError` or an empty `<div data-sygnal-error="ComponentName">`
+- Model reducers wrapped in try/catch — on error, returns previous state unchanged (state reducer) or ABORT (non-state reducer)
+- Sub-component instantiation wrapped in try/catch — on error, replaces failed child with fallback VNode
+- All errors logged to `console.error` with component name and context
+- `onError` handler errors are caught separately to prevent cascading failures
 
 ---
 

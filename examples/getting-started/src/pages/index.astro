@@ -5,6 +5,7 @@ import Greeter from '../components/Greeter.jsx'
 import CounterWithHeader from '../components/CounterWithHeader.jsx'
 import UserCardDemo from '../components/UserCardDemo.jsx'
 import CalculatedTest from '../components/CalculatedTest.jsx'
+import ErrorBoundaryDemo from '../components/ErrorBoundaryDemo.jsx'
 ---
 
 <html lang="en">
@@ -33,6 +34,7 @@ import CalculatedTest from '../components/CalculatedTest.jsx'
           <li><a href="#greeter">Working with User Input</a></li>
           <li><a href="#child-components">Adding Child Components</a></li>
           <li><a href="#state-passing">Passing State to Children</a></li>
+          <li><a href="#error-boundaries">Error Boundaries</a></li>
           <li><a href="#next-steps">Next Steps</a></li>
         </ol>
       </nav>
@@ -323,7 +325,74 @@ UserCardDemo.initialState = &#123;
         </p>
       </section>
 
-      <!-- ─── Section 7: Next Steps ─── -->
+      <!-- ─── Section 7: Error Boundaries ─── -->
+
+      <section id="error-boundaries">
+        <h2>Error Boundaries</h2>
+        <p>
+          In production, a single broken component shouldn't crash your entire app.
+          Sygnal's <code>.onError</code> static property catches errors in the view,
+          model reducers, and sub-component instantiation, rendering fallback UI instead.
+        </p>
+
+        <div class="example">
+          <div class="example-code">
+            <h3>Code</h3>
+            <pre><code>function BrokenCounter(&#123; state &#125;) &#123;
+  if (state.count >= 3) &#123;
+    throw new Error('Count too high!')
+  &#125;
+  return (
+    &lt;div&gt;
+      &lt;h1&gt;Count: &#123;state.count&#125;&lt;/h1&gt;
+      &lt;button className="increment"&gt;+&lt;/button&gt;
+    &lt;/div&gt;
+  )
+&#125;
+
+BrokenCounter.initialState = &#123; count: 0 &#125;
+
+BrokenCounter.intent = (&#123; DOM &#125;) =&gt; (&#123;
+  INCREMENT: DOM.select('.increment')
+    .events('click')
+&#125;)
+
+BrokenCounter.model = &#123;
+  INCREMENT: (state) =&gt;
+    (&#123; count: state.count + 1 &#125;)
+&#125;
+
+// Error boundary: render fallback UI
+BrokenCounter.onError = (error) =&gt; (
+  &lt;div className="error-fallback"&gt;
+    &lt;h2&gt;Something went wrong&lt;/h2&gt;
+    &lt;p&gt;&#123;error.message&#125;&lt;/p&gt;
+  &lt;/div&gt;
+)</code></pre>
+          </div>
+          <div class="example-demo">
+            <h3>Live Demo</h3>
+            <div class="demo-frame">
+              <ErrorBoundaryDemo client:load />
+            </div>
+          </div>
+        </div>
+
+        <p>
+          Click the <strong>+</strong> button until the count reaches 3. The view
+          throws, but instead of crashing, Sygnal catches the error and renders the
+          fallback from <code>.onError</code>. The error handler receives the
+          <code>Error</code> object and a <code>componentName</code> for diagnostics.
+        </p>
+        <p>
+          Error boundaries also protect <strong>model reducers</strong> &mdash; if a
+          reducer throws, the previous state is preserved. And if a
+          <strong>sub-component</strong> fails to instantiate, only that child is
+          replaced with the fallback.
+        </p>
+      </section>
+
+      <!-- ─── Section 8: Next Steps ─── -->
 
       <section id="next-steps">
         <h2>Next Steps</h2>

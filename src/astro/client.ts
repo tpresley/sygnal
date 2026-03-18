@@ -14,6 +14,7 @@ interface SygnalComponent {
   storeCalculatedInState?: any;
   DOMSourceName?: string;
   stateSourceName?: string;
+  onError?: (error: Error, info: { componentName: string }) => any;
   debug?: boolean;
   componentName?: string;
   name?: string;
@@ -61,6 +62,7 @@ export default (element: any) => {
     Wrapped.storeCalculatedInState = Component.storeCalculatedInState
     Wrapped.DOMSourceName = Component.DOMSourceName
     Wrapped.stateSourceName = Component.stateSourceName
+    Wrapped.onError = Component.onError
     Wrapped.debug = Component.debug
     Wrapped.componentName = Component.componentName || Component.name
 

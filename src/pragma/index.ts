@@ -124,7 +124,7 @@ export const createElementWithModules = (modules: Record<string, any>) => {
       if (!(sel as any).isSygnalComponent) {
         const name = (sel as any).componentName || (sel as any).label || sel.name || 'FUNCTION_COMPONENT'
         const view = sel
-        const { model, intent, hmrActions, context, peers, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, debug, preventInstantiation } = sel as any
+        const { model, intent, hmrActions, context, peers, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, onError, debug, preventInstantiation } = sel as any
         if (preventInstantiation) {
           const text = sanitizeText(children)
           return considerSvg({
@@ -136,7 +136,7 @@ export const createElementWithModules = (modules: Record<string, any>) => {
             key: data ? data.key : undefined
           })
         }
-        const options = { name, view, model, intent, hmrActions, context, peers, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, debug }
+        const options = { name, view, model, intent, hmrActions, context, peers, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, onError, debug }
         data.sygnalOptions = options
         sel = name
       } else {

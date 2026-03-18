@@ -73,6 +73,7 @@ export interface ComponentOptions {
   stateSourceName?: string;
   requestSourceName?: string;
   isolateOpts?: string | boolean | Record<string, any>;
+  onError?: (error: Error, info: { componentName: string }) => any;
   debug?: boolean;
 }
 
@@ -137,6 +138,7 @@ class Component {
   requestSourceName: string;
   sourceNames: string[];
   _debug: boolean;
+  onError: ((error: Error, info: { componentName: string }) => any) | undefined;
   isSubComponent: boolean;
   currentState: any;
   currentProps: any;
@@ -162,7 +164,7 @@ class Component {
   _calculatedOrder: Array<[string, {fn: (...args: any[]) => any; deps: string[] | null}]> | null;
   _calculatedFieldCache: Record<string, {lastDepValues: any; lastResult: any}> | null;
 
-  constructor({name = 'NO NAME', sources, intent, model, hmrActions, context, response, view, peers = {}, components = {}, initialState, calculated, storeCalculatedInState = true, DOMSourceName = 'DOM', stateSourceName = 'STATE', requestSourceName = 'HTTP', debug = false}: ComponentOptions) {
+  constructor({name = 'NO NAME', sources, intent, model, hmrActions, context, response, view, peers = {}, components = {}, initialState, calculated, storeCalculatedInState = true, DOMSourceName = 'DOM', stateSourceName = 'STATE', requestSourceName = 'HTTP', onError, debug = false}: ComponentOptions) {
     if (!sources || !isObj(sources)) throw new Error(`[${name}] Missing or invalid sources`)
 
     this._componentNumber = COMPONENT_COUNT++
@@ -184,6 +186,7 @@ class Component {
     this.stateSourceName   = stateSourceName
     this.requestSourceName = requestSourceName
     this.sourceNames       = Object.keys(sources)
+    this.onError           = onError
     this._debug            = debug
 
     // Warn if calculated fields shadow base state keys
@@ -691,7 +694,20 @@ class Component {
       .map((params: any) => {
         const { props, state, children, context, ...peers }: any = params
         const { sygnalFactory, sygnalOptions, ...sanitizedProps}: any = props || {}
-        return this.view({ ...sanitizedProps, state, children, context, peers }, state, context, peers)
+        try {
+          return this.view({ ...sanitizedProps, state, children, context, peers }, state, context, peers)
+        } catch (err) {
+          const error = err instanceof Error ? err : new Error(String(err))
+          console.error(`[${this.name}] Error in view:`, error)
+          if (typeof this.onError === 'function') {
+            try {
+              return this.onError(error, { componentName: this.name })
+            } catch (fallbackErr) {
+              console.error(`[${this.name}] Error in onError handler:`, fallbackErr)
+            }
+          }
+          return { sel: 'div', data: { attrs: { 'data-sygnal-error': this.name } }, children: [] }
+        }
       })
       .compose(this.log('View rendered'))
       .map((vDom: any) => vDom || { sel: 'div', data: {}, children: [] })
@@ -741,23 +757,33 @@ class Component {
           if (isStateSink) {
             return (state: any) => {
               const _state = this.isSubComponent ? this.currentState : state
-              const enhancedState = this.addCalculated(_state)
-              props.state = enhancedState
-              const newState = reducer(enhancedState, data, next, props)
-              if (newState === ABORT) return _state
-              return this.cleanupCalculated(newState)
+              try {
+                const enhancedState = this.addCalculated(_state)
+                props.state = enhancedState
+                const newState = reducer(enhancedState, data, next, props)
+                if (newState === ABORT) return _state
+                return this.cleanupCalculated(newState)
+              } catch (err) {
+                console.error(`[${this.name}] Error in model reducer '${name}':`, err)
+                return _state
+              }
             }
           } else {
-            const enhancedState = this.addCalculated(this.currentState)
-            props.state = enhancedState
-            const reduced = reducer(enhancedState, data, next, props)
-            const type = typeof reduced
-            if (isObj(reduced) || ['string', 'number', 'boolean', 'function'].includes(type)) return reduced
-            if (type === 'undefined') {
-              console.warn(`[${this.name}] 'undefined' value sent to ${name}`)
-              return reduced
+            try {
+              const enhancedState = this.addCalculated(this.currentState)
+              props.state = enhancedState
+              const reduced = reducer(enhancedState, data, next, props)
+              const type = typeof reduced
+              if (isObj(reduced) || ['string', 'number', 'boolean', 'function'].includes(type)) return reduced
+              if (type === 'undefined') {
+                console.warn(`[${this.name}] 'undefined' value sent to ${name}`)
+                return reduced
+              }
+              throw new Error(`[${this.name}] Invalid reducer type for action '${name}': ${type}`)
+            } catch (err) {
+              console.error(`[${this.name}] Error in model reducer '${name}':`, err)
+              return ABORT
             }
-            throw new Error(`[${this.name}] Invalid reducer type for action '${name}': ${type}`)
           }
         }).filter((result: any) => result !== ABORT)
       } else if (reducer === undefined || reducer === true) {
@@ -974,7 +1000,22 @@ class Component {
 
         newInstanceCount++
 
-        const sink$ = instantiator(el, props$, children$)
+        let sink$
+        try {
+          sink$ = instantiator(el, props$, children$)
+        } catch (err) {
+          const error = err instanceof Error ? err : new Error(String(err))
+          console.error(`[${this.name}] Error instantiating sub-component:`, error)
+          let fallbackVNode = { sel: 'div', data: { attrs: { 'data-sygnal-error': this.name } }, children: [] }
+          if (typeof this.onError === 'function') {
+            try {
+              fallbackVNode = this.onError(error, { componentName: this.name }) || fallbackVNode
+            } catch (fallbackErr) {
+              console.error(`[${this.name}] Error in onError handler:`, fallbackErr)
+            }
+          }
+          sink$ = { [this.DOMSourceName]: xs.of(fallbackVNode) }
+        }
 
         sink$[this.DOMSourceName] = sink$[this.DOMSourceName] ? this.makeCoordinatedSubComponentDomSink(sink$[this.DOMSourceName]) : xs.never()
 
@@ -1054,8 +1095,8 @@ class Component {
       } else {
         const name = collectionOf.componentName || collectionOf.label || collectionOf.name || 'FUNCTION_COMPONENT'
         const view = collectionOf
-        const { model, intent, hmrActions, context, peers, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, debug } = collectionOf
-        const options = { name, view, model, intent, hmrActions, context, peers, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, debug }
+        const { model, intent, hmrActions, context, peers, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, onError, debug } = collectionOf
+        const options = { name, view, model, intent, hmrActions, context, peers, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, onError, debug }
         factory = component(options)
       }
     } else if (this.components[collectionOf]) {
@@ -1206,8 +1247,8 @@ class Component {
       if (!current.isSygnalComponent) {
         const name = current.componentName || current.label || current.name || 'FUNCTION_COMPONENT'
         const view = current
-        const { model, intent, hmrActions, context, peers, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, debug } = current
-        const options = { name, view, model, intent, hmrActions, context, peers, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, debug }
+        const { model, intent, hmrActions, context, peers, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, onError, debug } = current
+        const options = { name, view, model, intent, hmrActions, context, peers, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, onError, debug }
         switchableComponents[key] = component(options)
       }
     })

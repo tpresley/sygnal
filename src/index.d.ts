@@ -245,6 +245,7 @@ export type Component<
   context?: Context<STATE & CALCULATED, CONTEXT>;
   peers?: { [name: string]: Component };
   components?: { [name: string]: Component };
+  onError?: (error: Error, info: { componentName: string }) => any;
   debug?: boolean;
 }
 

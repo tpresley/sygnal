@@ -95,7 +95,7 @@ export default [
 
   {
     input: 'src/astro/client.ts',
-    external: isExternal,
+    external: (id) => /^snabbdom(\/|$)/.test(id),
     output: [
       { file: pkg.exports['./astro/client'].require, format: 'cjs' },
       { file: pkg.exports['./astro/client'].import, format: 'es' }
