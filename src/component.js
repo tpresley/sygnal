@@ -1,9 +1,9 @@
 'use strict'
 
-import isolate from '@cycle/isolate'
+import isolate from './cycle/isolate/index'
 import collection from './collection.js'
 import switchable from './switchable.js'
-import { StateSource } from '@cycle/state'
+import { StateSource } from './cycle/state/index'
 
 import xs, { Stream, resolveInteropDefault } from './extra/xstreamCompat.js'
 import * as delayModule from 'xstream/extra/delay.js'

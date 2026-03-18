@@ -1,15 +1,18 @@
 {
   "compilerOptions": {
-    "target": "ES5",                       // Specify ECMAScript target version
-    "module": "ESNext",                    // Specify module code generation
+    "target": "ES2020",
+    "module": "ESNext",
     "moduleResolution": "bundler",
-    "declaration": true,                   // Generates corresponding '.d.ts' file
-    "emitDeclarationOnly": true,           // Only emit `.d.ts` declaration files
-    "outDir": "./dist",                    // Redirect output structure to the directory
-    "strict": true,                        // Enable all strict type-checking options
-    "baseUrl": ".",                        // Base directory to resolve non-relative module names
-    "rootDir": "./src"
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "outDir": "./dist",
+    "strict": true,
+    "baseUrl": ".",
+    "rootDir": "./src",
+    "allowJs": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true
   },
-  "include": ["src/index.d.ts"],           // Include your type definitions from 'src'
-  "exclude": ["node_modules", "dist"]      // Exclude unnecessary directories
+  "include": ["src/**/*.ts", "src/**/*.js"],
+  "exclude": ["node_modules", "dist"]
 }

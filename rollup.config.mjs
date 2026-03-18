@@ -1,6 +1,7 @@
 import resolve from '@rollup/plugin-node-resolve';
 import commonjs from '@rollup/plugin-commonjs';
 import terser from '@rollup/plugin-terser';
+import typescript from '@rollup/plugin-typescript';
 import pkg from './package.json' with { type: "json" };
 
 export default [
@@ -13,6 +14,7 @@ export default [
 			format: 'umd'
 		},
 		plugins: [
+			typescript({ tsconfig: './tsconfig.json' }),
 			resolve(),
 			commonjs(),
       terser({ maxWorkers: 1 })
@@ -21,12 +23,13 @@ export default [
 
 	{
 		input: 'src/index.js',
-		external: ['cycle', '@cycle/dom', '@cycle/isolate', '@cycle/run', '@cycle/state', 'snabbdom', 'xstream'],
+		external: ['@cycle/dom', 'snabbdom', 'xstream', 'xstream/extra/dropRepeats', 'xstream/extra/concat'],
 		output: [
 			{ file: pkg.main, format: 'cjs' },
 			{ file: pkg.module, format: 'es' }
 		],
 		plugins: [
+			typescript({ tsconfig: './tsconfig.json' }),
 			resolve(),
 			commonjs()
 		]
@@ -40,6 +43,7 @@ export default [
       { file: pkg.exports['./jsx'].import, format: 'es' }
     ],
 		plugins: [
+			typescript({ tsconfig: './tsconfig.json' }),
 			resolve(),
 			commonjs()
 		]
@@ -53,6 +57,7 @@ export default [
       { file: pkg.exports['./jsx-runtime'].import, format: 'es' }
     ],
 		plugins: [
+			typescript({ tsconfig: './tsconfig.json' }),
 			resolve(),
 			commonjs()
 		]
@@ -66,6 +71,7 @@ export default [
       { file: pkg.exports['./jsx-dev-runtime'].import, format: 'es' }
     ],
 		plugins: [
+			typescript({ tsconfig: './tsconfig.json' }),
 			resolve(),
 			commonjs()
 		]
@@ -79,6 +85,7 @@ export default [
       { file: pkg.exports['./astro'].import, format: 'es' }
     ],
 		plugins: [
+			typescript({ tsconfig: './tsconfig.json' }),
 			resolve(),
 			commonjs()
 		]
@@ -86,12 +93,13 @@ export default [
 
   {
     input: 'src/astro/client.js',
-    external: ['@cycle/run', '@cycle/state', '@cycle/dom', '@cycle/isolate', 'xstream', 'snabbdom'],
+    external: ['@cycle/dom', 'xstream', 'snabbdom', 'xstream/extra/dropRepeats', 'xstream/extra/concat'],
     output: [
       { file: pkg.exports['./astro/client'].require, format: 'cjs' },
       { file: pkg.exports['./astro/client'].import, format: 'es' }
     ],
 		plugins: [
+			typescript({ tsconfig: './tsconfig.json' }),
 			resolve(),
 			commonjs()
 		]
@@ -105,6 +113,7 @@ export default [
       { file: pkg.exports['./astro/server'].import, format: 'es' }
     ],
 		plugins: [
+			typescript({ tsconfig: './tsconfig.json' }),
 			resolve(),
 			commonjs()
 		]

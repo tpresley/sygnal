@@ -1,7 +1,7 @@
 'use strict'
 
-import isolate from '@cycle/isolate'
-import { makeCollection } from '@cycle/state'
+import isolate from './cycle/isolate/index'
+import { makeCollection } from './cycle/state/index'
 import { h } from '@cycle/dom'
 
 let COLLECTION_COUNT = 0
