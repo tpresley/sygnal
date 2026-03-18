@@ -1,4 +1,4 @@
-import {h, VNode, vnode as vnodeFn} from 'snabbdom';
+import {h, VNode, vnode as vnodeFn} from './snabbdom';
 import {isDocFrag} from './utils';
 
 function selectorParser(node: VNode) {

@@ -4,6 +4,8 @@ import terser from '@rollup/plugin-terser';
 import typescript from '@rollup/plugin-typescript';
 import pkg from './package.json' with { type: "json" };
 
+const isExternal = (id) => /^(snabbdom|xstream)(\/|$)/.test(id);
+
 export default [
 	// browser-friendly UMD build
 	{
@@ -23,7 +25,7 @@ export default [
 
 	{
 		input: 'src/index.ts',
-		external: ['snabbdom', 'xstream', 'xstream/extra/dropRepeats', 'xstream/extra/concat', 'xstream/extra/sampleCombine'],
+		external: isExternal,
 		output: [
 			{ file: pkg.main, format: 'cjs' },
 			{ file: pkg.module, format: 'es' }
@@ -93,7 +95,7 @@ export default [
 
   {
     input: 'src/astro/client.ts',
-    external: ['@cycle/dom', 'xstream', 'snabbdom', 'xstream/extra/dropRepeats', 'xstream/extra/concat'],
+    external: isExternal,
     output: [
       { file: pkg.exports['./astro/client'].require, format: 'cjs' },
       { file: pkg.exports['./astro/client'].import, format: 'es' }

@@ -5,7 +5,7 @@ import {adapt} from '../run/adapt';
 import {DOMSource, EventsFnOptions} from './DOMSource';
 import {DocumentDOMSource} from './DocumentDOMSource';
 import {BodyDOMSource} from './BodyDOMSource';
-import {VNode} from 'snabbdom';
+import {VNode} from './snabbdom';
 import {ElementFinder} from './ElementFinder';
 import {makeIsolateSink, getScopeObj, Scope, IsolateSink} from './isolate';
 import {IsolateModule} from './IsolateModule';

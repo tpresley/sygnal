@@ -1,8 +1,8 @@
 import {Stream, Producer, Listener} from 'xstream';
 
-export type Predicate = (ev: any) => boolean;
+export type Predicate = (ev: Event) => boolean;
+export type Comparator = Record<string, unknown>;
 export type PreventDefaultOpt = boolean | Predicate | Comparator;
-export type Comparator = {[key: string]: any};
 
 export function fromEvent(
   element: Element | Document,
@@ -30,22 +30,22 @@ export function fromEvent(
       });
     },
     stop: function stop() {
-      element.removeEventListener(eventName, next as any, useCapture);
+      element.removeEventListener(eventName, next as EventListener, useCapture);
       next = null;
     },
   } as Producer<Event>);
 }
 
-function matchObject(matcher: object, obj: object): boolean {
+function matchObject(matcher: Record<string, unknown>, obj: Record<string, unknown>): boolean {
   const keys = Object.keys(matcher);
   const n = keys.length;
   for (let i = 0; i < n; i++) {
     const k = keys[i];
-    if (typeof (matcher as any)[k] === 'object' && typeof (obj as any)[k] === 'object') {
-      if (!matchObject((matcher as any)[k], (obj as any)[k])) {
+    if (typeof matcher[k] === 'object' && matcher[k] !== null && typeof obj[k] === 'object' && obj[k] !== null) {
+      if (!matchObject(matcher[k] as Record<string, unknown>, obj[k] as Record<string, unknown>)) {
         return false;
       }
-    } else if ((matcher as any)[k] !== (obj as any)[k]) {
+    } else if (matcher[k] !== obj[k]) {
       return false;
     }
   }
@@ -53,7 +53,7 @@ function matchObject(matcher: object, obj: object): boolean {
 }
 
 export function preventDefaultConditional(
-  event: any,
+  event: Event,
   preventDefault: PreventDefaultOpt
 ): void {
   if (preventDefault) {
@@ -64,7 +64,7 @@ export function preventDefaultConditional(
         event.preventDefault();
       }
     } else if (typeof preventDefault === 'object') {
-      if (matchObject(preventDefault, event)) {
+      if (matchObject(preventDefault as Record<string, unknown>, event as unknown as Record<string, unknown>)) {
         event.preventDefault();
       }
     } else {
@@ -75,6 +75,6 @@ export function preventDefaultConditional(
   }
 }
 
-function isPredicate(fn: any): fn is Predicate {
+function isPredicate(fn: PreventDefaultOpt): fn is Predicate {
   return typeof fn === 'function';
 }

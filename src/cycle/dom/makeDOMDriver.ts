@@ -1,5 +1,5 @@
 import {Driver} from '../run/types';
-import {init, Module, Options as SnabbdomOptions, VNode, toVNode} from 'snabbdom';
+import {init, Module, Options as SnabbdomOptions, VNode, toVNode} from './snabbdom';
 import xs, {Stream, Listener} from 'xstream';
 import concat from 'xstream/extra/concat';
 import sampleCombine from 'xstream/extra/sampleCombine';
@@ -10,7 +10,7 @@ import defaultModules from './modules';
 import {IsolateModule} from './IsolateModule';
 import {EventDelegator} from './EventDelegator';
 
-function makeDOMDriverInputGuard(modules: any) {
+function makeDOMDriverInputGuard(modules: Array<Partial<Module>> | unknown) {
   if (!Array.isArray(modules)) {
     throw new Error(
       `Optional modules option must be an array for snabbdom modules`
@@ -33,7 +33,7 @@ function domDriverInputGuard(view$: Stream<VNode>): void {
 
 export interface DOMDriverOptions {
   modules?: Array<Partial<Module>>;
-  reportSnabbdomError?(err: any): void;
+  reportSnabbdomError?(err: unknown): void;
   snabbdomOptions?: SnabbdomOptions;
 }
 

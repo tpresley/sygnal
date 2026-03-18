@@ -81,7 +81,7 @@
   "homepage": "https://github.com/tpresley/sygnal#readme",
   "dependencies": {
     "extend": "^3.0.2",
-    "snabbdom": "~3.5.0",
+    "snabbdom": "^3.6.3",
     "xstream": "^11.14.0"
   },
   "devDependencies": {

@@ -1,5 +1,5 @@
 import { createElement } from './pragma/index'
-export { Fragment } from 'snabbdom'
+export { Fragment } from './cycle/dom/snabbdom'
 
 export function jsx(type: any, props: any, key?: any): any {
   if (props == null) return createElement(type, null)

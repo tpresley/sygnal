@@ -1,5 +1,5 @@
 import {Stream} from 'xstream';
-import {VNode} from 'snabbdom';
+import {VNode} from './snabbdom';
 import {isClassOrId} from './utils';
 
 export interface Scope {

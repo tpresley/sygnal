@@ -1,4 +1,5 @@
-import {Module, classModule, propsModule, attributesModule, styleModule, datasetModule} from 'snabbdom';
+import {Module, classModule, propsModule, attributesModule, datasetModule} from './snabbdom';
+import {styleModule} from './styleModule';
 
 const modules: Array<Module> = [
   styleModule,

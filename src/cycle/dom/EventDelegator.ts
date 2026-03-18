@@ -30,33 +30,55 @@ export interface CycleDOMEvent extends Event {
 }
 
 export const eventTypesThatDontBubble = [
+  // Focus
   `blur`,
+  `focus`,
+  // Mouse
+  `mouseenter`,
+  `mouseleave`,
+  // Pointer
+  `pointerenter`,
+  `pointerleave`,
+  `gotpointercapture`,
+  `lostpointercapture`,
+  // Media
   `canplay`,
   `canplaythrough`,
   `durationchange`,
   `emptied`,
   `ended`,
-  `focus`,
-  `load`,
   `loadeddata`,
   `loadedmetadata`,
-  `mouseenter`,
-  `mouseleave`,
   `pause`,
   `play`,
   `playing`,
   `ratechange`,
-  `reset`,
-  `scroll`,
   `seeked`,
   `seeking`,
   `stalled`,
-  `submit`,
   `suspend`,
   `timeupdate`,
-  `unload`,
   `volumechange`,
   `waiting`,
+  // Resource
+  `load`,
+  `unload`,
+  // Form
+  `invalid`,
+  `reset`,
+  `submit`,
+  `formdata`,
+  `toggle`,
+  // Animation / Transition
+  `animationstart`,
+  `animationend`,
+  `animationiteration`,
+  `transitionrun`,
+  `transitionstart`,
+  `transitionend`,
+  // Scroll
+  `scroll`,
+  `scrollend`,
 ];
 
 interface DOMListener {
@@ -575,7 +597,8 @@ export class EventDelegator {
         configurable: true,
       });
     } catch (err) {
-      console.log(`please use event.ownerTarget`);
+      // Some browsers don't allow redefining currentTarget.
+      // event.ownerTarget is always set as a reliable alternative.
     }
     event.ownerTarget = currentTargetElement;
   }

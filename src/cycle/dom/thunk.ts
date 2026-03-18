@@ -1,4 +1,4 @@
-import {h, VNode, VNodeData} from 'snabbdom';
+import {h, VNode, VNodeData} from './snabbdom';
 
 export interface ThunkData extends VNodeData {
   fn(): VNode;

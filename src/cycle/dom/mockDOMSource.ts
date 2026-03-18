@@ -1,6 +1,6 @@
 import xs, {Stream, MemoryStream} from 'xstream';
 import {DevToolEnabledSource, FantasyObservable} from '../run/types';
-import {VNode} from 'snabbdom';
+import {VNode} from './snabbdom';
 import {EventsFnOptions} from './DOMSource';
 import {adapt} from '../run/adapt';
 
