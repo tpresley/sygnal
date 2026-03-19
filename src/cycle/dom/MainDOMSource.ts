@@ -6,6 +6,7 @@ import {DOMSource, EventsFnOptions} from './DOMSource';
 import {DocumentDOMSource} from './DocumentDOMSource';
 import {BodyDOMSource} from './BodyDOMSource';
 import {VNode} from './snabbdom';
+import {enrichEventStream} from './enrichEventStream';
 import {ElementFinder} from './ElementFinder';
 import {makeIsolateSink, getScopeObj, Scope, IsolateSink} from './isolate';
 import {IsolateModule} from './IsolateModule';
@@ -128,7 +129,7 @@ export class MainDOMSource {
       bubbles
     );
 
-    const out: DevToolEnabledSource & Stream<Event> = adapt(event$);
+    const out: DevToolEnabledSource & Stream<Event> = enrichEventStream(adapt(event$));
     out._isCycleSource = this._name;
     return out;
   }
