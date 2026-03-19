@@ -26,6 +26,7 @@ const INITIALIZE_ACTION = 'INITIALIZE';
 const HYDRATE_ACTION = 'HYDRATE';
 const PARENT_SINK_NAME = 'PARENT';
 const CHILD_SOURCE_NAME = 'CHILD';
+const READY_SINK_NAME = 'READY';
 
 let COMPONENT_COUNT = 0;
 
@@ -181,6 +182,9 @@ class Component {
   _disposeListener: any;
   _dispose$: any;
   _activeSubComponents: Map<string, any>;
+  _childReadyState: Record<string, boolean>;
+  _readyChanged$: any;
+  _readyChangedListener: any;
 
   constructor({name = 'NO NAME', sources, intent, model, hmrActions, context, response, view, peers = {}, components = {}, initialState, calculated, storeCalculatedInState = true, DOMSourceName = 'DOM', stateSourceName = 'STATE', requestSourceName = 'HTTP', onError, debug = false}: ComponentOptions) {
     if (!sources || !isObj(sources)) throw new Error(`[${name}] Missing or invalid sources`)
@@ -372,6 +376,12 @@ class Component {
 
     this._subscriptions = []
     this._activeSubComponents = new Map()
+    this._childReadyState = {}
+    this._readyChangedListener = null
+    this._readyChanged$ = xs.create({
+      start: (listener: any) => { this._readyChangedListener = listener },
+      stop: () => {},
+    })
     this._disposeListener = null
     this._dispose$ = xs.create({
       start: (listener: any) => { this._disposeListener = listener },
@@ -795,6 +805,20 @@ class Component {
 
     this.sinks[this.DOMSourceName] = this.vdom$
     this.sinks[PARENT_SINK_NAME] = this.model$[PARENT_SINK_NAME] || xs.never()
+    // READY sink: if the component explicitly defined READY model entries, use them;
+    // otherwise auto-emit true. Check the raw model object, not model$ (which always has keys for all sources).
+    const hasExplicitReady = this.model && isObj(this.model) && Object.values(this.model).some(
+      (sinks: any) => {
+        if (isObj(sinks) && READY_SINK_NAME in sinks) return true
+        return false
+      }
+    )
+    if (hasExplicitReady) {
+      this.sinks[READY_SINK_NAME] = this.model$[READY_SINK_NAME]
+      this.sinks[READY_SINK_NAME].__explicitReady = true
+    } else {
+      this.sinks[READY_SINK_NAME] = xs.of(true)
+    }
   }
 
   makeOnAction(action$: any, isStateSink: boolean = true, rootAction$?: any): (name: string, reducer: any) => any {
@@ -1038,7 +1062,7 @@ class Component {
             sinkArrsByType[name] ||= []
             if (name === PARENT_SINK_NAME) {
               childSources.push(stream)
-            } else if (name !== this.DOMSourceName) {
+            } else if (name !== this.DOMSourceName && name !== READY_SINK_NAME) {
               sinkArrsByType[name].push(stream)
             }
           })
@@ -1108,6 +1132,7 @@ class Component {
         if (!currentIds.has(id)) {
           if (entry?.sink$?.__dispose) entry.sink$.__dispose()
           this._activeSubComponents.delete(id)
+          delete this._childReadyState[id]
         }
       })
 
@@ -1411,7 +1436,7 @@ class Component {
   }
 
   renderVdom(componentInstances$: any): any {
-    return xs.combine(this.subComponentsRendered$, componentInstances$)
+    return xs.combine(this.subComponentsRendered$, componentInstances$, this._readyChanged$.startWith(null))
       .compose(debounce(1))
       .map(([_, components]: [any, any]) => {
         const componentNames = Object.keys(this.components)
@@ -1420,7 +1445,7 @@ class Component {
         const entries = Object.entries(components).filter(([id]) => id !== '::ROOT::')
 
         if (entries.length === 0) {
-          return xs.of(root)
+          return xs.of(processSuspensePost(root))
         }
 
         const ids: string[] = []
@@ -1432,6 +1457,32 @@ class Component {
 
         if (vdom$.length === 0) return xs.of(root)
 
+        // Track READY state on the component instance (persists across folds)
+        for (const [id, val] of entries) {
+          if (this._childReadyState[id] !== undefined) continue // already tracking
+          const readySink = val.sink$[READY_SINK_NAME]
+          if (readySink) {
+            const isExplicit = readySink.__explicitReady
+            this._childReadyState[id] = isExplicit ? false : true
+            readySink.addListener({
+              next: (ready: any) => {
+                const wasReady = this._childReadyState[id]
+                this._childReadyState[id] = !!ready
+                // When READY state changes, trigger a re-render
+                if (wasReady !== !!ready && this._readyChangedListener) {
+                  setTimeout(() => {
+                    this._readyChangedListener?.next(null)
+                  }, 0)
+                }
+              },
+              error: () => {},
+              complete: () => {},
+            })
+          } else {
+            this._childReadyState[id] = true
+          }
+        }
+
         return xs.combine(...vdom$)
           .compose(debounce(1))
           .map((vdoms: any) => {
@@ -1440,8 +1491,8 @@ class Component {
               return acc
             }, {} as Record<string, any>)
             const rootCopy = deepCopyVdom(root)
-            const injected = injectComponents(rootCopy, withIds, componentNames)
-            return injected
+            const injected = injectComponents(rootCopy, withIds, componentNames, 'r', undefined, this._childReadyState)
+            return processSuspensePost(injected)
           })
       })
       .flatten()
@@ -1551,7 +1602,7 @@ function getComponents(currentElement: any, componentNames: string[], path: stri
   return found
 }
 
-function injectComponents(currentElement: any, components: Record<string, any>, componentNames: string[], path: string = 'r', parentId?: string): any {
+function injectComponents(currentElement: any, components: Record<string, any>, componentNames: string[], path: string = 'r', parentId?: string, readyMap?: Record<string, boolean>): any {
   if (!currentElement) return
   if (currentElement.data?.componentsInjected) return currentElement
   if (path === 'r' && currentElement.data) currentElement.data.componentsInjected = true
@@ -1567,7 +1618,13 @@ function injectComponents(currentElement: any, components: Record<string, any>, 
   let id = parentId
   if (isComponent) {
     id  = getComponentIdFromElement(currentElement, path, parentId)
-    const component = components[id]
+    let component = components[id]
+    // Annotate the injected VNode with its READY state
+    if (readyMap && id && component && typeof component === 'object' && component.sel) {
+      component.data = component.data || {}
+      component.data.attrs = component.data.attrs || {}
+      component.data.attrs['data-sygnal-ready'] = readyMap[id] !== false ? 'true' : 'false'
+    }
     if (isCollection) {
       currentElement.sel = 'div'
       currentElement.children = Array.isArray(component) ? component : [component]
@@ -1578,7 +1635,7 @@ function injectComponents(currentElement: any, components: Record<string, any>, 
       return component
     }
   } else if (children.length > 0) {
-    currentElement.children = children.map((child: any, i: any) => injectComponents(child, components, componentNames, `${path}.${i}`, id)).flat()
+    currentElement.children = children.map((child: any, i: any) => injectComponents(child, components, componentNames, `${path}.${i}`, id, readyMap)).flat()
     return currentElement
   } else {
     return currentElement
@@ -1595,6 +1652,50 @@ function getComponentIdFromElement(el: any, path: string, parentId?: string): st
   return fullId
 }
 
+
+function hasNotReadyChild(vnode: any): boolean {
+  if (!vnode || !vnode.sel) return false
+  // Check for data-sygnal-ready="false" on injected sub-components
+  if (vnode.data?.attrs?.['data-sygnal-ready'] === 'false') return true
+  // Check for lazy-loading placeholder (not yet instantiated as a component)
+  if (vnode.data?.attrs?.['data-sygnal-lazy'] === 'loading') return true
+  // Stop at inner Suspense boundaries — they handle their own children
+  if (vnode.sel === 'suspense') return false
+  if (Array.isArray(vnode.children)) {
+    for (const child of vnode.children) {
+      if (hasNotReadyChild(child)) return true
+    }
+  }
+  return false
+}
+
+function processSuspensePost(vnode: any): any {
+  if (!vnode || !vnode.sel) return vnode
+  if (vnode.sel === 'suspense') {
+    const props = vnode.data?.props || {}
+    const fallback = props.fallback
+    const children = vnode.children || []
+
+    // Check if any child within this boundary is not ready
+    const isPending = children.some(hasNotReadyChild)
+
+    if (isPending && fallback) {
+      // Render fallback
+      if (typeof fallback === 'string') {
+        return { sel: 'div', data: { attrs: { 'data-sygnal-suspense': 'pending' } }, children: [{ text: fallback }], text: undefined, elm: undefined, key: undefined }
+      }
+      return { sel: 'div', data: { attrs: { 'data-sygnal-suspense': 'pending' } }, children: [fallback], text: undefined, elm: undefined, key: undefined }
+    }
+
+    // All children ready or no fallback — render children directly
+    if (children.length === 1) return processSuspensePost(children[0])
+    return { sel: 'div', data: { attrs: { 'data-sygnal-suspense': 'resolved' } }, children: children.map((c: any) => processSuspensePost(c)), text: undefined, elm: undefined, key: undefined }
+  }
+  if (vnode.children && vnode.children.length > 0) {
+    vnode.children = vnode.children.map((c: any) => processSuspensePost(c))
+  }
+  return vnode
+}
 
 const portalPatch = snabbdomInit(defaultModules);
 

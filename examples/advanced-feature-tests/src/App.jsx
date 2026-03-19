@@ -1,6 +1,7 @@
-import { Portal, lazy, Collection } from 'sygnal'
+import { Portal, Suspense, lazy, Collection } from 'sygnal'
 import DisposableChild from './DisposableChild.jsx'
 import TickItem from './TickItem.jsx'
+import SlowComponent from './SlowComponent.jsx'
 
 const LazyComponent = lazy(() => import('./LazyTest.jsx'))
 
@@ -63,6 +64,30 @@ function App({ state } = {}) {
         </div>
         <Collection of={TickItem} from="items" />
       </section>
+
+      {/* Test 5: Suspense */}
+      <section className="test-section">
+        <h2>Test 5: Suspense (READY sink)</h2>
+        <p>The component emits READY after 3 seconds. Suspense shows a fallback until it signals ready.</p>
+        <div className="controls">
+          <button type="button" className="toggle-suspense">
+            {state.showSuspense ? 'Unload' : 'Load'} Slow Component
+          </button>
+        </div>
+        {state.showSuspense && (
+          <Suspense fallback={
+            <div style={{
+              padding: '16px', background: '#fff8e1', borderRadius: '8px',
+              border: '1px solid #ffe082', display: 'flex', alignItems: 'center', gap: '12px',
+            }}>
+              <span className="spinner" />
+              <span>Loading slow component… (3 second delay)</span>
+            </div>
+          }>
+            <SlowComponent />
+          </Suspense>
+        )}
+      </section>
     </div>
   )
 }
@@ -71,6 +96,7 @@ App.initialState = {
   showInternal: false,
   showLazy: false,
   showDisposable: false,
+  showSuspense: false,
   internalClicks: 0,
   items: [],
   nextItemId: 1,
@@ -80,6 +106,7 @@ App.intent = ({ DOM, EVENTS }) => ({
   TOGGLE_INTERNAL: DOM.select('.toggle-internal').events('click'),
   TOGGLE_LAZY: DOM.select('.toggle-lazy').events('click'),
   TOGGLE_DISPOSE: DOM.select('.toggle-dispose').events('click'),
+  TOGGLE_SUSPENSE: DOM.select('.toggle-suspense').events('click'),
   INTERNAL_CLICK: DOM.select('.internal-btn').events('click'),
   ADD_ITEM: DOM.select('.add-item').events('click'),
   REMOVE_ITEM: EVENTS.select('REMOVE_ITEM'),
@@ -89,6 +116,7 @@ App.model = {
   TOGGLE_INTERNAL: (state) => ({ ...state, showInternal: !state.showInternal }),
   TOGGLE_LAZY: (state) => ({ ...state, showLazy: !state.showLazy }),
   TOGGLE_DISPOSE: (state) => ({ ...state, showDisposable: !state.showDisposable }),
+  TOGGLE_SUSPENSE: (state) => ({ ...state, showSuspense: !state.showSuspense }),
   INTERNAL_CLICK: (state) => ({ ...state, internalClicks: state.internalClicks + 1 }),
   ADD_ITEM: (state) => ({
     ...state,

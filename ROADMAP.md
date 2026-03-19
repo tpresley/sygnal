@@ -107,16 +107,22 @@ Run cleanup logic when a component unmounts — close WebSocket connections, cle
 
 ### 7. Suspense (Loading States)
 
-**Status:** `NOT STARTED`
+**Status:** `DONE`
 
 Show fallback UI while waiting for async children to resolve. Pairs with lazy-loaded components and async data fetching to provide a declarative loading experience.
 
-**Implementation Plan:**
-- Create a `<Suspense fallback={<Loading />}>` JSX component (`src/extra/suspense.ts`)
-- Child components signal "pending" status via a stream or by being a lazy wrapper that hasn't resolved yet
-- Suspense renders the fallback VNode until all children signal ready, then swaps to the real content
-- Track pending count: increment when a lazy child starts loading, decrement when it resolves
-- Integrate with the Transition component to animate the swap from fallback to content
+**Implementation:**
+- `<Suspense fallback={<Loading />}>children</Suspense>` JSX component (`src/suspense.ts`) with `preventInstantiation` pattern
+- Built-in `READY` sink: components emit boolean values to control Suspense visibility
+- Components without explicit `READY` model entries auto-emit `READY: true` on instantiation
+- Components with `READY` model entries start as not-ready; emit `READY: true` when loading completes
+- `processSuspensePost()` runs after sub-component injection in `renderVdom`, checking `data-sygnal-ready` attributes
+- READY state tracked on parent Component instance (`_childReadyState`), persists across render cycles
+- READY changes trigger parent re-render via dedicated `_readyChanged$` stream for seamless fallback→content transitions
+- Also detects `data-sygnal-lazy="loading"` placeholders from lazy-loaded components within Suspense boundaries
+- Cleared `_childReadyState` entries on component disposal for correct re-mount behavior
+- Nested Suspense boundaries respected — inner `<Suspense>` catches its own children without triggering outer boundary
+- Supports VNode or string fallback props
 
 ---
 

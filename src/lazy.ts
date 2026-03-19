@@ -20,7 +20,7 @@ export function lazy(loadFn: () => Promise<any>): any {
   }
 
   // Start loading eagerly and copy static properties when done
-  loadFn()
+  const loadPromise = loadFn()
     .then((mod: any) => {
       cachedComponent = mod.default || mod;
       // Copy static properties so the component works on next render
@@ -37,6 +37,12 @@ export function lazy(loadFn: () => Promise<any>): any {
       loadError = err;
       console.error('[lazy] Failed to load component:', err);
     });
+
+  // Expose lazy loading metadata for Suspense detection
+  (LazyWrapper as any).__sygnalLazy = true;
+  (LazyWrapper as any).__sygnalLazyLoaded = () => cachedComponent !== null;
+  (LazyWrapper as any).__sygnalLazyPromise = loadPromise;
+  (LazyWrapper as any).__sygnalLazyReRenderScheduled = false;
 
   return LazyWrapper;
 }
