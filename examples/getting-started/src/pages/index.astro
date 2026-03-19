@@ -8,6 +8,7 @@ import CalculatedTest from '../components/CalculatedTest.jsx'
 import ErrorBoundaryDemo from '../components/ErrorBoundaryDemo.jsx'
 import RefDemo from '../components/RefDemo.jsx'
 import PortalDemo from '../components/PortalDemo.jsx'
+import TransitionDemo from '../components/TransitionDemo.jsx'
 ---
 
 <html lang="en">
@@ -39,6 +40,7 @@ import PortalDemo from '../components/PortalDemo.jsx'
           <li><a href="#error-boundaries">Error Boundaries</a></li>
           <li><a href="#refs">Refs (DOM Access)</a></li>
           <li><a href="#portals">Portals</a></li>
+          <li><a href="#transitions">Transitions</a></li>
           <li><a href="#next-steps">Next Steps</a></li>
         </ol>
       </nav>
@@ -554,7 +556,83 @@ PortalDemo.model = &#123;
         </p>
       </section>
 
-      <!-- ─── Section 10: Next Steps ─── -->
+      <!-- ─── Section 10: Transitions ─── -->
+
+      <section id="transitions">
+        <h2>Transitions</h2>
+        <p>
+          The <code>&lt;Transition&gt;</code> component applies CSS classes during
+          enter and leave phases, giving you declarative control over animations
+          without imperative DOM manipulation.
+        </p>
+
+        <div class="example">
+          <div class="example-code">
+            <h3>Code</h3>
+            <pre><code>import &#123; Transition &#125; from 'sygnal'
+
+function TransitionDemo(&#123; state &#125;) &#123;
+  return (
+    &lt;div&gt;
+      &lt;button className="fade-toggle"&gt;
+        &#123;state.show ? 'Hide' : 'Show'&#125;
+      &lt;/button&gt;
+      &#123;state.show &amp;&amp; (
+        &lt;Transition name="fade"&gt;
+          &lt;div className="fade-box"&gt;
+            &lt;p&gt;This content fades
+              in and out.&lt;/p&gt;
+          &lt;/div&gt;
+        &lt;/Transition&gt;
+      )&#125;
+    &lt;/div&gt;
+  )
+&#125;
+
+TransitionDemo.initialState = &#123;
+  show: false
+&#125;
+
+TransitionDemo.intent = (&#123; DOM &#125;) =&gt; (&#123;
+  TOGGLE: DOM.select('.fade-toggle')
+    .events('click'),
+&#125;)
+
+TransitionDemo.model = &#123;
+  TOGGLE: (state) =&gt;
+    (&#123; show: !state.show &#125;),
+&#125;
+
+/* CSS */
+.fade-enter-active,
+.fade-leave-active &#123;
+  transition: opacity 0.3s ease;
+&#125;
+.fade-enter-from,
+.fade-leave-to &#123;
+  opacity: 0;
+&#125;</code></pre>
+          </div>
+          <div class="example-demo">
+            <h3>Live Demo</h3>
+            <div class="demo-frame">
+              <TransitionDemo client:load />
+            </div>
+          </div>
+        </div>
+
+        <p>
+          The <code>name</code> prop sets the CSS class prefix. When the child
+          enters, Sygnal adds <code>.fade-enter-from</code> and
+          <code>.fade-enter-active</code>, then swaps to
+          <code>.fade-enter-to</code> on the next frame. On leave, it follows the
+          same pattern with <code>.fade-leave-*</code> classes and waits for
+          <code>transitionend</code> before removing the element. Use the
+          <code>duration</code> prop to set an explicit timeout in milliseconds.
+        </p>
+      </section>
+
+      <!-- ─── Section 11: Next Steps ─── -->
 
       <section id="next-steps">
         <h2>Next Steps</h2>

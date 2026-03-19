@@ -57,17 +57,17 @@ Render component output into a DOM node outside the component's own mount point.
 
 ### 4. Transition / Animation Components
 
-**Status:** `NOT STARTED`
+**Status:** `DONE`
 
 Declarative enter/leave animations for conditionally rendered elements and collection items. Snabbdom already supports `delayed` and `remove` style hooks, but there's no high-level component to orchestrate CSS class-based transitions.
 
-**Implementation Plan:**
-- Create a `<Transition name="fade">` wrapper component (`src/extra/transition.ts`) that applies CSS classes during enter/leave phases
-- Enter: apply `.fade-enter-from` on insert, swap to `.fade-enter-to` on next frame (via `requestAnimationFrame`), remove classes after `transitionend`
-- Leave: apply `.fade-leave-from`, swap to `.fade-leave-to`, delay VNode removal until `transitionend` fires (use snabbdom's `remove` hook)
-- Support props: `name` (class prefix), `duration` (explicit ms override), `appear` (animate on initial render), `mode` (`in-out` or `out-in`)
-- For collection items, create `<TransitionGroup>` that tracks entering/leaving items and applies the same class lifecycle per item
-- Leverage snabbdom's existing `delayed`, `remove`, and `destroy` style hooks internally
+**Implementation:**
+- `<Transition name="fade">` wrapper component (`src/transition.ts`) applies CSS classes during enter/leave phases
+- Enter: `.fade-enter-from` + `.fade-enter-active` on insert, swap to `.fade-enter-to` on next frame (double rAF), remove classes after `transitionend`
+- Leave: `.fade-leave-from` + `.fade-leave-active`, swap to `.fade-leave-to`, delay VNode removal until `transitionend` fires via snabbdom's `remove` hook
+- Props: `name` (class prefix, default `'v'`), `duration` (explicit ms override)
+- No wrapper div — hooks are applied directly to the child VNode
+- Processed in the rendering pipeline via `processTransitions()` (same pattern as `processPortals()`)
 
 ---
 

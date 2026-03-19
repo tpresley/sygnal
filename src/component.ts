@@ -714,6 +714,7 @@ class Component {
       .compose(this.log('View rendered'))
       .map((vDom: any) => vDom || { sel: 'div', data: {}, children: [] })
       .map(processPortals)
+      .map(processTransitions)
       .compose(this.instantiateSubComponents.bind(this))
       .filter((val: any) => val !== undefined)
       .compose(this.renderVdom.bind(this))
@@ -1534,6 +1535,79 @@ function processPortals(vnode: any): any {
   }
   return vnode
 }
+
+function processTransitions(vnode: any): any {
+  if (!vnode || !vnode.sel) return vnode
+  if (vnode.sel === 'transition') {
+    const props = vnode.data?.props || {}
+    const name = props.name || 'v'
+    const duration = props.duration
+    const children = vnode.children || []
+    const child = children[0]
+    if (!child || !child.sel) return child || vnode
+    return applyTransitionHooks(processTransitions(child), name, duration)
+  }
+  if (vnode.children && vnode.children.length > 0) {
+    vnode.children = vnode.children.map(processTransitions)
+  }
+  return vnode
+}
+
+function applyTransitionHooks(vnode: any, name: string, duration?: number): any {
+  const existingInsert = vnode.data?.hook?.insert
+  const existingRemove = vnode.data?.hook?.remove
+
+  vnode.data = vnode.data || {}
+  vnode.data.hook = vnode.data.hook || {}
+
+  vnode.data.hook.insert = (vn: any) => {
+    if (existingInsert) existingInsert(vn)
+    const el = vn.elm
+    if (!el || !el.classList) return
+    el.classList.add(`${name}-enter-from`, `${name}-enter-active`)
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        el.classList.remove(`${name}-enter-from`)
+        el.classList.add(`${name}-enter-to`)
+        onTransitionEnd(el, duration, () => {
+          el.classList.remove(`${name}-enter-active`, `${name}-enter-to`)
+        })
+      })
+    })
+  }
+
+  vnode.data.hook.remove = (vn: any, rm: () => void) => {
+    if (existingRemove) existingRemove(vn, () => {})
+    const el = vn.elm
+    if (!el || !el.classList) { rm(); return }
+    el.classList.add(`${name}-leave-from`, `${name}-leave-active`)
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        el.classList.remove(`${name}-leave-from`)
+        el.classList.add(`${name}-leave-to`)
+        onTransitionEnd(el, duration, () => {
+          el.classList.remove(`${name}-leave-active`, `${name}-leave-to`)
+          rm()
+        })
+      })
+    })
+  }
+
+  return vnode
+}
+
+function onTransitionEnd(el: any, duration: number | undefined, cb: () => void): void {
+  if (typeof duration === 'number') {
+    setTimeout(cb, duration)
+  } else {
+    const handler = () => {
+      el.removeEventListener('transitionend', handler)
+      cb()
+    }
+    el.addEventListener('transitionend', handler)
+  }
+}
+
 
 function createPortalPlaceholder(target: string, children: any[]): any {
   const portalChildren = children || []

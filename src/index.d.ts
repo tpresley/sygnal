@@ -279,6 +279,13 @@ export type PortalProps = {
   children?: any;
 }
 
+export type TransitionProps = {
+  name?: string;
+  duration?: number;
+  appear?: boolean;
+  children?: any;
+}
+
 export type ClassesType = (string | string[] | { [className: string]: boolean | undefined })[]
 
 export type RunOptions = {
@@ -444,6 +451,7 @@ export function portal(...args: any[]): any
 export function Collection<PROPS extends { [prop: string]: any }>(props: CollectionProps<PROPS>): JSX.Element
 export function Switchable<PROPS extends { [prop: string]: any }>(props: SwitchableProps<PROPS>): JSX.Element
 export function Portal(props: PortalProps): JSX.Element
+export function Transition(props: TransitionProps): JSX.Element
 
 export type AsyncDriverFromFunction<INCOMING = any, OUTGOING = any> = {
   select: (selector?: string | ((value: OUTGOING) => boolean)) => Stream<OUTGOING>
