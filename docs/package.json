@@ -9,8 +9,10 @@
   },
   "dependencies": {
     "@astrojs/starlight": "^0.34.0",
+    "@babel/standalone": "^7.29.2",
     "astro": "^5.7.0",
     "sharp": "^0.33.0",
+    "sygnal": "file:..",
     "zod": "^3.23.0"
   }
 }

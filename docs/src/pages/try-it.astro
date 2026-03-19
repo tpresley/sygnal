@@ -1,0 +1,443 @@
+---
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro'
+---
+
+<StarlightPage
+  frontmatter={{ title: 'Try It', description: 'Interactive Sygnal playground — edit code and see it run live' }}
+  headings={[]}
+>
+  <div class="playground-wrapper">
+    <p class="playground-intro">
+      Write Sygnal components and see them run live. Define a function named <code>Component</code> with
+      <code>.initialState</code>, <code>.intent</code>, and <code>.model</code> — it will render in the preview panel.
+    </p>
+
+    <div class="playground-controls">
+      <select id="examples">
+        <option value="counter">Counter</option>
+        <option value="greeter">Greeter</option>
+        <option value="todo">Todo List</option>
+        <option value="refs">Refs</option>
+      </select>
+      <button id="run-btn">Run</button>
+      <label><input type="checkbox" id="auto-run" checked /> Auto-run</label>
+    </div>
+
+    <div class="playground-layout">
+      <div class="playground-editor">
+        <div class="pane-label">Code</div>
+        <textarea id="editor" spellcheck="false"></textarea>
+      </div>
+      <div class="playground-preview">
+        <div class="pane-label">Preview</div>
+        <div id="preview"></div>
+      </div>
+    </div>
+
+    <div id="error-panel"></div>
+  </div>
+</StarlightPage>
+
+<style>
+  .playground-wrapper {
+    max-width: 100%;
+  }
+
+  .playground-intro {
+    margin-bottom: 1rem;
+    color: var(--sl-color-gray-2);
+  }
+
+  .playground-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+    padding: 8px 12px;
+    background: var(--sl-color-gray-6);
+    border-radius: 8px;
+    border: 1px solid var(--sl-color-gray-5);
+  }
+
+  .playground-controls select {
+    padding: 4px 8px;
+    background: var(--sl-color-gray-7, #1a1a2e);
+    color: var(--sl-color-gray-1);
+    border: 1px solid var(--sl-color-gray-4);
+    border-radius: 4px;
+    font-size: 13px;
+  }
+
+  .playground-controls button {
+    padding: 4px 16px;
+    background: var(--sl-color-accent);
+    color: var(--sl-color-accent-text-over, white);
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .playground-controls button:hover {
+    opacity: 0.9;
+  }
+
+  .playground-controls label {
+    font-size: 13px;
+    color: var(--sl-color-gray-3);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: auto;
+  }
+
+  .playground-layout {
+    display: flex;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 8px;
+    overflow: hidden;
+    min-height: 450px;
+  }
+
+  .playground-editor,
+  .playground-preview {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .playground-editor {
+    border-right: 1px solid var(--sl-color-gray-5);
+  }
+
+  .pane-label {
+    padding: 6px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--sl-color-gray-3);
+    background: var(--sl-color-gray-6);
+    border-bottom: 1px solid var(--sl-color-gray-5);
+  }
+
+  #editor {
+    flex: 1;
+    padding: 12px;
+    background: var(--sl-color-gray-7, #0a0a1a);
+    color: var(--sl-color-gray-1);
+    border: none;
+    resize: none;
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    tab-size: 2;
+    outline: none;
+    min-height: 400px;
+  }
+
+  #preview {
+    flex: 1;
+    padding: 16px;
+    overflow: auto;
+    background: #fff;
+    color: #333;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  :global([data-theme="dark"]) #preview {
+    background: #1e1e2e;
+    color: #e0e0e0;
+  }
+
+  #preview :global(button) {
+    padding: 4px 12px;
+    margin: 2px 4px 2px 0;
+    background: var(--sl-color-accent, #7c83ff);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+  }
+
+  #preview :global(button:hover) {
+    opacity: 0.9;
+  }
+
+  #preview :global(input) {
+    padding: 4px 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 14px;
+  }
+
+  #error-panel:empty {
+    display: none;
+  }
+
+  #error-panel:not(:empty) {
+    margin-top: 8px;
+    padding: 8px 12px;
+    background: #2d1117;
+    color: #f85149;
+    border: 1px solid #f85149;
+    border-radius: 8px;
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 12px;
+    line-height: 1.4;
+    max-height: 150px;
+    overflow: auto;
+  }
+
+  @media (max-width: 768px) {
+    .playground-layout {
+      flex-direction: column;
+    }
+    .playground-editor {
+      border-right: none;
+      border-bottom: 1px solid var(--sl-color-gray-5);
+    }
+  }
+</style>
+
+<script>
+  import * as Babel from '@babel/standalone'
+  import * as Sygnal from 'sygnal'
+  import { createElement } from 'sygnal'
+  import { Fragment } from 'sygnal/jsx-runtime'
+
+  const examples = {
+    counter: `function Component({ state }) {
+  return (
+    <div>
+      <h2>Count: {state.count}</h2>
+      <button className="decrement">-</button>
+      <button className="increment">+</button>
+    </div>
+  )
+}
+
+Component.initialState = { count: 0 }
+
+Component.intent = ({ DOM }) => ({
+  DECREMENT: DOM.click('.decrement'),
+  INCREMENT: DOM.click('.increment'),
+})
+
+Component.model = {
+  DECREMENT: (state) => ({ count: state.count - 1 }),
+  INCREMENT: (state) => ({ count: state.count + 1 }),
+}`,
+
+    greeter: `function Component({ state }) {
+  return (
+    <div>
+      <h2>Hello {state.name}!</h2>
+      <input className="name-input" value={state.name} />
+    </div>
+  )
+}
+
+Component.initialState = { name: 'World' }
+
+Component.intent = ({ DOM }) => ({
+  CHANGE_NAME: DOM.select('.name-input')
+    .events('input')
+    .map(e => e.target.value),
+})
+
+Component.model = {
+  CHANGE_NAME: (state, name) => ({ name }),
+}`,
+
+    todo: `function Component({ state }) {
+  return (
+    <div>
+      <h2>Todo List ({state.items.filter(i => !i.done).length} remaining)</h2>
+      <div>
+        <input className="new-todo" value={state.text} placeholder="Add a task..." />
+        <button className="add-btn">Add</button>
+      </div>
+      <ul>
+        {state.items.map((item, i) => (
+          <li key={i} style={{
+            textDecoration: item.done ? 'line-through' : 'none',
+            opacity: item.done ? 0.5 : 1,
+            cursor: 'pointer',
+            padding: '4px 0',
+          }}>
+            <span className="todo-item" data-index={i}>{item.text}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+Component.initialState = {
+  text: '',
+  items: [
+    { text: 'Try editing this code', done: false },
+    { text: 'Click a todo to toggle it', done: false },
+  ],
+}
+
+Component.intent = ({ DOM }) => ({
+  UPDATE_TEXT: DOM.select('.new-todo')
+    .events('input')
+    .map(e => e.target.value),
+  ADD: DOM.select('.add-btn').events('click'),
+  TOGGLE: DOM.select('.todo-item')
+    .events('click')
+    .map(e => parseInt(e.target.dataset.index)),
+})
+
+Component.model = {
+  UPDATE_TEXT: (state, text) => ({ ...state, text }),
+  ADD: (state) => {
+    if (!state.text.trim()) return state
+    return {
+      ...state,
+      text: '',
+      items: [...state.items, { text: state.text, done: false }],
+    }
+  },
+  TOGGLE: (state, index) => ({
+    ...state,
+    items: state.items.map((item, i) =>
+      i === index ? { ...item, done: !item.done } : item
+    ),
+  }),
+}`,
+
+    refs: `// createRef() gives you direct DOM access
+const boxRef = Sygnal.createRef()
+
+function Component({ state }) {
+  return (
+    <div>
+      <div ref={boxRef} style={{
+        width: '200px', height: '100px',
+        background: '#e0e7ff', borderRadius: '8px',
+        display: 'flex', alignItems: 'center',
+        justifyContent: 'center', marginBottom: '8px',
+      }}>
+        Resize me!
+      </div>
+      <button className="measure">Measure</button>
+      {state.width > 0 && (
+        <p>{state.width}px x {state.height}px</p>
+      )}
+    </div>
+  )
+}
+
+Component.initialState = { width: 0, height: 0 }
+
+Component.intent = ({ DOM }) => ({
+  MEASURE: DOM.select('.measure').events('click'),
+})
+
+Component.model = {
+  MEASURE: (state) => ({
+    ...state,
+    width: boxRef.current?.offsetWidth ?? 0,
+    height: boxRef.current?.offsetHeight ?? 0,
+  }),
+}`,
+  }
+
+  function compile(code) {
+    const result = Babel.transform(code, {
+      plugins: [
+        ['transform-react-jsx', { pragma: 'h', pragmaFrag: 'Fragment' }],
+      ],
+    })
+    return result.code
+  }
+
+  function evaluate(compiled) {
+    const fn = new Function('h', 'Fragment', 'Sygnal', `
+      const { run, xs, createRef, createRef$, processForm, processDrag, Collection, Switchable, ABORT, collection, switchable, classes } = Sygnal;
+      ${compiled}
+      if (typeof Component !== 'undefined') return Component;
+      throw new Error('Define a function named Component');
+    `)
+    return fn(createElement, Fragment, Sygnal)
+  }
+
+  let currentApp = null
+
+  function runComponent(component) {
+    if (currentApp) {
+      currentApp.dispose()
+      currentApp = null
+    }
+    const el = document.querySelector('#preview')
+    if (el) el.innerHTML = ''
+    currentApp = Sygnal.run(component, {}, { mountPoint: '#preview' })
+    return currentApp
+  }
+
+  const editor = document.getElementById('editor')
+  const errorPanel = document.getElementById('error-panel')
+  const exampleSelect = document.getElementById('examples')
+  const runBtn = document.getElementById('run-btn')
+  const autoRunCheckbox = document.getElementById('auto-run')
+
+  let debounceTimer = null
+
+  function showError(err) {
+    errorPanel.textContent = err.message || String(err)
+  }
+
+  function clearError() {
+    errorPanel.textContent = ''
+  }
+
+  function executeCode() {
+    const code = editor.value
+    if (!code.trim()) return
+    clearError()
+    try {
+      const compiled = compile(code)
+      const component = evaluate(compiled)
+      runComponent(component)
+    } catch (err) {
+      showError(err)
+    }
+  }
+
+  function scheduleRun() {
+    if (!autoRunCheckbox.checked) return
+    clearTimeout(debounceTimer)
+    debounceTimer = setTimeout(executeCode, 600)
+  }
+
+  function loadExample(name) {
+    const code = examples[name]
+    if (!code) return
+    editor.value = code
+    executeCode()
+  }
+
+  editor.addEventListener('keydown', (e) => {
+    if (e.key === 'Tab') {
+      e.preventDefault()
+      const start = editor.selectionStart
+      const end = editor.selectionEnd
+      editor.value = editor.value.substring(0, start) + '  ' + editor.value.substring(end)
+      editor.selectionStart = editor.selectionEnd = start + 2
+      scheduleRun()
+    }
+  })
+
+  editor.addEventListener('input', scheduleRun)
+  runBtn.addEventListener('click', executeCode)
+  exampleSelect.addEventListener('change', () => loadExample(exampleSelect.value))
+
+  loadExample('counter')
+</script>
