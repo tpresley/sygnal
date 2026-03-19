@@ -137,14 +137,20 @@ export function makeCollection<S, So = any, Si = any>(
             nextInstArray[i]._key = key;
           }
           // remove
-          dict.forEach((_, key) => {
+          dict.forEach((sinks, key) => {
             if (!nextKeys.has(key)) {
+              if (sinks && typeof sinks.__dispose === 'function') {
+                sinks.__dispose();
+              }
               dict.delete(key);
             }
           });
           nextKeys.clear();
           return {dict: dict, arr: nextInstArray};
         } else {
+          dict.forEach((sinks) => {
+            if (sinks && typeof sinks.__dispose === 'function') sinks.__dispose();
+          });
           dict.clear();
           const key = `${itemKey ? itemKey(nextState, 0) : 'this'}`;
           const stateScope = identityLens;

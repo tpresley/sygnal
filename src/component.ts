@@ -103,11 +103,23 @@ export default function component(opts: ComponentOptions): any {
   if (isObj(fixedIsolateOpts)) {
     const wrapped = (sources: any) => {
       const fixedOpts = { ...opts, sources }
-      return (new Component(fixedOpts)).sinks
+      const instance = new Component(fixedOpts)
+      instance.sinks.__dispose = () => instance.dispose()
+      return instance.sinks
     }
     returnFunction = currySources ? isolate(wrapped, fixedIsolateOpts) : isolate(wrapped, fixedIsolateOpts)(sources)
   } else {
-    returnFunction = currySources ? (sources: any) => (new Component({ ...opts, sources })).sinks : (new Component(opts)).sinks
+    if (currySources) {
+      returnFunction = (sources: any) => {
+        const instance = new Component({ ...opts, sources })
+        instance.sinks.__dispose = () => instance.dispose()
+        return instance.sinks
+      }
+    } else {
+      const instance = new Component(opts)
+      instance.sinks.__dispose = () => instance.dispose()
+      returnFunction = instance.sinks
+    }
   }
 
   returnFunction.componentName = name
@@ -165,6 +177,10 @@ class Component {
   _calculatedFieldNames: Set<string> | null;
   _calculatedOrder: Array<[string, {fn: (...args: any[]) => any; deps: string[] | null}]> | null;
   _calculatedFieldCache: Record<string, {lastDepValues: any; lastResult: any}> | null;
+  _subscriptions: any[];
+  _disposeListener: any;
+  _dispose$: any;
+  _activeSubComponents: Map<string, any>;
 
   constructor({name = 'NO NAME', sources, intent, model, hmrActions, context, response, view, peers = {}, components = {}, initialState, calculated, storeCalculatedInState = true, DOMSourceName = 'DOM', stateSourceName = 'STATE', requestSourceName = 'HTTP', onError, debug = false}: ComponentOptions) {
     if (!sources || !isObj(sources)) throw new Error(`[${name}] Missing or invalid sources`)
@@ -354,6 +370,15 @@ class Component {
       }
     }
 
+    this._subscriptions = []
+    this._activeSubComponents = new Map()
+    this._disposeListener = null
+    this._dispose$ = xs.create({
+      start: (listener: any) => { this._disposeListener = listener },
+      stop: () => {},
+    })
+    this.sources.dispose$ = this._dispose$
+
     this.addCalculated = this.createMemoizedAddCalculated()
     this.log = makeLog(`${this._componentNumber} | ${name}`)
 
@@ -384,6 +409,41 @@ class Component {
         window.__SYGNAL_DEVTOOLS__.onSubComponentRegistered(parentNum, this._componentNumber)
       }
     }
+  }
+
+  dispose(): void {
+    // Signal disposal to the component via dispose$ stream
+    // This fires FIRST so CLEANUP actions in the model can process
+    if (this._disposeListener) {
+      try {
+        this._disposeListener.next(true)
+        this._disposeListener.complete()
+      } catch (_) {}
+      this._disposeListener = null
+    }
+    // Tear down streams on next microtask to allow CLEANUP actions to process
+    setTimeout(() => {
+      // Complete the action$ stream to stop the entire component cycle
+      if (this.action$ && typeof this.action$.shamefullySendComplete === 'function') {
+        try { this.action$.shamefullySendComplete() } catch (_) {}
+      }
+      // Complete the vdom$ stream to stop rendering
+      if (this.vdom$ && typeof this.vdom$.shamefullySendComplete === 'function') {
+        try { this.vdom$.shamefullySendComplete() } catch (_) {}
+      }
+      // Unsubscribe tracked internal subscriptions
+      for (const sub of this._subscriptions) {
+        if (sub && typeof sub.unsubscribe === 'function') {
+          try { sub.unsubscribe() } catch (_) {}
+        }
+      }
+      this._subscriptions = []
+      // Dispose any active sub-components
+      this._activeSubComponents.forEach((entry) => {
+        if (entry?.sink$?.__dispose) entry.sink$.__dispose()
+      })
+      this._activeSubComponents.clear()
+    }, 0)
   }
 
   get debug(): boolean {
@@ -527,7 +587,7 @@ class Component {
       })
       .compose(dropRepeats(objIsEqual))
       .startWith({})
-    this.context$.subscribe({ next: (_: any) => _, error: (err: any) => console.error(`[${this.name}] Error in context stream:`, err) })
+    this._subscriptions.push(this.context$.subscribe({ next: (_: any) => _, error: (err: any) => console.error(`[${this.name}] Error in context stream:`, err) }))
   }
 
   initModel$(): void {
@@ -668,7 +728,7 @@ class Component {
 
       }
     })
-    subComponentSink$.subscribe({ next: (_: any) => _, error: (err: any) => console.error(`[${this.name}] Error in sub-component sink stream:`, err) })
+    this._subscriptions.push(subComponentSink$.subscribe({ next: (_: any) => _, error: (err: any) => console.error(`[${this.name}] Error in sub-component sink stream:`, err) }))
     this.subComponentSink$ = subComponentSink$.filter((sinks: any) => Object.keys(sinks).length > 0)
   }
 
@@ -953,6 +1013,11 @@ class Component {
       const rootEntry: Record<string, any> = { '::ROOT::': vDom }
 
       if (entries.length === 0) {
+        // Dispose any previously active sub-components
+        this._activeSubComponents.forEach((entry) => {
+          if (entry?.sink$?.__dispose) entry.sink$.__dispose()
+        })
+        this._activeSubComponents.clear()
         return rootEntry
       }
 
@@ -1024,6 +1089,7 @@ class Component {
         sink$[this.DOMSourceName] = sink$[this.DOMSourceName] ? this.makeCoordinatedSubComponentDomSink(sink$[this.DOMSourceName]) : xs.never()
 
         acc[id] = { sink$, props$, children$ }
+        this._activeSubComponents.set(id, acc[id])
 
         addSinks(sink$)
 
@@ -1035,6 +1101,15 @@ class Component {
         acc[name] = streamArr.length === 1 ? streamArr[0] : xs.merge(...streamArr)
         return acc
       }, {} as Record<string, any>)
+
+      // Dispose removed sub-components
+      const currentIds = new Set(Object.keys(newComponents))
+      this._activeSubComponents.forEach((entry, id) => {
+        if (!currentIds.has(id)) {
+          if (entry?.sink$?.__dispose) entry.sink$.__dispose()
+          this._activeSubComponents.delete(id)
+        }
+      })
 
       this.newSubComponentSinks(mergedSinksByType)
       this.newChildSources(childSources)

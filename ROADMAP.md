@@ -92,15 +92,16 @@ Defer loading of component code until it's needed, reducing initial bundle size.
 
 ### 6. Component Cleanup / Disposal Hooks
 
-**Status:** `NOT STARTED`
+**Status:** `DONE`
 
-Run cleanup logic when a component unmounts — close WebSocket connections, clear intervals, disconnect ResizeObservers, release resources. Currently there's no component-level teardown; disposal only exists at the app level.
+Run cleanup logic when a component unmounts — close WebSocket connections, clear intervals, disconnect ResizeObservers, release resources. Previously there was no component-level teardown; disposal only existed at the app level.
 
-**Implementation Plan:**
-- Add a `DISPOSE` model action that fires when a component's VNode is destroyed (detected via snabbdom `destroy` hook in `src/component.ts`)
-- The `DISPOSE` action receives the final state and can emit to EVENTS, LOG, or custom driver sinks — keeping side effects declarative
-- For the common case of stream-based subscriptions, document that streams created in intent are automatically disposed when the component's sink cycle ends
-- For external resource cleanup, the `DISPOSE` action's driver sinks are the idiomatic path (e.g., `{ WEBSOCKET: 'close' }`)
+**Implementation:**
+- **`dispose$` source stream**: Added to all component sources. Emits `true` once when the component is being removed. Use in intent: `CLEANUP: sources.dispose$` → model triggers cleanup actions declaratively via driver sinks
+- **Internal subscription tracking**: Context and sub-component sink subscriptions are now tracked and unsubscribed on disposal (fixes memory leaks)
+- **Sub-component removal detection**: `instantiateSubComponents` fold now detects when sub-components are removed (conditional rendering, `entries.length === 0`) and calls `dispose()` on removed instances
+- **Collection item disposal**: `Collection.ts` calls `__dispose()` on sinks when items are removed from the collection
+- **`component()` factory**: Attaches `__dispose` callback to returned sinks, linking to the Component instance's `dispose()` method
 
 ---
 

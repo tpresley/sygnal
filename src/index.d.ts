@@ -188,7 +188,7 @@ export type FixDrivers<DRIVERS> =
       ? DRIVERS
       : {}
 
-type CombinedSources<STATE, DRIVERS> = Sources<DefaultDrivers<STATE> & DRIVERS>
+type CombinedSources<STATE, DRIVERS> = Sources<DefaultDrivers<STATE> & DRIVERS> & { dispose$: Stream<boolean> }
 
 interface ComponentIntent<STATE, DRIVERS, ACTIONS> {
   (args: CombinedSources<STATE, DRIVERS>): Partial<Actions<ACTIONS>>
