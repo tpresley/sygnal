@@ -22,6 +22,13 @@ This guide covers all of Sygnal's features in depth. If you're new to Sygnal, st
 - [Focus Management](#focus-management)
 - [Custom Drivers](#custom-drivers)
 - [Drag and Drop](#drag-and-drop)
+- [Error Boundaries](#error-boundaries)
+- [Refs (DOM Access)](#refs-dom-access)
+- [Portals](#portals)
+- [Transitions](#transitions)
+- [Lazy Loading](#lazy-loading)
+- [Suspense](#suspense)
+- [Disposal Hooks](#disposal-hooks)
 - [Hot Module Replacement](#hot-module-replacement)
 - [The classes() Utility](#the-classes-utility)
 - [Debugging](#debugging)
@@ -1292,6 +1299,255 @@ function TaskCard({ state, context }) {
 ### Complete Example
 
 See the [Kanban board example](../examples/kanban/) for a full working implementation with task drag-and-drop between lanes, lane reordering with custom drag images, and visual drag feedback.
+
+---
+
+## Error Boundaries
+
+Catch and recover from errors in component rendering without crashing the entire application.
+
+### The `onError` Static Property
+
+```jsx
+function BrokenComponent({ state }) {
+  if (state.count > 5) throw new Error('Count too high!')
+  return <div>Count: {state.count}</div>
+}
+
+BrokenComponent.onError = (error, { componentName }) => (
+  <div className="error-fallback">
+    <h3>Something went wrong in {componentName}</h3>
+    <p>{error.message}</p>
+  </div>
+)
+```
+
+Error boundaries protect three code paths:
+- **View errors** — The view function throws. Renders `onError` fallback or an empty `<div data-sygnal-error>`.
+- **Reducer errors** — A model reducer throws. Returns the previous state unchanged (no state corruption).
+- **Sub-component errors** — A child component fails to instantiate. Replaces with fallback VNode.
+
+Without `onError`, errors are logged to `console.error` and a minimal placeholder is rendered.
+
+---
+
+## Refs (DOM Access)
+
+Access DOM elements declaratively using `createRef()`:
+
+```jsx
+import { createRef } from 'sygnal'
+
+const boxRef = createRef()
+
+function MeasuredBox({ state }) {
+  return (
+    <div ref={boxRef}>
+      Width: {state.width}px, Height: {state.height}px
+    </div>
+  )
+}
+
+MeasuredBox.intent = ({ DOM }) => ({
+  MEASURE: DOM.select('.measure-btn').events('click'),
+})
+
+MeasuredBox.model = {
+  MEASURE: (state) => ({
+    ...state,
+    width: boxRef.current?.offsetWidth ?? 0,
+    height: boxRef.current?.offsetHeight ?? 0,
+  }),
+}
+```
+
+`createRef()` returns `{ current: null }`. The `ref` prop automatically sets `.current` to the DOM element on mount and `null` on unmount.
+
+### Callback Refs
+
+Pass a function instead of a ref object:
+
+```jsx
+<div ref={(el) => { /* el is the DOM element, or null on unmount */ }} />
+```
+
+### Stream Refs
+
+`createRef$()` returns a stream-based ref that emits the element on mount:
+
+```jsx
+import { createRef$ } from 'sygnal'
+const myRef$ = createRef$()
+
+MyComponent.intent = () => ({
+  ELEMENT: myRef$,
+})
+```
+
+---
+
+## Portals
+
+Render children into a DOM container outside the component's own tree. Essential for modals, tooltips, and dropdown menus that need to escape `overflow: hidden` or z-index stacking contexts.
+
+```jsx
+import { Portal } from 'sygnal'
+
+function ModalExample({ state }) {
+  return (
+    <div>
+      <button className="open-btn">Open Modal</button>
+      {state.showModal && (
+        <Portal target="#modal-root">
+          <div className="modal-overlay">
+            <div className="modal-content">
+              <h2>Modal Title</h2>
+              <button className="close-btn">Close</button>
+            </div>
+          </div>
+        </Portal>
+      )}
+    </div>
+  )
+}
+```
+
+The `target` prop is a CSS selector for the destination container. Add a `<div id="modal-root"></div>` to your HTML.
+
+### Event Handling in Portals
+
+Portal content is rendered outside the component's DOM tree, so `DOM.select('.close-btn').events('click')` won't work for elements inside the portal. Use document-level event delegation:
+
+```jsx
+ModalExample.intent = ({ DOM }) => ({
+  OPEN: DOM.select('.open-btn').events('click'),
+  CLOSE: DOM.select('document').events('click')
+    .filter(e => e.target && e.target.closest && !!e.target.closest('.close-btn')),
+})
+```
+
+---
+
+## Transitions
+
+CSS-based enter/leave animations using snabbdom hooks:
+
+```jsx
+import { Transition } from 'sygnal'
+
+function AnimatedList({ state }) {
+  return (
+    <div>
+      <Transition enter="fade-in" leave="fade-out" duration={300}>
+        {state.visible && <div className="content">Animated!</div>}
+      </Transition>
+    </div>
+  )
+}
+```
+
+The `enter` class is added when the element is inserted, and `leave` class is added before removal. The element is kept in the DOM for `duration` milliseconds during the leave transition.
+
+---
+
+## Lazy Loading
+
+Code-split components that load on demand:
+
+```jsx
+import { lazy } from 'sygnal'
+
+const HeavyChart = lazy(() => import('./HeavyChart.jsx'))
+
+// Use like any other component
+function Dashboard({ state }) {
+  return (
+    <div>
+      <h1>Dashboard</h1>
+      <HeavyChart />
+    </div>
+  )
+}
+```
+
+While loading, a `<div data-sygnal-lazy="loading">` placeholder is rendered. Once the import resolves, the real component renders and receives all its static properties (intent, model, etc.).
+
+---
+
+## Suspense
+
+Show fallback UI while child components signal they're not ready:
+
+```jsx
+import { Suspense } from 'sygnal'
+
+<Suspense fallback={<div className="loading">Loading...</div>}>
+  <SlowComponent />
+</Suspense>
+```
+
+### The READY Sink
+
+Components control Suspense visibility through the built-in `READY` sink:
+
+- **Components without explicit READY model entries** automatically emit `READY: true` on instantiation — they're immediately ready.
+- **Components with READY model entries** start as not-ready and must explicitly signal readiness:
+
+```jsx
+function DataLoader({ state }) {
+  return <div>{state.data ? JSON.stringify(state.data) : 'Waiting...'}</div>
+}
+
+DataLoader.intent = ({ DOM }) => ({
+  DATA_LOADED: /* stream from API driver */,
+})
+
+DataLoader.model = {
+  DATA_LOADED: {
+    STATE: (state, data) => ({ ...state, data }),
+    READY: () => true,  // Signal ready to parent Suspense
+  },
+}
+```
+
+Suspense boundaries can be nested — inner `<Suspense>` catches its own not-ready children without triggering the outer boundary.
+
+---
+
+## Disposal Hooks
+
+Run cleanup logic when components unmount — close WebSocket connections, clear timers, disconnect observers.
+
+### The `dispose$` Source
+
+Every component's intent function receives a `dispose$` stream that emits `true` once when the component is being removed from the DOM:
+
+```jsx
+function LiveFeed({ state }) {
+  return <div>{state.messages.length} messages</div>
+}
+
+LiveFeed.intent = ({ DOM, dispose$ }) => ({
+  NEW_MESSAGE: /* stream from WebSocket driver */,
+  CLEANUP: dispose$,
+})
+
+LiveFeed.model = {
+  NEW_MESSAGE: (state, msg) => ({
+    ...state,
+    messages: [...state.messages, msg],
+  }),
+  CLEANUP: {
+    WEBSOCKET: () => ({ type: 'close' }),  // Send close command to driver
+  },
+}
+```
+
+Internal subscriptions (context, sub-component sinks) are automatically cleaned up on disposal. The `dispose$` stream is for user-defined cleanup like closing external connections.
+
+### Collection Item Disposal
+
+Collection items are automatically disposed when removed from the state array. Each item's `dispose$` fires independently.
 
 ---
 

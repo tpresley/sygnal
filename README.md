@@ -135,6 +135,94 @@ const apiDriver = driverFromAsync(async (url) => {
 run(RootComponent, { API: apiDriver })
 ```
 
+### Error Boundaries
+
+Catch and recover from errors in child component rendering without crashing the app:
+
+```jsx
+BrokenComponent.onError = (error, { componentName }) => (
+  <div>Something went wrong in {componentName}</div>
+)
+```
+
+### Refs (DOM Access)
+
+Access DOM elements declaratively:
+
+```jsx
+import { createRef } from 'sygnal'
+const myRef = createRef()
+
+function MyComponent({ state }) {
+  return <div ref={myRef}>Measured: {state.width}px</div>
+}
+```
+
+### Portals
+
+Render children into a different DOM container — essential for modals, tooltips, and dropdowns:
+
+```jsx
+import { Portal } from 'sygnal'
+
+{state.showModal && (
+  <Portal target="#modal-root">
+    <div className="modal">Modal content here</div>
+  </Portal>
+)}
+```
+
+### Transitions
+
+CSS-based enter/leave animations:
+
+```jsx
+import { Transition } from 'sygnal'
+
+<Transition enter="fade-in" leave="fade-out">
+  {state.visible && <div>Animated content</div>}
+</Transition>
+```
+
+### Lazy Loading
+
+Code-split components with automatic placeholder rendering:
+
+```jsx
+import { lazy } from 'sygnal'
+const HeavyChart = lazy(() => import('./HeavyChart.jsx'))
+```
+
+### Suspense
+
+Show fallback UI while async children resolve:
+
+```jsx
+import { Suspense } from 'sygnal'
+
+<Suspense fallback={<div>Loading...</div>}>
+  <SlowComponent />
+</Suspense>
+```
+
+Components signal readiness via the built-in `READY` sink. Components without explicit `READY` model entries are ready immediately.
+
+### Disposal Hooks
+
+Run cleanup logic when components unmount — close connections, clear timers:
+
+```jsx
+MyComponent.intent = ({ DOM, dispose$ }) => ({
+  CLEANUP: dispose$,  // Emits once on unmount
+})
+
+MyComponent.model = {
+  CLEANUP: {
+    WEBSOCKET: () => ({ type: 'close' }),
+  },
+}
+```
+
 ### Hot Module Replacement
 
 State-preserving HMR out of the box:
@@ -214,10 +302,13 @@ See the [Guide](./docs/guide.md#bundler-configuration) for other bundlers.
 
 ## Examples
 
-- **[HMR Smoke Test](./examples/hmr-smoke)** — Minimal counter with HMR
+- **[Getting Started](./examples/getting-started)** — Interactive guide with live demos (Astro)
+- **[Kanban Board](./examples/kanban)** — Drag-and-drop with Collections and cross-component communication
+- **[Advanced Feature Tests](./examples/advanced-feature-tests)** — Portals, disposal, suspense, lazy loading
 - **[TypeScript 2048](./examples/ts-example-2048)** — Full game in TypeScript
 - **[AI Discussion Panel](./examples/ai-panel-spa)** — Complex SPA with custom drivers
 - **[Astro Integration](./examples/astro-smoke)** — Sygnal in Astro
+- **[HMR Smoke Test](./examples/hmr-smoke)** — Minimal counter with HMR
 - **[Sygnal ToDoMVC](https://github.com/tpresley/sygnal-todomvc)** ([Live Demo](https://tpresley.github.io/sygnal-todomvc/)) — TodoMVC implementation
 - **[Sygnal 2048](https://github.com/tpresley/sygnal-2048)** ([Live Demo](https://tpresley.github.io/sygnal-2048/)) — 2048 game
 - **[Sygnal Calculator](https://github.com/tpresley/sygnal-calculator)** ([Live Demo](https://tpresley.github.io/sygnal-calculator/)) — Simple calculator

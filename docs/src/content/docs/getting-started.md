@@ -1,4 +1,7 @@
-# Getting Started with Sygnal
+---
+title: 'Quick Start'
+description: 'Get up and running with Sygnal in minutes'
+---
 
 Sygnal is an intuitive framework for building fast, small, and composable web components and applications. It uses functional reactive programming under the hood but keeps the developer experience simple and familiar.
 
@@ -350,8 +353,8 @@ import Counter from '../components/Counter.jsx'
 
 ## Next Steps
 
-- **[Detailed Guide](./guide.md)** — Deep dive into state management, collections, switchable components, custom drivers, context, and more.
-- **[API Reference](./api-reference.md)** — Complete reference for all Sygnal exports and configuration options.
+- **[Detailed Guide](/guide/architecture/)** — Deep dive into state management, collections, switchable components, custom drivers, context, and more.
+- **[API Reference](/reference/api/)** — Complete reference for all Sygnal exports and configuration options.
 - **[Examples](https://github.com/tpresley/sygnal/tree/main/examples)** — Working example applications.
 - **[Sygnal ToDoMVC](https://github.com/tpresley/sygnal-todomvc)** — Full TodoMVC implementation ([Live Demo](https://tpresley.github.io/sygnal-todomvc/)).
 - **[Sygnal 2048](https://github.com/tpresley/sygnal-2048)** — 2048 game built with Sygnal ([Live Demo](https://tpresley.github.io/sygnal-2048/)).

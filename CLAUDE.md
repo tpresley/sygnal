@@ -18,19 +18,30 @@ This is a **library package** — no dev server. Verify changes via `npm run bui
 **Component pattern (MVI):**
 ```ts
 function MyComponent({ state, context }) { return <div>...</div> }
-MyComponent.intent = ({ DOM, EVENTS, CHILD }) => ({ ACTION: stream$ })
+MyComponent.intent = ({ DOM, EVENTS, CHILD, dispose$ }) => ({ ACTION: stream$ })
 MyComponent.model = { ACTION: (state, data) => newState }
 MyComponent.initialState = { ... }
 MyComponent.context = { field: state => computed }
+MyComponent.onError = (error, { componentName }) => fallbackVNode  // Error boundary
 ```
 
+**Rendering pipeline:** `view()` → `processPortals` → `processTransitions` → `instantiateSubComponents` → `renderVdom` (inject + `processSuspensePost`)
+
+**Special JSX components** use `preventInstantiation` pattern: Portal, Transition, Suspense, Collection, Switchable. They create marker VNodes with custom `sel` names that are processed at specific points in the pipeline.
+
 **Source layout:**
-- `src/component.ts` — Core component class (1,600 lines)
+- `src/component.ts` — Core component class (~1,900 lines): rendering pipeline, error boundaries, disposal, READY sink, Suspense post-processing
 - `src/collection.ts`, `src/switchable.ts` — Collection and dynamic component rendering
+- `src/portal.ts` — Portal component (`preventInstantiation` pattern, separate snabbdom patch instance)
+- `src/transition.ts` — Transition component (CSS enter/leave via snabbdom hooks)
+- `src/suspense.ts` — Suspense component (`preventInstantiation` pattern, processed in `renderVdom`)
+- `src/lazy.ts` — Lazy loading wrapper with `__sygnalLazy` metadata for Suspense detection
+- `src/extra/ref.ts` — `createRef()` and `createRef$()` for DOM element access
 - `src/extra/` — Helpers (processForm, processDrag, eventDriver, driverFactories, etc.)
-- `src/pragma/` — JSX createElement implementation
+- `src/pragma/` — JSX createElement implementation (passes `onError` through)
 - `src/astro/` — Astro framework integration (client hydration + SSR)
 - `src/cycle/` — Absorbed Cycle.js internals (run, isolate, state, dom)
+- `src/cycle/dom/DocumentDOMSource.ts` — Enhanced with `.select()` chaining for CSS-filtered document events
 
 **Absorbed dependencies:**
 All `@cycle/*` packages have been absorbed into `src/cycle/`. The only external runtime dependencies are `snabbdom`, `xstream`, and `extend`.
