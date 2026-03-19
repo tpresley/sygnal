@@ -73,16 +73,18 @@ Declarative enter/leave animations for conditionally rendered elements and colle
 
 ### 5. Lazy Loading / Code Splitting
 
-**Status:** `NOT STARTED`
+**Status:** `DONE`
 
 Defer loading of component code until it's needed, reducing initial bundle size. Critical for larger applications with many routes or heavy feature panels.
 
-**Implementation Plan:**
-- Export a `lazy(() => import('./HeavyComponent'))` function (`src/extra/lazy.ts`) that returns a Sygnal component
-- The lazy wrapper renders nothing (or a Suspense fallback) until the dynamic import resolves, then renders the loaded component
-- Cache the resolved module so subsequent renders don't re-import
-- Integrate with `<Suspense>` (see below) — a lazy component inside a Suspense boundary triggers the fallback
-- Handle import failures by forwarding to the nearest error boundary
+**Implementation:**
+- `lazy(() => import('./Component'))` function (`src/lazy.ts`) returns a wrapper component function
+- The wrapper delegates to the loaded component's view once the import resolves; renders a placeholder div while loading
+- Static properties (model, intent, context, etc.) are copied from the loaded component to the wrapper asynchronously
+- Module is cached — subsequent renders use the cached component instantly
+- Import errors are caught and logged; an error placeholder div is rendered
+- No changes to `component.ts` rendering pipeline needed — the wrapper is a normal component function
+- Note: lazy-loaded sub-components should NOT use `initialState` (use parent state lens instead)
 
 ---
 

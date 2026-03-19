@@ -163,9 +163,10 @@ export const createElementWithModules = (modules: Record<string, any>) => {
         const { model, intent, hmrActions, context, peers, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, onError, debug, preventInstantiation } = sel as any
         if (preventInstantiation) {
           const text = sanitizeText(children)
+          const sanitized = data ? sanitizeData(data, modules) : {}
           return considerSvg({
             sel: name,
-            data: data ? sanitizeData(data, modules) : {},
+            data: sanitized,
             children: typeof text !== 'undefined' ? createTextElement(text) : sanitizeChildren(children),
             text,
             elm: undefined,

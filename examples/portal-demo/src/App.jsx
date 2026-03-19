@@ -1,14 +1,15 @@
-import { Portal } from 'sygnal'
+import { Portal, lazy } from 'sygnal'
+
+const LazyComponent = lazy(() => import('./LazyTest.jsx'))
 
 function App({ state } = {}) {
   return (
     <div className="app">
-      <h1>Portal Event Handling Tests</h1>
+      <h1>Portal & Lazy Loading Tests</h1>
 
-      {/* Test 1: Internal target with regular DOM.select */}
+      {/* Test 1: Internal portal */}
       <section className="test-section">
-        <h2>Test 1: Internal Target + DOM.select()</h2>
-        <p>Portal target is <strong>inside</strong> the component. Events via <code>DOM.select('.selector')</code>.</p>
+        <h2>Test 1: Internal Portal</h2>
         <div className="controls">
           <button type="button" className="toggle-internal">
             {state.showInternal ? 'Hide' : 'Show'} Portal
@@ -28,24 +29,15 @@ function App({ state } = {}) {
         )}
       </section>
 
-      {/* Test 2: External target with DOM.select('document').select() */}
+      {/* Test 2: Lazy Loading */}
       <section className="test-section">
-        <h2>Test 2: External Target + DOM.select('document').select()</h2>
-        <p>Portal target is <strong>outside</strong> the component (#external-portal-target in body). Events via <code>DOM.select('document').select('.selector')</code>.</p>
+        <h2>Test 2: Lazy Loading</h2>
         <div className="controls">
-          <button type="button" className="toggle-external">
-            {state.showExternal ? 'Hide' : 'Show'} Portal
+          <button type="button" className="toggle-lazy">
+            {state.showLazy ? 'Unload' : 'Load'} Component
           </button>
-          <span>Clicks: <strong>{state.externalClicks}</strong></span>
         </div>
-        {state.showExternal && (
-          <Portal target="#external-portal-target">
-            <div className="portal-content external">
-              <p>External portal content (rendered outside #root)</p>
-              <button type="button" className="external-btn">Click me</button>
-            </div>
-          </Portal>
-        )}
+        {state.showLazy && <LazyComponent />}
       </section>
     </div>
   )
@@ -53,23 +45,20 @@ function App({ state } = {}) {
 
 App.initialState = {
   showInternal: false,
-  showExternal: false,
+  showLazy: false,
   internalClicks: 0,
-  externalClicks: 0,
 }
 
 App.intent = ({ DOM }) => ({
   TOGGLE_INTERNAL: DOM.select('.toggle-internal').events('click'),
-  TOGGLE_EXTERNAL: DOM.select('.toggle-external').events('click'),
+  TOGGLE_LAZY: DOM.select('.toggle-lazy').events('click'),
   INTERNAL_CLICK: DOM.select('.internal-btn').events('click'),
-  EXTERNAL_CLICK: DOM.select('document').select('.external-btn').events('click'),
 })
 
 App.model = {
   TOGGLE_INTERNAL: (state) => ({ ...state, showInternal: !state.showInternal }),
-  TOGGLE_EXTERNAL: (state) => ({ ...state, showExternal: !state.showExternal }),
+  TOGGLE_LAZY: (state) => ({ ...state, showLazy: !state.showLazy }),
   INTERNAL_CLICK: (state) => ({ ...state, internalClicks: state.internalClicks + 1 }),
-  EXTERNAL_CLICK: (state) => ({ ...state, externalClicks: state.externalClicks + 1 }),
 }
 
 export default App

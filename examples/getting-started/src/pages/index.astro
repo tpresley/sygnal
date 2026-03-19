@@ -9,6 +9,7 @@ import ErrorBoundaryDemo from '../components/ErrorBoundaryDemo.jsx'
 import RefDemo from '../components/RefDemo.jsx'
 import PortalDemo from '../components/PortalDemo.jsx'
 import TransitionDemo from '../components/TransitionDemo.jsx'
+import LazyDemo from '../components/LazyDemo.jsx'
 ---
 
 <html lang="en">
@@ -41,6 +42,7 @@ import TransitionDemo from '../components/TransitionDemo.jsx'
           <li><a href="#refs">Refs (DOM Access)</a></li>
           <li><a href="#portals">Portals</a></li>
           <li><a href="#transitions">Transitions</a></li>
+          <li><a href="#lazy">Lazy Loading</a></li>
           <li><a href="#next-steps">Next Steps</a></li>
         </ol>
       </nav>
@@ -632,7 +634,69 @@ TransitionDemo.model = &#123;
         </p>
       </section>
 
-      <!-- ─── Section 11: Next Steps ─── -->
+      <!-- ─── Section 11: Lazy Loading ─── -->
+
+      <section id="lazy">
+        <h2>Lazy Loading</h2>
+        <p>
+          Large applications benefit from loading component code on demand.
+          The <code>lazy()</code> function wraps a dynamic
+          <code>import()</code> and returns a component that loads its
+          implementation when first rendered.
+        </p>
+
+        <div class="example">
+          <div class="example-code">
+            <h3>Code</h3>
+            <pre><code>import &#123; lazy &#125; from 'sygnal'
+
+const HeavyComponent = lazy(
+  () =&gt; import('./HeavyComponent')
+)
+
+function LazyDemo(&#123; state &#125;) &#123;
+  return (
+    &lt;div&gt;
+      &lt;button className="lazy-toggle"&gt;
+        &#123;state.show
+          ? 'Unload' : 'Load'&#125;
+      &lt;/button&gt;
+      &#123;state.show &amp;&amp;
+        &lt;HeavyComponent /&gt;&#125;
+    &lt;/div&gt;
+  )
+&#125;
+
+LazyDemo.initialState = &#123;
+  show: false
+&#125;
+
+LazyDemo.intent = (&#123; DOM &#125;) =&gt; (&#123;
+  TOGGLE: DOM.select('.lazy-toggle')
+    .events('click'),
+&#125;)
+
+LazyDemo.model = &#123;
+  TOGGLE: (state) =&gt;
+    (&#123; show: !state.show &#125;),
+&#125;</code></pre>
+          </div>
+          <div class="example-demo">
+            <h3>Live Demo</h3>
+            <div class="demo-frame">
+              <LazyDemo client:load />
+            </div>
+          </div>
+        </div>
+
+        <p>
+          The module is fetched once and cached &mdash; subsequent renders
+          use the cached component instantly. Import errors are caught
+          and can be handled with error boundaries.
+        </p>
+      </section>
+
+      <!-- ─── Section 12: Next Steps ─── -->
 
       <section id="next-steps">
         <h2>Next Steps</h2>

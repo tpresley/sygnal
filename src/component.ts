@@ -1596,6 +1596,65 @@ function applyTransitionHooks(vnode: any, name: string, duration?: number): any 
   return vnode
 }
 
+function processLazy(vnode: any, componentInstance: any): any {
+  if (!vnode || !vnode.sel) return vnode
+  if (typeof vnode.sel === 'string' && vnode.sel.startsWith('lazy-') && lazyRegistry.has(vnode.sel)) {
+    const reg = lazyRegistry.get(vnode.sel)
+
+    const cached = reg.getCachedComponent()
+    const error = reg.getLoadError()
+
+    if (error) {
+      return {
+        sel: 'div', data: { attrs: { 'data-sygnal-error': 'lazy' } },
+        children: [], text: undefined, elm: undefined, key: undefined,
+      }
+    }
+
+    if (cached) {
+      // Build a component VNode with sygnalOptions
+      const props = vnode.data?.props || {}
+      const cleanProps = { ...props }
+      const name = cached.componentName || cached.label || cached.name || 'LazyLoaded'
+      const { model, intent, hmrActions, context, peers, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, onError, debug } = cached
+      const options = { name, view: cached, model, intent, hmrActions, context, peers, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, onError, debug }
+      return {
+        sel: name,
+        data: { props: { ...cleanProps, sygnalOptions: options } },
+        children: vnode.children || [],
+        text: undefined, elm: undefined, key: undefined,
+      }
+    }
+
+    // Not loaded yet — return placeholder and trigger re-render when loaded
+    if (!reg.isReRenderScheduled()) {
+      const promise = reg.getLoadPromise()
+      if (promise && componentInstance) {
+        reg.setReRenderScheduled()
+        promise.then(() => {
+          // Defer re-render to next tick to avoid corrupting current render cycle
+          setTimeout(() => {
+            const stateSource = componentInstance.sources?.[componentInstance.stateSourceName]
+            if (stateSource && stateSource.stream) {
+              stateSource.stream.shamefullySendNext(componentInstance.currentState)
+            }
+          }, 0)
+        })
+      }
+    }
+
+    return {
+      sel: 'div', data: { attrs: { 'data-sygnal-lazy': 'loading' } },
+      children: [], text: undefined, elm: undefined, key: undefined,
+    }
+  }
+  if (vnode.children && vnode.children.length > 0) {
+    vnode.children = vnode.children.map((child: any) => processLazy(child, componentInstance))
+  }
+  return vnode
+}
+
+
 function onTransitionEnd(el: any, duration: number | undefined, cb: () => void): void {
   if (typeof duration === 'number') {
     setTimeout(cb, duration)

@@ -453,6 +453,10 @@ export function Switchable<PROPS extends { [prop: string]: any }>(props: Switcha
 export function Portal(props: PortalProps): JSX.Element
 export function Transition(props: TransitionProps): JSX.Element
 
+export function lazy<PROPS = any>(
+  loadFn: () => Promise<{ default: Component<any, PROPS> } | Component<any, PROPS>>
+): Component<any, PROPS>
+
 export type AsyncDriverFromFunction<INCOMING = any, OUTGOING = any> = {
   select: (selector?: string | ((value: OUTGOING) => boolean)) => Stream<OUTGOING>
 }
