@@ -12,6 +12,16 @@
   --sl-color-black: #181818;
 }
 
+table td,
+table th {
+  white-space: nowrap;
+}
+
+table td:last-child,
+table th:last-child {
+  white-space: normal;
+}
+
 :root[data-theme='light'] {
   --sl-color-accent-low: #e0e7ff;
   --sl-color-accent: #4f46e5;

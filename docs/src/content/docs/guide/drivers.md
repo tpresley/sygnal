@@ -13,14 +13,19 @@ Every driver has two sides:
 
 Sygnal's `run()` function automatically includes these drivers:
 
-| Driver | Source | Sink |
+| Driver / Source | Source (in intent) | Sink (in model) |
 |--------|--------|------|
-| `DOM` | `.select(css).events(event)` — Observe DOM events | Handled automatically by the view |
+| `DOM` | `.select(css).events(event)` or shorthand `.click(css)` | Handled automatically by the view |
 | `STATE` | `.stream` — The state Observable | Reducer functions from model |
 | `EVENTS` | `.select(type)` — Custom event bus | Event objects `{ type, data }` |
-| `CHILD` | `.select(ComponentFn)` — Events from child components | None |
-| `PARENT` | None | Values sent to the parent component |
-| `LOG` | None | Any value — logged to the console |
+| `CHILD` | `.select(ComponentFn)` — Events from child components | — |
+| `PARENT` | — | Values sent to the parent component |
+| `READY` | — | Boolean signal for [Suspense](/advanced/suspense/) boundaries |
+| `LOG` | — | Any value — logged to the console |
+| `props$` | Stream of props passed from the parent | — |
+| `children$` | Stream of children passed from the parent | — |
+| `context$` | Stream of merged [context](/guide/context/) values from ancestors | — |
+| `dispose$` | Emits `true` once on [unmount](/advanced/disposal/) | — |
 
 ## Adding Custom Drivers
 

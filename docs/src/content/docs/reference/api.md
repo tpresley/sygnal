@@ -270,21 +270,22 @@ Portal content is outside the component's DOM event delegation scope. Use `DOM.s
 
 ## Transition
 
-CSS-based enter/leave animations.
+CSS-based enter/leave animations using a Vue-style `name` prop that generates six CSS classes.
 
 ```jsx
 import { Transition } from 'sygnal'
 
-<Transition enter="fade-in" leave="fade-out" duration={300}>
+<Transition name="fade">
   {state.visible && <div>Animated</div>}
 </Transition>
 ```
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `enter` | `string` | — | CSS class applied during enter animation |
-| `leave` | `string` | — | CSS class applied during leave animation |
-| `duration` | `number` | `300` | Duration in ms to keep element during leave |
+| `name` | `string` | `'v'` | Base name for generated CSS classes (`{name}-enter-from`, `{name}-enter-active`, `{name}-enter-to`, `{name}-leave-from`, `{name}-leave-active`, `{name}-leave-to`) |
+| `duration` | `number` | — | Explicit timeout in ms. If omitted, listens for `transitionend` event |
+
+See [Transitions guide](/advanced/transitions/) for the full class lifecycle and CSS examples.
 
 ---
 

@@ -98,7 +98,7 @@ function enableHMR(
 A special constant that, when returned from a state reducer, cancels the state update for that action.
 
 ```typescript
-const ABORT: '~#~#~ABORT~#~#~'
+const ABORT: unique symbol
 ```
 
 ### Example

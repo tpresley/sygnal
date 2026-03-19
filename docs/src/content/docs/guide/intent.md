@@ -22,18 +22,20 @@ MyComponent.intent = ({ DOM, STATE, EVENTS }) => {
 
 ## Available Sources
 
-By default, every Sygnal application provides these sources:
+By default, every Sygnal component's intent function receives these sources:
 
 | Source | Description |
 |--------|-------------|
-| `DOM` | Observe DOM events. Use `.select(cssSelector).events(eventName)` |
+| `DOM` | Observe DOM events. Use `.select(cssSelector).events(eventName)` or shorthand `DOM.click(sel)` |
 | `STATE` | Access the state stream via `STATE.stream` |
 | `EVENTS` | Custom event bus. Use `.select(eventType)` to listen |
-| `LOG` | Log driver (sink-only — no source) |
+| `CHILD` | Access child component events. Use `.select(ComponentFn)` — see [Parent-Child Communication](/guide/parent-child/) |
 | `props$` | Stream of props from the parent component |
 | `children$` | Stream of children from the parent component |
 | `context$` | Stream of context values from ancestors |
-| `CHILD` | Access child component events. Use `.select(ComponentFn)` — see [Parent-Child Communication](/guide/communication) |
+| `dispose$` | Emits `true` once when the component is about to unmount — see [Disposal Hooks](/advanced/disposal/) |
+
+Additionally, any custom drivers registered via `run()` are available as sources by their key name.
 
 ## Key Points
 
