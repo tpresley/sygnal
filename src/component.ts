@@ -1390,6 +1390,17 @@ class Component {
       throw new Error(`Component not found: ${componentName}`)
     }
 
+    // Guard against sub-components accidentally overwriting parent state with .initialState
+    const subInitialState = props.sygnalOptions?.initialState
+    const subIsolatedState = props.sygnalOptions?.isolatedState
+    if (subInitialState && !subIsolatedState) {
+      const subName = props.sygnalOptions?.name || componentName
+      throw new Error(
+        `[${subName}] Sub-component has .initialState but no .isolatedState = true. ` +
+        `This will overwrite parent state. If this is intentional, add .isolatedState = true to the component.`
+      )
+    }
+
     let lense
 
     const fieldLense = {
@@ -1792,8 +1803,8 @@ function processLazy(vnode: any, componentInstance: any): any {
       const props = vnode.data?.props || {}
       const cleanProps = { ...props }
       const name = cached.componentName || cached.label || cached.name || 'LazyLoaded'
-      const { model, intent, hmrActions, context, peers, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, onError, debug } = cached
-      const options = { name, view: cached, model, intent, hmrActions, context, peers, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, onError, debug }
+      const { model, intent, hmrActions, context, peers, components, initialState, isolatedState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, onError, debug } = cached
+      const options = { name, view: cached, model, intent, hmrActions, context, peers, components, initialState, isolatedState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, onError, debug }
       return {
         sel: name,
         data: { props: { ...cleanProps, sygnalOptions: options } },

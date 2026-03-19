@@ -731,6 +731,7 @@ describe('component integration (mockDOMSource)', () => {
         return createElement('span', null, String(state.value))
       }
       Child.initialState = { value: 0 }
+      Child.isolatedState = true
 
       function IDParent({ state }) {
         return createElement('div', null,

@@ -80,11 +80,13 @@ function ReadyChild({ state } = {}) {
   return createElement('div', { class: 'ready-child' }, 'I am ready')
 }
 ReadyChild.initialState = {}
+ReadyChild.isolatedState = true
 
 function NotReadyChild({ state } = {}) {
   return createElement('div', { class: 'not-ready-child' }, 'Not ready yet')
 }
 NotReadyChild.initialState = {}
+NotReadyChild.isolatedState = true
 NotReadyChild.model = {
   BOOTSTRAP: {
     READY: () => false,
@@ -97,6 +99,7 @@ function DelayedReadyChild({ state } = {}) {
   )
 }
 DelayedReadyChild.initialState = { ready: false }
+DelayedReadyChild.isolatedState = true
 DelayedReadyChild.intent = ({ dispose$ }) => ({
   BECOME_READY: xs.periodic(50).take(1),
 })
