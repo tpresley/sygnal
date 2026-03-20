@@ -324,6 +324,45 @@ Components without explicit `READY` model entries auto-emit `true` on instantiat
 
 ---
 
+## Slot
+
+Marks named content regions for child components to render in specific locations.
+
+```jsx
+import { Slot } from 'sygnal'
+
+<Card state="card">
+  <Slot name="header"><h2>Title</h2></Slot>
+  <Slot name="actions"><button>Save</button></Slot>
+  <p>Default content</p>
+</Card>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `name` | `string` | Slot name. If omitted, content goes to the `default` slot |
+| `children` | `VNode[]` | Content for this slot |
+
+The child component receives a `slots` object in its view parameters:
+
+```jsx
+function Card({ state, slots }) {
+  return (
+    <div>
+      <header>{...(slots.header || [])}</header>
+      <main>{...(slots.default || [])}</main>
+      <footer>{...(slots.actions || [])}</footer>
+    </div>
+  )
+}
+```
+
+Unnamed children (not wrapped in `<Slot>`) go to `slots.default`. The `children` parameter continues to work as before — it contains the same elements as `slots.default`.
+
+See [Slots guide](/advanced/slots/) for reactive updates and fallback patterns.
+
+---
+
 ## lazy()
 
 Code-split a component via dynamic import.

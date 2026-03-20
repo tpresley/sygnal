@@ -4,6 +4,7 @@ import { compositionTests } from './tests/composition.jsx'
 import { featureTests } from './tests/features.jsx'
 import { utilityTests } from './tests/utilities.jsx'
 import { renderingTests } from './tests/rendering.jsx'
+import { slotTests } from './tests/slots.jsx'
 import { getResults } from './harness.js'
 
 async function runAll() {
@@ -13,6 +14,7 @@ async function runAll() {
   await featureTests()
   await utilityTests()
   await renderingTests()
+  await slotTests()
 
   const results = getResults()
   const passed = results.filter(r => r.status === 'pass').length

@@ -128,16 +128,19 @@ Show fallback UI while waiting for async children to resolve. Pairs with lazy-lo
 
 ### 8. Slots (Named Children)
 
-**Status:** `NOT STARTED`
+**Status:** `DONE`
 
 Pass multiple named content regions from parent to child — headers, footers, sidebars, actions — rather than a single flat `children` array. Vue's named slots and React's compound component patterns solve this.
 
-**Implementation Plan:**
-- Define a `<Slot name="header">` JSX component that marks children for named placement
-- In the parent's JSX, wrap content in `<Slot>` tags: `<Card><Slot name="header"><h1>Title</h1></Slot></Card>`
-- The child component receives slots via the `peers` parameter (4th argument to the view function), already partially supported by Sygnal's peer system
-- Extend the pragma to extract `<Slot>` children and pass them as a `slots` object: `{ header: VNode[], default: VNode[] }`
-- Unnamed children become the `default` slot
+**Implementation:**
+- `<Slot name="header">` JSX component (`src/slot.ts`) with `preventInstantiation` pattern — creates a marker VNode with `sel: 'slot'`
+- Slot VNodes are extracted from children by `extractSlots()` in `src/component.ts` before reaching the child component's view function
+- Child components receive `slots` in their view parameters: `{ header: VNode[], footer: VNode[], default: VNode[] }`
+- Unnamed children become the `default` slot; `children` parameter continues to work as before (contains only non-slot children, which are also in `slots.default`)
+- A `<Slot>` with no `name` prop contributes to the `default` slot
+- Multiple children within a single `<Slot>` are collected into one array
+- `slots` is always an object (empty `{}` when no children) — no null checks needed
+- Fully backward compatible: components that don't use slots see no change in behavior
 
 ---
 

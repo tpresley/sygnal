@@ -51,6 +51,7 @@ export default defineConfig({
             { label: 'Refs', slug: 'advanced/refs' },
             { label: 'Portals', slug: 'advanced/portals' },
             { label: 'Transitions', slug: 'advanced/transitions' },
+            { label: 'Slots', slug: 'advanced/slots' },
             { label: 'Lazy Loading', slug: 'advanced/lazy-loading' },
             { label: 'Suspense', slug: 'advanced/suspense' },
             { label: 'Disposal Hooks', slug: 'advanced/disposal' },

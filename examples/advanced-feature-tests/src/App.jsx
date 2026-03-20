@@ -1,4 +1,4 @@
-import { Portal, Suspense, lazy, Collection } from 'sygnal'
+import { Portal, Slot, Suspense, lazy, Collection } from 'sygnal'
 import DisposableChild from './DisposableChild.jsx'
 import TickItem from './TickItem.jsx'
 import SlowComponent from './SlowComponent.jsx'
@@ -32,9 +32,24 @@ function App({ state } = {}) {
         )}
       </section>
 
-      {/* Test 2: Lazy Loading */}
+      {/* Test 2: Slots */}
       <section className="test-section">
-        <h2>Test 2: Lazy Loading</h2>
+        <h2>Test 2: Slots (Named Children)</h2>
+        <p>Pass named content regions to a child component. Click "Toggle Theme" to verify reactive updates through slots.</p>
+        <SlotCard state="slotCard">
+          <Slot name="header">
+            <h3 style={{ margin: 0, color: '#4f46e5' }}>{state.slotCard.theme === 'dark' ? '🌙' : '☀️'} Slot Demo Card</h3>
+          </Slot>
+          <Slot name="actions">
+            <button type="button" className="toggle-slot-theme">Toggle Theme</button>
+          </Slot>
+          <p>This paragraph is unnamed content and appears in the <strong>default</strong> slot. Current theme: <strong>{state.slotCard.theme}</strong></p>
+        </SlotCard>
+      </section>
+
+      {/* Test 3: Lazy Loading */}
+      <section className="test-section">
+        <h2>Test 3: Lazy Loading</h2>
         <div className="controls">
           <button type="button" className="toggle-lazy">
             {state.showLazy ? 'Unload' : 'Load'} Component
@@ -43,9 +58,9 @@ function App({ state } = {}) {
         {state.showLazy && <LazyComponent />}
       </section>
 
-      {/* Test 3: Dispose */}
+      {/* Test 4: Dispose */}
       <section className="test-section">
-        <h2>Test 3: Disposal (single child)</h2>
+        <h2>Test 4: Disposal (single child)</h2>
         <p>Mount/unmount — ticks should stop and MOCK driver receives cleanup.</p>
         <div className="controls">
           <button type="button" className="toggle-dispose">
@@ -55,9 +70,9 @@ function App({ state } = {}) {
         {state.showDisposable && <DisposableChild />}
       </section>
 
-      {/* Test 4: Collection Dispose */}
+      {/* Test 5: Collection Dispose */}
       <section className="test-section">
-        <h2>Test 4: Collection Disposal</h2>
+        <h2>Test 5: Collection Disposal</h2>
         <p>Add items, each ticks independently. Remove one — its ticks should stop and MOCK driver receives item-disposed.</p>
         <div className="controls">
           <button type="button" className="add-item">Add Item</button>
@@ -65,9 +80,9 @@ function App({ state } = {}) {
         <Collection of={TickItem} from="items" />
       </section>
 
-      {/* Test 5: Suspense */}
+      {/* Test 6: Suspense */}
       <section className="test-section">
-        <h2>Test 5: Suspense (READY sink)</h2>
+        <h2>Test 6: Suspense (READY sink)</h2>
         <p>The component emits READY after 3 seconds. Suspense shows a fallback until it signals ready.</p>
         <div className="controls">
           <button type="button" className="toggle-suspense">
@@ -88,9 +103,9 @@ function App({ state } = {}) {
           </Suspense>
         )}
       </section>
-      {/* Test 6: isolatedState guard */}
+      {/* Test 7: isolatedState guard */}
       <section className="test-section">
-        <h2>Test 6: isolatedState Guard</h2>
+        <h2>Test 7: isolatedState Guard</h2>
         <p>Sub-components with .initialState must declare .isolatedState = true, or Sygnal throws an error.</p>
         <div className="controls">
           <button type="button" className="toggle-bad-child">
@@ -105,6 +120,41 @@ function App({ state } = {}) {
       </section>
     </div>
   )
+}
+
+// SlotCard: receives named slot content from parent
+function SlotCard({ state, slots } = {}) {
+  const dark = state.theme === 'dark'
+  return (
+    <div style={{
+      border: '1px solid #c7d2fe', borderRadius: '8px', overflow: 'hidden',
+      background: dark ? '#1e1b4b' : 'white',
+      color: dark ? '#e0e7ff' : '#333',
+      transition: 'background 0.3s, color 0.3s',
+    }}>
+      {slots.header && (
+        <div style={{ padding: '12px 16px', background: dark ? '#312e81' : '#eef2ff', borderBottom: '1px solid #c7d2fe', transition: 'background 0.3s' }}>
+          {...slots.header}
+        </div>
+      )}
+      <div style={{ padding: '16px' }}>
+        {...(slots.default || [])}
+      </div>
+      {slots.actions && (
+        <div style={{ padding: '12px 16px', borderTop: '1px solid #c7d2fe', display: 'flex', gap: '8px' }}>
+          {...slots.actions}
+        </div>
+      )}
+    </div>
+  )
+}
+
+SlotCard.intent = ({ DOM }) => ({
+  TOGGLE_THEME: DOM.select('.toggle-slot-theme').events('click'),
+})
+
+SlotCard.model = {
+  TOGGLE_THEME: (state) => ({ ...state, theme: state.theme === 'dark' ? 'light' : 'dark' }),
 }
 
 // Bad: has .initialState without .isolatedState — should throw
@@ -132,6 +182,8 @@ App.initialState = {
   showBadChild: false,
   showGoodChild: false,
   internalClicks: 0,
+  
+  slotCard: { theme: 'light' },
   items: [],
   nextItemId: 1,
 }

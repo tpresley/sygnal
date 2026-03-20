@@ -28,7 +28,7 @@ export type DriverFactories<DRIVERS extends DriverSpecs = DriverSpecs> = {
  * State is always provided by the framework at runtime.
  */
 type ComponentProps<STATE, PROPS, CONTEXT> = (
-  props: PROPS & { state: STATE; children?: JSX.Element | JSX.Element[]; context?: CONTEXT },
+  props: PROPS & { state: STATE; children?: JSX.Element | JSX.Element[]; slots?: Record<string, JSX.Element[]>; context?: CONTEXT },
   state: STATE,
   context: CONTEXT,
   peers: { [peer: string]: JSX.Element | JSX.Element[] }
@@ -309,6 +309,11 @@ export type TransitionProps = {
   children?: any;
 }
 
+export type SlotProps = {
+  name?: string;
+  children?: any;
+}
+
 export type ClassesType = (string | string[] | { [className: string]: boolean | undefined })[]
 
 export type RunOptions = {
@@ -507,6 +512,7 @@ export function Collection<PROPS extends { [prop: string]: any }>(props: Collect
 export function Switchable<PROPS extends { [prop: string]: any }>(props: SwitchableProps<PROPS>): JSX.Element
 export function Portal(props: PortalProps): JSX.Element
 export function Transition(props: TransitionProps): JSX.Element
+export function Slot(props: SlotProps): JSX.Element
 
 export function lazy<PROPS = any>(
   loadFn: () => Promise<{ default: Component<any, PROPS> } | Component<any, PROPS>>
@@ -564,6 +570,7 @@ declare global {
       [elemName: string]: any;
       collection: CollectionProps<any>;
       switchable: SwitchableProps<any>;
+      slot: SlotProps;
     }
 
     interface Element {

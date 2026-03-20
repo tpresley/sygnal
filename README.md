@@ -204,6 +204,31 @@ Render children into a different DOM container:
 </Portal>
 ```
 
+### Slots
+
+Pass named content regions to child components:
+
+```jsx
+import { Slot } from 'sygnal'
+
+<Card state="card">
+  <Slot name="header"><h2>Title</h2></Slot>
+  <Slot name="actions"><button>Save</button></Slot>
+  <p>Default content</p>
+</Card>
+
+// In Card's view:
+function Card({ state, slots }) {
+  return (
+    <div>
+      <header>{...(slots.header || [])}</header>
+      <main>{...(slots.default || [])}</main>
+      <footer>{...(slots.actions || [])}</footer>
+    </div>
+  )
+}
+```
+
 ### Transitions
 
 CSS-based enter/leave animations:
@@ -337,7 +362,7 @@ h('div', [h('h1', 'Hello'), h('button.btn', 'Click')])
 |---------|-------------|
 | [Getting Started](./examples/getting-started) | Interactive guide with live demos (Astro) |
 | [Kanban Board](./examples/kanban) | Drag-and-drop with Collections and cross-component communication |
-| [Advanced Features](./examples/advanced-feature-tests) | Portals, disposal, suspense, lazy loading |
+| [Advanced Features](./examples/advanced-feature-tests) | Portals, slots, disposal, suspense, lazy loading |
 | [TypeScript 2048](./examples/ts-example-2048) | Full game in TypeScript |
 | [AI Discussion Panel](./examples/ai-panel-spa) | Complex SPA with custom drivers |
 | [Sygnal ToDoMVC](https://github.com/tpresley/sygnal-todomvc) | [Live Demo](https://tpresley.github.io/sygnal-todomvc/) |

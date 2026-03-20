@@ -158,6 +158,7 @@ class Component {
   currentState: any;
   currentProps: any;
   currentChildren: any;
+  currentSlots: Record<string, any[]>;
   currentContext: any;
   intent$: any;
   hmrAction$: any;
@@ -332,6 +333,8 @@ class Component {
 
     const state$ = sources[stateSourceName] && sources[stateSourceName].stream
 
+    this.currentSlots = {}
+
     if (state$) {
       this.currentState = initialState || {}
       this.sources[stateSourceName] = new StateSource(state$.map((val: any) => {
@@ -355,7 +358,14 @@ class Component {
     const children$ = sources.children$
     if (children$) {
       this.sources.children$ = children$.map((val: any) => {
-        this.currentChildren = val
+        if (Array.isArray(val)) {
+          const { slots, defaultChildren } = extractSlots(val)
+          this.currentSlots = slots
+          this.currentChildren = defaultChildren
+        } else {
+          this.currentSlots = {}
+          this.currentChildren = val
+        }
         return val
       })
     }
@@ -764,10 +774,10 @@ class Component {
 
     this.vdom$ = renderParameters$
       .map((params: any) => {
-        const { props, state, children, context, ...peers }: any = params
+        const { props, state, children, slots, context, ...peers }: any = params
         const { sygnalFactory, sygnalOptions, ...sanitizedProps}: any = props || {}
         try {
-          return this.view({ ...sanitizedProps, state, children, context, peers }, state, context, peers)
+          return this.view({ ...sanitizedProps, state, children, slots: slots || {}, context, peers }, state, context, peers)
         } catch (err) {
           const error = err instanceof Error ? err : new Error(String(err))
           console.error(`[${this.name}] Error in view:`, error)
@@ -840,7 +850,7 @@ class Component {
             this.log(`<${name}> Triggered a next() action: <${type}> ${delay}ms delay`, true)
           }
 
-          const props = { ...this.currentProps, children: this.currentChildren, context: this.currentContext }
+          const props = { ...this.currentProps, children: this.currentChildren, slots: this.currentSlots || {}, context: this.currentContext }
 
           let data = action.data
           if (isStateSink) {
@@ -996,7 +1006,13 @@ class Component {
     }
 
     if (this.sources.children$) {
-      renderParams.children = this.sources.children$.compose(dropRepeats(objIsEqual))
+      const processedChildren$ = this.sources.children$.map((val: any) => {
+        if (!Array.isArray(val)) return { children: val, slots: {} }
+        const { slots, defaultChildren } = extractSlots(val)
+        return { children: defaultChildren, slots }
+      })
+      renderParams.children = processedChildren$.map((p: any) => p.children).compose(dropRepeats(objIsEqual))
+      renderParams.slots = processedChildren$.map((p: any) => p.slots).compose(dropRepeats(objIsEqual))
     }
 
     if (this.context$) {
@@ -2054,4 +2070,27 @@ function sortFunctionFromProp(sortProp: any): ((a: any, b: any) => number) | und
     console.error('Invalid sort option (ignoring):', sortProp)
     return undefined
   }
+}
+
+function extractSlots(children: any[]): { slots: Record<string, any[]>, defaultChildren: any[] } {
+  const slots: Record<string, any[]> = {}
+  const defaultChildren: any[] = []
+
+  for (const child of children) {
+    if (child && child.sel === 'slot') {
+      const name = (child.data?.props?.name) || 'default'
+      if (!slots[name]) slots[name] = []
+      const slotChildren = Array.isArray(child.children) ? child.children : (child.children ? [child.children] : [])
+      slots[name].push(...slotChildren)
+    } else {
+      defaultChildren.push(child)
+    }
+  }
+
+  if (defaultChildren.length > 0) {
+    if (!slots['default']) slots['default'] = []
+    slots['default'].push(...defaultChildren)
+  }
+
+  return { slots, defaultChildren: slots['default'] || [] }
 }
