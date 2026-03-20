@@ -122,10 +122,27 @@ describe('Driver types', () => {
     expectTypeOf<F>().toEqualTypeOf<{}>()
   })
 
-  it('FixDrivers passes through valid DriverSpecs', () => {
+  it('FixDrivers passes through valid DriverSpecs (type alias)', () => {
     type Drivers = { HTTP: DriverSpec<string, number> }
     type F = FixDrivers<Drivers>
     expectTypeOf<F>().toEqualTypeOf<Drivers>()
+  })
+
+  it('FixDrivers passes through valid DriverSpecs (interface)', () => {
+    // Interfaces lack implicit index signatures, but FixDrivers should
+    // still recognize them via structural fallback check
+    interface Drivers {
+      HTTP: DriverSpec<string, number>
+      WS: DriverSpec<void, string>
+    }
+    type F = FixDrivers<Drivers>
+    expectTypeOf<F>().toEqualTypeOf<Drivers>()
+  })
+
+  it('FixDrivers returns {} for invalid shapes', () => {
+    type Bad = { HTTP: { notSource: string } }
+    type F = FixDrivers<Bad>
+    expectTypeOf<F>().toEqualTypeOf<{}>()
   })
 })
 
@@ -272,9 +289,19 @@ describe('EventsSource', () => {
 // ─── FormSource ─────────────────────────────────────────────────────────────
 
 describe('FormSource', () => {
-  it('has events method returning Stream<Event>', () => {
+  it('has events method', () => {
     type EventsFn = FormSource['events']
-    expectTypeOf<EventsFn>().toMatchTypeOf<(eventName: string) => Stream<globalThis.Event>>()
+    expectTypeOf<EventsFn>().toMatchTypeOf<(eventName: string, ...args: any[]) => Stream<any>>()
+  })
+
+  it('is compatible with MainDOMSource (overloaded events)', () => {
+    // MainDOMSource has events<K extends keyof HTMLElementEventMap>(eventType: K, ...): Stream<...>
+    // FormSource should accept it without casting
+    type MainDOMEvents = {
+      events<K extends keyof HTMLElementEventMap>(eventType: K): Stream<HTMLElementEventMap[K]>
+      events(eventType: string): Stream<globalThis.Event>
+    }
+    expectTypeOf<MainDOMEvents>().toMatchTypeOf<FormSource>()
   })
 })
 
@@ -290,8 +317,9 @@ describe('DragSource', () => {
 // ─── Component type ─────────────────────────────────────────────────────────
 
 describe('Component type', () => {
-  it('is callable (view function)', () => {
+  it('is callable (view function) with required state', () => {
     type C = Component<{ count: number }>
+    // state is required (not optional) since the framework always provides it
     expectTypeOf<C>().toBeCallableWith({ state: { count: 0 } }, { count: 0 }, {}, {})
   })
 

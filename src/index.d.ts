@@ -25,9 +25,10 @@ export type DriverFactories<DRIVERS extends DriverSpecs = DriverSpecs> = {
 
 /**
  * A function that takes component properties and returns a JSX element.
+ * State is always provided by the framework at runtime.
  */
 type ComponentProps<STATE, PROPS, CONTEXT> = (
-  props: PROPS & { state?: STATE; children?: JSX.Element | JSX.Element[]; context?: CONTEXT },
+  props: PROPS & { state: STATE; children?: JSX.Element | JSX.Element[]; context?: CONTEXT },
   state: STATE,
   context: CONTEXT,
   peers: { [peer: string]: JSX.Element | JSX.Element[] }
@@ -178,21 +179,36 @@ type Sources<DRIVERS> = {
   [DRIVER_KEY in keyof DRIVERS]: DRIVERS[DRIVER_KEY] extends { source: infer SOURCE } ? SOURCE : never
 }
 
-type Actions<ACTIONS> = keyof ACTIONS extends never
+/**
+ * Maps action types to streams for intent return type.
+ * Uses Stream<any> for values to avoid invariance issues with xstream's Stream<T>
+ * (e.g., Stream<PointerEvent> from DOM.events('click') not assignable to Stream<Event>).
+ * Action data types are enforced at the model layer via reducer signatures.
+ */
+type IntentActions<ACTIONS> = keyof ACTIONS extends never
   ? { [action: string]: Stream<any> }
-  : { [ACTION_KEY in keyof ACTIONS]: Stream<ACTIONS[ACTION_KEY]> }
+  : { [ACTION_KEY in keyof ACTIONS]: Stream<any> }
 
+/**
+ * Normalizes driver types. Passes through valid driver specs, returns {} for `any` or invalid types.
+ * Supports both `type` aliases and `interface` declarations (interfaces lack implicit index
+ * signatures, so a structural fallback check is needed).
+ */
 export type FixDrivers<DRIVERS> =
   0 extends (1 & DRIVERS)
     ? {}
     : DRIVERS extends DriverSpecs
       ? DRIVERS
-      : {}
+      : keyof DRIVERS extends never
+        ? {}
+        : DRIVERS extends { [K in keyof DRIVERS]: { source: any; sink: any } }
+          ? DRIVERS
+          : {}
 
 type CombinedSources<STATE, DRIVERS> = Sources<DefaultDrivers<STATE> & DRIVERS> & { dispose$: Stream<boolean> }
 
 interface ComponentIntent<STATE, DRIVERS, ACTIONS> {
-  (args: CombinedSources<STATE, DRIVERS>): Partial<Actions<ACTIONS>>
+  (args: CombinedSources<STATE, DRIVERS>): Partial<IntentActions<ACTIONS>>
 }
 
 type CalculatedFieldValue<FULL_STATE, RETURN> =
@@ -262,15 +278,21 @@ export type RootComponent<
   SINK_RETURNS extends NonStateSinkReturns = {}
 > = Component<STATE, any, DRIVERS, ACTIONS, CALCULATED, CONTEXT, SINK_RETURNS>
 
+/**
+ * A component function that can be used in Collection/Switchable.
+ * Uses a permissive type to avoid contravariance issues with typed custom drivers.
+ */
+type AnyComponent = ((...args: any[]) => any) & Record<string, any>
+
 export type CollectionProps<PROPS = any> = {
-  of: Component<any, PROPS, any, any, any, any> | ((props: PROPS) => JSX.Element);
+  of: AnyComponent;
   from: string | Lense;
   filter?: Filter;
   sort?: string | SortFunction | SortObject;
 } & Omit<PROPS, 'of' | 'from' | 'filter' | 'sort'>
 
 export type SwitchableProps<PROPS = any> = {
-  of: Record<string, Component<any, PROPS, any, any, any, any> | ((props: PROPS) => JSX.Element)>;
+  of: Record<string, AnyComponent>;
   current: string;
   state?: string | Lense;
 } & Omit<PROPS, 'of' | 'state' | 'current'>
@@ -346,8 +368,12 @@ export function enableHMR<STATE = any, DRIVERS = {}>(
 export function classes(...classes: ClassesType): string
 export function exactState<STATE>(): <ACTUAL extends STATE>(state: ExactShape<STATE, ACTUAL>) => STATE
 
+/**
+ * Any object with an events() method (e.g., DOM.select('form')).
+ * Uses permissive signature to be compatible with MainDOMSource's overloaded events().
+ */
 export type FormSource = {
-  events: (eventName: string) => Stream<globalThis.Event>
+  events(eventName: string, ...args: any[]): Stream<any>
 }
 
 export type FormData<FIELDS extends Record<string, string> = Record<string, string>> = FIELDS & {
@@ -379,8 +405,12 @@ export function processForm<FIELDS extends Record<string, string> = Record<strin
   options?: ProcessFormOptions
 ): Stream<FormData<FIELDS>>
 
+/**
+ * Any object with an events() method (e.g., DOM.select('.draggable')).
+ * Uses permissive signature to be compatible with MainDOMSource's overloaded events().
+ */
 export type DragSource = {
-  events: (eventName: string) => Stream<globalThis.Event>
+  events(eventName: string, ...args: any[]): Stream<any>
 }
 
 export function processDrag(

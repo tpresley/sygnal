@@ -1,7 +1,6 @@
-import { processForm, classes } from 'sygnal'
+import { processForm, classes, createRef } from 'sygnal'
 import type { Component, DriverSpec } from 'sygnal'
 import type { Stream } from 'xstream'
-import type { DOMfx } from './lib/DOMfxDriver'
 import type { StoreSource, StoreEntry } from './lib/localStorageDriver'
 import TODO from './components/todos'
 
@@ -27,27 +26,28 @@ type AppCalc = {
   allDone: boolean
 }
 
-// ─── Custom Drivers ─────────────────────────────────────────────────────────
-// Must use `type` (not `interface`) so TypeScript recognizes it as extending
-// Record<string, DriverSpec> — interfaces lack implicit index signatures.
+// ─── Context ────────────────────────────────────────────────────────────────
 
-type AppDrivers = {
-  DOMFX: DriverSpec<void, DOMfx>
+type AppContext = {
+  theme: string
+}
+
+// ─── Custom Drivers ─────────────────────────────────────────────────────────
+
+interface AppDrivers {
   STORE: DriverSpec<StoreSource, StoreEntry>
   ROUTER: DriverSpec<Stream<string>, string>
 }
 
 // ─── Actions ────────────────────────────────────────────────────────────────
-// Use `any` for DOM event actions where the event data isn't used in reducers.
 
 type AppActions = {
   VISIBILITY: string
   FROM_STORE: TodoItem[]
   NEW_TODO: string
-  TOGGLE_ALL: any
-  CLEAR_COMPLETED: any
-  TO_STORE: any
-  CLEAR_FORM: never
+  TOGGLE_ALL: PointerEvent
+  CLEAR_COMPLETED: PointerEvent
+  TO_STORE: AppState
   ADD_ROUTE: string
 }
 
@@ -57,9 +57,13 @@ type AppSinkReturns = {
   LOG: string
 }
 
+// ─── Ref ────────────────────────────────────────────────────────────────────
+
+const newTodoRef = createRef<HTMLInputElement>()
+
 // ─── Component ──────────────────────────────────────────────────────────────
 
-type App = Component<AppState, {}, AppDrivers, AppActions, AppCalc, {}, AppSinkReturns>
+type App = Component<AppState, {}, AppDrivers, AppActions, AppCalc, AppContext, AppSinkReturns>
 
 // Filter functions for each visibility option
 const FILTER_LIST: Record<string, (todo: TodoItem) => boolean> = {
@@ -69,7 +73,7 @@ const FILTER_LIST: Record<string, (todo: TodoItem) => boolean> = {
 }
 
 const APP: App = function ({ state }) {
-  const { visibility, total, remaining, completed, allDone } = state!
+  const { visibility, total, remaining, completed, allDone } = state
 
   const links = Object.keys(FILTER_LIST)
   const capitalize = (word: string) => word.charAt(0).toUpperCase() + word.slice(1)
@@ -88,6 +92,7 @@ const APP: App = function ({ state }) {
         <h1>todos</h1>
         <form className="new-todo-form">
           <input
+            ref={newTodoRef}
             className="new-todo"
             name="new-todo"
             autofocus
@@ -102,7 +107,7 @@ const APP: App = function ({ state }) {
           <input id="toggle-all" className="toggle-all" type="checkbox" checked={allDone} />
           <label for="toggle-all">Mark all as complete</label>
           <ul className="todo-list">
-            <collection of={TODO as any} from="todos" filter={FILTER_LIST[visibility]} />
+            <collection of={TODO} from="todos" filter={FILTER_LIST[visibility]} showDelete={true} />
           </ul>
         </section>
       )}
@@ -132,6 +137,10 @@ APP.calculated = {
   allDone: (state) => state.todos.every((todo) => todo.completed),
 }
 
+APP.context = {
+  theme: () => 'light',
+}
+
 APP.model = {
   BOOTSTRAP: {
     LOG: (_state, _data, next) => {
@@ -147,10 +156,12 @@ APP.model = {
 
   FROM_STORE: (state, data) => ({ ...state, todos: data }),
 
-  NEW_TODO: (state, data, next) => {
+  NEW_TODO: (state, data) => {
     const nextId = Date.now()
     const newTodo: TodoItem = { id: nextId, title: data, completed: false }
-    next('CLEAR_FORM')
+    if (newTodoRef.current) {
+      newTodoRef.current.value = ''
+    }
     return { ...state, todos: [...state.todos, newTodo] }
   },
 
@@ -164,8 +175,6 @@ APP.model = {
     const todos = state.todos.filter((todo) => !todo.completed)
     return { ...state, todos }
   },
-
-  CLEAR_FORM: { DOMFX: () => ({ type: 'SET_VALUE', data: { selector: '.new-todo', value: '' } }) },
 
   ADD_ROUTE: { ROUTER: true },
 
@@ -183,7 +192,7 @@ APP.intent = ({ STATE, DOM, ROUTER, STORE }) => {
   const clearCompleted$ = DOM.select('.clear-completed').events('click')
 
   const newTodoForm = DOM.select('.new-todo-form')
-  const newTodo$ = processForm(newTodoForm as any, { events: 'submit' })
+  const newTodo$ = processForm(newTodoForm, { events: 'submit' })
     .map((values: any) => values['new-todo'].trim())
     .filter((title: string) => title !== '')
 

@@ -11,7 +11,6 @@
 			import { run } from 'sygnal';
 
 			// import additional drivers
-			import DOMfxDriver from './lib/DOMfxDriver.ts';
 			import localStorageDriver from './lib/localStorageDriver.ts';
 			import routerDriver from './lib/routerDriver.ts';
 
@@ -20,11 +19,6 @@
 
 			// collect additional drivers to use in the app
 			const drivers = {
-				// DOM side effects driver for handling non-render interactions with the page
-				// mostly useful for input fields on forms
-				//  - no source events
-				//  - sink expects an object like { type: 'SET_VALUE', selector: '#my-input-field' value: 'Abracadabara' }
-				DOMFX:  DOMfxDriver,
 				// driver to handle getting and putting data to local storage
 				//  - source provides a .get() method that takes a 'key' to fetch from localstorage
 				//    and optionally takes a second argument for a default value to use
