@@ -588,3 +588,20 @@ describe('NonStateSinkReturns', () => {
     expectTypeOf<C>().toHaveProperty('model')
   })
 })
+
+// ─── EFFECT sink type ─────────────────────────────────────────────────────
+
+describe('EFFECT sink in model entries', () => {
+  it('accepts EFFECT key in DefaultSinks (untyped actions)', () => {
+    type C = RootComponent<{ count: number }>
+    // Component type with model should accept EFFECT entries
+    expectTypeOf<C>().toHaveProperty('model')
+  })
+
+  it('accepts EFFECT alongside STATE in same action', () => {
+    type State = { count: number }
+    type Actions = { SUBMIT: null }
+    type C = Component<State, {}, {}, Actions>
+    expectTypeOf<C>().toHaveProperty('model')
+  })
+})

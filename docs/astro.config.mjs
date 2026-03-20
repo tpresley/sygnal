@@ -55,6 +55,8 @@ export default defineConfig({
             { label: 'Lazy Loading', slug: 'advanced/lazy-loading' },
             { label: 'Suspense', slug: 'advanced/suspense' },
             { label: 'Commands', slug: 'advanced/commands' },
+            { label: 'Effect Handlers', slug: 'advanced/effect' },
+            { label: 'Model Shorthand', slug: 'advanced/model-shorthand' },
             { label: 'Disposal Hooks', slug: 'advanced/disposal' },
           ],
         },

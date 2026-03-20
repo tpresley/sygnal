@@ -6,6 +6,7 @@ import { utilityTests } from './tests/utilities.jsx'
 import { renderingTests } from './tests/rendering.jsx'
 import { slotTests } from './tests/slots.jsx'
 import { commandTests } from './tests/commands.jsx'
+import { effectShorthandTests } from './tests/effect-shorthand.jsx'
 import { getResults } from './harness.js'
 
 async function runAll() {
@@ -17,6 +18,7 @@ async function runAll() {
   await renderingTests()
   await slotTests()
   await commandTests()
+  await effectShorthandTests()
 
   const results = getResults()
   const passed = results.filter(r => r.status === 'pass').length

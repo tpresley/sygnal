@@ -469,6 +469,93 @@ See [Commands guide](/advanced/commands/) for usage patterns.
 
 ---
 
+## EFFECT (Built-in Sink)
+
+A built-in sink for side-effect-only model entries. Runs the reducer function but produces no state change and emits nothing to any driver.
+
+```typescript
+Component.model = {
+  ACTION_NAME: {
+    EFFECT: (state, data, next, props) => void
+  }
+}
+```
+
+### Reducer Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `state` | `STATE` | Current component state (with calculated fields) |
+| `data` | `any` | Data from the triggering action |
+| `next` | `(action, data?, delay?) => void` | Dispatch a follow-up action |
+| `props` | `object` | Current props, children, slots, context |
+
+### Examples
+
+```jsx
+// Send a command without changing state
+App.model = {
+  PLAY: {
+    EFFECT: () => playerCmd.send('play'),
+  },
+}
+
+// Route to different actions based on state
+App.model = {
+  ROUTE: {
+    EFFECT: (state, data, next) => {
+      if (state.mode === 'a') next('DO_A', data)
+      else next('DO_B', data)
+    },
+  },
+}
+
+// Combine with other sinks
+App.model = {
+  SUBMIT: {
+    STATE: (state) => ({ ...state, submitting: true }),
+    EFFECT: () => formCmd.send('validate'),
+  },
+}
+```
+
+Returns a `console.warn` if the reducer returns a value — EFFECT handlers should not return anything.
+
+See [Effect Handlers guide](/advanced/effect/) for more patterns.
+
+---
+
+## Model Shorthand
+
+Compact syntax for model entries that target a single sink. Use `'ACTION | SINK'` as the key:
+
+```typescript
+Component.model = {
+  'ACTION | SINK': reducer
+}
+// Equivalent to:
+Component.model = {
+  ACTION: { SINK: reducer }
+}
+```
+
+### Examples
+
+```jsx
+App.model = {
+  'PLAY | EFFECT':   () => playerCmd.send('play'),
+  'ALERT | EVENTS':  (state) => ({ type: 'notify', data: state.msg }),
+  'DELETE | PARENT':  (state) => ({ type: 'DELETE', id: state.id }),
+  'FETCH | HTTP':    (state) => ({ url: `/api/${state.id}` }),
+}
+```
+
+The `|` separator requires the key to be a quoted string. Whitespace around `|` is optional. Intent action names containing `|` throw an error.
+
+See [Model Shorthand guide](/advanced/model-shorthand/) for more details.
+
+---
+
 ## dispose$
 
 A source stream available in every component's intent. Emits `true` once when the component unmounts.

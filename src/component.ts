@@ -29,6 +29,7 @@ const HYDRATE_ACTION = 'HYDRATE';
 const PARENT_SINK_NAME = 'PARENT';
 const CHILD_SOURCE_NAME = 'CHILD';
 const READY_SINK_NAME = 'READY';
+const EFFECT_SINK_NAME = 'EFFECT';
 
 let COMPONENT_COUNT = 0;
 
@@ -516,6 +517,12 @@ class Component {
     if (this.intent$ instanceof Stream) {
       runner = this.intent$
     } else {
+      // Validate that no intent action names contain '|' (reserved for model shorthand)
+      for (const key of Object.keys(this.intent$)) {
+        if (key.includes('|')) {
+          throw new Error(`[${this.name}] Intent action name '${key}' contains '|', which is reserved for the model shorthand syntax (e.g., 'ACTION | DRIVER'). Rename this action.`)
+        }
+      }
       const mapped = Object.entries(this.intent$)
                            .map(([type, data$]: [string, any]) => data$.map((data: any) => ({type, data})))
       runner = xs.merge(xs.never(), ...mapped)
@@ -637,9 +644,20 @@ class Component {
     const modelEntries = Object.entries(this.model)
 
     const reducers: Record<string, any[]> = {}
+    const seenActionSinks = new Set<string>()
 
     modelEntries.forEach((entry) => {
       let [action, sinks]: [string, any] = entry
+
+      // ACTION | DRIVER shorthand: 'MY_ACTION | EVENTS': (state) => ({ type: 'foo', data: 'bar' })
+      if (action.includes('|')) {
+        const parts = action.split('|').map((s: string) => s.trim())
+        if (parts.length !== 2 || !parts[0] || !parts[1]) {
+          throw new Error(`[${this.name}] Invalid shorthand model entry '${action}'. Expected 'ACTION | DRIVER' format.`)
+        }
+        action = parts[0]
+        sinks = { [parts[1]]: sinks }
+      }
 
       if (typeof sinks === 'function') {
         sinks = { [this.stateSourceName]: sinks }
@@ -653,6 +671,23 @@ class Component {
 
       sinkEntries.forEach((entry) => {
         const [sink, reducer] = entry
+
+        const actionSinkKey = `${action}::${sink}`
+        if (seenActionSinks.has(actionSinkKey)) {
+          console.warn(`[${this.name}] Duplicate model entry for action '${action}' on sink '${sink}'. Only the last definition will take effect.`)
+        }
+        seenActionSinks.add(actionSinkKey)
+
+        // EFFECT sink: run the reducer for side effects only, no state change or sink output
+        if (sink === EFFECT_SINK_NAME) {
+          const effect$ = this.makeEffectHandler(this.action$, action, reducer)
+          if (Array.isArray(reducers[sink])) {
+            reducers[sink].push(effect$)
+          } else {
+            reducers[sink] = [effect$]
+          }
+          return
+        }
 
         const isStateSink  = (sink === this.stateSourceName)
         const isParentSink = (sink === PARENT_SINK_NAME)
@@ -818,6 +853,16 @@ class Component {
 
     this.sinks[this.DOMSourceName] = this.vdom$
     this.sinks[PARENT_SINK_NAME] = this.model$[PARENT_SINK_NAME] || xs.never()
+
+    // EFFECT sink: subscribe to trigger side effects but don't expose as a driver sink
+    if (this.model$[EFFECT_SINK_NAME]) {
+      const effectSub = this.model$[EFFECT_SINK_NAME].subscribe({
+        next: () => {},
+        error: (err: any) => console.error(`[${this.name}] Uncaught error in EFFECT stream:`, err),
+      })
+      this._subscriptions.push(effectSub)
+      delete this.sinks[EFFECT_SINK_NAME]
+    }
     // READY sink: if the component explicitly defined READY model entries, use them;
     // otherwise auto-emit true. Check the raw model object, not model$ (which always has keys for all sources).
     const hasExplicitReady = this.model && isObj(this.model) && Object.values(this.model).some(
@@ -896,6 +941,34 @@ class Component {
 
       return returnStream$
     }
+  }
+
+  makeEffectHandler(action$: any, name: string, reducer: any): any {
+    const filtered$ = action$.filter(({type}: any) => type == name)
+
+    return filtered$.map((action: any) => {
+      if (typeof reducer === 'function') {
+        const next = (type: any, data: any, delay=10) => {
+          if (typeof delay !== 'number') throw new Error(`[${this.name}] Invalid delay value provided to next() function in EFFECT handler '${name}'. Must be a number in ms.`)
+          setTimeout(() => {
+            action$.shamefullySendNext({ type, data })
+          }, delay)
+          this.log(`<${name}> EFFECT triggered a next() action: <${type}> ${delay}ms delay`, true)
+        }
+
+        try {
+          const enhancedState = this.addCalculated(this.currentState)
+          const props = { ...this.currentProps, children: this.currentChildren, slots: this.currentSlots || {}, context: this.currentContext, state: enhancedState }
+          const result = reducer(enhancedState, action.data, next, props)
+          if (result !== undefined) {
+            console.warn(`[${this.name}] EFFECT handler '${name}' returned a value. EFFECT handlers are for side effects only — return values are ignored.`)
+          }
+        } catch (err) {
+          console.error(`[${this.name}] Error in EFFECT handler '${name}':`, err)
+        }
+      }
+      return null
+    }).filter((_: any) => false)  // EFFECT never emits — stream is consumed but produces no output
   }
 
   createMemoizedAddCalculated(): (state: any) => any {

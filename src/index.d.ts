@@ -80,11 +80,15 @@ type SinkValue<STATE, PROPS, ACTIONS, DATA, RETURN, CALCULATED> =
   | true
   | Reducer<STATE & CALCULATED, PROPS, ACTIONS, DATA, RETURN>
 
+type EffectReducer<STATE, PROPS, ACTIONS, DATA, CALCULATED> =
+  | ((state: STATE & CALCULATED, args: DATA, next: NextFunction<ACTIONS>, props: PROPS) => void)
+
 type DefaultSinks<STATE, PROPS, ACTIONS, DATA, CALCULATED, SINK_RETURNS extends NonStateSinkReturns = {}> = {
   STATE?: SinkValue<STATE, PROPS, ACTIONS, DATA, STATE, CALCULATED>;
   EVENTS?: SinkValue<STATE, PROPS, ACTIONS, DATA, ResolvedNonStateSinkReturns<SINK_RETURNS>['EVENTS'], CALCULATED>;
   LOG?: SinkValue<STATE, PROPS, ACTIONS, DATA, ResolvedNonStateSinkReturns<SINK_RETURNS>['LOG'], CALCULATED>;
   PARENT?: SinkValue<STATE, PROPS, ACTIONS, DATA, ResolvedNonStateSinkReturns<SINK_RETURNS>['PARENT'], CALCULATED>;
+  EFFECT?: EffectReducer<STATE, PROPS, ACTIONS, DATA, CALCULATED>;
 }
 
 type CustomDriverSinks<STATE, PROPS, DRIVERS, ACTIONS, ACTION_ENTRY, CALCULATED> = keyof DRIVERS extends never

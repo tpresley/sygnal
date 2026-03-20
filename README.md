@@ -280,6 +280,36 @@ VideoPlayer.intent = ({ commands$ }) => ({
 })
 ```
 
+### Effect Handlers
+
+Run side effects without state changes — no more `ABORT` workarounds:
+
+```jsx
+App.model = {
+  SEND_COMMAND: {
+    EFFECT: () => playerCmd.send('play'),
+  },
+  ROUTE: {
+    EFFECT: (state, data, next) => {
+      if (state.mode === 'a') next('DO_A', data)
+      else next('DO_B', data)
+    },
+  },
+}
+```
+
+### Model Shorthand
+
+Compact syntax for single-driver model entries:
+
+```jsx
+App.model = {
+  'SEND_CMD | EFFECT': () => playerCmd.send('play'),
+  'NOTIFY | EVENTS': (state) => ({ type: 'alert', data: state.message }),
+  'DELETE | PARENT': (state) => ({ type: 'DELETE', id: state.id }),
+}
+```
+
 ### Disposal Hooks
 
 Cleanup on unmount:
