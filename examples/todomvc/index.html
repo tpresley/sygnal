@@ -4,21 +4,19 @@
 		<meta charset="utf-8">
 		<title>Sygnal • TodoMVC</title>
 		<link rel="shortcut icon" type="image/png" href="favicon.png" />
+		<link rel="stylesheet" href="./base.css" />
+		<link rel="stylesheet" href="./index.css" />
 		<script type="module">
-			// import css files (Vite auto injects these properly during bundling)
-			import baseCSS from './base.css';
-			import indexCSS from './index.css';
-
-			// import Sygnal's run() funtion to start the app
+			// import Sygnal's run() function to start the app
 			import { run } from 'sygnal';
 
 			// import additional drivers
-			import DOMfxDriver from './lib/DOMfxDriver';
-			import localStorageDriver from './lib/localStorageDriver';
-			import routerDriver from './lib/routerDriver';
+			import DOMfxDriver from './lib/DOMfxDriver.ts';
+			import localStorageDriver from './lib/localStorageDriver.ts';
+			import routerDriver from './lib/routerDriver.ts';
 
 			// import the root component
-			import App from './app';
+			import App from './app.tsx';
 
 			// collect additional drivers to use in the app
 			const drivers = {
