@@ -1,5 +1,5 @@
 import { processForm, classes, createRef } from 'sygnal'
-import type { Component, DriverSpec } from 'sygnal'
+import type { RootComponent, DriverSpec } from 'sygnal'
 import type { Stream } from 'xstream'
 import type { StoreSource, StoreEntry } from './lib/localStorageDriver'
 import TODO from './todo'
@@ -63,7 +63,7 @@ const newTodoRef = createRef<HTMLInputElement>()
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
-type App = Component<AppState, {}, AppDrivers, AppActions, AppCalc, AppContext, AppSinkReturns>
+type App = RootComponent<AppState, AppDrivers, AppActions, AppCalc, AppContext, AppSinkReturns>
 
 // Filter functions for each visibility option
 const FILTER_LIST: Record<string, (todo: TodoItem) => boolean> = {
