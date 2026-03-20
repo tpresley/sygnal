@@ -4,6 +4,8 @@ import switchable from './switchable';
 import {StateSource} from './cycle/state/index';
 import {init as snabbdomInit} from './cycle/dom/snabbdom';
 import defaultModules from './cycle/dom/modules';
+import {makeCommandSource} from './extra/command';
+import type {Command} from './extra/command';
 
 import xs, {Stream, resolveInteropDefault} from './extra/xstreamCompat';
 import * as delayModule from 'xstream/extra/delay.js';
@@ -1468,7 +1470,17 @@ class Component {
       lense = baseLense
     }
 
-    const sources = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$, __parentContext$: this.context$, __parentComponentNumber: this._componentNumber }
+    const sources: Record<string, any> = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$, __parentContext$: this.context$, __parentComponentNumber: this._componentNumber }
+
+    // Detect Command objects in props and expose as commands$ source
+    for (const key of Object.keys(props)) {
+      const val = props[key]
+      if (val && val.__sygnalCommand) {
+        sources.commands$ = makeCommandSource(val as Command)
+        break
+      }
+    }
+
     const sink$   = isolate(factory, { [this.stateSourceName]: lense })(sources)
 
     if (!isObj(sink$)) {

@@ -261,6 +261,25 @@ const inputRef = createRef()
 // inputRef.current.focus()
 ```
 
+### Commands
+
+Send imperative commands from parent to child:
+
+```jsx
+import { createCommand } from 'sygnal'
+
+const playerCmd = createCommand()
+<VideoPlayer commands={playerCmd} />
+
+// Parent sends commands with optional data
+playerCmd.send('seek', { time: 30 })
+
+// Child receives via commands$ source
+VideoPlayer.intent = ({ commands$ }) => ({
+  SEEK: commands$.select('seek'),  // emits { time: 30 }
+})
+```
+
 ### Disposal Hooks
 
 Cleanup on unmount:

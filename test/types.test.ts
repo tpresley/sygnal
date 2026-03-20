@@ -36,6 +36,8 @@ import type {
   DragSource,
   Ref,
   Ref$,
+  Command,
+  CommandSource,
   SygnalDOMSource,
   EventsSource,
   FixDrivers,
@@ -256,6 +258,28 @@ describe('Ref types', () => {
   it('Ref$ extends Ref with stream', () => {
     expectTypeOf<Ref$<HTMLDivElement>>().toMatchTypeOf<Ref<HTMLDivElement>>()
     expectTypeOf<Ref$['stream']>().toMatchTypeOf<MemoryStream<HTMLElement | null>>()
+  })
+})
+
+// ─── Command ────────────────────────────────────────────────────────────────
+
+describe('Command type', () => {
+  it('has send method', () => {
+    expectTypeOf<Command>().toHaveProperty('send')
+  })
+
+  it('send accepts type string and optional data', () => {
+    expectTypeOf<Command['send']>().toEqualTypeOf<(type: string, data?: any) => void>()
+  })
+})
+
+describe('CommandSource type', () => {
+  it('has select method', () => {
+    expectTypeOf<CommandSource>().toHaveProperty('select')
+  })
+
+  it('select returns a Stream', () => {
+    expectTypeOf<CommandSource['select']>().returns.toMatchTypeOf<Stream<any>>()
   })
 })
 

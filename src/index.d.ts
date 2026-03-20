@@ -546,6 +546,16 @@ export interface Ref$<T = HTMLElement> extends Ref<T> {
 export function createRef<T = HTMLElement>(): Ref<T>
 export function createRef$<T = HTMLElement>(): Ref$<T>
 
+export interface Command {
+  send(type: string, data?: any): void;
+}
+
+export interface CommandSource {
+  select(type: string): Stream<any>;
+}
+
+export function createCommand(): Command
+
 export const xs: typeof xsDefault
 
 export { default as debounce } from 'xstream/extra/debounce'

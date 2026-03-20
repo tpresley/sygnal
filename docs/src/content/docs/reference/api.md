@@ -424,6 +424,51 @@ MyComponent.intent = () => ({
 
 ---
 
+## createCommand()
+
+Creates an imperative command channel for parent-to-child communication.
+
+```typescript
+function createCommand(): Command
+```
+
+### Returns: Command
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `send` | `(type: string, data?: any) => void` | Send a named command with optional data |
+
+When a `Command` object is passed as any prop to a child component, the child receives a `commands$` source in intent:
+
+### commands$ Source
+
+| Method | Type | Description |
+|--------|------|-------------|
+| `select` | `(type: string) => Stream<any>` | Returns a stream that emits the `data` from each matching command |
+
+### Examples
+
+```jsx
+import { createCommand, ABORT } from 'sygnal'
+
+const cmd = createCommand()
+
+// Parent passes as prop and sends commands
+<VideoPlayer commands={cmd} />
+cmd.send('play')
+cmd.send('seek', { time: 30 })
+
+// Child reads via commands$ source in intent
+VideoPlayer.intent = ({ commands$ }) => ({
+  PLAY: commands$.select('play'),
+  SEEK: commands$.select('seek'),  // emits { time: 30 }
+})
+```
+
+See [Commands guide](/advanced/commands/) for usage patterns.
+
+---
+
 ## dispose$
 
 A source stream available in every component's intent. Emits `true` once when the component unmounts.

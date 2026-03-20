@@ -146,16 +146,18 @@ Pass multiple named content regions from parent to child — headers, footers, s
 
 ### 9. Forward Refs / Imperative Handle
 
-**Status:** `NOT STARTED`
+**Status:** `DONE`
 
 Let a parent invoke actions on a child component — play/pause a video player, reset a form, scroll to a position. Currently achievable via EVENTS but without a direct parent-to-specific-child channel.
 
-**Implementation Plan:**
-- Formalize a `COMMAND` pattern: parent emits a command stream as a prop, child subscribes to it in intent
-- Export a `createCommand<T>()` helper that returns `{ send: (value: T) => void, stream: Stream<T> }` — parent calls `send()`, child reads `stream`
-- The parent passes the command object as a prop: `<VideoPlayer commands={playerCommands} />`
-- The child maps `props.commands.stream` to actions in intent: `{ PLAY: props.commands.stream.filter(c => c === 'play') }`
-- This stays declarative — the parent declares *what* to command, the child declares *how* to handle it
+**Implementation:**
+- `createCommand()` helper (`src/extra/command.ts`) returns `{ send(type, data?) }` — parent calls `send('play', payload)`
+- Parent passes the command object as any prop: `<VideoPlayer commands={playerCommands} />`
+- Sygnal detects `Command` objects in props (via `__sygnalCommand` marker) and wires a `commands$` source into the child's intent
+- Child reads via `commands$.select('play')` — returns a stream that emits the `data` argument, matching the EVENTS `.select()` pattern
+- Uses `xs.create()` (not `createWithMemory`) — commands are transient fire-and-forget signals
+- Parent can call `send()` imperatively from model reducers with `ABORT` to skip state updates
+- `makeCommandSource()` internal helper creates the `commands$` source from a `Command` object
 
 ---
 

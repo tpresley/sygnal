@@ -1,4 +1,4 @@
-import { Portal, Slot, Suspense, lazy, Collection } from 'sygnal'
+import { Portal, Slot, Suspense, lazy, Collection, createCommand, ABORT } from 'sygnal'
 import DisposableChild from './DisposableChild.jsx'
 import TickItem from './TickItem.jsx'
 import SlowComponent from './SlowComponent.jsx'
@@ -103,7 +103,18 @@ function App({ state } = {}) {
           </Suspense>
         )}
       </section>
-      {/* Test 7: isolatedState guard */}
+      {/* Test 7: Commands */}
+      <section className="test-section">
+        <h2>Test 7: Commands (Parent → Child)</h2>
+        <p>Parent sends imperative commands to a child. Click "Increment" to send a command that the child handles in its own intent.</p>
+        <div className="controls">
+          <button type="button" className="send-command">Send Increment</button>
+          <button type="button" className="send-reset">Send Reset</button>
+        </div>
+        <CommandReceiver commands={counterCmd} state="commandChild" />
+      </section>
+
+      {/* Test 8: isolatedState guard */}
       <section className="test-section">
         <h2>Test 7: isolatedState Guard</h2>
         <p>Sub-components with .initialState must declare .isolatedState = true, or Sygnal throws an error.</p>
@@ -157,6 +168,33 @@ SlotCard.model = {
   TOGGLE_THEME: (state) => ({ ...state, theme: state.theme === 'dark' ? 'light' : 'dark' }),
 }
 
+// CommandReceiver: child that handles commands from parent
+const counterCmd = createCommand()
+
+function CommandReceiver({ state } = {}) {
+  return (
+    <div style={{
+      padding: '16px', border: '1px solid #a7f3d0', borderRadius: '8px',
+      background: '#ecfdf5',
+    }}>
+      <p style={{ margin: 0 }}>
+        Child counter: <strong>{state.count}</strong>
+        {' '}(controlled by parent commands)
+      </p>
+    </div>
+  )
+}
+
+CommandReceiver.intent = ({ commands$ }) => ({
+  INCREMENT: commands$.select('increment'),
+  RESET:     commands$.select('reset'),
+})
+
+CommandReceiver.model = {
+  INCREMENT: (state) => ({ ...state, count: state.count + 1 }),
+  RESET:     (state) => ({ ...state, count: 0 }),
+}
+
 // Bad: has .initialState without .isolatedState — should throw
 function BadChild({ state } = {}) {
   return <div style={{ padding: '12px', background: '#fee', border: '1px solid #f88', borderRadius: '4px' }}>
@@ -183,6 +221,7 @@ App.initialState = {
   showGoodChild: false,
   internalClicks: 0,
   
+  commandChild: { count: 0 },
   slotCard: { theme: 'light' },
   items: [],
   nextItemId: 1,
@@ -196,6 +235,8 @@ App.intent = ({ DOM, EVENTS }) => ({
   TOGGLE_BAD_CHILD: DOM.select('.toggle-bad-child').events('click'),
   TOGGLE_GOOD_CHILD: DOM.select('.toggle-good-child').events('click'),
   INTERNAL_CLICK: DOM.select('.internal-btn').events('click'),
+  SEND_COMMAND: DOM.select('.send-command').events('click'),
+  SEND_RESET: DOM.select('.send-reset').events('click'),
   ADD_ITEM: DOM.select('.add-item').events('click'),
   REMOVE_ITEM: EVENTS.select('REMOVE_ITEM'),
 })
@@ -208,6 +249,8 @@ App.model = {
   TOGGLE_BAD_CHILD: (state) => ({ ...state, showBadChild: !state.showBadChild }),
   TOGGLE_GOOD_CHILD: (state) => ({ ...state, showGoodChild: !state.showGoodChild }),
   INTERNAL_CLICK: (state) => ({ ...state, internalClicks: state.internalClicks + 1 }),
+  SEND_COMMAND: () => { counterCmd.send('increment'); return ABORT },
+  SEND_RESET:   () => { counterCmd.send('reset'); return ABORT },
   ADD_ITEM: (state) => ({
     ...state,
     items: [...state.items, { id: state.nextItemId, ticks: 0 }],

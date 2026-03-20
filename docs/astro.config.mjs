@@ -54,6 +54,7 @@ export default defineConfig({
             { label: 'Slots', slug: 'advanced/slots' },
             { label: 'Lazy Loading', slug: 'advanced/lazy-loading' },
             { label: 'Suspense', slug: 'advanced/suspense' },
+            { label: 'Commands', slug: 'advanced/commands' },
             { label: 'Disposal Hooks', slug: 'advanced/disposal' },
           ],
         },
