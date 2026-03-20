@@ -12,7 +12,7 @@ MyComponent.intent = ({ DOM, STATE, EVENTS }) => {
     INCREMENT: DOM.select('.increment-btn').events('click'),
 
     // Fire CHANGE_NAME when the input value changes, passing the new value
-    CHANGE_NAME: DOM.select('.name-input').events('input').map(e => e.target.value),
+    CHANGE_NAME: DOM.input('.name-input').value(),
 
     // Fire SAVE on form submission
     SAVE: DOM.select('.save-form').events('submit')
@@ -68,12 +68,61 @@ The shorthand is powered by a JavaScript Proxy, so any valid DOM event name work
 
 The longhand `.select().events()` syntax is still fully supported and is needed when you want to chain additional stream operators directly off the DOM source selection.
 
+## Event Value Extraction
+
+DOM event streams have chainable convenience methods for extracting common values, eliminating verbose `.map(e => e.target.value)` patterns:
+
+```jsx
+MyComponent.intent = ({ DOM }) => ({
+  // Instead of: DOM.input('.field').map(e => e.target.value)
+  CHANGE_NAME: DOM.input('.field').value(),
+
+  // Instead of: DOM.change('.checkbox').map(e => e.target.checked)
+  TOGGLE: DOM.change('.checkbox').checked(),
+
+  // Instead of: DOM.click('.item').map(e => e.target.dataset.id)
+  SELECT: DOM.click('.item').data('id'),
+
+  // Instead of: DOM.keydown('.input').map(e => e.key)
+  KEY: DOM.keydown('.input').key(),
+
+  // Instead of: DOM.click('.btn').map(e => e.target)
+  ELEMENT: DOM.click('.btn').target(),
+})
+```
+
+Each method optionally accepts a transform function:
+
+```jsx
+MyComponent.intent = ({ DOM }) => ({
+  // Parse the value as a number
+  SET_COUNT: DOM.input('.count-field').value(Number),
+
+  // Parse data attribute
+  SELECT_ITEM: DOM.click('.item').data('item', JSON.parse),
+})
+```
+
+| Method | Extracts | From |
+|--------|----------|------|
+| `.value(fn?)` | `e.target.value` | Input, textarea, select events |
+| `.checked(fn?)` | `e.target.checked` | Checkbox change events |
+| `.data(name, fn?)` | `e.target.dataset[name]` | Any element with `data-*` attributes |
+| `.key(fn?)` | `e.key` | Keyboard events |
+| `.target(fn?)` | `e.target` | Any event |
+
+All methods return enriched streams, so they can be chained with standard stream operators:
+
+```jsx
+SEARCH: DOM.input('.search').value().compose(debounce(300)),
+```
+
 ## Accessing Global DOM Events
 
 To listen for events outside your component's DOM (like keyboard events on `document`):
 
 ```jsx
 MyComponent.intent = ({ DOM }) => ({
-  KEY_PRESS: DOM.select('document').events('keydown').map(e => e.key)
+  KEY_PRESS: DOM.select('document').events('keydown').key()
 })
 ```

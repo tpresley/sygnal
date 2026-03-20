@@ -423,6 +423,19 @@ If not defined, errors render an empty `<div data-sygnal-error>` and log to `con
 
 ---
 
+## isolatedState (Static Property)
+
+Required when a sub-component declares `.initialState`. Prevents accidental parent state overwrite.
+
+```jsx
+Widget.initialState = { count: 0 }
+Widget.isolatedState = true  // Required — without this, Sygnal throws an error
+```
+
+When `isolatedState = true` and the parent state doesn't have the child's state slice, the child's `initialState` seeds it automatically.
+
+---
+
 ## makeDragDriver()
 
 Creates a Cycle.js driver for HTML5 drag-and-drop that works across isolated components.
@@ -786,6 +799,35 @@ DOM.mouseenter('.card')  // DOM.select('.card').events('mouseenter')
 ```
 
 Any valid DOM event name works. The original `.select().events()` API is unchanged.
+
+### Event Value Extraction
+
+All DOM event streams (from `.events()` or shorthands) have chainable convenience methods:
+
+```javascript
+DOM.input('.field').value()              // e.target.value
+DOM.change('.checkbox').checked()        // e.target.checked
+DOM.click('.item').data('id')            // e.target.dataset.id (walks up via closest())
+DOM.keydown('.input').key()              // e.key
+DOM.click('.btn').target()               // e.target
+```
+
+Each method optionally accepts a transform function:
+
+```javascript
+DOM.input('.count').value(Number)        // Parse as number
+DOM.click('.item').data('id', Number)    // Parse data attribute as number
+```
+
+| Method | Extracts | Notes |
+|--------|----------|-------|
+| `.value(fn?)` | `e.target.value` | For input/textarea/select |
+| `.checked(fn?)` | `e.target.checked` | For checkboxes |
+| `.data(name, fn?)` | `e.target.dataset[name]` | Walks up via `closest([data-name])` |
+| `.key(fn?)` | `e.key` | For keyboard events |
+| `.target(fn?)` | `e.target` | The DOM element |
+
+Returns enriched streams — chainable with `.compose()`, `.filter()`, etc.
 
 ### DND Source
 

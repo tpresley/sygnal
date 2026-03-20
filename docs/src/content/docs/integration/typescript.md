@@ -32,7 +32,7 @@ App.initialState = { count: 0, name: 'Counter' }
 
 App.intent = ({ DOM }) => ({
   INCREMENT: DOM.select('.btn').events('click'),
-  SET_NAME: DOM.select('.input').events('input').map(e => (e.target as HTMLInputElement).value)
+  SET_NAME: DOM.input('.input').value()
 })
 
 App.model = {

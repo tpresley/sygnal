@@ -88,15 +88,49 @@ function App({ state } = {}) {
           </Suspense>
         )}
       </section>
+      {/* Test 6: isolatedState guard */}
+      <section className="test-section">
+        <h2>Test 6: isolatedState Guard</h2>
+        <p>Sub-components with .initialState must declare .isolatedState = true, or Sygnal throws an error.</p>
+        <div className="controls">
+          <button type="button" className="toggle-bad-child">
+            {state.showBadChild ? 'Hide' : 'Show'} Bad Child (should error)
+          </button>
+          <button type="button" className="toggle-good-child">
+            {state.showGoodChild ? 'Hide' : 'Show'} Good Child (isolatedState)
+          </button>
+        </div>
+        {state.showBadChild && <BadChild state="bad" />}
+        {state.showGoodChild && <GoodChild state="good" />}
+      </section>
     </div>
   )
 }
+
+// Bad: has .initialState without .isolatedState — should throw
+function BadChild({ state } = {}) {
+  return <div style={{ padding: '12px', background: '#fee', border: '1px solid #f88', borderRadius: '4px' }}>
+    Bad child rendered (this should not appear!)
+  </div>
+}
+BadChild.initialState = { value: 42 }
+
+// Good: has .initialState WITH .isolatedState — should work
+function GoodChild({ state } = {}) {
+  return <div style={{ padding: '12px', background: '#efe', border: '1px solid #8b8', borderRadius: '4px' }}>
+    Good child with isolated state. Value: <strong>{state.value}</strong>
+  </div>
+}
+GoodChild.initialState = { value: 42 }
+GoodChild.isolatedState = true
 
 App.initialState = {
   showInternal: false,
   showLazy: false,
   showDisposable: false,
   showSuspense: false,
+  showBadChild: false,
+  showGoodChild: false,
   internalClicks: 0,
   items: [],
   nextItemId: 1,
@@ -107,6 +141,8 @@ App.intent = ({ DOM, EVENTS }) => ({
   TOGGLE_LAZY: DOM.select('.toggle-lazy').events('click'),
   TOGGLE_DISPOSE: DOM.select('.toggle-dispose').events('click'),
   TOGGLE_SUSPENSE: DOM.select('.toggle-suspense').events('click'),
+  TOGGLE_BAD_CHILD: DOM.select('.toggle-bad-child').events('click'),
+  TOGGLE_GOOD_CHILD: DOM.select('.toggle-good-child').events('click'),
   INTERNAL_CLICK: DOM.select('.internal-btn').events('click'),
   ADD_ITEM: DOM.select('.add-item').events('click'),
   REMOVE_ITEM: EVENTS.select('REMOVE_ITEM'),
@@ -117,6 +153,8 @@ App.model = {
   TOGGLE_LAZY: (state) => ({ ...state, showLazy: !state.showLazy }),
   TOGGLE_DISPOSE: (state) => ({ ...state, showDisposable: !state.showDisposable }),
   TOGGLE_SUSPENSE: (state) => ({ ...state, showSuspense: !state.showSuspense }),
+  TOGGLE_BAD_CHILD: (state) => ({ ...state, showBadChild: !state.showBadChild }),
+  TOGGLE_GOOD_CHILD: (state) => ({ ...state, showGoodChild: !state.showGoodChild }),
   INTERNAL_CLICK: (state) => ({ ...state, internalClicks: state.internalClicks + 1 }),
   ADD_ITEM: (state) => ({
     ...state,

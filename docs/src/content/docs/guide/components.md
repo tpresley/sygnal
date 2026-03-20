@@ -40,6 +40,8 @@ Counter.model = {
 | `.context` | Object | Values passed down to all descendants |
 | `.peers` | Object | Sibling components that share the same sources |
 | `.components` | Object | Named child components |
+| `.onError` | Function | Error boundary handler — receives `(error, { componentName })`, returns fallback VNode |
+| `.isolatedState` | Boolean | Required when a sub-component has `.initialState` (prevents accidental parent state overwrite) |
 | `.storeCalculatedInState` | Boolean | Whether calculated fields are stored in state (default: `true`) |
 | `.debug` | Boolean | Enable debug logging for this component |
 | `.DOMSourceName` | String | Custom name for the DOM driver (default: `'DOM'`) |

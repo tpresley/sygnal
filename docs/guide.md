@@ -162,7 +162,7 @@ MyComponent.intent = ({ DOM, STATE, EVENTS }) => {
     INCREMENT: DOM.select('.increment-btn').events('click'),
 
     // Fire CHANGE_NAME when the input value changes, passing the new value
-    CHANGE_NAME: DOM.select('.name-input').events('input').map(e => e.target.value),
+    CHANGE_NAME: DOM.input('.name-input').value(),
 
     // Fire SAVE on form submission
     SAVE: DOM.select('.save-form').events('submit')
@@ -224,6 +224,58 @@ To listen for events outside your component's DOM (like keyboard events on `docu
 MyComponent.intent = ({ DOM }) => ({
   KEY_PRESS: DOM.select('document').events('keydown').map(e => e.key)
 })
+```
+
+### Event Value Extraction
+
+DOM event streams have chainable convenience methods for extracting common values, eliminating verbose `.map(e => e.target.value)` patterns:
+
+```jsx
+MyComponent.intent = ({ DOM }) => ({
+  // Instead of: DOM.input('.field').map(e => e.target.value)
+  CHANGE_NAME: DOM.input('.field').value(),
+
+  // Instead of: DOM.change('.checkbox').map(e => e.target.checked)
+  TOGGLE: DOM.change('.checkbox').checked(),
+
+  // Instead of: DOM.click('.item').map(e => e.target.dataset.id)
+  SELECT: DOM.click('.item').data('id'),
+
+  // Instead of: DOM.keydown('.input').map(e => e.key)
+  KEY: DOM.keydown('.input').key(),
+
+  // Instead of: DOM.click('.btn').map(e => e.target)
+  ELEMENT: DOM.click('.btn').target(),
+})
+```
+
+Each method optionally accepts a transform function:
+
+```jsx
+MyComponent.intent = ({ DOM }) => ({
+  // Parse the value as a number
+  SET_COUNT: DOM.input('.count-field').value(Number),
+
+  // Parse JSON data attribute
+  SELECT_ITEM: DOM.click('.item').data('item', JSON.parse),
+
+  // Custom key filtering
+  ENTER: DOM.keydown('.input').key(k => k === 'Enter' ? true : undefined),
+})
+```
+
+| Method | Extracts | From |
+|--------|----------|------|
+| `.value(fn?)` | `e.target.value` | Input, textarea, select events |
+| `.checked(fn?)` | `e.target.checked` | Checkbox change events |
+| `.data(name, fn?)` | `e.target.dataset[name]` | Any element with `data-*` attributes |
+| `.key(fn?)` | `e.key` | Keyboard events |
+| `.target(fn?)` | `e.target` | Any event |
+
+All methods return enriched streams, so they can be chained with standard stream operators:
+
+```jsx
+SEARCH: DOM.input('.search').value().compose(debounce(300)),
 ```
 
 ---
@@ -438,6 +490,24 @@ function RootComponent() {
 The `get` function extracts child state from parent state. The `set` function merges child state updates back into parent state.
 
 > Use lenses sparingly. In most cases, property-based state passing is sufficient and much easier to debug.
+
+#### Sub-Component Initial State (`isolatedState`)
+
+By default, Sygnal throws an error if a sub-component has `.initialState` without declaring `.isolatedState = true`. This prevents a common bug where a child's initial state silently overwrites the parent's state slice:
+
+```jsx
+// This will throw:
+function Widget({ state }) {
+  return <div>Count: {state.count}</div>
+}
+Widget.initialState = { count: 0 }  // Error! No .isolatedState
+
+// Fix: declare isolated state
+Widget.initialState = { count: 0 }
+Widget.isolatedState = true  // Explicitly opt in
+```
+
+When `isolatedState = true`, the child's `initialState` seeds the parent's state slice if it doesn't already exist.
 
 ---
 

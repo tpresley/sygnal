@@ -1403,8 +1403,13 @@ class Component {
 
     let lense
 
+    const subInitState = subIsolatedState ? subInitialState : undefined
     const fieldLense = {
-      get: (state: any) => state[stateField],
+      get: (state: any) => {
+        const slice = state[stateField]
+        if (typeof slice === 'undefined' && subInitState) return subInitState
+        return slice
+      },
       set: (oldState: any, newState: any) => {
         if (this.calculated && stateField in this.calculated) {
           console.warn(`Sub-component of ${this.name} attempted to update state on a calculated field '${stateField}': Update ignored`)

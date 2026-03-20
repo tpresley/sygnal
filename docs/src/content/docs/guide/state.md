@@ -94,3 +94,21 @@ function RootComponent() {
 The `get` function extracts child state from parent state. The `set` function merges child state updates back into parent state.
 
 > Use lenses sparingly. In most cases, property-based state passing is sufficient and much easier to debug.
+
+### Sub-Component Initial State (`isolatedState`)
+
+By default, Sygnal throws an error if a sub-component has `.initialState` without explicitly declaring `.isolatedState = true`. This prevents a common bug where a child's initial state silently overwrites the parent's state slice:
+
+```jsx
+// This will throw an error:
+function Widget({ state }) {
+  return <div>Count: {state.count}</div>
+}
+Widget.initialState = { count: 0 }  // Error! No .isolatedState
+
+// Fix: declare isolated state
+Widget.initialState = { count: 0 }
+Widget.isolatedState = true  // Explicitly opt in
+```
+
+When `isolatedState = true`, the child's `initialState` seeds the parent's state slice if it doesn't already exist. The child component manages its own state independently.

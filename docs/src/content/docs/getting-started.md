@@ -190,17 +190,17 @@ function Greeter({ state }) {
 Greeter.initialState = { name: 'World' }
 
 Greeter.intent = ({ DOM }) => ({
-  CHANGE_NAME: DOM.select('.name-input').events('input').map(e => e.target.value)
+  CHANGE_NAME: DOM.input('.name-input').value()
 })
 
 Greeter.model = {
-  CHANGE_NAME: (state, data) => ({ name: data })
+  CHANGE_NAME: (state, name) => ({ name })
 }
 
 export default Greeter
 ```
 
-Notice the `.map(e => e.target.value)` in the intent. This extracts the input value from the DOM event before passing it to the model. The `data` parameter in the model reducer receives whatever value the intent stream emits.
+Notice the `.value()` in the intent. This extracts `e.target.value` from the input event before passing it to the model. The `name` parameter in the model reducer receives the string directly. Other extraction helpers include `.checked()`, `.data('name')`, and `.key()` — see the [Intent guide](/guide/intent/) for details.
 
 ## Adding Child Components
 
