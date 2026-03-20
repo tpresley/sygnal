@@ -1,4 +1,4 @@
-import { run, createCommand, ABORT } from 'sygnal'
+import { run, createCommand } from 'sygnal'
 import { mount, assert, runTest, wait, waitFor } from '../harness.js'
 
 const CAT = 'Commands'
@@ -38,7 +38,7 @@ export async function commandTests() {
     })
 
     App.model = {
-      SEND: () => { cmd.send('increment'); return ABORT },
+      'SEND | EFFECT': () => cmd.send('increment'),
     }
 
     run(App, {}, { mountPoint: id })
@@ -101,8 +101,8 @@ export async function commandTests() {
     })
 
     App.model = {
-      CMD_HELLO: () => { cmd.send('set-label', 'Hello'); return ABORT },
-      CMD_WORLD: () => { cmd.send('set-label', 'World'); return ABORT },
+      'CMD_HELLO | EFFECT': () => cmd.send('set-label', 'Hello'),
+      'CMD_WORLD | EFFECT': () => cmd.send('set-label', 'World'),
     }
 
     run(App, {}, { mountPoint: id })
@@ -166,8 +166,8 @@ export async function commandTests() {
     })
 
     App.model = {
-      CMD_A: () => { cmd.send('a'); return ABORT },
-      CMD_B: () => { cmd.send('b'); return ABORT },
+      'CMD_A | EFFECT': () => cmd.send('a'),
+      'CMD_B | EFFECT': () => cmd.send('b'),
     }
 
     run(App, {}, { mountPoint: id })
@@ -236,10 +236,12 @@ export async function commandTests() {
     })
 
     App.model = {
-      INC_ALPHA:   () => { cmdAlpha.send('increment'); return ABORT },
-      INC_BETA:    () => { cmdBeta.send('increment'); return ABORT },
-      RESET_ALPHA: () => { cmdAlpha.send('reset'); return ABORT },
-      INC_BOTH:    () => { cmdAlpha.send('increment'); cmdBeta.send('increment'); return ABORT },
+      'INC_ALPHA | EFFECT':   () => cmdAlpha.send('increment'),
+      'INC_BETA | EFFECT':    () => cmdBeta.send('increment'),
+      'RESET_ALPHA | EFFECT': () => cmdAlpha.send('reset'),
+      INC_BOTH: {
+        EFFECT: () => { cmdAlpha.send('increment'); cmdBeta.send('increment') },
+      },
     }
 
     run(App, {}, { mountPoint: id })

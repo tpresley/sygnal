@@ -26,8 +26,8 @@ App.intent = ({ DOM }) => ({
 })
 
 App.model = {
-  PLAY: () => { playerCmd.send('play'); return ABORT },
-  SEEK: () => { playerCmd.send('seek', { time: 30 }); return ABORT },
+  'PLAY | EFFECT': () => playerCmd.send('play'),
+  'SEEK | EFFECT': () => playerCmd.send('seek', { time: 30 }),
 }
 ```
 
@@ -79,19 +79,27 @@ Widget.intent = ({ commands$ }) => ({
 
 If `send()` is called without a data argument, `select()` emits `undefined`. This works fine for signal-style commands like `'play'` or `'reset'` where you only care that the command fired.
 
-## Using ABORT
+## Using EFFECT
 
-When the parent only needs to forward a command without updating its own state, use `ABORT`:
+When the parent only needs to forward a command without updating its own state, use the `EFFECT` sink. This is the most common pattern for commands — the parent is just a pass-through:
 
 ```jsx
-import { ABORT } from 'sygnal'
-
 App.model = {
-  PLAY: () => { playerCmd.send('play'); return ABORT },
+  'PLAY | EFFECT': () => playerCmd.send('play'),
 }
 ```
 
-`ABORT` prevents the reducer from writing a new state, so the parent doesn't re-render.
+`EFFECT` runs the function for its side effects only — no state change, no re-render. The [model shorthand](/advanced/model-shorthand/) (`'ACTION | EFFECT'`) keeps it concise. The equivalent longhand form works too:
+
+```jsx
+App.model = {
+  PLAY: {
+    EFFECT: () => playerCmd.send('play'),
+  },
+}
+```
+
+See [Effect Handlers](/advanced/effect/) for more details on the `EFFECT` sink.
 
 ## When to Use Commands vs Other Patterns
 
