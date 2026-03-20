@@ -1,11 +1,13 @@
 import type { Stream } from 'xstream'
 
-interface DOMfx {
+export interface DOMfxData {
+  selector: string
+  value?: string
+}
+
+export interface DOMfx {
   type: 'SET_VALUE' | 'FOCUS'
-  data: {
-    selector: string
-    value?: string
-  }
+  data: DOMfxData
 }
 
 // An extremely simple 'sink only' driver to isolate DOM effects like focus and
@@ -21,7 +23,7 @@ export default function DOMfxDriver(fx$: Stream<DOMfx>): void {
         }
       }
       if (fx.type === 'FOCUS') {
-        document.querySelector(selector)?.focus()
+        ;(document.querySelector(selector) as HTMLElement | null)?.focus()
       }
     },
   })

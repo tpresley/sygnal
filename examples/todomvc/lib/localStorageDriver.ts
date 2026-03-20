@@ -1,12 +1,12 @@
 import { xs, dropRepeats } from 'sygnal'
 import type { Stream } from 'xstream'
 
-interface StoreEntry {
+export interface StoreEntry {
   key: string
   value: any
 }
 
-interface StoreSource {
+export interface StoreSource {
   get(key: string, defaultValue?: any, emitChanges?: boolean): Stream<any>
 }
 

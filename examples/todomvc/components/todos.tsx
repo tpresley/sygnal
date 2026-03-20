@@ -1,8 +1,11 @@
 import { classes, xs, sampleCombine } from 'sygnal'
-import type { Stream } from 'xstream'
+import type { Component, DriverSpec } from 'sygnal'
 import { inputEvents } from '../lib/utils'
+import type { DOMfx, DOMfxData } from '../lib/DOMfxDriver'
 
-interface TodoState {
+// ─── State ──────────────────────────────────────────────────────────────────
+
+type TodoState = {
   id: number
   title: string
   completed: boolean
@@ -10,16 +13,40 @@ interface TodoState {
   cachedTitle: string
 }
 
-interface TodoCalc {
+// ─── Calculated ─────────────────────────────────────────────────────────────
+
+type TodoCalc = {
   inputSelector: string
 }
 
-export default function TODO({ state }: { state: TodoState & TodoCalc }) {
-  const { id, completed, editing, title } = state
-  // calculate class for todo
-  const classNames = classes('todo', 'todo-' + id, { completed, editing })
+// ─── Custom Drivers ─────────────────────────────────────────────────────────
+// Must use `type` (not `interface`) so TypeScript recognizes it as extending
+// Record<string, DriverSpec> — interfaces lack implicit index signatures.
 
-  // is the todo completed?
+type TodoDrivers = {
+  DOMFX: DriverSpec<void, DOMfx>
+}
+
+// ─── Actions ────────────────────────────────────────────────────────────────
+// Use `any` for DOM event actions where the event data isn't used in reducers.
+
+type TodoActions = {
+  TOGGLE: any
+  DESTROY: any
+  EDIT_START: any
+  EDIT_DONE: string
+  EDIT_CANCEL: string
+  SET_EDIT_VALUE: DOMfxData
+  FOCUS_EDIT_FIELD: DOMfxData
+}
+
+// ─── Component ──────────────────────────────────────────────────────────────
+
+type Todo = Component<TodoState, {}, TodoDrivers, TodoActions, TodoCalc>
+
+const TODO: Todo = function ({ state }) {
+  const { id, completed, editing, title } = state!
+  const classNames = classes('todo', 'todo-' + id, { completed, editing })
   const checked = !!completed
 
   return (
@@ -35,65 +62,49 @@ export default function TODO({ state }: { state: TodoState & TodoCalc }) {
 }
 
 TODO.calculated = {
-  inputSelector: (state: TodoState) => `.todo-${state.id} .edit`,
+  inputSelector: (state) => `.todo-${state.id} .edit`,
 }
 
 TODO.model = {
-  TOGGLE: (state: TodoState) => ({ ...state, completed: !state.completed }),
+  TOGGLE: (state) => ({ ...state, completed: !state.completed }),
 
-  // for components used in a Sygnal collection element, setting the state
-  // to undefined will delete that instance of the component and remove it
-  // from the array in state that the collection is based on
+  // Setting state to undefined removes this item from the collection
   DESTROY: () => undefined,
 
-  EDIT_START: (state: TodoState & TodoCalc, _data: any, next: any) => {
+  EDIT_START: (state, _data, next) => {
     const selector = state.inputSelector
-    // update the value of the input field to the current todo title
     next('SET_EDIT_VALUE', { selector, value: state.title })
-    // set focus on the input field
     next('FOCUS_EDIT_FIELD', { selector }, 100)
-    // mark the todo as being edited and save the current title in case the edit is cancelled
     return { ...state, editing: true, cachedTitle: state.title }
   },
 
-  EDIT_DONE: (state: TodoState, data: string) => {
-    // if the todo is not being edited then don't change
+  EDIT_DONE: (state, data) => {
     if (state.editing === false) return state
-    // update the todo's title, remove the editing flag, and delete the cached title
     return { ...state, title: data, editing: false, cachedTitle: '' }
   },
 
-  EDIT_CANCEL: (state: TodoState & TodoCalc, _data: any, next: any) => {
+  EDIT_CANCEL: (state, _data, next) => {
     const selector = state.inputSelector
-    // set the value of the edit input field back to the original title
     next('SET_EDIT_VALUE', { selector, value: state.cachedTitle })
-    // set the todo back to the pre-edit value and remove the editing flag
     return { ...state, title: state.cachedTitle, editing: false, cachedTitle: '' }
   },
 
-  // it's a subjective matter whether DOM actions like setting focus or input values are
-  // side-effects that need to be isolated from components, but we are taking the strictest
-  // view here and using a DOMFX driver sink to handle them
-  SET_EDIT_VALUE: { DOMFX: (_state: any, data: any) => ({ type: 'SET_VALUE', data }) },
-  FOCUS_EDIT_FIELD: { DOMFX: (_state: any, data: any) => ({ type: 'FOCUS', data }) },
+  SET_EDIT_VALUE: { DOMFX: (_state, data) => ({ type: 'SET_VALUE', data }) },
+  FOCUS_EDIT_FIELD: { DOMFX: (_state, data) => ({ type: 'FOCUS', data }) },
 }
 
-TODO.intent = ({ DOM }: { DOM: any }) => {
-  // collect DOM events and elements
+TODO.intent = ({ DOM }) => {
   const toggle$ = DOM.select('.toggle').events('click')
   const label$ = DOM.select('.todo label').events('dblclick')
   const destroy$ = DOM.select('.destroy').events('click')
   const input$ = DOM.select('.edit')
 
-  // get events from the input field
-  //  - the inputEvents helper returns common events and automatically returns the current value
   const { value$, enter$, escape$, blur$ } = inputEvents(input$)
 
-  // map submitted edits to the new title
-  const doneEditing$: Stream<string> = xs
+  const doneEditing$ = xs
     .merge(enter$, blur$)
     .compose(sampleCombine(value$))
-    .map(([_, title]: [any, string]) => title)
+    .map(([_, title]) => title)
 
   return {
     TOGGLE: toggle$,
@@ -103,3 +114,5 @@ TODO.intent = ({ DOM }: { DOM: any }) => {
     EDIT_CANCEL: escape$,
   }
 }
+
+export default TODO
