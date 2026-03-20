@@ -783,6 +783,7 @@ class Component {
       })
       .compose(this.log('View rendered'))
       .map((vDom: any) => vDom || { sel: 'div', data: {}, children: [] })
+      .map((vdom: any) => processLazy(vdom, this))
       .map(processPortals)
       .map(processTransitions)
       .compose(this.instantiateSubComponents.bind(this))
@@ -1790,56 +1791,45 @@ function applyTransitionHooks(vnode: any, name: string, duration?: number): any 
 
 function processLazy(vnode: any, componentInstance: any): any {
   if (!vnode || !vnode.sel) return vnode
-  if (typeof vnode.sel === 'string' && vnode.sel.startsWith('lazy-') && lazyRegistry.has(vnode.sel)) {
-    const reg = lazyRegistry.get(vnode.sel)
 
-    const cached = reg.getCachedComponent()
-    const error = reg.getLoadError()
-
-    if (error) {
-      return {
-        sel: 'div', data: { attrs: { 'data-sygnal-error': 'lazy' } },
-        children: [], text: undefined, elm: undefined, key: undefined,
+  // Check if this VNode wraps a lazy component via sygnalOptions
+  const view = vnode.data?.props?.sygnalOptions?.view
+  if (view && view.__sygnalLazy) {
+    if (view.__sygnalLazyLoaded()) {
+      // Lazy component is loaded — rebuild VNode with loaded component's properties
+      const loaded = view.__sygnalLazyLoadedComponent
+      if (loaded) {
+        const props = vnode.data?.props || {}
+        const name = loaded.componentName || loaded.label || loaded.name || 'LazyLoaded'
+        const { model, intent, hmrActions, context, peers, components, initialState, isolatedState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, onError, debug } = loaded
+        const options = { name, view: loaded, model, intent, hmrActions, context, peers, components, initialState, isolatedState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, onError, debug }
+        const cleanProps = { ...props }
+        delete cleanProps.sygnalOptions
+        return {
+          sel: name,
+          data: { props: { ...cleanProps, sygnalOptions: options } },
+          children: vnode.children || [],
+          text: undefined, elm: undefined, key: undefined,
+        }
       }
-    }
-
-    if (cached) {
-      // Build a component VNode with sygnalOptions
-      const props = vnode.data?.props || {}
-      const cleanProps = { ...props }
-      const name = cached.componentName || cached.label || cached.name || 'LazyLoaded'
-      const { model, intent, hmrActions, context, peers, components, initialState, isolatedState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, onError, debug } = cached
-      const options = { name, view: cached, model, intent, hmrActions, context, peers, components, initialState, isolatedState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, onError, debug }
-      return {
-        sel: name,
-        data: { props: { ...cleanProps, sygnalOptions: options } },
-        children: vnode.children || [],
-        text: undefined, elm: undefined, key: undefined,
-      }
-    }
-
-    // Not loaded yet — return placeholder and trigger re-render when loaded
-    if (!reg.isReRenderScheduled()) {
-      const promise = reg.getLoadPromise()
-      if (promise && componentInstance) {
-        reg.setReRenderScheduled()
-        promise.then(() => {
-          // Defer re-render to next tick to avoid corrupting current render cycle
+    } else {
+      // Schedule re-render when lazy promise resolves
+      if (!view.__sygnalLazyReRenderScheduled && view.__sygnalLazyPromise && componentInstance) {
+        view.__sygnalLazyReRenderScheduled = true
+        view.__sygnalLazyPromise.then(() => {
           setTimeout(() => {
             const stateSource = componentInstance.sources?.[componentInstance.stateSourceName]
             if (stateSource && stateSource.stream) {
-              stateSource.stream.shamefullySendNext(componentInstance.currentState)
+              // Add a unique token to bypass dropRepeats deep comparison
+              const stateCopy = { ...componentInstance.currentState, __sygnalLazyTick: Date.now() }
+              stateSource.stream.shamefullySendNext(stateCopy)
             }
           }, 0)
         })
       }
     }
-
-    return {
-      sel: 'div', data: { attrs: { 'data-sygnal-lazy': 'loading' } },
-      children: [], text: undefined, elm: undefined, key: undefined,
-    }
   }
+
   if (vnode.children && vnode.children.length > 0) {
     vnode.children = vnode.children.map((child: any) => processLazy(child, componentInstance))
   }

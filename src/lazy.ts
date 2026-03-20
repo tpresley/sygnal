@@ -23,6 +23,7 @@ export function lazy(loadFn: () => Promise<any>): any {
   const loadPromise = loadFn()
     .then((mod: any) => {
       cachedComponent = mod.default || mod;
+      (LazyWrapper as any).__sygnalLazyLoadedComponent = cachedComponent;
       // Copy static properties so the component works on next render
       const statics = ['model', 'intent', 'hmrActions', 'context', 'peers', 'components',
         'initialState', 'calculated', 'storeCalculatedInState', 'DOMSourceName',
@@ -41,6 +42,7 @@ export function lazy(loadFn: () => Promise<any>): any {
   // Expose lazy loading metadata for Suspense detection
   (LazyWrapper as any).__sygnalLazy = true;
   (LazyWrapper as any).__sygnalLazyLoaded = () => cachedComponent !== null;
+  (LazyWrapper as any).__sygnalLazyLoadedComponent = null;
   (LazyWrapper as any).__sygnalLazyPromise = loadPromise;
   (LazyWrapper as any).__sygnalLazyReRenderScheduled = false;
 
