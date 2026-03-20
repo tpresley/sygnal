@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "lib": ["ES2021", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "jsx": "react-jsx",
+    "jsxImportSource": "sygnal",
+    "baseUrl": ".",
+    "paths": {
+      "sygnal": ["../src/index.d.ts"],
+      "sygnal/jsx-runtime": ["../src/jsx-runtime.d.ts"],
+      "xstream": ["../node_modules/xstream"],
+      "xstream/*": ["../node_modules/xstream/*"]
+    }
+  },
+  "include": ["./**/*.ts", "./**/*.tsx"]
+}

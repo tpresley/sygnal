@@ -51,7 +51,9 @@
     "src"
   ],
   "scripts": {
-    "test": "vitest run && npm test --prefix browser-tests",
+    "test": "vitest run && npm run test:types && npm run test:browser",
+    "test:types": "npx tsc --project type-tests/tsconfig.json 2>&1 | grep '^type-tests/' && exit 1 || exit 0",
+    "test:browser": "npm test --prefix browser-tests",
     "test:watch": "vitest",
     "build": "npx rollup -c && cp src/index.d.ts dist/index.d.ts",
     "build:types": "npx rollup -c rollup.config.dts.mjs",
