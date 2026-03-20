@@ -556,6 +556,61 @@ See [Model Shorthand guide](/advanced/model-shorthand/) for more details.
 
 ---
 
+## renderComponent()
+
+Render a Sygnal component in isolation for testing. Creates a minimal Cycle.js runtime with mocked DOM, event bus, and state drivers.
+
+```typescript
+function renderComponent(
+  component: ComponentFunction,
+  options?: RenderOptions
+): RenderResult
+```
+
+### RenderOptions
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `initialState` | `any` | Component's `.initialState` | Override the component's initial state |
+| `mockConfig` | `object` | `{}` | Mock DOM events — maps selectors to event streams |
+| `drivers` | `object` | `{}` | Additional drivers beyond the defaults |
+
+### Returns: RenderResult
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `state$` | `Stream<any>` | Live stream of state values |
+| `dom$` | `Stream<any>` | Live stream of rendered VNode trees |
+| `events$` | `EventsSource` | Event bus source (`.select(type)`) |
+| `sinks` | `object` | All driver sink streams |
+| `sources` | `object` | All driver source objects |
+| `states` | `any[]` | Collected state values |
+| `simulateAction` | `(name: string, data?: any) => void` | Push an action into the model |
+| `waitForState` | `(predicate, timeout?) => Promise<any>` | Resolve when state matches |
+| `dispose` | `() => void` | Tear down the component |
+
+### Examples
+
+```jsx
+import { renderComponent } from 'sygnal'
+
+// Basic usage
+const t = renderComponent(Counter, { initialState: { count: 0 } })
+t.simulateAction('INCREMENT')
+await t.waitForState(s => s.count === 1)
+t.dispose()
+
+// With mock DOM events
+import xs from 'xstream'
+const t = renderComponent(Counter, {
+  mockConfig: { '.inc': { click: xs.of({}) } },
+})
+```
+
+See [Testing guide](/integration/testing/) for full usage patterns.
+
+---
+
 ## dispose$
 
 A source stream available in every component's intent. Emits `true` once when the component unmounts.

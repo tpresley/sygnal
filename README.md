@@ -324,6 +324,21 @@ MyComponent.model = {
 }
 ```
 
+### Testing
+
+Test components in isolation with `renderComponent`:
+
+```jsx
+import { renderComponent } from 'sygnal'
+
+const t = renderComponent(Counter, { initialState: { count: 0 } })
+
+t.simulateAction('INCREMENT')
+await t.waitForState(s => s.count === 1)
+
+t.dispose()
+```
+
 ### Hot Module Replacement
 
 State-preserving HMR out of the box:

@@ -180,16 +180,18 @@ Render Sygnal components to HTML strings on the server for initial page load per
 
 ### 11. Testing Utilities
 
-**Status:** `NOT STARTED`
+**Status:** `DONE`
 
 A lightweight test helper for rendering components in isolation and asserting on their outputs. Currently tests use vitest with manual stream setup, which is verbose.
 
-**Implementation Plan:**
-- Export `renderComponent(Component, {initialState, props, drivers})` from `src/extra/testing.ts`
-- Returns `{ state$, dom$, events$, sinks, dispose }` — streams of component outputs that tests can subscribe to
-- Internally creates a minimal Cycle.js runtime with mock DOM and state drivers
-- Add `simulateAction(actionName, data)` helper to push values into the intent→model pipeline
-- Provide `waitForState(predicate)` and `waitForDom(predicate)` async helpers for assertion timing
+**Implementation:**
+- `renderComponent(Component, {initialState, mockConfig, drivers})` exported from `src/extra/testing.ts`
+- Returns `{ state$, dom$, events$, sinks, sources, simulateAction, waitForState, states, dispose }`
+- Internally creates a minimal Cycle.js runtime with mock DOM, event bus, log, and state drivers
+- `simulateAction(actionName, data)` pushes actions into the intent→model pipeline via a test action stream merged into intent; handles plain reducers, object-style entries with STATE/EFFECT sinks, and shorthand model entries
+- `waitForState(predicate, timeoutMs?)` returns a promise that resolves when the state matches, or rejects on timeout
+- `states` array collects all emitted state values for snapshot assertions
+- `dispose()` tears down the component and all listeners
 
 ---
 

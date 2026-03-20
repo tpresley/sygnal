@@ -560,6 +560,38 @@ export interface CommandSource {
 
 export function createCommand(): Command
 
+export interface RenderOptions {
+  /** Override initial state (defaults to component's .initialState) */
+  initialState?: any;
+  /** Mock DOM configuration — maps selectors to event streams */
+  mockConfig?: Record<string, any>;
+  /** Additional drivers beyond DOM, EVENTS, STATE, and LOG */
+  drivers?: Record<string, any>;
+}
+
+export interface RenderResult {
+  /** Stream of state values */
+  state$: Stream<any>;
+  /** Stream of rendered VNode trees */
+  dom$: Stream<any>;
+  /** Event bus source — call .select(type) to filter */
+  events$: any;
+  /** All sink streams by driver name */
+  sinks: Record<string, any>;
+  /** All source objects by driver name */
+  sources: Record<string, any>;
+  /** Push an action directly into the intent→model pipeline */
+  simulateAction: (actionName: string, data?: any) => void;
+  /** Wait for state to satisfy a predicate (resolves with the matching state) */
+  waitForState: (predicate: (state: any) => boolean, timeoutMs?: number) => Promise<any>;
+  /** Collected state values — grows as new states are emitted */
+  states: any[];
+  /** Tear down the component and clean up all listeners */
+  dispose: () => void;
+}
+
+export function renderComponent(componentDef: any, options?: RenderOptions): RenderResult
+
 export const xs: typeof xsDefault
 
 export { default as debounce } from 'xstream/extra/debounce'

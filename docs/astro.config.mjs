@@ -64,6 +64,7 @@ export default defineConfig({
           label: 'Integration',
           items: [
             { label: 'TypeScript', slug: 'integration/typescript' },
+            { label: 'Testing', slug: 'integration/testing' },
             { label: 'Astro', slug: 'integration/astro' },
             { label: 'Hot Module Replacement', slug: 'integration/hmr' },
             { label: 'Bundler Configuration', slug: 'integration/bundler-config' },

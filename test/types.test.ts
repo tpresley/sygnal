@@ -38,6 +38,8 @@ import type {
   Ref$,
   Command,
   CommandSource,
+  RenderOptions,
+  RenderResult,
   SygnalDOMSource,
   EventsSource,
   FixDrivers,
@@ -603,5 +605,49 @@ describe('EFFECT sink in model entries', () => {
     type Actions = { SUBMIT: null }
     type C = Component<State, {}, {}, Actions>
     expectTypeOf<C>().toHaveProperty('model')
+  })
+})
+
+// ─── RenderOptions / RenderResult ─────────────────────────────────────────
+
+describe('RenderOptions type', () => {
+  it('has optional initialState', () => {
+    expectTypeOf<RenderOptions>().toHaveProperty('initialState')
+  })
+  it('has optional mockConfig', () => {
+    expectTypeOf<RenderOptions>().toHaveProperty('mockConfig')
+  })
+  it('has optional drivers', () => {
+    expectTypeOf<RenderOptions>().toHaveProperty('drivers')
+  })
+})
+
+describe('RenderResult type', () => {
+  it('has state$ stream', () => {
+    expectTypeOf<RenderResult>().toHaveProperty('state$')
+  })
+  it('has dom$ stream', () => {
+    expectTypeOf<RenderResult>().toHaveProperty('dom$')
+  })
+  it('has events$ source', () => {
+    expectTypeOf<RenderResult>().toHaveProperty('events$')
+  })
+  it('has simulateAction function', () => {
+    expectTypeOf<RenderResult['simulateAction']>().toBeFunction()
+  })
+  it('has waitForState function', () => {
+    expectTypeOf<RenderResult['waitForState']>().toBeFunction()
+  })
+  it('has states array', () => {
+    expectTypeOf<RenderResult['states']>().toEqualTypeOf<any[]>()
+  })
+  it('has dispose function', () => {
+    expectTypeOf<RenderResult['dispose']>().toBeFunction()
+  })
+  it('has sinks record', () => {
+    expectTypeOf<RenderResult>().toHaveProperty('sinks')
+  })
+  it('has sources record', () => {
+    expectTypeOf<RenderResult>().toHaveProperty('sources')
   })
 })

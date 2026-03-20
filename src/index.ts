@@ -20,6 +20,7 @@ export { default as classes } from './extra/classes'
 export { createElement } from './pragma/index'
 export { createCommand } from './extra/command'
 export { createRef, createRef$ } from './extra/ref'
+export { renderComponent } from './extra/testing'
 export { default as xs } from './extra/xstreamCompat'
 export { getDevTools } from './extra/devtools'
 
