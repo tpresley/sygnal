@@ -5,4 +5,5 @@ export {MainDOMSource} from './MainDOMSource';
 export {makeDOMDriver, DOMDriverOptions} from './makeDOMDriver';
 export {mockDOMSource, MockConfig, MockedDOMSource} from './mockDOMSource';
 export {CycleDOMEvent} from './EventDelegator';
+export {EnrichedEventStream} from './enrichEventStream';
 export {h} from './snabbdom';

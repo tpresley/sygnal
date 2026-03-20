@@ -1,4 +1,5 @@
 import type { MainDOMSource } from './cycle/dom/MainDOMSource'
+import type { EnrichedEventStream } from './cycle/dom/enrichEventStream'
 import type { StateSource } from './cycle/state/index'
 import xsDefault from 'xstream'
 import type { MemoryStream, Stream } from 'xstream'
@@ -143,7 +144,7 @@ type ChildSource = {
 }
 
 export type SygnalDOMSource = MainDOMSource & {
-  [eventName: string]: (selector: string) => Stream<Event>
+  [eventName: string]: (selector: string) => EnrichedEventStream<globalThis.Event>
 }
 
 export type EventsSource<EVENTS = any> = Stream<Event<EVENTS>> & {
@@ -346,16 +347,40 @@ export function classes(...classes: ClassesType): string
 export function exactState<STATE>(): <ACTUAL extends STATE>(state: ExactShape<STATE, ACTUAL>) => STATE
 
 export type FormSource = {
-  events: (eventName: string) => Stream<Event>
+  events: (eventName: string) => Stream<globalThis.Event>
 }
 
-export function processForm<FIELDS extends { [field: string]: any }>(
+export type FormData<FIELDS extends Record<string, string> = Record<string, string>> = FIELDS & {
+  event: globalThis.Event;
+  eventType: string;
+}
+
+export type ProcessFormOptions = {
+  events?: string | string[];
+  preventDefault?: boolean;
+}
+
+/**
+ * Extracts form field values from a DOM source's form events.
+ *
+ * @example
+ * // Untyped — all fields are `string`
+ * const form$ = processForm(DOM.select('form'))
+ * // form$ is Stream<FormData>  →  { event, eventType, [field]: string }
+ *
+ * @example
+ * // Typed — specify expected field names
+ * const form$ = processForm<{ username: string; email: string }>(DOM.select('form'))
+ * // form$ is Stream<FormData<{ username: string; email: string }>>
+ * // form$.username is typed as string ✓
+ */
+export function processForm<FIELDS extends Record<string, string> = Record<string, string>>(
   target: FormSource,
-  options?: { events?: string | string[]; preventDefault?: boolean }
-): Stream<FIELDS & { event: Event; eventType: string }>
+  options?: ProcessFormOptions
+): Stream<FormData<FIELDS>>
 
 export type DragSource = {
-  events: (eventName: string) => Stream<Event>
+  events: (eventName: string) => Stream<globalThis.Event>
 }
 
 export function processDrag(

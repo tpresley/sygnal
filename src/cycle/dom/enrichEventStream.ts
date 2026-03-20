@@ -1,11 +1,20 @@
 import {Stream} from 'xstream';
 
 export interface EnrichedEventStream<T = Event> extends Stream<T> {
-  value(fn?: (val: string) => any): Stream<any>;
-  checked(fn?: (val: boolean) => any): Stream<any>;
-  data(name: string, fn?: (val: string | undefined) => any): Stream<any>;
-  target(fn?: (el: EventTarget | null) => any): Stream<any>;
-  key(fn?: (key: string) => any): Stream<any>;
+  value(): EnrichedEventStream<string>;
+  value<R>(fn: (val: string) => R): EnrichedEventStream<R>;
+
+  checked(): EnrichedEventStream<boolean>;
+  checked<R>(fn: (val: boolean) => R): EnrichedEventStream<R>;
+
+  data(name: string): EnrichedEventStream<string | undefined>;
+  data<R>(name: string, fn: (val: string | undefined) => R): EnrichedEventStream<R>;
+
+  target(): EnrichedEventStream<EventTarget | null>;
+  target<R>(fn: (el: EventTarget | null) => R): EnrichedEventStream<R>;
+
+  key(): EnrichedEventStream<string>;
+  key<R>(fn: (key: string) => R): EnrichedEventStream<R>;
 }
 
 /**
