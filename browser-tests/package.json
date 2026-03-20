@@ -1,0 +1,17 @@
+{
+  "name": "sygnal-browser-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "test": "node run-headless.mjs"
+  },
+  "dependencies": {
+    "sygnal": "file:.."
+  },
+  "devDependencies": {
+    "playwright": "^1.58.2",
+    "vite": "^6.4.1"
+  }
+}

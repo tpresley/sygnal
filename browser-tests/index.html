@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sygnal Browser Tests</title>
+    <style>
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body { font-family: system-ui, -apple-system, sans-serif; background: #f8f9fa; color: #1a1a2e; padding: 24px; }
+      h1 { margin-bottom: 8px; }
+      #summary { margin-bottom: 16px; font-size: 14px; color: #666; }
+      #results { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
+      #results th { background: #1a1a2e; color: white; padding: 8px 12px; text-align: left; font-size: 13px; }
+      #results td { padding: 6px 12px; border-bottom: 1px solid #e0e0e0; font-size: 13px; }
+      #results tr:hover { background: #f0f0f5; }
+      .pass { color: #059669; font-weight: 600; }
+      .fail { color: #dc2626; font-weight: 600; }
+      .pending { color: #d97706; }
+      .category { background: #eef; font-weight: 600; }
+      .category td { padding-top: 12px; }
+      #test-containers { position: absolute; left: -9999px; top: 0; width: 800px; }
+      .test-mount { margin: 4px; }
+    </style>
+  </head>
+  <body>
+    <h1>Sygnal Browser Tests</h1>
+    <div id="summary">Running tests...</div>
+    <table id="results">
+      <thead><tr><th>Test</th><th>Status</th><th>Details</th></tr></thead>
+      <tbody id="results-body"></tbody>
+    </table>
+    <div id="test-containers"></div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

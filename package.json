@@ -51,7 +51,7 @@
     "src"
   ],
   "scripts": {
-    "test": "vitest run",
+    "test": "vitest run && npm test --prefix browser-tests",
     "test:watch": "vitest",
     "build": "npx rollup -c && cp src/index.d.ts dist/index.d.ts",
     "build:types": "npx rollup -c rollup.config.dts.mjs",
