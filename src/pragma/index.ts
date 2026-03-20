@@ -73,17 +73,33 @@ const applyFocusProps = (data: any): any => {
   if (!autoFocus && !autoSelect) return data
 
   data.props = rest
+  data._autoFocus = !!autoFocus
+  data._autoSelect = !!autoSelect
+
+  const doFocus = (elm: any) => {
+    if (elm && typeof elm.focus === 'function') {
+      requestAnimationFrame(() => {
+        elm.focus()
+        if (autoSelect && typeof elm.select === 'function') {
+          elm.select()
+        }
+      })
+    }
+  }
+
   const existingInsert = data.hook?.insert
+  const existingPostpatch = data.hook?.postpatch
   data.hook = {
     ...data.hook,
     insert: (vnode: any) => {
       if (existingInsert) existingInsert(vnode)
-      if (vnode.elm && typeof vnode.elm.focus === 'function') {
-        vnode.elm.focus()
-        if (autoSelect && typeof vnode.elm.select === 'function') {
-          vnode.elm.select()
-        }
-      }
+      if (autoFocus || autoSelect) doFocus(vnode.elm)
+    },
+    postpatch: (oldVnode: any, vnode: any) => {
+      if (existingPostpatch) existingPostpatch(oldVnode, vnode)
+      const wasFocused = oldVnode.data?._autoFocus
+      const isFocused = vnode.data?._autoFocus
+      if (!wasFocused && isFocused) doFocus(vnode.elm)
     },
   }
   return data
