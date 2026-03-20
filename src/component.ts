@@ -1291,7 +1291,18 @@ class Component {
       lense = undefined
     }
 
-    const sources = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$, __parentContext$: this.context$, PARENT: null, __parentComponentNumber: this._componentNumber }
+    // Strip collection-specific props and forward only user-defined extra props to each item
+    const collectionKeys = ['of', 'from', 'filter', 'sort', 'idfield', 'className']
+    const itemProps$ = props$.map((p: any) => {
+      if (!p || typeof p !== 'object') return {}
+      const itemProps: Record<string, any> = {}
+      for (const key in p) {
+        if (!collectionKeys.includes(key)) itemProps[key] = p[key]
+      }
+      return itemProps
+    })
+
+    const sources = { ...this.sources, [this.stateSourceName]: stateSource, props$: itemProps$, children$, __parentContext$: this.context$, PARENT: null, __parentComponentNumber: this._componentNumber }
     const sink$   = collection(factory, lense as any, { container: null as any })(sources)
     if (!isObj(sink$)) {
       throw new Error(`[${this.name}] Invalid sinks returned from component factory of collection element`)
