@@ -80,6 +80,20 @@ export default [
   },
 
   {
+    input: 'src/vite/plugin.ts',
+    external: [],
+    output: [
+      { file: pkg.exports['./vite'].require, format: 'cjs' },
+      { file: pkg.exports['./vite'].import, format: 'es' }
+    ],
+		plugins: [
+			typescript({ tsconfig: './tsconfig.json' }),
+			resolve({ extensions: ['.mjs', '.js', '.ts', '.json'] }),
+			commonjs()
+		]
+  },
+
+  {
     input: 'src/astro/index.ts',
     external: [],
     output: [

@@ -5,7 +5,29 @@ description: Live reloading during development
 
 Sygnal has built-in HMR support that preserves application state across code changes.
 
-## Vite Setup
+## Vite (automatic)
+
+If you're using the [Sygnal Vite plugin](/integration/bundler-config/), HMR is wired automatically. No extra code needed:
+
+```javascript
+// vite.config.js
+import sygnal from 'sygnal/vite'
+export default defineConfig({ plugins: [sygnal()] })
+```
+
+```javascript
+// src/main.js — just run, no HMR boilerplate
+import { run } from 'sygnal'
+import App from './App.jsx'
+
+run(App)
+```
+
+The plugin detects the `run()` call and injects `import.meta.hot.accept` / `dispose` at build time.
+
+## Vite (manual)
+
+If you're not using the plugin, wire HMR yourself:
 
 ```javascript
 // src/main.js
@@ -46,7 +68,7 @@ State is preserved across reloads via `window.__SYGNAL_HMR_PERSISTED_STATE`.
 
 ## TypeScript HMR
 
-For TypeScript projects, you may need to cast the module:
+For TypeScript projects using manual HMR, you may need to cast the module:
 
 ```typescript
 import { run } from 'sygnal'
@@ -60,3 +82,5 @@ if (import.meta.hot) {
   })
 }
 ```
+
+This is not necessary when using the Vite plugin.

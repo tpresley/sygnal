@@ -66,6 +66,31 @@ if (import.meta.hot) {
 
 ---
 
+## Vite Plugin
+
+Auto-configures JSX transform and HMR. Import from `sygnal/vite`.
+
+```javascript
+import sygnal from 'sygnal/vite'
+
+export default defineConfig({
+  plugins: [sygnal()],
+})
+```
+
+### Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `disableJsx` | `boolean` | `false` | Skip automatic JSX configuration |
+| `disableHmr` | `boolean` | `false` | Skip automatic HMR injection |
+
+The HMR transform runs only in dev mode (`vite` / `vite dev`). Files that already contain `import.meta.hot` are left untouched.
+
+See [Bundler Configuration](/integration/bundler-config/) for details.
+
+---
+
 ## component()
 
 Lower-level factory for creating Sygnal components with explicit options. Most users won't need this — function augmentation (attaching `.model`, `.intent`, etc. directly to the view function) is the standard approach. Use `component()` when you need advanced isolation control or are building components programmatically.

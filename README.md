@@ -352,17 +352,21 @@ const html = renderToString(App, {
 })
 ```
 
-### Hot Module Replacement
+### Vite Plugin
 
-State-preserving HMR out of the box:
+Auto-configures JSX and HMR with state preservation:
 
 ```javascript
-const { hmr, dispose } = run(RootComponent)
+// vite.config.js
+import sygnal from 'sygnal/vite'
+export default defineConfig({ plugins: [sygnal()] })
+```
 
-if (import.meta.hot) {
-  import.meta.hot.accept('./RootComponent.jsx', hmr)
-  import.meta.hot.dispose(dispose)
-}
+```javascript
+// src/main.js — just run, HMR is automatic
+import { run } from 'sygnal'
+import App from './App.jsx'
+run(App)
 ```
 
 ### Astro Integration

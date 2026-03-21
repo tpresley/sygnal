@@ -26,6 +26,11 @@
       "import": "./dist/jsx-dev-runtime.esm.js",
       "require": "./dist/jsx-dev-runtime.cjs.js"
     },
+    "./vite": {
+      "types": "./src/vite/plugin.d.ts",
+      "import": "./dist/vite/plugin.mjs",
+      "require": "./dist/vite/plugin.cjs.js"
+    },
     "./astro": {
       "types": "./src/astro/index.d.ts",
       "import": "./dist/astro/index.mjs",

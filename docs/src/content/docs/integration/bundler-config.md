@@ -3,9 +3,68 @@ title: Bundler Configuration
 description: Vite, Webpack, and other bundler setup
 ---
 
-## Vite
+## Vite Plugin (recommended)
 
-Sygnal supports the automatic JSX transform, which is the modern standard used by React, Preact, Solid, and others. The bundler automatically inserts the necessary imports — no manual injection needed.
+The Sygnal Vite plugin handles everything automatically — JSX configuration and [HMR](/integration/hmr/) with state preservation:
+
+```javascript
+// vite.config.js
+import { defineConfig } from 'vite'
+import sygnal from 'sygnal/vite'
+
+export default defineConfig({
+  plugins: [sygnal()],
+})
+```
+
+That's it. Your entry file just needs `run()`:
+
+```javascript
+// src/main.js
+import { run } from 'sygnal'
+import App from './App.jsx'
+
+run(App)
+```
+
+The plugin detects the `run()` call, finds the imported root component, and automatically injects HMR wiring during development. No manual `import.meta.hot` boilerplate needed.
+
+### Plugin Options
+
+```javascript
+sygnal({
+  disableJsx: false,  // Set true to configure JSX yourself
+  disableHmr: false,  // Set true to handle HMR manually
+})
+```
+
+### How the HMR transform works
+
+In dev mode, the plugin transforms your entry file from:
+
+```javascript
+import { run } from 'sygnal'
+import App from './App.jsx'
+run(App)
+```
+
+Into:
+
+```javascript
+import { run } from 'sygnal'
+import App from './App.jsx'
+const __sygnal = run(App)
+if (import.meta.hot) {
+  import.meta.hot.accept('./App.jsx', __sygnal.hmr)
+  import.meta.hot.dispose(__sygnal.dispose)
+}
+```
+
+If you already have `import.meta.hot` in your file, the plugin leaves it alone.
+
+## Manual Vite Configuration
+
+If you prefer not to use the plugin, configure JSX manually:
 
 ```javascript
 // vite.config.js
@@ -29,6 +88,8 @@ For TypeScript projects, also add to `tsconfig.json`:
   }
 }
 ```
+
+And wire HMR yourself — see [Hot Module Replacement](/integration/hmr/).
 
 ## Other Bundlers
 
