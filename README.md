@@ -386,6 +386,25 @@ import Counter from '../components/Counter.jsx'
 <Counter client:load />
 ```
 
+### Vike Integration
+
+File-based routing with SSR, client-side navigation, and automatic hydration:
+
+```javascript
+// vite.config.js
+import sygnal from 'sygnal/vite'
+import vike from 'vike/plugin'
+export default defineConfig({ plugins: [sygnal({ disableHmr: true }), vike()] })
+```
+
+```javascript
+// pages/+config.js
+import vikeSygnal from 'sygnal/config'
+export default { extends: [vikeSygnal] }
+```
+
+Pages are standard Sygnal components in `pages/*/+Page.jsx`. Supports layouts, data fetching, and SPA mode.
+
 ### TypeScript
 
 Full type definitions included:
@@ -443,6 +462,7 @@ h('div', [h('h1', 'Hello'), h('button.btn', 'Click')])
 |---------|-------------|
 | [Getting Started](./examples/getting-started) | Interactive guide with live demos (Astro) |
 | [Kanban Board](./examples/kanban) | Drag-and-drop with Collections and cross-component communication |
+| [Vike SSR](./examples/vike) | File-based routing with SSR, layouts, and data fetching |
 | [Advanced Features](./examples/advanced-feature-tests) | Portals, slots, disposal, suspense, lazy loading |
 | [TypeScript 2048](./examples/ts-example-2048) | Full game in TypeScript |
 | [AI Discussion Panel](./examples/ai-panel-spa) | Complex SPA with custom drivers |

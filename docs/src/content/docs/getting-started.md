@@ -42,20 +42,20 @@ npm install sygnal
 npm install -D vite
 ```
 
-### 2. Configure Vite for JSX
+### 2. Configure Vite
 
 Create `vite.config.js`:
 
 ```javascript
 import { defineConfig } from 'vite'
+import sygnal from 'sygnal/vite'
 
 export default defineConfig({
-  esbuild: {
-    jsx: 'automatic',
-    jsxImportSource: 'sygnal',
-  }
+  plugins: [sygnal()],
 })
 ```
+
+The Sygnal Vite plugin configures JSX and [HMR](/integration/hmr/) automatically. See [Bundler Configuration](/integration/bundler-config/) for manual setup or other bundlers.
 
 ### 3. Create the HTML entry point
 
@@ -332,6 +332,40 @@ import Counter from '../components/Counter.jsx'
 
 <Counter client:load />
 ```
+
+## Using with Vike
+
+Sygnal integrates with [Vike](https://vike.dev) for file-based routing with SSR:
+
+```javascript
+// vite.config.js
+import { defineConfig } from 'vite'
+import sygnal from 'sygnal/vite'
+import vike from 'vike/plugin'
+
+export default defineConfig({
+  plugins: [sygnal({ disableHmr: true }), vike()],
+})
+```
+
+```javascript
+// pages/+config.js
+import vikeSygnal from 'sygnal/config'
+export default { extends: [vikeSygnal] }
+```
+
+Then create page components in `pages/`:
+
+```jsx
+// pages/index/+Page.jsx
+function Page({ state }) {
+  return <h1>Count: {state.count}</h1>
+}
+Page.initialState = { count: 0 }
+export default Page
+```
+
+See the [Vike integration guide](/integration/vike/) for layouts, data fetching, SPA mode, and more.
 
 ## Key Concepts Summary
 
