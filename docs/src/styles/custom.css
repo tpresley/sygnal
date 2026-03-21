@@ -1,7 +1,7 @@
 :root {
-  --sl-color-accent-low: #1a1a4e;
-  --sl-color-accent: #4f46e5;
-  --sl-color-accent-high: #c7d2fe;
+  --sl-color-accent-low: #0a2a4e;
+  --sl-color-accent: #1485EF;
+  --sl-color-accent-high: #b8dafb;
   --sl-color-white: #ffffff;
   --sl-color-gray-1: #eeeeee;
   --sl-color-gray-2: #c2c2c2;
@@ -23,9 +23,9 @@ table th:last-child {
 }
 
 :root[data-theme='light'] {
-  --sl-color-accent-low: #e0e7ff;
-  --sl-color-accent: #4f46e5;
-  --sl-color-accent-high: #1e1b4b;
+  --sl-color-accent-low: #dceefb;
+  --sl-color-accent: #1485EF;
+  --sl-color-accent-high: #082c50;
   --sl-color-white: #181818;
   --sl-color-gray-1: #272727;
   --sl-color-gray-2: #383838;

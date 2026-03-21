@@ -26,7 +26,7 @@ import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro'
     <div class="playground-layout">
       <div class="playground-editor">
         <div class="pane-label">Code</div>
-        <textarea id="editor" spellcheck="false"></textarea>
+        <textarea id="editor" spellcheck="false" wrap="off"></textarea>
       </div>
       <div class="playground-preview">
         <div class="pane-label">Preview</div>
@@ -59,23 +59,29 @@ import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro'
     border: 1px solid var(--sl-color-gray-5);
   }
 
+  .playground-controls select,
+  .playground-controls button,
+  .playground-controls label {
+    height: 30px;
+    box-sizing: border-box;
+    font-size: 13px;
+    border-radius: 4px;
+    margin: 0;
+  }
+
   .playground-controls select {
-    padding: 4px 8px;
+    padding: 0 24px 0 8px;
     background: var(--sl-color-gray-7, #1a1a2e);
     color: var(--sl-color-gray-1);
     border: 1px solid var(--sl-color-gray-4);
-    border-radius: 4px;
-    font-size: 13px;
   }
 
   .playground-controls button {
-    padding: 4px 16px;
+    padding: 0 16px;
     background: var(--sl-color-accent);
     color: var(--sl-color-accent-text-over, white);
     border: none;
-    border-radius: 4px;
     cursor: pointer;
-    font-size: 13px;
     font-weight: 600;
   }
 
@@ -84,6 +90,7 @@ import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro'
   }
 
   .playground-controls label {
+    height: 30px;
     font-size: 13px;
     color: var(--sl-color-gray-3);
     display: flex;
@@ -98,6 +105,12 @@ import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro'
     border-radius: 8px;
     overflow: hidden;
     min-height: 450px;
+    gap: 0;
+  }
+
+  .playground-layout * {
+    margin-block-start: 0;
+    margin-block-end: 0;
   }
 
   .playground-editor,
@@ -114,6 +127,7 @@ import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro'
 
   .pane-label {
     padding: 6px 12px;
+    margin: 0;
     font-size: 11px;
     font-weight: 600;
     text-transform: uppercase;
@@ -121,6 +135,7 @@ import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro'
     color: var(--sl-color-gray-3);
     background: var(--sl-color-gray-6);
     border-bottom: 1px solid var(--sl-color-gray-5);
+    line-height: 1.4;
   }
 
   #editor {
@@ -131,7 +146,7 @@ import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro'
     border: none;
     resize: none;
     font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
-    font-size: 13px;
+    font-size: 9px;
     line-height: 1.5;
     tab-size: 2;
     outline: none;
@@ -141,7 +156,7 @@ import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro'
   #preview {
     flex: 1;
     padding: 16px;
-    overflow: auto;
+    overflow: ;
     background: #fff;
     color: #333;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -244,9 +259,7 @@ Component.model = {
 Component.initialState = { name: 'World' }
 
 Component.intent = ({ DOM }) => ({
-  CHANGE_NAME: DOM.select('.name-input')
-    .events('input')
-    .map(e => e.target.value),
+  CHANGE_NAME: DOM.input('.name-input').value()
 })
 
 Component.model = {
@@ -256,7 +269,8 @@ Component.model = {
     todo: `function Component({ state }) {
   return (
     <div>
-      <h2>Todo List ({state.items.filter(i => !i.done).length} remaining)</h2>
+      <h2>Todo List </h2>
+      <span>({state.items.filter(i => !i.done).length} remaining)</span>
       <div>
         <input className="new-todo" value={state.text} placeholder="Add a task..." />
         <button className="add-btn">Add</button>
@@ -286,13 +300,9 @@ Component.initialState = {
 }
 
 Component.intent = ({ DOM }) => ({
-  UPDATE_TEXT: DOM.select('.new-todo')
-    .events('input')
-    .map(e => e.target.value),
-  ADD: DOM.select('.add-btn').events('click'),
-  TOGGLE: DOM.select('.todo-item')
-    .events('click')
-    .map(e => parseInt(e.target.dataset.index)),
+  UPDATE_TEXT: DOM.input('.new-todo').value(),
+  ADD: DOM.click('.add-btn'),
+  TOGGLE: DOM.click('.todo-item').data('index', parseInt)
 })
 
 Component.model = {
@@ -338,7 +348,7 @@ function Component({ state }) {
 Component.initialState = { width: 0, height: 0 }
 
 Component.intent = ({ DOM }) => ({
-  MEASURE: DOM.select('.measure').events('click'),
+  MEASURE: DOM.click('.measure')
 })
 
 Component.model = {

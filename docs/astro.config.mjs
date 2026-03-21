@@ -7,6 +7,11 @@ export default defineConfig({
   integrations: [
     starlight({
       title: 'Sygnal',
+      logo: {
+        dark: './src/assets/sygnal-logo-light.svg',
+        light: './src/assets/sygnal-logo.svg',
+        alt: 'Sygnal',
+      },
       description: 'An intuitive reactive component framework built on Cycle.js patterns',
       social: [
         { icon: 'github', label: 'GitHub', href: 'https://github.com/tpresley/sygnal' },
