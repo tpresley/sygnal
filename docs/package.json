@@ -10,6 +10,12 @@
   "dependencies": {
     "@astrojs/starlight": "^0.34.0",
     "@babel/standalone": "^7.29.2",
+    "@codemirror/autocomplete": "^6.20.1",
+    "@codemirror/commands": "^6.10.3",
+    "@codemirror/lang-javascript": "^6.2.5",
+    "@codemirror/language": "^6.12.2",
+    "@codemirror/state": "^6.6.0",
+    "@codemirror/view": "^6.40.0",
     "astro": "^5.7.0",
     "sharp": "^0.33.0",
     "sygnal": "file:..",
