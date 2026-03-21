@@ -43,31 +43,86 @@ export function onRenderHtml(pageContext: PageContext) {
   const { Page, config } = pageContext
   const data = pageContext.data || {}
 
+  // SPA mode: return empty shell, let the client render everything
+  if (config.ssr === false) {
+    const lang = config.lang || 'en'
+    const title = config.title || ''
+    const titleTag = title ? `<title>${esc(title)}</title>` : ''
+
+    const spaHtml = `<!DOCTYPE html>
+<html lang="${lang}">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    ${titleTag}
+  </head>
+  <body>
+    <div id="page-view"></div>
+  </body>
+</html>`
+    return { documentHtml: { _escaped: spaHtml } }
+  }
+
   // Merge fetched data into the component's initial state
   const initialState = {
     ...(Page.initialState || {}),
     ...data,
   }
 
-  // Render the page component to HTML
-  const pageHtml = renderToString(Page, {
-    state: initialState,
-    hydrateState: '__VIKE_SYGNAL_STATE__',
-  })
+  // Render the page component to HTML, with error boundary
+  let pageHtml: string
+  try {
+    pageHtml = renderToString(Page, {
+      state: initialState,
+      hydrateState: '__VIKE_SYGNAL_STATE__',
+    })
+  } catch (err: any) {
+    // If the component has an onError boundary, try rendering its fallback
+    if (Page.onError) {
+      try {
+        const fallbackVNode = Page.onError(err, { componentName: Page.name || 'Page' })
+        if (fallbackVNode) {
+          pageHtml = renderToString(() => fallbackVNode, { state: {} })
+          // Still embed the state so the client can attempt hydration
+          pageHtml += `<script>window.__VIKE_SYGNAL_STATE__=${JSON.stringify(initialState)}</script>`
+        } else {
+          pageHtml = `<div data-sygnal-error>Render error</div>`
+        }
+      } catch (_) {
+        pageHtml = `<div data-sygnal-error>Render error</div>`
+      }
+    } else {
+      console.error('[sygnal/vike] SSR render error:', err)
+      pageHtml = `<div data-sygnal-error><!-- SSR render error: ${esc(String(err.message || err))} --></div>`
+    }
+  }
 
-  // If Layout(s) are defined, wrap the page HTML
-  // Vike's cumulative meta means Layout can be an array (nested layouts)
-  let contentHtml = pageHtml
+  // If Layout(s) are defined, render them as static HTML wrapping the page.
+  // The Layout is rendered OUTSIDE #page-view so that Sygnal's DOM driver
+  // (which replaces the mount point content) doesn't destroy the Layout.
+  let layoutBeforeHtml = ''
+  let layoutAfterHtml = ''
   const layouts = config.Layout
   if (layouts) {
     const layoutArray = Array.isArray(layouts) ? layouts : [layouts]
     for (const Layout of layoutArray) {
       if (typeof Layout === 'function') {
+        // Render the Layout with a placeholder for page content.
+        // The Layout view receives { innerHTML: '<!--PAGE-->' } and we split
+        // the output around the placeholder to get before/after chunks.
+        const PLACEHOLDER = '<!--SYGNAL_PAGE_SLOT-->'
         const layoutHtml = renderToString(Layout, {
           state: Layout.initialState || {},
-          props: { innerHTML: contentHtml },
+          props: { innerHTML: PLACEHOLDER },
         })
-        contentHtml = layoutHtml
+        const splitIdx = layoutHtml.indexOf(PLACEHOLDER)
+        if (splitIdx !== -1) {
+          layoutBeforeHtml += layoutHtml.substring(0, splitIdx)
+          layoutAfterHtml = layoutHtml.substring(splitIdx + PLACEHOLDER.length) + layoutAfterHtml
+        } else {
+          // Fallback: Layout didn't use innerHTML, render it before page content
+          layoutBeforeHtml += layoutHtml
+        }
       }
     }
   }
@@ -106,7 +161,9 @@ export function onRenderHtml(pageContext: PageContext) {
     ${headContent}
   </head>
   <body>
-    <div id="page-view">${contentHtml}</div>
+    ${layoutBeforeHtml}
+    <div id="page-view">${pageHtml}</div>
+    ${layoutAfterHtml}
   </body>
 </html>`
 

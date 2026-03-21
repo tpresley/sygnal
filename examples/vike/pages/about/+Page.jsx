@@ -1,14 +1,24 @@
 function Page({ state }) {
   return (
     <div className="page">
-      <nav>
-        <a href="/">Home</a> | <a href="/about">About</a>
-      </nav>
       <h1>About</h1>
-      <p>{state.description}</p>
-      <p>
-        This page was rendered {state.renderedAt ? 'with data from +data()' : 'without data'}.
-      </p>
+      <p className="subtitle">{state.description}</p>
+      <div className="info-card">
+        <h3>Features demonstrated</h3>
+        <ul>
+          <li>Server-side rendering with hydration</li>
+          <li>File-based routing via Vike</li>
+          <li>Data fetching with <code>+data()</code></li>
+          <li>Client-side navigation</li>
+          <li>Shared Layout component</li>
+          <li>SPA mode (no SSR)</li>
+        </ul>
+        {state.renderedAt ? (
+          <p className="meta">
+            Data fetched at: <code>{state.renderedAt}</code>
+          </p>
+        ) : null}
+      </div>
     </div>
   )
 }

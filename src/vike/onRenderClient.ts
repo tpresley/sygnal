@@ -6,6 +6,9 @@
  *
  * On client-side navigation: disposes the previous app and boots
  * a fresh one for the new page.
+ *
+ * Layout is rendered outside #page-view by onRenderHtml, so it persists
+ * across navigations without being destroyed by Sygnal's DOM driver.
  */
 
 // Import from the package entry so rollup externalizes it
@@ -59,25 +62,20 @@ export function onRenderClient(pageContext: PageContext) {
   // Set the initial state on the component before running
   Page.initialState = initialState
 
-  // If Layout(s) exist, create a wrapper component
-  const layouts = config.Layout
-  let RootComponent = Page
-
-  if (layouts) {
-    const layoutArray = Array.isArray(layouts) ? layouts : [layouts]
-    // Build wrapper chain: outermost Layout wraps inner Layout wraps Page
-    // For client, Layout components need to render children.
-    // The simplest approach: Layout receives its content via props.innerHTML
-    // and renders it. But for a live client app, we need component nesting.
-    //
-    // For MVP: run Page directly (Layout is SSR-only document wrapper).
-    // Full Layout-as-Sygnal-component support is a post-MVP enhancement
-    // since it requires composing independent reactive graphs.
-    RootComponent = Page
+  // Boot the Sygnal app into #page-view
+  // Layout HTML lives outside #page-view, so it won't be destroyed
+  try {
+    currentApp = run(Page, {}, { mountPoint: '#page-view' })
+  } catch (err: any) {
+    console.error('[sygnal/vike] Client render error:', err)
+    const container = document.getElementById('page-view')
+    if (container) {
+      container.innerHTML = `<div data-sygnal-error style="padding:2rem;color:#e74c3c;font-family:monospace">
+        <h2>Render Error</h2>
+        <pre>${String(err.message || err)}</pre>
+      </div>`
+    }
   }
-
-  // Boot the Sygnal app
-  currentApp = run(RootComponent, {}, { mountPoint: '#page-view' })
 
   // Update document title on client navigation
   if (config.title) {

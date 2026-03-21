@@ -549,6 +549,13 @@ function vnodeToHtml(vnode: any): string {
     return html
   }
 
+  // If innerHTML is set via props, use it as raw content (no escaping)
+  if (vnode.data?.props?.innerHTML != null) {
+    html += String(vnode.data.props.innerHTML)
+    html += `</${tag}>`
+    return html
+  }
+
   // Children — snabbdom uses `text` for single text children (even when
   // `children` holds a text element object). Prioritize `text` when set.
   if (vnode.text != null) {

@@ -31,6 +31,7 @@ describe('vike-sygnal config', () => {
 
   it('passes data to client', () => {
     expect(vikeConfig.passToClient).toContain('data')
+    expect(vikeConfig.passToClient).toContain('routeParams')
   })
 
   it('references onRenderHtml via import directive', () => {
@@ -190,5 +191,80 @@ describe('vike-sygnal SSR rendering', () => {
 
     const html = renderToString(Broken, { state: {} })
     expect(html).toContain('Something went wrong')
+  })
+
+  it('renders innerHTML prop as raw HTML content', () => {
+    function Layout({ innerHTML }) {
+      return {
+        sel: 'div',
+        data: { props: { className: 'layout' } },
+        children: [{
+          sel: 'main',
+          data: { props: { innerHTML: innerHTML || '' } },
+          children: [],
+          text: undefined,
+          elm: undefined,
+          key: undefined,
+        }],
+        text: undefined,
+        elm: undefined,
+        key: undefined,
+      }
+    }
+    Layout.initialState = {}
+
+    const html = renderToString(Layout, {
+      state: {},
+      props: { innerHTML: '<p>Page content</p>' },
+    })
+    expect(html).toContain('class="layout"')
+    expect(html).toContain('<main><p>Page content</p></main>')
+  })
+
+  it('Layout placeholder splitting works for SSR', () => {
+    // Simulate what onRenderHtml does: render Layout with a placeholder,
+    // then split around it to get before/after HTML
+    function NavLayout({ innerHTML }) {
+      return {
+        sel: 'div',
+        data: { props: { className: 'wrapper' } },
+        children: [
+          {
+            sel: 'nav',
+            data: {},
+            children: [{ text: 'Navigation' }],
+            text: undefined, elm: undefined, key: undefined,
+          },
+          {
+            sel: 'main',
+            data: { props: { innerHTML: innerHTML || '' } },
+            children: [],
+            text: undefined, elm: undefined, key: undefined,
+          },
+        ],
+        text: undefined,
+        elm: undefined,
+        key: undefined,
+      }
+    }
+    NavLayout.initialState = {}
+
+    const PLACEHOLDER = '<!--SYGNAL_PAGE_SLOT-->'
+    const layoutHtml = renderToString(NavLayout, {
+      state: {},
+      props: { innerHTML: PLACEHOLDER },
+    })
+
+    const splitIdx = layoutHtml.indexOf(PLACEHOLDER)
+    expect(splitIdx).toBeGreaterThan(-1)
+
+    const before = layoutHtml.substring(0, splitIdx)
+    const after = layoutHtml.substring(splitIdx + PLACEHOLDER.length)
+
+    expect(before).toContain('<nav>')
+    expect(before).toContain('Navigation')
+    expect(before).toContain('<main>')
+    expect(after).toContain('</main>')
+    expect(after).toContain('</div>')
   })
 })
