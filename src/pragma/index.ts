@@ -169,7 +169,7 @@ export const createElementWithModules = (modules: Record<string, any>) => {
       console.error('JSX Error: Capitalized HTML element without corresponding factory function.  Components with names where the first letter is capital MUST be defined or included at the parent component\'s file scope.')
     }
     if (is.fun(sel)) {
-      if (sel.name === 'Fragment') {
+      if ((sel as any).__sygnalFragment || sel.name === 'Fragment') {
         return sel(data || {}, children)
       }
       data ||= {}

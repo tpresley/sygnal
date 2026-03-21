@@ -16,7 +16,11 @@ export type {Options} from 'snabbdom/build/init';
 export {toVNode} from 'snabbdom/build/tovnode';
 export {vnode} from 'snabbdom/build/vnode';
 export type {VNode, VNodeData} from 'snabbdom/build/vnode';
-export {Fragment} from 'snabbdom/build/jsx';
+import {Fragment as _Fragment} from 'snabbdom/build/jsx';
+
+// Tag Fragment so we can identify it even after minification mangles Function.name
+(_Fragment as any).__sygnalFragment = true;
+export const Fragment = _Fragment;
 
 // Module type
 export type {Module} from 'snabbdom/build/modules/module';
