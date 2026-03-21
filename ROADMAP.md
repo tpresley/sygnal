@@ -165,16 +165,21 @@ Let a parent invoke actions on a child component — play/pause a video player, 
 
 ### 10. SSR Utilities
 
-**Status:** `NOT STARTED`
+**Status:** `DONE`
 
-Render Sygnal components to HTML strings on the server for initial page load performance and SEO. Currently Astro integration handles SSR for Astro projects, but standalone SSR (Next.js-style) isn't supported.
+Render Sygnal components to HTML strings on the server for initial page load performance and SEO. Previously only the Astro integration provided SSR (and it was stubbed out); now standalone SSR works for any server environment.
 
-**Implementation Plan:**
-- Create `renderToString(component, {state, props})` in `src/extra/ssr.ts` using snabbdom's VNode serialization
-- Run the component's view function with the provided state to produce a VNode tree, then serialize to HTML
-- Handle sub-components recursively — instantiate each child component's view with its scoped state
-- Skip intent/model processing (SSR is render-only); include serialized state as `<script>` for client hydration
-- Integrate with the existing `HYDRATE` action for client-side rehydration
+**Implementation:**
+- `renderToString(component, {state, props, context, hydrateState})` in `src/extra/ssr.ts`
+- Calls the component's view function with provided (or initial) state, recursively renders sub-components via `sygnalOptions` detection
+- Handles all special component types: Portals (rendered inline), Transitions (unwrapped to child), Suspense (renders content not fallback), Slots, Collections, Switchable
+- State lensing via `state="propName"` prop resolves child state from parent state
+- Context propagation: component `.context` definitions computed from state and merged with parent context
+- Error boundaries: `onError` handler produces fallback VNode; without handler, renders `<div data-sygnal-error>`
+- HTML serialization: proper escaping, void elements, inline styles (camelCase→kebab-case), selector parsing (tag#id.class), data-* attributes, boolean attributes
+- `hydrateState: true` appends `<script>window.__SYGNAL_STATE__=...</script>` for client rehydration; accepts custom variable name
+- Astro server integration (`src/astro/server.ts`) updated to use `renderToString` instead of returning empty HTML
+- Exported from `src/index.ts`; type declarations in `src/index.d.ts`
 
 ---
 

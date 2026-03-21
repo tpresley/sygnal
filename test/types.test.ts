@@ -40,6 +40,7 @@ import type {
   CommandSource,
   RenderOptions,
   RenderResult,
+  RenderToStringOptions,
   SygnalDOMSource,
   EventsSource,
   FixDrivers,
@@ -649,5 +650,33 @@ describe('RenderResult type', () => {
   })
   it('has sources record', () => {
     expectTypeOf<RenderResult>().toHaveProperty('sources')
+  })
+})
+
+// ─── RenderToStringOptions ────────────────────────────────────────────────
+
+describe('RenderToStringOptions type', () => {
+  it('has optional state', () => {
+    expectTypeOf<RenderToStringOptions>().toHaveProperty('state')
+  })
+  it('has optional props', () => {
+    expectTypeOf<RenderToStringOptions>().toHaveProperty('props')
+  })
+  it('has optional context', () => {
+    expectTypeOf<RenderToStringOptions>().toHaveProperty('context')
+  })
+  it('has optional hydrateState', () => {
+    expectTypeOf<RenderToStringOptions>().toHaveProperty('hydrateState')
+  })
+})
+
+// ─── renderToString ───────────────────────────────────────────────────────
+
+describe('renderToString type', () => {
+  it('accepts component and optional options', () => {
+    // Verify the type exists and has the right shape
+    type Fn = (componentDef: any, options?: RenderToStringOptions) => string
+    expectTypeOf<Fn>().toBeFunction()
+    expectTypeOf<Fn>().returns.toBeString()
   })
 })

@@ -339,6 +339,19 @@ await t.waitForState(s => s.count === 1)
 t.dispose()
 ```
 
+### Server-Side Rendering
+
+Render components to HTML strings on the server:
+
+```jsx
+import { renderToString } from 'sygnal'
+
+const html = renderToString(App, {
+  state: { count: 0 },
+  hydrateState: true,  // embeds state for client hydration
+})
+```
+
 ### Hot Module Replacement
 
 State-preserving HMR out of the box:

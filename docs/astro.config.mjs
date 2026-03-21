@@ -70,6 +70,7 @@ export default defineConfig({
           items: [
             { label: 'TypeScript', slug: 'integration/typescript' },
             { label: 'Testing', slug: 'integration/testing' },
+            { label: 'Server-Side Rendering', slug: 'integration/ssr' },
             { label: 'Astro', slug: 'integration/astro' },
             { label: 'Hot Module Replacement', slug: 'integration/hmr' },
             { label: 'Bundler Configuration', slug: 'integration/bundler-config' },

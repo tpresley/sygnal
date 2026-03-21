@@ -592,6 +592,26 @@ export interface RenderResult {
 
 export function renderComponent(componentDef: any, options?: RenderOptions): RenderResult
 
+export interface RenderToStringOptions {
+  /** Initial state for the root component */
+  state?: any
+  /** Props to pass to the root component */
+  props?: Record<string, any>
+  /** Context from a parent (for nested rendering) */
+  context?: Record<string, any>
+  /**
+   * Embed serialized state in a <script> tag for client hydration.
+   * When true, appends `<script>window.__SYGNAL_STATE__=...</script>`.
+   * When a string, uses that as the variable name.
+   */
+  hydrateState?: boolean | string
+}
+
+/**
+ * Render a Sygnal component to an HTML string on the server.
+ */
+export function renderToString(componentDef: any, options?: RenderToStringOptions): string
+
 export const xs: typeof xsDefault
 
 export { default as debounce } from 'xstream/extra/debounce'

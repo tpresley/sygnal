@@ -611,6 +611,46 @@ See [Testing guide](/integration/testing/) for full usage patterns.
 
 ---
 
+## renderToString()
+
+Render a Sygnal component to an HTML string for server-side rendering. Recursively renders sub-components, Collections, and special components.
+
+```typescript
+function renderToString(
+  component: ComponentFunction,
+  options?: RenderToStringOptions
+): string
+```
+
+### RenderToStringOptions
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `state` | `any` | Component's `.initialState` | State for the root component |
+| `props` | `Record<string, any>` | `{}` | Props to pass to the component |
+| `context` | `Record<string, any>` | `{}` | Parent context to merge with |
+| `hydrateState` | `boolean \| string` | — | Embed state in `<script>` tag for client hydration |
+
+### Examples
+
+```jsx
+import { renderToString } from 'sygnal'
+
+// Basic usage
+const html = renderToString(App, { state: { count: 0 } })
+
+// With hydration state
+const html = renderToString(App, {
+  state: { count: 5 },
+  hydrateState: true,
+})
+// Appends: <script>window.__SYGNAL_STATE__={"count":5}</script>
+```
+
+See [Server-Side Rendering guide](/integration/ssr/) for full usage patterns.
+
+---
+
 ## dispose$
 
 A source stream available in every component's intent. Emits `true` once when the component unmounts.
