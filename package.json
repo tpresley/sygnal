@@ -48,8 +48,18 @@
     },
     "./vike": {
       "types": "./src/vike/types.ts",
-      "import": "./dist/vike/config.mjs",
-      "require": "./dist/vike/config.cjs.js"
+      "import": "./dist/vike/+config.js",
+      "require": "./dist/vike/+config.cjs.js"
+    },
+    "./vike/config": {
+      "types": "./src/vike/types.ts",
+      "import": "./dist/vike/+config.js",
+      "require": "./dist/vike/+config.cjs.js"
+    },
+    "./config": {
+      "types": "./src/vike/types.ts",
+      "import": "./dist/vike/+config.js",
+      "require": "./dist/vike/+config.cjs.js"
     },
     "./vike/onRenderHtml": {
       "import": "./dist/vike/onRenderHtml.mjs",

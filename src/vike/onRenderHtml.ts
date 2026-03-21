@@ -4,31 +4,14 @@
  * Renders the Page component to HTML using Sygnal's renderToString,
  * wraps it in a full HTML document, and embeds serialized state for
  * client hydration.
+ *
+ * Returns a plain HTML string. Vike wraps it with dangerouslySkipEscape
+ * automatically. We avoid importing from vike/server because our bundled
+ * output lives in node_modules/sygnal/ where vike isn't resolvable.
  */
 
-// Import from the package entry so rollup externalizes it
 // @ts-ignore — resolved at runtime via package exports
 import { renderToString } from 'sygnal'
-
-// Vike provides these at runtime — declare minimal types
-declare function escapeInject(
-  strings: TemplateStringsArray,
-  ...values: any[]
-): any
-declare function dangerouslySkipEscape(html: string): any
-
-// We import these dynamically to avoid hard dependency at build time
-let _escapeInject: typeof escapeInject
-let _dangerouslySkipEscape: typeof dangerouslySkipEscape
-
-async function getVikeServerUtils() {
-  if (!_escapeInject) {
-    const mod = await import('vike/server') as any
-    _escapeInject = mod.escapeInject
-    _dangerouslySkipEscape = mod.dangerouslySkipEscape
-  }
-  return { escapeInject: _escapeInject, dangerouslySkipEscape: _dangerouslySkipEscape }
-}
 
 interface PageContext {
   Page: any
@@ -56,8 +39,7 @@ function esc(str: string): string {
     .replace(/"/g, '&quot;')
 }
 
-export async function onRenderHtml(pageContext: PageContext) {
-  const { escapeInject, dangerouslySkipEscape } = await getVikeServerUtils()
+export function onRenderHtml(pageContext: PageContext) {
   const { Page, config } = pageContext
   const data = pageContext.data || {}
 
@@ -79,7 +61,6 @@ export async function onRenderHtml(pageContext: PageContext) {
   const layouts = config.Layout
   if (layouts) {
     const layoutArray = Array.isArray(layouts) ? layouts : [layouts]
-    // Wrap from innermost to outermost
     for (const Layout of layoutArray) {
       if (typeof Layout === 'function') {
         const layoutHtml = renderToString(Layout, {
@@ -114,23 +95,24 @@ export async function onRenderHtml(pageContext: PageContext) {
     ? `<link rel="icon" href="${esc(favicon)}">`
     : ''
 
-  const documentHtml = escapeInject`<!DOCTYPE html>
+  const documentHtml = `<!DOCTYPE html>
 <html lang="${lang}">
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    ${dangerouslySkipEscape(titleTag)}
-    ${dangerouslySkipEscape(descTag)}
-    ${dangerouslySkipEscape(faviconTag)}
-    ${dangerouslySkipEscape(headContent)}
+    ${titleTag}
+    ${descTag}
+    ${faviconTag}
+    ${headContent}
   </head>
   <body>
-    <div id="page-view">${dangerouslySkipEscape(contentHtml)}</div>
+    <div id="page-view">${contentHtml}</div>
   </body>
 </html>`
 
-  return {
-    documentHtml,
-    pageContext: {},
-  }
+  // Produce the shape Vike's isDocumentHtml() recognizes: { _escaped: string }
+  // This is equivalent to dangerouslySkipEscape(html) from vike/server,
+  // but avoids importing vike/server (which isn't resolvable from within
+  // node_modules/sygnal/ in Vite's module runner).
+  return { documentHtml: { _escaped: documentHtml } }
 }

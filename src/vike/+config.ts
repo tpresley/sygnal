@@ -8,7 +8,7 @@
  */
 
 export default {
-  name: 'vike-sygnal',
+  name: 'sygnal',
   clientRouting: true,
   hydrationCanBeAborted: true,
 

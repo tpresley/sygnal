@@ -9,7 +9,7 @@ import { describe, it, expect } from 'vitest'
  */
 
 // Import the built config
-import vikeConfig from '../dist/vike/config.mjs'
+import vikeConfig from '../dist/vike/+config.js'
 
 // Import onRenderHtml directly (we mock the vike/server dependency)
 // We test renderToString integration separately since onRenderHtml
@@ -18,7 +18,7 @@ import { renderToString } from '../dist/index.esm.js'
 
 describe('vike-sygnal config', () => {
   it('has the correct extension name', () => {
-    expect(vikeConfig.name).toBe('vike-sygnal')
+    expect(vikeConfig.name).toBe('sygnal')
   })
 
   it('enables client routing', () => {

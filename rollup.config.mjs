@@ -139,8 +139,8 @@ export default [
     input: 'src/vike/+config.ts',
     external: [],
     output: [
-      { file: pkg.exports['./vike'].require, format: 'cjs' },
-      { file: pkg.exports['./vike'].import, format: 'es' }
+      { file: 'dist/vike/+config.cjs.js', format: 'cjs' },
+      { file: 'dist/vike/+config.js', format: 'es' }
     ],
 		plugins: [
 			typescript({ tsconfig: './tsconfig.json' }),
