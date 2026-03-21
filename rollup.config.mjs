@@ -133,5 +133,47 @@ export default [
 			resolve({ extensions: ['.mjs', '.js', '.ts', '.json'] }),
 			commonjs()
 		]
+  },
+
+  {
+    input: 'src/vike/+config.ts',
+    external: [],
+    output: [
+      { file: pkg.exports['./vike'].require, format: 'cjs' },
+      { file: pkg.exports['./vike'].import, format: 'es' }
+    ],
+		plugins: [
+			typescript({ tsconfig: './tsconfig.json' }),
+			resolve({ extensions: ['.mjs', '.js', '.ts', '.json'] }),
+			commonjs()
+		]
+  },
+
+  {
+    input: 'src/vike/onRenderHtml.ts',
+    external: (id) => /^(vike|sygnal)(\/|$)/.test(id),
+    output: [
+      { file: pkg.exports['./vike/onRenderHtml'].require, format: 'cjs' },
+      { file: pkg.exports['./vike/onRenderHtml'].import, format: 'es' }
+    ],
+		plugins: [
+			typescript({ tsconfig: './tsconfig.json' }),
+			resolve({ extensions: ['.mjs', '.js', '.ts', '.json'] }),
+			commonjs()
+		]
+  },
+
+  {
+    input: 'src/vike/onRenderClient.ts',
+    external: (id) => /^(vike|sygnal|snabbdom|xstream)(\/|$)/.test(id),
+    output: [
+      { file: pkg.exports['./vike/onRenderClient'].require, format: 'cjs' },
+      { file: pkg.exports['./vike/onRenderClient'].import, format: 'es' }
+    ],
+		plugins: [
+			typescript({ tsconfig: './tsconfig.json' }),
+			resolve({ extensions: ['.mjs', '.js', '.ts', '.json'] }),
+			commonjs()
+		]
   }
 ];

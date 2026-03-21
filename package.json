@@ -46,6 +46,19 @@
       "import": "./dist/astro/server.mjs",
       "require": "./dist/astro/server.cjs.js"
     },
+    "./vike": {
+      "types": "./src/vike/types.ts",
+      "import": "./dist/vike/config.mjs",
+      "require": "./dist/vike/config.cjs.js"
+    },
+    "./vike/onRenderHtml": {
+      "import": "./dist/vike/onRenderHtml.mjs",
+      "require": "./dist/vike/onRenderHtml.cjs.js"
+    },
+    "./vike/onRenderClient": {
+      "import": "./dist/vike/onRenderClient.mjs",
+      "require": "./dist/vike/onRenderClient.cjs.js"
+    },
     "./types": {
       "import": "./dist/index.d.ts",
       "require": "./dist/index.d.ts"
