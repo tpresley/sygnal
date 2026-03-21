@@ -3,6 +3,7 @@ import { setup } from '../src/cycle/run/index'
 import { withState } from '../src/cycle/state/index'
 import { mockDOMSource } from '../src/cycle/dom/index'
 import xs from 'xstream'
+import delay from 'xstream/extra/delay'
 
 // Ensure `window` is defined so component.js `window?.` optional chaining
 // doesn't throw ReferenceError in Node (where `window` is undeclared).
@@ -269,6 +270,43 @@ describe('component integration (mockDOMSource)', () => {
 
       const lastState = testEnv.states[testEnv.states.length - 1]
       expect(lastState.count).toBe(0) // Was 0, ABORT prevented change
+    })
+
+    it('recognizes ABORT by symbol description when Symbol identity differs (cross-module)', async () => {
+      // Simulates Vite/bundler creating a separate module instance with its own
+      // Symbol.for() registry. The ABORT from a different module instance has the
+      // same description but different identity than the one in component.ts.
+      const foreignABORT = Symbol('sygnal.ABORT')
+      // Verify they are NOT the same symbol
+      expect(foreignABORT).not.toBe(ABORT)
+      expect(foreignABORT.description).toBe(ABORT.description)
+
+      function Guarded({ state }) {
+        return createElement('div', null, String(state.count))
+      }
+      Guarded.initialState = { count: 0 }
+      Guarded.intent = ({ DOM }) => ({
+        TRY_DECREMENT: DOM.select('.btn').events('click'),
+        INCREMENT: DOM.select('.inc').events('click'),
+      })
+      Guarded.model = {
+        TRY_DECREMENT: (state) => {
+          if (state.count <= 0) return foreignABORT // Uses foreign ABORT
+          return { count: state.count - 1 }
+        },
+        INCREMENT: (state) => ({ count: state.count + 1 }),
+      }
+
+      testEnv = createTestComponent(Guarded, {
+        '.btn': { click: xs.of({}) },
+        '.inc': { click: xs.periodic(50).take(1).mapTo({}).compose(delay(60)) },
+      })
+      await settle(200)
+
+      const lastState = testEnv.states[testEnv.states.length - 1]
+      // If ABORT is recognized by description, state.count should be 1 (0 + 1)
+      // If ABORT leaks into state, state.count would be NaN (undefined + 1)
+      expect(lastState.count).toBe(1)
     })
   })
 

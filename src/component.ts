@@ -45,7 +45,18 @@ function wrapDOMSource(domSource: any): any {
 }
 
 
-export const ABORT = Symbol('ABORT')
+export const ABORT = Symbol.for('sygnal.ABORT')
+
+/**
+ * Check if a value is the ABORT sentinel.
+ * Uses Symbol.for() identity first, then falls back to description check
+ * in case bundlers (e.g. Vite) create duplicate module instances with
+ * separate Symbol.for() registries.
+ */
+function isAbort(value: any): boolean {
+  if (value === ABORT) return true
+  return typeof value === 'symbol' && value.description === 'sygnal.ABORT'
+}
 
 
 function normalizeCalculatedEntry(field: string, entry: any): {fn: (...args: any[]) => any; deps: string[] | null} {
@@ -907,7 +918,7 @@ class Component {
                 const enhancedState = this.addCalculated(_state)
                 props.state = enhancedState
                 const newState = reducer(enhancedState, data, next, props)
-                if (newState === ABORT) return _state
+                if (isAbort(newState)) return _state
                 return this.cleanupCalculated(newState)
               } catch (err) {
                 console.error(`[${this.name}] Error in model reducer '${name}':`, err)
@@ -931,7 +942,7 @@ class Component {
               return ABORT
             }
           }
-        }).filter((result: any) => result !== ABORT)
+        }).filter((result: any) => !isAbort(result))
       } else if (reducer === undefined || reducer === true) {
         returnStream$ = filtered$.map(({data}: any) => data)
       } else {

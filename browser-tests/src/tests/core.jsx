@@ -62,6 +62,57 @@ export async function coreTests() {
     assert(el.querySelector('.val').textContent === '1', 'State should not change after ABORT')
   })
 
+  // ABORT conditional — the exact pattern from the vike counter example
+  await runTest(CAT, 'Conditional ABORT preserves state and allows subsequent updates', async () => {
+    const { id, el } = mount()
+    function App({ state } = {}) {
+      return <div>
+        <span className="val">{state.count}</span>
+        <button className="inc">+</button>
+        <button className="dec">-</button>
+      </div>
+    }
+    App.initialState = { count: 0 }
+    App.intent = ({ DOM }) => ({
+      INC: DOM.select('.inc').events('click'),
+      DEC: DOM.select('.dec').events('click'),
+    })
+    App.model = {
+      INC: (state) => ({ ...state, count: state.count + 1 }),
+      DEC: (state) => {
+        if (state.count <= 0) return ABORT
+        return { ...state, count: state.count - 1 }
+      },
+    }
+    run(App, {}, { mountPoint: id })
+    await waitFor(() => el.querySelector('.val'))
+
+    // Start at 0, try to decrement (should ABORT)
+    el.querySelector('.dec').click()
+    await wait(100)
+    assert(el.querySelector('.val').textContent === '0', 'Should stay at 0 after ABORT')
+
+    // Now increment — state should not be corrupted by the ABORT
+    el.querySelector('.inc').click()
+    await waitFor(() => el.querySelector('.val')?.textContent === '1')
+    assert(el.querySelector('.val').textContent === '1', 'Should be 1 after increment')
+
+    // Decrement back to 0
+    el.querySelector('.dec').click()
+    await waitFor(() => el.querySelector('.val')?.textContent === '0')
+    assert(el.querySelector('.val').textContent === '0', 'Should be back to 0')
+
+    // Try decrementing again at 0 — should ABORT again
+    el.querySelector('.dec').click()
+    await wait(100)
+    assert(el.querySelector('.val').textContent === '0', 'Should still be 0 after second ABORT')
+
+    // Final increment to prove state is still valid
+    el.querySelector('.inc').click()
+    await waitFor(() => el.querySelector('.val')?.textContent === '1')
+    assert(el.querySelector('.val').textContent === '1', 'State should still work after multiple ABORTs')
+  })
+
   // Calculated fields
   await runTest(CAT, 'Calculated fields derive from state', async () => {
     const { id, el } = mount()
