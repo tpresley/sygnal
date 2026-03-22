@@ -18,16 +18,28 @@ By the end of this guide, you'll have a working Sygnal application with interact
 
 ## Quick Start
 
-The fastest way to get started is with the Sygnal template:
+The fastest way to get started is with `create-sygnal-app`:
 
 ```bash
-npx degit tpresley/sygnal-template my-app
+npm create sygnal-app my-app
+```
+
+You'll be prompted to choose a template and language:
+
+- **Vite (SPA)** — Single-page app with Vite + HMR
+- **Vike (SSR)** — File-based routing with SSR, layouts, and data fetching
+- **Astro** — Content-focused site with island hydration
+
+Each template is available in **JavaScript** or **TypeScript**.
+
+After scaffolding, start the dev server:
+
+```bash
 cd my-app
-npm install
 npm run dev
 ```
 
-This gives you a Vite-powered project with JSX support preconfigured. Open `http://localhost:5173` in your browser.
+Open `http://localhost:5173` in your browser (or the port shown in the terminal).
 
 ## Manual Setup
 

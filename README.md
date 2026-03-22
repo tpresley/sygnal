@@ -26,7 +26,7 @@ cd my-app
 npm run dev
 ```
 
-Choose from Vite (SPA), Vike (SSR), or Astro templates during setup.
+Choose from Vite (SPA), Vike (SSR), or Astro templates in JavaScript or TypeScript.
 
 **Or add to an existing project:**
 
