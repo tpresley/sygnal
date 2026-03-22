@@ -3,7 +3,7 @@ import {adapt} from '../run/adapt';
 import {DevToolEnabledSource} from '../run/types';
 import {EventsFnOptions} from './DOMSource';
 import {fromEvent} from './fromEvent';
-import {enrichEventStream} from './enrichEventStream';
+import {enrichEventStream, EnrichedEventStream} from './enrichEventStream';
 
 export class DocumentDOMSource {
   private _selector: string | null;
@@ -50,12 +50,12 @@ export class DocumentDOMSource {
     eventType: K,
     options?: EventsFnOptions,
     bubbles?: boolean
-  ): Stream<DocumentEventMap[K]>;
+  ): EnrichedEventStream<DocumentEventMap[K]>;
   public events(
     eventType: string,
     options: EventsFnOptions = {},
     bubbles?: boolean
-  ): Stream<Event> {
+  ): EnrichedEventStream<Event> {
     let stream: Stream<Event>;
 
     stream = fromEvent(
@@ -74,8 +74,8 @@ export class DocumentDOMSource {
       });
     }
 
-    const out: DevToolEnabledSource & Stream<Event> = enrichEventStream(adapt(stream));
+    const out: DevToolEnabledSource & EnrichedEventStream<Event> = enrichEventStream(adapt(stream));
     out._isCycleSource = this._name;
-    return out;
+    return out as EnrichedEventStream<Event>;
   }
 }
