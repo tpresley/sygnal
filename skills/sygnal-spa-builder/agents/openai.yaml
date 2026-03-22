@@ -1,4 +1,0 @@
-interface:
-  display_name: "Sygnal SPA Builder"
-  short_description: "Build SPAs with Sygnal state and drivers."
-  default_prompt: "Use Sygnal best practices to design, implement, and wire a SPA with component hierarchy, intents, models, and state flow."

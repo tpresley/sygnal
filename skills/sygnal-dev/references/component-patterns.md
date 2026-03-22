@@ -1,6 +1,6 @@
 # Sygnal Component Patterns
 
-Complete, copy-paste code patterns for all Sygnal features. Every pattern follows framework rules: pure views, complete state returns, driver-based side effects, no event handlers in JSX.
+Complete, copy-paste code patterns for all Sygnal features. Every pattern follows framework rules: pure views, complete state returns, driver-based side effects, no event handlers in JSX. Uses DOM shorthands and event stream helpers throughout.
 
 ## Table of Contents
 
@@ -19,17 +19,29 @@ Complete, copy-paste code patterns for all Sygnal features. Every pattern follow
 13. [Chaining Actions with next()](#13-chaining-actions-with-next)
 14. [Aborting Actions](#14-aborting-actions)
 15. [Multi-Driver Actions](#15-multi-driver-actions)
-16. [Event Bus Communication](#16-event-bus-communication)
-17. [Custom Drivers with driverFromAsync()](#17-custom-drivers-with-driverfromasync)
-18. [Custom Driver from Scratch](#18-custom-driver-from-scratch)
-19. [BOOTSTRAP Action (On Mount)](#19-bootstrap-action-on-mount)
-20. [Global DOM Events](#20-global-dom-events)
-21. [Stream Operations in Intent](#21-stream-operations-in-intent)
-22. [CSS Classes Utility](#22-css-classes-utility)
-23. [TypeScript Component](#23-typescript-component)
-24. [TypeScript with exactState()](#24-typescript-with-exactstate)
-25. [Full SPA Scaffold](#25-full-spa-scaffold)
-26. [Astro Integration](#26-astro-integration)
+16. [EFFECT Sink](#16-effect-sink)
+17. [Model Shorthand](#17-model-shorthand)
+18. [Event Bus Communication](#18-event-bus-communication)
+19. [Parent-Child Communication](#19-parent-child-communication)
+20. [Commands (Parent to Child)](#20-commands-parent-to-child)
+21. [Custom Drivers with driverFromAsync()](#21-custom-drivers-with-driverfromasync)
+22. [Custom Driver from Scratch](#22-custom-driver-from-scratch)
+23. [BOOTSTRAP Action (On Mount)](#23-bootstrap-action-on-mount)
+24. [Disposal Hooks](#24-disposal-hooks)
+25. [Global DOM Events](#25-global-dom-events)
+26. [Stream Operations in Intent](#26-stream-operations-in-intent)
+27. [CSS Classes Utility](#27-css-classes-utility)
+28. [Transitions](#28-transitions)
+29. [Portals](#29-portals)
+30. [Slots](#30-slots)
+31. [Error Boundaries](#31-error-boundaries)
+32. [Refs](#32-refs)
+33. [Lazy Loading & Suspense](#33-lazy-loading--suspense)
+34. [TypeScript Component](#34-typescript-component)
+35. [TypeScript with exactState()](#35-typescript-with-exactstate)
+36. [Full SPA Scaffold](#36-full-spa-scaffold)
+37. [Astro Integration](#37-astro-integration)
+38. [Vike Integration (SSR)](#38-vike-integration-ssr)
 
 ---
 
@@ -59,13 +71,13 @@ function Counter({ state }) {
 Counter.initialState = { count: 0 }
 
 Counter.intent = ({ DOM }) => ({
-  INCREMENT: DOM.select('.increment').events('click'),
-  DECREMENT: DOM.select('.decrement').events('click')
+  INCREMENT: DOM.click('.increment'),
+  DECREMENT: DOM.click('.decrement'),
 })
 
 Counter.model = {
   INCREMENT: (state) => ({ ...state, count: state.count + 1 }),
-  DECREMENT: (state) => ({ ...state, count: state.count - 1 })
+  DECREMENT: (state) => ({ ...state, count: state.count - 1 }),
 }
 
 export default Counter
@@ -86,11 +98,11 @@ function Greeter({ state }) {
 Greeter.initialState = { name: 'World' }
 
 Greeter.intent = ({ DOM }) => ({
-  CHANGE_NAME: DOM.select('.name-input').events('input').map(e => e.target.value)
+  CHANGE_NAME: DOM.input('.name-input').value(),
 })
 
 Greeter.model = {
-  CHANGE_NAME: (state, data) => ({ ...state, name: data })
+  CHANGE_NAME: (state, name) => ({ ...state, name }),
 }
 
 export default Greeter
@@ -116,14 +128,13 @@ function UserCard({ state }) {
 UserCard.initialState = { name: 'Alice', age: 25, score: 0 }
 
 UserCard.intent = ({ DOM }) => ({
-  BIRTHDAY: DOM.select('.birthday').events('click'),
-  ADD_POINT: DOM.select('.add-point').events('click')
+  BIRTHDAY: DOM.click('.birthday'),
+  ADD_POINT: DOM.click('.add-point'),
 })
 
 UserCard.model = {
-  // ALWAYS use ...state to preserve other properties
   BIRTHDAY: (state) => ({ ...state, age: state.age + 1 }),
-  ADD_POINT: (state) => ({ ...state, score: state.score + 1 })
+  ADD_POINT: (state) => ({ ...state, score: state.score + 1 }),
 }
 
 export default UserCard
@@ -161,7 +172,7 @@ function RootComponent({ state }) {
 
 RootComponent.initialState = {
   user: { name: 'Alice', email: 'alice@example.com' },
-  settings: { theme: 'light' }
+  settings: { theme: 'light' },
 }
 
 export default RootComponent
@@ -175,13 +186,13 @@ For custom parent-child state mapping:
 const userLens = {
   get: (parentState) => ({
     name: parentState.userName,
-    email: parentState.userEmail
+    email: parentState.userEmail,
   }),
   set: (parentState, childState) => ({
     ...parentState,
     userName: childState.name,
-    userEmail: childState.email
-  })
+    userEmail: childState.email,
+  }),
 }
 
 function RootComponent({ state }) {
@@ -197,9 +208,11 @@ function RootComponent({ state }) {
 
 ```jsx
 // TodoItem.jsx
+import { classes } from 'sygnal'
+
 function TodoItem({ state }) {
   return (
-    <li className={state.done ? 'done' : ''}>
+    <li className={classes({ done: state.done })}>
       <span>{state.text}</span>
       <button className="toggle">Toggle</button>
       <button className="remove">Remove</button>
@@ -208,14 +221,14 @@ function TodoItem({ state }) {
 }
 
 TodoItem.intent = ({ DOM }) => ({
-  TOGGLE: DOM.select('.toggle').events('click'),
-  REMOVE: DOM.select('.remove').events('click')
+  TOGGLE: DOM.click('.toggle'),
+  REMOVE: DOM.click('.remove'),
 })
 
 TodoItem.model = {
   TOGGLE: (state) => ({ ...state, done: !state.done }),
   // Returning undefined removes the item from the collection
-  REMOVE: () => undefined
+  REMOVE: () => undefined,
 }
 
 export default TodoItem
@@ -223,13 +236,14 @@ export default TodoItem
 
 ```jsx
 // TodoList.jsx
+import { Collection } from 'sygnal'
 import TodoItem from './TodoItem.jsx'
 
 function TodoList({ state }) {
   return (
     <div>
       <h1>Todos ({state.items.length})</h1>
-      <collection of={TodoItem} from="items" />
+      <Collection of={TodoItem} from="items" className="todo-list" />
     </div>
   )
 }
@@ -237,8 +251,8 @@ function TodoList({ state }) {
 TodoList.initialState = {
   items: [
     { id: 1, text: 'Learn Sygnal', done: false },
-    { id: 2, text: 'Build something', done: false }
-  ]
+    { id: 2, text: 'Build something', done: false },
+  ],
 }
 
 export default TodoList
@@ -247,7 +261,7 @@ export default TodoList
 ### Collection with Filtering and Sorting
 
 ```jsx
-<collection
+<Collection
   of={TodoItem}
   from="items"
   filter={item => !item.done}
@@ -256,18 +270,10 @@ export default TodoList
 />
 ```
 
-### Using Capitalized Collection
-
-```jsx
-import { Collection } from 'sygnal'
-
-<Collection of={TodoItem} from="items" className="todo-list" />
-```
-
 ## 8. Switchable Views (Routing)
 
 ```jsx
-import { xs } from 'sygnal'
+import { xs, Switchable } from 'sygnal'
 import HomePage from './pages/HomePage.jsx'
 import SettingsPage from './pages/SettingsPage.jsx'
 import ProfilePage from './pages/ProfilePage.jsx'
@@ -281,7 +287,7 @@ function RootComponent({ state }) {
         <button className="nav-profile">Profile</button>
       </nav>
       <main>
-        <switchable
+        <Switchable
           of={{ home: HomePage, settings: SettingsPage, profile: ProfilePage }}
           current={state.route}
         />
@@ -291,19 +297,19 @@ function RootComponent({ state }) {
 }
 
 RootComponent.initialState = {
-  route: 'home'
+  route: 'home',
 }
 
 RootComponent.intent = ({ DOM }) => ({
   SET_ROUTE: xs.merge(
-    DOM.select('.nav-home').events('click').mapTo('home'),
-    DOM.select('.nav-settings').events('click').mapTo('settings'),
-    DOM.select('.nav-profile').events('click').mapTo('profile')
-  )
+    DOM.click('.nav-home').mapTo('home'),
+    DOM.click('.nav-settings').mapTo('settings'),
+    DOM.click('.nav-profile').mapTo('profile'),
+  ),
 })
 
 RootComponent.model = {
-  SET_ROUTE: (state, route) => ({ ...state, route })
+  SET_ROUTE: (state, route) => ({ ...state, route }),
 }
 
 export default RootComponent
@@ -330,12 +336,12 @@ ContactForm.initialState = {
   name: '',
   email: '',
   message: '',
-  submitted: false
+  submitted: false,
 }
 
 ContactForm.intent = ({ DOM }) => ({
   UPDATE_FIELDS: processForm(DOM.select('.contact-form'), { events: 'input' }),
-  SUBMIT: processForm(DOM.select('.contact-form'), { events: 'submit' })
+  SUBMIT: processForm(DOM.select('.contact-form'), { events: 'submit' }),
 })
 
 ContactForm.model = {
@@ -343,12 +349,9 @@ ContactForm.model = {
     ...state,
     name: data.name,
     email: data.email,
-    message: data.message
+    message: data.message,
   }),
-  SUBMIT: (state, data) => ({
-    ...state,
-    submitted: true
-  })
+  SUBMIT: (state) => ({ ...state, submitted: true }),
 }
 
 export default ContactForm
@@ -371,13 +374,12 @@ function RootComponent({ state }) {
 RootComponent.initialState = {
   theme: 'dark',
   currentUser: { name: 'Alice' },
-  childData: { value: 42 }
+  childData: { value: 42 },
 }
 
-// Context is defined as functions that derive values from state
 RootComponent.context = {
   theme: (state) => state.theme,
-  currentUser: (state) => state.currentUser
+  currentUser: (state) => state.currentUser,
 }
 
 export default RootComponent
@@ -398,18 +400,6 @@ function DeepChild({ state, context }) {
 export default DeepChild
 ```
 
-### Context in Reducers
-
-```jsx
-DeepChild.model = {
-  SOME_ACTION: {
-    LOG: (state, data, next, extra) => {
-      return `Current user: ${extra.context.currentUser.name}`
-    }
-  }
-}
-```
-
 ## 11. Calculated Fields
 
 Derived values computed from state, available in both view and reducers:
@@ -428,26 +418,22 @@ function Cart({ state }) {
 Cart.initialState = {
   items: [
     { name: 'Widget', price: 9.99 },
-    { name: 'Gadget', price: 24.99 }
-  ]
+    { name: 'Gadget', price: 24.99 },
+  ],
 }
 
 Cart.calculated = {
+  // Simple form — function of entire state
   itemCount: (state) => state.items.length,
   total: (state) => state.items.reduce((sum, item) => sum + item.price, 0),
-  averagePrice: (state) => {
+  // With dependency tracking — only recalculates when deps change
+  averagePrice: [['items'], (state) => {
     if (state.items.length === 0) return 0
     return state.items.reduce((sum, item) => sum + item.price, 0) / state.items.length
-  }
+  }],
 }
 
 export default Cart
-```
-
-To prevent calculated fields from being stored in the actual state tree:
-
-```jsx
-Cart.storeCalculatedInState = false
 ```
 
 ## 12. Peer Components
@@ -472,7 +458,7 @@ function Dashboard({ state, Sidebar, Toolbar }) {
 
 Dashboard.peers = {
   Sidebar: Sidebar,
-  Toolbar: Toolbar
+  Toolbar: Toolbar,
 }
 
 export default Dashboard
@@ -483,16 +469,14 @@ export default Dashboard
 ```jsx
 MyComponent.model = {
   SAVE: (state, data, next) => {
-    // Trigger VALIDATE immediately after this reducer completes
     next('VALIDATE', data)
-    // Trigger NOTIFY after a 2-second delay
-    next('NOTIFY', 'Save started', 2000)
+    next('NOTIFY', 'Save started', 2000) // 2-second delay
     return { ...state, saving: true }
   },
   VALIDATE: (state, data) => ({ ...state, validated: true }),
   NOTIFY: {
-    LOG: (state, data) => data
-  }
+    LOG: (state, data) => data,
+  },
 }
 ```
 
@@ -507,7 +491,7 @@ GameBoard.model = {
   MOVE: (state, direction) => {
     if (state.locked || state.gameOver) return ABORT
     return { ...state, position: calculateNewPosition(state.position, direction) }
-  }
+  },
 }
 ```
 
@@ -518,60 +502,176 @@ Send commands to multiple drivers from a single action:
 ```jsx
 MyComponent.model = {
   SAVE_ITEM: {
-    // Update state
     STATE: (state, data) => ({ ...state, saving: true }),
-    // Log to console
     LOG: (state, data) => `Saving item: ${data.name}`,
-    // Dispatch custom event
     EVENTS: (state, data) => ({ type: 'item-saved', data }),
-    // Send to custom API driver
-    API: (state, data) => ({ endpoint: 'items', method: 'POST', body: data })
-  }
+    API: (state, data) => ({ endpoint: 'items', method: 'POST', body: data }),
+  },
 }
 ```
 
 ### Passthrough with `true`
 
-Setting a driver sink to `true` passes the intent data through as-is:
-
 ```jsx
 MyComponent.model = {
   LOG_SOMETHING: {
-    LOG: true  // whatever data came from intent goes directly to LOG
-  }
+    LOG: true, // intent data goes directly to LOG
+  },
 }
 ```
 
-## 16. Event Bus Communication
+## 16. EFFECT Sink
 
-Cross-component communication via the EVENTS driver:
+Run side effects without state changes — no ABORT workarounds needed:
+
+```jsx
+import { createCommand } from 'sygnal'
+
+const playerCmd = createCommand()
+
+App.model = {
+  // Simple effect — no state change
+  SEND_COMMAND: {
+    EFFECT: () => playerCmd.send('play'),
+  },
+
+  // Effect with conditional routing via next()
+  ROUTE: {
+    EFFECT: (state, data, next) => {
+      if (state.mode === 'a') next('DO_A', data)
+      else next('DO_B', data)
+    },
+  },
+
+  // Effect combined with state update
+  SAVE_AND_LOG: {
+    STATE: (state) => ({ ...state, saved: true }),
+    EFFECT: () => console.log('Saved!'),
+  },
+}
+```
+
+## 17. Model Shorthand
+
+Compact syntax for single-driver model entries using `'ACTION | DRIVER'`:
+
+```jsx
+App.model = {
+  'SEND_CMD | EFFECT': () => playerCmd.send('play'),
+  'NOTIFY | EVENTS': (state) => ({ type: 'alert', data: state.message }),
+  'DELETE | PARENT': (state) => ({ type: 'DELETE', id: state.id }),
+}
+```
+
+This is equivalent to:
+
+```jsx
+App.model = {
+  SEND_CMD: { EFFECT: () => playerCmd.send('play') },
+  NOTIFY: { EVENTS: (state) => ({ type: 'alert', data: state.message }) },
+  DELETE: { PARENT: (state) => ({ type: 'DELETE', id: state.id }) },
+}
+```
+
+## 18. Event Bus Communication
+
+Cross-component communication via the EVENTS driver (global, not isolated):
 
 ```jsx
 // Publisher component
+Publisher.intent = ({ DOM }) => ({
+  NOTIFY: DOM.click('.notify-btn'),
+})
+
 Publisher.model = {
   NOTIFY: {
-    EVENTS: (state, data) => ({ type: 'user-action', data: { action: 'clicked' } })
-  }
+    EVENTS: (state) => ({ type: 'user-action', data: { action: 'clicked' } }),
+  },
 }
 
-// Subscriber component
+// Subscriber component (anywhere in the tree)
 Subscriber.intent = ({ EVENTS }) => ({
-  HANDLE_EVENT: EVENTS.select('user-action')
+  HANDLE_EVENT: EVENTS.select('user-action'),
 })
 
 Subscriber.model = {
-  HANDLE_EVENT: (state, data) => ({ ...state, lastAction: data.action })
+  HANDLE_EVENT: (state, data) => ({ ...state, lastAction: data.action }),
 }
 ```
 
-## 17. Custom Drivers with driverFromAsync()
+## 19. Parent-Child Communication
 
-Wrap any async function as a Cycle.js driver:
+Structured message passing from child to parent (one level up):
+
+```jsx
+// Child emits via PARENT sink
+TaskCard.intent = ({ DOM }) => ({
+  SELECT: DOM.click('.delete-btn'),
+})
+
+TaskCard.model = {
+  SELECT: {
+    PARENT: (state) => ({ type: 'SELECT', taskId: state.id }),
+  },
+}
+
+// Parent receives via CHILD source (use component reference — minification-safe)
+Lane.intent = ({ CHILD }) => ({
+  TASK_SELECTED: CHILD.select(TaskCard).filter(e => e.type === 'SELECT'),
+})
+
+Lane.model = {
+  TASK_SELECTED: (state, data) => ({
+    ...state,
+    selected: data.taskId,
+  }),
+}
+```
+
+## 20. Commands (Parent to Child)
+
+Send imperative commands from parent to child:
+
+```jsx
+import { createCommand } from 'sygnal'
+
+// Parent creates and passes command
+const playerCmd = createCommand()
+
+function Parent({ state }) {
+  return (
+    <div>
+      <button className="play-btn">Play</button>
+      <VideoPlayer commands={playerCmd} state="player" />
+    </div>
+  )
+}
+
+Parent.intent = ({ DOM }) => ({
+  PLAY: DOM.click('.play-btn'),
+})
+
+Parent.model = {
+  PLAY: {
+    EFFECT: () => playerCmd.send('play'),
+  },
+}
+
+// Child receives via commands$ source
+VideoPlayer.intent = ({ commands$ }) => ({
+  START_PLAYBACK: commands$.select('play'),
+})
+
+VideoPlayer.model = {
+  START_PLAYBACK: (state) => ({ ...state, playing: true }),
+}
+```
+
+## 21. Custom Drivers with driverFromAsync()
 
 ```jsx
 import { run, driverFromAsync } from 'sygnal'
 
-// Create the driver
 const apiDriver = driverFromAsync(
   async (url, options = {}) => {
     const response = await fetch(url, options)
@@ -579,46 +679,39 @@ const apiDriver = driverFromAsync(
     return response.json()
   },
   {
-    selector: 'endpoint',      // categorize requests/responses
-    args: (cmd) => [cmd.url, cmd.options],  // extract function args
-    return: 'data',            // wrap result in { data: result }
-    post: (result, cmd) => ({  // post-process before sending to source
-      ...result,
-      requestedAt: Date.now()
-    })
+    selector: 'endpoint',
+    args: (cmd) => [cmd.url, cmd.options],
+    return: 'data',
   }
 )
 
-// Register it
 run(RootComponent, { API: apiDriver })
 ```
 
 ```jsx
 // Use in components
 MyComponent.intent = ({ DOM, API }) => ({
-  FETCH_USERS: DOM.select('.load-btn').events('click'),
-  USERS_LOADED: API.select('users')
+  FETCH_USERS: DOM.click('.load-btn'),
+  USERS_LOADED: API.select('users'),
 })
 
 MyComponent.model = {
   FETCH_USERS: {
     STATE: (state) => ({ ...state, loading: true }),
-    API: () => ({ endpoint: 'users', url: '/api/users' })
+    API: () => ({ endpoint: 'users', url: '/api/users' }),
   },
   USERS_LOADED: (state, response) => ({
     ...state,
     loading: false,
-    users: response.data
-  })
+    users: response.data,
+  }),
 }
 ```
 
-## 18. Custom Driver from Scratch
-
-For full control over driver behavior:
+## 22. Custom Driver from Scratch
 
 ```jsx
-import xs from 'xstream'
+import { xs } from 'sygnal'
 
 function localStorageDriver(sink$) {
   sink$.addListener({
@@ -628,7 +721,7 @@ function localStorageDriver(sink$) {
       } else if (command.action === 'remove') {
         localStorage.removeItem(command.key)
       }
-    }
+    },
   })
 
   return {
@@ -641,53 +734,71 @@ function localStorageDriver(sink$) {
             catch { listener.next(stored) }
           }
         },
-        stop: () => {}
+        stop: () => {},
       })
-    }
+    },
   }
 }
 
 // Register: run(RootComponent, { STORAGE: localStorageDriver })
 ```
 
-## 19. BOOTSTRAP Action (On Mount)
+## 23. BOOTSTRAP Action (On Mount)
 
-Runs once when the component is instantiated (like React's `useEffect(() => {}, [])`):
+Runs once when the component is instantiated:
 
 ```jsx
 MyComponent.model = {
   BOOTSTRAP: {
-    STATE: (state, data, next) => {
-      next('LOAD_DATA')
-      return state
-    },
-    LOG: () => 'Component mounted!'
+    EFFECT:  (state, data, next) => next('LOAD_DATA'),
   },
   LOAD_DATA: {
     STATE: (state) => ({ ...state, loading: true }),
-    API: () => ({ endpoint: 'init', url: '/api/init' })
-  }
+    API: () => ({ endpoint: 'init', url: '/api/init' }),
+  },
 }
 ```
 
-## 20. Global DOM Events
+Other built-in actions:
+- `INITIALIZE` — fires when the component receives its first state
+- `HYDRATE` — fires on first state during HMR
 
-To listen to events outside the component's isolated DOM scope:
+## 24. Disposal Hooks
+
+Cleanup on component unmount:
+
+```jsx
+MyComponent.intent = ({ DOM, dispose$ }) => ({
+  CLICK: DOM.click('.btn'),
+  CLEANUP: dispose$,
+})
+
+MyComponent.model = {
+  CLICK: (state) => ({ ...state, clicked: true }),
+  CLEANUP: {
+    WEBSOCKET: () => ({ type: 'close' }),
+    LOG: () => 'Component unmounted',
+  },
+}
+```
+
+## 25. Global DOM Events
+
+Listen to events outside the component's isolated DOM scope:
 
 ```jsx
 MyComponent.intent = ({ DOM }) => ({
-  // Listen to keydown on the entire document
   KEY_PRESS: DOM.select('document').events('keydown').map(e => e.key),
-
-  // Listen to window resize
   RESIZE: DOM.select('document').events('resize').map(() => ({
     width: window.innerWidth,
-    height: window.innerHeight
-  }))
+    height: window.innerHeight,
+  })),
+  // CSS-filtered document events
+  OUTSIDE_CLICK: DOM.select('document').select('.modal-overlay').events('click'),
 })
 ```
 
-## 21. Stream Operations in Intent
+## 26. Stream Operations in Intent
 
 Common patterns for transforming streams:
 
@@ -695,8 +806,8 @@ Common patterns for transforming streams:
 import { xs, debounce, throttle, delay, dropRepeats, sampleCombine } from 'sygnal'
 
 MyComponent.intent = ({ DOM, STATE }) => {
-  const click$ = DOM.select('.btn').events('click')
-  const input$ = DOM.select('.search').events('input').map(e => e.target.value)
+  const click$ = DOM.click('.btn')
+  const input$ = DOM.input('.search').value()
 
   return {
     // Debounce rapid input (wait 300ms of inactivity)
@@ -707,15 +818,15 @@ MyComponent.intent = ({ DOM, STATE }) => {
 
     // Merge multiple sources into one action
     NAVIGATE: xs.merge(
-      DOM.select('.link-a').events('click').mapTo('pageA'),
-      DOM.select('.link-b').events('click').mapTo('pageB')
+      DOM.click('.link-a').mapTo('pageA'),
+      DOM.click('.link-b').mapTo('pageB'),
     ),
 
     // Map to a constant value
-    RESET: DOM.select('.reset-btn').events('click').mapTo(null),
+    RESET: DOM.click('.reset-btn').mapTo(null),
 
-    // Filter events
-    ENTER_KEY: DOM.select('.input').events('keydown').filter(e => e.key === 'Enter'),
+    // Filter by key using .key() helper
+    ENTER_KEY: DOM.keydown('.input').key(k => k === 'Enter'),
 
     // Drop consecutive duplicates
     UNIQUE_INPUT: input$.compose(dropRepeats()),
@@ -724,12 +835,18 @@ MyComponent.intent = ({ DOM, STATE }) => {
     CLICK_WITH_STATE: click$.compose(sampleCombine(STATE.stream)),
 
     // Delay emissions
-    DELAYED: click$.compose(delay(500))
+    DELAYED: click$.compose(delay(500)),
+
+    // Extract checkbox checked state
+    TOGGLED: DOM.change('.checkbox').checked(),
+
+    // Extract data attribute
+    ITEM_CLICKED: DOM.click('.item').data('id', v => Number(v)),
   }
 }
 ```
 
-## 22. CSS Classes Utility
+## 27. CSS Classes Utility
 
 ```jsx
 import { classes } from 'sygnal'
@@ -738,19 +855,188 @@ function NavItem({ state }) {
   const className = classes(
     'nav-item',
     { active: state.isActive, disabled: state.isDisabled },
-    state.variant && `nav-item-${state.variant}`
+    state.variant && `nav-item-${state.variant}`,
   )
 
   return <li className={className}>{state.label}</li>
 }
 ```
 
-Accepts strings, arrays, and objects with boolean/function values.
+Accepts strings, arrays, and objects with boolean values.
 
-## 23. TypeScript Component
+## 28. Transitions
+
+CSS-based enter/leave animations:
+
+```jsx
+import { Transition } from 'sygnal'
+
+function Notification({ state }) {
+  return (
+    <Transition name="fade" duration={300}>
+      {state.visible && <div className="notification">{state.message}</div>}
+    </Transition>
+  )
+}
+```
+
+CSS classes applied automatically:
+- `.fade-enter-from` → `.fade-enter-to` (with `.fade-enter-active`)
+- `.fade-leave-from` → `.fade-leave-to` (with `.fade-leave-active`)
+
+```css
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+.fade-enter-from { opacity: 0; }
+.fade-enter-to   { opacity: 1; }
+.fade-leave-from { opacity: 1; }
+.fade-leave-to   { opacity: 0; }
+```
+
+### Transition in Collections (TodoMVC style)
+
+```jsx
+import { Transition, classes } from 'sygnal'
+
+function TodoItem({ state }) {
+  return (
+    <Transition name="todo" duration={300}>
+      <li className={classes({ completed: state.completed })}>
+        <div className="view">
+          <input className="toggle" type="checkbox" checked={!!state.completed} />
+          <label>{state.title}</label>
+          <button className="destroy" />
+        </div>
+      </li>
+    </Transition>
+  )
+}
+```
+
+## 29. Portals
+
+Render children into a different DOM container:
+
+```jsx
+import { Portal } from 'sygnal'
+
+function App({ state }) {
+  return (
+    <div>
+      <h1>Main content</h1>
+      {state.showModal && (
+        <Portal target="#modal-root">
+          <div className="modal-overlay">
+            <div className="modal">{state.modalContent}</div>
+          </div>
+        </Portal>
+      )}
+    </div>
+  )
+}
+```
+
+Note: If Portal content is outside the component's DOM scope use `DOM.select('document').events().filter()` for portal events.
+
+## 30. Slots
+
+Pass named content regions to child components:
+
+```jsx
+import { Slot } from 'sygnal'
+
+// Parent passes slots
+function App({ state }) {
+  return (
+    <Card state="card">
+      <Slot name="header"><h2>Card Title</h2></Slot>
+      <Slot name="actions"><button className="save">Save</button></Slot>
+      <p>Default body content</p>
+    </Card>
+  )
+}
+
+// Child receives via slots prop
+function Card({ state, slots }) {
+  return (
+    <div className="card">
+      <header>{...(slots.header || [])}</header>
+      <main>{...(slots.default || [])}</main>
+      <footer>{...(slots.actions || [])}</footer>
+    </div>
+  )
+}
+```
+
+## 31. Error Boundaries
+
+Catch and recover from rendering errors:
+
+```jsx
+function BrokenComponent({ state }) {
+  return <div>{state.data.nested.value}</div>
+}
+
+BrokenComponent.onError = (error, { componentName }) => (
+  <div className="error-fallback">
+    Something went wrong in {componentName}
+  </div>
+)
+```
+
+Without `.onError`, components render an empty `<div data-sygnal-error>` and log to console.
+
+## 32. Refs
+
+Access DOM elements declaratively:
+
+```jsx
+import { createRef } from 'sygnal'
+
+function AutoFocusInput({ state }) {
+  const inputRef = createRef()
+  return <input ref={inputRef} value={state.value} />
+  // inputRef.current is the DOM element after mount
+}
+```
+
+## 33. Lazy Loading & Suspense
+
+Code-split components with loading boundaries:
+
+```jsx
+import { lazy, Suspense } from 'sygnal'
+
+const HeavyChart = lazy(() => import('./HeavyChart.jsx'))
+
+function Dashboard({ state }) {
+  return (
+    <div>
+      <h1>Dashboard</h1>
+      <Suspense fallback={<div className="loading">Loading chart...</div>}>
+        <HeavyChart state="chartData" />
+      </Suspense>
+    </div>
+  )
+}
+```
+
+### Explicit READY control
+
+```jsx
+SlowComponent.model = {
+  DATA_LOADED: {
+    STATE: (state, data) => ({ ...state, data, loaded: true }),
+    READY: () => true,  // signals parent Suspense that component is ready
+  },
+}
+```
+
+## 34. TypeScript Component
 
 ```tsx
-import { xs } from 'sygnal'
 import type { RootComponent } from 'sygnal'
 
 type AppState = {
@@ -771,9 +1057,6 @@ const App: RootComponent<AppState, {}, AppActions> = ({ state }) => {
       <h1>{state.name}: {state.count}</h1>
       <button className="increment">+</button>
       <input className="name-input" value={state.name} />
-      <ul>
-        {state.items.map(item => <li>{item}</li>)}
-      </ul>
     </div>
   )
 }
@@ -781,14 +1064,13 @@ const App: RootComponent<AppState, {}, AppActions> = ({ state }) => {
 App.initialState = { count: 0, name: 'Counter', items: [] }
 
 App.intent = ({ DOM }) => ({
-  INCREMENT: DOM.select('.increment').events('click'),
-  SET_NAME: DOM.select('.name-input').events('input')
-    .map(e => (e.target as HTMLInputElement).value)
+  INCREMENT: DOM.click('.increment'),
+  SET_NAME: DOM.input('.name-input').value(),
 })
 
 App.model = {
   INCREMENT: (state) => ({ ...state, count: state.count + 1 }),
-  SET_NAME: (state, data) => ({ ...state, name: data })
+  SET_NAME: (state, name) => ({ ...state, name }),
 }
 
 export default App
@@ -800,37 +1082,38 @@ export default App
 import type { Component } from 'sygnal'
 
 type ItemState = { id: number; text: string; done: boolean }
+type ItemProps = { showDelete: boolean }
 type ItemActions = { TOGGLE: null; DELETE: null }
 
-const Item: Component<ItemState, any, any, ItemActions> = (_props, state) => {
+const Item: Component<ItemState, ItemProps, {}, ItemActions> = ({ state, showDelete }) => {
   return (
     <div className={state.done ? 'done' : ''}>
       <span>{state.text}</span>
       <button className="toggle">Toggle</button>
-      <button className="delete">Delete</button>
+      {showDelete && <button className="delete">Delete</button>}
     </div>
   )
 }
 
 Item.intent = ({ DOM }) => ({
-  TOGGLE: DOM.select('.toggle').events('click'),
-  DELETE: DOM.select('.delete').events('click')
+  TOGGLE: DOM.click('.toggle'),
+  DELETE: DOM.click('.delete'),
 })
 
 Item.model = {
   TOGGLE: (state) => ({ ...state, done: !state.done }),
-  DELETE: () => undefined
+  DELETE: () => undefined,
 }
 
 export default Item
 ```
 
-## 24. TypeScript with exactState()
+## 35. TypeScript with exactState()
 
 Enforce exact state shape — no extra properties allowed:
 
 ```tsx
-import { exactState, ABORT } from 'sygnal'
+import { exactState } from 'sygnal'
 
 type GameState = {
   score: number
@@ -844,7 +1127,7 @@ const asGameState = exactState<GameState>()
 Game.model = {
   SCORE_POINT: (state) => asGameState({
     ...state,
-    score: state.score + 10
+    score: state.score + 10,
     // TypeScript error if you add an unknown property here
   }),
   LOSE_LIFE: (state) => {
@@ -852,18 +1135,29 @@ Game.model = {
       return asGameState({ ...state, lives: 0, gameOver: true })
     }
     return asGameState({ ...state, lives: state.lives - 1 })
-  }
+  },
 }
 ```
 
-## 25. Full SPA Scaffold
+## 36. Full SPA Scaffold
 
-Complete application with routing, data loading, and form handling:
+### vite.config.js
 
-```jsx
-// src/main.js
+```javascript
+import { defineConfig } from 'vite'
+import sygnal from 'sygnal/vite'
+
+export default defineConfig({
+  plugins: [sygnal()],
+})
+```
+
+### src/main.js
+
+```javascript
 import { run, driverFromAsync } from 'sygnal'
-import RootComponent from './RootComponent.jsx'
+import App from './App.jsx'
+import './style.css'
 
 const apiDriver = driverFromAsync(
   async (url) => {
@@ -873,21 +1167,17 @@ const apiDriver = driverFromAsync(
   { selector: 'endpoint', args: 'url', return: 'data' }
 )
 
-const { hmr, dispose } = run(RootComponent, { API: apiDriver })
-
-if (import.meta.hot) {
-  import.meta.hot.accept('./RootComponent.jsx', hmr)
-  import.meta.hot.dispose(dispose)
-}
+run(App, { API: apiDriver })
 ```
 
+### src/App.jsx
+
 ```jsx
-// src/RootComponent.jsx
-import { xs, processForm } from 'sygnal'
+import { xs, Switchable, processForm } from 'sygnal'
 import HomePage from './pages/HomePage.jsx'
 import FormPage from './pages/FormPage.jsx'
 
-function RootComponent({ state }) {
+function App({ state }) {
   return (
     <div className="app">
       <nav>
@@ -895,7 +1185,7 @@ function RootComponent({ state }) {
         <button className="nav-form">Form</button>
       </nav>
       {state.loading && <div className="loader">Loading...</div>}
-      <switchable
+      <Switchable
         of={{ home: HomePage, form: FormPage }}
         current={state.route}
       />
@@ -903,23 +1193,21 @@ function RootComponent({ state }) {
   )
 }
 
-RootComponent.initialState = {
+App.initialState = {
   route: 'home',
   loading: false,
   items: [],
-  formData: { name: '', email: '' }
 }
 
-RootComponent.intent = ({ DOM, API }) => ({
+App.intent = ({ DOM, API }) => ({
   SET_ROUTE: xs.merge(
-    DOM.select('.nav-home').events('click').mapTo('home'),
-    DOM.select('.nav-form').events('click').mapTo('form')
+    DOM.click('.nav-home').mapTo('home'),
+    DOM.click('.nav-form').mapTo('form'),
   ),
-  LOAD_ITEMS: DOM.select('.load-items').events('click'),
-  ITEMS_LOADED: API.select('items')
+  ITEMS_LOADED: API.select('items'),
 })
 
-RootComponent.model = {
+App.model = {
   BOOTSTRAP: (state, data, next) => {
     next('LOAD_ITEMS')
     return state
@@ -927,19 +1215,19 @@ RootComponent.model = {
   SET_ROUTE: (state, route) => ({ ...state, route }),
   LOAD_ITEMS: {
     STATE: (state) => ({ ...state, loading: true }),
-    API: () => ({ endpoint: 'items', url: '/api/items' })
+    API: () => ({ endpoint: 'items', url: '/api/items' }),
   },
   ITEMS_LOADED: (state, response) => ({
     ...state,
     loading: false,
-    items: response.data
-  })
+    items: response.data,
+  }),
 }
 
-export default RootComponent
+export default App
 ```
 
-## 26. Astro Integration
+## 37. Astro Integration
 
 ```javascript
 // astro.config.mjs
@@ -947,7 +1235,7 @@ import { defineConfig } from 'astro/config'
 import sygnal from 'sygnal/astro'
 
 export default defineConfig({
-  integrations: [sygnal()]
+  integrations: [sygnal()],
 })
 ```
 
@@ -966,3 +1254,48 @@ import Counter from '../components/Counter.jsx'
 ```
 
 Supported client directives: `client:load`, `client:visible`, `client:idle`.
+
+## 38. Vike Integration (SSR)
+
+```javascript
+// vite.config.js
+import { defineConfig } from 'vite'
+import sygnal from 'sygnal/vite'
+import vike from 'vike/plugin'
+
+export default defineConfig({
+  plugins: [sygnal({ disableHmr: true }), vike()],
+})
+```
+
+```javascript
+// pages/+config.js
+import vikeSygnal from 'sygnal/config'
+export default { extends: [vikeSygnal] }
+```
+
+```jsx
+// pages/index/+Page.jsx
+function Page({ state }) {
+  return (
+    <div>
+      <h1>Count: {state.count}</h1>
+      <button className="increment">+</button>
+    </div>
+  )
+}
+
+Page.initialState = { count: 0 }
+
+Page.intent = ({ DOM }) => ({
+  INCREMENT: DOM.click('.increment'),
+})
+
+Page.model = {
+  INCREMENT: (state) => ({ ...state, count: state.count + 1 }),
+}
+
+export default Page
+```
+
+Pages are standard Sygnal components in `pages/*/+Page.jsx`. Supports `+Layout.jsx`, `+Head.jsx`, `+data.js`, and SPA mode via `ssr: false` in page config.

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Sygnal Dev"
+  short_description: "Create and build apps with the Sygnal framework."
+  default_prompt: "Use Sygnal best practices to scaffold, implement, and wire applications with component hierarchy, intents, models, state flow, and drivers."
