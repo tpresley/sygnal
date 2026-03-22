@@ -1,10 +1,10 @@
-import type { Component } from 'sygnal'
+import type { RootComponent } from 'sygnal'
 
 type State = {
   description: string
 }
 
-type Page = Component<State>
+type Page = RootComponent<State>
 
 const Page: Page = function ({ state }) {
   return (

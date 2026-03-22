@@ -1,5 +1,5 @@
 import { ABORT } from 'sygnal'
-import type { Component } from 'sygnal'
+import type { RootComponent } from 'sygnal'
 
 type State = {
   count: number
@@ -11,7 +11,7 @@ type Actions = {
   RESET: Event
 }
 
-type Page = Component<State, {}, {}, Actions>
+type Page = RootComponent<State, {}, Actions>
 
 const Page: Page = function ({ state }) {
   return (

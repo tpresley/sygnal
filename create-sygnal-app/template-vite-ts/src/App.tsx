@@ -1,5 +1,5 @@
 import { xs, ABORT } from 'sygnal'
-import type { Component } from 'sygnal'
+import type { RootComponent } from 'sygnal'
 import TaskItem from './components/TaskItem'
 
 type State = {
@@ -18,7 +18,7 @@ type Calculated = {
   remaining: number
 }
 
-type App = Component<State, {}, {}, Actions, Calculated>
+type App = RootComponent<State, {}, Actions, Calculated>
 
 const App: App = function ({ state }) {
   return (
