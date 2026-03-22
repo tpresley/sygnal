@@ -404,3 +404,4 @@ See the [Vike integration guide](/integration/vike/) for layouts, data fetching,
 - **[Examples](https://github.com/tpresley/sygnal/tree/main/examples)** — Working example applications.
 - **[Sygnal ToDoMVC](https://github.com/tpresley/sygnal-todomvc)** — Full TodoMVC implementation ([Live Demo](https://tpresley.github.io/sygnal-todomvc/)).
 - **[Sygnal 2048](https://github.com/tpresley/sygnal-2048)** — 2048 game built with Sygnal ([Live Demo](https://tpresley.github.io/sygnal-2048/)).
+- **[Sygnal Mahjong](https://github.com/tpresley/mahjong-trainer)** — Mahjong game built with Sygnal ([Live Demo](https://tpresley.github.io/mahjong-trainer)).

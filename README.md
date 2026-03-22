@@ -469,6 +469,7 @@ h('div', [h('h1', 'Hello'), h('button.btn', 'Click')])
 | [AI Discussion Panel](./examples/ai-panel-spa) | Complex SPA with custom drivers |
 | [Sygnal ToDoMVC](https://github.com/tpresley/sygnal-todomvc) | [Live Demo](https://tpresley.github.io/sygnal-todomvc/) |
 | [Sygnal 2048](https://github.com/tpresley/sygnal-2048) | [Live Demo](https://tpresley.github.io/sygnal-2048/) |
+| [Sygnal Mahjong](https://github.com/tpresley/mahjong-trainer) | [Live Demo](https://tpresley.github.io/mahjong-trainer/) |
 | [Sygnal Calculator](https://github.com/tpresley/sygnal-calculator) | [Live Demo](https://tpresley.github.io/sygnal-calculator/) |
 
 ## Acknowledgments
