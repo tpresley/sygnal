@@ -1,5 +1,5 @@
 import { processForm, classes, createRef } from 'sygnal'
-import type { Component, DriverSpec } from 'sygnal'
+import type { RootComponent, DriverSpec } from 'sygnal'
 import type { Stream } from 'xstream'
 import type { StoreSource, StoreEntry } from './lib/localStorageDriver'
 import TODO from './components/todos'
@@ -63,7 +63,7 @@ const newTodoRef = createRef<HTMLInputElement>()
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
-type App = Component<AppState, {}, AppDrivers, AppActions, AppCalc, AppContext, AppSinkReturns>
+type App = RootComponent<AppState, AppDrivers, AppActions, AppCalc, AppContext, AppSinkReturns>
 
 // Filter functions for each visibility option
 const FILTER_LIST: Record<string, (todo: TodoItem) => boolean> = {
@@ -131,10 +131,10 @@ APP.initialState = {
 }
 
 APP.calculated = {
-  total: (state) => state.todos.length,
+  total:     (state) => state.todos.length,
   remaining: (state) => state.todos.filter((todo) => !todo.completed).length,
   completed: (state) => state.todos.filter((todo) => todo.completed).length,
-  allDone: (state) => state.todos.every((todo) => todo.completed),
+  allDone:   (state) => state.todos.every((todo) => todo.completed),
 }
 
 APP.context = {
@@ -142,11 +142,9 @@ APP.context = {
 }
 
 APP.model = {
-  BOOTSTRAP: {
-    LOG: (_state, _data, next) => {
-      Object.keys(FILTER_LIST).forEach((filter) => next('ADD_ROUTE', filter))
-      return 'Starting application...'
-    },
+  'BOOTSTRAP': {
+    EFFECT: (_state, _data, next) => Object.keys(FILTER_LIST).forEach((filter) => next('ADD_ROUTE', filter)),
+    LOG:    () => 'Starting application...',
   },
 
   VISIBILITY: (state, visibility) => ({
@@ -187,12 +185,12 @@ APP.model = {
 }
 
 APP.intent = ({ STATE, DOM, ROUTER, STORE }) => {
-  const store$ = STORE.get('todos', [])
-  const toggleAll$ = DOM.select('.toggle-all').events('click')
-  const clearCompleted$ = DOM.select('.clear-completed').events('click')
+  const store$          = STORE.get('todos', [])
+  const toggleAll$      = DOM.click('.toggle-all')
+  const clearCompleted$ = DOM.click('.clear-completed')
 
   const newTodoForm = DOM.select('.new-todo-form')
-  const newTodo$ = processForm(newTodoForm, { events: 'submit' })
+  const newTodo$    = processForm(newTodoForm, { events: 'submit' })
     .map((values: any) => values['new-todo'].trim())
     .filter((title: string) => title !== '')
 
@@ -201,10 +199,10 @@ APP.intent = ({ STATE, DOM, ROUTER, STORE }) => {
   return {
     VISIBILITY: ROUTER,
     FROM_STORE: store$,
-    NEW_TODO: newTodo$,
+    NEW_TODO:   newTodo$,
     TOGGLE_ALL: toggleAll$,
     CLEAR_COMPLETED: clearCompleted$,
-    TO_STORE: toStore$,
+    TO_STORE:   toStore$,
   }
 }
 

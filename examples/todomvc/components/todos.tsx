@@ -103,15 +103,14 @@ TODO.model = {
 }
 
 TODO.intent = ({ DOM }) => {
-  const toggle$ = DOM.click('.toggle')
-  const label$ = DOM.dblclick('.todo label')
+  const toggle$  = DOM.click('.toggle').value()
+  const label$   = DOM.dblclick('.todo label')
   const destroy$ = DOM.click('.destroy')
-  const input$ = DOM.select('.edit')
+  const input$   = DOM.select('.edit')
 
   const { value$, enter$, escape$, blur$ } = inputEvents(input$)
 
-  const editInput$ = input$.events('input')
-    .map((e: any) => (e.target as HTMLInputElement).value)
+  const editInput$ = input$.events('input').value()
 
   const doneEditing$ = xs
     .merge(enter$, blur$)
@@ -119,11 +118,11 @@ TODO.intent = ({ DOM }) => {
     .map(([_, title]) => title)
 
   return {
-    TOGGLE: toggle$,
-    DESTROY: destroy$,
-    EDIT_START: label$,
-    EDIT_INPUT: editInput$,
-    EDIT_DONE: doneEditing$,
+    TOGGLE:      toggle$,
+    DESTROY:     destroy$,
+    EDIT_START:  label$,
+    EDIT_INPUT:  editInput$,
+    EDIT_DONE:   doneEditing$,
     EDIT_CANCEL: escape$,
   }
 }
