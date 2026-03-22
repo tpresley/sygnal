@@ -1,4 +1,4 @@
-import { classes, xs, sampleCombine } from 'sygnal'
+import { classes, xs, sampleCombine, Transition } from 'sygnal'
 import type { Component } from 'sygnal'
 import { inputEvents } from '../lib/utils'
 
@@ -53,14 +53,16 @@ const TODO: Todo = function ({ state, context, showDelete }) {
   const theme = context?.theme ?? 'light'
 
   return (
-    <li className={classNames} data-theme={theme}>
-      <div className="view">
-        <input className="toggle" type="checkbox" checked={checked} />
-        <label>{displayTitle}</label>
-        {showDelete && <button className="destroy" />}
-      </div>
-      <input className="edit" type="text" value={editValue} autoFocus={editing} />
-    </li>
+    <Transition name="todo" duration={300}>
+      <li className={classNames} data-theme={theme}>
+        <div className="view">
+          <input className="toggle" type="checkbox" checked={checked} />
+          <label>{displayTitle}</label>
+          {showDelete && <button className="destroy" />}
+        </div>
+        <input className="edit" type="text" value={editValue} autoFocus={editing} />
+      </li>
+    </Transition>
   )
 }
 
