@@ -614,11 +614,11 @@ export function renderToString(componentDef: any, options?: RenderToStringOption
 
 export const xs: typeof xsDefault
 
-export { default as debounce } from 'xstream/extra/debounce'
-export { default as throttle } from 'xstream/extra/throttle'
-export { default as delay } from 'xstream/extra/delay'
-export { default as dropRepeats } from 'xstream/extra/dropRepeats'
-export { default as sampleCombine } from 'xstream/extra/sampleCombine'
+export { default as debounce } from 'xstream/extra/debounce.js'
+export { default as throttle } from 'xstream/extra/throttle.js'
+export { default as delay } from 'xstream/extra/delay.js'
+export { default as dropRepeats } from 'xstream/extra/dropRepeats.js'
+export { default as sampleCombine } from 'xstream/extra/sampleCombine.js'
 
 export * from './cycle/dom/index'
 export type { MemoryStream, Stream }

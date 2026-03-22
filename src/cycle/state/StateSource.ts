@@ -1,5 +1,5 @@
 import xs, {Stream, MemoryStream} from 'xstream';
-import dropRepeats from 'xstream/extra/dropRepeats';
+import dropRepeats from 'xstream/extra/dropRepeats.js';
 import {DevToolEnabledSource} from '../run/types';
 import {adapt} from '../run/adapt';
 import {Getter, Setter, Scope, Reducer} from './types';

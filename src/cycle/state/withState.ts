@@ -1,5 +1,5 @@
 import xs, {Stream} from 'xstream';
-import concat from 'xstream/extra/concat';
+import concat from 'xstream/extra/concat.js';
 import {MainFn, Reducer} from './types';
 import {StateSource} from './StateSource';
 
