@@ -3,7 +3,7 @@ function TaskItem({ state }) {
     <div className={`task-item ${state.done ? 'done' : ''}`}>
       <button className="toggle">{state.done ? '\u2713' : '\u25CB'}</button>
       <span className="task-text">{state.text}</span>
-      <button className="delete">\u00D7</button>
+      <button className="delete">x</button>
     </div>
   )
 }
