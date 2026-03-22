@@ -75,7 +75,7 @@ type CollectionProps<PROPS = any> = {
   of: Component | ((props: PROPS) => JSX.Element)
   from: string | Lens
   filter?: (item: any) => boolean
-  sort?: string | ((a: any, b: any) => number) | { [field: string]: 'asc' | 'dec' | SortFunction }
+  sort?: string | ((a: any, b: any) => number) | { [field: string]: 'asc' | 'desc' | SortFunction }
 }
 ```
 

@@ -163,7 +163,7 @@ import { Collection } from 'sygnal'
 | `of` | `Component` | Yes | The component to instantiate for each item |
 | `from` | `string \| Lens` | Yes | State property name or lens for the source array |
 | `filter` | `(item) => boolean` | No | Filter function — only items returning `true` are rendered |
-| `sort` | `string \| (a, b) => number` | No | Property name for alphabetical sort, or custom comparator |
+| `sort` | `string \| object \| array \| function` | No | Sort items — string (field name, `"asc"`, or `"desc"`), object (`{ field: "asc" \| "desc" \| 1 \| -1 }`), array (multi-field), or comparator function |
 | `className` | `string` | No | CSS class for the wrapping container element |
 
 ### Programmatic Usage

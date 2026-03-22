@@ -2117,11 +2117,11 @@ function __sortFunctionFromObj(item: Record<string, any>): ((a: any, b: any) => 
   }
   let ascending = true
   if (typeof directionRaw === 'string') {
-    if (!['asc', 'dec'].includes(directionRaw.toLowerCase())) {
-      console.error('Sort object string values must be asc or dec:', item)
+    if (!['asc', 'desc'].includes(directionRaw.toLowerCase())) {
+      console.error('Sort object string values must be asc or desc:', item)
       return undefined
     }
-    ascending = directionRaw.toLowerCase() === 'asc'
+    ascending = directionRaw.toLowerCase() !== 'desc'
   }
   if (typeof directionRaw === 'number') {
     if (directionRaw !== 1 && directionRaw !== -1) {
@@ -2139,9 +2139,9 @@ function sortFunctionFromProp(sortProp: any): ((a: any, b: any) => number) | und
   // if function do nothing
   if (propType === 'function') return sortProp
   if (propType === 'string') {
-    // if passed either 'asc' or 'dec' sort on the entire item
-    if (sortProp.toLowerCase() === 'asc' || sortProp.toLowerCase() === 'dec') {
-      const ascending = sortProp.toLowerCase() === 'asc'
+    // if passed either 'asc' or 'desc' sort on the entire item
+    if (sortProp.toLowerCase() === 'asc' || sortProp.toLowerCase() === 'desc') {
+      const ascending = sortProp.toLowerCase() !== 'desc'
       return (a, b) => __baseSort(a, b, ascending)
     }
     // assume it's a field/property name, and sort it ascending
@@ -2150,7 +2150,7 @@ function sortFunctionFromProp(sortProp: any): ((a: any, b: any) => number) | und
   } else if (Array.isArray(sortProp)) {
     const sorters = sortProp.map(item => {
       if (typeof item === 'function') return item
-      if (typeof item === 'string' && !['asc', 'dec'].includes(item.toLowerCase())) return (a: any, b: any) => __baseSort(a[item], b[item], true)
+      if (typeof item === 'string' && !['asc', 'desc'].includes(item.toLowerCase())) return (a: any, b: any) => __baseSort(a[item], b[item], true)
       if (isObj(item)) {
         return __sortFunctionFromObj(item)
       }

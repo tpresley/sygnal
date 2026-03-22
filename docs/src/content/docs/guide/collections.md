@@ -31,18 +31,66 @@ Each item in the `items` array becomes the state for one `TodoItem` instance. If
 | `of` | Component | The component to render for each item |
 | `from` | String or Lens | The state property (or lens) containing the array |
 | `filter` | Function | Filter function — only items returning `true` are shown |
-| `sort` | String or Function | Sort by a property name, or provide a custom sort function |
+| `sort` | String, Object, Array, or Function | Sort items — see [Sorting](#sorting) below |
 | `className` | String | CSS class for the wrapping container |
 
-## Filtering and Sorting
+## Filtering
 
 ```jsx
 <collection
   of={TodoItem}
   from="items"
   filter={item => !item.done}
-  sort="text"
 />
+```
+
+## Sorting
+
+The `sort` prop accepts several formats for controlling sort order.
+
+### Sort by property name (ascending)
+
+```jsx
+<collection of={TodoItem} from="items" sort="text" />
+```
+
+### Sort by property name with direction
+
+Use an object with the property name as key and `"asc"` or `"desc"` as value:
+
+```jsx
+<collection of={TodoItem} from="items" sort={{ text: "desc" }} />
+```
+
+You can also use `1` (ascending) or `-1` (descending):
+
+```jsx
+<collection of={TodoItem} from="items" sort={{ priority: -1 }} />
+```
+
+### Sort primitive arrays
+
+For arrays of strings or numbers (not objects), pass `"asc"` or `"desc"` directly:
+
+```jsx
+<collection of={TagItem} from="tags" sort="asc" />
+```
+
+### Multi-field sort
+
+Pass an array to sort by multiple fields. Each entry can be a string (ascending), object (with direction), or function:
+
+```jsx
+<collection of={TodoItem} from="items" sort={[
+  { priority: "desc" },
+  "text"
+]} />
+```
+
+### Custom sort function
+
+```jsx
+<collection of={TodoItem} from="items" sort={(a, b) => a.createdAt - b.createdAt} />
 ```
 
 ## Item Keys

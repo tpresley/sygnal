@@ -239,7 +239,7 @@ export type Filter<ITEM = any> = (item: ITEM) => boolean
 export type SortFunction<ITEM = any> = (a: ITEM, b: ITEM) => number
 
 export type SortObject<ITEM = any> = {
-  [field: string]: 'asc' | 'dec' | SortFunction<ITEM>
+  [field: string]: 'asc' | 'desc' | SortFunction<ITEM>
 }
 
 /**
