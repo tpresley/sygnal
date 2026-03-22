@@ -21,11 +21,12 @@ A reactive component framework with pure functions, zero side effects, and autom
 **Scaffold a new project:**
 
 ```bash
-npx degit tpresley/sygnal-template my-app
+npm create sygnal-app my-app
 cd my-app
-npm install
 npm run dev
 ```
+
+Choose from Vite (SPA), Vike (SSR), or Astro templates during setup.
 
 **Or add to an existing project:**
 

@@ -1,0 +1,35 @@
+{
+  "name": "create-sygnal-app",
+  "version": "1.0.0",
+  "description": "Scaffold a new Sygnal project",
+  "type": "module",
+  "bin": {
+    "create-sygnal-app": "./index.js"
+  },
+  "files": [
+    "index.js",
+    "template-vite",
+    "template-vite-ts",
+    "template-vike",
+    "template-vike-ts",
+    "template-astro",
+    "template-astro-ts"
+  ],
+  "keywords": [
+    "sygnal",
+    "create",
+    "scaffold",
+    "template",
+    "cli"
+  ],
+  "author": "Troy Presley <troy.presley@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tpresley/sygnal.git",
+    "directory": "create-sygnal-app"
+  },
+  "dependencies": {
+    "@clack/prompts": "^0.10.0"
+  }
+}
