@@ -1598,7 +1598,7 @@ class Component {
         if (vdom$.length === 0) return xs.of(root)
 
         // Track READY state on the component instance (persists across folds)
-        for (const [id, val] of entries) {
+        for (const [id, val] of entries as [string, any]) {
           if (this._childReadyState[id] !== undefined) continue // already tracking
           const readySink = val.sink$[READY_SINK_NAME]
           if (readySink) {
