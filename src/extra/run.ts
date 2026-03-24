@@ -118,6 +118,10 @@ export default function run(
       (sources as any).STATE.stream.removeListener(persistListener);
       persistListener = null;
     }
+    // Trigger the component's dispose() which fires the DISPOSE action and dispose$ stream
+    if (typeof (sinks as any).__dispose === 'function') {
+      try { (sinks as any).__dispose(); } catch (_) {}
+    }
     rawDispose();
   };
 

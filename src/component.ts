@@ -26,6 +26,7 @@ const ENVIRONMENT: any =
 const BOOTSTRAP_ACTION = 'BOOTSTRAP';
 const INITIALIZE_ACTION = 'INITIALIZE';
 const HYDRATE_ACTION = 'HYDRATE';
+const DISPOSE_ACTION = 'DISPOSE';
 const PARENT_SINK_NAME = 'PARENT';
 const CHILD_SOURCE_NAME = 'CHILD';
 const READY_SINK_NAME = 'READY';
@@ -446,8 +447,14 @@ class Component {
   }
 
   dispose(): void {
-    // Signal disposal to the component via dispose$ stream
-    // This fires FIRST so CLEANUP actions in the model can process
+    // Fire the DISPOSE built-in action so model handlers can run cleanup logic
+    const hasDispose = this.model && (this.model[DISPOSE_ACTION] || Object.keys(this.model).some(k => k.includes('|') && k.split('|')[0].trim() === DISPOSE_ACTION))
+    if (hasDispose && this.action$ && typeof this.action$.shamefullySendNext === 'function') {
+      try {
+        this.action$.shamefullySendNext({ type: DISPOSE_ACTION })
+      } catch (_) {}
+    }
+    // Signal disposal to the component via dispose$ stream (for advanced use cases)
     if (this._disposeListener) {
       try {
         this._disposeListener.next(true)
@@ -455,7 +462,7 @@ class Component {
       } catch (_) {}
       this._disposeListener = null
     }
-    // Tear down streams on next microtask to allow CLEANUP actions to process
+    // Tear down streams on next microtask to allow DISPOSE/cleanup actions to process
     setTimeout(() => {
       // Complete the action$ stream to stop the entire component cycle
       if (this.action$ && typeof this.action$.shamefullySendComplete === 'function') {

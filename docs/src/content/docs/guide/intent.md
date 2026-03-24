@@ -33,7 +33,7 @@ By default, every Sygnal component's intent function receives these sources:
 | `props$` | Stream of props from the parent component |
 | `children$` | Stream of children from the parent component |
 | `context$` | Stream of context values from ancestors |
-| `dispose$` | Emits `true` once when the component is about to unmount — see [Disposal Hooks](/advanced/disposal/) |
+| `dispose$` | Emits `true` once when the component is about to unmount (advanced — prefer the `DISPOSE` model action). See [Disposal Hooks](/advanced/disposal/) |
 
 Additionally, any custom drivers registered via `run()` are available as sources by their key name.
 

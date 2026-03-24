@@ -223,6 +223,7 @@ Define in `.model` to handle these — they fire automatically:
 | `BOOTSTRAP` | Once on component instantiation | Initialize data, trigger first load |
 | `INITIALIZE` | When component receives first state | One-time setup based on initial state |
 | `HYDRATE` | On first state during HMR | Restore after hot reload |
+| `DISPOSE` | When component is about to unmount | Cleanup timers, close connections, notify parent |
 
 ## EFFECT Sink
 
@@ -267,7 +268,7 @@ Every Sygnal app automatically includes these drivers (no setup needed):
 | `CHILD` | `CHILD.select(ChildComponent)` | Via PARENT sink in child model |
 
 Additional pseudo-sources available in intent:
-- `dispose$` — Stream that emits once on component unmount
+- `dispose$` — Stream that emits once on component unmount (advanced — prefer the `DISPOSE` model action)
 - `commands$` — Stream of commands from parent (via `createCommand()`)
 - `props$` — Stream of props from parent
 - `children$` — Stream of children from parent

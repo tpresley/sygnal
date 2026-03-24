@@ -92,13 +92,14 @@ MyComponent.model = {
 
 ## Built-in Actions
 
-Sygnal provides three built-in actions that fire automatically:
+Sygnal provides four built-in actions that fire automatically:
 
 | Action | When It Fires |
 |--------|---------------|
 | `BOOTSTRAP` | Once when the component is first instantiated (similar to React's `useEffect(() => {}, [])`) |
 | `INITIALIZE` | When the component receives its first state |
 | `HYDRATE` | When the component receives its first state during HMR |
+| `DISPOSE` | When the component is about to unmount — see [Disposal Hooks](/advanced/disposal/) |
 
 ```jsx
 MyComponent.model = {
@@ -112,6 +113,9 @@ MyComponent.model = {
   INITIALIZE: (state) => {
     // runs once when state is first available
     return state
+  },
+  DISPOSE: {
+    EFFECT: () => console.log('Component unmounting'),
   }
 }
 ```

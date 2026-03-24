@@ -676,9 +676,35 @@ See [Server-Side Rendering guide](/integration/ssr/) for full usage patterns.
 
 ---
 
-## dispose$
+## DISPOSE (Built-in Action)
 
-A source stream available in every component's intent. Emits `true` once when the component unmounts.
+A built-in model action that fires automatically when the component is about to unmount. This is the preferred way to handle component cleanup.
+
+```jsx
+MyComponent.model = {
+  DISPOSE: {
+    EFFECT: (state) => {
+      clearInterval(state.intervalId)
+    },
+  },
+}
+```
+
+Works with all sinks (EFFECT, EVENTS, PARENT, STATE) and supports model shorthand:
+
+```jsx
+MyComponent.model = {
+  'DISPOSE | EFFECT': (state) => clearInterval(state.intervalId),
+}
+```
+
+The reducer receives the current state, so you can access component data during cleanup.
+
+---
+
+## dispose$ (Advanced)
+
+A source stream available in every component's intent. Emits `true` once when the component unmounts. Use this for advanced cases that need stream composition. For most cleanup tasks, the `DISPOSE` model action is simpler.
 
 ```jsx
 MyComponent.intent = ({ DOM, dispose$ }) => ({

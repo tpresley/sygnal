@@ -249,6 +249,10 @@ export function renderComponent(
       } catch (_) {}
       stateListener = null;
     }
+    // Trigger the component's dispose() which fires the DISPOSE action and dispose$ stream
+    if (typeof (sinks as any).__dispose === 'function') {
+      try { (sinks as any).__dispose(); } catch (_) {}
+    }
     rawDispose();
   };
 

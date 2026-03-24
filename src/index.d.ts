@@ -117,6 +117,7 @@ type WithDefaultActions<STATE, ACTIONS> = ACTIONS & {
   BOOTSTRAP?: never;
   INITIALIZE?: STATE;
   HYDRATE?: any;
+  DISPOSE?: never;
 }
 
 type ComponentModel<STATE, PROPS, DRIVERS, ACTIONS, CALCULATED, SINK_RETURNS extends NonStateSinkReturns = {}> = keyof ACTIONS extends never

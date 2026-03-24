@@ -90,6 +90,10 @@ function createTestComponent(componentDef, mockConfig = {}) {
       if (vnodeListener && sinks.DOM) {
         sinks.DOM.removeListener(vnodeListener)
       }
+      // Trigger the component's dispose() which fires the DISPOSE action and dispose$ stream
+      if (typeof sinks.__dispose === 'function') {
+        try { sinks.__dispose() } catch (_) {}
+      }
       dispose()
     },
   }
@@ -793,6 +797,83 @@ describe('component integration (mockDOMSource)', () => {
 
       // Both Child instances should be instantiated — if IDs collide, only one renders
       expect(renderCount).toBeGreaterThanOrEqual(2)
+    })
+  })
+
+  describe('DISPOSE built-in action', () => {
+    it('fires DISPOSE action on component disposal with EFFECT handler', async () => {
+      let disposeEffectRan = false
+
+      function App() {
+        return createElement('div', null, 'test')
+      }
+      App.initialState = { count: 0 }
+      App.intent = ({ DOM }) => ({
+        INC: DOM.select('.inc').events('click'),
+      })
+      App.model = {
+        INC: (state) => ({ ...state, count: state.count + 1 }),
+        DISPOSE: {
+          EFFECT: () => { disposeEffectRan = true },
+        },
+      }
+
+      testEnv = createTestComponent(App)
+      await settle()
+
+      expect(disposeEffectRan).toBe(false)
+      testEnv.dispose()
+      await settle(100)
+      expect(disposeEffectRan).toBe(true)
+      testEnv = null // already disposed
+    })
+
+    it('fires DISPOSE action with state reducer', async () => {
+      const stateAtDispose = []
+
+      function App() {
+        return createElement('div', null, 'test')
+      }
+      App.initialState = { value: 'hello' }
+      App.intent = ({ DOM }) => ({
+        _NOOP: DOM.select('.__noop__').events('click'),
+      })
+      App.model = {
+        DISPOSE: {
+          EFFECT: (state) => { stateAtDispose.push(state.value) },
+        },
+      }
+
+      testEnv = createTestComponent(App)
+      await settle()
+
+      testEnv.dispose()
+      await settle(100)
+      expect(stateAtDispose).toEqual(['hello'])
+      testEnv = null
+    })
+
+    it('does not fire DISPOSE when model has no DISPOSE entry', async () => {
+      let anyEffectRan = false
+
+      function App() {
+        return createElement('div', null, 'test')
+      }
+      App.initialState = { x: 1 }
+      App.intent = ({ DOM }) => ({
+        _NOOP: DOM.select('.__noop__').events('click'),
+      })
+      App.model = {
+        _NOOP: (state) => state,
+      }
+
+      testEnv = createTestComponent(App)
+      await settle()
+
+      // Dispose should not throw when no DISPOSE model entry exists
+      expect(() => testEnv.dispose()).not.toThrow()
+      await settle(100)
+      testEnv = null
     })
   })
 })

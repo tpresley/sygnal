@@ -313,17 +313,17 @@ App.model = {
 
 ### Disposal Hooks
 
-Cleanup on unmount:
+Cleanup on unmount with the built-in `DISPOSE` action:
 
 ```jsx
-MyComponent.intent = ({ dispose$ }) => ({
-  CLEANUP: dispose$,
-})
-
 MyComponent.model = {
-  CLEANUP: { WEBSOCKET: () => ({ type: 'close' }) },
+  DISPOSE: {
+    EFFECT: (state) => clearInterval(state.timerId),
+  },
 }
 ```
+
+For advanced cases needing stream composition, the `dispose$` source is also available in intent.
 
 ### Testing
 

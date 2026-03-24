@@ -301,6 +301,99 @@ describe('waitForState', () => {
 })
 
 
+describe('DISPOSE built-in action', () => {
+  let t
+
+  afterEach(() => {
+    if (t) {
+      t.dispose()
+      t = null
+    }
+  })
+
+  it('fires DISPOSE EFFECT handler on disposal', async () => {
+    let disposeEffectRan = false
+
+    function App() {
+      return createElement('div', null, 'test')
+    }
+    App.initialState = { x: 1 }
+    App.intent = ({ DOM }) => ({
+      _NOOP: DOM.select('.__noop__').events('click'),
+    })
+    App.model = {
+      DISPOSE: {
+        EFFECT: () => { disposeEffectRan = true },
+      },
+    }
+
+    t = renderComponent(App)
+    await settle(100)
+
+    expect(disposeEffectRan).toBe(false)
+    t.dispose()
+    t = null
+    await settle(100)
+    expect(disposeEffectRan).toBe(true)
+  })
+
+  it('DISPOSE EFFECT receives current state', async () => {
+    const captured = []
+
+    function App() {
+      return createElement('div', null, 'test')
+    }
+    App.initialState = { count: 0 }
+    App.intent = ({ DOM }) => ({
+      INC: DOM.select('.btn').events('click'),
+    })
+    App.model = {
+      INC: (state) => ({ ...state, count: state.count + 1 }),
+      DISPOSE: {
+        EFFECT: (state) => { captured.push(state.count) },
+      },
+    }
+
+    t = renderComponent(App, {
+      mockConfig: { '.btn': { click: xs.of({}) } }
+    })
+    await settle(100)
+
+    // State should have been incremented
+    expect(t.states[t.states.length - 1].count).toBe(1)
+
+    t.dispose()
+    t = null
+    await settle(100)
+    expect(captured).toEqual([1])
+  })
+
+  it('DISPOSE with model shorthand fires EFFECT', async () => {
+    let effectRan = false
+
+    function App() {
+      return createElement('div', null, 'test')
+    }
+    App.initialState = { x: 1 }
+    App.intent = ({ DOM }) => ({
+      _NOOP: DOM.select('.__noop__').events('click'),
+    })
+    App.model = {
+      'DISPOSE | EFFECT': () => { effectRan = true },
+    }
+
+    t = renderComponent(App)
+    await settle(100)
+
+    expect(effectRan).toBe(false)
+    t.dispose()
+    t = null
+    await settle(100)
+    expect(effectRan).toBe(true)
+  })
+})
+
+
 describe('dispose', () => {
   it('cleans up without errors', async () => {
     function App() {

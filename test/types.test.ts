@@ -378,6 +378,7 @@ describe('Component with typed state and actions', () => {
     expectTypeOf<Model>().toHaveProperty('SET_NAME')
     expectTypeOf<Model>().toHaveProperty('BOOTSTRAP')
     expectTypeOf<Model>().toHaveProperty('INITIALIZE')
+    expectTypeOf<Model>().toHaveProperty('DISPOSE')
   })
 
   it('intent returns action streams', () => {
