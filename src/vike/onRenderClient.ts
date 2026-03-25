@@ -50,25 +50,50 @@ let currentApp: { dispose: () => void } | null = null
  * graph — their intent, model, and context all work normally.
  */
 function createLayoutWrapper(layouts: any[], Page: any): any {
-  // Build the view function that nests Layout > ... > Page
-  // Uses raw vnodes since this file is .ts not .tsx
+  // Build vnodes that match what the JSX pragma produces for function components.
+  // The pragma extracts static properties into sygnalOptions and sets sel to a string name.
+  // We must replicate this since this file is .ts (no JSX) and builds vnodes by hand.
+  function componentVNode(comp: any, stateField: string, children: any[]): any {
+    const name = comp.componentName || comp.name || 'FUNCTION_COMPONENT'
+    return {
+      sel: name,
+      data: {
+        props: {
+          state: stateField,
+          sygnalOptions: {
+            name,
+            view: comp,
+            model: comp.model,
+            intent: comp.intent,
+            hmrActions: comp.hmrActions,
+            context: comp.context,
+            peers: comp.peers,
+            components: comp.components,
+            initialState: comp.initialState,
+            isolatedState: true,
+            calculated: comp.calculated,
+            storeCalculatedInState: comp.storeCalculatedInState,
+            DOMSourceName: comp.DOMSourceName,
+            stateSourceName: comp.stateSourceName,
+            onError: comp.onError,
+            debug: comp.debug,
+          },
+        },
+      },
+      children,
+      text: undefined,
+      elm: undefined,
+      key: '__vike_' + stateField + '__',
+    }
+  }
+
   function LayoutWrapperView({ state }: any) {
     // Start with the Page component as the innermost child
-    let inner: any = {
-      sel: Page,
-      data: { props: { state: 'page' } },
-      children: [],
-      key: '__vike_page__',
-    }
+    let inner: any = componentVNode(Page, 'page', [])
 
     // Wrap inside each layout from innermost to outermost
     for (let i = layouts.length - 1; i >= 0; i--) {
-      inner = {
-        sel: layouts[i],
-        data: { props: { state: 'layout_' + i } },
-        children: [inner],
-        key: '__vike_layout_' + i + '__',
-      }
+      inner = componentVNode(layouts[i], 'layout_' + i, [inner])
     }
 
     return inner
