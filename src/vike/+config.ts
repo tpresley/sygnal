@@ -15,7 +15,7 @@ export default {
   onRenderHtml: 'import:sygnal/vike/onRenderHtml:onRenderHtml',
   onRenderClient: 'import:sygnal/vike/onRenderClient:onRenderClient',
 
-  passToClient: ['data', 'routeParams'],
+  passToClient: ['data', 'routeParams', 'urlPathname'],
 
   meta: {
     Layout: {

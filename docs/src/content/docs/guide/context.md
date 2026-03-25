@@ -43,3 +43,7 @@ DeepChild.model = {
 ```
 
 Context values are automatically recalculated when the source component's state changes.
+
+## Vike Integration
+
+When using Sygnal with [Vike](/integration/vike/), page data, route params, and the URL pathname are automatically injected into the page component's context. See the [Vike data fetching docs](/integration/vike/#accessing-data-in-sub-components) for details.

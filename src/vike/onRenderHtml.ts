@@ -16,6 +16,8 @@ import { renderToString } from 'sygnal'
 interface PageContext {
   Page: any
   data?: any
+  routeParams?: Record<string, string>
+  urlPathname?: string
   config: {
     Layout?: any | any[]
     Head?: any
@@ -67,6 +69,15 @@ export function onRenderHtml(pageContext: PageContext) {
   const initialState = {
     ...(Page.initialState || {}),
     ...data,
+  }
+
+  // Inject page data, route params, and URL into the component's context
+  // so sub-components can access them without prop drilling during SSR.
+  Page.context = {
+    ...Page.context,
+    pageData: () => data,
+    routeParams: () => pageContext.routeParams || {},
+    urlPathname: () => pageContext.urlPathname || '',
   }
 
   // Render the page component to HTML, with error boundary

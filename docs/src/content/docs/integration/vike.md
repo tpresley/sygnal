@@ -162,6 +162,32 @@ export default Page
 
 The data fields (`description`, `renderedAt`) are merged into `initialState` when the page loads on the client.
 
+### Accessing Data in Sub-Components
+
+Page data, route params, and the current URL pathname are automatically injected into Sygnal's context system. Any descendant component can access them without prop drilling:
+
+```jsx
+function UserProfile({ context }) {
+  return (
+    <div>
+      <p>Viewing: {context.urlPathname}</p>
+      <p>User ID: {context.routeParams.id}</p>
+      <p>Server data: {context.pageData.username}</p>
+    </div>
+  )
+}
+```
+
+The following context values are available in all sub-components:
+
+| Context Key | Type | Description |
+|-------------|------|-------------|
+| `pageData` | `object` | The data returned by `+data.js` |
+| `routeParams` | `object` | Route parameters (e.g. `{ id: '123' }` for `/user/@id`) |
+| `urlPathname` | `string` | The current URL pathname |
+
+These values are fixed per navigation and work during both SSR and client-side rendering.
+
 ## SPA Mode
 
 Disable server-side rendering for specific pages by setting `ssr: false`:
