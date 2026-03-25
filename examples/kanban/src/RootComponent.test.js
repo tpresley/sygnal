@@ -156,7 +156,7 @@ describe('RootComponent', () => {
 
   describe('DRAG_START', () => {
     it('sets dragging state with task id', () => {
-      const result = model.DRAG_START(makeState(), { dataset: { taskId: 'task-1' } })
+      const result = model.DRAG_START(makeState(), 'task-1')
       expect(result.dragging).toEqual({ taskId: 'task-1' })
     })
   })
@@ -246,7 +246,7 @@ describe('RootComponent', () => {
 
   describe('LANE_DRAG_START', () => {
     it('sets draggingLane state', () => {
-      const result = model.LANE_DRAG_START(makeState(), { dataset: { laneId: 'lane-2' } })
+      const result = model.LANE_DRAG_START(makeState(), 'lane-2')
       expect(result.draggingLane).toBe('lane-2')
     })
   })

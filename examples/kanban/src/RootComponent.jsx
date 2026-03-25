@@ -59,7 +59,7 @@ RootComponent.intent = ({ DOM, DND, EVENTS }) => ({
   DRAG_START:      DND.dragstart('task').data('taskId'),
   DROP:            DND.drop('lane'),
   DRAG_END:        DND.dragend('task'),
-  LANE_DRAG_START: DND.dragstart('lane-sort'),
+  LANE_DRAG_START: DND.dragstart('lane-sort').data('laneId'),
   LANE_DROP:       DND.drop('lane-sort'),
   LANE_DRAG_END:   DND.dragend('lane-sort'),
   DELETE_LANE:     EVENTS.select('DELETE_LANE'),
@@ -151,7 +151,7 @@ RootComponent.model = {
     return { ...state, dragging: null }
   },
 
-  LANE_DRAG_START: set((_state, { dataset }) => ({ draggingLane: dataset.laneId })),
+  LANE_DRAG_START: set((_state, laneId) => ({ draggingLane: laneId })),
 
   LANE_DROP: (state, { dropZone }) => {
     if (!state.draggingLane) return ABORT
