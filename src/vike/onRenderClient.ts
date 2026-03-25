@@ -24,6 +24,8 @@ declare global {
 interface PageContext {
   Page: any
   data?: any
+  routeParams?: Record<string, string>
+  urlPathname?: string
   isHydration?: boolean
   config: {
     Layout?: any | any[]
@@ -61,6 +63,16 @@ export function onRenderClient(pageContext: PageContext) {
 
   // Set the initial state on the component before running
   Page.initialState = initialState
+
+  // Inject page data, route params, and URL into the component's context
+  // so sub-components can access them without prop drilling.
+  // Context functions receive state but return static values per navigation.
+  Page.context = {
+    ...Page.context,
+    pageData: () => data,
+    routeParams: () => pageContext.routeParams || {},
+    urlPathname: () => pageContext.urlPathname || '',
+  }
 
   // Boot the Sygnal app into #page-view
   // Layout HTML lives outside #page-view, so it won't be destroyed
