@@ -207,6 +207,36 @@ describe('renderToString', () => {
       expect(html).toContain('Content')
       expect(html).not.toContain('Loading')
     })
+
+    it('renders clientonly fallback during SSR', () => {
+      function WithClientOnly({ state }) {
+        return createElement('div', null,
+          createElement('span', null, 'Static'),
+          { sel: 'clientonly', data: { props: { fallback: createElement('span', null, 'Loading chart...') } }, children: [
+            createElement('div', { className: 'chart' }, 'Interactive Chart')
+          ], text: undefined, elm: undefined, key: undefined }
+        )
+      }
+      WithClientOnly.initialState = {}
+      const html = renderToString(WithClientOnly)
+      expect(html).toContain('Static')
+      expect(html).toContain('Loading chart...')
+      expect(html).not.toContain('Interactive Chart')
+    })
+
+    it('renders clientonly placeholder when no fallback', () => {
+      function WithClientOnly({ state }) {
+        return createElement('div', null,
+          { sel: 'clientonly', data: { props: {} }, children: [
+            createElement('div', null, 'Client content')
+          ], text: undefined, elm: undefined, key: undefined }
+        )
+      }
+      WithClientOnly.initialState = {}
+      const html = renderToString(WithClientOnly)
+      expect(html).toContain('data-sygnal-clientonly')
+      expect(html).not.toContain('Client content')
+    })
   })
 
   describe('sub-components', () => {

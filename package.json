@@ -69,6 +69,10 @@
       "import": "./dist/vike/onRenderClient.mjs",
       "require": "./dist/vike/onRenderClient.cjs.js"
     },
+    "./vike/ClientOnly": {
+      "import": "./dist/vike/ClientOnly.mjs",
+      "require": "./dist/vike/ClientOnly.cjs.js"
+    },
     "./types": {
       "import": "./dist/index.d.ts",
       "require": "./dist/index.d.ts"

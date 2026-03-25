@@ -193,6 +193,25 @@ function processSSRTree(vnode: any, context: Record<string, any>, parentState?: 
     }
   }
 
+  // ClientOnly: render fallback during SSR, skip children (they need a browser)
+  if (sel === 'clientonly') {
+    const props = vnode.data?.props || {}
+    const fallback = props.fallback
+    if (fallback) {
+      // fallback can be a VNode or a string
+      return processSSRTree(fallback, context, parentState)
+    }
+    // No fallback — render an empty placeholder div
+    return {
+      sel: 'div',
+      data: {attrs: {'data-sygnal-clientonly': ''}},
+      children: [],
+      text: undefined,
+      elm: undefined,
+      key: undefined,
+    }
+  }
+
   // Slot: unwrap to children
   if (sel === 'slot') {
     const children = vnode.children || []

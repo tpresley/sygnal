@@ -175,5 +175,19 @@ export default [
 			resolve({ extensions: ['.mjs', '.js', '.ts', '.json'] }),
 			commonjs()
 		]
+  },
+
+  {
+    input: 'src/vike/ClientOnly.ts',
+    external: (id) => isExternal(id) || /^(vike|sygnal)(\/|$)/.test(id),
+    output: [
+      { file: pkg.exports['./vike/ClientOnly'].require, format: 'cjs' },
+      { file: pkg.exports['./vike/ClientOnly'].import, format: 'es' }
+    ],
+		plugins: [
+			typescript({ tsconfig: './tsconfig.json' }),
+			resolve({ extensions: ['.mjs', '.js', '.ts', '.json'] }),
+			commonjs()
+		]
   }
 ];

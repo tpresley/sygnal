@@ -216,6 +216,27 @@ These options can be set in any `+config.js` file:
 | `Layout` | component | Sygnal component wrapping page content |
 | `Head` | component | Component rendered into `<head>` |
 
+## ClientOnly
+
+Some components (charts, maps, rich text editors) require browser APIs and cannot render on the server. Wrap them in `ClientOnly` to skip SSR and render only on the client:
+
+```jsx
+import { ClientOnly } from 'sygnal/vike/ClientOnly'
+
+function Dashboard({ state }) {
+  return (
+    <div>
+      <h1>Dashboard</h1>
+      <ClientOnly fallback={<div>Loading chart...</div>}>
+        <InteractiveChart state="chartData" />
+      </ClientOnly>
+    </div>
+  )
+}
+```
+
+During SSR, the `fallback` is rendered instead of the children. If no fallback is provided, an empty placeholder `<div>` is used. On the client, children render normally.
+
 ## How It Works
 
 - The server renders the page component to HTML using Sygnal's `renderToString()`, with the component state serialized into a `<script>` tag

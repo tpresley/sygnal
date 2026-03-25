@@ -39,6 +39,7 @@ MyComponent.onError = (error, { componentName }) => fallbackVNode  // Error boun
 - `src/extra/ref.ts` — `createRef()` and `createRef$()` for DOM element access
 - `src/extra/` — Helpers (processForm, processDrag, eventDriver, driverFactories, etc.)
 - `src/pragma/` — JSX createElement implementation (passes `onError` through)
+- `src/vike/ClientOnly.ts` — ClientOnly component (`preventInstantiation` pattern, renders fallback during SSR)
 - `src/astro/` — Astro framework integration (client hydration + SSR)
 - `src/cycle/` — Absorbed Cycle.js internals (run, isolate, state, dom)
 - `src/cycle/dom/DocumentDOMSource.ts` — Enhanced with `.select()` chaining for CSS-filtered document events

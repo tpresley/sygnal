@@ -851,6 +851,7 @@ class Component {
       .map((vdom: any) => processLazy(vdom, this))
       .map(processPortals)
       .map(processTransitions)
+      .map(processClientOnly)
       .compose(this.instantiateSubComponents.bind(this))
       .filter((val: any) => val !== undefined)
       .compose(this.renderVdom.bind(this))
@@ -1872,6 +1873,29 @@ function processTransitions(vnode: any): any {
   }
   if (vnode.children && vnode.children.length > 0) {
     vnode.children = vnode.children.map(processTransitions)
+  }
+  return vnode
+}
+
+function processClientOnly(vnode: any): any {
+  if (!vnode || !vnode.sel) return vnode
+  if (vnode.sel === 'clientonly') {
+    // On the client, unwrap to children (render them normally)
+    const children = vnode.children || []
+    if (children.length === 0) return { sel: 'div', data: {}, children: [] }
+    if (children.length === 1) return processClientOnly(children[0])
+    // Multiple children: wrap in a div
+    return {
+      sel: 'div',
+      data: {},
+      children: children.map(processClientOnly),
+      text: undefined,
+      elm: undefined,
+      key: undefined,
+    }
+  }
+  if (vnode.children && vnode.children.length > 0) {
+    vnode.children = vnode.children.map(processClientOnly)
   }
   return vnode
 }
