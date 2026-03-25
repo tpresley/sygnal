@@ -267,4 +267,106 @@ describe('vike-sygnal SSR rendering', () => {
     expect(after).toContain('</main>')
     expect(after).toContain('</div>')
   })
+
+  it('Layout wraps page content inside page-view for SSR', () => {
+    // Simulates the new onRenderHtml behavior where Layout HTML wraps
+    // page content INSIDE #page-view (not outside it)
+    function Page({ state }) {
+      return {
+        sel: 'div',
+        data: { props: { className: 'page' } },
+        children: [{ text: `Count: ${state.count}` }],
+        text: undefined, elm: undefined, key: undefined,
+      }
+    }
+    Page.initialState = { count: 0 }
+
+    function SidebarLayout({ innerHTML }) {
+      return {
+        sel: 'div',
+        data: { props: { className: 'layout' } },
+        children: [
+          {
+            sel: 'aside',
+            data: {},
+            children: [{ text: 'Sidebar' }],
+            text: undefined, elm: undefined, key: undefined,
+          },
+          {
+            sel: 'main',
+            data: { props: { innerHTML: innerHTML || '' } },
+            children: [],
+            text: undefined, elm: undefined, key: undefined,
+          },
+        ],
+        text: undefined, elm: undefined, key: undefined,
+      }
+    }
+    SidebarLayout.initialState = { sidebarOpen: true }
+
+    // Render page content
+    const pageHtml = renderToString(Page, { state: { count: 42 } })
+
+    // Wrap with layout (as onRenderHtml now does inside #page-view)
+    const PLACEHOLDER = '<!--SYGNAL_PAGE_SLOT-->'
+    const layoutHtml = renderToString(SidebarLayout, {
+      state: SidebarLayout.initialState,
+      props: { innerHTML: PLACEHOLDER },
+    })
+    const splitIdx = layoutHtml.indexOf(PLACEHOLDER)
+    const pageViewContent = layoutHtml.substring(0, splitIdx) + pageHtml + layoutHtml.substring(splitIdx + PLACEHOLDER.length)
+
+    // Layout wraps page content
+    expect(pageViewContent).toContain('class="layout"')
+    expect(pageViewContent).toContain('Sidebar')
+    expect(pageViewContent).toContain('Count: 42')
+    // Layout before page content
+    expect(pageViewContent.indexOf('Sidebar')).toBeLessThan(pageViewContent.indexOf('Count: 42'))
+  })
+
+  it('builds combined wrapper state with page and layout slices', () => {
+    // Simulates what onRenderHtml serializes for the client-side wrapper
+    function Page() { return { sel: 'div', data: {}, children: [] } }
+    Page.initialState = { count: 5 }
+
+    function Layout() { return { sel: 'div', data: {}, children: [] } }
+    Layout.initialState = { sidebarOpen: true }
+
+    const initialState = { ...Page.initialState }
+    const layoutArray = [Layout]
+
+    // Build wrapper state (same logic as onRenderHtml)
+    const wrapperState = { page: initialState }
+    layoutArray.forEach((L, i) => {
+      wrapperState['layout_' + i] = L.initialState || {}
+    })
+
+    expect(wrapperState).toEqual({
+      page: { count: 5 },
+      layout_0: { sidebarOpen: true },
+    })
+  })
+
+  it('builds combined wrapper state for multiple nested layouts', () => {
+    function Page() { return { sel: 'div', data: {}, children: [] } }
+    Page.initialState = { title: 'Home' }
+
+    function OuterLayout() { return { sel: 'div', data: {}, children: [] } }
+    OuterLayout.initialState = { theme: 'dark' }
+
+    function InnerLayout() { return { sel: 'div', data: {}, children: [] } }
+    InnerLayout.initialState = { sidebarOpen: false }
+
+    const layoutArray = [OuterLayout, InnerLayout]
+    const wrapperState = { page: Page.initialState }
+    layoutArray.forEach((L, i) => {
+      wrapperState['layout_' + i] = L.initialState || {}
+    })
+
+    expect(wrapperState).toEqual({
+      page: { title: 'Home' },
+      layout_0: { theme: 'dark' },
+      layout_1: { sidebarOpen: false },
+    })
+  })
 })

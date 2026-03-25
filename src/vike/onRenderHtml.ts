@@ -5,6 +5,10 @@
  * wraps it in a full HTML document, and embeds serialized state for
  * client hydration.
  *
+ * When a Layout is configured, the Layout HTML wraps the Page HTML
+ * inside #page-view so the structure matches the client-side wrapper
+ * component (see onRenderClient.ts).
+ *
  * Returns a plain HTML string. Vike wraps it with dangerouslySkipEscape
  * automatically. We avoid importing from vike/server because our bundled
  * output lives in node_modules/sygnal/ where vike isn't resolvable.
@@ -80,12 +84,21 @@ export function onRenderHtml(pageContext: PageContext) {
     urlPathname: () => pageContext.urlPathname || '',
   }
 
-  // Render the page component to HTML, with error boundary
+  // Determine if Layout(s) are present — this affects hydration state shape
+  const layoutArray = config.Layout
+    ? (Array.isArray(config.Layout) ? config.Layout : [config.Layout])
+        .filter((L: any) => typeof L === 'function')
+    : []
+  const hasLayouts = layoutArray.length > 0
+
+  // Render the page component to HTML, with error boundary.
+  // When layouts are present, the hydration state is serialized separately
+  // as the wrapper's combined state (with page + layout slices).
   let pageHtml: string
   try {
     pageHtml = renderToString(Page, {
       state: initialState,
-      hydrateState: '__VIKE_SYGNAL_STATE__',
+      hydrateState: hasLayouts ? false : '__VIKE_SYGNAL_STATE__',
     })
   } catch (err: any) {
     // If the component has an onError boundary, try rendering its fallback
@@ -94,8 +107,9 @@ export function onRenderHtml(pageContext: PageContext) {
         const fallbackVNode = Page.onError(err, { componentName: Page.name || 'Page' })
         if (fallbackVNode) {
           pageHtml = renderToString(() => fallbackVNode, { state: {} })
-          // Still embed the state so the client can attempt hydration
-          pageHtml += `<script>window.__VIKE_SYGNAL_STATE__=${JSON.stringify(initialState)}</script>`
+          if (!hasLayouts) {
+            pageHtml += `<script>window.__VIKE_SYGNAL_STATE__=${JSON.stringify(initialState)}</script>`
+          }
         } else {
           pageHtml = `<div data-sygnal-error>Render error</div>`
         }
@@ -108,34 +122,38 @@ export function onRenderHtml(pageContext: PageContext) {
     }
   }
 
-  // If Layout(s) are defined, render them as static HTML wrapping the page.
-  // The Layout is rendered OUTSIDE #page-view so that Sygnal's DOM driver
-  // (which replaces the mount point content) doesn't destroy the Layout.
-  let layoutBeforeHtml = ''
-  let layoutAfterHtml = ''
-  const layouts = config.Layout
-  if (layouts) {
-    const layoutArray = Array.isArray(layouts) ? layouts : [layouts]
-    for (const Layout of layoutArray) {
-      if (typeof Layout === 'function') {
-        // Render the Layout with a placeholder for page content.
-        // The Layout view receives { innerHTML: '<!--PAGE-->' } and we split
-        // the output around the placeholder to get before/after chunks.
-        const PLACEHOLDER = '<!--SYGNAL_PAGE_SLOT-->'
-        const layoutHtml = renderToString(Layout, {
-          state: Layout.initialState || {},
-          props: { innerHTML: PLACEHOLDER },
-        })
-        const splitIdx = layoutHtml.indexOf(PLACEHOLDER)
-        if (splitIdx !== -1) {
-          layoutBeforeHtml += layoutHtml.substring(0, splitIdx)
-          layoutAfterHtml = layoutHtml.substring(splitIdx + PLACEHOLDER.length) + layoutAfterHtml
-        } else {
-          // Fallback: Layout didn't use innerHTML, render it before page content
-          layoutBeforeHtml += layoutHtml
-        }
+  // If Layout(s) are defined, render them wrapping the page content.
+  // Layout HTML is rendered INSIDE #page-view so the structure matches the
+  // client-side wrapper component that composes Layout + Page in a single
+  // reactive graph. Each Layout receives page content via a placeholder
+  // in its children slot.
+  let pageViewContent = pageHtml
+  if (hasLayouts) {
+    // Wrap from innermost to outermost (reverse order)
+    for (let i = layoutArray.length - 1; i >= 0; i--) {
+      const Layout = layoutArray[i]
+      const PLACEHOLDER = '<!--SYGNAL_PAGE_SLOT-->'
+      const layoutHtml = renderToString(Layout, {
+        state: Layout.initialState || {},
+        props: { innerHTML: PLACEHOLDER },
+      })
+      const splitIdx = layoutHtml.indexOf(PLACEHOLDER)
+      if (splitIdx !== -1) {
+        pageViewContent = layoutHtml.substring(0, splitIdx) + pageViewContent + layoutHtml.substring(splitIdx + PLACEHOLDER.length)
+      } else {
+        // Fallback: Layout didn't use children/innerHTML, wrap page content after it
+        pageViewContent = layoutHtml + pageViewContent
       }
     }
+
+    // Serialize the wrapper's combined state for hydration.
+    // The client-side createLayoutWrapper builds state as:
+    //   { page: pageState, layout_0: layout0State, ... }
+    const wrapperState: any = { page: initialState }
+    layoutArray.forEach((Layout: any, i: number) => {
+      wrapperState['layout_' + i] = Layout.initialState || {}
+    })
+    pageViewContent += `<script>window.__VIKE_SYGNAL_STATE__=${JSON.stringify(wrapperState)}</script>`
   }
 
   // Render Head component for <head> tags
@@ -172,9 +190,7 @@ export function onRenderHtml(pageContext: PageContext) {
     ${headContent}
   </head>
   <body>
-    ${layoutBeforeHtml}
-    <div id="page-view">${pageHtml}</div>
-    ${layoutAfterHtml}
+    <div id="page-view">${pageViewContent}</div>
   </body>
 </html>`
 

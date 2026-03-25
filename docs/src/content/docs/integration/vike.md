@@ -91,14 +91,14 @@ Create a `+Layout.jsx` to wrap all pages with shared UI like navigation:
 
 ```jsx
 // pages/+Layout.jsx
-function Layout({ innerHTML }) {
+function Layout({ children }) {
   return (
     <div className="layout">
       <nav>
         <a href="/">Home</a>
         <a href="/about">About</a>
       </nav>
-      <main props={{ innerHTML: innerHTML || '' }}></main>
+      <main>{children}</main>
     </div>
   )
 }
@@ -108,10 +108,41 @@ Layout.initialState = {}
 export default Layout
 ```
 
-The Layout receives page content via the `innerHTML` prop during SSR. The `<main>` element uses `props={{ innerHTML }}` to inject the raw HTML.
+Layouts are **live interactive components** on the client. They participate in the reactive graph alongside the Page — their `intent`, `model`, `context`, and `initialState` all work normally. On the server, the Layout wraps the Page HTML for hydration.
 
-:::tip
-The Layout renders **outside** the Sygnal mount point (`#page-view`). This means the Layout HTML persists across client-side navigations without being destroyed by Sygnal's DOM driver. Only the page content inside `#page-view` is swapped.
+### Interactive Layouts
+
+Layouts can have their own state and event handling, just like any Sygnal component:
+
+```jsx
+function Layout({ state, children }) {
+  return (
+    <div className={`layout ${state.sidebarOpen ? 'sidebar-open' : ''}`}>
+      <nav>
+        <button className="toggle-sidebar">Menu</button>
+        <a href="/">Home</a>
+      </nav>
+      <aside className="sidebar">{/* sidebar content */}</aside>
+      <main>{children}</main>
+    </div>
+  )
+}
+
+Layout.initialState = { sidebarOpen: false }
+Layout.intent = ({ DOM }) => ({
+  TOGGLE_SIDEBAR: DOM.select('.toggle-sidebar').events('click'),
+})
+Layout.model = {
+  TOGGLE_SIDEBAR: (state) => ({ ...state, sidebarOpen: !state.sidebarOpen }),
+}
+
+export default Layout
+```
+
+Layout state persists across client-side page navigations. The Layout and Page each manage their own state slice — they are composed into a single reactive graph via a synthetic wrapper component.
+
+:::note
+During SSR, the Layout receives page content via the `innerHTML` prop for the initial HTML render. On the client, the Layout receives the Page as `children` within the reactive component tree.
 :::
 
 ## Head
