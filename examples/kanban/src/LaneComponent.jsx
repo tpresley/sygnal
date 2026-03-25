@@ -1,4 +1,4 @@
-import { xs, ABORT, Collection } from 'sygnal'
+import { xs, ABORT, Collection, set, emit } from 'sygnal'
 import TaskCard from './TaskCard.jsx'
 
 function LaneComponent({ state, context }) {
@@ -70,15 +70,9 @@ LaneComponent.intent = ({ DOM, CHILD }) => ({
 })
 
 LaneComponent.model = {
-  START_EDIT:  (state) => ({ ...state, isEditing: true }),
-
-  FINISH_EDIT: (state, title) => ({
-    ...state,
-    isEditing: false,
-    title: title.trim() || state.title,
-  }),
-
-  SHOW_ADD_TASK:   (state) => ({ ...state, isAddingTask: true }),
+  START_EDIT:    set({ isEditing: true }),
+  FINISH_EDIT:   set((state, title) => ({ isEditing: false, title: title.trim() || state.title })),
+  SHOW_ADD_TASK: set({ isAddingTask: true }),
 
   ADD_TASK: (state, title) => {
     const trimmed = title.trim()
@@ -95,22 +89,11 @@ LaneComponent.model = {
     return { ...state, isAddingTask: false }
   },
 
-  DELETE_TASK: (state, taskId) => ({
-    ...state,
-    tasks: state.tasks.filter(t => t.id !== taskId),
-  }),
+  DELETE_TASK: set((state, taskId) => ({ tasks: state.tasks.filter(t => t.id !== taskId) })),
 
-  DELETE_LANE: {
-    EVENTS: (state) => ({ type: 'DELETE_LANE', data: { laneId: state.id } }),
-  },
-
-  MOVE_LEFT: {
-    EVENTS: (state) => ({ type: 'MOVE_LANE_LEFT', data: { laneId: state.id } }),
-  },
-
-  MOVE_RIGHT: {
-    EVENTS: (state) => ({ type: 'MOVE_LANE_RIGHT', data: { laneId: state.id } }),
-  },
+  DELETE_LANE: emit('DELETE_LANE', (state) => ({ laneId: state.id })),
+  MOVE_LEFT:   emit('MOVE_LANE_LEFT', (state) => ({ laneId: state.id })),
+  MOVE_RIGHT:  emit('MOVE_LANE_RIGHT', (state) => ({ laneId: state.id })),
 }
 
 export default LaneComponent

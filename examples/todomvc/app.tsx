@@ -1,4 +1,4 @@
-import { processForm, classes, createRef } from 'sygnal'
+import { processForm, classes, createRef, set } from 'sygnal'
 import type { RootComponent, DriverSpec } from 'sygnal'
 import type { Stream } from 'xstream'
 import type { StoreSource, StoreEntry } from './lib/localStorageDriver'
@@ -144,15 +144,11 @@ APP.context = {
 APP.model = {
   'BOOTSTRAP': {
     EFFECT: (_state, _data, next) => Object.keys(FILTER_LIST).forEach((filter) => next('ADD_ROUTE', filter)),
-    LOG:    () => 'Starting application...',
+    LOG:    'Starting application...',
   },
 
-  VISIBILITY: (state, visibility) => ({
-    ...state,
-    visibility,
-  }),
-
-  FROM_STORE: (state, data) => ({ ...state, todos: data }),
+  VISIBILITY: set((_state, visibility) => ({ visibility })),
+  FROM_STORE: set((_state, data) => ({ todos: data })),
 
   NEW_TODO: (state, data) => {
     const nextId = Date.now()
@@ -163,16 +159,14 @@ APP.model = {
     return { ...state, todos: [...state.todos, newTodo] }
   },
 
-  TOGGLE_ALL: (state) => {
+  TOGGLE_ALL: set((state) => {
     const allDone = state.todos.every((todo) => todo.completed)
-    const todos = state.todos.map((todo) => ({ ...todo, completed: !allDone }))
-    return { ...state, todos }
-  },
+    return { todos: state.todos.map((todo) => ({ ...todo, completed: !allDone })) }
+  }),
 
-  CLEAR_COMPLETED: (state) => {
-    const todos = state.todos.filter((todo) => !todo.completed)
-    return { ...state, todos }
-  },
+  CLEAR_COMPLETED: set((state) => ({
+    todos: state.todos.filter((todo) => !todo.completed),
+  })),
 
   ADD_ROUTE: { ROUTER: true },
 
