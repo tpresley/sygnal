@@ -1,4 +1,4 @@
-import { ABORT, Collection } from 'sygnal'
+import { ABORT, Collection, set } from 'sygnal'
 import LaneComponent from './LaneComponent.jsx'
 
 function withPositions(lanes) {
@@ -56,7 +56,7 @@ RootComponent.context = {
 
 RootComponent.intent = ({ DOM, DND, EVENTS }) => ({
   ADD_LANE:        DOM.click('.add-lane-btn'),
-  DRAG_START:      DND.dragstart('task'),
+  DRAG_START:      DND.dragstart('task').data('taskId'),
   DROP:            DND.drop('lane'),
   DRAG_END:        DND.dragend('task'),
   LANE_DRAG_START: DND.dragstart('lane-sort'),
@@ -91,10 +91,9 @@ RootComponent.model = {
     }
   },
 
-  DELETE_LANE: (state, { laneId }) => ({
-    ...state,
+  DELETE_LANE: set((state, { laneId }) => ({
     lanes: withPositions(state.lanes.filter(l => l.id !== laneId)),
-  }),
+  })),
 
   MOVE_LANE_LEFT: (state, { laneId }) => {
     const idx = state.lanes.findIndex(l => l.id === laneId)
@@ -112,10 +111,7 @@ RootComponent.model = {
     return { ...state, lanes: withPositions(lanes) }
   },
 
-  DRAG_START: (state, { dataset }) => ({
-    ...state,
-    dragging: { taskId: dataset.taskId },
-  }),
+  DRAG_START: set((_state, taskId) => ({ dragging: { taskId } })),
 
   DROP: (state, { dropZone, insertBefore }) => {
     if (!state.dragging) return ABORT
@@ -155,10 +151,7 @@ RootComponent.model = {
     return { ...state, dragging: null }
   },
 
-  LANE_DRAG_START: (state, { dataset }) => ({
-    ...state,
-    draggingLane: dataset.laneId,
-  }),
+  LANE_DRAG_START: set((_state, { dataset }) => ({ draggingLane: dataset.laneId })),
 
   LANE_DROP: (state, { dropZone }) => {
     if (!state.draggingLane) return ABORT

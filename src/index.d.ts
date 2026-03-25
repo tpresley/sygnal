@@ -378,6 +378,40 @@ export function enableHMR<STATE = any, DRIVERS = {}>(
 export function classes(...classes: ClassesType): string
 export function exactState<STATE>(): <ACTUAL extends STATE>(state: ExactShape<STATE, ACTUAL>) => STATE
 
+// ── Reducer helpers ────────────────────────────────────────────────
+
+/**
+ * Create a reducer that merges a partial update into state.
+ *
+ * Static form — merge a fixed object:
+ *   `set({ isEditing: true })`
+ *
+ * Dynamic form — function receives (state, data, next, props) and
+ * returns the partial update to merge:
+ *   `set((state, title) => ({ title }))`
+ */
+export function set<S = any>(
+  partial: Partial<S> | ((state: S, data: any, next: Function, props: any) => Partial<S>)
+): (state: S, data: any, next: Function, props: any) => S
+
+/**
+ * Create a reducer that toggles a boolean field on state.
+ *
+ *   `toggle('showModal')`
+ */
+export function toggle<S = any>(field: keyof S & string): (state: S) => S
+
+/**
+ * Create a model entry that emits an EVENTS bus event.
+ *
+ *   `emit('DELETE_LANE', (state) => ({ laneId: state.id }))`
+ *   `emit('REFRESH')`
+ */
+export function emit(
+  type: string,
+  data?: any | ((state: any, actionData: any, next: Function, props: any) => any)
+): { EVENTS: (state: any, actionData: any, next: Function, props: any) => { type: string; data: any } }
+
 /**
  * Any object with an events() method (e.g., DOM.select('form')).
  * Uses permissive signature to be compatible with MainDOMSource's overloaded events().

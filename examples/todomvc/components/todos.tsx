@@ -1,4 +1,4 @@
-import { classes, xs, sampleCombine, Transition } from 'sygnal'
+import { classes, xs, sampleCombine, Transition, set, toggle } from 'sygnal'
 import type { Component } from 'sygnal'
 import { inputEvents } from '../lib/utils'
 
@@ -71,22 +71,11 @@ TODO.calculated = {
 }
 
 TODO.model = {
-  TOGGLE: (state) => ({ ...state, completed: !state.completed }),
+  TOGGLE:   toggle('completed'),
+  DESTROY:  () => undefined, // removes item from collection
 
-  // Setting state to undefined removes this item from the collection
-  DESTROY: () => undefined,
-
-  EDIT_START: (state) => ({
-    ...state,
-    editing: true,
-    editValue: state.title,
-    cachedTitle: state.title,
-  }),
-
-  EDIT_INPUT: (state, data) => ({
-    ...state,
-    editValue: data,
-  }),
+  EDIT_START: set((state) => ({ editing: true, editValue: state.title, cachedTitle: state.title })),
+  EDIT_INPUT: set((_state, data) => ({ editValue: data })),
 
   EDIT_DONE: (state) => {
     if (state.editing === false) return state
@@ -95,13 +84,9 @@ TODO.model = {
     return { ...state, title, editing: false, editValue: '', cachedTitle: '' }
   },
 
-  EDIT_CANCEL: (state) => ({
-    ...state,
-    title: state.cachedTitle,
-    editing: false,
-    editValue: '',
-    cachedTitle: '',
-  }),
+  EDIT_CANCEL: set((state) => ({
+    title: state.cachedTitle, editing: false, editValue: '', cachedTitle: '',
+  })),
 }
 
 TODO.intent = ({ DOM }) => {
