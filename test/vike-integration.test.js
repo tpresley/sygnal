@@ -324,8 +324,9 @@ describe('vike-sygnal SSR rendering', () => {
     expect(pageViewContent.indexOf('Sidebar')).toBeLessThan(pageViewContent.indexOf('Count: 42'))
   })
 
-  it('builds combined wrapper state with page and layout slices', () => {
-    // Simulates what onRenderHtml serializes for the client-side wrapper
+  it('builds combined wrapper state with page nested in innermost layout', () => {
+    // Simulates what onRenderHtml serializes for the client-side wrapper.
+    // Page state is nested inside the innermost layout's slice.
     function Page() { return { sel: 'div', data: {}, children: [] } }
     Page.initialState = { count: 5 }
 
@@ -336,14 +337,17 @@ describe('vike-sygnal SSR rendering', () => {
     const layoutArray = [Layout]
 
     // Build wrapper state (same logic as onRenderHtml)
-    const wrapperState = { page: initialState }
+    const wrapperState = {}
     layoutArray.forEach((L, i) => {
-      wrapperState['layout_' + i] = L.initialState || {}
+      const layoutState = { ...(L.initialState || {}) }
+      if (i === layoutArray.length - 1) {
+        layoutState.page = initialState
+      }
+      wrapperState['layout_' + i] = layoutState
     })
 
     expect(wrapperState).toEqual({
-      page: { count: 5 },
-      layout_0: { sidebarOpen: true },
+      layout_0: { sidebarOpen: true, page: { count: 5 } },
     })
   })
 
@@ -358,15 +362,18 @@ describe('vike-sygnal SSR rendering', () => {
     InnerLayout.initialState = { sidebarOpen: false }
 
     const layoutArray = [OuterLayout, InnerLayout]
-    const wrapperState = { page: Page.initialState }
+    const wrapperState = {}
     layoutArray.forEach((L, i) => {
-      wrapperState['layout_' + i] = L.initialState || {}
+      const layoutState = { ...(L.initialState || {}) }
+      if (i === layoutArray.length - 1) {
+        layoutState.page = Page.initialState
+      }
+      wrapperState['layout_' + i] = layoutState
     })
 
     expect(wrapperState).toEqual({
-      page: { title: 'Home' },
       layout_0: { theme: 'dark' },
-      layout_1: { sidebarOpen: false },
+      layout_1: { sidebarOpen: false, page: { title: 'Home' } },
     })
   })
 })

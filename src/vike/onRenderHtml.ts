@@ -147,11 +147,16 @@ export function onRenderHtml(pageContext: PageContext) {
     }
 
     // Serialize the wrapper's combined state for hydration.
-    // The client-side createLayoutWrapper builds state as:
-    //   { page: pageState, layout_0: layout0State, ... }
-    const wrapperState: any = { page: initialState }
+    // The client-side createLayoutWrapper nests page state inside the
+    // innermost layout's slice:
+    //   { layout_0: { ...layoutState, page: pageState } }
+    const wrapperState: any = {}
     layoutArray.forEach((Layout: any, i: number) => {
-      wrapperState['layout_' + i] = Layout.initialState || {}
+      const layoutState: any = { ...(Layout.initialState || {}) }
+      if (i === layoutArray.length - 1) {
+        layoutState.page = initialState
+      }
+      wrapperState['layout_' + i] = layoutState
     })
     pageViewContent += `<script>window.__VIKE_SYGNAL_STATE__=${JSON.stringify(wrapperState)}</script>`
   }

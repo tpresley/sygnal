@@ -4,8 +4,9 @@
  * On first page load (hydration): reads server-serialized state and
  * boots the Sygnal app via run().
  *
- * On client-side navigation: disposes the previous app and boots
- * a fresh one for the new page.
+ * On client-side navigation with a Layout: the Layout stays mounted
+ * and only the Page sub-component is hot-swapped. Layout state persists
+ * across navigations. Without a Layout, the app is disposed and recreated.
  *
  * When a Layout is configured, a synthetic wrapper component is created
  * that composes Layout and Page into a single reactive graph. The Layout
@@ -37,63 +38,121 @@ interface PageContext {
 }
 
 /** Track the running Sygnal app for disposal on navigation */
-let currentApp: { dispose: () => void } | null = null
+let currentApp: { sources: any; sinks: any; dispose: () => void } | null = null
+
+/**
+ * Mutable references read by the wrapper's view function.
+ * Updated on navigation to swap the Page without disposing the Layout.
+ */
+let currentPage: any = null
+let currentPageName: string = ''
+let currentPageData: any = {}
+let currentRouteParams: any = {}
+let currentUrlPathname: string = ''
+let pageNavCounter: number = 0
+
+/**
+ * Build a component vnode that matches what the JSX pragma produces.
+ */
+function componentVNode(comp: any, stateField: string, children: any[], compInitialState?: any): any {
+  const name = comp.componentName || comp.name || 'FUNCTION_COMPONENT'
+  return {
+    sel: name,
+    data: {
+      props: {
+        state: stateField,
+        sygnalOptions: {
+          name,
+          view: comp,
+          model: comp.model,
+          intent: comp.intent,
+          hmrActions: comp.hmrActions,
+          context: comp.context,
+          peers: comp.peers,
+          components: comp.components,
+          initialState: compInitialState,
+          isolatedState: true,
+          calculated: comp.calculated,
+          storeCalculatedInState: comp.storeCalculatedInState,
+          DOMSourceName: comp.DOMSourceName,
+          stateSourceName: comp.stateSourceName,
+          onError: comp.onError,
+          debug: comp.debug,
+        },
+      },
+    },
+    children,
+    text: undefined,
+    elm: undefined,
+    key: '__vike_' + stateField + '__',
+  }
+}
+
+/**
+ * Build a vnode for the current Page as a child of the Layout.
+ * Reads from mutable `currentPage` / `currentPageName` so the wrapper
+ * view picks up the new Page component on navigation without being recreated.
+ */
+function pageChildVNode(pageState: any): any {
+  // Include pageNavCounter in sel so instantiateSubComponents detects a
+  // component swap even when both pages have the same function name (e.g. 'Page').
+  const sel = currentPageName + '__nav' + pageNavCounter
+  return {
+    sel,
+    data: {
+      props: {
+        state: 'page',
+        sygnalOptions: {
+          name: sel,
+          view: currentPage,
+          model: currentPage.model,
+          intent: currentPage.intent,
+          hmrActions: currentPage.hmrActions,
+          context: currentPage.context,
+          peers: currentPage.peers,
+          components: currentPage.components,
+          initialState: pageState,
+          isolatedState: true,
+          calculated: currentPage.calculated,
+          storeCalculatedInState: currentPage.storeCalculatedInState,
+          DOMSourceName: currentPage.DOMSourceName,
+          stateSourceName: currentPage.stateSourceName,
+          onError: currentPage.onError,
+          debug: currentPage.debug,
+        },
+      },
+    },
+    children: [],
+    text: undefined,
+    elm: undefined,
+    key: '__vike_page__',
+  }
+}
 
 /**
  * Create a synthetic wrapper component that nests Page inside Layout(s).
  *
- * The wrapper's view renders the outermost Layout with the Page as a child.
- * Nested layouts are composed from outside-in: [LayoutA, LayoutB] renders
- * as LayoutA > LayoutB > Page.
- *
- * Layout components become real interactive sub-components in the reactive
- * graph — their intent, model, and context all work normally.
+ * The wrapper's view reads `currentPage` from the mutable closure, so
+ * on client-side navigation only the Page sub-component changes while
+ * the Layout stays mounted with its state preserved.
  */
 function createLayoutWrapper(layouts: any[], Page: any): any {
-  // Build vnodes that match what the JSX pragma produces for function components.
-  // The pragma extracts static properties into sygnalOptions and sets sel to a string name.
-  // We must replicate this since this file is .ts (no JSX) and builds vnodes by hand.
-  function componentVNode(comp: any, stateField: string, children: any[]): any {
-    const name = comp.componentName || comp.name || 'FUNCTION_COMPONENT'
-    return {
-      sel: name,
-      data: {
-        props: {
-          state: stateField,
-          sygnalOptions: {
-            name,
-            view: comp,
-            model: comp.model,
-            intent: comp.intent,
-            hmrActions: comp.hmrActions,
-            context: comp.context,
-            peers: comp.peers,
-            components: comp.components,
-            initialState: comp.initialState,
-            isolatedState: true,
-            calculated: comp.calculated,
-            storeCalculatedInState: comp.storeCalculatedInState,
-            DOMSourceName: comp.DOMSourceName,
-            stateSourceName: comp.stateSourceName,
-            onError: comp.onError,
-            debug: comp.debug,
-          },
-        },
-      },
-      children,
-      text: undefined,
-      elm: undefined,
-      key: '__vike_' + stateField + '__',
-    }
-  }
+  currentPage = Page
+  currentPageName = Page.componentName || Page.name || 'VikePageComponent'
 
   function LayoutWrapperView({ state }: any) {
-    // Start with the Page component as the innermost child
-    let inner: any = componentVNode(Page, 'page', [])
+    const lastIdx = layouts.length - 1
+    const layoutState = state['layout_' + lastIdx] || {}
+    let inner: any = componentVNode(
+      layouts[lastIdx],
+      'layout_' + lastIdx,
+      [pageChildVNode(layoutState.page)],
+      layoutState
+    )
 
-    // Wrap inside each layout from innermost to outermost
-    for (let i = layouts.length - 1; i >= 0; i--) {
-      inner = componentVNode(layouts[i], 'layout_' + i, [inner])
+    // Wrap with outer layouts (if multiple)
+    for (let i = lastIdx - 1; i >= 0; i--) {
+      inner = componentVNode(layouts[i], 'layout_' + i, [inner], state['layout_' + i])
     }
 
     return inner
@@ -101,29 +160,36 @@ function createLayoutWrapper(layouts: any[], Page: any): any {
 
   LayoutWrapperView.componentName = 'VikeLayoutWrapper'
 
-  // The wrapper's state holds both layout and page state in separate fields.
-  // Each sub-component accesses its slice via the `state` prop.
-  const wrapperInitialState: any = {
-    page: Page.initialState || {},
-  }
+  // The wrapper's state holds layout slices. The Page state is nested under
+  // the innermost layout's slice since the Page is a sub-component of the Layout.
+  const wrapperInitialState: any = {}
   layouts.forEach((Layout: any, i: number) => {
-    wrapperInitialState['layout_' + i] = Layout.initialState || {}
+    const layoutState: any = { ...(Layout.initialState || {}) }
+    if (i === layouts.length - 1) {
+      layoutState.page = Page.initialState || {}
+    }
+    wrapperInitialState['layout_' + i] = layoutState
   })
 
   LayoutWrapperView.initialState = wrapperInitialState
 
-  // Propagate context from the Page (which has pageData, routeParams, etc.)
-  // and merge context from all Layouts
-  const mergedContext: any = {}
+  // Context uses mutable references so navigation updates are picked up.
+  // Layout contexts are merged once; page-level context (pageData, routeParams,
+  // urlPathname) reads from mutable variables updated on each navigation.
+  const layoutContext: any = {}
   layouts.forEach((Layout: any) => {
     if (Layout.context) {
-      Object.assign(mergedContext, Layout.context)
+      Object.assign(layoutContext, Layout.context)
     }
   })
-  if (Page.context) {
-    Object.assign(mergedContext, Page.context)
+
+  LayoutWrapperView.context = {
+    ...layoutContext,
+    ...(Page.context || {}),
+    pageData: () => currentPageData,
+    routeParams: () => currentRouteParams,
+    urlPathname: () => currentUrlPathname,
   }
-  LayoutWrapperView.context = mergedContext
 
   return LayoutWrapperView
 }
@@ -132,69 +198,127 @@ export function onRenderClient(pageContext: PageContext) {
   const { Page, config } = pageContext
   const data = pageContext.data || {}
 
-  // Dispose previous app on client-side navigation
-  if (currentApp) {
-    currentApp.dispose()
-    currentApp = null
-  }
-
-  // On first load with SSR, pick up server-serialized state.
-  // On client navigation (or SPA mode), merge data into initialState.
-  let initialState: any
-  if (typeof window !== 'undefined' && window.__VIKE_SYGNAL_STATE__ !== undefined) {
-    initialState = window.__VIKE_SYGNAL_STATE__
-    // Clear the global after reading to avoid stale state on soft navigation
-    delete window.__VIKE_SYGNAL_STATE__
-  } else {
-    initialState = {
-      ...(Page.initialState || {}),
-      ...data,
-    }
-  }
-
-  // Set the initial state on the component before running
-  Page.initialState = initialState
-
-  // Inject page data, route params, and URL into the component's context
-  // so sub-components can access them without prop drilling.
-  // Context functions receive state but return static values per navigation.
-  Page.context = {
-    ...Page.context,
-    pageData: () => data,
-    routeParams: () => pageContext.routeParams || {},
-    urlPathname: () => pageContext.urlPathname || '',
-  }
-
-  // Determine the component to run and the mount point
-  let Component: any
-  let mountPoint: string
-
   const layouts = config.Layout
     ? (Array.isArray(config.Layout) ? config.Layout : [config.Layout])
       .filter((L: any) => typeof L === 'function')
     : []
 
-  if (layouts.length > 0) {
-    // Layout present: create a wrapper that composes Layout(s) + Page
-    // Mount to #page-view which now contains both Layout and Page HTML
-    Component = createLayoutWrapper(layouts, Page)
-    mountPoint = '#page-view'
-  } else {
-    // No Layout: run Page directly as before
-    Component = Page
-    mountPoint = '#page-view'
-  }
+  // Update mutable context references (used by the wrapper's context functions)
+  currentPageData = data
+  currentRouteParams = pageContext.routeParams || {}
+  currentUrlPathname = pageContext.urlPathname || ''
 
-  try {
-    currentApp = run(Component, {}, { mountPoint })
-  } catch (err: any) {
-    console.error('[sygnal/vike] Client render error:', err)
-    const container = document.getElementById('page-view')
-    if (container) {
-      container.innerHTML = `<div data-sygnal-error style="padding:2rem;color:#e74c3c;font-family:monospace">
-        <h2>Render Error</h2>
-        <pre>${String(err.message || err)}</pre>
-      </div>`
+  // --- Layout path: hot-swap Page, keep Layout alive ---
+  if (layouts.length > 0) {
+    const innermostKey = 'layout_' + (layouts.length - 1)
+
+    if (currentApp) {
+      // Client-side navigation: swap the Page without disposing the Layout.
+      // Update the mutable Page reference, then push a state reducer that
+      // resets the page slice. The wrapper re-renders, instantiateSubComponents
+      // detects the new component (different sel), disposes the old Page,
+      // and creates the new one.
+      currentPage = Page
+      currentPageName = Page.componentName || Page.name || 'VikePageComponent'
+      pageNavCounter++
+
+      const newPageState = { ...(Page.initialState || {}), ...data }
+      if (currentApp.sinks?.STATE?.shamefullySendNext) {
+        currentApp.sinks.STATE.shamefullySendNext((state: any) => {
+          const layoutState = state[innermostKey] || {}
+          return {
+            ...state,
+            [innermostKey]: { ...layoutState, page: newPageState },
+          }
+        })
+      }
+    } else {
+      // First load: read hydrated state or build from initialState
+      let initialState: any
+      if (typeof window !== 'undefined' && window.__VIKE_SYGNAL_STATE__ !== undefined) {
+        initialState = window.__VIKE_SYGNAL_STATE__
+        delete window.__VIKE_SYGNAL_STATE__
+      } else {
+        initialState = null
+      }
+
+      if (initialState && initialState[innermostKey] !== undefined) {
+        // Hydrated combined state — distribute slices
+        layouts.forEach((Layout: any, i: number) => {
+          const key = 'layout_' + i
+          if (initialState[key] !== undefined) {
+            if (i === layouts.length - 1) {
+              const { page: pageState, ...layoutState } = initialState[key]
+              Layout.initialState = layoutState
+              Page.initialState = pageState || { ...(Page.initialState || {}), ...data }
+            } else {
+              Layout.initialState = initialState[key]
+            }
+          }
+        })
+      } else {
+        // SPA mode or client-side first navigation
+        Page.initialState = { ...(Page.initialState || {}), ...data }
+      }
+
+      // Inject page-level context into Page (for SSR renderToString compat)
+      Page.context = {
+        ...Page.context,
+        pageData: () => currentPageData,
+        routeParams: () => currentRouteParams,
+        urlPathname: () => currentUrlPathname,
+      }
+
+      const Component = createLayoutWrapper(layouts, Page)
+
+      try {
+        currentApp = run(Component, {}, { mountPoint: '#page-view' }) as any
+      } catch (err: any) {
+        console.error('[sygnal/vike] Client render error:', err)
+        const container = document.getElementById('page-view')
+        if (container) {
+          container.innerHTML = `<div data-sygnal-error style="padding:2rem;color:#e74c3c;font-family:monospace">
+            <h2>Render Error</h2>
+            <pre>${String(err.message || err)}</pre>
+          </div>`
+        }
+      }
+    }
+
+  // --- No Layout path: dispose and recreate ---
+  } else {
+    if (currentApp) {
+      currentApp.dispose()
+      currentApp = null
+    }
+
+    let initialState: any
+    if (typeof window !== 'undefined' && window.__VIKE_SYGNAL_STATE__ !== undefined) {
+      initialState = window.__VIKE_SYGNAL_STATE__
+      delete window.__VIKE_SYGNAL_STATE__
+    } else {
+      initialState = { ...(Page.initialState || {}), ...data }
+    }
+
+    Page.initialState = initialState
+    Page.context = {
+      ...Page.context,
+      pageData: () => currentPageData,
+      routeParams: () => currentRouteParams,
+      urlPathname: () => currentUrlPathname,
+    }
+
+    try {
+      currentApp = run(Page, {}, { mountPoint: '#page-view' }) as any
+    } catch (err: any) {
+      console.error('[sygnal/vike] Client render error:', err)
+      const container = document.getElementById('page-view')
+      if (container) {
+        container.innerHTML = `<div data-sygnal-error style="padding:2rem;color:#e74c3c;font-family:monospace">
+          <h2>Render Error</h2>
+          <pre>${String(err.message || err)}</pre>
+        </div>`
+      }
     }
   }
 
