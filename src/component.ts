@@ -91,6 +91,7 @@ export interface ComponentOptions {
   stateSourceName?: string;
   requestSourceName?: string;
   isolateOpts?: string | boolean | Record<string, any>;
+  isolatedState?: boolean;
   onError?: (error: Error, info: { componentName: string }) => any;
   debug?: boolean;
 }
@@ -169,6 +170,7 @@ class Component {
   sourceNames: string[];
   _debug: boolean;
   onError: ((error: Error, info: { componentName: string }) => any) | undefined;
+  isolatedState: boolean;
   isSubComponent: boolean;
   currentState: any;
   currentProps: any;
@@ -202,7 +204,7 @@ class Component {
   _readyChanged$: any;
   _readyChangedListener: any;
 
-  constructor({name = 'NO NAME', sources, intent, model, hmrActions, context, response, view, peers = {}, components = {}, initialState, calculated, storeCalculatedInState = true, DOMSourceName = 'DOM', stateSourceName = 'STATE', requestSourceName = 'HTTP', onError, debug = false}: ComponentOptions) {
+  constructor({name = 'NO NAME', sources, intent, model, hmrActions, context, response, view, peers = {}, components = {}, initialState, calculated, storeCalculatedInState = true, DOMSourceName = 'DOM', stateSourceName = 'STATE', requestSourceName = 'HTTP', isolatedState = false, onError, debug = false}: ComponentOptions) {
     if (!sources || !isObj(sources)) throw new Error(`[${name}] Missing or invalid sources`)
 
     this._componentNumber = COMPONENT_COUNT++
@@ -225,6 +227,7 @@ class Component {
     this.requestSourceName = requestSourceName
     this.sourceNames       = Object.keys(sources)
     this.onError           = onError
+    this.isolatedState     = isolatedState
     this._debug            = debug
 
     // Warn if calculated fields shadow base state keys
@@ -649,7 +652,7 @@ class Component {
     const hmrState = ENVIRONMENT?.__SYGNAL_HMR_STATE
     const effectiveInitialState = (typeof hmrState !== 'undefined') ? hmrState : this.initialState
     const initial  = { type: INITIALIZE_ACTION, data: effectiveInitialState }
-    if (this.isSubComponent && this.initialState) {
+    if (this.isSubComponent && this.initialState && !this.isolatedState) {
       console.warn(`[${this.name}] Initial state provided to sub-component. This will overwrite any state provided by the parent component.`)
     }
     const hasInitialState = (typeof effectiveInitialState !== 'undefined')

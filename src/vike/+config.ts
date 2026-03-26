@@ -22,6 +22,10 @@ export default {
       env: { server: true, client: true },
       cumulative: true,
     },
+    Wrapper: {
+      env: { server: true, client: true },
+      cumulative: true,
+    },
     Head: {
       env: { server: true },
     },

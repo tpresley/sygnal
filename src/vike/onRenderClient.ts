@@ -4,14 +4,15 @@
  * On first page load (hydration): reads server-serialized state and
  * boots the Sygnal app via run().
  *
- * On client-side navigation with a Layout: the Layout stays mounted
- * and only the Page sub-component is hot-swapped. Layout state persists
- * across navigations. Without a Layout, the app is disposed and recreated.
+ * On client-side navigation with a Layout/Wrapper: the Layout and Wrapper
+ * stay mounted and only the Page sub-component is hot-swapped. Layout and
+ * Wrapper state persists across navigations. Without either, the app is
+ * disposed and recreated.
  *
- * When a Layout is configured, a synthetic wrapper component is created
- * that composes Layout and Page into a single reactive graph. The Layout
- * becomes a live interactive sub-component (not static HTML), and the
- * Page is rendered as children of the Layout.
+ * Nesting order: Wrapper > Layout > Page
+ * - Wrappers are outermost (context providers, state management)
+ * - Layouts are inside wrappers (visual structure, navigation chrome)
+ * - Page is innermost (route-specific content, swapped on navigation)
  */
 
 // Import from the package entry so rollup externalizes it
@@ -32,6 +33,7 @@ interface PageContext {
   isHydration?: boolean
   config: {
     Layout?: any | any[]
+    Wrapper?: any | any[]
     title?: string
     ssr?: boolean
   }
@@ -130,61 +132,88 @@ function pageChildVNode(pageState: any): any {
 }
 
 /**
- * Create a synthetic wrapper component that nests Page inside Layout(s).
+ * Create a synthetic wrapper component that nests Page inside Layout(s)
+ * inside Wrapper(s).
+ *
+ * Nesting order: Wrapper(s) > Layout(s) > Page
  *
  * The wrapper's view reads `currentPage` from the mutable closure, so
  * on client-side navigation only the Page sub-component changes while
- * the Layout stays mounted with its state preserved.
+ * the Layout and Wrapper stay mounted with their state preserved.
  */
-function createLayoutWrapper(layouts: any[], Page: any): any {
+function createLayoutWrapper(wrappers: any[], layouts: any[], Page: any): any {
   currentPage = Page
   currentPageName = Page.componentName || Page.name || 'VikePageComponent'
 
-  function LayoutWrapperView({ state }: any) {
-    const lastIdx = layouts.length - 1
-    const layoutState = state['layout_' + lastIdx] || {}
-    let inner: any = componentVNode(
-      layouts[lastIdx],
-      'layout_' + lastIdx,
-      [pageChildVNode(layoutState.page)],
-      layoutState
-    )
+  // Combined shell = wrappers (outermost) + layouts (innermost around Page)
+  // State keys: wrapper_0, wrapper_1, ..., layout_0, layout_1, ...
+  // Page state lives under the innermost shell component's slice.
+  const shell = [
+    ...wrappers.map((w: any, i: number) => ({ comp: w, key: 'wrapper_' + i })),
+    ...layouts.map((l: any, i: number) => ({ comp: l, key: 'layout_' + i })),
+  ]
 
-    // Wrap with outer layouts (if multiple)
-    for (let i = lastIdx - 1; i >= 0; i--) {
-      inner = componentVNode(layouts[i], 'layout_' + i, [inner], state['layout_' + i])
+  function LayoutWrapperView({ state }: any) {
+    if (shell.length === 0) {
+      // No wrappers or layouts — render Page directly
+      return pageChildVNode(state.page)
     }
 
-    return inner
+    const lastIdx = shell.length - 1
+    const innermostState = state[shell[lastIdx].key] || {}
+    let inner: any = componentVNode(
+      shell[lastIdx].comp,
+      shell[lastIdx].key,
+      [pageChildVNode(innermostState.page)],
+      innermostState
+    )
+
+    // Wrap with outer shell components
+    for (let i = lastIdx - 1; i >= 0; i--) {
+      inner = componentVNode(shell[i].comp, shell[i].key, [inner], state[shell[i].key])
+    }
+
+    // Wrap in a plain div so the view returns a regular DOM vnode.
+    // Sub-component vnodes at the root position are not processed correctly
+    // by the rendering pipeline — they must be children of a DOM element.
+    return {
+      sel: 'div',
+      data: { attrs: { id: 'vike-shell' } },
+      children: [inner],
+      text: undefined,
+      elm: undefined,
+      key: '__vike_shell__',
+    }
   }
 
   LayoutWrapperView.componentName = 'VikeLayoutWrapper'
 
-  // The wrapper's state holds layout slices. The Page state is nested under
-  // the innermost layout's slice since the Page is a sub-component of the Layout.
+  // Build the wrapper's initial state with a slice for each shell component.
+  // Page state is nested under the innermost shell component's slice.
   const wrapperInitialState: any = {}
-  layouts.forEach((Layout: any, i: number) => {
-    const layoutState: any = { ...(Layout.initialState || {}) }
-    if (i === layouts.length - 1) {
-      layoutState.page = Page.initialState || {}
+  shell.forEach(({ comp, key }: any, i: number) => {
+    const sliceState: any = { ...(comp.initialState || {}) }
+    if (i === shell.length - 1) {
+      sliceState.page = Page.initialState || {}
     }
-    wrapperInitialState['layout_' + i] = layoutState
+    wrapperInitialState[key] = sliceState
   })
 
   LayoutWrapperView.initialState = wrapperInitialState
 
   // Context uses mutable references so navigation updates are picked up.
-  // Layout contexts are merged once; page-level context (pageData, routeParams,
-  // urlPathname) reads from mutable variables updated on each navigation.
-  const layoutContext: any = {}
-  layouts.forEach((Layout: any) => {
-    if (Layout.context) {
-      Object.assign(layoutContext, Layout.context)
+  // Wrapper and Layout contexts are merged once; page-level context
+  // (pageData, routeParams, urlPathname) reads from mutable variables
+  // updated on each navigation.
+  const shellContext: any = {}
+  shell.forEach(({ comp }: any) => {
+    if (comp.context) {
+      Object.assign(shellContext, comp.context)
     }
   })
 
   LayoutWrapperView.context = {
-    ...layoutContext,
+    ...shellContext,
     ...(Page.context || {}),
     pageData: () => currentPageData,
     routeParams: () => currentRouteParams,
@@ -194,30 +223,39 @@ function createLayoutWrapper(layouts: any[], Page: any): any {
   return LayoutWrapperView
 }
 
+/**
+ * Normalize a cumulative config value into an array of functions.
+ */
+function toComponentArray(val: any): any[] {
+  if (!val) return []
+  return (Array.isArray(val) ? val : [val]).filter((c: any) => typeof c === 'function')
+}
+
 export function onRenderClient(pageContext: PageContext) {
   const { Page, config } = pageContext
   const data = pageContext.data || {}
 
-  const layouts = config.Layout
-    ? (Array.isArray(config.Layout) ? config.Layout : [config.Layout])
-      .filter((L: any) => typeof L === 'function')
-    : []
+  const wrappers = toComponentArray(config.Wrapper)
+  const layouts = toComponentArray(config.Layout)
+  const hasShell = wrappers.length > 0 || layouts.length > 0
+
+  // The shell is wrappers (outermost) + layouts. The innermost component
+  // holds the Page state as a nested sub-component.
+  const shell = [
+    ...wrappers.map((_: any, i: number) => 'wrapper_' + i),
+    ...layouts.map((_: any, i: number) => 'layout_' + i),
+  ]
+  const innermostKey = shell.length > 0 ? shell[shell.length - 1] : null
 
   // Update mutable context references (used by the wrapper's context functions)
   currentPageData = data
   currentRouteParams = pageContext.routeParams || {}
   currentUrlPathname = pageContext.urlPathname || ''
 
-  // --- Layout path: hot-swap Page, keep Layout alive ---
-  if (layouts.length > 0) {
-    const innermostKey = 'layout_' + (layouts.length - 1)
-
+  // --- Shell path: hot-swap Page, keep Layout/Wrapper alive ---
+  if (hasShell) {
     if (currentApp) {
-      // Client-side navigation: swap the Page without disposing the Layout.
-      // Update the mutable Page reference, then push a state reducer that
-      // resets the page slice. The wrapper re-renders, instantiateSubComponents
-      // detects the new component (different sel), disposes the old Page,
-      // and creates the new one.
+      // Client-side navigation: swap the Page without disposing the shell.
       currentPage = Page
       currentPageName = Page.componentName || Page.name || 'VikePageComponent'
       pageNavCounter++
@@ -225,10 +263,10 @@ export function onRenderClient(pageContext: PageContext) {
       const newPageState = { ...(Page.initialState || {}), ...data }
       if (currentApp.sinks?.STATE?.shamefullySendNext) {
         currentApp.sinks.STATE.shamefullySendNext((state: any) => {
-          const layoutState = state[innermostKey] || {}
+          const shellState = state[innermostKey!] || {}
           return {
             ...state,
-            [innermostKey]: { ...layoutState, page: newPageState },
+            [innermostKey!]: { ...shellState, page: newPageState },
           }
         })
       }
@@ -242,17 +280,17 @@ export function onRenderClient(pageContext: PageContext) {
         initialState = null
       }
 
-      if (initialState && initialState[innermostKey] !== undefined) {
-        // Hydrated combined state — distribute slices
-        layouts.forEach((Layout: any, i: number) => {
-          const key = 'layout_' + i
+      if (initialState && innermostKey && initialState[innermostKey] !== undefined) {
+        // Hydrated combined state — distribute slices to each shell component
+        const allShellComps = [...wrappers, ...layouts]
+        shell.forEach((key: string, i: number) => {
           if (initialState[key] !== undefined) {
-            if (i === layouts.length - 1) {
-              const { page: pageState, ...layoutState } = initialState[key]
-              Layout.initialState = layoutState
+            if (i === shell.length - 1) {
+              const { page: pageState, ...compState } = initialState[key]
+              allShellComps[i].initialState = compState
               Page.initialState = pageState || { ...(Page.initialState || {}), ...data }
             } else {
-              Layout.initialState = initialState[key]
+              allShellComps[i].initialState = initialState[key]
             }
           }
         })
@@ -269,7 +307,7 @@ export function onRenderClient(pageContext: PageContext) {
         urlPathname: () => currentUrlPathname,
       }
 
-      const Component = createLayoutWrapper(layouts, Page)
+      const Component = createLayoutWrapper(wrappers, layouts, Page)
 
       try {
         currentApp = run(Component, {}, { mountPoint: '#page-view' }) as any
@@ -285,7 +323,7 @@ export function onRenderClient(pageContext: PageContext) {
       }
     }
 
-  // --- No Layout path: dispose and recreate ---
+  // --- No shell path: dispose and recreate ---
   } else {
     if (currentApp) {
       currentApp.dispose()

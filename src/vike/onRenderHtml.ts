@@ -24,6 +24,7 @@ interface PageContext {
   urlPathname?: string
   config: {
     Layout?: any | any[]
+    Wrapper?: any | any[]
     Head?: any
     title?: string
     description?: string
@@ -84,12 +85,16 @@ export function onRenderHtml(pageContext: PageContext) {
     urlPathname: () => pageContext.urlPathname || '',
   }
 
-  // Determine if Layout(s) are present — this affects hydration state shape
+  // Determine if Wrapper(s) and/or Layout(s) are present — this affects hydration state shape
+  const wrapperArray = config.Wrapper
+    ? (Array.isArray(config.Wrapper) ? config.Wrapper : [config.Wrapper])
+        .filter((W: any) => typeof W === 'function')
+    : []
   const layoutArray = config.Layout
     ? (Array.isArray(config.Layout) ? config.Layout : [config.Layout])
         .filter((L: any) => typeof L === 'function')
     : []
-  const hasLayouts = layoutArray.length > 0
+  const hasShell = wrapperArray.length > 0 || layoutArray.length > 0
 
   // Render the page component to HTML, with error boundary.
   // When layouts are present, the hydration state is serialized separately
@@ -98,7 +103,7 @@ export function onRenderHtml(pageContext: PageContext) {
   try {
     pageHtml = renderToString(Page, {
       state: initialState,
-      hydrateState: hasLayouts ? false : '__VIKE_SYGNAL_STATE__',
+      hydrateState: hasShell ? false : '__VIKE_SYGNAL_STATE__',
     })
   } catch (err: any) {
     // If the component has an onError boundary, try rendering its fallback
@@ -107,7 +112,7 @@ export function onRenderHtml(pageContext: PageContext) {
         const fallbackVNode = Page.onError(err, { componentName: Page.name || 'Page' })
         if (fallbackVNode) {
           pageHtml = renderToString(() => fallbackVNode, { state: {} })
-          if (!hasLayouts) {
+          if (!hasShell) {
             pageHtml += `<script>window.__VIKE_SYGNAL_STATE__=${JSON.stringify(initialState)}</script>`
           }
         } else {
@@ -122,41 +127,48 @@ export function onRenderHtml(pageContext: PageContext) {
     }
   }
 
-  // If Layout(s) are defined, render them wrapping the page content.
-  // Layout HTML is rendered INSIDE #page-view so the structure matches the
-  // client-side wrapper component that composes Layout + Page in a single
-  // reactive graph. Each Layout receives page content via a placeholder
-  // in its children slot.
+  // If Layout(s) and/or Wrapper(s) are defined, render them wrapping the page content.
+  // HTML is rendered INSIDE #page-view so the structure matches the client-side
+  // wrapper component. Nesting order: Wrapper > Layout > Page.
+  // Each shell component receives page content via a placeholder in its children slot.
   let pageViewContent = pageHtml
-  if (hasLayouts) {
+  if (hasShell) {
+    // Combined shell: wrappers (outermost) + layouts (innermost around Page)
+    // Must match the order used in onRenderClient's createLayoutWrapper.
+    const shell = [
+      ...wrapperArray.map((w: any, i: number) => ({ comp: w, key: 'wrapper_' + i })),
+      ...layoutArray.map((l: any, i: number) => ({ comp: l, key: 'layout_' + i })),
+    ]
+
     // Wrap from innermost to outermost (reverse order)
-    for (let i = layoutArray.length - 1; i >= 0; i--) {
-      const Layout = layoutArray[i]
+    for (let i = shell.length - 1; i >= 0; i--) {
+      const { comp } = shell[i]
       const PLACEHOLDER = '<!--SYGNAL_PAGE_SLOT-->'
-      const layoutHtml = renderToString(Layout, {
-        state: Layout.initialState || {},
+      const compHtml = renderToString(comp, {
+        state: comp.initialState || {},
         props: { innerHTML: PLACEHOLDER },
       })
-      const splitIdx = layoutHtml.indexOf(PLACEHOLDER)
+      const splitIdx = compHtml.indexOf(PLACEHOLDER)
       if (splitIdx !== -1) {
-        pageViewContent = layoutHtml.substring(0, splitIdx) + pageViewContent + layoutHtml.substring(splitIdx + PLACEHOLDER.length)
+        pageViewContent = compHtml.substring(0, splitIdx) + pageViewContent + compHtml.substring(splitIdx + PLACEHOLDER.length)
       } else {
-        // Fallback: Layout didn't use children/innerHTML, wrap page content after it
-        pageViewContent = layoutHtml + pageViewContent
+        // Fallback: component didn't use children/innerHTML, wrap content after it
+        pageViewContent = compHtml + pageViewContent
       }
     }
+    // Wrap in a shell div matching the client-side wrapper's root element
+    pageViewContent = `<div id="vike-shell">${pageViewContent}</div>`
 
     // Serialize the wrapper's combined state for hydration.
-    // The client-side createLayoutWrapper nests page state inside the
-    // innermost layout's slice:
-    //   { layout_0: { ...layoutState, page: pageState } }
+    // Must match the state shape from createLayoutWrapper:
+    //   { wrapper_0: {...}, layout_0: { ...layoutState, page: pageState } }
     const wrapperState: any = {}
-    layoutArray.forEach((Layout: any, i: number) => {
-      const layoutState: any = { ...(Layout.initialState || {}) }
-      if (i === layoutArray.length - 1) {
-        layoutState.page = initialState
+    shell.forEach(({ comp, key }: any, i: number) => {
+      const compState: any = { ...(comp.initialState || {}) }
+      if (i === shell.length - 1) {
+        compState.page = initialState
       }
-      wrapperState['layout_' + i] = layoutState
+      wrapperState[key] = compState
     })
     pageViewContent += `<script>window.__VIKE_SYGNAL_STATE__=${JSON.stringify(wrapperState)}</script>`
   }

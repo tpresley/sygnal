@@ -10,6 +10,8 @@ declare global {
     interface Config {
       /** Sygnal component to wrap all pages (receives children) */
       Layout?: any
+      /** Sygnal component wrapping Layout + Page (for context providers, state management). Cumulative. */
+      Wrapper?: any
       /** Sygnal component rendered inside <head> for per-page meta tags */
       Head?: any
       /** Page <title> */
