@@ -8,7 +8,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "sygnal": "file:../..",
-    "vite": "^6.4.1"
+    "sygnal": "file:../.."
+  },
+  "devDependencies": {
+    "vite": "^8.0.3"
   }
 }

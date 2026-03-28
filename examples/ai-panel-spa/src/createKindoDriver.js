@@ -1,4 +1,4 @@
-import xs from 'xstream'
+import { xs } from 'sygnal'
 
 const DEFAULT_ENDPOINT = 'https://llm.kindo.ai/v1/chat/completions'
 

@@ -10,10 +10,10 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "sygnal": "file:../..",
-    "vite": "^6.4.1"
+    "sygnal": "file:../.."
   },
   "devDependencies": {
-    "vitest": "^3.0.0"
+    "vite": "^8.0.3",
+    "vitest": "^4.1.2"
   }
 }

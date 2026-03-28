@@ -1,11 +1,8 @@
 import { defineConfig } from 'vite'
+import sygnal from 'sygnal/vite'
 
 export default defineConfig({
-  esbuild: {
-    jsxFactory: 'createElement',
-    jsxFragment: 'Fragment',
-    jsxInject: `import { createElement, Fragment } from 'sygnal'`,
-  },
+  plugins: [sygnal({ disableHmr: true })],
   build: {
     outDir: 'dist',
     rollupOptions: {

@@ -1,4 +1,4 @@
-import xs from 'xstream'
+import { xs } from 'sygnal'
 
 function SlowComponent({ state } = {}) {
   return (

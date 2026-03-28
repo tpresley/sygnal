@@ -1,10 +1,8 @@
 import { defineConfig } from 'vite'
+import sygnal from 'sygnal/vite'
 
 export default defineConfig({
-  esbuild: {
-    jsx: 'automatic',
-    jsxImportSource: 'sygnal',
-  },
+  plugins: [sygnal()],
   test: {
     include: ['src/**/*.test.{js,jsx}'],
   },

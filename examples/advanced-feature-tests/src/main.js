@@ -1,5 +1,4 @@
-import { run } from 'sygnal'
-import xs from 'xstream'
+import { run, xs } from 'sygnal'
 import App from './App.jsx'
 import './styles.css'
 
@@ -15,9 +14,4 @@ function mockDriver(sink$) {
   return xs.never()
 }
 
-const { hmr, dispose } = run(App, { MOCK: mockDriver })
-
-if (import.meta.hot) {
-  import.meta.hot.accept('./App.jsx', hmr)
-  import.meta.hot.dispose(dispose)
-}
+run(App, { MOCK: mockDriver })

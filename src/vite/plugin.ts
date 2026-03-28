@@ -8,7 +8,7 @@
  *   export default defineConfig({ plugins: [sygnal()] })
  *
  * What it does:
- *   1. Configures esbuild for automatic JSX transform with sygnal as the import source
+ *   1. Configures OXC for automatic JSX transform with sygnal as the import source
  *   2. Detects files that call `run()` from sygnal and auto-injects HMR wiring
  *
  * The HMR transform finds the pattern:
@@ -52,9 +52,11 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
       if (disableJsx) return
 
       return {
-        esbuild: {
-          jsx: 'automatic' as const,
-          jsxImportSource: 'sygnal',
+        oxc: {
+          jsx: {
+            runtime: 'automatic' as const,
+            importSource: 'sygnal',
+          },
         },
       }
     },

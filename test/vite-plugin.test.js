@@ -7,9 +7,11 @@ describe('vite-plugin-sygnal', () => {
       const plugin = sygnal()
       const result = plugin.config({}, { command: 'serve' })
       expect(result).toEqual({
-        esbuild: {
-          jsx: 'automatic',
-          jsxImportSource: 'sygnal',
+        oxc: {
+          jsx: {
+            runtime: 'automatic',
+            importSource: 'sygnal',
+          },
         },
       })
     })
@@ -18,9 +20,11 @@ describe('vite-plugin-sygnal', () => {
       const plugin = sygnal()
       const result = plugin.config({}, { command: 'build' })
       expect(result).toEqual({
-        esbuild: {
-          jsx: 'automatic',
-          jsxImportSource: 'sygnal',
+        oxc: {
+          jsx: {
+            runtime: 'automatic',
+            importSource: 'sygnal',
+          },
         },
       })
     })
