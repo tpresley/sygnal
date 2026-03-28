@@ -9,11 +9,11 @@
     "preview": "vike preview"
   },
   "dependencies": {
-    "sygnal": "^5.1.1",
-    "vike": "^0.4.250"
+    "sygnal": "^5.2.0",
+    "vike": "^0.4.255"
   },
   "devDependencies": {
-    "typescript": "^5.4.5",
-    "vite": "^6.4.1"
+    "typescript": "^6.0.2",
+    "vite": "^8.0.3"
   }
 }

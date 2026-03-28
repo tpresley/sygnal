@@ -23,13 +23,72 @@ const TEMPLATES = {
   },
 }
 
+function parseArgs(argv) {
+  const args = { positional: null }
+  for (let i = 2; i < argv.length; i++) {
+    const arg = argv[i]
+    if (arg === '--template' || arg === '-t') {
+      args.template = argv[++i]
+    } else if (arg.startsWith('--template=')) {
+      args.template = arg.slice('--template='.length)
+    } else if (arg === '--typescript' || arg === '--ts') {
+      args.language = 'ts'
+    } else if (arg === '--javascript' || arg === '--js') {
+      args.language = 'js'
+    } else if (arg === '--no-install') {
+      args.install = false
+    } else if (arg === '--install') {
+      args.install = true
+    } else if (arg === '--help' || arg === '-h') {
+      args.help = true
+    } else if (!arg.startsWith('-')) {
+      args.positional = arg
+    }
+  }
+  return args
+}
+
+function printHelp() {
+  console.log(`
+Usage: create-sygnal-app [project-name] [options]
+
+Options:
+  -t, --template <name>  Template to use: vite, vike, astro
+      --ts, --typescript  Use TypeScript
+      --js, --javascript  Use JavaScript
+      --install           Install dependencies (default)
+      --no-install        Skip installing dependencies
+  -h, --help             Show this help message
+
+Examples:
+  create-sygnal-app my-app --template vite --ts
+  create-sygnal-app my-app -t vike --no-install
+  npx create-sygnal-app my-app --template astro --js
+`.trim())
+}
+
 async function main() {
-  p.intro('Create Sygnal App')
+  const args = parseArgs(process.argv)
 
-  // Project name — use CLI arg if provided
-  const argName = process.argv[2]
+  if (args.help) {
+    printHelp()
+    process.exit(0)
+  }
 
-  const projectName = argName || await p.text({
+  // Validate --template value if provided
+  if (args.template && !TEMPLATES[args.template]) {
+    console.error(`Unknown template: "${args.template}". Available templates: ${Object.keys(TEMPLATES).join(', ')}`)
+    process.exit(1)
+  }
+
+  const interactive = !args.template || !args.language
+
+  if (interactive) {
+    p.intro('Create Sygnal App')
+  }
+
+  // Project name — use positional arg or prompt
+  const projectName = args.positional || await p.text({
     message: 'Project name:',
     placeholder: 'my-sygnal-app',
     defaultValue: 'my-sygnal-app',
@@ -44,7 +103,8 @@ async function main() {
     process.exit(0)
   }
 
-  const template = await p.select({
+  // Template — use flag or prompt
+  const template = args.template || await p.select({
     message: 'Template:',
     options: Object.entries(TEMPLATES).map(([value, { label, hint }]) => ({
       value,
@@ -58,7 +118,8 @@ async function main() {
     process.exit(0)
   }
 
-  const language = await p.select({
+  // Language — use flag or prompt
+  const language = args.language || await p.select({
     message: 'Language:',
     options: [
       { value: 'js', label: 'JavaScript' },
@@ -71,7 +132,8 @@ async function main() {
     process.exit(0)
   }
 
-  const installDeps = await p.confirm({
+  // Install — use flag or prompt
+  const installDeps = args.install ?? await p.confirm({
     message: 'Install dependencies?',
     initialValue: true,
   })
@@ -84,14 +146,19 @@ async function main() {
   const targetDir = resolve(process.cwd(), projectName)
 
   if (existsSync(targetDir) && readdirSync(targetDir).length > 0) {
-    p.cancel(`Directory "${projectName}" already exists and is not empty.`)
+    const msg = `Directory "${projectName}" already exists and is not empty.`
+    if (interactive) {
+      p.cancel(msg)
+    } else {
+      console.error(msg)
+    }
     process.exit(1)
   }
 
-  const s = p.spinner()
+  const s = interactive ? p.spinner() : null
 
   // Copy template
-  s.start('Scaffolding project...')
+  if (s) s.start('Scaffolding project...')
   const templateName = language === 'ts' ? `template-${template}-ts` : `template-${template}`
   const templateDir = join(__dirname, templateName)
   copyDir(templateDir, targetDir)
@@ -103,28 +170,37 @@ async function main() {
     pkg.name = basename(projectName)
     writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n')
   }
-  s.stop('Project scaffolded.')
+  if (s) s.stop('Project scaffolded.')
+  else console.log(`Scaffolded ${templateName} into ${projectName}`)
 
   // Install
   if (installDeps) {
-    s.start('Installing dependencies...')
+    if (s) s.start('Installing dependencies...')
+    else console.log('Installing dependencies...')
     try {
       execSync('npm install', { cwd: targetDir, stdio: 'ignore' })
-      s.stop('Dependencies installed.')
+      if (s) s.stop('Dependencies installed.')
+      else console.log('Dependencies installed.')
     } catch {
-      s.stop('Failed to install dependencies. Run `npm install` manually.')
+      const msg = 'Failed to install dependencies. Run `npm install` manually.'
+      if (s) s.stop(msg)
+      else console.error(msg)
     }
   }
 
   // Done
   const relative = targetDir === process.cwd() ? '.' : projectName
 
-  p.note([
-    `cd ${relative}`,
-    'npm run dev',
-  ].join('\n'), 'Next steps')
+  if (interactive) {
+    p.note([
+      `cd ${relative}`,
+      'npm run dev',
+    ].join('\n'), 'Next steps')
 
-  p.outro('Happy building!')
+    p.outro('Happy building!')
+  } else {
+    console.log(`\nDone. Run:\n  cd ${relative}\n  npm run dev`)
+  }
 }
 
 function copyDir(src, dest) {
