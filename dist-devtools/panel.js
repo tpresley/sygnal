@@ -3,6 +3,83 @@
 const PAGE_SOURCE = '__SYGNAL_DEVTOOLS_PAGE__'
 const EXT_SOURCE = '__SYGNAL_DEVTOOLS_EXTENSION__'
 
+// ─── Diff Engine ───────────────────────────────────────────────────────────────
+
+function computeDiff(prev, next, path) {
+  path = path || ''
+  const diffs = []
+
+  if (prev === next) return diffs
+  if (prev === null || prev === undefined || next === null || next === undefined) {
+    if (prev == null && next != null) {
+      diffs.push({ path: path || '(root)', type: 'added', oldValue: prev, newValue: next })
+    } else if (prev != null && next == null) {
+      diffs.push({ path: path || '(root)', type: 'removed', oldValue: prev, newValue: next })
+    } else if (prev !== next) {
+      diffs.push({ path: path || '(root)', type: 'changed', oldValue: prev, newValue: next })
+    }
+    return diffs
+  }
+
+  const prevType = typeof prev
+  const nextType = typeof next
+
+  if (prevType !== nextType || prevType !== 'object') {
+    if (prev !== next) {
+      diffs.push({ path: path || '(root)', type: 'changed', oldValue: prev, newValue: next })
+    }
+    return diffs
+  }
+
+  const prevIsArray = Array.isArray(prev)
+  const nextIsArray = Array.isArray(next)
+
+  if (prevIsArray !== nextIsArray) {
+    diffs.push({ path: path || '(root)', type: 'changed', oldValue: prev, newValue: next })
+    return diffs
+  }
+
+  if (prevIsArray) {
+    const maxLen = Math.max(prev.length, next.length)
+    for (let i = 0; i < maxLen; i++) {
+      const itemPath = path ? `${path}[${i}]` : `[${i}]`
+      if (i >= prev.length) {
+        diffs.push({ path: itemPath, type: 'added', oldValue: undefined, newValue: next[i] })
+      } else if (i >= next.length) {
+        diffs.push({ path: itemPath, type: 'removed', oldValue: prev[i], newValue: undefined })
+      } else {
+        diffs.push(...computeDiff(prev[i], next[i], itemPath))
+      }
+    }
+    return diffs
+  }
+
+  // Objects
+  const allKeys = new Set([...Object.keys(prev), ...Object.keys(next)])
+  for (const key of allKeys) {
+    const keyPath = path ? `${path}.${key}` : key
+    if (!(key in prev)) {
+      diffs.push({ path: keyPath, type: 'added', oldValue: undefined, newValue: next[key] })
+    } else if (!(key in next)) {
+      diffs.push({ path: keyPath, type: 'removed', oldValue: prev[key], newValue: undefined })
+    } else {
+      diffs.push(...computeDiff(prev[key], next[key], keyPath))
+    }
+  }
+
+  return diffs
+}
+
+function formatValue(val) {
+  if (val === undefined) return 'undefined'
+  if (val === null) return 'null'
+  if (typeof val === 'string') return `"${val}"`
+  if (typeof val === 'object') {
+    try { return JSON.stringify(val) } catch { return String(val) }
+  }
+  return String(val)
+}
+
 // ─── Panel Controller ─────────────────────────────────────────────────────────
 
 class SygnalPanel {
@@ -13,6 +90,8 @@ class SygnalPanel {
     this.selectedId = null
     this.selectedTab = 'state'
     this.componentData = new Map() // componentId → {state, context, props}
+    this.rewoundComponentId = null  // tracks which component is in rewound state
+    this.showDiff = false           // toggle for diff view in history clicks
 
     this.treeView = new ComponentTreeView(this)
     this.inspectorView = new StateInspectorView(this)
@@ -61,8 +140,19 @@ class SygnalPanel {
     // Clear history
     document.getElementById('clear-history-btn').addEventListener('click', () => {
       this.history = []
+      this.rewoundComponentId = null
+      this._updateRewoundBadge()
       this.historyView.render()
     })
+
+    // Diff toggle
+    const diffToggle = document.getElementById('diff-toggle-btn')
+    if (diffToggle) {
+      diffToggle.addEventListener('click', () => {
+        this.showDiff = !this.showDiff
+        diffToggle.classList.toggle('active', this.showDiff)
+      })
+    }
   }
 
   _handleMessage(msg) {
@@ -87,6 +177,9 @@ class SygnalPanel {
         break
       case 'COMPONENT_STATE':
         this._handleComponentState(msg.payload)
+        break
+      case 'PROPS_CHANGED':
+        this._handlePropsChanged(msg.payload)
         break
       case 'DEBUG_LOG':
         this._handleDebugLog(msg.payload)
@@ -130,6 +223,12 @@ class SygnalPanel {
     data.state = state
     this.componentData.set(componentId, data)
 
+    // Clear rewound indicator when new state arrives for that component
+    if (this.rewoundComponentId === componentId) {
+      this.rewoundComponentId = null
+      this._updateRewoundBadge()
+    }
+
     this.history.push({
       componentId,
       componentName,
@@ -149,7 +248,6 @@ class SygnalPanel {
   }
 
   _handleActionDispatched({ componentId, componentName, actionType, data, timestamp }) {
-    // Show actions in history too
     this.history.push({
       componentId,
       componentName,
@@ -189,8 +287,16 @@ class SygnalPanel {
     }
   }
 
+  _handlePropsChanged({ componentId, componentName, props }) {
+    const data = this.componentData.get(componentId) || { state: null, context: null, props: null }
+    data.props = props
+    this.componentData.set(componentId, data)
+    if (this.selectedId === componentId && this.selectedTab === 'props') {
+      this._renderInspector()
+    }
+  }
+
   _handleDebugLog({ componentId, message, timestamp }) {
-    // Could add a dedicated log view; for now, show in history
     this.history.push({
       componentId,
       componentName: this.components.get(componentId)?.name || '?',
@@ -214,10 +320,46 @@ class SygnalPanel {
     }
   }
 
-  _handleTimeTravelApplied({ historyIndex, state }) {
-    // Flash the history entry
+  _handleTimeTravelApplied({ historyIndex, componentId, componentName, state }) {
+    this.rewoundComponentId = componentId
+    this._updateRewoundBadge(componentName)
+
+    // Select the component that was rewound
+    if (componentId != null) {
+      this.selectedId = componentId
+      const data = this.componentData.get(componentId) || { state: null, context: null, props: null }
+      data.state = state
+      this.componentData.set(componentId, data)
+      this.selectedTab = 'state'
+
+      // Activate the state tab in the UI
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'))
+      const stateTab = document.querySelector('.tab[data-tab="state"]')
+      if (stateTab) stateTab.classList.add('active')
+
+      this.treeView.render()
+      this._renderInspector()
+    }
+
+    // Highlight the jumped-to history entry
+    this.historyView.render()
     const entries = document.querySelectorAll('.history-entry')
-    entries.forEach(e => e.classList.remove('selected'))
+    for (const el of entries) {
+      if (el.dataset.historyIndex === String(historyIndex)) {
+        el.classList.add('selected')
+      }
+    }
+  }
+
+  _updateRewoundBadge(componentName) {
+    const badge = document.getElementById('rewound-badge')
+    if (!badge) return
+    if (this.rewoundComponentId != null) {
+      badge.textContent = `Rewound: ${componentName || '?'}`
+      badge.style.display = 'inline-block'
+    } else {
+      badge.style.display = 'none'
+    }
   }
 
   selectComponent(id) {
@@ -386,6 +528,75 @@ class StateInspectorView {
     this.container.appendChild(this._buildJsonTree(value, '', true))
   }
 
+  renderDiff(prevState, nextState) {
+    this.container.innerHTML = ''
+    if (!prevState && !nextState) {
+      this.container.innerHTML = '<span class="json-null">No data</span>'
+      return
+    }
+    if (!prevState) {
+      this.container.innerHTML = '<div class="diff-view"><div class="diff-added">Initial state (no previous)</div></div>'
+      this.container.appendChild(this._buildJsonTree(nextState, '', true))
+      return
+    }
+
+    const diffs = computeDiff(prevState, nextState)
+    if (diffs.length === 0) {
+      this.container.innerHTML = '<div class="diff-view" style="color: #888; font-style: italic;">No changes</div>'
+      return
+    }
+
+    const diffContainer = document.createElement('div')
+    diffContainer.className = 'diff-view'
+
+    for (const diff of diffs) {
+      const line = document.createElement('div')
+      line.className = 'diff-line'
+
+      const pathSpan = document.createElement('span')
+      pathSpan.className = 'diff-path'
+      pathSpan.textContent = diff.path
+
+      if (diff.type === 'added') {
+        line.classList.add('diff-added')
+        line.appendChild(pathSpan)
+        line.appendChild(document.createTextNode(': '))
+        const val = document.createElement('span')
+        val.className = 'diff-value'
+        val.textContent = formatValue(diff.newValue)
+        line.appendChild(val)
+      } else if (diff.type === 'removed') {
+        line.classList.add('diff-removed')
+        line.appendChild(pathSpan)
+        line.appendChild(document.createTextNode(': '))
+        const val = document.createElement('span')
+        val.className = 'diff-value'
+        val.textContent = formatValue(diff.oldValue)
+        line.appendChild(val)
+      } else {
+        line.classList.add('diff-changed')
+        line.appendChild(pathSpan)
+        line.appendChild(document.createTextNode(': '))
+        const oldVal = document.createElement('span')
+        oldVal.className = 'diff-old-value'
+        oldVal.textContent = formatValue(diff.oldValue)
+        line.appendChild(oldVal)
+        const arrow = document.createElement('span')
+        arrow.className = 'diff-arrow'
+        arrow.textContent = ' \u2192 '
+        line.appendChild(arrow)
+        const newVal = document.createElement('span')
+        newVal.className = 'diff-new-value'
+        newVal.textContent = formatValue(diff.newValue)
+        line.appendChild(newVal)
+      }
+
+      diffContainer.appendChild(line)
+    }
+
+    this.container.appendChild(diffContainer)
+  }
+
   _buildJsonTree(value, key, isRoot) {
     const fragment = document.createDocumentFragment()
 
@@ -528,6 +739,7 @@ class StateHistoryView {
       const entry = history[i]
       const el = document.createElement('div')
       el.className = 'history-entry'
+      el.dataset.historyIndex = typeof entry.historyIndex === 'number' ? String(entry.historyIndex) : ''
 
       // Dot
       const dot = document.createElement('span')
@@ -560,6 +772,18 @@ class StateHistoryView {
       }
       el.appendChild(label)
 
+      // Diff indicator for state changes with previous state
+      if (!entry.isAction && !entry.isDebugLog && entry.prevState) {
+        const diffCount = computeDiff(entry.prevState, entry.state)
+        if (diffCount.length > 0) {
+          const diffBadge = document.createElement('span')
+          diffBadge.className = 'history-diff-badge'
+          diffBadge.textContent = `${diffCount.length}\u0394`
+          diffBadge.title = `${diffCount.length} change${diffCount.length !== 1 ? 's' : ''}`
+          el.appendChild(diffBadge)
+        }
+      }
+
       // Timestamp
       const ts = document.createElement('span')
       ts.className = 'history-time'
@@ -579,14 +803,23 @@ class StateHistoryView {
         el.appendChild(jump)
       }
 
-      // Click to view state/data in inspector
+      // Click to view state/data in inspector (with diff support)
       el.addEventListener('click', () => {
+        // Remove previous selection
+        this.container.querySelectorAll('.history-entry').forEach(e => e.classList.remove('clicked'))
+        el.classList.add('clicked')
+
         if (entry.isAction && entry.data) {
           this.panel.inspectorView.render(entry.data)
           document.getElementById('inspector-title').textContent = `Action: ${entry.actionType}`
         } else if (entry.state) {
-          this.panel.inspectorView.render(entry.state)
-          document.getElementById('inspector-title').textContent = `${entry.componentName} (snapshot)`
+          if (this.panel.showDiff && entry.prevState) {
+            this.panel.inspectorView.renderDiff(entry.prevState, entry.state)
+            document.getElementById('inspector-title').textContent = `${entry.componentName} (diff)`
+          } else {
+            this.panel.inspectorView.render(entry.state)
+            document.getElementById('inspector-title').textContent = `${entry.componentName} (snapshot)`
+          }
         }
       })
 

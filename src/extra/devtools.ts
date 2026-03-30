@@ -182,6 +182,15 @@ class SygnalDevTools {
     });
   }
 
+  onPropsChanged(componentNumber: number, name: string, props: any): void {
+    if (!this.connected) return;
+    this._post('PROPS_CHANGED', {
+      componentId: componentNumber,
+      componentName: name,
+      props: this._safeClone(props),
+    });
+  }
+
   onDebugLog(componentNumber: number, message: string): void {
     if (!this.connected) return;
     this._post('DEBUG_LOG', {
@@ -214,11 +223,31 @@ class SygnalDevTools {
     if (!entry) return;
 
     if (typeof window === 'undefined') return;
+
+    // Try per-component time-travel first via the component's own state stream
+    const meta = this._components.get(entry.componentId);
+    if (meta) {
+      const instance = meta._instanceRef?.deref();
+      if (instance?._stateStream?.shamefullySendNext) {
+        instance._stateStream.shamefullySendNext(() => ({...entry.state}));
+        this._post('TIME_TRAVEL_APPLIED', {
+          historyIndex,
+          componentId: entry.componentId,
+          componentName: entry.componentName,
+          state: entry.state,
+        });
+        return;
+      }
+    }
+
+    // Fall back to root STATE sink for root-level components
     const app = window.__SYGNAL_DEVTOOLS_APP__;
     if (app?.sinks?.STATE?.shamefullySendNext) {
       app.sinks.STATE.shamefullySendNext(() => ({...entry.state}));
       this._post('TIME_TRAVEL_APPLIED', {
         historyIndex,
+        componentId: entry.componentId,
+        componentName: entry.componentName,
         state: entry.state,
       });
     }

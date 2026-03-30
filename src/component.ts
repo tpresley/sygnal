@@ -203,6 +203,7 @@ class Component {
   _childReadyState: Record<string, boolean>;
   _readyChanged$: any;
   _readyChangedListener: any;
+  _stateStream: any;
 
   constructor({name = 'NO NAME', sources, intent, model, hmrActions, context, response, view, peers = {}, components = {}, initialState, calculated, storeCalculatedInState = true, DOMSourceName = 'DOM', stateSourceName = 'STATE', requestSourceName = 'HTTP', isolatedState = false, onError, debug = false}: ComponentOptions) {
     if (!sources || !isObj(sources)) throw new Error(`[${name}] Missing or invalid sources`)
@@ -354,6 +355,7 @@ class Component {
     this.currentSlots = {}
 
     if (state$) {
+      this._stateStream = state$
       this.currentState = initialState || {}
       this.sources[stateSourceName] = new StateSource(state$.map((val: any) => {
         this.currentState = val
@@ -369,6 +371,9 @@ class Component {
       this.sources.props$ = props$.map((val: any) => {
         const { sygnalFactory, sygnalOptions, ...sanitizedProps }: any = val
         this.currentProps = sanitizedProps
+        if (typeof window !== 'undefined' && window.__SYGNAL_DEVTOOLS__?.connected) {
+          window.__SYGNAL_DEVTOOLS__.onPropsChanged(this._componentNumber, this.name, sanitizedProps)
+        }
         return val
       })
     }

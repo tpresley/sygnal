@@ -8,6 +8,7 @@
 <body>
   <div class="toolbar">
     <span class="toolbar-title">Sygnal DevTools</span>
+    <span id="rewound-badge" class="rewound-badge" style="display: none;"></span>
     <label class="toolbar-toggle">
       <input type="checkbox" id="debug-all">
       Debug All
@@ -39,6 +40,7 @@
       <div class="history-panel">
         <div class="section-header">
           State History
+          <button id="diff-toggle-btn" class="small-btn" title="Toggle diff view on click">Diff</button>
           <button id="clear-history-btn" class="small-btn" title="Clear history">Clear</button>
         </div>
         <div id="history-container"></div>

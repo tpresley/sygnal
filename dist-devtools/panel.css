@@ -345,6 +345,30 @@ html, body {
   background: #e8e8e8;
 }
 
+/* ─── Rewound Badge ────────────────────────────────────────────────────── */
+
+.rewound-badge {
+  background: #f57c00;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+
+/* ─── Diff Toggle Active ──────────────────────────────────────────────── */
+
+.small-btn.active {
+  background: #1a73e8;
+  color: #fff;
+  border-color: #1a73e8;
+}
+
+.small-btn.active:hover {
+  background: #1565c0;
+}
+
 /* ─── Diff View ────────────────────────────────────────────────────────── */
 
 .diff-view {
@@ -352,6 +376,12 @@ html, body {
   font-size: 11px;
   padding: 8px 12px;
   line-height: 1.6;
+}
+
+.diff-line {
+  padding: 2px 6px;
+  border-radius: 3px;
+  margin-bottom: 1px;
 }
 
 .diff-added {
@@ -367,6 +397,34 @@ html, body {
 .diff-changed {
   background: #fff8e1;
   color: #e65100;
+}
+
+.diff-path {
+  font-weight: 600;
+}
+
+.diff-arrow {
+  color: #999;
+}
+
+.diff-old-value {
+  text-decoration: line-through;
+  opacity: 0.7;
+}
+
+/* ─── History Diff Badge ──────────────────────────────────────────────── */
+
+.history-diff-badge {
+  font-size: 9px;
+  color: #1a73e8;
+  background: #e8f0fe;
+  padding: 1px 4px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.history-entry.clicked {
+  background: #e8f0fe;
 }
 
 /* ─── Empty State ──────────────────────────────────────────────────────── */
