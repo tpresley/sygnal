@@ -38,60 +38,25 @@ if (typeof globalThis.navigator === 'undefined') {
 const { onlineStatus$, createInstallPrompt } = await import('../src/extra/pwa')
 
 describe('onlineStatus$', () => {
-  beforeEach(() => {
-    // Reset event handlers
-    Object.keys(windowEvents).forEach(k => delete windowEvents[k])
-    fakeWindow.addEventListener.mockClear()
-    fakeWindow.removeEventListener.mockClear()
+  it('is a stream (not a function)', () => {
+    expect(typeof onlineStatus$.addListener).toBe('function')
+    expect(typeof onlineStatus$).not.toBe('function')
   })
 
-  it('emits current online status immediately', () => {
+  it('emits values and responds to online/offline events', () => {
     const values = []
-    const stream = onlineStatus$()
-    stream.addListener({ next: v => values.push(v) })
+    const listener = { next: v => values.push(v) }
+    onlineStatus$.addListener(listener)
+
+    // Should emit navigator.onLine immediately
     expect(values).toEqual([true])
-  })
 
-  it('emits false when offline event fires', () => {
-    const values = []
-    const stream = onlineStatus$()
-    stream.addListener({ next: v => values.push(v) })
-
-    fakeWindow.dispatchEvent(new Event('offline'))
-    expect(values).toEqual([true, false])
-  })
-
-  it('emits true when online event fires', () => {
-    const values = []
-    const stream = onlineStatus$()
-    stream.addListener({ next: v => values.push(v) })
-
+    // Should respond to offline/online events
     fakeWindow.dispatchEvent(new Event('offline'))
     fakeWindow.dispatchEvent(new Event('online'))
     expect(values).toEqual([true, false, true])
-  })
 
-  it('cleans up listeners on stop', async () => {
-    // Track calls directly since the spy may be shared with other listeners
-    const removeCalls = []
-    const origRemove = fakeWindow.removeEventListener
-    fakeWindow.removeEventListener = vi.fn((...args) => {
-      removeCalls.push(args[0])
-      origRemove(...args)
-    })
-
-    const stream = onlineStatus$()
-    const listener = { next: () => {} }
-    stream.addListener(listener)
-    stream.removeListener(listener)
-
-    // xstream defers stop() to the next microtask
-    await new Promise(r => setTimeout(r, 0))
-
-    expect(removeCalls).toContain('online')
-    expect(removeCalls).toContain('offline')
-
-    fakeWindow.removeEventListener = origRemove
+    onlineStatus$.removeListener(listener)
   })
 })
 

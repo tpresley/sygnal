@@ -1069,12 +1069,12 @@ App.model = {
 
 ---
 
-## onlineStatus$()
+## onlineStatus$
 
-Returns a stream of booleans reflecting the browser's online/offline state. ([PWA Helpers guide](/integration/pwa/))
+A stream of booleans reflecting the browser's online/offline state. ([PWA Helpers guide](/integration/pwa/))
 
 ```typescript
-function onlineStatus$(): Stream<boolean>
+const onlineStatus$: Stream<boolean>
 ```
 
 Emits `navigator.onLine` immediately, then `true`/`false` on `online`/`offline` window events. SSR-safe — emits `true` once if `window` is undefined.
@@ -1085,7 +1085,7 @@ Emits `navigator.onLine` immediately, then `true`/`false` on `online`/`offline` 
 import { onlineStatus$ } from 'sygnal'
 
 App.intent = () => ({
-  ONLINE_CHANGED: onlineStatus$(),
+  ONLINE_CHANGED: onlineStatus$,
 })
 
 App.model = {

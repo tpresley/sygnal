@@ -90,13 +90,13 @@ App.model = {
 
 ## Online Status
 
-`onlineStatus$()` returns a stream of booleans reflecting the browser's network state.
+`onlineStatus$` is a stream of booleans reflecting the browser's network state.
 
 ```jsx
 import { onlineStatus$ } from 'sygnal'
 
 App.intent = ({ DOM }) => ({
-  ONLINE_CHANGED: onlineStatus$(),
+  ONLINE_CHANGED: onlineStatus$,
 })
 
 App.model = {
@@ -181,7 +181,7 @@ self.addEventListener('message', (event) => {
 All three helpers are SSR-safe:
 
 - `makeServiceWorkerDriver` no-ops when `navigator.serviceWorker` is unavailable
-- `onlineStatus$()` emits `true` once if `window` is undefined
+- `onlineStatus$` emits `true` once if `window` is undefined
 - `createInstallPrompt()` returns inert select/prompt methods without `window`
 
 ## PWA Template

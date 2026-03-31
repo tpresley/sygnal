@@ -91,7 +91,7 @@ App.intent = ({ DOM, CHILD, SW }) => ({
     DOM.keydown('.add-input').key().filter(key => key === 'Enter')
   ),
   TOGGLE_TASK:    CHILD.select(TaskItem),
-  ONLINE_CHANGED: onlineStatus$(),
+  ONLINE_CHANGED: onlineStatus$,
   SW_WAITING:     SW.select('waiting'),
   SW_CONTROLLING: SW.select('controlling'),
   APPLY_UPDATE:   DOM.click('.update-btn'),

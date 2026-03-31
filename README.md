@@ -337,7 +337,7 @@ const installPrompt = createInstallPrompt()
 run(App, { SW: makeServiceWorkerDriver('/sw.js') })
 
 App.intent = ({ DOM, SW }) => ({
-  ONLINE_CHANGED: onlineStatus$(),
+  ONLINE_CHANGED: onlineStatus$,
   UPDATE_READY:   SW.select('waiting'),
   APPLY_UPDATE:   DOM.click('.update-btn'),
   INSTALL:        DOM.click('.install-btn'),

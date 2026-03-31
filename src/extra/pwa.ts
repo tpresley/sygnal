@@ -110,7 +110,7 @@ export function makeServiceWorkerDriver(
 
 // ── onlineStatus$ ────────────────────────────────────────────
 
-export function onlineStatus$(): Stream<boolean> {
+function _createOnlineStatus(): Stream<boolean> {
   if (typeof window === 'undefined') {
     return xs.of(true);
   }
@@ -135,6 +135,8 @@ export function onlineStatus$(): Stream<boolean> {
     },
   });
 }
+
+export const onlineStatus$: Stream<boolean> = _createOnlineStatus();
 
 // ── createInstallPrompt ──────────────────────────────────────
 

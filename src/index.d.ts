@@ -615,7 +615,7 @@ export function makeServiceWorkerDriver(
   options?: ServiceWorkerOptions
 ): (sink$: Stream<ServiceWorkerCommand>) => ServiceWorkerSource
 
-export function onlineStatus$(): Stream<boolean>
+export const onlineStatus$: Stream<boolean>
 
 export interface InstallPrompt {
   select(type: 'beforeinstallprompt' | 'appinstalled'): Stream<any>;
