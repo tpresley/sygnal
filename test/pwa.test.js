@@ -1,10 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import xs from 'xstream'
-import { makeServiceWorkerDriver } from '../src/extra/pwa'
 
-// onlineStatus$ and createInstallPrompt use `window` at module level or
-// at call time, so we set up a minimal window shim before importing them.
-// The SW driver tests mock navigator.serviceWorker per-test.
+// Set up window/navigator shims BEFORE importing the pwa module.
+// onlineStatus$ is now a module-level constant, so the stream is created
+// at import time — window must be shimmed first.
 
 const windowEvents = {}
 const fakeWindow = {
@@ -23,19 +22,15 @@ const fakeWindow = {
   }),
 }
 
-// Ensure `window` and `navigator` exist for the module.
-// In Node, setting globalThis.window makes the `window` identifier resolve to it.
-if (typeof globalThis.window === 'undefined') {
-  globalThis.window = fakeWindow
-}
+globalThis.window = fakeWindow
 if (typeof globalThis.navigator === 'undefined') {
   globalThis.navigator = { onLine: true, serviceWorker: undefined }
 } else if (globalThis.navigator.onLine === undefined) {
   Object.defineProperty(globalThis.navigator, 'onLine', { value: true, configurable: true })
 }
 
-// Now import the helpers that check `typeof window` at call time
-const { onlineStatus$, createInstallPrompt } = await import('../src/extra/pwa')
+// Dynamic import AFTER shims are in place
+const { onlineStatus$, createInstallPrompt, makeServiceWorkerDriver } = await import('../src/extra/pwa')
 
 describe('onlineStatus$', () => {
   it('is a stream (not a function)', () => {
