@@ -200,6 +200,17 @@ html, body {
   display: none;
 }
 
+.tree-collection-badge {
+  font-size: 9px;
+  color: #0097a7;
+  background: #e0f7fa;
+  padding: 1px 5px;
+  border-radius: 3px;
+  margin-left: 4px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
 .tree-node-row.disposed {
   opacity: 0.5;
 }
@@ -547,6 +558,12 @@ html, body {
   border-color: #7b1fa2;
 }
 
+.filter-toggle.active[data-type="ready"] {
+  background: #e0f7fa;
+  color: #0097a7;
+  border-color: #0097a7;
+}
+
 .filter-count {
   font-size: 9px;
   color: #aaa;
@@ -602,6 +619,15 @@ html, body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* ─── Command Target ──────────────────────────────────────────────────── */
+
+.command-target {
+  color: #00897b;
+  font-size: 10px;
+  font-style: italic;
+  flex-shrink: 0;
 }
 
 /* ─── Meta Tab ────────────────────────────────────────────────────────── */
@@ -673,6 +699,91 @@ html, body {
   padding: 2px 0;
   font-size: 11px;
   color: #1a73e8;
+}
+
+/* ─── Stream Graph ────────────────────────────────────────────────────── */
+
+.graph-container {
+  padding: 8px;
+}
+
+.graph-columns {
+  display: flex;
+  gap: 16px;
+}
+
+.graph-column {
+  flex: 1;
+  min-width: 0;
+}
+
+.graph-column-title {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #888;
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #eee;
+}
+
+.graph-node {
+  padding: 4px 8px;
+  margin-bottom: 3px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-family: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.graph-source {
+  background: #f3f3f3;
+  color: #555;
+  border-left: 3px solid #999;
+}
+
+.graph-action {
+  background: #fff8e1;
+  color: #e65100;
+  border-left: 3px solid #f57c00;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.graph-action-sinks {
+  display: flex;
+  gap: 3px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.graph-sink-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.graph-sink {
+  background: #fafafa;
+  border-left: 3px solid #999;
+  font-weight: 500;
+}
+
+.graph-context-section {
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid #eee;
+}
+
+.graph-context {
+  background: #e8f5e9;
+  color: #2e7d32;
+  border-left: 3px solid #4caf50;
 }
 
 /* ─── Empty State ──────────────────────────────────────────────────────── */

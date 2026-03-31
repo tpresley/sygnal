@@ -38,6 +38,7 @@
           <button class="tab active" data-tab="state">State</button>
           <button class="tab" data-tab="context">Context</button>
           <button class="tab" data-tab="props">Props</button>
+          <button class="tab" data-tab="graph">Graph</button>
           <button class="tab" data-tab="meta">Meta</button>
         </div>
         <div class="tab-content" id="inspector-content">
@@ -50,8 +51,10 @@
           <span class="section-header-tabs">
             <button id="view-history-btn" class="small-btn active" title="State history">History</button>
             <button id="view-events-btn" class="small-btn" title="EVENTS bus monitor">Events</button>
+            <button id="view-cmds-btn" class="small-btn" title="Command sends">Cmds</button>
           </span>
           <span class="section-header-actions">
+            <button id="snapshot-btn" class="small-btn" title="Snapshot all component states">Snap</button>
             <button id="diff-toggle-btn" class="small-btn" title="Toggle diff view on click">Diff</button>
             <button id="clear-history-btn" class="small-btn" title="Clear">Clear</button>
           </span>
@@ -61,6 +64,7 @@
           <button id="filter-state-btn" class="filter-toggle active" data-type="state" title="State changes">S</button>
           <button id="filter-action-btn" class="filter-toggle active" data-type="action" title="Actions">A</button>
           <button id="filter-debug-btn" class="filter-toggle active" data-type="debug" title="Debug logs">D</button>
+          <button id="filter-ready-btn" class="filter-toggle active" data-type="ready" title="Ready state changes">R</button>
           <span id="history-count" class="filter-count"></span>
         </div>
         <div id="history-container"></div>
@@ -69,6 +73,12 @@
             <input type="text" id="events-filter-text" class="filter-input" placeholder="Filter event types...">
           </div>
           <div id="events-list"></div>
+        </div>
+        <div id="commands-container" style="display: none;">
+          <div class="filter-bar">
+            <input type="text" id="commands-filter-text" class="filter-input" placeholder="Filter commands...">
+          </div>
+          <div id="commands-list"></div>
         </div>
       </div>
     </div>

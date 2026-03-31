@@ -109,18 +109,21 @@ class SygnalPanel {
     this.components = new Map()
     this.history = []
     this.busEvents = []
+    this.commands = []
+    this.snapshots = []
     this.selectedId = null
     this.selectedTab = 'state'
     this.componentData = new Map()
     this.rewoundComponentId = null
     this.showDiff = false
-    this.activeView = 'history' // 'history' or 'events'
+    this.activeView = 'history' // 'history', 'events', or 'commands'
     this.showDisposed = false
 
     this.treeView = new ComponentTreeView(this)
     this.inspectorView = new StateInspectorView(this)
     this.historyView = new StateHistoryView(this)
     this.eventsView = new EventsMonitorView(this)
+    this.commandsView = new CommandsView(this)
 
     this._initPort()
     this._initUI()
@@ -187,17 +190,25 @@ class SygnalPanel {
       this._send('CONNECT', {})
     })
 
-    // Clear history/events
+    // Clear history/events/commands
     document.getElementById('clear-history-btn').addEventListener('click', () => {
       if (this.activeView === 'history') {
         this.history = []
         this.rewoundComponentId = null
         this._updateRewoundBadge()
         this.historyView.render()
-      } else {
+      } else if (this.activeView === 'events') {
         this.busEvents = []
         this.eventsView.render()
+      } else if (this.activeView === 'commands') {
+        this.commands = []
+        this.commandsView.render()
       }
+    })
+
+    // Snapshot button
+    document.getElementById('snapshot-btn').addEventListener('click', () => {
+      this._send('SNAPSHOT', {})
     })
 
     // Diff toggle
@@ -209,26 +220,23 @@ class SygnalPanel {
       })
     }
 
-    // History/Events view toggle
-    document.getElementById('view-history-btn').addEventListener('click', () => {
-      this.activeView = 'history'
-      document.getElementById('view-history-btn').classList.add('active')
-      document.getElementById('view-events-btn').classList.remove('active')
-      document.getElementById('history-filter-bar').style.display = ''
-      document.getElementById('history-container').style.display = ''
-      document.getElementById('events-container').style.display = 'none'
-      document.getElementById('diff-toggle-btn').style.display = ''
-    })
-    document.getElementById('view-events-btn').addEventListener('click', () => {
-      this.activeView = 'events'
-      document.getElementById('view-events-btn').classList.add('active')
-      document.getElementById('view-history-btn').classList.remove('active')
-      document.getElementById('history-filter-bar').style.display = 'none'
-      document.getElementById('history-container').style.display = 'none'
-      document.getElementById('events-container').style.display = ''
-      document.getElementById('diff-toggle-btn').style.display = 'none'
-      this.eventsView.render()
-    })
+    // History/Events/Commands view toggle
+    const setActiveView = (view) => {
+      this.activeView = view
+      document.getElementById('view-history-btn').classList.toggle('active', view === 'history')
+      document.getElementById('view-events-btn').classList.toggle('active', view === 'events')
+      document.getElementById('view-cmds-btn').classList.toggle('active', view === 'commands')
+      document.getElementById('history-filter-bar').style.display = view === 'history' ? '' : 'none'
+      document.getElementById('history-container').style.display = view === 'history' ? '' : 'none'
+      document.getElementById('events-container').style.display = view === 'events' ? '' : 'none'
+      document.getElementById('commands-container').style.display = view === 'commands' ? '' : 'none'
+      document.getElementById('diff-toggle-btn').style.display = view === 'history' ? '' : 'none'
+      if (view === 'events') this.eventsView.render()
+      if (view === 'commands') this.commandsView.render()
+    }
+    document.getElementById('view-history-btn').addEventListener('click', () => setActiveView('history'))
+    document.getElementById('view-events-btn').addEventListener('click', () => setActiveView('events'))
+    document.getElementById('view-cmds-btn').addEventListener('click', () => setActiveView('commands'))
 
     // History filter toggles
     this.historyView._initFilters()
@@ -274,6 +282,18 @@ class SygnalPanel {
         break
       case 'TIME_TRAVEL_APPLIED':
         this._handleTimeTravelApplied(msg.payload)
+        break
+      case 'COMMAND_SENT':
+        this._handleCommandSent(msg.payload)
+        break
+      case 'READY_CHANGED':
+        this._handleReadyChanged(msg.payload)
+        break
+      case 'COLLECTION_MOUNTED':
+        this._handleCollectionMounted(msg.payload)
+        break
+      case 'SNAPSHOT_TAKEN':
+        this._handleSnapshotTaken(msg.payload)
         break
     }
   }
@@ -353,17 +373,18 @@ class SygnalPanel {
     this.treeView.render()
   }
 
-  _handleContextChanged({ componentId, componentName, context }) {
+  _handleContextChanged({ componentId, componentName, context, contextTrace }) {
     const data = this.componentData.get(componentId) || { state: null, context: null, props: null }
     data.context = context
+    data.contextTrace = contextTrace || null
     this.componentData.set(componentId, data)
     if (this.selectedId === componentId && this.selectedTab === 'context') {
       this._renderInspector()
     }
   }
 
-  _handleComponentState({ componentId, state, context, props }) {
-    this.componentData.set(componentId, { state, context, props })
+  _handleComponentState({ componentId, state, context, contextTrace, props }) {
+    this.componentData.set(componentId, { state, context, contextTrace: contextTrace || null, props })
     if (this.selectedId === componentId) {
       this._renderInspector()
     }
@@ -378,11 +399,56 @@ class SygnalPanel {
     }
   }
 
-  _handleBusEvent({ type, data, timestamp }) {
-    this.busEvents.push({ type, data, timestamp })
+  _handleBusEvent({ type, data, componentId, componentName, timestamp }) {
+    this.busEvents.push({ type, data, componentId, componentName, timestamp })
     if (this.busEvents.length > 500) this.busEvents.shift()
     if (this.activeView === 'events') {
       this.eventsView.render()
+    }
+  }
+
+  _handleReadyChanged({ parentId, parentName, childKey, ready, timestamp }) {
+    this.history.push({
+      componentId: parentId,
+      componentName: parentName,
+      isReady: true,
+      childKey,
+      ready,
+      timestamp,
+    })
+    if (this.history.length > 2000) this.history.shift()
+    this.historyView.render()
+  }
+
+  _handleSnapshotTaken({ entries, timestamp }) {
+    this.snapshots.push({ entries, timestamp })
+    if (this.snapshots.length > 20) this.snapshots.shift()
+
+    // Add to history as a special entry
+    this.history.push({
+      componentName: 'Global',
+      isSnapshot: true,
+      snapshotIndex: this.snapshots.length - 1,
+      entryCount: entries.length,
+      timestamp,
+    })
+    if (this.history.length > 2000) this.history.shift()
+    this.historyView.render()
+  }
+
+  _handleCollectionMounted({ parentId, parentName, itemComponent, stateField }) {
+    const comp = this.components.get(parentId)
+    if (comp) {
+      comp.collection = { itemComponent, stateField }
+      this.treeView.render()
+    }
+  }
+
+  _handleCommandSent({ type, data, targetComponentName, timestamp }) {
+    this.commands.push({ type, data, targetComponentName, timestamp })
+    if (this.commands.length > 500) this.commands.shift()
+    if (this.activeView === 'commands') {
+      this.commandsView.render()
     }
   }
 
@@ -439,7 +505,6 @@ class SygnalPanel {
   }
 
   _handleTimeTravelApplied({ componentId, componentName, state }) {
-    console.log('[Sygnal Panel] TIME_TRAVEL_APPLIED received:', { componentId, componentName, stateKeys: state ? Object.keys(state) : null })
     this.rewoundComponentId = componentId
     this._updateRewoundBadge(componentName)
 
@@ -482,12 +547,6 @@ class SygnalPanel {
   }
 
   timeTravel(entry) {
-    console.log('[Sygnal Panel] timeTravel called:', {
-      componentId: entry.componentId,
-      componentName: entry.componentName,
-      stateKeys: entry.state ? Object.keys(entry.state) : null,
-      hasPort: !!this.port,
-    })
     this._send('TIME_TRAVEL', {
       componentId: entry.componentId,
       componentName: entry.componentName,
@@ -511,9 +570,77 @@ class SygnalPanel {
       return
     }
 
+    if (this.selectedTab === 'graph') {
+      this._renderGraph(comp)
+      return
+    }
+
+    if (this.selectedTab === 'context') {
+      this._renderContext()
+      return
+    }
+
     const data = this.componentData.get(this.selectedId)
     const value = data ? data[this.selectedTab] : null
     this.inspectorView.render(value)
+  }
+
+  _renderContext() {
+    const container = document.getElementById('inspector-json')
+    container.innerHTML = ''
+    const data = this.componentData.get(this.selectedId)
+    if (!data?.context) {
+      container.innerHTML = '<div class="empty-state">No context</div>'
+      return
+    }
+
+    const trace = data.contextTrace
+    if (!trace || trace.length === 0) {
+      // Fall back to flat JSON view
+      this.inspectorView.render(data.context)
+      return
+    }
+
+    // Group fields by provider
+    const groups = new Map()
+    for (const entry of trace) {
+      const key = `${entry.providerName}#${entry.providerId}`
+      if (!groups.has(key)) {
+        groups.set(key, { providerId: entry.providerId, providerName: entry.providerName, fields: [] })
+      }
+      groups.get(key).fields.push(entry.field)
+    }
+
+    const wrapper = document.createElement('div')
+    wrapper.className = 'meta-grid'
+
+    for (const [, group] of groups) {
+      const section = document.createElement('div')
+      section.className = 'meta-section'
+
+      const title = document.createElement('div')
+      title.className = 'meta-section-title'
+      if (group.providerId >= 0) {
+        title.innerHTML = `From: <span class="tree-name" style="cursor:pointer">${escapeHtml(group.providerName)}</span> <span class="tree-id">#${group.providerId}</span>`
+        title.querySelector('.tree-name').addEventListener('click', () => this.selectComponent(group.providerId))
+      } else {
+        title.textContent = 'From: unknown'
+      }
+      section.appendChild(title)
+
+      for (const field of group.fields) {
+        const row = document.createElement('div')
+        row.className = 'meta-info-row'
+        const value = data.context[field]
+        const valStr = value === null ? 'null' : value === undefined ? 'undefined' : typeof value === 'object' ? JSON.stringify(value) : String(value)
+        row.innerHTML = `<span class="meta-info-key">${escapeHtml(field)}</span><span class="meta-info-value">${escapeHtml(valStr)}</span>`
+        section.appendChild(row)
+      }
+
+      wrapper.appendChild(section)
+    }
+
+    container.appendChild(wrapper)
   }
 
   _renderMeta(comp) {
@@ -602,6 +729,107 @@ class SygnalPanel {
     container.appendChild(grid)
   }
 
+  _renderGraph(comp) {
+    const container = document.getElementById('inspector-json')
+    container.innerHTML = ''
+
+    const graph = comp.mviGraph
+    if (!graph) {
+      container.innerHTML = '<div class="empty-state">No MVI graph data</div>'
+      return
+    }
+
+    const wrapper = document.createElement('div')
+    wrapper.className = 'graph-container'
+
+    // Collect unique sinks from all actions
+    const allSinks = new Set()
+    for (const action of graph.actions) {
+      for (const sink of action.sinks) allSinks.add(sink)
+    }
+    const sinks = [...allSinks]
+
+    // Sink colors
+    const sinkColors = {
+      STATE: '#1a73e8', DOM: '#2e7d32', EVENTS: '#7b1fa2',
+      EFFECT: '#f57c00', PARENT: '#00897b', HTTP: '#ff8f00',
+      READY: '#0097a7',
+    }
+    const defaultColor = '#757575'
+
+    // Build three columns
+    const cols = document.createElement('div')
+    cols.className = 'graph-columns'
+
+    // Sources column
+    const srcCol = document.createElement('div')
+    srcCol.className = 'graph-column'
+    srcCol.innerHTML = '<div class="graph-column-title">Sources</div>'
+    for (const src of graph.sources) {
+      const node = document.createElement('div')
+      node.className = 'graph-node graph-source'
+      node.textContent = src
+      srcCol.appendChild(node)
+    }
+    cols.appendChild(srcCol)
+
+    // Actions column
+    const actCol = document.createElement('div')
+    actCol.className = 'graph-column'
+    actCol.innerHTML = '<div class="graph-column-title">Actions</div>'
+    for (const action of graph.actions) {
+      const node = document.createElement('div')
+      node.className = 'graph-node graph-action'
+      node.textContent = action.name
+
+      // Show sink targets as colored dots
+      const dots = document.createElement('span')
+      dots.className = 'graph-action-sinks'
+      for (const sink of action.sinks) {
+        const dot = document.createElement('span')
+        dot.className = 'graph-sink-dot'
+        dot.style.background = sinkColors[sink] || defaultColor
+        dot.title = sink
+        dots.appendChild(dot)
+      }
+      node.appendChild(dots)
+      actCol.appendChild(node)
+    }
+    cols.appendChild(actCol)
+
+    // Sinks column
+    const sinkCol = document.createElement('div')
+    sinkCol.className = 'graph-column'
+    sinkCol.innerHTML = '<div class="graph-column-title">Sinks</div>'
+    for (const sink of sinks) {
+      const node = document.createElement('div')
+      node.className = 'graph-node graph-sink'
+      node.style.borderLeftColor = sinkColors[sink] || defaultColor
+      node.style.color = sinkColors[sink] || defaultColor
+      node.textContent = sink
+      sinkCol.appendChild(node)
+    }
+    cols.appendChild(sinkCol)
+
+    wrapper.appendChild(cols)
+
+    // Context provides
+    if (graph.contextProvides && graph.contextProvides.length > 0) {
+      const ctxSection = document.createElement('div')
+      ctxSection.className = 'graph-context-section'
+      ctxSection.innerHTML = '<div class="graph-column-title">Context Provides</div>'
+      for (const field of graph.contextProvides) {
+        const node = document.createElement('div')
+        node.className = 'graph-node graph-context'
+        node.textContent = field
+        ctxSection.appendChild(node)
+      }
+      wrapper.appendChild(ctxSection)
+    }
+
+    container.appendChild(wrapper)
+  }
+
   _send(type, payload) {
     if (!this.port) {
       console.warn(`[Sygnal DevTools] Cannot send ${type} — port disconnected`)
@@ -677,6 +905,16 @@ class ComponentTreeView {
     }
   }
 
+  _getCollectionItemCount(comp) {
+    if (!comp.collection?.stateField) return null
+    const data = this.panel.componentData.get(comp.id)
+    const state = data?.state
+    if (state && typeof state === 'object' && Array.isArray(state[comp.collection.stateField])) {
+      return state[comp.collection.stateField].length
+    }
+    return null
+  }
+
   _buildNode(comp, matchingIds) {
     const el = document.createElement('div')
     el.className = 'tree-node'
@@ -733,6 +971,16 @@ class ComponentTreeView {
     idBadge.className = 'tree-id'
     idBadge.textContent = `#${comp.id}`
     row.appendChild(idBadge)
+
+    // Collection badge
+    if (comp.collection) {
+      const badge = document.createElement('span')
+      badge.className = 'tree-collection-badge'
+      const itemCount = this._getCollectionItemCount(comp)
+      badge.textContent = `[${comp.collection.itemComponent}${itemCount != null ? ': ' + itemCount : ''}]`
+      badge.title = `Collection of ${comp.collection.itemComponent}${comp.collection.stateField ? ' from state.' + comp.collection.stateField : ''}`
+      row.appendChild(badge)
+    }
 
     // Debug toggle (not for disposed)
     if (!isDisposed) {
@@ -977,6 +1225,7 @@ class StateHistoryView {
     this.showState = true
     this.showActions = true
     this.showDebug = true
+    this.showReady = true
   }
 
   _initFilters() {
@@ -992,6 +1241,7 @@ class StateHistoryView {
       'filter-state-btn': 'state',
       'filter-action-btn': 'action',
       'filter-debug-btn': 'debug',
+      'filter-ready-btn': 'ready',
     }
     for (const [btnId, type] of Object.entries(typeButtons)) {
       const btn = document.getElementById(btnId)
@@ -1000,6 +1250,7 @@ class StateHistoryView {
           if (type === 'state') this.showState = !this.showState
           else if (type === 'action') this.showActions = !this.showActions
           else if (type === 'debug') this.showDebug = !this.showDebug
+          else if (type === 'ready') this.showReady = !this.showReady
           btn.classList.toggle('active')
           this.render()
         })
@@ -1012,7 +1263,9 @@ class StateHistoryView {
     if (entry.isAction && !this.showActions) return false
     if (entry.isDebugLog && !this.showDebug) return false
     if (entry.isDisposal && !this.showState) return false
-    if (!entry.isAction && !entry.isDebugLog && !entry.isDisposal && !this.showState) return false
+    if (entry.isReady && !this.showReady) return false
+    if (entry.isSnapshot) return this.showState // show snapshots with state filter
+    if (!entry.isAction && !entry.isDebugLog && !entry.isDisposal && !entry.isReady && !this.showState) return false
 
     // Text filter
     if (this.filterText) {
@@ -1060,6 +1313,8 @@ class StateHistoryView {
       if (entry.isAction) dot.style.background = '#f57c00'
       if (entry.isDebugLog) dot.style.background = '#7b1fa2'
       if (entry.isDisposal) dot.style.background = '#d32f2f'
+      if (entry.isReady) dot.style.background = '#0097a7'
+      if (entry.isSnapshot) dot.style.background = '#4caf50'
       el.appendChild(dot)
 
       // Component name (clickable to filter)
@@ -1094,6 +1349,12 @@ class StateHistoryView {
       } else if (entry.isDisposal) {
         label.textContent = 'disposed'
         label.style.color = '#d32f2f'
+      } else if (entry.isReady) {
+        label.textContent = entry.ready ? 'ready' : 'loading'
+        label.style.color = '#0097a7'
+      } else if (entry.isSnapshot) {
+        label.textContent = `snapshot (${entry.entryCount} components)`
+        label.style.color = '#4caf50'
       } else {
         label.textContent = 'state'
         label.style.color = '#666'
@@ -1119,7 +1380,7 @@ class StateHistoryView {
       el.appendChild(ts)
 
       // Jump button (only for state changes)
-      if (!entry.isAction && !entry.isDebugLog && !entry.isDisposal && entry.state) {
+      if (!entry.isAction && !entry.isDebugLog && !entry.isDisposal && !entry.isSnapshot && entry.state) {
         const jump = document.createElement('button')
         jump.className = 'history-jump'
         jump.textContent = 'Jump'
@@ -1129,6 +1390,24 @@ class StateHistoryView {
           this.panel.timeTravel(entry)
         })
         el.appendChild(jump)
+      }
+
+      // Restore button (for snapshots)
+      if (entry.isSnapshot && typeof entry.snapshotIndex === 'number') {
+        const restore = document.createElement('button')
+        restore.className = 'history-jump'
+        restore.style.borderColor = '#4caf50'
+        restore.style.color = '#4caf50'
+        restore.textContent = 'Restore'
+        restore.title = 'Restore all components to this snapshot'
+        restore.addEventListener('click', (e) => {
+          e.stopPropagation()
+          const snapshot = this.panel.snapshots[entry.snapshotIndex]
+          if (snapshot) {
+            this.panel._send('RESTORE_SNAPSHOT', { entries: snapshot.entries })
+          }
+        })
+        el.appendChild(restore)
       }
 
       // Click to view state/data in inspector
@@ -1207,6 +1486,21 @@ class EventsMonitorView {
       dot.style.background = '#7b1fa2'
       el.appendChild(dot)
 
+      // Emitter component name
+      if (entry.componentName) {
+        const emitter = document.createElement('span')
+        emitter.className = 'history-component'
+        emitter.textContent = entry.componentName
+        emitter.style.cursor = 'pointer'
+        emitter.addEventListener('click', (e) => {
+          e.stopPropagation()
+          if (entry.componentId != null) {
+            this.panel.selectComponent(entry.componentId)
+          }
+        })
+        el.appendChild(emitter)
+      }
+
       // Event type
       const typeSpan = document.createElement('span')
       typeSpan.className = 'event-type'
@@ -1233,7 +1527,91 @@ class EventsMonitorView {
         this.container.querySelectorAll('.event-entry').forEach(e => e.classList.remove('clicked'))
         el.classList.add('clicked')
         this.panel.inspectorView.render(entry.data)
-        document.getElementById('inspector-title').textContent = `Event: ${entry.type}`
+        document.getElementById('inspector-title').textContent = `Event: ${entry.type}${entry.componentName ? ' from ' + entry.componentName : ''}`
+      })
+
+      this.container.appendChild(el)
+    }
+  }
+}
+
+// ─── Commands View ───────────────────────────────────────────────────────────
+
+class CommandsView {
+  constructor(panel) {
+    this.panel = panel
+    this.container = document.getElementById('commands-list')
+    this.filterText = ''
+
+    const filterInput = document.getElementById('commands-filter-text')
+    if (filterInput) {
+      filterInput.addEventListener('input', (e) => {
+        this.filterText = e.target.value.toLowerCase()
+        this.render()
+      })
+    }
+  }
+
+  render() {
+    this.container.innerHTML = ''
+    const cmds = this.panel.commands
+
+    const filtered = this.filterText
+      ? cmds.filter(c => c.type.toLowerCase().includes(this.filterText) || (c.targetComponentName || '').toLowerCase().includes(this.filterText))
+      : cmds
+
+    if (filtered.length === 0) {
+      this.container.innerHTML = '<div class="empty-state">' + (cmds.length === 0 ? 'No commands yet' : 'No matching commands') + '</div>'
+      return
+    }
+
+    for (let i = filtered.length - 1; i >= 0; i--) {
+      const entry = filtered[i]
+      const el = document.createElement('div')
+      el.className = 'event-entry'
+
+      // Teal dot
+      const dot = document.createElement('span')
+      dot.className = 'history-dot'
+      dot.style.background = '#00897b'
+      el.appendChild(dot)
+
+      // Command type
+      const typeSpan = document.createElement('span')
+      typeSpan.className = 'event-type'
+      typeSpan.style.color = '#00897b'
+      typeSpan.textContent = entry.type
+      el.appendChild(typeSpan)
+
+      // Target component
+      if (entry.targetComponentName) {
+        const target = document.createElement('span')
+        target.className = 'command-target'
+        target.textContent = '\u2192 ' + entry.targetComponentName
+        el.appendChild(target)
+      }
+
+      // Data preview
+      if (entry.data != null) {
+        const preview = document.createElement('span')
+        preview.className = 'event-data-preview'
+        const str = typeof entry.data === 'object' ? JSON.stringify(entry.data) : String(entry.data)
+        preview.textContent = str.length > 60 ? str.slice(0, 60) + '\u2026' : str
+        el.appendChild(preview)
+      }
+
+      // Timestamp
+      const ts = document.createElement('span')
+      ts.className = 'history-time'
+      ts.textContent = formatTime(entry.timestamp)
+      el.appendChild(ts)
+
+      // Click to inspect
+      el.addEventListener('click', () => {
+        this.container.querySelectorAll('.event-entry').forEach(e => e.classList.remove('clicked'))
+        el.classList.add('clicked')
+        this.panel.inspectorView.render(entry.data)
+        document.getElementById('inspector-title').textContent = `Command: ${entry.type}${entry.targetComponentName ? ' \u2192 ' + entry.targetComponentName : ''}`
       })
 
       this.container.appendChild(el)

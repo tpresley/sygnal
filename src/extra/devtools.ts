@@ -26,6 +26,12 @@ interface StateHistoryEntry {
   state: any;
 }
 
+interface MviGraphData {
+  sources: string[];
+  actions: {name: string; sinks: string[]}[];
+  contextProvides: string[];
+}
+
 interface ComponentMeta {
   id: number;
   name: string;
@@ -39,6 +45,7 @@ interface ComponentMeta {
   children: number[];
   debug: boolean;
   createdAt: number;
+  mviGraph: MviGraphData | null;
   _instanceRef: WeakRef<any>;
 }
 
@@ -94,6 +101,12 @@ class SygnalDevTools {
       case 'TIME_TRAVEL':
         this._timeTravel(msg.payload);
         break;
+      case 'SNAPSHOT':
+        this._takeSnapshot();
+        break;
+      case 'RESTORE_SNAPSHOT':
+        this._restoreSnapshot(msg.payload);
+        break;
       case 'GET_STATE':
         this._sendComponentState(msg.payload.componentId);
         break;
@@ -114,6 +127,7 @@ class SygnalDevTools {
       children: [],
       debug: instance._debug,
       createdAt: Date.now(),
+      mviGraph: this._extractMviGraph(instance),
       _instanceRef: new WeakRef(instance),
     };
     this._components.set(componentNumber, meta);
@@ -178,6 +192,7 @@ class SygnalDevTools {
       componentId: componentNumber,
       componentName: name,
       context: this._safeClone(context),
+      contextTrace: this._buildContextTrace(componentNumber, context),
     });
   }
 
@@ -190,12 +205,49 @@ class SygnalDevTools {
     });
   }
 
-  onBusEvent(event: {type: string; data?: any}): void {
+  onBusEvent(event: {type: string; data?: any; __emitterId?: number; __emitterName?: string}): void {
     if (!this.connected) return;
     this._post('BUS_EVENT', {
       type: event.type,
       data: this._safeClone(event.data),
+      componentId: event.__emitterId ?? null,
+      componentName: event.__emitterName ?? null,
       timestamp: Date.now(),
+    });
+  }
+
+  onCommandSent(type: string, data: any, targetComponentId?: number, targetComponentName?: string): void {
+    if (!this.connected) return;
+    this._post('COMMAND_SENT', {
+      type,
+      data: this._safeClone(data),
+      targetComponentName: targetComponentName ?? null,
+      timestamp: Date.now(),
+    });
+  }
+
+  onReadyChanged(parentId: number, parentName: string, childKey: string, ready: boolean): void {
+    if (!this.connected) return;
+    this._post('READY_CHANGED', {
+      parentId,
+      parentName,
+      childKey,
+      ready,
+      timestamp: Date.now(),
+    });
+  }
+
+  onCollectionMounted(parentId: number, parentName: string, itemComponentName: string, stateField: string | null): void {
+    const meta = this._components.get(parentId);
+    if (meta) {
+      (meta as any).collection = {itemComponent: itemComponentName, stateField};
+    }
+    if (!this.connected) return;
+    this._post('COLLECTION_MOUNTED', {
+      parentId,
+      parentName,
+      itemComponent: itemComponentName,
+      stateField,
     });
   }
 
@@ -279,7 +331,6 @@ class SygnalDevTools {
     // Fall back to root STATE sink for root-level components
     const app = window.__SYGNAL_DEVTOOLS_APP__;
     if (app?.sinks?.STATE?.shamefullySendNext) {
-      console.log(`[Sygnal DevTools] _timeTravel: using root STATE sink fallback for component #${componentId}`);
       app.sinks.STATE.shamefullySendNext(() => ({...newState}));
       this._post('TIME_TRAVEL_APPLIED', {
         componentId,
@@ -288,6 +339,32 @@ class SygnalDevTools {
       });
     } else {
       console.warn(`[Sygnal DevTools] _timeTravel: no fallback root STATE sink available`);
+    }
+  }
+
+  _takeSnapshot(): void {
+    const entries: {componentId: number; componentName: string; state: any}[] = [];
+    for (const [id, meta] of this._components) {
+      if ((meta as any).disposed) continue;
+      const instance = meta._instanceRef?.deref();
+      if (instance?.currentState != null) {
+        entries.push({
+          componentId: id,
+          componentName: meta.name,
+          state: this._safeClone(instance.currentState),
+        });
+      }
+    }
+    this._post('SNAPSHOT_TAKEN', {
+      entries,
+      timestamp: Date.now(),
+    });
+  }
+
+  _restoreSnapshot(snapshot: {entries: {componentId: number; componentName: string; state: any}[]}): void {
+    if (!snapshot?.entries) return;
+    for (const entry of snapshot.entries) {
+      this._timeTravel(entry);
     }
   }
 
@@ -300,10 +377,37 @@ class SygnalDevTools {
           componentId,
           state: this._safeClone(instance.currentState),
           context: this._safeClone(instance.currentContext),
+          contextTrace: this._buildContextTrace(componentId, instance.currentContext),
           props: this._safeClone(instance.currentProps),
         });
       }
     }
+  }
+
+  _buildContextTrace(componentId: number, context: any): {field: string; providerId: number; providerName: string}[] {
+    if (!context || typeof context !== 'object') return [];
+    const trace: {field: string; providerId: number; providerName: string}[] = [];
+    const fields = Object.keys(context);
+
+    for (const field of fields) {
+      // Walk up parent chain to find which component provides this field
+      let currentId: number | null = componentId;
+      let found = false;
+      while (currentId != null) {
+        const meta = this._components.get(currentId);
+        if (!meta) break;
+        if (meta.mviGraph?.contextProvides?.includes(field)) {
+          trace.push({field, providerId: meta.id, providerName: meta.name});
+          found = true;
+          break;
+        }
+        currentId = meta.parentId;
+      }
+      if (!found) {
+        trace.push({field, providerId: -1, providerName: 'unknown'});
+      }
+    }
+    return trace;
   }
 
   _sendFullTree(): void {
@@ -340,6 +444,49 @@ class SygnalDevTools {
       return JSON.parse(JSON.stringify(obj));
     } catch (e) {
       return '[unserializable]';
+    }
+  }
+
+  _extractMviGraph(instance: any): MviGraphData | null {
+    if (!instance.model) return null;
+    try {
+      const sources = instance.sourceNames ? [...instance.sourceNames] : [];
+      const actions: {name: string; sinks: string[]}[] = [];
+      const model = instance.model;
+
+      for (const key of Object.keys(model)) {
+        let actionName = key;
+        let entry = model[key];
+
+        // Handle shorthand 'ACTION | SINK'
+        if (key.includes('|')) {
+          const parts = key.split('|').map((s: string) => s.trim());
+          if (parts.length === 2 && parts[0] && parts[1]) {
+            actionName = parts[0];
+            actions.push({name: actionName, sinks: [parts[1]]});
+            continue;
+          }
+        }
+
+        // Function → targets STATE
+        if (typeof entry === 'function') {
+          actions.push({name: actionName, sinks: [instance.stateSourceName || 'STATE']});
+          continue;
+        }
+
+        // Object → keys are sink names
+        if (entry && typeof entry === 'object') {
+          actions.push({name: actionName, sinks: Object.keys(entry)});
+          continue;
+        }
+      }
+
+      const contextProvides = instance.context && typeof instance.context === 'object'
+        ? Object.keys(instance.context) : [];
+
+      return {sources, actions, contextProvides};
+    } catch (e) {
+      return null;
     }
   }
 

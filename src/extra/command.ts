@@ -16,6 +16,10 @@ export interface Command {
   _stream: Stream<CommandMessage>;
   /** @internal — marker for component.ts detection */
   __sygnalCommand: true;
+  /** @internal — stamped by component.ts when wired to a child */
+  _targetComponentId?: number;
+  /** @internal — stamped by component.ts when wired to a child */
+  _targetComponentName?: string;
 }
 
 export function createCommand(): Command {
@@ -26,11 +30,18 @@ export function createCommand(): Command {
     stop() { listener.next = () => {}; },
   });
 
-  return {
-    send: (type: string, data?: any) => listener.next({ type, data }),
+  const cmd: Command = {
+    send: (type: string, data?: any) => {
+      listener.next({ type, data });
+      if (typeof window !== 'undefined' && (window as any).__SYGNAL_DEVTOOLS__?.connected) {
+        (window as any).__SYGNAL_DEVTOOLS__.onCommandSent(type, data, cmd._targetComponentId, cmd._targetComponentName);
+      }
+    },
     _stream,
     __sygnalCommand: true as const,
   };
+
+  return cmd;
 }
 
 export function makeCommandSource(cmd: Command): CommandSource {

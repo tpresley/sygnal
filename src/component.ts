@@ -876,6 +876,12 @@ class Component {
       } else {
         acc[name] = xs.merge((this.model$[name] || xs.never()), subComponentSink$, ...(this.peers$[name] || []))
       }
+      // Stamp EVENTS sink emissions with emitter component info for devtools
+      if (name === 'EVENTS' && acc[name]) {
+        const _componentNumber = this._componentNumber
+        const _name = this.name
+        acc[name] = acc[name].map((ev: any) => ({...ev, __emitterId: _componentNumber, __emitterName: _name}))
+      }
       return acc
     }, {} as Record<string, any>)
 
@@ -1426,6 +1432,18 @@ class Component {
     if (!isObj(sink$)) {
       throw new Error(`[${this.name}] Invalid sinks returned from component factory of collection element`)
     }
+
+    // Notify devtools of collection mount
+    if (typeof window !== 'undefined' && (window as any).__SYGNAL_DEVTOOLS__?.connected) {
+      const itemName = typeof collectionOf === 'function'
+        ? (collectionOf.componentName || collectionOf.label || collectionOf.name || 'anonymous')
+        : String(collectionOf)
+      ;(window as any).__SYGNAL_DEVTOOLS__.onCollectionMounted(
+        this._componentNumber, this.name, itemName,
+        typeof stateField === 'string' ? stateField : null
+      )
+    }
+
     return sink$
   }
 
@@ -1577,6 +1595,7 @@ class Component {
     for (const key of Object.keys(props)) {
       const val = props[key]
       if (val && val.__sygnalCommand) {
+        val._targetComponentName = componentName
         sources.commands$ = makeCommandSource(val as Command)
         break
       }
@@ -1626,10 +1645,15 @@ class Component {
                 const wasReady = this._childReadyState[id]
                 this._childReadyState[id] = !!ready
                 // When READY state changes, trigger a re-render
-                if (wasReady !== !!ready && this._readyChangedListener) {
-                  setTimeout(() => {
-                    this._readyChangedListener?.next(null)
-                  }, 0)
+                if (wasReady !== !!ready) {
+                  if (this._readyChangedListener) {
+                    setTimeout(() => {
+                      this._readyChangedListener?.next(null)
+                    }, 0)
+                  }
+                  if (typeof window !== 'undefined' && (window as any).__SYGNAL_DEVTOOLS__?.connected) {
+                    (window as any).__SYGNAL_DEVTOOLS__.onReadyChanged(this._componentNumber, this.name, id, !!ready)
+                  }
                 }
               },
               error: () => {},
