@@ -44,6 +44,10 @@ import type {
   SygnalDOMSource,
   EventsSource,
   FixDrivers,
+  ServiceWorkerSource,
+  ServiceWorkerCommand,
+  ServiceWorkerOptions,
+  InstallPrompt,
 } from '../src/index.d.ts'
 import type { EnrichedEventStream } from '../src/cycle/dom/enrichEventStream'
 
@@ -679,5 +683,51 @@ describe('renderToString type', () => {
     type Fn = (componentDef: any, options?: RenderToStringOptions) => string
     expectTypeOf<Fn>().toBeFunction()
     expectTypeOf<Fn>().returns.toBeString()
+  })
+})
+
+// ─── PWA Helpers ─────────────────────────────────────────────────────────
+
+describe('ServiceWorkerSource type', () => {
+  it('has select method', () => {
+    expectTypeOf<ServiceWorkerSource>().toHaveProperty('select')
+  })
+  it('select returns a stream', () => {
+    expectTypeOf<ServiceWorkerSource['select']>().toBeFunction()
+  })
+})
+
+describe('ServiceWorkerCommand type', () => {
+  it('has action property', () => {
+    expectTypeOf<ServiceWorkerCommand>().toHaveProperty('action')
+  })
+  it('has optional data property', () => {
+    expectTypeOf<ServiceWorkerCommand>().toHaveProperty('data')
+  })
+  it('action is a string union', () => {
+    assertType<ServiceWorkerCommand>({ action: 'skipWaiting' })
+    assertType<ServiceWorkerCommand>({ action: 'postMessage', data: 'hello' })
+    assertType<ServiceWorkerCommand>({ action: 'unregister' })
+  })
+})
+
+describe('ServiceWorkerOptions type', () => {
+  it('has optional scope', () => {
+    expectTypeOf<ServiceWorkerOptions>().toHaveProperty('scope')
+  })
+})
+
+describe('InstallPrompt type', () => {
+  it('has select method', () => {
+    expectTypeOf<InstallPrompt>().toHaveProperty('select')
+  })
+  it('has prompt method', () => {
+    expectTypeOf<InstallPrompt>().toHaveProperty('prompt')
+  })
+  it('select is a function', () => {
+    expectTypeOf<InstallPrompt['select']>().toBeFunction()
+  })
+  it('prompt is a function', () => {
+    expectTypeOf<InstallPrompt['prompt']>().toBeFunction()
   })
 })

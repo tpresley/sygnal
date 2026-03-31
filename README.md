@@ -26,7 +26,7 @@ cd my-app
 npm run dev
 ```
 
-Choose from Vite (SPA), Vike (SSR), or Astro templates in JavaScript or TypeScript.
+Choose from Vite (SPA), Vite + PWA, Vike (SSR), or Astro templates in JavaScript or TypeScript.
 
 **Or add to an existing project:**
 
@@ -324,6 +324,25 @@ MyComponent.model = {
 ```
 
 For advanced cases needing stream composition, the `dispose$` source is also available in intent.
+
+### PWA Helpers
+
+Built-in service worker driver, online/offline detection, and install prompt handling:
+
+```jsx
+import { run, makeServiceWorkerDriver, onlineStatus$, createInstallPrompt } from 'sygnal'
+
+const installPrompt = createInstallPrompt()
+
+run(App, { SW: makeServiceWorkerDriver('/sw.js') })
+
+App.intent = ({ DOM, SW }) => ({
+  ONLINE_CHANGED: onlineStatus$(),
+  UPDATE_READY:   SW.select('waiting'),
+  APPLY_UPDATE:   DOM.click('.update-btn'),
+  INSTALL:        DOM.click('.install-btn'),
+})
+```
 
 ### Testing
 

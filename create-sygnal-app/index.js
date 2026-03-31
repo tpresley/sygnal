@@ -13,6 +13,10 @@ const TEMPLATES = {
     label: 'Vite (SPA)',
     hint: 'Single-page app with Vite + HMR',
   },
+  'vite-pwa': {
+    label: 'Vite + PWA',
+    hint: 'Single-page app with offline support and install prompt',
+  },
   vike: {
     label: 'Vike (SSR)',
     hint: 'File-based routing with SSR, layouts, and data fetching',

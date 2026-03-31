@@ -999,6 +999,140 @@ MyComponent.model = {
 
 ---
 
+## makeServiceWorkerDriver()
+
+Creates a Cycle.js driver that registers a service worker and exposes lifecycle events as streams. ([PWA Helpers guide](/integration/pwa/))
+
+```typescript
+function makeServiceWorkerDriver(
+  scriptUrl: string,
+  options?: ServiceWorkerOptions
+): (sink$: Stream<ServiceWorkerCommand>) => ServiceWorkerSource
+```
+
+### Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `scriptUrl` | `string` | Path to the service worker file (e.g., `'/sw.js'`) |
+| `options` | `ServiceWorkerOptions` | Optional configuration |
+
+### ServiceWorkerOptions
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `scope` | `string` | Registration scope for the service worker |
+
+### Source API
+
+```typescript
+source.select(type?: string): Stream
+```
+
+| Event Type | Emits | Description |
+|-----------|-------|-------------|
+| `'installed'` | `true` | Worker finished installing |
+| `'activated'` | `true` | Worker activated |
+| `'waiting'` | `ServiceWorker` | New version waiting to activate |
+| `'controlling'` | `true` | Worker took control of the page |
+| `'error'` | `Error` | Registration or lifecycle error |
+| `'message'` | `any` | Data from `postMessage` |
+
+### Sink Commands
+
+| Command | Description |
+|---------|-------------|
+| `{ action: 'skipWaiting' }` | Tell waiting worker to activate immediately |
+| `{ action: 'postMessage', data: any }` | Send a message to the active worker |
+| `{ action: 'unregister' }` | Unregister the service worker |
+
+### Example
+
+```javascript
+import { run, makeServiceWorkerDriver } from 'sygnal'
+
+run(App, { SW: makeServiceWorkerDriver('/sw.js') })
+
+App.intent = ({ SW, DOM }) => ({
+  UPDATE_READY: SW.select('waiting'),
+  APPLY_UPDATE: DOM.click('.update-btn'),
+})
+
+App.model = {
+  UPDATE_READY: (state) => ({ ...state, updateAvailable: true }),
+  APPLY_UPDATE: {
+    SW: () => ({ action: 'skipWaiting' }),
+    EFFECT: () => window.location.reload(),
+  },
+}
+```
+
+---
+
+## onlineStatus$()
+
+Returns a stream of booleans reflecting the browser's online/offline state. ([PWA Helpers guide](/integration/pwa/))
+
+```typescript
+function onlineStatus$(): Stream<boolean>
+```
+
+Emits `navigator.onLine` immediately, then `true`/`false` on `online`/`offline` window events. SSR-safe — emits `true` once if `window` is undefined.
+
+### Example
+
+```javascript
+import { onlineStatus$ } from 'sygnal'
+
+App.intent = () => ({
+  ONLINE_CHANGED: onlineStatus$(),
+})
+
+App.model = {
+  ONLINE_CHANGED: (state, isOnline) => ({ ...state, isOffline: !isOnline }),
+}
+```
+
+---
+
+## createInstallPrompt()
+
+Captures the `beforeinstallprompt` browser event and exposes it reactively. ([PWA Helpers guide](/integration/pwa/))
+
+```typescript
+function createInstallPrompt(): InstallPrompt
+```
+
+### Returns: InstallPrompt
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `select(type)` | `Stream<any>` | Stream filtered by `'beforeinstallprompt'` or `'appinstalled'` |
+| `prompt()` | `Promise \| undefined` | Triggers the deferred install prompt |
+
+### Example
+
+```javascript
+import { createInstallPrompt } from 'sygnal'
+
+const installPrompt = createInstallPrompt()
+
+App.intent = ({ DOM }) => ({
+  CAN_INSTALL: installPrompt.select('beforeinstallprompt'),
+  INSTALL:     DOM.click('.install-btn'),
+})
+
+App.model = {
+  CAN_INSTALL: (state) => ({ ...state, canInstall: true }),
+  INSTALL: {
+    EFFECT: () => installPrompt.prompt(),
+    STATE: (state) => ({ ...state, canInstall: false }),
+  },
+}
+```
+
+---
+
 ## xs
 
 The xstream Observable library, re-exported for convenience.

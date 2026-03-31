@@ -74,6 +74,7 @@ export default defineConfig({
             { label: 'Astro', slug: 'integration/astro' },
             { label: 'Vike', slug: 'integration/vike' },
             { label: 'Hot Module Replacement', slug: 'integration/hmr' },
+            { label: 'PWA Helpers', slug: 'integration/pwa' },
             { label: 'Bundler Configuration', slug: 'integration/bundler-config' },
             { label: 'Debugging', slug: 'integration/debugging' },
           ],

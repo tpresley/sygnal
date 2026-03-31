@@ -595,6 +595,35 @@ export interface CommandSource {
 
 export function createCommand(): Command
 
+// ── PWA Helpers ──────────────────────────────────────────────
+
+export interface ServiceWorkerSource {
+  select(type?: 'installed' | 'activated' | 'waiting' | 'controlling' | 'error' | 'message' | string): Stream<any>;
+}
+
+export interface ServiceWorkerCommand {
+  action: 'skipWaiting' | 'postMessage' | 'unregister';
+  data?: any;
+}
+
+export interface ServiceWorkerOptions {
+  scope?: string;
+}
+
+export function makeServiceWorkerDriver(
+  scriptUrl: string,
+  options?: ServiceWorkerOptions
+): (sink$: Stream<ServiceWorkerCommand>) => ServiceWorkerSource
+
+export function onlineStatus$(): Stream<boolean>
+
+export interface InstallPrompt {
+  select(type: 'beforeinstallprompt' | 'appinstalled'): Stream<any>;
+  prompt(): Promise<any> | undefined;
+}
+
+export function createInstallPrompt(): InstallPrompt
+
 export interface RenderOptions {
   /** Override initial state (defaults to component's .initialState) */
   initialState?: any;
