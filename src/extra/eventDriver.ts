@@ -14,8 +14,12 @@ export default function eventBusDriver(out$: Stream<BusEvent>): EventBusSource {
   const events = new EventTarget();
 
   out$.subscribe({
-    next: (event: BusEvent) =>
-      events.dispatchEvent(new CustomEvent('data', {detail: event})),
+    next: (event: BusEvent) => {
+      events.dispatchEvent(new CustomEvent('data', {detail: event}));
+      if (typeof window !== 'undefined' && (window as any).__SYGNAL_DEVTOOLS__?.connected) {
+        (window as any).__SYGNAL_DEVTOOLS__.onBusEvent(event);
+      }
+    },
     error: (err: any) =>
       console.error('[EVENTS driver] Error in sink stream:', err),
   });

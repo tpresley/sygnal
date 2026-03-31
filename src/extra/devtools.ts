@@ -141,7 +141,6 @@ class SygnalDevTools {
       componentId: componentNumber,
       componentName: name,
       state: entry.state,
-      historyIndex: this._stateHistory.length - 1,
     });
   }
 
@@ -191,6 +190,30 @@ class SygnalDevTools {
     });
   }
 
+  onBusEvent(event: {type: string; data?: any}): void {
+    if (!this.connected) return;
+    this._post('BUS_EVENT', {
+      type: event.type,
+      data: this._safeClone(event.data),
+      timestamp: Date.now(),
+    });
+  }
+
+  onComponentDisposed(componentNumber: number, name: string): void {
+    const meta = this._components.get(componentNumber);
+    if (meta) {
+      (meta as any).disposed = true;
+      (meta as any).disposedAt = Date.now();
+    }
+
+    if (!this.connected) return;
+    this._post('COMPONENT_DISPOSED', {
+      componentId: componentNumber,
+      componentName: name,
+      timestamp: Date.now(),
+    });
+  }
+
   onDebugLog(componentNumber: number, message: string): void {
     if (!this.connected) return;
     this._post('DEBUG_LOG', {
@@ -218,38 +241,53 @@ class SygnalDevTools {
     }
   }
 
-  _timeTravel({historyIndex}: {historyIndex: number}): void {
-    const entry = this._stateHistory[historyIndex];
-    if (!entry) return;
+  _timeTravel({componentId, componentName, state}: {componentId: number; componentName: string; state: any}): void {
+    if (componentId == null || !state) {
+      console.warn('[Sygnal DevTools] _timeTravel: missing componentId or state', {componentId, hasState: !!state});
+      return;
+    }
 
     if (typeof window === 'undefined') return;
 
-    // Try per-component time-travel first via the component's own state stream
-    const meta = this._components.get(entry.componentId);
+    const newState = this._safeClone(state);
+
+    // Try per-component time-travel via the component's STATE sink (reducer stream)
+    const meta = this._components.get(componentId);
     if (meta) {
       const instance = meta._instanceRef?.deref();
-      if (instance?._stateStream?.shamefullySendNext) {
-        instance._stateStream.shamefullySendNext(() => ({...entry.state}));
-        this._post('TIME_TRAVEL_APPLIED', {
-          historyIndex,
-          componentId: entry.componentId,
-          componentName: entry.componentName,
-          state: entry.state,
-        });
-        return;
+      if (!instance) {
+        console.warn(`[Sygnal DevTools] _timeTravel: WeakRef for component #${componentId} (${componentName}) has been GC'd`);
+      } else {
+        // sinks[stateSourceName] is the reducer stream — push a reducer that replaces state
+        const stateSinkName = instance.stateSourceName || 'STATE';
+        const stateSink = instance.sinks?.[stateSinkName];
+        if (stateSink?.shamefullySendNext) {
+          stateSink.shamefullySendNext(() => ({...newState}));
+          this._post('TIME_TRAVEL_APPLIED', {
+            componentId,
+            componentName,
+            state: newState,
+          });
+          return;
+        }
+        console.warn(`[Sygnal DevTools] _timeTravel: component #${componentId} (${componentName}) has no STATE sink with shamefullySendNext. sinkName=${stateSinkName}, hasSinks=${!!instance.sinks}, sinkKeys=${instance.sinks ? Object.keys(instance.sinks).join(',') : 'none'}`);
       }
+    } else {
+      console.warn(`[Sygnal DevTools] _timeTravel: no meta for componentId ${componentId}`);
     }
 
     // Fall back to root STATE sink for root-level components
     const app = window.__SYGNAL_DEVTOOLS_APP__;
     if (app?.sinks?.STATE?.shamefullySendNext) {
-      app.sinks.STATE.shamefullySendNext(() => ({...entry.state}));
+      console.log(`[Sygnal DevTools] _timeTravel: using root STATE sink fallback for component #${componentId}`);
+      app.sinks.STATE.shamefullySendNext(() => ({...newState}));
       this._post('TIME_TRAVEL_APPLIED', {
-        historyIndex,
-        componentId: entry.componentId,
-        componentName: entry.componentName,
-        state: entry.state,
+        componentId,
+        componentName,
+        state: newState,
       });
+    } else {
+      console.warn(`[Sygnal DevTools] _timeTravel: no fallback root STATE sink available`);
     }
   }
 

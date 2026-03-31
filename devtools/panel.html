@@ -18,7 +18,14 @@
 
   <div class="main">
     <div class="sidebar" id="component-tree">
-      <div class="section-header">Components</div>
+      <div class="section-header">
+        Components
+        <label class="toolbar-toggle" style="font-weight: normal; text-transform: none; letter-spacing: 0;">
+          <input type="checkbox" id="show-disposed">
+          Disposed
+        </label>
+      </div>
+      <input type="text" id="tree-search" class="tree-search" placeholder="Search components...">
       <div id="tree-container"></div>
     </div>
 
@@ -31,6 +38,7 @@
           <button class="tab active" data-tab="state">State</button>
           <button class="tab" data-tab="context">Context</button>
           <button class="tab" data-tab="props">Props</button>
+          <button class="tab" data-tab="meta">Meta</button>
         </div>
         <div class="tab-content" id="inspector-content">
           <pre id="inspector-json" class="json-view"></pre>
@@ -39,11 +47,29 @@
 
       <div class="history-panel">
         <div class="section-header">
-          State History
-          <button id="diff-toggle-btn" class="small-btn" title="Toggle diff view on click">Diff</button>
-          <button id="clear-history-btn" class="small-btn" title="Clear history">Clear</button>
+          <span class="section-header-tabs">
+            <button id="view-history-btn" class="small-btn active" title="State history">History</button>
+            <button id="view-events-btn" class="small-btn" title="EVENTS bus monitor">Events</button>
+          </span>
+          <span class="section-header-actions">
+            <button id="diff-toggle-btn" class="small-btn" title="Toggle diff view on click">Diff</button>
+            <button id="clear-history-btn" class="small-btn" title="Clear">Clear</button>
+          </span>
+        </div>
+        <div id="history-filter-bar" class="filter-bar">
+          <input type="text" id="history-filter-text" class="filter-input" placeholder="Filter...">
+          <button id="filter-state-btn" class="filter-toggle active" data-type="state" title="State changes">S</button>
+          <button id="filter-action-btn" class="filter-toggle active" data-type="action" title="Actions">A</button>
+          <button id="filter-debug-btn" class="filter-toggle active" data-type="debug" title="Debug logs">D</button>
+          <span id="history-count" class="filter-count"></span>
         </div>
         <div id="history-container"></div>
+        <div id="events-container" style="display: none;">
+          <div id="events-filter-bar" class="filter-bar">
+            <input type="text" id="events-filter-text" class="filter-input" placeholder="Filter event types...">
+          </div>
+          <div id="events-list"></div>
+        </div>
       </div>
     </div>
   </div>

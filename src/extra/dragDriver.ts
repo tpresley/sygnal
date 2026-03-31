@@ -8,18 +8,71 @@ export interface DragConfig {
   dragImage?: string;
 }
 
+// ─── Enriched DND Event Streams ──────────────────────────────────────────────
+
+export interface EnrichedDragStream<T = any> extends Stream<T> {
+  /** Extract a `data-*` attribute value from the payload's element/dataset.
+   *  Optional transform fn: `.data('id', Number)` */
+  data(name: string): EnrichedDragStream<string | undefined>;
+  data<R>(name: string, fn: (val: string | undefined) => R): EnrichedDragStream<R>;
+
+  /** Extract the dragged element (dragstart) or dropZone element (drop) */
+  element(): EnrichedDragStream<Element | null>;
+  element<R>(fn: (el: Element | null) => R): EnrichedDragStream<R>;
+}
+
+/**
+ * Adds chainable convenience methods to a DND event stream,
+ * mirroring the DOM driver's `enrichEventStream` pattern.
+ *
+ *   DND.dragstart('task').data('taskId')
+ *   DND.dragstart('task').data('taskId', Number)
+ *   DND.drop('lane').data('laneId')
+ *   DND.dragstart('task').element()
+ */
+function enrichDragStream(stream$: any): any {
+  // .data(name, fn?) — extract dataset[name] from dragstart payload,
+  // or dropZone.dataset[name] from drop payload
+  stream$.data = function data(name: string, fn?: (val: any) => any): any {
+    const mapped = stream$.map((e: any) => {
+      // dragstart payload: { element, dataset }
+      // drop payload: { dropZone, insertBefore }
+      const val = e?.dataset?.[name]
+        ?? (e?.dropZone as HTMLElement)?.dataset?.[name]
+        ?? (e?.element as HTMLElement)?.dataset?.[name]
+      return fn ? fn(val) : val
+    });
+    return enrichDragStream(mapped);
+  }
+
+  // .element(fn?) — extract the primary element from the payload
+  stream$.element = function element(fn?: (el: any) => any): any {
+    const mapped = stream$.map((e: any) => {
+      const el = e?.element ?? e?.dropZone ?? null
+      return fn ? fn(el) : el
+    });
+    return enrichDragStream(mapped);
+  }
+
+  return stream$
+}
+
+// ─── DND Source Interfaces ───────────────────────────────────────────────────
+
 export interface DragSourceEvents {
-  events(eventType: string): Stream<any>;
+  events(eventType: string): EnrichedDragStream<any>;
 }
 
 export interface DragSource {
   select(category: string): DragSourceEvents;
-  dragstart(category: string): Stream<any>;
+  dragstart(category: string): EnrichedDragStream<any>;
   dragend(category: string): Stream<any>;
-  drop(category: string): Stream<any>;
+  drop(category: string): EnrichedDragStream<any>;
   dragover(category: string): Stream<any>;
   dispose(): void;
 }
+
+// ─── Driver Factory ──────────────────────────────────────────────────────────
 
 export function makeDragDriver(): (sink$: Stream<any>) => DragSource {
   return function dragDriver(sink$: Stream<any>): DragSource {
@@ -114,10 +167,10 @@ export function makeDragDriver(): (sink$: Stream<any>) => DragSource {
     const source: DragSource = {
       select(category: string): DragSourceEvents {
         return {
-          events(eventType: string): Stream<any> {
+          events(eventType: string): EnrichedDragStream<any> {
             const busEventName = `${category}:${eventType}`;
             let handler: ((e: Event) => void) | undefined;
-            return xs.create({
+            const stream$ = xs.create({
               start(listener) {
                 handler = ({detail}: any) => listener.next(detail);
                 bus.addEventListener(busEventName, handler);
@@ -126,6 +179,7 @@ export function makeDragDriver(): (sink$: Stream<any>) => DragSource {
                 if (handler) bus.removeEventListener(busEventName, handler);
               },
             });
+            return enrichDragStream(stream$);
           },
         };
       },

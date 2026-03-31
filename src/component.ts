@@ -203,7 +203,6 @@ class Component {
   _childReadyState: Record<string, boolean>;
   _readyChanged$: any;
   _readyChangedListener: any;
-  _stateStream: any;
 
   constructor({name = 'NO NAME', sources, intent, model, hmrActions, context, response, view, peers = {}, components = {}, initialState, calculated, storeCalculatedInState = true, DOMSourceName = 'DOM', stateSourceName = 'STATE', requestSourceName = 'HTTP', isolatedState = false, onError, debug = false}: ComponentOptions) {
     if (!sources || !isObj(sources)) throw new Error(`[${name}] Missing or invalid sources`)
@@ -355,7 +354,6 @@ class Component {
     this.currentSlots = {}
 
     if (state$) {
-      this._stateStream = state$
       this.currentState = initialState || {}
       this.sources[stateSourceName] = new StateSource(state$.map((val: any) => {
         this.currentState = val
@@ -455,6 +453,9 @@ class Component {
   }
 
   dispose(): void {
+    if (typeof window !== 'undefined' && window.__SYGNAL_DEVTOOLS__?.connected) {
+      window.__SYGNAL_DEVTOOLS__.onComponentDisposed(this._componentNumber, this.name)
+    }
     // Fire the DISPOSE built-in action so model handlers can run cleanup logic
     const hasDispose = this.model && (this.model[DISPOSE_ACTION] || Object.keys(this.model).some(k => k.includes('|') && k.split('|')[0].trim() === DISPOSE_ACTION))
     if (hasDispose && this.action$ && typeof this.action$.shamefullySendNext === 'function') {

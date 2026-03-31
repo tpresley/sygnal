@@ -85,7 +85,7 @@ html, body {
 .section-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 6px;
   padding: 6px 10px;
   font-weight: 600;
   font-size: 11px;
@@ -94,6 +94,36 @@ html, body {
   color: #888;
   background: #f7f7f7;
   border-bottom: 1px solid #eee;
+}
+
+/* ─── Tree Search ─────────────────────────────────────────────────────── */
+
+.tree-search {
+  display: block;
+  width: 100%;
+  padding: 5px 10px;
+  border: none;
+  border-bottom: 1px solid #eee;
+  font-family: inherit;
+  font-size: 11px;
+  color: #333;
+  background: #fff;
+  outline: none;
+}
+
+.tree-search:focus {
+  border-bottom-color: #1a73e8;
+}
+
+.tree-search::placeholder {
+  color: #bbb;
+}
+
+.tree-name mark {
+  background: #fff3b0;
+  color: inherit;
+  padding: 0 1px;
+  border-radius: 2px;
 }
 
 /* ─── Component Tree ───────────────────────────────────────────────────── */
@@ -168,6 +198,15 @@ html, body {
 
 .tree-children.collapsed {
   display: none;
+}
+
+.tree-node-row.disposed {
+  opacity: 0.5;
+}
+
+.tree-name.disposed {
+  text-decoration: line-through;
+  color: #999;
 }
 
 /* ─── Inspector Panel ──────────────────────────────────────────────────── */
@@ -425,6 +464,215 @@ html, body {
 
 .history-entry.clicked {
   background: #e8f0fe;
+}
+
+/* ─── Section Header Tabs ──────────────────────────────────────────────── */
+
+.section-header-tabs {
+  display: flex;
+  gap: 4px;
+}
+
+.section-header-actions {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+/* ─── Filter Bar ──────────────────────────────────────────────────────── */
+
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-bottom: 1px solid #f0f0f0;
+  background: #fafafa;
+}
+
+.filter-input {
+  flex: 1;
+  min-width: 0;
+  padding: 3px 6px;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  font-family: inherit;
+  font-size: 10px;
+  color: #333;
+  outline: none;
+}
+
+.filter-input:focus {
+  border-color: #1a73e8;
+}
+
+.filter-input::placeholder {
+  color: #bbb;
+}
+
+.filter-toggle {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 600;
+  color: #999;
+  line-height: 18px;
+  text-align: center;
+}
+
+.filter-toggle:hover {
+  background: #f0f0f0;
+}
+
+.filter-toggle.active[data-type="state"] {
+  background: #e8f0fe;
+  color: #1a73e8;
+  border-color: #1a73e8;
+}
+
+.filter-toggle.active[data-type="action"] {
+  background: #fff3e0;
+  color: #f57c00;
+  border-color: #f57c00;
+}
+
+.filter-toggle.active[data-type="debug"] {
+  background: #f3e5f5;
+  color: #7b1fa2;
+  border-color: #7b1fa2;
+}
+
+.filter-count {
+  font-size: 9px;
+  color: #aaa;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ─── Events Monitor ──────────────────────────────────────────────────── */
+
+#events-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+#events-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.event-entry {
+  display: flex;
+  align-items: center;
+  padding: 4px 10px;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 11px;
+  border-bottom: 1px solid #f5f5f5;
+}
+
+.event-entry:hover {
+  background: #f5f5f5;
+}
+
+.event-entry.clicked {
+  background: #f3e5f5;
+}
+
+.event-type {
+  font-weight: 600;
+  color: #7b1fa2;
+  min-width: 60px;
+  flex-shrink: 0;
+}
+
+.event-data-preview {
+  color: #888;
+  font-family: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', monospace;
+  font-size: 10px;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ─── Meta Tab ────────────────────────────────────────────────────────── */
+
+.meta-grid {
+  padding: 4px 0;
+}
+
+.meta-section {
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.meta-section:last-child {
+  border-bottom: none;
+}
+
+.meta-section-title {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #888;
+  margin-bottom: 6px;
+}
+
+.meta-badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.meta-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.meta-badge.active {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.meta-badge.inactive {
+  background: #f5f5f5;
+  color: #bbb;
+}
+
+.meta-info-row {
+  display: flex;
+  padding: 2px 0;
+  font-size: 11px;
+}
+
+.meta-info-key {
+  color: #888;
+  min-width: 100px;
+  flex-shrink: 0;
+}
+
+.meta-info-value {
+  color: #333;
+  font-weight: 500;
+}
+
+.meta-sub-component {
+  padding: 2px 0;
+  font-size: 11px;
+  color: #1a73e8;
 }
 
 /* ─── Empty State ──────────────────────────────────────────────────────── */
