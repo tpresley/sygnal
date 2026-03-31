@@ -1,6 +1,6 @@
 {
   "name": "create-sygnal-app",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Scaffold a new Sygnal project",
   "type": "module",
   "bin": {
@@ -10,6 +10,8 @@
     "index.js",
     "template-vite",
     "template-vite-ts",
+    "template-vite-pwa",
+    "template-vite-pwa-ts",
     "template-vike",
     "template-vike-ts",
     "template-astro",
