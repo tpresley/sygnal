@@ -1,5 +1,9 @@
-import xs, {Stream} from 'xstream';
+import _xs from './xstreamCompat';
+import type {Stream, Listener} from 'xstream';
+import type xsType from 'xstream';
 import {adapt} from '../cycle/run/adapt';
+
+const xs = _xs as typeof xsType;
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -109,34 +113,32 @@ export function makeServiceWorkerDriver(
 }
 
 // ── onlineStatus$ ────────────────────────────────────────────
+// Lazy — the real stream is created on first subscribe so importing
+// sygnal in SSR doesn't eagerly reference window/navigator.
 
-function _createOnlineStatus(): Stream<boolean> {
-  if (typeof window === 'undefined') {
-    return xs.of(true);
-  }
+let _onlineCleanup: (() => void) | undefined;
 
-  let cleanup: (() => void) | undefined;
-
-  return xs.create<boolean>({
-    start(listener) {
-      listener.next(navigator.onLine);
-      const on = () => listener.next(true);
-      const off = () => listener.next(false);
-      window.addEventListener('online', on);
-      window.addEventListener('offline', off);
-      cleanup = () => {
-        window.removeEventListener('online', on);
-        window.removeEventListener('offline', off);
-      };
-    },
-    stop() {
-      cleanup?.();
-      cleanup = undefined;
-    },
-  });
-}
-
-export const onlineStatus$: Stream<boolean> = _createOnlineStatus();
+export const onlineStatus$: Stream<boolean> = xs.create<boolean>({
+  start(listener: Listener<boolean>) {
+    if (typeof window === 'undefined') {
+      listener.next(true);
+      return;
+    }
+    listener.next(navigator.onLine);
+    const on = () => listener.next(true);
+    const off = () => listener.next(false);
+    window.addEventListener('online', on);
+    window.addEventListener('offline', off);
+    _onlineCleanup = () => {
+      window.removeEventListener('online', on);
+      window.removeEventListener('offline', off);
+    };
+  },
+  stop() {
+    _onlineCleanup?.();
+    _onlineCleanup = undefined;
+  },
+});
 
 // ── createInstallPrompt ──────────────────────────────────────
 
