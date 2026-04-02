@@ -171,9 +171,16 @@ APP.model = {
     return { ...state, todos }
   },
 
-  CLEAR_COMPLETED: (state) => {
-    const todos = state.todos.filter((todo) => !todo.completed)
-    return { ...state, todos }
+  CLEAR_COMPLETED: {
+    STATE: (state) => {
+      const todos = state.todos.filter((todo) => !todo.completed)
+      return { ...state, todos }
+    },
+    EFFECT: (_state, _data, _next, { context }) => {
+      // Verify context is typed as AppContext in reducer 4th arg
+      const _theme: string = context.theme
+      void _theme
+    },
   },
 
   ADD_ROUTE: { ROUTER: true },

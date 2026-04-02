@@ -42,11 +42,13 @@ type NextFunction<ACTIONS = any> = ACTIONS extends object
     ) => void
   : (action: string, data?: any, delay?: number) => void
 
-type Reducer<STATE, PROPS, ACTIONS = any, DATA = any, RETURN = any> = (
+type ReducerExtras<PROPS, CONTEXT> = PROPS & { context: CONTEXT; children?: JSX.Element | JSX.Element[]; slots?: Record<string, JSX.Element[]> }
+
+type Reducer<STATE, PROPS, ACTIONS = any, DATA = any, RETURN = any, CONTEXT = {}> = (
   state: STATE,
   args: DATA,
   next: NextFunction<ACTIONS>,
-  props: PROPS
+  props: ReducerExtras<PROPS, CONTEXT>
 ) => RETURN | ABORT | undefined
 
 export type ExactShape<EXPECTED, ACTUAL extends EXPECTED> = ACTUAL &
@@ -76,24 +78,24 @@ type ResolvedNonStateSinkReturns<SINK_RETURNS extends NonStateSinkReturns = {}> 
  * - true: Whatever value is received from the intent for this action is passed on as-is.
  * - Function: A reducer
  */
-type SinkValue<STATE, PROPS, ACTIONS, DATA, RETURN, CALCULATED> =
+type SinkValue<STATE, PROPS, ACTIONS, DATA, RETURN, CALCULATED, CONTEXT = {}> =
   | true
-  | Reducer<STATE & CALCULATED, PROPS, ACTIONS, DATA, RETURN>
+  | Reducer<STATE & CALCULATED, PROPS, ACTIONS, DATA, RETURN, CONTEXT>
 
-type EffectReducer<STATE, PROPS, ACTIONS, DATA, CALCULATED> =
-  | ((state: STATE & CALCULATED, args: DATA, next: NextFunction<ACTIONS>, props: PROPS) => void)
+type EffectReducer<STATE, PROPS, ACTIONS, DATA, CALCULATED, CONTEXT = {}> =
+  | ((state: STATE & CALCULATED, args: DATA, next: NextFunction<ACTIONS>, props: ReducerExtras<PROPS, CONTEXT>) => void)
 
-type DefaultSinks<STATE, PROPS, ACTIONS, DATA, CALCULATED, SINK_RETURNS extends NonStateSinkReturns = {}> = {
-  STATE?: SinkValue<STATE, PROPS, ACTIONS, DATA, STATE, CALCULATED>;
-  EVENTS?: SinkValue<STATE, PROPS, ACTIONS, DATA, ResolvedNonStateSinkReturns<SINK_RETURNS>['EVENTS'], CALCULATED>;
-  LOG?: SinkValue<STATE, PROPS, ACTIONS, DATA, ResolvedNonStateSinkReturns<SINK_RETURNS>['LOG'], CALCULATED>;
-  PARENT?: SinkValue<STATE, PROPS, ACTIONS, DATA, ResolvedNonStateSinkReturns<SINK_RETURNS>['PARENT'], CALCULATED>;
-  EFFECT?: EffectReducer<STATE, PROPS, ACTIONS, DATA, CALCULATED>;
+type DefaultSinks<STATE, PROPS, ACTIONS, DATA, CALCULATED, SINK_RETURNS extends NonStateSinkReturns = {}, CONTEXT = {}> = {
+  STATE?: SinkValue<STATE, PROPS, ACTIONS, DATA, STATE, CALCULATED, CONTEXT>;
+  EVENTS?: SinkValue<STATE, PROPS, ACTIONS, DATA, ResolvedNonStateSinkReturns<SINK_RETURNS>['EVENTS'], CALCULATED, CONTEXT>;
+  LOG?: SinkValue<STATE, PROPS, ACTIONS, DATA, ResolvedNonStateSinkReturns<SINK_RETURNS>['LOG'], CALCULATED, CONTEXT>;
+  PARENT?: SinkValue<STATE, PROPS, ACTIONS, DATA, ResolvedNonStateSinkReturns<SINK_RETURNS>['PARENT'], CALCULATED, CONTEXT>;
+  EFFECT?: EffectReducer<STATE, PROPS, ACTIONS, DATA, CALCULATED, CONTEXT>;
 }
 
-type CustomDriverSinks<STATE, PROPS, DRIVERS, ACTIONS, ACTION_ENTRY, CALCULATED> = keyof DRIVERS extends never
+type CustomDriverSinks<STATE, PROPS, DRIVERS, ACTIONS, ACTION_ENTRY, CALCULATED, CONTEXT = {}> = keyof DRIVERS extends never
   ? {
-      [driver: string]: SinkValue<STATE, PROPS, ACTIONS, any, any, CALCULATED>
+      [driver: string]: SinkValue<STATE, PROPS, ACTIONS, any, any, CALCULATED, CONTEXT>
     }
   : {
       [DRIVER_KEY in keyof DRIVERS]: SinkValue<
@@ -102,15 +104,16 @@ type CustomDriverSinks<STATE, PROPS, DRIVERS, ACTIONS, ACTION_ENTRY, CALCULATED>
         ACTIONS,
         ACTION_ENTRY,
         DRIVERS[DRIVER_KEY] extends { source: any; sink: any } ? DRIVERS[DRIVER_KEY]['sink'] : any,
-        CALCULATED
+        CALCULATED,
+        CONTEXT
       >
     }
 
-type ModelEntry<STATE, PROPS, DRIVERS, ACTIONS, ACTION_ENTRY, CALCULATED, SINK_RETURNS extends NonStateSinkReturns = {}> =
-  | SinkValue<STATE, PROPS, ACTIONS, ACTION_ENTRY, STATE, CALCULATED>
+type ModelEntry<STATE, PROPS, DRIVERS, ACTIONS, ACTION_ENTRY, CALCULATED, SINK_RETURNS extends NonStateSinkReturns = {}, CONTEXT = {}> =
+  | SinkValue<STATE, PROPS, ACTIONS, ACTION_ENTRY, STATE, CALCULATED, CONTEXT>
   | Partial<
-      DefaultSinks<STATE, PROPS, ACTIONS, ACTION_ENTRY, CALCULATED, SINK_RETURNS> &
-      CustomDriverSinks<STATE, PROPS, DRIVERS, ACTIONS, ACTION_ENTRY, CALCULATED>
+      DefaultSinks<STATE, PROPS, ACTIONS, ACTION_ENTRY, CALCULATED, SINK_RETURNS, CONTEXT> &
+      CustomDriverSinks<STATE, PROPS, DRIVERS, ACTIONS, ACTION_ENTRY, CALCULATED, CONTEXT>
     >
 
 type WithDefaultActions<STATE, ACTIONS> = ACTIONS & {
@@ -120,7 +123,7 @@ type WithDefaultActions<STATE, ACTIONS> = ACTIONS & {
   DISPOSE?: never;
 }
 
-type ComponentModel<STATE, PROPS, DRIVERS, ACTIONS, CALCULATED, SINK_RETURNS extends NonStateSinkReturns = {}> = keyof ACTIONS extends never
+type ComponentModel<STATE, PROPS, DRIVERS, ACTIONS, CALCULATED, SINK_RETURNS extends NonStateSinkReturns = {}, CONTEXT = {}> = keyof ACTIONS extends never
   ? {
       [action: string]: ModelEntry<
         STATE,
@@ -129,7 +132,8 @@ type ComponentModel<STATE, PROPS, DRIVERS, ACTIONS, CALCULATED, SINK_RETURNS ext
         WithDefaultActions<STATE, { [action: string]: any }>,
         any,
         CALCULATED,
-        SINK_RETURNS
+        SINK_RETURNS,
+        CONTEXT
       >
     }
   : {
@@ -140,7 +144,8 @@ type ComponentModel<STATE, PROPS, DRIVERS, ACTIONS, CALCULATED, SINK_RETURNS ext
         WithDefaultActions<STATE, ACTIONS>,
         WithDefaultActions<STATE, ACTIONS>[ACTION_KEY],
         CALCULATED,
-        SINK_RETURNS
+        SINK_RETURNS,
+        CONTEXT
       >
     }
 
@@ -259,7 +264,7 @@ export type Component<
   DOMSourceName?: string;
   stateSourceName?: string;
   requestSourceName?: string;
-  model?: ComponentModel<STATE, PROPS, FixDrivers<DRIVERS>, ACTIONS, CALCULATED, SINK_RETURNS>;
+  model?: ComponentModel<STATE, PROPS, FixDrivers<DRIVERS>, ACTIONS, CALCULATED, SINK_RETURNS, CONTEXT>;
   intent?: ComponentIntent<STATE & CALCULATED, FixDrivers<DRIVERS>, ACTIONS>;
   initialState?: STATE;
   calculated?: Calculated<STATE, CALCULATED>;
