@@ -112,4 +112,55 @@ export async function renderingTests() {
     el.querySelector('.tog').click()
     await waitFor(() => el.querySelector('.inp').disabled === true)
   })
+
+  // Select element value prop
+  await runTest(CAT, 'select element reflects value prop on initial render', async () => {
+    const { id, el } = mount()
+    function App({ state }) {
+      return <div>
+        <select className="sel" value={state.choice}>
+          <option value="a">Alpha</option>
+          <option value="b">Beta</option>
+          <option value="c">Gamma</option>
+        </select>
+      </div>
+    }
+    App.initialState = { choice: 'b' }
+    run(App, {}, { mountPoint: id })
+    await waitFor(() => el.querySelector('.sel'))
+    assert(
+      el.querySelector('.sel').value === 'b',
+      `Expected select value "b" but got "${el.querySelector('.sel').value}"`
+    )
+  })
+
+  // Select element value prop updates
+  await runTest(CAT, 'select element updates when value prop changes', async () => {
+    const { id, el } = mount()
+    function App({ state }) {
+      return <div>
+        <select className="sel" value={state.choice}>
+          <option value="a">Alpha</option>
+          <option value="b">Beta</option>
+          <option value="c">Gamma</option>
+        </select>
+        <button className="change">Change</button>
+      </div>
+    }
+    App.initialState = { choice: 'a' }
+    App.intent = ({ DOM }) => ({ CHANGE: DOM.click('.change') })
+    App.model = { CHANGE: (state) => ({ ...state, choice: 'c' }) }
+    run(App, {}, { mountPoint: id })
+    await waitFor(() => el.querySelector('.sel'))
+    assert(
+      el.querySelector('.sel').value === 'a',
+      `Expected initial select value "a" but got "${el.querySelector('.sel').value}"`
+    )
+    el.querySelector('.change').click()
+    await waitFor(() => el.querySelector('.sel').value === 'c')
+    assert(
+      el.querySelector('.sel').value === 'c',
+      `Expected updated select value "c" but got "${el.querySelector('.sel').value}"`
+    )
+  })
 }
