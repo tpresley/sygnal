@@ -7,6 +7,7 @@ describe('vite-plugin-sygnal', () => {
       const plugin = sygnal()
       const result = plugin.config({}, { command: 'serve' })
       expect(result).toEqual({
+        ssr: { noExternal: ['sygnal'] },
         oxc: {
           jsx: {
             runtime: 'automatic',
@@ -20,6 +21,7 @@ describe('vite-plugin-sygnal', () => {
       const plugin = sygnal()
       const result = plugin.config({}, { command: 'build' })
       expect(result).toEqual({
+        ssr: { noExternal: ['sygnal'] },
         oxc: {
           jsx: {
             runtime: 'automatic',
@@ -32,7 +34,9 @@ describe('vite-plugin-sygnal', () => {
     it('skips jsx config when disableJsx is true', () => {
       const plugin = sygnal({ disableJsx: true })
       const result = plugin.config({}, { command: 'serve' })
-      expect(result).toBeUndefined()
+      expect(result).toEqual({
+        ssr: { noExternal: ['sygnal'] },
+      })
     })
   })
 

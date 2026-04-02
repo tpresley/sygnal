@@ -49,16 +49,25 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
     config(_config: any, env: { command: string }) {
       isServe = env.command === 'serve'
 
-      if (disableJsx) return
+      const config: any = {
+        // Ensure sygnal is bundled for SSR rather than externalized.
+        // Without this, Node fails to resolve sygnal's exports from
+        // Vike's server chunks in production builds.
+        ssr: {
+          noExternal: ['sygnal'],
+        },
+      }
 
-      return {
-        oxc: {
+      if (!disableJsx) {
+        config.oxc = {
           jsx: {
             runtime: 'automatic' as const,
             importSource: 'sygnal',
           },
-        },
+        }
       }
+
+      return config
     },
 
     transform(code: string, id: string) {
