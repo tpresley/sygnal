@@ -50,11 +50,30 @@ export function onRenderHtml(pageContext: PageContext) {
   const { Page, config } = pageContext
   const data = pageContext.data || {}
 
-  // SPA mode: return empty shell, let the client render everything
+  // SPA mode: return empty shell, let the client render everything.
+  // Head component and meta tags are still included — they're static
+  // metadata that should be present regardless of SSR being disabled.
   if (config.ssr === false) {
     const lang = config.lang || 'en'
     const title = config.title || ''
+    const description = config.description || ''
+    const favicon = config.favicon || ''
     const titleTag = title ? `<title>${esc(title)}</title>` : ''
+    const descTag = description
+      ? `<meta name="description" content="${esc(description)}">`
+      : ''
+    const faviconTag = favicon
+      ? `<link rel="icon" href="${esc(favicon)}">`
+      : ''
+
+    let headContent = ''
+    if (config.Head && typeof config.Head === 'function') {
+      try {
+        headContent = renderToString(config.Head, { state: {} })
+      } catch (_) {
+        // Head rendering failure is non-fatal
+      }
+    }
 
     const spaHtml = `<!DOCTYPE html>
 <html lang="${lang}">
@@ -62,6 +81,9 @@ export function onRenderHtml(pageContext: PageContext) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     ${titleTag}
+    ${descTag}
+    ${faviconTag}
+    ${headContent}
   </head>
   <body>
     <div id="page-view"></div>

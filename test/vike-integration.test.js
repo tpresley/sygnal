@@ -357,6 +357,39 @@ describe('vike-sygnal SSR rendering', () => {
     })
   })
 
+  it('SPA mode includes Head, description, and favicon in shell', async () => {
+    const { onRenderHtml } = await import('../dist/vike/onRenderHtml.mjs')
+
+    function Head() {
+      return {
+        sel: 'link',
+        data: { attrs: { rel: 'stylesheet', href: '/style.css' } },
+        children: undefined,
+        text: undefined,
+        elm: undefined,
+        key: undefined,
+      }
+    }
+
+    const result = onRenderHtml({
+      Page: function () { return { sel: 'div', data: {}, children: [] } },
+      config: {
+        ssr: false,
+        title: 'SPA Page',
+        description: 'A test page',
+        favicon: '/icon.png',
+        Head,
+      },
+    })
+
+    const html = result.documentHtml._escaped
+    expect(html).toContain('<title>SPA Page</title>')
+    expect(html).toContain('content="A test page"')
+    expect(html).toContain('href="/icon.png"')
+    expect(html).toContain('href="/style.css"')
+    expect(html).toContain('<div id="page-view"></div>')
+  })
+
   it('builds combined wrapper state for multiple nested layouts', () => {
     function Page() { return { sel: 'div', data: {}, children: [] } }
     Page.initialState = { title: 'Home' }
