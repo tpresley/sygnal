@@ -155,6 +155,14 @@ function processSSRTree(vnode: any, context: Record<string, any>, parentState?: 
 
   const sel = vnode.sel
 
+  // Fragment: no selector, recurse into children
+  if (!sel && vnode.children && Array.isArray(vnode.children)) {
+    vnode.children = vnode.children
+      .map((c: any) => processSSRTree(c, context, parentState))
+      .filter((c: any) => c != null)
+    return vnode
+  }
+
   // Portal: render children inline (no target container on server)
   if (sel === 'portal') {
     const children = vnode.children || []
@@ -543,6 +551,10 @@ function vnodeToHtml(vnode: any): string {
   const sel = vnode.sel
   if (!sel) {
     if (vnode.text != null) return escapeHtml(String(vnode.text))
+    // Fragment: no selector, but has children — concatenate child HTML
+    if (vnode.children && Array.isArray(vnode.children)) {
+      return vnode.children.map((c: any) => vnodeToHtml(c)).join('')
+    }
     return ''
   }
 

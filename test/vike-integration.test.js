@@ -390,6 +390,45 @@ describe('vike-sygnal SSR rendering', () => {
     expect(html).toContain('<div id="page-view"></div>')
   })
 
+  it('renderToString serializes JSX fragments by concatenating children', () => {
+    // Fragment vnodes have sel: undefined, children: [...]
+    // This is how <> ... </> renders in snabbdom
+    function FragmentHead() {
+      return {
+        sel: undefined,
+        data: {},
+        children: [
+          {
+            sel: 'link',
+            data: { attrs: { rel: 'stylesheet', href: '/a.css' } },
+            children: undefined,
+            text: undefined,
+            elm: undefined,
+            key: undefined,
+          },
+          {
+            sel: 'meta',
+            data: { attrs: { name: 'theme-color', content: '#000' } },
+            children: undefined,
+            text: undefined,
+            elm: undefined,
+            key: undefined,
+          },
+        ],
+        text: undefined,
+        elm: undefined,
+        key: undefined,
+      }
+    }
+    FragmentHead.initialState = {}
+
+    const html = renderToString(FragmentHead)
+    expect(html).toContain('href="/a.css"')
+    expect(html).toContain('name="theme-color"')
+    // Should NOT wrap in a <div> — fragments produce no wrapper element
+    expect(html).not.toContain('<div>')
+  })
+
   it('builds combined wrapper state for multiple nested layouts', () => {
     function Page() { return { sel: 'div', data: {}, children: [] } }
     Page.initialState = { title: 'Home' }
