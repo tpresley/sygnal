@@ -233,6 +233,47 @@ export default {
 
 In SPA mode, the server returns an empty HTML shell and all rendering happens client-side.
 
+## Custom Drivers
+
+Pass additional Cycle.js drivers via the `drivers` config option. These are merged with the default drivers (DOM, STATE, EVENTS, LOG) and made available to all components:
+
+```javascript
+// pages/+config.js
+import vikeSygnal from 'sygnal/config'
+import { makeWebSocketDriver } from '../src/drivers/ws.js'
+
+export default {
+  extends: [vikeSygnal],
+  drivers: {
+    WS: makeWebSocketDriver('/ws'),
+  },
+}
+```
+
+Components access driver sources in `intent` and emit to driver sinks via `model`, just like in a standalone Sygnal app:
+
+```jsx
+function Dashboard({ state }) {
+  return <div>{state.messages.length} messages</div>
+}
+
+Dashboard.initialState = { messages: [] }
+
+Dashboard.intent = ({ DOM, WS }) => ({
+  NEW_MESSAGE: WS.select('message'),
+  SEND: DOM.click('.send-btn'),
+})
+
+Dashboard.model = {
+  NEW_MESSAGE: (state, msg) => ({ ...state, messages: [...state.messages, msg] }),
+  SEND: {
+    WS: (state) => ({ type: 'ping' }),
+  },
+}
+```
+
+Drivers are client-only — they are not available during SSR. The same drivers are shared across Wrapper, Layout, and Page components since they all run within a single `run()` call.
+
 ## Config Options
 
 These options can be set in any `+config.js` file:
@@ -244,6 +285,7 @@ These options can be set in any `+config.js` file:
 | `favicon` | `string` | Path to favicon (global) |
 | `lang` | `string` | HTML lang attribute |
 | `ssr` | `boolean` | Set to `false` for client-only rendering |
+| `drivers` | `Record<string, Driver>` | Additional Cycle.js drivers passed to `run()` (client-only) |
 | `Layout` | component | Sygnal component wrapping page content |
 | `Head` | component | Component rendered into `<head>` |
 

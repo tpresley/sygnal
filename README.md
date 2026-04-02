@@ -423,7 +423,7 @@ import vikeSygnal from 'sygnal/config'
 export default { extends: [vikeSygnal] }
 ```
 
-Pages are standard Sygnal components in `pages/*/+Page.jsx`. Supports layouts, data fetching, SPA mode, and `ClientOnly` for browser-only components.
+Pages are standard Sygnal components in `pages/*/+Page.jsx`. Supports layouts, data fetching, SPA mode, custom drivers, and `ClientOnly` for browser-only components.
 
 ### TypeScript
 

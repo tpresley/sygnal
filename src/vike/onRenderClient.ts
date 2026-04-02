@@ -36,6 +36,7 @@ interface PageContext {
     Wrapper?: any | any[]
     title?: string
     ssr?: boolean
+    drivers?: Record<string, (sink: any) => any>
   }
 }
 
@@ -310,7 +311,7 @@ export function onRenderClient(pageContext: PageContext) {
       const Component = createLayoutWrapper(wrappers, layouts, Page)
 
       try {
-        currentApp = run(Component, {}, { mountPoint: '#page-view' }) as any
+        currentApp = run(Component, config.drivers || {}, { mountPoint: '#page-view' }) as any
       } catch (err: any) {
         console.error('[sygnal/vike] Client render error:', err)
         const container = document.getElementById('page-view')
@@ -347,7 +348,7 @@ export function onRenderClient(pageContext: PageContext) {
     }
 
     try {
-      currentApp = run(Page, {}, { mountPoint: '#page-view' }) as any
+      currentApp = run(Page, config.drivers || {}, { mountPoint: '#page-view' }) as any
     } catch (err: any) {
       console.error('[sygnal/vike] Client render error:', err)
       const container = document.getElementById('page-view')

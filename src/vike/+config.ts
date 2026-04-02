@@ -42,6 +42,9 @@ export default {
     lang: {
       env: { server: true, client: true },
     },
+    drivers: {
+      env: { client: true },
+    },
     ssr: {
       env: { config: true },
       effect({ configDefinedAt, configValue }: { configDefinedAt: string; configValue: unknown }) {

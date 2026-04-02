@@ -22,6 +22,8 @@ declare global {
       favicon?: string
       /** <html lang="..."> attribute (default: "en") */
       lang?: string
+      /** Additional Cycle.js drivers to pass to run() (e.g. WebSocket, HTTP). Client-only. */
+      drivers?: Record<string, (sink: any) => any>
       /** Enable/disable SSR for this page (default: true). Set false for SPA mode. */
       ssr?: boolean
     }

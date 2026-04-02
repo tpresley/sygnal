@@ -84,6 +84,12 @@ describe('vike-sygnal config', () => {
     })
   })
 
+  it('defines drivers meta with client-only env', () => {
+    expect(vikeConfig.meta.drivers).toEqual({
+      env: { client: true },
+    })
+  })
+
   it('defines ssr meta with config env and effect', () => {
     expect(vikeConfig.meta.ssr.env).toEqual({ config: true })
     expect(typeof vikeConfig.meta.ssr.effect).toBe('function')
