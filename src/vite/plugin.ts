@@ -121,7 +121,7 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
         if (hasHmr && hasDispose) {
           // Already has both bindings, just add hot.accept/dispose
           transformed += hmrBlock(componentPath, 'hmr', 'dispose')
-          return { code: transformed, map: null }
+          return { code: transformed }
         }
       }
 
@@ -132,7 +132,7 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
       if (varMatch) {
         const varName = varMatch[1]
         transformed += hmrBlock(componentPath, `${varName}.hmr`, `${varName}.dispose`)
-        return { code: transformed, map: null }
+        return { code: transformed }
       }
 
       // Pattern 3: bare run(App, ...) — no result captured
@@ -142,7 +142,7 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
         'const __sygnal = run('
       )
       transformed += hmrBlock(componentPath, '__sygnal.hmr', '__sygnal.dispose')
-      return { code: transformed, map: null }
+      return { code: transformed }
     },
   }
 }
