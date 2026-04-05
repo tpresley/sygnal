@@ -197,6 +197,7 @@ class Component {
   _calculatedOrder: Array<[string, {fn: (...args: any[]) => any; deps: string[] | null}]> | null;
   _calculatedFieldCache: Record<string, {lastDepValues: any; lastResult: any}> | null;
   _subscriptions: any[];
+  _processedChildren$: any;
   _disposeListener: any;
   _dispose$: any;
   _activeSubComponents: Map<string, any>;
@@ -378,17 +379,20 @@ class Component {
 
     const children$ = sources.children$
     if (children$) {
-      this.sources.children$ = children$.map((val: any) => {
+      // Process children and extract slots once, share across subscribers
+      this._processedChildren$ = children$.map((val: any) => {
         if (Array.isArray(val)) {
           const { slots, defaultChildren } = extractSlots(val)
           this.currentSlots = slots
           this.currentChildren = defaultChildren
+          return { children: defaultChildren, slots }
         } else {
           this.currentSlots = {}
           this.currentChildren = val
+          return { children: val, slots: {} }
         }
-        return val
       })
+      this.sources.children$ = this._processedChildren$.map((p: any) => p.children)
     }
 
     if (this.sources[DOMSourceName]) {
@@ -552,7 +556,7 @@ class Component {
       }
       const mapped = Object.entries(this.intent$)
                            .map(([type, data$]: [string, any]) => data$.map((data: any) => ({type, data})))
-      runner = xs.merge(xs.never(), ...mapped)
+      runner = mapped.length > 0 ? xs.merge(...mapped) : xs.never()
     }
 
     const action$    = ((runner instanceof Stream) ? runner : (runner.apply && runner(this.sources) || xs.never()))
@@ -744,7 +748,7 @@ class Component {
 
     const model$ = Object.entries(reducers).reduce((acc: Record<string, any>, entry: [string, any]) => {
       const [sink, streams] = entry
-      acc[sink] = xs.merge(xs.never(), ...streams)
+      acc[sink] = streams.length === 1 ? streams[0] : xs.merge(...streams)
       return acc
     }, {} as Record<string, any>)
 
@@ -1114,14 +1118,9 @@ class Component {
       renderParams.props = this.sources.props$.compose(dropRepeats(propsIsEqual))
     }
 
-    if (this.sources.children$) {
-      const processedChildren$ = this.sources.children$.map((val: any) => {
-        if (!Array.isArray(val)) return { children: val, slots: {} }
-        const { slots, defaultChildren } = extractSlots(val)
-        return { children: defaultChildren, slots }
-      })
-      renderParams.children = processedChildren$.map((p: any) => p.children).compose(dropRepeats(objIsEqual))
-      renderParams.slots = processedChildren$.map((p: any) => p.slots).compose(dropRepeats(objIsEqual))
+    if (this._processedChildren$) {
+      renderParams.children = this._processedChildren$.map((p: any) => p.children).compose(dropRepeats(objIsEqual))
+      renderParams.slots = this._processedChildren$.map((p: any) => p.slots).compose(dropRepeats(objIsEqual))
     }
 
     if (this.context$) {
