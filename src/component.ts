@@ -1274,6 +1274,43 @@ class Component {
       .remember()
   }
 
+  createSubComponentLense(stateField: any, componentType: string, defaultState?: any): any {
+    const baseLense = {
+      get: (state: any) => state,
+      set: (_oldState: any, newState: any) => newState
+    }
+
+    if (typeof stateField === 'undefined') return baseLense
+
+    if (typeof stateField === 'string') {
+      return {
+        get: (state: any) => {
+          const slice = state[stateField]
+          if (typeof slice === 'undefined' && defaultState) return defaultState
+          return slice
+        },
+        set: (oldState: any, newState: any) => {
+          if (this.calculated && stateField in this.calculated) {
+            console.warn(`${componentType} of ${this.name} attempted to update state on a calculated field '${stateField}': Update ignored`)
+            return oldState
+          }
+          return { ...oldState, [stateField]: newState }
+        }
+      }
+    }
+
+    if (isObj(stateField)) {
+      if (typeof stateField.get !== 'function') {
+        console.error(`${componentType} in ${this.name} has an invalid 'state' field: Expecting 'undefined', a string indicating a state property, or an object with 'get' and 'set' functions. Attempting to use parent component state.`)
+        return baseLense
+      }
+      return { get: stateField.get, set: stateField.set }
+    }
+
+    console.error(`Invalid state provided to ${componentType} of ${this.name}: Expecting string, object, or undefined, but found ${typeof stateField}. Attempting to use parent component state.`)
+    return baseLense
+  }
+
   instantiateCollection(el: any, props$: any, children$: any): any {
     const data      = el.data
     const props     = data.props || {}
@@ -1447,40 +1484,7 @@ class Component {
 
     const stateSource = new StateSource(state$, this.stateSourceName)
     const stateField  = props.state
-    let lense
-
-    const fieldLense = {
-      get: (state: any) => state[stateField],
-      set: (oldState: any, newState: any) => {
-        if (this.calculated && stateField in this.calculated) {
-          console.warn(`Switchable sub-component of ${this.name} attempted to update state on a calculated field '${stateField}': Update ignored`)
-          return oldState
-        }
-        if (!isObj(newState) || Array.isArray(newState)) return { ...oldState, [stateField]: newState }
-        return { ...oldState, [stateField]: newState }
-      }
-    }
-
-    const baseLense = {
-      get: (state: any) => state,
-      set: (oldState: any, newState: any) => newState
-    }
-
-    if (typeof stateField === 'undefined') {
-      lense = baseLense
-    } else if (typeof stateField === 'string') {
-      lense = fieldLense
-    } else if (isObj(stateField)) {
-      if (typeof stateField.get !== 'function') {
-        console.error(`Switchable component in ${this.name} has an invalid 'state' field: Expecting 'undefined', a string indicating an array property in the state, or an object with 'get' and 'set' functions for retrieving and setting sub-component state from the current state. Attempting to use parent component state.`)
-        lense = baseLense
-      } else {
-        lense = { get: stateField.get, set: stateField.set }
-      }
-    } else {
-      console.error(`Invalid state provided to switchable sub-component of ${this.name}: Expecting string, object, or undefined, but found ${typeof stateField}. Attempting to use parent component state.`)
-      lense = baseLense
-    }
+    const lense = this.createSubComponentLense(stateField, 'Switchable sub-component')
 
     const switchableComponents = props.of
     const keys = Object.keys(switchableComponents)
@@ -1539,44 +1543,8 @@ class Component {
       )
     }
 
-    let lense
-
     const subInitState = subIsolatedState ? subInitialState : undefined
-    const fieldLense = {
-      get: (state: any) => {
-        const slice = state[stateField]
-        if (typeof slice === 'undefined' && subInitState) return subInitState
-        return slice
-      },
-      set: (oldState: any, newState: any) => {
-        if (this.calculated && stateField in this.calculated) {
-          console.warn(`Sub-component of ${this.name} attempted to update state on a calculated field '${stateField}': Update ignored`)
-          return oldState
-        }
-        return { ...oldState, [stateField]: newState }
-      }
-    }
-
-    const baseLense = {
-      get: (state: any) => state,
-      set: (oldState: any, newState: any) => newState
-    }
-
-    if (typeof stateField === 'undefined') {
-      lense = baseLense
-    } else if (typeof stateField === 'string') {
-      lense = fieldLense
-    } else if (isObj(stateField)) {
-      if (typeof stateField.get !== 'function') {
-        console.error(`Sub-component in ${this.name} has an invalid 'state' field: Expecting 'undefined', a string indicating an array property in the state, or an object with 'get' and 'set' functions for retrieving and setting sub-component state from the current state. Attempting to use parent component state.`)
-        lense = baseLense
-      } else {
-        lense = { get: stateField.get, set: stateField.set }
-      }
-    } else {
-      console.error(`Invalid state provided to sub-component of ${this.name}: Expecting string, object, or undefined, but found ${typeof stateField}. Attempting to use parent component state.`)
-      lense = baseLense
-    }
+    const lense = this.createSubComponentLense(stateField, 'Sub-component', subInitState)
 
     const sources: Record<string, any> = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$, __parentContext$: this.context$, __parentComponentNumber: this._componentNumber }
 
