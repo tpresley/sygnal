@@ -1,4 +1,4 @@
-import xs from 'xstream'
+import {xs} from 'sygnal'
 
 function DisposableChild({ state } = {}) {
   return (
