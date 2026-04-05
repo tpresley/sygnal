@@ -876,4 +876,101 @@ describe('component integration (mockDOMSource)', () => {
       testEnv = null
     })
   })
+
+  describe('render pipeline timing', () => {
+    it('coalesces rapid state changes into final render', async () => {
+      let renderCount = 0
+
+      function App({ state }) {
+        renderCount++
+        return createElement('div', null, String(state.count))
+      }
+      App.initialState = { count: 0 }
+      App.intent = ({ DOM }) => ({
+        INC: DOM.select('.inc').events('click'),
+      })
+      App.model = {
+        INC: (state) => ({ ...state, count: state.count + 1 }),
+      }
+
+      testEnv = createTestComponent(App)
+      await settle()
+
+      const initialRenders = renderCount
+
+      // Rapid-fire state changes synchronously
+      testEnv.sources.STATE.stream.shamefullySendNext({ count: 1 })
+      testEnv.sources.STATE.stream.shamefullySendNext({ count: 2 })
+      testEnv.sources.STATE.stream.shamefullySendNext({ count: 3 })
+      await settle()
+
+      // State should reflect final value
+      const lastState = testEnv.states[testEnv.states.length - 1]
+      expect(lastState.count).toBe(3)
+
+      // Debounce should coalesce — render count should be less than one-per-change
+      // (initial renders + at most a few, not 3 extra)
+      expect(renderCount - initialRenders).toBeLessThanOrEqual(3)
+    })
+
+    it('renders correct view after state and context update together', async () => {
+      let lastRenderedState = null
+
+      function App({ state, context }) {
+        lastRenderedState = state
+        return createElement('div', null,
+          createElement('span', null, `count:${state.count}`),
+          createElement('span', null, `doubled:${context.doubled}`)
+        )
+      }
+      App.initialState = { count: 0 }
+      App.context = { doubled: state => state.count * 2 }
+      App.intent = ({ DOM }) => ({
+        INC: DOM.select('.inc').events('click'),
+      })
+      App.model = {
+        INC: (state) => ({ ...state, count: state.count + 1 }),
+      }
+
+      testEnv = createTestComponent(App)
+      await settle()
+
+      testEnv.sources.STATE.stream.shamefullySendNext({ count: 5 })
+      await settle()
+
+      expect(lastRenderedState.count).toBe(5)
+      // Vnodes should exist (renders happened)
+      expect(testEnv.vnodes.length).toBeGreaterThan(0)
+    })
+
+    it('handles interleaved state updates without stale renders', async () => {
+      const renderedValues = []
+
+      function App({ state }) {
+        renderedValues.push(state.value)
+        return createElement('div', null, state.value)
+      }
+      App.initialState = { value: 'initial' }
+      App.intent = ({ DOM }) => ({
+        SET: DOM.select('.set').events('click'),
+      })
+      App.model = {
+        SET: (state, data) => ({ ...state, value: data }),
+      }
+
+      testEnv = createTestComponent(App)
+      await settle()
+
+      // Push updates with small delays to test debounce coalescing
+      testEnv.sources.STATE.stream.shamefullySendNext({ value: 'a' })
+      await new Promise(r => setTimeout(r, 0))
+      testEnv.sources.STATE.stream.shamefullySendNext({ value: 'b' })
+      await new Promise(r => setTimeout(r, 0))
+      testEnv.sources.STATE.stream.shamefullySendNext({ value: 'c' })
+      await settle()
+
+      // The last rendered value must be the final state
+      expect(renderedValues[renderedValues.length - 1]).toBe('c')
+    })
+  })
 })

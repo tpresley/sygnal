@@ -1151,9 +1151,11 @@ class Component {
   }
 
   instantiateSubComponents(vDom$: any): any {
+    // Build the component name Set once outside the fold — avoids rebuilding per render
+    const componentNameSet = new Set(['collection', 'switchable', 'sygnal-factory', ...Object.keys(this.components)])
+
     return vDom$.fold((previousComponents: any, vDom: any) => {
-      const componentNames  = Object.keys(this.components)
-      const foundComponents = getComponents(vDom, componentNames)
+      const foundComponents = getComponents(vDom, componentNameSet)
       const entries         = Object.entries(foundComponents)
 
       const rootEntry: Record<string, any> = { '::ROOT::': vDom }
@@ -1569,11 +1571,12 @@ class Component {
   }
 
   renderVdom(componentInstances$: any): any {
+    // Build the component name Set once — avoids rebuilding per render cycle
+    const componentNameSet = new Set(['collection', 'switchable', 'sygnal-factory', ...Object.keys(this.components)])
+
     return xs.combine(this.subComponentsRendered$, componentInstances$, this._readyChanged$.startWith(null))
       .compose(debounce(1))
       .map(([_, components]: [any, any]) => {
-        const componentNames = Object.keys(this.components)
-
         const root  = components['::ROOT::']
         const entries = Object.entries(components).filter(([id]) => id !== '::ROOT::')
 
@@ -1622,13 +1625,13 @@ class Component {
         }
 
         return xs.combine(...vdom$)
-          .compose(debounce(1))
+          .filter((vdoms: any) => vdoms.every((v: any) => v !== undefined))
           .map((vdoms: any) => {
             const withIds = vdoms.reduce((acc: Record<string, any>, vdom: any, index: any) => {
               acc[ids[index]] = vdom
               return acc
             }, {} as Record<string, any>)
-            const injected = injectComponents(root, withIds, componentNames, 'r', undefined, this._childReadyState)
+            const injected = injectComponents(root, withIds, componentNameSet, 'r', undefined, this._childReadyState)
             return processSuspensePost(injected)
           })
       })
@@ -1687,21 +1690,21 @@ class Component {
 
 
 
-function getComponents(currentElement: any, componentNames: string[], path: string = 'r', parentId?: string): Record<string, any> {
-  if (!currentElement) return {}
+function getComponents(currentElement: any, componentNameSet: Set<string>, path: string = 'r', parentId?: string, found?: Record<string, any>): Record<string, any> {
+  if (!currentElement) return found || {}
 
-  if (currentElement.data?.componentsProcessed) return {}
+  if (currentElement.data?.componentsProcessed) return found || {}
   if (path === 'r') currentElement.data.componentsProcessed = true
+
+  // Allocate the result object only at the root call
+  if (!found) found = {}
 
   const sel          = currentElement.sel
   const isCollection = sel && sel.toLowerCase() === 'collection'
   const isSwitchable = sel && sel.toLowerCase() === 'switchable'
-  const isComponent  = sel && (['collection', 'switchable', 'sygnal-factory', ...componentNames].includes(sel)) || typeof currentElement.data?.props?.sygnalFactory === 'function' || isObj(currentElement.data?.props?.sygnalOptions)
+  const isComponent  = (sel && componentNameSet.has(sel)) || typeof currentElement.data?.props?.sygnalFactory === 'function' || isObj(currentElement.data?.props?.sygnalOptions)
   const props        = (currentElement.data && currentElement.data.props) || {}
-  const attrs        = (currentElement.data && currentElement.data.attrs) || {}
   const children     = currentElement.children || []
-
-  let found: Record<string, any>    = {}
 
   let id = parentId
   if (isComponent) {
@@ -1709,7 +1712,7 @@ function getComponents(currentElement: any, componentNames: string[], path: stri
     if (isCollection) {
       if (!props.of)   throw new Error(`Collection element missing required 'component' property`)
       if (typeof props.of !== 'string' && typeof props.of !== 'function')         throw new Error(`Invalid 'component' property of collection element: found ${ typeof props.of } requires string or component factory function`)
-      if (typeof props.of !== 'function' && !componentNames.includes(props.of))   throw new Error(`Specified component for collection not found: ${props.of}`)
+      if (typeof props.of !== 'function' && !componentNameSet.has(props.of))   throw new Error(`Specified component for collection not found: ${props.of}`)
       if (typeof props.from !== 'undefined' && !(typeof props.from === 'string' || Array.isArray(props.from) || typeof props.from.get === 'function')) console.warn(`No valid array found for collection ${ typeof props.of === 'string' ? props.of : 'function component' }: no collection components will be created`, props.from)
       currentElement.data.isCollection = true
       currentElement.data.props ||= {}
@@ -1722,28 +1725,23 @@ function getComponents(currentElement: any, componentNames: string[], path: stri
       const switchableComponentNames = Object.keys(props.of)
       if (!switchableComponentNames.includes(props.current)) throw new Error(`Component '${props.current}' not found in switchable element`)
       currentElement.data.isSwitchable = true
-    } else {
-
     }
     if (typeof props.key === 'undefined') currentElement.data.props.key = id
     found[id] = currentElement
   }
 
-  if (children.length > 0) {
-    children.map((child: any, i: any) => getComponents(child, componentNames, `${path}.${i}`, id))
-            .forEach((child: any) => {
-              Object.entries(child).forEach(([id, el]: [string, any]) => found[id] = el)
-            })
+  for (let i = 0; i < children.length; i++) {
+    getComponents(children[i], componentNameSet, `${path}.${i}`, id, found)
   }
 
   return found
 }
 
-function injectComponents(currentElement: any, components: Record<string, any>, componentNames: string[], path: string = 'r', parentId?: string, readyMap?: Record<string, boolean>): any {
+function injectComponents(currentElement: any, components: Record<string, any>, componentNameSet: Set<string>, path: string = 'r', parentId?: string, readyMap?: Record<string, boolean>): any {
   if (!currentElement) return undefined
 
   const sel          = currentElement.sel || 'NO SELECTOR'
-  const isComponent  = ['collection', 'switchable', 'sygnal-factory', ...componentNames].includes(sel) || typeof currentElement.data?.props?.sygnalFactory === 'function' || isObj(currentElement.data?.props?.sygnalOptions)
+  const isComponent  = componentNameSet.has(sel) || typeof currentElement.data?.props?.sygnalFactory === 'function' || isObj(currentElement.data?.props?.sygnalOptions)
   const isCollection = currentElement?.data?.isCollection
   const children     = currentElement.children || []
 
@@ -1774,7 +1772,7 @@ function injectComponents(currentElement: any, components: Record<string, any>, 
       return component
     }
   } else if (children.length > 0) {
-    const newChildren = children.map((child: any, i: any) => injectComponents(child, components, componentNames, `${path}.${i}`, id, readyMap)).flat()
+    const newChildren = children.map((child: any, i: any) => injectComponents(child, components, componentNameSet, `${path}.${i}`, id, readyMap)).flat()
     return { ...currentElement, children: newChildren }
   } else {
     return currentElement
