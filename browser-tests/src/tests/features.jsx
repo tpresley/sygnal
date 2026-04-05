@@ -88,6 +88,56 @@ export async function featureTests() {
     targetEl.remove()
   })
 
+  // Portal — target inside same component tree
+  await runTest(CAT, 'Portal renders into target within same component tree', async () => {
+    const { id, el } = mount()
+
+    function App({ state } = {}) {
+      return <div>
+        <div id="in-tree-target"></div>
+        <Portal target="#in-tree-target">
+          <span className="ported-inner">Inside tree</span>
+        </Portal>
+      </div>
+    }
+    run(App, {}, { mountPoint: id })
+    await waitFor(() => el.querySelector('#in-tree-target .ported-inner'), 2000)
+    assert(
+      el.querySelector('#in-tree-target .ported-inner')?.textContent === 'Inside tree',
+      'Portal should render into target within same component tree'
+    )
+  })
+
+  // Portal — target rendered by sibling sub-component
+  await runTest(CAT, 'Portal renders into target from sibling sub-component', async () => {
+    const { id, el } = mount()
+    const uniqueId = 'modal-host-' + id.replace('#', '')
+
+    function ModalHost({ state }) {
+      return <div id={uniqueId} className="host-rendered"></div>
+    }
+    ModalHost.initialState = {}
+    ModalHost.isolatedState = true
+
+    function App({ state } = {}) {
+      return <div>
+        <ModalHost state="host" />
+        <Portal target={`#${uniqueId}`}>
+          <span className="modal-content">Modal here</span>
+        </Portal>
+      </div>
+    }
+    App.initialState = { host: {} }
+    run(App, {}, { mountPoint: id })
+    // Wait for sub-component target, then portal content
+    await waitFor(() => el.querySelector('.host-rendered'), 2000)
+    await waitFor(() => document.querySelector(`#${uniqueId} .modal-content`), 2000)
+    assert(
+      document.querySelector(`#${uniqueId} .modal-content`)?.textContent === 'Modal here',
+      'Portal should render into target from sibling sub-component'
+    )
+  })
+
   // Disposal — dispose$ fires on unmount
   await runTest(CAT, 'dispose$ emits on component unmount', async () => {
     const { id, el } = mount()

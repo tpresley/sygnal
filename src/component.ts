@@ -1671,8 +1671,7 @@ class Component {
               acc[ids[index]] = vdom
               return acc
             }, {} as Record<string, any>)
-            const rootCopy = deepCopyVdom(root)
-            const injected = injectComponents(rootCopy, withIds, componentNames, 'r', undefined, this._childReadyState)
+            const injected = injectComponents(root, withIds, componentNames, 'r', undefined, this._childReadyState)
             return processSuspensePost(injected)
           })
       })
@@ -1784,40 +1783,42 @@ function getComponents(currentElement: any, componentNames: string[], path: stri
 }
 
 function injectComponents(currentElement: any, components: Record<string, any>, componentNames: string[], path: string = 'r', parentId?: string, readyMap?: Record<string, boolean>): any {
-  if (!currentElement) return
-  if (currentElement.data?.componentsInjected) return currentElement
-  if (path === 'r' && currentElement.data) currentElement.data.componentsInjected = true
-
+  if (!currentElement) return undefined
 
   const sel          = currentElement.sel || 'NO SELECTOR'
   const isComponent  = ['collection', 'switchable', 'sygnal-factory', ...componentNames].includes(sel) || typeof currentElement.data?.props?.sygnalFactory === 'function' || isObj(currentElement.data?.props?.sygnalOptions)
   const isCollection = currentElement?.data?.isCollection
-  const isSwitchable = currentElement?.data?.isSwitchable
-  const props        = (currentElement.data && currentElement.data.props) || {}
   const children     = currentElement.children || []
 
   let id = parentId
   if (isComponent) {
     id  = getComponentIdFromElement(currentElement, path, parentId)
     let component = components[id]
-    // Annotate the injected VNode with its READY state
+    // Annotate the injected VNode with its READY state (non-mutating)
     if (readyMap && id && component && typeof component === 'object' && component.sel) {
-      component.data = component.data || {}
-      component.data.attrs = component.data.attrs || {}
-      component.data.attrs['data-sygnal-ready'] = readyMap[id] !== false ? 'true' : 'false'
+      component = {
+        ...component,
+        data: {
+          ...(component.data || {}),
+          attrs: {
+            ...(component.data?.attrs || {}),
+            'data-sygnal-ready': readyMap[id] !== false ? 'true' : 'false'
+          }
+        }
+      }
     }
     if (isCollection) {
-      currentElement.sel = 'div'
-      currentElement.children = Array.isArray(component) ? component : [component]
-      return currentElement
-    } else if (isSwitchable) {
-      return component
+      return {
+        ...currentElement,
+        sel: 'div',
+        children: Array.isArray(component) ? component : [component]
+      }
     } else {
       return component
     }
   } else if (children.length > 0) {
-    currentElement.children = children.map((child: any, i: any) => injectComponents(child, components, componentNames, `${path}.${i}`, id, readyMap)).flat()
-    return currentElement
+    const newChildren = children.map((child: any, i: any) => injectComponents(child, components, componentNames, `${path}.${i}`, id, readyMap)).flat()
+    return { ...currentElement, children: newChildren }
   } else {
     return currentElement
   }
@@ -1873,7 +1874,8 @@ function processSuspensePost(vnode: any): any {
     return { sel: 'div', data: { attrs: { 'data-sygnal-suspense': 'resolved' } }, children: children.map((c: any) => processSuspensePost(c)), text: undefined, elm: undefined, key: undefined }
   }
   if (vnode.children && vnode.children.length > 0) {
-    vnode.children = vnode.children.map((c: any) => processSuspensePost(c))
+    const newChildren = vnode.children.map((c: any) => processSuspensePost(c))
+    return { ...vnode, children: newChildren }
   }
   return vnode
 }
@@ -2037,6 +2039,21 @@ function onTransitionEnd(el: any, duration: number | undefined, cb: () => void):
 }
 
 
+function portalMount(vnode: any, target: string, children: any[]): void {
+  const container = document.querySelector(target)
+  if (!container) {
+    console.warn(`[Portal] Target "${target}" not found in DOM`)
+    return
+  }
+  const anchor = document.createElement('div')
+  container.appendChild(anchor)
+  vnode.data._portalVnode = portalPatch(anchor, {
+    sel: 'div', data: {}, children,
+    text: undefined, elm: undefined, key: undefined,
+  })
+  vnode.data._portalContainer = container
+}
+
 function createPortalPlaceholder(target: string, children: any[]): any {
   const portalChildren = children || []
 
@@ -2048,24 +2065,41 @@ function createPortalPlaceholder(target: string, children: any[]): any {
       portalChildren,
       hook: {
         insert: (vnode: any) => {
+          // Try synchronously first (target outside component tree or
+          // plain element in the same patch cycle).
           const container = document.querySelector(target)
-          if (!container) {
-            console.warn(`[Portal] Target "${target}" not found in DOM`)
+          if (container) {
+            portalMount(vnode, target, portalChildren)
             return
           }
-          const anchor = document.createElement('div')
-          container.appendChild(anchor)
-          vnode.data._portalVnode = portalPatch(anchor, {
-            sel: 'div', data: {}, children: portalChildren,
-            text: undefined, elm: undefined, key: undefined,
-          })
-          vnode.data._portalContainer = container
+          // Target may be rendered by a sub-component whose streams
+          // haven't settled yet (debounced). Retry a few times to
+          // allow sub-component rendering to complete.
+          let attempts = 0
+          const tryMount = () => {
+            if (vnode.data._portalVnode) return // already mounted
+            if (document.querySelector(target)) {
+              portalMount(vnode, target, portalChildren)
+            } else if (++attempts < 10) {
+              setTimeout(tryMount, 5)
+            } else {
+              console.warn(`[Portal] Target "${target}" not found in DOM after retries`)
+            }
+          }
+          setTimeout(tryMount, 5)
         },
         postpatch: (oldVnode: any, newVnode: any) => {
           const prevPortalVnode = oldVnode.data?._portalVnode
           const container = oldVnode.data?._portalContainer
-          if (!prevPortalVnode || !container) return
           const newChildren = newVnode.data?.portalChildren || []
+          if (!prevPortalVnode || !container) {
+            // insert was deferred and hasn't fired yet, or target
+            // wasn't found. Try mounting now with updated children.
+            if (!newVnode.data._portalVnode) {
+              portalMount(newVnode, target, newChildren)
+            }
+            return
+          }
           newVnode.data._portalVnode = portalPatch(prevPortalVnode, {
             sel: 'div', data: {}, children: newChildren,
             text: undefined, elm: undefined, key: undefined,
@@ -2087,11 +2121,6 @@ function createPortalPlaceholder(target: string, children: any[]): any {
   }
 }
 
-
-function deepCopyVdom(obj: any): any {
-  if (typeof obj === 'undefined') return obj
-  return { ...obj, children: Array.isArray(obj.children) ? obj.children.map(deepCopyVdom) : undefined, data: obj.data && { ...obj.data, componentsInjected: false } }
-}
 
 function propsIsEqual(obj1: any, obj2: any): boolean {
   return objIsEqual(sanitizeObject(obj1), sanitizeObject(obj2))
@@ -2128,16 +2157,15 @@ function objIsEqual(obj1: any, obj2?: any, maxDepth: number = 5, depth: number =
 
   // Get keys of both objects
   const keys1 = Object.keys(obj1);
-  const keys2 = Object.keys(obj2);
 
   // Check if the number of properties is different
-  if (keys1.length !== keys2.length) {
+  if (keys1.length !== Object.keys(obj2).length) {
       return false;
   }
 
   // Recursively check each property
   for (const key of keys1) {
-      if (!keys2.includes(key)) {
+      if (!(key in obj2)) {
           return false;
       }
       if (!objIsEqual(obj1[key], obj2[key], maxDepth, depth + 1)) {
