@@ -1269,16 +1269,9 @@ class Component {
   }
 
   makeCoordinatedSubComponentDomSink(domSink$: any): any {
-    const remembered$   = domSink$.remember()
-
-    const coordinated = this.sources[this.stateSourceName].stream
-      .compose(dropRepeats(objIsEqual))
-      .map((state: any) => remembered$)
-      .flatten()
+    return domSink$
       .debug((_: any) => this.triggerSubComponentsRendered())
       .remember()
-
-    return coordinated
   }
 
   instantiateCollection(el: any, props$: any, children$: any): any {
