@@ -861,10 +861,7 @@ class Component {
       })
       .compose(this.log('View rendered'))
       .map((vDom: any) => vDom || { sel: 'div', data: {}, children: [] })
-      .map((vdom: any) => processLazy(vdom, this))
-      .map(processPortals)
-      .map(processTransitions)
-      .map(processClientOnly)
+      .map((vdom: any) => preprocessVdom(vdom, this))
       .compose(this.instantiateSubComponents.bind(this))
       .filter((val: any) => val !== undefined)
       .compose(this.renderVdom.bind(this))
@@ -1881,59 +1878,6 @@ function processSuspensePost(vnode: any): any {
 
 const portalPatch = snabbdomInit(defaultModules);
 
-function processPortals(vnode: any): any {
-  if (!vnode || !vnode.sel) return vnode
-  if (vnode.sel === 'portal') {
-    const target = vnode.data?.props?.target
-    const children = vnode.children || []
-    return createPortalPlaceholder(target, children)
-  }
-  if (vnode.children && vnode.children.length > 0) {
-    vnode.children = vnode.children.map(processPortals)
-  }
-  return vnode
-}
-
-function processTransitions(vnode: any): any {
-  if (!vnode || !vnode.sel) return vnode
-  if (vnode.sel === 'transition') {
-    const props = vnode.data?.props || {}
-    const name = props.name || 'v'
-    const duration = props.duration
-    const children = vnode.children || []
-    const child = children[0]
-    if (!child || !child.sel) return child || vnode
-    return applyTransitionHooks(processTransitions(child), name, duration)
-  }
-  if (vnode.children && vnode.children.length > 0) {
-    vnode.children = vnode.children.map(processTransitions)
-  }
-  return vnode
-}
-
-function processClientOnly(vnode: any): any {
-  if (!vnode || !vnode.sel) return vnode
-  if (vnode.sel === 'clientonly') {
-    // On the client, unwrap to children (render them normally)
-    const children = vnode.children || []
-    if (children.length === 0) return { sel: 'div', data: {}, children: [] }
-    if (children.length === 1) return processClientOnly(children[0])
-    // Multiple children: wrap in a div
-    return {
-      sel: 'div',
-      data: {},
-      children: children.map(processClientOnly),
-      text: undefined,
-      elm: undefined,
-      key: undefined,
-    }
-  }
-  if (vnode.children && vnode.children.length > 0) {
-    vnode.children = vnode.children.map(processClientOnly)
-  }
-  return vnode
-}
-
 function applyTransitionHooks(vnode: any, name: string, duration?: number): any {
   const existingInsert = vnode.data?.hook?.insert
   const existingRemove = vnode.data?.hook?.remove
@@ -1977,14 +1921,17 @@ function applyTransitionHooks(vnode: any, name: string, duration?: number): any 
   return vnode
 }
 
-function processLazy(vnode: any, componentInstance: any): any {
+/**
+ * Single-pass VNode preprocessor that handles lazy, portal, transition, and clientonly
+ * nodes in one recursive walk instead of four separate passes.
+ */
+function preprocessVdom(vnode: any, componentInstance: any): any {
   if (!vnode || !vnode.sel) return vnode
 
-  // Check if this VNode wraps a lazy component via sygnalOptions
+  // Handle lazy components
   const view = vnode.data?.props?.sygnalOptions?.view
   if (view && view.__sygnalLazy) {
     if (view.__sygnalLazyLoaded()) {
-      // Lazy component is loaded — rebuild VNode with loaded component's properties
       const loaded = view.__sygnalLazyLoadedComponent
       if (loaded) {
         const props = vnode.data?.props || {}
@@ -2001,14 +1948,12 @@ function processLazy(vnode: any, componentInstance: any): any {
         }
       }
     } else {
-      // Schedule re-render when lazy promise resolves
       if (!view.__sygnalLazyReRenderScheduled && view.__sygnalLazyPromise && componentInstance) {
         view.__sygnalLazyReRenderScheduled = true
         view.__sygnalLazyPromise.then(() => {
           setTimeout(() => {
             const stateSource = componentInstance.sources?.[componentInstance.stateSourceName]
             if (stateSource && stateSource.stream) {
-              // Add a unique token to bypass dropRepeats deep comparison
               const stateCopy = { ...componentInstance.currentState, __sygnalLazyTick: Date.now() }
               stateSource.stream.shamefullySendNext(stateCopy)
             }
@@ -2018,8 +1963,42 @@ function processLazy(vnode: any, componentInstance: any): any {
     }
   }
 
+  // Handle portals
+  if (vnode.sel === 'portal') {
+    const target = vnode.data?.props?.target
+    const children = vnode.children || []
+    return createPortalPlaceholder(target, children)
+  }
+
+  // Handle transitions — recursively preprocess the child before applying hooks
+  if (vnode.sel === 'transition') {
+    const props = vnode.data?.props || {}
+    const name = props.name || 'v'
+    const duration = props.duration
+    const children = vnode.children || []
+    const child = children[0]
+    if (!child || !child.sel) return child || vnode
+    return applyTransitionHooks(preprocessVdom(child, componentInstance), name, duration)
+  }
+
+  // Handle clientonly — unwrap to children on client
+  if (vnode.sel === 'clientonly') {
+    const children = vnode.children || []
+    if (children.length === 0) return { sel: 'div', data: {}, children: [] }
+    if (children.length === 1) return preprocessVdom(children[0], componentInstance)
+    return {
+      sel: 'div',
+      data: {},
+      children: children.map((c: any) => preprocessVdom(c, componentInstance)),
+      text: undefined,
+      elm: undefined,
+      key: undefined,
+    }
+  }
+
+  // Recurse into children
   if (vnode.children && vnode.children.length > 0) {
-    vnode.children = vnode.children.map((child: any) => processLazy(child, componentInstance))
+    vnode.children = vnode.children.map((child: any) => preprocessVdom(child, componentInstance))
   }
   return vnode
 }
