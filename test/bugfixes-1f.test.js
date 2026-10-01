@@ -113,6 +113,85 @@ describe('B-003: non-STATE sinks see the state as of their action', () => {
   })
 })
 
+// ─── B-005: driverFromAsync error channel + null/undefined resolutions ───────
+
+import { driverFromAsync } from '../src/extra/driverFactories.js'
+import { vi } from 'vitest'
+
+describe('B-005: driverFromAsync', () => {
+  const manual = () => {
+    let l = null
+    const stream = xs.create({ start(x) { l = x }, stop() { l = null } })
+    return { stream, emit: v => l?.next(v) }
+  }
+  const collect = s => { const out = []; s.addListener({ next: v => out.push(v), error() {}, complete() {} }); return out }
+
+  it('delivers rejections on source.errors(category) and not on select()', async () => {
+    const err = new Error('HTTP 500')
+    const fetchQuote = async sym => { if (sym === 'BAD') throw err; return 42 }
+    const input = manual()
+    const source = driverFromAsync(fetchQuote, { args: 'symbol' })(input.stream)
+    const ok = collect(source.select('quote'))
+    const errs = collect(source.errors('quote'))
+    const otherErrs = collect(source.errors('other'))
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    input.emit({ category: 'quote', symbol: 'BAD' })
+    input.emit({ category: 'quote', symbol: 'OK' })
+    await settle(10)
+    spy.mockRestore()
+    expect(ok).toEqual([{ value: 42, category: 'quote' }])
+    expect(errs).toEqual([{ error: err, category: 'quote', request: { category: 'quote', symbol: 'BAD' } }])
+    expect(otherErrs).toEqual([])
+    expect(spy).not.toHaveBeenCalled()
+  })
+
+  it('errors() with no selector or a predicate; a rejecting post() also reports', async () => {
+    const input = manual()
+    const source = driverFromAsync(async () => 1, { post: async () => { throw new Error('post failed') } })(input.stream)
+    const all = collect(source.errors())
+    const pred = collect(source.errors(e => e.error.message === 'post failed'))
+    input.emit({ category: 'x' })
+    await settle(10)
+    expect(all.map(e => e.error.message)).toEqual(['post failed'])
+    expect(pred.length).toBe(1)
+  })
+
+  it('still logs rejections to console.error when nothing listens to errors()', async () => {
+    const input = manual()
+    const source = driverFromAsync(async () => { throw new Error('nope') })(input.stream)
+    collect(source.select())
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    input.emit({ category: 'x' })
+    await settle(10)
+    expect(spy).toHaveBeenCalledTimes(1)
+    expect(spy.mock.calls[0][0]).toContain('driverFromAsync')
+    spy.mockRestore()
+  })
+
+  it('a promise resolving to null or undefined is delivered, not thrown', async () => {
+    const input = manual()
+    const vals = [null, undefined]
+    const source = driverFromAsync(async () => vals.shift())(input.stream)
+    const out = collect(source.select('q'))
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    input.emit({ category: 'q' })
+    input.emit({ category: 'q' })
+    await settle(10)
+    expect(spy).not.toHaveBeenCalled()
+    spy.mockRestore()
+    expect(out).toEqual([{ value: null, category: 'q' }, { value: undefined, category: 'q' }])
+  })
+
+  it('a post() returning null is delivered too', async () => {
+    const input = manual()
+    const source = driverFromAsync(async () => 5, { post: () => null })(input.stream)
+    const out = collect(source.select('q'))
+    input.emit({ category: 'q' })
+    await settle(10)
+    expect(out).toEqual([{ value: null, category: 'q' }])
+  })
+})
+
 // ─── B-004: controlled value/checked follow the vnode after coalesced renders ─
 
 describe('B-004: controlledInputModule', () => {

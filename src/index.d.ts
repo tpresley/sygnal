@@ -809,8 +809,23 @@ export function lazy<PROPS = any>(
   loadFn: () => Promise<{ default: Component<any, PROPS> } | Component<any, PROPS>>
 ): Component<any, PROPS>
 
+/** Payload on `errors()` of a driverFromAsync source when a request fails */
+export type AsyncDriverError<INCOMING = any> = {
+  /** The rejection reason (or what `post` threw) */
+  error: any;
+  /** The request that failed */
+  request: INCOMING;
+  /** The request's selector property (default 'category') is copied here */
+  [selectorProperty: string]: any;
+}
+
 export type AsyncDriverFromFunction<INCOMING = any, OUTGOING = any> = {
   select: (selector?: string | ((value: OUTGOING) => boolean)) => Stream<OUTGOING>
+  /**
+   * Failed requests (rejected promise, rejected/throwing `post`). Filters like
+   * `select()`. Failures are only console.error'd while nothing listens here.
+   */
+  errors: (selector?: string | ((error: AsyncDriverError<INCOMING>) => boolean)) => Stream<AsyncDriverError<INCOMING>>
 }
 
 export type DriverFromAsyncOptions<INCOMING = any, OUTGOING = any, RETURN = any> = {
