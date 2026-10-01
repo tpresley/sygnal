@@ -42,7 +42,7 @@ export function removeUnusedEmitImport(source, path) {
     if (imp.type !== 'ImportDeclaration' || imp.source.value !== 'sygnal') continue
     const specs = imp.specifiers
     const i = specs.findIndex(s => s.type === 'ImportSpecifier' && (s.imported.name || s.imported.value) === 'emit')
-    if (i < 0 || specs.length < 2) continue
+    if (i < 0) continue
     const local = specs[i].local.name
     let uses = 0
     walk(ast.program, (n) => {
@@ -51,6 +51,14 @@ export function removeUnusedEmitImport(source, path) {
       return true
     })
     if (uses) continue
+    if (specs.length === 1) {
+      // `import { emit } from 'sygnal'` alone: drop the whole declaration (and its line break)
+      let end = imp.end
+      while (source[end] === ' ' || source[end] === '\t') end++
+      if (source[end] === '\r') end++
+      if (source[end] === '\n') end++
+      return source.slice(0, imp.start) + source.slice(end)
+    }
     const start = i > 0 ? specs[i - 1].end : specs[i].start
     const end = i > 0 ? specs[i].end : specs[i + 1].start
     return source.slice(0, start) + source.slice(end)

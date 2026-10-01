@@ -3,6 +3,7 @@
  *   R1  SYG505 raw-EVENTS rewrite: generic / typed arrows and parenthesized
  *       or sequence `data`; the re-parse backstop (SYG900 "fix skipped")
  *   R7  SYG506 only rewrites strings whose binding is a component
+ *   R8  a sole-specifier `import { emit } from 'sygnal'` is removed
  */
 import { describe, it, expect, afterEach } from 'vitest'
 import fs from 'node:fs'
@@ -10,6 +11,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { checkFiles, fixFiles, strictRules } from '../src/index.js'
 import { parseSource } from '../src/ast.js'
+import { removeUnusedEmitImport } from '../src/fix.js'
 
 let tmp
 afterEach(() => { if (tmp) fs.rmSync(tmp, { recursive: true, force: true }); tmp = null })
@@ -131,5 +133,28 @@ P.model = { A: s => s, B: s => s, C: s => s, D: s => s, E: s => s, F: s => s, G:
     expect(out).toContain('E: CHILD.select(Klass),')
     expect(out).toContain("F: CHILD.select('NS'),")
     expect(out).toContain("G: CHILD.select('Made'),")
+  })
+})
+
+describe('R8: a sole-specifier unused emit import is removed', () => {
+  it('removeUnusedEmitImport drops the whole declaration', () => {
+    expect(removeUnusedEmitImport(`import { event } from 'sygnal'\nimport { emit } from 'sygnal'\nevent('X')\n`, 'x.js'))
+      .toBe(`import { event } from 'sygnal'\nevent('X')\n`)
+    const used = `import { emit } from 'sygnal'\nemit('X')\n`
+    expect(removeUnusedEmitImport(used, 'x.js')).toBe(used)
+  })
+
+  it('--fix leaves no unused emit import when event goes into another sygnal import', () => {
+    const file = write('C.jsx', `import { Collection } from 'sygnal'
+import { emit } from 'sygnal'
+export function C({ state }) { return <button className="x">x</button> }
+C.intent = ({ DOM }) => ({ X: DOM.select('.x').events('click') })
+C.model = { X: emit('CX', s => s.id) }
+`)
+    fixFiles([file], { cwd: tmp })
+    const out = fs.readFileSync(file, 'utf8')
+    expect(out).not.toMatch(/\bemit\b/)
+    expect(out).toContain("import { Collection, event } from 'sygnal'\nexport function C")
+    expect(out).toContain("X: { EVENTS: event('CX', s => s.id) }")
   })
 })
