@@ -332,6 +332,7 @@ Acceptance: `grep` finds no un-coded warn/error/throw left in the owned files; a
 - **B-003:** every sink of one action must see the same state snapshot, even when other actions land in the same tick. Write a failing regression test first.
 - **B-004:** a controlled `<input value>` must reflect state after coalesced same-tick renders. Fix through a snabbdom props/hook strategy that compares against the live `elm.value`. Browser test required.
 - **B-005:** `driverFromAsync` must deliver rejections to the app (a documented error channel, e.g. a `.select('error')` or an `{ error }` payload — the subagent proposes, the coordinator approves) and must handle `null`/`undefined` resolutions without throwing.
+- **Added during Phase 1:** B-008 (isolatedState sub-component wipes parent state), B-009 (verify: Collections sharing item ids collide on isolation scope), G-020 (non-enumerable EVENTS emitter stamps), G-025 (renderComponent passes hmrActions/components), G-026 (double SYG412 print), and **G-024 (user request): `simulateEvent` reports SYG103/SYG104 under renderComponent**, using its vnode targeting and isolation-scope knowledge.
 - Report each fix's behavior change. **Any change to existing public behavior → QUESTION.**
 
 ### Phase 1 merge order & close
