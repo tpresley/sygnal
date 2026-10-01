@@ -195,6 +195,11 @@ export function renderComponent(
   configureDiagnostics({mode: diagnostics || (prevMode == 'off' ? 'collect' : prevMode)});
   const collected: Diagnostic[] = [];
   const offDiag = onDiagnostic(d => collected.push(d));
+  const restore = () => {
+    offDiag();
+    configureDiagnostics({mode: undefined});
+    if (getDiagnosticsMode() != prevMode) configureDiagnostics({mode: prevMode});
+  };
 
   const noop = () => {};
   const port = () => {
@@ -252,8 +257,15 @@ export function renderComponent(
       }
     }
   }
-  const {sources, sinks, run} = setup(withState(app, 'STATE') as any, allDrivers) as any;
-  const rawDispose = run();
+  let sources: any, sinks: any, rawDispose: () => void;
+  try {
+    const p: any = setup(withState(app, 'STATE') as any, allDrivers);
+    ({sources, sinks} = p);
+    rawDispose = p.run();
+  } catch (e) {
+    restore();
+    throw e;
+  }
 
   const subs: Array<[any, any]> = [];
   const listen = (s: any, next: (v: any) => void) => {
@@ -407,9 +419,7 @@ export function renderComponent(
     });
     try { sinks.__dispose?.(); } catch (_) {}
     rawDispose();
-    offDiag();
-    configureDiagnostics({mode: undefined});
-    if (getDiagnosticsMode() != prevMode) configureDiagnostics({mode: prevMode});
+    restore();
   };
 
   return {

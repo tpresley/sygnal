@@ -397,6 +397,14 @@ describe('diagnostics option', () => {
     expect(getDiagnosticsMode()).toBe('error')
   })
 
+  it('restores the mode when the component throws during setup', () => {
+    function Bad() { return h('div', null, 'x') }
+    Bad.intent = () => ({ 'A | B': xs.never() })
+    Bad.model = {}
+    expect(() => renderComponent(Bad)).toThrow(/reserved for the model shorthand/)
+    expect(getDiagnosticsMode()).toBe('off')
+  })
+
   it('collects diagnostics into t.diagnostics and expectNoDiagnostics() throws on warn/error', async () => {
     registerCheck({
       id: 'probe',
