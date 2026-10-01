@@ -67,6 +67,7 @@ Hot files. During a phase, only the listed owner may edit them. Others request c
 | `src/index.d.ts` | 0B (diagnostics types) | **1B** | 2B (inspect types) | — |
 | `src/index.ts` (exports) | 0B | coordinator applies export lines requested by subagents | coordinator | — |
 | `src/extra/testing.ts` | — | **1C** | — | — |
+| `src/extra/reducers.ts` | — | **1B** (`event()`) | — | — |
 | `src/extra/eventDriver.ts` | — | **1A** | — | — |
 | `src/cycle/dom/**` | — | **1A** (instrumentation only) | — | — |
 | `src/vite/plugin.ts` | 0B (dev flag define) | — | **2C** | — |
@@ -274,7 +275,8 @@ Deliverables:
    With it, `EVENTS.select('DELETE_LANE')` is typed `Stream<{laneId: string}>`, `emit('DELETE_LANE', fn)` checks `fn`'s return type, and unknown event names are errors once the registry is non-empty. When the registry is empty, behavior stays as it is today (`any`).
 3. **Typed `CHILD.select(Comp)`:** infer the stream type from `Comp`'s PARENT sink return type.
 4. **Collection `from`:** constrain to `keyof State` whose value is an array (when `State` is known).
-5. Investigate typing intent DOM selectors against the view. Expected outcome: **not feasible in TS**. Write up findings in the report; the static checker covers this.
+5. **New `event(type, payload?)` helper** (decision D12; spec in `PLAN-1-canonical-forms.md`, "New API required"). Runtime in `src/extra/reducers.ts` (1B owns this file in Phase 1), exported from `src/index.ts` (coordinator applies the line), typed against the `SygnalEvents` registry. Unit tests go in `test/reducers.test.js`.
+6. Investigate typing intent DOM selectors against the view. Expected outcome: **not feasible in TS**. Write up findings in the report; the static checker covers this.
 
 Tests: type-tests showing correct code compiles and each misuse produces an error (use `// @ts-expect-error`).
 Acceptance: all existing type-tests still pass unchanged (no breaking changes for existing typed users). **If any change breaks an existing type-test, stop and return QUESTION.**

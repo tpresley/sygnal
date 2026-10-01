@@ -10,7 +10,7 @@ Tracks progress for [PLAN-1.md](PLAN-1.md). Maintained by the coordinator.
 
 | Phase | Status | Tag | Notes |
 |---|---|---|---|
-| 0 — Foundations | 🟡 In progress | — | 0A ✅ · 0B 🟡 · 0C waiting on Q2 |
+| 0 — Foundations | 🟡 In progress | — | 0A ✅ · 0B 🟡 · 0C ✅ |
 | 1 — Core capabilities | ⚪ Not started | — | |
 | 2 — Strictness, introspection, integration | ⚪ Not started | — | |
 | 3 — Agent context & docs | ⚪ Not started | — | |
@@ -24,9 +24,9 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 |---|---|---|---|---|---|---|
 | 0A | Baseline eval harness | ✅ | (applied as patches) | subagent | `8ed8145..cb9fdf0` | verify.mjs 28/28 OK, rerun by the coordinator. Agent couldn't run in its worktree (G-004), so it built in scratch and sent patches; the coordinator reviewed them (all paths under `evals/`, every rm scoped) and applied with `git am` (D6) |
 | 0B | Diagnostics infrastructure (+ fix B-001) | 🟡 | (harness-assigned) | subagent (bg, relaunched) | — | First launch BLOCKED by G-004; relaunched with `isolation: worktree` |
-| 0C | Canonical-forms spec | 🟡 | (coordinator, direct) | — | — | Q1 answered; waiting on Q2 |
+| 0C | Canonical-forms spec | ✅ | (coordinator, direct) | coordinator | this commit | [PLAN-1-canonical-forms.md](PLAN-1-canonical-forms.md) |
 | 1A | Runtime consistency checks | ⚪ | | | | |
-| 1B | Typed links | ⚪ | | | | |
+| 1B | Typed links (+ new `event()` helper) | ⚪ | | | | `event()` added per D12 |
 | 1C | DOM-level test helpers | ⚪ | | | | |
 | 1D | Static checker `sygnal-check` | ⚪ | | | | Separate package (Q3) |
 | 1E | Error-message retrofit | ⚪ | | | | |
@@ -53,7 +53,7 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | # | Question | Raised | Blocks | Answer |
 |---|---|---|---|---|
 | Q1 | Canonical forms: single non-STATE sink (object vs shorthand) | Phase 0 | 0C → 2A, 2D, 3 | ✅ Object form `{ EVENTS: fn }`; shorthand is non-canonical |
-| Q2 | Canonical forms: global event emit (`emit()` vs `{ EVENTS }`) | Phase 0 | 0C → 2A, 2D, 3 | ⏳ User asked for an in-context example; re-asked |
+| Q2 | Canonical forms: global event emit (`emit()` vs `{ EVENTS }`) | Phase 0 | 0C → 2A, 2D, 3 | ✅ Option A: `EVENTS: event('TYPE', fn)` inside the object form; new `event()` helper (D12) |
 | Q3 | `sygnal-check` packaging | Phase 0 | 1D | ✅ Separate `sygnal-check` package (`@babel/parser`) |
 | Q4 | Eval trial budget | Phase 0 | baseline run, 4A | ✅ 5 trials: (8 Sygnal + 6 React) × 5 = 70 runs per round, 140 total |
 | Q5 | Fix framework bugs B-003/B-004/B-005 within PLAN-1, or defer to a follow-up? | Phase 0 | — | ✅ New workstream 1F, after 1E (D11) |
@@ -73,6 +73,7 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | D9 | 2026-09-30 | `sygnal-check` is a separate package using `@babel/parser` | User (Q3) | Core runtime deps unchanged |
 | D10 | 2026-09-30 | Eval budget is 5 trials per task per arm | User (Q4) | |
 | D11 | 2026-09-30 | Add workstream 1F (fix B-003, B-004, B-005), serialized after 1E | User (Q5) | Fixes land after the baseline eval, so the re-run reflects them |
+| D12 | 2026-09-30 | Canonical emit is `EVENTS: event('TYPE', fn)` inside the object form; the new `event()` helper is owned by 1B; `emit()` stays as a non-canonical alias | User (Q2, option A) | One model-entry shape everywhere; event name next to the call; composes with STATE without spreading |
 
 ## Bugs & Gaps Found
 
@@ -91,6 +92,7 @@ Pre-existing issues and gaps found during the work. Severity: high (blocks a gat
 | G-004 | Coordinator | med | Infra (Claude Code) | Subagents inherit the coordinator's worktree pin: `EnterWorktree(path)` into a sibling worktree lets file reads through, but Bash/Write/git are refused. Plan §1.2 assumed this would work. | Mitigated by D5 |
 | G-005 | Coordinator | low | API | `emit()` returns `{ EVENTS }`, so combining it with other sinks means spreading it: `{ ...emit('X', fn), STATE: ... }`. This is awkward if `emit()` becomes canonical. | Open; feeds Q2 |
 | G-006 | Coordinator | low | Housekeeping | Unused worktrees `.claude/worktrees/p1-0a` and `p1-0b` (branches `plan1/0a`, `plan1/0b`, no commits) are left over from the first launch; removing them from the coordinator was denied by the permission classifier. | **User action** (see below) |
+| G-007 | Coordinator | low | API | (1) The `event()` helper name collides by convention with the common callback param `event` (shadowing is harmless but can confuse readers); revisit the name before release. (2) The view receives `{ ...props, state, children, slots, context, peers }`, so a parent prop named `state`, `children`, `slots`, `context` or `peers` is silently overwritten. A candidate runtime diagnostic for 1A (SYG4xx). | Open → 1A (diagnostic for 2), 4B (name review) |
 
 ## Worktree Setup (run by each subagent inside its own isolated worktree; see D5)
 
