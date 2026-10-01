@@ -228,7 +228,8 @@ export function frictionIds(resultIds, reportIds) {
 
 /**
  * Read issue statuses from the tracker table (dev-plans/PLAN-1-status.md).
- * Returns { [id]: { status: 'fixed' | 'open' | 'partly fixed', text } }.
+ * Returns { [id]: { status: 'fixed' | 'closed' | 'open' | 'partly fixed', text } }.
+ * '✅ …' (incl. '✅ PLAN-2 1-A') is fixed; 'Closed: …' / "Won't fix" is a deliberate non-fix.
  */
 export function trackerStatus(trackerFile) {
   const out = {}
@@ -243,7 +244,13 @@ export function trackerStatus(trackerFile) {
     if (!m) continue
     const cells = line.split('|').map((c) => c.trim())
     const statusCell = cells[cells.length - 2] ?? ''
-    const status = /✅/.test(statusCell) ? 'fixed' : /partly fixed/i.test(statusCell) ? 'partly fixed' : 'open'
+    const status = /✅/.test(statusCell)
+      ? 'fixed'
+      : /^(\*\*)?(closed\b|won['’]t fix)/i.test(statusCell)
+        ? 'closed'
+        : /partly fixed/i.test(statusCell)
+          ? 'partly fixed'
+          : 'open'
     out[m[1]] = { status, text: statusCell.replace(/\*\*/g, '').slice(0, 140) }
   }
   return out

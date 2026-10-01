@@ -7,7 +7,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
   docsContext, loadTrackers, testingSection, apiFactCoverage, documentsChildProps, teachesCanonicalModel,
-  driverExampleShowsErrors, recordsHaveUsage, allHeadless, headings,
+  driverExampleShowsErrors, recordsHaveUsage, allHeadless, headings, isFixed, DEFAULT_TRACKERS,
 } from '../lib/preconditions.mjs'
 import { recommendationSet, recommendations } from '../lib/recommend.mjs'
 import { sections } from '../lib/skill.mjs'
@@ -60,6 +60,37 @@ test('headings skips fenced code; trackers merge with the later file winning', (
   const t = loadTrackers([a, b, path.join(dir, 'missing.md')])
   assert.equal(t['B-005'].status, 'fixed')
   assert.equal(t['G-003'].status, 'fixed')
+})
+
+test('tracker statuses: "✅ PLAN-2 …" is fixed, "Closed: …" / "Won\'t fix" are closed and count as done', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'trk-'))
+  const f = path.join(dir, 'status.md')
+  fs.writeFileSync(
+    f,
+    [
+      '| B-014 | 1G | med | x | class string | ✅ PLAN-2 1-A |',
+      '| G-004 | C | med | y | infra | Closed: mitigated by D5 (isolated worktrees) |',
+      "| G-042 | 2D | info | z | templates | Won't fix |",
+      '| G-080 | 1-A | low | w | queue | Open (PLAN-2 backlog) |',
+      '| G-011 | 0B | med | v | types | Partly fixed: more |',
+    ].join('\n')
+  )
+  const t = loadTrackers([f])
+  assert.deepEqual(
+    Object.fromEntries(Object.entries(t).map(([id, v]) => [id, v.status])),
+    { 'B-014': 'fixed', 'G-004': 'closed', 'G-042': 'closed', 'G-080': 'open', 'G-011': 'partly fixed' }
+  )
+  const ctx = docsContext({ tracker: t })
+  assert.equal(isFixed(ctx, 'B-014'), true)
+  assert.equal(isFixed(ctx, 'G-004'), true)
+  assert.equal(isFixed(ctx, 'G-080'), false)
+  assert.equal(isFixed(ctx, 'G-011'), false)
+  assert.equal(isFixed(ctx, 'B-999'), false)
+})
+
+test('repo trackers: B-005 (fixed in 1F) is not open', () => {
+  const t = loadTrackers(DEFAULT_TRACKERS(REPO))
+  assert.equal(t['B-005']?.status, 'fixed')
 })
 
 test('records: usage and method detection', () => {
