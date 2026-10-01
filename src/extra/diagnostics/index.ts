@@ -95,6 +95,22 @@
  *   onDispose(component)
  *     at the start of component disposal.
  *
+ *   onSelector(domSource, selector)          (additive, 1A)
+ *     from MainDOMSource.select() in src/cycle/dom, for every CSS selector
+ *     (not 'document' / 'body' / ':root'). domSource is the source select()
+ *     was called on (its `.namespace` holds the isolation scopes and any
+ *     earlier selectors; `._isolateModule` the DOM driver's isolate module).
+ *   onBusEmit(type, emitterName?)            (additive, 1A)
+ *     from the EVENTS driver (src/extra/eventDriver.ts) for every bus event.
+ *   onBusSelect(type)                        (additive, 1A)
+ *     from EVENTS.select(type); type is the raw argument (string, string[]
+ *     or undefined for "all events").
+ *
+ *   Checks live in the separate 'sygnal/diagnostics' entry
+ *   (src/extra/diagnostics/checks). That bundle reaches THIS module instance
+ *   through globalThis.__SYGNAL_DIAGNOSTICS__ = { registerCheck, report }
+ *   (set below), so it never carries a second copy of the core state.
+ *
  *   onIntent and onModel are each called exactly once per component instance,
  *   in that order, during construction (also when the component has no
  *   intent → actionNames [], or no model → modelMap {}).
@@ -156,6 +172,9 @@ export interface DiagnosticCheck {
   onRender?: (component: any, rootVnode: any) => void
   onReducer?: (component: any, action: string, prevState: any, nextState: any, sinkName: string) => void
   onDispose?: (component: any) => void
+  onSelector?: (domSource: any, selector: string) => void
+  onBusEmit?: (type: string, emitterName?: string) => void
+  onBusSelect?: (type: string | string[] | undefined) => void
 }
 
 export class DiagnosticError extends Error {
@@ -284,6 +303,12 @@ export const onModel: (component: any, modelMap: Record<string, string[]>) => vo
 export const onRender: (component: any, rootVnode: any) => void = hook('onRender')
 export const onReducer: (component: any, action: string, prevState: any, nextState: any, sinkName: string) => void = hook('onReducer')
 export const onDispose: (component: any) => void = hook('onDispose')
+export const onSelector: (domSource: any, selector: string) => void = hook('onSelector')
+export const onBusEmit: (type: string, emitterName?: string) => void = hook('onBusEmit')
+export const onBusSelect: (type: string | string[] | undefined) => void = hook('onBusSelect')
+
+// Bridge for the separately bundled 'sygnal/diagnostics' checks entry.
+;(globalThis as any).__SYGNAL_DIAGNOSTICS__ = { registerCheck, report }
 
 export function _resetDiagnostics(): void {
   explicitMode = undefined
