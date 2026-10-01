@@ -1,0 +1,5 @@
+{
+  "description": "This checkout: its packed build and its skills/sygnal-dev, isolated per trial",
+  "sygnal": "branch",
+  "skill": { "dir": "skills/sygnal-dev" }
+}

@@ -1,0 +1,14 @@
+{
+  "description": "E8: branch + sygnal-check installed and its MCP server (check / graph / explain) configured for Sygnal-arm agents",
+  "sygnal": "branch",
+  "skill": { "dir": "skills/sygnal-dev" },
+  "overlay": {
+    "sygnal": {
+      "packs": { "sygnal-check": { "dir": "sygnal-check", "dependency": "devDependencies" } }
+    }
+  },
+  "mcp": {
+    "arms": ["sygnal"],
+    "mcpServers": { "sygnal-check": { "command": "npx", "args": ["--no-install", "sygnal-check", "mcp"] } }
+  }
+}

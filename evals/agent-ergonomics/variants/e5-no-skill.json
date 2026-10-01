@@ -1,0 +1,5 @@
+{
+  "description": "E5 floor: branch build with no sygnal-dev skill at all (user skills not loaded); the agent has only the package (llms.txt, README)",
+  "sygnal": "branch",
+  "skill": "none"
+}

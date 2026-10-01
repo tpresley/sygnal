@@ -1,0 +1,14 @@
+{
+  "description": "E1: branch + sygnal-check installed in the Sygnal starter (this checkout's sygnal-check, vendored) and an AGENTS.md naming it, as the 5.4.0 templates do",
+  "sygnal": "branch",
+  "skill": { "dir": "skills/sygnal-dev" },
+  "overlay": {
+    "sygnal": {
+      "packs": { "sygnal-check": { "dir": "sygnal-check", "dependency": "devDependencies" } },
+      "files": {
+        "AGENTS.md": "# Agent instructions\n\n| Command | What it does |\n|---|---|\n| `npm test` | Runs the Vitest tests |\n| `npx --no-install sygnal-check --strict` | Static check for wiring bugs and non-canonical forms; must report nothing |\n| `npx --no-install sygnal-check explain SYG104` | Explains a `[Sygnal SYGnnn]` diagnostic and how to fix it |\n",
+        "CLAUDE.md": "@AGENTS.md\n"
+      }
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "description": "E9: both arms are told not to write tests (testing-norm parity, the other side)",
+  "sygnal": "branch",
+  "skill": { "dir": "skills/sygnal-dev" },
+  "prompt": { "suffix": "Don't write new tests for this change; check it with the existing tests and a build.", "arms": ["sygnal", "react"] }
+}

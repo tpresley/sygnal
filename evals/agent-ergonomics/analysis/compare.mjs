@@ -1,17 +1,26 @@
 #!/usr/bin/env node
-// Compare two friction analyses (e.g. the baseline against the Phase 4 re-run).
+// Compare two runs, task-matched (G-119), e.g. a Phase 3 variant against the baseline.
 //
 // Usage:
-//   node evals/agent-ergonomics/analysis/compare.mjs --base baseline --next phase3 [--out <file.md>]
+//   node evals/agent-ergonomics/analysis/compare.mjs --base <run>[:arm] --next <run>[:arm]
+//        [--arms sygnal,react]      only these arms (sides without a pinned arm)
+//        [--tasks tier1|01-05|...]  only these tasks (same syntax as orchestrate.mjs --tasks)
+//        [--metrics pass,wall,costUsd,iterations]   per-task columns (matched means show every metric)
+//        [--source auto|analysis|results]  auto: results/analysis/<run>.json if present, else results/<run>.json
+//        [--full]                   also the old whole-run aggregate diff (needs both analyses; NOT task-matched)
+//        [--json] [--out <file>]
 //
-// Reads results/analysis/<base>.json and <next>.json (run analyze.mjs on both
-// first) and prints a markdown diff: headline metrics per arm, the per-item
-// Sygnal-React delta, phase means, catalog time costs, canonical-form counts.
-// Comparing a run with itself gives an all-zero diff (a smoke test).
+// Only (arm, task) cells present in both runs are compared: per cell the mean
+// of its trials, then the matched mean over the shared tasks and next − base.
+// `run:arm` pins an arm on one side, so `--base v2-baseline:react --next
+// e1-check:sygnal` compares across arms (cells match on task; Δ = the gap).
+// Comparing a run with itself gives all-zero deltas (a smoke test).
 import fs from 'node:fs'
 import path from 'node:path'
 import { parseArgs, EVAL_ROOT } from '../lib/common.mjs'
 import { PHASE_ORDER } from './lib/aggregate.mjs'
+import { loadRun, parseSide, matchedCompare, renderMatched, METRICS, DEFAULT_TASK_METRICS } from './lib/matched.mjs'
+import { taskSelector } from '../lib/plan.mjs'
 
 const f1 = (x) => (x == null ? '—' : (Math.round(x * 10) / 10).toString())
 const sgn = (x) => (x == null ? '—' : `${x > 0 ? '+' : ''}${f1(x)}`)
@@ -81,16 +90,49 @@ export function renderDiff(d) {
   return out.join('\n')
 }
 
+/** The CLI as a function (tests call it): returns { text, data }. */
+export function compareRuns(argv, { evalRoot = EVAL_ROOT } = {}) {
+  const args = parseArgs(argv)
+  if (typeof args.base !== 'string' || typeof args.next !== 'string') throw new Error('usage: compare.mjs --base <run>[:arm] --next <run>[:arm] [--arms a,b] [--tasks spec] [--metrics m,...] [--source auto|analysis|results] [--full] [--json] [--out file]')
+  const b = parseSide(args.base)
+  const n = parseSide(args.next)
+  const source = typeof args.source === 'string' ? args.source : 'auto'
+  if (!['auto', 'analysis', 'results'].includes(source)) throw new Error('--source must be auto, analysis or results')
+  const base = loadRun(b.run, { evalRoot, source })
+  const next = loadRun(n.run, { evalRoot, source })
+  // Both sides must use the same source, or the metric sets differ.
+  let [bs, ns] = [base, next]
+  if (source === 'auto' && base.source !== next.source) {
+    bs = loadRun(b.run, { evalRoot, source: 'results' })
+    ns = loadRun(n.run, { evalRoot, source: 'results' })
+  }
+  const arms = typeof args.arms === 'string' ? args.arms.split(',').map((s) => s.trim()).filter(Boolean) : null
+  const taskMetrics = typeof args.metrics === 'string' ? args.metrics.split(',').map((s) => s.trim()).filter(Boolean) : DEFAULT_TASK_METRICS
+  for (const m of taskMetrics) if (!METRICS[m]) throw new Error(`Unknown metric "${m}" (${Object.keys(METRICS).join(', ')})`)
+  const data = matchedCompare(bs, ns, { baseArm: b.arm, nextArm: n.arm, arms, tasks: taskSelector(typeof args.tasks === 'string' ? args.tasks : 'all') })
+  const filters = [arms ? `arms ${arms.join(', ')}` : null, typeof args.tasks === 'string' ? `tasks ${args.tasks}` : null].filter(Boolean)
+  const head = [`# \`${args.base}\` → \`${args.next}\``, '', `Source: ${bs.source === ns.source ? bs.source : `${bs.source} / ${ns.source}`}${filters.length ? ` · ${filters.join(' · ')}` : ''}.`, '', '']
+  let text = head.join('\n') + renderMatched(data, { taskMetrics })
+  if (args.full) {
+    if (!base.analysis || !next.analysis) throw new Error('--full needs results/analysis/<run>.json for both runs')
+    text += '\n---\n\n**Unmatched whole-run aggregates** (every trial of each run, whatever its task set; context only, not a comparison):\n\n' + renderDiff(diffAnalyses(base.analysis, next.analysis)).replace(/^# /, '## ')
+  }
+  return { text, data }
+}
+
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === path.resolve(new URL(import.meta.url).pathname)
 if (isMain) {
   const args = parseArgs(process.argv.slice(2))
-  if (!args.base || !args.next) {
-    console.error('usage: compare.mjs --base <run> --next <run> [--out <file.md>]')
+  let r
+  try {
+    r = compareRuns(process.argv.slice(2))
+  } catch (e) {
+    console.error(e.message)
     process.exit(2)
   }
-  const md = renderDiff(diffAnalyses(load(String(args.base)), load(String(args.next))))
+  const out = args.json ? JSON.stringify(r.data, null, 2) + '\n' : r.text
   if (typeof args.out === 'string') {
-    fs.writeFileSync(args.out, md)
+    fs.writeFileSync(args.out, out)
     console.log(`wrote ${args.out}`)
-  } else console.log(md)
+  } else console.log(out)
 }

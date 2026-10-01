@@ -15,6 +15,8 @@ import { buildClaudeArgs, buildPreflightArgs, trialEnv, stampLine, summarizeRun,
  * @param {string[]|string} [o.tools]
  * @param {string} [o.effort]
  * @param {number} [o.maxBudgetUsd]
+ * @param {object} [o.isolation]     variant posture (lib/variant.mjs claudeIsolation()):
+ *                                   { settingSources, addDirs, mcpConfig, extraAllowedTools }
  * @param {boolean} [o.force]        overwrite an existing transcript
  * @param {(line: object) => void} [o.onEvent]
  * @param {(child) => void} [o.onSpawn]  [o.onExit]   process-group bookkeeping for the caller
@@ -29,7 +31,7 @@ export function runTrial(o) {
 
   const prompt = fs.readFileSync(files.prompt, 'utf8').trim()
   const timeoutMin = o.timeoutMin ?? DEFAULT_TIMEOUT_MIN
-  const args = buildClaudeArgs({ prompt, model: o.model, permissionMode: o.permissionMode, tools: o.tools, effort: o.effort, maxBudgetUsd: o.maxBudgetUsd })
+  const args = buildClaudeArgs({ prompt, model: o.model, permissionMode: o.permissionMode, tools: o.tools, effort: o.effort, maxBudgetUsd: o.maxBudgetUsd, ...(o.isolation ?? {}) })
   const bin = o.claudeBin ?? 'claude'
   const out = fs.openSync(files.transcript, 'w')
   const err = fs.openSync(files.stderr, 'w')
@@ -95,6 +97,7 @@ export function runTrial(o) {
         permissionMode: args[args.indexOf('--permission-mode') + 1],
         tools: args[args.indexOf('--tools') + 1].split(','),
         effort: o.effort ?? null,
+        isolation: o.isolation ?? null,
         timeoutMin,
         startedAt: startedAt.toISOString(),
         endedAt: endedAt.toISOString(),
@@ -119,17 +122,19 @@ export function runTrial(o) {
 
 /**
  * Preflight: one tiny no-tool `claude -p` call with the trial environment and
- * model. Resolves { ok, reason, model, modelCheck, costUsd, wallMs, summary }.
- * ok is false when the call fails, times out, or never reaches the model.
+ * model. Resolves { ok, reason, model, modelCheck, costUsd, wallMs, skills,
+ * rateLimited, resetAt, summary }. ok is false when the call fails, times out,
+ * or never reaches the model. `isolation` (settingSources, addDirs) is the
+ * variant's skill posture, so `skills` lists what a trial will see.
  */
-export function preflight({ model, effort, claudeBin = 'claude', timeoutSec = 60, cwd = process.cwd() } = {}) {
+export function preflight({ model, effort, claudeBin = 'claude', timeoutSec = 60, cwd = process.cwd(), isolation = {} } = {}) {
   const started = Date.now()
   return new Promise((resolve) => {
     let out = ''
     let err = ''
     let timedOut = false
     let spawnError = null
-    const child = spawn(claudeBin, buildPreflightArgs({ model, effort }), { cwd, env: trialEnv(process.env), stdio: ['ignore', 'pipe', 'pipe'], detached: true })
+    const child = spawn(claudeBin, buildPreflightArgs({ model, effort, settingSources: isolation.settingSources, addDirs: isolation.addDirs }), { cwd, env: trialEnv(process.env), stdio: ['ignore', 'pipe', 'pipe'], detached: true })
     child.stdout.on('data', (d) => (out += d))
     child.stderr.on('data', (d) => (err += d))
     const timer = setTimeout(() => {
@@ -146,9 +151,10 @@ export function preflight({ model, effort, claudeBin = 'claude', timeoutSec = 60
       let reason = null
       if (spawnError) reason = `cannot start ${claudeBin}: ${spawnError}`
       else if (summary.authFailed) reason = `authentication failed (${(summary.finalText ?? 'HTTP 401').slice(0, 160)}); log in again (\`claude\` → /login) or set ANTHROPIC_API_KEY`
+      else if (summary.rateLimited) reason = `usage/rate limit: ${summary.notRunReason.replace(/^rate limit: /, '')}`
       else if (timedOut) reason = `no answer within ${timeoutSec} s${summary.apiRetries ? ` (${summary.apiRetries} API retries)` : ''}`
       else if (!summary.agentRan) reason = `the call did not reach the model: ${summary.notRunReason ?? `exit ${code}`}${err.trim() ? ` · ${err.trim().slice(0, 200)}` : ''}`
-      resolve({ ok: !reason, reason, model: summary.model, modelCheck, costUsd: summary.costUsd, wallMs: Date.now() - started, summary })
+      resolve({ ok: !reason, reason, model: summary.model, modelCheck, costUsd: summary.costUsd, wallMs: Date.now() - started, skills: summary.skills, rateLimited: summary.rateLimited, resetAt: summary.resetAt, summary })
     })
   })
 }
