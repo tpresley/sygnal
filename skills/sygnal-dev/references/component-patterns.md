@@ -1,1301 +1,433 @@
-# Sygnal Component Patterns
+# Sygnal Component Patterns (beyond SKILL.md)
 
-Complete, copy-paste code patterns for all Sygnal features. Every pattern follows framework rules: pure views, complete state returns, driver-based side effects, no event handlers in JSX. Uses DOM shorthands and event stream helpers throughout.
+`SKILL.md` already covers the core: component anatomy, state updates, `ABORT`, `set`/`toggle`, controlled inputs, multi-sink entries, `event()` + `EVENTS.select`, `PARENT` + `CHILD.select`, Collection, Switchable, commands + `EFFECT`, drivers, the wiring rules, and testing. The full normative spec is `llms.txt` (`node_modules/sygnal/llms.txt`, https://sygnal.js.org/llms.txt).
 
-## Table of Contents
+This file holds only the less common features. Every sample uses the canonical forms: object-form model entries, `event()` for EVENTS, `CHILD.select(Fn)`, destructured views, `ABORT` for "no change".
 
-1. [Minimal Component](#1-minimal-component)
-2. [Interactive Component (Counter)](#2-interactive-component-counter)
-3. [Two-Way Input Binding](#3-two-way-input-binding)
-4. [Multi-Property State](#4-multi-property-state)
-5. [Child Components with State Mapping](#5-child-components-with-state-mapping)
-6. [State Lenses](#6-state-lenses)
-7. [Collections (Lists)](#7-collections-lists)
-8. [Switchable Views (Routing)](#8-switchable-views-routing)
-9. [Form Handling with processForm()](#9-form-handling-with-processform)
-10. [Context (Shared Values)](#10-context-shared-values)
-11. [Calculated Fields](#11-calculated-fields)
-12. [Peer Components](#12-peer-components)
-13. [Chaining Actions with next()](#13-chaining-actions-with-next)
-14. [Aborting Actions](#14-aborting-actions)
-15. [Multi-Driver Actions](#15-multi-driver-actions)
-16. [EFFECT Sink](#16-effect-sink)
-17. [Model Shorthand](#17-model-shorthand)
-18. [Event Bus Communication](#18-event-bus-communication)
-19. [Parent-Child Communication](#19-parent-child-communication)
-20. [Commands (Parent to Child)](#20-commands-parent-to-child)
-21. [Custom Drivers with driverFromAsync()](#21-custom-drivers-with-driverfromasync)
-22. [Custom Driver from Scratch](#22-custom-driver-from-scratch)
-23. [BOOTSTRAP Action (On Mount)](#23-bootstrap-action-on-mount)
-24. [Disposal Hooks](#24-disposal-hooks)
-25. [Global DOM Events](#25-global-dom-events)
-26. [Stream Operations in Intent](#26-stream-operations-in-intent)
-27. [CSS Classes Utility](#27-css-classes-utility)
-28. [Transitions](#28-transitions)
-29. [Portals](#29-portals)
-30. [Slots](#30-slots)
-31. [Error Boundaries](#31-error-boundaries)
-32. [Refs](#32-refs)
-33. [Lazy Loading & Suspense](#33-lazy-loading--suspense)
-34. [TypeScript Component](#34-typescript-component)
-35. [TypeScript with exactState()](#35-typescript-with-exactstate)
-36. [Full SPA Scaffold](#36-full-spa-scaffold)
-37. [Astro Integration](#37-astro-integration)
-38. [Vike Integration (SSR)](#38-vike-integration-ssr)
+## Contents
+1. Switchable routing
+2. State lenses
+3. Forms with processForm()
+4. Calculated fields and context
+5. Transitions
+6. Portals
+7. Slots
+8. Refs
+9. Lazy loading and Suspense
+10. Lifecycle: BOOTSTRAP and DISPOSE
+11. Drag and drop
+12. PWA helpers
+13. SSR and hydration
+14. Astro
+15. Vike
+16. TypeScript
 
----
-
-## 1. Minimal Component
-
+## 1. Switchable routing
 ```jsx
-function HelloWorld() {
-  return <div>Hello World</div>
-}
+import { xs, ABORT, Switchable } from 'sygnal'
 
-export default HelloWorld
-```
+function Home() { return <h2 className="home">Home</h2> }
+function Settings() { return <h2 className="settings">Settings</h2> }
 
-## 2. Interactive Component (Counter)
-
-```jsx
-function Counter({ state }) {
-  return (
-    <div>
-      <h1>Count: {state.count}</h1>
-      <button className="increment">+</button>
-      <button className="decrement">-</button>
-    </div>
-  )
-}
-
-Counter.initialState = { count: 0 }
-
-Counter.intent = ({ DOM }) => ({
-  INCREMENT: DOM.click('.increment'),
-  DECREMENT: DOM.click('.decrement'),
-})
-
-Counter.model = {
-  INCREMENT: (state) => ({ ...state, count: state.count + 1 }),
-  DECREMENT: (state) => ({ ...state, count: state.count - 1 }),
-}
-
-export default Counter
-```
-
-## 3. Two-Way Input Binding
-
-```jsx
-function Greeter({ state }) {
-  return (
-    <div>
-      <h1>Hello {state.name}!</h1>
-      <input className="name-input" value={state.name} />
-    </div>
-  )
-}
-
-Greeter.initialState = { name: 'World' }
-
-Greeter.intent = ({ DOM }) => ({
-  CHANGE_NAME: DOM.input('.name-input').value(),
-})
-
-Greeter.model = {
-  CHANGE_NAME: (state, name) => ({ ...state, name }),
-}
-
-export default Greeter
-```
-
-## 4. Multi-Property State
-
-Always spread existing state when updating a subset of properties:
-
-```jsx
-function UserCard({ state }) {
-  return (
-    <div>
-      <h2>{state.name}</h2>
-      <p>Age: {state.age}</p>
-      <p>Score: {state.score}</p>
-      <button className="birthday">Have Birthday</button>
-      <button className="add-point">Add Point</button>
-    </div>
-  )
-}
-
-UserCard.initialState = { name: 'Alice', age: 25, score: 0 }
-
-UserCard.intent = ({ DOM }) => ({
-  BIRTHDAY: DOM.click('.birthday'),
-  ADD_POINT: DOM.click('.add-point'),
-})
-
-UserCard.model = {
-  BIRTHDAY: (state) => ({ ...state, age: state.age + 1 }),
-  ADD_POINT: (state) => ({ ...state, score: state.score + 1 }),
-}
-
-export default UserCard
-```
-
-## 5. Child Components with State Mapping
-
-```jsx
-// UserProfile.jsx
-function UserProfile({ state }) {
-  return (
-    <div>
-      <h2>{state.name}</h2>
-      <p>{state.email}</p>
-    </div>
-  )
-}
-
-export default UserProfile
-```
-
-```jsx
-// RootComponent.jsx
-import UserProfile from './components/UserProfile.jsx'
-
-function RootComponent({ state }) {
-  return (
-    <div>
-      <h1>App</h1>
-      {/* UserProfile sees state.user as its root state */}
-      <UserProfile state="user" />
-    </div>
-  )
-}
-
-RootComponent.initialState = {
-  user: { name: 'Alice', email: 'alice@example.com' },
-  settings: { theme: 'light' },
-}
-
-export default RootComponent
-```
-
-## 6. State Lenses
-
-For custom parent-child state mapping:
-
-```jsx
-const userLens = {
-  get: (parentState) => ({
-    name: parentState.userName,
-    email: parentState.userEmail,
-  }),
-  set: (parentState, childState) => ({
-    ...parentState,
-    userName: childState.name,
-    userEmail: childState.email,
-  }),
-}
-
-function RootComponent({ state }) {
-  return (
-    <div>
-      <UserForm state={userLens} />
-    </div>
-  )
-}
-```
-
-## 7. Collections (Lists)
-
-```jsx
-// TodoItem.jsx
-import { classes } from 'sygnal'
-
-function TodoItem({ state }) {
-  return (
-    <li className={classes({ done: state.done })}>
-      <span>{state.text}</span>
-      <button className="toggle">Toggle</button>
-      <button className="remove">Remove</button>
-    </li>
-  )
-}
-
-TodoItem.intent = ({ DOM }) => ({
-  TOGGLE: DOM.click('.toggle'),
-  REMOVE: DOM.click('.remove'),
-})
-
-TodoItem.model = {
-  TOGGLE: (state) => ({ ...state, done: !state.done }),
-  // Returning undefined removes the item from the collection
-  REMOVE: () => undefined,
-}
-
-export default TodoItem
-```
-
-```jsx
-// TodoList.jsx
-import { Collection } from 'sygnal'
-import TodoItem from './TodoItem.jsx'
-
-function TodoList({ state }) {
-  return (
-    <div>
-      <h1>Todos ({state.items.length})</h1>
-      <Collection of={TodoItem} from="items" className="todo-list" />
-    </div>
-  )
-}
-
-TodoList.initialState = {
-  items: [
-    { id: 1, text: 'Learn Sygnal', done: false },
-    { id: 2, text: 'Build something', done: false },
-  ],
-}
-
-export default TodoList
-```
-
-### Collection with Filtering and Sorting
-
-```jsx
-<Collection
-  of={TodoItem}
-  from="items"
-  filter={item => !item.done}
-  sort="text"
-  className="todo-list"
-/>
-```
-
-## 8. Switchable Views (Routing)
-
-```jsx
-import { xs, Switchable } from 'sygnal'
-import HomePage from './pages/HomePage.jsx'
-import SettingsPage from './pages/SettingsPage.jsx'
-import ProfilePage from './pages/ProfilePage.jsx'
-
-function RootComponent({ state }) {
+function App({ state }) {
   return (
     <div>
       <nav>
         <button className="nav-home">Home</button>
         <button className="nav-settings">Settings</button>
-        <button className="nav-profile">Profile</button>
       </nav>
-      <main>
-        <Switchable
-          of={{ home: HomePage, settings: SettingsPage, profile: ProfilePage }}
-          current={state.route}
-        />
-      </main>
+      <Switchable of={{ home: Home, settings: Settings }} current={state.route} />
     </div>
   )
 }
-
-RootComponent.initialState = {
-  route: 'home',
-}
-
-RootComponent.intent = ({ DOM }) => ({
+App.initialState = { route: 'home' }
+App.intent = ({ DOM }) => ({
   SET_ROUTE: xs.merge(
     DOM.click('.nav-home').mapTo('home'),
     DOM.click('.nav-settings').mapTo('settings'),
-    DOM.click('.nav-profile').mapTo('profile'),
   ),
 })
+App.model = {
+  SET_ROUTE: (state, route) => (route === state.route ? ABORT : { ...state, route }),
+}
+```
+Each page is a normal component; give it a slice with `state="key"` on the Switchable.
 
-RootComponent.model = {
-  SET_ROUTE: (state, route) => ({ ...state, route }),
+## 2. State lenses
+`state="key"` gives a child one field. For anything else pass a lens `{ get, set }`:
+```jsx
+const userLens = {
+  get: (parent) => ({ name: parent.userName, email: parent.userEmail }),
+  set: (parent, child) => ({ ...parent, userName: child.name, userEmail: child.email }),
 }
 
-export default RootComponent
+function UserForm({ state }) {
+  return <input className="name" value={state.name} />
+}
+UserForm.intent = ({ DOM }) => ({ NAME: DOM.input('.name').value() })
+UserForm.model = { NAME: (state, name) => ({ ...state, name }) }
+
+function Profile({ state }) {
+  return <div><UserForm state={userLens} /><p className="email">{state.userEmail}</p></div>
+}
+Profile.initialState = { userName: 'Ada', userEmail: 'ada@example.com' }
 ```
 
-## 9. Form Handling with processForm()
-
+## 3. Forms with processForm()
+`processForm(DOM.select('.form'), { events })` emits `{ [field name]: value, event, eventType }`. It calls `preventDefault()` on submit (`preventDefault: false` to opt out). Fields are uncontrolled here (no `value=`), so no input listener is needed.
 ```jsx
 import { processForm } from 'sygnal'
 
 function ContactForm({ state }) {
   return (
     <form className="contact-form">
-      <input name="name" value={state.name} />
-      <input name="email" value={state.email} />
-      <textarea name="message">{state.message}</textarea>
+      <input name="name" />
+      <input name="email" />
       <button type="submit">Send</button>
-      {state.submitted && <p>Sent!</p>}
+      {state.sentTo && <p className="sent">Sent to {state.sentTo}</p>}
     </form>
   )
 }
-
-ContactForm.initialState = {
-  name: '',
-  email: '',
-  message: '',
-  submitted: false,
-}
-
+ContactForm.initialState = { sentTo: '' }
 ContactForm.intent = ({ DOM }) => ({
-  UPDATE_FIELDS: processForm(DOM.select('.contact-form'), { events: 'input' }),
   SUBMIT: processForm(DOM.select('.contact-form'), { events: 'submit' }),
 })
-
 ContactForm.model = {
-  UPDATE_FIELDS: (state, data) => ({
-    ...state,
-    name: data.name,
-    email: data.email,
-    message: data.message,
-  }),
-  SUBMIT: (state) => ({ ...state, submitted: true }),
+  SUBMIT: (state, { email }) => ({ ...state, sentTo: email }),
 }
-
-export default ContactForm
 ```
 
-## 10. Context (Shared Values)
-
-Context passes values to all descendants regardless of depth:
-
-```jsx
-// RootComponent.jsx
-function RootComponent({ state }) {
-  return (
-    <div className={state.theme === 'dark' ? 'dark-mode' : ''}>
-      <DeepChild state="childData" />
-    </div>
-  )
-}
-
-RootComponent.initialState = {
-  theme: 'dark',
-  currentUser: { name: 'Alice' },
-  childData: { value: 42 },
-}
-
-RootComponent.context = {
-  theme: (state) => state.theme,
-  currentUser: (state) => state.currentUser,
-}
-
-export default RootComponent
-```
-
-```jsx
-// DeepChild.jsx — can access context from any ancestor
-function DeepChild({ state, context }) {
-  return (
-    <div>
-      <p>Theme: {context.theme}</p>
-      <p>User: {context.currentUser.name}</p>
-      <p>Value: {state.value}</p>
-    </div>
-  )
-}
-
-export default DeepChild
-```
-
-## 11. Calculated Fields
-
-Derived values computed from state, available in both view and reducers:
-
+## 4. Calculated fields and context
 ```jsx
 function Cart({ state }) {
   return (
     <div>
-      <p>Items: {state.itemCount}</p>
-      <p>Total: ${state.total.toFixed(2)}</p>
-      <p>Avg: ${state.averagePrice.toFixed(2)}</p>
+      <p className="total">{state.total}</p>
+      <CartLine state="first" />
     </div>
   )
 }
-
-Cart.initialState = {
-  items: [
-    { name: 'Widget', price: 9.99 },
-    { name: 'Gadget', price: 24.99 },
-  ],
-}
-
+Cart.initialState = { items: [{ price: 2, qty: 3 }], currency: 'EUR', first: { name: 'Tea' } }
 Cart.calculated = {
-  // Simple form — function of entire state
-  itemCount: (state) => state.items.length,
-  total: (state) => state.items.reduce((sum, item) => sum + item.price, 0),
-  // With dependency tracking — only recalculates when deps change
-  averagePrice: [['items'], (state) => {
-    if (state.items.length === 0) return 0
-    return state.items.reduce((sum, item) => sum + item.price, 0) / state.items.length
-  }],
+  total: [['items'], (state) => state.items.reduce((sum, i) => sum + i.price * i.qty, 0)],
 }
+Cart.context = { currency: (state) => state.currency }   // every descendant reads context.currency
 
-export default Cart
-```
-
-## 12. Peer Components
-
-Peers are siblings that share the same sources — useful for splitting complex UIs:
-
-```jsx
-import Sidebar from './Sidebar.jsx'
-import Toolbar from './Toolbar.jsx'
-
-function Dashboard({ state, Sidebar, Toolbar }) {
-  return (
-    <div className="dashboard">
-      {Toolbar}
-      <div className="layout">
-        {Sidebar}
-        <main>{state.content}</main>
-      </div>
-    </div>
-  )
-}
-
-Dashboard.peers = {
-  Sidebar: Sidebar,
-  Toolbar: Toolbar,
-}
-
-export default Dashboard
-```
-
-## 13. Chaining Actions with next()
-
-```jsx
-MyComponent.model = {
-  SAVE: (state, data, next) => {
-    next('VALIDATE', data)
-    next('NOTIFY', 'Save started', 2000) // 2-second delay
-    return { ...state, saving: true }
-  },
-  VALIDATE: (state, data) => ({ ...state, validated: true }),
-  NOTIFY: {
-    LOG: (state, data) => data,
-  },
+function CartLine({ state, context }) {
+  return <p className="line">{state.name} ({context.currency})</p>
 }
 ```
+Calculated fields are read-only: don't set them in reducers.
 
-## 14. Aborting Actions
-
-Return `ABORT` to cancel a state update:
-
-```jsx
-import { ABORT } from 'sygnal'
-
-GameBoard.model = {
-  MOVE: (state, direction) => {
-    if (state.locked || state.gameOver) return ABORT
-    return { ...state, position: calculateNewPosition(state.position, direction) }
-  },
-}
-```
-
-## 15. Multi-Driver Actions
-
-Send commands to multiple drivers from a single action:
-
-```jsx
-MyComponent.model = {
-  SAVE_ITEM: {
-    STATE: (state, data) => ({ ...state, saving: true }),
-    LOG: (state, data) => `Saving item: ${data.name}`,
-    EVENTS: (state, data) => ({ type: 'item-saved', data }),
-    API: (state, data) => ({ endpoint: 'items', method: 'POST', body: data }),
-  },
-}
-```
-
-### Passthrough with `true`
-
-```jsx
-MyComponent.model = {
-  LOG_SOMETHING: {
-    LOG: true, // intent data goes directly to LOG
-  },
-}
-```
-
-## 16. EFFECT Sink
-
-Run side effects without state changes — no ABORT workarounds needed:
-
-```jsx
-import { createCommand } from 'sygnal'
-
-const playerCmd = createCommand()
-
-App.model = {
-  // Simple effect — no state change
-  SEND_COMMAND: {
-    EFFECT: () => playerCmd.send('play'),
-  },
-
-  // Effect with conditional routing via next()
-  ROUTE: {
-    EFFECT: (state, data, next) => {
-      if (state.mode === 'a') next('DO_A', data)
-      else next('DO_B', data)
-    },
-  },
-
-  // Effect combined with state update
-  SAVE_AND_LOG: {
-    STATE: (state) => ({ ...state, saved: true }),
-    EFFECT: () => console.log('Saved!'),
-  },
-}
-```
-
-## 17. Model Shorthand
-
-Compact syntax for single-driver model entries using `'ACTION | DRIVER'`:
-
-```jsx
-App.model = {
-  'SEND_CMD | EFFECT': () => playerCmd.send('play'),
-  'NOTIFY | EVENTS': (state) => ({ type: 'alert', data: state.message }),
-  'DELETE | PARENT': (state) => ({ type: 'DELETE', id: state.id }),
-}
-```
-
-This is equivalent to:
-
-```jsx
-App.model = {
-  SEND_CMD: { EFFECT: () => playerCmd.send('play') },
-  NOTIFY: { EVENTS: (state) => ({ type: 'alert', data: state.message }) },
-  DELETE: { PARENT: (state) => ({ type: 'DELETE', id: state.id }) },
-}
-```
-
-## 18. Event Bus Communication
-
-Cross-component communication via the EVENTS driver (global, not isolated):
-
-```jsx
-// Publisher component
-Publisher.intent = ({ DOM }) => ({
-  NOTIFY: DOM.click('.notify-btn'),
-})
-
-Publisher.model = {
-  NOTIFY: {
-    EVENTS: (state) => ({ type: 'user-action', data: { action: 'clicked' } }),
-  },
-}
-
-// Subscriber component (anywhere in the tree)
-Subscriber.intent = ({ EVENTS }) => ({
-  HANDLE_EVENT: EVENTS.select('user-action'),
-})
-
-Subscriber.model = {
-  HANDLE_EVENT: (state, data) => ({ ...state, lastAction: data.action }),
-}
-```
-
-## 19. Parent-Child Communication
-
-Structured message passing from child to parent (one level up):
-
-```jsx
-// Child emits via PARENT sink
-TaskCard.intent = ({ DOM }) => ({
-  SELECT: DOM.click('.delete-btn'),
-})
-
-TaskCard.model = {
-  SELECT: {
-    PARENT: (state) => ({ type: 'SELECT', taskId: state.id }),
-  },
-}
-
-// Parent receives via CHILD source (use component reference — minification-safe)
-Lane.intent = ({ CHILD }) => ({
-  TASK_SELECTED: CHILD.select(TaskCard).filter(e => e.type === 'SELECT'),
-})
-
-Lane.model = {
-  TASK_SELECTED: (state, data) => ({
-    ...state,
-    selected: data.taskId,
-  }),
-}
-```
-
-## 20. Commands (Parent to Child)
-
-Send imperative commands from parent to child:
-
-```jsx
-import { createCommand } from 'sygnal'
-
-// Parent creates and passes command
-const playerCmd = createCommand()
-
-function Parent({ state }) {
-  return (
-    <div>
-      <button className="play-btn">Play</button>
-      <VideoPlayer commands={playerCmd} state="player" />
-    </div>
-  )
-}
-
-Parent.intent = ({ DOM }) => ({
-  PLAY: DOM.click('.play-btn'),
-})
-
-Parent.model = {
-  PLAY: {
-    EFFECT: () => playerCmd.send('play'),
-  },
-}
-
-// Child receives via commands$ source
-VideoPlayer.intent = ({ commands$ }) => ({
-  START_PLAYBACK: commands$.select('play'),
-})
-
-VideoPlayer.model = {
-  START_PLAYBACK: (state) => ({ ...state, playing: true }),
-}
-```
-
-## 21. Custom Drivers with driverFromAsync()
-
-```jsx
-import { run, driverFromAsync } from 'sygnal'
-
-const apiDriver = driverFromAsync(
-  async (url, options = {}) => {
-    const response = await fetch(url, options)
-    if (!response.ok) throw new Error(`HTTP ${response.status}`)
-    return response.json()
-  },
-  {
-    selector: 'endpoint',
-    args: (cmd) => [cmd.url, cmd.options],
-    return: 'data',
-  }
-)
-
-run(RootComponent, { API: apiDriver })
-```
-
-```jsx
-// Use in components
-MyComponent.intent = ({ DOM, API }) => ({
-  FETCH_USERS: DOM.click('.load-btn'),
-  USERS_LOADED: API.select('users'),
-})
-
-MyComponent.model = {
-  FETCH_USERS: {
-    STATE: (state) => ({ ...state, loading: true }),
-    API: () => ({ endpoint: 'users', url: '/api/users' }),
-  },
-  USERS_LOADED: (state, response) => ({
-    ...state,
-    loading: false,
-    users: response.data,
-  }),
-}
-```
-
-## 22. Custom Driver from Scratch
-
-```jsx
-import { xs } from 'sygnal'
-
-function localStorageDriver(sink$) {
-  sink$.addListener({
-    next: (command) => {
-      if (command.action === 'set') {
-        localStorage.setItem(command.key, JSON.stringify(command.value))
-      } else if (command.action === 'remove') {
-        localStorage.removeItem(command.key)
-      }
-    },
-  })
-
-  return {
-    select: (key) => {
-      return xs.create({
-        start: (listener) => {
-          const stored = localStorage.getItem(key)
-          if (stored) {
-            try { listener.next(JSON.parse(stored)) }
-            catch { listener.next(stored) }
-          }
-        },
-        stop: () => {},
-      })
-    },
-  }
-}
-
-// Register: run(RootComponent, { STORAGE: localStorageDriver })
-```
-
-## 23. BOOTSTRAP Action (On Mount)
-
-Runs once when the component is instantiated:
-
-```jsx
-MyComponent.model = {
-  BOOTSTRAP: {
-    EFFECT:  (state, data, next) => next('LOAD_DATA'),
-  },
-  LOAD_DATA: {
-    STATE: (state) => ({ ...state, loading: true }),
-    API: () => ({ endpoint: 'init', url: '/api/init' }),
-  },
-}
-```
-
-Other built-in actions:
-- `INITIALIZE` — fires when the component receives its first state
-- `HYDRATE` — fires on first state during HMR
-
-## 24. Disposal Hooks
-
-Cleanup on component unmount:
-
-```jsx
-MyComponent.intent = ({ DOM, dispose$ }) => ({
-  CLICK: DOM.click('.btn'),
-  CLEANUP: dispose$,
-})
-
-MyComponent.model = {
-  CLICK: (state) => ({ ...state, clicked: true }),
-  CLEANUP: {
-    WEBSOCKET: () => ({ type: 'close' }),
-    LOG: () => 'Component unmounted',
-  },
-}
-```
-
-## 25. Global DOM Events
-
-Listen to events outside the component's isolated DOM scope:
-
-```jsx
-MyComponent.intent = ({ DOM }) => ({
-  KEY_PRESS: DOM.select('document').events('keydown').map(e => e.key),
-  RESIZE: DOM.select('document').events('resize').map(() => ({
-    width: window.innerWidth,
-    height: window.innerHeight,
-  })),
-  // CSS-filtered document events
-  OUTSIDE_CLICK: DOM.select('document').select('.modal-overlay').events('click'),
-})
-```
-
-## 26. Stream Operations in Intent
-
-Common patterns for transforming streams:
-
-```jsx
-import { xs, debounce, throttle, delay, dropRepeats, sampleCombine } from 'sygnal'
-
-MyComponent.intent = ({ DOM, STATE }) => {
-  const click$ = DOM.click('.btn')
-  const input$ = DOM.input('.search').value()
-
-  return {
-    // Debounce rapid input (wait 300ms of inactivity)
-    SEARCH: input$.compose(debounce(300)),
-
-    // Throttle scroll events to once per 200ms
-    SCROLL: DOM.select('.container').events('scroll').compose(throttle(200)),
-
-    // Merge multiple sources into one action
-    NAVIGATE: xs.merge(
-      DOM.click('.link-a').mapTo('pageA'),
-      DOM.click('.link-b').mapTo('pageB'),
-    ),
-
-    // Map to a constant value
-    RESET: DOM.click('.reset-btn').mapTo(null),
-
-    // Filter by key using .key() helper
-    ENTER_KEY: DOM.keydown('.input').key(k => k === 'Enter'),
-
-    // Drop consecutive duplicates
-    UNIQUE_INPUT: input$.compose(dropRepeats()),
-
-    // Combine click with latest state
-    CLICK_WITH_STATE: click$.compose(sampleCombine(STATE.stream)),
-
-    // Delay emissions
-    DELAYED: click$.compose(delay(500)),
-
-    // Extract checkbox checked state
-    TOGGLED: DOM.change('.checkbox').checked(),
-
-    // Extract data attribute
-    ITEM_CLICKED: DOM.click('.item').data('id', v => Number(v)),
-  }
-}
-```
-
-## 27. CSS Classes Utility
-
-```jsx
-import { classes } from 'sygnal'
-
-function NavItem({ state }) {
-  const className = classes(
-    'nav-item',
-    { active: state.isActive, disabled: state.isDisabled },
-    state.variant && `nav-item-${state.variant}`,
-  )
-
-  return <li className={className}>{state.label}</li>
-}
-```
-
-Accepts strings, arrays, and objects with boolean values.
-
-## 28. Transitions
-
-CSS-based enter/leave animations:
-
+## 5. Transitions
 ```jsx
 import { Transition } from 'sygnal'
 
-function Notification({ state }) {
+function Notice({ state }) {
   return (
     <Transition name="fade" duration={300}>
-      {state.visible && <div className="notification">{state.message}</div>}
+      {state.visible && <div className="notice">{state.message}</div>}
     </Transition>
   )
 }
 ```
+CSS classes applied: `fade-enter-from` / `fade-enter-active` / `fade-enter-to` and the `leave` equivalents. Also `appear` (animate the first render). Works around a Collection item's root element too.
 
-CSS classes applied automatically:
-- `.fade-enter-from` → `.fade-enter-to` (with `.fade-enter-active`)
-- `.fade-leave-from` → `.fade-leave-to` (with `.fade-leave-active`)
-
-```css
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.3s ease;
-}
-.fade-enter-from { opacity: 0; }
-.fade-enter-to   { opacity: 1; }
-.fade-leave-from { opacity: 1; }
-.fade-leave-to   { opacity: 0; }
-```
-
-### Transition in Collections (TodoMVC style)
-
-```jsx
-import { Transition, classes } from 'sygnal'
-
-function TodoItem({ state }) {
-  return (
-    <Transition name="todo" duration={300}>
-      <li className={classes({ completed: state.completed })}>
-        <div className="view">
-          <input className="toggle" type="checkbox" checked={!!state.completed} />
-          <label>{state.title}</label>
-          <button className="destroy" />
-        </div>
-      </li>
-    </Transition>
-  )
-}
-```
-
-## 29. Portals
-
-Render children into a different DOM container:
-
+## 6. Portals
+Portal content renders into another container (`<div id="modal-root">` in index.html), outside the component's isolation scope, so select its events at document level.
 ```jsx
 import { Portal } from 'sygnal'
 
-function App({ state }) {
+function Modal({ state }) {
   return (
     <div>
-      <h1>Main content</h1>
-      {state.showModal && (
+      <button className="open">Open</button>
+      {state.open && (
         <Portal target="#modal-root">
-          <div className="modal-overlay">
-            <div className="modal">{state.modalContent}</div>
-          </div>
+          <div className="overlay"><button className="close">Close</button></div>
         </Portal>
       )}
     </div>
   )
 }
+Modal.initialState = { open: false }
+Modal.intent = ({ DOM }) => ({
+  OPEN:  DOM.click('.open'),
+  CLOSE: DOM.select('document').select('.close').events('click'),
+})
+Modal.model = {
+  OPEN:  (state) => ({ ...state, open: true }),
+  CLOSE: (state) => ({ ...state, open: false }),
+}
 ```
 
-Note: If Portal content is outside the component's DOM scope use `DOM.select('document').events().filter()` for portal events.
-
-## 30. Slots
-
-Pass named content regions to child components:
-
+## 7. Slots
 ```jsx
 import { Slot } from 'sygnal'
 
-// Parent passes slots
-function App({ state }) {
-  return (
-    <Card state="card">
-      <Slot name="header"><h2>Card Title</h2></Slot>
-      <Slot name="actions"><button className="save">Save</button></Slot>
-      <p>Default body content</p>
-    </Card>
-  )
-}
-
-// Child receives via slots prop
-function Card({ state, slots }) {
+function Card({ slots }) {
   return (
     <div className="card">
       <header>{...(slots.header || [])}</header>
       <main>{...(slots.default || [])}</main>
-      <footer>{...(slots.actions || [])}</footer>
     </div>
   )
 }
-```
 
-## 31. Error Boundaries
-
-Catch and recover from rendering errors:
-
-```jsx
-function BrokenComponent({ state }) {
-  return <div>{state.data.nested.value}</div>
+function Page() {
+  return (
+    <Card>
+      <Slot name="header"><h2>Title</h2></Slot>
+      <p>Body content (the default slot)</p>
+    </Card>
+  )
 }
-
-BrokenComponent.onError = (error, { componentName }) => (
-  <div className="error-fallback">
-    Something went wrong in {componentName}
-  </div>
-)
 ```
+Content passed in slots belongs to the parent: the parent's intent selects its classes.
 
-Without `.onError`, components render an empty `<div data-sygnal-error>` and log to console.
-
-## 32. Refs
-
-Access DOM elements declaratively:
-
+## 8. Refs
 ```jsx
-import { createRef } from 'sygnal'
+import { createRef, createRef$ } from 'sygnal'
 
-function AutoFocusInput({ state }) {
-  const inputRef = createRef()
-  return <input ref={inputRef} value={state.value} />
-  // inputRef.current is the DOM element after mount
+const field = createRef()      // field.current: the element after mount, null after unmount
+const box = createRef$()       // box.stream: emits the element on mount, null on unmount
+
+function Search({ state }) {
+  return <div ref={box}><input className="q" ref={field} value={state.q} /></div>
+}
+Search.initialState = { q: '' }
+Search.intent = ({ DOM }) => ({ Q: DOM.input('.q').value(), FOCUS: box.stream.filter(Boolean) })
+Search.model = {
+  Q:     (state, q) => ({ ...state, q }),
+  FOCUS: { EFFECT: () => field.current?.focus() },
 }
 ```
 
-## 33. Lazy Loading & Suspense
-
-Code-split components with loading boundaries:
-
+## 9. Lazy loading and Suspense
 ```jsx
 import { lazy, Suspense } from 'sygnal'
 
-const HeavyChart = lazy(() => import('./HeavyChart.jsx'))
+const Chart = lazy(() => import('./Chart.jsx'))
 
-function Dashboard({ state }) {
+function Dashboard() {
   return (
-    <div>
-      <h1>Dashboard</h1>
-      <Suspense fallback={<div className="loading">Loading chart...</div>}>
-        <HeavyChart state="chartData" />
-      </Suspense>
-    </div>
+    <Suspense fallback={<div className="loading">Loading chart</div>}>
+      <Chart state="chart" />
+    </Suspense>
   )
 }
+Dashboard.initialState = { chart: { points: [] } }
 ```
-
-### Explicit READY control
-
+A child is ready at once unless its model has a `READY` sink; then it is not ready until that sink sends `true`:
 ```jsx
-SlowComponent.model = {
-  DATA_LOADED: {
-    STATE: (state, data) => ({ ...state, data, loaded: true }),
-    READY: () => true,  // signals parent Suspense that component is ready
+function Report({ state }) {
+  return <div className="report">{state.rows.length} rows</div>
+}
+Report.intent = ({ API }) => ({ LOADED: API.select('rows') })
+Report.model = {
+  BOOTSTRAP: { API: () => ({ category: 'rows', value: null }) },
+  LOADED: {
+    STATE: (state, { value }) => ({ ...state, rows: value }),
+    READY: () => true,
   },
 }
 ```
 
-## 34. TypeScript Component
+## 10. Lifecycle: BOOTSTRAP and DISPOSE
+```jsx
+import { event } from 'sygnal'
 
-```tsx
-import type { RootComponent } from 'sygnal'
-
-type AppState = {
-  count: number
-  name: string
-  items: string[]
+function Clock({ state }) {
+  return <time className="clock">{state.now}</time>
+}
+Clock.initialState = { now: 0, id: 'clock' }
+Clock.intent = ({ TIMER }) => ({ TICK: TIMER.select('tick') })
+Clock.model = {
+  BOOTSTRAP: { TIMER: () => ({ category: 'tick', value: 1000 }) },   // once, after mount
+  TICK:      (state, { value }) => ({ ...state, now: value }),
+  DISPOSE:   { EVENTS: event('CLOCK_GONE', (state) => ({ id: state.id })) },  // on unmount
 }
 
-type AppActions = {
-  INCREMENT: null
-  SET_NAME: string
-  ADD_ITEM: string
+function ClockLog({ state }) {
+  return <p className="log">{state.gone}</p>
 }
+ClockLog.intent = ({ EVENTS }) => ({ GONE: EVENTS.select('CLOCK_GONE') })
+ClockLog.model = { GONE: (state, { id }) => ({ ...state, gone: id }) }
+```
+`dispose$` (intent source) emits once on unmount, for stream composition such as `.endWhen(dispose$)`.
 
-const App: RootComponent<AppState, {}, AppActions> = ({ state }) => {
+## 11. Drag and drop
+For drags across components, use the drag driver: it listens at document level, so isolation doesn't block it.
+```js
+// main.js
+import { run, makeDragDriver } from 'sygnal'
+import Board from './Board.jsx'
+run(Board, { DND: makeDragDriver() })
+```
+```jsx
+import { ABORT } from 'sygnal'
+
+function Board({ state }) {
   return (
-    <div>
-      <h1>{state.name}: {state.count}</h1>
-      <button className="increment">+</button>
-      <input className="name-input" value={state.name} />
+    <div className="board">
+      {state.lanes.map((lane) => (
+        <div className="lane" data={{ lane: lane.id }}>
+          {lane.cards.map((card) => <div className="card" draggable="true" data={{ id: card.id }}>{card.title}</div>)}
+        </div>
+      ))}
     </div>
   )
 }
-
-App.initialState = { count: 0, name: 'Counter', items: [] }
-
-App.intent = ({ DOM }) => ({
-  INCREMENT: DOM.click('.increment'),
-  SET_NAME: DOM.input('.name-input').value(),
+Board.initialState = { dragging: null, lanes: [{ id: 'a', cards: [{ id: 1, title: 'One' }] }, { id: 'b', cards: [] }] }
+Board.intent = ({ DND }) => ({
+  DRAG: DND.dragstart('card').data('id', Number),   // payload { element, dataset }; .data() reads dataset
+  DROP: DND.drop('lane'),                           // payload { dropZone, insertBefore }
+  END:  DND.dragend('card'),
 })
-
-App.model = {
-  INCREMENT: (state) => ({ ...state, count: state.count + 1 }),
-  SET_NAME: (state, name) => ({ ...state, name }),
-}
-
-export default App
-```
-
-### Typed Child Component
-
-```tsx
-import type { Component } from 'sygnal'
-
-type ItemState = { id: number; text: string; done: boolean }
-type ItemProps = { showDelete: boolean }
-type ItemActions = { TOGGLE: null; DELETE: null }
-
-const Item: Component<ItemState, ItemProps, {}, ItemActions> = ({ state, showDelete }) => {
-  return (
-    <div className={state.done ? 'done' : ''}>
-      <span>{state.text}</span>
-      <button className="toggle">Toggle</button>
-      {showDelete && <button className="delete">Delete</button>}
-    </div>
-  )
-}
-
-Item.intent = ({ DOM }) => ({
-  TOGGLE: DOM.click('.toggle'),
-  DELETE: DOM.click('.delete'),
-})
-
-Item.model = {
-  TOGGLE: (state) => ({ ...state, done: !state.done }),
-  DELETE: () => undefined,
-}
-
-export default Item
-```
-
-## 35. TypeScript with exactState()
-
-Enforce exact state shape — no extra properties allowed:
-
-```tsx
-import { exactState } from 'sygnal'
-
-type GameState = {
-  score: number
-  lives: number
-  level: number
-  gameOver: boolean
-}
-
-const asGameState = exactState<GameState>()
-
-Game.model = {
-  SCORE_POINT: (state) => asGameState({
-    ...state,
-    score: state.score + 10,
-    // TypeScript error if you add an unknown property here
-  }),
-  LOSE_LIFE: (state) => {
-    if (state.lives <= 1) {
-      return asGameState({ ...state, lives: 0, gameOver: true })
-    }
-    return asGameState({ ...state, lives: state.lives - 1 })
+Board.model = {
+  BOOTSTRAP: {
+    DND: () => [
+      { category: 'card', draggable: '.card' },
+      { category: 'lane', dropZone: '.lane', accepts: 'card' },
+    ],
   },
+  DRAG: (state, id) => ({ ...state, dragging: id }),
+  DROP: (state, { dropZone }) => {
+    const to = dropZone.dataset.lane
+    const card = state.lanes.flatMap((l) => l.cards).find((c) => c.id === state.dragging)
+    if (!card) return ABORT
+    const lanes = state.lanes.map((l) => ({
+      ...l,
+      cards: l.id === to ? [...l.cards.filter((c) => c !== card), card] : l.cards.filter((c) => c !== card),
+    }))
+    return { ...state, lanes, dragging: null }
+  },
+  END: (state) => (state.dragging === null ? ABORT : { ...state, dragging: null }),
 }
 ```
+Within one component, `processDrag({ draggable: DOM.select('.card'), dropZone: DOM.select('.lane') })` returns `{ dragStart$, dragEnd$, dragOver$, drop$ }`.
 
-## 36. Full SPA Scaffold
-
-### vite.config.js
-
-```javascript
-import { defineConfig } from 'vite'
-import sygnal from 'sygnal/vite'
-
-export default defineConfig({
-  plugins: [sygnal()],
-})
-```
-
-### src/main.js
-
-```javascript
-import { run, driverFromAsync } from 'sygnal'
+## 12. PWA helpers
+```js
+// main.js
+import { run, makeServiceWorkerDriver } from 'sygnal'
 import App from './App.jsx'
-import './style.css'
-
-const apiDriver = driverFromAsync(
-  async (url) => {
-    const res = await fetch(url)
-    return res.json()
-  },
-  { selector: 'endpoint', args: 'url', return: 'data' }
-)
-
-run(App, { API: apiDriver })
+run(App, { SW: makeServiceWorkerDriver('/sw.js', { scope: '/' }) })
 ```
-
-### src/App.jsx
-
 ```jsx
-import { xs, Switchable, processForm } from 'sygnal'
-import HomePage from './pages/HomePage.jsx'
-import FormPage from './pages/FormPage.jsx'
+import { onlineStatus$, createInstallPrompt } from 'sygnal'
+
+const install = createInstallPrompt()   // create once, at module level
 
 function App({ state }) {
   return (
-    <div className="app">
-      <nav>
-        <button className="nav-home">Home</button>
-        <button className="nav-form">Form</button>
-      </nav>
-      {state.loading && <div className="loader">Loading...</div>}
-      <Switchable
-        of={{ home: HomePage, form: FormPage }}
-        current={state.route}
-      />
+    <div>
+      {state.offline && <p className="offline">Offline</p>}
+      {state.updateReady && <button className="update">Update</button>}
+      {state.canInstall && <button className="install">Install</button>}
     </div>
   )
 }
-
-App.initialState = {
-  route: 'home',
-  loading: false,
-  items: [],
-}
-
-App.intent = ({ DOM, API }) => ({
-  SET_ROUTE: xs.merge(
-    DOM.click('.nav-home').mapTo('home'),
-    DOM.click('.nav-form').mapTo('form'),
-  ),
-  ITEMS_LOADED: API.select('items'),
+App.initialState = { offline: false, updateReady: false, canInstall: false }
+App.intent = ({ DOM, SW }) => ({
+  ONLINE:      onlineStatus$,                              // boolean, emits navigator.onLine first
+  WAITING:     SW.select('waiting'),                       // also installed, activated, controlling, error, message
+  UPDATE:      DOM.click('.update'),
+  CAN_INSTALL: install.select('beforeinstallprompt'),
+  INSTALL:     DOM.click('.install'),
 })
-
 App.model = {
-  BOOTSTRAP: (state, data, next) => {
-    next('LOAD_ITEMS')
-    return state
-  },
-  SET_ROUTE: (state, route) => ({ ...state, route }),
-  LOAD_ITEMS: {
-    STATE: (state) => ({ ...state, loading: true }),
-    API: () => ({ endpoint: 'items', url: '/api/items' }),
-  },
-  ITEMS_LOADED: (state, response) => ({
-    ...state,
-    loading: false,
-    items: response.data,
-  }),
+  ONLINE:      (state, online) => ({ ...state, offline: !online }),
+  WAITING:     (state) => ({ ...state, updateReady: true }),
+  UPDATE:      { SW: () => ({ action: 'skipWaiting' }), EFFECT: () => window.location.reload() },
+  CAN_INSTALL: (state) => ({ ...state, canInstall: true }),
+  INSTALL:     { STATE: (state) => ({ ...state, canInstall: false }), EFFECT: () => install.prompt() },
 }
-
-export default App
 ```
+SW commands: `{ action: 'skipWaiting' | 'postMessage' | 'unregister', data? }`. The `vite-pwa` template of create-sygnal-app ships a working setup.
 
-## 37. Astro Integration
+## 13. SSR and hydration
+`renderToString(Component, { state?, props?, context?, hydrateState? })` renders HTML without a DOM. Intent and model don't run; Portal and Slot render inline, Transition unwraps, Suspense renders its children, `lazy()` renders its placeholder (import directly for SSR).
+```js
+// server.js
+import { renderToString } from 'sygnal'
+import App from './App.jsx'
 
-```javascript
+export function render(state) {
+  return renderToString(App, { state, hydrateState: true })   // appends <script>window.__SYGNAL_STATE__=...</script>
+}
+```
+```js
+// main.js (client)
+import { run } from 'sygnal'
+import App from './App.jsx'
+
+if (window.__SYGNAL_STATE__) App.initialState = window.__SYGNAL_STATE__
+run(App)
+```
+Use `hydrateState: '__MY_STATE__'` (a unique name) when a page has more than one app.
+
+## 14. Astro
+```js
 // astro.config.mjs
 import { defineConfig } from 'astro/config'
 import sygnal from 'sygnal/astro'
 
-export default defineConfig({
-  integrations: [sygnal()],
-})
+export default defineConfig({ integrations: [sygnal()] })
 ```
-
 ```astro
 ---
-// src/pages/index.astro
 import Counter from '../components/Counter.jsx'
 ---
-
-<html>
-  <body>
-    <h1>My Astro + Sygnal Page</h1>
-    <Counter client:load />
-  </body>
-</html>
+<Counter client:load />
 ```
+Directives: `client:load`, `client:visible`, `client:idle`. Each island is its own app (EVENTS don't cross islands).
 
-Supported client directives: `client:load`, `client:visible`, `client:idle`.
-
-## 38. Vike Integration (SSR)
-
-```javascript
+## 15. Vike
+```js
 // vite.config.js
 import { defineConfig } from 'vite'
-import sygnal from 'sygnal/vite'
 import vike from 'vike/plugin'
+import sygnal from 'sygnal/vite'
 
-export default defineConfig({
-  plugins: [sygnal({ disableHmr: true }), vike()],
-})
+export default defineConfig({ plugins: [sygnal({ disableHmr: true }), vike()] })
 ```
-
-```javascript
+```js
 // pages/+config.js
 import vikeSygnal from 'sygnal/config'
 export default { extends: [vikeSygnal] }
 ```
+Pages are ordinary components in `pages/<route>/+Page.jsx` (also `+Layout.jsx`, `+Head.jsx`). `+data.js` returns data that is merged into the page's `initialState`. `ssr: false` in a page's `+config.js` makes it client-only; `import { ClientOnly } from 'sygnal/vike/ClientOnly'` wraps browser-only children (`<ClientOnly fallback={...}>`).
 
-```jsx
-// pages/index/+Page.jsx
-function Page({ state }) {
-  return (
-    <div>
-      <h1>Count: {state.count}</h1>
-      <button className="increment">+</button>
-    </div>
-  )
-}
+## 16. TypeScript
+```tsx
+import type { RootComponent, Component } from 'sygnal'
 
-Page.initialState = { count: 0 }
+type Item = { id: number; text: string; done: boolean }
+type State = { draft: string; items: Item[] }
+type Actions = { DRAFT: string; TOGGLE: number }
 
-Page.intent = ({ DOM }) => ({
-  INCREMENT: DOM.click('.increment'),
+const App: RootComponent<State, {}, Actions> = ({ state }) => (
+  <div>
+    <input className="draft" value={state.draft} />
+    <ul>{state.items.map((i) => <li className="item" data={{ id: i.id }}>{i.text}</li>)}</ul>
+  </div>
+)
+App.initialState = { draft: '', items: [] }
+App.intent = ({ DOM }) => ({
+  DRAFT:  DOM.input('.draft').value(),
+  TOGGLE: DOM.click('.item').data('id', Number),
 })
-
-Page.model = {
-  INCREMENT: (state) => ({ ...state, count: state.count + 1 }),
+App.model = {
+  DRAFT:  (state, draft) => ({ ...state, draft }),
+  TOGGLE: (state, id) => ({ ...state, items: state.items.map((i) => (i.id === id ? { ...i, done: !i.done } : i)) }),
 }
 
-export default Page
+type RowProps = { showDelete: boolean }
+const Row: Component<Item, RowProps, {}, { REMOVE: null }> = ({ state, showDelete }) => (
+  <div>{state.text}{showDelete && <button className="remove">x</button>}</div>
+)
+Row.intent = ({ DOM }) => ({ REMOVE: DOM.click('.remove') })
+Row.model = { REMOVE: () => undefined }
 ```
-
-Pages are standard Sygnal components in `pages/*/+Page.jsx`. Supports `+Layout.jsx`, `+Head.jsx`, `+data.js`, and SPA mode via `ssr: false` in page config.
+Generic order: `RootComponent<State, Drivers, Actions, Calculated, Context>`, `Component<State, Props, Drivers, Actions, Calculated, Context>`. `exactState<State>()` returns a checker that rejects extra keys: `const asState = exactState<State>()`, then `return asState({ ...state, draft })`. Register EVENTS types globally with `declare module 'sygnal' { interface SygnalEvents { DOC_SAVED: { id: string } } }` to type-check `event()` and `EVENTS.select()`.
