@@ -159,7 +159,7 @@ Any MCP client that takes a JSON config (`.mcp.json`, Claude Desktop, Cursor, â€
 ```json
 {
   "mcpServers": {
-    "sygnal-check": { "command": "npx", "args": ["sygnal-check", "mcp"] }
+    "sygnal-check": { "command": "npx", "args": ["--no-install", "sygnal-check", "mcp"] }
   }
 }
 ```
