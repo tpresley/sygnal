@@ -10,7 +10,7 @@ Tracks progress for [PLAN-2.md](PLAN-2.md). Maintained by the coordinator. The P
 
 | Phase | Status | Tag | Notes |
 |---|---|---|---|
-| 0 — Release follow-through, eval infrastructure | 🟡 In progress | — | 0-A ✅ · 0-B ✅ · 0-C ✅ · tier-3 pilot ✅ (20/20 pass; Sygnal 66.6 s vs React 45.7 s) · v2-baseline 🟡 (160 trials, D46) |
+| 0 — Release follow-through, eval infrastructure | ✅ Done | `plan2-phase0` | 0-A ✅ · 0-B ✅ · 0-C ✅ · tier-3 pilot ✅ (20/20 pass; Sygnal 66.6 s vs React 45.7 s) · v2-baseline ✅ 160/160, Sygnal 48.4 s vs React 34.1 s (1.42×), see `results/V2-BASELINE.md` |
 | 1 — Correctness backlog | ✅ Done | `plan2-phase1` | 1-A…1-F ✅ · 1-T trim ✅ · review: 6 findings + 2 notes, all fixed in 1-R · kanban 41,803 B (2 B headroom) |
 | 2 — Known ergonomics improvements | 🟡 In progress | — | 2-A ✅ · 2-B ✅ · 2-C ✅ · 2-D ✅ |
 | 3 — Experiments | ⚪ | — | |
@@ -157,6 +157,7 @@ gzip -c /tmp/kb/assets/index-*.js | wc -c      # budget 41,805 B
 
 ## Activity Log
 
+- 2026-10-01 — v2-baseline done: 160/160 pass, $49.26; Sygnal 48.4 s vs React 34.1 s (+14.3 s; tier gaps 8.0 / 12.3 / 23.5 s); learning 52% of the delta. `V2-BASELINE.md` written; Phase 0 closed, tagged `plan2-phase0`. Stale PLAN-1 tracker statuses mislead the analyzer's recommendations (B-005) → bookkeeping agent.
 - 2026-10-01 — Phase 2 review: 9 findings (3 med) → 2-R launched with D49/D50.
 - 2026-10-01 — 2-C merged; full gate green (953 vitest, 121 browser, 41,712 B gated). All Phase 2 workstreams merged; Phase 2 closes after the targeted eval against v2-baseline.
 - 2026-10-01 — 2-D merged; size gate is now `node scripts/size-gate.mjs` (budget 42,300 B gated); apps ~4 KB smaller by default.
