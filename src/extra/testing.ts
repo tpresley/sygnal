@@ -5,7 +5,7 @@ import eventBusDriver from './eventDriver';
 import logDriver from './logDriver';
 import component from '../component';
 import {renderToString} from './ssr';
-import {configureDiagnostics, getDiagnosticsMode, isDiagnosticsEnabled, onDiagnostic, registerCheck, report} from './diagnostics/index';
+import {_getDiagnosticsConfig, configureDiagnostics, getDiagnosticsMode, isDiagnosticsEnabled, onDiagnostic, registerCheck, report} from './diagnostics/index';
 import xs from './xstreamCompat';
 import type {Stream} from 'xstream';
 import type {Diagnostic, DiagnosticsMode} from './diagnostics/index';
@@ -36,8 +36,9 @@ import type {Diagnostic, DiagnosticsMode} from './diagnostics/index';
  * - Calls made before the component is subscribed are buffered and replayed
  *   in order once it is ready; `await t.ready()` is an explicit sync point.
  * - Diagnostics: `diagnostics` (default 'collect', or the already-active
- *   mode when diagnostics are on) is applied with
- *   configureDiagnostics and restored by dispose(). Most runtime checks live
+ *   mode when diagnostics are on) is applied with configureDiagnostics. The
+ *   explicit config from before the first live instance is restored when the
+ *   last live instance is disposed (overlapping/nested instances are fine). Most runtime checks live
  *   in a separate entry: `import 'sygnal/diagnostics'` in the test (or vitest
  *   setupFiles) to enable them. Two DOM checks are built in (G-024), since the
  *   real-DOM versions can't run on the mock DOM:
@@ -199,6 +200,11 @@ function find(v: any, cs: string[], chain: any[] = []): any[] | undefined {
   }
 }
 
+// 1H-5: live renderComponent instances; the explicit diagnostics config from before the
+// outermost one is restored when the last one is disposed
+let active = 0;
+let savedConfig: ReturnType<typeof _getDiagnosticsConfig>;
+
 export function renderComponent(
   componentDef: any,
   options: RenderOptions = {}
@@ -207,6 +213,7 @@ export function renderComponent(
   const {intent, model = {}} = componentDef;
 
   const prevMode = getDiagnosticsMode();
+  if (!active++) savedConfig = _getDiagnosticsConfig();
   configureDiagnostics({mode: diagnostics || (prevMode == 'off' ? 'collect' : prevMode)});
   const collected: Diagnostic[] = [];
   const offDiag = onDiagnostic(d => collected.push(d));
@@ -271,8 +278,7 @@ export function renderComponent(
   const restore = () => {
     offCheck();
     offDiag();
-    configureDiagnostics({mode: undefined});
-    if (getDiagnosticsMode() != prevMode) configureDiagnostics({mode: prevMode});
+    if (!--active) configureDiagnostics(savedConfig);
   };
 
   const noop = () => {};

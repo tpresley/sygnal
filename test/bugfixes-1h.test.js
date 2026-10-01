@@ -199,3 +199,64 @@ describe('1H-4: renderComponent with a model but no initialState', () => {
     await settle(120)
   })
 })
+
+// ─── 1H-5: overlapping renderComponent instances keep the diagnostics config ─
+
+import { getDiagnosticsMode, configureDiagnostics, report, getDiagnostics } from '../src/extra/diagnostics/index.js'
+
+describe('1H-5: overlapping and nested renderComponent instances', () => {
+  function C({ state }) { return h('div', null, String(state.n)) }
+  C.initialState = { n: 0 }
+
+  it('overlap: disposing the first keeps diagnostics on for the second; the last restores the defaults', () => {
+    expect(getDiagnosticsMode()).toBe('off')
+    const t1 = renderComponent(C)
+    const t2 = renderComponent(C)
+    t1.dispose()
+    expect(getDiagnosticsMode()).toBe('collect')
+    t2.dispose()
+    expect(getDiagnosticsMode()).toBe('off')
+    // no explicit mode left behind: the dev flag still decides
+    globalThis.__SYGNAL_DEV__ = true
+    try {
+      configureDiagnostics({})
+      expect(getDiagnosticsMode()).toBe('warn')
+    } finally {
+      delete globalThis.__SYGNAL_DEV__
+      configureDiagnostics({})
+    }
+  })
+
+  it('nesting with explicit modes: the outer config (mode and ignore list) comes back exactly', () => {
+    configureDiagnostics({ mode: 'error', ignore: ['SYG213'] })
+    const t1 = renderComponent(C, { diagnostics: 'collect' })
+    const t2 = renderComponent(C, { diagnostics: 'warn' })
+    expect(getDiagnosticsMode()).toBe('warn')
+    t2.dispose()
+    expect(getDiagnosticsMode()).not.toBe('off')
+    t1.dispose()
+    expect(getDiagnosticsMode()).toBe('error')
+    expect(report('SYG213', { message: 'ignored' })).toBeUndefined()
+    expect(getDiagnostics()).toEqual([])
+  })
+
+  it('overlap with an explicit outer config: the live instance keeps its mode; the last dispose restores it', () => {
+    configureDiagnostics({ mode: 'error', ignore: ['SYG213'] })
+    const t1 = renderComponent(C, { diagnostics: 'collect' })
+    const t2 = renderComponent(C)
+    t1.dispose()
+    expect(getDiagnosticsMode()).toBe('collect')
+    t2.dispose()
+    expect(getDiagnosticsMode()).toBe('error')
+    expect(report('SYG213', { message: 'ignored' })).toBeUndefined()
+  })
+
+  it('dispose order t2 then t1 also restores', () => {
+    const t1 = renderComponent(C)
+    const t2 = renderComponent(C)
+    t2.dispose()
+    expect(getDiagnosticsMode()).toBe('collect')
+    t1.dispose()
+    expect(getDiagnosticsMode()).toBe('off')
+  })
+})

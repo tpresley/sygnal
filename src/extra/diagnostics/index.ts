@@ -205,6 +205,11 @@ export function configureDiagnostics(options: DiagnosticsOptions = {}): void {
   resolveDiagnosticsMode()
 }
 
+/** Internal: the explicit configuration (not the resolved mode), so it can be restored exactly. */
+export function _getDiagnosticsConfig(): { mode: DiagnosticsMode | undefined, ignore: string[] } {
+  return { mode: explicitMode, ignore: [...ignored] }
+}
+
 export function getDiagnosticsMode(): DiagnosticsMode {
   return mode
 }
