@@ -6,6 +6,8 @@ import { formatDiagnostics } from './format.js'
 import { SEVERITY_RANK } from './diagnostic.js'
 import { expandInputs } from './files.js'
 import { fixFiles } from './fix.js'
+import { graphFiles } from './graph.js'
+import { formatGraph } from './graphText.js'
 
 const HELP = `Usage: sygnal-check [paths...] [options]
 
@@ -27,7 +29,11 @@ Options:
                          (implies --strict): 'A | SINK' keys → object form,
                          emit() → { EVENTS: event() }, CHILD.select('Name') →
                          CHILD.select(Name); then report what is left
-  --graph                print the app graph (not implemented yet)
+  --graph                print the app graph (components, actions, children,
+                         selectors, EVENTS, diagnostics) instead of the
+                         diagnostics list; with --json, as InspectGraph JSON
+                         (schema/inspect.schema.json, the same shape as the
+                         runtime inspect()). Exits 0 unless the files can't be read
   -h, --help             show this help
 
 Suppress a finding with a comment on the same line or the line above:
@@ -49,6 +55,7 @@ export function parseArgs(argv) {
     else opts.paths.push(a)
   }
   if (!['warn', 'error', 'never'].includes(opts.failOn)) throw new Error(`--fail-on must be warn, error or never (got '${opts.failOn}')`)
+  if (opts.graph && opts.fix) throw new Error('--graph and --fix cannot be combined')
   if (opts.paths.length === 0) opts.paths = ['src']
   return opts
 }
@@ -63,13 +70,18 @@ export function main(argv, { stdout = process.stdout, stderr = process.stderr, c
     return 2
   }
   if (opts.help) { stdout.write(HELP); return 0 }
-  if (opts.graph) { stderr.write('sygnal-check: --graph is not implemented yet\n'); return 2 }
 
   const { files, missing } = expandInputs(opts.paths, { cwd, includeTests: opts.includeTests })
   for (const m of missing) stderr.write(`sygnal-check: no such file or directory: ${m}\n`)
   if (files.length === 0) {
     stderr.write(`sygnal-check: no source files found in ${opts.paths.join(', ')}\n`)
     return 2
+  }
+
+  if (opts.graph) {
+    const g = graphFiles(files, { cwd, strict: opts.strict, includeTests: opts.includeTests })
+    stdout.write((opts.json ? JSON.stringify(g, null, 2) : formatGraph(g, { verbose: opts.verbose })) + '\n')
+    return 0
   }
 
   if (opts.fix) {
