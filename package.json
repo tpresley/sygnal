@@ -85,7 +85,8 @@
   },
   "files": [
     "dist",
-    "src"
+    "src",
+    "llms.txt"
   ],
   "scripts": {
     "test": "vitest run && npm run test:examples && npm run test:types && npm run test:browser",
