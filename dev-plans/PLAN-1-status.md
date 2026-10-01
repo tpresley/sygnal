@@ -32,6 +32,8 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | 1D | Static checker `sygnal-check` | ✅ | `worktree-agent-a61372bf822366ee4` | subagent | `679e60f` | Rules SYG101/102/104/105/110/401 + SYG900, suppression comments, extensible rule modules and a project model (ready for 2A strict, 2B graph). 0 diagnostics on all examples and templates; catches eval tasks 06/07; kanban in 0.06 s. 46 package tests (`*.vtest.js`, not collected by the root) |
 | 1E | Error-message retrofit | ✅ | `worktree-agent-a4b674c8f269ce1e4` | subagent | `781f119` (+`65dd5fc` integration) | ~55 call sites coded (SYG206–220, 402–420, 601–607, 901–903, plus 1A's SYG401). New `diagnostics/legacy.ts`: production ('off') still prints, now with codes; enabled modes route through report(). Corrected misleading texts (a bad Collection `from` renders **nothing**; it doesn't use the parent state). Pragma's SYG420 is a literal (the JSX runtime is bundled separately). Kanban +286 B |
 | 0A-H | Harder eval tier (tasks 09–12) + harness fixes | ✅ | `worktree-agent-ab48f9e4d3b40f38e` | subagent | `6b79fbc` | 4 tasks × 2 arms, 30 hidden tests, verified 44/44 on the baseline tarball and HEAD, no flakes in 32 reruns, mutants caught. Fixed G-009 and G-017. Found B-010, B-011, B-012 |
+| — | Tier-2 baseline run (`baseline-t2`) | ✅ | — | coordinator | `24e3641` | 40/40 pass. Sygnal 92 s / 4.5 iterations vs React 63 s / 2.5 (~1.46×). Ceiling persists; Phase 4 measures efficiency |
+| — | Friction analyzer | 🟡 | (harness-assigned) | subagent | — | Per-trial phase timing, tokens, failure catalog, skill heatmap, final-code analysis (D24) |
 | 1G | Rendering bug fixes (B-010/011/012) | ⚪ | | | | Queued after 1F (overlaps snabbdom modules / pragma); folded into Phase 1 under the Q5 approval to fix found bugs |
 | 1F | Framework bug fixes | 🟡 | | | | Scope: B-003, B-004, B-005, B-008, B-009 (verify), G-020, G-025, G-026, **G-024 (simulateEvent reports SYG103/104; user request, D23)** |
 | 2A | Strict mode | ⚪ | | | | |
@@ -101,6 +103,8 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 
 | D22 | 2026-10-01 | A bad Collection `from` is reported once, by the core (1E's SYG401/SYG412, in every mode), with the available array fields added to the message. 1A's dev check keeps only the `from`-missing/whole-state case | Coordinator (merge resolution) | 1A + 1E both reported SYG401 for the same event |
 | D23 | 2026-10-01 | G-024 (simulateEvent reports SYG103/SYG104 under renderComponent) added to 1F | User | Agents test with renderComponent; the isolation trap must be visible there |
+
+| D24 | 2026-10-01 | Add a friction analyzer over the existing transcripts (no new trials) to attribute the Sygnal−React delta to phases, defects and skill usage; it will also compare the Phase 4 re-run | Coordinator (in answer to the user's question about diagnostic depth) | Pass rate is saturated; efficiency is the only signal, so we need to know where the time goes |
 
 ## Bugs & Gaps Found
 
