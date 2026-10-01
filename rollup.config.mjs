@@ -85,6 +85,32 @@ export default [
 		]
   },
 
+  // 'sygnal/diagnostics': dev-only runtime checks (PLAN-1 1A). The checks must
+  // share the diagnostics core instance of the 'sygnal' package, so the core
+  // import (src/extra/diagnostics/index.ts) becomes the external 'sygnal'.
+  {
+    input: 'src/extra/diagnostics/checks/index.ts',
+    external: (id) => isExternal(id) || id === 'sygnal',
+    output: [
+      { file: pkg.exports['./diagnostics'].require, format: 'cjs', ...sourcemapOptions },
+      { file: pkg.exports['./diagnostics'].import, format: 'es', ...sourcemapOptions }
+    ],
+		plugins: [
+			{
+				name: 'sygnal-diagnostics-core-external',
+				resolveId(source, importer) {
+					if (source === '../index' && importer && /[\\/]extra[\\/]diagnostics[\\/]checks[\\/]/.test(importer)) {
+						return { id: 'sygnal', external: true }
+					}
+					return null
+				},
+			},
+			typescript({ tsconfig: './tsconfig.json' }),
+			resolve({ extensions: ['.mjs', '.js', '.ts', '.json'] }),
+			commonjs()
+		]
+  },
+
   {
     input: 'src/vite/plugin.ts',
     external: [],
