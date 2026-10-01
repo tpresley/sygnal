@@ -209,8 +209,8 @@ A driver is any function `sink$ => source`. Page-wide events: `DOM.select('docum
 - **ABORT**: from a STATE reducer, the state is unchanged; from any other sink, nothing is sent.
 - **Focus**: `blur`/`focus` don't bubble, but `DOM.blur('.field')` and `DOM.focus('.field')` work (listener on the element). For any field inside a container use the bubbling `DOM.focusout('.form')` / `DOM.focusin`.
 - **Shorthands**: `DOM.<event>('.sel')` = `DOM.select('.sel').events('<event>')` for every event name (`click input change keydown submit dblclick ...`).
-- **Enriched streams** (chainable, optional mapper): `.value(fn?)` e.target.value; `.checked(fn?)` boolean; `.key(fn?)` e.key; `.target(fn?)`; `.data('id', Number)` reads `data-id` on the target or its nearest ancestor that has it (JSX: `data={{ id: 7 }}`; use one-word names).
-- **xstream**: `xs.merge/combine/of/periodic/never/fromPromise`; methods `map mapTo filter startWith fold take drop last endWhen flatten compose remember replaceError debug`. From `'sygnal'`, used with `.compose(...)`: `debounce(ms) throttle(ms) delay(ms) dropRepeats() sampleCombine(other$)`.
+- **Enriched streams** (chainable, optional mapper): `.value(fn?)` e.target.value; `.checked(fn?)` boolean; `.key(fn?)` e.key; `.target(fn?)`; `.data('id', Number)` reads `data-id` on the target or its nearest ancestor that has it (JSX: `data={{ id: 7 }}`). camelCase names map to kebab-case attributes: `.data('taskId')` reads `data-task-id`.
+- **xstream**: `xs.merge/combine/of/periodic/never/fromPromise`; methods `map mapTo filter startWith fold take drop last endWhen flatten compose remember replaceError debug`. From `'sygnal'`, used with `.compose(...)`: `debounce(ms) throttle(ms) delay(ms) dropRepeats() sampleCombine(other$) flattenConcurrently flattenSequentially`; plus `concat(a$, b$)`.
 
 | RxJS | xstream | RxJS | xstream |
 |---|---|---|---|
@@ -221,6 +221,8 @@ A driver is any function `sink$ => source`. Page-wide events: `DOM.select('docum
 | `scan(f, seed)` | `.fold(f, seed)` | `skip(n)` / `first()` | `.drop(n)` / `.take(1)` |
 | `takeUntil(b$)` | `.endWhen(b$)` | `tap(f)` | `.debug(f)` |
 | `catchError(f)` | `.replaceError(f)` | `shareReplay(1)` | `.remember()` |
+| `mergeMap(f)` | `.map(f).compose(flattenConcurrently)` | `concatMap(f)` | `.map(f).compose(flattenSequentially)` |
+(Last row: `import { flattenConcurrently, flattenSequentially, concat } from 'sygnal'`.)
 
 - **Imports** (all from `'sygnal'`): `run ABORT set toggle event createCommand driverFromAsync xs debounce throttle delay dropRepeats sampleCombine classes processForm processDrag makeDragDriver Collection Switchable Portal Transition Slot Suspense lazy createRef createRef$ renderComponent renderToString`; types `Component RootComponent Lens`. Never import the JSX runtime by hand; the Vite plugin configures it.
 

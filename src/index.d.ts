@@ -491,6 +491,12 @@ export type TransitionProps = {
   children?: any;
 }
 
+export type SuspenseProps = {
+  /** Rendered while any descendant is not READY (or a lazy() component is still loading) */
+  fallback?: any;
+  children?: any;
+}
+
 export type SlotProps = {
   name?: string;
   children?: any;
@@ -845,6 +851,7 @@ export function Collection<PROPS extends { [prop: string]: any }, STATE = any>(p
 export function Switchable<PROPS extends { [prop: string]: any }>(props: SwitchableProps<PROPS>): JSX.Element
 export function Portal(props: PortalProps): JSX.Element
 export function Transition(props: TransitionProps): JSX.Element
+export function Suspense(props: SuspenseProps): JSX.Element
 export function Slot(props: SlotProps): JSX.Element
 
 export function lazy<PROPS = any>(
