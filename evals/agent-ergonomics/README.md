@@ -123,6 +123,19 @@ Each record in `results/<run>.json`:
 
 The report (PLAN-1 §7) compares, per arm and per task: first-attempt pass rate, mean iterations, mean edit rounds, and failure-category distribution, for baseline vs. re-run vs. React.
 
+## Friction analyzer (`analysis/`)
+
+Explains *where* the time goes, from the stored transcripts and final trial code (no new trials):
+
+```bash
+node evals/agent-ergonomics/analysis/analyze.mjs --run baseline        # map: results/transcripts/baseline.tsv
+node evals/agent-ergonomics/analysis/analyze.mjs --run baseline-t2
+node evals/agent-ergonomics/analysis/compare.mjs --base baseline --next phase3 --out /tmp/diff.md
+node --test evals/agent-ergonomics/analysis/tests/*.unit.mjs
+```
+
+`analyze.mjs` writes `results/analysis/<run>.json` (one record per trial plus aggregates) and `<run>.md` (the report). Per trial: tokens (peak context and cache tokens; transcript output tokens are partial), tool calls, wall time split into phases (orient, learn, implement, test-authoring, verify, debug, tooling-friction, think, report), failure episodes from a failed build/test run to the next green one, matched against `analysis/catalog.mjs` (regex signatures mapped to tracker IDs, e.g. B-007), skill sections and library files read, line diff vs the starter, canonical-form counts, `sygnal-check` diagnostics (run `npm install` in `sygnal-check/` first, or pass `--no-check`) and the agent's own complaints. The report ranks what explains the Sygnal−React delta on the shared tasks and ends with evidence-backed recommendations. Iterations and edit rounds use `lib/transcript.mjs`, so they match `transcript-stats.mjs`. Transcript and trial-dir locations default to this machine's eval session; override with `--transcripts`, `--trials-root`, `--skill-dir` (or `EVAL_TRANSCRIPTS` / `EVAL_SCRATCH`). Heuristics and their limits are listed at the end of each report.
+
 ## Known framework issues surfaced while building the tasks
 
 These are recorded because they affect what agents hit, and they are candidates for PLAN-1 diagnostics:
