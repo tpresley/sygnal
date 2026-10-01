@@ -241,9 +241,8 @@ export function renderComponent(
   const rootName = componentDef.name || componentDef.componentName || 'TestComponent';
   const listeners = new Map<string, string[]>();
   const owners = new Map<string, string>([['', rootName]]);
-  // 2B inspect: scope -> component instance number ('' = the root), and event types per listener
   const scopeIds = new Map<string, number>();
-  const evTypes = new Map<string, Set<string>>();
+  const evTypes: Record<string, string[]> = {};
   const done = new Set<string>();
   // the innermost isolation scope of a component's DOM source on this hub
   const scopeOf = (c: any) => {
@@ -255,8 +254,7 @@ export function renderComponent(
     onIntent(c: any) {
       const sc = scopeOf(c);
       if (sc) owners.set(sc, c.name);
-      const d = c && c.sources && c.sources[c.DOMSourceName || 'DOM'];
-      if (d && d._hub === hub.$) scopeIds.set(sc || '', c._componentNumber);
+      if (c.sources[c.DOMSourceName || 'DOM']?._hub == hub.$) scopeIds.set(sc || '', c._componentNumber);
     },
     // 1H-11: forget a disposed child's listeners, so they aren't checked on every render
     onDispose(c: any) {
@@ -272,11 +270,7 @@ export function renderComponent(
   };
   // 1H-11: a render with the same tree and no new listener can't change the result
   let checkedTree: any, newListener = false;
-  // matches of a listener's selector in the latest tree: own = in its component's own scope,
-  // child = the scope of the first child component (isolated) it matches inside, hit = target among those
-  const probe = (path: string[], target?: any) => {
-    const sels = words(path.filter(s => !isScope(s)).join(' '));
-    const scope = path.filter(isScope).pop();
+  const probe = (sels: string[], scope?: string, target?: any) => {
     let own = false, child: string | undefined, hit = !target;
     // chain: [vnode, nearest scope][] from the root; inside: under this component's root
     const walk = (v: any, chain: any[], cur: any, inside: boolean, boundary: any): void => {
@@ -311,7 +305,7 @@ export function renderComponent(
       const selector = sels.join(' ');
       const key = name + '\u0000' + selector;
       if (!sels.length || /^(document|body)$/.test(sels[0]) || done.has(key)) return;
-      const {own, child, hit} = probe(path, target);
+      const {own, child, hit} = probe(sels, scope, target);
       if (own) return done.add(key);
       if (!child || !hit) return;
       done.add(key);
@@ -383,7 +377,7 @@ export function renderComponent(
     DOM: () => mockDOMSource(mockConfig, hub.$, (path, type) => {
       const k = path.join('\u0000');
       if (!listeners.has(k)) listeners.set(k, path), newListener = true;
-      (evTypes.get(k) || evTypes.set(k, new Set()).get(k)!).add(type);
+      (evTypes[k] = evTypes[k] || []).push(type);
     }),
     EVENTS: eventBusDriver,
     LOG: logDriver,
@@ -565,25 +559,8 @@ export function renderComponent(
       : '';
 
   const inspect = (): InspectGraph => {
-    const fn = core.inspect;
-    if (typeof fn != 'function') {
-      throw new Error(`[Sygnal] t.inspect() needs the 'sygnal/diagnostics' dev entry: add import 'sygnal/diagnostics' to the test (or to vitest setupFiles)`);
-    }
-    const selectors: Record<string, any[]> = {};
-    listeners.forEach((path, k) => {
-      const id = scopeIds.get(path.filter(isScope).pop() || '');
-      if (id === undefined) return;
-      const sels = words(path.filter(s => !isScope(s)).join(' '));
-      const doc = !sels.length || /^(document|body)$/.test(sels[0]);
-      const {own, child} = vtree && !doc ? probe(path) : {own: false, child: undefined};
-      (selectors[id] = selectors[id] || []).push({
-        selector: sels.join(' '),
-        events: [...(evTypes.get(k) || [])],
-        matched: vtree && !doc ? own : null,
-        isolationHit: !own && child ? owners.get(child) || 'a child component' : null,
-      });
-    });
-    return fn({ids: [...scopeIds.values()], selectors, diagnostics: collected});
+    if (!core.inspect) throw Error(`[Sygnal] t.inspect() needs import 'sygnal/diagnostics'`);
+    return core.inspect({ids: [...scopeIds.values()], diagnostics: collected, mock: {listeners, evTypes, owners, scopeIds, probe, vtree}});
   };
 
   let disposed = false;

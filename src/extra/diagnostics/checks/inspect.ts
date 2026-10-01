@@ -181,6 +181,42 @@ function stateKeysOf(c: any, calculated: string[]): string[] {
   return isPlainObject(s) ? Object.keys(s).filter(k => !calculated.includes(k)) : []
 }
 
+/**
+ * renderComponent's mock DOM (src/extra/testing.ts passes its listener registry):
+ * listener paths are the select() chain with isolation scopes as '.___<scope>' entries;
+ * probe(selectors, scope) matches one against the latest vtree: own = in the component's
+ * own scope, child = the scope of the first (isolated) child component it matches inside.
+ */
+interface MockDom {
+  listeners: Map<string, string[]>
+  evTypes: Record<string, string[]>
+  owners: Map<string, string>
+  scopeIds: Map<string, number>
+  probe: (selectors: string[], scope?: string) => {own: boolean; child?: string}
+  vtree: any
+}
+
+const isScope = (s: string) => s.startsWith('.___')
+
+function mockSelectors(mock: MockDom): Record<string, InspectSelector[]> {
+  const out: Record<string, InspectSelector[]> = {}
+  mock.listeners.forEach((path, key) => {
+    const scope = path.filter(isScope).pop()
+    const id = mock.scopeIds.get(scope || '')
+    if (id === undefined) return
+    const sels = path.filter(s => !isScope(s)).join(' ').split(/[\s>]+/).filter(Boolean)
+    const page = !sels.length || /^(document|body)$/.test(sels[0])
+    const {own, child} = mock.vtree && !page ? mock.probe(sels, scope) : {own: false, child: undefined}
+    ;(out[id] = out[id] || []).push({
+      selector: sels.join(' '),
+      events: uniq(mock.evTypes[key] || []),
+      matched: mock.vtree && !page ? own : null,
+      isolationHit: !own && child ? mock.owners.get(child) || 'a child component' : null,
+    })
+  })
+  return out
+}
+
 function selectorsOf(r: Rec, options: InspectOptions, diags: any[]): InspectSelector[] {
   const given = options.selectors && options.selectors[r.id]
   if (given) return given.map(s => ({...s}))
@@ -219,6 +255,9 @@ export function inspect(options: InspectOptions = {}): InspectGraph {
     attachDevtools()
     try { diags = (devtools && typeof devtools.getDiagnostics === 'function' && devtools.getDiagnostics()) || [] } catch (_) { diags = [] }
   }
+
+  const mock: MockDom | undefined = (options as any).mock
+  if (mock) options = {...options, selectors: {...mockSelectors(mock), ...options.selectors}}
 
   const all = [...records.values()]
   const ids = options.ids && new Set(options.ids.map(String))

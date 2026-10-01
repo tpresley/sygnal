@@ -178,7 +178,7 @@ describe('t.inspect() (renderComponent)', () => {
     try {
       t = renderComponent(Item, { initialState: { id: 1, title: 'a' } })
       await t.ready()
-      expect(() => t.inspect()).toThrow(/needs the 'sygnal\/diagnostics' dev entry/)
+      expect(() => t.inspect()).toThrow("t.inspect() needs import 'sygnal/diagnostics'")
     } finally {
       installChecks()
     }
