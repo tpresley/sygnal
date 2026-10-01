@@ -12,7 +12,7 @@ Tracks progress for [PLAN-2.md](PLAN-2.md). Maintained by the coordinator. The P
 |---|---|---|---|
 | 0 — Release follow-through, eval infrastructure | 🟡 In progress | — | 0-A ✅ · 0-B ✅ · 0-C ✅ · tier-3 pilot ✅ (20/20 pass; Sygnal 66.6 s vs React 45.7 s) · v2-baseline 🟡 (160 trials, D46) |
 | 1 — Correctness backlog | ✅ Done | `plan2-phase1` | 1-A…1-F ✅ · 1-T trim ✅ · review: 6 findings + 2 notes, all fixed in 1-R · kanban 41,803 B (2 B headroom) |
-| 2 — Known ergonomics improvements | 🟡 In progress | — | 2-A ✅ · 2-B ✅ · 2-C 🟡 · 2-D ✅ |
+| 2 — Known ergonomics improvements | 🟡 In progress | — | 2-A ✅ · 2-B ✅ · 2-C ✅ · 2-D ✅ |
 | 3 — Experiments | ⚪ | — | |
 | 4 — Adopt, measure, release | ⚪ | — | |
 
@@ -34,7 +34,7 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | 1-R | Review fixes + leftovers (G-083, G-084, G-086, G-087, G-091…G-098) | ✅ | `worktree-agent-ac20436bed98cd91a` | subagent | `1275440`, `a0e0170`, `1c81963` | All fixed (G-095: img error not reproducible in Chromium; iframe about:blank on attribute removal is per spec). G-084 root cause: `getComponents()` descended into component vnodes' children, so every ancestor made a never-rendered duplicate instance that ran BOOTSTRAP/timers and wrote state keys; scan now stops at component vnodes. G-098 reproduced as a hydration failure (`MemoryStream` export) → `'sygnal'` added to optimizeDeps.include for installed sygnal. G-083: Vike config is one ESM `dist/vike/config/+config.js` + generated `package.json` (type module); CJS config build removed. `SortSpec` type exported. Kanban +84 B → 41,803 B |
 | 2-A | Testing completeness (G-064, G-065, G-053) | ✅ | `worktree-agent-a9a235cb519e6198d` | subagent | `5b35476` | G-064: harness records every driverless sink in the tree from each `model$` (children, grandchildren, Collection items); passed drivers still win. G-065: behaviour fix — `ready()` arms a cursor that the first `next()` starts from (other `t.*` calls disarm it); timeouts name an already-matched earlier state. G-053: `timeoutMs`/`settleMs`/`eventWaitMs` options; timeouts name pending model `next('X')` delays (parsed from the core debug log line — coupling G-111). 20 tests (15 failed first). Kanban 0 B |
 | 2-B | Agent docs (2-D1 snapshot semantics, 2-D2 extract-component recipe, 2-D3 latest-only pattern) | ✅ | `worktree-agent-a44b2fbe9d096f4ac` | subagent | `032363c` | 2-D1: guide/model.md "Sinks See the State Before the Action" + one bullet each in llms.txt/SKILL.md (verified with a scratch test; B-003 tests already guard it). 2-D2: guide/parent-child.md recipe (snapshot → move markup → PARENT + `CHILD.select` → re-run), compact SKILL.md form, llms.txt pointer; validated on the task-08 starter (identical HTML). 2-D3: guide/drivers.md "Only the Latest Response" (reqId in state, echoed by the driver, ABORT on mismatch, clear bumps reqId); scratch-tested out-of-order, stale failure, clear-in-flight. llms.txt 249 lines; 382 samples strict-clean |
-| 2-C | Component and Vike bugs (G-102, G-106, G-107, G-108, G-109) | 🟡 | | subagent | | |
+| 2-C | Component and Vike bugs (G-102, G-106, G-107, G-108, G-109) | ✅ | `worktree-agent-a130ae35c89dc73bf` | subagent | `ed0ffac`…`43aacbc` | G-102: two causes — `propsIsEqual` ignored `of`/`from`/`filter` (now only `state`), and an unchanged state object was dropped by `dropRepeats` when only filter/sort changed (shallow copy sent); also `sort` without filter sorted the parent array in place (fixed). G-107: sub-components with a model but no intent get BOOTSTRAP. G-108: only a non-ABORT symbol is SYG218; null/arrays/bigints go to the driver (explanation regenerated). G-109: propsModule + removedPropsModule merged into one `propsModule.ts` that never writes nullish values (−64 B). G-106: Vike shell state nested (`wrapper_0.layout_0.page`) in initial state, view, navigation, hydration and SSR; verified in a real installed-tarball Vike app with Playwright. Kanban −91 B |
 | 2-D | `globalthis` alias in `sygnal/vite` + size-gate script (G-099) | ✅ | `worktree-agent-a2f656507f54d98a7` | subagent | `a75d332` | xstream only does `require('globalthis').getPolyfill()`; stub `dist/shims/globalthis.cjs` (also exported as `sygnal/shims/globalthis`) aliased via `resolve.alias` in serve/build/Vitest; opt-out `sygnal({ nativeGlobalThis: false })`; `sygnal/astro` adds it in `astro build` too. Verified kanban, Vike SSR, Astro, Vitest, and installed tarballs of 3 templates (build/preview/dev). `scripts/size-gate.mjs`: gated (opt-out) **41,803 B** / 42,300; default **37,812 B** (−3,991) |
 | 1-F | Examples (G-052, G-063) | ✅ | (same branch as 1-C) | subagent | `fd3fc7c` | todomvc ids = max id + 1; `LOG` sink uses the reducer form (type gap → G-077); build runs `tsc --noEmit`; custom pollers removed from `app.test.ts`, which uses `next`/`settle`/`html`; new id test. Strict-clean |
 
@@ -45,6 +45,7 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | 0-A | ✅ | 942 ✅ | | | | | | | | |
 | 1-R | ✅ (0 TS) | 916 ✅ | ✅ | ✅ | 121 ✅ | 183 ✅ | 374 ✅ | ✅ | ✅ | 41,803 B ✅ |
 | 1-T | ✅ | 893 ✅ | ✅ | ✅ | 119 ✅ | 183 ✅ | 374 ✅ | ✅ | | 41,719 B ✅ |
+| 2-C | ✅ (0 TS) | 953 ✅ | ✅ | ✅ | 121 ✅ | 183 ✅ | 384 ✅ | ✅ | ✅ | 41,712 B gated / 37,720 B default ✅ |
 | 2-A/B/D | ✅ (0 TS) | 941 ✅ | ✅ | ✅ | 121 ✅ | 183 ✅ | 384 ✅ | ✅ | ✅ | 41,803 B gated / 37,812 B default ✅ |
 | 1-B + 1-E | ✅ (0 TS warnings) | 893 ✅ | 105 ✅ | ✅ | 119 ✅ | 183 ✅ | 374 ✅ | ✅ | ✅ | **41,991 B ❌ (+186 over)** |
 | 1-D | ✅ | 971 ✅ | 104 ✅ | ✅ | 119 ✅ | 178 ✅ | 373 ✅ | | ✅ | 41,717 B |
@@ -106,19 +107,21 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | G-098 | Review | low (unverified) | Vite/Vike | With the onRenderClient exclude, an installed-sygnal Vike app whose pages never import `'sygnal'` directly may re-optimize on first load; maybe add `'sygnal'` to `optimizeDeps.include` | ✅ 1-R |
 | G-099 | 1-T | med (size) | Bundle | xstream `require('globalthis')` pulls a polyfill chain (get-intrinsic, object-keys, has-symbols, …); aliasing it to a `() => globalThis` stub cuts kanban 41,719 → ~37,741 B (−9.5%). Could ship as a `resolve.alias` in `sygnal/vite`, but it changes users' bundles and would mask core growth in the gate | ✅ D47 → 2-D |
 | G-100 | 1-T | low (size) | Bundle | `src/extra/devtools.ts` (~2.3 KB gz) ships in production because `run()` always calls `init()`; opt-in/lazy would be a feature change | Open → Phase 2 candidate |
-| G-102 | 0-C | med | Collection | A Collection inside a child component ignores a change to its `filter` prop (with or without `state=`) until some item's own state changes; works in the root. Likely the pickCombine/props$ family (PLAN-1 known issue 5) | Open → 2-C |
+| G-102 | 0-C | med | Collection | A Collection inside a child component ignores a change to its `filter` prop (with or without `state=`) until some item's own state changes; works in the root. Likely the pickCombine/props$ family (PLAN-1 known issue 5) | ✅ 2-C |
 | G-103 | 0-C | low | sygnal-check | No static rule for a Collection bound to a calculated field (runtime SYG409 only), even with `--strict` | Open → Phase 2 candidate (E1 input) |
 | G-104 | 0-C | low | sygnal-check | Can't follow imported EVENTS type constants, so a cross-file mismatch is invisible statically | Open → Phase 2 candidate (E1/E8 input) |
 | G-105 | 0-C | low | Collection | Collection always renders a `div` container (invalid inside `<ul>`/`<table>`) | Open → Phase 2 candidate |
-| G-106 | 1-R | med | Vike | After client navigation with both a Wrapper and a Layout, the page's `+data` is lost: shell state keys are root-relative (`wrapper_0`, `layout_0`) while the Layout reads `wrapper_0.layout_0`; navigation writes `layout_0.page` at the root (previously read only by G-084's duplicates). Fix: nest shell state in onRenderClient (navigation + hydration) and onRenderHtml | Open → 2-C |
-| G-107 | 1-R | low | component.ts | A sub-component with a `model` but no `intent` never gets BOOTSTRAP (a root component does) | Open → 2-C (verify, decide) |
-| G-108 | 1-R | low | Types/diagnostics | SYG218 rejects reducers returning arrays to driver sinks, but the types (and constant values) allow arrays | Open → 2-C |
-| G-109 | 1-R | low | Rendering | `src={null}` is written as "null" by propsModule before removedPropsModule removes it (harmless in Chromium) | Open → 2-C |
+| G-106 | 1-R | med | Vike | After client navigation with both a Wrapper and a Layout, the page's `+data` is lost: shell state keys are root-relative (`wrapper_0`, `layout_0`) while the Layout reads `wrapper_0.layout_0`; navigation writes `layout_0.page` at the root (previously read only by G-084's duplicates). Fix: nest shell state in onRenderClient (navigation + hydration) and onRenderHtml | ✅ 2-C |
+| G-107 | 1-R | low | component.ts | A sub-component with a `model` but no `intent` never gets BOOTSTRAP (a root component does) | ✅ 2-C |
+| G-108 | 1-R | low | Types/diagnostics | SYG218 rejects reducers returning arrays to driver sinks, but the types (and constant values) allow arrays | ✅ 2-C |
+| G-109 | 1-R | low | Rendering | `src={null}` is written as "null" by propsModule before removedPropsModule removes it (harmless in Chromium) | ✅ 2-C |
 | G-110 | 2-A | low-med | Diagnostics | In a real `run()` app, a child component's sink with no driver is silently dropped (no core or `sygnal/diagnostics` warning) | Open → Phase 2/3 candidate (new SYG code) |
 | G-111 | 2-A | low | Testing | G-053's delayed-`next()` detection parses the core debug log text `next() action: <TYPE> Nms delay`; a wording change breaks it (tests would catch it). Cleaner: an `onNext` diagnostics hook (costs core bytes) | Open |
 | G-112 | 2-D | low | browser-tests | `browser-tests/vite.config.js` doesn't use the sygnal plugin, so `test:browser` never exercises `sygnal/vite` in dev | Open |
 | G-113 | 2-D | low | Astro dev | Cold-cache first load logs `504 (Outdated Optimize Dep)` while Vite re-optimizes (pre-existing; island still works) | Open |
 | G-114 | 2-D | low | Docs | CLAUDE.md test counts are stale (892 → 941 library tests) | Open → Phase 4 release prep |
+| G-115 | 2-C | low (perf) | Collection | `fieldLense.get` creates new item objects (`{...item, id}`) on every state emission, so every item re-renders on any parent state change; G-102 makes filter/sort prop changes re-emit too. Also: a child given an inline-arrow `filter` prop now re-renders on every parent render | Open → Phase 3/4 candidate |
+| G-116 | 2-C | low | Collection | A Collection with no `from` (whole state is the array) or a custom `from={{get,set}}` silently ignores `filter` and `sort` | Open → diagnostic or support |
 | G-076 | 5.4.0 release | low | browser-tests | The browser run prints expected console errors from error-path tests, which look like failures | ✅ 1-E (whitelist updated for SYG405 at the 1-B merge) |
 
 ## Worktree Setup (each subagent, inside its own isolated worktree)
@@ -142,6 +145,7 @@ gzip -c /tmp/kb/assets/index-*.js | wc -c      # budget 41,805 B
 
 ## Activity Log
 
+- 2026-10-01 — 2-C merged; full gate green (953 vitest, 121 browser, 41,712 B gated). All Phase 2 workstreams merged; Phase 2 closes after the targeted eval against v2-baseline.
 - 2026-10-01 — 2-D merged; size gate is now `node scripts/size-gate.mjs` (budget 42,300 B gated); apps ~4 KB smaller by default.
 - 2026-10-01 — 2-A merged (coordinator merge; the agent's own merge was blocked by permissions); gates green: 936 vitest, 121 browser, 384 samples, llms.txt 249.
 - 2026-10-01 — 2-B merged (docs; samples 382 clean, docs build OK).
