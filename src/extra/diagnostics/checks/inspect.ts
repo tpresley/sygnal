@@ -8,12 +8,12 @@
  *               previous onIntent (intent runs synchronously right before it)
  *   onModel     action -> sinks; and wraps the component's own EVENTS model
  *               stream (component.model$.EVENTS, before initSinks merges it)
- *               in an identity map that records the emitted types. The
- *               driver-side emitter name (onBusEmit) can't be used: every
- *               ancestor re-stamps `__emitterName` on the way up, so the bus
- *               always sees the root's name.
+ *               in an identity map that records the emitted types. Since
+ *               B-023 the driver-side emitter name (onBusEmit) is the
+ *               emitting component's, but it is only a name, and this
+ *               graph is per instance, so the per-instance tap stays.
  *   onReducer   which model-only actions actually ran (=> dispatched by next())
- *   onBusEmit   EVENTS types seen on the bus (emitters unknown)
+ *   onBusEmit   EVENTS types seen on the bus
  *   onBusSelect EVENTS types selected (see onIntent)
  *   onDispose   prunes the instance
  * Selectors come from the DOM check (real DOM) or from renderComponent (mock

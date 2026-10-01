@@ -902,6 +902,15 @@ class Component {
   }
 
   initSinks(): void {
+    // Stamp this component's own EVENTS emissions with its info for devtools, before they are
+    // merged with the sub-components' (B-023: stamping the merged sink made every ancestor
+    // re-stamp, so the emitter was always the root). Non-enumerable (G-020), so sink values
+    // still toEqual what the model returned.
+    const ev$ = this.model$.EVENTS
+    if (ev$) this.model$.EVENTS = ev$.map((ev: any) => Object.defineProperties({...ev}, {
+      __emitterId: { value: this._componentNumber, configurable: true },
+      __emitterName: { value: this.name, configurable: true },
+    }))
     this.sinks = this.sourceNames.reduce((acc: Record<string, any>, name) => {
       if (name == this.DOMSourceName) return acc
       const subComponentSink$ = (this.subComponentSink$ && name !== PARENT_SINK_NAME) ? this.subComponentSink$.map((sinks: any) => sinks[name]).filter((sink: any) => !!sink).flatten() : xs.never()
@@ -909,16 +918,6 @@ class Component {
         acc[name] = xs.merge((this.model$[name] || xs.never()), subComponentSink$, this.sources[this.stateSourceName].stream.filter((_: any) => false), ...(this.peers$[name] || []))
       } else {
         acc[name] = xs.merge((this.model$[name] || xs.never()), subComponentSink$, ...(this.peers$[name] || []))
-      }
-      // Stamp EVENTS sink emissions with emitter component info for devtools
-      if (name === 'EVENTS' && acc[name]) {
-        const _componentNumber = this._componentNumber
-        const _name = this.name
-        // non-enumerable (G-020) so sink values still toEqual what the model returned
-        acc[name] = acc[name].map((ev: any) => Object.defineProperties({...ev}, {
-          __emitterId: { value: _componentNumber, configurable: true },
-          __emitterName: { value: _name, configurable: true },
-        }))
       }
       return acc
     }, {} as Record<string, any>)
