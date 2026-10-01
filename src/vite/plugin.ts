@@ -10,6 +10,20 @@
  * What it does:
  *   1. Configures OXC for automatic JSX transform with sygnal as the import source
  *   2. Detects files that call `run()` from sygnal and auto-injects HMR wiring
+ *   3. In serve mode, marks the app as running in development by prepending
+ *      `globalThis.__SYGNAL_DEV__ = true` (unless already defined) to every
+ *      file that imports `run` from sygnal — including entries with manual HMR
+ *      wiring or `disableHmr` — which turns on runtime diagnostics in 'warn'
+ *      mode. Opt out with `run(App, drivers, { diagnostics: 'off' })`.
+ *
+ * Why not Vite's `define`? Vite's dependency optimizer does not apply user
+ * `define` replacements to pre-bundled dependencies (only process.env.NODE_ENV),
+ * so a `define` would never reach sygnal's own code when sygnal is pre-bundled.
+ * Vite's client does copy `define` entries onto globalThis at runtime, but only
+ * when `/@vite/client` is loaded (not under SSR or Vitest, where it would also
+ * switch diagnostics on for every test run). Injecting the flag into the
+ * entry file that calls run() is deterministic and scoped to the dev app; it
+ * runs before run() is called, which is when the diagnostics mode is resolved.
  *
  * The HMR transform finds the pattern:
  *   import { run } from 'sygnal'
@@ -71,7 +85,6 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
     },
 
     transform(code: string, id: string) {
-      if (disableHmr) return null
       if (!isServe) return null
 
       // Only transform JS/TS/JSX/TSX files
@@ -80,18 +93,25 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
       if (id.includes('node_modules')) return null
       // Must import run from sygnal
       if (!code.includes('sygnal')) return null
-      // Skip if HMR is already manually wired
-      if (code.includes('import.meta.hot')) return null
 
       // Find: import { run, ... } from 'sygnal'
       const runImportRe = /import\s+\{[^}]*\brun\b[^}]*\}\s+from\s+['"]sygnal['"]/
       if (!runImportRe.test(code)) return null
 
+      // Dev flag: injected into every entry file that imports run() — also when
+      // HMR wiring below is skipped (disableHmr, manual HMR, unrecognized call).
+      // Prepended on the first line (no newline) so line numbers are unchanged.
+      const flagged = { code: DEV_FLAG + code }
+
+      // Skip HMR wiring if disabled or already manually wired
+      if (disableHmr) return flagged
+      if (code.includes('import.meta.hot')) return flagged
+
       // Find: run(ComponentName  — capture the component identifier
       const runCallMatch = code.match(
         /(?:(?:const|let|var)\s+(?:\{[^}]*\}|\w+)\s*=\s*)?run\s*\(\s*([A-Z]\w*)/
       )
-      if (!runCallMatch) return null
+      if (!runCallMatch) return flagged
 
       const componentName = runCallMatch[1]
 
@@ -102,12 +122,12 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
         `import\\s+${componentName}\\s+from\\s+['"]([^'"]+)['"]`
       )
       const componentImportMatch = code.match(componentImportRe)
-      if (!componentImportMatch) return null
+      if (!componentImportMatch) return flagged
 
       const componentPath = componentImportMatch[1]
 
       // Determine how to access the run() result
-      let transformed = code
+      let transformed = flagged.code
 
       // Pattern 1: const { hmr, dispose, ... } = run(App, ...)
       const destructureMatch = code.match(
@@ -146,6 +166,8 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
     },
   }
 }
+
+const DEV_FLAG = 'if (globalThis.__SYGNAL_DEV__ === undefined) globalThis.__SYGNAL_DEV__ = true;'
 
 function hmrBlock(componentPath: string, hmrRef: string, disposeRef: string): string {
   return `
