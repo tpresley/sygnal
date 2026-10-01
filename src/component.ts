@@ -177,6 +177,7 @@ class Component {
   onError: ((error: Error, info: { componentName: string }) => any) | undefined;
   isolatedState: boolean;
   isSubComponent: boolean;
+  isCollectionItem: boolean;
   currentState: any;
   currentProps: any;
   currentChildren: any;
@@ -348,6 +349,7 @@ class Component {
     }
 
     this.isSubComponent = this.sourceNames.includes('props$')
+    this.isCollectionItem = sources.__collectionItem === true
 
     const state$ = sources[stateSourceName] && sources[stateSourceName].stream
 
@@ -967,7 +969,12 @@ class Component {
           let data = action.data
           if (isStateSink) {
             return (state: any) => {
-              const _state = this.isSubComponent ? this.currentState : state
+              // A sub-component reads currentState (its parent's state can carry calculated
+              // fields the raw reducer argument lacks). A Collection item uses the fresh
+              // argument instead (B-013): its currentState lags behind instantiateCollection's
+              // debounce, so a second same-tick action would start from the pre-update state.
+              const fresh = this.isCollectionItem && typeof state !== 'undefined'
+              const _state = this.isSubComponent && !fresh ? this.currentState : state
               try {
                 const enhancedState = this.addCalculated(_state)
                 props.state = enhancedState
@@ -975,7 +982,10 @@ class Component {
                 if (isAbort(newState)) return _state
                 // [diagnostics hook]
                 diag.onReducer(this, name, _state, newState, this.stateSourceName)
-                return this.cleanupCalculated(newState)
+                const result = this.cleanupCalculated(newState)
+                // B-013: later same-tick actions' non-STATE sinks snapshot currentState (B-003)
+                if (fresh) this.currentState = result
+                return result
               } catch (err) {
                 logError('SYG216', this, `Reducer for '${name}' threw; state unchanged`, ERR_FIX, err)
                 return _state
@@ -1208,7 +1218,8 @@ class Component {
       const newComponents =  entries.reduce((acc, [id, el]) => {
         const data     = el.data
         const props    = data.props  || {}
-        const children = el.children || []
+        // a string-tag component with a single text child is a text-only vnode (B-011)
+        const children = el.children || (el.text != null ? [{ text: el.text }] : [])
 
         const isCollection = data.isCollection || false
         const isSwitchable = data.isSwitchable || false
@@ -1367,8 +1378,8 @@ class Component {
         if (props.sort !== arrayOperators.sort) {
           arrayOperators.sort = sortFunctionFromProp(props.sort)
         }
-        
-        return isObj(state) ? this.addCalculated(state) : state
+        // calculated fields are added by the lens (B-013)
+        return state
       })
 
     const stateSource  = new StateSource(state$, this.stateSourceName)
@@ -1477,6 +1488,14 @@ class Component {
       lense = undefined
     }
 
+    // B-013: add this component's calculated fields inside the lens, not on state$, so the
+    // items' reducers (which read through the lens from the raw state) see the same item
+    // array as their views, e.g. for from={calculatedField} or a custom get().
+    if (lense && this.calculated) {
+      const inner: any = lense
+      lense = { get: (state: any) => inner.get(isObj(state) ? this.addCalculated(state) : state), set: inner.set }
+    }
+
     // Strip collection-specific props and forward only user-defined extra props to each item
     const collectionKeys = ['of', 'from', 'filter', 'sort', 'idfield', 'className']
     const itemProps$ = props$.map((p: any) => {
@@ -1488,7 +1507,7 @@ class Component {
       return itemProps
     })
 
-    const sources = { ...this.sources, [this.stateSourceName]: stateSource, props$: itemProps$, children$, __parentContext$: this.context$, PARENT: null, __parentComponentNumber: this._componentNumber }
+    const sources = { ...this.sources, [this.stateSourceName]: stateSource, props$: itemProps$, children$, __parentContext$: this.context$, PARENT: null, __parentComponentNumber: this._componentNumber, __collectionItem: true }
     const sink$   = collection(factory, lense as any, { container: null as any })(sources)
     if (!isObj(sink$)) {
       fail('SYG903', this, 'Collection factory returned invalid sinks', 'Return a sinks object')
@@ -1533,7 +1552,7 @@ class Component {
         switchableComponents[key] = component(options)
       }
     })
-    const sources = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$, __parentContext$: this.context$, __parentComponentNumber: this._componentNumber }
+    const sources = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$, __parentContext$: this.context$, __parentComponentNumber: this._componentNumber, __collectionItem: false }
 
     const sink$ = isolate(switchable(switchableComponents, props$.map((props: any) => props.current), ''), { [this.stateSourceName]: lense })(sources)
 
@@ -1593,7 +1612,7 @@ class Component {
       }
     }
 
-    const sources: Record<string, any> = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$, __parentContext$: this.context$, __parentComponentNumber: this._componentNumber }
+    const sources: Record<string, any> = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$, __parentContext$: this.context$, __parentComponentNumber: this._componentNumber, __collectionItem: false }
 
     // Detect Command objects in props and expose as commands$ source
     for (const key of Object.keys(props)) {
@@ -1796,15 +1815,17 @@ function injectComponents(currentElement: any, components: Record<string, any>, 
   if (isComponent) {
     id  = getComponentIdFromElement(currentElement, path, parentId)
     let component = components[id]
-    // Annotate the injected VNode with its READY state (non-mutating)
-    if (readyMap && id && component && typeof component === 'object' && component.sel) {
+    // Mark an injected VNode that is NOT ready (non-mutating) so Suspense can find it.
+    // Ready children get no attribute (G-018): moving markup into a child component
+    // must not change the DOM.
+    if (readyMap && id && readyMap[id] === false && component && typeof component === 'object' && component.sel) {
       component = {
         ...component,
         data: {
           ...(component.data || {}),
           attrs: {
             ...(component.data?.attrs || {}),
-            'data-sygnal-ready': readyMap[id] !== false ? 'true' : 'false'
+            'data-sygnal-ready': 'false'
           }
         }
       }

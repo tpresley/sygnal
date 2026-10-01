@@ -7,6 +7,16 @@ exports[`bad fixtures > collection-from.jsx 1`] = `
 ]
 `;
 
+exports[`bad fixtures > controlled-input.jsx 1`] = `
+[
+  "test/fixtures/bad/controlled-input.jsx:9:9 SYG111 TitleEditor: <input className="title-input"> has value={…} bound to state, but TitleEditor's intent has no input/change listener on it. Sygnal writes the bound value back on every render, so a re-render while the user types resets the typed text (update the state on 'input' (e.g. DOM.input('.title-input').value()), or make the field uncontrolled: drop the value prop and read the value on blur/submit)",
+  "test/fixtures/bad/controlled-input.jsx:12:9 SYG111 TitleEditor: <textarea id="notes"> has value={…} bound to state, but TitleEditor's intent has no input/change listener on it. Sygnal writes the bound value back on every render, so a re-render while the user types resets the typed text (update the state on 'input' (e.g. DOM.input('#notes').value()), or make the field uncontrolled: drop the value prop and read the value on blur/submit)",
+  "test/fixtures/bad/controlled-input.jsx:15:9 SYG111 TitleEditor: <input className="done"> has checked={…} bound to state, but TitleEditor's intent has no input/change listener on it. Sygnal writes the bound checked back on every render, so a re-render while the user changes it resets the field (update the state on 'change' (e.g. DOM.change('.done')), or make the field uncontrolled: drop the checked prop and read it on submit)",
+  "test/fixtures/bad/controlled-input.jsx:18:9 SYG111 TitleEditor: <select className="kind"> has value={…} bound to state, but TitleEditor's intent has no input/change listener on it. Sygnal writes the bound value back on every render, so a re-render while the user changes it resets the field (update the state on 'change' (e.g. DOM.change('.kind')), or make the field uncontrolled: drop the value prop and read it on submit)",
+  "test/fixtures/bad/controlled-input.jsx:51:5 SYG111 Display: <input className="shown"> has value={…} bound to state, but Display's intent has no input/change listener on it. Sygnal writes the bound value back on every render, so a re-render while the user types resets the typed text (update the state on 'input' (e.g. DOM.input('.shown').value()), or make the field uncontrolled: drop the value prop and read the value on blur/submit)",
+]
+`;
+
 exports[`bad fixtures > events-no-counterpart.jsx 1`] = `
 [
   "test/fixtures/bad/events-no-counterpart.jsx:15:14 SYG105 Editor: EVENTS type 'DOC_SAVED' is emitted but nothing in the scanned files selects it (listen with EVENTS.select('DOC_SAVED') in the receiving component's intent, or fix the event name)",

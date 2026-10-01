@@ -137,10 +137,10 @@ describe('simulateEvent', () => {
     expect(t.states.every(s => s.count === 0)).toBe(true)
   })
 
-  // Not testable here: the runtime SYG103/SYG104 checks need a real DOM (root element,
-  // querySelectorAll, isolation scopes), and renderComponent uses the mock DOM source.
-  // They're covered by browser-tests/src/tests/diagnostics.jsx and statically by
-  // sygnal-check (SYG110/SYG104). See tracker G-024.
+  // SYG103/SYG104: the runtime checks (src/extra/diagnostics/checks/dom.ts) need a real
+  // DOM and are covered by browser-tests/src/tests/diagnostics.jsx. renderComponent reports
+  // both on its mock DOM itself since 1F (G-024): see test/bugfixes-1f.test.js
+  // ('G-024: renderComponent reports ...'). sygnal-check reports SYG110/SYG104 statically.
 
   it('reaches DOM.select("document") listeners, by name or by bubbling', async () => {
     function App() { return h('div', null, h('input', { className: 'field' })) }

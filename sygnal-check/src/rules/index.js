@@ -24,6 +24,7 @@ import unreachableModel from './syg102-unreachable-model.js'
 import selectorInView from './syg110-selector-in-view.js'
 import eventsCounterpart from './syg105-events-counterpart.js'
 import collectionFrom from './syg401-collection-from.js'
+import controlledInput from './syg111-controlled-input.js'
 import { strictRules } from './strict/index.js'
 
 export const coreRules = [
@@ -32,6 +33,7 @@ export const coreRules = [
   selectorInView, // also reports SYG104 (selector only found in a child component)
   eventsCounterpart,
   collectionFrom,
+  controlledInput,
 ]
 
 export { strictRules }

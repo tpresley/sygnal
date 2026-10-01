@@ -38,7 +38,7 @@ describe("'sygnal/diagnostics' build entry", () => {
   it('keeps the check code out of the main bundle', () => {
     const main = readFileSync(dist('index.esm.js'), 'utf8')
     const entry = readFileSync(dist('diagnostics.esm.js'), 'utf8')
-    for (const marker of ["Parents can't see DOM events", 'is an RxJS operator', 'likely a missing ...state spread']) {
+    for (const marker of ['has not matched any element', 'is an RxJS operator', 'likely a missing ...state spread']) {
       expect(entry).toContain(marker)
       expect(main).not.toContain(marker)
     }

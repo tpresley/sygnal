@@ -12,6 +12,7 @@ import { ssrHydrationTests } from './tests/ssr-hydration.jsx'
 import { disposalTests } from './tests/disposal.jsx'
 import { diagnosticsTests } from './tests/diagnostics.jsx'
 import { bugfixTests } from './tests/bugfixes.jsx'
+import { bugfixTests1G } from './tests/bugfixes-1g.jsx'
 import { getResults } from './harness.js'
 
 async function runAll() {
@@ -29,6 +30,7 @@ async function runAll() {
   await disposalTests()
   await diagnosticsTests()
   await bugfixTests()
+  await bugfixTests1G()
 
   const results = getResults()
   const passed = results.filter(r => r.status === 'pass').length

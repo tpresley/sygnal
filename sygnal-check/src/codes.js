@@ -21,6 +21,7 @@ export const CODES = {
   SYG104: { severity: 'warn', title: 'Intent selector crosses an isolation boundary' },
   SYG105: { severity: 'warn', title: 'EVENTS type selected but never emitted, or emitted but never selected' },
   SYG110: { severity: 'warn', title: 'Intent selector not present in the component view' },
+  SYG111: { severity: 'warn', title: 'Controlled input has no input listener' },
   SYG401: { severity: 'warn', title: "Collection 'from' field is missing or not an array" },
   SYG900: { severity: 'warn', title: 'A diagnostics check threw' },
 }

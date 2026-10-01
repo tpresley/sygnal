@@ -43,6 +43,28 @@ class PickCombineListener<Si, T>
   public _c(): void {}
 }
 
+// True when the items present both before and after appear in a different relative
+// order. Additions emit through the new item's sink and removals are handled
+// separately, so only a permutation of the surviving items counts here.
+function isReordered(prev: Array<string>, next: Array<string>, dict: Map<string, any>): boolean {
+  const m = prev.length;
+  if (m === next.length) {
+    let same = true;
+    for (let i = 0; i < m && same; ++i) same = prev[i] === next[i];
+    if (same) return false;
+  }
+  let j = 0;
+  const seen = new Set(prev);
+  for (let i = 0; i < next.length; ++i) {
+    const key = next[i];
+    if (!seen.has(key)) continue;
+    while (j < m && !dict.has(prev[j])) ++j;
+    if (prev[j] !== key) return true;
+    ++j;
+  }
+  return false;
+}
+
 class PickCombine<Si, R> implements Operator<InternalInstances<Si>, Array<R>> {
   public type = 'combine';
   public ins: Stream<InternalInstances<Si>>;
@@ -50,6 +72,8 @@ class PickCombine<Si, R> implements Operator<InternalInstances<Si>, Array<R>> {
   public sel: string;
   public ils: Map<string, PickCombineListener<Si, R>>;
   public inst: InternalInstances<Si>;
+  // item keys in the order of the last instances (B-010: detect pure reorders)
+  public keys: Array<string>;
 
   constructor(sel: string, ins: Stream<InternalInstances<Si>>) {
     this.ins = ins;
@@ -57,6 +81,7 @@ class PickCombine<Si, R> implements Operator<InternalInstances<Si>, Array<R>> {
     this.out = null as any;
     this.ils = new Map();
     this.inst = null as any;
+    this.keys = [];
   }
 
   public _start(out: Stream<Array<R>>): void {
@@ -77,6 +102,7 @@ class PickCombine<Si, R> implements Operator<InternalInstances<Si>, Array<R>> {
     this.out = null as any;
     this.ils = new Map();
     this.inst = null as any;
+    this.keys = [];
   }
 
   public up(): void {
@@ -120,13 +146,16 @@ class PickCombine<Si, R> implements Operator<InternalInstances<Si>, Array<R>> {
       }
     });
     if (n === 0) {
+      this.keys = [];
       out._n([]);
       return;
     }
     // add
+    const keys: Array<string> = Array(n);
     for (let i = 0; i < n; ++i) {
       const sinks = arrSinks[i];
       const key = (sinks as any)._key as string;
+      keys[i] = key;
       if (!(sinks as any)[sel]) {
         throw new Error('pickCombine found an undefined child sink stream');
       }
@@ -136,7 +165,12 @@ class PickCombine<Si, R> implements Operator<InternalInstances<Si>, Array<R>> {
         sink._add(ils.get(key) as PickCombineListener<Si, R>);
       }
     }
-    if (removed) {
+    const reordered = isReordered(this.keys, keys, dict);
+    this.keys = keys;
+    // B-010: a permutation (swap, reverse, move) neither removes an item nor makes an
+    // item sink emit, so re-emit whenever the order of keys changed. up() waits until
+    // every item has emitted, so a brand new item still triggers its own emission.
+    if (removed || reordered) {
       this.up();
     }
   }
