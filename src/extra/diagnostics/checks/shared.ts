@@ -60,6 +60,17 @@ let seen = new Set<string>()
 /** true the first time `key` is seen (dedupes reports, e.g. per component name). */
 export const once = (key: string): boolean => (seen.has(key) ? false : (seen.add(key), true))
 
+/**
+ * Forget only the once() dedupe set (G-051: renderComponent calls it through the core bridge
+ * when an outermost instance starts, so findings are reported again in every test). Unlike
+ * resetCheckState() it keeps the checks' registries, e.g. inspect()'s live records.
+ */
+export const resetOnce = (): void => { seen = new Set() }
+{
+  const core = bridge()
+  if (core) core.resetOnce = resetOnce
+}
+
 const resetters: Array<() => void> = []
 export const onReset = (fn: () => void): void => { resetters.push(fn) }
 

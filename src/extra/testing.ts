@@ -234,6 +234,10 @@ export function renderComponent(
   if (!active++) {
     savedConfig = _getDiagnosticsConfig();
     savedStrict = core.strict;
+    // G-051: forget the checks' report dedupe (once()), so a finding from an earlier test is
+    // reported again. Only that set: resetChecks() would also drop inspect()'s records of
+    // other live instances / apps.
+    core.resetOnce?.();
   }
   configureDiagnostics({mode: diagnostics || (prevMode == 'off' ? 'collect' : prevMode)});
   if (strict !== undefined) core.strict = strict;
