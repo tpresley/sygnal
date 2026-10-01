@@ -10,7 +10,8 @@
  *   export default defineConfig({ plugins: [sygnal()] })
  *
  * What it does:
- *   1. Configures OXC for automatic JSX transform with sygnal as the import source
+ *   1. Configures the automatic JSX transform with sygnal as the import source:
+ *      `oxc` (Vite 8), plus `esbuild` under Vite 7 and older
  *   2. Detects files that call `run()` from sygnal and auto-injects HMR wiring
  *   3. Dev mode (`vite` / `vite dev` only; never `vite build`). Into every
  *      file that imports `run` from sygnal (including entries with manual HMR
@@ -215,7 +216,7 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
   return {
     name: 'vite-plugin-sygnal',
 
-    config(config: any, env: { command: string }) {
+    config(this: any, config: any, env: { command: string }) {
       isServe = env.command === 'serve'
       isVitest = !!nodeProcess?.env?.VITEST
       root = config?.root ? path.resolve(config.root) : nodeProcess.cwd()
@@ -235,6 +236,12 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
             runtime: 'automatic' as const,
             importSource: 'sygnal',
           },
+        }
+        // Vite 7 and older (Astro 6, Vitest on Vite 7) compile JSX with
+        // esbuild and ignore `oxc` (B-027); Vite 8 warns about `esbuild`
+        // from a plugin, so it is only set below Vite 8.
+        if (viteMajor(this, root) < 8) {
+          result.esbuild = { jsx: 'automatic', jsxImportSource: 'sygnal' }
         }
         // Vite 8's dependency scanner doesn't use the `oxc` options: without
         // this it compiles JSX for React, fails to resolve
@@ -394,6 +401,24 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
       return done()
     },
   }
+}
+
+/**
+ * Major version of the running Vite: from the plugin context (this.meta,
+ * Vite 7+), else from the vite package the project resolves. Infinity when
+ * unknown (treated as Vite 8+: no `esbuild` option).
+ */
+function viteMajor(ctx: any, root: string): number {
+  const fromMeta = ctx?.meta?.viteVersion
+  if (typeof fromMeta === 'string') return parseInt(fromMeta, 10)
+  if (ctx?.meta?.rolldownVersion) return 8
+  try {
+    const req = createRequire(path.join(root, 'package.json'))
+    const v = JSON.parse(fs.readFileSync(req.resolve('vite/package.json'), 'utf8')).version
+    const major = parseInt(v, 10)
+    if (major > 0) return major
+  } catch (_) {}
+  return Infinity
 }
 
 interface NormalizedDiagnostics { mode: DiagnosticsMode, strict: boolean, ignore: string[] }
