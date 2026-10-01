@@ -183,3 +183,62 @@ When the function's promise rejects (or `post` throws or rejects), the failure i
 | `API.errors(fn)` | Failures for which `fn(failure)` returns true |
 
 Each failure is `{ error, request, [selector]: request[selector] }`: the rejection reason, the request that failed, and its selector value. Listen to `errors()` for every request that can fail, so a loading state can't hang. While nothing listens to `errors()`, failures are only logged with `console.error`.
+
+### Only the Latest Response (Stale Requests)
+
+Replies arrive in the order the promises settle, not the order the requests were sent. When only the newest request counts (search as you type, say), keep a request id in state, send it with the request, and `ABORT` any reply or failure whose id isn't the latest:
+
+```jsx
+import { ABORT, debounce } from 'sygnal'
+
+function Search({ state }) {
+  return (
+    <div className="search">
+      <input className="q" value={state.query} />
+      <p className="status">{state.loading ? 'Searching…' : state.error}</p>
+      <ul className="results">{state.results.map((r) => <li>{r.title}</li>)}</ul>
+    </div>
+  )
+}
+Search.initialState = { query: '', reqId: 0, loading: false, error: '', results: [] }
+Search.intent = ({ DOM, SEARCH }) => {
+  const query$ = DOM.input('.q').value()
+  return {
+    TYPE:    query$,
+    SEARCH:  query$.compose(debounce(300)).filter((q) => q !== ''),
+    RESULTS: SEARCH.select('search'),   // { category, value: { id, results } }
+    FAILED:  SEARCH.errors('search'),   // { error, category, request }
+  }
+}
+Search.model = {
+  TYPE: (state, query) => query === ''
+    ? { ...state, query, reqId: state.reqId + 1, loading: false, error: '', results: [] }  // also drops the request in flight
+    : { ...state, query },
+  SEARCH: {
+    STATE:  (state) => ({ ...state, reqId: state.reqId + 1, loading: true, error: '' }),
+    SEARCH: (state, q) => ({ category: 'search', value: { id: state.reqId + 1, q } }),  // sinks see the state before STATE
+  },
+  RESULTS: (state, { value }) =>
+    value.id !== state.reqId ? ABORT : { ...state, loading: false, results: value.results },
+  FAILED: (state, { request }) =>
+    request.value.id !== state.reqId ? ABORT : { ...state, loading: false, error: 'Search failed.' },
+}
+```
+
+```js
+// main.js: the driver echoes the id back with the result
+import { run, driverFromAsync } from 'sygnal'
+import Search from './Search.jsx'
+
+const search = async ({ id, q }) => {
+  const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`)
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)   // goes to errors()
+  return { id, results: (await res.json()).results }
+}
+run(Search, { SEARCH: driverFromAsync(search) })
+```
+
+- The `SEARCH` sink computes `state.reqId + 1` because every sink of an entry sees the state from **before** this action (see [Model](/guide/model/#sinks-see-the-state-before-the-action)).
+- A failure carries the original `request`, so `request.value.id` identifies it without the driver's help.
+- Clearing the input bumps `reqId` too, so a reply to a request sent before the clear is ignored.
+- In a test, pass a driver whose promises you resolve by hand (`drivers: { SEARCH: driverFromAsync(fn) }`) and resolve them out of order.

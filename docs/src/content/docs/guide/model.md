@@ -96,7 +96,25 @@ The built-in sinks are:
 
 Any custom driver passed to `run()` is a sink as well, by its name (for example `API` or `DND`).
 
-Every sink of one action receives the same `state`: the result of all earlier actions, before this action's own `STATE` reducer runs. A non-STATE reducer can return `ABORT` to send nothing.
+A non-STATE reducer can return `ABORT` to send nothing.
+
+### Sinks See the State Before the Action
+
+Every sink of one action receives the same `state`: the result of all earlier actions, before this action's own `STATE` reducer runs. `EVENTS`, `PARENT`, `EFFECT` and driver sinks never see what `STATE` returns for the same action. To send the updated value, compute it from `(state, data)` inside the sink:
+
+```jsx
+import { event } from 'sygnal'
+
+Counter.model = {
+  INC: {
+    STATE:  (state) => ({ ...state, count: state.count + 1 }),
+    EVENTS: event('COUNT_CHANGED', (state) => ({ count: state.count + 1 })),  // not state.count: that's the old value
+    PARENT: (state, data, next, props) => ({ id: props.id, count: state.count + 1 }),
+  },
+}
+```
+
+If several sinks need the same derived value, put it in a helper function that each of them calls with `(state, data)`.
 
 ## Emitting Events with `event()`
 
