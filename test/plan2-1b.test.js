@@ -69,6 +69,36 @@ describe('B-016: isolatedState sub-component without a model applies its initial
     expect(t.html()).toContain('<span class="badge">fresh</span>')
   })
 
+  it('G-094 / D44: a model-less child with a state prop never overwrites an existing parent slice', async () => {
+    function User({ state }) { return h('span', { className: 'user' }, state.name) }
+    User.isolatedState = true
+    User.initialState = { name: 'default' }
+    function App({ state }) { return h('div', null, h(User, { state: 'user' }), h('i', null, state.user.name)) }
+    App.initialState = { user: { name: 'Ann' } }
+    t = renderComponent(App)
+    await t.ready()
+    await settle(30)
+    expect(t.html()).toContain('<span class="user">Ann</span>')
+    expect(t.html()).toContain('<i>Ann</i>')
+    expect(t.states.every(s => s.user.name === 'Ann')).toBe(true)
+  })
+
+  it('G-094: inside a local-state (no state prop) child, a nested model-less child with a state prop keeps the existing slice', async () => {
+    function Inner({ state }) { return h('em', null, String(state.v)) }
+    Inner.isolatedState = true
+    Inner.initialState = { v: 'inner' }
+    function Outer({ state }) { return h('div', null, h('b', null, String(state.o)), h(Inner, { state: 'slot' })) }
+    Outer.isolatedState = true
+    Outer.initialState = { o: 'outer', slot: { v: 'kept' } }
+    function App() { return h('div', null, h(Outer)) }
+    App.initialState = { n: 1 }
+    t = renderComponent(App)
+    await t.ready()
+    await settle(30)
+    expect(t.html()).toContain('<b>outer</b>')
+    expect(t.html()).toContain('<em>kept</em>')
+  })
+
   it('a child with a model still starts from initialState and keeps its own updates (guard)', async () => {
     function Counter({ state }) { return h('button', { className: 'c' }, String(state.k)) }
     Counter.isolatedState = true
@@ -105,6 +135,21 @@ describe('G-027 / G-044: each code surfaces under its own code', () => {
     const d = t.diagnostics.find(d => d.code === 'SYG218')
     expect(d.severity).toBe('error')
     expect(d.message).toMatch(/returned a symbol/)
+  })
+
+  it('G-087: SYG218 describes null and arrays correctly', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    function App(p) { return view(p) }
+    App.initialState = { n: 0 }
+    App.model = { NUL: { EVENTS: () => null }, ARR: { EVENTS: () => [1] } }
+    t = renderComponent(App)
+    t.simulateAction('NUL')
+    t.simulateAction('ARR')
+    await t.settle()
+    const messages = t.diagnostics.filter(d => d.code === 'SYG218').map(d => d.message)
+    expect(messages).toHaveLength(2)
+    expect(messages[0]).toMatch(/returned null;/)
+    expect(messages[1]).toMatch(/returned an array;/)
   })
 
   it('SYG215: next() with a non-number delay inside a STATE reducer is reported as SYG215 (not SYG216)', async () => {
@@ -221,6 +266,34 @@ describe('G-036: run() diagnostics.strict', () => {
     app.dispose()
     app = run(App, drivers, { useDefaultDrivers: false, diagnostics: { strict: false } })
     expect(isStrictEnabled()).toBe(false)
+  })
+
+  it('G-093: dispose() restores the previous strict setting; a later run() without strict is not strict', () => {
+    app = run(App, drivers, { useDefaultDrivers: false, diagnostics: { strict: true } })
+    expect(isStrictEnabled()).toBe(true)
+    app.dispose()
+    expect(isStrictEnabled()).toBe(false)
+    app = run(App, drivers, { useDefaultDrivers: false })
+    expect(isStrictEnabled()).toBe(false)
+  })
+
+  it('G-093: a renderComponent after a strict run() is not strict, before or after its dispose', () => {
+    app = run(App, drivers, { useDefaultDrivers: false, diagnostics: { strict: true } })
+    app.dispose()
+    app = undefined
+    t = renderComponent(App)
+    expect(isStrictEnabled()).toBe(false)
+    t.dispose()
+    t = null
+    expect(isStrictEnabled()).toBe(false)
+  })
+
+  it('G-093: dispose() restores an earlier configureStrict(true) after run({ strict: false })', () => {
+    configureStrict(true)
+    app = run(App, drivers, { useDefaultDrivers: false, diagnostics: { strict: false } })
+    expect(isStrictEnabled()).toBe(false)
+    app.dispose()
+    expect(isStrictEnabled()).toBe(true)
   })
 
   it('strict checks report through run()', async () => {

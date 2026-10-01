@@ -280,8 +280,16 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
       // core. Unbundled, the entry's own `import 'sygnal'` resolves like the
       // pages' imports (source when linked, the shared pre-bundle when
       // installed): one core. Vike honours the exclude list.
+      // G-098: Vite doesn't discover the imports of an excluded dependency, so for an
+      // installed sygnal 'sygnal' is pre-bundled up front (pages that reach it only through
+      // the JSX runtime would otherwise get it, and its CommonJS xstream, unbundled).
       if (isServe && !isVitest) {
-        result.optimizeDeps = { ...result.optimizeDeps, exclude: [VIKE_CLIENT] }
+        const include = result.optimizeDeps?.include || []
+        result.optimizeDeps = {
+          ...result.optimizeDeps,
+          exclude: [VIKE_CLIENT],
+          ...(sygnalInNodeModules(root) ? { include: [...include, 'sygnal'] } : {}),
+        }
       }
 
       return result

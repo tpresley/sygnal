@@ -160,11 +160,11 @@ type NonStateSinkValue<STATE, PROPS, ACTIONS, DATA, RETURN, CALCULATED, CONTEXT 
   | SinkConstant<RETURN>
 
 /**
- * A constant for a sink whose value type is `RETURN`. When RETURN is `any` (untyped sinks),
- * any non-function value: a bare `any` would also accept reducers with wrong parameter
- * types and switch off checking of the whole model entry.
+ * A constant for a sink whose value type is `RETURN`. When RETURN is `any` or `unknown`
+ * (untyped sinks), any non-function value: a bare `any`/`unknown` would also accept reducers
+ * with wrong parameter types and switch off checking of the whole model entry.
  */
-type SinkConstant<RETURN> = 0 extends (1 & RETURN)
+type SinkConstant<RETURN> = unknown extends RETURN
   ? AnySinkConstant
   : RETURN extends (...args: any[]) => any ? never : RETURN
 
@@ -247,10 +247,15 @@ type TrimSpaces<S extends string> =
 
 /** Value type produced by a PARENT sink value (a reducer's return, minus ABORT/undefined). */
 type ParentSinkValueReturn<VALUE> =
+  // an expando model widens `PARENT: true` (pass-through) and `PARENT: false` to boolean:
+  // the payload can't be told apart there
+  boolean extends VALUE ? ParentConstantReturn<Exclude<VALUE, boolean>> : ParentConstantReturn<VALUE>
+
+type ParentConstantReturn<VALUE> =
   VALUE extends (...args: any[]) => infer RETURN ? Exclude<RETURN, ABORT | undefined | void>
-  // `true` is pass-through (payload unknown here; an expando model widens it to boolean)
-  : VALUE extends boolean ? never
-  // a constant is sent as-is
+  // `true` is pass-through (payload unknown here)
+  : VALUE extends true ? never
+  // a constant (including `false`) is sent as-is
   : VALUE
 
 type ParentPayloadFromEntry<ENTRY> =
@@ -413,9 +418,20 @@ export type Filter<ITEM = any> = (item: ITEM) => boolean
 
 export type SortFunction<ITEM = any> = (a: ITEM, b: ITEM) => number
 
+/** Sort by one field: `{ name: 'asc' }`, `{ priority: -1 }` (one key; 1 = ascending). */
 export type SortObject<ITEM = any> = {
-  [field: string]: 'asc' | 'desc' | SortFunction<ITEM>
+  [field: string]: 'asc' | 'desc' | 1 | -1
 }
+
+/**
+ * A Collection `sort`: 'asc'/'desc' (whole items), a field name (ascending), a comparator,
+ * a SortObject, or an array of field names, SortObjects and comparators applied in order.
+ */
+export type SortSpec<ITEM = any> =
+  | string
+  | SortFunction<ITEM>
+  | SortObject<ITEM>
+  | ReadonlyArray<string | SortFunction<ITEM> | SortObject<ITEM>>
 
 /**
  * Sygnal Component
@@ -492,7 +508,7 @@ export type CollectionProps<PROPS = any, STATE = any> = {
   of: AnyComponent;
   from: CollectionFrom<STATE>;
   filter?: Filter;
-  sort?: string | SortFunction | SortObject;
+  sort?: SortSpec;
   /**
    * Item field used as the key that tracks each item (its component instance, isolation
    * scope and DOM) across updates. Items are keyed by `id` by default; keys should be

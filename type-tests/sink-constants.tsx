@@ -70,3 +70,37 @@ Child.model = {
   MOVE: { PARENT: (state: { id: string }) => state.id.length },
 }
 expectType<Equal<ParentPayloadOf<typeof Child>, string | number>>()
+
+// ── Sinks typed `unknown` keep reducer checking (G-091) ─────────────────────
+
+type UnknownDrivers = { API: DriverSpec<Stream<any>, unknown> }
+const Unk: Component<State, {}, UnknownDrivers, Actions, {}, {}, { LOG: unknown }> = ({ state }) => <div>{state.count}</div>
+Unk.model = {
+  START: { API: { url: '/start' }, LOG: 'starting' },
+  SAVE: { API: (state) => state.count.toFixed(0), LOG: (state) => state.count },
+}
+
+Unk.model = {
+  // @ts-expect-error — the reducer's state is State, not string
+  START: { API: (state: string) => state.length },
+}
+
+Unk.model = {
+  // @ts-expect-error — state is contextually typed, so a wrong field is an error
+  START: { LOG: (state) => state.nope },
+}
+
+// ── A `false` PARENT constant is a payload, not pass-through (G-097) ────────
+
+function FalseChild() { return <div /> }
+FalseChild.model = {
+  DONE: { PARENT: false as const },
+}
+expectType<Equal<ParentPayloadOf<typeof FalseChild>, false>>()
+
+function TrueChild() { return <div /> }
+TrueChild.model = {
+  DONE: { PARENT: true as const },
+  MOVE: { PARENT: (state: { id: string }) => state.id },
+}
+expectType<Equal<ParentPayloadOf<typeof TrueChild>, string>>()

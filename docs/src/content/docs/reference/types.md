@@ -93,8 +93,14 @@ type CollectionProps<PROPS = any, STATE = any> = {
   of: AnyComponent
   from: CollectionFrom<STATE>
   filter?: (item: any) => boolean
-  sort?: string | SortFunction | SortObject
+  sort?: SortSpec
 } & Omit<PROPS, 'of' | 'from' | 'filter' | 'sort'>
+
+type SortFunction<ITEM = any> = (a: ITEM, b: ITEM) => number
+type SortObject<ITEM = any> = { [field: string]: 'asc' | 'desc' | 1 | -1 }  // one key
+// 'asc'/'desc' (whole items), a field name, a comparator, a SortObject, or an array of these
+type SortSpec<ITEM = any> = string | SortFunction<ITEM> | SortObject<ITEM>
+  | ReadonlyArray<string | SortFunction<ITEM> | SortObject<ITEM>>
 ```
 
 `Collection<PROPS, STATE>` (an instantiation expression) gives a Collection whose `from` is checked against `STATE`.

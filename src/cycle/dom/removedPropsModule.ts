@@ -7,9 +7,10 @@
  * string "undefined"/"null" (`title={cond ? 'x' : undefined}`).
  *
  * Fix: runs after propsModule. For each prop that is gone (or became nullish),
- * reset the property by its current type (boolean -> false, string -> '',
- * other non-number -> undefined/null) and remove the reflected attribute, so
- * numbers (maxLength, ...) fall back to their default too. `className` is left
+ * remove the reflected attribute, which resets the property (numbers such as
+ * maxLength fall back to their default too). Without such an attribute, reset
+ * the property by its current type (boolean -> false, string -> '', other
+ * non-number -> undefined/null) if it differs (G-095). `className` is left
  * to classNameModule (B-012); `value`/`checked` on form fields are left alone
  * (the controlled-input module owns them; removing them hands control back to
  * the user, as in React).
@@ -19,18 +20,19 @@ import type {VNode} from 'snabbdom/build/vnode.js';
 
 function clearProp(elm: any, key: string): void {
   if (key === 'className' || (/^(value|checked)$/.test(key) && /^(INPUT|TEXTAREA|SELECT)$/.test(elm.tagName))) return;
+  const attr = key === 'htmlFor' ? 'for' : key.replace(/^aria(?=[A-Z])/, 'aria-').toLowerCase();
+  // G-095: a reflected attribute is just removed, which resets the property. Writing it first
+  // (src = '') would queue an img/video error event or navigate an iframe to about:blank.
+  if (elm.hasAttribute?.(attr)) return elm.removeAttribute(attr);
   const cur = elm[key];
   const t = typeof cur;
+  const reset = t === 'boolean' ? false : t === 'string' ? '' : cur === null || t === 'function' ? null : undefined;
   try {
-    if (t === 'boolean') elm[key] = false;
-    else if (t === 'string') elm[key] = '';
-    else if (t !== 'number') elm[key] = cur === null || t === 'function' ? null : undefined;
+    // numbers (maxLength, ...) are left to their default; unchanged values aren't rewritten
+    if (t !== 'number' && cur !== reset) elm[key] = reset;
   } catch (_) {
-    // e.g. contentEditable rejects '': removing the attribute below resets it
+    // e.g. contentEditable rejects ''
   }
-  const attr = key === 'htmlFor' ? 'for' : key.replace(/^aria(?=[A-Z])/, 'aria-').toLowerCase();
-  // (a no-op when the attribute is absent)
-  elm.removeAttribute?.(attr);
 }
 
 function syncRemoved(oldVnode: VNode, vnode: VNode): void {

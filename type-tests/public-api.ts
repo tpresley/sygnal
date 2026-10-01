@@ -89,9 +89,24 @@ describe('Filter and Sort types', () => {
     expectTypeOf(s).toMatchTypeOf<(a: number, b: number) => number>()
   })
 
-  it('SortObject maps fields to asc/desc/function', () => {
+  it('SortObject maps a field to asc/desc/1/-1 (G-086: as the runtime accepts)', () => {
     const s: SortObject<{ name: string }> = { name: 'asc' }
-    expectTypeOf(s).toExtend<Record<string, 'asc' | 'desc' | SortFunction<{ name: string }>>>()
+    expectTypeOf(s).toExtend<Record<string, 'asc' | 'desc' | 1 | -1>>()
+    const up: SortObject = { name: 1 }
+    const down: SortObject = { name: -1 }
+    // @ts-expect-error — a per-field function is rejected at runtime (SYG418)
+    const fn: SortObject = { name: (a: any, b: any) => a - b }
+    // @ts-expect-error — only 1 and -1 are directions
+    const two: SortObject = { name: 2 }
+    void up; void down; void fn; void two
+  })
+
+  it('Collection sort accepts sorter arrays (G-086)', () => {
+    const sort: CollectionProps['sort'] = ['lane', { order: -1 }, (a: any, b: any) => a.id - b.id]
+    void sort
+    // @ts-expect-error — an array entry can't be a number
+    const bad: CollectionProps['sort'] = ['lane', 3]
+    void bad
   })
 })
 
