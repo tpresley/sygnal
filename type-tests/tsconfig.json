@@ -18,5 +18,6 @@
       "xstream/*": ["../node_modules/xstream/*"]
     }
   },
-  "include": ["./**/*.ts", "./**/*.tsx"]
+  "include": ["./**/*.ts", "./**/*.tsx"],
+  "exclude": ["./registry/**"]
 }
