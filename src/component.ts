@@ -207,6 +207,7 @@ class Component {
   _processedChildren$: any;
   _disposeListener: any;
   _dispose$: any;
+  _disposed?: boolean;
   _activeSubComponents: Map<string, any>;
   _childReadyState: Record<string, boolean>;
   _readyChanged$: any;
@@ -458,6 +459,8 @@ class Component {
   }
 
   dispose(): void {
+    if (this._disposed) return
+    this._disposed = true
     // [diagnostics hook]
     diag.onDispose(this)
     if (typeof window !== 'undefined' && window.__SYGNAL_DEVTOOLS__?.connected) {
@@ -478,7 +481,11 @@ class Component {
       } catch (_) {}
       this._disposeListener = null
     }
-    // Tear down streams on next microtask to allow DISPOSE/cleanup actions to process
+    // Dispose the sub-components now (R3), so the whole subtree's DISPOSE actions and
+    // onDispose hooks run within this call (e.g. before renderComponent restores diagnostics)
+    this._activeSubComponents.forEach((entry) => entry?.sink$?.__dispose?.())
+    this._activeSubComponents.clear()
+    // Tear down streams on next macrotask to allow DISPOSE/cleanup actions to process
     setTimeout(() => {
       // Complete the action$ stream to stop the entire component cycle
       if (this.action$ && typeof this.action$.shamefullySendComplete === 'function') {
@@ -495,11 +502,6 @@ class Component {
         }
       }
       this._subscriptions = []
-      // Dispose any active sub-components
-      this._activeSubComponents.forEach((entry) => {
-        if (entry?.sink$?.__dispose) entry.sink$.__dispose()
-      })
-      this._activeSubComponents.clear()
     }, 0)
   }
 
