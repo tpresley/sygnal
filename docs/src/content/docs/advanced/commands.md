@@ -26,8 +26,12 @@ App.intent = ({ DOM }) => ({
 })
 
 App.model = {
-  'PLAY | EFFECT': () => playerCmd.send('play'),
-  'SEEK | EFFECT': () => playerCmd.send('seek', { time: 30 }),
+  PLAY: {
+    EFFECT: () => playerCmd.send('play'),
+  },
+  SEEK: {
+    EFFECT: () => playerCmd.send('seek', { time: 30 }),
+  },
 }
 ```
 
@@ -85,19 +89,13 @@ When the parent only needs to forward a command without updating its own state, 
 
 ```jsx
 App.model = {
-  'PLAY | EFFECT': () => playerCmd.send('play'),
-}
-```
-
-`EFFECT` runs the function for its side effects only — no state change, no re-render. The [model shorthand](/advanced/model-shorthand/) (`'ACTION | EFFECT'`) keeps it concise. The equivalent longhand form works too:
-
-```jsx
-App.model = {
   PLAY: {
     EFFECT: () => playerCmd.send('play'),
   },
 }
 ```
+
+`EFFECT` runs the function for its side effects only — no state change, no re-render.
 
 See [Effect Handlers](/advanced/effect/) for more details on the `EFFECT` sink.
 

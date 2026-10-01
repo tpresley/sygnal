@@ -30,6 +30,7 @@ function run(
 | `mountPoint` | `string` | `'#root'` | CSS selector for the DOM element to render into |
 | `fragments` | `boolean` | `true` | Enable JSX fragment support in the DOM driver |
 | `useDefaultDrivers` | `boolean` | `true` | Include default drivers (DOM, STATE, EVENTS, LOG) |
+| `diagnostics` | `DiagnosticsMode \| { mode?, ignore? }` | `'off'` (`'warn'` in the Vite dev server) | Runtime [diagnostics](/guide/diagnostics/): `'off'`, `'collect'`, `'warn'` or `'error'`, plus codes to ignore. Takes precedence over the dev flag the Vite plugin sets |
 
 ### Returns: SygnalApp
 
@@ -55,6 +56,9 @@ run(RootComponent, {}, { mountPoint: '#app' })
 // With custom drivers
 import myDriver from './myDriver'
 run(RootComponent, { MY_DRIVER: myDriver })
+
+// Fail fast on any diagnostic (e.g. in CI)
+run(RootComponent, {}, { diagnostics: 'error' })
 
 // With HMR (Vite)
 const { hmr, dispose } = run(RootComponent)
@@ -84,10 +88,13 @@ export default defineConfig({
 |--------|------|---------|-------------|
 | `disableJsx` | `boolean` | `false` | Skip automatic JSX configuration |
 | `disableHmr` | `boolean` | `false` | Skip automatic HMR injection |
+| `diagnostics` | `DiagnosticsMode \| { mode, strict, ignore }` | `'warn'` | Runtime diagnostics in the dev server (`'off'` injects nothing) |
+| `check` | `boolean \| { strict, include, ignore, overlay }` | `true` | Run `sygnal-check` in the dev server, when installed |
+| `vitestSetup` | `boolean` | `true` | Under Vitest, add `sygnal/diagnostics` to `test.setupFiles` |
 
-The HMR transform runs only in dev mode (`vite` / `vite dev`). Files that already contain `import.meta.hot` are left untouched.
+The HMR transform and the diagnostics setup run only in dev mode (`vite` / `vite dev`); production builds get none of it. Files that already contain `import.meta.hot` are left untouched.
 
-See [Bundler Configuration](/integration/bundler-config/) for details.
+See [Bundler Configuration](/integration/bundler-config/#plugin-options) for every option and the dev-mode behavior.
 
 ---
 
@@ -131,7 +138,7 @@ const MyComponent = component({
     INCREMENT: DOM.select('.btn').events('click')
   }),
   model: {
-    INCREMENT: (state) => ({ count: state.count + 1 })
+    INCREMENT: (state) => ({ ...state, count: state.count + 1 })
   }
 })
 ```
@@ -142,26 +149,22 @@ const MyComponent = component({
 
 Renders a list of components from an array on state.
 
-### JSX Usage (lowercase)
-
-```jsx
-<collection of={ItemComponent} from="items" filter={fn} sort="name" />
-```
-
-### JSX Usage (capitalized)
+### JSX Usage
 
 ```jsx
 import { Collection } from 'sygnal'
 
-<Collection of={ItemComponent} from="items" className="list" />
+<Collection of={ItemComponent} from="items" filter={item => !item.done} sort="name" className="list" />
 ```
+
+The lowercase `<collection>` tag works too, without an import.
 
 ### Props
 
 | Prop | Type | Required | Description |
 |------|------|----------|-------------|
 | `of` | `Component` | Yes | The component to instantiate for each item |
-| `from` | `string \| Lens` | Yes | State property name or lens for the source array |
+| `from` | `string \| Lens` | Yes | State property name or lens for the source array. Must be an array ([SYG401](/reference/errors/#syg401)); type-checkable with [`Collection<PROPS, STATE>`](/integration/typescript/#collection-from) |
 | `filter` | `(item) => boolean` | No | Filter function — only items returning `true` are rendered |
 | `sort` | `string \| object \| array \| function` | No | Sort items — string (field name, `"asc"`, or `"desc"`), object (`{ field: "asc" \| "desc" \| 1 \| -1 }`), array (multi-field), or comparator function |
 | `className` | `string` | No | CSS class for the wrapping container element |
@@ -199,22 +202,15 @@ Item.model = {
 }
 ```
 
+Removed items are disposed, recursively (nested Collections included). Reordering the array keeps each item's instance. See [Collections](/guide/collections/#item-keys-and-identity).
+
 ---
 
 ## switchable() / Switchable
 
 Conditionally renders one component from a set based on a name.
 
-### JSX Usage (lowercase)
-
-```jsx
-<switchable
-  of={{ tab1: Component1, tab2: Component2 }}
-  current={state.activeTab}
-/>
-```
-
-### JSX Usage (capitalized)
+### JSX Usage
 
 ```jsx
 import { Switchable } from 'sygnal'
@@ -410,17 +406,20 @@ Renders a `<div data-sygnal-lazy="loading">` placeholder until the import resolv
 Creates a ref object for DOM element access.
 
 ```typescript
-function createRef<T extends Element = Element>(): { current: T | null }
+function createRef<T = HTMLElement>(): Ref<T>   // { current: T | null }
 ```
 
 ```jsx
 import { createRef } from 'sygnal'
 const myRef = createRef()
 
-<div ref={myRef}>...</div>
+function Box({ state }) {
+  return <div ref={myRef}>...</div>
+}
 
-// In model:
-myRef.current?.offsetWidth  // Access the DOM element
+Box.model = {
+  MEASURE: (state) => ({ ...state, width: myRef.current?.offsetWidth ?? 0 }),
+}
 ```
 
 The `ref` prop sets `.current` to the DOM element on mount and `null` on unmount.
@@ -432,20 +431,23 @@ The `ref` prop sets `.current` to the DOM element on mount and `null` on unmount
 Creates a stream-based ref that emits the DOM element.
 
 ```typescript
-function createRef$<T extends Element = Element>(): Stream<T | null>
+function createRef$<T = HTMLElement>(): Ref$<T>   // { current: T | null, stream: MemoryStream<T | null> }
 ```
 
 ```jsx
 import { createRef$ } from 'sygnal'
 const el$ = createRef$()
 
-<div ref={el$}>...</div>
+function MyComponent({ state }) {
+  return <div ref={el$}>...</div>
+}
 
-// In intent:
 MyComponent.intent = () => ({
-  ELEMENT: el$,
+  ELEMENT: el$.stream,
 })
 ```
+
+Pass the ref object to the `ref` prop and use its `.stream` in intent.
 
 ---
 
@@ -474,14 +476,20 @@ When a `Command` object is passed as any prop to a child component, the child re
 ### Examples
 
 ```jsx
-import { createCommand, ABORT } from 'sygnal'
+import { createCommand } from 'sygnal'
 
 const cmd = createCommand()
 
-// Parent passes as prop and sends commands
-<VideoPlayer commands={cmd} />
-cmd.send('play')
-cmd.send('seek', { time: 30 })
+// Parent passes it as a prop...
+function App({ state }) {
+  return <VideoPlayer commands={cmd} />
+}
+
+// ...and sends commands, typically from an EFFECT
+App.model = {
+  PLAY: { EFFECT: () => cmd.send('play') },
+  SEEK: { EFFECT: () => cmd.send('seek', { time: 30 }) },
+}
 
 // Child reads via commands$ source in intent
 VideoPlayer.intent = ({ commands$ }) => ({
@@ -501,7 +509,7 @@ A built-in sink for side-effect-only model entries. Runs the reducer function bu
 ```typescript
 Component.model = {
   ACTION_NAME: {
-    EFFECT: (state, data, next, props) => void
+    EFFECT: (state, data, next, props) => { /* side effect; return nothing */ }
   }
 }
 ```
@@ -544,40 +552,37 @@ App.model = {
 }
 ```
 
-Returns a `console.warn` if the reducer returns a value — EFFECT handlers should not return anything.
+Logs a warning ([SYG219](/reference/errors/#syg219)) if the handler returns a value — EFFECT handlers should not return anything.
 
 See [Effect Handlers guide](/advanced/effect/) for more patterns.
 
 ---
 
-## Model Shorthand
+## event()
 
-Compact syntax for model entries that target a single sink. Use `'ACTION | SINK'` as the key:
+Creates an `EVENTS` sink function that puts `{ type, data }` on the global event bus. Use it as the `EVENTS` value inside a model entry.
 
+<!-- docs-check: skip -->
 ```typescript
-Component.model = {
-  'ACTION | SINK': reducer
-}
-// Equivalent to:
-Component.model = {
-  ACTION: { SINK: reducer }
-}
+function event(type: string, payload?: any | ((state, data, next, props) => any)): EventSink
 ```
-
-### Examples
 
 ```jsx
-App.model = {
-  'PLAY | EFFECT':   () => playerCmd.send('play'),
-  'ALERT | EVENTS':  (state) => ({ type: 'notify', data: state.msg }),
-  'DELETE | PARENT':  (state) => ({ type: 'DELETE', id: state.id }),
-  'FETCH | HTTP':    (state) => ({ url: `/api/${state.id}` }),
+import { event } from 'sygnal'
+
+Lane.model = {
+  DELETE_LANE: {
+    STATE:  (state) => ({ ...state, deleting: true }),
+    EVENTS: event('DELETE_LANE', (state) => ({ laneId: state.id })),
+  },
+  RESET: { EVENTS: event('RESET') },               // no payload
+  DARK:  { EVENTS: event('SET_MODE', 'dark') },    // static payload
 }
 ```
 
-The `|` separator requires the key to be a quoted string. Whitespace around `|` is optional. Intent action names containing `|` throw an error.
+Receivers subscribe with `EVENTS.select('DELETE_LANE')`, which emits the payload. With a [`SygnalEvents` registry](/integration/typescript/#typed-events), `type` and the payload are type-checked.
 
-See [Model Shorthand guide](/advanced/model-shorthand/) for more details.
+`emit(type, payload?)` is an older helper that returns a whole model entry (`{ EVENTS: fn }`); it still works but isn't canonical (see [Alternative Forms](/advanced/alternative-forms/#emit)).
 
 ---
 
@@ -597,39 +602,41 @@ function renderComponent(
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `initialState` | `any` | Component's `.initialState` | Override the component's initial state |
-| `mockConfig` | `object` | `{}` | Mock DOM events — maps selectors to event streams |
 | `drivers` | `object` | `{}` | Additional drivers beyond the defaults |
+| `diagnostics` | `DiagnosticsMode` | `'collect'` (or the current mode) | Diagnostics mode while rendered |
+| `strict` | `boolean` | unchanged | Strict-mode runtime checks while rendered |
+| `mockConfig` | `object` | `{}` | Mock DOM event streams, by selector |
 
 ### Returns: RenderResult
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `state$` | `Stream<any>` | Live stream of state values |
-| `dom$` | `Stream<any>` | Live stream of rendered VNode trees |
-| `events$` | `EventsSource` | Event bus source (`.select(type)`) |
-| `sinks` | `object` | All driver sink streams |
-| `sources` | `object` | All driver source objects |
-| `states` | `any[]` | Collected state values |
-| `simulateAction` | `(name: string, data?: any) => void` | Push an action into the model |
-| `waitForState` | `(predicate, timeout?) => Promise<any>` | Resolve when state matches |
-| `dispose` | `() => void` | Tear down the component |
+| `simulateEvent` | `(selector, type, init?) => void` | Dispatch a DOM event through the mock DOM (the real intent runs) |
+| `simulateAction` | `(name, data?) => void` | Push an action under its real name (every sink runs) |
+| `ready` | `() => Promise<void>` | Resolves once subscribed and earlier calls are delivered |
+| `next` | `(predicate?, timeout?) => Promise<any>` | Next matching state emitted after the call |
+| `waitForState` | `(predicate, timeout?) => Promise<any>` | First matching state, recorded history included |
+| `settle` | `(timeout?) => Promise<void>` | Resolves once nothing is pending |
+| `states` | `any[]` | Every state emitted |
+| `html` | `() => string` | Latest render as HTML |
+| `emitted` | `{ type, data }[]` | EVENTS emissions |
+| `sinkValues` | `(sinkName) => any[]` | Values sent to a sink |
+| `diagnostics` | `Diagnostic[]` | Diagnostics collected while rendered |
+| `expectNoDiagnostics` | `() => void` | Throws if a warning or error was collected |
+| `inspect` | `() => InspectGraph` | App graph of the rendered tree (needs `sygnal/diagnostics`) |
+| `state$`, `dom$`, `events$`, `sinks`, `sources` | | Live streams and driver objects |
+| `dispose` | `() => void` | Tear down the tree and restore the diagnostics settings |
 
-### Examples
+### Example
 
 ```jsx
 import { renderComponent } from 'sygnal'
 
-// Basic usage
 const t = renderComponent(Counter, { initialState: { count: 0 } })
-t.simulateAction('INCREMENT')
-await t.waitForState(s => s.count === 1)
+t.simulateEvent('.inc', 'click')
+await t.next(s => s.count === 1)
+t.expectNoDiagnostics()
 t.dispose()
-
-// With mock DOM events
-import xs from 'xstream'
-const t = renderComponent(Counter, {
-  mockConfig: { '.inc': { click: xs.of({}) } },
-})
 ```
 
 See [Testing guide](/integration/testing/) for full usage patterns.
@@ -690,15 +697,7 @@ MyComponent.model = {
 }
 ```
 
-Works with all sinks (EFFECT, EVENTS, PARENT, STATE) and supports model shorthand:
-
-```jsx
-MyComponent.model = {
-  'DISPOSE | EFFECT': (state) => clearInterval(state.intervalId),
-}
-```
-
-The reducer receives the current state, so you can access component data during cleanup.
+Works with all sinks (EFFECT, EVENTS, PARENT, STATE). The reducer receives the current state, so you can access component data during cleanup. Disposal is recursive: removing a component disposes everything inside it, including nested Collections and Switchables.
 
 ---
 
@@ -736,7 +735,7 @@ MyComponent.onError = (error, { componentName }) => (
 )
 ```
 
-If not defined, errors render an empty `<div data-sygnal-error>` and log to `console.error`.
+If not defined, errors render an empty `<div data-sygnal-error>` and log to `console.error` ([SYG406](/reference/errors/#syg406)). An `onError` that throws is reported as [SYG407](/reference/errors/#syg407).
 
 ---
 
@@ -860,7 +859,8 @@ RootComponent.model = {
 
   DROP: (state, { dropZone, insertBefore }) => {
     const toLaneId = dropZone.dataset.laneId
-    // ... move the dragged task
+    // moveTask: your own helper that returns the new lanes array
+    return { ...state, lanes: moveTask(state.lanes, state.dragging.taskId, toLaneId, insertBefore) }
   },
 
   DRAG_END: (state) => ({ ...state, dragging: null }),
@@ -954,13 +954,16 @@ function driverFromAsync(
 
 The driver source exposes:
 
+<!-- docs-check: skip -->
 ```typescript
 source.select(selector?: string | Function): Stream
+source.errors(selector?: string | Function): Stream<AsyncDriverError>
 ```
 
 - `select()` with no arguments returns all responses
 - `select('name')` filters responses where `[selectorProperty] === 'name'`
 - `select(fn)` filters responses using a custom predicate function
+- `errors()` takes the same selectors and emits failed requests: `{ error, request, [selectorProperty] }`. Rejections never reach `select()`. While nothing listens to `errors()`, failures are only logged with `console.error`
 
 ### Example
 
@@ -986,7 +989,8 @@ run(RootComponent, { API: apiDriver })
 
 // Use in intent
 MyComponent.intent = ({ API }) => ({
-  USERS_LOADED: API.select('users')
+  USERS_LOADED: API.select('users'),
+  USERS_FAILED: API.errors('users'),
 })
 
 // Use in model
@@ -1025,6 +1029,7 @@ function makeServiceWorkerDriver(
 
 ### Source API
 
+<!-- docs-check: skip -->
 ```typescript
 source.select(type?: string): Stream
 ```
@@ -1130,6 +1135,37 @@ App.model = {
   },
 }
 ```
+
+---
+
+## Diagnostics
+
+Runtime [diagnostics](/guide/diagnostics/) helpers, exported from `sygnal`. They return data in every mode except `'off'`.
+
+| Export | Description |
+|---|---|
+| `getDiagnostics()` | All diagnostics collected so far (most recent last, up to 500) |
+| `clearDiagnostics()` | Clear the collected diagnostics |
+| `onDiagnostic(callback)` | Call `callback(diagnostic)` for each new diagnostic; returns an unsubscribe function |
+| `getDevTools()` | The DevTools bridge (`window.__SYGNAL_DEVTOOLS__` in a browser): `connected`, `getDiagnostics()`, and `inspect()` once `sygnal/diagnostics` is loaded |
+
+A diagnostic is `{ code, severity, component?, message, fix?, data?, docsUrl, text, timestamp }`, where `text` is the formatted `[Sygnal CODE] …` line. Every code is listed in the [Error Reference](/reference/errors/).
+
+### sygnal/diagnostics
+
+The dev-only entry with the runtime checks. Importing it registers them; it also exports:
+
+| Export | Description |
+|---|---|
+| `inspect(options?)` | The app graph of the live components (`InspectGraph`) |
+| `configureStrict(on?)` | Strict-mode runtime checks on (`true`), off (`false`) or default (`undefined`: on when `globalThis.__SYGNAL_STRICT__ === true`) |
+| `isStrictEnabled()` | Whether the strict checks are on |
+| `checkEventBus()` | Report SYG105 for EVENTS types selected but never emitted; returns `{ selected, emitted, selectedNeverEmitted, emittedNeverSelected }` |
+| `listCodes()` / `getCodeInfo(code)` | `{ code, severity, title, docsSlug }` for the registered codes |
+| `configureChecks({ settleMs, idleMs, minRenders })` | Timing of the DOM checks (SYG103/104) |
+| `resetChecks()` | Forget what the checks have seen and reported |
+| `installChecks()` | Re-register the checks (done on import); returns an uninstall function |
+| `checks`, `RXJS_HINTS` | The registered checks, and the RxJS → xstream table behind SYG301 |
 
 ---
 
@@ -1348,6 +1384,7 @@ function EditableTitle({ state }) {
 
 Sygnal re-exports all DOM helpers from `@cycle/dom`:
 
+<!-- docs-check: skip -->
 ```javascript
 import { h, div, span, input, button, form, a, ul, li, p, ... } from 'sygnal'
 ```

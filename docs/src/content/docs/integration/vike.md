@@ -254,7 +254,12 @@ Components access driver sources in `intent` and emit to driver sinks via `model
 
 ```jsx
 function Dashboard({ state }) {
-  return <div>{state.messages.length} messages</div>
+  return (
+    <div>
+      {state.messages.length} messages
+      <button className="send-btn">Ping</button>
+    </div>
+  )
 }
 
 Dashboard.initialState = { messages: [] }
@@ -309,6 +314,28 @@ function Dashboard({ state }) {
 ```
 
 During SSR, the `fallback` is rendered instead of the children. If no fallback is provided, an empty placeholder `<div>` is used. On the client, children render normally.
+
+## Diagnostics in Dev
+
+With the Sygnal Vite plugin in your `vite.config.js`, `vite dev` gets the same [diagnostics](/guide/diagnostics/) as any Sygnal app, even though the app is started by Sygnal's own Vike client entry (`sygnal/vike/onRenderClient`), which your code never imports: in dev, the plugin wraps that entry so it sets the dev flag and loads the dev checks first. `disableHmr: true` doesn't affect this.
+
+When `sygnal-check` is installed, the plugin also checks your source on startup and after every change. By default it checks the `src/`, `pages/` and `renderer/` directories that exist; set `check.include` to choose others:
+
+```javascript
+// vite.config.js
+import { defineConfig } from 'vite'
+import sygnal from 'sygnal/vite'
+import vike from 'vike/plugin'
+
+export default defineConfig({
+  plugins: [
+    sygnal({ disableHmr: true, diagnostics: { strict: true }, check: { include: ['pages', 'components'] } }),
+    vike(),
+  ],
+})
+```
+
+Production builds contain none of the dev checks.
 
 ## How It Works
 

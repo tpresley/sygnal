@@ -68,6 +68,29 @@ const unique$ = values$.compose(dropRepeats())
 const withState$ = click$.compose(sampleCombine(state$))
 ```
 
+## Coming from RxJS
+
+Sygnal streams are [xstream](https://github.com/staltz/xstream) streams, not RxJS observables: there is no `.pipe()`, and some operators have different names. With the dev checks loaded (automatic in the Vite dev server and Vitest), calling an RxJS operator on a stream throws an error that names the xstream equivalent ([SYG301](/reference/errors/#syg301)).
+
+| RxJS | xstream |
+|---|---|
+| `pipe(map(f))` | `.map(f)` |
+| `switchMap(f)` | `.map(f).flatten()` |
+| `mergeMap(f)` | `.map(f).compose(flattenConcurrently)` (from `xstream/extra/flattenConcurrently`) |
+| `debounceTime(ms)` | `.compose(debounce(ms))` |
+| `throttleTime(ms)` | `.compose(throttle(ms))` |
+| `distinctUntilChanged()` | `.compose(dropRepeats())` |
+| `withLatestFrom(b$)` | `.compose(sampleCombine(b$))` |
+| `scan(f, seed)` | `.fold(f, seed)` |
+| `tap(f)` | `.debug(f)` |
+| `skip(n)` / `take(n)` | `.drop(n)` / `.take(n)` |
+| `takeUntil(x$)` | `.endWhen(x$)` |
+| `startWith(x)` | `.startWith(x)` |
+| `combineLatest(a$, b$)` | `xs.combine(a$, b$)` |
+| `merge(a$, b$)` | `xs.merge(a$, b$)` |
+| `catchError(f)` | `.replaceError(f)` |
+| `shareReplay(1)` | `.remember()` |
+
 ## Creating Custom Streams
 
 ```javascript

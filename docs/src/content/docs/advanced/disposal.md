@@ -28,16 +28,13 @@ LiveFeed.model = {
 `DISPOSE` works with all sinks — EFFECT for side effects, EVENTS to notify parent components, PARENT for one-level communication, and even STATE (though state changes during disposal are unlikely to render).
 
 ```jsx
-// Notify parent that this component is going away
+import { event } from 'sygnal'
+
+// Tell the rest of the app that this card is going away
 TaskCard.model = {
   DISPOSE: {
-    EVENTS: (state) => ({ type: 'CARD_REMOVED', data: state.id }),
+    EVENTS: event('CARD_REMOVED', (state) => state.id),
   },
-}
-
-// Or using model shorthand
-TaskCard.model = {
-  'DISPOSE | EVENTS': (state) => ({ type: 'CARD_REMOVED', data: state.id }),
 }
 ```
 
@@ -74,3 +71,7 @@ Use `dispose$` when you need to combine disposal with other streams (e.g., debou
 ## Collection Item Disposal
 
 Collection items are automatically disposed when removed from the state array. Each item's `DISPOSE` action (and `dispose$` stream) fires independently.
+
+Disposal is recursive: when an item is removed, every component inside it is disposed too, including nested Collections and Switchables (a removed lane disposes all of its cards). Disposal runs synchronously when the parent re-renders without the child, and each component is disposed at most once.
+
+Under [`renderComponent()`](/integration/testing/), `t.dispose()` disposes the whole tree, so `DISPOSE` entries of children run as well.

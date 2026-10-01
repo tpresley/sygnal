@@ -6,18 +6,16 @@ description: Capturing user interactions and events
 The `.intent` property defines **when** actions should happen. It's a function that receives all available driver sources and returns an object mapping action names to Observable streams.
 
 ```jsx
-MyComponent.intent = ({ DOM, STATE, EVENTS }) => {
-  return {
-    // Fire INCREMENT when the button is clicked
-    INCREMENT: DOM.select('.increment-btn').events('click'),
+MyComponent.intent = ({ DOM }) => ({
+  // Fire INCREMENT when the button is clicked
+  INCREMENT: DOM.select('.increment-btn').events('click'),
 
-    // Fire CHANGE_NAME when the input value changes, passing the new value
-    CHANGE_NAME: DOM.input('.name-input').value(),
+  // Fire CHANGE_NAME when the input value changes, passing the new value
+  CHANGE_NAME: DOM.input('.name-input').value(),
 
-    // Fire SAVE on form submission
-    SAVE: DOM.select('.save-form').events('submit')
-  }
-}
+  // Fire SAVE on form submission
+  SAVE: DOM.select('.save-form').events('submit'),
+})
 ```
 
 ## Available Sources
@@ -39,11 +37,11 @@ Additionally, any custom drivers registered via `run()` are available as sources
 
 ## Key Points
 
-- Action names can be any valid JavaScript property name. Convention is `ALL_CAPS`.
-- Each action maps to exactly one Observable stream.
+- Action names can be any valid JavaScript property name. Convention is `ALL_CAPS`. They can't contain `|`.
+- Each action maps to exactly one Observable stream, and to exactly one [model](/guide/model/) entry with the same name.
 - If multiple events should trigger the same action, merge them with `xs.merge()`.
 - **Never** attach event handlers in the view. All event handling goes through intent.
-- The DOM source is isolated to the current component — selectors won't match elements in parent or sibling components.
+- **Selectors only see the component's own JSX.** The DOM source is isolated to the current component: selectors don't match elements rendered by parent, sibling **or child** components (including Collection items). To react to a click inside a child, handle it in the child and send it up with [`PARENT`](/guide/parent-child/) or [`EVENTS`](/guide/drivers/#the-event-bus-events-driver). Sygnal reports a selector that only matches inside a child as [SYG104](/reference/errors/#syg104), and one that matches nothing as [SYG103](/reference/errors/#syg103)/[SYG110](/reference/errors/#syg110).
 
 ## Event Shorthands
 
@@ -51,8 +49,7 @@ The DOM source provides shorthand methods for every event type. Instead of chain
 
 ```jsx
 MyComponent.intent = ({ DOM }) => ({
-  // These are equivalent:
-  CLICK:    DOM.select('.btn').events('click'),
+  // Same as DOM.select('.btn').events('click')
   CLICK:    DOM.click('.btn'),
 
   // Works with any DOM event
@@ -114,7 +111,11 @@ MyComponent.intent = ({ DOM }) => ({
 All methods return enriched streams, so they can be chained with standard stream operators:
 
 ```jsx
-SEARCH: DOM.input('.search').value().compose(debounce(300)),
+import { debounce } from 'sygnal'
+
+MyComponent.intent = ({ DOM }) => ({
+  SEARCH: DOM.input('.search').value().compose(debounce(300)),
+})
 ```
 
 ## Accessing Global DOM Events
