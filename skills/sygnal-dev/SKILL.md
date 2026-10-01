@@ -26,7 +26,7 @@ Less common features (Portals, Transitions, Suspense/lazy, Slots, forms, drag-an
 2. **Intent**: name the action and its trigger (`DOM.click('.save')`, `EVENTS.select('X')`, `CHILD.select(Child)`).
 3. **Model**: one entry per action; one function per sink (`STATE`, `EVENTS`, `PARENT`, `EFFECT`, drivers).
 4. **View**: render from `state` / `context`; add the class names the intent selects.
-5. **Test**: `renderComponent(C, { strict: true })` + `simulateEvent` + `t.next` + `expectNoDiagnostics()` (§7). Run `npm test`, then `npx sygnal-check --strict`.
+5. **Test**: `renderComponent(C, { strict: true })` + `simulateEvent` + `t.next` + `expectNoDiagnostics()` (§7). Run `npm test`, then `npx sygnal-check --strict`. (not installed? `npm i -D sygnal-check`).
 
 **Debugging loop**:
 1. Run the tests (`npm test`) and read every `[Sygnal SYGnnn]` line (tests, console, or Vite terminal).
@@ -103,6 +103,7 @@ AddTodo.model = {
 }
 ```
 ### Multi-sink entry + EVENTS between non-adjacent components
+Siblings and distant components talk through EVENTS; a parent that owns the shared state can instead pass slices down (`state="key"`) and hear children via PARENT.
 ```jsx
 import { event } from 'sygnal'
 
@@ -123,6 +124,7 @@ function Toast({ state }) {   // anywhere in the tree: EVENTS is a global bus
 Toast.intent = ({ EVENTS }) => ({ SAVED: EVENTS.select('DOC_SAVED') })  // emits the payload only
 Toast.model = { SAVED: (state, payload) => ({ ...state, lastSaved: payload.id }) }
 ```
+`event('TYPE')` with no payload sends `undefined` as the data. A child that only reacts to EVENTS needs no `initialState`; it gets its state from the parent.
 ### Child → parent (PARENT + CHILD.select), Collection, item removal
 ```jsx
 import { Collection } from 'sygnal'
