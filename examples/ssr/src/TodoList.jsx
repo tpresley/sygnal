@@ -1,6 +1,8 @@
 /**
  * A todo list component — demonstrates SSR with nested elements and arrays.
  */
+import { ABORT } from 'sygnal'
+
 function TodoList({ state }) {
   return (
     <div className="todo-list">
@@ -39,7 +41,7 @@ TodoList.intent = ({ DOM }) => ({
 TodoList.model = {
   UPDATE_INPUT: (state, value) => ({ ...state, inputValue: value }),
   ADD_TODO: (state) => {
-    if (!state.inputValue.trim()) return state
+    if (!state.inputValue.trim()) return ABORT
     return {
       ...state,
       items: [...state.items, { id: state.nextId, text: state.inputValue.trim(), done: false }],

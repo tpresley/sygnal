@@ -57,7 +57,7 @@ function printHelp() {
 Usage: create-sygnal-app [project-name] [options]
 
 Options:
-  -t, --template <name>  Template to use: vite, vike, astro
+  -t, --template <name>  Template to use: vite, vite-pwa, vike, astro
       --ts, --typescript  Use TypeScript
       --js, --javascript  Use JavaScript
       --install           Install dependencies (default)
@@ -207,11 +207,18 @@ async function main() {
   }
 }
 
+// Template files ending in `.tmpl` are copied without that suffix. Starter
+// tests are stored as `*.test.js.tmpl`: they only run inside a scaffolded
+// app, and the suffix keeps the Sygnal repo's own test run from collecting
+// them.
+const TEMPLATE_SUFFIX = '.tmpl'
+
 function copyDir(src, dest) {
   mkdirSync(dest, { recursive: true })
   for (const entry of readdirSync(src)) {
+    if (entry === 'node_modules') continue
     const srcPath = join(src, entry)
-    const destPath = join(dest, entry)
+    const destPath = join(dest, entry.endsWith(TEMPLATE_SUFFIX) ? entry.slice(0, -TEMPLATE_SUFFIX.length) : entry)
     if (statSync(srcPath).isDirectory()) {
       copyDir(srcPath, destPath)
     } else {

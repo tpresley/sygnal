@@ -1,0 +1,24 @@
+import { describe, it, expect, afterEach } from 'vitest'
+import { renderComponent } from 'sygnal'
+import type { RenderResult } from 'sygnal'
+import Page from './+Page'
+
+// renderComponent runs the page without a browser. `strict: true` also
+// reports non-canonical forms; expectNoDiagnostics() fails on any warning.
+let t: RenderResult | undefined
+afterEach(() => t?.dispose())
+
+describe('Home page', () => {
+  it('counts up, and never below zero', async () => {
+    t = renderComponent(Page, { strict: true })
+    t.simulateEvent('.dec', 'click') // at 0, DEC returns ABORT: no new state
+    t.simulateEvent('.inc', 'click')
+    t.simulateEvent('.inc', 'click')
+    t.simulateEvent('.inc', 'click')
+    await t.waitForState(s => s.count === 3)
+
+    expect(t.states.map((s: { count: number }) => s.count)).toEqual([0, 1, 2, 3])
+    expect(t.html()).toContain('<div class="counter-display">3</div>')
+    t.expectNoDiagnostics()
+  })
+})

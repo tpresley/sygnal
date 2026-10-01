@@ -141,7 +141,8 @@ export default [
 
   {
     input: 'src/astro/client.ts',
-    external: (id) => /^snabbdom(\/|$)/.test(id),
+    // 'sygnal' stays external so islands run on the app's core (B-019)
+    external: (id) => isExternal(id) || /^sygnal(\/|$)/.test(id),
     output: [
       { file: pkg.exports['./astro/client'].require, format: 'cjs', ...sourcemapOptions },
       { file: pkg.exports['./astro/client'].import, format: 'es', ...sourcemapOptions }
