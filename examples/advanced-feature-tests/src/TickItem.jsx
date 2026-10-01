@@ -1,4 +1,4 @@
-import {xs} from 'sygnal'
+import {xs, event} from 'sygnal'
 
 function TickItem({ state } = {}) {
   return (
@@ -26,7 +26,7 @@ TickItem.intent = ({ DOM, EVENTS, dispose$ }) => {
 TickItem.model = {
   TICK: (state) => ({ ...state, ticks: (state.ticks || 0) + 1 }),
   REMOVE: {
-    EVENTS: (state) => ({ type: 'REMOVE_ITEM', data: state.id }),
+    EVENTS: event('REMOVE_ITEM', (state) => state.id),
   },
   CLEANUP: {
     MOCK: (state) => ({ type: 'item-disposed', itemId: state.id, finalTicks: state.ticks || 0 }),
