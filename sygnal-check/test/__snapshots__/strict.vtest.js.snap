@@ -1,0 +1,49 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`strict bad fixtures > model-forms.jsx 1`] = `
+[
+  "test/fixtures/strict/bad/model-forms.jsx:28:22 SYG506 Lane: CHILD.select('TodoItem') matches the child by its name as a string, which breaks when the code is minified (pass the component function: \`CHILD.select(TodoItem)\`)",
+  "test/fixtures/strict/bad/model-forms.jsx:29:23 SYG506 Lane: CHILD.select('Unknown') matches the child by its name as a string, which breaks when the code is minified (pass the component function: \`CHILD.select(Unknown)\` (import Unknown first))",
+  "test/fixtures/strict/bad/model-forms.jsx:33:11 SYG505 Lane: model entry 'DELETE' uses emit() (use the object form with event(): \`DELETE: { EVENTS: event('DELETE_LANE', (state) => ({ laneId: state.id })) }\`)",
+  "test/fixtures/strict/bad/model-forms.jsx:34:3 SYG504 Lane: model key 'PLAY | EFFECT' uses the 'ACTION | SINK' shorthand (use the object form: \`PLAY: { EFFECT: () => cmd.send('play') }\`)",
+  "test/fixtures/strict/bad/model-forms.jsx:35:3 SYG504 Lane: model key 'PING | EVENTS' uses the 'ACTION | SINK' shorthand (use the object form: \`PING: { EVENTS: event('PING', (state) => state.id) }\`)",
+  "test/fixtures/strict/bad/model-forms.jsx:35:20 SYG505 Lane: the EVENTS sink of 'PING' builds the { type: 'PING', data } object by hand (use the object form with event(): \`PING: { EVENTS: event('PING', (state) => state.id) }\`)",
+  "test/fixtures/strict/bad/model-forms.jsx:38:5 SYG505 Lane: model entry 'MARK' spreads emit() into the object form (replace the spread with an EVENTS sink: \`EVENTS: event('MARKED', (state) => state.id)\`)",
+  "test/fixtures/strict/bad/model-forms.jsx:41:13 SYG505 Lane: the EVENTS sink of 'MOVE' builds the { type: 'MOVE_LANE', data } object by hand (use the object form with event(): \`MOVE: { EVENTS: event('MOVE_LANE', (state) => ({ laneId: state.id })) }\`)",
+]
+`;
+
+exports[`strict bad fixtures > positional-view.jsx 1`] = `
+[
+  "test/fixtures/strict/bad/positional-view.jsx:2:25 SYG501 Counter: the view uses positional arguments (props, state) (destructure the first argument: \`function Counter({ state, ...props })\`)",
+  "test/fixtures/strict/bad/positional-view.jsx:14:27 SYG501 Badge: the view uses positional arguments (props, state, context) (destructure the first argument: \`const Badge = ({ label, state, context }) => …\`)",
+  "test/fixtures/strict/bad/positional-view.jsx:17:24 SYG501 Panel: the view uses positional arguments (props, state) (destructure the first argument: \`function Panel({ state: { count } })\`)",
+]
+`;
+
+exports[`strict bad fixtures > prop-drilling.jsx 1`] = `
+[
+  "test/fixtures/strict/bad/prop-drilling.jsx:13:13 SYG507 [info] Toolbar: prop 'theme' is passed down through 3 component levels (<App> → <Toolbar> → <Menu>) (provide it as context instead: \`App.context = { theme: state => state.theme }\`, and read \`context.theme\` in <Menu>)",
+  "test/fixtures/strict/bad/prop-drilling.jsx:20:44 SYG507 [info] Menu: prop 'theme' is passed down through 3 component levels (<Toolbar> → <Menu> → <Item>) (provide it as context instead: \`Toolbar.context = { theme: state => state.theme }\`, and read \`context.theme\` in <Item>)",
+]
+`;
+
+exports[`strict bad fixtures > reducers.jsx 1`] = `
+[
+  "test/fixtures/strict/bad/reducers.jsx:33:1 SYG502 Player: the STATE reducer for 'MUTATE' never returns a value (undefined) (return the new state (\`({ ...state, … })\`) or ABORT; if it only runs side effects, use \`MUTATE: { EFFECT: (state, data, next) => { … } }\`)",
+  "test/fixtures/strict/bad/reducers.jsx:36:62 SYG502 Player: the STATE reducer for 'SAVE' returns the unchanged \`state\` for "no change" (return ABORT instead: \`SAVE: (state) => state.title ? { ...state, saved: true } : ABORT\`)",
+  "test/fixtures/strict/bad/reducers.jsx:38:23 SYG502 Player: a bare \`return\` in the STATE reducer for 'RESET' returns undefined (use \`return ABORT\` for "no change" (or \`return undefined\` explicitly if this removes a Collection item))",
+  "test/fixtures/strict/bad/reducers.jsx:45:3 SYG502 Player: the STATE reducer for 'MAYBE' can reach its end without returning (undefined) (end every path with a return: the new state, or \`return ABORT\` for "no change" (or \`return undefined\` explicitly if this removes a Collection item))",
+  "test/fixtures/strict/bad/reducers.jsx:48:5 SYG503 Player: the STATE reducer for 'PLAY' runs a side effect (\`player.send('play')\`) and returns ABORT (move it to an EFFECT sink: \`PLAY: { EFFECT: (state, data, next) => { player.send('play') } }\` (no return value needed))",
+  "test/fixtures/strict/bad/reducers.jsx:53:7 SYG503 Player: the STATE reducer for 'LOG' runs a side effect (\`console.log('LOG', data)\`) and returns ABORT (keep the state change in STATE and move the side effect to EFFECT: \`LOG: { STATE: (state, data) => …, EFFECT: (state, data, next) => { console.log('LOG', data) } }\`)",
+]
+`;
+
+exports[`strict bad fixtures > typed.tsx 1`] = `
+[
+  "test/fixtures/strict/bad/typed.tsx:7:53 SYG501 Counter: the view uses positional arguments (props, state) (destructure the first argument: \`const Counter = ({ state }) => …\`)",
+  "test/fixtures/strict/bad/typed.tsx:24:45 SYG502 Counter: the STATE reducer for 'INC' returns the unchanged \`state\` for "no change" (return ABORT instead: \`INC: (state: State) => state.count > 9 ? ABORT : { ...state, count: state.count + 1 }\`)",
+  "test/fixtures/strict/bad/typed.tsx:25:3 SYG504 Counter: model key 'RESET | EVENTS' uses the 'ACTION | SINK' shorthand (use the object form: \`RESET: { EVENTS: event('RESET_DONE') }\`)",
+  "test/fixtures/strict/bad/typed.tsx:25:21 SYG505 Counter: the EVENTS sink of 'RESET' builds the { type: 'RESET_DONE', data } object by hand (use the object form with event(): \`RESET: { EVENTS: event('RESET_DONE') }\`)",
+]
+`;

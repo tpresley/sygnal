@@ -29,10 +29,11 @@ Each line has the form `file:line:col CODE [severity] Component: message (fix)`.
 | `--fail-on=warn\|error\|never` | Exit with code 1 when a diagnostic at this level or above exists. The default is `warn`. Info never fails the run |
 | `--verbose` | Also print info-level findings |
 | `--include-tests` | Also scan `*.test.*` / `*.spec.*` files found through directories or globs (skipped by default; a file named explicitly is always scanned) |
-| `--strict` | Canonical-form rules (SYG5xx). **Not implemented yet** |
+| `--strict` | Also run the strict-mode canonical-form rules (SYG501-507, see [Strict mode](#strict-mode)) |
+| `--fix` | Apply the mechanical canonical-form rewrites in place, then check (implies `--strict`) |
 | `--graph` | Print the app graph. **Not implemented yet** |
 
-Exit codes: `0` clean, `1` findings at or above `--fail-on`, `2` usage error (bad option, no files, `--strict`/`--graph`).
+Exit codes: `0` clean, `1` findings at or above `--fail-on`, `2` usage error (bad option, no files, `--graph`).
 
 ## Rules
 
@@ -48,6 +49,24 @@ The codes are the same as Sygnal's runtime diagnostics (`https://sygnal.js.org/r
 | SYG105 | warn | An EVENTS type that is selected (`EVENTS.select('X')`) but never emitted, or emitted (`emit('X')`, `event('X')`, or `{ type: 'X' }` returned from an `EVENTS` sink) but never selected, anywhere in the scanned files. Only string literals are matched. This is downgraded to info when non-literal emits or selects exist. |
 | SYG401 | warn | `<Collection from="x">` where `x` isn't a key of the component's `initialState` (or `calculated`), or its initial value is a literal that isn't an array. This is only checked when `initialState` is statically known. |
 | SYG900 | warn | A file couldn't be parsed, or a rule crashed. |
+
+## Strict mode
+
+`--strict` adds one rule per row of Sygnal's canonical-forms table: code that works, but isn't written the one blessed way. Each message shows the canonical rewrite of the offending code. Without `--strict` these rules don't run.
+
+| Code | Severity | Canonical form | Flags | `--fix` |
+|---|---|---|---|---|
+| SYG501 | warn | `function C({ state, context, ...props })` | a view (any component, or a function rendered as a component tag) with a 2nd/3rd parameter, i.e. the positional `(props, state, context)` arguments | no |
+| SYG502 | warn | `return ABORT` for "no change" in a STATE reducer | `return state` / `cond ? next : state` (`state` = the first parameter), a bare `return;`, or a block body that can end without returning. An explicit `undefined` isn't flagged (a Collection item removes itself that way) | no |
+| SYG503 | warn | `ACTION: { EFFECT: (state, data, next) => { … } }` | heuristic: a STATE reducer with a call statement whose result is unused (`cmd.send()`, `next()`, `console.log()`) on the path to a `return ABORT` | no |
+| SYG504 | warn | `ACTION: { SINK: fn }` | `'ACTION \| SINK'` shorthand keys | yes, unless another entry handles the same action (merge by hand) |
+| SYG505 | warn | `ACTION: { EVENTS: event('TYPE', (state, data) => payload) }` | `ACTION: emit('TYPE', fn)`, `{ …, ...emit('TYPE', fn) }`, and a raw `EVENTS: s => ({ type: 'TYPE', data })` with a static type | yes (emit forms; raw arrows with an expression body) |
+| SYG506 | warn | `CHILD.select(ChildFn)` | `CHILD.select('ChildName')` (breaks under minification) | yes, when a binding with that name is in scope |
+| SYG507 | info | `.context` for top-down data | a component that receives prop `p` and passes it on unchanged to its own child component (`<A>` → `<X>` → `<Y>`, 3 levels) | no |
+
+`--fix` adds `event` to the file's existing `import { … } from 'sygnal'` when a rewrite needs it (and skips the rewrite when there is no such import, or `event` is bound to something else), and removes an `emit` import the rewrite left unused. It re-checks after every pass; running it again changes nothing. Review the diff: it rewrites source files in place.
+
+The runtime has a matching opt-in strict mode for the rules it can detect reliably (SYG501, SYG502, SYG504): `import { configureStrict } from 'sygnal/diagnostics'; configureStrict(true)`, or `renderComponent(C, { strict: true })` in tests.
 
 ### What counts as a component
 
@@ -89,7 +108,9 @@ This is the runtime `Diagnostic` shape plus `file`, `line` and `column` (1-based
 - `options.cwd`: the base for relative inputs and reported paths.
 - `options.ignore`: codes to drop, e.g. `['SYG105']`.
 - `options.includeTests`: also scan test and spec files.
-- `options.strict`: also run strict rules (none yet).
+- `options.strict`: also run the strict-mode rules (SYG501-507).
+
+`fixFiles(absPaths, { cwd })` applies the `--fix` rewrites in place and returns `{ fixed, files, passes }`. A strict diagnostic that can be fixed mechanically carries its text edits on a non-enumerable `edits` property (`[{ file, start, end, text }]`).
 - `options.rules`: a custom rule list.
 
 For tooling, `buildProject(files)` returns the intermediate project model the rules query: components, intents, models, view classes and ids, child usages, collections, and events.
@@ -111,7 +132,7 @@ export default {
 }
 ```
 
-Strict-mode rules go in `src/rules/strict/`. Every code must exist, with the same title, in Sygnal's runtime registry (`src/extra/diagnostics/codes.ts`). `test/codes.vtest.js` enforces this.
+Strict-mode rules go in `src/rules/strict/`, with `strict: true`; a report may carry `edits: [{ file, start, end, text }]` (absolute path, source offsets) for `--fix`. Every code must exist, with the same title, in Sygnal's runtime registry (`src/extra/diagnostics/codes.ts`). `test/codes.vtest.js` enforces this.
 
 ## Development
 

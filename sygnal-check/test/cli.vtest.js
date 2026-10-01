@@ -73,8 +73,13 @@ describe('cli', () => {
     expect(r.code).toBe(0)
   })
 
-  it('--strict and --graph are stubbed', () => {
-    expect(run(['--strict']).err).toContain('--strict is not implemented yet')
+  it('--strict runs the canonical-form rules; --graph is stubbed', () => {
+    const plain = run(['test/fixtures/strict/bad/model-forms.jsx'])
+    expect(plain.out).not.toContain('SYG50')
+    const strict = run(['test/fixtures/strict/bad/model-forms.jsx', '--strict'])
+    expect(strict.code).toBe(1)
+    expect(strict.out).toContain('SYG504')
+    expect(strict.out).toContain('SYG505')
     expect(run(['--graph']).err).toContain('--graph is not implemented yet')
     expect(run(['--graph']).code).toBe(2)
   })
