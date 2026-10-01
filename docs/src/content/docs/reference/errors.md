@@ -17,7 +17,7 @@ Every diagnostic Sygnal reports has a stable code. The runtime prints it as `[Sy
 - **Reported by**: *the Sygnal runtime* (always on, production included), *the dev checks* (the `sygnal/diagnostics` entry, loaded by the Vite plugin in dev and in Vitest), or *`sygnal-check`* (the static checker). See [Diagnostics](/guide/diagnostics/).
 - **Strict mode only**: reported only with strict mode on. See [Strict Mode](/guide/strict-mode/).
 
-From a terminal, `npx sygnal-check explain SYG104` prints the same entry.
+From a terminal, `npx --no-install sygnal-check explain SYG104` prints the same entry.
 
 ## SYG1xx: Wiring: intent, model, view and EVENTS
 
