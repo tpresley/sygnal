@@ -49,8 +49,7 @@ describe('G-102: Collection props inside a child component', () => {
     await settle(80)
     expect(names(t.html())).toEqual(['b', 'c'])
     t.simulateEvent('.toggle', 'click')
-    await settle(500)
-    console.log('DBG', t.html(), JSON.stringify(t.state))
+    await settle(80)
     expect(names(t.html())).toEqual(['b', 'a', 'c'])
   })
 
@@ -100,5 +99,30 @@ describe('G-102: Collection props inside a child component', () => {
     t.simulateEvent('.toggle', 'click')
     await settle(80)
     expect(names(t.html())).toEqual(['b', 'a', 'c'])
+  })
+})
+
+describe('G-107: BOOTSTRAP without an intent', () => {
+  it('fires for a root component with a model but no intent', async () => {
+    function App({ state }) { return h('p', null, String(state.booted)) }
+    App.initialState = { booted: false }
+    App.model = { BOOTSTRAP: s => ({ ...s, booted: true }) }
+    t = renderComponent(App)
+    await t.ready()
+    await settle(60)
+    expect(t.html()).toBe('<p>true</p>')
+  })
+
+  it('fires for a sub-component with a model but no intent, like the root', async () => {
+    let boots = 0
+    function Child({ state }) { return h('i', null, String(state.booted)) }
+    Child.model = { BOOTSTRAP: s => { boots++; return { ...s, booted: true } } }
+    function App() { return h('div', null, h(Child)) }
+    App.initialState = { booted: false }
+    t = renderComponent(App)
+    await t.ready()
+    await settle(60)
+    expect(boots).toBe(1)
+    expect(t.html()).toBe('<div><i>true</i></div>')
   })
 })

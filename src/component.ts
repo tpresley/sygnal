@@ -551,22 +551,20 @@ class Component {
   initAction$(): void {
     const requestSource  = (this.sources && this.sources[this.requestSourceName]) || null
 
-    if (!this.intent$) {
-      this.action$ = xs.never()
-      return
-    }
+    // G-107: a component with a model but no intent still gets BOOTSTRAP (and HYDRATE)
+    const intent$ = this.intent$ || {}
 
     let runner
-    if (this.intent$ instanceof Stream) {
-      runner = this.intent$
+    if (intent$ instanceof Stream) {
+      runner = intent$
     } else {
       // Validate that no intent action names contain '|' (reserved for model shorthand)
-      for (const key of Object.keys(this.intent$)) {
+      for (const key of Object.keys(intent$)) {
         if (key.includes('|')) {
           fail('SYG605', this, `Intent action '${key}' contains '|', which is reserved for model shorthand`, 'Rename the action')
         }
       }
-      const mapped = Object.entries(this.intent$)
+      const mapped = Object.entries(intent$)
                            .map(([type, data$]: [string, any]) => data$.map((data: any) => ({type, data})))
       runner = mapped.length > 0 ? xs.merge(...mapped) : xs.never()
     }
@@ -575,7 +573,7 @@ class Component {
     const bootstrap$ = xs.of({ type: BOOTSTRAP_ACTION }).compose(delay(10))
     const _hmrUpdating = typeof window !== 'undefined' && window.__SYGNAL_HMR_UPDATING === true
     const hmrAction$ = _hmrUpdating ? this.hmrAction$ : xs.of().filter((_: any) => false)
-    const wrapped$   = (this.model[BOOTSTRAP_ACTION] && !_hmrUpdating) ? concat(bootstrap$, action$) : concat(xs.of().compose(delay(1)).filter((_: any) => false), hmrAction$, action$)
+    const wrapped$   = (this.model?.[BOOTSTRAP_ACTION] &&!_hmrUpdating) ? concat(bootstrap$, action$) : concat(xs.of().compose(delay(1)).filter((_: any) => false), hmrAction$, action$)
 
 
     let initialApiData
