@@ -972,13 +972,36 @@ export interface RenderResult {
    * Dispatch a synthetic DOM event through the mock DOM source so the component's real intent
    * streams fire (DOM.click('.x'), DOM.select('.x').events('click'), .value(), .data()).
    * Targets the first rendered element matching `selector` and bubbles within its isolation scope.
-   * Reports SYG104 (selector only matches inside a child component) and SYG103 (matches nothing).
+   * If nothing matches yet, the event waits (up to 300ms, re-checked on every render) for a
+   * matching element, then targets the first one; if none renders it is dropped and SYG103 is
+   * reported. It is never sent to every listener with that selector string. It also waits until
+   * the listeners it reaches are subscribed (a just-mounted child subscribes a few ms late).
+   * `'document'` / `'body'` go to the DOM.select('document' | 'body') listeners.
+   * simulateAction/simulateEvent calls are delivered in call order; a waiting event holds the
+   * calls after it. Reports SYG104 (selector only matches inside a child component).
    */
   simulateEvent: (selector: string, eventType: string, eventInit?: SimulatedEventInit) => void;
   /** Resolves once the component is subscribed (earlier simulate* calls are buffered and replayed) */
   ready: () => Promise<void>;
-  /** Wait for state to satisfy a predicate; resolves with the matching state once it has been rendered */
+  /**
+   * Wait for a state that satisfies the predicate. Matches the recorded HISTORY too: a state
+   * from before the call resolves it (e.g. `count === 0` right after a reset resolves at once
+   * with the initial state). Resolves with the matching state once the whole tree (children
+   * included) has rendered it. Use `next()` to wait for a new state.
+   */
   waitForState: (predicate: (state: any) => boolean, timeoutMs?: number) => Promise<any>;
+  /**
+   * Wait for the next state emitted AFTER this call that satisfies the predicate (default: any
+   * state). Resolves with it once the whole tree (children included) has rendered it; rejects
+   * after timeoutMs (default 2000).
+   */
+  next: (predicate?: (state: any) => boolean, timeoutMs?: number) => Promise<any>;
+  /**
+   * Resolves once nothing is pending: the component is ready, no simulated input is waiting,
+   * and nothing in the tree has rendered, reduced or changed state for 20ms (longer than
+   * next()'s default delay). Rejects after timeoutMs (default 2000) if it never calms down.
+   */
+  settle: (timeoutMs?: number) => Promise<void>;
   /** Collected state values — grows as new states are emitted */
   states: any[];
   /** Live array of values emitted on a sink (EVENTS as {type, data}, PARENT unwrapped, custom drivers) */

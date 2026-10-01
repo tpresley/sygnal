@@ -457,7 +457,7 @@ describe('G-024: renderComponent reports isolation-boundary (SYG104) and typo (S
     t.expectNoDiagnostics()
   })
 
-  it('SYG103 (info) when simulateEvent names a selector nothing renders or listens to', async () => {
+  it('SYG103 (info) when simulateEvent names a selector nothing renders (the event is dropped)', async () => {
     function Btn({ state }) { return h('div', null, h('button', { className: 'save' }, String(state.n))) }
     Btn.initialState = { n: 0 }
     Btn.intent = ({ DOM }) => ({ SAVE: DOM.click('.save'), LATER: DOM.click('.not-rendered-yet') })
@@ -465,13 +465,15 @@ describe('G-024: renderComponent reports isolation-boundary (SYG104) and typo (S
     t = renderComponent(Btn)
     await t.ready()
     t.simulateEvent('.svae', 'click')            // typo
-    t.simulateEvent('.not-rendered-yet', 'click') // listened to: no SYG103
-    t.simulateEvent('.save', 'click')             // fine
+    // listened to but never rendered: 2E-2 (G-049) waits for it, then drops it with SYG103
+    // instead of sending it to every listener with that selector string
+    t.simulateEvent('.not-rendered-yet', 'click')
+    t.simulateEvent('.save', 'click')             // fine (delivered after the two above)
     await t.waitForState(s => s.n === 1)
     const d = only(t, 'SYG103')
-    expect(d.length).toBe(1)
-    expect(d[0].severity).toBe('info')
-    expect(d[0].data).toEqual({ selector: '.svae', type: 'click' })
+    expect(d.length).toBe(2)
+    expect(d.map(x => x.severity)).toEqual(['info', 'info'])
+    expect(d.map(x => x.data)).toEqual([{ selector: '.svae', type: 'click' }, { selector: '.not-rendered-yet', type: 'click' }])
     expect(d[0].text).toContain(".svae")
     t.expectNoDiagnostics() // info only
   })

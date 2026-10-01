@@ -13,8 +13,12 @@ import {enrichEventStream} from './enrichEventStream';
  */
 export type MockEventHub = Stream<{type: string; event: any; match: (path: string[]) => boolean}>;
 
-/** Optional listener-registration callback (renderComponent's SYG103/104 checks) */
-export type MockOnEvents = (path: string[], eventType: string) => void;
+/**
+ * Optional listener callback (renderComponent): called with `live` undefined when events() is
+ * called (SYG103/104 checks), then with true / false when that hub listener is subscribed /
+ * unsubscribed (simulateEvent waits for a just-mounted child's listeners, G-039).
+ */
+export type MockOnEvents = (path: string[], eventType: string, live?: boolean) => void;
 
 export type MockConfig = {
   [name: string]: FantasyObservable<any> | MockConfig;
@@ -61,14 +65,28 @@ export class MockedDOMSource {
     bubbles?: boolean
   ): any {
     const configured = this._mockConfig[eventType] as any;
-    const {_hub: hub, _path: path} = this;
-    if (this._onEvents) this._onEvents(path, eventType);
+    const {_hub: hub, _path: path, _onEvents: on} = this;
+    if (on) on(path, eventType);
+    let hub$: Stream<any> | undefined;
+    if (hub) {
+      const ev$ = hub.filter(e => e.type === eventType && e.match(path)).map(e => e.event);
+      let l: any;
+      hub$ = on
+        ? xs.create({
+            start: (x: any) => {
+              ev$.addListener(l = {next: (v: any) => x.next(v), error: (e: any) => x.error(e), complete: () => x.complete()});
+              on(path, eventType, true);
+            },
+            stop: () => {
+              ev$.removeListener(l);
+              on(path, eventType, false);
+            },
+          })
+        : ev$;
+    }
     const out: DevToolEnabledSource & FantasyObservable<any> = enrichEventStream(adapt(
-      hub
-        ? xs.merge(
-            configured ? xs.fromObservable(configured) : xs.empty(),
-            hub.filter(e => e.type === eventType && e.match(path)).map(e => e.event)
-          )
+      hub$
+        ? xs.merge(configured ? xs.fromObservable(configured) : xs.empty(), hub$)
         : configured || xs.empty()
     ));
 
