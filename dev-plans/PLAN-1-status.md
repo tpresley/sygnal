@@ -34,8 +34,8 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | 0A-H | Harder eval tier (tasks 09–12) + harness fixes | ✅ | `worktree-agent-ab48f9e4d3b40f38e` | subagent | `6b79fbc` | 4 tasks × 2 arms, 30 hidden tests, verified 44/44 on the baseline tarball and HEAD, no flakes in 32 reruns, mutants caught. Fixed G-009 and G-017. Found B-010, B-011, B-012 |
 | — | Tier-2 baseline run (`baseline-t2`) | ✅ | — | coordinator | `24e3641` | 40/40 pass. Sygnal 92 s / 4.5 iterations vs React 63 s / 2.5 (~1.46×). Ceiling persists; Phase 4 measures efficiency |
 | — | Friction analyzer | 🟡 | (harness-assigned) | subagent | — | Per-trial phase timing, tokens, failure catalog, skill heatmap, final-code analysis (D24) |
-| 1G | Rendering bug fixes (B-010/011/012) | ⚪ | | | | Queued after 1F (overlaps snabbdom modules / pragma); folded into Phase 1 under the Q5 approval to fix found bugs |
-| 1F | Framework bug fixes | 🟡 | | | | Scope: B-003, B-004, B-005, B-008, B-009 (verify), G-020, G-025, G-026, **G-024 (simulateEvent reports SYG103/104; user request, D23)** |
+| 1G | Rendering/state bug fixes + B-004 warning | 🟡 | (harness-assigned) | subagent | — | B-010, B-011, B-012, B-013, G-028, SYG111 "controlled input without handler" (D25), plus small 1F leftovers |
+| 1F | Framework bug fixes | ✅ | `worktree-agent-a33bebfd10cbeb13b` | subagent | `52e3f91` | Fixed B-003 (per-action state snapshot for non-STATE sinks), B-004 (controlled-input module; D25), B-005 (`errors()` source method; null results delivered; D26), B-008 (isolated child keeps a per-instance slot), B-009 (reproduced; collection-scoped item ids), G-020, G-024 (renderComponent reports SYG104/SYG103 itself), G-025 (+ fixed a crash for a props-less `.components` element), G-026 (+ `from={null}` crash). 28 new tests, each failing before its fix. Kanban +194 B |
 | 2A | Strict mode | ⚪ | | | | |
 | 2B | Inspect | ⚪ | | | | MCP decision pending |
 | 2C | Vite plugin integration | ⚪ | | | | |
@@ -57,6 +57,7 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | After 0B review fixes (**Phase 0 close**, tag `plan1-phase0`) | `44daa86` | ✅ (includes dts) | ✅ | ✅ 670 | ✅ | ✅ 83 | 59,108 B | `dist/index.d.ts` from `build` alone has no `./cycle/` imports |
 | After 1B | `b75616b` | ✅ | (in build) | ✅ 683 | ✅ (+ registry/dist programs) | ✅ 83 | 59,183 B | Phase 1 budget left: 1,222 B (1A ≤400, 1C ≤500, 1E ≤300) |
 | After 1C + 1D | `679e60f` | ✅ | (in build) | ✅ 716 (+2 todo) | ✅ | ✅ 83 | whole file 60,764 B (info only) · **kanban app 40,237 B gz** (unchanged) | **Gate redefined (D18):** kanban production bundle limit 41,773 B (+1.5 KB over 40,237). Kanban tests 70/70. sygnal-check 46/46 |
+| After 1F | `52e3f91` | ✅ | (in build) | ✅ 795 | ✅ | ✅ 94 | kanban app **40,938 B** (limit 41,773) | Kanban 70/70 |
 | After 1E (+ integration fixes) | (see log) | ✅ | (in build) | ✅ 767 | ✅ | ✅ 89 | kanban app **40,744 B** (limit 41,773; ~1 KB left for 1F) | Kanban 70/70; sygnal-check 46/46 (code drift test passes) |
 | After 1A (+ integration fixes) | `46d47de` | ✅ | (in build) | ✅ 750 | ✅ | ✅ 89 | kanban app **40,383 B** (+146; limit 41,773) · diagnostics entry 9,452 B (dev only) | Kanban 70/70 |
 
@@ -106,6 +107,9 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 
 | D24 | 2026-10-01 | Add a friction analyzer over the existing transcripts (no new trials) to attribute the Sygnal−React delta to phases, defects and skill usage; it will also compare the Phase 4 re-run | Coordinator (in answer to the user's question about diagnostic depth) | Pass rate is saturated; efficiency is the only signal, so we need to know where the time goes |
 
+| D25 | 2026-10-01 | B-004: `value`/`checked` are fully controlled (React-like). Add a dev warning for an input with a value prop but no input/change listener (1G: static SYG111 + docs) | User | Matches agent and React expectations; the warning catches the "save on blur" pattern that would reset mid-typing |
+| D26 | 2026-10-01 | B-005: accept the additive `errors(selector?)` on driverFromAsync sources; null/undefined results are delivered to `select()` | User | Additive; unhandled errors are still logged as before |
+
 ## Bugs & Gaps Found
 
 Pre-existing issues and gaps found during the work. Severity: high (blocks a gate or breaks users), med (wrong behavior or misleading), low (cosmetic or docs).
@@ -145,6 +149,9 @@ Pre-existing issues and gaps found during the work. Severity: high (blocks a gat
 | B-010 | 0A-H | **high** | `src/cycle/state/pickCombine.ts` | **A Collection doesn't re-render on a pure reorder.** A reducer that only swaps or reverses items of a Collection's array updates state, but the DOM keeps the old order until some item's own state changes. `PickCombine._n` only calls `up()` when an item was removed or an item sink emits; a permutation does neither. Minimal repro: a top-level Collection plus a "Reverse" button. | Open → **1G** |
 | B-011 | 0A-H | **high** | `src/pragma/index.ts` + snabbdom | **Stale text node.** Patching an element with a single text child into the same tag with several children keeps the old text: `{sel ? <p>Status: {s}</p> : <p>Select a task.</p>}` renders "Select a task.Status: Open". A single text child gives the vnode both `text` and a non-array `children`, so `updateChildren` gets an `oldCh` without `.length` and only appends. Very likely to hit any conditional "placeholder vs details" UI. | Open → **1G** |
 | B-012 | 0A-H | med | snabbdom props / className | **A removed className stays on a reused element.** `<p className="placeholder">` patched to `<p>` keeps `class="placeholder"`, because className goes through snabbdom's props module, which never unsets removed props. | Open → **1G** |
+| B-013 | 1F | **med-high** | `src/component.ts` collection items | **Lost update in Collection items:** two same-tick actions inside an item (EDIT then SAVE) lose the first (final `draft: ''`, `saved: ''`). Item STATE reducers read `this.currentState`, which lags behind `debounce(1)` in `instantiateCollection`, so SAVE starts from the pre-EDIT state. Likely fix: use the reducer's fresh `state` argument for collection items, with care for base-lens children that rely on the parent's calculated fields. | Open → 1G |
+| G-028 | 1F | low | `src/extra/testing.ts` | `renderComponent` never becomes ready for a component with no initialState and no model (nothing emits state, so nothing renders; `ready()` waits forever). | Open → 1G |
+| G-029 | 1F | info | Devtools | Parents re-stamp EVENTS from children with their own name, so `__emitterName` is always the outermost component. Pre-existing. | Open → PLAN-2 candidate |
 | G-008 | Coordinator | low | Skill | The installed user-level skill `~/.claude/skills/sygnal-dev/SKILL.md` lags the repo copy (missing the DISPOSE row and the dispose$ "prefer DISPOSE" note); `agents/` exists only in the repo. Eval trials use the installed copy. | Open → 3B sync |
 | G-009 | Coordinator | low | Eval harness | The `transcript-stats.mjs` audit flags every call whose path contains "evals", which gives false positives when the trial dir is under `.../evals/...`. | ✅ Fixed in 0A-H (audit narrowed; trial dir stripped before matching) |
 | G-010 | 0B | low | Types | `getDevTools` is exported at runtime but has no declaration in `src/index.d.ts`. | Open → 2B |
