@@ -82,9 +82,8 @@ describe('vite plugin — dev checks import (deliverable 1)', () => {
     expect(plugin.transform(manual, '/src/main.js')).toBeNull()
   })
 
-  it('under Vitest only the flag goes in (the checks come from setupFiles)', () => {
-    const result = devPlugin({}, { vitest: true }).transform(ENTRY, '/src/main.js')
-    expect(result.code).toBe(DEV_FLAG + ENTRY)
+  it('under Vitest nothing goes in (the checks come from setupFiles; see vite-plugin-vitest.test.js)', () => {
+    expect(devPlugin({}, { vitest: true }).transform(ENTRY, '/src/main.js')).toBeNull()
   })
 
   it('serves the dev client module, which logs sygnal-check results in the browser', async () => {
@@ -125,9 +124,8 @@ describe('vite plugin — diagnostics option (deliverable 3)', () => {
     const g = { __SYGNAL_STRICT__: false }
     new Function('globalThis', STRICT_FLAG)(g)
     expect(g.__SYGNAL_STRICT__).toBe(false)
-    // under Vitest too (alongside the flag)
-    const vt = devPlugin({ diagnostics: { strict: true } }, { vitest: true }).transform(ENTRY, '/src/main.js')
-    expect(vt.code).toBe(DEV_FLAG + STRICT_FLAG + ENTRY)
+    // not under Vitest (R9: it would leak into later test files)
+    expect(devPlugin({ diagnostics: { strict: true } }, { vitest: true }).transform(ENTRY, '/src/main.js')).toBeNull()
   })
 
   it("another mode or an ignore list routes the entry's 'sygnal' import to the run() wrapper", async () => {

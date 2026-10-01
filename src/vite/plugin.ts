@@ -59,9 +59,11 @@
  *   6. Vitest (process.env.VITEST): appends the package's 'sygnal/diagnostics'
  *      ESM file to `test.setupFiles` (merged with a string or array value;
  *      not added twice), so renderComponent tests get the runtime checks.
- *      Opt out with `vitestSetup: false`. Under Vitest there is no HMR
- *      wiring, run() wrapper, dev client or checker; files that import run
- *      only get the flag.
+ *      Opt out with `vitestSetup: false`. Under Vitest the transform adds
+ *      nothing (no flags, HMR wiring, run() wrapper, dev client or checker):
+ *      a __SYGNAL_DEV__ / __SYGNAL_STRICT__ flag set by one test file would
+ *      leak into later test files of the same worker, and renderComponent()
+ *      manages the diagnostics modes itself.
  *   7. Vike and Astro (G-014): the app is started by sygnal's own client
  *      entry, which user code doesn't import. Client-side imports of
  *      'sygnal/vike/onRenderClient' resolve to a dev wrapper that sets the
@@ -342,12 +344,14 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
 
       // Dev snippet: injected into every file that imports run() — also when
       // HMR wiring below is skipped. Inserted after any shebang line and
-      // directive prologue, without adding a line. Under Vitest only the flag
-      // (the checks come from test.setupFiles there).
+      // directive prologue, without adding a line. Nothing under Vitest: a
+      // global flag set by one test file would leak dev/strict mode into the
+      // later test files of the same worker; there the checks come from
+      // test.setupFiles and renderComponent() manages the modes.
       const inserts: Array<[number, string]> = []
-      if (devOn) {
-        inserts.push(flagInsertion(code, flags + (isVitest ? '' : devImports)))
-        if (wrapRun && !isVitest) runtimeImporters.add(cleanId(id))
+      if (devOn && !isVitest) {
+        inserts.push(flagInsertion(code, flags + devImports))
+        if (wrapRun) runtimeImporters.add(cleanId(id))
       }
       const done = (tail = '') => (inserts.length || tail ? withSourcemap(code, inserts, tail, id) : null)
 
