@@ -75,4 +75,31 @@ export async function bugfixTests1H() {
     await waitFor(() => el.querySelector('.saved').textContent === 'abc')
     assert(JSON.stringify(seen) === '["","abc"]', `SPY saw ${JSON.stringify(seen)}`)
   })
+
+  // #7: the controlled-input module only controls form fields
+  await runTest(CAT, '1H-7: re-rendering <input type=file> and <progress value> does not throw or reset them', async () => {
+    const { id, el } = mount()
+    const errors = []
+    const onErr = e => errors.push(e.message)
+    window.addEventListener('error', onErr)
+    function App({ state }) {
+      return <div>
+        <input className="file" type="file" value="" />
+        <progress className="p" value={state.p} max="10" />
+        <button className="tick">{state.n}</button>
+      </div>
+    }
+    App.initialState = { n: 0, p: 3 }
+    App.intent = ({ DOM }) => ({ TICK: DOM.click('.tick') })
+    App.model = { TICK: s => ({ ...s, n: s.n + 1 }) }
+    run(App, {}, { mountPoint: id })
+    await waitFor(() => el.querySelector('.tick'))
+    el.querySelector('.p').value = 7
+    el.querySelector('.tick').click()
+    await waitFor(() => el.querySelector('.tick').textContent === '1')
+    await wait(20)
+    window.removeEventListener('error', onErr)
+    assert(errors.length === 0, `errors: ${errors.join('; ')}`)
+    assert(el.querySelector('.p').value === 7, `progress value was reset to ${el.querySelector('.p').value}`)
+  })
 }

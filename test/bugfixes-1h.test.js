@@ -315,3 +315,57 @@ describe('1H-6: driverFromAsync errors(selector) only claims the errors it match
     expect(err).toHaveBeenCalledTimes(2)
   })
 })
+
+// ─── 1H-7: controlledInputModule only touches form fields ────────────────────
+
+import { controlledInputModule } from '../src/cycle/dom/controlledInputModule.js'
+
+describe('1H-7: controlledInputModule scope and comparison', () => {
+  const patch = (props, elm) => controlledInputModule.update({ data: { props } }, { data: { props }, elm })
+  const counting = (tagName, init, extra = {}) => {
+    const state = { ...init }
+    const sets = { value: 0, checked: 0 }
+    const elm = { tagName, ...extra }
+    for (const k of ['value', 'checked']) {
+      Object.defineProperty(elm, k, { get: () => state[k], set: v => { sets[k]++; state[k] = v } })
+    }
+    return { elm, sets, state }
+  }
+
+  it('<progress value> is not touched', () => {
+    const { elm, sets } = counting('PROGRESS', { value: 0.5 })
+    patch({ value: 1 }, elm)
+    patch({ value: 1 }, elm)
+    expect(sets.value).toBe(0)
+  })
+
+  it('a custom element with an object value is not touched', () => {
+    const doc = { text: 'hi' }
+    const { elm, sets } = counting('MY-EDITOR', { value: doc })
+    for (let i = 0; i < 5; i++) patch({ value: doc }, elm)
+    expect(sets.value).toBe(0)
+  })
+
+  it('<input type=file> is skipped (setting its value would throw)', () => {
+    const elm = { tagName: 'INPUT', type: 'file', get value() { return 'C:\\fakepath\\a.txt' }, set value(_) { throw new Error('InvalidStateError') } }
+    expect(() => patch({ value: '' }, elm)).not.toThrow()
+  })
+
+  it('INPUT, TEXTAREA and SELECT are synced; value compares as a string, checked as a boolean', () => {
+    for (const tag of ['INPUT', 'TEXTAREA', 'SELECT']) {
+      const { elm, sets, state } = counting(tag, { value: 'typed', checked: false })
+      patch({ value: '' }, elm)
+      expect(state.value).toBe('')
+      patch({ value: 5 }, elm) // '5' after the write below
+      expect(state.value).toBe('5')
+      patch({ value: 5 }, elm)  // '5' === String(5): no write
+      expect(sets.value).toBe(2)
+    }
+    const { elm, sets, state } = counting('INPUT', { checked: true })
+    patch({ checked: 1 }, elm)  // truthy, element already checked: no write
+    expect(sets.checked).toBe(0)
+    patch({ checked: 0 }, elm)
+    expect(state.checked).toBe(false)
+    expect(sets.checked).toBe(1)
+  })
+})
