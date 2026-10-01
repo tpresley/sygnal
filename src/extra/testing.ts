@@ -66,7 +66,9 @@ import type {Diagnostic, DiagnosticsMode} from './diagnostics/index';
  *   output stays observable. sinkValues: EVENTS entries drop the devtools
  *   stamps, PARENT entries are unwrapped from {name, component, value}.
  * - Input is buffered until 12ms after the first render: root and child
- *   action streams subscribe 1-10ms (BOOTSTRAP) after construction.
+ *   action streams subscribe 1-10ms (BOOTSTRAP) after construction. With no
+ *   render within 30ms (e.g. a model but no initialState), the 12ms start then.
+ *   dispose() before ready leaves the buffered calls undelivered.
  * - rendered(): the next render, or 20ms (state → view is async).
  * - dispose() fires the component's DISPOSE action via sinks.__dispose.
  * - SYG103/104: the mock DOM source reports each events() call (selector path,
@@ -390,7 +392,10 @@ export function renderComponent(
       onRender.forEach(f => f());
       onRender = [];
     });
-  } else arm();
+  }
+  // 1H-4: a component that never renders on its own (a model but no initialState: no state
+  // until an action sets it) still becomes ready, so buffered input is delivered
+  const fallback = setTimeout(arm, sinks.DOM ? 30 : 0);
   const rendered = () => new Promise<void>(r => { onRender.push(r); setTimeout(r, 20); });
 
   const simulateAction = (type: string, data?: any) =>
@@ -500,6 +505,7 @@ export function renderComponent(
     if (disposed) return;
     disposed = true;
     clearTimeout(timer);
+    clearTimeout(fallback);
     queue = null;
     subs.forEach(([s, l]) => {
       try { s.removeListener(l); } catch (_) {}

@@ -169,3 +169,33 @@ describe('1H-3: a sub-component below a Collection item reduces from fresh state
     expect(last(t).n).toBe(3)
   })
 })
+
+// ─── 1H-4: renderComponent becomes ready without a first render ──────────────
+
+describe('1H-4: renderComponent with a model but no initialState', () => {
+  it('buffered simulateAction calls are delivered and set the first state', async () => {
+    function C({ state }) { return h('div', null, String(state && state.n)) }
+    C.model = { LOAD: (_s, d) => ({ n: d }) }
+    t = renderComponent(C)
+    t.simulateAction('LOAD', 5)
+    const s = await t.waitForState(s => s && s.n === 5, 1000)
+    expect(s).toEqual({ n: 5 })
+    expect(t.html()).toBe('<div>5</div>')
+  })
+
+  it('ready() resolves', async () => {
+    function C() { return h('div', null, 'x') }
+    C.model = { LOAD: (_s, d) => ({ n: d }) }
+    t = renderComponent(C)
+    const r = await Promise.race([t.ready().then(() => 'ready'), settle(500).then(() => 'hung')])
+    expect(r).toBe('ready')
+  })
+
+  it('disposing before ready does not throw later', async () => {
+    function C() { return h('div', null, 'x') }
+    C.model = { LOAD: (_s, d) => ({ n: d }) }
+    const t2 = renderComponent(C)
+    t2.dispose()
+    await settle(120)
+  })
+})
