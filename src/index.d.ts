@@ -491,6 +491,16 @@ export type TransitionProps = {
   children?: any;
 }
 
+export type SuspenseProps = {
+  /**
+   * Shown (wrapped in `<div data-sygnal-suspense="pending">`) while any child is not ready:
+   * a `lazy()` component still loading, or a component with an explicit READY model entry
+   * that hasn't emitted true. A string renders as text. Without it the children render as-is.
+   */
+  fallback?: JSX.Element | string;
+  children?: any;
+}
+
 export type SlotProps = {
   name?: string;
   children?: any;
@@ -845,6 +855,7 @@ export function Collection<PROPS extends { [prop: string]: any }, STATE = any>(p
 export function Switchable<PROPS extends { [prop: string]: any }>(props: SwitchableProps<PROPS>): JSX.Element
 export function Portal(props: PortalProps): JSX.Element
 export function Transition(props: TransitionProps): JSX.Element
+export function Suspense(props: SuspenseProps): JSX.Element
 export function Slot(props: SlotProps): JSX.Element
 
 export function lazy<PROPS = any>(
