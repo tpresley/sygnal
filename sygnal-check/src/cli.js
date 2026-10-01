@@ -3,7 +3,7 @@
  * sygnal-check explain <code> [--json] | explain --all [--json]
  * sygnal-check mcp            (MCP server on stdio; see src/mcp.js and bin/sygnal-check.js)
  */
-import { checkFiles, maxSeverity } from './index.js'
+import { checkFiles, maxSeverity, sortDiagnostics } from './index.js'
 import { formatDiagnostics } from './format.js'
 import { SEVERITY_RANK } from './diagnostic.js'
 import { expandInputs } from './files.js'
@@ -121,11 +121,13 @@ export function main(argv, { stdout = process.stdout, stderr = process.stderr, c
     return 0
   }
 
+  let fixDiags = []
   if (opts.fix) {
     const r = fixFiles(files, { cwd })
     stderr.write(`sygnal-check: fixed ${r.fixed} issue${r.fixed === 1 ? '' : 's'} in ${r.files.length} file${r.files.length === 1 ? '' : 's'}\n`)
+    fixDiags = r.diagnostics // SYG900 "fix skipped" (a rewrite that would not parse was rolled back)
   }
-  const diags = checkFiles(files, { cwd, strict: opts.strict })
+  const diags = sortDiagnostics([...fixDiags, ...checkFiles(files, { cwd, strict: opts.strict })])
   if (opts.json) stdout.write(JSON.stringify(diags, null, 2) + '\n')
   else stdout.write(formatDiagnostics(diags, { verbose: opts.verbose }) + '\n')
 
