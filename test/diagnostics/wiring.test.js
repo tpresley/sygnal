@@ -4,6 +4,7 @@ import xs from 'xstream'
 import { setupChecks, diagnostics, settle } from './helpers.js'
 import { renderComponent } from '../../src/extra/testing.js'
 import { createElement } from '../../src/pragma/index.js'
+import { onIntent, onModel } from '../../src/extra/diagnostics/index.js'
 
 let t
 beforeEach(() => setupChecks())
@@ -64,6 +65,21 @@ describe('SYG101 — intent action has no model entry', () => {
 
 describe('SYG102 — model entry is unreachable', () => {
   it('reports (info) a model entry with no intent action of that name', async () => {
+    // Driven through the hooks directly, the way a run()-mounted component reports them.
+    // renderComponent injects test intent streams for model-only actions (see next test),
+    // so SYG102 can't be observed through it.
+    const component = { name: 'App', intent$: { INCREMENT: xs.never() } }
+    onIntent(component, ['INCREMENT'], undefined)
+    onModel(component, { INCREMENT: ['STATE'], RESET: ['STATE'] })
+    await settle(10)
+    const found = diagnostics('SYG102')
+    expect(found).toHaveLength(1)
+    expect(found[0].severity).toBe('info')
+    expect(found[0].data.action).toBe('RESET')
+    expect(found[0].text).toContain("next('RESET')")
+  })
+
+  it('does not report model-only actions that renderComponent injects for simulateAction', async () => {
     function App() { return createElement('div', null, 'x') }
     App.initialState = { n: 0 }
     App.intent = ({ DOM }) => ({ INCREMENT: DOM.select('.inc').events('click') })
@@ -73,11 +89,7 @@ describe('SYG102 — model entry is unreachable', () => {
     }
     t = renderComponent(App)
     await settle(50)
-    const found = diagnostics('SYG102')
-    expect(found).toHaveLength(1)
-    expect(found[0].severity).toBe('info')
-    expect(found[0].data.action).toBe('RESET')
-    expect(found[0].text).toContain("next('RESET')")
+    expect(diagnostics('SYG102')).toHaveLength(0)
   })
 
   it('does not report built-ins, hmrActions, shorthand-expanded entries or single-stream intents', async () => {

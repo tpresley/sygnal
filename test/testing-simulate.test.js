@@ -31,23 +31,13 @@ afterEach(() => {
 // ─── B-006: enriched mock DOM API ────────────────────────────────────────────
 
 describe('mock DOM source exposes the enriched event API (B-006)', () => {
-  // TODO(1C → coordinator): enrichEventStream's .data() evaluates
-  // `e.target instanceof Element`, which throws a ReferenceError where no DOM
-  // globals exist (vitest's default node environment). Remove this stub once
-  // the one-line guard proposed in the 1C report lands in
-  // src/cycle/dom/enrichEventStream.ts, and enable the todo below.
-  let stubbed = false
-  beforeAll(() => {
-    if (typeof globalThis.Element === 'undefined') {
-      globalThis.Element = class {}
-      stubbed = true
-    }
+  it('.data() works without a global Element (enrichEventStream guard)', () => {
+    expect(typeof globalThis.Element).toBe('undefined')
+    const DOM = mockDOMSource({ '.x': { click: xs.of({ target: { dataset: { id: '3' } } }) } })
+    const out = []
+    DOM.select('.x').events('click').data('id', Number).addListener({ next: v => out.push(v) })
+    expect(out).toEqual([3])
   })
-  afterAll(() => {
-    if (stubbed) delete globalThis.Element
-  })
-
-  it.todo('.data() works without a global Element (needs the enrichEventStream guard)')
 
   it('events() streams have .value/.checked/.data/.key/.target', () => {
     const DOM = mockDOMSource({ '.x': { click: xs.of({ target: { value: 'v', checked: 1, dataset: { id: '7' } }, key: 'Enter' }) } })
@@ -147,7 +137,10 @@ describe('simulateEvent', () => {
     expect(t.states.every(s => s.count === 0)).toBe(true)
   })
 
-  it.todo('a misspelled selector produces a collected SYG103 diagnostic (enable once 1A merges)')
+  // Not testable here: the runtime SYG103/SYG104 checks need a real DOM (root element,
+  // querySelectorAll, isolation scopes), and renderComponent uses the mock DOM source.
+  // They're covered by browser-tests/src/tests/diagnostics.jsx and statically by
+  // sygnal-check (SYG110/SYG104). See tracker G-024.
 
   it('reaches DOM.select("document") listeners, by name or by bubbling', async () => {
     function App() { return h('div', null, h('input', { className: 'field' })) }
