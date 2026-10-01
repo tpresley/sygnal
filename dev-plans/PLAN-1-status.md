@@ -12,7 +12,7 @@ Tracks progress for [PLAN-1.md](PLAN-1.md). Maintained by the coordinator.
 |---|---|---|---|
 | 0 — Foundations | ✅ Done | `plan1-phase0` | 0A ✅ · 0B ✅ · 0C ✅ · review: 9 findings, all fixed. Baseline eval still running (independent of merges; uses the pre-0B tarball) |
 | 1 — Core capabilities | ✅ Done | `plan1-phase1` | 1A–1H ✅ · review: 11 findings + 2 minor, all fixed in 1H |
-| 2 — Strictness, introspection, integration | ⚪ Not started | — | |
+| 2 — Strictness, introspection, integration | 🟡 In progress | — | 2A ∥ 2C running; then 2B; then 2D (D30) |
 | 3 — Agent context & docs | ⚪ Not started | — | |
 | 4 — Measure & release | ⚪ Not started | — | |
 
@@ -114,6 +114,10 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | D26 | 2026-10-01 | B-005: accept the additive `errors(selector?)` on driverFromAsync sources; null/undefined results are delivered to `select()` | User | Additive; unhandled errors are still logged as before |
 
 | D27 | 2026-10-01 | Fold the friction-analyzer recommendations into the plan: 3A/3B get an API-facts section + "testing your change" recipe inline in SKILL.md and drop the shorthand from the skill; 4A runs the analyzer/compare, records tokens, and neutralizes harness-guard noise (8–17 s per trial in both arms); G-018 offered to 1G as optional | Coordinator | Evidence from `results/analysis/*.md` |
+
+| D28 | 2026-10-01 | 2B: ship an MCP server (`sygnal-check mcp`: check, graph, explain) as a stretch goal after core inspect/graph | User | |
+| D29 | 2026-10-01 | Phase 2 adds **0 bytes** to app bundles: strict mode and inspect live in the `sygnal/diagnostics` dev entry or tooling. If impossible, come back with numbers | User | 169 B headroom left |
+| D30 | 2026-10-01 | Phase 2 sequencing: 2A ∥ 2C now (disjoint ownership) → 2B after 2A (shares the sygnal-check CLI + dev entry) → 2D after 2A + 2C (∥ 2B). This differs from the plan's 2C→2B→2A→2D merge order | Coordinator | Maximizes parallelism without shared files |
 
 ## Bugs & Gaps Found
 
