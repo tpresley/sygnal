@@ -1457,7 +1457,7 @@ class Component {
       }
     } else if (isObj(stateField)) {
       if (typeof stateField.get !== 'function') {
-        logError('SYG412', this, "Collection 'from' prop is invalid; it renders nothing", 'Use a state key string or { get, set }')
+        logError('SYG412', this, "Collection 'from' prop is invalid; it renders nothing", 'Use a state key string or { get, set }', stateField)
         lense = undefined
       } else {
         lense = {
@@ -1473,7 +1473,7 @@ class Component {
         }
       }
     } else {
-      logError('SYG412', this, "Collection 'from' prop is invalid; it renders nothing", 'Use a state key string or { get, set }')
+      logError('SYG412', this, "Collection 'from' prop is invalid; it renders nothing", 'Use a state key string or { get, set }', stateField)
       lense = undefined
     }
 
@@ -1760,7 +1760,7 @@ function getComponents(currentElement: any, componentNameSet: Set<string>, path:
       if (!props.of)   fail('SYG411', undefined, "Collection is missing 'of'", 'Use of={ItemComponent}')
       if (typeof props.of !== 'string' && typeof props.of !== 'function')         fail('SYG411', undefined, `Collection 'of' is a ${typeof props.of}`, 'Use of={ItemComponent}')
       if (typeof props.of !== 'function' && !componentNameSet.has(props.of))   fail('SYG411', undefined, `Collection 'of' component not found: ${props.of}`, 'Use of={ItemComponent}')
-      if (typeof props.from !== 'undefined' && !(typeof props.from === 'string' || Array.isArray(props.from) || typeof props.from.get === 'function')) warn('SYG412', undefined, "Collection 'from' prop is invalid; it renders nothing", 'Use a state key string or { get, set }', props.from)
+      // an invalid 'from' is reported once, with the component name, by instantiateCollection (G-026)
       currentElement.data.isCollection = true
       currentElement.data.props ||= {}
     } else if (isSwitchable) {

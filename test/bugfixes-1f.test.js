@@ -346,6 +346,33 @@ describe('G-025: renderComponent honors .components and .hmrActions', () => {
   })
 })
 
+// ─── G-026: invalid Collection 'from' reports SYG412 once, with the name ────
+
+describe("G-026: an invalid Collection 'from' reports SYG412 once", () => {
+  function Item() { return h('li', null, 'x') }
+  for (const [label, from] of [['a number', 5], ['an object without get()', { set: () => {} }]]) {
+    it(`from = ${label}`, async () => {
+      function Lists() { return h('ul', null, h(Collection, { of: Item, from })) }
+      Lists.initialState = { items: [] }
+      t = renderComponent(Lists)
+      await t.ready()
+      await settle()
+      const d = t.diagnostics.filter(x => x.code === 'SYG412')
+      expect(d.length).toBe(1)
+      expect(d[0].component).toBe('Lists')
+      expect(d[0].data).toEqual(from)
+    })
+  }
+  it("from = null no longer crashes the render", async () => {
+    function Lists() { return h('ul', null, h(Collection, { of: Item, from: null })) }
+    Lists.initialState = { items: [] }
+    t = renderComponent(Lists)
+    await t.ready()
+    await settle()
+    expect(t.diagnostics.filter(x => x.code === 'SYG412').length).toBe(1)
+  })
+})
+
 // ─── B-004: controlled value/checked follow the vnode after coalesced renders ─
 
 describe('B-004: controlledInputModule', () => {
