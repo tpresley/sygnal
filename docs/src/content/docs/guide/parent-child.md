@@ -92,6 +92,88 @@ LaneComponent.intent = ({ CHILD }) => ({
 
 A parent's `DOM` source only sees elements its own view renders. `DOM.select('.delete')` in `LaneComponent` never fires for buttons inside `TaskCard`, because each child is isolated; Sygnal reports that as [SYG104](/reference/errors/#syg104). Handle the DOM event in the child and send the result up with `PARENT`.
 
+## Recipe: Extract a Component Without Changing the Markup
+
+A common refactor: a view renders the same widget twice inline, and you want one reusable component, with the rendered HTML and the behaviour unchanged. The parent keeps the state; the child gets what it shows as **props** and reports the user's choice with **`PARENT`**; the parent hears it with **`CHILD.select(Child)`**.
+
+**1. Pin the current markup first.** Before touching the component, write a test that snapshots `t.html()` and run it once, so the snapshot records the old HTML:
+
+```js
+import { it, expect, afterEach } from 'vitest'
+import { renderComponent } from 'sygnal'
+import App from './App.jsx'
+
+let t
+afterEach(() => t?.dispose())
+
+it('keeps the markup and behaviour', async () => {
+  t = renderComponent(App, { strict: true })
+  await t.ready()
+  expect(t.html()).toMatchSnapshot('initial')       // first run writes it; later runs compare
+  t.simulateEvent('.food .star[data-value="3"]', 'click')
+  await t.next(s => s.food === 3)
+  expect(t.html()).toMatchSnapshot('after a click')
+  expect(t.html()).toContain('Food: 3/5')
+  t.expectNoDiagnostics()
+})
+```
+
+(Or paste the current `t.html()` string into `toMatchInlineSnapshot()`. With `CI` set, Vitest doesn't write new snapshots; run `npx vitest run -u` once on the unchanged code.)
+
+**2. Move the markup into the child.** The child renders the exact elements the parent rendered (a component adds no wrapper element), reads its inputs from props, and sends the result up. It needs no `initialState` and doesn't know the parent's state shape:
+
+```jsx
+// StarRating.jsx
+const STARS = [1, 2, 3, 4, 5]
+
+function StarRating({ name, label, value }) {
+  return (
+    <div className={`rating ${name}`}>
+      <span className="label">{label}</span>
+      {STARS.map((n) => (
+        <button className={n <= value ? 'star filled' : 'star'} data-value={String(n)}>★</button>
+      ))}
+    </div>
+  )
+}
+
+StarRating.intent = ({ DOM }) => ({
+  PICK: DOM.click('.star').data('value', Number),
+})
+
+StarRating.model = {
+  PICK: { PARENT: (state, value, next, props) => ({ name: props.name, value }) },  // props: the 4th argument
+}
+
+export default StarRating
+```
+
+**3. Render the child and listen to it in the parent.** The parent's old DOM selectors for the widget (`.food .star`) must go: they can't see the child's elements ([SYG104](/reference/errors/#syg104)).
+
+```jsx
+// App.jsx
+import StarRating from './StarRating.jsx'
+
+function App({ state }) {
+  const show = (value) => (value ? `${value}/5` : 'not rated')
+  return (
+    <div className="app">
+      <p className="summary">Food: {show(state.food)} · Service: {show(state.service)}</p>
+      <StarRating name="food" label="Food" value={state.food} />
+      <StarRating name="service" label="Service" value={state.service} />
+    </div>
+  )
+}
+
+App.initialState = { food: 0, service: 0 }
+App.intent = ({ CHILD }) => ({ RATE: CHILD.select(StarRating) })   // both instances; `name` tells them apart
+App.model = { RATE: (state, { name, value }) => ({ ...state, [name]: value }) }
+
+export default App
+```
+
+**4. Run the same test.** It must pass without updating the snapshot (`vitest -u` would hide a markup change). A failure diff shows exactly which element or attribute moved.
+
 ## Works with Collections
 
 When a child component is rendered via `<Collection>`, all items share the same component function. `CHILD.select(TaskCard)` matches events from every TaskCard instance in the collection — include an id in the payload (like `taskId` above) to tell them apart.

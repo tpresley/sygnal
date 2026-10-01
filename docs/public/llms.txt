@@ -37,6 +37,7 @@ export default Counter
 ```
 - Reducer `(state, data, next, props)`. `data` is the action stream's value. `next('ACTION', data?, delayMs = 10)` dispatches another action. `props` holds the parent's props plus `state`, `context`, `children`, `slots`.
 - Model entry: a function is the STATE reducer. An object `{ STATE, EVENTS, PARENT, EFFECT, LOG, <DRIVER>: fn }` maps each sink to a `(state, data, next, props)` function whose return value goes to that sink. `<SINK>: true` forwards `data` as-is.
+- **Every sink of one entry sees the state from before this action**: EVENTS, PARENT, EFFECT and drivers never see what STATE returns. Compute the new value from `(state, data)` inside the sink: `INC: { STATE: s => ({ ...s, n: s.n + 1 }), PARENT: s => ({ n: s.n + 1 }) }`.
 - Built-in actions (model only): `BOOTSTRAP` (once, just after mount), `INITIALIZE` (automatic: sets initialState), `HYDRATE` (SSR data), `DISPOSE` (unmount).
 
 ## 3. Canonical examples
@@ -120,8 +121,7 @@ TaskList.initialState = { picked: null, tasks: [{ id: 1, title: 'Write' }, { id:
 TaskList.intent = ({ CHILD }) => ({ PICKED: CHILD.select(TaskItem) })  // the function, not a string
 TaskList.model = { PICKED: (state, { taskId }) => ({ ...state, picked: taskId }) }
 ```
-- `from` names an array field; items are keyed by `.id`. Also `filter={t => !t.done}`, `sort="title"`. An item edits its own element (`{ ...state, done: true }`).
-- Switchable: `<Switchable of={{ home: Home, settings: Settings }} current={state.route} />` (optional `state="slice"`).
+- `from` names an array field; items are keyed by `.id`. Also `filter={t => !t.done}`, `sort="title"`. An item edits its own element (`{ ...state, done: true }`). Switchable: `<Switchable of={{ home: Home, settings: Settings }} current={state.route} />` (optional `state="slice"`).
 ### Commands (parent → child) + EFFECT
 ```jsx
 import { createCommand } from 'sygnal'
@@ -167,16 +167,17 @@ import Quote from './Quote.jsx'
 run(Quote, { QUOTE: driverFromAsync(id => fetch(`/api/quotes/${id}`).then(r => r.json())) })
 ```
 A driver is any function `sink$ => source`. Page-wide events: `DOM.select('document' | 'body').events(type)`, CSS-filtered with `DOM.select('document').select('.overlay').events('click')`.
+**Latest response only** (replies arrive in settle order): keep `reqId` in state; the request sends `value: { id: state.reqId + 1, q }` while STATE bumps `reqId`; the driver echoes `id` in its result; `RESULTS`/`FAILED` return `ABORT` unless `value.id` / `request.value.id === state.reqId`; clearing the input bumps `reqId` too. Full: https://sygnal.js.org/guide/drivers/#only-the-latest-response-stale-requests
 
 ## 4. API facts
 - **Child props**: `<Rating name="food" value={state.food} />` → `function Rating({ state, name, value })`; reducers read `props.name` (4th arg); intent gets the `props$` stream. Reserved: `state` (lens: `"key"` or `{ get, set }`), `children`, `slots`, `context`, `peers` (SYG106; an error in strict mode). Without `state=` a child shares its parent's whole state.
 - **CHILD.select(Comp)** emits exactly what the child's `PARENT` function returned, for every instance (Collection items too). Put an id in the payload.
+- **Extract a component without changing markup**: snapshot `t.html()` on the unchanged code first; move the elements verbatim into the child (no wrapper is added); props in, `PARENT` out; the parent drops its old selectors and uses `CHILD.select(Child)`; the snapshot must still match. Recipe: https://sygnal.js.org/guide/parent-child/#recipe-extract-a-component-without-changing-the-markup
 - **run(App, drivers = {}, { mountPoint = '#root', diagnostics })** returns `{ sources, sinks, dispose, hmr }`. DOM, EVENTS, LOG and STATE are built in. `app.sources.STATE.stream` is the state stream; `app.dispose()` fires DISPOSE.
 - **ABORT**: from a STATE reducer, the state is unchanged; from any other sink, nothing is sent.
 - **Focus**: `blur`/`focus` don't bubble, but `DOM.blur('.field')` and `DOM.focus('.field')` work (listener on the element). For any field inside a container use the bubbling `DOM.focusout('.form')` / `DOM.focusin`.
-- **Shorthands**: `DOM.<event>('.sel')` = `DOM.select('.sel').events('<event>')` for every event name.
-- **Enriched streams** (chainable, optional mapper): `.value(fn?)` e.target.value; `.checked(fn?)` boolean; `.key(fn?)` e.key; `.target(fn?)`; `.data('id', Number)` reads `data-id` on the target or its nearest ancestor that has it (JSX: `data={{ id: 7 }}`). camelCase names map to kebab-case attributes: `.data('taskId')` reads `data-task-id` (`data={{ taskId }}`).
-- **xstream**: `xs.merge/combine/of/periodic/never/fromPromise`; methods `map mapTo filter startWith fold take drop last endWhen flatten compose remember replaceError debug`. From `'sygnal'`, used with `.compose(...)`: `debounce(ms) throttle(ms) delay(ms) dropRepeats() sampleCombine(other$)`.
+- **Shorthands**: `DOM.<event>('.sel')` = `DOM.select('.sel').events('<event>')` for every event name. **Enriched streams** (chainable, optional mapper): `.value(fn?)` e.target.value; `.checked(fn?)` boolean; `.key(fn?)` e.key; `.target(fn?)`; `.data('id', Number)` reads `data-id` on the target or its nearest ancestor that has it (JSX: `data={{ id: 7 }}`). camelCase names map to kebab-case attributes: `.data('taskId')` reads `data-task-id` (`data={{ taskId }}`).
+- **xstream**: `xs.merge/combine/of/periodic/never/fromPromise`; methods `map mapTo filter startWith fold take drop last endWhen flatten compose remember replaceError debug`. From `'sygnal'`, used with `.compose(...)`: `debounce(ms) throttle(ms) delay(ms) dropRepeats() sampleCombine(other$) flattenConcurrently flattenSequentially`; plus `concat(a$, b$)`.
 
 | RxJS | xstream | RxJS | xstream |
 |---|---|---|---|
@@ -188,7 +189,6 @@ A driver is any function `sink$ => source`. Page-wide events: `DOM.select('docum
 | `takeUntil(b$)` | `.endWhen(b$)` | `tap(f)` | `.debug(f)` |
 | `catchError(f)` | `.replaceError(f)` | `shareReplay(1)` | `.remember()` |
 | `mergeMap(f)` | `.map(f).compose(flattenConcurrently)` | `concatMap(f)` | `.map(f).compose(flattenSequentially)` |
-(Last row: `import { flattenConcurrently, flattenSequentially, concat } from 'sygnal'`.)
 
 ## 5. Wiring rules (silent failures, and what catches them)
 - **Selectors are scoped to the component's own JSX.** A parent's `DOM.click('.remove')` never fires for `.remove` rendered by a child or a Collection item. Handle the event in the child and send it up with `PARENT` (read with `CHILD.select(Child)`) or `EVENTS`. Caught as SYG104; a selector the view never renders is SYG110.
@@ -201,10 +201,9 @@ A driver is any function `sink$ => source`. Page-wide events: `DOM.select('docum
 ## 6. Diagnostics
 - Format: `[Sygnal SYG104] Lane: <what is wrong>. <how to fix> https://sygnal.js.org/reference/errors#syg104`. Severities error/warn/info. 1xx wiring, 2xx model/state, 3xx streams (SYG301: RxJS operator on an xstream stream), 4xx components (Collection, Switchable, context), 5xx strict, 6xx drivers and setup, 9xx internal.
 - `npx --no-install sygnal-check` runs the locally installed checker, never a download (a `create-sygnal-app` project already has the `sygnal-check` dev dependency; elsewhere `npm i -D sygnal-check`; still not installed? skip it and rely on the runtime diagnostics in the tests). It checks `src` statically; pass other paths instead, e.g. `npx --no-install sygnal-check pages --strict` (Vike). Use `--strict` for canonical forms, `--fix` to apply the mechanical rewrites (implies `--strict`), and `--json` / `--verbose` for output. `npx --no-install sygnal-check explain SYG104` explains a code and its fix. Suppress one line with `// sygnal-ignore SYG110`.
-- App graph: `npx --no-install sygnal-check --graph --json` (static), `t.inspect()` (test), `getDevTools().inspect()` (running dev app). All return the same `InspectGraph`: components, actions and their triggers, selectors (`matched`, `isolationHit`), EVENTS emitters/selectors, diagnostics.
+- App graph: `npx --no-install sygnal-check --graph --json` (static), `t.inspect()` (test), `getDevTools().inspect()` (running dev app). All return the same `InspectGraph`: components, actions and their triggers, selectors (`matched`, `isolationHit`), EVENTS emitters/selectors, diagnostics. MCP: `claude mcp add sygnal-check -- npx --no-install sygnal-check mcp` (tools `check`, `graph`, `explain`).
 - Vite plugin in dev (`vite`, never `vite build`): runtime checks print warnings to the console; when `sygnal-check` is installed, the plugin also runs it on start and on every save (terminal + browser console). Stricter: `sygnal({ diagnostics: { mode: 'error', strict: true }, check: { strict: true } })`.
 - Without the plugin: `run(App, drivers, { diagnostics: 'warn' })` (`'collect'` → `getDiagnostics()`; `'error'` throws) and `import 'sygnal/diagnostics'` for the full checks. Runtime strict: `run(App, drivers, { diagnostics: { strict: true } })`, `configureStrict(true)` from `'sygnal/diagnostics'`, or `renderComponent(C, { strict: true })` (all need `'sygnal/diagnostics'`).
-- MCP: `claude mcp add sygnal-check -- npx --no-install sygnal-check mcp` (tools `check`, `graph`, `explain`).
 
 ## 7. Testing your change
 ```js

@@ -69,6 +69,7 @@ export default Counter
 ```
 - Reducer `(state, data, next, props)`. `data` is the action stream's value. `next('ACTION', data?, delayMs = 10)` dispatches another action. `props` holds the parent's props plus `state`, `context`, `children`, `slots`.
 - Model entry: a function is the STATE reducer. An object `{ STATE, EVENTS, PARENT, EFFECT, LOG, <DRIVER>: fn }` maps each sink to a `(state, data, next, props)` function whose return value goes to that sink. `<SINK>: true` forwards `data` as-is.
+- **Every sink of one entry sees the state from before this action**: EVENTS, PARENT, EFFECT and drivers never see what STATE returns. Compute the new value from `(state, data)` inside the sink: `INC: { STATE: s => ({ ...s, n: s.n + 1 }), PARENT: s => ({ n: s.n + 1 }) }`.
 - Built-in actions (model only): `BOOTSTRAP` (once, just after mount), `INITIALIZE` (automatic: sets initialState), `HYDRATE` (SSR data), `DISPOSE` (unmount).
 
 ## 3. Canonical examples
@@ -156,6 +157,20 @@ TaskList.model = { PICKED: (state, { taskId }) => ({ ...state, picked: taskId })
 ```
 - `from` names an array field; items are keyed by `.id`. Also `filter={t => !t.done}`, `sort="title"`. An item edits its own element (`{ ...state, done: true }`).
 - Switchable: `<Switchable of={{ home: Home, settings: Settings }} current={state.route} />` (optional `state="slice"`).
+### Extract a component without changing the markup
+1. **First**, on the unchanged code, write a test that pins the HTML: `expect(t.html()).toMatchSnapshot()` initially and after one interaction; run it once (with `CI` set: `npx vitest run -u`).
+2. Move the elements into the child verbatim (a component adds no wrapper). Inputs come in as props; the user's choice goes out through `PARENT` with an id; no `initialState`, no knowledge of the parent's state shape.
+3. In the parent, render `<Child name="food" value={state.food} />`, remove the old selectors for those elements (they can't see the child's DOM, SYG104), and listen with `CHILD.select(Child)`.
+4. Re-run the test without `-u`: the snapshot must still match.
+```jsx
+function StarRating({ name, value }) {
+  return <div className={`rating ${name}`}>{[1, 2, 3].map(n => <button className={n <= value ? 'star filled' : 'star'} data-value={String(n)}>★</button>)}</div>
+}
+StarRating.intent = ({ DOM }) => ({ PICK: DOM.click('.star').data('value', Number) })
+StarRating.model = { PICK: { PARENT: (state, value, next, props) => ({ name: props.name, value }) } }
+// parent: intent RATE: CHILD.select(StarRating); model RATE: (state, { name, value }) => ({ ...state, [name]: value })
+```
+Full recipe: https://sygnal.js.org/guide/parent-child/#recipe-extract-a-component-without-changing-the-markup
 ### Commands (parent → child) + EFFECT
 ```jsx
 import { createCommand } from 'sygnal'
@@ -201,6 +216,21 @@ import Quote from './Quote.jsx'
 run(Quote, { QUOTE: driverFromAsync(id => fetch(`/api/quotes/${id}`).then(r => r.json())) })
 ```
 A driver is any function `sink$ => source`. Page-wide events: `DOM.select('document' | 'body').events(type)`, CSS-filtered with `DOM.select('document').select('.overlay').events('click')`.
+### Latest response only (stale replies)
+Replies arrive in settle order. Keep a request id in state, send it with the request, have the driver echo it, and `ABORT` older replies and failures. Clearing bumps the id too, so an in-flight reply is dropped.
+```jsx
+Search.model = {
+  TYPE: (state, query) => (query === '' ? { ...state, query, reqId: state.reqId + 1, loading: false, results: [] } : { ...state, query }),
+  SEARCH: {   // intent: SEARCH: query$.compose(debounce(300)).filter(q => q !== '')
+    STATE:  (state) => ({ ...state, reqId: state.reqId + 1, loading: true }),
+    SEARCH: (state, q) => ({ category: 'search', value: { id: state.reqId + 1, q } }),   // sinks see the pre-action state
+  },
+  RESULTS: (state, { value }) => (value.id !== state.reqId ? ABORT : { ...state, loading: false, results: value.results }),
+  FAILED:  (state, { request }) => (request.value.id !== state.reqId ? ABORT : { ...state, loading: false, error: 'Search failed.' }),
+}
+// driver: driverFromAsync(async ({ id, q }) => ({ id, results: await searchApi(q) }))
+```
+Full version: https://sygnal.js.org/guide/drivers/#only-the-latest-response-stale-requests
 
 ## 4. API facts
 - **Child props**: `<Rating name="food" value={state.food} />` → `function Rating({ state, name, value })`; reducers read `props.name` (4th arg); intent gets the `props$` stream. Reserved: `state` (lens: `"key"` or `{ get, set }`), `children`, `slots`, `context`, `peers` (SYG106; an error in strict mode). Without `state=` a child shares its parent's whole state.
