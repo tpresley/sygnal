@@ -32,7 +32,7 @@ import { diffAgainstStarter, canonicalForms, sourceText, keptTests, testApproach
 import { selfReportedIssues } from './lib/selfreport.mjs'
 import { matchReport, matchWorkaround } from './catalog.mjs'
 import { docsContext, loadTrackers, readText, DEFAULT_TRACKERS } from './lib/preconditions.mjs'
-import { isTestPath, EDIT_TOOLS } from './lib/classify.mjs'
+import { isTestPath, EDIT_TOOLS, bashWritesTest } from './lib/classify.mjs'
 import { aggregate } from './lib/aggregate.mjs'
 import { renderMarkdown } from './lib/report.mjs'
 
@@ -175,7 +175,7 @@ for (const [trial, agentId] of mapRows) {
   // h. self-reported issues
   rec.selfReported = selfReportedIssues(parsed.finalReport)
   // test authoring from the transcript
-  const testWrites = parsed.calls.filter((c) => (EDIT_TOOLS.has(c.name) && isTestPath(c.input.file_path)) || (c.name === 'Bash' && c.base === 'test-authoring'))
+  const testWrites = parsed.calls.filter((c) => (EDIT_TOOLS.has(c.name) && isTestPath(c.input.file_path)) || (c.name === 'Bash' && (c.base === 'test-authoring' || bashWritesTest(c.input?.command))))
   rec.wroteTest = testWrites.length > 0
 
   // g. final code

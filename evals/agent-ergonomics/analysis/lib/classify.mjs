@@ -2,7 +2,7 @@
 // in analysis/tests/classify.test.mjs. The build/test ("verify") and file-edit
 // detection reuse lib/transcript.mjs, the harness's own counter, so iteration
 // counts here match transcript-stats.mjs.
-import { isRunCommand, isEditCommand, splitCommands } from '../../lib/transcript.mjs'
+import { isRunCommand, isEditCommand, splitCommands, bashEdits, bashEditWeights } from '../../lib/transcript.mjs'
 
 export const PHASES = ['orient', 'learn', 'implement', 'verify', 'test-authoring', 'debug', 'tooling-friction', 'think', 'report', 'other']
 
@@ -26,15 +26,32 @@ export function isTestPath(p) {
   return TEST_FILE_RE.test(String(p ?? ''))
 }
 
-/** Files a Bash command writes (heredoc `cat > f`, `> f`, `tee f`, sed -i f, python open(f,'w')). */
+/** Files a Bash command writes (lib/transcript.mjs bashEdits: redirects, tee, sed -i, perl -i, python/node scripts, patches). */
 export function bashWriteTargets(cmd) {
-  const out = []
-  const s = String(cmd)
-  for (const m of s.matchAll(/(?:^|[^2&>])>{1,2}\s*["']?([^\s"'&|;<>]+)/g)) out.push(m[1])
-  for (const m of s.matchAll(/\btee\s+(?:-a\s+)?["']?([^\s"'&|;<>]+)/g)) out.push(m[1])
-  for (const m of s.matchAll(/\bsed\s+-i\s*(?:''|"")?\s+(?:-e\s+)?(?:'[^']*'|"[^"]*")\s+["']?([^\s"'&|;<>]+)/g)) out.push(m[1])
-  for (const m of s.matchAll(/\bp\s*=\s*['"]([^'"]+)['"]/g)) out.push(m[1])
-  return out.filter((p) => p !== '/dev/null' && !/^&\d$/.test(p))
+  return bashEdits(cmd).targets
+}
+
+/** Edit phase of a Bash call that writes files: test-authoring if every identified target is a test file. */
+function bashEditPhase(cmd) {
+  const t = bashEdits(cmd).targets
+  return t.length && t.every(isTestPath) ? 'test-authoring' : 'implement'
+}
+
+/**
+ * Share of a Bash edit's written text that goes to test files (0..1), or null
+ * when it can't be told (no heredoc). Lets the timeline split one call that
+ * writes both source and tests between implement and test-authoring.
+ */
+export function bashTestShare(cmd) {
+  const w = bashEditWeights(cmd)
+  const total = w.reduce((a, x) => a + x.chars, 0)
+  if (!total) return null
+  return w.filter((x) => isTestPath(x.target)).reduce((a, x) => a + x.chars, 0) / total
+}
+
+/** Does this Bash call write a test file? */
+export function bashWritesTest(cmd) {
+  return bashEdits(cmd).targets.some(isTestPath)
 }
 
 /** Does this Bash command remove a test file? */
@@ -65,11 +82,10 @@ export function basePhase(call) {
   if (/browser|preview|chrome/i.test(name) || ['TaskStop', 'TaskOutput', 'BashOutput', 'KillShell'].includes(name)) return 'verify'
   if (name === 'Bash') {
     const cmd = String(i.command ?? '')
+    // An edit that also runs the tests: writing it is the edit phase; the
+    // timeline charges the run (the result interval) to verify.
+    if (isEditCommand(cmd)) return bashEditPhase(cmd)
     if (isRunCommand(cmd)) return 'verify'
-    if (isEditCommand(cmd) || bashWriteTargets(cmd).some((p) => /\.(jsx?|tsx?|mjs|cjs|css|html|json)$/.test(p))) {
-      const targets = bashWriteTargets(cmd)
-      return targets.length && targets.every(isTestPath) ? 'test-authoring' : 'implement'
-    }
     if (removesTestFile(cmd)) return 'test-authoring'
     if (SKILL_RE.test(cmd) || /node_modules\/(sygnal|react|react-dom|@testing-library|xstream)\b/.test(cmd)) return 'learn'
     if (/^\s*(node|npx\s+tsx|npx\s+node)\s/.test(cmd) && !/node_modules\/\.bin/.test(cmd)) return 'verify'
@@ -86,7 +102,7 @@ export function isVerifyCall(call) {
 /** Does this call edit a file (counts toward edit rounds, like transcript-stats.mjs)? */
 export function isEditCall(call) {
   if (EDIT_TOOLS.has(call.name)) return true
-  return call.name === 'Bash' && !isRunCommand(String(call.input?.command ?? '')) && isEditCommand(String(call.input?.command ?? ''))
+  return call.name === 'Bash' && isEditCommand(String(call.input?.command ?? ''))
 }
 
 // The coordinator's worktree guard (PLAN-1 subagent trials), or a headless trial's permission posture refusing a call.

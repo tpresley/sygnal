@@ -19,7 +19,10 @@
 //   node_modules/.bin/vite(st), node .../vitest.mjs. See lib/transcript.mjs
 //   and tests/transcript.unit.mjs.
 // - edits: file-modifying tool calls (Write/Edit/MultiEdit/NotebookEdit, plus
-//   Bash commands that obviously write files: sed -i, perl -i, tee, > file).
+//   Bash commands that write project files: cat > f <<EOF, > / >> / tee into a
+//   source file, sed -i, perl -i, python/node scripts that open a file for
+//   writing, patch / git apply / apply_patch; lib/transcript.mjs bashEdits).
+//   A Bash call that edits and then runs the tests counts as an edit and an iteration.
 // - editRounds: groups of consecutive edits not separated by an iteration.
 //   "edit, edit, test, edit, test" = 2 edit rounds.
 // - wallSeconds: first to last timestamp (an unstamped headless transcript

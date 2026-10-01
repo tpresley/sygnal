@@ -15,7 +15,7 @@
 // run is 'debug', or 'tooling-friction' if the failure matched a known
 // defect in the catalog. A call the environment refused (worktree guard) is
 // 'tooling-friction' (HARNESS-GUARD) on its own.
-import { basePhase, learnTopic, isVerifyCall, isEditCall, isRefused, verifyOutcome, commandOutcome, errorSignature, uncataloguedCause } from './classify.mjs'
+import { basePhase, learnTopic, isVerifyCall, isEditCall, isRefused, verifyOutcome, commandOutcome, errorSignature, uncataloguedCause, bashTestShare } from './classify.mjs'
 import { matchResult, frictionIds, CATALOG_BY_ID } from '../catalog.mjs'
 
 /**
@@ -49,9 +49,9 @@ export function buildTimeline(parsed, { arm = null, reportIds = [] } = {}) {
   const failures = []
   let reported = false
 
-  const phaseFor = (call) => {
-    if (call.phase) return call
-    const base = basePhase(call)
+  const phaseFor = (call, baseOverride = null) => {
+    if (call.phase && !baseOverride) return call
+    const base = baseOverride ?? basePhase(call)
     let phase = base
     let fid = null
     if (isRefused(call.result)) {
@@ -106,7 +106,13 @@ export function buildTimeline(parsed, { arm = null, reportIds = [] } = {}) {
       const call = byId.get(e.callId)
       const p = phaseFor(call)
       Object.assign(call, { phase: p.phase, fid: p.fid, base: p.base })
-      charge(call, dt)
+      // One Bash call that writes source and tests: split its writing time by
+      // the text written to each (outside a failure overlay).
+      const share = call.name === 'Bash' && (p.phase === 'implement' || p.phase === 'test-authoring') ? bashTestShare(call.input?.command) : null
+      if (share != null && share > 0 && share < 1) {
+        add('test-authoring', dt * share)
+        add('implement', dt * (1 - share))
+      } else charge(call, dt)
     } else if (e.kind === 'result') {
       const call = byId.get(e.callId)
       if (!call) {
@@ -114,7 +120,12 @@ export function buildTimeline(parsed, { arm = null, reportIds = [] } = {}) {
         continue
       }
       if (!call.phase) Object.assign(call, phaseFor(call))
-      charge(call, dt)
+      // A Bash call that edits and then runs the tests: writing it was the edit
+      // phase (charged at the call); running it is verify.
+      if (call.base !== 'verify' && isVerifyCall(call)) {
+        const v = phaseFor(call, 'verify')
+        charge({ ...v, name: call.name, input: call.input }, dt)
+      } else charge(call, dt)
       handleResult(call)
       if (call.name === 'Skill') afterSkill = true
     } else {
@@ -207,16 +218,18 @@ export function buildTimeline(parsed, { arm = null, reportIds = [] } = {}) {
   let editRounds = 0
   let inRound = false
   for (const c of calls) {
-    if (isVerifyCall(c)) {
-      iterations++
-      if (isRefused(c.result)) refusedIterations++
-      inRound = false
-    } else if (isEditCall(c)) {
+    // An edit-and-test Bash call is an edit first, then an iteration.
+    if (isEditCall(c)) {
       edits++
       if (!inRound) {
         editRounds++
         inRound = true
       }
+    }
+    if (isVerifyCall(c)) {
+      iterations++
+      if (isRefused(c.result)) refusedIterations++
+      inRound = false
     }
   }
 
