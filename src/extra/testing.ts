@@ -200,6 +200,9 @@ function find(v: any, cs: string[], chain: any[] = []): any[] | undefined {
   }
 }
 
+/** Internal (perf-guard tests): number of SYG104 tree walks */
+export const _testingStats = {walks: 0};
+
 // 1H-5: live renderComponent instances; the explicit diagnostics config from before the
 // outermost one is restored when the last one is disposed
 let active = 0;
@@ -223,19 +226,33 @@ export function renderComponent(
   const listeners = new Map<string, string[]>();
   const owners = new Map<string, string>([['', rootName]]);
   const done = new Set<string>();
+  // the innermost isolation scope of a component's DOM source on this hub
+  const scopeOf = (c: any) => {
+    const d = c && c.sources && c.sources[c.DOMSourceName || 'DOM'];
+    return d && d._hub === hub.$ && (d._path || []).filter(isScope).pop();
+  };
   const offCheck = registerCheck({
     id: 'renderComponent',
     onIntent(c: any) {
-      const d = c && c.sources && c.sources[c.DOMSourceName || 'DOM'];
-      const sc = d && d._hub === hub.$ && (d._path || []).filter(isScope).pop();
+      const sc = scopeOf(c);
       if (sc) owners.set(sc, c.name);
+    },
+    // 1H-11: forget a disposed child's listeners, so they aren't checked on every render
+    onDispose(c: any) {
+      const sc = scopeOf(c);
+      if (!sc) return;
+      owners.delete(sc);
+      listeners.forEach((path, k) => { if (path.filter(isScope).pop() == sc) listeners.delete(k); });
     },
   });
   const raise = (code: string, component: string, message: string, fix: string, data: any) => {
     try { report(code, {component, message, fix, data}); } catch (e) { setTimeout(() => { throw e; }); }
   };
+  // 1H-11: a render with the same tree and no new listener can't change the result
+  let checkedTree: any, newListener = false;
   const check104 = (target?: any) => {
-    if (!vtree || !isDiagnosticsEnabled()) return;
+    if (!vtree || !isDiagnosticsEnabled() || (!target && vtree === checkedTree && !newListener)) return;
+    if (!target) checkedTree = vtree, newListener = false;
     listeners.forEach(path => {
       const sels = words(path.filter(s => !isScope(s)).join(' '));
       const scope = path.filter(isScope).pop();
@@ -263,6 +280,7 @@ export function renderComponent(
         }
         for (const k of [].concat(v.children || [])) walk(k, c, sc, inside, sc == scope ? undefined : boundary);
       };
+      _testingStats.walks++;
       walk(vtree, [], undefined, !scope, undefined);
       if (own) return done.add(key);
       if (!child || !hit) return;
@@ -331,7 +349,10 @@ export function renderComponent(
     initialState: init,
   });
   const allDrivers: any = {
-    DOM: () => mockDOMSource(mockConfig, hub.$, path => listeners.set(path.join('\u0000'), path)),
+    DOM: () => mockDOMSource(mockConfig, hub.$, path => {
+      const k = path.join('\u0000');
+      if (!listeners.has(k)) listeners.set(k, path), newListener = true;
+    }),
     EVENTS: eventBusDriver,
     LOG: logDriver,
     ...drivers,

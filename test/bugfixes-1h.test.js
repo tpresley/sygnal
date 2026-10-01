@@ -428,3 +428,47 @@ describe('1H-9: isolatedState child without a state prop keeps its state off the
     expect(t.states.every(s => JSON.stringify(s) === '{"count":0}')).toBe(true)
   })
 })
+
+// ─── 1H-11: renderComponent's SYG104 check doesn't walk for disposed children ─
+
+import { _testingStats } from '../src/extra/testing.js'
+
+describe('1H-11: SYG104 check cost', () => {
+  function Item() { return h('li', null, 'i') }
+  Item.intent = ({ DOM }) => ({ X: DOM.click('.never-rendered') })
+  Item.model = { X: s => s }
+  function App({ state }) { return h('div', null, h('span', null, String(state.n)), h(Collection, { of: Item, from: 'items' })) }
+  App.initialState = { n: 0, items: Array.from({ length: 20 }, (_, i) => ({ id: i + 1 })) }
+  App.model = { CLEAR: s => ({ ...s, items: [] }), BUMP: s => ({ ...s, n: s.n + 1 }) }
+
+  it('listeners of disposed Collection items are pruned', async () => {
+    t = renderComponent(App)
+    await t.ready()
+    await settle(30)
+    t.simulateAction('CLEAR')
+    await t.waitForState(s => s.items.length === 0)
+    await settle(40)
+    const w0 = _testingStats.walks
+    for (let i = 1; i <= 5; i++) {
+      t.simulateAction('BUMP')
+      await t.waitForState(s => s.n === i)
+    }
+    expect(_testingStats.walks - w0).toBe(0)
+  })
+
+  it('a live listener is still checked (and SYG104 still reported)', async () => {
+    function Child() { return h('div', null, h('button', { className: 'inner' }, 'x')) }
+    function Parent({ state }) { return h('div', null, h('span', null, String(state.n)), state.show ? h(Child) : null) }
+    Parent.initialState = { n: 0, show: false }
+    Parent.intent = ({ DOM }) => ({ GO: DOM.click('.inner') })
+    Parent.model = { GO: s => s, SHOW: s => ({ ...s, show: true }) }
+    t = renderComponent(Parent)
+    await t.ready()
+    const w0 = _testingStats.walks
+    t.simulateAction('SHOW')
+    await t.waitForState(s => s.show)
+    await settle(20)
+    expect(_testingStats.walks).toBeGreaterThan(w0)
+    expect(t.diagnostics.filter(d => d.code === 'SYG104').length).toBe(1)
+  })
+})
