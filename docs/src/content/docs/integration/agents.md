@@ -21,12 +21,12 @@ Point your agent at it, for example in your project's `AGENTS.md` or `CLAUDE.md`
 
 ```markdown
 This project uses Sygnal. Read https://sygnal.js.org/llms.txt before writing components.
-Run `npx sygnal-check --strict` after every change and fix every warning.
+Run `npx --no-install sygnal-check --strict` after every change and fix every warning.
 ```
 
 The same file ships in the npm package (`node_modules/sygnal/llms.txt`), so agents can read it offline, and is in the root of the Sygnal repository.
 
-Projects created with `create-sygnal-app` already include an `AGENTS.md` (and a `CLAUDE.md` that imports it) with these instructions, the test and check commands, and the testing recipe.
+Projects created with `create-sygnal-app` (without prompts: `npm create sygnal-app@latest my-app -- --template vite --js --install`) already include an `AGENTS.md` (and a `CLAUDE.md` that imports it) with these instructions, the test and check commands, and the testing recipe.
 
 ## The sygnal-dev skill
 
@@ -40,15 +40,17 @@ The repository's `skills/sygnal-dev/` folder is a Claude Code skill for building
 npm install -D sygnal-check
 ```
 
+The commands below use `npx --no-install`, which runs only the copy installed in the project and never downloads one from the registry. Agent instructions use the same form: when `sygnal-check` isn't installed, the agent skips the step and relies on the runtime diagnostics in the tests (`renderComponent(C, { strict: true })` and `t.expectNoDiagnostics()`).
+
 | Command | Does |
 |---|---|
-| `npx sygnal-check` | Check `./src` (files, directories or globs can be passed) |
-| `npx sygnal-check --strict` | Also run the [strict-mode](/guide/strict-mode/) rules (SYG501-507) |
-| `npx sygnal-check --fix` | Rewrite SYG504/505/506 into the canonical form in place, then check |
-| `npx sygnal-check --graph [--json]` | Print the app graph (components, actions, events, selectors, findings) |
-| `npx sygnal-check explain SYG104` | What a code means and how to fix it (`--json`, `--all`) |
-| `npx sygnal-check --json` | Findings as JSON |
-| `npx sygnal-check mcp` | Start the [MCP server](#mcp-server) |
+| `npx --no-install sygnal-check` | Check `./src`; pass files, directories or globs instead (a Vike app: `npx --no-install sygnal-check pages`) |
+| `npx --no-install sygnal-check --strict` | Also run the [strict-mode](/guide/strict-mode/) rules (SYG501-507) |
+| `npx --no-install sygnal-check --fix` | Rewrite SYG504/505/506 into the canonical form in place, then check |
+| `npx --no-install sygnal-check --graph [--json]` | Print the app graph (components, actions, events, selectors, findings) |
+| `npx --no-install sygnal-check explain SYG104` | What a code means and how to fix it (`--json`, `--all`) |
+| `npx --no-install sygnal-check --json` | Findings as JSON |
+| `npx --no-install sygnal-check mcp` | Start the [MCP server](#mcp-server) |
 
 Output looks like this:
 
@@ -79,7 +81,7 @@ Paths resolve against the server's working directory (start it in the project ro
 Claude Code, from the project root:
 
 ```bash
-claude mcp add sygnal-check -- npx sygnal-check mcp
+claude mcp add sygnal-check -- npx --no-install sygnal-check mcp
 ```
 
 Any client that takes a JSON config (`.mcp.json`, Claude Desktop, Cursor, …):
@@ -106,7 +108,7 @@ See [Diagnostics](/guide/diagnostics/#inspect) for the fields and what to look f
 
 A loop that works well for agents (and people):
 
-1. **Orient.** Run `npx sygnal-check --graph --json` (or the `graph` tool) to see the components, their actions, state, context, EVENTS and children before editing.
+1. **Orient.** Run `npx --no-install sygnal-check --graph --json` (or the `graph` tool) to see the components, their actions, state, context, EVENTS and children before editing.
 2. **Write** the change in the canonical forms (`llms.txt`).
 3. **Test it** with `renderComponent`: drive it with real DOM events, wait, assert, and check for diagnostics.
 
@@ -128,9 +130,9 @@ A loop that works well for agents (and people):
    ```
 
 4. **Read the SYG codes.** A failing `expectNoDiagnostics()`, the console, or `sygnal-check` names a code.
-5. **Explain** any code you don't know: `npx sygnal-check explain SYG104` (or the `explain` tool), or the [Error Reference](/reference/errors/).
+5. **Explain** any code you don't know: `npx --no-install sygnal-check explain SYG104` (or the `explain` tool), or the [Error Reference](/reference/errors/).
 6. **Inspect** when the cause isn't obvious: `t.inspect()` shows which selector didn't match (`matched: false`, `isolationHit`), which action has no sinks, and which event has no listener.
-7. **Fix**, then run `npx sygnal-check --strict` and the tests again until both are clean.
+7. **Fix**, then run `npx --no-install sygnal-check --strict` and the tests again until both are clean.
 
 ## How we measure it
 

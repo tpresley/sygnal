@@ -107,9 +107,11 @@ MyComponent.intent = ({ DOM }) => ({
 |--------|----------|------|
 | `.value(fn?)` | `e.target.value` | Input, textarea, select events |
 | `.checked(fn?)` | `e.target.checked` | Checkbox change events |
-| `.data(name, fn?)` | `e.target.dataset[name]` | Any element with `data-*` attributes |
+| `.data(name, fn?)` | The `data-*` value from `e.target` or its nearest ancestor that has it | Any element inside one with `data-*` attributes |
 | `.key(fn?)` | `e.key` | Keyboard events |
 | `.target(fn?)` | `e.target` | Any event |
+
+`.data()` looks the attribute up with `e.target.closest(...)`, so a click on a child element (an icon inside a card) still reads the card's value. The name may be camelCase or kebab-case: `.data('taskId')` and `.data('task-id')` both read the `data-task-id` attribute (`dataset.taskId`), which is what `data={{ taskId: 5 }}` renders.
 
 All methods return enriched streams, so they can be chained with standard stream operators:
 

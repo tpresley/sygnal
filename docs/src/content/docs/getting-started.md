@@ -32,6 +32,12 @@ You'll be prompted to choose a template and language:
 
 Each template is available in **JavaScript** or **TypeScript**.
 
+To skip the prompts (in a script, CI, or when an agent runs it), pass every choice: the template, `--js` or `--ts`, and `--install` or `--no-install`:
+
+```bash
+npm create sygnal-app@latest my-app -- --template vite --js --install
+```
+
 After scaffolding, start the dev server:
 
 ```bash
@@ -391,7 +397,7 @@ Install the static checker to find the same problems across the whole project, i
 
 ```bash
 npm install -D sygnal-check
-npx sygnal-check
+npx --no-install sygnal-check
 ```
 
 Test components with `renderComponent()`, driving them with real DOM events:

@@ -199,12 +199,12 @@ A driver is any function `sink$ => source`. Page-wide events: `DOM.select('docum
 - Also: reducers return the complete new state (`{ ...state, ... }`); never mutate; no side effects in views or STATE reducers (use EFFECT or a driver).
 
 ## 6. Diagnostics
-- Format: `[Sygnal SYG104] Lane: <what is wrong>. <how to fix> https://sygnal.js.org/reference/errors#syg104`. Severities error/warn/info. 1xx wiring, 2xx model/state, 3xx streams (SYG301: RxJS operator on an xstream stream), 4xx components, 5xx strict.
-- `npx sygnal-check` (dev dependency `sygnal-check`) checks `src` statically. Use `--strict` for canonical forms, `--fix` to apply the mechanical rewrites (implies `--strict`), and `--json` / `--verbose` for output. `npx sygnal-check explain SYG104` explains a code and its fix. Suppress one line with `// sygnal-ignore SYG110`.
-- App graph: `npx sygnal-check --graph --json` (static), `t.inspect()` (test), `getDevTools().inspect()` (running dev app). All return the same `InspectGraph`: components, actions and their triggers, selectors (`matched`, `isolationHit`), EVENTS emitters/selectors, diagnostics.
-- Vite plugin in dev (`vite`, never `vite build`): runtime checks print warnings to the console, and sygnal-check runs on start and on every save (terminal + browser console). Stricter: `sygnal({ diagnostics: { mode: 'error', strict: true }, check: { strict: true } })`.
+- Format: `[Sygnal SYG104] Lane: <what is wrong>. <how to fix> https://sygnal.js.org/reference/errors#syg104`. Severities error/warn/info. 1xx wiring, 2xx model/state, 3xx streams (SYG301: RxJS operator on an xstream stream), 4xx components (Collection, Switchable, context), 5xx strict, 6xx drivers and setup, 9xx internal.
+- `npx --no-install sygnal-check` runs the locally installed checker (dev dependency `sygnal-check`; not installed? skip it and rely on the runtime diagnostics in the tests). It checks `src` statically; pass other paths instead, e.g. `npx --no-install sygnal-check pages --strict` (Vike). Use `--strict` for canonical forms, `--fix` to apply the mechanical rewrites (implies `--strict`), and `--json` / `--verbose` for output. `npx --no-install sygnal-check explain SYG104` explains a code and its fix. Suppress one line with `// sygnal-ignore SYG110`.
+- App graph: `npx --no-install sygnal-check --graph --json` (static), `t.inspect()` (test), `getDevTools().inspect()` (running dev app). All return the same `InspectGraph`: components, actions and their triggers, selectors (`matched`, `isolationHit`), EVENTS emitters/selectors, diagnostics.
+- Vite plugin in dev (`vite`, never `vite build`): runtime checks print warnings to the console; when `sygnal-check` is installed, the plugin also runs it on start and on every save (terminal + browser console). Stricter: `sygnal({ diagnostics: { mode: 'error', strict: true }, check: { strict: true } })`.
 - Without the plugin: `run(App, drivers, { diagnostics: 'warn' })` (`'collect'` → `getDiagnostics()`; `'error'` throws) and `import 'sygnal/diagnostics'` for the full checks. Runtime strict: `configureStrict(true)` from `'sygnal/diagnostics'`, or `renderComponent(C, { strict: true })`. `run()` has no strict option.
-- MCP: `claude mcp add sygnal-check -- npx sygnal-check mcp` (tools `check`, `graph`, `explain`).
+- MCP: `claude mcp add sygnal-check -- npx --no-install sygnal-check mcp` (tools `check`, `graph`, `explain`).
 
 ## 7. Testing your change
 ```js

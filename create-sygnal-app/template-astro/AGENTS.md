@@ -9,13 +9,15 @@ This project uses **Sygnal**, a reactive JSX component framework built on Cycle.
 | Command | What it does |
 |---|---|
 | `npm test` | Runs the Vitest tests (`*.test.js` / `*.test.ts` next to the components) |
-| `npx sygnal-check --strict` | Static check for wiring bugs and non-canonical forms; must report nothing (if npx can't find it: `npm i -D sygnal-check`) |
-| `npx sygnal-check explain SYG104` | Explains a `[Sygnal SYGnnn]` diagnostic and how to fix it |
-| `npx sygnal-check --graph --json` | The app graph: components, actions, selectors, EVENTS |
+| `npx --no-install sygnal-check --strict` | Static check for wiring bugs and non-canonical forms; must report nothing |
+| `npx --no-install sygnal-check explain SYG104` | Explains a `[Sygnal SYGnnn]` diagnostic and how to fix it |
+| `npx --no-install sygnal-check --graph --json` | The app graph: components, actions, selectors, EVENTS |
 | `npm run dev` / `npm run build` | Dev server (prints runtime diagnostics) / production build |
 
+The `sygnal-check` commands use a locally installed `sygnal-check` (a dev dependency). If it isn't installed, skip them and rely on the runtime diagnostics in the tests (`strict: true` + `t.expectNoDiagnostics()`).
+
 ## Workflow
-Add a feature in this order: state (`initialState`) → intent (`ACTION: DOM.click('.x')`) → model (`ACTION: (state, data) => ({ ...state, ... })`) → view → test. Finish with `npm test` and `npx sygnal-check --strict`, both clean.
+Add a feature in this order: state (`initialState`) → intent (`ACTION: DOM.click('.x')`) → model (`ACTION: (state, data) => ({ ...state, ... })`) → view → test. Finish with `npm test` and `npx --no-install sygnal-check --strict`, both clean.
 
 ## Testing your change
 ```js
@@ -36,7 +38,7 @@ t.expectNoDiagnostics(); t.dispose()                // fails on any Sygnal warni
 
 ## Wiring rules that fail silently
 - A component's intent only sees its own JSX. A parent can't select `.remove` rendered by a child or a Collection item: handle it in the child and send it up with `PARENT` (parent: `CHILD.select(Child)`) or `EVENTS`.
-- Every intent action needs a model entry with the same name, and the reverse.
+- Every intent action needs a model entry with the same name, and every model entry needs a trigger: an intent action, a built-in, or `next('X')`.
 - `event('X')` and `EVENTS.select('X')` must use the same type string.
 - `<Collection of={Item} from="items" />`: `from` names an array field of the state.
 - An input with `value={state.x}` needs `X: DOM.input('.x').value()` in the intent.

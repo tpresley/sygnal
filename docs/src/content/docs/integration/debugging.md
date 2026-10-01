@@ -6,7 +6,7 @@ description: Diagnostics, inspect, debug logging and DevTools
 When something in a Sygnal app "does nothing", work through these in order:
 
 1. **Read the diagnostics.** In the Vite dev server, Sygnal's [diagnostics](/guide/diagnostics/) print a `[Sygnal SYGnnn]` line in the console for most silent failures (a selector that matches nothing, an action with no model entry, an event nobody listens to). Each line names the component, says how to fix it, and links to the [Error Reference](/reference/errors/).
-2. **Run the static checker.** `npx sygnal-check --strict` checks the whole project at once, including problems the running app hasn't hit yet.
+2. **Run the static checker.** `npx --no-install sygnal-check --strict` checks the whole project at once, including problems the running app hasn't hit yet.
 3. **Inspect the app graph.** `window.__SYGNAL_DEVTOOLS__.inspect()` in the browser console (or `t.inspect()` in a test) shows every component's actions and sinks, which selectors matched rendered elements, and the EVENTS traffic.
 4. **Turn on debug logging** for the component involved (below).
 

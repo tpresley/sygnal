@@ -83,6 +83,10 @@ function driverFromAsync(
     const filterBy = (stream: Stream<any>, selector?: any) =>
       selector === undefined ? stream : stream.filter((val: any) => matches(selector, val));
 
+    // 3E/R11: set by the source's dispose(), which Cycle's engine calls on teardown just
+    // before it completes the sink proxies; that completion is expected, not worth a warning.
+    let disposing = false;
+
     fromApp$.addListener({
       next: (incoming: any) => {
         const preProcessed = preFunction(incoming);
@@ -161,6 +165,7 @@ function driverFromAsync(
         );
       },
       complete: () => {
+        if (disposing) return;
         console.warn(
           `Unexpected completion of sink stream to driver created using driverFromAsync(${functionName})`
         );
@@ -168,6 +173,9 @@ function driverFromAsync(
     });
 
     return {
+      dispose: () => {
+        disposing = true;
+      },
       select: (selector?: any) => filterBy(toApp$, selector),
       errors: (selector?: any) => {
         let sub: any;

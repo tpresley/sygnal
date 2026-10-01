@@ -1,8 +1,7 @@
 import {Driver} from '../run/types';
 import {init, Module, Options as SnabbdomOptions, VNode, toVNode} from './snabbdom';
 import xs, {Stream, Listener} from 'xstream';
-import concat from 'xstream/extra/concat.js';
-import sampleCombine from 'xstream/extra/sampleCombine.js';
+import {concat, sampleCombine} from '../../extra/xstreamExtras';
 import {MainDOMSource} from './MainDOMSource';
 import {VNodeWrapper} from './VNodeWrapper';
 import {getValidNode, checkValidContainer} from './utils';

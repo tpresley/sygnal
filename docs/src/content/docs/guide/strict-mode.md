@@ -118,8 +118,8 @@ The [Alternative Forms](/advanced/alternative-forms/) page lists every non-canon
 ### In the static checker
 
 ```bash
-npx sygnal-check --strict          # report SYG501-507 with the regular rules
-npx sygnal-check --fix             # rewrite SYG504/505/506 in place, then check (implies --strict)
+npx --no-install sygnal-check --strict   # report SYG501-507 with the regular rules
+npx --no-install sygnal-check --fix      # rewrite SYG504/505/506 in place, then check (implies --strict)
 ```
 
 `--fix` is mechanical and idempotent: it rewrites shorthand keys into the object form (unless another entry already handles the action), turns `emit()` and raw EVENTS returns into `event()` (adding `event` to your `sygnal` import and removing an unused `emit` import), and replaces `CHILD.select('Name')` with the identifier when a binding of that name is in scope. It re-parses each file after rewriting it. Review the diff before committing.

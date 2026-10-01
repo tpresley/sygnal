@@ -5,7 +5,9 @@
  * (dev-plans/PLAN-1-canonical-forms.md).
  *
  * Every fenced ```js / ```jsx / ```ts / ```tsx / ```javascript / ```typescript
- * block in docs/src/content/docs/**\/*.md(x) is written to its own file in a
+ * block (``` or ~~~ fences, three or more) in docs/src/content/docs/**\/*.md(x)
+ * and in the other agent-facing files (EXTRA_FILES: llms.txt, the sygnal-dev
+ * skill, the create-sygnal-app AGENTS.md files) is written to its own file in a
  * temp directory (or --out <dir>), then sygnal-check runs on that directory
  * with --strict --json. Samples are fragments, so only the strict-mode codes
  * (SYG5xx) fail the run; other findings (SYG101/102/105/110 on half a
@@ -31,6 +33,17 @@ const docsDir = path.join(repo, 'docs/src/content/docs')
 const checker = path.join(repo, 'sygnal-check/bin/sygnal-check.js')
 
 const EXCLUDED_PAGES = new Set(['advanced/alternative-forms.md', 'reference/errors.md'])
+// Agent-facing files outside the docs site, relative to the repo root (3E/R10)
+const EXTRA_FILES = [
+  'llms.txt',
+  'skills/sygnal-dev/SKILL.md',
+  'skills/sygnal-dev/references/component-patterns.md',
+  ...fs.readdirSync(path.join(repo, 'create-sygnal-app'), { withFileTypes: true })
+    .filter(e => e.isDirectory() && e.name.startsWith('template-'))
+    .map(e => `create-sygnal-app/${e.name}/AGENTS.md`)
+    .filter(f => fs.existsSync(path.join(repo, f)))
+    .sort(),
+]
 const LANGS = { js: 'jsx', javascript: 'jsx', jsx: 'jsx', ts: 'tsx', typescript: 'tsx', tsx: 'tsx' }
 
 const args = process.argv.slice(2)
@@ -47,16 +60,23 @@ function walk(dir) {
 
 const samples = []
 const skipped = []
-for (const file of walk(docsDir).sort()) {
-  const rel = path.relative(docsDir, file).split(path.sep).join('/')
-  if (EXCLUDED_PAGES.has(rel)) continue
+const sources = [
+  ...walk(docsDir).sort()
+    .map(file => ({ file, rel: path.relative(docsDir, file).split(path.sep).join('/') }))
+    .filter(({ rel }) => !EXCLUDED_PAGES.has(rel)),
+  ...EXTRA_FILES.map(rel => ({ file: path.join(repo, rel), rel })),
+]
+for (const { file, rel } of sources) {
   const lines = fs.readFileSync(file, 'utf8').split('\n')
   for (let i = 0; i < lines.length; i++) {
-    const open = lines[i].match(/^(\s*)```(\w+)/)
+    // an opening fence: 3+ backticks or tildes, optional info string (CommonMark)
+    const open = lines[i].match(/^(\s*)(`{3,}|~{3,})\s*([\w-]*)/)
     if (!open) continue
-    const lang = LANGS[open[2]]
+    const lang = LANGS[open[3]]
+    // the closing fence uses the same character, at least as many, and nothing else
+    const close = new RegExp(`^\\s*${open[2][0] === '`' ? '`' : '~'}{${open[2].length},}\\s*$`)
     let j = i + 1
-    while (j < lines.length && !/^\s*```\s*$/.test(lines[j])) j++
+    while (j < lines.length && !close.test(lines[j])) j++
     if (lang) {
       const indent = open[1].length
       const body = lines.slice(i + 1, j).map(l => l.slice(Math.min(indent, l.length - l.trimStart().length)))
@@ -65,7 +85,7 @@ for (const file of walk(docsDir).sort()) {
       if (/^\s*\/\/\s*docs-check:\s*skip/.test(body[0] || '') || /<!--\s*docs-check:\s*skip\s*-->/.test(prev)) {
         skipped.push(id)
       } else {
-        const name = rel.replace(/\.mdx?$/, '').replace(/\//g, '__') + `__L${i + 1}.${lang}`
+        const name = rel.replace(/\.(mdx?|txt)$/, '').replace(/[^\w-]+/g, '__') + `__L${i + 1}.${lang}`
         samples.push({ id, name, code: body.join('\n') })
       }
     }

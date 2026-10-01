@@ -10,16 +10,8 @@ import type {Command} from './extra/command';
 import * as diag from './extra/diagnostics/index';
 import {warn, error as logError, fail} from './extra/diagnostics/legacy';
 
-import xs, {Stream, resolveInteropDefault} from './extra/xstreamCompat';
-import * as delayModule from 'xstream/extra/delay.js';
-import * as concatModule from 'xstream/extra/concat.js';
-import * as debounceModule from 'xstream/extra/debounce.js';
-import * as dropRepeatsModule from 'xstream/extra/dropRepeats.js';
-
-const delay = resolveInteropDefault(delayModule);
-const concat = resolveInteropDefault(concatModule);
-const debounce = resolveInteropDefault(debounceModule);
-const dropRepeats = resolveInteropDefault(dropRepeatsModule);
+import xs, {Stream} from './extra/xstreamCompat';
+import {delay, concat, debounce, dropRepeats} from './extra/xstreamExtras';
 
 declare var process: { env: Record<string, any> };
 

@@ -48,13 +48,15 @@ export function enrichEventStream(stream$: any): any {
 
   // .data(name, fn?) — extract dataset[name] from e.target or its nearest ancestor that has
   // it. dataset keys are camelCase but attributes are kebab-case (`taskId` is
-  // `data-task-id`), so the closest() selector converts (B-028).
+  // `data-task-id`), so the closest() selector converts (B-028). The name may be given
+  // either way: `.data('taskId')` and `.data('task-id')` read the same attribute (3E/R3).
   stream$.data = function data(name: string, fn?: (val: any) => any): any {
-    const attr = `[data-${name.replace(/[A-Z]/g, c => '-' + c.toLowerCase())}]`
+    const key = String(name).replace(/-([a-z])/g, (_, c) => c.toUpperCase())
+    const attr = `[data-${key.replace(/[A-Z]/g, c => '-' + c.toLowerCase())}]`
     const mapped = stream$.map((e: any) => {
       const t = e?.target
       const el = typeof t?.closest == 'function' ? t.closest(attr) || t : t
-      const val = el?.dataset?.[name]
+      const val = el?.dataset?.[key]
       return fn ? fn(val) : val
     });
     return enrichEventStream(mapped);
