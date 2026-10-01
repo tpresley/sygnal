@@ -13,7 +13,7 @@ Tracks progress for [PLAN-1.md](PLAN-1.md). Maintained by the coordinator.
 | 0 — Foundations | ✅ Done | `plan1-phase0` | 0A ✅ · 0B ✅ · 0C ✅ · review: 9 findings, all fixed. Baseline eval still running (independent of merges; uses the pre-0B tarball) |
 | 1 — Core capabilities | ✅ Done | `plan1-phase1` | 1A–1H ✅ · review: 11 findings + 2 minor, all fixed in 1H |
 | 2 — Strictness, introspection, integration | ✅ Done | `plan1-phase2` | 2A–2E ✅ · review: 10 findings, all fixed, plus 15 backlog items |
-| 3 — Agent context & docs | ⚪ Not started | — | |
+| 3 — Agent context & docs | 🟡 In progress | — | 3A ∥ 3C running; 3B after 3A (D33) |
 | 4 — Measure & release | ⚪ Not started | — | |
 
 Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ done · 🔴 blocked
@@ -125,6 +125,8 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 
 | D31 | 2026-10-01 | The size gate keeps measuring **library** growth: the kanban example's own code changed in 2D (+32 B), so the gate is re-baselined to the 2D kanban bundle, with the same 41,773-equivalent headroom (169 B) for library additions | Coordinator | The gate measures what Sygnal adds to apps, not example code |
 | D32 | 2026-10-01 | Coordinator gate commands use `npm --prefix <root>`, because the shell sometimes stays in an example directory after commands that cd into one (it ran the wrong suite twice) | Coordinator | Gate reliability |
+
+| D33 | 2026-10-01 | Phase 3 sequencing: 3A (llms.txt) ∥ 3C (docs site + repo docs), then 3B (skill) after 3A so the skill points to and matches llms.txt. The error-reference page is generated from `sygnal-check/explanations.json` with a drift test | Coordinator | Single source of truth for codes; the skill depends on the spec |
 
 ## Bugs & Gaps Found
 
