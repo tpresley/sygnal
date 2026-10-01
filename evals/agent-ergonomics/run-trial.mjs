@@ -3,7 +3,8 @@
 //
 // Usage:
 //   node evals/agent-ergonomics/run-trial.mjs --dest <trial dir>
-//        [--model opus|sonnet|haiku|<full id>]   default: the CLI's default model
+//        [--model claude-opus-5-5]               default claude-opus-5-5; prefer full ids (the CLI resolves
+//                                                aliases, and an old CLI maps opus to an old model)
 //        [--timeout-min 30]                      kill the run (and its children) after this
 //        [--effort low|medium|high|max]
 //        [--max-budget-usd N]                    claude's own spend cap for the run
@@ -21,6 +22,7 @@
 // Score afterwards with score.mjs (orchestrate.mjs does all of it).
 import { parseArgs } from './lib/common.mjs'
 import { runTrial } from './lib/runner.mjs'
+import { DEFAULT_MODEL } from './lib/headless.mjs'
 
 const args = parseArgs(process.argv.slice(2))
 if (!args.dest || args.dest === true) {
@@ -32,7 +34,7 @@ const num = (k) => (str(k) === undefined ? undefined : Number(str(k)))
 
 const meta = await runTrial({
   dest: args.dest,
-  model: str('model'),
+  model: str('model') ?? DEFAULT_MODEL,
   timeoutMin: num('timeout-min'),
   effort: str('effort'),
   maxBudgetUsd: num('max-budget-usd'),
@@ -43,5 +45,7 @@ const meta = await runTrial({
 })
 const { finalText, ...shown } = meta
 console.log(JSON.stringify(shown, null, 2))
+if (!meta.agentRan) console.error(`\nThe agent never ran (${meta.notRunReason}): this is not a trial; don't score it. Fix the cause and re-run with --force.`)
+if (meta.agentRan && meta.modelCheck && !meta.modelCheck.ok) console.error(`\nThe trial ran on ${meta.model}, not ${meta.modelCheck.expected}.`)
 if (meta.authFailed) console.error('\nThe trial could not authenticate (401 on every API call). Run from a shell where `claude -p "hi"` works, or set ANTHROPIC_API_KEY.')
 process.exit(meta.ok ? 0 : 1)

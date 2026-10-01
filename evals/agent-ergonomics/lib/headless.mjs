@@ -17,6 +17,36 @@ export const DEFAULT_TOOLS = ['Bash', 'Read', 'Edit', 'Write', 'Glob', 'Grep', '
 export const DEFAULT_PERMISSION_MODE = 'acceptEdits'
 export const DEFAULT_TIMEOUT_MIN = 30
 
+/**
+ * Trials run on a full model id by default. CLI aliases are resolved by the
+ * installed CLI, and an older CLI maps them to older models (CLI 2.1.90:
+ * `opus` -> claude-opus-4-6), so the orchestrator checks the model a run
+ * actually used against what was meant (resolveModel / checkModel).
+ */
+export const DEFAULT_MODEL = 'claude-opus-5-5'
+export const MODEL_ALIASES = { opus: 'claude-opus-5-5', sonnet: 'claude-sonnet-5-5', haiku: 'claude-haiku-4-5', fable: 'claude-fable-5-1' }
+
+/** The model id a --model value means: aliases map to the current model of that family; full ids map to themselves. */
+export function resolveModel(requested) {
+  if (!requested) return DEFAULT_MODEL
+  const r = String(requested).trim()
+  return MODEL_ALIASES[r.toLowerCase()] ?? r
+}
+
+/**
+ * Does the model a run used match the one requested? Accepts a dated variant
+ * of the expected id (claude-x-1-20260101) and a [1m]-style suffix.
+ */
+export function checkModel(requested, actual) {
+  const expected = resolveModel(requested)
+  const base = (m) => String(m ?? '').replace(/\[[^\]]*\]$/, '').replace(/-\d{8}$/, '')
+  const ok = !!actual && base(actual) === base(expected)
+  return { requested: requested ?? null, expected, actual: actual ?? null, ok }
+}
+
+/** A run's auth failure, as the CLI reports it in api_retry events or the result text. */
+export const AUTH_FAIL_RE = /authentication_failed|authentication_error|Failed to authenticate|OAuth access token is invalid|Invalid API key|\b401\b/i
+
 /** argv for `claude` (without the binary). */
 export function buildClaudeArgs({ prompt, model, permissionMode = DEFAULT_PERMISSION_MODE, tools = DEFAULT_TOOLS, effort, maxBudgetUsd } = {}) {
   if (!prompt) throw new Error('buildClaudeArgs: prompt is required')
@@ -27,6 +57,14 @@ export function buildClaudeArgs({ prompt, model, permissionMode = DEFAULT_PERMIS
   if (model) args.push('--model', model)
   if (effort) args.push('--effort', effort)
   if (maxBudgetUsd != null) args.push('--max-budget-usd', String(maxBudgetUsd))
+  return args
+}
+
+/** argv for the preflight: one tiny no-tool call on the trial model, same output format. */
+export function buildPreflightArgs({ model, effort } = {}) {
+  const args = ['-p', 'Reply with the single word: ok', '--output-format', 'stream-json', '--verbose', '--tools', '', '--strict-mcp-config', '--no-session-persistence']
+  if (model) args.push('--model', model)
+  if (effort) args.push('--effort', effort)
   return args
 }
 
@@ -67,7 +105,13 @@ export function summarizeRun(events) {
   const init = events.find((e) => e?.type === 'system' && e.subtype === 'init') ?? null
   const result = [...events].reverse().find((e) => e?.type === 'result') ?? null
   const retries = events.filter((e) => e?.type === 'system' && e.subtype === 'api_retry')
-  const authErrors = retries.filter((e) => e.error_status === 401 || /auth/i.test(String(e.error ?? '')))
+  const authErrors = retries.filter((e) => e.error_status === 401 || AUTH_FAIL_RE.test(String(e.error ?? '')))
+  // Real model turns: the CLI also writes a '<synthetic>' assistant message for errors it reports itself.
+  const turns = events.filter((e) => e?.type === 'assistant' && e.message && e.message.model !== '<synthetic>')
+  const turnModel = turns.map((e) => e.message.model).find(Boolean) ?? null
+  const resultText = typeof result?.result === 'string' ? result.result : ''
+  const authInResult = !!result && !!result.is_error && AUTH_FAIL_RE.test(resultText)
+  const apiMs = result?.duration_api_ms
   const u = result?.usage ?? {}
   const usage = {
     input: u.input_tokens ?? 0,
@@ -77,8 +121,21 @@ export function summarizeRun(events) {
   }
   usage.total = usage.input + usage.output + usage.cacheRead + usage.cacheCreation
   const models = result?.modelUsage ? Object.keys(result.modelUsage) : []
+  // Did the agent actually run? A result with is_error, no API time, or no real
+  // model turn means the CLI never got the model working (auth, quota, crash):
+  // the trial is 'not run' and must not be scored.
+  let notRunReason = null
+  if (!result) notRunReason = authErrors.length ? 'auth' : 'no result'
+  else if (authInResult || (result.is_error && authErrors.length)) notRunReason = 'auth'
+  else if (result.is_error) notRunReason = `error: ${resultText.slice(0, 200) || result.subtype}`
+  else if (apiMs === 0) notRunReason = 'no API time (duration_api_ms 0)'
+  else if (!turns.length) notRunReason = 'no assistant turns'
   return {
-    model: init?.model ?? models[0] ?? null,
+    model: turnModel ?? init?.model ?? models[0] ?? null,
+    initModel: init?.model ?? null,
+    turns: turns.length,
+    agentRan: notRunReason === null,
+    notRunReason,
     models,
     sessionId: init?.session_id ?? result?.session_id ?? null,
     claudeVersion: init?.claude_code_version ?? null,
@@ -94,7 +151,7 @@ export function summarizeRun(events) {
     outputTokens: result ? usage.output : null,
     finalText: typeof result?.result === 'string' ? result.result : null,
     apiRetries: retries.length,
-    authFailed: !result && authErrors.length > 0,
+    authFailed: notRunReason === 'auth',
   }
 }
 

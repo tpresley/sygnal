@@ -111,6 +111,16 @@ if (!fs.existsSync(path.join(dir, 'package.json'))) {
   process.exit(2)
 }
 
+// A headless run whose agent never ran (auth failure, is_error, no API time) is not a trial.
+const runMetaFile = `${dir}.run.json`
+if (fs.existsSync(runMetaFile) && !args.force) {
+  const meta = JSON.parse(fs.readFileSync(runMetaFile, 'utf8'))
+  if (meta.agentRan === false) {
+    console.error(`${dir}: the agent never ran (${meta.notRunReason}); not scoring it. Re-run the trial (or pass --force).`)
+    process.exit(3)
+  }
+}
+
 installHidden(dir, arm, task)
 const r = runHidden(dir)
 
