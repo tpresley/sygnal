@@ -24,7 +24,11 @@ export interface CheckPluginOptions {
   strict?: boolean
   /**
    * Files, directories or globs to check, relative to the Vite root.
-   * @default ['src']
+   * By default the existing ones of src/, pages/ and renderer/ (Vike apps),
+   * else the project root (node_modules, dist and other build output are
+   * skipped); a one-time notice is logged when the default finds no
+   * directory or when none of the given paths exists.
+   * @default ['src', 'pages', 'renderer'] (those that exist), else ['.']
    */
   include?: string[]
   /**

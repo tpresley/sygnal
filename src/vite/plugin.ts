@@ -38,7 +38,8 @@
  *      itself. With the default ('warn', no ignore list) there is no wrapper.
  *   5. `check` option: runs sygnal-check (an optional dependency, loaded
  *      lazily from the project; `strict` defaults to `diagnostics.strict`)
- *      over `include` (default ['src']) when the dev
+ *      over `include` (default: the existing ones of src/, pages/ and
+ *      renderer/, else the project root, with a notice) when the dev
  *      server starts and again after every source file change. Results go to
  *      the terminal in sygnal-check's format, and to the browser as a
  *      'sygnal:check' HMR event that the dev client ('virtual:sygnal/dev')
@@ -123,7 +124,10 @@ export interface DiagnosticsPluginOptions {
 export interface CheckPluginOptions {
   /** Also run sygnal-check's strict (SYG5xx) rules. @default `diagnostics.strict` */
   strict?: boolean
-  /** Files, directories or globs to check, relative to the Vite root. @default ['src'] */
+  /**
+   * Files, directories or globs to check, relative to the Vite root.
+   * @default the existing ones of ['src', 'pages', 'renderer'], else the project root
+   */
   include?: string[]
   /** Codes to drop. @default the `diagnostics` ignore list */
   ignore?: string[]
@@ -535,6 +539,29 @@ function formatLine(d: any): string {
   return `${where} ${d.code}${sev} ${d.component ? d.component + ': ' : ''}${d.message}${d.fix ? ` (${d.fix})` : ''}`
 }
 
+// Source directories checked by default, those that exist (Vike apps use
+// pages/ and renderer/, often without src/)
+const DEFAULT_INCLUDE = ['src', 'pages', 'renderer']
+
+/**
+ * What sygnal-check checks: `include` when given, else the existing default
+ * directories, else the project root (sygnal-check skips node_modules, dist
+ * and other build output). Logs one notice when the default finds no
+ * directory, or when none of the given paths exists, so an empty check is
+ * never a silent all-clear.
+ */
+function checkInclude(root: string, include: string[] | undefined, notice: (m: string) => void): string[] {
+  const exists = (p: string) => /[*?[{]/.test(p) || fs.existsSync(path.resolve(root, p))
+  if (include && include.length) {
+    if (!include.some(exists)) notice(`[sygnal] sygnal-check: none of check.include (${include.join(', ')}) exists under ${root}, so nothing is checked`)
+    return include
+  }
+  const dirs = DEFAULT_INCLUDE.filter(exists)
+  if (dirs.length) return dirs
+  notice(`[sygnal] sygnal-check: no ${DEFAULT_INCLUDE.join('/, ')}/ directory under ${root}; checking the project root (set check.include to choose)`)
+  return ['.']
+}
+
 /** Run sygnal-check now and after source changes; report to the terminal and the browser. */
 async function startChecker(server: any, root: string, opts: CheckPluginOptions,
   defaults: { strict: boolean, ignore: string[] }, explicit: boolean) {
@@ -544,7 +571,7 @@ async function startChecker(server: any, root: string, opts: CheckPluginOptions,
     if (explicit) logger.info('[sygnal] sygnal-check is not installed, so static checks are off (npm i -D sygnal-check)')
     return
   }
-  const include = opts.include && opts.include.length ? opts.include : ['src']
+  const include = checkInclude(root, opts.include, (m: string) => logger.info(m))
   const ignore = opts.ignore || defaults.ignore
   const strict = opts.strict === undefined ? defaults.strict : !!opts.strict
   // Only error-severity findings open Vite's overlay: while an overlay is open
