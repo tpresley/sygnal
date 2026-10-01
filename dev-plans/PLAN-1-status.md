@@ -10,7 +10,7 @@ Tracks progress for [PLAN-1.md](PLAN-1.md). Maintained by the coordinator.
 
 | Phase | Status | Tag | Notes |
 |---|---|---|---|
-| 0 — Foundations | 🟡 In progress | — | 0A ✅ · 0B 🟡 · 0C ✅ |
+| 0 — Foundations | 🔵 Closing | — | 0A ✅ · 0B ✅ · 0C ✅ · phase-close review pending · baseline eval running |
 | 1 — Core capabilities | ⚪ Not started | — | |
 | 2 — Strictness, introspection, integration | ⚪ Not started | — | |
 | 3 — Agent context & docs | ⚪ Not started | — | |
@@ -23,7 +23,7 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | ID | Title | Status | Branch | Agent | Merged | Notes |
 |---|---|---|---|---|---|---|
 | 0A | Baseline eval harness | ✅ | (applied as patches) | subagent | `8ed8145..cb9fdf0` | verify.mjs 28/28 OK, rerun by the coordinator. Agent couldn't run in its worktree (G-004), so it built in scratch and sent patches; the coordinator reviewed them (all paths under `evals/`, every rm scoped) and applied with `git am` (D6) |
-| 0B | Diagnostics infrastructure (+ fix B-001) | 🟡 | (harness-assigned) | subagent (bg, relaunched) | — | First launch BLOCKED by G-004; relaunched with `isolation: worktree` |
+| 0B | Diagnostics infrastructure (+ fix B-001) | ✅ | `worktree-agent-adfffb626c0498aa1` | subagent | `18b3895` | B-001 fixed in `rollup.config.dts.mjs` (dts pre-plugin feeds emitted declarations). 9 labeled hook sites in `component.ts`. Vite dev flag via entry transform (D14). +1,464 B gzip (D13). First launch was BLOCKED by G-004 |
 | 0C | Canonical-forms spec | ✅ | (coordinator, direct) | coordinator | this commit | [PLAN-1-canonical-forms.md](PLAN-1-canonical-forms.md) |
 | 1A | Runtime consistency checks | ⚪ | | | | |
 | 1B | Typed links (+ new `event()` helper) | ⚪ | | | | `event()` added per D12 |
@@ -39,7 +39,7 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | 3C | Docs site & repo docs | ⚪ | | | | |
 | 4A | Eval re-run | ⚪ | | | | 5 trials (Q4) |
 | 4B | Release prep | ⚪ | | | | |
-| — | Baseline eval run (0A procedure) | ⚪ | — | coordinator | — | 70 runs; starts after Phase 0 closes, before Phase 1 merges |
+| — | Baseline eval run (0A procedure) | 🟡 | — | coordinator | — | 70 runs against the tarball packed at `57499d1` (pre-0B; 0B has no observable behavior when off). Pilot sygnal-01-t1: PASS 3/3 |
 
 ## Gate Results
 
@@ -47,6 +47,7 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 |---|---|---|---|---|---|---|---|---|
 | Baseline (pre-work) | `18ce5c9` | ✅ (TS2322 warnings) | ❌ B-001 | ✅ 610 | ✅ | ✅ 83 | 57,405 B (raw 273,829 B) | Size-gate baseline: limit is 58,941 B (+1.5 KB) |
 | After 0A | `cb9fdf0` | — | ❌ B-001 | ✅ 610 | ✅ | ✅ 83 | unchanged | evals not collected by the root vitest; verify.mjs 28/28 |
+| After 0B (Phase 0 close) | `18b3895` | ✅ (pre-existing warnings) | ✅ B-001 fixed | ✅ 649 | ✅ | ✅ 83 | 58,869 B | **New size baseline (D13)**: Phase 1+ limit is 60,405 B |
 
 ## Open Questions (awaiting user)
 
@@ -75,13 +76,17 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | D11 | 2026-09-30 | Add workstream 1F (fix B-003, B-004, B-005), serialized after 1E | User (Q5) | Fixes land after the baseline eval, so the re-run reflects them |
 | D12 | 2026-09-30 | Canonical emit is `EVENTS: event('TYPE', fn)` inside the object form; the new `event()` helper is owned by 1B; `emit()` stays as a non-canonical alias | User (Q2, option A) | One model-entry shape everywhere; event name next to the call; composes with STATE without spreading |
 
+| D13 | 2026-09-30 | Size gate re-baselined to 58,869 B at Phase 0 close (per plan §1.4 "Phase 0 baseline"). 1A runtime checks must **not** ship in `index.esm.js`: put them in a separate build entry (e.g. `sygnal/diagnostics`) that the Vite plugin loads in serve mode and that test setup loads | Coordinator | 0B core alone used 1,464 of the 1.5 KB budget; checks are dev-only by nature |
+| D14 | 2026-09-30 | Vite dev flag is set by the entry-file transform (prepends `globalThis.__SYGNAL_DEV__ = true`), not by `define` | Coordinator (accepted subagent deviation) | `define` doesn't reach pre-bundled deps in Vite 8, and it would force diagnostics on in Vitest |
+| D15 | 2026-09-30 | Baseline trial dirs live under the session scratchpad (`scratchpad/runs/baseline`), not `/tmp/sygnal-evals` | Coordinator | Subagent writes are confined to the scratchpad (G-004); the path avoids the word "evals" (G-009) |
+
 ## Bugs & Gaps Found
 
 Pre-existing issues and gaps found during the work. Severity: high (blocks a gate or breaks users), med (wrong behavior or misleading), low (cosmetic or docs).
 
 | ID | Found | Severity | Area | Description | Status / Owner |
 |---|---|---|---|---|---|
-| B-001 | Baseline | high | Build / types | `npm run build:types` fails at HEAD (`18ce5c9`): rollup-plugin-dts "Syntax not yet supported" on the runtime statement `(_Fragment as any).__sygnalFragment = true` in `src/cycle/dom/snabbdom.ts:22`, which is pulled into the `.d.ts` bundle graph from `src/index.d.ts`. Same plugin/TS versions as the main checkout, so it's not an environment issue. | Open → 0B |
+| B-001 | Baseline | high | Build / types | `npm run build:types` fails at HEAD (`18ce5c9`): rollup-plugin-dts "Syntax not yet supported" on the runtime statement `(_Fragment as any).__sygnalFragment = true` in `src/cycle/dom/snabbdom.ts:22`, which is pulled into the `.d.ts` bundle graph from `src/index.d.ts`. Same plugin/TS versions as the main checkout, so it's not an environment issue. Root cause (0B): rollup-plugin-dts has no TS program for a `.d.ts` entry, so it reads `.ts` sources as declarations. | ✅ Fixed in 0B (`357f529`) |
 | B-002 | Baseline | low | Build | `npm run build` emits several `TS2322` warnings in the DOM source (`DevToolEnabledSource & MemoryStream<Element[]>` not assignable to `MemoryStream<(Element \| Document)[]>`). Non-fatal, but noisy, and it hides new warnings. | Open (unassigned; candidate for 1E or follow-up) |
 | B-003 | 0A | **high** | `src/component.ts` sinks | Non-STATE sinks see **stale state** within one tick. With `SAVE: { STATE: s=>({...s, saved: s.draft}), EVENTS: s=>({type, data: count(s.draft)}) }`, if an input-driven EDIT and the SAVE click land in the same tick, STATE sees the new draft but EVENTS sees the old one. Expected: every sink of one action sees the same state. Eval helpers wait 50 ms between actions to avoid it. | Open → 1F |
 | B-004 | 0A | med | Rendering | Controlled input isn't cleared when actions arrive in the same tick. With `<input value={state.draft}>`, typing then ADD (which resets the draft to `''`) in one tick leaves the typed text in the DOM: the intermediate render is coalesced, so snabbdom diffs `''→''` and never writes the value. | Open → 1F |
@@ -93,6 +98,14 @@ Pre-existing issues and gaps found during the work. Severity: high (blocks a gat
 | G-005 | Coordinator | low | API | `emit()` returns `{ EVENTS }`, so combining it with other sinks means spreading it: `{ ...emit('X', fn), STATE: ... }`. This is awkward if `emit()` becomes canonical. | Open; feeds Q2 |
 | G-006 | Coordinator | low | Housekeeping | Unused worktrees `.claude/worktrees/p1-0a` and `p1-0b` (branches `plan1/0a`, `plan1/0b`, no commits) are left over from the first launch; removing them from the coordinator was denied by the permission classifier. | **User action** (see below) |
 | G-007 | Coordinator | low | API | (1) The `event()` helper name collides by convention with the common callback param `event` (shadowing is harmless but can confuse readers); revisit the name before release. (2) The view receives `{ ...props, state, children, slots, context, peers }`, so a parent prop named `state`, `children`, `slots`, `context` or `peers` is silently overwritten. A candidate runtime diagnostic for 1A (SYG4xx). | Open → 1A (diagnostic for 2), 4B (name review) |
+| B-006 | Pilot trial | med | `src/extra/testing.ts` mock DOM | `renderComponent`'s mock DOM source doesn't support the enriched-event `.data()` helper: `DOM.change('.toggle').data('id', Number)` throws `TypeError: DOM.change(...).data is not a function`, so apps that use `.data()` can't be tested with `renderComponent`. Found by an eval trial agent. | Open → 1C |
+| G-008 | Coordinator | low | Skill | The installed user-level skill `~/.claude/skills/sygnal-dev/SKILL.md` lags the repo copy (missing the DISPOSE row and the dispose$ "prefer DISPOSE" note); `agents/` exists only in the repo. Eval trials use the installed copy. | Open → 3B sync |
+| G-009 | Coordinator | low | Eval harness | The `transcript-stats.mjs` audit flags every call whose path contains "evals", which gives false positives when the trial dir is under `.../evals/...`. | Mitigated by D15; fix the pattern before 4A |
+| G-010 | 0B | low | Types | `getDevTools` is exported at runtime but has no declaration in `src/index.d.ts`. | Open → 2B |
+| G-011 | 0B | med | Release | `npm run build` copies `src/index.d.ts` into `dist`, but that file has a relative `./cycle/dom/index` import that doesn't exist in dist. Correct types need `build:all`, and `package.json` has no `prepublishOnly` enforcing it. B-001 had been broken since the cycle-absorption commit `24e5790`, so versions published since then may ship broken types. | Open → 4B (add `prepublishOnly`; verify published types) |
+| G-012 | 0B | low | Types | Full-project `tsc` reports errors in `src/extra/testing.ts` (`Stream` used as a type, TS2749; `DOM` missing on the sources type, TS2339). Related to B-002. | Open → 1C |
+| G-013 | 0B | med | Diagnostics | `renderComponent` injects a synthetic `__TEST_ACTION__` intent and model entry, so diagnostics hooks see it, and `simulateAction` state changes reach `onReducer` as `__TEST_ACTION__` rather than the real action. Risk of SYG101/102 false positives. | Open → 1A + 1C |
+| G-014 | 0B | low | Vite | The dev flag only covers apps whose entry imports `run` from `sygnal`; the Astro and Vike integrations don't get dev mode. | Open → 2C |
 
 ## Worktree Setup (run by each subagent inside its own isolated worktree; see D5)
 
