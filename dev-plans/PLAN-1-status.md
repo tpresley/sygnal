@@ -14,7 +14,7 @@ Tracks progress for [PLAN-1.md](PLAN-1.md). Maintained by the coordinator.
 | 1 — Core capabilities | ✅ Done | `plan1-phase1` | 1A–1H ✅ · review: 11 findings + 2 minor, all fixed in 1H |
 | 2 — Strictness, introspection, integration | ✅ Done | `plan1-phase2` | 2A–2E ✅ · review: 10 findings, all fixed, plus 15 backlog items |
 | 3 — Agent context & docs | ✅ Done | `plan1-phase3` | 3A–3E ✅ · review: 11 findings, all fixed in 3E |
-| 4 — Measure & release | ⚪ Not started | — | |
+| 4 — Measure & release | 🟡 In progress | — | Skill synced (D35); 4A eval re-run running (D37) |
 
 Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ done · 🔴 blocked
 
@@ -128,6 +128,7 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | D31 | 2026-10-01 | The size gate keeps measuring **library** growth: the kanban example's own code changed in 2D (+32 B), so the gate is re-baselined to the 2D kanban bundle, with the same 41,773-equivalent headroom (169 B) for library additions | Coordinator | The gate measures what Sygnal adds to apps, not example code |
 | D32 | 2026-10-01 | Coordinator gate commands use `npm --prefix <root>`, because the shell sometimes stays in an example directory after commands that cd into one (it ran the wrong suite twice) | Coordinator | Gate reliability |
 
+| D37 | 2026-10-01 | 4A re-runs only the **Sygnal arm** (12 tasks × 5 trials = 60; runs `phase3` and `phase3-t2`) against the plan1-phase3 tarball; the React arm is unchanged and its baseline records are reused. Same coordinator/subagent method as the baseline, so harness-guard noise is comparable; the analyzer reports it separately. Waves of 6 concurrent trials | Coordinator | React arm has no code changes; halves eval cost; method parity with baseline |
 | D36 | 2026-10-01 | User: publish `sygnal-check` to npm in 4B (claim the name) and add it as a devDependency of every template; until then guidance uses `npx --no-install` | User | Unpublished name is a squatting risk under auto-installing npx |
 | D35 | 2026-10-01 | User: back up `~/.claude/skills/sygnal-dev` and replace it with the repo skill at the start of Phase 4 (after the Phase 3 close review), so eval trials use the new skill | User | Resolves G-008 |
 | D34 | 2026-10-01 | Add workstream 3D for the small API gaps 3A found (B-028, G-054, G-055, G-047 recheck), in parallel with 3B and 3C (file ownership is disjoint; 3D alone touches llms.txt after 3A) | Coordinator | Cheaper to fix than to document workarounds in llms.txt/skill |
