@@ -40,19 +40,22 @@ The primary agent is the **coordinator**. It does not implement features. It del
 6. **Ledger:** Keep `dev-plans/PLAN-1-status.md` up to date: workstream status, branch, agent ID, gate results, open questions, decisions.
 
 ### 1.2 Branch & worktree strategy
-Subagent worktrees **must branch from the integration branch**, not `origin/main`. The default `isolation: "worktree"` base may be `origin/main`, so don't rely on it. The coordinator creates each worktree explicitly:
+*(Revised during Phase 0. See status tracker D5 / G-004.)* Subagents inherit the coordinator's worktree pin, so a subagent can't run Bash in a worktree the coordinator created and passed by path. Instead:
 
-```bash
-git worktree add .claude/worktrees/p1-<id> -b plan1/<id> worktree-agent-ergonomics
-```
+1. Spawn each implementation subagent with `Agent({ isolation: "worktree", ... })`. The harness creates its own worktree and branch.
+2. The subagent's **first** action syncs its branch to the integration branch and installs dependencies:
+   ```bash
+   git merge --ff-only worktree-agent-ergonomics   # if that fails: git reset --hard worktree-agent-ergonomics (fresh branch only)
+   npm ci --no-audit --no-fund && npm ci --prefix browser-tests --no-audit --no-fund
+   (cd examples/kanban && npm install --no-audit --no-fund)
+   ```
+3. The subagent commits on its harness-assigned branch and reports the **branch name** in its final report.
 
-The coordinator then passes the absolute worktree path in the brief. The subagent's first action is `EnterWorktree` with that `path`.
-
-- Subagents commit on their own `plan1/<id>` branch (small, logical commits; attribution trailer per repo convention). They never merge, rebase onto, or push the integration branch.
-- The coordinator merges with `git merge --no-ff plan1/<id>` from the integration worktree.
-- When a later workstream needs an earlier one's merged output, the coordinator creates that worktree **after** the dependency is merged.
+- Subagents never merge into or push the integration branch.
+- The coordinator merges with `git merge --no-ff <branch>` from the integration worktree.
+- Workstreams that depend on earlier merged work are spawned **after** that dependency is merged into the integration branch.
 - Never use a bare `git stash` (the stash stack is shared across worktrees).
-- After merging, remove the worktree with `git worktree remove` and keep the branch until the phase closes.
+- Worktree cleanup after the phase closes is done by the user (removing worktrees from the coordinator was denied by the permission classifier).
 
 ### 1.3 File ownership (conflict avoidance)
 Hot files. During a phase, only the listed owner may edit them. Others request changes through the coordinator.
@@ -97,7 +100,10 @@ Each brief must stand alone. Subagents have no memory of this conversation.
 ```
 You are implementing workstream <ID> of dev-plans/PLAN-1.md in the Sygnal repo.
 
-FIRST: call EnterWorktree with path=<absolute worktree path>. Work only there.
+FIRST (you run in your own isolated worktree): run
+  git merge --ff-only worktree-agent-ergonomics   (fresh branch only: git reset --hard worktree-agent-ergonomics if ff fails)
+  npm ci --no-audit --no-fund && npm ci --prefix browser-tests --no-audit --no-fund && (cd examples/kanban && npm install --no-audit --no-fund)
+Report your branch name (git branch --show-current) in the final report.
 Read: CLAUDE.md, dev-plans/PLAN-1.md §<workstream section>, and <listed files>.
 
 Goal: <one paragraph>
