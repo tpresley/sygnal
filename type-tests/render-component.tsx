@@ -1,5 +1,5 @@
-import { renderComponent } from 'sygnal'
-import type { RenderResult } from 'sygnal'
+import { renderComponent, run } from 'sygnal'
+import type { RenderResult, RunOptions } from 'sygnal'
 
 function Counter({ state }: any) { return <div>{state.n}</div> }
 
@@ -19,4 +19,11 @@ async function check() {
   t.dispose()
   return [s, html, events, sink, codes]
 }
+// G-036: run() takes diagnostics.strict
+const runOptions: RunOptions = { diagnostics: { mode: 'warn', strict: true, ignore: ['SYG105'] } }
+export const startStrict = () => run(Counter, {}, { diagnostics: { strict: true } })
+// @ts-expect-error strict is a boolean
+export const badStrict: RunOptions = { diagnostics: { strict: 'yes' } }
+
+export { runOptions }
 export default check

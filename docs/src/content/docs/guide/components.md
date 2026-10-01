@@ -86,4 +86,4 @@ Always read everything from the first argument. The view is technically also cal
 
 ### Reserved Prop Names
 
-Because the view's first argument also carries `state`, `children`, `slots`, `context` and `peers`, a parent prop with one of these names is overwritten (Sygnal warns with [SYG106](/reference/errors/#syg106)). The `state` prop is special: it selects the child's [state slice](/guide/state/#passing-state-to-child-components). Name data props something else, such as `item` or `contextValue`.
+Because the view's first argument also carries `state`, `children`, `slots`, `context` and `peers`, a parent prop with one of these names is overwritten (Sygnal warns with [SYG106](/reference/errors/#syg106), an error in [strict mode](/guide/strict-mode/)). The `state` prop is special: it selects the child's [state slice](/guide/state/#passing-state-to-child-components). Name data props something else, such as `item` or `contextValue`.

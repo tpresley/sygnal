@@ -203,7 +203,7 @@ run(Quote, { QUOTE: driverFromAsync(id => fetch(`/api/quotes/${id}`).then(r => r
 A driver is any function `sink$ => source`. Page-wide events: `DOM.select('document' | 'body').events(type)`, CSS-filtered with `DOM.select('document').select('.overlay').events('click')`.
 
 ## 4. API facts
-- **Child props**: `<Rating name="food" value={state.food} />` → `function Rating({ state, name, value })`; reducers read `props.name` (4th arg); intent gets the `props$` stream. Reserved: `state` (lens: `"key"` or `{ get, set }`), `children`, `slots`, `context`, `peers` (SYG106). Without `state=` a child shares its parent's whole state.
+- **Child props**: `<Rating name="food" value={state.food} />` → `function Rating({ state, name, value })`; reducers read `props.name` (4th arg); intent gets the `props$` stream. Reserved: `state` (lens: `"key"` or `{ get, set }`), `children`, `slots`, `context`, `peers` (SYG106; an error in strict mode). Without `state=` a child shares its parent's whole state.
 - **CHILD.select(Comp)** emits exactly what the child's `PARENT` function returned, for every instance (Collection items too). Put an id in the payload.
 - **run(App, drivers = {}, { mountPoint = '#root', diagnostics })** returns `{ sources, sinks, dispose, hmr }`. DOM, EVENTS, LOG and STATE are built in. `app.sources.STATE.stream` is the state stream; `app.dispose()` fires DISPOSE.
 - **ABORT**: from a STATE reducer, the state is unchanged; from any other sink, nothing is sent.
@@ -295,7 +295,7 @@ it('counts in the real DOM', async () => {
 - `npx --no-install sygnal-check` runs the locally installed checker, never a download (a `create-sygnal-app` project already has the `sygnal-check` dev dependency; elsewhere `npm i -D sygnal-check`; still not installed? skip it and rely on the runtime diagnostics in the tests). It checks `src` statically; pass other paths instead, e.g. `npx --no-install sygnal-check pages --strict` (Vike). Use `--strict` for canonical forms, `--fix` to apply the mechanical rewrites (implies `--strict`), and `--json` / `--verbose` for output. `npx --no-install sygnal-check explain SYG104` explains a code and its fix. Suppress one line with `// sygnal-ignore SYG110`.
 - App graph: `npx --no-install sygnal-check --graph --json` (static), `t.inspect()` (test), `getDevTools().inspect()` (running dev app). All return the same `InspectGraph`: components, actions and their triggers, selectors (`matched`, `isolationHit`), EVENTS emitters/selectors, diagnostics.
 - Vite plugin in dev (`vite`, never `vite build`): runtime checks print warnings to the console; when `sygnal-check` is installed, the plugin also runs it on start and on every save. Stricter: `sygnal({ diagnostics: { mode: 'error', strict: true }, check: { strict: true } })`.
-- Without the plugin: `run(App, drivers, { diagnostics: 'warn' })` and `import 'sygnal/diagnostics'` for the full checks. Runtime strict: `configureStrict(true)` from `'sygnal/diagnostics'`, or `renderComponent(C, { strict: true })`.
+- Without the plugin: `run(App, drivers, { diagnostics: 'warn' })` and `import 'sygnal/diagnostics'` for the full checks. Runtime strict: `run(App, drivers, { diagnostics: { strict: true } })`, `configureStrict(true)` from `'sygnal/diagnostics'`, or `renderComponent(C, { strict: true })` (all need `'sygnal/diagnostics'`).
 - MCP: `claude mcp add sygnal-check -- npx --no-install sygnal-check mcp` (tools `check`, `graph`, `explain`).
 
 ## 9. Project setup (Vite)

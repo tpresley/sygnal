@@ -33,7 +33,7 @@ Codes are grouped by area: `SYG1xx` wiring (intent, model, view, EVENTS), `SYG2x
 
 Each diagnostic has a severity:
 
-- `error`: something is broken. Thrown, or logged with `console.error`.
+- `error`: something is broken. Thrown, or caught and logged with `console.error` while the app keeps running (a reducer, EFFECT or view that threw). An error thrown by Sygnal inside your code, such as `next()` with a bad delay inside a reducer, is reported under its own code, not as "reducer threw".
 - `warn`: almost certainly a bug.
 - `info`: a hint that needs a judgment call. Collected, never printed.
 
@@ -58,6 +58,9 @@ run(App, {}, { diagnostics: 'error' })
 
 // mode plus codes to ignore
 run(App, {}, { diagnostics: { mode: 'warn', ignore: ['SYG105'] } })
+
+// strict-mode checks too (needs import 'sygnal/diagnostics'; mode defaults to 'warn')
+run(App, {}, { diagnostics: { strict: true } })
 ```
 
 The option takes precedence over the dev flag the Vite plugin sets. `run(App, {}, { diagnostics: 'off' })` turns diagnostics off for that app even in dev.
@@ -74,7 +77,7 @@ Most runtime checks don't ship in your app. They live in a separate entry that y
 import 'sygnal/diagnostics'   // registers the checks (side effect)
 ```
 
-Loading it registers the dev checks: SYG101/102 (intent and model wiring), SYG103/104 (selectors that match nothing, or only match inside a child component), SYG105 (EVENTS types), SYG106 (props overwritten by reserved view arguments), SYG201/202 (reducer results), SYG301 (RxJS operators on xstream streams), SYG401 (Collection `from`) and the strict-mode rules. The checks only run while diagnostics are on (any mode but `'off'`).
+Loading it registers the dev checks: SYG101/102 (intent and model wiring), SYG103/104 (selectors that match nothing, or only match inside a child component), SYG105 (EVENTS types), SYG106 (props overwritten by reserved view arguments; an error in strict mode), SYG201/202 (reducer results), SYG301 (RxJS operators on xstream streams), SYG401 (Collection `from`) and the strict-mode rules. The checks only run while diagnostics are on (any mode but `'off'`).
 
 The entry also exports a few helpers:
 

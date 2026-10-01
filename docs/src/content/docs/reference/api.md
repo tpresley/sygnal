@@ -30,7 +30,7 @@ function run(
 | `mountPoint` | `string` | `'#root'` | CSS selector for the DOM element to render into |
 | `fragments` | `boolean` | `true` | Enable JSX fragment support in the DOM driver |
 | `useDefaultDrivers` | `boolean` | `true` | Include default drivers (DOM, STATE, EVENTS, LOG) |
-| `diagnostics` | `DiagnosticsMode \| { mode?, ignore? }` | `'off'` (`'warn'` in the Vite dev server) | Runtime [diagnostics](/guide/diagnostics/): `'off'`, `'collect'`, `'warn'` or `'error'`, plus codes to ignore. Takes precedence over the dev flag the Vite plugin sets |
+| `diagnostics` | `DiagnosticsMode \| { mode?, ignore?, strict? }` | `'off'` (`'warn'` in the Vite dev server) | Runtime [diagnostics](/guide/diagnostics/): `'off'`, `'collect'`, `'warn'` or `'error'`, plus codes to ignore and [strict mode](/guide/strict-mode/) (`strict: true` needs `sygnal/diagnostics`; without a `mode` it also turns diagnostics on). Takes precedence over the dev flag the Vite plugin sets |
 
 ### Returns: SygnalApp
 

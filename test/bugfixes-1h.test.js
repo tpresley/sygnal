@@ -439,7 +439,7 @@ describe('1H-9: isolatedState child without a state prop keeps its state off the
     function Mid({ state }) { return h('div', null, h('b', null, String(state.k)), h(Leaf)) }
     Mid.isolatedState = true
     Mid.initialState = { k: 1 }
-    Mid.model = { NOOP: s => s } // without a model, INITIALIZE (and so initialState) never runs
+    Mid.model = { NOOP: s => s } // (before B-016 a model was needed for INITIALIZE to run)
     function App({ state }) { return h('div', null, h('span', null, String(state.count)), h(Mid)) }
     App.initialState = { count: 0 }
     t = renderComponent(App)

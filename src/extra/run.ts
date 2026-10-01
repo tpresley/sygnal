@@ -5,16 +5,24 @@ import eventBusDriver from './eventDriver';
 import logDriver from './logDriver';
 import component, {ABORT} from '../component';
 import {getDevTools} from './devtools';
-import {configureDiagnostics} from './diagnostics/index';
+import {configureDiagnostics, getDiagnosticsMode} from './diagnostics/index';
+import {warn} from './diagnostics/legacy';
 import type {DiagnosticsMode, DiagnosticsOptions} from './diagnostics/index';
+
+interface RunDiagnosticsOptions extends DiagnosticsOptions {
+  /** Strict (canonical-form) runtime checks; needs the 'sygnal/diagnostics' dev entry (G-036). */
+  strict?: boolean;
+}
 
 interface RunOptions {
   mountPoint?: string;
   fragments?: boolean;
   useDefaultDrivers?: boolean;
-  /** Diagnostics mode (or mode + ignore list). Overrides globalThis.__SYGNAL_DEV__. */
-  diagnostics?: DiagnosticsMode | DiagnosticsOptions;
+  /** Diagnostics mode (or mode + ignore list + strict). Overrides globalThis.__SYGNAL_DEV__. */
+  diagnostics?: DiagnosticsMode | RunDiagnosticsOptions;
 }
+
+let warnedStrict = false;
 
 interface SygnalRunResult {
   sources: any;
@@ -38,8 +46,20 @@ export default function run(
   // Each run() is authoritative: without the option, mode and ignore list
   // reset to defaults (no leakage from an earlier run()/configureDiagnostics()).
   const {diagnostics} = options;
-  const diagOptions: DiagnosticsOptions = typeof diagnostics === 'string' ? {mode: diagnostics} : diagnostics || {};
-  configureDiagnostics({mode: diagOptions.mode, ignore: diagOptions.ignore || []});
+  const diagOptions: RunDiagnosticsOptions = typeof diagnostics === 'string' ? {mode: diagnostics} : diagnostics || {};
+  const {mode, strict} = diagOptions;
+  configureDiagnostics({mode, ignore: diagOptions.ignore || []});
+  // G-036: strict is applied only when given (an earlier configureStrict() is kept). It sets
+  // the flag the dev entry's strict checks read; strict without a mode turns diagnostics on.
+  if (strict !== undefined) {
+    const core = (globalThis as any).__SYGNAL_DIAGNOSTICS__;
+    core.strict = strict;
+    if (strict && !mode && getDiagnosticsMode() == 'off') configureDiagnostics({mode: 'warn'});
+    if (strict && !core.__uninstallChecks && !warnedStrict) {
+      warnedStrict = true;
+      warn('SYG608', 'run', "strict needs 'sygnal/diagnostics', which is not loaded", "Import it in dev");
+    }
+  }
 
   const {mountPoint = '#root', fragments = true, useDefaultDrivers = true} = options;
   if (!app.isSygnalComponent) {

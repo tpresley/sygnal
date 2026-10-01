@@ -166,9 +166,13 @@ export const createElementWithModules = (modules: Record<string, any>) => {
   return (sel: any, data: any, ...children: any[]) => {
     if (typeof sel === 'undefined') {
       sel = 'UNDEFINED'
-      // Pre-formatted (formatDiagnostic output) instead of diagnostics/legacy: the JSX
-      // runtime entries bundle this file standalone and must not carry a second diagnostics core.
-      console.error('[Sygnal SYG420] JSX: A JSX tag is undefined, so <UNDEFINED> is rendered instead. Import or define the component in this file. https://sygnal.js.org/reference/errors#syg420')
+      // The JSX runtime entries bundle this file standalone and must not carry a second
+      // diagnostics core, so it goes through the core's bridge (G-044: collected like the
+      // other codes), or, without a core, prints the same pre-formatted text.
+      const msg = 'A JSX tag is undefined, so <UNDEFINED> is rendered instead', fix = 'Import or define the component in this file'
+      const core = (globalThis as any).__SYGNAL_DIAGNOSTICS__
+      if (core && core.error) core.error('SYG420', 'JSX', msg, fix)
+      else console.error(`[Sygnal SYG420] JSX: ${msg}. ${fix}. https://sygnal.js.org/reference/errors#syg420`)
     }
     const isComponent = is.fun(sel)
     if (isComponent) {

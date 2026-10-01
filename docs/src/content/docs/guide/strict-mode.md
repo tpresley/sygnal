@@ -21,6 +21,8 @@ Strict mode is off by default. Its rules are SYG501 to SYG507.
 
 All strict findings are warnings, except SYG507, which is info.
 
+Strict mode also raises one non-strict code: [SYG106](/reference/errors/#syg106) (a parent prop named `state`, `children`, `slots`, `context` or `peers` that the view overwrites) is an **error** instead of a warning while runtime strict mode is on. SYG106 is a runtime check of `sygnal/diagnostics`; `sygnal-check` has no static rule for it.
+
 ### SYG501: destructure the view's first argument
 
 ```jsx
@@ -138,6 +140,18 @@ export default defineConfig({
 
 `diagnostics.strict` turns on the runtime strict checks in dev (the plugin sets `globalThis.__SYGNAL_STRICT__ = true`) and is also the default for `check.strict`, so the dev server's `sygnal-check` run includes the strict rules.
 
+### At runtime, from `run()`
+
+```javascript
+import 'sygnal/diagnostics'   // dev only; the strict checks live in this entry
+import { run } from 'sygnal'
+import App from './App.jsx'
+
+run(App, {}, { diagnostics: { strict: true } })
+```
+
+`strict: true` turns the runtime strict checks on, and diagnostics too (`'warn'`) unless you give a `mode`. `strict: false` turns them off; leaving `strict` out keeps an earlier `configureStrict()` setting. Without the `sygnal/diagnostics` entry there are no strict checks to run, so `run()` prints [SYG608](/reference/errors/#syg608) once and continues.
+
 ### At runtime, from code
 
 ```javascript
@@ -158,7 +172,7 @@ import { renderComponent } from 'sygnal'
 
 const t = renderComponent(Lane, { strict: true })
 await t.ready()
-t.expectNoDiagnostics()   // fails on SYG501/502/504 as well
+t.expectNoDiagnostics()   // fails on SYG501/502/504 (and SYG106) as well
 t.dispose()               // restores the previous strict setting
 ```
 
@@ -167,6 +181,6 @@ t.dispose()               // restores the previous strict setting
 - The runtime only checks what it can detect reliably: SYG501, SYG502 and SYG504. SYG503, SYG505, SYG506 and SYG507 are static only (`sygnal-check --strict`), because at runtime `emit()` and `{ EVENTS }` look the same, a side effect looks like any other call, and `CHILD.select()` arguments aren't visible.
 - SYG501 at runtime uses the view's declared arity, so a default value or a rest parameter (`(props, state = {})`) can hide a positional use. The static rule doesn't have this gap.
 - SYG502 at runtime fires when a reducer returns the exact object it received. A reducer that returns a copy with no changes isn't flagged.
-- `run(App, drivers, { diagnostics: { strict: true } })` is **not** supported: `run()` only takes `mode` and `ignore`. Turn strict mode on with `configureStrict(true)`, `globalThis.__SYGNAL_STRICT__ = true` (set before the checks run), the Vite plugin's `diagnostics.strict`, or `renderComponent(C, { strict: true })`.
+- Every runtime switch (`run(App, drivers, { diagnostics: { strict: true } })`, `configureStrict(true)`, `globalThis.__SYGNAL_STRICT__ = true`, the Vite plugin's `diagnostics.strict`, `renderComponent(C, { strict: true })`) needs the `sygnal/diagnostics` entry loaded; the Vite plugin and its Vitest setup add it for you.
 - The strict codes' severities are registered by the `sygnal/diagnostics` entry, so `getCodeInfo('SYG501')` only returns them once that entry is loaded.
 - SYG503 is a heuristic: it looks for a call whose result is unused on the path to `return ABORT`.

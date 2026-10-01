@@ -20,10 +20,18 @@
  * (Comments are attached to type-only declarations so the TypeScript emit
  * drops them — keeps them out of the published bundle and the size gate.)
  *
- * Severity:
- *   - 'error' — throws (or is rethrown, enriched) at the call site
- *   - 'warn'  — console + collected (when diagnostics mode is 'warn')
+ * Severity (PLAN-2 1-B, G-044):
+ *   - 'error' — the operation failed: thrown at the call site, or caught there
+ *               (reducer, EFFECT, view, sub-component) and logged with
+ *               console.error while the app keeps running
+ *   - 'warn'  — likely mistake, behaviour continues: console + collected
+ *               (when diagnostics mode is 'warn')
  *   - 'info'  — collected only; surfaced through inspect / test helpers
+ *   A call site may report a lower severity than the default (SYG405 for
+ *   Collection/Switchable children, SYG406 handled by onError: 'warn').
+ *   Every code surfaces under its own code: an error thrown by fail() and
+ *   caught by a reducer/EFFECT/instantiation handler is reported under the
+ *   thrown code (legacy.caught), not the handler's.
  *
  * Ranges (see dev-plans/PLAN-1.md §2):
  *   SYG1xx  Wiring: intent <-> model <-> view <-> events
@@ -93,7 +101,7 @@ export const CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG402: 'error',
   SYG403: 'error',
   SYG404: 'error',
-  SYG405: 'warn',
+  SYG405: 'error',
   SYG406: 'error',
   SYG407: 'error',
   SYG408: 'error',
@@ -116,6 +124,7 @@ export const CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG605: 'error',
   SYG606: 'error',
   SYG607: 'error',
+  SYG608: 'warn',
   SYG901: 'error',
   SYG902: 'error',
   SYG903: 'error',
@@ -191,6 +200,7 @@ export const CODE_TITLES: Record<string, string> = {
   SYG605: "Intent action name contains '|'",
   SYG606: 'calculated is not an object',
   SYG607: 'State source not found',
+  SYG608: 'Strict mode requested without the diagnostics entry',
   SYG901: 'Sub-component sink stream errored',
   SYG902: 'EFFECT stream errored',
   SYG903: 'Component factory returned invalid sinks',
