@@ -1386,27 +1386,32 @@ class Component {
   instantiateCollection(el: any, props$: any, children$: any): any {
     const data      = el.data
     const props     = data.props || {}
-    let filter      = typeof props.filter === 'function' ? props.filter : undefined
-    let sort        = sortFunctionFromProp(props.sort)
-
-    const arrayOperators = {
-      filter,
-      sort
+    // f/s: the raw props last applied (a sort object isn't the sort function made from it)
+    const arrayOperators: Record<string, any> = {
+      f: props.filter,
+      s: props.sort,
+      filter: typeof props.filter === 'function' ? props.filter : undefined,
+      sort: sortFunctionFromProp(props.sort)
     }
-    
+
     const state$ = xs.combine(this.sources[this.stateSourceName].stream.startWith(this.currentState), props$.startWith(props))
       // this debounce is important. it forces state and prop updates to happen at the same time
       // without this, changes to sort or filter won't happen properly
       .compose(debounce(1))
       .map(([state, props]: [any, any]) => {
-        if (props.filter !== arrayOperators.filter) {
-          arrayOperators.filter = typeof props.filter === 'function' ? props.filter : undefined
+        let changed
+        if (props.filter !== arrayOperators.f) {
+          arrayOperators.filter = typeof (arrayOperators.f = props.filter) === 'function' ? props.filter : undefined
+          changed = 1
         }
-        if (props.sort !== arrayOperators.sort) {
-          arrayOperators.sort = sortFunctionFromProp(props.sort)
+        if (props.sort !== arrayOperators.s) {
+          arrayOperators.sort = sortFunctionFromProp(arrayOperators.s = props.sort)
+          changed = 1
         }
-        // calculated fields are added by the lens (B-013)
-        return state
+        // G-102: in a child component new filter/sort props can arrive a render after the
+        // state; a copy gets past the state source's dropRepeats so the items are filtered
+        // and sorted again. Calculated fields are added by the lens (B-013)
+        return changed && isObj(state) ? { ...state } : state
       })
 
     const stateSource  = new StateSource(state$, this.stateSourceName)
@@ -1434,7 +1439,7 @@ class Component {
         if (!Array.isArray(state[stateField])) return []
         const items = state[stateField]
         const filtered = typeof arrayOperators.filter === 'function' ? items.filter(arrayOperators.filter) : items
-        const sorted = typeof arrayOperators.sort === 'function' ? filtered.sort(arrayOperators.sort) : filtered
+        const sorted = typeof arrayOperators.sort === 'function' ? [...filtered].sort(arrayOperators.sort) : filtered
         const mapped = sorted.map((item: any, index: any) => {
           return (isObj(item)) ? { ...item, [idField]: item[idField] || index } : { value: item, [idField]: index }
         })
@@ -2203,7 +2208,8 @@ function objIsEqual(obj1: any, obj2?: any, maxDepth: number = 5, depth: number =
 
 function sanitizeObject(obj: any): any {
   if (!isObj(obj)) return obj
-  const {state, of, from, filter, ...sanitized} = obj
+  // G-102: only the state binding; of/from/filter are ordinary props of a component
+  const {state, ...sanitized} = obj
   return sanitized
 }
 
