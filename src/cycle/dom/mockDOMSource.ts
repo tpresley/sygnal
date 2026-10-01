@@ -98,6 +98,9 @@ export class MockedDOMSource {
   public isolateSink(sink: any, scope: string): any {
     return adapt(
       xs.fromObservable<any>(sink).map((vnode: VNode) => {
+        // B-025: a Switchable's DOM sink starts with undefined (nothing rendered yet); the
+        // real DOM driver's isolateSink passes it through too
+        if (!vnode) return vnode;
         if (vnode.sel && vnode.sel.indexOf(SCOPE_PREFIX + scope) !== -1) {
           return vnode;
         } else {
