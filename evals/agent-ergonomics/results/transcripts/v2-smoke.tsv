@@ -1,0 +1,3 @@
+# v2-smoke: headless trials (orchestrate.mjs); transcripts are <trials-root>/v2-smoke/<trial>.transcript.jsonl
+react-01-t1	headless
+sygnal-01-t1	headless

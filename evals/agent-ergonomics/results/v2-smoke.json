@@ -1,0 +1,42 @@
+[
+  {
+    "task": "01-clear-completed",
+    "arm": "react",
+    "trial": 1,
+    "pass": true,
+    "testsPassed": 3,
+    "testsTotal": 3,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 20,
+    "durationMs": 19048,
+    "tokens": 105891,
+    "outputTokens": 1690,
+    "costUsd": 0.18155300000000002,
+    "model": "claude-opus-5-5",
+    "method": "headless",
+    "failureCategory": "none",
+    "failures": [],
+    "scoredAt": "2026-10-01T20:44:44.441Z"
+  },
+  {
+    "task": "01-clear-completed",
+    "arm": "sygnal",
+    "trial": 1,
+    "pass": true,
+    "testsPassed": 3,
+    "testsTotal": 3,
+    "iterations": 1,
+    "editRounds": 0,
+    "wallSeconds": 20,
+    "durationMs": 19139,
+    "tokens": 112128,
+    "outputTokens": 1789,
+    "costUsd": 0.255889,
+    "model": "claude-opus-5-5",
+    "method": "headless",
+    "failureCategory": "none",
+    "failures": [],
+    "scoredAt": "2026-10-01T20:44:45.241Z"
+  }
+]
