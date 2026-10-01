@@ -12,7 +12,7 @@ Tracks progress for [PLAN-2.md](PLAN-2.md). Maintained by the coordinator. The P
 |---|---|---|---|
 | 0 — Release follow-through, eval infrastructure | 🟡 In progress | — | 0-A ✅ · 0-B ✅ · 0-C ✅ · tier-3 pilot ✅ (20/20 pass; Sygnal 66.6 s vs React 45.7 s) · v2-baseline 🟡 (160 trials, D46) |
 | 1 — Correctness backlog | ✅ Done | `plan2-phase1` | 1-A…1-F ✅ · 1-T trim ✅ · review: 6 findings + 2 notes, all fixed in 1-R · kanban 41,803 B (2 B headroom) |
-| 2 — Known ergonomics improvements | 🟡 In progress | — | 2-A 🟡 · 2-B 🟡 · 2-C 🟡 · 2-D 🟡 |
+| 2 — Known ergonomics improvements | 🟡 In progress | — | 2-A 🟡 · 2-B ✅ · 2-C 🟡 · 2-D 🟡 |
 | 3 — Experiments | ⚪ | — | |
 | 4 — Adopt, measure, release | ⚪ | — | |
 
@@ -33,7 +33,7 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | 1-T | Size trim (G-088) | ✅ | `worktree-agent-af1bfdae13632e5a7` | subagent | `12cc8b9` | 41,991 → **41,719 B** with no behaviour change: `onlineStatus$` marked pure (−105), `optionsOf()` replaces 4 copy-pasted option blocks (−92), short core SYG608 text (−26), pragma `chainHooks` and marker fall-through (−26), small dedups (−23). Top contributors: component.ts 11.6k, xstream 3.4k, get-intrinsic 2.5k (via xstream's `globalthis`), devtools 2.3k |
 | 1-R | Review fixes + leftovers (G-083, G-084, G-086, G-087, G-091…G-098) | ✅ | `worktree-agent-ac20436bed98cd91a` | subagent | `1275440`, `a0e0170`, `1c81963` | All fixed (G-095: img error not reproducible in Chromium; iframe about:blank on attribute removal is per spec). G-084 root cause: `getComponents()` descended into component vnodes' children, so every ancestor made a never-rendered duplicate instance that ran BOOTSTRAP/timers and wrote state keys; scan now stops at component vnodes. G-098 reproduced as a hydration failure (`MemoryStream` export) → `'sygnal'` added to optimizeDeps.include for installed sygnal. G-083: Vike config is one ESM `dist/vike/config/+config.js` + generated `package.json` (type module); CJS config build removed. `SortSpec` type exported. Kanban +84 B → 41,803 B |
 | 2-A | Testing completeness (G-064, G-065, G-053) | 🟡 | | subagent | | |
-| 2-B | Agent docs (2-D1 snapshot semantics, 2-D2 extract-component recipe, 2-D3 latest-only pattern) | 🟡 | | subagent | | |
+| 2-B | Agent docs (2-D1 snapshot semantics, 2-D2 extract-component recipe, 2-D3 latest-only pattern) | ✅ | `worktree-agent-a44b2fbe9d096f4ac` | subagent | `032363c` | 2-D1: guide/model.md "Sinks See the State Before the Action" + one bullet each in llms.txt/SKILL.md (verified with a scratch test; B-003 tests already guard it). 2-D2: guide/parent-child.md recipe (snapshot → move markup → PARENT + `CHILD.select` → re-run), compact SKILL.md form, llms.txt pointer; validated on the task-08 starter (identical HTML). 2-D3: guide/drivers.md "Only the Latest Response" (reqId in state, echoed by the driver, ABORT on mismatch, clear bumps reqId); scratch-tested out-of-order, stale failure, clear-in-flight. llms.txt 249 lines; 382 samples strict-clean |
 | 2-C | Component and Vike bugs (G-102, G-106, G-107, G-108, G-109) | 🟡 | | subagent | | |
 | 2-D | `globalthis` alias in `sygnal/vite` + size-gate script (G-099) | 🟡 | | subagent | | Gated number = kanban built with the opt-out (core growth); default build reported |
 | 1-F | Examples (G-052, G-063) | ✅ | (same branch as 1-C) | subagent | `fd3fc7c` | todomvc ids = max id + 1; `LOG` sink uses the reducer form (type gap → G-077); build runs `tsc --noEmit`; custom pollers removed from `app.test.ts`, which uses `next`/`settle`/`html`; new id test. Strict-clean |
@@ -136,6 +136,7 @@ gzip -c /tmp/kb/assets/index-*.js | wc -c      # budget 41,805 B
 
 ## Activity Log
 
+- 2026-10-01 — 2-B merged (docs; samples 382 clean, docs build OK).
 - 2026-10-01 — Tier-3 pilot done (20/20, $7.55); D46: tiers frozen, v2-baseline (160 trials, est. $58 / 1.3 h) started from the user's terminal; Phase 2 workstreams 2-A, 2-B, 2-C launched.
 - 2026-10-01 — 0-C merged (tier 3, 78/78 incl. vs the 5.4.0 tarball); 0-B fix2 merged; 1-R merged, full gate green (916 vitest, 121 browser, 41,803 B); Phase 1 closed, tagged `plan2-phase1`. 5.4.0 skill installed (D45); tier-3 pilot (20 trials) started from the user's terminal. New: G-102…G-109.
 - 2026-10-01 — User re-logged the CLI (2.1.287). 0-B fix merged; real smoke passed 2/2 ($0.44, Opus 5.5 verified); analyzer gap G-101 → 0-B fix2.
