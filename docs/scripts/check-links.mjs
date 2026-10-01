@@ -17,10 +17,6 @@ import { fileURLToPath } from 'node:url'
 const docsRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const dist = path.resolve(process.argv[2] || path.join(docsRoot, 'dist'))
 
-// Published by another part of the repo (llms.txt is copied into docs/public
-// by its own workstream); a missing copy is reported as a notice only.
-const OPTIONAL = new Set(['/llms.txt'])
-
 function walk(dir) {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap(e => {
     const p = path.join(dir, e.name)
@@ -49,7 +45,6 @@ function resolve(sitePath) {
 }
 
 const broken = []
-const notices = new Set()
 for (const page of pages) {
   const html = fs.readFileSync(page, 'utf8')
   const pagePath = '/' + path.relative(dist, page).split(path.sep).join('/').replace(/index\.html$/, '')
@@ -60,8 +55,7 @@ for (const page of pages) {
     const target = rawPath === '' ? pagePath : new URL(rawPath, 'https://x' + pagePath).pathname
     const file = resolve(target.split('?')[0])
     if (!file) {
-      if (OPTIONAL.has(target)) notices.add(target)
-      else broken.push(`${pagePath} -> ${href} (no such page)`)
+      broken.push(`${pagePath} -> ${href} (no such page)`)
       continue
     }
     if (fragment && file.endsWith('.html') && !idsOf(file).has(decodeURIComponent(fragment))) {
@@ -70,7 +64,6 @@ for (const page of pages) {
   }
 }
 
-for (const n of notices) console.log(`notice: ${n} is not in this build (published separately)`)
 if (broken.length) {
   console.error(`${broken.length} broken internal link(s):`)
   for (const b of [...new Set(broken)]) console.error('  ' + b)
