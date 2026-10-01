@@ -119,7 +119,7 @@ Prefer `simulateEvent`: it also tests the intent wiring (the selector, the event
 
 `simulateEvent` and `simulateAction` calls are delivered in the order you make them. Calls made before the component has finished subscribing are buffered and replayed, so you can call them right after `renderComponent()`. `await t.ready()` resolves once the component is subscribed and the buffered calls have been delivered.
 
-`ready()` is also a cursor for the following `next()`: the first `next()` after `await t.ready()` starts at the moment the component became ready, so it also matches the states the replayed calls produced. Both orders work:
+`ready()` is also a cursor for the `next()` calls that follow it: a `next()` right after `await t.ready()` starts at the moment the component became ready, so it also matches the states the replayed calls produced. Both orders work:
 
 ```jsx
 t.simulateEvent('.inc', 'click')      // buffered
@@ -132,7 +132,7 @@ await t.ready()
 await p
 ```
 
-Any other `t.*` call in between (`simulate*`, `waitForState`, `settle`, another `next`) uses up the cursor. Calling `ready()` again on a ready component re-arms it at that point.
+Every `next()` started while the cursor is armed starts there, so `await Promise.all([t.next(a), t.next(b)])` works too. The cursor is used up by `simulateEvent`/`simulateAction`, `waitForState`, `settle`, and by the first of those `next()` calls resolving (a later `next()` waits for a new state). If no `next()` uses it before the next macrotask after `ready()` resolves (for example `await t.ready()` followed by `await sleep(10)`, or an un-awaited `t.ready()` in a `beforeEach`), it expires. Calling `ready()` again on a ready component re-arms it at that point.
 
 ## Waiting for Results
 
@@ -177,7 +177,7 @@ expect(t.emitted).toEqual([])
 
 - `next()`, `waitForState()` and `settle()` decide that the tree is quiet when nothing has rendered, reduced or changed state for a short window (10 ms per check for `next`/`waitForState`, `settleMs` = 20 ms for `settle`).
 - A model `next('ACTION', data, delay)` follow-up with a delay longer than `settleMs` fires after `settle()` has resolved. Wait for its result with `await t.next(predicate)`, or raise `settleMs` above the delay. If a wait times out first, its error names the follow-up (`next('DONE') scheduled by Saver with a 400ms delay is still pending`) and the `timeoutMs` option.
-- Child renders, child sinks and `next()` follow-ups are observed through the diagnostics hooks. With `diagnostics: 'off'` the helpers can't see them: waits fall back to up to 250 ms, and a child's driverless sink isn't recorded.
+- Child renders, child sinks and `next()` follow-ups are observed through internal hooks that also run with `diagnostics: 'off'` (which only turns off the reported diagnostics).
 - The options `settleMs` (20), `eventWaitMs` (300, how long `simulateEvent` waits for its element) and `timeoutMs` (2000) change these; see [Options](#options).
 - The mock DOM finds `<Portal>` content as if it were rendered in place, which is more lenient than a real DOM, where portal content is outside the component's event scope.
 
@@ -266,8 +266,10 @@ When an event "does nothing" in a test, `t.inspect()` usually shows why: a selec
 | `strict` | `boolean` | unchanged | Strict-mode runtime checks while rendered |
 | `mockConfig` | `object` | `{}` | Extra mock DOM event streams, by selector (see below) |
 | `timeoutMs` | `number` | `2000` | Default timeout of `next()`, `waitForState()` and `settle()` |
-| `settleMs` | `number` | `20` | `settle()`'s quiet window: how long nothing may happen before it resolves |
+| `settleMs` | `number` | `20` | `settle()`'s quiet window: how long nothing may happen before it resolves (at most `timeoutMs`) |
 | `eventWaitMs` | `number` | `300` | How long `simulateEvent` waits for a matching element (and its listeners) |
+
+The timing options (and a timeout passed to `next()`, `waitForState()` or `settle()`) must be finite numbers of milliseconds from 0 to 2147483647 (`setTimeout`'s limit); anything else throws.
 
 ## Result
 

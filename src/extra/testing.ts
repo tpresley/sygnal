@@ -461,6 +461,9 @@ const TIMING = {eventWaitMs: 300, settleMs: 20, timeoutMs: 2000};
 // makeEffectHandler: "... next() action: <TYPE> 400ms delay")
 const NEXT_LOG = /next\(\) action: <(.*)> (\d+)ms delay$/;
 const RESERVED_SINKS = /^(STATE|EFFECT|PARENT|READY|DOM)$/;
+// R2-5: setTimeout fires at once for a delay above 2^31-1 ms (and for Infinity/NaN)
+const MAX_MS = 2147483647;
+const validMs = (v: any) => typeof v == 'number' && Number.isFinite(v) && v >= 0 && v <= MAX_MS;
 let savedConfig: ReturnType<typeof _getDiagnosticsConfig>;
 let savedStrict: any;
 
@@ -474,10 +477,17 @@ export function renderComponent(
   for (const k of Object.keys(TIMING) as (keyof typeof TIMING)[]) {
     const v = options[k];
     if (v === undefined) continue;
-    if (typeof v != 'number' || !(v >= 0)) throw new Error(`[Sygnal] renderComponent: ${k} must be a non-negative number of ms (got ${String(v)})`);
+    if (!validMs(v)) throw new Error(`[Sygnal] renderComponent: ${k} must be a finite number of ms between 0 and ${MAX_MS} (got ${String(v)})`);
     timing[k] = v;
   }
   const {eventWaitMs, settleMs, timeoutMs: defaultTimeout} = timing;
+  // R2-5: settle() could never see a quiet window longer than its timeout
+  if (settleMs > defaultTimeout) {
+    throw new Error(`[Sygnal] renderComponent: settleMs (${settleMs}) is longer than timeoutMs (${defaultTimeout}), so settle() would always time out. Lower settleMs or raise timeoutMs`);
+  }
+  const checkMs = (name: string, ms: any) => {
+    if (!validMs(ms)) throw new Error(`[Sygnal] ${name}: the timeout must be a finite number of ms between 0 and ${MAX_MS} (got ${String(ms)})`);
+  };
 
   const prevMode = getDiagnosticsMode();
   // 2A: strict flag on the core bridge (read by the 'sygnal/diagnostics' strict checks)
@@ -552,6 +562,9 @@ export function renderComponent(
   };
   const offCheck = registerCheck({
     id: 'renderComponent',
+    // R2-3: the harness's bookkeeping (G-064 child sinks, G-053 next() delays, settle()'s
+    // activity) also runs with diagnostics: 'off'; what it reports still obeys the mode
+    always: true,
     onRender: bump,
     onReducer: bump,
     onIntent(c: any) {
@@ -565,12 +578,17 @@ export function renderComponent(
       watchNext(c);
       recordChildSinks(c);
     },
-    // 1H-11: forget a disposed child's listeners, so they aren't checked on every render
+    // 1H-11: forget a disposed child's listeners, so they aren't checked on every render.
+    // R2-4: not before its DISPOSE action has been processed: this hook runs first, and
+    // dispose() tears the child's streams down on the next macrotask, so remove them after that
     onDispose(c: any) {
       const own = childSinks.get(c);
       if (own) {
-        childSinks.delete(c);
-        own.forEach(([s, l]) => { try { s.removeListener(l); } catch (_) {} });
+        setTimeout(() => setTimeout(() => {
+          if (childSinks.get(c) !== own) return;
+          childSinks.delete(c);
+          own.forEach(([s, l]) => { try { s.removeListener(l); } catch (_) {} });
+        }));
       }
       const sc = scopeOf(c);
       if (!sc) return;
@@ -771,10 +789,15 @@ export function renderComponent(
   };
   let markReady: () => void;
   // G-065: states.length when the component became ready (before the buffered input was
-  // replayed). ready() arms a cursor: the first next() after it starts there (or, when ready()
-  // is called on an already-ready component, at the call), so `await t.ready()` doesn't make
-  // next() miss the states the replayed input produced. Any other t.* call disarms it.
-  let readyAt = 0, cursor: number | undefined;
+  // replayed). ready() arms a cursor there (or, when ready() is called on an already-ready
+  // component, at the call), so `await t.ready()` doesn't make next() miss the states the
+  // replayed input produced. R2-6: every next() call starts at the cursor while it is armed
+  // (so `Promise.all([t.next(a), t.next(b)])` both do). It is disarmed by simulateEvent(),
+  // simulateAction(), settle(), waitForState(), a later ready() (which re-arms it), and by
+  // the first next() that started at it resolving. If no next() has used it by the
+  // macrotask after ready() resolves, it expires (an un-awaited ready() in a beforeEach
+  // doesn't make a much later next() return an old state).
+  let readyAt = 0, cursor: number | undefined, arming = 0, cursorUsed = false;
   const readyPromise = new Promise<void>(r => {
     markReady = () => {
       readyAt = states.length;
@@ -785,6 +808,9 @@ export function renderComponent(
   });
   const ready = () => {
     cursor = isReady ? states.length : -1;
+    const id = ++arming;
+    cursorUsed = false;
+    readyPromise.then(() => setTimeout(() => { if (id == arming && !cursorUsed) cursor = undefined; }));
     return readyPromise;
   };
   const later = (go: Input['go'], missing?: Input['missing']) => { cursor = undefined; inputs.push({go, missing}); pump(); };
@@ -1022,15 +1048,25 @@ export function renderComponent(
   };
 
   const waitForState = (predicate: (state: any) => boolean, timeoutMs: number = defaultTimeout) => {
+    checkMs('waitForState', timeoutMs);
     cursor = undefined;
     return waitMatch(0, predicate, timeoutMs, 'waitForState');
   };
   const next = (predicate: (state: any) => boolean = () => true, timeoutMs: number = defaultTimeout) => {
-    const from = cursor === undefined || (cursor < 0 && !isReady) ? states.length : cursor < 0 ? readyAt : cursor;
-    cursor = undefined;
-    return waitMatch(from, predicate, timeoutMs, 'next');
+    checkMs('next', timeoutMs);
+    if (cursor === undefined || (cursor < 0 && !isReady)) return waitMatch(states.length, predicate, timeoutMs, 'next');
+    const id = arming;
+    cursorUsed = true;
+    const p = waitMatch(cursor < 0 ? readyAt : cursor, predicate, timeoutMs, 'next');
+    // the first next() from the cursor to resolve disarms it (sequential next() calls move on)
+    p.then(() => { if (id == arming) cursor = undefined; }, noop);
+    return p;
   };
-  const settle = (timeoutMs: number = defaultTimeout): Promise<void> => new Promise((resolve, reject) => {
+  const settle = (timeoutMs: number = defaultTimeout): Promise<void> => {
+    checkMs('settle', timeoutMs);
+    return settleWait(timeoutMs);
+  };
+  const settleWait = (timeoutMs: number): Promise<void> => new Promise((resolve, reject) => {
     cursor = undefined;
     const f = takeFailure();
     if (f) return reject(f);
