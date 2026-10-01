@@ -60,7 +60,10 @@
  *   6. Vitest (process.env.VITEST): appends the package's 'sygnal/diagnostics'
  *      ESM file to `test.setupFiles` (merged with a string or array value;
  *      not added twice), so renderComponent tests get the runtime checks.
- *      Opt out with `vitestSetup: false`. Under Vitest the transform adds
+ *      Its directory is added to the resolved `server.fs.allow` (G-050):
+ *      in jsdom / happy-dom environments Vitest loads setup files through
+ *      Vite's /@fs/ URLs, which a linked sygnal outside the workspace would
+ *      otherwise fail. Opt out with `vitestSetup: false`. Under Vitest the transform adds
  *      nothing (no flags, HMR wiring, run() wrapper, dev client or checker):
  *      a __SYGNAL_DEV__ / __SYGNAL_STRICT__ flag set by one test file would
  *      leak into later test files of the same worker, and renderComponent()
@@ -274,6 +277,23 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
 
     configResolved(config: any) {
       if (config?.root) root = config.root
+      // G-050: Vitest loads setup files by URL (/@fs/...) in browser-like
+      // environments (jsdom, happy-dom), and Vite refuses files outside
+      // server.fs.allow, which is the project's workspace by default. A linked
+      // (or hoisted) sygnal lives outside it, so allow its setup file's
+      // directory. The resolved list already holds Vite's defaults.
+      if (isVitest) {
+        const setup = diagnosticsSetupFile(root)
+        const allow = config?.server?.fs?.allow
+        if (setup && Array.isArray(allow)) {
+          const dir = path.dirname(setup)
+          const inside = (base: string) => {
+            const rel = path.relative(path.resolve(base), dir)
+            return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel))
+          }
+          if (!allow.some(inside)) allow.push(dir)
+        }
+      }
     },
 
     resolveId: {

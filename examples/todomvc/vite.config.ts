@@ -3,7 +3,7 @@ import { defineConfig } from 'vite'
 import sygnal from 'sygnal/vite'
 
 export default defineConfig({
-  plugins: [sygnal({ vitestSetup: false })],
+  plugins: [sygnal()],
   build: {
     outDir: './dist',
     emptyOutDir: true,
@@ -16,6 +16,6 @@ export default defineConfig({
     include: ['**/*.test.{ts,tsx}'],
     // processForm() reads the submitted <form> with FormData, which needs a DOM
     environment: 'jsdom',
-    setupFiles: ['./test-setup.ts'],
+    // the sygnal() plugin adds the 'sygnal/diagnostics' setup file
   },
 })
