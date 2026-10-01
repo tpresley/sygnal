@@ -130,6 +130,21 @@ export interface SimulatedEventInit {
   [prop: string]: any;
 }
 
+/** E2: which request a t.respond()/t.fail() answers (a string is the category) */
+export interface FakeReplyOptions {
+  /** Answer the most recent pending request of this category */
+  category?: string;
+  /**
+   * Answer exactly this request (an element of t.requests(name)). `null`: push the value without
+   * a request (for a source that emits on its own); `category` then sets its category.
+   */
+  request?: any;
+  /** Response status (respond: default 200) or failure status (fail: default error.status) */
+  status?: number;
+  /** fail(): the parsed error body */
+  body?: any;
+}
+
 export interface RenderOptions {
   /** Override or provide initial state (defaults to component's .initialState) */
   initialState?: any;
@@ -211,6 +226,28 @@ export interface RenderResult {
    * with no driver is recorded for every component in the tree (children included, G-064).
    */
   sinkValues: (sinkName: string) => any[];
+  /**
+   * E2: requests the component sent to a sink that has no driver (alias of sinkValues(name)).
+   * Answer them with respond() / fail().
+   */
+  requests: (sinkName: string) => any[];
+  /**
+   * E2: answer a request on a fake source. A sink/source with no driver (e.g. `HTTP` with
+   * no `drivers: { HTTP }`) gets a scriptable fake whose `select(category)` / `errors(category)`
+   * behave like makeFetchDriver / driverFromAsync. respond() delivers
+   * `{ category, value, status, request }` on `select()` for the most recent pending request
+   * (of `category`, if given; or exactly `request`), waiting up to 1s (half of timeoutMs if
+   * lower) for the component to send one (e.g. after a debounce). Requests superseded by a later `latest: true` request,
+   * or cancelled with `{ category, abort: true }`, are not pending; answering one explicitly
+   * delivers nothing, like the real driver. Fails the test if nothing selects the response.
+   */
+  respond: (sinkName: string, value: any, opts?: string | FakeReplyOptions) => void;
+  /**
+   * E2: fail a pending request on a fake source: delivers `{ error, category, request, status,
+   * body }` on `errors()`. `error` may be an Error, a message, or an HTTP status number (404 →
+   * an Error 'HTTP 404' with `status: 404`). Targeting, waiting and failures as in respond().
+   */
+  fail: (sinkName: string, error: any, opts?: string | FakeReplyOptions) => void;
   /** Live array of EVENTS sink emissions ({type, data}) */
   emitted: any[];
   /** Live array of diagnostics reported while rendered */
@@ -461,6 +498,8 @@ const TIMING = {eventWaitMs: 300, settleMs: 20, timeoutMs: 2000};
 // makeEffectHandler: "... next() action: <TYPE> 400ms delay")
 const NEXT_LOG = /next\(\) action: <(.*)> (\d+)ms delay$/;
 const RESERVED_SINKS = /^(STATE|EFFECT|PARENT|READY|DOM)$/;
+// E2: a source name that a driver would provide (fake sources are made only for these)
+const DRIVER_NAME = /^[A-Z][A-Z0-9_]*$/;
 // R2-5: setTimeout fires at once for a delay above 2^31-1 ms (and for Infinity/NaN)
 const MAX_MS = 2147483647;
 const validMs = (v: any) => typeof v == 'number' && Number.isFinite(v) && v >= 0 && v <= MAX_MS;
@@ -578,6 +617,14 @@ export function renderComponent(
       watchNext(c);
       recordChildSinks(c);
     },
+    // E2: an intent that reads a driver-like source with no driver (HTTP.select(...) without
+    // drivers: { HTTP }) gets the scriptable fake (t.respond / t.fail), shared by name
+    sources(c: any, s: any) {
+      if (!mine(c) || typeof Proxy != 'function') return;
+      return new Proxy(s, {
+        get: (t: any, k: any) => typeof k == 'string' && !(k in t) && DRIVER_NAME.test(k) ? fake(k) : t[k],
+      });
+    },
     // 1H-11: forget a disposed child's listeners, so they aren't checked on every render.
     // R2-4: not before its DISPOSE action has been processed: this hook runs first, and
     // dispose() tears the child's streams down on the next macrotask, so remove them after that
@@ -673,6 +720,27 @@ export function renderComponent(
   const actions = port();
   const hub = port();
 
+  // E2: scriptable fake sources (t.respond / t.fail) for sinks/sources with no driver. Same
+  // source API as makeFetchDriver / driverFromAsync: select(category?) and errors(category?),
+  // where the selector is a category string, a predicate, or nothing (everything).
+  type FakeSub = {l: any; sel: any; err: boolean};
+  const fakes = new Map<string, {select: any; errors: any; subs: Set<FakeSub>}>();
+  const fake = (name: string) => {
+    let f = fakes.get(name);
+    if (!f) {
+      const subs = new Set<FakeSub>();
+      const src = (err: boolean) => (sel?: any) => {
+        let sub: FakeSub;
+        return xs.create({
+          start: (l: any) => { subs.add((sub = {l, sel, err})); },
+          stop: () => { subs.delete(sub); },
+        });
+      };
+      fakes.set(name, (f = {select: src(false), errors: src(true), subs}));
+    }
+    return f;
+  };
+
   const names = Object.keys(model)
     .map(k => k.split('|')[0].trim())
     .filter(n => n != 'INITIALIZE');
@@ -731,7 +799,7 @@ export function renderComponent(
     const e = model[k], [, sink] = k.split('|');
     for (const n of sink ? [sink.trim()] : e && typeof e == 'object' ? Object.keys(e) : []) {
       if (!allDrivers[n] && !/^(STATE|EFFECT|PARENT|READY)$/.test(n)) {
-        allDrivers[n] = () => ({select: () => xs.never()});
+        allDrivers[n] = () => fake(n);
       }
     }
   }
@@ -771,14 +839,14 @@ export function renderComponent(
   // (re-tried on every render), at most eventWaitMs; then it is delivered to the live listeners
   // (or, with no matching element, fails the test, G-070; with allowMissing it is dropped
   // with SYG103).
-  type Input = {go: (last: boolean) => boolean, until?: number, missing?: () => Error | undefined};
+  type Input = {go: (last: boolean) => boolean, until?: number, wait?: number, missing?: () => Error | undefined};
   const inputs: Input[] = [];
   let isReady = false, retryTimer: any;
   const pump = () => {
     if (!isReady || disposed) return;
     while (inputs.length) {
       const head = inputs[0];
-      head.until = head.until || Date.now() + eventWaitMs;
+      head.until = head.until || Date.now() + (head.wait ?? eventWaitMs);
       if (!head.go(Date.now() >= head.until)) return retry(5);
       inputs.shift();
       bump();
@@ -886,6 +954,87 @@ export function renderComponent(
     throwFailure();
     later(() => (actions.emit({type, data}), true));
   };
+
+  // E2: t.respond / t.fail. The answered request is picked when the call is delivered (in
+  // order with simulate* calls), waiting up to 1s for the component to send one.
+  const answered = new WeakSet<object>();
+  const pendingRequests = (name: string) => {
+    let live: Array<{raw: any; category: any}> = [];
+    for (const raw of sinkValues(name)) {
+      const r = typeof raw == 'string' ? {url: raw} : raw;
+      if (!r || typeof r != 'object') continue;
+      // { abort: true } cancels everything; with a category, or a latest: true request, the
+      // ones in flight in that category
+      if (r.abort && !('category' in r)) live = [];
+      else if (r.abort || r.latest) live = live.filter(x => x.category !== r.category);
+      if (!r.abort && !answered.has(raw)) live.push({raw, category: r.category});
+    }
+    return live;
+  };
+  const reply = (fn: string, name: string, err: boolean, build: (category: any, request: any) => any, opts: any) => {
+    throwFailure();
+    if (drivers[name]) throw new Error(`[Sygnal] t.${fn}('${name}'): ${name} has a real driver (passed in drivers), so there is nothing to script. t.respond/t.fail answer the fake source renderComponent provides when no driver is passed`);
+    const o = typeof opts == 'string' ? {category: opts} : opts || {};
+    const what = `t.${fn}('${name}'${typeof opts == 'string' ? `, …, '${opts}'` : ''})`;
+    const input: Input = {
+      // up to 1s (half of timeoutMs if lower), so a wait (next/settle) still times out later
+      wait: Math.min(1000, defaultTimeout / 2),
+      go: last => {
+        let request = o.request, category = o.category;
+        // request: null pushes a value no request asked for (a source that emits on its own)
+        if (request === null) {
+          request = undefined;
+        } else if (request !== undefined) {
+          // an explicit request that is no longer pending (superseded, aborted, answered) gets
+          // nothing, like the real driver
+          if (!pendingRequests(name).some(x => x.raw === request)) return true;
+        } else {
+          const live = pendingRequests(name).filter(x => !('category' in o) || x.category === category);
+          if (!live.length) {
+            if (!last) return false;
+            const sent = sinkValues(name).length;
+            failWith(new Error(`[Sygnal] ${what}: no pending ${name} request${'category' in o ? ` with category '${category}'` : ''} after ${Math.min(1000, defaultTimeout / 2)}ms. ` +
+              (sent ? `The component sent ${sent} (t.requests('${name}')), all answered, aborted or superseded by a later latest: true request.` :
+                `The component sent none: check the model entry that returns the ${name} request (t.requests('${name}') is empty).`)));
+            return true;
+          }
+          request = live[live.length - 1].raw;
+        }
+        if (request && typeof request == 'object') answered.add(request);
+        if (!('category' in o)) category = request?.category;
+        const payload = build(category, request);
+        const f = fake(name);
+        let heard = false;
+        f.subs.forEach(sub => {
+          let hit = false;
+          try { hit = sub.err === err && (sub.sel === undefined || (typeof sub.sel == 'function' ? sub.sel(payload) : sub.sel === category)); } catch (_) {}
+          if (hit) { heard = true; sub.l.next(payload); }
+        });
+        if (!heard) {
+          const ls = [...f.subs].filter(x => x.err === err).map(x => `${name}.${err ? 'errors' : 'select'}(${x.sel === undefined ? '' : typeof x.sel == 'function' ? 'fn' : `'${x.sel}'`})`);
+          failWith(new Error(`[Sygnal] ${what}: nothing receives it: no intent listens to ${name}.${err ? 'errors' : 'select'}(${category === undefined ? '' : `'${category}'`})` +
+            (ls.length ? ` (listening: ${ls.join(', ')})` : '') + `. ` +
+            (err ? `Handle failures in the intent, e.g. FAILED: ${name}.errors('${category ?? 'category'}'), so a failed request can't leave the component loading.` :
+              `Select the request's category in the intent, e.g. LOADED: ${name}.select('${category ?? 'category'}').`)));
+        }
+        return true;
+      },
+    };
+    cursor = undefined;
+    inputs.push(input);
+    pump();
+  };
+  const respond = (name: string, value: any, opts?: string | FakeReplyOptions) =>
+    reply('respond', name, false, (category, request) =>
+      ({category, value, status: (opts as any)?.status ?? 200, request}), opts);
+  const fail = (name: string, error: any, opts?: string | FakeReplyOptions) =>
+    reply('fail', name, true, (category, request) => {
+      let e = error;
+      if (typeof e == 'number') { e = new Error(`HTTP ${error}`); e.status = error; }
+      else if (typeof e == 'string') e = new Error(e);
+      const o: any = typeof opts == 'object' ? opts : {};
+      return {error: e, category, request, status: o.status ?? e?.status, body: o.body ?? e?.body};
+    }, opts);
 
   const simulateEvent = (selector: string, type: string, init: SimulatedEventInit = {}) => {
     throwFailure();
@@ -1150,6 +1299,9 @@ export function renderComponent(
     settle,
     states,
     sinkValues,
+    requests: sinkValues,
+    respond,
+    fail,
     emitted: sinkValues('EVENTS'),
     diagnostics: collected,
     expectNoDiagnostics,

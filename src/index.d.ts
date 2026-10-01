@@ -953,6 +953,109 @@ export function driverFromAsync<INCOMING = any, RETURN = any, OUTGOING = any>(
   options?: DriverFromAsyncOptions<INCOMING, OUTGOING, RETURN>
 ): (fromApp$: Stream<INCOMING>) => AsyncDriverFromFunction<INCOMING, OUTGOING>
 
+/**
+ * A request sent to a makeFetchDriver() sink. A plain string is a GET of that URL.
+ * Keys other than the ones below are passed to `fetch()` as init (`credentials`, `mode`, ...).
+ */
+export type FetchRequest = string | {
+  /** Request URL (prefixed with the driver's `baseUrl`) */
+  url: string;
+  /** Tag read back with `select(category)` / `errors(category)`; also the `latest` / `abort` group */
+  category?: string;
+  /** Default: 'POST' when `json` or `body` is set, else 'GET' */
+  method?: string;
+  /** Merged over the driver's `headers` */
+  headers?: Record<string, string>;
+  /** Appended as a query string (`{ q: 'dune' }` → `?q=dune`); null/undefined values are skipped */
+  query?: Record<string, string | number | boolean | null | undefined>;
+  /** Sent as JSON.stringify(json), with `Content-Type: application/json` unless set */
+  json?: any;
+  /** Raw body (string, FormData, Blob, ...) */
+  body?: any;
+  /**
+   * Latest only: sending this request aborts the requests still in flight in the same category;
+   * their responses and errors are never delivered. Default: the driver's `latest` option.
+   */
+  latest?: boolean;
+  /** Fail with a TimeoutError (on `errors()`) after this many ms. Default: the driver's `timeoutMs` */
+  timeoutMs?: number;
+  /**
+   * How the 2xx body becomes `value`: 'auto' (default; JSON when the content-type says json,
+   * else text; 204 → null), 'json', 'text', 'response' (the Response), or a function.
+   */
+  parse?: 'auto' | 'json' | 'text' | 'response' | ((response: Response) => any);
+  [fetchInit: string]: any;
+} | {
+  /**
+   * Cancel: `{ category: 'search', abort: true }` aborts the requests in flight in that category
+   * (all of them without a category). Nothing is delivered for a cancelled request.
+   */
+  abort: true;
+  category?: string;
+}
+
+/** A successful (2xx) response on `select()` of a makeFetchDriver() source */
+export type FetchResponse<VALUE = any, REQUEST = any> = {
+  /** The request's category */
+  category: string | undefined;
+  /** The parsed body (see `parse`) */
+  value: VALUE;
+  /** HTTP status */
+  status: number;
+  /** The request as the app sent it (any extra fields you put on it come back here) */
+  request: REQUEST;
+}
+
+/** A failure on `errors()` of a makeFetchDriver() source */
+export type FetchError<REQUEST = any> = {
+  /**
+   * 'HTTP 404 ...' for a non-2xx status (with `.status` and `.body`), the network error
+   * (TypeError), the body parse error, a TimeoutError (`.name === 'TimeoutError'`), or
+   * "fetch is not available"
+   */
+  error: any;
+  category: string | undefined;
+  request: REQUEST;
+  /** HTTP status, for a non-2xx response (undefined for a network error or timeout) */
+  status?: number;
+  /** The non-2xx response's body, parsed like 'auto' */
+  body?: any;
+}
+
+export type FetchSource<VALUE = any> = {
+  /** 2xx responses: all of them, one category, or those a predicate accepts */
+  select: (category?: string | ((response: FetchResponse<VALUE>) => boolean)) => Stream<FetchResponse<VALUE>>
+  /** Failures. Filters like select(). While nothing listens, failures are console.error'd */
+  errors: (category?: string | ((failure: FetchError) => boolean)) => Stream<FetchError>
+}
+
+export type FetchDriverOptions = {
+  /** Prefix for every request URL, e.g. '/api' or 'https://api.example.com' */
+  baseUrl?: string;
+  /** Headers for every request (a request's own `headers` win) */
+  headers?: Record<string, string>;
+  /** Latest only for every request (a request's own `latest` wins). Default false */
+  latest?: boolean;
+  /** Timeout for every request, in ms. Default: none */
+  timeoutMs?: number;
+  /** Default `parse` for every request. Default 'auto' */
+  parse?: 'auto' | 'json' | 'text' | 'response' | ((response: Response) => any);
+  /** The fetch implementation. Default: `globalThis.fetch`, read at each request (so test stubs apply) */
+  fetch?: (input: string, init?: any) => Promise<any>;
+}
+
+/**
+ * An HTTP driver over `fetch`: `run(App, { HTTP: makeFetchDriver() })`. The model sends a
+ * request (`HTTP: (state) => ({ category: 'quote', url: '/api/quote' })`); the intent reads
+ * `HTTP.select('quote')` (`{ category, value, status, request }`) and `HTTP.errors('quote')`
+ * (`{ error, category, request, status?, body? }`). Non-2xx statuses, network errors and
+ * timeouts go to errors(), never select(). `latest: true` drops superseded requests;
+ * `{ category, abort: true }` cancels; disposing the app aborts everything in flight.
+ * During SSR no requests are made (server rendering runs views only). In renderComponent
+ * tests, pass no driver and answer with `t.respond('HTTP', value)` / `t.fail('HTTP', 404)`.
+ */
+export function makeFetchDriver(options?: FetchDriverOptions): (request$: Stream<any>) => FetchSource
+
 export interface Ref<T = HTMLElement> {
   current: T | null;
 }
@@ -1025,6 +1128,21 @@ export interface SimulatedEventInit {
   [prop: string]: any;
 }
 
+/** Which request a t.respond()/t.fail() answers (a string is the category) */
+export interface FakeReplyOptions {
+  /** Answer the most recent pending request of this category */
+  category?: string;
+  /**
+   * Answer exactly this request (an element of t.requests(name)). `null`: push the value without
+   * a request (for a source that emits on its own); `category` then sets its category.
+   */
+  request?: any;
+  /** respond(): the status (default 200). fail(): the status (default error.status) */
+  status?: number;
+  /** fail(): the parsed error body */
+  body?: any;
+}
+
 export interface RenderOptions {
   /** Override initial state (defaults to component's .initialState) */
   initialState?: any;
@@ -1032,7 +1150,8 @@ export interface RenderOptions {
   mockConfig?: Record<string, any>;
   /**
    * Additional drivers beyond DOM, EVENTS, STATE, and LOG. A custom sink without a driver, in
-   * the component or any child, gets a recording no-op one (read it with sinkValues).
+   * the component or any child, gets a recording one (read it with sinkValues / requests), and
+   * a source without a driver a scriptable fake (answer with respond / fail).
    */
   drivers?: Record<string, any>;
   /**
@@ -1118,6 +1237,22 @@ export interface RenderResult {
   states: any[];
   /** Live array of values emitted on a sink (EVENTS as {type, data}, PARENT unwrapped, custom sinks of any component in the tree) */
   sinkValues: (sinkName: string) => any[];
+  /** Live array of the requests sent to a sink with no driver (alias of sinkValues) */
+  requests: (sinkName: string) => any[];
+  /**
+   * Answer the most recent pending request on a driverless sink/source (e.g. `HTTP` with no
+   * `drivers: { HTTP }`): `HTTP.select(category)` receives `{ category, value, status: 200,
+   * request }`. Waits up to 1s (half of timeoutMs if lower) for the component to send a
+   * request (e.g. after a debounce). Requests superseded by a later `latest: true` one, or cancelled with
+   * `{ category, abort: true }`, aren't pending. Fails the test if nothing selects it.
+   */
+  respond: (sinkName: string, value: any, options?: string | FakeReplyOptions) => void;
+  /**
+   * Fail the most recent pending request: `HTTP.errors(category)` receives `{ error, category,
+   * request, status, body }`. `error`: an Error, a message, or an HTTP status (404 → 'HTTP 404',
+   * status 404). Fails the test if nothing listens to errors().
+   */
+  fail: (sinkName: string, error: any, options?: string | FakeReplyOptions) => void;
   /** Live array of EVENTS sink emissions ({type, data}) */
   emitted: Array<{ type: string; data: any }>;
   /** Live array of diagnostics reported while rendered */

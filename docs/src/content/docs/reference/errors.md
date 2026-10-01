@@ -1269,6 +1269,16 @@ import 'sygnal/diagnostics'   // dev only (the Vite plugin adds it in dev)
 run(App, {}, { diagnostics: { strict: true } })
 ```
 
+### SYG609
+
+**Sink or source has no driver**
+
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+A component's model sends to a sink (for example `HTTP: (state) => ({ url: '/api/x' })`), or its intent reads a source (`HTTP.select('x')`), but `run()` got no driver with that name. Values sent to a sink without a driver are dropped silently, and a source without a driver is `undefined`, so the intent then fails with "Cannot read properties of undefined". `renderComponent()` does not report this: in tests it records such sinks (`t.requests(name)`) and fakes such sources (`t.respond` / `t.fail`).
+
+**Fix:** Pass the driver to `run()` under exactly that name: `run(App, { HTTP: makeFetchDriver() })` for HTTP requests, `driverFromAsync(fn)` for any promise-returning function, or your own driver. Check the spelling against the drivers you pass.
+
 ## SYG9xx: Internal
 
 ### SYG900

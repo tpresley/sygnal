@@ -524,7 +524,8 @@ class Component {
       fail('SYG602', this, 'intent must be a function', 'Use intent = sources => ({ ACTION: stream$ })')
     }
 
-    this.intent$ = this.intent(this.sources)
+    // [diagnostics hook] checks may wrap the sources (SYG609, renderComponent's fake sources)
+    this.intent$ = this.intent(diag.sourcesFor(this))
 
     if (!(this.intent$ instanceof Stream) && (!isObj(this.intent$))) {
       fail('SYG603', this, 'intent must return a stream or an object of streams', 'Return { ACTION: stream$ }')
@@ -578,7 +579,10 @@ class Component {
 
     let initialApiData
     if (!_hmrUpdating && requestSource && typeof requestSource.select == 'function') {
+      // legacy @cycle/http: select() emits response streams. A makeFetchDriver/driverFromAsync
+      // source named HTTP emits plain responses, which are not hydration data (E2)
       initialApiData = requestSource.select('initial')
+        .filter((r$: any) => r$ && typeof r$.addListener == 'function')
         .flatten()
     } else {
       initialApiData = xs.never()

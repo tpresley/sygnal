@@ -622,6 +622,9 @@ function renderComponent(
 | `html` | `() => string` | Latest render as HTML |
 | `emitted` | `{ type, data }[]` | EVENTS emissions |
 | `sinkValues` | `(sinkName) => any[]` | Values sent to a sink |
+| `requests` | `(sinkName) => any[]` | Requests sent to a driverless sink (alias of `sinkValues`) |
+| `respond` | `(sinkName, value, opts?) => void` | Answer the latest pending request on a driverless source's `select()` ([Testing](/integration/testing/#answering-requests-respond-and-fail)) |
+| `fail` | `(sinkName, error, opts?) => void` | Fail the latest pending request on its `errors()` (a number is an HTTP status) |
 | `diagnostics` | `Diagnostic[]` | Diagnostics collected while rendered |
 | `expectNoDiagnostics` | `() => void` | Throws if a warning or error was collected |
 | `inspect` | `() => InspectGraph` | App graph of the rendered tree (needs `sygnal/diagnostics`) |
@@ -920,6 +923,37 @@ MyForm.intent = ({ DOM }) => ({
   })
 })
 ```
+
+---
+
+## makeFetchDriver()
+
+An HTTP driver over `fetch`. Guide: [HTTP Requests with makeFetchDriver()](/guide/drivers/#http-requests-with-makefetchdriver).
+
+```typescript
+function makeFetchDriver(options?: {
+  baseUrl?: string;                    // prefix for every url
+  headers?: Record<string, string>;    // for every request
+  latest?: boolean;                    // default for every request (false)
+  timeoutMs?: number;                  // default for every request (none)
+  parse?: 'auto' | 'json' | 'text' | 'response' | ((res: Response) => any);  // default 'auto'
+  fetch?: typeof fetch;                // default: globalThis.fetch, read at each request
+}): Driver
+```
+
+| Sink value (request) | Effect |
+|---|---|
+| `{ url, category?, method?, query?, json?, body?, headers?, latest?, timeoutMs?, parse?, ...fetchInit }` | `fetch(baseUrl + url + ?query, init)`. Method defaults to POST with `json`/`body`, else GET |
+| `'/api/x'` | GET of that URL |
+| `{ category?, abort: true }` | Cancel the requests in flight in that category (all, without a category) |
+| `ABORT`, `null`, `undefined` | Nothing |
+
+| Source | Emits |
+|---|---|
+| `HTTP.select(category?)` | `{ category, value, status, request }` for each 2xx response |
+| `HTTP.errors(category?)` | `{ error, category, request, status?, body? }` for a non-2xx status, network error, parse error or timeout |
+
+`latest: true` aborts the earlier requests of the same category still in flight; their responses and failures are never delivered. Disposing the app aborts everything in flight. No requests are made during server rendering.
 
 ---
 

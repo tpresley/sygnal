@@ -221,7 +221,32 @@ await t.settle()
 expect(t.sinkValues('API')).toEqual([{ url: '/save', body: 'draft' }])
 ```
 
-A driver you pass in `drivers` still wins: it receives the values (and `sinkValues` records them once). To feed responses back in, give the driver a source, or push the response action with `simulateAction`.
+A driver you pass in `drivers` still wins: it receives the values (and `sinkValues` records them once).
+
+### Answering requests: respond() and fail()
+
+The source of a driver you don't pass is a fake you answer from the test, so a component that uses [`makeFetchDriver()`](/guide/drivers/#http-requests-with-makefetchdriver) (or any `driverFromAsync` driver) needs no driver wiring in tests:
+
+```jsx
+// Quote: LOAD: { HTTP: () => ({ category: 'quote', url: '/api/quote' }) },
+//        LOADED: HTTP.select('quote'), FAILED: HTTP.errors('quote')
+const t = renderComponent(Quote)
+t.simulateEvent('.get', 'click')
+t.respond('HTTP', { text: 'Hi', author: 'Me' })
+await t.next(s => s.text === 'Hi — Me')
+expect(t.requests('HTTP')).toEqual([{ category: 'quote', url: '/api/quote' }])
+
+t.simulateEvent('.get', 'click')
+t.fail('HTTP', 404)                   // an HTTP status, an Error, or a message
+await t.next(s => s.error !== '')
+```
+
+- `t.requests(name)` is the live list of values sent to the sink (an alias of `sinkValues`).
+- `t.respond(name, value, opts?)` answers the most recent pending request and delivers `{ category, value, status: 200, request }` on `select()`. It is delivered in order with `simulateEvent`/`simulateAction` calls and waits up to 1 s (half of `timeoutMs` if lower) for the component to send a request, e.g. after a debounce.
+- `t.fail(name, error, opts?)` delivers `{ error, category, request, status, body }` on `errors()`. A number is an HTTP status: `t.fail('HTTP', 404)` fails with `Error('HTTP 404')` and `status: 404`.
+- `opts`: a category string, or `{ category, request, status, body }`. `request` picks an exact element of `t.requests(name)`; `request: null` pushes a value no request asked for.
+- The fake follows `latest: true` and `{ category, abort: true }` like the real driver: a superseded or cancelled request is no longer pending, and answering it explicitly delivers nothing.
+- The test fails with an explanation when no request is pending, or when nothing selects the reply (a category typo, or no `errors()` handler for a failure).
 
 ## Diagnostics in Tests
 
@@ -285,6 +310,9 @@ The timing options (and a timeout passed to `next()`, `waitForState()` or `settl
 | `html` | `() => string` | Latest render as HTML |
 | `emitted` | `{ type, data }[]` | EVENTS emissions |
 | `sinkValues` | `(sink) => any[]` | Values sent to a sink |
+| `requests` | `(sink) => any[]` | Requests sent to a driverless sink (alias of `sinkValues`) |
+| `respond` | `(sink, value, opts?) => void` | Answer the latest pending request on the fake source (`select()`) |
+| `fail` | `(sink, error, opts?) => void` | Fail the latest pending request on the fake source (`errors()`) |
 | `diagnostics` | `Diagnostic[]` | Diagnostics collected while rendered |
 | `expectNoDiagnostics` | `() => void` | Throws if any warning or error was collected |
 | `inspect` | `() => InspectGraph` | The app graph of the rendered tree |
