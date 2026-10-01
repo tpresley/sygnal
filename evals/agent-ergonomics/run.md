@@ -17,6 +17,10 @@ One **trial** = one fresh agent attempting one task in one arm. Follow these ste
 
 Trial ids are `1..N` per (task, arm). Run the trials of a run in any order, but never two trials of the same (task, arm) in the same scratch dir.
 
+**Tier-2 tasks (09–12).** A harder tier exists in both arms (README "Tasks"; decision D16). The procedure is exactly the same: prepare, spawn, collect, score, classify. Tier-2 hidden suites take longer (task 11 waits on a real 300 ms debounce; about 10 s per suite). For the baseline of the tier-2 tasks, use the same pre-change tarball as the tier-1 baseline (D16), and report tier 1 and tier 2 separately: tier-1 pass rates are saturated, tier 2 is where pass rate can move.
+
+**Iterations from older transcripts.** `transcript-stats.mjs` undercounted iterations before G-017 was fixed (it missed `npm --prefix X test`, the most common form). Rerun it on the stored transcripts to get comparable numbers before comparing runs.
+
 ## 1. Prepare the trial directory
 
 Use a scratch dir **outside the repo**. Never reuse a dir.
@@ -24,7 +28,7 @@ Use a scratch dir **outside the repo**. Never reuse a dir.
 ```bash
 node $EVAL/prepare.mjs --arm sygnal --task 03 --tarball $TGZ \
   --dest /tmp/sygnal-evals/trials/<run>/sygnal-03-t1
-# React arm (tasks 01-05 and 08 only):
+# React arm (tasks 01-05 and 08-12 only):
 node $EVAL/prepare.mjs --arm react --task 03 \
   --dest /tmp/sygnal-evals/trials/<run>/react-03-t1
 ```
@@ -64,7 +68,7 @@ Find the trial agent's transcript:
 node $EVAL/transcript-stats.mjs <transcript.jsonl> --dir <dest>
 ```
 
-It prints `iterations`, `editRounds`, `edits`, `wallSeconds`, and `audit`. **If `audit` is non-empty, read the flagged calls.** If the agent read anything under `evals/`, `hidden/` or `__hidden__`, the trial is **invalid**: delete its record (if any), note it in the status ledger, and rerun it with a new trial id. Other out-of-dir reads (for example `node_modules/sygnal/src` inside the trial, or skill files) are fine.
+It prints `iterations`, `editRounds`, `edits`, `wallSeconds`, and `audit`. **If `audit` is non-empty, read the flagged calls.** If the agent read anything under `evals/agent-ergonomics/`, a `hidden/` dir or `__hidden__`, the trial is **invalid**: delete its record (if any), note it in the status ledger, and rerun it with a new trial id. Other out-of-dir reads (for example `node_modules/sygnal/src` inside the trial, or skill files) are fine.
 
 You can also count by hand from the transcript; the definitions are in README.md "Metrics".
 
