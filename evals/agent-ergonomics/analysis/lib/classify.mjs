@@ -89,7 +89,8 @@ export function isEditCall(call) {
   return call.name === 'Bash' && !isRunCommand(String(call.input?.command ?? '')) && isEditCommand(String(call.input?.command ?? ''))
 }
 
-const GUARD_RE = /is isolated in the worktree[^\n]*|Refusing to run it/
+// The coordinator's worktree guard (PLAN-1 subagent trials), or a headless trial's permission posture refusing a call.
+const GUARD_RE = /is isolated in the worktree[^\n]*|Refusing to run it|requested permissions to use [^\n]*haven't granted it|Permission to use [^\n]* has been denied/
 
 /** Was the call refused by the environment (worktree guard / permission system) rather than run? */
 export function isRefused(result) {

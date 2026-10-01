@@ -10,13 +10,19 @@ This harness measures how well a fresh coding agent writes Sygnal code, with a R
 ```
 evals/agent-ergonomics/
   README.md  run.md
+  orchestrate.mjs       one command per run: pack, prepare, run headless N at a time, score, analyze (resumable, --dry-run)
   prepare.mjs           copy a starter into a scratch trial dir and npm install it
+  run-trial.mjs         run one prepared trial headless with `claude -p` (transcript, wall time, cost, tokens, timeout)
   score.mjs             run hidden tests in a finished trial dir, then append to results/<run>.json
   transcript-stats.mjs  iterations / edit rounds / wall time / peeking audit from a transcript
   verify.mjs            fail-before / pass-after check for every task in both arms
   lib/common.mjs        shared plumbing
-  lib/transcript.mjs    command classifiers used by transcript-stats.mjs
-  tests/                node:test unit tests for the harness (node --test evals/agent-ergonomics/tests/*.unit.mjs)
+  lib/transcript.mjs    command classifiers and transcriptStats() (transcript-stats.mjs, orchestrate.mjs)
+  lib/headless.mjs      headless trial posture (claude args, environment), stream-json helpers
+  lib/runner.mjs        runTrial(): spawn, stamp, timeout, <dest>.run.json
+  lib/plan.mjs          task selection (tiers, ranges), resume plan, cost/time estimate
+  tests/                node:test unit tests for the harness (node --test evals/agent-ergonomics/tests/*.unit.mjs),
+                        and fake-claude.mjs, a stand-in CLI for testing the pipeline without API calls
   tasks/NN-slug/        Sygnal arm: PROMPT.md + starter/ (what the agent gets)
   hidden/_support/      Sygnal arm: vitest config + DOM helpers for hidden tests
   hidden/NN-slug/       Sygnal arm: *.hidden.jsx acceptance tests + solution/ overlay
@@ -82,13 +88,20 @@ Not defended against: an agent that deliberately searches the whole filesystem (
 
 ## How to run
 
-See `run.md` for the full procedure. In short:
+See `run.md` for the full procedure. With harness v2, a whole run is one command:
+
+```bash
+node evals/agent-ergonomics/orchestrate.mjs --run v2-baseline --tasks all --trials 5 --concurrency 4 --model opus --dry-run   # plan + estimate
+node evals/agent-ergonomics/orchestrate.mjs --run v2-baseline --tasks all --trials 5 --concurrency 4 --model opus             # run / resume
+```
+
+The steps it automates, by hand:
 
 ```bash
 npm run build && npm pack --pack-destination /tmp/sygnal-evals          # once per run
 node evals/agent-ergonomics/verify.mjs --tarball /tmp/sygnal-evals/sygnal-*.tgz
 node evals/agent-ergonomics/prepare.mjs --arm sygnal --task 03 --tarball <tgz> --dest /tmp/sygnal-evals/trials/baseline/sygnal-03-t1
-#   ... spawn a fresh agent with the contents of <dest>.prompt.txt ...
+node evals/agent-ergonomics/run-trial.mjs --dest /tmp/sygnal-evals/trials/baseline/sygnal-03-t1 --model opus   # headless; or a fresh subagent with <dest>.prompt.txt
 node evals/agent-ergonomics/transcript-stats.mjs <transcript.jsonl> --dir <dest>
 node evals/agent-ergonomics/score.mjs --dir <dest> --task 03 --arm sygnal --trial 1 --run baseline \
   --iterations 4 --edit-rounds 2 --wall-seconds 210
@@ -105,6 +118,8 @@ Each record in `results/<run>.json`:
 { "task": "03-events-status", "arm": "sygnal", "trial": 1,
   "pass": false, "testsPassed": 1, "testsTotal": 3,
   "iterations": 4, "editRounds": 2, "wallSeconds": 210,
+  "durationMs": 209500, "tokens": 1840000, "outputTokens": 9100, "costUsd": 1.23,
+  "model": "claude-opus-5-5", "method": "headless",
   "failureCategory": "wiring",
   "failures": [{ "test": "...", "message": "..." }],
   "notes": "...", "scoredAt": "..." }
@@ -117,6 +132,8 @@ Each record in `results/<run>.json`:
 | `iterations` | how many times the agent ran the app or its tests: Bash calls that run `npm test` or `npm run build/test/dev/preview` (including `npm --prefix X test` and `cd X && npm test` chains, and the pnpm/yarn equivalents), `npx vite/vitest`, `vite`, `vitest`, `node_modules/.bin/vite(st)` or `node .../vitest.mjs`. A Bash call counts once even if it runs several of these; here-document bodies are ignored. A proxy for how much trial-and-error the framework forced. The classifier is `lib/transcript.mjs`; its unit tests run with `node --test evals/agent-ergonomics/tests/transcript.unit.mjs`. (Before G-017 was fixed, `npm --prefix X test`, the most common form, was not counted, so the baseline's recorded iterations are too low; recompute them from the transcripts before comparing.) |
 | `editRounds` | groups of consecutive file edits not separated by a build/test run ("edit, edit, test, edit, test" = 2). A proxy for how many fix-and-check cycles were needed. |
 | `wallSeconds` | wall-clock time of the agent run, from the Agent tool result or from transcript timestamps. Noisy, so treat it as context only. |
+| `durationMs` / `tokens` / `outputTokens` / `costUsd` | usage of the agent run (`score.mjs --duration-ms --tokens --output-tokens --cost-usd`). Headless trials take them from the run's final `result` event: `tokens` is every billed token (input + output + cache read + cache creation, over all turns), so it is far larger than the context size. `null` for PLAN-1 runs. |
+| `model` / `method` | the model id the trial ran on, and `headless` or `subagent`. |
 | `failureCategory` | the root cause of a failed trial (`wiring`, `isolation`, `reducer-shape`, `stream-operator`, `other`), or `none` for a pass. A human or the coordinator sets it with `--category` / `--classify`; definitions are in run.md step 5. Automatic classification is a TODO in `score.mjs`. |
 
 `transcript-stats.mjs` computes `iterations`, `editRounds` and `wallSeconds` from the agent's JSONL transcript, so the counts are applied the same way in both runs.
@@ -134,7 +151,7 @@ node evals/agent-ergonomics/analysis/compare.mjs --base baseline --next phase3 -
 node --test evals/agent-ergonomics/analysis/tests/*.unit.mjs
 ```
 
-`analyze.mjs` writes `results/analysis/<run>.json` (one record per trial plus aggregates) and `<run>.md` (the report). Per trial: tokens (peak context and cache tokens; transcript output tokens are partial), tool calls, wall time split into phases (orient, learn, implement, test-authoring, verify, debug, tooling-friction, think, report), failure episodes from a failed build/test run to the next green one, matched against `analysis/catalog.mjs` (regex signatures mapped to tracker IDs, e.g. B-007), skill sections and library files read, line diff vs the starter, canonical-form counts, `sygnal-check` diagnostics (run `npm install` in `sygnal-check/` first, or pass `--no-check`) and the agent's own complaints. The report ranks what explains the Sygnal−React delta on the shared tasks and ends with evidence-backed recommendations. Iterations and edit rounds use `lib/transcript.mjs`, so they match `transcript-stats.mjs`. Transcript and trial-dir locations default to this machine's eval session; override with `--transcripts`, `--trials-root`, `--skill-dir` (or `EVAL_TRANSCRIPTS` / `EVAL_SCRATCH`). Heuristics and their limits are listed at the end of each report.
+`analyze.mjs` writes `results/analysis/<run>.json` (one record per trial plus aggregates) and `<run>.md` (the report). Per trial: tokens (peak context and cache tokens; transcript output tokens are partial), tool calls, wall time split into phases (orient, learn, implement, test-authoring, verify, debug, tooling-friction, think, report), failure episodes from a failed build/test run to the next green one, matched against `analysis/catalog.mjs` (regex signatures mapped to tracker IDs, e.g. B-007), skill sections and library files read, line diff vs the starter, canonical-form counts, `sygnal-check` diagnostics (run `npm install` in `sygnal-check/` first, or pass `--no-check`) and the agent's own complaints. The report ranks what explains the Sygnal−React delta on the shared tasks and ends with evidence-backed recommendations. Each recommendation has a precondition (`analysis/lib/preconditions.mjs`, PLAN-2 F6) checked against the installed skill, `llms.txt` (`--llms`) and the PLAN-1/PLAN-2 trackers: one that is already done is listed as suppressed with the reason, and one whose change is in place but whose problem persists is rewritten to say what is left. Headless runs (map source `headless`, or no map: `<trials-root>/<run>/*.transcript.jsonl` are found automatically) also report cost, billed tokens, output tokens and duration per arm and task. Iterations and edit rounds use `lib/transcript.mjs`, so they match `transcript-stats.mjs`. Transcript and trial-dir locations default to this machine's eval session; override with `--transcripts`, `--trials-root`, `--skill-dir` (or `EVAL_TRANSCRIPTS` / `EVAL_SCRATCH`). Heuristics and their limits are listed at the end of each report.
 
 ## Known framework issues surfaced while building the tasks
 

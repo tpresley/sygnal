@@ -179,10 +179,10 @@ export const CATALOG = [
   },
   {
     id: 'HARNESS-GUARD',
-    title: 'Coordinator worktree guard refused a compound shell command (eval environment, both arms)',
+    title: 'The eval environment refused a tool call: the coordinator worktree guard (subagent trials) or the headless permission posture (both arms)',
     kind: 'harness',
     arms: ['sygnal', 'react'],
-    result: [/is isolated in the worktree[^\n]*Refusing|Refusing to run it/],
+    result: [/is isolated in the worktree[^\n]*Refusing|Refusing to run it/, /requested permissions to use [^\n]*haven't granted it|Permission to use [^\n]* has been denied/],
     report: [],
     workaround: [],
   },

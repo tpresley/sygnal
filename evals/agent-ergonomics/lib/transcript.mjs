@@ -98,6 +98,122 @@ const PEEK_RE = /evals\/agent-ergonomics|agent-ergonomics\/|\/hidden\/|__hidden_
 /** Does this tool input text mention the hidden tests or the eval harness? The trial dir itself is ignored. */
 export function mentionsHidden(text, trialDir = null) {
   let t = String(text)
-  if (trialDir) t = t.split(trialDir).join('<trial>')
+  for (const d of dirAliases(trialDir)) t = t.split(d).join('<trial>')
   return PEEK_RE.test(t)
+}
+
+/**
+ * The spellings of a directory an agent may use. On macOS /tmp and /var are
+ * symlinks into /private, and a headless agent's cwd is the resolved path, so
+ * /tmp/x and /private/tmp/x are the same trial dir. Longest first.
+ */
+export function dirAliases(dir) {
+  if (!dir) return []
+  const out = new Set([dir])
+  const m = dir.match(/^\/private(\/(?:tmp|var)(?:\/.*)?)$/)
+  if (m) out.add(m[1])
+  else if (/^\/(?:tmp|var)(?:\/|$)/.test(dir)) out.add('/private' + dir)
+  return [...out].sort((a, b) => b.length - a.length)
+}
+
+const EDIT_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit'])
+const PATH_TOOLS = ['Read', 'Glob', 'Grep', 'Write', 'Edit', 'MultiEdit']
+
+/**
+ * Trial metrics from transcript JSONL text (a PLAN-1 subagent log or a
+ * headless `<dest>.transcript.jsonl`); see transcript-stats.mjs for the
+ * definitions. Headless transcripts also carry a `system/init` and a final
+ * `result` event; their model, cost, billed tokens and duration are returned
+ * under `headless` (null for subagent logs).
+ */
+export function transcriptStats(text, trialDir = null) {
+  const events = [] // { kind: 'run'|'edit'|'other', name, input, ts }
+  let firstTs = null
+  let lastTs = null
+  let result = null
+  let init = null
+  const seen = new Set()
+  for (const line of String(text).split('\n')) {
+    if (!line.trim()) continue
+    let obj
+    try {
+      obj = JSON.parse(line)
+    } catch {
+      continue
+    }
+    const ts = obj.timestamp ? Date.parse(obj.timestamp) : null
+    if (ts) {
+      firstTs ??= ts
+      lastTs = ts
+    }
+    if (obj.type === 'result') result = obj
+    if (obj.type === 'system' && obj.subtype === 'init') init = obj
+    const msg = obj.message ?? obj
+    if (!msg || msg.role !== 'assistant' || !Array.isArray(msg.content)) continue
+    for (const block of msg.content) {
+      if (block?.type !== 'tool_use' || seen.has(block.id)) continue
+      seen.add(block.id)
+      const name = block.name
+      const input = block.input ?? {}
+      let kind = 'other'
+      if (EDIT_TOOLS.has(name)) kind = 'edit'
+      else if (name === 'Bash') {
+        const cmd = String(input.command ?? '')
+        if (isRunCommand(cmd)) kind = 'run'
+        else if (isEditCommand(cmd)) kind = 'edit'
+      }
+      events.push({ kind, name, input, ts })
+    }
+  }
+
+  let iterations = 0
+  let edits = 0
+  let editRounds = 0
+  let inEditRound = false
+  const audit = []
+  for (const e of events) {
+    if (e.kind === 'run') {
+      iterations++
+      inEditRound = false
+    } else if (e.kind === 'edit') {
+      edits++
+      if (!inEditRound) {
+        editRounds++
+        inEditRound = true
+      }
+    }
+    const t = JSON.stringify(e.input)
+    if (mentionsHidden(t, trialDir)) audit.push({ tool: e.name, reason: 'mentions hidden tests / eval harness', input: t.slice(0, 300) })
+    if (trialDir && PATH_TOOLS.includes(e.name)) {
+      const p = e.input.file_path ?? e.input.path
+      if (typeof p === 'string' && p.startsWith('/') && !dirAliases(trialDir).some((d) => p.startsWith(d)) && !/[/\\]skills?[/\\]/.test(p)) {
+        audit.push({ tool: e.name, reason: 'touches a path outside the trial dir', input: p })
+      }
+    }
+  }
+
+  let headless = null
+  if (result || init) {
+    const u = result?.usage ?? {}
+    headless = {
+      model: init?.model ?? null,
+      completed: !!result,
+      isError: result ? !!result.is_error : null,
+      durationMs: result?.duration_ms ?? null,
+      costUsd: result?.total_cost_usd ?? null,
+      tokens: result ? (u.input_tokens ?? 0) + (u.output_tokens ?? 0) + (u.cache_read_input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0) : null,
+      outputTokens: result ? u.output_tokens ?? 0 : null,
+      numTurns: result?.num_turns ?? null,
+    }
+  }
+
+  return {
+    iterations,
+    editRounds,
+    edits,
+    wallSeconds: firstTs && lastTs ? Math.round((lastTs - firstTs) / 1000) : headless?.durationMs != null ? Math.round(headless.durationMs / 1000) : null,
+    toolCalls: events.length,
+    audit,
+    headless,
+  }
 }
