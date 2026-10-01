@@ -114,6 +114,8 @@ function _switchable(
     },
     {}
   );
+  // B-024: every factory was instantiated above; dispose them all with the switchable
+  switchedSinks.__dispose = () => sinks.forEach(([, s]) => s.__dispose?.());
 
   return switchedSinks;
 }
