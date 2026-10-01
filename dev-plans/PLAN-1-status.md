@@ -11,7 +11,7 @@ Tracks progress for [PLAN-1.md](PLAN-1.md). Maintained by the coordinator.
 | Phase | Status | Tag | Notes |
 |---|---|---|---|
 | 0 — Foundations | ✅ Done | `plan1-phase0` | 0A ✅ · 0B ✅ · 0C ✅ · review: 9 findings, all fixed. Baseline eval still running (independent of merges; uses the pre-0B tarball) |
-| 1 — Core capabilities | 🟡 In progress | — | 1A ✅ 1B ✅ 1C ✅ 1D ✅ · 1E running · 1F after 1E |
+| 1 — Core capabilities | 🔵 Closing | — | 1A–1G ✅ merged · phase-close review running |
 | 2 — Strictness, introspection, integration | ⚪ Not started | — | |
 | 3 — Agent context & docs | ⚪ Not started | — | |
 | 4 — Measure & release | ⚪ Not started | — | |
@@ -34,7 +34,7 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | 0A-H | Harder eval tier (tasks 09–12) + harness fixes | ✅ | `worktree-agent-ab48f9e4d3b40f38e` | subagent | `6b79fbc` | 4 tasks × 2 arms, 30 hidden tests, verified 44/44 on the baseline tarball and HEAD, no flakes in 32 reruns, mutants caught. Fixed G-009 and G-017. Found B-010, B-011, B-012 |
 | — | Tier-2 baseline run (`baseline-t2`) | ✅ | — | coordinator | `24e3641` | 40/40 pass. Sygnal 92 s / 4.5 iterations vs React 63 s / 2.5 (~1.46×). Ceiling persists; Phase 4 measures efficiency |
 | — | Friction analyzer | ✅ | `worktree-agent-ad1b61c716442470a` | subagent | `8155e72` | 110 trials, 100% wall-time attribution, 27 unit tests. **B-007 alone is 20% (tier 1) / 41% (tier 2) of the Sygnal−React delta**; framework/tooling defects during self-testing ~40%; learning from library source ~9 s per trial (React 0). Recommendations folded into 3A/3B/4A (D27) |
-| 1G | Rendering/state bug fixes + B-004 warning | 🟡 | (harness-assigned) | subagent | — | B-010, B-011, B-012, B-013, G-028, SYG111 "controlled input without handler" (D25), plus small 1F leftovers |
+| 1G | Rendering/state bug fixes + B-004 warning | ✅ | `worktree-agent-a832977a4a01b8857` | subagent | `a6caabf` | Fixed B-010 (pickCombine detects permutations; item identity kept), B-011 (snabbdom-valid text vnodes), B-012 (className module clears removed classes; className + `class={{}}` combine), B-013 (collection items reduce from fresh state), G-028, G-018 (`data-sygnal-ready` only while not ready). SYG111 static rule (one true positive: kanban `.lane-title-input`, left for 2D). Each fix had a failing test first. Kanban +504 B |
 | 1F | Framework bug fixes | ✅ | `worktree-agent-a33bebfd10cbeb13b` | subagent | `52e3f91` | Fixed B-003 (per-action state snapshot for non-STATE sinks), B-004 (controlled-input module; D25), B-005 (`errors()` source method; null results delivered; D26), B-008 (isolated child keeps a per-instance slot), B-009 (reproduced; collection-scoped item ids), G-020, G-024 (renderComponent reports SYG104/SYG103 itself), G-025 (+ fixed a crash for a props-less `.components` element), G-026 (+ `from={null}` crash). 28 new tests, each failing before its fix. Kanban +194 B |
 | 2A | Strict mode | ⚪ | | | | |
 | 2B | Inspect | ⚪ | | | | MCP decision pending |
@@ -57,6 +57,7 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | After 0B review fixes (**Phase 0 close**, tag `plan1-phase0`) | `44daa86` | ✅ (includes dts) | ✅ | ✅ 670 | ✅ | ✅ 83 | 59,108 B | `dist/index.d.ts` from `build` alone has no `./cycle/` imports |
 | After 1B | `b75616b` | ✅ | (in build) | ✅ 683 | ✅ (+ registry/dist programs) | ✅ 83 | 59,183 B | Phase 1 budget left: 1,222 B (1A ≤400, 1C ≤500, 1E ≤300) |
 | After 1C + 1D | `679e60f` | ✅ | (in build) | ✅ 716 (+2 todo) | ✅ | ✅ 83 | whole file 60,764 B (info only) · **kanban app 40,237 B gz** (unchanged) | **Gate redefined (D18):** kanban production bundle limit 41,773 B (+1.5 KB over 40,237). Kanban tests 70/70. sygnal-check 46/46 |
+| After 1G (all Phase 1 merged) | `a6caabf` | ✅ | (in build) | ✅ 812 | ✅ | ✅ 107 | kanban app **41,442 B** (limit 41,773; 331 B headroom) | Kanban 70/70; sygnal-check 50/50; analyzer 27/27 |
 | After 1F | `52e3f91` | ✅ | (in build) | ✅ 795 | ✅ | ✅ 94 | kanban app **40,938 B** (limit 41,773) | Kanban 70/70 |
 | After 1E (+ integration fixes) | (see log) | ✅ | (in build) | ✅ 767 | ✅ | ✅ 89 | kanban app **40,744 B** (limit 41,773; ~1 KB left for 1F) | Kanban 70/70; sygnal-check 46/46 (code drift test passes) |
 | After 1A (+ integration fixes) | `46d47de` | ✅ | (in build) | ✅ 750 | ✅ | ✅ 89 | kanban app **40,383 B** (+146; limit 41,773) · diagnostics entry 9,452 B (dev only) | Kanban 70/70 |
@@ -156,6 +157,9 @@ Pre-existing issues and gaps found during the work. Severity: high (blocks a gat
 | G-029 | 1F | info | Devtools | Parents re-stamp EVENTS from children with their own name, so `__emitterName` is always the outermost component. Pre-existing. | Open → PLAN-2 candidate |
 | G-030 | Analyzer | med | Eval harness | The coordinator's worktree guard refuses some compound shell commands from trial agents (both arms), adding 8–17 s per trial: ~20–24% of React's wall time. This compresses the Sygnal/React ratio and adds noise. | Open → 4A (D27) |
 | G-031 | Analyzer | med | Skill content | The installed skill has no testing section and no "API facts" (child props, run() API, CHILD.select payload, blur handling, xstream operators), so agents read `node_modules/sygnal` source (28 of 40, 19 of 20 trials). | Open → 3A/3B (D27) |
+| B-014 | 1G (code reading, untested) | med | Rendering | A string `class="a b"` in JSX goes to snabbdom's classModule, which iterates the string's **characters** (adding classes "0", "1", "2"…). `className` works. | Open → verify + fix (PLAN-2 or Phase 2 follow-up) |
+| B-015 | 1G | low | Rendering | snabbdom's propsModule never unsets removed props (e.g. `title`); only className is handled now (B-012). | Open → PLAN-2 candidate |
+| G-032 | 1G | low | Docs | The docs need a SYG111 entry and a G-018 note (`data-sygnal-ready` now appears only while not ready). | Open → 3C |
 | G-008 | Coordinator | low | Skill | The installed user-level skill `~/.claude/skills/sygnal-dev/SKILL.md` lags the repo copy (missing the DISPOSE row and the dispose$ "prefer DISPOSE" note); `agents/` exists only in the repo. Eval trials use the installed copy. | Open → 3B sync |
 | G-009 | Coordinator | low | Eval harness | The `transcript-stats.mjs` audit flags every call whose path contains "evals", which gives false positives when the trial dir is under `.../evals/...`. | ✅ Fixed in 0A-H (audit narrowed; trial dir stripped before matching) |
 | G-010 | 0B | low | Types | `getDevTools` is exported at runtime but has no declaration in `src/index.d.ts`. | Open → 2B |
