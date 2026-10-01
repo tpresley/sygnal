@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import sygnal from '../dist/vite/plugin.mjs'
 
+const DEV_FLAG = 'if (globalThis.__SYGNAL_DEV__ === undefined) globalThis.__SYGNAL_DEV__ = true;'
+
 describe('vite-plugin-sygnal', () => {
   describe('config', () => {
     it('returns jsx config by default', () => {
@@ -145,7 +147,7 @@ run(App)
       expect(result.code).toContain("import.meta.hot.accept('./App', __sygnal.hmr)")
     })
 
-    it('skips files that already have import.meta.hot', () => {
+    it('skips HMR wiring for files that already have import.meta.hot (dev flag only)', () => {
       const plugin = createPlugin()
       const code = `
 import { run } from 'sygnal'
@@ -159,7 +161,7 @@ if (import.meta.hot) {
 }
 `
       const result = plugin.transform(code, '/src/main.js')
-      expect(result).toBeNull()
+      expect(result).toEqual({ code: DEV_FLAG + code })
     })
 
     it('skips files without run import from sygnal', () => {
@@ -174,7 +176,7 @@ function render() { return createElement('div', null, 'hello') }
       expect(result).toBeNull()
     })
 
-    it('skips files where run is called with a non-component (lowercase)', () => {
+    it('skips HMR wiring where run is called with a non-component (dev flag only)', () => {
       const plugin = createPlugin()
       const code = `
 import { run } from 'sygnal'
@@ -182,10 +184,10 @@ import { run } from 'sygnal'
 run(someFunction)
 `
       const result = plugin.transform(code, '/src/main.js')
-      expect(result).toBeNull()
+      expect(result).toEqual({ code: DEV_FLAG + code })
     })
 
-    it('skips files where component has no import path', () => {
+    it('skips HMR wiring where component has no import path (dev flag only)', () => {
       const plugin = createPlugin()
       const code = `
 import { run } from 'sygnal'
@@ -196,8 +198,8 @@ App.initialState = { count: 0 }
 run(App)
 `
       const result = plugin.transform(code, '/src/main.js')
-      // App is defined inline, not imported — can't wire HMR to a module
-      expect(result).toBeNull()
+      // App is defined inline, not imported — can't wire HMR to a module, but the dev flag is still set
+      expect(result).toEqual({ code: DEV_FLAG + code })
     })
 
     it('skips node_modules', () => {
@@ -229,7 +231,7 @@ run(App)
       expect(result).toBeNull()
     })
 
-    it('skips when disableHmr is true', () => {
+    it('skips HMR wiring when disableHmr is true (dev flag only)', () => {
       const plugin = sygnal({ disableHmr: true })
       plugin.config({}, { command: 'serve' })
       const code = `
@@ -238,7 +240,7 @@ import App from './App.jsx'
 run(App)
 `
       const result = plugin.transform(code, '/src/main.js')
-      expect(result).toBeNull()
+      expect(result).toEqual({ code: DEV_FLAG + code })
     })
 
     it('handles run with multiple sygnal imports', () => {
@@ -253,6 +255,71 @@ run(App)
       const result = plugin.transform(code, '/src/main.js')
       expect(result).not.toBeNull()
       expect(result.code).toContain("import.meta.hot.accept('./App.jsx', __sygnal.hmr)")
+    })
+  })
+
+  describe('transform — dev flag (__SYGNAL_DEV__)', () => {
+    const entry = `import { run } from 'sygnal'
+import App from './App.jsx'
+run(App)
+`
+
+    function servePlugin(opts) {
+      const plugin = sygnal(opts)
+      plugin.config({}, { command: 'serve' })
+      return plugin
+    }
+
+    it('prepends the dev flag to the entry file in serve mode', () => {
+      const result = servePlugin().transform(entry, '/src/main.js')
+      expect(result.code.startsWith(DEV_FLAG)).toBe(true)
+    })
+
+    it('keeps line numbers unchanged (flag is on the first line)', () => {
+      const result = servePlugin().transform(entry, '/src/main.js')
+      const lines = result.code.split('\n')
+      expect(lines[0]).toBe(DEV_FLAG + "import { run } from 'sygnal'")
+      expect(lines[1]).toBe("import App from './App.jsx'")
+    })
+
+    it('injects the flag for every run() result pattern', () => {
+      const plugin = servePlugin()
+      const variants = [
+        `import { run } from 'sygnal'\nimport App from './App.jsx'\nconst app = run(App)\n`,
+        `import { run } from 'sygnal'\nimport App from './App.jsx'\nconst { hmr, dispose } = run(App)\n`,
+      ]
+      for (const code of variants) {
+        expect(plugin.transform(code, '/src/main.js').code.startsWith(DEV_FLAG)).toBe(true)
+      }
+    })
+
+    it('respects a value the app already set (only assigns when undefined)', () => {
+      const result = servePlugin().transform(entry, '/src/main.js')
+      const g = {}
+      g.__SYGNAL_DEV__ = false
+      // evaluate just the flag statement against a fake globalThis
+      new Function('globalThis', DEV_FLAG)(g)
+      expect(g.__SYGNAL_DEV__).toBe(false)
+      const g2 = {}
+      new Function('globalThis', DEV_FLAG)(g2)
+      expect(g2.__SYGNAL_DEV__).toBe(true)
+      expect(result.code).toContain(DEV_FLAG)
+    })
+
+    it('does not inject in build mode', () => {
+      const plugin = sygnal()
+      plugin.config({}, { command: 'build' })
+      expect(plugin.transform(entry, '/src/main.js')).toBeNull()
+    })
+
+    it('does not inject into non-entry files', () => {
+      const code = `import { createElement } from 'sygnal'\nexport default function App() {}\n`
+      expect(servePlugin().transform(code, '/src/App.jsx')).toBeNull()
+    })
+
+    it('does not use define (it would not reach pre-bundled sygnal)', () => {
+      const result = sygnal().config({}, { command: 'serve' })
+      expect(result.define).toBeUndefined()
     })
   })
 

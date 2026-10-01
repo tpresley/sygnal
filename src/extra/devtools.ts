@@ -1,3 +1,6 @@
+import {getDiagnostics} from './diagnostics/index';
+import type {Diagnostic} from './diagnostics/index';
+
 const DEVTOOLS_SOURCE = '__SYGNAL_DEVTOOLS_PAGE__';
 const EXTENSION_SOURCE = '__SYGNAL_DEVTOOLS_EXTENSION__';
 const DEFAULT_MAX_HISTORY = 200;
@@ -66,6 +69,11 @@ class SygnalDevTools {
     this._components = new Map();
     this._stateHistory = [];
     this._maxHistory = DEFAULT_MAX_HISTORY;
+  }
+
+  /** Diagnostics collected by the shared diagnostics core (see src/extra/diagnostics). */
+  getDiagnostics(): Diagnostic[] {
+    return getDiagnostics();
   }
 
   get connected(): boolean {

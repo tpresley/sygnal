@@ -26,6 +26,7 @@ export { makeServiceWorkerDriver, onlineStatus$, createInstallPrompt } from './e
 export { renderToString } from './extra/ssr'
 export { default as xs } from './extra/xstreamCompat'
 export { getDevTools } from './extra/devtools'
+export { getDiagnostics, clearDiagnostics, onDiagnostic } from './extra/diagnostics/index'
 
 // export dom helper functions (h, makeDOMDriver, etc.)
 export * from './cycle/dom/index'

@@ -6,6 +6,8 @@ import {init as snabbdomInit} from './cycle/dom/snabbdom';
 import defaultModules from './cycle/dom/modules';
 import {makeCommandSource} from './extra/command';
 import type {Command} from './extra/command';
+// [diagnostics hook] shared diagnostics core — hooks are no-ops when diagnostics are off
+import * as diag from './extra/diagnostics/index';
 
 import xs, {Stream, resolveInteropDefault} from './extra/xstreamCompat';
 import * as delayModule from 'xstream/extra/delay.js';
@@ -457,6 +459,8 @@ class Component {
   }
 
   dispose(): void {
+    // [diagnostics hook]
+    diag.onDispose(this)
     if (typeof window !== 'undefined' && window.__SYGNAL_DEVTOOLS__?.connected) {
       window.__SYGNAL_DEVTOOLS__.onComponentDisposed(this._componentNumber, this.name)
     }
@@ -506,6 +510,8 @@ class Component {
 
   initIntent$(): void {
     if (!this.intent) {
+      // [diagnostics hook]
+      diag.onIntent(this, [], undefined)
       return
     }
     if (typeof this.intent != 'function') {
@@ -517,6 +523,9 @@ class Component {
     if (!(this.intent$ instanceof Stream) && (!isObj(this.intent$))) {
       throw new Error(`[${this.name}] Intent must return either an action$ stream or map of event streams`)
     }
+
+    // [diagnostics hook] TODO(1A): selectorsUsed via MainDOMSource.select instrumentation
+    diag.onIntent(this, this.intent$ instanceof Stream ? [] : Object.keys(this.intent$), undefined)
   }
 
   initHmrActions(): void {
@@ -656,6 +665,8 @@ class Component {
         a[s] = xs.never()
         return a
       }, {} as Record<string, any>)
+      // [diagnostics hook]
+      diag.onModel(this, {})
       return
     }
 
@@ -676,6 +687,7 @@ class Component {
 
     const reducers: Record<string, any[]> = {}
     const seenActionSinks = new Set<string>()
+    const modelMap: Record<string, string[]> = {}  // [diagnostics hook]
 
     modelEntries.forEach((entry) => {
       let [action, sinks]: [string, any] = entry
@@ -708,6 +720,7 @@ class Component {
           console.warn(`[${this.name}] Duplicate model entry for action '${action}' on sink '${sink}'. Only the last definition will take effect.`)
         }
         seenActionSinks.add(actionSinkKey)
+        ;(modelMap[action] ||= []).push(sink)  // [diagnostics hook]
 
         // EFFECT sink: run the reducer for side effects only, no state change or sink output
         if (sink === EFFECT_SINK_NAME) {
@@ -753,6 +766,9 @@ class Component {
     }, {} as Record<string, any>)
 
     this.model$ = model$
+
+    // [diagnostics hook]
+    diag.onModel(this, modelMap)
   }
 
   initPeers$(): void {
@@ -943,8 +959,12 @@ class Component {
                 props.state = enhancedState
                 const newState = reducer(enhancedState, data, next, props)
                 if (isAbort(newState)) return _state
+                // [diagnostics hook]
+                diag.onReducer(this, name, _state, newState, this.stateSourceName)
                 return this.cleanupCalculated(newState)
               } catch (err) {
+                // [diagnostics hook] let 'error'-mode diagnostics propagate
+                if (err instanceof diag.DiagnosticError) throw err
                 console.error(`[${this.name}] Error in model reducer '${name}':`, err)
                 return _state
               }
@@ -1637,6 +1657,8 @@ class Component {
       })
       .flatten()
       .filter((val: any) => !!val)
+      // [diagnostics hook]
+      .map((vdom: any) => { diag.onRender(this, vdom); return vdom })
       .remember()
   }
 
