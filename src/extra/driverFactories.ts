@@ -15,7 +15,9 @@ interface DriverFromAsyncOptions {
  * by `args`, after `pre`). The resolved value, after `post`, is delivered as
  * `{ [return]: value, [selector]: request[selector] }` (defaults:
  * `{ value, category }`) and read with `source.select(category)`. A promise
- * that resolves to `null`/`undefined` is delivered the same way.
+ * that resolves to `null`/`undefined` is delivered the same way. Replies that
+ * resolve before any `select()` listener exists (a BOOTSTRAP request, say) are
+ * held and delivered once the first one subscribes.
  *
  * Errors: if the function's promise (or a promise returned by `post`)
  * rejects, or `post` throws, the error is delivered on `source.errors()`,
@@ -65,13 +67,41 @@ function driverFromAsync(
   }
 
   return (fromApp$: Stream<any>) => {
+    // G-069: a reply can resolve before anything has subscribed to select() (e.g. a
+    // BOOTSTRAP request to an instantly-resolving promise under run()). Such replies are
+    // buffered (at most EARLY_REPLY_LIMIT, oldest dropped) until the first select()
+    // listener subscribes, then delivered in order on a microtask, so every select()
+    // wired in the same pass sees them. After that, a reply that arrives while no one
+    // listens is dropped, as with any xstream source.
+    const EARLY_REPLY_LIMIT = 100;
     let sendFn: ((val: any) => void) | null = null;
+    let started = false;
+    let pending: any[] = [];
+    const flush = () => {
+      const queued = pending;
+      pending = [];
+      queued.forEach(reply => sendFn?.(reply));
+    };
+    const deliver = (reply: any) => {
+      if (!started || pending.length > 0) {
+        pending.push(reply);
+        if (pending.length > EARLY_REPLY_LIMIT) pending.shift();
+        return;
+      }
+      sendFn?.(reply);
+    };
 
     const toApp$ = xs.create<any>({
       start: (listener) => {
         sendFn = listener.next.bind(listener);
+        if (!started) {
+          started = true;
+          if (pending.length > 0) queueMicrotask(flush);
+        }
       },
-      stop: () => {},
+      stop: () => {
+        sendFn = null;
+      },
     });
 
     // Active errors(selector) streams (1H-6): an error goes to the ones it matches, and is
@@ -152,7 +182,7 @@ function driverFromAsync(
           .then(constructReply)
           .then((reply: any) => {
             try {
-              sendFn!(reply);
+              deliver(reply);
             } catch (err) {
               console.error(`${errMsg}: ${err}`);
             }
