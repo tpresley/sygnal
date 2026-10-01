@@ -1,0 +1,16 @@
+# p2-targeted: headless trials (orchestrate.mjs); transcripts are <trials-root>/p2-targeted/<trial>.transcript.jsonl
+sygnal-08-t1	headless
+sygnal-08-t2	headless
+sygnal-08-t3	headless
+sygnal-08-t4	headless
+sygnal-08-t5	headless
+sygnal-10-t1	headless
+sygnal-10-t2	headless
+sygnal-10-t3	headless
+sygnal-10-t4	headless
+sygnal-10-t5	headless
+sygnal-11-t1	headless
+sygnal-11-t2	headless
+sygnal-11-t3	headless
+sygnal-11-t4	headless
+sygnal-11-t5	headless

@@ -12,7 +12,7 @@ Tracks progress for [PLAN-2.md](PLAN-2.md). Maintained by the coordinator. The P
 |---|---|---|---|
 | 0 — Release follow-through, eval infrastructure | ✅ Done | `plan2-phase0` | 0-A ✅ · 0-B ✅ · 0-C ✅ · tier-3 pilot ✅ (20/20 pass; Sygnal 66.6 s vs React 45.7 s) · v2-baseline ✅ 160/160, Sygnal 48.4 s vs React 34.1 s (1.42×), see `results/V2-BASELINE.md` |
 | 1 — Correctness backlog | ✅ Done | `plan2-phase1` | 1-A…1-F ✅ · 1-T trim ✅ · review: 6 findings + 2 notes, all fixed in 1-R · kanban 41,803 B (2 B headroom) |
-| 2 — Known ergonomics improvements | 🟡 In progress | — | 2-A ✅ · 2-B ✅ · 2-C ✅ · 2-D ✅ |
+| 2 — Known ergonomics improvements | ✅ Done | `plan2-phase2` | 2-A ✅ · 2-B ✅ · 2-C ✅ · 2-D ✅ · review: 9 findings, all fixed in 2-R · targeted eval: task 08 41.8 → 27.0 s (gap 20.8 → 6.0 s), 10 −7.5 s, 11 unchanged (`results/P2-TARGETED.md`) |
 | 3 — Experiments | ⚪ | — | |
 | 4 — Adopt, measure, release | ⚪ | — | |
 
@@ -137,6 +137,7 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | R2-9 | Phase 2 review | low | Vike | Hydrating 5.4.0-shape serialized state loses Layout state | ✅ 2-R |
 | G-117 | 2-R | low (perf) | Vike | With the D50 lenses, Wrapper/Layout views re-render on every root state change, including page-only changes (5.4.0 didn't) | Open |
 | G-118 | 2-R merge | low | Tests | `test/review-2e2/b024-nested-dispose.test.js` asserted stream teardown after a fixed 30 ms; flaked once under full-suite load | ✅ Coordinator: bounded wait for teardown |
+| G-119 | p2-targeted | low (eval) | Analyzer | `compare.mjs` compares a subset run with the full baseline mean (not task- or arm-matched), giving misleading deltas | Open → Phase 3 harness fix |
 | G-076 | 5.4.0 release | low | browser-tests | The browser run prints expected console errors from error-path tests, which look like failures | ✅ 1-E (whitelist updated for SYG405 at the 1-B merge) |
 
 ## Worktree Setup (each subagent, inside its own isolated worktree)
@@ -160,6 +161,7 @@ gzip -c /tmp/kb/assets/index-*.js | wc -c      # budget 41,805 B
 
 ## Activity Log
 
+- 2026-10-01 — Targeted eval `p2-targeted` (15 Sygnal trials, $5.58): task 08 −35% (iterations 4.8 → 2.0), task 10 −7.5 s, task 11 unchanged. Phase 2 closed, tagged `plan2-phase2`. Branch skill installed for Phase 3.
 - 2026-10-01 — 2-R merged; one timing flake fixed (G-118); full gate green (988 vitest, 121 browser, 41,772 B gated).
 - 2026-10-01 — PLAN-1 tracker reconciled (`fd76d2a`: 72 stale statuses → 69 fixed, 3 closed, 0 open; analyzer reads Closed/Won't fix as done; 69 harness tests). Baseline analysis regenerated: B-005 recommendation now correctly rewritten as "fixed".
 - 2026-10-01 — v2-baseline done: 160/160 pass, $49.26; Sygnal 48.4 s vs React 34.1 s (+14.3 s; tier gaps 8.0 / 12.3 / 23.5 s); learning 52% of the delta. `V2-BASELINE.md` written; Phase 0 closed, tagged `plan2-phase0`. Stale PLAN-1 tracker statuses mislead the analyzer's recommendations (B-005) → bookkeeping agent.
