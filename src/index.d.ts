@@ -149,23 +149,47 @@ type SinkValue<STATE, PROPS, ACTIONS, DATA, RETURN, CALCULATED, CONTEXT = {}> =
   | true
   | Reducer<STATE & CALCULATED, PROPS, ACTIONS, DATA, RETURN, CONTEXT>
 
+/**
+ * Valid values for a non-STATE sink (EVENTS, LOG, PARENT, custom drivers): a SinkValue, or
+ * a constant that is sent as-is every time the action fires (`LOG: 'saved'`). Not for
+ * STATE, whose values must be reducers. A constant can't be a function (that is a
+ * reducer) or `true` (that is pass-through).
+ */
+type NonStateSinkValue<STATE, PROPS, ACTIONS, DATA, RETURN, CALCULATED, CONTEXT = {}> =
+  | SinkValue<STATE, PROPS, ACTIONS, DATA, RETURN, CALCULATED, CONTEXT>
+  | SinkConstant<RETURN>
+
+/**
+ * A constant for a sink whose value type is `RETURN`. When RETURN is `any` (untyped sinks),
+ * any non-function value: a bare `any` would also accept reducers with wrong parameter
+ * types and switch off checking of the whole model entry.
+ */
+type SinkConstant<RETURN> = 0 extends (1 & RETURN)
+  ? AnySinkConstant
+  : RETURN extends (...args: any[]) => any ? never : RETURN
+
+type AnySinkConstant =
+  | string | number | bigint | boolean | null
+  | readonly unknown[]
+  | { [key: string]: unknown; apply?: never; call?: never; bind?: never }
+
 type EffectReducer<STATE, PROPS, ACTIONS, DATA, CALCULATED, CONTEXT = {}> =
   | ((state: STATE & CALCULATED, args: DATA, next: NextFunction<ACTIONS>, props: ReducerExtras<PROPS, CONTEXT>) => void)
 
 type DefaultSinks<STATE, PROPS, ACTIONS, DATA, CALCULATED, SINK_RETURNS extends NonStateSinkReturns = {}, CONTEXT = {}> = {
   STATE?: SinkValue<STATE, PROPS, ACTIONS, DATA, STATE, CALCULATED, CONTEXT>;
-  EVENTS?: SinkValue<STATE, PROPS, ACTIONS, DATA, ResolvedNonStateSinkReturns<SINK_RETURNS>['EVENTS'], CALCULATED, CONTEXT>;
-  LOG?: SinkValue<STATE, PROPS, ACTIONS, DATA, ResolvedNonStateSinkReturns<SINK_RETURNS>['LOG'], CALCULATED, CONTEXT>;
-  PARENT?: SinkValue<STATE, PROPS, ACTIONS, DATA, ResolvedNonStateSinkReturns<SINK_RETURNS>['PARENT'], CALCULATED, CONTEXT>;
+  EVENTS?: NonStateSinkValue<STATE, PROPS, ACTIONS, DATA, ResolvedNonStateSinkReturns<SINK_RETURNS>['EVENTS'], CALCULATED, CONTEXT>;
+  LOG?: NonStateSinkValue<STATE, PROPS, ACTIONS, DATA, ResolvedNonStateSinkReturns<SINK_RETURNS>['LOG'], CALCULATED, CONTEXT>;
+  PARENT?: NonStateSinkValue<STATE, PROPS, ACTIONS, DATA, ResolvedNonStateSinkReturns<SINK_RETURNS>['PARENT'], CALCULATED, CONTEXT>;
   EFFECT?: EffectReducer<STATE, PROPS, ACTIONS, DATA, CALCULATED, CONTEXT>;
 }
 
 type CustomDriverSinks<STATE, PROPS, DRIVERS, ACTIONS, ACTION_ENTRY, CALCULATED, CONTEXT = {}> = keyof DRIVERS extends never
   ? {
-      [driver: string]: SinkValue<STATE, PROPS, ACTIONS, any, any, CALCULATED, CONTEXT>
+      [driver: string]: NonStateSinkValue<STATE, PROPS, ACTIONS, any, any, CALCULATED, CONTEXT>
     }
   : {
-      [DRIVER_KEY in keyof DRIVERS]: SinkValue<
+      [DRIVER_KEY in keyof DRIVERS]: NonStateSinkValue<
         STATE,
         PROPS,
         ACTIONS,
@@ -223,7 +247,11 @@ type TrimSpaces<S extends string> =
 
 /** Value type produced by a PARENT sink value (a reducer's return, minus ABORT/undefined). */
 type ParentSinkValueReturn<VALUE> =
-  VALUE extends (...args: any[]) => infer RETURN ? Exclude<RETURN, ABORT | undefined | void> : never
+  VALUE extends (...args: any[]) => infer RETURN ? Exclude<RETURN, ABORT | undefined | void>
+  // `true` is pass-through (payload unknown here; an expando model widens it to boolean)
+  : VALUE extends boolean ? never
+  // a constant is sent as-is
+  : VALUE
 
 type ParentPayloadFromEntry<ENTRY> =
   ENTRY extends (...args: any[]) => any ? never
