@@ -44,7 +44,9 @@ test('isTestPath and bashWriteTargets', () => {
   assert.ok(!isTestPath('/a/b/src/App.jsx'))
   assert.deepEqual(bashWriteTargets(`cat > ${TRIAL}/src/A.jsx <<'EOF'\nx\nEOF`), [`${TRIAL}/src/A.jsx`])
   assert.deepEqual(bashWriteTargets('npm test 2>&1 | tail -5'), [])
-  assert.deepEqual(bashWriteTargets("python3 - <<'EOF'\np='src/App.jsx'; s=open(p).read()\nEOF"), ['src/App.jsx'])
+  // A script that only reads a file doesn't write it (fix2: writes are detected from open(p, 'w') etc.).
+  assert.deepEqual(bashWriteTargets("python3 - <<'EOF'\np='src/App.jsx'; s=open(p).read()\nEOF"), [])
+  assert.deepEqual(bashWriteTargets("python3 - <<'EOF'\np='src/App.jsx'; s=open(p).read()\nopen(p,'w').write(s)\nEOF"), ['src/App.jsx'])
 })
 
 test('verifyOutcome reads vitest/vite summaries before exit codes', () => {
