@@ -72,6 +72,8 @@ describe('vite-plugin-sygnal', () => {
         // the dev dependency scanner doesn't read `oxc`
         optimizeDeps: {
           rolldownOptions: { transform: { jsx: { runtime: 'automatic', importSource: 'sygnal' } } },
+          // B-020: the Vike client entry shares the pages' core
+          exclude: ['sygnal/vike/onRenderClient'],
         },
       })
     })
@@ -95,6 +97,7 @@ describe('vite-plugin-sygnal', () => {
       const result = serveConfig(plugin)
       expect(result).toEqual({
         ssr: { noExternal: ['sygnal'] },
+        optimizeDeps: { exclude: ['sygnal/vike/onRenderClient'] },
       })
     })
   })

@@ -71,7 +71,8 @@
  *   7. Vike and Astro (G-014): the app is started by sygnal's own client
  *      entry, which user code doesn't import. Client-side imports of
  *      'sygnal/vike/onRenderClient' resolve to a dev wrapper that sets the
- *      flag and loads the checks first. Astro resolves its renderer entry on
+ *      flag and loads the checks first. That entry is excluded from
+ *      pre-bundling in dev (B-020), so it shares the pages' core. Astro resolves its renderer entry on
  *      the server and the browser loads the file itself, so the same snippet
  *      is added to sygnal's 'astro/client' file by the transform. That file
  *      imports the public 'sygnal' entry (one shared core, B-019), so its
@@ -271,6 +272,16 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
         // linked one is served from source, and pre-bundling the checks alone
         // would give them their own copy of the core.
         result.optimizeDeps = { ...result.optimizeDeps, include: ['sygnal/diagnostics'] }
+      }
+
+      // B-020: Vike adds its client entry 'sygnal/vike/onRenderClient' to
+      // optimizeDeps.include. With a linked sygnal, the pages' 'sygnal' is
+      // served from source while that pre-bundle inlines a second copy of the
+      // core. Unbundled, the entry's own `import 'sygnal'` resolves like the
+      // pages' imports (source when linked, the shared pre-bundle when
+      // installed): one core. Vike honours the exclude list.
+      if (isServe && !isVitest) {
+        result.optimizeDeps = { ...result.optimizeDeps, exclude: [VIKE_CLIENT] }
       }
 
       return result

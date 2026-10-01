@@ -201,8 +201,19 @@ describe('vite plugin — Vitest setup file (deliverable 2)', () => {
 describe('vite plugin — dependency scan', () => {
   it('gives the dev dependency scanner the sygnal JSX settings (serve only)', () => {
     const jsx = { runtime: 'automatic', importSource: 'sygnal' }
-    expect(configure(sygnal()).optimizeDeps).toEqual({ rolldownOptions: { transform: { jsx } } })
-    expect(configure(sygnal({ disableJsx: true })).optimizeDeps).toBeUndefined()
+    const exclude = ['sygnal/vike/onRenderClient']
+    expect(configure(sygnal()).optimizeDeps).toEqual({ rolldownOptions: { transform: { jsx } }, exclude })
+    expect(configure(sygnal({ disableJsx: true })).optimizeDeps).toEqual({ exclude })
+  })
+
+  // B-020: Vike puts its client entry in optimizeDeps.include; pre-bundled with
+  // a linked sygnal it inlined a second core next to the pages' source 'sygnal'.
+  it("excludes the Vike client entry from pre-bundling in dev (B-020)", () => {
+    expect(configure(sygnal()).optimizeDeps.exclude).toEqual(['sygnal/vike/onRenderClient'])
+    expect(configure(sygnal({ diagnostics: 'off' })).optimizeDeps.exclude).toEqual(['sygnal/vike/onRenderClient'])
+    // not in a build, and not under Vitest
+    expect(configure(sygnal(), { command: 'build' }).optimizeDeps).toBeUndefined()
+    expect(configure(sygnal(), { vitest: true }).optimizeDeps).toBeUndefined()
   })
 
   it('does not pre-bundle the checks for a linked sygnal (it would duplicate the core)', () => {
