@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import ts from 'typescript'
+import path from 'node:path'
 import sygnal from '../dist/vite/plugin.mjs'
+
+// G-099: xstream's `globalthis` resolves to the native-globalThis stub (nativeGlobalThis)
+const RESOLVE = { alias: [{ find: /^globalthis$/, replacement: path.resolve('dist/shims/globalthis.cjs') }] }
 
 const DEV_FLAG = 'if (globalThis.__SYGNAL_DEV__ === undefined) globalThis.__SYGNAL_DEV__ = true;'
 // What a dev server (not Vitest) injects: the flag plus the dev checks and dev client
@@ -63,6 +67,7 @@ describe('vite-plugin-sygnal', () => {
       const result = serveConfig(plugin)
       expect(result).toEqual({
         ssr: { noExternal: ['sygnal'] },
+        resolve: RESOLVE,
         oxc: {
           jsx: {
             runtime: 'automatic',
@@ -83,6 +88,7 @@ describe('vite-plugin-sygnal', () => {
       const result = serveConfig(plugin, { command: 'build' })
       expect(result).toEqual({
         ssr: { noExternal: ['sygnal'] },
+        resolve: RESOLVE,
         oxc: {
           jsx: {
             runtime: 'automatic',
@@ -97,6 +103,7 @@ describe('vite-plugin-sygnal', () => {
       const result = serveConfig(plugin)
       expect(result).toEqual({
         ssr: { noExternal: ['sygnal'] },
+        resolve: RESOLVE,
         optimizeDeps: { exclude: ['sygnal/vike/onRenderClient'] },
       })
     })

@@ -18,6 +18,8 @@ npm --prefix sygnal-check test       # static checker package (178 tests, *.vtes
 npm --prefix docs run build          # docs site + internal link check
 node scripts/gen-error-docs.mjs      # regenerate docs reference/errors.md from sygnal-check/explanations.json
 node scripts/check-doc-samples.mjs   # sygnal-check --strict on every docs code sample
+node scripts/size-gate.mjs           # size gate: kanban gzip with nativeGlobalThis: false ≤ 42,300 B (D48);
+                                     #   also prints the default (globalthis-aliased) size
 ```
 
 This is a **library package** — no dev server. Verify changes via `npm run build` + `npm test`. Build before testing: tests and examples import `dist/`.

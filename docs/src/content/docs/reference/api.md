@@ -91,6 +91,7 @@ export default defineConfig({
 | `diagnostics` | `DiagnosticsMode \| { mode, strict, ignore }` | `'warn'` | Runtime diagnostics in the dev server (`'off'` injects nothing) |
 | `check` | `boolean \| { strict, include, ignore, overlay }` | `true` | Run `sygnal-check` in the dev server, when installed |
 | `vitestSetup` | `boolean` | `true` | Under Vitest, add `sygnal/diagnostics` to `test.setupFiles` |
+| `nativeGlobalThis` | `boolean` | `true` | Alias xstream's `globalthis` polyfill to the native `globalThis`, in dev, build and Vitest |
 
 The HMR transform and the diagnostics setup run only in dev mode (`vite` / `vite dev`); production builds get none of it. Files that already contain `import.meta.hot` are left untouched.
 

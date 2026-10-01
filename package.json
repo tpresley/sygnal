@@ -31,6 +31,7 @@
       "import": "./dist/diagnostics.esm.js",
       "require": "./dist/diagnostics.cjs.js"
     },
+    "./shims/globalthis": "./dist/shims/globalthis.cjs",
     "./vite": {
       "types": "./src/vite/plugin.d.ts",
       "import": "./dist/vite/plugin.mjs",
