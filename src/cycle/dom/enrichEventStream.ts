@@ -49,7 +49,7 @@ export function enrichEventStream(stream$: any): any {
   // .data(name, fn?) — extract e.target.dataset[name]
   stream$.data = function data(name: string, fn?: (val: any) => any): any {
     const mapped = stream$.map((e: any) => {
-      const el = e?.target instanceof Element ? e.target.closest(`[data-${name}]`) || e.target : e?.target
+      const el = typeof Element != 'undefined' && e?.target instanceof Element ? e.target.closest(`[data-${name}]`) || e.target : e?.target
       const val = el?.dataset?.[name]
       return fn ? fn(val) : val
     });

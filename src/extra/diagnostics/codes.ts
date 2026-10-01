@@ -66,6 +66,7 @@ export const CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG103: 'info',
   SYG104: 'warn',
   SYG105: 'info',
+  SYG106: 'warn',
   SYG110: 'warn',
   SYG201: 'warn',
   SYG202: 'warn',
@@ -81,6 +82,7 @@ export const CODE_TITLES: Record<string, string> = {
   SYG103: 'Intent selector matched no rendered element',
   SYG104: 'Intent selector crosses an isolation boundary',
   SYG105: 'EVENTS type selected but never emitted, or emitted but never selected',
+  SYG106: 'Parent prop is overwritten by a reserved view argument',
   SYG110: 'Intent selector not present in the component view',
   // SYG2xx state & reducers (1A)
   SYG201: 'STATE reducer dropped keys from the previous state',

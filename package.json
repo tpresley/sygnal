@@ -26,6 +26,11 @@
       "import": "./dist/jsx-dev-runtime.esm.js",
       "require": "./dist/jsx-dev-runtime.cjs.js"
     },
+    "./diagnostics": {
+      "types": "./src/extra/diagnostics/checks/public.d.ts",
+      "import": "./dist/diagnostics.esm.js",
+      "require": "./dist/diagnostics.cjs.js"
+    },
     "./vite": {
       "types": "./src/vite/plugin.d.ts",
       "import": "./dist/vite/plugin.mjs",
