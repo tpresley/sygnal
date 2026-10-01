@@ -3,6 +3,15 @@ import {DevToolEnabledSource, FantasyObservable} from '../run/types';
 import {VNode} from './snabbdom';
 import {EventsFnOptions} from './DOMSource';
 import {adapt} from '../run/adapt';
+import {enrichEventStream} from './enrichEventStream';
+
+/**
+ * Optional simulated-event hub (used by renderComponent's simulateEvent): a
+ * stream of `{type, event, match(path)}`; each source's events(type) also emits
+ * the hub events whose `match` accepts its selector path (isolation scopes
+ * included as '.___scope' segments).
+ */
+export type MockEventHub = Stream<{type: string; event: any; match: (path: string[]) => boolean}>;
 
 export type MockConfig = {
   [name: string]: FantasyObservable<any> | MockConfig;
@@ -13,7 +22,11 @@ const SCOPE_PREFIX = '___';
 export class MockedDOMSource {
   private _elements: FantasyObservable<any>;
 
-  constructor(private _mockConfig: MockConfig) {
+  constructor(
+    private _mockConfig: MockConfig,
+    private _hub?: MockEventHub,
+    public _path: string[] = []
+  ) {
     if (_mockConfig.elements) {
       this._elements = _mockConfig.elements as FantasyObservable<any>;
     } else {
@@ -43,10 +56,16 @@ export class MockedDOMSource {
     options?: EventsFnOptions,
     bubbles?: boolean
   ): any {
-    const streamForEventType = this._mockConfig[eventType] as any;
-    const out: DevToolEnabledSource & FantasyObservable<any> = adapt(
-      streamForEventType || xs.empty()
-    );
+    const configured = this._mockConfig[eventType] as any;
+    const {_hub: hub, _path: path} = this;
+    const out: DevToolEnabledSource & FantasyObservable<any> = enrichEventStream(adapt(
+      hub
+        ? xs.merge(
+            configured ? xs.fromObservable(configured) : xs.empty(),
+            hub.filter(e => e.type === eventType && e.match(path)).map(e => e.event)
+          )
+        : configured || xs.empty()
+    ));
 
     out._isCycleSource = 'MockedDOM';
 
@@ -56,7 +75,11 @@ export class MockedDOMSource {
   public select(selector: string): MockedDOMSource {
     const mockConfigForSelector = this._mockConfig[selector] || {};
 
-    return new MockedDOMSource(mockConfigForSelector as MockConfig);
+    return new MockedDOMSource(
+      mockConfigForSelector as MockConfig,
+      this._hub,
+      this._path.concat(selector)
+    );
   }
 
   public isolateSource(
@@ -80,6 +103,9 @@ export class MockedDOMSource {
   }
 }
 
-export function mockDOMSource(mockConfig: MockConfig): MockedDOMSource {
-  return new MockedDOMSource(mockConfig);
+export function mockDOMSource(
+  mockConfig: MockConfig,
+  hub?: MockEventHub
+): MockedDOMSource {
+  return new MockedDOMSource(mockConfig, hub);
 }
