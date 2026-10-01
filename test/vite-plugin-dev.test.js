@@ -236,13 +236,21 @@ describe('vite plugin — Vike and Astro dev mode (deliverable 4, G-014)', () =>
     expect(await resolve(plugin, 'sygnal', real.id)).toBe('\0sygnal-dev:runtime')
   })
 
-  it("adds the dev snippet to sygnal's astro/client file, with installChecks() at its end", () => {
+  it("adds the dev snippet to sygnal's astro/client file (no installChecks() re-registration: one shared core, B-019)", async () => {
     const plugin = devPlugin({ diagnostics: { strict: true } }, { config: { root: REPO } })
     const file = path.join(fs.realpathSync(REPO), 'dist', 'astro', 'client.mjs')
     const code = fs.readFileSync(file, 'utf8')
+    // the island client imports the public 'sygnal' entry (no bundled core)
+    expect(code).toMatch(/from ['"]sygnal['"]/)
     const result = plugin.transform(code, file)
-    expect(result.code.startsWith(DEV_FLAG + STRICT_FLAG + IMPORTS)).toBe(true)
-    expect(result.code.trimEnd().endsWith('try { __sygnalInstallChecks() } catch (e) { console.warn(e) }')).toBe(true)
+    expect(result.code).toBe(DEV_FLAG + STRICT_FLAG + IMPORTS + code)
+    expect(result.code).not.toContain('installChecks')
+    // the default 'warn' mode needs no run() wrapper
+    expect(await resolve(plugin, 'sygnal', file)).toBeNull()
+    // other modes / ignore lists: the island client's 'sygnal' import gets the run() wrapper
+    const collect = devPlugin({ diagnostics: { mode: 'collect', ignore: ['SYG101'] } }, { config: { root: REPO } })
+    collect.transform(code, file)
+    expect(await resolve(collect, 'sygnal', file)).toBe('\0sygnal-dev:runtime')
     // every original line keeps its number
     expect(result.code.split('\n').slice(1, code.split('\n').length)).toEqual(code.split('\n').slice(1))
     expect(parseErrors(result.code)).toEqual([])
@@ -274,10 +282,16 @@ describe('vite plugin — Vike and Astro dev mode (deliverable 4, G-014)', () =>
     const plugin = setup('dev', { diagnostics: { strict: true } }).vite.plugins[0]
     const config = configure(plugin, { config: { root: REPO } })
     expect(config.oxc).toBeUndefined()
-    // modes the bundled Astro client can't take are reported once
-    expect(setup('dev', { diagnostics: 'error' }).warnings).toHaveLength(1)
+    // every mode and ignore list is passed through (B-019: the island client
+    // shares the app's core), with no warning
     expect(setup('dev', { diagnostics: 'off' }).vite.plugins).toHaveLength(1)
-    expect(setup('dev', { diagnostics: 'off' }).warnings).toEqual([])
+    const errorMode = setup('dev', { diagnostics: { mode: 'error', ignore: ['SYG105'] } })
+    expect(errorMode.warnings).toEqual([])
+    const ep = errorMode.vite.plugins[0]
+    configure(ep, { config: { root: REPO } })
+    const file = path.join(fs.realpathSync(REPO), 'dist', 'astro', 'client.mjs')
+    ep.transform(fs.readFileSync(file, 'utf8'), file)
+    expect(ep.load('\0sygnal-dev:runtime')).toContain('{"mode":"error","ignore":["SYG105"]}')
   })
 })
 

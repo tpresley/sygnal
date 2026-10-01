@@ -73,10 +73,11 @@
  *      'sygnal/vike/onRenderClient' resolve to a dev wrapper that sets the
  *      flag and loads the checks first. Astro resolves its renderer entry on
  *      the server and the browser loads the file itself, so the same snippet
- *      is added to sygnal's 'astro/client' file by the transform, followed by
- *      installChecks() at its end (that file bundles its own copy of the
- *      Sygnal core). The sygnal/astro integration adds this plugin in
- *      `astro dev`.
+ *      is added to sygnal's 'astro/client' file by the transform. That file
+ *      imports the public 'sygnal' entry (one shared core, B-019), so its
+ *      'sygnal' import gets the run() wrapper too: every `diagnostics` mode
+ *      and ignore list works for islands. The sygnal/astro integration adds
+ *      this plugin in `astro dev`.
  *
  * Why not Vite's `define`? Vite's dependency optimizer does not apply user
  * `define` replacements to pre-bundled dependencies (only process.env.NODE_ENV),
@@ -196,7 +197,7 @@ const CHECK_EVENT = 'sygnal:check'
 // Sent by the dev client when it loads: the server answers that client only
 const CHECK_REQUEST = 'sygnal:check:request'
 const OVERLAY_PLUGIN = 'sygnal-check'
-// Register the runtime checks with the core that loaded last (see the Vike/Astro wrappers)
+// Register the runtime checks with the core that loaded last (see the Vike wrapper)
 const REINSTALL_IMPORT = `import { installChecks as __sygnalInstallChecks } from 'sygnal/diagnostics';`
 const REINSTALL_CALL = 'try { __sygnalInstallChecks() } catch (e) { console.warn(e) }\n'
 
@@ -343,14 +344,14 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
     transform(code: string, id: string, opts?: { ssr?: boolean }) {
       if (!isServe) return null
 
-      // sygnal/astro/client (Astro islands): flags + checks first; the file
-      // bundles its own copy of the Sygnal core, which takes over the
-      // diagnostics bridge as it loads, so the checks are registered again,
-      // with that copy, at the end of the file.
+      // sygnal/astro/client (Astro islands): flags + checks first. It imports
+      // the public 'sygnal' entry (the app's core, B-019), which resolves to
+      // the run() wrapper when the diagnostics option needs it.
       if (devOn && !isVitest && !opts?.ssr) {
         astroClient = astroClient || astroClientFiles(root)
         if (astroClient.has(cleanId(id))) {
-          return withSourcemap(code, [[0, flags + devImports + REINSTALL_IMPORT]], '\n' + REINSTALL_CALL, id)
+          if (wrapRun) runtimeImporters.add(cleanId(id))
+          return withSourcemap(code, [[0, flags + devImports]], '', id)
         }
       }
 

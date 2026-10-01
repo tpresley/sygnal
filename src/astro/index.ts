@@ -18,9 +18,9 @@ interface AstroConfigSetupArgs {
 
 export interface SygnalAstroOptions {
   /**
-   * Runtime diagnostics in `astro dev`. Islands report in 'warn' mode; 'off'
-   * turns them off. ('collect', 'error' and an ignore list need run()'s own
-   * option, which the bundled Astro client doesn't take yet.)
+   * Runtime diagnostics for islands in `astro dev`: a mode or
+   * { mode, strict, ignore }, the same as the sygnal/vite `diagnostics`
+   * option (the island client shares the app's core, B-019).
    * @default 'warn'
    */
   diagnostics?: DiagnosticsMode | DiagnosticsPluginOptions;
@@ -32,7 +32,7 @@ export default function sygnalAstroIntegration(options: SygnalAstroOptions = {})
   return {
     name: SYGNAL_RENDERER_NAME,
     hooks: {
-      'astro:config:setup': ({ addRenderer, updateConfig, command, logger }: AstroConfigSetupArgs) => {
+      'astro:config:setup': ({ addRenderer, updateConfig, command }: AstroConfigSetupArgs) => {
         addRenderer({
           name: SYGNAL_RENDERER_NAME,
           clientEntrypoint: 'sygnal/astro/client',
@@ -51,16 +51,11 @@ export default function sygnalAstroIntegration(options: SygnalAstroOptions = {})
         // in dev to set the dev flag and load the runtime checks first. It
         // also runs sygnal-check. Nothing is added to `astro build`.
         if (command === 'dev') {
-          const d = options.diagnostics
-          const o = typeof d === 'string' ? { mode: d } : d || {}
-          if ((o.mode && o.mode !== 'warn' && o.mode !== 'off') || (o.ignore && o.ignore.length)) {
-            logger?.warn(`sygnal: with Astro, diagnostics run in 'warn' mode (or 'off'); mode '${o.mode || 'warn'}' and ignore lists are not supported yet`)
-          }
           vite.plugins = [sygnalVite({
             disableJsx: true,
             disableHmr: true,
             vitestSetup: false,
-            diagnostics: o.mode === 'off' ? 'off' : { mode: 'warn', strict: o.strict },
+            diagnostics: options.diagnostics,
             check: options.check,
           })]
         }
