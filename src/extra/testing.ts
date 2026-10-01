@@ -5,7 +5,7 @@ import eventBusDriver from './eventDriver';
 import logDriver from './logDriver';
 import component from '../component';
 import {renderToString} from './ssr';
-import {configureDiagnostics, getDiagnosticsMode, onDiagnostic} from './diagnostics/index';
+import {configureDiagnostics, getDiagnosticsMode, isDiagnosticsEnabled, onDiagnostic, registerCheck, report} from './diagnostics/index';
 import xs from './xstreamCompat';
 import type {Stream} from 'xstream';
 import type {Diagnostic, DiagnosticsMode} from './diagnostics/index';
@@ -37,9 +37,17 @@ import type {Diagnostic, DiagnosticsMode} from './diagnostics/index';
  *   in order once it is ready; `await t.ready()` is an explicit sync point.
  * - Diagnostics: `diagnostics` (default 'collect', or the already-active
  *   mode when diagnostics are on) is applied with
- *   configureDiagnostics and restored by dispose(). Runtime checks live in a
- *   separate entry: `import 'sygnal/diagnostics'` in the test (or vitest
- *   setupFiles) to enable them.
+ *   configureDiagnostics and restored by dispose(). Most runtime checks live
+ *   in a separate entry: `import 'sygnal/diagnostics'` in the test (or vitest
+ *   setupFiles) to enable them. Two DOM checks are built in (G-024), since the
+ *   real-DOM versions can't run on the mock DOM:
+ *   - SYG104 (warn): an intent selector matches nothing in its component's own
+ *     scope but matches elements inside a child component / Collection item
+ *     (parents can't see those events). Checked after every render and when
+ *     simulateEvent targets such an element; reported once per component +
+ *     selector.
+ *   - SYG103 (info): simulateEvent's selector matches no rendered element and
+ *     no intent listens on it (typo?).
  *
  * ```js
  * const t = renderComponent(Counter, { initialState: { count: 0 } })
@@ -61,6 +69,10 @@ import type {Diagnostic, DiagnosticsMode} from './diagnostics/index';
  *   action streams subscribe 1-10ms (BOOTSTRAP) after construction.
  * - rendered(): the next render, or 20ms (state → view is async).
  * - dispose() fires the component's DISPOSE action via sinks.__dispose.
+ * - SYG103/104: the mock DOM source reports each events() call (selector path,
+ *   isolation scopes included as '.___scope'); a diagnostics check's onIntent
+ *   maps each component's innermost scope to its name. The nearest '.___'
+ *   class on a vnode or its ancestors is the scope that owns it.
  */
 
 export interface SimulatedEventInit {
@@ -90,8 +102,9 @@ export interface RenderOptions {
   /**
    * Diagnostics mode while the component is rendered. Default: 'collect', or
    * the current mode when diagnostics are already on (e.g. 'error' set in a
-   * setup file). Restored on dispose(). Checks require
-   * `import 'sygnal/diagnostics'`.
+   * setup file). Restored on dispose(). SYG103/SYG104 (selector typos and
+   * parent selectors that only match inside child components) are checked
+   * built in; the other checks require `import 'sygnal/diagnostics'`.
    */
   diagnostics?: DiagnosticsMode;
 }
@@ -195,7 +208,66 @@ export function renderComponent(
   configureDiagnostics({mode: diagnostics || (prevMode == 'off' ? 'collect' : prevMode)});
   const collected: Diagnostic[] = [];
   const offDiag = onDiagnostic(d => collected.push(d));
+
+  // G-024: SYG103/SYG104 on the mock DOM
+  const rootName = componentDef.name || componentDef.componentName || 'TestComponent';
+  const listeners = new Map<string, string[]>();
+  const owners = new Map<string, string>([['', rootName]]);
+  const done = new Set<string>();
+  const offCheck = registerCheck({
+    id: 'renderComponent',
+    onIntent(c: any) {
+      const d = c && c.sources && c.sources[c.DOMSourceName || 'DOM'];
+      const sc = d && d._hub === hub.$ && (d._path || []).filter(isScope).pop();
+      if (sc) owners.set(sc, c.name);
+    },
+  });
+  const raise = (code: string, component: string, message: string, fix: string, data: any) => {
+    try { report(code, {component, message, fix, data}); } catch (e) { setTimeout(() => { throw e; }); }
+  };
+  const check104 = (target?: any) => {
+    if (!vtree || !isDiagnosticsEnabled()) return;
+    listeners.forEach(path => {
+      const sels = words(path.filter(s => !isScope(s)).join(' '));
+      const scope = path.filter(isScope).pop();
+      const name = owners.get(scope || '') || 'Component';
+      const selector = sels.join(' ');
+      const key = name + '\u0000' + selector;
+      if (!sels.length || /^(document|body)$/.test(sels[0]) || done.has(key)) return;
+      let own = false, child: string | undefined, hit = !target;
+      // chain: [vnode, nearest scope][] from the root; inside: under this component's root
+      const walk = (v: any, chain: any[], cur: any, inside: boolean, boundary: any): void => {
+        if (!v || !v.sel || own) return;
+        const sc = (v.sel.match(/\.___[^.#]+/) || [])[0] || cur;
+        const c = chain.concat([[v, sc]]);
+        inside = inside || sc == scope;
+        if (inside) {
+          if (sc == scope) {
+            if (desc(sels, c.filter(x => x[1] == scope).map(x => x[0]))) own = true;
+          } else {
+            boundary = boundary || sc;
+            if (desc(sels, c.map(x => x[0]))) {
+              child = child || boundary;
+              if (v === target) hit = true;
+            }
+          }
+        }
+        for (const k of [].concat(v.children || [])) walk(k, c, sc, inside, sc == scope ? undefined : boundary);
+      };
+      walk(vtree, [], undefined, !scope, undefined);
+      if (own) return done.add(key);
+      if (!child || !hit) return;
+      done.add(key);
+      const childName = owners.get(child) || 'a child component';
+      raise('SYG104', name,
+        `DOM.select('${selector}') in ${name} matches elements inside ${childName} (isolated), so ${name} never receives their events`,
+        `Handle the event in ${childName} and send it up with PARENT (read it here with CHILD.select(${childName})), or use EVENTS`,
+        {selector, child: childName});
+    });
+  };
+
   const restore = () => {
+    offCheck();
     offDiag();
     configureDiagnostics({mode: undefined});
     if (getDiagnosticsMode() != prevMode) configureDiagnostics({mode: prevMode});
@@ -231,12 +303,14 @@ export function renderComponent(
     return out;
   };
 
-  const {context, calculated, storeCalculatedInState, onError} = componentDef;
+  const {context, calculated, storeCalculatedInState, onError, hmrActions, components} = componentDef;
   const app = component({
     name: componentDef.name || componentDef.componentName || 'TestComponent',
     view: componentDef,
     intent: wrappedIntent,
     model,
+    hmrActions,
+    components,
     context,
     calculated,
     storeCalculatedInState,
@@ -244,7 +318,7 @@ export function renderComponent(
     initialState: initialState !== undefined ? initialState : componentDef.initialState,
   });
   const allDrivers: any = {
-    DOM: () => mockDOMSource(mockConfig, hub.$),
+    DOM: () => mockDOMSource(mockConfig, hub.$, path => listeners.set(path.join('\u0000'), path)),
     EVENTS: eventBusDriver,
     LOG: logDriver,
     ...drivers,
@@ -306,6 +380,7 @@ export function renderComponent(
   if (sinks.DOM) {
     listen(sinks.DOM, v => {
       vtree = v;
+      check104();
       arm();
       onRender.forEach(f => f());
       onRender = [];
@@ -321,6 +396,13 @@ export function renderComponent(
       const cs = words(selector);
       const chain = cs.length ? find(vtree, cs) : undefined;
       const el = chain?.[chain.length - 1];
+      if (el) check104(el);
+      else if (isDiagnosticsEnabled() && ![...listeners.values()].some(p => words(p.filter(s => !isScope(s)).join(' ')).join(' ') == cs.join(' '))) {
+        raise('SYG103', rootName,
+          `simulateEvent('${selector}', '${type}') matched no rendered element, and no intent listens on '${selector}'`,
+          `Check the selector against the view's className/id`,
+          {selector, type});
+      }
       const d = el?.data || {}, p = d.props || {};
       const {target: t = {}, value, checked, dataset, data, ...rest} = init;
       const vval = p.value ?? d.attrs?.value;

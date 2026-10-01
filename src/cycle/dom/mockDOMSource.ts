@@ -13,6 +13,9 @@ import {enrichEventStream} from './enrichEventStream';
  */
 export type MockEventHub = Stream<{type: string; event: any; match: (path: string[]) => boolean}>;
 
+/** Optional listener-registration callback (renderComponent's SYG103/104 checks) */
+export type MockOnEvents = (path: string[], eventType: string) => void;
+
 export type MockConfig = {
   [name: string]: FantasyObservable<any> | MockConfig;
 };
@@ -25,7 +28,8 @@ export class MockedDOMSource {
   constructor(
     private _mockConfig: MockConfig,
     private _hub?: MockEventHub,
-    public _path: string[] = []
+    public _path: string[] = [],
+    private _onEvents?: MockOnEvents
   ) {
     if (_mockConfig.elements) {
       this._elements = _mockConfig.elements as FantasyObservable<any>;
@@ -58,6 +62,7 @@ export class MockedDOMSource {
   ): any {
     const configured = this._mockConfig[eventType] as any;
     const {_hub: hub, _path: path} = this;
+    if (this._onEvents) this._onEvents(path, eventType);
     const out: DevToolEnabledSource & FantasyObservable<any> = enrichEventStream(adapt(
       hub
         ? xs.merge(
@@ -78,7 +83,8 @@ export class MockedDOMSource {
     return new MockedDOMSource(
       mockConfigForSelector as MockConfig,
       this._hub,
-      this._path.concat(selector)
+      this._path.concat(selector),
+      this._onEvents
     );
   }
 
@@ -105,7 +111,8 @@ export class MockedDOMSource {
 
 export function mockDOMSource(
   mockConfig: MockConfig,
-  hub?: MockEventHub
+  hub?: MockEventHub,
+  onEvents?: MockOnEvents
 ): MockedDOMSource {
-  return new MockedDOMSource(mockConfig, hub);
+  return new MockedDOMSource(mockConfig, hub, [], onEvents);
 }
