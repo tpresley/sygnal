@@ -139,6 +139,14 @@ export const CODE_TITLES: Record<string, string> = {
   SYG301: 'RxJS operator used on an xstream stream',
   // SYG4xx collections / switchable / sub-components / context (1A)
   SYG401: "Collection 'from' field is missing or not an array",
+  // SYG5xx strict mode / canonical forms (2A; dev-plans/PLAN-1-canonical-forms.md)
+  SYG501: 'View uses positional arguments',
+  SYG502: 'STATE reducer signals no change without ABORT',
+  SYG503: 'Side effect in a STATE reducer that returns ABORT',
+  SYG504: "'ACTION | SINK' shorthand model key",
+  SYG505: 'Non-canonical EVENTS emit',
+  SYG506: 'CHILD.select() with a string component name',
+  SYG507: 'Prop drilled through more than 2 component levels',
   // SYG9xx internal (0B)
   SYG900: 'A diagnostics check threw',
   // ---- 1E retrofit codes (SYG206-299, 402-499, 601-699, 901-999) ----
@@ -187,6 +195,20 @@ export const CODE_TITLES: Record<string, string> = {
   SYG902: 'EFFECT stream errored',
   SYG903: 'Component factory returned invalid sinks',
   // ---- end 1E retrofit codes ----
+}
+
+// 2A: strict-mode (SYG5xx) default severities. Kept OUT of CODE_SEVERITY so the
+// main bundle doesn't carry them (D29: zero bytes); the 'sygnal/diagnostics'
+// entry registers them (registerCodes) and its reports pass the severity
+// explicitly. sygnal-check keeps the same table in sygnal-check/src/codes.js.
+export const STRICT_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
+  SYG501: 'warn',
+  SYG502: 'warn',
+  SYG503: 'warn',
+  SYG504: 'warn',
+  SYG505: 'warn',
+  SYG506: 'warn',
+  SYG507: 'info',
 }
 
 export function getCodeInfo(code: string): DiagnosticCodeInfo | undefined {

@@ -8,7 +8,7 @@
  *   inputs   file paths, directories, or globs (string or string[])
  *   options  {
  *     cwd?:          base for relative inputs (default process.cwd())
- *     strict?:       also run strict-mode rules (none yet — workstream 2A)
+ *     strict?:       also run the strict-mode (canonical form, SYG5xx) rules
  *     rules?:        explicit rule list (defaults to the registry)
  *     includeTests?: include *.test.* / *.spec.* files found through directories or globs
  *     ignore?:       codes to drop entirely, e.g. ['SYG105']
@@ -32,6 +32,7 @@ export { coreRules, strictRules } from './rules/index.js'
 export { buildProject, Project } from './model/project.js'
 export { makeDiagnostic, formatText } from './diagnostic.js'
 export { formatDiagnostics } from './format.js'
+export { fixFiles } from './fix.js'
 
 function isSuppressed(file, line, code) {
   for (const l of [line, line - 1]) {
@@ -57,12 +58,15 @@ export function runRules(project, rules) {
       const key = `${r.code}|${file.path}|${line}|${column}|${r.message}`
       if (seen.has(key)) return
       seen.add(key)
-      out.push(makeDiagnostic(r.code, {
+      const d = makeDiagnostic(r.code, {
         ...r,
         file: project.relPath(file.path),
         line,
         column,
-      }))
+      })
+      // --fix rewrites (strict rules); non-enumerable so JSON output is unchanged
+      if (r.edits?.length) Object.defineProperty(d, 'edits', { value: r.edits })
+      out.push(d)
     }
     try {
       rule.run(project, report)

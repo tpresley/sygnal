@@ -110,6 +110,12 @@ export interface RenderOptions {
    * built in; the other checks require `import 'sygnal/diagnostics'`.
    */
   diagnostics?: DiagnosticsMode;
+  /**
+   * Strict mode (canonical-form checks SYG501/502/504) while the component is
+   * rendered; restored on dispose(). Requires `import 'sygnal/diagnostics'`.
+   * Default: unchanged (off unless configureStrict(true) was called).
+   */
+  strict?: boolean;
 }
 
 export interface RenderResult {
@@ -212,12 +218,16 @@ export function renderComponent(
   componentDef: any,
   options: RenderOptions = {}
 ): RenderResult {
-  const {initialState, mockConfig = {}, drivers = {}, diagnostics} = options;
+  const {initialState, mockConfig = {}, drivers = {}, diagnostics, strict} = options;
   const {intent, model = {}} = componentDef;
 
   const prevMode = getDiagnosticsMode();
   if (!active++) savedConfig = _getDiagnosticsConfig();
   configureDiagnostics({mode: diagnostics || (prevMode == 'off' ? 'collect' : prevMode)});
+  // 2A: strict flag on the core bridge (read by the 'sygnal/diagnostics' strict checks)
+  const core = (globalThis as any).__SYGNAL_DIAGNOSTICS__;
+  const prevStrict = core.strict;
+  if (strict !== undefined) core.strict = strict;
   const collected: Diagnostic[] = [];
   const offDiag = onDiagnostic(d => collected.push(d));
 
@@ -296,6 +306,7 @@ export function renderComponent(
   const restore = () => {
     offCheck();
     offDiag();
+    if (strict !== undefined) core.strict = prevStrict;
     if (!--active) configureDiagnostics(savedConfig);
   };
 

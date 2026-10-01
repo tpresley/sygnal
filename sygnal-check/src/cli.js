@@ -1,10 +1,11 @@
 /**
- * sygnal-check [paths...] [--json] [--strict] [--graph] [--fail-on=warn|error|never] [--verbose]
+ * sygnal-check [paths...] [--json] [--strict] [--fix] [--graph] [--fail-on=warn|error|never] [--verbose]
  */
 import { checkFiles, maxSeverity } from './index.js'
 import { formatDiagnostics } from './format.js'
 import { SEVERITY_RANK } from './diagnostic.js'
 import { expandInputs } from './files.js'
+import { fixFiles } from './fix.js'
 
 const HELP = `Usage: sygnal-check [paths...] [options]
 
@@ -20,7 +21,12 @@ Options:
                          warn (default) | error | never
   --verbose              also print info-level diagnostics in text output
   --include-tests        include *.test.* / *.spec.* files
-  --strict               canonical-form rules (not implemented yet)
+  --strict               also check canonical forms (SYG501-507, see
+                         https://sygnal.js.org/reference/errors#syg501)
+  --fix                  apply the mechanical canonical-form rewrites in place
+                         (implies --strict): 'A | SINK' keys → object form,
+                         emit() → { EVENTS: event() }, CHILD.select('Name') →
+                         CHILD.select(Name); then report what is left
   --graph                print the app graph (not implemented yet)
   -h, --help             show this help
 
@@ -29,10 +35,11 @@ Suppress a finding with a comment on the same line or the line above:
 `
 
 export function parseArgs(argv) {
-  const opts = { paths: [], json: false, strict: false, graph: false, failOn: 'warn', verbose: false, includeTests: false, help: false }
+  const opts = { paths: [], json: false, strict: false, fix: false, graph: false, failOn: 'warn', verbose: false, includeTests: false, help: false }
   for (const a of argv) {
     if (a === '--json') opts.json = true
     else if (a === '--strict') opts.strict = true
+    else if (a === '--fix') opts.fix = opts.strict = true
     else if (a === '--graph') opts.graph = true
     else if (a === '--verbose' || a === '-v') opts.verbose = true
     else if (a === '--include-tests') opts.includeTests = true
@@ -56,7 +63,6 @@ export function main(argv, { stdout = process.stdout, stderr = process.stderr, c
     return 2
   }
   if (opts.help) { stdout.write(HELP); return 0 }
-  if (opts.strict) { stderr.write('sygnal-check: --strict is not implemented yet\n'); return 2 }
   if (opts.graph) { stderr.write('sygnal-check: --graph is not implemented yet\n'); return 2 }
 
   const { files, missing } = expandInputs(opts.paths, { cwd, includeTests: opts.includeTests })
@@ -66,7 +72,11 @@ export function main(argv, { stdout = process.stdout, stderr = process.stderr, c
     return 2
   }
 
-  const diags = checkFiles(files, { cwd })
+  if (opts.fix) {
+    const r = fixFiles(files, { cwd })
+    stderr.write(`sygnal-check: fixed ${r.fixed} issue${r.fixed === 1 ? '' : 's'} in ${r.files.length} file${r.files.length === 1 ? '' : 's'}\n`)
+  }
+  const diags = checkFiles(files, { cwd, strict: opts.strict })
   if (opts.json) stdout.write(JSON.stringify(diags, null, 2) + '\n')
   else stdout.write(formatDiagnostics(diags, { verbose: opts.verbose }) + '\n')
 
