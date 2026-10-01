@@ -13,7 +13,7 @@ Tracks progress for [PLAN-2.md](PLAN-2.md). Maintained by the coordinator. The P
 | 0 — Release follow-through, eval infrastructure | ✅ Done | `plan2-phase0` | 0-A ✅ · 0-B ✅ · 0-C ✅ · tier-3 pilot ✅ (20/20 pass; Sygnal 66.6 s vs React 45.7 s) · v2-baseline ✅ 160/160, Sygnal 48.4 s vs React 34.1 s (1.42×), see `results/V2-BASELINE.md` |
 | 1 — Correctness backlog | ✅ Done | `plan2-phase1` | 1-A…1-F ✅ · 1-T trim ✅ · review: 6 findings + 2 notes, all fixed in 1-R · kanban 41,803 B (2 B headroom) |
 | 2 — Known ergonomics improvements | ✅ Done | `plan2-phase2` | 2-A ✅ · 2-B ✅ · 2-C ✅ · 2-D ✅ · review: 9 findings, all fixed in 2-R · targeted eval: task 08 41.8 → 27.0 s (gap 20.8 → 6.0 s), 10 −7.5 s, 11 unchanged (`results/P2-TARGETED.md`) |
-| 3 — Experiments | 🟡 In progress | — | 3-H harness variants 🟡 · E4 🟡 · E5 🟡 · E11 🟡 · E2 awaits the user (Q3) |
+| 3 — Experiments | 🟡 In progress | — | 3-H harness variants 🟡 · E4 🟡 · E5 🟡 · E11 🟡 · E2+E3 🟡 |
 | 4 — Adopt, measure, release | ⚪ | — | |
 
 Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ done · 🔴 blocked
@@ -40,6 +40,7 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | 3-H | Harness: variants (skill/sygnal/overlay/prompt/MCP/model), task-matched compare (G-119), usage-limit resilience | 🟡 | | subagent | | |
 | E4 | Real-DOM test mode (`exp/e4-real-dom`) | 🟡 | | subagent | | Prototype + decision-record draft |
 | E5 | Skill size and shape (`exp/e5-skill`: lean, lean-routed) | 🟡 | | subagent | | |
+| E2+E3 | `makeFetchDriver()` with `latest`, test fakes `t.respond`/`t.fail`, run() diagnostic for driverless sinks (G-110) (`exp/e2-fetch-driver`) | 🟡 | | subagent | | D52 |
 | E11 | Deterministic test timing (`exp/e11-fake-timers`) | 🟡 | | subagent | | |
 | 1-F | Examples (G-052, G-063) | ✅ | (same branch as 1-C) | subagent | `fd3fc7c` | todomvc ids = max id + 1; `LOG` sink uses the reducer form (type gap → G-077); build runs `tsc --noEmit`; custom pollers removed from `app.test.ts`, which uses `next`/`settle`/`html`; new id test. Strict-clean |
 
@@ -63,7 +64,7 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | # | Question | Raised | Blocks | Answer |
 |---|---|---|---|---|
 | Q1 | G-007: rename/alias `event()`? Should strict mode make SYG106 (reserved view-prop names) an error? | PLAN-2 §3 | 1-E (G-007 part) | ✅ Keep `event`; SYG106 is an error in strict mode (D41, assigned to 1-B) |
-| Q3 | E2: which async side-effect variants to prototype ((a) auto test drivers, (b) `makeFetchDriver()`, (c) component `drivers` static, (d) sanctioned fetch in EFFECT)? Coordinator recommends (b)+(a) with E3's latest-only inside (b) | Phase 3 | E2, E3 | |
+| Q3 | E2: which async side-effect variants to prototype ((a) auto test drivers, (b) `makeFetchDriver()`, (c) component `drivers` static, (d) sanctioned fetch in EFFECT)? Coordinator recommends (b)+(a) with E3's latest-only inside (b) | Phase 3 | E2, E3 | ✅ (b)+(a), latest-only in (b) (D52) |
 | Q2 | Eval budget for Phase 0: React re-run + Sygnal reference (12 tasks × 5 × 2 arms = 120 trials) and the tier-3 pilot (4–6 tasks × 2 trials × 2 arms) | Phase 0 | 0-B steps 2–3, 0-C pilot | ✅ Full v2-baseline approved: tier-3 pilot, then tiers 1–3 × both arms × 5 trials (D42) |
 
 ## Decision Log
@@ -82,6 +83,7 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | D49 | 2026-10-01 | Controlled form fields: a present-but-nullish `value` writes `''` and nullish `checked` writes `false` (5.4.0 behaviour); only an absent prop makes the field uncontrolled; never write "null". Settles G-081 | Coordinator | Restores 5.4.0 semantics; keeps G-109 |
 | D50 | 2026-10-01 | Vike shell state: slices stay siblings at the root, each shell component gets a `{get,set}` lens onto its slice (not nested keys) | Coordinator | Fixes G-106 without letting outer reducers wipe inner state; 5.4.0 serialized state still hydrates |
 | D51 | 2026-10-01 | Phase 3 eval budget: full plan (~$250 API-equivalent). Trials run on the user's claude.ai subscription (no API key), so the cost is notional but counts against usage limits; the harness must handle limit errors as not-run and resume | User | — |
+| D52 | 2026-10-01 | E2: prototype (b) `makeFetchDriver()` + (a) test-side fakes; E3's latest-only lives in (b) (`latest: true`, abort superseded). (c) component `drivers` and (d) sanctioned fetch in EFFECT are not prototyped. The user flags a broader rethink of network calls (HTTP + WebSocket) for the **next major version**; E2 records notes for it | User | Fits the driver model, opt-in, 0 B unless used |
 | D40 | 2026-10-01 | 0-B and 0-C build and self-verify without paid eval runs (0-B may run ≤ 2 smoke trials, `v2-smoke`, to validate the headless runner); full runs and pilots wait for Q2 | Coordinator | PLAN-2 §8 (user approves budgets per phase) |
 
 ## Bugs & Gaps Found
@@ -144,6 +146,7 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | G-117 | 2-R | low (perf) | Vike | With the D50 lenses, Wrapper/Layout views re-render on every root state change, including page-only changes (5.4.0 didn't) | Open |
 | G-118 | 2-R merge | low | Tests | `test/review-2e2/b024-nested-dispose.test.js` asserted stream teardown after a fixed 30 ms; flaked once under full-suite load | ✅ Coordinator: bounded wait for teardown |
 | G-119 | p2-targeted | low (eval) | Analyzer | `compare.mjs` compares a subset run with the full baseline mean (not task- or arm-matched), giving misleading deltas | Open → Phase 3 harness fix |
+| N-1 | User | — | Next major | Rethink how network calls (HTTP and WebSocket) are made in Sygnal — possibly a first-class network layer. Input: E2/E3 results and the E2 agent's design notes | Future: design doc after Phase 3 (not in PLAN-2 scope) |
 | G-076 | 5.4.0 release | low | browser-tests | The browser run prints expected console errors from error-path tests, which look like failures | ✅ 1-E (whitelist updated for SYG405 at the 1-B merge) |
 
 ## Worktree Setup (each subagent, inside its own isolated worktree)
