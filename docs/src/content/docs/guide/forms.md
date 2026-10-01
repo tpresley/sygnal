@@ -48,7 +48,7 @@ ContactForm.model = {
 ### processForm() Options
 
 ```javascript
-processForm(domSource, options?)
+processForm(DOM.select('.my-form'), { events: 'submit', preventDefault: true })
 ```
 
 | Option | Type | Default | Description |

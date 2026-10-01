@@ -93,9 +93,42 @@ function enableHMR(
 
 ---
 
+## set()
+
+Builds a STATE reducer that merges a partial update into the state.
+
+```typescript
+function set<S>(partial: Partial<S> | ((state: S, data: any, next: Function, props: any) => Partial<S>)): Reducer
+```
+
+```javascript
+import { set } from 'sygnal'
+
+Panel.model = {
+  OPEN:   set({ isOpen: true }),                   // static partial
+  RENAME: set((state, title) => ({ title })),      // computed partial
+}
+```
+
+---
+
+## toggle()
+
+Builds a STATE reducer that flips a boolean field.
+
+```javascript
+import { toggle } from 'sygnal'
+
+Panel.model = {
+  TOGGLE_HELP: toggle('showHelp'),
+}
+```
+
+---
+
 ## ABORT
 
-A special constant that, when returned from a state reducer, cancels the state update for that action.
+A special constant that, when returned from a state reducer, cancels the state update for that action. Returned from a non-STATE sink reducer (`EVENTS`, `PARENT`, a custom driver), it sends nothing.
 
 ```typescript
 const ABORT: unique symbol

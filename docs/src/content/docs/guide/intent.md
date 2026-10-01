@@ -111,7 +111,11 @@ MyComponent.intent = ({ DOM }) => ({
 All methods return enriched streams, so they can be chained with standard stream operators:
 
 ```jsx
-SEARCH: DOM.input('.search').value().compose(debounce(300)),
+import { debounce } from 'sygnal'
+
+MyComponent.intent = ({ DOM }) => ({
+  SEARCH: DOM.input('.search').value().compose(debounce(300)),
+})
 ```
 
 ## Accessing Global DOM Events

@@ -5,7 +5,7 @@ description: Vite, Webpack, and other bundler setup
 
 ## Vite Plugin (recommended)
 
-The Sygnal Vite plugin handles everything automatically — JSX configuration and [HMR](/integration/hmr/) with state preservation:
+The Sygnal Vite plugin configures JSX, wires up [HMR](/integration/hmr/) with state preservation, and turns on [diagnostics](/guide/diagnostics/) in the dev server:
 
 ```javascript
 // vite.config.js
@@ -31,12 +31,44 @@ The plugin detects the `run()` call, finds the imported root component, and auto
 
 ### Plugin Options
 
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `disableJsx` | `boolean` | `false` | Don't configure JSX (set it up yourself) |
+| `disableHmr` | `boolean` | `false` | Don't inject HMR wiring (handle HMR yourself, or let a framework such as Vike do it) |
+| `diagnostics` | `'off' \| 'collect' \| 'warn' \| 'error'` or `{ mode, strict, ignore }` | `'warn'` | Runtime diagnostics in the dev server. `'off'` injects nothing |
+| `diagnostics.mode` | same as above | `'warn'` | The runtime [diagnostics mode](/guide/diagnostics/#modes) |
+| `diagnostics.strict` | `boolean` | `false` | Turn on the [strict-mode](/guide/strict-mode/) runtime checks; also the default for `check.strict` |
+| `diagnostics.ignore` | `string[]` | `[]` | Codes to drop, at runtime and in `sygnal-check` |
+| `check` | `boolean` or `{ strict, include, ignore, overlay }` | `true` | Run `sygnal-check` in the dev server (skipped silently when it isn't installed) |
+| `check.strict` | `boolean` | `diagnostics.strict` | Also run the strict rules (SYG501-507) |
+| `check.include` | `string[]` | the existing `src/`, `pages/`, `renderer/` directories, else the project root | Files, directories or globs to check, relative to the Vite root |
+| `check.ignore` | `string[]` | `diagnostics.ignore` | Codes to drop |
+| `check.overlay` | `'error' \| false` | `'error'` | Whether error-severity findings open Vite's error overlay |
+| `vitestSetup` | `boolean` | `true` | Under Vitest, add `sygnal/diagnostics` to `test.setupFiles` |
+
 ```javascript
 sygnal({
-  disableJsx: false,  // Set true to configure JSX yourself
-  disableHmr: false,  // Set true to handle HMR manually
+  diagnostics: { mode: 'error', strict: true, ignore: ['SYG105'] },
+  check: { include: ['src', 'lib'] },
 })
 ```
+
+### What the plugin does in dev
+
+Everything below happens only in `vite` / `vite dev`. A production build (`vite build`) gets the JSX configuration and nothing else: no flags, checks, wrappers or dev client.
+
+- **Diagnostics.** Every file that imports `run` from `sygnal` gets a dev flag (runtime diagnostics in `'warn'` mode) and imports of `sygnal/diagnostics` (the dev checks) and `virtual:sygnal/dev` (which logs `sygnal-check` results in the browser console). They're added on an existing line, so line numbers and source maps don't change. A mode other than `'warn'`, or an ignore list, is passed to `run()` as its `diagnostics` option, unless the `run()` call sets that option itself. Opt out for one app with `run(App, drivers, { diagnostics: 'off' })`, or for the whole server with `sygnal({ diagnostics: 'off' })`.
+- **Vike and Astro.** Their apps are started by Sygnal's own client entries, which get the same dev setup (see [Vike](/integration/vike/#diagnostics-in-dev) and [Astro](/integration/astro/#diagnostics-in-dev)).
+- **sygnal-check.** When the `sygnal-check` package is installed, the plugin checks `check.include` when the dev server starts and after every source change. Findings are printed in the terminal and logged in the browser console. When `check.include` isn't set, it checks the `src/`, `pages/` and `renderer/` directories that exist, or the project root (skipping `node_modules` and build output) with a one-time notice; a notice is also logged when none of the given paths exists.
+- **The error overlay.** Only error-severity findings open Vite's error overlay (`overlay: false` turns that off). Warnings never do, because Vite reloads the page on the next HMR update while an overlay is open; `overlay: 'warn'` is accepted but treated as `'error'`, with a notice. Today all `sygnal-check` codes are warnings or info, so in practice findings go to the terminal and the console. The overlay is sent only to the page that loads, closed before each HMR update and sent again after the re-check, so it never causes a reload or goes stale.
+
+### Vitest
+
+Under Vitest, the plugin configures JSX and adds `sygnal/diagnostics` to `test.setupFiles` (merged with your own setup files, never added twice), so [`renderComponent()`](/integration/testing/) tests get the dev checks. It also allows that file's directory in `server.fs.allow`, so the setup works in `jsdom` and `happy-dom` environments with a linked Sygnal. Set `vitestSetup: false` to manage the setup yourself. Nothing else is injected under Vitest: no dev flags, HMR wiring or checker, because `renderComponent()` manages the diagnostics mode per test.
+
+### JSX and Vite versions
+
+The plugin sets Vite 8's `oxc` JSX options. Under Vite 7 and older (for example Astro 6, or Vitest running on Vite 7), which compile JSX with esbuild, it also sets the `esbuild` options. In the Vite 8 dev server it also configures JSX for the dependency scanner, so the first page load doesn't fail to resolve `react/jsx-dev-runtime`.
 
 ### How the HMR transform works
 
@@ -60,21 +92,34 @@ if (import.meta.hot) {
 }
 ```
 
-If you already have `import.meta.hot` in your file, the plugin leaves it alone.
+HMR wiring is only added for a top-level `run()` call in a recognized shape. If you already have `import.meta.hot` in your file, the plugin leaves it alone. Test files (`*.test.*`, `*.spec.*`) are never transformed.
 
 ## Manual Vite Configuration
 
 If you prefer not to use the plugin, configure JSX manually:
 
 ```javascript
-// vite.config.js
+// vite.config.js (Vite 8)
+import { defineConfig } from 'vite'
+
+export default defineConfig({
+  oxc: {
+    jsx: { runtime: 'automatic', importSource: 'sygnal' },
+  },
+})
+```
+
+Under Vite 7 and older, use the `esbuild` options instead:
+
+```javascript
+// vite.config.js (Vite 7)
 import { defineConfig } from 'vite'
 
 export default defineConfig({
   esbuild: {
     jsx: 'automatic',
     jsxImportSource: 'sygnal',
-  }
+  },
 })
 ```
 
@@ -89,15 +134,15 @@ For TypeScript projects, also add to `tsconfig.json`:
 }
 ```
 
-And wire HMR yourself — see [Hot Module Replacement](/integration/hmr/).
+And wire HMR yourself — see [Hot Module Replacement](/integration/hmr/). For diagnostics without the plugin, see [Diagnostics](/guide/diagnostics/#without-vite).
 
 ## Other Bundlers
 
 For Webpack, Rollup, or other bundlers that support the automatic JSX transform, configure them with `sygnal` as the JSX import source. The general pattern is:
 
 ```javascript
-// General pattern (varies by bundler)
-{
+// General pattern (option names vary by bundler)
+const jsxOptions = {
   jsx: 'automatic',           // or equivalent setting
   jsxImportSource: 'sygnal',  // or equivalent setting
 }
@@ -122,14 +167,17 @@ export default defineConfig({
 Note: With the classic transform, some minifiers may rename the `Fragment` function, causing JSX fragments to break. To fix this with Vite, install terser and add:
 
 ```javascript
-build: {
-  minify: 'terser',
-  terserOptions: {
-    mangle: {
-      reserved: ['Fragment']
+// vite.config.js
+export default defineConfig({
+  build: {
+    minify: 'terser',
+    terserOptions: {
+      mangle: {
+        reserved: ['Fragment']
+      }
     }
   }
-}
+})
 ```
 
 This is not an issue with the automatic transform.
