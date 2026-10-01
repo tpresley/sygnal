@@ -13,7 +13,7 @@ Tracks progress for [PLAN-1.md](PLAN-1.md). Maintained by the coordinator.
 | 0 — Foundations | ✅ Done | `plan1-phase0` | 0A ✅ · 0B ✅ · 0C ✅ · review: 9 findings, all fixed. Baseline eval still running (independent of merges; uses the pre-0B tarball) |
 | 1 — Core capabilities | ✅ Done | `plan1-phase1` | 1A–1H ✅ · review: 11 findings + 2 minor, all fixed in 1H |
 | 2 — Strictness, introspection, integration | ✅ Done | `plan1-phase2` | 2A–2E ✅ · review: 10 findings, all fixed, plus 15 backlog items |
-| 3 — Agent context & docs | 🟡 In progress | — | 3A ∥ 3C running; 3B after 3A (D33) |
+| 3 — Agent context & docs | 🟡 In progress | — | 3A ✅ · 3B ∥ 3C ∥ 3D running (D33, D34) |
 | 4 — Measure & release | ⚪ Not started | — | |
 
 Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ done · 🔴 blocked
@@ -43,9 +43,10 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | 2D | Example migration | ✅ | 3 parallel groups | subagents | `52743dc` | B: 4 examples clean, 17 smoke tests, G-023 ✅. C: 5 examples + 8 templates clean, scaffold-verified, B-019 ✅, G-038 ✅, vike-template hydration fix. A: kanban (SYG111 → titleDraft) + todomvc (first tests), G-021 ✅ (`vitest.config.mjs` excludes examples; `npm run test:examples` runs each example's own suite; shims removed). All examples + templates: 0 strict diagnostics | A: kanban, drag-drop, todomvc (+G-021 root vitest config) · B: getting-started, playground, ts-example-2048, advanced-feature-tests (+G-023 browser-tests suppressions) · C: ssr, vike, astro-smoke, hmr-smoke, ai-panel-spa, create-sygnal-app templates (+B-019, G-038) |
 | 2E-1 | Phase 2 review fixes: tooling | ✅ | `worktree-agent-a3f24aedc509b95be` | subagent | `ba144f9` | All 13 fixed with failing-first tests; `--fix` re-parse backstop; MCP never throws; overlay sent per client, never forces reloads; include defaults (src/pages/renderer); no Vitest injection; `scripts/test-examples.mjs`; Vite<8 esbuild JSX; Astro client uses the shared core + props top-level (B-026 ✅); vike default-export types; jsdom setup fs.allow; "Wrapped" names fixed (G-037 ✅). The agent's own merge of the integration branch was denied by the classifier, so the coordinator merged and ran the combined gates. Was: | R1 --fix broken code, R2 MCP crash, R5 overlay/HMR reloads, R6 vike include, R7/R8 --fix bindings/imports, R9 vitest flag leak, R10 portable test:examples; B-027, B-019 cleanup, B-026, G-045, G-050 |
 | 2E-2 | Phase 2 review fixes: runtime | ✅ | `worktree-agent-aace7826c14ac6ca5` | subagent | `ffcd404` | All 10 fixed with failing-first tests: sync sub-component disposal + idempotent dispose (R3), strict snapshot (R4), **B-024** Collection/Switchable `__dispose` subtree disposal, B-023 emitter stamp at source, B-025, B-022 (warn when onError handled), G-043 message, timing (no fan-out, input waits for subscriptions, `t.next`, `t.settle`, waitForState waits for tree quiet), G-051 `resetOnce`, G-040. Kanban +63 B (41,699). Was: | R3 child onDispose after t.dispose, R4 strict leak; B-024 nested disposal (high), B-023, B-025, B-022, G-043; renderComponent timing (G-049/G-047/G-039: no fan-out, child buffering, `t.next`, `t.settle`); G-051 resetOnce; G-040 |
-| 3A | `llms.txt` | ⚪ | | | | |
-| 3B | Skill rewrite | ⚪ | | | | |
-| 3C | Docs site & repo docs | ⚪ | | | | |
+| 3A | `llms.txt` | ✅ | `worktree-agent-aba4128facc664182` | subagent | `8221f79` | 250 lines, normative; canonical forms, API facts, wiring rules, diagnostics loop, testing recipe; every snippet passes `sygnal-check --strict`; byte-identical copy in `docs/public/llms.txt`. Found B-028, G-054..G-057 |
+| 3B | Skill rewrite | 🟡 | (isolated worktree) | subagent | | Lean, self-sufficient SKILL.md matching llms.txt; template AGENTS.md; smoke test on task 03 |
+| 3C | Docs site & repo docs | 🟡 | `worktree-agent-a42c0a1e7c1745700` | subagent | | |
+| 3D | API fixes from 3A | 🟡 | (isolated worktree) | subagent | | B-028, G-054, G-055, G-047 recheck (kanban `waitForHtml`), llms.txt workaround removal |
 | 4A | Eval re-run | ⚪ | | | | 5 trials (Q4) |
 | 4B | Release prep | ⚪ | | | | |
 | — | Baseline eval run (0A procedure) | ✅ | — | coordinator | (results committed) | 70/70 pass. Sygnal 74.5 s mean vs React 39.1 s; on shared tasks ~2.2×. Pass rate saturated (open Q6). See `evals/agent-ergonomics/results/BASELINE.md` |
@@ -126,6 +127,7 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | D31 | 2026-10-01 | The size gate keeps measuring **library** growth: the kanban example's own code changed in 2D (+32 B), so the gate is re-baselined to the 2D kanban bundle, with the same 41,773-equivalent headroom (169 B) for library additions | Coordinator | The gate measures what Sygnal adds to apps, not example code |
 | D32 | 2026-10-01 | Coordinator gate commands use `npm --prefix <root>`, because the shell sometimes stays in an example directory after commands that cd into one (it ran the wrong suite twice) | Coordinator | Gate reliability |
 
+| D34 | 2026-10-01 | Add workstream 3D for the small API gaps 3A found (B-028, G-054, G-055, G-047 recheck), in parallel with 3B and 3C (file ownership is disjoint; 3D alone touches llms.txt after 3A) | Coordinator | Cheaper to fix than to document workarounds in llms.txt/skill |
 | D33 | 2026-10-01 | Phase 3 sequencing: 3A (llms.txt) ∥ 3C (docs site + repo docs), then 3B (skill) after 3A so the skill points to and matches llms.txt. The error-reference page is generated from `sygnal-check/explanations.json` with a drift test | Coordinator | Single source of truth for codes; the skill depends on the spec |
 
 ## Bugs & Gaps Found
@@ -209,6 +211,11 @@ Pre-existing issues and gaps found during the work. Severity: high (blocks a gat
 | G-051 | 2D-A | med | Diagnostics × testing | Check dedupe (`once()`) is never reset between renderComponent instances, so a finding from an earlier test in the same file is silently skipped later and `expectNoDiagnostics()` passes vacuously. | Open → Phase 2 review fixes (reset per renderComponent) |
 | G-052 | 2D-A | low | Example | todomvc ids use `Date.now()` (collisions within a millisecond); `app.tsx` has a type error (`LOG: 'Starting…'` not assignable to SinkValue); the build doesn't run tsc. | Open → PLAN-2 candidate |
 | G-053 | 2E-2 | low | `src/extra/testing.ts` | The quiet-window heuristic behind waitForState/next can't see `next()` delays longer than ~20 ms, and with diagnostics `'off'` it doesn't see child renders (no hooks), so it falls back to the 250 ms cap. The timing constants (300 ms wait, 10/20 ms windows) aren't options. The mock DOM finds Portal content even for portals targeting outside the component (more lenient than the real DOM). | Open → 3C (document) / PLAN-2 candidate |
+| B-028 | 3A | med | `src/cycle/dom/enrichEventStream.ts` | `.data(name)` finds the ancestor with `closest('[data-${name}]')` using the camelCase name: `data={{ taskId }}` renders `data-task-id`, but `[data-taskId]` matches `data-taskid`, so `.data('taskId')` fails when the event target is a nested child. llms.txt currently says to use one-word names. | Open → 3D |
+| G-054 | 3A | low | Types | `isolatedState` (the SYG405 fix hint) is missing from the `Component` type in `src/index.d.ts`; Collection's `idfield` prop is undocumented in the types. | Open → 3D |
+| G-055 | 3A | low | Exports | The xstream extras `flattenConcurrently`, `flattenSequentially` and `concat` aren't re-exported from `sygnal`, though the SYG301 RxJS hints recommend them. | Open → 3D |
+| G-056 | 3A | low | Testing | Kanban's tests still ship a `waitForHtml` polling helper for new Collection items, which suggests `t.next`/`waitForState` can resolve before a new item's first render (follow-up to G-047/G-053). | Open → 3D (recheck) |
+| G-057 | 3A | low | Diagnostics | Rendering a Collection item component as the root of `renderComponent` reports SYG202 as warn when its reducer returns undefined (it isn't a sub-component there). Expected; documented in llms.txt. | Won't fix (documented) |
 | G-008 | Coordinator | low | Skill | The installed user-level skill `~/.claude/skills/sygnal-dev/SKILL.md` lags the repo copy (missing the DISPOSE row and the dispose$ "prefer DISPOSE" note); `agents/` exists only in the repo. Eval trials use the installed copy. | Open → 3B sync |
 | G-009 | Coordinator | low | Eval harness | The `transcript-stats.mjs` audit flags every call whose path contains "evals", which gives false positives when the trial dir is under `.../evals/...`. | ✅ Fixed in 0A-H (audit narrowed; trial dir stripped before matching) |
 | G-010 | 0B | low | Types | `getDevTools` is exported at runtime but has no declaration in `src/index.d.ts`. | Open → 2B |
@@ -228,6 +235,7 @@ npm ci --prefix browser-tests --no-audit --no-fund
 
 ## Activity Log
 
+- 2026-10-01 — 3A merged (`8221f79`). 3B and 3D launched alongside 3C (D34). B-028 and G-054..G-057 logged.
 - 2026-09-30 — 0A delivered as patches; reviewed, applied, verify.mjs 28/28; gates green (610 vitest, types OK, 83 browser). 0B relaunched with an isolated worktree. Q1, Q3 and Q4 answered; Q2 re-asked with an example. B-003..B-005 and G-003..G-006 logged.
 - 2026-09-30 — 0A and 0B subagents launched; both blocked by G-004.
 - 2026-09-30 — Plan committed. Baseline gates recorded. B-001, B-002, G-001 and G-002 logged.
