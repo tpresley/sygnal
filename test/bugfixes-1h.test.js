@@ -260,3 +260,58 @@ describe('1H-5: overlapping and nested renderComponent instances', () => {
     expect(getDiagnosticsMode()).toBe('off')
   })
 })
+
+// ─── 1H-6: driverFromAsync logs errors that no errors() selector matches ─────
+
+import { driverFromAsync } from '../src/extra/driverFactories.js'
+
+describe('1H-6: driverFromAsync errors(selector) only claims the errors it matches', () => {
+  const manual = () => {
+    let l = null
+    const stream = xs.create({ start(x) { l = x }, stop() { l = null } })
+    return { stream, emit: v => l?.next(v) }
+  }
+  const collect = s => { const out = []; const lis = { next: v => out.push(v), error() {}, complete() {} }; s.addListener(lis); out.stop = () => s.removeListener(lis); return out }
+
+  it('an error for another category is still logged once errors(a) is subscribed', async () => {
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const input = manual()
+    const src = driverFromAsync(async v => { throw new Error('fail ' + v) }, { args: 'value' })(input.stream)
+    const a = collect(src.errors('a'))
+    collect(src.select())
+    input.emit({ value: 1, category: 'b' })
+    input.emit({ value: 2, category: 'a' })
+    await settle(10)
+    expect(a.map(e => e.error.message)).toEqual(['fail 2'])
+    expect(err).toHaveBeenCalledTimes(1)
+    expect(err.mock.calls[0][0]).toContain('fail 1')
+  })
+
+  it('several subscribers: each gets its matches; a predicate and errors() count as handling', async () => {
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const input = manual()
+    const src = driverFromAsync(async v => { throw new Error('e' + v) }, { args: 'value' })(input.stream)
+    const a = collect(src.errors('a'))
+    const big = collect(src.errors(e => e.request.value > 5))
+    input.emit({ value: 1, category: 'a' })
+    input.emit({ value: 9, category: 'c' })
+    input.emit({ value: 2, category: 'c' })
+    await settle(10)
+    expect(a.map(e => e.error.message)).toEqual(['e1'])
+    expect(big.map(e => e.error.message)).toEqual(['e9'])
+    expect(err.mock.calls.map(c => c[0])).toEqual([expect.stringContaining('e2')])
+    // unsubscribing errors('a') makes its category unhandled again
+    a.stop()
+    big.stop()
+    await settle(5) // xstream stops a stream asynchronously after its last listener leaves
+    const all = collect(src.errors())
+    input.emit({ value: 3, category: 'a' })
+    await settle(10)
+    expect(all.map(e => e.error.message)).toEqual(['e3'])
+    all.stop()
+    await settle(5)
+    input.emit({ value: 4, category: 'a' })
+    await settle(10)
+    expect(err).toHaveBeenCalledTimes(2)
+  })
+})
