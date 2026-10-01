@@ -6,12 +6,14 @@
     "pass": true,
     "testsPassed": 3,
     "testsTotal": 3,
-    "iterations": 2,
-    "editRounds": 1,
+    "iterations": 5,
+    "editRounds": 2,
     "wallSeconds": 53,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:21:09.319Z"
+    "scoredAt": "2026-10-01T08:21:09.319Z",
+    "iterationsOld": 2,
+    "audit": 0
   },
   {
     "task": "06-fix-add-button",
@@ -25,7 +27,9 @@
     "wallSeconds": 22,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:26:51.589Z"
+    "scoredAt": "2026-10-01T08:26:51.589Z",
+    "iterationsOld": 1,
+    "audit": 0
   },
   {
     "task": "05-driver-quote",
@@ -39,7 +43,9 @@
     "wallSeconds": 27,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:26:55.770Z"
+    "scoredAt": "2026-10-01T08:26:55.770Z",
+    "iterationsOld": 1,
+    "audit": 0
   },
   {
     "task": "01-clear-completed",
@@ -48,12 +54,14 @@
     "pass": true,
     "testsPassed": 3,
     "testsTotal": 3,
-    "iterations": 1,
+    "iterations": 3,
     "editRounds": 1,
     "wallSeconds": 40,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:27:00.723Z"
+    "scoredAt": "2026-10-01T08:27:00.723Z",
+    "iterationsOld": 1,
+    "audit": 0
   },
   {
     "task": "08-extract-rating",
@@ -62,12 +70,14 @@
     "pass": true,
     "testsPassed": 4,
     "testsTotal": 4,
-    "iterations": 1,
+    "iterations": 3,
     "editRounds": 1,
     "wallSeconds": 39,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:27:01.465Z"
+    "scoredAt": "2026-10-01T08:27:01.465Z",
+    "iterationsOld": 1,
+    "audit": 0
   },
   {
     "task": "03-events-status",
@@ -76,12 +86,14 @@
     "pass": true,
     "testsPassed": 3,
     "testsTotal": 3,
-    "iterations": 1,
+    "iterations": 3,
     "editRounds": 1,
     "wallSeconds": 41,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:27:02.417Z"
+    "scoredAt": "2026-10-01T08:27:02.417Z",
+    "iterationsOld": 1,
+    "audit": 0
   },
   {
     "task": "04-derived-total",
@@ -90,12 +102,14 @@
     "pass": true,
     "testsPassed": 4,
     "testsTotal": 4,
-    "iterations": 1,
+    "iterations": 3,
     "editRounds": 1,
     "wallSeconds": 43,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:27:06.813Z"
+    "scoredAt": "2026-10-01T08:27:06.813Z",
+    "iterationsOld": 1,
+    "audit": 0
   },
   {
     "task": "02-collection-pin",
@@ -104,12 +118,14 @@
     "pass": true,
     "testsPassed": 4,
     "testsTotal": 4,
-    "iterations": 1,
+    "iterations": 3,
     "editRounds": 1,
     "wallSeconds": 47,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:27:07.683Z"
+    "scoredAt": "2026-10-01T08:27:07.683Z",
+    "iterationsOld": 1,
+    "audit": 0
   },
   {
     "task": "04-derived-total",
@@ -118,12 +134,14 @@
     "pass": true,
     "testsPassed": 4,
     "testsTotal": 4,
-    "iterations": 1,
-    "editRounds": 1,
+    "iterations": 4,
+    "editRounds": 3,
     "wallSeconds": 59,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:27:24.187Z"
+    "scoredAt": "2026-10-01T08:27:24.187Z",
+    "iterationsOld": 1,
+    "audit": 0
   },
   {
     "task": "07-fix-remove-button",
@@ -132,12 +150,14 @@
     "pass": true,
     "testsPassed": 3,
     "testsTotal": 3,
-    "iterations": 1,
-    "editRounds": 1,
+    "iterations": 5,
+    "editRounds": 2,
     "wallSeconds": 60,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:27:33.506Z"
+    "scoredAt": "2026-10-01T08:27:33.506Z",
+    "iterationsOld": 1,
+    "audit": 0
   },
   {
     "task": "02-collection-pin",
@@ -146,12 +166,14 @@
     "pass": true,
     "testsPassed": 4,
     "testsTotal": 4,
-    "iterations": 2,
-    "editRounds": 1,
+    "iterations": 6,
+    "editRounds": 2,
     "wallSeconds": 78,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:27:38.341Z"
+    "scoredAt": "2026-10-01T08:27:38.341Z",
+    "iterationsOld": 2,
+    "audit": 0
   },
   {
     "task": "08-extract-rating",
@@ -165,7 +187,9 @@
     "wallSeconds": 93,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:27:54.996Z"
+    "scoredAt": "2026-10-01T08:27:54.996Z",
+    "iterationsOld": 3,
+    "audit": 0
   },
   {
     "task": "05-driver-quote",
@@ -179,7 +203,9 @@
     "wallSeconds": 111,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:28:15.434Z"
+    "scoredAt": "2026-10-01T08:28:15.434Z",
+    "iterationsOld": 7,
+    "audit": 0
   },
   {
     "task": "03-events-status",
@@ -188,12 +214,14 @@
     "pass": true,
     "testsPassed": 3,
     "testsTotal": 3,
-    "iterations": 4,
-    "editRounds": 2,
+    "iterations": 8,
+    "editRounds": 3,
     "wallSeconds": 146,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:28:47.506Z"
+    "scoredAt": "2026-10-01T08:28:47.506Z",
+    "iterationsOld": 4,
+    "audit": 0
   },
   {
     "task": "06-fix-add-button",
@@ -207,7 +235,9 @@
     "wallSeconds": 21,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:30:01.544Z"
+    "scoredAt": "2026-10-01T08:30:01.544Z",
+    "iterationsOld": 1,
+    "audit": 0
   },
   {
     "task": "02-collection-pin",
@@ -221,7 +251,9 @@
     "wallSeconds": 30,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:30:09.538Z"
+    "scoredAt": "2026-10-01T08:30:09.538Z",
+    "iterationsOld": 1,
+    "audit": 0
   },
   {
     "task": "01-clear-completed",
@@ -230,12 +262,14 @@
     "pass": true,
     "testsPassed": 3,
     "testsTotal": 3,
-    "iterations": 1,
+    "iterations": 3,
     "editRounds": 1,
     "wallSeconds": 38,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:30:20.082Z"
+    "scoredAt": "2026-10-01T08:30:20.082Z",
+    "iterationsOld": 1,
+    "audit": 0
   },
   {
     "task": "03-events-status",
@@ -244,12 +278,14 @@
     "pass": true,
     "testsPassed": 3,
     "testsTotal": 3,
-    "iterations": 1,
+    "iterations": 3,
     "editRounds": 1,
     "wallSeconds": 40,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:30:24.677Z"
+    "scoredAt": "2026-10-01T08:30:24.677Z",
+    "iterationsOld": 1,
+    "audit": 0
   },
   {
     "task": "08-extract-rating",
@@ -258,12 +294,14 @@
     "pass": true,
     "testsPassed": 4,
     "testsTotal": 4,
-    "iterations": 1,
-    "editRounds": 1,
+    "iterations": 4,
+    "editRounds": 2,
     "wallSeconds": 44,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:30:25.431Z"
+    "scoredAt": "2026-10-01T08:30:25.431Z",
+    "iterationsOld": 1,
+    "audit": 0
   },
   {
     "task": "05-driver-quote",
@@ -272,12 +310,14 @@
     "pass": true,
     "testsPassed": 4,
     "testsTotal": 4,
-    "iterations": 1,
+    "iterations": 3,
     "editRounds": 1,
     "wallSeconds": 42,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:30:26.354Z"
+    "scoredAt": "2026-10-01T08:30:26.354Z",
+    "iterationsOld": 1,
+    "audit": 0
   },
   {
     "task": "04-derived-total",
@@ -286,12 +326,14 @@
     "pass": true,
     "testsPassed": 4,
     "testsTotal": 4,
-    "iterations": 1,
+    "iterations": 3,
     "editRounds": 1,
     "wallSeconds": 44,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:30:30.914Z"
+    "scoredAt": "2026-10-01T08:30:30.914Z",
+    "iterationsOld": 1,
+    "audit": 0
   },
   {
     "task": "01-clear-completed",
@@ -300,12 +342,14 @@
     "pass": true,
     "testsPassed": 3,
     "testsTotal": 3,
-    "iterations": 1,
-    "editRounds": 1,
+    "iterations": 5,
+    "editRounds": 2,
     "wallSeconds": 55,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:30:36.618Z"
+    "scoredAt": "2026-10-01T08:30:36.618Z",
+    "iterationsOld": 1,
+    "audit": 0
   },
   {
     "task": "02-collection-pin",
@@ -314,12 +358,14 @@
     "pass": true,
     "testsPassed": 4,
     "testsTotal": 4,
-    "iterations": 1,
-    "editRounds": 1,
+    "iterations": 6,
+    "editRounds": 3,
     "wallSeconds": 70,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:30:52.412Z"
+    "scoredAt": "2026-10-01T08:30:52.412Z",
+    "iterationsOld": 1,
+    "audit": 0
   },
   {
     "task": "04-derived-total",
@@ -333,7 +379,9 @@
     "wallSeconds": 71,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:30:57.155Z"
+    "scoredAt": "2026-10-01T08:30:57.155Z",
+    "iterationsOld": 3,
+    "audit": 0
   },
   {
     "task": "07-fix-remove-button",
@@ -347,7 +395,9 @@
     "wallSeconds": 73,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:30:58.133Z"
+    "scoredAt": "2026-10-01T08:30:58.133Z",
+    "iterationsOld": 5,
+    "audit": 0
   },
   {
     "task": "05-driver-quote",
@@ -356,12 +406,14 @@
     "pass": true,
     "testsPassed": 4,
     "testsTotal": 4,
-    "iterations": 0,
-    "editRounds": 1,
+    "iterations": 3,
+    "editRounds": 3,
     "wallSeconds": 109,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:31:33.573Z"
+    "scoredAt": "2026-10-01T08:31:33.573Z",
+    "iterationsOld": 0,
+    "audit": 0
   },
   {
     "task": "08-extract-rating",
@@ -370,12 +422,14 @@
     "pass": true,
     "testsPassed": 4,
     "testsTotal": 4,
-    "iterations": 5,
+    "iterations": 6,
     "editRounds": 1,
     "wallSeconds": 119,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:31:51.435Z"
+    "scoredAt": "2026-10-01T08:31:51.435Z",
+    "iterationsOld": 5,
+    "audit": 0
   },
   {
     "task": "03-events-status",
@@ -384,12 +438,14 @@
     "pass": true,
     "testsPassed": 3,
     "testsTotal": 3,
-    "iterations": 8,
-    "editRounds": 1,
+    "iterations": 11,
+    "editRounds": 2,
     "wallSeconds": 134,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:31:56.908Z"
+    "scoredAt": "2026-10-01T08:31:56.908Z",
+    "iterationsOld": 8,
+    "audit": 0
   },
   {
     "task": "06-fix-add-button",
@@ -403,7 +459,9 @@
     "wallSeconds": 19,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:33:01.654Z"
+    "scoredAt": "2026-10-01T08:33:01.654Z",
+    "iterationsOld": 1,
+    "audit": 0
   },
   {
     "task": "01-clear-completed",
@@ -412,12 +470,14 @@
     "pass": true,
     "testsPassed": 3,
     "testsTotal": 3,
-    "iterations": 1,
+    "iterations": 3,
     "editRounds": 1,
     "wallSeconds": 39,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:33:20.341Z"
+    "scoredAt": "2026-10-01T08:33:20.341Z",
+    "iterationsOld": 1,
+    "audit": 0
   },
   {
     "task": "05-driver-quote",
@@ -426,12 +486,14 @@
     "pass": true,
     "testsPassed": 4,
     "testsTotal": 4,
-    "iterations": 1,
+    "iterations": 3,
     "editRounds": 1,
     "wallSeconds": 38,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:33:25.612Z"
+    "scoredAt": "2026-10-01T08:33:25.612Z",
+    "iterationsOld": 1,
+    "audit": 0
   },
   {
     "task": "03-events-status",
@@ -440,12 +502,14 @@
     "pass": true,
     "testsPassed": 3,
     "testsTotal": 3,
-    "iterations": 1,
+    "iterations": 3,
     "editRounds": 1,
     "wallSeconds": 38,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:33:26.554Z"
+    "scoredAt": "2026-10-01T08:33:26.554Z",
+    "iterationsOld": 1,
+    "audit": 0
   },
   {
     "task": "02-collection-pin",
@@ -454,12 +518,14 @@
     "pass": true,
     "testsPassed": 4,
     "testsTotal": 4,
-    "iterations": 1,
+    "iterations": 3,
     "editRounds": 1,
     "wallSeconds": 39,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:33:27.395Z"
+    "scoredAt": "2026-10-01T08:33:27.395Z",
+    "iterationsOld": 1,
+    "audit": 0
   },
   {
     "task": "08-extract-rating",
@@ -468,12 +534,14 @@
     "pass": true,
     "testsPassed": 4,
     "testsTotal": 4,
-    "iterations": 1,
-    "editRounds": 1,
+    "iterations": 4,
+    "editRounds": 2,
     "wallSeconds": 41,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:33:28.143Z"
+    "scoredAt": "2026-10-01T08:33:28.143Z",
+    "iterationsOld": 1,
+    "audit": 0
   },
   {
     "task": "04-derived-total",
@@ -482,12 +550,14 @@
     "pass": true,
     "testsPassed": 4,
     "testsTotal": 4,
-    "iterations": 1,
+    "iterations": 3,
     "editRounds": 1,
     "wallSeconds": 47,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:33:33.102Z"
+    "scoredAt": "2026-10-01T08:33:33.102Z",
+    "iterationsOld": 1,
+    "audit": 0
   },
   {
     "task": "01-clear-completed",
@@ -496,12 +566,14 @@
     "pass": true,
     "testsPassed": 3,
     "testsTotal": 3,
-    "iterations": 1,
-    "editRounds": 1,
+    "iterations": 5,
+    "editRounds": 2,
     "wallSeconds": 52,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:33:33.979Z"
+    "scoredAt": "2026-10-01T08:33:33.979Z",
+    "iterationsOld": 1,
+    "audit": 0
   },
   {
     "task": "03-events-status",
@@ -510,12 +582,14 @@
     "pass": true,
     "testsPassed": 3,
     "testsTotal": 3,
-    "iterations": 1,
+    "iterations": 2,
     "editRounds": 1,
     "wallSeconds": 60,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:33:43.648Z"
+    "scoredAt": "2026-10-01T08:33:43.648Z",
+    "iterationsOld": 1,
+    "audit": 0
   },
   {
     "task": "02-collection-pin",
@@ -524,12 +598,14 @@
     "pass": true,
     "testsPassed": 4,
     "testsTotal": 4,
-    "iterations": 1,
-    "editRounds": 1,
+    "iterations": 5,
+    "editRounds": 3,
     "wallSeconds": 68,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:33:52.393Z"
+    "scoredAt": "2026-10-01T08:33:52.393Z",
+    "iterationsOld": 1,
+    "audit": 0
   },
   {
     "task": "07-fix-remove-button",
@@ -543,7 +619,9 @@
     "wallSeconds": 72,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:33:57.089Z"
+    "scoredAt": "2026-10-01T08:33:57.089Z",
+    "iterationsOld": 5,
+    "audit": 0
   },
   {
     "task": "04-derived-total",
@@ -552,12 +630,14 @@
     "pass": true,
     "testsPassed": 4,
     "testsTotal": 4,
-    "iterations": 1,
-    "editRounds": 1,
+    "iterations": 5,
+    "editRounds": 3,
     "wallSeconds": 80,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:34:05.676Z"
+    "scoredAt": "2026-10-01T08:34:05.676Z",
+    "iterationsOld": 1,
+    "audit": 0
   },
   {
     "task": "08-extract-rating",
@@ -571,7 +651,9 @@
     "wallSeconds": 93,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:34:18.035Z"
+    "scoredAt": "2026-10-01T08:34:18.035Z",
+    "iterationsOld": 2,
+    "audit": 0
   },
   {
     "task": "05-driver-quote",
@@ -580,12 +662,14 @@
     "pass": true,
     "testsPassed": 4,
     "testsTotal": 4,
-    "iterations": 4,
-    "editRounds": 1,
+    "iterations": 6,
+    "editRounds": 2,
     "wallSeconds": 99,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:34:23.261Z"
+    "scoredAt": "2026-10-01T08:34:23.261Z",
+    "iterationsOld": 4,
+    "audit": 0
   },
   {
     "task": "06-fix-add-button",
@@ -599,7 +683,9 @@
     "wallSeconds": 19,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:36:21.199Z"
+    "scoredAt": "2026-10-01T08:36:21.199Z",
+    "iterationsOld": 1,
+    "audit": 0
   },
   {
     "task": "01-clear-completed",
@@ -608,12 +694,14 @@
     "pass": true,
     "testsPassed": 3,
     "testsTotal": 3,
-    "iterations": 1,
+    "iterations": 3,
     "editRounds": 1,
     "wallSeconds": 39,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:36:21.916Z"
+    "scoredAt": "2026-10-01T08:36:21.916Z",
+    "iterationsOld": 1,
+    "audit": 0
   },
   {
     "task": "08-extract-rating",
@@ -622,12 +710,14 @@
     "pass": true,
     "testsPassed": 4,
     "testsTotal": 4,
-    "iterations": 0,
+    "iterations": 2,
     "editRounds": 1,
     "wallSeconds": 39,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:36:22.653Z"
+    "scoredAt": "2026-10-01T08:36:22.653Z",
+    "iterationsOld": 0,
+    "audit": 0
   },
   {
     "task": "03-events-status",
@@ -636,12 +726,14 @@
     "pass": true,
     "testsPassed": 3,
     "testsTotal": 3,
-    "iterations": 1,
+    "iterations": 3,
     "editRounds": 1,
     "wallSeconds": 37,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:36:23.592Z"
+    "scoredAt": "2026-10-01T08:36:23.592Z",
+    "iterationsOld": 1,
+    "audit": 0
   },
   {
     "task": "05-driver-quote",
@@ -650,12 +742,14 @@
     "pass": true,
     "testsPassed": 4,
     "testsTotal": 4,
-    "iterations": 1,
+    "iterations": 3,
     "editRounds": 1,
     "wallSeconds": 41,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:36:24.476Z"
+    "scoredAt": "2026-10-01T08:36:24.476Z",
+    "iterationsOld": 1,
+    "audit": 0
   },
   {
     "task": "02-collection-pin",
@@ -669,7 +763,9 @@
     "wallSeconds": 41,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:36:25.293Z"
+    "scoredAt": "2026-10-01T08:36:25.293Z",
+    "iterationsOld": 2,
+    "audit": 0
   },
   {
     "task": "04-derived-total",
@@ -678,12 +774,14 @@
     "pass": true,
     "testsPassed": 4,
     "testsTotal": 4,
-    "iterations": 1,
+    "iterations": 3,
     "editRounds": 1,
     "wallSeconds": 46,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:36:25.980Z"
+    "scoredAt": "2026-10-01T08:36:25.980Z",
+    "iterationsOld": 1,
+    "audit": 0
   },
   {
     "task": "01-clear-completed",
@@ -692,12 +790,14 @@
     "pass": true,
     "testsPassed": 3,
     "testsTotal": 3,
-    "iterations": 1,
-    "editRounds": 1,
+    "iterations": 5,
+    "editRounds": 2,
     "wallSeconds": 51,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:36:26.825Z"
+    "scoredAt": "2026-10-01T08:36:26.825Z",
+    "iterationsOld": 1,
+    "audit": 0
   },
   {
     "task": "07-fix-remove-button",
@@ -706,12 +806,14 @@
     "pass": true,
     "testsPassed": 3,
     "testsTotal": 3,
-    "iterations": 1,
-    "editRounds": 2,
+    "iterations": 4,
+    "editRounds": 3,
     "wallSeconds": 57,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:36:31.736Z"
+    "scoredAt": "2026-10-01T08:36:31.736Z",
+    "iterationsOld": 1,
+    "audit": 0
   },
   {
     "task": "04-derived-total",
@@ -725,7 +827,9 @@
     "wallSeconds": 63,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:36:32.522Z"
+    "scoredAt": "2026-10-01T08:36:32.522Z",
+    "iterationsOld": 3,
+    "audit": 0
   },
   {
     "task": "03-events-status",
@@ -734,12 +838,14 @@
     "pass": true,
     "testsPassed": 3,
     "testsTotal": 3,
-    "iterations": 2,
-    "editRounds": 1,
+    "iterations": 6,
+    "editRounds": 2,
     "wallSeconds": 75,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:36:38.156Z"
+    "scoredAt": "2026-10-01T08:36:38.156Z",
+    "iterationsOld": 2,
+    "audit": 0
   },
   {
     "task": "05-driver-quote",
@@ -748,12 +854,14 @@
     "pass": true,
     "testsPassed": 4,
     "testsTotal": 4,
-    "iterations": 1,
-    "editRounds": 1,
+    "iterations": 5,
+    "editRounds": 4,
     "wallSeconds": 79,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:36:43.688Z"
+    "scoredAt": "2026-10-01T08:36:43.688Z",
+    "iterationsOld": 1,
+    "audit": 0
   },
   {
     "task": "02-collection-pin",
@@ -762,12 +870,14 @@
     "pass": true,
     "testsPassed": 4,
     "testsTotal": 4,
-    "iterations": 1,
-    "editRounds": 1,
+    "iterations": 5,
+    "editRounds": 3,
     "wallSeconds": 82,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:36:44.664Z"
+    "scoredAt": "2026-10-01T08:36:44.664Z",
+    "iterationsOld": 1,
+    "audit": 0
   },
   {
     "task": "08-extract-rating",
@@ -776,12 +886,14 @@
     "pass": true,
     "testsPassed": 4,
     "testsTotal": 4,
-    "iterations": 1,
-    "editRounds": 1,
+    "iterations": 9,
+    "editRounds": 5,
     "wallSeconds": 134,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:39:19.502Z"
+    "scoredAt": "2026-10-01T08:39:19.502Z",
+    "iterationsOld": 1,
+    "audit": 0
   },
   {
     "task": "06-fix-add-button",
@@ -795,7 +907,9 @@
     "wallSeconds": 19,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:40:27.861Z"
+    "scoredAt": "2026-10-01T08:40:27.861Z",
+    "iterationsOld": 1,
+    "audit": 0
   },
   {
     "task": "02-collection-pin",
@@ -809,7 +923,9 @@
     "wallSeconds": 24,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:40:32.608Z"
+    "scoredAt": "2026-10-01T08:40:32.608Z",
+    "iterationsOld": 1,
+    "audit": 0
   },
   {
     "task": "08-extract-rating",
@@ -823,7 +939,9 @@
     "wallSeconds": 31,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:40:37.129Z"
+    "scoredAt": "2026-10-01T08:40:37.129Z",
+    "iterationsOld": 2,
+    "audit": 0
   },
   {
     "task": "01-clear-completed",
@@ -832,12 +950,14 @@
     "pass": true,
     "testsPassed": 3,
     "testsTotal": 3,
-    "iterations": 1,
+    "iterations": 3,
     "editRounds": 1,
     "wallSeconds": 37,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:40:42.416Z"
+    "scoredAt": "2026-10-01T08:40:42.416Z",
+    "iterationsOld": 1,
+    "audit": 0
   },
   {
     "task": "05-driver-quote",
@@ -846,12 +966,14 @@
     "pass": true,
     "testsPassed": 4,
     "testsTotal": 4,
-    "iterations": 1,
+    "iterations": 3,
     "editRounds": 2,
     "wallSeconds": 38,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:40:43.337Z"
+    "scoredAt": "2026-10-01T08:40:43.337Z",
+    "iterationsOld": 1,
+    "audit": 0
   },
   {
     "task": "03-events-status",
@@ -860,12 +982,14 @@
     "pass": true,
     "testsPassed": 3,
     "testsTotal": 3,
-    "iterations": 1,
+    "iterations": 3,
     "editRounds": 1,
     "wallSeconds": 40,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:40:48.192Z"
+    "scoredAt": "2026-10-01T08:40:48.192Z",
+    "iterationsOld": 1,
+    "audit": 0
   },
   {
     "task": "04-derived-total",
@@ -874,12 +998,14 @@
     "pass": true,
     "testsPassed": 4,
     "testsTotal": 4,
-    "iterations": 1,
+    "iterations": 3,
     "editRounds": 1,
     "wallSeconds": 43,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:40:48.881Z"
+    "scoredAt": "2026-10-01T08:40:48.881Z",
+    "iterationsOld": 1,
+    "audit": 0
   },
   {
     "task": "01-clear-completed",
@@ -888,12 +1014,14 @@
     "pass": true,
     "testsPassed": 3,
     "testsTotal": 3,
-    "iterations": 1,
-    "editRounds": 1,
+    "iterations": 5,
+    "editRounds": 2,
     "wallSeconds": 56,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:41:01.393Z"
+    "scoredAt": "2026-10-01T08:41:01.393Z",
+    "iterationsOld": 1,
+    "audit": 0
   },
   {
     "task": "04-derived-total",
@@ -902,12 +1030,14 @@
     "pass": true,
     "testsPassed": 4,
     "testsTotal": 4,
-    "iterations": 1,
-    "editRounds": 1,
+    "iterations": 4,
+    "editRounds": 2,
     "wallSeconds": 68,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:41:12.074Z"
+    "scoredAt": "2026-10-01T08:41:12.074Z",
+    "iterationsOld": 1,
+    "audit": 0
   },
   {
     "task": "07-fix-remove-button",
@@ -921,7 +1051,9 @@
     "wallSeconds": 71,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:41:17.146Z"
+    "scoredAt": "2026-10-01T08:41:17.146Z",
+    "iterationsOld": 4,
+    "audit": 0
   },
   {
     "task": "03-events-status",
@@ -930,12 +1062,14 @@
     "pass": true,
     "testsPassed": 3,
     "testsTotal": 3,
-    "iterations": 1,
-    "editRounds": 1,
+    "iterations": 4,
+    "editRounds": 3,
     "wallSeconds": 78,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:41:26.358Z"
+    "scoredAt": "2026-10-01T08:41:26.358Z",
+    "iterationsOld": 1,
+    "audit": 0
   },
   {
     "task": "08-extract-rating",
@@ -944,12 +1078,14 @@
     "pass": true,
     "testsPassed": 4,
     "testsTotal": 4,
-    "iterations": 1,
-    "editRounds": 1,
+    "iterations": 7,
+    "editRounds": 3,
     "wallSeconds": 99,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:41:43.958Z"
+    "scoredAt": "2026-10-01T08:41:43.958Z",
+    "iterationsOld": 1,
+    "audit": 0
   },
   {
     "task": "05-driver-quote",
@@ -958,12 +1094,14 @@
     "pass": true,
     "testsPassed": 4,
     "testsTotal": 4,
-    "iterations": 2,
-    "editRounds": 2,
+    "iterations": 6,
+    "editRounds": 3,
     "wallSeconds": 104,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:41:48.704Z"
+    "scoredAt": "2026-10-01T08:41:48.704Z",
+    "iterationsOld": 2,
+    "audit": 0
   },
   {
     "task": "02-collection-pin",
@@ -972,11 +1110,13 @@
     "pass": true,
     "testsPassed": 4,
     "testsTotal": 4,
-    "iterations": 8,
-    "editRounds": 4,
+    "iterations": 13,
+    "editRounds": 5,
     "wallSeconds": 110,
     "failureCategory": "none",
     "failures": [],
-    "scoredAt": "2026-10-01T08:41:58.509Z"
+    "scoredAt": "2026-10-01T08:41:58.509Z",
+    "iterationsOld": 8,
+    "audit": 0
   }
 ]

@@ -7,27 +7,31 @@
 
 ## Headline
 
-| Arm | Trials | Pass | Wall time mean / median (s) | Build/test iterations mean / median | Edit rounds mean |
+| Arm | Trials | Pass | Wall time mean / median (s) | Build/test iterations mean | Edit rounds mean |
 |---|---|---|---|---|---|
-| Sygnal | 40 | **40 (100%)** | 74.5 / 72 | 2.3 / 1 | 1.2 |
-| React | 30 | **30 (100%)** | 39.1 / 40 | 1.0 / 1 | 1.0 |
+| Sygnal | 40 | **40 (100%)** | 74.5 / 72 | **4.80** | **2.13** |
+| React | 30 | **30 (100%)** | 39.1 / 40 | **2.77** | **1.03** |
+
+> **Corrected 2026-10-01 (G-017).** The original counter missed common invocation forms (`npm --prefix X test`, `cd X && …`, `npx vitest`), so 52 of 70 records undercounted iterations. All records were recounted with the fixed counter (`lib/transcript.mjs`). The old values are kept as `iterationsOld` in `baseline.json`. The originally reported means were 2.3 (Sygnal) and 1.0 (React).
 
 On the 6 tasks both arms share (01–05, 08), the mean Sygnal trial took **~85 s vs ~39 s for React, about 2.2×**.
 
 **Pass rate is saturated** in both arms, so it can't show improvement. All of the measurable difference is in efficiency: time, iterations and edit rounds. See "Harness notes" below.
 
-## Per task (wall time mean/median; iterations mean)
+## Per task (wall time mean/median; iterations mean, corrected counter)
 
 | Task | Sygnal wall | Sygnal iter | React wall | React iter |
 |---|---|---|---|---|
-| 01 clear completed | 53.4 / 53 | 1.2 | 38.6 / 39 | 1.0 |
-| 02 pin via Collection (PARENT) | 81.6 / 78 | 2.6 | 36.2 / 39 | 1.2 |
-| 03 status bar via EVENTS | 98.6 / 78 | 3.2 | 39.2 / 40 | 1.0 |
-| 04 derived total via context | 68.2 / 68 | 1.8 | 44.6 / 44 | 1.0 |
-| 05 async driver | 100.4 / 104 | 2.8 | 37.2 / 38 | 1.0 |
+| 01 clear completed | 53.4 / 53 | 5.0 | 38.6 / 39 | 3.0 |
+| 02 pin via Collection (PARENT) | 81.6 / 78 | 7.0 | 36.2 / 39 | 2.0 |
+| 03 status bar via EVENTS | 98.6 / 78 | 6.2 | 39.2 / 40 | 3.0 |
+| 04 derived total via context | 68.2 / 68 | 3.8 | 44.6 / 44 | 3.0 |
+| 05 async driver | 100.4 / 104 | 5.4 | 37.2 / 38 | 2.6 |
 | 06 fix selector typo (Sygnal only) | 20.0 / 19 | 1.0 | — | — |
-| 07 fix isolation bug (Sygnal only) | 66.6 / 71 | 3.2 | — | — |
-| 08 extract sub-component | 107.6 / 99 | 2.4 | 38.8 / 39 | 1.0 |
+| 07 fix isolation bug (Sygnal only) | 66.6 / 71 | 4.6 | — | — |
+| 08 extract sub-component | 107.6 / 99 | 5.4 | 38.8 / 39 | 3.0 |
+
+Tier-2 tasks (09–12) were added after this run (decision D16). Their baseline is recorded separately as run `baseline-t2`, on the same pre-change tarball.
 
 ## Where Sygnal time went (from the agents' own reports)
 
@@ -48,6 +52,6 @@ The simple tasks (01, 06) are close to React speed. The gap opens on tasks that 
 ## Harness notes
 
 - **Ceiling effect:** 70/70 passes. The hidden tests wait 50 ms between interactions, which also hides B-003/B-004. A harder task tier is under consideration (open question to the user).
-- **G-017:** the transcript iteration counter undercounts some invocation forms (at least one trial recorded 0 iterations despite running tests). Treat iteration means as lower bounds; wall time is the more reliable metric.
+- **G-017 (fixed):** the counter was fixed and all records recounted (see the note under Headline).
 - Trial agents run with this session's worktree guard, which occasionally refused compound shell commands in both arms (small, roughly symmetric noise).
 - No trial accessed hidden tests or the eval harness (audit clean on all 70).
