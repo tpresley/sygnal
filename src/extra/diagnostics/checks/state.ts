@@ -24,9 +24,14 @@ export const stateCheck: DiagnosticCheck = {
 
     if (nextState === undefined) {
       if (!once(`SYG202:${name}:${action}`)) return
+      // Returning undefined from a Collection item's reducer is the documented way to remove
+      // the item, so only the root (where it wipes the whole app state) is a warning.
+      const sub = !!component?.isSubComponent
       report('SYG202', {
         component,
-        message: `The STATE reducer for '${action}' returned undefined`,
+        severity: sub ? 'info' : 'warn',
+        message: `The STATE reducer for '${action}' returned undefined` +
+          (sub ? ' (this removes the item if the component is a Collection item)' : ''),
         fix: `Return the new state, e.g. (state, data) => ({ ...state, ... }), or return ABORT to leave the state unchanged`,
         data: {action},
       })

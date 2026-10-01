@@ -891,13 +891,38 @@ export interface InstallPrompt {
 
 export function createInstallPrompt(): InstallPrompt
 
+export interface SimulatedEventInit {
+  /** Merged into `event.target` (value, checked, dataset, ...) */
+  target?: Record<string, any>;
+  /** Shorthand for target.value */
+  value?: any;
+  /** Shorthand for target.checked */
+  checked?: boolean;
+  /** Merged into target.dataset (values become strings, like the DOM) */
+  dataset?: Record<string, any>;
+  /** Alias for dataset */
+  data?: Record<string, any>;
+  /** Keyboard key (e.key) */
+  key?: string;
+  /** Any other event properties are copied onto the event */
+  [prop: string]: any;
+}
+
 export interface RenderOptions {
   /** Override initial state (defaults to component's .initialState) */
   initialState?: any;
   /** Mock DOM configuration — maps selectors to event streams */
   mockConfig?: Record<string, any>;
-  /** Additional drivers beyond DOM, EVENTS, STATE, and LOG */
+  /** Additional drivers beyond DOM, EVENTS, STATE, and LOG (model sinks without a driver get a no-op one) */
   drivers?: Record<string, any>;
+  /**
+   * Diagnostics mode while rendered. Default: 'collect' (error-severity messages still print),
+   * or the current mode when diagnostics are already on. Restored when the last instance is
+   * disposed. Dev checks require `import 'sygnal/diagnostics'` (the Vite plugin adds it under Vitest).
+   */
+  diagnostics?: DiagnosticsMode;
+  /** Enable strict (canonical-form) runtime checks while rendered (requires 'sygnal/diagnostics') */
+  strict?: boolean;
 }
 
 export interface RenderResult {
@@ -911,13 +936,32 @@ export interface RenderResult {
   sinks: Record<string, any>;
   /** All source objects by driver name */
   sources: Record<string, any>;
-  /** Push an action directly into the intent→model pipeline */
+  /** Push an action into the intent→model pipeline under its real name (all sinks of the entry run) */
   simulateAction: (actionName: string, data?: any) => void;
-  /** Wait for state to satisfy a predicate (resolves with the matching state) */
+  /**
+   * Dispatch a synthetic DOM event through the mock DOM source so the component's real intent
+   * streams fire (DOM.click('.x'), DOM.select('.x').events('click'), .value(), .data()).
+   * Targets the first rendered element matching `selector` and bubbles within its isolation scope.
+   * Reports SYG104 (selector only matches inside a child component) and SYG103 (matches nothing).
+   */
+  simulateEvent: (selector: string, eventType: string, eventInit?: SimulatedEventInit) => void;
+  /** Resolves once the component is subscribed (earlier simulate* calls are buffered and replayed) */
+  ready: () => Promise<void>;
+  /** Wait for state to satisfy a predicate; resolves with the matching state once it has been rendered */
   waitForState: (predicate: (state: any) => boolean, timeoutMs?: number) => Promise<any>;
   /** Collected state values — grows as new states are emitted */
   states: any[];
-  /** Tear down the component and clean up all listeners */
+  /** Live array of values emitted on a sink (EVENTS as {type, data}, PARENT unwrapped, custom drivers) */
+  sinkValues: (sinkName: string) => any[];
+  /** Live array of EVENTS sink emissions ({type, data}) */
+  emitted: Array<{ type: string; data: any }>;
+  /** Live array of diagnostics reported while rendered */
+  diagnostics: Diagnostic[];
+  /** Throws (with the formatted texts) if any warn/error diagnostics were collected */
+  expectNoDiagnostics: () => void;
+  /** Latest rendered VNode serialized to HTML ('' before the first render) */
+  html: () => string;
+  /** Tear down the component, clean up listeners and restore the diagnostics mode */
   dispose: () => void;
 }
 

@@ -78,6 +78,24 @@ describe('SYG202 — STATE reducer returned undefined', () => {
     expect(found[0].fix).toContain('ABORT')
   })
 
+  it('a Collection item returning undefined (documented removal) is info, not warn', async () => {
+    const { Collection } = await import('../../src/collection.js')
+    function Item({ state }) { return createElement('li', { className: 'item' }, createElement('button', { className: 'rm' }, String(state.id))) }
+    Item.intent = ({ DOM }) => ({ REMOVE: DOM.select('.rm').events('click') })
+    Item.model = { REMOVE: () => undefined }
+    function List() { return createElement('ul', null, createElement(Collection, { of: Item, from: 'items' })) }
+    List.initialState = { items: [{ id: 1 }, { id: 2 }] }
+    t = renderComponent(List)
+    await t.ready()
+    t.simulateEvent('.rm', 'click')
+    await t.waitForState(s => s.items.length === 1)
+    await settle(50)
+    const found = diagnostics('SYG202')
+    expect(found).toHaveLength(1)
+    expect(found[0].severity).toBe('info')
+    expect(found[0].message).toContain('Collection item')
+  })
+
   it('does not report ABORT or a returned state', async () => {
     const App = make({ GO: state => (state.count > 10 ? { ...state, count: 0 } : ABORT) })
     t = renderComponent(App, { mockConfig: { '.go': { click: later() } } })
