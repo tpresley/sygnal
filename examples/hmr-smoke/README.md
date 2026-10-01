@@ -20,3 +20,9 @@ Open the local dev URL from Vite.
    - The page does not perform a full browser reload.
    - `Count` remains unchanged after the update.
    - `App boot count` remains unchanged during updates.
+
+## Test
+
+```bash
+npm test   # renders RootComponent in strict mode, clicks Increment, expectNoDiagnostics()
+```
