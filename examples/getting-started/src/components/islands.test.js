@@ -3,7 +3,7 @@
 // intent with simulateEvent, and asserts that no diagnostics were reported.
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest'
 import 'sygnal/diagnostics'
-import { renderComponent, createElement } from 'sygnal'
+import { renderComponent } from 'sygnal'
 import HelloWorld from './HelloWorld.jsx'
 import Counter from './Counter.jsx'
 import Greeter from './Greeter.jsx'
@@ -16,20 +16,11 @@ import PortalDemo from './PortalDemo.jsx'
 import TransitionDemo from './TransitionDemo.jsx'
 import LazyDemo from './LazyDemo.jsx'
 
-// The root `npx vitest` also collects this file, but without this example's
-// Vitest config (no Sygnal JSX transform), so the .jsx views compile to classic
-// React.createElement calls there. Point those at Sygnal's createElement.
-let reactShim = false
 beforeAll(() => {
-  if (typeof globalThis.React === 'undefined') {
-    globalThis.React = { createElement }
-    reactShim = true
-  }
   // CalculatedTest logs every recalculation
   vi.spyOn(console, 'log').mockImplementation(() => {})
 })
 afterAll(() => {
-  if (reactShim) delete globalThis.React
   vi.restoreAllMocks()
 })
 
