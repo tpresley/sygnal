@@ -12,7 +12,7 @@ Tracks progress for [PLAN-2.md](PLAN-2.md). Maintained by the coordinator. The P
 |---|---|---|---|
 | 0 — Release follow-through, eval infrastructure | 🟡 In progress | — | 0-A ✅ · 0-B ✅ · 0-C ✅ · tier-3 pilot ✅ (20/20 pass; Sygnal 66.6 s vs React 45.7 s) · v2-baseline 🟡 (160 trials, D46) |
 | 1 — Correctness backlog | ✅ Done | `plan2-phase1` | 1-A…1-F ✅ · 1-T trim ✅ · review: 6 findings + 2 notes, all fixed in 1-R · kanban 41,803 B (2 B headroom) |
-| 2 — Known ergonomics improvements | 🟡 In progress | — | 2-A 🟡 · 2-B 🟡 · 2-C 🟡 |
+| 2 — Known ergonomics improvements | 🟡 In progress | — | 2-A 🟡 · 2-B 🟡 · 2-C 🟡 · 2-D 🟡 |
 | 3 — Experiments | ⚪ | — | |
 | 4 — Adopt, measure, release | ⚪ | — | |
 
@@ -35,6 +35,7 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | 2-A | Testing completeness (G-064, G-065, G-053) | 🟡 | | subagent | | |
 | 2-B | Agent docs (2-D1 snapshot semantics, 2-D2 extract-component recipe, 2-D3 latest-only pattern) | 🟡 | | subagent | | |
 | 2-C | Component and Vike bugs (G-102, G-106, G-107, G-108, G-109) | 🟡 | | subagent | | |
+| 2-D | `globalthis` alias in `sygnal/vite` + size-gate script (G-099) | 🟡 | | subagent | | Gated number = kanban built with the opt-out (core growth); default build reported |
 | 1-F | Examples (G-052, G-063) | ✅ | (same branch as 1-C) | subagent | `fd3fc7c` | todomvc ids = max id + 1; `LOG` sink uses the reducer form (type gap → G-077); build runs `tsc --noEmit`; custom pollers removed from `app.test.ts`, which uses `next`/`settle`/`html`; new id test. Strict-clean |
 
 ## Gate Results
@@ -67,6 +68,8 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | D44 | 2026-10-01 | Review R4: limit B-016 to sub-components with no `state` prop; an existing parent slice is never overwritten by a model-less child's initialState (5.4.0 behaviour kept) | Coordinator | Smallest behaviour change; matches the tracker's intent |
 | D45 | 2026-10-01 | The tier-3 pilot and the v2-baseline run against the **published** `sygnal@5.4.0` tarball with the **5.4.0** skill installed (not the integration branch), so PLAN-2 changes are measured against the release | Coordinator | PLAN-2 0-B step 3 ("on 5.4.0") |
 | D46 | 2026-10-01 | Tier-3 pilot: 20/20 pass with Opus 5.5 (no pass-rate signal), but a clear efficiency gap (1.46× wall, 1.58× cost). Tiers 1–3 frozen as efficiency tiers; pass-rate discrimination left to E7 (smaller models). Full v2-baseline started: 160 trials on the 5.4.0 tarball | User | Hardening may still give 100% on Opus; E7 is the better lever |
+| D47 | 2026-10-01 | G-099: `sygnal/vite` aliases xstream's `globalthis` polyfill chain to a native stub by default, with an opt-out (≈ −4 KB gz per app) | User | Native `globalThis` everywhere Sygnal runs |
+| D48 | 2026-10-01 | Size budget re-baselined 41,805 → **42,300 B**, measured with the D47 alias turned off so it tracks core growth | User | 2 B headroom after Phase 1; leave room for Phase 2–4 fixes |
 | D40 | 2026-10-01 | 0-B and 0-C build and self-verify without paid eval runs (0-B may run ≤ 2 smoke trials, `v2-smoke`, to validate the headless runner); full runs and pilots wait for Q2 | Coordinator | PLAN-2 §8 (user approves budgets per phase) |
 
 ## Bugs & Gaps Found
@@ -85,7 +88,7 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | G-079 | 1-A | low | Rendering | classNameModule dropped selector classes (`h('p.s', { className: 'k' })` → only `k`); hyperscript only | ✅ Fixed in 1-A |
 | G-080 | 1-A | low | Rendering | `selectModule`'s pending queue is module-level and shared by the main patch and `portalPatch`; a portal patch mid-main-patch could flush early | Open (low risk) |
 | G-081 | 1-A | low | Controlled inputs | `value={undefined}` is dropped by the pragma (absent prop) while `value={null}` writes `elm.value = null`; null/undefined semantics for controlled fields undecided | Open → decide in Phase 2 |
-| G-082 | 1-A | med | Size budget | Kanban at 41,717 B, 88 B under the 41,805 B budget; later core work may exceed it | Open: any overrun goes to the user (re-baseline decision) |
+| G-082 | 1-A | med | Size budget | Kanban at 41,717 B, 88 B under the 41,805 B budget; later core work may exceed it | ✅ D48: budget 42,300 B |
 | G-083 | 1-D | low | Vike packaging | Every Vike dev start warns `sygnal/config unexpected export { module.exports }`, and Node warns MODULE_TYPELESS_PACKAGE_JSON for `dist/vike/+config.js` (ESM in `.js`, no `"type"`). Likely fix: emit `+config.mjs` (rollup + exports) | ✅ 1-R |
 | G-084 | 1-D | med | Vike shell / component.ts | `inspect()` shows Layout under two parents and, after one navigation, Page ×4 (3 with stale home state): children instantiated by several ancestors, or stale instances kept after navigation. Pre-existing; possible leak/duplicate work | ✅ 1-R |
 | G-085 | 1-D | low | Dev gotcha | `npm --prefix <example> exec -- vike dev` from the repo root serves `create-sygnal-app/template-vike`; use `npm --prefix <example> run dev` | Noted |
@@ -100,7 +103,7 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | G-096 | Review R6 | low | Pragma | `class={['btn', { active: on }]}` gives `[object`/`Object]` classes; merge objects and flatten arrays (clsx-style) | ✅ 1-R |
 | G-097 | Review | low | Types | `ParentSinkValueReturn` maps a `PARENT: false` constant to never (checks `boolean`, should check literal `true`) | ✅ 1-R |
 | G-098 | Review | low (unverified) | Vite/Vike | With the onRenderClient exclude, an installed-sygnal Vike app whose pages never import `'sygnal'` directly may re-optimize on first load; maybe add `'sygnal'` to `optimizeDeps.include` | ✅ 1-R |
-| G-099 | 1-T | med (size) | Bundle | xstream `require('globalthis')` pulls a polyfill chain (get-intrinsic, object-keys, has-symbols, …); aliasing it to a `() => globalThis` stub cuts kanban 41,719 → ~37,741 B (−9.5%). Could ship as a `resolve.alias` in `sygnal/vite`, but it changes users' bundles and would mask core growth in the gate | Open → user decision (Phase 2) |
+| G-099 | 1-T | med (size) | Bundle | xstream `require('globalthis')` pulls a polyfill chain (get-intrinsic, object-keys, has-symbols, …); aliasing it to a `() => globalThis` stub cuts kanban 41,719 → ~37,741 B (−9.5%). Could ship as a `resolve.alias` in `sygnal/vite`, but it changes users' bundles and would mask core growth in the gate | ✅ D47 → 2-D |
 | G-100 | 1-T | low (size) | Bundle | `src/extra/devtools.ts` (~2.3 KB gz) ships in production because `run()` always calls `init()`; opt-in/lazy would be a feature change | Open → Phase 2 candidate |
 | G-102 | 0-C | med | Collection | A Collection inside a child component ignores a change to its `filter` prop (with or without `state=`) until some item's own state changes; works in the root. Likely the pickCombine/props$ family (PLAN-1 known issue 5) | Open → 2-C |
 | G-103 | 0-C | low | sygnal-check | No static rule for a Collection bound to a calculated field (runtime SYG409 only), even with `--strict` | Open → Phase 2 candidate (E1 input) |
