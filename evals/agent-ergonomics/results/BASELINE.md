@@ -33,6 +33,24 @@ On the 6 tasks both arms share (01–05, 08), the mean Sygnal trial took **~85 s
 
 Tier-2 tasks (09–12) were added after this run (decision D16). Their baseline is recorded separately as run `baseline-t2`, on the same pre-change tarball.
 
+## Tier 2 (`baseline-t2.json`, 40 trials, same pre-change tarball)
+
+| Arm | Trials | Pass | Wall mean (s) | Iterations mean | Edit rounds mean |
+|---|---|---|---|---|---|
+| Sygnal | 20 | **20 (100%)** | 92.3 | 4.5 | 2.0 |
+| React | 20 | **20 (100%)** | 63.2 | 2.5 | 1.4 |
+
+| Task | Sygnal wall / iter | React wall / iter |
+|---|---|---|
+| 09 board moves (nested Collections) | 79.2 / 5.4 | 61.4 / 3.0 |
+| 10 signup wizard (validation, steps) | 101.6 / 3.6 | 68.6 / 2.2 |
+| 11 search debounce + stale responses | 93.8 / 4.6 | 48.8 / 2.2 |
+| 12 selection panel (5 components) | 94.6 / 4.6 | 74.0 / 2.8 |
+
+The harder tier **did not break the pass-rate ceiling**: both arms pass every trial, so strong agents handle the harder wiring in either framework. The Sygnal/React wall ratio is lower on tier 2 (**~1.46×**) than tier 1 (~2.2×): React's own cost rises with task complexity, while Sygnal carries a roughly fixed overhead (skill loading, the test-tooling defects B-007/B-006, driver plumbing). Sygnal trials again report B-007 workarounds in most cases where the agent wrote its own tests, B-011 (stale text) in task 12, and B-005 (driverFromAsync) in task 11.
+
+**Implication for Phase 4:** improvement will show up as reduced wall time, iterations and tokens, not pass rate. The friction analyzer (`results/analysis/`) attributes the delta to specific causes.
+
 ## Where Sygnal time went (from the agents' own reports)
 
 Agents writing their own verification tests in Sygnal repeatedly hit framework and tooling defects before they could test their change. React agents hit none of these.
