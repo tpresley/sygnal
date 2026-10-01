@@ -30,6 +30,8 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | 1-C | Drivers (G-069) | ✅ | `worktree-agent-ac88e05e39e97d91f` | subagent | `fd3fc7c` | Replies that resolve before the first `select()` listener are buffered (≤ 100, oldest dropped) and flushed on a microtask after the first subscribe, so a BOOTSTRAP request gets its reply; later replies with no listener are dropped; `stop()` clears `sendFn`. 5 tests, failing first |
 | 1-D | Integrations (B-020, G-046, G-037) | ✅ | `worktree-agent-a2111196f25b78f43` | subagent | `af2bac5` | B-020: reproduced (pre-bundled `sygnal_vike_onRenderClient.js` with an inlined core + source core); `sygnal/vite` dev sets `optimizeDeps.exclude: ['sygnal/vike/onRenderClient']`; verified linked and installed (packed tarball): one core. G-046: `urlPathname` removed from `passToClient` (client falls back to `window.location.pathname`). G-037: Vike page named from its function/`componentName` (counter stays in `sel`); Astro already fixed in PLAN-1. 6 failing-first tests. Kanban 0 B |
 | 1-E | Types and build hygiene (B-002/G-012, G-019, G-075, G-076, G-077) | ✅ | `worktree-agent-a2c537d37c4e12f41` | subagent | `07c4eab` | Build prints 0 TS diagnostics (was 56); `test:types` = full `tsc --noEmit` + type-tests (fails on any error). G-012's testing.ts errors not reproduced. G-019: 97 assertions moved to `type-tests/public-api.ts`, exposing 9 wrong ones (fixed). G-075: audit 12 → 2 (vite pinned `^7.3.6` via overrides; deferred: `@rollup/plugin-terser` 1.0 major for serialize-javascript). G-076: browser runner whitelists expected errors and **fails on unexpected ones**. G-077: `NonStateSinkValue` (constants on non-STATE sinks). Kanban 0 B |
+| 1-T | Size trim (G-088) | ✅ | `worktree-agent-af1bfdae13632e5a7` | subagent | `12cc8b9` | 41,991 → **41,719 B** with no behaviour change: `onlineStatus$` marked pure (−105), `optionsOf()` replaces 4 copy-pasted option blocks (−92), short core SYG608 text (−26), pragma `chainHooks` and marker fall-through (−26), small dedups (−23). Top contributors: component.ts 11.6k, xstream 3.4k, get-intrinsic 2.5k (via xstream's `globalthis`), devtools 2.3k |
+| 1-R | Review fixes + leftovers (G-083, G-084, G-086, G-087, G-091…G-098) | 🟡 | | subagent | | |
 | 1-F | Examples (G-052, G-063) | ✅ | (same branch as 1-C) | subagent | `fd3fc7c` | todomvc ids = max id + 1; `LOG` sink uses the reducer form (type gap → G-077); build runs `tsc --noEmit`; custom pollers removed from `app.test.ts`, which uses `next`/`settle`/`html`; new id test. Strict-clean |
 
 ## Gate Results
@@ -37,6 +39,7 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | Merge | build:all | vitest | examples | types | browser | sygnal-check | doc samples | error docs | docs build | kanban gz |
 |---|---|---|---|---|---|---|---|---|---|---|
 | 0-A | ✅ | 942 ✅ | | | | | | | | |
+| 1-T | ✅ | 893 ✅ | ✅ | ✅ | 119 ✅ | 183 ✅ | 374 ✅ | ✅ | | 41,719 B ✅ |
 | 1-B + 1-E | ✅ (0 TS warnings) | 893 ✅ | 105 ✅ | ✅ | 119 ✅ | 183 ✅ | 374 ✅ | ✅ | ✅ | **41,991 B ❌ (+186 over)** |
 | 1-D | ✅ | 971 ✅ | 104 ✅ | ✅ | 119 ✅ | 178 ✅ | 373 ✅ | | ✅ | 41,717 B |
 | 1-A | ✅ | 966 ✅ | | | 119 ✅ | 182 ✅ | 373 ✅ | ✅ | | 41,717 B |
@@ -71,7 +74,7 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | G-077 | 1-F | low | Types | Runtime accepts a constant non-STATE sink value (`mapTo(value)`), but `SinkValue` in `index.d.ts` allows only `true` or a reducer, so `LOG: 'text'` fails tsc | ✅ 1-E (types only; not in canonical docs) |
 | G-086 | 1-E | low | Types | `SortObject` in `index.d.ts` allows a sort function per field, which the runtime rejects (SYG418); the runtime accepts `1 \| -1` and sorter arrays the type rejects | Open → Phase 1 fix workstream |
 | G-087 | 1-B | low | Diagnostics text | SYG218 says "returned a object" for null/arrays (uses `typeof`) | Open → Phase 1 fix workstream |
-| G-088 | 1-B merge | **high** (gate) | Size budget | After 1-A (+282) and 1-B (+268), kanban is 41,991 B: **186 B over** the 41,805 budget | Open → user decision (trim vs re-baseline) |
+| G-088 | 1-B merge | **high** (gate) | Size budget | After 1-A (+282) and 1-B (+268), kanban is 41,991 B: **186 B over** the 41,805 budget | ✅ User: trim first → 1-T, 41,719 B |
 | G-078 | 1-C/1-F | low | Gate setup | The setup didn't install every example (`npm test` fails until `TEST_EXAMPLES_INSTALL=1`), and `npm --prefix …/kanban exec -- vite build` resolves from the current dir | ✅ Setup below fixed |
 | G-079 | 1-A | low | Rendering | classNameModule dropped selector classes (`h('p.s', { className: 'k' })` → only `k`); hyperscript only | ✅ Fixed in 1-A |
 | G-080 | 1-A | low | Rendering | `selectModule`'s pending queue is module-level and shared by the main patch and `portalPatch`; a portal patch mid-main-patch could flush early | Open (low risk) |
@@ -90,6 +93,8 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | G-096 | Review R6 | low | Pragma | `class={['btn', { active: on }]}` gives `[object`/`Object]` classes; merge objects and flatten arrays (clsx-style) | Open → 1-R |
 | G-097 | Review | low | Types | `ParentSinkValueReturn` maps a `PARENT: false` constant to never (checks `boolean`, should check literal `true`) | Open → 1-R |
 | G-098 | Review | low (unverified) | Vite/Vike | With the onRenderClient exclude, an installed-sygnal Vike app whose pages never import `'sygnal'` directly may re-optimize on first load; maybe add `'sygnal'` to `optimizeDeps.include` | Open → 1-R (verify) |
+| G-099 | 1-T | med (size) | Bundle | xstream `require('globalthis')` pulls a polyfill chain (get-intrinsic, object-keys, has-symbols, …); aliasing it to a `() => globalThis` stub cuts kanban 41,719 → ~37,741 B (−9.5%). Could ship as a `resolve.alias` in `sygnal/vite`, but it changes users' bundles and would mask core growth in the gate | Open → user decision (Phase 2) |
+| G-100 | 1-T | low (size) | Bundle | `src/extra/devtools.ts` (~2.3 KB gz) ships in production because `run()` always calls `init()`; opt-in/lazy would be a feature change | Open → Phase 2 candidate |
 | G-076 | 5.4.0 release | low | browser-tests | The browser run prints expected console errors from error-path tests, which look like failures | ✅ 1-E (whitelist updated for SYG405 at the 1-B merge) |
 
 ## Worktree Setup (each subagent, inside its own isolated worktree)
@@ -113,6 +118,7 @@ gzip -c /tmp/kb/assets/index-*.js | wc -c      # budget 41,805 B
 
 ## Activity Log
 
+- 2026-10-01 — 1-T merged; full gate green at 41,719 B; 1-R launched (review findings + G-083/084/086/087).
 - 2026-10-01 — 0-B merged; installed skill re-synced (D35; backup in scratchpad); smoke attempt from the user's terminal: both trials 401 (CLI login invalid), $0 spent, results moved out of the repo; 0-B fix requested (G-089/G-090). Phase 1 review: 6 findings + 2 notes (G-091…G-098) → fix workstream 1-R after 1-T.
 - 2026-10-01 — 1-E and 1-B merged; browser whitelist updated (SYG408 → SYG405 after D43); all gates green except size: kanban 41,991 B (G-088, to the user).
 - 2026-10-01 — 1-D merged (B-020, G-046, G-037); gates green; G-083/G-084 logged for a Phase 1 fix workstream.
