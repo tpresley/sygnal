@@ -47,3 +47,15 @@ describe('enrichEventStream .data() with camelCase names (B-028)', () => {
     expect(collect(enrichEventStream(xs.of({ target: icon })).data('laneId'))).toEqual([undefined])
   })
 })
+
+describe('enrichEventStream .data() with kebab-case names (3E/R3)', () => {
+  const card = el({ 'data-task-id': '42', 'data-lane-ref-id': '3' })
+  const icon = el({ class: 'icon' }, el({ class: 'title' }, card))
+
+  it(".data('task-id') reads the same attribute as .data('taskId')", () => {
+    expect(collect(enrichEventStream(xs.of({ target: icon })).data('task-id'))).toEqual(['42'])
+    expect(collect(enrichEventStream(xs.of({ target: card })).data('task-id', Number))).toEqual([42])
+    expect(collect(enrichEventStream(xs.of({ target: icon })).data('lane-ref-id'))).toEqual(['3'])
+    expect(collect(enrichEventStream(xs.of({ target: icon })).data('laneRefId'))).toEqual(['3'])
+  })
+})
