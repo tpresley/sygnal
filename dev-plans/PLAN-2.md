@@ -1,6 +1,6 @@
 # PLAN-2: Agent Ergonomics, Round 2
 
-**Goal:** close the rest of the Sygnal↔React efficiency gap for AI agents, clear the correctness backlog PLAN-1 left behind, and run the experiments that tell us what to build next. As in PLAN-1, the MVI architecture, pure reducers, drivers and the rule against event binding in the view stay as they are ([[sygnal-design-decisions]], PLAN-1 D1).
+**Goal:** close the rest of the Sygnal↔React efficiency gap for AI agents, clear the correctness backlog PLAN-1 left behind, and run the experiments that tell us what to build next. As in PLAN-1, the MVI architecture, pure reducers, drivers and the rule against event binding in the view stay as they are (PLAN-1 D1, and the element-bound-triggers rejection in PLAN-1 §0).
 
 **Starting point (end of PLAN-1, 5.4.0 release prep, PR tpresley/sygnal#11):**
 
