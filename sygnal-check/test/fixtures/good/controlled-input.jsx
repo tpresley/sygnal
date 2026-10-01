@@ -13,7 +13,10 @@ function Form({ state }) {
       <input type="radio" name="size" className="size" checked={state.size === 's'} />
       <select className="kind" value={state.kind}><option value="a">A</option></select>
       <input className="uncontrolled" />
-      <input className="literal" value="fixed" />
+      <input className="literal" value="" />
+      <select className="pick" value="a"><option value="a">A</option></select>
+      <input className="nulled" value={null} />
+      <input type="file" className="upload" value={state.file} />
       <input className="ro" readOnly value={state.name} />
       <input type="hidden" value={state.id} />
       <button type="submit" value={state.id}>Go</button>
@@ -39,6 +42,8 @@ Form.intent = ({ DOM }) => ({
   KIND: DOM.change('.kind'),
   CITY: processForm(DOM.select('.profile')),
   INNER: DOM.select('.wrap').events('input'),
+  // a literal value with an input listener: left alone (1H-8 only reports unlistened ones)
+  LIT: DOM.input('.literal').value(),
 })
 
 Form.model = {
@@ -51,6 +56,7 @@ Form.model = {
   KIND: (s) => s,
   CITY: (s, f) => ({ ...s, city: f.city }),
   INNER: (s) => s,
+  LIT: (s) => s,
 }
 
 // a dynamic selector might match: stay quiet

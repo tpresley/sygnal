@@ -45,6 +45,36 @@ TitleEditor.model = {
   PICK: (state) => state,
 }
 
+// literal values are controlled too (1H-8): each re-render resets the field to them
+function Literals({ state }) {
+  return (
+    <div className="lit">
+      <input className="search"
+        value="" // expect: SYG111
+      />
+      <input type="email" className="mail"
+        value="default@example.com" // expect: SYG111
+      />
+      <textarea className="body"
+        value={'text' /* expect: SYG111 */}
+      />
+      <input type="number" className="qty"
+        value={0 /* expect: SYG111 */}
+      />
+      <input type="checkbox" className="opt"
+        checked // expect: SYG111
+      />
+      <input type="radio" name="r" className="r"
+        checked={false /* expect: SYG111 */}
+      />
+      <button className="tick">{state.count}</button>
+    </div>
+  )
+}
+Literals.initialState = { count: 0 }
+Literals.intent = ({ DOM }) => ({ TICK: DOM.click('.tick') })
+Literals.model = { TICK: (s) => ({ ...s, count: s.count + 1 }) }
+
 // no intent at all
 function Display({ state }) {
   return <input className="shown"
