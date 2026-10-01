@@ -70,6 +70,6 @@ function syncClassName(oldVnode: VNode, vnode: VNode): void {
 }
 
 export const classNameModule = {
-  create: (emptyVnode: VNode, vnode: VNode) => syncClassName(emptyVnode, vnode),
+  create: syncClassName,
   update: syncClassName,
 };

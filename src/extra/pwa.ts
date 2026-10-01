@@ -118,7 +118,7 @@ export function makeServiceWorkerDriver(
 
 let _onlineCleanup: (() => void) | undefined;
 
-export const onlineStatus$: Stream<boolean> = xs.create<boolean>({
+export const onlineStatus$: Stream<boolean> = /*#__PURE__*/ xs.create<boolean>({
   start(listener: Listener<boolean>) {
     if (typeof window === 'undefined') {
       listener.next(true);

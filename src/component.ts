@@ -72,6 +72,15 @@ function normalizeCalculatedEntry(field: string, entry: any): {fn: (...args: any
   fail('SYG206', undefined, `Invalid calculated field '${field}'`, 'Use fn or [deps, fn]')
 }
 
+const OPTION_KEYS = ['model', 'intent', 'hmrActions', 'context', 'peers', 'components', 'initialState', 'calculated', 'storeCalculatedInState', 'DOMSourceName', 'stateSourceName', 'onError', 'debug']
+
+/** component() options for a function component: its static properties (`extra`: more keys), `name`, `view: fn`. */
+export function optionsOf(fn: any, name: string, extra: string[] = []): any {
+  const options: any = {name, view: fn}
+  for (const key of OPTION_KEYS.concat(extra)) options[key] = fn[key]
+  return options
+}
+
 export interface ComponentOptions {
   name?: string;
   sources?: Record<string, any>;
@@ -1410,11 +1419,7 @@ class Component {
       if (collectionOf.isSygnalComponent) {
         factory = collectionOf
       } else {
-        const name = collectionOf.componentName || collectionOf.label || collectionOf.name || 'FUNCTION_COMPONENT'
-        const view = collectionOf
-        const { model, intent, hmrActions, context, peers, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, onError, debug } = collectionOf
-        const options = { name, view, model, intent, hmrActions, context, peers, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, onError, debug }
-        factory = component(options)
+        factory = component(optionsOf(collectionOf, collectionOf.componentName || collectionOf.label || collectionOf.name || 'FUNCTION_COMPONENT'))
       }
     } else if (this.components[collectionOf]) {
       factory = this.components[collectionOf]
@@ -1558,11 +1563,7 @@ class Component {
     keys.forEach(key => {
       const current = switchableComponents[key]
       if (!current.isSygnalComponent) {
-        const name = current.componentName || current.label || current.name || 'FUNCTION_COMPONENT'
-        const view = current
-        const { model, intent, hmrActions, context, peers, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, onError, debug } = current
-        const options = { name, view, model, intent, hmrActions, context, peers, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, onError, debug }
-        switchableComponents[key] = component(options)
+        switchableComponents[key] = component(optionsOf(current, current.componentName || current.label || current.name || 'FUNCTION_COMPONENT'))
       }
     })
     const sources = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$, __parentContext$: this.context$, __parentComponentNumber: this._componentNumber }
@@ -1977,8 +1978,7 @@ function preprocessVdom(vnode: any, componentInstance: any): any {
       if (loaded) {
         const props = vnode.data?.props || {}
         const name = loaded.componentName || loaded.label || loaded.name || 'LazyLoaded'
-        const { model, intent, hmrActions, context, peers, components, initialState, isolatedState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, onError, debug } = loaded
-        const options = { name, view: loaded, model, intent, hmrActions, context, peers, components, initialState, isolatedState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, onError, debug }
+        const options = optionsOf(loaded, name, ['isolatedState'])
         const cleanProps = { ...props }
         delete cleanProps.sygnalOptions
         return {
