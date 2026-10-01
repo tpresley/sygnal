@@ -304,18 +304,23 @@ export function renderComponent(
   };
 
   const {context, calculated, storeCalculatedInState, onError, hmrActions, components} = componentDef;
+  const init = initialState !== undefined ? initialState : componentDef.initialState;
+  // G-028: with no intent, model or initialState nothing would ever emit state, so the view
+  // never renders. Leave intent/model unset so the component falls back to the same no-op
+  // model run() uses, and renders.
+  const bare = !intent && !Object.keys(model).length && init === undefined;
   const app = component({
     name: componentDef.name || componentDef.componentName || 'TestComponent',
     view: componentDef,
-    intent: wrappedIntent,
-    model,
+    intent: bare ? undefined : wrappedIntent,
+    model: bare ? undefined : model,
     hmrActions,
     components,
     context,
     calculated,
     storeCalculatedInState,
     onError,
-    initialState: initialState !== undefined ? initialState : componentDef.initialState,
+    initialState: init,
   });
   const allDrivers: any = {
     DOM: () => mockDOMSource(mockConfig, hub.$, path => listeners.set(path.join('\u0000'), path)),

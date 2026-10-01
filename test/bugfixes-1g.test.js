@@ -96,6 +96,27 @@ describe('B-011: an element with a single text child', () => {
   })
 })
 
+// ─── G-028: renderComponent renders a stateless, model-less component ────────
+
+describe('G-028: renderComponent with no initialState and no model', () => {
+  it('renders and resolves ready(), as run() would', async () => {
+    function Hello() { return h('h1', { className: 'title' }, 'Hello') }
+    t = renderComponent(Hello)
+    const winner = await Promise.race([t.ready().then(() => 'ready'), settle(500).then(() => 'timeout')])
+    expect(winner).toBe('ready')
+    expect(t.html()).toContain('Hello')
+  })
+
+  it('renders static children too', async () => {
+    function Child() { return h('p', { className: 'c' }, 'child') }
+    function Page() { return h('main', null, h(Child)) }
+    t = renderComponent(Page)
+    const winner = await Promise.race([t.ready().then(() => 'ready'), settle(500).then(() => 'timeout')])
+    expect(winner).toBe('ready')
+    expect(t.html()).toContain('child')
+  })
+})
+
 // ─── B-013: same-tick actions inside a Collection item compose ───────────────
 
 describe('B-013: Collection item reducers see the state of earlier same-tick actions', () => {
