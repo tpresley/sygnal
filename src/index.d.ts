@@ -492,8 +492,12 @@ export type TransitionProps = {
 }
 
 export type SuspenseProps = {
-  /** Rendered while any descendant is not READY (or a lazy() component is still loading) */
-  fallback?: any;
+  /**
+   * Shown (wrapped in `<div data-sygnal-suspense="pending">`) while any child is not ready:
+   * a `lazy()` component still loading, or a component with an explicit READY model entry
+   * that hasn't emitted true. A string renders as text. Without it the children render as-is.
+   */
+  fallback?: JSX.Element | string;
   children?: any;
 }
 
