@@ -56,11 +56,12 @@ export function readText(file) {
 
 export const DEFAULT_TRACKERS = (repoRoot) => ['PLAN-1-status.md', 'PLAN-2-status.md'].map((f) => path.join(repoRoot, 'dev-plans', f))
 
-/** 'fixed' | 'partly fixed' | 'open' | 'unknown' */
+/** 'fixed' | 'closed' | 'partly fixed' | 'open' | 'unknown' */
 export function trackerState(ctx, id) {
   return ctx.tracker?.[id]?.status ?? 'unknown'
 }
-export const isFixed = (ctx, id) => trackerState(ctx, id) === 'fixed'
+/** Done for recommendation purposes: fixed, or deliberately closed (won't fix). */
+export const isFixed = (ctx, id) => ['fixed', 'closed'].includes(trackerState(ctx, id))
 
 /** The skill's / llms.txt's testing section heading, or null. */
 export function testingSection(ctx) {
