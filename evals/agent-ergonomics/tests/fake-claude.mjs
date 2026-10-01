@@ -8,6 +8,10 @@
 //   FAKE_CLAUDE_SOLUTION=<dir>  copy <dir> over the cwd (e.g. a task's hidden/<task>/solution)
 //                               and run `npm test`, so the trial can pass
 //   FAKE_CLAUDE_MODE=auth401    emit only 401 api_retry events and exit 1 (no result)
+//   FAKE_CLAUDE_MODE=authresult what CLI 2.1.90 does with an invalid OAuth token: 401 retries, a
+//                               '<synthetic>' assistant message and a result with is_error, exit 1
+//   FAKE_CLAUDE_MODELS=opus=claude-opus-4-6   how the fake resolves --model aliases (default: none)
+// A call with an empty --tools value is treated as the orchestrator's preflight.
 //   FAKE_CLAUDE_MODE=hang       sleep until killed (timeout handling)
 // Without FAKE_CLAUDE_SOLUTION it changes nothing, so the hidden tests fail.
 import fs from 'node:fs'
@@ -15,8 +19,15 @@ import path from 'node:path'
 import { spawnSync } from 'node:child_process'
 
 const argv = process.argv.slice(2)
+if (argv[0] === '--version') {
+  console.log(`${process.env.FAKE_CLAUDE_VERSION ?? '0.0.0'} (Fake Claude)`)
+  process.exit(0)
+}
 const opt = (k) => (argv.includes(k) ? argv[argv.indexOf(k) + 1] : undefined)
-const model = opt('--model') ?? 'claude-fake-1'
+const aliasMap = Object.fromEntries((process.env.FAKE_CLAUDE_MODELS ?? '').split(',').filter(Boolean).map((p) => p.split('=')))
+const requested = opt('--model') ?? 'claude-fake-1'
+const model = aliasMap[requested] ?? requested
+const isPreflight = argv.includes('--tools') && opt('--tools') === ''
 const session = 'fake-session'
 const emit = (o) => process.stdout.write(JSON.stringify({ session_id: session, ...o }) + '\n')
 const mode = process.env.FAKE_CLAUDE_MODE
@@ -27,7 +38,17 @@ if (mode === 'auth401') {
   for (let i = 1; i <= 3; i++) emit({ type: 'system', subtype: 'api_retry', attempt: i, error_status: 401, error: 'authentication_failed' })
   process.exit(1)
 }
-if (mode === 'hang') {
+if (mode === 'authresult') {
+  for (let i = 1; i <= 3; i++) emit({ type: 'system', subtype: 'api_retry', attempt: i, error_status: 401, error: 'authentication_failed' })
+  const text = 'Failed to authenticate. API Error: 401 {"type":"error","error":{"type":"authentication_error","message":"OAuth access token is invalid."}}'
+  emit({ type: 'assistant', message: { id: 'synthetic-1', model: '<synthetic>', role: 'assistant', content: [{ type: 'text', text }], usage: { input_tokens: 0, output_tokens: 0 } } })
+  emit({ type: 'result', subtype: 'success', is_error: true, duration_ms: 1500, duration_api_ms: 0, num_turns: 1, result: text, total_cost_usd: 0, usage: { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } })
+  process.exit(1)
+}
+if (isPreflight) {
+  emit({ type: 'assistant', message: { id: 'msg_pf', role: 'assistant', model, content: [{ type: 'text', text: 'ok' }], usage: { input_tokens: 5, output_tokens: 1 } } })
+  emit({ type: 'result', subtype: 'success', is_error: false, duration_ms: 900, duration_api_ms: 800, num_turns: 1, result: 'ok', total_cost_usd: 0.001, usage: { input_tokens: 5, output_tokens: 1, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } })
+} else if (mode === 'hang') {
   setInterval(() => {}, 1000)
 } else {
   const usage = { input_tokens: 10, output_tokens: 50, cache_read_input_tokens: 1000, cache_creation_input_tokens: 200 }

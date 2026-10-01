@@ -3,7 +3,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { spawn } from 'node:child_process'
-import { buildClaudeArgs, trialEnv, stampLine, summarizeRun, parseJsonl, trialFiles, DEFAULT_TIMEOUT_MIN } from './headless.mjs'
+import { buildClaudeArgs, buildPreflightArgs, trialEnv, stampLine, summarizeRun, parseJsonl, trialFiles, checkModel, DEFAULT_TIMEOUT_MIN } from './headless.mjs'
 
 /**
  * @param {object} o
@@ -103,11 +103,52 @@ export function runTrial(o) {
         signal,
         timedOut,
         spawnError,
-        ok: !spawnError && !timedOut && code === 0 && summary.completed && !summary.isError,
         ...summary,
+        // A timed-out run whose agent did work is a real (unfinished) trial and is scored;
+        // any other run without a clean result is 'not run' (summary.notRunReason).
+        agentRan: !spawnError && (summary.agentRan || (timedOut && summary.turns > 0)),
+        notRunReason: spawnError ? `spawn: ${spawnError}` : summary.agentRan || (timedOut && summary.turns > 0) ? null : summary.notRunReason,
+        modelCheck: checkModel(o.model, summary.model),
+        ok: !spawnError && !timedOut && code === 0 && summary.agentRan,
       }
       fs.writeFileSync(files.meta, JSON.stringify(meta, null, 2) + '\n')
       resolve(meta)
+    })
+  })
+}
+
+/**
+ * Preflight: one tiny no-tool `claude -p` call with the trial environment and
+ * model. Resolves { ok, reason, model, modelCheck, costUsd, wallMs, summary }.
+ * ok is false when the call fails, times out, or never reaches the model.
+ */
+export function preflight({ model, effort, claudeBin = 'claude', timeoutSec = 60, cwd = process.cwd() } = {}) {
+  const started = Date.now()
+  return new Promise((resolve) => {
+    let out = ''
+    let err = ''
+    let timedOut = false
+    let spawnError = null
+    const child = spawn(claudeBin, buildPreflightArgs({ model, effort }), { cwd, env: trialEnv(process.env), stdio: ['ignore', 'pipe', 'pipe'], detached: true })
+    child.stdout.on('data', (d) => (out += d))
+    child.stderr.on('data', (d) => (err += d))
+    const timer = setTimeout(() => {
+      timedOut = true
+      try {
+        process.kill(-child.pid, 'SIGKILL')
+      } catch {}
+    }, timeoutSec * 1000)
+    child.on('error', (e) => (spawnError = e.message))
+    child.on('close', (code) => {
+      clearTimeout(timer)
+      const summary = summarizeRun(parseJsonl(out))
+      const modelCheck = checkModel(model, summary.model)
+      let reason = null
+      if (spawnError) reason = `cannot start ${claudeBin}: ${spawnError}`
+      else if (summary.authFailed) reason = `authentication failed (${(summary.finalText ?? 'HTTP 401').slice(0, 160)}); log in again (\`claude\` → /login) or set ANTHROPIC_API_KEY`
+      else if (timedOut) reason = `no answer within ${timeoutSec} s${summary.apiRetries ? ` (${summary.apiRetries} API retries)` : ''}`
+      else if (!summary.agentRan) reason = `the call did not reach the model: ${summary.notRunReason ?? `exit ${code}`}${err.trim() ? ` · ${err.trim().slice(0, 200)}` : ''}`
+      resolve({ ok: !reason, reason, model: summary.model, modelCheck, costUsd: summary.costUsd, wallMs: Date.now() - started, summary })
     })
   })
 }

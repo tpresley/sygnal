@@ -46,6 +46,8 @@ export function parseTranscriptLines(lines) {
   let skillInjectedBytes = 0
   let n = 0
   let init = null
+  let modelTurns = 0 // assistant messages from the model (the CLI writes "<synthetic>" ones for its own errors)
+  const seenTurn = new Set()
   let result = null
 
   for (const raw of lines) {
@@ -76,6 +78,10 @@ export function parseTranscriptLines(lines) {
     if (type === 'assistant') {
       const msgId = msg.id ?? `line-${seq}`
       if (!msgUsage.has(msgId)) msgOrder.push(msgId)
+      if (msg.model !== '<synthetic>' && !seenTurn.has(msgId)) {
+        seenTurn.add(msgId)
+        modelTurns++
+      }
       if (msg.usage) msgUsage.set(msgId, msg.usage)
       for (const block of Array.isArray(msg.content) ? msg.content : []) {
         if (block?.type === 'tool_use') {
@@ -143,6 +149,9 @@ export function parseTranscriptLines(lines) {
       outputTokens: result ? u.output_tokens ?? 0 : null,
       numTurns: result?.num_turns ?? null,
       isError: result ? !!result.is_error : null,
+      modelTurns,
+      // false for a run that never reached the model (auth failure, is_error, no API time): not a trial.
+      agentRan: modelTurns > 0 && !(result && (result.is_error || result.duration_api_ms === 0)),
     }
   }
 

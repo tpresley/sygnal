@@ -8,18 +8,20 @@ One **trial** = one fresh agent attempting one task in one arm. Paths below are 
 
 ```bash
 # See the plan and the estimate first (nothing runs):
-node $EVAL/orchestrate.mjs --run v2-baseline --tasks all --trials 5 --concurrency 4 --model opus --dry-run
+node $EVAL/orchestrate.mjs --run v2-baseline --tasks all --trials 5 --concurrency 4 --model claude-opus-5-5 --dry-run --preflight
 # Run it (re-run the same command to resume after an interruption):
-node $EVAL/orchestrate.mjs --run v2-baseline --tasks all --trials 5 --concurrency 4 --model opus
+node $EVAL/orchestrate.mjs --run v2-baseline --tasks all --trials 5 --concurrency 4 --model claude-opus-5-5
 # A subset: one arm, tier 2, three trials each
 node $EVAL/orchestrate.mjs --run e7-sonnet --arms sygnal --tasks tier2 --trials 3 --model sonnet
 ```
 
 - `--tasks`: `all`, `tier1` (01–08), `tier2` (09–12), `tier3` (13+), `03`, `01-05`, or a comma list. Tasks come from the task dirs, so new tasks need no code change; a task missing from one arm is skipped for that arm.
-- `--model` (and `--effort`) are passed to every trial and recorded per record (`model`) and in `<trials-root>/<run>/manifest.json`. A run refuses to resume with a different model, effort or tarball unless `--allow-mixed`.
+- `--model` (default `claude-opus-5-5`) and `--effort` are passed to every trial. **Use full model ids:** the installed CLI resolves aliases itself, and an old CLI maps them to old models (CLI 2.1.90: `opus` → `claude-opus-4-6`). The model each trial actually ran on (from its init/assistant events) is recorded per record (`model`); a trial on a different model than the one meant (an alias's current model, e.g. `opus` → `claude-opus-5-5`) is not scored and stops the run unless `--allow-mixed`. The dry run shows what the alias must resolve to; `--dry-run --preflight` also asks the CLI.
+- Before the first trial, a **preflight** makes one tiny `claude -p` call with the trial environment and model (60 s limit). If it fails (auth, no answer, wrong model), nothing starts. `--no-preflight` skips it.
+- The manifest (`<trials-root>/<run>/manifest.json`) records the model, the CLI version (`claude --version`), the tarball and the git sha. A run refuses to resume with a different model, effort or tarball unless `--allow-mixed`, and warns when the CLI version changed.
 - `--timeout-min` (default 30) kills a trial and its child processes; a timed-out trial is scored as is, with category `other`.
 - Resume: trials that already have a record in `results/<run>.json` are skipped; an agent that finished but wasn't scored is only scored; a partial trial (crash, auth failure, Ctrl-C) is moved to `<dest>.stale-<time>` and redone.
-- If the first trial gets HTTP 401 on every call, the orchestrator stops (the trial agent can't authenticate; run it from a terminal where `claude -p "hi"` works, or set `ANTHROPIC_API_KEY`).
+- **Not run is not a failure.** A trial whose agent never reached the model (an `is_error` result, an auth failure in the api_retry events or the result text, `duration_api_ms` 0, or no model turn) gets no score record and no analysis entry. If it took no turn, its sidecars are renamed `*.notrun-<time>` and the dir stays prepared, so re-running the command retries it; otherwise it is redone. An auth failure, or two not-run trials in a row, stops the run. `score.mjs` also refuses a trial whose `<dest>.run.json` says the agent never ran (`--force` overrides).
 - The orchestrator warns when the installed `sygnal-dev` skill differs from the checkout's (PLAN-1 D35). `--verify` runs `verify.mjs` against the run's tarball first.
 - Trial dirs: `--trials-root` (default `/tmp/sygnal-evals/trials`, resolved, so on macOS the prompt says `/private/tmp/...`, which is the agent's real cwd) `/<run>/<arm>-<NN>-t<k>`, with `<dest>.prompt.txt`, `<dest>.transcript.jsonl`, `<dest>.run.json` and `<dest>.stderr.log` next to each. The run log is `<trials-root>/<run>/orchestrate.log.jsonl`.
 - Still manual: step 3's audit review (records with audit hits get an `AUDIT:` note) and step 5's failure classification.
@@ -67,7 +69,7 @@ node $EVAL/prepare.mjs --arm react --task 03 \
 **Headless (harness v2, preferred):**
 
 ```bash
-node $EVAL/run-trial.mjs --dest <dest> [--model opus] [--timeout-min 30]
+node $EVAL/run-trial.mjs --dest <dest> [--model claude-opus-5-5] [--timeout-min 30]
 ```
 
 It runs `claude -p "$(cat <dest>.prompt.txt)" --output-format stream-json --verbose` from inside `<dest>` (posture above), stamps every line with a `timestamp`, and writes `<dest>.transcript.jsonl` and `<dest>.run.json` (wall time, exit status, model, cost, billed tokens, turns). Don't mix headless and subagent trials within one run.

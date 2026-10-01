@@ -130,6 +130,11 @@ for (const [trial, agentId] of mapRows) {
     continue
   }
   const parsed = parseTranscriptFile(tfile)
+  if (parsed.headless && !parsed.headless.agentRan) {
+    // The agent never ran (e.g. HTTP 401): not a trial, so no analysis entry.
+    console.error(`skip ${trial}: the agent never ran (${parsed.headless.isError ? 'is_error result' : 'no model turn'}); not a trial`)
+    continue
+  }
   const reportIds = matchReport(parsed.finalReport, arm)
   const tl = buildTimeline(parsed, { arm, reportIds })
 

@@ -91,8 +91,8 @@ Not defended against: an agent that deliberately searches the whole filesystem (
 See `run.md` for the full procedure. With harness v2, a whole run is one command:
 
 ```bash
-node evals/agent-ergonomics/orchestrate.mjs --run v2-baseline --tasks all --trials 5 --concurrency 4 --model opus --dry-run   # plan + estimate
-node evals/agent-ergonomics/orchestrate.mjs --run v2-baseline --tasks all --trials 5 --concurrency 4 --model opus             # run / resume
+node evals/agent-ergonomics/orchestrate.mjs --run v2-baseline --tasks all --trials 5 --concurrency 4 --model claude-opus-5-5 --dry-run --preflight   # plan + estimate
+node evals/agent-ergonomics/orchestrate.mjs --run v2-baseline --tasks all --trials 5 --concurrency 4 --model claude-opus-5-5             # run / resume
 ```
 
 The steps it automates, by hand:
@@ -101,7 +101,7 @@ The steps it automates, by hand:
 npm run build && npm pack --pack-destination /tmp/sygnal-evals          # once per run
 node evals/agent-ergonomics/verify.mjs --tarball /tmp/sygnal-evals/sygnal-*.tgz
 node evals/agent-ergonomics/prepare.mjs --arm sygnal --task 03 --tarball <tgz> --dest /tmp/sygnal-evals/trials/baseline/sygnal-03-t1
-node evals/agent-ergonomics/run-trial.mjs --dest /tmp/sygnal-evals/trials/baseline/sygnal-03-t1 --model opus   # headless; or a fresh subagent with <dest>.prompt.txt
+node evals/agent-ergonomics/run-trial.mjs --dest /tmp/sygnal-evals/trials/baseline/sygnal-03-t1 --model claude-opus-5-5   # headless; or a fresh subagent with <dest>.prompt.txt
 node evals/agent-ergonomics/transcript-stats.mjs <transcript.jsonl> --dir <dest>
 node evals/agent-ergonomics/score.mjs --dir <dest> --task 03 --arm sygnal --trial 1 --run baseline \
   --iterations 4 --edit-rounds 2 --wall-seconds 210
