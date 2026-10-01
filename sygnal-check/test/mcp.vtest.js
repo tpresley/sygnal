@@ -115,3 +115,30 @@ describe('createMcpServer().handle', () => {
     expect(handle({ jsonrpc: '2.0', id: 2, method: 'initialize', params: { protocolVersion: '2024-11-05' } }).result.protocolVersion).toBe('2024-11-05')
   })
 })
+
+describe('createMcpServer().handle never throws (R2)', () => {
+  const { handle } = createMcpServer({ cwd: pkgRoot })
+  it('treats params: null / non-object params as {}', () => {
+    for (const params of [null, 5, 'x', [1, 2], true]) {
+      const init = handle({ jsonrpc: '2.0', id: 1, method: 'initialize', params })
+      expect(init.result.protocolVersion).toBe('2025-06-18')
+      const call = handle({ jsonrpc: '2.0', id: 2, method: 'tools/call', params })
+      expect(call.error).toEqual({ code: -32602, message: 'Unknown tool: undefined' })
+      expect(handle({ jsonrpc: '2.0', id: 3, method: 'tools/list', params }).result.tools.length).toBe(3)
+    }
+  })
+  it('turns a throwing handler into a -32603 Internal error', () => {
+    const msg = { jsonrpc: '2.0', id: 7, method: 'initialize' }
+    Object.defineProperty(msg, 'params', { enumerable: true, get() { throw new Error('boom') } })
+    expect(handle(msg)).toEqual({ jsonrpc: '2.0', id: 7, error: { code: -32603, message: 'Internal error: boom' } })
+  })
+  it('a stdio server survives params: null', async () => {
+    const s = startServer()
+    try {
+      s.raw(JSON.stringify({ jsonrpc: '2.0', id: 'raw', method: 'initialize', params: null }))
+      const ping = await s.request('ping')
+      expect(ping.result).toEqual({})
+      expect(s.lines[0].result.protocolVersion).toBe('2025-06-18')
+    } finally { await s.close() }
+  })
+})

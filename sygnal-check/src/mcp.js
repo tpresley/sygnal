@@ -11,7 +11,8 @@
  *   explain({ code })           → Explanation (title, severity, explanation, fix, docsUrl)
  * Each result is returned as structuredContent and as JSON text content.
  *
- *   createMcpServer({ cwd }) → { handle(message) → response | null }
+ *   createMcpServer({ cwd }) → { handle(message) → response | null }  (never throws:
+ *     non-object params are treated as {}, failures become -32603 errors)
  *   runMcpServer({ stdin, stdout, cwd })   (what the CLI runs)
  */
 import fs from 'node:fs'
@@ -61,6 +62,8 @@ export const TOOLS = [
 
 class ToolError extends Error {}
 
+const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v)
+
 function filesFor(cwd, paths) {
   if (paths !== undefined && (!Array.isArray(paths) || paths.some(p => typeof p !== 'string'))) {
     throw new ToolError('paths must be an array of strings')
@@ -78,7 +81,7 @@ function summarize(diags) {
 }
 
 function callTool(name, args, cwd) {
-  args = args || {}
+  args = isObj(args) ? args : {}
   if (name === 'check') {
     const diagnostics = checkFiles(filesFor(cwd, args.paths), { cwd, strict: !!args.strict })
     return { diagnostics, summary: summarize(diagnostics) }
@@ -101,7 +104,7 @@ export function createMcpServer({ cwd = process.cwd() } = {}) {
   const result = (id, value) => ({ jsonrpc: '2.0', id, result: value })
   const error = (id, code, message) => ({ jsonrpc: '2.0', id, error: { code, message } })
 
-  function handle(msg) {
+  function handleMessage(msg) {
     if (!msg || typeof msg !== 'object' || Array.isArray(msg) || msg.jsonrpc !== '2.0' || typeof msg.method !== 'string') {
       // a response from the client, or garbage
       return msg && typeof msg === 'object' && 'id' in msg && !('result' in msg || 'error' in msg)
@@ -110,7 +113,8 @@ export function createMcpServer({ cwd = process.cwd() } = {}) {
     }
     const isRequest = 'id' in msg && msg.id !== null
     if (!isRequest) return null // notifications (notifications/initialized, cancelled, ...)
-    const { id, method, params = {} } = msg
+    const { id, method } = msg
+    const params = isObj(msg.params) ? msg.params : {}
     switch (method) {
       case 'initialize': {
         const requested = params.protocolVersion
@@ -138,6 +142,17 @@ export function createMcpServer({ cwd = process.cwd() } = {}) {
       }
       default:
         return error(id, -32601, `Method not found: ${method}`)
+    }
+  }
+
+  /** Handle one message; never throws (an unexpected failure is a -32603 error). */
+  function handle(msg) {
+    try {
+      return handleMessage(msg)
+    } catch (err) {
+      let id = null
+      try { id = isObj(msg) && 'id' in msg ? msg.id ?? null : null } catch { /* keep null */ }
+      return error(id, -32603, `Internal error: ${err?.message || err}`)
     }
   }
 
