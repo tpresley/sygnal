@@ -963,8 +963,6 @@ class Component {
                 diag.onReducer(this, name, _state, newState, this.stateSourceName)
                 return this.cleanupCalculated(newState)
               } catch (err) {
-                // [diagnostics hook] let 'error'-mode diagnostics propagate
-                if (err instanceof diag.DiagnosticError) throw err
                 console.error(`[${this.name}] Error in model reducer '${name}':`, err)
                 return _state
               }

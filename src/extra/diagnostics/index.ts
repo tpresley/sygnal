@@ -25,7 +25,11 @@
  *                        'info' → collected only
  *     - mode 'error'   → collected; 'warn'/'error' severities throw a
  *                        DiagnosticError (err.diagnostic holds the Diagnostic);
- *                        'info' collected only
+ *                        'info' collected only. Called directly this throws
+ *                        synchronously; raised during a hook (i.e. from a
+ *                        check) it is rethrown asynchronously — see Hooks.
+ *
+ *     `diagnostic.text` is formatted lazily (getter) on first read.
  *
  *   formatDiagnostic(code, details): string
  *     → `[Sygnal SYG123] <Component>: <message>. <fix> <docsUrl>`
@@ -48,6 +52,10 @@
  *   The mode is resolved at module load, on every run() call and on every
  *   configureDiagnostics() call. `configureDiagnostics({ mode: undefined })`
  *   clears the explicit mode and falls back to steps 2-3.
+ *   Every run() call is authoritative: it sets both the explicit mode and the
+ *   ignore list from its `diagnostics` option, and run() WITHOUT the option
+ *   resets them to the defaults (no explicit mode, empty ignore list), so a
+ *   setting from an earlier run()/configureDiagnostics() does not leak in.
  *
  * --- Checks ---------------------------------------------------------------
  *
@@ -96,6 +104,16 @@
  *
  *   Every hook starts with a single boolean check and returns immediately
  *   when the mode is 'off'.
+ *
+ *   Hooks NEVER throw synchronously into Sygnal's stream pipeline (a throw
+ *   there would kill the state/view stream for good). Every exception from a
+ *   check is caught. In 'error' mode a DiagnosticError raised during a hook —
+ *   by a check's report() call, or by the SYG900 report for a check that
+ *   threw a plain Error — is rethrown ASYNCHRONOUSLY (queueMicrotask, falling
+ *   back to setTimeout), so test runners still see an uncaught error while
+ *   the app's streams keep running. The remaining checks still run.
+ *   `_setAsyncThrow(fn?)` replaces the async rethrow (test seam; no argument
+ *   restores the default; `_resetDiagnostics()` also restores it).
  *
  * (This comment is attached to the type-only import below so the TypeScript
  * emit drops it — keeps it out of the published bundle and the size gate.)
@@ -196,7 +214,7 @@ export function report(code: string, details: DiagnosticDetails): Diagnostic | u
     fix: details.fix,
     data: details.data,
     docsUrl: docsUrlFor(code),
-    text: formatDiagnostic(code, details),
+    get text() { return formatDiagnostic(code, this) },
     timestamp: Date.now(),
   }
   if (collected.push(d) > 500) collected.shift()
@@ -228,18 +246,35 @@ export function registerCheck(check: DiagnosticCheck): () => void {
 
 type HookName = Exclude<keyof DiagnosticCheck, 'id'>
 
+const defaultAsyncThrow = (err: any): void => {
+  const raise = () => { throw err }
+  typeof queueMicrotask === 'function' ? queueMicrotask(raise) : setTimeout(raise)
+}
+let asyncThrow = defaultAsyncThrow
+
+/** Test seam: replace the async rethrow used for 'error'-mode diagnostics raised in hooks. */
+export function _setAsyncThrow(fn?: (err: any) => void): void {
+  asyncThrow = fn || defaultAsyncThrow
+}
+
 const hook = (name: HookName) => (component: any, ...args: any[]): void => {
   if (!enabled) return
   for (const check of checks) {
     try {
       (check[name] as any)?.(component, ...args)
     } catch (err: any) {
-      if (err instanceof DiagnosticError) throw err
-      report('SYG900', {
-        component,
-        message: `Diagnostics check '${check.id}' threw in ${name}: ${err?.message}`,
-        data: { check: check.id, hook: name, error: err },
-      })
+      // Never throw into the stream pipeline: 'error'-mode diagnostics (also a
+      // SYG900 escalated by 'error' mode) are rethrown asynchronously.
+      try {
+        if (err instanceof DiagnosticError) throw err
+        report('SYG900', {
+          component,
+          message: `Diagnostics check '${check.id}' threw in ${name}: ${err?.message}`,
+          data: { check: check.id, hook: name, error: err },
+        })
+      } catch (e) {
+        asyncThrow(e)
+      }
     }
   }
 }
@@ -256,6 +291,7 @@ export function _resetDiagnostics(): void {
   collected = []
   listeners = []
   checks = []
+  asyncThrow = defaultAsyncThrow
   resolveDiagnosticsMode()
 }
 

@@ -23,6 +23,7 @@ import {
   onReducer,
   onDispose,
   _resetDiagnostics,
+  _setAsyncThrow,
 } from '../src/extra/diagnostics/index.js'
 import { getCodeInfo, listCodes, docsUrlFor, DOCS_BASE_URL, registerCodes } from '../src/extra/diagnostics/codes.js'
 import * as publicApi from '../src/index.js'
@@ -130,6 +131,31 @@ describe('diagnostics core — mode resolution', () => {
     globalThis.__SYGNAL_DEV__ = true
     const app = run(App, { NOOP: () => xs.never() }, { useDefaultDrivers: false })
     expect(getDiagnosticsMode()).toBe('warn')
+    app.dispose()
+  })
+
+  it('run() without the option resets an earlier explicit mode and ignore list', () => {
+    function App() { return createElement('div', null, 'x') }
+    let app = run(App, { NOOP: () => xs.never() }, { useDefaultDrivers: false, diagnostics: { mode: 'error', ignore: ['SYG101'] } })
+    app.dispose()
+    app = run(App, { NOOP: () => xs.never() }, { useDefaultDrivers: false })
+    expect(getDiagnosticsMode()).toBe('off')
+    app.dispose()
+
+    configureDiagnostics({ mode: 'collect', ignore: ['SYG101'] })
+    globalThis.__SYGNAL_DEV__ = true
+    app = run(App, { NOOP: () => xs.never() }, { useDefaultDrivers: false })
+    expect(getDiagnosticsMode()).toBe('warn')
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    expect(report('SYG101', { message: 'no longer ignored' })).toBeDefined()
+    app.dispose()
+  })
+
+  it('run() with a mode only resets the ignore list', () => {
+    function App() { return createElement('div', null, 'x') }
+    configureDiagnostics({ ignore: ['SYG101'] })
+    const app = run(App, { NOOP: () => xs.never() }, { useDefaultDrivers: false, diagnostics: 'collect' })
+    expect(report('SYG101', { message: 'x' })).toBeDefined()
     app.dispose()
   })
 })
@@ -400,9 +426,117 @@ describe('diagnostics core — hooks', () => {
     expect(d.message).toMatch(/'broken' threw in onRender: boom/)
   })
 
-  it("'error' mode diagnostics raised by a check propagate out of the hook", () => {
+  it("'error' mode diagnostics raised by a check are rethrown asynchronously, not out of the hook", () => {
     configureDiagnostics({ mode: 'error' })
+    const thrown = []
+    _setAsyncThrow(err => thrown.push(err))
+    const after = vi.fn()
     registerCheck({ id: 'strict', onModel(c) { report('SYG101', { component: c, message: 'x' }) } })
-    expect(() => onModel({ name: 'X' }, {})).toThrow(DiagnosticError)
+    registerCheck({ id: 'after', onModel: after })
+    expect(() => onModel({ name: 'X' }, {})).not.toThrow()
+    expect(thrown).toHaveLength(1)
+    expect(thrown[0]).toBeInstanceOf(DiagnosticError)
+    expect(thrown[0].diagnostic.code).toBe('SYG101')
+    expect(after).toHaveBeenCalledTimes(1)
+  })
+
+  it("'error' mode: a check throwing a plain Error stays isolated (SYG900 rethrown asynchronously)", () => {
+    configureDiagnostics({ mode: 'error' })
+    const thrown = []
+    _setAsyncThrow(err => thrown.push(err))
+    const after = vi.fn()
+    registerCheck({ id: 'broken', onRender() { throw new Error('boom') } })
+    registerCheck({ id: 'after', onRender: after })
+    expect(() => onRender({ name: 'X' }, {})).not.toThrow()
+    expect(after).toHaveBeenCalledTimes(1)
+    expect(getDiagnostics().map(d => d.code)).toEqual(['SYG900'])
+    expect(thrown).toHaveLength(1)
+    expect(thrown[0]).toBeInstanceOf(DiagnosticError)
+    expect(thrown[0].diagnostic.code).toBe('SYG900')
+  })
+
+  it('the default async rethrow uses queueMicrotask and throws the DiagnosticError there', () => {
+    configureDiagnostics({ mode: 'error' })
+    const queued = []
+    const original = globalThis.queueMicrotask
+    globalThis.queueMicrotask = fn => queued.push(fn)
+    try {
+      registerCheck({ id: 'strict', onDispose(c) { report('SYG101', { component: c, message: 'x' }) } })
+      expect(() => onDispose({ name: 'X' })).not.toThrow()
+    } finally {
+      globalThis.queueMicrotask = original
+    }
+    expect(queued).toHaveLength(1)
+    expect(() => queued[0]()).toThrow(DiagnosticError)
+  })
+
+  it("report() called directly in 'error' mode still throws synchronously", () => {
+    configureDiagnostics({ mode: 'error' })
+    _setAsyncThrow(() => { throw new Error('must not be used') })
+    expect(() => report('SYG101', { message: 'x' })).toThrow(DiagnosticError)
+  })
+
+  describe("'error' mode keeps the component streams alive", () => {
+    const textOf = v => v == null ? '' : typeof v !== 'object' ? String(v) : (v.text ?? '') + (Array.isArray(v.children) ? v.children.map(textOf).join('') : '')
+
+    async function exercise(strictCheck) {
+      configureDiagnostics({ mode: 'error' })
+      const thrown = []
+      _setAsyncThrow(err => thrown.push(err))
+      const rendered = []
+      registerCheck({ id: 'recorder', onRender: (c, vnode) => { if (c.name === 'Counter') rendered.push(textOf(vnode)) } })
+      registerCheck(strictCheck)
+      const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      const click$ = xs.create()
+      const t = renderComponent(Counter, { mockConfig: { '.inc': { click: click$ } } })
+      await settle(100)
+      click$.shamefullySendNext({})   // count 1 → violation
+      await settle(100)
+      click$.shamefullySendNext({})   // count 2 → streams must still work
+      await settle(100)
+      click$.shamefullySendNext({})   // count 3
+      await settle(100)
+      t.dispose()
+      await settle(20)
+      error.mockRestore()
+      return { thrown, rendered, states: t.states }
+    }
+
+    it('a DiagnosticError from onReducer does not kill the state stream', async () => {
+      const { thrown, rendered, states } = await exercise({
+        id: 'strict-reducer',
+        onReducer(c, action, prev, next) {
+          if (next.count === 1) report('SYG202', { component: c, message: 'count reached 1' })
+        },
+      })
+      expect(thrown).toHaveLength(1)
+      expect(thrown[0].diagnostic.code).toBe('SYG202')
+      expect(states.map(s => s.count)).toEqual(expect.arrayContaining([1, 2, 3]))
+      expect(states[states.length - 1].count).toBe(3)
+      expect(rendered[rendered.length - 1]).toBe('3')
+    })
+
+    it('a DiagnosticError from onRender does not kill the view stream', async () => {
+      const { thrown, rendered, states } = await exercise({
+        id: 'strict-render',
+        onRender(c, vnode) {
+          if (textOf(vnode) === '1') report('SYG301', { component: c, message: 'rendered 1' })
+        },
+      })
+            expect(thrown.map(e => e.diagnostic.code)).toContain('SYG301')
+      expect(states[states.length - 1].count).toBe(3)
+      expect(rendered).toEqual(expect.arrayContaining(['1', '2', '3']))
+      expect(rendered[rendered.length - 1]).toBe('3')
+    })
+  })
+})
+
+describe('diagnostics core — lazy text', () => {
+  it('formats text on read and reflects the collected fields', () => {
+    configureDiagnostics({ mode: 'collect' })
+    const d = report('SYG101', { component: { name: 'Form' }, message: 'x', fix: 'y' })
+    expect(d.text).toBe('[Sygnal SYG101] Form: x. y. https://sygnal.js.org/reference/errors#syg101')
+    expect({ ...d }.text).toBe(d.text)
   })
 })
