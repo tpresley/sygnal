@@ -192,6 +192,63 @@ describe('B-005: driverFromAsync', () => {
   })
 })
 
+// ─── B-008: isolatedState sub-component without a state prop ────────────────
+
+describe('B-008: an isolatedState child without a state prop keeps its own state', () => {
+  function Counter({ state }) {
+    return h('div', { className: 'counter' },
+      h('span', { className: 'n' }, String(state.n)),
+      h('button', { className: 'inc' }, '+'))
+  }
+  Counter.initialState = { n: 5 }
+  Counter.isolatedState = true
+  Counter.intent = ({ DOM }) => ({ INC: DOM.click('.inc') })
+  Counter.model = { INC: s => ({ ...s, n: s.n + 1 }) }
+
+  function Parent({ state }) {
+    return h('div', null,
+      h('span', { className: 'count' }, String(state.count)),
+      h(Counter),
+      h('button', { className: 'bump' }, 'bump'))
+  }
+  Parent.initialState = { count: 0 }
+  Parent.intent = ({ DOM }) => ({ BUMP: DOM.click('.bump') })
+  Parent.model = { BUMP: s => ({ ...s, count: s.count + 1 }) }
+
+  it("does not replace the parent's state with its initialState", async () => {
+    t = renderComponent(Parent)
+    await t.ready()
+    await settle()
+    for (const s of t.states) expect(s).toEqual({ count: 0 })
+    expect(t.html()).toContain('<span class="n">5</span>')
+  })
+
+  it('child and parent update independently', async () => {
+    t = renderComponent(Parent)
+    await t.ready()
+    t.simulateEvent('.inc', 'click')
+    t.simulateEvent('.inc', 'click')
+    await settle(60)
+    t.simulateEvent('.bump', 'click')
+    await t.waitForState(s => s.count === 1)
+    await settle()
+    expect(last(t)).toEqual({ count: 1 })
+    expect(t.html()).toContain('<span class="n">7</span>')
+    expect(t.html()).toContain('<span class="count">1</span>')
+  })
+
+  it('two isolated children without a state prop do not share state', async () => {
+    function Two() { return h('div', null, h('section', { className: 'a' }, h(Counter)), h('section', { className: 'b' }, h(Counter))) }
+    Two.initialState = { x: 1 }
+    t = renderComponent(Two)
+    await t.ready()
+    t.simulateEvent('.b .inc', 'click')
+    await settle(80)
+    expect(t.html()).toMatch(/class="a">.*<span class="n">5<\/span>.*class="b">.*<span class="n">6<\/span>/)
+    expect(last(t)).toEqual({ x: 1 })
+  })
+})
+
 // ─── B-004: controlled value/checked follow the vnode after coalesced renders ─
 
 describe('B-004: controlledInputModule', () => {

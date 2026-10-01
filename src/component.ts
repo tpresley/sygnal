@@ -1572,7 +1572,22 @@ class Component {
     }
 
     const subInitState = subIsolatedState ? subInitialState : undefined
-    const lense = this.createSubComponentLense(stateField, 'Sub-component', subInitState)
+    let lense = this.createSubComponentLense(stateField, 'Sub-component', subInitState)
+    if (subIsolatedState && typeof stateField === 'undefined') {
+      // B-008: isolatedState without a `state` prop = state local to this instance; the
+      // parent's state is never replaced. set() returns a shallow copy of the parent state
+      // so the state stream re-emits and the child sees its update (the content is unchanged).
+      // Until the child first writes (INITIALIZE; never, without a model) it reads the
+      // parent's state, as before.
+      let local: any
+      lense = {
+        get: (parentState: any) => local === undefined ? parentState : local,
+        set: (parentState: any, childState: any) => {
+          local = childState
+          return isObj(parentState) ? { ...parentState } : parentState
+        },
+      }
+    }
 
     const sources: Record<string, any> = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$, __parentContext$: this.context$, __parentComponentNumber: this._componentNumber }
 
