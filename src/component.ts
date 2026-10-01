@@ -1582,7 +1582,7 @@ class Component {
         return isObj(state) ? this.addCalculated(state) : state
       })
 
-    const stateSource = new StateSource(state$, this.stateSourceName)
+    let stateSource = new StateSource(state$, this.stateSourceName)
     const stateField  = props.state
 
     if (typeof props.sygnalFactory !== 'function' && isObj(props.sygnalOptions)) {
@@ -1605,24 +1605,19 @@ class Component {
 
     const subInitState = subIsolatedState ? subInitialState : undefined
     let lense = this.createSubComponentLense(stateField, 'Sub-component', subInitState)
+    // B-008: isolatedState without a `state` prop = state local to this instance; the
+    // parent's state is never replaced. It's kept off the parent's state stream (1H-9): the
+    // child's reducers are applied below and feed its own state source, so a child write
+    // doesn't produce a new parent state. Until the child first writes (INITIALIZE; never,
+    // without a model) it reads the parent's state, as before.
+    let local: any, local$: any
     if (subIsolatedState && typeof stateField === 'undefined') {
-      // B-008: isolatedState without a `state` prop = state local to this instance; the
-      // parent's state is never replaced. set() returns a shallow copy of the parent state
-      // so the state stream re-emits and the child sees its update (the content is unchanged).
-      // Until the child first writes (INITIALIZE; never, without a model) it reads the
-      // parent's state, as before.
-      let local: any
-      lense = {
-        get: (parentState: any) => local === undefined ? parentState : local,
-        set: (parentState: any, childState: any) => {
-          local = childState
-          return isObj(parentState) ? { ...parentState } : parentState
-        },
-      }
+      local$ = xs.create()
+      stateSource = new StateSource(xs.merge(state$.filter(() => local === undefined), local$), this.stateSourceName)
     }
 
     const sources: Record<string, any> = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$, __parentContext$: this.context$, __parentComponentNumber: this._componentNumber }
-    lense = this.withCalculated(lense)
+    lense = local$ ? null : this.withCalculated(lense)
 
     // Detect Command objects in props and expose as commands$ source
     for (const key of Object.keys(props)) {
@@ -1639,6 +1634,11 @@ class Component {
     if (!isObj(sink$)) {
       const name = componentName === 'sygnal-factory' ? 'custom element' : componentName
       fail('SYG903', this, `Factory for ${name} returned invalid sinks`, 'Return a sinks object')
+    }
+    if (local$ && sink$[this.stateSourceName]) {
+      sink$[this.stateSourceName] = sink$[this.stateSourceName]
+        .map((reducer: any) => local$.shamefullySendNext(local = reducer(local === undefined ? this.addCalculated(this.currentState) : local)))
+        .filter(() => false)
     }
 
     return sink$

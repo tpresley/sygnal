@@ -369,3 +369,62 @@ describe('1H-7: controlledInputModule scope and comparison', () => {
     expect(sets.checked).toBe(1)
   })
 })
+
+// ─── 1H-9: an isolatedState child's writes don't produce a new parent state ──
+
+describe('1H-9: isolatedState child without a state prop keeps its state off the parent stream', () => {
+  function Child({ state }) { return h('button', { className: 'c' }, String(state.k)) }
+  Child.isolatedState = true
+  Child.initialState = { k: 0 }
+  Child.intent = ({ DOM }) => ({ INC: DOM.click('.c') })
+  Child.model = { INC: s => ({ ...s, k: s.k + 1 }) }
+
+  it('a child write emits no parent state and does not re-render the parent view', async () => {
+    let renders = 0
+    function App({ state }) { renders++; return h('div', null, h('span', { className: 'count' }, String(state.count)), h(Child)) }
+    App.initialState = { count: 0 }
+    t = renderComponent(App)
+    await t.ready()
+    await settle(30)
+    const before = t.states.length, r0 = renders
+    t.simulateEvent('.c', 'click')
+    t.simulateEvent('.c', 'click')
+    await settle(60)
+    expect(t.states.length - before).toBe(0)
+    expect(renders - r0).toBe(0)
+    expect(t.html()).toContain('<button class="c">2</button>')
+  })
+
+  it("a sibling Collection's items keep their state objects (no churn)", async () => {
+    const itemRenders = []
+    function Row({ state }) { itemRenders.push(state.id); return h('li', null, String(state.id)) }
+    function App() { return h('div', null, h(Child), h(Collection, { of: Row, from: 'rows' })) }
+    App.initialState = { rows: [{ id: 1 }, { id: 2 }] }
+    t = renderComponent(App)
+    await t.ready()
+    await settle(30)
+    const n0 = itemRenders.length
+    t.simulateEvent('.c', 'click')
+    await settle(60)
+    expect(itemRenders.length).toBe(n0)
+  })
+
+  it("grandchildren of the isolated child read and write the child's local state", async () => {
+    function Leaf({ state }) { return h('i', { className: 'leaf' }, String(state.k)) }
+    Leaf.intent = ({ DOM }) => ({ BUMP: DOM.click('.leaf') })
+    Leaf.model = { BUMP: s => ({ ...s, k: s.k + 10 }) }
+    function Mid({ state }) { return h('div', null, h('b', null, String(state.k)), h(Leaf)) }
+    Mid.isolatedState = true
+    Mid.initialState = { k: 1 }
+    Mid.model = { NOOP: s => s } // without a model, INITIALIZE (and so initialState) never runs
+    function App({ state }) { return h('div', null, h('span', null, String(state.count)), h(Mid)) }
+    App.initialState = { count: 0 }
+    t = renderComponent(App)
+    await t.ready()
+    t.simulateEvent('.leaf', 'click')
+    await settle(60)
+    expect(t.html()).toContain('<b>11</b>')
+    expect(t.html()).toContain('<i class="leaf">11</i>')
+    expect(t.states.every(s => JSON.stringify(s) === '{"count":0}')).toBe(true)
+  })
+})
