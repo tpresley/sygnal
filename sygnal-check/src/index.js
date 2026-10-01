@@ -36,6 +36,8 @@ export { fixFiles } from './fix.js'
 export { runRules, sortDiagnostics }
 export { graph, graphFiles, buildGraph } from './graph.js'
 export { validate as validateSchema } from './schema.js'
+export { EXPLANATIONS } from './explanations.js'
+export { getExplanation, listExplanations, formatExplanation } from './explain.js'
 
 export function check(inputs = ['src'], options = {}) {
   const cwd = options.cwd ? path.resolve(options.cwd) : process.cwd()
