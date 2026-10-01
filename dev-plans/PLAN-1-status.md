@@ -12,7 +12,7 @@ Tracks progress for [PLAN-1.md](PLAN-1.md). Maintained by the coordinator.
 |---|---|---|---|
 | 0 — Foundations | ✅ Done | `plan1-phase0` | 0A ✅ · 0B ✅ · 0C ✅ · review: 9 findings, all fixed. Baseline eval still running (independent of merges; uses the pre-0B tarball) |
 | 1 — Core capabilities | ✅ Done | `plan1-phase1` | 1A–1H ✅ · review: 11 findings + 2 minor, all fixed in 1H |
-| 2 — Strictness, introspection, integration | 🔵 Closing | — | 2A ✅ 2B ✅ 2C ✅ 2D ✅ · phase-close review running |
+| 2 — Strictness, introspection, integration | 🔵 Closing | — | 2A–2D ✅ · review: 10 findings (8 confirmed) → 2E-1 (tooling) ∥ 2E-2 (runtime) with the backlog |
 | 3 — Agent context & docs | ⚪ Not started | — | |
 | 4 — Measure & release | ⚪ Not started | — | |
 
@@ -41,6 +41,8 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | 2B | Inspect | ✅ | `worktree-agent-a1358805c2f45164e` | subagent | `7639dd9` | Runtime `inspect()` (dev entry; on `getDevTools()` + `t.inspect()`), `sygnal-check --graph [--json]` with a shared JSON Schema, `explain` + `explanations.json` (64 codes, drift-tested), hand-rolled MCP server (check/graph/explain), G-010 types. Kanban +0 B. Was: | Runtime `inspect()` in the dev entry (0 B), `sygnal-check --graph` (same JSON schema), `explain <code>` + explanations table (single source for the docs error reference), MCP server as a stretch (D28), G-010 types |
 | 2C | Vite plugin integration | ✅ | `worktree-agent-ac317b909e07cfe2a` | subagent | (merge after 6ad08bc) | Dev-only `import 'sygnal/diagnostics'` + `virtual:sygnal/dev` injected in serve; Vitest setupFiles auto-added (`vitestSetup:false` opt-out); `diagnostics`/`check` options (run() wrapper virtual module for non-default modes); sygnal-check in dev → terminal, console and overlay; Vike/Astro dev mode (G-014 ✅); free-port browser tests (G-034 ✅); fixed the Vite 8 dep-scan JSX bug. Kanban identical bytes, 0 dev markers |
 | 2D | Example migration | ✅ | 3 parallel groups | subagents | `52743dc` | B: 4 examples clean, 17 smoke tests, G-023 ✅. C: 5 examples + 8 templates clean, scaffold-verified, B-019 ✅, G-038 ✅, vike-template hydration fix. A: kanban (SYG111 → titleDraft) + todomvc (first tests), G-021 ✅ (`vitest.config.mjs` excludes examples; `npm run test:examples` runs each example's own suite; shims removed). All examples + templates: 0 strict diagnostics | A: kanban, drag-drop, todomvc (+G-021 root vitest config) · B: getting-started, playground, ts-example-2048, advanced-feature-tests (+G-023 browser-tests suppressions) · C: ssr, vike, astro-smoke, hmr-smoke, ai-panel-spa, create-sygnal-app templates (+B-019, G-038) |
+| 2E-1 | Phase 2 review fixes: tooling | 🟡 | (harness-assigned) | subagent | — | R1 --fix broken code, R2 MCP crash, R5 overlay/HMR reloads, R6 vike include, R7/R8 --fix bindings/imports, R9 vitest flag leak, R10 portable test:examples; B-027, B-019 cleanup, B-026, G-045, G-050 |
+| 2E-2 | Phase 2 review fixes: runtime | 🟡 | (harness-assigned) | subagent | — | R3 child onDispose after t.dispose, R4 strict leak; B-024 nested disposal (high), B-023, B-025, B-022, G-043; renderComponent timing (G-049/G-047/G-039: no fan-out, child buffering, `t.next`, `t.settle`); G-051 resetOnce; G-040 |
 | 3A | `llms.txt` | ⚪ | | | | |
 | 3B | Skill rewrite | ⚪ | | | | |
 | 3C | Docs site & repo docs | ⚪ | | | | |
