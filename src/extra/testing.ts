@@ -40,6 +40,27 @@ import type {Diagnostic, DiagnosticsMode} from './diagnostics/index';
  *   configureDiagnostics and restored by dispose(). Runtime checks live in a
  *   separate entry: `import 'sygnal/diagnostics'` in the test (or vitest
  *   setupFiles) to enable them.
+ *
+ * ```js
+ * const t = renderComponent(Counter, { initialState: { count: 0 } })
+ * t.simulateEvent('.inc', 'click')
+ * await t.waitForState(s => s.count === 1)
+ * t.dispose()
+ * ```
+ *
+ * Implementation notes:
+ * - is(v, compound) matches a vnode against tag/#id/.class/[attr]/[attr=v];
+ *   desc() is the descendant combinator (last compound on the element, earlier
+ *   ones on ancestors in order); find() returns the root → element chain of
+ *   the first match.
+ * - port(): producer-backed stream; emitting with no listener is a silent drop.
+ * - Sinks named in the model without a driver get a no-op driver so their
+ *   output stays observable. sinkValues: EVENTS entries drop the devtools
+ *   stamps, PARENT entries are unwrapped from {name, component, value}.
+ * - Input is buffered until 12ms after the first render: root and child
+ *   action streams subscribe 1-10ms (BOOTSTRAP) after construction.
+ * - rendered(): the next render, or 20ms (state → view is async).
+ * - dispose() fires the component's DISPOSE action via sinks.__dispose.
  */
 
 export interface SimulatedEventInit {
@@ -120,8 +141,6 @@ const str = (o: any) => {
   for (const k in o) if (o[k] != null) r[k] = String(o[k]);
   return r;
 };
-
-// Does vnode `v` match a compound selector (tag, #id, .class, [attr], [attr=v])?
 function is(v: any, sel: string): boolean {
   const d = v.data || {}, p = d.props || {}, a = d.attrs || {};
   const [tagId, ...cls] = v.sel.split('.');
@@ -147,9 +166,6 @@ function is(v: any, sel: string): boolean {
     return c == '*' || tag == tok;
   });
 }
-
-// Descendant-combinator match: last element matches the last compound, earlier
-// compounds match ancestors in order.
 function desc(cs: string[], els: any[]): boolean {
   let i = els.length - 1;
   if (i < 0 || !is(els[i], cs[cs.length - 1])) return false;
@@ -158,8 +174,6 @@ function desc(cs: string[], els: any[]): boolean {
   }
   return true;
 }
-
-// Ancestor chain (root → element) of the first element matching `cs`
 function find(v: any, cs: string[], chain: any[] = []): any[] | undefined {
   if (!v || typeof v != 'object') return;
   const c = v.sel ? chain.concat(v) : chain;
@@ -170,16 +184,6 @@ function find(v: any, cs: string[], chain: any[] = []): any[] | undefined {
   }
 }
 
-/**
- * Render a Sygnal component in isolation for testing.
- *
- * ```js
- * const t = renderComponent(Counter, { initialState: { count: 0 } })
- * t.simulateEvent('.inc', 'click')
- * await t.waitForState(s => s.count === 1)
- * t.dispose()
- * ```
- */
 export function renderComponent(
   componentDef: any,
   options: RenderOptions = {}
@@ -193,7 +197,6 @@ export function renderComponent(
   const offDiag = onDiagnostic(d => collected.push(d));
 
   const noop = () => {};
-  // Producer-backed streams: emitting with no listener is a silent drop.
   const port = () => {
     const p = {emit: noop as (v: any) => void, $: null as any};
     p.$ = xs.create({
@@ -235,9 +238,6 @@ export function renderComponent(
     onError,
     initialState: initialState !== undefined ? initialState : componentDef.initialState,
   });
-
-  // Sinks without a driver get a no-op driver so their output is still
-  // observable through t.sinks / t.sinkValues()
   const allDrivers: any = {
     DOM: () => mockDOMSource(mockConfig, hub.$),
     EVENTS: eventBusDriver,
@@ -270,15 +270,11 @@ export function renderComponent(
   const sinkValues = (k: string) => (values[k] = values[k] || []);
   for (const k in sinks) {
     if (k != 'DOM' && k != 'STATE' && typeof sinks[k]?.addListener == 'function') {
-      // EVENTS: drop devtools stamps; PARENT: unwrap {name, component, value}
       listen(sinks[k], v => sinkValues(k).push(
         k == 'EVENTS' ? {type: v.type, data: v.data} : k == 'PARENT' ? v.value : v
       ));
     }
   }
-
-  // Buffer simulated input until the component (and its children, whose
-  // action streams subscribe after a 1-10ms delay) is subscribed and rendered.
   let queue: Array<() => void> | null = [];
   let markReady: () => void;
   const readyPromise = new Promise<void>(r => {
@@ -303,7 +299,6 @@ export function renderComponent(
       onRender = [];
     });
   } else arm();
-  // Resolves after the next render (state → view is async), or after 20ms
   const rendered = () => new Promise<void>(r => { onRender.push(r); setTimeout(r, 20); });
 
   const simulateAction = (type: string, data?: any) =>
@@ -410,7 +405,6 @@ export function renderComponent(
     subs.forEach(([s, l]) => {
       try { s.removeListener(l); } catch (_) {}
     });
-    // Fires the DISPOSE action and dispose$ stream
     try { sinks.__dispose?.(); } catch (_) {}
     rawDispose();
     offDiag();
