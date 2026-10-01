@@ -231,12 +231,14 @@ export function renderComponent(
     return out;
   };
 
-  const {context, calculated, storeCalculatedInState, onError} = componentDef;
+  const {context, calculated, storeCalculatedInState, onError, hmrActions, components} = componentDef;
   const app = component({
     name: componentDef.name || componentDef.componentName || 'TestComponent',
     view: componentDef,
     intent: wrappedIntent,
     model,
+    hmrActions,
+    components,
     context,
     calculated,
     storeCalculatedInState,

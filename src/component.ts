@@ -1773,7 +1773,7 @@ function getComponents(currentElement: any, componentNameSet: Set<string>, path:
       if (!switchableComponentNames.includes(props.current)) fail('SYG416', undefined, `Switchable 'current' '${props.current}' is not a key of 'of'`, "Set current to a key of 'of'")
       currentElement.data.isSwitchable = true
     }
-    if (typeof props.key === 'undefined') currentElement.data.props.key = id
+    if (typeof props.key === 'undefined') (currentElement.data.props ||= {}).key = id
     found[id] = currentElement
   }
 
