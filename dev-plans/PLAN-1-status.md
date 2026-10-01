@@ -11,7 +11,7 @@ Tracks progress for [PLAN-1.md](PLAN-1.md). Maintained by the coordinator.
 | Phase | Status | Tag | Notes |
 |---|---|---|---|
 | 0 — Foundations | ✅ Done | `plan1-phase0` | 0A ✅ · 0B ✅ · 0C ✅ · review: 9 findings, all fixed. Baseline eval still running (independent of merges; uses the pre-0B tarball) |
-| 1 — Core capabilities | 🟡 In progress | — | 1A–1D launched in parallel; 1E queued, then 1F |
+| 1 — Core capabilities | 🟡 In progress | — | 1A ✅ 1B ✅ 1C ✅ 1D ✅ · 1E running · 1F after 1E |
 | 2 — Strictness, introspection, integration | ⚪ Not started | — | |
 | 3 — Agent context & docs | ⚪ Not started | — | |
 | 4 — Measure & release | ⚪ Not started | — | |
@@ -26,7 +26,7 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | 0B | Diagnostics infrastructure (+ fix B-001) | ✅ | `worktree-agent-adfffb626c0498aa1` | subagent | `18b3895` | B-001 fixed in `rollup.config.dts.mjs` (dts pre-plugin feeds emitted declarations). 9 labeled hook sites in `component.ts`. Vite dev flag via entry transform (D14). +1,464 B gzip (D13). First launch was BLOCKED by G-004 |
 | 0B-fix | Phase 0 review fixes (9 findings + B-007) | ✅ | `worktree-agent-ab7cee6006bd3f5ad` | subagent | `44daa86` | Diagnostics never throw synchronously into streams (async rethrow in 'error' mode). run() resets the diagnostics config. `build` bundles types; `prepublishOnly` added. dts errors surface. Vite: directive/shebang-safe flag with sourcemap; B-007 fixed |
 | 0C | Canonical-forms spec | ✅ | (coordinator, direct) | coordinator | this commit | [PLAN-1-canonical-forms.md](PLAN-1-canonical-forms.md) |
-| 1A | Runtime consistency checks | ⚪ | | | | |
+| 1A | Runtime consistency checks | ✅ | `worktree-agent-a143cfc2f9e1c19f7` | subagent | `5ee2339` (+`46d47de` integration fix) | Dev-only `sygnal/diagnostics` entry (9.4 KB gz, not in apps). SYG101/102 wiring, SYG103/104 selector + isolation boundary (real DOM via IsolateModule/ScopeChecker), SYG105 bus, SYG106 reserved-prop collision (G-007), SYG201/202 reducer shape, SYG301 RxJS hints (~37 operators, via Stream.prototype), SYG401 collection `from`. New hooks onSelector/onBusEmit/onBusSelect. Kanban run with real interactions: 0 diagnostics. Applied the enrichEventStream guard |
 | 1B | Typed links (+ new `event()` helper) | ✅ | `worktree-agent-a757e118d8adfa9c2` | subagent | `b75616b` | ActionsOf, IntentSources, SygnalEvents registry (works against bundled dist), typed CHILD.select via ParentPayloadOf, Collection `from` constraint, `event()`; `emit()` now built on event(). +75 B. Selector typing: not feasible in TS (static checker covers it) |
 | 1C | DOM-level test helpers | ✅ | `worktree-agent-a34b49bec89b36448` | subagent | `37de27d` (+`f8a0ec2` integration fix) | Enriched mock DOM (B-006), simulateEvent with vnode targeting + bubbling + isolation, buffered early calls + ready() (G-016), simulateAction drives all sinks via the real intent + sinkValues/emitted (G-015), no synthetic `__TEST_ACTION__` (G-013), diagnostics option + expectNoDiagnostics, html(), testing.ts type errors fixed (G-012). Whole-file +1,656 B, but **0 B** in the tree-shaken kanban bundle (D18) |
 | 1D | Static checker `sygnal-check` | ✅ | `worktree-agent-a61372bf822366ee4` | subagent | `679e60f` | Rules SYG101/102/104/105/110/401 + SYG900, suppression comments, extensible rule modules and a project model (ready for 2A strict, 2B graph). 0 diagnostics on all examples and templates; catches eval tasks 06/07; kanban in 0.06 s. 46 package tests (`*.vtest.js`, not collected by the root) |
@@ -52,6 +52,7 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | After 0B review fixes (**Phase 0 close**, tag `plan1-phase0`) | `44daa86` | ✅ (includes dts) | ✅ | ✅ 670 | ✅ | ✅ 83 | 59,108 B | `dist/index.d.ts` from `build` alone has no `./cycle/` imports |
 | After 1B | `b75616b` | ✅ | (in build) | ✅ 683 | ✅ (+ registry/dist programs) | ✅ 83 | 59,183 B | Phase 1 budget left: 1,222 B (1A ≤400, 1C ≤500, 1E ≤300) |
 | After 1C + 1D | `679e60f` | ✅ | (in build) | ✅ 716 (+2 todo) | ✅ | ✅ 83 | whole file 60,764 B (info only) · **kanban app 40,237 B gz** (unchanged) | **Gate redefined (D18):** kanban production bundle limit 41,773 B (+1.5 KB over 40,237). Kanban tests 70/70. sygnal-check 46/46 |
+| After 1A (+ integration fixes) | `46d47de` | ✅ | (in build) | ✅ 750 | ✅ | ✅ 89 | kanban app **40,383 B** (+146; limit 41,773) · diagnostics entry 9,452 B (dev only) | Kanban 70/70 |
 
 ## Open Questions (awaiting user)
 
@@ -91,6 +92,9 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | D18 | 2026-10-01 | **Size gate redefined:** measure the gzip of the tree-shaken `examples/kanban` production bundle (baseline 40,237 B after 1B; limit +1.5 KB = 41,773 B). The whole-file `dist/index.esm.js` size is recorded for information only. `renderComponent` stays exported from `'sygnal'` (no API change) | Coordinator | 1C's test helpers grew the whole file by 1.6 KB but add 0 B to a real app (verified: identical kanban bundle hash), so the whole-file metric measured code that apps never ship. UMD/script-tag users do pay; noted for 4B |
 | D19 | 2026-10-01 | 1D's code table is hand-kept with a drift test against `codes.ts` (titles); static severities may differ from runtime ones (SYG102/105 warn statically, info at runtime) | Coordinator (accepted deviation) | Static analysis has full-project knowledge that the runtime lacks |
 
+| D20 | 2026-10-01 | The `sygnal/diagnostics` entry reaches the core through `globalThis.__SYGNAL_DIAGNOSTICS__` (not a public `registerCheck` export), keeping the public API unchanged | Coordinator (accepted deviation) | Avoids exporting internals; revisit in 4B if multiple sygnal copies on a page become a concern (last one wins) |
+| D21 | 2026-10-01 | 1A's SYG102 test drives the hooks directly; under `renderComponent`, model-only actions are intentionally not reported (1C injects test intent streams for them) | Coordinator (merge resolution) | The behaviors of 1A and 1C are both correct; the test assumed the old renderComponent |
+
 ## Bugs & Gaps Found
 
 Pre-existing issues and gaps found during the work. Severity: high (blocks a gate or breaks users), med (wrong behavior or misleading), low (cosmetic or docs).
@@ -122,6 +126,9 @@ Pre-existing issues and gaps found during the work. Severity: high (blocks a gat
 | G-021 | 1C | med | Test infra | Root `vitest run` collects `examples/*/src/*.test.js` without the examples' Vite config, so their JSX compiles to React classic (`React.createElement`). 1C added a scoped `globalThis.React` shim in kanban tests. Needs a root vitest config (projects per example) or excluding examples from the root run. | Open → 2D |
 | G-022 | 1C | low | Docs | After `simulate*`, both the state update and the re-render are async (a few ms). Agents must await `waitForState`/`ready` before asserting. Must be documented prominently. | Open → 3A/3C |
 | G-023 | 1D | info | browser-tests | `sygnal-check` reports 6 SYG110 in `browser-tests/src/testing-utility.jsx` (`.btn`, `.inc`, `.dec` selected but never rendered). These are intentional, since the tests drive those components with `simulateAction`. Add `// sygnal-ignore` comments when the zero-diagnostics gate (2D) reaches browser-tests. | Open → 2D |
+| G-024 | Coordinator | med | Diagnostics × testing | Runtime SYG103/SYG104 need a real DOM, so they never fire under `renderComponent` (mock DOM). That's exactly where agents test, and the isolation trap is the #1 Sygnal-specific bug. Mitigation today: `sygnal-check` (SYG110/SYG104 static). Option: teach `simulateEvent` to report SYG103/104 itself when a selector matches only inside a child's scope (it already resolves vnode targets and isolation scopes). | Open → PLAN-2 candidate, or 2A if cheap |
+| G-025 | 1A | low | `src/extra/testing.ts` | `renderComponent` doesn't pass `hmrActions` or `components` through to `component()`, so those static properties have no effect under it. | Open → 1F (cheap) |
+| B-009 | 1A (unverified) | med | Collections / isolation | Two Collections in the same parent whose items share ids would get **identical DOM isolation scopes** (the item scope is the bare id), so events could cross between them. Seen in code; not reproduced. | Open → 1F (verify with a test; scope by collection) |
 | G-008 | Coordinator | low | Skill | The installed user-level skill `~/.claude/skills/sygnal-dev/SKILL.md` lags the repo copy (missing the DISPOSE row and the dispose$ "prefer DISPOSE" note); `agents/` exists only in the repo. Eval trials use the installed copy. | Open → 3B sync |
 | G-009 | Coordinator | low | Eval harness | The `transcript-stats.mjs` audit flags every call whose path contains "evals", which gives false positives when the trial dir is under `.../evals/...`. | Mitigated by D15; fix the pattern before 4A |
 | G-010 | 0B | low | Types | `getDevTools` is exported at runtime but has no declaration in `src/index.d.ts`. | Open → 2B |
