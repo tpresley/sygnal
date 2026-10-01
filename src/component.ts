@@ -1000,6 +1000,8 @@ class Component {
               const enhancedState = this.addCalculated(STATE_SNAPSHOT in action ? action[STATE_SNAPSHOT] : this.currentState)
               props.state = enhancedState
               const reduced = reducer(enhancedState, data, next, props)
+              // B-029: ABORT = send nothing (filtered below), before the type checks
+              if (isAbort(reduced)) return reduced
               const type = typeof reduced
               if (isObj(reduced) || ['string', 'number', 'boolean', 'function'].includes(type)) return reduced
               if (type === 'undefined') {
@@ -1041,7 +1043,7 @@ class Component {
           const enhancedState = this.addCalculated(STATE_SNAPSHOT in action ? action[STATE_SNAPSHOT] : this.currentState)
           const props = { ...this.currentProps, children: this.currentChildren, slots: this.currentSlots || {}, context: this.currentContext, state: enhancedState }
           const result = reducer(enhancedState, action.data, next, props)
-          if (result !== undefined) {
+          if (result !== undefined && !isAbort(result)) {
             warn('SYG219', this, `EFFECT handler '${name}' returned a value, which is ignored`, 'Use a STATE or driver sink')
           }
         } catch (err) {

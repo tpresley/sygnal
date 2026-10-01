@@ -1,0 +1,122 @@
+// B-029 (4C): ABORT from a non-STATE sink reducer (PARENT, EVENTS, a custom driver, EFFECT,
+// shorthand) means "send nothing", silently. It used to report SYG218 ("returned a symbol"),
+// logged as SYG216. Other bad return types still report SYG218 / SYG217.
+import { describe, it, expect, vi, afterEach } from 'vitest'
+import xs from 'xstream'
+import { renderComponent, h, createElement, ABORT } from '../src/index.ts'
+
+let t
+afterEach(() => { t?.dispose(); t = undefined; vi.restoreAllMocks() })
+
+const view = ({ state }) => h('div', null, String(state.n))
+
+describe('B-029: ABORT from non-STATE sinks is silent', () => {
+  it('PARENT: a conditional ABORT sends nothing to the parent, with no diagnostics', async () => {
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {})
+    function Child({ state }) { return h('button.ping', null, String(state.n)) }
+    Child.intent = ({ DOM }) => ({ PING: DOM.click('.ping') })
+    Child.model = {
+      PING: {
+        STATE: s => ({ ...s, n: s.n + 1 }),
+        PARENT: s => (s.n % 2 ? ABORT : { n: s.n }),
+      },
+    }
+    function Parent({ state }) { return createElement('div', null, createElement(Child, { state: 'child' }), createElement('p', null, String(state.got.length))) }
+    Parent.initialState = { child: { n: 0 }, got: [] }
+    Parent.intent = ({ CHILD }) => ({ GOT: CHILD.select(Child) })
+    Parent.model = { GOT: (s, v) => ({ ...s, got: [...s.got, v] }) }
+    t = renderComponent(Parent)
+    // PARENT reads the state the action started from: n=0 sends {n: 0}, n=1 -> ABORT
+    t.simulateEvent('.ping', 'click')
+    await t.waitForState(s => s.child.n === 1 && s.got.length === 1)
+    t.simulateEvent('.ping', 'click')
+    await t.waitForState(s => s.child.n === 2)
+    await t.settle()
+    expect(t.states.at(-1).got).toEqual([{ n: 0 }])
+    t.expectNoDiagnostics()
+    expect(err.mock.calls.filter(c => /SYG21[68]/.test(String(c[0])))).toEqual([])
+  })
+
+  it('EVENTS: a conditional ABORT emits nothing on the bus, with no diagnostics', async () => {
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {})
+    function App(p) { return view(p) }
+    App.initialState = { n: 0 }
+    App.model = {
+      GO: {
+        STATE: (s, d) => ({ ...s, n: d }),
+        EVENTS: (s, d) => (d > 1 ? { type: 'BIG', data: d } : ABORT),
+      },
+    }
+    t = renderComponent(App)
+    t.simulateAction('GO', 1)
+    t.simulateAction('GO', 2)
+    await t.waitForState(s => s.n === 2)
+    await t.settle()
+    expect(t.emitted).toEqual([{ type: 'BIG', data: 2 }])
+    t.expectNoDiagnostics()
+    expect(err.mock.calls.filter(c => /SYG21[68]/.test(String(c[0])))).toEqual([])
+  })
+
+  it('custom driver sink: a conditional ABORT sends nothing to the driver, with no diagnostics', async () => {
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const sent = []
+    const API = sink$ => { sink$.addListener({ next: v => sent.push(v), error: () => {}, complete: () => {} }); return { select: () => xs.never() } }
+    function App(p) { return view(p) }
+    App.initialState = { n: 0 }
+    App.model = {
+      SAVE: { API: (s, d) => (d ? { save: d } : ABORT) },
+      'QUICK | API': (s, d) => (d ? { quick: d } : ABORT), // shorthand path
+    }
+    t = renderComponent(App, { drivers: { API } })
+    t.simulateAction('SAVE', 0)
+    t.simulateAction('SAVE', 'a')
+    t.simulateAction('QUICK', 0)
+    t.simulateAction('QUICK', 'b')
+    await t.settle()
+    expect(sent).toEqual([{ save: 'a' }, { quick: 'b' }])
+    t.expectNoDiagnostics()
+    expect(err.mock.calls.filter(c => /SYG21[68]/.test(String(c[0])))).toEqual([])
+  })
+
+  it('EFFECT: returning ABORT is not reported as an ignored value (SYG219)', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    let ran = 0
+    function App(p) { return view(p) }
+    App.initialState = { n: 0 }
+    App.model = { 'POKE | EFFECT': () => { ran++; return ABORT } }
+    t = renderComponent(App)
+    t.simulateAction('POKE')
+    await t.settle()
+    expect(ran).toBe(1)
+    t.expectNoDiagnostics()
+    expect(warn.mock.calls.filter(c => String(c[0]).includes('SYG219'))).toEqual([])
+  })
+
+  // SYG218 is thrown inside the reducer's error handling, so (as documented in errors.md) it
+  // surfaces as SYG216 with the SYG218 error attached
+  it('a non-ABORT symbol still reports SYG218 (via SYG216), and nothing is sent', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    function App(p) { return view(p) }
+    App.initialState = { n: 0 }
+    App.model = { GO: { EVENTS: () => Symbol('oops') } }
+    t = renderComponent(App)
+    t.simulateAction('GO')
+    await t.settle()
+    expect(t.emitted).toEqual([])
+    const d = t.diagnostics.find(d => d.code === 'SYG216')
+    expect(d).toBeDefined()
+    expect(d.data.code).toBe('SYG218')
+    expect(d.data.message).toMatch(/returned a symbol/)
+  })
+
+  it('undefined still warns SYG217', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    function App(p) { return view(p) }
+    App.initialState = { n: 0 }
+    App.model = { GO: { EVENTS: () => undefined } }
+    t = renderComponent(App)
+    t.simulateAction('GO')
+    await t.settle()
+    expect(t.diagnostics.map(d => d.code)).toContain('SYG217')
+  })
+})
