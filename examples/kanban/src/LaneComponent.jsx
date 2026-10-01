@@ -1,4 +1,4 @@
-import { xs, ABORT, Collection, set, emit } from 'sygnal'
+import { xs, ABORT, Collection, set, event } from 'sygnal'
 import TaskCard from './TaskCard.jsx'
 
 function LaneComponent({ state, context }) {
@@ -12,7 +12,7 @@ function LaneComponent({ state, context }) {
           ? <input
               className="lane-title-input"
               type="text"
-              value={state.title}
+              value={state.titleDraft}
               autoFocus={true}
               autoSelect={true}
             />
@@ -46,6 +46,9 @@ function LaneComponent({ state, context }) {
 
 LaneComponent.intent = ({ DOM, CHILD }) => ({
   START_EDIT:  DOM.dblclick('.lane-title'),
+  // The title input is controlled (value={state.titleDraft}), so every keystroke
+  // updates the draft; otherwise a re-render mid-typing would reset the text.
+  EDIT_TITLE:  DOM.input('.lane-title-input').map(e => e.target.value),
   FINISH_EDIT: xs.merge(
     DOM.blur('.lane-title-input')
       .map(e => e.target.value),
@@ -70,7 +73,8 @@ LaneComponent.intent = ({ DOM, CHILD }) => ({
 })
 
 LaneComponent.model = {
-  START_EDIT:    set({ isEditing: true }),
+  START_EDIT:    set((state) => ({ isEditing: true, titleDraft: state.title })),
+  EDIT_TITLE:    set((_state, titleDraft) => ({ titleDraft })),
   FINISH_EDIT:   set((state, title) => ({ isEditing: false, title: title.trim() || state.title })),
   SHOW_ADD_TASK: set({ isAddingTask: true }),
 
@@ -91,9 +95,9 @@ LaneComponent.model = {
 
   DELETE_TASK: set((state, taskId) => ({ tasks: state.tasks.filter(t => t.id !== taskId) })),
 
-  DELETE_LANE: emit('DELETE_LANE', (state) => ({ laneId: state.id })),
-  MOVE_LEFT:   emit('MOVE_LANE_LEFT', (state) => ({ laneId: state.id })),
-  MOVE_RIGHT:  emit('MOVE_LANE_RIGHT', (state) => ({ laneId: state.id })),
+  DELETE_LANE: { EVENTS: event('DELETE_LANE', (state) => ({ laneId: state.id })) },
+  MOVE_LEFT:   { EVENTS: event('MOVE_LANE_LEFT', (state) => ({ laneId: state.id })) },
+  MOVE_RIGHT:  { EVENTS: event('MOVE_LANE_RIGHT', (state) => ({ laneId: state.id })) },
 }
 
 export default LaneComponent
