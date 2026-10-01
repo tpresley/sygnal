@@ -27,16 +27,17 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | 0-C | Tier 3 tasks | 🟡 | | subagent | | |
 | 1-A | Rendering and props (B-014, B-015, B-017, G-033) | 🟡 | | subagent | | |
 | 1-B | State and components (B-016, G-027/G-044, G-036, G-007 SYG106) | 🟡 | | subagent | | |
-| 1-C | Drivers (G-069) | 🟡 | | subagent | | Same agent as 1-F |
+| 1-C | Drivers (G-069) | ✅ | `worktree-agent-ac88e05e39e97d91f` | subagent | `fd3fc7c` | Replies that resolve before the first `select()` listener are buffered (≤ 100, oldest dropped) and flushed on a microtask after the first subscribe, so a BOOTSTRAP request gets its reply; later replies with no listener are dropped; `stop()` clears `sendFn`. 5 tests, failing first |
 | 1-D | Integrations (B-020, G-046, G-037) | 🟡 | | subagent | | |
 | 1-E | Types and build hygiene (B-002/G-012, G-019, G-075, G-076) | 🟡 | | subagent | | G-007 decided (D41) and moved to 1-B |
-| 1-F | Examples (G-052, G-063) | 🟡 | | subagent | | |
+| 1-F | Examples (G-052, G-063) | ✅ | (same branch as 1-C) | subagent | `fd3fc7c` | todomvc ids = max id + 1; `LOG` sink uses the reducer form (type gap → G-077); build runs `tsc --noEmit`; custom pollers removed from `app.test.ts`, which uses `next`/`settle`/`html`; new id test. Strict-clean |
 
 ## Gate Results
 
 | Merge | build:all | vitest | examples | types | browser | sygnal-check | doc samples | error docs | docs build | kanban gz |
 |---|---|---|---|---|---|---|---|---|---|---|
 | 0-A | ✅ | 942 ✅ | | | | | | | | |
+| 1-C/1-F | ✅ | 947 ✅ | 105 ✅ | ✅ | 114 ✅ | 178 ✅ | 373 ✅ | | | 41,435 B |
 
 ## Open Questions (awaiting user)
 
@@ -62,6 +63,8 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | G-073 | 5.4.0 release | low | Tests | Root vitest collected ~1,560 files from `.claude/worktrees` | ✅ 0-A: excluded |
 | G-074 | 5.4.0 release | low | Packaging | npm 11 warns "bin … invalid and removed" for `./`-prefixed bin paths (harmless normalization) | ✅ 0-A |
 | G-075 | 5.4.0 release | low | Dev deps | `npm audit`: 12 findings, all in dev tooling (runtime 0) | Open → 1-E |
+| G-077 | 1-F | low | Types | Runtime accepts a constant non-STATE sink value (`mapTo(value)`), but `SinkValue` in `index.d.ts` allows only `true` or a reducer, so `LOG: 'text'` fails tsc | Open → 1-E |
+| G-078 | 1-C/1-F | low | Gate setup | The setup didn't install every example (`npm test` fails until `TEST_EXAMPLES_INSTALL=1`), and `npm --prefix …/kanban exec -- vite build` resolves from the current dir | ✅ Setup below fixed |
 | G-076 | 5.4.0 release | low | browser-tests | The browser run prints expected console errors from error-path tests, which look like failures | Open → 1-E |
 
 ## Worktree Setup (each subagent, inside its own isolated worktree)
@@ -73,8 +76,17 @@ npm ci --prefix browser-tests --no-audit --no-fund
 npm install --prefix sygnal-check --no-audit --no-fund
 npm install --prefix examples/kanban --no-audit --no-fund
 npm run build
+TEST_EXAMPLES_INSTALL=1 npm run test:examples   # installs every example once
+```
+
+Kanban size gate (absolute paths; vite needs the example dir as its root):
+
+```bash
+npm --prefix <abs>/examples/kanban exec -- vite build <abs>/examples/kanban --outDir /tmp/kb --emptyOutDir
+gzip -c /tmp/kb/assets/index-*.js | wc -c      # budget 41,805 B
 ```
 
 ## Activity Log
 
+- 2026-10-01 — 1-C/1-F merged (G-069, G-052, G-063); gates green; G-077 sent to 1-E.
 - 2026-10-01 — PLAN-2 started. `plan2-integration` created; 0-A done (smoke 8/8 on the live registry, housekeeping); 0-B, 0-C and 1-A…1-F launched in parallel.
