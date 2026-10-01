@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import { ABORT, renderComponent } from 'sygnal'
 import RootComponent from './RootComponent.jsx'
-import { mockDragDriver, waitForHtml } from './testHelpers.js'
+import { mockDragDriver } from './testHelpers.js'
 
 const { model, initialState, context } = RootComponent
 
@@ -335,8 +335,6 @@ describe('RootComponent (end to end with simulateEvent)', () => {
     t = null
   })
 
-  const settle = () => new Promise(r => setTimeout(r, 30))
-
   it('the → button of a lane moves it right (LaneComponent EVENTS → root)', async () => {
     t = renderComponent(RootComponent, { drivers: { DND: mockDragDriver().driver } })
     t.simulateEvent('.lane-header[data-lane-id="lane-1"] .move-lane-right', 'click')
@@ -354,16 +352,16 @@ describe('RootComponent (end to end with simulateEvent)', () => {
 
     dnd.emit('task:dragstart', { dataset: { taskId: 'task-3' } })
     await t.waitForState(s => s.dragging?.taskId === 'task-3')
-    await waitForHtml(t, 'class="task-card dragging"')
+    expect(t.html()).toContain('class="task-card dragging"')
     dnd.emit('task:dragend', null)
-    await settle()
+    await t.settle()
     expect(t.states.at(-1).dragging).toBe(null)
 
     dnd.emit('lane-sort:dragstart', { dataset: { laneId: 'lane-2' } })
     await t.waitForState(s => s.draggingLane === 'lane-2')
-    await waitForHtml(t, 'class="lane dragging"')
+    expect(t.html()).toContain('class="lane dragging"')
     dnd.emit('lane-sort:dragend', null)
-    await settle()
+    await t.settle()
     expect(t.states.at(-1).draggingLane).toBe(null)
     t.expectNoDiagnostics()
   })

@@ -8,11 +8,10 @@ import { renderComponent } from 'sygnal'
 // setup file; importing it here keeps the test meaningful on its own.
 import { checks, isStrictEnabled, resetChecks } from 'sygnal/diagnostics'
 import RootComponent from './RootComponent.jsx'
-import { mockDragDriver, waitForHtml } from './testHelpers.js'
+import { mockDragDriver } from './testHelpers.js'
 
 const laneIds = (s) => s.lanes.map(l => l.id)
 const lane = (s, id) => s.lanes.find(l => l.id === id)
-const tick = () => new Promise(r => setTimeout(r, 20))
 
 describe('kanban smoke test (dev checks + strict, zero diagnostics)', () => {
   let t
@@ -49,27 +48,26 @@ describe('kanban smoke test (dev checks + strict, zero diagnostics)', () => {
 
     // Rename it: double-click the title, type, press Enter
     const header = '.lane-header[data-lane-id="lane-4"]'
-    await waitForHtml(t, 'data-lane-id="lane-4"')
+    expect(t.html()).toContain('data-lane-id="lane-4"')
     t.simulateEvent(`${header} .lane-title`, 'dblclick')
     s = await t.waitForState(s => lane(s, 'lane-4').isEditing)
     expect(lane(s, 'lane-4').titleDraft).toBe('New Lane')
-    await waitForHtml(t, 'class="lane-title-input"')
-    await waitForHtml(t, '<input class="lane-title-input" type="text" value="New Lane">')
+    expect(t.html()).toContain('<input class="lane-title-input" type="text" value="New Lane">')
     t.simulateEvent(`${header} .lane-title-input`, 'input', { value: 'Review' })
     await t.waitForState(s => lane(s, 'lane-4').titleDraft === 'Review')
     // The controlled input now renders the typed text, so a re-render keeps it
-    await waitForHtml(t, '<input class="lane-title-input" type="text" value="Review">')
+    expect(t.html()).toContain('<input class="lane-title-input" type="text" value="Review">')
     t.simulateEvent(`${header} .lane-title-input`, 'keydown', { key: 'Enter', value: ' Review ' })
     s = await t.waitForState(s => lane(s, 'lane-4').title === 'Review')
     expect(lane(s, 'lane-4').isEditing).toBe(false)
-    await waitForHtml(t, '<h2 class="lane-title">Review</h2>')
+    expect(t.html()).toContain('<h2 class="lane-title">Review</h2>')
 
     // Add a task to the first lane ('.add-task-btn' matches lane-1's button first)
     t.simulateEvent('.add-task-btn', 'click')
     await t.waitForState(s => lane(s, 'lane-1').isAddingTask)
-    // A selector that matches no rendered element is delivered to every
-    // listener on that selector (all four lanes), so wait for the input first
-    await waitForHtml(t, 'class="new-task-input"')
+    // waitForState resolves once the whole tree has rendered that state, so
+    // the new input is already in the HTML and the next event targets it
+    expect(t.html()).toContain('class="new-task-input"')
     t.simulateEvent('.new-task-input', 'keydown', { key: 'Enter', value: '  Write tests ' })
     s = await t.waitForState(s => lane(s, 'lane-1').tasks.length === 3)
     expect(lane(s, 'lane-1').tasks[2].title).toBe('Write tests')
@@ -83,7 +81,7 @@ describe('kanban smoke test (dev checks + strict, zero diagnostics)', () => {
     // Drag task-1 onto the "In Progress" lane, before task-3
     dnd.emit('task:dragstart', { dataset: { taskId: 'task-1' } })
     s = await t.waitForState(s => s.dragging?.taskId === 'task-1')
-    await waitForHtml(t, 'task-card dragging')
+    expect(t.html()).toContain('task-card dragging')
     dnd.emit('lane:drop', { dropZone: { dataset: { laneId: 'lane-2' } }, insertBefore: { dataset: { taskId: 'task-3' } } })
     s = await t.waitForState(s => lane(s, 'lane-2').tasks.length === 2)
     expect(s.dragging).toBe(null)
@@ -107,7 +105,7 @@ describe('kanban smoke test (dev checks + strict, zero diagnostics)', () => {
     s = await t.waitForState(s => !s.lanes.some(l => l.id === 'lane-2'))
     expect(laneIds(s)).toEqual(['lane-3', 'lane-1', 'lane-4'])
 
-    await tick()
+    await t.settle()
     t.expectNoDiagnostics()
   })
 })

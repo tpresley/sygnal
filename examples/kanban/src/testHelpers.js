@@ -28,14 +28,3 @@ export function mockDragDriver() {
   }
   return { driver, configs, emit: (name, detail) => bus(name).emit(detail) }
 }
-
-// waitForState() resolves once the root has re-rendered, but a Collection item
-// that was just created renders its own view a moment later. Poll the HTML
-// until it contains `text`, so simulateEvent() can target the new item.
-export async function waitForHtml(t, text, timeoutMs = 1000) {
-  const end = Date.now() + timeoutMs
-  while (!t.html().includes(text)) {
-    if (Date.now() > end) throw new Error(`waitForHtml: '${text}' not rendered within ${timeoutMs}ms`)
-    await new Promise(r => setTimeout(r, 5))
-  }
-}

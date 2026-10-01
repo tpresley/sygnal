@@ -212,8 +212,7 @@ describe('LaneComponent (end to end with simulateEvent)', () => {
   it('ignores keys other than Enter in the new-task input', async () => {
     t = renderComponent(LaneComponent, { initialState: makeLaneState({ isAddingTask: true }) })
     t.simulateEvent('.new-task-input', 'keydown', { key: 'a', target: { value: 'x' } })
-    await t.ready()
-    await new Promise(r => setTimeout(r, 30))
+    await t.settle()
     expect(t.states.at(-1).tasks).toHaveLength(2)
   })
 
@@ -260,8 +259,7 @@ describe('LaneComponent (end to end with simulateEvent)', () => {
     t = renderComponent(LaneComponent, { initialState: makeLaneState({ id: 'lane-7' }) })
     t.simulateEvent('.delete-lane-btn', 'click')
     t.simulateEvent('.move-lane-right', 'click')
-    await t.ready()
-    await new Promise(r => setTimeout(r, 30))
+    await t.settle()
     expect(t.emitted).toEqual([
       { type: 'DELETE_LANE', data: { laneId: 'lane-7' } },
       { type: 'MOVE_LANE_RIGHT', data: { laneId: 'lane-7' } },
