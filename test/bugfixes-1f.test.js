@@ -464,10 +464,10 @@ describe('G-024: renderComponent reports isolation-boundary (SYG104) and typo (S
     Btn.model = { SAVE: s => ({ ...s, n: s.n + 1 }), LATER: s => s }
     t = renderComponent(Btn)
     await t.ready()
-    t.simulateEvent('.svae', 'click')            // typo
+    t.simulateEvent('.svae', 'click', { allowMissing: true }) // typo (G-070: without allowMissing this fails the test)
     // listened to but never rendered: 2E-2 (G-049) waits for it, then drops it with SYG103
     // instead of sending it to every listener with that selector string
-    t.simulateEvent('.not-rendered-yet', 'click')
+    t.simulateEvent('.not-rendered-yet', 'click', { allowMissing: true })
     t.simulateEvent('.save', 'click')             // fine (delivered after the two above)
     await t.waitForState(s => s.n === 1)
     const d = only(t, 'SYG103')
@@ -481,7 +481,7 @@ describe('G-024: renderComponent reports isolation-boundary (SYG104) and typo (S
   it("nothing is reported with diagnostics: 'off'", async () => {
     t = renderComponent(App, { diagnostics: 'off' })
     await t.ready()
-    t.simulateEvent('.nope', 'click')
+    t.simulateEvent('.nope', 'click', { allowMissing: true })
     await settle()
     expect(t.diagnostics).toEqual([])
   })

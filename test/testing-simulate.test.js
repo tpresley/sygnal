@@ -130,7 +130,7 @@ describe('simulateEvent', () => {
 
   it('a selector nobody listens to is dropped silently (no state change)', async () => {
     t = renderComponent(Counter)
-    t.simulateEvent('.incc', 'click')
+    t.simulateEvent('.incc', 'click', { allowMissing: true }) // G-070: a typo fails the test unless allowMissing
     t.simulateEvent('.count', 'click')
     await t.ready()
     await settle()

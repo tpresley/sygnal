@@ -83,8 +83,26 @@ How it works:
 
 - It targets the **first rendered element** that matches `selector`, and bubbles within that element's component scope, like a real event. Events inside a child component (or Collection item) reach the child's intent, not the parent's.
 - `event.target.value`, `.checked` and `.dataset` default to what the element renders, and `init` overrides them. `init.value`, `init.checked`, `init.dataset` (alias `init.data`) and `init.key` are shorthands; any other property is copied onto the event.
-- If nothing matches yet, the event waits (up to 300 ms, re-checked on every render) for a matching element, for example a Collection item that is about to render. If none appears, it is dropped and reported as [SYG103](/reference/errors/#syg103). It is never sent to every listener with that selector.
+- If nothing matches yet, the event waits (up to 300 ms, re-checked on every render) for a matching element, for example a Collection item that is about to render. It is never sent to every listener with that selector.
+- If no element matches, the test **fails** with an error that names the selector, says it matched nothing in the rendered output, and shows the start of `t.html()`. The error rejects the pending `t.next()`, `t.waitForState()` or `t.settle()`. If none is pending, the next `t.*` call or `t.dispose()` throws it. When nothing is queued and the tree is quiet, `simulateEvent` throws it straight away. To drop the event instead (reported as [SYG103](/reference/errors/#syg103), info), pass `{ allowMissing: true }`.
 - If the selector only matches inside a child component, Sygnal reports [SYG104](/reference/errors/#syg104): the parent's intent can never see that event.
+
+#### Supported selectors
+
+Selectors are matched against the rendered vnode tree with the same rules as the real DOM:
+
+| Syntax | Example |
+|---|---|
+| Tag, `*`, `.class`, `#id` | `button.save`, `#main` |
+| Attributes: `[attr]`, `[attr="v"]`, `^=`, `$=`, `*=`, `~=` | `.task[data-id="2"]`, `[type=checkbox]` |
+| `:first-child`, `:last-child`, `:only-child` | `li:first-child .remove` |
+| `:nth-child(an+b)`, `:nth-last-child()`, including `odd` / `even` | `.card:nth-child(3) .next` |
+| `:first-of-type`, `:last-of-type`, `:only-of-type`, `:nth-of-type()`, `:nth-last-of-type()` | `p:nth-of-type(2)` |
+| `:not(...)` (no combinators inside) | `.item:not(.done)` |
+| Descendant (space) and child (`>`) combinators | `.board > .list:nth-child(2) .card:first-child .next` |
+| Selector lists (`,`) | `.save, .submit` |
+
+Anything else, such as `:has()`, the `+` and `~` combinators, `:hover` or pseudo-elements, throws an "Unsupported selector syntax" error when you call `simulateEvent`. It is never silently ignored. Positional selectors follow the rendered DOM, so `:nth-child` counts every element sibling, including headings and other elements around a Collection's items. If the position is hard to pin down, give the element an attribute and select that instead, e.g. `[data-id="3"]`.
 
 ### simulateAction
 
@@ -198,7 +216,7 @@ t.expectNoDiagnostics()
 
 The previous diagnostics mode and strict setting are restored when the last rendered component is disposed. Each `renderComponent` call starts with fresh dedupe state, so a finding reported in one test is reported again in the next.
 
-Two DOM checks are built into `renderComponent` itself, because the real-DOM versions can't run on the mock DOM: SYG104 (a selector that only matches inside a child) and SYG103 (a `simulateEvent` selector that matches nothing). The other checks need `sygnal/diagnostics` (added by the Vite plugin under Vitest, or imported by you).
+Two DOM checks are built into `renderComponent` itself, because the real-DOM versions can't run on the mock DOM: SYG104 (a selector that only matches inside a child) and SYG103 (a `simulateEvent(..., { allowMissing: true })` selector that matches nothing; without `allowMissing` the test fails instead). The other checks need `sygnal/diagnostics` (added by the Vite plugin under Vitest, or imported by you).
 
 ## inspect
 

@@ -957,6 +957,11 @@ export interface SimulatedEventInit {
   data?: Record<string, any>;
   /** Keyboard key (e.key) */
   key?: string;
+  /**
+   * Don't fail when the selector matches no rendered element: wait up to 300ms for it, then
+   * drop the event with SYG103 (info). Not copied onto the event.
+   */
+  allowMissing?: boolean;
   /** Any other event properties are copied onto the event */
   [prop: string]: any;
 }
@@ -995,9 +1000,16 @@ export interface RenderResult {
    * Dispatch a synthetic DOM event through the mock DOM source so the component's real intent
    * streams fire (DOM.click('.x'), DOM.select('.x').events('click'), .value(), .data()).
    * Targets the first rendered element matching `selector` and bubbles within its isolation scope.
+   * Selectors match the rendered tree like the real DOM: tag, .class, #id, [attr], [attr="v"]
+   * (^= $= *= ~=), :first-child, :last-child, :only-child, :nth-child(an+b|odd|even),
+   * :nth-last-child(), :first/last/only/nth-of-type, :not(), descendant ' ' and child '>'
+   * combinators, ',' lists. Other syntax (:has(), '+', '~', pseudo-elements...) throws.
    * If nothing matches yet, the event waits (up to 300ms, re-checked on every render) for a
-   * matching element, then targets the first one; if none renders it is dropped and SYG103 is
-   * reported. It is never sent to every listener with that selector string. It also waits until
+   * matching element, then targets the first one. If none renders, the test fails with an
+   * error naming the selector: it rejects the pending next()/waitForState()/settle(), or is
+   * thrown by the next t.* call or dispose() (or by simulateEvent itself when nothing is
+   * pending and the tree is quiet). Pass `{ allowMissing: true }` to drop the event with SYG103
+   * instead. It is never sent to every listener with that selector string. It also waits until
    * the listeners it reaches are subscribed (a just-mounted child subscribes a few ms late).
    * `'document'` / `'body'` go to the DOM.select('document' | 'body') listeners.
    * simulateAction/simulateEvent calls are delivered in call order; a waiting event holds the

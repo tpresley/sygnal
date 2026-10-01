@@ -58,7 +58,7 @@ describe('G-049: simulateEvent on a selector that is not rendered yet', () => {
   it('an element that never renders: SYG103 and the event is dropped', async () => {
     const t = renderComponent(Board)
     await t.ready()
-    t.simulateEvent('.new-task-input', 'keydown', { key: 'Enter', value: 'nowhere' })
+    t.simulateEvent('.new-task-input', 'keydown', { key: 'Enter', value: 'nowhere', allowMissing: true })
     await t.settle()
     expect(tasksPerLane(t.states.at(-1))).toEqual([0, 0, 0, 0])
     const d = t.diagnostics.filter(d => d.code === 'SYG103')
