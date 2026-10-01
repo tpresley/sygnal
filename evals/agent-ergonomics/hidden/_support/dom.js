@@ -44,3 +44,17 @@ export async function setChecked(el, checked) {
   if (el.checked !== checked) el.click()
   await sleep(HUMAN_PAUSE_MS)
 }
+
+/** Leave a field like a user tabbing away: real focus, then blur (fires blur + focusout). */
+export async function blur(el) {
+  if (document.activeElement !== el) el.focus?.()
+  el.blur()
+  await sleep(HUMAN_PAUSE_MS)
+}
+
+/** Press a key: keydown + keyup on `target` (default: the focused element, else <body>); both bubble to document. */
+export async function pressKey(key, target = document.activeElement || document.body) {
+  target.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }))
+  target.dispatchEvent(new KeyboardEvent('keyup', { key, bubbles: true, cancelable: true }))
+  await sleep(HUMAN_PAUSE_MS)
+}
