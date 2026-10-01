@@ -72,4 +72,58 @@ export async function bugfixTests() {
     await wait(30)
     assert(JSON.stringify(spied) === '[3]', `EVENTS carried ${JSON.stringify(spied)}, expected [3]`)
   })
+
+  // B-004: controlled input must reflect state after coalesced same-tick renders
+  await runTest(CAT, 'B-004: typing then ADD in one tick clears a controlled <input value>', async () => {
+    const { id, el } = mount()
+    function App({ state }) {
+      return <div>
+        <input className="draft" value={state.draft} />
+        <button className="add">Add</button>
+        <ul>{state.items.map(i => <li>{i}</li>)}</ul>
+      </div>
+    }
+    App.initialState = { draft: '', items: [] }
+    App.intent = ({ DOM }) => ({ EDIT: DOM.input('.draft').value(), ADD: DOM.click('.add') })
+    App.model = {
+      EDIT: (s, draft) => ({ ...s, draft }),
+      ADD: s => ({ ...s, items: [...s.items, s.draft], draft: '' }),
+    }
+    run(App, {}, { mountPoint: id })
+    await waitFor(() => el.querySelector('.add'))
+    const inp = el.querySelector('.draft')
+    inp.value = 'milk'
+    inp.dispatchEvent(new Event('input', { bubbles: true }))
+    el.querySelector('.add').click()
+    await waitFor(() => el.querySelectorAll('li').length === 1)
+    await wait(30)
+    assert(el.querySelector('li').textContent === 'milk', `item is '${el.querySelector('li').textContent}'`)
+    assert(inp.value === '', `input still shows '${inp.value}'`)
+  })
+
+  await runTest(CAT, 'B-004: a controlled checkbox reflects state after a same-tick toggle + reset', async () => {
+    const { id, el } = mount()
+    function App({ state }) {
+      return <div>
+        <input className="cb" type="checkbox" checked={state.on} />
+        <button className="reset">Reset</button>
+        <span className="n">{state.n}</span>
+      </div>
+    }
+    App.initialState = { on: false, n: 0 }
+    App.intent = ({ DOM }) => ({ TOGGLE: DOM.change('.cb').checked(), RESET: DOM.click('.reset') })
+    App.model = {
+      TOGGLE: (s, on) => ({ ...s, on }),
+      RESET: s => ({ ...s, on: false, n: s.n + 1 }),
+    }
+    run(App, {}, { mountPoint: id })
+    await waitFor(() => el.querySelector('.reset'))
+    const cb = el.querySelector('.cb')
+    cb.checked = true
+    cb.dispatchEvent(new Event('change', { bubbles: true }))
+    el.querySelector('.reset').click()
+    await waitFor(() => el.querySelector('.n').textContent === '1')
+    await wait(30)
+    assert(cb.checked === false, 'checkbox is still checked')
+  })
 }

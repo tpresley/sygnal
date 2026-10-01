@@ -9,6 +9,7 @@ if (typeof globalThis.window === 'undefined') {
 import { renderComponent } from '../src/extra/testing.js'
 import { createElement as h } from '../src/pragma/index.js'
 import { _resetDiagnostics } from '../src/extra/diagnostics/index.js'
+import { controlledInputModule } from '../src/cycle/dom/controlledInputModule.js'
 
 const settle = (ms = 40) => new Promise(r => setTimeout(r, ms))
 const last = t => t.states[t.states.length - 1]
@@ -109,5 +110,25 @@ describe('B-003: non-STATE sinks see the state as of their action', () => {
     await t.waitForState(s => s.n === 2)
     await settle()
     expect(t.sinkValues('SPY')).toEqual([0, 1])
+  })
+})
+
+// ─── B-004: controlled value/checked follow the vnode after coalesced renders ─
+
+describe('B-004: controlledInputModule', () => {
+  const vn = (props, elm) => ({ data: { props }, elm })
+  it('rewrites value/checked when the prop is unchanged but the live element differs', () => {
+    const elm = { value: 'typed', checked: true }
+    controlledInputModule.update(vn({ value: '', checked: false }), vn({ value: '', checked: false }, elm))
+    expect(elm).toEqual({ value: '', checked: false })
+  })
+  it('leaves matching elements, null props and changed props (propsModule handles those) alone', () => {
+    const elm = { value: '5', checked: false }
+    let writes = 0
+    const spy = new Proxy(elm, { set: (o, k, v) => { writes++; o[k] = v; return true } })
+    controlledInputModule.update(vn({ value: 5 }), vn({ value: 5 }, spy))
+    controlledInputModule.update(vn({ value: undefined }), vn({ value: undefined }, spy))
+    controlledInputModule.update(vn({ value: 'a' }), vn({ value: 'b' }, spy))
+    expect(writes).toBe(0)
   })
 })
