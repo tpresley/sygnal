@@ -125,7 +125,12 @@ export interface InspectSelector {
   selector: string
   /** event types listened to; null when unknown (runtime, real DOM) */
   events: string[] | null
-  /** whether it matches an element the component itself renders; null when unknown */
+  /**
+   * whether it matches an element the component itself renders; null when unknown.
+   * static: the class/id is in the view source. renderComponent: an element of the latest
+   * render matches (a conditionally rendered element that is hidden right now gives false).
+   * real DOM: true once a DOM check saw it match, false after SYG103/SYG104, else null.
+   */
   matched: boolean | null
   /** the child component whose (isolated) elements it matches instead, if any */
   isolationHit: string | null

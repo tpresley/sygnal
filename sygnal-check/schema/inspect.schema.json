@@ -88,7 +88,7 @@
       "properties": {
         "selector": { "type": "string" },
         "events": { "type": ["array", "null"], "items": { "type": "string" } },
-        "matched": { "type": ["boolean", "null"] },
+        "matched": { "type": ["boolean", "null"], "description": "matches an element the component itself renders (static: in the view source; renderComponent: in the latest render; real DOM: seen by the DOM checks); null when unknown" },
         "isolationHit": { "type": ["string", "null"], "description": "child component whose isolated elements the selector matches instead" }
       }
     },
