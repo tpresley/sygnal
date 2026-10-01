@@ -234,4 +234,37 @@ export async function bugfixTests1G() {
     await flip()
     assert(cls(el, '#b012f') === 'on', `flipped: "${cls(el, '#b012f')}"`)
   })
+
+  // ─── B-013: same-tick actions inside a Collection item ─────────────────────
+  await runTest(CAT, 'B-013: EDIT (input) then SAVE (click) in one tick inside a Collection item', async () => {
+    const { id, el } = mount()
+    const saved = []
+    function Note({ state }) {
+      return <li className="note">
+        <input className="draft" value={state.draft} />
+        <button className="save">Save</button>
+        <span className="saved">{state.saved}</span>
+      </li>
+    }
+    Note.intent = ({ DOM }) => ({ EDIT: DOM.input('.draft').value(), SAVE: DOM.click('.save') })
+    Note.model = {
+      EDIT: (s, draft) => ({ ...s, draft }),
+      SAVE: { STATE: s => ({ ...s, saved: s.draft }), EVENTS: s => ({ type: 'SAVED', data: s.draft }) },
+    }
+    function Notes() { return <ul><Collection of={Note} from="notes" /></ul> }
+    Notes.initialState = { notes: [{ id: 1, draft: '', saved: '' }, { id: 2, draft: '', saved: '' }] }
+    Notes.intent = ({ EVENTS }) => ({ GOT: EVENTS.select('SAVED') })
+    Notes.model = { GOT: (s, d) => { saved.push(d); return s } }
+    run(Notes, {}, { mountPoint: id })
+    await waitFor(() => el.querySelectorAll('.note').length === 2)
+    const note = el.querySelectorAll('.note')[1]
+    const inp = note.querySelector('.draft')
+    inp.value = 'hello'
+    inp.dispatchEvent(new Event('input', { bubbles: true }))
+    note.querySelector('.save').click()
+    await wait(80)
+    assert(note.querySelector('.saved').textContent === 'hello', `saved: "${note.querySelector('.saved').textContent}"`)
+    assert(inp.value === 'hello', `draft: "${inp.value}"`)
+    assert(JSON.stringify(saved) === '["hello"]', `EVENTS: ${JSON.stringify(saved)}`)
+  })
 }
