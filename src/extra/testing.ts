@@ -5,7 +5,7 @@ import eventBusDriver from './eventDriver';
 import logDriver from './logDriver';
 import component from '../component';
 import {renderToString} from './ssr';
-import {configureDiagnostics, getDiagnosticsMode, isDiagnosticsEnabled, onDiagnostic, registerCheck, report} from './diagnostics/index';
+import {_getDiagnosticsConfig, configureDiagnostics, getDiagnosticsMode, isDiagnosticsEnabled, onDiagnostic, registerCheck, report} from './diagnostics/index';
 import xs from './xstreamCompat';
 import type {Stream} from 'xstream';
 import type {Diagnostic, DiagnosticsMode} from './diagnostics/index';
@@ -36,8 +36,9 @@ import type {Diagnostic, DiagnosticsMode} from './diagnostics/index';
  * - Calls made before the component is subscribed are buffered and replayed
  *   in order once it is ready; `await t.ready()` is an explicit sync point.
  * - Diagnostics: `diagnostics` (default 'collect', or the already-active
- *   mode when diagnostics are on) is applied with
- *   configureDiagnostics and restored by dispose(). Most runtime checks live
+ *   mode when diagnostics are on) is applied with configureDiagnostics. The
+ *   explicit config from before the first live instance is restored when the
+ *   last live instance is disposed (overlapping/nested instances are fine). Most runtime checks live
  *   in a separate entry: `import 'sygnal/diagnostics'` in the test (or vitest
  *   setupFiles) to enable them. Two DOM checks are built in (G-024), since the
  *   real-DOM versions can't run on the mock DOM:
@@ -66,7 +67,9 @@ import type {Diagnostic, DiagnosticsMode} from './diagnostics/index';
  *   output stays observable. sinkValues: EVENTS entries drop the devtools
  *   stamps, PARENT entries are unwrapped from {name, component, value}.
  * - Input is buffered until 12ms after the first render: root and child
- *   action streams subscribe 1-10ms (BOOTSTRAP) after construction.
+ *   action streams subscribe 1-10ms (BOOTSTRAP) after construction. With no
+ *   render within 30ms (e.g. a model but no initialState), the 12ms start then.
+ *   dispose() before ready leaves the buffered calls undelivered.
  * - rendered(): the next render, or 20ms (state → view is async).
  * - dispose() fires the component's DISPOSE action via sinks.__dispose.
  * - SYG103/104: the mock DOM source reports each events() call (selector path,
@@ -197,6 +200,14 @@ function find(v: any, cs: string[], chain: any[] = []): any[] | undefined {
   }
 }
 
+/** Internal (perf-guard tests): number of SYG104 tree walks */
+export const _testingStats = {walks: 0};
+
+// 1H-5: live renderComponent instances; the explicit diagnostics config from before the
+// outermost one is restored when the last one is disposed
+let active = 0;
+let savedConfig: ReturnType<typeof _getDiagnosticsConfig>;
+
 export function renderComponent(
   componentDef: any,
   options: RenderOptions = {}
@@ -205,6 +216,7 @@ export function renderComponent(
   const {intent, model = {}} = componentDef;
 
   const prevMode = getDiagnosticsMode();
+  if (!active++) savedConfig = _getDiagnosticsConfig();
   configureDiagnostics({mode: diagnostics || (prevMode == 'off' ? 'collect' : prevMode)});
   const collected: Diagnostic[] = [];
   const offDiag = onDiagnostic(d => collected.push(d));
@@ -214,19 +226,33 @@ export function renderComponent(
   const listeners = new Map<string, string[]>();
   const owners = new Map<string, string>([['', rootName]]);
   const done = new Set<string>();
+  // the innermost isolation scope of a component's DOM source on this hub
+  const scopeOf = (c: any) => {
+    const d = c && c.sources && c.sources[c.DOMSourceName || 'DOM'];
+    return d && d._hub === hub.$ && (d._path || []).filter(isScope).pop();
+  };
   const offCheck = registerCheck({
     id: 'renderComponent',
     onIntent(c: any) {
-      const d = c && c.sources && c.sources[c.DOMSourceName || 'DOM'];
-      const sc = d && d._hub === hub.$ && (d._path || []).filter(isScope).pop();
+      const sc = scopeOf(c);
       if (sc) owners.set(sc, c.name);
+    },
+    // 1H-11: forget a disposed child's listeners, so they aren't checked on every render
+    onDispose(c: any) {
+      const sc = scopeOf(c);
+      if (!sc) return;
+      owners.delete(sc);
+      listeners.forEach((path, k) => { if (path.filter(isScope).pop() == sc) listeners.delete(k); });
     },
   });
   const raise = (code: string, component: string, message: string, fix: string, data: any) => {
     try { report(code, {component, message, fix, data}); } catch (e) { setTimeout(() => { throw e; }); }
   };
+  // 1H-11: a render with the same tree and no new listener can't change the result
+  let checkedTree: any, newListener = false;
   const check104 = (target?: any) => {
-    if (!vtree || !isDiagnosticsEnabled()) return;
+    if (!vtree || !isDiagnosticsEnabled() || (!target && vtree === checkedTree && !newListener)) return;
+    if (!target) checkedTree = vtree, newListener = false;
     listeners.forEach(path => {
       const sels = words(path.filter(s => !isScope(s)).join(' '));
       const scope = path.filter(isScope).pop();
@@ -254,6 +280,7 @@ export function renderComponent(
         }
         for (const k of [].concat(v.children || [])) walk(k, c, sc, inside, sc == scope ? undefined : boundary);
       };
+      _testingStats.walks++;
       walk(vtree, [], undefined, !scope, undefined);
       if (own) return done.add(key);
       if (!child || !hit) return;
@@ -269,8 +296,7 @@ export function renderComponent(
   const restore = () => {
     offCheck();
     offDiag();
-    configureDiagnostics({mode: undefined});
-    if (getDiagnosticsMode() != prevMode) configureDiagnostics({mode: prevMode});
+    if (!--active) configureDiagnostics(savedConfig);
   };
 
   const noop = () => {};
@@ -323,7 +349,10 @@ export function renderComponent(
     initialState: init,
   });
   const allDrivers: any = {
-    DOM: () => mockDOMSource(mockConfig, hub.$, path => listeners.set(path.join('\u0000'), path)),
+    DOM: () => mockDOMSource(mockConfig, hub.$, path => {
+      const k = path.join('\u0000');
+      if (!listeners.has(k)) listeners.set(k, path), newListener = true;
+    }),
     EVENTS: eventBusDriver,
     LOG: logDriver,
     ...drivers,
@@ -381,16 +410,22 @@ export function renderComponent(
   let vtree: any;
   let timer: any;
   let onRender: Array<() => void> = [];
+  // states[0 .. renderedUpTo) were recorded before the latest render (1H-12)
+  let renderedUpTo = 0;
   const arm = () => timer || (timer = setTimeout(() => markReady(), 12));
   if (sinks.DOM) {
     listen(sinks.DOM, v => {
       vtree = v;
+      renderedUpTo = states.length;
       check104();
       arm();
       onRender.forEach(f => f());
       onRender = [];
     });
-  } else arm();
+  }
+  // 1H-4: a component that never renders on its own (a model but no initialState: no state
+  // until an action sets it) still becomes ready, so buffered input is delivered
+  const fallback = setTimeout(arm, sinks.DOM ? 30 : 0);
   const rendered = () => new Promise<void>(r => { onRender.push(r); setTimeout(r, 20); });
 
   const simulateAction = (type: string, data?: any) =>
@@ -454,9 +489,11 @@ export function renderComponent(
     timeoutMs: number = 2000
   ): Promise<any> => {
     return new Promise((resolve, reject) => {
-      for (const s of states) {
+      for (let i = 0; i < states.length; i++) {
+        const s = states[i];
         try {
-          if (predicate(s)) return resolve(s);
+          // an already-recorded match still waits for its render, unless it had one
+          if (predicate(s)) return i < renderedUpTo || !sinks.DOM ? resolve(s) : rendered().then(() => resolve(s));
         } catch (_) {}
       }
       const done = (f: () => void) => {
@@ -500,6 +537,7 @@ export function renderComponent(
     if (disposed) return;
     disposed = true;
     clearTimeout(timer);
+    clearTimeout(fallback);
     queue = null;
     subs.forEach(([s, l]) => {
       try { s.removeListener(l); } catch (_) {}

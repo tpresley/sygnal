@@ -9,6 +9,11 @@
  * field is saved on blur or Enter only), any re-render while the user types
  * resets the text.
  *
+ * Literal values are controlled too (D25): `<input value="" />` or
+ * `<input type="checkbox" checked />` resets what the user typed/clicked on
+ * every re-render. Those are reported for text-like fields and checkboxes/radios
+ * (1H-8) with a different fix: drop the prop, or move the value into state.
+ *
  * Kept quiet whenever it can't be sure: a dynamic selector or event name, a DOM
  * selector handed to a helper, a field that is readOnly/disabled/hidden, or a
  * component whose intent can't be analyzed.
@@ -22,7 +27,7 @@ import { sourceAliases, isSourceRef, DOM_SOURCE_METHODS } from '../model/intent.
 import { evalStrings, classTokens, tokenize, DYN } from '../strings.js'
 
 const FIELDS = new Set(['input', 'textarea', 'select'])
-const NOT_TYPED = new Set(['hidden', 'submit', 'button', 'reset', 'image'])
+const NOT_TYPED = new Set(['hidden', 'submit', 'button', 'reset', 'image', 'file'])
 const TOGGLES = new Set(['checkbox', 'radio'])
 const TEXT_EVENTS = new Set(['input', 'change', 'keyup', 'keydown', 'keypress', 'beforeinput'])
 const KEY_EVENTS = new Set(['keyup', 'keydown', 'keypress'])
@@ -200,9 +205,21 @@ function controlledAttr(opening) {
   }
   const attr = jsxAttr(opening, tag === 'input' && kind === 'toggle' ? 'checked' : 'value')
   if (!attr) return null
+  const prop = jsxName(attr.name)
   const v = unwrap(jsxAttrExpr(attr))
-  if (!v || attr.value?.type === 'StringLiteral' || isLiteral(v)) return null
-  return { attr, kind, prop: jsxName(attr.name) }
+  // a literal (value="", value={0}, checked, checked={false}) is controlled too (1H-8);
+  // null leaves the field alone at runtime, and a select's literal value is left out
+  let literal
+  if (!v) {
+    if (prop !== 'checked') return null
+    literal = 'checked' // bare attribute
+  } else if (v.type === 'NullLiteral') {
+    return null
+  } else if (attr.value?.type === 'StringLiteral' || isLiteral(v)) {
+    if (tag === 'select') return null
+    literal = `${prop}=${v.type === 'StringLiteral' ? JSON.stringify(v.value) : `{${v.value}}`}`
+  }
+  return { attr, kind, prop, literal }
 }
 
 function controlledFields(file, view) {
@@ -261,6 +278,20 @@ export default {
         if (listeners.some(l => relevant(l.event) && listens(l.chain, f.el, f.ancestors))) continue
         const what = describe(f)
         const sel = selectorFor(f)
+        if (f.literal) {
+          const on = f.kind === 'text' ? `'input' (e.g. DOM.input('${sel}').value())` : `'change' (e.g. DOM.change('${sel}'))`
+          report({
+            code: 'SYG111',
+            component: comp.name,
+            file: comp.file,
+            node: f.attr,
+            message: `${what} has a literal ${f.literal}, and ${comp.name}'s intent has no input/change listener on it. ` +
+              `Sygnal controls ${f.prop} even when it is a literal, so every re-render ${f.kind === 'text' ? 'resets the typed text' : 'resets the field'} to it`,
+            fix: `drop the ${f.prop} prop to leave the field uncontrolled, or move the ${f.prop} into state and update it on ${on}`,
+            data: { element: f.el.tag, prop: f.prop, selector: sel, literal: true },
+          })
+          continue
+        }
         report({
           code: 'SYG111',
           component: comp.name,

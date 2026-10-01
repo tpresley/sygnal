@@ -1,7 +1,7 @@
 /**
  * sygnal-check [paths...] [--json] [--strict] [--graph] [--fail-on=warn|error|never] [--verbose]
  */
-import { check, maxSeverity } from './index.js'
+import { checkFiles, maxSeverity } from './index.js'
 import { formatDiagnostics } from './format.js'
 import { SEVERITY_RANK } from './diagnostic.js'
 import { expandInputs } from './files.js'
@@ -66,7 +66,7 @@ export function main(argv, { stdout = process.stdout, stderr = process.stderr, c
     return 2
   }
 
-  const diags = check(opts.paths, { cwd, includeTests: opts.includeTests })
+  const diags = checkFiles(files, { cwd })
   if (opts.json) stdout.write(JSON.stringify(diags, null, 2) + '\n')
   else stdout.write(formatDiagnostics(diags, { verbose: opts.verbose }) + '\n')
 

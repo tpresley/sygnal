@@ -74,20 +74,14 @@ function driverFromAsync(
       stop: () => {},
     });
 
-    let errorListener: any = null;
-    const errors$ = xs.create<any>({
-      start: (listener) => {
-        errorListener = listener;
-      },
-      stop: () => {
-        errorListener = null;
-      },
-    });
-    const filterBy = (stream: Stream<any>, selector?: any) => {
-      if (selector === undefined) return stream;
-      if (typeof selector === 'function') return stream.filter(selector);
-      return stream.filter((val: any) => val?.[selectorProperty] === selector);
-    };
+    // Active errors(selector) streams (1H-6): an error goes to the ones it matches, and is
+    // logged when none matches.
+    const errorSubs = new Set<{listener: any; selector: any}>();
+    const matches = (selector: any, val: any) =>
+      selector === undefined ||
+      (typeof selector === 'function' ? selector(val) : val?.[selectorProperty] === selector);
+    const filterBy = (stream: Stream<any>, selector?: any) =>
+      selector === undefined ? stream : stream.filter((val: any) => matches(selector, val));
 
     fromApp$.addListener({
       next: (incoming: any) => {
@@ -130,13 +124,19 @@ function driverFromAsync(
           return outgoing;
         };
         // Rejections (of the function, a thenable it resolves to, or post()) go to errors();
-        // with no errors() listener they are logged, as before.
+        // an error no active errors() selector matches is logged, as before.
         const reportError = (err: any) => {
-          if (errorListener) {
-            errorListener.next({error: err, [selectorProperty]: incoming?.[selectorProperty], request: incoming});
-          } else {
-            console.error(`${errMsg}: ${err}`);
-          }
+          const val = {error: err, [selectorProperty]: incoming?.[selectorProperty], request: incoming};
+          let handled = false;
+          errorSubs.forEach(sub => {
+            let hit = false;
+            try { hit = matches(sub.selector, val); } catch (_) {}
+            if (hit) {
+              handled = true;
+              sub.listener.next(val);
+            }
+          });
+          if (!handled) console.error(`${errMsg}: ${err}`);
         };
         const isThenable = (val: any) => val != null && typeof val.then === 'function';
         promiseReturningFunction(...argArr)
@@ -169,7 +169,17 @@ function driverFromAsync(
 
     return {
       select: (selector?: any) => filterBy(toApp$, selector),
-      errors: (selector?: any) => filterBy(errors$, selector),
+      errors: (selector?: any) => {
+        let sub: any;
+        return xs.create<any>({
+          start: (listener) => {
+            errorSubs.add((sub = {listener, selector}));
+          },
+          stop: () => {
+            errorSubs.delete(sub);
+          },
+        });
+      },
     };
   };
 }

@@ -40,6 +40,8 @@ const ERR_FIX = 'See the attached error'
 const STATE_SNAPSHOT = Symbol('sygnal.stateSnapshot');
 
 let COMPONENT_COUNT = 0;
+// 1H-1: STATE reducers emitted but not applied yet (in any component)
+let pendingReducers = 0;
 
 function wrapDOMSource(domSource: any): any {
   return new Proxy(domSource, {
@@ -177,7 +179,6 @@ class Component {
   onError: ((error: Error, info: { componentName: string }) => any) | undefined;
   isolatedState: boolean;
   isSubComponent: boolean;
-  isCollectionItem: boolean;
   currentState: any;
   currentProps: any;
   currentChildren: any;
@@ -349,7 +350,6 @@ class Component {
     }
 
     this.isSubComponent = this.sourceNames.includes('props$')
-    this.isCollectionItem = sources.__collectionItem === true
 
     const state$ = sources[stateSourceName] && sources[stateSourceName].stream
 
@@ -674,16 +674,19 @@ class Component {
     }
     const hasInitialState = (typeof effectiveInitialState !== 'undefined')
     const shouldInjectInitialState = hasInitialState && (ENVIRONMENT?.__SYGNAL_HMR_UPDATING !== true || typeof hmrState !== 'undefined')
-    const shimmed$ = shouldInjectInitialState ? concat(xs.of(initial), this.action$).compose(delay(0)) : this.action$
-    // B-003: STATE reducers are applied later (withState queues each one in a microtask, and
-    // shimmed$ may add a timer), so non-STATE sinks must not read this.currentState when the
-    // action arrives: an earlier same-tick action's reducer may still be pending. Before an
+    // Only INITIALIZE is delayed (user actions start >= 1ms later), so the other actions, and
+    // their non-STATE sinks, stay synchronous with the event that caused them (1H-1).
+    const shimmed$ = shouldInjectInitialState ? xs.merge(xs.of(initial).compose(delay(0)), this.action$) : this.action$
+    // B-003: STATE reducers are applied later (withState queues each one in a microtask), so
+    // while one is pending a non-STATE sink must not read this.currentState. Then, before the
     // action reaches any reducer, queue a microtask (ahead of this action's own STATE reducer,
     // behind every earlier one) that snapshots the state and runs the non-STATE sinks.
+    // Otherwise run them now, so EFFECT can still preventDefault() the live event (1H-1).
     let snapListener: any = null
     const sequenced$ = shimmed$.map((action: any) => {
       const l = snapListener
-      if (l) queueMicrotask(() => l.next({ ...action, [STATE_SNAPSHOT]: this.currentState }))
+      const run = () => l.next({ ...action, [STATE_SNAPSHOT]: this.currentState })
+      if (l) pendingReducers ? queueMicrotask(run) : run()
       return action
     })
     let snapSub: any
@@ -968,12 +971,17 @@ class Component {
 
           let data = action.data
           if (isStateSink) {
+            // withState applies reducers in microtasks, so none is legitimately pending at the
+            // next macrotask: reset then, in case one was never applied (e.g. app disposed)
+            if (!pendingReducers++) setTimeout(() => { pendingReducers = 0 })
+            let applied = false
             return (state: any) => {
-              // A sub-component reads currentState (its parent's state can carry calculated
-              // fields the raw reducer argument lacks). A Collection item uses the fresh
-              // argument instead (B-013): its currentState lags behind instantiateCollection's
-              // debounce, so a second same-tick action would start from the pre-update state.
-              const fresh = this.isCollectionItem && typeof state !== 'undefined'
+              if (!applied && pendingReducers) { applied = true; pendingReducers-- }
+              // Reduce from the fresh argument, not currentState (B-013, 1H-3): below a
+              // Collection, currentState lags behind instantiateCollection's debounce, so a
+              // second same-tick action would start from the pre-update state. The parents'
+              // lenses add their calculated fields, so it matches what the view gets.
+              const fresh = typeof state !== 'undefined'
               const _state = this.isSubComponent && !fresh ? this.currentState : state
               try {
                 const enhancedState = this.addCalculated(_state)
@@ -1319,6 +1327,12 @@ class Component {
       .remember()
   }
 
+  // A child's reducers get their state through its lens from this component's raw reducer
+  // state; adding the calculated fields here gives them what the child's view gets (1H-3).
+  withCalculated(lense: any): any {
+    return this.calculated ? { get: (state: any) => lense.get(isObj(state) ? this.addCalculated(state) : state), set: lense.set } : lense
+  }
+
   createSubComponentLense(stateField: any, componentType: string, defaultState?: any): any {
     const baseLense = {
       get: (state: any) => state,
@@ -1491,10 +1505,7 @@ class Component {
     // B-013: add this component's calculated fields inside the lens, not on state$, so the
     // items' reducers (which read through the lens from the raw state) see the same item
     // array as their views, e.g. for from={calculatedField} or a custom get().
-    if (lense && this.calculated) {
-      const inner: any = lense
-      lense = { get: (state: any) => inner.get(isObj(state) ? this.addCalculated(state) : state), set: inner.set }
-    }
+    if (lense) lense = this.withCalculated(lense)
 
     // Strip collection-specific props and forward only user-defined extra props to each item
     const collectionKeys = ['of', 'from', 'filter', 'sort', 'idfield', 'className']
@@ -1507,7 +1518,7 @@ class Component {
       return itemProps
     })
 
-    const sources = { ...this.sources, [this.stateSourceName]: stateSource, props$: itemProps$, children$, __parentContext$: this.context$, PARENT: null, __parentComponentNumber: this._componentNumber, __collectionItem: true }
+    const sources = { ...this.sources, [this.stateSourceName]: stateSource, props$: itemProps$, children$, __parentContext$: this.context$, PARENT: null, __parentComponentNumber: this._componentNumber }
     const sink$   = collection(factory, lense as any, { container: null as any })(sources)
     if (!isObj(sink$)) {
       fail('SYG903', this, 'Collection factory returned invalid sinks', 'Return a sinks object')
@@ -1538,7 +1549,7 @@ class Component {
 
     const stateSource = new StateSource(state$, this.stateSourceName)
     const stateField  = props.state
-    const lense = this.createSubComponentLense(stateField, 'Switchable sub-component')
+    const lense = this.withCalculated(this.createSubComponentLense(stateField, 'Switchable sub-component'))
 
     const switchableComponents = props.of
     const keys = Object.keys(switchableComponents)
@@ -1552,7 +1563,7 @@ class Component {
         switchableComponents[key] = component(options)
       }
     })
-    const sources = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$, __parentContext$: this.context$, __parentComponentNumber: this._componentNumber, __collectionItem: false }
+    const sources = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$, __parentContext$: this.context$, __parentComponentNumber: this._componentNumber }
 
     const sink$ = isolate(switchable(switchableComponents, props$.map((props: any) => props.current), ''), { [this.stateSourceName]: lense })(sources)
 
@@ -1573,7 +1584,7 @@ class Component {
         return isObj(state) ? this.addCalculated(state) : state
       })
 
-    const stateSource = new StateSource(state$, this.stateSourceName)
+    let stateSource = new StateSource(state$, this.stateSourceName)
     const stateField  = props.state
 
     if (typeof props.sygnalFactory !== 'function' && isObj(props.sygnalOptions)) {
@@ -1596,23 +1607,19 @@ class Component {
 
     const subInitState = subIsolatedState ? subInitialState : undefined
     let lense = this.createSubComponentLense(stateField, 'Sub-component', subInitState)
+    // B-008: isolatedState without a `state` prop = state local to this instance; the
+    // parent's state is never replaced. It's kept off the parent's state stream (1H-9): the
+    // child's reducers are applied below and feed its own state source, so a child write
+    // doesn't produce a new parent state. Until the child first writes (INITIALIZE; never,
+    // without a model) it reads the parent's state, as before.
+    let local: any, local$: any
     if (subIsolatedState && typeof stateField === 'undefined') {
-      // B-008: isolatedState without a `state` prop = state local to this instance; the
-      // parent's state is never replaced. set() returns a shallow copy of the parent state
-      // so the state stream re-emits and the child sees its update (the content is unchanged).
-      // Until the child first writes (INITIALIZE; never, without a model) it reads the
-      // parent's state, as before.
-      let local: any
-      lense = {
-        get: (parentState: any) => local === undefined ? parentState : local,
-        set: (parentState: any, childState: any) => {
-          local = childState
-          return isObj(parentState) ? { ...parentState } : parentState
-        },
-      }
+      local$ = xs.create()
+      stateSource = new StateSource(xs.merge(state$.filter(() => local === undefined), local$), this.stateSourceName)
     }
 
-    const sources: Record<string, any> = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$, __parentContext$: this.context$, __parentComponentNumber: this._componentNumber, __collectionItem: false }
+    const sources: Record<string, any> = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$, __parentContext$: this.context$, __parentComponentNumber: this._componentNumber }
+    lense = local$ ? null : this.withCalculated(lense)
 
     // Detect Command objects in props and expose as commands$ source
     for (const key of Object.keys(props)) {
@@ -1629,6 +1636,11 @@ class Component {
     if (!isObj(sink$)) {
       const name = componentName === 'sygnal-factory' ? 'custom element' : componentName
       fail('SYG903', this, `Factory for ${name} returned invalid sinks`, 'Return a sinks object')
+    }
+    if (local$ && sink$[this.stateSourceName]) {
+      sink$[this.stateSourceName] = sink$[this.stateSourceName]
+        .map((reducer: any) => local$.shamefullySendNext(local = reducer(local === undefined ? this.addCalculated(this.currentState) : local)))
+        .filter(() => false)
     }
 
     return sink$

@@ -490,12 +490,12 @@ describe('G-024: renderComponent reports isolation-boundary (SYG104) and typo (S
 describe('B-004: controlledInputModule', () => {
   const vn = (props, elm) => ({ data: { props }, elm })
   it('rewrites value/checked when the prop is unchanged but the live element differs', () => {
-    const elm = { value: 'typed', checked: true }
+    const elm = { tagName: 'INPUT', value: 'typed', checked: true }
     controlledInputModule.update(vn({ value: '', checked: false }), vn({ value: '', checked: false }, elm))
-    expect(elm).toEqual({ value: '', checked: false })
+    expect(elm).toEqual({ tagName: 'INPUT', value: '', checked: false })
   })
   it('leaves matching elements, null props and changed props (propsModule handles those) alone', () => {
-    const elm = { value: '5', checked: false }
+    const elm = { tagName: 'INPUT', value: '5', checked: false }
     let writes = 0
     const spy = new Proxy(elm, { set: (o, k, v) => { writes++; o[k] = v; return true } })
     controlledInputModule.update(vn({ value: 5 }), vn({ value: 5 }, spy))

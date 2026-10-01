@@ -68,13 +68,14 @@ describe("legacy helpers in 'off' mode (production default)", () => {
 })
 
 describe('legacy helpers with diagnostics enabled', () => {
-  it("'collect' mode routes through report(): collected, nothing printed", () => {
+  it("'collect' mode routes through report(): collected; error severity is still printed (1H-2), warn isn't", () => {
     configureDiagnostics({ mode: 'collect' })
     const err = new Error('boom')
     warn('SYG213', { name: 'Comp' }, 'dup', 'fix it')
     error('SYG216', 'Comp', "Reducer for 'A' threw; state unchanged", undefined, err)
     expect(warnSpy).not.toHaveBeenCalled()
-    expect(errorSpy).not.toHaveBeenCalled()
+    expect(errorSpy).toHaveBeenCalledTimes(1)
+    expect(errorSpy.mock.calls[0]).toEqual([formatDiagnostic('SYG216', { component: 'Comp', message: "Reducer for 'A' threw; state unchanged" }), err])
     const ds = getDiagnostics()
     expect(ds.map(d => [d.code, d.severity, d.component])).toEqual([
       ['SYG213', 'warn', 'Comp'],
@@ -173,7 +174,7 @@ describe('retrofitted call sites', () => {
     t.dispose()
   })
 
-  it("a throwing view is collected (not printed) in 'collect' mode", async () => {
+  it("a throwing view is collected and printed in 'collect' mode (1H-2)", async () => {
     configureDiagnostics({ mode: 'collect' })
     function Broken2() { throw new Error('view boom') }
     Broken2.initialState = { a: 1 }
@@ -182,7 +183,9 @@ describe('retrofitted call sites', () => {
     const d = getDiagnostics().find(d => d.code === 'SYG406')
     expect(d.component).toBe('Broken2')
     expect(d.data).toBeInstanceOf(Error)
-    expect(errorSpy.mock.calls.some(c => String(c[0]).includes('SYG406'))).toBe(false)
+    const printed = errorSpy.mock.calls.filter(c => String(c[0]).includes('SYG406'))
+    expect(printed.length).toBe(1)
+    expect(printed[0][1]).toBe(d.data)
     t.dispose()
   })
 

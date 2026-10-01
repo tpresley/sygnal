@@ -13,7 +13,8 @@
  * Unlike report(), warn()/error() keep printing when diagnostics are 'off',
  * so production apps see the same messages as before (now with a code):
  *   - 'off'     → console.warn/error(formatDiagnostic(...), extra?)
- *   - 'collect' → report(): collected, nothing printed
+ *   - 'collect' → report(): collected; error severity is also printed with
+ *                 console.error (so exceptions stay visible in tests), warn isn't
  *   - 'warn'    → report(): collected and printed once by report(); `extra`
  *                 (e.g. the caught Error with its stack) printed after it
  *   - 'error'   → report() throws a DiagnosticError; it is rethrown
@@ -40,7 +41,9 @@ const emit = (severity: Extract<DiagnosticSeverity, 'warn' | 'error'>) =>
       return
     }
     try {
-      if (report(code, details) && mode === 'warn' && extra.length) console[severity](...extra)
+      const d = report(code, details)
+      if (d && mode === 'collect' && severity === 'error') console.error(d.text, ...extra)
+      else if (d && mode === 'warn' && extra.length) console[severity](...extra)
     } catch (err) {
       setTimeout(() => { throw err })
     }
