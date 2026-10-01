@@ -9,13 +9,23 @@ import { check } from '../src/index.js'
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 
+// Known true positives, left in place until the examples are migrated (PLAN-1 2D):
+// kanban's lane title input saves on blur/Enter only (SYG111, D25).
+const KNOWN = new Set(['SYG111 examples/kanban/src/LaneComponent.jsx LaneComponent'])
+const key = d => `${d.code} ${d.file} ${d.component}`
+
 describe('repo examples', () => {
   for (const ex of ['examples/kanban/src', 'examples/todomvc', 'examples/ts-example-2048/src', 'examples/getting-started/src']) {
     it(`${ex} has no warnings`, () => {
       const diags = check([ex], { cwd: repo })
-      expect(diags.filter(d => d.severity !== 'info')).toEqual([])
+      expect(diags.filter(d => d.severity !== 'info' && !KNOWN.has(key(d)))).toEqual([])
     })
   }
+
+  it('reports the known SYG111 in kanban (lane title saved on blur/Enter)', () => {
+    const hits = check(['examples/kanban/src'], { cwd: repo }).filter(d => d.code === 'SYG111')
+    expect(hits.map(d => `${d.file}:${d.line} ${d.data.selector}`)).toEqual(['examples/kanban/src/LaneComponent.jsx:15 .lane-title-input'])
+  })
 
   it('checks examples/kanban in under 2 s', () => {
     const t0 = performance.now()

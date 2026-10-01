@@ -59,7 +59,7 @@ describe('cli', () => {
   })
 
   it('defaults to ./src', () => {
-    const r = run([], path.resolve(pkgRoot, '..', 'examples', 'kanban'))
+    const r = run([], path.resolve(pkgRoot, '..', 'examples', 'getting-started'))
     expect(r.err).toBe('')
     expect(r.code).toBe(0)
   })
