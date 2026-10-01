@@ -105,8 +105,8 @@ function App({ state } = {}) {
       </section>
       {/* Test 7: Commands */}
       <section className="test-section">
-        <h2>Test 7: Commands + EFFECT + Shorthand</h2>
-        <p>Parent sends commands via EFFECT sink using model shorthand (<code>'ACTION | EFFECT'</code>). No ABORT needed.</p>
+        <h2>Test 7: Commands + EFFECT</h2>
+        <p>Parent sends commands from an EFFECT sink (<code>ACTION: {'{'} EFFECT: () =&gt; cmd.send(...) {'}'}</code>). No ABORT needed.</p>
         <div className="controls">
           <button type="button" className="send-command">Send Increment</button>
           <button type="button" className="send-reset">Send Reset</button>
@@ -249,8 +249,8 @@ App.model = {
   TOGGLE_BAD_CHILD: (state) => ({ ...state, showBadChild: !state.showBadChild }),
   TOGGLE_GOOD_CHILD: (state) => ({ ...state, showGoodChild: !state.showGoodChild }),
   INTERNAL_CLICK: (state) => ({ ...state, internalClicks: state.internalClicks + 1 }),
-  'SEND_COMMAND | EFFECT': () => counterCmd.send('increment'),
-  'SEND_RESET | EFFECT':   () => counterCmd.send('reset'),
+  SEND_COMMAND: { EFFECT: () => counterCmd.send('increment') },
+  SEND_RESET: { EFFECT: () => counterCmd.send('reset') },
   ADD_ITEM: (state) => ({
     ...state,
     items: [...state.items, { id: state.nextItemId, ticks: 0 }],

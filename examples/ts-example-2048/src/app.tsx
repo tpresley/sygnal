@@ -1,6 +1,6 @@
 import { xs, Collection, ABORT, exactState } from 'sygnal'
-import type { RootComponent } from 'sygnal'
-import { AppState, AppActions, Directions } from './types'
+import type { RootComponent, IntentSources, ActionsOf } from 'sygnal'
+import { AppState, Directions } from './types'
 import { addTile, shift, hasValidMove } from './lib/utils'
 import Tile from './tile'
 
@@ -28,11 +28,15 @@ const INITIAL_STATE: AppState = {
 
 const asAppState = exactState<AppState>()
 
+// action names and payload types, derived from the intent (defined below) with ActionsOf
+// - ADD_TILE is only reached through next(), so it is added explicitly
+type AppActions = ActionsOf<typeof intent> & { ADD_TILE: null }
+
 
 // the main function is the 'view' and receives the current state which is always accessible 
-// through the 'state' key, and is also aliased to the state driver name ('STATE' by default)
+// through the 'state' key of its first argument (along with 'context' and any props)
 // - this function must return Virtual DOM elements (JSX)
-const BOARD: RootComponent<AppState, null, AppActions> = (_props, state) => {
+const BOARD: RootComponent<AppState, null, AppActions> = ({ state }) => {
   // use destrucuring to get both native and calculated values from the current state
   const { score, max, over, won } = state
 
@@ -170,7 +174,7 @@ BOARD.model = {
 //   + EVENTS
 //   + LOG
 // - additional drivers (for networking for example) can be added in the 2nd parameter of 'run()'
-BOARD.intent = ({ DOM }) => {
+function intent({ DOM }: IntentSources<AppState>) {
   // the DOM source has .select() and .events() methods for listening to user actions in the browser
   // the .select() method can be passed any valid CSS selector to locate DOM elements
   // it is convention to use class names, but HTML id's or attribute selectors work just as well
@@ -222,5 +226,7 @@ BOARD.intent = ({ DOM }) => {
     MOVE:    move$
   }
 }
+
+BOARD.intent = intent
 
 export default BOARD

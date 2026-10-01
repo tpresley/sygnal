@@ -15,4 +15,8 @@ export default defineConfig({
   server: {
     port: 5173
   },
+  test: {
+    // relative to `root` ('src')
+    include: ['**/*.test.{ts,tsx}'],
+  },
 })

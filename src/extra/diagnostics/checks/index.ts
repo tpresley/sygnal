@@ -24,6 +24,7 @@
  * | SYG501 | strict: view uses positional (props, state, ...) args  | strict.ts      |
  * | SYG502 | strict: STATE reducer returned the unchanged state     | strict.ts      |
  * | SYG504 | strict: 'ACTION | SINK' shorthand model key           | strict.ts      |
+ * | —      | inspect(): the runtime app graph (2B)                  | inspect.ts     |
  *
  * Strict checks (SYG5xx) only report after configureStrict(true) (or
  * renderComponent(C, { strict: true }), or globalThis.__SYGNAL_STRICT__).
@@ -39,11 +40,14 @@ import {collectionsCheck} from './collections'
 import {domCheck} from './dom'
 import {strictCheck} from './strict'
 import {installRxjsHints} from './rxjsHints'
+import {inspectCheck, installInspect} from './inspect'
 
 export {checkEventBus} from './events'
 export {configureStrict, isStrictEnabled} from './strict'
 export type {EventBusSummary} from './events'
 export {RXJS_HINTS} from './rxjsHints'
+export {inspect} from './inspect'
+export type {InspectGraph, InspectComponent, InspectAction, InspectActionTrigger, InspectChild, InspectSelector, InspectDiagnostic, InspectOptions} from './public'
 export {listCodes, getCodeInfo} from '../codes'
 export type {DiagnosticCodeInfo} from '../codes'
 
@@ -56,6 +60,7 @@ export const checks: DiagnosticCheck[] = [
   collectionsCheck,
   domCheck,
   strictCheck,
+  inspectCheck,
 ]
 
 /**
@@ -69,9 +74,11 @@ export function installChecks(): () => void {
   if (typeof core.__uninstallChecks === 'function') core.__uninstallChecks()
   const unregister = checks.map(check => core.registerCheck(check))
   const uninstallHints = installRxjsHints(Stream && Stream.prototype)
+  const uninstallInspect = installInspect()
   const uninstall = () => {
     unregister.forEach(fn => fn())
     uninstallHints()
+    uninstallInspect()
     if (core.__uninstallChecks === uninstall) core.__uninstallChecks = undefined
   }
   core.__uninstallChecks = uninstall

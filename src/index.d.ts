@@ -2,6 +2,7 @@ import type { MainDOMSource } from './cycle/dom/MainDOMSource'
 import type { EnrichedEventStream } from './cycle/dom/enrichEventStream'
 import type { StateSource } from './cycle/state/index'
 import xsDefault from 'xstream'
+import type { InspectGraph } from './extra/diagnostics/checks/public'
 import type { MemoryStream, Stream } from 'xstream'
 
 export declare const ABORT: unique symbol
@@ -543,6 +544,35 @@ export function clearDiagnostics(): void
 /** Subscribe to diagnostics as they are reported. Returns an unsubscribe function. */
 export function onDiagnostic(callback: (diagnostic: Diagnostic) => void): () => void
 
+export type {
+  InspectGraph,
+  InspectComponent,
+  InspectAction,
+  InspectActionTrigger,
+  InspectChild,
+  InspectSelector,
+  InspectDiagnostic,
+} from './extra/diagnostics/checks/public'
+
+/**
+ * The Sygnal DevTools bridge (also `window.__SYGNAL_DEVTOOLS__` once run() has
+ * initialized it in a browser). Only the stable, documented members are typed.
+ */
+export interface SygnalDevTools {
+  /** true while the browser extension is connected */
+  readonly connected: boolean
+  /** Diagnostics collected so far (same as getDiagnostics()) */
+  getDiagnostics(): Diagnostic[]
+  /**
+   * The machine-readable app graph of the live components. Present only when the
+   * 'sygnal/diagnostics' dev entry is loaded (it attaches this method); needs diagnostics on.
+   */
+  inspect?(): InspectGraph
+}
+
+/** The DevTools bridge singleton. */
+export function getDevTools(): SygnalDevTools | undefined
+
 export type SygnalSinks<STATE = any, DRIVERS = {}> = {
   [SINK_NAME in keyof (DefaultDrivers<STATE> & FixDrivers<DRIVERS>) | string]?: Stream<any>
 }
@@ -963,6 +993,11 @@ export interface RenderResult {
   html: () => string;
   /** Tear down the component, clean up listeners and restore the diagnostics mode */
   dispose: () => void;
+  /**
+   * The app graph of the rendered tree (components, actions, selectors with the mock DOM's
+   * match / isolation results, EVENTS, diagnostics). Throws unless 'sygnal/diagnostics' is loaded.
+   */
+  inspect: () => InspectGraph;
 }
 
 export function renderComponent(componentDef: any, options?: RenderOptions): RenderResult

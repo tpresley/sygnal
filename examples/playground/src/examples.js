@@ -86,7 +86,7 @@ Component.intent = ({ DOM }) => ({
 Component.model = {
   UPDATE_TEXT: (state, text) => ({ ...state, text }),
   ADD: (state) => {
-    if (!state.text.trim()) return state
+    if (!state.text.trim()) return ABORT
     return {
       ...state,
       text: '',

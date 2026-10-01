@@ -36,7 +36,7 @@ export async function diagnosticsTests() {
       return <div className="app"><Collection of={TodoItem} from="todos" /><p className="count">{state.todos.length}</p></div>
     }
     App.initialState = { todos: [{ id: 1, title: 'a' }, { id: 2, title: 'b' }] }
-    App.intent = ({ DOM }) => ({ REMOVE: DOM.click('.remove') })
+    App.intent = ({ DOM }) => ({ REMOVE: DOM.click('.remove') }) // sygnal-ignore SYG104 (deliberate bug: this test asserts the runtime reports SYG104)
     App.model = { REMOVE: (state) => state }
     const app = run(App, {}, { mountPoint: id, diagnostics: 'collect' })
     try {
@@ -59,7 +59,7 @@ export async function diagnosticsTests() {
     function Toolbar() { return <div className="toolbar"><button className="save">Save</button></div> }
     function Editor() { return <div className="editor"><Toolbar state="toolbar" /></div> }
     Editor.initialState = { toolbar: {} }
-    Editor.intent = ({ DOM }) => ({ SAVE: DOM.select('.save').events('click') })
+    Editor.intent = ({ DOM }) => ({ SAVE: DOM.select('.save').events('click') }) // sygnal-ignore SYG104 (deliberate bug: this test asserts the runtime reports SYG104)
     Editor.model = { SAVE: (state) => state }
     const app = run(Editor, {}, { mountPoint: id, diagnostics: 'collect' })
     try {
@@ -123,7 +123,7 @@ export async function diagnosticsTests() {
     App.initialState = { draft: '' }
     App.intent = ({ DOM }) => ({
       SET_DRAFT: DOM.input('.new-todo-title').map(e => e.target.value),
-      ADD: DOM.click('.add-todo-button'),
+      ADD: DOM.click('.add-todo-button'), // sygnal-ignore SYG110 (deliberate bug: this test asserts the runtime reports SYG110)
     })
     App.model = {
       SET_DRAFT: (state, draft) => ({ ...state, draft }),
