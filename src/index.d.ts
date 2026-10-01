@@ -326,11 +326,63 @@ export type SlotProps = {
 
 export type ClassesType = (string | string[] | { [className: string]: boolean | undefined })[]
 
+/**
+ * Diagnostics mode.
+ * - 'off'     — no checks, no collection (default in production)
+ * - 'collect' — collect diagnostics silently (read with getDiagnostics())
+ * - 'warn'    — collect and print warn/error diagnostics to the console (default in Vite dev)
+ * - 'error'   — collect and throw on warn/error diagnostics
+ */
+export type DiagnosticsMode = 'off' | 'collect' | 'warn' | 'error'
+
+/** Stable diagnostic code, e.g. 'SYG101'. See https://sygnal.js.org/reference/errors */
+export type DiagnosticCode = `SYG${number}`
+
+export type DiagnosticSeverity = 'error' | 'warn' | 'info'
+
+export type Diagnostic = {
+  code: DiagnosticCode;
+  severity: DiagnosticSeverity;
+  /** Name of the component the diagnostic is about */
+  component?: string;
+  /** What is wrong */
+  message: string;
+  /** How to fix it */
+  fix?: string;
+  /** Structured payload (check-specific) */
+  data?: any;
+  /** Link to the docs entry for this code */
+  docsUrl: string;
+  /** Fully formatted message: `[Sygnal SYG123] Component: message. fix docsUrl` */
+  text: string;
+  timestamp: number;
+}
+
+export type DiagnosticsOptions = {
+  mode?: DiagnosticsMode;
+  /** Codes to ignore entirely */
+  ignore?: DiagnosticCode[];
+}
+
 export type RunOptions = {
   mountPoint?: string;
   fragments?: boolean;
   useDefaultDrivers?: boolean;
+  /**
+   * Runtime diagnostics. Takes precedence over `globalThis.__SYGNAL_DEV__`
+   * (set by the Sygnal Vite plugin in dev), which enables 'warn'. Default: 'off'.
+   */
+  diagnostics?: DiagnosticsMode | DiagnosticsOptions;
 }
+
+/** All diagnostics collected so far (most recent last). */
+export function getDiagnostics(): Diagnostic[]
+
+/** Clear the collected diagnostics. */
+export function clearDiagnostics(): void
+
+/** Subscribe to diagnostics as they are reported. Returns an unsubscribe function. */
+export function onDiagnostic(callback: (diagnostic: Diagnostic) => void): () => void
 
 export type SygnalSinks<STATE = any, DRIVERS = {}> = {
   [SINK_NAME in keyof (DefaultDrivers<STATE> & FixDrivers<DRIVERS>) | string]?: Stream<any>
