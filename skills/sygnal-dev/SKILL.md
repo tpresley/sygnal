@@ -19,20 +19,20 @@ Less common features (Portals, Transitions, Suspense/lazy, Slots, forms, drag-an
 
 ## 1. Workflow
 
-**New app**: `npm create sygnal-app my-app -- --template vite` (or `vite-pwa`, `vike`, `astro`; add `--ts`). Or add Sygnal to a Vite app: `npm i sygnal`, `npm i -D sygnal-check vitest`, `plugins: [sygnal()]` from `'sygnal/vite'`, and `run(App)` in `src/main.js` (see §9).
+**New app** (no prompts): `npm create sygnal-app@latest my-app -- --template vite --js --install` (templates `vite`, `vite-pwa`, `vike`, `astro`; `--ts` for TypeScript). Or add Sygnal to a Vite app: `npm i sygnal`, `npm i -D vitest`, `plugins: [sygnal()]` from `'sygnal/vite'`, and `run(App)` in `src/main.js` (see §9).
 
 **Add a feature** (in this order):
 1. **State**: add the fields to the root `initialState` (children get state from their parent).
 2. **Intent**: name the action and its trigger (`DOM.click('.save')`, `EVENTS.select('X')`, `CHILD.select(Child)`).
 3. **Model**: one entry per action; one function per sink (`STATE`, `EVENTS`, `PARENT`, `EFFECT`, drivers).
 4. **View**: render from `state` / `context`; add the class names the intent selects.
-5. **Test**: `renderComponent(C, { strict: true })` + `simulateEvent` + `t.next` + `expectNoDiagnostics()` (§7). Run `npm test`, then `npx sygnal-check --strict`. (not installed? `npm i -D sygnal-check`).
+5. **Test**: `renderComponent(C, { strict: true })` + `simulateEvent` + `t.next` + `expectNoDiagnostics()` (§7). Run `npm test`, then `npx --no-install sygnal-check --strict` (Vike: `npx --no-install sygnal-check pages --strict`). Not installed? Skip it and rely on the runtime diagnostics in the tests.
 
 **Debugging loop**:
 1. Run the tests (`npm test`) and read every `[Sygnal SYGnnn]` line (tests, console, or Vite terminal).
-2. `npx sygnal-check explain SYGnnn` says what the code means and how to fix it.
-3. Still unclear? Look at the wiring: `t.inspect()` in a test or `npx sygnal-check --graph --json` (components, actions and triggers, selectors with `matched` / `isolationHit`, EVENTS emitters and selectors).
-4. Fix, re-run the tests, then `npx sygnal-check --strict` until it reports nothing.
+2. `npx --no-install sygnal-check explain SYGnnn` (or https://sygnal.js.org/reference/errors) says what the code means and how to fix it.
+3. Still unclear? Look at the wiring: `t.inspect()` in a test or `npx --no-install sygnal-check --graph --json` (components, actions and triggers, selectors with `matched` / `isolationHit`, EVENTS emitters and selectors).
+4. Fix, re-run the tests, then `npx --no-install sygnal-check --strict` until it reports nothing.
 5. Silent no-op (a click does nothing, no error)? It is almost always one of the wiring rules in §5.
 
 ## 2. Mental model and component anatomy
@@ -291,12 +291,12 @@ it('counts in the real DOM', async () => {
 ```
 
 ## 8. Diagnostics and tools
-- Format: `[Sygnal SYG104] Lane: <what is wrong>. <how to fix> https://sygnal.js.org/reference/errors#syg104`. Severities error/warn/info. 1xx wiring, 2xx model/state, 3xx streams (SYG301: RxJS operator on an xstream stream), 4xx components, 5xx strict.
-- `npx sygnal-check` (dev dependency `sygnal-check`) checks `src` statically. Use `--strict` for canonical forms, `--fix` to apply the mechanical rewrites (implies `--strict`), and `--json` / `--verbose` for output. `npx sygnal-check explain SYG104` explains a code and its fix. Suppress one line with `// sygnal-ignore SYG110`.
-- App graph: `npx sygnal-check --graph --json` (static), `t.inspect()` (test), `getDevTools().inspect()` (running dev app). All return the same `InspectGraph`: components, actions and their triggers, selectors (`matched`, `isolationHit`), EVENTS emitters/selectors, diagnostics.
-- Vite plugin in dev (`vite`, never `vite build`): runtime checks print warnings to the console, and sygnal-check runs on start and on every save. Stricter: `sygnal({ diagnostics: { mode: 'error', strict: true }, check: { strict: true } })`.
+- Format: `[Sygnal SYG104] Lane: <what is wrong>. <how to fix> https://sygnal.js.org/reference/errors#syg104`. Severities error/warn/info. 1xx wiring, 2xx model/state, 3xx streams (SYG301: RxJS operator on an xstream stream), 4xx components (Collection, Switchable, context), 5xx strict, 6xx drivers and setup, 9xx internal.
+- `npx --no-install sygnal-check` runs the locally installed checker (dev dependency `sygnal-check`; not installed? skip it and rely on the runtime diagnostics in the tests). It checks `src` statically; pass other paths instead, e.g. `npx --no-install sygnal-check pages --strict` (Vike). Use `--strict` for canonical forms, `--fix` to apply the mechanical rewrites (implies `--strict`), and `--json` / `--verbose` for output. `npx --no-install sygnal-check explain SYG104` explains a code and its fix. Suppress one line with `// sygnal-ignore SYG110`.
+- App graph: `npx --no-install sygnal-check --graph --json` (static), `t.inspect()` (test), `getDevTools().inspect()` (running dev app). All return the same `InspectGraph`: components, actions and their triggers, selectors (`matched`, `isolationHit`), EVENTS emitters/selectors, diagnostics.
+- Vite plugin in dev (`vite`, never `vite build`): runtime checks print warnings to the console; when `sygnal-check` is installed, the plugin also runs it on start and on every save. Stricter: `sygnal({ diagnostics: { mode: 'error', strict: true }, check: { strict: true } })`.
 - Without the plugin: `run(App, drivers, { diagnostics: 'warn' })` and `import 'sygnal/diagnostics'` for the full checks. Runtime strict: `configureStrict(true)` from `'sygnal/diagnostics'`, or `renderComponent(C, { strict: true })`.
-- MCP: `claude mcp add sygnal-check -- npx sygnal-check mcp` (tools `check`, `graph`, `explain`).
+- MCP: `claude mcp add sygnal-check -- npx --no-install sygnal-check mcp` (tools `check`, `graph`, `explain`).
 
 ## 9. Project setup (Vite)
 ```
@@ -322,5 +322,5 @@ Conventions: PascalCase component files, ALL_CAPS action names, `$` suffix for s
 ## 10. Where to look next
 - `references/component-patterns.md`: Switchable routing, forms (`processForm`), Portals, Transitions, Slots, Suspense/lazy, refs, drag-and-drop, PWA helpers, SSR/hydration, Astro, Vike, TypeScript.
 - Full spec: `node_modules/sygnal/llms.txt` / https://sygnal.js.org/llms.txt.
-- Error reference (every SYG code): https://sygnal.js.org/reference/errors (or `npx sygnal-check explain SYGnnn`).
+- Error reference (every SYG code): https://sygnal.js.org/reference/errors (or `npx --no-install sygnal-check explain SYGnnn`).
 - Guides: https://sygnal.js.org/guide/components/, testing: https://sygnal.js.org/integration/testing/, API: https://sygnal.js.org/reference/api/.

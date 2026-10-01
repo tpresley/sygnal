@@ -24,7 +24,7 @@ Every runtime diagnostic is printed as one line:
 That is `[Sygnal CODE] Component: message. fix. link`. The code is stable across versions, so you can search for it, ignore it, or look it up:
 
 ```bash
-npx sygnal-check explain SYG101
+npx --no-install sygnal-check explain SYG101
 ```
 
 `sygnal-check` uses the same codes, prefixed with the location: `src/Form.jsx:12:9 SYG101 Form: …`.
@@ -182,10 +182,10 @@ Things to look for in a graph:
 
 ```bash
 npm install -D sygnal-check
-npx sygnal-check              # checks ./src
-npx sygnal-check --strict     # plus the canonical-form rules
-npx sygnal-check --graph      # the app graph
-npx sygnal-check explain SYG104
+npx --no-install sygnal-check            # checks ./src (or pass paths: pages, renderer, ...)
+npx --no-install sygnal-check --strict   # plus the canonical-form rules
+npx --no-install sygnal-check --graph    # the app graph
+npx --no-install sygnal-check explain SYG104
 ```
 
 It exits with code 1 when it finds a warning or error, so it works as a CI step. See [Building with AI Agents](/integration/agents/#sygnal-check) for the full command list and the MCP server.

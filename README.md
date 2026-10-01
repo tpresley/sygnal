@@ -26,7 +26,7 @@ cd my-app
 npm run dev
 ```
 
-Choose from Vite (SPA), Vite + PWA, Vike (SSR), or Astro templates in JavaScript or TypeScript.
+Choose from Vite (SPA), Vite + PWA, Vike (SSR), or Astro templates in JavaScript or TypeScript. Without prompts (scripts, CI, coding agents): `npm create sygnal-app@latest my-app -- --template vite --js --install`.
 
 **Or add to an existing project:**
 
@@ -80,7 +80,7 @@ Sygnal includes tooling so that coding agents (and people) can write and debug S
 - **[`llms.txt`](https://sygnal.js.org/llms.txt)**: one compact reference of the API in its canonical forms, written for language models.
 - **Diagnostics**: silent wiring mistakes (a selector that matches nothing, an action with no model entry, an EVENTS type nobody selects) are reported as coded messages, such as `[Sygnal SYG104]`, with a fix and a link to the [error reference](https://sygnal.js.org/reference/errors/). They're on automatically in the Vite dev server and in tests, and add nothing to production bundles.
 - **[`sygnal-check`](./sygnal-check)**: a static checker for the same mistakes, with a strict mode for the canonical forms, `--fix`, an app graph (`--graph`) and `explain <code>`.
-- **MCP server**: `sygnal-check mcp` exposes `check`, `graph` and `explain` as tools (`claude mcp add sygnal-check -- npx sygnal-check mcp`).
+- **MCP server**: `sygnal-check mcp` exposes `check`, `graph` and `explain` as tools (`claude mcp add sygnal-check -- npx --no-install sygnal-check mcp`).
 - **`inspect()`**: a machine-readable graph of the running app, in the browser or from `renderComponent()` in a test.
 
 The repository also contains an evaluation harness ([`evals/agent-ergonomics`](./evals/agent-ergonomics)) that runs coding agents on the same tasks in a Sygnal app and an equivalent React app, scores each run with hidden acceptance tests, and records time and iteration counts. The baseline results, from before this tooling existed, are in [`results/BASELINE.md`](./evals/agent-ergonomics/results/BASELINE.md).

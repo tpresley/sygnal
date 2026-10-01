@@ -1311,7 +1311,7 @@ DOM.click('.item').data('id', Number)    // Parse data attribute as number
 |--------|----------|-------|
 | `.value(fn?)` | `e.target.value` | For input/textarea/select |
 | `.checked(fn?)` | `e.target.checked` | For checkboxes |
-| `.data(name, fn?)` | `e.target.dataset[name]` | Walks up via `closest([data-name])` |
+| `.data(name, fn?)` | `dataset[name]` of `e.target` or its nearest ancestor with the attribute | `name` camelCase or kebab-case: `'taskId'` and `'task-id'` both read `data-task-id` (via `closest('[data-task-id]')`) |
 | `.key(fn?)` | `e.key` | For keyboard events |
 | `.target(fn?)` | `e.target` | The DOM element |
 

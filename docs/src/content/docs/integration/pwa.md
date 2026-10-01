@@ -189,7 +189,7 @@ All three helpers are SSR-safe:
 Scaffold a complete PWA project with `create-sygnal-app`:
 
 ```bash
-npm create sygnal-app my-app --template vite-pwa --ts
+npm create sygnal-app@latest my-app -- --template vite-pwa --ts --install
 ```
 
 The template includes a service worker, web manifest, app icons, offline indicator, update banner, and install button — all wired up and ready to go.
