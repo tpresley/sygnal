@@ -408,6 +408,12 @@ export type Component<
   model?: ComponentModel<STATE, PROPS, FixDrivers<DRIVERS>, ACTIONS, CALCULATED, SINK_RETURNS, CONTEXT>;
   intent?: ComponentIntent<STATE & CALCULATED, FixDrivers<DRIVERS>, ACTIONS>;
   initialState?: STATE;
+  /**
+   * Give a sub-component its own state instead of the slice its parent passes in.
+   * Required to use `initialState` on a sub-component (otherwise SYG405). Without a
+   * `state` prop the state is local to the instance and never written to the parent.
+   */
+  isolatedState?: boolean;
   calculated?: Calculated<STATE, CALCULATED>;
   storeCalculatedInState?: boolean;
   context?: Context<STATE & CALCULATED, CONTEXT>;
@@ -459,7 +465,13 @@ export type CollectionProps<PROPS = any, STATE = any> = {
   from: CollectionFrom<STATE>;
   filter?: Filter;
   sort?: string | SortFunction | SortObject;
-} & Omit<PROPS, 'of' | 'from' | 'filter' | 'sort'>
+  /**
+   * Item field used as the key that tracks each item (its component instance, isolation
+   * scope and DOM) across updates. Items are keyed by `id` by default; keys should be
+   * unique and stable (an item without the field is keyed by its index).
+   */
+  idfield?: string;
+} & Omit<PROPS, 'of' | 'from' | 'filter' | 'sort' | 'idfield'>
 
 export type SwitchableProps<PROPS = any> = {
   of: Record<string, AnyComponent>;
@@ -1052,6 +1064,9 @@ export { default as throttle } from 'xstream/extra/throttle.js'
 export { default as delay } from 'xstream/extra/delay.js'
 export { default as dropRepeats } from 'xstream/extra/dropRepeats.js'
 export { default as sampleCombine } from 'xstream/extra/sampleCombine.js'
+export { default as flattenConcurrently } from 'xstream/extra/flattenConcurrently.js'
+export { default as flattenSequentially } from 'xstream/extra/flattenSequentially.js'
+export { default as concat } from 'xstream/extra/concat.js'
 
 export * from './cycle/dom/index'
 export type { MemoryStream, Stream }

@@ -15,6 +15,7 @@ import { bugfixTests } from './tests/bugfixes.jsx'
 import { bugfixTests1G } from './tests/bugfixes-1g.jsx'
 import { bugfixTests1H } from './tests/bugfixes-1h.jsx'
 import { reviewTests2E2 } from './tests/review-2e2.jsx'
+import { apiFixTests3D } from './tests/api-fixes-3d.jsx'
 import { getResults } from './harness.js'
 
 async function runAll() {
@@ -35,6 +36,7 @@ async function runAll() {
   await bugfixTests1G()
   await bugfixTests1H()
   await reviewTests2E2()
+  await apiFixTests3D()
 
   const results = getResults()
   const passed = results.filter(r => r.status === 'pass').length

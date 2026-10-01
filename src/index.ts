@@ -37,3 +37,7 @@ export { default as throttle } from 'xstream/extra/throttle.js'
 export { default as delay } from "xstream/extra/delay.js"
 export { default as dropRepeats } from "xstream/extra/dropRepeats.js"
 export { default as sampleCombine } from 'xstream/extra/sampleCombine.js'
+// ESM ports (the CJS xstream/extra modules would ship even when unused)
+export { flattenConcurrently, flattenSequentially } from './extra/flatten'
+// concat is already in every app (used by the DOM driver and withState)
+export { default as concat } from 'xstream/extra/concat.js'

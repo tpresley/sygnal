@@ -175,7 +175,7 @@ A driver is any function `sink$ => source`. Page-wide events: `DOM.select('docum
 - **ABORT**: from a STATE reducer, the state is unchanged; from any other sink, nothing is sent.
 - **Focus**: `blur`/`focus` don't bubble, but `DOM.blur('.field')` and `DOM.focus('.field')` work (listener on the element). For any field inside a container use the bubbling `DOM.focusout('.form')` / `DOM.focusin`.
 - **Shorthands**: `DOM.<event>('.sel')` = `DOM.select('.sel').events('<event>')` for every event name.
-- **Enriched streams** (chainable, optional mapper): `.value(fn?)` e.target.value; `.checked(fn?)` boolean; `.key(fn?)` e.key; `.target(fn?)`; `.data('id', Number)` reads `data-id` on the target or its nearest ancestor that has it (JSX: `data={{ id: 7 }}`; use one-word names).
+- **Enriched streams** (chainable, optional mapper): `.value(fn?)` e.target.value; `.checked(fn?)` boolean; `.key(fn?)` e.key; `.target(fn?)`; `.data('id', Number)` reads `data-id` on the target or its nearest ancestor that has it (JSX: `data={{ id: 7 }}`). camelCase names map to kebab-case attributes: `.data('taskId')` reads `data-task-id` (`data={{ taskId }}`).
 - **xstream**: `xs.merge/combine/of/periodic/never/fromPromise`; methods `map mapTo filter startWith fold take drop last endWhen flatten compose remember replaceError debug`. From `'sygnal'`, used with `.compose(...)`: `debounce(ms) throttle(ms) delay(ms) dropRepeats() sampleCombine(other$)`.
 
 | RxJS | xstream | RxJS | xstream |
@@ -188,7 +188,7 @@ A driver is any function `sink$ => source`. Page-wide events: `DOM.select('docum
 | `takeUntil(b$)` | `.endWhen(b$)` | `tap(f)` | `.debug(f)` |
 | `catchError(f)` | `.replaceError(f)` | `shareReplay(1)` | `.remember()` |
 | `mergeMap(f)` | `.map(f).compose(flattenConcurrently)` | `concatMap(f)` | `.map(f).compose(flattenSequentially)` |
-(Last row: `import flattenConcurrently from 'xstream/extra/flattenConcurrently'`, likewise `flattenSequentially`, `concat`.)
+(Last row: `import { flattenConcurrently, flattenSequentially, concat } from 'sygnal'`.)
 
 ## 5. Wiring rules (silent failures, and what catches them)
 - **Selectors are scoped to the component's own JSX.** A parent's `DOM.click('.remove')` never fires for `.remove` rendered by a child or a Collection item. Handle the event in the child and send it up with `PARENT` (read with `CHILD.select(Child)`) or `EVENTS`. Caught as SYG104; a selector the view never renders is SYG110.

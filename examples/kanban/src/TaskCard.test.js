@@ -22,8 +22,7 @@ describe('TaskCard', () => {
   it('clicking the delete button sends DELETE to the parent (end to end)', async () => {
     const t = renderComponent(TaskCard, { initialState: { id: 'task-7', title: 'Ship it', description: '' } })
     t.simulateEvent('.delete-task-btn', 'click')
-    await t.ready()
-    await new Promise(r => setTimeout(r, 20))
+    await t.settle()
     expect(t.sinkValues('PARENT')).toEqual([{ type: 'DELETE', taskId: 'task-7' }])
     expect(t.html()).toContain('<span class="task-title">Ship it</span>')
     t.dispose()
