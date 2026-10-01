@@ -400,12 +400,16 @@ Starts after `plan1-phase2`. Up to 3 parallel subagents, split by path.
   5. xstream cheat-sheet for RxJS users (from the 1A hint table);
   6. diagnostics: how to read codes and use inspect;
   7. testing with `renderComponent` + `simulateEvent`.
+- **Evidence-driven additions** (from the friction analyzer, `evals/agent-ergonomics/results/analysis/`; Sygnal agents spent 9 s per trial reading library source, which React agents never did):
+  - An **"API facts" section** covering: how a child reads props (view spread, 4th reducer argument); the `CHILD.select(Comp)` payload shape; `run(App, drivers, options)` and its return value; ABORT; blur/focus handling (`DOM.blur`, focusout); which xstream operators exist (with the RxJS mapping).
+  - A **"Testing your change" recipe**: when to use `renderComponent` + `simulateEvent` + `expectNoDiagnostics`, and how to mount with `run()` in jsdom. 35 of 40 and 20 of 20 Sygnal agents wrote their own tests, and the old skill had no testing section.
 - Acceptance: a fresh subagent given only `llms.txt` completes eval tasks 1 and 3 (smoke check; not the full eval).
 
 ### 3B — Skill rewrite
 **Owns:** `skills/sygnal-dev/**`, `create-sygnal-app` CLAUDE.md/AGENTS.md templates (if present; otherwise add them)
 - `SKILL.md` becomes a lean router: workflow plus "run `sygnal-check` / read diagnostics / use inspect". Point at `llms.txt` as the primary reference. Trim `references/component-patterns.md` to canonical forms only, or replace it with `llms.txt`.
 - Add a "debugging loop" section: run tests → read SYG codes → `inspect()` → fix.
+- The skill must carry the API-facts and testing recipe content inline in SKILL.md (it is read whole in 100% of trials; `references/` was opened in only 25–38% of trials). Replace the Model Shorthand section with the canonical object form + `event()`: 14 of 20 tier-2 solutions used the shorthand because the skill teaches it.
 - Scaffolded projects get an `AGENTS.md` / `CLAUDE.md` that points to `llms.txt` and the check command.
 - **[USER DECISION]:** the user-level copy at `~/.claude/skills/sygnal-dev/` differs from the repo copy. Sync it from the repo after merge? (Recommendation: yes; the coordinator does it after Phase 3 merges, with confirmation.)
 
@@ -432,6 +436,8 @@ Starts after `plan1-phase2`. Up to 3 parallel subagents, split by path.
 - Rerun the 0A harness on `plan1-phase3` with the **same trial budget and task set** as the baseline. The Sygnal arm uses the new skill and `llms.txt`.
 - `evals/agent-ergonomics/results/phase3.json` plus `REPORT.md`: first-attempt pass rate, mean iterations, failure-category distribution, baseline vs after vs React arm.
 - If a failure category hasn't improved, the coordinator files follow-ups in `dev-plans/PLAN-2-candidates.md`.
+- **Analyzer:** run `analysis/analyze.mjs` on each re-run, and `analysis/compare.mjs --base baseline --next phase3` (and the same for t2). Record the Agent tool's reported `total_tokens` and `duration_ms` per trial.
+- **Harness noise:** the coordinator's worktree guard refused commands in both arms, costing 8–17 s per trial (D27). For the re-run, either run trials from a coordinator session that isn't worktree-pinned, or report the deltas with HARNESS-GUARD time subtracted, keeping the same method for the baseline comparison.
 
 **Eval budget [USER DECISION at Phase 0 close]:**
 - Recommendation: 8 Sygnal tasks × 3 trials, plus 6 React tasks × 3 trials, for baseline and for re-run: 84 agent runs in total.
