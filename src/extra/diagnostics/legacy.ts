@@ -26,6 +26,17 @@
  * `.code` is the diagnostic code. It does not go through report(): the throw
  * itself is the signal, in every mode.
  *
+ *   caught(code, component, message, fix, err)
+ *
+ * For a call site that catches an exception and keeps running (reducer,
+ * EFFECT, sub-component instantiation): error() under `code`, except that an
+ * error thrown by fail() is reported under ITS code (G-027 / G-044), with the
+ * call site's message appended in parentheses.
+ *
+ * `error` is also published on the core bridge
+ * (globalThis.__SYGNAL_DIAGNOSTICS__.error) for the separately bundled JSX
+ * runtime (SYG420).
+ *
  * (This comment is attached to the type-only import below so the TypeScript
  * emit drops it.)
  */
@@ -55,5 +66,13 @@ export const error = emit('error')
 export function fail(code: string, component: any, message: string, fix?: string): never {
   const err: any = new Error(formatDiagnostic(code, { component, message, fix }))
   err.code = code
+  err.sygnal = [component, message, fix]
   throw err
 }
+
+export function caught(code: string, component: any, message: string, fix: string | undefined, err: any): void {
+  const s = err && err.sygnal
+  s ? error(err.code, s[0], `${s[1]} (${message})`, s[2], err) : error(code, component, message, fix, err)
+}
+
+;(globalThis as any).__SYGNAL_DIAGNOSTICS__.error = error

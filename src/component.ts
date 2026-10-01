@@ -8,7 +8,7 @@ import {makeCommandSource} from './extra/command';
 import type {Command} from './extra/command';
 // [diagnostics hook] shared diagnostics core — hooks are no-ops when diagnostics are off
 import * as diag from './extra/diagnostics/index';
-import {warn, error as logError, fail} from './extra/diagnostics/legacy';
+import {warn, error as logError, fail, caught} from './extra/diagnostics/legacy';
 
 import xs, {Stream} from './extra/xstreamCompat';
 import {delay, concat, debounce, dropRepeats} from './extra/xstreamExtras';
@@ -402,6 +402,8 @@ class Component {
         __NOOP_ACTION__: (state: any) => state
       }
     }
+    // B-016: initialState is applied by the INITIALIZE action, which needs a model
+    if (this.isSubComponent && isolatedState && initialState !== undefined && !this.model) this.model = {}
 
     this._subscriptions = []
     this._activeSubComponents = new Map()
@@ -991,7 +993,7 @@ class Component {
                 if (fresh) this.currentState = result
                 return result
               } catch (err) {
-                logError('SYG216', this, `Reducer for '${name}' threw; state unchanged`, ERR_FIX, err)
+                caught('SYG216', this, `Reducer for '${name}' threw; state unchanged`, ERR_FIX, err)
                 return _state
               }
             }
@@ -1008,9 +1010,11 @@ class Component {
                 warn('SYG217', this, `Reducer for '${name}' sent undefined to the driver`, 'Return a value, or ABORT to send nothing')
                 return reduced
               }
-              fail('SYG218', this, `Reducer for '${name}' returned a ${type}`, 'Return a value, or ABORT to send nothing')
+              // G-027: reported directly (it used to be thrown into the catch below, i.e. SYG216)
+              logError('SYG218', this, `Reducer for '${name}' returned a ${type}; nothing sent`, 'Return a value, or ABORT to send nothing')
+              return ABORT
             } catch (err) {
-              logError('SYG216', this, `Reducer for '${name}' threw; nothing sent`, ERR_FIX, err)
+              caught('SYG216', this, `Reducer for '${name}' threw; nothing sent`, ERR_FIX, err)
               return ABORT
             }
           }
@@ -1047,7 +1051,7 @@ class Component {
             warn('SYG219', this, `EFFECT handler '${name}' returned a value, which is ignored`, 'Use a STATE or driver sink')
           }
         } catch (err) {
-          logError('SYG214', this, `EFFECT handler '${name}' threw`, ERR_FIX, err)
+          caught('SYG214', this, `EFFECT handler '${name}' threw`, ERR_FIX, err)
         }
       }
       return null
@@ -1271,7 +1275,7 @@ class Component {
           sink$ = instantiator(el, props$, children$)
         } catch (err) {
           const error = err instanceof Error ? err : new Error(String(err))
-          logError('SYG408', this, 'Sub-component threw; rendering the error fallback', ERR_FIX, error)
+          caught('SYG408', this, 'Sub-component threw; rendering the error fallback', ERR_FIX, error)
           let fallbackVNode = { sel: 'div', data: { attrs: { 'data-sygnal-error': this.name } }, children: [] }
           if (typeof this.onError === 'function') {
             try {
@@ -1462,7 +1466,7 @@ class Component {
       if (isObj(this.currentState)) {
         if(!(this.currentState && stateField in this.currentState) && !(this.calculated && stateField in this.calculated)) {
           const arrayFields = Object.keys(this.currentState).filter(k => Array.isArray(this.currentState[k]))
-          logError('SYG401', this, `Collection from="${stateField}" is not in state${arrayFields.length ? ` (array fields: '${arrayFields.join("', '")}')` : ''}; it renders nothing`, 'Set it to an array in initialState')
+          warn('SYG401', this, `Collection from="${stateField}" is not in state${arrayFields.length ? ` (array fields: '${arrayFields.join("', '")}')` : ''}; it renders nothing`, 'Set it to an array in initialState')
           lense = undefined
         } else if (!Array.isArray(this.currentState[stateField])) {
           warn('SYG401', this, `Collection 'from' field '${stateField}' is not an array; it renders nothing`, 'Set it to an array in initialState')
@@ -1608,8 +1612,8 @@ class Component {
     // B-008: isolatedState without a `state` prop = state local to this instance; the
     // parent's state is never replaced. It's kept off the parent's state stream (1H-9): the
     // child's reducers are applied below and feed its own state source, so a child write
-    // doesn't produce a new parent state. Until the child first writes (INITIALIZE; never,
-    // without a model) it reads the parent's state, as before.
+    // doesn't produce a new parent state. Until the child first writes (its INITIALIZE, also
+    // without a model since B-016) it reads the parent's state, as before.
     let local: any, local$: any
     if (subIsolatedState && typeof stateField === 'undefined') {
       local$ = xs.create()

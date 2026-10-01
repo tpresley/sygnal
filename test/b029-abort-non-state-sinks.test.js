@@ -1,6 +1,6 @@
 // B-029 (4C): ABORT from a non-STATE sink reducer (PARENT, EVENTS, a custom driver, EFFECT,
-// shorthand) means "send nothing", silently. It used to report SYG218 ("returned a symbol"),
-// logged as SYG216. Other bad return types still report SYG218 / SYG217.
+// shorthand) means "send nothing", silently. It used to report SYG218 ("returned a symbol").
+// Other bad return types still report SYG218 / SYG217.
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import xs from 'xstream'
 import { renderComponent, h, createElement, ABORT } from '../src/index.ts'
@@ -92,9 +92,9 @@ describe('B-029: ABORT from non-STATE sinks is silent', () => {
     expect(warn.mock.calls.filter(c => String(c[0]).includes('SYG219'))).toEqual([])
   })
 
-  // SYG218 is thrown inside the reducer's error handling, so (as documented in errors.md) it
-  // surfaces as SYG216 with the SYG218 error attached
-  it('a non-ABORT symbol still reports SYG218 (via SYG216), and nothing is sent', async () => {
+  // PLAN-2 1-B (G-027): SYG218 is reported under its own code (it used to be thrown into the
+  // reducer's catch and surface as SYG216 with the SYG218 error attached)
+  it('a non-ABORT symbol still reports SYG218, and nothing is sent', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     function App(p) { return view(p) }
     App.initialState = { n: 0 }
@@ -103,10 +103,10 @@ describe('B-029: ABORT from non-STATE sinks is silent', () => {
     t.simulateAction('GO')
     await t.settle()
     expect(t.emitted).toEqual([])
-    const d = t.diagnostics.find(d => d.code === 'SYG216')
+    const d = t.diagnostics.find(d => d.code === 'SYG218')
     expect(d).toBeDefined()
-    expect(d.data.code).toBe('SYG218')
-    expect(d.data.message).toMatch(/returned a symbol/)
+    expect(d.message).toMatch(/returned a symbol/)
+    expect(t.diagnostics.find(d => d.code === 'SYG216')).toBeUndefined()
   })
 
   it('undefined still warns SYG217', async () => {

@@ -1,5 +1,6 @@
 /**
- * SYG106 — a prop passed by the parent is silently overwritten (warn).
+ * SYG106 — a prop passed by the parent is silently overwritten (warn; error in
+ * strict mode, G-007 part 2).
  *
  * The view is called with { ...props, state, children, slots, context, peers },
  * so a parent prop with one of those names never reaches the child. (Tracker
@@ -12,6 +13,7 @@
  */
 import type {DiagnosticCheck} from '../index'
 import {report, once, nameOf} from './shared'
+import {isStrictEnabled} from './strict'
 
 const RESERVED = ['children', 'slots', 'context', 'peers']
 
@@ -22,12 +24,13 @@ export const propsCheck: DiagnosticCheck = {
     const props = component && component.currentProps
     if (!props || typeof props !== 'object') return
     const name = nameOf(component)
+    const severity = isStrictEnabled() ? 'error' : 'warn'
 
     for (const key of RESERVED) {
       if (!(key in props) || !once(`SYG106:${name}:${key}`)) continue
       report('SYG106', {
         component,
-        severity: 'warn',
+        severity,
         message: `The prop '${key}' passed to ${name} is overwritten: '${key}' is a reserved view argument, so the child never sees the parent's value`,
         fix: `Rename the prop (for example '${key}Value'), in the parent and in ${name}`,
         data: {prop: key},
@@ -40,7 +43,7 @@ export const propsCheck: DiagnosticCheck = {
       if (!isLens && value !== undefined && once(`SYG106:${name}:state`)) {
         report('SYG106', {
           component,
-          severity: 'warn',
+          severity,
           message: `The prop 'state' passed to ${name} is not data: Sygnal reads it as the child's state lens (a state field name or a { get, set } object), and the view's 'state' argument is the child's own state`,
           fix: `To give ${name} a slice of the parent state use state="fieldName"; to pass data, use another prop name (for example 'item')`,
           data: {prop: 'state', valueType: typeof value},

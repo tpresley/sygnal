@@ -286,6 +286,12 @@ Lane.intent = ({ CHILD }) => ({ DELETE_TASK: CHILD.select(TaskCard) })`,
     before: `Cart.calculated = (state) => ({ total: state.items.length })`,
     after: `Cart.calculated = { total: (state) => state.items.length }`,
   },
+  SYG608: {
+    before: `// main.js, without the dev entry
+run(App, {}, { diagnostics: { strict: true } })`,
+    after: `import 'sygnal/diagnostics'   // dev only (the Vite plugin adds it in dev)
+run(App, {}, { diagnostics: { strict: true } })`,
+  },
 }
 
 function severityText(e) {

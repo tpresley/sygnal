@@ -156,7 +156,7 @@ Board.intent = ({ EVENTS }) => ({ DELETE: EVENTS.select('DELETE_LANE') })
 
 Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
 
-The view is called with `{ ...props, state, children, slots, context, peers }`, so a prop named `children`, `slots`, `context` or `peers` passed by the parent is overwritten and never reaches the child. A `state` prop is also reported when its value is not a state lens (a field-name string or a `{ get, set }` object), because Sygnal reads `state` as the child's state lens rather than as data. Reported once per component and prop.
+The view is called with `{ ...props, state, children, slots, context, peers }`, so a prop named `children`, `slots`, `context` or `peers` passed by the parent is overwritten and never reaches the child. A `state` prop is also reported when its value is not a state lens (a field-name string or a `{ get, set }` object), because Sygnal reads `state` as the child's state lens rather than as data. Reported once per component and prop, as a warning, or as an error in strict mode (`--strict` has no static SYG106 rule; the runtime strict switches are `configureStrict(true)`, `renderComponent(C, { strict: true })`, `run(App, drivers, { diagnostics: { strict: true } })` and `globalThis.__SYGNAL_STRICT__`).
 
 **Fix:** Rename the prop in both parent and child (e.g. `contextValue`, or `item` instead of `state`); to give the child a slice of parent state use `state="fieldName"`.
 
@@ -437,7 +437,7 @@ The same action and sink pair is defined more than once, which can only happen t
 
 Severity: `error` · Reported by: the Sygnal runtime (every app, production included)
 
-A model entry on the `EFFECT` sink threw an exception. The error is caught and logged with `console.error` (with the original error attached) rather than thrown, so the app keeps running but the effect did not complete. In diagnostics `error` mode the diagnostic is rethrown asynchronously.
+A model entry on the `EFFECT` sink threw an exception. The error is caught and logged with `console.error` (with the original error attached) rather than thrown, so the app keeps running but the effect did not complete. In diagnostics `error` mode the diagnostic is rethrown asynchronously. If the exception is itself a coded Sygnal error (for example SYG215 from `next()`), it is reported under that code instead.
 
 **Fix:** Fix the exception shown in the attached error, or guard the handler against missing state or data.
 
@@ -447,7 +447,7 @@ A model entry on the `EFFECT` sink threw an exception. The error is caught and l
 
 Severity: `error` · Reported by: the Sygnal runtime (every app, production included)
 
-The third argument of `next(type, data, delay)` was given and is not a number. `next()` throws; when it is called synchronously inside a reducer or EFFECT handler, that throw is caught by the surrounding handler and surfaces as SYG216 or SYG214 with this error attached, and the follow-up action is not dispatched.
+The third argument of `next(type, data, delay)` was given and is not a number. `next()` throws and the follow-up action is not dispatched. When it is called inside a reducer or EFFECT handler, the handler catches the throw and reports it under this code (not SYG216 or SYG214), so a STATE reducer leaves the state unchanged and a driver-sink reducer sends nothing.
 
 **Fix:** Pass a number of milliseconds, or omit it for the default 10 ms: `next('ACTION', data, 100)`.
 
@@ -469,7 +469,7 @@ next('RETRY', null, 500)
 
 Severity: `error` · Reported by: the Sygnal runtime (every app, production included)
 
-A model reducer threw an exception. For a STATE reducer the error is logged and the state is left unchanged; for a driver sink (e.g. `EVENTS`, `PARENT`, custom drivers) it is logged and nothing is sent. The error is logged with `console.error` rather than thrown (rethrown asynchronously in diagnostics `error` mode), and errors thrown by SYG215/SYG218 inside a reducer also surface through this code.
+A model reducer threw an exception. For a STATE reducer the error is logged and the state is left unchanged; for a driver sink (e.g. `EVENTS`, `PARENT`, custom drivers) it is logged and nothing is sent. The error is logged with `console.error` rather than thrown (rethrown asynchronously in diagnostics `error` mode). A coded Sygnal error thrown inside the reducer (for example SYG215 from `next()`) is reported under its own code instead.
 
 **Fix:** Fix the exception shown in the attached error, or guard the reducer against missing state or data.
 
@@ -501,7 +501,7 @@ NOTIFY: { LOG: (state) => `Saved ${state.id}` }
 
 Severity: `error` · Reported by: the Sygnal runtime (every app, production included)
 
-A reducer for a non-STATE sink returned something other than a plain object, string, number, boolean, function, `undefined` or `ABORT`; this includes `null`, arrays, bigints and non-`ABORT` symbols. The error is thrown inside the reducer's error handling, so it is caught and logged as SYG216 (with this error attached) and nothing is sent.
+A reducer for a non-STATE sink returned something other than a plain object, string, number, boolean, function, `undefined` or `ABORT`; this includes `null`, arrays, bigints and non-`ABORT` symbols. It is logged with `console.error` (not thrown) and nothing is sent.
 
 **Fix:** Return a supported value (wrap arrays in an object, e.g. `{ items }`), or return `ABORT` to send nothing.
 
@@ -659,9 +659,9 @@ The stream that computes a component's context emitted an error, most often beca
 
 **Sub-component has initialState without isolatedState**
 
-Severity: `warn` · Reported by: the Sygnal runtime (every app, production included)
+Severity: `error` · Reported by: the Sygnal runtime (every app, production included)
 
-A sub-component defines `initialState` but not `isolatedState = true`, so its `initialState` would overwrite the state slice its parent passes in. For a component rendered by tag in a parent's view this is thrown when it is instantiated; that throw is caught by the parent, which logs SYG408 and renders its error fallback instead of the child. For Collection items and Switchable children it is logged as a warning and the initial state still replaces what the parent passed.
+A sub-component defines `initialState` but not `isolatedState = true`, so its `initialState` would overwrite the state slice its parent passes in. For a component rendered by tag in a parent's view this is an error: it is thrown when the child is instantiated, and the parent catches it, logs it under this code and renders its error fallback instead of the child. For Collection items and Switchable children it is only a warning and the initial state still replaces what the parent passed.
 
 **Fix:** Remove `initialState` from the sub-component and let the parent own the state, or set `Child.isolatedState = true` if the child should keep its own local state.
 
@@ -721,9 +721,9 @@ A component's `onError` handler threw while handling a view error (SYG406) or a 
 
 Severity: `error` · Reported by: the Sygnal runtime (every app, production included)
 
-Creating a sub-component (a custom component, Collection, or Switchable found in the parent's view) threw. The parent catches it, logs the original error (which may itself carry a code such as SYG405, SYG411, SYG414 or SYG903), and renders its own `onError` fallback, or an empty `<div data-sygnal-error>`, in that child's place. The rest of the parent keeps rendering.
+Creating a sub-component (a custom component, Collection, or Switchable found in the parent's view) threw an uncoded exception, for example from the child's intent. The parent catches it, logs it with the original error attached, and renders its own `onError` fallback, or an empty `<div data-sygnal-error>`, in that child's place. The rest of the parent keeps rendering. A coded Sygnal error thrown while instantiating (SYG405, SYG413, SYG414, SYG903, ...) is reported under its own code instead, with the same fallback.
 
-**Fix:** Read the attached error and fix its cause; its message usually names the underlying problem and its own code.
+**Fix:** Read the attached error and fix its cause.
 
 ### SYG409
 
@@ -807,7 +807,7 @@ After:
 
 Severity: `error` · Reported by: the Sygnal runtime (every app, production included)
 
-The view rendered an unnamed component element (`sygnal-factory`) that carries no component factory or options, so Sygnal has nothing to instantiate. The throw is caught by the parent, which logs SYG408 and renders its error fallback in that place.
+The view rendered an unnamed component element (`sygnal-factory`) that carries no component factory or options, so Sygnal has nothing to instantiate. The throw is caught by the parent, which logs it under this code and renders its error fallback in that place.
 
 **Fix:** Render the component by referencing a named function in JSX, or give it a stable name with `Comp.componentName = 'Comp'`.
 
@@ -817,7 +817,7 @@ The view rendered an unnamed component element (`sygnal-factory`) that carries n
 
 Severity: `error` · Reported by: the Sygnal runtime (every app, production included)
 
-The view rendered a component by name, but no factory for that name exists in the parent's `.components` and none was attached to the element. The throw is caught by the parent, which logs SYG408 and renders its error fallback in that place.
+The view rendered a component by name, but no factory for that name exists in the parent's `.components` and none was attached to the element. The throw is caught by the parent, which logs it under this code and renders its error fallback in that place.
 
 **Fix:** Import the component and use it directly as a JSX tag, or register it in the parent's `.components` under the name you render.
 
@@ -925,7 +925,7 @@ The exported `switchable()` helper was called without a `name$` argument, or wit
 
 Severity: `error` · Reported by: the Sygnal runtime (every app, production included)
 
-A JSX element's tag evaluated to `undefined`, usually because a component was not imported, was misspelled, or was imported as default instead of named (or vice versa). Sygnal renders an `<UNDEFINED>` element in its place and prints the message with `console.error`. This message is printed directly by the JSX runtime, so it is not collected by the diagnostics core.
+A JSX element's tag evaluated to `undefined`, usually because a component was not imported, was misspelled, or was imported as default instead of named (or vice versa). Sygnal renders an `<UNDEFINED>` element in its place and logs the message with `console.error`; it is collected like other runtime diagnostics (the JSX runtime reports it through the diagnostics core, or only prints it when no Sygnal core is loaded).
 
 **Fix:** Import or define the component in the file that uses it, and check that the import style (default vs named) matches the export.
 
@@ -1245,6 +1245,30 @@ A `switchable()` created with a state key string or a state function was given s
 
 **Fix:** Include the state source in the sources passed to the switchable, or set `stateSourceName` to the name your state source uses.
 
+### SYG608
+
+**Strict mode requested without the diagnostics entry**
+
+Severity: `warn` · Reported by: the Sygnal runtime (every app, production included)
+
+`run(App, drivers, { diagnostics: { strict: true } })` was called but the `sygnal/diagnostics` dev entry is not loaded. The strict (canonical-form) checks live in that entry, so no strict findings are reported; the option still turns diagnostics on. Printed once per page load.
+
+**Fix:** Import the dev entry before `run()` in development (`import 'sygnal/diagnostics'`), or use the Sygnal Vite plugin, which injects it in dev. Do not ship it in production builds.
+
+Before:
+
+```jsx
+// main.js, without the dev entry
+run(App, {}, { diagnostics: { strict: true } })
+```
+
+After:
+
+```jsx
+import 'sygnal/diagnostics'   // dev only (the Vite plugin adds it in dev)
+run(App, {}, { diagnostics: { strict: true } })
+```
+
 ## SYG9xx: Internal
 
 ### SYG900
@@ -1283,6 +1307,6 @@ The stream that runs a component's `EFFECT` model entries emitted an error. It i
 
 Severity: `error` · Reported by: the Sygnal runtime (every app, production included)
 
-When instantiating a sub-component, Collection, or Switchable, the factory returned something that is not a sinks object. It is thrown during instantiation; the parent catches it, logs SYG408, and renders its error fallback in that place. This usually means a custom factory passed in place of a Sygnal component is not returning sinks.
+When instantiating a sub-component, Collection, or Switchable, the factory returned something that is not a sinks object. It is thrown during instantiation; the parent catches it, logs it under this code, and renders its error fallback in that place. This usually means a custom factory passed in place of a Sygnal component is not returning sinks.
 
 **Fix:** Make the factory return an object of sink streams, or pass a regular Sygnal component function instead.

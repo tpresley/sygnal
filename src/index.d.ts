@@ -572,6 +572,12 @@ export type DiagnosticsOptions = {
   mode?: DiagnosticsMode;
   /** Codes to ignore entirely */
   ignore?: DiagnosticCode[];
+  /**
+   * Strict (canonical-form, SYG5xx) runtime checks. Needs the 'sygnal/diagnostics' dev entry
+   * (otherwise SYG608 is printed once). Without a `mode`, `strict: true` also turns diagnostics
+   * on ('warn'). Omitted: an earlier `configureStrict()` setting is kept.
+   */
+  strict?: boolean;
 }
 
 export type RunOptions = {

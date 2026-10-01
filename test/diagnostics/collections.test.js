@@ -19,13 +19,14 @@ function listOf(from, initialState) {
 
 describe('SYG401 — Collection from field', () => {
   it('reports a from field that does not exist in state, listing the array fields', async () => {
-    vi.spyOn(console, 'error').mockImplementation(() => {}) // existing console output
+    vi.spyOn(console, 'warn').mockImplementation(() => {}) // existing console output
     t = renderComponent(listOf('todo', { todos: [{ id: 1, title: 'a' }] }))
     await settle(120)
     // Reported once, by the core (1E retrofit), with the available array fields
     const found = diagnostics('SYG401')
     expect(found).toHaveLength(1)
-    expect(found[0].severity).toBe('error')
+    // PLAN-2 1-B (G-044): 'warn' like every other SYG401 site and the registry default
+    expect(found[0].severity).toBe('warn')
     expect(found[0].component).toBe('List')
     expect(found[0].message).toContain(`from="todo"`)
     expect(found[0].message).toContain(`'todos'`)

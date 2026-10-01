@@ -14,10 +14,12 @@
  * matches this table.
  *
  *   title        the registry title
- *   severity     the RUNTIME default severity ('error' = thrown or logged as an
- *                error at the call site, 'warn' = printed in 'warn' mode, 'info' =
- *                collected only). sygnal-check may use a different default for a
- *                static finding (see staticSeverity in getExplanation()).
+ *   severity     the RUNTIME default severity ('error' = the operation failed: thrown,
+ *                or caught and logged with console.error while the app keeps running;
+ *                'warn' = likely mistake, printed in 'warn' mode; 'info' = collected
+ *                only). A call site may report a lower severity (SYG405, SYG406).
+ *                sygnal-check may use a different default for a static finding (see
+ *                staticSeverity in getExplanation()).
  *   reportedBy   'runtime'   the sygnal core (always on; includes renderComponent's
  *                            built-in checks)
  *                'dev-entry' the 'sygnal/diagnostics' checks (dev only, diagnostics on)
@@ -65,7 +67,7 @@ export const EXPLANATIONS = {
     title: "Parent prop is overwritten by a reserved view argument",
     severity: "warn",
     reportedBy: ["dev-entry"],
-    explanation: "The view is called with `{ ...props, state, children, slots, context, peers }`, so a prop named `children`, `slots`, `context` or `peers` passed by the parent is overwritten and never reaches the child. A `state` prop is also reported when its value is not a state lens (a field-name string or a `{ get, set }` object), because Sygnal reads `state` as the child's state lens rather than as data. Reported once per component and prop.",
+    explanation: "The view is called with `{ ...props, state, children, slots, context, peers }`, so a prop named `children`, `slots`, `context` or `peers` passed by the parent is overwritten and never reaches the child. A `state` prop is also reported when its value is not a state lens (a field-name string or a `{ get, set }` object), because Sygnal reads `state` as the child's state lens rather than as data. Reported once per component and prop, as a warning, or as an error in strict mode (`--strict` has no static SYG106 rule; the runtime strict switches are `configureStrict(true)`, `renderComponent(C, { strict: true })`, `run(App, drivers, { diagnostics: { strict: true } })` and `globalThis.__SYGNAL_STRICT__`).",
     fix: "Rename the prop in both parent and child (e.g. `contextValue`, or `item` instead of `state`); to give the child a slice of parent state use `state=\"fieldName\"`.",
   },
   SYG110: {
@@ -156,21 +158,21 @@ export const EXPLANATIONS = {
     title: "EFFECT handler threw",
     severity: "error",
     reportedBy: ["runtime"],
-    explanation: "A model entry on the `EFFECT` sink threw an exception. The error is caught and logged with `console.error` (with the original error attached) rather than thrown, so the app keeps running but the effect did not complete. In diagnostics `error` mode the diagnostic is rethrown asynchronously.",
+    explanation: "A model entry on the `EFFECT` sink threw an exception. The error is caught and logged with `console.error` (with the original error attached) rather than thrown, so the app keeps running but the effect did not complete. In diagnostics `error` mode the diagnostic is rethrown asynchronously. If the exception is itself a coded Sygnal error (for example SYG215 from `next()`), it is reported under that code instead.",
     fix: "Fix the exception shown in the attached error, or guard the handler against missing state or data.",
   },
   SYG215: {
     title: "next() delay is not a number",
     severity: "error",
     reportedBy: ["runtime"],
-    explanation: "The third argument of `next(type, data, delay)` was given and is not a number. `next()` throws; when it is called synchronously inside a reducer or EFFECT handler, that throw is caught by the surrounding handler and surfaces as SYG216 or SYG214 with this error attached, and the follow-up action is not dispatched.",
+    explanation: "The third argument of `next(type, data, delay)` was given and is not a number. `next()` throws and the follow-up action is not dispatched. When it is called inside a reducer or EFFECT handler, the handler catches the throw and reports it under this code (not SYG216 or SYG214), so a STATE reducer leaves the state unchanged and a driver-sink reducer sends nothing.",
     fix: "Pass a number of milliseconds, or omit it for the default 10 ms: `next('ACTION', data, 100)`.",
   },
   SYG216: {
     title: "Reducer threw",
     severity: "error",
     reportedBy: ["runtime"],
-    explanation: "A model reducer threw an exception. For a STATE reducer the error is logged and the state is left unchanged; for a driver sink (e.g. `EVENTS`, `PARENT`, custom drivers) it is logged and nothing is sent. The error is logged with `console.error` rather than thrown (rethrown asynchronously in diagnostics `error` mode), and errors thrown by SYG215/SYG218 inside a reducer also surface through this code.",
+    explanation: "A model reducer threw an exception. For a STATE reducer the error is logged and the state is left unchanged; for a driver sink (e.g. `EVENTS`, `PARENT`, custom drivers) it is logged and nothing is sent. The error is logged with `console.error` rather than thrown (rethrown asynchronously in diagnostics `error` mode). A coded Sygnal error thrown inside the reducer (for example SYG215 from `next()`) is reported under its own code instead.",
     fix: "Fix the exception shown in the attached error, or guard the reducer against missing state or data.",
   },
   SYG217: {
@@ -184,7 +186,7 @@ export const EXPLANATIONS = {
     title: "Reducer returned an unsupported type",
     severity: "error",
     reportedBy: ["runtime"],
-    explanation: "A reducer for a non-STATE sink returned something other than a plain object, string, number, boolean, function, `undefined` or `ABORT`; this includes `null`, arrays, bigints and non-`ABORT` symbols. The error is thrown inside the reducer's error handling, so it is caught and logged as SYG216 (with this error attached) and nothing is sent.",
+    explanation: "A reducer for a non-STATE sink returned something other than a plain object, string, number, boolean, function, `undefined` or `ABORT`; this includes `null`, arrays, bigints and non-`ABORT` symbols. It is logged with `console.error` (not thrown) and nothing is sent.",
     fix: "Return a supported value (wrap arrays in an object, e.g. `{ items }`), or return `ABORT` to send nothing.",
   },
   SYG219: {
@@ -238,9 +240,9 @@ export const EXPLANATIONS = {
   },
   SYG405: {
     title: "Sub-component has initialState without isolatedState",
-    severity: "warn",
+    severity: "error",
     reportedBy: ["runtime"],
-    explanation: "A sub-component defines `initialState` but not `isolatedState = true`, so its `initialState` would overwrite the state slice its parent passes in. For a component rendered by tag in a parent's view this is thrown when it is instantiated; that throw is caught by the parent, which logs SYG408 and renders its error fallback instead of the child. For Collection items and Switchable children it is logged as a warning and the initial state still replaces what the parent passed.",
+    explanation: "A sub-component defines `initialState` but not `isolatedState = true`, so its `initialState` would overwrite the state slice its parent passes in. For a component rendered by tag in a parent's view this is an error: it is thrown when the child is instantiated, and the parent catches it, logs it under this code and renders its error fallback instead of the child. For Collection items and Switchable children it is only a warning and the initial state still replaces what the parent passed.",
     fix: "Remove `initialState` from the sub-component and let the parent own the state, or set `Child.isolatedState = true` if the child should keep its own local state.",
   },
   SYG406: {
@@ -261,8 +263,8 @@ export const EXPLANATIONS = {
     title: "Sub-component failed to instantiate",
     severity: "error",
     reportedBy: ["runtime"],
-    explanation: "Creating a sub-component (a custom component, Collection, or Switchable found in the parent's view) threw. The parent catches it, logs the original error (which may itself carry a code such as SYG405, SYG411, SYG414 or SYG903), and renders its own `onError` fallback, or an empty `<div data-sygnal-error>`, in that child's place. The rest of the parent keeps rendering.",
-    fix: "Read the attached error and fix its cause; its message usually names the underlying problem and its own code.",
+    explanation: "Creating a sub-component (a custom component, Collection, or Switchable found in the parent's view) threw an uncoded exception, for example from the child's intent. The parent catches it, logs it with the original error attached, and renders its own `onError` fallback, or an empty `<div data-sygnal-error>`, in that child's place. The rest of the parent keeps rendering. A coded Sygnal error thrown while instantiating (SYG405, SYG413, SYG414, SYG903, ...) is reported under its own code instead, with the same fallback.",
+    fix: "Read the attached error and fix its cause.",
   },
   SYG409: {
     title: "Child tried to update a calculated field",
@@ -296,14 +298,14 @@ export const EXPLANATIONS = {
     title: "Unnamed component factory not found",
     severity: "error",
     reportedBy: ["runtime"],
-    explanation: "The view rendered an unnamed component element (`sygnal-factory`) that carries no component factory or options, so Sygnal has nothing to instantiate. The throw is caught by the parent, which logs SYG408 and renders its error fallback in that place.",
+    explanation: "The view rendered an unnamed component element (`sygnal-factory`) that carries no component factory or options, so Sygnal has nothing to instantiate. The throw is caught by the parent, which logs it under this code and renders its error fallback in that place.",
     fix: "Render the component by referencing a named function in JSX, or give it a stable name with `Comp.componentName = 'Comp'`.",
   },
   SYG414: {
     title: "Component not found",
     severity: "error",
     reportedBy: ["runtime"],
-    explanation: "The view rendered a component by name, but no factory for that name exists in the parent's `.components` and none was attached to the element. The throw is caught by the parent, which logs SYG408 and renders its error fallback in that place.",
+    explanation: "The view rendered a component by name, but no factory for that name exists in the parent's `.components` and none was attached to the element. The throw is caught by the parent, which logs it under this code and renders its error fallback in that place.",
     fix: "Import the component and use it directly as a JSX tag, or register it in the parent's `.components` under the name you render.",
   },
   SYG415: {
@@ -345,7 +347,7 @@ export const EXPLANATIONS = {
     title: "JSX tag is undefined",
     severity: "error",
     reportedBy: ["runtime"],
-    explanation: "A JSX element's tag evaluated to `undefined`, usually because a component was not imported, was misspelled, or was imported as default instead of named (or vice versa). Sygnal renders an `<UNDEFINED>` element in its place and prints the message with `console.error`. This message is printed directly by the JSX runtime, so it is not collected by the diagnostics core.",
+    explanation: "A JSX element's tag evaluated to `undefined`, usually because a component was not imported, was misspelled, or was imported as default instead of named (or vice versa). Sygnal renders an `<UNDEFINED>` element in its place and logs the message with `console.error`; it is collected like other runtime diagnostics (the JSX runtime reports it through the diagnostics core, or only prints it when no Sygnal core is loaded).",
     fix: "Import or define the component in the file that uses it, and check that the import style (default vs named) matches the export.",
   },
   SYG501: {
@@ -446,6 +448,13 @@ export const EXPLANATIONS = {
     explanation: "A `switchable()` created with a state key string or a state function was given sources that contain no state source under the configured `stateSourceName` (nor `STATE` or `state`). It is thrown because the current component name cannot be read from state.",
     fix: "Include the state source in the sources passed to the switchable, or set `stateSourceName` to the name your state source uses.",
   },
+  SYG608: {
+    title: "Strict mode requested without the diagnostics entry",
+    severity: "warn",
+    reportedBy: ["runtime"],
+    explanation: "`run(App, drivers, { diagnostics: { strict: true } })` was called but the `sygnal/diagnostics` dev entry is not loaded. The strict (canonical-form) checks live in that entry, so no strict findings are reported; the option still turns diagnostics on. Printed once per page load.",
+    fix: "Import the dev entry before `run()` in development (`import 'sygnal/diagnostics'`), or use the Sygnal Vite plugin, which injects it in dev. Do not ship it in production builds.",
+  },
   SYG900: {
     title: "A diagnostics check threw",
     severity: "warn",
@@ -471,7 +480,7 @@ export const EXPLANATIONS = {
     title: "Component factory returned invalid sinks",
     severity: "error",
     reportedBy: ["runtime"],
-    explanation: "When instantiating a sub-component, Collection, or Switchable, the factory returned something that is not a sinks object. It is thrown during instantiation; the parent catches it, logs SYG408, and renders its error fallback in that place. This usually means a custom factory passed in place of a Sygnal component is not returning sinks.",
+    explanation: "When instantiating a sub-component, Collection, or Switchable, the factory returned something that is not a sinks object. It is thrown during instantiation; the parent catches it, logs it under this code, and renders its error fallback in that place. This usually means a custom factory passed in place of a Sygnal component is not returning sinks.",
     fix: "Make the factory return an object of sink streams, or pass a regular Sygnal component function instead.",
   },
 }
