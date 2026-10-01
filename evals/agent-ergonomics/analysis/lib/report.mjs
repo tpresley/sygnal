@@ -163,14 +163,14 @@ export function renderMarkdown({ meta, agg, records, tracker, skill }) {
   const ltr = agg.overallShared.react?.learn ?? agg.overall.react?.learn ?? {}
   const topics = [...new Set([...Object.keys(lt), ...Object.keys(ltr)])].sort((a, b) => (lt[b] ?? 0) - (lt[a] ?? 0))
   if (topics.length) {
-    P('**What learning time went to** (mean seconds per trial on the shared tasks, by topic of the learn-phase calls: the Skill call, skill greps, and `node_modules` source reads; includes reads made while debugging):')
+    P('**What learning time went to** (mean seconds per trial on the shared tasks, by topic of the learn-phase calls: the Skill call and reading the injected SKILL.md, skill greps, and `node_modules` source reads. Reads made inside a debug or friction span are counted there, not here):')
     P()
     P(table(['Topic', 'Sygnal s/trial', 'React s/trial'], topics.map((t) => [t, f1(lt[t] ?? 0), f1(ltr[t] ?? 0)])))
     P()
   }
-  const libFiles = Object.entries(st.library.sygnal.sygnal?.files ?? {}).sort((a, b) => b[1] - a[1]).slice(0, 14)
+  const libFiles = Object.entries(st.library.sygnal.sygnal?.files ?? {}).filter(([f]) => /\.\w+$/.test(f)).sort((a, b) => b[1] - a[1]).slice(0, 14)
   if (libFiles.length) {
-    P('Most-read `node_modules/sygnal` paths (trials):')
+    P('Most-read `node_modules/sygnal` files (trials; directory listings excluded):')
     P()
     P(libFiles.map(([f, n]) => `\`${f}\` ${n}`).join(' · '))
     P()

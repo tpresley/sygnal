@@ -66,7 +66,7 @@ export function recommendations(agg, records, skill) {
     const t01 = sy.filter((r) => r.task.startsWith('01-'))
     const t01n = t01.length
     const t01b006 = t01.filter((r) => r.catalog?.result.includes('B-006')).length
-    const ids = ['B-006', 'G-016', 'G-015'].filter((id) => cat[id])
+    const ids = ['B-006', 'G-016', 'G-015'].filter((id) => cat[id] && cat[id].frictionSecondsTotal > 0)
     const s = ids.reduce((a, id) => a + perSy(id), 0) + (learn['testing-utility'] ?? 0)
     if (ids.length && s > 0) {
       out.push({
@@ -114,13 +114,17 @@ export function recommendations(agg, records, skill) {
   {
     const t08 = agg.byTask['08-extract-rating']
     const pc = learn['parent-child-props'] ?? 0
+    const secRank = (re2) => agg.skill.sections.filter((x) => x.section.startsWith('references/')).findIndex((x) => re2.test(x.section))
+    const r18 = secRank(/#18\. /)
+    const r19 = secRank(/#19\. /)
+    const secNote = r19 >= 0 && r19 < 6 ? ` component-patterns "19. Parent-Child Communication" is the #${r19 + 1} most-read reference section${r18 >= 0 && r18 < 6 ? ` and "18. Event Bus Communication" #${r18 + 1}` : ''}.` : ''
     if (pc > 0.5 || t08) {
       out.push({
         est: pc,
         target: 'skill',
         title: 'Document props in child components (G-003) next to PARENT/CHILD in SKILL.md.',
         change: 'One short example: parent renders `<StarRating value={state.food} name="food" />`; child view reads `({ state, value, name })`, child model gets props as the 4th reducer argument, and sends `PARENT: (state, data, next, props) => ({ name: props.name, value: data })`; parent `CHILD.select(StarRating)`.',
-        evidence: `learn: parent-child-props ${f1(pc)} s per Sygnal trial.${t08 ? ` Task 08 (extract a component with props) is the slowest tier-1 Sygnal task: ${f1(t08.sygnal?.wall.mean)} s vs ${f1(t08.react?.wall.mean)} s for React, with ${f1(t08.sygnal?.phases.learn)} s of learn time per trial.` : ''} \`component-patterns.md\` sections 18/19 (events, parent-child) are among the most-read.`,
+        evidence: `learn: parent-child-props ${f1(pc)} s per Sygnal trial.${t08 ? ` Task 08 (extract a component with props) is the slowest tier-1 Sygnal task: ${f1(t08.sygnal?.wall.mean)} s vs ${f1(t08.react?.wall.mean)} s for React, with ${f1(t08.sygnal?.phases.learn)} s of learn time per trial.` : ''}${secNote}`,
       })
     }
   }
