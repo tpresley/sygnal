@@ -1208,7 +1208,8 @@ class Component {
       const newComponents =  entries.reduce((acc, [id, el]) => {
         const data     = el.data
         const props    = data.props  || {}
-        const children = el.children || []
+        // a string-tag component with a single text child is a text-only vnode (B-011)
+        const children = el.children || (el.text != null ? [{ text: el.text }] : [])
 
         const isCollection = data.isCollection || false
         const isSwitchable = data.isSwitchable || false

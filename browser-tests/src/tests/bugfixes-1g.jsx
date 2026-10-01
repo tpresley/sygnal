@@ -136,4 +136,60 @@ export async function bugfixTests1G() {
     assert(zNow === z, 'card z keeps its DOM element')
     assert(zNow.querySelector('.hits').textContent === '1', 'card z keeps its hit count')
   })
+
+  // ─── B-011: single text child <-> several children on the same element ────
+  async function mountToggle(view) {
+    const { id, el } = mount()
+    function App({ state }) {
+      return <div><button className="flip">flip</button>{view(state)}</div>
+    }
+    App.initialState = { on: false, status: 'Open' }
+    App.intent = ({ DOM }) => ({ FLIP: DOM.click('.flip') })
+    App.model = { FLIP: s => ({ ...s, on: !s.on }) }
+    run(App, {}, { mountPoint: id })
+    await waitFor(() => el.querySelector('.flip'))
+    const flip = async () => { el.querySelector('.flip').click(); await wait(50) }
+    return { el, flip }
+  }
+
+  await runTest(CAT, 'B-011: one text child -> several children replaces the text', async () => {
+    const { el, flip } = await mountToggle(s => s.on ? <p className="p">Status: {s.status}</p> : <p className="p">Select a task.</p>)
+    assert(el.querySelector('.p').textContent === 'Select a task.', 'initial text')
+    await flip()
+    assert(el.querySelector('.p').textContent === 'Status: Open', `after switch: "${el.querySelector('.p').textContent}"`)
+    await flip()
+    assert(el.querySelector('.p').textContent === 'Select a task.', `after switching back: "${el.querySelector('.p').textContent}"`)
+    await flip()
+    assert(el.querySelector('.p').textContent === 'Status: Open', `after third switch: "${el.querySelector('.p').textContent}"`)
+  })
+
+  await runTest(CAT, 'B-011: one text child <-> mixed text and element children', async () => {
+    const { el, flip } = await mountToggle(s => s.on
+      ? <p className="p">Status: <b>{s.status}</b> now</p>
+      : <p className="p">Nothing</p>)
+    await flip()
+    const p = el.querySelector('.p')
+    assert(p.textContent === 'Status: Open now', `mixed: "${p.textContent}"`)
+    assert(p.querySelector('b') && p.querySelector('b').textContent === 'Open', 'has <b>')
+    await flip()
+    assert(el.querySelector('.p').textContent === 'Nothing', `back to text: "${el.querySelector('.p').textContent}"`)
+    assert(!el.querySelector('.p b'), 'the <b> is gone')
+  })
+
+  await runTest(CAT, 'B-011: one element child <-> one text child', async () => {
+    const { el, flip } = await mountToggle(s => s.on ? <p className="p"><i>it</i></p> : <p className="p">plain</p>)
+    await flip()
+    assert(el.querySelector('.p').innerHTML === '<i>it</i>', `element: ${el.querySelector('.p').innerHTML}`)
+    await flip()
+    assert(el.querySelector('.p').innerHTML === 'plain', `text: ${el.querySelector('.p').innerHTML}`)
+  })
+
+  await runTest(CAT, 'B-011: a component still receives a single text child', async () => {
+    const { id, el } = mount()
+    function Label({ children }) { return <span className="label">[{children}]</span> }
+    function App() { return <div><Label>hello</Label></div> }
+    run(App, {}, { mountPoint: id })
+    await waitFor(() => el.querySelector('.label'))
+    assert(el.querySelector('.label').textContent === '[hello]', `label: ${el.querySelector('.label').textContent}`)
+  })
 }
