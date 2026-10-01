@@ -12,7 +12,7 @@ Tracks progress for [PLAN-1.md](PLAN-1.md). Maintained by the coordinator.
 |---|---|---|---|
 | 0 — Foundations | ✅ Done | `plan1-phase0` | 0A ✅ · 0B ✅ · 0C ✅ · review: 9 findings, all fixed. Baseline eval still running (independent of merges; uses the pre-0B tarball) |
 | 1 — Core capabilities | ✅ Done | `plan1-phase1` | 1A–1H ✅ · review: 11 findings + 2 minor, all fixed in 1H |
-| 2 — Strictness, introspection, integration | 🟡 In progress | — | 2A ∥ 2C running; then 2B; then 2D (D30) |
+| 2 — Strictness, introspection, integration | 🔵 Closing | — | 2A ✅ 2B ✅ 2C ✅ 2D ✅ · phase-close review running |
 | 3 — Agent context & docs | ⚪ Not started | — | |
 | 4 — Measure & release | ⚪ Not started | — | |
 
@@ -40,7 +40,7 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | 2A | Strict mode | ✅ | `worktree-agent-afd0cd5cf66506ba3` | subagent | `b88fcf1` | SYG501–507 static (`--strict`); runtime SYG501/502/504 via the dev entry (`configureStrict`, `__SYGNAL_STRICT__`, `renderComponent({strict})`); `--fix` for SYG504/505/506 (idempotent). Example hits: 21 (mostly SYG502 `return state`, SYG505 `emit()`, SYG501 in 2048). Kanban +0 B |
 | 2B | Inspect | ✅ | `worktree-agent-a1358805c2f45164e` | subagent | `7639dd9` | Runtime `inspect()` (dev entry; on `getDevTools()` + `t.inspect()`), `sygnal-check --graph [--json]` with a shared JSON Schema, `explain` + `explanations.json` (64 codes, drift-tested), hand-rolled MCP server (check/graph/explain), G-010 types. Kanban +0 B. Was: | Runtime `inspect()` in the dev entry (0 B), `sygnal-check --graph` (same JSON schema), `explain <code>` + explanations table (single source for the docs error reference), MCP server as a stretch (D28), G-010 types |
 | 2C | Vite plugin integration | ✅ | `worktree-agent-ac317b909e07cfe2a` | subagent | (merge after 6ad08bc) | Dev-only `import 'sygnal/diagnostics'` + `virtual:sygnal/dev` injected in serve; Vitest setupFiles auto-added (`vitestSetup:false` opt-out); `diagnostics`/`check` options (run() wrapper virtual module for non-default modes); sygnal-check in dev → terminal, console and overlay; Vike/Astro dev mode (G-014 ✅); free-port browser tests (G-034 ✅); fixed the Vite 8 dep-scan JSX bug. Kanban identical bytes, 0 dev markers |
-| 2D | Example migration | 🟡 | 3 parallel groups | subagents | B ✅ (4 examples clean, 17 smoke tests; G-023 ✅) · C ✅ (5 examples + 8 templates clean, scaffold-verified, B-019 ✅, G-038 ✅, vike-template hydration fix) · A running (kanban, todomvc, G-021) | A: kanban, drag-drop, todomvc (+G-021 root vitest config) · B: getting-started, playground, ts-example-2048, advanced-feature-tests (+G-023 browser-tests suppressions) · C: ssr, vike, astro-smoke, hmr-smoke, ai-panel-spa, create-sygnal-app templates (+B-019, G-038) |
+| 2D | Example migration | ✅ | 3 parallel groups | subagents | `52743dc` | B: 4 examples clean, 17 smoke tests, G-023 ✅. C: 5 examples + 8 templates clean, scaffold-verified, B-019 ✅, G-038 ✅, vike-template hydration fix. A: kanban (SYG111 → titleDraft) + todomvc (first tests), G-021 ✅ (`vitest.config.mjs` excludes examples; `npm run test:examples` runs each example's own suite; shims removed). All examples + templates: 0 strict diagnostics | A: kanban, drag-drop, todomvc (+G-021 root vitest config) · B: getting-started, playground, ts-example-2048, advanced-feature-tests (+G-023 browser-tests suppressions) · C: ssr, vike, astro-smoke, hmr-smoke, ai-panel-spa, create-sygnal-app templates (+B-019, G-038) |
 | 3A | `llms.txt` | ⚪ | | | | |
 | 3B | Skill rewrite | ⚪ | | | | |
 | 3C | Docs site & repo docs | ⚪ | | | | |
@@ -58,6 +58,7 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | After 0B review fixes (**Phase 0 close**, tag `plan1-phase0`) | `44daa86` | ✅ (includes dts) | ✅ | ✅ 670 | ✅ | ✅ 83 | 59,108 B | `dist/index.d.ts` from `build` alone has no `./cycle/` imports |
 | After 1B | `b75616b` | ✅ | (in build) | ✅ 683 | ✅ (+ registry/dist programs) | ✅ 83 | 59,183 B | Phase 1 budget left: 1,222 B (1A ≤400, 1C ≤500, 1E ≤300) |
 | After 1C + 1D | `679e60f` | ✅ | (in build) | ✅ 716 (+2 todo) | ✅ | ✅ 83 | whole file 60,764 B (info only) · **kanban app 40,237 B gz** (unchanged) | **Gate redefined (D18):** kanban production bundle limit 41,773 B (+1.5 KB over 40,237). Kanban tests 70/70. sygnal-check 46/46 |
+| After 2D (all Phase 2 merged) | `52743dc` | ✅ | (in build) | ✅ 833 library + 104 example tests (9 examples via `test:examples`) | ✅ | ✅ 111 | kanban app 42.00 kB gz (+32 B from the **example's** new titleDraft field; library unchanged since Phase 1) | **Size gate re-baselined (D31)** |
 | After 1H (**Phase 1 close**, tag `plan1-phase1`) | `0198550` | ✅ | (in build) | ✅ 845 | ✅ | ✅ 111 | kanban app **41,604 B** (limit 41,773; **169 B headroom**) | Kanban 70/70; sygnal-check 52/52 |
 | After 1G (all Phase 1 merged) | `a6caabf` | ✅ | (in build) | ✅ 812 | ✅ | ✅ 107 | kanban app **41,442 B** (limit 41,773; 331 B headroom) | Kanban 70/70; sygnal-check 50/50; analyzer 27/27 |
 | After 1F | `52e3f91` | ✅ | (in build) | ✅ 795 | ✅ | ✅ 94 | kanban app **40,938 B** (limit 41,773) | Kanban 70/70 |
@@ -118,6 +119,9 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | D28 | 2026-10-01 | 2B: ship an MCP server (`sygnal-check mcp`: check, graph, explain) as a stretch goal after core inspect/graph | User | |
 | D29 | 2026-10-01 | Phase 2 adds **0 bytes** to app bundles: strict mode and inspect live in the `sygnal/diagnostics` dev entry or tooling. If impossible, come back with numbers | User | 169 B headroom left |
 | D30 | 2026-10-01 | Phase 2 sequencing: 2A ∥ 2C now (disjoint ownership) → 2B after 2A (shares the sygnal-check CLI + dev entry) → 2D after 2A + 2C (∥ 2B). This differs from the plan's 2C→2B→2A→2D merge order | Coordinator | Maximizes parallelism without shared files |
+
+| D31 | 2026-10-01 | The size gate keeps measuring **library** growth: the kanban example's own code changed in 2D (+32 B), so the gate is re-baselined to the 2D kanban bundle, with the same 41,773-equivalent headroom (169 B) for library additions | Coordinator | The gate measures what Sygnal adds to apps, not example code |
+| D32 | 2026-10-01 | Coordinator gate commands use `npm --prefix <root>`, because the shell sometimes stays in an example directory after commands that cd into one (it ran the wrong suite twice) | Coordinator | Gate reliability |
 
 ## Bugs & Gaps Found
 
@@ -195,6 +199,10 @@ Pre-existing issues and gaps found during the work. Severity: high (blocks a gat
 | G-046 | 2D-C | low | Vike | The `sygnal/config` settings add `urlPathname` to `passToClient`, which makes Vike log a warning in the browser on every page. | Open → PLAN-2 candidate |
 | G-047 | 2D-C | low | `src/extra/testing.ts` | `waitForState` can resolve before child components have re-rendered (`html()` lagged on a child). Related to G-041 (it matches history). | Open → Phase 2 review fixes |
 | G-048 | 2D-C | **release blocker** | create-sygnal-app | The templates depend on `"sygnal": "^5.3.0"`; the published 5.3.7 lacks all PLAN-1 APIs (simulateEvent, strict, …) used by the new starter tests. The range must be bumped to the release that ships them before create-sygnal-app is published. | Open → 4B |
+| G-049 | 2D-A | med | `src/extra/testing.ts` | `simulateEvent` with a selector that doesn't match a rendered element yet is delivered to **every** listener with that selector string, so in kanban an Enter on `.new-task-input` added the task to all four lanes. Combined with waitForState resolving before new Collection items render (G-047), this makes tests flaky or wrong. | Open → Phase 2 review fixes |
+| G-050 | 2D-A | med | Vitest + jsdom | With `environment: 'jsdom'`, the diagnostics setup file from a linked package fails to load ("Cannot find module '/@fs/…/dist/diagnostics.esm.js'"), both from the plugin's automatic setup and from `'sygnal/diagnostics'` in setupFiles. todomvc works around it with `vitestSetup:false` + a local setup file. | Open → Phase 2 review fixes |
+| G-051 | 2D-A | med | Diagnostics × testing | Check dedupe (`once()`) is never reset between renderComponent instances, so a finding from an earlier test in the same file is silently skipped later and `expectNoDiagnostics()` passes vacuously. | Open → Phase 2 review fixes (reset per renderComponent) |
+| G-052 | 2D-A | low | Example | todomvc ids use `Date.now()` (collisions within a millisecond); `app.tsx` has a type error (`LOG: 'Starting…'` not assignable to SinkValue); the build doesn't run tsc. | Open → PLAN-2 candidate |
 | G-008 | Coordinator | low | Skill | The installed user-level skill `~/.claude/skills/sygnal-dev/SKILL.md` lags the repo copy (missing the DISPOSE row and the dispose$ "prefer DISPOSE" note); `agents/` exists only in the repo. Eval trials use the installed copy. | Open → 3B sync |
 | G-009 | Coordinator | low | Eval harness | The `transcript-stats.mjs` audit flags every call whose path contains "evals", which gives false positives when the trial dir is under `.../evals/...`. | ✅ Fixed in 0A-H (audit narrowed; trial dir stripped before matching) |
 | G-010 | 0B | low | Types | `getDevTools` is exported at runtime but has no declaration in `src/index.d.ts`. | Open → 2B |
