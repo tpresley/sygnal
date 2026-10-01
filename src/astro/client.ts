@@ -52,7 +52,13 @@ export default (element: any) => {
       previous.dispose()
     }
 
-    const Wrapped: any = (args: any) => Component({ ...args, props: { ...(props || {}) } })
+    // Island props reach the view like any component's props, spread
+    // top-level (`{ state, title }`), the same as on the server
+    // (renderToString). The view args (state, context, ...) win over a prop
+    // with the same name; `props` is kept for older `({ state, props })`
+    // views (B-026).
+    const islandProps = { ...(props || {}) }
+    const Wrapped: any = (args: any) => Component({ ...islandProps, ...args, props: islandProps })
     Wrapped.model = Component.model
     Wrapped.intent = Component.intent
     Wrapped.hmrActions = Component.hmrActions
