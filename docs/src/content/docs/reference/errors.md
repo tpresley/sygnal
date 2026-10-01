@@ -80,7 +80,7 @@ Search.intent = ({ DOM }) => ({
 
 Severity: `info` · Reported by: the dev checks (`sygnal/diagnostics`), the Sygnal runtime (every app, production included)
 
-A selector passed to `DOM.select()` in the intent has not matched any element the component rendered, so its events never fire (often a typo in the class or id). The dev entry skips selectors whose class/id/tag tokens all appear in the view source (assumed conditionally rendered); others are reported as info on the first check and escalated to warn after at least 3 renders and about 2 s of render-idle time with no match. Under `renderComponent`, it is reported when `simulateEvent()` targets a selector that matches no rendered element and no intent listens on.
+A selector passed to `DOM.select()` in the intent has not matched any element the component rendered, so its events never fire (often a typo in the class or id). The dev entry skips selectors whose class/id/tag tokens all appear in the view source (assumed conditionally rendered); others are reported as info on the first check and escalated to warn after at least 3 renders and about 2 s of render-idle time with no match. Under `renderComponent`, `simulateEvent()` on a selector that matches no rendered element throws an error instead; with `{ allowMissing: true }` the event is dropped and SYG103 is reported.
 
 **Fix:** Check the selector against the `className`/`id` in the view. If the element is rendered by a child component, handle the event inside that child instead.
 
