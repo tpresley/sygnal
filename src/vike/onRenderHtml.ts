@@ -182,12 +182,11 @@ export function onRenderHtml(pageContext: PageContext) {
     pageViewContent = `<div id="vike-shell">${pageViewContent}</div>`
 
     // Serialize the wrapper's combined state for hydration. Must match the state shape
-    // from createLayoutWrapper (G-106: each slice nests in the enclosing component's):
-    //   { wrapper_0: { ...wrapperState, layout_0: { ...layoutState, page: pageState } } }
-    let wrapperState: any = { page: initialState }
-    for (let i = shell.length - 1; i >= 0; i--) {
-      wrapperState = { [shell[i].key]: { ...(shell[i].comp.initialState || {}), ...wrapperState } }
-    }
+    // from createLayoutWrapper (D50: sibling slices at the root):
+    //   { wrapper_0: { ...wrapperState }, layout_0: { ...layoutState }, page: pageState }
+    const wrapperState: any = {}
+    shell.forEach(({ comp, key }: any) => { wrapperState[key] = { ...(comp.initialState || {}) } })
+    wrapperState.page = initialState
     pageViewContent += `<script>window.__VIKE_SYGNAL_STATE__=${JSON.stringify(wrapperState)}</script>`
   }
 

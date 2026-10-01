@@ -465,7 +465,7 @@ describe('vike-sygnal SSR rendering', () => {
     expect(html).not.toContain('<div>')
   })
 
-  it('builds combined wrapper state for multiple nested layouts (G-106: nested slices)', async () => {
+  it('builds combined wrapper state for multiple nested layouts (D50: sibling slices)', async () => {
     const { onRenderHtml } = await import('../dist/vike/onRenderHtml.mjs')
     function Page() { return { sel: 'div', data: {}, children: [] } }
     Page.initialState = { title: 'Home' }
@@ -479,9 +479,9 @@ describe('vike-sygnal SSR rendering', () => {
     const html = onRenderHtml({ Page, config: { Layout: [OuterLayout, InnerLayout] } }).documentHtml._escaped
     const wrapperState = JSON.parse(html.match(/window\.__VIKE_SYGNAL_STATE__=(.*?)<\/script>/)[1])
 
-    // each Layout's state key is relative to the enclosing Layout
+    // each Layout's slice is a sibling at the root (D50)
     expect(wrapperState).toEqual({
-      layout_0: { theme: 'dark', layout_1: { sidebarOpen: false, page: { title: 'Home' } } },
+      layout_0: { theme: 'dark' }, layout_1: { sidebarOpen: false }, page: { title: 'Home' },
     })
   })
 })

@@ -57,7 +57,7 @@ let pageNavCounter: number = 0
 /**
  * Build a component vnode that matches what the JSX pragma produces.
  */
-function componentVNode(comp: any, stateField: string, children: any[], compInitialState?: any): any {
+function componentVNode(comp: any, key: string, stateField: any, children: any[], compInitialState?: any): any {
   const name = comp.componentName || comp.name || 'FUNCTION_COMPONENT'
   return {
     sel: name,
@@ -87,7 +87,7 @@ function componentVNode(comp: any, stateField: string, children: any[], compInit
     children,
     text: undefined,
     elm: undefined,
-    key: '__vike_' + stateField + '__',
+    key: '__vike_' + key + '__',
   }
 }
 
@@ -96,7 +96,7 @@ function componentVNode(comp: any, stateField: string, children: any[], compInit
  * Reads from mutable `currentPage` / `currentPageName` so the wrapper
  * view picks up the new Page component on navigation without being recreated.
  */
-function pageChildVNode(pageState: any): any {
+function pageChildVNode(pageState: any, stateField: any = 'page'): any {
   // Include pageNavCounter in sel so instantiateSubComponents detects a
   // component swap even when both pages have the same function name (e.g. 'Page').
   const sel = currentPageName + '__nav' + pageNavCounter
@@ -104,7 +104,7 @@ function pageChildVNode(pageState: any): any {
     sel,
     data: {
       props: {
-        state: 'page',
+        state: stateField,
         sygnalOptions: {
           // G-037: diagnostics, devtools and onError name the component by
           // `name`; keep the user's name (the nav counter is only in `sel`).
@@ -148,13 +148,37 @@ function createLayoutWrapper(wrappers: any[], layouts: any[], Page: any): any {
   currentPage = Page
   currentPageName = Page.componentName || Page.name || 'VikePageComponent'
 
-  // Combined shell = wrappers (outermost) + layouts (innermost around Page)
-  // State keys: wrapper_0, wrapper_1, ..., layout_0, layout_1, ...
-  // G-106: each key is relative to the enclosing shell component (a component's `state`
-  // prop selects from its parent's state), so the slices nest and the Page state lives
-  // under the innermost one: { wrapper_0: { ...w, layout_0: { ...l, page } } }
+  // Combined shell = wrappers (outermost) + layouts (innermost around Page).
+  // D50: the root state holds every slice as a sibling, as in 5.4.0 but with the Page at the
+  // root too: { wrapper_0, ..., layout_0, ..., page }. A component's `state` prop selects from
+  // its parent component's state, and the shell components are nested in each other, so each
+  // one (and the Page) gets a { get, set } lens onto its own ROOT slice: an outer component's
+  // reducer replacing its state can't wipe the inner slices (R2-2), and no view sees another
+  // component's slice.
   const keys = shellKeys(wrappers, layouts)
   const shell = [...wrappers, ...layouts].map((comp: any, i: number) => ({ comp, key: keys[i] }))
+
+  // The latest root state. Only the outermost lens gets the root itself; the nested lenses get
+  // their parent shell component's state. In both directions the outermost lens runs first and
+  // synchronously (state: root -> outer get -> inner get; a reducer: outer get, inner get, inner
+  // set, outer set), so the nested lenses read and write through `root`.
+  let root: any = {}
+  const rootLens = (key: string, outermost: boolean, fresh: boolean) => ({
+    get: (state: any) => {
+      if (outermost) root = state || {}
+      const slice = root[key]
+      // a shell slice is a new object on every root state, so the components nested in the
+      // shell component see every change (their state stream drops repeated objects)
+      return fresh && slice && typeof slice === 'object' && !Array.isArray(slice) ? { ...slice } : slice
+    },
+    set: (state: any, slice: any) => {
+      root = { ...root, [key]: slice }
+      // a nested lens returns a changed parent state, so the parent's lens writes `root` back
+      return outermost ? root : { ...state }
+    },
+  })
+  const lenses = keys.map((key, i) => rootLens(key, i === 0, true))
+  const pageLens = rootLens('page', false, false)
 
   function LayoutWrapperView({ state }: any) {
     if (shell.length === 0) {
@@ -162,19 +186,18 @@ function createLayoutWrapper(wrappers: any[], layouts: any[], Page: any): any {
       return pageChildVNode(state.page)
     }
 
-    const slices = shellSlices(state, keys)
     const lastIdx = shell.length - 1
-    const innermostState = slices[lastIdx]
     let inner: any = componentVNode(
       shell[lastIdx].comp,
       shell[lastIdx].key,
-      [pageChildVNode(innermostState.page)],
-      innermostState
+      lenses[lastIdx],
+      [pageChildVNode(state.page, pageLens)],
+      state[shell[lastIdx].key]
     )
 
     // Wrap with outer shell components
     for (let i = lastIdx - 1; i >= 0; i--) {
-      inner = componentVNode(shell[i].comp, shell[i].key, [inner], slices[i])
+      inner = componentVNode(shell[i].comp, shell[i].key, lenses[i], [inner], state[shell[i].key])
     }
 
     // Wrap in a plain div so the view returns a regular DOM vnode.
@@ -194,11 +217,12 @@ function createLayoutWrapper(wrappers: any[], layouts: any[], Page: any): any {
   // run() names the root by `name` first
   try { Object.defineProperty(LayoutWrapperView, 'name', { value: 'VikeLayoutWrapper', configurable: true }) } catch (_) {}
 
-  // Build the wrapper's initial state: a nested slice for each shell component, with the
-  // Page state under the innermost one.
-  LayoutWrapperView.initialState = shell.length
-    ? nestShellState(keys, shell.map(({ comp }: any) => comp.initialState), Page.initialState)
-    : {}
+  // The wrapper's initial state: a sibling slice for each shell component and the Page.
+  // Must match onRenderHtml's serialized state.
+  const initialState: any = {}
+  shell.forEach(({ comp, key }: any) => { initialState[key] = { ...(comp.initialState || {}) } })
+  initialState.page = Page.initialState || {}
+  LayoutWrapperView.initialState = root = initialState
 
   // Context uses mutable references so navigation updates are picked up.
   // Wrapper and Layout contexts are merged once; page-level context
@@ -230,25 +254,6 @@ function shellKeys(wrappers: any[], layouts: any[]): string[] {
   ]
 }
 
-/** Each shell component's slice of the nested shell state, outermost first (G-106). */
-function shellSlices(state: any, keys: string[]): any[] {
-  let slice = state
-  return keys.map((key) => (slice = (slice && slice[key]) || {}))
-}
-
-/**
- * Nested shell state from each shell component's own state and the Page state (G-106):
- * { [keys[0]]: { ...states[0], [keys[1]]: { ...states[1], page } } }
- * Must match onRenderHtml's serialized state.
- */
-function nestShellState(keys: string[], states: any[], page: any): any {
-  let inner: any = { page: page || {} }
-  for (let i = keys.length - 1; i >= 0; i--) {
-    inner = { [keys[i]]: { ...(states[i] || {}), ...inner } }
-  }
-  return inner
-}
-
 /**
  * Normalize a cumulative config value into an array of functions.
  */
@@ -265,8 +270,8 @@ export function onRenderClient(pageContext: PageContext) {
   const layouts = toComponentArray(config.Layout)
   const hasShell = wrappers.length > 0 || layouts.length > 0
 
-  // The shell is wrappers (outermost) + layouts, each nested in the previous one's state
-  // slice; the innermost component holds the Page state (G-106).
+  // The shell is wrappers (outermost) + layouts; their state slices and the Page's are
+  // siblings at the root (D50).
   const shell = shellKeys(wrappers, layouts)
 
   // Update mutable context references (used by the wrapper's context functions)
@@ -287,11 +292,8 @@ export function onRenderClient(pageContext: PageContext) {
 
       const newPageState = { ...(Page.initialState || {}), ...data }
       if (currentApp.sinks?.STATE?.shamefullySendNext) {
-        // G-106: replace the page slice at its nested path, keeping every shell slice
-        const setPage = (state: any, i: number): any => i === shell.length
-          ? { ...state, page: newPageState }
-          : { ...state, [shell[i]]: setPage((state && state[shell[i]]) || {}, i + 1) }
-        currentApp.sinks.STATE.shamefullySendNext((state: any) => setPage(state, 0))
+        // replace the page slice, keeping every shell slice (G-106, D50)
+        currentApp.sinks.STATE.shamefullySendNext((state: any) => ({ ...state, page: newPageState }))
       }
     } else {
       // First load: read hydrated state or build from initialState
@@ -303,17 +305,22 @@ export function onRenderClient(pageContext: PageContext) {
         initialState = null
       }
 
-      if (initialState && initialState[shell[0]] !== undefined) {
-        // Hydrated nested shell state (G-106) — distribute slices to each shell component,
-        // each without the next one's slice (or the page)
+      if (initialState && initialState[shell[shell.length - 1]] !== undefined) {
+        // Hydrated shell state: sibling slices (D50), or the 5.4.0 shape with the Page state
+        // under the innermost shell slice (R2-9) — distribute the slices to each component
         const allShellComps = [...wrappers, ...layouts]
-        shellSlices(initialState, shell).forEach((slice: any, i: number) => {
-          const { [i === shell.length - 1 ? 'page' : shell[i + 1]]: inner, ...compState } = slice
-          allShellComps[i].initialState = compState
-          if (i === shell.length - 1) {
-            Page.initialState = inner || { ...(Page.initialState || {}), ...data }
+        let pageState = initialState.page
+        shell.forEach((key: string, i: number) => {
+          let slice = initialState[key]
+          if (slice === undefined) return
+          if (i === shell.length - 1 && slice && 'page' in slice) {
+            const { page, ...rest } = slice
+            if (pageState === undefined) pageState = page
+            slice = rest
           }
+          allShellComps[i].initialState = slice
         })
+        Page.initialState = pageState || { ...(Page.initialState || {}), ...data }
       } else {
         // SPA mode or client-side first navigation
         Page.initialState = { ...(Page.initialState || {}), ...data }
