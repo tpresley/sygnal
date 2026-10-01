@@ -1,7 +1,57 @@
 import { describe, it, expect } from 'vitest'
+import ts from 'typescript'
 import sygnal from '../dist/vite/plugin.mjs'
 
 const DEV_FLAG = 'if (globalThis.__SYGNAL_DEV__ === undefined) globalThis.__SYGNAL_DEV__ = true;'
+
+// The plugin skips HMR wiring under Vitest (process.env.VITEST, read in
+// config()). These tests run under Vitest, so configure as a plain dev server.
+function serveConfig(plugin, { vitest = false } = {}) {
+  const saved = process.env.VITEST
+  if (vitest) process.env.VITEST = 'true'
+  else delete process.env.VITEST
+  try {
+    return plugin.config({}, { command: 'serve' })
+  } finally {
+    if (saved === undefined) delete process.env.VITEST
+    else process.env.VITEST = saved
+  }
+}
+
+// Minimal v3 sourcemap decoder: returns, per generated line, [genCol, srcLine, srcCol] segments
+function decodeMappings(mappings) {
+  const B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+  let srcLine = 0, srcCol = 0
+  return mappings.split(';').map(group => {
+    let genCol = 0
+    return group ? group.split(',').map(seg => {
+      const vals = []
+      let v = 0, shift = 0
+      for (const ch of seg) {
+        const d = B64.indexOf(ch)
+        v += (d & 31) << shift
+        if (d & 32) shift += 5
+        else { vals.push(v & 1 ? -(v >>> 1) : v >>> 1); v = 0; shift = 0 }
+      }
+      genCol += vals[0]; srcLine += vals[2]; srcCol += vals[3]
+      return [genCol, srcLine, srcCol]
+    }) : []
+  })
+}
+
+// Syntax errors of a transformed module (TypeScript parser; handles shebangs)
+function parseErrors(code) {
+  const sf = ts.createSourceFile('main.js', code, ts.ScriptTarget.Latest, false, ts.ScriptKind.JS)
+  return sf.parseDiagnostics.map(d => ts.flattenDiagnosticMessageText(d.messageText, '\n'))
+}
+
+// Map a generated position back to the original via the decoded mappings
+function originalPosition(decoded, line, col) {
+  const segs = decoded[line] || []
+  let best = null
+  for (const s of segs) if (s[0] <= col) best = s
+  return best && [best[1], best[2] + (col - best[0])]
+}
 
 describe('vite-plugin-sygnal', () => {
   describe('config', () => {
@@ -46,7 +96,7 @@ describe('vite-plugin-sygnal', () => {
     function createPlugin() {
       const plugin = sygnal()
       // Activate serve mode so transforms apply
-      plugin.config({}, { command: 'serve' })
+      serveConfig(plugin)
       return plugin
     }
 
@@ -161,7 +211,7 @@ if (import.meta.hot) {
 }
 `
       const result = plugin.transform(code, '/src/main.js')
-      expect(result).toEqual({ code: DEV_FLAG + code })
+      expect(result.code).toBe(DEV_FLAG + code)
     })
 
     it('skips files without run import from sygnal', () => {
@@ -184,7 +234,7 @@ import { run } from 'sygnal'
 run(someFunction)
 `
       const result = plugin.transform(code, '/src/main.js')
-      expect(result).toEqual({ code: DEV_FLAG + code })
+      expect(result.code).toBe(DEV_FLAG + code)
     })
 
     it('skips HMR wiring where component has no import path (dev flag only)', () => {
@@ -199,7 +249,7 @@ run(App)
 `
       const result = plugin.transform(code, '/src/main.js')
       // App is defined inline, not imported — can't wire HMR to a module, but the dev flag is still set
-      expect(result).toEqual({ code: DEV_FLAG + code })
+      expect(result.code).toBe(DEV_FLAG + code)
     })
 
     it('skips node_modules', () => {
@@ -233,14 +283,14 @@ run(App)
 
     it('skips HMR wiring when disableHmr is true (dev flag only)', () => {
       const plugin = sygnal({ disableHmr: true })
-      plugin.config({}, { command: 'serve' })
+      serveConfig(plugin)
       const code = `
 import { run } from 'sygnal'
 import App from './App.jsx'
 run(App)
 `
       const result = plugin.transform(code, '/src/main.js')
-      expect(result).toEqual({ code: DEV_FLAG + code })
+      expect(result.code).toBe(DEV_FLAG + code)
     })
 
     it('handles run with multiple sygnal imports', () => {
@@ -266,7 +316,7 @@ run(App)
 
     function servePlugin(opts) {
       const plugin = sygnal(opts)
-      plugin.config({}, { command: 'serve' })
+      serveConfig(plugin)
       return plugin
     }
 
@@ -320,6 +370,146 @@ run(App)
     it('does not use define (it would not reach pre-bundled sygnal)', () => {
       const result = sygnal().config({}, { command: 'serve' })
       expect(result.define).toBeUndefined()
+    })
+
+    it('inserts the flag after a shebang line, keeping it first', () => {
+      const code = `#!/usr/bin/env node\n${entry}`
+      const result = servePlugin().transform(code, '/src/main.js')
+      const lines = result.code.split('\n')
+      expect(lines[0]).toBe('#!/usr/bin/env node')
+      expect(lines[1]).toBe(DEV_FLAG + "import { run } from 'sygnal'")
+      expect(parseErrors(result.code)).toEqual([])
+    })
+
+    it("inserts the flag after a 'use strict'; directive", () => {
+      const code = `'use strict';\n${entry}`
+      const result = servePlugin().transform(code, '/src/main.js')
+      expect(result.code.split('\n')[0]).toBe(`'use strict';${DEV_FLAG}`)
+      expect(parseErrors(result.code)).toEqual([])
+    })
+
+    it('inserts the flag after a directive prologue without semicolons (with comments)', () => {
+      const code = `// header comment\n"use client"\n/* x */ 'use strict' // why\n${entry}`
+      const result = servePlugin().transform(code, '/src/main.js')
+      const lines = result.code.split('\n')
+      expect(lines[1]).toBe('"use client"')
+      expect(lines[2]).toBe(`/* x */ 'use strict';${DEV_FLAG} // why`)
+      expect(parseErrors(result.code)).toEqual([])
+    })
+
+    it('a string expression that is not a directive does not move the flag', () => {
+      const code = `'not' + 'a directive'\n${entry}`
+      const result = servePlugin().transform(code, '/src/main.js')
+      expect(result.code.startsWith(DEV_FLAG + "'not'")).toBe(true)
+    })
+
+    it('returns a sourcemap that maps every original line back to itself', () => {
+      const code = `#!/usr/bin/env node\n'use strict'\n${entry}`
+      const result = servePlugin().transform(code, '/src/main.js')
+      expect(result.map.version).toBe(3)
+      expect(result.map.sources).toEqual(['/src/main.js'])
+      expect(result.map.sourcesContent).toEqual([code])
+      const decoded = decodeMappings(result.map.mappings)
+      const genLines = result.code.split('\n')
+      const srcLines = code.split('\n')
+      // `run(App)` (original line 4, col 0) is now `const __sygnal = run(App)`
+      const runLine = srcLines.indexOf('run(App)')
+      const genCol = genLines[runLine].indexOf('run(App)')
+      expect(genCol).toBeGreaterThan(0)
+      expect(originalPosition(decoded, runLine, genCol)).toEqual([runLine, 0])
+      // the import after the flag maps back to column 0 of its own line
+      const importCol = genLines[2].indexOf('import')
+      expect(originalPosition(decoded, 2, importCol)).toEqual([2, 0])
+      // a column inside the 'use strict' directive is unchanged
+      expect(originalPosition(decoded, 1, 4)).toEqual([1, 4])
+    })
+  })
+
+  describe('transform — HMR wiring robustness (B-007)', () => {
+    function plugin() {
+      const p = sygnal()
+      serveConfig(p)
+      return p
+    }
+    const head = `import { run } from 'sygnal'\nimport App from './App.jsx'\n`
+
+    it('leaves an assignment to an existing variable untouched (dev flag only)', () => {
+      const code = `${head}let app\napp = run(App)\n`
+      const result = plugin().transform(code, '/src/main.js')
+      expect(result.code).toBe(DEV_FLAG + code)
+      expect(parseErrors(result.code)).toEqual([])
+    })
+
+    it('leaves nested and indented calls untouched (dev flag only)', () => {
+      const variants = [
+        `${head}export default run(App)\n`,
+        `${head}start(run(App))\n`,
+        `${head}const x = foo(run(App))\n`,
+        `${head}function start() {\n  run(App)\n}\nstart()\n`,
+        `${head}it('mounts', () => {\n  const app = run(App)\n  app.dispose()\n})\n`,
+        `${head}const { hmr: h, dispose } = run(App)\n`,
+        `${head}const { sources } = run(App)\n`,
+      ]
+      for (const code of variants) {
+        const result = plugin().transform(code, '/src/main.js')
+        expect(result.code, code).toBe(DEV_FLAG + code)
+        expect(parseErrors(result.code), code).toEqual([])
+      }
+    })
+
+    it('ignores run(App) inside comments and strings', () => {
+      const variants = [
+        `${head}// run(App)\n`,
+        `${head}/*\nrun(App)\n*/\n`,
+        `${head}const s = \`\nrun(App)\n\`\n`,
+        `${head}// const app = run(App)\n`,
+      ]
+      for (const code of variants) {
+        const result = plugin().transform(code, '/src/main.js')
+        expect(result.code, code).toBe(DEV_FLAG + code)
+        expect(parseErrors(result.code), code).toEqual([])
+      }
+    })
+
+    it('wires the real call when a commented-out call comes first', () => {
+      const code = `${head}// run(App)\nrun(App)\n`
+      const result = plugin().transform(code, '/src/main.js')
+      expect(result.code).toContain('// run(App)\nconst __sygnal = run(App)')
+      expect(result.code).toContain("import.meta.hot.accept('./App.jsx', __sygnal.hmr)")
+      expect(parseErrors(result.code)).toEqual([])
+    })
+
+    it('ignores a commented-out run import', () => {
+      const code = `// import { run } from 'sygnal'\nimport { createElement } from 'sygnal'\nrun(App)\n`
+      expect(plugin().transform(code, '/src/main.js')).toBeNull()
+    })
+
+    it('every wired shape parses and references a defined binding', () => {
+      const variants = [
+        [`${head}run(App)\n`, '__sygnal.hmr'],
+        [`${head}const app = run(App)\n`, 'app.hmr'],
+        [`${head}let app = run(App, {}, { mountPoint: '#app' })\n`, 'app.hmr'],
+        [`${head}const { hmr, dispose, sources } = run(App)\n`, ', hmr)'],
+      ]
+      for (const [code, ref] of variants) {
+        const result = plugin().transform(code, '/src/main.js')
+        expect(result.code, code).toContain(ref)
+        expect(parseErrors(result.code), code).toEqual([])
+      }
+    })
+
+    it('skips HMR wiring in test files (dev flag only)', () => {
+      const code = `${head}run(App)\n`
+      for (const id of ['/src/app.test.js', '/src/app.spec.jsx', '/test/main.test.ts']) {
+        expect(plugin().transform(code, id).code).toBe(DEV_FLAG + code)
+      }
+    })
+
+    it('skips HMR wiring under Vitest (dev flag only)', () => {
+      const p = sygnal()
+      serveConfig(p, { vitest: true })
+      const code = `${head}run(App)\n`
+      expect(p.transform(code, '/src/main.js').code).toBe(DEV_FLAG + code)
     })
   })
 
