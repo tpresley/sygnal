@@ -1,10 +1,63 @@
 import {setup} from '../cycle/run/index';
 import {withState} from '../cycle/state/index';
-import {mockDOMSource} from '../cycle/dom/index';
+import {mockDOMSource} from '../cycle/dom/mockDOMSource';
 import eventBusDriver from './eventDriver';
 import logDriver from './logDriver';
 import component from '../component';
-import xs, {Stream} from './xstreamCompat';
+import {renderToString} from './ssr';
+import {configureDiagnostics, getDiagnosticsMode, onDiagnostic} from './diagnostics/index';
+import xs from './xstreamCompat';
+import type {Stream} from 'xstream';
+import type {Diagnostic, DiagnosticsMode} from './diagnostics/index';
+
+/*
+ * (Docs live on these type-only declarations so the TypeScript emit drops
+ * them — keeps them out of the published bundle.)
+ *
+ * renderComponent(Component, options?) runs a component on a minimal runtime
+ * (mock DOM, EVENTS, LOG, STATE + any `drivers`).
+ *
+ * - simulateEvent(selector, type, init?) sends a synthetic DOM event through
+ *   the mock DOM source, so the component's real intent streams fire
+ *   (DOM.click('.x'), DOM.select('.x').events('click'), .value(), .data(), ...).
+ *   The target is the first rendered element matching `selector`; it is
+ *   delivered to every listener whose selector matches that element or one of
+ *   its ancestors in the same isolation scope (bubbling), and to
+ *   DOM.select('document'|'body') listeners. If no rendered element matches,
+ *   it goes to listeners whose selector string equals `selector` (e.g.
+ *   'document', or an element that is not rendered yet). Unmatched events
+ *   are dropped. `target.value/checked/dataset` default from the element's
+ *   vnode (as strings, like the DOM) and are overridden by `init`.
+ * - simulateAction(name, data?) pushes `{type: name, data}` into the real
+ *   intent → model pipeline, so every sink of the model entry runs and hooks /
+ *   diagnostics see the real action name. (Model actions that have no intent
+ *   stream get one added under their real name; the injected names are listed
+ *   on the intent object's non-enumerable `__sygnalTestActions` property.)
+ * - Calls made before the component is subscribed are buffered and replayed
+ *   in order once it is ready; `await t.ready()` is an explicit sync point.
+ * - Diagnostics: `diagnostics` (default 'collect', or the already-active
+ *   mode when diagnostics are on) is applied with
+ *   configureDiagnostics and restored by dispose(). Runtime checks live in a
+ *   separate entry: `import 'sygnal/diagnostics'` in the test (or vitest
+ *   setupFiles) to enable them.
+ */
+
+export interface SimulatedEventInit {
+  /** Merged into `event.target` (value, checked, dataset, ...) */
+  target?: Record<string, any>;
+  /** Shorthand for target.value */
+  value?: any;
+  /** Shorthand for target.checked */
+  checked?: boolean;
+  /** Merged into target.dataset (values become strings, like the DOM) */
+  dataset?: Record<string, any>;
+  /** Alias for dataset */
+  data?: Record<string, any>;
+  /** Keyboard key (e.key) */
+  key?: string;
+  /** Any other event properties are copied onto the event */
+  [prop: string]: any;
+}
 
 export interface RenderOptions {
   /** Override or provide initial state (defaults to component's .initialState) */
@@ -13,6 +66,13 @@ export interface RenderOptions {
   mockConfig?: Record<string, any>;
   /** Additional drivers beyond DOM, EVENTS, STATE, and LOG */
   drivers?: Record<string, any>;
+  /**
+   * Diagnostics mode while the component is rendered. Default: 'collect', or
+   * the current mode when diagnostics are already on (e.g. 'error' set in a
+   * setup file). Restored on dispose(). Checks require
+   * `import 'sygnal/diagnostics'`.
+   */
+  diagnostics?: DiagnosticsMode;
 }
 
 export interface RenderResult {
@@ -26,26 +86,96 @@ export interface RenderResult {
   sinks: Record<string, any>;
   /** All source objects by driver name */
   sources: Record<string, any>;
-  /** Push an action directly into the intent→model pipeline */
+  /** Push an action into the intent→model pipeline (all sinks of the entry run) */
   simulateAction: (actionName: string, data?: any) => void;
-  /** Wait for state to satisfy a predicate (resolves with the matching state) */
+  /** Dispatch a synthetic DOM event through the mock DOM source */
+  simulateEvent: (selector: string, eventType: string, eventInit?: SimulatedEventInit) => void;
+  /** Resolves once the component is subscribed and rendered (earlier calls are buffered) */
+  ready: () => Promise<void>;
+  /**
+   * Wait for state to satisfy a predicate. Resolves with the matching state
+   * once it has been rendered, so html() and simulateEvent() see the new view.
+   */
   waitForState: (predicate: (state: any) => boolean, timeoutMs?: number) => Promise<any>;
   /** Collected state values — grows as new states are emitted */
   states: any[];
-  /** Tear down the component and clean up all listeners */
+  /** Live array of values emitted on a sink (EVENTS, PARENT, custom drivers, ...) */
+  sinkValues: (sinkName: string) => any[];
+  /** Live array of EVENTS sink emissions ({type, data}) */
+  emitted: any[];
+  /** Live array of diagnostics reported while rendered */
+  diagnostics: Diagnostic[];
+  /** Throws (with the formatted texts) if any warn/error diagnostics were collected */
+  expectNoDiagnostics: () => void;
+  /** Latest rendered VNode serialized to HTML ('' before the first render) */
+  html: () => string;
+  /** Tear down the component, clean up listeners and restore the diagnostics mode */
   dispose: () => void;
+}
+
+const isScope = (s: string) => s.startsWith('.___');
+const words = (s: string) => s.split(/[\s>]+/).filter(Boolean);
+const str = (o: any) => {
+  const r: any = {};
+  for (const k in o) if (o[k] != null) r[k] = String(o[k]);
+  return r;
+};
+
+// Does vnode `v` match a compound selector (tag, #id, .class, [attr], [attr=v])?
+function is(v: any, sel: string): boolean {
+  const d = v.data || {}, p = d.props || {}, a = d.attrs || {};
+  const [tagId, ...cls] = v.sel.split('.');
+  const [tag, sid] = tagId.split('#');
+  const id = sid || p.id || a.id;
+  const classes = cls.concat(
+    `${p.className || ''} ${a.class || ''}`.split(' '),
+    Object.keys(d.class || {}).filter(k => d.class[k])
+  );
+  return (sel.match(/\[[^\]]+\]|[.#]?[\w-]+|\*/g) || []).every((tok: string) => {
+    const c = tok[0], n = tok.slice(1);
+    if (c == '.') return classes.includes(n);
+    if (c == '#') return id == n;
+    if (c == '[') {
+      const [, name, val] = tok.match(/^\[([\w-]+)(?:=["']?(.*?)["']?)?\]$/) || [];
+      const x = name == 'id' ? id
+        : name in a ? a[name]
+        : name in p ? p[name]
+        : name.startsWith('data-') ? str(d.dataset)[name.slice(5).replace(/-(\w)/g, (_: any, l: string) => l.toUpperCase())]
+        : undefined;
+      return val === undefined ? x != null : String(x) == val;
+    }
+    return c == '*' || tag == tok;
+  });
+}
+
+// Descendant-combinator match: last element matches the last compound, earlier
+// compounds match ancestors in order.
+function desc(cs: string[], els: any[]): boolean {
+  let i = els.length - 1;
+  if (i < 0 || !is(els[i], cs[cs.length - 1])) return false;
+  for (let j = cs.length - 2; j >= 0; j--) {
+    do if (--i < 0) return false; while (!is(els[i], cs[j]));
+  }
+  return true;
+}
+
+// Ancestor chain (root → element) of the first element matching `cs`
+function find(v: any, cs: string[], chain: any[] = []): any[] | undefined {
+  if (!v || typeof v != 'object') return;
+  const c = v.sel ? chain.concat(v) : chain;
+  if (v.sel && desc(cs, c)) return c;
+  for (const k of [].concat(v.children || [])) {
+    const r = find(k, cs, c);
+    if (r) return r;
+  }
 }
 
 /**
  * Render a Sygnal component in isolation for testing.
  *
- * Creates a minimal Cycle.js runtime with mocked DOM, event bus,
- * and state drivers. Returns streams and helpers for inspecting
- * component behavior.
- *
  * ```js
  * const t = renderComponent(Counter, { initialState: { count: 0 } })
- * t.simulateAction('INCREMENT')
+ * t.simulateEvent('.inc', 'click')
  * await t.waitForState(s => s.count === 1)
  * t.dispose()
  * ```
@@ -54,206 +184,238 @@ export function renderComponent(
   componentDef: any,
   options: RenderOptions = {}
 ): RenderResult {
-  const {initialState, mockConfig = {}, drivers = {}} = options;
+  const {initialState, mockConfig = {}, drivers = {}, diagnostics} = options;
+  const {intent, model = {}} = componentDef;
 
-  const name = componentDef.name || componentDef.componentName || 'TestComponent';
-  const view = componentDef;
-  const {
-    intent,
+  const prevMode = getDiagnosticsMode();
+  configureDiagnostics({mode: diagnostics || (prevMode == 'off' ? 'collect' : prevMode)});
+  const collected: Diagnostic[] = [];
+  const offDiag = onDiagnostic(d => collected.push(d));
+
+  const noop = () => {};
+  // Producer-backed streams: emitting with no listener is a silent drop.
+  const port = () => {
+    const p = {emit: noop as (v: any) => void, $: null as any};
+    p.$ = xs.create({
+      start: (l: any) => { p.emit = v => l.next(v); },
+      stop: () => { p.emit = noop; },
+    });
+    return p;
+  };
+  const actions = port();
+  const hub = port();
+
+  const names = Object.keys(model)
+    .map(k => k.split('|')[0].trim())
+    .filter(n => n != 'INITIALIZE');
+  const actionStream = (type: string) =>
+    actions.$.filter((a: any) => a.type == type).map((a: any) => a.data);
+
+  const wrappedIntent = (sources: any) => {
+    const res = intent ? intent(sources) : {};
+    if (res && typeof res.addListener == 'function') return xs.merge(res, actions.$);
+    const out: any = {...res};
+    const added = names.filter(n => !(n in out));
+    for (const n of new Set([...Object.keys(out), ...added])) {
+      out[n] = out[n] ? xs.merge(out[n], actionStream(n)) : actionStream(n);
+    }
+    Object.defineProperty(out, '__sygnalTestActions', {value: added});
+    return out;
+  };
+
+  const {context, calculated, storeCalculatedInState, onError} = componentDef;
+  const app = component({
+    name: componentDef.name || componentDef.componentName || 'TestComponent',
+    view: componentDef,
+    intent: wrappedIntent,
     model,
     context,
     calculated,
     storeCalculatedInState,
     onError,
-  } = componentDef;
-
-  const resolvedInitialState =
-    initialState !== undefined ? initialState : componentDef.initialState;
-
-  // Create a test action$ stream that simulateAction can push into.
-  // The component's intent function will receive this as a source,
-  // and we merge test actions with any real intent streams.
-  const testActionListener: {next: (val: any) => void} = {next: () => {}};
-  const testAction$: Stream<any> = xs.create({
-    start(listener: any) {
-      testActionListener.next = (val: any) => listener.next(val);
-    },
-    stop() {
-      testActionListener.next = () => {};
-    },
+    initialState: initialState !== undefined ? initialState : componentDef.initialState,
   });
 
-  // Wrap the original intent to merge in test actions
-  const wrappedIntent = intent
-    ? (sources: any) => {
-        const intentResult = intent(sources);
-        // Intent returns a map of { ACTION: stream$ }
-        // We add a special __TEST_ACTION__ entry that carries the test actions
-        return {...intentResult, __TEST_ACTION__: testAction$};
-      }
-    : (sources: any) => ({__TEST_ACTION__: testAction$});
-
-  // Wrap the model to handle __TEST_ACTION__ by dispatching to the real action
-  const wrappedModel: Record<string, any> = {
-    ...(model || {}),
-    __TEST_ACTION__: {
-      STATE: (state: any, action: any) => {
-        if (!action || !action.type) return state;
-        const {type, data} = action;
-
-        // Find the model entry for this action
-        let entry = model?.[type];
-
-        // Check for shorthand entries ('ACTION | DRIVER')
-        if (!entry) {
-          for (const key of Object.keys(model || {})) {
-            if (key.includes('|')) {
-              const parts = key.split('|').map((s: string) => s.trim());
-              if (parts[0] === type) {
-                entry = {[parts[1]]: model[key]};
-                break;
-              }
-            }
-          }
-        }
-
-        if (!entry) return state;
-
-        // Plain function = state reducer
-        if (typeof entry === 'function') {
-          const result = entry(state, data);
-          // Match component.ts ABORT handling
-          if (typeof result === 'symbol') return state;
-          return result !== undefined ? result : state;
-        }
-
-        // Object with sink entries — apply STATE reducer if present
-        if (typeof entry === 'object') {
-          const stateReducer = entry.STATE || entry[stateSourceName];
-          if (typeof stateReducer === 'function') {
-            const result = stateReducer(state, data);
-            if (typeof result === 'symbol') return state;
-            return result !== undefined ? result : state;
-          }
-          // EFFECT and other non-state sinks
-          const effectReducer = entry.EFFECT;
-          if (typeof effectReducer === 'function') {
-            const next = (nextType: string, nextData?: any) => {
-              setTimeout(
-                () => testActionListener.next({type: nextType, data: nextData}),
-                10
-              );
-            };
-            effectReducer(state, data, next, {});
-          }
-        }
-
-        return state;
-      },
-    },
-  };
-
-  const stateSourceName = 'STATE';
-
-  const app = component({
-    name,
-    view,
-    intent: wrappedIntent,
-    model: wrappedModel,
-    context,
-    initialState: resolvedInitialState,
-    calculated,
-    storeCalculatedInState,
-    onError,
-  });
-
-  const wrapped = withState(app, stateSourceName);
-  const mockDOM = () => mockDOMSource(mockConfig);
-
-  const baseDrivers: Record<string, any> = {
-    DOM: mockDOM,
+  // Sinks without a driver get a no-op driver so their output is still
+  // observable through t.sinks / t.sinkValues()
+  const allDrivers: any = {
+    DOM: () => mockDOMSource(mockConfig, hub.$),
     EVENTS: eventBusDriver,
     LOG: logDriver,
     ...drivers,
   };
+  for (const k in model) {
+    const e = model[k], [, sink] = k.split('|');
+    for (const n of sink ? [sink.trim()] : e && typeof e == 'object' ? Object.keys(e) : []) {
+      if (!allDrivers[n] && !/^(STATE|EFFECT|PARENT|READY)$/.test(n)) {
+        allDrivers[n] = () => ({select: () => xs.never()});
+      }
+    }
+  }
+  const {sources, sinks, run} = setup(withState(app, 'STATE') as any, allDrivers) as any;
+  const rawDispose = run();
 
-  const {sources, sinks, run: _run} = setup(wrapped, baseDrivers as any);
-  const rawDispose = _run();
+  const subs: Array<[any, any]> = [];
+  const listen = (s: any, next: (v: any) => void) => {
+    const l = {next, error: noop, complete: noop};
+    s.addListener(l);
+    subs.push([s, l]);
+  };
 
-  // Collect state values
   const states: any[] = [];
-  let stateListener: any = null;
-  const stateStream: Stream<any> =
-    sources.STATE && sources.STATE.stream ? sources.STATE.stream : xs.never();
+  const stateStream: Stream<any> = sources.STATE?.stream || xs.never();
+  listen(stateStream, s => states.push(s));
 
-  stateListener = {
-    next: (s: any) => states.push(s),
-    error: () => {},
-    complete: () => {},
-  };
-  stateStream.addListener(stateListener);
+  const values: Record<string, any[]> = {};
+  const sinkValues = (k: string) => (values[k] = values[k] || []);
+  for (const k in sinks) {
+    if (k != 'DOM' && k != 'STATE' && typeof sinks[k]?.addListener == 'function') {
+      // EVENTS: drop devtools stamps; PARENT: unwrap {name, component, value}
+      listen(sinks[k], v => sinkValues(k).push(
+        k == 'EVENTS' ? {type: v.type, data: v.data} : k == 'PARENT' ? v.value : v
+      ));
+    }
+  }
 
-  // simulateAction: push into the test action stream
-  const simulateAction = (actionName: string, data?: any) => {
-    testActionListener.next({type: actionName, data});
-  };
+  // Buffer simulated input until the component (and its children, whose
+  // action streams subscribe after a 1-10ms delay) is subscribed and rendered.
+  let queue: Array<() => void> | null = [];
+  let markReady: () => void;
+  const readyPromise = new Promise<void>(r => {
+    markReady = () => {
+      const q = queue!;
+      queue = null;
+      q.forEach(f => f());
+      r();
+    };
+  });
+  const later = (f: () => void) => (queue ? queue.push(f) : f());
 
-  // waitForState: resolve when the predicate matches
+  let vtree: any;
+  let timer: any;
+  let onRender: Array<() => void> = [];
+  const arm = () => timer || (timer = setTimeout(() => markReady(), 12));
+  if (sinks.DOM) {
+    listen(sinks.DOM, v => {
+      vtree = v;
+      arm();
+      onRender.forEach(f => f());
+      onRender = [];
+    });
+  } else arm();
+  // Resolves after the next render (state → view is async), or after 20ms
+  const rendered = () => new Promise<void>(r => { onRender.push(r); setTimeout(r, 20); });
+
+  const simulateAction = (type: string, data?: any) =>
+    later(() => actions.emit({type, data}));
+
+  const simulateEvent = (selector: string, type: string, init: SimulatedEventInit = {}) =>
+    later(() => {
+      const cs = words(selector);
+      const chain = cs.length ? find(vtree, cs) : undefined;
+      const el = chain?.[chain.length - 1];
+      const d = el?.data || {}, p = d.props || {};
+      const {target: t = {}, value, checked, dataset, data, ...rest} = init;
+      const vval = p.value ?? d.attrs?.value;
+      const target: any = {
+        tagName: el?.sel.split(/[.#]/)[0].toUpperCase(),
+        value: vval == null ? vval : String(vval),
+        checked: p.checked ?? d.attrs?.checked,
+        ...('value' in init && {value}),
+        ...('checked' in init && {checked}),
+        ...t,
+      };
+      target.dataset = str({...d.dataset, ...dataset, ...data, ...t.dataset});
+      const event = {
+        type,
+        target,
+        currentTarget: target,
+        ownerTarget: target,
+        dataTransfer: {},
+        preventDefault: noop,
+        stopPropagation: noop,
+        ...rest,
+      };
+      const match = (path: string[]) => {
+        const sels = words(path.filter(s => !isScope(s)).join(' '));
+        if (!chain) return sels.join(' ') == cs.join(' ');
+        let els = chain;
+        if (/^(document|body)$/.test(sels[0])) sels.shift();
+        else {
+          const scope = path.filter(isScope).pop();
+          let cur: string | undefined;
+          els = chain.filter(v => {
+            const m = v.sel.match(/\.___[^.#]+/);
+            if (m) cur = m[0];
+            return cur == scope;
+          });
+        }
+        return els.some((_, k) => !sels.length || desc(sels, els.slice(0, k + 1)));
+      };
+      hub.emit({type, event, match});
+    });
+
   const waitForState = (
     predicate: (state: any) => boolean,
     timeoutMs: number = 2000
   ): Promise<any> => {
     return new Promise((resolve, reject) => {
-      // Check already-collected states
       for (const s of states) {
         try {
           if (predicate(s)) return resolve(s);
         } catch (_) {}
       }
-
-      const timer = setTimeout(() => {
-        try {
-          stateStream.removeListener(listener);
-        } catch (_) {}
-        reject(new Error(`waitForState timed out after ${timeoutMs}ms`));
-      }, timeoutMs);
-
+      const done = (f: () => void) => {
+        clearTimeout(timer);
+        stateStream.removeListener(listener);
+        f();
+      };
+      const timer = setTimeout(
+        () => done(() => reject(new Error(`waitForState timed out after ${timeoutMs}ms`))),
+        timeoutMs
+      );
       const listener = {
         next: (s: any) => {
           try {
-            if (predicate(s)) {
-              clearTimeout(timer);
-              stateStream.removeListener(listener);
-              resolve(s);
-            }
+            if (predicate(s)) done(() => rendered().then(() => resolve(s)));
           } catch (_) {}
         },
-        error: (err: any) => {
-          clearTimeout(timer);
-          reject(err);
-        },
-        complete: () => {
-          clearTimeout(timer);
-          reject(new Error('waitForState: state stream completed without matching'));
-        },
+        error: (err: any) => done(() => reject(err)),
+        complete: () => done(() => reject(new Error('waitForState: state stream completed without matching'))),
       };
-
       stateStream.addListener(listener);
     });
   };
 
+  const expectNoDiagnostics = () => {
+    const bad = collected.filter(d => d.severity != 'info');
+    if (bad.length) {
+      throw new Error(`Expected no diagnostics, got ${bad.length}:\n` + bad.map(d => d.text).join('\n'));
+    }
+  };
+
+  const html = () =>
+    vtree
+      ? renderToString(() => vtree).replace(/ class="([^"]*)"/g, (_, c: string) =>
+          (c = c.split(' ').filter(x => !x.startsWith('___')).join(' ')) ? ` class="${c}"` : ''
+        )
+      : '';
+
+  let disposed = false;
   const dispose = () => {
-    if (stateListener) {
-      try {
-        stateStream.removeListener(stateListener);
-      } catch (_) {}
-      stateListener = null;
-    }
-    // Trigger the component's dispose() which fires the DISPOSE action and dispose$ stream
-    if (typeof (sinks as any).__dispose === 'function') {
-      try { (sinks as any).__dispose(); } catch (_) {}
-    }
+    if (disposed) return;
+    disposed = true;
+    clearTimeout(timer);
+    queue = null;
+    subs.forEach(([s, l]) => {
+      try { s.removeListener(l); } catch (_) {}
+    });
+    // Fires the DISPOSE action and dispose$ stream
+    try { sinks.__dispose?.(); } catch (_) {}
     rawDispose();
+    offDiag();
+    configureDiagnostics({mode: undefined});
+    if (getDiagnosticsMode() != prevMode) configureDiagnostics({mode: prevMode});
   };
 
   return {
@@ -263,8 +425,15 @@ export function renderComponent(
     sinks,
     sources,
     simulateAction,
+    simulateEvent,
+    ready: () => readyPromise,
     waitForState,
     states,
+    sinkValues,
+    emitted: sinkValues('EVENTS'),
+    diagnostics: collected,
+    expectNoDiagnostics,
+    html,
     dispose,
   };
 }
