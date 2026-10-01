@@ -465,7 +465,8 @@ describe('vike-sygnal SSR rendering', () => {
     expect(html).not.toContain('<div>')
   })
 
-  it('builds combined wrapper state for multiple nested layouts', () => {
+  it('builds combined wrapper state for multiple nested layouts (G-106: nested slices)', async () => {
+    const { onRenderHtml } = await import('../dist/vike/onRenderHtml.mjs')
     function Page() { return { sel: 'div', data: {}, children: [] } }
     Page.initialState = { title: 'Home' }
 
@@ -475,19 +476,12 @@ describe('vike-sygnal SSR rendering', () => {
     function InnerLayout() { return { sel: 'div', data: {}, children: [] } }
     InnerLayout.initialState = { sidebarOpen: false }
 
-    const layoutArray = [OuterLayout, InnerLayout]
-    const wrapperState = {}
-    layoutArray.forEach((L, i) => {
-      const layoutState = { ...(L.initialState || {}) }
-      if (i === layoutArray.length - 1) {
-        layoutState.page = Page.initialState
-      }
-      wrapperState['layout_' + i] = layoutState
-    })
+    const html = onRenderHtml({ Page, config: { Layout: [OuterLayout, InnerLayout] } }).documentHtml._escaped
+    const wrapperState = JSON.parse(html.match(/window\.__VIKE_SYGNAL_STATE__=(.*?)<\/script>/)[1])
 
+    // each Layout's state key is relative to the enclosing Layout
     expect(wrapperState).toEqual({
-      layout_0: { theme: 'dark' },
-      layout_1: { sidebarOpen: false, page: { title: 'Home' } },
+      layout_0: { theme: 'dark', layout_1: { sidebarOpen: false, page: { title: 'Home' } } },
     })
   })
 })
