@@ -35,7 +35,9 @@ const CHILD_SOURCE_NAME = 'CHILD';
 const READY_SINK_NAME = 'READY';
 const EFFECT_SINK_NAME = 'EFFECT';
 // fix hint for coded messages that carry the caught error (printed after the text, or diagnostic.data)
-const ERR_FIX = 'See the attached error';
+const ERR_FIX = 'See the attached error'
+// B-003: the state an action's non-STATE sinks see (stamped by initModel$)
+const STATE_SNAPSHOT = Symbol('sygnal.stateSnapshot');
 
 let COMPONENT_COUNT = 0;
 
@@ -671,8 +673,24 @@ class Component {
     const hasInitialState = (typeof effectiveInitialState !== 'undefined')
     const shouldInjectInitialState = hasInitialState && (ENVIRONMENT?.__SYGNAL_HMR_UPDATING !== true || typeof hmrState !== 'undefined')
     const shimmed$ = shouldInjectInitialState ? concat(xs.of(initial), this.action$).compose(delay(0)) : this.action$
-    const onState  = () => this.makeOnAction(shimmed$, true, this.action$)
-    const onNormal = () => this.makeOnAction(this.action$, false, this.action$)
+    // B-003: STATE reducers are applied later (withState queues each one in a microtask, and
+    // shimmed$ may add a timer), so non-STATE sinks must not read this.currentState when the
+    // action arrives: an earlier same-tick action's reducer may still be pending. Before an
+    // action reaches any reducer, queue a microtask (ahead of this action's own STATE reducer,
+    // behind every earlier one) that snapshots the state and runs the non-STATE sinks.
+    let snapListener: any = null
+    const sequenced$ = shimmed$.map((action: any) => {
+      const l = snapListener
+      if (l) queueMicrotask(() => l.next({ ...action, [STATE_SNAPSHOT]: this.currentState }))
+      return action
+    })
+    let snapSub: any
+    const snapshotted$ = xs.create({
+      start: (l: any) => { snapListener = l; snapSub = sequenced$.subscribe({}) },
+      stop: () => { snapListener = null; snapSub?.unsubscribe() },
+    })
+    const onState  = () => this.makeOnAction(sequenced$, true, this.action$)
+    const onNormal = () => this.makeOnAction(snapshotted$, false, this.action$)
 
 
     const modelEntries = Object.entries(this.model)
@@ -716,7 +734,7 @@ class Component {
 
         // EFFECT sink: run the reducer for side effects only, no state change or sink output
         if (sink === EFFECT_SINK_NAME) {
-          const effect$ = this.makeEffectHandler(this.action$, action, reducer)
+          const effect$ = this.makeEffectHandler(snapshotted$, action, reducer, this.action$)
           if (Array.isArray(reducers[sink])) {
             reducers[sink].push(effect$)
           } else {
@@ -961,7 +979,7 @@ class Component {
             }
           } else {
             try {
-              const enhancedState = this.addCalculated(this.currentState)
+              const enhancedState = this.addCalculated(STATE_SNAPSHOT in action ? action[STATE_SNAPSHOT] : this.currentState)
               props.state = enhancedState
               const reduced = reducer(enhancedState, data, next, props)
               const type = typeof reduced
@@ -988,7 +1006,7 @@ class Component {
     }
   }
 
-  makeEffectHandler(action$: any, name: string, reducer: any): any {
+  makeEffectHandler(action$: any, name: string, reducer: any, rootAction$: any = action$): any {
     const filtered$ = action$.filter(({type}: any) => type == name)
 
     return filtered$.map((action: any) => {
@@ -996,13 +1014,13 @@ class Component {
         const next = (type: any, data: any, delay=10) => {
           if (typeof delay !== 'number') fail('SYG215', this, `next() delay in '${name}' must be a number`, "Use next('ACTION', data, ms)")
           setTimeout(() => {
-            action$.shamefullySendNext({ type, data })
+            rootAction$.shamefullySendNext({ type, data })
           }, delay)
           this.log(`<${name}> EFFECT triggered a next() action: <${type}> ${delay}ms delay`, true)
         }
 
         try {
-          const enhancedState = this.addCalculated(this.currentState)
+          const enhancedState = this.addCalculated(STATE_SNAPSHOT in action ? action[STATE_SNAPSHOT] : this.currentState)
           const props = { ...this.currentProps, children: this.currentChildren, slots: this.currentSlots || {}, context: this.currentContext, state: enhancedState }
           const result = reducer(enhancedState, action.data, next, props)
           if (result !== undefined) {
