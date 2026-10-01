@@ -14,7 +14,7 @@ This project uses **Sygnal**, a reactive JSX component framework built on Cycle.
 | `npx --no-install sygnal-check --graph --json` | The app graph: components, actions, selectors, EVENTS |
 | `npm run dev` / `npm run build` | Dev server (prints runtime diagnostics) / production build |
 
-The `sygnal-check` commands use a locally installed `sygnal-check` (a dev dependency). If it isn't installed, skip them and rely on the runtime diagnostics in the tests (`strict: true` + `t.expectNoDiagnostics()`).
+`sygnal-check` is a dev dependency of this project, so `npm install` installs it and the commands above run the local copy (`--no-install` never downloads one). If it is missing (no `node_modules` yet), run `npm install` first; if it still isn't there, skip these commands and rely on the runtime diagnostics in the tests (`strict: true` + `t.expectNoDiagnostics()`).
 
 ## Workflow
 Add a feature in this order: state (`initialState`) → intent (`ACTION: DOM.click('.x')`) → model (`ACTION: (state, data) => ({ ...state, ... })`) → view → test. Finish with `npm test` and `npx --no-install sygnal-check --strict`, both clean.

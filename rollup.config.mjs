@@ -6,6 +6,36 @@ import pkg from './package.json' with { type: "json" };
 
 const isExternal = (id) => /^(snabbdom|xstream)(\/|$)/.test(id);
 
+// Outside a bundler (plain Node `require()` of the CJS build, or native Node ESM `import`
+// of the ESM build), `import xs from 'xstream'` gets xstream's whole `module.exports`
+// object, whose `.default` is the real `xs`, so `xs.create()` etc. threw and `run()` could
+// not start (G-067). Bundlers apply `__esModule` interop and were unaffected. This plugin
+// routes every `'xstream'` import of an entry that keeps xstream external through one
+// shim that picks the right default in all three environments.
+const XSTREAM_SHIM = '\0sygnal:xstream'
+const xstreamInterop = () => ({
+	name: 'sygnal-xstream-interop',
+	resolveId(source, importer) {
+		if (source === 'xstream' && importer !== XSTREAM_SHIM) return XSTREAM_SHIM
+		return null
+	},
+	load(id) {
+		if (id !== XSTREAM_SHIM) return null
+		return [
+			"import * as ns from 'xstream';",
+			'const d = ns.default;',
+			"const xs = d && typeof d.create === 'function' ? d : d && d.default && typeof d.default.create === 'function' ? d.default : ns;",
+			'export default xs;',
+			"export { Stream, MemoryStream, NO, NO_IL } from 'xstream';",
+		].join('\n')
+	},
+})
+
+// `external` is consulted before resolveId, so the bare 'xstream' import must not be
+// external for src modules (it resolves to the shim); only the shim's own import is.
+const shimXstream = (external) => (id, importer, isResolved) =>
+	id === 'xstream' && importer !== XSTREAM_SHIM ? false : external(id, importer, isResolved)
+
 const sourcemapOptions = {
 	sourcemap: true,
 	sourcemapExcludeSources: false,
@@ -31,12 +61,13 @@ export default [
 
 	{
 		input: 'src/index.ts',
-		external: isExternal,
+		external: shimXstream(isExternal),
 		output: [
 			{ file: pkg.main, format: 'cjs', ...sourcemapOptions },
 			{ file: pkg.module, format: 'es', ...sourcemapOptions }
 		],
 		plugins: [
+			xstreamInterop(),
 			typescript({ tsconfig: './tsconfig.json' }),
 			resolve({ extensions: ['.mjs', '.js', '.ts', '.json'] }),
 			commonjs()
@@ -90,12 +121,13 @@ export default [
   // import (src/extra/diagnostics/index.ts) becomes the external 'sygnal'.
   {
     input: 'src/extra/diagnostics/checks/index.ts',
-    external: (id) => isExternal(id) || id === 'sygnal',
+    external: shimXstream((id) => isExternal(id) || id === 'sygnal'),
     output: [
       { file: pkg.exports['./diagnostics'].require, format: 'cjs', ...sourcemapOptions },
       { file: pkg.exports['./diagnostics'].import, format: 'es', ...sourcemapOptions }
     ],
 		plugins: [
+			xstreamInterop(),
 			{
 				name: 'sygnal-diagnostics-core-external',
 				resolveId(source, importer) {
@@ -142,12 +174,13 @@ export default [
   {
     input: 'src/astro/client.ts',
     // 'sygnal' stays external so islands run on the app's core (B-019)
-    external: (id) => isExternal(id) || /^sygnal(\/|$)/.test(id),
+    external: shimXstream((id) => isExternal(id) || /^sygnal(\/|$)/.test(id)),
     output: [
       { file: pkg.exports['./astro/client'].require, format: 'cjs', ...sourcemapOptions },
       { file: pkg.exports['./astro/client'].import, format: 'es', ...sourcemapOptions }
     ],
 		plugins: [
+			xstreamInterop(),
 			typescript({ tsconfig: './tsconfig.json' }),
 			resolve({ extensions: ['.mjs', '.js', '.ts', '.json'] }),
 			commonjs()
@@ -198,12 +231,13 @@ export default [
 
   {
     input: 'src/vike/onRenderClient.ts',
-    external: (id) => /^(vike|sygnal|snabbdom|xstream)(\/|$)/.test(id),
+    external: shimXstream((id) => /^(vike|sygnal|snabbdom|xstream)(\/|$)/.test(id)),
     output: [
       { file: pkg.exports['./vike/onRenderClient'].require, format: 'cjs', ...sourcemapOptions },
       { file: pkg.exports['./vike/onRenderClient'].import, format: 'es', ...sourcemapOptions }
     ],
 		plugins: [
+			xstreamInterop(),
 			typescript({ tsconfig: './tsconfig.json' }),
 			resolve({ extensions: ['.mjs', '.js', '.ts', '.json'] }),
 			commonjs()
@@ -212,12 +246,13 @@ export default [
 
   {
     input: 'src/vike/ClientOnly.ts',
-    external: (id) => isExternal(id) || /^(vike|sygnal)(\/|$)/.test(id),
+    external: shimXstream((id) => isExternal(id) || /^(vike|sygnal)(\/|$)/.test(id)),
     output: [
       { file: pkg.exports['./vike/ClientOnly'].require, format: 'cjs', ...sourcemapOptions },
       { file: pkg.exports['./vike/ClientOnly'].import, format: 'es', ...sourcemapOptions }
     ],
 		plugins: [
+			xstreamInterop(),
 			typescript({ tsconfig: './tsconfig.json' }),
 			resolve({ extensions: ['.mjs', '.js', '.ts', '.json'] }),
 			commonjs()

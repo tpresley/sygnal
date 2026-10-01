@@ -858,9 +858,18 @@ export function Transition(props: TransitionProps): JSX.Element
 export function Suspense(props: SuspenseProps): JSX.Element
 export function Slot(props: SlotProps): JSX.Element
 
+/**
+ * What `lazy()` returns: a sub-component used in JSX with its own props only
+ * (`<Chart title="Sales" />`; `state` is optional, as for any sub-component), that
+ * still carries the component statics (`model`, `intent`, …) once loaded.
+ */
+export type LazyComponent<PROPS = any> = ((
+  props: PROPS & { state?: any; children?: JSX.Element | JSX.Element[] }
+) => JSX.Element) & Omit<Component<any, PROPS>, never>
+
 export function lazy<PROPS = any>(
   loadFn: () => Promise<{ default: Component<any, PROPS> } | Component<any, PROPS>>
-): Component<any, PROPS>
+): LazyComponent<PROPS>
 
 /** Payload on `errors()` of a driverFromAsync source when a request fails */
 export type AsyncDriverError<INCOMING = any> = {

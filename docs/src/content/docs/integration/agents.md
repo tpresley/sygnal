@@ -34,7 +34,7 @@ The repository's `skills/sygnal-dev/` folder is a Claude Code skill for building
 
 ## sygnal-check
 
-`sygnal-check` is a separate package that reads your source with a parser and never runs it:
+`sygnal-check` is a separate package that reads your source with a parser and never runs it. Projects created with `create-sygnal-app` already have it as a dev dependency. In any other project, install it:
 
 ```bash
 npm install -D sygnal-check
@@ -89,7 +89,7 @@ Any client that takes a JSON config (`.mcp.json`, Claude Desktop, Cursor, …):
 ```json
 {
   "mcpServers": {
-    "sygnal-check": { "command": "npx", "args": ["sygnal-check", "mcp"] }
+    "sygnal-check": { "command": "npx", "args": ["--no-install", "sygnal-check", "mcp"] }
   }
 }
 ```
