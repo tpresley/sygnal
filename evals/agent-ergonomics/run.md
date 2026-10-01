@@ -48,6 +48,8 @@ Trial ids are `1..N` per (task, arm). Run the trials of a run in any order, but 
 
 **Tier-2 tasks (09–12).** A harder tier exists in both arms (README "Tasks"; decision D16). The procedure is exactly the same: prepare, spawn, collect, score, classify. Tier-2 hidden suites take longer (task 11 waits on a real 300 ms debounce; about 10 s per suite). For the baseline of the tier-2 tasks, use the same pre-change tarball as the tier-1 baseline (D16), and report tier 1 and tier 2 separately: tier-1 pass rates are saturated, tier 2 is where pass rate can move.
 
+**Tier-3 tasks (13–17).** Added in PLAN-2 (0-C) after tier 2 saturated as well; same procedure, reported as a third tier. Suites take 3–15 s (task 15 reloads the app after waiting out its save window; task 17 answers each fetch by hand). Before baselining, pilot 2 trials per arm and tune difficulty (target first-attempt pass rate about 60–80%); after the baseline, the tier-3 tests are frozen like the others. Failure categories for tier 3: a reply lost because it was handled in an unmounted page, or a click handled two levels above its button, is `isolation`; an activity type or callback prop that doesn't match, or a Collection `from` a calculated field, is `wiring`; a timer or handler that saves stale data is `reducer-shape` only if a reducer returns the stale state, otherwise `other`; markup drift in task 16 is `other`.
+
 **Iterations from older transcripts.** `transcript-stats.mjs` undercounted iterations before G-017 was fixed (it missed `npm --prefix X test`, the most common form). Rerun it on the stored transcripts to get comparable numbers before comparing runs.
 
 ## 1. Prepare the trial directory
@@ -57,7 +59,7 @@ Use a scratch dir **outside the repo**. Never reuse a dir.
 ```bash
 node $EVAL/prepare.mjs --arm sygnal --task 03 --tarball $TGZ \
   --dest /tmp/sygnal-evals/trials/<run>/sygnal-03-t1
-# React arm (tasks 01-05 and 08-12 only):
+# React arm (tasks 01-05 and 08-17 only):
 node $EVAL/prepare.mjs --arm react --task 03 \
   --dest /tmp/sygnal-evals/trials/<run>/react-03-t1
 ```

@@ -1,0 +1,8 @@
+Add ZIP code lookup to this delivery address form.
+
+- Whenever the ZIP field (`input[name="zip"]`) holds exactly 5 digits, look the ZIP up with `GET /api/zip/<zip>`. A known ZIP answers with JSON like `{ "city": "Springfield", "express": true }`; an unknown one answers 404.
+- While a lookup is in flight, `.zip-status` shows "Looking up…".
+- When a lookup succeeds, clear `.zip-status` and put the city into the City field (`input[name="city"]`), replacing whatever was there. Keyboard focus stays where it is. If `express` is `false`, the "Express delivery" checkbox (`input[name="express"]`) must end up unchecked and disabled; if it is `true`, the checkbox is enabled. A checkbox unchecked this way stays unchecked when it is enabled again, until the user checks it.
+- When a lookup fails, leave the City field as it is, show "Unknown ZIP code." in `.zip-status` for a 404 or "Lookup failed." for any other error (a network error or another non-2xx status), and move keyboard focus to the City field so the user can type the city.
+- Only the latest lookup counts. If the ZIP field changes while a lookup is in flight, that lookup's response is ignored whenever it arrives, success or failure: it must not change the City field or the checkbox, show a message, or move focus. When the ZIP field stops holding 5 digits, clear `.zip-status`, enable the checkbox again and send nothing.
+- The user can still edit the City field and the checkbox by hand at any time, and "Save address" must save what the form shows (its line in `.saved` reads like "Saved: Springfield, 62704 (express)" or "(standard)").
