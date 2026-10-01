@@ -36,7 +36,7 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | 2-B | Agent docs (2-D1 snapshot semantics, 2-D2 extract-component recipe, 2-D3 latest-only pattern) | ✅ | `worktree-agent-a44b2fbe9d096f4ac` | subagent | `032363c` | 2-D1: guide/model.md "Sinks See the State Before the Action" + one bullet each in llms.txt/SKILL.md (verified with a scratch test; B-003 tests already guard it). 2-D2: guide/parent-child.md recipe (snapshot → move markup → PARENT + `CHILD.select` → re-run), compact SKILL.md form, llms.txt pointer; validated on the task-08 starter (identical HTML). 2-D3: guide/drivers.md "Only the Latest Response" (reqId in state, echoed by the driver, ABORT on mismatch, clear bumps reqId); scratch-tested out-of-order, stale failure, clear-in-flight. llms.txt 249 lines; 382 samples strict-clean |
 | 2-C | Component and Vike bugs (G-102, G-106, G-107, G-108, G-109) | ✅ | `worktree-agent-a130ae35c89dc73bf` | subagent | `ed0ffac`…`43aacbc` | G-102: two causes — `propsIsEqual` ignored `of`/`from`/`filter` (now only `state`), and an unchanged state object was dropped by `dropRepeats` when only filter/sort changed (shallow copy sent); also `sort` without filter sorted the parent array in place (fixed). G-107: sub-components with a model but no intent get BOOTSTRAP. G-108: only a non-ABORT symbol is SYG218; null/arrays/bigints go to the driver (explanation regenerated). G-109: propsModule + removedPropsModule merged into one `propsModule.ts` that never writes nullish values (−64 B). G-106: Vike shell state nested (`wrapper_0.layout_0.page`) in initial state, view, navigation, hydration and SSR; verified in a real installed-tarball Vike app with Playwright. Kanban −91 B |
 | 2-D | `globalthis` alias in `sygnal/vite` + size-gate script (G-099) | ✅ | `worktree-agent-a2f656507f54d98a7` | subagent | `a75d332` | xstream only does `require('globalthis').getPolyfill()`; stub `dist/shims/globalthis.cjs` (also exported as `sygnal/shims/globalthis`) aliased via `resolve.alias` in serve/build/Vitest; opt-out `sygnal({ nativeGlobalThis: false })`; `sygnal/astro` adds it in `astro build` too. Verified kanban, Vike SSR, Astro, Vitest, and installed tarballs of 3 templates (build/preview/dev). `scripts/size-gate.mjs`: gated (opt-out) **41,803 B** / 42,300; default **37,812 B** (−3,991) |
-| 2-R | Phase 2 review fixes (R2-1…R2-8) | 🟡 | | subagent | | |
+| 2-R | Phase 2 review fixes (R2-1…R2-9) | ✅ | `worktree-agent-a32030c2f4d6e9267` | subagent | `e80e1b7`…`e924e48` | D49: nullish `value` → `''`, `checked` → false, absent prop = uncontrolled (forms doc + llms.txt/SKILL.md line). D50: Vike shell slices are siblings with `{get,set}` lenses; navigation replaces only `page`; 5.4.0 serialized shape hydrates; verified in an installed-tarball Vike app (17 Playwright checks). Testing: always-on harness check (internal `always` flag), deferred listener removal records child DISPOSE, finite timing validation + `settleMs ≤ timeoutMs`, cursor for every `next()` until disarmed/expired. User `globalthis` alias wins. size-gate validates `--budget`. +60 B |
 | 1-F | Examples (G-052, G-063) | ✅ | (same branch as 1-C) | subagent | `fd3fc7c` | todomvc ids = max id + 1; `LOG` sink uses the reducer form (type gap → G-077); build runs `tsc --noEmit`; custom pollers removed from `app.test.ts`, which uses `next`/`settle`/`html`; new id test. Strict-clean |
 
 ## Gate Results
@@ -46,6 +46,7 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | 0-A | ✅ | 942 ✅ | | | | | | | | |
 | 1-R | ✅ (0 TS) | 916 ✅ | ✅ | ✅ | 121 ✅ | 183 ✅ | 374 ✅ | ✅ | ✅ | 41,803 B ✅ |
 | 1-T | ✅ | 893 ✅ | ✅ | ✅ | 119 ✅ | 183 ✅ | 374 ✅ | ✅ | | 41,719 B ✅ |
+| 2-R | ✅ (0 TS) | 988 ✅ | ✅ | ✅ | 121 ✅ | 183 ✅ | 384 ✅ | ✅ | ✅ | 41,772 B gated / 37,778 B default ✅ |
 | 2-C | ✅ (0 TS) | 953 ✅ | ✅ | ✅ | 121 ✅ | 183 ✅ | 384 ✅ | ✅ | ✅ | 41,712 B gated / 37,720 B default ✅ |
 | 2-A/B/D | ✅ (0 TS) | 941 ✅ | ✅ | ✅ | 121 ✅ | 183 ✅ | 384 ✅ | ✅ | ✅ | 41,803 B gated / 37,812 B default ✅ |
 | 1-B + 1-E | ✅ (0 TS warnings) | 893 ✅ | 105 ✅ | ✅ | 119 ✅ | 183 ✅ | 374 ✅ | ✅ | ✅ | **41,991 B ❌ (+186 over)** |
@@ -125,15 +126,17 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | G-114 | 2-D | low | Docs | CLAUDE.md test counts are stale (892 → 941 library tests) | Open → Phase 4 release prep |
 | G-115 | 2-C | low (perf) | Collection | `fieldLense.get` creates new item objects (`{...item, id}`) on every state emission, so every item re-renders on any parent state change; G-102 makes filter/sort prop changes re-emit too. Also: a child given an inline-arrow `filter` prop now re-renders on every parent render | Open → Phase 3/4 candidate |
 | G-116 | 2-C | low | Collection | A Collection with no `from` (whole state is the array) or a custom `from={{get,set}}` silently ignores `filter` and `sort` | Open → diagnostic or support |
-| R2-1 | Phase 2 review | med | propsModule | A nullish `value`/`checked` no longer clears a form field (5.4.0 cleared it); G-109 regression | Open → 2-R (D49) |
-| R2-2 | Phase 2 review | med | Vike | G-106 nesting lets a Wrapper/outer Layout reducer that doesn't spread wipe the inner shell and page state; shell views see foreign keys | Open → 2-R (D50) |
-| R2-3 | Phase 2 review | med | Testing | G-064 recording and `next()` explanations stop with `diagnostics: 'off'` | Open → 2-R |
-| R2-4 | Phase 2 review | low-med | Testing | A child's DISPOSE output on a driverless sink is not recorded (listener removed before DISPOSE) | Open → 2-R |
-| R2-5 | Phase 2 review | low | Testing | Timing options accept `Infinity`/> 2^31-1 (setTimeout overflow); `settleMs > timeoutMs` not flagged | Open → 2-R |
-| R2-6 | Phase 2 review | low | Testing | `ready()` cursor: only the first `next()` uses it; an un-awaited `ready()` stays armed; comment inaccurate | Open → 2-R |
-| R2-7 | Phase 2 review | low | Vite | The `globalthis` alias overrides a user's own `globalthis` alias | Open → 2-R |
-| R2-8 | Phase 2 review | low | Size gate | `size-gate.mjs` passes with a bad `--budget` (NaN) | Open → 2-R |
-| R2-9 | Phase 2 review | low | Vike | Hydrating 5.4.0-shape serialized state loses Layout state | Open → 2-R (covered by D50) |
+| R2-1 | Phase 2 review | med | propsModule | A nullish `value`/`checked` no longer clears a form field (5.4.0 cleared it); G-109 regression | ✅ 2-R |
+| R2-2 | Phase 2 review | med | Vike | G-106 nesting lets a Wrapper/outer Layout reducer that doesn't spread wipe the inner shell and page state; shell views see foreign keys | ✅ 2-R |
+| R2-3 | Phase 2 review | med | Testing | G-064 recording and `next()` explanations stop with `diagnostics: 'off'` | ✅ 2-R |
+| R2-4 | Phase 2 review | low-med | Testing | A child's DISPOSE output on a driverless sink is not recorded (listener removed before DISPOSE) | ✅ 2-R |
+| R2-5 | Phase 2 review | low | Testing | Timing options accept `Infinity`/> 2^31-1 (setTimeout overflow); `settleMs > timeoutMs` not flagged | ✅ 2-R |
+| R2-6 | Phase 2 review | low | Testing | `ready()` cursor: only the first `next()` uses it; an un-awaited `ready()` stays armed; comment inaccurate | ✅ 2-R |
+| R2-7 | Phase 2 review | low | Vite | The `globalthis` alias overrides a user's own `globalthis` alias | ✅ 2-R |
+| R2-8 | Phase 2 review | low | Size gate | `size-gate.mjs` passes with a bad `--budget` (NaN) | ✅ 2-R |
+| R2-9 | Phase 2 review | low | Vike | Hydrating 5.4.0-shape serialized state loses Layout state | ✅ 2-R |
+| G-117 | 2-R | low (perf) | Vike | With the D50 lenses, Wrapper/Layout views re-render on every root state change, including page-only changes (5.4.0 didn't) | Open |
+| G-118 | 2-R merge | low | Tests | `test/review-2e2/b024-nested-dispose.test.js` asserted stream teardown after a fixed 30 ms; flaked once under full-suite load | ✅ Coordinator: bounded wait for teardown |
 | G-076 | 5.4.0 release | low | browser-tests | The browser run prints expected console errors from error-path tests, which look like failures | ✅ 1-E (whitelist updated for SYG405 at the 1-B merge) |
 
 ## Worktree Setup (each subagent, inside its own isolated worktree)
@@ -157,6 +160,7 @@ gzip -c /tmp/kb/assets/index-*.js | wc -c      # budget 41,805 B
 
 ## Activity Log
 
+- 2026-10-01 — 2-R merged; one timing flake fixed (G-118); full gate green (988 vitest, 121 browser, 41,772 B gated).
 - 2026-10-01 — PLAN-1 tracker reconciled (`fd76d2a`: 72 stale statuses → 69 fixed, 3 closed, 0 open; analyzer reads Closed/Won't fix as done; 69 harness tests). Baseline analysis regenerated: B-005 recommendation now correctly rewritten as "fixed".
 - 2026-10-01 — v2-baseline done: 160/160 pass, $49.26; Sygnal 48.4 s vs React 34.1 s (+14.3 s; tier gaps 8.0 / 12.3 / 23.5 s); learning 52% of the delta. `V2-BASELINE.md` written; Phase 0 closed, tagged `plan2-phase0`. Stale PLAN-1 tracker statuses mislead the analyzer's recommendations (B-005) → bookkeeping agent.
 - 2026-10-01 — Phase 2 review: 9 findings (3 med) → 2-R launched with D49/D50.

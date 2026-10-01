@@ -75,6 +75,9 @@ describe('B-024: removing a Collection item disposes its subtree', () => {
     expect(g.components.filter(c => c.parentId !== null && !ids.has(c.parentId))).toEqual([])
 
     t.dispose()
+    // Teardown runs on timers; under a loaded full-suite run 30 ms can be too short,
+    // so wait (bounded) for the streams to stop instead of sleeping a fixed time.
+    for (let i = 0; i < 50 && (liveTicks > 0 || live.size > 0); i++) await wait(10)
     await wait(30)
     expect([...disposed].sort()).toEqual([
       'Badge', 'Badge', 'Card c1', 'Card c2', 'Card c3', 'Lane l1', 'Lane l2', 'TabA', 'TabA', 'TabB', 'TabB',
