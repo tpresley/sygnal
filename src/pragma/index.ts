@@ -166,7 +166,9 @@ export const createElementWithModules = (modules: Record<string, any>) => {
   return (sel: any, data: any, ...children: any[]) => {
     if (typeof sel === 'undefined') {
       sel = 'UNDEFINED'
-      console.error('JSX Error: Capitalized HTML element without corresponding factory function.  Components with names where the first letter is capital MUST be defined or included at the parent component\'s file scope.')
+      // Pre-formatted (formatDiagnostic output) instead of diagnostics/legacy: the JSX
+      // runtime entries bundle this file standalone and must not carry a second diagnostics core.
+      console.error('[Sygnal SYG420] JSX: A JSX tag is undefined, so <UNDEFINED> is rendered instead. Import or define the component in this file. https://sygnal.js.org/reference/errors#syg420')
     }
     if (is.fun(sel)) {
       if ((sel as any).__sygnalFragment || sel.name === 'Fragment') {
