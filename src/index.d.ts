@@ -1064,6 +1064,9 @@ export { default as throttle } from 'xstream/extra/throttle.js'
 export { default as delay } from 'xstream/extra/delay.js'
 export { default as dropRepeats } from 'xstream/extra/dropRepeats.js'
 export { default as sampleCombine } from 'xstream/extra/sampleCombine.js'
+export { default as flattenConcurrently } from 'xstream/extra/flattenConcurrently.js'
+export { default as flattenSequentially } from 'xstream/extra/flattenSequentially.js'
+export { default as concat } from 'xstream/extra/concat.js'
 
 export * from './cycle/dom/index'
 export type { MemoryStream, Stream }
