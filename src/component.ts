@@ -40,6 +40,8 @@ const ERR_FIX = 'See the attached error'
 const STATE_SNAPSHOT = Symbol('sygnal.stateSnapshot');
 
 let COMPONENT_COUNT = 0;
+// 1H-1: STATE reducers emitted but not applied yet (in any component)
+let pendingReducers = 0;
 
 function wrapDOMSource(domSource: any): any {
   return new Proxy(domSource, {
@@ -674,16 +676,19 @@ class Component {
     }
     const hasInitialState = (typeof effectiveInitialState !== 'undefined')
     const shouldInjectInitialState = hasInitialState && (ENVIRONMENT?.__SYGNAL_HMR_UPDATING !== true || typeof hmrState !== 'undefined')
-    const shimmed$ = shouldInjectInitialState ? concat(xs.of(initial), this.action$).compose(delay(0)) : this.action$
-    // B-003: STATE reducers are applied later (withState queues each one in a microtask, and
-    // shimmed$ may add a timer), so non-STATE sinks must not read this.currentState when the
-    // action arrives: an earlier same-tick action's reducer may still be pending. Before an
+    // Only INITIALIZE is delayed (user actions start >= 1ms later), so the other actions, and
+    // their non-STATE sinks, stay synchronous with the event that caused them (1H-1).
+    const shimmed$ = shouldInjectInitialState ? xs.merge(xs.of(initial).compose(delay(0)), this.action$) : this.action$
+    // B-003: STATE reducers are applied later (withState queues each one in a microtask), so
+    // while one is pending a non-STATE sink must not read this.currentState. Then, before the
     // action reaches any reducer, queue a microtask (ahead of this action's own STATE reducer,
     // behind every earlier one) that snapshots the state and runs the non-STATE sinks.
+    // Otherwise run them now, so EFFECT can still preventDefault() the live event (1H-1).
     let snapListener: any = null
     const sequenced$ = shimmed$.map((action: any) => {
       const l = snapListener
-      if (l) queueMicrotask(() => l.next({ ...action, [STATE_SNAPSHOT]: this.currentState }))
+      const run = () => l.next({ ...action, [STATE_SNAPSHOT]: this.currentState })
+      if (l) pendingReducers ? queueMicrotask(run) : run()
       return action
     })
     let snapSub: any
@@ -968,7 +973,10 @@ class Component {
 
           let data = action.data
           if (isStateSink) {
+            pendingReducers++
+            let applied = false
             return (state: any) => {
+              if (!applied) { applied = true; pendingReducers-- }
               // A sub-component reads currentState (its parent's state can carry calculated
               // fields the raw reducer argument lacks). A Collection item uses the fresh
               // argument instead (B-013): its currentState lags behind instantiateCollection's

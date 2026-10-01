@@ -582,8 +582,10 @@ describe('component integration (mockDOMSource)', () => {
       })
       await settle()
 
-      // Should have at least 2 vnodes — initial render + after increment
-      expect(testEnv.vnodes.length).toBeGreaterThanOrEqual(2)
+      // The initial render and the increment may be coalesced (the click arrives ~1ms after
+      // start); the last render must show the incremented count
+      expect(testEnv.vnodes.length).toBeGreaterThanOrEqual(1)
+      expect(JSON.stringify(testEnv.vnodes[testEnv.vnodes.length - 1])).toContain('"text":"1"')
     })
   })
 
