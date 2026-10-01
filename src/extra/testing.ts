@@ -560,9 +560,20 @@ export function renderComponent(
     }
   };
 
+  // G-040: a Collection's container keeps its marker props (of, from, filter, item props...)
+  // as snabbdom props, i.e. DOM properties, not attributes: drop them, like the real DOM
+  const unmark = (v: any): any => {
+    if (!v || typeof v != 'object' || !v.sel) return v;
+    let d = v.data;
+    if (d?.isCollection) {
+      const {className, id} = d.props || {};
+      d = {...d, props: {className, id}};
+    }
+    return {...v, data: d, children: v.children && v.children.map(unmark)};
+  };
   const html = () =>
     vtree
-      ? renderToString(() => vtree).replace(/ class="([^"]*)"/g, (_, c: string) =>
+      ? renderToString(() => unmark(vtree)).replace(/ class="([^"]*)"/g, (_, c: string) =>
           (c = c.split(' ').filter(x => !x.startsWith('___')).join(' ')) ? ` class="${c}"` : ''
         )
       : '';
