@@ -1,0 +1,784 @@
+[
+  {
+    "code": "SYG101",
+    "title": "Intent action has no model entry",
+    "severity": "warn",
+    "strict": false,
+    "reportedBy": [
+      "dev-entry",
+      "static"
+    ],
+    "explanation": "The intent returns an action stream whose name has no matching key in `model` (shorthand keys like `'ACTION | SINK'` count as `ACTION`). Events on that stream are produced but nothing handles them, so the action silently does nothing. Built-in actions (`BOOTSTRAP`, `INITIALIZE`, `HYDRATE`, `DISPOSE`, `READY`) and internal `__*` actions are never reported.",
+    "fix": "Add a model entry with the same name, e.g. `model = { SAVE: (state) => ({ ...state, saved: true }) }`, or remove or rename the intent action so it matches an existing model key.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg101"
+  },
+  {
+    "code": "SYG102",
+    "title": "Model entry is unreachable",
+    "severity": "info",
+    "staticSeverity": "warn",
+    "strict": false,
+    "reportedBy": [
+      "dev-entry",
+      "static"
+    ],
+    "explanation": "A model entry has no intent action of the same name and is not a built-in action, so nothing in the intent can trigger it. It may still be reached through `next('ACTION')`, which the runtime cannot know in advance, so the runtime check reports it as info (and skips components whose intent returns a single stream). The static checker also accounts for `next()` calls with string literals and reports it as warn, downgraded to info when a `next()` call uses a non-literal name.",
+    "fix": "Add the action to the component's `intent`, dispatch it with `next('ACTION')` from another entry, or remove the dead model entry.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg102"
+  },
+  {
+    "code": "SYG103",
+    "title": "Intent selector matched no rendered element",
+    "severity": "info",
+    "strict": false,
+    "reportedBy": [
+      "dev-entry",
+      "runtime"
+    ],
+    "explanation": "A selector passed to `DOM.select()` in the intent has not matched any element the component rendered, so its events never fire (often a typo in the class or id). The dev entry skips selectors whose class/id/tag tokens all appear in the view source (assumed conditionally rendered); others are reported as info on the first check and escalated to warn after at least 3 renders and about 2 s of render-idle time with no match. Under `renderComponent`, it is reported when `simulateEvent()` targets a selector that matches no rendered element and no intent listens on.",
+    "fix": "Check the selector against the `className`/`id` in the view. If the element is rendered by a child component, handle the event inside that child instead.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg103"
+  },
+  {
+    "code": "SYG104",
+    "title": "Intent selector crosses an isolation boundary",
+    "severity": "warn",
+    "strict": false,
+    "reportedBy": [
+      "dev-entry",
+      "runtime",
+      "static"
+    ],
+    "explanation": "An intent selector matches nothing in the component's own scope, but does match elements rendered inside a child component or Collection item. Child components are isolated, so the parent's `DOM` source never receives events from those elements and the action never fires. The dev entry checks the real DOM after renders, `renderComponent` checks the mock vtree, and `sygnal-check` finds the class/id only in a child component's view.",
+    "fix": "Handle the event inside the child component and send it up with `PARENT` (read it in the parent with `CHILD.select(Child)`), or broadcast it with `EVENTS`.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg104"
+  },
+  {
+    "code": "SYG105",
+    "title": "EVENTS type selected but never emitted, or emitted but never selected",
+    "severity": "info",
+    "staticSeverity": "warn",
+    "strict": false,
+    "reportedBy": [
+      "dev-entry",
+      "static"
+    ],
+    "explanation": "An `EVENTS` bus type is emitted with nothing selecting it, or selected with `EVENTS.select(type)` but never emitted. The bus is a broadcast, so an event that nobody has subscribed to when it is emitted is dropped; a mismatched name usually means a typo. At runtime the emitted-not-selected case is reported when the event is emitted, while selected-not-emitted is only reported on demand via `checkEventBus()` (inspect/test helpers); `EVENTS.select()` with no type counts as selecting everything. The static checker compares string-literal types across the scanned files and reports warn, or info when non-literal emits/selects exist.",
+    "fix": "Make the names match: emit from a model entry, e.g. `{ EVENTS: event('TYPE', data) }`, and subscribe with `EVENTS.select('TYPE')` in the receiving component's intent.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg105"
+  },
+  {
+    "code": "SYG106",
+    "title": "Parent prop is overwritten by a reserved view argument",
+    "severity": "warn",
+    "strict": false,
+    "reportedBy": [
+      "dev-entry"
+    ],
+    "explanation": "The view is called with `{ ...props, state, children, slots, context, peers }`, so a prop named `children`, `slots`, `context` or `peers` passed by the parent is overwritten and never reaches the child. A `state` prop is also reported when its value is not a state lens (a field-name string or a `{ get, set }` object), because Sygnal reads `state` as the child's state lens rather than as data. Reported once per component and prop.",
+    "fix": "Rename the prop in both parent and child (e.g. `contextValue`, or `item` instead of `state`); to give the child a slice of parent state use `state=\"fieldName\"`.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg106"
+  },
+  {
+    "code": "SYG110",
+    "title": "Intent selector not present in the component view",
+    "severity": "warn",
+    "strict": false,
+    "reportedBy": [
+      "static"
+    ],
+    "explanation": "A class or id selector used in the intent (`DOM.select('.x')`, `DOM.click('.x')`, ...) is never rendered by the component's own view, nor by JSX passed into it as children/slots, so the action never fires. It is reported as info instead of warn when a dynamic `className`/`id` in the view might produce the name, or when the selector itself is not a static string and could not be checked.",
+    "fix": "Fix the selector to match the view, or add the class/id to the element, e.g. `className=\"x\"`; use a string literal (or module-level const) selector so it can be checked.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg110"
+  },
+  {
+    "code": "SYG111",
+    "title": "Controlled input has no input listener",
+    "severity": "warn",
+    "strict": false,
+    "reportedBy": [
+      "static"
+    ],
+    "explanation": "An `<input>`, `<textarea>` or `<select>` has `value` (or a checkbox/radio has `checked`) set, but the component's intent has no input/change/keyup/keydown listener on it or an ancestor. Sygnal writes the bound value back on every render, so any re-render while the user is typing or clicking resets the field; this also applies to literal values such as `value=\"\"`. A key listener that is immediately filtered to one key (e.g. Enter) does not count.",
+    "fix": "Update state on input, e.g. `DOM.input('.name').value()` (or `DOM.change(...)` for toggles/selects), or drop the `value`/`checked` prop to leave the field uncontrolled and read it on blur or submit.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg111"
+  },
+  {
+    "code": "SYG201",
+    "title": "STATE reducer dropped keys from the previous state",
+    "severity": "warn",
+    "strict": false,
+    "reportedBy": [
+      "dev-entry"
+    ],
+    "explanation": "A STATE reducer returned a plain object that is missing keys present (and not `undefined`) in the previous state, which usually means a missing `...state` spread. Those keys are silently lost from state. Calculated fields, `INITIALIZE`/`HYDRATE` and internal `__*` actions are excluded; reported once per component and action.",
+    "fix": "Spread the previous state: `(state, data) => ({ ...state, field: data })`. If removing the keys is intended, ignore the warning.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg201"
+  },
+  {
+    "code": "SYG202",
+    "title": "STATE reducer returned undefined",
+    "severity": "warn",
+    "strict": false,
+    "reportedBy": [
+      "dev-entry"
+    ],
+    "explanation": "A STATE reducer returned `undefined`, typically from a block-bodied arrow function without `return`. In a root component this wipes the state; in a sub-component it is reported as info instead, because returning `undefined` from a Collection item's reducer is the documented way to remove the item. `INITIALIZE`/`HYDRATE` and internal `__*` actions are excluded.",
+    "fix": "Return the new state, e.g. `(state, data) => ({ ...state, ... })`, or return `ABORT` to leave the state unchanged.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg202"
+  },
+  {
+    "code": "SYG206",
+    "title": "Invalid calculated field definition",
+    "severity": "error",
+    "strict": false,
+    "reportedBy": [
+      "runtime"
+    ],
+    "explanation": "An entry in `calculated` is neither a function nor a two-element `[deps, fn]` array where `deps` is an array and `fn` is a function. The component constructor throws, so the component is never created.",
+    "fix": "Define each field as `state => value` or `[['a', 'b'], state => value]`.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg206"
+  },
+  {
+    "code": "SYG207",
+    "title": "Calculated field shadows an initialState key",
+    "severity": "warn",
+    "strict": false,
+    "reportedBy": [
+      "runtime"
+    ],
+    "explanation": "A key in `calculated` also exists in `initialState`. The calculated value overwrites the stored value of the same name, so the `initialState` value is never visible. Checked once when the component is constructed.",
+    "fix": "Rename either the calculated field or the `initialState` key.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg207"
+  },
+  {
+    "code": "SYG208",
+    "title": "Calculated field depends on an unknown key",
+    "severity": "warn",
+    "strict": false,
+    "reportedBy": [
+      "runtime"
+    ],
+    "explanation": "A calculated field declared as `[deps, fn]` lists a dependency that is neither another calculated field nor a key of `initialState`. The dependency is likely misspelled, so memoization compares an always-`undefined` value. Only checked when the component has an `initialState`.",
+    "fix": "Fix the dependency name, or add the key to `initialState`.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg208"
+  },
+  {
+    "code": "SYG209",
+    "title": "Circular calculated field dependency",
+    "severity": "error",
+    "strict": false,
+    "reportedBy": [
+      "runtime"
+    ],
+    "explanation": "Calculated fields declared with `[deps, fn]` depend on each other in a cycle (the message shows the path, e.g. `a -> b -> a`), so no evaluation order exists. The component constructor throws.",
+    "fix": "Break the cycle so that each calculated field depends only on state keys or on fields that do not depend back on it.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg209"
+  },
+  {
+    "code": "SYG210",
+    "title": "INITIALIZE used with a sink other than STATE",
+    "severity": "warn",
+    "strict": false,
+    "reportedBy": [
+      "runtime"
+    ],
+    "explanation": "The model defines `INITIALIZE` as an object with sinks other than the state sink (e.g. `EVENTS` or `EFFECT`). `INITIALIZE` only supports the state sink, so those other sink entries are deleted and never run.",
+    "fix": "Keep only `STATE` under `INITIALIZE` and move the other sinks to a different action (for example one triggered by `BOOTSTRAP` or via `next()`).",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg210"
+  },
+  {
+    "code": "SYG211",
+    "title": "Invalid model shorthand entry",
+    "severity": "error",
+    "strict": false,
+    "reportedBy": [
+      "runtime"
+    ],
+    "explanation": "A model key contains `|` but does not split into exactly two non-empty parts (e.g. `'SAVE |'` or `'A | B | C'`). Model setup throws when the component is initialized.",
+    "fix": "Use exactly one action and one sink: `'SAVE | EFFECT': (state) => { ... }`.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg211"
+  },
+  {
+    "code": "SYG212",
+    "title": "Model entry is not a function or an object of sinks",
+    "severity": "error",
+    "strict": false,
+    "reportedBy": [
+      "runtime"
+    ],
+    "explanation": "A model entry's value is neither a function (a STATE reducer) nor a plain object mapping sink names to reducers; for example a string, number, array or `null`. Model setup throws when the component is initialized.",
+    "fix": "Use a reducer function or a sink map, e.g. `{ STATE: (state) => ..., EVENTS: ... }`.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg212"
+  },
+  {
+    "code": "SYG213",
+    "title": "Duplicate model entry for the same action and sink",
+    "severity": "warn",
+    "strict": false,
+    "reportedBy": [
+      "runtime"
+    ],
+    "explanation": "The same action and sink pair is defined more than once, which can only happen through shorthand keys (e.g. `'SAVE | STATE'` alongside `SAVE: fn` or `SAVE: { STATE: ... }`). The warning text says only the last one runs, but in the current code both entries are merged into the sink, so both reducers run for each action.",
+    "fix": "Remove the duplicate so each action/sink pair is defined once.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg213"
+  },
+  {
+    "code": "SYG214",
+    "title": "EFFECT handler threw",
+    "severity": "error",
+    "strict": false,
+    "reportedBy": [
+      "runtime"
+    ],
+    "explanation": "A model entry on the `EFFECT` sink threw an exception. The error is caught and logged with `console.error` (with the original error attached) rather than thrown, so the app keeps running but the effect did not complete. In diagnostics `error` mode the diagnostic is rethrown asynchronously.",
+    "fix": "Fix the exception shown in the attached error, or guard the handler against missing state or data.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg214"
+  },
+  {
+    "code": "SYG215",
+    "title": "next() delay is not a number",
+    "severity": "error",
+    "strict": false,
+    "reportedBy": [
+      "runtime"
+    ],
+    "explanation": "The third argument of `next(type, data, delay)` was given and is not a number. `next()` throws; when it is called synchronously inside a reducer or EFFECT handler, that throw is caught by the surrounding handler and surfaces as SYG216 or SYG214 with this error attached, and the follow-up action is not dispatched.",
+    "fix": "Pass a number of milliseconds, or omit it for the default 10 ms: `next('ACTION', data, 100)`.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg215"
+  },
+  {
+    "code": "SYG216",
+    "title": "Reducer threw",
+    "severity": "error",
+    "strict": false,
+    "reportedBy": [
+      "runtime"
+    ],
+    "explanation": "A model reducer threw an exception. For a STATE reducer the error is logged and the state is left unchanged; for a driver sink (e.g. `EVENTS`, `PARENT`, custom drivers) it is logged and nothing is sent. The error is logged with `console.error` rather than thrown (rethrown asynchronously in diagnostics `error` mode), and errors thrown by SYG215/SYG218 inside a reducer also surface through this code.",
+    "fix": "Fix the exception shown in the attached error, or guard the reducer against missing state or data.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg216"
+  },
+  {
+    "code": "SYG217",
+    "title": "Driver-sink reducer returned undefined",
+    "severity": "warn",
+    "strict": false,
+    "reportedBy": [
+      "runtime"
+    ],
+    "explanation": "A reducer for a non-STATE sink (e.g. `EVENTS`, `PARENT` or a custom driver) returned `undefined`, often from a missing `return`. The `undefined` value is still sent to the driver.",
+    "fix": "Return the value the driver expects, or return `ABORT` to send nothing.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg217"
+  },
+  {
+    "code": "SYG218",
+    "title": "Reducer returned an unsupported type",
+    "severity": "error",
+    "strict": false,
+    "reportedBy": [
+      "runtime"
+    ],
+    "explanation": "A reducer for a non-STATE sink returned something other than a plain object, string, number, boolean, function, `undefined` or `ABORT`; this includes `null`, arrays, bigints and non-`ABORT` symbols. The error is thrown inside the reducer's error handling, so it is caught and logged as SYG216 (with this error attached) and nothing is sent.",
+    "fix": "Return a supported value (wrap arrays in an object, e.g. `{ items }`), or return `ABORT` to send nothing.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg218"
+  },
+  {
+    "code": "SYG219",
+    "title": "EFFECT handler returned a value",
+    "severity": "warn",
+    "strict": false,
+    "reportedBy": [
+      "runtime"
+    ],
+    "explanation": "An `EFFECT` handler returned something other than `undefined`. EFFECT entries run only for side effects, so the return value is ignored; this usually means the logic was meant for a STATE or driver sink. Returning `ABORT` from an EFFECT also triggers it.",
+    "fix": "Do not return a value from EFFECT handlers; move value-producing logic to a `STATE` or driver sink entry.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg219"
+  },
+  {
+    "code": "SYG220",
+    "title": "Calculated field threw",
+    "severity": "warn",
+    "strict": false,
+    "reportedBy": [
+      "runtime"
+    ],
+    "explanation": "A calculated field function threw while computing derived state, for example by reading a property of missing data. The error is caught and the field is skipped for that update, so it is not recomputed from the new state.",
+    "fix": "Guard the calculation against missing data, e.g. `state => state.user?.name ?? ''`.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg220"
+  },
+  {
+    "code": "SYG301",
+    "title": "RxJS operator used on an xstream stream",
+    "severity": "error",
+    "strict": false,
+    "reportedBy": [
+      "dev-entry"
+    ],
+    "explanation": "An RxJS operator such as `pipe`, `switchMap`, `debounceTime` or `tap` was called on a Sygnal stream, which is an xstream stream and does not have it. With `sygnal/diagnostics` loaded, these names are defined on xstream's `Stream.prototype` to throw a `TypeError` that names the xstream equivalent, instead of the bare `x.switchMap is not a function`. A side effect of the dev entry is that `typeof stream.pipe === 'function'` is true while it is loaded.",
+    "fix": "Use the xstream equivalent from the message, e.g. `.map(x => inner$).flatten()` for `switchMap`, or `.compose(debounce(ms))` for `debounceTime`.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg301"
+  },
+  {
+    "code": "SYG401",
+    "title": "Collection 'from' field is missing or not an array",
+    "severity": "warn",
+    "strict": false,
+    "reportedBy": [
+      "runtime",
+      "dev-entry",
+      "static"
+    ],
+    "explanation": "A `<Collection>` needs an array to render. The runtime reports this when `from=\"field\"` names a key that is not in the parent state (or its calculated fields), when that field is not an array, or when a `from={{ get, set }}` getter returns a non-array; the dev entry also reports a `<Collection>` with no `from` whose parent state is not an array. In every case the Collection silently renders no items. `sygnal-check` reports the same mistake statically when `from` is not a key of a statically known `initialState`, or its initial value is a literal that is clearly not an array.",
+    "fix": "Point `from` at an array field and initialize it in `initialState`, e.g. `initialState = { items: [] }` with `<Collection of={Item} from=\"items\" />`, or make a custom `get()` return an array.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg401"
+  },
+  {
+    "code": "SYG402",
+    "title": "Context is not an object",
+    "severity": "error",
+    "strict": false,
+    "reportedBy": [
+      "runtime"
+    ],
+    "explanation": "The component's `.context` is set to something other than a plain object (for example a function or an array). It is logged and ignored: the component contributes no context values, and descendants only receive the context inherited from further up. It is logged, not thrown, so rendering continues.",
+    "fix": "Define context as an object of named entries: `Comp.context = { theme: state => state.theme }`.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg402"
+  },
+  {
+    "code": "SYG403",
+    "title": "Invalid context entry",
+    "severity": "error",
+    "strict": false,
+    "reportedBy": [
+      "runtime"
+    ],
+    "explanation": "A `.context` entry value is not a state key string, a boolean, or a function of state. That entry is skipped each time context is computed, so descendants read `undefined` for it; the other entries still work. It is logged, not thrown.",
+    "fix": "Use a state key string (`{ user: 'currentUser' }`), `true` to copy the same-named state key, or a function (`{ user: state => state.currentUser }`).",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg403"
+  },
+  {
+    "code": "SYG404",
+    "title": "Context stream errored",
+    "severity": "error",
+    "strict": false,
+    "reportedBy": [
+      "runtime"
+    ],
+    "explanation": "The stream that computes a component's context emitted an error, most often because a context function threw. An errored xstream stream stops, so this component's context stops updating for its descendants from that point on. The original error is attached to the log.",
+    "fix": "Check the attached error and make each context function safe for every state it can receive (e.g. guard against missing fields with `state.user?.name`).",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg404"
+  },
+  {
+    "code": "SYG405",
+    "title": "Sub-component has initialState without isolatedState",
+    "severity": "warn",
+    "strict": false,
+    "reportedBy": [
+      "runtime"
+    ],
+    "explanation": "A sub-component defines `initialState` but not `isolatedState = true`, so its `initialState` would overwrite the state slice its parent passes in. For a component rendered by tag in a parent's view this is thrown when it is instantiated; that throw is caught by the parent, which logs SYG408 and renders its error fallback instead of the child. For Collection items and Switchable children it is logged as a warning and the initial state still replaces what the parent passed.",
+    "fix": "Remove `initialState` from the sub-component and let the parent own the state, or set `Child.isolatedState = true` if the child should keep its own local state.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg405"
+  },
+  {
+    "code": "SYG406",
+    "title": "View threw",
+    "severity": "error",
+    "strict": false,
+    "reportedBy": [
+      "runtime"
+    ],
+    "explanation": "The component's view function threw while rendering. The error is logged and the component renders its `onError` fallback if it has one, or an empty `<div data-sygnal-error>` otherwise. The app keeps running, but that component shows no real content until a later render succeeds.",
+    "fix": "Fix the error in the view (often a missing field on `state` or `props`), and add `Comp.onError = (error, { componentName }) => <div>…</div>` if you want a custom fallback.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg406"
+  },
+  {
+    "code": "SYG407",
+    "title": "onError handler threw",
+    "severity": "error",
+    "strict": false,
+    "reportedBy": [
+      "runtime"
+    ],
+    "explanation": "A component's `onError` handler threw while handling a view error (SYG406) or a sub-component instantiation error (SYG408). Sygnal logs the second error and renders an empty `<div data-sygnal-error>` instead of your fallback.",
+    "fix": "Keep `onError` simple and make it always return a vnode, e.g. `Comp.onError = () => <div class=\"error\">Something went wrong</div>`.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg407"
+  },
+  {
+    "code": "SYG408",
+    "title": "Sub-component failed to instantiate",
+    "severity": "error",
+    "strict": false,
+    "reportedBy": [
+      "runtime"
+    ],
+    "explanation": "Creating a sub-component (a custom component, Collection, or Switchable found in the parent's view) threw. The parent catches it, logs the original error (which may itself carry a code such as SYG405, SYG411, SYG414 or SYG903), and renders its own `onError` fallback, or an empty `<div data-sygnal-error>`, in that child's place. The rest of the parent keeps rendering.",
+    "fix": "Read the attached error and fix its cause; its message usually names the underlying problem and its own code.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg408"
+  },
+  {
+    "code": "SYG409",
+    "title": "Child tried to update a calculated field",
+    "severity": "warn",
+    "strict": false,
+    "reportedBy": [
+      "runtime"
+    ],
+    "explanation": "A sub-component, Switchable, or Collection is bound to a parent state field (via its `state` or `from` prop) that is one of the parent's `calculated` fields, and the child wrote a new value back to it. Calculated fields are derived from other state, so the write is ignored and the parent state is left unchanged.",
+    "fix": "Bind the child to a plain (non-calculated) state field, and change the fields the calculated value is derived from instead.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg409"
+  },
+  {
+    "code": "SYG410",
+    "title": "Invalid sub-component 'state' prop",
+    "severity": "error",
+    "strict": false,
+    "reportedBy": [
+      "runtime"
+    ],
+    "explanation": "The `state` prop on a sub-component or Switchable is neither a state key string nor an object with a `get()` function (for example a number, or a `{ set }` object without `get`). It is logged and the child falls back to receiving the parent's whole state, which is usually not what was intended.",
+    "fix": "Pass a state key string (`state=\"user\"`) or a lens object `state={{ get: s => s.user, set: (s, user) => ({ ...s, user }) }}`.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg410"
+  },
+  {
+    "code": "SYG411",
+    "title": "Collection 'of' is missing or not a component",
+    "severity": "error",
+    "strict": false,
+    "reportedBy": [
+      "runtime"
+    ],
+    "explanation": "A `<Collection>` has no `of` prop, `of` is not a function or string, or `of` is a string that does not name a component registered in `.components`. This is thrown while the parent's view is processed, so the Collection cannot render. It is also thrown when the exported `collection()` helper is called with a first argument that is not a function.",
+    "fix": "Pass the item component function itself: `<Collection of={TaskCard} from=\"tasks\" />`.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg411"
+  },
+  {
+    "code": "SYG412",
+    "title": "Invalid Collection 'from' prop",
+    "severity": "error",
+    "strict": false,
+    "reportedBy": [
+      "runtime"
+    ],
+    "explanation": "The `from` prop on a `<Collection>` is neither a state key string nor an object with a `get()` function. It is logged (not thrown) and the Collection renders nothing.",
+    "fix": "Use a state key string (`from=\"items\"`) or a lens object with `get` and `set`: `from={{ get: s => s.items, set: (s, items) => ({ ...s, items }) }}`.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg412"
+  },
+  {
+    "code": "SYG413",
+    "title": "Unnamed component factory not found",
+    "severity": "error",
+    "strict": false,
+    "reportedBy": [
+      "runtime"
+    ],
+    "explanation": "The view rendered an unnamed component element (`sygnal-factory`) that carries no component factory or options, so Sygnal has nothing to instantiate. The throw is caught by the parent, which logs SYG408 and renders its error fallback in that place.",
+    "fix": "Render the component by referencing a named function in JSX, or give it a stable name with `Comp.componentName = 'Comp'`.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg413"
+  },
+  {
+    "code": "SYG414",
+    "title": "Component not found",
+    "severity": "error",
+    "strict": false,
+    "reportedBy": [
+      "runtime"
+    ],
+    "explanation": "The view rendered a component by name, but no factory for that name exists in the parent's `.components` and none was attached to the element. The throw is caught by the parent, which logs SYG408 and renders its error fallback in that place.",
+    "fix": "Import the component and use it directly as a JSX tag, or register it in the parent's `.components` under the name you render.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg414"
+  },
+  {
+    "code": "SYG415",
+    "title": "Switchable 'of' is missing or invalid",
+    "severity": "error",
+    "strict": false,
+    "reportedBy": [
+      "runtime"
+    ],
+    "explanation": "A `<Switchable>` has no `of` prop, `of` is not a plain object, or one of its values is not a component function. This is thrown while the parent's view is processed, so the Switchable cannot render.",
+    "fix": "Pass an object mapping names to components: `<Switchable of={{ list: ListView, grid: GridView }} current={state.mode} />`.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg415"
+  },
+  {
+    "code": "SYG416",
+    "title": "Switchable 'current' is missing or invalid",
+    "severity": "error",
+    "strict": false,
+    "reportedBy": [
+      "runtime"
+    ],
+    "explanation": "A `<Switchable>` has no `current` prop, `current` is not a string or function, or `current` is not one of the keys of `of`. This is thrown while the parent's view is processed, so no component can be shown.",
+    "fix": "Set `current` to one of the keys of `of`, e.g. `current=\"list\"` when `of={{ list: ListView, grid: GridView }}`, and make sure the state value it comes from is initialized.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg416"
+  },
+  {
+    "code": "SYG417",
+    "title": "Portal target not found",
+    "severity": "warn",
+    "strict": false,
+    "reportedBy": [
+      "runtime"
+    ],
+    "explanation": "A `<Portal target=\"…\">` selector matched no element in the document. Sygnal retries for a short time (about 10 attempts, 5 ms apart) in case the target is rendered by a sub-component that has not settled yet, then warns and leaves the portal content unrendered.",
+    "fix": "Make sure an element matching the `target` selector exists in the page (for example `<div id=\"modal-root\">` in your HTML) before the Portal mounts.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg417"
+  },
+  {
+    "code": "SYG418",
+    "title": "Invalid Collection sort prop",
+    "severity": "error",
+    "strict": false,
+    "reportedBy": [
+      "runtime"
+    ],
+    "explanation": "The `sort` prop on a `<Collection>` has an unsupported shape: an object with more than one key, a direction that is not `'asc'`, `'desc'`, `1` or `-1`, or a value that is not a string, array, object or function. The invalid sort (or array element) is logged and ignored, so the items are not sorted as intended.",
+    "fix": "Use a field name (`sort=\"title\"`), a single-key object (`sort={{ title: 'desc' }}`), a comparator function, or an array of these.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg418"
+  },
+  {
+    "code": "SYG419",
+    "title": "Invalid switchable() 'name$' parameter",
+    "severity": "error",
+    "strict": false,
+    "reportedBy": [
+      "runtime"
+    ],
+    "explanation": "The exported `switchable()` helper was called without a `name$` argument, or with one that is not a stream, a state key string, or a function of state. It throws immediately because it cannot tell which component to show.",
+    "fix": "Pass a stream of component names, a state key string, or a `state => name` function as the second argument to `switchable()`.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg419"
+  },
+  {
+    "code": "SYG420",
+    "title": "JSX tag is undefined",
+    "severity": "error",
+    "strict": false,
+    "reportedBy": [
+      "runtime"
+    ],
+    "explanation": "A JSX element's tag evaluated to `undefined`, usually because a component was not imported, was misspelled, or was imported as default instead of named (or vice versa). Sygnal renders an `<UNDEFINED>` element in its place and prints the message with `console.error`. This message is printed directly by the JSX runtime, so it is not collected by the diagnostics core.",
+    "fix": "Import or define the component in the file that uses it, and check that the import style (default vs named) matches the export.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg420"
+  },
+  {
+    "code": "SYG501",
+    "title": "View uses positional arguments",
+    "severity": "warn",
+    "strict": true,
+    "reportedBy": [
+      "dev-entry",
+      "static"
+    ],
+    "explanation": "Strict mode only. The view declares more than one parameter and reads `state`, `context` or `peers` positionally, as in `function Lane(props, state)`, instead of destructuring them from its first argument. The canonical form keeps every view's signature the same, so code and tooling can rely on it. The runtime check uses the function's declared arity, so a default value or rest parameter can hide a positional use.",
+    "fix": "Destructure the first argument: `function Lane({ state, context, ...props })`.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg501"
+  },
+  {
+    "code": "SYG502",
+    "title": "STATE reducer signals no change without ABORT",
+    "severity": "warn",
+    "strict": true,
+    "reportedBy": [
+      "dev-entry",
+      "static"
+    ],
+    "explanation": "Strict mode only. A STATE reducer signals \"no change\" by returning the previous state object instead of `ABORT`; at runtime it is reported when the reducer returns the same object it received. `sygnal-check --strict` also flags `return state`, a bare `return;`, and a block body that can reach its end without returning. An explicit `return undefined` is not flagged statically, because that is how a Collection item removes itself.",
+    "fix": "Return `ABORT` for \"no change\": `TOGGLE: (state, data) => cond ? { ...state, open: !state.open } : ABORT`.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg502"
+  },
+  {
+    "code": "SYG503",
+    "title": "Side effect in a STATE reducer that returns ABORT",
+    "severity": "warn",
+    "strict": true,
+    "reportedBy": [
+      "static"
+    ],
+    "explanation": "Strict mode only (`sygnal-check --strict`). A STATE reducer runs a call whose result is unused (such as `cmd.send('play')`, `next('X')` or `localStorage.setItem(…)`) and then returns `ABORT`. This is the old pattern for side effects; the canonical form puts side effects in an `EFFECT` sink so STATE reducers stay pure. The check is a heuristic.",
+    "fix": "Move the side effect to an EFFECT sink: `PLAY: { EFFECT: (state, data, next) => { cmd.send('play') } }`, keeping any state change in `STATE`.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg503"
+  },
+  {
+    "code": "SYG504",
+    "title": "'ACTION | SINK' shorthand model key",
+    "severity": "warn",
+    "strict": true,
+    "reportedBy": [
+      "dev-entry",
+      "static"
+    ],
+    "explanation": "Strict mode only. A model key uses the `'ACTION | SINK'` shorthand, such as `'SEND | EFFECT': …`. It works, but the canonical form is the object form, which keeps every sink an action drives in one place. `sygnal-check --strict --fix` rewrites it automatically when no other entry handles the same action.",
+    "fix": "Use the object form: `SEND: { EFFECT: (state, data, next) => … }`, merging into an existing `SEND` entry if there is one.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg504"
+  },
+  {
+    "code": "SYG505",
+    "title": "Non-canonical EVENTS emit",
+    "severity": "warn",
+    "strict": true,
+    "reportedBy": [
+      "static"
+    ],
+    "explanation": "Strict mode only (`sygnal-check --strict`). A model entry emits a global event with `emit('TYPE', fn)` (as the whole entry or spread into the object form), or its EVENTS sink builds the `{ type: 'TYPE', data }` object by hand. The canonical form is an `EVENTS` sink using `event()` inside the object form. `--fix` rewrites the common cases and adds the `event` import.",
+    "fix": "Use `ACTION: { EVENTS: event('TYPE', (state, data) => payload) }`.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg505"
+  },
+  {
+    "code": "SYG506",
+    "title": "CHILD.select() with a string component name",
+    "severity": "warn",
+    "strict": true,
+    "reportedBy": [
+      "static"
+    ],
+    "explanation": "Strict mode only (`sygnal-check --strict`). An intent calls `CHILD.select('TaskCard')` with the child's name as a string. Matching by name breaks when a minifier renames the component function, so the parent silently stops receiving the child's PARENT output in production builds. `--fix` replaces the string with the identifier when that name is in scope.",
+    "fix": "Pass the component function: `CHILD.select(TaskCard)` (import it first if needed).",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg506"
+  },
+  {
+    "code": "SYG507",
+    "title": "Prop drilled through more than 2 component levels",
+    "severity": "info",
+    "strict": true,
+    "reportedBy": [
+      "static"
+    ],
+    "explanation": "Strict mode only (`sygnal-check --strict`). A component receives a prop from its parent and passes it on unchanged, under the same name, to its own child component, so the value crosses three component levels. Data that flows that far down belongs in `.context`, which reaches every descendant without each level forwarding it. This is informational only.",
+    "fix": "Provide the value as context on the top component, e.g. `Parent.context = { theme: state => state.theme }`, and read `context.theme` where it is needed.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg507"
+  },
+  {
+    "code": "SYG601",
+    "title": "Missing or invalid sources",
+    "severity": "error",
+    "strict": false,
+    "reportedBy": [
+      "runtime"
+    ],
+    "explanation": "A component was created or called without a sources object, or with sources that are not a plain object. This happens when a component factory is called by hand instead of through `run()` (or `renderComponent()`), or with the wrong argument. It is thrown, because no part of the component can be wired without sources.",
+    "fix": "Start the app with `run(RootComponent)` and let Sygnal pass sources, or pass a sources object when calling a component factory directly.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg601"
+  },
+  {
+    "code": "SYG602",
+    "title": "Intent is not a function",
+    "severity": "error",
+    "strict": false,
+    "reportedBy": [
+      "runtime"
+    ],
+    "explanation": "The component's `.intent` is set but is not a function (for example an object of streams). It is thrown when the component is constructed.",
+    "fix": "Make intent a function of sources: `Comp.intent = ({ DOM }) => ({ CLICK: DOM.select('.btn').events('click') })`.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg602"
+  },
+  {
+    "code": "SYG603",
+    "title": "Intent returned an invalid value",
+    "severity": "error",
+    "strict": false,
+    "reportedBy": [
+      "runtime"
+    ],
+    "explanation": "The intent function returned something other than a stream or an object of streams, often `undefined` because an arrow function used a block body without `return`. It is thrown when the component is constructed.",
+    "fix": "Return an object of action streams, e.g. `intent = ({ DOM }) => ({ CLICK: DOM.select('.btn').events('click') })` (note the parentheses around the object).",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg603"
+  },
+  {
+    "code": "SYG604",
+    "title": "Invalid hmrActions",
+    "severity": "error",
+    "strict": false,
+    "reportedBy": [
+      "runtime"
+    ],
+    "explanation": "The component's `hmrActions` is neither an action name string nor an array of action name strings. It is thrown when the component is constructed.",
+    "fix": "Use a string or an array of strings: `Comp.hmrActions = ['REFRESH']`.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg604"
+  },
+  {
+    "code": "SYG605",
+    "title": "Intent action name contains '|'",
+    "severity": "error",
+    "strict": false,
+    "reportedBy": [
+      "runtime"
+    ],
+    "explanation": "An intent returns an action whose name contains `|`. The `|` character is reserved for the `'ACTION | SINK'` model shorthand, so such a name would collide with shorthand keys. It is thrown when the component's actions are wired.",
+    "fix": "Rename the action so it contains no `|`, e.g. `SAVE_OR_CLOSE` instead of `SAVE|CLOSE`.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg605"
+  },
+  {
+    "code": "SYG606",
+    "title": "calculated is not an object",
+    "severity": "error",
+    "strict": false,
+    "reportedBy": [
+      "runtime"
+    ],
+    "explanation": "The component's `.calculated` is set but is not a plain object (for example a function or an array). It is thrown the first time calculated fields are added to an object state.",
+    "fix": "Define calculated fields as an object: `Comp.calculated = { total: state => state.items.length }`.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg606"
+  },
+  {
+    "code": "SYG607",
+    "title": "State source not found",
+    "severity": "error",
+    "strict": false,
+    "reportedBy": [
+      "runtime"
+    ],
+    "explanation": "A `switchable()` created with a state key string or a state function was given sources that contain no state source under the configured `stateSourceName` (nor `STATE` or `state`). It is thrown because the current component name cannot be read from state.",
+    "fix": "Include the state source in the sources passed to the switchable, or set `stateSourceName` to the name your state source uses.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg607"
+  },
+  {
+    "code": "SYG900",
+    "title": "A diagnostics check threw",
+    "severity": "warn",
+    "strict": false,
+    "reportedBy": [
+      "dev-entry",
+      "static"
+    ],
+    "explanation": "A diagnostics check itself crashed: one of the `sygnal/diagnostics` runtime checks threw inside a hook, or a `sygnal-check` rule threw (or a file could not be parsed). The failure is isolated, so the app and the other checks keep running, but that check produced no results for the code involved. This points to a bug in the checker, or (for parse errors) a syntax error in your file.",
+    "fix": "For a parse error, fix the syntax error in the named file; otherwise please report it to Sygnal with the file or component that triggers it.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg900"
+  },
+  {
+    "code": "SYG901",
+    "title": "Sub-component sink stream errored",
+    "severity": "error",
+    "strict": false,
+    "reportedBy": [
+      "runtime"
+    ],
+    "explanation": "The stream that merges a component's sub-component sinks emitted an error. The error is logged with the original error attached; because an errored xstream stream stops, sinks from that component's sub-components can stop flowing afterwards.",
+    "fix": "Read the attached error and fix its source, usually a reducer, view or driver stream in one of the sub-components.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg901"
+  },
+  {
+    "code": "SYG902",
+    "title": "EFFECT stream errored",
+    "severity": "error",
+    "strict": false,
+    "reportedBy": [
+      "runtime"
+    ],
+    "explanation": "The stream that runs a component's `EFFECT` model entries emitted an error. It is logged with the original error attached, and the component's EFFECT handlers stop running from then on, so later side effects are silently skipped.",
+    "fix": "Read the attached error and fix the action stream or EFFECT handler that caused it; catch expected failures inside the handler.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg902"
+  },
+  {
+    "code": "SYG903",
+    "title": "Component factory returned invalid sinks",
+    "severity": "error",
+    "strict": false,
+    "reportedBy": [
+      "runtime"
+    ],
+    "explanation": "When instantiating a sub-component, Collection, or Switchable, the factory returned something that is not a sinks object. It is thrown during instantiation; the parent catches it, logs SYG408, and renders its error fallback in that place. This usually means a custom factory passed in place of a Sygnal component is not returning sinks.",
+    "fix": "Make the factory return an object of sink streams, or pass a regular Sygnal component function instead.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg903"
+  }
+]

@@ -9,6 +9,7 @@ import {_getDiagnosticsConfig, configureDiagnostics, getDiagnosticsMode, isDiagn
 import xs from './xstreamCompat';
 import type {Stream} from 'xstream';
 import type {Diagnostic, DiagnosticsMode} from './diagnostics/index';
+import type {InspectGraph} from './diagnostics/checks/public';
 
 /*
  * (Docs live on these type-only declarations so the TypeScript emit drops
@@ -154,6 +155,11 @@ export interface RenderResult {
   html: () => string;
   /** Tear down the component, clean up listeners and restore the diagnostics mode */
   dispose: () => void;
+  /**
+   * The app graph (2B) of the rendered tree: components, actions, selectors (with the mock DOM's
+   * match / isolation results), EVENTS and diagnostics. Requires `import 'sygnal/diagnostics'`.
+   */
+  inspect: () => InspectGraph;
 }
 
 const isScope = (s: string) => s.startsWith('.___');
@@ -235,6 +241,8 @@ export function renderComponent(
   const rootName = componentDef.name || componentDef.componentName || 'TestComponent';
   const listeners = new Map<string, string[]>();
   const owners = new Map<string, string>([['', rootName]]);
+  const scopeIds = new Map<string, number>();
+  const evTypes: Record<string, string[]> = {};
   const done = new Set<string>();
   // the innermost isolation scope of a component's DOM source on this hub
   const scopeOf = (c: any) => {
@@ -246,12 +254,14 @@ export function renderComponent(
     onIntent(c: any) {
       const sc = scopeOf(c);
       if (sc) owners.set(sc, c.name);
+      if (c.sources[c.DOMSourceName || 'DOM']?._hub == hub.$) scopeIds.set(sc || '', c._componentNumber);
     },
     // 1H-11: forget a disposed child's listeners, so they aren't checked on every render
     onDispose(c: any) {
       const sc = scopeOf(c);
       if (!sc) return;
       owners.delete(sc);
+      scopeIds.delete(sc);
       listeners.forEach((path, k) => { if (path.filter(isScope).pop() == sc) listeners.delete(k); });
     },
   });
@@ -260,6 +270,31 @@ export function renderComponent(
   };
   // 1H-11: a render with the same tree and no new listener can't change the result
   let checkedTree: any, newListener = false;
+  const probe = (sels: string[], scope?: string, target?: any) => {
+    let own = false, child: string | undefined, hit = !target;
+    // chain: [vnode, nearest scope][] from the root; inside: under this component's root
+    const walk = (v: any, chain: any[], cur: any, inside: boolean, boundary: any): void => {
+      if (!v || !v.sel || own) return;
+      const sc = (v.sel.match(/\.___[^.#]+/) || [])[0] || cur;
+      const c = chain.concat([[v, sc]]);
+      inside = inside || sc == scope;
+      if (inside) {
+        if (sc == scope) {
+          if (desc(sels, c.filter(x => x[1] == scope).map(x => x[0]))) own = true;
+        } else {
+          boundary = boundary || sc;
+          if (desc(sels, c.map(x => x[0]))) {
+            child = child || boundary;
+            if (v === target) hit = true;
+          }
+        }
+      }
+      for (const k of [].concat(v.children || [])) walk(k, c, sc, inside, sc == scope ? undefined : boundary);
+    };
+    _testingStats.walks++;
+    walk(vtree, [], undefined, !scope, undefined);
+    return {own, child, hit};
+  };
   const check104 = (target?: any) => {
     if (!vtree || !isDiagnosticsEnabled() || (!target && vtree === checkedTree && !newListener)) return;
     if (!target) checkedTree = vtree, newListener = false;
@@ -270,28 +305,7 @@ export function renderComponent(
       const selector = sels.join(' ');
       const key = name + '\u0000' + selector;
       if (!sels.length || /^(document|body)$/.test(sels[0]) || done.has(key)) return;
-      let own = false, child: string | undefined, hit = !target;
-      // chain: [vnode, nearest scope][] from the root; inside: under this component's root
-      const walk = (v: any, chain: any[], cur: any, inside: boolean, boundary: any): void => {
-        if (!v || !v.sel || own) return;
-        const sc = (v.sel.match(/\.___[^.#]+/) || [])[0] || cur;
-        const c = chain.concat([[v, sc]]);
-        inside = inside || sc == scope;
-        if (inside) {
-          if (sc == scope) {
-            if (desc(sels, c.filter(x => x[1] == scope).map(x => x[0]))) own = true;
-          } else {
-            boundary = boundary || sc;
-            if (desc(sels, c.map(x => x[0]))) {
-              child = child || boundary;
-              if (v === target) hit = true;
-            }
-          }
-        }
-        for (const k of [].concat(v.children || [])) walk(k, c, sc, inside, sc == scope ? undefined : boundary);
-      };
-      _testingStats.walks++;
-      walk(vtree, [], undefined, !scope, undefined);
+      const {own, child, hit} = probe(sels, scope, target);
       if (own) return done.add(key);
       if (!child || !hit) return;
       done.add(key);
@@ -360,9 +374,10 @@ export function renderComponent(
     initialState: init,
   });
   const allDrivers: any = {
-    DOM: () => mockDOMSource(mockConfig, hub.$, path => {
+    DOM: () => mockDOMSource(mockConfig, hub.$, (path, type) => {
       const k = path.join('\u0000');
       if (!listeners.has(k)) listeners.set(k, path), newListener = true;
+      (evTypes[k] = evTypes[k] || []).push(type);
     }),
     EVENTS: eventBusDriver,
     LOG: logDriver,
@@ -543,6 +558,11 @@ export function renderComponent(
         )
       : '';
 
+  const inspect = (): InspectGraph => {
+    if (!core.inspect) throw Error(`[Sygnal] t.inspect() needs import 'sygnal/diagnostics'`);
+    return core.inspect({ids: [...scopeIds.values()], diagnostics: collected, mock: {listeners, evTypes, owners, scopeIds, probe, vtree}});
+  };
+
   let disposed = false;
   const dispose = () => {
     if (disposed) return;
@@ -575,5 +595,6 @@ export function renderComponent(
     expectNoDiagnostics,
     html,
     dispose,
+    inspect,
   };
 }

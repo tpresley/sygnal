@@ -6,6 +6,8 @@
   "main": "./src/index.js",
   "exports": {
     ".": "./src/index.js",
+    "./explanations.json": "./explanations.json",
+    "./schema/inspect.schema.json": "./schema/inspect.schema.json",
     "./package.json": "./package.json"
   },
   "bin": {
@@ -14,6 +16,8 @@
   "files": [
     "bin",
     "src",
+    "schema",
+    "explanations.json",
     "README.md"
   ],
   "scripts": {

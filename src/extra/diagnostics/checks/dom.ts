@@ -177,6 +177,20 @@ function sweep(component: any, t: Tracked, escalate: boolean): void {
   }
 }
 
+/**
+ * inspect (2B, read-only): a component's intent selectors on a real DOM source
+ * and whether a sweep has seen them match (true), only match inside a child
+ * (crossed), or neither yet. undefined when the component isn't tracked.
+ */
+export function selectorStatus(component: any): Array<{selector: string; matched: boolean | null; crossed: boolean}> | undefined {
+  const t = tracked.get(component)
+  return t && t.selectors.map(selector => ({
+    selector,
+    matched: matched.has(`${t.name}\u0000${selector}`) ? true : t.crossed.has(selector) ? false : null,
+    crossed: t.crossed.has(selector),
+  }))
+}
+
 export const domCheck: DiagnosticCheck = {
   id: 'dom',
 
