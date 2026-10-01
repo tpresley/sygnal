@@ -32,12 +32,8 @@ export { getDiagnostics, clearDiagnostics, onDiagnostic } from './extra/diagnost
 export * from './cycle/dom/index'
 
 // export xstream and most used extra operators
-export { default as debounce } from "xstream/extra/debounce.js"
-export { default as throttle } from 'xstream/extra/throttle.js'
-export { default as delay } from "xstream/extra/delay.js"
-export { default as dropRepeats } from "xstream/extra/dropRepeats.js"
-export { default as sampleCombine } from 'xstream/extra/sampleCombine.js'
-// ESM ports (the CJS xstream/extra modules would ship even when unused)
+// ESM ports of xstream/extra/* (behaviour-identical). The CJS originals are not callable from
+// the rollup CJS build or native Node ESM (their default export is `{ default: fn }` there),
+// and ESM classes tree-shake when an app does not use them.
+export { concat, debounce, throttle, delay, dropRepeats, sampleCombine } from './extra/xstreamExtras'
 export { flattenConcurrently, flattenSequentially } from './extra/flatten'
-// concat is already in every app (used by the DOM driver and withState)
-export { default as concat } from 'xstream/extra/concat.js'

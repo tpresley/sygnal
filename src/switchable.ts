@@ -1,9 +1,8 @@
-import xs, {Stream, resolveInteropDefault} from './extra/xstreamCompat';
-import * as dropRepeatsModule from 'xstream/extra/dropRepeats.js';
+import xs, {Stream} from './extra/xstreamCompat';
+import {dropRepeats} from './extra/xstreamExtras';
 import {h} from './cycle/dom/index';
 import {fail} from './extra/diagnostics/legacy';
 
-const dropRepeats = resolveInteropDefault(dropRepeatsModule);
 
 interface SwitchableOptions {
   switched?: string | string[];
