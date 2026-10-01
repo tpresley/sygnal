@@ -249,6 +249,43 @@ describe('B-008: an isolatedState child without a state prop keeps its own state
   })
 })
 
+// ─── B-009: two Collections whose items share ids ───────────────────────────
+
+import { Collection } from '../src/collection.js'
+
+describe('B-009: Collections with overlapping item ids keep separate isolation scopes', () => {
+  function Item({ state }) { return h('li', null, h('button', { className: 'hit' }, `${state.id}:${state.n}`)) }
+  Item.intent = ({ DOM }) => ({ HIT: DOM.click('.hit') })
+  Item.model = { HIT: s => ({ ...s, n: s.n + 1 }) }
+
+  function Lists() {
+    return h('div', null,
+      h(Collection, { of: Item, from: 'a', className: 'list-a' }),
+      h(Collection, { of: Item, from: 'b', className: 'list-b' }))
+  }
+  Lists.initialState = { a: [{ id: 1, n: 0 }], b: [{ id: 1, n: 0 }] }
+
+  it('an event in one collection item does not reach the same-id item of the other collection', async () => {
+    t = renderComponent(Lists)
+    await t.ready()
+    t.simulateEvent('.list-b .hit', 'click')
+    await t.waitForState(s => s.b[0].n === 1)
+    await settle(60)
+    expect(last(t)).toEqual({ a: [{ id: 1, n: 0 }], b: [{ id: 1, n: 1 }] })
+  })
+
+  it('a single collection still works (regression guard)', async () => {
+    function One() { return h('div', null, h(Collection, { of: Item, from: 'a', className: 'list-a' })) }
+    One.initialState = { a: [{ id: 1, n: 0 }, { id: 2, n: 0 }] }
+    t = renderComponent(One)
+    await t.ready()
+    t.simulateEvent('.hit', 'click')
+    await t.waitForState(s => s.a[0].n === 1)
+    await settle(40)
+    expect(last(t).a).toEqual([{ id: 1, n: 1 }, { id: 2, n: 0 }])
+  })
+})
+
 // ─── B-004: controlled value/checked follow the vnode after coalesced renders ─
 
 describe('B-004: controlledInputModule', () => {

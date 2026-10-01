@@ -38,7 +38,9 @@ export default function collection(
       item: component,
       itemKey: (state: any, ind: number) =>
         typeof state.id !== 'undefined' ? state.id : ind,
-      itemScope: (key: any) => key,
+      // B-009: prefix with the collection instance so two Collections in one parent whose
+      // items share ids get different DOM isolation scopes
+      itemScope: (itemKey: any) => `${key}-${itemKey}`,
       channel: stateSourceName,
       collectSinks: (instances: any) => {
         return Object.entries(sources).reduce<Record<string, any>>(

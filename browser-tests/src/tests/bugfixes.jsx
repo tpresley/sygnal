@@ -101,6 +101,34 @@ export async function bugfixTests() {
     assert(inp.value === '', `input still shows '${inp.value}'`)
   })
 
+  // B-009: two Collections in one parent whose items share ids
+  await runTest(CAT, 'B-009: clicking an item in one Collection does not fire the same-id item of another', async () => {
+    const { id, el } = mount()
+    function Item({ state }) { return <li><button className="hit">{state.n}</button></li> }
+    Item.intent = ({ DOM }) => ({ HIT: DOM.click('.hit') })
+    Item.model = { HIT: s => ({ ...s, n: s.n + 1 }) }
+    function App({ state }) {
+      return <div>
+        <Collection of={Item} from="a" className="list-a" />
+        <Collection of={Item} from="b" className="list-b" />
+        <span className="sum">{state.a[0].n}/{state.b[0].n}</span>
+      </div>
+    }
+    App.initialState = { a: [{ id: 1, n: 0 }], b: [{ id: 1, n: 0 }] }
+    run(App, {}, { mountPoint: id })
+    await waitFor(() => el.querySelector('.list-b .hit'))
+    el.querySelector('.list-b .hit').click()
+    await waitFor(() => el.querySelector('.sum').textContent !== '0/0')
+    await wait(50)
+    const sum = el.querySelector('.sum').textContent
+    assert(sum === '0/1', `a/b counters are ${sum}, expected 0/1`)
+    el.querySelector('.list-a .hit').click()
+    await waitFor(() => el.querySelector('.sum').textContent !== '0/1')
+    await wait(50)
+    const sum2 = el.querySelector('.sum').textContent
+    assert(sum2 === '1/1', `a/b counters are ${sum2}, expected 1/1`)
+  })
+
   await runTest(CAT, 'B-004: a controlled checkbox reflects state after a same-tick toggle + reset', async () => {
     const { id, el } = mount()
     function App({ state }) {
