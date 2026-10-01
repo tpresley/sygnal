@@ -12,7 +12,7 @@ Tracks progress for [PLAN-2.md](PLAN-2.md). Maintained by the coordinator. The P
 |---|---|---|---|
 | 0 — Release follow-through, eval infrastructure | 🟡 In progress | — | 0-A ✅ · 0-B ✅ · 0-C ✅ · tier-3 pilot ✅ (20/20 pass; Sygnal 66.6 s vs React 45.7 s) · v2-baseline 🟡 (160 trials, D46) |
 | 1 — Correctness backlog | ✅ Done | `plan2-phase1` | 1-A…1-F ✅ · 1-T trim ✅ · review: 6 findings + 2 notes, all fixed in 1-R · kanban 41,803 B (2 B headroom) |
-| 2 — Known ergonomics improvements | 🟡 In progress | — | 2-A ✅ · 2-B ✅ · 2-C 🟡 · 2-D 🟡 |
+| 2 — Known ergonomics improvements | 🟡 In progress | — | 2-A ✅ · 2-B ✅ · 2-C 🟡 · 2-D ✅ |
 | 3 — Experiments | ⚪ | — | |
 | 4 — Adopt, measure, release | ⚪ | — | |
 
@@ -35,7 +35,7 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | 2-A | Testing completeness (G-064, G-065, G-053) | ✅ | `worktree-agent-a9a235cb519e6198d` | subagent | `5b35476` | G-064: harness records every driverless sink in the tree from each `model$` (children, grandchildren, Collection items); passed drivers still win. G-065: behaviour fix — `ready()` arms a cursor that the first `next()` starts from (other `t.*` calls disarm it); timeouts name an already-matched earlier state. G-053: `timeoutMs`/`settleMs`/`eventWaitMs` options; timeouts name pending model `next('X')` delays (parsed from the core debug log line — coupling G-111). 20 tests (15 failed first). Kanban 0 B |
 | 2-B | Agent docs (2-D1 snapshot semantics, 2-D2 extract-component recipe, 2-D3 latest-only pattern) | ✅ | `worktree-agent-a44b2fbe9d096f4ac` | subagent | `032363c` | 2-D1: guide/model.md "Sinks See the State Before the Action" + one bullet each in llms.txt/SKILL.md (verified with a scratch test; B-003 tests already guard it). 2-D2: guide/parent-child.md recipe (snapshot → move markup → PARENT + `CHILD.select` → re-run), compact SKILL.md form, llms.txt pointer; validated on the task-08 starter (identical HTML). 2-D3: guide/drivers.md "Only the Latest Response" (reqId in state, echoed by the driver, ABORT on mismatch, clear bumps reqId); scratch-tested out-of-order, stale failure, clear-in-flight. llms.txt 249 lines; 382 samples strict-clean |
 | 2-C | Component and Vike bugs (G-102, G-106, G-107, G-108, G-109) | 🟡 | | subagent | | |
-| 2-D | `globalthis` alias in `sygnal/vite` + size-gate script (G-099) | 🟡 | | subagent | | Gated number = kanban built with the opt-out (core growth); default build reported |
+| 2-D | `globalthis` alias in `sygnal/vite` + size-gate script (G-099) | ✅ | `worktree-agent-a2f656507f54d98a7` | subagent | `a75d332` | xstream only does `require('globalthis').getPolyfill()`; stub `dist/shims/globalthis.cjs` (also exported as `sygnal/shims/globalthis`) aliased via `resolve.alias` in serve/build/Vitest; opt-out `sygnal({ nativeGlobalThis: false })`; `sygnal/astro` adds it in `astro build` too. Verified kanban, Vike SSR, Astro, Vitest, and installed tarballs of 3 templates (build/preview/dev). `scripts/size-gate.mjs`: gated (opt-out) **41,803 B** / 42,300; default **37,812 B** (−3,991) |
 | 1-F | Examples (G-052, G-063) | ✅ | (same branch as 1-C) | subagent | `fd3fc7c` | todomvc ids = max id + 1; `LOG` sink uses the reducer form (type gap → G-077); build runs `tsc --noEmit`; custom pollers removed from `app.test.ts`, which uses `next`/`settle`/`html`; new id test. Strict-clean |
 
 ## Gate Results
@@ -45,6 +45,7 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | 0-A | ✅ | 942 ✅ | | | | | | | | |
 | 1-R | ✅ (0 TS) | 916 ✅ | ✅ | ✅ | 121 ✅ | 183 ✅ | 374 ✅ | ✅ | ✅ | 41,803 B ✅ |
 | 1-T | ✅ | 893 ✅ | ✅ | ✅ | 119 ✅ | 183 ✅ | 374 ✅ | ✅ | | 41,719 B ✅ |
+| 2-A/B/D | ✅ (0 TS) | 941 ✅ | ✅ | ✅ | 121 ✅ | 183 ✅ | 384 ✅ | ✅ | ✅ | 41,803 B gated / 37,812 B default ✅ |
 | 1-B + 1-E | ✅ (0 TS warnings) | 893 ✅ | 105 ✅ | ✅ | 119 ✅ | 183 ✅ | 374 ✅ | ✅ | ✅ | **41,991 B ❌ (+186 over)** |
 | 1-D | ✅ | 971 ✅ | 104 ✅ | ✅ | 119 ✅ | 178 ✅ | 373 ✅ | | ✅ | 41,717 B |
 | 1-A | ✅ | 966 ✅ | | | 119 ✅ | 182 ✅ | 373 ✅ | ✅ | | 41,717 B |
@@ -115,6 +116,9 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | G-109 | 1-R | low | Rendering | `src={null}` is written as "null" by propsModule before removedPropsModule removes it (harmless in Chromium) | Open → 2-C |
 | G-110 | 2-A | low-med | Diagnostics | In a real `run()` app, a child component's sink with no driver is silently dropped (no core or `sygnal/diagnostics` warning) | Open → Phase 2/3 candidate (new SYG code) |
 | G-111 | 2-A | low | Testing | G-053's delayed-`next()` detection parses the core debug log text `next() action: <TYPE> Nms delay`; a wording change breaks it (tests would catch it). Cleaner: an `onNext` diagnostics hook (costs core bytes) | Open |
+| G-112 | 2-D | low | browser-tests | `browser-tests/vite.config.js` doesn't use the sygnal plugin, so `test:browser` never exercises `sygnal/vite` in dev | Open |
+| G-113 | 2-D | low | Astro dev | Cold-cache first load logs `504 (Outdated Optimize Dep)` while Vite re-optimizes (pre-existing; island still works) | Open |
+| G-114 | 2-D | low | Docs | CLAUDE.md test counts are stale (892 → 941 library tests) | Open → Phase 4 release prep |
 | G-076 | 5.4.0 release | low | browser-tests | The browser run prints expected console errors from error-path tests, which look like failures | ✅ 1-E (whitelist updated for SYG405 at the 1-B merge) |
 
 ## Worktree Setup (each subagent, inside its own isolated worktree)
@@ -138,6 +142,7 @@ gzip -c /tmp/kb/assets/index-*.js | wc -c      # budget 41,805 B
 
 ## Activity Log
 
+- 2026-10-01 — 2-D merged; size gate is now `node scripts/size-gate.mjs` (budget 42,300 B gated); apps ~4 KB smaller by default.
 - 2026-10-01 — 2-A merged (coordinator merge; the agent's own merge was blocked by permissions); gates green: 936 vitest, 121 browser, 384 samples, llms.txt 249.
 - 2026-10-01 — 2-B merged (docs; samples 382 clean, docs build OK).
 - 2026-10-01 — Tier-3 pilot done (20/20, $7.55); D46: tiers frozen, v2-baseline (160 trials, est. $58 / 1.3 h) started from the user's terminal; Phase 2 workstreams 2-A, 2-B, 2-C launched.
