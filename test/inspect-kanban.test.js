@@ -59,10 +59,11 @@ describe('kanban: runtime inspect (renderComponent + built dev entry)', () => {
         expect(lane.selectors.every(s => s.isolationHit === null)).toBe(true)
       }
       expect(byName(g, 'TaskCard').every(c => c.kind === 'collection-item')).toBe(true)
-      // lane-2's task (the TaskCards of the deleted lane-1 are not disposed by the core yet,
-      // so they are still listed, under the removed lane's id)
+      // lane-2's task; the TaskCards of the deleted lane-1 were disposed with it (B-024), so
+      // none is left under the removed lane's id
       const laneIds = lanes.map(l => l.id)
       expect(byName(g, 'TaskCard').filter(c => laneIds.includes(c.parentId))).toHaveLength(1)
+      expect(byName(g, 'TaskCard').filter(c => !laneIds.includes(c.parentId))).toEqual([])
       // the lane that emitted DELETE_LANE was removed (and pruned); the event is still on the bus map
       expect(g.events.DELETE_LANE.selectors).toEqual(['RootComponent'])
       t.expectNoDiagnostics()

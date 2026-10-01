@@ -158,15 +158,20 @@ describe('SYG504 — shorthand model keys', () => {
 })
 
 describe('dedupe', () => {
-  it('reports once per component name across instances', async () => {
+  it('reports once per component name across live instances', async () => {
     configureDiagnostics({ mode: 'collect' })
     function Lane(props, state) { return createElement('div', null, 'x') }
     const App = make({ view: Lane })
-    t = renderComponent(App, { strict: true })
+    const outer = renderComponent(App, { strict: true })
     await settle(30)
-    t.dispose()
     t = renderComponent(App, { strict: true })
     await settle(30)
     expect(diagnostics('SYG501')).toHaveLength(1)
+    t.dispose()
+    outer.dispose()
+    // G-051: the dedupe is reset when the next outermost renderComponent starts
+    t = renderComponent(App, { strict: true })
+    await settle(30)
+    expect(diagnostics('SYG501')).toHaveLength(2)
   })
 })

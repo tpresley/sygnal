@@ -207,6 +207,7 @@ class Component {
   _processedChildren$: any;
   _disposeListener: any;
   _dispose$: any;
+  _disposed?: boolean;
   _activeSubComponents: Map<string, any>;
   _childReadyState: Record<string, boolean>;
   _readyChanged$: any;
@@ -458,6 +459,8 @@ class Component {
   }
 
   dispose(): void {
+    if (this._disposed) return
+    this._disposed = true
     // [diagnostics hook]
     diag.onDispose(this)
     if (typeof window !== 'undefined' && window.__SYGNAL_DEVTOOLS__?.connected) {
@@ -478,7 +481,11 @@ class Component {
       } catch (_) {}
       this._disposeListener = null
     }
-    // Tear down streams on next microtask to allow DISPOSE/cleanup actions to process
+    // Dispose the sub-components now (R3), so the whole subtree's DISPOSE actions and
+    // onDispose hooks run within this call (e.g. before renderComponent restores diagnostics)
+    this._activeSubComponents.forEach((entry) => entry?.sink$?.__dispose?.())
+    this._activeSubComponents.clear()
+    // Tear down streams on next macrotask to allow DISPOSE/cleanup actions to process
     setTimeout(() => {
       // Complete the action$ stream to stop the entire component cycle
       if (this.action$ && typeof this.action$.shamefullySendComplete === 'function') {
@@ -495,11 +502,6 @@ class Component {
         }
       }
       this._subscriptions = []
-      // Dispose any active sub-components
-      this._activeSubComponents.forEach((entry) => {
-        if (entry?.sink$?.__dispose) entry.sink$.__dispose()
-      })
-      this._activeSubComponents.clear()
     }, 0)
   }
 
@@ -732,7 +734,7 @@ class Component {
 
         const actionSinkKey = `${action}::${sink}`
         if (seenActionSinks.has(actionSinkKey)) {
-          warn('SYG213', this, `Duplicate model entry for action '${action}' on sink '${sink}'; only the last one runs`, 'Remove the duplicate')
+          warn('SYG213', this, `Duplicate model entry for action '${action}' on sink '${sink}'; both run`, 'Remove the duplicate')
         }
         seenActionSinks.add(actionSinkKey)
         ;(modelMap[action] ||= []).push(sink)  // [diagnostics hook]
@@ -879,14 +881,17 @@ class Component {
           return this.view({ ...sanitizedProps, state, children, slots: slots || {}, context, peers }, state, context, peers)
         } catch (err) {
           const error = err instanceof Error ? err : new Error(String(err))
-          logError('SYG406', this, 'View threw; rendering the error fallback', 'Add .onError for a custom fallback', error)
+          // B-022: an error handled by .onError is a warning, without the "add .onError" hint
           if (typeof this.onError === 'function') {
             try {
-              return this.onError(error, { componentName: this.name })
+              const fallback = this.onError(error, { componentName: this.name })
+              warn('SYG406', this, 'View threw; rendered the onError fallback', undefined, error)
+              return fallback
             } catch (fallbackErr) {
+              logError('SYG406', this, 'View threw; rendering the error fallback', undefined, error)
               logError('SYG407', this, 'onError threw; rendering an empty error <div>', 'Make onError return a vnode', fallbackErr)
             }
-          }
+          } else logError('SYG406', this, 'View threw; rendering the error fallback', 'Add .onError for a custom fallback', error)
           return { sel: 'div', data: { attrs: { 'data-sygnal-error': this.name } }, children: [] }
         }
       })
@@ -900,6 +905,15 @@ class Component {
   }
 
   initSinks(): void {
+    // Stamp this component's own EVENTS emissions with its info for devtools, before they are
+    // merged with the sub-components' (B-023: stamping the merged sink made every ancestor
+    // re-stamp, so the emitter was always the root). Non-enumerable (G-020), so sink values
+    // still toEqual what the model returned.
+    const ev$ = this.model$.EVENTS
+    if (ev$) this.model$.EVENTS = ev$.map((ev: any) => Object.defineProperties({...ev}, {
+      __emitterId: { value: this._componentNumber, configurable: true },
+      __emitterName: { value: this.name, configurable: true },
+    }))
     this.sinks = this.sourceNames.reduce((acc: Record<string, any>, name) => {
       if (name == this.DOMSourceName) return acc
       const subComponentSink$ = (this.subComponentSink$ && name !== PARENT_SINK_NAME) ? this.subComponentSink$.map((sinks: any) => sinks[name]).filter((sink: any) => !!sink).flatten() : xs.never()
@@ -907,16 +921,6 @@ class Component {
         acc[name] = xs.merge((this.model$[name] || xs.never()), subComponentSink$, this.sources[this.stateSourceName].stream.filter((_: any) => false), ...(this.peers$[name] || []))
       } else {
         acc[name] = xs.merge((this.model$[name] || xs.never()), subComponentSink$, ...(this.peers$[name] || []))
-      }
-      // Stamp EVENTS sink emissions with emitter component info for devtools
-      if (name === 'EVENTS' && acc[name]) {
-        const _componentNumber = this._componentNumber
-        const _name = this.name
-        // non-enumerable (G-020) so sink values still toEqual what the model returned
-        acc[name] = acc[name].map((ev: any) => Object.defineProperties({...ev}, {
-          __emitterId: { value: _componentNumber, configurable: true },
-          __emitterName: { value: _name, configurable: true },
-        }))
       }
       return acc
     }, {} as Record<string, any>)

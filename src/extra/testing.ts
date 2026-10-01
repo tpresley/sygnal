@@ -24,18 +24,27 @@ import type {InspectGraph} from './diagnostics/checks/public';
  *   The target is the first rendered element matching `selector`; it is
  *   delivered to every listener whose selector matches that element or one of
  *   its ancestors in the same isolation scope (bubbling), and to
- *   DOM.select('document'|'body') listeners. If no rendered element matches,
- *   it goes to listeners whose selector string equals `selector` (e.g.
- *   'document', or an element that is not rendered yet). Unmatched events
- *   are dropped. `target.value/checked/dataset` default from the element's
+ *   DOM.select('document'|'body') listeners. `simulateEvent('document'|'body', ...)`
+ *   goes to the listeners with exactly that selector. If no rendered element
+ *   matches yet, the event waits (up to 300ms, re-tried on every render) for
+ *   one, then targets the first match; if none appears it is dropped with
+ *   SYG103 (it is never sent to every listener with that selector string, G-049).
+ *   It also waits until the listeners it would reach are subscribed (a
+ *   just-mounted child subscribes a few ms after it renders, G-039).
+ *   `target.value/checked/dataset` default from the element's
  *   vnode (as strings, like the DOM) and are overridden by `init`.
  * - simulateAction(name, data?) pushes `{type: name, data}` into the real
  *   intent → model pipeline, so every sink of the model entry runs and hooks /
  *   diagnostics see the real action name. (Model actions that have no intent
  *   stream get one added under their real name; the injected names are listed
  *   on the intent object's non-enumerable `__sygnalTestActions` property.)
- * - Calls made before the component is subscribed are buffered and replayed
- *   in order once it is ready; `await t.ready()` is an explicit sync point.
+ * - simulateAction/simulateEvent calls are delivered in call order. Calls made
+ *   before the component is subscribed are buffered and replayed once it is
+ *   ready; `await t.ready()` is an explicit sync point. An event that waits
+ *   (see above) holds the calls after it.
+ * - Waiting: waitForState(pred) matches the recorded history too; next(pred)
+ *   matches only states emitted after the call; both resolve once the whole
+ *   tree has rendered the state. settle() resolves once nothing is pending.
  * - Diagnostics: `diagnostics` (default 'collect', or the already-active
  *   mode when diagnostics are on) is applied with configureDiagnostics. The
  *   explicit config from before the first live instance is restored when the
@@ -71,7 +80,9 @@ import type {InspectGraph} from './diagnostics/checks/public';
  *   action streams subscribe 1-10ms (BOOTSTRAP) after construction. With no
  *   render within 30ms (e.g. a model but no initialState), the 12ms start then.
  *   dispose() before ready leaves the buffered calls undelivered.
- * - rendered(): the next render, or 20ms (state → view is async).
+ * - "Rendered by the whole tree" = the root rendered the state and no render,
+ *   reducer, state or input happened anywhere for 10ms (checked twice; capped at
+ *   250ms). Child renders are seen through the onRender diagnostics hook.
  * - dispose() fires the component's DISPOSE action via sinks.__dispose.
  * - SYG103/104: the mock DOM source reports each events() call (selector path,
  *   isolation scopes included as '.___scope'); a diagnostics check's onIntent
@@ -137,10 +148,23 @@ export interface RenderResult {
   /** Resolves once the component is subscribed and rendered (earlier calls are buffered) */
   ready: () => Promise<void>;
   /**
-   * Wait for state to satisfy a predicate. Resolves with the matching state
-   * once it has been rendered, so html() and simulateEvent() see the new view.
+   * Wait for a state that satisfies the predicate, searching the HISTORY first: a state
+   * recorded before the call matches too (e.g. `count === 0` right after a reset resolves
+   * at once with the initial state). Resolves with the matching state once the whole tree
+   * (children included) has rendered it. Use next() to match only new states.
    */
   waitForState: (predicate: (state: any) => boolean, timeoutMs?: number) => Promise<any>;
+  /**
+   * Wait for the next state emitted AFTER this call that satisfies the predicate (default:
+   * any). Resolves with it once the whole tree (children included) has rendered it.
+   */
+  next: (predicate?: (state: any) => boolean, timeoutMs?: number) => Promise<any>;
+  /**
+   * Resolves when the component is quiet: ready, no simulated input pending, and no render,
+   * reducer or state change anywhere in the tree for a short window (20ms; covers next()'s
+   * default delay). Rejects after timeoutMs (default 2000) if it never calms down.
+   */
+  settle: (timeoutMs?: number) => Promise<void>;
   /** Collected state values — grows as new states are emitted */
   states: any[];
   /** Live array of values emitted on a sink (EVENTS, PARENT, custom drivers, ...) */
@@ -206,7 +230,8 @@ function find(v: any, cs: string[], chain: any[] = []): any[] | undefined {
   if (!v || typeof v != 'object') return;
   const c = v.sel ? chain.concat(v) : chain;
   if (v.sel && desc(cs, c)) return c;
-  for (const k of [].concat(v.children || [])) {
+  // a <Portal>'s content is rendered elsewhere; it is kept on its placeholder
+  for (const k of [].concat(v.children || [], v.data?.portalChildren || [])) {
     const r = find(k, cs, c);
     if (r) return r;
   }
@@ -215,10 +240,17 @@ function find(v: any, cs: string[], chain: any[] = []): any[] | undefined {
 /** Internal (perf-guard tests): number of SYG104 tree walks */
 export const _testingStats = {walks: 0};
 
-// 1H-5: live renderComponent instances; the explicit diagnostics config from before the
-// outermost one is restored when the last one is disposed
+// 1H-5: live renderComponent instances; the explicit diagnostics config and the strict flag
+// (R4) from before the outermost one are restored when the last one is disposed
 let active = 0;
+/** simulateEvent: how long an event waits for its element / listeners (G-049, G-039) */
+const WAIT_MS = 300;
+/** quiet window after which the whole tree counts as rendered (G-047) */
+const QUIET_MS = 10;
+/** quiet window for settle(): longer than next()'s default 10ms delay */
+const SETTLE_MS = 20;
 let savedConfig: ReturnType<typeof _getDiagnosticsConfig>;
+let savedStrict: any;
 
 export function renderComponent(
   componentDef: any,
@@ -228,11 +260,17 @@ export function renderComponent(
   const {intent, model = {}} = componentDef;
 
   const prevMode = getDiagnosticsMode();
-  if (!active++) savedConfig = _getDiagnosticsConfig();
-  configureDiagnostics({mode: diagnostics || (prevMode == 'off' ? 'collect' : prevMode)});
   // 2A: strict flag on the core bridge (read by the 'sygnal/diagnostics' strict checks)
   const core = (globalThis as any).__SYGNAL_DIAGNOSTICS__;
-  const prevStrict = core.strict;
+  if (!active++) {
+    savedConfig = _getDiagnosticsConfig();
+    savedStrict = core.strict;
+    // G-051: forget the checks' report dedupe (once()), so a finding from an earlier test is
+    // reported again. Only that set: resetChecks() would also drop inspect()'s records of
+    // other live instances / apps.
+    core.resetOnce?.();
+  }
+  configureDiagnostics({mode: diagnostics || (prevMode == 'off' ? 'collect' : prevMode)});
   if (strict !== undefined) core.strict = strict;
   const collected: Diagnostic[] = [];
   const offDiag = onDiagnostic(d => collected.push(d));
@@ -240,6 +278,9 @@ export function renderComponent(
   // G-024: SYG103/SYG104 on the mock DOM
   const rootName = componentDef.name || componentDef.componentName || 'TestComponent';
   const listeners = new Map<string, string[]>();
+  // G-039: subscribed listener count per path + event type
+  const live = new Map<string, number>();
+  let disposed = false;
   const owners = new Map<string, string>([['', rootName]]);
   const scopeIds = new Map<string, number>();
   const evTypes: Record<string, string[]> = {};
@@ -249,9 +290,16 @@ export function renderComponent(
     const d = c && c.sources && c.sources[c.DOMSourceName || 'DOM'];
     return d && d._hub === hub.$ && (d._path || []).filter(isScope).pop();
   };
+  // G-047: activity anywhere in the tree (any component's render/reducer, state, input), for
+  // the "the full tree has rendered" / settle() quiet windows
+  let activity = 0, lastActivity = Date.now();
+  const bump = () => { activity++; lastActivity = Date.now(); };
   const offCheck = registerCheck({
     id: 'renderComponent',
+    onRender: bump,
+    onReducer: bump,
     onIntent(c: any) {
+      bump();
       const sc = scopeOf(c);
       if (sc) owners.set(sc, c.name);
       if (c.sources[c.DOMSourceName || 'DOM']?._hub == hub.$) scopeIds.set(sc || '', c._componentNumber);
@@ -320,8 +368,10 @@ export function renderComponent(
   const restore = () => {
     offCheck();
     offDiag();
-    if (strict !== undefined) core.strict = prevStrict;
-    if (!--active) configureDiagnostics(savedConfig);
+    if (!--active) {
+      configureDiagnostics(savedConfig);
+      core.strict = savedStrict;
+    }
   };
 
   const noop = () => {};
@@ -374,10 +424,17 @@ export function renderComponent(
     initialState: init,
   });
   const allDrivers: any = {
-    DOM: () => mockDOMSource(mockConfig, hub.$, (path, type) => {
+    DOM: () => mockDOMSource(mockConfig, hub.$, (path, type, on) => {
       const k = path.join('\u0000');
-      if (!listeners.has(k)) listeners.set(k, path), newListener = true;
-      (evTypes[k] = evTypes[k] || []).push(type);
+      if (on === undefined) {
+        if (!listeners.has(k)) listeners.set(k, path), newListener = true;
+        (evTypes[k] = evTypes[k] || []).push(type);
+      } else {
+        // G-039: subscribed / unsubscribed listeners (a just-mounted child subscribes late)
+        const lk = k + '\u0000' + type;
+        live.set(lk, (live.get(lk) || 0) + (on ? 1 : -1));
+        if (on) retry(0);
+      }
     }),
     EVENTS: eventBusDriver,
     LOG: logDriver,
@@ -410,7 +467,7 @@ export function renderComponent(
 
   const states: any[] = [];
   const stateStream: Stream<any> = sources.STATE?.stream || xs.never();
-  listen(stateStream, s => states.push(s));
+  listen(stateStream, s => { states.push(s); bump(); });
 
   const values: Record<string, any[]> = {};
   const sinkValues = (k: string) => (values[k] = values[k] || []);
@@ -421,21 +478,39 @@ export function renderComponent(
       ));
     }
   }
-  let queue: Array<() => void> | null = [];
+  // Input queue (G-049/G-039): simulateAction/simulateEvent calls are delivered in order,
+  // once the component is ready. An event whose selector matches no rendered element yet, or
+  // whose matching listeners aren't subscribed yet, holds the queue until it can be delivered
+  // (re-tried on every render), at most WAIT_MS; then it is delivered to the live listeners
+  // (or, with no matching element, dropped with SYG103).
+  type Input = {go: (last: boolean) => boolean, until?: number};
+  const inputs: Input[] = [];
+  let isReady = false, retryTimer: any;
+  const pump = () => {
+    if (!isReady || disposed) return;
+    while (inputs.length) {
+      const head = inputs[0];
+      head.until = head.until || Date.now() + WAIT_MS;
+      if (!head.go(Date.now() >= head.until)) return retry(5);
+      inputs.shift();
+      bump();
+    }
+  };
+  const retry = (ms: number) => {
+    if (!retryTimer && inputs.length) retryTimer = setTimeout(() => { retryTimer = 0; pump(); }, ms);
+  };
   let markReady: () => void;
   const readyPromise = new Promise<void>(r => {
     markReady = () => {
-      const q = queue!;
-      queue = null;
-      q.forEach(f => f());
+      isReady = true;
+      pump();
       r();
     };
   });
-  const later = (f: () => void) => (queue ? queue.push(f) : f());
+  const later = (go: Input['go']) => { inputs.push({go}); pump(); };
 
   let vtree: any;
   let timer: any;
-  let onRender: Array<() => void> = [];
   // states[0 .. renderedUpTo) were recorded before the latest render (1H-12)
   let renderedUpTo = 0;
   const arm = () => timer || (timer = setTimeout(() => markReady(), 12));
@@ -443,32 +518,83 @@ export function renderComponent(
     listen(sinks.DOM, v => {
       vtree = v;
       renderedUpTo = states.length;
+      bump();
       check104();
       arm();
-      onRender.forEach(f => f());
-      onRender = [];
+      pump();
     });
   }
   // 1H-4: a component that never renders on its own (a model but no initialState: no state
   // until an action sets it) still becomes ready, so buffered input is delivered
   const fallback = setTimeout(arm, sinks.DOM ? 30 : 0);
-  const rendered = () => new Promise<void>(r => { onRender.push(r); setTimeout(r, 20); });
+
+  const tick = (ms: number) => new Promise(r => setTimeout(r, ms));
+  /**
+   * G-047: resolves once the root has rendered states[0 .. n) and the whole tree has been
+   * quiet (no render, reducer, state or input anywhere) for `quiet` ms, checked twice, so
+   * child components have rendered them too. Gives up after `cap` ms (an app that never
+   * goes quiet): false.
+   */
+  const quiesce = async (n: number, quiet: number, cap: number, busy = () => false): Promise<boolean> => {
+    const start = Date.now();
+    let seen = -1;
+    while (!disposed) {
+      const idle = Date.now() - lastActivity;
+      if (Date.now() - start > cap) return false;
+      if ((!sinks.DOM || renderedUpTo >= n || Date.now() - start > 100) && idle >= quiet && !busy()) {
+        if (seen === activity) return true;
+        seen = activity;
+        await tick(3);
+      } else {
+        seen = -1;
+        await tick(Math.max(1, quiet - idle));
+      }
+    }
+    return true;
+  };
+  const treeRendered = (n: number) => quiesce(n, QUIET_MS, 250);
 
   const simulateAction = (type: string, data?: any) =>
-    later(() => actions.emit({type, data}));
+    later(() => (actions.emit({type, data}), true));
 
   const simulateEvent = (selector: string, type: string, init: SimulatedEventInit = {}) =>
-    later(() => {
+    later(last => {
       const cs = words(selector);
-      const chain = cs.length ? find(vtree, cs) : undefined;
+      // 'document' / 'body' (and '') name a listener, not an element
+      const page = !cs.length || /^(document|body)$/.test(cs[0]);
+      const chain = page ? undefined : find(vtree, cs);
       const el = chain?.[chain.length - 1];
-      if (el) check104(el);
-      else if (isDiagnosticsEnabled() && ![...listeners.values()].some(p => words(p.filter(s => !isScope(s)).join(' ')).join(' ') == cs.join(' '))) {
+      if (!page && !el) {
+        if (!last) return false;
         raise('SYG103', rootName,
-          `simulateEvent('${selector}', '${type}') matched no rendered element, and no intent listens on '${selector}'`,
-          `Check the selector against the view's className/id`,
+          `simulateEvent('${selector}', '${type}') matched no rendered element within ${WAIT_MS}ms, so the event was dropped`,
+          `Check the selector against the view's className/id, or wait until the element is rendered (await t.next(...) or t.settle())`,
           {selector, type});
+        return true;
       }
+      const match = (path: string[]) => {
+        const sels = words(path.filter(s => !isScope(s)).join(' '));
+        if (!chain) return sels.join(' ') == cs.join(' ');
+        let els = chain;
+        if (/^(document|body)$/.test(sels[0])) sels.shift();
+        else {
+          const scope = path.filter(isScope).pop();
+          let cur: string | undefined;
+          els = chain.filter(v => {
+            const m = v.sel.match(/\.___[^.#]+/);
+            if (m) cur = m[0];
+            return cur == scope;
+          });
+        }
+        return els.some((_, k) => !sels.length || desc(sels, els.slice(0, k + 1)));
+      };
+      // G-039: wait until every listener this event would reach is subscribed
+      if (!last) {
+        for (const [k, path] of listeners) {
+          if ((evTypes[k] || []).includes(type) && !live.get(k + '\u0000' + type) && match(path)) return false;
+        }
+      }
+      if (el) check104(el);
       const d = el?.data || {}, p = d.props || {};
       const {target: t = {}, value, checked, dataset, data, ...rest} = init;
       const vval = p.value ?? d.attrs?.value;
@@ -491,57 +617,42 @@ export function renderComponent(
         stopPropagation: noop,
         ...rest,
       };
-      const match = (path: string[]) => {
-        const sels = words(path.filter(s => !isScope(s)).join(' '));
-        if (!chain) return sels.join(' ') == cs.join(' ');
-        let els = chain;
-        if (/^(document|body)$/.test(sels[0])) sels.shift();
-        else {
-          const scope = path.filter(isScope).pop();
-          let cur: string | undefined;
-          els = chain.filter(v => {
-            const m = v.sel.match(/\.___[^.#]+/);
-            if (m) cur = m[0];
-            return cur == scope;
-          });
-        }
-        return els.some((_, k) => !sels.length || desc(sels, els.slice(0, k + 1)));
-      };
       hub.emit({type, event, match});
+      return true;
     });
 
-  const waitForState = (
-    predicate: (state: any) => boolean,
-    timeoutMs: number = 2000
-  ): Promise<any> => {
-    return new Promise((resolve, reject) => {
-      for (let i = 0; i < states.length; i++) {
-        const s = states[i];
-        try {
-          // an already-recorded match still waits for its render, unless it had one
-          if (predicate(s)) return i < renderedUpTo || !sinks.DOM ? resolve(s) : rendered().then(() => resolve(s));
-        } catch (_) {}
-      }
-      const done = (f: () => void) => {
+  // first state at index >= from matching predicate; resolves after the full tree rendered it
+  const waitMatch = (from: number, predicate: (state: any) => boolean, timeoutMs: number, name: string): Promise<any> =>
+    new Promise((resolve, reject) => {
+      const found = (i: number) => {
         clearTimeout(timer);
         stateStream.removeListener(listener);
-        f();
+        treeRendered(i + 1).then(() => resolve(states[i]));
       };
-      const timer = setTimeout(
-        () => done(() => reject(new Error(`waitForState timed out after ${timeoutMs}ms`))),
-        timeoutMs
-      );
+      const test = (i: number) => { try { return predicate(states[i]); } catch (_) { return false; } };
+      const fail = (err: Error) => { clearTimeout(timer); stateStream.removeListener(listener); reject(err); };
+      const base = states.length;
       const listener = {
-        next: (s: any) => {
-          try {
-            if (predicate(s)) done(() => rendered().then(() => resolve(s)));
-          } catch (_) {}
-        },
-        error: (err: any) => done(() => reject(err)),
-        complete: () => done(() => reject(new Error('waitForState: state stream completed without matching'))),
+        // the recording listener (added first) has already pushed the new state; a
+        // remembered state replayed on addListener isn't new (states.length == base)
+        next: () => { if (states.length > base && test(states.length - 1)) found(states.length - 1); },
+        error: (err: any) => fail(err),
+        complete: () => fail(new Error(`${name}: state stream completed without matching`)),
       };
+      const timer = setTimeout(() => fail(new Error(`${name} timed out after ${timeoutMs}ms`)), timeoutMs);
+      for (let i = from; i < states.length; i++) if (test(i)) return found(i);
       stateStream.addListener(listener);
     });
+
+  const waitForState = (predicate: (state: any) => boolean, timeoutMs: number = 2000) =>
+    waitMatch(0, predicate, timeoutMs, 'waitForState');
+  const next = (predicate: (state: any) => boolean = () => true, timeoutMs: number = 2000) =>
+    waitMatch(states.length, predicate, timeoutMs, 'next');
+  const settle = async (timeoutMs: number = 2000): Promise<void> => {
+    await Promise.race([readyPromise, tick(timeoutMs)]);
+    if (!await quiesce(states.length, SETTLE_MS, timeoutMs, () => !isReady || inputs.length > 0)) {
+      throw new Error(`settle timed out after ${timeoutMs}ms: ${inputs.length ? `${inputs.length} simulated input(s) still pending` : 'the component kept rendering'}`);
+    }
   };
 
   const expectNoDiagnostics = () => {
@@ -551,9 +662,20 @@ export function renderComponent(
     }
   };
 
+  // G-040: a Collection's container keeps its marker props (of, from, filter, item props...)
+  // as snabbdom props, i.e. DOM properties, not attributes: drop them, like the real DOM
+  const unmark = (v: any): any => {
+    if (!v || typeof v != 'object' || !v.sel) return v;
+    let d = v.data;
+    if (d?.isCollection) {
+      const {className, id} = d.props || {};
+      d = {...d, props: {className, id}};
+    }
+    return {...v, data: d, children: v.children && v.children.map(unmark)};
+  };
   const html = () =>
     vtree
-      ? renderToString(() => vtree).replace(/ class="([^"]*)"/g, (_, c: string) =>
+      ? renderToString(() => unmark(vtree)).replace(/ class="([^"]*)"/g, (_, c: string) =>
           (c = c.split(' ').filter(x => !x.startsWith('___')).join(' ')) ? ` class="${c}"` : ''
         )
       : '';
@@ -563,13 +685,13 @@ export function renderComponent(
     return core.inspect({ids: [...scopeIds.values()], diagnostics: collected, mock: {listeners, evTypes, owners, scopeIds, probe, vtree}});
   };
 
-  let disposed = false;
   const dispose = () => {
     if (disposed) return;
     disposed = true;
     clearTimeout(timer);
     clearTimeout(fallback);
-    queue = null;
+    clearTimeout(retryTimer);
+    inputs.length = 0;
     subs.forEach(([s, l]) => {
       try { s.removeListener(l); } catch (_) {}
     });
@@ -588,6 +710,8 @@ export function renderComponent(
     simulateEvent,
     ready: () => readyPromise,
     waitForState,
+    next,
+    settle,
     states,
     sinkValues,
     emitted: sinkValues('EVENTS'),

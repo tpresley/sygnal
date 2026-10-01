@@ -106,9 +106,11 @@ export function makeCollection<S, So = any, Si = any>(
     const itemKey = opts.itemKey;
     const itemScope = opts.itemScope || defaultItemScope;
     const state$ = xs.fromObservable((sources[name] as StateSource<S>).stream);
+    const dict = new Map();
+    let disposed = false;
     const instances$ = state$.fold(
       (acc: InternalInstances<Si>, nextState: Array<any> | any) => {
-        const dict = acc.dict;
+        if (disposed) return acc;
         if (Array.isArray(nextState)) {
           const nextInstArray = Array(nextState.length) as Array<
             Si & {_key: string}
@@ -167,8 +169,16 @@ export function makeCollection<S, So = any, Si = any>(
           return {dict: dict, arr: [sinks]};
         }
       },
-      {dict: new Map(), arr: []} as InternalInstances<Si>
+      {dict, arr: []} as InternalInstances<Si>
     );
-    return opts.collectSinks(new Instances<Si>(instances$));
+    const sinks = opts.collectSinks(new Instances<Si>(instances$));
+    // B-024: disposing the collection (its owner was disposed or stopped rendering it)
+    // disposes every live item, and so their subtrees
+    sinks.__dispose = () => {
+      disposed = true;
+      dict.forEach((s: any) => s.__dispose?.());
+      dict.clear();
+    };
+    return sinks;
   };
 }
