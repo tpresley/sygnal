@@ -10,9 +10,9 @@ Tracks progress for [PLAN-2.md](PLAN-2.md). Maintained by the coordinator. The P
 
 | Phase | Status | Tag | Notes |
 |---|---|---|---|
-| 0 — Release follow-through, eval infrastructure | 🟡 In progress | — | 0-A ✅ · 0-B ✅ · 0-C ✅ · tier-3 pilot 🟡 (5.4.0 tarball + 5.4.0 skill, D45) |
+| 0 — Release follow-through, eval infrastructure | 🟡 In progress | — | 0-A ✅ · 0-B ✅ · 0-C ✅ · tier-3 pilot ✅ (20/20 pass; Sygnal 66.6 s vs React 45.7 s) · v2-baseline 🟡 (160 trials, D46) |
 | 1 — Correctness backlog | ✅ Done | `plan2-phase1` | 1-A…1-F ✅ · 1-T trim ✅ · review: 6 findings + 2 notes, all fixed in 1-R · kanban 41,803 B (2 B headroom) |
-| 2 — Known ergonomics improvements | ⚪ | — | |
+| 2 — Known ergonomics improvements | 🟡 In progress | — | 2-A 🟡 · 2-B 🟡 · 2-C 🟡 |
 | 3 — Experiments | ⚪ | — | |
 | 4 — Adopt, measure, release | ⚪ | — | |
 
@@ -32,6 +32,9 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | 1-E | Types and build hygiene (B-002/G-012, G-019, G-075, G-076, G-077) | ✅ | `worktree-agent-a2c537d37c4e12f41` | subagent | `07c4eab` | Build prints 0 TS diagnostics (was 56); `test:types` = full `tsc --noEmit` + type-tests (fails on any error). G-012's testing.ts errors not reproduced. G-019: 97 assertions moved to `type-tests/public-api.ts`, exposing 9 wrong ones (fixed). G-075: audit 12 → 2 (vite pinned `^7.3.6` via overrides; deferred: `@rollup/plugin-terser` 1.0 major for serialize-javascript). G-076: browser runner whitelists expected errors and **fails on unexpected ones**. G-077: `NonStateSinkValue` (constants on non-STATE sinks). Kanban 0 B |
 | 1-T | Size trim (G-088) | ✅ | `worktree-agent-af1bfdae13632e5a7` | subagent | `12cc8b9` | 41,991 → **41,719 B** with no behaviour change: `onlineStatus$` marked pure (−105), `optionsOf()` replaces 4 copy-pasted option blocks (−92), short core SYG608 text (−26), pragma `chainHooks` and marker fall-through (−26), small dedups (−23). Top contributors: component.ts 11.6k, xstream 3.4k, get-intrinsic 2.5k (via xstream's `globalthis`), devtools 2.3k |
 | 1-R | Review fixes + leftovers (G-083, G-084, G-086, G-087, G-091…G-098) | ✅ | `worktree-agent-ac20436bed98cd91a` | subagent | `1275440`, `a0e0170`, `1c81963` | All fixed (G-095: img error not reproducible in Chromium; iframe about:blank on attribute removal is per spec). G-084 root cause: `getComponents()` descended into component vnodes' children, so every ancestor made a never-rendered duplicate instance that ran BOOTSTRAP/timers and wrote state keys; scan now stops at component vnodes. G-098 reproduced as a hydration failure (`MemoryStream` export) → `'sygnal'` added to optimizeDeps.include for installed sygnal. G-083: Vike config is one ESM `dist/vike/config/+config.js` + generated `package.json` (type module); CJS config build removed. `SortSpec` type exported. Kanban +84 B → 41,803 B |
+| 2-A | Testing completeness (G-064, G-065, G-053) | 🟡 | | subagent | | |
+| 2-B | Agent docs (2-D1 snapshot semantics, 2-D2 extract-component recipe, 2-D3 latest-only pattern) | 🟡 | | subagent | | |
+| 2-C | Component and Vike bugs (G-102, G-106, G-107, G-108, G-109) | 🟡 | | subagent | | |
 | 1-F | Examples (G-052, G-063) | ✅ | (same branch as 1-C) | subagent | `fd3fc7c` | todomvc ids = max id + 1; `LOG` sink uses the reducer form (type gap → G-077); build runs `tsc --noEmit`; custom pollers removed from `app.test.ts`, which uses `next`/`settle`/`html`; new id test. Strict-clean |
 
 ## Gate Results
@@ -63,6 +66,7 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | D43 | 2026-10-01 | G-027/G-044: 'error' = the operation failed (thrown, or caught and logged while the app continues); 'warn' = likely mistake, behaviour continues; a call site may lower severity. Caught Sygnal errors keep their own code; SYG216/214/408 only for uncoded exceptions. SYG405 default error (Collection/Switchable sites warn). One SYG401 site error → warn | 1-B (coordinator accepted) | Codes surface as documented |
 | D44 | 2026-10-01 | Review R4: limit B-016 to sub-components with no `state` prop; an existing parent slice is never overwritten by a model-less child's initialState (5.4.0 behaviour kept) | Coordinator | Smallest behaviour change; matches the tracker's intent |
 | D45 | 2026-10-01 | The tier-3 pilot and the v2-baseline run against the **published** `sygnal@5.4.0` tarball with the **5.4.0** skill installed (not the integration branch), so PLAN-2 changes are measured against the release | Coordinator | PLAN-2 0-B step 3 ("on 5.4.0") |
+| D46 | 2026-10-01 | Tier-3 pilot: 20/20 pass with Opus 5.5 (no pass-rate signal), but a clear efficiency gap (1.46× wall, 1.58× cost). Tiers 1–3 frozen as efficiency tiers; pass-rate discrimination left to E7 (smaller models). Full v2-baseline started: 160 trials on the 5.4.0 tarball | User | Hardening may still give 100% on Opus; E7 is the better lever |
 | D40 | 2026-10-01 | 0-B and 0-C build and self-verify without paid eval runs (0-B may run ≤ 2 smoke trials, `v2-smoke`, to validate the headless runner); full runs and pilots wait for Q2 | Coordinator | PLAN-2 §8 (user approves budgets per phase) |
 
 ## Bugs & Gaps Found
@@ -129,6 +133,7 @@ gzip -c /tmp/kb/assets/index-*.js | wc -c      # budget 41,805 B
 
 ## Activity Log
 
+- 2026-10-01 — Tier-3 pilot done (20/20, $7.55); D46: tiers frozen, v2-baseline (160 trials, est. $58 / 1.3 h) started from the user's terminal; Phase 2 workstreams 2-A, 2-B, 2-C launched.
 - 2026-10-01 — 0-C merged (tier 3, 78/78 incl. vs the 5.4.0 tarball); 0-B fix2 merged; 1-R merged, full gate green (916 vitest, 121 browser, 41,803 B); Phase 1 closed, tagged `plan2-phase1`. 5.4.0 skill installed (D45); tier-3 pilot (20 trials) started from the user's terminal. New: G-102…G-109.
 - 2026-10-01 — User re-logged the CLI (2.1.287). 0-B fix merged; real smoke passed 2/2 ($0.44, Opus 5.5 verified); analyzer gap G-101 → 0-B fix2.
 - 2026-10-01 — 1-T merged; full gate green at 41,719 B; 1-R launched (review findings + G-083/084/086/087).
