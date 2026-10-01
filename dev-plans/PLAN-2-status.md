@@ -28,7 +28,7 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | 1-A | Rendering and props (B-014, B-015, B-017, G-033) | ✅ | `worktree-agent-adaf64faf566ceb22` | subagent | `1ebf856` | All four reproduced (17/19 jsdom + 5/5 browser tests failed first). B-014: pragma `toClassMap` (string/array `class` → map). B-015: new `removedPropsModule` (clears removed/nullish props by type + reflected attribute; skips className and form value/checked; also fixes `title={null}` → "null"). B-017: selectModule queues on update too, re-applies after children. G-033: SYG111 reports a literal select value. Kanban **+282 B → 41,717 B (88 B headroom)** |
 | 1-B | State and components (B-016, G-027/G-044, G-036, G-007 SYG106) | 🟡 | | subagent | | |
 | 1-C | Drivers (G-069) | ✅ | `worktree-agent-ac88e05e39e97d91f` | subagent | `fd3fc7c` | Replies that resolve before the first `select()` listener are buffered (≤ 100, oldest dropped) and flushed on a microtask after the first subscribe, so a BOOTSTRAP request gets its reply; later replies with no listener are dropped; `stop()` clears `sendFn`. 5 tests, failing first |
-| 1-D | Integrations (B-020, G-046, G-037) | 🟡 | | subagent | | |
+| 1-D | Integrations (B-020, G-046, G-037) | ✅ | `worktree-agent-a2111196f25b78f43` | subagent | `af2bac5` | B-020: reproduced (pre-bundled `sygnal_vike_onRenderClient.js` with an inlined core + source core); `sygnal/vite` dev sets `optimizeDeps.exclude: ['sygnal/vike/onRenderClient']`; verified linked and installed (packed tarball): one core. G-046: `urlPathname` removed from `passToClient` (client falls back to `window.location.pathname`). G-037: Vike page named from its function/`componentName` (counter stays in `sel`); Astro already fixed in PLAN-1. 6 failing-first tests. Kanban 0 B |
 | 1-E | Types and build hygiene (B-002/G-012, G-019, G-075, G-076) | 🟡 | | subagent | | G-007 decided (D41) and moved to 1-B |
 | 1-F | Examples (G-052, G-063) | ✅ | (same branch as 1-C) | subagent | `fd3fc7c` | todomvc ids = max id + 1; `LOG` sink uses the reducer form (type gap → G-077); build runs `tsc --noEmit`; custom pollers removed from `app.test.ts`, which uses `next`/`settle`/`html`; new id test. Strict-clean |
 
@@ -37,6 +37,7 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | Merge | build:all | vitest | examples | types | browser | sygnal-check | doc samples | error docs | docs build | kanban gz |
 |---|---|---|---|---|---|---|---|---|---|---|
 | 0-A | ✅ | 942 ✅ | | | | | | | | |
+| 1-D | ✅ | 971 ✅ | 104 ✅ | ✅ | 119 ✅ | 178 ✅ | 373 ✅ | | ✅ | 41,717 B |
 | 1-A | ✅ | 966 ✅ | | | 119 ✅ | 182 ✅ | 373 ✅ | ✅ | | 41,717 B |
 | 1-C/1-F | ✅ | 947 ✅ | 105 ✅ | ✅ | 114 ✅ | 178 ✅ | 373 ✅ | | | 41,435 B |
 
@@ -70,6 +71,9 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | G-080 | 1-A | low | Rendering | `selectModule`'s pending queue is module-level and shared by the main patch and `portalPatch`; a portal patch mid-main-patch could flush early | Open (low risk) |
 | G-081 | 1-A | low | Controlled inputs | `value={undefined}` is dropped by the pragma (absent prop) while `value={null}` writes `elm.value = null`; null/undefined semantics for controlled fields undecided | Open → decide in Phase 2 |
 | G-082 | 1-A | med | Size budget | Kanban at 41,717 B, 88 B under the 41,805 B budget; later core work may exceed it | Open: any overrun goes to the user (re-baseline decision) |
+| G-083 | 1-D | low | Vike packaging | Every Vike dev start warns `sygnal/config unexpected export { module.exports }`, and Node warns MODULE_TYPELESS_PACKAGE_JSON for `dist/vike/+config.js` (ESM in `.js`, no `"type"`). Likely fix: emit `+config.mjs` (rollup + exports) | Open → Phase 1 fix workstream |
+| G-084 | 1-D | med | Vike shell / component.ts | `inspect()` shows Layout under two parents and, after one navigation, Page ×4 (3 with stale home state): children instantiated by several ancestors, or stale instances kept after navigation. Pre-existing; possible leak/duplicate work | Open → investigate (Phase 1 fix workstream, after 1-B) |
+| G-085 | 1-D | low | Dev gotcha | `npm --prefix <example> exec -- vike dev` from the repo root serves `create-sygnal-app/template-vike`; use `npm --prefix <example> run dev` | Noted |
 | G-076 | 5.4.0 release | low | browser-tests | The browser run prints expected console errors from error-path tests, which look like failures | Open → 1-E |
 
 ## Worktree Setup (each subagent, inside its own isolated worktree)
@@ -93,6 +97,7 @@ gzip -c /tmp/kb/assets/index-*.js | wc -c      # budget 41,805 B
 
 ## Activity Log
 
+- 2026-10-01 — 1-D merged (B-020, G-046, G-037); gates green; G-083/G-084 logged for a Phase 1 fix workstream.
 - 2026-10-01 — 1-A merged (B-014, B-015, B-017, G-033); gates green; kanban 41,717 B.
 - 2026-10-01 — 1-C/1-F merged (G-069, G-052, G-063); gates green; G-077 sent to 1-E.
 - 2026-10-01 — PLAN-2 started. `plan2-integration` created; 0-A done (smoke 8/8 on the live registry, housekeeping); 0-B, 0-C and 1-A…1-F launched in parallel.
