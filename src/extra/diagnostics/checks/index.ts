@@ -21,6 +21,12 @@
  * | SYG202 | STATE reducer returned undefined                       | state.ts       |
  * | SYG301 | RxJS operator used on an xstream stream                | rxjsHints.ts   |
  * | SYG401 | Collection `from` missing or not an array              | collections.ts |
+ * | SYG501 | strict: view uses positional (props, state, ...) args  | strict.ts      |
+ * | SYG502 | strict: STATE reducer returned the unchanged state     | strict.ts      |
+ * | SYG504 | strict: 'ACTION | SINK' shorthand model key           | strict.ts      |
+ *
+ * Strict checks (SYG5xx) only report after configureStrict(true) (or
+ * renderComponent(C, { strict: true }), or globalThis.__SYGNAL_STRICT__).
  */
 import type {DiagnosticCheck} from '../index'
 import {Stream} from '../../xstreamCompat'
@@ -31,9 +37,11 @@ import {eventsCheck} from './events'
 import {propsCheck} from './props'
 import {collectionsCheck} from './collections'
 import {domCheck} from './dom'
+import {strictCheck} from './strict'
 import {installRxjsHints} from './rxjsHints'
 
 export {checkEventBus} from './events'
+export {configureStrict, isStrictEnabled} from './strict'
 export type {EventBusSummary} from './events'
 export {RXJS_HINTS} from './rxjsHints'
 export {listCodes, getCodeInfo} from '../codes'
@@ -47,6 +55,7 @@ export const checks: DiagnosticCheck[] = [
   propsCheck,
   collectionsCheck,
   domCheck,
+  strictCheck,
 ]
 
 /**
