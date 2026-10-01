@@ -11,18 +11,24 @@
 // lines contain assistant messages with `tool_use` content blocks works.
 //
 // Prints JSON: { iterations, editRounds, edits, wallSeconds, toolCalls, audit[] }
-// - iterations: Bash calls that build/test/run the app (npm run build|test|dev,
-//   npm test, npx vite/vitest, vite, vitest).
+// - iterations: Bash calls that build/test/run the app at least once: npm/pnpm/
+//   yarn test or run build|test|dev|preview (with --prefix and similar options,
+//   anywhere in a `cd X && ...` chain), npx vite/vitest, vite, vitest,
+//   node_modules/.bin/vite(st), node .../vitest.mjs. See lib/transcript.mjs
+//   and tests/transcript.unit.mjs.
 // - edits: file-modifying tool calls (Write/Edit/MultiEdit/NotebookEdit, plus
 //   Bash commands that obviously write files: sed -i, perl -i, tee, > file).
 // - editRounds: groups of consecutive edits not separated by an iteration.
 //   "edit, edit, test, edit, test" = 2 edit rounds.
-// - audit: tool calls that mention hidden tests or the eval harness, or read
-//   files outside the trial dir (other than skill files). Any hit means the
+// - audit: tool calls that mention hidden tests or the eval harness
+//   (evals/agent-ergonomics, /hidden/, __hidden__, *.hidden.jsx; mentions of
+//   the trial dir itself are ignored), or read files outside the trial dir
+//   (other than skill files). Any hit means the
 //   trial must be reviewed and probably discarded (see run.md).
 import fs from 'node:fs'
 import path from 'node:path'
 import { parseArgs } from './lib/common.mjs'
+import { isRunCommand, isEditCommand, mentionsHidden } from './lib/transcript.mjs'
 
 const args = parseArgs(process.argv.slice(2))
 const file = args._[0]
@@ -32,10 +38,7 @@ if (!file) {
 }
 const trialDir = typeof args.dir === 'string' ? path.resolve(args.dir) : null
 
-const RUN_RE = /\b(?:npm|pnpm|yarn)\s+(?:run\s+)?(?:build|test|dev|preview)\b|\bnpx\s+(?:vite|vitest)\b|(?:^|[\s;&|(])(?:vite|vitest)(?:\s|$)|vite\/bin\/vite\.js|vitest\/vitest\.mjs|node_modules\/\.bin\/vite/
-const BASH_EDIT_RE = /\bsed\s+-i\b|\bperl\s+-[a-z]*i|\btee\b|(?:^|[^2&])>{1,2}\s*[^\s&|]+\.(?:jsx?|tsx?|css|html|json)\b/
 const EDIT_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit'])
-const PEEK_RE = /__hidden__|\.hidden\.[jt]sx?|agent-ergonomics|\bevals\b|\/hidden\//
 
 const lines = fs.readFileSync(file, 'utf8').split('\n').filter(Boolean)
 const events = [] // { kind: 'run'|'edit'|'other', name, input, ts }
@@ -66,8 +69,8 @@ for (const line of lines) {
     if (EDIT_TOOLS.has(name)) kind = 'edit'
     else if (name === 'Bash') {
       const cmd = String(input.command ?? '')
-      if (RUN_RE.test(cmd)) kind = 'run'
-      else if (BASH_EDIT_RE.test(cmd)) kind = 'edit'
+      if (isRunCommand(cmd)) kind = 'run'
+      else if (isEditCommand(cmd)) kind = 'edit'
     }
     events.push({ kind, name, input, ts })
   }
@@ -91,7 +94,7 @@ for (const e of events) {
     }
   }
   const text = JSON.stringify(e.input)
-  if (PEEK_RE.test(text)) audit.push({ tool: e.name, reason: 'mentions hidden tests / eval harness', input: text.slice(0, 300) })
+  if (mentionsHidden(text, trialDir)) audit.push({ tool: e.name, reason: 'mentions hidden tests / eval harness', input: text.slice(0, 300) })
   if (trialDir && ['Read', 'Glob', 'Grep', 'Write', 'Edit', 'MultiEdit'].includes(e.name)) {
     const p = e.input.file_path ?? e.input.path
     if (typeof p === 'string' && path.isAbsolute(p) && !p.startsWith(trialDir) && !/[/\\]skills?[/\\]/.test(p)) {
