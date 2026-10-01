@@ -13,7 +13,7 @@ Tracks progress for [PLAN-2.md](PLAN-2.md). Maintained by the coordinator. The P
 | 0 — Release follow-through, eval infrastructure | ✅ Done | `plan2-phase0` | 0-A ✅ · 0-B ✅ · 0-C ✅ · tier-3 pilot ✅ (20/20 pass; Sygnal 66.6 s vs React 45.7 s) · v2-baseline ✅ 160/160, Sygnal 48.4 s vs React 34.1 s (1.42×), see `results/V2-BASELINE.md` |
 | 1 — Correctness backlog | ✅ Done | `plan2-phase1` | 1-A…1-F ✅ · 1-T trim ✅ · review: 6 findings + 2 notes, all fixed in 1-R · kanban 41,803 B (2 B headroom) |
 | 2 — Known ergonomics improvements | ✅ Done | `plan2-phase2` | 2-A ✅ · 2-B ✅ · 2-C ✅ · 2-D ✅ · review: 9 findings, all fixed in 2-R · targeted eval: task 08 41.8 → 27.0 s (gap 20.8 → 6.0 s), 10 −7.5 s, 11 unchanged (`results/P2-TARGETED.md`) |
-| 3 — Experiments | ⚪ | — | |
+| 3 — Experiments | 🟡 In progress | — | 3-H harness variants 🟡 · E4 🟡 · E5 🟡 · E11 🟡 · E2 awaits the user (Q3) |
 | 4 — Adopt, measure, release | ⚪ | — | |
 
 Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ done · 🔴 blocked
@@ -37,6 +37,10 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | 2-C | Component and Vike bugs (G-102, G-106, G-107, G-108, G-109) | ✅ | `worktree-agent-a130ae35c89dc73bf` | subagent | `ed0ffac`…`43aacbc` | G-102: two causes — `propsIsEqual` ignored `of`/`from`/`filter` (now only `state`), and an unchanged state object was dropped by `dropRepeats` when only filter/sort changed (shallow copy sent); also `sort` without filter sorted the parent array in place (fixed). G-107: sub-components with a model but no intent get BOOTSTRAP. G-108: only a non-ABORT symbol is SYG218; null/arrays/bigints go to the driver (explanation regenerated). G-109: propsModule + removedPropsModule merged into one `propsModule.ts` that never writes nullish values (−64 B). G-106: Vike shell state nested (`wrapper_0.layout_0.page`) in initial state, view, navigation, hydration and SSR; verified in a real installed-tarball Vike app with Playwright. Kanban −91 B |
 | 2-D | `globalthis` alias in `sygnal/vite` + size-gate script (G-099) | ✅ | `worktree-agent-a2f656507f54d98a7` | subagent | `a75d332` | xstream only does `require('globalthis').getPolyfill()`; stub `dist/shims/globalthis.cjs` (also exported as `sygnal/shims/globalthis`) aliased via `resolve.alias` in serve/build/Vitest; opt-out `sygnal({ nativeGlobalThis: false })`; `sygnal/astro` adds it in `astro build` too. Verified kanban, Vike SSR, Astro, Vitest, and installed tarballs of 3 templates (build/preview/dev). `scripts/size-gate.mjs`: gated (opt-out) **41,803 B** / 42,300; default **37,812 B** (−3,991) |
 | 2-R | Phase 2 review fixes (R2-1…R2-9) | ✅ | `worktree-agent-a32030c2f4d6e9267` | subagent | `e80e1b7`…`e924e48` | D49: nullish `value` → `''`, `checked` → false, absent prop = uncontrolled (forms doc + llms.txt/SKILL.md line). D50: Vike shell slices are siblings with `{get,set}` lenses; navigation replaces only `page`; 5.4.0 serialized shape hydrates; verified in an installed-tarball Vike app (17 Playwright checks). Testing: always-on harness check (internal `always` flag), deferred listener removal records child DISPOSE, finite timing validation + `settleMs ≤ timeoutMs`, cursor for every `next()` until disarmed/expired. User `globalthis` alias wins. size-gate validates `--budget`. +60 B |
+| 3-H | Harness: variants (skill/sygnal/overlay/prompt/MCP/model), task-matched compare (G-119), usage-limit resilience | 🟡 | | subagent | | |
+| E4 | Real-DOM test mode (`exp/e4-real-dom`) | 🟡 | | subagent | | Prototype + decision-record draft |
+| E5 | Skill size and shape (`exp/e5-skill`: lean, lean-routed) | 🟡 | | subagent | | |
+| E11 | Deterministic test timing (`exp/e11-fake-timers`) | 🟡 | | subagent | | |
 | 1-F | Examples (G-052, G-063) | ✅ | (same branch as 1-C) | subagent | `fd3fc7c` | todomvc ids = max id + 1; `LOG` sink uses the reducer form (type gap → G-077); build runs `tsc --noEmit`; custom pollers removed from `app.test.ts`, which uses `next`/`settle`/`html`; new id test. Strict-clean |
 
 ## Gate Results
@@ -59,6 +63,7 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | # | Question | Raised | Blocks | Answer |
 |---|---|---|---|---|
 | Q1 | G-007: rename/alias `event()`? Should strict mode make SYG106 (reserved view-prop names) an error? | PLAN-2 §3 | 1-E (G-007 part) | ✅ Keep `event`; SYG106 is an error in strict mode (D41, assigned to 1-B) |
+| Q3 | E2: which async side-effect variants to prototype ((a) auto test drivers, (b) `makeFetchDriver()`, (c) component `drivers` static, (d) sanctioned fetch in EFFECT)? Coordinator recommends (b)+(a) with E3's latest-only inside (b) | Phase 3 | E2, E3 | |
 | Q2 | Eval budget for Phase 0: React re-run + Sygnal reference (12 tasks × 5 × 2 arms = 120 trials) and the tier-3 pilot (4–6 tasks × 2 trials × 2 arms) | Phase 0 | 0-B steps 2–3, 0-C pilot | ✅ Full v2-baseline approved: tier-3 pilot, then tiers 1–3 × both arms × 5 trials (D42) |
 
 ## Decision Log
@@ -76,6 +81,7 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | D48 | 2026-10-01 | Size budget re-baselined 41,805 → **42,300 B**, measured with the D47 alias turned off so it tracks core growth | User | 2 B headroom after Phase 1; leave room for Phase 2–4 fixes |
 | D49 | 2026-10-01 | Controlled form fields: a present-but-nullish `value` writes `''` and nullish `checked` writes `false` (5.4.0 behaviour); only an absent prop makes the field uncontrolled; never write "null". Settles G-081 | Coordinator | Restores 5.4.0 semantics; keeps G-109 |
 | D50 | 2026-10-01 | Vike shell state: slices stay siblings at the root, each shell component gets a `{get,set}` lens onto its slice (not nested keys) | Coordinator | Fixes G-106 without letting outer reducers wipe inner state; 5.4.0 serialized state still hydrates |
+| D51 | 2026-10-01 | Phase 3 eval budget: full plan (~$250 API-equivalent). Trials run on the user's claude.ai subscription (no API key), so the cost is notional but counts against usage limits; the harness must handle limit errors as not-run and resume | User | — |
 | D40 | 2026-10-01 | 0-B and 0-C build and self-verify without paid eval runs (0-B may run ≤ 2 smoke trials, `v2-smoke`, to validate the headless runner); full runs and pilots wait for Q2 | Coordinator | PLAN-2 §8 (user approves budgets per phase) |
 
 ## Bugs & Gaps Found
@@ -161,6 +167,7 @@ gzip -c /tmp/kb/assets/index-*.js | wc -c      # budget 41,805 B
 
 ## Activity Log
 
+- 2026-10-01 — Phase 3 started (D51): 3-H, E4, E5, E11 launched; E2 options sent to the user (Q3).
 - 2026-10-01 — Targeted eval `p2-targeted` (15 Sygnal trials, $5.58): task 08 −35% (iterations 4.8 → 2.0), task 10 −7.5 s, task 11 unchanged. Phase 2 closed, tagged `plan2-phase2`. Branch skill installed for Phase 3.
 - 2026-10-01 — 2-R merged; one timing flake fixed (G-118); full gate green (988 vitest, 121 browser, 41,772 B gated).
 - 2026-10-01 — PLAN-1 tracker reconciled (`fd76d2a`: 72 stale statuses → 69 fixed, 3 closed, 0 open; analyzer reads Closed/Won't fix as done; 69 harness tests). Baseline analysis regenerated: B-005 recommendation now correctly rewritten as "fixed".
