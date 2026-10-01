@@ -91,9 +91,38 @@ Also seen:
 - **G-071:** `npx --no-install sygnal-check` still queries the npm registry and prints E404 (sygnal-check isn't published; D36 resolves this). Every agent skipped the static check. Most said so, and the runtime strict diagnostics covered it.
 - **More code and more tests:** Sygnal agents now write more tests and more code than before. Tier-2 lines added went from 129 to 157, against 104–138 for React. Part of the extra verify time is these tests running, not friction.
 
+## Tier 2 after the fixes (`phase3b-t2`)
+
+The 4C fixes were merged before this run:
+- B-029: `ABORT` from non-STATE and EFFECT sinks is now silent.
+- G-070: `simulateEvent` supports structural selectors and fails loudly when a selector matches nothing.
+
+This run repeated tasks 09–12, 5 trials each, on a tarball packed after the fixes, with the re-synced skill. Its testing section documents the selector support. The comparisons are in `analysis/compare-t2b.md` (baseline → phase3b) and `analysis/compare-t2-fixes.md` (phase3 → phase3b).
+
+| Tier 2, Sygnal | baseline-t2 | phase3-t2 | **phase3b-t2** | React |
+|---|---|---|---|---|
+| Pass | 20/20 | 20/20 | **20/20** | 20/20 |
+| Wall mean (s) | 92.2 | 107.7 | **78.5** | 63.2 |
+| Iterations | 4.6 | 4.7 | **2.4** | 2.5 |
+| Failed test runs | 1.7 | 1.0 | **0.2** | — |
+| Tool calls | 17.0 | 17.7 | **13.2** | — |
+| Gap to React (shared tasks) | 29.0 s | 44.5 s | **15.4 s** | — |
+
+| Task | baseline-t2 | phase3-t2 | phase3b-t2 | React |
+|---|---|---|---|---|
+| 09 board moves | 79.2 | 106.1 | **69.5** | 61.3 |
+| 10 signup wizard | 101.6 | 100.8 | **86.4** | 68.7 |
+| 11 search debounce | 93.8 | 91.5 | **84.4** | 48.7 |
+| 12 selection panel | 94.6 | 132.4 | **74.0** | 74.0 |
+
+- **The `next timed out` failures are gone:** 0 runs, down from 13. The only failed runs left are 4 ordinary assertion mistakes in agents' own tests. No agent added `data-id` attributes just to target rows, and no B-029 workarounds appeared.
+- **Iterations now match React:** 2.4 against React's 2.5. Learning time fell from 11.9 to 4.1 s per trial against the baseline, and tooling friction from 28.7 to 16.1 s. What remains is mostly the harness guard, which React pays too.
+- **Mean usage:** ~78.6k tokens and 13.2 tool calls per trial.
+- **Overall:** the gap to React is now about 15–16 s per trial in **both** tiers, down from 46 s (tier 1) and 29 s (tier 2). Agents spend part of that time writing and running regression tests, which React agents mostly skip.
+
 ## Recommendations
 
-**Before release (4B), small:**
+**Before release (4B), small.** Items 1 and 2 are done in 4C and confirmed by `phase3b-t2` above.
 1. **Fix B-029.** In the non-STATE sink path, let `ABORT` through before the type check, and add a regression test.
 2. **Fix G-070.**
    - Make the mock DOM's selector matching support the selectors agents actually use (`:nth-child`, `:first-child`, `:last-child`, `>`).
