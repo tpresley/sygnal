@@ -1,13 +1,15 @@
 /**
- * Snabbdom module that clears removed and nullish props (B-015).
+ * Sygnal's props module: snabbdom's propsModule, plus clearing removed and
+ * nullish props (B-015, G-109).
  *
  * Problem: snabbdom's propsModule writes new and changed props but never
  * unsets a prop that disappears, so a reused element keeps `title`, `disabled`,
  * `href`, ... from the previous render. A nullish prop is written as the
- * string "undefined"/"null" (`title={cond ? 'x' : undefined}`).
+ * string "undefined"/"null" (`title={cond ? 'x' : undefined}`, `src={null}`).
  *
- * Fix: runs after propsModule. For each prop that is gone (or became nullish),
- * remove the reflected attribute, which resets the property (numbers such as
+ * Fix: write new and changed props except nullish ones (G-109: nothing is ever
+ * written as "null"). For each prop that is gone (or became nullish), remove
+ * the reflected attribute, which resets the property (numbers such as
  * maxLength fall back to their default too). Without such an attribute, reset
  * the property by its current type (boolean -> false, string -> '', other
  * non-number -> undefined/null) if it differs (G-095). `className` is left
@@ -35,17 +37,21 @@ function clearProp(elm: any, key: string): void {
   }
 }
 
-function syncRemoved(oldVnode: VNode, vnode: VNode): void {
+function updateProps(oldVnode: VNode, vnode: VNode): void {
   const elm: any = vnode.elm;
-  const props: any = vnode.data?.props;
-  const oldProps: any = oldVnode.data?.props;
+  const props: any = vnode.data?.props || {};
+  const oldProps: any = oldVnode.data?.props || {};
   if (!elm || oldProps === props) return;
   for (const key in oldProps) {
-    if (!props || !(key in props)) clearProp(elm, key);
+    if (!(key in props)) clearProp(elm, key);
   }
   for (const key in props) {
-    if (props[key] == null && (!oldProps || oldProps[key] !== props[key])) clearProp(elm, key);
+    const cur = props[key];
+    if (cur === oldProps[key]) continue;
+    // a nullish className is left to classNameModule, which rebuilds the attribute (B-012)
+    if (cur == null) clearProp(elm, key);
+    else if (key !== 'value' || elm[key] !== cur) elm[key] = cur;
   }
 }
 
-export const removedPropsModule = {create: syncRemoved, update: syncRemoved};
+export const propsModule = {create: updateProps, update: updateProps};

@@ -1,22 +1,21 @@
-import {Module, classModule, propsModule, attributesModule, datasetModule} from './snabbdom';
+import {Module, classModule, attributesModule, datasetModule} from './snabbdom';
 import {styleModule} from './styleModule';
 import {selectModule} from './selectModule';
 import {controlledInputModule} from './controlledInputModule';
 import {classNameModule} from './classNameModule';
-import {removedPropsModule} from './removedPropsModule';
+import {propsModule} from './propsModule';
 
 const modules: Array<Module> = [
   styleModule,
   classModule,
-  propsModule,
+  propsModule, // Sygnal's: also clears removed and nullish props (B-015, G-109)
   classNameModule, // after propsModule (B-012)
-  removedPropsModule, // after propsModule, before attributesModule (B-015)
   attributesModule,
   datasetModule,
   selectModule,
   controlledInputModule,
 ];
 
-export {styleModule, classModule, propsModule, attributesModule, datasetModule, selectModule, controlledInputModule, classNameModule, removedPropsModule};
+export {styleModule, classModule, propsModule, attributesModule, datasetModule, selectModule, controlledInputModule, classNameModule};
 
 export default modules;
