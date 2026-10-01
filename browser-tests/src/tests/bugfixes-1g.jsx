@@ -1,0 +1,139 @@
+// Regression tests for PLAN-1 workstream 1G (rendering/state bug fixes), real DOM.
+import { run, Collection } from 'sygnal'
+import { mount, assert, runTest, wait, waitFor } from '../harness.js'
+
+const CAT = 'Bug fixes (1G)'
+
+const texts = (el, sel) => [...el.querySelectorAll(sel)].map(n => n.textContent).join(',')
+
+export async function bugfixTests1G() {
+  // ─── B-010: a Collection follows a pure reorder of its array ─────────────
+  function Row({ state }) {
+    return <li className="row">
+      <input type="checkbox" className="done" checked={state.done} />
+      <span className="name">{state.name}</span>
+      <span className="clicks">{state.clicks}</span>
+      <button className="bump">+</button>
+    </li>
+  }
+  Row.intent = ({ DOM }) => ({ BUMP: DOM.click('.bump'), TOGGLE: DOM.select('.done').events('change') })
+  Row.model = {
+    BUMP: s => ({ ...s, clicks: s.clicks + 1 }),
+    TOGGLE: s => ({ ...s, done: !s.done }),
+  }
+
+  const move = (arr, from, to) => { const a = arr.slice(); const [x] = a.splice(from, 1); a.splice(to, 0, x); return a }
+
+  function ReorderApp({ state }) {
+    return <div>
+      <button className="reverse">Reverse</button>
+      <button className="swap">Swap</button>
+      <button className="last-first">Last first</button>
+      <ul><Collection of={Row} from="items" /></ul>
+    </div>
+  }
+  ReorderApp.initialState = {
+    items: ['a', 'b', 'c', 'd'].map((name, i) => ({ id: i + 1, name, clicks: 0, done: false })),
+  }
+  ReorderApp.intent = ({ DOM }) => ({
+    REVERSE: DOM.click('.reverse'),
+    SWAP: DOM.click('.swap'),
+    LAST_FIRST: DOM.click('.last-first'),
+  })
+  ReorderApp.model = {
+    REVERSE: s => ({ ...s, items: s.items.slice().reverse() }),
+    SWAP: s => ({ ...s, items: move(s.items, 0, 1) }),
+    LAST_FIRST: s => ({ ...s, items: move(s.items, s.items.length - 1, 0) }),
+  }
+
+  async function mountReorder() {
+    const { id, el } = mount()
+    run(ReorderApp, {}, { mountPoint: id })
+    await waitFor(() => el.querySelectorAll('.row').length === 4)
+    return el
+  }
+
+  await runTest(CAT, 'B-010: reversing a Collection reorders the DOM and keeps item identity', async () => {
+    const el = await mountReorder()
+    // give item "b" local state: a click count and a ticked checkbox
+    const rowB = el.querySelectorAll('.row')[1]
+    rowB.querySelector('.bump').click()
+    await waitFor(() => rowB.querySelector('.clicks').textContent === '1')
+    rowB.querySelector('.done').click()
+    await wait(40)
+    el.querySelector('.reverse').click()
+    await wait(60)
+    assert(texts(el, '.name') === 'd,c,b,a', `order after reverse: ${texts(el, '.name')}`)
+    const rows = el.querySelectorAll('.row')
+    assert(rows[2] === rowB, 'item b should keep its DOM element')
+    assert(rows[2].querySelector('.clicks').textContent === '1', 'item b keeps its click count')
+    assert(rows[2].querySelector('.done').checked === true, 'item b keeps its checkbox')
+    assert(rows[1].querySelector('.done').checked === false, 'item c stays unchecked')
+  })
+
+  await runTest(CAT, 'B-010: swap and move-to-index reorder the DOM', async () => {
+    const el = await mountReorder()
+    el.querySelector('.swap').click()
+    await wait(60)
+    assert(texts(el, '.name') === 'b,a,c,d', `order after swap: ${texts(el, '.name')}`)
+    el.querySelector('.last-first').click()
+    await wait(60)
+    assert(texts(el, '.name') === 'd,b,a,c', `order after move: ${texts(el, '.name')}`)
+    // an item's own state change afterwards still renders in the new order
+    el.querySelectorAll('.row')[0].querySelector('.bump').click()
+    await wait(60)
+    assert(texts(el, '.name') === 'd,b,a,c', `order after bump: ${texts(el, '.name')}`)
+    assert(texts(el, '.clicks') === '1,0,0,0', `clicks after bump: ${texts(el, '.clicks')}`)
+  })
+
+  await runTest(CAT, 'B-010: nested Collections follow cross-list moves and in-list reorders', async () => {
+    const { id, el } = mount()
+    function Card({ state }) {
+      return <div className="card"><span className="title">{state.title}</span><span className="hits">{state.hits}</span><button className="hit">hit</button></div>
+    }
+    Card.intent = ({ DOM }) => ({ HIT: DOM.click('.hit') })
+    Card.model = { HIT: s => ({ ...s, hits: s.hits + 1 }) }
+    function List({ state }) {
+      return <section className="list"><Collection of={Card} from="cards" /></section>
+    }
+    function Board({ state }) {
+      return <div>
+        <button className="cross">Cross</button>
+        <button className="rev">Rev</button>
+        <Collection of={List} from="lists" />
+      </div>
+    }
+    Board.initialState = {
+      lists: [
+        { id: 'l1', cards: [{ id: 'x', title: 'x', hits: 0 }, { id: 'y', title: 'y', hits: 0 }] },
+        { id: 'l2', cards: [{ id: 'z', title: 'z', hits: 0 }] },
+      ],
+    }
+    Board.intent = ({ DOM }) => ({ CROSS: DOM.click('.cross'), REV: DOM.click('.rev') })
+    Board.model = {
+      // move the last card of list 1 to the top of list 2
+      CROSS: s => {
+        const [l1, l2] = s.lists
+        const card = l1.cards[l1.cards.length - 1]
+        return { ...s, lists: [{ ...l1, cards: l1.cards.slice(0, -1) }, { ...l2, cards: [card, ...l2.cards] }] }
+      },
+      // reverse the cards of list 2 (pure reorder inside a nested Collection)
+      REV: s => ({ ...s, lists: [s.lists[0], { ...s.lists[1], cards: s.lists[1].cards.slice().reverse() }] }),
+    }
+    run(Board, {}, { mountPoint: id })
+    await waitFor(() => el.querySelectorAll('.card').length === 3)
+    const listText = () => [...el.querySelectorAll('.list')].map(l => texts(l, '.title')).join('|')
+    const z = [...el.querySelectorAll('.card')].find(c => c.textContent.startsWith('z'))
+    z.querySelector('.hit').click()
+    await wait(60)
+    el.querySelector('.cross').click()
+    await wait(60)
+    assert(listText() === 'x|y,z', `after cross move: ${listText()}`)
+    el.querySelector('.rev').click()
+    await wait(60)
+    assert(listText() === 'x|z,y', `after nested reverse: ${listText()}`)
+    const zNow = [...el.querySelectorAll('.card')].find(c => c.textContent.startsWith('z'))
+    assert(zNow === z, 'card z keeps its DOM element')
+    assert(zNow.querySelector('.hits').textContent === '1', 'card z keeps its hit count')
+  })
+}
