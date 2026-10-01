@@ -19,12 +19,6 @@ export type AppState = {
 
 export type Directions = 'UP' | 'DOWN' | 'LEFT' | 'RIGHT'
 
-export type AppActions = {
-  RESTART: null,
-  MOVE: Directions,
-  ADD_TILE: null
-}
-
 export type AppDrivers = {};
 
 export type TileActions = {
