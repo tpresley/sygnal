@@ -98,6 +98,7 @@ export function explainMain(argv, { stdout, stderr }) {
 /** Returns the process exit code. */
 export function main(argv, { stdout = process.stdout, stderr = process.stderr, cwd = process.cwd() } = {}) {
   if (argv[0] === 'explain') return explainMain(argv.slice(1), { stdout, stderr })
+  if (argv[0] === 'mcp') { stderr.write('sygnal-check: the MCP server runs from the binary: sygnal-check mcp (see runMcpServer in src/mcp.js)\n'); return 2 }
   let opts
   try {
     opts = parseArgs(argv)
