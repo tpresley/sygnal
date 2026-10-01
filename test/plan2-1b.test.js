@@ -137,19 +137,23 @@ describe('G-027 / G-044: each code surfaces under its own code', () => {
     expect(d.message).toMatch(/returned a symbol/)
   })
 
-  it('G-087: SYG218 describes null and arrays correctly', async () => {
-    vi.spyOn(console, 'error').mockImplementation(() => {})
+  it('G-108: null, arrays and bigints returned to a driver sink are sent, like constants (no SYG218)', async () => {
     function App(p) { return view(p) }
     App.initialState = { n: 0 }
-    App.model = { NUL: { EVENTS: () => null }, ARR: { EVENTS: () => [1] } }
+    App.model = {
+      NUL: { LOG: () => null },
+      ARR: { LOG: () => [1, 2] },
+      BIG: { LOG: () => 3n },
+      CONST: { LOG: [4] },
+    }
     t = renderComponent(App)
     t.simulateAction('NUL')
     t.simulateAction('ARR')
+    t.simulateAction('BIG')
+    t.simulateAction('CONST')
     await t.settle()
-    const messages = t.diagnostics.filter(d => d.code === 'SYG218').map(d => d.message)
-    expect(messages).toHaveLength(2)
-    expect(messages[0]).toMatch(/returned null;/)
-    expect(messages[1]).toMatch(/returned an array;/)
+    expect(codes(t)).not.toContain('SYG218')
+    expect(t.sinkValues('LOG')).toEqual([null, [1, 2], 3n, [4]])
   })
 
   it('SYG215: next() with a non-number delay inside a STATE reducer is reported as SYG215 (not SYG216)', async () => {

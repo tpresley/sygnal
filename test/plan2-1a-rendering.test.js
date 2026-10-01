@@ -137,6 +137,18 @@ describe('B-015: removed props are cleared', () => {
     } finally { spy.restore() }
   })
 
+  it('G-109: src={null} is never written as "null" (on create or when it becomes null)', () => {
+    const spy = spySrcWrites(HTMLImageElement)
+    try {
+      const a = mountSeq(h('img', { src: null }))
+      expect(a.hasAttribute('src')).toBe(false)
+      expect(spy.writes).toEqual([])
+      const b = mountSeq(h('img', { src: 'data:,x' }), h('img', { src: null }), h('img', { src: 'data:,y' }))
+      expect(b.getAttribute('src')).toBe('data:,y')
+      expect(spy.writes).toEqual(['data:,x', 'data:,y'])
+    } finally { spy.restore() }
+  })
+
   it('G-095: a removed non-reflected prop is still reset', () => {
     const elm = mountSeq(h('p', { foo: 'bar' }, 'x'), h('p', null, 'x'))
     expect(elm.foo).toBe('')

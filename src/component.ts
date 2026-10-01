@@ -551,22 +551,20 @@ class Component {
   initAction$(): void {
     const requestSource  = (this.sources && this.sources[this.requestSourceName]) || null
 
-    if (!this.intent$) {
-      this.action$ = xs.never()
-      return
-    }
+    // G-107: a component with a model but no intent still gets BOOTSTRAP (and HYDRATE)
+    const intent$ = this.intent$ || {}
 
     let runner
-    if (this.intent$ instanceof Stream) {
-      runner = this.intent$
+    if (intent$ instanceof Stream) {
+      runner = intent$
     } else {
       // Validate that no intent action names contain '|' (reserved for model shorthand)
-      for (const key of Object.keys(this.intent$)) {
+      for (const key of Object.keys(intent$)) {
         if (key.includes('|')) {
           fail('SYG605', this, `Intent action '${key}' contains '|', which is reserved for model shorthand`, 'Rename the action')
         }
       }
-      const mapped = Object.entries(this.intent$)
+      const mapped = Object.entries(intent$)
                            .map(([type, data$]: [string, any]) => data$.map((data: any) => ({type, data})))
       runner = mapped.length > 0 ? xs.merge(...mapped) : xs.never()
     }
@@ -575,7 +573,7 @@ class Component {
     const bootstrap$ = xs.of({ type: BOOTSTRAP_ACTION }).compose(delay(10))
     const _hmrUpdating = typeof window !== 'undefined' && window.__SYGNAL_HMR_UPDATING === true
     const hmrAction$ = _hmrUpdating ? this.hmrAction$ : xs.of().filter((_: any) => false)
-    const wrapped$   = (this.model[BOOTSTRAP_ACTION] && !_hmrUpdating) ? concat(bootstrap$, action$) : concat(xs.of().compose(delay(1)).filter((_: any) => false), hmrAction$, action$)
+    const wrapped$   = (this.model?.[BOOTSTRAP_ACTION] &&!_hmrUpdating) ? concat(bootstrap$, action$) : concat(xs.of().compose(delay(1)).filter((_: any) => false), hmrAction$, action$)
 
 
     let initialApiData
@@ -1016,14 +1014,14 @@ class Component {
               // B-029: ABORT = send nothing (filtered below), before the type checks
               if (isAbort(reduced)) return reduced
               const type = typeof reduced
-              if (isObj(reduced) || ['string', 'number', 'boolean', 'function'].includes(type)) return reduced
-              if (type === 'undefined') {
-                warn('SYG217', this, `Reducer for '${name}' sent undefined to the driver`, 'Return a value, or ABORT to send nothing')
-                return reduced
+              // G-108: any value a constant can be (incl. null, arrays, bigints) is a payload
+              if (type === 'symbol') {
+                // G-027: reported directly (it used to be thrown into the catch below, i.e. SYG216)
+                logError('SYG218', this, `Reducer for '${name}' returned a symbol; nothing sent`, 'Return a value, or ABORT to send nothing')
+                return ABORT
               }
-              // G-027: reported directly (it used to be thrown into the catch below, i.e. SYG216)
-              logError('SYG218', this, `Reducer for '${name}' returned ${type === 'object' ? (reduced ? 'an array' : 'null') : 'a ' + type}; nothing sent`, 'Return a value, or ABORT to send nothing')
-              return ABORT
+              if (type === 'undefined') warn('SYG217', this, `Reducer for '${name}' sent undefined to the driver`, 'Return a value, or ABORT to send nothing')
+              return reduced
             } catch (err) {
               caught('SYG216', this, `Reducer for '${name}' threw; nothing sent`, ERR_FIX, err)
               return ABORT
@@ -1386,27 +1384,32 @@ class Component {
   instantiateCollection(el: any, props$: any, children$: any): any {
     const data      = el.data
     const props     = data.props || {}
-    let filter      = typeof props.filter === 'function' ? props.filter : undefined
-    let sort        = sortFunctionFromProp(props.sort)
-
-    const arrayOperators = {
-      filter,
-      sort
+    // f/s: the raw props last applied (a sort object isn't the sort function made from it)
+    const arrayOperators: Record<string, any> = {
+      f: props.filter,
+      s: props.sort,
+      filter: typeof props.filter === 'function' ? props.filter : undefined,
+      sort: sortFunctionFromProp(props.sort)
     }
-    
+
     const state$ = xs.combine(this.sources[this.stateSourceName].stream.startWith(this.currentState), props$.startWith(props))
       // this debounce is important. it forces state and prop updates to happen at the same time
       // without this, changes to sort or filter won't happen properly
       .compose(debounce(1))
       .map(([state, props]: [any, any]) => {
-        if (props.filter !== arrayOperators.filter) {
-          arrayOperators.filter = typeof props.filter === 'function' ? props.filter : undefined
+        let changed
+        if (props.filter !== arrayOperators.f) {
+          arrayOperators.filter = typeof (arrayOperators.f = props.filter) === 'function' ? props.filter : undefined
+          changed = 1
         }
-        if (props.sort !== arrayOperators.sort) {
-          arrayOperators.sort = sortFunctionFromProp(props.sort)
+        if (props.sort !== arrayOperators.s) {
+          arrayOperators.sort = sortFunctionFromProp(arrayOperators.s = props.sort)
+          changed = 1
         }
-        // calculated fields are added by the lens (B-013)
-        return state
+        // G-102: in a child component new filter/sort props can arrive a render after the
+        // state; a copy gets past the state source's dropRepeats so the items are filtered
+        // and sorted again. Calculated fields are added by the lens (B-013)
+        return changed && isObj(state) ? { ...state } : state
       })
 
     const stateSource  = new StateSource(state$, this.stateSourceName)
@@ -1434,7 +1437,7 @@ class Component {
         if (!Array.isArray(state[stateField])) return []
         const items = state[stateField]
         const filtered = typeof arrayOperators.filter === 'function' ? items.filter(arrayOperators.filter) : items
-        const sorted = typeof arrayOperators.sort === 'function' ? filtered.sort(arrayOperators.sort) : filtered
+        const sorted = typeof arrayOperators.sort === 'function' ? [...filtered].sort(arrayOperators.sort) : filtered
         const mapped = sorted.map((item: any, index: any) => {
           return (isObj(item)) ? { ...item, [idField]: item[idField] || index } : { value: item, [idField]: index }
         })
@@ -2203,7 +2206,8 @@ function objIsEqual(obj1: any, obj2?: any, maxDepth: number = 5, depth: number =
 
 function sanitizeObject(obj: any): any {
   if (!isObj(obj)) return obj
-  const {state, of, from, filter, ...sanitized} = obj
+  // G-102: only the state binding; of/from/filter are ordinary props of a component
+  const {state, ...sanitized} = obj
   return sanitized
 }
 
