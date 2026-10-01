@@ -98,8 +98,8 @@ describe('G-065: ready() is a cursor for the next next()', () => {
     t = renderComponent(Counter)
     t.simulateAction('INC')
     await t.ready()
-    // the buffered INC was applied while ready() resolved
-    await sleep(5)
+    // the buffered INC is applied while ready() resolves (2-R: no macrotask in between, or
+    // the unused cursor expires)
     expect(await t.next(s => s.count === 1, 300)).toEqual({ count: 1 })
   })
 
@@ -108,9 +108,8 @@ describe('G-065: ready() is a cursor for the next next()', () => {
     t.simulateAction('INC')
     t.simulateAction('INC')
     await t.ready()
-    await sleep(5)
     expect(await t.next(undefined, 300)).toEqual({ count: 1 })
-    // the cursor is used once: the following next() waits for a new state
+    // the cursor is used until a next() from it resolves: the following next() waits for a new state
     const p = t.next(undefined, 300)
     t.simulateAction('INC')
     expect(await p).toEqual({ count: 3 })
@@ -138,7 +137,6 @@ describe('G-065: ready() is a cursor for the next next()', () => {
     await t.settle()
     t.simulateAction('INC')
     await t.ready()
-    await sleep(5)
     expect(await t.next(undefined, 300)).toEqual({ count: 1 })
   })
 
@@ -199,8 +197,8 @@ describe('G-053: timing options', () => {
   })
 
   it('rejects invalid timing options', () => {
-    expect(() => renderComponent(Counter, { settleMs: -1 })).toThrow(/settleMs must be a non-negative number/)
-    expect(() => renderComponent(Counter, { timeoutMs: 'x' })).toThrow(/timeoutMs must be a non-negative number/)
+    expect(() => renderComponent(Counter, { settleMs: -1 })).toThrow(/settleMs must be a finite number of ms/)
+    expect(() => renderComponent(Counter, { timeoutMs: 'x' })).toThrow(/timeoutMs must be a finite number of ms/)
   })
 })
 

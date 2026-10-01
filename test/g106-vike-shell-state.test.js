@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 // G-106: in a Vike app with both a Wrapper and a Layout, the page's +data must survive client
-// navigation. Each shell component's state key is relative to its parent component (the
-// Layout reads wrapper_0.layout_0), so the shell state is nested:
-//   { wrapper_0: { ...wrapper, layout_0: { ...layout, page } } }
-// in the serialized SSR state, on hydration, and in the navigation write.
+// navigation. D50 (2-R): the shell slices are siblings at the root,
+//   { wrapper_0: { ...wrapper }, layout_0: { ...layout }, page }
+// in the serialized SSR state, on hydration, and in the navigation write; each shell component
+// (and the Page) reads its own root slice through a { get, set } lens, however deeply it is
+// nested, so an outer component's reducer can't wipe the inner slices (R2-2).
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { createElement as h } from '../dist/index.esm.js'
 
@@ -48,19 +49,19 @@ function serializedState(html) {
 }
 
 describe('G-106: Vike shell state with a Wrapper and a Layout', () => {
-  it('onRenderHtml serializes the shell state nested by component', () => {
+  it('onRenderHtml serializes the shell slices as siblings at the root', () => {
     const { Wrapper, Layout, Home } = makeShell()
     const html = onRenderHtml({ Page: Home, data: { title: 'Home data' }, config: { Wrapper, Layout } }).documentHtml._escaped
     expect(serializedState(html)).toEqual({
-      wrapper_0: { w: 1, layout_0: { n: 0, page: { title: 'Home data' } } },
+      wrapper_0: { w: 1 }, layout_0: { n: 0 }, page: { title: 'Home data' },
     })
     expect(html).toContain('<p class="page">home:Home data</p>')
   })
 
-  it('onRenderHtml keeps the single-Layout shape ({ layout_0: { ..., page } })', () => {
+  it('onRenderHtml with a single Layout: { layout_0, page }', () => {
     const { Layout, Home } = makeShell()
     const html = onRenderHtml({ Page: Home, data: { title: 'Home data' }, config: { Layout } }).documentHtml._escaped
-    expect(serializedState(html)).toEqual({ layout_0: { n: 0, page: { title: 'Home data' } } })
+    expect(serializedState(html)).toEqual({ layout_0: { n: 0 }, page: { title: 'Home data' } })
   })
 
   it('hydrates, then keeps +data and the Layout state across client navigation', async () => {
@@ -99,18 +100,101 @@ describe('G-106: Vike shell state with a Wrapper and a Layout', () => {
     expect(text('.page')).toBe('about:About data')
   })
 
-  it('two Layouts: the inner Layout state is nested in the outer one', async () => {
+  it('two Layouts: sibling slices; hydration and navigation keep +data', async () => {
     const { Layout, Home, About } = makeShell()
     function Outer({ children }) { return h('div', { className: 'outer' }, ...children) }
     Outer.initialState = { o: 1 }
     const html = onRenderHtml({ Page: Home, data: { title: 'Home data' }, config: { Layout: [Outer, Layout] } }).documentHtml._escaped
-    expect(serializedState(html)).toEqual({ layout_0: { o: 1, layout_1: { n: 0, page: { title: 'Home data' } } } })
+    expect(serializedState(html)).toEqual({ layout_0: { o: 1 }, layout_1: { n: 0 }, page: { title: 'Home data' } })
     window.__VIKE_SYGNAL_STATE__ = serializedState(html)
     onRenderClient({ Page: Home, data: { title: 'Home data' }, config: { Layout: [Outer, Layout] }, isHydration: true })
     await settle()
     expect(text('.page')).toBe('home:Home data')
     onRenderClient({ Page: About, data: { title: 'About data' }, config: { Layout: [Outer, Layout] } })
     await settle()
+    expect(text('.page')).toBe('about:About data')
+  })
+
+  it('R2-2: a Wrapper reducer that replaces its state keeps the Layout state and the page data', async () => {
+    const { Wrapper, Layout, Home, About } = makeShell()
+    Wrapper.intent = ({ DOM }) => ({ RESET: DOM.click('.w') })
+    Wrapper.model = { RESET: () => ({ w: 0 }) }
+    onRenderClient({ Page: Home, data: { title: 'Home data' }, config: { Wrapper, Layout } })
+    await settle()
+    document.querySelector('.bump').click()
+    await settle()
+    expect(text('.bump')).toBe('L1')
+    document.querySelector('.w').click()
+    await settle()
+    expect(text('.w')).toBe('w0')
+    expect(text('.bump')).toBe('L1')
+    expect(text('.page')).toBe('home:Home data')
+    onRenderClient({ Page: About, data: { title: 'About data' }, config: { Wrapper, Layout } })
+    await settle()
+    expect(text('.w')).toBe('w0')
+    expect(text('.bump')).toBe('L1')
+    expect(text('.page')).toBe('about:About data')
+  })
+
+  it("R2-2: an outer Layout's replacing reducer keeps the inner Layout and the page", async () => {
+    const { Layout, Home } = makeShell()
+    function Outer({ state, children }) { return h('div', { className: 'outer' }, h('i', { className: 'o' }, 'o' + state.o), ...children) }
+    Outer.initialState = { o: 1 }
+    Outer.intent = ({ DOM }) => ({ RESET: DOM.click('.o') })
+    Outer.model = { RESET: () => ({ o: 0 }) }
+    onRenderClient({ Page: Home, data: { title: 'Home data' }, config: { Layout: [Outer, Layout] } })
+    await settle()
+    document.querySelector('.bump').click()
+    await settle()
+    document.querySelector('.o').click()
+    await settle()
+    expect(text('.o')).toBe('o0')
+    expect(text('.bump')).toBe('L1')
+    expect(text('.page')).toBe('home:Home data')
+  })
+
+  it("R2-2: shell views and the page see only their own state (no foreign layout_0/page keys)", async () => {
+    const seen = {}
+    const { Wrapper, Layout, Home } = makeShell()
+    const keysOf = (name, state) => { seen[name] = Object.keys(state || {}).sort() }
+    function W(props) { keysOf('wrapper', props.state); return Wrapper(props) }
+    W.initialState = Wrapper.initialState
+    function L(props) { keysOf('layout', props.state); return Layout(props) }
+    Object.assign(L, { initialState: Layout.initialState, intent: Layout.intent, model: Layout.model })
+    function P(props) { keysOf('page', props.state); return Home(props) }
+    P.initialState = Home.initialState
+    onRenderClient({ Page: P, data: { title: 'Home data' }, config: { Wrapper: W, Layout: L } })
+    await settle()
+    document.querySelector('.bump').click()
+    await settle()
+    expect(text('.bump')).toBe('L1')
+    expect(seen).toEqual({ wrapper: ['w'], layout: ['n'], page: ['title'] })
+  })
+
+  it('R2-2: a Layout reducer updates only its slice; the Wrapper slice is untouched', async () => {
+    const { Wrapper, Layout, Home } = makeShell()
+    onRenderClient({ Page: Home, data: { title: 'Home data' }, config: { Wrapper, Layout } })
+    await settle()
+    document.querySelector('.bump').click()
+    await settle()
+    document.querySelector('.bump').click()
+    await settle()
+    expect(text('.bump')).toBe('L2')
+    expect(text('.w')).toBe('w1')
+    expect(text('.page')).toBe('home:Home data')
+  })
+
+  it('R2-9: hydrates serialized state in the 5.4.0 shape (page under the innermost slice)', async () => {
+    const { Wrapper, Layout, Home, About } = makeShell()
+    window.__VIKE_SYGNAL_STATE__ = { wrapper_0: { w: 7 }, layout_0: { n: 3, page: { title: 'Old SSR' } } }
+    onRenderClient({ Page: Home, data: { title: 'Home data' }, config: { Wrapper, Layout }, isHydration: true })
+    await settle()
+    expect(text('.w')).toBe('w7')
+    expect(text('.bump')).toBe('L3')
+    expect(text('.page')).toBe('home:Old SSR')
+    onRenderClient({ Page: About, data: { title: 'About data' }, config: { Wrapper, Layout } })
+    await settle()
+    expect(text('.bump')).toBe('L3')
     expect(text('.page')).toBe('about:About data')
   })
 })

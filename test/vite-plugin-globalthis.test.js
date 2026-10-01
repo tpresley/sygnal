@@ -41,6 +41,26 @@ describe('vite plugin: native globalThis (G-099)', () => {
     }
   })
 
+  it("R2-7: a user's own `globalthis` alias wins (object and array forms)", () => {
+    const withUser = (resolve) =>
+      sygnal({}).config.call({ meta: { viteVersion: '7.3.1' } }, { root: process.cwd(), resolve }, { command: 'build' })
+    expect(withUser({ alias: { globalthis: '/my/globalthis.js' } }).resolve).toBeUndefined()
+    expect(withUser({ alias: [{ find: 'globalthis', replacement: '/my/globalthis.js' }] }).resolve).toBeUndefined()
+    expect(withUser({ alias: [{ find: /^globalthis$/, replacement: '/my/globalthis.js' }] }).resolve).toBeUndefined()
+    // unrelated aliases don't stop it
+    expect(withUser({ alias: { '@': '/src' } }).resolve.alias[0].replacement).toBe(SHIM)
+    expect(withUser({ alias: [{ find: 'globalthis/polyfill', replacement: '/x.js' }] }).resolve.alias[0].replacement).toBe(SHIM)
+  })
+
+  it("R2-7: sygnal/astro keeps a user's own `globalthis` alias in astro build", () => {
+    let vite
+    sygnalAstro().hooks['astro:config:setup']({
+      addRenderer() {}, updateConfig(c) { vite = c.vite }, command: 'build',
+      config: { vite: { resolve: { alias: { globalthis: '/my/globalthis.js' } } } },
+    })
+    expect(vite.resolve).toBeUndefined()
+  })
+
   it('nativeGlobalThis: false adds no alias', () => {
     expect(configOf({ nativeGlobalThis: false }).resolve).toBeUndefined()
   })

@@ -118,8 +118,9 @@
  *   `component` is the internal Component instance (stable identity per
  *   instance; `.name` is the component name).
  *
- *   Every hook starts with a single boolean check and returns immediately
- *   when the mode is 'off'.
+ *   In mode 'off' a hook only runs the checks registered with `always: true`
+ *   (internal: renderComponent's own bookkeeping, R2-3); none are registered
+ *   in an app, so the hooks do nothing.
  *
  *   Hooks NEVER throw synchronously into Sygnal's stream pipeline (a throw
  *   there would kill the state/view stream for good). Every exception from a
@@ -167,6 +168,8 @@ export interface DiagnosticsOptions {
 
 export interface DiagnosticCheck {
   id: string
+  /** internal: also runs when diagnostics are 'off' (renderComponent's harness hooks) */
+  always?: boolean
   onIntent?: (component: any, actionNames: string[], selectorsUsed: string[] | undefined) => void
   onModel?: (component: any, modelMap: Record<string, string[]>) => void
   onRender?: (component: any, rootVnode: any) => void
@@ -282,8 +285,8 @@ export function _setAsyncThrow(fn?: (err: any) => void): void {
 }
 
 const hook = (name: HookName) => (component: any, ...args: any[]): void => {
-  if (!enabled) return
   for (const check of checks) {
+    if (!enabled && !check.always) continue
     try {
       (check[name] as any)?.(component, ...args)
     } catch (err: any) {

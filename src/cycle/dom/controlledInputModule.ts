@@ -9,7 +9,9 @@
  * Fix: after propsModule has run, compare `value`/`checked` props against the
  * live element and write them when they differ. Only form fields (INPUT,
  * TEXTAREA, SELECT; not input type=file) are controlled: `value` compares as a
- * string, `checked` as a boolean (1H-7). Other elements with a value prop
+ * string, `checked` as a boolean (1H-7). A present-but-nullish `value` keeps an
+ * input/textarea at '' and a nullish `checked` at false (D49); an absent prop
+ * leaves the field to the user. Other elements with a value prop
  * (<progress>, <meter>, custom elements with object values) are left alone.
  */
 
@@ -22,10 +24,12 @@ function syncControlled(oldVnode: VNode, vnode: VNode): void {
   const oldProps: any = oldVnode.data?.props || {};
   const {value, checked} = props;
   // Only the case propsModule skipped (prop unchanged); it handles real changes.
-  if (value === oldProps.value && value != null && elm.value !== String(value)) {
-    elm.value = String(value);
+  // A nullish <select> value is left alone: on create the browser shows the first option.
+  if ('value' in props && value === oldProps.value && (value != null || elm.tagName != 'SELECT')) {
+    const v = value == null ? '' : String(value);
+    if (elm.value !== v) elm.value = v;
   }
-  if (checked === oldProps.checked && checked != null && elm.checked !== !!checked) {
+  if ('checked' in props && checked === oldProps.checked && elm.checked !== !!checked) {
     elm.checked = !!checked;
   }
 }

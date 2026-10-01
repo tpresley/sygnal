@@ -195,7 +195,7 @@ A driver is any function `sink$ => source`. Page-wide events: `DOM.select('docum
 - **Every intent action needs a model entry (SYG101), and every model entry needs a trigger (SYG102)**: an intent action, a built-in, or `next('X')`.
 - **EVENTS types must match exactly** between `event('X')` and `EVENTS.select('X')` (SYG105).
 - **Collection `from` must name an array field of the state** (SYG401).
-- **A controlled input needs an input listener**: `value={state.x}` plus `DOM.input('.x').value()`, otherwise a re-render resets the text (SYG111).
+- **A controlled input needs an input listener**: `value={state.x}` plus `DOM.input('.x').value()`, otherwise a re-render resets the text (SYG111). `value={null}` clears the field; leaving `value` out makes it uncontrolled.
 - Also: reducers return the complete new state (`{ ...state, ... }`); never mutate; no side effects in views or STATE reducers (use EFFECT or a driver).
 
 ## 6. Diagnostics

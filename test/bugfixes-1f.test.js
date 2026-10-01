@@ -496,13 +496,24 @@ describe('B-004: controlledInputModule', () => {
     controlledInputModule.update(vn({ value: '', checked: false }), vn({ value: '', checked: false }, elm))
     expect(elm).toEqual({ tagName: 'INPUT', value: '', checked: false })
   })
-  it('leaves matching elements, null props and changed props (propsModule handles those) alone', () => {
+  it('leaves matching elements, absent props and changed props (propsModule handles those) alone', () => {
     const elm = { tagName: 'INPUT', value: '5', checked: false }
     let writes = 0
     const spy = new Proxy(elm, { set: (o, k, v) => { writes++; o[k] = v; return true } })
     controlledInputModule.update(vn({ value: 5 }), vn({ value: 5 }, spy))
-    controlledInputModule.update(vn({ value: undefined }), vn({ value: undefined }, spy))
+    controlledInputModule.update(vn({}), vn({}, spy))
     controlledInputModule.update(vn({ value: 'a' }), vn({ value: 'b' }, spy))
+    expect(writes).toBe(0)
+  })
+
+  it('D49: a present-but-nullish value keeps an input at "" (and nullish checked at false)', () => {
+    const elm = { tagName: 'INPUT', value: 'typed', checked: true }
+    controlledInputModule.update(vn({ value: null, checked: null }), vn({ value: null, checked: null }, elm))
+    expect(elm.value).toBe('')
+    expect(elm.checked).toBe(false)
+    let writes = 0
+    const spy = new Proxy(elm, { set: (o, k, v) => { writes++; o[k] = v; return true } })
+    controlledInputModule.update(vn({ value: undefined }), vn({ value: undefined }, spy))
     expect(writes).toBe(0)
   })
 })
