@@ -67,7 +67,7 @@ export async function testingUtilityTests() {
     }
     Counter.initialState = { count: 0 }
     Counter.intent = ({ DOM }) => ({
-      INC: DOM.select('.btn').events('click'),
+      INC: DOM.select('.btn').events('click'), // sygnal-ignore SYG110 (intentionally unrendered: this test drives the action with simulateAction)
     })
     Counter.model = {
       INC: (state) => ({ ...state, count: state.count + 1 }),
@@ -92,7 +92,7 @@ export async function testingUtilityTests() {
     }
     App.initialState = { label: 'none' }
     App.intent = ({ DOM }) => ({
-      SET: DOM.select('.btn').events('click'),
+      SET: DOM.select('.btn').events('click'), // sygnal-ignore SYG110 (intentionally unrendered: this test drives the action with simulateAction)
     })
     App.model = {
       SET: (state, label) => ({ ...state, label }),
@@ -119,7 +119,7 @@ export async function testingUtilityTests() {
     }
     Counter.initialState = { count: 0 }
     Counter.intent = ({ DOM }) => ({
-      INC: DOM.select('.btn').events('click'),
+      INC: DOM.select('.btn').events('click'), // sygnal-ignore SYG110 (intentionally unrendered: this test drives the action with simulateAction)
     })
     Counter.model = {
       INC: (state) => ({ ...state, count: state.count + 1 }),
@@ -169,8 +169,8 @@ export async function testingUtilityTests() {
     }
     Counter.initialState = { count: 0 }
     Counter.intent = ({ DOM }) => ({
-      INC: DOM.select('.inc').events('click'),
-      DEC: DOM.select('.dec').events('click'),
+      INC: DOM.select('.inc').events('click'), // sygnal-ignore SYG110 (intentionally unrendered: this test drives the action with simulateAction)
+      DEC: DOM.select('.dec').events('click'), // sygnal-ignore SYG110 (intentionally unrendered: this test drives the action with simulateAction)
     })
     Counter.model = {
       INC: (state) => ({ ...state, count: state.count + 1 }),
@@ -204,7 +204,7 @@ export async function testingUtilityTests() {
     }
     App.initialState = { mode: 'a', result: 'none' }
     App.intent = ({ DOM }) => ({
-      ROUTE: DOM.select('.btn').events('click'),
+      ROUTE: DOM.select('.btn').events('click'), // sygnal-ignore SYG110 (intentionally unrendered: this test drives the action with simulateAction)
     })
     App.model = {
       ROUTE: {
