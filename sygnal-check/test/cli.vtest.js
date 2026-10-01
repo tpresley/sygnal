@@ -1,8 +1,17 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
+import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
 import { main } from '../src/cli.js'
+import * as files from '../src/files.js'
+
+// count expandInputs calls (1H-13: the CLI must expand its inputs once)
+vi.mock('../src/files.js', async (importOriginal) => {
+  const mod = await importOriginal()
+  return { ...mod, expandInputs: vi.fn(mod.expandInputs) }
+})
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const pkgRoot = path.resolve(here, '..')
@@ -75,6 +84,31 @@ describe('cli', () => {
     const r = run(['does-not-exist'])
     expect(r.code).toBe(2)
     expect(r.err).toContain('no such file or directory: does-not-exist')
+  })
+
+  it('globs honor --include-tests (1H-13)', () => {
+    // a temp project: test files inside the repo would be collected by the root vitest
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sygnal-check-'))
+    try {
+      fs.mkdirSync(path.join(dir, 'src'))
+      const comp = (name) => `function ${name}() { return <div className="a">x</div> }\n${name}.intent = ({ DOM }) => ({ GO: DOM.click('.b') })\n${name}.model = { GO: s => s }\nexport default ${name}\n`
+      fs.writeFileSync(path.join(dir, 'src', 'App.jsx'), comp('App'))
+      fs.writeFileSync(path.join(dir, 'src', 'App.test.jsx'), comp('Probe'))
+      const without = run(['src/**/*.jsx', '--json'], dir)
+      expect(JSON.parse(without.out).map(d => d.file)).toEqual(['src/App.jsx'])
+      const withTests = run(['src/**/*.jsx', '--json', '--include-tests'], dir)
+      expect(JSON.parse(withTests.out).map(d => d.file)).toEqual(['src/App.jsx', 'src/App.test.jsx'])
+      // a directory input behaves the same
+      expect(JSON.parse(run(['src', '--json'], dir).out).map(d => d.file)).toEqual(['src/App.jsx'])
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('expands the inputs once per run (1H-13)', () => {
+    files.expandInputs.mockClear()
+    run(['test/fixtures/bad/**/*.tsx'])
+    expect(files.expandInputs).toHaveBeenCalledTimes(1)
   })
 
   it('the bin script runs', () => {

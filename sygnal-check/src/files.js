@@ -57,6 +57,8 @@ export function globToRegExp(glob) {
 /**
  * Expand a list of paths / directories / globs into absolute file paths.
  * Directories are walked recursively (node_modules, dist etc. skipped).
+ * Test files (*.test.* / *.spec.*) found through a directory or a glob are
+ * included only with includeTests; a file named explicitly always is.
  */
 export function expandInputs(inputs, { cwd = process.cwd(), includeTests = false } = {}) {
   const out = new Set()
@@ -70,7 +72,7 @@ export function expandInputs(inputs, { cwd = process.cwd(), includeTests = false
       const base = path.resolve(cwd, baseSegs.join('/') || '.')
       const re = globToRegExp(path.resolve(cwd, norm).split(path.sep).join('/'))
       const files = []
-      walkDir(base, files, { includeTests: true })
+      walkDir(base, files, { includeTests })
       for (const f of files) if (re.test(f.split(path.sep).join('/'))) out.add(f)
       continue
     }

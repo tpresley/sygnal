@@ -10,9 +10,12 @@
  *     cwd?:          base for relative inputs (default process.cwd())
  *     strict?:       also run strict-mode rules (none yet — workstream 2A)
  *     rules?:        explicit rule list (defaults to the registry)
- *     includeTests?: include *.test.* / *.spec.* files when walking directories
+ *     includeTests?: include *.test.* / *.spec.* files found through directories or globs
  *     ignore?:       codes to drop entirely, e.g. ['SYG105']
  *   }
+ *
+ * checkFiles(files, options) → Diagnostic[]
+ *   the same for an already expanded list of absolute file paths (expandInputs)
  *
  * Diagnostic = the runtime Diagnostic shape (code, severity, component,
  * message, fix, docsUrl, text, data?) + file, line, column.
@@ -95,6 +98,12 @@ export function check(inputs = ['src'], options = {}) {
   const cwd = options.cwd ? path.resolve(options.cwd) : process.cwd()
   const list = Array.isArray(inputs) ? inputs : [inputs]
   const { files } = expandInputs(list, { cwd, includeTests: options.includeTests })
+  return checkFiles(files, { ...options, cwd })
+}
+
+/** check() for an already expanded list of absolute file paths (see expandInputs). */
+export function checkFiles(files, options = {}) {
+  const cwd = options.cwd ? path.resolve(options.cwd) : process.cwd()
   const project = buildProject(files, { cwd })
   const rules = options.rules || selectRules({ strict: options.strict })
   let diags = runRules(project, rules)

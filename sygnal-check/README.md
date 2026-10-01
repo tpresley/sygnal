@@ -28,7 +28,7 @@ Each line has the form `file:line:col CODE [severity] Component: message (fix)`.
 | `--json` | Print an array of diagnostics (see below) |
 | `--fail-on=warn\|error\|never` | Exit with code 1 when a diagnostic at this level or above exists. The default is `warn`. Info never fails the run |
 | `--verbose` | Also print info-level findings |
-| `--include-tests` | Also scan `*.test.*` / `*.spec.*` files (skipped by default) |
+| `--include-tests` | Also scan `*.test.*` / `*.spec.*` files found through directories or globs (skipped by default; a file named explicitly is always scanned) |
 | `--strict` | Canonical-form rules (SYG5xx). **Not implemented yet** |
 | `--graph` | Print the app graph. **Not implemented yet** |
 
