@@ -227,3 +227,25 @@ Let a child component pass data back to the parent's slot content — the parent
 - Detect function children in the pragma and preserve them as callbacks rather than evaluating them immediately
 - Falls back to static children if no function is provided
 - Requires Slots (feature #8) to be implemented first
+
+---
+
+## Agent Ergonomics (PLAN-1)
+
+### 14. Diagnostics, Strict Mode and Agent Tooling
+
+**Status:** `IN PROGRESS` (Phases 0–2 done; agent context and docs in Phase 3; eval re-run and release in Phase 4). Plan: [`dev-plans/PLAN-1.md`](dev-plans/PLAN-1.md).
+
+Make Sygnal's silent failures loud and give coding agents one unambiguous way to write each concept, measured with an agent eval against React.
+
+**Implementation:**
+- Coded diagnostics (`SYGnnn`) with a fix and a docs link for every runtime warning and error; modes `off` / `collect` / `warn` / `error` via `run()`'s `diagnostics` option
+- `sygnal/diagnostics` dev entry: wiring, selector/isolation, EVENTS, state-shape, RxJS-operator and Collection checks, plus `inspect()` (a machine-readable app graph); 0 bytes in app bundles
+- `sygnal-check` static checker (separate package): the same wiring rules across a project, strict mode (`--strict`, `--fix`), `--graph`, `explain`, and an MCP server
+- Canonical forms (object-form model entries, `event()`, `EFFECT`, `ABORT`, `CHILD.select(Comp)`, destructured views) with strict-mode rules SYG501–507; other forms keep working
+- Typed links: `ActionsOf`, `IntentSources`, the `SygnalEvents` registry, typed `CHILD.select()`, typed Collection `from`
+- `renderComponent()` test helpers: `simulateEvent`, `ready`, `next`, `settle`, `html`, `sinkValues`/`emitted`, `expectNoDiagnostics`, `inspect`
+- Vite plugin: dev-only diagnostics injection, `sygnal-check` in the dev server, Vitest setup, Vike/Astro dev mode, Vite 7 and 8 JSX
+- Framework fixes found along the way: per-action state snapshots for non-STATE sinks, fully controlled inputs, `driverFromAsync` `errors()`, Collection reorders and nested disposal, stale text and className patches
+- Agent context: `llms.txt`, the `sygnal-dev` skill, and the docs (error reference, diagnostics, strict mode, agents)
+- Eval harness (`evals/agent-ergonomics`): Sygnal vs React tasks with hidden acceptance tests; baseline recorded, re-run after the changes
