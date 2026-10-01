@@ -1,0 +1,51 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`bad fixtures > collection-from.jsx 1`] = `
+[
+  "test/fixtures/bad/collection-from.jsx:13:29 SYG401 List: <Collection from="item"> but 'item' is not a key of List.initialState (keys: items, config, title) (add item: [] to List.initialState, or point 'from' at an existing array field)",
+  "test/fixtures/bad/collection-from.jsx:14:29 SYG401 List: <collection from="config"> but List.initialState.config is not an array (make config an array in initialState)",
+]
+`;
+
+exports[`bad fixtures > events-no-counterpart.jsx 1`] = `
+[
+  "test/fixtures/bad/events-no-counterpart.jsx:15:14 SYG105 Editor: EVENTS type 'DOC_SAVED' is emitted but nothing in the scanned files selects it (listen with EVENTS.select('DOC_SAVED') in the receiving component's intent, or fix the event name)",
+  "test/fixtures/bad/events-no-counterpart.jsx:16:28 SYG105 Editor: EVENTS type 'DOC_PUBLISHED' is emitted but nothing in the scanned files selects it (listen with EVENTS.select('DOC_PUBLISHED') in the receiving component's intent, or fix the event name)",
+  "test/fixtures/bad/events-no-counterpart.jsx:17:40 SYG105 Editor: EVENTS type 'DOC_SHARED' is emitted but nothing in the scanned files selects it (listen with EVENTS.select('DOC_SHARED') in the receiving component's intent, or fix the event name)",
+  "test/fixtures/bad/events-no-counterpart.jsx:25:21 SYG105 StatusBar: EVENTS.select('DOC_SAVE') but nothing in the scanned files emits 'DOC_SAVE' (emit it from a model entry with EVENTS: event('DOC_SAVE', …), or fix the event name)",
+]
+`;
+
+exports[`bad fixtures > intent-model-mismatch.jsx 1`] = `
+[
+  "test/fixtures/bad/intent-model-mismatch.jsx:18:3 SYG101 Form: intent action 'SAVE' has no model entry, so it does nothing (add 'SAVE' to Form.model, or fix the spelling to match an existing model key)",
+  "test/fixtures/bad/intent-model-mismatch.jsx:24:3 SYG102 Form: model entry 'SAV' is never triggered: no intent action, built-in action or next('SAV') call uses it (add 'SAV' to Form.intent, call next('SAV') from another entry, or remove it)",
+  "test/fixtures/bad/intent-model-mismatch.jsx:27:3 SYG102 Form: model entry 'LOG_IT' is never triggered: no intent action, built-in action or next('LOG_IT') call uses it (add 'LOG_IT' to Form.intent, call next('LOG_IT') from another entry, or remove it)",
+  "test/fixtures/bad/intent-model-mismatch.jsx:36:33 SYG101 Orphan: intent action 'GO' has no model entry, so it does nothing (add 'GO' to Orphan.model, or fix the spelling to match an existing model key)",
+  "test/fixtures/bad/intent-model-mismatch.jsx:45:3 SYG102 Silent: model entry 'STOP' is never triggered: no intent action, built-in action or next('STOP') call uses it (add an intent that returns 'STOP', call next('STOP') from another entry, or remove it)",
+]
+`;
+
+exports[`bad fixtures > parent-selects-child.jsx 1`] = `
+[
+  "test/fixtures/bad/parent-selects-child.jsx:24:21 SYG104 App: selector '.remove' targets .remove, which is only rendered inside child component <TodoItem>; parents can't see DOM events inside child components (handle it in <TodoItem> and send it up via PARENT or EVENTS)",
+  "test/fixtures/bad/parent-selects-child.jsx:25:20 SYG104 App: selector '.badge' targets .badge, which is only rendered inside child component <TodoItem> (rendered by TodoItem > Badge); parents can't see DOM events inside child components (handle it in <TodoItem> and send it up via PARENT or EVENTS)",
+  "test/fixtures/bad/parent-selects-child.jsx:26:20 SYG104 App: selector '.panel-close' targets .panel-close, which is only rendered inside child component <Panel>; parents can't see DOM events inside child components (handle it in <Panel> and send it up via PARENT or EVENTS)",
+  "test/fixtures/bad/parent-selects-child.jsx:27:20 SYG104 App: selector '.panel' targets .panel, which is only rendered inside child component <Panel>; parents can't see DOM events inside child components (handle it in <Panel> and send it up via PARENT or EVENTS)",
+]
+`;
+
+exports[`bad fixtures > selector-typo.jsx 1`] = `
+[
+  "test/fixtures/bad/selector-typo.jsx:20:15 SYG110 App: selector '.add-todo-button' targets .add-todo-button, but App's view never renders that class, so this action never fires (did you mean '.add-todo-btn'? The view renders className="add-todo-btn")",
+  "test/fixtures/bad/selector-typo.jsx:23:21 SYG110 App: selector '#counter' targets #counter, but App's view never renders that id, so this action never fires (did you mean '#count'? The view renders id="count")",
+  "test/fixtures/bad/selector-typo.jsx:24:19 SYG110 App: selector 'ul.todo-list > li.todo-itm' targets .todo-itm, but App's view never renders that class, so this action never fires (did you mean '.todo-item'? The view renders className="todo-item")",
+]
+`;
+
+exports[`bad fixtures > typed.tsx 1`] = `
+[
+  "test/fixtures/bad/typed.tsx:13:21 SYG110 Drawer: selector '.drawer-toggel' targets .drawer-toggel, but Drawer's view never renders that class, so this action never fires (did you mean '.drawer-toggle'? The view renders className="drawer-toggle")",
+  "test/fixtures/bad/typed.tsx:14:3 SYG101 Drawer: intent action 'CLOSE' has no model entry, so it does nothing (add 'CLOSE' to Drawer.model, or fix the spelling to match an existing model key)",
+]
+`;
