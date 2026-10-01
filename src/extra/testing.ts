@@ -215,10 +215,11 @@ function find(v: any, cs: string[], chain: any[] = []): any[] | undefined {
 /** Internal (perf-guard tests): number of SYG104 tree walks */
 export const _testingStats = {walks: 0};
 
-// 1H-5: live renderComponent instances; the explicit diagnostics config from before the
-// outermost one is restored when the last one is disposed
+// 1H-5: live renderComponent instances; the explicit diagnostics config and the strict flag
+// (R4) from before the outermost one are restored when the last one is disposed
 let active = 0;
 let savedConfig: ReturnType<typeof _getDiagnosticsConfig>;
+let savedStrict: any;
 
 export function renderComponent(
   componentDef: any,
@@ -228,11 +229,13 @@ export function renderComponent(
   const {intent, model = {}} = componentDef;
 
   const prevMode = getDiagnosticsMode();
-  if (!active++) savedConfig = _getDiagnosticsConfig();
-  configureDiagnostics({mode: diagnostics || (prevMode == 'off' ? 'collect' : prevMode)});
   // 2A: strict flag on the core bridge (read by the 'sygnal/diagnostics' strict checks)
   const core = (globalThis as any).__SYGNAL_DIAGNOSTICS__;
-  const prevStrict = core.strict;
+  if (!active++) {
+    savedConfig = _getDiagnosticsConfig();
+    savedStrict = core.strict;
+  }
+  configureDiagnostics({mode: diagnostics || (prevMode == 'off' ? 'collect' : prevMode)});
   if (strict !== undefined) core.strict = strict;
   const collected: Diagnostic[] = [];
   const offDiag = onDiagnostic(d => collected.push(d));
@@ -320,8 +323,10 @@ export function renderComponent(
   const restore = () => {
     offCheck();
     offDiag();
-    if (strict !== undefined) core.strict = prevStrict;
-    if (!--active) configureDiagnostics(savedConfig);
+    if (!--active) {
+      configureDiagnostics(savedConfig);
+      core.strict = savedStrict;
+    }
   };
 
   const noop = () => {};
