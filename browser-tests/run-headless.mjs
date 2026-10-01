@@ -19,7 +19,7 @@ const TIMEOUT = 30000;
  */
 const EXPECTED_CONSOLE_ERRORS = [
   { test: 'composition > isolatedState: throws without flag',
-    match: [/\[Sygnal SYG408\] App: Sub-component threw/, /SYG405\] Bad:/] },
+    match: [/\[Sygnal SYG405\] Bad: .*Sub-component threw/] },
   { test: 'features > Error without onError renders data-sygnal-error',
     match: [/\[Sygnal SYG406\] Broken: View threw/, /no handler/] },
   { test: 'features > Reducer error preserves previous state',
