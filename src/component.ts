@@ -734,7 +734,7 @@ class Component {
 
         const actionSinkKey = `${action}::${sink}`
         if (seenActionSinks.has(actionSinkKey)) {
-          warn('SYG213', this, `Duplicate model entry for action '${action}' on sink '${sink}'; only the last one runs`, 'Remove the duplicate')
+          warn('SYG213', this, `Duplicate model entry for action '${action}' on sink '${sink}'; both run`, 'Remove the duplicate')
         }
         seenActionSinks.add(actionSinkKey)
         ;(modelMap[action] ||= []).push(sink)  // [diagnostics hook]
