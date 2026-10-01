@@ -46,13 +46,13 @@ node scripts/gen-error-docs.mjs --check     # error reference matches explanatio
 npm run build --prefix docs                 # docs site + link check
 ```
 
-All of them must pass. `npm test` needs the `sygnal-check` install above (the Vite plugin tests load it). Then check the size gate: the gzipped kanban production bundle must stay within the agreed limit (41,805 B for 5.4.0). Run it from inside the example:
+All of them must pass. `npm test` needs the `sygnal-check` install above (the Vite plugin tests load it). Then check the size gate: the gzipped kanban production bundle must stay within the agreed limit (42,300 B, D48):
 
 ```bash
-cd examples/kanban
-npx vite build --outDir /tmp/kb && gzip -c /tmp/kb/assets/index-*.js | wc -c
-cd ../..
+node scripts/size-gate.mjs
 ```
+
+It builds `examples/kanban` twice (needs `npm run build` and `npm install --prefix examples/kanban`) and prints both sizes. The gated number is the build with `sygnal({ nativeGlobalThis: false })`, so it keeps measuring the core plus xstream's original dependencies; the default build, with the `globalthis` alias (G-099), is reported for information. It exits non-zero when the gated number is over budget.
 
 ## 3. Check the package contents
 

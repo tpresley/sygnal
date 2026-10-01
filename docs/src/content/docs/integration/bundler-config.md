@@ -45,6 +45,7 @@ The plugin detects the `run()` call, finds the imported root component, and auto
 | `check.ignore` | `string[]` | `diagnostics.ignore` | Codes to drop |
 | `check.overlay` | `'error' \| false` | `'error'` | Whether error-severity findings open Vite's error overlay |
 | `vitestSetup` | `boolean` | `true` | Under Vitest, add `sygnal/diagnostics` to `test.setupFiles` |
+| `nativeGlobalThis` | `boolean` | `true` | Resolve xstream's `globalthis` polyfill to the native `globalThis` (see [below](#native-globalthis)) |
 
 ```javascript
 sygnal({
@@ -55,7 +56,7 @@ sygnal({
 
 ### What the plugin does in dev
 
-Everything below happens only in `vite` / `vite dev`. A production build (`vite build`) gets the JSX configuration and nothing else: no flags, checks, wrappers or dev client.
+Everything below happens only in `vite` / `vite dev`. A production build (`vite build`) gets the JSX configuration and the [`globalthis` alias](#native-globalthis), and nothing else: no flags, checks, wrappers or dev client.
 
 - **Diagnostics.** Every file that imports `run` from `sygnal` gets a dev flag (runtime diagnostics in `'warn'` mode) and imports of `sygnal/diagnostics` (the dev checks) and `virtual:sygnal/dev` (which logs `sygnal-check` results in the browser console). They're added on an existing line, so line numbers and source maps don't change. A mode other than `'warn'`, or an ignore list, is passed to `run()` as its `diagnostics` option, unless the `run()` call sets that option itself. Opt out for one app with `run(App, drivers, { diagnostics: 'off' })`, or for the whole server with `sygnal({ diagnostics: 'off' })`.
 - **Vike and Astro.** Their apps are started by Sygnal's own client entries, which get the same dev setup (see [Vike](/integration/vike/#diagnostics-in-dev) and [Astro](/integration/astro/#diagnostics-in-dev)).
@@ -65,6 +66,10 @@ Everything below happens only in `vite` / `vite dev`. A production build (`vite 
 ### Vitest
 
 Under Vitest, the plugin configures JSX and adds `sygnal/diagnostics` to `test.setupFiles` (merged with your own setup files, never added twice), so [`renderComponent()`](/integration/testing/) tests get the dev checks. It also allows that file's directory in `server.fs.allow`, so the setup works in `jsdom` and `happy-dom` environments with a linked Sygnal. Set `vitestSetup: false` to manage the setup yourself. Nothing else is injected under Vitest: no dev flags, HMR wiring or checker, because `renderComponent()` manages the diagnostics mode per test.
+
+### Native globalThis
+
+xstream loads the `globalthis` npm polyfill, which brings a chain of small packages (about 4 KB gzipped) into every app. Every browser and Node version Sygnal supports has a native `globalThis`, so the plugin adds a `resolve.alias` from `globalthis` to a stub in the Sygnal package (`sygnal/shims/globalthis`) that returns it. The alias applies in the dev server (including dependency pre-bundling), `vite build` and Vitest; the [Astro integration](/integration/astro/) adds it in `astro build` too. Set `nativeGlobalThis: false` to keep the polyfill package. Without the plugin, add the same alias yourself: `resolve: { alias: [{ find: /^globalthis$/, replacement: 'sygnal/shims/globalthis' }] }`.
 
 ### JSX and Vite versions
 

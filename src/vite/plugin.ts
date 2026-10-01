@@ -79,6 +79,13 @@
  *      'sygnal' import gets the run() wrapper too: every `diagnostics` mode
  *      and ignore list works for islands. The sygnal/astro integration adds
  *      this plugin in `astro dev`.
+ *   8. `nativeGlobalThis` (G-099, default true): a `resolve.alias` from
+ *      `globalthis` (xstream's `require('globalthis').getPolyfill()`) to the
+ *      package's dist/shims/globalthis.cjs, which returns the native
+ *      globalThis. Drops the polyfill chain (~4 KB gzip) from every bundle,
+ *      in dev (including pre-bundling), build and Vitest. Dependencies left
+ *      external (SSR, Vitest) still load the real package from Node. The
+ *      sygnal/astro integration adds the same alias in `astro build`.
  *
  * Why not Vite's `define`? Vite's dependency optimizer does not apply user
  * `define` replacements to pre-bundled dependencies (only process.env.NODE_ENV),
@@ -115,6 +122,7 @@ import path from 'node:path'
 import { createRequire } from 'node:module'
 // @ts-ignore
 import { pathToFileURL } from 'node:url'
+import { globalThisAlias } from './globalthis'
 
 const nodeProcess: any = (globalThis as any).process
 
@@ -186,6 +194,15 @@ export interface SygnalPluginOptions {
    * @default true
    */
   vitestSetup?: boolean
+
+  /**
+   * Resolve xstream's `globalthis` dependency to a tiny stub that returns the
+   * native `globalThis`, instead of the npm polyfill and its dependency chain
+   * (~4 KB gzip), in dev, build and Vitest (a `resolve.alias`).
+   * false: keep the original package.
+   * @default true
+   */
+  nativeGlobalThis?: boolean
 }
 
 // Virtual modules (dev server only)
@@ -203,7 +220,7 @@ const REINSTALL_IMPORT = `import { installChecks as __sygnalInstallChecks } from
 const REINSTALL_CALL = 'try { __sygnalInstallChecks() } catch (e) { console.warn(e) }\n'
 
 export default function sygnal(options: SygnalPluginOptions = {}) {
-  const { disableJsx = false, disableHmr = false, vitestSetup = true } = options
+  const { disableJsx = false, disableHmr = false, vitestSetup = true, nativeGlobalThis = true } = options
   const diagnostics = normalizeDiagnostics(options.diagnostics)
   const devOn = diagnostics.mode !== 'off'
   // A mode other than the flag's 'warn', or an ignore list, needs run()'s option
@@ -234,6 +251,11 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
           noExternal: ['sygnal'],
         },
       }
+
+      // G-099: xstream's `require('globalthis')` gets the native-globalThis
+      // stub. An alias (not resolveId) so it also applies to pre-bundling.
+      const alias = nativeGlobalThis ? globalThisAlias() : []
+      if (alias.length) result.resolve = { alias }
 
       if (!disableJsx) {
         result.oxc = {

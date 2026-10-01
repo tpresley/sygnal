@@ -29,6 +29,13 @@ export interface SygnalAstroOptions {
    * @default true
    */
   check?: boolean | CheckPluginOptions;
+  /**
+   * Resolve xstream's `globalthis` dependency to a stub returning the native
+   * `globalThis` (see the sygnal/vite `nativeGlobalThis` option), in
+   * `astro dev` and `astro build`. false: keep the polyfill package.
+   * @default true
+   */
+  nativeGlobalThis?: boolean;
 }
 
 /**

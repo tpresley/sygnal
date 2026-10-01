@@ -1,4 +1,5 @@
 import sygnalVite from '../vite/plugin'
+import { globalThisAlias } from '../vite/globalthis'
 import type { DiagnosticsMode, DiagnosticsPluginOptions, CheckPluginOptions } from '../vite/plugin'
 
 const SYGNAL_RENDERER_NAME = '@sygnal/astro'
@@ -26,6 +27,13 @@ export interface SygnalAstroOptions {
   diagnostics?: DiagnosticsMode | DiagnosticsPluginOptions;
   /** Run sygnal-check in `astro dev` (see the sygnal/vite `check` option). @default true */
   check?: boolean | CheckPluginOptions;
+  /**
+   * Resolve xstream's `globalthis` dependency to a stub returning the native
+   * `globalThis` (see the sygnal/vite `nativeGlobalThis` option), in
+   * `astro dev` and `astro build`. false: keep the polyfill package.
+   * @default true
+   */
+  nativeGlobalThis?: boolean;
 }
 
 export default function sygnalAstroIntegration(options: SygnalAstroOptions = {}) {
@@ -49,7 +57,7 @@ export default function sygnalAstroIntegration(options: SygnalAstroOptions = {})
         // Dev mode (G-014): islands are started by sygnal/astro/client, which
         // user code never imports, so the sygnal Vite plugin wraps that entry
         // in dev to set the dev flag and load the runtime checks first. It
-        // also runs sygnal-check. Nothing is added to `astro build`.
+        // also runs sygnal-check. `astro build` only gets the `globalthis` alias.
         if (command === 'dev') {
           vite.plugins = [sygnalVite({
             disableJsx: true,
@@ -57,7 +65,12 @@ export default function sygnalAstroIntegration(options: SygnalAstroOptions = {})
             vitestSetup: false,
             diagnostics: options.diagnostics,
             check: options.check,
+            nativeGlobalThis: options.nativeGlobalThis,
           })]
+        } else if (options.nativeGlobalThis !== false) {
+          // G-099: the same `globalthis` alias the plugin adds in dev
+          const alias = globalThisAlias()
+          if (alias.length) vite.resolve = { alias }
         }
 
         updateConfig({ vite })

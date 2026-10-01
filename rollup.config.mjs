@@ -143,6 +143,14 @@ export default [
 		]
   },
 
+  // sygnal/vite aliases xstream's `globalthis` dependency to this stub (G-099).
+  // CommonJS: xstream require()s it. `exports: 'default'` → module.exports = fn.
+  {
+    input: 'src/vite/globalthis-shim.ts',
+    output: { file: 'dist/shims/globalthis.cjs', format: 'cjs', exports: 'default' },
+    plugins: [typescript({ tsconfig: './tsconfig.json' })]
+  },
+
   {
     input: 'src/vite/plugin.ts',
     external: [],

@@ -59,8 +59,8 @@ Same as PLAN-1 §1 (responsibilities, isolation-worktree subagents fast-forwarde
   - `node scripts/check-doc-samples.mjs`;
   - `node scripts/gen-error-docs.mjs --check`;
   - `npm --prefix docs run build`;
-  - kanban gzip at or under budget, measured from inside `examples/kanban`.
-  - **Size budget:** 41,805 B. Any growth is recorded with its reason. A workstream may propose a re-baseline, but only the user decides one.
+  - `node scripts/size-gate.mjs`: kanban gzip at or under budget, measured with `sygnal({ nativeGlobalThis: false })` (core + xstream's original deps); the default, `globalthis`-aliased size is reported only (2-D).
+  - **Size budget:** 42,300 B (D48; was 41,805 B). Any growth is recorded with its reason. A workstream may propose a re-baseline, but only the user decides one.
 - **Agent-facing sync rule:** any API or behaviour change updates `llms.txt` (≤ 250 lines; byte-identical copy in `docs/public`), `skills/sygnal-dev/SKILL.md`, the template `AGENTS.md` files and the docs in the same workstream. After a skill change, the installed skill is re-synced before any eval run (PLAN-1 D35).
 - **Experiments:** each E- task has a hypothesis, a prototype on an `exp/*` branch, a measurement and a written **decision record** (adopt / adapt / drop) in the tracker. **Nothing from an experiment merges without the user deciding.** Prototypes may break the size budget; only adopted work has to meet it.
 
