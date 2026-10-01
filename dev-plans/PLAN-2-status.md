@@ -27,7 +27,7 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | 0-C | Tier 3 tasks | 🟡 | | subagent | | |
 | 1-A | Rendering and props (B-014, B-015, B-017, G-033) | 🟡 | | subagent | | |
 | 1-B | State and components (B-016, G-027/G-044, G-036) | 🟡 | | subagent | | |
-| 1-C | Drivers (G-069) | 🟡 | | subagent | | |
+| 1-C | Drivers (G-069) | 🟡 | | subagent | | Same agent as 1-F |
 | 1-D | Integrations (B-020, G-046, G-037) | 🟡 | | subagent | | |
 | 1-E | Types and build hygiene (B-002/G-012, G-019, G-075, G-076) | 🟡 | | subagent | | G-007 held for the user |
 | 1-F | Examples (G-052, G-063) | 🟡 | | subagent | | |
@@ -50,7 +50,7 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | # | Date | Decision | By | Rationale |
 |---|---|---|---|---|
 | D39 | 2026-10-01 | `plan2-integration` cut from `main` after the 5.4.0 merge; PLAN-2 commits cherry-picked onto it | Coordinator | PLAN-2 §1 |
-| D40 | 2026-10-01 | 0-B and 0-C build and self-verify without paid eval runs; full runs and pilots wait for Q2 | Coordinator | PLAN-2 §8 (user approves budgets per phase) |
+| D40 | 2026-10-01 | 0-B and 0-C build and self-verify without paid eval runs (0-B may run ≤ 2 smoke trials, `v2-smoke`, to validate the headless runner); full runs and pilots wait for Q2 | Coordinator | PLAN-2 §8 (user approves budgets per phase) |
 
 ## Bugs & Gaps Found
 
