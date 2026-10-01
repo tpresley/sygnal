@@ -55,7 +55,9 @@ const keyOf = (scopes: Scope[]): string => scopes.map(s => `${s.type[0]}:${s.sco
 
 let pending: Array<{key: string; selector: string}> = []
 let tracked = new WeakMap<object, Tracked>()
-let owners = new Map<string, string>()
+/** isolation-scope key -> the component instance that owns it (latest wins) */
+let owners = new Map<string, any>()
+const ownerKeys = new WeakMap<object, string>()
 let matched = new Set<string>()
 let viewTokens = new WeakMap<object, string>()
 
@@ -110,7 +112,7 @@ function childNameFor(t: Tracked, elements: Element[]): string | undefined {
     for (let i = depth; i < ns.length; i++) {
       if (ns[i].type !== 'total') continue
       const owner = owners.get(keyOf(ns.slice(0, i + 1)))
-      if (owner) return owner
+      if (owner) return nameOf(owner)
       break
     }
   }
@@ -193,7 +195,8 @@ export const domCheck: DiagnosticCheck = {
     if (!source || !source._isolateModule || !Array.isArray(source.namespace)) return
     const key = keyOf(scopesOf(source.namespace))
     const name = nameOf(component)
-    owners.set(key, name)
+    owners.set(key, component)
+    ownerKeys.set(component, key)
     const selectors = [...new Set(claimed.filter(p => p.key === key).map(p => p.selector))]
     if (selectors.length) tracked.set(component, {name, source, selectors, renders: 0, crossed: new Set()})
   },
@@ -212,6 +215,8 @@ export const domCheck: DiagnosticCheck = {
   },
 
   onDispose(component) {
+    const key = ownerKeys.get(component)
+    if (key !== undefined && owners.get(key) === component) owners.delete(key)
     const t = tracked.get(component)
     if (!t) return
     t.disposed = true
