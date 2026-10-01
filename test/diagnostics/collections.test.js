@@ -51,4 +51,22 @@ describe('SYG401 — Collection from field', () => {
     await settle(80)
     expect(diagnostics('SYG401')).toEqual([])
   })
+
+  // 1H-10 (D22): every defined `from` is reported by the core alone
+  for (const [label, from] of [['a number', 5], ['an array', [{ id: 1, title: 'a' }]], ['a boolean', true]]) {
+    it(`from = ${label}: only the core's SYG412, no SYG401 from the check`, async () => {
+      vi.spyOn(console, 'error').mockImplementation(() => {})
+      t = renderComponent(listOf(from, { items: [] }))
+      await settle(120)
+      expect(diagnostics('SYG401')).toEqual([])
+      expect(diagnostics('SYG412')).toHaveLength(1)
+    })
+  }
+
+  it('a missing from on a non-array state is still reported by the check', async () => {
+    t = renderComponent(listOf(undefined, { items: [] }))
+    await settle(120)
+    expect(diagnostics('SYG401')).toHaveLength(1)
+  })
 })
+

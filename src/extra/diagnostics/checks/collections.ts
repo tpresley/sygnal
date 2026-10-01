@@ -1,5 +1,6 @@
 /**
- * SYG401 — <Collection from=...> field is missing or not an array (warn).
+ * SYG401 — <Collection> has no `from` and the whole state is not an array (warn).
+ * A defined `from` is checked by the core (D22).
  *
  * Reported through diagnostics in addition to the existing console output.
  *
@@ -31,24 +32,20 @@ function checkCollection(component: any, el: any): void {
 
   let problem: string | undefined
   let fix = `Pass the name of an array field in ${name}'s state, e.g. <Collection of={${ofName}} from="items" />, and initialize that field to [] in initialState`
-  if (from === undefined) {
-    if (!Array.isArray(state) && !(state && Array.isArray(state.value))) {
-      problem = `has no 'from' prop, so it uses ${name}'s whole state, which is ${describe(state)}, not an array`
-    }
-  } else if (typeof from === 'string' || (from && typeof from === 'object' && !Array.isArray(from))) {
-    // String fields and lens objects are reported by the core itself (SYG401/SYG412,
-    // retrofitted in 1E) in every diagnostics mode, so this check doesn't duplicate them.
-    return
-  } else if (!Array.isArray(from)) {
-    problem = `has an invalid 'from' prop (${describe(from)})`
+  // Every defined `from` (string field, lens object, or an invalid value) is reported by
+  // the core itself (SYG401/SYG412, retrofitted in 1E) in every diagnostics mode (D22), so
+  // this check only covers a missing `from`.
+  if (from !== undefined) return
+  if (!Array.isArray(state) && !(state && Array.isArray(state.value))) {
+    problem = `has no 'from' prop, so it uses ${name}'s whole state, which is ${describe(state)}, not an array`
   }
 
-  if (!problem || !once(`SYG401:${name}:${typeof from === 'string' ? from : typeof from}`)) return
+  if (!problem || !once(`SYG401:${name}:undefined`)) return
   reportSafely('SYG401', {
     component,
     message: `<Collection of={${ofName}}> ${problem}, so it renders no items`,
     fix,
-    data: {from: typeof from === 'string' ? from : typeof from, of: ofName},
+    data: {from: 'undefined', of: ofName},
   })
 }
 
