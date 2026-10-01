@@ -220,6 +220,27 @@ describe('vite plugin — dependency scan', () => {
     // From the repo root, 'sygnal' resolves to this checkout (not node_modules)
     expect(configure(sygnal(), { config: { root: REPO } }).optimizeDeps.include).toBeUndefined()
   })
+
+  // G-098: the excluded Vike client entry imports 'sygnal'; Vite doesn't discover the
+  // imports of an excluded dependency, so in a Vike app whose pages reach sygnal only through
+  // the JSX runtime, 'sygnal' (and its CommonJS xstream) was served unbundled and hydration
+  // failed ("does not provide an export named 'MemoryStream'").
+  it("pre-bundles 'sygnal' for an installed sygnal in dev (G-098)", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sygnal-g098-'))
+    try {
+      const pkg = path.join(dir, 'node_modules', 'sygnal')
+      fs.mkdirSync(pkg, { recursive: true })
+      fs.writeFileSync(path.join(pkg, 'package.json'), JSON.stringify({ name: 'sygnal', main: 'index.js' }))
+      fs.writeFileSync(path.join(pkg, 'index.js'), 'module.exports = {}')
+      expect(configure(sygnal(), { config: { root: dir } }).optimizeDeps.include).toEqual(['sygnal/diagnostics', 'sygnal'])
+      expect(configure(sygnal({ diagnostics: 'off' }), { config: { root: dir } }).optimizeDeps.include).toEqual(['sygnal'])
+      // not in a build, and not under Vitest
+      expect(configure(sygnal(), { command: 'build', config: { root: dir } }).optimizeDeps).toBeUndefined()
+      expect(configure(sygnal(), { vitest: true, config: { root: dir } }).optimizeDeps).toBeUndefined()
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true })
+    }
+  })
 })
 
 describe('vite plugin — Vike and Astro dev mode (deliverable 4, G-014)', () => {

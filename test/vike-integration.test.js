@@ -9,12 +9,42 @@ import { describe, it, expect } from 'vitest'
  */
 
 // Import the built config
-import vikeConfig from '../dist/vike/+config.js'
+import vikeConfig from '../dist/vike/config/+config.js'
 
 // Import onRenderHtml directly (we mock the vike/server dependency)
 // We test renderToString integration separately since onRenderHtml
 // depends on vike/server which isn't installed.
 import { renderToString } from '../dist/index.esm.js'
+import { createRequire } from 'node:module'
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+
+// G-083: Vike resolves `extends` pointer imports with require.resolve() and loads the file
+// with import(). A CommonJS target gave `unexpected export { module.exports }`; an ESM
+// file in a package without "type" made Node warn MODULE_TYPELESS_PACKAGE_JSON. Vike
+// only treats an npm import as an extension config when the file is named `+config.js`.
+describe('vike-sygnal config entry (G-083)', () => {
+  const require = createRequire(import.meta.url)
+  for (const spec of ['sygnal/config', 'sygnal/vike', 'sygnal/vike/config']) {
+    it(`${spec} resolves (require and import) to an ESM +config.js`, async () => {
+      const file = require.resolve(spec)
+      expect(file).toMatch(/[/\\]\+config\.js$/)
+      expect(fileURLToPathSafe(import.meta.resolve(spec))).toBe(file)
+      const pkg = JSON.parse(readFileSync(join(dirname(file), 'package.json'), 'utf8'))
+      expect(pkg.type).toBe('module')
+      // Vike checks the extension's `name` setting against the nearest package.json
+      const rootPkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
+      expect([pkg.name, pkg.version]).toEqual([rootPkg.name, rootPkg.version])
+      const ns = await import(spec)
+      expect(Object.keys(ns)).toEqual(['default'])
+      expect(ns.default.name).toBe('sygnal')
+    })
+  }
+})
+
+function fileURLToPathSafe(url) {
+  return decodeURIComponent(new URL(url).pathname)
+}
 
 describe('vike-sygnal config', () => {
   it('has the correct extension name', () => {

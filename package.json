@@ -53,18 +53,15 @@
     },
     "./vike": {
       "types": "./src/vike/types.ts",
-      "import": "./dist/vike/+config.js",
-      "require": "./dist/vike/+config.cjs.js"
+      "default": "./dist/vike/config/+config.js"
     },
     "./vike/config": {
       "types": "./src/vike/types.ts",
-      "import": "./dist/vike/+config.js",
-      "require": "./dist/vike/+config.cjs.js"
+      "default": "./dist/vike/config/+config.js"
     },
     "./config": {
       "types": "./src/vike/types.ts",
-      "import": "./dist/vike/+config.js",
-      "require": "./dist/vike/+config.cjs.js"
+      "default": "./dist/vike/config/+config.js"
     },
     "./vike/onRenderHtml": {
       "import": "./dist/vike/onRenderHtml.mjs",

@@ -35,7 +35,7 @@ declare global {
 
 /**
  * The Sygnal extension for Vike: put it in `extends` of your root +config.
- * (Declared here; the value is the package's vike/+config entry.)
+ * (Declared here; the value is the package's dist/vike/config/+config.js entry.)
  */
 declare const vikeSygnal: {
   name: 'sygnal'

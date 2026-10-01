@@ -202,13 +202,26 @@ export default [
   },
 
   {
+    // G-083: Vike resolves `extends` pointer imports with require.resolve(), loads them with
+    // import(), and treats an npm import as an extension config only when the file is named
+    // `+config.js`. So there is one ESM `+config.js`, in a folder whose package.json says
+    // "type": "module" (the root package has no "type"; Node would warn
+    // MODULE_TYPELESS_PACKAGE_JSON), and no CommonJS build (import() of one adds a
+    // `module.exports` export, which Vike warns about). Vike reads the extension's name and
+    // version from the nearest package.json, so that file repeats them.
     input: 'src/vike/+config.ts',
     external: [],
     output: [
-      { file: 'dist/vike/+config.cjs.js', format: 'cjs', ...sourcemapOptions },
-      { file: 'dist/vike/+config.js', format: 'es', ...sourcemapOptions }
+      { file: 'dist/vike/config/+config.js', format: 'es', ...sourcemapOptions }
     ],
 		plugins: [
+			{
+				name: 'sygnal-esm-folder',
+				generateBundle() {
+					const folderPkg = { name: pkg.name, version: pkg.version, private: true, type: 'module' }
+					this.emitFile({ type: 'asset', fileName: 'package.json', source: JSON.stringify(folderPkg, null, 2) + '\n' })
+				},
+			},
 			typescript({ tsconfig: './tsconfig.json' }),
 			resolve({ extensions: ['.mjs', '.js', '.ts', '.json'] }),
 			commonjs()
