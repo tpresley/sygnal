@@ -1815,15 +1815,17 @@ function injectComponents(currentElement: any, components: Record<string, any>, 
   if (isComponent) {
     id  = getComponentIdFromElement(currentElement, path, parentId)
     let component = components[id]
-    // Annotate the injected VNode with its READY state (non-mutating)
-    if (readyMap && id && component && typeof component === 'object' && component.sel) {
+    // Mark an injected VNode that is NOT ready (non-mutating) so Suspense can find it.
+    // Ready children get no attribute (G-018): moving markup into a child component
+    // must not change the DOM.
+    if (readyMap && id && readyMap[id] === false && component && typeof component === 'object' && component.sel) {
       component = {
         ...component,
         data: {
           ...(component.data || {}),
           attrs: {
             ...(component.data?.attrs || {}),
-            'data-sygnal-ready': readyMap[id] !== false ? 'true' : 'false'
+            'data-sygnal-ready': 'false'
           }
         }
       }

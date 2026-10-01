@@ -267,4 +267,24 @@ export async function bugfixTests1G() {
     assert(inp.value === 'hello', `draft: "${inp.value}"`)
     assert(JSON.stringify(saved) === '["hello"]', `EVENTS: ${JSON.stringify(saved)}`)
   })
+
+  // ─── G-018: a ready child component adds no data-sygnal-ready attribute ────
+  await runTest(CAT, 'G-018: extracting markup into a child component leaves the DOM unchanged', async () => {
+    const { id, el } = mount()
+    function Stars({ state }) { return <span className="stars">{state.n}</span> }
+    function Loader({ state }) { return <em className="loader">{state.done ? 'done' : 'wait'}</em> }
+    Loader.intent = ({ DOM }) => ({ LOAD: DOM.click('.loader') })
+    Loader.model = { LOAD: { STATE: s => ({ ...s, done: true }), READY: () => true } }
+    function App() { return <div className="g018"><Stars /><Loader /></div> }
+    App.initialState = { n: 3, done: false }
+    run(App, {}, { mountPoint: id })
+    await waitFor(() => el.querySelector('.stars') && el.querySelector('.loader'))
+    await wait(30)
+    assert(el.querySelector('.stars').outerHTML === '<span class="stars">3</span>', el.querySelector('.stars').outerHTML)
+    assert(el.querySelector('.loader').getAttribute('data-sygnal-ready') === 'false', 'not-ready child is marked')
+    el.querySelector('.loader').click()
+    await waitFor(() => el.querySelector('.loader').textContent === 'done')
+    await wait(30)
+    assert(!el.querySelector('.loader').hasAttribute('data-sygnal-ready'), 'mark removed once ready')
+  })
 }

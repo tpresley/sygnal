@@ -200,6 +200,32 @@ describe('B-013: Collection item reducers see the state of earlier same-tick act
   })
 })
 
+// ─── G-018: extracting markup into a child component doesn't change the DOM ──
+
+describe('G-018: data-sygnal-ready only marks children that are not ready', () => {
+  it('a ready child (no READY entries) renders without the attribute', async () => {
+    function Stars({ state }) { return h('span', { className: 'stars' }, String(state.n)) }
+    function App() { return h('div', null, h(Stars)) }
+    App.initialState = { n: 3 }
+    t = renderComponent(App)
+    await t.ready()
+    await settle()
+    expect(t.html()).toContain('<span class="stars">3</span>')
+    expect(t.html()).not.toContain('data-sygnal-ready')
+  })
+
+  it('a child with an explicit READY entry is marked not ready until it signals', async () => {
+    function Loader({ state }) { return h('span', { className: 'loader' }, state.done ? 'done' : 'wait') }
+    Loader.model = { LOADED: { STATE: s => ({ ...s, done: true }), READY: () => true } }
+    function App() { return h('div', null, h(Loader)) }
+    App.initialState = { done: false }
+    t = renderComponent(App)
+    await t.ready()
+    await settle()
+    expect(t.html()).toContain('data-sygnal-ready="false"')
+  })
+})
+
 // ─── 1F leftover: SYG104 wording is the same in renderComponent and the runtime check ─
 
 describe('SYG104 wording', () => {
