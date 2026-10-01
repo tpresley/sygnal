@@ -118,6 +118,8 @@ Rename.model = {
 
 What doesn't work is a bound `value` with no `input`/`change` listener, for example a "save on blur" field that only listens to `blur`: the first re-render while the user types puts the old value back. `sygnal-check` reports that as [SYG111](/reference/errors/#syg111). Literal values (`value=""`) are controlled too, so they reset the field on every render as well.
 
+`value={null}` (or `checked={null}`) clears the field and keeps it controlled; leaving the prop out makes the field uncontrolled, so whatever the user typed stays.
+
 ## Focus Management
 
 Sygnal components are pure functions — they never touch real DOM elements. But web apps frequently need to focus an element programmatically, for example when an input appears for inline editing.

@@ -13,15 +13,20 @@
  * maxLength fall back to their default too). Without such an attribute, reset
  * the property by its current type (boolean -> false, string -> '', other
  * non-number -> undefined/null) if it differs (G-095). `className` is left
- * to classNameModule (B-012); `value`/`checked` on form fields are left alone
- * (the controlled-input module owns them; removing them hands control back to
- * the user, as in React).
+ * to classNameModule (B-012). On form fields a nullish `value`/`checked` clears
+ * the field ('' / false, D49); a removed one is left alone (the controlled-input
+ * module owns them; removing them hands control back to the user, as in React).
  */
 
 import type {VNode} from 'snabbdom/build/vnode.js';
 
-function clearProp(elm: any, key: string): void {
-  if (key === 'className' || (/^(value|checked)$/.test(key) && /^(INPUT|TEXTAREA|SELECT)$/.test(elm.tagName))) return;
+function clearProp(elm: any, key: string, nullish?: boolean): void {
+  if (key === 'className') return;
+  if (/^(value|checked)$/.test(key) && /^(INPUT|TEXTAREA|SELECT)$/.test(elm.tagName)) {
+    const empty = key === 'value' ? '' : false;
+    if (nullish && elm[key] !== empty) elm[key] = empty;
+    return;
+  }
   const attr = key === 'htmlFor' ? 'for' : key.replace(/^aria(?=[A-Z])/, 'aria-').toLowerCase();
   // G-095: a reflected attribute is just removed, which resets the property. Writing it first
   // (src = '') would queue an img/video error event or navigate an iframe to about:blank.
@@ -49,7 +54,7 @@ function updateProps(oldVnode: VNode, vnode: VNode): void {
     const cur = props[key];
     if (cur === oldProps[key]) continue;
     // a nullish className is left to classNameModule, which rebuilds the attribute (B-012)
-    if (cur == null) clearProp(elm, key);
+    if (cur == null) clearProp(elm, key, true);
     else if (key !== 'value' || elm[key] !== cur) elm[key] = cur;
   }
 }
