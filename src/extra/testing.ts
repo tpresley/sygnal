@@ -410,10 +410,13 @@ export function renderComponent(
   let vtree: any;
   let timer: any;
   let onRender: Array<() => void> = [];
+  // states[0 .. renderedUpTo) were recorded before the latest render (1H-12)
+  let renderedUpTo = 0;
   const arm = () => timer || (timer = setTimeout(() => markReady(), 12));
   if (sinks.DOM) {
     listen(sinks.DOM, v => {
       vtree = v;
+      renderedUpTo = states.length;
       check104();
       arm();
       onRender.forEach(f => f());
@@ -486,9 +489,11 @@ export function renderComponent(
     timeoutMs: number = 2000
   ): Promise<any> => {
     return new Promise((resolve, reject) => {
-      for (const s of states) {
+      for (let i = 0; i < states.length; i++) {
+        const s = states[i];
         try {
-          if (predicate(s)) return resolve(s);
+          // an already-recorded match still waits for its render, unless it had one
+          if (predicate(s)) return i < renderedUpTo || !sinks.DOM ? resolve(s) : rendered().then(() => resolve(s));
         } catch (_) {}
       }
       const done = (f: () => void) => {

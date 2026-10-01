@@ -472,3 +472,32 @@ describe('1H-11: SYG104 check cost', () => {
     expect(t.diagnostics.filter(d => d.code === 'SYG104').length).toBe(1)
   })
 })
+
+// ─── 1H-12: waitForState waits for the render of an already-recorded state ───
+
+describe('1H-12: waitForState resolves once the matching state has been rendered', () => {
+  it('a state that is recorded but not rendered yet is waited for', async () => {
+    function C({ state }) { return h('div', null, String(state.n)) }
+    C.initialState = { n: 0 }
+    C.model = { INC: s => ({ ...s, n: s.n + 1 }) }
+    t = renderComponent(C)
+    await t.ready()
+    t.simulateAction('INC')
+    for (let i = 0; i < 5 && !t.states.some(s => s.n === 1); i++) await Promise.resolve()
+    expect(t.states.some(s => s.n === 1)).toBe(true) // recorded...
+    expect(t.html()).toBe('<div>0</div>')            // ...but not rendered yet
+    const s = await t.waitForState(s => s.n === 1)
+    expect(s.n).toBe(1)
+    expect(t.html()).toBe('<div>1</div>')
+  })
+
+  it('an already-rendered state resolves without waiting for another render', async () => {
+    function C({ state }) { return h('div', null, String(state.n)) }
+    C.initialState = { n: 0 }
+    t = renderComponent(C)
+    await t.ready()
+    const t0 = Date.now()
+    await t.waitForState(s => s.n === 0)
+    expect(Date.now() - t0).toBeLessThan(15)
+  })
+})
