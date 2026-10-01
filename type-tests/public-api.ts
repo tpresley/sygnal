@@ -1,0 +1,724 @@
+/**
+ * Type-level assertions for the Sygnal public API (G-019).
+ *
+ * Moved from test/types.test.ts, where vitest ran them as plain runtime code and
+ * never type-checked them (a wrong expectTypeOf still passed). Here they are
+ * compiled by `npm run test:types` against src/index.d.ts, and by
+ * test/types.test.ts against the bundled dist/index.d.ts
+ * (type-tests/tsconfig.dist.json). This file is never executed: `describe` and
+ * `it` only group the assertions.
+ */
+import { describe, it, expectTypeOf, assertType } from 'vitest'
+import type { Stream, MemoryStream } from 'xstream'
+import type {
+  Component,
+  RootComponent,
+  ABORT,
+  Lense,
+  Lens,
+  Filter,
+  SortFunction,
+  SortObject,
+  CollectionProps,
+  SwitchableProps,
+  PortalProps,
+  TransitionProps,
+  ClassesType,
+  RunOptions,
+  SygnalApp,
+  DriverSpec,
+  DriverSpecs,
+  DriverFactories,
+  CycleDriver,
+  Event,
+  NonStateSinkReturns,
+  ExactShape,
+  FormSource,
+  FormData,
+  ProcessFormOptions,
+  DragSource,
+  Ref,
+  Ref$,
+  Command,
+  CommandSource,
+  RenderOptions,
+  RenderResult,
+  RenderToStringOptions,
+  SygnalDOMSource,
+  EventsSource,
+  FixDrivers,
+  ServiceWorkerSource,
+  ServiceWorkerCommand,
+  ServiceWorkerOptions,
+  InstallPrompt,
+  EnrichedEventStream,
+} from 'sygnal'
+
+// ─── ABORT ──────────────────────────────────────────────────────────────────
+
+describe('ABORT type', () => {
+  it('is a unique symbol type', () => {
+    expectTypeOf<ABORT>().toMatchTypeOf<symbol>()
+  })
+})
+
+// ─── Lense / Lens ───────────────────────────────────────────────────────────
+
+describe('Lense / Lens', () => {
+  it('Lense has get and set', () => {
+    type L = Lense<{ items: string[] }, string[]>
+    expectTypeOf<L['get']>().toEqualTypeOf<(state: { items: string[] }) => string[]>()
+    expectTypeOf<L['set']>().toEqualTypeOf<(state: { items: string[] }, childState: string[]) => { items: string[] }>()
+  })
+
+  it('Lens is an alias for Lense', () => {
+    expectTypeOf<Lens<number, string>>().toEqualTypeOf<Lense<number, string>>()
+  })
+})
+
+// ─── Filter / Sort ──────────────────────────────────────────────────────────
+
+describe('Filter and Sort types', () => {
+  it('Filter accepts a predicate', () => {
+    const f: Filter<{ active: boolean }> = (item) => item.active
+    expectTypeOf(f).toMatchTypeOf<(item: { active: boolean }) => boolean>()
+  })
+
+  it('SortFunction accepts comparator', () => {
+    const s: SortFunction<number> = (a, b) => a - b
+    expectTypeOf(s).toMatchTypeOf<(a: number, b: number) => number>()
+  })
+
+  it('SortObject maps fields to asc/desc/function', () => {
+    const s: SortObject<{ name: string }> = { name: 'asc' }
+    expectTypeOf(s).toExtend<Record<string, 'asc' | 'desc' | SortFunction<{ name: string }>>>()
+  })
+})
+
+// ─── Event ──────────────────────────────────────────────────────────────────
+
+describe('Event type', () => {
+  it('has type and data fields', () => {
+    const e: Event<number> = { type: 'COUNT', data: 42 }
+    expectTypeOf(e.type).toBeString()
+    expectTypeOf(e.data).toBeNumber()
+  })
+
+  it('defaults data to any', () => {
+    const e: Event = { type: 'X', data: 'anything' }
+    expectTypeOf(e.data).toBeAny()
+  })
+})
+
+// ─── DriverSpec / CycleDriver / DriverFactories ─────────────────────────────
+
+describe('Driver types', () => {
+  it('DriverSpec has source and sink', () => {
+    type D = DriverSpec<string, number>
+    expectTypeOf<D['source']>().toBeString()
+    expectTypeOf<D['sink']>().toBeNumber()
+  })
+
+  it('CycleDriver maps sink to source', () => {
+    type D = CycleDriver<string, number>
+    expectTypeOf<D>().toMatchTypeOf<(sink$: Stream<string>) => number>()
+  })
+
+  it('CycleDriver with void sink has no argument', () => {
+    type D = CycleDriver<void, number>
+    expectTypeOf<D>().toMatchTypeOf<() => number>()
+  })
+
+  it('FixDrivers returns {} for any', () => {
+    type F = FixDrivers<any>
+    expectTypeOf<F>().toEqualTypeOf<{}>()
+  })
+
+  it('FixDrivers passes through valid DriverSpecs (type alias)', () => {
+    type Drivers = { HTTP: DriverSpec<string, number> }
+    type F = FixDrivers<Drivers>
+    expectTypeOf<F>().toEqualTypeOf<Drivers>()
+  })
+
+  it('FixDrivers passes through valid DriverSpecs (interface)', () => {
+    // Interfaces lack implicit index signatures, but FixDrivers should
+    // still recognize them via structural fallback check
+    interface Drivers {
+      HTTP: DriverSpec<string, number>
+      WS: DriverSpec<void, string>
+    }
+    type F = FixDrivers<Drivers>
+    expectTypeOf<F>().toEqualTypeOf<Drivers>()
+  })
+
+  it('FixDrivers returns {} for invalid shapes', () => {
+    type Bad = { HTTP: { notSource: string } }
+    type F = FixDrivers<Bad>
+    expectTypeOf<F>().toEqualTypeOf<{}>()
+  })
+})
+
+// ─── ExactShape ─────────────────────────────────────────────────────────────
+
+describe('ExactShape', () => {
+  it('allows exact match', () => {
+    type Shape = { a: number; b: string }
+    type Result = ExactShape<Shape, { a: number; b: string }>
+    expectTypeOf<Result>().toMatchTypeOf<Shape>()
+  })
+})
+
+// ─── CollectionProps ────────────────────────────────────────────────────────
+
+describe('CollectionProps', () => {
+  it('requires of and from', () => {
+    type P = CollectionProps<{ className: string }>
+    expectTypeOf<P>().toHaveProperty('of')
+    expectTypeOf<P>().toHaveProperty('from')
+  })
+
+  it('accepts optional filter and sort', () => {
+    const p: CollectionProps = {
+      of: (() => null) as any,
+      from: 'items',
+      filter: (item: any) => !!item,
+      sort: 'name',
+    }
+    assertType(p)
+  })
+})
+
+// ─── SwitchableProps ────────────────────────────────────────────────────────
+
+describe('SwitchableProps', () => {
+  it('requires of and current', () => {
+    type P = SwitchableProps
+    expectTypeOf<P>().toHaveProperty('of')
+    expectTypeOf<P>().toHaveProperty('current')
+  })
+})
+
+// ─── PortalProps ────────────────────────────────────────────────────────────
+
+describe('PortalProps', () => {
+  it('requires target string', () => {
+    expectTypeOf<PortalProps['target']>().toBeString()
+  })
+
+  it('has optional children', () => {
+    const p: PortalProps = { target: '#modal' }
+    assertType(p)
+  })
+})
+
+// ─── TransitionProps ────────────────────────────────────────────────────────
+
+describe('TransitionProps', () => {
+  it('all properties are optional', () => {
+    const p: TransitionProps = {}
+    assertType(p)
+  })
+
+  it('accepts name, duration, appear', () => {
+    const p: TransitionProps = { name: 'fade', duration: 300, appear: true }
+    assertType(p)
+  })
+})
+
+// ─── ClassesType ────────────────────────────────────────────────────────────
+
+describe('ClassesType', () => {
+  it('accepts strings, string arrays, and conditional objects', () => {
+    const c: ClassesType = [
+      'foo',
+      ['bar', 'baz'],
+      { active: true, disabled: false, maybe: undefined },
+    ]
+    assertType(c)
+  })
+})
+
+// ─── RunOptions ─────────────────────────────────────────────────────────────
+
+describe('RunOptions', () => {
+  it('all fields are optional', () => {
+    const o: RunOptions = {}
+    assertType(o)
+  })
+
+  it('accepts mountPoint, fragments, useDefaultDrivers', () => {
+    const o: RunOptions = { mountPoint: '#app', fragments: true, useDefaultDrivers: false }
+    assertType(o)
+  })
+})
+
+// ─── Ref / Ref$ ─────────────────────────────────────────────────────────────
+
+describe('Ref types', () => {
+  it('Ref has nullable current', () => {
+    const r: Ref<HTMLInputElement> = { current: null }
+    expectTypeOf(r.current).toEqualTypeOf<HTMLInputElement | null>()
+  })
+
+  it('Ref defaults to HTMLElement', () => {
+    const r: Ref = { current: null }
+    expectTypeOf(r.current).toEqualTypeOf<HTMLElement | null>()
+  })
+
+  it('Ref$ extends Ref with stream', () => {
+    expectTypeOf<Ref$<HTMLDivElement>>().toMatchTypeOf<Ref<HTMLDivElement>>()
+    expectTypeOf<Ref$['stream']>().toMatchTypeOf<MemoryStream<HTMLElement | null>>()
+  })
+})
+
+// ─── Command ────────────────────────────────────────────────────────────────
+
+describe('Command type', () => {
+  it('has send method', () => {
+    expectTypeOf<Command>().toHaveProperty('send')
+  })
+
+  it('send accepts type string and optional data', () => {
+    expectTypeOf<Command['send']>().toEqualTypeOf<(type: string, data?: any) => void>()
+  })
+})
+
+describe('CommandSource type', () => {
+  it('has select method', () => {
+    expectTypeOf<CommandSource>().toHaveProperty('select')
+  })
+
+  it('select returns a Stream', () => {
+    expectTypeOf<CommandSource['select']>().returns.toMatchTypeOf<Stream<any>>()
+  })
+})
+
+// ─── SygnalDOMSource ───────────────────────────────────────────────────────
+
+describe('SygnalDOMSource', () => {
+  it('extends MainDOMSource', () => {
+    expectTypeOf<SygnalDOMSource>().toHaveProperty('select')
+    expectTypeOf<SygnalDOMSource>().toHaveProperty('events')
+    expectTypeOf<SygnalDOMSource>().toHaveProperty('elements')
+    expectTypeOf<SygnalDOMSource>().toHaveProperty('element')
+  })
+
+  it('has event shorthand index signature', () => {
+    // DOM.click('.btn') should be valid
+    type ClickFn = SygnalDOMSource['click']
+    expectTypeOf<ClickFn>().toMatchTypeOf<(selector: string) => Stream<globalThis.Event>>()
+  })
+})
+
+// ─── EventsSource ───────────────────────────────────────────────────────────
+
+describe('EventsSource', () => {
+  it('is a Stream with select method', () => {
+    expectTypeOf<EventsSource>().toMatchTypeOf<Stream<Event>>()
+    type SelectFn = EventsSource['select']
+    expectTypeOf<SelectFn>().toMatchTypeOf<(type: string) => Stream<any>>()
+  })
+})
+
+// ─── FormSource ─────────────────────────────────────────────────────────────
+
+describe('FormSource', () => {
+  it('has events method', () => {
+    type EventsFn = FormSource['events']
+    expectTypeOf<EventsFn>().toMatchTypeOf<(eventName: string, ...args: any[]) => Stream<any>>()
+  })
+
+  it('is compatible with MainDOMSource (overloaded events)', () => {
+    // MainDOMSource has events<K extends keyof HTMLElementEventMap>(eventType: K, ...): Stream<...>
+    // FormSource should accept it without casting
+    type MainDOMEvents = {
+      events<K extends keyof HTMLElementEventMap>(eventType: K): Stream<HTMLElementEventMap[K]>
+      events(eventType: string): Stream<globalThis.Event>
+    }
+    expectTypeOf<MainDOMEvents>().toMatchTypeOf<FormSource>()
+  })
+})
+
+// ─── DragSource ─────────────────────────────────────────────────────────────
+
+describe('DragSource', () => {
+  it('has events method', () => {
+    type EventsFn = DragSource['events']
+    expectTypeOf<EventsFn>().toMatchTypeOf<(eventName: string) => Stream<globalThis.Event>>()
+  })
+})
+
+// ─── Component type ─────────────────────────────────────────────────────────
+
+describe('Component type', () => {
+  it('is callable (view function) with required state', () => {
+    type C = Component<{ count: number }>
+    // state is required (not optional) since the framework always provides it
+    expectTypeOf<C>().toBeCallableWith({ state: { count: 0 } }, { count: 0 }, {}, {})
+  })
+
+  it('has optional static properties', () => {
+    type C = Component<{ count: number }>
+    expectTypeOf<C>().toHaveProperty('model')
+    expectTypeOf<C>().toHaveProperty('intent')
+    expectTypeOf<C>().toHaveProperty('initialState')
+    expectTypeOf<C>().toHaveProperty('context')
+    expectTypeOf<C>().toHaveProperty('calculated')
+    expectTypeOf<C>().toHaveProperty('onError')
+    expectTypeOf<C>().toHaveProperty('debug')
+  })
+})
+
+// ─── Component with full generics ───────────────────────────────────────────
+
+describe('Component with typed state and actions', () => {
+  type State = { count: number; name: string }
+  type Actions = { INC: void; SET_NAME: string }
+  type Calc = { displayName: string }
+  type Ctx = { theme: string }
+
+  type MyComponent = Component<State, {}, {}, Actions, Calc, Ctx>
+
+  it('model keys match action keys plus defaults', () => {
+    type Model = NonNullable<MyComponent['model']>
+    expectTypeOf<Model>().toHaveProperty('INC')
+    expectTypeOf<Model>().toHaveProperty('SET_NAME')
+    expectTypeOf<Model>().toHaveProperty('BOOTSTRAP')
+    expectTypeOf<Model>().toHaveProperty('INITIALIZE')
+    expectTypeOf<Model>().toHaveProperty('DISPOSE')
+  })
+
+  it('intent returns action streams', () => {
+    type Intent = NonNullable<MyComponent['intent']>
+    // Intent returns partial actions as streams
+    type Returned = ReturnType<Intent>
+    expectTypeOf<Returned>().toHaveProperty('INC')
+    expectTypeOf<Returned>().toHaveProperty('SET_NAME')
+  })
+
+  it('calculated has correct shape', () => {
+    type CalcDef = NonNullable<MyComponent['calculated']>
+    expectTypeOf<CalcDef>().toHaveProperty('displayName')
+  })
+
+  it('context has correct shape', () => {
+    type CtxDef = NonNullable<MyComponent['context']>
+    expectTypeOf<CtxDef>().toHaveProperty('theme')
+  })
+})
+
+// ─── RootComponent ──────────────────────────────────────────────────────────
+
+describe('RootComponent', () => {
+  it('is a Component without PROPS constraint', () => {
+    type R = RootComponent<{ count: number }>
+    expectTypeOf<R>().toHaveProperty('model')
+    expectTypeOf<R>().toHaveProperty('intent')
+    expectTypeOf<R>().toHaveProperty('initialState')
+  })
+})
+
+// ─── SygnalApp ──────────────────────────────────────────────────────────────
+
+describe('SygnalApp', () => {
+  it('has sources, sinks, dispose, hmr', () => {
+    type App = SygnalApp<{ count: number }>
+    expectTypeOf<App>().toHaveProperty('sources')
+    expectTypeOf<App>().toHaveProperty('sinks')
+    expectTypeOf<App>().toHaveProperty('dispose')
+    expectTypeOf<App>().toHaveProperty('hmr')
+  })
+
+  it('dispose is a void function', () => {
+    type App = SygnalApp
+    expectTypeOf<App['dispose']>().toMatchTypeOf<() => void>()
+  })
+})
+
+// ─── EnrichedEventStream ────────────────────────────────────────────────────
+
+describe('EnrichedEventStream', () => {
+  // The helpers are overloaded (no-arg and transform forms), and ReturnType<> of an
+  // overloaded method only sees the last overload, so these call the methods and
+  // check what the call resolves to.
+  const s = {} as EnrichedEventStream<globalThis.Event>
+
+  it('extends Stream', () => {
+    expectTypeOf<EnrichedEventStream>().toExtend<Stream<globalThis.Event>>()
+  })
+
+  it('.value() returns EnrichedEventStream<string>', () => {
+    expectTypeOf(s.value()).toEqualTypeOf<EnrichedEventStream<string>>()
+  })
+
+  it('.value(Number) returns EnrichedEventStream<number>', () => {
+    // DOM.input('.field').value(Number) should give Stream<number>
+    expectTypeOf(s.value(Number)).toEqualTypeOf<EnrichedEventStream<number>>()
+    expectTypeOf(s.value((v) => v.length > 0)).toEqualTypeOf<EnrichedEventStream<boolean>>()
+  })
+
+  it('.checked() returns EnrichedEventStream<boolean>', () => {
+    expectTypeOf(s.checked()).toEqualTypeOf<EnrichedEventStream<boolean>>()
+  })
+
+  it('.data(name) returns EnrichedEventStream<string | undefined>', () => {
+    expectTypeOf(s.data('id')).toEqualTypeOf<EnrichedEventStream<string | undefined>>()
+    expectTypeOf(s.data('id', Number)).toEqualTypeOf<EnrichedEventStream<number>>()
+  })
+
+  it('.key() returns EnrichedEventStream<string>', () => {
+    expectTypeOf(s.key()).toEqualTypeOf<EnrichedEventStream<string>>()
+  })
+
+  it('.target() returns EnrichedEventStream<EventTarget | null>', () => {
+    expectTypeOf(s.target()).toEqualTypeOf<EnrichedEventStream<EventTarget | null>>()
+  })
+
+  it('methods are chainable', () => {
+    // DOM.click('.btn').target().value() — chaining should work at type level
+    expectTypeOf(s.target().value()).toEqualTypeOf<EnrichedEventStream<string>>()
+  })
+})
+
+// ─── SygnalDOMSource enrichment ─────────────────────────────────────────────
+
+describe('SygnalDOMSource event shorthands return enriched streams', () => {
+  it('DOM.click() returns EnrichedEventStream', () => {
+    type ClickResult = ReturnType<SygnalDOMSource['click']>
+    expectTypeOf<ClickResult>().toMatchTypeOf<EnrichedEventStream<globalThis.Event>>()
+  })
+
+  it('shorthand result has .value() method', () => {
+    type ClickResult = ReturnType<SygnalDOMSource['click']>
+    expectTypeOf<ClickResult>().toHaveProperty('value')
+  })
+
+  it('shorthand result has .data() method', () => {
+    type ClickResult = ReturnType<SygnalDOMSource['click']>
+    expectTypeOf<ClickResult>().toHaveProperty('data')
+  })
+})
+
+// ─── processForm type ───────────────────────────────────────────────────────
+
+describe('processForm type', () => {
+  it('accepts FormSource (compatible with DOM.select result)', () => {
+    const source: FormSource = {
+      events: (name: string) => ({} as Stream<globalThis.Event>),
+    }
+    assertType<FormSource>(source)
+  })
+
+  it('FormData has event and eventType', () => {
+    expectTypeOf<FormData>().toHaveProperty('event')
+    expectTypeOf<FormData>().toHaveProperty('eventType')
+    expectTypeOf<FormData['event']>().toEqualTypeOf<globalThis.Event>()
+    expectTypeOf<FormData['eventType']>().toBeString()
+  })
+
+  it('FormData with typed fields constrains to string values', () => {
+    type MyForm = FormData<{ username: string; email: string }>
+    expectTypeOf<MyForm['username']>().toBeString()
+    expectTypeOf<MyForm['email']>().toBeString()
+    expectTypeOf<MyForm['event']>().toEqualTypeOf<globalThis.Event>()
+  })
+
+  it('untyped FormData allows any string key', () => {
+    type F = FormData
+    // Default: Record<string, string> — index signature gives string
+    const f = {} as F
+    expectTypeOf(f['anyField']).toBeString()
+  })
+
+  it('ProcessFormOptions has events and preventDefault', () => {
+    const opts: ProcessFormOptions = { events: ['input', 'submit'], preventDefault: true }
+    assertType(opts)
+    const opts2: ProcessFormOptions = { events: 'input' }
+    assertType(opts2)
+    const opts3: ProcessFormOptions = {}
+    assertType(opts3)
+  })
+})
+
+// ─── Model entry shapes ─────────────────────────────────────────────────────
+
+describe('Model entry shapes', () => {
+  type State = { count: number; items: string[] }
+  type Actions = { INC: void; ADD: string; RESET: void }
+
+  it('accepts a direct reducer (shorthand for STATE sink)', () => {
+    // model = { INC: (state) => ({ ...state, count: state.count + 1 }) }
+    type C = Component<State, {}, {}, Actions>
+    type Model = NonNullable<C['model']>
+    // INC entry can be a function (state, data, next, props) => State
+    type IncEntry = NonNullable<Model['INC']>
+    // Should accept a simple reducer function
+    const reducer = (state: State) => ({ ...state, count: state.count + 1 })
+    assertType<(state: State, args: void, next: any, props: any) => State>(
+      (s, _a, _n, _p) => ({ ...s, count: s.count + 1 })
+    )
+  })
+
+  it('accepts true (pass-through)', () => {
+    type C = Component<State, {}, {}, Actions>
+    type Model = NonNullable<C['model']>
+    // true should be valid for any model entry
+    const entry: true = true
+    assertType<true>(entry)
+  })
+
+  it('accepts sink object with STATE and EVENTS', () => {
+    // model = { ADD: { STATE: (s, v) => ..., EVENTS: (s, v) => ({ type: 'ADDED', data: v }) } }
+    type C = Component<State, {}, {}, Actions>
+    type Model = NonNullable<C['model']>
+    type AddEntry = NonNullable<Model['ADD']>
+    // Should accept an object with STATE and EVENTS keys
+    expectTypeOf<AddEntry>().not.toBeNever()
+  })
+})
+
+// ─── NonStateSinkReturns ────────────────────────────────────────────────────
+
+describe('NonStateSinkReturns', () => {
+  it('allows customizing EVENTS return type', () => {
+    type MySinkReturns = { EVENTS: Event<string> }
+    type C = Component<{ x: number }, {}, {}, { DO: void }, {}, {}, MySinkReturns>
+    // The EVENTS sink in model should expect Event<string> return
+    expectTypeOf<C>().toHaveProperty('model')
+  })
+})
+
+// ─── EFFECT sink type ─────────────────────────────────────────────────────
+
+describe('EFFECT sink in model entries', () => {
+  it('accepts EFFECT key in DefaultSinks (untyped actions)', () => {
+    type C = RootComponent<{ count: number }>
+    // Component type with model should accept EFFECT entries
+    expectTypeOf<C>().toHaveProperty('model')
+  })
+
+  it('accepts EFFECT alongside STATE in same action', () => {
+    type State = { count: number }
+    type Actions = { SUBMIT: null }
+    type C = Component<State, {}, {}, Actions>
+    expectTypeOf<C>().toHaveProperty('model')
+  })
+})
+
+// ─── RenderOptions / RenderResult ─────────────────────────────────────────
+
+describe('RenderOptions type', () => {
+  it('has optional initialState', () => {
+    expectTypeOf<RenderOptions>().toHaveProperty('initialState')
+  })
+  it('has optional mockConfig', () => {
+    expectTypeOf<RenderOptions>().toHaveProperty('mockConfig')
+  })
+  it('has optional drivers', () => {
+    expectTypeOf<RenderOptions>().toHaveProperty('drivers')
+  })
+})
+
+describe('RenderResult type', () => {
+  it('has state$ stream', () => {
+    expectTypeOf<RenderResult>().toHaveProperty('state$')
+  })
+  it('has dom$ stream', () => {
+    expectTypeOf<RenderResult>().toHaveProperty('dom$')
+  })
+  it('has events$ source', () => {
+    expectTypeOf<RenderResult>().toHaveProperty('events$')
+  })
+  it('has simulateAction function', () => {
+    expectTypeOf<RenderResult['simulateAction']>().toBeFunction()
+  })
+  it('has waitForState function', () => {
+    expectTypeOf<RenderResult['waitForState']>().toBeFunction()
+  })
+  it('has states array', () => {
+    expectTypeOf<RenderResult['states']>().toEqualTypeOf<any[]>()
+  })
+  it('has dispose function', () => {
+    expectTypeOf<RenderResult['dispose']>().toBeFunction()
+  })
+  it('has sinks record', () => {
+    expectTypeOf<RenderResult>().toHaveProperty('sinks')
+  })
+  it('has sources record', () => {
+    expectTypeOf<RenderResult>().toHaveProperty('sources')
+  })
+})
+
+// ─── RenderToStringOptions ────────────────────────────────────────────────
+
+describe('RenderToStringOptions type', () => {
+  it('has optional state', () => {
+    expectTypeOf<RenderToStringOptions>().toHaveProperty('state')
+  })
+  it('has optional props', () => {
+    expectTypeOf<RenderToStringOptions>().toHaveProperty('props')
+  })
+  it('has optional context', () => {
+    expectTypeOf<RenderToStringOptions>().toHaveProperty('context')
+  })
+  it('has optional hydrateState', () => {
+    expectTypeOf<RenderToStringOptions>().toHaveProperty('hydrateState')
+  })
+})
+
+// ─── renderToString ───────────────────────────────────────────────────────
+
+describe('renderToString type', () => {
+  it('accepts component and optional options', () => {
+    // Verify the type exists and has the right shape
+    type Fn = (componentDef: any, options?: RenderToStringOptions) => string
+    expectTypeOf<Fn>().toBeFunction()
+    expectTypeOf<Fn>().returns.toBeString()
+  })
+})
+
+// ─── PWA Helpers ─────────────────────────────────────────────────────────
+
+describe('ServiceWorkerSource type', () => {
+  it('has select method', () => {
+    expectTypeOf<ServiceWorkerSource>().toHaveProperty('select')
+  })
+  it('select returns a stream', () => {
+    expectTypeOf<ServiceWorkerSource['select']>().toBeFunction()
+  })
+})
+
+describe('ServiceWorkerCommand type', () => {
+  it('has action property', () => {
+    expectTypeOf<ServiceWorkerCommand>().toHaveProperty('action')
+  })
+  it('has optional data property', () => {
+    expectTypeOf<ServiceWorkerCommand>().toHaveProperty('data')
+  })
+  it('action is a string union', () => {
+    assertType<ServiceWorkerCommand>({ action: 'skipWaiting' })
+    assertType<ServiceWorkerCommand>({ action: 'postMessage', data: 'hello' })
+    assertType<ServiceWorkerCommand>({ action: 'unregister' })
+  })
+})
+
+describe('ServiceWorkerOptions type', () => {
+  it('has optional scope', () => {
+    expectTypeOf<ServiceWorkerOptions>().toHaveProperty('scope')
+  })
+})
+
+describe('InstallPrompt type', () => {
+  it('has select method', () => {
+    expectTypeOf<InstallPrompt>().toHaveProperty('select')
+  })
+  it('has prompt method', () => {
+    expectTypeOf<InstallPrompt>().toHaveProperty('prompt')
+  })
+  it('select is a function', () => {
+    expectTypeOf<InstallPrompt['select']>().toBeFunction()
+  })
+  it('prompt is a function', () => {
+    expectTypeOf<InstallPrompt['prompt']>().toBeFunction()
+  })
+})

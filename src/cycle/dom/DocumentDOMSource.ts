@@ -18,14 +18,14 @@ export class DocumentDOMSource {
 
   public elements(): MemoryStream<Array<Document | Element>> {
     if (this._selector) {
-      const out: DevToolEnabledSource & MemoryStream<Array<Element>> = adapt(
-        xs.of(Array.from(document.querySelectorAll(this._selector)))
+      const out: DevToolEnabledSource & MemoryStream<Array<Document | Element>> = adapt(
+        xs.of<Array<Document | Element>>(Array.from(document.querySelectorAll(this._selector)))
       );
       out._isCycleSource = this._name;
       return out;
     }
-    const out: DevToolEnabledSource & MemoryStream<Array<Document>> = adapt(
-      xs.of([document])
+    const out: DevToolEnabledSource & MemoryStream<Array<Document | Element>> = adapt(
+      xs.of<Array<Document | Element>>([document])
     );
     out._isCycleSource = this._name;
     return out;
@@ -33,14 +33,14 @@ export class DocumentDOMSource {
 
   public element(): MemoryStream<Document | Element | null> {
     if (this._selector) {
-      const out: DevToolEnabledSource & MemoryStream<Element | null> = adapt(
-        xs.of(document.querySelector(this._selector))
+      const out: DevToolEnabledSource & MemoryStream<Document | Element | null> = adapt(
+        xs.of<Document | Element | null>(document.querySelector(this._selector))
       );
       out._isCycleSource = this._name;
       return out;
     }
-    const out: DevToolEnabledSource & MemoryStream<Document> = adapt(
-      xs.of(document)
+    const out: DevToolEnabledSource & MemoryStream<Document | Element | null> = adapt(
+      xs.of<Document | Element | null>(document)
     );
     out._isCycleSource = this._name;
     return out;
