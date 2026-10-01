@@ -1,21 +1,7 @@
-import { describe, it, expect, afterEach, beforeAll, afterAll } from 'vitest'
-import { renderComponent, createElement, xs } from 'sygnal'
+import { describe, it, expect, afterEach } from 'vitest'
+import { renderComponent, xs } from 'sygnal'
 import 'sygnal/diagnostics'
 import RootComponent from './RootComponent.jsx'
-
-// The root `npx vitest` also collects this file, without this example's Vite
-// config (no Sygnal JSX transform), so the .jsx views compile to classic
-// React.createElement calls there. Point those at Sygnal's createElement.
-let reactShim = false
-beforeAll(() => {
-  if (typeof globalThis.React === 'undefined') {
-    globalThis.React = { createElement }
-    reactShim = true
-  }
-})
-afterAll(() => {
-  if (reactShim) delete globalThis.React
-})
 
 // In-memory stand-ins for the app's KINDO, STORAGE and CLIPBOARD drivers
 function mockDrivers(stored = {}) {
