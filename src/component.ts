@@ -881,14 +881,17 @@ class Component {
           return this.view({ ...sanitizedProps, state, children, slots: slots || {}, context, peers }, state, context, peers)
         } catch (err) {
           const error = err instanceof Error ? err : new Error(String(err))
-          logError('SYG406', this, 'View threw; rendering the error fallback', 'Add .onError for a custom fallback', error)
+          // B-022: an error handled by .onError is a warning, without the "add .onError" hint
           if (typeof this.onError === 'function') {
             try {
-              return this.onError(error, { componentName: this.name })
+              const fallback = this.onError(error, { componentName: this.name })
+              warn('SYG406', this, 'View threw; rendered the onError fallback', undefined, error)
+              return fallback
             } catch (fallbackErr) {
+              logError('SYG406', this, 'View threw; rendering the error fallback', undefined, error)
               logError('SYG407', this, 'onError threw; rendering an empty error <div>', 'Make onError return a vnode', fallbackErr)
             }
-          }
+          } else logError('SYG406', this, 'View threw; rendering the error fallback', 'Add .onError for a custom fallback', error)
           return { sel: 'div', data: { attrs: { 'data-sygnal-error': this.name } }, children: [] }
         }
       })
