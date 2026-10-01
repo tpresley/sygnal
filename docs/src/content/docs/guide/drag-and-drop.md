@@ -46,10 +46,13 @@ RootComponent.model = {
 A single category can have both `draggable` and `dropZone` — for example, sortable lists where items are both dragged and dropped onto:
 
 ```javascript
-{ category: 'lane-sort', draggable: '.lane-drag-handle',
-                          dropZone:  '.lane-header',
-                          accepts:   'lane-sort',
-                          dragImage: '.lane' }
+const laneSort = {
+  category:  'lane-sort',
+  draggable: '.lane-drag-handle',
+  dropZone:  '.lane-header',
+  accepts:   'lane-sort',
+  dragImage: '.lane',
+}
 ```
 
 ## Listening to Drag Events
@@ -57,16 +60,10 @@ A single category can have both `draggable` and `dropZone` — for example, sort
 Use the `DND` source in intent. It supports the same shorthand pattern as the DOM source:
 
 ```jsx
-RootComponent.intent = ({ DND, EVENTS }) => ({
-  // Shorthand (preferred)
-  DRAG_START: DND.dragstart('task'),
-  DROP:       DND.drop('lane'),
-  DRAG_END:   DND.dragend('task'),
-
-  // Longhand (equivalent)
-  DRAG_START: DND.select('task').events('dragstart'),
-  DROP:       DND.select('lane').events('drop'),
-  DRAG_END:   DND.select('task').events('dragend'),
+RootComponent.intent = ({ DND }) => ({
+  DRAG_START: DND.dragstart('task'),   // = DND.select('task').events('dragstart')
+  DROP:       DND.drop('lane'),        // = DND.select('lane').events('drop')
+  DRAG_END:   DND.dragend('task'),     // = DND.select('task').events('dragend')
 })
 ```
 
@@ -92,9 +89,12 @@ The `drop` event provides the drop zone element and an `insertBefore` reference 
 // In the model, use the drop payload to move items
 RootComponent.model = {
   DROP: (state, { dropZone, insertBefore }) => {
+    if (!state.dragging) return ABORT
     const toLaneId = dropZone.dataset.laneId
     const insertBeforeTaskId = insertBefore?.dataset.taskId ?? null
-    // ... move the task to the target lane at the correct position
+    // moveTask: your own helper that returns the new lanes array
+    const lanes = moveTask(state.lanes, state.dragging.taskId, toLaneId, insertBeforeTaskId)
+    return { ...state, lanes, dragging: null }
   },
 }
 ```
@@ -121,4 +121,4 @@ function TaskCard({ state, context }) {
 
 ## Complete Example
 
-See the [Kanban board example](../examples/kanban/) for a full working implementation with task drag-and-drop between lanes, lane reordering with custom drag images, and visual drag feedback.
+See the [Kanban board example](https://github.com/tpresley/sygnal/tree/main/examples/kanban) for a full working implementation with task drag-and-drop between lanes, lane reordering with custom drag images, and visual drag feedback.

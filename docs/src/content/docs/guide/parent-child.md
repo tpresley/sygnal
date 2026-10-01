@@ -25,18 +25,19 @@ TaskCard.intent = ({ DOM }) => ({
 
 TaskCard.model = {
   DELETE: {
-    PARENT: (state) => ({ type: 'DELETE', taskId: state.id })
+    PARENT: (state) => ({ taskId: state.id })
   }
 }
 ```
 
-The value returned by the `PARENT` reducer is wrapped automatically by the framework as `{ name, component, value }` and delivered to the parent's `CHILD` source.
+The value returned by the `PARENT` reducer is delivered to the parent's `CHILD` source. `CHILD.select(TaskCard)` emits exactly that value (here `{ taskId }`), with nothing wrapped around it.
 
 ## Receiving Data from Children (CHILD Source)
 
 The parent listens using `CHILD.select()` in its intent, passing a **reference to the child component function**:
 
 ```jsx
+import { Collection } from 'sygnal'
 import TaskCard from './TaskCard.jsx'
 
 function LaneComponent({ state }) {
@@ -47,10 +48,8 @@ function LaneComponent({ state }) {
   )
 }
 
-LaneComponent.intent = ({ DOM, CHILD }) => ({
-  DELETE_TASK: CHILD.select(TaskCard)
-    .filter(e => e.type === 'DELETE')
-    .map(e => e.taskId),
+LaneComponent.intent = ({ CHILD }) => ({
+  DELETE_TASK: CHILD.select(TaskCard).map(e => e.taskId),
 })
 
 LaneComponent.model = {
@@ -69,10 +68,32 @@ LaneComponent.model = {
 - **Refactoring-friendly.** Rename the function and all imports update together. No separate strings to keep in sync.
 - **Zero configuration.** No build plugins, no manual `componentName` properties, no bundler settings.
 
-String-based matching (`CHILD.select('TaskCard')`) is still supported for backward compatibility but is **not recommended** for production builds, since minification will silently break it.
+With TypeScript, the stream's type is inferred from the child's `PARENT` sink (see [TypeScript](/integration/typescript/#typed-child-events)).
 
-> **Tip:** If you can't import the child (e.g., dynamically resolved components), you can set a static `componentName` property on the function as a fallback: `TaskCard.componentName = 'TaskCard'`. This string survives minification.
+Selecting by name string still works for older code, but breaks under minification; see [Alternative Forms](/advanced/alternative-forms/#childselect-with-a-string).
+
+## When a Child Sends More Than One Kind of Message
+
+If the child sends several kinds of values up, include a discriminating field and split them in the parent:
+
+```jsx
+TaskCard.model = {
+  DELETE: { PARENT: (state) => ({ kind: 'delete', taskId: state.id }) },
+  PIN:    { PARENT: (state) => ({ kind: 'pin', taskId: state.id }) },
+}
+
+LaneComponent.intent = ({ CHILD }) => ({
+  DELETE_TASK: CHILD.select(TaskCard).filter(e => e.kind === 'delete').map(e => e.taskId),
+  PIN_TASK:    CHILD.select(TaskCard).filter(e => e.kind === 'pin').map(e => e.taskId),
+})
+```
+
+## Why Not Select the Child's Button Directly?
+
+A parent's `DOM` source only sees elements its own view renders. `DOM.select('.delete')` in `LaneComponent` never fires for buttons inside `TaskCard`, because each child is isolated; Sygnal reports that as [SYG104](/reference/errors/#syg104). Handle the DOM event in the child and send the result up with `PARENT`.
 
 ## Works with Collections
 
-When a child component is rendered via `<Collection>`, all items share the same component function. `CHILD.select(TaskCard)` matches events from every TaskCard instance in the collection — filter by the event's data payload to distinguish between them.
+When a child component is rendered via `<Collection>`, all items share the same component function. `CHILD.select(TaskCard)` matches events from every TaskCard instance in the collection — include an id in the payload (like `taskId` above) to tell them apart.
+
+`PARENT` only goes one level up. For components further apart, use the [`EVENTS` bus](/guide/drivers/#the-event-bus-events-driver); for data flowing down, use [context](/guide/context/).

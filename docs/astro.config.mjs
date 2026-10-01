@@ -4,6 +4,9 @@ import starlight from '@astrojs/starlight'
 export default defineConfig({
   site: 'https://sygnal.js.org',
   base: '/',
+  redirects: {
+    '/advanced/model-shorthand': '/advanced/alternative-forms/',
+  },
   integrations: [
     starlight({
       title: 'Sygnal',
@@ -47,6 +50,8 @@ export default defineConfig({
             { label: 'Peer Components', slug: 'guide/peer-components' },
             { label: 'Forms & Focus', slug: 'guide/forms' },
             { label: 'Drag and Drop', slug: 'guide/drag-and-drop' },
+            { label: 'Diagnostics', slug: 'guide/diagnostics' },
+            { label: 'Strict Mode', slug: 'guide/strict-mode' },
           ],
         },
         {
@@ -61,8 +66,8 @@ export default defineConfig({
             { label: 'Suspense', slug: 'advanced/suspense' },
             { label: 'Commands', slug: 'advanced/commands' },
             { label: 'Effect Handlers', slug: 'advanced/effect' },
-            { label: 'Model Shorthand', slug: 'advanced/model-shorthand' },
             { label: 'Disposal Hooks', slug: 'advanced/disposal' },
+            { label: 'Alternative Forms', slug: 'advanced/alternative-forms' },
           ],
         },
         {
@@ -77,6 +82,7 @@ export default defineConfig({
             { label: 'PWA Helpers', slug: 'integration/pwa' },
             { label: 'Bundler Configuration', slug: 'integration/bundler-config' },
             { label: 'Debugging', slug: 'integration/debugging' },
+            { label: 'Building with AI Agents', slug: 'integration/agents' },
           ],
         },
         {
@@ -85,6 +91,7 @@ export default defineConfig({
             { label: 'API Reference', slug: 'reference/api' },
             { label: 'Utilities', slug: 'reference/utilities' },
             { label: 'Types', slug: 'reference/types' },
+            { label: 'Error Reference', slug: 'reference/errors' },
           ],
         },
       ],

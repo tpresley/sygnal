@@ -12,8 +12,11 @@ const boxRef = createRef()
 
 function MeasuredBox({ state }) {
   return (
-    <div ref={boxRef}>
-      Width: {state.width}px, Height: {state.height}px
+    <div>
+      <div ref={boxRef}>
+        Width: {state.width}px, Height: {state.height}px
+      </div>
+      <button className="measure-btn">Measure</button>
     </div>
   )
 }
@@ -43,13 +46,17 @@ Pass a function instead of a ref object:
 
 ## Stream Refs
 
-`createRef$()` returns a stream-based ref that emits the element on mount:
+`createRef$()` returns a ref whose `.stream` emits the element on mount (and `null` on unmount). Pass the ref itself to the `ref` prop and use its `.stream` in intent:
 
 ```jsx
 import { createRef$ } from 'sygnal'
 const myRef$ = createRef$()
 
+function MyComponent({ state }) {
+  return <canvas ref={myRef$} />
+}
+
 MyComponent.intent = () => ({
-  ELEMENT: myRef$,
+  ELEMENT: myRef$.stream,
 })
 ```

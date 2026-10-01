@@ -3,13 +3,16 @@ title: Collections
 description: Rendering lists of components
 ---
 
-The `<collection>` element renders a list of components from an array on your state. It handles dynamic addition, removal, filtering, and sorting automatically.
+The `<Collection>` component renders a list of components from an array on your state. It handles dynamic addition, removal, reordering, filtering, and sorting automatically.
 
 ```jsx
+import { Collection } from 'sygnal'
+import TodoItem from './TodoItem.jsx'
+
 function TodoList({ state }) {
   return (
     <div>
-      <collection of={TodoItem} from="items" />
+      <Collection of={TodoItem} from="items" />
     </div>
   )
 }
@@ -24,6 +27,8 @@ TodoList.initialState = {
 
 Each item in the `items` array becomes the state for one `TodoItem` instance. If a `TodoItem` updates its state, the corresponding array entry is updated. If a `TodoItem` sets its state to `undefined`, it is removed from the array.
 
+`from` must name an array field of the parent's state, and the field should be initialized (`items: []`). If it is missing or not an array, the Collection renders nothing and Sygnal reports [SYG401](/reference/errors/#syg401). With TypeScript, `from` can be [type-checked](/integration/typescript/#collection-from) against the parent's state.
+
 ## Collection Props
 
 | Prop | Type | Description |
@@ -37,7 +42,7 @@ Each item in the `items` array becomes the state for one `TodoItem` instance. If
 ## Filtering
 
 ```jsx
-<collection
+<Collection
   of={TodoItem}
   from="items"
   filter={item => !item.done}
@@ -51,7 +56,7 @@ The `sort` prop accepts several formats for controlling sort order.
 ### Sort by property name (ascending)
 
 ```jsx
-<collection of={TodoItem} from="items" sort="text" />
+<Collection of={TodoItem} from="items" sort="text" />
 ```
 
 ### Sort by property name with direction
@@ -59,13 +64,13 @@ The `sort` prop accepts several formats for controlling sort order.
 Use an object with the property name as key and `"asc"` or `"desc"` as value:
 
 ```jsx
-<collection of={TodoItem} from="items" sort={{ text: "desc" }} />
+<Collection of={TodoItem} from="items" sort={{ text: "desc" }} />
 ```
 
 You can also use `1` (ascending) or `-1` (descending):
 
 ```jsx
-<collection of={TodoItem} from="items" sort={{ priority: -1 }} />
+<Collection of={TodoItem} from="items" sort={{ priority: -1 }} />
 ```
 
 ### Sort primitive arrays
@@ -73,7 +78,7 @@ You can also use `1` (ascending) or `-1` (descending):
 For arrays of strings or numbers (not objects), pass `"asc"` or `"desc"` directly:
 
 ```jsx
-<collection of={TagItem} from="tags" sort="asc" />
+<Collection of={TagItem} from="tags" sort="asc" />
 ```
 
 ### Multi-field sort
@@ -81,7 +86,7 @@ For arrays of strings or numbers (not objects), pass `"asc"` or `"desc"` directl
 Pass an array to sort by multiple fields. Each entry can be a string (ascending), object (with direction), or function:
 
 ```jsx
-<collection of={TodoItem} from="items" sort={[
+<Collection of={TodoItem} from="items" sort={[
   { priority: "desc" },
   "text"
 ]} />
@@ -90,35 +95,43 @@ Pass an array to sort by multiple fields. Each entry can be a string (ascending)
 ### Custom sort function
 
 ```jsx
-<collection of={TodoItem} from="items" sort={(a, b) => a.createdAt - b.createdAt} />
+<Collection of={TodoItem} from="items" sort={(a, b) => a.createdAt - b.createdAt} />
 ```
 
-## Item Keys
+## Item Keys and Identity
 
-Collections automatically use the `id` property of each item for efficient rendering. If items don't have an `id`, the array index is used.
+Collections use the `id` property of each item as its key. If items don't have an `id`, the array index is used, so give items a stable, unique `id` whenever the list can change.
+
+An item component instance belongs to its key, not its position:
+
+- **Reordering** the array (sort, reverse, move) re-renders the list in the new order, and every item keeps its instance, so any local state (an open editor, a draft) moves with it.
+- **Adding** an item creates one new instance; the others are untouched.
+- **Removing** an item disposes only that instance.
+
+Keys are scoped to their Collection: two Collections in the same parent can contain items with the same ids without their DOM events or state crossing over.
 
 ## Self-Removal
 
-An item can remove itself from the collection by returning `undefined` from a reducer:
+An item can remove itself from the collection by returning `undefined` from a STATE reducer:
 
 ```jsx
 TodoItem.model = {
-  DELETE: () => undefined  // removes this item from the array
+  DELETE: () => undefined,   // removes this item from the array
 }
 ```
 
-## Using `Collection` (capitalized)
+This is the one place where returning `undefined` is intended. (In a root component, a reducer that returns `undefined` is a bug: [SYG202](/reference/errors/#syg202).) The parent can also remove items itself, by filtering the array in its own reducer, for example when it receives a `PARENT` event from the item (see [Parent-Child Communication](/guide/parent-child/)).
 
-You can also import and use the capitalized `Collection` component:
+## Disposal
+
+When an item is removed, its component is disposed: its `DISPOSE` action fires and its subscriptions are cleaned up. Disposal is recursive, so every component inside the item goes too, including nested Collections (removing a lane from a board disposes all the cards in that lane). See [Disposal Hooks](/advanced/disposal/).
+
+## The Wrapper Element
+
+The Collection renders its items inside a `<div>` container. `className` sets that container's class, so you don't need another wrapper of your own:
 
 ```jsx
-import { Collection } from 'sygnal'
-
-function TodoList({ state }) {
-  return (
-    <div>
-      <Collection of={TodoItem} from="items" className="todo-list" />
-    </div>
-  )
-}
+<Collection of={TodoItem} from="items" className="todo-list" />
 ```
+
+Inside a Collection item, selectors in the item's own intent see only that item's elements. A parent can't select elements inside its items ([SYG104](/reference/errors/#syg104)).

@@ -15,16 +15,7 @@ App.model = {
 
 ## Why EFFECT?
 
-Previously, side-effect-only model entries required a `STATE` reducer that returned `ABORT` to suppress the state update:
-
-```jsx
-// Old pattern — works but misleading
-App.model = {
-  SEND_COMMAND: () => { playerCmd.send('play'); return ABORT },
-}
-```
-
-`EFFECT` makes the intent explicit: this action has side effects and nothing else.
+Before `EFFECT`, a side-effect-only entry had to be a `STATE` reducer that ran the effect and returned `ABORT` to skip the state update. That still works, but [strict mode](/guide/strict-mode/) flags it ([SYG503](/reference/errors/#syg503)): `EFFECT` makes the intent explicit, so STATE reducers stay pure. `ABORT` remains the canonical way for a STATE reducer to say "no change" (see [Model](/guide/model/#aborting-an-action)).
 
 ## Using next()
 
@@ -62,18 +53,22 @@ App.model = {
 EFFECT can be combined with other sinks in the same action to run side effects alongside state updates or driver emissions:
 
 ```jsx
+import { event } from 'sygnal'
+
 App.model = {
   SUBMIT: {
-    STATE: (state) => ({ ...state, submitting: true }),
-    EFFECT: (state) => analyticsCmd.send('track', { event: 'submit' }),
-    EVENTS: (state) => ({ type: 'form-submitted', data: state.formData }),
+    STATE:  (state) => ({ ...state, submitting: true }),
+    EFFECT: () => analyticsCmd.send('track', { event: 'submit' }),
+    EVENTS: event('FORM_SUBMITTED', (state) => state.formData),
   },
 }
 ```
 
+Every sink of one action receives the same state: the result of all earlier actions, before this action's own `STATE` reducer runs. So `EFFECT` and `EVENTS` above see `submitting` as it was, not `true`. Pass anything they need through the action's data, or compute it from the same inputs.
+
 ## Return Value Warning
 
-EFFECT handlers should not return a value — any return value is ignored. If a value is returned, a console warning is emitted to help catch mistakes where a reducer was accidentally placed in an EFFECT sink instead of a STATE sink.
+EFFECT handlers should not return a value — any return value is ignored. If a value is returned, a console warning ([SYG219](/reference/errors/#syg219)) is emitted to help catch mistakes where a reducer was accidentally placed in an EFFECT sink instead of a STATE sink. An arrow function with an expression body returns its value, so wrap a call that returns something (such as a Promise) in braces: `EFFECT: () => { player.play() }`.
 
 ```jsx
 // ⚠️ This will log a warning — the returned state is ignored
