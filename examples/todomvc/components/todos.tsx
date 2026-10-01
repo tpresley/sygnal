@@ -1,4 +1,4 @@
-import { classes, xs, sampleCombine, Transition, set, toggle } from 'sygnal'
+import { ABORT, classes, xs, sampleCombine, Transition, set, toggle } from 'sygnal'
 import type { Component } from 'sygnal'
 import { inputEvents } from '../lib/utils'
 
@@ -78,7 +78,7 @@ TODO.model = {
   EDIT_INPUT: set((_state, data) => ({ editValue: data })),
 
   EDIT_DONE: (state) => {
-    if (state.editing === false) return state
+    if (state.editing === false) return ABORT
     const title = state.editValue.trim()
     if (title === '') return undefined // remove empty todos
     return { ...state, title, editing: false, editValue: '', cachedTitle: '' }

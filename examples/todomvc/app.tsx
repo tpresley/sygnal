@@ -150,13 +150,15 @@ APP.model = {
   VISIBILITY: set((_state, visibility) => ({ visibility })),
   FROM_STORE: set((_state, data) => ({ todos: data })),
 
-  NEW_TODO: (state, data) => {
-    const nextId = Date.now()
-    const newTodo: TodoItem = { id: nextId, title: data, completed: false }
-    if (newTodoRef.current) {
-      newTodoRef.current.value = ''
-    }
-    return { ...state, todos: [...state.todos, newTodo] }
+  NEW_TODO: {
+    STATE: (state, data) => {
+      const newTodo: TodoItem = { id: Date.now(), title: data, completed: false }
+      return { ...state, todos: [...state.todos, newTodo] }
+    },
+    // The new-todo input is uncontrolled: clear it once the todo is added
+    EFFECT: () => {
+      if (newTodoRef.current) newTodoRef.current.value = ''
+    },
   },
 
   TOGGLE_ALL: set((state) => {
