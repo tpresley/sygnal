@@ -126,3 +126,32 @@ describe('SYG102 — model entry is unreachable', () => {
     expect(diagnostics('SYG102')).toEqual([])
   })
 })
+
+describe('SYG101/102 — renderComponent-injected test actions (__sygnalTestActions)', () => {
+  it('ignores injected intent streams: no SYG102 for simulate-only model actions, no SYG101 for the injected names', async () => {
+    const { default: component } = await import('../../src/component.js')
+    const { withState } = await import('../../src/cycle/state/index.js')
+    const { setup } = await import('../../src/cycle/run/index.js')
+    const { mockDOMSource } = await import('../../src/cycle/dom/index.js')
+    // Shape produced by renderComponent (1C): injected streams plus a
+    // non-enumerable list of their names on the intent object.
+    const intent = ({ DOM }) => {
+      const out = { SAVE: DOM.select('.save').events('click'), RESET: xs.never(), PING: xs.never() }
+      Object.defineProperty(out, '__sygnalTestActions', { value: ['RESET', 'PING'], enumerable: false })
+      return out
+    }
+    const App = component({
+      name: 'Injected',
+      view: () => createElement('div', null, 'x'),
+      intent,
+      model: { SAVE: s => s, RESET: s => s, ORPHAN: s => s },
+      initialState: {},
+    })
+    const { run } = setup(withState(App), { DOM: () => mockDOMSource({}) })
+    const stop = run()
+    await settle(30)
+    stop()
+    expect(diagnostics('SYG101')).toEqual([]) // PING is injected, not a user intent action
+    expect(diagnostics('SYG102').map(d => d.data.action)).toEqual(['ORPHAN'])
+  })
+})

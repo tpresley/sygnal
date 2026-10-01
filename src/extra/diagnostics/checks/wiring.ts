@@ -8,6 +8,11 @@
  * the normalized model map (shorthand already expanded by the core).
  * Synthetic actions (`__*`, e.g. renderComponent's `__TEST_ACTION__`) and the
  * built-ins BOOTSTRAP/INITIALIZE/HYDRATE/DISPOSE/READY are never reported.
+ * Under renderComponent, intent streams injected for model actions (so that
+ * simulateAction can dispatch them by their real names) are listed on the
+ * intent object's non-enumerable `__sygnalTestActions` property. They are not
+ * user intent actions (never reported as SYG101), and SYG102 is not reported
+ * for those model actions (the test dispatches them with simulateAction).
  */
 import type {DiagnosticCheck} from '../index'
 import {report, once, isInternalAction, nameOf, didYouMean} from './shared'
@@ -23,7 +28,10 @@ export const wiringCheck: DiagnosticCheck = {
 
   onModel(component, modelMap) {
     const name = nameOf(component)
-    const actions = intentActions.get(component) || []
+    const intent$ = component && component.intent$
+    const injected = new Set<string>(
+      (intent$ && typeof intent$ === 'object' && intent$.__sygnalTestActions) || [])
+    const actions = (intentActions.get(component) || []).filter(a => !injected.has(a))
     intentActions.delete(component)
     const modelActions = Object.keys(modelMap || {})
 
@@ -40,12 +48,11 @@ export const wiringCheck: DiagnosticCheck = {
 
     // A single-stream intent (intent returns one action$ stream) has no
     // action names to compare against.
-    const intent$ = component && component.intent$
     if (intent$ && typeof intent$.addListener === 'function') return
 
     const hmr = ([] as string[]).concat(component?.hmrActions || [])
     for (const action of modelActions) {
-      if (isInternalAction(action) || actions.includes(action) || hmr.includes(action)) continue
+      if (isInternalAction(action) || actions.includes(action) || hmr.includes(action) || injected.has(action)) continue
       if (!once(`SYG102:${name}:${action}`)) continue
       report('SYG102', {
         component,
