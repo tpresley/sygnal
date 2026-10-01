@@ -12,7 +12,7 @@ Tracks progress for [PLAN-2.md](PLAN-2.md). Maintained by the coordinator. The P
 |---|---|---|---|
 | 0 — Release follow-through, eval infrastructure | 🟡 In progress | — | 0-A ✅ · 0-B ✅ · 0-C ✅ · tier-3 pilot ✅ (20/20 pass; Sygnal 66.6 s vs React 45.7 s) · v2-baseline 🟡 (160 trials, D46) |
 | 1 — Correctness backlog | ✅ Done | `plan2-phase1` | 1-A…1-F ✅ · 1-T trim ✅ · review: 6 findings + 2 notes, all fixed in 1-R · kanban 41,803 B (2 B headroom) |
-| 2 — Known ergonomics improvements | 🟡 In progress | — | 2-A 🟡 · 2-B ✅ · 2-C 🟡 · 2-D 🟡 |
+| 2 — Known ergonomics improvements | 🟡 In progress | — | 2-A ✅ · 2-B ✅ · 2-C 🟡 · 2-D 🟡 |
 | 3 — Experiments | ⚪ | — | |
 | 4 — Adopt, measure, release | ⚪ | — | |
 
@@ -32,7 +32,7 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | 1-E | Types and build hygiene (B-002/G-012, G-019, G-075, G-076, G-077) | ✅ | `worktree-agent-a2c537d37c4e12f41` | subagent | `07c4eab` | Build prints 0 TS diagnostics (was 56); `test:types` = full `tsc --noEmit` + type-tests (fails on any error). G-012's testing.ts errors not reproduced. G-019: 97 assertions moved to `type-tests/public-api.ts`, exposing 9 wrong ones (fixed). G-075: audit 12 → 2 (vite pinned `^7.3.6` via overrides; deferred: `@rollup/plugin-terser` 1.0 major for serialize-javascript). G-076: browser runner whitelists expected errors and **fails on unexpected ones**. G-077: `NonStateSinkValue` (constants on non-STATE sinks). Kanban 0 B |
 | 1-T | Size trim (G-088) | ✅ | `worktree-agent-af1bfdae13632e5a7` | subagent | `12cc8b9` | 41,991 → **41,719 B** with no behaviour change: `onlineStatus$` marked pure (−105), `optionsOf()` replaces 4 copy-pasted option blocks (−92), short core SYG608 text (−26), pragma `chainHooks` and marker fall-through (−26), small dedups (−23). Top contributors: component.ts 11.6k, xstream 3.4k, get-intrinsic 2.5k (via xstream's `globalthis`), devtools 2.3k |
 | 1-R | Review fixes + leftovers (G-083, G-084, G-086, G-087, G-091…G-098) | ✅ | `worktree-agent-ac20436bed98cd91a` | subagent | `1275440`, `a0e0170`, `1c81963` | All fixed (G-095: img error not reproducible in Chromium; iframe about:blank on attribute removal is per spec). G-084 root cause: `getComponents()` descended into component vnodes' children, so every ancestor made a never-rendered duplicate instance that ran BOOTSTRAP/timers and wrote state keys; scan now stops at component vnodes. G-098 reproduced as a hydration failure (`MemoryStream` export) → `'sygnal'` added to optimizeDeps.include for installed sygnal. G-083: Vike config is one ESM `dist/vike/config/+config.js` + generated `package.json` (type module); CJS config build removed. `SortSpec` type exported. Kanban +84 B → 41,803 B |
-| 2-A | Testing completeness (G-064, G-065, G-053) | 🟡 | | subagent | | |
+| 2-A | Testing completeness (G-064, G-065, G-053) | ✅ | `worktree-agent-a9a235cb519e6198d` | subagent | `5b35476` | G-064: harness records every driverless sink in the tree from each `model$` (children, grandchildren, Collection items); passed drivers still win. G-065: behaviour fix — `ready()` arms a cursor that the first `next()` starts from (other `t.*` calls disarm it); timeouts name an already-matched earlier state. G-053: `timeoutMs`/`settleMs`/`eventWaitMs` options; timeouts name pending model `next('X')` delays (parsed from the core debug log line — coupling G-111). 20 tests (15 failed first). Kanban 0 B |
 | 2-B | Agent docs (2-D1 snapshot semantics, 2-D2 extract-component recipe, 2-D3 latest-only pattern) | ✅ | `worktree-agent-a44b2fbe9d096f4ac` | subagent | `032363c` | 2-D1: guide/model.md "Sinks See the State Before the Action" + one bullet each in llms.txt/SKILL.md (verified with a scratch test; B-003 tests already guard it). 2-D2: guide/parent-child.md recipe (snapshot → move markup → PARENT + `CHILD.select` → re-run), compact SKILL.md form, llms.txt pointer; validated on the task-08 starter (identical HTML). 2-D3: guide/drivers.md "Only the Latest Response" (reqId in state, echoed by the driver, ABORT on mismatch, clear bumps reqId); scratch-tested out-of-order, stale failure, clear-in-flight. llms.txt 249 lines; 382 samples strict-clean |
 | 2-C | Component and Vike bugs (G-102, G-106, G-107, G-108, G-109) | 🟡 | | subagent | | |
 | 2-D | `globalthis` alias in `sygnal/vite` + size-gate script (G-099) | 🟡 | | subagent | | Gated number = kanban built with the opt-out (core growth); default build reported |
@@ -113,6 +113,8 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | G-107 | 1-R | low | component.ts | A sub-component with a `model` but no `intent` never gets BOOTSTRAP (a root component does) | Open → 2-C (verify, decide) |
 | G-108 | 1-R | low | Types/diagnostics | SYG218 rejects reducers returning arrays to driver sinks, but the types (and constant values) allow arrays | Open → 2-C |
 | G-109 | 1-R | low | Rendering | `src={null}` is written as "null" by propsModule before removedPropsModule removes it (harmless in Chromium) | Open → 2-C |
+| G-110 | 2-A | low-med | Diagnostics | In a real `run()` app, a child component's sink with no driver is silently dropped (no core or `sygnal/diagnostics` warning) | Open → Phase 2/3 candidate (new SYG code) |
+| G-111 | 2-A | low | Testing | G-053's delayed-`next()` detection parses the core debug log text `next() action: <TYPE> Nms delay`; a wording change breaks it (tests would catch it). Cleaner: an `onNext` diagnostics hook (costs core bytes) | Open |
 | G-076 | 5.4.0 release | low | browser-tests | The browser run prints expected console errors from error-path tests, which look like failures | ✅ 1-E (whitelist updated for SYG405 at the 1-B merge) |
 
 ## Worktree Setup (each subagent, inside its own isolated worktree)
@@ -136,6 +138,7 @@ gzip -c /tmp/kb/assets/index-*.js | wc -c      # budget 41,805 B
 
 ## Activity Log
 
+- 2026-10-01 — 2-A merged (coordinator merge; the agent's own merge was blocked by permissions); gates green: 936 vitest, 121 browser, 384 samples, llms.txt 249.
 - 2026-10-01 — 2-B merged (docs; samples 382 clean, docs build OK).
 - 2026-10-01 — Tier-3 pilot done (20/20, $7.55); D46: tiers frozen, v2-baseline (160 trials, est. $58 / 1.3 h) started from the user's terminal; Phase 2 workstreams 2-A, 2-B, 2-C launched.
 - 2026-10-01 — 0-C merged (tier 3, 78/78 incl. vs the 5.4.0 tarball); 0-B fix2 merged; 1-R merged, full gate green (916 vitest, 121 browser, 41,803 B); Phase 1 closed, tagged `plan2-phase1`. 5.4.0 skill installed (D45); tier-3 pilot (20 trials) started from the user's terminal. New: G-102…G-109.
