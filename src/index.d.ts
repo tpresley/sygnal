@@ -60,6 +60,72 @@ type StateOnlyReducer<STATE, RETURN = any> = (
 
 export type Event<DATA = any> = { type: string; data: DATA }
 
+// ── EVENTS registry ────────────────────────────────────────────────
+
+/**
+ * Registry of global EVENTS bus event names and their payload types.
+ *
+ * Empty by default, which keeps the EVENTS bus untyped (`any`). Augment it to
+ * type-check `EVENTS.select()`, `event()`, `emit()` and raw EVENTS sink returns:
+ *
+ *   declare module 'sygnal' {
+ *     interface SygnalEvents {
+ *       DELETE_LANE: { laneId: string }
+ *       RESET: void            // no payload: event('RESET')
+ *     }
+ *   }
+ *
+ * Once the registry has at least one entry, unregistered event names are type errors.
+ * The augmenting file must be a module (have at least one import or export).
+ */
+export interface SygnalEvents {}
+
+/** Valid event names: `string` while the registry is empty, otherwise the registered names. */
+export type EventName = keyof SygnalEvents extends never ? string : keyof SygnalEvents & string
+
+/** Payload type of a registered event (`any` while the registry is empty). */
+export type EventPayload<TYPE extends string = string> = keyof SygnalEvents extends never
+  ? any
+  : TYPE extends keyof SygnalEvents ? SygnalEvents[TYPE] : never
+
+/**
+ * An event object as put on the EVENTS bus. While the registry is empty this is `Event<any>`;
+ * otherwise it is the union of `{ type, data }` for every registered event.
+ */
+export type RegisteredEvent = keyof SygnalEvents extends never
+  ? Event<any>
+  : { [TYPE in keyof SygnalEvents & string]: { type: TYPE; data: SygnalEvents[TYPE] } }[keyof SygnalEvents & string]
+
+/** The `{ type, data }` object produced by `event(type, ...)` / `emit(type, ...)`. */
+export type EmittedEvent<TYPE extends string = string> = keyof SygnalEvents extends never
+  ? { type: TYPE; data: any }
+  : { type: TYPE; data: EventPayload<TYPE> }
+
+/** The `next()` function as seen by an event payload function. */
+type EventNextFunction = (action: string, data?: any, delay?: number) => void
+
+/** Payload function for `event()` / `emit()`: receives the reducer arguments, returns the event data. */
+export type EventPayloadFunction<TYPE extends string = string, STATE = any, DATA = any> =
+  (state: STATE, data: DATA, next: EventNextFunction, props: any) => EventPayload<TYPE>
+
+/**
+ * Remaining arguments of `event()` / `emit()` when the payload is a static value.
+ * The payload may be omitted when the registry is empty or the event's payload
+ * type accepts `undefined` (e.g. `void`).
+ */
+type StaticEventArgs<TYPE extends string> = keyof SygnalEvents extends never
+  ? [payload?: any]
+  : undefined extends EventPayload<TYPE>
+    ? [payload?: EventPayload<TYPE>]
+    : [payload: EventPayload<TYPE>]
+
+/**
+ * The sink function returned by `event()`. Use it as the value of an `EVENTS` key in a
+ * model entry: `ACTION: { STATE: ..., EVENTS: event('TYPE', fn) }`.
+ */
+export type EventSink<TYPE extends string = string, STATE = any, DATA = any> =
+  (state: STATE, data: DATA, next: any, props: any) => EmittedEvent<TYPE>
+
 export type NonStateSinkReturns = {
   EVENTS?: unknown;
   LOG?: unknown;
@@ -67,7 +133,7 @@ export type NonStateSinkReturns = {
 }
 
 type ResolvedNonStateSinkReturns<SINK_RETURNS extends NonStateSinkReturns = {}> = {
-  EVENTS: SINK_RETURNS extends { EVENTS: infer EVENTS_RETURN } ? EVENTS_RETURN : Event<any>;
+  EVENTS: SINK_RETURNS extends { EVENTS: infer EVENTS_RETURN } ? EVENTS_RETURN : RegisteredEvent;
   LOG: SINK_RETURNS extends { LOG: infer LOG_RETURN } ? LOG_RETURN : any;
   PARENT: SINK_RETURNS extends { PARENT: infer PARENT_RETURN } ? PARENT_RETURN : any;
 }
@@ -149,7 +215,43 @@ type ComponentModel<STATE, PROPS, DRIVERS, ACTIONS, CALCULATED, SINK_RETURNS ext
       >
     }
 
+type TrimSpaces<S extends string> =
+  S extends ` ${infer REST}` ? TrimSpaces<REST>
+  : S extends `${infer REST} ` ? TrimSpaces<REST>
+  : S
+
+/** Value type produced by a PARENT sink value (a reducer's return, minus ABORT/undefined). */
+type ParentSinkValueReturn<VALUE> =
+  VALUE extends (...args: any[]) => infer RETURN ? Exclude<RETURN, ABORT | undefined | void> : never
+
+type ParentPayloadFromEntry<ENTRY> =
+  ENTRY extends (...args: any[]) => any ? never
+  : ENTRY extends object
+    ? 'PARENT' extends keyof ENTRY ? ParentSinkValueReturn<NonNullable<ENTRY['PARENT']>> : never
+    : never
+
+type ParentPayloadsOfModel<MODEL> = {
+  [ACTION_KEY in keyof MODEL]-?: ACTION_KEY extends `${string}|${infer SINK}`
+    ? TrimSpaces<SINK> extends 'PARENT' ? ParentSinkValueReturn<NonNullable<MODEL[ACTION_KEY]>> : never
+    : ParentPayloadFromEntry<NonNullable<MODEL[ACTION_KEY]>>
+}[keyof MODEL]
+
+type AnyIfNever<T> = [T] extends [never] ? any : T
+
+/**
+ * The value type a component sends to its parent through the `PARENT` sink, inferred from the
+ * component's `model` (object-form `{ PARENT: fn }` entries and `'ACTION | PARENT'` shorthand).
+ * Falls back to `any` when it can't be inferred (no model, a `Component<...>` annotation without
+ * a `PARENT` entry in its `SINK_RETURNS`, or `PARENT: true` pass-through entries only).
+ */
+export type ParentPayloadOf<COMPONENT> =
+  COMPONENT extends { model?: infer MODEL }
+    ? 0 extends (1 & MODEL) ? any : AnyIfNever<ParentPayloadsOfModel<NonNullable<MODEL>>>
+    : any
+
 type ChildSource = {
+  /** Typed: the stream type is inferred from the child's PARENT sink (falls back to `any`). */
+  select<COMPONENT extends (...args: any[]) => any>(component: COMPONENT): Stream<ParentPayloadOf<COMPONENT>>;
   select<T = any>(component: (...args: any[]) => any): Stream<T>;
   select<T = any>(name: string): Stream<T>;
 }
@@ -158,9 +260,11 @@ export type SygnalDOMSource = MainDOMSource & {
   [eventName: string]: (selector: string) => EnrichedEventStream<globalThis.Event>
 }
 
-export type EventsSource<EVENTS = any> = Stream<Event<EVENTS>> & {
-  select<T = any>(type: string): Stream<T>;
-}
+type EventsSelect = keyof SygnalEvents extends never
+  ? { select<T = any>(type: string): Stream<T>; }
+  : { select<TYPE extends keyof SygnalEvents & string>(type: TYPE): Stream<SygnalEvents[TYPE]>; }
+
+export type EventsSource<EVENTS = any> = Stream<Event<EVENTS>> & EventsSelect
 
 export type DefaultDrivers<STATE, EVENTS = any> = {
   STATE: {
@@ -216,6 +320,42 @@ export type FixDrivers<DRIVERS> =
           : {}
 
 type CombinedSources<STATE, DRIVERS> = Sources<DefaultDrivers<STATE> & DRIVERS> & { dispose$: Stream<boolean> }
+
+/**
+ * The sources object an intent function receives (DOM, STATE, EVENTS, CHILD, dispose$, plus
+ * any custom drivers). Use it to annotate an intent declared before its component:
+ *
+ *   const intent = ({ DOM }: IntentSources<State>) => ({ INC: DOM.click('.inc') })
+ */
+export type IntentSources<STATE = any, DRIVERS = {}> = CombinedSources<STATE, FixDrivers<DRIVERS>>
+
+type StreamPayload<STREAM> = STREAM extends Stream<infer T> ? T : any
+
+type IntentReturnToActions<RETURN> = {
+  [ACTION_KEY in keyof RETURN & string]-?: StreamPayload<Exclude<RETURN[ACTION_KEY], undefined>>
+}
+
+/**
+ * Derives the ACTIONS map (action name → payload type) from an intent function's type
+ * (or from its return object type): each key's `Stream<T>` becomes `T`.
+ *
+ *   const intent = ({ DOM }: IntentSources<State>) => ({
+ *     INC:  DOM.click('.inc').mapTo(1),          // Stream<number>
+ *     NAME: DOM.input('.name').value(),         // Stream<string>
+ *   })
+ *   const Counter: Component<State, {}, {}, ActionsOf<typeof intent>> = ...
+ *   Counter.intent = intent
+ *   Counter.model  = { INC: (state, n) => ..., NAME: (state, name) => ... }  // n: number, name: string
+ *
+ * With it, model keys not returned by the intent are type errors (the built-ins BOOTSTRAP,
+ * INITIALIZE, HYDRATE and DISPOSE stay allowed). Actions reached only through `next()` are
+ * added explicitly:
+ *
+ *   type Actions = ActionsOf<typeof intent> & { SAVED: { id: string } }
+ */
+export type ActionsOf<INTENT> = INTENT extends (...args: any[]) => infer RETURN
+  ? IntentReturnToActions<RETURN>
+  : IntentReturnToActions<INTENT>
 
 interface ComponentIntent<STATE, DRIVERS, ACTIONS> {
   (args: CombinedSources<STATE, DRIVERS>): Partial<IntentActions<ACTIONS>>
@@ -294,9 +434,28 @@ export type RootComponent<
  */
 type AnyComponent = ((...args: any[]) => any) & Record<string, any>
 
-export type CollectionProps<PROPS = any> = {
+/** Keys of STATE whose value is an array (optional/nullable arrays included). */
+export type ArrayKeysOf<STATE> = {
+  [KEY in keyof STATE]-?: NonNullable<STATE[KEY]> extends ReadonlyArray<any> ? KEY : never
+}[keyof STATE] & string
+
+/**
+ * Valid `from` values for a Collection: any string or Lense while the parent STATE is unknown
+ * (`any`); otherwise an array-valued key of STATE or a Lense over STATE.
+ */
+export type CollectionFrom<STATE = any> = 0 extends (1 & STATE)
+  ? string | Lense
+  : ArrayKeysOf<STATE> | Lense<STATE, any>
+
+/**
+ * Collection props. Pass the parent component's state type as STATE to type-check `from`:
+ *
+ *   const TaskCollection = Collection<{}, LaneState>   // instantiation expression
+ *   <TaskCollection of={TaskCard} from="tasks" />       // 'tasks' must be an array key of LaneState
+ */
+export type CollectionProps<PROPS = any, STATE = any> = {
   of: AnyComponent;
-  from: string | Lense;
+  from: CollectionFrom<STATE>;
   filter?: Filter;
   sort?: string | SortFunction | SortObject;
 } & Omit<PROPS, 'of' | 'from' | 'filter' | 'sort'>
@@ -458,16 +617,52 @@ export function set<S = any>(
  */
 export function toggle<S = any>(field: keyof S & string): (state: S) => S
 
+type EmitEntry<TYPE extends string> = keyof SygnalEvents extends never
+  ? { EVENTS: (state: any, actionData: any, next: Function, props: any) => { type: string; data: any } }
+  : { EVENTS: (state: any, actionData: any, next: Function, props: any) => EmittedEvent<TYPE> }
+
 /**
  * Create a model entry that emits an EVENTS bus event.
+ * Prefer `event()` inside the object form: `ACTION: { EVENTS: event('TYPE', fn) }`.
  *
  *   `emit('DELETE_LANE', (state) => ({ laneId: state.id }))`
  *   `emit('REFRESH')`
+ *
+ * With a `SygnalEvents` registry, `type` and the payload are checked against it.
  */
-export function emit(
-  type: string,
-  data?: any | ((state: any, actionData: any, next: Function, props: any) => any)
-): { EVENTS: (state: any, actionData: any, next: Function, props: any) => { type: string; data: any } }
+export function emit<TYPE extends EventName>(
+  type: TYPE,
+  data: (state: any, actionData: any, next: Function, props: any) => EventPayload<TYPE>
+): EmitEntry<TYPE>
+export function emit<TYPE extends EventName>(
+  type: TYPE,
+  ...data: StaticEventArgs<TYPE>
+): EmitEntry<TYPE>
+
+/**
+ * Create an EVENTS sink function that puts `{ type, data }` on the EVENTS bus.
+ * Use it as the `EVENTS` value inside an object-form model entry:
+ *
+ *   DELETE: {
+ *     STATE:  (state) => ({ ...state, deleting: true }),
+ *     EVENTS: event('DELETE_LANE', (state) => ({ laneId: state.id })),
+ *   }
+ *
+ * The payload is either a function `(state, data, next, props) => payload` or a static value:
+ *   `event('RESET')`, `event('SET_MODE', 'dark')`.
+ *
+ * With a `SygnalEvents` registry, `type` must be a registered name and the payload must match
+ * its type. When used inside a model, the payload function's `state` and `data` parameters are
+ * typed from the component.
+ */
+export function event<TYPE extends EventName, STATE = any, DATA = any>(
+  type: TYPE,
+  payload: EventPayloadFunction<TYPE, STATE, DATA>
+): EventSink<TYPE, STATE, DATA>
+export function event<TYPE extends EventName>(
+  type: TYPE,
+  ...payload: StaticEventArgs<TYPE>
+): EventSink<TYPE>
 
 /**
  * Any object with an events() method (e.g., DOM.select('form')).
@@ -604,7 +799,7 @@ export function collection(...args: any[]): any
 export function switchable(...args: any[]): any
 export function portal(...args: any[]): any
 
-export function Collection<PROPS extends { [prop: string]: any }>(props: CollectionProps<PROPS>): JSX.Element
+export function Collection<PROPS extends { [prop: string]: any }, STATE = any>(props: CollectionProps<PROPS, STATE>): JSX.Element
 export function Switchable<PROPS extends { [prop: string]: any }>(props: SwitchableProps<PROPS>): JSX.Element
 export function Portal(props: PortalProps): JSX.Element
 export function Transition(props: TransitionProps): JSX.Element

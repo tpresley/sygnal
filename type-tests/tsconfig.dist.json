@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "sygnal": ["../dist/index.d.ts"],
+      "sygnal/jsx-runtime": ["../src/jsx-runtime.d.ts"],
+      "xstream": ["../node_modules/xstream"],
+      "xstream/*": ["../node_modules/xstream/*"]
+    }
+  }
+}
