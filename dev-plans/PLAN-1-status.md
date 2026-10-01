@@ -11,7 +11,7 @@ Tracks progress for [PLAN-1.md](PLAN-1.md). Maintained by the coordinator.
 | Phase | Status | Tag | Notes |
 |---|---|---|---|
 | 0 — Foundations | ✅ Done | `plan1-phase0` | 0A ✅ · 0B ✅ · 0C ✅ · review: 9 findings, all fixed. Baseline eval still running (independent of merges; uses the pre-0B tarball) |
-| 1 — Core capabilities | 🔵 Closing | — | 1A–1G ✅ merged · phase-close review running |
+| 1 — Core capabilities | 🔵 Closing | — | 1A–1G ✅ merged · phase-close review: 11 findings (9 confirmed) → 1H fixing |
 | 2 — Strictness, introspection, integration | ⚪ Not started | — | |
 | 3 — Agent context & docs | ⚪ Not started | — | |
 | 4 — Measure & release | ⚪ Not started | — | |
@@ -34,6 +34,7 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | 0A-H | Harder eval tier (tasks 09–12) + harness fixes | ✅ | `worktree-agent-ab48f9e4d3b40f38e` | subagent | `6b79fbc` | 4 tasks × 2 arms, 30 hidden tests, verified 44/44 on the baseline tarball and HEAD, no flakes in 32 reruns, mutants caught. Fixed G-009 and G-017. Found B-010, B-011, B-012 |
 | — | Tier-2 baseline run (`baseline-t2`) | ✅ | — | coordinator | `24e3641` | 40/40 pass. Sygnal 92 s / 4.5 iterations vs React 63 s / 2.5 (~1.46×). Ceiling persists; Phase 4 measures efficiency |
 | — | Friction analyzer | ✅ | `worktree-agent-ad1b61c716442470a` | subagent | `8155e72` | 110 trials, 100% wall-time attribution, 27 unit tests. **B-007 alone is 20% (tier 1) / 41% (tier 2) of the Sygnal−React delta**; framework/tooling defects during self-testing ~40%; learning from library source ~9 s per trial (React 0). Recommendations folded into 3A/3B/4A (D27) |
+| 1H | Phase 1 review fixes | 🟡 | (harness-assigned) | subagent | — | 11 findings + 2 minor. Highest: B-003 made all non-STATE sinks async (breaks `preventDefault` in an EFFECT and gesture-bound effects). Also: renderComponent hides errors in collect mode; B-013 misses nested children; ready() hang (model, no initialState); overlapping diag mode; errors(selector) swallowing; controlled module scope; SYG111 literals; B-008 parent-copy perf |
 | 1G | Rendering/state bug fixes + B-004 warning | ✅ | `worktree-agent-a832977a4a01b8857` | subagent | `a6caabf` | Fixed B-010 (pickCombine detects permutations; item identity kept), B-011 (snabbdom-valid text vnodes), B-012 (className module clears removed classes; className + `class={{}}` combine), B-013 (collection items reduce from fresh state), G-028, G-018 (`data-sygnal-ready` only while not ready). SYG111 static rule (one true positive: kanban `.lane-title-input`, left for 2D). Each fix had a failing test first. Kanban +504 B |
 | 1F | Framework bug fixes | ✅ | `worktree-agent-a33bebfd10cbeb13b` | subagent | `52e3f91` | Fixed B-003 (per-action state snapshot for non-STATE sinks), B-004 (controlled-input module; D25), B-005 (`errors()` source method; null results delivered; D26), B-008 (isolated child keeps a per-instance slot), B-009 (reproduced; collection-scoped item ids), G-020, G-024 (renderComponent reports SYG104/SYG103 itself), G-025 (+ fixed a crash for a props-less `.components` element), G-026 (+ `from={null}` crash). 28 new tests, each failing before its fix. Kanban +194 B |
 | 2A | Strict mode | ⚪ | | | | |
