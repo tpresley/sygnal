@@ -34,7 +34,18 @@ export function newSink() {
   }
 }
 
-const isComponentTag = (name) => !!name && (/^[A-Z]/.test(name) || name.includes('.'))
+const HYPERSCRIPT_TAGS = new Set([
+  'a', 'article', 'aside', 'button', 'div', 'footer', 'form', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'header',
+  'i', 'img', 'input', 'label', 'li', 'main', 'nav', 'ol', 'option', 'p', 'section', 'select', 'span',
+  'strong', 'table', 'tbody', 'td', 'textarea', 'th', 'thead', 'tr', 'ul',
+])
+
+function isHyperscriptImport(file, ident) {
+  const b = findBinding(file, ident.name, ident)
+  return b?.kind === 'import' && /^(sygnal|@cycle\/dom)(\/|$)/.test(b.source)
+}
+
+const isComponentTag =(name) => !!name && (/^[A-Z]/.test(name) || name.includes('.'))
 
 function addDynamic(set) {
   if (!set.patterns.some(p => p.source === '*')) set.patterns.push({ source: '*', re: /^.*$/ })
@@ -103,6 +114,14 @@ function visitInto(project, file, root, sink, visited) {
       const callee = unwrap(node.callee)
       // snabbdom hyperscript: h('div.a#b', ...)
       if (callee.type === 'Identifier' && callee.name === 'h') {
+        const sel = stringValue(node.arguments[0])
+        if (sel) {
+          const { classes, ids } = hyperscriptSel(sel)
+          classes.forEach(c => sink.classes.names.add(c))
+          ids.forEach(i => sink.ids.names.add(i))
+        }
+      } else if (callee.type === 'Identifier' && HYPERSCRIPT_TAGS.has(callee.name) && isHyperscriptImport(file, callee)) {
+        // hyperscript helpers: div('.a#b', …)
         const sel = stringValue(node.arguments[0])
         if (sel) {
           const { classes, ids } = hyperscriptSel(sel)

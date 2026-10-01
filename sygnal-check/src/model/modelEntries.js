@@ -75,7 +75,6 @@ export function analyzeModel(project, file, modelNode) {
   const obj = r?.node
   if (!obj || obj.type !== 'ObjectExpression') { res.known = false; return res }
   const mfile = r.file
-  const reducerFns = []
 
   const addEvents = (valueNode) => {
     const t = eventSinkTypes(project, mfile, valueNode)
@@ -93,7 +92,6 @@ export function analyzeModel(project, file, modelNode) {
     if (shorthand) {
       sinks = [sink]
       if (sink === 'EVENTS') addEvents(value)
-      reducerFns.push(value)
     } else if (value && value.type === 'ObjectExpression') {
       sinks = []
       for (const sp of value.properties) {
@@ -103,11 +101,9 @@ export function analyzeModel(project, file, modelNode) {
         sinks.push(sname)
         const sval = sp.type === 'ObjectMethod' ? sp : sp.value
         if (sname === 'EVENTS') addEvents(sval)
-        reducerFns.push(sval)
       }
     } else {
       sinks = ['STATE']
-      reducerFns.push(value)
     }
     res.entries.push({ action, sinks, node: p.key, key, shorthand, file: mfile })
   }
