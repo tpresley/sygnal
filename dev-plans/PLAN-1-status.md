@@ -59,7 +59,7 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | Q2 | Canonical forms: global event emit (`emit()` vs `{ EVENTS }`) | Phase 0 | 0C → 2A, 2D, 3 | ✅ Option A: `EVENTS: event('TYPE', fn)` inside the object form; new `event()` helper (D12) |
 | Q3 | `sygnal-check` packaging | Phase 0 | 1D | ✅ Separate `sygnal-check` package (`@babel/parser`) |
 | Q4 | Eval trial budget | Phase 0 | baseline run, 4A | ✅ 5 trials: (8 Sygnal + 6 React) × 5 = 70 runs per round, 140 total |
-| Q6 | Eval ceiling: 70/70 pass. Add a harder task tier? (A keep as is · B harder tier both arms, ~80 more runs total · C harder tier Sygnal only) | Baseline | 4A design | ⏳ |
+| Q6 | Eval ceiling: 70/70 pass. Add a harder task tier? (A keep as is · B harder tier both arms, ~80 more runs total · C harder tier Sygnal only) | Baseline | 4A design | ✅ B: harder tier (tasks 09–12) in both arms, 5 trials each; baseline uses the saved pre-change tarball (D16) |
 | Q5 | Fix framework bugs B-003/B-004/B-005 within PLAN-1, or defer to a follow-up? | Phase 0 | — | ✅ New workstream 1F, after 1E (D11) |
 
 ## Decision Log
@@ -82,6 +82,9 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | D13 | 2026-09-30 | Size gate re-baselined to 58,869 B at Phase 0 close (per plan §1.4 "Phase 0 baseline"). 1A runtime checks must **not** ship in `index.esm.js`: put them in a separate build entry (e.g. `sygnal/diagnostics`) that the Vite plugin loads in serve mode and that test setup loads | Coordinator | 0B core alone used 1,464 of the 1.5 KB budget; checks are dev-only by nature |
 | D14 | 2026-09-30 | Vite dev flag is set by the entry-file transform (prepends `globalThis.__SYGNAL_DEV__ = true`), not by `define` | Coordinator (accepted subagent deviation) | `define` doesn't reach pre-bundled deps in Vite 8, and it would force diagnostics on in Vitest |
 | D15 | 2026-09-30 | Baseline trial dirs live under the session scratchpad (`scratchpad/runs/baseline`), not `/tmp/sygnal-evals` | Coordinator | Subagent writes are confined to the scratchpad (G-004); the path avoids the word "evals" (G-009) |
+
+| D16 | 2026-10-01 | Add harder eval tier: tasks 09–12, both arms, 5 trials = 40 runs per round. The baseline for the new tasks runs on the same pre-change tarball (`scratchpad/evals/sygnal-5.3.7.tgz`, packed at `57499d1`) | User (Q6) | Pass rate saturated at 70/70; need tasks that can fail |
+| D17 | 2026-10-01 | 0A-H (harder tier) owns `evals/**` while it runs; no other workstream touches `evals/` | Coordinator | Ownership |
 
 ## Bugs & Gaps Found
 
