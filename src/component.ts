@@ -179,7 +179,6 @@ class Component {
   onError: ((error: Error, info: { componentName: string }) => any) | undefined;
   isolatedState: boolean;
   isSubComponent: boolean;
-  isCollectionItem: boolean;
   currentState: any;
   currentProps: any;
   currentChildren: any;
@@ -351,7 +350,6 @@ class Component {
     }
 
     this.isSubComponent = this.sourceNames.includes('props$')
-    this.isCollectionItem = sources.__collectionItem === true
 
     const state$ = sources[stateSourceName] && sources[stateSourceName].stream
 
@@ -977,11 +975,11 @@ class Component {
             let applied = false
             return (state: any) => {
               if (!applied) { applied = true; pendingReducers-- }
-              // A sub-component reads currentState (its parent's state can carry calculated
-              // fields the raw reducer argument lacks). A Collection item uses the fresh
-              // argument instead (B-013): its currentState lags behind instantiateCollection's
-              // debounce, so a second same-tick action would start from the pre-update state.
-              const fresh = this.isCollectionItem && typeof state !== 'undefined'
+              // Reduce from the fresh argument, not currentState (B-013, 1H-3): below a
+              // Collection, currentState lags behind instantiateCollection's debounce, so a
+              // second same-tick action would start from the pre-update state. The parents'
+              // lenses add their calculated fields, so it matches what the view gets.
+              const fresh = typeof state !== 'undefined'
               const _state = this.isSubComponent && !fresh ? this.currentState : state
               try {
                 const enhancedState = this.addCalculated(_state)
@@ -1327,6 +1325,12 @@ class Component {
       .remember()
   }
 
+  // A child's reducers get their state through its lens from this component's raw reducer
+  // state; adding the calculated fields here gives them what the child's view gets (1H-3).
+  withCalculated(lense: any): any {
+    return this.calculated ? { get: (state: any) => lense.get(isObj(state) ? this.addCalculated(state) : state), set: lense.set } : lense
+  }
+
   createSubComponentLense(stateField: any, componentType: string, defaultState?: any): any {
     const baseLense = {
       get: (state: any) => state,
@@ -1499,10 +1503,7 @@ class Component {
     // B-013: add this component's calculated fields inside the lens, not on state$, so the
     // items' reducers (which read through the lens from the raw state) see the same item
     // array as their views, e.g. for from={calculatedField} or a custom get().
-    if (lense && this.calculated) {
-      const inner: any = lense
-      lense = { get: (state: any) => inner.get(isObj(state) ? this.addCalculated(state) : state), set: inner.set }
-    }
+    if (lense) lense = this.withCalculated(lense)
 
     // Strip collection-specific props and forward only user-defined extra props to each item
     const collectionKeys = ['of', 'from', 'filter', 'sort', 'idfield', 'className']
@@ -1515,7 +1516,7 @@ class Component {
       return itemProps
     })
 
-    const sources = { ...this.sources, [this.stateSourceName]: stateSource, props$: itemProps$, children$, __parentContext$: this.context$, PARENT: null, __parentComponentNumber: this._componentNumber, __collectionItem: true }
+    const sources = { ...this.sources, [this.stateSourceName]: stateSource, props$: itemProps$, children$, __parentContext$: this.context$, PARENT: null, __parentComponentNumber: this._componentNumber }
     const sink$   = collection(factory, lense as any, { container: null as any })(sources)
     if (!isObj(sink$)) {
       fail('SYG903', this, 'Collection factory returned invalid sinks', 'Return a sinks object')
@@ -1546,7 +1547,7 @@ class Component {
 
     const stateSource = new StateSource(state$, this.stateSourceName)
     const stateField  = props.state
-    const lense = this.createSubComponentLense(stateField, 'Switchable sub-component')
+    const lense = this.withCalculated(this.createSubComponentLense(stateField, 'Switchable sub-component'))
 
     const switchableComponents = props.of
     const keys = Object.keys(switchableComponents)
@@ -1560,7 +1561,7 @@ class Component {
         switchableComponents[key] = component(options)
       }
     })
-    const sources = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$, __parentContext$: this.context$, __parentComponentNumber: this._componentNumber, __collectionItem: false }
+    const sources = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$, __parentContext$: this.context$, __parentComponentNumber: this._componentNumber }
 
     const sink$ = isolate(switchable(switchableComponents, props$.map((props: any) => props.current), ''), { [this.stateSourceName]: lense })(sources)
 
@@ -1620,7 +1621,8 @@ class Component {
       }
     }
 
-    const sources: Record<string, any> = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$, __parentContext$: this.context$, __parentComponentNumber: this._componentNumber, __collectionItem: false }
+    const sources: Record<string, any> = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$, __parentContext$: this.context$, __parentComponentNumber: this._componentNumber }
+    lense = this.withCalculated(lense)
 
     // Detect Command objects in props and expose as commands$ source
     for (const key of Object.keys(props)) {
