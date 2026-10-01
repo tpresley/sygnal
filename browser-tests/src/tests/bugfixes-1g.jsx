@@ -192,4 +192,46 @@ export async function bugfixTests1G() {
     await waitFor(() => el.querySelector('.label'))
     assert(el.querySelector('.label').textContent === '[hello]', `label: ${el.querySelector('.label').textContent}`)
   })
+
+  // ─── B-012: removing className from a reused element clears it ─────────────
+  const cls = (el, sel) => el.querySelector(sel).getAttribute('class') || ''
+
+  await runTest(CAT, 'B-012: <p className="placeholder"> -> <p> removes the class', async () => {
+    const { el, flip } = await mountToggle(s => <div className="box">{s.on ? <p id="b012a">details</p> : <p id="b012a" className="placeholder">none</p>}</div>)
+    assert(cls(el, '#b012a') === 'placeholder', `initial: "${cls(el, '#b012a')}"`)
+    await flip()
+    assert(cls(el, '#b012a') === '', `after removal: "${cls(el, '#b012a')}"`)
+    await flip()
+    assert(cls(el, '#b012a') === 'placeholder', `re-added: "${cls(el, '#b012a')}"`)
+  })
+
+  await runTest(CAT, 'B-012: className={cond ? "x" : undefined|null} clears it; switching still works', async () => {
+    const { el, flip } = await mountToggle(s => <div>
+      <p id="b012b" className={s.on ? undefined : 'x'}>b</p>
+      <p id="b012c" className={s.on ? null : 'x'}>c</p>
+      <p id="b012d" className={s.on ? 'two' : 'one'}>d</p>
+    </div>)
+    await flip()
+    assert(cls(el, '#b012b') === '', `undefined: "${cls(el, '#b012b')}"`)
+    assert(cls(el, '#b012c') === '', `null: "${cls(el, '#b012c')}"`)
+    assert(cls(el, '#b012d') === 'two', `switch: "${cls(el, '#b012d')}"`)
+    await flip()
+    assert(cls(el, '#b012b') === 'x' && cls(el, '#b012c') === 'x' && cls(el, '#b012d') === 'one', 'restored')
+  })
+
+  await runTest(CAT, 'B-012: removing className keeps class={{...}} and classes from other sources', async () => {
+    const { el, flip } = await mountToggle(s => <div>{s.on
+      ? <p id="b012e" class={{ active: true }}>e</p>
+      : <p id="b012e" className="placeholder" class={{ active: true }}>e</p>}</div>)
+    await flip()
+    const c = cls(el, '#b012e').split(/\s+/).filter(Boolean).sort().join(' ')
+    assert(c === 'active', `after removal: "${c}"`)
+  })
+
+  await runTest(CAT, 'B-012: class={{...}} entries are added and removed', async () => {
+    const { el, flip } = await mountToggle(s => <p id="b012f" class={{ on: s.on, off: !s.on }}>f</p>)
+    assert(cls(el, '#b012f') === 'off', `initial: "${cls(el, '#b012f')}"`)
+    await flip()
+    assert(cls(el, '#b012f') === 'on', `flipped: "${cls(el, '#b012f')}"`)
+  })
 }
