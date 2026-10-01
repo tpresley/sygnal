@@ -1,5 +1,5 @@
-import { xs, ABORT, onlineStatus$, createInstallPrompt } from 'sygnal'
-import type { RootComponent } from 'sygnal'
+import { Collection, xs, ABORT, onlineStatus$, createInstallPrompt } from 'sygnal'
+import type { RootComponent, ServiceWorkerSource, ServiceWorkerCommand } from 'sygnal'
 import TaskItem from './components/TaskItem'
 
 const installPrompt = createInstallPrompt()
@@ -28,7 +28,11 @@ type Calculated = {
   remaining: number
 }
 
-type App = RootComponent<State, {}, Actions, Calculated>
+type Drivers = {
+  SW: { source: ServiceWorkerSource; sink: ServiceWorkerCommand }
+}
+
+type App = RootComponent<State, Drivers, Actions, Calculated>
 
 const App: App = function ({ state }) {
   return (
@@ -73,7 +77,7 @@ const App: App = function ({ state }) {
 
           {state.tasks.length === 0
             ? <div className="empty"><p>No tasks yet. Add one above!</p></div>
-            : <collection of={TaskItem} from="tasks" className="tasks" />
+            : <Collection of={TaskItem} from="tasks" className="tasks" />
           }
         </div>
 

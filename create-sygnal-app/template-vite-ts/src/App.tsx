@@ -1,4 +1,4 @@
-import { xs, ABORT } from 'sygnal'
+import { Collection, xs, ABORT } from 'sygnal'
 import type { RootComponent } from 'sygnal'
 import TaskItem from './components/TaskItem'
 
@@ -52,7 +52,7 @@ const App: App = function ({ state }) {
 
           {state.tasks.length === 0
             ? <div className="empty"><p>No tasks yet. Add one above!</p></div>
-            : <collection of={TaskItem} from="tasks" className="tasks" />
+            : <Collection of={TaskItem} from="tasks" className="tasks" />
           }
         </div>
 

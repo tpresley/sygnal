@@ -6,13 +6,15 @@
   "scripts": {
     "dev": "vike dev",
     "build": "vike build",
-    "preview": "vike preview"
+    "preview": "vike preview",
+    "test": "vitest run"
   },
   "dependencies": {
     "sygnal": "^5.3.0",
     "vike": "^0.4.255"
   },
   "devDependencies": {
-    "vite": "^8.0.3"
+    "vite": "^8.0.3",
+    "vitest": "^4.1.2"
   }
 }
