@@ -36,8 +36,21 @@ export function globalThisShim(): string | undefined {
   return undefined
 }
 
-/** Vite `resolve.alias` entries for the stub (empty when it is missing). */
-export function globalThisAlias(): Array<{ find: RegExp, replacement: string }> {
-  const shim = globalThisShim()
+/**
+ * Whether a Vite `resolve.alias` value (object or array form) already maps
+ * `globalthis` (R2-7): the user's alias wins and the stub is not added.
+ */
+export function hasGlobalThisAlias(alias: any): boolean {
+  if (!alias) return false
+  if (!Array.isArray(alias)) return Object.prototype.hasOwnProperty.call(alias, 'globalthis')
+  return alias.some((a: any) => a && (a.find instanceof RegExp ? a.find.test('globalthis') : a.find === 'globalthis'))
+}
+
+/**
+ * Vite `resolve.alias` entries for the stub (empty when it is missing, or
+ * when `userAlias` — the user's `resolve.alias` — already maps `globalthis`).
+ */
+export function globalThisAlias(userAlias?: any): Array<{ find: RegExp, replacement: string }> {
+  const shim = hasGlobalThisAlias(userAlias) ? undefined : globalThisShim()
   return shim ? [{ find: /^globalthis$/, replacement: shim }] : []
 }

@@ -94,8 +94,9 @@ export interface SygnalPluginOptions {
   /**
    * Resolve xstream's `globalthis` dependency to a tiny stub that returns the
    * native `globalThis`, instead of the npm polyfill and its dependency chain
-   * (~4 KB gzip), in dev, build and Vitest (a `resolve.alias`).
-   * false: keep the original package.
+   * (~4 KB gzip), in dev, build and Vitest (a `resolve.alias`; every
+   * dependency's `globalthis` import gets the stub). Not added when your own
+   * `resolve.alias` already maps `globalthis`. false: keep the original package.
    * @default true
    */
   nativeGlobalThis?: boolean

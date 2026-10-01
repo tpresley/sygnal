@@ -25,6 +25,11 @@ const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const kanban = path.join(repo, 'examples', 'kanban')
 const budgetArg = process.argv.indexOf('--budget')
 const budget = budgetArg > 0 ? Number(process.argv[budgetArg + 1]) : BUDGET
+// R2-8: a missing or non-numeric --budget (NaN) would make the comparison always pass
+if (!Number.isFinite(budget) || budget <= 0) {
+  console.error(`size-gate: --budget must be a positive number of bytes (got ${budgetArg > 0 ? JSON.stringify(process.argv[budgetArg + 1] ?? '') : budget}).`)
+  process.exit(2)
+}
 
 const req = createRequire(path.join(kanban, 'package.json'))
 let vite, sygnal

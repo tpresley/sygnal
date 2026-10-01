@@ -85,7 +85,9 @@
  *      globalThis. Drops the polyfill chain (~4 KB gzip) from every bundle,
  *      in dev (including pre-bundling), build and Vitest. Dependencies left
  *      external (SSR, Vitest) still load the real package from Node. The
- *      sygnal/astro integration adds the same alias in `astro build`.
+ *      sygnal/astro integration adds the same alias in `astro build`. Any
+ *      dependency's `require('globalthis')` gets the stub; a `globalthis`
+ *      entry in the user's own `resolve.alias` wins (R2-7).
  *
  * Why not Vite's `define`? Vite's dependency optimizer does not apply user
  * `define` replacements to pre-bundled dependencies (only process.env.NODE_ENV),
@@ -198,8 +200,9 @@ export interface SygnalPluginOptions {
   /**
    * Resolve xstream's `globalthis` dependency to a tiny stub that returns the
    * native `globalThis`, instead of the npm polyfill and its dependency chain
-   * (~4 KB gzip), in dev, build and Vitest (a `resolve.alias`).
-   * false: keep the original package.
+   * (~4 KB gzip), in dev, build and Vitest (a `resolve.alias`; every
+   * dependency's `globalthis` import gets the stub). Not added when your own
+   * `resolve.alias` already maps `globalthis`. false: keep the original package.
    * @default true
    */
   nativeGlobalThis?: boolean
@@ -254,7 +257,8 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
 
       // G-099: xstream's `require('globalthis')` gets the native-globalThis
       // stub. An alias (not resolveId) so it also applies to pre-bundling.
-      const alias = nativeGlobalThis ? globalThisAlias() : []
+      // R2-7: not when the user's config already aliases `globalthis`.
+      const alias = nativeGlobalThis ? globalThisAlias(config?.resolve?.alias) : []
       if (alias.length) result.resolve = { alias }
 
       if (!disableJsx) {

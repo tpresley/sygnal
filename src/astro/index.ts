@@ -15,6 +15,7 @@ interface AstroConfigSetupArgs {
   updateConfig: (config: any) => void;
   command?: 'dev' | 'build' | 'preview' | 'sync';
   logger?: { warn: (message: string) => void };
+  config?: { vite?: { resolve?: { alias?: any } } };
 }
 
 export interface SygnalAstroOptions {
@@ -40,7 +41,7 @@ export default function sygnalAstroIntegration(options: SygnalAstroOptions = {})
   return {
     name: SYGNAL_RENDERER_NAME,
     hooks: {
-      'astro:config:setup': ({ addRenderer, updateConfig, command }: AstroConfigSetupArgs) => {
+      'astro:config:setup': ({ addRenderer, updateConfig, command, config }: AstroConfigSetupArgs) => {
         addRenderer({
           name: SYGNAL_RENDERER_NAME,
           clientEntrypoint: 'sygnal/astro/client',
@@ -68,8 +69,9 @@ export default function sygnalAstroIntegration(options: SygnalAstroOptions = {})
             nativeGlobalThis: options.nativeGlobalThis,
           })]
         } else if (options.nativeGlobalThis !== false) {
-          // G-099: the same `globalthis` alias the plugin adds in dev
-          const alias = globalThisAlias()
+          // G-099: the same `globalthis` alias the plugin adds in dev (R2-7: unless the
+          // user's vite config already aliases `globalthis`)
+          const alias = globalThisAlias(config?.vite?.resolve?.alias)
           if (alias.length) vite.resolve = { alias }
         }
 
