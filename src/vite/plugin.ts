@@ -1,7 +1,9 @@
 /**
  * Sygnal Vite Plugin
  *
- * Auto-configures JSX and wires up HMR with state preservation.
+ * Auto-configures JSX, wires up HMR with state preservation and, in dev,
+ * turns on Sygnal's diagnostics (runtime checks and the static checker).
+ * Nothing it adds in dev reaches a production build.
  *
  * Usage:
  *   import sygnal from 'sygnal/vite'
@@ -10,14 +12,56 @@
  * What it does:
  *   1. Configures OXC for automatic JSX transform with sygnal as the import source
  *   2. Detects files that call `run()` from sygnal and auto-injects HMR wiring
- *   3. In serve mode, marks the app as running in development by inserting
- *      `globalThis.__SYGNAL_DEV__ = true` (unless already defined) into every
- *      file that imports `run` from sygnal — including entries with manual HMR
- *      wiring or `disableHmr` — which turns on runtime diagnostics in 'warn'
- *      mode. Opt out with `run(App, drivers, { diagnostics: 'off' })`.
- *      The flag goes after any shebang line and directive prologue
- *      ('use strict', 'use client'), on an existing line (line numbers are
- *      unchanged), and the transform returns a sourcemap.
+ *   3. Dev mode (`vite` / `vite dev` only; never `vite build`). Into every
+ *      file that imports `run` from sygnal (including entries with manual HMR
+ *      wiring or `disableHmr`) it inserts, on an existing line:
+ *
+ *        if (globalThis.__SYGNAL_DEV__ === undefined) globalThis.__SYGNAL_DEV__ = true;
+ *        import 'sygnal/diagnostics';import 'virtual:sygnal/dev';
+ *
+ *      The flag turns on runtime diagnostics in 'warn' mode; 'sygnal/diagnostics'
+ *      registers the runtime checks (SYG101-106, 201, 202, 301, 401, ...);
+ *      'virtual:sygnal/dev' logs static-check results in the browser console
+ *      (see 5). With `diagnostics: { strict: true }` the snippet also sets
+ *      `globalThis.__SYGNAL_STRICT__ = true` (same guard), which turns on the
+ *      strict (SYG5xx) runtime checks of 'sygnal/diagnostics'. The snippet goes
+ *      after any shebang line and directive prologue ('use strict',
+ *      'use client'); line numbers are unchanged and the transform returns a
+ *      sourcemap. Opt out per app with `run(App, drivers, { diagnostics: 'off' })`
+ *      or for the whole dev server with `sygnal({ diagnostics: 'off' })`.
+ *   4. `diagnostics` option. The runtime core only understands
+ *      `__SYGNAL_DEV__ === true` ('warn'), so another mode or an ignore list
+ *      is passed as run()'s own `diagnostics` option: imports of 'sygnal'
+ *      from the entry files above resolve to a dev-only wrapper module
+ *      ('\0sygnal-dev:runtime') that re-exports sygnal with a run() that adds
+ *      `diagnostics: { mode, ignore }` unless the call sets `diagnostics`
+ *      itself. With the default ('warn', no ignore list) there is no wrapper.
+ *   5. `check` option: runs sygnal-check (an optional dependency, loaded
+ *      lazily from the project; `strict` defaults to `diagnostics.strict`)
+ *      over `include` (default ['src']) when the dev
+ *      server starts and again after every source file change. Results go to
+ *      the terminal in sygnal-check's format, and to the browser: as a
+ *      'sygnal:check' HMR event that the dev client logs with console.warn
+ *      (non-disruptive), and errors also to Vite's error overlay
+ *      (`overlay: 'warn'` sends warnings there too, `overlay: false` nothing).
+ *      Output is only repeated when the findings change. A missing
+ *      sygnal-check is skipped silently; a checker that throws only logs a
+ *      warning.
+ *   6. Vitest (process.env.VITEST): appends the package's 'sygnal/diagnostics'
+ *      ESM file to `test.setupFiles` (merged with a string or array value;
+ *      not added twice), so renderComponent tests get the runtime checks.
+ *      Opt out with `vitestSetup: false`. Under Vitest there is no HMR
+ *      wiring, run() wrapper, dev client or checker; files that import run
+ *      only get the flag.
+ *   7. Vike and Astro (G-014): the app is started by sygnal's own client
+ *      entry, which user code doesn't import. Client-side imports of
+ *      'sygnal/vike/onRenderClient' resolve to a dev wrapper that sets the
+ *      flag and loads the checks first. Astro resolves its renderer entry on
+ *      the server and the browser loads the file itself, so the same snippet
+ *      is added to sygnal's 'astro/client' file by the transform, followed by
+ *      installChecks() at its end (that file bundles its own copy of the
+ *      Sygnal core). The sygnal/astro integration adds this plugin in
+ *      `astro dev`.
  *
  * Why not Vite's `define`? Vite's dependency optimizer does not apply user
  * `define` replacements to pre-bundled dependencies (only process.env.NODE_ENV),
@@ -45,6 +89,44 @@
  * `app = run(App)`, nested or indented calls), for test files (*.test.*,
  * *.spec.*) and under Vitest (process.env.VITEST).
  */
+// Node built-ins (the plugin runs in Node). The package has no @types/node.
+// @ts-ignore
+import fs from 'node:fs'
+// @ts-ignore
+import path from 'node:path'
+// @ts-ignore
+import { createRequire } from 'node:module'
+// @ts-ignore
+import { pathToFileURL } from 'node:url'
+
+const nodeProcess: any = (globalThis as any).process
+
+export type DiagnosticsMode = 'off' | 'collect' | 'warn' | 'error'
+
+export interface DiagnosticsPluginOptions {
+  /** Runtime diagnostics mode in dev. @default 'warn' */
+  mode?: DiagnosticsMode
+  /** Strict (canonical-form, SYG5xx) runtime checks: sets globalThis.__SYGNAL_STRICT__. @default false */
+  strict?: boolean
+  /** Diagnostic codes to drop, e.g. ['SYG105'] */
+  ignore?: string[]
+}
+
+export interface CheckPluginOptions {
+  /** Also run sygnal-check's strict (SYG5xx) rules. @default `diagnostics.strict` */
+  strict?: boolean
+  /** Files, directories or globs to check, relative to the Vite root. @default ['src'] */
+  include?: string[]
+  /** Codes to drop. @default the `diagnostics` ignore list */
+  ignore?: string[]
+  /**
+   * Which findings also go to Vite's error overlay: 'error' (default),
+   * 'warn' (warnings too) or none (false). All findings are logged in the
+   * terminal and the browser console.
+   * @default 'error'
+   */
+  overlay?: 'error' | 'warn' | false
+}
 
 export interface SygnalPluginOptions {
   /**
@@ -60,21 +142,66 @@ export interface SygnalPluginOptions {
    * @default false
    */
   disableHmr?: boolean
+
+  /**
+   * Runtime diagnostics in dev (`vite`, not `vite build`): a mode, or
+   * { mode, strict, ignore }. 'off' injects nothing. A `diagnostics` option
+   * passed to run() itself still wins.
+   * @default 'warn'
+   */
+  diagnostics?: DiagnosticsMode | DiagnosticsPluginOptions
+
+  /**
+   * Run sygnal-check in dev on startup and on file changes. Skipped silently
+   * when sygnal-check isn't installed.
+   * @default true
+   */
+  check?: boolean | CheckPluginOptions
+
+  /**
+   * Under Vitest, add 'sygnal/diagnostics' to `test.setupFiles` so tests get
+   * the runtime checks.
+   * @default true
+   */
+  vitestSetup?: boolean
 }
 
+// Virtual modules (dev server only)
+const DEV_CLIENT = 'virtual:sygnal/dev'
+const DEV_CLIENT_ID = '\0' + DEV_CLIENT
+const RUNTIME_ID = '\0sygnal-dev:runtime'
+const VIKE_CLIENT = 'sygnal/vike/onRenderClient'
+const VIKE_CLIENT_ID = '\0sygnal-dev:vike-client'
+const CHECK_EVENT = 'sygnal:check'
+// Register the runtime checks with the core that loaded last (see the Vike/Astro wrappers)
+const REINSTALL_IMPORT = `import { installChecks as __sygnalInstallChecks } from 'sygnal/diagnostics';`
+const REINSTALL_CALL = 'try { __sygnalInstallChecks() } catch (e) { console.warn(e) }\n'
+
 export default function sygnal(options: SygnalPluginOptions = {}) {
-  const { disableJsx = false, disableHmr = false } = options
+  const { disableJsx = false, disableHmr = false, vitestSetup = true } = options
+  const diagnostics = normalizeDiagnostics(options.diagnostics)
+  const devOn = diagnostics.mode !== 'off'
+  // A mode other than the flag's 'warn', or an ignore list, needs run()'s option
+  const wrapRun = devOn && (diagnostics.mode !== 'warn' || diagnostics.ignore.length > 0)
   let isServe = false
   let isVitest = false
+  let root: string = nodeProcess.cwd()
+  // Files whose `import ... from 'sygnal'` resolves to the run() wrapper
+  const runtimeImporters = new Set<string>()
+  // Statements run before the app starts: dev flag (+ strict flag)
+  const flags = DEV_FLAG + (diagnostics.strict ? STRICT_FLAG : '')
+  const devImports = `import 'sygnal/diagnostics';import '${DEV_CLIENT}';`
+  let astroClient: Set<string> | undefined
 
   return {
     name: 'vite-plugin-sygnal',
 
-    config(_config: any, env: { command: string }) {
+    config(config: any, env: { command: string }) {
       isServe = env.command === 'serve'
-      isVitest = !!(globalThis as any).process?.env?.VITEST
+      isVitest = !!nodeProcess?.env?.VITEST
+      root = config?.root ? path.resolve(config.root) : nodeProcess.cwd()
 
-      const config: any = {
+      const result: any = {
         // Ensure sygnal is bundled for SSR rather than externalized.
         // Without this, Node fails to resolve sygnal's exports from
         // Vike's server chunks in production builds.
@@ -84,19 +211,102 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
       }
 
       if (!disableJsx) {
-        config.oxc = {
+        result.oxc = {
           jsx: {
             runtime: 'automatic' as const,
             importSource: 'sygnal',
           },
         }
+        // Vite 8's dependency scanner doesn't use the `oxc` options: without
+        // this it compiles JSX for React, fails to resolve
+        // react/jsx-dev-runtime and skips pre-bundling (a reload on first load).
+        if (isServe && !isVitest) {
+          result.optimizeDeps = { rolldownOptions: { transform: { jsx: { runtime: 'automatic', importSource: 'sygnal' } } } }
+        }
       }
 
-      return config
+      if (isVitest) {
+        if (vitestSetup) {
+          const setup = diagnosticsSetupFile(root)
+          const existing = ([] as string[]).concat(config?.test?.setupFiles || [])
+          const loaded = existing.some(f => typeof f === 'string' &&
+            (f === 'sygnal/diagnostics' || (!!setup && path.resolve(root, f) === setup)))
+          // Vite merges arrays (and a string with an array) by concatenation
+          if (setup && !loaded) result.test = { setupFiles: [setup] }
+        }
+      } else if (isServe && devOn && sygnalInNodeModules(root)) {
+        // The dependency scan reads the original sources, which don't import
+        // the checks entry: pre-bundle it with sygnal so the first page load
+        // doesn't trigger a re-optimization. Only for an installed sygnal: a
+        // linked one is served from source, and pre-bundling the checks alone
+        // would give them their own copy of the core.
+        result.optimizeDeps = { ...result.optimizeDeps, include: ['sygnal/diagnostics'] }
+      }
+
+      return result
     },
 
-    transform(code: string, id: string) {
+    configResolved(config: any) {
+      if (config?.root) root = config.root
+    },
+
+    resolveId: {
+      order: 'pre' as const,
+      async handler(this: any, source: string, importer: string | undefined, opts: any) {
+        if (!isServe || isVitest) return null
+        if (source === DEV_CLIENT) return DEV_CLIENT_ID
+        if (source === 'sygnal' && importer && wrapRun && runtimeImporters.has(cleanId(importer))) {
+          return RUNTIME_ID
+        }
+        if (source === VIKE_CLIENT && devOn && !opts?.ssr) {
+          if (importer !== VIKE_CLIENT_ID) return VIKE_CLIENT_ID
+          // The wrapper's own import of the real entry: resolve it normally.
+          // The real Vike client's run() then gets the run() wrapper too, when
+          // it is served unbundled (a pre-bundled copy stays in 'warn' mode).
+          const real = await this.resolve(source, importer, { ...opts, skipSelf: true })
+          if (real && wrapRun) runtimeImporters.add(cleanId(real.id))
+          return real
+        }
+        return null
+      },
+    },
+
+    load(id: string) {
+      if (id === DEV_CLIENT_ID) return devClientModule()
+      if (id === RUNTIME_ID) return runtimeModule(diagnostics)
+      // The checks register again once the real entry has loaded: a
+      // pre-bundled copy of it can carry its own copy of the Sygnal core
+      // (e.g. with a linked sygnal), which then holds the diagnostics bridge.
+      if (id === VIKE_CLIENT_ID) {
+        return `${devImports}${REINSTALL_IMPORT}\nexport * from '${VIKE_CLIENT}';\n${flags}\n${REINSTALL_CALL}`
+      }
+      return null
+    },
+
+    configureServer(server: any) {
+      if (isVitest || options.check === false) return
+      const checkOptions = typeof options.check === 'object' && options.check ? options.check : {}
+      // Deferred: the dev server doesn't wait for the first check
+      const checkDefaults = { strict: diagnostics.strict, ignore: diagnostics.ignore }
+      setTimeout(() => {
+        startChecker(server, root, checkOptions, checkDefaults, options.check !== undefined)
+          .catch(err => server?.config?.logger?.warn?.(`[sygnal] sygnal-check could not start: ${err?.message || err}`))
+      }, 0)
+    },
+
+    transform(code: string, id: string, opts?: { ssr?: boolean }) {
       if (!isServe) return null
+
+      // sygnal/astro/client (Astro islands): flags + checks first; the file
+      // bundles its own copy of the Sygnal core, which takes over the
+      // diagnostics bridge as it loads, so the checks are registered again,
+      // with that copy, at the end of the file.
+      if (devOn && !isVitest && !opts?.ssr) {
+        astroClient = astroClient || astroClientFiles(root)
+        if (astroClient.has(cleanId(id))) {
+          return withSourcemap(code, [[0, flags + devImports + REINSTALL_IMPORT]], '\n' + REINSTALL_CALL, id)
+        }
+      }
 
       // Only transform JS/TS/JSX/TSX files
       if (!/\.[jt]sx?$/.test(id)) return null
@@ -113,11 +323,16 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
       const runImportRe = /import\s+\{[^}]*\brun\b[^}]*\}\s+from\s+['"]sygnal['"]/
       if (!runImportRe.test(noComments)) return null
 
-      // Dev flag: injected into every file that imports run() — also when HMR
-      // wiring below is skipped. Inserted after any shebang line and directive
-      // prologue, without adding a line.
-      const inserts: Array<[number, string]> = [flagInsertion(code)]
-      const done = (tail = '') => withSourcemap(code, inserts, tail, id)
+      // Dev snippet: injected into every file that imports run() — also when
+      // HMR wiring below is skipped. Inserted after any shebang line and
+      // directive prologue, without adding a line. Under Vitest only the flag
+      // (the checks come from test.setupFiles there).
+      const inserts: Array<[number, string]> = []
+      if (devOn) {
+        inserts.push(flagInsertion(code, flags + (isVitest ? '' : devImports)))
+        if (wrapRun && !isVitest) runtimeImporters.add(cleanId(id))
+      }
+      const done = (tail = '') => (inserts.length || tail ? withSourcemap(code, inserts, tail, id) : null)
 
       // Skip HMR wiring if disabled, in tests, or already manually wired
       if (disableHmr || isVitest || /\.(test|spec)\.[jt]sx?$/.test(id)) return done()
@@ -160,7 +375,217 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
   }
 }
 
+interface NormalizedDiagnostics { mode: DiagnosticsMode, strict: boolean, ignore: string[] }
+
+const MODES: DiagnosticsMode[] = ['off', 'collect', 'warn', 'error']
+
+function normalizeDiagnostics(value: SygnalPluginOptions['diagnostics']): NormalizedDiagnostics {
+  const o: DiagnosticsPluginOptions = typeof value === 'string' ? { mode: value } : value || {}
+  const mode = o.mode === undefined ? 'warn' : o.mode
+  if (!MODES.includes(mode)) {
+    throw new Error(`[vite-plugin-sygnal] diagnostics mode must be one of ${MODES.map(m => `'${m}'`).join(', ')}; got ${JSON.stringify(mode)}`)
+  }
+  return { mode, strict: !!o.strict, ignore: Array.isArray(o.ignore) ? o.ignore.map(String) : [] }
+}
+
+/** Module id without a query or hash. */
+function cleanId(id: string): string {
+  return id.replace(/[?#].*$/, '')
+}
+
+/** 'virtual:sygnal/dev': logs sygnal-check results in the browser console. */
+function devClientModule(): string {
+  return `if (import.meta.hot) {
+  let shown = 0;
+  import.meta.hot.on('${CHECK_EVENT}', (payload) => {
+    const list = (payload && payload.diagnostics) || [];
+    if (!list.length) {
+      if (shown) console.info('[sygnal-check] all findings resolved');
+      shown = 0;
+      return;
+    }
+    shown = list.length;
+    for (const d of list) console[d.severity === 'error' ? 'error' : 'warn']('[sygnal-check] ' + d.text);
+    console.info('[sygnal-check] ' + payload.summary);
+  });
+}
+`
+}
+
+/** '\0sygnal-dev:runtime': sygnal with a run() that adds the plugin's diagnostics option. */
+function runtimeModule(d: NormalizedDiagnostics): string {
+  const option = JSON.stringify({ mode: d.mode, ignore: d.ignore })
+  return `import { run as __run } from 'sygnal';
+export * from 'sygnal';
+export function run(app, drivers, options) {
+  if (options && options.diagnostics !== undefined) return __run(app, drivers, options);
+  return __run(app, drivers, Object.assign({}, options, { diagnostics: ${option} }));
+}
+`
+}
+
+/** Directory of the 'sygnal' package the project resolves, or undefined. */
+function sygnalPackageDir(root: string): string | undefined {
+  try {
+    const req = createRequire(path.join(root, 'package.json'))
+    let dir = path.dirname(req.resolve('sygnal'))
+    while (dir !== path.dirname(dir)) {
+      const pkgFile = path.join(dir, 'package.json')
+      if (fs.existsSync(pkgFile) && JSON.parse(fs.readFileSync(pkgFile, 'utf8')).name === 'sygnal') return dir
+      dir = path.dirname(dir)
+    }
+  } catch (_) {}
+  return undefined
+}
+
+/** Real paths of sygnal's 'astro/client' ESM file. */
+function astroClientFiles(root: string): Set<string> {
+  const files = new Set<string>()
+  const dir = sygnalPackageDir(root)
+  if (!dir) return files
+  try {
+    const pkg = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8'))
+    const entry = pkg.exports?.['./astro/client']
+    const rel = typeof entry === 'string' ? entry : entry?.import
+    if (typeof rel !== 'string') return files
+    const file = path.resolve(dir, rel)
+    files.add(file.split(path.sep).join('/'))
+    files.add(fs.realpathSync(file).split(path.sep).join('/'))
+  } catch (_) {}
+  return files
+}
+
+function sygnalInNodeModules(root: string): boolean {
+  const dir = sygnalPackageDir(root)
+  if (!dir) return false
+  try {
+    return fs.realpathSync(dir).split(path.sep).includes('node_modules')
+  } catch (_) {
+    return false
+  }
+}
+
+/**
+ * Absolute path of the ESM build of 'sygnal/diagnostics' (its "import"
+ * condition), so the checks share the core instance the tests import.
+ */
+function diagnosticsSetupFile(root: string): string | undefined {
+  const dir = sygnalPackageDir(root)
+  if (!dir) return undefined
+  try {
+    const pkg = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8'))
+    const entry = pkg.exports?.['./diagnostics']
+    const rel = typeof entry === 'string' ? entry : entry?.import?.default || entry?.import || entry?.default
+    if (typeof rel !== 'string') return undefined
+    const file = path.resolve(dir, rel)
+    return fs.existsSync(file) ? file : undefined
+  } catch (_) {
+    return undefined
+  }
+}
+
+/** Load sygnal-check from the project (optional dependency); undefined when it is missing. */
+async function loadSygnalCheck(root: string): Promise<any> {
+  try {
+    const file = createRequire(path.join(root, 'package.json')).resolve('sygnal-check')
+    return await import(/* @vite-ignore */ pathToFileURL(file).href)
+  } catch (_) {}
+  try {
+    const name = 'sygnal-check'
+    return await import(/* @vite-ignore */ name)
+  } catch (_) {
+    return undefined
+  }
+}
+
+const SOURCE_RE = /\.[cm]?[jt]sx?$/
+
+/** sygnal-check's one-line format: `file:line:col CODE [severity] Component: message (fix)` */
+function formatLine(d: any): string {
+  const where = d.file ? `${d.file}:${d.line}:${d.column}` : '<sygnal-check>'
+  const sev = d.severity === 'warn' ? '' : ` [${d.severity}]`
+  return `${where} ${d.code}${sev} ${d.component ? d.component + ': ' : ''}${d.message}${d.fix ? ` (${d.fix})` : ''}`
+}
+
+/** Run sygnal-check now and after source changes; report to the terminal and the browser. */
+async function startChecker(server: any, root: string, opts: CheckPluginOptions,
+  defaults: { strict: boolean, ignore: string[] }, explicit: boolean) {
+  const mod = await loadSygnalCheck(root)
+  const logger = server?.config?.logger || console
+  if (!mod || typeof mod.check !== 'function') {
+    if (explicit) logger.info('[sygnal] sygnal-check is not installed, so static checks are off (npm i -D sygnal-check)')
+    return
+  }
+  const include = opts.include && opts.include.length ? opts.include : ['src']
+  const ignore = opts.ignore || defaults.ignore
+  const strict = opts.strict === undefined ? defaults.strict : !!opts.strict
+  const overlay = opts.overlay === undefined ? 'error' : opts.overlay
+  let lastKey: string | undefined
+  let payload: any = null
+  let overlayErr: any = null
+
+  const send = (data: any) => { try { server.ws?.send?.(data) } catch (_) {} }
+  const notify = () => {
+    if (payload) send({ type: 'custom', event: CHECK_EVENT, data: payload })
+    if (overlayErr) send({ type: 'error', err: overlayErr })
+  }
+
+  const run = () => {
+    let diags: any[]
+    try {
+      diags = mod.check(include, { cwd: root, strict, ignore })
+    } catch (err: any) {
+      logger.warn(`[sygnal] sygnal-check failed: ${err?.message || err}`, { timestamp: true })
+      return
+    }
+    const shown = diags.filter(d => d.severity !== 'info')
+    const lines = shown.map(formatLine)
+    const key = lines.join('\n')
+    if (key === lastKey) return
+    lastKey = key
+    const text: string = typeof mod.formatDiagnostics === 'function'
+      ? mod.formatDiagnostics(diags)
+      : lines.concat(`sygnal-check: ${shown.length} finding(s)`).join('\n')
+    const summary = text.split('\n').pop() || ''
+    if (shown.length) logger.warn(text, { timestamp: true })
+    else logger.info(summary, { timestamp: true })
+    payload = {
+      summary,
+      diagnostics: shown.map((d, i) => ({ code: d.code, severity: d.severity, file: d.file, line: d.line, column: d.column, text: lines[i] })),
+    }
+    const forOverlay = overlay === false ? [] : shown.filter(d => d.severity === 'error' || overlay === 'warn')
+    const first = forOverlay[0]
+    overlayErr = first ? {
+      plugin: 'sygnal-check',
+      message: forOverlay.map(formatLine).join('\n'),
+      stack: '',
+      id: path.resolve(root, first.file || ''),
+      loc: { file: path.resolve(root, first.file || ''), line: first.line, column: first.column },
+    } : null
+    notify()
+  }
+
+  run()
+  // A page that connects later (or reloads) gets the current findings
+  try { server.ws?.on?.('connection', () => notify()) } catch (_) {}
+
+  let timer: any
+  const onChange = (file: string) => {
+    if (!SOURCE_RE.test(file) || file.split(/[\\/]/).includes('node_modules')) return
+    clearTimeout(timer)
+    timer = setTimeout(run, 100)
+  }
+  const watcher = server?.watcher
+  if (watcher && typeof watcher.on === 'function') {
+    watcher.on('change', onChange)
+    watcher.on('add', onChange)
+    watcher.on('unlink', onChange)
+  }
+  try { server.httpServer?.once?.('close', () => clearTimeout(timer)) } catch (_) {}
+}
+
 const DEV_FLAG = 'if (globalThis.__SYGNAL_DEV__ === undefined) globalThis.__SYGNAL_DEV__ = true;'
+const STRICT_FLAG = 'if (globalThis.__SYGNAL_STRICT__ === undefined) globalThis.__SYGNAL_STRICT__ = true;'
 
 // A top-level (column 0) run(Component, ...) statement: bare, or declaring a
 // new binding. Assignments to existing variables, nested calls and indented
@@ -183,8 +608,8 @@ function blankOut(code: string, strings: boolean): string {
 // and comments. It must end with `;` (group 2) or at the end of its line.
 const DIRECTIVE_RE = /(?:\s|\/\/[^\n]*|\/\*[\s\S]*?\*\/)*(['"])(?:\\.|(?!\1)[^\\\n])*\1(?:[ \t]*(;)|(?=[ \t]*(?:\/\/[^\n]*|\/\*[^\n]*?\*\/)?[ \t]*(?:\r?\n|$)))/y
 
-/** Where to insert the dev flag: after a shebang line and the directive prologue. */
-function flagInsertion(code: string): [number, string] {
+/** Insert `text` (the dev snippet) after a shebang line and the directive prologue. */
+function flagInsertion(code: string, text: string): [number, string] {
   let at = code.startsWith('#!') ? (code.indexOf('\n') + 1 || code.length) : 0
   let semicolon = true
   DIRECTIVE_RE.lastIndex = at
@@ -193,7 +618,7 @@ function flagInsertion(code: string): [number, string] {
     at = DIRECTIVE_RE.lastIndex
     semicolon = !!m[2]
   }
-  return [at, (semicolon ? '' : ';') + DEV_FLAG]
+  return [at, (semicolon ? '' : ';') + text]
 }
 
 const B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'

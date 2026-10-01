@@ -3,15 +3,17 @@ import ts from 'typescript'
 import sygnal from '../dist/vite/plugin.mjs'
 
 const DEV_FLAG = 'if (globalThis.__SYGNAL_DEV__ === undefined) globalThis.__SYGNAL_DEV__ = true;'
+// What a dev server (not Vitest) injects: the flag plus the dev checks and dev client
+const SNIPPET = DEV_FLAG + "import 'sygnal/diagnostics';import 'virtual:sygnal/dev';"
 
 // The plugin skips HMR wiring under Vitest (process.env.VITEST, read in
 // config()). These tests run under Vitest, so configure as a plain dev server.
-function serveConfig(plugin, { vitest = false } = {}) {
+function serveConfig(plugin, { vitest = false, command = 'serve', config = {} } = {}) {
   const saved = process.env.VITEST
   if (vitest) process.env.VITEST = 'true'
   else delete process.env.VITEST
   try {
-    return plugin.config({}, { command: 'serve' })
+    return plugin.config(config, { command })
   } finally {
     if (saved === undefined) delete process.env.VITEST
     else process.env.VITEST = saved
@@ -57,7 +59,7 @@ describe('vite-plugin-sygnal', () => {
   describe('config', () => {
     it('returns jsx config by default', () => {
       const plugin = sygnal()
-      const result = plugin.config({}, { command: 'serve' })
+      const result = serveConfig(plugin)
       expect(result).toEqual({
         ssr: { noExternal: ['sygnal'] },
         oxc: {
@@ -66,12 +68,16 @@ describe('vite-plugin-sygnal', () => {
             importSource: 'sygnal',
           },
         },
+        // the dev dependency scanner doesn't read `oxc`
+        optimizeDeps: {
+          rolldownOptions: { transform: { jsx: { runtime: 'automatic', importSource: 'sygnal' } } },
+        },
       })
     })
 
     it('returns jsx config in build mode', () => {
       const plugin = sygnal()
-      const result = plugin.config({}, { command: 'build' })
+      const result = serveConfig(plugin, { command: 'build' })
       expect(result).toEqual({
         ssr: { noExternal: ['sygnal'] },
         oxc: {
@@ -85,7 +91,7 @@ describe('vite-plugin-sygnal', () => {
 
     it('skips jsx config when disableJsx is true', () => {
       const plugin = sygnal({ disableJsx: true })
-      const result = plugin.config({}, { command: 'serve' })
+      const result = serveConfig(plugin)
       expect(result).toEqual({
         ssr: { noExternal: ['sygnal'] },
       })
@@ -211,7 +217,7 @@ if (import.meta.hot) {
 }
 `
       const result = plugin.transform(code, '/src/main.js')
-      expect(result.code).toBe(DEV_FLAG + code)
+      expect(result.code).toBe(SNIPPET + code)
     })
 
     it('skips files without run import from sygnal', () => {
@@ -234,7 +240,7 @@ import { run } from 'sygnal'
 run(someFunction)
 `
       const result = plugin.transform(code, '/src/main.js')
-      expect(result.code).toBe(DEV_FLAG + code)
+      expect(result.code).toBe(SNIPPET + code)
     })
 
     it('skips HMR wiring where component has no import path (dev flag only)', () => {
@@ -249,7 +255,7 @@ run(App)
 `
       const result = plugin.transform(code, '/src/main.js')
       // App is defined inline, not imported — can't wire HMR to a module, but the dev flag is still set
-      expect(result.code).toBe(DEV_FLAG + code)
+      expect(result.code).toBe(SNIPPET + code)
     })
 
     it('skips node_modules', () => {
@@ -290,7 +296,7 @@ import App from './App.jsx'
 run(App)
 `
       const result = plugin.transform(code, '/src/main.js')
-      expect(result.code).toBe(DEV_FLAG + code)
+      expect(result.code).toBe(SNIPPET + code)
     })
 
     it('handles run with multiple sygnal imports', () => {
@@ -328,7 +334,7 @@ run(App)
     it('keeps line numbers unchanged (flag is on the first line)', () => {
       const result = servePlugin().transform(entry, '/src/main.js')
       const lines = result.code.split('\n')
-      expect(lines[0]).toBe(DEV_FLAG + "import { run } from 'sygnal'")
+      expect(lines[0]).toBe(SNIPPET + "import { run } from 'sygnal'")
       expect(lines[1]).toBe("import App from './App.jsx'")
     })
 
@@ -377,14 +383,14 @@ run(App)
       const result = servePlugin().transform(code, '/src/main.js')
       const lines = result.code.split('\n')
       expect(lines[0]).toBe('#!/usr/bin/env node')
-      expect(lines[1]).toBe(DEV_FLAG + "import { run } from 'sygnal'")
+      expect(lines[1]).toBe(SNIPPET + "import { run } from 'sygnal'")
       expect(parseErrors(result.code)).toEqual([])
     })
 
     it("inserts the flag after a 'use strict'; directive", () => {
       const code = `'use strict';\n${entry}`
       const result = servePlugin().transform(code, '/src/main.js')
-      expect(result.code.split('\n')[0]).toBe(`'use strict';${DEV_FLAG}`)
+      expect(result.code.split('\n')[0]).toBe(`'use strict';${SNIPPET}`)
       expect(parseErrors(result.code)).toEqual([])
     })
 
@@ -393,14 +399,14 @@ run(App)
       const result = servePlugin().transform(code, '/src/main.js')
       const lines = result.code.split('\n')
       expect(lines[1]).toBe('"use client"')
-      expect(lines[2]).toBe(`/* x */ 'use strict';${DEV_FLAG} // why`)
+      expect(lines[2]).toBe(`/* x */ 'use strict';${SNIPPET} // why`)
       expect(parseErrors(result.code)).toEqual([])
     })
 
     it('a string expression that is not a directive does not move the flag', () => {
       const code = `'not' + 'a directive'\n${entry}`
       const result = servePlugin().transform(code, '/src/main.js')
-      expect(result.code.startsWith(DEV_FLAG + "'not'")).toBe(true)
+      expect(result.code.startsWith(SNIPPET + "'not'")).toBe(true)
     })
 
     it('returns a sourcemap that maps every original line back to itself', () => {
@@ -436,7 +442,7 @@ run(App)
     it('leaves an assignment to an existing variable untouched (dev flag only)', () => {
       const code = `${head}let app\napp = run(App)\n`
       const result = plugin().transform(code, '/src/main.js')
-      expect(result.code).toBe(DEV_FLAG + code)
+      expect(result.code).toBe(SNIPPET + code)
       expect(parseErrors(result.code)).toEqual([])
     })
 
@@ -452,7 +458,7 @@ run(App)
       ]
       for (const code of variants) {
         const result = plugin().transform(code, '/src/main.js')
-        expect(result.code, code).toBe(DEV_FLAG + code)
+        expect(result.code, code).toBe(SNIPPET + code)
         expect(parseErrors(result.code), code).toEqual([])
       }
     })
@@ -466,7 +472,7 @@ run(App)
       ]
       for (const code of variants) {
         const result = plugin().transform(code, '/src/main.js')
-        expect(result.code, code).toBe(DEV_FLAG + code)
+        expect(result.code, code).toBe(SNIPPET + code)
         expect(parseErrors(result.code), code).toEqual([])
       }
     })
@@ -501,7 +507,7 @@ run(App)
     it('skips HMR wiring in test files (dev flag only)', () => {
       const code = `${head}run(App)\n`
       for (const id of ['/src/app.test.js', '/src/app.spec.jsx', '/test/main.test.ts']) {
-        expect(plugin().transform(code, id).code).toBe(DEV_FLAG + code)
+        expect(plugin().transform(code, id).code).toBe(SNIPPET + code)
       }
     })
 
