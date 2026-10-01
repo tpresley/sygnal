@@ -6,6 +6,9 @@ A static checker for [Sygnal](https://sygnal.js.org) apps. It finds the string-w
 npx sygnal-check                 # checks ./src
 npx sygnal-check src/components  # files, directories or globs
 npx sygnal-check "src/**/*.tsx" --json
+npx sygnal-check --graph --json  # the app graph: components, actions, events, selectors, findings
+npx sygnal-check explain SYG104  # what a diagnostic code means and how to fix it
+npx sygnal-check mcp             # MCP server (stdio) with check, graph and explain tools
 ```
 
 It parses JS, JSX, TS and TSX with `@babel/parser`. It never runs your code and doesn't depend on `sygnal`.
@@ -31,9 +34,11 @@ Each line has the form `file:line:col CODE [severity] Component: message (fix)`.
 | `--include-tests` | Also scan `*.test.*` / `*.spec.*` files found through directories or globs (skipped by default; a file named explicitly is always scanned) |
 | `--strict` | Also run the strict-mode canonical-form rules (SYG501-507, see [Strict mode](#strict-mode)) |
 | `--fix` | Apply the mechanical canonical-form rewrites in place, then check (implies `--strict`) |
-| `--graph` | Print the app graph. **Not implemented yet** |
+| `--graph` | Print the [app graph](#app-graph---graph) instead of the findings list; with `--json`, as JSON. Exits 0 (findings are part of the graph). Combines with `--strict`, not with `--fix` |
 
-Exit codes: `0` clean, `1` findings at or above `--fail-on`, `2` usage error (bad option, no files, `--graph`).
+Exit codes: `0` clean, `1` findings at or above `--fail-on`, `2` usage error (bad option, no files, unknown code for `explain`).
+
+Subcommands: [`sygnal-check explain <code>`](#explaining-a-code) and [`sygnal-check mcp`](#mcp-server).
 
 ## Rules
 
@@ -79,6 +84,100 @@ A component is any function that gets an `.intent`, `.model`, `.initialState`, `
 - SYG105 only sees the files you scan. Check the whole app (`src`), not one folder of it.
 - Classes added outside JSX (`innerHTML`, third-party widgets, `element.classList`) are invisible. An `innerHTML` prop or a `{...spread}` on an element makes the component's checks fall back to info.
 
+## App graph (`--graph`)
+
+`--graph` answers "what is this app's structure, and what's wrong with it?" in one result. `--graph --json` prints an `InspectGraph`: the same shape the runtime produces (`inspect()` from `sygnal/diagnostics`, `getDevTools().inspect()`, `renderComponent(...).inspect()`). The JSON Schema is [`schema/inspect.schema.json`](schema/inspect.schema.json) (`sygnal-check/schema/inspect.schema.json`), and the TypeScript type is `InspectGraph`, exported from `sygnal` and `sygnal/diagnostics`.
+
+```jsonc
+{
+  "version": 1,
+  "source": "static",
+  "components": [{
+    "name": "RootComponent", "id": "src/RootComponent.jsx:12", "parentId": null,
+    "file": "src/RootComponent.jsx", "kind": "root",
+    "actions": [{ "name": "ADD_LANE", "trigger": "intent", "sinks": ["STATE"] }],
+    "stateKeys": ["lanes", "dragging", "draggingLane", "nextId"], "calculated": [],
+    "contextProvides": ["draggingTaskId", "draggingLaneId"], "contextConsumes": [],
+    "eventsEmitted": [], "eventsSelected": ["DELETE_LANE"],
+    "children": [{ "name": "LaneComponent", "via": "collection", "from": "lanes" }],
+    "selectors": [{ "selector": ".add-lane-btn", "events": ["click"], "matched": true, "isolationHit": null }],
+    "diagnostics": []
+  }],
+  "events": { "DELETE_LANE": { "emitters": ["LaneComponent"], "selectors": ["RootComponent"] } },
+  "diagnostics": []
+}
+```
+
+| Field | Static (`--graph`) | Runtime (`inspect()`) |
+|---|---|---|
+| `id` / `parentId` | `file:line` of the definition / `null` (see the parents' `children`) | instance number / the parent instance |
+| `kind` | `root` when no scanned component renders it, else how it's first rendered | how the instance was created (`child` = by tag) |
+| `actions[].trigger` | `intent`, `builtin` (BOOTSTRAP/INITIALIZE/HYDRATE/DISPOSE/READY), `next` (a `next('X')` literal), else `unknown` | the same; `next` = a model-only action whose STATE reducer was seen running. The core adds `INITIALIZE` to every model |
+| `stateKeys` | `initialState` keys | current state keys |
+| `contextConsumes` | context fields the view reads | `null` |
+| `children[].via` | `tag`, `collection` (with `from`), `switchable`, `slot` (passed into a child as children/slots) | `tag`, `collection`, `switchable`, plus `count` |
+| `selectors[]` | intent DOM selectors; `matched`/`isolationHit` from SYG110/SYG104 (`null` for `document`, dynamic selectors) | real DOM: what the DOM checks saw, `events: null`; `renderComponent`: matched against the mock DOM, with event types |
+| `diagnostics` | the rule findings (strict ones with `--strict`), with `file`/`line`/`column` | collected diagnostics, by component name |
+
+Without `--json`, `--graph` prints a compact per-component summary.
+
+## Explaining a code
+
+```
+$ sygnal-check explain SYG104
+SYG104: Intent selector crosses an isolation boundary
+  severity: warn
+  reported by: the 'sygnal/diagnostics' dev checks, the Sygnal runtime, sygnal-check
+  …explanation…
+  Fix:
+    …
+  https://sygnal.js.org/reference/errors#syg104
+```
+
+`explain` accepts `SYG104`, `syg104` or `104`; `--json` prints the entry as JSON, and `explain --all [--json]` prints every code. The table covers every code Sygnal reports (runtime, dev checks and static), lives in `src/explanations.js`, and is published as [`explanations.json`](explanations.json) (`import 'sygnal-check/explanations.json'`). It is the source of the docs' error reference page. A drift test keeps it in sync with the runtime registry; after editing the table, regenerate the JSON with `node bin/sygnal-check.js explain --all --json > explanations.json`.
+
+## MCP server
+
+`sygnal-check mcp` runs a [Model Context Protocol](https://modelcontextprotocol.io) server on stdio, so an agent can call the checker as tools. Paths are resolved against the server's working directory (start it in the project root); the default is `["src"]`.
+
+| Tool | Arguments | Returns |
+|---|---|---|
+| `check` | `{ paths?: string[], strict?: boolean }` | `{ diagnostics, summary: { error, warn, info } }` |
+| `graph` | `{ paths?: string[], strict?: boolean }` | the `InspectGraph` |
+| `explain` | `{ code: string }` | `{ code, title, severity, staticSeverity?, strict, reportedBy, explanation, fix, docsUrl }` |
+
+Results come back as `structuredContent` and as JSON text. A bad path or an unknown code is a tool result with `isError: true`.
+
+Claude Code (from the project root):
+
+```bash
+claude mcp add sygnal-check -- npx sygnal-check mcp
+```
+
+Any MCP client that takes a JSON config (`.mcp.json`, Claude Desktop, Cursor, …):
+
+```json
+{
+  "mcpServers": {
+    "sygnal-check": { "command": "npx", "args": ["sygnal-check", "mcp"] }
+  }
+}
+```
+
+The server is a minimal hand-written JSON-RPC 2.0 implementation (initialize, ping, tools/list, tools/call; protocol versions 2025-06-18, 2025-03-26 and 2024-11-05), so it adds no dependencies.
+
+## How an agent should use inspect, check and explain
+
+1. **Orient with the graph before editing.** Run `sygnal-check --graph --json` (or the `graph` tool) on `src`. It lists every component with its actions and what triggers them, its state keys, context, EVENTS traffic, children and DOM selectors. Use it instead of reading every file to find where an action, event or child lives.
+2. **Make the change, then check.** Run `sygnal-check` (or the `check` tool) on `src`, not one folder: SYG105 (EVENTS) and SYG104 (child components) need the whole app. Add `--strict` to keep new code in the canonical forms. Treat every `warn` as a bug to fix. `info` findings are hints that need a judgment call.
+3. **Look up any code you don't know.** Use `sygnal-check explain SYGnnn` (or the `explain` tool) for what triggers the code, why it fails silently, and the fix. Don't guess from the code number.
+4. **Verify at runtime in a test.** With `import 'sygnal/diagnostics'` in the test (or in vitest `setupFiles`), use `const t = renderComponent(App)`. Drive it with `t.simulateEvent('.btn', 'click')`, then call `t.expectNoDiagnostics()`. Call `t.inspect()` to get the same graph for the rendered tree, with real instances, which selectors actually matched rendered elements (`matched`, `isolationHit`), which EVENTS were emitted, and the runtime diagnostics. In a running dev app (Vite plugin, diagnostics on), `window.__SYGNAL_DEVTOOLS__.inspect()` returns the live graph.
+5. **Read the graph's red flags.** Look for:
+   - a selector with `matched: false`, which means the action never fires (fix the class, or handle it in the child named by `isolationHit`);
+   - an action with `sinks: []` (no model entry), or with trigger `unknown` and no `next()` call to it;
+   - an `events` entry with no emitters or no selectors;
+   - a non-empty `diagnostics` array.
+
 ## Suppressing a finding
 
 Put a comment on the same line or on the line above:
@@ -110,8 +209,13 @@ This is the runtime `Diagnostic` shape plus `file`, `line` and `column` (1-based
 - `options.includeTests`: also scan test and spec files.
 - `options.strict`: also run the strict-mode rules (SYG501-507).
 
-`fixFiles(absPaths, { cwd })` applies the `--fix` rewrites in place and returns `{ fixed, files, passes }`. A strict diagnostic that can be fixed mechanically carries its text edits on a non-enumerable `edits` property (`[{ file, start, end, text }]`).
 - `options.rules`: a custom rule list.
+
+`fixFiles(absPaths, { cwd })` applies the `--fix` rewrites in place and returns `{ fixed, files, passes }`. A strict diagnostic that can be fixed mechanically carries its text edits on a non-enumerable `edits` property (`[{ file, start, end, text }]`).
+
+`graph(inputs, options)` returns the [app graph](#app-graph---graph) (`InspectGraph`). It takes the same options as `check()`. `buildGraph(project, diagnostics)` does the same for an already built project. `validateSchema(schema, value)` is the small JSON Schema validator the tests use.
+
+`getExplanation(code)`, `listExplanations()`, `formatExplanation(entry)` and the raw `EXPLANATIONS` table back `explain`. The MCP server lives in `src/mcp.js` (`createMcpServer({ cwd }).handle(message)`, `runMcpServer({ stdin, stdout, cwd })`).
 
 For tooling, `buildProject(files)` returns the intermediate project model the rules query: components, intents, models, view classes and ids, child usages, collections, and events.
 
