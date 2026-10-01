@@ -8,6 +8,7 @@ import {makeCommandSource} from './extra/command';
 import type {Command} from './extra/command';
 // [diagnostics hook] shared diagnostics core — hooks are no-ops when diagnostics are off
 import * as diag from './extra/diagnostics/index';
+import {warn, error as logError, fail} from './extra/diagnostics/legacy';
 
 import xs, {Stream, resolveInteropDefault} from './extra/xstreamCompat';
 import * as delayModule from 'xstream/extra/delay.js';
@@ -33,6 +34,8 @@ const PARENT_SINK_NAME = 'PARENT';
 const CHILD_SOURCE_NAME = 'CHILD';
 const READY_SINK_NAME = 'READY';
 const EFFECT_SINK_NAME = 'EFFECT';
+// fix hint for coded messages that carry the caught error (printed after the text, or diagnostic.data)
+const ERR_FIX = 'See the attached error';
 
 let COMPONENT_COUNT = 0;
 
@@ -70,9 +73,7 @@ function normalizeCalculatedEntry(field: string, entry: any): {fn: (...args: any
       && Array.isArray(entry[0]) && typeof entry[1] === 'function') {
     return { fn: entry[1], deps: entry[0] }
   }
-  throw new Error(
-    `Invalid calculated field '${field}': expected a function or [depsArray, function]`
-  )
+  fail('SYG206', undefined, `Invalid calculated field '${field}'`, 'Use fn or [deps, fn]')
 }
 
 export interface ComponentOptions {
@@ -102,7 +103,7 @@ export default function component(opts: ComponentOptions): any {
   const { name, sources, isolateOpts, stateSourceName='STATE' } = opts
 
   if (sources && !isObj(sources)) {
-    throw new Error(`[${name}] Sources must be a Cycle.js sources object`)
+    fail('SYG601', name, 'Invalid sources', 'Pass sources from run()')
   }
 
   let fixedIsolateOpts
@@ -208,7 +209,7 @@ class Component {
   _readyChangedListener: any;
 
   constructor({name = 'NO NAME', sources, intent, model, hmrActions, context, response, view, peers = {}, components = {}, initialState, calculated, storeCalculatedInState = true, DOMSourceName = 'DOM', stateSourceName = 'STATE', requestSourceName = 'HTTP', isolatedState = false, onError, debug = false}: ComponentOptions) {
-    if (!sources || !isObj(sources)) throw new Error(`[${name}] Missing or invalid sources`)
+    if (!sources || !isObj(sources)) fail('SYG601', name, 'Missing or invalid sources', 'Pass sources from run()')
 
     this._componentNumber = COMPONENT_COUNT++
 
@@ -238,10 +239,7 @@ class Component {
         && isObj(this.calculated) && isObj(this.initialState)) {
       for (const key of Object.keys(this.calculated)) {
         if (key in this.initialState) {
-          console.warn(
-            `[${name}] Calculated field '${key}' shadows a key in initialState. ` +
-            `The initialState value will be overwritten on every state update.`
-          )
+          warn('SYG207', name, `Calculated field '${key}' overwrites the initialState key of the same name`, 'Rename one of them')
         }
       }
     }
@@ -264,10 +262,7 @@ class Component {
           for (const dep of deps) {
             if (!this._calculatedFieldNames.has(dep)
                 && this.initialState && !(dep in this.initialState)) {
-              console.warn(
-                `[${name}] Calculated field '${field}' declares dependency '${dep}' ` +
-                `which is not in initialState or calculated fields`
-              )
+              warn('SYG208', name, `Calculated field '${field}' depends on unknown key '${dep}'`, 'Add it to initialState')
             }
           }
         }
@@ -331,7 +326,7 @@ class Component {
         traceCycle(inCycle[0])
         const start = path[path.length - 1]
         const cycle = path.slice(path.indexOf(start))
-        throw new Error(`Circular calculated dependency: ${cycle.join(' \u2192 ')}`)
+        fail('SYG209', name, `Circular calculated dependency: ${cycle.join(' \u2192 ')}`, 'Break the cycle')
       }
 
       this._calculatedOrder = sorted.map(f => [f, this._calculatedNormalized![f]])
@@ -515,13 +510,13 @@ class Component {
       return
     }
     if (typeof this.intent != 'function') {
-      throw new Error(`[${this.name}] Intent must be a function`)
+      fail('SYG602', this, 'intent must be a function', 'Use intent = sources => ({ ACTION: stream$ })')
     }
 
     this.intent$ = this.intent(this.sources)
 
     if (!(this.intent$ instanceof Stream) && (!isObj(this.intent$))) {
-      throw new Error(`[${this.name}] Intent must return either an action$ stream or map of event streams`)
+      fail('SYG603', this, 'intent must return a stream or an object of streams', 'Return { ACTION: stream$ }')
     }
 
     // [diagnostics hook] TODO(1A): selectorsUsed via MainDOMSource.select instrumentation
@@ -536,11 +531,8 @@ class Component {
     if (typeof this.hmrActions === 'string') {
       this.hmrActions = [this.hmrActions]
     }
-    if (!Array.isArray(this.hmrActions)) {
-      throw new Error(`[${this.name}] hmrActions must be the name of an action or an array of names of actions to run when a component is hot-reloaded`)
-    }
-    if (this.hmrActions.some(action => typeof action !== 'string')) {
-      throw new Error(`[${this.name}] hmrActions must be the name of an action or an array of names of actions to run when a component is hot-reloaded`)
+    if (!Array.isArray(this.hmrActions) || this.hmrActions.some(action => typeof action !== 'string')) {
+      fail('SYG604', this, 'hmrActions must be an action name or an array of action names', "Use hmrActions = ['ACTION']")
     }
     this.hmrAction$ = xs.fromArray(this.hmrActions.map(action => ({ type: action })))
   }
@@ -560,7 +552,7 @@ class Component {
       // Validate that no intent action names contain '|' (reserved for model shorthand)
       for (const key of Object.keys(this.intent$)) {
         if (key.includes('|')) {
-          throw new Error(`[${this.name}] Intent action name '${key}' contains '|', which is reserved for the model shorthand syntax (e.g., 'ACTION | DRIVER'). Rename this action.`)
+          fail('SYG605', this, `Intent action '${key}' contains '|', which is reserved for model shorthand`, 'Rename the action')
         }
       }
       const mapped = Object.entries(this.intent$)
@@ -606,7 +598,7 @@ class Component {
       } else if (isObj(this.model[INITIALIZE_ACTION])) {
         Object.keys(this.model[INITIALIZE_ACTION]).forEach(name => {
           if (name !== this.stateSourceName) {
-            console.warn(`${INITIALIZE_ACTION} can only be used with the ${this.stateSourceName} source... disregarding ${name}`)
+            warn('SYG210', this, `${INITIALIZE_ACTION} only supports the ${this.stateSourceName} sink; ignoring '${name}'`, 'Use another action')
             delete this.model[INITIALIZE_ACTION][name]
           }
         })
@@ -623,7 +615,7 @@ class Component {
     const state$ = this.sources[this.stateSourceName]?.stream.startWith({}).compose(dropRepeats(objIsEqual)) || xs.never()
     const parentContext$ = this.sources.__parentContext$?.startWith({}).compose(dropRepeats(objIsEqual)) || xs.of({})
     if (this.context && !isObj(this.context)) {
-      console.error(`[${this.name}] Context must be an object mapping names to values of functions: ignoring provided ${ typeof this.context }`)
+      logError('SYG402', this, `context must be an object, got ${typeof this.context}; ignoring it`, 'Use context = { name: state => value }')
     }
     this.context$ = xs.combine(state$, parentContext$)
       .map(([_, parent]: [any, any]) => {
@@ -641,7 +633,7 @@ class Component {
           } else if (valueType === 'function') {
             _value = value(state)
           } else {
-            console.error(`[${this.name}] Invalid context entry '${name}': must be the name of a state property or a function returning a value to use`)
+            logError('SYG403', this, `Invalid context entry '${name}'; skipping it`, 'Use a state key or state => value')
             return acc
           }
           acc[name] = _value
@@ -656,7 +648,7 @@ class Component {
       })
       .compose(dropRepeats(objIsEqual))
       .startWith({})
-    this._subscriptions.push(this.context$.subscribe({ next: (_: any) => _, error: (err: any) => console.error(`[${this.name}] Error in context stream:`, err) }))
+    this._subscriptions.push(this.context$.subscribe({ next: (_: any) => _, error: (err: any) => logError('SYG404', this, 'Context stream errored; context stops updating', 'Check the context functions', err) }))
   }
 
   initModel$(): void {
@@ -674,7 +666,7 @@ class Component {
     const effectiveInitialState = (typeof hmrState !== 'undefined') ? hmrState : this.initialState
     const initial  = { type: INITIALIZE_ACTION, data: effectiveInitialState }
     if (this.isSubComponent && this.initialState && !this.isolatedState) {
-      console.warn(`[${this.name}] Initial state provided to sub-component. This will overwrite any state provided by the parent component.`)
+      warn('SYG405', this, 'Sub-component initialState replaces the state its parent passes in', 'Remove initialState, or set isolatedState = true')
     }
     const hasInitialState = (typeof effectiveInitialState !== 'undefined')
     const shouldInjectInitialState = hasInitialState && (ENVIRONMENT?.__SYGNAL_HMR_UPDATING !== true || typeof hmrState !== 'undefined')
@@ -696,7 +688,7 @@ class Component {
       if (action.includes('|')) {
         const parts = action.split('|').map((s: string) => s.trim())
         if (parts.length !== 2 || !parts[0] || !parts[1]) {
-          throw new Error(`[${this.name}] Invalid shorthand model entry '${action}'. Expected 'ACTION | DRIVER' format.`)
+          fail('SYG211', this, `Invalid shorthand model entry '${action}'`, "Use 'ACTION | SINK'")
         }
         action = parts[0]
         sinks = { [parts[1]]: sinks }
@@ -707,7 +699,7 @@ class Component {
       }
 
       if (!isObj(sinks)) {
-        throw new Error(`[${this.name}] Entry for each action must be an object: ${action}`)
+        fail('SYG212', this, `Model entry '${action}' must be a function or an object`, 'Use { STATE: reducer }')
       }
 
       const sinkEntries = Object.entries(sinks)
@@ -717,7 +709,7 @@ class Component {
 
         const actionSinkKey = `${action}::${sink}`
         if (seenActionSinks.has(actionSinkKey)) {
-          console.warn(`[${this.name}] Duplicate model entry for action '${action}' on sink '${sink}'. Only the last definition will take effect.`)
+          warn('SYG213', this, `Duplicate model entry for action '${action}' on sink '${sink}'; only the last one runs`, 'Remove the duplicate')
         }
         seenActionSinks.add(actionSinkKey)
         ;(modelMap[action] ||= []).push(sink)  // [diagnostics hook]
@@ -832,7 +824,7 @@ class Component {
 
       }
     })
-    this._subscriptions.push(subComponentSink$.subscribe({ next: (_: any) => _, error: (err: any) => console.error(`[${this.name}] Error in sub-component sink stream:`, err) }))
+    this._subscriptions.push(subComponentSink$.subscribe({ next: (_: any) => _, error: (err: any) => logError('SYG901', this, 'Sub-component sink stream errored', ERR_FIX, err) }))
     this.subComponentSink$ = subComponentSink$.filter((sinks: any) => Object.keys(sinks).length > 0)
   }
 
@@ -864,12 +856,12 @@ class Component {
           return this.view({ ...sanitizedProps, state, children, slots: slots || {}, context, peers }, state, context, peers)
         } catch (err) {
           const error = err instanceof Error ? err : new Error(String(err))
-          console.error(`[${this.name}] Error in view:`, error)
+          logError('SYG406', this, 'View threw; rendering the error fallback', 'Add .onError for a custom fallback', error)
           if (typeof this.onError === 'function') {
             try {
               return this.onError(error, { componentName: this.name })
             } catch (fallbackErr) {
-              console.error(`[${this.name}] Error in onError handler:`, fallbackErr)
+              logError('SYG407', this, 'onError threw; rendering an empty error <div>', 'Make onError return a vnode', fallbackErr)
             }
           }
           return { sel: 'div', data: { attrs: { 'data-sygnal-error': this.name } }, children: [] }
@@ -909,7 +901,7 @@ class Component {
     if (this.model$[EFFECT_SINK_NAME]) {
       const effectSub = this.model$[EFFECT_SINK_NAME].subscribe({
         next: () => {},
-        error: (err: any) => console.error(`[${this.name}] Uncaught error in EFFECT stream:`, err),
+        error: (err: any) => logError('SYG902', this, 'EFFECT stream errored; effects stop running', ERR_FIX, err),
       })
       this._subscriptions.push(effectSub)
       delete this.sinks[EFFECT_SINK_NAME]
@@ -939,7 +931,7 @@ class Component {
       if (typeof reducer === 'function') {
         returnStream$ = filtered$.map((action: any) => {
           const next = (type: any, data: any, delay=10) => {
-            if (typeof delay !== 'number') throw new Error(`[${this.name}] Invalid delay value provided to next() function in model action '${name}'. Must be a number in ms.`)
+            if (typeof delay !== 'number') fail('SYG215', this, `next() delay in '${name}' must be a number`, "Use next('ACTION', data, ms)")
             // put the "next" action request at the end of the event loop so the "current" action completes first
             setTimeout(() => {
               // push the "next" action request into the action$ stream
@@ -963,7 +955,7 @@ class Component {
                 diag.onReducer(this, name, _state, newState, this.stateSourceName)
                 return this.cleanupCalculated(newState)
               } catch (err) {
-                console.error(`[${this.name}] Error in model reducer '${name}':`, err)
+                logError('SYG216', this, `Reducer for '${name}' threw; state unchanged`, ERR_FIX, err)
                 return _state
               }
             }
@@ -975,12 +967,12 @@ class Component {
               const type = typeof reduced
               if (isObj(reduced) || ['string', 'number', 'boolean', 'function'].includes(type)) return reduced
               if (type === 'undefined') {
-                console.warn(`[${this.name}] 'undefined' value sent to ${name}`)
+                warn('SYG217', this, `Reducer for '${name}' sent undefined to the driver`, 'Return a value, or ABORT to send nothing')
                 return reduced
               }
-              throw new Error(`[${this.name}] Invalid reducer type for action '${name}': ${type}`)
+              fail('SYG218', this, `Reducer for '${name}' returned a ${type}`, 'Return a value, or ABORT to send nothing')
             } catch (err) {
-              console.error(`[${this.name}] Error in model reducer '${name}':`, err)
+              logError('SYG216', this, `Reducer for '${name}' threw; nothing sent`, ERR_FIX, err)
               return ABORT
             }
           }
@@ -1002,7 +994,7 @@ class Component {
     return filtered$.map((action: any) => {
       if (typeof reducer === 'function') {
         const next = (type: any, data: any, delay=10) => {
-          if (typeof delay !== 'number') throw new Error(`[${this.name}] Invalid delay value provided to next() function in EFFECT handler '${name}'. Must be a number in ms.`)
+          if (typeof delay !== 'number') fail('SYG215', this, `next() delay in '${name}' must be a number`, "Use next('ACTION', data, ms)")
           setTimeout(() => {
             action$.shamefullySendNext({ type, data })
           }, delay)
@@ -1014,10 +1006,10 @@ class Component {
           const props = { ...this.currentProps, children: this.currentChildren, slots: this.currentSlots || {}, context: this.currentContext, state: enhancedState }
           const result = reducer(enhancedState, action.data, next, props)
           if (result !== undefined) {
-            console.warn(`[${this.name}] EFFECT handler '${name}' returned a value. EFFECT handlers are for side effects only — return values are ignored.`)
+            warn('SYG219', this, `EFFECT handler '${name}' returned a value, which is ignored`, 'Use a STATE or driver sink')
           }
         } catch (err) {
-          console.error(`[${this.name}] Error in EFFECT handler '${name}':`, err)
+          logError('SYG214', this, `EFFECT handler '${name}' threw`, ERR_FIX, err)
         }
       }
       return null
@@ -1033,7 +1025,7 @@ class Component {
       if (state === lastState) {
         return lastResult
       }
-      if (!isObj(this.calculated)) throw new Error(`[${this.name}] 'calculated' parameter must be an object mapping calculated state field names to functions`)
+      if (!isObj(this.calculated)) fail('SYG606', this, 'calculated must be an object', 'Use calculated = { field: state => value }')
 
       const calculated = this.getCalculatedValues(state)
       if (!calculated) {
@@ -1086,7 +1078,7 @@ class Component {
           computedSoFar[field] = result
           mergedState[field] = result
         } catch (e: unknown) {
-          console.warn(`Calculated field '${field}' threw an error during calculation: ${e instanceof Error ? e.message : e}`)
+          warn('SYG220', this, `Calculated field '${field}' threw (${e instanceof Error ? e.message : e}); skipped this update`, 'Guard against missing data')
         }
       } else {
         // No deps declared — always recompute
@@ -1095,7 +1087,7 @@ class Component {
           computedSoFar[field] = result
           mergedState[field] = result
         } catch (e: unknown) {
-          console.warn(`Calculated field '${field}' threw an error during calculation: ${e instanceof Error ? e.message : e}`)
+          warn('SYG220', this, `Calculated field '${field}' threw (${e instanceof Error ? e.message : e}); skipped this update`, 'Guard against missing data')
         }
       }
     }
@@ -1240,13 +1232,13 @@ class Component {
           sink$ = instantiator(el, props$, children$)
         } catch (err) {
           const error = err instanceof Error ? err : new Error(String(err))
-          console.error(`[${this.name}] Error instantiating sub-component:`, error)
+          logError('SYG408', this, 'Sub-component threw; rendering the error fallback', ERR_FIX, error)
           let fallbackVNode = { sel: 'div', data: { attrs: { 'data-sygnal-error': this.name } }, children: [] }
           if (typeof this.onError === 'function') {
             try {
               fallbackVNode = this.onError(error, { componentName: this.name }) || fallbackVNode
             } catch (fallbackErr) {
-              console.error(`[${this.name}] Error in onError handler:`, fallbackErr)
+              logError('SYG407', this, 'onError threw; rendering an empty error <div>', 'Make onError return a vnode', fallbackErr)
             }
           }
           sink$ = { [this.DOMSourceName]: xs.of(fallbackVNode) }
@@ -1311,7 +1303,7 @@ class Component {
         },
         set: (oldState: any, newState: any) => {
           if (this.calculated && stateField in this.calculated) {
-            console.warn(`${componentType} of ${this.name} attempted to update state on a calculated field '${stateField}': Update ignored`)
+            warn('SYG409', this, `${componentType} tried to update calculated field '${stateField}'; ignored`, 'Bind it to a non-calculated field')
             return oldState
           }
           return { ...oldState, [stateField]: newState }
@@ -1321,13 +1313,13 @@ class Component {
 
     if (isObj(stateField)) {
       if (typeof stateField.get !== 'function') {
-        console.error(`${componentType} in ${this.name} has an invalid 'state' field: Expecting 'undefined', a string indicating a state property, or an object with 'get' and 'set' functions. Attempting to use parent component state.`)
+        logError('SYG410', this, `${componentType} 'state' prop has no get(); it gets the parent's whole state`, 'Use a state key string or { get, set }')
         return baseLense
       }
       return { get: stateField.get, set: stateField.set }
     }
 
-    console.error(`Invalid state provided to ${componentType} of ${this.name}: Expecting string, object, or undefined, but found ${typeof stateField}. Attempting to use parent component state.`)
+    logError('SYG410', this, `${componentType} 'state' prop is a ${typeof stateField}; it gets the parent's whole state`, 'Use a state key string or { get, set }')
     return baseLense
   }
 
@@ -1378,7 +1370,7 @@ class Component {
     } else if (this.components[collectionOf]) {
       factory = this.components[collectionOf]
     } else {
-      throw new Error(`[${this.name}] Invalid 'of' property in collection: ${collectionOf}`)
+      fail('SYG411', this, `Collection 'of' is not a component: ${collectionOf}`, 'Use of={ItemComponent}')
     }
 
     const fieldLense = {
@@ -1395,7 +1387,7 @@ class Component {
       },
       set: (oldState: any, newState: any) => {
         if (this.calculated && stateField in this.calculated) {
-          console.warn(`Collection sub-component of ${this.name} attempted to update state on a calculated field '${stateField}': Update ignored`)
+          warn('SYG409', this, `Collection tried to update calculated field '${stateField}'; ignored`, 'Bind it to a non-calculated field')
           return oldState
         }
         const updated = []
@@ -1424,17 +1416,17 @@ class Component {
     } else if (typeof stateField === 'string') {
       if (isObj(this.currentState)) {
         if(!(this.currentState && stateField in this.currentState) && !(this.calculated && stateField in this.calculated)) {
-          console.error(`Collection component in ${this.name} is attempting to use non-existent state property '${stateField}': To fix this error, specify a valid array property on the state.  Attempting to use parent component state.`)
+          logError('SYG401', this, `Collection 'from' field '${stateField}' is not in state; it renders nothing`, 'Set it to an array in initialState')
           lense = undefined
         } else if (!Array.isArray(this.currentState[stateField])) {
-          console.warn(`[${this.name}] State property '${stateField}' in collection component is not an array: No components will be instantiated in the collection.`)
+          warn('SYG401', this, `Collection 'from' field '${stateField}' is not an array; it renders nothing`, 'Set it to an array in initialState')
           lense = fieldLense
         } else {
           lense = fieldLense
         }
       } else {
         if (!Array.isArray(this.currentState[stateField])) {
-          console.warn(`[${this.name}] State property '${stateField}' in collection component is not an array: No components will be instantiated in the collection.`)
+          warn('SYG401', this, `Collection 'from' field '${stateField}' is not an array; it renders nothing`, 'Set it to an array in initialState')
           lense = fieldLense
         } else {
           lense = fieldLense
@@ -1442,14 +1434,14 @@ class Component {
       }
     } else if (isObj(stateField)) {
       if (typeof stateField.get !== 'function') {
-        console.error(`Collection component in ${this.name} has an invalid 'from' field: Expecting 'undefined', a string indicating an array property in the state, or an object with 'get' and 'set' functions for retrieving and setting child state from the current state. Attempting to use parent component state.`)
+        logError('SYG412', this, "Collection 'from' prop is invalid; it renders nothing", 'Use a state key string or { get, set }')
         lense = undefined
       } else {
         lense = {
           get: (state: any) => {
             const newState = stateField.get(state)
             if (!Array.isArray(newState)) {
-              console.warn(`State getter function in collection component of ${this.name} did not return an array: No components will be instantiated in the collection. Returned value:`, newState)
+              warn('SYG401', this, "Collection 'from' getter returned a non-array; it renders nothing", 'Return an array from get()', newState)
               return []
             }
             return newState
@@ -1458,7 +1450,7 @@ class Component {
         }
       }
     } else {
-      console.error(`Collection component in ${this.name} has an invalid 'from' field: Expecting 'undefined', a string indicating an array property in the state, or an object with 'get' and 'set' functions for retrieving and setting child state from the current state. Attempting to use parent component state.`)
+      logError('SYG412', this, "Collection 'from' prop is invalid; it renders nothing", 'Use a state key string or { get, set }')
       lense = undefined
     }
 
@@ -1476,7 +1468,7 @@ class Component {
     const sources = { ...this.sources, [this.stateSourceName]: stateSource, props$: itemProps$, children$, __parentContext$: this.context$, PARENT: null, __parentComponentNumber: this._componentNumber }
     const sink$   = collection(factory, lense as any, { container: null as any })(sources)
     if (!isObj(sink$)) {
-      throw new Error(`[${this.name}] Invalid sinks returned from component factory of collection element`)
+      fail('SYG903', this, 'Collection factory returned invalid sinks', 'Return a sinks object')
     }
 
     // Notify devtools of collection mount
@@ -1523,7 +1515,7 @@ class Component {
     const sink$ = isolate(switchable(switchableComponents, props$.map((props: any) => props.current), ''), { [this.stateSourceName]: lense })(sources)
 
     if (!isObj(sink$)) {
-      throw new Error(`[${this.name}] Invalid sinks returned from component factory of switchable element`)
+      fail('SYG903', this, 'Switchable factory returned invalid sinks', 'Return a sinks object')
     }
 
     return sink$
@@ -1548,8 +1540,8 @@ class Component {
 
     const factory   = componentName === 'sygnal-factory' ? props.sygnalFactory : (this.components[componentName] || props.sygnalFactory)
     if (!factory) {
-      if (componentName === 'sygnal-factory') throw new Error(`Component not found on element with Capitalized selector and nameless function: JSX transpilation replaces selectors starting with upper case letters with functions in-scope with the same name, Sygnal cannot see the name of the resulting component.`)
-      throw new Error(`Component not found: ${componentName}`)
+      if (componentName === 'sygnal-factory') fail('SYG413', this, 'Unnamed component has no factory', 'Name the function, or set Comp.componentName')
+      fail('SYG414', this, `Component '${componentName}' not found`, 'Import it, or add it to .components')
     }
 
     // Guard against sub-components accidentally overwriting parent state with .initialState
@@ -1557,10 +1549,7 @@ class Component {
     const subIsolatedState = props.sygnalOptions?.isolatedState
     if (subInitialState && !subIsolatedState) {
       const subName = props.sygnalOptions?.name || componentName
-      throw new Error(
-        `[${subName}] Sub-component has .initialState but no .isolatedState = true. ` +
-        `This will overwrite parent state. If this is intentional, add .isolatedState = true to the component.`
-      )
+      fail('SYG405', subName, 'Sub-component initialState replaces the state its parent passes in', 'Remove initialState, or set isolatedState = true')
     }
 
     const subInitState = subIsolatedState ? subInitialState : undefined
@@ -1582,7 +1571,7 @@ class Component {
 
     if (!isObj(sink$)) {
       const name = componentName === 'sygnal-factory' ? 'custom element' : componentName
-      throw new Error(`Invalid sinks returned from component factory: ${name}`)
+      fail('SYG903', this, `Factory for ${name} returned invalid sinks`, 'Return a sinks object')
     }
 
     return sink$
@@ -1730,20 +1719,20 @@ function getComponents(currentElement: any, componentNameSet: Set<string>, path:
   if (isComponent) {
     id  = getComponentIdFromElement(currentElement, path, parentId)
     if (isCollection) {
-      if (!props.of)   throw new Error(`Collection element missing required 'component' property`)
-      if (typeof props.of !== 'string' && typeof props.of !== 'function')         throw new Error(`Invalid 'component' property of collection element: found ${ typeof props.of } requires string or component factory function`)
-      if (typeof props.of !== 'function' && !componentNameSet.has(props.of))   throw new Error(`Specified component for collection not found: ${props.of}`)
-      if (typeof props.from !== 'undefined' && !(typeof props.from === 'string' || Array.isArray(props.from) || typeof props.from.get === 'function')) console.warn(`No valid array found for collection ${ typeof props.of === 'string' ? props.of : 'function component' }: no collection components will be created`, props.from)
+      if (!props.of)   fail('SYG411', undefined, "Collection is missing 'of'", 'Use of={ItemComponent}')
+      if (typeof props.of !== 'string' && typeof props.of !== 'function')         fail('SYG411', undefined, `Collection 'of' is a ${typeof props.of}`, 'Use of={ItemComponent}')
+      if (typeof props.of !== 'function' && !componentNameSet.has(props.of))   fail('SYG411', undefined, `Collection 'of' component not found: ${props.of}`, 'Use of={ItemComponent}')
+      if (typeof props.from !== 'undefined' && !(typeof props.from === 'string' || Array.isArray(props.from) || typeof props.from.get === 'function')) warn('SYG412', undefined, "Collection 'from' prop is invalid; it renders nothing", 'Use a state key string or { get, set }', props.from)
       currentElement.data.isCollection = true
       currentElement.data.props ||= {}
     } else if (isSwitchable) {
-      if (!props.of)        throw new Error(`Switchable element missing required 'of' property`)
-      if (!isObj(props.of)) throw new Error(`Invalid 'of' property of switchable element: found ${ typeof props.of } requires object mapping names to component factories`)
+      if (!props.of)        fail('SYG415', undefined, "Switchable is missing 'of'", 'Use of={{ name: Component }}')
+      if (!isObj(props.of)) fail('SYG415', undefined, `Switchable 'of' is a ${typeof props.of}`, 'Use of={{ name: Component }}')
       const switchableComponents = Object.values(props.of)
-      if (!switchableComponents.every(comp => typeof comp === 'function')) throw new Error(`One or more components provided to switchable element is not a valid component factory`)
-      if (!props.current || (typeof props.current !== 'string' && typeof props.current !== 'function')) throw new Error(`Missing or invalid 'current' property for switchable element: found '${ typeof props.current }' requires string or function`)
+      if (!switchableComponents.every(comp => typeof comp === 'function')) fail('SYG415', undefined, "Switchable 'of' has a value that is not a component", 'Use of={{ name: Component }}')
+      if (!props.current || (typeof props.current !== 'string' && typeof props.current !== 'function')) fail('SYG416', undefined, `Switchable 'current' is missing or a ${typeof props.current}`, "Set current to a key of 'of'")
       const switchableComponentNames = Object.keys(props.of)
-      if (!switchableComponentNames.includes(props.current)) throw new Error(`Component '${props.current}' not found in switchable element`)
+      if (!switchableComponentNames.includes(props.current)) fail('SYG416', undefined, `Switchable 'current' '${props.current}' is not a key of 'of'`, "Set current to a key of 'of'")
       currentElement.data.isSwitchable = true
     }
     if (typeof props.key === 'undefined') currentElement.data.props.key = id
@@ -1999,7 +1988,7 @@ function onTransitionEnd(el: any, duration: number | undefined, cb: () => void):
 function portalMount(vnode: any, target: string, children: any[]): void {
   const container = document.querySelector(target)
   if (!container) {
-    console.warn(`[Portal] Target "${target}" not found in DOM`)
+    warn('SYG417', 'Portal', `Target '${target}' not found; content not rendered`, 'Render the target first')
     return
   }
   const anchor = document.createElement('div')
@@ -2040,7 +2029,7 @@ function createPortalPlaceholder(target: string, children: any[]): any {
             } else if (++attempts < 10) {
               setTimeout(tryMount, 5)
             } else {
-              console.warn(`[Portal] Target "${target}" not found in DOM after retries`)
+              warn('SYG417', 'Portal', `Target '${target}' not found; content not rendered`, 'Render the target first')
             }
           }
           setTimeout(tryMount, 5)
@@ -2143,6 +2132,8 @@ function isObj(obj: any): obj is Record<string, any> {
   return typeof obj === 'object' && obj !== null && !Array.isArray(obj)
 }
 
+const SORT_FIX = "Use a field name, { field: 'asc'|'desc'|1|-1 }, or a function"
+
 function __baseSort(a: any, b: any, ascending: boolean = true): number {
   const direction = ascending ? 1 : -1
   switch(true) {
@@ -2155,26 +2146,26 @@ function __baseSort(a: any, b: any, ascending: boolean = true): number {
 function __sortFunctionFromObj(item: Record<string, any>): ((a: any, b: any) => number) | undefined {
   const entries = Object.entries(item)
   if (entries.length > 1) {
-    console.error('Sort objects can only have one key:', item)
+    logError('SYG418', 'Collection', 'sort object must have one key; ignored', SORT_FIX, item)
     return undefined
   }
   const entry = entries[0]
   const [field, directionRaw] = entry
   if (!['string', 'number'].includes(typeof directionRaw)) {
-    console.error('Sort object properties must be a string or number:', item)
+    logError('SYG418', 'Collection', 'sort direction must be a string or number; ignored', SORT_FIX, item)
     return undefined
   }
   let ascending = true
   if (typeof directionRaw === 'string') {
     if (!['asc', 'desc'].includes(directionRaw.toLowerCase())) {
-      console.error('Sort object string values must be asc or desc:', item)
+      logError('SYG418', 'Collection', "sort direction must be 'asc' or 'desc'; ignored", SORT_FIX, item)
       return undefined
     }
     ascending = directionRaw.toLowerCase() !== 'desc'
   }
   if (typeof directionRaw === 'number') {
     if (directionRaw !== 1 && directionRaw !== -1) {
-      console.error('Sort object number values must be 1 or -1:', item)
+      logError('SYG418', 'Collection', 'sort direction must be 1 or -1; ignored', SORT_FIX, item)
       return undefined
     }
     ascending = directionRaw === 1
@@ -2212,7 +2203,7 @@ function sortFunctionFromProp(sortProp: any): ((a: any, b: any) => number) | und
   } else if (isObj(sortProp)) {
     return __sortFunctionFromObj(sortProp)
   } else {
-    console.error('Invalid sort option (ignoring):', sortProp)
+    logError('SYG418', 'Collection', 'Invalid sort prop; ignored', SORT_FIX, sortProp)
     return undefined
   }
 }

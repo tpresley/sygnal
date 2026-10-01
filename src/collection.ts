@@ -2,6 +2,7 @@ import isolate from './cycle/isolate/index';
 import {makeCollection} from './cycle/state/index';
 import {h} from './cycle/dom/index';
 import type {Lens} from './cycle/state/types';
+import {fail} from './extra/diagnostics/legacy';
 
 let COLLECTION_COUNT = 0;
 
@@ -20,7 +21,7 @@ export default function collection(
   opts: CollectionOptions = {}
 ): (sources: any) => any {
   if (typeof component !== 'function') {
-    throw new Error('collection: first argument (component) must be a function');
+    fail('SYG411', 'collection', 'first argument (component) must be a function', 'Pass a component function');
   }
   const {
     combineList = ['DOM'],

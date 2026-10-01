@@ -710,7 +710,7 @@ describe('component integration (mockDOMSource)', () => {
           name: 'BadSources',
           view: () => createElement('div'),
         })('not-a-sources-object')
-      }).toThrow('[BadSources]')
+      }).toThrow('[Sygnal SYG601] BadSources:')
     })
 
     it('sources validation error for null sources includes name', () => {
@@ -719,7 +719,7 @@ describe('component integration (mockDOMSource)', () => {
           name: 'NullSources',
           view: () => createElement('div'),
         })(null)
-      }).toThrow('[NullSources]')
+      }).toThrow('[Sygnal SYG601] NullSources:')
     })
 
     it('intent validation error includes component name', () => {
@@ -731,7 +731,7 @@ describe('component integration (mockDOMSource)', () => {
 
       expect(() => {
         createTestComponent(BadIntent)
-      }).toThrow('[BadIntent]')
+      }).toThrow('[Sygnal SYG602] BadIntent:')
     })
 
     it('intent return type error includes component name', () => {
@@ -743,7 +743,7 @@ describe('component integration (mockDOMSource)', () => {
 
       expect(() => {
         createTestComponent(BadReturn)
-      }).toThrow('[BadReturn]')
+      }).toThrow('[Sygnal SYG603] BadReturn:')
     })
   })
 
