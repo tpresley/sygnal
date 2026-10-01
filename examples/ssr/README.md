@@ -26,6 +26,12 @@ node server.js
 npx vite --port 5188
 ```
 
+## Tests
+
+```bash
+npm test   # renderComponent + simulateEvent, strict mode, expectNoDiagnostics()
+```
+
 ## How It Works
 
 ### Server (`server.js`)
