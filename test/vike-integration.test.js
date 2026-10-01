@@ -34,6 +34,12 @@ describe('vike-sygnal config', () => {
     expect(vikeConfig.passToClient).toContain('routeParams')
   })
 
+  // G-046: built in on the client with Client Routing; listing it makes Vike
+  // warn in the browser on every page
+  it('does not pass urlPathname to the client', () => {
+    expect(vikeConfig.passToClient).not.toContain('urlPathname')
+  })
+
   it('references onRenderHtml via import directive', () => {
     expect(vikeConfig.onRenderHtml).toBe(
       'import:sygnal/vike/onRenderHtml:onRenderHtml'

@@ -106,7 +106,9 @@ function pageChildVNode(pageState: any): any {
       props: {
         state: 'page',
         sygnalOptions: {
-          name: sel,
+          // G-037: diagnostics, devtools and onError name the component by
+          // `name`; keep the user's name (the nav counter is only in `sel`).
+          name: currentPageName,
           view: currentPage,
           model: currentPage.model,
           intent: currentPage.intent,
@@ -188,6 +190,8 @@ function createLayoutWrapper(wrappers: any[], layouts: any[], Page: any): any {
   }
 
   LayoutWrapperView.componentName = 'VikeLayoutWrapper'
+  // run() names the root by `name` first
+  try { Object.defineProperty(LayoutWrapperView, 'name', { value: 'VikeLayoutWrapper', configurable: true }) } catch (_) {}
 
   // Build the wrapper's initial state with a slice for each shell component.
   // Page state is nested under the innermost shell component's slice.
@@ -251,7 +255,10 @@ export function onRenderClient(pageContext: PageContext) {
   // Update mutable context references (used by the wrapper's context functions)
   currentPageData = data
   currentRouteParams = pageContext.routeParams || {}
-  currentUrlPathname = pageContext.urlPathname || ''
+  // urlPathname is built in on the client with Client Routing (G-046: it is
+  // not in passToClient); fall back to the location with Server Routing.
+  currentUrlPathname = pageContext.urlPathname
+    || (typeof window !== 'undefined' && window.location ? window.location.pathname : '')
 
   // --- Shell path: hot-swap Page, keep Layout/Wrapper alive ---
   if (hasShell) {

@@ -15,7 +15,9 @@ export default {
   onRenderHtml: 'import:sygnal/vike/onRenderHtml:onRenderHtml',
   onRenderClient: 'import:sygnal/vike/onRenderClient:onRenderClient',
 
-  passToClient: ['data', 'routeParams', 'urlPathname'],
+  // urlPathname is not listed: Vike provides it on the client with Client
+  // Routing, and listing it logs a warning in the browser (G-046)
+  passToClient: ['data', 'routeParams'],
 
   meta: {
     Layout: {
