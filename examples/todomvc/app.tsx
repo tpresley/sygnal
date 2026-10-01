@@ -144,7 +144,7 @@ APP.context = {
 APP.model = {
   'BOOTSTRAP': {
     EFFECT: (_state, _data, next) => Object.keys(FILTER_LIST).forEach((filter) => next('ADD_ROUTE', filter)),
-    LOG:    'Starting application...',
+    LOG:    () => 'Starting application...',
   },
 
   VISIBILITY: set((_state, visibility) => ({ visibility })),
@@ -152,7 +152,10 @@ APP.model = {
 
   NEW_TODO: {
     STATE: (state, data) => {
-      const newTodo: TodoItem = { id: Date.now(), title: data, completed: false }
+      // One more than the highest id in use: unique even for todos added in the same
+      // millisecond or loaded from localStorage, and deterministic in tests
+      const id = state.todos.reduce((max, todo) => Math.max(max, todo.id), 0) + 1
+      const newTodo: TodoItem = { id, title: data, completed: false }
       return { ...state, todos: [...state.todos, newTodo] }
     },
     // The new-todo input is uncontrolled: clear it once the todo is added

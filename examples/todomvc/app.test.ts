@@ -44,30 +44,12 @@ function addTodo(t: RenderResult, title: string) {
   t.simulateEvent('.new-todo-form', 'submit', { srcElement: form })
 }
 
-async function until(test: () => boolean, describe = () => '', timeoutMs = 1000) {
-  const end = Date.now() + timeoutMs
-  while (!test()) {
-    if (Date.now() > end) throw new Error(`timed out ${describe()}`)
-    await new Promise(r => setTimeout(r, 5))
-  }
-}
-
-// waitForState() resolves once the root has re-rendered; a Collection item
-// renders its own view a moment later. Poll until the HTML matches.
-const waitForHtml = (t: RenderResult, test: (html: string) => boolean) =>
-  until(() => test(t.html()), () => `waiting for the HTML:\n${t.html().replace(/ of="[^"]*"/g, "")}`)
-
-// Runs `act`, then waits for a state recorded after it that matches the
-// predicate (waitForState alone also matches states recorded before the call).
-async function step(t: RenderResult, act: () => void, predicate: (s: any) => boolean) {
-  const n = t.states.length
-  act()
-  return t.waitForState(s => t.states.indexOf(s) >= n && predicate(s))
-}
+// renderComponent's waits: t.next(pred) resolves on the first state recorded
+// after the call that matches, once the whole tree (Collection items included)
+// has rendered it; t.settle() resolves once nothing is pending anywhere.
 
 const titles = (s: { todos: Todo[] }) => s.todos.map(todo => todo.title)
 const byTitle = (s: { todos: Todo[] }, title: string) => s.todos.find(todo => todo.title === title)!
-const pause = () => new Promise(r => setTimeout(r, 3))
 const stored = () => JSON.parse(localStorage.getItem('todos') ?? 'null')
 
 describe('TodoMVC', () => {
@@ -89,64 +71,84 @@ describe('TodoMVC', () => {
     await t.ready()
     expect(checks.length).toBeGreaterThan(0)
     expect(isStrictEnabled()).toBe(true)
-    // BOOTSTRAP registers one route per filter
-    await until(() => app.router.routes.length === 3)
+    // BOOTSTRAP registers one route per filter (through next(), so after a delay)
+    await t.settle()
     expect(app.router.routes).toEqual(['all', 'active', 'completed'])
 
     // Add three todos (the intent trims the title and drops empty ones)
-    await step(t, () => addTodo(t!, '  Buy milk '), s => s.todos.length === 1)
+    addTodo(t, '  Buy milk ')
+    await t.next(s => s.todos.length === 1)
     addTodo(t, '   ')
-    await pause()
-    await step(t, () => addTodo(t!, 'Walk the dog'), s => s.todos.length === 2)
-    await pause()
-    let s = await step(t, () => addTodo(t!, 'Write tests'), s => s.todos.length === 3)
-    // Todo ids are Date.now() timestamps, so todos added in the same millisecond
-    // would share an id; pause() keeps them apart, like a real user
-    expect(new Set(s.todos.map((todo: Todo) => todo.id)).size).toBe(3)
+    addTodo(t, 'Walk the dog')
+    await t.next(s => s.todos.length === 2)
+    addTodo(t, 'Write tests')
+    let s = await t.next(s => s.todos.length === 3)
+    // Ids are sequential, even for todos added back to back
+    expect(s.todos.map((todo: Todo) => todo.id)).toEqual([1, 2, 3])
     expect(titles(s)).toEqual(['Buy milk', 'Walk the dog', 'Write tests'])
-    await waitForHtml(t, html => html.includes('<strong>3</strong> items left'))
+    expect(t.html()).toContain('<strong>3</strong> items left')
 
     // Toggle one
     const milk = byTitle(s, 'Buy milk').id
-    await waitForHtml(t, html => html.includes(`todo-${milk}`))
-    s = await step(t, () => t!.simulateEvent(`.todo-${milk} .toggle`, 'click'), s => byTitle(s, 'Buy milk').completed)
-    await waitForHtml(t, html => html.includes('<strong>2</strong> items left') && html.includes('Clear completed'))
+    t.simulateEvent(`.todo-${milk} .toggle`, 'click')
+    s = await t.next(s => byTitle(s, 'Buy milk').completed)
+    expect(t.html()).toContain('<strong>2</strong> items left')
+    expect(t.html()).toContain('Clear completed')
 
     // Edit one: double-click the label, type, press Enter
     const dog = byTitle(s, 'Walk the dog').id
-    await step(t, () => t!.simulateEvent(`.todo-${dog} label`, 'dblclick'), s => s.todos.some((todo: Todo) => todo.editing))
-    await waitForHtml(t, html => html.includes(`todo-${dog} editing`))
-    s = await step(t, () => {
-      t!.simulateEvent(`.todo-${dog} .edit`, 'input', { value: '  Walk the cat ' })
-      t!.simulateEvent(`.todo-${dog} .edit`, 'keydown', { keyCode: 13 })
-    }, s => s.todos.some((todo: Todo) => todo.title === 'Walk the cat'))
+    t.simulateEvent(`.todo-${dog} label`, 'dblclick')
+    await t.next(s => s.todos.some((todo: Todo) => todo.editing))
+    expect(t.html()).toContain(`todo-${dog} editing`)
+    t.simulateEvent(`.todo-${dog} .edit`, 'input', { value: '  Walk the cat ' })
+    t.simulateEvent(`.todo-${dog} .edit`, 'keydown', { keyCode: 13 })
+    s = await t.next(s => s.todos.some((todo: Todo) => todo.title === 'Walk the cat'))
     expect(titles(s)).toEqual(['Buy milk', 'Walk the cat', 'Write tests'])
     expect(s.todos.every((todo: Todo) => !todo.editing)).toBe(true)
 
     // Filter: #/active, then #/completed, then #/all
-    await step(t, () => app.router.go('active'), s => s.visibility === 'active')
-    await waitForHtml(t, html => !html.includes('Buy milk') && html.includes('Walk the cat'))
+    app.router.go('active')
+    await t.next(s => s.visibility === 'active')
+    expect(t.html()).not.toContain('Buy milk')
+    expect(t.html()).toContain('Walk the cat')
     expect(t.html()).toContain('<a class="selected" href="#/active">Active</a>')
-    await step(t, () => app.router.go('completed'), s => s.visibility === 'completed')
-    await waitForHtml(t, html => html.includes('Buy milk') && !html.includes('Walk the cat'))
-    await step(t, () => app.router.go('all'), s => s.visibility === 'all')
-    await waitForHtml(t, html => html.includes('Buy milk') && html.includes('Walk the cat'))
+    app.router.go('completed')
+    await t.next(s => s.visibility === 'completed')
+    expect(t.html()).toContain('Buy milk')
+    expect(t.html()).not.toContain('Walk the cat')
+    app.router.go('all')
+    await t.next(s => s.visibility === 'all')
+    expect(t.html()).toContain('Buy milk')
+    expect(t.html()).toContain('Walk the cat')
 
     // Clear completed
-    s = await step(t, () => t!.simulateEvent('.clear-completed', 'click'), s => s.todos.length === 2)
+    t.simulateEvent('.clear-completed', 'click')
+    s = await t.next(s => s.todos.length === 2)
     expect(titles(s)).toEqual(['Walk the cat', 'Write tests'])
-    await waitForHtml(t, html => !html.includes('Clear completed'))
+    expect(t.html()).not.toContain('Clear completed')
 
     // Toggle all, twice
-    s = await step(t, () => t!.simulateEvent('.toggle-all', 'click'), s => s.allDone)
+    t.simulateEvent('.toggle-all', 'click')
+    s = await t.next(s => s.allDone)
     expect(s.todos.every((todo: Todo) => todo.completed)).toBe(true)
-    s = await step(t, () => t!.simulateEvent('.toggle-all', 'click'), s => !s.allDone)
+    t.simulateEvent('.toggle-all', 'click')
+    s = await t.next(s => !s.allDone)
     expect(s.todos.every((todo: Todo) => !todo.completed)).toBe(true)
 
     // Every state change is saved to localStorage
-    await new Promise(r => setTimeout(r, 20))
+    await t.settle()
     expect(stored()).toEqual(s.todos.map(({ id, title, completed }: Todo) => ({ id, title, completed })))
 
+    t.expectNoDiagnostics()
+  })
+
+  it('a new todo gets an id above every saved one', async () => {
+    localStorage.setItem('todos', JSON.stringify([{ id: 41, title: 'Saved', completed: false }]))
+    t = render().t
+    await t.waitForState(s => s.todos.length === 1)
+    addTodo(t, 'New')
+    const s = await t.next(s => s.todos.length === 2)
+    expect(s.todos.map((todo: Todo) => todo.id)).toEqual([41, 42])
     t.expectNoDiagnostics()
   })
 
@@ -158,7 +160,7 @@ describe('TodoMVC', () => {
     t = render().t
     const s = await t.waitForState(s => s.todos.length === 2)
     expect(s.remaining).toBe(1)
-    await waitForHtml(t, html => html.includes('<strong>1</strong> item left'))
+    expect(t.html()).toContain('<strong>1</strong> item left')
     t.expectNoDiagnostics()
   })
 
@@ -166,14 +168,13 @@ describe('TodoMVC', () => {
     localStorage.setItem('todos', JSON.stringify([{ id: 7, title: 'Keep me', completed: false }]))
     t = render().t
     await t.waitForState(s => s.todos.length === 1)
-    await waitForHtml(t, html => html.includes('todo-7'))
     t.simulateEvent('.todo-7 label', 'dblclick')
-    await t.waitForState(s => s.todos[0]?.editing === true)
-    await waitForHtml(t, html => html.includes('todo-7 editing'))
+    await t.next(s => s.todos[0]?.editing === true)
+    expect(t.html()).toContain('todo-7 editing')
     t.simulateEvent('.todo-7 .edit', 'input', { value: 'Changed' })
-    await t.waitForState(s => s.todos[0]?.editValue === 'Changed')
+    await t.next(s => s.todos[0]?.editValue === 'Changed')
     t.simulateEvent('.todo-7 .edit', 'keydown', { keyCode: 27 })
-    const s = await t.waitForState(s => s.todos[0]?.editing === false && s.todos[0]?.cachedTitle === '')
+    const s = await t.next(s => s.todos[0]?.editing === false && s.todos[0]?.cachedTitle === '')
     expect(s.todos[0].title).toBe('Keep me')
     t.expectNoDiagnostics()
   })
@@ -186,16 +187,16 @@ describe('TodoMVC', () => {
     ]))
     t = render().t
     await t.waitForState(s => s.todos.length === 3)
-    await waitForHtml(t, html => html.includes('todo-1') && html.includes('todo-2'))
 
     t.simulateEvent('.todo-1 label', 'dblclick')
-    await waitForHtml(t, html => html.includes('todo-1 editing'))
+    await t.next(s => s.todos[0]?.editing === true)
+    expect(t.html()).toContain('todo-1 editing')
     t.simulateEvent('.todo-1 .edit', 'input', { value: '   ' })
     t.simulateEvent('.todo-1 .edit', 'blur')
-    await t.waitForState(s => s.todos.length === 2)
+    await t.next(s => s.todos.length === 2)
 
     t.simulateEvent('.todo-2 .destroy', 'click')
-    const s = await t.waitForState(s => s.todos.length === 1)
+    const s = await t.next(s => s.todos.length === 1)
     expect(titles(s)).toEqual(['Stay'])
     t.expectNoDiagnostics()
   })
