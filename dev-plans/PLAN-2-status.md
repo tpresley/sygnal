@@ -157,6 +157,7 @@ gzip -c /tmp/kb/assets/index-*.js | wc -c      # budget 41,805 B
 
 ## Activity Log
 
+- 2026-10-01 — PLAN-1 tracker reconciled (`fd76d2a`: 72 stale statuses → 69 fixed, 3 closed, 0 open; analyzer reads Closed/Won't fix as done; 69 harness tests). Baseline analysis regenerated: B-005 recommendation now correctly rewritten as "fixed".
 - 2026-10-01 — v2-baseline done: 160/160 pass, $49.26; Sygnal 48.4 s vs React 34.1 s (+14.3 s; tier gaps 8.0 / 12.3 / 23.5 s); learning 52% of the delta. `V2-BASELINE.md` written; Phase 0 closed, tagged `plan2-phase0`. Stale PLAN-1 tracker statuses mislead the analyzer's recommendations (B-005) → bookkeeping agent.
 - 2026-10-01 — Phase 2 review: 9 findings (3 med) → 2-R launched with D49/D50.
 - 2026-10-01 — 2-C merged; full gate green (953 vitest, 121 browser, 41,712 B gated). All Phase 2 workstreams merged; Phase 2 closes after the targeted eval against v2-baseline.

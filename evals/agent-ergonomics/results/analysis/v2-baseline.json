@@ -1,7 +1,7 @@
 {
   "meta": {
     "run": "v2-baseline",
-    "generatedAt": "2026-10-01T22:08:35.734Z",
+    "generatedAt": "2026-10-01T22:12:00.897Z",
     "trialsInMap": 160,
     "trialsAnalyzed": 160,
     "trialsScored": 160,
@@ -3658,7 +3658,7 @@
         "id": "G-016",
         "title": "First event/action right after `renderComponent()` is silently lost",
         "kind": "suspect",
-        "status": "open",
+        "status": "fixed",
         "trialsAffected": 5,
         "sygnal": "5/85",
         "react": "—",

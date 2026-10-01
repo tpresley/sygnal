@@ -150,7 +150,7 @@ A trial is "affected" if the issue shows up in a failing tool result, in the age
 
 | ID | Issue | Kind | Status | Sygnal trials | React trials | In results / reports / workarounds | Time cost total s | s per affected trial | s per Sygnal trial |
 |---|---|---|---|---|---|---|---|---|---|
-| G-016 | First event/action right after `renderComponent()` is silently lost | suspect | open | 5/85 | — | 0 / 5 / 0 | 0 | — | 0 |
+| G-016 | First event/action right after `renderComponent()` is silently lost | suspect | fixed | 5/85 | — | 0 / 5 / 0 | 0 | — | 0 |
 | B-005 | `driverFromAsync` swallows rejections | defect | fixed | 1/85 | — | 0 / 0 / 1 | 0 | — | 0 |
 
 <details><summary>Trials per catalog ID</summary>
