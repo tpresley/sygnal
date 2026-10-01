@@ -27,7 +27,7 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | 0B-fix | Phase 0 review fixes (9 findings + B-007) | ✅ | `worktree-agent-ab7cee6006bd3f5ad` | subagent | `44daa86` | Diagnostics never throw synchronously into streams (async rethrow in 'error' mode). run() resets the diagnostics config. `build` bundles types; `prepublishOnly` added. dts errors surface. Vite: directive/shebang-safe flag with sourcemap; B-007 fixed |
 | 0C | Canonical-forms spec | ✅ | (coordinator, direct) | coordinator | this commit | [PLAN-1-canonical-forms.md](PLAN-1-canonical-forms.md) |
 | 1A | Runtime consistency checks | ⚪ | | | | |
-| 1B | Typed links (+ new `event()` helper) | ⚪ | | | | `event()` added per D12 |
+| 1B | Typed links (+ new `event()` helper) | ✅ | `worktree-agent-a757e118d8adfa9c2` | subagent | `b75616b` | ActionsOf, IntentSources, SygnalEvents registry (works against bundled dist), typed CHILD.select via ParentPayloadOf, Collection `from` constraint, `event()`; `emit()` now built on event(). +75 B. Selector typing: not feasible in TS (static checker covers it) |
 | 1C | DOM-level test helpers | ⚪ | | | | |
 | 1D | Static checker `sygnal-check` | ⚪ | | | | Separate package (Q3) |
 | 1E | Error-message retrofit | ⚪ | | | | |
@@ -50,6 +50,7 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | After 0A | `cb9fdf0` | — | ❌ B-001 | ✅ 610 | ✅ | ✅ 83 | unchanged | evals not collected by the root vitest; verify.mjs 28/28 |
 | After 0B (Phase 0 close) | `18b3895` | ✅ (pre-existing warnings) | ✅ B-001 fixed | ✅ 649 | ✅ | ✅ 83 | 58,869 B | **New size baseline (D13)**: Phase 1+ limit is 60,405 B |
 | After 0B review fixes (**Phase 0 close**, tag `plan1-phase0`) | `44daa86` | ✅ (includes dts) | ✅ | ✅ 670 | ✅ | ✅ 83 | 59,108 B | `dist/index.d.ts` from `build` alone has no `./cycle/` imports |
+| After 1B | `b75616b` | ✅ | (in build) | ✅ 683 | ✅ (+ registry/dist programs) | ✅ 83 | 59,183 B | Phase 1 budget left: 1,222 B (1A ≤400, 1C ≤500, 1E ≤300) |
 
 ## Open Questions (awaiting user)
 
@@ -111,6 +112,8 @@ Pre-existing issues and gaps found during the work. Severity: high (blocks a gat
 | B-005 note | Baseline trial sygnal-05 | — | — | Independent confirmation of B-005: the agent noticed `driverFromAsync` swallows failures and worked around it by catching inside the fetch function. | — |
 | G-017 | Coordinator | med | Eval harness | `transcript-stats.mjs` undercounts `iterations`: sygnal-05-t2 reported running its tests, but was recorded with 0 iterations. Probably misses some test/build invocation forms (e.g. `npx vitest`, `node node_modules/...`, a `cd X && npm test` chain). Iteration means for the baseline may be biased low. | Open: audit the counter against a few transcripts before computing baseline summaries; recompute affected records with `--classify`/re-score if fixed |
 | G-018 | Baseline trial sygnal-08-t2 | low | Rendering | Sygnal adds `data-sygnal-ready="true"` to the root element of every sub-component (Suspense READY tracking), so extracting markup into a child component changes the DOM. That breaks exact-HTML snapshot tests and surprises refactors that are supposed to keep the markup identical. Consider emitting it only when an ancestor `<Suspense>` exists, or only in dev. | Open → PLAN-2 candidate (or 1F if cheap) |
+| B-008 | 1B | med | `src/component.ts` ~1557 | A sub-component with `.isolatedState = true` and `.initialState` but no `state` prop uses the base lens, so its initialState **replaces the parent's state** (observed: parent `{count: 0}` → `{}`). The existing guard only covers the case where isolatedState is missing. | Open → 1F (fix) + 1A (diagnostic, if cheap) |
+| G-019 | 1B | med | Test infra | `test/types.test.ts` is never type-checked (vitest doesn't typecheck it, and the type-tests tsconfig doesn't include it), so its `expectTypeOf` / `@ts-expect-error` assertions are runtime no-ops. Real type guarantees live only in `type-tests/`. | Open → PLAN-2 candidate (move assertions into type-tests or enable vitest typecheck) |
 | G-008 | Coordinator | low | Skill | The installed user-level skill `~/.claude/skills/sygnal-dev/SKILL.md` lags the repo copy (missing the DISPOSE row and the dispose$ "prefer DISPOSE" note); `agents/` exists only in the repo. Eval trials use the installed copy. | Open → 3B sync |
 | G-009 | Coordinator | low | Eval harness | The `transcript-stats.mjs` audit flags every call whose path contains "evals", which gives false positives when the trial dir is under `.../evals/...`. | Mitigated by D15; fix the pattern before 4A |
 | G-010 | 0B | low | Types | `getDevTools` is exported at runtime but has no declaration in `src/index.d.ts`. | Open → 2B |
