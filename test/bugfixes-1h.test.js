@@ -74,3 +74,25 @@ describe('1H-1: non-STATE sinks run synchronously when nothing is pending', () =
     expect(seen).toEqual([1, 1])
   })
 })
+
+// ─── 1H-2: renderComponent ('collect') still prints error-severity messages ───
+
+describe("1H-2: exceptions are visible under renderComponent's default 'collect' mode", () => {
+  it('a throwing reducer prints SYG216 with the error and is also collected; warnings stay silent', async () => {
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    function C({ state }) { return h('div', null, String(state.n)) }
+    C.initialState = { n: 0 }
+    C.model = { BOOM: () => { throw new Error('kaboom') }, NOTHING: { SPY: () => undefined } }
+    t = renderComponent(C)
+    await t.ready()
+    t.simulateAction('BOOM')
+    t.simulateAction('NOTHING') // SYG217 (warn)
+    await settle(30)
+    const printed = err.mock.calls.filter(c => String(c[0]).includes('SYG216'))
+    expect(printed.length).toBe(1)
+    expect(printed[0][1].message).toBe('kaboom')
+    expect(t.diagnostics.map(d => d.code)).toEqual(['SYG216', 'SYG217'])
+    expect(warn).not.toHaveBeenCalled()
+  })
+})
