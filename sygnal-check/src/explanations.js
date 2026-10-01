@@ -149,7 +149,7 @@ export const EXPLANATIONS = {
     title: "Duplicate model entry for the same action and sink",
     severity: "warn",
     reportedBy: ["runtime"],
-    explanation: "The same action and sink pair is defined more than once, which can only happen through shorthand keys (e.g. `'SAVE | STATE'` alongside `SAVE: fn` or `SAVE: { STATE: ... }`). The warning text says only the last one runs, but in the current code both entries are merged into the sink, so both reducers run for each action.",
+    explanation: "The same action and sink pair is defined more than once, which can only happen through shorthand keys (e.g. `'SAVE | STATE'` alongside `SAVE: fn` or `SAVE: { STATE: ... }`). Both entries are merged into the sink, so both reducers run for each action (as the warning says), which is rarely what was meant.",
     fix: "Remove the duplicate so each action/sink pair is defined once.",
   },
   SYG214: {
