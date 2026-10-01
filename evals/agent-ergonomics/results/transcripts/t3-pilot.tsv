@@ -1,0 +1,21 @@
+# t3-pilot: headless trials (orchestrate.mjs); transcripts are <trials-root>/t3-pilot/<trial>.transcript.jsonl
+react-13-t1	headless
+react-13-t2	headless
+react-14-t1	headless
+react-14-t2	headless
+react-15-t1	headless
+react-15-t2	headless
+react-16-t1	headless
+react-16-t2	headless
+react-17-t1	headless
+react-17-t2	headless
+sygnal-13-t1	headless
+sygnal-13-t2	headless
+sygnal-14-t1	headless
+sygnal-14-t2	headless
+sygnal-15-t1	headless
+sygnal-15-t2	headless
+sygnal-16-t1	headless
+sygnal-16-t2	headless
+sygnal-17-t1	headless
+sygnal-17-t2	headless
