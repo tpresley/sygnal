@@ -286,6 +286,26 @@ describe('B-009: Collections with overlapping item ids keep separate isolation s
   })
 })
 
+// ─── G-020: EVENTS devtools stamps are non-enumerable ───────────────────────
+
+describe('G-020: EVENTS sink values compare equal to what the model returned', () => {
+  it('raw EVENTS sink output toEqual the reducer output; stamps still readable', async () => {
+    function C() { return h('div', null) }
+    C.initialState = {}
+    C.model = { PING: { EVENTS: () => ({ type: 'PONG', data: 1 }) } }
+    t = renderComponent(C)
+    const raw = []
+    t.sinks.EVENTS.addListener({ next: v => raw.push(v) })
+    await t.ready()
+    t.simulateAction('PING')
+    await settle()
+    expect(raw).toEqual([{ type: 'PONG', data: 1 }])
+    expect(Object.keys(raw[0])).toEqual(['type', 'data'])
+    expect(raw[0].__emitterName).toBe('C')
+    expect(typeof raw[0].__emitterId).toBe('number')
+  })
+})
+
 // ─── B-004: controlled value/checked follow the vnode after coalesced renders ─
 
 describe('B-004: controlledInputModule', () => {

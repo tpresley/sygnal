@@ -907,7 +907,11 @@ class Component {
       if (name === 'EVENTS' && acc[name]) {
         const _componentNumber = this._componentNumber
         const _name = this.name
-        acc[name] = acc[name].map((ev: any) => ({...ev, __emitterId: _componentNumber, __emitterName: _name}))
+        // non-enumerable (G-020) so sink values still toEqual what the model returned
+        acc[name] = acc[name].map((ev: any) => Object.defineProperties({...ev}, {
+          __emitterId: { value: _componentNumber, configurable: true },
+          __emitterName: { value: _name, configurable: true },
+        }))
       }
       return acc
     }, {} as Record<string, any>)
