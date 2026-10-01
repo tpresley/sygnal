@@ -1,3 +1,5 @@
+import { ABORT } from 'sygnal'
+
 const HISTORY_STORAGE_KEY = 'sygnal.aiPanel.sessions'
 
 function formatTime(timestamp) {
@@ -79,7 +81,7 @@ HistoryDrawer.model = {
   OPEN_HISTORY_SESSION: (state, sessionId) => {
     const sessions = Array.isArray(state.savedSessions) ? state.savedSessions : []
     const session = sessions.find((entry) => entry.id === sessionId)
-    if (!session) return state
+    if (!session) return ABORT
 
     return {
       ...state,

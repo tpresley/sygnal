@@ -1,8 +1,11 @@
 import type { Component } from 'sygnal'
 
+// Shared layout around every page. In the browser the page is passed as
+// `children`; during SSR its HTML arrives in the `innerHTML` prop.
 type Layout = Component<Record<string, never>>
 
-const Layout: Layout = function ({ state, innerHTML }) {
+const Layout: Layout = function ({ children, innerHTML }) {
+  const hasPage = Array.isArray(children) ? children.length > 0 : !!children
   return (
     <div className="layout">
       <nav className="nav">
@@ -15,7 +18,10 @@ const Layout: Layout = function ({ state, innerHTML }) {
           <a href="/about">About</a>
         </div>
       </nav>
-      <main className="content" props={{ innerHTML: innerHTML || '' }}></main>
+      {hasPage
+        ? <main className="content">{children}</main>
+        : <main className="content" props={{ innerHTML: innerHTML || '' }}></main>
+      }
     </div>
   )
 }

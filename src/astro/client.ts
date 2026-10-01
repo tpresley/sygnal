@@ -1,4 +1,6 @@
-import run from '../extra/run'
+// The public entry (external in the build), so islands share the app's
+// Sygnal core instead of a bundled copy (B-019).
+import { run } from 'sygnal'
 
 interface SygnalComponent {
   (args: any): any;
