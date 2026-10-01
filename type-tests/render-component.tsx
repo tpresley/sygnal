@@ -16,6 +16,10 @@ async function check() {
   const codes = t.diagnostics.map(d => d.code)
   // @ts-expect-error unknown option
   renderComponent(Counter, { nope: true })
+  // G-053: timing options
+  renderComponent(Counter, { timeoutMs: 5000, settleMs: 50, eventWaitMs: 100 }).dispose()
+  // @ts-expect-error timing options are numbers
+  renderComponent(Counter, { settleMs: '50' })
   t.dispose()
   return [s, html, events, sink, codes]
 }

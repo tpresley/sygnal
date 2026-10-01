@@ -83,7 +83,7 @@ How it works:
 
 - It targets the **first rendered element** that matches `selector`, and bubbles within that element's component scope, like a real event. Events inside a child component (or Collection item) reach the child's intent, not the parent's.
 - `event.target.value`, `.checked` and `.dataset` default to what the element renders, and `init` overrides them. `init.value`, `init.checked`, `init.dataset` (alias `init.data`) and `init.key` are shorthands; any other property is copied onto the event.
-- If nothing matches yet, the event waits (up to 300 ms, re-checked on every render) for a matching element, for example a Collection item that is about to render. It is never sent to every listener with that selector.
+- If nothing matches yet, the event waits (up to `eventWaitMs`, default 300 ms, re-checked on every render) for a matching element, for example a Collection item that is about to render. It is never sent to every listener with that selector.
 - If no element matches, the test **fails** with an error that names the selector, says it matched nothing in the rendered output, and shows the start of `t.html()`. The error rejects the pending `t.next()`, `t.waitForState()` or `t.settle()`. If none is pending, the next `t.*` call or `t.dispose()` throws it. When nothing is queued and the tree is quiet, `simulateEvent` throws it straight away. To drop the event instead (reported as [SYG103](/reference/errors/#syg103), info), pass `{ allowMissing: true }`.
 - If the selector only matches inside a child component, Sygnal reports [SYG104](/reference/errors/#syg104): the parent's intent can never see that event.
 
@@ -119,6 +119,21 @@ Prefer `simulateEvent`: it also tests the intent wiring (the selector, the event
 
 `simulateEvent` and `simulateAction` calls are delivered in the order you make them. Calls made before the component has finished subscribing are buffered and replayed, so you can call them right after `renderComponent()`. `await t.ready()` resolves once the component is subscribed and the buffered calls have been delivered.
 
+`ready()` is also a cursor for the following `next()`: the first `next()` after `await t.ready()` starts at the moment the component became ready, so it also matches the states the replayed calls produced. Both orders work:
+
+```jsx
+t.simulateEvent('.inc', 'click')      // buffered
+await t.ready()
+await t.next(s => s.count === 1)      // sees the buffered click's state
+
+t.simulateEvent('.inc', 'click')      // buffered
+const p = t.next(s => s.count === 1)  // started before ready()
+await t.ready()
+await p
+```
+
+Any other `t.*` call in between (`simulate*`, `waitForState`, `settle`, another `next`) uses up the cursor. Calling `ready()` again on a ready component re-arms it at that point.
+
 ## Waiting for Results
 
 State updates and re-renders are **asynchronous**: after a `simulate*` call, the new state and DOM arrive a few milliseconds later. Always await one of these before asserting:
@@ -130,7 +145,7 @@ State updates and re-renders are **asynchronous**: after a `simulate*` call, the
 | `t.settle(timeout?)` | nothing | waiting until everything has calmed down |
 | `t.ready()` | nothing | waiting for the initial subscription |
 
-Both `next()` and `waitForState()` resolve only once the whole tree, children included, has rendered the matching state, so `t.html()` is up to date when they return. They reject after the timeout (default 2000 ms).
+Both `next()` and `waitForState()` resolve only once the whole tree, children included, has rendered the matching state, so `t.html()` is up to date when they return. They reject after the timeout (default 2000 ms; the `timeoutMs` option changes it for every wait). The timeout error names any model `next()` follow-up that was scheduled during the wait or is still pending, and, for `next()`, a recorded state that already matched before the call.
 
 ### next() vs waitForState()
 
@@ -147,11 +162,10 @@ await t.next(s => s.count === 0)           // waits for the reset
 
 Use `next()` for the effect of an action. Call it right after the `simulate*` call, without awaiting anything in between, so the state can't arrive before `next()` starts listening. With no predicate, `next()` resolves with the next state of any kind.
 
-Calls buffered before `ready()` may already have been applied when `ready()` resolves; check those with `waitForState()` (or `t.states`), not with a `next()` started afterwards.
 
 ### settle()
 
-`settle()` resolves once nothing is pending: the component is ready, no simulated input is waiting, and nothing anywhere in the tree has rendered, reduced or changed state for 20 ms. Use it before checking that something did **not** happen, or before `expectNoDiagnostics()`:
+`settle()` resolves once nothing is pending: the component is ready, no simulated input is waiting, and nothing anywhere in the tree has rendered, reduced or changed state for `settleMs` (default 20 ms). Use it before checking that something did **not** happen, or before `expectNoDiagnostics()`:
 
 ```jsx
 t.simulateEvent('.save', 'click')
@@ -161,9 +175,10 @@ expect(t.emitted).toEqual([])
 
 ### Timing details
 
-- `next()`, `waitForState()` and `settle()` decide that the tree is quiet when nothing has rendered, reduced or changed state for a short window (10 ms per check for `next`/`waitForState`, 20 ms for `settle`). A `next(action, data, delay)` follow-up with a delay longer than about 20 ms isn't seen as pending: wait for its result with `next(predicate)`.
-- Child renders are observed through the diagnostics hooks. With `diagnostics: 'off'` the helpers can't see them and fall back to waiting up to 250 ms.
-- These windows (and the 300 ms wait for a missing element) aren't configurable.
+- `next()`, `waitForState()` and `settle()` decide that the tree is quiet when nothing has rendered, reduced or changed state for a short window (10 ms per check for `next`/`waitForState`, `settleMs` = 20 ms for `settle`).
+- A model `next('ACTION', data, delay)` follow-up with a delay longer than `settleMs` fires after `settle()` has resolved. Wait for its result with `await t.next(predicate)`, or raise `settleMs` above the delay. If a wait times out first, its error names the follow-up (`next('DONE') scheduled by Saver with a 400ms delay is still pending`) and the `timeoutMs` option.
+- Child renders, child sinks and `next()` follow-ups are observed through the diagnostics hooks. With `diagnostics: 'off'` the helpers can't see them: waits fall back to up to 250 ms, and a child's driverless sink isn't recorded.
+- The options `settleMs` (20), `eventWaitMs` (300, how long `simulateEvent` waits for its element) and `timeoutMs` (2000) change these; see [Options](#options).
 - The mock DOM finds `<Portal>` content as if it were rendered in place, which is more lenient than a real DOM, where portal content is outside the component's event scope.
 
 ## Reading Output
@@ -196,7 +211,17 @@ expect(t.emitted).toEqual([{ type: 'COUNTER_RESET', data: 1 }])
 expect(t.html()).toContain('<span class="count">0</span>')
 ```
 
-A sink named in the rendered component's own model that has no driver (for example `API` when you don't pass an `API` driver) gets a no-op driver, so its output is still visible through `sinkValues`. For a custom sink that only a **child** uses, pass a driver for it in `drivers`; otherwise the child's values don't show up. To feed responses back in, give the driver a source, or push the response action with `simulateAction`.
+A custom sink with no driver (for example `API` when you don't pass an `API` driver) gets a recording no-op driver, for the rendered component and for every child, grandchild and Collection item, so its output is still visible through `sinkValues`:
+
+```jsx
+// SaveButton (a child of Editor) has  SAVE: { API: (state) => ({ url: '/save', body: state.text }) }
+const t = renderComponent(Editor)
+t.simulateEvent('.save', 'click')
+await t.settle()
+expect(t.sinkValues('API')).toEqual([{ url: '/save', body: 'draft' }])
+```
+
+A driver you pass in `drivers` still wins: it receives the values (and `sinkValues` records them once). To feed responses back in, give the driver a source, or push the response action with `simulateAction`.
 
 ## Diagnostics in Tests
 
@@ -240,6 +265,9 @@ When an event "does nothing" in a test, `t.inspect()` usually shows why: a selec
 | `diagnostics` | `'off' \| 'collect' \| 'warn' \| 'error'` | `'collect'` (or the current mode) | Diagnostics mode while rendered |
 | `strict` | `boolean` | unchanged | Strict-mode runtime checks while rendered |
 | `mockConfig` | `object` | `{}` | Extra mock DOM event streams, by selector (see below) |
+| `timeoutMs` | `number` | `2000` | Default timeout of `next()`, `waitForState()` and `settle()` |
+| `settleMs` | `number` | `20` | `settle()`'s quiet window: how long nothing may happen before it resolves |
+| `eventWaitMs` | `number` | `300` | How long `simulateEvent` waits for a matching element (and its listeners) |
 
 ## Result
 
@@ -247,7 +275,7 @@ When an event "does nothing" in a test, `t.inspect()` usually shows why: a selec
 |----------|------|-------------|
 | `simulateEvent` | `(selector, type, init?) => void` | Dispatch a DOM event through the mock DOM |
 | `simulateAction` | `(name, data?) => void` | Push an action under its real name |
-| `ready` | `() => Promise<void>` | Resolves once subscribed and buffered calls are delivered |
+| `ready` | `() => Promise<void>` | Resolves once subscribed and buffered calls are delivered; the next `next()` starts there |
 | `next` | `(predicate?, timeout?) => Promise<state>` | Next matching state after the call |
 | `waitForState` | `(predicate, timeout?) => Promise<state>` | First matching state, history included |
 | `settle` | `(timeout?) => Promise<void>` | Resolves once nothing is pending |

@@ -1030,7 +1030,10 @@ export interface RenderOptions {
   initialState?: any;
   /** Mock DOM configuration — maps selectors to event streams */
   mockConfig?: Record<string, any>;
-  /** Additional drivers beyond DOM, EVENTS, STATE, and LOG (model sinks without a driver get a no-op one) */
+  /**
+   * Additional drivers beyond DOM, EVENTS, STATE, and LOG. A custom sink without a driver, in
+   * the component or any child, gets a recording no-op one (read it with sinkValues).
+   */
   drivers?: Record<string, any>;
   /**
    * Diagnostics mode while rendered. Default: 'collect' (error-severity messages still print),
@@ -1040,6 +1043,15 @@ export interface RenderOptions {
   diagnostics?: DiagnosticsMode;
   /** Enable strict (canonical-form) runtime checks while rendered (requires 'sygnal/diagnostics') */
   strict?: boolean;
+  /**
+   * settle()'s quiet window in ms (default 20). A model `next('X', data, ms)` with a longer
+   * delay fires after settle() resolved: raise this, or wait with `t.next(pred)`.
+   */
+  settleMs?: number;
+  /** How long simulateEvent waits for a matching element / its listeners, in ms (default 300) */
+  eventWaitMs?: number;
+  /** Default timeout of next(), waitForState() and settle(), in ms (default 2000) */
+  timeoutMs?: number;
 }
 
 export interface RenderResult {
@@ -1075,7 +1087,11 @@ export interface RenderResult {
    * calls after it. Reports SYG104 (selector only matches inside a child component).
    */
   simulateEvent: (selector: string, eventType: string, eventInit?: SimulatedEventInit) => void;
-  /** Resolves once the component is subscribed (earlier simulate* calls are buffered and replayed) */
+  /**
+   * Resolves once the component is subscribed (earlier simulate* calls are buffered and replayed).
+   * Also a cursor: the first next() after `await t.ready()` also matches the states the replayed
+   * calls produced, unless another t.* call came in between.
+   */
   ready: () => Promise<void>;
   /**
    * Wait for a state that satisfies the predicate. Matches the recorded HISTORY too: a state
@@ -1085,20 +1101,22 @@ export interface RenderResult {
    */
   waitForState: (predicate: (state: any) => boolean, timeoutMs?: number) => Promise<any>;
   /**
-   * Wait for the next state emitted AFTER this call that satisfies the predicate (default: any
-   * state). Resolves with it once the whole tree (children included) has rendered it; rejects
-   * after timeoutMs (default 2000).
+   * Wait for the next state emitted AFTER this call (right after `await t.ready()`: after the
+   * component became ready) that satisfies the predicate (default: any state). Resolves with it
+   * once the whole tree (children included) has rendered it; rejects after timeoutMs (default:
+   * the timeoutMs option, 2000). The error names a model next() still scheduled, and a recorded
+   * state that already matched.
    */
   next: (predicate?: (state: any) => boolean, timeoutMs?: number) => Promise<any>;
   /**
    * Resolves once nothing is pending: the component is ready, no simulated input is waiting,
-   * and nothing in the tree has rendered, reduced or changed state for 20ms (longer than
-   * next()'s default delay). Rejects after timeoutMs (default 2000) if it never calms down.
+   * and nothing in the tree has rendered, reduced or changed state for settleMs (default 20,
+   * longer than a model next()'s default delay). Rejects after timeoutMs if it never calms down.
    */
   settle: (timeoutMs?: number) => Promise<void>;
   /** Collected state values — grows as new states are emitted */
   states: any[];
-  /** Live array of values emitted on a sink (EVENTS as {type, data}, PARENT unwrapped, custom drivers) */
+  /** Live array of values emitted on a sink (EVENTS as {type, data}, PARENT unwrapped, custom sinks of any component in the tree) */
   sinkValues: (sinkName: string) => any[];
   /** Live array of EVENTS sink emissions ({type, data}) */
   emitted: Array<{ type: string; data: any }>;

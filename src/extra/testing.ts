@@ -85,6 +85,15 @@ import type {InspectGraph} from './diagnostics/checks/public';
  * - Sinks named in the model without a driver get a no-op driver so their
  *   output stays observable. sinkValues: EVENTS entries drop the devtools
  *   stamps, PARENT entries are unwrapped from {name, component, value}.
+ *   G-064: a descendant's model sink with no driver (not in its sourceNames) is
+ *   recorded straight from its model$ (subscribed via the onModel hook, removed
+ *   in onDispose); a passed driver puts the name in sourceNames, so it wins.
+ * - G-065: ready() arms a cursor (states.length when the component became
+ *   ready, or at the call once ready) that the next next() starts from; any
+ *   other t.* call disarms it.
+ * - G-053: timing options eventWaitMs / settleMs / timeoutMs. Model next() calls
+ *   are seen by wrapping each tree component's `log` (component.ts logs every
+ *   next() with "next() action: <TYPE> Nms delay"); wait timeouts name them.
  * - Input is buffered until 12ms after the first render: root and child
  *   action streams subscribe 1-10ms (BOOTSTRAP) after construction. With no
  *   render within 30ms (e.g. a model but no initialState), the 12ms start then.
@@ -142,6 +151,16 @@ export interface RenderOptions {
    * Default: unchanged (off unless configureStrict(true) was called).
    */
   strict?: boolean;
+  /**
+   * settle()'s quiet window in ms (default 20): settle() resolves once nothing in the tree has
+   * rendered, reduced or changed state for this long. A model `next('X', data, ms)` with a
+   * longer delay fires after settle() resolved; raise this, or wait with t.next(pred).
+   */
+  settleMs?: number;
+  /** How long simulateEvent waits for a matching element / its listeners, in ms (default 300) */
+  eventWaitMs?: number;
+  /** Default timeout of next(), waitForState() and settle(), in ms (default 2000) */
+  timeoutMs?: number;
 }
 
 export interface RenderResult {
@@ -159,7 +178,11 @@ export interface RenderResult {
   simulateAction: (actionName: string, data?: any) => void;
   /** Dispatch a synthetic DOM event through the mock DOM source */
   simulateEvent: (selector: string, eventType: string, eventInit?: SimulatedEventInit) => void;
-  /** Resolves once the component is subscribed and rendered (earlier calls are buffered) */
+  /**
+   * Resolves once the component is subscribed and rendered (earlier calls are buffered and
+   * replayed). Also a cursor (G-065): the first next() after `await t.ready()` also matches the
+   * states the replayed calls produced, unless another t.* call came in between.
+   */
   ready: () => Promise<void>;
   /**
    * Wait for a state that satisfies the predicate, searching the HISTORY first: a state
@@ -169,19 +192,24 @@ export interface RenderResult {
    */
   waitForState: (predicate: (state: any) => boolean, timeoutMs?: number) => Promise<any>;
   /**
-   * Wait for the next state emitted AFTER this call that satisfies the predicate (default:
-   * any). Resolves with it once the whole tree (children included) has rendered it.
+   * Wait for the next state emitted AFTER this call (or, right after `await t.ready()`, after
+   * the component became ready) that satisfies the predicate (default: any). Resolves with it
+   * once the whole tree (children included) has rendered it. The timeout error names a model
+   * next() still scheduled, and a recorded state that already matched.
    */
   next: (predicate?: (state: any) => boolean, timeoutMs?: number) => Promise<any>;
   /**
    * Resolves when the component is quiet: ready, no simulated input pending, and no render,
-   * reducer or state change anywhere in the tree for a short window (20ms; covers next()'s
-   * default delay). Rejects after timeoutMs (default 2000) if it never calms down.
+   * reducer or state change anywhere in the tree for `settleMs` (default 20; covers a model
+   * next()'s default 10ms delay). Rejects after timeoutMs (default 2000) if it never calms down.
    */
   settle: (timeoutMs?: number) => Promise<void>;
   /** Collected state values — grows as new states are emitted */
   states: any[];
-  /** Live array of values emitted on a sink (EVENTS, PARENT, custom drivers, ...) */
+  /**
+   * Live array of values emitted on a sink (EVENTS, PARENT, custom drivers, ...). A custom sink
+   * with no driver is recorded for every component in the tree (children included, G-064).
+   */
   sinkValues: (sinkName: string) => any[];
   /** Live array of EVENTS sink emissions ({type, data}) */
   emitted: any[];
@@ -423,12 +451,16 @@ export const _testingStats = {walks: 0};
 // 1H-5: live renderComponent instances; the explicit diagnostics config and the strict flag
 // (R4) from before the outermost one are restored when the last one is disposed
 let active = 0;
-/** simulateEvent: how long an event waits for its element / listeners (G-049, G-039) */
-const WAIT_MS = 300;
 /** quiet window after which the whole tree counts as rendered (G-047) */
 const QUIET_MS = 10;
-/** quiet window for settle(): longer than next()'s default 10ms delay */
-const SETTLE_MS = 20;
+// G-053: defaults of the timing options (eventWaitMs: how long an event waits for its element /
+// listeners, G-049/G-039; settleMs: settle()'s quiet window, longer than a model next()'s
+// default 10ms delay; timeoutMs: next()/waitForState()/settle())
+const TIMING = {eventWaitMs: 300, settleMs: 20, timeoutMs: 2000};
+// a model next() call, seen through the component's debug log (component.ts makeOnAction /
+// makeEffectHandler: "... next() action: <TYPE> 400ms delay")
+const NEXT_LOG = /next\(\) action: <(.*)> (\d+)ms delay$/;
+const RESERVED_SINKS = /^(STATE|EFFECT|PARENT|READY|DOM)$/;
 let savedConfig: ReturnType<typeof _getDiagnosticsConfig>;
 let savedStrict: any;
 
@@ -438,6 +470,14 @@ export function renderComponent(
 ): RenderResult {
   const {initialState, mockConfig = {}, drivers = {}, diagnostics, strict} = options;
   const {intent, model = {}} = componentDef;
+  const timing = {...TIMING};
+  for (const k of Object.keys(TIMING) as (keyof typeof TIMING)[]) {
+    const v = options[k];
+    if (v === undefined) continue;
+    if (typeof v != 'number' || !(v >= 0)) throw new Error(`[Sygnal] renderComponent: ${k} must be a non-negative number of ms (got ${String(v)})`);
+    timing[k] = v;
+  }
+  const {eventWaitMs, settleMs, timeoutMs: defaultTimeout} = timing;
 
   const prevMode = getDiagnosticsMode();
   // 2A: strict flag on the core bridge (read by the 'sygnal/diagnostics' strict checks)
@@ -474,6 +514,42 @@ export function renderComponent(
   // the "the full tree has rendered" / settle() quiet windows
   let activity = 0, lastActivity = Date.now();
   const bump = () => { activity++; lastActivity = Date.now(); };
+  const mine = (c: any) => c?.sources?.[c.DOMSourceName || 'DOM']?._hub === hub.$;
+  // G-053: model next() calls of the tree's components (for the timeout explanations)
+  type Scheduled = {type: string; delay: number; at: number; due: number; by: string};
+  const scheduled: Scheduled[] = [];
+  // G-064: listeners on the driverless sinks of descendants (removed when they're disposed)
+  const childSinks = new Map<any, Array<[any, any]>>();
+  const recordChildSinks = (c: any) => {
+    const m = c.model$ || {}, own = new Set<string>(c.sourceNames || []);
+    const extra = Object.keys(m).filter(k => !own.has(k) && !RESERVED_SINKS.test(k) &&
+      k != c.stateSourceName && typeof m[k]?.addListener == 'function');
+    if (!extra.length) return;
+    childSinks.set(c, []);
+    // subscribed after the constructor, as a parent's sinks would be; actions start >= 1ms later
+    queueMicrotask(() => {
+      const list = childSinks.get(c);
+      if (disposed || !list) return;
+      for (const k of extra) {
+        const l = {next: (v: any) => sinkValues(k).push(v), error: noop, complete: noop};
+        m[k].addListener(l);
+        list.push([m[k], l]);
+      }
+    });
+  };
+  const watchNext = (c: any) => {
+    const log = c.log;
+    if (typeof log != 'function') return;
+    c.log = function (this: any, msg: any, now?: boolean) {
+      const m = now && typeof msg == 'string' && msg.match(NEXT_LOG);
+      if (m) {
+        const at = Date.now();
+        if (scheduled.length > 50) scheduled.splice(0, scheduled.length - 50);
+        scheduled.push({type: m[1], delay: +m[2], at, due: at + +m[2], by: c.name});
+      }
+      return log.apply(this, arguments as any);
+    };
+  };
   const offCheck = registerCheck({
     id: 'renderComponent',
     onRender: bump,
@@ -484,8 +560,18 @@ export function renderComponent(
       if (sc) owners.set(sc, c.name);
       if (c.sources[c.DOMSourceName || 'DOM']?._hub == hub.$) scopeIds.set(sc || '', c._componentNumber);
     },
+    onModel(c: any) {
+      if (!mine(c)) return;
+      watchNext(c);
+      recordChildSinks(c);
+    },
     // 1H-11: forget a disposed child's listeners, so they aren't checked on every render
     onDispose(c: any) {
+      const own = childSinks.get(c);
+      if (own) {
+        childSinks.delete(c);
+        own.forEach(([s, l]) => { try { s.removeListener(l); } catch (_) {} });
+      }
       const sc = scopeOf(c);
       if (!sc) return;
       owners.delete(sc);
@@ -664,7 +750,7 @@ export function renderComponent(
   // Input queue (G-049/G-039): simulateAction/simulateEvent calls are delivered in order,
   // once the component is ready. An event whose selector matches no rendered element yet, or
   // whose matching listeners aren't subscribed yet, holds the queue until it can be delivered
-  // (re-tried on every render), at most WAIT_MS; then it is delivered to the live listeners
+  // (re-tried on every render), at most eventWaitMs; then it is delivered to the live listeners
   // (or, with no matching element, fails the test, G-070; with allowMissing it is dropped
   // with SYG103).
   type Input = {go: (last: boolean) => boolean, until?: number, missing?: () => Error | undefined};
@@ -674,7 +760,7 @@ export function renderComponent(
     if (!isReady || disposed) return;
     while (inputs.length) {
       const head = inputs[0];
-      head.until = head.until || Date.now() + WAIT_MS;
+      head.until = head.until || Date.now() + eventWaitMs;
       if (!head.go(Date.now() >= head.until)) return retry(5);
       inputs.shift();
       bump();
@@ -684,14 +770,24 @@ export function renderComponent(
     if (!retryTimer && inputs.length) retryTimer = setTimeout(() => { retryTimer = 0; pump(); }, ms);
   };
   let markReady: () => void;
+  // G-065: states.length when the component became ready (before the buffered input was
+  // replayed). ready() arms a cursor: the first next() after it starts there (or, when ready()
+  // is called on an already-ready component, at the call), so `await t.ready()` doesn't make
+  // next() miss the states the replayed input produced. Any other t.* call disarms it.
+  let readyAt = 0, cursor: number | undefined;
   const readyPromise = new Promise<void>(r => {
     markReady = () => {
+      readyAt = states.length;
       isReady = true;
       pump();
       r();
     };
   });
-  const later = (go: Input['go'], missing?: Input['missing']) => { inputs.push({go, missing}); pump(); };
+  const ready = () => {
+    cursor = isReady ? states.length : -1;
+    return readyPromise;
+  };
+  const later = (go: Input['go'], missing?: Input['missing']) => { cursor = undefined; inputs.push({go, missing}); pump(); };
 
   let vtree: any;
   let timer: any;
@@ -755,7 +851,7 @@ export function renderComponent(
   const noMatch = (selector: string, type: string, waited: boolean) => {
     const out = html();
     return new Error(`[Sygnal] simulateEvent('${selector}', '${type}'): the selector matched nothing in the rendered output` +
-      (waited ? ` (waited ${WAIT_MS}ms for it to render)` : '') +
+      (waited ? ` (waited ${eventWaitMs}ms for it to render; the eventWaitMs option sets this)` : '') +
       `. Check t.html() to see what rendered, or give the element an attribute and select it, e.g. [data-id="3"]` +
       ` (pass { allowMissing: true } to drop the event instead).\nRendered: ${out.length > 600 ? out.slice(0, 600) + '…' : out || '(nothing)'}`);
   };
@@ -775,7 +871,7 @@ export function renderComponent(
     const sel = page ? [] : parse(text);
     // nothing pending and the tree is quiet (as settle() would see it): fail at the call
     if (!page && !allowMissing && isReady && !inputs.length && vtree && renderedUpTo >= states.length &&
-        Date.now() - lastActivity >= SETTLE_MS && !find(vtree, sel)) {
+        Date.now() - lastActivity >= settleMs && !find(vtree, sel)) {
       throw noMatch(selector, type, false);
     }
     later(last => {
@@ -788,7 +884,7 @@ export function renderComponent(
           return true;
         }
         raise('SYG103', rootName,
-          `simulateEvent('${selector}', '${type}') matched no rendered element within ${WAIT_MS}ms, so the event was dropped`,
+          `simulateEvent('${selector}', '${type}') matched no rendered element within ${eventWaitMs}ms, so the event was dropped`,
           `Check the selector against the view's className/id, or wait until the element is rendered (await t.next(...) or t.settle())`,
           {selector, type});
         return true;
@@ -883,24 +979,70 @@ export function renderComponent(
         error: (err: any) => fail(err),
         complete: () => fail(new Error(`${name}: state stream completed without matching`)),
       };
-      const timer = setTimeout(() => fail(new Error(`${name} timed out after ${timeoutMs}ms`)), timeoutMs);
+      const start = Date.now();
+      const timer = setTimeout(() => {
+        let msg = `${name} timed out after ${timeoutMs}ms.`;
+        const [why, pending] = explainNext(start);
+        msg += why;
+        if (pending) msg += ` Wait longer: t.${name}(pred, ms), or the renderComponent timeoutMs option (default for every wait).`;
+        // G-065: a state from before the call matched; next() only looks at new ones
+        for (let i = from - 1; i >= 0; i--) {
+          if (test(i)) {
+            msg += ` A state recorded before this next() call already matches the predicate (t.states[${i}]); next() only matches new states.` +
+              ` Use t.waitForState(pred) to search the history too, or call next() before the input that causes the state.`;
+            break;
+          }
+        }
+        fail(new Error(msg));
+      }, timeoutMs);
       for (let i = from; i < states.length; i++) if (test(i)) return found(i);
       stateStream.addListener(listener);
     });
 
-  const waitForState = (predicate: (state: any) => boolean, timeoutMs: number = 2000) =>
-    waitMatch(0, predicate, timeoutMs, 'waitForState');
-  const next = (predicate: (state: any) => boolean = () => true, timeoutMs: number = 2000) =>
-    waitMatch(states.length, predicate, timeoutMs, 'next');
-  const settle = (timeoutMs: number = 2000): Promise<void> => new Promise((resolve, reject) => {
+  /**
+   * G-053: the model next() calls scheduled during a wait that started at `start` (or still
+   * pending): an explanation for a timeout, and whether one is still pending.
+   */
+  const explainNext = (start: number): [string, boolean] => {
+    const now = Date.now(), byKey = new Map<string, Scheduled & {n: number}>();
+    for (const s of scheduled) {
+      if (s.due <= now && s.at < start) continue;
+      const k = s.by + '\u0000' + s.type;
+      byKey.set(k, {...s, n: (byKey.get(k)?.n || 0) + 1});
+    }
+    if (!byKey.size) return ['', false];
+    let pending = false;
+    const list = [...byKey.values()].map(s => {
+      const left = s.due - now;
+      if (left > 0) pending = true;
+      return `next('${s.type}') scheduled by ${s.by} with a ${s.delay}ms delay` +
+        (s.n > 1 ? ` (${s.n} times)` : '') + (left > 0 ? ` is still pending (fires in ${left}ms)` : '');
+    });
+    return [` Model next() calls during the wait: ${list.join('; ')}.`, pending];
+  };
+
+  const waitForState = (predicate: (state: any) => boolean, timeoutMs: number = defaultTimeout) => {
+    cursor = undefined;
+    return waitMatch(0, predicate, timeoutMs, 'waitForState');
+  };
+  const next = (predicate: (state: any) => boolean = () => true, timeoutMs: number = defaultTimeout) => {
+    const from = cursor === undefined || (cursor < 0 && !isReady) ? states.length : cursor < 0 ? readyAt : cursor;
+    cursor = undefined;
+    return waitMatch(from, predicate, timeoutMs, 'next');
+  };
+  const settle = (timeoutMs: number = defaultTimeout): Promise<void> => new Promise((resolve, reject) => {
+    cursor = undefined;
     const f = takeFailure();
     if (f) return reject(f);
     const done = (e?: Error) => { waiters.delete(done); e ? reject(e) : resolve(); };
     waiters.add(done);
+    const start = Date.now();
     (async () => {
       await Promise.race([readyPromise, tick(timeoutMs)]);
-      if (!await quiesce(states.length, SETTLE_MS, timeoutMs, () => !isReady || inputs.length > 0)) {
-        throw new Error(`settle timed out after ${timeoutMs}ms: ${inputs.length ? `${inputs.length} simulated input(s) still pending` : 'the component kept rendering'}`);
+      if (!await quiesce(states.length, settleMs, timeoutMs, () => !isReady || inputs.length > 0)) {
+        const [why] = explainNext(start);
+        throw new Error(`settle timed out after ${timeoutMs}ms: ${inputs.length ? `${inputs.length} simulated input(s) still pending` : `the component kept rendering (it never was quiet for settleMs = ${settleMs}ms)`}.` +
+          why + (why ? ' A next() loop never goes quiet: wait for a specific state with t.next(pred) instead.' : ''));
       }
     })().then(() => done(), done);
   });
@@ -949,6 +1091,8 @@ export function renderComponent(
     subs.forEach(([s, l]) => {
       try { s.removeListener(l); } catch (_) {}
     });
+    childSinks.forEach(list => list.forEach(([s, l]) => { try { s.removeListener(l); } catch (_) {} }));
+    childSinks.clear();
     try { sinks.__dispose?.(); } catch (_) {}
     rawDispose();
     restore();
@@ -964,7 +1108,7 @@ export function renderComponent(
     sources,
     simulateAction,
     simulateEvent,
-    ready: () => readyPromise,
+    ready,
     waitForState,
     next,
     settle,
