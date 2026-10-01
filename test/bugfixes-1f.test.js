@@ -373,6 +373,118 @@ describe("G-026: an invalid Collection 'from' reports SYG412 once", () => {
   })
 })
 
+// ─── G-024: renderComponent reports SYG104 / SYG103 itself ──────────────────
+
+describe('G-024: renderComponent reports isolation-boundary (SYG104) and typo (SYG103) selectors', () => {
+  // eval task 07: the parent listens for '.remove', which only exists inside Collection items
+  function TodoItem({ state }) {
+    return h('div', { className: state.done ? 'todo done' : 'todo' },
+      h('input', { className: 'toggle', attrs: { type: 'checkbox' }, checked: state.done }),
+      h('span', { className: 'title' }, state.title),
+      h('button', { className: 'remove', data: { id: String(state.id) } }, '×'))
+  }
+  TodoItem.intent = ({ DOM }) => ({ TOGGLE: DOM.change('.toggle') })
+  TodoItem.model = { TOGGLE: s => ({ ...s, done: !s.done }) }
+
+  const todos = () => [
+    { id: 1, title: 'Buy milk', done: false },
+    { id: 2, title: 'Walk the dog', done: false },
+  ]
+
+  function App({ state }) {
+    return h('div', { className: 'app' },
+      h(Collection, { of: TodoItem, from: 'todos', className: 'todo-list' }),
+      h('p', { className: 'count' }, `${state.todos.length}`))
+  }
+  App.initialState = { todos: todos() }
+  App.intent = ({ DOM }) => ({ REMOVE: DOM.click('.remove').data('id', Number) })
+  App.model = { REMOVE: (s, id) => ({ ...s, todos: s.todos.filter(td => td.id !== id) }) }
+
+  const only = (t, code) => t.diagnostics.filter(d => d.code === code)
+
+  it('task-07 pattern: SYG104 names TodoItem after the first render, and expectNoDiagnostics throws with it', async () => {
+    t = renderComponent(App)
+    await t.ready()
+    const d = only(t, 'SYG104')
+    expect(d.length).toBe(1)
+    expect(d[0].component).toBe('App')
+    expect(d[0].data).toEqual({ selector: '.remove', child: 'TodoItem' })
+    expect(d[0].text).toContain("DOM.select('.remove') in App matches elements inside TodoItem (isolated)")
+    expect(d[0].text).toContain('Handle the event in TodoItem and send it up with PARENT (read it here with CHILD.select(TodoItem)), or use EVENTS')
+    expect(() => t.expectNoDiagnostics()).toThrow(/SYG104.*TodoItem/)
+    // clicking the child element does not duplicate it (and does nothing, as in the browser)
+    t.simulateEvent('.remove', 'click')
+    await settle()
+    expect(only(t, 'SYG104').length).toBe(1)
+    expect(last(t).todos.length).toBe(2)
+  })
+
+  it('SYG104 for a plain (non-Collection) child component that only renders after a state change', async () => {
+    function Stepper({ state }) { return h('div', null, h('button', { className: 'inc' }, '+'), h('span', null, String(state.n))) }
+    Stepper.isolatedState = true
+    Stepper.initialState = { n: 0 }
+    Stepper.model = { NOOP: s => s }
+    function Page({ state }) { return h('div', null, h('h1', null, String(state.clicks)), state.show ? h(Stepper) : null) }
+    Page.initialState = { clicks: 0, show: false }
+    Page.intent = ({ DOM }) => ({ CLICK: DOM.select('.inc').events('click'), SHOW: DOM.click('h1') })
+    Page.model = { CLICK: s => ({ ...s, clicks: s.clicks + 1 }), SHOW: s => ({ ...s, show: true }) }
+    t = renderComponent(Page)
+    await t.ready()
+    expect(only(t, 'SYG104').length).toBe(0)
+    t.simulateEvent('h1', 'click')
+    await t.waitForState(s => s.show)
+    t.simulateEvent('.inc', 'click')
+    await settle()
+    const d = only(t, 'SYG104')
+    expect(d.length).toBe(1)
+    expect(d[0].data).toEqual({ selector: '.inc', child: 'Stepper' })
+  })
+
+  it('no diagnostics for the correct version (child handles the click, parent reads CHILD)', async () => {
+    function GoodItem({ state }) { return h('div', null, h('button', { className: 'remove' }, '×'), h('span', null, state.title)) }
+    GoodItem.intent = ({ DOM }) => ({ REMOVE: DOM.click('.remove') })
+    GoodItem.model = { REMOVE: { PARENT: s => s.id } }
+    function GoodApp({ state }) { return h('div', null, h(Collection, { of: GoodItem, from: 'todos' })) }
+    GoodApp.initialState = { todos: todos() }
+    GoodApp.intent = ({ CHILD }) => ({ REMOVE: CHILD.select(GoodItem) })
+    GoodApp.model = { REMOVE: (s, id) => ({ ...s, todos: s.todos.filter(td => td.id !== id) }) }
+    t = renderComponent(GoodApp)
+    await t.ready()
+    t.simulateEvent('.remove', 'click')
+    await t.waitForState(s => s.todos.length === 1)
+    await settle()
+    expect(t.diagnostics).toEqual([])
+    t.expectNoDiagnostics()
+  })
+
+  it('SYG103 (info) when simulateEvent names a selector nothing renders or listens to', async () => {
+    function Btn({ state }) { return h('div', null, h('button', { className: 'save' }, String(state.n))) }
+    Btn.initialState = { n: 0 }
+    Btn.intent = ({ DOM }) => ({ SAVE: DOM.click('.save'), LATER: DOM.click('.not-rendered-yet') })
+    Btn.model = { SAVE: s => ({ ...s, n: s.n + 1 }), LATER: s => s }
+    t = renderComponent(Btn)
+    await t.ready()
+    t.simulateEvent('.svae', 'click')            // typo
+    t.simulateEvent('.not-rendered-yet', 'click') // listened to: no SYG103
+    t.simulateEvent('.save', 'click')             // fine
+    await t.waitForState(s => s.n === 1)
+    const d = only(t, 'SYG103')
+    expect(d.length).toBe(1)
+    expect(d[0].severity).toBe('info')
+    expect(d[0].data).toEqual({ selector: '.svae', type: 'click' })
+    expect(d[0].text).toContain(".svae")
+    t.expectNoDiagnostics() // info only
+  })
+
+  it("nothing is reported with diagnostics: 'off'", async () => {
+    t = renderComponent(App, { diagnostics: 'off' })
+    await t.ready()
+    t.simulateEvent('.nope', 'click')
+    await settle()
+    expect(t.diagnostics).toEqual([])
+  })
+})
+
 // ─── B-004: controlled value/checked follow the vnode after coalesced renders ─
 
 describe('B-004: controlledInputModule', () => {
