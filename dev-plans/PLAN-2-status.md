@@ -23,7 +23,7 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | ID | Title | Status | Branch | Agent | Merged | Notes |
 |---|---|---|---|---|---|---|
 | 0-A | Post-release verification + housekeeping | ✅ | (coordinator, direct) | coordinator | this commit | Smoke against the live registry: 8/8 templates (scaffold, sygnal 5.4.0 + sygnal-check 0.1.0, llms.txt, tests, `--strict`, build). G-068/G-071 gone. Stale PLAN-1 worktrees removed by the user (G-006). Housekeeping: `build` clears `dist/` first (G-072); vitest excludes `.claude/**` (G-073); `CHANGELOG.md` in root `files`; `create-sygnal-app/README.md`; `bin` paths without `./` (G-074); RELEASING.md notes on the sygnal-check install and npm 11 staged publishes (E409) |
-| 0-B | Eval harness v2 | 🟡 | | subagent | | |
+| 0-B | Eval harness v2 | 🔵 | `worktree-agent-a4c071684bfe36f9e` | subagent | `da17acb` | Headless runner (`run-trial.mjs`, stream-json transcripts + `.run.json` usage), `score.mjs` usage flags + locked writes, data-driven recommendations (`analysis/lib/preconditions.mjs`), `--model/--effort`, `orchestrate.mjs` (task discovery incl. tier 3, concurrency, resume, dry-run estimate). verify 44/44, 56 unit tests. **Smoke not yet valid:** the CLI's OAuth login is invalid (401, also from the user's terminal); a 401 was scored as FAIL, and `opus` resolves to `claude-opus-4-6` on CLI 2.1.90 → fixes in progress (G-089, G-090). Estimate: tiers 1–2 ≈ 110 trials / ≈ $50 / ≈ 55 min at concurrency 4; all tiers ≈ $90–110 / 1.5–2 h |
 | 0-C | Tier 3 tasks | 🟡 | | subagent | | |
 | 1-A | Rendering and props (B-014, B-015, B-017, G-033) | ✅ | `worktree-agent-adaf64faf566ceb22` | subagent | `1ebf856` | All four reproduced (17/19 jsdom + 5/5 browser tests failed first). B-014: pragma `toClassMap` (string/array `class` → map). B-015: new `removedPropsModule` (clears removed/nullish props by type + reflected attribute; skips className and form value/checked; also fixes `title={null}` → "null"). B-017: selectModule queues on update too, re-applies after children. G-033: SYG111 reports a literal select value. Kanban **+282 B → 41,717 B (88 B headroom)** |
 | 1-B | State and components (B-016, G-027/G-044, G-036, G-007 SYG106) | ✅ | `worktree-agent-a96e740ac129168e8` | subagent | `12ca03d` | B-016: empty model for isolatedState+initialState without model. G-027/G-044: decision record D43; `fail()` tags errors and `legacy.caught()` reports them under their own code (SYG215/405/413/414/903/606), SYG218 reported directly, SYG420 collected via the bridge, SYG405 default error. G-036: `run(…, { diagnostics: { strict } })` + new SYG608 when the dev entry is missing. D41: SYG106 error under runtime strict (no static rule exists). 19 failing-first tests. Kanban +268 B alone |
@@ -57,6 +57,7 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | D41 | 2026-10-01 | G-007: keep `event()` as is; SYG106 becomes an error under strict mode (runtime and `--strict`), a warning otherwise | User | `event` already in 5.4.0 docs and used correctly |
 | D42 | 2026-10-01 | Phase 0 eval budget: tier-3 pilot (≈2 trials × task × arm), then the full v2-baseline (tiers 1–3, both arms, 5 trials) | User | Q2 |
 | D43 | 2026-10-01 | G-027/G-044: 'error' = the operation failed (thrown, or caught and logged while the app continues); 'warn' = likely mistake, behaviour continues; a call site may lower severity. Caught Sygnal errors keep their own code; SYG216/214/408 only for uncoded exceptions. SYG405 default error (Collection/Switchable sites warn). One SYG401 site error → warn | 1-B (coordinator accepted) | Codes surface as documented |
+| D44 | 2026-10-01 | Review R4: limit B-016 to sub-components with no `state` prop; an existing parent slice is never overwritten by a model-less child's initialState (5.4.0 behaviour kept) | Coordinator | Smallest behaviour change; matches the tracker's intent |
 | D40 | 2026-10-01 | 0-B and 0-C build and self-verify without paid eval runs (0-B may run ≤ 2 smoke trials, `v2-smoke`, to validate the headless runner); full runs and pilots wait for Q2 | Coordinator | PLAN-2 §8 (user approves budgets per phase) |
 
 ## Bugs & Gaps Found
@@ -79,6 +80,16 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | G-083 | 1-D | low | Vike packaging | Every Vike dev start warns `sygnal/config unexpected export { module.exports }`, and Node warns MODULE_TYPELESS_PACKAGE_JSON for `dist/vike/+config.js` (ESM in `.js`, no `"type"`). Likely fix: emit `+config.mjs` (rollup + exports) | Open → Phase 1 fix workstream |
 | G-084 | 1-D | med | Vike shell / component.ts | `inspect()` shows Layout under two parents and, after one navigation, Page ×4 (3 with stale home state): children instantiated by several ancestors, or stale instances kept after navigation. Pre-existing; possible leak/duplicate work | Open → investigate (Phase 1 fix workstream, after 1-B) |
 | G-085 | 1-D | low | Dev gotcha | `npm --prefix <example> exec -- vike dev` from the repo root serves `create-sygnal-app/template-vike`; use `npm --prefix <example> run dev` | Noted |
+| G-089 | 0-B smoke | high (eval) | Harness | An auth failure (401, `duration_api_ms` 0) was scored as a FAIL trial and the queue continued; no preflight | Open → 0-B fix |
+| G-090 | 0-B smoke | high (eval) | Harness | `--model opus` resolves to `claude-opus-4-6` on CLI 2.1.90; runs must pin the full id and verify the resolved model | Open → 0-B fix |
+| G-091 | Review R1 | med | Types | `SinkConstant<unknown>` = `unknown`, so a driver sink typed `unknown` loses all reducer checking (state becomes implicit any; wrong reducers accepted) | Open → 1-R |
+| G-092 | Review R2 | med | driverFromAsync | Early rejections are not buffered: a BOOTSTRAP request that rejects at once never reaches `errors()` (same timing bug as G-069) | Open → 1-R |
+| G-093 | Review R3 | low-med | run() | `diagnostics.strict` leaks across `run()` calls and isn't restored on `dispose()` | Open → 1-R |
+| G-094 | Review R4 | low-med | component.ts | B-016 fix also makes a model-less isolatedState child overwrite an existing parent slice (`state="user"`) with its initialState | Open → 1-R (D44) |
+| G-095 | Review R5 | low | removedPropsModule | On create/removal, URL props get `elm.src = ''` (img/video error event, iframe about:blank) before the attribute is removed | Open → 1-R |
+| G-096 | Review R6 | low | Pragma | `class={['btn', { active: on }]}` gives `[object`/`Object]` classes; merge objects and flatten arrays (clsx-style) | Open → 1-R |
+| G-097 | Review | low | Types | `ParentSinkValueReturn` maps a `PARENT: false` constant to never (checks `boolean`, should check literal `true`) | Open → 1-R |
+| G-098 | Review | low (unverified) | Vite/Vike | With the onRenderClient exclude, an installed-sygnal Vike app whose pages never import `'sygnal'` directly may re-optimize on first load; maybe add `'sygnal'` to `optimizeDeps.include` | Open → 1-R (verify) |
 | G-076 | 5.4.0 release | low | browser-tests | The browser run prints expected console errors from error-path tests, which look like failures | ✅ 1-E (whitelist updated for SYG405 at the 1-B merge) |
 
 ## Worktree Setup (each subagent, inside its own isolated worktree)
@@ -102,6 +113,7 @@ gzip -c /tmp/kb/assets/index-*.js | wc -c      # budget 41,805 B
 
 ## Activity Log
 
+- 2026-10-01 — 0-B merged; installed skill re-synced (D35; backup in scratchpad); smoke attempt from the user's terminal: both trials 401 (CLI login invalid), $0 spent, results moved out of the repo; 0-B fix requested (G-089/G-090). Phase 1 review: 6 findings + 2 notes (G-091…G-098) → fix workstream 1-R after 1-T.
 - 2026-10-01 — 1-E and 1-B merged; browser whitelist updated (SYG408 → SYG405 after D43); all gates green except size: kanban 41,991 B (G-088, to the user).
 - 2026-10-01 — 1-D merged (B-020, G-046, G-037); gates green; G-083/G-084 logged for a Phase 1 fix workstream.
 - 2026-10-01 — 1-A merged (B-014, B-015, B-017, G-033); gates green; kanban 41,717 B.
