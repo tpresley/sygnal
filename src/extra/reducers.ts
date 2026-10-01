@@ -39,6 +39,17 @@ export function toggle<S = any>(field: keyof S & string): (state: S) => S {
   return (state) => ({ ...state, [field]: !state[field] })
 }
 
+// event(type, payload?) → EVENTS sink fn for the object form:
+// `ACTION: { EVENTS: event('TYPE', (state, data) => payload) }` (static payloads allowed)
+export function event(
+  type: string,
+  payload?: any | ((state: any, data: any, next: Function, props: any) => any)
+): (state: any, data: any, next: Function, props: any) => { type: string; data: any } {
+  return typeof payload === 'function'
+    ? (state, data, next, props) => ({ type, data: payload(state, data, next, props) })
+    : () => ({ type, data: payload })
+}
+
 // ── emit() ─────────────────────────────────────────────────────────
 /**
  * Create a model entry that emits an EVENTS bus event.
@@ -56,9 +67,5 @@ export function emit(
   type: string,
   data?: any | ((state: any, actionData: any, next: Function, props: any) => any)
 ): { EVENTS: (state: any, actionData: any, next: Function, props: any) => { type: string; data: any } } {
-  return {
-    EVENTS: typeof data === 'function'
-      ? (state, actionData, next, props) => ({ type, data: data(state, actionData, next, props) })
-      : () => ({ type, data }),
-  }
+  return { EVENTS: event(type, data) }
 }
