@@ -1295,6 +1295,7 @@ All DOM event streams (from `.events()` or shorthands) have chainable convenienc
 DOM.input('.field').value()              // e.target.value
 DOM.change('.checkbox').checked()        // e.target.checked
 DOM.click('.item').data('id')            // e.target.dataset.id (walks up via closest())
+DOM.click('.task').data('taskId')        // camelCase name → data-task-id attribute
 DOM.keydown('.input').key()              // e.key
 DOM.click('.btn').target()               // e.target
 ```

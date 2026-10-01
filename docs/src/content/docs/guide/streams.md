@@ -76,7 +76,8 @@ Sygnal streams are [xstream](https://github.com/staltz/xstream) streams, not RxJ
 |---|---|
 | `pipe(map(f))` | `.map(f)` |
 | `switchMap(f)` | `.map(f).flatten()` |
-| `mergeMap(f)` | `.map(f).compose(flattenConcurrently)` (from `xstream/extra/flattenConcurrently`) |
+| `mergeMap(f)` | `.map(f).compose(flattenConcurrently)` |
+| `concatMap(f)` | `.map(f).compose(flattenSequentially)` |
 | `debounceTime(ms)` | `.compose(debounce(ms))` |
 | `throttleTime(ms)` | `.compose(throttle(ms))` |
 | `distinctUntilChanged()` | `.compose(dropRepeats())` |
@@ -90,6 +91,12 @@ Sygnal streams are [xstream](https://github.com/staltz/xstream) streams, not RxJ
 | `merge(a$, b$)` | `xs.merge(a$, b$)` |
 | `catchError(f)` | `.replaceError(f)` |
 | `shareReplay(1)` | `.remember()` |
+
+The operators used with `.compose()` (`debounce`, `throttle`, `delay`, `dropRepeats`, `sampleCombine`, `flattenConcurrently`, `flattenSequentially`) and `concat` are all exported from `'sygnal'`:
+
+```js
+import { debounce, flattenConcurrently, concat } from 'sygnal'
+```
 
 ## Creating Custom Streams
 

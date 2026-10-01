@@ -24,7 +24,9 @@ This project uses Sygnal. Read https://sygnal.js.org/llms.txt before writing com
 Run `npx sygnal-check --strict` after every change and fix every warning.
 ```
 
-The same file is in the root of the Sygnal repository.
+The same file ships in the npm package (`node_modules/sygnal/llms.txt`), so agents can read it offline, and is in the root of the Sygnal repository.
+
+Projects created with `create-sygnal-app` already include an `AGENTS.md` (and a `CLAUDE.md` that imports it) with these instructions, the test and check commands, and the testing recipe.
 
 ## The sygnal-dev skill
 

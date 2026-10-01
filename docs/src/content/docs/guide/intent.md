@@ -80,6 +80,9 @@ MyComponent.intent = ({ DOM }) => ({
   // Instead of: DOM.click('.item').map(e => e.target.dataset.id)
   SELECT: DOM.click('.item').data('id'),
 
+  // camelCase names map to kebab-case attributes: reads data-task-id (JSX: data={{ taskId }})
+  OPEN_TASK: DOM.click('.task').data('taskId'),
+
   // Instead of: DOM.keydown('.input').map(e => e.key)
   KEY: DOM.keydown('.input').key(),
 
