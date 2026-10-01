@@ -339,8 +339,8 @@ describe('diagnostics core — hooks', () => {
     onRender({ name: 'X' }, {})
     onReducer({ name: 'X' }, 'A', {}, {}, 'STATE')
     onDispose({ name: 'X' })
-    // through a real component
-    const t = renderComponent(Counter)
+    // through a real component (renderComponent defaults to 'collect', so opt out explicitly)
+    const t = renderComponent(Counter, { diagnostics: 'off' })
     await settle(100)
     t.simulateAction('INC')
     await settle(100)
