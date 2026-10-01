@@ -46,10 +46,14 @@ export function enrichEventStream(stream$: any): any {
     return enrichEventStream(mapped);
   }
 
-  // .data(name, fn?) — extract e.target.dataset[name]
+  // .data(name, fn?) — extract dataset[name] from e.target or its nearest ancestor that has
+  // it. dataset keys are camelCase but attributes are kebab-case (`taskId` is
+  // `data-task-id`), so the closest() selector converts (B-028).
   stream$.data = function data(name: string, fn?: (val: any) => any): any {
+    const attr = `[data-${name.replace(/[A-Z]/g, c => '-' + c.toLowerCase())}]`
     const mapped = stream$.map((e: any) => {
-      const el = typeof Element != 'undefined' && e?.target instanceof Element ? e.target.closest(`[data-${name}]`) || e.target : e?.target
+      const t = e?.target
+      const el = typeof t?.closest == 'function' ? t.closest(attr) || t : t
       const val = el?.dataset?.[name]
       return fn ? fn(val) : val
     });
