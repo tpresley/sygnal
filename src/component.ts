@@ -1416,7 +1416,8 @@ class Component {
     } else if (typeof stateField === 'string') {
       if (isObj(this.currentState)) {
         if(!(this.currentState && stateField in this.currentState) && !(this.calculated && stateField in this.calculated)) {
-          logError('SYG401', this, `Collection 'from' field '${stateField}' is not in state; it renders nothing`, 'Set it to an array in initialState')
+          const arrayFields = Object.keys(this.currentState).filter(k => Array.isArray(this.currentState[k]))
+          logError('SYG401', this, `Collection from="${stateField}" is not in state${arrayFields.length ? ` (array fields: '${arrayFields.join("', '")}')` : ''}; it renders nothing`, 'Set it to an array in initialState')
           lense = undefined
         } else if (!Array.isArray(this.currentState[stateField])) {
           warn('SYG401', this, `Collection 'from' field '${stateField}' is not an array; it renders nothing`, 'Set it to an array in initialState')

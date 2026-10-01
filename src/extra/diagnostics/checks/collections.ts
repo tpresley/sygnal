@@ -35,27 +35,10 @@ function checkCollection(component: any, el: any): void {
     if (!Array.isArray(state) && !(state && Array.isArray(state.value))) {
       problem = `has no 'from' prop, so it uses ${name}'s whole state, which is ${describe(state)}, not an array`
     }
-  } else if (typeof from === 'string') {
-    if (!isPlainObject(state) || !(from in state)) {
-      const arrays = isPlainObject(state) ? Object.keys(state).filter(k => Array.isArray(state[k])) : []
-      problem = `uses from="${from}", but ${name}'s state has no '${from}' field` +
-        (arrays.length ? ` (array fields: ${arrays.map(k => `'${k}'`).join(', ')})` : '')
-    } else if (!Array.isArray(state[from])) {
-      problem = `uses from="${from}", but state.${from} is ${describe(state[from])}, not an array`
-      fix = `Make '${from}' an array (initialize it to [] instead of ${describe(state[from])})`
-    }
-  } else if (from && typeof from === 'object' && !Array.isArray(from)) {
-    if (typeof from.get !== 'function') {
-      problem = `has a 'from' object without a get() function`
-      fix = `Pass a state field name, or a lens object { get: state => array, set: (state, items) => newState }`
-    } else {
-      let value: any
-      try { value = from.get(state) } catch (_) { return }
-      if (!Array.isArray(value)) {
-        problem = `has a 'from' lens whose get() returned ${describe(value)}, not an array`
-        fix = `Make the lens get() return an array`
-      }
-    }
+  } else if (typeof from === 'string' || (from && typeof from === 'object' && !Array.isArray(from))) {
+    // String fields and lens objects are reported by the core itself (SYG401/SYG412,
+    // retrofitted in 1E) in every diagnostics mode, so this check doesn't duplicate them.
+    return
   } else if (!Array.isArray(from)) {
     problem = `has an invalid 'from' prop (${describe(from)})`
   }

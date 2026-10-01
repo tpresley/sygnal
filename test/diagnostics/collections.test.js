@@ -22,13 +22,13 @@ describe('SYG401 — Collection from field', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {}) // existing console output
     t = renderComponent(listOf('todo', { todos: [{ id: 1, title: 'a' }] }))
     await settle(120)
+    // Reported once, by the core (1E retrofit), with the available array fields
     const found = diagnostics('SYG401')
     expect(found).toHaveLength(1)
-    expect(found[0].severity).toBe('warn')
+    expect(found[0].severity).toBe('error')
     expect(found[0].component).toBe('List')
     expect(found[0].message).toContain(`from="todo"`)
     expect(found[0].message).toContain(`'todos'`)
-    expect(found[0].data).toEqual({ from: 'todo', of: 'Item' })
   })
 
   it('reports a from field that is not an array', async () => {
@@ -37,7 +37,7 @@ describe('SYG401 — Collection from field', () => {
     await settle(120)
     const found = diagnostics('SYG401')
     expect(found).toHaveLength(1)
-    expect(found[0].message).toContain('state.todos is an object, not an array')
+    expect(found[0].message).toContain("'todos' is not an array")
   })
 
   it('does not report an array field (including an empty one) or a lens returning an array', async () => {

@@ -163,7 +163,7 @@ describe('retrofitted call sites', () => {
     const boom = new Error('view boom')
     function Broken() { throw boom }
     Broken.initialState = { a: 1 }
-    const t = renderComponent(Broken)
+    const t = renderComponent(Broken, { diagnostics: 'off' }) // renderComponent defaults to 'collect'
     await settle()
     const call = errorSpy.mock.calls.find(c => String(c[0]).includes('SYG406'))
     expect(call).toBeTruthy()
@@ -190,7 +190,7 @@ describe('retrofitted call sites', () => {
     function Throws() { return createElement('div', null, 'x') }
     Throws.initialState = { n: 1 }
     Throws.model = { BAD: () => { throw new Error('reducer boom') } }
-    const t = renderComponent(Throws)
+    const t = renderComponent(Throws, { diagnostics: 'off' }) // renderComponent defaults to 'collect'
     await settle()
     t.simulateAction('BAD')
     await settle()

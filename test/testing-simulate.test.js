@@ -394,7 +394,7 @@ describe('diagnostics option', () => {
     function Bad() { return h('div', null, 'x') }
     Bad.intent = () => ({ 'A | B': xs.never() })
     Bad.model = {}
-    expect(() => renderComponent(Bad)).toThrow(/reserved for the model shorthand/)
+    expect(() => renderComponent(Bad)).toThrow(/SYG605.*reserved for model shorthand/)
     expect(getDiagnosticsMode()).toBe('off')
   })
 
