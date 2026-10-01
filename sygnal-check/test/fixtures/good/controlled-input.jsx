@@ -44,6 +44,8 @@ Form.intent = ({ DOM }) => ({
   INNER: DOM.select('.wrap').events('input'),
   // a literal value with an input listener: left alone (1H-8 only reports unlistened ones)
   LIT: DOM.input('.literal').value(),
+  // a literal select value with a change listener (G-033)
+  PICK: DOM.change('.pick'),
 })
 
 Form.model = {
@@ -57,6 +59,7 @@ Form.model = {
   CITY: (s, f) => ({ ...s, city: f.city }),
   INNER: (s) => s,
   LIT: (s) => s,
+  PICK: (s) => s,
 }
 
 // a dynamic selector might match: stay quiet

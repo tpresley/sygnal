@@ -46,8 +46,9 @@ function syncClassName(oldVnode: VNode, vnode: VNode): void {
   const hasKey = !!props && 'className' in props;
   const cn = hasKey ? props.className : undefined;
   if (isSet(cn)) {
-    // propsModule replaced the whole attribute: put the class={{...}} entries back
-    if (!oldProps || oldProps.className !== cn) addAll(elm, classObject(vnode));
+    // propsModule replaced the whole attribute: put the selector classes and the
+    // class={{...}} entries back
+    if (!oldProps || oldProps.className !== cn) addAll(elm, baseClasses(vnode));
     return;
   }
   if (hasKey) {

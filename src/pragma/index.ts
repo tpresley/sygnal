@@ -137,8 +137,19 @@ const applyRefProps = (data: any, ref: any): any => {
   return data
 }
 
+// B-014: snabbdom's classModule wants a { name: boolean } map. A string ("a b") or an
+// array (['a', cond && 'b']) would be iterated by index, adding the classes "0", "1", ...
+const toClassMap = (klass: any): any => {
+  if (typeof klass !== 'string' && !Array.isArray(klass)) return klass
+  const map: Record<string, boolean> = {}
+  const names = Array.isArray(klass) ? klass.filter(Boolean).join(' ') : klass
+  names.split(/\s+/).forEach((name: string) => { if (name) map[name] = true })
+  return map
+}
+
 const sanitizeData = (data: any, modules: Record<string, any>): any => {
   const { ref, ...rest } = data
+  if (modules.class !== undefined && 'class' in rest) rest.class = toClassMap(rest.class)
   const sanitized = applyFocusProps(rewriteModules(fn.deepifyKeys(rest, modules), modules))
   return applyRefProps(sanitized, ref)
 }

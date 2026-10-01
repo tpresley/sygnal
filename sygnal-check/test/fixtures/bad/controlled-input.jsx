@@ -67,6 +67,11 @@ function Literals({ state }) {
       <input type="radio" name="r" className="r"
         checked={false /* expect: SYG111 */}
       />
+      <select className="pick"
+        value="a" // expect: SYG111
+      >
+        <option value="a">A</option>
+      </select>
       <button className="tick">{state.count}</button>
     </div>
   )

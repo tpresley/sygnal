@@ -208,7 +208,8 @@ function controlledAttr(opening) {
   const prop = jsxName(attr.name)
   const v = unwrap(jsxAttrExpr(attr))
   // a literal (value="", value={0}, checked, checked={false}) is controlled too (1H-8);
-  // null leaves the field alone at runtime, and a select's literal value is left out
+  // null leaves the field alone at runtime. A <select value="a"> is controlled the same
+  // way: every re-render puts the selection back (G-033)
   let literal
   if (!v) {
     if (prop !== 'checked') return null
@@ -216,7 +217,6 @@ function controlledAttr(opening) {
   } else if (v.type === 'NullLiteral') {
     return null
   } else if (attr.value?.type === 'StringLiteral' || isLiteral(v)) {
-    if (tag === 'select') return null
     literal = `${prop}=${v.type === 'StringLiteral' ? JSON.stringify(v.value) : `{${v.value}}`}`
   }
   return { attr, kind, prop, literal }
