@@ -16,6 +16,8 @@ export function median(xs) {
   return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2
 }
 const mm = (xs) => ({ mean: r1(mean(xs)), median: r1(median(xs)) })
+const r3 = (x) => (x == null || Number.isNaN(x) ? null : Math.round(x * 1000) / 1000)
+const mm3 = (xs) => ({ mean: r3(mean(xs)), median: r3(median(xs)) })
 
 /** Summary stats for a group of trial records. */
 export function groupStats(recs) {
@@ -35,6 +37,11 @@ export function groupStats(recs) {
     cacheCreation: mm(a.map((r) => r.tokens?.cacheCreation)),
     cacheRead: mm(a.map((r) => r.tokens?.cacheRead)),
     messages: mm(a.map((r) => r.tokens?.messages)),
+    // Usage the harness recorded (headless result event or score.mjs flags); null for PLAN-1 runs.
+    costUsd: mm3(a.map((r) => r.usage?.costUsd)),
+    billedTokens: mm(a.map((r) => r.usage?.tokens)),
+    outputTokens: mm(a.map((r) => r.usage?.outputTokens)),
+    durationSeconds: mm(a.map((r) => (r.usage?.durationMs == null ? null : r.usage.durationMs / 1000))),
     iterations: mm(a.map((r) => r.iterations)),
     effectiveIterations: mm(a.map((r) => r.effectiveIterations)),
     editRounds: mm(a.map((r) => r.editRounds)),

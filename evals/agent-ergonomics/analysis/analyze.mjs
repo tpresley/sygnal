@@ -3,10 +3,17 @@
 //
 // Usage:
 //   node evals/agent-ergonomics/analysis/analyze.mjs --run baseline \
-//        [--map results/transcripts/baseline.tsv]   trial name -> agentId (default: that path)
+//        [--map results/transcripts/baseline.tsv]   trial name -> transcript (default: that path)
 //        [--transcripts <dir>]                        dir holding agent-<id>.jsonl
 //        [--trials-root <dir>]                        dir holding <run>/<trial>/ final code (repeatable via comma)
 //        [--skill-dir <dir>]                          installed sygnal-dev skill (default ~/.claude/skills/sygnal-dev)
+//        [--llms <file>]                              llms.txt to check recommendations against (default: repo llms.txt)
+//
+// Map rows are `<trial>\t<source>`. The source is a PLAN-1 subagent id (read
+// from --transcripts as agent-<id>.jsonl), `headless` (the run-trial.mjs
+// transcript next to the trial dir: <trials-root>/<run>/<trial>.transcript.jsonl),
+// or a path to a .jsonl file. Without a map file, every
+// <trials-root>/<run>/*.transcript.jsonl is analyzed as a headless trial.
 //        [--no-check]                                 skip sygnal-check
 //        [--only sygnal-05-t2]                        analyze a subset (regex on trial name)
 //
@@ -23,7 +30,8 @@ import { buildTimeline } from './lib/timeline.mjs'
 import { loadSkill, skillUsage, SKILL_DIR_DEFAULT } from './lib/skill.mjs'
 import { diffAgainstStarter, canonicalForms, sourceText, keptTests, testApproach, runSygnalCheck, driverCatchWorkaround } from './lib/code.mjs'
 import { selfReportedIssues } from './lib/selfreport.mjs'
-import { matchReport, matchWorkaround, trackerStatus } from './catalog.mjs'
+import { matchReport, matchWorkaround } from './catalog.mjs'
+import { docsContext, loadTrackers, readText, DEFAULT_TRACKERS } from './lib/preconditions.mjs'
 import { isTestPath, EDIT_TOOLS } from './lib/classify.mjs'
 import { aggregate } from './lib/aggregate.mjs'
 import { renderMarkdown } from './lib/report.mjs'
@@ -31,7 +39,7 @@ import { renderMarkdown } from './lib/report.mjs'
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const args = parseArgs(process.argv.slice(2))
 if (!args.run || args.run === true) {
-  console.error('usage: analyze.mjs --run <name> [--map <tsv>] [--transcripts <dir>] [--trials-root <dir>] [--skill-dir <dir>] [--no-check] [--only <re>]')
+  console.error('usage: analyze.mjs --run <name> [--map <tsv>] [--transcripts <dir>] [--trials-root <dir>] [--skill-dir <dir>] [--llms <file>] [--no-check] [--only <re>]')
   process.exit(2)
 }
 const run = String(args.run)
@@ -40,7 +48,7 @@ const run = String(args.run)
 const SESSION = 'd809df86-1837-4e39-86a8-a7278972fd84'
 const DEFAULT_TRANSCRIPTS = process.env.EVAL_TRANSCRIPTS ?? path.join(process.env.HOME ?? '', '.claude/projects/-Users-troy-Documents-Displera-sygnal--claude-worktrees-agent-ergonomics', SESSION, 'subagents')
 const SCRATCH = process.env.EVAL_SCRATCH ?? `/private/tmp/claude-501/-Users-troy-Documents-Displera-sygnal/${SESSION}/scratchpad`
-const DEFAULT_TRIAL_ROOTS = [path.join(SCRATCH, 'runs'), path.join(SCRATCH, 'evals', 'trials')]
+const DEFAULT_TRIAL_ROOTS = [process.env.EVAL_TRIALS_ROOT ?? '/tmp/sygnal-evals/trials', path.join(SCRATCH, 'runs'), path.join(SCRATCH, 'evals', 'trials')]
 
 const mapFile = path.resolve(EVAL_ROOT, typeof args.map === 'string' ? args.map : `results/transcripts/${run}.tsv`)
 const transcriptsDir = typeof args.transcripts === 'string' ? args.transcripts : DEFAULT_TRANSCRIPTS
@@ -48,23 +56,39 @@ const trialRoots = typeof args['trials-root'] === 'string' ? args['trials-root']
 const skillDir = typeof args['skill-dir'] === 'string' ? args['skill-dir'] : SKILL_DIR_DEFAULT
 const checkBin = path.join(REPO_ROOT, 'sygnal-check', 'bin', 'sygnal-check.js')
 const doCheck = !args['no-check'] && fs.existsSync(checkBin) && fs.existsSync(path.join(REPO_ROOT, 'sygnal-check', 'node_modules'))
-const trackerFile = path.join(REPO_ROOT, 'dev-plans', 'PLAN-1-status.md')
+const llmsFile = typeof args.llms === 'string' ? path.resolve(args.llms) : path.join(REPO_ROOT, 'llms.txt')
 
-if (!fs.existsSync(mapFile)) {
-  console.error(`No trial map at ${mapFile}`)
+function discoverHeadless() {
+  const rows = []
+  for (const root of trialRoots) {
+    const dir = path.join(root, run)
+    if (!fs.existsSync(dir)) continue
+    for (const f of fs.readdirSync(dir)) {
+      const m = f.match(/^(.+)\.transcript\.jsonl$/)
+      if (m && !rows.some((r) => r[0] === m[1])) rows.push([m[1], 'headless'])
+    }
+  }
+  return rows.sort((a, b) => a[0].localeCompare(b[0]))
+}
+const haveMap = fs.existsSync(mapFile)
+if (!haveMap && !discoverHeadless().length) {
+  console.error(`No trial map at ${mapFile}, and no headless transcripts under ${trialRoots.map((r) => path.join(r, run)).join(', ')}`)
   process.exit(2)
 }
 const resultsFile = path.join(EVAL_ROOT, 'results', `${run}.json`)
 const scored = fs.existsSync(resultsFile) ? JSON.parse(fs.readFileSync(resultsFile, 'utf8')) : []
 const skill = loadSkill(skillDir)
-const tracker = trackerStatus(trackerFile)
+const tracker = loadTrackers(DEFAULT_TRACKERS(REPO_ROOT))
+const docs = docsContext({ skill, llmsText: readText(llmsFile), tracker })
 
-const mapRows = fs
-  .readFileSync(mapFile, 'utf8')
-  .split('\n')
-  .filter((l) => l.trim() && !l.startsWith('#'))
-  .map((l) => l.split('\t'))
-  .filter((r) => !args.only || new RegExp(args.only).test(r[0]))
+const mapRows = (haveMap
+  ? fs
+      .readFileSync(mapFile, 'utf8')
+      .split('\n')
+      .filter((l) => l.trim() && !l.startsWith('#'))
+      .map((l) => l.split('\t').map((c) => c.trim()))
+  : discoverHeadless()
+).filter((r) => !args.only || new RegExp(args.only).test(r[0]))
 
 function findTrialDir(trial) {
   for (const root of trialRoots) {
@@ -94,7 +118,12 @@ for (const [trial, agentId] of mapRows) {
   rec.scored = score ? { pass: score.pass, testsPassed: score.testsPassed, testsTotal: score.testsTotal, wallSeconds: score.wallSeconds, iterations: score.iterations, editRounds: score.editRounds } : null
   if (!score) rec.flags.push('not scored yet')
 
-  const tfile = path.join(transcriptsDir, `agent-${agentId}.jsonl`)
+  const dir = findTrialDir(trial)
+  let tfile
+  if (agentId === 'headless') tfile = dir ? `${dir}.transcript.jsonl` : trialRoots.map((r) => path.join(r, run, `${trial}.transcript.jsonl`)).find((p) => fs.existsSync(p)) ?? '(headless transcript not found)'
+  else if (/\.jsonl$/.test(agentId)) tfile = path.resolve(EVAL_ROOT, agentId)
+  else tfile = path.join(transcriptsDir, `agent-${agentId}.jsonl`)
+  rec.method = score?.method ?? (agentId === 'headless' || /\.jsonl$/.test(agentId) ? 'headless' : 'subagent')
   if (!fs.existsSync(tfile)) {
     rec.flags.push('transcript missing')
     records.push(rec)
@@ -104,8 +133,16 @@ for (const [trial, agentId] of mapRows) {
   const reportIds = matchReport(parsed.finalReport, arm)
   const tl = buildTimeline(parsed, { arm, reportIds })
 
-  // a. tokens
+  // a. tokens (peak context etc. from the transcript) and recorded usage
   rec.tokens = parsed.usage
+  const h = parsed.headless
+  rec.usage = {
+    tokens: score?.tokens ?? h?.tokens ?? null,
+    outputTokens: score?.outputTokens ?? h?.outputTokens ?? null,
+    costUsd: score?.costUsd ?? h?.costUsd ?? null,
+    durationMs: score?.durationMs ?? h?.durationMs ?? null,
+    model: score?.model ?? h?.model ?? null,
+  }
   // b. tool calls by type
   const toolCalls = {}
   for (const c of parsed.calls) toolCalls[c.name] = (toolCalls[c.name] ?? 0) + 1
@@ -137,7 +174,6 @@ for (const [trial, agentId] of mapRows) {
   rec.wroteTest = testWrites.length > 0
 
   // g. final code
-  const dir = findTrialDir(trial)
   if (!dir) rec.flags.push('final code missing')
   else {
     rec.trialDir = dir
@@ -163,6 +199,7 @@ for (const [trial, agentId] of mapRows) {
 
 records.sort((a, b) => a.task.localeCompare(b.task) || a.arm.localeCompare(b.arm) || a.trialNo - b.trialNo)
 const agg = aggregate(records, { tracker })
+const uniq = (xs) => [...new Set(xs.filter(Boolean))].sort()
 const outDir = path.join(EVAL_ROOT, 'results', 'analysis')
 fs.mkdirSync(outDir, { recursive: true })
 const meta = {
@@ -172,10 +209,13 @@ const meta = {
   trialsAnalyzed: records.filter((r) => r.phases).length,
   trialsScored: records.filter((r) => r.scored).length,
   skillDir,
+  llms: fs.existsSync(llmsFile) ? llmsFile : null,
   sygnalCheck: doCheck,
+  methods: uniq(records.map((r) => r.method)),
+  models: uniq(records.map((r) => r.usage?.model)),
 }
 fs.writeFileSync(path.join(outDir, `${run}.json`), JSON.stringify({ meta, aggregates: agg, trials: records }, null, 2) + '\n')
-fs.writeFileSync(path.join(outDir, `${run}.md`), renderMarkdown({ meta, agg, records, tracker, skill }))
+fs.writeFileSync(path.join(outDir, `${run}.md`), renderMarkdown({ meta, agg, records, tracker, skill, docs }))
 console.log(`analyzed ${meta.trialsAnalyzed}/${meta.trialsInMap} trials of ${run} -> ${path.relative(process.cwd(), path.join(outDir, run))}.{json,md}`)
 const low = records.filter((r) => r.attributedShare != null && r.attributedShare < 0.9)
 if (low.length) console.log(`warning: ${low.length} trial(s) below 90% attributed: ${low.map((r) => r.trial).join(', ')}`)

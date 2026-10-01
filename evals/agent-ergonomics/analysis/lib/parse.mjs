@@ -7,6 +7,11 @@
 //   { ts, kind: 'call' | 'result' | 'text' | 'thinking', callId?, msgId?, text? }
 //   Assistant messages are streamed as several JSONL lines that share
 //   message.id; each line carries one content block.
+// - headless: for a `claude -p --output-format stream-json` transcript written
+//   by run-trial.mjs (every line stamped with `timestamp`), the `system/init`
+//   and final `result` events: { model, costUsd, durationMs, tokens,
+//   outputTokens, numTurns }; null for subagent transcripts. The init line's
+//   timestamp starts the clock, like the prompt line of a subagent log.
 // - usage: summed over unique assistant messages (the last line of a message
 //   carries its final usage).
 import fs from 'node:fs'
@@ -40,6 +45,8 @@ export function parseTranscriptLines(lines) {
   let skillInvoked = false
   let skillInjectedBytes = 0
   let n = 0
+  let init = null
+  let result = null
 
   for (const raw of lines) {
     let obj = raw
@@ -52,6 +59,12 @@ export function parseTranscriptLines(lines) {
       }
     }
     const type = obj.type
+    if (type === 'system' && obj.subtype === 'init') {
+      init = obj
+      const t0 = obj.timestamp ? Date.parse(obj.timestamp) : null
+      if (t0 != null && !Number.isNaN(t0) && (firstTs == null || t0 < firstTs)) firstTs = t0
+    }
+    if (type === 'result') result = obj
     if (type !== 'assistant' && type !== 'user') continue
     const ts = obj.timestamp ? Date.parse(obj.timestamp) : null
     if (ts == null || Number.isNaN(ts)) continue
@@ -87,7 +100,7 @@ export function parseTranscriptLines(lines) {
           if (block?.type === 'tool_result') {
             const call = calls.get(block.tool_use_id)
             const text = resultText(block.content)
-            const tur = obj.toolUseResult
+            const tur = obj.toolUseResult ?? obj.tool_use_result
             const res = { ts, text, isError: !!block.is_error, stdout: tur?.stdout, stderr: tur?.stderr }
             if (call && !call.result) call.result = res
             events.push({ ts, seq, kind: 'result', callId: block.tool_use_id })
@@ -117,7 +130,21 @@ export function parseTranscriptLines(lines) {
 
   const callList = [...calls.values()].sort((a, b) => a.ts - b.ts || a.seq - b.seq)
   const handback = [...callList].reverse().find((c) => c.name === 'SubagentHandback')
-  const finalReport = handback ? String(handback.input.message ?? '') : lastAssistantText ?? ''
+  const finalReport = handback ? String(handback.input.message ?? '') : lastAssistantText ?? (typeof result?.result === 'string' ? result.result : '')
 
-  return { firstTs, lastTs, calls: callList, events, usage, finalReport, skillInvoked, skillInjectedBytes }
+  let headless = null
+  if (init || result) {
+    const u = result?.usage ?? {}
+    headless = {
+      model: init?.model ?? null,
+      costUsd: result?.total_cost_usd ?? null,
+      durationMs: result?.duration_ms ?? null,
+      tokens: result ? (u.input_tokens ?? 0) + (u.output_tokens ?? 0) + (u.cache_read_input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0) : null,
+      outputTokens: result ? u.output_tokens ?? 0 : null,
+      numTurns: result?.num_turns ?? null,
+      isError: result ? !!result.is_error : null,
+    }
+  }
+
+  return { firstTs, lastTs, calls: callList, events, usage, finalReport, skillInvoked, skillInjectedBytes, headless }
 }

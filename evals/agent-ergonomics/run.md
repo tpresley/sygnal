@@ -1,6 +1,33 @@
 # Running a trial (coordinator procedure)
 
-One **trial** = one fresh agent attempting one task in one arm. Follow these steps exactly, in order, for every trial. Paths below are relative to the repo root (`$REPO`). `$EVAL` is `$REPO/evals/agent-ergonomics`.
+One **trial** = one fresh agent attempting one task in one arm. Paths below are relative to the repo root (`$REPO`). `$EVAL` is `$REPO/evals/agent-ergonomics`.
+
+## The one-command way (harness v2, PLAN-2 0-B)
+
+`orchestrate.mjs` does steps 0–4 and the analysis for a whole run: it packs Sygnal once, prepares each trial dir, runs the agent **headless** (`claude -p` from inside the trial dir, `run-trial.mjs`), computes the transcript stats, scores with usage, and runs `analysis/analyze.mjs`. It runs N trials at a time and is resumable.
+
+```bash
+# See the plan and the estimate first (nothing runs):
+node $EVAL/orchestrate.mjs --run v2-baseline --tasks all --trials 5 --concurrency 4 --model opus --dry-run
+# Run it (re-run the same command to resume after an interruption):
+node $EVAL/orchestrate.mjs --run v2-baseline --tasks all --trials 5 --concurrency 4 --model opus
+# A subset: one arm, tier 2, three trials each
+node $EVAL/orchestrate.mjs --run e7-sonnet --arms sygnal --tasks tier2 --trials 3 --model sonnet
+```
+
+- `--tasks`: `all`, `tier1` (01–08), `tier2` (09–12), `tier3` (13+), `03`, `01-05`, or a comma list. Tasks come from the task dirs, so new tasks need no code change; a task missing from one arm is skipped for that arm.
+- `--model` (and `--effort`) are passed to every trial and recorded per record (`model`) and in `<trials-root>/<run>/manifest.json`. A run refuses to resume with a different model, effort or tarball unless `--allow-mixed`.
+- `--timeout-min` (default 30) kills a trial and its child processes; a timed-out trial is scored as is, with category `other`.
+- Resume: trials that already have a record in `results/<run>.json` are skipped; an agent that finished but wasn't scored is only scored; a partial trial (crash, auth failure, Ctrl-C) is moved to `<dest>.stale-<time>` and redone.
+- If the first trial gets HTTP 401 on every call, the orchestrator stops (the trial agent can't authenticate; run it from a terminal where `claude -p "hi"` works, or set `ANTHROPIC_API_KEY`).
+- The orchestrator warns when the installed `sygnal-dev` skill differs from the checkout's (PLAN-1 D35). `--verify` runs `verify.mjs` against the run's tarball first.
+- Trial dirs: `--trials-root` (default `/tmp/sygnal-evals/trials`, resolved, so on macOS the prompt says `/private/tmp/...`, which is the agent's real cwd) `/<run>/<arm>-<NN>-t<k>`, with `<dest>.prompt.txt`, `<dest>.transcript.jsonl`, `<dest>.run.json` and `<dest>.stderr.log` next to each. The run log is `<trials-root>/<run>/orchestrate.log.jsonl`.
+- Still manual: step 3's audit review (records with audit hits get an `AUDIT:` note) and step 5's failure classification.
+- To test the pipeline without API calls: `--claude-bin $EVAL/tests/fake-claude.mjs` (with `FAKE_CLAUDE_SOLUTION=$EVAL/hidden/<task>/solution` it applies the reference solution, so the trial passes).
+
+**Headless posture** (`lib/headless.mjs`): the same prompt file a PLAN-1 subagent got, `--permission-mode acceptEdits`, the general-purpose tool set (`Bash Read Edit Write Glob Grep Skill TodoWrite WebFetch WebSearch`) all pre-approved, no MCP servers (`--strict-mcp-config`), no session persistence. Variables that tie a process to a host Claude Code session (`CLAUDECODE`, `CLAUDE_CODE_*`, `CLAUDE_EFFORT`, …) are removed from the trial's environment. The worktree guard of a coordinator session doesn't apply (G-030). This is a method change: compare headless runs only with headless runs (PLAN-2 §8).
+
+The manual procedure below is still valid, and is what the orchestrator automates.
 
 ## 0. Once per run
 
@@ -37,7 +64,15 @@ node $EVAL/prepare.mjs --arm react --task 03 \
 
 ## 2. Spawn the agent
 
-Spawn a **fresh** general-purpose subagent (no `SendMessage` reuse, no worktree isolation). Its prompt is **exactly** the contents of `<dest>.prompt.txt`, with nothing added. That file contains:
+**Headless (harness v2, preferred):**
+
+```bash
+node $EVAL/run-trial.mjs --dest <dest> [--model opus] [--timeout-min 30]
+```
+
+It runs `claude -p "$(cat <dest>.prompt.txt)" --output-format stream-json --verbose` from inside `<dest>` (posture above), stamps every line with a `timestamp`, and writes `<dest>.transcript.jsonl` and `<dest>.run.json` (wall time, exit status, model, cost, billed tokens, turns). Don't mix headless and subagent trials within one run.
+
+**Subagent (PLAN-1 method):** spawn a **fresh** general-purpose subagent (no `SendMessage` reuse, no worktree isolation). Its prompt is **exactly** the contents of `<dest>.prompt.txt`, with nothing added. That file contains:
 
 - the task's `PROMPT.md` text, verbatim;
 - Sygnal arm only: `This app uses the Sygnal framework. Use the sygnal-dev skill.`;
@@ -49,26 +84,21 @@ Rules for the agent (enforced by audit, not by telling it):
 - It may run the app's own `npm run build`, `npm test`, `npm run dev`, and write its own tests.
 - It must never see `evals/agent-ergonomics/` (in particular `hidden/`).
 
-> **Isolation caveat.** A subagent spawned with the Agent tool inherits the coordinator's cwd, which is inside the repo, so a curious agent could find `evals/`. The prompt points it at the trial dir, and step 3's audit catches any access. For stronger isolation, run the trial headless from the trial dir instead:
-> ```bash
-> cd <dest> && claude -p "$(cat <dest>.prompt.txt)" --output-format stream-json --verbose \
->   > <dest>.transcript.jsonl
-> ```
-> (Use the same model and permission mode as the subagent runs. Don't mix the two methods within one run.)
+> **Isolation caveat.** A subagent spawned with the Agent tool inherits the coordinator's cwd, which is inside the repo, so a curious agent could find `evals/`. The prompt points it at the trial dir, and step 3's audit catches any access. The headless runner avoids this: its cwd is the trial dir.
 
-Record the wall time if the Agent tool result reports it. Otherwise step 3 derives it from transcript timestamps.
+Record the wall time, `total_tokens` and `duration_ms` if the Agent tool result reports them. Otherwise step 3 derives the wall time from transcript timestamps.
 
 ## 3. Collect metrics from the transcript
 
 Find the trial agent's transcript:
 - Subagent: `~/.claude/projects/<project-dir>/<coordinator-session-id>/subagents/agent-<agentId>.jsonl` (the `agentId` comes from the Agent tool result; `<project-dir>` is the coordinator's cwd with `/` and `.` replaced by `-`).
-- Headless: `<dest>.transcript.jsonl`.
+- Headless: `<dest>.transcript.jsonl` (from `run-trial.mjs`, stamped).
 
 ```bash
 node $EVAL/transcript-stats.mjs <transcript.jsonl> --dir <dest>
 ```
 
-It prints `iterations`, `editRounds`, `edits`, `wallSeconds`, and `audit`. **If `audit` is non-empty, read the flagged calls.** If the agent read anything under `evals/agent-ergonomics/`, a `hidden/` dir or `__hidden__`, the trial is **invalid**: delete its record (if any), note it in the status ledger, and rerun it with a new trial id. Other out-of-dir reads (for example `node_modules/sygnal/src` inside the trial, or skill files) are fine.
+It prints `iterations`, `editRounds`, `edits`, `wallSeconds`, `audit`, and for headless transcripts `headless` (model, cost, billed tokens, output tokens, duration from the run's `result` event). **If `audit` is non-empty, read the flagged calls.** If the agent read anything under `evals/agent-ergonomics/`, a `hidden/` dir or `__hidden__`, the trial is **invalid**: delete its record (if any), note it in the status ledger, and rerun it with a new trial id. Other out-of-dir reads (for example `node_modules/sygnal/src` inside the trial, or skill files) are fine.
 
 You can also count by hand from the transcript; the definitions are in README.md "Metrics".
 
@@ -78,8 +108,11 @@ Only after the agent has finished:
 
 ```bash
 node $EVAL/score.mjs --dir <dest> --task 03 --arm sygnal --trial 1 --run <run> \
-  --iterations <n> --edit-rounds <n> --wall-seconds <n>
+  --iterations <n> --edit-rounds <n> --wall-seconds <n> \
+  --duration-ms <n> --tokens <n> --output-tokens <n> --cost-usd <x> --model <id> --method headless
 ```
+
+Usage flags: take them from `<dest>.run.json` (headless: `durationMs`, `tokens`, `outputTokens`, `costUsd`, `model`) or, for a subagent trial, from the Agent tool result (`total_tokens` as `--tokens`, `duration_ms`; note that the Agent tool's `total_tokens` is the final context size, not billed tokens, so don't compare it with headless `tokens`). The orchestrator passes all of them. `--wall-seconds` defaults to `--duration-ms` / 1000. Concurrent scorers are safe (the results file is updated under a lock).
 
 This copies the hidden tests into `<dest>/__hidden__/`, runs them with the arm's own vitest config (it ignores the agent's `vite.config.js`), and appends or replaces the record in `results/<run>.json`. It prints the record.
 
@@ -104,5 +137,6 @@ Pick the **first** root cause in the causal chain. If two independent bugs exist
 
 ## 6. After the run
 
-- Commit `results/<run>.json` (the trial dirs stay in /tmp).
+- Analyze: `node $EVAL/analysis/analyze.mjs --run <run> --trials-root <trials-root>` (the orchestrator does this). For headless runs the trial map `results/transcripts/<run>.tsv` lists `<trial>\theadless`; without a map the analyzer finds `<trials-root>/<run>/*.transcript.jsonl` itself. The report adds cost, billed tokens, output tokens and agent-reported duration per arm and task, and its recommendations are checked against the installed skill, `llms.txt` and the trackers (already-done ones are suppressed or rewritten).
+- Commit `results/<run>.json`, `results/transcripts/<run>.tsv` and `results/analysis/<run>.{json,md}` (the trial dirs stay in /tmp).
 - Summarize: first-attempt pass rate per arm, mean `iterations`, mean `editRounds`, failure-category distribution, per task. For the re-run, produce `REPORT.md` comparing `baseline` against `phase3` and the React arm (PLAN-1 §7).
