@@ -501,9 +501,9 @@ NOTIFY: { LOG: (state) => `Saved ${state.id}` }
 
 Severity: `error` · Reported by: the Sygnal runtime (every app, production included)
 
-A reducer for a non-STATE sink returned something other than a plain object, string, number, boolean, function, `undefined` or `ABORT`; this includes `null`, arrays, bigints and non-`ABORT` symbols. It is logged with `console.error` (not thrown) and nothing is sent.
+A reducer for a non-STATE sink (e.g. `EVENTS`, `PARENT` or a custom driver) returned a symbol other than `ABORT`. Any other value, including `null`, arrays and bigints, is sent to the driver as-is, like a constant sink value. It is logged with `console.error` (not thrown) and nothing is sent.
 
-**Fix:** Return a supported value (wrap arrays in an object, e.g. `{ items }`), or return `ABORT` to send nothing.
+**Fix:** Return the value the driver expects, or return `ABORT` to send nothing.
 
 ### SYG219
 

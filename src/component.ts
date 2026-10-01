@@ -1014,14 +1014,14 @@ class Component {
               // B-029: ABORT = send nothing (filtered below), before the type checks
               if (isAbort(reduced)) return reduced
               const type = typeof reduced
-              if (isObj(reduced) || ['string', 'number', 'boolean', 'function'].includes(type)) return reduced
-              if (type === 'undefined') {
-                warn('SYG217', this, `Reducer for '${name}' sent undefined to the driver`, 'Return a value, or ABORT to send nothing')
-                return reduced
+              // G-108: any value a constant can be (incl. null, arrays, bigints) is a payload
+              if (type === 'symbol') {
+                // G-027: reported directly (it used to be thrown into the catch below, i.e. SYG216)
+                logError('SYG218', this, `Reducer for '${name}' returned a symbol; nothing sent`, 'Return a value, or ABORT to send nothing')
+                return ABORT
               }
-              // G-027: reported directly (it used to be thrown into the catch below, i.e. SYG216)
-              logError('SYG218', this, `Reducer for '${name}' returned ${type === 'object' ? (reduced ? 'an array' : 'null') : 'a ' + type}; nothing sent`, 'Return a value, or ABORT to send nothing')
-              return ABORT
+              if (type === 'undefined') warn('SYG217', this, `Reducer for '${name}' sent undefined to the driver`, 'Return a value, or ABORT to send nothing')
+              return reduced
             } catch (err) {
               caught('SYG216', this, `Reducer for '${name}' threw; nothing sent`, ERR_FIX, err)
               return ABORT
