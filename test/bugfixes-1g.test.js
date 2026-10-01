@@ -1,6 +1,7 @@
 // Regression tests for PLAN-1 workstream 1G (rendering/state bug fixes).
 import { describe, it, expect, afterEach } from 'vitest'
 import xs from 'xstream'
+import { readFileSync } from 'node:fs'
 
 if (typeof globalThis.window === 'undefined') {
   globalThis.window = undefined
@@ -196,5 +197,24 @@ describe('B-013: Collection item reducers see the state of earlier same-tick act
     t.simulateEvent('.look', 'click')
     await settle(80)
     expect(seen).toEqual(['X'])
+  })
+})
+
+// ─── 1F leftover: SYG104 wording is the same in renderComponent and the runtime check ─
+
+describe('SYG104 wording', () => {
+  // The runtime check (needs a real DOM) and renderComponent's mock-DOM version must
+  // show users the same message and fix. Compare the two template literals.
+  const src = (f) => readFileSync(new URL(`../src/${f}`, import.meta.url), 'utf8')
+  const texts = (code, at) => {
+    const i = code.indexOf(at)
+    const lits = code.slice(i, i + 1200).match(/`[^`]*`/g).slice(0, 2)
+    return lits.map(l => l.replace(/\$\{t\.name\}/g, '${name}').replace(/\$\{childName\}/g, '${child}'))
+  }
+  it('message and fix match', () => {
+    const fromTesting = texts(src('extra/testing.ts'), "raise('SYG104'")
+    const fromCheck = texts(src('extra/diagnostics/checks/dom.ts'), "reportSafely('SYG104'")
+    expect(fromTesting).toHaveLength(2)
+    expect(fromTesting).toEqual(fromCheck)
   })
 })

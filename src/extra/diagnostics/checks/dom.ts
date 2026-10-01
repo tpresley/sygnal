@@ -158,7 +158,7 @@ function sweep(component: any, t: Tracked, escalate: boolean): void {
       const child = childNameFor(t, all) || 'a child component'
       reportSafely('SYG104', {
         component,
-        message: `DOM.select('${selector}') in ${t.name} matches elements inside ${child} (isolated). Parents can't see DOM events inside child components`,
+        message: `DOM.select('${selector}') in ${t.name} matches elements inside ${child} (isolated), so ${t.name} never receives their events`,
         fix: `Handle the event in ${child} and send it up with PARENT (read it here with CHILD.select(${child})), or use EVENTS`,
         data: {selector, child},
       })
