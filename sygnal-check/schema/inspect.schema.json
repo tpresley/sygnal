@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sygnal.js.org/schema/inspect.schema.json",
+  "title": "Sygnal app graph (inspect)",
+  "description": "The machine-readable structure of a Sygnal app, produced at runtime (inspect() / getDevTools().inspect() / renderComponent's t.inspect() from the 'sygnal/diagnostics' dev entry) and statically (sygnal-check --graph --json). Fields one side cannot know are null or omitted. TypeScript: InspectGraph in sygnal/diagnostics.",
+  "type": "object",
+  "required": ["version", "components", "events", "diagnostics"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "const": 1 },
+    "source": { "enum": ["runtime", "static"] },
+    "components": { "type": "array", "items": { "$ref": "#/$defs/component" } },
+    "events": {
+      "description": "EVENTS bus: type -> names of the components that emit / select it",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["emitters", "selectors"],
+        "additionalProperties": false,
+        "properties": {
+          "emitters": { "$ref": "#/$defs/strings" },
+          "selectors": { "$ref": "#/$defs/strings" }
+        }
+      }
+    },
+    "diagnostics": {
+      "description": "Diagnostics not tied to a listed component",
+      "type": "array",
+      "items": { "$ref": "#/$defs/diagnostic" }
+    }
+  },
+  "$defs": {
+    "strings": { "type": "array", "items": { "type": "string" } },
+    "component": {
+      "type": "object",
+      "required": [
+        "name", "id", "parentId", "kind", "actions", "stateKeys", "calculated", "contextProvides",
+        "eventsEmitted", "eventsSelected", "children", "selectors", "diagnostics"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "id": { "type": "string", "description": "runtime: instance number; static: 'file:line' of the definition" },
+        "parentId": { "type": ["string", "null"], "description": "runtime: parent instance id; static: null" },
+        "file": { "type": "string", "description": "static only: source file relative to the working directory" },
+        "kind": { "enum": ["root", "child", "collection-item", "switchable"] },
+        "actions": { "type": "array", "items": { "$ref": "#/$defs/action" } },
+        "stateKeys": { "$ref": "#/$defs/strings" },
+        "calculated": { "$ref": "#/$defs/strings" },
+        "contextProvides": { "$ref": "#/$defs/strings" },
+        "contextConsumes": {
+          "description": "context fields read in the view (static); null at runtime",
+          "type": ["array", "null"],
+          "items": { "type": "string" }
+        },
+        "eventsEmitted": { "$ref": "#/$defs/strings" },
+        "eventsSelected": { "$ref": "#/$defs/strings" },
+        "children": { "type": "array", "items": { "$ref": "#/$defs/child" } },
+        "selectors": { "type": "array", "items": { "$ref": "#/$defs/selector" } },
+        "diagnostics": { "type": "array", "items": { "$ref": "#/$defs/diagnostic" } }
+      }
+    },
+    "action": {
+      "type": "object",
+      "required": ["name", "trigger", "sinks"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "trigger": { "enum": ["intent", "next", "builtin", "unknown"] },
+        "sinks": { "$ref": "#/$defs/strings" }
+      }
+    },
+    "child": {
+      "type": "object",
+      "required": ["name", "via"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "via": { "enum": ["tag", "collection", "switchable", "slot"] },
+        "from": { "type": ["string", "null"], "description": "Collection: the state field it renders, when known" },
+        "count": { "type": "integer", "description": "runtime: live instances behind this entry" }
+      }
+    },
+    "selector": {
+      "type": "object",
+      "required": ["selector", "events", "matched", "isolationHit"],
+      "additionalProperties": false,
+      "properties": {
+        "selector": { "type": "string" },
+        "events": { "type": ["array", "null"], "items": { "type": "string" } },
+        "matched": { "type": ["boolean", "null"] },
+        "isolationHit": { "type": ["string", "null"], "description": "child component whose isolated elements the selector matches instead" }
+      }
+    },
+    "diagnostic": {
+      "type": "object",
+      "required": ["code", "severity", "message"],
+      "additionalProperties": false,
+      "properties": {
+        "code": { "type": "string" },
+        "severity": { "enum": ["error", "warn", "info"] },
+        "component": { "type": "string" },
+        "message": { "type": "string" },
+        "fix": { "type": "string" },
+        "docsUrl": { "type": "string" },
+        "data": {},
+        "file": { "type": "string" },
+        "line": { "type": "integer" },
+        "column": { "type": "integer" }
+      }
+    }
+  }
+}
