@@ -6,7 +6,8 @@
  *   SYG505  A: emit('T', fn)            → A: { EVENTS: event('T', fn) }
  *           { ...emit('T', fn) }        → { EVENTS: event('T', fn) }
  *           EVENTS: s => ({ type: 'T', data: x }) → EVENTS: event('T', s => x)
- *   SYG506  CHILD.select('Name')        → CHILD.select(Name)     (Name in scope)
+ *   SYG506  CHILD.select('Name')        → CHILD.select(Name)     (Name bound to a component
+ *           function/class or import; not component() results)
  *
  * `event` is added to the existing `import { … } from 'sygnal'` when needed,
  * and an `emit` import left unused by the rewrite is removed. Each

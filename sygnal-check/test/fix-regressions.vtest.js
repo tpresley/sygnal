@@ -2,6 +2,7 @@
  * --fix regressions from the Phase 2 close review (2E-1):
  *   R1  SYG505 raw-EVENTS rewrite: generic / typed arrows and parenthesized
  *       or sequence `data`; the re-parse backstop (SYG900 "fix skipped")
+ *   R7  SYG506 only rewrites strings whose binding is a component
  */
 import { describe, it, expect, afterEach } from 'vitest'
 import fs from 'node:fs'
@@ -92,5 +93,43 @@ A.model = {
     expect(r.diagnostics.map(d => d.code)).toEqual(['SYG900'])
     expect(r.diagnostics[0].message).toContain('fix skipped')
     expect(r.diagnostics[0].file).toBe('B.js')
+  })
+})
+
+describe('R7: SYG506 --fix only rewrites component bindings', () => {
+  it('rewrites imports / functions / classes / const arrows, not other bindings', () => {
+    write('Other.jsx', `export function Other() { return <div /> }\n`)
+    const file = write('P.jsx', `import { Collection, component } from 'sygnal'
+import Other from './Other.jsx'
+import * as NS from './Other.jsx'
+const Thing = 'thing'
+const Arrow = () => <div />
+function Fn() { return <div /> }
+class Klass {}
+const Made = component({ view: () => <div /> })
+export function P({ state }) { return <div><Collection of={Other} from="items" /></div> }
+P.intent = ({ CHILD }) => ({
+  A: CHILD.select('Other'),
+  B: CHILD.select('Thing'),
+  C: CHILD.select('Arrow'),
+  D: CHILD.select('Fn'),
+  E: CHILD.select('Klass'),
+  F: CHILD.select('NS'),
+  G: CHILD.select('Made'),
+})
+P.model = { A: s => s, B: s => s, C: s => s, D: s => s, E: s => s, F: s => s, G: s => s }
+`)
+    const diags = checkFiles([file], { cwd: tmp, strict: true }).filter(d => d.code === 'SYG506')
+    const made = diags.find(d => d.data.name === 'Made')
+    expect(made.fix).toMatch(/component\(\)/)
+    fixFiles([file], { cwd: tmp })
+    const out = fs.readFileSync(file, 'utf8')
+    expect(out).toContain('A: CHILD.select(Other),')
+    expect(out).toContain("B: CHILD.select('Thing'),")
+    expect(out).toContain('C: CHILD.select(Arrow),')
+    expect(out).toContain('D: CHILD.select(Fn),')
+    expect(out).toContain('E: CHILD.select(Klass),')
+    expect(out).toContain("F: CHILD.select('NS'),")
+    expect(out).toContain("G: CHILD.select('Made'),")
   })
 })
