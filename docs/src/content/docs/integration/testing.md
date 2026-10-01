@@ -179,7 +179,7 @@ expect(t.emitted).toEqual([])
 - A model `next('ACTION', data, delay)` follow-up with a delay longer than `settleMs` fires after `settle()` has resolved. Wait for its result with `await t.next(predicate)`, or raise `settleMs` above the delay. If a wait times out first, its error names the follow-up (`next('DONE') scheduled by Saver with a 400ms delay is still pending`) and the `timeoutMs` option.
 - Child renders, child sinks and `next()` follow-ups are observed through internal hooks that also run with `diagnostics: 'off'` (which only turns off the reported diagnostics).
 - The options `settleMs` (20), `eventWaitMs` (300, how long `simulateEvent` waits for its element) and `timeoutMs` (2000) change these; see [Options](#options).
-- The mock DOM finds `<Portal>` content as if it were rendered in place, which is more lenient than a real DOM, where portal content is outside the component's event scope.
+- The mock DOM finds `<Portal>` content as if it were rendered in place, which is more lenient than a real DOM, where portal content is outside the component's event scope. [`dom: 'real'`](#real-dom) behaves like the browser.
 
 ## Reading Output
 
@@ -268,6 +268,7 @@ When an event "does nothing" in a test, `t.inspect()` usually shows why: a selec
 | `timeoutMs` | `number` | `2000` | Default timeout of `next()`, `waitForState()` and `settle()` |
 | `settleMs` | `number` | `20` | `settle()`'s quiet window: how long nothing may happen before it resolves (at most `timeoutMs`) |
 | `eventWaitMs` | `number` | `300` | How long `simulateEvent` waits for a matching element (and its listeners) |
+| `dom` | `'mock' \| 'real'` | `'mock'` | `'real'` mounts into a real container element; see [Real DOM](#real-dom) |
 
 The timing options (and a timeout passed to `next()`, `waitForState()` or `settle()`) must be finite numbers of milliseconds from 0 to 2147483647 (`setTimeout`'s limit); anything else throws.
 
@@ -292,6 +293,8 @@ The timing options (and a timeout passed to `next()`, `waitForState()` or `settl
 | `events$` | `EventsSource` | The event bus source (`.select(type)`) |
 | `sinks`, `sources` | `object` | All sink streams and source objects |
 | `dispose` | `() => void` | Tear down the tree (fires `DISPOSE`) and restore the diagnostics settings |
+| `query`, `queryAll` | `(selector) => Element \| null`, `Element[]` | `dom: 'real'` only: real elements of the rendered tree |
+| `container` | `Element \| null` | `dom: 'real'`: the mount element (`null` with the mock DOM) |
 
 ## Mock DOM Streams
 
@@ -309,31 +312,39 @@ const t = renderComponent(Counter, {
 await t.waitForState(s => s.count === 2)
 ```
 
-## Testing a Whole App in jsdom
+## Real DOM
 
-To test the app as it runs in the browser (real DOM, real isolation), mount it with `run()` in a jsdom environment (`npm install -D jsdom`) and dispatch real DOM events:
+The mock DOM has no elements, so it can't tell you whether a checkbox is really checked, what an input really holds, whether a button is disabled, or where focus is. For that, pass `dom: 'real'`: the tree is patched into a real container element by the same DOM driver `run()` uses, and the rest of the `t.*` API stays the same. It needs a DOM in the test environment (`npm install -D jsdom`, then `// @vitest-environment jsdom` at the top of the file, or `test.environment: 'jsdom'`; `happy-dom` works too).
 
 ```jsx
 // @vitest-environment jsdom
-import { it, expect } from 'vitest'
-import { run } from 'sygnal'
-import App from './App.jsx'
+import { it, expect, afterEach } from 'vitest'
+import { renderComponent } from 'sygnal'
+import Signup from './Signup.jsx'
 
-it('adds a todo', async () => {
-  document.body.innerHTML = '<div id="root"></div>'
-  const app = run(App, {}, { mountPoint: '#root', diagnostics: 'error' })
-  await new Promise(r => setTimeout(r, 50))
+let t
+afterEach(() => t?.dispose())
 
-  const input = document.querySelector('.new-todo')
-  input.value = 'Write docs'
-  input.dispatchEvent(new Event('input', { bubbles: true }))
-  document.querySelector('.add').click()
-  await new Promise(r => setTimeout(r, 50))
-
-  expect(document.querySelectorAll('li')).toHaveLength(1)
-  app.dispose()
+it('keeps the real fields when going back', async () => {
+  t = renderComponent(Signup, { dom: 'real' })
+  t.simulateEvent('input[name="email"]', 'input', { value: 'ada@example.com' })
+  t.simulateEvent('input[value="team"]', 'click')    // a real click: the radio gets checked, change fires
+  await t.next(s => s.plan === 'team')
+  expect(t.query('input[name="plan"]:checked').value).toBe('team')
+  expect(t.query('input[name="email"]').value).toBe('ada@example.com')
+  expect(t.query('.next').disabled).toBe(false)
 })
 ```
+
+What changes with `dom: 'real'`:
+
+- `simulateEvent(selector, type, init?)` dispatches a real DOM event on the first element matching `selector` (any CSS selector the DOM supports, `:has()`, `+` and `:checked` included). `init.value` / `init.checked` / `init.dataset` are set on the element first, so `{ value }` is like typing. A plain `'click'` runs the browser's default action (a checkbox or radio toggles and fires `change`; a click on a disabled control does nothing). `'focus'` and `'blur'` move `document.activeElement`. Events travel through the real event delegation and isolation, so Portal content outside the component is reached only by `DOM.select('document')` listeners, as in the browser.
+- Each event waits until the tree has been quiet for 10 ms, like a user who acts on what is on the screen: a button that the previous input enabled is enabled when it is clicked.
+- `t.query(selector)` returns the first matching element (or `null`) and `t.queryAll(selector)` all of them, searching the rendered tree and the Portal content it mounted. `t.container` is the mount element. Refs (`createRef()`) point at the real elements.
+- `t.html()`, `t.states`, `next()`, `waitForState()`, `settle()`, `sinkValues()`, `expectNoDiagnostics()` and `inspect()` work as with the mock DOM. With `sygnal/diagnostics` loaded, its real-DOM SYG103/SYG104 checks run.
+- `dispose()` unmounts the container. `mockConfig` can't be combined with `dom: 'real'`.
+
+Use the mock DOM (the default) for logic and output, and `dom: 'real'` when a test asserts on real element state or focus. One suite is enough; there is no need for a second `run()`-based suite.
 
 ## Cleanup
 

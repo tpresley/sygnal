@@ -20,7 +20,17 @@ async function check() {
   renderComponent(Counter, { timeoutMs: 5000, settleMs: 50, eventWaitMs: 100 }).dispose()
   // @ts-expect-error timing options are numbers
   renderComponent(Counter, { settleMs: '50' })
+  // E4: real DOM mode
+  const r = renderComponent(Counter, { dom: 'real' })
+  const box = r.query('input[type="checkbox"]') as HTMLInputElement | null
+  const checked: boolean | undefined = box?.checked
+  const rows: Element[] = r.queryAll('.row')
+  const root: Element | null = r.container
+  // @ts-expect-error dom is 'mock' | 'real'
+  renderComponent(Counter, { dom: 'jsdom' })
+  r.dispose()
   t.dispose()
+  void [checked, rows, root]
   return [s, html, events, sink, codes]
 }
 // G-036: run() takes diagnostics.strict

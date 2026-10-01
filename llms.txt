@@ -229,21 +229,5 @@ it('picks, then removes a task', async () => {
 - `t.next(pred)` matches only future states (right after `await t.ready()`, also those of the buffered calls). `t.waitForState(pred)` also matches states already recorded (e.g. the initial one), so use it only for a state that can't already exist. Both resolve after the whole tree has rendered. `t.settle()` doesn't wait out a model `next('X', data, ms)` longer than its 20ms window: `await t.next(pred)` instead (timeout errors name the pending `next()`). `t.states`, `t.emitted` (EVENTS sent) and `t.sinkValues('PARENT')` / `t.sinkValues('API')` (any sink, children's too, no driver needed) are live arrays.
 - `t.simulateAction('LOADED', data)` pushes an action straight into intent → model (all sinks run). Use it for actions without a DOM trigger; for drivers prefer `drivers: { QUOTE: driverFromAsync(async () => ({ text: 'hi' })) }`.
 - With the Vite plugin, Vitest gets `sygnal/diagnostics` in its setupFiles automatically; otherwise `import 'sygnal/diagnostics'` in the test.
-- Full app in jsdom (`npm i -D jsdom`):
-```js
-// @vitest-environment jsdom
-import { it, expect } from 'vitest'
-import { run } from 'sygnal'
-import Counter from './Counter.jsx'
-
-it('counts in the real DOM', async () => {
-  document.body.innerHTML = '<div id="root"></div>'
-  const app = run(Counter, {}, { mountPoint: '#root' })
-  const tick = () => new Promise(r => setTimeout(r, 30))
-  await tick()
-  document.querySelector('.inc').click()
-  await tick()
-  expect(document.querySelector('.counter span').textContent).toContain('1')
-  app.dispose()
-})
-```
+- Real DOM state (`checked`, `value`, `disabled`, focus, refs): `renderComponent(C, { dom: 'real' })` in a jsdom test (`// @vitest-environment jsdom`, `npm i -D jsdom`), same `t.*` API in ONE suite (no separate `run()` + jsdom suite). `simulateEvent` then dispatches real events on any CSS selector (`{ value }` types, `'click'` toggles a checkbox/radio and skips disabled buttons, `'focus'`/`'blur'` move focus).
+- Assert on real elements: `expect(t.query('input[name="plan"]:checked').value).toBe('team')`, `t.query('.save').disabled`, `document.activeElement === t.query('input[name="city"]')`, `t.queryAll('.row')`.

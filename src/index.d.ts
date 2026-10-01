@@ -1052,6 +1052,15 @@ export interface RenderOptions {
   eventWaitMs?: number;
   /** Default timeout of next(), waitForState() and settle(), in ms (default 2000) */
   timeoutMs?: number;
+  /**
+   * 'mock' (default): the mock DOM. 'real': mount into a real container element (needs a DOM:
+   * `// @vitest-environment jsdom`, or `environment: 'jsdom'` / 'happy-dom'), so `checked`,
+   * `value`, `disabled`, focus, refs and Portals are real. simulateEvent then dispatches a real
+   * event on the first element matching any CSS selector (a value/checked init is set on the
+   * element first; 'click' runs the default action and skips disabled controls; 'focus'/'blur'
+   * move focus). Read elements with `t.query(sel)` / `t.queryAll(sel)` / `t.container`.
+   */
+  dom?: 'mock' | 'real';
 }
 
 export interface RenderResult {
@@ -1133,6 +1142,16 @@ export interface RenderResult {
    * match / isolation results, EVENTS, diagnostics). Throws unless 'sygnal/diagnostics' is loaded.
    */
   inspect: () => InspectGraph;
+  /** `{ dom: 'real' }`: the element the tree is mounted in (removed by dispose()); otherwise null */
+  container: Element | null;
+  /**
+   * `{ dom: 'real' }`: the first element matching a CSS selector in the rendered tree (Portal
+   * content included), or null: `expect(t.query('input[name="plan"][value="team"]').checked).toBe(true)`.
+   * Throws in the mock DOM.
+   */
+  query: (selector: string) => Element | null;
+  /** `{ dom: 'real' }`: every element matching a CSS selector in the rendered tree (Portals included) */
+  queryAll: (selector: string) => Element[];
 }
 
 export function renderComponent(componentDef: any, options?: RenderOptions): RenderResult
