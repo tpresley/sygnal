@@ -133,7 +133,7 @@ const applyRefProps = (data: any, ref: any): any => {
 // array (['a', cond && 'b']) would be iterated by index, adding the classes "0", "1", ...
 // G-096: clsx-style: strings, nested arrays, objects (truthy keys); falsy entries skipped
 const addClasses = (map: Record<string, boolean>, klass: any): any => {
-  if (klass && typeof klass === 'object') for (const k in klass) Array.isArray(klass) ? addClasses(map, klass[k]) : klass[k] && addClasses(map, k)
+  if (klass && typeof klass === 'object') for (const k in klass) Array.isArray(klass) ? addClasses(map, klass[k as any]) : klass[k] && addClasses(map, k)
   else if (klass) for (const name of String(klass).split(/\s+/)) if (name) map[name] = true
   return map
 }

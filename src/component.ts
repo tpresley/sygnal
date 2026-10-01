@@ -1811,6 +1811,10 @@ function getComponents(currentElement: any, componentNameSet: Set<string>, path:
     }
     if (typeof props.key === 'undefined') (currentElement.data.props ||= {}).key = id
     found[id] = currentElement
+    // G-084: a component's children are its own (children$): it instantiates the
+    // components among them when it renders them; instantiating them here too made
+    // a second, never-rendered instance per ancestor
+    return found
   }
 
   for (let i = 0; i < children.length; i++) {
