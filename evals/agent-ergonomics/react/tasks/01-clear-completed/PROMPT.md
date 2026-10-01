@@ -1,0 +1,1 @@
+This is a small task list app. Add a "Clear completed" button below the list. Clicking it should remove every completed (checked) task from the list and leave the unchecked ones alone. The "N remaining" count should stay correct.
