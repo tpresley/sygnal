@@ -11,7 +11,7 @@
     "./package.json": "./package.json"
   },
   "bin": {
-    "sygnal-check": "./bin/sygnal-check.js"
+    "sygnal-check": "bin/sygnal-check.js"
   },
   "files": [
     "bin",

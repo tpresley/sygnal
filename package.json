@@ -86,7 +86,8 @@
   "files": [
     "dist",
     "src",
-    "llms.txt"
+    "llms.txt",
+    "CHANGELOG.md"
   ],
   "scripts": {
     "test": "vitest run && npm run test:examples && npm run test:types && npm run test:browser",
@@ -94,7 +95,8 @@
     "test:types": "npx tsc --project type-tests/tsconfig.json 2>&1 | grep '^type-tests/' && exit 1 || exit 0",
     "test:browser": "npm test --prefix browser-tests",
     "test:watch": "vitest",
-    "build": "npx rollup -c && npx rollup -c rollup.config.dts.mjs",
+    "clean": "node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\"",
+    "build": "npm run clean && npx rollup -c && npx rollup -c rollup.config.dts.mjs",
     "build:types": "npx rollup -c rollup.config.dts.mjs",
     "build:all": "npm run build",
     "build:devtools": "node devtools/build.mjs",

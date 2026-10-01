@@ -4,10 +4,11 @@
   "description": "Scaffold a new Sygnal project",
   "type": "module",
   "bin": {
-    "create-sygnal-app": "./index.js"
+    "create-sygnal-app": "index.js"
   },
   "files": [
     "index.js",
+    "README.md",
     "template-vite",
     "template-vite-ts",
     "template-vite-pwa",

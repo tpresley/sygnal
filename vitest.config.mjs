@@ -9,6 +9,7 @@ import { configDefaults, defineConfig } from 'vitest/config'
 // - create-sygnal-app/**: template starter tests, run only in a scaffolded app.
 // - sygnal-check/**, browser-tests/**, evals/**, docs/**: separate packages
 //   with their own test runners.
+// - .claude/**: agent worktrees (full repo copies) would otherwise be collected.
 export default defineConfig({
   test: {
     exclude: [
@@ -19,6 +20,7 @@ export default defineConfig({
       'browser-tests/**',
       'evals/**',
       'docs/**',
+      '.claude/**',
     ],
   },
 })

@@ -38,7 +38,7 @@ npm ci --prefix docs
 # each example has its own dependencies (examples/kanban links the root package)
 for d in examples/*/; do [ -f "$d/package.json" ] && npm install --prefix "$d"; done
 
-npm run build:all                           # rollup bundles + bundled dist/index.d.ts
+npm run build:all                           # clears dist/, then rollup bundles + bundled dist/index.d.ts
 npm test                                    # vitest, example suites, type tests, browser tests
 npm test --prefix sygnal-check
 node scripts/check-doc-samples.mjs          # every doc/agent sample is strict-clean
@@ -46,7 +46,7 @@ node scripts/gen-error-docs.mjs --check     # error reference matches explanatio
 npm run build --prefix docs                 # docs site + link check
 ```
 
-All of them must pass. Then check the size gate: the gzipped kanban production bundle must stay within the agreed limit (41,805 B for 5.4.0). Run it from inside the example:
+All of them must pass. `npm test` needs the `sygnal-check` install above (the Vite plugin tests load it). Then check the size gate: the gzipped kanban production bundle must stay within the agreed limit (41,805 B for 5.4.0). Run it from inside the example:
 
 ```bash
 cd examples/kanban
@@ -67,9 +67,9 @@ Expect:
 - **`sygnal`**:
   - `dist/` with `index.{cjs,esm}.js`, a single bundled `dist/index.d.ts` (no `dist/cycle/` declarations), `sygnal.min.js`, the `jsx*`, `diagnostics`, `vite`, `astro` and `vike` entries, and their source maps;
   - `src/`, used for the sub-entry types such as `src/jsx.d.ts` and `src/vite/plugin.d.ts`;
-  - `llms.txt`, `README.md`, `LICENSE` and `package.json`.
-- **`sygnal-check`**: `bin/sygnal-check.js`, `src/` (including `model/` and `rules/`), `schema/inspect.schema.json`, `explanations.json`, `README.md` and `package.json`.
-- **`create-sygnal-app`**: `index.js`, `package.json`, and all eight `template-*` folders. Each folder has an `AGENTS.md`, a `CLAUDE.md`, a `package.json` and a `*.test.*.tmpl` starter test.
+  - `llms.txt`, `CHANGELOG.md`, `README.md`, `LICENSE` and `package.json`.
+- **`sygnal-check`**: `bin/sygnal-check.js`, `src/` (including `model/` and `rules/`), `schema/inspect.schema.json`, `explanations.json`, `README.md`, `LICENSE` and `package.json`.
+- **`create-sygnal-app`**: `index.js`, `README.md`, `LICENSE`, `package.json`, and all eight `template-*` folders. Each folder has an `AGENTS.md`, a `CLAUDE.md`, a `package.json` and a `*.test.*.tmpl` starter test.
 
 ## 4. Publish
 
@@ -87,6 +87,8 @@ cd create-sygnal-app && npm publish && cd ..
 ```
 
 If a publish fails partway through, fix the problem and publish only the packages that are missing. A published version can't be republished; bump its patch version instead.
+
+npm 11 stages each publish and takes a few minutes to process it, so `npm view <pkg> version` can still show the old version right after a successful publish. Publishing the same version again during that window fails with E409 "previously staged"; that means the first publish worked, so wait instead of retrying.
 
 ## 5. Tag
 
