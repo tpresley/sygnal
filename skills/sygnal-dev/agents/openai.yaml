@@ -1,4 +1,4 @@
 interface:
   display_name: "Sygnal Dev"
-  short_description: "Create and build apps with the Sygnal framework."
-  default_prompt: "Use Sygnal best practices to scaffold, implement, and wire applications with component hierarchy, intents, models, state flow, and drivers."
+  short_description: "Build, test, and debug Sygnal apps with the canonical forms."
+  default_prompt: "Use the Sygnal canonical forms (object-form model entries, event() for EVENTS, CHILD.select(Component), ABORT for no change) to implement the change: state, then intent, model, view, and a renderComponent test. Run npm test and, when sygnal-check is installed, npx --no-install sygnal-check --strict; use npx --no-install sygnal-check explain SYGnnn (or the online error reference) for any diagnostic."

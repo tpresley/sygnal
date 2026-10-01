@@ -1,5 +1,7 @@
 import xs, {Stream} from 'xstream';
 import {adapt} from '../cycle/run/adapt';
+// [diagnostics hook] no-op when diagnostics are off
+import {onBusEmit, onBusSelect} from './diagnostics/index';
 
 export interface EventBusSource {
   select(type?: string | string[]): any;
@@ -15,6 +17,7 @@ export default function eventBusDriver(out$: Stream<BusEvent>): EventBusSource {
 
   out$.subscribe({
     next: (event: BusEvent) => {
+      onBusEmit(event && event.type, (event as any)?.__emitterName);
       events.dispatchEvent(new CustomEvent('data', {detail: event}));
       if (typeof window !== 'undefined' && (window as any).__SYGNAL_DEVTOOLS__?.connected) {
         (window as any).__SYGNAL_DEVTOOLS__.onBusEvent(event);
@@ -26,6 +29,7 @@ export default function eventBusDriver(out$: Stream<BusEvent>): EventBusSource {
 
   return {
     select: (type?: string | string[]) => {
+      onBusSelect(type);
       const all = !type;
       const _type = Array.isArray(type) ? type : [type];
       let cb: ((e: Event) => void) | undefined;

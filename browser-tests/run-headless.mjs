@@ -4,20 +4,45 @@
  * waits for tests to complete, and exits with appropriate code.
  */
 
+import { createServer as createNetServer } from 'node:net';
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
 
-const PORT = 5299;
+const HOST = '127.0.0.1';
 const TIMEOUT = 30000;
+
+/**
+ * Ask the OS for a free port. Vite treats `port: 0` as "use the default
+ * port" (5173), so it can't hand out an ephemeral port itself. A fixed port
+ * would keep parallel worktrees from running browser tests at the same time
+ * (G-034); BROWSER_TESTS_PORT pins one if needed.
+ */
+function freePort() {
+  return new Promise((resolve, reject) => {
+    const srv = createNetServer();
+    srv.unref();
+    srv.on('error', reject);
+    srv.listen(0, HOST, () => {
+      const { port } = srv.address();
+      srv.close(() => resolve(port));
+    });
+  });
+}
 
 async function run() {
   // Start Vite dev server
+  const fixedPort = Number(process.env.BROWSER_TESTS_PORT) || 0;
   const server = await createServer({
     root: new URL('.', import.meta.url).pathname,
-    server: { port: PORT, strictPort: true },
+    // Without a fixed port, a port grabbed by another process between
+    // freePort() and listen() makes Vite try the next one (strictPort off);
+    // the URL below is read from the address the server actually bound.
+    server: { host: HOST, port: fixedPort || await freePort(), strictPort: !!fixedPort },
     logLevel: 'silent',
   });
   await server.listen();
+  const { port } = server.httpServer.address();
+  const url = `http://${HOST}:${port}/`;
 
   let browser;
   try {
@@ -32,7 +57,7 @@ async function run() {
       }
     });
 
-    await page.goto(`http://localhost:${PORT}/`);
+    await page.goto(url);
 
     // Wait for tests to complete
     const done = await page.waitForFunction(

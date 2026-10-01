@@ -25,8 +25,8 @@ function DataLoader({ state }) {
   return <div>{state.data ? JSON.stringify(state.data) : 'Waiting...'}</div>
 }
 
-DataLoader.intent = ({ DOM }) => ({
-  DATA_LOADED: /* stream from API driver */,
+DataLoader.intent = ({ API }) => ({
+  DATA_LOADED: API.select('data'),   // responses from a custom API driver
 })
 
 DataLoader.model = {
@@ -38,3 +38,7 @@ DataLoader.model = {
 ```
 
 Suspense boundaries can be nested — inner `<Suspense>` catches its own not-ready children without triggering the outer boundary.
+
+## The `data-sygnal-ready` Attribute
+
+While a sub-component is not ready, its root element carries `data-sygnal-ready="false"`; that is how a `<Suspense>` boundary finds pending children. Once the component is ready, the attribute is removed, so ready components render exactly the markup their view returns (extracting markup into a child component doesn't change the DOM).

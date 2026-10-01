@@ -1,13 +1,15 @@
-import xs, {Stream, resolveInteropDefault} from './extra/xstreamCompat';
-import * as dropRepeatsModule from 'xstream/extra/dropRepeats.js';
+import xs, {Stream} from './extra/xstreamCompat';
+import {dropRepeats} from './extra/xstreamExtras';
 import {h} from './cycle/dom/index';
+import {fail} from './extra/diagnostics/legacy';
 
-const dropRepeats = resolveInteropDefault(dropRepeatsModule);
 
 interface SwitchableOptions {
   switched?: string | string[];
   stateSourceName?: string;
 }
+
+const NAME_FIX = 'Pass a stream, a state key string, or a state => name function';
 
 export default function switchable(
   factories: Record<string, (sources: any) => any>,
@@ -18,7 +20,7 @@ export default function switchable(
   const {switched = ['DOM'], stateSourceName = 'STATE'} = opts;
   const nameType = typeof name$;
 
-  if (!name$) throw new Error(`Missing 'name$' parameter for switchable()`);
+  if (!name$) fail('SYG419', 'switchable', "Missing 'name$' parameter", NAME_FIX);
   if (
     !(
       nameType === 'string' ||
@@ -26,9 +28,7 @@ export default function switchable(
       name$ instanceof Stream
     )
   ) {
-    throw new Error(
-      `Invalid 'name$' parameter for switchable(): expects Stream, String, or Function`
-    );
+    fail('SYG419', 'switchable', `Invalid 'name$' parameter: got ${nameType}`, NAME_FIX);
   }
 
   if (name$ instanceof Stream) {
@@ -51,7 +51,7 @@ export default function switchable(
           sources.state
         ).stream;
       if (!(state$ instanceof Stream))
-        throw new Error(`Could not find the state source: ${stateSourceName}`);
+        fail('SYG607', 'switchable', `State source '${stateSourceName}' not found`, 'Pass the state source in sources, or set stateSourceName');
       const _name$ = state$
         .map(mapFunction)
         .filter((name: any) => typeof name === 'string')
@@ -113,6 +113,8 @@ function _switchable(
     },
     {}
   );
+  // B-024: every factory was instantiated above; dispose them all with the switchable
+  switchedSinks.__dispose = () => sinks.forEach(([, s]) => s.__dispose?.());
 
   return switchedSinks;
 }

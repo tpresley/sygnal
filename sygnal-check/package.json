@@ -1,0 +1,48 @@
+{
+  "name": "sygnal-check",
+  "version": "0.1.0",
+  "description": "Static checker for Sygnal apps: finds intent/model/view/EVENTS wiring bugs that fail silently at runtime",
+  "type": "module",
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./explanations.json": "./explanations.json",
+    "./schema/inspect.schema.json": "./schema/inspect.schema.json",
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "sygnal-check": "./bin/sygnal-check.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "schema",
+    "explanations.json",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "vitest run"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "sygnal",
+    "lint",
+    "static-analysis",
+    "cycle.js"
+  ],
+  "author": "Troy Presley <troy.presley@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tpresley/sygnal.git",
+    "directory": "sygnal-check"
+  },
+  "dependencies": {
+    "@babel/parser": "^7.29.0"
+  },
+  "devDependencies": {
+    "vitest": "^4.0.18"
+  }
+}

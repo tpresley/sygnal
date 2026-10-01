@@ -2,6 +2,7 @@ import type { MainDOMSource } from './cycle/dom/MainDOMSource'
 import type { EnrichedEventStream } from './cycle/dom/enrichEventStream'
 import type { StateSource } from './cycle/state/index'
 import xsDefault from 'xstream'
+import type { InspectGraph } from './extra/diagnostics/checks/public'
 import type { MemoryStream, Stream } from 'xstream'
 
 export declare const ABORT: unique symbol
@@ -60,6 +61,72 @@ type StateOnlyReducer<STATE, RETURN = any> = (
 
 export type Event<DATA = any> = { type: string; data: DATA }
 
+// ── EVENTS registry ────────────────────────────────────────────────
+
+/**
+ * Registry of global EVENTS bus event names and their payload types.
+ *
+ * Empty by default, which keeps the EVENTS bus untyped (`any`). Augment it to
+ * type-check `EVENTS.select()`, `event()`, `emit()` and raw EVENTS sink returns:
+ *
+ *   declare module 'sygnal' {
+ *     interface SygnalEvents {
+ *       DELETE_LANE: { laneId: string }
+ *       RESET: void            // no payload: event('RESET')
+ *     }
+ *   }
+ *
+ * Once the registry has at least one entry, unregistered event names are type errors.
+ * The augmenting file must be a module (have at least one import or export).
+ */
+export interface SygnalEvents {}
+
+/** Valid event names: `string` while the registry is empty, otherwise the registered names. */
+export type EventName = keyof SygnalEvents extends never ? string : keyof SygnalEvents & string
+
+/** Payload type of a registered event (`any` while the registry is empty). */
+export type EventPayload<TYPE extends string = string> = keyof SygnalEvents extends never
+  ? any
+  : TYPE extends keyof SygnalEvents ? SygnalEvents[TYPE] : never
+
+/**
+ * An event object as put on the EVENTS bus. While the registry is empty this is `Event<any>`;
+ * otherwise it is the union of `{ type, data }` for every registered event.
+ */
+export type RegisteredEvent = keyof SygnalEvents extends never
+  ? Event<any>
+  : { [TYPE in keyof SygnalEvents & string]: { type: TYPE; data: SygnalEvents[TYPE] } }[keyof SygnalEvents & string]
+
+/** The `{ type, data }` object produced by `event(type, ...)` / `emit(type, ...)`. */
+export type EmittedEvent<TYPE extends string = string> = keyof SygnalEvents extends never
+  ? { type: TYPE; data: any }
+  : { type: TYPE; data: EventPayload<TYPE> }
+
+/** The `next()` function as seen by an event payload function. */
+type EventNextFunction = (action: string, data?: any, delay?: number) => void
+
+/** Payload function for `event()` / `emit()`: receives the reducer arguments, returns the event data. */
+export type EventPayloadFunction<TYPE extends string = string, STATE = any, DATA = any> =
+  (state: STATE, data: DATA, next: EventNextFunction, props: any) => EventPayload<TYPE>
+
+/**
+ * Remaining arguments of `event()` / `emit()` when the payload is a static value.
+ * The payload may be omitted when the registry is empty or the event's payload
+ * type accepts `undefined` (e.g. `void`).
+ */
+type StaticEventArgs<TYPE extends string> = keyof SygnalEvents extends never
+  ? [payload?: any]
+  : undefined extends EventPayload<TYPE>
+    ? [payload?: EventPayload<TYPE>]
+    : [payload: EventPayload<TYPE>]
+
+/**
+ * The sink function returned by `event()`. Use it as the value of an `EVENTS` key in a
+ * model entry: `ACTION: { STATE: ..., EVENTS: event('TYPE', fn) }`.
+ */
+export type EventSink<TYPE extends string = string, STATE = any, DATA = any> =
+  (state: STATE, data: DATA, next: any, props: any) => EmittedEvent<TYPE>
+
 export type NonStateSinkReturns = {
   EVENTS?: unknown;
   LOG?: unknown;
@@ -67,7 +134,7 @@ export type NonStateSinkReturns = {
 }
 
 type ResolvedNonStateSinkReturns<SINK_RETURNS extends NonStateSinkReturns = {}> = {
-  EVENTS: SINK_RETURNS extends { EVENTS: infer EVENTS_RETURN } ? EVENTS_RETURN : Event<any>;
+  EVENTS: SINK_RETURNS extends { EVENTS: infer EVENTS_RETURN } ? EVENTS_RETURN : RegisteredEvent;
   LOG: SINK_RETURNS extends { LOG: infer LOG_RETURN } ? LOG_RETURN : any;
   PARENT: SINK_RETURNS extends { PARENT: infer PARENT_RETURN } ? PARENT_RETURN : any;
 }
@@ -149,7 +216,43 @@ type ComponentModel<STATE, PROPS, DRIVERS, ACTIONS, CALCULATED, SINK_RETURNS ext
       >
     }
 
+type TrimSpaces<S extends string> =
+  S extends ` ${infer REST}` ? TrimSpaces<REST>
+  : S extends `${infer REST} ` ? TrimSpaces<REST>
+  : S
+
+/** Value type produced by a PARENT sink value (a reducer's return, minus ABORT/undefined). */
+type ParentSinkValueReturn<VALUE> =
+  VALUE extends (...args: any[]) => infer RETURN ? Exclude<RETURN, ABORT | undefined | void> : never
+
+type ParentPayloadFromEntry<ENTRY> =
+  ENTRY extends (...args: any[]) => any ? never
+  : ENTRY extends object
+    ? 'PARENT' extends keyof ENTRY ? ParentSinkValueReturn<NonNullable<ENTRY['PARENT']>> : never
+    : never
+
+type ParentPayloadsOfModel<MODEL> = {
+  [ACTION_KEY in keyof MODEL]-?: ACTION_KEY extends `${string}|${infer SINK}`
+    ? TrimSpaces<SINK> extends 'PARENT' ? ParentSinkValueReturn<NonNullable<MODEL[ACTION_KEY]>> : never
+    : ParentPayloadFromEntry<NonNullable<MODEL[ACTION_KEY]>>
+}[keyof MODEL]
+
+type AnyIfNever<T> = [T] extends [never] ? any : T
+
+/**
+ * The value type a component sends to its parent through the `PARENT` sink, inferred from the
+ * component's `model` (object-form `{ PARENT: fn }` entries and `'ACTION | PARENT'` shorthand).
+ * Falls back to `any` when it can't be inferred (no model, a `Component<...>` annotation without
+ * a `PARENT` entry in its `SINK_RETURNS`, or `PARENT: true` pass-through entries only).
+ */
+export type ParentPayloadOf<COMPONENT> =
+  COMPONENT extends { model?: infer MODEL }
+    ? 0 extends (1 & MODEL) ? any : AnyIfNever<ParentPayloadsOfModel<NonNullable<MODEL>>>
+    : any
+
 type ChildSource = {
+  /** Typed: the stream type is inferred from the child's PARENT sink (falls back to `any`). */
+  select<COMPONENT extends (...args: any[]) => any>(component: COMPONENT): Stream<ParentPayloadOf<COMPONENT>>;
   select<T = any>(component: (...args: any[]) => any): Stream<T>;
   select<T = any>(name: string): Stream<T>;
 }
@@ -158,9 +261,11 @@ export type SygnalDOMSource = MainDOMSource & {
   [eventName: string]: (selector: string) => EnrichedEventStream<globalThis.Event>
 }
 
-export type EventsSource<EVENTS = any> = Stream<Event<EVENTS>> & {
-  select<T = any>(type: string): Stream<T>;
-}
+type EventsSelect = keyof SygnalEvents extends never
+  ? { select<T = any>(type: string): Stream<T>; }
+  : { select<TYPE extends keyof SygnalEvents & string>(type: TYPE): Stream<SygnalEvents[TYPE]>; }
+
+export type EventsSource<EVENTS = any> = Stream<Event<EVENTS>> & EventsSelect
 
 export type DefaultDrivers<STATE, EVENTS = any> = {
   STATE: {
@@ -217,6 +322,42 @@ export type FixDrivers<DRIVERS> =
 
 type CombinedSources<STATE, DRIVERS> = Sources<DefaultDrivers<STATE> & DRIVERS> & { dispose$: Stream<boolean> }
 
+/**
+ * The sources object an intent function receives (DOM, STATE, EVENTS, CHILD, dispose$, plus
+ * any custom drivers). Use it to annotate an intent declared before its component:
+ *
+ *   const intent = ({ DOM }: IntentSources<State>) => ({ INC: DOM.click('.inc') })
+ */
+export type IntentSources<STATE = any, DRIVERS = {}> = CombinedSources<STATE, FixDrivers<DRIVERS>>
+
+type StreamPayload<STREAM> = STREAM extends Stream<infer T> ? T : any
+
+type IntentReturnToActions<RETURN> = {
+  [ACTION_KEY in keyof RETURN & string]-?: StreamPayload<Exclude<RETURN[ACTION_KEY], undefined>>
+}
+
+/**
+ * Derives the ACTIONS map (action name → payload type) from an intent function's type
+ * (or from its return object type): each key's `Stream<T>` becomes `T`.
+ *
+ *   const intent = ({ DOM }: IntentSources<State>) => ({
+ *     INC:  DOM.click('.inc').mapTo(1),          // Stream<number>
+ *     NAME: DOM.input('.name').value(),         // Stream<string>
+ *   })
+ *   const Counter: Component<State, {}, {}, ActionsOf<typeof intent>> = ...
+ *   Counter.intent = intent
+ *   Counter.model  = { INC: (state, n) => ..., NAME: (state, name) => ... }  // n: number, name: string
+ *
+ * With it, model keys not returned by the intent are type errors (the built-ins BOOTSTRAP,
+ * INITIALIZE, HYDRATE and DISPOSE stay allowed). Actions reached only through `next()` are
+ * added explicitly:
+ *
+ *   type Actions = ActionsOf<typeof intent> & { SAVED: { id: string } }
+ */
+export type ActionsOf<INTENT> = INTENT extends (...args: any[]) => infer RETURN
+  ? IntentReturnToActions<RETURN>
+  : IntentReturnToActions<INTENT>
+
 interface ComponentIntent<STATE, DRIVERS, ACTIONS> {
   (args: CombinedSources<STATE, DRIVERS>): Partial<IntentActions<ACTIONS>>
 }
@@ -267,6 +408,12 @@ export type Component<
   model?: ComponentModel<STATE, PROPS, FixDrivers<DRIVERS>, ACTIONS, CALCULATED, SINK_RETURNS, CONTEXT>;
   intent?: ComponentIntent<STATE & CALCULATED, FixDrivers<DRIVERS>, ACTIONS>;
   initialState?: STATE;
+  /**
+   * Give a sub-component its own state instead of the slice its parent passes in.
+   * Required to use `initialState` on a sub-component (otherwise SYG405). Without a
+   * `state` prop the state is local to the instance and never written to the parent.
+   */
+  isolatedState?: boolean;
   calculated?: Calculated<STATE, CALCULATED>;
   storeCalculatedInState?: boolean;
   context?: Context<STATE & CALCULATED, CONTEXT>;
@@ -294,12 +441,37 @@ export type RootComponent<
  */
 type AnyComponent = ((...args: any[]) => any) & Record<string, any>
 
-export type CollectionProps<PROPS = any> = {
+/** Keys of STATE whose value is an array (optional/nullable arrays included). */
+export type ArrayKeysOf<STATE> = {
+  [KEY in keyof STATE]-?: NonNullable<STATE[KEY]> extends ReadonlyArray<any> ? KEY : never
+}[keyof STATE] & string
+
+/**
+ * Valid `from` values for a Collection: any string or Lense while the parent STATE is unknown
+ * (`any`); otherwise an array-valued key of STATE or a Lense over STATE.
+ */
+export type CollectionFrom<STATE = any> = 0 extends (1 & STATE)
+  ? string | Lense
+  : ArrayKeysOf<STATE> | Lense<STATE, any>
+
+/**
+ * Collection props. Pass the parent component's state type as STATE to type-check `from`:
+ *
+ *   const TaskCollection = Collection<{}, LaneState>   // instantiation expression
+ *   <TaskCollection of={TaskCard} from="tasks" />       // 'tasks' must be an array key of LaneState
+ */
+export type CollectionProps<PROPS = any, STATE = any> = {
   of: AnyComponent;
-  from: string | Lense;
+  from: CollectionFrom<STATE>;
   filter?: Filter;
   sort?: string | SortFunction | SortObject;
-} & Omit<PROPS, 'of' | 'from' | 'filter' | 'sort'>
+  /**
+   * Item field used as the key that tracks each item (its component instance, isolation
+   * scope and DOM) across updates. Items are keyed by `id` by default; keys should be
+   * unique and stable (an item without the field is keyed by its index).
+   */
+  idfield?: string;
+} & Omit<PROPS, 'of' | 'from' | 'filter' | 'sort' | 'idfield'>
 
 export type SwitchableProps<PROPS = any> = {
   of: Record<string, AnyComponent>;
@@ -319,6 +491,16 @@ export type TransitionProps = {
   children?: any;
 }
 
+export type SuspenseProps = {
+  /**
+   * Shown (wrapped in `<div data-sygnal-suspense="pending">`) while any child is not ready:
+   * a `lazy()` component still loading, or a component with an explicit READY model entry
+   * that hasn't emitted true. A string renders as text. Without it the children render as-is.
+   */
+  fallback?: JSX.Element | string;
+  children?: any;
+}
+
 export type SlotProps = {
   name?: string;
   children?: any;
@@ -326,11 +508,92 @@ export type SlotProps = {
 
 export type ClassesType = (string | string[] | { [className: string]: boolean | undefined })[]
 
+/**
+ * Diagnostics mode.
+ * - 'off'     — no checks, no collection (default in production)
+ * - 'collect' — collect diagnostics silently (read with getDiagnostics())
+ * - 'warn'    — collect and print warn/error diagnostics to the console (default in Vite dev)
+ * - 'error'   — collect and throw on warn/error diagnostics
+ */
+export type DiagnosticsMode = 'off' | 'collect' | 'warn' | 'error'
+
+/** Stable diagnostic code, e.g. 'SYG101'. See https://sygnal.js.org/reference/errors */
+export type DiagnosticCode = `SYG${number}`
+
+export type DiagnosticSeverity = 'error' | 'warn' | 'info'
+
+export type Diagnostic = {
+  code: DiagnosticCode;
+  severity: DiagnosticSeverity;
+  /** Name of the component the diagnostic is about */
+  component?: string;
+  /** What is wrong */
+  message: string;
+  /** How to fix it */
+  fix?: string;
+  /** Structured payload (check-specific) */
+  data?: any;
+  /** Link to the docs entry for this code */
+  docsUrl: string;
+  /** Fully formatted message: `[Sygnal SYG123] Component: message. fix docsUrl` */
+  text: string;
+  timestamp: number;
+}
+
+export type DiagnosticsOptions = {
+  mode?: DiagnosticsMode;
+  /** Codes to ignore entirely */
+  ignore?: DiagnosticCode[];
+}
+
 export type RunOptions = {
   mountPoint?: string;
   fragments?: boolean;
   useDefaultDrivers?: boolean;
+  /**
+   * Runtime diagnostics. Takes precedence over `globalThis.__SYGNAL_DEV__`
+   * (set by the Sygnal Vite plugin in dev), which enables 'warn'. Default: 'off'.
+   */
+  diagnostics?: DiagnosticsMode | DiagnosticsOptions;
 }
+
+/** All diagnostics collected so far (most recent last). */
+export function getDiagnostics(): Diagnostic[]
+
+/** Clear the collected diagnostics. */
+export function clearDiagnostics(): void
+
+/** Subscribe to diagnostics as they are reported. Returns an unsubscribe function. */
+export function onDiagnostic(callback: (diagnostic: Diagnostic) => void): () => void
+
+export type {
+  InspectGraph,
+  InspectComponent,
+  InspectAction,
+  InspectActionTrigger,
+  InspectChild,
+  InspectSelector,
+  InspectDiagnostic,
+} from './extra/diagnostics/checks/public'
+
+/**
+ * The Sygnal DevTools bridge (also `window.__SYGNAL_DEVTOOLS__` once run() has
+ * initialized it in a browser). Only the stable, documented members are typed.
+ */
+export interface SygnalDevTools {
+  /** true while the browser extension is connected */
+  readonly connected: boolean
+  /** Diagnostics collected so far (same as getDiagnostics()) */
+  getDiagnostics(): Diagnostic[]
+  /**
+   * The machine-readable app graph of the live components. Present only when the
+   * 'sygnal/diagnostics' dev entry is loaded (it attaches this method); needs diagnostics on.
+   */
+  inspect?(): InspectGraph
+}
+
+/** The DevTools bridge singleton. */
+export function getDevTools(): SygnalDevTools | undefined
 
 export type SygnalSinks<STATE = any, DRIVERS = {}> = {
   [SINK_NAME in keyof (DefaultDrivers<STATE> & FixDrivers<DRIVERS>) | string]?: Stream<any>
@@ -406,16 +669,52 @@ export function set<S = any>(
  */
 export function toggle<S = any>(field: keyof S & string): (state: S) => S
 
+type EmitEntry<TYPE extends string> = keyof SygnalEvents extends never
+  ? { EVENTS: (state: any, actionData: any, next: Function, props: any) => { type: string; data: any } }
+  : { EVENTS: (state: any, actionData: any, next: Function, props: any) => EmittedEvent<TYPE> }
+
 /**
  * Create a model entry that emits an EVENTS bus event.
+ * Prefer `event()` inside the object form: `ACTION: { EVENTS: event('TYPE', fn) }`.
  *
  *   `emit('DELETE_LANE', (state) => ({ laneId: state.id }))`
  *   `emit('REFRESH')`
+ *
+ * With a `SygnalEvents` registry, `type` and the payload are checked against it.
  */
-export function emit(
-  type: string,
-  data?: any | ((state: any, actionData: any, next: Function, props: any) => any)
-): { EVENTS: (state: any, actionData: any, next: Function, props: any) => { type: string; data: any } }
+export function emit<TYPE extends EventName>(
+  type: TYPE,
+  data: (state: any, actionData: any, next: Function, props: any) => EventPayload<TYPE>
+): EmitEntry<TYPE>
+export function emit<TYPE extends EventName>(
+  type: TYPE,
+  ...data: StaticEventArgs<TYPE>
+): EmitEntry<TYPE>
+
+/**
+ * Create an EVENTS sink function that puts `{ type, data }` on the EVENTS bus.
+ * Use it as the `EVENTS` value inside an object-form model entry:
+ *
+ *   DELETE: {
+ *     STATE:  (state) => ({ ...state, deleting: true }),
+ *     EVENTS: event('DELETE_LANE', (state) => ({ laneId: state.id })),
+ *   }
+ *
+ * The payload is either a function `(state, data, next, props) => payload` or a static value:
+ *   `event('RESET')`, `event('SET_MODE', 'dark')`.
+ *
+ * With a `SygnalEvents` registry, `type` must be a registered name and the payload must match
+ * its type. When used inside a model, the payload function's `state` and `data` parameters are
+ * typed from the component.
+ */
+export function event<TYPE extends EventName, STATE = any, DATA = any>(
+  type: TYPE,
+  payload: EventPayloadFunction<TYPE, STATE, DATA>
+): EventSink<TYPE, STATE, DATA>
+export function event<TYPE extends EventName>(
+  type: TYPE,
+  ...payload: StaticEventArgs<TYPE>
+): EventSink<TYPE>
 
 /**
  * Any object with an events() method (e.g., DOM.select('form')).
@@ -552,18 +851,43 @@ export function collection(...args: any[]): any
 export function switchable(...args: any[]): any
 export function portal(...args: any[]): any
 
-export function Collection<PROPS extends { [prop: string]: any }>(props: CollectionProps<PROPS>): JSX.Element
+export function Collection<PROPS extends { [prop: string]: any }, STATE = any>(props: CollectionProps<PROPS, STATE>): JSX.Element
 export function Switchable<PROPS extends { [prop: string]: any }>(props: SwitchableProps<PROPS>): JSX.Element
 export function Portal(props: PortalProps): JSX.Element
 export function Transition(props: TransitionProps): JSX.Element
+export function Suspense(props: SuspenseProps): JSX.Element
 export function Slot(props: SlotProps): JSX.Element
+
+/**
+ * What `lazy()` returns: a sub-component used in JSX with its own props only
+ * (`<Chart title="Sales" />`; `state` is optional, as for any sub-component), that
+ * still carries the component statics (`model`, `intent`, …) once loaded.
+ */
+export type LazyComponent<PROPS = any> = ((
+  props: PROPS & { state?: any; children?: JSX.Element | JSX.Element[] }
+) => JSX.Element) & Omit<Component<any, PROPS>, never>
 
 export function lazy<PROPS = any>(
   loadFn: () => Promise<{ default: Component<any, PROPS> } | Component<any, PROPS>>
-): Component<any, PROPS>
+): LazyComponent<PROPS>
+
+/** Payload on `errors()` of a driverFromAsync source when a request fails */
+export type AsyncDriverError<INCOMING = any> = {
+  /** The rejection reason (or what `post` threw) */
+  error: any;
+  /** The request that failed */
+  request: INCOMING;
+  /** The request's selector property (default 'category') is copied here */
+  [selectorProperty: string]: any;
+}
 
 export type AsyncDriverFromFunction<INCOMING = any, OUTGOING = any> = {
   select: (selector?: string | ((value: OUTGOING) => boolean)) => Stream<OUTGOING>
+  /**
+   * Failed requests (rejected promise, rejected/throwing `post`). Filters like
+   * `select()`. Failures are only console.error'd while nothing listens here.
+   */
+  errors: (selector?: string | ((error: AsyncDriverError<INCOMING>) => boolean)) => Stream<AsyncDriverError<INCOMING>>
 }
 
 export type DriverFromAsyncOptions<INCOMING = any, OUTGOING = any, RETURN = any> = {
@@ -629,13 +953,43 @@ export interface InstallPrompt {
 
 export function createInstallPrompt(): InstallPrompt
 
+export interface SimulatedEventInit {
+  /** Merged into `event.target` (value, checked, dataset, ...) */
+  target?: Record<string, any>;
+  /** Shorthand for target.value */
+  value?: any;
+  /** Shorthand for target.checked */
+  checked?: boolean;
+  /** Merged into target.dataset (values become strings, like the DOM) */
+  dataset?: Record<string, any>;
+  /** Alias for dataset */
+  data?: Record<string, any>;
+  /** Keyboard key (e.key) */
+  key?: string;
+  /**
+   * Don't fail when the selector matches no rendered element: wait up to 300ms for it, then
+   * drop the event with SYG103 (info). Not copied onto the event.
+   */
+  allowMissing?: boolean;
+  /** Any other event properties are copied onto the event */
+  [prop: string]: any;
+}
+
 export interface RenderOptions {
   /** Override initial state (defaults to component's .initialState) */
   initialState?: any;
   /** Mock DOM configuration — maps selectors to event streams */
   mockConfig?: Record<string, any>;
-  /** Additional drivers beyond DOM, EVENTS, STATE, and LOG */
+  /** Additional drivers beyond DOM, EVENTS, STATE, and LOG (model sinks without a driver get a no-op one) */
   drivers?: Record<string, any>;
+  /**
+   * Diagnostics mode while rendered. Default: 'collect' (error-severity messages still print),
+   * or the current mode when diagnostics are already on. Restored when the last instance is
+   * disposed. Dev checks require `import 'sygnal/diagnostics'` (the Vite plugin adds it under Vitest).
+   */
+  diagnostics?: DiagnosticsMode;
+  /** Enable strict (canonical-form) runtime checks while rendered (requires 'sygnal/diagnostics') */
+  strict?: boolean;
 }
 
 export interface RenderResult {
@@ -649,14 +1003,68 @@ export interface RenderResult {
   sinks: Record<string, any>;
   /** All source objects by driver name */
   sources: Record<string, any>;
-  /** Push an action directly into the intent→model pipeline */
+  /** Push an action into the intent→model pipeline under its real name (all sinks of the entry run) */
   simulateAction: (actionName: string, data?: any) => void;
-  /** Wait for state to satisfy a predicate (resolves with the matching state) */
+  /**
+   * Dispatch a synthetic DOM event through the mock DOM source so the component's real intent
+   * streams fire (DOM.click('.x'), DOM.select('.x').events('click'), .value(), .data()).
+   * Targets the first rendered element matching `selector` and bubbles within its isolation scope.
+   * Selectors match the rendered tree like the real DOM: tag, .class, #id, [attr], [attr="v"]
+   * (^= $= *= ~=), :first-child, :last-child, :only-child, :nth-child(an+b|odd|even),
+   * :nth-last-child(), :first/last/only/nth-of-type, :not(), descendant ' ' and child '>'
+   * combinators, ',' lists. Other syntax (:has(), '+', '~', pseudo-elements...) throws.
+   * If nothing matches yet, the event waits (up to 300ms, re-checked on every render) for a
+   * matching element, then targets the first one. If none renders, the test fails with an
+   * error naming the selector: it rejects the pending next()/waitForState()/settle(), or is
+   * thrown by the next t.* call or dispose() (or by simulateEvent itself when nothing is
+   * pending and the tree is quiet). Pass `{ allowMissing: true }` to drop the event with SYG103
+   * instead. It is never sent to every listener with that selector string. It also waits until
+   * the listeners it reaches are subscribed (a just-mounted child subscribes a few ms late).
+   * `'document'` / `'body'` go to the DOM.select('document' | 'body') listeners.
+   * simulateAction/simulateEvent calls are delivered in call order; a waiting event holds the
+   * calls after it. Reports SYG104 (selector only matches inside a child component).
+   */
+  simulateEvent: (selector: string, eventType: string, eventInit?: SimulatedEventInit) => void;
+  /** Resolves once the component is subscribed (earlier simulate* calls are buffered and replayed) */
+  ready: () => Promise<void>;
+  /**
+   * Wait for a state that satisfies the predicate. Matches the recorded HISTORY too: a state
+   * from before the call resolves it (e.g. `count === 0` right after a reset resolves at once
+   * with the initial state). Resolves with the matching state once the whole tree (children
+   * included) has rendered it. Use `next()` to wait for a new state.
+   */
   waitForState: (predicate: (state: any) => boolean, timeoutMs?: number) => Promise<any>;
+  /**
+   * Wait for the next state emitted AFTER this call that satisfies the predicate (default: any
+   * state). Resolves with it once the whole tree (children included) has rendered it; rejects
+   * after timeoutMs (default 2000).
+   */
+  next: (predicate?: (state: any) => boolean, timeoutMs?: number) => Promise<any>;
+  /**
+   * Resolves once nothing is pending: the component is ready, no simulated input is waiting,
+   * and nothing in the tree has rendered, reduced or changed state for 20ms (longer than
+   * next()'s default delay). Rejects after timeoutMs (default 2000) if it never calms down.
+   */
+  settle: (timeoutMs?: number) => Promise<void>;
   /** Collected state values — grows as new states are emitted */
   states: any[];
-  /** Tear down the component and clean up all listeners */
+  /** Live array of values emitted on a sink (EVENTS as {type, data}, PARENT unwrapped, custom drivers) */
+  sinkValues: (sinkName: string) => any[];
+  /** Live array of EVENTS sink emissions ({type, data}) */
+  emitted: Array<{ type: string; data: any }>;
+  /** Live array of diagnostics reported while rendered */
+  diagnostics: Diagnostic[];
+  /** Throws (with the formatted texts) if any warn/error diagnostics were collected */
+  expectNoDiagnostics: () => void;
+  /** Latest rendered VNode serialized to HTML ('' before the first render) */
+  html: () => string;
+  /** Tear down the component, clean up listeners and restore the diagnostics mode */
   dispose: () => void;
+  /**
+   * The app graph of the rendered tree (components, actions, selectors with the mock DOM's
+   * match / isolation results, EVENTS, diagnostics). Throws unless 'sygnal/diagnostics' is loaded.
+   */
+  inspect: () => InspectGraph;
 }
 
 export function renderComponent(componentDef: any, options?: RenderOptions): RenderResult
@@ -688,6 +1096,9 @@ export { default as throttle } from 'xstream/extra/throttle.js'
 export { default as delay } from 'xstream/extra/delay.js'
 export { default as dropRepeats } from 'xstream/extra/dropRepeats.js'
 export { default as sampleCombine } from 'xstream/extra/sampleCombine.js'
+export { default as flattenConcurrently } from 'xstream/extra/flattenConcurrently.js'
+export { default as flattenSequentially } from 'xstream/extra/flattenSequentially.js'
+export { default as concat } from 'xstream/extra/concat.js'
 
 export * from './cycle/dom/index'
 export type { MemoryStream, Stream }

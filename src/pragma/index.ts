@@ -166,9 +166,12 @@ export const createElementWithModules = (modules: Record<string, any>) => {
   return (sel: any, data: any, ...children: any[]) => {
     if (typeof sel === 'undefined') {
       sel = 'UNDEFINED'
-      console.error('JSX Error: Capitalized HTML element without corresponding factory function.  Components with names where the first letter is capital MUST be defined or included at the parent component\'s file scope.')
+      // Pre-formatted (formatDiagnostic output) instead of diagnostics/legacy: the JSX
+      // runtime entries bundle this file standalone and must not carry a second diagnostics core.
+      console.error('[Sygnal SYG420] JSX: A JSX tag is undefined, so <UNDEFINED> is rendered instead. Import or define the component in this file. https://sygnal.js.org/reference/errors#syg420')
     }
-    if (is.fun(sel)) {
+    const isComponent = is.fun(sel)
+    if (isComponent) {
       if ((sel as any).__sygnalFragment || sel.name === 'Fragment') {
         return sel(data || {}, children)
       }
@@ -178,13 +181,12 @@ export const createElementWithModules = (modules: Record<string, any>) => {
         const view = sel
         const { model, intent, hmrActions, context, peers, components, initialState, isolatedState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, onError, debug, preventInstantiation } = sel as any
         if (preventInstantiation) {
-          const text = sanitizeText(children)
-          const sanitized = data ? sanitizeData(data, modules) : {}
+          // children always stay an array here: Portal/Suspense/... read vnode.children
           return considerSvg({
             sel: name,
-            data: sanitized,
-            children: typeof text !== 'undefined' ? createTextElement(text) : sanitizeChildren(children),
-            text,
+            data: data ? sanitizeData(data, modules) : {},
+            children: sanitizeChildren(children),
+            text: undefined,
             elm: undefined,
             key: data ? data.key : undefined
           })
@@ -198,11 +200,14 @@ export const createElementWithModules = (modules: Record<string, any>) => {
         data.sygnalFactory = factory
       }
     }
-    const text = sanitizeText(children)
+    // B-011: a vnode is either text-only (`text`, no children) or has a children array,
+    // never both; snabbdom's diff mishandles a vnode with both. A component placeholder
+    // keeps an array so the component receives its text child via `children`.
+    const text = isComponent ? undefined : sanitizeText(children)
     return considerSvg({
       sel,
       data: data ? sanitizeData(data, modules) : {},
-      children: typeof text !== 'undefined' ? createTextElement(text) : sanitizeChildren(children),
+      children: typeof text !== 'undefined' ? undefined : sanitizeChildren(children),
       text,
       elm: undefined,
       key: data ? data.key : undefined

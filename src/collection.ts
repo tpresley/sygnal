@@ -2,6 +2,7 @@ import isolate from './cycle/isolate/index';
 import {makeCollection} from './cycle/state/index';
 import {h} from './cycle/dom/index';
 import type {Lens} from './cycle/state/types';
+import {fail} from './extra/diagnostics/legacy';
 
 let COLLECTION_COUNT = 0;
 
@@ -20,7 +21,7 @@ export default function collection(
   opts: CollectionOptions = {}
 ): (sources: any) => any {
   if (typeof component !== 'function') {
-    throw new Error('collection: first argument (component) must be a function');
+    fail('SYG411', 'collection', 'first argument (component) must be a function', 'Pass a component function');
   }
   const {
     combineList = ['DOM'],
@@ -37,7 +38,9 @@ export default function collection(
       item: component,
       itemKey: (state: any, ind: number) =>
         typeof state.id !== 'undefined' ? state.id : ind,
-      itemScope: (key: any) => key,
+      // B-009: prefix with the collection instance so two Collections in one parent whose
+      // items share ids get different DOM isolation scopes
+      itemScope: (itemKey: any) => `${key}-${itemKey}`,
       channel: stateSourceName,
       collectSinks: (instances: any) => {
         return Object.entries(sources).reduce<Record<string, any>>(

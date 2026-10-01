@@ -15,7 +15,12 @@ To make a component interactive, attach `.initialState`, `.intent`, and `.model`
 
 ```jsx
 function Counter({ state }) {
-  return <div>Count: {state.count}</div>
+  return (
+    <div>
+      Count: {state.count}
+      <button className="btn">+1</button>
+    </div>
+  )
 }
 
 Counter.initialState = { count: 0 }
@@ -25,7 +30,7 @@ Counter.intent = ({ DOM }) => ({
 })
 
 Counter.model = {
-  INCREMENT: (state) => ({ count: state.count + 1 })
+  INCREMENT: (state) => ({ ...state, count: state.count + 1 })
 }
 ```
 
@@ -52,7 +57,7 @@ Counter.model = {
 The component function is the view. It receives a single object where props from the parent are spread at the top level alongside `state`, `children`, and `context`:
 
 ```jsx
-function MyComponent({ state, className, children, context, ...peers }) {
+function MyComponent({ state, className, children, context }) {
   return (
     <div className={className}>
       <h1>{state.title}</h1>
@@ -68,6 +73,7 @@ function MyComponent({ state, className, children, context, ...peers }) {
 |-----------|-------------|
 | `state` | The current component state |
 | `children` | Child elements passed between the component's opening and closing tags |
+| `slots` | Named content regions passed with `<Slot>` (see [Slots](/advanced/slots/)) |
 | `context` | Values from ancestor components' `.context` definitions |
 | Named peers | Any peer components defined in `.peers` are available by name |
 | Individual props | Props from the parent (e.g., `title`, `className`) are spread at the top level |
@@ -76,12 +82,8 @@ function MyComponent({ state, className, children, context, ...peers }) {
 
 The view function must be **pure**: it should only use the values it receives to produce virtual DOM. Never perform side effects (API calls, direct DOM manipulation, etc.) inside the view.
 
-### Using the Second Positional Argument
+Always read everything from the first argument. The view is technically also called with `state` and `context` as positional arguments, but that form is non-canonical (see [Alternative Forms](/advanced/alternative-forms/#positional-view-arguments)).
 
-The view function also receives `state` as a second positional argument, which can be convenient:
+### Reserved Prop Names
 
-```jsx
-const MyComponent = (_props, state) => {
-  return <div>{state.count}</div>
-}
-```
+Because the view's first argument also carries `state`, `children`, `slots`, `context` and `peers`, a parent prop with one of these names is overwritten (Sygnal warns with [SYG106](/reference/errors/#syg106)). The `state` prop is special: it selects the child's [state slice](/guide/state/#passing-state-to-child-components). Name data props something else, such as `item` or `contextValue`.

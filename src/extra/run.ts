@@ -5,11 +5,15 @@ import eventBusDriver from './eventDriver';
 import logDriver from './logDriver';
 import component, {ABORT} from '../component';
 import {getDevTools} from './devtools';
+import {configureDiagnostics} from './diagnostics/index';
+import type {DiagnosticsMode, DiagnosticsOptions} from './diagnostics/index';
 
 interface RunOptions {
   mountPoint?: string;
   fragments?: boolean;
   useDefaultDrivers?: boolean;
+  /** Diagnostics mode (or mode + ignore list). Overrides globalThis.__SYGNAL_DEV__. */
+  diagnostics?: DiagnosticsMode | DiagnosticsOptions;
 }
 
 interface SygnalRunResult {
@@ -29,6 +33,13 @@ export default function run(
     const dt = getDevTools();
     dt.init();
   }
+
+  // Resolve diagnostics mode: explicit option > globalThis.__SYGNAL_DEV__ > 'off'.
+  // Each run() is authoritative: without the option, mode and ignore list
+  // reset to defaults (no leakage from an earlier run()/configureDiagnostics()).
+  const {diagnostics} = options;
+  const diagOptions: DiagnosticsOptions = typeof diagnostics === 'string' ? {mode: diagnostics} : diagnostics || {};
+  configureDiagnostics({mode: diagOptions.mode, ignore: diagOptions.ignore || []});
 
   const {mountPoint = '#root', fragments = true, useDefaultDrivers = true} = options;
   if (!app.isSygnalComponent) {

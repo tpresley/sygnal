@@ -6,13 +6,16 @@
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
-    "preview": "astro preview"
+    "preview": "astro preview",
+    "test": "vitest run"
   },
   "dependencies": {
     "astro": "^6.1.1",
-    "sygnal": "^5.3.0"
+    "sygnal": "^5.4.0"
   },
   "devDependencies": {
-    "typescript": "^6.0.2"
+    "sygnal-check": "^0.1.0",
+    "typescript": "^6.0.2",
+    "vitest": "^4.1.2"
   }
 }

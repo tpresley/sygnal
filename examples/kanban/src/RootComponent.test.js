@@ -1,6 +1,7 @@
-import { describe, it, expect } from 'vitest'
-import { ABORT } from 'sygnal'
+import { describe, it, expect, afterEach } from 'vitest'
+import { ABORT, renderComponent } from 'sygnal'
 import RootComponent from './RootComponent.jsx'
+import { mockDragDriver } from './testHelpers.js'
 
 const { model, initialState, context } = RootComponent
 
@@ -322,5 +323,46 @@ describe('RootComponent', () => {
       const result = model.LANE_DRAG_END(makeState())
       expect(result).toBe(ABORT)
     })
+  })
+})
+
+// Intent wiring through the real component tree (the smoke test covers the
+// rest: add/delete lane, move left, task and lane drag-and-drop).
+describe('RootComponent (end to end with simulateEvent)', () => {
+  let t
+  afterEach(() => {
+    t?.dispose()
+    t = null
+  })
+
+  it('the → button of a lane moves it right (LaneComponent EVENTS → root)', async () => {
+    t = renderComponent(RootComponent, { drivers: { DND: mockDragDriver().driver } })
+    t.simulateEvent('.lane-header[data-lane-id="lane-1"] .move-lane-right', 'click')
+    const s = await t.waitForState(s => s.lanes[0].id === 'lane-2')
+    expect(s.lanes.map(l => l.id)).toEqual(['lane-2', 'lane-1', 'lane-3'])
+    expect(s.lanes[0].isFirst).toBe(true)
+    expect(s.lanes[1].isFirst).toBe(false)
+    t.expectNoDiagnostics()
+  })
+
+  it('dragend clears the task and lane drag state', async () => {
+    const dnd = mockDragDriver()
+    t = renderComponent(RootComponent, { drivers: { DND: dnd.driver } })
+    await t.ready()
+
+    dnd.emit('task:dragstart', { dataset: { taskId: 'task-3' } })
+    await t.waitForState(s => s.dragging?.taskId === 'task-3')
+    expect(t.html()).toContain('class="task-card dragging"')
+    dnd.emit('task:dragend', null)
+    await t.settle()
+    expect(t.states.at(-1).dragging).toBe(null)
+
+    dnd.emit('lane-sort:dragstart', { dataset: { laneId: 'lane-2' } })
+    await t.waitForState(s => s.draggingLane === 'lane-2')
+    expect(t.html()).toContain('class="lane dragging"')
+    dnd.emit('lane-sort:dragend', null)
+    await t.settle()
+    expect(t.states.at(-1).draggingLane).toBe(null)
+    t.expectNoDiagnostics()
   })
 })

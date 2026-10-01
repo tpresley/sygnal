@@ -3,6 +3,22 @@ import {DevToolEnabledSource, FantasyObservable} from '../run/types';
 import {VNode} from './snabbdom';
 import {EventsFnOptions} from './DOMSource';
 import {adapt} from '../run/adapt';
+import {enrichEventStream} from './enrichEventStream';
+
+/**
+ * Optional simulated-event hub (used by renderComponent's simulateEvent): a
+ * stream of `{type, event, match(path)}`; each source's events(type) also emits
+ * the hub events whose `match` accepts its selector path (isolation scopes
+ * included as '.___scope' segments).
+ */
+export type MockEventHub = Stream<{type: string; event: any; match: (path: string[]) => boolean}>;
+
+/**
+ * Optional listener callback (renderComponent): called with `live` undefined when events() is
+ * called (SYG103/104 checks), then with true / false when that hub listener is subscribed /
+ * unsubscribed (simulateEvent waits for a just-mounted child's listeners, G-039).
+ */
+export type MockOnEvents = (path: string[], eventType: string, live?: boolean) => void;
 
 export type MockConfig = {
   [name: string]: FantasyObservable<any> | MockConfig;
@@ -13,7 +29,12 @@ const SCOPE_PREFIX = '___';
 export class MockedDOMSource {
   private _elements: FantasyObservable<any>;
 
-  constructor(private _mockConfig: MockConfig) {
+  constructor(
+    private _mockConfig: MockConfig,
+    private _hub?: MockEventHub,
+    public _path: string[] = [],
+    private _onEvents?: MockOnEvents
+  ) {
     if (_mockConfig.elements) {
       this._elements = _mockConfig.elements as FantasyObservable<any>;
     } else {
@@ -43,10 +64,31 @@ export class MockedDOMSource {
     options?: EventsFnOptions,
     bubbles?: boolean
   ): any {
-    const streamForEventType = this._mockConfig[eventType] as any;
-    const out: DevToolEnabledSource & FantasyObservable<any> = adapt(
-      streamForEventType || xs.empty()
-    );
+    const configured = this._mockConfig[eventType] as any;
+    const {_hub: hub, _path: path, _onEvents: on} = this;
+    if (on) on(path, eventType);
+    let hub$: Stream<any> | undefined;
+    if (hub) {
+      const ev$ = hub.filter(e => e.type === eventType && e.match(path)).map(e => e.event);
+      let l: any;
+      hub$ = on
+        ? xs.create({
+            start: (x: any) => {
+              ev$.addListener(l = {next: (v: any) => x.next(v), error: (e: any) => x.error(e), complete: () => x.complete()});
+              on(path, eventType, true);
+            },
+            stop: () => {
+              ev$.removeListener(l);
+              on(path, eventType, false);
+            },
+          })
+        : ev$;
+    }
+    const out: DevToolEnabledSource & FantasyObservable<any> = enrichEventStream(adapt(
+      hub$
+        ? xs.merge(configured ? xs.fromObservable(configured) : xs.empty(), hub$)
+        : configured || xs.empty()
+    ));
 
     out._isCycleSource = 'MockedDOM';
 
@@ -56,7 +98,12 @@ export class MockedDOMSource {
   public select(selector: string): MockedDOMSource {
     const mockConfigForSelector = this._mockConfig[selector] || {};
 
-    return new MockedDOMSource(mockConfigForSelector as MockConfig);
+    return new MockedDOMSource(
+      mockConfigForSelector as MockConfig,
+      this._hub,
+      this._path.concat(selector),
+      this._onEvents
+    );
   }
 
   public isolateSource(
@@ -69,6 +116,9 @@ export class MockedDOMSource {
   public isolateSink(sink: any, scope: string): any {
     return adapt(
       xs.fromObservable<any>(sink).map((vnode: VNode) => {
+        // B-025: a Switchable's DOM sink starts with undefined (nothing rendered yet); the
+        // real DOM driver's isolateSink passes it through too
+        if (!vnode) return vnode;
         if (vnode.sel && vnode.sel.indexOf(SCOPE_PREFIX + scope) !== -1) {
           return vnode;
         } else {
@@ -80,6 +130,10 @@ export class MockedDOMSource {
   }
 }
 
-export function mockDOMSource(mockConfig: MockConfig): MockedDOMSource {
-  return new MockedDOMSource(mockConfig);
+export function mockDOMSource(
+  mockConfig: MockConfig,
+  hub?: MockEventHub,
+  onEvents?: MockOnEvents
+): MockedDOMSource {
+  return new MockedDOMSource(mockConfig, hub, [], onEvents);
 }

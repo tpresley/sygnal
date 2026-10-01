@@ -1,6 +1,6 @@
 {
   "name": "sygnal",
-  "version": "5.3.7",
+  "version": "5.4.0",
   "description": "An intuitive framework for building fast and small components or applications based on Cycle.js",
   "main": "./dist/index.cjs.js",
   "types": "./dist/index.d.ts",
@@ -25,6 +25,11 @@
       "types": "./src/jsx-runtime.d.ts",
       "import": "./dist/jsx-dev-runtime.esm.js",
       "require": "./dist/jsx-dev-runtime.cjs.js"
+    },
+    "./diagnostics": {
+      "types": "./src/extra/diagnostics/checks/public.d.ts",
+      "import": "./dist/diagnostics.esm.js",
+      "require": "./dist/diagnostics.cjs.js"
     },
     "./vite": {
       "types": "./src/vite/plugin.d.ts",
@@ -80,18 +85,21 @@
   },
   "files": [
     "dist",
-    "src"
+    "src",
+    "llms.txt"
   ],
   "scripts": {
-    "test": "vitest run && npm run test:types && npm run test:browser",
+    "test": "vitest run && npm run test:examples && npm run test:types && npm run test:browser",
+    "test:examples": "node scripts/test-examples.mjs",
     "test:types": "npx tsc --project type-tests/tsconfig.json 2>&1 | grep '^type-tests/' && exit 1 || exit 0",
     "test:browser": "npm test --prefix browser-tests",
     "test:watch": "vitest",
-    "build": "npx rollup -c && cp src/index.d.ts dist/index.d.ts",
+    "build": "npx rollup -c && npx rollup -c rollup.config.dts.mjs",
     "build:types": "npx rollup -c rollup.config.dts.mjs",
-    "build:all": "npm run build && npm run build:types",
+    "build:all": "npm run build",
     "build:devtools": "node devtools/build.mjs",
-    "start": "npx rollup -c -w"
+    "start": "npx rollup -c -w",
+    "prepublishOnly": "npm run build:all"
   },
   "repository": {
     "type": "git",
@@ -123,6 +131,7 @@
     "@rollup/plugin-node-resolve": "^15.2.1",
     "@rollup/plugin-terser": "^0.4.3",
     "@rollup/plugin-typescript": "^11.1.6",
+    "jsdom": "^29.1.1",
     "rollup": "^3.28.1",
     "rollup-plugin-dts": "^6.1.1",
     "tslib": "^2.6.2",

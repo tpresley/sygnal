@@ -1,4 +1,4 @@
-import { createRef } from 'sygnal'
+import { ABORT, createRef } from 'sygnal'
 
 const boxRef = createRef()
 
@@ -38,7 +38,7 @@ RefDemo.intent = ({ DOM }) => ({
 RefDemo.model = {
   TOGGLE: (state) => ({ ...state, expanded: !state.expanded }),
   MEASURE: (state) => {
-    if (!boxRef.current) return state
+    if (!boxRef.current) return ABORT
     const rect = boxRef.current.getBoundingClientRect()
     return { ...state, width: Math.round(rect.width), height: Math.round(rect.height) }
   },

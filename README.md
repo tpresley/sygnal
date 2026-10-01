@@ -26,7 +26,7 @@ cd my-app
 npm run dev
 ```
 
-Choose from Vite (SPA), Vite + PWA, Vike (SSR), or Astro templates in JavaScript or TypeScript.
+Choose from Vite (SPA), Vite + PWA, Vike (SSR), or Astro templates in JavaScript or TypeScript. Without prompts (scripts, CI, coding agents): `npm create sygnal-app@latest my-app -- --template vite --js --install`.
 
 **Or add to an existing project:**
 
@@ -73,6 +73,20 @@ run(Counter)
 
 No store setup, no providers, no hooks — just a function and some properties.
 
+## Built for Agents
+
+Sygnal includes tooling so that coding agents (and people) can write and debug Sygnal code without guessing:
+
+- **[`llms.txt`](https://sygnal.js.org/llms.txt)**: one compact reference of the API in its canonical forms, written for language models.
+- **Diagnostics**: silent wiring mistakes (a selector that matches nothing, an action with no model entry, an EVENTS type nobody selects) are reported as coded messages, such as `[Sygnal SYG104]`, with a fix and a link to the [error reference](https://sygnal.js.org/reference/errors/). They're on automatically in the Vite dev server and in tests, and add nothing to production bundles.
+- **[`sygnal-check`](./sygnal-check)**: a static checker for the same mistakes, with a strict mode for the canonical forms, `--fix`, an app graph (`--graph`) and `explain <code>`.
+- **MCP server**: `sygnal-check mcp` exposes `check`, `graph` and `explain` as tools (`claude mcp add sygnal-check -- npx --no-install sygnal-check mcp`).
+- **`inspect()`**: a machine-readable graph of the running app, in the browser or from `renderComponent()` in a test.
+
+The repository also contains an evaluation harness ([`evals/agent-ergonomics`](./evals/agent-ergonomics)) that runs coding agents on the same tasks in a Sygnal app and an equivalent React app, scores each run with hidden acceptance tests, and records time and iteration counts. The baseline results, from before this tooling existed, are in [`results/BASELINE.md`](./evals/agent-ergonomics/results/BASELINE.md).
+
+See [Building with AI Agents](https://sygnal.js.org/integration/agents/).
+
 ## Features
 
 ### Collections
@@ -113,12 +127,12 @@ Structured message passing between components:
 ```jsx
 // Child emits
 TaskCard.model = {
-  DELETE: { PARENT: (state) => ({ type: 'DELETE', taskId: state.id }) }
+  DELETE: { PARENT: (state) => ({ taskId: state.id }) }
 }
 
-// Parent receives (use component reference — minification-safe)
+// Parent receives (pass the component itself)
 Lane.intent = ({ CHILD }) => ({
-  TASK_DELETED: CHILD.select(TaskCard).filter(e => e.type === 'DELETE'),
+  TASK_DELETED: CHILD.select(TaskCard).map(e => e.taskId),
 })
 ```
 
@@ -127,14 +141,16 @@ Lane.intent = ({ CHILD }) => ({
 Global broadcast for cross-component communication:
 
 ```jsx
+import { event } from 'sygnal'
+
 // Any component can emit
 Publisher.model = {
-  NOTIFY: { EVENTS: (state) => ({ type: 'notification', data: state.message }) }
+  NOTIFY: { EVENTS: event('NOTIFICATION', (state) => state.message) }
 }
 
 // Any component can subscribe
 Subscriber.intent = ({ EVENTS }) => ({
-  HANDLE: EVENTS.select('notification'),
+  HANDLE: EVENTS.select('NOTIFICATION'),
 })
 ```
 
@@ -258,8 +274,10 @@ Access DOM elements declaratively:
 
 ```jsx
 const inputRef = createRef()
-<input ref={inputRef} />
-// inputRef.current.focus()
+
+function Search({ state }) {
+  return <input ref={inputRef} />   // inputRef.current is the element once mounted
+}
 ```
 
 ### Commands
@@ -270,10 +288,14 @@ Send imperative commands from parent to child:
 import { createCommand } from 'sygnal'
 
 const playerCmd = createCommand()
-<VideoPlayer commands={playerCmd} />
 
-// Parent sends commands with optional data
-playerCmd.send('seek', { time: 30 })
+// Parent passes the command as a prop and sends commands with optional data
+function App({ state }) {
+  return <VideoPlayer commands={playerCmd} />
+}
+App.model = {
+  SEEK: { EFFECT: () => playerCmd.send('seek', { time: 30 }) },
+}
 
 // Child receives via commands$ source
 VideoPlayer.intent = ({ commands$ }) => ({
@@ -283,7 +305,7 @@ VideoPlayer.intent = ({ commands$ }) => ({
 
 ### Effect Handlers
 
-Run side effects without state changes — no more `ABORT` workarounds:
+Run side effects without state changes:
 
 ```jsx
 App.model = {
@@ -296,18 +318,6 @@ App.model = {
       else next('DO_B', data)
     },
   },
-}
-```
-
-### Model Shorthand
-
-Compact syntax for single-driver model entries:
-
-```jsx
-App.model = {
-  'SEND_CMD | EFFECT': () => playerCmd.send('play'),
-  'NOTIFY | EVENTS': (state) => ({ type: 'alert', data: state.message }),
-  'DELETE | PARENT': (state) => ({ type: 'DELETE', id: state.id }),
 }
 ```
 
@@ -346,15 +356,16 @@ App.intent = ({ DOM, SW }) => ({
 
 ### Testing
 
-Test components in isolation with `renderComponent`:
+Test components in isolation with `renderComponent`, driving them with DOM events:
 
 ```jsx
 import { renderComponent } from 'sygnal'
 
 const t = renderComponent(Counter, { initialState: { count: 0 } })
 
-t.simulateAction('INCREMENT')
-await t.waitForState(s => s.count === 1)
+t.simulateEvent('.increment', 'click')
+await t.next(s => s.count === 1)
+t.expectNoDiagnostics()
 
 t.dispose()
 ```
@@ -374,7 +385,7 @@ const html = renderToString(App, {
 
 ### Vite Plugin
 
-Auto-configures JSX and HMR with state preservation:
+Auto-configures JSX, HMR with state preservation, and dev-only diagnostics:
 
 ```javascript
 // vite.config.js
@@ -430,27 +441,31 @@ Pages are standard Sygnal components in `pages/*/+Page.jsx`. Supports layouts, d
 Full type definitions included:
 
 ```tsx
-import type { RootComponent } from 'sygnal'
+import type { RootComponent, IntentSources, ActionsOf } from 'sygnal'
 
 type State = { count: number }
-type Actions = { INCREMENT: null }
 
-const App: RootComponent<State, {}, Actions> = ({ state }) => (
-  <div>{state.count}</div>
+const intent = ({ DOM }: IntentSources<State>) => ({
+  INCREMENT: DOM.click('.inc'),
+})
+
+const App: RootComponent<State, {}, ActionsOf<typeof intent>> = ({ state }) => (
+  <button className="inc">{state.count}</button>
 )
+App.intent = intent
+App.model = { INCREMENT: (state) => ({ ...state, count: state.count + 1 }) }
 ```
+
+Typed actions from the intent, a typed EVENTS registry, typed `CHILD.select()` payloads and type-checked Collection `from`.
 
 ## Bundler Setup
 
-**Vite** (recommended):
+**Vite** (recommended): use the plugin above (`plugins: [sygnal()]`). Without it, configure the automatic JSX runtime yourself:
 
 ```javascript
-// vite.config.js
+// vite.config.js (Vite 8; under Vite 7 use esbuild: { jsx: 'automatic', jsxImportSource: 'sygnal' })
 export default defineConfig({
-  esbuild: {
-    jsx: 'automatic',
-    jsxImportSource: 'sygnal',
-  },
+  oxc: { jsx: { runtime: 'automatic', importSource: 'sygnal' } },
 })
 ```
 

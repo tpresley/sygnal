@@ -32,6 +32,12 @@ You'll be prompted to choose a template and language:
 
 Each template is available in **JavaScript** or **TypeScript**.
 
+To skip the prompts (in a script, CI, or when an agent runs it), pass every choice: the template, `--js` or `--ts`, and `--install` or `--no-install`:
+
+```bash
+npm create sygnal-app@latest my-app -- --template vite --js --install
+```
+
 After scaffolding, start the dev server:
 
 ```bash
@@ -166,8 +172,8 @@ RootComponent.intent = ({ DOM }) => ({
 
 // Model: WHAT should happen?
 RootComponent.model = {
-  INCREMENT: (state) => ({ count: state.count + 1 }),
-  DECREMENT: (state) => ({ count: state.count - 1 })
+  INCREMENT: (state) => ({ ...state, count: state.count + 1 }),
+  DECREMENT: (state) => ({ ...state, count: state.count - 1 })
 }
 
 export default RootComponent
@@ -206,7 +212,7 @@ Greeter.intent = ({ DOM }) => ({
 })
 
 Greeter.model = {
-  CHANGE_NAME: (state, name) => ({ name })
+  CHANGE_NAME: (state, name) => ({ ...state, name })
 }
 
 export default Greeter
@@ -247,7 +253,7 @@ RootComponent.intent = ({ DOM }) => ({
 })
 
 RootComponent.model = {
-  INCREMENT: (state) => ({ count: state.count + 1 })
+  INCREMENT: (state) => ({ ...state, count: state.count + 1 })
 }
 
 export default RootComponent
@@ -315,7 +321,7 @@ RootComponent.intent = ({ DOM }) => ({
 })
 
 RootComponent.model = {
-  INCREMENT: (state) => ({ count: state.count + 1 })
+  INCREMENT: (state) => ({ ...state, count: state.count + 1 })
 }
 
 run(RootComponent)
@@ -379,6 +385,41 @@ export default Page
 
 See the [Vike integration guide](/integration/vike/) for layouts, data fetching, SPA mode, and more.
 
+## Testing and Diagnostics
+
+In the Vite dev server, Sygnal checks your components as they run. A selector with a typo, an action with no model entry or an event nobody listens to prints a coded message in the browser console, with the fix and a link to the [Error Reference](/reference/errors/):
+
+```text
+[Sygnal SYG101] RootComponent: Intent action 'RESET' has no model entry, so it never does anything. Add 'RESET' to RootComponent.model, or remove it from RootComponent.intent. https://sygnal.js.org/reference/errors#syg101
+```
+
+Install the static checker to find the same problems across the whole project, in the dev server and from the command line:
+
+```bash
+npm install -D sygnal-check
+npx --no-install sygnal-check
+```
+
+Test components with `renderComponent()`, driving them with real DOM events:
+
+```jsx
+// src/RootComponent.test.jsx
+import { it, expect } from 'vitest'
+import { renderComponent } from 'sygnal'
+import RootComponent from './RootComponent.jsx'
+
+it('increments', async () => {
+  const t = renderComponent(RootComponent)
+  t.simulateEvent('.increment', 'click')
+  const state = await t.next(s => s.count === 1)
+  expect(state.count).toBe(1)
+  t.expectNoDiagnostics()
+  t.dispose()
+})
+```
+
+See [Diagnostics](/guide/diagnostics/) and [Testing](/integration/testing/).
+
 ## Key Concepts Summary
 
 | Concept | What It Does |
@@ -395,12 +436,14 @@ See the [Vike integration guide](/integration/vike/) for layouts, data fetching,
 | **Transition** (`<Transition>`) | CSS enter/leave animations. |
 | **Lazy** (`lazy()`) | Code-split components with automatic loading placeholders. |
 | **Suspense** (`<Suspense>`) | Show fallback UI while children signal not-ready. |
-| **Disposal** (`dispose$`) | Run cleanup logic when components unmount. |
+| **Disposal** (`DISPOSE`) | Run cleanup logic when components unmount. |
+| **Diagnostics** (`SYGnnn`) | Coded messages for silent wiring mistakes, in dev and in tests. |
 
 ## Next Steps
 
 - **[Detailed Guide](/guide/architecture/)** — Deep dive into state management, collections, switchable components, custom drivers, context, and more.
 - **[API Reference](/reference/api/)** — Complete reference for all Sygnal exports and configuration options.
+- **[Building with AI Agents](/integration/agents/)** — `llms.txt`, the `sygnal-check` tooling and MCP server for coding agents.
 - **[Examples](https://github.com/tpresley/sygnal/tree/main/examples)** — Working example applications.
 - **[Sygnal ToDoMVC](https://github.com/tpresley/sygnal-todomvc)** — Full TodoMVC implementation ([Live Demo](https://tpresley.github.io/sygnal-todomvc/)).
 - **[Sygnal 2048](https://github.com/tpresley/sygnal-2048)** — 2048 game built with Sygnal ([Live Demo](https://tpresley.github.io/sygnal-2048/)).

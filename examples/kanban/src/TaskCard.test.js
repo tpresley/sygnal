@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { renderComponent } from 'sygnal'
 import TaskCard from './TaskCard.jsx'
 
 const { model } = TaskCard
@@ -16,5 +17,14 @@ describe('TaskCard', () => {
       const result = model.DELETE.PARENT(state)
       expect(result.taskId).toBe('task-99')
     })
+  })
+
+  it('clicking the delete button sends DELETE to the parent (end to end)', async () => {
+    const t = renderComponent(TaskCard, { initialState: { id: 'task-7', title: 'Ship it', description: '' } })
+    t.simulateEvent('.delete-task-btn', 'click')
+    await t.settle()
+    expect(t.sinkValues('PARENT')).toEqual([{ type: 'DELETE', taskId: 'task-7' }])
+    expect(t.html()).toContain('<span class="task-title">Ship it</span>')
+    t.dispose()
   })
 })

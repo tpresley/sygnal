@@ -1,3 +1,4 @@
+import { ABORT } from 'sygnal'
 import { appendLog, appendTranscript, extractRequestedSpeakerIds } from '../panelLogic.js'
 
 function toMarkdown(state) {
@@ -192,9 +193,9 @@ TranscriptCard.intent = ({ DOM }) => ({
 })
 
 function submitFollowUp(state, _, next) {
-  if (state.phase !== 'completed' || !state.panel) return state
+  if (state.phase !== 'completed' || !state.panel) return ABORT
   const question = String(state.followUpInput || '').trim()
-  if (!question) return state
+  if (!question) return ABORT
 
   const nextRunId = (state.runCounter || 0) + 1
   const requestedSpeakerIds = extractRequestedSpeakerIds(question, state.panel)

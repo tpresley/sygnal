@@ -5,10 +5,15 @@
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
-    "preview": "astro preview"
+    "preview": "astro preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "astro": "^6.1.1",
     "sygnal": "file:../.."
+  },
+  "devDependencies": {
+    "vitest": "^4.1.2"
   }
 }

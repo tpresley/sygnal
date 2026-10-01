@@ -17,9 +17,10 @@ Sygnal's `run()` function automatically includes these drivers:
 |--------|--------|------|
 | `DOM` | `.select(css).events(event)` or shorthand `.click(css)` | Handled automatically by the view |
 | `STATE` | `.stream` — The state Observable | Reducer functions from model |
-| `EVENTS` | `.select(type)` — Custom event bus | Event objects `{ type, data }` |
+| `EVENTS` | `.select(type)` — Custom event bus | Events, built with `event('TYPE', payload)` |
 | `CHILD` | `.select(ComponentFn)` — Events from child components | — |
 | `PARENT` | — | Values sent to the parent component |
+| `EFFECT` | — | Side effects only; sends nothing (see [Effect Handlers](/advanced/effect/)) |
 | `READY` | — | Boolean signal for [Suspense](/advanced/suspense/) boundaries |
 | `LOG` | — | Any value — logged to the console |
 | `props$` | Stream of props passed from the parent | — |
@@ -57,21 +58,25 @@ MyComponent.model = {
 
 ## The Event Bus (EVENTS Driver)
 
-The EVENTS driver provides a lightweight pub/sub system for cross-component communication:
+The EVENTS driver provides a lightweight pub/sub system for communication between components that aren't parent and child:
 
 ```jsx
+import { event } from 'sygnal'
+
 // Publishing events (in model)
 Publisher.model = {
   NOTIFY: {
-    EVENTS: (state) => ({ type: 'notification', data: { message: 'Hello!' } })
-  }
+    EVENTS: event('NOTIFICATION', (state) => ({ message: state.message })),
+  },
 }
 
-// Subscribing to events (in intent)
+// Subscribing to events (in intent): the stream emits the event's data
 Subscriber.intent = ({ EVENTS }) => ({
-  HANDLE_NOTIFICATION: EVENTS.select('notification')
+  HANDLE_NOTIFICATION: EVENTS.select('NOTIFICATION'),
 })
 ```
+
+The bus is global (it isn't isolated per component) and a broadcast: every component that selects a type receives it, and an event nobody selects is dropped. A type that is emitted but never selected, or selected but never emitted, is reported as [SYG105](/reference/errors/#syg105), which usually means a typo. With TypeScript, the [`SygnalEvents` registry](/integration/typescript/#typed-events) checks names and payloads.
 
 ## The LOG Driver
 
@@ -148,15 +153,33 @@ run(RootComponent, { API: apiDriver })
 
 ```jsx
 // Intent — receive API responses
-MyComponent.intent = ({ API }) => ({
-  DATA_LOADED: API.select('users')  // Filter by the selector property
+MyComponent.intent = ({ DOM, API }) => ({
+  FETCH_USERS: DOM.click('.load-users'),
+  DATA_LOADED: API.select('users'),   // Filter by the selector property
+  LOAD_FAILED: API.errors('users'),   // Failed requests (see below)
 })
 
 // Model — send API requests
 MyComponent.model = {
   FETCH_USERS: {
-    API: (state) => ({ endpoint: 'users', url: '/api/users' })
+    STATE: (state) => ({ ...state, loading: true, error: null }),
+    API:   () => ({ endpoint: 'users', url: '/api/users' }),
   },
-  DATA_LOADED: (state, data) => ({ ...state, users: data.data })
+  DATA_LOADED: (state, response) => ({ ...state, loading: false, users: response.data }),
+  LOAD_FAILED: (state, failure) => ({ ...state, loading: false, error: String(failure.error) }),
 }
 ```
+
+A response is `{ [return]: value, [selector]: request[selector] }` (with the defaults, `{ value, category }`). A promise that resolves to `null` or `undefined` is delivered the same way.
+
+### Handling Errors with `errors()`
+
+When the function's promise rejects (or `post` throws or rejects), the failure is delivered on the source's `errors()` stream, never on `select()`:
+
+| Call | Receives |
+|---|---|
+| `API.errors()` | Every failure |
+| `API.errors('users')` | Failures of requests whose selector property is `'users'` |
+| `API.errors(fn)` | Failures for which `fn(failure)` returns true |
+
+Each failure is `{ error, request, [selector]: request[selector] }`: the rejection reason, the request that failed, and its selector value. Listen to `errors()` for every request that can fail, so a loading state can't hang. While nothing listens to `errors()`, failures are only logged with `console.error`.

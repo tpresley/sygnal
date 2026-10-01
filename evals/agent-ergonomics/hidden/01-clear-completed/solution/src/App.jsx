@@ -1,0 +1,52 @@
+function App({ state }) {
+  const remaining = state.tasks.filter((task) => !task.done).length
+
+  return (
+    <div className="app">
+      <h1>Tasks</h1>
+      <ul className="task-list">
+        {state.tasks.map((task) => (
+          <li className={task.done ? 'task done' : 'task'} key={task.id}>
+            <input
+              type="checkbox"
+              className="toggle"
+              checked={task.done}
+              data-id={String(task.id)}
+            />
+            <span className="title">{task.title}</span>
+          </li>
+        ))}
+      </ul>
+      <button className="clear-completed">Clear completed</button>
+      <p className="summary">{remaining} remaining</p>
+    </div>
+  )
+}
+
+App.initialState = {
+  tasks: [
+    { id: 1, title: 'Buy milk', done: true },
+    { id: 2, title: 'Walk the dog', done: false },
+    { id: 3, title: 'Write report', done: true },
+  ],
+}
+
+App.intent = ({ DOM }) => ({
+  TOGGLE: DOM.change('.toggle').data('id', Number),
+  CLEAR_COMPLETED: DOM.click('.clear-completed'),
+})
+
+App.model = {
+  TOGGLE: (state, id) => ({
+    ...state,
+    tasks: state.tasks.map((task) =>
+      task.id === id ? { ...task, done: !task.done } : task
+    ),
+  }),
+  CLEAR_COMPLETED: (state) => ({
+    ...state,
+    tasks: state.tasks.filter((task) => !task.done),
+  }),
+}
+
+export default App

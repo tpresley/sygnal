@@ -118,6 +118,7 @@ export async function renderingTests() {
     const { id, el } = mount()
     function App({ state }) {
       return <div>
+        {/* sygnal-ignore SYG111 (no change listener on purpose: this test checks that the value prop renders) */}
         <select className="sel" value={state.choice}>
           <option value="a">Alpha</option>
           <option value="b">Beta</option>
@@ -139,6 +140,7 @@ export async function renderingTests() {
     const { id, el } = mount()
     function App({ state }) {
       return <div>
+        {/* sygnal-ignore SYG111 (no change listener on purpose: this test checks that the value prop renders) */}
         <select className="sel" value={state.choice}>
           <option value="a">Alpha</option>
           <option value="b">Beta</option>

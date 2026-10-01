@@ -21,18 +21,19 @@ export { createElement } from './pragma/index'
 export { createCommand } from './extra/command'
 export { createRef, createRef$ } from './extra/ref'
 export { renderComponent } from './extra/testing'
-export { set, toggle, emit } from './extra/reducers'
+export { set, toggle, emit, event } from './extra/reducers'
 export { makeServiceWorkerDriver, onlineStatus$, createInstallPrompt } from './extra/pwa'
 export { renderToString } from './extra/ssr'
 export { default as xs } from './extra/xstreamCompat'
 export { getDevTools } from './extra/devtools'
+export { getDiagnostics, clearDiagnostics, onDiagnostic } from './extra/diagnostics/index'
 
 // export dom helper functions (h, makeDOMDriver, etc.)
 export * from './cycle/dom/index'
 
 // export xstream and most used extra operators
-export { default as debounce } from "xstream/extra/debounce.js"
-export { default as throttle } from 'xstream/extra/throttle.js'
-export { default as delay } from "xstream/extra/delay.js"
-export { default as dropRepeats } from "xstream/extra/dropRepeats.js"
-export { default as sampleCombine } from 'xstream/extra/sampleCombine.js'
+// ESM ports of xstream/extra/* (behaviour-identical). The CJS originals are not callable from
+// the rollup CJS build or native Node ESM (their default export is `{ default: fn }` there),
+// and ESM classes tree-shake when an app does not use them.
+export { concat, debounce, throttle, delay, dropRepeats, sampleCombine } from './extra/xstreamExtras'
+export { flattenConcurrently, flattenSequentially } from './extra/flatten'

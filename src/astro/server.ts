@@ -22,9 +22,11 @@ export function renderToStaticMarkup(
   _metadata?: any
 ): { html: string; attrs: Record<string, any> } {
   try {
+    // Props are spread top-level by renderToString (`{ state, ...props }`);
+    // `props` is also passed, as on the client, for `({ state, props })` views.
     const html = renderToString(Component, {
       state: props.initialState || Component.initialState,
-      props,
+      props: {...props, props},
     })
     return {html, attrs: {}}
   } catch (err: any) {

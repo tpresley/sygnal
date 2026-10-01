@@ -1,4 +1,6 @@
-import run from '../extra/run'
+// The public entry (external in the build), so islands share the app's
+// Sygnal core instead of a bundled copy (B-019).
+import { run } from 'sygnal'
 
 interface SygnalComponent {
   (args: any): any;
@@ -50,7 +52,13 @@ export default (element: any) => {
       previous.dispose()
     }
 
-    const Wrapped: any = (args: any) => Component({ ...args, props: { ...(props || {}) } })
+    // Island props reach the view like any component's props, spread
+    // top-level (`{ state, title }`), the same as on the server
+    // (renderToString). The view args (state, context, ...) win over a prop
+    // with the same name; `props` is kept for older `({ state, props })`
+    // views (B-026).
+    const islandProps = { ...(props || {}) }
+    const Wrapped: any = (args: any) => Component({ ...islandProps, ...args, props: islandProps })
     Wrapped.model = Component.model
     Wrapped.intent = Component.intent
     Wrapped.hmrActions = Component.hmrActions
@@ -65,6 +73,9 @@ export default (element: any) => {
     Wrapped.onError = Component.onError
     Wrapped.debug = Component.debug
     Wrapped.componentName = Component.componentName || Component.name
+    // run() names the root by `name` first: diagnostics and devtools should
+    // say 'Counter', not 'Wrapped'
+    try { Object.defineProperty(Wrapped, 'name', { value: Wrapped.componentName, configurable: true }) } catch (_) {}
 
     const app = run(Wrapped, {}, { mountPoint })
     element.__sygnal = app

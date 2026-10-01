@@ -29,3 +29,9 @@ npm run dev
 ```
 
 Then open the Vite URL and provide your Kindo API key, model name, and topic.
+
+## Test
+
+```bash
+npm test   # smoke test: renders the app with mock KINDO/STORAGE/CLIPBOARD drivers in strict mode, expectNoDiagnostics()
+```

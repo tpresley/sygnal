@@ -38,6 +38,11 @@ describe('renderComponent', () => {
     expect(t).toHaveProperty('waitForState')
     expect(t).toHaveProperty('states')
     expect(t).toHaveProperty('dispose')
+    for (const k of ['simulateEvent', 'ready', 'sinkValues', 'expectNoDiagnostics', 'html']) {
+      expect(typeof t[k]).toBe('function')
+    }
+    expect(Array.isArray(t.emitted)).toBe(true)
+    expect(Array.isArray(t.diagnostics)).toBe(true)
     expect(typeof t.simulateAction).toBe('function')
     expect(typeof t.waitForState).toBe('function')
     expect(typeof t.dispose).toBe('function')

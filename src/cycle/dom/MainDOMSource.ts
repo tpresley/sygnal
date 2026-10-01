@@ -11,6 +11,8 @@ import {ElementFinder} from './ElementFinder';
 import {makeIsolateSink, getScopeObj, Scope, IsolateSink} from './isolate';
 import {IsolateModule} from './IsolateModule';
 import {EventDelegator} from './EventDelegator';
+// [diagnostics hook] no-op when diagnostics are off
+import {onSelector} from '../../extra/diagnostics/index';
 
 export interface SpecialSelector {
   body: BodyDOMSource;
@@ -90,6 +92,8 @@ export class MainDOMSource {
     if (selector === 'body') {
       return new BodyDOMSource(this._name);
     }
+
+    if (selector !== ':root') onSelector(this, selector.trim());
 
     const namespace =
       selector === ':root'

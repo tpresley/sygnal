@@ -8,7 +8,8 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "jsx": "react-jsx",
-    "jsxImportSource": "sygnal"
+    "jsxImportSource": "sygnal",
+    "types": ["vite/client"]
   },
   "include": ["src"]
 }

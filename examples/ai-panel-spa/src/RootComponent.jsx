@@ -1,3 +1,4 @@
+import { ABORT } from 'sygnal'
 import {
   appendLog,
   appendTranscript,
@@ -188,7 +189,7 @@ RootComponent.model = {
 
     if (kind !== 'session-title') {
       if (state.activeRunId == null || runId !== state.activeRunId) {
-        return state
+        return ABORT
       }
     }
 
@@ -401,7 +402,7 @@ RootComponent.model = {
 
     if (kind === 'session-title') {
       const draft = state.pendingSaveSession
-      if (!draft) return state
+      if (!draft) return ABORT
 
       const title = parseSessionTitle(event, draft.topic)
       next('SAVE_SESSION_HISTORY', { ...draft, title }, 0)
@@ -413,7 +414,7 @@ RootComponent.model = {
       }
     }
 
-    return state
+    return ABORT
   },
 
   REQUEST_ERROR: (state, event, next) => {
@@ -423,7 +424,7 @@ RootComponent.model = {
     if (kind !== 'session-title') {
       const runId = event?.request?.runId
       if (state.activeRunId == null || runId !== state.activeRunId) {
-        return state
+        return ABORT
       }
     }
 
