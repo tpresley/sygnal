@@ -54,6 +54,29 @@ describe('1H-1: non-STATE sinks run synchronously when nothing is pending', () =
     })
   }
 
+  it('stays synchronous after an app is disposed with a STATE reducer still in flight', async () => {
+    function A({ state }) { return h('div', null, String(state.n)) }
+    A.initialState = { n: 0 }
+    A.model = { INC: s => ({ ...s, n: s.n + 1 }) }
+    const t1 = renderComponent(A)
+    await t1.ready()
+    t1.simulateAction('INC')
+    t1.dispose() // the reducer above is never applied
+    await settle(20)
+    const log = []
+    const src = manual()
+    function C() { return h('div', null, 'x') }
+    C.initialState = { n: 0 }
+    C.intent = () => ({ GO: src.$ })
+    C.model = { GO: { EFFECT: () => { log.push('effect') } } }
+    t = renderComponent(C)
+    await t.ready()
+    await settle(20)
+    src.l.next('evt')
+    log.push('after-next')
+    expect(log).toEqual(['effect', 'after-next'])
+  })
+
   it('a sink is deferred behind a same-tick STATE reducer and then sees its result (B-003)', async () => {
     const seen = []
     const src = manual()

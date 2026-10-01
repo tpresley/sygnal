@@ -971,10 +971,12 @@ class Component {
 
           let data = action.data
           if (isStateSink) {
-            pendingReducers++
+            // withState applies reducers in microtasks, so none is legitimately pending at the
+            // next macrotask: reset then, in case one was never applied (e.g. app disposed)
+            if (!pendingReducers++) setTimeout(() => { pendingReducers = 0 })
             let applied = false
             return (state: any) => {
-              if (!applied) { applied = true; pendingReducers-- }
+              if (!applied && pendingReducers) { applied = true; pendingReducers-- }
               // Reduce from the fresh argument, not currentState (B-013, 1H-3): below a
               // Collection, currentState lags behind instantiateCollection's debounce, so a
               // second same-tick action would start from the pre-update state. The parents'
