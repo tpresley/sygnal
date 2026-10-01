@@ -40,7 +40,7 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | 3C | Docs site & repo docs | ⚪ | | | | |
 | 4A | Eval re-run | ⚪ | | | | 5 trials (Q4) |
 | 4B | Release prep | ⚪ | | | | |
-| — | Baseline eval run (0A procedure) | 🟡 | — | coordinator | — | 70 runs against the tarball packed at `57499d1` (pre-0B; 0B has no observable behavior when off). Pilot sygnal-01-t1: PASS 3/3 |
+| — | Baseline eval run (0A procedure) | ✅ | — | coordinator | (results committed) | 70/70 pass. Sygnal 74.5 s mean vs React 39.1 s; on shared tasks ~2.2×. Pass rate saturated (open Q6). See `evals/agent-ergonomics/results/BASELINE.md` |
 
 ## Gate Results
 
@@ -59,6 +59,7 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | Q2 | Canonical forms: global event emit (`emit()` vs `{ EVENTS }`) | Phase 0 | 0C → 2A, 2D, 3 | ✅ Option A: `EVENTS: event('TYPE', fn)` inside the object form; new `event()` helper (D12) |
 | Q3 | `sygnal-check` packaging | Phase 0 | 1D | ✅ Separate `sygnal-check` package (`@babel/parser`) |
 | Q4 | Eval trial budget | Phase 0 | baseline run, 4A | ✅ 5 trials: (8 Sygnal + 6 React) × 5 = 70 runs per round, 140 total |
+| Q6 | Eval ceiling: 70/70 pass. Add a harder task tier? (A keep as is · B harder tier both arms, ~80 more runs total · C harder tier Sygnal only) | Baseline | 4A design | ⏳ |
 | Q5 | Fix framework bugs B-003/B-004/B-005 within PLAN-1, or defer to a follow-up? | Phase 0 | — | ✅ New workstream 1F, after 1E (D11) |
 
 ## Decision Log
