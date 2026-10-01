@@ -67,6 +67,20 @@ const rewriteModules = (data: any, modules: Record<string, any>): any => fn.mapO
   return inner
 })
 
+// Adds snabbdom hooks to data.hook; a hook already there runs first
+const chainHooks = (data: any, hooks: Record<string, (...args: any[]) => void>): any => {
+  const existing = data.hook || {}
+  const hook = { ...existing }
+  for (const name in hooks) {
+    hook[name] = (...args: any[]) => {
+      if (existing[name]) existing[name](...args)
+      hooks[name](...args)
+    }
+  }
+  data.hook = hook
+  return data
+}
+
 const applyFocusProps = (data: any): any => {
   if (!data.props) return data
   const { autoFocus, autoSelect, ...rest } = data.props
@@ -87,22 +101,14 @@ const applyFocusProps = (data: any): any => {
     }
   }
 
-  const existingInsert = data.hook?.insert
-  const existingPostpatch = data.hook?.postpatch
-  data.hook = {
-    ...data.hook,
-    insert: (vnode: any) => {
-      if (existingInsert) existingInsert(vnode)
-      if (autoFocus || autoSelect) doFocus(vnode.elm)
-    },
+  return chainHooks(data, {
+    insert: (vnode: any) => doFocus(vnode.elm),
     postpatch: (oldVnode: any, vnode: any) => {
-      if (existingPostpatch) existingPostpatch(oldVnode, vnode)
       const wasFocused = oldVnode.data?._autoFocus
       const isFocused = vnode.data?._autoFocus
       if (!wasFocused && isFocused) doFocus(vnode.elm)
     },
-  }
-  return data
+  })
 }
 
 const applyRefProps = (data: any, ref: any): any => {
@@ -116,25 +122,11 @@ const applyRefProps = (data: any, ref: any): any => {
     }
   }
 
-  const existingInsert = data.hook?.insert
-  const existingDestroy = data.hook?.destroy
-  const existingPostpatch = data.hook?.postpatch
-  data.hook = {
-    ...data.hook,
-    insert: (vnode: any) => {
-      if (existingInsert) existingInsert(vnode)
-      setRef(vnode.elm)
-    },
-    postpatch: (_oldVnode: any, vnode: any) => {
-      if (existingPostpatch) existingPostpatch(_oldVnode, vnode)
-      setRef(vnode.elm)
-    },
-    destroy: (vnode: any) => {
-      if (existingDestroy) existingDestroy(vnode)
-      setRef(null)
-    },
-  }
-  return data
+  return chainHooks(data, {
+    insert: (vnode: any) => setRef(vnode.elm),
+    postpatch: (_oldVnode: any, vnode: any) => setRef(vnode.elm),
+    destroy: () => setRef(null),
+  })
 }
 
 // B-014: snabbdom's classModule wants a { name: boolean } map. A string ("a b") or an
@@ -142,8 +134,7 @@ const applyRefProps = (data: any, ref: any): any => {
 const toClassMap = (klass: any): any => {
   if (typeof klass !== 'string' && !Array.isArray(klass)) return klass
   const map: Record<string, boolean> = {}
-  const names = Array.isArray(klass) ? klass.filter(Boolean).join(' ') : klass
-  names.split(/\s+/).forEach((name: string) => { if (name) map[name] = true })
+  for (const name of (Array.isArray(klass) ? klass.filter(Boolean).join(' ') : klass).split(/\s+/)) if (name) map[name] = true
   return map
 }
 
@@ -195,19 +186,11 @@ export const createElementWithModules = (modules: Record<string, any>) => {
         const name = (sel as any).componentName || (sel as any).label || sel.name || 'FUNCTION_COMPONENT'
         const view = sel
         const { model, intent, hmrActions, context, peers, components, initialState, isolatedState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, onError, debug, preventInstantiation } = sel as any
-        if (preventInstantiation) {
-          // children always stay an array here: Portal/Suspense/... read vnode.children
-          return considerSvg({
-            sel: name,
-            data: data ? sanitizeData(data, modules) : {},
-            children: sanitizeChildren(children),
-            text: undefined,
-            elm: undefined,
-            key: data ? data.key : undefined
-          })
+        // preventInstantiation (Portal/Suspense/...): a marker vnode without sygnalOptions; its
+        // children stay an array (they read vnode.children), as for every component below
+        if (!preventInstantiation) {
+          data.sygnalOptions = { name, view, model, intent, hmrActions, context, peers, components, initialState, isolatedState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, onError, debug }
         }
-        const options = { name, view, model, intent, hmrActions, context, peers, components, initialState, isolatedState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, onError, debug }
-        data.sygnalOptions = options
         sel = name
       } else {
         const factory = sel

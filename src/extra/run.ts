@@ -3,9 +3,9 @@ import {withState} from '../cycle/state/index';
 import {makeDOMDriver} from '../cycle/dom/index';
 import eventBusDriver from './eventDriver';
 import logDriver from './logDriver';
-import component, {ABORT} from '../component';
+import component, {ABORT, optionsOf} from '../component';
 import {getDevTools} from './devtools';
-import {configureDiagnostics, getDiagnosticsMode} from './diagnostics/index';
+import {configureDiagnostics, isDiagnosticsEnabled} from './diagnostics/index';
 import {warn} from './diagnostics/legacy';
 import type {DiagnosticsMode, DiagnosticsOptions} from './diagnostics/index';
 
@@ -53,52 +53,19 @@ export default function run(
   // the flag the dev entry's strict checks read; strict without a mode turns diagnostics on.
   if (strict !== undefined) {
     const core = (globalThis as any).__SYGNAL_DIAGNOSTICS__;
-    core.strict = strict;
-    if (strict && !mode && getDiagnosticsMode() == 'off') configureDiagnostics({mode: 'warn'});
-    if (strict && !core.__uninstallChecks && !warnedStrict) {
-      warnedStrict = true;
-      warn('SYG608', 'run', "strict needs 'sygnal/diagnostics', which is not loaded", "Import it in dev");
+    if ((core.strict = strict)) {
+      if (!mode && !isDiagnosticsEnabled()) configureDiagnostics({mode: 'warn'});
+      // SYG608 (once): the long explanation is in the docs / sygnal-check explain
+      if (!core.__uninstallChecks && !warnedStrict) {
+        warnedStrict = true;
+        warn('SYG608', 'run', "strict needs 'sygnal/diagnostics'");
+      }
     }
   }
 
   const {mountPoint = '#root', fragments = true, useDefaultDrivers = true} = options;
   if (!app.isSygnalComponent) {
-    const name = app.name || app.componentName || app.label || 'FUNCTIONAL_COMPONENT';
-    const view = app;
-    const {
-      model,
-      intent,
-      hmrActions,
-      context,
-      peers,
-      components,
-      initialState,
-      calculated,
-      storeCalculatedInState,
-      DOMSourceName,
-      stateSourceName,
-      onError,
-      debug,
-    } = app;
-    const componentOptions = {
-      name,
-      view,
-      model,
-      intent,
-      hmrActions,
-      context,
-      peers,
-      components,
-      initialState,
-      calculated,
-      storeCalculatedInState,
-      DOMSourceName,
-      stateSourceName,
-      onError,
-      debug,
-    };
-
-    app = component(componentOptions);
+    app = component(optionsOf(app, app.name || app.componentName || app.label || 'FUNCTIONAL_COMPONENT'));
   }
 
   if (
@@ -220,41 +187,23 @@ export default function run(
   };
 
   const hmr = (newComponent: any, explicitState?: any) => {
-    const normalizedModule = resolveHotModule(newComponent);
-    const moduleToUse = normalizedModule || {default: app};
+    const moduleToUse = resolveHotModule(newComponent) || {default: app};
+    // Swap with a captured state (recorded for the HMR tooling)
+    const swapWith = (state: any) => {
+      if (typeof window !== 'undefined') window.__SYGNAL_HMR_LAST_CAPTURED_STATE = state;
+      swapToComponent(moduleToUse, state);
+    };
 
-    if (typeof explicitState !== 'undefined') {
-      if (typeof window !== 'undefined')
-        window.__SYGNAL_HMR_LAST_CAPTURED_STATE = explicitState;
-      swapToComponent(moduleToUse, explicitState);
-      return;
-    }
+    // State to keep, in order: explicit, last persisted, the state stream's current value
+    let state = explicitState;
+    if (typeof state === 'undefined' && typeof window !== 'undefined') state = window.__SYGNAL_HMR_PERSISTED_STATE;
+    if (typeof state === 'undefined') state = exposed?.sources?.STATE?.stream?._v;
+    if (typeof state !== 'undefined') return swapWith(state);
 
-    const persistedState =
-      typeof window !== 'undefined' ? window.__SYGNAL_HMR_PERSISTED_STATE : undefined;
-    if (typeof persistedState !== 'undefined') {
-      if (typeof window !== 'undefined')
-        window.__SYGNAL_HMR_LAST_CAPTURED_STATE = persistedState;
-      swapToComponent(moduleToUse, persistedState);
-      return;
-    }
-
-    const sourceState = exposed?.sources?.STATE?.stream?._v;
-    if (typeof sourceState !== 'undefined') {
-      if (typeof window !== 'undefined')
-        window.__SYGNAL_HMR_LAST_CAPTURED_STATE = sourceState;
-      swapToComponent(moduleToUse, sourceState);
-      return;
-    }
-
-    if (
-      exposed?.sinks?.STATE &&
-      typeof exposed.sinks.STATE.shamefullySendNext === 'function'
-    ) {
-      exposed.sinks.STATE.shamefullySendNext((state: any) => {
-        if (typeof window !== 'undefined')
-          window.__SYGNAL_HMR_LAST_CAPTURED_STATE = state;
-        swapToComponent(moduleToUse, state);
+    const stateSink = exposed?.sinks?.STATE;
+    if (stateSink && typeof stateSink.shamefullySendNext === 'function') {
+      stateSink.shamefullySendNext((current: any) => {
+        swapWith(current);
         return ABORT;
       });
       return;

@@ -18,7 +18,7 @@
 import type {VNode} from 'snabbdom/build/vnode.js';
 
 function clearProp(elm: any, key: string): void {
-  if (key === 'className' || ((key === 'value' || key === 'checked') && /^(INPUT|TEXTAREA|SELECT)$/.test(elm.tagName))) return;
+  if (key === 'className' || (/^(value|checked)$/.test(key) && /^(INPUT|TEXTAREA|SELECT)$/.test(elm.tagName))) return;
   const cur = elm[key];
   const t = typeof cur;
   try {
@@ -29,7 +29,8 @@ function clearProp(elm: any, key: string): void {
     // e.g. contentEditable rejects '': removing the attribute below resets it
   }
   const attr = key === 'htmlFor' ? 'for' : key.replace(/^aria(?=[A-Z])/, 'aria-').toLowerCase();
-  if (elm.hasAttribute && elm.hasAttribute(attr)) elm.removeAttribute(attr);
+  // (a no-op when the attribute is absent)
+  elm.removeAttribute?.(attr);
 }
 
 function syncRemoved(oldVnode: VNode, vnode: VNode): void {

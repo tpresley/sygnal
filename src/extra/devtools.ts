@@ -310,6 +310,14 @@ class SygnalDevTools {
     if (typeof window === 'undefined') return;
 
     const newState = this._safeClone(state);
+    const apply = (sink: any) => {
+      sink.shamefullySendNext(() => ({...newState}));
+      this._post('TIME_TRAVEL_APPLIED', {
+        componentId,
+        componentName,
+        state: newState,
+      });
+    };
 
     // Try per-component time-travel via the component's STATE sink (reducer stream)
     const meta = this._components.get(componentId);
@@ -321,15 +329,7 @@ class SygnalDevTools {
         // sinks[stateSourceName] is the reducer stream — push a reducer that replaces state
         const stateSinkName = instance.stateSourceName || 'STATE';
         const stateSink = instance.sinks?.[stateSinkName];
-        if (stateSink?.shamefullySendNext) {
-          stateSink.shamefullySendNext(() => ({...newState}));
-          this._post('TIME_TRAVEL_APPLIED', {
-            componentId,
-            componentName,
-            state: newState,
-          });
-          return;
-        }
+        if (stateSink?.shamefullySendNext) return apply(stateSink);
         console.warn(`[Sygnal DevTools] _timeTravel: component #${componentId} (${componentName}) has no STATE sink with shamefullySendNext. sinkName=${stateSinkName}, hasSinks=${!!instance.sinks}, sinkKeys=${instance.sinks ? Object.keys(instance.sinks).join(',') : 'none'}`);
       }
     } else {
@@ -339,12 +339,7 @@ class SygnalDevTools {
     // Fall back to root STATE sink for root-level components
     const app = window.__SYGNAL_DEVTOOLS_APP__;
     if (app?.sinks?.STATE?.shamefullySendNext) {
-      app.sinks.STATE.shamefullySendNext(() => ({...newState}));
-      this._post('TIME_TRAVEL_APPLIED', {
-        componentId,
-        componentName,
-        state: newState,
-      });
+      apply(app.sinks.STATE);
     } else {
       console.warn(`[Sygnal DevTools] _timeTravel: no fallback root STATE sink available`);
     }
