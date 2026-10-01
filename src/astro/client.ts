@@ -73,6 +73,9 @@ export default (element: any) => {
     Wrapped.onError = Component.onError
     Wrapped.debug = Component.debug
     Wrapped.componentName = Component.componentName || Component.name
+    // run() names the root by `name` first: diagnostics and devtools should
+    // say 'Counter', not 'Wrapped'
+    try { Object.defineProperty(Wrapped, 'name', { value: Wrapped.componentName, configurable: true }) } catch (_) {}
 
     const app = run(Wrapped, {}, { mountPoint })
     element.__sygnal = app

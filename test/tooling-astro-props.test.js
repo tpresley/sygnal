@@ -35,6 +35,9 @@ describe('astro island props (B-026)', () => {
     expect(runs).toHaveLength(1)
     const Wrapped = runs[0].component
     expect(Wrapped.model).toBe(Canonical.model)
+    // named after the island component (run() and diagnostics use `name`)
+    expect(Wrapped.name).toBe('C')
+    expect(Wrapped.componentName).toBe('C')
     const vnode = Wrapped({ state: { count: 1 }, context: {}, children: [] })
     expect(vnode.text).toBe('T: 1')
     expect(Canonical.calls[0]).toMatchObject({ title: 'T', step: 2, state: { count: 1 }, props: { title: 'T', step: 2 } })
