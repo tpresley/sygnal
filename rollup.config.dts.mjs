@@ -19,7 +19,7 @@ import dts from 'rollup-plugin-dts';
 function tsDeclarationsForTsSources() {
   let declarations = null;
 
-  function emitAll() {
+  function emitAll(ctx) {
     const configPath = path.resolve('tsconfig.json');
     const { config } = ts.readConfigFile(configPath, ts.sys.readFile);
     const parsed = ts.parseJsonConfigFileContent(config, ts.sys, path.dirname(configPath));
@@ -34,20 +34,42 @@ function tsDeclarationsForTsSources() {
     const rootNames = parsed.fileNames.filter((f) => /\.ts$/.test(f));
     const program = ts.createProgram(rootNames, options);
     const map = new Map();
-    program.emit(undefined, (_fileName, text, _bom, _onError, sourceFiles) => {
+    const { diagnostics } = program.emit(undefined, (_fileName, text, _bom, _onError, sourceFiles) => {
       if (sourceFiles && sourceFiles.length === 1) {
         map.set(path.resolve(sourceFiles[0].fileName), text);
       }
     }, undefined, true);
+    // Declaration-emit diagnostics (e.g. TS4xxx / TS9xxx) do not stop the
+    // build, but must not be silent.
+    for (const d of diagnostics) {
+      const message = ts.flattenDiagnosticMessageText(d.messageText, '\n');
+      let where = '';
+      if (d.file && d.start !== undefined) {
+        const { line, character } = d.file.getLineAndCharacterOfPosition(d.start);
+        where = `${path.relative(process.cwd(), d.file.fileName)}:${line + 1}:${character + 1} `;
+      }
+      ctx.warn(`declaration emit: ${where}TS${d.code}: ${message}`);
+    }
     return map;
   }
 
   return {
     name: 'ts-declarations-for-ts-sources',
+    // Reset per build so watch mode re-emits from current sources.
+    buildStart() {
+      declarations = null;
+    },
     load(id) {
       if (!/\.ts$/.test(id) || /\.d\.ts$/.test(id)) return null;
-      if (!declarations) declarations = emitAll();
-      return declarations.get(path.resolve(id)) ?? null;
+      if (!declarations) declarations = emitAll(this);
+      const text = declarations.get(path.resolve(id));
+      if (text === undefined) {
+        this.error(
+          `No emitted declarations for ${path.relative(process.cwd(), id)}: the file is not part of ` +
+          `the tsconfig.json program (check "include"/"exclude"). Refusing to treat its raw source as a declaration file.`
+        );
+      }
+      return text;
     },
   };
 }
