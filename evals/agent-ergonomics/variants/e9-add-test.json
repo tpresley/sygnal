@@ -1,0 +1,6 @@
+{
+  "description": "E9: both arms are told to add a test for their change (testing-norm parity)",
+  "sygnal": "branch",
+  "skill": { "dir": "skills/sygnal-dev" },
+  "prompt": { "suffix": "Add a test for your change.", "arms": ["sygnal", "react"] }
+}

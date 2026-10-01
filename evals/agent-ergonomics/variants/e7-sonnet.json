@@ -1,0 +1,6 @@
+{
+  "description": "E7: branch build and skill on a smaller model",
+  "model": "claude-sonnet-5-5",
+  "sygnal": "branch",
+  "skill": { "dir": "skills/sygnal-dev" }
+}

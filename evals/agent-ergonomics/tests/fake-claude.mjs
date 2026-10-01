@@ -13,6 +13,15 @@
 //   FAKE_CLAUDE_MODELS=opus=claude-opus-4-6   how the fake resolves --model aliases (default: none)
 // A call with an empty --tools value is treated as the orchestrator's preflight.
 //   FAKE_CLAUDE_MODE=hang       sleep until killed (timeout handling)
+//   FAKE_CLAUDE_MODE=ratelimit  a subscription usage limit: 429 api_retry events, then an is_error result
+//                               "Claude AI usage limit reached|<epoch>" (FAKE_CLAUDE_RESET=<epoch s>, default now+1h), exit 1
+//   FAKE_CLAUDE_MODE=overloaded 529 api_retry events and no result, exit 1
+//   FAKE_CLAUDE_LIMIT_CALLS=N   with FAKE_CLAUDE_STATE=<file>: the first N trial calls (not the preflight)
+//                               behave like ratelimit, later ones run normally
+//   FAKE_CLAUDE_ARGV_LOG=<file> append each call's cwd and argv (JSON) to <file>
+// The init event lists skills like the real CLI: ~/.claude/skills/* (from $HOME) unless
+// --setting-sources leaves out "user", plus <dir>/.claude/skills/* of every --add-dir;
+// and mcp_servers from --mcp-config.
 // Without FAKE_CLAUDE_SOLUTION it changes nothing, so the hidden tests fail.
 import fs from 'node:fs'
 import path from 'node:path'
@@ -24,15 +33,35 @@ if (argv[0] === '--version') {
   process.exit(0)
 }
 const opt = (k) => (argv.includes(k) ? argv[argv.indexOf(k) + 1] : undefined)
+const opts = (k) => argv.flatMap((a, i) => (a === k && i + 1 < argv.length ? [argv[i + 1]] : []))
+if (process.env.FAKE_CLAUDE_ARGV_LOG) fs.appendFileSync(process.env.FAKE_CLAUDE_ARGV_LOG, JSON.stringify({ cwd: process.cwd(), argv }) + '\n')
+const listSkills = (root) => (fs.existsSync(root) ? fs.readdirSync(root).filter((n) => fs.existsSync(path.join(root, n, 'SKILL.md'))) : [])
+const sources = opt('--setting-sources')
+const skills = [
+  ...(sources == null || sources.split(',').includes('user') ? listSkills(path.join(process.env.HOME ?? '/nonexistent', '.claude', 'skills')) : []),
+  ...opts('--add-dir').flatMap((d) => listSkills(path.join(d, '.claude', 'skills'))),
+]
+const mcpServers = opts('--mcp-config').flatMap((f) => {
+  try {
+    return Object.keys(JSON.parse(fs.readFileSync(f, 'utf8')).mcpServers ?? {}).map((name) => ({ name, status: 'connected' }))
+  } catch {
+    return [{ name: f, status: 'failed' }]
+  }
+})
 const aliasMap = Object.fromEntries((process.env.FAKE_CLAUDE_MODELS ?? '').split(',').filter(Boolean).map((p) => p.split('=')))
 const requested = opt('--model') ?? 'claude-fake-1'
 const model = aliasMap[requested] ?? requested
 const isPreflight = argv.includes('--tools') && opt('--tools') === ''
 const session = 'fake-session'
 const emit = (o) => process.stdout.write(JSON.stringify({ session_id: session, ...o }) + '\n')
-const mode = process.env.FAKE_CLAUDE_MODE
+let mode = process.env.FAKE_CLAUDE_MODE
+if (process.env.FAKE_CLAUDE_LIMIT_CALLS && process.env.FAKE_CLAUDE_STATE && !isPreflight) {
+  const n = fs.existsSync(process.env.FAKE_CLAUDE_STATE) ? Number(fs.readFileSync(process.env.FAKE_CLAUDE_STATE, 'utf8')) || 0 : 0
+  fs.writeFileSync(process.env.FAKE_CLAUDE_STATE, String(n + 1))
+  if (n < Number(process.env.FAKE_CLAUDE_LIMIT_CALLS)) mode = 'ratelimit'
+}
 
-emit({ type: 'system', subtype: 'init', cwd: process.cwd(), tools: (opt('--tools') ?? '').split(','), mcp_servers: [], model, permissionMode: opt('--permission-mode'), claude_code_version: 'fake' })
+emit({ type: 'system', subtype: 'init', cwd: process.cwd(), tools: (opt('--tools') ?? '').split(','), mcp_servers: mcpServers, skills, model, permissionMode: opt('--permission-mode'), claude_code_version: 'fake' })
 
 if (mode === 'auth401') {
   for (let i = 1; i <= 3; i++) emit({ type: 'system', subtype: 'api_retry', attempt: i, error_status: 401, error: 'authentication_failed' })
@@ -43,6 +72,18 @@ if (mode === 'authresult') {
   const text = 'Failed to authenticate. API Error: 401 {"type":"error","error":{"type":"authentication_error","message":"OAuth access token is invalid."}}'
   emit({ type: 'assistant', message: { id: 'synthetic-1', model: '<synthetic>', role: 'assistant', content: [{ type: 'text', text }], usage: { input_tokens: 0, output_tokens: 0 } } })
   emit({ type: 'result', subtype: 'success', is_error: true, duration_ms: 1500, duration_api_ms: 0, num_turns: 1, result: text, total_cost_usd: 0, usage: { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } })
+  process.exit(1)
+}
+if (mode === 'ratelimit') {
+  for (let i = 1; i <= 2; i++) emit({ type: 'system', subtype: 'api_retry', attempt: i, error_status: 429, error: 'rate_limit' })
+  const reset = Number(process.env.FAKE_CLAUDE_RESET ?? Math.floor(Date.now() / 1000) + 3600)
+  const text = `Claude AI usage limit reached|${reset}`
+  emit({ type: 'assistant', message: { id: 'synthetic-1', model: '<synthetic>', role: 'assistant', content: [{ type: 'text', text }], usage: { input_tokens: 0, output_tokens: 0 } } })
+  emit({ type: 'result', subtype: 'success', is_error: true, duration_ms: 900, duration_api_ms: 0, num_turns: 1, result: text, total_cost_usd: 0, usage: { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } })
+  process.exit(1)
+}
+if (mode === 'overloaded') {
+  for (let i = 1; i <= 3; i++) emit({ type: 'system', subtype: 'api_retry', attempt: i, error_status: 529, error: 'overloaded_error' })
   process.exit(1)
 }
 if (isPreflight) {

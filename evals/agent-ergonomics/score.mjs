@@ -16,6 +16,7 @@
 //        [--cost-usd N]        cost of the run (headless: result.total_cost_usd)
 //        [--model M]           model id the trial ran on
 //        [--method M]          how the trial was run: headless | subagent
+//        [--variant V] [--variant-hash H]   the run variant (orchestrate.mjs --variant) and its spec hash
 //        [--category C]        failure category (wiring | isolation | reducer-shape |
 //                              stream-operator | other | none); defaults to "none" on pass
 //        [--notes "..."]
@@ -32,7 +33,7 @@ import {
 
 const args = parseArgs(process.argv.slice(2))
 const usage = () => {
-  console.error('usage: score.mjs --dir <trial> --task <id> --arm sygnal|react --trial <n> --run <name> [--iterations N] [--edit-rounds N] [--wall-seconds N] [--duration-ms N] [--tokens N] [--output-tokens N] [--cost-usd N] [--model M] [--method M] [--category C] [--notes "..."]')
+  console.error('usage: score.mjs --dir <trial> --task <id> --arm sygnal|react --trial <n> --run <name> [--iterations N] [--edit-rounds N] [--wall-seconds N] [--duration-ms N] [--tokens N] [--output-tokens N] [--cost-usd N] [--model M] [--method M] [--variant V --variant-hash H] [--category C] [--notes "..."]')
   console.error('       score.mjs --classify --run <name> --task <id> --arm <arm> --trial <n> --category C')
   process.exit(2)
 }
@@ -148,6 +149,7 @@ const record = {
   costUsd: num(args['cost-usd']),
   model: typeof args.model === 'string' ? args.model : null,
   method: typeof args.method === 'string' ? args.method : null,
+  ...(typeof args.variant === 'string' ? { variant: args.variant, variantHash: typeof args['variant-hash'] === 'string' ? args['variant-hash'] : null } : {}),
   failureCategory,
   failures: r.failures,
   notes: typeof args.notes === 'string' ? args.notes : undefined,

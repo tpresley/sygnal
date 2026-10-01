@@ -5,13 +5,14 @@
 // run from inside the prepared trial dir. stream-json lines carry no
 // timestamps, so the runner stamps each line as it arrives; the stamped file is
 // `<dest>.transcript.jsonl` and parses like a PLAN-1 subagent transcript.
+import { rateLimitInfo } from './limits.mjs'
 
 /**
  * Trial posture. PLAN-1 trials were general-purpose subagents: every built-in
  * tool, no permission prompts. The headless equivalent is these tools, all
  * pre-approved, edits auto-accepted. MCP servers are not loaded
  * (--strict-mcp-config with no config), so a trial can't reach the
- * coordinator's integrations.
+ * coordinator's integrations; a run variant may add its own (mcpConfig).
  */
 export const DEFAULT_TOOLS = ['Bash', 'Read', 'Edit', 'Write', 'Glob', 'Grep', 'Skill', 'TodoWrite', 'WebFetch', 'WebSearch']
 export const DEFAULT_PERMISSION_MODE = 'acceptEdits'
@@ -47,13 +48,29 @@ export function checkModel(requested, actual) {
 /** A run's auth failure, as the CLI reports it in api_retry events or the result text. */
 export const AUTH_FAIL_RE = /authentication_failed|authentication_error|Failed to authenticate|OAuth access token is invalid|Invalid API key|\b401\b/i
 
+/**
+ * Variant isolation flags (PLAN-2 3-H, lib/variant.mjs), shared by trials and the preflight:
+ * - settingSources: e.g. 'project,local' leaves out the user's settings and with
+ *   them ~/.claude/skills, so the only skills are the built-in ones plus addDirs';
+ * - addDirs: dirs whose .claude/skills/<name>/SKILL.md the CLI loads (a variant's skill);
+ * - mcpConfig: an MCP config file (still with --strict-mcp-config, so nothing else loads);
+ * - extraAllowedTools: pre-approved tool rules beyond the built-in set (mcp__<server>).
+ */
+function isolationArgs({ settingSources, addDirs = [], mcpConfig } = {}) {
+  const a = ['--strict-mcp-config']
+  if (mcpConfig) a.push('--mcp-config', mcpConfig)
+  if (settingSources != null) a.push('--setting-sources', settingSources)
+  for (const d of addDirs) a.push('--add-dir', d)
+  return a
+}
+
 /** argv for `claude` (without the binary). */
-export function buildClaudeArgs({ prompt, model, permissionMode = DEFAULT_PERMISSION_MODE, tools = DEFAULT_TOOLS, effort, maxBudgetUsd } = {}) {
+export function buildClaudeArgs({ prompt, model, permissionMode = DEFAULT_PERMISSION_MODE, tools = DEFAULT_TOOLS, effort, maxBudgetUsd, settingSources, addDirs, mcpConfig, extraAllowedTools = [] } = {}) {
   if (!prompt) throw new Error('buildClaudeArgs: prompt is required')
   const toolList = Array.isArray(tools) ? tools : String(tools).split(/[,\s]+/).filter(Boolean)
   const args = ['-p', prompt, '--output-format', 'stream-json', '--verbose', '--permission-mode', permissionMode]
-  args.push('--tools', toolList.join(','), '--allowedTools', toolList.join(','))
-  args.push('--strict-mcp-config', '--no-session-persistence')
+  args.push('--tools', toolList.join(','), '--allowedTools', [...toolList, ...extraAllowedTools].join(','))
+  args.push(...isolationArgs({ settingSources, addDirs, mcpConfig }), '--no-session-persistence')
   if (model) args.push('--model', model)
   if (effort) args.push('--effort', effort)
   if (maxBudgetUsd != null) args.push('--max-budget-usd', String(maxBudgetUsd))
@@ -61,8 +78,8 @@ export function buildClaudeArgs({ prompt, model, permissionMode = DEFAULT_PERMIS
 }
 
 /** argv for the preflight: one tiny no-tool call on the trial model, same output format. */
-export function buildPreflightArgs({ model, effort } = {}) {
-  const args = ['-p', 'Reply with the single word: ok', '--output-format', 'stream-json', '--verbose', '--tools', '', '--strict-mcp-config', '--no-session-persistence']
+export function buildPreflightArgs({ model, effort, settingSources, addDirs } = {}) {
+  const args = ['-p', 'Reply with the single word: ok', '--output-format', 'stream-json', '--verbose', '--tools', '', ...isolationArgs({ settingSources, addDirs }), '--no-session-persistence']
   if (model) args.push('--model', model)
   if (effort) args.push('--effort', effort)
   return args
@@ -124,9 +141,11 @@ export function summarizeRun(events) {
   // Did the agent actually run? A result with is_error, no API time, or no real
   // model turn means the CLI never got the model working (auth, quota, crash):
   // the trial is 'not run' and must not be scored.
+  const limit = rateLimitInfo(events)
   let notRunReason = null
-  if (!result) notRunReason = authErrors.length ? 'auth' : 'no result'
+  if (!result) notRunReason = authErrors.length ? 'auth' : limit.limited ? `rate limit: ${limit.message}` : 'no result'
   else if (authInResult || (result.is_error && authErrors.length)) notRunReason = 'auth'
+  else if (limit.limited) notRunReason = `rate limit: ${limit.message}`
   else if (result.is_error) notRunReason = `error: ${resultText.slice(0, 200) || result.subtype}`
   else if (apiMs === 0) notRunReason = 'no API time (duration_api_ms 0)'
   else if (!turns.length) notRunReason = 'no assistant turns'
@@ -152,6 +171,12 @@ export function summarizeRun(events) {
     finalText: typeof result?.result === 'string' ? result.result : null,
     apiRetries: retries.length,
     authFailed: notRunReason === 'auth',
+    // A usage / rate limit or overload kept the agent from running (lib/limits.mjs): retry later.
+    rateLimited: !!notRunReason?.startsWith('rate limit'),
+    resetAt: notRunReason?.startsWith('rate limit') ? limit.resetAt : null,
+    // What the CLI loaded (init event): skills and MCP servers, to check a variant's posture.
+    skills: Array.isArray(init?.skills) ? init.skills : null,
+    mcpServers: Array.isArray(init?.mcp_servers) ? init.mcp_servers.map((m) => ({ name: m.name, status: m.status })) : null,
   }
 }
 

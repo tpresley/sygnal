@@ -1,0 +1,15 @@
+{
+  "description": "E1 (stronger): e1-check plus a pretest hook, so every `npm test` runs `sygnal-check --strict` first",
+  "sygnal": "branch",
+  "skill": { "dir": "skills/sygnal-dev" },
+  "overlay": {
+    "sygnal": {
+      "packs": { "sygnal-check": { "dir": "sygnal-check", "dependency": "devDependencies" } },
+      "packageJson": { "scripts": { "pretest": "sygnal-check --strict" } },
+      "files": {
+        "AGENTS.md": "# Agent instructions\n\n| Command | What it does |\n|---|---|\n| `npm test` | Runs `sygnal-check --strict`, then the Vitest tests |\n| `npx --no-install sygnal-check --strict` | Static check for wiring bugs and non-canonical forms; must report nothing |\n| `npx --no-install sygnal-check explain SYG104` | Explains a `[Sygnal SYGnnn]` diagnostic and how to fix it |\n",
+        "CLAUDE.md": "@AGENTS.md\n"
+      }
+    }
+  }
+}

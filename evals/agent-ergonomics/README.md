@@ -21,6 +21,12 @@ evals/agent-ergonomics/
   lib/headless.mjs      headless trial posture (claude args, environment), stream-json helpers
   lib/runner.mjs        runTrial(): spawn, stamp, timeout, <dest>.run.json
   lib/plan.mjs          task selection (tiers, ranges), resume plan, cost/time estimate
+  lib/variant.mjs       run variants: load/validate a spec, resolve + hash it, materialize it, starter overlays,
+                        the per-trial skill isolation flags (orchestrate.mjs --variant)
+  lib/limits.mjs        usage/rate-limit detection and the backoff schedule
+  lib/pool.mjs          the orchestrator's worker pool, with usage-limit pauses and a clean stop
+  variants/<name>.json  one spec per experiment arm (baseline-5.4.0, branch, e1-*, e5-*, e7-*, e8-*, e9-*)
+  analysis/compare.mjs  task-matched comparison of two runs, also across arms (analysis/lib/matched.mjs)
   tests/                node:test unit tests for the harness (node --test evals/agent-ergonomics/tests/*.unit.mjs),
                         and fake-claude.mjs, a stand-in CLI for testing the pipeline without API calls
   tasks/NN-slug/        Sygnal arm: PROMPT.md + starter/ (what the agent gets)
@@ -104,6 +110,17 @@ node evals/agent-ergonomics/orchestrate.mjs --run v2-baseline --tasks all --tria
 node evals/agent-ergonomics/orchestrate.mjs --run v2-baseline --tasks all --trials 5 --concurrency 4 --model claude-opus-5-5             # run / resume
 ```
 
+**Experiments run as variants** (PLAN-2 Phase 3; run.md "Variants"): `--variant <name>` takes `variants/<name>.json`, which sets the Sygnal build (`branch`, a tarball, or `npm` `sygnal@5.4.0`), the `sygnal-dev` skill (a repo dir or a git ref, copied into the run and loaded per trial with `--setting-sources project,local --add-dir`, so `~/.claude` is never touched), a starter overlay (files, `package.json` merge, vendored packages such as `sygnal-check`), a prompt prefix/suffix, MCP servers, and model/effort. Each record carries the variant name and the hash of its resolved spec; a run won't resume under a different one.
+
+```bash
+node evals/agent-ergonomics/orchestrate.mjs --run e1-control --variant branch   --arms sygnal --tasks tier1,14,15 --trials 5
+node evals/agent-ergonomics/orchestrate.mjs --run e1-check   --variant e1-check --arms sygnal --tasks tier1,14,15 --trials 5
+node evals/agent-ergonomics/analysis/compare.mjs --base e1-control --next e1-check              # task-matched
+node evals/agent-ergonomics/analysis/compare.mjs --base v2-baseline:react --next e1-check:sygnal  # the gap, across runs
+```
+
+A usage or rate limit during a run pauses all trials and retries (`--limit-backoff`, `--limit-retries`, `--limit-max-wait`); if it persists, the run stops cleanly and prints the command that resumes it.
+
 The steps it automates, by hand:
 
 ```bash
@@ -129,6 +146,7 @@ Each record in `results/<run>.json`:
   "iterations": 4, "editRounds": 2, "wallSeconds": 210,
   "durationMs": 209500, "tokens": 1840000, "outputTokens": 9100, "costUsd": 1.23,
   "model": "claude-opus-5-5", "method": "headless",
+  "variant": "e1-check", "variantHash": "32cdb33d3dd2",
   "failureCategory": "wiring",
   "failures": [{ "test": "...", "message": "..." }],
   "notes": "...", "scoredAt": "..." }
@@ -143,6 +161,7 @@ Each record in `results/<run>.json`:
 | `wallSeconds` | wall-clock time of the agent run, from the Agent tool result or from transcript timestamps. Noisy, so treat it as context only. |
 | `durationMs` / `tokens` / `outputTokens` / `costUsd` | usage of the agent run (`score.mjs --duration-ms --tokens --output-tokens --cost-usd`). Headless trials take them from the run's final `result` event: `tokens` is every billed token (input + output + cache read + cache creation, over all turns), so it is far larger than the context size. `null` for PLAN-1 runs. |
 | `model` / `method` | the model id the trial ran on, and `headless` or `subagent`. |
+| `variant` / `variantHash` | the run variant (`orchestrate.mjs --variant`) and the 12-hex hash of its resolved spec (skill and overlay content, build, prompt, MCP, model, effort); absent for runs without a variant. |
 | `failureCategory` | the root cause of a failed trial (`wiring`, `isolation`, `reducer-shape`, `stream-operator`, `other`), or `none` for a pass. A human or the coordinator sets it with `--category` / `--classify`; definitions are in run.md step 5. Automatic classification is a TODO in `score.mjs`. |
 
 `transcript-stats.mjs` computes `iterations`, `editRounds` and `wallSeconds` from the agent's JSONL transcript, so the counts are applied the same way in both runs.
@@ -159,6 +178,8 @@ node evals/agent-ergonomics/analysis/analyze.mjs --run baseline-t2
 node evals/agent-ergonomics/analysis/compare.mjs --base baseline --next phase3 --out /tmp/diff.md
 node --test evals/agent-ergonomics/analysis/tests/*.unit.mjs
 ```
+
+`compare.mjs` is task-matched (G-119): it compares only the (arm, task) cells both runs have, reports per-task deltas and the matched mean (every shared task weighs the same), and lists the tasks only one side has. `run:arm` pins an arm per side, for cross-arm comparisons (`--base v2-baseline:react --next v2-baseline:sygnal` is the gap on shared tasks). `--arms`, `--tasks`, `--metrics`, `--source`, `--json`; `--full` adds the old whole-run aggregate diff, labeled as unmatched. Details in run.md "Comparing runs".
 
 `analyze.mjs` writes `results/analysis/<run>.json` (one record per trial plus aggregates) and `<run>.md` (the report). Per trial: tokens (peak context and cache tokens; transcript output tokens are partial), tool calls, wall time split into phases (orient, learn, implement, test-authoring, verify, debug, tooling-friction, think, report), failure episodes from a failed build/test run to the next green one, matched against `analysis/catalog.mjs` (regex signatures mapped to tracker IDs, e.g. B-007), skill sections and library files read, line diff vs the starter, canonical-form counts, `sygnal-check` diagnostics (run `npm install` in `sygnal-check/` first, or pass `--no-check`) and the agent's own complaints. The report ranks what explains the Sygnal−React delta on the shared tasks and ends with evidence-backed recommendations. Each recommendation has a precondition (`analysis/lib/preconditions.mjs`, PLAN-2 F6) checked against the installed skill, `llms.txt` (`--llms`) and the PLAN-1/PLAN-2 trackers: one that is already done is listed as suppressed with the reason, and one whose change is in place but whose problem persists is rewritten to say what is left. Headless runs (map source `headless`, or no map: `<trials-root>/<run>/*.transcript.jsonl` are found automatically) also report cost, billed tokens, output tokens and duration per arm and task. Iterations and edit rounds use `lib/transcript.mjs`, so they match `transcript-stats.mjs`. Transcript and trial-dir locations default to this machine's eval session; override with `--transcripts`, `--trials-root`, `--skill-dir` (or `EVAL_TRANSCRIPTS` / `EVAL_SCRATCH`). Heuristics and their limits are listed at the end of each report.
 

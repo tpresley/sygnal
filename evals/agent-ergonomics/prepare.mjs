@@ -3,12 +3,15 @@
 //
 // Usage:
 //   node evals/agent-ergonomics/prepare.mjs --arm sygnal|react --task 03 --dest <dir>
-//        [--tarball <sygnal.tgz>] [--build] [--no-install]
+//        [--tarball <sygnal.tgz>] [--build] [--no-install] [--variant-spec <prepare.json>]
 //
 // - Copies tasks/<task>/starter (or react/tasks/<task>/starter) to <dest>.
 // - Sygnal arm: packs this repo's Sygnal build (or uses --tarball) and puts it
 //   at <dest>/vendor/sygnal.tgz, which the starter's package.json depends on
 //   via "file:vendor/sygnal.tgz". Nothing in <dest> points back into the repo.
+// - --variant-spec (written by orchestrate.mjs --variant, lib/variant.mjs):
+//   applies the arm's starter overlay (files, package.json merge, vendored
+//   packages) before the install, and the prompt prefix/suffix.
 // - Runs `npm install` so the agent starts with a working app.
 // - Runs a leak check and writes <dest>/../<basename>.prompt.txt containing the
 //   exact prompt to hand to the agent.
@@ -18,10 +21,11 @@ import path from 'node:path'
 import {
   REPO_ROOT, armPaths, resolveTask, parseArgs, copyDir, npm, packSygnal, leakCheck,
 } from './lib/common.mjs'
+import { applyOverlay, applyPrompt } from './lib/variant.mjs'
 
 const args = parseArgs(process.argv.slice(2))
 if (!args.arm || !args.task || !args.dest) {
-  console.error('usage: prepare.mjs --arm sygnal|react --task <id> --dest <dir> [--tarball f.tgz] [--build] [--no-install]')
+  console.error('usage: prepare.mjs --arm sygnal|react --task <id> --dest <dir> [--tarball f.tgz] [--build] [--no-install] [--variant-spec prepare.json]')
   process.exit(2)
 }
 const arm = args.arm
@@ -48,6 +52,12 @@ if (arm === 'sygnal') {
   fs.copyFileSync(tarball, path.join(dest, 'vendor', 'sygnal.tgz'))
 }
 
+const variant = typeof args['variant-spec'] === 'string' ? JSON.parse(fs.readFileSync(args['variant-spec'], 'utf8')).arms?.[arm] ?? null : null
+if (variant?.overlay) {
+  const touched = applyOverlay(dest, variant.overlay)
+  console.error(`[prepare] variant overlay: ${touched.join(', ')}`)
+}
+
 if (!args['no-install']) {
   console.error(`[prepare] npm install in ${dest} ...`)
   npm(['install', '--no-audit', '--no-fund', '--loglevel=error'], dest)
@@ -59,7 +69,7 @@ if (leaks.length) {
   process.exit(1)
 }
 
-const promptText = fs.readFileSync(path.join(tasks, task, 'PROMPT.md'), 'utf8').trim()
+const promptText = applyPrompt(fs.readFileSync(path.join(tasks, task, 'PROMPT.md'), 'utf8').trim(), variant?.prompt)
 const skillLine =
   arm === 'sygnal'
     ? '\n\nThis app uses the Sygnal framework. Use the sygnal-dev skill.'

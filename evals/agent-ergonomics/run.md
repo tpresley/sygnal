@@ -22,12 +22,69 @@ node $EVAL/orchestrate.mjs --run e7-sonnet --arms sygnal --tasks tier2 --trials 
 - `--timeout-min` (default 30) kills a trial and its child processes; a timed-out trial is scored as is, with category `other`.
 - Resume: trials that already have a record in `results/<run>.json` are skipped; an agent that finished but wasn't scored is only scored; a partial trial (crash, auth failure, Ctrl-C) is moved to `<dest>.stale-<time>` and redone.
 - **Not run is not a failure.** A trial whose agent never reached the model (an `is_error` result, an auth failure in the api_retry events or the result text, `duration_api_ms` 0, or no model turn) gets no score record and no analysis entry. If it took no turn, its sidecars are renamed `*.notrun-<time>` and the dir stays prepared, so re-running the command retries it; otherwise it is redone. An auth failure, or two not-run trials in a row, stops the run. `score.mjs` also refuses a trial whose `<dest>.run.json` says the agent never ran (`--force` overrides).
-- The orchestrator warns when the installed `sygnal-dev` skill differs from the checkout's (PLAN-1 D35). `--verify` runs `verify.mjs` against the run's tarball first.
+- Without a `--variant` (or with `"skill": "installed"`), trials use the skill installed in `~/.claude/skills`, and the orchestrator warns when it differs from the checkout's (PLAN-1 D35). With a variant that names a skill, nothing needs installing (see "Variants" below). `--verify` runs `verify.mjs` against the run's tarball first.
+- **Usage limits.** Trials run on a subscription, so a long run can hit its usage limit (or API rate limits / overload). A trial whose result or `api_retry` events show one (HTTP 429/529, "usage limit reached", "hit your limit", overloaded, a rejected `rate_limit_event`) is **not run**, like an auth failure, and doesn't count toward the two-in-a-row stop. Instead every worker pauses and the trial is retried: `--limit-backoff 5m,15m,30m,60m` (one step per consecutive hit; a known reset time, e.g. `…limit reached|<epoch>`, wins if later), `--limit-retries` (default: the number of steps), `--limit-max-wait 5h` (give up at once if the reset is further away). A trial that runs starts the schedule over. If the limit persists, the run stops cleanly (exit code 75), the not-run trials stay prepared, and it prints the exact command that resumes it. The preflight does the same before the first trial.
 - Trial dirs: `--trials-root` (default `/tmp/sygnal-evals/trials`, resolved, so on macOS the prompt says `/private/tmp/...`, which is the agent's real cwd) `/<run>/<arm>-<NN>-t<k>`, with `<dest>.prompt.txt`, `<dest>.transcript.jsonl`, `<dest>.run.json` and `<dest>.stderr.log` next to each. The run log is `<trials-root>/<run>/orchestrate.log.jsonl`.
 - Still manual: step 3's audit review (records with audit hits get an `AUDIT:` note) and step 5's failure classification.
-- To test the pipeline without API calls: `--claude-bin $EVAL/tests/fake-claude.mjs` (with `FAKE_CLAUDE_SOLUTION=$EVAL/hidden/<task>/solution` it applies the reference solution, so the trial passes).
+- To test the pipeline without API calls: `--claude-bin $EVAL/tests/fake-claude.mjs` (with `FAKE_CLAUDE_SOLUTION=$EVAL/hidden/<task>/solution` it applies the reference solution, so the trial passes; `FAKE_CLAUDE_MODE=ratelimit|overloaded`, or `FAKE_CLAUDE_LIMIT_CALLS=1 FAKE_CLAUDE_STATE=<file>`, simulate usage limits; the header of `tests/fake-claude.mjs` lists the rest).
 
-**Headless posture** (`lib/headless.mjs`): the same prompt file a PLAN-1 subagent got, `--permission-mode acceptEdits`, the general-purpose tool set (`Bash Read Edit Write Glob Grep Skill TodoWrite WebFetch WebSearch`) all pre-approved, no MCP servers (`--strict-mcp-config`), no session persistence. Variables that tie a process to a host Claude Code session (`CLAUDECODE`, `CLAUDE_CODE_*`, `CLAUDE_EFFORT`, …) are removed from the trial's environment. The worktree guard of a coordinator session doesn't apply (G-030). This is a method change: compare headless runs only with headless runs (PLAN-2 §8).
+**Headless posture** (`lib/headless.mjs`): the same prompt file a PLAN-1 subagent got, `--permission-mode acceptEdits`, the general-purpose tool set (`Bash Read Edit Write Glob Grep Skill TodoWrite WebFetch WebSearch`) all pre-approved, no MCP servers (`--strict-mcp-config`; a variant can add its own), no session persistence. Variables that tie a process to a host Claude Code session (`CLAUDECODE`, `CLAUDE_CODE_*`, `CLAUDE_EFFORT`, …) are removed from the trial's environment. The worktree guard of a coordinator session doesn't apply (G-030). This is a method change: compare headless runs only with headless runs (PLAN-2 §8).
+
+### Variants (Phase 3 experiments, PLAN-2 3-H)
+
+`--variant <name>` runs a whole run under one experiment arm, described by `variants/<name>.json` (or `.mjs` exporting the object, or a path). The spec (full reference in `lib/variant.mjs`):
+
+| Key | Values | Effect |
+|---|---|---|
+| `sygnal` | `"branch"` (default) · `{ "tarball": "x.tgz" }` · `{ "npm": "sygnal@5.4.0" }` | the Sygnal build vendored into every Sygnal trial |
+| `skill` | `"installed"` (default, legacy) · `"none"` · `{ "dir": "skills/sygnal-dev" }` · `{ "gitRef": "v5.4.0", "path": "skills/sygnal-dev" }` (+ `"name"`) | the `sygnal-dev` skill the Sygnal arm sees, **isolated per trial** |
+| `overlay` | `{ "all" \| "sygnal" \| "react": { "dir", "files", "append", "packageJson", "packs" } }` | applied to each starter after the copy and before `npm install`: copy a dir over it, write or append files, deep-merge `package.json` (`null` deletes a key), and `npm pack` a repo dir once per run and vendor it (`"packs": { "sygnal-check": { "dir": "sygnal-check" } }` → `vendor/sygnal-check.tgz` as a devDependency) |
+| `prompt` | `{ "prefix", "suffix", "arms" }` | text before / after the task's `PROMPT.md` text (before the skill line), in the listed arms (default both) |
+| `mcp` | `{ "arms": ["sygnal"], "mcpServers": { ... } }` | an MCP config for those arms' trials (`--mcp-config`, still `--strict-mcp-config`); its tools are pre-approved (`mcp__<server>`) |
+| `model`, `effort` | strings | defaults for the run; `--model` / `--effort` override them |
+
+Relative paths resolve against the repo root, `./` and `../` against the spec file. A typo'd key is an error, not a silent default.
+
+**Skill isolation.** With any `skill` other than `"installed"`, every trial (both arms) runs with `--setting-sources project,local`: the CLI doesn't load user settings, and with them `~/.claude/skills`, so the installed skill can't leak in. The Sygnal arm also gets `--add-dir <run>/_variant/skillroot`, whose `.claude/skills/<name>/` holds a copy of the variant's skill, which the CLI loads as `sygnal-dev`. Nothing under `~/.claude` is read for the skill or written; the coordinator no longer swaps the installed skill (D35/D45). The CLI's `system/init` event lists the skills it loaded: the preflight and every trial check it (the Sygnal arm must have the skill, the React arm and `"none"` must not), and a mismatch stops the run before scoring. The user's `settings.json` is not loaded in this posture (today it holds only UI preferences), and neither are user-level plugins.
+
+**What is recorded.** The variant is resolved once per run: content hashes of the skill (or its git tree id), overlay dirs and packed dirs, a given tarball's sha256, the effective model and effort. Its name and a 12-hex hash of that resolved spec go into every result record (`variant`, `variantHash`) and the manifest (`variant` with the resolved spec, `variants`). Resuming a run with a different variant, or the same variant after its skill or overlay changed, is refused unless `--allow-mixed`. The materialized variant (skill copy, packs, `prepare.json`, `mcp.json`, an npm tarball) is in `<trials-root>/<run>/_variant/`, and `analyze.mjs` gets the skill copy as `--skill-dir`.
+
+Shipped variants: `baseline-5.4.0` (published `sygnal@5.4.0` + the 5.4.0 skill from git: the D45 reference), `branch` (this checkout's build + `skills/sygnal-dev`: the control for experiments), `e1-check`, `e1-pretest`, `e5-no-skill`, `e7-sonnet`, `e7-haiku`, `e8-mcp`, `e9-add-test`, `e9-no-test`. Run each experiment's control as a variant too (`branch`), so both sides share the isolated posture; older runs (`v2-baseline`) used the installed-skill posture.
+
+```bash
+# E1: sygnal-check in the loop (Sygnal arm, tier 1 + the tier-3 debugging tasks)
+node $EVAL/orchestrate.mjs --run e1-control --variant branch     --arms sygnal --tasks tier1,14,15 --trials 5 --concurrency 4
+node $EVAL/orchestrate.mjs --run e1-check   --variant e1-check   --arms sygnal --tasks tier1,14,15 --trials 5 --concurrency 4
+node $EVAL/orchestrate.mjs --run e1-pretest --variant e1-pretest --arms sygnal --tasks tier1,14,15 --trials 5 --concurrency 4
+node $EVAL/analysis/compare.mjs --base e1-control --next e1-check --arms sygnal
+# E5: skill size and shape. Lean skill from an exp branch's worktree: a one-off spec, e.g.
+#   /tmp/e5-lean.json = { "sygnal": "branch", "skill": { "dir": "/path/to/exp-worktree/skills/sygnal-dev" } }
+node $EVAL/orchestrate.mjs --run e5-lean    --variant /tmp/e5-lean.json --arms sygnal --tasks all --trials 5 --concurrency 4
+node $EVAL/orchestrate.mjs --run e5-noskill --variant e5-no-skill        --arms sygnal --tasks all --trials 5 --concurrency 4
+node $EVAL/analysis/compare.mjs --base e1-control --next e5-lean --arms sygnal --metrics wall,peakContext,iterations
+# E7: a smaller model, both arms; then the gap on that model
+node $EVAL/orchestrate.mjs --run e7-sonnet --variant e7-sonnet --tasks all --trials 5 --concurrency 4
+node $EVAL/analysis/compare.mjs --base e7-sonnet:react --next e7-sonnet:sygnal
+# E8: the sygnal-check MCP server for Sygnal agents on the debugging tasks
+node $EVAL/orchestrate.mjs --run e8-mcp --variant e8-mcp --arms sygnal --tasks 14,15 --trials 5
+node $EVAL/analysis/compare.mjs --base e1-control --next e8-mcp --tasks 14,15
+# E9: testing-norm parity, both arms, tier 1; the gap under each instruction
+node $EVAL/orchestrate.mjs --run e9-add-test --variant e9-add-test --tasks tier1 --trials 5 --concurrency 4
+node $EVAL/orchestrate.mjs --run e9-no-test  --variant e9-no-test  --tasks tier1 --trials 5 --concurrency 4
+node $EVAL/analysis/compare.mjs --base e9-add-test:react --next e9-add-test:sygnal
+node $EVAL/analysis/compare.mjs --base e9-no-test:react  --next e9-no-test:sygnal
+```
+
+`--dry-run` prints the resolved variant (sources, hashes, overlays, prompt, MCP) with the plan, without materializing anything.
+
+### Comparing runs (task-matched, G-119)
+
+`analysis/compare.mjs --base <run>[:arm] --next <run>[:arm]` compares only the (arm, task) cells both sides have: per cell the mean of its trials, then the **matched mean** over the shared tasks (each task weighs the same) and the delta next − base, with the ratio; then a per-task table. Tasks only one side has are listed, not averaged in. Pinning an arm on a side (`v2-baseline:react`) compares across arms and runs: cells match on task alone, so `--base v2-baseline:react --next e1-check:sygnal` is the remaining Sygnal − React gap with E1, and `--base e7-sonnet:react --next e7-sonnet:sygnal` is the gap within one run.
+
+- `--arms sygnal,react` and `--tasks tier1|01-05|14,15` (the `--tasks` syntax of the orchestrator) restrict the cells.
+- `--metrics pass,wall,costUsd,iterations` picks the per-task columns; the matched-mean table shows every metric both sides have (pass rate, wall, cost, billed and output tokens, iterations, edit rounds; from an analysis also tool calls, peak context, failed runs, LOC added, wrote-a-test).
+- `--source auto` reads `results/analysis/<run>.json` when it exists, else `results/<run>.json`; if only one side has an analysis both use the results files. `--json` prints the data; `--out f.md` writes it.
+- `--full` appends the old whole-run aggregate diff (phases, catalog, canonical forms), labeled as not task-matched; it is context, not a comparison.
 
 The manual procedure below is still valid, and is what the orchestrator automates.
 
