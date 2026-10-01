@@ -2,24 +2,10 @@
 // ('sygnal/diagnostics') and strict mode on, drives the portal, slot,
 // command, disposal and collection demos through simulateEvent, and asserts
 // that no diagnostics were reported.
-import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import 'sygnal/diagnostics'
-import { renderComponent, createElement, xs } from 'sygnal'
+import { renderComponent, xs } from 'sygnal'
 import App from './App.jsx'
-
-// The root `npx vitest` also collects this file, but without this example's
-// Vite config (no Sygnal JSX transform), so the .jsx views compile to classic
-// React.createElement calls there. Point those at Sygnal's createElement.
-let reactShim = false
-beforeAll(() => {
-  if (typeof globalThis.React === 'undefined') {
-    globalThis.React = { createElement }
-    reactShim = true
-  }
-})
-afterAll(() => {
-  if (reactShim) delete globalThis.React
-})
 
 const wait = (ms) => new Promise(r => setTimeout(r, ms))
 

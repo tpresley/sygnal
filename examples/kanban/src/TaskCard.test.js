@@ -1,20 +1,6 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest'
-import { renderComponent, createElement } from 'sygnal'
+import { describe, it, expect } from 'vitest'
+import { renderComponent } from 'sygnal'
 import TaskCard from './TaskCard.jsx'
-
-// The root `npx vitest` also runs this file, but without the kanban Vite
-// config (no Sygnal JSX transform), so the .jsx views compile to classic
-// React.createElement calls there. Point those at Sygnal's createElement.
-let reactShim = false
-beforeAll(() => {
-  if (typeof globalThis.React === 'undefined') {
-    globalThis.React = { createElement }
-    reactShim = true
-  }
-})
-afterAll(() => {
-  if (reactShim) delete globalThis.React
-})
 
 const { model } = TaskCard
 

@@ -88,7 +88,8 @@
     "src"
   ],
   "scripts": {
-    "test": "vitest run && npm run test:types && npm run test:browser",
+    "test": "vitest run && npm run test:examples && npm run test:types && npm run test:browser",
+    "test:examples": "for d in examples/*/; do [ -n \"$(find \"$d\" -name node_modules -prune -o -name dist -prune -o -type f \\( -name '*.test.*' -o -name '*.spec.*' \\) -print | head -n 1)\" ] || continue; [ -d \"${d}node_modules\" ] || { echo \"test:examples: run 'npm install' in $d first\"; exit 1; }; echo \"test:examples: $d\"; (cd \"$d\" && npm test) || exit 1; done",
     "test:types": "npx tsc --project type-tests/tsconfig.json 2>&1 | grep '^type-tests/' && exit 1 || exit 0",
     "test:browser": "npm test --prefix browser-tests",
     "test:watch": "vitest",

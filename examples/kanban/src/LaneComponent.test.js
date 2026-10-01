@@ -1,20 +1,6 @@
-import { describe, it, expect, afterEach, beforeAll, afterAll } from 'vitest'
-import { ABORT, renderComponent, createElement } from 'sygnal'
+import { describe, it, expect, afterEach } from 'vitest'
+import { ABORT, renderComponent } from 'sygnal'
 import LaneComponent from './LaneComponent.jsx'
-
-// The root `npx vitest` also runs this file, but without the kanban Vite
-// config (no Sygnal JSX transform), so the .jsx views compile to classic
-// React.createElement calls there. Point those at Sygnal's createElement.
-let reactShim = false
-beforeAll(() => {
-  if (typeof globalThis.React === 'undefined') {
-    globalThis.React = { createElement }
-    reactShim = true
-  }
-})
-afterAll(() => {
-  if (reactShim) delete globalThis.React
-})
 
 const { model } = LaneComponent
 
@@ -46,6 +32,23 @@ describe('LaneComponent', () => {
       const result = model.START_EDIT(state)
       expect(result.title).toBe(state.title)
       expect(result.tasks).toBe(state.tasks)
+    })
+  })
+
+  describe('START_EDIT draft', () => {
+    it('starts the draft from the current title', () => {
+      const result = model.START_EDIT(makeLaneState({ title: 'Doing' }))
+      expect(result.titleDraft).toBe('Doing')
+    })
+  })
+
+  describe('EDIT_TITLE', () => {
+    it('updates the draft only', () => {
+      const state = makeLaneState({ isEditing: true, titleDraft: 'To Do' })
+      const result = model.EDIT_TITLE(state, 'To Do!')
+      expect(result.titleDraft).toBe('To Do!')
+      expect(result.title).toBe('To Do')
+      expect(result.isEditing).toBe(true)
     })
   })
 
@@ -223,6 +226,26 @@ describe('LaneComponent (end to end with simulateEvent)', () => {
     const s = await t.waitForState(s => s.title === 'Backlog')
     expect(s.isEditing).toBe(false)
     expect(t.html()).toContain('<h2 class="lane-title">Backlog</h2>')
+  })
+
+  it('keeps the typed title across a re-render, then commits it on Enter', async () => {
+    t = renderComponent(LaneComponent, { initialState: makeLaneState() })
+    t.simulateEvent('.lane-title', 'dblclick')
+    await t.waitForState(s => s.isEditing)
+    expect(t.html()).toContain('<input class="lane-title-input" type="text" value="To Do">')
+
+    t.simulateEvent('.lane-title-input', 'input', { value: 'Backlog' })
+    await t.waitForState(s => s.titleDraft === 'Backlog')
+    // An unrelated re-render while editing: the controlled input keeps the
+    // typed text, because it is rendered from the draft
+    t.simulateEvent('.add-task-btn', 'click')
+    await t.waitForState(s => s.isAddingTask)
+    expect(t.html()).toContain('<input class="lane-title-input" type="text" value="Backlog">')
+
+    t.simulateEvent('.lane-title-input', 'keydown', { key: 'Enter', value: 'Backlog' })
+    const s = await t.waitForState(s => s.title === 'Backlog')
+    expect(s.isEditing).toBe(false)
+    t.expectNoDiagnostics()
   })
 
   it("deletes only the clicked TaskCard (TaskCard PARENT → lane CHILD)", async () => {
