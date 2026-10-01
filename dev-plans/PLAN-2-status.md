@@ -26,10 +26,10 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | 0-B | Eval harness v2 | 🟡 | | subagent | | |
 | 0-C | Tier 3 tasks | 🟡 | | subagent | | |
 | 1-A | Rendering and props (B-014, B-015, B-017, G-033) | ✅ | `worktree-agent-adaf64faf566ceb22` | subagent | `1ebf856` | All four reproduced (17/19 jsdom + 5/5 browser tests failed first). B-014: pragma `toClassMap` (string/array `class` → map). B-015: new `removedPropsModule` (clears removed/nullish props by type + reflected attribute; skips className and form value/checked; also fixes `title={null}` → "null"). B-017: selectModule queues on update too, re-applies after children. G-033: SYG111 reports a literal select value. Kanban **+282 B → 41,717 B (88 B headroom)** |
-| 1-B | State and components (B-016, G-027/G-044, G-036, G-007 SYG106) | 🟡 | | subagent | | |
+| 1-B | State and components (B-016, G-027/G-044, G-036, G-007 SYG106) | ✅ | `worktree-agent-a96e740ac129168e8` | subagent | `12ca03d` | B-016: empty model for isolatedState+initialState without model. G-027/G-044: decision record D43; `fail()` tags errors and `legacy.caught()` reports them under their own code (SYG215/405/413/414/903/606), SYG218 reported directly, SYG420 collected via the bridge, SYG405 default error. G-036: `run(…, { diagnostics: { strict } })` + new SYG608 when the dev entry is missing. D41: SYG106 error under runtime strict (no static rule exists). 19 failing-first tests. Kanban +268 B alone |
 | 1-C | Drivers (G-069) | ✅ | `worktree-agent-ac88e05e39e97d91f` | subagent | `fd3fc7c` | Replies that resolve before the first `select()` listener are buffered (≤ 100, oldest dropped) and flushed on a microtask after the first subscribe, so a BOOTSTRAP request gets its reply; later replies with no listener are dropped; `stop()` clears `sendFn`. 5 tests, failing first |
 | 1-D | Integrations (B-020, G-046, G-037) | ✅ | `worktree-agent-a2111196f25b78f43` | subagent | `af2bac5` | B-020: reproduced (pre-bundled `sygnal_vike_onRenderClient.js` with an inlined core + source core); `sygnal/vite` dev sets `optimizeDeps.exclude: ['sygnal/vike/onRenderClient']`; verified linked and installed (packed tarball): one core. G-046: `urlPathname` removed from `passToClient` (client falls back to `window.location.pathname`). G-037: Vike page named from its function/`componentName` (counter stays in `sel`); Astro already fixed in PLAN-1. 6 failing-first tests. Kanban 0 B |
-| 1-E | Types and build hygiene (B-002/G-012, G-019, G-075, G-076) | 🟡 | | subagent | | G-007 decided (D41) and moved to 1-B |
+| 1-E | Types and build hygiene (B-002/G-012, G-019, G-075, G-076, G-077) | ✅ | `worktree-agent-a2c537d37c4e12f41` | subagent | `07c4eab` | Build prints 0 TS diagnostics (was 56); `test:types` = full `tsc --noEmit` + type-tests (fails on any error). G-012's testing.ts errors not reproduced. G-019: 97 assertions moved to `type-tests/public-api.ts`, exposing 9 wrong ones (fixed). G-075: audit 12 → 2 (vite pinned `^7.3.6` via overrides; deferred: `@rollup/plugin-terser` 1.0 major for serialize-javascript). G-076: browser runner whitelists expected errors and **fails on unexpected ones**. G-077: `NonStateSinkValue` (constants on non-STATE sinks). Kanban 0 B |
 | 1-F | Examples (G-052, G-063) | ✅ | (same branch as 1-C) | subagent | `fd3fc7c` | todomvc ids = max id + 1; `LOG` sink uses the reducer form (type gap → G-077); build runs `tsc --noEmit`; custom pollers removed from `app.test.ts`, which uses `next`/`settle`/`html`; new id test. Strict-clean |
 
 ## Gate Results
@@ -37,6 +37,7 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | Merge | build:all | vitest | examples | types | browser | sygnal-check | doc samples | error docs | docs build | kanban gz |
 |---|---|---|---|---|---|---|---|---|---|---|
 | 0-A | ✅ | 942 ✅ | | | | | | | | |
+| 1-B + 1-E | ✅ (0 TS warnings) | 893 ✅ | 105 ✅ | ✅ | 119 ✅ | 183 ✅ | 374 ✅ | ✅ | ✅ | **41,991 B ❌ (+186 over)** |
 | 1-D | ✅ | 971 ✅ | 104 ✅ | ✅ | 119 ✅ | 178 ✅ | 373 ✅ | | ✅ | 41,717 B |
 | 1-A | ✅ | 966 ✅ | | | 119 ✅ | 182 ✅ | 373 ✅ | ✅ | | 41,717 B |
 | 1-C/1-F | ✅ | 947 ✅ | 105 ✅ | ✅ | 114 ✅ | 178 ✅ | 373 ✅ | | | 41,435 B |
@@ -55,6 +56,7 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | D39 | 2026-10-01 | `plan2-integration` cut from `main` after the 5.4.0 merge; PLAN-2 commits cherry-picked onto it | Coordinator | PLAN-2 §1 |
 | D41 | 2026-10-01 | G-007: keep `event()` as is; SYG106 becomes an error under strict mode (runtime and `--strict`), a warning otherwise | User | `event` already in 5.4.0 docs and used correctly |
 | D42 | 2026-10-01 | Phase 0 eval budget: tier-3 pilot (≈2 trials × task × arm), then the full v2-baseline (tiers 1–3, both arms, 5 trials) | User | Q2 |
+| D43 | 2026-10-01 | G-027/G-044: 'error' = the operation failed (thrown, or caught and logged while the app continues); 'warn' = likely mistake, behaviour continues; a call site may lower severity. Caught Sygnal errors keep their own code; SYG216/214/408 only for uncoded exceptions. SYG405 default error (Collection/Switchable sites warn). One SYG401 site error → warn | 1-B (coordinator accepted) | Codes surface as documented |
 | D40 | 2026-10-01 | 0-B and 0-C build and self-verify without paid eval runs (0-B may run ≤ 2 smoke trials, `v2-smoke`, to validate the headless runner); full runs and pilots wait for Q2 | Coordinator | PLAN-2 §8 (user approves budgets per phase) |
 
 ## Bugs & Gaps Found
@@ -64,8 +66,11 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | G-072 | 5.4.0 release | medium | Build | `build` didn't clear `dist/`; stale files (284 vs 163) went into the pack | ✅ 0-A: `clean` step |
 | G-073 | 5.4.0 release | low | Tests | Root vitest collected ~1,560 files from `.claude/worktrees` | ✅ 0-A: excluded |
 | G-074 | 5.4.0 release | low | Packaging | npm 11 warns "bin … invalid and removed" for `./`-prefixed bin paths (harmless normalization) | ✅ 0-A |
-| G-075 | 5.4.0 release | low | Dev deps | `npm audit`: 12 findings, all in dev tooling (runtime 0) | Open → 1-E |
-| G-077 | 1-F | low | Types | Runtime accepts a constant non-STATE sink value (`mapTo(value)`), but `SinkValue` in `index.d.ts` allows only `true` or a reducer, so `LOG: 'text'` fails tsc | Open → 1-E |
+| G-075 | 5.4.0 release | low | Dev deps | `npm audit`: 12 findings, all in dev tooling (runtime 0) | ✅ 1-E: 12 → 2 (terser plugin major deferred) |
+| G-077 | 1-F | low | Types | Runtime accepts a constant non-STATE sink value (`mapTo(value)`), but `SinkValue` in `index.d.ts` allows only `true` or a reducer, so `LOG: 'text'` fails tsc | ✅ 1-E (types only; not in canonical docs) |
+| G-086 | 1-E | low | Types | `SortObject` in `index.d.ts` allows a sort function per field, which the runtime rejects (SYG418); the runtime accepts `1 \| -1` and sorter arrays the type rejects | Open → Phase 1 fix workstream |
+| G-087 | 1-B | low | Diagnostics text | SYG218 says "returned a object" for null/arrays (uses `typeof`) | Open → Phase 1 fix workstream |
+| G-088 | 1-B merge | **high** (gate) | Size budget | After 1-A (+282) and 1-B (+268), kanban is 41,991 B: **186 B over** the 41,805 budget | Open → user decision (trim vs re-baseline) |
 | G-078 | 1-C/1-F | low | Gate setup | The setup didn't install every example (`npm test` fails until `TEST_EXAMPLES_INSTALL=1`), and `npm --prefix …/kanban exec -- vite build` resolves from the current dir | ✅ Setup below fixed |
 | G-079 | 1-A | low | Rendering | classNameModule dropped selector classes (`h('p.s', { className: 'k' })` → only `k`); hyperscript only | ✅ Fixed in 1-A |
 | G-080 | 1-A | low | Rendering | `selectModule`'s pending queue is module-level and shared by the main patch and `portalPatch`; a portal patch mid-main-patch could flush early | Open (low risk) |
@@ -74,7 +79,7 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | G-083 | 1-D | low | Vike packaging | Every Vike dev start warns `sygnal/config unexpected export { module.exports }`, and Node warns MODULE_TYPELESS_PACKAGE_JSON for `dist/vike/+config.js` (ESM in `.js`, no `"type"`). Likely fix: emit `+config.mjs` (rollup + exports) | Open → Phase 1 fix workstream |
 | G-084 | 1-D | med | Vike shell / component.ts | `inspect()` shows Layout under two parents and, after one navigation, Page ×4 (3 with stale home state): children instantiated by several ancestors, or stale instances kept after navigation. Pre-existing; possible leak/duplicate work | Open → investigate (Phase 1 fix workstream, after 1-B) |
 | G-085 | 1-D | low | Dev gotcha | `npm --prefix <example> exec -- vike dev` from the repo root serves `create-sygnal-app/template-vike`; use `npm --prefix <example> run dev` | Noted |
-| G-076 | 5.4.0 release | low | browser-tests | The browser run prints expected console errors from error-path tests, which look like failures | Open → 1-E |
+| G-076 | 5.4.0 release | low | browser-tests | The browser run prints expected console errors from error-path tests, which look like failures | ✅ 1-E (whitelist updated for SYG405 at the 1-B merge) |
 
 ## Worktree Setup (each subagent, inside its own isolated worktree)
 
@@ -97,6 +102,7 @@ gzip -c /tmp/kb/assets/index-*.js | wc -c      # budget 41,805 B
 
 ## Activity Log
 
+- 2026-10-01 — 1-E and 1-B merged; browser whitelist updated (SYG408 → SYG405 after D43); all gates green except size: kanban 41,991 B (G-088, to the user).
 - 2026-10-01 — 1-D merged (B-020, G-046, G-037); gates green; G-083/G-084 logged for a Phase 1 fix workstream.
 - 2026-10-01 — 1-A merged (B-014, B-015, B-017, G-033); gates green; kanban 41,717 B.
 - 2026-10-01 — 1-C/1-F merged (G-069, G-052, G-063); gates green; G-077 sent to 1-E.
