@@ -56,7 +56,7 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | Q2 | Canonical forms: global event emit (`emit()` vs `{ EVENTS }`) | Phase 0 | 0C → 2A, 2D, 3 | ⏳ User asked for an in-context example; re-asked |
 | Q3 | `sygnal-check` packaging | Phase 0 | 1D | ✅ Separate `sygnal-check` package (`@babel/parser`) |
 | Q4 | Eval trial budget | Phase 0 | baseline run, 4A | ✅ 5 trials: (8 Sygnal + 6 React) × 5 = 70 runs per round, 140 total |
-| Q5 | Fix framework bugs B-003/B-004/B-005 within PLAN-1, or defer to a follow-up? | Phase 0 | — | ⏳ |
+| Q5 | Fix framework bugs B-003/B-004/B-005 within PLAN-1, or defer to a follow-up? | Phase 0 | — | ✅ New workstream 1F, after 1E (D11) |
 
 ## Decision Log
 
@@ -72,6 +72,7 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | D8 | 2026-09-30 | Canonical: single non-STATE sink uses object form | User (Q1) | |
 | D9 | 2026-09-30 | `sygnal-check` is a separate package using `@babel/parser` | User (Q3) | Core runtime deps unchanged |
 | D10 | 2026-09-30 | Eval budget is 5 trials per task per arm | User (Q4) | |
+| D11 | 2026-09-30 | Add workstream 1F (fix B-003, B-004, B-005), serialized after 1E | User (Q5) | Fixes land after the baseline eval, so the re-run reflects them |
 
 ## Bugs & Gaps Found
 
@@ -81,9 +82,9 @@ Pre-existing issues and gaps found during the work. Severity: high (blocks a gat
 |---|---|---|---|---|---|
 | B-001 | Baseline | high | Build / types | `npm run build:types` fails at HEAD (`18ce5c9`): rollup-plugin-dts "Syntax not yet supported" on the runtime statement `(_Fragment as any).__sygnalFragment = true` in `src/cycle/dom/snabbdom.ts:22`, which is pulled into the `.d.ts` bundle graph from `src/index.d.ts`. Same plugin/TS versions as the main checkout, so it's not an environment issue. | Open → 0B |
 | B-002 | Baseline | low | Build | `npm run build` emits several `TS2322` warnings in the DOM source (`DevToolEnabledSource & MemoryStream<Element[]>` not assignable to `MemoryStream<(Element \| Document)[]>`). Non-fatal, but noisy, and it hides new warnings. | Open (unassigned; candidate for 1E or follow-up) |
-| B-003 | 0A | **high** | `src/component.ts` sinks | Non-STATE sinks see **stale state** within one tick. With `SAVE: { STATE: s=>({...s, saved: s.draft}), EVENTS: s=>({type, data: count(s.draft)}) }`, if an input-driven EDIT and the SAVE click land in the same tick, STATE sees the new draft but EVENTS sees the old one. Expected: every sink of one action sees the same state. Eval helpers wait 50 ms between actions to avoid it. | Open; see Q5 |
-| B-004 | 0A | med | Rendering | Controlled input isn't cleared when actions arrive in the same tick. With `<input value={state.draft}>`, typing then ADD (which resets the draft to `''`) in one tick leaves the typed text in the DOM: the intermediate render is coalesced, so snabbdom diffs `''→''` and never writes the value. | Open; see Q5 |
-| B-005 | 0A | med | `src/extra/driverFactories.ts` | `driverFromAsync` swallows errors: a rejected promise is only `console.error`ed and never reaches the app, so loading UIs hang (the skill's own `if (!response.ok) throw` example leads straight into this). Also, a promise resolving to `null`/`undefined` throws at `innerVal.then` and is only logged. | Open; see Q5 |
+| B-003 | 0A | **high** | `src/component.ts` sinks | Non-STATE sinks see **stale state** within one tick. With `SAVE: { STATE: s=>({...s, saved: s.draft}), EVENTS: s=>({type, data: count(s.draft)}) }`, if an input-driven EDIT and the SAVE click land in the same tick, STATE sees the new draft but EVENTS sees the old one. Expected: every sink of one action sees the same state. Eval helpers wait 50 ms between actions to avoid it. | Open → 1F |
+| B-004 | 0A | med | Rendering | Controlled input isn't cleared when actions arrive in the same tick. With `<input value={state.draft}>`, typing then ADD (which resets the draft to `''`) in one tick leaves the typed text in the DOM: the intermediate render is coalesced, so snabbdom diffs `''→''` and never writes the value. | Open → 1F |
+| B-005 | 0A | med | `src/extra/driverFactories.ts` | `driverFromAsync` swallows errors: a rejected promise is only `console.error`ed and never reaches the app, so loading UIs hang (the skill's own `if (!response.ok) throw` example leads straight into this). Also, a promise resolving to `null`/`undefined` throws at `innerVal.then` and is only logged. | Open → 1F |
 | G-001 | Baseline | low | Docs | `CLAUDE.md` says "Vitest (318 tests)"; actual is 610 vitest + type tests + 83 browser tests. | Open → 3C |
 | G-002 | Baseline | med | Dev setup | A fresh worktree needs `npm ci`, `npm ci --prefix browser-tests`, **and** `npm install` in `examples/kanban` (its `file:../..` link). Otherwise the kanban tests fail with "Cannot find package 'sygnal'". This isn't documented. | Open → 3C (document); setup steps are in the subagent briefs |
 | G-003 | 0A | med | Skill docs | `skills/sygnal-dev` (SKILL.md + component-patterns.md) never shows how a child reads props from its parent (props are spread into the view's first arg; the 4th reducer arg is `props`). Only `props$` is mentioned. | Open → 3A/3B |

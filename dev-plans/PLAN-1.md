@@ -324,8 +324,16 @@ Deliverables:
 
 Acceptance: `grep` finds no un-coded warn/error/throw left in the owned files; all existing tests pass. Tests that assert on message text may be updated; list each one in the report.
 
+### 1F — Framework bug fixes (added in Phase 0; user decision Q5)
+**Owns:** `src/component.ts` (sink/state-sampling and render-scheduling logic only), `src/extra/driverFactories.ts`, new regression tests under `test/` and `browser-tests/src/`
+**Starts after 1E merges.** Both touch `component.ts`, so they're serialized.
+- **B-003:** every sink of one action must see the same state snapshot, even when other actions land in the same tick. Write a failing regression test first.
+- **B-004:** a controlled `<input value>` must reflect state after coalesced same-tick renders. Fix through a snabbdom props/hook strategy that compares against the live `elm.value`. Browser test required.
+- **B-005:** `driverFromAsync` must deliver rejections to the app (a documented error channel, e.g. a `.select('error')` or an `{ error }` payload — the subagent proposes, the coordinator approves) and must handle `null`/`undefined` resolutions without throwing.
+- Report each fix's behavior change. **Any change to existing public behavior → QUESTION.**
+
 ### Phase 1 merge order & close
-1B → 1A → 1C (apply its type diff, enable the cross-dependent test) → 1D → 1E (most likely to conflict with 0B hook lines in `component.ts`; the coordinator resolves).
+1B → 1A → 1C (apply its type diff, enable the cross-dependent test) → 1D → 1E (most likely to conflict with 0B hook lines in `component.ts`; the coordinator resolves) → 1F.
 Run the gates and the phase-close review, then tag `plan1-phase1`.
 
 ---
