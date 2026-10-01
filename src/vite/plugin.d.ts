@@ -33,9 +33,15 @@ export interface CheckPluginOptions {
    */
   ignore?: string[]
   /**
-   * Which findings also open Vite's error overlay: 'error' findings only,
-   * warnings too ('warn'), or none (false). Every finding is printed in the
-   * terminal and logged in the browser console.
+   * Error-severity findings also open Vite's error overlay ('error');
+   * false: never. Every finding is printed in the terminal and logged in the
+   * browser console (sygnal-check's codes are currently all warnings or
+   * info, so in practice that is where they go). Warnings never use the
+   * overlay, because Vite's client reloads the page on the next HMR update
+   * while an overlay is open: 'warn' is still accepted, and treated as
+   * 'error' with a one-time notice. The overlay is sent only to the page that
+   * loads (not to every client), closed before each HMR update and sent
+   * again after the re-check.
    * @default 'error'
    */
   overlay?: 'error' | 'warn' | false
@@ -68,7 +74,7 @@ export interface SygnalPluginOptions {
   /**
    * Run sygnal-check (an optional dependency) in dev on startup and after
    * every source change. Findings go to the terminal and the browser console;
-   * errors (or, with `overlay: 'warn'`, warnings) to Vite's error overlay.
+   * error-severity findings also to Vite's error overlay.
    * Skipped silently when sygnal-check isn't installed.
    * @default true
    */
@@ -96,7 +102,7 @@ export interface SygnalPluginOptions {
  * export default defineConfig({ plugins: [sygnal()] })
  *
  * // stricter dev setup
- * sygnal({ diagnostics: { mode: 'error', strict: true }, check: { overlay: 'warn' } })
+ * sygnal({ diagnostics: { mode: 'error', strict: true }, check: { strict: true } })
  * ```
  */
 export default function sygnal(options?: SygnalPluginOptions): {

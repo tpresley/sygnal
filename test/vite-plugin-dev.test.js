@@ -97,7 +97,7 @@ describe('vite plugin — dev checks import (deliverable 1)', () => {
     const handlers = {}
     const logs = []
     const fakeConsole = { warn: m => logs.push(['warn', m]), error: m => logs.push(['error', m]), info: m => logs.push(['info', m]) }
-    new Function('hot', 'console', code.replace(/import\.meta\.hot/g, 'hot'))({ on: (e, cb) => { handlers[e] = cb } }, fakeConsole)
+    new Function('hot', 'console', code.replace(/import\.meta\.hot/g, 'hot'))({ on: (e, cb) => { handlers[e] = cb }, send: () => {} }, fakeConsole)
     handlers['sygnal:check']({ summary: 'sygnal-check: 1 warning', diagnostics: [{ severity: 'warn', text: 'src/A.jsx:1:1 SYG101 A: x' }] })
     handlers['sygnal:check']({ summary: 'sygnal-check: 0 warnings', diagnostics: [] })
     expect(logs).toEqual([
@@ -359,16 +359,17 @@ export default App
     expect(level).toBe('warn')
     expect(text).toMatch(/^src\/App\.jsx:2:\d+ SYG101 App: intent action 'ORPHAN' has no model entry/)
     expect(text).toMatch(/sygnal-check: 1 warning$/)
-    const event = server.sent.find(p => p.type === 'custom')
+    // nothing is broadcast at startup: a page asks when it loads, and only it is answered (R5)
+    expect(server.sent).toEqual([])
+    const page = []
+    server.emit('ws:sygnal:check:request', undefined, { send: p => page.push(p) })
+    const event = page.find(p => p.type === 'custom')
     expect(event.event).toBe('sygnal:check')
     expect(event.data.diagnostics).toHaveLength(1)
     expect(event.data.diagnostics[0]).toMatchObject({ code: 'SYG101', severity: 'warn', file: 'src/App.jsx', line: 2 })
-    // warnings don't open the error overlay by default
-    expect(server.sent.some(p => p.type === 'error')).toBe(false)
-    // a page that connects later gets the current findings
-    server.sent.length = 0
-    server.emit('ws:connection')
-    expect(server.sent.map(p => p.event)).toEqual(['sygnal:check'])
+    // warnings don't open the error overlay
+    expect(page.some(p => p.type === 'error')).toBe(false)
+    expect(server.sent).toEqual([])
   })
 
   it('re-checks after a source change and reports only when the findings change', async () => {
@@ -390,18 +391,18 @@ export default App
     await until(() => server.logs.length > 1)
     expect(server.logs[1]).toEqual(['info', 'sygnal-check: 0 warnings'])
     expect(server.sent.filter(p => p.type === 'custom').pop().data.diagnostics).toEqual([])
+    // the unchanged re-check broadcast nothing; the fixed one sent the new findings once
+    expect(server.sent.map(p => p.type)).toEqual(['custom'])
   })
 
-  it("overlay: 'warn' sends warnings to Vite's error overlay; include and ignore are honored", async () => {
+  it('include and ignore are honored', async () => {
     const dir = project({ files: { 'App.jsx': BUGGY } })
     fs.mkdirSync(path.join(dir, 'other'))
     fs.writeFileSync(path.join(dir, 'other', 'B.jsx'), BUGGY.replace(/App/g, 'B'))
-    const server = start(dir, { check: { overlay: 'warn', include: ['other'] } })
-    await until(() => server.sent.length > 0)
-    const err = server.sent.find(p => p.type === 'error').err
-    expect(err.plugin).toBe('sygnal-check')
-    expect(err.message).toMatch(/^other\/B\.jsx:2:\d+ SYG101 B:/)
-    expect(err.loc).toMatchObject({ file: path.join(dir, 'other', 'B.jsx'), line: 2 })
+    const server = start(dir, { check: { include: ['other'] } })
+    await until(() => server.logs.length > 0)
+    expect(server.logs[0][1]).toMatch(/^other\/B\.jsx:2:\d+ SYG101 B:/)
+    expect(server.logs[0][1]).not.toMatch(/App\.jsx/)
 
     const quiet = start(project({ files: { 'App.jsx': BUGGY } }), { diagnostics: { ignore: ['SYG101'] } })
     await until(() => quiet.logs.length > 0)

@@ -40,13 +40,21 @@
  *      lazily from the project; `strict` defaults to `diagnostics.strict`)
  *      over `include` (default ['src']) when the dev
  *      server starts and again after every source file change. Results go to
- *      the terminal in sygnal-check's format, and to the browser: as a
- *      'sygnal:check' HMR event that the dev client logs with console.warn
- *      (non-disruptive), and errors also to Vite's error overlay
- *      (`overlay: 'warn'` sends warnings there too, `overlay: false` nothing).
- *      Output is only repeated when the findings change. A missing
- *      sygnal-check is skipped silently; a checker that throws only logs a
- *      warning.
+ *      the terminal in sygnal-check's format, and to the browser as a
+ *      'sygnal:check' HMR event that the dev client ('virtual:sygnal/dev')
+ *      logs with console.warn (non-disruptive). The dev client asks for the
+ *      current findings when the page loads ('sygnal:check:request'), and only
+ *      that client is answered; after a source change the new findings go to
+ *      every connected client, and only when they changed. Error-severity
+ *      findings also open Vite's error overlay (`overlay: false`: never).
+ *      sygnal-check's codes are currently all warnings or info, so in practice
+ *      everything goes to the console. Warnings never use the overlay: while
+ *      one is open Vite's client reloads the page on the next HMR update
+ *      (`overlay: 'warn'` is treated as 'error', with a notice). The dev
+ *      client closes a sygnal-check overlay before each update, and the
+ *      server sends it again after the re-check, so it never causes a reload
+ *      and doesn't go stale. A missing sygnal-check is skipped silently; a
+ *      checker that throws only logs a warning.
  *   6. Vitest (process.env.VITEST): appends the package's 'sygnal/diagnostics'
  *      ESM file to `test.setupFiles` (merged with a string or array value;
  *      not added twice), so renderComponent tests get the runtime checks.
@@ -120,9 +128,11 @@ export interface CheckPluginOptions {
   /** Codes to drop. @default the `diagnostics` ignore list */
   ignore?: string[]
   /**
-   * Which findings also go to Vite's error overlay: 'error' (default),
-   * 'warn' (warnings too) or none (false). All findings are logged in the
-   * terminal and the browser console.
+   * Error-severity findings also open Vite's error overlay ('error', the
+   * default); false: never. All findings are logged in the terminal and the
+   * browser console. Warnings never use the overlay (Vite reloads the page on
+   * the next update while one is open): 'warn' is accepted but treated as
+   * 'error'. sygnal-check currently reports no error-severity codes.
    * @default 'error'
    */
   overlay?: 'error' | 'warn' | false
@@ -173,6 +183,9 @@ const RUNTIME_ID = '\0sygnal-dev:runtime'
 const VIKE_CLIENT = 'sygnal/vike/onRenderClient'
 const VIKE_CLIENT_ID = '\0sygnal-dev:vike-client'
 const CHECK_EVENT = 'sygnal:check'
+// Sent by the dev client when it loads: the server answers that client only
+const CHECK_REQUEST = 'sygnal:check:request'
+const OVERLAY_PLUGIN = 'sygnal-check'
 // Register the runtime checks with the core that loaded last (see the Vike/Astro wrappers)
 const REINSTALL_IMPORT = `import { installChecks as __sygnalInstallChecks } from 'sygnal/diagnostics';`
 const REINSTALL_CALL = 'try { __sygnalInstallChecks() } catch (e) { console.warn(e) }\n'
@@ -395,10 +408,24 @@ function cleanId(id: string): string {
 
 /** 'virtual:sygnal/dev': logs sygnal-check results in the browser console. */
 function devClientModule(): string {
+  // Vite's client reloads the page on the first HMR update while an error
+  // overlay is open. A sygnal-check overlay is closed before each update (the
+  // server sends it again after the re-check), so it never causes a reload.
   return `if (import.meta.hot) {
   let shown = 0;
+  let ours = false;
+  const closeOurs = () => {
+    if (!ours || typeof document === 'undefined') return;
+    document.querySelectorAll('vite-error-overlay').forEach((n) => n.close ? n.close() : n.remove());
+    ours = false;
+  };
+  import.meta.hot.on('vite:error', (payload) => {
+    ours = !!(payload && payload.err && payload.err.plugin === '${OVERLAY_PLUGIN}');
+  });
+  import.meta.hot.on('vite:beforeUpdate', closeOurs);
   import.meta.hot.on('${CHECK_EVENT}', (payload) => {
     const list = (payload && payload.diagnostics) || [];
+    if (!list.some((d) => d.severity === 'error')) closeOurs();
     if (!list.length) {
       if (shown) console.info('[sygnal-check] all findings resolved');
       shown = 0;
@@ -408,6 +435,7 @@ function devClientModule(): string {
     for (const d of list) console[d.severity === 'error' ? 'error' : 'warn']('[sygnal-check] ' + d.text);
     console.info('[sygnal-check] ' + payload.summary);
   });
+  import.meta.hot.send('${CHECK_REQUEST}');
 }
 `
 }
@@ -519,18 +547,32 @@ async function startChecker(server: any, root: string, opts: CheckPluginOptions,
   const include = opts.include && opts.include.length ? opts.include : ['src']
   const ignore = opts.ignore || defaults.ignore
   const strict = opts.strict === undefined ? defaults.strict : !!opts.strict
-  const overlay = opts.overlay === undefined ? 'error' : opts.overlay
+  // Only error-severity findings open Vite's overlay: while an overlay is open
+  // Vite's client reloads the page on the first HMR update, so warnings stay
+  // in the terminal and the browser console. overlay: 'warn' is treated as
+  // 'error' (with a one-time notice).
+  if (opts.overlay === 'warn') {
+    logger.info("[sygnal] check.overlay: 'warn' is treated as 'error': warnings go to the browser console, not Vite's error overlay (an open overlay makes Vite reload the page on the next update)")
+  }
+  const overlay = opts.overlay !== false
   let lastKey: string | undefined
   let payload: any = null
   let overlayErr: any = null
 
-  const send = (data: any) => { try { server.ws?.send?.(data) } catch (_) {} }
-  const notify = () => {
-    if (payload) send({ type: 'custom', event: CHECK_EVENT, data: payload })
-    if (overlayErr) send({ type: 'error', err: overlayErr })
+  const event = () => ({ type: 'custom', event: CHECK_EVENT, data: payload })
+  const errorMessage = () => ({ type: 'error', err: overlayErr })
+  // Every connected client (after a source change). An error with no client
+  // connected would be buffered by Vite and shown on the next page load.
+  const broadcast = (findingsChanged: boolean) => {
+    const ws = server.ws
+    if (!ws || typeof ws.send !== 'function') return
+    try {
+      if (findingsChanged && payload) ws.send(event())
+      if (overlayErr && !(ws.clients && ws.clients.size === 0)) ws.send(errorMessage())
+    } catch (_) {}
   }
 
-  const run = () => {
+  const run = (initial = false) => {
     let diags: any[]
     try {
       diags = mod.check(include, { cwd: root, strict, ignore })
@@ -541,33 +583,46 @@ async function startChecker(server: any, root: string, opts: CheckPluginOptions,
     const shown = diags.filter(d => d.severity !== 'info')
     const lines = shown.map(formatLine)
     const key = lines.join('\n')
-    if (key === lastKey) return
-    lastKey = key
-    const text: string = typeof mod.formatDiagnostics === 'function'
-      ? mod.formatDiagnostics(diags)
-      : lines.concat(`sygnal-check: ${shown.length} finding(s)`).join('\n')
-    const summary = text.split('\n').pop() || ''
-    if (shown.length) logger.warn(text, { timestamp: true })
-    else logger.info(summary, { timestamp: true })
-    payload = {
-      summary,
-      diagnostics: shown.map((d, i) => ({ code: d.code, severity: d.severity, file: d.file, line: d.line, column: d.column, text: lines[i] })),
+    const changed = key !== lastKey
+    if (changed) {
+      lastKey = key
+      const text: string = typeof mod.formatDiagnostics === 'function'
+        ? mod.formatDiagnostics(diags)
+        : lines.concat(`sygnal-check: ${shown.length} finding(s)`).join('\n')
+      const summary = text.split('\n').pop() || ''
+      if (shown.length) logger.warn(text, { timestamp: true })
+      else logger.info(summary, { timestamp: true })
+      payload = {
+        summary,
+        diagnostics: shown.map((d, i) => ({ code: d.code, severity: d.severity, file: d.file, line: d.line, column: d.column, text: lines[i] })),
+      }
+      const forOverlay = overlay ? shown.filter(d => d.severity === 'error') : []
+      const first = forOverlay[0]
+      overlayErr = first ? {
+        plugin: OVERLAY_PLUGIN,
+        message: forOverlay.map(formatLine).join('\n'),
+        stack: '',
+        id: path.resolve(root, first.file || ''),
+        loc: { file: path.resolve(root, first.file || ''), line: first.line, column: first.column },
+      } : null
     }
-    const forOverlay = overlay === false ? [] : shown.filter(d => d.severity === 'error' || overlay === 'warn')
-    const first = forOverlay[0]
-    overlayErr = first ? {
-      plugin: 'sygnal-check',
-      message: forOverlay.map(formatLine).join('\n'),
-      stack: '',
-      id: path.resolve(root, first.file || ''),
-      loc: { file: path.resolve(root, first.file || ''), line: first.line, column: first.column },
-    } : null
-    notify()
+    // The first check runs before any page is open; pages ask for the
+    // findings when they load (CHECK_REQUEST). After a change the overlay is
+    // sent again even when the findings are the same: the HMR update closed it.
+    if (!initial) broadcast(changed)
   }
 
-  run()
-  // A page that connects later (or reloads) gets the current findings
-  try { server.ws?.on?.('connection', () => notify()) } catch (_) {}
+  run(true)
+  // A page that loads (or reloads) asks for the current findings: answer
+  // that client only, never every client.
+  try {
+    server.ws?.on?.(CHECK_REQUEST, (_data: any, client: any) => {
+      try {
+        if (payload) client?.send?.(event())
+        if (overlayErr) client?.send?.(errorMessage())
+      } catch (_) {}
+    })
+  } catch (_) {}
 
   let timer: any
   const onChange = (file: string) => {
