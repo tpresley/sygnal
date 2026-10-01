@@ -234,7 +234,7 @@ Let a child component pass data back to the parent's slot content — the parent
 
 ### 14. Diagnostics, Strict Mode and Agent Tooling
 
-**Status:** `IN PROGRESS` (Phases 0–2 done; agent context and docs in Phase 3; eval re-run and release in Phase 4). Plan: [`dev-plans/PLAN-1.md`](dev-plans/PLAN-1.md).
+**Status:** `DONE`: shipped in **5.4.0** (see [`CHANGELOG.md`](CHANGELOG.md)), with `sygnal-check` 0.1.0 and `create-sygnal-app` 1.1.0. Plan: [`dev-plans/PLAN-1.md`](dev-plans/PLAN-1.md).
 
 Make Sygnal's silent failures loud and give coding agents one unambiguous way to write each concept, measured with an agent eval against React.
 
@@ -248,4 +248,7 @@ Make Sygnal's silent failures loud and give coding agents one unambiguous way to
 - Vite plugin: dev-only diagnostics injection, `sygnal-check` in the dev server, Vitest setup, Vike/Astro dev mode, Vite 7 and 8 JSX
 - Framework fixes found along the way: per-action state snapshots for non-STATE sinks, fully controlled inputs, `driverFromAsync` `errors()`, Collection reorders and nested disposal, stale text and className patches
 - Agent context: `llms.txt`, the `sygnal-dev` skill, and the docs (error reference, diagnostics, strict mode, agents)
-- Eval harness (`evals/agent-ergonomics`): Sygnal vs React tasks with hidden acceptance tests; baseline recorded, re-run after the changes
+- Eval harness (`evals/agent-ergonomics`): Sygnal vs React tasks with hidden acceptance tests. Re-run after the changes: the gap to React fell from 46 s to 16 s per trial (standard tasks) and from 29 s to 15 s (harder tasks), with every trial passing ([report](evals/agent-ergonomics/results/REPORT.md))
+- Release: `run()` works under plain Node CommonJS and native ESM (tested with a full app in jsdom), and `create-sygnal-app` templates depend on `sygnal` ^5.4.0 and `sygnal-check`
+
+**Follow-ups (PLAN-2 candidates):** the open items in [`dev-plans/PLAN-1-status.md`](dev-plans/PLAN-1-status.md), for example B-014 (string `class` attribute), B-015 (removed props aren't unset), B-016/B-017, and auto no-op drivers for descendants' sinks under `renderComponent`.
