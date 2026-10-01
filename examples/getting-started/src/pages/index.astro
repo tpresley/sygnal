@@ -415,7 +415,7 @@ BrokenCounter.onError = (error) =&gt; (
         <div class="example">
           <div class="example-code">
             <h3>Code</h3>
-            <pre><code>import &#123; createRef &#125; from 'sygnal'
+            <pre><code>import &#123; ABORT, createRef &#125; from 'sygnal'
 
 const boxRef = createRef()
 
@@ -451,7 +451,7 @@ RefDemo.model = &#123;
   TOGGLE: (state) =&gt;
     (&#123; ...state, expanded: !state.expanded &#125;),
   MEASURE: (state) =&gt; &#123;
-    if (!boxRef.current) return state
+    if (!boxRef.current) return ABORT
     const rect = boxRef.current
       .getBoundingClientRect()
     return &#123; ...state,
@@ -474,6 +474,8 @@ RefDemo.model = &#123;
           container. The <code>ref</code> prop automatically sets
           <code>.current</code> to the DOM element on mount and <code>null</code>
           on unmount. Access it in model reducers to read element properties.
+          Returning <code>ABORT</code> from a reducer leaves the state unchanged
+          (here: when the element isn't mounted yet).
           Callback refs (<code>ref=&#123;(el) =&gt; ...&#125;</code>) and
           reactive stream refs (<code>createRef$()</code>) also work.
         </p>
