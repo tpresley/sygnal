@@ -36,6 +36,7 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | 2-B | Agent docs (2-D1 snapshot semantics, 2-D2 extract-component recipe, 2-D3 latest-only pattern) | ✅ | `worktree-agent-a44b2fbe9d096f4ac` | subagent | `032363c` | 2-D1: guide/model.md "Sinks See the State Before the Action" + one bullet each in llms.txt/SKILL.md (verified with a scratch test; B-003 tests already guard it). 2-D2: guide/parent-child.md recipe (snapshot → move markup → PARENT + `CHILD.select` → re-run), compact SKILL.md form, llms.txt pointer; validated on the task-08 starter (identical HTML). 2-D3: guide/drivers.md "Only the Latest Response" (reqId in state, echoed by the driver, ABORT on mismatch, clear bumps reqId); scratch-tested out-of-order, stale failure, clear-in-flight. llms.txt 249 lines; 382 samples strict-clean |
 | 2-C | Component and Vike bugs (G-102, G-106, G-107, G-108, G-109) | ✅ | `worktree-agent-a130ae35c89dc73bf` | subagent | `ed0ffac`…`43aacbc` | G-102: two causes — `propsIsEqual` ignored `of`/`from`/`filter` (now only `state`), and an unchanged state object was dropped by `dropRepeats` when only filter/sort changed (shallow copy sent); also `sort` without filter sorted the parent array in place (fixed). G-107: sub-components with a model but no intent get BOOTSTRAP. G-108: only a non-ABORT symbol is SYG218; null/arrays/bigints go to the driver (explanation regenerated). G-109: propsModule + removedPropsModule merged into one `propsModule.ts` that never writes nullish values (−64 B). G-106: Vike shell state nested (`wrapper_0.layout_0.page`) in initial state, view, navigation, hydration and SSR; verified in a real installed-tarball Vike app with Playwright. Kanban −91 B |
 | 2-D | `globalthis` alias in `sygnal/vite` + size-gate script (G-099) | ✅ | `worktree-agent-a2f656507f54d98a7` | subagent | `a75d332` | xstream only does `require('globalthis').getPolyfill()`; stub `dist/shims/globalthis.cjs` (also exported as `sygnal/shims/globalthis`) aliased via `resolve.alias` in serve/build/Vitest; opt-out `sygnal({ nativeGlobalThis: false })`; `sygnal/astro` adds it in `astro build` too. Verified kanban, Vike SSR, Astro, Vitest, and installed tarballs of 3 templates (build/preview/dev). `scripts/size-gate.mjs`: gated (opt-out) **41,803 B** / 42,300; default **37,812 B** (−3,991) |
+| 2-R | Phase 2 review fixes (R2-1…R2-8) | 🟡 | | subagent | | |
 | 1-F | Examples (G-052, G-063) | ✅ | (same branch as 1-C) | subagent | `fd3fc7c` | todomvc ids = max id + 1; `LOG` sink uses the reducer form (type gap → G-077); build runs `tsc --noEmit`; custom pollers removed from `app.test.ts`, which uses `next`/`settle`/`html`; new id test. Strict-clean |
 
 ## Gate Results
@@ -72,6 +73,8 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | D46 | 2026-10-01 | Tier-3 pilot: 20/20 pass with Opus 5.5 (no pass-rate signal), but a clear efficiency gap (1.46× wall, 1.58× cost). Tiers 1–3 frozen as efficiency tiers; pass-rate discrimination left to E7 (smaller models). Full v2-baseline started: 160 trials on the 5.4.0 tarball | User | Hardening may still give 100% on Opus; E7 is the better lever |
 | D47 | 2026-10-01 | G-099: `sygnal/vite` aliases xstream's `globalthis` polyfill chain to a native stub by default, with an opt-out (≈ −4 KB gz per app) | User | Native `globalThis` everywhere Sygnal runs |
 | D48 | 2026-10-01 | Size budget re-baselined 41,805 → **42,300 B**, measured with the D47 alias turned off so it tracks core growth | User | 2 B headroom after Phase 1; leave room for Phase 2–4 fixes |
+| D49 | 2026-10-01 | Controlled form fields: a present-but-nullish `value` writes `''` and nullish `checked` writes `false` (5.4.0 behaviour); only an absent prop makes the field uncontrolled; never write "null". Settles G-081 | Coordinator | Restores 5.4.0 semantics; keeps G-109 |
+| D50 | 2026-10-01 | Vike shell state: slices stay siblings at the root, each shell component gets a `{get,set}` lens onto its slice (not nested keys) | Coordinator | Fixes G-106 without letting outer reducers wipe inner state; 5.4.0 serialized state still hydrates |
 | D40 | 2026-10-01 | 0-B and 0-C build and self-verify without paid eval runs (0-B may run ≤ 2 smoke trials, `v2-smoke`, to validate the headless runner); full runs and pilots wait for Q2 | Coordinator | PLAN-2 §8 (user approves budgets per phase) |
 
 ## Bugs & Gaps Found
@@ -89,7 +92,7 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | G-078 | 1-C/1-F | low | Gate setup | The setup didn't install every example (`npm test` fails until `TEST_EXAMPLES_INSTALL=1`), and `npm --prefix …/kanban exec -- vite build` resolves from the current dir | ✅ Setup below fixed |
 | G-079 | 1-A | low | Rendering | classNameModule dropped selector classes (`h('p.s', { className: 'k' })` → only `k`); hyperscript only | ✅ Fixed in 1-A |
 | G-080 | 1-A | low | Rendering | `selectModule`'s pending queue is module-level and shared by the main patch and `portalPatch`; a portal patch mid-main-patch could flush early | Open (low risk) |
-| G-081 | 1-A | low | Controlled inputs | `value={undefined}` is dropped by the pragma (absent prop) while `value={null}` writes `elm.value = null`; null/undefined semantics for controlled fields undecided | Open → decide in Phase 2 |
+| G-081 | 1-A | low | Controlled inputs | `value={undefined}` is dropped by the pragma (absent prop) while `value={null}` writes `elm.value = null`; null/undefined semantics for controlled fields undecided | ✅ D49 (2-R) |
 | G-082 | 1-A | med | Size budget | Kanban at 41,717 B, 88 B under the 41,805 B budget; later core work may exceed it | ✅ D48: budget 42,300 B |
 | G-083 | 1-D | low | Vike packaging | Every Vike dev start warns `sygnal/config unexpected export { module.exports }`, and Node warns MODULE_TYPELESS_PACKAGE_JSON for `dist/vike/+config.js` (ESM in `.js`, no `"type"`). Likely fix: emit `+config.mjs` (rollup + exports) | ✅ 1-R |
 | G-084 | 1-D | med | Vike shell / component.ts | `inspect()` shows Layout under two parents and, after one navigation, Page ×4 (3 with stale home state): children instantiated by several ancestors, or stale instances kept after navigation. Pre-existing; possible leak/duplicate work | ✅ 1-R |
@@ -122,6 +125,15 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | G-114 | 2-D | low | Docs | CLAUDE.md test counts are stale (892 → 941 library tests) | Open → Phase 4 release prep |
 | G-115 | 2-C | low (perf) | Collection | `fieldLense.get` creates new item objects (`{...item, id}`) on every state emission, so every item re-renders on any parent state change; G-102 makes filter/sort prop changes re-emit too. Also: a child given an inline-arrow `filter` prop now re-renders on every parent render | Open → Phase 3/4 candidate |
 | G-116 | 2-C | low | Collection | A Collection with no `from` (whole state is the array) or a custom `from={{get,set}}` silently ignores `filter` and `sort` | Open → diagnostic or support |
+| R2-1 | Phase 2 review | med | propsModule | A nullish `value`/`checked` no longer clears a form field (5.4.0 cleared it); G-109 regression | Open → 2-R (D49) |
+| R2-2 | Phase 2 review | med | Vike | G-106 nesting lets a Wrapper/outer Layout reducer that doesn't spread wipe the inner shell and page state; shell views see foreign keys | Open → 2-R (D50) |
+| R2-3 | Phase 2 review | med | Testing | G-064 recording and `next()` explanations stop with `diagnostics: 'off'` | Open → 2-R |
+| R2-4 | Phase 2 review | low-med | Testing | A child's DISPOSE output on a driverless sink is not recorded (listener removed before DISPOSE) | Open → 2-R |
+| R2-5 | Phase 2 review | low | Testing | Timing options accept `Infinity`/> 2^31-1 (setTimeout overflow); `settleMs > timeoutMs` not flagged | Open → 2-R |
+| R2-6 | Phase 2 review | low | Testing | `ready()` cursor: only the first `next()` uses it; an un-awaited `ready()` stays armed; comment inaccurate | Open → 2-R |
+| R2-7 | Phase 2 review | low | Vite | The `globalthis` alias overrides a user's own `globalthis` alias | Open → 2-R |
+| R2-8 | Phase 2 review | low | Size gate | `size-gate.mjs` passes with a bad `--budget` (NaN) | Open → 2-R |
+| R2-9 | Phase 2 review | low | Vike | Hydrating 5.4.0-shape serialized state loses Layout state | Open → 2-R (covered by D50) |
 | G-076 | 5.4.0 release | low | browser-tests | The browser run prints expected console errors from error-path tests, which look like failures | ✅ 1-E (whitelist updated for SYG405 at the 1-B merge) |
 
 ## Worktree Setup (each subagent, inside its own isolated worktree)
@@ -145,6 +157,7 @@ gzip -c /tmp/kb/assets/index-*.js | wc -c      # budget 41,805 B
 
 ## Activity Log
 
+- 2026-10-01 — Phase 2 review: 9 findings (3 med) → 2-R launched with D49/D50.
 - 2026-10-01 — 2-C merged; full gate green (953 vitest, 121 browser, 41,712 B gated). All Phase 2 workstreams merged; Phase 2 closes after the targeted eval against v2-baseline.
 - 2026-10-01 — 2-D merged; size gate is now `node scripts/size-gate.mjs` (budget 42,300 B gated); apps ~4 KB smaller by default.
 - 2026-10-01 — 2-A merged (coordinator merge; the agent's own merge was blocked by permissions); gates green: 936 vitest, 121 browser, 384 samples, llms.txt 249.
