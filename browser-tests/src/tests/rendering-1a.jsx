@@ -64,6 +64,43 @@ export async function renderingTests1A() {
     assert(!p.hasAttribute('title'), `cleared: "${p.getAttribute('title')}"`)
   })
 
+  // ─── G-095: clearing a URL prop doesn't write '' first ─────────────────────
+  const GIF = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=='
+  const errorsIn = (el) => {
+    const seen = []
+    el.addEventListener('error', e => seen.push(e.target.tagName), true)
+    return seen
+  }
+
+  await runTest(CAT, 'G-095: <img src={undefined}> fires no error event, on create or on removal', async () => {
+    const { el, flip } = await mountToggle(s => <div>
+      <img id="g095a" src={undefined} alt="" />
+      <img id="g095b" src={s.on ? undefined : GIF} alt="" />
+    </div>)
+    const seen = errorsIn(el)
+    await wait(100)
+    assert(!el.querySelector('#g095a').hasAttribute('src'), 'src attribute on create')
+    assert(seen.length === 0, `error events after create: ${seen}`)
+    await flip()
+    await wait(100)
+    assert(!el.querySelector('#g095b').hasAttribute('src'), 'src attribute left after removal')
+    assert(seen.length === 0, `error events after removal: ${seen}`)
+  })
+
+  // Removing an iframe's src attribute navigates it to about:blank (HTML spec, "process the
+  // iframe attributes"), so that part of G-095 can't be avoided while B-015 removes the
+  // attribute. Guard: the attribute is removed and no stray "undefined"/"null" URL is fetched.
+  await runTest(CAT, 'G-095: removing an iframe src removes the attribute and fetches no "undefined" URL', async () => {
+    const { el, flip } = await mountToggle(s => <iframe id="g095f" src={s.on ? undefined : '/g095-frame.html'} />)
+    const frame = el.querySelector('#g095f')
+    await waitFor(() => frame.contentWindow.location.pathname === '/g095-frame.html')
+    await flip()
+    await wait(150)
+    assert(!frame.hasAttribute('src'), 'src attribute left after removal')
+    const stray = performance.getEntriesByType('resource').filter(e => /\/(undefined|null)$/.test(e.name))
+    assert(stray.length === 0, `fetched ${stray.map(e => e.name)}`)
+  }, 5000)
+
   // ─── B-017: controlled <select> whose options change in the same patch ─────
   await runTest(CAT, 'B-017: a <select> takes a new value whose <option> is added in the same render', async () => {
     const { id, el } = mount()

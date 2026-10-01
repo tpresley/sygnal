@@ -131,12 +131,15 @@ const applyRefProps = (data: any, ref: any): any => {
 
 // B-014: snabbdom's classModule wants a { name: boolean } map. A string ("a b") or an
 // array (['a', cond && 'b']) would be iterated by index, adding the classes "0", "1", ...
-const toClassMap = (klass: any): any => {
-  if (typeof klass !== 'string' && !Array.isArray(klass)) return klass
-  const map: Record<string, boolean> = {}
-  for (const name of (Array.isArray(klass) ? klass.filter(Boolean).join(' ') : klass).split(/\s+/)) if (name) map[name] = true
+// G-096: clsx-style: strings, nested arrays, objects (truthy keys); falsy entries skipped
+const addClasses = (map: Record<string, boolean>, klass: any): any => {
+  if (klass && typeof klass === 'object') for (const k in klass) Array.isArray(klass) ? addClasses(map, klass[k]) : klass[k] && addClasses(map, k)
+  else if (klass) for (const name of String(klass).split(/\s+/)) if (name) map[name] = true
   return map
 }
+
+const toClassMap = (klass: any): any =>
+  typeof klass !== 'string' && !Array.isArray(klass) ? klass : addClasses({}, klass)
 
 const sanitizeData = (data: any, modules: Record<string, any>): any => {
   const { ref, ...rest } = data

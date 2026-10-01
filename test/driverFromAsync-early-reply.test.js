@@ -74,3 +74,56 @@ describe('driverFromAsync replies before a select() listener (G-069)', () => {
     expect(got).toEqual([1, 3])
   })
 })
+
+// G-092: an error from a request that rejects before any errors() listener exists (a
+// BOOTSTRAP request to an instantly-rejecting promise) used to be logged and lost.
+describe('driverFromAsync errors before an errors() listener (G-092)', () => {
+  const flushMicrotasks = async () => { for (let i = 0; i < 5; i++) await Promise.resolve() }
+  const driverLogs = spy => spy.mock.calls.map(c => String(c[0])).filter(m => /driverFromAsync/.test(m))
+
+  it('BOOTSTRAP-triggered request to an instantly-rejecting promise reaches errors() under run()', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    function App() { return null }
+    App.initialState = { failed: 'no' }
+    App.intent = ({ API }) => ({ GOT: API.select('boot'), FAILED: API.errors('boot') })
+    App.model = {
+      BOOTSTRAP: { API: () => ({ category: 'boot', value: 'hi' }) },
+      GOT: (s) => ({ ...s, failed: 'resolved?' }),
+      FAILED: (s, d) => ({ ...s, failed: String(d.error.message) }),
+    }
+    const states = []
+    const { sources, dispose } = run(App, { API: driverFromAsync(async () => { throw new Error('boom') }) }, { useDefaultDrivers: false })
+    sources.STATE.stream.addListener({ next: s => states.push(s) })
+    await tick(30)
+    dispose()
+    expect(states.at(-1)?.failed).toBe('boom')
+    expect(driverLogs(error)).toEqual([])
+  })
+
+  it('buffers early errors until the first errors() listener, then delivers them in order', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const source = driverFromAsync(async v => { throw new Error(v) })(xs.of({ category: 'a', value: 'x' }, { category: 'b', value: 'y' }))
+    await flushMicrotasks()
+    const got = []
+    source.errors().addListener({ next: v => got.push(v.error.message) })
+    await tick()
+    expect(got).toEqual(['x', 'y'])
+    expect(driverLogs(error)).toEqual([])
+  })
+
+  it('an early error no errors() selector matches is still logged', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const source = driverFromAsync(async () => { throw new Error('nope') })(xs.of({ category: 'a' }))
+    await flushMicrotasks()
+    source.errors('other').addListener({ next: () => {} })
+    await tick()
+    expect(driverLogs(error)).toEqual([expect.stringMatching(/nope/)])
+  })
+
+  it('early errors are still logged when nothing ever subscribes to errors()', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    driverFromAsync(async () => { throw new Error('lost') })(xs.of({ category: 'a' }))
+    await tick(10)
+    expect(driverLogs(error)).toEqual([expect.stringMatching(/lost/)])
+  })
+})

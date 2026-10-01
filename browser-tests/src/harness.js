@@ -59,6 +59,9 @@ export function getResults() {
   return results
 }
 
+// Test names contain markup (`<img src={undefined}>`): never render it as HTML
+const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
+
 function render() {
   const tbody = document.getElementById('results-body')
   const passed = results.filter(r => r.status === 'pass').length
@@ -72,11 +75,11 @@ function render() {
   let lastCategory = ''
   for (const r of results) {
     if (r.category !== lastCategory) {
-      html += `<tr class="category"><td colspan="3">${r.category}</td></tr>`
+      html += `<tr class="category"><td colspan="3">${esc(r.category)}</td></tr>`
       lastCategory = r.category
     }
     const cls = r.status === 'pass' ? 'pass' : r.status === 'fail' ? 'fail' : 'pending'
-    html += `<tr><td>${r.name}</td><td class="${cls}">${r.status.toUpperCase()}</td><td>${r.details}</td></tr>`
+    html += `<tr><td>${esc(r.name)}</td><td class="${cls}">${r.status.toUpperCase()}</td><td>${esc(r.details)}</td></tr>`
   }
   tbody.innerHTML = html
 }

@@ -33,8 +33,9 @@ interface DriverFromAsyncOptions {
  *
  * `errors(selector?)` filters like `select()`: no argument = all errors, a
  * string matches the request's selector property, a function is a predicate on
- * the error payload. While nothing listens to `errors()`, failures are only
- * logged with console.error (the pre-existing behavior).
+ * the error payload. An error no errors() listener matches is logged with
+ * console.error. Errors that occur before the first errors() listener
+ * subscribes (a BOOTSTRAP request) are held like early replies.
  */
 function driverFromAsync(
   promiseReturningFunction: (...args: any[]) => Promise<any>,
@@ -112,6 +113,30 @@ function driverFromAsync(
       (typeof selector === 'function' ? selector(val) : val?.[selectorProperty] === selector);
     const filterBy = (stream: Stream<any>, selector?: any) =>
       selector === undefined ? stream : stream.filter((val: any) => matches(selector, val));
+    const errMsg = `Error in driver created using driverFromAsync(${functionName})`;
+    const dispatchError = (val: any) => {
+      let handled = false;
+      errorSubs.forEach(sub => {
+        let hit = false;
+        try { hit = matches(sub.selector, val); } catch (_) {}
+        if (hit) {
+          handled = true;
+          sub.listener.next(val);
+        }
+      });
+      if (!handled) console.error(`${errMsg}: ${val.error}`);
+    };
+    // G-092: like early replies, errors that occur before the first errors() listener
+    // subscribes are held (same limit) and dispatched on a microtask once it does. If
+    // nothing has subscribed by the next macrotask, they are dispatched (i.e. logged) then.
+    let errStarted = false;
+    let pendingErrors: any[] = [];
+    const flushErrors = () => {
+      errStarted = true;
+      const queued = pendingErrors;
+      pendingErrors = [];
+      queued.forEach(dispatchError);
+    };
 
     // 3E/R11: set by the source's dispose(), which Cycle's engine calls on teardown just
     // before it completes the sink proxies; that completion is expected, not worth a warning.
@@ -133,7 +158,6 @@ function driverFromAsync(
             argArr = functionArgs.map((arg: string) => preProcessed[arg]);
           }
         }
-        const errMsg = `Error in driver created using driverFromAsync(${functionName})`;
         const constructReply = (rawVal: any) => {
           let outgoing: any;
           if (returnProperty === undefined) {
@@ -161,16 +185,9 @@ function driverFromAsync(
         // an error no active errors() selector matches is logged, as before.
         const reportError = (err: any) => {
           const val = {error: err, [selectorProperty]: incoming?.[selectorProperty], request: incoming};
-          let handled = false;
-          errorSubs.forEach(sub => {
-            let hit = false;
-            try { hit = matches(sub.selector, val); } catch (_) {}
-            if (hit) {
-              handled = true;
-              sub.listener.next(val);
-            }
-          });
-          if (!handled) console.error(`${errMsg}: ${err}`);
+          if (errStarted) return dispatchError(val);
+          if (pendingErrors.push(val) === 1) setTimeout(flushErrors);
+          if (pendingErrors.length > EARLY_REPLY_LIMIT) pendingErrors.shift();
         };
         const isThenable = (val: any) => val != null && typeof val.then === 'function';
         promiseReturningFunction(...argArr)
@@ -212,6 +229,7 @@ function driverFromAsync(
         return xs.create<any>({
           start: (listener) => {
             errorSubs.add((sub = {listener, selector}));
+            if (!errStarted) queueMicrotask(flushErrors);
           },
           stop: () => {
             errorSubs.delete(sub);

@@ -150,7 +150,7 @@ import App from './App.jsx'
 run(App, {}, { diagnostics: { strict: true } })
 ```
 
-`strict: true` turns the runtime strict checks on, and diagnostics too (`'warn'`) unless you give a `mode`. `strict: false` turns them off; leaving `strict` out keeps an earlier `configureStrict()` setting. Without the `sygnal/diagnostics` entry there are no strict checks to run, so `run()` prints [SYG608](/reference/errors/#syg608) once and continues.
+`strict: true` turns the runtime strict checks on, and diagnostics too (`'warn'`) unless you give a `mode`. `strict: false` turns them off; leaving `strict` out keeps an earlier `configureStrict()` setting. The app's `dispose()` restores the setting `run()` replaced. Without the `sygnal/diagnostics` entry there are no strict checks to run, so `run()` prints [SYG608](/reference/errors/#syg608) once and continues.
 
 ### At runtime, from code
 

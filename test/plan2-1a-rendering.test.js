@@ -56,6 +56,27 @@ describe('B-014: string and array `class`', () => {
   })
 })
 
+describe('G-096: clsx-style class arrays', () => {
+  it("class={['btn', { active: on, off: !on }]} merges the object's truthy keys", () => {
+    const elm = mountSeq(h('button', { class: ['btn', { active: true, hidden: false }] }, 'x'))
+    expect([...elm.classList].sort()).toEqual(['active', 'btn'])
+    expect(elm.getAttribute('class')).not.toMatch(/object/)
+  })
+
+  it('nested arrays are flattened and falsy entries skipped', () => {
+    expect(h('p', { class: ['a', ['b c', [null, { d: 1, e: 0 }], false], undefined, ''] }).data.class)
+      .toEqual({ a: true, b: true, c: true, d: true })
+  })
+
+  it('jsx runtime: an object inside an array updates when its value changes', () => {
+    const elm = mountSeq(
+      jsx('p', { class: ['x', { on: true }], children: 'x' }),
+      jsx('p', { class: ['x', { on: false }], children: 'x' }),
+    )
+    expect([...elm.classList]).toEqual(['x'])
+  })
+})
+
 describe('B-015: removed props are cleared', () => {
   it('title is removed when the prop disappears', () => {
     const elm = mountSeq(h('p', { title: 'tip' }, 'x'), h('p', null, 'x'))
@@ -82,6 +103,43 @@ describe('B-015: removed props are cleared', () => {
     expect(a.hasAttribute('href')).toBe(false)
     const l = mountSeq(h('label', { htmlFor: 'f' }, 'x'), h('label', null, 'x'))
     expect(l.hasAttribute('for')).toBe(false)
+  })
+
+  // G-095: `src = ''` queues an img/video error event and navigates an iframe to about:blank;
+  // the property is only written when removing the attribute can't reset it.
+  function spySrcWrites(Ctor) {
+    const desc = Object.getOwnPropertyDescriptor(Ctor.prototype, 'src')
+    const writes = []
+    Object.defineProperty(Ctor.prototype, 'src', { ...desc, set(v) { writes.push(v); desc.set.call(this, v) } })
+    return { writes, restore: () => Object.defineProperty(Ctor.prototype, 'src', desc) }
+  }
+
+  it("G-095: a removed src only removes the attribute; '' is never written (img, iframe)", () => {
+    for (const [tag, Ctor] of [['img', HTMLImageElement], ['iframe', HTMLIFrameElement]]) {
+      const spy = spySrcWrites(Ctor)
+      try {
+        const elm = mountSeq(h(tag, { src: 'data:,x' }), h(tag, null))
+        expect(elm.hasAttribute('src')).toBe(false)
+        expect(spy.writes).toEqual(['data:,x'])
+      } finally { spy.restore() }
+    }
+  })
+
+  it('G-095: src={undefined} on create writes nothing; becoming undefined writes no empty string', () => {
+    const spy = spySrcWrites(HTMLImageElement)
+    try {
+      const a = mountSeq(h('img', { src: undefined }))
+      expect(a.hasAttribute('src')).toBe(false)
+      expect(spy.writes).toEqual([])
+      const b = mountSeq(h('img', { src: 'data:,x' }), h('img', { src: undefined }))
+      expect(b.hasAttribute('src')).toBe(false)
+      expect(spy.writes).not.toContain('')
+    } finally { spy.restore() }
+  })
+
+  it('G-095: a removed non-reflected prop is still reset', () => {
+    const elm = mountSeq(h('p', { foo: 'bar' }, 'x'), h('p', null, 'x'))
+    expect(elm.foo).toBe('')
   })
 
   it('a removed number prop goes back to its default (maxLength)', () => {

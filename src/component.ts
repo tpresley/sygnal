@@ -411,8 +411,10 @@ class Component {
         __NOOP_ACTION__: (state: any) => state
       }
     }
-    // B-016: initialState is applied by the INITIALIZE action, which needs a model
-    if (this.isSubComponent && isolatedState && initialState !== undefined && !this.model) this.model = {}
+    // B-016: initialState is applied by the INITIALIZE action, which needs a model. D44: only
+    // for a sub-component with no `state` prop; an existing parent slice is never overwritten
+    if (sources.__localState && isolatedState && initialState !== undefined && !this.model) this.model = {}
+    sources.__localState = 0 // not inherited by this component's children
 
     this._subscriptions = []
     this._activeSubComponents = new Map()
@@ -1020,7 +1022,7 @@ class Component {
                 return reduced
               }
               // G-027: reported directly (it used to be thrown into the catch below, i.e. SYG216)
-              logError('SYG218', this, `Reducer for '${name}' returned a ${type}; nothing sent`, 'Return a value, or ABORT to send nothing')
+              logError('SYG218', this, `Reducer for '${name}' returned ${type === 'object' ? (reduced ? 'an array' : 'null') : 'a ' + type}; nothing sent`, 'Return a value, or ABORT to send nothing')
               return ABORT
             } catch (err) {
               caught('SYG216', this, `Reducer for '${name}' threw; nothing sent`, ERR_FIX, err)
@@ -1621,7 +1623,7 @@ class Component {
       stateSource = new StateSource(xs.merge(state$.filter(() => local === undefined), local$), this.stateSourceName)
     }
 
-    const sources: Record<string, any> = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$, __parentContext$: this.context$, __parentComponentNumber: this._componentNumber }
+    const sources: Record<string, any> = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$, __parentContext$: this.context$, __parentComponentNumber: this._componentNumber, __localState: local$ }
     lense = local$ ? null : this.withCalculated(lense)
 
     // Detect Command objects in props and expose as commands$ source

@@ -51,8 +51,10 @@ export default function run(
   configureDiagnostics({mode, ignore: diagOptions.ignore || []});
   // G-036: strict is applied only when given (an earlier configureStrict() is kept). It sets
   // the flag the dev entry's strict checks read; strict without a mode turns diagnostics on.
+  // G-093: dispose() restores the previous value (an HMR swap disposes, then re-applies it).
+  const core = (globalThis as any).__SYGNAL_DIAGNOSTICS__;
+  const prevStrict = core.strict;
   if (strict !== undefined) {
-    const core = (globalThis as any).__SYGNAL_DIAGNOSTICS__;
     if ((core.strict = strict)) {
       if (!mode && !isDiagnosticsEnabled()) configureDiagnostics({mode: 'warn'});
       // SYG608 (once): the long explanation is in the docs / sygnal-check explain
@@ -121,6 +123,7 @@ export default function run(
       try { (sinks as any).__dispose(); } catch (_) {}
     }
     rawDispose();
+    if (strict !== undefined) core.strict = prevStrict;
   };
 
   const exposed: SygnalRunResult = {sources, sinks, dispose};
