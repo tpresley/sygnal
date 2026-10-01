@@ -607,6 +607,23 @@ export function renderComponent(
         ...t,
       };
       target.dataset = str({...d.dataset, ...dataset, ...data, ...t.dataset});
+      // 3E/R2: element.closest(sel) over the rendered ancestor chain, so helpers that look
+      // up ancestors (e.g. `.data('taskId')` on a click inside the row carrying the data)
+      // behave like the real DOM. Ancestors are element-like: tagName, dataset, closest.
+      if (chain && !('closest' in t)) {
+        const like = (i: number): any => {
+          const v = chain[i];
+          return {tagName: v.sel.split(/[.#]/)[0].toUpperCase(), dataset: str(v.data?.dataset), closest: closestFrom(i)};
+        };
+        const closestFrom = (from: number) => (sel: string): any => {
+          const alts = String(sel).split(',').map(words).filter(cs => cs.length);
+          for (let i = from; i >= 0; i--) {
+            if (alts.some(cs => desc(cs, chain.slice(0, i + 1)))) return i == chain.length - 1 ? target : like(i);
+          }
+          return null;
+        };
+        target.closest = closestFrom(chain.length - 1);
+      }
       const event = {
         type,
         target,
