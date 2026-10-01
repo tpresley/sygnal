@@ -18,9 +18,9 @@ declare type SygnalAstroIntegration = {
 
 export interface SygnalAstroOptions {
   /**
-   * Runtime diagnostics in `astro dev`: islands report in 'warn' mode, 'off'
-   * turns them off, and `strict` turns on the strict (SYG5xx) checks. Other
-   * modes and ignore lists aren't supported with Astro yet ('warn' is used).
+   * Runtime diagnostics for islands in `astro dev`: a mode ('warn',
+   * 'collect', 'error' or 'off') or { mode, strict, ignore }, the same as
+   * the sygnal/vite `diagnostics` option.
    * @default 'warn'
    */
   diagnostics?: DiagnosticsMode | DiagnosticsPluginOptions;

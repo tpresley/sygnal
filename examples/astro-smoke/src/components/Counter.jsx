@@ -1,7 +1,7 @@
-function Counter({ state, props }) {
+function Counter({ state, title }) {
   return (
     <section className="counter">
-      <h2>{props.title || 'Sygnal Counter'}</h2>
+      <h2>{title || 'Sygnal Counter'}</h2>
       <p>Count: {state.count}</p>
       <button type="button" className="increment">
         Increment By One...

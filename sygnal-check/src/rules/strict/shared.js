@@ -238,10 +238,21 @@ export function rawEventRewrite(file, fn) {
   if (single && !fn.async && !fn.generator) {
     const dp = lits[0].dataProp
     const dataText = dp.shorthand ? dp.key.name : text(file, dp.value)
-    const body = unwrap(dp.value)?.type === 'ObjectExpression' ? `(${dataText})` : dataText
+    // keep the parens of `data: (a, b)` / `data: (x)` (text() excludes them),
+    // and wrap object literals so the arrow body isn't read as a block
+    const v = dp.shorthand ? null : dp.value
+    const needsParens = v && (v.extra?.parenthesized || v.type === 'ParenthesizedExpression' ||
+      v.type === 'SequenceExpression' || unwrap(v)?.type === 'ObjectExpression')
+    const body = needsParens ? `(${dataText})` : dataText
     const params = fn.params.map(p => text(file, p)).join(', ')
-    const bare = fn.params.length === 1 && fn.params[0].type === 'Identifier' && file.source[fn.start] !== '(' && !fn.async
-    const paramsText = bare ? params : `(${params})`
+    const p0 = fn.params[0]
+    // `s => …` only for a lone untyped identifier written without parens;
+    // type parameters, a type annotation or a return type need `(…)`
+    const bare = fn.params.length === 1 && p0.type === 'Identifier' && !p0.typeAnnotation && !p0.optional &&
+      !fn.typeParameters && !fn.returnType && file.source[fn.start] !== '(' && !fn.async
+    const typeParams = fn.typeParameters ? text(file, fn.typeParameters) : ''
+    const returnType = fn.returnType ? text(file, fn.returnType) : ''
+    const paramsText = bare ? params : `${typeParams}(${params})${returnType}`
     if (fn.type === 'ArrowFunctionExpression') return { type, rewrite: `event(${q}, ${paramsText} => ${body})`, exact: true }
   }
   return { type, rewrite: `event(${q}, (state, data) => payload)`, exact: false }

@@ -13,7 +13,8 @@ function serveConfig(plugin, { vitest = false, command = 'serve', config = {} } 
   if (vitest) process.env.VITEST = 'true'
   else delete process.env.VITEST
   try {
-    return plugin.config(config, { command })
+    // as Vite 8 calls it (Vite 7 also gets `esbuild`; see vite-plugin-jsx.test.js)
+    return plugin.config.call({ meta: { viteVersion: '8.0.0' } }, config, { command })
   } finally {
     if (saved === undefined) delete process.env.VITEST
     else process.env.VITEST = saved
@@ -511,11 +512,11 @@ run(App)
       }
     })
 
-    it('skips HMR wiring under Vitest (dev flag only)', () => {
+    it('skips HMR wiring (and the dev flag, R9) under Vitest', () => {
       const p = sygnal()
       serveConfig(p, { vitest: true })
       const code = `${head}run(App)\n`
-      expect(p.transform(code, '/src/main.js').code).toBe(DEV_FLAG + code)
+      expect(p.transform(code, '/src/main.js')).toBeNull()
     })
   })
 

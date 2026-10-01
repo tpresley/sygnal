@@ -10,7 +10,8 @@
  *   export default defineConfig({ plugins: [sygnal()] })
  *
  * What it does:
- *   1. Configures OXC for automatic JSX transform with sygnal as the import source
+ *   1. Configures the automatic JSX transform with sygnal as the import source:
+ *      `oxc` (Vite 8), plus `esbuild` under Vite 7 and older
  *   2. Detects files that call `run()` from sygnal and auto-injects HMR wiring
  *   3. Dev mode (`vite` / `vite dev` only; never `vite build`). Into every
  *      file that imports `run` from sygnal (including entries with manual HMR
@@ -38,30 +39,45 @@
  *      itself. With the default ('warn', no ignore list) there is no wrapper.
  *   5. `check` option: runs sygnal-check (an optional dependency, loaded
  *      lazily from the project; `strict` defaults to `diagnostics.strict`)
- *      over `include` (default ['src']) when the dev
+ *      over `include` (default: the existing ones of src/, pages/ and
+ *      renderer/, else the project root, with a notice) when the dev
  *      server starts and again after every source file change. Results go to
- *      the terminal in sygnal-check's format, and to the browser: as a
- *      'sygnal:check' HMR event that the dev client logs with console.warn
- *      (non-disruptive), and errors also to Vite's error overlay
- *      (`overlay: 'warn'` sends warnings there too, `overlay: false` nothing).
- *      Output is only repeated when the findings change. A missing
- *      sygnal-check is skipped silently; a checker that throws only logs a
- *      warning.
+ *      the terminal in sygnal-check's format, and to the browser as a
+ *      'sygnal:check' HMR event that the dev client ('virtual:sygnal/dev')
+ *      logs with console.warn (non-disruptive). The dev client asks for the
+ *      current findings when the page loads ('sygnal:check:request'), and only
+ *      that client is answered; after a source change the new findings go to
+ *      every connected client, and only when they changed. Error-severity
+ *      findings also open Vite's error overlay (`overlay: false`: never).
+ *      sygnal-check's codes are currently all warnings or info, so in practice
+ *      everything goes to the console. Warnings never use the overlay: while
+ *      one is open Vite's client reloads the page on the next HMR update
+ *      (`overlay: 'warn'` is treated as 'error', with a notice). The dev
+ *      client closes a sygnal-check overlay before each update, and the
+ *      server sends it again after the re-check, so it never causes a reload
+ *      and doesn't go stale. A missing sygnal-check is skipped silently; a
+ *      checker that throws only logs a warning.
  *   6. Vitest (process.env.VITEST): appends the package's 'sygnal/diagnostics'
  *      ESM file to `test.setupFiles` (merged with a string or array value;
  *      not added twice), so renderComponent tests get the runtime checks.
- *      Opt out with `vitestSetup: false`. Under Vitest there is no HMR
- *      wiring, run() wrapper, dev client or checker; files that import run
- *      only get the flag.
+ *      Its directory is added to the resolved `server.fs.allow` (G-050):
+ *      in jsdom / happy-dom environments Vitest loads setup files through
+ *      Vite's /@fs/ URLs, which a linked sygnal outside the workspace would
+ *      otherwise fail. Opt out with `vitestSetup: false`. Under Vitest the transform adds
+ *      nothing (no flags, HMR wiring, run() wrapper, dev client or checker):
+ *      a __SYGNAL_DEV__ / __SYGNAL_STRICT__ flag set by one test file would
+ *      leak into later test files of the same worker, and renderComponent()
+ *      manages the diagnostics modes itself.
  *   7. Vike and Astro (G-014): the app is started by sygnal's own client
  *      entry, which user code doesn't import. Client-side imports of
  *      'sygnal/vike/onRenderClient' resolve to a dev wrapper that sets the
  *      flag and loads the checks first. Astro resolves its renderer entry on
  *      the server and the browser loads the file itself, so the same snippet
- *      is added to sygnal's 'astro/client' file by the transform, followed by
- *      installChecks() at its end (that file bundles its own copy of the
- *      Sygnal core). The sygnal/astro integration adds this plugin in
- *      `astro dev`.
+ *      is added to sygnal's 'astro/client' file by the transform. That file
+ *      imports the public 'sygnal' entry (one shared core, B-019), so its
+ *      'sygnal' import gets the run() wrapper too: every `diagnostics` mode
+ *      and ignore list works for islands. The sygnal/astro integration adds
+ *      this plugin in `astro dev`.
  *
  * Why not Vite's `define`? Vite's dependency optimizer does not apply user
  * `define` replacements to pre-bundled dependencies (only process.env.NODE_ENV),
@@ -115,14 +131,19 @@ export interface DiagnosticsPluginOptions {
 export interface CheckPluginOptions {
   /** Also run sygnal-check's strict (SYG5xx) rules. @default `diagnostics.strict` */
   strict?: boolean
-  /** Files, directories or globs to check, relative to the Vite root. @default ['src'] */
+  /**
+   * Files, directories or globs to check, relative to the Vite root.
+   * @default the existing ones of ['src', 'pages', 'renderer'], else the project root
+   */
   include?: string[]
   /** Codes to drop. @default the `diagnostics` ignore list */
   ignore?: string[]
   /**
-   * Which findings also go to Vite's error overlay: 'error' (default),
-   * 'warn' (warnings too) or none (false). All findings are logged in the
-   * terminal and the browser console.
+   * Error-severity findings also open Vite's error overlay ('error', the
+   * default); false: never. All findings are logged in the terminal and the
+   * browser console. Warnings never use the overlay (Vite reloads the page on
+   * the next update while one is open): 'warn' is accepted but treated as
+   * 'error'. sygnal-check currently reports no error-severity codes.
    * @default 'error'
    */
   overlay?: 'error' | 'warn' | false
@@ -173,7 +194,10 @@ const RUNTIME_ID = '\0sygnal-dev:runtime'
 const VIKE_CLIENT = 'sygnal/vike/onRenderClient'
 const VIKE_CLIENT_ID = '\0sygnal-dev:vike-client'
 const CHECK_EVENT = 'sygnal:check'
-// Register the runtime checks with the core that loaded last (see the Vike/Astro wrappers)
+// Sent by the dev client when it loads: the server answers that client only
+const CHECK_REQUEST = 'sygnal:check:request'
+const OVERLAY_PLUGIN = 'sygnal-check'
+// Register the runtime checks with the core that loaded last (see the Vike wrapper)
 const REINSTALL_IMPORT = `import { installChecks as __sygnalInstallChecks } from 'sygnal/diagnostics';`
 const REINSTALL_CALL = 'try { __sygnalInstallChecks() } catch (e) { console.warn(e) }\n'
 
@@ -196,7 +220,7 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
   return {
     name: 'vite-plugin-sygnal',
 
-    config(config: any, env: { command: string }) {
+    config(this: any, config: any, env: { command: string }) {
       isServe = env.command === 'serve'
       isVitest = !!nodeProcess?.env?.VITEST
       root = config?.root ? path.resolve(config.root) : nodeProcess.cwd()
@@ -216,6 +240,12 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
             runtime: 'automatic' as const,
             importSource: 'sygnal',
           },
+        }
+        // Vite 7 and older (Astro 6, Vitest on Vite 7) compile JSX with
+        // esbuild and ignore `oxc` (B-027); Vite 8 warns about `esbuild`
+        // from a plugin, so it is only set below Vite 8.
+        if (viteMajor(this, root) < 8) {
+          result.esbuild = { jsx: 'automatic', jsxImportSource: 'sygnal' }
         }
         // Vite 8's dependency scanner doesn't use the `oxc` options: without
         // this it compiles JSX for React, fails to resolve
@@ -248,6 +278,23 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
 
     configResolved(config: any) {
       if (config?.root) root = config.root
+      // G-050: Vitest loads setup files by URL (/@fs/...) in browser-like
+      // environments (jsdom, happy-dom), and Vite refuses files outside
+      // server.fs.allow, which is the project's workspace by default. A linked
+      // (or hoisted) sygnal lives outside it, so allow its setup file's
+      // directory. The resolved list already holds Vite's defaults.
+      if (isVitest) {
+        const setup = diagnosticsSetupFile(root)
+        const allow = config?.server?.fs?.allow
+        if (setup && Array.isArray(allow)) {
+          const dir = path.dirname(setup)
+          const inside = (base: string) => {
+            const rel = path.relative(path.resolve(base), dir)
+            return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel))
+          }
+          if (!allow.some(inside)) allow.push(dir)
+        }
+      }
     },
 
     resolveId: {
@@ -297,14 +344,14 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
     transform(code: string, id: string, opts?: { ssr?: boolean }) {
       if (!isServe) return null
 
-      // sygnal/astro/client (Astro islands): flags + checks first; the file
-      // bundles its own copy of the Sygnal core, which takes over the
-      // diagnostics bridge as it loads, so the checks are registered again,
-      // with that copy, at the end of the file.
+      // sygnal/astro/client (Astro islands): flags + checks first. It imports
+      // the public 'sygnal' entry (the app's core, B-019), which resolves to
+      // the run() wrapper when the diagnostics option needs it.
       if (devOn && !isVitest && !opts?.ssr) {
         astroClient = astroClient || astroClientFiles(root)
         if (astroClient.has(cleanId(id))) {
-          return withSourcemap(code, [[0, flags + devImports + REINSTALL_IMPORT]], '\n' + REINSTALL_CALL, id)
+          if (wrapRun) runtimeImporters.add(cleanId(id))
+          return withSourcemap(code, [[0, flags + devImports]], '', id)
         }
       }
 
@@ -325,12 +372,14 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
 
       // Dev snippet: injected into every file that imports run() — also when
       // HMR wiring below is skipped. Inserted after any shebang line and
-      // directive prologue, without adding a line. Under Vitest only the flag
-      // (the checks come from test.setupFiles there).
+      // directive prologue, without adding a line. Nothing under Vitest: a
+      // global flag set by one test file would leak dev/strict mode into the
+      // later test files of the same worker; there the checks come from
+      // test.setupFiles and renderComponent() manages the modes.
       const inserts: Array<[number, string]> = []
-      if (devOn) {
-        inserts.push(flagInsertion(code, flags + (isVitest ? '' : devImports)))
-        if (wrapRun && !isVitest) runtimeImporters.add(cleanId(id))
+      if (devOn && !isVitest) {
+        inserts.push(flagInsertion(code, flags + devImports))
+        if (wrapRun) runtimeImporters.add(cleanId(id))
       }
       const done = (tail = '') => (inserts.length || tail ? withSourcemap(code, inserts, tail, id) : null)
 
@@ -375,6 +424,24 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
   }
 }
 
+/**
+ * Major version of the running Vite: from the plugin context (this.meta,
+ * Vite 7+), else from the vite package the project resolves. Infinity when
+ * unknown (treated as Vite 8+: no `esbuild` option).
+ */
+function viteMajor(ctx: any, root: string): number {
+  const fromMeta = ctx?.meta?.viteVersion
+  if (typeof fromMeta === 'string') return parseInt(fromMeta, 10)
+  if (ctx?.meta?.rolldownVersion) return 8
+  try {
+    const req = createRequire(path.join(root, 'package.json'))
+    const v = JSON.parse(fs.readFileSync(req.resolve('vite/package.json'), 'utf8')).version
+    const major = parseInt(v, 10)
+    if (major > 0) return major
+  } catch (_) {}
+  return Infinity
+}
+
 interface NormalizedDiagnostics { mode: DiagnosticsMode, strict: boolean, ignore: string[] }
 
 const MODES: DiagnosticsMode[] = ['off', 'collect', 'warn', 'error']
@@ -395,10 +462,24 @@ function cleanId(id: string): string {
 
 /** 'virtual:sygnal/dev': logs sygnal-check results in the browser console. */
 function devClientModule(): string {
+  // Vite's client reloads the page on the first HMR update while an error
+  // overlay is open. A sygnal-check overlay is closed before each update (the
+  // server sends it again after the re-check), so it never causes a reload.
   return `if (import.meta.hot) {
   let shown = 0;
+  let ours = false;
+  const closeOurs = () => {
+    if (!ours || typeof document === 'undefined') return;
+    document.querySelectorAll('vite-error-overlay').forEach((n) => n.close ? n.close() : n.remove());
+    ours = false;
+  };
+  import.meta.hot.on('vite:error', (payload) => {
+    ours = !!(payload && payload.err && payload.err.plugin === '${OVERLAY_PLUGIN}');
+  });
+  import.meta.hot.on('vite:beforeUpdate', closeOurs);
   import.meta.hot.on('${CHECK_EVENT}', (payload) => {
     const list = (payload && payload.diagnostics) || [];
+    if (!list.some((d) => d.severity === 'error')) closeOurs();
     if (!list.length) {
       if (shown) console.info('[sygnal-check] all findings resolved');
       shown = 0;
@@ -408,6 +489,7 @@ function devClientModule(): string {
     for (const d of list) console[d.severity === 'error' ? 'error' : 'warn']('[sygnal-check] ' + d.text);
     console.info('[sygnal-check] ' + payload.summary);
   });
+  import.meta.hot.send('${CHECK_REQUEST}');
 }
 `
 }
@@ -507,6 +589,29 @@ function formatLine(d: any): string {
   return `${where} ${d.code}${sev} ${d.component ? d.component + ': ' : ''}${d.message}${d.fix ? ` (${d.fix})` : ''}`
 }
 
+// Source directories checked by default, those that exist (Vike apps use
+// pages/ and renderer/, often without src/)
+const DEFAULT_INCLUDE = ['src', 'pages', 'renderer']
+
+/**
+ * What sygnal-check checks: `include` when given, else the existing default
+ * directories, else the project root (sygnal-check skips node_modules, dist
+ * and other build output). Logs one notice when the default finds no
+ * directory, or when none of the given paths exists, so an empty check is
+ * never a silent all-clear.
+ */
+function checkInclude(root: string, include: string[] | undefined, notice: (m: string) => void): string[] {
+  const exists = (p: string) => /[*?[{]/.test(p) || fs.existsSync(path.resolve(root, p))
+  if (include && include.length) {
+    if (!include.some(exists)) notice(`[sygnal] sygnal-check: none of check.include (${include.join(', ')}) exists under ${root}, so nothing is checked`)
+    return include
+  }
+  const dirs = DEFAULT_INCLUDE.filter(exists)
+  if (dirs.length) return dirs
+  notice(`[sygnal] sygnal-check: no ${DEFAULT_INCLUDE.join('/, ')}/ directory under ${root}; checking the project root (set check.include to choose)`)
+  return ['.']
+}
+
 /** Run sygnal-check now and after source changes; report to the terminal and the browser. */
 async function startChecker(server: any, root: string, opts: CheckPluginOptions,
   defaults: { strict: boolean, ignore: string[] }, explicit: boolean) {
@@ -516,21 +621,35 @@ async function startChecker(server: any, root: string, opts: CheckPluginOptions,
     if (explicit) logger.info('[sygnal] sygnal-check is not installed, so static checks are off (npm i -D sygnal-check)')
     return
   }
-  const include = opts.include && opts.include.length ? opts.include : ['src']
+  const include = checkInclude(root, opts.include, (m: string) => logger.info(m))
   const ignore = opts.ignore || defaults.ignore
   const strict = opts.strict === undefined ? defaults.strict : !!opts.strict
-  const overlay = opts.overlay === undefined ? 'error' : opts.overlay
+  // Only error-severity findings open Vite's overlay: while an overlay is open
+  // Vite's client reloads the page on the first HMR update, so warnings stay
+  // in the terminal and the browser console. overlay: 'warn' is treated as
+  // 'error' (with a one-time notice).
+  if (opts.overlay === 'warn') {
+    logger.info("[sygnal] check.overlay: 'warn' is treated as 'error': warnings go to the browser console, not Vite's error overlay (an open overlay makes Vite reload the page on the next update)")
+  }
+  const overlay = opts.overlay !== false
   let lastKey: string | undefined
   let payload: any = null
   let overlayErr: any = null
 
-  const send = (data: any) => { try { server.ws?.send?.(data) } catch (_) {} }
-  const notify = () => {
-    if (payload) send({ type: 'custom', event: CHECK_EVENT, data: payload })
-    if (overlayErr) send({ type: 'error', err: overlayErr })
+  const event = () => ({ type: 'custom', event: CHECK_EVENT, data: payload })
+  const errorMessage = () => ({ type: 'error', err: overlayErr })
+  // Every connected client (after a source change). An error with no client
+  // connected would be buffered by Vite and shown on the next page load.
+  const broadcast = (findingsChanged: boolean) => {
+    const ws = server.ws
+    if (!ws || typeof ws.send !== 'function') return
+    try {
+      if (findingsChanged && payload) ws.send(event())
+      if (overlayErr && !(ws.clients && ws.clients.size === 0)) ws.send(errorMessage())
+    } catch (_) {}
   }
 
-  const run = () => {
+  const run = (initial = false) => {
     let diags: any[]
     try {
       diags = mod.check(include, { cwd: root, strict, ignore })
@@ -541,33 +660,46 @@ async function startChecker(server: any, root: string, opts: CheckPluginOptions,
     const shown = diags.filter(d => d.severity !== 'info')
     const lines = shown.map(formatLine)
     const key = lines.join('\n')
-    if (key === lastKey) return
-    lastKey = key
-    const text: string = typeof mod.formatDiagnostics === 'function'
-      ? mod.formatDiagnostics(diags)
-      : lines.concat(`sygnal-check: ${shown.length} finding(s)`).join('\n')
-    const summary = text.split('\n').pop() || ''
-    if (shown.length) logger.warn(text, { timestamp: true })
-    else logger.info(summary, { timestamp: true })
-    payload = {
-      summary,
-      diagnostics: shown.map((d, i) => ({ code: d.code, severity: d.severity, file: d.file, line: d.line, column: d.column, text: lines[i] })),
+    const changed = key !== lastKey
+    if (changed) {
+      lastKey = key
+      const text: string = typeof mod.formatDiagnostics === 'function'
+        ? mod.formatDiagnostics(diags)
+        : lines.concat(`sygnal-check: ${shown.length} finding(s)`).join('\n')
+      const summary = text.split('\n').pop() || ''
+      if (shown.length) logger.warn(text, { timestamp: true })
+      else logger.info(summary, { timestamp: true })
+      payload = {
+        summary,
+        diagnostics: shown.map((d, i) => ({ code: d.code, severity: d.severity, file: d.file, line: d.line, column: d.column, text: lines[i] })),
+      }
+      const forOverlay = overlay ? shown.filter(d => d.severity === 'error') : []
+      const first = forOverlay[0]
+      overlayErr = first ? {
+        plugin: OVERLAY_PLUGIN,
+        message: forOverlay.map(formatLine).join('\n'),
+        stack: '',
+        id: path.resolve(root, first.file || ''),
+        loc: { file: path.resolve(root, first.file || ''), line: first.line, column: first.column },
+      } : null
     }
-    const forOverlay = overlay === false ? [] : shown.filter(d => d.severity === 'error' || overlay === 'warn')
-    const first = forOverlay[0]
-    overlayErr = first ? {
-      plugin: 'sygnal-check',
-      message: forOverlay.map(formatLine).join('\n'),
-      stack: '',
-      id: path.resolve(root, first.file || ''),
-      loc: { file: path.resolve(root, first.file || ''), line: first.line, column: first.column },
-    } : null
-    notify()
+    // The first check runs before any page is open; pages ask for the
+    // findings when they load (CHECK_REQUEST). After a change the overlay is
+    // sent again even when the findings are the same: the HMR update closed it.
+    if (!initial) broadcast(changed)
   }
 
-  run()
-  // A page that connects later (or reloads) gets the current findings
-  try { server.ws?.on?.('connection', () => notify()) } catch (_) {}
+  run(true)
+  // A page that loads (or reloads) asks for the current findings: answer
+  // that client only, never every client.
+  try {
+    server.ws?.on?.(CHECK_REQUEST, (_data: any, client: any) => {
+      try {
+        if (payload) client?.send?.(event())
+        if (overlayErr) client?.send?.(errorMessage())
+      } catch (_) {}
+    })
+  } catch (_) {}
 
   let timer: any
   const onChange = (file: string) => {

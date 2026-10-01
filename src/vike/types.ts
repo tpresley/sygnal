@@ -1,8 +1,11 @@
 /**
- * TypeScript declarations for vike-sygnal custom config settings.
+ * TypeScript declarations for 'sygnal/config' (also 'sygnal/vike' and
+ * 'sygnal/vike/config'): the Vike extension config (default export), and the
+ * custom config settings, which augment Vike's Config interface so users get
+ * autocomplete and type checking in their +config.ts files.
  *
- * These augment Vike's Config interface so users get autocomplete
- * and type checking in their +config.ts files.
+ *   import vikeSygnal from 'sygnal/config'
+ *   export default { extends: [vikeSygnal] }
  */
 
 declare global {
@@ -30,4 +33,18 @@ declare global {
   }
 }
 
-export {}
+/**
+ * The Sygnal extension for Vike: put it in `extends` of your root +config.
+ * (Declared here; the value is the package's vike/+config entry.)
+ */
+declare const vikeSygnal: {
+  name: 'sygnal'
+  clientRouting: boolean
+  hydrationCanBeAborted: boolean
+  onRenderHtml: string
+  onRenderClient: string
+  passToClient: string[]
+  meta: Record<string, any>
+}
+
+export default vikeSygnal

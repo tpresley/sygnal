@@ -9,9 +9,9 @@ import { check } from '../src/index.js'
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 
-// Known true positives, left in place until the examples are migrated (PLAN-1 2D):
-// kanban's lane title input saves on blur/Enter only (SYG111, D25).
-const KNOWN = new Set(['SYG111 examples/kanban/src/LaneComponent.jsx LaneComponent'])
+// Known true positives left in place in the examples (none since 2D-A fixed
+// kanban's SYG111 lane title input).
+const KNOWN = new Set()
 const key = d => `${d.code} ${d.file} ${d.component}`
 
 describe('repo examples', () => {
@@ -22,9 +22,9 @@ describe('repo examples', () => {
     })
   }
 
-  it('reports the known SYG111 in kanban (lane title saved on blur/Enter)', () => {
+  it('kanban no longer has the SYG111 controlled lane-title input (fixed in 2D-A with titleDraft)', () => {
     const hits = check(['examples/kanban/src'], { cwd: repo }).filter(d => d.code === 'SYG111')
-    expect(hits.map(d => `${d.file}:${d.line} ${d.data.selector}`)).toEqual(['examples/kanban/src/LaneComponent.jsx:15 .lane-title-input'])
+    expect(hits).toEqual([])
   })
 
   it('checks examples/kanban in under 2 s', () => {

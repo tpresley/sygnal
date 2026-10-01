@@ -6,7 +6,8 @@
  *   SYG505  A: emit('T', fn)            → A: { EVENTS: event('T', fn) }
  *           { ...emit('T', fn) }        → { EVENTS: event('T', fn) }
  *           EVENTS: s => ({ type: 'T', data: x }) → EVENTS: event('T', s => x)
- *   SYG506  CHILD.select('Name')        → CHILD.select(Name)     (Name in scope)
+ *   SYG506  CHILD.select('Name')        → CHILD.select(Name)     (Name bound to a component
+ *           function/class or import; not component() results)
  *
  * `event` is added to the existing `import { … } from 'sygnal'` when needed,
  * and an `emit` import left unused by the rewrite is removed. Each
@@ -15,8 +16,10 @@
  * MAX_PASSES). Running it again on the result changes nothing.
  */
 import fs from 'node:fs'
+import path from 'node:path'
 import { checkFiles } from './index.js'
 import { parseSource, walk } from './ast.js'
+import { makeDiagnostic } from './diagnostic.js'
 
 const MAX_PASSES = 5
 
@@ -39,7 +42,7 @@ export function removeUnusedEmitImport(source, path) {
     if (imp.type !== 'ImportDeclaration' || imp.source.value !== 'sygnal') continue
     const specs = imp.specifiers
     const i = specs.findIndex(s => s.type === 'ImportSpecifier' && (s.imported.name || s.imported.value) === 'emit')
-    if (i < 0 || specs.length < 2) continue
+    if (i < 0) continue
     const local = specs[i].local.name
     let uses = 0
     walk(ast.program, (n) => {
@@ -48,6 +51,14 @@ export function removeUnusedEmitImport(source, path) {
       return true
     })
     if (uses) continue
+    if (specs.length === 1) {
+      // `import { emit } from 'sygnal'` alone: drop the whole declaration (and its line break)
+      let end = imp.end
+      while (source[end] === ' ' || source[end] === '\t') end++
+      if (source[end] === '\r') end++
+      if (source[end] === '\n') end++
+      return source.slice(0, imp.start) + source.slice(end)
+    }
     const start = i > 0 ? specs[i - 1].end : specs[i].start
     const end = i > 0 ? specs[i].end : specs[i + 1].start
     return source.slice(0, start) + source.slice(end)
@@ -55,27 +66,41 @@ export function removeUnusedEmitImport(source, path) {
   return source
 }
 
+/** Number of syntax errors in `source` (Infinity when the parser gives up). */
+function syntaxErrors(source, file) {
+  try { return parseSource(source, file).errors?.length || 0 } catch { return Infinity }
+}
+
 /**
  * Fix `files` (absolute paths) in place.
- * @returns {{ fixed: number, files: string[], passes: number }}
+ *
+ * Backstop: every rewritten file is re-parsed; when the result has syntax
+ * errors the original did not have, that file's edits are rolled back, the
+ * file is left out of later passes, and a SYG900 "fix skipped" diagnostic is
+ * returned in `diagnostics`.
+ * @returns {{ fixed: number, files: string[], passes: number, diagnostics: Diagnostic[] }}
  */
 export function fixFiles(files, options = {}) {
   let fixed = 0
   const changed = new Set()
+  const skipped = new Set()
+  const diagnostics = []
+  const cwd = options.cwd ? path.resolve(options.cwd) : process.cwd()
   let passes = 0
   for (; passes < MAX_PASSES; passes++) {
     const diags = checkFiles(files, { ...options, strict: true })
     const accepted = []
-    let count = 0
+    const owners = []
     for (const d of diags) {
       if (!d.edits?.length) continue
+      if (d.edits.some(e => skipped.has(e.file))) continue
       const edits = d.edits.filter(e => !accepted.some(a => same(a, e)))
       if (!edits.length) continue // the same rewrite, reported twice (shared model)
       if (edits.some(e => accepted.some(a => a.file === e.file && overlaps(a, e)))) continue
       accepted.push(...edits)
-      count++
+      owners.push(edits)
     }
-    if (!count) break
+    if (!owners.length) break
     const byFile = new Map()
     for (const e of accepted) {
       if (!byFile.has(e.file)) byFile.set(e.file, [])
@@ -86,9 +111,22 @@ export function fixFiles(files, options = {}) {
       let after = applyEdits(before, edits)
       const replacedEmit = edits.some(e => /\bemit\s*\(/.test(before.slice(e.start, e.end)))
       if (replacedEmit) after = removeUnusedEmitImport(after, file)
-      if (after !== before) { fs.writeFileSync(file, after); changed.add(file) }
+      if (after === before) continue
+      if (syntaxErrors(after, file) > syntaxErrors(before, file)) {
+        skipped.add(file)
+        diagnostics.push(makeDiagnostic('SYG900', {
+          message: 'fix skipped: the --fix rewrite of this file would not parse, so the file was left unchanged',
+          fix: 'apply the suggested rewrites by hand (and please report this with the file that triggers it)',
+          file: path.relative(cwd, file) || file,
+          line: 1,
+          column: 1,
+        }))
+        continue
+      }
+      fs.writeFileSync(file, after)
+      changed.add(file)
     }
-    fixed += count
+    fixed += owners.filter(edits => !edits.some(e => skipped.has(e.file))).length
   }
-  return { fixed, files: [...changed], passes }
+  return { fixed, files: [...changed], passes, diagnostics }
 }

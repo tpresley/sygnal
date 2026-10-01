@@ -82,9 +82,8 @@ describe('vite plugin — dev checks import (deliverable 1)', () => {
     expect(plugin.transform(manual, '/src/main.js')).toBeNull()
   })
 
-  it('under Vitest only the flag goes in (the checks come from setupFiles)', () => {
-    const result = devPlugin({}, { vitest: true }).transform(ENTRY, '/src/main.js')
-    expect(result.code).toBe(DEV_FLAG + ENTRY)
+  it('under Vitest nothing goes in (the checks come from setupFiles; see vite-plugin-vitest.test.js)', () => {
+    expect(devPlugin({}, { vitest: true }).transform(ENTRY, '/src/main.js')).toBeNull()
   })
 
   it('serves the dev client module, which logs sygnal-check results in the browser', async () => {
@@ -97,7 +96,7 @@ describe('vite plugin — dev checks import (deliverable 1)', () => {
     const handlers = {}
     const logs = []
     const fakeConsole = { warn: m => logs.push(['warn', m]), error: m => logs.push(['error', m]), info: m => logs.push(['info', m]) }
-    new Function('hot', 'console', code.replace(/import\.meta\.hot/g, 'hot'))({ on: (e, cb) => { handlers[e] = cb } }, fakeConsole)
+    new Function('hot', 'console', code.replace(/import\.meta\.hot/g, 'hot'))({ on: (e, cb) => { handlers[e] = cb }, send: () => {} }, fakeConsole)
     handlers['sygnal:check']({ summary: 'sygnal-check: 1 warning', diagnostics: [{ severity: 'warn', text: 'src/A.jsx:1:1 SYG101 A: x' }] })
     handlers['sygnal:check']({ summary: 'sygnal-check: 0 warnings', diagnostics: [] })
     expect(logs).toEqual([
@@ -125,9 +124,8 @@ describe('vite plugin — diagnostics option (deliverable 3)', () => {
     const g = { __SYGNAL_STRICT__: false }
     new Function('globalThis', STRICT_FLAG)(g)
     expect(g.__SYGNAL_STRICT__).toBe(false)
-    // under Vitest too (alongside the flag)
-    const vt = devPlugin({ diagnostics: { strict: true } }, { vitest: true }).transform(ENTRY, '/src/main.js')
-    expect(vt.code).toBe(DEV_FLAG + STRICT_FLAG + ENTRY)
+    // not under Vitest (R9: it would leak into later test files)
+    expect(devPlugin({ diagnostics: { strict: true } }, { vitest: true }).transform(ENTRY, '/src/main.js')).toBeNull()
   })
 
   it("another mode or an ignore list routes the entry's 'sygnal' import to the run() wrapper", async () => {
@@ -238,13 +236,21 @@ describe('vite plugin — Vike and Astro dev mode (deliverable 4, G-014)', () =>
     expect(await resolve(plugin, 'sygnal', real.id)).toBe('\0sygnal-dev:runtime')
   })
 
-  it("adds the dev snippet to sygnal's astro/client file, with installChecks() at its end", () => {
+  it("adds the dev snippet to sygnal's astro/client file (no installChecks() re-registration: one shared core, B-019)", async () => {
     const plugin = devPlugin({ diagnostics: { strict: true } }, { config: { root: REPO } })
     const file = path.join(fs.realpathSync(REPO), 'dist', 'astro', 'client.mjs')
     const code = fs.readFileSync(file, 'utf8')
+    // the island client imports the public 'sygnal' entry (no bundled core)
+    expect(code).toMatch(/from ['"]sygnal['"]/)
     const result = plugin.transform(code, file)
-    expect(result.code.startsWith(DEV_FLAG + STRICT_FLAG + IMPORTS)).toBe(true)
-    expect(result.code.trimEnd().endsWith('try { __sygnalInstallChecks() } catch (e) { console.warn(e) }')).toBe(true)
+    expect(result.code).toBe(DEV_FLAG + STRICT_FLAG + IMPORTS + code)
+    expect(result.code).not.toContain('installChecks')
+    // the default 'warn' mode needs no run() wrapper
+    expect(await resolve(plugin, 'sygnal', file)).toBeNull()
+    // other modes / ignore lists: the island client's 'sygnal' import gets the run() wrapper
+    const collect = devPlugin({ diagnostics: { mode: 'collect', ignore: ['SYG101'] } }, { config: { root: REPO } })
+    collect.transform(code, file)
+    expect(await resolve(collect, 'sygnal', file)).toBe('\0sygnal-dev:runtime')
     // every original line keeps its number
     expect(result.code.split('\n').slice(1, code.split('\n').length)).toEqual(code.split('\n').slice(1))
     expect(parseErrors(result.code)).toEqual([])
@@ -276,10 +282,16 @@ describe('vite plugin — Vike and Astro dev mode (deliverable 4, G-014)', () =>
     const plugin = setup('dev', { diagnostics: { strict: true } }).vite.plugins[0]
     const config = configure(plugin, { config: { root: REPO } })
     expect(config.oxc).toBeUndefined()
-    // modes the bundled Astro client can't take are reported once
-    expect(setup('dev', { diagnostics: 'error' }).warnings).toHaveLength(1)
+    // every mode and ignore list is passed through (B-019: the island client
+    // shares the app's core), with no warning
     expect(setup('dev', { diagnostics: 'off' }).vite.plugins).toHaveLength(1)
-    expect(setup('dev', { diagnostics: 'off' }).warnings).toEqual([])
+    const errorMode = setup('dev', { diagnostics: { mode: 'error', ignore: ['SYG105'] } })
+    expect(errorMode.warnings).toEqual([])
+    const ep = errorMode.vite.plugins[0]
+    configure(ep, { config: { root: REPO } })
+    const file = path.join(fs.realpathSync(REPO), 'dist', 'astro', 'client.mjs')
+    ep.transform(fs.readFileSync(file, 'utf8'), file)
+    expect(ep.load('\0sygnal-dev:runtime')).toContain('{"mode":"error","ignore":["SYG105"]}')
   })
 })
 
@@ -359,16 +371,17 @@ export default App
     expect(level).toBe('warn')
     expect(text).toMatch(/^src\/App\.jsx:2:\d+ SYG101 App: intent action 'ORPHAN' has no model entry/)
     expect(text).toMatch(/sygnal-check: 1 warning$/)
-    const event = server.sent.find(p => p.type === 'custom')
+    // nothing is broadcast at startup: a page asks when it loads, and only it is answered (R5)
+    expect(server.sent).toEqual([])
+    const page = []
+    server.emit('ws:sygnal:check:request', undefined, { send: p => page.push(p) })
+    const event = page.find(p => p.type === 'custom')
     expect(event.event).toBe('sygnal:check')
     expect(event.data.diagnostics).toHaveLength(1)
     expect(event.data.diagnostics[0]).toMatchObject({ code: 'SYG101', severity: 'warn', file: 'src/App.jsx', line: 2 })
-    // warnings don't open the error overlay by default
-    expect(server.sent.some(p => p.type === 'error')).toBe(false)
-    // a page that connects later gets the current findings
-    server.sent.length = 0
-    server.emit('ws:connection')
-    expect(server.sent.map(p => p.event)).toEqual(['sygnal:check'])
+    // warnings don't open the error overlay
+    expect(page.some(p => p.type === 'error')).toBe(false)
+    expect(server.sent).toEqual([])
   })
 
   it('re-checks after a source change and reports only when the findings change', async () => {
@@ -390,18 +403,18 @@ export default App
     await until(() => server.logs.length > 1)
     expect(server.logs[1]).toEqual(['info', 'sygnal-check: 0 warnings'])
     expect(server.sent.filter(p => p.type === 'custom').pop().data.diagnostics).toEqual([])
+    // the unchanged re-check broadcast nothing; the fixed one sent the new findings once
+    expect(server.sent.map(p => p.type)).toEqual(['custom'])
   })
 
-  it("overlay: 'warn' sends warnings to Vite's error overlay; include and ignore are honored", async () => {
+  it('include and ignore are honored', async () => {
     const dir = project({ files: { 'App.jsx': BUGGY } })
     fs.mkdirSync(path.join(dir, 'other'))
     fs.writeFileSync(path.join(dir, 'other', 'B.jsx'), BUGGY.replace(/App/g, 'B'))
-    const server = start(dir, { check: { overlay: 'warn', include: ['other'] } })
-    await until(() => server.sent.length > 0)
-    const err = server.sent.find(p => p.type === 'error').err
-    expect(err.plugin).toBe('sygnal-check')
-    expect(err.message).toMatch(/^other\/B\.jsx:2:\d+ SYG101 B:/)
-    expect(err.loc).toMatchObject({ file: path.join(dir, 'other', 'B.jsx'), line: 2 })
+    const server = start(dir, { check: { include: ['other'] } })
+    await until(() => server.logs.length > 0)
+    expect(server.logs[0][1]).toMatch(/^other\/B\.jsx:2:\d+ SYG101 B:/)
+    expect(server.logs[0][1]).not.toMatch(/App\.jsx/)
 
     const quiet = start(project({ files: { 'App.jsx': BUGGY } }), { diagnostics: { ignore: ['SYG101'] } })
     await until(() => quiet.logs.length > 0)

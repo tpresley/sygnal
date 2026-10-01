@@ -156,7 +156,7 @@ describe('--fix', () => {
 
     const snapshot = files(root).map(f => fs.readFileSync(f, 'utf8'))
     const second = fixFiles(files(root), { cwd: root })
-    expect(second).toEqual({ fixed: 0, files: [], passes: 0 })
+    expect(second).toEqual({ fixed: 0, files: [], passes: 0, diagnostics: [] })
     expect(files(root).map(f => fs.readFileSync(f, 'utf8'))).toEqual(snapshot)
   })
 
