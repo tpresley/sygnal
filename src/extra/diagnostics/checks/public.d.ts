@@ -86,3 +86,121 @@ export function listCodes(): DiagnosticCodeInfo[]
 
 /** Metadata for one diagnostic code, or undefined if unknown. */
 export function getCodeInfo(code: string): DiagnosticCodeInfo | undefined
+
+// ---------------------------------------------------------------------------
+// inspect (PLAN-1 workstream 2B): a machine-readable app graph. The same shape
+// is produced at runtime (inspect(), getDevTools().inspect(), renderComponent's
+// t.inspect()) and statically (`sygnal-check --graph --json`); JSON Schema:
+// sygnal-check/schema/inspect.schema.json. Fields one side cannot know are
+// null (or omitted).
+// ---------------------------------------------------------------------------
+
+/** How an action is dispatched. */
+export type InspectActionTrigger = 'intent' | 'next' | 'builtin' | 'unknown'
+
+export interface InspectAction {
+  name: string
+  /**
+   * 'intent': returned by the component's intent. 'builtin': BOOTSTRAP,
+   * INITIALIZE, HYDRATE, DISPOSE or READY. 'next': dispatched with next()
+   * (statically: a next('NAME') literal; at runtime: a model-only action whose
+   * STATE reducer was seen running). 'unknown': none of these is known.
+   */
+  trigger: InspectActionTrigger
+  /** sinks of the model entry (STATE, EVENTS, EFFECT, PARENT, custom drivers); [] without a model entry */
+  sinks: string[]
+}
+
+export interface InspectChild {
+  name: string
+  via: 'tag' | 'collection' | 'switchable' | 'slot'
+  /** Collection: the `from` state field, when known */
+  from?: string | null
+  /** runtime: number of live instances behind this entry (e.g. Collection items) */
+  count?: number
+}
+
+export interface InspectSelector {
+  /** CSS selector passed to DOM.select() (chained selects joined with a space) */
+  selector: string
+  /** event types listened to; null when unknown (runtime, real DOM) */
+  events: string[] | null
+  /** whether it matches an element the component itself renders; null when unknown */
+  matched: boolean | null
+  /** the child component whose (isolated) elements it matches instead, if any */
+  isolationHit: string | null
+}
+
+export interface InspectDiagnostic {
+  code: string
+  severity: DiagnosticSeverity
+  component?: string
+  message: string
+  fix?: string
+  docsUrl?: string
+  data?: any
+  /** static only */
+  file?: string
+  line?: number
+  column?: number
+}
+
+export interface InspectComponent {
+  name: string
+  /** runtime: instance number (as a string); static: 'file:line' of the definition */
+  id: string
+  /** runtime: the parent instance's id; static: null (see the parents' `children`) */
+  parentId: string | null
+  /** static only: source file, relative to the working directory */
+  file?: string
+  /**
+   * runtime: how the instance was created; static: 'root' when no scanned
+   * component renders it, else how it is first rendered
+   */
+  kind: 'root' | 'child' | 'collection-item' | 'switchable'
+  actions: InspectAction[]
+  /** state keys (runtime: current state; static: initialState) */
+  stateKeys: string[]
+  /** calculated field names */
+  calculated: string[]
+  /** context fields this component provides (Component.context) */
+  contextProvides: string[]
+  /** context fields its view reads (static only; null at runtime) */
+  contextConsumes?: string[] | null
+  /** EVENTS types this component emits */
+  eventsEmitted: string[]
+  /** EVENTS types this component selects ('*' = EVENTS.select() without a type) */
+  eventsSelected: string[]
+  children: InspectChild[]
+  selectors: InspectSelector[]
+  diagnostics: InspectDiagnostic[]
+}
+
+export interface InspectGraph {
+  version: 1
+  /** which implementation produced the graph */
+  source?: 'runtime' | 'static'
+  components: InspectComponent[]
+  /** EVENTS bus: type -> names of the components that emit / select it */
+  events: Record<string, { emitters: string[]; selectors: string[] }>
+  /** diagnostics not tied to a listed component */
+  diagnostics: InspectDiagnostic[]
+}
+
+export interface InspectOptions {
+  /** only these component instances (ids as in InspectComponent.id) */
+  ids?: Array<string | number>
+  /** selector details by component id (renderComponent passes its mock-DOM view) */
+  selectors?: Record<string, InspectSelector[]>
+  /** diagnostics to attach (default: the devtools' collected diagnostics, when available) */
+  diagnostics?: Array<{ code: string; severity: DiagnosticSeverity; component?: string; message: string; [key: string]: any }>
+}
+
+/**
+ * The app graph of the live component instances, built from what the
+ * diagnostics hooks have seen (so diagnostics must be on while the app runs).
+ * Disposed components are pruned. Also available as `getDevTools().inspect()`
+ * / `window.__SYGNAL_DEVTOOLS__.inspect()` once the devtools bridge exists
+ * (run() in a browser), and as renderComponent's `t.inspect()`.
+ */
+export function inspect(options?: InspectOptions): InspectGraph
