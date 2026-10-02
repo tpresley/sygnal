@@ -623,9 +623,9 @@ function renderComponent(
 | `html` | `() => string` | Latest render as HTML (throws before the first render: `await t.ready()` first) |
 | `emitted` | `{ type, data }[]` | EVENTS emissions |
 | `sinkValues` | `(sinkName) => any[]` | Values sent to a sink |
-| `requests` | `(sinkName) => any[]` | Requests sent to a driverless sink (alias of `sinkValues`) |
-| `respond` | `(sinkName, value, opts?) => void` | Answer the latest pending request on a driverless source's `select()` ([Testing](/integration/testing/#answering-requests-respond-and-fail)) |
-| `fail` | `(sinkName, error, opts?) => void` | Fail the latest pending request on its `errors()` (a number is an HTTP status) |
+| `requests` | `(sinkName) => any[]` | Requests sent to a sink: `sinkValues` without the `{ abort }` commands |
+| `respond` | `(sinkName, value, target?) => Promise<void>` | Answer the newest pending request on a driverless source that matches `target` (an `ok`/`error` action name or category, `{ url }` or another partial request, a predicate, or `{ request, category, status, body }`): a routed request gets `value` as its `ok` action, an unrouted one goes to `select()`. Throws at the call when nothing matching is pending (unless earlier simulated input is still queued); resolves after the reply is reduced and rendered ([Testing](/integration/testing/#answering-requests-respond-and-fail)) |
+| `fail` | `(sinkName, error, target?) => Promise<void>` | Fail it the same way: its `error` action gets `{ error, request, status, body }`, or `errors()` (a number is an HTTP status) |
 | `diagnostics` | `Diagnostic[]` | Diagnostics collected while rendered |
 | `expectNoDiagnostics` | `() => void` | Throws if a warning or error was collected |
 | `inspect` | `() => InspectGraph` | App graph of the rendered tree (needs `sygnal/diagnostics`) |

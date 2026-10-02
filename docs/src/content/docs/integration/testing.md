@@ -264,31 +264,59 @@ A driver you pass in `drivers` still wins: it receives the values (and `sinkValu
 
 ### Answering requests: respond() and fail()
 
-The source of a driver you don't pass is a fake you answer from the test, so a component that uses [`makeFetchDriver()`](/guide/drivers/#http-requests-with-makefetchdriver) (or any `driverFromAsync` driver) needs no driver wiring in tests:
+The source of a driver you don't pass is a fake you answer from the test, so a component that uses [`makeFetchDriver()`](/guide/drivers/#http-requests-with-makefetchdriver) (or any `driverFromAsync` driver) needs no driver wiring in tests. The fake routes replies like the real driver: a request that names `ok` / `error` actions gets its reply as that action, on exactly the component instance that sent it.
 
 ```jsx
-// Quote: LOAD: { HTTP: () => ({ category: 'quote', url: '/api/quote' }) },
-//        LOADED: HTTP.select('quote'), FAILED: HTTP.errors('quote')
-const t = renderComponent(Quote)
-t.simulateEvent('.get', 'click')
-t.respond('HTTP', { text: 'Hi', author: 'Me' })
-await t.next(s => s.text === 'Hi — Me')
-expect(t.requests('HTTP')).toEqual([{ category: 'quote', url: '/api/quote' }])
+function Quote({ state }) {
+  return <div><button className="get">Get</button><p>{state.text}</p></div>
+}
+Quote.initialState = { text: '', status: 'idle' }
+Quote.intent = ({ DOM }) => ({ LOAD: DOM.click('.get') })
+Quote.model = {
+  LOAD: {
+    STATE: (state) => ({ ...state, status: 'loading' }),
+    HTTP: () => ({ url: '/api/quote', ok: 'LOADED', error: 'FAILED' }),
+  },
+  LOADED: (state, quote) => ({ ...state, status: 'done', text: quote.text }),
+  FAILED: (state, { status }) => ({ ...state, status: status === 404 ? 'missing' : 'error' }),
+}
 
-t.simulateEvent('.get', 'click')
-t.fail('HTTP', 404)                   // an HTTP status, an Error, or a message
-await t.next(s => s.error !== '')
+it('loads a quote', async () => {
+  const t = renderComponent(Quote)
+  t.simulateEvent('.get', 'click')
+  await t.respond('HTTP', { text: 'Hi' }, 'LOADED')   // resolves once LOADED is reduced and rendered
+  expect(t.html()).toContain('Hi')
+  expect(t.requests('HTTP')).toEqual([{ url: '/api/quote', ok: 'LOADED', error: 'FAILED' }])
+
+  t.simulateEvent('.get', 'click')
+  await t.fail('HTTP', 404)                           // an HTTP status, an Error, or a message
+  expect(t.state.status).toBe('missing')
+})
 ```
 
-- `t.requests(name)` is the live list of values sent to the sink (an alias of `sinkValues`).
-- Every value sent to the sink is its own request, even the same object sent again: a constant request object re-sent by a Retry after `t.fail` is pending again, as with the real driver.
-- `t.respond(name, value, opts?)` answers the most recent pending request and delivers `{ category, value, status: 200, request }` on `select()`. It is delivered in order with `simulateEvent`/`simulateAction` calls and waits up to 1 s (half of `timeoutMs` if lower) for the component to send a request, e.g. after a debounce.
-- `t.fail(name, error, opts?)` delivers `{ error, category, request, status, body }` on `errors()`. A number is an HTTP status: `t.fail('HTTP', 404)` fails with `Error('HTTP 404')` and `status: 404`.
-- `opts`: a category string, or `{ category, request, status, body }`. `request` picks an exact element of `t.requests(name)` (an object sent more than once: its newest pending send); `request: null` pushes a value no request asked for.
-- The fake follows `latest: true` and `{ category, abort: true }` like the real driver: a superseded or cancelled request is no longer pending, and answering it explicitly delivers nothing.
-- It is isolated like the real driver: each component instance (two `<Search>`es, every Collection item) gets only the replies to its own requests, and its `latest`/`abort` don't touch another instance's requests. Answer each with `{ request }` (an element of `t.requests('HTTP')`); the root component sees every reply.
+- `t.respond(name, value, target?)` answers a pending request. A routed request (`ok: 'LOADED'`) gets `value` (the parsed body) as its `LOADED` action. An unrouted one gets `{ category, value, status: 200, request }` on `select()`.
+- `t.fail(name, error, target?)` fails it. A routed request (`error: 'FAILED'`) gets `{ error, request, status, body }` as its `FAILED` action. An unrouted one gets `{ error, category, request, status, body }` on `errors()`. A number is an HTTP status: `t.fail('HTTP', 404)` fails with `Error('HTTP 404')` and `status: 404`.
+- Both return a promise that resolves once the reply action has been reduced and the whole tree has rendered (on the real DOM, once it is in the DOM). `await` it, then assert.
+
+**Which request.** `target` picks the newest pending request that matches it. Matching is by content, never by object identity alone:
+
+| `target` | Matches a request |
+|---|---|
+| (none) | any (the newest pending one) |
+| `'LOADED'` | whose `ok`, `error`, `key` or `category` is `'LOADED'` |
+| `{ url: '/items/2' }` | whose fields equal these, compared by value (a partial request; also the constant object the model returns) |
+| `(request) => request.query.q === 'du'` | for which the predicate is true (a string request is passed as `{ url }`) |
+| `{ request, category, status, body }` | `request` is any of the above, or an element of `t.requests(name)`. Among equal pending requests, that very element is answered. `request: null` pushes a value no request asked for. `category` narrows the match, and `status`/`body` set the reply's |
+
+An object whose keys are all `request`, `category`, `status` or `body` is read as options. Any other object is a request pattern.
+
+**When nothing matches.** `t.respond` and `t.fail` throw at the call, so `expect(() => t.respond('HTTP', [], { query: { q: 'du' } })).toThrow()` asserts that a stale request is no longer pending. The exception is a call made while `simulateEvent`/`simulateAction`/`respond`/`fail` calls are still queued before it, or before the component is ready (a request sent on `BOOTSTRAP`). That call is delivered after them and waits up to 1 s (half of `timeoutMs` if lower) for its request, e.g. after a debounce. If none comes, its promise rejects, and if nothing awaited it, the next wait (`next`, `settle`, ...) fails.
+
+- **Pending** works as in the real driver. Each send is its own request, even the same object sent again. A request stops being pending when it is answered, superseded by `latest: true`, aborted (`{ abort: 'LOADED' }`, `{ abort: true, key }`, `{ category, abort: true }`), or when the instance that sent it is disposed (a removed Collection item).
+- **Isolation** works as in the real driver. A routed reply reaches only its sender, so a parent and a child can both use `ok: 'LOADED'`. Two Collection items can be answered by URL: `t.respond('HTTP', detail, { url: '/items/2' })`. Unrouted replies keep the scoped `select()`/`errors()` behaviour: each instance sees the replies to its own and its descendants' requests, and the root sees every reply.
+- **`t.requests(name)` vs `t.sinkValues(name)`.** `t.requests(name)` is the live list of requests sent to the sink. `t.sinkValues(name)` also contains the `{ abort }` commands, so after a clear that aborts a search, `t.requests('HTTP')` still lists only the search.
 - The fake can't see options given to the real driver in `main.js`: a `makeFetchDriver({ latest: true })` there doesn't apply in tests. Write `latest: true` on the request itself (the canonical form).
-- The test fails with an explanation when no request is pending, or when nothing selects the reply (a category typo, or no `errors()` handler for a failure).
+- An unrouted reply that nothing selects fails the test with an explanation (a category typo, or no `errors()` handler for a failure).
 
 ## Diagnostics in Tests
 
@@ -354,9 +382,9 @@ The timing options (and a timeout passed to `next()`, `waitForState()` or `settl
 | `html` | `() => string` | Latest render as HTML (throws before the first render) |
 | `emitted` | `{ type, data }[]` | EVENTS emissions |
 | `sinkValues` | `(sink) => any[]` | Values sent to a sink |
-| `requests` | `(sink) => any[]` | Requests sent to a driverless sink (alias of `sinkValues`) |
-| `respond` | `(sink, value, opts?) => void` | Answer the latest pending request on the fake source (`select()`) |
-| `fail` | `(sink, error, opts?) => void` | Fail the latest pending request on the fake source (`errors()`) |
+| `requests` | `(sink) => any[]` | Requests sent to a sink (`sinkValues` without `{ abort }` commands) |
+| `respond` | `(sink, value, target?) => Promise<void>` | Answer the newest pending request matching `target` on the fake source (its `ok` action, or `select()`); throws if none is pending |
+| `fail` | `(sink, error, target?) => Promise<void>` | Fail it (its `error` action, or `errors()`); throws if none is pending |
 | `diagnostics` | `Diagnostic[]` | Diagnostics collected while rendered |
 | `expectNoDiagnostics` | `() => void` | Throws if any warning or error was collected |
 | `inspect` | `() => InspectGraph` | The app graph of the rendered tree |

@@ -1312,14 +1312,19 @@ export interface SimulatedEventInit {
   [prop: string]: any;
 }
 
-/** Which request a t.respond()/t.fail() answers (a string is the category) */
+/**
+ * Which request a t.respond()/t.fail() answers, as options. An object with only these keys is
+ * options; any other object is a request pattern (see `respond`).
+ */
 export interface FakeReplyOptions {
-  /** Answer the most recent pending request of this category */
+  /** Only requests with this category */
   category?: string;
   /**
-   * Answer exactly this request (an element of t.requests(name); an object sent more than once:
-   * its newest pending send). `null`: push the value without
-   * a request (for a source that emits on its own); `category` then sets its category.
+   * The request to answer, compared by value: a request object (e.g. an element of
+   * t.requests(name), or the constant the model returns; among equal pending requests that very
+   * object, else the newest), a partial request (`{ url: '/a' }`), a URL string, or a predicate
+   * `(request) => boolean`. `null`: push the value without a request (for a source that emits
+   * on its own); `category` then sets its category.
    */
   request?: any;
   /** respond(): the status (default 200). fail(): the status (default error.status) */
@@ -1440,23 +1445,35 @@ export interface RenderResult<STATE = any> {
   readonly state: STATE;
   /** Live array of values emitted on a sink (EVENTS as {type, data}, PARENT unwrapped, custom sinks of any component in the tree) */
   sinkValues: (sinkName: string) => any[];
-  /** Live array of the requests sent to a sink with no driver (alias of sinkValues) */
+  /**
+   * Live array of the requests a sink was sent: `sinkValues(name)` without the `{ abort }`
+   * commands (those stay in sinkValues)
+   */
   requests: (sinkName: string) => any[];
   /**
-   * Answer the most recent pending request on a driverless sink/source (e.g. `HTTP` with no
-   * `drivers: { HTTP }`): `HTTP.select(category)` receives `{ category, value, status: 200,
-   * request }`. Waits up to 1s (half of timeoutMs if lower) for the component to send a
-   * request (e.g. after a debounce). Each send is a request (the same object sent again is
-   * pending again). Requests superseded by a later `latest: true` one, or cancelled with
-   * `{ category, abort: true }`, aren't pending. Fails the test if nothing selects it.
+   * Answer a pending request on a driverless sink/source (e.g. `HTTP` with no
+   * `drivers: { HTTP }`), like makeFetchDriver: a routed request (`ok: 'LOADED'`) gets `value`
+   * as its `LOADED` action, on exactly the component that sent it; an unrouted one gets
+   * `{ category, value, status: 200, request }` on `HTTP.select(category)`.
+   * Which request (the newest pending one that matches): `target` is an `ok`/`error` action
+   * name, key or category (`'LOADED'`); a partial request compared by value (`{ url: '/a' }`,
+   * the constant the model returns); a predicate `(request) => boolean`; or FakeReplyOptions.
+   * Nothing: the newest pending request. Requests answered, superseded by `latest: true`,
+   * aborted, or whose component is gone aren't pending.
+   * Throws at the call when nothing matching is pending, unless simulateEvent/simulateAction/
+   * respond/fail calls are still queued before it or the component isn't ready yet: then it is
+   * delivered after them, waiting up to 1s (half of timeoutMs if lower) for the request.
+   * Resolves once the reply has been reduced and the tree rendered; rejects (and, if not
+   * awaited, fails the next wait) when no request comes or nothing receives an unrouted reply.
    */
-  respond: (sinkName: string, value: any, options?: string | FakeReplyOptions) => void;
+  respond: (sinkName: string, value: any, target?: string | FakeReplyOptions | Record<string, any> | ((request: any) => boolean)) => Promise<void>;
   /**
-   * Fail the most recent pending request: `HTTP.errors(category)` receives `{ error, category,
-   * request, status, body }`. `error`: an Error, a message, or an HTTP status (404 → 'HTTP 404',
-   * status 404). Fails the test if nothing listens to errors().
+   * Fail a pending request (chosen as in respond): a routed one (`error: 'FAILED'`) gets
+   * `{ error, request, status?, body? }` as its `FAILED` action, on its sender; an unrouted one
+   * `{ error, category, request, status, body }` on `HTTP.errors(category)`. `error`: an
+   * Error, a message, or an HTTP status (404 → 'HTTP 404', status 404).
    */
-  fail: (sinkName: string, error: any, options?: string | FakeReplyOptions) => void;
+  fail: (sinkName: string, error: any, target?: string | FakeReplyOptions | Record<string, any> | ((request: any) => boolean)) => Promise<void>;
   /** Live array of EVENTS sink emissions ({type, data}) */
   emitted: Array<{ type: string; data: any }>;
   /** Live array of diagnostics reported while rendered */

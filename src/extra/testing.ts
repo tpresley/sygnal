@@ -10,6 +10,7 @@ import {renderToInnerHtml} from './ssr';
 import {_getDiagnosticsConfig, configureDiagnostics, getDiagnosticsMode, isDiagnosticsEnabled, onDiagnostic, registerCheck, report} from './diagnostics/index';
 import xs from './xstreamCompat';
 import {tagRequest, inScope, scopeKey} from './fetchDriver';
+import {senderOf, allowed, makeRoutes} from './routing';
 import type {Stream} from 'xstream';
 import type {Diagnostic, DiagnosticsMode} from './diagnostics/index';
 import type {InspectGraph} from './diagnostics/checks/public';
@@ -153,14 +154,18 @@ export interface SimulatedEventInit {
   [prop: string]: any;
 }
 
-/** E2: which request a t.respond()/t.fail() answers (a string is the category) */
+/**
+ * E2 / PLAN-3 1-C: which request a t.respond()/t.fail() answers, as options. An object with
+ * only these keys is options; any other object is a request pattern compared by value.
+ */
 export interface FakeReplyOptions {
-  /** Answer the most recent pending request of this category */
+  /** Only requests with this category */
   category?: string;
   /**
-   * Answer exactly this request (an element of t.requests(name); an object sent more than once:
-   * its newest pending send). `null`: push the value without
-   * a request (for a source that emits on its own); `category` then sets its category.
+   * The request, compared by value: a request object (among equal pending requests that very
+   * object, else the newest), a partial request, a URL string, or a predicate. `null`: push
+   * the value without a request (for a source that emits on its own); `category` then sets
+   * its category.
    */
   request?: any;
   /** Response status (respond: default 200) or failure status (fail: default error.status) */
@@ -168,6 +173,8 @@ export interface FakeReplyOptions {
   /** fail(): the parsed error body */
   body?: any;
 }
+/** E2 / PLAN-3 1-C: a t.respond()/t.fail() target */
+export type FakeReplyTarget = string | FakeReplyOptions | Record<string, any> | ((request: any) => boolean);
 
 export interface RenderOptions {
   /** Override or provide initial state (defaults to component's .initialState) */
@@ -262,27 +269,29 @@ export interface RenderResult {
    */
   sinkValues: (sinkName: string) => any[];
   /**
-   * E2: requests the component sent to a sink that has no driver (alias of sinkValues(name)).
-   * Answer them with respond() / fail().
+   * E2: the requests sent to a sink (live): sinkValues(name) without `{ abort }` commands
+   * (G-141). Answer the pending ones of a driverless sink with respond() / fail().
    */
   requests: (sinkName: string) => any[];
   /**
-   * E2: answer a request on a fake source. A sink/source with no driver (e.g. `HTTP` with
-   * no `drivers: { HTTP }`) gets a scriptable fake whose `select(category)` / `errors(category)`
-   * behave like makeFetchDriver / driverFromAsync. respond() delivers
-   * `{ category, value, status, request }` on `select()` for the most recent pending request
-   * (of `category`, if given; or exactly `request`), waiting up to 1s (half of timeoutMs if
-   * lower) for the component to send one (e.g. after a debounce). Requests superseded by a later `latest: true` request,
-   * or cancelled with `{ category, abort: true }`, are not pending; answering one explicitly
-   * delivers nothing, like the real driver. Fails the test if nothing selects the response.
+   * E2 / PLAN-3 1-C: answer a pending request on a fake source (a sink/source with no driver,
+   * e.g. `HTTP` with no `drivers: { HTTP }`), like makeFetchDriver: a routed request
+   * (`ok: 'LOADED'`) gets `value` as its LOADED action, on exactly its sender; an unrouted one
+   * `{ category, value, status, request }` on `select()`. The request: the newest pending one
+   * matching `target` (an ok/error action name, key or category; a partial request compared by
+   * value; a predicate; FakeReplyOptions), or the newest pending one. Throws at the call when
+   * none matches, unless input is still queued before it or the component isn't ready: then
+   * it waits up to 1s (half of timeoutMs if lower) for one. Resolves after the reply has been
+   * reduced and rendered; rejects (and, un-awaited, fails the next wait) otherwise.
    */
-  respond: (sinkName: string, value: any, opts?: string | FakeReplyOptions) => void;
+  respond: (sinkName: string, value: any, target?: FakeReplyTarget) => Promise<void>;
   /**
-   * E2: fail a pending request on a fake source: delivers `{ error, category, request, status,
-   * body }` on `errors()`. `error` may be an Error, a message, or an HTTP status number (404 →
-   * an Error 'HTTP 404' with `status: 404`). Targeting, waiting and failures as in respond().
+   * E2 / PLAN-3 1-C: fail a pending request (chosen as in respond()): a routed one
+   * (`error: 'FAILED'`) gets `{ error, request, status?, body? }` as its FAILED action; an
+   * unrouted one `{ error, category, request, status, body }` on `errors()`. `error` may be an
+   * Error, a message, or an HTTP status number (404 → an Error 'HTTP 404' with `status: 404`).
    */
-  fail: (sinkName: string, error: any, opts?: string | FakeReplyOptions) => void;
+  fail: (sinkName: string, error: any, target?: FakeReplyTarget) => Promise<void>;
   /** Live array of EVENTS sink emissions ({type, data}) */
   emitted: any[];
   /** Live array of diagnostics reported while rendered */
@@ -657,6 +666,45 @@ const clockNow = (): number => { const c = fakeClock(); return c ? c.now : Date.
  * one) until `p` settles. Every pending wait has a timer (its timeout, a quiet-window tick), so
  * this ends; with no timer left it stops and leaves `p` to the test. Real timers: `p` as is.
  */
+/**
+ * PLAN-3 1-C: what t.respond / t.fail return: a Promise that notes when it is awaited (then()),
+ * so an un-awaited failing call can still fail the next wait, and an awaited one under fake
+ * timers can drive the clock. Its then() returns a plain Promise.
+ */
+class Reply extends Promise<void> {
+  _seen?: () => void;
+  static get [Symbol.species]() { return Promise; }
+  then(a?: any, b?: any): any { this._seen?.(); return super.then(a, b); }
+}
+/**
+ * PLAN-3 1-C: which pending requests (`{ scope, category, sender, rk }`) a request sent to a
+ * fake source cancels, or undefined: makeFetchDriver's send() rules, kept here so the driver
+ * stays as small as it is (keep the two in step; test/p3-1c-fakes.test.js mirrors
+ * test/p3-1a-routing.test.js). `rk`: a routed request's key, (sender, `key ?? ok ?? error`).
+ */
+const routeKey = (req: any, sender: any) =>
+  sender !== undefined && (req.ok || req.error) ? req.key ?? req.ok ?? req.error : undefined;
+const cancels = (req: any, scope: any, sender: any, rk: any) => {
+  const {abort, key, category} = req;
+  if (sender !== undefined && (typeof abort == 'string' || (abort && key !== undefined)))
+    return (r: any) => r.sender === sender && r.rk === (key ?? abort);
+  // per (scope, category): another component's requests are never cancelled
+  if (abort) return (r: any) => r.scope === scope && (!('category' in req) || r.category === category);
+  if (req.latest) return rk === undefined ? (r: any) => r.rk === undefined && r.scope === scope && r.category === category
+    : (r: any) => r.sender === sender && r.rk === rk;
+};
+/** a request field compared by value (t.respond / t.fail targets) */
+const same = (a: any, b: any): boolean => {
+  if (a === b) return true;
+  if (!a || !b || typeof a != 'object' || typeof b != 'object' || Array.isArray(a) != Array.isArray(b)) return false;
+  const ka = Object.keys(a), kb = Object.keys(b);
+  return ka.length == kb.length && ka.every(k => same(a[k], b[k]));
+};
+const brief = (v: any) => {
+  let s: string;
+  try { s = typeof v == 'string' ? `'${v}'` : JSON.stringify(v); } catch (_) { s = String(v); }
+  return s && s.length > 80 ? s.slice(0, 80) + '…' : s;
+};
 const drive = <T>(p: Promise<T>, stop: () => boolean): Promise<T> => {
   const clock = fakeClock();
   if (!clock) return p;
@@ -749,22 +797,40 @@ export function renderComponent(
   const scheduled: Scheduled[] = [];
   // G-064: listeners on the driverless sinks of descendants (removed when they're disposed)
   const childSinks = new Map<any, Array<[any, any]>>();
+  // PLAN-3 1-C (G-151): a sink in a descendant's model that no driver provides (the root's
+  // model doesn't name it) gets the fake as a real source before the component wires its
+  // actions and sinks, so the core stamps its requests and routes the replies, as under run()
+  // with the driver. Its descendants inherit it; their requests reach its sink.
+  const injected = new Map<any, string[]>();
+  const inject = (c: any) => {
+    const m = c.model, src = c.sources, names: string[] = [];
+    if (!m || typeof m != 'object' || !src || !Array.isArray(c.sourceNames)) return;
+    for (const k in m) {
+      const e = m[k], [, sink] = k.split('|');
+      for (const n of sink ? [sink.trim()] : e && typeof e == 'object' ? Object.keys(e) : []) {
+        if (n in src || RESERVED_SINKS.test(n) || n == c.stateSourceName || names.includes(n)) continue;
+        src[n] = fake(n).at(nsOf(c));
+        c.sourceNames.push(n);
+        names.push(n);
+      }
+    }
+    if (names.length) injected.set(c, names);
+  };
   const recordChildSinks = (c: any) => {
-    const m = c.model$ || {}, own = new Set<string>(c.sourceNames || []);
-    const extra = Object.keys(m).filter(k => !own.has(k) && !RESERVED_SINKS.test(k) &&
-      k != c.stateSourceName && typeof m[k]?.addListener == 'function');
-    if (!extra.length) return;
+    const extra = injected.get(c);
+    if (!extra) return;
     childSinks.set(c, []);
     // subscribed after the constructor, as a parent's sinks would be; actions start >= 1ms later
     queueMicrotask(() => {
-      const list = childSinks.get(c);
+      const list = childSinks.get(c), sk = c.sinks || {};
       if (disposed || !list) return;
       // R4-2: a child's request is tagged with its place in the tree (the fake's scope)
       const ns = nsOf(c);
       for (const k of extra) {
-        const l = {next: (v: any) => sinkValues(k).push(v && typeof v == 'object' ? ns.reduceRight(tagRequest, v) : v), error: noop, complete: noop};
-        m[k].addListener(l);
-        list.push([m[k], l]);
+        if (typeof sk[k]?.addListener != 'function') continue;
+        const l = {next: (v: any) => record(k, ns.reduceRight(tag, v), true), error: noop, complete: noop};
+        sk[k].addListener(l);
+        list.push([sk[k], l]);
       }
     });
   };
@@ -790,6 +856,7 @@ export function renderComponent(
     onReducer: bump,
     onIntent(c: any) {
       bump();
+      if (mine(c)) inject(c);
       const sc = scopeOf(c);
       if (sc) owners.set(sc, c.name);
       if (c.sources[c.DOMSourceName || 'DOM']?._hub == hub.$) scopeIds.set(sc || '', c._componentNumber);
@@ -922,13 +989,21 @@ export function renderComponent(
   // R4-2: isolated like makeFetchDriver: a source at scope path `ns` sees the replies to
   // requests made at or under it; requests are tagged by isolateSink (or, for a child-only
   // sink with no driver, with the component's place in the tree, see nsOf)
+  // PLAN-3 1-C (G-151): routing-capable like makeFetchDriver (__sygnalRoutes / routed(sender)),
+  // so the core stamps each component's requests with their sender and a routed request
+  // ({ ok, error }) is answered as that action to exactly that instance. `sent` tracks what is
+  // pending with the driver's own rules (routing.ts: latest/abort per sender or scope; a
+  // disposed sender's routed requests are dropped).
   type FakeSub = {l: any; sel: any; err: boolean; ns: any[]};
-  type Fake = {select: any; errors: any; subs: Set<FakeSub>; at: (ns: any[]) => Fake};
+  type Sent = {value: any; req: any; category: any; scope: string; sender: any; rk: any; live: boolean};
+  type Fake = {select: any; errors: any; subs: Set<FakeSub>; at: (ns: any[]) => any; sent: Sent[]; route: (sender: any, type: any, data: any) => void};
   const fakes = new Map<string, Fake>();
   const fake = (name: string): Fake => {
     let f = fakes.get(name);
     if (!f) {
       const subs = new Set<FakeSub>();
+      const sent: Sent[] = [];
+      const {routes, reply: route} = makeRoutes(sender => sent.forEach(r => { if (r.rk !== undefined && r.sender === sender) r.live = false; }));
       const at = (ns: any[]): any => {
         const src = (err: boolean) => (sel?: any) => {
           let sub: FakeSub;
@@ -938,16 +1013,40 @@ export function renderComponent(
           });
         };
         return {
-          select: src(false), errors: src(true), subs, at,
+          select: src(false), errors: src(true), subs, at, sent, route,
           isolateSource: (_: any, scope: any) => at(ns.concat(scope)),
-          isolateSink: (sink$: any, scope: any) => sink$.map((v: any) => v && typeof v == 'object' ? tagRequest(v, scope) : v),
-          // R4-7: no legacy HTTP HYDRATE subscription
-          __sygnalFetch: true,
+          isolateSink: (sink$: any, scope: any) => sink$.map((v: any) => tag(v, scope)),
+          ...routes,
         };
       };
       fakes.set(name, (f = at([])));
     }
     return f!;
+  };
+  // G-131: a string request is scope-tagged as { url } (like makeFetchDriver's isolateSink),
+  // remembering the string, so t.requests still shows what the component sent
+  const STR = '__sygnalString';
+  const tag = (v: any, scope: any) => {
+    if (typeof v != 'string' && !(v && typeof v == 'object')) return v;
+    const r = tagRequest(v, scope), str = typeof v == 'string' ? v : v[STR];
+    if (str !== undefined) Object.defineProperty(r, STR, {value: str});
+    return r;
+  };
+  const requests = (k: string) => (reqValues[k] = reqValues[k] || []);
+  const reqValues: Record<string, any[]> = {};
+  // a sink value: recorded (t.sinkValues; t.requests unless it is an { abort } command, G-141)
+  // and, on a fake source, tracked as pending like makeFetchDriver would
+  const record = (name: string, v: any, track: boolean) => {
+    const shown = v && typeof v == 'object' && v[STR] !== undefined ? v[STR] : v;
+    sinkValues(name).push(shown);
+    const req = typeof v == 'string' ? {url: v} : v;
+    const obj = !!req && typeof req == 'object';
+    if (!(obj && req.abort)) requests(name).push(shown);
+    if (!track || !obj || !allowed(req, `renderComponent's fake ${name}`)) return;
+    const f = fake(name), scope = scopeKey(req), sender = senderOf(req), rk = routeKey(req, sender);
+    const which = cancels(req, scope, sender, rk);
+    if (which) f.sent.forEach(r => { if (r.live && which(r)) r.live = false; });
+    if (!req.abort) f.sent.push({value: shown, req, category: req.category, scope, sender, rk, live: true});
   };
   // R4-2: a component's scope path for the child-only fake: its ancestors' numbers below the root
   const parentOf = new Map<any, any>();
@@ -1071,11 +1170,13 @@ export function renderComponent(
     LOG: logDriver,
     ...drivers,
   };
+  const faked = new Set<string>();
   for (const k in model) {
     const e = model[k], [, sink] = k.split('|');
     for (const n of sink ? [sink.trim()] : e && typeof e == 'object' ? Object.keys(e) : []) {
       if (!allDrivers[n] && !/^(STATE|EFFECT|PARENT|READY)$/.test(n)) {
         allDrivers[n] = () => fake(n);
+        faked.add(n);
       }
     }
   }
@@ -1105,9 +1206,7 @@ export function renderComponent(
   const sinkValues = (k: string) => (values[k] = values[k] || []);
   for (const k in sinks) {
     if (k != 'DOM' && k != 'STATE' && typeof sinks[k]?.addListener == 'function') {
-      listen(sinks[k], v => sinkValues(k).push(
-        k == 'EVENTS' ? {type: v.type, data: v.data} : k == 'PARENT' ? v.value : v
-      ));
+      listen(sinks[k], v => record(k, k == 'EVENTS' ? {type: v.type, data: v.data} : k == 'PARENT' ? v.value : v, faked.has(k)));
     }
   }
   // Input queue (G-049/G-039): simulateAction/simulateEvent calls are delivered in order,
@@ -1281,93 +1380,145 @@ export function renderComponent(
     later(() => (actions.emit({type, data}), true));
   };
 
-  // E2: t.respond / t.fail. The answered request is picked when the call is delivered (in
-  // order with simulate* calls), waiting up to 1s for the component to send one.
-  // 4-F: each send is tracked by its index in the recorded sink values, not by the request
-  // object, so a constant request object sent again (a Retry after t.fail) is a new pending
-  // request, as with the real driver
-  const answered = new Set<string>();
-  const pendingRequests = (name: string) => {
-    let live: Array<{raw: any; category: any; scope: string; i: number}> = [];
-    for (const [i, raw] of sinkValues(name).entries()) {
-      const r = typeof raw == 'string' ? {url: raw} : raw;
-      if (!r || typeof r != 'object') continue;
-      // { abort: true } cancels everything; with a category, or a latest: true request, the
-      // ones in flight in that category
-      // R4-2: per scope: another component's requests are never cancelled
-      const sc = scopeKey(r);
-      if (r.abort || r.latest) live = live.filter(x => x.scope !== sc || (r.latest || 'category' in r) && x.category !== r.category);
-      if (!r.abort && !answered.has(name + '#' + i)) live.push({raw, category: r.category, scope: sc, i});
+  // E2: t.respond / t.fail. PLAN-3 1-C: the request is chosen by content (G-140, E2 13-t4):
+  // a string is an ok/error action name, key or category; a function a predicate; an object
+  // (or `{ request }`) a partial request compared by value, preferring the very object of
+  // t.requests among equal ones. With no target: the newest pending request.
+  // When to pick: a call made while simulate*/respond/fail calls are still queued, or before
+  // the component is ready, is queued behind them and picks its request when it is delivered,
+  // waiting up to 1s for it (a debounce); otherwise the request must be pending at the call,
+  // or the call throws (`expect(() => t.respond(...)).toThrow()`).
+  // The returned promise resolves once the reply has been reduced and the tree rendered. A
+  // failure later on rejects it; when nothing awaits it, it also fails the next wait.
+  const replyWaits = new Set<(e?: Error, quiet?: boolean) => void>();
+  const OPTION_KEYS = ['category', 'request', 'status', 'body'];
+  type Target = {match: (r: Sent) => boolean; exact?: any; desc: string; push?: boolean; o: any};
+  const targetOf = (opts: any): Target => {
+    const isOpts = !!opts && typeof opts == 'object' && !Array.isArray(opts) && Object.keys(opts).every(k => OPTION_KEYS.includes(k));
+    const o = isOpts ? opts : {};
+    // request: null pushes a value no request asked for (a source that emits on its own)
+    if (isOpts && o.request === null) return {match: () => false, desc: '', push: true, o};
+    let tg = isOpts ? o.request : opts;
+    if (isOpts && typeof tg == 'string') tg = {url: tg};
+    const cat = 'category' in o ? (r: Sent) => r.category === o.category : () => true;
+    const catDesc = 'category' in o ? ` with category '${o.category}'` : '';
+    if (tg === undefined) return {match: cat, desc: catDesc, o};
+    if (typeof tg == 'string') {
+      return {match: r => cat(r) && [r.req.ok, r.req.error, r.req.key, r.req.category].includes(tg), desc: ` matching '${tg}'${catDesc}`, o};
     }
-    return live;
+    if (typeof tg == 'function') {
+      return {match: r => { try { return cat(r) && !!tg(r.req); } catch (_) { return false; } }, desc: ` matching the predicate${catDesc}`, o};
+    }
+    if (tg && typeof tg == 'object') {
+      const keys = Object.keys(tg);
+      return {match: r => cat(r) && keys.every(k => same(tg[k], r.req[k])), exact: isOpts ? o.request : tg, desc: ` matching ${brief(tg)}${catDesc}`, o};
+    }
+    throw new Error(`[Sygnal] t.respond/t.fail: the target must be an action name or category, a request object, a predicate or { request, category, status, body } options (got ${typeof tg})`);
   };
-  const reply = (fn: string, name: string, err: boolean, build: (category: any, request: any) => any, opts: any) => {
+  const pick = (name: string, tg: Target): Sent | undefined => {
+    const live = fake(name).sent.filter(r => r.live && tg.match(r));
+    return (tg.exact !== undefined && live.filter(r => r.value === tg.exact || r.req === tg.exact).pop()) || live.pop();
+  };
+  const noPending = (what: string, name: string, tg: Target, waited: number) => {
+    const sent = requests(name).length, live = fakes.get(name)?.sent.filter(r => r.live) || [];
+    return new Error(`[Sygnal] ${what}: no pending ${name} request${tg.desc}${waited ? ` after ${waited}ms` : ''}. ` +
+      (live.length ? `Pending: ${live.map(r => brief(r.value)).join(', ')}. ` : '') +
+      (sent ? `The component sent ${sent} (t.requests('${name}'))${live.length ? '; the others were' : ','} all answered, aborted or superseded by a later latest: true request.` :
+        `The component sent none: check the model entry that returns the ${name} request (t.requests('${name}') is empty).`) +
+      (waited ? '' : ` t.respond/t.fail answer a request already sent, or one sent by the simulate* calls queued before them: wait for a later one first (await t.next(...) or t.settle()).`));
+  };
+  const reply = (fn: string, name: string, err: boolean, build: (e: Sent | undefined, category: any) => [any, any], opts: any): Promise<void> => {
     throwFailure();
     if (drivers[name]) throw new Error(`[Sygnal] t.${fn}('${name}'): ${name} has a real driver (passed in drivers), so there is nothing to script. t.respond/t.fail answer the fake source renderComponent provides when no driver is passed`);
-    const o = typeof opts == 'string' ? {category: opts} : opts || {};
+    const tg = targetOf(opts);
     const what = `t.${fn}('${name}'${typeof opts == 'string' ? `, …, '${opts}'` : ''})`;
+    // nothing queued before it: the request must be pending now
+    if (!tg.push && isReady && !inputs.length && !disposed && !pick(name, tg)) throw noPending(what, name, tg, 0);
+    let ok!: () => void, ko!: (e: Error) => void, seen = false, open = true;
+    const inner = new Promise<void>((a, b) => { ok = a; ko = b; });
+    inner.catch(noop);
+    const out = new Reply((a, b) => inner.then(a, b));
+    Promise.prototype.then.call(out, undefined, noop);
+    out._seen = () => {
+      if (seen) return;
+      seen = true;
+      // E11: under fake timers, an awaited reply drives the clock like the harness's waits
+      if (open && fakeClock()) drive(inner, () => disposed).catch(noop);
+    };
+    const settle = (e?: Error, quiet?: boolean) => {
+      if (!open) return;
+      open = false;
+      replyWaits.delete(settle);
+      if (!e) return ok();
+      if (!seen && !quiet) failWith(e);
+      ko(e);
+    };
+    replyWaits.add(settle);
+    const wait = Math.min(1000, defaultTimeout / 2);
     const input: Input = {
       // up to 1s (half of timeoutMs if lower), so a wait (next/settle) still times out later
-      wait: Math.min(1000, defaultTimeout / 2),
+      wait,
       go: last => {
-        let request = o.request, category = o.category, send: any;
-        // request: null pushes a value no request asked for (a source that emits on its own)
-        if (request === null) {
-          request = undefined;
-        } else if (request !== undefined) {
-          // an explicit request answers the latest pending send of that object (one sent
-          // twice is answered newest first); one no longer pending (superseded, aborted,
-          // answered) gets nothing, like the real driver
-          send = pendingRequests(name).filter(x => x.raw === request).pop();
-          if (!send) return true;
+        const f = fake(name);
+        const e = tg.push ? undefined : pick(name, tg);
+        if (!tg.push && !e) {
+          if (!last) return false;
+          settle(noPending(what, name, tg, wait));
+          return true;
+        }
+        const category = 'category' in tg.o ? tg.o.category : e?.category;
+        const [routedTo, payload] = build(e, category);
+        if (e) e.live = false;
+        if (routedTo !== undefined) {
+          f.route(e!.sender, routedTo, payload);
         } else {
-          const live = pendingRequests(name).filter(x => !('category' in o) || x.category === category);
-          if (!live.length) {
-            if (!last) return false;
-            const sent = sinkValues(name).length;
-            failWith(new Error(`[Sygnal] ${what}: no pending ${name} request${'category' in o ? ` with category '${category}'` : ''} after ${Math.min(1000, defaultTimeout / 2)}ms. ` +
-              (sent ? `The component sent ${sent} (t.requests('${name}')), all answered, aborted or superseded by a later latest: true request.` :
-                `The component sent none: check the model entry that returns the ${name} request (t.requests('${name}') is empty).`)));
+          let heard = false;
+          f.subs.forEach(sub => {
+            let hit = false;
+            // a pushed value no request asked for (request: null) reaches every scope
+            try { hit = sub.err === err && (!e || inScope(sub.ns, e.req)) && (sub.sel === undefined || (typeof sub.sel == 'function' ? sub.sel(payload) : sub.sel === category)); } catch (_) {}
+            if (hit) { heard = true; sub.l.next(payload); }
+          });
+          if (!heard) {
+            const ls = [...f.subs].filter(x => x.err === err).map(x => `${name}.${err ? 'errors' : 'select'}(${x.sel === undefined ? '' : typeof x.sel == 'function' ? 'fn' : `'${x.sel}'`})`);
+            settle(new Error(`[Sygnal] ${what}: nothing receives it: no intent listens to ${name}.${err ? 'errors' : 'select'}(${category === undefined ? '' : `'${category}'`})` +
+              (ls.length ? ` (listening: ${ls.join(', ')})` : '') + `. ` +
+              (err ? `Route the failure to an action (error: 'FAILED' on the request), or handle it in the intent, e.g. FAILED: ${name}.errors('${category ?? 'category'}'), so a failed request can't leave the component loading.` :
+                `Route the reply to an action (ok: 'LOADED' on the request), or select it in the intent, e.g. LOADED: ${name}.select('${category ?? 'category'}').`)));
             return true;
           }
-          send = live[live.length - 1];
-          request = send.raw;
         }
-        if (send) answered.add(name + '#' + send.i);
-        if (!('category' in o)) category = request?.category;
-        const payload = build(category, request);
-        const f = fake(name);
-        let heard = false;
-        f.subs.forEach(sub => {
-          let hit = false;
-          // a pushed value no request asked for (request: null) reaches every scope
-          try { hit = sub.err === err && (!request || inScope(sub.ns, request)) && (sub.sel === undefined || (typeof sub.sel == 'function' ? sub.sel(payload) : sub.sel === category)); } catch (_) {}
-          if (hit) { heard = true; sub.l.next(payload); }
-        });
-        if (!heard) {
-          const ls = [...f.subs].filter(x => x.err === err && x.sel !== 'initial').map(x => `${name}.${err ? 'errors' : 'select'}(${x.sel === undefined ? '' : typeof x.sel == 'function' ? 'fn' : `'${x.sel}'`})`);
-          failWith(new Error(`[Sygnal] ${what}: nothing receives it: no intent listens to ${name}.${err ? 'errors' : 'select'}(${category === undefined ? '' : `'${category}'`})` +
-            (ls.length ? ` (listening: ${ls.join(', ')})` : '') + `. ` +
-            (err ? `Handle failures in the intent, e.g. FAILED: ${name}.errors('${category ?? 'category'}'), so a failed request can't leave the component loading.` :
-              `Select the request's category in the intent, e.g. LOADED: ${name}.select('${category ?? 'category'}').`)));
-        }
+        // resolved once the reply has been reduced and the whole tree rendered (in the DOM)
+        treeRendered(states.length).then(() => real ? untilPatched() : undefined).then(() => settle(), noop);
         return true;
       },
     };
     cursor = shown = undefined;
     inputs.push(input);
     pump();
+    return out;
   };
-  const respond = (name: string, value: any, opts?: string | FakeReplyOptions) =>
-    reply('respond', name, false, (category, request) =>
-      ({category, value, status: (opts as any)?.status ?? 200, request}), opts);
-  const fail = (name: string, error: any, opts?: string | FakeReplyOptions) =>
-    reply('fail', name, true, (category, request) => {
-      let e = error;
-      if (typeof e == 'number') { e = new Error(`HTTP ${error}`); e.status = error; }
-      else if (typeof e == 'string') e = new Error(e);
-      const o: any = typeof opts == 'object' ? opts : {};
-      return {error: e, category, request, status: o.status ?? e?.status, body: o.body ?? e?.body};
+  const respond = (name: string, value: any, opts?: FakeReplyTarget) =>
+    reply('respond', name, false, (e, category) => {
+      const o: any = opts && typeof opts == 'object' ? opts : {};
+      // routed (D58): the ok action gets the parsed body; else select() gets the E2 payload
+      return e && e.rk !== undefined && e.req.ok ? [e.req.ok, value] :
+        [undefined, {category, value, status: o.status ?? 200, request: e?.req}];
+    }, opts);
+  const fail = (name: string, error: any, opts?: FakeReplyTarget) =>
+    reply('fail', name, true, (e, category) => {
+      let x = error;
+      if (typeof x == 'number') { x = new Error(`HTTP ${error}`); x.status = error; }
+      else if (typeof x == 'string') x = new Error(x);
+      const o: any = opts && typeof opts == 'object' ? opts : {};
+      const status = o.status ?? x?.status, body = o.body ?? x?.body;
+      if (e && e.rk !== undefined && e.req.error) {
+        const data: any = {error: x, request: e.req};
+        if (status !== undefined) data.status = status;
+        if (body !== undefined) data.body = body;
+        return [e.req.error, data];
+      }
+      return [undefined, {error: x, category, request: e?.req, status, body}];
     }, opts);
   // E4: where real elements are looked up: the container, and the Portal content this tree
   // mounted outside it
@@ -1707,6 +1858,10 @@ export function renderComponent(
     readyWaiters.clear();
     const gone = new Error('[Sygnal] renderComponent was disposed while this wait was pending (t.ready/t.next/t.waitForState/t.settle). Await every wait before t.dispose()');
     ws.forEach(w => w(gone));
+    // a t.respond/t.fail still queued rejects too (it never fails a later wait: there is none)
+    const rs = [...replyWaits];
+    replyWaits.clear();
+    rs.forEach(r => r(new Error('[Sygnal] renderComponent was disposed before this t.respond/t.fail was delivered'), true));
     throwFailure();
   };
 
@@ -1725,7 +1880,7 @@ export function renderComponent(
     states,
     get state() { return states[states.length - 1]; },
     sinkValues,
-    requests: sinkValues,
+    requests,
     respond,
     fail,
     emitted: sinkValues('EVENTS'),
