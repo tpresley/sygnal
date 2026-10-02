@@ -511,6 +511,13 @@ export const EXPLANATIONS = {
     explanation: "A request sent to a routing driver (`makeFetchDriver`, `driverFromAsync`) has a `then` or `catch` key, for example `HTTP: (state) => ({ url: '/api/x', then: 'LOADED' })`. An object with a `then` key is a thenable, so it breaks anything that `await`s it, and these keys look like a promise chain but do nothing. The driver does not send the request.",
     fix: "Name the reply actions with the routing keys: `{ url: '/api/x', ok: 'LOADED', error: 'FAILED' }`. The `ok` action gets the parsed body, the `error` action `{ error, status, body, request }`.",
   },
+  SYG611: {
+    title: "Socket message not sent or connection not opened",
+    severity: "error",
+    reportedBy: ["runtime"],
+    explanation: "A value sent to a `makeSocketDriver()` sink could not be acted on. Either a send (`{ to: 'room', json }`) names a connection that this component instance has not declared, that has closed for good (`reconnect: false`, or a URL the browser rejected), or that is a server-sent events connection, which is read-only. Or a declared connection has neither a `socket` nor an `sse` URL. Or the value is neither `{ connections }` nor `{ to, … }`. Connection names are per component instance: a parent cannot send on a child's connection. The message is dropped; a connection that is only (re)connecting is not an error, its sends are queued.",
+    fix: "Declare the connection first, `{ connections: { room: { socket: '/ws/rooms/general', message: 'RECEIVED' } } }`, then send on it from the same component: `{ to: 'room', json: { text } }`. Use a WebSocket (`socket:`) for two-way traffic.",
+  },
   SYG900: {
     title: "A diagnostics check threw",
     severity: "warn",

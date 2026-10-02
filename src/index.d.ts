@@ -1240,6 +1240,121 @@ export type FetchDriverOptions = {
  */
 export function makeFetchDriver(options?: FetchDriverOptions): (request$: Stream<any>) => FetchSource
 
+/**
+ * Reconnect policy of a makeSocketDriver() connection. Delay of retry n (from 0):
+ * `min(maxDelayMs, delayMs * 2^n)`, varied by ±`jitter` (a fraction). A fixed 1 s retry:
+ * `{ delayMs: 1000, maxDelayMs: 1000, jitter: false }`. Defaults: 500 ms, 10 s, 0.2.
+ */
+export type SocketReconnect = {
+  delayMs?: number;
+  maxDelayMs?: number;
+  /** false (or 0): no jitter; true: 0.2; a number: that fraction (0.2 = ±20%) */
+  jitter?: boolean | number;
+}
+
+/** The routed actions of a connection. Each is optional; an event without one goes to `select()` */
+export type SocketActions = {
+  /** Action for each incoming message: the JSON-parsed frame when it parses, else the raw data (binary as is) */
+  message?: string;
+  /** Action when the connection opens, every time: `SocketOpen` (`{ reconnected }`) */
+  open?: string;
+  /**
+   * Action when the connection closes or fails to open without the app closing it (never for a
+   * connection the app removed or replaced, or on dispose): `SocketClose`
+   */
+  close?: string;
+  /** Action on an error event: `{ error }` (`SocketError`) */
+  error?: string;
+  /**
+   * Reconnect after a drop (default on, with jittered backoff; the driver's `reconnect` option
+   * is the default). `false`: a drop closes the connection for good. SSE: EventSource retries
+   * transient drops itself; this applies when it gives up
+   */
+  reconnect?: false | SocketReconnect;
+  /** Default true: connections to the same URL (and protocols) share one socket. false: a socket of its own */
+  share?: boolean;
+  /** Not allowed: a `then` key makes the value a thenable (SYG610). Use `message` / `open` */
+  then?: never;
+  catch?: never;
+}
+
+/** A WebSocket connection of `{ connections }` */
+export type SocketConnection = SocketActions & {
+  /** URL or path (`/ws/rooms/general`: resolved against the page, ws: for http:, wss: for https:), after `baseUrl` */
+  socket: string;
+  /** WebSocket subprotocols (part of the connection's identity: a change reconnects) */
+  protocols?: string | string[];
+}
+
+/** A server-sent events (EventSource) connection of `{ connections }`: read-only */
+export type SseConnection = SocketActions & {
+  /** URL (after `baseUrl`) */
+  sse: string;
+  withCredentials?: boolean;
+  /** Named events → actions: `{ 'price-update': 'PRICE' }` (data JSON-parsed when it parses) */
+  events?: Record<string, string>;
+}
+
+/**
+ * A value sent to a makeSocketDriver() sink: the sender's whole set of connections (a falsy
+ * entry or a missing name closes that connection), or a message to send on one of them.
+ */
+export type SocketRequest =
+  | { connections: Record<string, SocketConnection | SseConnection | false | null | undefined> }
+  | {
+      /** The name of one of this instance's own WebSocket connections (else SYG611, not sent) */
+      to: string;
+      /** Sent as JSON.stringify(json) */
+      json?: any;
+      /** Sent as is */
+      text?: string;
+      /** Sent as is (ArrayBuffer, Blob, typed array) */
+      binary?: any;
+    }
+
+/** Data of a connection's `open` action */
+export type SocketOpen = { reconnected: boolean }
+/** Data of a connection's `close` action (SSE: no code / reason) */
+export type SocketClose = { code?: number; reason?: string; willReconnect: boolean }
+/** Data of a connection's `error` action: the error Event (or the constructor's exception) */
+export type SocketError = { error: any }
+
+/** An unrouted event on `select(name?)` */
+export type SocketEvent<DATA = any> =
+  | { name: string; type: 'message'; data: DATA }
+  | { name: string; type: 'open'; data: SocketOpen }
+  | { name: string; type: 'close'; data: SocketClose }
+  | { name: string; type: 'error'; data: SocketError }
+
+export type SocketSource = {
+  /** Events of connections without an action name for that event type, for one connection name or all */
+  select: (name?: string) => Stream<SocketEvent>
+}
+
+export type SocketDriverOptions = {
+  /** Prefix for relative URLs, e.g. '/api' or 'https://api.example.com' */
+  baseUrl?: string;
+  /** Default reconnect policy (a connection's `reconnect` wins, merged over it). Default on */
+  reconnect?: false | SocketReconnect;
+  /** Messages kept per connection while it (re)connects; the oldest are dropped. Default 100 */
+  queueLimit?: number;
+  /** The WebSocket class. Default: `globalThis.WebSocket`, read at connect time (so test stubs apply) */
+  WebSocket?: any;
+  /** The EventSource class. Default: `globalThis.EventSource`, read at connect time */
+  EventSource?: any;
+}
+
+/**
+ * WebSocket and server-sent events: `run(App, { WS: makeSocketDriver() })`. A component sends
+ * `{ connections: { room: { socket: '/ws/rooms/general', message: 'RECEIVED', open: 'ONLINE',
+ * close: 'DROPPED' } } }` to declare its connections (diffed by name: new ones open, removed or
+ * falsy ones close, a changed URL reconnects) and `{ to: 'room', json: { text } }` to send.
+ * Events arrive as the named actions on exactly that instance. Drops reconnect with backoff;
+ * connections to the same URL are shared; a disposed instance's connections close. No
+ * connections during SSR.
+ */
+export function makeSocketDriver(options?: SocketDriverOptions): (sink$: Stream<any>) => SocketSource
+
 export interface Ref<T = HTMLElement> {
   current: T | null;
 }
