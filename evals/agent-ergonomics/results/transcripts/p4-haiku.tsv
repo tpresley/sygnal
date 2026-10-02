@@ -1,0 +1,21 @@
+# p4-haiku: headless trials (orchestrate.mjs); transcripts are <trials-root>/p4-haiku/<trial>.transcript.jsonl
+react-01-t1	headless
+react-01-t2	headless
+react-01-t3	headless
+react-01-t4	headless
+react-01-t5	headless
+react-02-t1	headless
+react-02-t2	headless
+react-02-t3	headless
+react-02-t4	headless
+react-02-t5	headless
+sygnal-01-t1	headless
+sygnal-01-t2	headless
+sygnal-01-t3	headless
+sygnal-01-t4	headless
+sygnal-01-t5	headless
+sygnal-02-t1	headless
+sygnal-02-t2	headless
+sygnal-02-t3	headless
+sygnal-02-t4	headless
+sygnal-02-t5	headless
