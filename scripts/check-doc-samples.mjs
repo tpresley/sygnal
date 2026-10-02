@@ -37,7 +37,6 @@ const EXCLUDED_PAGES = new Set(['advanced/alternative-forms.md', 'reference/erro
 const EXTRA_FILES = [
   'llms.txt',
   'skills/sygnal-dev/SKILL.md',
-  'skills/sygnal-dev/references/component-patterns.md',
   ...fs.readdirSync(path.join(repo, 'create-sygnal-app'), { withFileTypes: true })
     .filter(e => e.isDirectory() && e.name.startsWith('template-'))
     .map(e => `create-sygnal-app/${e.name}/AGENTS.md`)

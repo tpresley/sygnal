@@ -279,6 +279,7 @@ interface RenderResult {
   next: (predicate?: (state: any) => boolean, timeoutMs?: number) => Promise<any>
   settle: (timeoutMs?: number) => Promise<void>
   states: any[]
+  readonly state: any
   sinkValues: (sinkName: string) => any[]
   emitted: Array<{ type: string; data: any }>
   diagnostics: Diagnostic[]

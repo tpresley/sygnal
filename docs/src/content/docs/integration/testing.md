@@ -205,7 +205,7 @@ it('updates the query at once and searches 300 ms after the last keystroke', asy
     await vi.advanceTimersByTimeAsync(50)
   }
   await vi.advanceTimersByTimeAsync(249)   // 299 ms after the last keystroke
-  expect(t.states.at(-1).status).toBe('idle')
+  expect(t.state.status).toBe('idle')
   await t.next(s => s.status === 'searching')   // advances the clock to the debounce
   expect(t.html()).toContain('Searching')
 })
@@ -221,8 +221,9 @@ it('updates the query at once and searches 300 ms after the last keystroke', asy
 
 | Helper | Returns |
 |---|---|
+| `t.state` | The latest state (`t.states.at(-1)`), read-only; `undefined` before the first one |
 | `t.states` | Live array of every state emitted, in order (`t.states[0]` is the initial state) |
-| `t.html()` | The latest render, serialized to HTML (`''` before the first render) |
+| `t.html()` | The latest render, serialized to HTML. It throws if called before the first render, so `await t.ready()` (or a `t.next()`) first; a component that hasn't rendered by then (no state yet) gives `''` |
 | `t.emitted` | Live array of `{ type, data }` the component (and its children) put on the EVENTS bus |
 | `t.sinkValues(name)` | Live array of values sent to a sink: `'EVENTS'`, `'PARENT'` (the plain value), `'LOG'`, or a custom driver name |
 | `t.diagnostics` | Live array of diagnostics reported while rendered |
@@ -343,8 +344,9 @@ The timing options (and a timeout passed to `next()`, `waitForState()` or `settl
 | `next` | `(predicate?, timeout?) => Promise<state>` | Next matching state after the call |
 | `waitForState` | `(predicate, timeout?) => Promise<state>` | First matching state, history included |
 | `settle` | `(timeout?) => Promise<void>` | Resolves once nothing is pending |
+| `state` | `any` (read-only) | The latest state |
 | `states` | `any[]` | Every state emitted |
-| `html` | `() => string` | Latest render as HTML |
+| `html` | `() => string` | Latest render as HTML (throws before the first render) |
 | `emitted` | `{ type, data }[]` | EVENTS emissions |
 | `sinkValues` | `(sink) => any[]` | Values sent to a sink |
 | `requests` | `(sink) => any[]` | Requests sent to a driverless sink (alias of `sinkValues`) |
@@ -403,9 +405,20 @@ it('keeps the real fields when going back', async () => {
 What changes with `dom: 'real'`:
 
 - `simulateEvent(selector, type, init?)` dispatches a real DOM event on the first element matching `selector` (any CSS selector the DOM supports, `:has()`, `+` and `:checked` included). `init.value` / `init.checked` / `init.dataset` are set on the element first, so `{ value }` is like typing. A plain `'click'` runs the browser's default action (a checkbox or radio toggles and fires `change`; a click on a disabled control does nothing). `'focus'` and `'blur'` move `document.activeElement`. Events travel through the real event delegation and isolation, so Portal content outside the component is reached only by `DOM.select('document')` listeners, as in the browser.
-- Each event waits until the tree has been quiet for 10 ms, like a user who acts on what is on the screen: a button that the previous input enabled is enabled when it is clicked.
-- `t.query(selector)` returns the first matching element (or `null`) and `t.queryAll(selector)` all of them, searching the rendered tree and the Portal content it mounted. `t.container` is the mount element. Refs (`createRef()`) point at the real elements.
-- `t.html()`, `t.states`, `next()`, `waitForState()`, `settle()`, `sinkValues()`, `expectNoDiagnostics()` and `inspect()` work as with the mock DOM. With `sygnal/diagnostics` loaded, its real-DOM SYG103/SYG104 checks run.
+- Each event waits until every state so far is rendered into the DOM and the tree has been quiet for 10 ms, like a user who acts on what is on the screen: a button that the previous input enabled is enabled when it is clicked.
+- `t.query(selector)` returns the first matching element (or `null`) and `t.queryAll(selector)` all of them, searching the rendered tree and the Portal content it mounted. Before the first render is in the DOM they throw (`await t.ready()` first). `t.container` is the mount element. Refs (`createRef()`) point at the real elements.
+- Every wait resolves once its state is in the DOM: `ready()` after the first render, `next()` and `waitForState()` after the matching state's render, `settle()` after the latest one. If a later state arrives meanwhile (a fast response, a model `next()`), its render is held back until the code after your `await` has run, so `t.query()` there reads the state the wait returned. A `next()` right after another wait (with no input in between) also matches such a later state:
+
+```jsx
+t.simulateEvent('input[name="zip"]', 'input', { value: '62704' })
+await t.next(s => s.status === 'Looking up…')
+expect(t.query('.zip-status').textContent).toBe('Looking up…')   // even if the reply is already in
+await t.next(s => s.city === 'Springfield')                       // matches the reply's state
+expect(t.query('input[name="city"]').value).toBe('Springfield')
+```
+
+  A state that is replaced before it ever renders (views render a few milliseconds after a change) never reaches the DOM, as in a browser; to see an in-flight state, answer the request yourself (`t.respond`, or a `fetch` stub you resolve later).
+- `t.html()`, `t.states`, `t.state`, `sinkValues()`, `expectNoDiagnostics()` and `inspect()` work as with the mock DOM. With `sygnal/diagnostics` loaded, its real-DOM SYG103/SYG104 checks run.
 - `dispose()` unmounts the container. `mockConfig` can't be combined with `dom: 'real'`.
 
 Use the mock DOM (the default) for logic and output, and `dom: 'real'` when a test asserts on real element state or focus. One suite is enough; there is no need for a second `run()`-based suite.
