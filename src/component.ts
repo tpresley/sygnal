@@ -1772,29 +1772,17 @@ class Component {
  */
  function makeLog(context: string): any {
   return function (this: Component, msg: any, immediate: boolean = false) {
-    const fixedMsg = (typeof msg === 'function') ? msg : (_: any) => msg
-    if (immediate) {
+    const out = (value: any) => {
       if (this.debug) {
-        const text = `[${context}] ${fixedMsg(msg)}`
+        const text = `[${context}] ${typeof msg === 'function' ? msg(value) : msg}`
         console.log(text)
         if (typeof window !== 'undefined' && window.__SYGNAL_DEVTOOLS__?.connected) {
           window.__SYGNAL_DEVTOOLS__.onDebugLog(this._componentNumber, text)
         }
       }
-      return
-    } else {
-      return (stream: any) => {
-        return stream.debug((msg: any) => {
-          if (this.debug) {
-            const text = `[${context}] ${fixedMsg(msg)}`
-            console.log(text)
-            if (typeof window !== 'undefined' && window.__SYGNAL_DEVTOOLS__?.connected) {
-              window.__SYGNAL_DEVTOOLS__.onDebugLog(this._componentNumber, text)
-            }
-          }
-        })
-      }
     }
+    if (immediate) return out(msg)
+    return (stream: any) => stream.debug(out)
   }
 }
 
