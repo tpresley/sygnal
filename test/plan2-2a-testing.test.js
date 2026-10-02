@@ -109,7 +109,9 @@ describe('G-065: ready() is a cursor for the next next()', () => {
     t.simulateAction('INC')
     await t.ready()
     expect(await t.next(undefined, 300)).toEqual({ count: 1 })
-    // the cursor is used until a next() from it resolves: the following next() waits for a new state
+    // G-129: the following next() starts after the state the previous one returned, so the
+    // second buffered state is next; then it waits for a new one
+    expect(await t.next(undefined, 300)).toEqual({ count: 2 })
     const p = t.next(undefined, 300)
     t.simulateAction('INC')
     expect(await p).toEqual({ count: 3 })

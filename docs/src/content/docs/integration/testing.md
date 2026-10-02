@@ -132,7 +132,7 @@ await t.ready()
 await p
 ```
 
-Every `next()` started while the cursor is armed starts there, so `await Promise.all([t.next(a), t.next(b)])` works too. The cursor is used up by `simulateEvent`/`simulateAction`, `waitForState`, `settle`, and by the first of those `next()` calls resolving (a later `next()` waits for a new state). If no `next()` uses it before the next macrotask after `ready()` resolves (for example `await t.ready()` followed by `await sleep(10)`, or an un-awaited `t.ready()` in a `beforeEach`), it expires. Calling `ready()` again on a ready component re-arms it at that point.
+Every `next()` started while the cursor is armed starts there, so `await Promise.all([t.next(a), t.next(b)])` works too. The cursor is used up by `simulateEvent`/`simulateAction`, `waitForState`, `settle`, and by the first of those `next()` calls resolving (a later `next()` starts after the state it returned). If no `next()` uses it before the next macrotask after `ready()` resolves (for example `await t.ready()` followed by `await sleep(10)`, or an un-awaited `t.ready()` in a `beforeEach`), it expires. Calling `ready()` again on a ready component re-arms it at that point.
 
 ## Waiting for Results
 
@@ -161,6 +161,8 @@ await t.next(s => s.count === 0)           // waits for the reset
 ```
 
 Use `next()` for the effect of an action. Call it right after the `simulate*` call, without awaiting anything in between, so the state can't arrive before `next()` starts listening. With no predicate, `next()` resolves with the next state of any kind.
+
+A `next()` right after another wait (with no input in between) starts after the state that wait returned, so `await t.next(a); await t.next(b)` also matches a `b` that arrived while `a` was rendering (a fast reply, a model `next()`).
 
 
 ### settle()
@@ -283,6 +285,8 @@ await t.next(s => s.error !== '')
 - `t.fail(name, error, opts?)` delivers `{ error, category, request, status, body }` on `errors()`. A number is an HTTP status: `t.fail('HTTP', 404)` fails with `Error('HTTP 404')` and `status: 404`.
 - `opts`: a category string, or `{ category, request, status, body }`. `request` picks an exact element of `t.requests(name)`; `request: null` pushes a value no request asked for.
 - The fake follows `latest: true` and `{ category, abort: true }` like the real driver: a superseded or cancelled request is no longer pending, and answering it explicitly delivers nothing.
+- It is isolated like the real driver: each component instance (two `<Search>`es, every Collection item) gets only the replies to its own requests, and its `latest`/`abort` don't touch another instance's requests. Answer each with `{ request }` (an element of `t.requests('HTTP')`); the root component sees every reply.
+- The fake can't see options given to the real driver in `main.js`: a `makeFetchDriver({ latest: true })` there doesn't apply in tests. Write `latest: true` on the request itself (the canonical form).
 - The test fails with an explanation when no request is pending, or when nothing selects the reply (a category typo, or no `errors()` handler for a failure).
 
 ## Diagnostics in Tests
@@ -425,4 +429,4 @@ Use the mock DOM (the default) for logic and output, and `dom: 'real'` when a te
 
 ## Cleanup
 
-Always call `dispose()` when a test is done, for example in `afterEach`. It disposes the whole tree (children's `DISPOSE` actions run), removes listeners, and restores the diagnostics mode and strict setting.
+Always call `dispose()` when a test is done, for example in `afterEach`. It disposes the whole tree (children's `DISPOSE` actions run), removes listeners, and restores the diagnostics mode and strict setting. A wait still pending (`ready`, `next`, `waitForState`, `settle`) rejects with "renderComponent was disposed", also under fake timers, so await every wait before disposing.

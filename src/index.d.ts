@@ -953,9 +953,32 @@ export function driverFromAsync<INCOMING = any, RETURN = any, OUTGOING = any>(
   options?: DriverFromAsyncOptions<INCOMING, OUTGOING, RETURN>
 ): (fromApp$: Stream<INCOMING>) => AsyncDriverFromFunction<INCOMING, OUTGOING>
 
+/** fetch() options a request (or the driver) may set under `init`; the driver owns `signal` */
+export type FetchInit = {
+  method?: string;
+  headers?: Record<string, string> | Headers;
+  body?: any;
+  mode?: string;
+  credentials?: 'omit' | 'same-origin' | 'include';
+  cache?: string;
+  redirect?: string;
+  referrer?: string;
+  referrerPolicy?: string;
+  integrity?: string;
+  keepalive?: boolean;
+  priority?: 'high' | 'low' | 'auto';
+  window?: null;
+  duplex?: 'half';
+}
+
 /**
  * A request sent to a makeFetchDriver() sink. A plain string is a GET of that URL.
- * Keys other than the ones below are passed to `fetch()` as init (`credentials`, `mode`, ...).
+ * Other fetch() options go under `init` (`init: { credentials: 'include' }`). Any other key is
+ * the app's own: not sent, but returned on the reply's `request`.
+ *
+ * Isolation: the replies, `latest` and `abort` of a component instance are its own (and its
+ * descendants'): two instances, or Collection items, using the same category never see or
+ * cancel each other's requests. The root component sees every reply.
  */
 export type FetchRequest = string | {
   /** Request URL (prefixed with the driver's `baseUrl`) */
@@ -964,17 +987,21 @@ export type FetchRequest = string | {
   category?: string;
   /** Default: 'POST' when `json` or `body` is set, else 'GET' */
   method?: string;
-  /** Merged over the driver's `headers` */
-  headers?: Record<string, string>;
-  /** Appended as a query string (`{ q: 'dune' }` → `?q=dune`); null/undefined values are skipped */
-  query?: Record<string, string | number | boolean | null | undefined>;
+  /** Merged over the driver's `headers`, case-insensitively (names are sent lowercased) */
+  headers?: Record<string, string> | Headers;
+  /**
+   * Appended as a query string (`{ q: 'dune' }` → `?q=dune`), before any `#fragment`; null/undefined
+   * values are skipped; an array repeats the key (`{ tag: ['a', 'b'] }` → `?tag=a&tag=b`)
+   */
+  query?: Record<string, string | number | boolean | null | undefined | Array<string | number | boolean | null | undefined>>;
   /** Sent as JSON.stringify(json), with `Content-Type: application/json` unless set */
   json?: any;
   /** Raw body (string, FormData, Blob, ...) */
   body?: any;
   /**
-   * Latest only: sending this request aborts the requests still in flight in the same category;
-   * their responses and errors are never delivered. Default: the driver's `latest` option.
+   * Latest only: sending this request aborts this component's requests still in flight in the
+   * same category; their responses and errors are never delivered. Default: the driver's `latest`
+   * option.
    */
   latest?: boolean;
   /** Fail with a TimeoutError (on `errors()`) after this many ms. Default: the driver's `timeoutMs` */
@@ -984,11 +1011,14 @@ export type FetchRequest = string | {
    * else text; 204 → null), 'json', 'text', 'response' (the Response), or a function.
    */
   parse?: 'auto' | 'json' | 'text' | 'response' | ((response: Response) => any);
-  [fetchInit: string]: any;
+  /** Other fetch() options (merged over the driver's `init`) */
+  init?: FetchInit;
+  /** Your own fields (an id, ...): not sent, returned on the reply's `request` */
+  [appData: string]: any;
 } | {
   /**
-   * Cancel: `{ category: 'search', abort: true }` aborts the requests in flight in that category
-   * (all of them without a category). Nothing is delivered for a cancelled request.
+   * Cancel: `{ category: 'search', abort: true }` aborts this component's requests in flight in
+   * that category (all of them without a category). Nothing is delivered for a cancelled request.
    */
   abort: true;
   category?: string;
@@ -1032,9 +1062,14 @@ export type FetchSource<VALUE = any> = {
 export type FetchDriverOptions = {
   /** Prefix for every request URL, e.g. '/api' or 'https://api.example.com' */
   baseUrl?: string;
-  /** Headers for every request (a request's own `headers` win) */
-  headers?: Record<string, string>;
-  /** Latest only for every request (a request's own `latest` wins). Default false */
+  /** Headers for every request (a request's own `headers` win, case-insensitively) */
+  headers?: Record<string, string> | Headers;
+  /** fetch() options for every request, e.g. `{ credentials: 'include' }` (a request's `init` wins) */
+  init?: FetchInit;
+  /**
+   * Latest only for every request (a request's own `latest` wins). Default false. renderComponent's
+   * fake can't see this option: write `latest: true` on the request (the canonical form)
+   */
   latest?: boolean;
   /** Timeout for every request, in ms. Default: none */
   timeoutMs?: number;

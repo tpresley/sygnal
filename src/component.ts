@@ -578,9 +578,10 @@ class Component {
 
 
     let initialApiData
-    if (!_hmrUpdating && requestSource && typeof requestSource.select == 'function') {
+    if (!_hmrUpdating && requestSource && typeof requestSource.select == 'function' && !requestSource.__sygnalFetch) {
       // legacy @cycle/http: select() emits response streams. A makeFetchDriver/driverFromAsync
-      // source named HTTP emits plain responses, which are not hydration data (E2)
+      // source named HTTP emits plain responses, which are not hydration data (E2); the fetch
+      // driver and renderComponent's fake say so up front (R4-7)
       initialApiData = requestSource.select('initial')
         .filter((r$: any) => r$ && typeof r$.addListener == 'function')
         .flatten()
@@ -1199,7 +1200,7 @@ class Component {
       streams.push(stream)
     })
 
-    const combined = xs.combine(...streams)
+    let combined = xs.combine(...streams)
       .compose(debounce(1))
       // map the streams from an array back to an object with the render parameter names as the keys
       .map((arr: any) => {
@@ -1213,6 +1214,16 @@ class Component {
         }, {} as Record<string, any>)
         return params
       })
+
+    // R4-1/G-121: in a hidden Switchable page, renders wait until it is shown (the latest
+    // parameters then render once); a skipped render marks the page stale (R4-10)
+    const page = this.sources.__switchPage
+    if (page) {
+      let last: any
+      combined = xs.combine(combined, page.shown$)
+        .filter(([p, shown]: any) => p !== last && (shown || page.mark()))
+        .map(([p]: any) => (last = p))
+    }
 
     return combined
   }

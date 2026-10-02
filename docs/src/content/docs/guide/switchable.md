@@ -47,8 +47,8 @@ TabContainer.model = {
 
 - Only the `current` component's DOM is rendered
 - Non-DOM sinks (EVENTS, `PARENT`, driver sinks) from *all* components remain active; a component's `PARENT` reaches the parent's `CHILD.select(Component)`
-- Switching is efficient — components are pre-instantiated
-- A hidden component keeps its own state and sub-components; it doesn't re-render while hidden and shows the current state when switched back in
+- Switching is efficient: every component is instantiated up front and stays alive while hidden, so memory grows with the number of pages (and what they hold), not with switching
+- A hidden component keeps its own state and sub-components, and keeps working on the current state: its reducers, `EVENTS`/`PARENT`/`EFFECT` answers and `.context` see the state changed while it was hidden. Only its rendering waits: it doesn't re-render while hidden, and renders the current state once when switched back in (until then the previous page stays on screen, never the hidden page's old content)
 - `current` must be one of the keys of `of` ([SYG416](/reference/errors/#syg416)), and `of` must map names to component functions ([SYG415](/reference/errors/#syg415))
 - When the Switchable itself is removed, all of its components are disposed, including any nested Collections
 

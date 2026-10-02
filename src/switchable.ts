@@ -37,7 +37,7 @@ export default function switchable(
       .startWith(initial)
       .remember();
     return (sources: any) =>
-      _switchable(factories, sources, withInitial$, switched);
+      _switchable(factories, sources, withInitial$, switched, stateSourceName);
   } else {
     const mapFunction =
       (nameType === 'function' && (name$ as (state: any) => string)) ||
@@ -72,25 +72,22 @@ function _switchable(
 ): Record<string, any> {
   if (typeof switched === 'string') switched = [switched];
 
+  // R4-1: every page keeps the full state source (reducers, sink snapshots and .context stay
+  // current while hidden); only rendering waits. The page and its descendants (who inherit
+  // sources.__switchPage) skip renders while hidden (G-121) and render the latest parameters
+  // when shown; `stale` says one was skipped (R4-10). Nested: shown only if the outer page is.
+  const outer = sources.__switchPage;
+  const pages: Record<string, any> = {};
   const sinks = Object.entries(factories).map(([name, factory]) => {
-    if (sources[stateSourceName]) {
-      const state$ = sources[stateSourceName].stream;
-      const switchedState = xs
-        .combine(name$, state$)
-        .filter(([newComponentName]: [string, any]) => newComponentName == name)
-        .map(([, state]: [string, any]) => state)
-        .remember();
-
-      const state = new sources[stateSourceName].constructor(
-        switchedState,
-        sources[stateSourceName]._name
-      );
-      // G-121: a hidden component gets no state updates (it stays subscribed, so it would
-      // otherwise re-render on every change); it gets the current state when shown again.
-      // `state` stays as the marker inspect() uses for a Switchable's components.
-      return [name, factory({...sources, state, [stateSourceName]: state})] as [string, any];
-    }
-    return [name, factory(sources)] as [string, any];
+    const page: any = (pages[name] = {});
+    // an outer page re-renders for this one only if this one is current here
+    page.mark = () => { page.stale = true; if (outer && page.own && !outer.shown) outer.mark(); };
+    page.shown$ = xs.combine(name$, outer ? outer.shown$ : xs.of(true))
+      .map(([n, o]: any) => (page.shown = (page.own = n == name) && o))
+      .remember();
+    // `state` stays as the marker inspect() uses for a Switchable's components
+    const st = sources[stateSourceName];
+    return [name, factory(st ? {...sources, __switchPage: page, state: st, [stateSourceName]: st} : {...sources, __switchPage: page})] as [string, any];
   });
 
   // G-120: forward every sink a component produces, not just the ones that are also sources
@@ -109,13 +106,23 @@ function _switchable(
         const live: Record<string, any> = {};
         sinks.forEach(([componentName, sink]) => {
           if (!sink[sinkName]) return;
-          const listener = {next() {}, error() {}, complete() {}};
+          const page = pages[componentName];
+          // a render while shown is the fresh one
+          const listener = {next(v: any) { page.out = v; if (page.shown) page.stale = false; }, error() {}, complete() {}};
           live[componentName] = sink[sinkName].remember();
           live[componentName].addListener(listener);
           keepAlive.push([live[componentName], listener]);
         });
         obj[sinkName] = name$
-          .map((newComponentName: string) => live[newComponentName] || xs.never())
+          .map((newComponentName: string) => {
+            const s = live[newComponentName], p = pages[newComponentName];
+            if (!s) return xs.never();
+            // R4-10: the remembered output is current unless a render was skipped while the
+            // page was hidden; then wait for the fresh one instead of showing the old content
+            // (at most 100ms: then the remembered output, so a switch can't get stuck)
+            return !p.stale || p.out === undefined ? s
+              : xs.merge(s.drop(1), xs.periodic(100).take(1).filter(() => p.stale).map(() => p.out));
+          })
           .flatten()
           .remember()
           .startWith(undefined);
