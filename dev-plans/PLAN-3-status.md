@@ -37,9 +37,9 @@ Delta attribution (analysis/p3-net-baseline.md): learning 11.7 s (42%, mostly re
 | 1-T | Types (routed requests, G-142) | ✅ | `p3-1t-types` | subagent | `7600183` (`7f70a3f`), then `109a487` | `FetchRequest` `ok`/`error`/`key`, `then`/`catch?: never`, `abort: true \| string`; new `FetchFailure`, `RoutedRequest`, `AsyncRequest<F>`, `RenderableComponent`; HYDRATE removed from types. **G-142**: `renderComponent` infers state (view state, else `initialState`; second `INITIAL` param for calculated fields), `RenderResult<STATE = any>`. The type-level `ok`-name check was dropped by D70 (`109a487`) |
 | 1-G | Haiku diagnostics/docs gaps (G-143) | ✅ | `p3-1g-haiku-gaps` | subagent | merge after `033d06e` (`5fd94af`) | Dev-entry only (0 core bytes; new `DEV_CODE_SEVERITY` table + `devReport()`): **SYG115** warn unknown `DOM.<name>` shorthand (second Proxy via `sources` hook; suggests `keydown(sel).key()`/near misses), **SYG116** error EVENTS value without a string `type`, **SYG221** error `set('field')` (also typed `Partial<S> & object`), **SYG421** error invalid `data` key (names camelCase fix). Escape pattern verified (mock + jsdom) and documented; DELETE object-form note; `export {}` explained in TS docs (no `events.ts` exists in templates/examples, item 7 N/A). 15 tests (9 failed first). llms.txt 235 lines. G-152 |
 | 1-S | Core size trim, no behaviour change (target ≥ 150 B) | ✅ | `p3-1s-trim` | subagent | `51d74c3` | **42,247 → 41,994 B (−253; 306 B headroom)**, `component.ts` only, no test edits: log output fn (−14), one `component()` factory + Collection/initSinks/misc dead code (−134), calculated-field compute path (−28), `Object.assign` options + dispose loops + `xs.empty()` + Suspense wrapper (−71), tsc fixes (−6). Gzip finding: de-duplicating near-identical code usually *grew* the bundle; removing branches paid. Top contributors: component.ts 11.9k, xstream 3.5k, get-intrinsic 2.5k (+~2k chain, gated build only), devtools 2.3k, EventDelegator 1.9k, snabbdom init 1.8k. Not taken (behaviour/API): lazy DevTools (G-100, ~2.3k), lazy Switchable (~0.9k), validation texts to dev entry (100–200 B), DFS calc sort (60–100 B) |
-| 2-A | `makeSocketDriver` | 🔵 | `p3-2a-socket` | subagent | — | WebSocket + SSE, routed actions, G-148 fixed-delay reconnect, sharing, browser tests |
-| 2-B | `connections` static | ⬜ | | | | |
-| 2-C | Socket fakes | ⬜ | | | | |
+| 2-A | `makeSocketDriver` | ✅ | `p3-2a-socket` | subagent | after `416cc13` (`c042864`) | Sink `{ connections: { name: spec\|falsy } }` (diff per (sender, name); URL/protocols/credentials/share change reconnects, other changes rebind) and `{ to, json\|text\|binary }` (queued while connecting, `queueLimit` 100). Spec `{ socket\|sse, message, open, close, error, reconnect, share, protocols, events, withCredentials }`. Routed `message` (JSON-parsed), `open {reconnected}`, `close {code, reason, willReconnect}` only for closes the driver didn't make (G-148), `error {error}`; unrouted `select(name?)`. Reconnect default 500 ms→10 s ±20%, fixed mode `{ delayMs, maxDelayMs, jitter: false }`. Shared by URL by default (ref-counted). SSE: native retry, driver reconnect only after CLOSED. SSR no-op. **SYG611** (error, `DEV_CODE_SEVERITY` to keep core at 0 B). 2,571 B gz standalone. 32 unit tests (incl. task-22 port) + 2 browser tests (Node built-in WS/SSE server as a Vite plugin) |
+| 2-B | `connections` static | 🔵 | `p3-2b-connections` | subagent | — | measure core bytes (D71) |
+| 2-C | Socket fakes | 🔵 | `p3-2c-socket-fakes` | subagent | — | |
 | 3-A | `resources` prototype + A/B eval | ⬜ | | | | eval-gated |
 | 4-A…4-D | Agent docs, CHANGELOG/ROADMAP, eval, REPORT-v3 | ⬜ | | | | |
 
@@ -48,6 +48,7 @@ Delta attribution (analysis/p3-net-baseline.md): learning 11.7 s (42%, mostly re
 | Merge | build:all | vitest | examples | types | browser | sygnal-check | doc samples | error docs | docs build | kanban gz |
 |---|---|---|---|---|---|---|---|---|---|---|
 | baseline (main `6b7144e`) | ✅ | | | | | | | | | 42,125 B ✅ |
+| 2-A | ✅ | 1,228 ✅ | ✅ | ✅ | 125 ✅ | 225 ✅ | 376 ✅ (+8 pending) | ✅ | 47 pages ✅ | 41,994 B ✅ |
 | 1-S | ✅ | 1,196 ✅ ×2 | ✅ | ✅ | 123 ✅ | 224 ✅ | 376 ✅ (+8 pending) | ✅ | | 41,994 B ✅ (−253) |
 | 1-C (Phase 1 done) | ✅ | 1,196 ✅ | ✅ | ✅ | 123 ✅ | 224 ✅ | 376 ✅ (+8 pending, G-154) | ✅ | 47 pages ✅ | 42,247 B ✅ |
 | 1-D | ✅ | 1,171 ✅ | ✅ | ✅ | 123 ✅ | 224 ✅ | 376 ✅ (+8 pending) | ✅ | 47 pages ✅ | 42,247 B ✅ |
@@ -103,6 +104,8 @@ Delta attribution (analysis/p3-net-baseline.md): learning 11.7 s (42%, mostly re
 | G-155 | 1-C | low | Docs | `guide/drivers.md:204–218` says answering a superseded request "delivers nothing" (it now throws) and shows the unrouted, un-awaited fake form | Open → 4-A |
 | G-156 | 1-S | low | Tests | One unidentified vitest failure on one run (1-S, after `2003056`), not reproduced; merge gate ran vitest twice: 1,196/1,196 both | Watch |
 | G-157 | 1-S | low | Repo docs | CLAUDE.md test counts are stale (892 / 104 / 113 vs 1,196 / 105 / 123) | Open → 4-B (with user OK for CLAUDE.md) |
+| G-158 | 2-A | med | connections | When one action changes state (new connection) and also sends `{ to }`, the `connections` value must reach the driver before the send, or the send is SYG611 | Open → 2-B (test the ordering) |
+| G-159 | 2-A | low | Diagnostics | A code in `CODE_SEVERITY` costs core bytes (+3 B); opt-in driver codes go in `DEV_CODE_SEVERITY` (SYG611 does); consider renaming that table "non-core" | Note |
 | G-151 | 1-A | low | Testing | Dead after 1-A: `__sygnalFetch` on the fake (testing.ts ~945), `x.sel !== 'initial'` (~1347). Routed requests under the fake: recorded in `t.requests` but never stamped, and `t.respond` throws "nothing receives it" — the fake needs `__sygnalRoutes`/`routed(sender)` | ✅ 1-C |
 
 ## Log
@@ -118,3 +121,4 @@ Delta attribution (analysis/p3-net-baseline.md): learning 11.7 s (42%, mostly re
 - 2026-10-02 — 1-T merged; D70 (type-level ok check dropped). 1-D and 1-C merged; full gate green after each (1,196 vitest, 224 sygnal-check). **Phase 1 complete.** Closed: G-131, G-140, G-141, G-142, G-151 (and G-150 in code; docs → 4-A). New: G-154, G-155 (→ 4-A). Next: size-budget decision before 2-B (G-153).
 - 2026-10-02 — D71 (trim first). 1-S and 2-A launched.
 - 2026-10-02 — 1-S merged (`51d74c3`): −253 B → 41,994 B, 306 B headroom; gate green (vitest run twice for G-156). 2-B can start from here after 2-A.
+- 2026-10-02 — 2-A merged; gate green (1,228 vitest, 125 browser). SYG611. G-158, G-159. 2-B and 2-C launched.
