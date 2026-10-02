@@ -144,7 +144,7 @@ Counter.model = {
 
 With the actions typed:
 
-- a model key the intent doesn't produce (a typo such as `INCREMNT`) is a type error; the built-ins `BOOTSTRAP`, `INITIALIZE`, `HYDRATE` and `DISPOSE` stay allowed;
+- a model key the intent doesn't produce (a typo such as `INCREMNT`) is a type error; the built-ins `BOOTSTRAP`, `INITIALIZE` and `DISPOSE` stay allowed (`HYDRATE` is no longer a built-in: list it like any other action if you dispatch it);
 - each reducer's `data` argument has the type its stream emits;
 - `next('ACTION', data)` is checked against the action map.
 
@@ -153,6 +153,36 @@ An action that only `next()` dispatches isn't produced by the intent, so add it 
 ```tsx
 type CounterActions = ActionsOf<typeof counterIntent> & { SAVED: { id: string } }
 ```
+
+### Routed requests
+
+The actions a [routed request](/guide/drivers/) names (`ok: 'LOADED'`, `error: 'FAILED'`) aren't produced by the intent either. Add them with their data: the `ok` action gets the parsed body (the type isn't inferred from the request, so name it), the `error` action a `FetchFailure` (`{ error, status?, body?, request }`):
+
+```tsx
+import type { Component, IntentSources, ActionsOf, FetchRequest, FetchSource, FetchFailure } from 'sygnal'
+
+type Quote = { text: string }
+type QuoteState = { id: number; status: string; quote?: Quote }
+type QuoteDrivers = { HTTP: { source: FetchSource; sink: FetchRequest } }
+
+const quoteIntent = ({ DOM }: IntentSources<QuoteState, QuoteDrivers>) => ({ LOAD: DOM.click('.load') })
+type QuoteActions = ActionsOf<typeof quoteIntent> & { LOADED: Quote; FAILED: FetchFailure }
+
+const QuoteCard: Component<QuoteState, {}, QuoteDrivers, QuoteActions> = ({ state }) => (
+  <div><button className="load">Load</button> {state.quote?.text ?? state.status}</div>
+)
+QuoteCard.intent = quoteIntent
+QuoteCard.model = {
+  LOAD: {
+    STATE: (state) => ({ ...state, status: 'loading' }),
+    HTTP:  (state) => ({ url: `/api/quotes/${state.id}`, ok: 'LOADED', error: 'FAILED' }),
+  },
+  LOADED: (state, quote) => ({ ...state, status: 'done', quote }),                     // quote: Quote
+  FAILED: (state, { status }) => ({ ...state, status: status === 404 ? 'missing' : 'error' }),
+}
+```
+
+With the actions listed and the driver's sink typed (`FetchRequest`, or `AsyncRequest<{ ... }>` for `driverFromAsync`), `ok` and `error` must be action names: `ok: 'LODED'` is a type error. A request built outside the reducer loses the literal type (`ok: string`) and is rejected there; write `ok: 'LOADED' as const`. `then` / `catch` keys are type errors on these requests ([SYG610](/reference/errors/#syg610) at runtime). `{ abort: 'LOADED' }` cancels by action or key name.
 
 `IntentSources<STATE, DRIVERS>` is the type of the object an intent receives: `DOM`, `STATE`, `EVENTS`, `CHILD`, `dispose$` and your custom drivers.
 
@@ -305,4 +335,12 @@ App.model = {
 
 ## Testing Types
 
-`renderComponent()` and its result are fully typed (`RenderOptions`, `RenderResult`). The diagnostics types (`Diagnostic`, `DiagnosticsMode`, `InspectGraph` and its parts) are exported from `sygnal`, and the `sygnal/diagnostics` entry ships its own declarations.
+`renderComponent()` and its result are fully typed (`RenderOptions`, `RenderResult<State>`). The state type is inferred from the component (a `Component<State, ...>` annotation or a typed view, calculated fields included, else its `initialState`), so test predicates need no annotation:
+
+```tsx
+const t = renderComponent(Counter)          // RenderResult<CounterState>
+t.simulateEvent('.inc', 'click')
+const s = await t.next(s => s.count > 0)    // s: CounterState
+```
+
+For a handle declared before it is assigned (in `beforeEach`), name the type: `let t: RenderResult<CounterState>`, not `any` (an `any` handle leaves `s` in `t.next(s => …)` untyped, TS7006 under `strict`). For an untyped component, pass the state type: `renderComponent<CounterState>(Counter)`. Without either, the state is `any`, as before. The diagnostics types (`Diagnostic`, `DiagnosticsMode`, `InspectGraph` and its parts) are exported from `sygnal`, and the `sygnal/diagnostics` entry ships its own declarations.
