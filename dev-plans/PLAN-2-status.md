@@ -14,7 +14,7 @@ Tracks progress for [PLAN-2.md](PLAN-2.md). Maintained by the coordinator. The P
 | 1 — Correctness backlog | ✅ Done | `plan2-phase1` | 1-A…1-F ✅ · 1-T trim ✅ · review: 6 findings + 2 notes, all fixed in 1-R · kanban 41,803 B (2 B headroom) |
 | 2 — Known ergonomics improvements | ✅ Done | `plan2-phase2` | 2-A ✅ · 2-B ✅ · 2-C ✅ · 2-D ✅ · review: 9 findings, all fixed in 2-R · targeted eval: task 08 41.8 → 27.0 s (gap 20.8 → 6.0 s), 10 −7.5 s, 11 unchanged (`results/P2-TARGETED.md`) |
 | 3 — Experiments | ✅ Decided | `plan2-phase3` | 3-H ✅ · eval chain running (12 runs, ~700 trials) · E4 🔵 (prototype ready, eval pending 3-H) · E5 🔵 (variants ready, eval pending 3-H) · E11 🔵 (prototype ready, eval pending 3-H) · E2+E3 🟡 |
-| 4 — Adopt, measure, release | 🟡 In progress | — | 3-F ✅ · E11, E2, E4 merged (coordinator) · 4-A1 ✅ · 4-B final eval 🟡 · Phase 4 review 🟡 · 4-E ✅ · E10 TS tasks 🟡 · E7 Haiku: interrupted at 19/160 (external SIGTERM), resume later |
+| 4 — Adopt, measure, release | 🟡 In progress | — | 3-F ✅ · E11, E2, E4 merged (coordinator) · 4-A1 ✅ · 4-B final eval 🟡 · Phase 4 review ✅ (11 findings) → 4-R 🟡 · 4-E ✅ · E10 TS tasks 🟡 · E7 Haiku: interrupted at 19/160 (external SIGTERM), resume later |
 
 Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ done · 🔴 blocked
 
@@ -85,6 +85,7 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | D51 | 2026-10-01 | Phase 3 eval budget: full plan (~$250 API-equivalent). Trials run on the user's claude.ai subscription (no API key), so the cost is notional but counts against usage limits; the harness must handle limit errors as not-run and resume | User | — |
 | D52 | 2026-10-01 | E2: prototype (b) `makeFetchDriver()` + (a) test-side fakes; E3's latest-only lives in (b) (`latest: true`, abort superseded). (c) component `drivers` and (d) sanctioned fetch in EFFECT are not prototyped. The user flags a broader rethink of network calls (HTTP + WebSocket) for the **next major version**; E2 records notes for it | User | Fits the driver model, opt-in, 0 B unless used |
 | D53 | 2026-10-02 | Phase 3 adoption: **adopt** E2 (b)+(a) (after the Switchable fix and a task-13 re-run) and E11; **adapt** E4 (fix real-mode waits, re-measure 10/12/17), E5 (port the 4 facts into the current skill, delete `references/component-patterns.md`), E1 (sygnal-check in eval starters; drop the pretest hook), E8 (drop the MCP server from agent docs, keep the server); **drop** E9's hypothesis; E7 inconclusive → also run Haiku; run E10 (TS variants) | User | `results/PHASE3-RESULTS.md` |
+| D54 | 2026-10-02 | `makeFetchDriver` gets component isolation like @cycle/http: requests tagged with the isolate scope; `select`/`errors`/`latest`/`abort` per (scope, category); same in the test fake. Non-RequestInit fetch options move under `init`; unknown top-level request keys are app data, not fetch init | Coordinator | R4-2/R4-5; makes the "no request ids" guidance true per instance |
 | D40 | 2026-10-01 | 0-B and 0-C build and self-verify without paid eval runs (0-B may run ≤ 2 smoke trials, `v2-smoke`, to validate the headless runner); full runs and pilots wait for Q2 | Coordinator | PLAN-2 §8 (user approves budgets per phase) |
 
 ## Bugs & Gaps Found
@@ -158,6 +159,9 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | G-127 | Phase 4 | med (process) | Environment | Some process sent SIGTERM to the user's terminal eval (E7 Haiku, 141 trials not run) and earlier to vitest runs; agents told never to kill processes by name | Open (watch) |
 | G-128 | 4-E | low (eval) | Task 06 | The 06 reference solution reports SYG502 under `sygnal-check --strict`; with sygnal-check now in the starters, agents may chase it | Open |
 | G-129 | 4-A1 | low | Testing | Mock mode keeps the old "`await t.next(a); await t.next(b)` misses a b that arrived during a's quiet window"; real mode now starts after the returned state. Recommend the same in mock mode | Open → Phase 4 review/fix |
+| R4-1 | Phase 4 review | med-high | Switchable | Regression from 3-F: hidden pages' EVENTS/PARENT/EFFECT/context read stale state (filtered state source stops `currentState`) | Open → 4-R |
+| R4-2 | Phase 4 review | med | fetchDriver | No isolation: responses, `latest` and `abort` are shared across component instances (two Search instances / Collection items cancel each other); docs' "no request ids" claim false for multi-instance | Open → 4-R (D54) |
+| R4-3…R4-11 | Phase 4 review | low | fetchDriver / testing / switchable | Unhandled rejections + leaked in-flight entries; shared early-buffer flag; header case/`Headers`/init key leakage; query arrays and `#`; legacy `HTTP.select('initial')` on every instance; dispose leaves waiters pending (hang under fake timers); fake can't see driver-level `latest`; stale vnode frame on re-show; `stateSourceName` not passed to `_switchable` | Open → 4-R |
 | G-076 | 5.4.0 release | low | browser-tests | The browser run prints expected console errors from error-path tests, which look like failures | ✅ 1-E (whitelist updated for SYG405 at the 1-B merge) |
 
 ## Worktree Setup (each subagent, inside its own isolated worktree)
