@@ -118,6 +118,37 @@ Chat.model = { RECEIVED: (s) => s, SOCKET_ERROR: (s) => s }
     expect(found[0].data).toEqual({ action: 'RECIEVED', key: 'message', suggestion: 'RECEIVED' })
     expect(codes(diags, 'SYG102').map(d => d.data.action)).toEqual(['RECEIVED'])
   })
+
+  it('SSE events map names count as triggers and are checked (G-163)', () => {
+    const { diags } = checkSource(`
+function Ticker({ state }) { return <p className="p">{state.price}</p> }
+Ticker.connections = () => ({ feed: { sse: '/events', message: 'TICK', events: { 'price-update': 'PRICE', 'halt': 'HALTD' } } })
+Ticker.model = { TICK: (s) => s, PRICE: (s, p) => ({ ...s, price: p }), HALTED: (s) => s }
+`)
+    expect(codes(diags, 'SYG102').map(d => d.data.action)).toEqual(['HALTED'])
+    const found = codes(diags, 'SYG112')
+    expect(found.map(d => d.data.action)).toEqual(['HALTD'])
+    expect(found[0].data.suggestion).toBe('HALTED')
+  })
+})
+
+describe('unparsable files (G-164)', () => {
+  it('SYG508 skips a project file that failed to parse (no SYG900 next to the parse error)', () => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sygnal-check-routing-'))
+    const good = path.join(dir, 'Quote.jsx'), bad = path.join(dir, 'Broken.jsx')
+    fs.writeFileSync(good, `
+function Quote({ state }) { return <button className="load">{state.status}</button> }
+Quote.initialState = { status: 'idle' }
+Quote.intent = ({ DOM, HTTP }) => ({ LOAD: DOM.click('.load'), LOADED: HTTP.select('quote') })
+Quote.model = {
+  LOAD: { HTTP: (state) => ({ category: 'quote', url: '/q' }) },
+  LOADED: (state, quote) => ({ ...state, status: 'done', quote }),
+}
+`)
+    fs.writeFileSync(bad, 'function Broken( { return <div> }')
+    const diags = check([good, bad], { cwd: dir, strict: true })
+    expect(diags.filter(d => /threw/.test(JSON.stringify(d)))).toEqual([])
+  })
 })
 
 describe('HYDRATE is an ordinary action (D66)', () => {

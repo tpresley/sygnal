@@ -109,7 +109,7 @@ export function routedNames(project, file, valueNode, keys = ROUTED_KEYS) {
 
 /**
  * Action names a `connections` static names (message/open/close/error keys of
- * any object literal inside it, PLAN-3 §1.3).
+ * any object literal inside it, and the values of an SSE `events` map, PLAN-3 §1.3).
  * @returns {{ targets: Array<{ name, key, node, file }>, dynamic: Array<{ node, file }> }}
  */
 export function connectionNames(project, file, node) {
@@ -119,6 +119,16 @@ export function connectionNames(project, file, node) {
   walk(r.node, (n) => {
     if (n.type !== 'ObjectProperty') return true
     const key = propName(n)
+    // G-163: an SSE spec's `events: { 'price-update': 'PRICE' }` names actions too
+    if (key === 'events' && n.value?.type === 'ObjectExpression') {
+      for (const p of n.value.properties) {
+        if (p.type !== 'ObjectProperty') continue
+        const s = stringValue(p.value)
+        if (s != null) out.targets.push({ name: s, key: 'events', node: p.value, file: r.file })
+        else out.dynamic.push({ node: p.value, file: r.file })
+      }
+      return false
+    }
     if (!CONNECTION_KEYS.has(key)) return true
     const s = stringValue(n.value)
     if (s != null) out.targets.push({ name: s, key, node: n.value, file: r.file })

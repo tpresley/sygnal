@@ -39,6 +39,8 @@ function routingDrivers(project) {
   const routing = new Map()
   const other = new Set()
   for (const file of project.files.values()) {
+    // G-164: a file that failed to parse is kept as null (its parse error is reported once)
+    if (!file?.ast) continue
     walk(file.ast.program, (n) => {
       if (n.type !== 'ObjectProperty') return true
       const key = propName(n)

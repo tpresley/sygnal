@@ -12,7 +12,7 @@ Covers `sygnal`, `sygnal-check` and `create-sygnal-app`. A few fixes change beha
 
 ### Added
 
-- **Routed requests** ([HTTP guide](https://sygnal.js.org/guide/drivers/)). A request to `makeFetchDriver`, `driverFromAsync` or `makeSocketDriver` names its continuation actions, and the reply arrives as that action on exactly the component instance that sent it, with no intent wiring:
+- **Routed requests** ([HTTP guide](https://sygnal.js.org/guide/http/)). A request to `makeFetchDriver`, `driverFromAsync` or `makeSocketDriver` names its continuation actions, and the reply arrives as that action on exactly the component instance that sent it, with no intent wiring:
   ```jsx
   LOAD:   { STATE: (state) => ({ ...state, status: 'loading' }),
             HTTP:  (state, id) => ({ url: `/api/quotes/${id}`, ok: 'LOADED', error: 'FAILED', latest: true }) },
@@ -28,7 +28,7 @@ Covers `sygnal`, `sygnal-check` and `create-sygnal-app`. A few fixes change beha
   - unrouted requests are isolated per component instance like `@cycle/http`: a component's `select()` sees the replies to its own and its descendants' requests; the root sees everything. Header names are sent lowercased (`Headers` semantics);
   - driver options `baseUrl`, `headers`, `init`, `latest`, `timeoutMs`, `parse` and `fetch`; disposing the app aborts everything in flight; no requests during SSR;
   - 0 bytes when unused (about 2.7 KB gzipped standalone, with the routing helper). New types `FetchRequest`, `FetchResponse`, `FetchError`, `FetchFailure`, `FetchSource`, `FetchDriverOptions`, `FetchInit`, `RoutedRequest` and `AsyncRequest`.
-- **`makeSocketDriver()` and the `connections` static** (WebSocket and server-sent events). A component declares its connections as a function of state; Sygnal sends the set to the driver whenever it changes, and the driver opens, closes and reconnects:
+- **`makeSocketDriver()` and the `connections` static** (WebSocket and server-sent events; [sockets guide](https://sygnal.js.org/guide/sockets/)). A component declares its connections as a function of state; Sygnal sends the set to the driver whenever it changes, and the driver opens, closes and reconnects:
   ```jsx
   Chat.connections = (state) => ({ room: state.room && {
     socket: `/ws/rooms/${state.room}`, message: 'RECEIVED', open: 'CONNECTED', close: 'DROPPED' } })
@@ -40,7 +40,7 @@ Covers `sygnal`, `sygnal-check` and `create-sygnal-app`. A few fixes change beha
   - reconnects with jittered backoff by default (`reconnect: { delayMs, maxDelayMs, jitter }`, or `false`; a fixed delay with `jitter: false`); sends are queued while connecting; connections to the same URL share one socket; `sse:` uses `EventSource`, with `events: { name: 'ACTION' }` for named events; nothing opens during SSR;
   - a `{ to }` send in the same action that opens or changes a connection goes to the new connection;
   - 0 bytes when unused (about 2.6 KB gzipped standalone); the `connections` static costs about 100 B in the core. New types `Connections`, `SocketRequest` and the spec types.
-- **Async EFFECTs.** `EFFECT: async (state, data, next, { signal }) => { … next('DONE', value) }` for async work that isn't HTTP (IndexedDB, clipboard, workers): a returned promise is expected, a rejection is reported as SYG214, `next()` after the component is disposed does nothing, and `signal` is an `AbortSignal` aborted on DISPOSE (EFFECT only).
+- **Async EFFECTs** ([EFFECT](https://sygnal.js.org/advanced/effect/)). `EFFECT: async (state, data, next, { signal }) => { … next('DONE', value) }` for async work that isn't HTTP (IndexedDB, clipboard, workers): a returned promise is expected, a rejection is reported as SYG214, `next()` after the component is disposed does nothing, and `signal` is an `AbortSignal` aborted on DISPOSE (EFFECT only).
 - **Test fakes for drivers** ([testing](https://sygnal.js.org/integration/testing/)). In `renderComponent()`, a sink with no driver, in the component or any child, is recorded, and its source is a fake that behaves like the real driver:
   - HTTP: routed requests are answered to the sending instance; `latest`, `abort` and isolation follow `makeFetchDriver`;
   - `await t.respond(name, value, target?)` answers, and `await t.fail(name, 404 | error, target?)` fails, the newest pending request that matches `target`: an `ok`/`error` action name, key or category, a partial request compared by value (`{ url: '/items/2' }`), a predicate, or `{ request, category, status, body }`. They **throw at the call** when nothing matching is pending (unless simulated input is still queued, or the component isn't ready yet), and return a promise that resolves after the reply has been reduced and rendered;
@@ -74,7 +74,7 @@ Covers `sygnal`, `sygnal-check` and `create-sygnal-app`. A few fixes change beha
   - constants on non-STATE sinks (`LOG: 'saved'`) type-check (`NonStateSinkValue`);
   - `renderComponent()` infers the state type from the component, and `RenderResult<State>` types `t.state`, `t.states`, `t.next(s => …)` and `t.waitForState`, so typed tests need no `any`;
   - `Component.connections`, routed request fields, and `signal` on the EFFECT props.
-- **Docs:** sections on sinks seeing the state from before the action, extracting a component without changing its markup, latest-only responses, HTTP, fake timers, the real DOM mode, and TypeScript sub-components and context.
+- **Docs:** new pages for [HTTP](https://sygnal.js.org/guide/http/), [sockets](https://sygnal.js.org/guide/sockets/), [custom drivers](https://sygnal.js.org/guide/custom-drivers/) and [server functions](https://sygnal.js.org/integration/server-functions/) (Telefunc through a routed `driverFromAsync`, with security rules for exposing server functions); sections on sinks seeing the state from before the action, extracting a component without changing its markup, latest-only responses, HTTP, fake timers, the real DOM mode, and TypeScript sub-components and context.
 - **`sygnal-check`:** explanations for every new code (`sygnal-check explain SYG112`), SYG112 and SYG508 as static rules, routed `ok`/`error` names and `connections` names counted as triggers by SYG102, a `'routed'` action trigger in `--graph` / `inspect()`, and the updated severity semantics below.
 - **`create-sygnal-app`:** `README.md` in the package.
 
