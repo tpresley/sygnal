@@ -1527,6 +1527,12 @@ export interface RenderOptions {
    * for "Connecting…" assertions and failures to open (t.drop on a connecting one).
    */
   autoConnect?: boolean;
+  /**
+   * PLAN-3 G-160: the driverless sink that receives the components' `connections` static
+   * (default 'WS'). It is created even when no model entry names it. Pass a driver for it in
+   * `drivers` to use a real one.
+   */
+  socketSink?: string;
 }
 
 /**

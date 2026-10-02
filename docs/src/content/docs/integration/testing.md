@@ -320,7 +320,7 @@ An object whose keys are all `request`, `category`, `status` or `body` is read a
 
 ### Sockets: connections(), push(), drop()
 
-A driverless sink that receives `{ connections }` or `{ to, json }` values (a component written for `makeSocketDriver()`) gets a fake that behaves like the real driver, with in-memory sockets in place of the network. You don't pass an option: the same fake handles HTTP requests and socket values. Connections are compared per component and name, so a room switch closes the old connection and opens the new one. `open`, `message`, `close` and `error` reach the sender's actions. Closes the app makes itself never send a `close` action. Unrouted events reach `WS.select(name)`. Reconnects follow the spec's `reconnect` on the test's timers.
+A driverless sink that receives `{ connections }` or `{ to, json }` values (a component written for `makeSocketDriver()`) gets a fake that behaves like the real driver, with in-memory sockets in place of the network. You don't pass an option: the same fake handles HTTP requests and socket values, and a component's `connections` static goes to the fake named `WS` (`renderComponent(C, { socketSink: 'SOCKET' })` for another name). Connections are compared per component and name, so a room switch closes the old connection and opens the new one. `open`, `message`, `close` and `error` reach the sender's actions. Closes the app makes itself never send a `close` action. Unrouted events reach `WS.select(name)`. Reconnects follow the spec's `reconnect` on the test's timers.
 
 ```jsx
 function Chat({ state }) {
@@ -420,6 +420,7 @@ When an event "does nothing" in a test, `t.inspect()` usually shows why: a selec
 | `eventWaitMs` | `number` | `300` | How long `simulateEvent` waits for a matching element (and its listeners) |
 | `dom` | `'mock' \| 'real'` | `'mock'` | `'real'` mounts into a real container element; see [Real DOM](#real-dom) |
 | `autoConnect` | `boolean` | `true` | Fake socket connections open by themselves; `false` holds them until `t.open()` (see [Sockets](#sockets-connections-push-drop)) |
+| `socketSink` | `string` | `'WS'` | The driverless sink that receives the components' `connections` static; created even when no model entry names it (a read-only SSE component). Pass a driver under this name in `drivers` to use a real one |
 
 The timing options (and a timeout passed to `next()`, `waitForState()` or `settle()`) must be finite numbers of milliseconds from 0 to 2147483647 (`setTimeout`'s limit); anything else throws.
 

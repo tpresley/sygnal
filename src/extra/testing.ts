@@ -248,6 +248,8 @@ export interface RenderOptions {
    * t.open(), for "Connecting…" assertions and failures to open (t.drop on a connecting one).
    */
   autoConnect?: boolean;
+  /** PLAN-3 G-160: the driverless sink that receives the `connections` static (default 'WS') */
+  socketSink?: string;
 }
 
 export interface RenderResult {
@@ -818,7 +820,7 @@ export function renderComponent(
   componentDef: any,
   options: RenderOptions = {}
 ): RenderResult {
-  const {initialState, mockConfig = {}, drivers = {}, diagnostics, strict, dom = 'mock', autoConnect = true} = options;
+  const {initialState, mockConfig = {}, drivers = {}, diagnostics, strict, dom = 'mock', autoConnect = true, socketSink = 'WS'} = options;
   const {intent, model = {}} = componentDef;
   // E4: real DOM mode
   const real = dom == 'real';
@@ -906,6 +908,13 @@ export function renderComponent(
         c.sourceNames.push(n);
         names.push(n);
       }
+    }
+    // G-160: a component with a connections static gets the socket fake even when no model entry
+    // names the sink (a read-only SSE feed), unless a driver provides it
+    if (c.view?.connections && !(socketSink in src) && !names.includes(socketSink)) {
+      src[socketSink] = fake(socketSink).at(nsOf(c));
+      c.sourceNames.push(socketSink);
+      names.push(socketSink);
     }
     if (names.length) injected.set(c, names);
   };
@@ -1117,6 +1126,8 @@ export function renderComponent(
           select: (sel?: any) => xs.merge(select(sel), sock.select(sel)), errors: src(true), subs, at, sent, route, ws,
           isolateSource: (_: any, scope: any) => at(ns.concat(scope)),
           isolateSink: (sink$: any, scope: any) => sink$.map((v: any) => tag(v, scope)),
+          // G-160: the fake named by `socketSink` receives the components' connections static
+          ...(name == socketSink ? {__sygnalConnections: true} : {}),
           ...routes,
           routed: (sender: any) => xs.merge(routes.routed(sender), ws.src.routed(sender)),
         };
