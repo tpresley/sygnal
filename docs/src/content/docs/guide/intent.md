@@ -111,7 +111,7 @@ MyComponent.intent = ({ DOM }) => ({
 | `.key(fn?)` | `e.key` | Keyboard events |
 | `.target(fn?)` | `e.target` | Any event |
 
-`.data()` looks the attribute up with `e.target.closest(...)`, so a click on a child element (an icon inside a card) still reads the card's value. The name may be camelCase or kebab-case: `.data('taskId')` and `.data('task-id')` both read the `data-task-id` attribute (`dataset.taskId`), which is what `data={{ taskId: 5 }}` renders. Write the keys of the `data` prop in camelCase: a kebab-case key (`data={{ 'task-id': 5 }}`, or a `data-task-id="5"` JSX attribute) makes the DOM throw a bare `DOMException` when it is rendered ([SYG421](/reference/errors/#syg421)).
+`.data()` looks the attribute up with `e.target.closest(...)`, so a click on a child element (an icon inside a card) still reads the card's value. The name may be camelCase or kebab-case: `.data('taskId')` and `.data('task-id')` both read the `data-task-id` attribute (`dataset.taskId`), which is what `data={{ taskId: 5 }}` renders. A `data-task-id="5"` JSX attribute renders the same attribute. Write the keys of the `data` prop in camelCase: a kebab-case key (`data={{ 'task-id': 5 }}`) makes the DOM throw a bare `DOMException` when it is rendered ([SYG421](/reference/errors/#syg421)).
 
 All methods return enriched streams, so they can be chained with standard stream operators:
 
