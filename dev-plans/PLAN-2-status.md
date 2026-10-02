@@ -138,7 +138,7 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | G-111 | 2-A | low | Testing | G-053's delayed-`next()` detection parses the core debug log text `next() action: <TYPE> Nms delay`; a wording change breaks it (tests would catch it). Cleaner: an `onNext` diagnostics hook (costs core bytes) | Open |
 | G-112 | 2-D | low | browser-tests | `browser-tests/vite.config.js` doesn't use the sygnal plugin, so `test:browser` never exercises `sygnal/vite` in dev | Open |
 | G-113 | 2-D | low | Astro dev | Cold-cache first load logs `504 (Outdated Optimize Dep)` while Vite re-optimizes (pre-existing; island still works) | Open |
-| G-114 | 2-D | low | Docs | CLAUDE.md test counts are stale (892 → 941 library tests) | Open → Phase 4 release prep |
+| G-114 | 2-D | low | Docs | CLAUDE.md test counts are stale (892 → 941 library tests) | ✅ cleanup (`4f1bff3`) |
 | G-115 | 2-C | low (perf) | Collection | `fieldLense.get` creates new item objects (`{...item, id}`) on every state emission, so every item re-renders on any parent state change; G-102 makes filter/sort prop changes re-emit too. Also: a child given an inline-arrow `filter` prop now re-renders on every parent render | Open → Phase 3/4 candidate |
 | G-116 | 2-C | low | Collection | A Collection with no `from` (whole state is the array) or a custom `from={{get,set}}` silently ignores `filter` and `sort` | Open → diagnostic or support |
 | R2-1 | Phase 2 review | med | propsModule | A nullish `value`/`checked` no longer clears a form field (5.4.0 cleared it); G-109 regression | ✅ 2-R |
@@ -169,13 +169,14 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | R4-3…R4-11 | Phase 4 review | low | fetchDriver / testing / switchable | Unhandled rejections + leaked in-flight entries; shared early-buffer flag; header case/`Headers`/init key leakage; query arrays and `#`; legacy `HTTP.select('initial')` on every instance; dispose leaves waiters pending (hang under fake timers); fake can't see driver-level `latest`; stale vnode frame on re-show; `stateSourceName` not passed to `_switchable` | ✅ 4-R |
 | G-130 | E10 | med | Types | Typed-links gaps: RootComponent view untyped; typed sub-components unusable in JSX with `state="slice"` or without `state`; view `context` optional + one CONTEXT param for provided/consumed; `IntentSources<State>` fails with `calculated`; `CHILD.select(Child)` becomes `any` without the 7th type param; DOM shorthand events typed as `Event`; noisy errors; empty SygnalEvents registry = no checking | ✅ 4-T (gaps 1–6 fixed, 7 improved, 8 documented) |
 | G-131 | 4-R | low | Testing | In the fake's child-only case, string requests from child components aren't scope-tagged (replies reach every scope); the real driver scopes them | Open |
-| G-132 | 4-R | low | Tests | `test/plan2-2c.test.js` "a sort prop change re-sorts" uses fixed 40/80 ms sleeps; flaked once under load | Open |
+| G-132 | 4-R | low | Tests | `test/plan2-2c.test.js` "a sort prop change re-sorts" uses fixed 40/80 ms sleeps; flaked once under load | ✅ cleanup (`4f1bff3`) |
 | G-133 | 4-R | low | fetchDriver | An isolated mid-level parent selecting the same category sees its descendants' replies (@cycle/http semantics); "own scope only" is the alternative | Open (decide at release) |
 | G-134 | 4-R | low | fetchDriver | Header names are sent lowercased (via `Headers`); a fetch stub reading `init.headers['Content-Type']` breaks — CHANGELOG note | Open → 4-C |
 | G-135 | p4-final | **high** (agents) | Calculated fields | After a child's lens write (Collection item, `state="slice"` child), the stored root state (`t.state`/`t.states`, `STATE.stream`) keeps old calculated values; the view is right. Pre-existing (5.4.0), but the new `t.state` guidance made agents hit it: 20 failed runs on tasks 12/14 | ✅ 4-F (`dd472a5`) |
 | G-136 | p4-final | high (agents) | Testing (E2 fake) | The fake HTTP source tracks requests by object identity (WeakSet): re-sending the same constant request on Retry → `t.respond` "no pending request"; 9 failed runs, all task-13 trials | ✅ 4-F (`dd472a5`) |
 | G-137 | p4-final | med | Testing | `t.html()` escapes `'` as `&#39;` in text (SSR escapeHtml); 4 failed runs | ✅ 4-F (`dd472a5`) |
 | G-138 | p4-final | low | AGENTS.md | The recipe pipes test output through `tail`, cutting the error; ~7 extra reruns | ✅ 4-F (`dd472a5`) |
+| G-139 | cleanup | low | Tests | `test/g106-vike-shell-state.test.js` still flakes occasionally under heavy load (hydrate + navigation case), despite the ≥ 60 ms + stable-DOM settle; passes alone | Open |
 | G-076 | 5.4.0 release | low | browser-tests | The browser run prints expected console errors from error-path tests, which look like failures | ✅ 1-E (whitelist updated for SYG405 at the 1-B merge) |
 
 ## Worktree Setup (each subagent, inside its own isolated worktree)
@@ -199,6 +200,7 @@ gzip -c /tmp/kb/assets/index-*.js | wc -c      # budget 41,805 B
 
 ## Activity Log
 
+- 2026-10-02 — Confirming eval done (guard on): p4-final2 105/105 ($33.11), p4-baseline-ts 20/20, p4-react-ts 20/20, p4-haiku2 143/200 ($45.80). 4-C draft merged (CHANGELOG [Unreleased], RELEASING placeholders). Cleanups merged (SYG111 null per D49, G-132, CLAUDE.md counts, ROADMAP: PLAN-2 done pending release + next-major network layer). REPORT-v2 being written.
 - 2026-10-02 — 4-C draft ready (`5ef8559`: CHANGELOG [Unreleased] with runtime + TS breaking tables and migrations, RELEASING with placeholders; 8/8 template smoke from local tarballs incl. tsc and Vike client nav). D55: 6.0.0. Merge after the confirming eval.
 - 2026-10-02 — 4-F merged (core: `withCalculated` lens `set` recomputes calculated fields, +20 B; fake HTTP per-send tracking; `t.html()` innerHTML escaping; AGENTS.md test-output line). Gate green (1103 vitest, 123 browser, 42,125 B). Tagged `plan2-p4-final-build-2`; confirming eval started with the process guard: p4-final2 (Sygnal, all 21 tasks), p4-baseline-ts, p4-react-ts, p4-haiku2.
 - 2026-10-02 — Diagnosis (`results/P4-REGRESSION-DIAGNOSIS.md`): the 12/13/14 slowdown is 3 harness problems (33/39 failed runs): stale calculated fields in recorded state (G-135, pre-existing, now hit via `t.state`), fake HTTP identity tracking (G-136, new in E2), `t.html()` `&#39;` (G-137); no branch framework regression. 4-F launched.
