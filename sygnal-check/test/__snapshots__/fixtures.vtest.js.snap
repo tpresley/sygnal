@@ -39,10 +39,10 @@ exports[`bad fixtures > events-no-counterpart.jsx 1`] = `
 exports[`bad fixtures > intent-model-mismatch.jsx 1`] = `
 [
   "test/fixtures/bad/intent-model-mismatch.jsx:18:3 SYG101 Form: intent action 'SAVE' has no model entry, so it does nothing (add 'SAVE' to Form.model, or fix the spelling to match an existing model key)",
-  "test/fixtures/bad/intent-model-mismatch.jsx:24:3 SYG102 Form: model entry 'SAV' is never triggered: no intent action, built-in action or next('SAV') call uses it (add 'SAV' to Form.intent, call next('SAV') from another entry, or remove it)",
-  "test/fixtures/bad/intent-model-mismatch.jsx:27:3 SYG102 Form: model entry 'LOG_IT' is never triggered: no intent action, built-in action or next('LOG_IT') call uses it (add 'LOG_IT' to Form.intent, call next('LOG_IT') from another entry, or remove it)",
+  "test/fixtures/bad/intent-model-mismatch.jsx:24:3 SYG102 Form: model entry 'SAV' is never triggered: no intent action, built-in action, routed request (ok/error) or next('SAV') call uses it (add 'SAV' to Form.intent, name it in a request (ok: 'SAV'), call next('SAV') from another entry, or remove it)",
+  "test/fixtures/bad/intent-model-mismatch.jsx:27:3 SYG102 Form: model entry 'LOG_IT' is never triggered: no intent action, built-in action, routed request (ok/error) or next('LOG_IT') call uses it (add 'LOG_IT' to Form.intent, name it in a request (ok: 'LOG_IT'), call next('LOG_IT') from another entry, or remove it)",
   "test/fixtures/bad/intent-model-mismatch.jsx:36:33 SYG101 Orphan: intent action 'GO' has no model entry, so it does nothing (add 'GO' to Orphan.model, or fix the spelling to match an existing model key)",
-  "test/fixtures/bad/intent-model-mismatch.jsx:45:3 SYG102 Silent: model entry 'STOP' is never triggered: no intent action, built-in action or next('STOP') call uses it (add an intent that returns 'STOP', call next('STOP') from another entry, or remove it)",
+  "test/fixtures/bad/intent-model-mismatch.jsx:45:3 SYG102 Silent: model entry 'STOP' is never triggered: no intent action, built-in action, routed request (ok/error) or next('STOP') call uses it (add an intent that returns 'STOP', name it in a request (ok: 'STOP'), call next('STOP') from another entry, or remove it)",
 ]
 `;
 
@@ -52,6 +52,16 @@ exports[`bad fixtures > parent-selects-child.jsx 1`] = `
   "test/fixtures/bad/parent-selects-child.jsx:25:20 SYG104 App: selector '.badge' targets .badge, which is only rendered inside child component <TodoItem> (rendered by TodoItem > Badge); parents can't see DOM events inside child components (handle it in <TodoItem> and send it up via PARENT or EVENTS)",
   "test/fixtures/bad/parent-selects-child.jsx:26:20 SYG104 App: selector '.panel-close' targets .panel-close, which is only rendered inside child component <Panel>; parents can't see DOM events inside child components (handle it in <Panel> and send it up via PARENT or EVENTS)",
   "test/fixtures/bad/parent-selects-child.jsx:27:20 SYG104 App: selector '.panel' targets .panel, which is only rendered inside child component <Panel>; parents can't see DOM events inside child components (handle it in <Panel> and send it up via PARENT or EVENTS)",
+]
+`;
+
+exports[`bad fixtures > routed-requests.jsx 1`] = `
+[
+  "test/fixtures/bad/routed-requests.jsx:20:78 SYG112 [error] Quote: the HTTP request of 'LOAD' routes its error reply to 'FIALED', but Quote has no model entry 'FIALED', so the reply is dropped (did you mean 'FAILED'?) (rename it to the existing entry: error: 'FAILED')",
+  "test/fixtures/bad/routed-requests.jsx:23:3 SYG102 Quote: model entry 'FAILED' is never triggered: no intent action, built-in action, routed request (ok/error) or next('FAILED') call uses it (add 'FAILED' to Quote.intent, name it in a request (ok: 'FAILED'), call next('FAILED') from another entry, or remove it)",
+  "test/fixtures/bad/routed-requests.jsx:25:3 SYG102 Quote: model entry 'HYDRATE' is never triggered: no intent action, built-in action, routed request (ok/error) or next('HYDRATE') call uses it (add 'HYDRATE' to Quote.intent, name it in a request (ok: 'HYDRATE'), call next('HYDRATE') from another entry, or remove it)",
+  "test/fixtures/bad/routed-requests.jsx:40:12 SYG112 [error] Chat: Chat.connections routes 'close' events to 'DISCONECTED', but Chat has no model entry 'DISCONECTED', so they are dropped (did you mean 'DISCONNECTED'?) (rename it to the existing entry: close: 'DISCONNECTED')",
+  "test/fixtures/bad/routed-requests.jsx:47:3 SYG102 Chat: model entry 'DISCONNECTED' is never triggered: no intent action, built-in action, routed request (ok/error) or next('DISCONNECTED') call uses it (add an intent that returns 'DISCONNECTED', name it in a request (ok: 'DISCONNECTED'), call next('DISCONNECTED') from another entry, or remove it)",
 ]
 `;
 

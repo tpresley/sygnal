@@ -17,6 +17,7 @@
  * | SYG104 | intent selector only matches inside a child component  | dom.ts         |
  * | SYG105 | EVENTS type emitted-not-selected / selected-not-emitted| events.ts      |
  * | SYG106 | parent prop overwritten by a reserved view argument    | props.ts       |
+ * | SYG112 | routed request names an action with no model entry     | routing.ts     |
  * | SYG115 | unknown DOM event shorthand (DOM.key(...))             | shorthand.ts   |
  * | SYG116 | EVENTS value with no string type (a function)          | events.ts      |
  * | SYG201 | STATE reducer dropped keys                             | state.ts       |
@@ -28,9 +29,10 @@
  * | SYG501 | strict: view uses positional (props, state, ...) args  | strict.ts      |
  * | SYG502 | strict: STATE reducer returned the unchanged state     | strict.ts      |
  * | SYG504 | strict: 'ACTION | SINK' shorthand model key           | strict.ts      |
+ * | SYG508 | strict: select()/errors() round trip on a routing source| routing.ts    |
  * | —      | inspect(): the runtime app graph (2B)                  | inspect.ts     |
  *
- * SYG115/116/221/421 (G-143) are dev-entry-only codes: their severities live in
+ * SYG112 (PLAN-3) and SYG115/116/221/421 (G-143) are dev-entry-only codes: their severities live in
  * DEV_CODE_SEVERITY (codes.ts), registered by ./shared, not in the main bundle.
  *
  * Strict checks (SYG5xx) only report after configureStrict(true) (or
@@ -48,6 +50,7 @@ import {domCheck} from './dom'
 import {shorthandCheck} from './shorthand'
 import {datasetCheck} from './dataset'
 import {strictCheck} from './strict'
+import {routingCheck} from './routing'
 import {installRxjsHints} from './rxjsHints'
 import {inspectCheck, installInspect} from './inspect'
 
@@ -71,6 +74,7 @@ export const checks: DiagnosticCheck[] = [
   shorthandCheck,
   datasetCheck,
   strictCheck,
+  routingCheck,
   inspectCheck,
 ]
 

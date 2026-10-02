@@ -96,15 +96,18 @@ export function getCodeInfo(code: string): DiagnosticCodeInfo | undefined
 // ---------------------------------------------------------------------------
 
 /** How an action is dispatched. */
-export type InspectActionTrigger = 'intent' | 'next' | 'builtin' | 'unknown'
+export type InspectActionTrigger = 'intent' | 'next' | 'routed' | 'builtin' | 'unknown'
 
 export interface InspectAction {
   name: string
   /**
    * 'intent': returned by the component's intent. 'builtin': BOOTSTRAP,
-   * INITIALIZE, HYDRATE, DISPOSE or READY. 'next': dispatched with next()
-   * (statically: a next('NAME') literal; at runtime: a model-only action whose
-   * STATE reducer was seen running). 'unknown': none of these is known.
+   * INITIALIZE, DISPOSE or READY. 'routed': named by a routed request
+   * (`ok: 'NAME'` / `error: 'NAME'`) or a `connections` entry (statically: a
+   * string literal; at runtime: a request the instance was seen sending).
+   * 'next': dispatched with next() (statically: a next('NAME') literal; at
+   * runtime: a model-only action whose STATE reducer was seen running).
+   * 'unknown': none of these is known.
    */
   trigger: InspectActionTrigger
   /** sinks of the model entry (STATE, EVENTS, EFFECT, PARENT, custom drivers); [] without a model entry */

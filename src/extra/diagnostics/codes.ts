@@ -145,6 +145,7 @@ export const CODE_TITLES: Record<string, string> = {
   SYG111: 'Controlled input has no input listener',
   SYG115: 'Unknown DOM event shorthand',
   SYG116: 'EVENTS value has no string type',
+  SYG112: 'Routed request names an action with no model entry',
   // SYG2xx state & reducers (1A)
   SYG201: 'STATE reducer dropped keys from the previous state',
   SYG202: 'STATE reducer returned undefined',
@@ -160,6 +161,7 @@ export const CODE_TITLES: Record<string, string> = {
   SYG505: 'Non-canonical EVENTS emit',
   SYG506: 'CHILD.select() with a string component name',
   SYG507: 'Prop drilled through more than 2 component levels',
+  SYG508: 'select()/errors() round trip where a routed request would do',
   // SYG9xx internal (0B)
   SYG900: 'A diagnostics check threw',
   // ---- 1E retrofit codes (SYG206-299, 402-499, 601-699, 901-999) ----
@@ -227,12 +229,15 @@ export const STRICT_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG505: 'warn',
   SYG506: 'warn',
   SYG507: 'info',
+  SYG508: 'warn',
 }
 
 // PLAN-3 1-G (G-143): codes only the 'sygnal/diagnostics' dev entry reports. Like the strict
 // table, kept OUT of CODE_SEVERITY (zero bytes in the main bundle); the entry registers them
 // and passes the severity explicitly.
+// PLAN-3 1-D: SYG112 (a routed request names an action with no model entry) too.
 export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
+  SYG112: 'error',
   SYG115: 'warn',
   SYG116: 'error',
   SYG221: 'error',

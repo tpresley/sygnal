@@ -14,6 +14,7 @@ import shorthandKey from './syg504-shorthand-key.js'
 import eventsEmit from './syg505-events-emit.js'
 import childSelectString from './syg506-child-select-string.js'
 import propDrilling from './syg507-prop-drilling.js'
+import selectRoundtrip from './syg508-select-roundtrip.js'
 
 export const strictRules = [
   positionalView,     // SYG501 (C1)
@@ -23,4 +24,5 @@ export const strictRules = [
   eventsEmit,         // SYG505 (C6)
   childSelectString,  // SYG506 (C7)
   propDrilling,       // SYG507 (C10, info)
+  selectRoundtrip,    // SYG508 (PLAN-3 §1.1: routed requests)
 ]
