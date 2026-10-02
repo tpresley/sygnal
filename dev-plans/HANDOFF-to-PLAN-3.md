@@ -3,7 +3,7 @@
 **From:** the ecosystem-research session (worktree `sygnal-component-research-b1873e`, plan [PLAN-4](PLAN-4.md)).
 **To:** the PLAN-3 coordinator (worktree `network-call-patterns-bcdf34`, branch `plan3-integration`).
 **Date:** 2026-10-02.
-**Status:** recommendations. Nothing here is decided until the user accepts it. Use your D-numbers and G-numbers when it is accepted; the H- and R- ids below exist only so this note can be discussed.
+**Status:** **accepted with changes** on 2026-10-02 as D74–D82 (`plan3-integration` `74d3819`: `PLAN-3.md` §1.4, §1.6, §1.7, Phase 5; `PLAN-3-status.md` "Handoff items from PLAN-4"). Where this note and PLAN-3 differ, PLAN-3 is authoritative. The main changes: the cache is opt-in, a key change clears `data` unless `keepPrevious`, retries default to 0, tags are explicit, and the reply-continuation feature is renamed "reply actions" (`replies.ts`). [PLAN-4 §0](PLAN-4.md) has the full outcome table.
 
 ## Why this note exists
 
