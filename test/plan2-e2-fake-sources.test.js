@@ -73,7 +73,8 @@ describe('E2: fake sources in renderComponent', () => {
     t.respond('HTTP', { text: 'Hi' })
     await t.next(s => s.text === 'Hi (200)')
     expect(t.requests('HTTP')).toEqual([{ category: 'quote', url: '/api/quote' }])
-    expect(t.requests('HTTP')).toBe(t.sinkValues('HTTP'))
+    // PLAN-3 1-C (G-141): t.requests lists requests (no { abort } commands); sinkValues everything
+    expect(t.requests('HTTP')).toEqual(t.sinkValues('HTTP'))
   })
 
   it('t.fail with an HTTP status, a message or an Error goes to errors()', async () => {
@@ -106,21 +107,21 @@ describe('E2: fake sources in renderComponent', () => {
     await new Promise(r => setTimeout(r, 80))
     const [du, dune] = t.requests('HTTP')
     expect(dune.query.q).toBe('dune')
-    t.respond('HTTP', ['Dubliners'], { request: du })   // stale: dropped like the real driver
+    // stale: not pending (the real driver dropped it); PLAN-3 1-C (G-140): throws at the call
+    expect(() => t.respond('HTTP', ['Dubliners'], { request: du })).toThrow(/no pending HTTP request/)
     t.respond('HTTP', ['Dune'])                         // the latest pending one
     await t.next(s => s.status === 'done')
     expect(t.states.at(-1).results).toEqual(['Dune'])
     expect(t.states.some(s => s.results.includes('Dubliners'))).toBe(false)
   })
 
-  it('clearing while in flight ({ category, abort: true }) leaves nothing pending: t.respond fails the test', async () => {
+  it('clearing while in flight ({ category, abort: true }) leaves nothing pending: t.respond throws', async () => {
     t = renderComponent(Search, { timeoutMs: 300 })
     t.simulateEvent('.q', 'input', { value: 'dun' })
     await t.next(s => s.status === 'searching')
     t.simulateEvent('.q', 'input', { value: '' })
     await t.next(s => s.status === 'idle')
-    t.respond('HTTP', ['Dungeon'])
-    await expect(t.settle()).rejects.toThrow(/no pending HTTP request after 150ms.*aborted or superseded/)
+    expect(() => t.respond('HTTP', ['Dungeon'])).toThrow(/no pending HTTP request\..*aborted or superseded/)
   })
 
   it('a response nothing selects fails the test, naming the categories listened to', async () => {
