@@ -4,6 +4,8 @@
 //
 // Usage:
 //   node evals/agent-ergonomics/transcript-stats.mjs <transcript.jsonl> [--dir <trial dir>]
+//   node evals/agent-ergonomics/transcript-stats.mjs --kills <run dir | transcript>... [--json]
+//        lists the trials whose agent ran process kills (G-127; lib/transcript.mjs processKills)
 //
 // Accepts Claude Code transcripts (subagent logs live at
 // ~/.claude/projects/<project>/<session-id>/subagents/agent-<id>.jsonl) and
@@ -32,6 +34,9 @@
 //   the trial dir itself are ignored), or read files outside the trial dir
 //   (other than skill files). Any hit means the
 //   trial must be reviewed and probably discarded (see run.md).
+// - processKills / machineWideKills: Bash process kills (pkill, killall,
+//   `xargs kill`, kill $(pgrep ...), fuser -k are machine-wide; kill -9 <pid>
+//   is listed but not machine-wide). See lib/headless.mjs PROCESS_GUARD.
 // - headless: { model, completed, isError, durationMs, costUsd, tokens,
 //   outputTokens, numTurns } from a headless transcript; null for subagent logs.
 import fs from 'node:fs'
@@ -40,6 +45,29 @@ import { parseArgs } from './lib/common.mjs'
 import { transcriptStats } from './lib/transcript.mjs'
 
 const args = parseArgs(process.argv.slice(2))
+if (args.kills) {
+  // Scan mode (G-127): process kills per trial over transcripts or dirs of them, e.g.
+  //   transcript-stats.mjs --kills /private/tmp/sygnal-evals/trials/*/   [--json]
+  const inputs = [...(typeof args.kills === 'string' ? [args.kills] : []), ...args._]
+  const files = inputs.flatMap((p) => (fs.statSync(p).isDirectory() ? fs.readdirSync(p).filter((f) => f.endsWith('.transcript.jsonl')).map((f) => path.join(p, f)) : [p]))
+  const rows = []
+  for (const f of files.sort()) {
+    const s = transcriptStats(fs.readFileSync(f, 'utf8'))
+    if (!s.processKills.length) continue
+    const runJson = f.replace(/\.transcript\.jsonl$/, '.run.json')
+    let processGuard = 0
+    try {
+      processGuard = JSON.parse(fs.readFileSync(runJson, 'utf8')).processGuard ?? 0
+    } catch {}
+    rows.push({ run: path.basename(path.dirname(f)), trial: path.basename(f).replace(/\.transcript\.jsonl$/, ''), processGuard, machineWide: s.machineWideKills, kills: s.processKills })
+  }
+  if (args.json) console.log(JSON.stringify({ scanned: files.length, trials: rows }, null, 2))
+  else {
+    console.log(`${files.length} transcripts scanned; ${rows.filter((r) => r.machineWide).length} with machine-wide process kills, ${rows.filter((r) => !r.machineWide).length} with only kill -9 by PID`)
+    for (const r of rows) console.log(`${r.run}/${r.trial}\t${r.machineWide} machine-wide${r.processGuard ? ' (guarded: refused)' : ''}\t${r.kills.map((k) => k.command).join(' | ')}`)
+  }
+  process.exit(0)
+}
 const file = args._[0]
 if (!file) {
   console.error('usage: transcript-stats.mjs <transcript.jsonl> [--dir <trial dir>]')

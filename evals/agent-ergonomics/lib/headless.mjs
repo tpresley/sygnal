@@ -5,6 +5,8 @@
 // run from inside the prepared trial dir. stream-json lines carry no
 // timestamps, so the runner stamps each line as it arrives; the stamped file is
 // `<dest>.transcript.jsonl` and parses like a PLAN-1 subagent transcript.
+import fs from 'node:fs'
+import path from 'node:path'
 import { rateLimitInfo } from './limits.mjs'
 
 /**
@@ -64,12 +66,62 @@ function isolationArgs({ settingSources, addDirs = [], mcpConfig } = {}) {
   return a
 }
 
+/**
+ * Process guard (G-127). Trial agents ran machine-wide kills from their Bash
+ * tool (`pkill -f vite`, `killall node`), which hit every matching process on
+ * the machine: other trials' dev servers and test runs, the orchestrator, the
+ * user's own node processes. Two layers, both on for every trial:
+ * 1. deny rules (--disallowedTools) for pkill, killall and kill (including
+ *    their absolute paths). `kill` is a shell builtin, so only the rule can
+ *    block it; a trial stopping its own background job from a script is fine;
+ * 2. a per-trial shim dir (writeProcessGuard) put first on the trial's PATH,
+ *    and again through CLAUDE_ENV_FILE (sourced before every Bash command, so a
+ *    login shell's path_helper can't reorder it), with pkill, killall and kill
+ *    executables that refuse and exit 1. The `kill` shim only catches the
+ *    external binary (`xargs kill`, `lsof -ti:5173 | xargs kill -9`).
+ * The harness's own timeout kills the trial's process group with
+ * process.kill(), which neither layer affects.
+ * PROCESS_GUARD is recorded in the run meta and the run manifest; it is not
+ * part of the variant hash (it changes nothing for a trial that never kills a
+ * process, and keeping it out keeps recorded variants' hashes).
+ */
+export const PROCESS_GUARD = 1
+export const GUARD_DISALLOWED_TOOLS = ['pkill', 'killall', 'kill', '/usr/bin/pkill', '/usr/bin/killall', '/bin/kill'].map((c) => `Bash(${c}:*)`)
+export const GUARD_COMMANDS = ['pkill', 'killall', 'kill']
+export const GUARD_MESSAGE = 'Not available in the eval: stop only processes you started, by PID (e.g. `kill %1` or the PID from `$!`)'
+
+/** Shim dir paths of a trial: `<dest>.guard/bin` (the executables) and `<dest>.guard/env.sh` (CLAUDE_ENV_FILE). */
+export function guardPaths(dest) {
+  const root = `${dest}.guard`
+  return { root, bin: path.join(root, 'bin'), envFile: path.join(root, 'env.sh') }
+}
+
+/** Write the shim executables and the env file for one trial; returns guardPaths(dest). Idempotent. */
+export function writeProcessGuard(dest) {
+  const g = guardPaths(dest)
+  fs.mkdirSync(g.bin, { recursive: true })
+  const msg = GUARD_MESSAGE.replace(/'/g, `'\\''`)
+  for (const c of GUARD_COMMANDS) {
+    const f = path.join(g.bin, c)
+    fs.writeFileSync(f, `#!/bin/sh\n# Eval process guard (G-127): machine-wide process kills are not allowed in a trial.\necho '${c}: ${msg}' >&2\nexit 1\n`)
+    fs.chmodSync(f, 0o755)
+  }
+  fs.writeFileSync(g.envFile, `# Eval process guard (G-127): sourced before every Bash command of the trial.\nexport PATH='${g.bin}':"$PATH"\n`)
+  return g
+}
+
+/** The trial environment with the guard: shim dir first on PATH, CLAUDE_ENV_FILE set. */
+export function guardEnv(env, g) {
+  return { ...env, PATH: `${g.bin}${path.delimiter}${env.PATH ?? ''}`, CLAUDE_ENV_FILE: g.envFile }
+}
+
 /** argv for `claude` (without the binary). */
-export function buildClaudeArgs({ prompt, model, permissionMode = DEFAULT_PERMISSION_MODE, tools = DEFAULT_TOOLS, effort, maxBudgetUsd, settingSources, addDirs, mcpConfig, extraAllowedTools = [] } = {}) {
+export function buildClaudeArgs({ prompt, model, permissionMode = DEFAULT_PERMISSION_MODE, tools = DEFAULT_TOOLS, effort, maxBudgetUsd, settingSources, addDirs, mcpConfig, extraAllowedTools = [], processGuard = true } = {}) {
   if (!prompt) throw new Error('buildClaudeArgs: prompt is required')
   const toolList = Array.isArray(tools) ? tools : String(tools).split(/[,\s]+/).filter(Boolean)
   const args = ['-p', prompt, '--output-format', 'stream-json', '--verbose', '--permission-mode', permissionMode]
   args.push('--tools', toolList.join(','), '--allowedTools', [...toolList, ...extraAllowedTools].join(','))
+  if (processGuard) args.push('--disallowedTools', GUARD_DISALLOWED_TOOLS.join(','))
   args.push(...isolationArgs({ settingSources, addDirs, mcpConfig }), '--no-session-persistence')
   if (model) args.push('--model', model)
   if (effort) args.push('--effort', effort)
@@ -78,8 +130,11 @@ export function buildClaudeArgs({ prompt, model, permissionMode = DEFAULT_PERMIS
 }
 
 /** argv for the preflight: one tiny no-tool call on the trial model, same output format. */
-export function buildPreflightArgs({ model, effort, settingSources, addDirs } = {}) {
-  const args = ['-p', 'Reply with the single word: ok', '--output-format', 'stream-json', '--verbose', '--tools', '', ...isolationArgs({ settingSources, addDirs }), '--no-session-persistence']
+// It carries the guard's deny rules too, so a CLI that rejects them fails the preflight, not the first trial.
+export function buildPreflightArgs({ model, effort, settingSources, addDirs, processGuard = true } = {}) {
+  const args = ['-p', 'Reply with the single word: ok', '--output-format', 'stream-json', '--verbose', '--tools', '']
+  if (processGuard) args.push('--disallowedTools', GUARD_DISALLOWED_TOOLS.join(','))
+  args.push(...isolationArgs({ settingSources, addDirs }), '--no-session-persistence')
   if (model) args.push('--model', model)
   if (effort) args.push('--effort', effort)
   return args

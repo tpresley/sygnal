@@ -14,11 +14,11 @@ evals/agent-ergonomics/
   prepare.mjs           copy a starter into a scratch trial dir and npm install it
   run-trial.mjs         run one prepared trial headless with `claude -p` (transcript, wall time, cost, tokens, timeout)
   score.mjs             run hidden tests in a finished trial dir, then append to results/<run>.json
-  transcript-stats.mjs  iterations / edit rounds / wall time / peeking audit from a transcript
+  transcript-stats.mjs  iterations / edit rounds / wall time / peeking audit / process kills from a transcript (--kills: scan runs)
   verify.mjs            fail-before / pass-after check for every task in both arms
   lib/common.mjs        shared plumbing
   lib/transcript.mjs    command classifiers and transcriptStats() (transcript-stats.mjs, orchestrate.mjs)
-  lib/headless.mjs      headless trial posture (claude args, environment), stream-json helpers
+  lib/headless.mjs      headless trial posture (claude args, environment, process guard), stream-json helpers
   lib/runner.mjs        runTrial(): spawn, stamp, timeout, <dest>.run.json
   lib/plan.mjs          task selection (tiers, ranges), resume plan, cost/time estimate
   lib/variant.mjs       run variants: load/validate a spec, resolve + hash it, materialize it, starter overlays,
@@ -199,6 +199,7 @@ Changes that make a run's numbers not directly comparable with earlier runs. Com
 - **PLAN-2 4-E: starter 2 for variant runs** (G-123; E1's "adapt" verdict). Every Sygnal trial of a variant run now has `sygnal-check` installed and the template-style `AGENTS.md` / `CLAUDE.md` ("Starter versions"). Before, the skill told agents to run sygnal-check but the starters lacked it: 68/85 p3-control trials lost ≈2 s to a failed `npx`. `branch` (the control) and the experiment variants use starter 2; `baseline-5.4.0` pins starter 1, reproducing the v2-baseline conditions (no sygnal-check), and so do `e1-check` / `e1-pretest`, kept to reproduce Phase 3 (`e1-pretest` is no longer recommended: E1 dropped the pretest hook). Runs without a variant stay on starter 1. Records and manifests carry `starterVersion` (absent = 1). Compare starter-2 runs with a starter-2 control; a Phase 3 run is reproduced by its spec plus `"starter": 1`, which gives the same `variantHash`.
 - **PLAN-2 4-E: static source checks ignore comments** (G-124). Tasks 08 and 16 (both arms) read the agent's source through `stripComments()` (`hidden/_support/queries.js`), so "Place order" or "★" in a comment no longer fails "the file no longer renders X". Of all recorded 08/16 failures, this changes only p3-control and e5-lean `sygnal-16-t4` (6/7 → 7/7 when re-run on the kept trial dirs); the committed results keep their original scores, and their failure category was already "other (harness strictness)" in `results/PHASE3-RESULTS.md`.
 - **PLAN-2 4-E: the analyzer counts API guesses** (G-125): catalog entries with `input` signatures, matched against the agent's tool inputs and kept tests (`t.state` on a `renderComponent()` handle; `t.html()` read before the first render). They add trials to the catalog table ("inputs" column), not friction time. Re-analyze older runs to compare.
+- **PLAN-2 G-127: process guard** (`processGuard: 1` in `<dest>.run.json` and the run manifest; run.md "Process guard"). Trials can no longer run `pkill`, `killall` or `kill` (deny rules) and get refusing `pkill` / `killall` / `kill` shims first on `PATH`. It changes nothing for a trial that never kills a process; a trial that tries gets a refused call instead of killing its dev server (and everyone else's). Kept out of the variant hash, so recorded variants keep their hashes; manifests without it are unguarded (0). Earlier runs whose agents ran machine-wide kills (scan: `transcript-stats.mjs --kills <trials-root>/<run>`): e2 `sygnal-13-t3` (`pkill -f vitest`), e7-haiku 12 trials (`pkill -f vite` / `"npm run dev"`, `killall node`, `xargs kill -9`), p4-haiku 7 trials. Their concurrent trials, and coordinator gate runs at the time, may have lost processes to them.
 
 ## Friction analyzer (`analysis/`)
 

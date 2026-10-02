@@ -274,6 +274,7 @@ export function renderMarkdown({ meta, agg, records, tracker, skill, docs = null
   P('- Wall time is first to last transcript timestamp; it matches the recorded `wallSeconds` within a second for all but a few trials.')
   if (!meta.methods?.length || meta.methods.some((m) => m !== 'headless')) P('- HARNESS-GUARD is an artifact of how trials were spawned (subagents inherit the coordinator\'s worktree guard), not of either framework. It costs both arms, more for Sygnal because Sygnal agents run more compound commands.')
   P('- Small n (5 trials per task and arm); differences under ~5 s per trial are within noise.')
+  P(processKillNote(records))
   P()
 
   // ---- appendix
@@ -300,4 +301,26 @@ function sinkNarrative(agg, records) {
   const learn = lsum ? { delta: lsum } : null
   const ta = d.items.find((x) => x.item === 'phase:test-authoring')
   return `The largest single items are ${parts.join(', ')}. Everything to do with the agents testing their own work in Sygnal (tooling defects, learning the test tooling, writing tests) adds up to **${f1(tb)} s per trial (${pct(d.wallDelta ? tb / d.wallDelta : null)} of the delta)**. Known framework/tooling defects (catalog friction excluding the harness guard) explain **${f1(frSum)} s** per trial (${pct(d.wallDelta ? frSum / d.wallDelta : null)} of the delta)${learn ? `; learning the framework (skill + library source) explains ${f1(learn.delta)} s` : ''}${ta ? `; writing the agent's own tests ${f1(ta.delta)} s` : ''}.`
+}
+
+/**
+ * G-127: trials whose agent ran machine-wide process kills (pkill, killall, `xargs kill`, kill by lookup).
+ * Those can have killed other concurrent trials' dev servers and test runs, or the orchestrator, so the
+ * run's other trials may be contaminated too (lost runs, timeouts, odd test failures).
+ */
+export function processKillNote(records) {
+  const wide = records.filter((r) => r.processKills?.some((k) => k.machineWide))
+  const hit = wide.filter((r) => !r.processGuard)
+  const blocked = wide.filter((r) => r.processGuard)
+  const nine = records.filter((r) => r.processKills?.length && !r.processKills.some((k) => k.machineWide))
+  const fmt = (r) => {
+    const ks = r.processKills.filter((k) => k.machineWide)
+    return `${r.trial} (${ks.length}: ${[...new Set(ks.map((k) => k.kind))].join(', ')})`
+  }
+  const lines = []
+  if (!wide.length) lines.push('- **Process kills** (G-127): no trial ran a machine-wide process kill (pkill, killall, `xargs kill`, kill by lookup).')
+  if (hit.length) lines.push(`- **Process kills** (G-127): ${hit.length} unguarded trial(s) ran machine-wide process kills, which hit every matching process on the machine (other concurrent trials' dev servers and test runs, the orchestrator): ${hit.map(fmt).join('; ')}. Trials of this run that overlapped them may be contaminated (killed test runs, timeouts, lost trials). Trials run with the process guard (\`processGuard: 1\` in the run meta and manifest) have these commands refused.`)
+  if (blocked.length) lines.push(`- **Process kills refused by the guard** (G-127, \`processGuard: 1\`): ${blocked.map(fmt).join('; ')}. No other process was affected; the attempt costs that trial a refused call.`)
+  if (nine.length) lines.push(`- \`kill -9\` by PID (the trial's own process, not machine-wide): ${nine.map((r) => r.trial).join(', ')}.`)
+  return lines.join('\n')
 }

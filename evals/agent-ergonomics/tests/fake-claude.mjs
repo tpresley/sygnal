@@ -19,13 +19,16 @@
 //   FAKE_CLAUDE_LIMIT_CALLS=N   with FAKE_CLAUDE_STATE=<file>: the first N trial calls (not the preflight)
 //                               behave like ratelimit, later ones run normally
 //   FAKE_CLAUDE_ARGV_LOG=<file> append each call's cwd and argv (JSON) to <file>
+//   FAKE_CLAUDE_BASH=<cmds>     newline-separated Bash commands to run before `npm test`, honoring
+//                               --disallowedTools and $CLAUDE_ENV_FILE like the CLI (FAKE_CLAUDE_IGNORE_DENY=1:
+//                               skip the deny rules); FAKE_CLAUDE_CHILD_PID=<file>: hang mode's child pid
 // The init event lists skills like the real CLI: ~/.claude/skills/* (from $HOME) unless
 // --setting-sources leaves out "user", plus <dir>/.claude/skills/* of every --add-dir;
 // and mcp_servers from --mcp-config.
 // Without FAKE_CLAUDE_SOLUTION it changes nothing, so the hidden tests fail.
 import fs from 'node:fs'
 import path from 'node:path'
-import { spawnSync } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 
 const argv = process.argv.slice(2)
 if (argv[0] === '--version') {
@@ -90,6 +93,10 @@ if (isPreflight) {
   emit({ type: 'assistant', message: { id: 'msg_pf', role: 'assistant', model, content: [{ type: 'text', text: 'ok' }], usage: { input_tokens: 5, output_tokens: 1 } } })
   emit({ type: 'result', subtype: 'success', is_error: false, duration_ms: 900, duration_api_ms: 800, num_turns: 1, result: 'ok', total_cost_usd: 0.001, usage: { input_tokens: 5, output_tokens: 1, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } })
 } else if (mode === 'hang') {
+  // A grandchild in the same process group, like a dev server the agent started: the runner's
+  // timeout must kill it too. FAKE_CLAUDE_CHILD_PID=<file> records its pid.
+  const child = spawn('/bin/sleep', ['600'], { stdio: 'ignore' })
+  if (process.env.FAKE_CLAUDE_CHILD_PID) fs.writeFileSync(process.env.FAKE_CLAUDE_CHILD_PID, String(child.pid))
   setInterval(() => {}, 1000)
 } else {
   const usage = { input_tokens: 10, output_tokens: 50, cache_read_input_tokens: 1000, cache_creation_input_tokens: 200 }
@@ -111,6 +118,20 @@ if (isPreflight) {
         return { text: `File created successfully at: ${rel}`, isError: false }
       })
     }
+  }
+  // A scripted Bash command (process guard tests, G-127), run like the CLI's Bash tool: deny rules from
+  // --disallowedTools first (Bash(<prefix>:*) against each simple command), then `sh -c` with
+  // $CLAUDE_ENV_FILE sourced first. FAKE_CLAUDE_IGNORE_DENY=1 skips the rules, to exercise the PATH shims.
+  for (const command of (process.env.FAKE_CLAUDE_BASH ?? '').split('\n').filter(Boolean)) {
+    tool('Bash', { command, description: 'Scripted command' }, () => {
+      const rules = (opt('--disallowedTools') ?? '').split(',').map((r) => r.match(/^Bash\((.+?)(?::\*)?\)$/)?.[1]).filter(Boolean)
+      const denied = !process.env.FAKE_CLAUDE_IGNORE_DENY && command.split(/&&|\|\||[;|&\n]/).map((s) => s.trim()).some((s) => rules.some((p) => s === p || s.startsWith(`${p} `)))
+      if (denied) return { text: `Permission to use Bash with command ${command} has been denied.`, isError: true }
+      const env = process.env.CLAUDE_ENV_FILE ? `. "${process.env.CLAUDE_ENV_FILE}"\n` : ''
+      const r = spawnSync('/bin/sh', ['-c', `${env}${command}`], { encoding: 'utf8' })
+      const out = `${r.stdout}\n${r.stderr}`.trim()
+      return { text: r.status === 0 ? out : `Exit code ${r.status}\n${out}`, isError: r.status !== 0, stdout: r.stdout, stderr: r.stderr }
+    })
   }
   tool('Bash', { command: 'npm test', description: 'Run tests' }, () => {
     const r = spawnSync('npm', ['test', '--silent'], { encoding: 'utf8', env: { ...process.env, CI: '1' } })

@@ -57,7 +57,7 @@ import { fileURLToPath } from 'node:url'
 import { EVAL_ROOT, REPO_ROOT, ARMS, listTasks, parseArgs, packSygnal } from './lib/common.mjs'
 import { buildPlan, estimate } from './lib/plan.mjs'
 import { runTrial, preflight } from './lib/runner.mjs'
-import { trialFiles, DEFAULT_TIMEOUT_MIN, DEFAULT_MODEL, resolveModel } from './lib/headless.mjs'
+import { trialFiles, DEFAULT_TIMEOUT_MIN, DEFAULT_MODEL, resolveModel, PROCESS_GUARD } from './lib/headless.mjs'
 import { transcriptStats } from './lib/transcript.mjs'
 import { loadVariant, resolveVariant, describeVariant, materializeVariant, claudeIsolation, expectedSkills, checkSkills } from './lib/variant.mjs'
 import { LEGACY_STARTER } from './lib/starter.mjs'
@@ -319,6 +319,10 @@ if (!todo.length) {
         // Manifests from before 4-E have no starterVersion: those runs used the bare starters (1).
         starterVersion: manifest ? (manifest.starterVersion ?? 1) : starterVersion,
         starterVersions: [...new Set([...(manifest?.starterVersions ?? (manifest ? [manifest.starterVersion ?? 1] : [])), starterVersion])],
+        // G-127 process guard (lib/headless.mjs PROCESS_GUARD): 0 or absent = trials ran unguarded.
+        // Not part of the variant hash; processGuards lists every posture the run's trials ran under.
+        processGuard: manifest ? (manifest.processGuard ?? 0) : PROCESS_GUARD,
+        processGuards: [...new Set([...(manifest?.processGuards ?? (manifest ? [manifest.processGuard ?? 0] : [])), PROCESS_GUARD])],
         variants: [...new Set([...(manifest?.variants ?? (manifest?.variant ? [`${manifest.variant.name}@${manifest.variant.hash}`] : [])), ...(variant ? [`${variant.name}@${variant.hash}`] : [])])],
       },
       null,
@@ -409,7 +413,7 @@ if (!todo.length) {
       }
     }
     const stats = transcriptStats(fs.readFileSync(trialFiles(dest).transcript, 'utf8'), dest)
-    const notes = [meta?.timedOut ? `timed out after ${timeoutMin} min` : null, stats.audit.length ? `AUDIT: ${stats.audit.length} flagged call(s), review before trusting (run.md step 3)` : null].filter(Boolean).join('; ')
+    const notes = [meta?.timedOut ? `timed out after ${timeoutMin} min` : null, stats.machineWideKills ? `PROCESS-KILL: ${stats.machineWideKills} machine-wide kill command(s)${meta?.processGuard ? ', refused by the guard' : ''} (G-127)` : null, stats.audit.length ? `AUDIT: ${stats.audit.length} flagged call(s), review before trusting (run.md step 3)` : null].filter(Boolean).join('; ')
     const sa = ['--dir', dest, '--task', item.task, '--arm', item.arm, '--trial', String(item.trial), '--run', run, '--method', 'headless', '--iterations', String(stats.iterations), '--edit-rounds', String(stats.editRounds)]
     const wall = meta?.wallMs != null ? Math.round(meta.wallMs / 1000) : stats.wallSeconds
     if (wall != null) sa.push('--wall-seconds', String(wall))
