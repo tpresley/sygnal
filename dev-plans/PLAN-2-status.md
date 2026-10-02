@@ -2,7 +2,7 @@
 
 Tracks progress for [PLAN-2.md](PLAN-2.md). Maintained by the coordinator. The PLAN-1 tracker ([PLAN-1-status.md](PLAN-1-status.md)) remains the record for B-001…B-029, G-001…G-071 and D1–D38; new items here continue that numbering.
 
-**Integration branch:** `plan2-integration` (cut from `main` at `64d5767`, the 5.4.0 merge) · **Current phase:** 0 + 1 · **Last updated:** 2026-10-01
+**Integration branch:** `plan2-integration` (cut from `main` at `64d5767`, the 5.4.0 merge) · **Current phase:** complete (release held open, D56) · **Last updated:** 2026-10-01
 
 ---
 
@@ -17,6 +17,21 @@ Tracks progress for [PLAN-2.md](PLAN-2.md). Maintained by the coordinator. The P
 | 4 — Adopt, measure, release | ✅ Done (release held open, D56) | — | 3-F ✅ · E11, E2, E4 merged (coordinator) · 4-A1 ✅ · 4-B final eval 🟡 · Phase 4 review ✅ (11 findings) → 4-R ✅ (merge held until 4-B ends) · 4-E ✅ · E10 ✅ (merge held until the 4-B chain ends) · 4-T typed links 🟡 · E7 Haiku: interrupted at 19/160 (external SIGTERM), resume later |
 
 Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ done · 🔴 blocked
+
+## Carry-over into the 6.0.0 work
+
+PLAN-2 is complete. The 6.0.0 release is held open for more breaking changes (D56). The items below are open and ready to pick up; each row in "Bugs & Gaps Found" has the full detail.
+
+| ID | Priority | What | Evidence | Suggested fix |
+|---|---|---|---|---|
+| G-140 | med | `t.respond` / `t.fail` aimed at a superseded or non-pending request return `void` and fail asynchronously, so `expect(() => t.respond(...)).toThrow()` and `.rejects` assertions fail | 4/5 task-11 trials in `p4-final2` (`results/REPORT-v2.md`, tier 2) | Return a promise that resolves when the reply is delivered and rejects on "no pending request"; otherwise document how to test that a stale reply is ignored |
+| G-141 | low | `t.requests('HTTP')` also lists `{ abort: true }` commands | 4/5 task-17 trials asserted an empty list (`REPORT-v2.md`, tier 3) | Separate requests from commands (e.g. `t.requests()` excludes aborts, `t.sinkValues()` keeps everything), or document it |
+| G-142 | med | `renderComponent` / `RenderResult` aren't generic in the state type, so TS tests use `let t: any` and hit TS7006 in `t.next(s => …)` | Top TS error on Opus and Haiku (`REPORT-v2.md`, TypeScript tier) | `renderComponent<S>(C)` infers `S` from the component; `RenderResult<S>` types `state`, `states`, `next` and `waitForState`; one typed test line in SKILL.md |
+| G-143 | med | Diagnostics and docs gaps from the confirmed Haiku failures: unknown `DOM.<event>` shorthand accepted silently (`DOM.key`); a function emitted on EVENTS not flagged; `set()` with a string not rejected; an invalid `data` key kills rendering with a bare "DOMException {}"; Escape-key pattern guessed wrong; DELETE moved to object form drops `STATE: () => undefined`; TS `events.ts` loses `export {}` | 5 of 24 Haiku Sygnal failures plus related ones (`REPORT-v2.md`, model sensitivity; classification by trial in the coordinator's notes) | New dev-entry diagnostics for the first four. Docs/skill: the canonical Escape pattern `DOM.keydown('document').key().filter(k => k === 'Escape')`, and keep the STATE removal when converting DELETE. A comment in the TS starters' `events.ts` |
+| G-133 | decide | `makeFetchDriver` isolation: a mid-level isolated parent that selects the same category sees its descendants' replies (@cycle/http semantics) | 4-R design (D54) | Keep, or switch to "own scope only". Worth settling with the network-layer work (N-1) |
+| N-1 | next major | Rethink network calls (HTTP + WebSocket), possibly as a first-class network layer | E2 decision record and design notes (`results/PHASE3-RESULTS.md`), D52, D54, G-133, G-140, G-141; ROADMAP §16 | Fold into the 6.0.0 work together with the user's network-handling research |
+
+Lower-priority open items: G-080, G-100, G-103–G-105, G-111–G-113, G-115–G-117, G-128, G-131, G-134 (needs a CHANGELOG line, already present), G-139.
 
 ## Workstreams
 
