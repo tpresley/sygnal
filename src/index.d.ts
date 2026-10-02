@@ -26,14 +26,40 @@ export type DriverFactories<DRIVERS extends DriverSpecs = DriverSpecs> = {
 
 /**
  * A function that takes component properties and returns a JSX element.
- * State is always provided by the framework at runtime.
+ * State and context are always provided by the framework at runtime. In JSX the element
+ * takes the component's own props plus an optional `state` slice name or lens instead
+ * (see `JSX.LibraryManagedAttributes` / `ElementProps`).
  */
 type ComponentProps<STATE, PROPS, CONTEXT> = (
-  props: PROPS & { state: STATE; children?: JSX.Element | JSX.Element[]; slots?: Record<string, JSX.Element[]>; context?: CONTEXT },
+  props: ViewProps<STATE, PROPS, CONTEXT>,
   state: STATE,
   context: CONTEXT,
   peers: { [peer: string]: JSX.Element | JSX.Element[] }
 ) => JSX.Element
+
+/** The first argument of a component's view: its props plus `state`, `context`, `children` and `slots`. */
+export type ViewProps<STATE = any, PROPS = {}, CONTEXT = {}> =
+  PROPS & { state: STATE; context: CONTEXT; children?: JSX.Element | JSX.Element[]; slots?: Record<string, JSX.Element[]> }
+
+/**
+ * The `state` prop a parent passes to a sub-component in JSX: the name of a field of the
+ * parent's state (`state="editor"`) or a lens. Without it the child shares the parent's state.
+ */
+export type StateProp = string | Lense<any, any>
+
+/**
+ * The JSX attributes of a component whose view takes PROPS: `state` becomes an optional
+ * slice name or lens, and the framework-provided `context` and `slots` are not passed.
+ */
+export type ElementProps<PROPS> =
+  0 extends (1 & PROPS) ? PROPS
+  : 'state' extends keyof PROPS ? WithoutViewOnlyProps<PROPS> & { state?: StateProp }
+  : PROPS
+
+/** PROPS without `state`, `context` and `slots` (keeps optionality and index signatures, unlike Omit). */
+type WithoutViewOnlyProps<PROPS> = {
+  [KEY in keyof PROPS as KEY extends 'state' | 'context' | 'slots' ? never : KEY]: PROPS[KEY]
+}
 
 type NextFunction<ACTIONS = any> = ACTIONS extends object
   ? <ACTION_KEY extends keyof ACTIONS>(
@@ -100,6 +126,10 @@ export type RegisteredEvent = keyof SygnalEvents extends never
 /** The `{ type, data }` object produced by `event(type, ...)` / `emit(type, ...)`. */
 export type EmittedEvent<TYPE extends string = string> = keyof SygnalEvents extends never
   ? { type: TYPE; data: any }
+  // TYPE is every registered name when the name argument isn't registered (inference falls
+  // back to the constraint): any registered event, so only the clear "not assignable to
+  // parameter" error is reported, not a second one on the model entry
+  : [EventName] extends [TYPE] ? RegisteredEvent
   : { type: TYPE; data: EventPayload<TYPE> }
 
 /** The `next()` function as seen by an event payload function. */
@@ -136,7 +166,9 @@ export type NonStateSinkReturns = {
 type ResolvedNonStateSinkReturns<SINK_RETURNS extends NonStateSinkReturns = {}> = {
   EVENTS: SINK_RETURNS extends { EVENTS: infer EVENTS_RETURN } ? EVENTS_RETURN : RegisteredEvent;
   LOG: SINK_RETURNS extends { LOG: infer LOG_RETURN } ? LOG_RETURN : any;
-  PARENT: SINK_RETURNS extends { PARENT: infer PARENT_RETURN } ? PARENT_RETURN : any;
+  // `unknown` (any value may be sent) rather than `any`, so CHILD.select(Child) of a child
+  // annotated without `{ PARENT: T }` is a Stream<unknown>, not a silent Stream<any>
+  PARENT: SINK_RETURNS extends { PARENT: infer PARENT_RETURN } ? PARENT_RETURN : unknown;
 }
 
 /**
@@ -264,23 +296,31 @@ type ParentPayloadFromEntry<ENTRY> =
     ? 'PARENT' extends keyof ENTRY ? ParentSinkValueReturn<NonNullable<ENTRY['PARENT']>> : never
     : never
 
-type ParentPayloadsOfModel<MODEL> = {
-  [ACTION_KEY in keyof MODEL]-?: ACTION_KEY extends `${string}|${infer SINK}`
+// Shorthand 'ACTION | PARENT' keys (expando models only). Object-form entries are read by
+// distributing over the union of the entry types (see ParentPayloadOf).
+type ShorthandParentPayloads<MODEL> = {
+  [ACTION_KEY in keyof MODEL & `${string}|${string}`]-?: ACTION_KEY extends `${string}|${infer SINK}`
     ? TrimSpaces<SINK> extends 'PARENT' ? ParentSinkValueReturn<NonNullable<MODEL[ACTION_KEY]>> : never
-    : ParentPayloadFromEntry<NonNullable<MODEL[ACTION_KEY]>>
-}[keyof MODEL]
+    : never
+}[keyof MODEL & `${string}|${string}`]
 
 type AnyIfNever<T> = [T] extends [never] ? any : T
 
 /**
  * The value type a component sends to its parent through the `PARENT` sink, inferred from the
- * component's `model` (object-form `{ PARENT: fn }` entries and `'ACTION | PARENT'` shorthand).
- * Falls back to `any` when it can't be inferred (no model, a `Component<...>` annotation without
- * a `PARENT` entry in its `SINK_RETURNS`, or `PARENT: true` pass-through entries only).
+ * component's `model` (object-form `{ PARENT: fn }` entries and `'ACTION | PARENT'` shorthand),
+ * or for a `Component<...>` annotation, the `PARENT` entry of its `SINK_RETURNS`. A
+ * `Component<...>` annotation without one gives `unknown` (declare it: `{ PARENT: T }`); no model
+ * or `PARENT: true` pass-through entries only give `any`.
  */
 export type ParentPayloadOf<COMPONENT> =
   COMPONENT extends { model?: infer MODEL }
-    ? 0 extends (1 & MODEL) ? any : AnyIfNever<ParentPayloadsOfModel<NonNullable<MODEL>>>
+    // the union is written out here (not behind a helper alias) so hovers and errors print
+    // the payload (`Stream<{ taskId: number }>`), not `Stream<Helper<...the whole model...>>`
+    ? 0 extends (1 & MODEL) ? any : AnyIfNever<
+        | ParentPayloadFromEntry<NonNullable<NonNullable<MODEL>[keyof NonNullable<MODEL>]>>
+        | ShorthandParentPayloads<NonNullable<MODEL>>
+      >
     : any
 
 type ChildSource = {
@@ -290,7 +330,17 @@ type ChildSource = {
   select<T = any>(name: string): Stream<T>;
 }
 
-export type SygnalDOMSource = MainDOMSource & {
+/**
+ * `DOM.<event>(selector)` shorthands for the standard DOM events, typed like
+ * `DOM.select(selector).events('<event>')`: `DOM.keydown('.x')` is a stream of KeyboardEvent,
+ * `DOM.click('.x')` of MouseEvent (PointerEvent in newer DOM typings), and so on.
+ */
+export type DOMEventShorthands = {
+  [EVENT in Exclude<keyof HTMLElementEventMap, keyof MainDOMSource>]: (selector: string) => EnrichedEventStream<HTMLElementEventMap[EVENT]>
+}
+
+export type SygnalDOMSource = MainDOMSource & DOMEventShorthands & {
+  /** Any other event name (custom events): `DOM['my-event']('.x')` */
   [eventName: string]: (selector: string) => EnrichedEventStream<globalThis.Event>
 }
 
@@ -391,9 +441,19 @@ export type ActionsOf<INTENT> = INTENT extends (...args: any[]) => infer RETURN
   ? IntentReturnToActions<RETURN>
   : IntentReturnToActions<INTENT>
 
-interface ComponentIntent<STATE, DRIVERS, ACTIONS> {
-  (args: CombinedSources<STATE, DRIVERS>): Partial<IntentActions<ACTIONS>>
+interface ComponentIntent<STATE, DRIVERS, ACTIONS, CALCULATED = {}> {
+  (args: IntentArgs<STATE, DRIVERS, CALCULATED>): Partial<IntentActions<ACTIONS>>
 }
+
+/**
+ * What a component's intent receives. With calculated fields, STATE also matches
+ * `StateSource<STATE>` (a stream of STATE & CALCULATED is also one of STATE), so an intent
+ * annotated with the documented `IntentSources<State>` is accepted as well as
+ * `IntentSources<State & Calculated>`; an inline intent sees the calculated fields.
+ */
+type IntentArgs<STATE, DRIVERS, CALCULATED> = keyof CALCULATED extends never
+  ? CombinedSources<STATE, DRIVERS>
+  : CombinedSources<STATE & CALCULATED, DRIVERS> & { STATE: StateSource<STATE> }
 
 type CalculatedFieldValue<FULL_STATE, RETURN> =
   | StateOnlyReducer<FULL_STATE, RETURN>
@@ -443,14 +503,15 @@ export type Component<
   ACTIONS = {},
   CALCULATED = {},
   CONTEXT = {},
-  SINK_RETURNS extends NonStateSinkReturns = {}
+  SINK_RETURNS extends NonStateSinkReturns = {},
+  PROVIDED_CONTEXT = CONTEXT
 > = ComponentProps<STATE & CALCULATED, PROPS, CONTEXT> & {
   label?: string;
   DOMSourceName?: string;
   stateSourceName?: string;
   requestSourceName?: string;
   model?: ComponentModel<STATE, PROPS, FixDrivers<DRIVERS>, ACTIONS, CALCULATED, SINK_RETURNS, CONTEXT>;
-  intent?: ComponentIntent<STATE & CALCULATED, FixDrivers<DRIVERS>, ACTIONS>;
+  intent?: ComponentIntent<STATE, FixDrivers<DRIVERS>, ACTIONS, CALCULATED>;
   initialState?: STATE;
   /**
    * Give a sub-component its own state instead of the slice its parent passes in.
@@ -460,7 +521,11 @@ export type Component<
   isolatedState?: boolean;
   calculated?: Calculated<STATE, CALCULATED>;
   storeCalculatedInState?: boolean;
-  context?: Context<STATE & CALCULATED, CONTEXT>;
+  /**
+   * Context this component provides to itself and its descendants. Typed by PROVIDED_CONTEXT,
+   * which defaults to CONTEXT (the context the view and reducers see).
+   */
+  context?: Context<STATE & CALCULATED, PROVIDED_CONTEXT>;
   peers?: { [name: string]: Component };
   components?: { [name: string]: Component };
   onError?: (error: Error, info: { componentName: string }) => any;
@@ -468,7 +533,8 @@ export type Component<
 }
 
 /**
- * Sygnal Root Component
+ * Sygnal Root Component (the one passed to `run()`): a Component without props, so the
+ * view's `state` is typed by STATE (& CALCULATED).
  */
 export type RootComponent<
   STATE = any,
@@ -476,8 +542,9 @@ export type RootComponent<
   ACTIONS = {},
   CALCULATED = {},
   CONTEXT = {},
-  SINK_RETURNS extends NonStateSinkReturns = {}
-> = Component<STATE, any, DRIVERS, ACTIONS, CALCULATED, CONTEXT, SINK_RETURNS>
+  SINK_RETURNS extends NonStateSinkReturns = {},
+  PROVIDED_CONTEXT = CONTEXT
+> = Component<STATE, {}, DRIVERS, ACTIONS, CALCULATED, CONTEXT, SINK_RETURNS, PROVIDED_CONTEXT>
 
 /**
  * A component function that can be used in Collection/Switchable.
@@ -759,12 +826,18 @@ export function emit<TYPE extends EventName>(
  */
 export function event<TYPE extends EventName, STATE = any, DATA = any>(
   type: TYPE,
-  payload: EventPayloadFunction<TYPE, STATE, DATA>
+  ...payload: EventArgs<TYPE, STATE, DATA>
 ): EventSink<TYPE, STATE, DATA>
-export function event<TYPE extends EventName>(
-  type: TYPE,
-  ...payload: StaticEventArgs<TYPE>
-): EventSink<TYPE>
+
+/**
+ * The payload argument of `event()`: a payload function or a static value (one signature, not
+ * overloads, so an unregistered name is reported as one "not assignable to parameter" error).
+ */
+type EventArgs<TYPE extends string, STATE, DATA> = keyof SygnalEvents extends never
+  ? [payload?: EventPayloadFunction<TYPE, STATE, DATA> | AnySinkConstant]
+  : undefined extends EventPayload<TYPE>
+    ? [payload?: EventPayloadFunction<TYPE, STATE, DATA> | EventPayload<TYPE>]
+    : [payload: EventPayloadFunction<TYPE, STATE, DATA> | EventPayload<TYPE>]
 
 /**
  * Any object with an events() method (e.g., DOM.select('form')).
@@ -1392,5 +1465,11 @@ declare global {
     interface ElementChildrenAttribute {
       children: {};
     }
+
+    /**
+     * A component's view receives `state: STATE` and `context`, but in JSX the parent passes
+     * an optional `state` slice name or lens (`<Editor state="editor" />`, `<Panel />`).
+     */
+    type LibraryManagedAttributes<C, P> = ElementProps<P>
   }
 }

@@ -10,6 +10,7 @@ import type {
   EventName,
   EventPayload,
   RegisteredEvent,
+  EmittedEvent,
   Event,
 } from 'sygnal'
 import type { Stream } from 'xstream'
@@ -88,6 +89,31 @@ event('SET_MODE', 'blue')
 
 // @ts-expect-error — DELETE_LANE requires a payload
 event('DELETE_LANE')
+
+// An unregistered name is ONE error, on the name argument (4-T): no second error on the
+// model entry (an unexpected error on the `EVENTS:` line would fail this file)
+Lane.model = {
+  DELETE: {
+    EVENTS:
+      // @ts-expect-error — 'DELETE_LAEN' is not a registered event
+      event('DELETE_LAEN', (state) => ({ laneId: state.id })),
+  },
+}
+// …because a sink typed with every registered name emits any registered event
+expectType<Equal<EmittedEvent<EventName>, RegisteredEvent>>()
+expectType<Equal<EmittedEvent<'COUNT'>, { type: 'COUNT'; data: number }>>()
+
+// The payload function's `data` is typed from the action (DOM shorthands are typed too)
+const clickIntent = ({ DOM }: IntentSources<LaneState>) => ({ DELETE: DOM.click('.delete') })
+const Clicky: Component<LaneState, {}, {}, ActionsOf<typeof clickIntent>> = ({ state }) => <div>{state.title}</div>
+Clicky.model = {
+  DELETE: {
+    EVENTS: event('COUNT', (_state, click) => {
+      expectType<Equal<typeof click, HTMLElementEventMap['click']>>()
+      return click.clientX
+    }),
+  },
+}
 
 // ── emit() is checked against the registry too ──────────────────────────────
 

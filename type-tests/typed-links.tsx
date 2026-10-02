@@ -146,10 +146,11 @@ Toggle.model = {
 }
 expectType<Equal<ParentPayloadOf<typeof Toggle>, boolean | string>>()
 
-// Fallbacks to any: no model / annotated Component without PARENT typing / PARENT: true only
+// Fallbacks to any: no model / PARENT: true only
 function Plain() { return <div /> }
 expectType<Equal<0 extends (1 & ParentPayloadOf<typeof Plain>) ? true : false, true>>()
-expectType<Equal<0 extends (1 & ParentPayloadOf<typeof Counter>) ? true : false, true>>()
+// An annotated Component without `{ PARENT: T }` in SINK_RETURNS: unknown (4-T; was any)
+expectType<Equal<ParentPayloadOf<typeof Counter>, unknown>>()
 function PassThrough() { return <div /> }
 PassThrough.model = { CLICK: { PARENT: true } }
 expectType<Equal<0 extends (1 & ParentPayloadOf<typeof PassThrough>) ? true : false, true>>()
