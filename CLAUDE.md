@@ -30,6 +30,7 @@ This is a **library package** — no dev server. Verify changes via `npm run bui
 ```bash
 npm ci
 npm ci --prefix browser-tests
+npm ci --prefix sygnal-check             # @babel/parser for vite-plugin-dev and inspect-kanban tests
 npm install --prefix examples/kanban     # its file:../.. link; other examples: TEST_EXAMPLES_INSTALL=1 npm test
 npm run build
 ```

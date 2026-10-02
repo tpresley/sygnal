@@ -63,7 +63,7 @@ Tracks progress for [PLAN-3.md](PLAN-3.md). Maintained by the coordinator. The P
 | ID | Found | Priority | Area | Description | Status |
 |---|---|---|---|---|---|
 | G-144 | 0-B | med | Routing | Dispose window: `action$` completes in a `setTimeout` after dispose, so a reply landing in that tick is still delivered to the disposed instance and the abort is a tick or two late. Fix with a `_disposed` check before routed actions apply | Open → 1-A |
-| G-145 | 0-B | low | Repo docs | CLAUDE.md fresh-worktree setup omits `npm ci --prefix sygnal-check`; without it `test/vite-plugin-dev.test.js` and `test/inspect-kanban.test.js` fail to load (`@babel/parser`) | Open → user (CLAUDE.md) |
+| G-145 | 0-B | low | Repo docs | CLAUDE.md fresh-worktree setup omits `npm ci --prefix sygnal-check`; without it `test/vite-plugin-dev.test.js` and `test/inspect-kanban.test.js` fail to load (`@babel/parser`) | ✅ CLAUDE.md (user-approved) |
 | G-146 | 0-B | med | Docs | A routed request built from state that the same action's STATE sets sees the pre-action state (B-003 snapshot); agents may build the URL from stale state. Recipe must compute from `(state, data)` | Open → 4-A |
 | G-147 | 0-B | low | Routing | Generalised stamp skips non-object EVENTS values (before: spread into objects); small behaviour change, needs a test and possibly a CHANGELOG line | Open → 1-A |
 
