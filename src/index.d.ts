@@ -221,6 +221,28 @@ type DefaultSinks<STATE, PROPS, ACTIONS, DATA, CALCULATED, SINK_RETURNS extends 
   EFFECT?: EffectReducer<STATE, PROPS, ACTIONS, DATA, CALCULATED, CONTEXT>;
 }
 
+/** Keys a type declares by name (index signatures left out). */
+type DeclaredKeys<T> = keyof {
+  [KEY in keyof T as string extends KEY ? never : number extends KEY ? never : KEY]: 0
+}
+
+/**
+ * A routing driver's sink type (one whose requests declare `ok?: string`, e.g. FetchRequest or
+ * AsyncRequest) with `ok` / `error` narrowed to the component's action names, so a typo in
+ * `ok: 'LOADED'` is a type error. Only when the component lists its ACTIONS
+ * (`Component<S, P, D, A>`); otherwise, and for `any` sinks, the sink type is unchanged.
+ */
+type RoutedSinkCheck<SINK, ACTIONS> =
+  0 extends (1 & SINK) ? SINK
+  : string extends keyof ACTIONS ? SINK
+  : SINK extends object
+    ? 'ok' extends DeclaredKeys<SINK>
+      ? string extends NonNullable<SINK['ok' & keyof SINK]>
+        ? SINK & { ok?: keyof ACTIONS & string; error?: keyof ACTIONS & string }
+        : SINK
+      : SINK
+    : SINK
+
 type CustomDriverSinks<STATE, PROPS, DRIVERS, ACTIONS, ACTION_ENTRY, CALCULATED, CONTEXT = {}> = keyof DRIVERS extends never
   ? {
       [driver: string]: NonStateSinkValue<STATE, PROPS, ACTIONS, any, any, CALCULATED, CONTEXT>
@@ -231,7 +253,7 @@ type CustomDriverSinks<STATE, PROPS, DRIVERS, ACTIONS, ACTION_ENTRY, CALCULATED,
         PROPS,
         ACTIONS,
         ACTION_ENTRY,
-        DRIVERS[DRIVER_KEY] extends { source: any; sink: any } ? DRIVERS[DRIVER_KEY]['sink'] : any,
+        DRIVERS[DRIVER_KEY] extends { source: any; sink: any } ? RoutedSinkCheck<DRIVERS[DRIVER_KEY]['sink'], ACTIONS> : any,
         CALCULATED,
         CONTEXT
       >
@@ -247,7 +269,6 @@ type ModelEntry<STATE, PROPS, DRIVERS, ACTIONS, ACTION_ENTRY, CALCULATED, SINK_R
 type WithDefaultActions<STATE, ACTIONS> = ACTIONS & {
   BOOTSTRAP?: never;
   INITIALIZE?: STATE;
-  HYDRATE?: any;
   DISPOSE?: never;
 }
 
@@ -437,10 +458,10 @@ type IntentReturnToActions<RETURN> = {
  *   Counter.model  = { INC: (state, n) => ..., NAME: (state, name) => ... }  // n: number, name: string
  *
  * With it, model keys not returned by the intent are type errors (the built-ins BOOTSTRAP,
- * INITIALIZE, HYDRATE and DISPOSE stay allowed). Actions reached only through `next()` are
- * added explicitly:
+ * INITIALIZE and DISPOSE stay allowed). Actions reached only through `next()` or a routed
+ * request (`ok: 'LOADED'`, `error: 'FAILED'`) are added explicitly, typed by their data:
  *
- *   type Actions = ActionsOf<typeof intent> & { SAVED: { id: string } }
+ *   type Actions = ActionsOf<typeof intent> & { SAVED: { id: string }; LOADED: Quote; FAILED: FetchFailure }
  */
 export type ActionsOf<INTENT> = INTENT extends (...args: any[]) => infer RETURN
   ? IntentReturnToActions<RETURN>
@@ -999,13 +1020,44 @@ export function lazy<PROPS = any>(
   loadFn: () => Promise<{ default: Component<any, PROPS> } | Component<any, PROPS>>
 ): LazyComponent<PROPS>
 
+/**
+ * The routing keys of a request to a routing driver (makeFetchDriver, driverFromAsync): the
+ * outcome becomes an action on exactly the component instance that sent the request, instead
+ * of reaching `select()` / `errors()`.
+ *
+ *   LOAD:    { HTTP: (state) => ({ url: `/api/q/${state.id}`, ok: 'LOADED', error: 'FAILED' }) },
+ *   LOADED:  (state, quote) => ({ ...state, quote }),          // data: the parsed body
+ *   FAILED:  (state, { status }) => ({ ...state, status }),     // data: { error, status?, body?, request }
+ *
+ * The action's data type is not inferred from the request: type it in the component's ACTIONS
+ * (`{ LOADED: Quote; FAILED: FetchFailure }`). With ACTIONS listed (`Component<S, P, D, A>`) and
+ * the driver's sink typed, `ok` / `error` must be action names.
+ */
+export type RoutedRequest = {
+  /** Action that receives the success value (fetch: the parsed body; driverFromAsync: the resolved value) */
+  ok?: string;
+  /** Action that receives the failure (`{ error, request }`, plus `status` / `body` for fetch) */
+  error?: string;
+  /** Not allowed: a `then` key makes the request a thenable (SYG610, not sent). Use `ok` */
+  then?: never;
+  /** Not allowed (SYG610, not sent). Use `error` */
+  catch?: never;
+}
+
+/**
+ * A request to a driverFromAsync() sink: your own fields (`value`, the args, ...) plus the
+ * routing keys `ok` / `error`. Type the driver's sink with it: `{ QUOTE: { source:
+ * AsyncDriverFromFunction; sink: AsyncRequest<{ value: number }> } }`.
+ */
+export type AsyncRequest<FIELDS = { [field: string]: any }> = FIELDS & RoutedRequest
+
 /** Payload on `errors()` of a driverFromAsync source when a request fails */
 export type AsyncDriverError<INCOMING = any> = {
   /** The rejection reason (or what `post` threw) */
   error: any;
   /** The request that failed */
   request: INCOMING;
-  /** The request's selector property (default 'category') is copied here */
+  /** The request's selector property (default 'category') is copied here (not for a routed `error` action) */
   [selectorProperty: string]: any;
 }
 
@@ -1054,6 +1106,10 @@ export type FetchInit = {
  * Other fetch() options go under `init` (`init: { credentials: 'include' }`). Any other key is
  * the app's own: not sent, but returned on the reply's `request`.
  *
+ * Routed (canonical): `{ url, ok: 'LOADED', error: 'FAILED' }` delivers the parsed body as
+ * LOADED, a failure as FAILED (`FetchFailure`), to exactly the sending instance (see
+ * RoutedRequest). Without `ok` / `error` the reply goes to `select()` / `errors()`.
+ *
  * Isolation: the replies, `latest` and `abort` of a component instance are its own (and its
  * descendants'): two instances, or Collection items, using the same category never see or
  * cancel each other's requests. The root component sees every reply.
@@ -1061,7 +1117,16 @@ export type FetchInit = {
 export type FetchRequest = string | {
   /** Request URL (prefixed with the driver's `baseUrl`) */
   url: string;
-  /** Tag read back with `select(category)` / `errors(category)`; also the `latest` / `abort` group */
+  /** Routed: the action that receives the parsed body of a 2xx response (the Response with `parse: 'response'`) */
+  ok?: string;
+  /** Routed: the action that receives a failure, `{ error, status?, body?, request }` (FetchFailure) */
+  error?: string;
+  /**
+   * Routed: the `latest` / `abort` group (default: the `ok` action, else `error`). Requests with
+   * the same key from the same instance supersede each other under `latest: true`
+   */
+  key?: string;
+  /** Unrouted: tag read back with `select(category)` / `errors(category)`; also the `latest` / `abort` group */
   category?: string;
   /** Default: 'POST' when `json` or `body` is set, else 'GET' */
   method?: string;
@@ -1091,15 +1156,39 @@ export type FetchRequest = string | {
   parse?: 'auto' | 'json' | 'text' | 'response' | ((response: Response) => any);
   /** Other fetch() options (merged over the driver's `init`) */
   init?: FetchInit;
+  /** Not allowed: a `then` key makes the request a thenable (SYG610, not sent). Use `ok` */
+  then?: never;
+  /** Not allowed (SYG610, not sent). Use `error` */
+  catch?: never;
   /** Your own fields (an id, ...): not sent, returned on the reply's `request` */
   [appData: string]: any;
 } | {
   /**
-   * Cancel: `{ category: 'search', abort: true }` aborts this component's requests in flight in
-   * that category (all of them without a category). Nothing is delivered for a cancelled request.
+   * Cancel. Routed: `{ abort: 'LOADED' }` aborts this instance's requests in flight whose key
+   * (`key`, else `ok`, else `error`) is 'LOADED'; `{ abort: true, key: 'search' }` does the same
+   * by key. Unrouted: `{ category: 'search', abort: true }` aborts this component's requests in
+   * that category (all of them, routed included, without a category or key). Nothing is
+   * delivered for a cancelled request.
    */
-  abort: true;
+  abort: true | string;
+  key?: string;
   category?: string;
+}
+
+/** The data of a routed `error` action of a makeFetchDriver() request (`error: 'FAILED'`) */
+export type FetchFailure<REQUEST = any> = {
+  /**
+   * 'HTTP 404 ...' for a non-2xx status (with `.status` and `.body`), the network error
+   * (TypeError), the body parse error, a TimeoutError (`.name === 'TimeoutError'`), or
+   * "fetch is not available"
+   */
+  error: any;
+  /** HTTP status, for a non-2xx response (undefined for a network error or timeout) */
+  status?: number;
+  /** The non-2xx response's body, parsed like 'auto' */
+  body?: any;
+  /** The request as the app sent it */
+  request: REQUEST;
 }
 
 /** A successful (2xx) response on `select()` of a makeFetchDriver() source */
@@ -1158,7 +1247,10 @@ export type FetchDriverOptions = {
 }
 
 /**
- * An HTTP driver over `fetch`: `run(App, { HTTP: makeFetchDriver() })`. The model sends a
+ * An HTTP driver over `fetch`: `run(App, { HTTP: makeFetchDriver() })`. Canonical: a routed
+ * request (`HTTP: (state) => ({ url: '/api/quote', ok: 'LOADED', error: 'FAILED' })`) whose
+ * outcome arrives as the LOADED (parsed body) or FAILED (FetchFailure) action of the sending
+ * instance. Unrouted: the model sends a
  * request (`HTTP: (state) => ({ category: 'quote', url: '/api/quote' })`); the intent reads
  * `HTTP.select('quote')` (`{ category, value, status, request }`) and `HTTP.errors('quote')`
  * (`{ error, category, request, status?, body? }`). Non-2xx statuses, network errors and
@@ -1296,9 +1388,14 @@ export interface RenderOptions {
   dom?: 'mock' | 'real';
 }
 
-export interface RenderResult {
+/**
+ * What renderComponent() returns. STATE is the component's state type (calculated fields
+ * included), inferred by renderComponent; name it for a handle declared before it is assigned:
+ * `let t: RenderResult<State>`. Defaults to `any` (untyped tests compile as before).
+ */
+export interface RenderResult<STATE = any> {
   /** Stream of state values */
-  state$: Stream<any>;
+  state$: Stream<STATE>;
   /** Stream of rendered VNode trees */
   dom$: Stream<any>;
   /** Event bus source — call .select(type) to filter */
@@ -1341,7 +1438,7 @@ export interface RenderResult {
    * with the initial state). Resolves with the matching state once the whole tree (children
    * included) has rendered it. Use `next()` to wait for a new state.
    */
-  waitForState: (predicate: (state: any) => boolean, timeoutMs?: number) => Promise<any>;
+  waitForState: (predicate: (state: STATE) => boolean, timeoutMs?: number) => Promise<STATE>;
   /**
    * Wait for the next state emitted AFTER this call (right after `await t.ready()`: after the
    * component became ready) that satisfies the predicate (default: any state). Resolves with it
@@ -1351,7 +1448,7 @@ export interface RenderResult {
    * input in between) starts after the state that wait resolved with, so
    * `await t.next(a); await t.next(b)` sees a `b` that arrived while the DOM showed `a`.
    */
-  next: (predicate?: (state: any) => boolean, timeoutMs?: number) => Promise<any>;
+  next: (predicate?: (state: STATE) => boolean, timeoutMs?: number) => Promise<STATE>;
   /**
    * Resolves once nothing is pending: the component is ready, no simulated input is waiting,
    * and nothing in the tree has rendered, reduced or changed state for settleMs (default 20,
@@ -1359,9 +1456,9 @@ export interface RenderResult {
    */
   settle: (timeoutMs?: number) => Promise<void>;
   /** Collected state values — grows as new states are emitted */
-  states: any[];
+  states: STATE[];
   /** The latest recorded state (`t.states.at(-1)`; undefined before the first one), calculated fields current. Read-only */
-  readonly state: any;
+  readonly state: STATE;
   /** Live array of values emitted on a sink (EVENTS as {type, data}, PARENT unwrapped, custom sinks of any component in the tree) */
   sinkValues: (sinkName: string) => any[];
   /** Live array of the requests sent to a sink with no driver (alias of sinkValues) */
@@ -1414,7 +1511,35 @@ export interface RenderResult {
   queryAll: (selector: string) => Element[];
 }
 
-export function renderComponent(componentDef: any, options?: RenderOptions): RenderResult
+/**
+ * A component renderComponent() accepts. STATE is inferred from its view's `state` (a
+ * `Component<State, ...>` annotation, or a typed `({ state }: { state: State })` parameter;
+ * calculated fields included), else from its `initialState` (INITIAL).
+ */
+export type RenderableComponent<STATE = any, INITIAL = STATE> =
+  // a method signature: parameters are compared bivariantly, so views with their own required
+  // props are accepted
+  & { view(props: { state: STATE }, state: STATE, ...rest: any[]): any }['view']
+  & { initialState?: INITIAL }
+
+/**
+ * STATE, or INITIAL when STATE is unknown (an untyped view with a typed `initialState`). `never`
+ * (a generic call inlined as the argument, `renderComponent(component({...}))`) becomes `any`.
+ */
+type RenderedState<STATE, INITIAL> =
+  [STATE] extends [never] ? any
+  : 0 extends (1 & STATE) ? AnyIfNever<INITIAL>
+  : STATE
+
+/**
+ * Render a component in tests (mock DOM, fake drivers). The handle's state is typed from the
+ * component, so `await t.next(s => s.count > 0)` needs no annotation. Pass the state type
+ * explicitly for an untyped component: `renderComponent<State>(Counter)`.
+ */
+export function renderComponent<STATE = any, INITIAL = STATE>(
+  componentDef: RenderableComponent<STATE, INITIAL>,
+  options?: RenderOptions
+): RenderResult<RenderedState<STATE, INITIAL>>
 
 export interface RenderToStringOptions {
   /** Initial state for the root component */
