@@ -147,6 +147,12 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | G-118 | 2-R merge | low | Tests | `test/review-2e2/b024-nested-dispose.test.js` asserted stream teardown after a fixed 30 ms; flaked once under full-suite load | ✅ Coordinator: bounded wait for teardown |
 | G-119 | p2-targeted | low (eval) | Analyzer | `compare.mjs` compares a subset run with the full baseline mean (not task- or arm-matched), giving misleading deltas | ✅ 3-H |
 | N-1 | User | — | Next major | Rethink how network calls (HTTP and WebSocket) are made in Sygnal — possibly a first-class network layer. Input: E2/E3 results and the E2 agent's design notes | Future: design doc after Phase 3 (not in PLAN-2 scope) |
+| G-120 | Phase 3 eval | **high** | Switchable | `src/switchable.ts` builds switched sinks from `Object.keys(sources)`, so a page's `PARENT` (a sink that isn't a source) never reaches the parent; task 13's canonical Retry is lost (both Sonnet failures, a 774 s E8 trial). Unchanged since 5.4.0 | Open → 3-F |
+| G-121 | Phase 3 eval | **high** | Switchable | Switchable sometimes stays on the previous page after a switch (renderComponent and run()+jsdom); 4/5 E2 task-13 trials + 1 E8 trial, 8–12 min lost each; seems tied to a page with a driver source. Unreproduced | Open → 3-F |
+| G-122 | Phase 3 eval | med | `initContext()` | `.context` reading a `calculated` field lags one update in Collection items (reads `currentState` before calculated fields are recomputed); caused e9-no-test 04-t3 failure; 5 more task-04 trials spent time on it | Open → 3-F |
+| G-123 | Phase 3 eval | med (eval) | Eval starters | Starters lack sygnal-check while the skill says to run it: 68/85 control trials hit "npx canceled due to missing packages" (≈2 s each) | Open → E1 adapt |
+| G-124 | Phase 3 eval | low (eval) | Hidden tests | Task 16 hidden test finds "Place order" text in a code comment (p3-control 16-t4, e5-lean 16-t4 failures) | Open → eval fix |
+| G-125 | Phase 3 eval | med | Testing API | Agents guess `t.state` (doesn't exist): 2 control trials, 12–13 per lean-skill run; also `t.html()` before the first render gives `''` | Open → Phase 4 candidate (add `t.state` getter?) |
 | G-076 | 5.4.0 release | low | browser-tests | The browser run prints expected console errors from error-path tests, which look like failures | ✅ 1-E (whitelist updated for SYG405 at the 1-B merge) |
 
 ## Worktree Setup (each subagent, inside its own isolated worktree)
@@ -170,6 +176,7 @@ gzip -c /tmp/kb/assets/index-*.js | wc -c      # budget 41,805 B
 
 ## Activity Log
 
+- 2026-10-02 — Phase 3 evals done (batch 1: 715 trials, batch 2 E2: 20; ≈$154 API-equivalent, no usage-limit stops). Analysis in `results/PHASE3-RESULTS.md`: E1 adapt, E2 adopt (pending Switchable fix + task-13 re-run), E4 adapt (real-mode waits), E5 drop variants / port facts, E7 inconclusive, E8 drop from docs, E9 drop hypothesis, E11 adopt. New framework bugs G-120/G-121 (Switchable) and G-122 (context lag) → 3-F.
 - 2026-10-01 — 3-H merged. Phase 3 eval chain started from the user's terminal (`scratchpad/phase3-runs.sh`): p3-control (Sygnal, all tiers, `branch` variant, isolated posture) + p3-control-react, e5-lean, e5-routed, e11, e4, e1-check, e1-pretest, e8-mcp, e9-add-test, e9-no-test (both arms), e7-sonnet (both arms, all tiers). First attempt aborted at $0 (zsh didn't word-split a flags variable).
 - 2026-10-01 — Phase 3 started (D51): 3-H, E4, E5, E11 launched; E2 options sent to the user (Q3).
 - 2026-10-01 — Targeted eval `p2-targeted` (15 Sygnal trials, $5.58): task 08 −35% (iterations 4.8 → 2.0), task 10 −7.5 s, task 11 unchanged. Phase 2 closed, tagged `plan2-phase2`. Branch skill installed for Phase 3.
