@@ -9,17 +9,18 @@ npm run build          # Rollup → dist/ (14 inputs: core UMD/CJS/ESM, JSX runt
                        #   sygnal/vite, Astro, Vike) + bundled .d.ts
 npm run build:all      # same as build (kept for prepublishOnly)
 npm test               # the full gate, in order:
-                       #   vitest run          library tests in test/ (892)
-                       #   test:examples       each example's own suite (9 examples, 104 tests)
+                       #   vitest run          library tests in test/ (1,103)
+                       #   test:examples       each example's own suite (9 examples, 105 tests)
                        #   test:types          tsc on type-tests/
-                       #   test:browser        browser-tests/ (113)
+                       #   test:browser        browser-tests/ (123)
 npm run test:examples  # only the example suites (TEST_EXAMPLES_INSTALL=1 or --install runs npm install first)
-npm --prefix sygnal-check test       # static checker package (178 tests, *.vtest.js)
+npm --prefix sygnal-check test       # static checker package (192 tests, *.vtest.js)
 npm --prefix docs run build          # docs site + internal link check
 node scripts/gen-error-docs.mjs      # regenerate docs reference/errors.md from sygnal-check/explanations.json
-node scripts/check-doc-samples.mjs   # sygnal-check --strict on every docs code sample
-node scripts/size-gate.mjs           # size gate: kanban gzip with nativeGlobalThis: false ≤ 42,300 B (D48);
-                                     #   also prints the default (globalthis-aliased) size
+node scripts/check-doc-samples.mjs   # sygnal-check --strict on every docs code sample (373 checked, 5 skipped by marker)
+node scripts/size-gate.mjs           # size gate: kanban gzip with nativeGlobalThis: false ≤ 42,300 B gated (D48;
+                                     #   needs build + examples/kanban install); also prints the default
+                                     #   (globalthis-aliased) size. `--budget <bytes>` overrides
 ```
 
 This is a **library package** — no dev server. Verify changes via `npm run build` + `npm test`. Build before testing: tests and examples import `dist/`.
@@ -59,8 +60,8 @@ MyComponent.onError = (error, { componentName }) => fallbackVNode  // Error boun
 - `src/suspense.ts` — Suspense component (`preventInstantiation` pattern, processed in `renderVdom`)
 - `src/lazy.ts` — Lazy loading wrapper with `__sygnalLazy` metadata for Suspense detection
 - `src/extra/ref.ts` — `createRef()` and `createRef$()` for DOM element access
-- `src/extra/` — Helpers (processForm, processDrag, eventDriver, driverFactories, reducers `set`/`toggle`/`event`/`emit`, etc.)
-- `src/extra/testing.ts` — `renderComponent()`: mock DOM, `simulateEvent`/`simulateAction`, `ready`/`next`/`waitForState`/`settle`, `html`, `sinkValues`/`emitted`, `expectNoDiagnostics`, `inspect`
+- `src/extra/` — Helpers (processForm, processDrag, eventDriver, driverFactories, `fetchDriver.ts` (`makeFetchDriver`: opt-in HTTP driver, `HTTP.select(category)`/`HTTP.errors(category)`, `latest: true` aborts superseded requests), reducers `set`/`toggle`/`event`/`emit`, etc.)
+- `src/extra/testing.ts` — `renderComponent()`: mock DOM by default or `dom: 'real'` (real DOM driver in `document.body`; `t.container`/`t.query`/`t.queryAll`), `simulateEvent`/`simulateAction`, `ready`/`next`/`waitForState`/`settle`, `t.state`, `html`, `sinkValues`/`emitted`, fakes for driverless sinks (`t.respond`/`t.fail`/`t.requests`, e.g. for `makeFetchDriver`), works under fake timers (`vi.useFakeTimers()`: the waits drive the clock), `expectNoDiagnostics`, `inspect`
 - `src/extra/diagnostics/` — Diagnostics core: `codes.ts` (SYG code registry: severity, title; `docsUrlFor()` → `https://sygnal.js.org/reference/errors#sygnnn`), `index.ts` (modes, `report()`, hooks, `getDiagnostics`/`onDiagnostic`), `legacy.ts` (coded console messages that print even when off)
 - `src/extra/diagnostics/checks/` — The `sygnal/diagnostics` dev entry (separate bundle, never in apps): wiring, dom (SYG103/104), events, props, state, collections, rxjsHints (SYG301), strict (SYG501/502/504, `configureStrict`), inspect (`inspect()` app graph); types in `public.d.ts`. Reaches the core through `globalThis.__SYGNAL_DIAGNOSTICS__`
 - `src/vite/plugin.ts` — `sygnal/vite`: JSX (oxc + esbuild below Vite 8), HMR wiring, dev-only diagnostics injection, `sygnal-check` in dev, Vitest setupFiles, Vike/Astro dev wrappers
@@ -77,10 +78,10 @@ MyComponent.onError = (error, { componentName }) => fallbackVNode  // Error boun
 - `browser-tests/` — Real-browser suite (`test:browser`, free port)
 - `examples/` — Example apps, each with its own Vite/Vitest config and `npm test`; excluded from the root vitest
 - `docs/` — Starlight docs site (sygnal.js.org); `docs/scripts/check-links.mjs` runs after `astro build`
-- `scripts/` — `test-examples.mjs` (test:examples), `gen-error-docs.mjs`, `check-doc-samples.mjs`
+- `scripts/` — `test-examples.mjs` (test:examples), `gen-error-docs.mjs` (`--check` for drift), `check-doc-samples.mjs`, `size-gate.mjs`
 - `evals/agent-ergonomics/` — Agent eval harness (Sygnal vs React tasks, hidden tests, results)
 - `skills/sygnal-dev/`, `llms.txt` — Agent context (canonical forms only)
-- `dev-plans/` — Plans and status trackers (PLAN-1: agent ergonomics)
+- `dev-plans/` — Plans and status trackers (PLAN-1: agent ergonomics; PLAN-2: follow-up ergonomics, the next major)
 
 **Absorbed dependencies:**
 All `@cycle/*` packages have been absorbed into `src/cycle/`. The only external runtime dependencies are `snabbdom`, `xstream`, and `extend`.

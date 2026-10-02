@@ -11,6 +11,15 @@ afterEach(() => { if (t) t.dispose(); t = null; vi.restoreAllMocks() })
 
 const settle = (ms = 40) => new Promise(r => setTimeout(r, ms))
 const names = (html) => [...html.matchAll(/<li>([^<]*)<\/li>/g)].map(m => m[1])
+// G-132: poll for a condition (bounded) instead of sleeping a fixed time
+async function until(cond, { timeout = 2000, interval = 5 } = {}) {
+  const end = Date.now() + timeout
+  while (!cond()) {
+    if (Date.now() > end) throw new Error(`condition not met within ${timeout} ms`)
+    await new Promise(r => setTimeout(r, interval))
+  }
+}
+const sameNames = (t, expected) => () => JSON.stringify(names(t.html())) === JSON.stringify(expected)
 
 function Item({ state }) { return h('li', null, state.name) }
 
@@ -74,10 +83,10 @@ describe('G-102: Collection props inside a child component', () => {
     const App = makeApp(List, s => ({ state: 'list', sort: { name: s.desc ? 'desc' : 'asc' } }))
     t = renderComponent(App)
     await t.ready()
-    await settle()
+    await until(sameNames(t, ['a', 'b', 'c']))
     expect(names(t.html())).toEqual(['a', 'b', 'c'])
     t.simulateEvent('.toggle', 'click')
-    await settle(80)
+    await until(sameNames(t, ['c', 'b', 'a']))
     expect(names(t.html())).toEqual(['c', 'b', 'a'])
   })
 

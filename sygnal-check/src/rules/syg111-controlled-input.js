@@ -11,7 +11,8 @@
  *
  * Literal values are controlled too (D25): `<input value="" />` or
  * `<input type="checkbox" checked />` resets what the user typed/clicked on
- * every re-render. Those are reported for text-like fields and checkboxes/radios
+ * every re-render. `value={null}` / `checked={null}` too (D49): a present but
+ * nullish prop writes '' / false; only an absent prop is uncontrolled. Those are reported for text-like fields and checkboxes/radios
  * (1H-8) with a different fix: drop the prop, or move the value into state.
  *
  * Kept quiet whenever it can't be sure: a dynamic selector or event name, a DOM
@@ -207,15 +208,19 @@ function controlledAttr(opening) {
   if (!attr) return null
   const prop = jsxName(attr.name)
   const v = unwrap(jsxAttrExpr(attr))
-  // a literal (value="", value={0}, checked, checked={false}) is controlled too (1H-8);
-  // null leaves the field alone at runtime. A <select value="a"> is controlled the same
+  // a literal (value="", value={0}, checked, checked={false}) is controlled too (1H-8).
+  // So is null (D49): a present-but-nullish value writes '' and a nullish checked writes
+  // false on every render; only an absent prop (or value={undefined}, which the pragma
+  // drops) leaves the field uncontrolled. A <select value="a"> is controlled the same
   // way: every re-render puts the selection back (G-033)
   let literal
   if (!v) {
     if (prop !== 'checked') return null
     literal = 'checked' // bare attribute
-  } else if (v.type === 'NullLiteral') {
+  } else if (v.type === 'Identifier' && v.name === 'undefined') {
     return null
+  } else if (v.type === 'NullLiteral') {
+    literal = `${prop}={null}`
   } else if (attr.value?.type === 'StringLiteral' || isLiteral(v)) {
     literal = `${prop}=${v.type === 'StringLiteral' ? JSON.stringify(v.value) : `{${v.value}}`}`
   }
@@ -286,7 +291,9 @@ export default {
             file: comp.file,
             node: f.attr,
             message: `${what} has a literal ${f.literal}, and ${comp.name}'s intent has no input/change listener on it. ` +
-              `Sygnal controls ${f.prop} even when it is a literal, so every re-render ${f.kind === 'text' ? 'resets the typed text' : 'resets the field'} to it`,
+              (f.literal.endsWith('={null}')
+              ? `A present but null ${f.prop} still controls the field (only an absent prop leaves it alone), so every re-render ${f.prop === 'checked' ? 'unchecks it' : f.kind === 'text' ? "clears the typed text" : "resets the field"}`
+              : `Sygnal controls ${f.prop} even when it is a literal, so every re-render ${f.kind === 'text' ? 'resets the typed text' : 'resets the field'} to it`),
             fix: `drop the ${f.prop} prop to leave the field uncontrolled, or move the ${f.prop} into state and update it on ${on}`,
             data: { element: f.el.tag, prop: f.prop, selector: sel, literal: true },
           })
