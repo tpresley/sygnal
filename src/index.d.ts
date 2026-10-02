@@ -544,6 +544,17 @@ export type Component<
    * the same action opens or changes is declared first). Dispose closes them.
    */
   connections?: (state: STATE & CALCULATED) => Connections;
+  /**
+   * PLAN-3 3-A (experimental): declarative reads (`makeFetchDriver()`). Each entry derives a
+   * request from state; falsy means idle:
+   * `Quote.resources = { quote: (state) => state.id && '/api/quotes/' + state.id }`.
+   * `state.quote` is a `Resource`: `{ status: 'idle' | 'loading' | 'success' | 'error', data,
+   * error }`, written by the built-in RESOURCE action (idle until the first request). A changed
+   * request is fetched with latest semantics (the stale one aborted, its reply never shown);
+   * `data` is set only while 'success'. Refetch with `{ refresh: 'quote' }` on the HTTP sink.
+   * `ok` / `error` on the request also dispatch those actions after the write.
+   */
+  resources?: { [name: string]: (state: STATE & CALCULATED) => ResourceRequest | false | null | undefined | '' | 0 };
 }
 
 /**
@@ -1163,7 +1174,23 @@ export type FetchRequest = string | {
   abort: true | string;
   key?: string;
   category?: string;
+} | {
+  /** PLAN-3 3-A (experimental): refetch this instance's resource(s) by name (nothing while idle) */
+  refresh: string | string[];
 }
+
+/** PLAN-3 3-A (experimental): a request a `resources` entry derives (a URL, or a request without `abort`) */
+export type ResourceRequest = Exclude<FetchRequest, { abort: true | string } | { refresh: string | string[] }>
+
+/**
+ * PLAN-3 3-A (experimental): the state slot of a resource (`state.quote`), written by the
+ * built-in RESOURCE action. `data` is the parsed body, set only while 'success'; `error` (set
+ * only while 'error') is the Error: `error.status` / `error.body` for a non-2xx response.
+ */
+export type Resource<DATA = any, ERROR = any> =
+  | { status: 'idle' | 'loading'; data?: undefined; error?: undefined }
+  | { status: 'success'; data: DATA; error?: undefined }
+  | { status: 'error'; data?: undefined; error: ERROR }
 
 /** The data of the `error` reply action of a makeFetchDriver() request (`error: 'FAILED'`) */
 export type FetchFailure<REQUEST = any> = {
@@ -1534,6 +1561,11 @@ export interface RenderOptions {
    * `drivers` to use a real one.
    */
   socketSink?: string;
+  /**
+   * PLAN-3 3-A (experimental): the driverless sink that receives the components' `resources`
+   * static (default 'HTTP'); each resource request is pending until t.respond / t.fail.
+   */
+  resourceSink?: string;
 }
 
 /**
