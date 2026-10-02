@@ -170,10 +170,10 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | G-132 | 4-R | low | Tests | `test/plan2-2c.test.js` "a sort prop change re-sorts" uses fixed 40/80 ms sleeps; flaked once under load | Open |
 | G-133 | 4-R | low | fetchDriver | An isolated mid-level parent selecting the same category sees its descendants' replies (@cycle/http semantics); "own scope only" is the alternative | Open (decide at release) |
 | G-134 | 4-R | low | fetchDriver | Header names are sent lowercased (via `Headers`); a fetch stub reading `init.headers['Content-Type']` breaks — CHANGELOG note | Open → 4-C |
-| G-135 | p4-final | **high** (agents) | Calculated fields | After a child's lens write (Collection item, `state="slice"` child), the stored root state (`t.state`/`t.states`, `STATE.stream`) keeps old calculated values; the view is right. Pre-existing (5.4.0), but the new `t.state` guidance made agents hit it: 20 failed runs on tasks 12/14 | Open → 4-F |
-| G-136 | p4-final | high (agents) | Testing (E2 fake) | The fake HTTP source tracks requests by object identity (WeakSet): re-sending the same constant request on Retry → `t.respond` "no pending request"; 9 failed runs, all task-13 trials | Open → 4-F |
-| G-137 | p4-final | med | Testing | `t.html()` escapes `'` as `&#39;` in text (SSR escapeHtml); 4 failed runs | Open → 4-F |
-| G-138 | p4-final | low | AGENTS.md | The recipe pipes test output through `tail`, cutting the error; ~7 extra reruns | Open → 4-F |
+| G-135 | p4-final | **high** (agents) | Calculated fields | After a child's lens write (Collection item, `state="slice"` child), the stored root state (`t.state`/`t.states`, `STATE.stream`) keeps old calculated values; the view is right. Pre-existing (5.4.0), but the new `t.state` guidance made agents hit it: 20 failed runs on tasks 12/14 | ✅ 4-F (`dd472a5`) |
+| G-136 | p4-final | high (agents) | Testing (E2 fake) | The fake HTTP source tracks requests by object identity (WeakSet): re-sending the same constant request on Retry → `t.respond` "no pending request"; 9 failed runs, all task-13 trials | ✅ 4-F (`dd472a5`) |
+| G-137 | p4-final | med | Testing | `t.html()` escapes `'` as `&#39;` in text (SSR escapeHtml); 4 failed runs | ✅ 4-F (`dd472a5`) |
+| G-138 | p4-final | low | AGENTS.md | The recipe pipes test output through `tail`, cutting the error; ~7 extra reruns | ✅ 4-F (`dd472a5`) |
 | G-076 | 5.4.0 release | low | browser-tests | The browser run prints expected console errors from error-path tests, which look like failures | ✅ 1-E (whitelist updated for SYG405 at the 1-B merge) |
 
 ## Worktree Setup (each subagent, inside its own isolated worktree)
@@ -197,6 +197,7 @@ gzip -c /tmp/kb/assets/index-*.js | wc -c      # budget 41,805 B
 
 ## Activity Log
 
+- 2026-10-02 — 4-F merged (core: `withCalculated` lens `set` recomputes calculated fields, +20 B; fake HTTP per-send tracking; `t.html()` innerHTML escaping; AGENTS.md test-output line). Gate green (1103 vitest, 123 browser, 42,125 B). Tagged `plan2-p4-final-build-2`; confirming eval started with the process guard: p4-final2 (Sygnal, all 21 tasks), p4-baseline-ts, p4-react-ts, p4-haiku2.
 - 2026-10-02 — Diagnosis (`results/P4-REGRESSION-DIAGNOSIS.md`): the 12/13/14 slowdown is 3 harness problems (33/39 failed runs): stale calculated fields in recorded state (G-135, pre-existing, now hit via `t.state`), fake HTTP identity tracking (G-136, new in E2), `t.html()` `&#39;` (G-137); no branch framework regression. 4-F launched.
 - 2026-10-02 — Process guard merged (G-127). p4-final vs p4-baseline: wall 46.3 → 47.3 s, failed runs 0.21 → 0.66; improved 05/10/11, regressed 12/13/14 → diagnosis running.
 - 2026-10-02 — 4-B: p4-baseline (5.4.0, isolated posture) 85/85, $24.43; p4-final (branch) 85/85, $26.34 — both clean of kill commands. p4-haiku stopped: trial agents were running machine-wide `pkill`/`killall` (G-127 cause). Merged 4-R, 4-T, E10; gate green (1094 vitest, 123 browser, 184 sygnal-check, 373 samples, 42,105 B, verify 122/122 over 40 task/arm pairs, llms.txt 235). Harness guard in progress.
