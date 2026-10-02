@@ -3,7 +3,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { spawn } from 'node:child_process'
-import { buildClaudeArgs, buildPreflightArgs, trialEnv, stampLine, summarizeRun, parseJsonl, trialFiles, checkModel, DEFAULT_TIMEOUT_MIN } from './headless.mjs'
+import { buildClaudeArgs, buildPreflightArgs, trialEnv, writeProcessGuard, guardEnv, PROCESS_GUARD, stampLine, summarizeRun, parseJsonl, trialFiles, checkModel, DEFAULT_TIMEOUT_MIN } from './headless.mjs'
 
 /**
  * @param {object} o
@@ -18,6 +18,8 @@ import { buildClaudeArgs, buildPreflightArgs, trialEnv, stampLine, summarizeRun,
  * @param {object} [o.isolation]     variant posture (lib/variant.mjs claudeIsolation()):
  *                                   { settingSources, addDirs, mcpConfig, extraAllowedTools }
  * @param {boolean} [o.force]        overwrite an existing transcript
+ * @param {boolean} [o.processGuard] default true: deny rules + PATH shims against machine-wide
+ *                                   process kills (lib/headless.mjs PROCESS_GUARD, G-127)
  * @param {(line: object) => void} [o.onEvent]
  * @param {(child) => void} [o.onSpawn]  [o.onExit]   process-group bookkeeping for the caller
  * @returns {Promise<object>} the run meta (also written to <dest>.run.json)
@@ -31,7 +33,9 @@ export function runTrial(o) {
 
   const prompt = fs.readFileSync(files.prompt, 'utf8').trim()
   const timeoutMin = o.timeoutMin ?? DEFAULT_TIMEOUT_MIN
-  const args = buildClaudeArgs({ prompt, model: o.model, permissionMode: o.permissionMode, tools: o.tools, effort: o.effort, maxBudgetUsd: o.maxBudgetUsd, ...(o.isolation ?? {}) })
+  const processGuard = o.processGuard !== false
+  const args = buildClaudeArgs({ prompt, model: o.model, permissionMode: o.permissionMode, tools: o.tools, effort: o.effort, maxBudgetUsd: o.maxBudgetUsd, ...(o.isolation ?? {}), processGuard })
+  const env = processGuard ? guardEnv(trialEnv(process.env), writeProcessGuard(dest)) : trialEnv(process.env)
   const bin = o.claudeBin ?? 'claude'
   const out = fs.openSync(files.transcript, 'w')
   const err = fs.openSync(files.stderr, 'w')
@@ -39,7 +43,7 @@ export function runTrial(o) {
 
   return new Promise((resolve) => {
     // Own process group, so a timeout also kills the test runners the agent started.
-    const child = spawn(bin, args, { cwd: dest, env: trialEnv(process.env), stdio: ['ignore', 'pipe', 'pipe'], detached: true })
+    const child = spawn(bin, args, { cwd: dest, env, stdio: ['ignore', 'pipe', 'pipe'], detached: true })
     if (child.pid && o.onSpawn) o.onSpawn(child)
     let buf = ''
     let timedOut = false
@@ -98,6 +102,9 @@ export function runTrial(o) {
         tools: args[args.indexOf('--tools') + 1].split(','),
         effort: o.effort ?? null,
         isolation: o.isolation ?? null,
+        // 0 = no guard; 1 = deny rules + PATH shims (lib/headless.mjs)
+        processGuard: processGuard ? PROCESS_GUARD : 0,
+        disallowedTools: args.includes('--disallowedTools') ? args[args.indexOf('--disallowedTools') + 1].split(',') : [],
         timeoutMin,
         startedAt: startedAt.toISOString(),
         endedAt: endedAt.toISOString(),

@@ -34,6 +34,7 @@ import { matchReport, matchWorkaround, matchInput } from './catalog.mjs'
 import { docsContext, loadTrackers, readText, DEFAULT_TRACKERS } from './lib/preconditions.mjs'
 import { isTestPath, EDIT_TOOLS, bashWritesTest } from './lib/classify.mjs'
 import { aggregate } from './lib/aggregate.mjs'
+import { processKills } from '../lib/transcript.mjs'
 import { renderMarkdown } from './lib/report.mjs'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
@@ -152,6 +153,16 @@ for (const [trial, agentId] of mapRows) {
   const toolCalls = {}
   for (const c of parsed.calls) toolCalls[c.name] = (toolCalls[c.name] ?? 0) + 1
   rec.toolCalls = { total: parsed.calls.length, byTool: toolCalls }
+  // b2. process kills (G-127): machine-wide ones can hit other trials' processes and the orchestrator
+  rec.processKills = parsed.calls.filter((c) => c.name === 'Bash').flatMap((c) => processKills(c.input?.command ?? ''))
+  // Was the trial guarded (lib/headless.mjs PROCESS_GUARD)? Then its kill attempts were refused.
+  const runJson = tfile.replace(/\.transcript\.jsonl$/, '.run.json')
+  try {
+    rec.processGuard = runJson !== tfile && fs.existsSync(runJson) ? JSON.parse(fs.readFileSync(runJson, 'utf8')).processGuard ?? 0 : 0
+  } catch {
+    rec.processGuard = 0
+  }
+  if (rec.processKills.some((k) => k.machineWide)) rec.flags.push(rec.processGuard ? 'machine-wide process kill (blocked by the guard)' : 'machine-wide process kill')
   // c. phases
   rec.wallSeconds = tl.wallSeconds
   rec.phases = tl.phases

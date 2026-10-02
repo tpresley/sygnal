@@ -244,6 +244,35 @@ const EDIT_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit'])
 const PATH_TOOLS = ['Read', 'Glob', 'Grep', 'Write', 'Edit', 'MultiEdit']
 
 /**
+ * Process kills in one Bash command (G-127). Returns one entry per kill:
+ * { kind, machineWide, command }. machineWide kills pick processes by name,
+ * pattern or port, so they can hit processes the trial didn't start (other
+ * trials, the orchestrator, the user's own): `pkill`, `killall`, `xargs kill`
+ * (`lsof -ti:5173 | xargs kill -9`), `kill $(pgrep|pidof|lsof|ps ...)`,
+ * `fuser -k`. `kill -9 <pid>` is listed but not machine-wide; a plain
+ * `kill <pid>` / `kill %1` / `kill $!` is not listed.
+ */
+export function processKills(cmd) {
+  const out = []
+  for (const seg of splitCommands(String(cmd))) {
+    let words = seg.split(/\s+/).filter(Boolean)
+    while (words.length && (/^\w+=/.test(words[0]) || ['sudo', 'command', 'exec', 'nohup', 'env'].includes(words[0]))) words = words.slice(1)
+    if (!words.length) continue
+    const head = baseName(words[0])
+    const rest = words.slice(1)
+    if (head === 'pkill' || head === 'killall') out.push({ kind: head, machineWide: true, command: seg })
+    else if (head === 'xargs' && rest.some((w) => baseName(w) === 'kill')) out.push({ kind: 'xargs kill', machineWide: true, command: seg })
+    else if (head === 'fuser' && rest.some((w) => /^-\w*k/.test(w))) out.push({ kind: 'fuser -k', machineWide: true, command: seg })
+    else if (head === 'kill') {
+      const t = rest.join(' ')
+      if (/(\$\(|`)\s*(pgrep|pidof|lsof|ps|fuser)\b/.test(t)) out.push({ kind: 'kill $(lookup)', machineWide: true, command: seg })
+      else if (/(^|\s)-(9|KILL|s\s+(9|KILL))\b/.test(t)) out.push({ kind: 'kill -9', machineWide: false, command: seg })
+    }
+  }
+  return out
+}
+
+/**
  * Trial metrics from transcript JSONL text (a PLAN-1 subagent log or a
  * headless `<dest>.transcript.jsonl`); see transcript-stats.mjs for the
  * definitions. Headless transcripts also carry a `system/init` and a final
@@ -296,7 +325,9 @@ export function transcriptStats(text, trialDir = null) {
   let editRounds = 0
   let inEditRound = false
   const audit = []
+  const kills = []
   for (const e of events) {
+    if (e.name === 'Bash') for (const k of processKills(e.input.command ?? '')) kills.push(k)
     if (e.edit) {
       edits++
       if (!inEditRound) {
@@ -340,6 +371,9 @@ export function transcriptStats(text, trialDir = null) {
     wallSeconds: firstTs && lastTs ? Math.round((lastTs - firstTs) / 1000) : headless?.durationMs != null ? Math.round(headless.durationMs / 1000) : null,
     toolCalls: events.length,
     audit,
+    // G-127: process kills the agent ran (processKills); machine-wide ones can hit other processes on the machine.
+    processKills: kills,
+    machineWideKills: kills.filter((k) => k.machineWide).length,
     headless,
   }
 }
