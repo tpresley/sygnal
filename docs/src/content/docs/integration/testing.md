@@ -318,6 +318,61 @@ An object whose keys are all `request`, `category`, `status` or `body` is read a
 - The fake can't see options given to the real driver in `main.js`: a `makeFetchDriver({ latest: true })` there doesn't apply in tests. Write `latest: true` on the request itself (the canonical form).
 - An unrouted reply that nothing selects fails the test with an explanation (a category typo, or no `errors()` handler for a failure).
 
+### Sockets: connections(), push(), drop()
+
+A driverless sink that receives `{ connections }` or `{ to, json }` values (a component written for `makeSocketDriver()`) gets a fake that behaves like the real driver, with in-memory sockets in place of the network. You don't pass an option: the same fake handles HTTP requests and socket values. Connections are compared per component and name, so a room switch closes the old connection and opens the new one. `open`, `message`, `close` and `error` reach the sender's actions. Closes the app makes itself never send a `close` action. Unrouted events reach `WS.select(name)`. Reconnects follow the spec's `reconnect` on the test's timers.
+
+```jsx
+function Chat({ state }) {
+  return <div><p className="status">{state.status}</p><ul>{state.messages.map(m => <li>{m.text}</li>)}</ul></div>
+}
+Chat.initialState = { room: 'general', status: 'connecting', messages: [] }
+Chat.connections = (state) => ({
+  room: {
+    socket: `/ws/rooms/${state.room}`,
+    message: 'RECEIVED', open: 'CONNECTED', close: 'DROPPED',
+    reconnect: { delayMs: 1000, maxDelayMs: 1000, jitter: false },
+  },
+})
+Chat.model = {
+  SAY: { WS: (state, text) => ({ to: 'room', json: { text } }) },
+  RECEIVED: (state, msg) => ({ ...state, messages: [...state.messages, msg] }),
+  CONNECTED: (state) => ({ ...state, status: 'online' }),
+  DROPPED: (state) => ({ ...state, status: 'reconnecting' }),
+}
+
+it('chats, and reconnects after a drop', async () => {
+  vi.useFakeTimers()
+  const t = renderComponent(Chat)
+  await t.push('WS', { text: 'hi' })                 // the server sends a frame (objects as JSON)
+  expect(t.html()).toContain('<li>hi</li>')
+  expect(t.connections('WS')[0]).toMatchObject({ name: 'room', socket: '/ws/rooms/general', state: 'open' })
+
+  t.simulateAction('SAY', 'hello')
+  await t.settle()
+  expect(t.sent('WS')).toEqual([{ to: 'room', json: { text: 'hello' } }])
+
+  await t.drop('WS', { code: 1011 })                 // a close the app didn't make
+  expect(t.state.status).toBe('reconnecting')
+  await vi.advanceTimersByTimeAsync(1000)            // the retry opens
+  await t.waitForState(s => s.status === 'online')
+})
+```
+
+- `t.connections(name)` lists the connections declared now, in order: the spec as declared, plus `name`, `url` (the URL opened: a socket path resolves to `ws:`/`wss:` on the page's host), `state` (`'connecting'`, `'open'` or `'closed'`) and `sender` (the component's name). A removed or replaced connection is not listed. `'closed'` is one that dropped and is waiting for its retry, or one that dropped with `reconnect: false`.
+- `t.push(name, data, target?)` sends a frame from the server on the matching open connections, and `message` fires with the data, JSON-parsed when it parses. Objects are sent as JSON. Strings and binary data are sent as they are. For an SSE named event, pass `{ event: 'price', connection? }`.
+- `t.drop(name, { code, reason }?, target?)` closes connections the app didn't close. `close` fires with `{ code, reason, willReconnect }` (default code 1006), and the fake reconnects per the spec. Dropping a connection that is still connecting is a failure to open: `error` fires first.
+- `t.open(name, target?)` completes a pending open: `open` fires with `{ reconnected }`.
+- `t.sent(name, to?)` is the live list of `{ to, json | text | binary }` values the components sent. `t.requests(name)` and `t.sinkValues(name)` keep their meaning: every value, the `{ connections }` ones included.
+
+**Opening.** Connections open by themselves a moment after they are declared, retries included, so a test can `t.push` right away. A `t.push` or `t.drop` made before then opens the connection first. To assert a "Connecting…" state, or to make an open fail, render with `renderComponent(C, { autoConnect: false })`. Connections then stay `'connecting'` until `t.open('WS')`, or until `t.drop('WS')` makes the open fail.
+
+**Which connection.** `target` is a connection name (`'room'`), a URL as declared or opened (`'/ws/rooms/general'`), a partial connection compared by value (`{ socket: '/ws/b' }`), or a predicate `(connection) => boolean`. A call acts on every matching connection. Two Collection items can be told apart by URL, and connections that share a URL share one socket, so one push reaches all of them. With no target, the call acts on the newest connection that can take it.
+
+**When nothing matches.** As with `t.respond`, `t.push`, `t.drop` and `t.open` throw at the call when no connection matches. A push needs an open connection, an open needs a connecting one, and a drop needs either. The same exception applies: a call made while input is still queued, or before the component is ready, waits up to 1 s for its connection. Each call returns a promise that resolves once the resulting actions have been reduced and the tree has rendered.
+
+Disposing a component closes its connections, and `t.dispose()` closes all of them, with no `close` action.
+
 ## Diagnostics in Tests
 
 While a component is rendered, diagnostics are collected (`'collect'` mode by default, or the current mode if diagnostics are already on). Error-severity messages are still printed.
@@ -364,6 +419,7 @@ When an event "does nothing" in a test, `t.inspect()` usually shows why: a selec
 | `settleMs` | `number` | `20` | `settle()`'s quiet window: how long nothing may happen before it resolves (at most `timeoutMs`) |
 | `eventWaitMs` | `number` | `300` | How long `simulateEvent` waits for a matching element (and its listeners) |
 | `dom` | `'mock' \| 'real'` | `'mock'` | `'real'` mounts into a real container element; see [Real DOM](#real-dom) |
+| `autoConnect` | `boolean` | `true` | Fake socket connections open by themselves; `false` holds them until `t.open()` (see [Sockets](#sockets-connections-push-drop)) |
 
 The timing options (and a timeout passed to `next()`, `waitForState()` or `settle()`) must be finite numbers of milliseconds from 0 to 2147483647 (`setTimeout`'s limit); anything else throws.
 
@@ -385,6 +441,9 @@ The timing options (and a timeout passed to `next()`, `waitForState()` or `settl
 | `requests` | `(sink) => any[]` | Requests sent to a sink (`sinkValues` without `{ abort }` commands) |
 | `respond` | `(sink, value, target?) => Promise<void>` | Answer the newest pending request matching `target` on the fake source (its `ok` action, or `select()`); throws if none is pending |
 | `fail` | `(sink, error, target?) => Promise<void>` | Fail it (its `error` action, or `errors()`); throws if none is pending |
+| `connections` | `(sink) => FakeConnection[]` | The connections declared on a fake socket sink (`name`, `url`, `state`, `sender`, the spec) |
+| `push`, `drop`, `open` | `(sink, …, target?) => Promise<void>` | Server frame, unexpected close, completed open on the matching connections; throw if none matches |
+| `sent` | `(sink, to?) => any[]` | The `{ to, json \| text \| binary }` values sent |
 | `diagnostics` | `Diagnostic[]` | Diagnostics collected while rendered |
 | `expectNoDiagnostics` | `() => void` | Throws if any warning or error was collected |
 | `inspect` | `() => InspectGraph` | The app graph of the rendered tree |

@@ -11,6 +11,7 @@ import {_getDiagnosticsConfig, configureDiagnostics, getDiagnosticsMode, isDiagn
 import xs from './xstreamCompat';
 import {tagRequest, inScope, scopeKey} from './fetchDriver';
 import {senderOf, allowed, makeRoutes} from './routing';
+import {makeSocketDriver} from './socketDriver';
 import type {Stream} from 'xstream';
 import type {Diagnostic, DiagnosticsMode} from './diagnostics/index';
 import type {InspectGraph} from './diagnostics/checks/public';
@@ -176,6 +177,32 @@ export interface FakeReplyOptions {
 /** E2 / PLAN-3 1-C: a t.respond()/t.fail() target */
 export type FakeReplyTarget = string | FakeReplyOptions | Record<string, any> | ((request: any) => boolean);
 
+/**
+ * PLAN-3 2-C: a connection declared on a fake socket source (t.connections(name)): the spec as
+ * declared (`socket` or `sse`, action names, reconnect...) plus where and what it is.
+ */
+export interface FakeConnection {
+  /** The connection's name in `{ connections: { [name]: spec } }` */
+  name: string;
+  /** The URL as declared (`socket` connections) */
+  socket?: string;
+  /** The URL as declared (`sse` connections) */
+  sse?: string;
+  /** The URL the socket was opened with (a socket path resolves to ws:/wss: on the page's host) */
+  url: string;
+  /** 'closed': dropped (t.drop), waiting for a retry or (reconnect: false) gone */
+  state: 'connecting' | 'open' | 'closed';
+  /** The name of the component that declared it */
+  sender: string;
+  [key: string]: any;
+}
+/**
+ * PLAN-3 2-C: which connections a t.open/t.push/t.drop acts on: a connection name or URL (as
+ * declared or as opened), a partial FakeConnection compared by value (`{ socket: '/ws/a' }`),
+ * or a predicate. Nothing: the newest one that can take the call.
+ */
+export type FakeConnectionTarget = string | Record<string, any> | ((connection: FakeConnection) => boolean);
+
 export interface RenderOptions {
   /** Override or provide initial state (defaults to component's .initialState) */
   initialState?: any;
@@ -215,6 +242,12 @@ export interface RenderOptions {
    * `t.container`, `t.query(sel)` and `t.queryAll(sel)` return real elements.
    */
   dom?: 'mock' | 'real';
+  /**
+   * PLAN-3 2-C: fake socket connections (a sink with no driver that gets `{ connections }`)
+   * open by themselves (default true), reconnects included. false: they stay 'connecting' until
+   * t.open(), for "Connecting…" assertions and failures to open (t.drop on a connecting one).
+   */
+  autoConnect?: boolean;
 }
 
 export interface RenderResult {
@@ -292,6 +325,27 @@ export interface RenderResult {
    * Error, a message, or an HTTP status number (404 → an Error 'HTTP 404' with `status: 404`).
    */
   fail: (sinkName: string, error: any, target?: FakeReplyTarget) => Promise<void>;
+  /**
+   * PLAN-3 2-C: a sink with no driver that gets `{ connections }` / `{ to }` values behaves like
+   * makeSocketDriver (routed open/message/close/error, diffed per component and name, shared by
+   * URL, reconnect per spec on the test's timers). The connections declared now, in order.
+   */
+  connections: (sinkName: string) => FakeConnection[];
+  /** PLAN-3 2-C: complete the open of connecting connection(s) (`autoConnect: false`, or a pending reconnect): `open` fires */
+  open: (sinkName: string, target?: FakeConnectionTarget) => Promise<void>;
+  /**
+   * PLAN-3 2-C: the server sends `data` (objects as JSON text) on the open connection(s): `message`
+   * fires (the data JSON-parsed when it parses). `{ event, connection? }`: an SSE named event.
+   */
+  push: (sinkName: string, data: any, target?: FakeConnectionTarget | {event?: string; connection?: FakeConnectionTarget}) => Promise<void>;
+  /**
+   * PLAN-3 2-C: the connection(s) close without the app closing them (a connecting one fails to
+   * open: `error` first): `close` fires with `{ code, reason, willReconnect }` and the fake
+   * reconnects per the spec. `close` defaults to `{ code: 1006, reason: '' }`.
+   */
+  drop: (sinkName: string, close?: {code?: number; reason?: string} | FakeConnectionTarget, target?: FakeConnectionTarget) => Promise<void>;
+  /** PLAN-3 2-C: the `{ to, json | text | binary }` values the components sent (live; with `to`: those to that connection) */
+  sent: (sinkName: string, to?: string) => any[];
   /** Live array of EVENTS sink emissions ({type, data}) */
   emitted: any[];
   /** Live array of diagnostics reported while rendered */
@@ -700,6 +754,42 @@ const same = (a: any, b: any): boolean => {
   const ka = Object.keys(a), kb = Object.keys(b);
   return ka.length == kb.length && ka.every(k => same(a[k], b[k]));
 };
+/**
+ * PLAN-3 2-C: where makeSocketDriver (no baseUrl) opens a declared URL (its resolve(); keep the
+ * two in step), and the transport identity it shares by (its key, without the share flag)
+ */
+const sockUrl = (u: string, sse: boolean) => {
+  const loc = (globalThis as any).location;
+  if (sse || /^wss?:/i.test(u) || !loc) return u;
+  try {
+    const r = new URL(u, loc.href);
+    r.protocol = r.protocol == 'https:' ? 'wss:' : 'ws:';
+    return r.href;
+  } catch (_) { return u; }
+};
+const alive = (s: any) => s && s.readyState < 2;
+const sockKey = (sse: boolean, url: string, arg: any) => (sse ? 'e' + !!(arg && arg.withCredentials) : 's' + JSON.stringify(arg)) + url;
+/**
+ * PLAN-3 2-C: the in-memory WebSocket / EventSource the fake's makeSocketDriver opens. The
+ * harness drives it (t.open / t.push / t.drop); the driver's own close() is the app's close.
+ */
+const fakeSocketClass = (sse: boolean, made: (s: any) => void) => class {
+  readyState = 0;
+  sse = sse;
+  byApp = false;
+  k: string;
+  url: string;
+  ls: Record<string, any[]> = {};
+  onopen: any; onmessage: any; onerror: any; onclose: any;
+  constructor(url: string, arg?: any) {
+    this.url = String(url);
+    this.k = sockKey(sse, this.url, arg);
+    made(this);
+  }
+  send() {}
+  close() { if (this.readyState < 2) { this.readyState = 3; this.byApp = true; } }
+  addEventListener(type: string, f: any) { (this.ls[type] = this.ls[type] || []).push(f); }
+};
 const brief = (v: any) => {
   let s: string;
   try { s = typeof v == 'string' ? `'${v}'` : JSON.stringify(v); } catch (_) { s = String(v); }
@@ -728,7 +818,7 @@ export function renderComponent(
   componentDef: any,
   options: RenderOptions = {}
 ): RenderResult {
-  const {initialState, mockConfig = {}, drivers = {}, diagnostics, strict, dom = 'mock'} = options;
+  const {initialState, mockConfig = {}, drivers = {}, diagnostics, strict, dom = 'mock', autoConnect = true} = options;
   const {intent, model = {}} = componentDef;
   // E4: real DOM mode
   const real = dom == 'real';
@@ -802,6 +892,9 @@ export function renderComponent(
   // actions and sinks, so the core stamps its requests and routes the replies, as under run()
   // with the driver. Its descendants inherit it; their requests reach its sink.
   const injected = new Map<any, string[]>();
+  // 2-C: component number (a request's sender) → name, for t.connections (a tagged copy of a
+  // value keeps the sender, not the name)
+  const senderNames = new Map<any, string>();
   const inject = (c: any) => {
     const m = c.model, src = c.sources, names: string[] = [];
     if (!m || typeof m != 'object' || !src || !Array.isArray(c.sourceNames)) return;
@@ -856,6 +949,7 @@ export function renderComponent(
     onReducer: bump,
     onIntent(c: any) {
       bump();
+      if (mine(c)) senderNames.set(c._componentNumber, c.name);
       if (mine(c)) inject(c);
       const sc = scopeOf(c);
       if (sc) owners.set(sc, c.name);
@@ -996,14 +1090,18 @@ export function renderComponent(
   // disposed sender's routed requests are dropped).
   type FakeSub = {l: any; sel: any; err: boolean; ns: any[]};
   type Sent = {value: any; req: any; category: any; scope: string; sender: any; rk: any; live: boolean};
-  type Fake = {select: any; errors: any; subs: Set<FakeSub>; at: (ns: any[]) => any; sent: Sent[]; route: (sender: any, type: any, data: any) => void};
+  type Fake = {select: any; errors: any; subs: Set<FakeSub>; at: (ns: any[]) => any; sent: Sent[]; route: (sender: any, type: any, data: any) => void; ws: Sock};
   const fakes = new Map<string, Fake>();
   const fake = (name: string): Fake => {
     let f = fakes.get(name);
     if (!f) {
       const subs = new Set<FakeSub>();
       const sent: Sent[] = [];
-      const {routes, reply: route} = makeRoutes(sender => sent.forEach(r => { if (r.rk !== undefined && r.sender === sender) r.live = false; }));
+      const ws = sockFake();
+      const {routes, reply: route} = makeRoutes(sender => {
+        sent.forEach(r => { if (r.rk !== undefined && r.sender === sender) r.live = false; });
+        ws.conns.delete(sender);
+      });
       const at = (ns: any[]): any => {
         const src = (err: boolean) => (sel?: any) => {
           let sub: FakeSub;
@@ -1012,17 +1110,81 @@ export function renderComponent(
             stop: () => { subs.delete(sub); },
           });
         };
+        // 2-C: the socket driver's source, isolated alike (unrouted events reach select(name?))
+        const sock = ns.reduce((s, sc) => s.isolateSource(s, sc), ws.src);
+        const select = src(false);
         return {
-          select: src(false), errors: src(true), subs, at, sent, route,
+          select: (sel?: any) => xs.merge(select(sel), sock.select(sel)), errors: src(true), subs, at, sent, route, ws,
           isolateSource: (_: any, scope: any) => at(ns.concat(scope)),
           isolateSink: (sink$: any, scope: any) => sink$.map((v: any) => tag(v, scope)),
           ...routes,
+          routed: (sender: any) => xs.merge(routes.routed(sender), ws.src.routed(sender)),
         };
       };
       fakes.set(name, (f = at([])));
     }
     return f!;
   };
+  // PLAN-3 2-C: the socket half of a fake source. Values with `connections` / `to` go to a real
+  // makeSocketDriver over in-memory sockets, so diffing, routing, sharing, queueing and
+  // reconnect are the driver's own. `conns` mirrors what each sender has declared (sender →
+  // name → Conn) and which fake socket serves each connection, for t.connections and targets.
+  type Conn = {by: string; name: string; spec: any; sse: boolean; url: string; k: string; own: boolean; s?: any};
+  type Sock = {src: any; in$: any; conns: Map<any, Map<string, Conn>>; sockets: any[]; sent: any[]; declaring: Conn[] | null};
+  const sockFake = (): Sock => {
+    const w: Sock = {src: null, in$: xs.create(), conns: new Map(), sockets: [], sent: [], declaring: null};
+    const made = (s: any) => {
+      w.sockets.push(s);
+      const all = [...w.conns.values()].flatMap(m => [...m.values()]).filter(c => c.k == s.k);
+      if (w.declaring) {
+        // a declaration opened it: the first new connection with its key (and, shared, the
+        // other new shared ones)
+        const first = w.declaring.find(c => c.k == s.k && !c.s);
+        if (first) [first, ...(first.own ? [] : w.declaring.filter(c => c.k == s.k && !c.s && !c.own))].forEach(c => { c.s = s; });
+      } else {
+        // a reconnect: replaces the oldest dropped socket with its key
+        const old = all.map(c => c.s).filter(x => x && !alive(x)).sort((a, b) => w.sockets.indexOf(a) - w.sockets.indexOf(b))[0];
+        all.forEach(c => { if (c.s === old) c.s = s; });
+      }
+      // autoConnect: it opens on the next macrotask (or at once when a t.push / t.drop needs it)
+      if (autoConnect) {
+        s.auto = true;
+        setTimeout(() => { if (s.readyState === 0 && !disposed) sockOpen(s); });
+      }
+    };
+    w.src = makeSocketDriver({WebSocket: fakeSocketClass(false, made), EventSource: fakeSocketClass(true, made)})(w.in$);
+    return w;
+  };
+  const sockValue = (v: any) => !!v && typeof v == 'object' && ('connections' in v || 'to' in v);
+  const sockRecord = (w: Sock, v: any) => {
+    if ('to' in v && !('connections' in v)) w.sent.push(v);
+    else if (!('then' in v || 'catch' in v)) {
+      const sender = senderOf(v), next = v.connections || {}, old = w.conns.get(sender) || new Map(), now = new Map<string, Conn>();
+      const fresh: Conn[] = [];
+      Object.keys(next).forEach(name => {
+        const spec = next[name];
+        if (!spec || typeof spec != 'object' || (typeof spec.socket != 'string' && typeof spec.sse != 'string') || 'then' in spec || 'catch' in spec) return;
+        const sse = typeof spec.sse == 'string', url = sockUrl(sse ? spec.sse : spec.socket, sse);
+        const k = sockKey(sse, url, sse ? spec : spec.protocols), own = spec.share === false;
+        const c = old.get(name);
+        if (c && c.k == k && c.own == own) { c.spec = spec; now.set(name, c); }
+        else { const n: Conn = {by: v.__emitterName ?? senderNames.get(sender), name, spec, sse, url, k, own}; now.set(name, n); fresh.push(n); }
+      });
+      w.conns.set(sender, now);
+      w.declaring = fresh;
+      try { w.in$.shamefullySendNext(v); } finally { w.declaring = null; }
+      // joined a shared socket that was already there
+      fresh.forEach(c => { if (!c.s && !c.own) c.s = w.sockets.filter(s => s.k == c.k && alive(s)).pop(); });
+      return;
+    }
+    w.in$.shamefullySendNext(v);
+  };
+  const sockFire = (s: any, type: string, ev: any) => {
+    try { s['on' + type]?.(ev); } catch (e) { console.error(e); }
+  };
+  const sockOpen = (s: any) => { s.readyState = 1; sockFire(s, 'open', {type: 'open'}); };
+  const sockState = (c: Conn) => !c.s || c.s.readyState == 0 ? 'connecting' : c.s.readyState == 1 ? 'open' : 'closed';
+  const sockView = (c: Conn): FakeConnection => ({...c.spec, name: c.name, url: c.url, state: sockState(c), sender: c.by});
   // G-131: a string request is scope-tagged as { url } (like makeFetchDriver's isolateSink),
   // remembering the string, so t.requests still shows what the component sent
   const STR = '__sygnalString';
@@ -1042,6 +1204,8 @@ export function renderComponent(
     const req = typeof v == 'string' ? {url: v} : v;
     const obj = !!req && typeof req == 'object';
     if (!(obj && req.abort)) requests(name).push(shown);
+    // 2-C: a socket value goes to the fake's socket driver (it reports SYG610/SYG611 itself)
+    if (track && sockValue(req)) return sockRecord(fake(name).ws, req);
     if (!track || !obj || !allowed(req, `renderComponent's fake ${name}`)) return;
     const f = fake(name), scope = scopeKey(req), sender = senderOf(req), rk = routeKey(req, sender);
     const which = cancels(req, scope, sender, rk);
@@ -1432,8 +1596,38 @@ export function renderComponent(
     if (drivers[name]) throw new Error(`[Sygnal] t.${fn}('${name}'): ${name} has a real driver (passed in drivers), so there is nothing to script. t.respond/t.fail answer the fake source renderComponent provides when no driver is passed`);
     const tg = targetOf(opts);
     const what = `t.${fn}('${name}'${typeof opts == 'string' ? `, …, '${opts}'` : ''})`;
-    // nothing queued before it: the request must be pending now
-    if (!tg.push && isReady && !inputs.length && !disposed && !pick(name, tg)) throw noPending(what, name, tg, 0);
+    return scripted(() => tg.push ? {} : pick(name, tg), w => noPending(what, name, tg, w), hit => {
+      const f = fake(name);
+      const e: Sent | undefined = tg.push ? undefined : hit;
+      const category = 'category' in tg.o ? tg.o.category : e?.category;
+      const [routedTo, payload] = build(e, category);
+      if (e) e.live = false;
+      if (routedTo !== undefined) return void f.route(e!.sender, routedTo, payload);
+      let heard = false;
+      f.subs.forEach(sub => {
+        let hit = false;
+        // a pushed value no request asked for (request: null) reaches every scope
+        try { hit = sub.err === err && (!e || inScope(sub.ns, e.req)) && (sub.sel === undefined || (typeof sub.sel == 'function' ? sub.sel(payload) : sub.sel === category)); } catch (_) {}
+        if (hit) { heard = true; sub.l.next(payload); }
+      });
+      if (heard) return;
+      const ls = [...f.subs].filter(x => x.err === err).map(x => `${name}.${err ? 'errors' : 'select'}(${x.sel === undefined ? '' : typeof x.sel == 'function' ? 'fn' : `'${x.sel}'`})`);
+      return new Error(`[Sygnal] ${what}: nothing receives it: no intent listens to ${name}.${err ? 'errors' : 'select'}(${category === undefined ? '' : `'${category}'`})` +
+        (ls.length ? ` (listening: ${ls.join(', ')})` : '') + `. ` +
+        (err ? `Route the failure to an action (error: 'FAILED' on the request), or handle it in the intent, e.g. FAILED: ${name}.errors('${category ?? 'category'}'), so a failed request can't leave the component loading.` :
+          `Route the reply to an action (ok: 'LOADED' on the request), or select it in the intent, e.g. LOADED: ${name}.select('${category ?? 'category'}').`));
+    });
+  };
+  /**
+   * G-140 / PLAN-3 1-C: a scripted input (t.respond/t.fail, 2-C's t.open/t.push/t.drop). With
+   * nothing queued before it and the component ready, `find()` must match now or the call
+   * throws `none(0)`; otherwise it is queued and finds its target when delivered, waiting up to
+   * 1s (half of timeoutMs if lower). `act(hit)` delivers it (an Error: it failed). The promise
+   * resolves once the result has been reduced and the whole tree rendered.
+   */
+  const scripted = (find: () => any, none: (waited: number) => Error, act: (hit: any) => Error | void): Promise<void> => {
+    throwFailure();
+    if (isReady && !inputs.length && !disposed && !find()) throw none(0);
     let ok!: () => void, ko!: (e: Error) => void, seen = false, open = true;
     const inner = new Promise<void>((a, b) => { ok = a; ko = b; });
     inner.catch(noop);
@@ -1459,34 +1653,16 @@ export function renderComponent(
       // up to 1s (half of timeoutMs if lower), so a wait (next/settle) still times out later
       wait,
       go: last => {
-        const f = fake(name);
-        const e = tg.push ? undefined : pick(name, tg);
-        if (!tg.push && !e) {
+        const hit = find();
+        if (!hit) {
           if (!last) return false;
-          settle(noPending(what, name, tg, wait));
+          settle(none(wait));
           return true;
         }
-        const category = 'category' in tg.o ? tg.o.category : e?.category;
-        const [routedTo, payload] = build(e, category);
-        if (e) e.live = false;
-        if (routedTo !== undefined) {
-          f.route(e!.sender, routedTo, payload);
-        } else {
-          let heard = false;
-          f.subs.forEach(sub => {
-            let hit = false;
-            // a pushed value no request asked for (request: null) reaches every scope
-            try { hit = sub.err === err && (!e || inScope(sub.ns, e.req)) && (sub.sel === undefined || (typeof sub.sel == 'function' ? sub.sel(payload) : sub.sel === category)); } catch (_) {}
-            if (hit) { heard = true; sub.l.next(payload); }
-          });
-          if (!heard) {
-            const ls = [...f.subs].filter(x => x.err === err).map(x => `${name}.${err ? 'errors' : 'select'}(${x.sel === undefined ? '' : typeof x.sel == 'function' ? 'fn' : `'${x.sel}'`})`);
-            settle(new Error(`[Sygnal] ${what}: nothing receives it: no intent listens to ${name}.${err ? 'errors' : 'select'}(${category === undefined ? '' : `'${category}'`})` +
-              (ls.length ? ` (listening: ${ls.join(', ')})` : '') + `. ` +
-              (err ? `Route the failure to an action (error: 'FAILED' on the request), or handle it in the intent, e.g. FAILED: ${name}.errors('${category ?? 'category'}'), so a failed request can't leave the component loading.` :
-                `Route the reply to an action (ok: 'LOADED' on the request), or select it in the intent, e.g. LOADED: ${name}.select('${category ?? 'category'}').`)));
-            return true;
-          }
+        const failed = act(hit);
+        if (failed) {
+          settle(failed);
+          return true;
         }
         // resolved once the reply has been reduced and the whole tree rendered (in the DOM)
         treeRendered(states.length).then(() => real ? untilPatched() : undefined).then(() => settle(), noop);
@@ -1520,6 +1696,79 @@ export function renderComponent(
       }
       return [undefined, {error: x, category, request: e?.req, status, body}];
     }, opts);
+
+  // PLAN-3 2-C: socket fakes. t.connections lists what the components declared; t.open /
+  // t.push / t.drop act on the fake sockets serving the connections `target` picks (a name or
+  // URL, a partial connection, a predicate; nothing: the newest socket that can take the call),
+  // with t.respond's rules (scripted()): they throw at the call when nothing matches.
+  const conns = (name: string): Conn[] => [...(fakes.get(name)?.ws.conns.values() || [])].flatMap(m => [...m.values()]);
+  const connections = (name: string) => conns(name).map(sockView);
+  const sent = (name: string, to?: string) => {
+    const all = fake(name).ws.sent;
+    return to === undefined ? all : all.filter(v => v.to === to);
+  };
+  const connTarget = (tg: any): [(c: Conn) => boolean, string] => {
+    if (tg === undefined) return [() => true, ''];
+    if (typeof tg == 'string') return [c => c.name === tg || c.url === tg || (c.sse ? c.spec.sse : c.spec.socket) === tg, ` matching '${tg}'`];
+    if (typeof tg == 'function') return [c => { try { return !!tg(sockView(c)); } catch (_) { return false; } }, ' matching the predicate'];
+    if (tg && typeof tg == 'object') {
+      return [c => { const v: any = sockView(c); return Object.keys(tg).every(k => same(tg[k], v[k])); }, ` matching ${brief(tg)}`];
+    }
+    throw new Error(`[Sygnal] the connection target must be a connection name or URL, a partial connection ({ socket: '/ws/a' }) or a predicate (got ${typeof tg})`);
+  };
+  const sockCall = (fn: string, name: string, tg: any, states: number[], act: (s: any) => void): Promise<void> => {
+    if (drivers[name]) throw new Error(`[Sygnal] t.${fn}('${name}'): ${name} has a real driver (passed in drivers), so there is nothing to script. t.${fn} drives the fake socket source renderComponent provides when no driver is passed`);
+    const [match, desc] = connTarget(tg);
+    const kind = states.length > 1 ? 'open or connecting' : states[0] ? 'open' : 'connecting';
+    const w = () => fake(name).ws;
+    const find = () => {
+      const ok = new Set<any>();
+      // (autoConnect: a socket about to open counts as open)
+      conns(name).forEach(c => { if (c.s && states.includes(c.s.auto && !c.s.readyState ? 1 : c.s.readyState) && match(c)) ok.add(c.s); });
+      const list = [...ok];
+      return list.length ? (tg === undefined ? [list.sort((a, b) => w().sockets.indexOf(a) - w().sockets.indexOf(b)).pop()] : list) : undefined;
+    };
+    const none = (waited: number) => {
+      const list = connections(name);
+      return new Error(`[Sygnal] t.${fn}('${name}'${desc ? ', …' : ''}): no ${kind} ${name} connection${desc}${waited ? ` after ${waited}ms` : ''}. ` +
+        (list.length ? `Connections: ${list.map(c => `${c.name} (${c.socket ?? c.sse}, ${c.state})`).join(', ')}.` :
+          `None is declared: declare it with { connections: { room: { socket: '/ws/…' } } } on the ${name} sink first (t.connections('${name}') is empty).`) +
+        (states.includes(1) && list.some(c => c.state == 'connecting') ? ` A connecting one (autoConnect: false) opens with t.open('${name}').` : '') +
+        (!states.includes(1) && autoConnect ? ` With autoConnect (the default) connections open by themselves: renderComponent(C, { autoConnect: false }) holds them for t.open.` : '') +
+        (waited ? '' : ` A call made while simulate* / t.* calls are still queued waits for them; otherwise the connection must be there at the call.`));
+    };
+    return scripted(find, none, (hit: any[]) => hit.forEach(s => {
+      if (s.auto && !s.readyState) sockOpen(s);
+      act(s);
+    }));
+  };
+  const open = (name: string, target?: FakeConnectionTarget) => sockCall('open', name, target, [0], sockOpen);
+  const push = (name: string, data: any, target?: any) => {
+    const o = target && typeof target == 'object' && !Array.isArray(target) && Object.keys(target).length && Object.keys(target).every(k => k == 'event' || k == 'connection') ? target : {connection: target};
+    const raw = typeof data == 'string' || (data && typeof data == 'object' && (data instanceof ArrayBuffer || ArrayBuffer.isView(data) || (typeof Blob != 'undefined' && data instanceof Blob))) ? data : JSON.stringify(data);
+    const ev = o.event;
+    return sockCall('push', name, o.connection, [1], s => {
+      const m = {type: ev || 'message', data: raw};
+      if (!ev || ev == 'message') sockFire(s, 'message', m);
+      if (s.sse) (s.ls[ev || 'message'] || []).forEach((f: any) => { try { f(m); } catch (e) { console.error(e); } });
+    });
+  };
+  const drop = (name: string, close?: any, target?: any) => {
+    const info = close && typeof close == 'object' && !Array.isArray(close) && Object.keys(close).every(k => k == 'code' || k == 'reason');
+    const tg = info || close === undefined ? target : close;
+    const {code = 1006, reason = ''} = info ? close : {};
+    return sockCall('drop', name, tg, [0, 1], s => {
+      const connecting = s.readyState == 0;
+      if (s.sse) {
+        // EventSource gave up (CLOSED): the driver's reconnect applies
+        s.readyState = 2;
+        return sockFire(s, 'error', {type: 'error'});
+      }
+      s.readyState = 3;
+      if (connecting) sockFire(s, 'error', {type: 'error'});
+      sockFire(s, 'close', {type: 'close', code, reason, wasClean: false});
+    });
+  };
   // E4: where real elements are looked up: the container, and the Portal content this tree
   // mounted outside it
   const roots = (): Element[] => {
@@ -1849,6 +2098,8 @@ export function renderComponent(
     // E4: unmount (the container and the Portal content mounted outside it)
     const mounted = real ? roots() : [];
     rawDispose();
+    // 2-C: every fake connection closes (as the app's own close: no close action)
+    fakes.forEach(f => { f.ws.src.dispose(); f.ws.conns.clear(); });
     mounted.forEach(e => e.remove());
     restore();
     // R4-8: every pending wait (ready, next, waitForState, settle) rejects now, its timers
@@ -1883,6 +2134,11 @@ export function renderComponent(
     requests,
     respond,
     fail,
+    connections,
+    open,
+    push,
+    drop,
+    sent,
     emitted: sinkValues('EVENTS'),
     diagnostics: collected,
     expectNoDiagnostics,
