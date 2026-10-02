@@ -37,6 +37,14 @@ import {senderOf, keepSender, allowed, makeReplies} from './replies';
  *   always a failure (its body parsed with 'auto').
  * - Early replies (before anything listens) are held until the first select() listener;
  *   early failures until the first errors() listener or the next macrotask (R4-4, G-092).
+ * - Resources (PLAN-3 3-A, exp): the core sends a component's `resources` static as
+ *   `{ resources: { name: request | falsy } }` (sender-stamped). Per (sender, name), a request
+ *   that changed (by JSON) is fetched with latest semantics (the stale one aborted); falsy aborts
+ *   it. Each step is the reply action RESOURCE `{ name, status, data, error }`: 'loading' (data
+ *   and error undefined), 'success' (data: the parsed body), 'error' (error: the Error, with
+ *   `status`/`body` for a non-2xx), 'idle' (back to falsy). `ok` / `error` on the request also
+ *   dispatch those actions after the RESOURCE write. `{ refresh: name | names }` refetches the
+ *   current request (nothing while idle).
  * - dispose / sink completion aborts everything in flight.
  * - `fetch` is read at request time (options.fetch, else globalThis.fetch), so test stubs work.
  */
@@ -166,6 +174,8 @@ export function makeFetchDriver(options: any = {}) {
         errors: make(true),
         isolateSource: (_: any, scope: any) => source(ns.concat(scope)),
         isolateSink: (sink$: any, scope: any) => sink$.map((req: any) => tagRequest(req, scope)),
+        // the core sends a component's `resources` static here (PLAN-3 3-A)
+        __sygnalStatic: 'resources',
         ...replies,
       };
     };
@@ -181,22 +191,40 @@ export function makeFetchDriver(options: any = {}) {
     };
     const cancel = (which: (r: any) => boolean) =>
       inflight.forEach((r, id) => { if (which(r)) finish(id, true); });
-    // a disposed sender's requests with reply actions are aborted
-    const {replies, reply} = makeReplies(sender => cancel(r => r.rk !== undefined && r.sender === sender));
+    // 3-A: sender → resource name → [JSON of its request, the request]
+    const rsrc = new Map<any, Map<string, any[]>>();
+    // a disposed sender's requests with reply actions (and resources) are aborted
+    const {replies, reply} = makeReplies(sender => { rsrc.delete(sender); cancel(r => r.rk !== undefined && r.sender === sender); });
+    const write = (sender: any, name: string, status: string, data?: any, error?: any) =>
+      reply(sender, 'RESOURCE', {name, status, data, error});
+    const load = (sender: any, name: string, q: any) => { write(sender, name, 'loading'); send(q, sender, name); };
 
-    const send = (req: any) => {
+    const send = (req: any, sender = senderOf(req), rn?: string) => {
       if (typeof req == 'string') req = {url: req};
       if (!req || typeof req != 'object' || disposed || !allowed(req, 'makeFetchDriver')) return;
-      const {url, category, method, headers, query, json, body, latest, timeoutMs, parse, abort, init, ok, error, key} = req;
+      const {url, category, method, headers, query, json, body, latest, timeoutMs, parse, abort, init, ok, error, key, resources, refresh} = req;
+      if (resources || refresh) {
+        if (sender === undefined) return;
+        const cur = rsrc.get(sender) || new Map();
+        rsrc.set(sender, cur);
+        if (refresh) return [].concat(refresh).forEach((n: string) => { const q = cur.get(n)?.[1]; q && load(sender, n, q); });
+        new Set([...cur.keys(), ...Object.keys(resources)]).forEach(n => {
+          const q = resources[n], j = q ? JSON.stringify(q) : '';
+          if ((cur.get(n)?.[0] ?? '') === j) return;
+          cur.set(n, [j, q]);
+          if (q) load(sender, n, q);
+          else { cancel(r => r.sender === sender && r.rk === '\0' + n); write(sender, n, 'idle'); }
+        });
+        return;
+      }
       const scope = scopeKey(req);
-      const sender = senderOf(req);
-      // reply actions: keyed per (sender, key ?? ok ?? error)
-      const rk = sender !== undefined && (ok || error) ? key ?? ok ?? error : undefined;
+      // reply actions: keyed per (sender, key ?? ok ?? error); a resource per (sender, '\0' + name)
+      const rk = rn !== undefined ? '\0' + rn : sender !== undefined && (ok || error) ? key ?? ok ?? error : undefined;
       if (sender !== undefined && (typeof abort == 'string' || (abort && key !== undefined)))
         return cancel(r => r.sender === sender && r.rk === (key ?? abort));
       // per (scope, category): another component's requests are never cancelled
       if (abort) return cancel(r => r.scope === scope && (!('category' in req) || r.category === category));
-      if (latest ?? options.latest) cancel(rk === undefined ? r => r.rk === undefined && r.scope === scope && r.category === category : r => r.sender === sender && r.rk === rk);
+      if (rn !== undefined || (latest ?? options.latest)) cancel(rk === undefined ? r => r.rk === undefined && r.scope === scope && r.category === category : r => r.sender === sender && r.rk === rk);
 
       const href = withQuery((options.baseUrl || '') + (url ?? ''), query);
       const base = options.init, own = init;
@@ -211,8 +239,8 @@ export function makeFetchDriver(options: any = {}) {
       const r: any = {category, scope, ctl, sender, rk};
       inflight.set(id, r);
       // an outcome with a reply action goes to the sender's actions, the other to errors()/select()
-      const fail = (e: any, extra?: any) => finish(id) &&
-        (rk !== undefined && error ? reply(sender, error, {error: e, request: req, ...extra}) : emit(true, {error: e, category, request: req, ...extra}));
+      const fail = (e: any, extra?: any) => finish(id) && (rn !== undefined && write(sender, rn, 'error', undefined, e),
+        rk !== undefined && error ? reply(sender, error, {error: e, request: req, ...extra}) : rn === undefined && emit(true, {error: e, category, request: req, ...extra}));
       const ms = timeoutMs ?? options.timeoutMs;
       if (ms > 0) {
         r.timer = setTimeout(() => {
@@ -255,7 +283,10 @@ export function makeFetchDriver(options: any = {}) {
           }
           let value: any;
           try { value = await parser(res); } catch (e) { return fail(e, {status: res.status}); }
-          if (finish(id)) rk !== undefined && ok ? reply(sender, ok, value) : emit(false, {category, value, status: res.status, request: req});
+          if (finish(id)) {
+            if (rn !== undefined) write(sender, rn, 'success', value);
+            rk !== undefined && ok ? reply(sender, ok, value) : rn === undefined && emit(false, {category, value, status: res.status, request: req});
+          }
         } catch (e) {
           fail(e);
         } finally {
