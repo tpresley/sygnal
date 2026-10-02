@@ -131,25 +131,24 @@ export default function component(opts: ComponentOptions): any {
 
 class Component {
   _componentNumber: number;
-  name: string;
+  name!: string;
   sources: any;
   intent: any;
   model: any;
   hmrActions: any;
   context: any;
-  response: any;
   view: any;
-  peers: Record<string, any>;
-  components: Record<string, any>;
+  peers!: Record<string, any>;
+  components!: Record<string, any>;
   initialState: any;
   calculated: any;
-  storeCalculatedInState: boolean;
-  DOMSourceName: string;
-  stateSourceName: string;
-  sourceNames: string[];
-  _debug: boolean;
+  storeCalculatedInState!: boolean;
+  DOMSourceName!: string;
+  stateSourceName!: string;
+  sourceNames!: string[];
+  _debug!: boolean;
   onError: ((error: Error, info: { componentName: string }) => any) | undefined;
-  isolatedState: boolean;
+  isolatedState!: boolean;
   isSubComponent: boolean;
   currentState: any;
   currentProps: any;
@@ -187,7 +186,7 @@ class Component {
   _readyChanged$: any;
   _readyChangedListener: any;
 
-  constructor({name = 'NO NAME', sources, intent, model, hmrActions, context, response, view, peers = {}, components = {}, initialState, calculated, storeCalculatedInState = true, DOMSourceName = 'DOM', stateSourceName = 'STATE', isolatedState = false, onError, debug = false}: ComponentOptions) {
+  constructor({name = 'NO NAME', sources, intent, model, hmrActions, context, view, peers = {}, components = {}, initialState, calculated, storeCalculatedInState = true, DOMSourceName = 'DOM', stateSourceName = 'STATE', isolatedState = false, onError, debug = false}: ComponentOptions) {
     if (!sources || !isObj(sources)) fail('SYG601', name, 'Missing or invalid sources', 'Pass sources from run()')
 
     this._componentNumber = COMPONENT_COUNT++
@@ -1028,7 +1027,7 @@ class Component {
     for (const [field, { fn, deps }] of this._calculatedOrder) {
       // memoized on the declared deps; without deps, always recomputed
       const cache = deps && this._calculatedFieldCache?.[field]
-      const currentDepValues = cache && deps!.map(d => mergedState[d])
+      const currentDepValues: any = cache && deps!.map(d => mergedState[d])
       if (cache && cache.lastDepValues && currentDepValues.every((v: any, i: number) => v === cache.lastDepValues[i])) {
         computedSoFar[field] = mergedState[field] = cache.lastResult
         continue
