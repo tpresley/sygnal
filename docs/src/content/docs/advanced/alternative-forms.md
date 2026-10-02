@@ -16,6 +16,9 @@ Everything on this page works and is supported, but it is **not** the canonical 
 | [`CHILD.select('Name')`](#childselect-with-a-string) | `CHILD.select(ChildFn)` | SYG506 | yes, when the name is in scope |
 | [`return state` for "no change"](#returning-the-unchanged-state) | `return ABORT` | SYG502 | no |
 | [Side effect in a STATE reducer + `ABORT`](#side-effects-in-a-state-reducer) | `ACTION: { EFFECT: fn }` | SYG503 | no |
+| [`HTTP.select()`/`errors()` reading back your own request](#selecterrors-round-trip) | `{ url, ok: 'LOADED', error: 'FAILED' }` | SYG508 | no |
+| [Model-sent `{ connections }`](#model-sent-connections) | the `connections` static | — | no |
+| [`driverFromAsync` around `fetch`](#driverfromasync-for-http) | `makeFetchDriver()` | — | no |
 
 ## Model shorthand
 
@@ -163,3 +166,80 @@ PLAY: {
 ```
 
 See [Effect Handlers](/advanced/effect/).
+
+## select/errors round trip
+
+Before routed requests, a component tagged its request with a `category` and read the reply back in its own intent:
+
+```jsx
+// Alternative
+Quote.intent = ({ DOM, HTTP }) => ({
+  LOAD:   DOM.click('.get'),
+  LOADED: HTTP.select('quote'),
+  FAILED: HTTP.errors('quote'),
+})
+Quote.model = {
+  LOAD:   { HTTP: () => ({ category: 'quote', url: '/api/quote' }) },
+  LOADED: (state, { value }) => ({ ...state, quote: value }),
+  FAILED: (state, { status }) => ({ ...state, status }),
+}
+
+// Canonical
+Quote.intent = ({ DOM }) => ({ LOAD: DOM.click('.get') })
+Quote.model = {
+  LOAD:   { HTTP: () => ({ url: '/api/quote', ok: 'LOADED', error: 'FAILED' }) },
+  LOADED: (state, quote) => ({ ...state, quote }),        // the parsed body
+  FAILED: (state, { status }) => ({ ...state, status }),
+}
+```
+
+The routed form puts the request and the place its reply goes on one line, drops the category string and the intent lines, and delivers the reply to exactly the sending instance. Strict mode flags the round trip as [SYG508](/reference/errors/#syg508). `select()` and `errors()` remain valid, and are not flagged, for unrouted requests whose replies another component reads, for custom drivers that don't route, and for stream-level composition (combining replies with other streams in the intent). With `latest: true`, an unrouted request is superseded per category (`{ category, abort: true }` cancels), a routed one per key (`{ abort: 'LOADED' }`). See [HTTP](/guide/http/#unrouted-requests-select-and-errors).
+
+## Model-sent connections
+
+A model entry can send the `{ connections }` value to a `makeSocketDriver()` sink itself, instead of declaring a `connections` static:
+
+```jsx
+// Alternative
+Chat.model = {
+  JOIN: {
+    STATE: (state, room) => ({ ...state, room }),
+    WS:    (state, room) => ({ connections: { room: { socket: `/ws/rooms/${room}`, message: 'RECEIVED' } } }),
+  },
+  LEAVE: {
+    STATE: (state) => ({ ...state, room: null }),
+    WS:    () => ({ connections: {} }),
+  },
+}
+
+// Canonical
+Chat.connections = (state) => ({
+  room: state.room && { socket: `/ws/rooms/${state.room}`, message: 'RECEIVED' },
+})
+Chat.model = {
+  JOIN:  (state, room) => ({ ...state, room }),
+  LEAVE: (state) => ({ ...state, room: null }),
+}
+```
+
+The static is derived from state, so every action that changes the room keeps the connection right, and it is sent once at startup. Each `{ connections }` value is the instance's whole set, so **don't use both in one component**: the static and a model-sent value replace each other's connections. See [Sockets](/guide/sockets/).
+
+## driverFromAsync for HTTP
+
+`driverFromAsync` around `fetch` works, but it can't cancel a request, so it has no `latest` or abort-on-unmount, and every component re-implements status handling and parsing:
+
+```jsx
+// Alternative
+// main.js: run(App, { API: driverFromAsync(async (url) => (await fetch(url)).json()) })
+Quote.model = {
+  LOAD:   { API: (state) => ({ value: `/api/quotes/${state.id}`, ok: 'LOADED', error: 'FAILED' }) },
+}
+
+// Canonical
+// main.js: run(App, { HTTP: makeFetchDriver() })
+Quote.model = {
+  LOAD:   { HTTP: (state) => ({ url: `/api/quotes/${state.id}`, ok: 'LOADED', error: 'FAILED', latest: true }) },
+}
+```
+
+`makeFetchDriver()` also turns non-2xx responses into failures with `status` and `body`, handles timeouts, query strings and JSON bodies, and is faked in tests. Keep `driverFromAsync` for promise APIs that aren't HTTP. See [HTTP](/guide/http/).

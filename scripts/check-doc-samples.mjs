@@ -136,17 +136,11 @@ const diagnostics = JSON.parse(res.stdout)
 const byName = Object.fromEntries(samples.map(s => [s.name, s.id]))
 const where = d => byName[path.basename(d.file)] || d.file
 
-// Strict codes newer than the pages that still show the old form: listed (PENDING), not failed.
-// TODO(PLAN-3 4-A): remove SYG508 once the HTTP recipes in these files use routed requests.
-const PENDING = { SYG508: ['guide/drivers.md', 'llms.txt', 'skills/sygnal-dev/SKILL.md'] }
-const isPending = d => (PENDING[d.code] || []).some(page => where(d).startsWith(`${page}:`))
-const pending = diagnostics.filter(d => /^SYG5/.test(d.code) && isPending(d))
-const strict = diagnostics.filter(d => /^SYG5/.test(d.code) && !isPending(d))
+const strict = diagnostics.filter(d => /^SYG5/.test(d.code))
 const unparsable = diagnostics.filter(d => d.code === 'SYG900')
 const other = diagnostics.filter(d => !/^SYG5/.test(d.code) && d.code !== 'SYG900')
 
 for (const d of strict) console.log(`STRICT  ${where(d)} ${d.code} ${d.message}`)
-for (const d of pending) console.log(`PENDING ${where(d)} ${d.code} ${d.message}`)
 for (const h of patternHits) console.log(`PATTERN ${h.id} (+${h.line}) ${h.code} ${h.label}: ${h.text}`)
 for (const d of unparsable) console.log(`PARSE   ${where(d)} ${d.message}`)
 if (verbose) for (const d of other) console.log(`other   ${where(d)} ${d.code} [${d.severity}] ${d.message}`)
@@ -154,7 +148,7 @@ if (verbose) for (const id of skipped) console.log(`skip    ${id}`)
 
 const dirty = new Set([...strict.map(where), ...patternHits.map(h => h.id), ...unparsable.map(where)])
 console.log(`\n${samples.length} samples checked, ${samples.length - dirty.size} clean, ${skipped.length} skipped by marker; ` +
-  `${strict.length} strict findings (+${pending.length} pending), ${patternHits.length} pattern findings, ${unparsable.length} unparsable, ` +
+  `${strict.length} strict findings, ${patternHits.length} pattern findings, ${unparsable.length} unparsable, ` +
   `${other.length} non-strict findings (fragments; --verbose to list)`)
 if (outIdx < 0) fs.rmSync(outDir, { recursive: true, force: true })
 process.exit(strict.length || patternHits.length || unparsable.length ? 1 : 0)

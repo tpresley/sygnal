@@ -35,6 +35,7 @@ t.expectNoDiagnostics(); t.dispose()                // fails on any Sygnal warni
 - Positional views `function C(props, state)`: write `function C({ state, context, ...props })`.
 - `return state` (or returning nothing) for "no change": write `return ABORT`.
 - Side effects inside a STATE reducer or a view: use `ACTION: { EFFECT: (state, data, next) => { ... } }` or a driver.
+- `fetch` in a component or EFFECT, or `HTTP.select('x')` reading back your own request: register `run(App, { HTTP: makeFetchDriver() })` and name the reply actions, `LOAD: { HTTP: (state, id) => ({ url: '/api/items/' + id, ok: 'LOADED', error: 'FAILED' }) }` with `LOADED: (state, body) => ...` and `FAILED: (state, { status }) => ...`. Tests answer it with `await t.respond('HTTP', body, 'LOADED')`. WebSocket/SSE: a `connections` static with `makeSocketDriver()` (see llms.txt).
 
 ## Wiring rules that fail silently
 - A component's intent only sees its own JSX. A parent can't select `.remove` rendered by a child or a Collection item: handle it in the child and send it up with `PARENT` (parent: `CHILD.select(Child)`) or `EVENTS`.

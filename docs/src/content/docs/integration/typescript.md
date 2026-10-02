@@ -156,7 +156,7 @@ type CounterActions = ActionsOf<typeof counterIntent> & { SAVED: { id: string } 
 
 ### Routed requests
 
-The actions a [routed request](/guide/drivers/) names (`ok: 'LOADED'`, `error: 'FAILED'`) aren't produced by the intent either. Add them with their data: the `ok` action gets the parsed body (the type isn't inferred from the request, so name it), the `error` action a `FetchFailure` (`{ error, status?, body?, request }`):
+The actions a [routed request](/guide/http/) names (`ok: 'LOADED'`, `error: 'FAILED'`) aren't produced by the intent either. Add them with their data: the `ok` action gets the parsed body (the type isn't inferred from the request, so name it), the `error` action a `FetchFailure` (`{ error, status?, body?, request }`):
 
 ```tsx
 import type { Component, IntentSources, ActionsOf, FetchRequest, FetchSource, FetchFailure } from 'sygnal'
@@ -183,6 +183,8 @@ QuoteCard.model = {
 ```
 
 `ok` and `error` are typed as plain strings, so a request can be built in a helper without `as const`; a name with no model entry is caught by `sygnal-check` and the dev entry ([SYG112](/reference/errors/#syg112)), not by `tsc`. `then` / `catch` keys are type errors on these requests ([SYG610](/reference/errors/#syg610) at runtime). `{ abort: 'LOADED' }` cancels by action or key name.
+
+The actions of a [`connections`](/guide/sockets/) static are added the same way: `{ RECEIVED: Message; CONNECTED: SocketOpen; DROPPED: SocketClose }` (`SocketOpen`, `SocketClose`, `SocketError` and the `Connections` return type are exported from `sygnal`).
 
 `IntentSources<STATE, DRIVERS>` is the type of the object an intent receives: `DOM`, `STATE`, `EVENTS`, `CHILD`, `dispose$` and your custom drivers.
 

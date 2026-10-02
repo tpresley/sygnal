@@ -43,7 +43,6 @@ Less common features (Portals, Transitions, Suspense/lazy, Slots, forms, drag-an
 
 ```jsx
 import { ABORT } from 'sygnal'
-
 function Counter({ state, context, label }) {  // 1st arg: parent props + state, context, children, slots
   return (
     <div className="counter">
@@ -70,13 +69,12 @@ export default Counter
 - Reducer `(state, data, next, props)`. `data` is the action stream's value. `next('ACTION', data?, delayMs = 10)` dispatches another action of this component `delayMs` after the call, whenever it is called: also later, from a timer or callback (`EFFECT: (state, data, next) => { setTimeout(() => next('TICK'), 1000) }`). HTTP goes through `makeFetchDriver` (§3), not `fetch` + `next()`. `props` holds the parent's props plus `state`, `context`, `children`, `slots`.
 - Model entry: a function is the STATE reducer. An object `{ STATE, EVENTS, PARENT, EFFECT, LOG, <DRIVER>: fn }` maps each sink to a `(state, data, next, props)` function whose return value goes to that sink. `<SINK>: true` forwards `data` as-is.
 - **Every sink of one entry sees the state from before this action**: EVENTS, PARENT, EFFECT and drivers never see what STATE returns. Compute the new value from `(state, data)` inside the sink: `INC: { STATE: s => ({ ...s, n: s.n + 1 }), PARENT: s => ({ n: s.n + 1 }) }`.
-- Built-in actions (model only): `BOOTSTRAP` (once, just after mount), `INITIALIZE` (automatic: sets initialState), `HYDRATE` (SSR data), `DISPOSE` (unmount).
+- Built-in actions (model only): `BOOTSTRAP` (once, just after mount), `INITIALIZE` (automatic: sets initialState), `DISPOSE` (unmount). `HYDRATE` is not built in (6.0): SSR data comes from Vike `+data` / `hydrateState`.
 
 ## 3. Canonical examples
 ### State update, ABORT, set / toggle, controlled input
 ```jsx
 import { ABORT, set, toggle } from 'sygnal'
-
 function AddTodo({ state }) {
   return (
     <div>
@@ -107,7 +105,6 @@ AddTodo.model = {
 Siblings and distant components talk through EVENTS; a parent that owns the shared state can instead pass slices down (`state="key"`) and hear children via PARENT.
 ```jsx
 import { event } from 'sygnal'
-
 function SaveButton({ state }) {
   return <button className="save">{state.saving ? 'Saving' : 'Save'}</button>
 }
@@ -118,7 +115,6 @@ SaveButton.model = {
     EVENTS: event('DOC_SAVED', (state) => ({ id: state.id })),  // or event('RESET'), event('MODE', 'dark')
   },
 }
-
 function Toast({ state }) {   // anywhere in the tree: EVENTS is a global bus
   return <p className="toast">{state.lastSaved}</p>
 }
@@ -129,7 +125,6 @@ Toast.model = { SAVED: (state, payload) => ({ ...state, lastSaved: payload.id })
 ### Child → parent (PARENT + CHILD.select), Collection, item removal
 ```jsx
 import { Collection } from 'sygnal'
-
 function TaskItem({ state }) {
   return (
     <li className="task" data={{ id: state.id }}>
@@ -142,7 +137,6 @@ TaskItem.model = {
   PICK:   { PARENT: (state) => ({ taskId: state.id }) },   // the parent receives exactly this value
   REMOVE: () => undefined,                                   // a Collection item removes itself
 }
-
 function TaskList({ state }) {
   return (
     <div>
@@ -175,15 +169,12 @@ Full recipe: https://sygnal.js.org/guide/parent-child/#recipe-extract-a-componen
 ### Commands (parent → child) + EFFECT
 ```jsx
 import { createCommand } from 'sygnal'
-
 const player = createCommand()
-
 function Player({ state }) {
   return <div className="player">{state.playing ? 'playing' : 'paused'}</div>
 }
 Player.intent = ({ commands$ }) => ({ PLAY: commands$.select('play') })  // emits send()'s data
 Player.model = { PLAY: (state) => ({ ...state, playing: true }) }
-
 function Controls({ state }) {
   return <div><button className="play">Play</button><Player commands={player} state="player" /></div>
 }
@@ -191,34 +182,49 @@ Controls.initialState = { player: { playing: false } }
 Controls.intent = ({ DOM }) => ({ PLAY: DOM.click('.play') })
 Controls.model = { PLAY: { EFFECT: () => player.send('play') } }  // EFFECT: side effect only, returns nothing
 ```
-### HTTP (makeFetchDriver + errors()), latest response only
+### HTTP (makeFetchDriver + routed reply actions), latest response only
 ```jsx
 import { ABORT, debounce } from 'sygnal'
 function Search({ state }) {
   return <div><input className="q" value={state.query} /><p className="status">{state.status}</p><ul>{state.results.map(r => <li>{r.title}</li>)}</ul></div>
 }
 Search.initialState = { query: '', status: '', results: [] }
-Search.intent = ({ DOM, HTTP }) => ({
-  TYPE:    DOM.input('.q').value(),
-  SEARCH:  DOM.input('.q').value().compose(debounce(300)).filter(q => q !== ''),
-  RESULTS: HTTP.select('search'),  // 2xx only: { category, value (parsed body), status, request }
-  FAILED:  HTTP.errors('search'),  // non-2xx, network error, timeout: { error, category, request, status, body }
+Search.intent = ({ DOM }) => ({   // no intent line for the reply
+  TYPE:   DOM.input('.q').value(),
+  SEARCH: DOM.input('.q').value().compose(debounce(300)).filter(q => q !== ''),
 })
 Search.model = {
   TYPE: {
     STATE: (state, query) => (query === '' ? { ...state, query, status: '', results: [] } : { ...state, query }),
-    HTTP:  (state, query) => (query === '' ? { category: 'search', abort: true } : ABORT),  // clearing cancels the request in flight
+    HTTP:  (state, query) => (query === '' ? { abort: 'RESULTS' } : ABORT),   // clearing cancels the request in flight
   },
   SEARCH: {
     STATE: (state) => ({ ...state, status: 'Searching…' }),
-    HTTP:  (state, q) => ({ category: 'search', url: '/api/search', query: { q }, latest: true }),  // aborts older 'search' requests
+    HTTP:  (state, q) => ({ url: '/api/search', query: { q }, ok: 'RESULTS', error: 'FAILED', latest: true }),
   },
-  RESULTS: (state, { value }) => ({ ...state, status: '', results: value.results }),
-  FAILED:  (state, { status }) => ({ ...state, status: status === 404 ? 'Not found.' : 'Search failed.', results: [] }),
+  RESULTS: (state, body) => ({ ...state, status: '', results: body.results }),   // ok: the parsed body
+  FAILED:  (state, { status, error }) => ({ ...state, status: status === 404 ? 'Not found.' : 'Search failed.', results: [] }),
 }
 ```
-- main.js: `run(Search, { HTTP: makeFetchDriver() })` (import both from `'sygnal'`; options `baseUrl headers init timeoutMs`). Request: `{ url, category, query, json, body, method (POST with json/body, else GET), headers, latest, timeoutMs, parse: 'auto' | 'json' | 'text' | 'response', init: { credentials, mode, cache, ... } }`, or a URL string; other keys (an id) aren't sent and come back on `request`. Don't call `fetch` in a component, intent or EFFECT. With `latest: true` on the request (a newer request of the category from the same component instance aborts the older ones; their replies never arrive), `RESULTS`/`FAILED` need no request ids or stale checks. Each instance (two `<Search>`es, every Collection item) gets only its own replies. Guide: https://sygnal.js.org/guide/drivers/#http-requests-with-makefetchdriver
-- Other async work (no HTTP): `driverFromAsync(fn)`; a request `{ category, value }` calls `fn(value)`, the reply is `{ category, value: result }`, same `select`/`errors`. A driver is any function `sink$ => source`. Page-wide events: `DOM.select('document' | 'body').events(type)`, CSS-filtered with `DOM.select('document').select('.overlay').events('click')`.
+- main.js: `run(Search, { HTTP: makeFetchDriver() })` (options `baseUrl headers init timeoutMs`). Request: `{ url, ok, error, key, query, json, body, method, headers, latest, timeoutMs, init }` (POST with json/body). `ok` gets the parsed body; `error` gets `{ error, status, body, request }` (`status` undefined for a network error or timeout). The reply reaches exactly the sending instance. Never read your own request back with `HTTP.select`/`HTTP.errors` (SYG508) or use `then`/`catch` keys (SYG610: not sent); an `ok`/`error` name with no model entry is SYG112.
+- `latest: true`: a newer request with the same key (`key`, default the `ok` action) from the same instance aborts the older ones, whose replies never arrive (no request ids). `{ abort: 'RESULTS' }` cancels without sending. **Build the request from `(state, data)`**: sinks see the state before the action, so `SHOW: { STATE: (s, id) => ({ ...s, id }), HTTP: (s, id) => ({ url: '/api/q/' + id, ok: 'LOADED' }) }`, not `s.id`.
+- Other promise APIs: `driverFromAsync(fn)` routes the same way (`{ value, ok: 'DONE', error: 'FAILED' }` calls `fn(value)`). One-off async work: `EFFECT: async (state, data, next, { signal }) => { ...; next('DONE', r) }` (rejection: SYG214; no concurrency control). Page-wide events: `DOM.select('document' | 'body').events(type)`, CSS-filtered with `DOM.select('document').select('.overlay').events('click')`.
+### WebSocket / SSE (makeSocketDriver + connections)
+```jsx
+Chat.initialState = { room: 'general', status: 'connecting', messages: [] }
+Chat.connections = (state) => ({   // from state, diffed by name: new opens, falsy/removed closes, changed URL reconnects
+  room: state.room && { socket: `/ws/rooms/${state.room}`, message: 'RECEIVED', open: 'CONNECTED', close: 'DROPPED',
+    reconnect: { delayMs: 1000, maxDelayMs: 1000, jitter: false } },   // fixed 1 s retry (default: 500 ms doubling to 10 s)
+})
+Chat.model = {
+  SAY:       { WS: (state, text) => ({ to: 'room', json: { text } }) },                  // queued while (re)connecting
+  LEAVE:     (state) => ({ ...state, room: null, status: 'offline', messages: [] }),     // closes it: no DROPPED
+  RECEIVED:  (state, msg) => ({ ...state, messages: [...state.messages, msg] }),          // the JSON-parsed frame
+  CONNECTED: (state) => ({ ...state, status: 'online' }),                                 // { reconnected }
+  DROPPED:   (state, { willReconnect }) => ({ ...state, status: willReconnect ? 'reconnecting' : 'offline' }),
+}
+```
+- main.js: `run(Chat, { WS: makeSocketDriver() })`; without it the static opens nothing and nothing reports it. Spec: `socket` or `sse` (read-only; `events: { 'price-update': 'PRICE' }`), optional `message open close error` actions, `reconnect` (`false` = never), `share` (default: one socket per URL). `close` (`{ code, reason, willReconnect }`) fires only for drops the app didn't cause: leaving, a URL change and unmount close silently, so no connection ids. `{ to }` on an undeclared, closed or SSE connection is SYG611. Use the static, never also a model-sent `{ connections }`. Guide: https://sygnal.js.org/guide/sockets/
 
 ## 4. API facts
 - **Child props**: `<Rating name="food" value={state.food} />` → `function Rating({ state, name, value })`; reducers read `props.name` (4th arg); intent gets the `props$` stream. Reserved: `state` (lens: `"key"` or `{ get, set }`), `children`, `slots`, `context`, `peers` (SYG106; an error in strict mode). Without `state=` a child shares its parent's whole state.
@@ -240,10 +246,9 @@ Search.model = {
 | `takeUntil(b$)` | `.endWhen(b$)` | `tap(f)` | `.debug(f)` |
 | `catchError(f)` | `.replaceError(f)` | `shareReplay(1)` | `.remember()` |
 | `mergeMap(f)` | `.map(f).compose(flattenConcurrently)` | `concatMap(f)` | `.map(f).compose(flattenSequentially)` |
-(Last row: `import { flattenConcurrently, flattenSequentially, concat } from 'sygnal'`.)
 
 - **TypeScript**: `const intent = ({ DOM }: IntentSources<State>) => ({ ... })`, then `const C: Component<State, Props, {}, ActionsOf<typeof intent>, Calculated, Context, { PARENT: Payload }> = ({ state, context }) => ...` (root: `RootComponent<State, {}, Actions>`; unused parameters `{}`). Without `{ PARENT: Payload }` the parent's `CHILD.select(C)` is a `Stream<unknown>`. In JSX pass `state="slice"`, a lens, or nothing, plus the declared props. Register EVENTS names in `declare module 'sygnal' { interface SygnalEvents { DOC_SAVED: { id: string } } }` in a file that keeps `export {}` (without it the block replaces the 'sygnal' types: "has no exported member"): with an empty registry no event names are type-checked. Guide: https://sygnal.js.org/integration/typescript/
-- **Imports** (all from `'sygnal'`): `run ABORT set toggle event createCommand makeFetchDriver driverFromAsync xs debounce throttle delay dropRepeats sampleCombine classes processForm processDrag makeDragDriver Collection Switchable Portal Transition Slot Suspense lazy createRef createRef$ renderComponent renderToString`; types `Component RootComponent Lens`. Never import the JSX runtime by hand; the Vite plugin configures it.
+- **Imports** (all from `'sygnal'`): `run ABORT set toggle event createCommand makeFetchDriver makeSocketDriver driverFromAsync xs debounce throttle delay dropRepeats sampleCombine classes processForm processDrag makeDragDriver Collection Switchable Portal Transition Slot Suspense lazy createRef createRef$ renderComponent renderToString`; types `Component RootComponent Lens`. Never import the JSX runtime by hand; the Vite plugin configures it.
 
 ## 5. Wiring rules (silent failures, and what catches them)
 - **Selectors are scoped to the component's own JSX (the isolation trap).** A parent's `DOM.click('.remove')` never fires for `.remove` rendered by a child or a Collection item. Handle the event in the child and send it up with `PARENT` (read with `CHILD.select(Child)`) or `EVENTS`. Caught as SYG104; a selector the view never renders is SYG110.
@@ -263,6 +268,7 @@ Search.model = {
 | Any non-STATE sink | object form `ACTION: { SINK: fn }` | `'ACTION \| SINK'` shorthand keys (SYG504) |
 | Emit a global event | `EVENTS: event('TYPE', (state, data) => payload)` | `emit(...)`, raw `EVENTS: s => ({ type, data })` (SYG505) |
 | Child → parent | child `PARENT: fn`; parent `CHILD.select(ChildFn)` | `CHILD.select('ChildName')` (SYG506) |
+| HTTP reply | `HTTP: s => ({ url, ok: 'LOADED', error: 'FAILED' })` | `HTTP.select('cat')` / `errors('cat')` for your own request (SYG508); `fetch` in an EFFECT |
 | Top-down data | `.context` | drilling a prop through 3+ levels (SYG507) |
 | Parent → child call | `createCommand()` as a prop; child `commands$.select('name')` | — |
 
@@ -271,10 +277,8 @@ Search.model = {
 import { it, expect, afterEach } from 'vitest'
 import { renderComponent } from 'sygnal'
 import TaskList from './TaskList.jsx'
-
 let t
 afterEach(() => t?.dispose())
-
 it('picks, then removes a task', async () => {
   t = renderComponent(TaskList, { strict: true })   // also: initialState, drivers, mockConfig, diagnostics, timeoutMs, settleMs, eventWaitMs
   t.simulateEvent('.pick', 'click')                 // first match; bubbles; reaches child components too
@@ -292,7 +296,6 @@ it('picks, then removes a task', async () => {
 ```js
 beforeEach(() => vi.useFakeTimers())
 afterEach(() => { t?.dispose(); vi.useRealTimers() })
-
 it('searches once, 300 ms after the last keystroke', async () => {
   t = renderComponent(Search)                       // HTTP needs no driver in tests
   await t.ready()                                   // mount first, so the input is timed from here
@@ -301,20 +304,20 @@ it('searches once, 300 ms after the last keystroke', async () => {
   expect(t.requests('HTTP')).toHaveLength(0)
   await t.next(s => s.status === 'Searching…')      // advances to the debounce, no real wait
   expect(t.requests('HTTP')).toHaveLength(1)
-  t.respond('HTTP', { results: [{ title: 'Dune' }] })  // answers the pending request
-  await t.next(s => s.results.length === 1)
+  await t.respond('HTTP', { results: [{ title: 'Dune' }] }, 'RESULTS')  // delivered as RESULTS, then rendered
   expect(t.state.status).toBe('')
 })
 ```
-- `t.simulateAction('LOADED', data)` pushes an action straight into intent → model (all sinks run). Use it for actions without a DOM trigger. **Drivers need no wiring in tests**: a sink with no driver is recorded (`t.requests('HTTP')`), and its source is a fake: `t.respond('HTTP', body)` answers the newest pending request on `select()` (`{ category, value, status: 200, request }`; waits up to 1s for a debounced one), `t.fail('HTTP', 404 | error)` on `errors()`. Each send is its own request (a constant request object re-sent by a Retry after `t.fail` is pending again); requests superseded by `latest: true` or aborted aren't pending. Options: a category, or `{ category, request }`; answer each instance's request with `{ request: t.requests('HTTP')[i] }` (an object sent twice: its newest pending send). The fake can't see `makeFetchDriver({ latest: true })` from main.js: write `latest: true` on the request.
+- `t.simulateAction('LOADED', data)` pushes an action straight into intent → model (all sinks run). Use it for actions without a DOM trigger. **Drivers need no wiring in tests**: a sink with no driver is recorded (`t.requests('HTTP')`), and its source is a fake that routes like the real driver: `await t.respond('HTTP', body, 'RESULTS')` delivers `body` as the request's `ok` action, `await t.fail('HTTP', 404 | error, target?)` sends `{ error, status, body, request }` to its `error` action; both resolve once reduced and rendered. Target: an action or key name, a partial request (`{ url: '/items/2' }`), or a predicate; none = the newest pending. A superseded, aborted or answered request isn't pending: answering it **throws at the call** (`expect(() => t.respond('HTTP', {}, { query: { q: 'du' } })).toThrow()`); a call while earlier input is queued (a debounce) waits up to 1s instead. The fake can't see `makeFetchDriver({ latest: true })` from main.js: write `latest: true` on the request.
+- Sockets: a component with `connections` gets a fake `WS` (the real driver on in-memory sockets). Connections open by themselves (`renderComponent(C, { autoConnect: false })` holds them until `await t.open('WS')`). `await t.push('WS', { text: 'hi' })` = a server frame; `await t.drop('WS', { code: 1011 })` = a drop the app didn't make (retry on the test's timers: `await vi.advanceTimersByTimeAsync(1000)`); `t.sent('WS')` = the `{ to, json }` sent; `t.connections('WS')` = `{ name, url, state }`. TypeScript: `renderComponent` infers the state; in `beforeEach` declare `let t: RenderResult<State>`, not `any`.
 - With the Vite plugin, Vitest gets `sygnal/diagnostics` in its setupFiles automatically; otherwise `import 'sygnal/diagnostics'` in the test.
 - Real DOM state (`checked`, `value`, `disabled`, focus, refs): `renderComponent(C, { dom: 'real' })` in a jsdom test (`// @vitest-environment jsdom`, `npm i -D jsdom`), same `t.*` API in ONE suite (no separate `run()` + jsdom suite). `simulateEvent` then dispatches real events on any CSS selector (`{ value }` types, `'click'` toggles a checkbox/radio and skips disabled buttons, `'focus'`/`'blur'` move focus).
 - Assert on real elements: `expect(t.query('input[name="plan"]:checked').value).toBe('team')`, `t.query('.save').disabled`, `document.activeElement === t.query('input[name="city"]')`, `t.queryAll('.row')`. Every wait (`ready`, `next`, `waitForState`, `settle`) resolves once its state is in the DOM, so query right after the `await` (before the first render, `t.query` throws: `await t.ready()`). `await t.next(a); await t.next(b)` also sees a `b` that arrived while the DOM showed `a`.
 
 ## 8. Diagnostics and tools
 - Format: `[Sygnal SYG104] Lane: <what is wrong>. <how to fix> https://sygnal.js.org/reference/errors#syg104`. Severities error/warn/info. 1xx wiring, 2xx model/state, 3xx streams (SYG301: RxJS operator on an xstream stream), 4xx components (Collection, Switchable, context), 5xx strict, 6xx drivers and setup, 9xx internal.
-- `npx --no-install sygnal-check` runs the locally installed checker, never a download (a `create-sygnal-app` project already has the `sygnal-check` dev dependency; elsewhere `npm i -D sygnal-check`; still not installed? skip it and rely on the runtime diagnostics in the tests). It checks `src` statically; pass other paths instead, e.g. `npx --no-install sygnal-check pages --strict` (Vike). Use `--strict` for canonical forms, `--fix` to apply the mechanical rewrites (implies `--strict`), and `--json` / `--verbose` for output. `npx --no-install sygnal-check explain SYG104` explains a code and its fix. Suppress one line with `// sygnal-ignore SYG110`.
-- App graph: `npx --no-install sygnal-check --graph --json` (static), `t.inspect()` (test), `getDevTools().inspect()` (running dev app). All return the same `InspectGraph`: components, actions and their triggers, selectors (`matched`, `isolationHit`), EVENTS emitters/selectors, diagnostics.
+- `npx --no-install sygnal-check` runs the locally installed checker, never a download (see §1 if it is missing). It checks `src` statically; pass other paths instead, e.g. `npx --no-install sygnal-check pages --strict` (Vike). Use `--strict` for canonical forms, `--fix` to apply the mechanical rewrites (implies `--strict`), and `--json` / `--verbose` for output. `npx --no-install sygnal-check explain SYG104` explains a code and its fix. Suppress one line with `// sygnal-ignore SYG110`.
+- App graph (`InspectGraph`): `npx --no-install sygnal-check --graph --json`, `t.inspect()`, or `getDevTools().inspect()` in a running dev app (see the debugging loop, §1).
 - Vite plugin in dev (`vite`, never `vite build`): runtime checks print warnings to the console; when `sygnal-check` is installed, the plugin also runs it on start and on every save. Stricter: `sygnal({ diagnostics: { mode: 'error', strict: true }, check: { strict: true } })`.
 - Without the plugin: `run(App, drivers, { diagnostics: 'warn' })` and `import 'sygnal/diagnostics'` for the full checks. Runtime strict: `run(App, drivers, { diagnostics: { strict: true } })`, `configureStrict(true)` from `'sygnal/diagnostics'`, or `renderComponent(C, { strict: true })` (all need `'sygnal/diagnostics'`).
 
@@ -327,14 +330,12 @@ my-app/  index.html (<div id="root"></div>, <script type="module" src="/src/main
 // vite.config.js: the plugin sets up JSX, HMR, dev diagnostics and Vitest
 import { defineConfig } from 'vite'
 import sygnal from 'sygnal/vite'
-
 export default defineConfig({ plugins: [sygnal()] })
 ```
 ```js
 // src/main.js
 import { run } from 'sygnal'
 import App from './App.jsx'
-
 run(App)   // mounts on #root; pass drivers as the 2nd argument
 ```
 Conventions: PascalCase component files, ALL_CAPS action names, `$` suffix for streams, class-name selectors, `classes()` for conditional class names, root state in one `initialState`, `state="key"` to give a child a slice.

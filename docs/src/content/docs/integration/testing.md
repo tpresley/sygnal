@@ -264,7 +264,7 @@ A driver you pass in `drivers` still wins: it receives the values (and `sinkValu
 
 ### Answering requests: respond() and fail()
 
-The source of a driver you don't pass is a fake you answer from the test, so a component that uses [`makeFetchDriver()`](/guide/drivers/#http-requests-with-makefetchdriver) (or any `driverFromAsync` driver) needs no driver wiring in tests. The fake routes replies like the real driver: a request that names `ok` / `error` actions gets its reply as that action, on exactly the component instance that sent it.
+The source of a driver you don't pass is a fake you answer from the test, so a component that uses [`makeFetchDriver()`](/guide/http/) (or any `driverFromAsync` driver) needs no driver wiring in tests. The fake routes replies like the real driver: a request that names `ok` / `error` actions gets its reply as that action, on exactly the component instance that sent it.
 
 ```jsx
 function Quote({ state }) {
