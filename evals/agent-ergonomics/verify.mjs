@@ -19,6 +19,7 @@ import path from 'node:path'
 import {
   ARMS, EVAL_ROOT, REPO_ROOT, armPaths, listTasks, resolveTask, parseArgs, copyDir, npm,
   packSygnal, installHidden, applySolution, runHidden, leakCheck, readJson,
+  TS_EXTRA_DEV_DEPENDENCIES, isTsStarter,
 } from './lib/common.mjs'
 
 const args = parseArgs(process.argv.slice(2))
@@ -39,8 +40,10 @@ if ((work + path.sep).startsWith(REPO_ROOT + path.sep) || (work + path.sep).star
   process.exit(2)
 }
 
+const sortKeys = (o) => Object.fromEntries(Object.entries(o || {}).sort(([a], [b]) => a.localeCompare(b)))
+
 function sameDeps(a, b) {
-  return JSON.stringify(a || {}) === JSON.stringify(b || {})
+  return JSON.stringify(sortKeys(a)) === JSON.stringify(sortKeys(b))
 }
 
 /** Install one shared node_modules per arm at <work>/<arm>; task copies live beneath it. */
@@ -48,29 +51,34 @@ function prepareArm(arm) {
   const armDir = path.join(work, arm)
   fs.mkdirSync(armDir, { recursive: true })
   const tasks = listTasks(arm)
-  const starterPkgs = tasks.map((t) => readJson(path.join(armPaths(arm).tasks, t, 'starter', 'package.json')))
+  const starterDirs = tasks.map((t) => path.join(armPaths(arm).tasks, t, 'starter'))
+  const starterPkgs = starterDirs.map((d) => readJson(path.join(d, 'package.json')))
+  // TypeScript starters (tasks 18+) carry the arm's JS dependency set plus TS_EXTRA_DEV_DEPENDENCIES.
+  const tsExtra = TS_EXTRA_DEV_DEPENDENCIES[arm]
+  const expectedDev = (i, base) => (isTsStarter(starterDirs[i]) ? { ...base, ...tsExtra } : base)
   let pkg
   if (arm === 'sygnal') {
     const tarball = args.tarball ? path.resolve(args.tarball) : packSygnal(path.join(work, 'pack'), { build: !!args.build })
+    const j = starterDirs.findIndex((d) => !isTsStarter(d))
     for (const [i, p] of starterPkgs.entries()) {
-      if (!sameDeps(p.devDependencies, starterPkgs[0].devDependencies) || !sameDeps(p.dependencies, starterPkgs[0].dependencies)) {
-        throw new Error(`Starter deps differ between ${tasks[0]} and ${tasks[i]}; keep them identical`)
+      if (!sameDeps(p.devDependencies, expectedDev(i, starterPkgs[j].devDependencies)) || !sameDeps(p.dependencies, starterPkgs[j].dependencies)) {
+        throw new Error(`Starter deps differ between ${tasks[j]} and ${tasks[i]}; keep them identical (TS starters: plus TS_EXTRA_DEV_DEPENDENCIES)`)
       }
     }
     pkg = {
       name: 'verify-sygnal', private: true, type: 'module',
-      dependencies: { ...starterPkgs[0].dependencies, sygnal: `file:${tarball}` },
-      devDependencies: starterPkgs[0].devDependencies,
+      dependencies: { ...starterPkgs[j].dependencies, sygnal: `file:${tarball}` },
+      devDependencies: { ...starterPkgs[j].devDependencies, ...tsExtra },
     }
     console.log(`sygnal tarball: ${tarball}`)
   } else {
     const canonical = readJson(path.join(EVAL_ROOT, 'react', 'package.json'))
     for (const [i, p] of starterPkgs.entries()) {
-      if (!sameDeps(p.dependencies, canonical.dependencies) || !sameDeps(p.devDependencies, canonical.devDependencies)) {
-        throw new Error(`react/tasks/${tasks[i]}/starter/package.json deps differ from react/package.json`)
+      if (!sameDeps(p.dependencies, canonical.dependencies) || !sameDeps(p.devDependencies, expectedDev(i, canonical.devDependencies))) {
+        throw new Error(`react/tasks/${tasks[i]}/starter/package.json deps differ from react/package.json (TS starters: plus TS_EXTRA_DEV_DEPENDENCIES)`)
       }
     }
-    pkg = { name: 'verify-react', private: true, type: 'module', dependencies: canonical.dependencies, devDependencies: canonical.devDependencies }
+    pkg = { name: 'verify-react', private: true, type: 'module', dependencies: canonical.dependencies, devDependencies: { ...canonical.devDependencies, ...tsExtra } }
   }
   fs.writeFileSync(path.join(armDir, 'package.json'), JSON.stringify(pkg, null, 2))
   console.log(`installing ${arm} deps in ${armDir} ...`)

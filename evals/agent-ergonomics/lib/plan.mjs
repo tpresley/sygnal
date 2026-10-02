@@ -2,19 +2,21 @@
 //
 // Tasks are read from the task catalog (tasks/NN-slug, react/tasks/NN-slug), so
 // new tasks are picked up without code changes. Tiers are number ranges:
-// tier1 = 01-08, tier2 = 09-12, tier3 = 13 and up.
+// tier1 = 01-08, tier2 = 09-12, tier3 = 13-17, ts = 18-21 (TypeScript variants of
+// 02, 03, 09 and 12; PLAN-2 E10). A new tier-3 task needs its range widened here.
 
 export const TIERS = {
   tier1: (n) => n >= 1 && n <= 8,
   tier2: (n) => n >= 9 && n <= 12,
-  tier3: (n) => n >= 13,
+  tier3: (n) => n >= 13 && n <= 17,
+  ts: (n) => n >= 18 && n <= 21,
 }
 
 const taskNum = (t) => Number(String(t).slice(0, 2))
 const pad = (n) => String(n).padStart(2, '0')
 
 /**
- * Which task numbers a --tasks spec selects: "all", "tier1".."tier3", "03",
+ * Which task numbers a --tasks spec selects: "all", "tier1".."tier3", "ts", "03",
  * "01-05", or a comma list of these. Returns a predicate over task numbers.
  */
 export function taskSelector(spec = 'all') {
@@ -30,7 +32,7 @@ export function taskSelector(spec = 'all') {
     }
     m = p.match(/^(\d{1,2})(?:-[a-z][\w-]*)?$/)
     if (m) return (n) => n === Number(m[1])
-    throw new Error(`Bad --tasks entry "${p}" (use all, tier1|tier2|tier3, 03, 01-05, or a comma list)`)
+    throw new Error(`Bad --tasks entry "${p}" (use all, tier1|tier2|tier3|ts, 03, 01-05, or a comma list)`)
   })
   return (n) => preds.some((f) => f(n))
 }
