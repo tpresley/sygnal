@@ -181,6 +181,42 @@ expect(t.emitted).toEqual([])
 - The options `settleMs` (20), `eventWaitMs` (300, how long `simulateEvent` waits for its element) and `timeoutMs` (2000) change these; see [Options](#options).
 - The mock DOM finds `<Portal>` content as if it were rendered in place, which is more lenient than a real DOM, where portal content is outside the component's event scope.
 
+### Fake timers
+
+Tests of `debounce`, `throttle`, `delay`, `xs.periodic` or a model `next('X', data, ms)` don't need to wait out the real delay. `renderComponent` works with Vitest's `vi.useFakeTimers()` (and Jest's modern fake timers):
+
+```jsx
+import { it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { renderComponent } from 'sygnal'
+import Search from './Search.jsx'
+
+let t
+beforeEach(() => vi.useFakeTimers())
+afterEach(() => {
+  t?.dispose()
+  vi.useRealTimers()
+})
+
+it('updates the query at once and searches 300 ms after the last keystroke', async () => {
+  t = renderComponent(Search)
+  await t.ready()                          // mount first, so the input below is timed from here
+  for (const q of ['d', 'du', 'dune']) {
+    t.simulateEvent('.q', 'input', { value: q })
+    await vi.advanceTimersByTimeAsync(50)
+  }
+  await vi.advanceTimersByTimeAsync(249)   // 299 ms after the last keystroke
+  expect(t.states.at(-1).status).toBe('idle')
+  await t.next(s => s.status === 'searching')   // advances the clock to the debounce
+  expect(t.html()).toContain('Searching')
+})
+```
+
+- While fake timers are installed, `ready()`, `next()`, `waitForState()` and `settle()` advance the fake clock themselves, timer by timer, until they resolve, so they never wait in real time. They advance it only as far as they would take in real time: to the timer that produces the state, plus the few milliseconds of the render quiet window.
+- Use `vi.advanceTimersByTimeAsync(ms)` (the async form, so promises run between timers) to move the clock by hand, e.g. to check that nothing happened yet. Views render 1 ms after a state change, so read `t.html()` after a `t.next()`/`t.settle()`, not straight after advancing the clock.
+- `await t.ready()` before timing-sensitive input: the component mounts in about 15 ms of clock time, and input sent before that is delivered when it is ready.
+- Timeouts are clock time too: a wait that never matches fails at once in real time with the usual timeout error. A model `next('X', data, 5000)` needs `t.next(pred, 6000)` (or the `timeoutMs` option), as with real timers.
+- Keep the defaults for what is faked: faking `queueMicrotask` or `nextTick` stops the state pipeline. Waits that need real I/O (a real request, a dynamic `import()`) don't progress on a fake clock; test those with real timers.
+
 ## Reading Output
 
 | Helper | Returns |

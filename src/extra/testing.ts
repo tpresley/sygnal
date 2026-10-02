@@ -102,6 +102,10 @@ import type {InspectGraph} from './diagnostics/checks/public';
  *   reducer, state or input happened anywhere for 10ms (checked twice; capped at
  *   250ms). Child renders are seen through the onRender diagnostics hook.
  * - dispose() fires the component's DISPOSE action via sinks.__dispose.
+ * - E11: fake timers (vi.useFakeTimers(), Jest's modern timers). The harness's own timers are
+ *   faked with the app's, and its time is the clock's (clockNow). ready()/next()/
+ *   waitForState()/settle() drive the clock (drive(): nextAsync until the wait settles), so
+ *   they resolve without the test advancing it; their timeouts are clock time.
  * - SYG103/104: the mock DOM source reports each events() call (selector path,
  *   isolation scopes included as '.___scope'); a diagnostics check's onIntent
  *   maps each component's innermost scope to its name. The nearest '.___'
@@ -464,6 +468,32 @@ const RESERVED_SINKS = /^(STATE|EFFECT|PARENT|READY|DOM)$/;
 // R2-5: setTimeout fires at once for a delay above 2^31-1 ms (and for Infinity/NaN)
 const MAX_MS = 2147483647;
 const validMs = (v: any) => typeof v == 'number' && Number.isFinite(v) && v >= 0 && v <= MAX_MS;
+// E11: fake timers. vi.useFakeTimers() (and Jest's modern timers) install @sinonjs/fake-timers,
+// which puts its clock on the faked setTimeout. The harness's own timers then run on that clock
+// too, so its time is the clock's (Date may be left real by `toFake`), and its waits drive it.
+const fakeClock = (): any => (setTimeout as any).clock;
+const clockNow = (): number => { const c = fakeClock(); return c ? c.now : Date.now(); };
+/**
+ * Under fake timers, advance the clock timer by timer (nextAsync flushes promises around each
+ * one) until `p` settles. Every pending wait has a timer (its timeout, a quiet-window tick), so
+ * this ends; with no timer left it stops and leaves `p` to the test. Real timers: `p` as is.
+ */
+const drive = <T>(p: Promise<T>, stop: () => boolean): Promise<T> => {
+  const clock = fakeClock();
+  if (!clock) return p;
+  let settled = false;
+  p.then(() => { settled = true; }, () => { settled = true; });
+  return (async () => {
+    while (!settled && !stop() && fakeClock() === clock) {
+      if (!clock.countTimers()) {
+        await clock.nextAsync(); // one more flush: a microtask may schedule one
+        if (!clock.countTimers()) break;
+      }
+      await clock.nextAsync();
+    }
+    return p;
+  })();
+};
 let savedConfig: ReturnType<typeof _getDiagnosticsConfig>;
 let savedStrict: any;
 
@@ -522,8 +552,8 @@ export function renderComponent(
   };
   // G-047: activity anywhere in the tree (any component's render/reducer, state, input), for
   // the "the full tree has rendered" / settle() quiet windows
-  let activity = 0, lastActivity = Date.now();
-  const bump = () => { activity++; lastActivity = Date.now(); };
+  let activity = 0, lastActivity = clockNow();
+  const bump = () => { activity++; lastActivity = clockNow(); };
   const mine = (c: any) => c?.sources?.[c.DOMSourceName || 'DOM']?._hub === hub.$;
   // G-053: model next() calls of the tree's components (for the timeout explanations)
   type Scheduled = {type: string; delay: number; at: number; due: number; by: string};
@@ -553,7 +583,7 @@ export function renderComponent(
     c.log = function (this: any, msg: any, now?: boolean) {
       const m = now && typeof msg == 'string' && msg.match(NEXT_LOG);
       if (m) {
-        const at = Date.now();
+        const at = clockNow();
         if (scheduled.length > 50) scheduled.splice(0, scheduled.length - 50);
         scheduled.push({type: m[1], delay: +m[2], at, due: at + +m[2], by: c.name});
       }
@@ -778,8 +808,8 @@ export function renderComponent(
     if (!isReady || disposed) return;
     while (inputs.length) {
       const head = inputs[0];
-      head.until = head.until || Date.now() + eventWaitMs;
-      if (!head.go(Date.now() >= head.until)) return retry(5);
+      head.until = head.until || clockNow() + eventWaitMs;
+      if (!head.go(clockNow() >= head.until)) return retry(5);
       inputs.shift();
       bump();
     }
@@ -811,7 +841,7 @@ export function renderComponent(
     const id = ++arming;
     cursorUsed = false;
     readyPromise.then(() => setTimeout(() => { if (id == arming && !cursorUsed) cursor = undefined; }));
-    return readyPromise;
+    return drive(readyPromise, () => disposed);
   };
   const later = (go: Input['go'], missing?: Input['missing']) => { cursor = undefined; inputs.push({go, missing}); pump(); };
 
@@ -843,12 +873,12 @@ export function renderComponent(
    * goes quiet): false.
    */
   const quiesce = async (n: number, quiet: number, cap: number, busy = () => false): Promise<boolean> => {
-    const start = Date.now();
+    const start = clockNow();
     let seen = -1;
     while (!disposed) {
-      const idle = Date.now() - lastActivity;
-      if (Date.now() - start > cap) return false;
-      if ((!sinks.DOM || renderedUpTo >= n || Date.now() - start > 100) && idle >= quiet && !busy()) {
+      const idle = clockNow() - lastActivity;
+      if (clockNow() - start > cap) return false;
+      if ((!sinks.DOM || renderedUpTo >= n || clockNow() - start > 100) && idle >= quiet && !busy()) {
         if (seen === activity) return true;
         seen = activity;
         await tick(3);
@@ -897,7 +927,7 @@ export function renderComponent(
     const sel = page ? [] : parse(text);
     // nothing pending and the tree is quiet (as settle() would see it): fail at the call
     if (!page && !allowMissing && isReady && !inputs.length && vtree && renderedUpTo >= states.length &&
-        Date.now() - lastActivity >= settleMs && !find(vtree, sel)) {
+        clockNow() - lastActivity >= settleMs && !find(vtree, sel)) {
       throw noMatch(selector, type, false);
     }
     later(last => {
@@ -1005,7 +1035,7 @@ export function renderComponent(
         error: (err: any) => fail(err),
         complete: () => fail(new Error(`${name}: state stream completed without matching`)),
       };
-      const start = Date.now();
+      const start = clockNow();
       const timer = setTimeout(() => {
         let msg = `${name} timed out after ${timeoutMs}ms.`;
         const [why, pending] = explainNext(start);
@@ -1030,7 +1060,7 @@ export function renderComponent(
    * pending): an explanation for a timeout, and whether one is still pending.
    */
   const explainNext = (start: number): [string, boolean] => {
-    const now = Date.now(), byKey = new Map<string, Scheduled & {n: number}>();
+    const now = clockNow(), byKey = new Map<string, Scheduled & {n: number}>();
     for (const s of scheduled) {
       if (s.due <= now && s.at < start) continue;
       const k = s.by + '\u0000' + s.type;
@@ -1050,21 +1080,21 @@ export function renderComponent(
   const waitForState = (predicate: (state: any) => boolean, timeoutMs: number = defaultTimeout) => {
     checkMs('waitForState', timeoutMs);
     cursor = undefined;
-    return waitMatch(0, predicate, timeoutMs, 'waitForState');
+    return drive(waitMatch(0, predicate, timeoutMs, 'waitForState'), () => disposed);
   };
   const next = (predicate: (state: any) => boolean = () => true, timeoutMs: number = defaultTimeout) => {
     checkMs('next', timeoutMs);
-    if (cursor === undefined || (cursor < 0 && !isReady)) return waitMatch(states.length, predicate, timeoutMs, 'next');
+    if (cursor === undefined || (cursor < 0 && !isReady)) return drive(waitMatch(states.length, predicate, timeoutMs, 'next'), () => disposed);
     const id = arming;
     cursorUsed = true;
     const p = waitMatch(cursor < 0 ? readyAt : cursor, predicate, timeoutMs, 'next');
     // the first next() from the cursor to resolve disarms it (sequential next() calls move on)
     p.then(() => { if (id == arming) cursor = undefined; }, noop);
-    return p;
+    return drive(p, () => disposed);
   };
   const settle = (timeoutMs: number = defaultTimeout): Promise<void> => {
     checkMs('settle', timeoutMs);
-    return settleWait(timeoutMs);
+    return drive(settleWait(timeoutMs), () => disposed);
   };
   const settleWait = (timeoutMs: number): Promise<void> => new Promise((resolve, reject) => {
     cursor = undefined;
@@ -1072,7 +1102,7 @@ export function renderComponent(
     if (f) return reject(f);
     const done = (e?: Error) => { waiters.delete(done); e ? reject(e) : resolve(); };
     waiters.add(done);
-    const start = Date.now();
+    const start = clockNow();
     (async () => {
       await Promise.race([readyPromise, tick(timeoutMs)]);
       if (!await quiesce(states.length, settleMs, timeoutMs, () => !isReady || inputs.length > 0)) {
