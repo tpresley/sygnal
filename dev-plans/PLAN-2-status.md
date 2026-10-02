@@ -14,7 +14,7 @@ Tracks progress for [PLAN-2.md](PLAN-2.md). Maintained by the coordinator. The P
 | 1 — Correctness backlog | ✅ Done | `plan2-phase1` | 1-A…1-F ✅ · 1-T trim ✅ · review: 6 findings + 2 notes, all fixed in 1-R · kanban 41,803 B (2 B headroom) |
 | 2 — Known ergonomics improvements | ✅ Done | `plan2-phase2` | 2-A ✅ · 2-B ✅ · 2-C ✅ · 2-D ✅ · review: 9 findings, all fixed in 2-R · targeted eval: task 08 41.8 → 27.0 s (gap 20.8 → 6.0 s), 10 −7.5 s, 11 unchanged (`results/P2-TARGETED.md`) |
 | 3 — Experiments | ✅ Decided | `plan2-phase3` | 3-H ✅ · eval chain running (12 runs, ~700 trials) · E4 🔵 (prototype ready, eval pending 3-H) · E5 🔵 (variants ready, eval pending 3-H) · E11 🔵 (prototype ready, eval pending 3-H) · E2+E3 🟡 |
-| 4 — Adopt, measure, release | 🟡 In progress | — | 3-F ✅ · E11, E2, E4 merged (coordinator) · 4-A1 🟡 (E4 waits, skill adaptations, `t.state`, docs pass) · 4-E ✅ · E10 TS tasks 🟡 · E7 Haiku: interrupted at 19/160 (external SIGTERM), resume later |
+| 4 — Adopt, measure, release | 🟡 In progress | — | 3-F ✅ · E11, E2, E4 merged (coordinator) · 4-A1 ✅ · 4-B final eval 🟡 · Phase 4 review 🟡 · 4-E ✅ · E10 TS tasks 🟡 · E7 Haiku: interrupted at 19/160 (external SIGTERM), resume later |
 
 Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ done · 🔴 blocked
 
@@ -153,10 +153,11 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | G-122 | Phase 3 eval | med | `initContext()` | `.context` reading a `calculated` field lags one update in Collection items (reads `currentState` before calculated fields are recomputed); caused e9-no-test 04-t3 failure; 5 more task-04 trials spent time on it | Open → 3-F |
 | G-123 | Phase 3 eval | med (eval) | Eval starters | Starters lack sygnal-check while the skill says to run it: 68/85 control trials hit "npx canceled due to missing packages" (≈2 s each) | ✅ 4-E (starter v2) |
 | G-124 | Phase 3 eval | low (eval) | Hidden tests | Task 16 hidden test finds "Place order" text in a code comment (p3-control 16-t4, e5-lean 16-t4 failures) | ✅ 4-E (re-score: p3-control 16-t4 and e5-lean 16-t4 pass) |
-| G-125 | Phase 3 eval | med | Testing API | Agents guess `t.state` (doesn't exist): 2 control trials, 12–13 per lean-skill run; also `t.html()` before the first render gives `''` | Open → Phase 4 candidate (add `t.state` getter?) |
+| G-125 | Phase 3 eval | med | Testing API | Agents guess `t.state` (doesn't exist): 2 control trials, 12–13 per lean-skill run; also `t.html()` before the first render gives `''` | ✅ 4-A1 (`t.state` getter; `t.html()` before the first render throws naming `await t.ready()`) |
 | G-126 | Merges | low | Tests | Timing flakes under heavy machine load (load avg ~75 with evals + agents): g106 Vike settle (fixed: ≥ 60 ms then stable DOM), and one-off failures in different files per run | Partly fixed; 4-A1 told to make waits condition-based |
 | G-127 | Phase 4 | med (process) | Environment | Some process sent SIGTERM to the user's terminal eval (E7 Haiku, 141 trials not run) and earlier to vitest runs; agents told never to kill processes by name | Open (watch) |
 | G-128 | 4-E | low (eval) | Task 06 | The 06 reference solution reports SYG502 under `sygnal-check --strict`; with sygnal-check now in the starters, agents may chase it | Open |
+| G-129 | 4-A1 | low | Testing | Mock mode keeps the old "`await t.next(a); await t.next(b)` misses a b that arrived during a's quiet window"; real mode now starts after the returned state. Recommend the same in mock mode | Open → Phase 4 review/fix |
 | G-076 | 5.4.0 release | low | browser-tests | The browser run prints expected console errors from error-path tests, which look like failures | ✅ 1-E (whitelist updated for SYG405 at the 1-B merge) |
 
 ## Worktree Setup (each subagent, inside its own isolated worktree)
@@ -180,6 +181,7 @@ gzip -c /tmp/kb/assets/index-*.js | wc -c      # budget 41,805 B
 
 ## Activity Log
 
+- 2026-10-02 — 4-A1 merged: E4 real-mode waits resolve after the DOM patch (held renders; `ready()` after first patch), E5 facts in SKILL.md + llms.txt, `component-patterns.md` deleted, MCP out of agent docs, `t.state`, `t.html()` before render throws; 3 flaky tests made condition-based. Gate green (1059 vitest, 123 browser, 41,934 B, llms.txt 234). 4-B final eval + Phase 4 review started.
 - 2026-10-02 — 4-E merged: starter v2 (Sygnal arm: vendored sygnal-check + AGENTS.md/CLAUDE.md; recorded as `starterVersion`; `baseline-5.4.0` and e1-* pinned to v1), G-124 fixed (task 16/08 checks ignore comments), G-125 analyzer entries. 96 harness tests.
 - 2026-10-02 — 3-F merged (Switchable PARENT + stuck pages, context lag; +111 B). Coordinator merged adopted E11 and E2 (conflicts in testing.ts/llms.txt/SKILL.md resolved; llms.txt held at 250) and E4 (5 testing.ts conflicts, both sides kept). Gate green at 1050 vitest / 123 browser / 41,934 B. 4-A1 launched. E7 Haiku run killed externally at 19/160.
 - 2026-10-02 — D53 adoption decisions; Phase 3 tagged `plan2-phase3`. 3-F (Switchable/context bugs) running; 4-E eval fixes, E10 TS tasks, E7 Haiku run started; 4-A1 integration follows 3-F.
