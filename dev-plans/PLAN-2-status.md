@@ -14,7 +14,7 @@ Tracks progress for [PLAN-2.md](PLAN-2.md). Maintained by the coordinator. The P
 | 1 — Correctness backlog | ✅ Done | `plan2-phase1` | 1-A…1-F ✅ · 1-T trim ✅ · review: 6 findings + 2 notes, all fixed in 1-R · kanban 41,803 B (2 B headroom) |
 | 2 — Known ergonomics improvements | ✅ Done | `plan2-phase2` | 2-A ✅ · 2-B ✅ · 2-C ✅ · 2-D ✅ · review: 9 findings, all fixed in 2-R · targeted eval: task 08 41.8 → 27.0 s (gap 20.8 → 6.0 s), 10 −7.5 s, 11 unchanged (`results/P2-TARGETED.md`) |
 | 3 — Experiments | ✅ Decided | `plan2-phase3` | 3-H ✅ · eval chain running (12 runs, ~700 trials) · E4 🔵 (prototype ready, eval pending 3-H) · E5 🔵 (variants ready, eval pending 3-H) · E11 🔵 (prototype ready, eval pending 3-H) · E2+E3 🟡 |
-| 4 — Adopt, measure, release | 🟡 In progress | — | 3-F ✅ · E11, E2, E4 merged (coordinator) · 4-A1 ✅ · 4-B final eval 🟡 · Phase 4 review ✅ (11 findings) → 4-R ✅ (merge held until 4-B ends) · 4-E ✅ · E10 ✅ (merge held until the 4-B chain ends) · 4-T typed links 🟡 · E7 Haiku: interrupted at 19/160 (external SIGTERM), resume later |
+| 4 — Adopt, measure, release | ✅ Done (release held open, D56) | — | 3-F ✅ · E11, E2, E4 merged (coordinator) · 4-A1 ✅ · 4-B final eval 🟡 · Phase 4 review ✅ (11 findings) → 4-R ✅ (merge held until 4-B ends) · 4-E ✅ · E10 ✅ (merge held until the 4-B chain ends) · 4-T typed links 🟡 · E7 Haiku: interrupted at 19/160 (external SIGTERM), resume later |
 
 Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ done · 🔴 blocked
 
@@ -177,6 +177,9 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | G-137 | p4-final | med | Testing | `t.html()` escapes `'` as `&#39;` in text (SSR escapeHtml); 4 failed runs | ✅ 4-F (`dd472a5`) |
 | G-138 | p4-final | low | AGENTS.md | The recipe pipes test output through `tail`, cutting the error; ~7 extra reruns | ✅ 4-F (`dd472a5`) |
 | G-139 | cleanup | low | Tests | `test/g106-vike-shell-state.test.js` still flakes occasionally under heavy load (hydrate + navigation case), despite the ≥ 60 ms + stable-DOM settle; passes alone | Open |
+| G-140 | REPORT-v2 | med | Testing | `t.respond`/`t.fail` on a superseded/non-pending request return void and fail asynchronously, so `toThrow()`/`.rejects` asserts fail (4/5 task-11 trials) | Open → follow-up |
+| G-141 | REPORT-v2 | low | Testing | `t.requests('HTTP')` includes `{ abort: true }` commands (4/5 task-17 trials asserted an empty list) | Open → follow-up |
+| G-142 | REPORT-v2 | med | Types | `renderComponent`/`RenderResult` aren't generic in the state type → `let t: any` and TS7006 in `t.next(s => …)`; top TS error on Opus and Haiku | Open → follow-up |
 | G-076 | 5.4.0 release | low | browser-tests | The browser run prints expected console errors from error-path tests, which look like failures | ✅ 1-E (whitelist updated for SYG405 at the 1-B merge) |
 
 ## Worktree Setup (each subagent, inside its own isolated worktree)
@@ -200,6 +203,7 @@ gzip -c /tmp/kb/assets/index-*.js | wc -c      # budget 41,805 B
 
 ## Activity Log
 
+- 2026-10-02 — `results/REPORT-v2.md` written: Opus gap to React +16.4 → +12.4 s (−24%; tiers 1/2/3 −37/−16/−23%), TS tier unchanged, cost ratio 1.83× → 1.96×; Haiku separates on pass rate (Sygnal 71/95 vs React 62/95). PLAN-2 complete; 6.0.0 release prepared and held open (D56). New follow-ups G-140…G-142.
 - 2026-10-02 — Confirming eval done (guard on): p4-final2 105/105 ($33.11), p4-baseline-ts 20/20, p4-react-ts 20/20, p4-haiku2 143/200 ($45.80). 4-C draft merged (CHANGELOG [Unreleased], RELEASING placeholders). Cleanups merged (SYG111 null per D49, G-132, CLAUDE.md counts, ROADMAP: PLAN-2 done pending release + next-major network layer). REPORT-v2 being written.
 - 2026-10-02 — 4-C draft ready (`5ef8559`: CHANGELOG [Unreleased] with runtime + TS breaking tables and migrations, RELEASING with placeholders; 8/8 template smoke from local tarballs incl. tsc and Vike client nav). D55: 6.0.0. Merge after the confirming eval.
 - 2026-10-02 — 4-F merged (core: `withCalculated` lens `set` recomputes calculated fields, +20 B; fake HTTP per-send tracking; `t.html()` innerHTML escaping; AGENTS.md test-output line). Gate green (1103 vitest, 123 browser, 42,125 B). Tagged `plan2-p4-final-build-2`; confirming eval started with the process guard: p4-final2 (Sygnal, all 21 tasks), p4-baseline-ts, p4-react-ts, p4-haiku2.
