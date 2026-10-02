@@ -186,19 +186,34 @@ import { makeDragDriver } from 'sygnal'
 run(RootComponent, { DND: makeDragDriver() })
 ```
 
+### HTTP and Sockets
+
+Requests name the actions that receive their reply; connections are declared from state:
+
+```jsx
+import { run, makeFetchDriver, makeSocketDriver } from 'sygnal'
+
+Quote.model = {
+  LOAD:   { HTTP: (state, id) => ({ url: `/api/quotes/${id}`, ok: 'LOADED', error: 'FAILED', latest: true }) },
+  LOADED: (state, quote) => ({ ...state, quote }),                 // the parsed body
+  FAILED: (state, { status }) => ({ ...state, error: status }),
+}
+
+Chat.connections = (state) => ({
+  room: state.room && { socket: `/ws/rooms/${state.room}`, message: 'RECEIVED' },
+})
+
+run(App, { HTTP: makeFetchDriver(), WS: makeSocketDriver() })
+```
+
 ### Custom Drivers
 
-Wrap any async operation as a driver:
+Wrap any other async operation as a driver; requests route the same way (`{ value, ok: 'DONE', error: 'FAILED' }`):
 
 ```javascript
 import { driverFromAsync } from 'sygnal'
 
-const apiDriver = driverFromAsync(async (url) => {
-  const res = await fetch(url)
-  return res.json()
-}, { selector: 'endpoint', args: 'url', return: 'data' })
-
-run(RootComponent, { API: apiDriver })
+run(RootComponent, { GEO: driverFromAsync(geocode) })
 ```
 
 ### Error Boundaries

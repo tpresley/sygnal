@@ -11,7 +11,6 @@
 ## 2. Component anatomy
 ```jsx
 import { ABORT } from 'sygnal'
-
 function Counter({ state, context, label }) {  // 1st arg: parent props + state, context, children, slots
   return (
     <div className="counter">
@@ -38,13 +37,12 @@ export default Counter
 - Reducer `(state, data, next, props)`. `data` is the action stream's value. `next('ACTION', data?, delayMs = 10)` dispatches another action of this component `delayMs` after the call, whenever it is called: also later, from a timer or callback in an EFFECT (HTTP goes through `makeFetchDriver`, not `fetch` + `next()`). `props` holds the parent's props plus `state`, `context`, `children`, `slots`.
 - Model entry: a function is the STATE reducer. An object `{ STATE, EVENTS, PARENT, EFFECT, LOG, <DRIVER>: fn }` maps each sink to a `(state, data, next, props)` function whose return value goes to that sink. `<SINK>: true` forwards `data` as-is.
 - **Every sink of one entry sees the state from before this action**: EVENTS, PARENT, EFFECT and drivers never see what STATE returns. Compute the new value from `(state, data)` inside the sink: `INC: { STATE: s => ({ ...s, n: s.n + 1 }), PARENT: s => ({ n: s.n + 1 }) }`.
-- Built-in actions (model only): `BOOTSTRAP` (once, just after mount), `INITIALIZE` (automatic: sets initialState), `HYDRATE` (SSR data), `DISPOSE` (unmount).
+- Built-in actions (model only): `BOOTSTRAP` (once, just after mount), `INITIALIZE` (automatic: sets initialState), `DISPOSE` (unmount). `HYDRATE` is not built in (6.0): SSR data comes from Vike `+data` / `hydrateState`.
 
 ## 3. Canonical examples
 ### State update, ABORT, set / toggle, controlled input
 ```jsx
 import { ABORT, set, toggle } from 'sygnal'
-
 function AddTodo({ state }) {
   return (
     <div>
@@ -74,7 +72,6 @@ AddTodo.model = {
 ### Multi-sink entry + EVENTS between non-adjacent components
 ```jsx
 import { event } from 'sygnal'
-
 function SaveButton({ state }) {
   return <button className="save">{state.saving ? 'Saving' : 'Save'}</button>
 }
@@ -85,7 +82,6 @@ SaveButton.model = {
     EVENTS: event('DOC_SAVED', (state) => ({ id: state.id })),  // or event('RESET'), event('MODE', 'dark')
   },
 }
-
 function Toast({ state }) {   // anywhere in the tree: EVENTS is a global bus
   return <p className="toast">{state.lastSaved}</p>
 }
@@ -95,7 +91,6 @@ Toast.model = { SAVED: (state, payload) => ({ ...state, lastSaved: payload.id })
 ### Child → parent (PARENT + CHILD.select), Collection, item removal
 ```jsx
 import { Collection } from 'sygnal'
-
 function TaskItem({ state }) {
   return (
     <li className="task" data={{ id: state.id }}>
@@ -108,7 +103,6 @@ TaskItem.model = {
   PICK:   { PARENT: (state) => ({ taskId: state.id }) },   // the parent receives exactly this value
   REMOVE: () => undefined,                                   // a Collection item removes itself
 }
-
 function TaskList({ state }) {
   return (
     <div>
@@ -125,15 +119,12 @@ TaskList.model = { PICKED: (state, { taskId }) => ({ ...state, picked: taskId })
 ### Commands (parent → child) + EFFECT
 ```jsx
 import { createCommand } from 'sygnal'
-
 const player = createCommand()
-
 function Player({ state }) {
   return <div className="player">{state.playing ? 'playing' : 'paused'}</div>
 }
 Player.intent = ({ commands$ }) => ({ PLAY: commands$.select('play') })  // emits send()'s data
 Player.model = { PLAY: (state) => ({ ...state, playing: true }) }
-
 function Controls({ state }) {
   return <div><button className="play">Play</button><Player commands={player} state="player" /></div>
 }
@@ -141,34 +132,58 @@ Controls.initialState = { player: { playing: false } }
 Controls.intent = ({ DOM }) => ({ PLAY: DOM.click('.play') })
 Controls.model = { PLAY: { EFFECT: () => player.send('play') } }  // EFFECT: side effect only, returns nothing
 ```
-### HTTP (makeFetchDriver + errors()), latest response only
+### HTTP (makeFetchDriver + routed reply actions), latest response only
 ```jsx
 import { ABORT, debounce } from 'sygnal'
 function Search({ state }) {
   return <div><input className="q" value={state.query} /><p className="status">{state.status}</p><ul>{state.results.map(r => <li>{r.title}</li>)}</ul></div>
 }
 Search.initialState = { query: '', status: '', results: [] }
-Search.intent = ({ DOM, HTTP }) => ({
-  TYPE:    DOM.input('.q').value(),
-  SEARCH:  DOM.input('.q').value().compose(debounce(300)).filter(q => q !== ''),
-  RESULTS: HTTP.select('search'),  // 2xx only: { category, value (parsed body), status, request }
-  FAILED:  HTTP.errors('search'),  // non-2xx, network error, timeout: { error, category, request, status, body }
+Search.intent = ({ DOM }) => ({   // no intent line for the reply
+  TYPE:   DOM.input('.q').value(),
+  SEARCH: DOM.input('.q').value().compose(debounce(300)).filter(q => q !== ''),
 })
 Search.model = {
   TYPE: {
     STATE: (state, query) => (query === '' ? { ...state, query, status: '', results: [] } : { ...state, query }),
-    HTTP:  (state, query) => (query === '' ? { category: 'search', abort: true } : ABORT),  // clearing cancels the request in flight
+    HTTP:  (state, query) => (query === '' ? { abort: 'RESULTS' } : ABORT),   // clearing cancels the request in flight
   },
   SEARCH: {
     STATE: (state) => ({ ...state, status: 'Searching…' }),
-    HTTP:  (state, q) => ({ category: 'search', url: '/api/search', query: { q }, latest: true }),  // aborts older 'search' requests
+    HTTP:  (state, q) => ({ url: '/api/search', query: { q }, ok: 'RESULTS', error: 'FAILED', latest: true }),
   },
-  RESULTS: (state, { value }) => ({ ...state, status: '', results: value.results }),
-  FAILED:  (state, { status }) => ({ ...state, status: status === 404 ? 'Not found.' : 'Search failed.', results: [] }),
+  RESULTS: (state, body) => ({ ...state, status: '', results: body.results }),   // ok: the parsed body
+  FAILED:  (state, { status, error }) => ({ ...state, status: status === 404 ? 'Not found.' : 'Search failed.', results: [] }),
 }
 ```
-- main.js: `run(Search, { HTTP: makeFetchDriver() })` (import both from `'sygnal'`; options `baseUrl headers init timeoutMs`). Request: `{ url, category, query, json, body, method (POST with json/body, else GET), headers, latest, timeoutMs, parse: 'auto' | 'json' | 'text' | 'response', init: { credentials, mode, cache, ... } }`, or a URL string; other keys (an id) aren't sent and come back on `request`. Don't call `fetch` in a component, intent or EFFECT. With `latest: true` on the request (a newer request of the category from the same component instance aborts the older ones; their replies never arrive), `RESULTS`/`FAILED` need no request ids or stale checks. Each instance (two `<Search>`es, every Collection item) gets only its own replies. Guide: https://sygnal.js.org/guide/drivers/#http-requests-with-makefetchdriver
-- Other async work (no HTTP): `driverFromAsync(fn)`; a request `{ category, value }` calls `fn(value)`, the reply is `{ category, value: result }`, same `select`/`errors`. A driver is any function `sink$ => source`. Page-wide events: `DOM.select('document' | 'body').events(type)`, CSS-filtered with `DOM.select('document').select('.overlay').events('click')`.
+- main.js: `run(Search, { HTTP: makeFetchDriver() })` (import both from `'sygnal'`; options `baseUrl headers init timeoutMs`). Request: `{ url, ok, error, key, query, json, body, method (POST with json/body, else GET), headers, latest, timeoutMs, parse: 'auto' | 'json' | 'text' | 'response', init: { credentials, mode, cache, ... } }`; other keys (an id) aren't sent and come back on `request`. The `ok` action gets the parsed body; the `error` action gets `{ error, status, body, request }` (non-2xx: `status` + parsed `body`; network error or timeout: `status` undefined, a timeout has `error.name === 'TimeoutError'`). The reply reaches exactly the instance that sent it (two `<Search>`es, every Collection item), so no request ids. Never `HTTP.select`/`HTTP.errors` for your own request (SYG508), never `then`/`catch` keys (SYG610: not sent); an `ok`/`error` name with no model entry is SYG112. Don't call `fetch` in a component, intent or EFFECT. Guide: https://sygnal.js.org/guide/http/
+- `latest: true`: a newer request with the same key (`key`, default the `ok` action) from the same instance aborts the older ones; their replies never arrive. `{ abort: 'RESULTS' }` (or `{ abort: true, key }`) cancels without sending; a removed instance's requests are aborted. **Build the request from `(state, data)`**: sinks see the state before the action, so `SHOW: { STATE: (s, id) => ({ ...s, id }), HTTP: (s, id) => ({ url: '/api/q/' + id, ok: 'LOADED' }) }`, not `s.id`.
+- Other promise APIs: `driverFromAsync(fn)` routes the same way: `{ value, ok: 'DONE', error: 'FAILED' }` calls `fn(value)`; `DONE` gets the result, `FAILED` `{ error, request }` (no `latest`/abort). One-off async work: `EFFECT: async (state, data, next, { signal }) => { ...; next('DONE', result) }` (rejection: SYG214; `signal` aborts on unmount; no concurrency control). A driver is any function `sink$ => source`. Page-wide events: `DOM.select('document' | 'body').events(type)`, CSS-filtered with `DOM.select('document').select('.overlay').events('click')`.
+### WebSocket / SSE (makeSocketDriver + connections)
+```jsx
+import { ABORT } from 'sygnal'
+function Chat({ state }) {
+  return <div><p className="status">{state.status}</p><ul>{state.messages.map(m => <li>{m.text}</li>)}</ul><input className="draft" value={state.draft} /><button className="send">Send</button><button className="leave">Leave</button></div>
+}
+Chat.initialState = { room: 'general', status: 'connecting', messages: [], draft: '' }
+Chat.connections = (state) => ({   // from state, diffed by name: new opens, falsy/removed closes, changed URL reconnects
+  room: state.room && { socket: `/ws/rooms/${state.room}`, message: 'RECEIVED', open: 'CONNECTED', close: 'DROPPED',
+    reconnect: { delayMs: 1000, maxDelayMs: 1000, jitter: false } },   // fixed 1 s retry (default: 500 ms doubling to 10 s, ±20%)
+})
+Chat.intent = ({ DOM }) => ({ DRAFT: DOM.input('.draft').value(), SEND: DOM.click('.send'), LEAVE: DOM.click('.leave') })
+Chat.model = {
+  DRAFT: (state, draft) => ({ ...state, draft }),
+  SEND: {
+    STATE: (state) => (state.draft.trim() ? { ...state, draft: '' } : ABORT),
+    WS:    (state) => (state.draft.trim() ? { to: 'room', json: { text: state.draft } } : ABORT),  // queued while (re)connecting
+  },
+  LEAVE:     (state) => ({ ...state, room: null, status: 'offline', messages: [] }),   // closes it: no DROPPED
+  RECEIVED:  (state, msg) => ({ ...state, messages: [...state.messages, msg] }),        // the JSON-parsed frame
+  CONNECTED: (state) => ({ ...state, status: 'online' }),                               // data: { reconnected }
+  DROPPED:   (state, { willReconnect }) => ({ ...state, status: willReconnect ? 'reconnecting' : 'offline' }),  // { code, reason, willReconnect }
+}
+```
+- main.js: `run(Chat, { WS: makeSocketDriver() })` (options `baseUrl reconnect queueLimit`). Without it the static opens nothing and nothing reports it. Spec keys: `socket` (a path gets ws:/wss: from the page) or `sse` (read-only; `events: { 'price-update': 'PRICE' }` for named events), `message open close error` (all optional, routed to this instance only), `reconnect` (`false` = never), `share` (default true: one socket per URL, ref-counted), `protocols`, `withCredentials`. `close` fires only for drops the app didn't cause; leaving, a URL change, unmount and dispose close silently, so no connection-generation ids. `error` gets `{ error }`. `{ to, json | text | binary }` on a name this instance didn't declare, a closed-for-good or an SSE connection is SYG611. Use the static OR a model-sent `{ connections }`, never both (each is the whole set). Guide: https://sygnal.js.org/guide/sockets/
 
 ## 4. API facts
 - **Child props**: `<Rating name="food" value={state.food} />` → `function Rating({ state, name, value })`; reducers read `props.name` (4th arg); intent gets the `props$` stream. Reserved: `state` (lens: `"key"` or `{ get, set }`), `children`, `slots`, `context`, `peers` (SYG106; an error in strict mode). Without `state=` a child shares its parent's whole state.
@@ -212,10 +227,8 @@ Search.model = {
 import { it, expect, afterEach } from 'vitest'
 import { renderComponent } from 'sygnal'
 import TaskList from './TaskList.jsx'
-
 let t
 afterEach(() => t?.dispose())
-
 it('picks, then removes a task', async () => {
   t = renderComponent(TaskList, { strict: true })   // also: initialState, drivers, mockConfig, diagnostics, timeoutMs, settleMs, eventWaitMs
   t.simulateEvent('.pick', 'click')                 // first match; bubbles; reaches child components too
@@ -229,7 +242,9 @@ it('picks, then removes a task', async () => {
 ```
 - `simulateEvent(sel, type, init?)`: init `{ value }`, `{ checked }`, `{ key: 'Enter' }`, `{ data: { id: 2 } }`; `'document'` targets `DOM.select('document')` listeners. Calls made before the component is ready are buffered (`await t.ready()` is optional). `sel` matches the rendered tree like the real DOM: tag, `.class`, `#id`, `[attr="v"]`, `:first-child`, `:last-child`, `:nth-child(n)`, `:nth-of-type(n)`, `:not()`, descendant and `>` (e.g. `.list:nth-child(2) .card:first-child .next`). If it matches nothing (after waiting up to 300ms for a render), the test fails with an error naming the selector (check `t.html()`, or select by attribute: `[data-id="3"]`); `{ allowMissing: true }` drops the event instead. `:has()`, `+`, `~` throw "unsupported selector syntax".
 - `t.next(pred)` matches only future states (right after `await t.ready()`, also those of the buffered calls). `t.waitForState(pred)` also matches states already recorded (e.g. the initial one), so use it only for a state that can't already exist. Both resolve after the whole tree has rendered. `t.settle()` doesn't wait out a model `next('X', data, ms)` longer than its 20ms window: `await t.next(pred)` instead (timeout errors name the pending `next()`). `t.state` is the latest state (`t.states.at(-1)`), with current calculated fields (also after a child or Collection item writes); `t.states`, `t.emitted` (EVENTS sent) and `t.sinkValues('PARENT')` / `t.sinkValues('API')` (any sink, children's too) are live arrays. `t.html()` is serialised like `innerHTML` (text `Couldn't`, not `&#39;`) and throws before the first render: `await t.ready()` (or a `t.next`) first. Timer tests (debounce/delay): `vi.useFakeTimers()` before `renderComponent`, then `await t.ready()`; `await vi.advanceTimersByTimeAsync(ms)` moves time (e.g. 299 ms: nothing sent yet), and `t.next`/`t.waitForState`/`t.settle`/`t.ready` advance the fake clock themselves until they resolve, so no real waiting. Use it instead of sleeping out a real debounce. `vi.useRealTimers()` in `afterEach`.
-- `t.simulateAction('LOADED', data)` pushes an action straight into intent → model (all sinks run). Use it for actions without a DOM trigger. **Drivers need no wiring in tests**: a sink with no driver is recorded (`t.requests('HTTP')`), and its source is a fake: `t.respond('HTTP', body)` answers the newest pending request on `select()` (`{ category, value, status: 200, request }`; waits up to 1s for a debounced one), `t.fail('HTTP', 404 | error)` on `errors()`. Each send is its own request (a constant request object re-sent by a Retry after `t.fail` is pending again); requests superseded by `latest: true` or aborted aren't pending. Options: a category, or `{ category, request }`; answer each instance's request with `{ request: t.requests('HTTP')[i] }` (an object sent twice: its newest pending send). The fake can't see `makeFetchDriver({ latest: true })` from main.js: write `latest: true` on the request.
+- `t.simulateAction('LOADED', data)` pushes an action straight into intent → model (all sinks run). Use it for actions without a DOM trigger. **Drivers need no wiring in tests**: a sink with no driver is recorded (`t.requests('HTTP')`), and its source is a fake that routes like the real driver: `await t.respond('HTTP', body, 'RESULTS')` delivers `body` as that request's `ok` action and resolves once it is reduced and rendered; `await t.fail('HTTP', 404 | error, target?)` sends `{ error, status, body, request }` to its `error` action. Target: an action or key name, a partial request (`{ url: '/items/2' }`), or a predicate; none = the newest pending. A request superseded by `latest: true`, aborted or already answered isn't pending, and answering it **throws at the call**: `expect(() => t.respond('HTTP', {}, { query: { q: 'du' } })).toThrow()`. A call made while earlier input is still queued (a debounce) waits up to 1s for its request instead. Each send is its own request. The fake can't see `makeFetchDriver({ latest: true })` from main.js: write `latest: true` on the request.
+- Sockets need no driver either: a component with `connections` gets a fake `WS` sink running the real driver on in-memory sockets (`{ socketSink: 'SOCKET' }` for another name). Connections open by themselves; `renderComponent(C, { autoConnect: false })` holds them in `'connecting'` until `await t.open('WS')`. `await t.push('WS', { text: 'hi' })` is a server frame (SSE named event: `t.push('WS', data, { event: 'price-update' })`); `await t.drop('WS', { code: 1011 })` is a close the app didn't make (`close` fires, the retry runs on the test's timers: `await vi.advanceTimersByTimeAsync(1000)`); `t.sent('WS')` lists the `{ to, json }` values; `t.connections('WS')` the declared connections (`name`, `url`, `state`). They throw too when nothing matches.
+- TypeScript tests: `renderComponent` infers the state type; for a handle assigned in `beforeEach`, declare `let t: RenderResult<State>` (import the type from `'sygnal'`), not `any`.
 - With the Vite plugin, Vitest gets `sygnal/diagnostics` in its setupFiles automatically; otherwise `import 'sygnal/diagnostics'` in the test.
 - Real DOM state (`checked`, `value`, `disabled`, focus, refs): `renderComponent(C, { dom: 'real' })` in a jsdom test (`// @vitest-environment jsdom`, `npm i -D jsdom`), same `t.*` API in ONE suite (no separate `run()` + jsdom suite). `simulateEvent` then dispatches real events on any CSS selector (`{ value }` types, `'click'` toggles a checkbox/radio and skips disabled buttons, `'focus'`/`'blur'` move focus).
 - Assert on real elements: `expect(t.query('input[name="plan"]:checked').value).toBe('team')`, `t.query('.save').disabled`, `document.activeElement === t.query('input[name="city"]')`, `t.queryAll('.row')`. Every wait (`ready`, `next`, `waitForState`, `settle`) resolves once its state is in the DOM, so query right after the `await` (before the first render, `t.query` throws: `await t.ready()`). `await t.next(a); await t.next(b)` also sees a `b` that arrived while the DOM showed `a`.

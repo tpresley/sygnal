@@ -25,11 +25,10 @@ function DataLoader({ state }) {
   return <div>{state.data ? JSON.stringify(state.data) : 'Waiting...'}</div>
 }
 
-DataLoader.intent = ({ API }) => ({
-  DATA_LOADED: API.select('data'),   // responses from a custom API driver
-})
-
 DataLoader.model = {
+  BOOTSTRAP: {
+    HTTP: () => ({ url: '/api/data', ok: 'DATA_LOADED' }),   // makeFetchDriver(): the reply is DATA_LOADED
+  },
   DATA_LOADED: {
     STATE: (state, data) => ({ ...state, data }),
     READY: () => true,  // Signal ready to parent Suspense

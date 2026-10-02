@@ -235,22 +235,23 @@ In SPA mode, the server returns an empty HTML shell and all rendering happens cl
 
 ## Custom Drivers
 
-Pass additional Cycle.js drivers via the `drivers` config option. These are merged with the default drivers (DOM, STATE, EVENTS, LOG) and made available to all components:
+Pass additional drivers via the `drivers` config option. These are merged with the default drivers (DOM, STATE, EVENTS, LOG) and made available to all components:
 
 ```javascript
 // pages/+config.js
 import vikeSygnal from 'sygnal/config'
-import { makeWebSocketDriver } from '../src/drivers/ws.js'
+import { makeFetchDriver, makeSocketDriver } from 'sygnal'
 
 export default {
   extends: [vikeSygnal],
   drivers: {
-    WS: makeWebSocketDriver('/ws'),
+    HTTP: makeFetchDriver(),
+    WS: makeSocketDriver(),
   },
 }
 ```
 
-Components access driver sources in `intent` and emit to driver sinks via `model`, just like in a standalone Sygnal app:
+Components use them just like in a standalone Sygnal app ([HTTP](/guide/http/), [Sockets](/guide/sockets/)):
 
 ```jsx
 function Dashboard({ state }) {
@@ -264,15 +265,16 @@ function Dashboard({ state }) {
 
 Dashboard.initialState = { messages: [] }
 
-Dashboard.intent = ({ DOM, WS }) => ({
-  NEW_MESSAGE: WS.select('message'),
+Dashboard.connections = () => ({ feed: { socket: '/ws', message: 'NEW_MESSAGE' } })
+
+Dashboard.intent = ({ DOM }) => ({
   SEND: DOM.click('.send-btn'),
 })
 
 Dashboard.model = {
   NEW_MESSAGE: (state, msg) => ({ ...state, messages: [...state.messages, msg] }),
   SEND: {
-    WS: (state) => ({ type: 'ping' }),
+    WS: () => ({ to: 'feed', json: { type: 'ping' } }),
   },
 }
 ```

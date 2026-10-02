@@ -3,7 +3,7 @@ title: "Effect Handlers"
 description: "Run side effects in model entries without changing state"
 ---
 
-Use the `EFFECT` sink for model entries that only need to run side effects — sending commands, calling `next()`, triggering external APIs — without producing a state change or emitting to any driver.
+Use the `EFFECT` sink for model entries that only need to run side effects — sending commands, calling `next()`, or awaiting an async API — without producing a state change or emitting to any driver.
 
 ```jsx
 App.model = {
@@ -66,9 +66,31 @@ App.model = {
 
 Every sink of one action receives the same state: the result of all earlier actions, before this action's own `STATE` reducer runs. So `EFFECT` and `EVENTS` above see `submitting` as it was, not `true`. Pass anything they need through the action's data, or compute it from the same inputs.
 
+## Async Work That Isn't HTTP
+
+An EFFECT can be `async`: await the work, then dispatch the result with `next()`. The fourth argument has a `signal`, an `AbortSignal` that is aborted when the component unmounts:
+
+```jsx
+Editor.model = {
+  COPY: {
+    EFFECT: async (state, data, next, { signal }) => {
+      await navigator.clipboard.writeText(state.text)
+      if (!signal?.aborted) next('COPIED')
+    },
+  },
+  COPIED: (state) => ({ ...state, copied: true }),
+}
+```
+
+- A rejection (or a throw before the first `await`) is reported as [SYG214](/reference/errors/#syg214), like a synchronous throw, with no unhandled rejection; the app keeps running. Catch errors you want to show and dispatch them: `catch (error) { next('COPY_FAILED', String(error)) }`.
+- `next()` after the component unmounted is ignored.
+- `signal` is the same for every EFFECT of one instance. Pass it to APIs that accept one (`fetch`, `addEventListener`, many SDKs) so their work stops on unmount. It is `undefined` where `AbortController` doesn't exist.
+- There is no concurrency control: two clicks run two EFFECTs, and both results arrive. Work that needs "latest only", cancellation or retries belongs in a driver.
+- **HTTP goes through [`makeFetchDriver()`](/guide/http/)**, not `fetch` in an EFFECT: the driver gives routed replies, `latest`, abort on unmount, and a test fake. Other promise-based APIs used from several places fit [`driverFromAsync()`](/guide/custom-drivers/).
+
 ## Return Value Warning
 
-EFFECT handlers should not return a value — any return value is ignored. If a value is returned, a console warning ([SYG219](/reference/errors/#syg219)) is emitted to help catch mistakes where a reducer was accidentally placed in an EFFECT sink instead of a STATE sink. An arrow function with an expression body returns its value, so wrap a call that returns something (such as a Promise) in braces: `EFFECT: () => { player.play() }`.
+EFFECT handlers should not return a value — any return value is ignored. If a value other than a promise is returned, a console warning ([SYG219](/reference/errors/#syg219)) is emitted to help catch mistakes where a reducer was accidentally placed in an EFFECT sink instead of a STATE sink. A returned promise (an `async` EFFECT) is expected and isn't reported.
 
 ```jsx
 // ⚠️ This will log a warning — the returned state is ignored
