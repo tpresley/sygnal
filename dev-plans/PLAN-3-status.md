@@ -77,9 +77,12 @@ Delta attribution (analysis/p3-net-baseline.md): learning 11.7 s (42%, mostly re
 | 3-A | `resources` prototype | ✅ prototype; lands in 5-2 (D74) | `exp/p3-resources` (worktree `agent-aa4ea152c7b5f6cc8`) | subagent | not merged; `c260b5b` includes plan3-integration | `Component.resources = { name: state => url\|request\|falsy }`; `state[name] = { status, data, error }` written by a built-in `RESOURCE` action; refetch on a changed request (JSON), latest/abort; `{ refresh: 'name' }` on the HTTP sink; `ok`/`error` on a resource also dispatch; generic `__sygnalStatic` marker replaces `__sygnalConnections`; fake + `resourceSink` option; types `Resource<D, E>`; checker knows `resources`/`RESOURCE`. **Core +133 B → 42,231 B (69 B headroom)**; fetch driver +287 B. 17 tests. Reference solutions 05/11/17/23 pass hidden suites (fit: 05 poor, 11 good, 17 good with ok/error hooks, 23 ideal). Exp gate: all green except llms.txt 265 lines (> 250, test fails; trim only if adopted). Decision rule (D73) |
 | 4-A | Agent + site docs | ✅ | `p3-4a-docs` | subagent | after `9199d8a` (`8d77656`) | Routed HTTP canonical everywhere (llms §3, SKILL, guides, api.md); new pages `guide/http`, `guide/sockets`, `guide/custom-drivers`, `integration/server-functions` (Telefunc via routed `driverFromAsync` + Option E security rules); `guide/drivers` is an overview (old anchors kept); alternative-forms (SYG508 round trip, model-sent connections, driverFromAsync for HTTP); async EFFECT section; HYDRATE removed from docs; diagnostics/strict guides list the new codes; README + 8 template `AGENTS.md` lines; PENDING map removed. 12 recipes run verbatim (scratch tests). **llms.txt 250 lines (at the limit), SKILL.md 345 → 346 lines, 30,140 → 32,421 B (+7.6%)**. Closed G-146, G-150 (docs), G-154, G-155, G-161 (docs), G-162 |
 | 4-B | CHANGELOG [Unreleased] + ROADMAP §16 | 🔵 | `plan3-integration` | coordinator | `9199d8a`, links in this commit | Done except "Measured impact" (after 4-C) and the final ROADMAP status |
-| 5-0 | R-10 rename + router size spike + D77 DevTools out of production | ⬜ | | | | |
+| 5-0a | R-10 rename (reply actions) | 🔵 | `p3-5-0a-rename` | subagent | — | |
+| 5-0b | D77 DevTools out of production builds | 🔵 | `p3-5-0b-devtools` | subagent | — | |
+| 5-0c | Router size spike (throwaway) | ✅ | `exp/p3-router-spike` (`184649f`, on `exp/p3-resources`) | subagent | not merged (reference for 5-4) | **Core −1 B** (42,231 → 42,230); router 1,433 B gz standalone (budget 3.5 KB). Route static via `__sygnalStatic: 'route'`; needed a one-line core fix: a string static was iterated as characters (SYG216) → `else if (typeof f == 'object')`. `makeRouterDriver` with `href`/match (pure, SSR-safe), history mode, `{ to, params, query, replace }`, `{ back }`, document-level link interception (modifiers, button, target, download, origin, base, `data-router-ignore`, defaultPrevented, hash-only), popstate, notFound, model redirect (version counter), two declarers. 10/10 tests. Q11–Q13, G-167…G-169 |
+| 5-2a | Land `resources` as built (moved before 5-1: its fake changes would conflict with H-9) | ⬜ | | | | after the Haiku run |
 | 5-1 | H-9: HTTP fake runs the real driver | ⬜ | | | | |
-| 5-2 | H-1/D78 + land `resources` | ⬜ | | | | |
+| 5-2b | H-1/D78 in `resources` | ⬜ | | | | |
 | 5-3 | Cache track (§1.6) | ⬜ | | | | |
 | 5-4 | Router track + `HEAD` (§1.7) | ⬜ | | | | |
 | 5-5 | SSR cache seeding + `{ prefetch }` | ⬜ | | | | |
@@ -113,6 +116,9 @@ Delta attribution (analysis/p3-net-baseline.md): learning 11.7 s (42%, mostly re
 | Q1–Q7 | PLAN-3 §8 | PLAN-3 | Phase 0 | ✅ All recommendations accepted (D57–D63) |
 | Q9 | G-150: `HYDRATE` is no longer dispatched by anything. Remove it as a built-in in 6.0 (docs, types, checkers; breaking + migration), or keep it reserved/documented for a future SSR hook? | 1-A | 1-D, 1-T, 4-A | ✅ Remove (D66) |
 | Q10 | G-152: fix the pragma so `data-task-id="…"` attributes become valid dataset keys (+50 B measured), or leave it to SYG421 + docs? | 1-G | — | ✅ Fix it (D68) |
+| Q11 | Router + Switchable keep-alive: a kept-alive `task` page is one instance for `/tasks/1` and `/tasks/2` (local state leaks between ids) | 5-0c | 5-4 | open |
+| Q12 | Hidden kept-alive Switchable pages keep their declaration statics live (a hidden page's socket stays open, its resources keep refetching) | 5-0c | 5-4, 5-3 | open |
+| Q13 | First paint: the route arrives a microtask after the first render (`state.route == null`); SSR needs a seed anyway | 5-0c | 5-4 | open |
 | Q8 | The E2 report's "10 open design questions" were never committed (branch deleted); add any not covered by ROADMAP §16 Q-net-1…4 | PLAN-3 header | — | open |
 
 ## Decision Log
@@ -172,6 +178,9 @@ Delta attribution (analysis/p3-net-baseline.md): learning 11.7 s (42%, mostly re
 | G-164 | 4-A | low | sygnal-check | SYG508's `routingDrivers()` read `file.ast` of every project file, and unparsable files are kept as `null`: an extra SYG900 "rule threw" next to the parse error | ✅ coordinator: skip null files; test (failed first) |
 | G-165 | 4-A | low | Docs | Unverified Vike details: `integration/server-functions.md` registers drivers in `+drivers.js`; `vike.md` computes drivers inside `+config.js` | Open (verify in a real Vike app before release) |
 | G-166 | 4-A | med | Agent docs | `llms.txt` is at the 250-line limit; SKILL.md grew 2,281 B (+7.6%). Watch learn time/context in 4-C; trim if it costs | Watch → 4-C |
+| G-167 | 5-0c | med | Statics | A declaration static (`connections`/`resources`/`route`) is computed from the state stream, so a component with no state (no `initialState`) never declares, silently. Also `route` must be added to `src/astro/client.ts` `Wrapped` | Open → 5-4 (diagnose or make root state implicit) |
+| G-168 | 5-0c | med | Router | Redirect ordering with several declarers: a later declarer may briefly see the pre-redirect route; one guard owner or explicit order. Sink commands can't use a `route` key (it is the declaration). Interception gaps: SVG `<a>`, `rel="external"`, shadow DOM, `<base>`, trailing slashes, form GET | Open → 5-4 |
+| G-169 | 5-0c | low | Router | Scroll restoration needs a `history.state` key (spike pushes null); focus after navigation needs a "rendered" signal or a rAF heuristic | Open → 5-4 |
 | G-151 | 1-A | low | Testing | Dead after 1-A: `__sygnalFetch` on the fake (testing.ts ~945), `x.sel !== 'initial'` (~1347). Routed requests under the fake: recorded in `t.requests` but never stamped, and `t.respond` throws "nothing receives it" — the fake needs `__sygnalRoutes`/`routed(sender)` | ✅ 1-C |
 
 ## Log
@@ -194,3 +203,4 @@ Delta attribution (analysis/p3-net-baseline.md): learning 11.7 s (42%, mostly re
 - 2026-10-02 — 4-A merged; G-163/G-164 fixed (checker); CHANGELOG links point at the new pages. Gate green, 0 pending doc samples. Waiting on 3-A, then 4-C (user's terminal).
 - 2026-10-02 — 3-A done; coordinator merged plan3-integration into `exp/p3-resources` (conflicts in sygnal-check resolved, G-163 kept for connections only), exp gate green except the llms line limit. Stale SYG421 docs line fixed (`7b9c1bd`: a `data-task-id` attribute works since G-152). 4-C commands prepared.
 - 2026-10-02 — `p3-final` done (115/115): network-layer checkpoint recorded. PLAN-4's handoff reviewed; D74–D82 approved (D77 included): query cache (opt-in), router, `HEAD` driver and the reply-actions rename join PLAN-3 as Phase 5; budgets re-planned (D76). `p3-resources` dropped; 4-C runs once after Phase 5.
+- 2026-10-02 — 5-0a/5-0b/5-0c launched. 5-0c done: router core −1 B, 1.4 KB driver; Q11–Q13 to the user; G-167…G-169. Order change: 5-2a (land resources) before 5-1 (H-9).
