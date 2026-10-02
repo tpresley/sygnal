@@ -43,6 +43,8 @@ Panel.model = {
 }
 ```
 
+`set()` takes an object or a function, never a field name: `set('title')` doesn't store the action data in `title` ([SYG221](/reference/errors/#syg221)). Use `set((state, title) => ({ title }))`.
+
 ## Aborting an Action
 
 Return `ABORT` from a STATE reducer to mean "no change". The state update is skipped entirely:

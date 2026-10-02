@@ -221,6 +221,52 @@ After:
 // intent: TITLE: DOM.input('.title').value()
 ```
 
+### SYG115
+
+**Unknown DOM event shorthand**
+
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+`DOM.<name>(selector)` is shorthand for `DOM.select(selector).events('<name>')`, and the DOM source accepts any property name, so a made-up name such as `DOM.key('.search')`, `DOM.enter(...)` or `DOM.keyDown(...)` listens for an event the browser never fires: the action silently never happens. The dev entry reports a shorthand call whose name is not a known DOM event, once per component and name. Key names and the enriched-stream helpers (`.key()`, `.value()`, `.checked()`, `.data()`) are not events.
+
+**Fix:** Use the real event and an enriched-stream helper: `DOM.keydown('.search').key()` (add `.filter(k => k === 'Enter')` for one key), `DOM.input('.name').value()`, `DOM.change('.box').checked()`. For a custom event you dispatch yourself, use the explicit form `DOM.select(sel).events('my-event')`, which is never reported.
+
+Before:
+
+```jsx
+Modal.intent = ({ DOM }) => ({ CLOSE: DOM.escape('document') })
+```
+
+After:
+
+```jsx
+Modal.intent = ({ DOM }) => ({
+  CLOSE: DOM.keydown('document').key().filter(k => k === 'Escape'),
+})
+```
+
+### SYG116
+
+**EVENTS value has no string type**
+
+Severity: `error` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+A model sent a value without a string `type` to the `EVENTS` sink, so no `EVENTS.select(type)` can receive it and it is dropped. The usual cause is a function: a model entry that returns `event(...)` (for example `{ EVENTS: () => event('SAVED', data) }`) instead of being `event(...)`, or any other reducer that returns a function. Each emitted value is copied into a new object, so a function arrives on the bus as `{}`. A reducer that returns `undefined` or `null` (see SYG217) causes it too.
+
+**Fix:** Make `event()` the sink entry itself: `SAVE: { EVENTS: event('SAVED', (state, data) => payload) }`; return `ABORT` from a reducer to send nothing.
+
+Before:
+
+```jsx
+SAVE: { EVENTS: (state) => event('SAVED', state.id) }   // returns a function
+```
+
+After:
+
+```jsx
+SAVE: { EVENTS: event('SAVED', (state) => state.id) }
+```
+
 ## SYG2xx: State and reducers
 
 ### SYG201
@@ -547,6 +593,28 @@ After:
 
 ```jsx
 Profile.calculated = { name: state => state.user?.name ?? '' }
+```
+
+### SYG221
+
+**set() called with a string**
+
+Severity: `error` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+`set()` takes an object to merge (`set({ open: true })`) or a function that returns one (`set((state, data) => ({ ... }))`). Called with a field name, `set('city')` spreads the string into the state, adding the keys `'0'`, `'1'`, ... one per character, and the field itself never changes. The dev entry recognises those keys after the reducer runs and reports the field name; TypeScript also rejects a string argument.
+
+**Fix:** To store the action data in a field, pass a function: `set((state, city) => ({ city }))`. For a fixed value pass an object: `set({ city: 'Paris' })`.
+
+Before:
+
+```jsx
+CITY: set('city')
+```
+
+After:
+
+```jsx
+CITY: set((state, city) => ({ city }))
 ```
 
 ## SYG3xx: Streams
@@ -939,6 +1007,29 @@ After:
 
 ```jsx
 import TaskCard from './TaskCard.jsx'
+```
+
+### SYG421
+
+**Invalid data (dataset) key**
+
+Severity: `error` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+A view renders a `data` key the DOM can't store. `data={{ ... }}` (and a `data-x-y="..."` JSX attribute, which becomes the key `x-y`) is written with `element.dataset[key] = value`, and the browser throws a SyntaxError DOMException for a key with a hyphen followed by a lower-case letter (`'task-id'`), or an attribute-name error for characters such as spaces, quotes or `=`. The patch fails, so rendering can stop, and the console shows only a bare `DOMException {}`. The dev entry checks every rendered dataset key before the patch and names the key; renderComponent's mock DOM never throws, so it is also the only signal there.
+
+**Fix:** Use a camelCase key in the `data` prop: `data={{ taskId: 7 }}` renders `data-task-id="7"`; read it with `.data('taskId')`.
+
+Before:
+
+```jsx
+<li className="task" data={{ 'task-id': task.id }}>{task.title}</li>
+```
+
+After:
+
+```jsx
+<li className="task" data={{ taskId: task.id }}>{task.title}</li>
+// intent: DOM.click('.task').data('taskId')
 ```
 
 ## SYG5xx: Strict mode (canonical forms)

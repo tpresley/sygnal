@@ -774,9 +774,11 @@ export function exactState<STATE>(): <ACTUAL extends STATE>(state: ExactShape<ST
  * Dynamic form — function receives (state, data, next, props) and
  * returns the partial update to merge:
  *   `set((state, title) => ({ title }))`
+ *
+ * Not a field name: `set('title')` is a type error (and SYG221 in the dev checks).
  */
 export function set<S = any>(
-  partial: Partial<S> | ((state: S, data: any, next: Function, props: any) => Partial<S>)
+  partial: (Partial<S> & object) | ((state: S, data: any, next: Function, props: any) => Partial<S>)
 ): (state: S, data: any, next: Function, props: any) => S
 
 /**

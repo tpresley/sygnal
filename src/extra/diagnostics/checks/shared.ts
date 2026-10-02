@@ -11,6 +11,8 @@
  */
 import '../index'
 import type {DiagnosticCheck, DiagnosticDetails, Diagnostic} from '../index'
+import {CODE_TITLES, DEV_CODE_SEVERITY, registerCodes} from '../codes'
+import type {DiagnosticSeverity} from '../codes'
 
 interface CoreBridge {
   registerCheck(check: DiagnosticCheck): () => void
@@ -37,6 +39,16 @@ export const reportSafely = (code: string, details: DiagnosticDetails): Diagnost
     return undefined
   }
 }
+
+registerCodes(Object.keys(DEV_CODE_SEVERITY).map(code =>
+  [code, DEV_CODE_SEVERITY[code], CODE_TITLES[code]] as [string, DiagnosticSeverity, string]))
+
+/**
+ * reportSafely() for the dev-entry-only codes (DEV_CODE_SEVERITY, G-143): the main bundle's
+ * core doesn't know their severity, so it is passed explicitly.
+ */
+export const devReport = (code: string, details: DiagnosticDetails): Diagnostic | undefined =>
+  reportSafely(code, {severity: DEV_CODE_SEVERITY[code], ...details})
 
 /** Tunables (test seam: configureChecks()). */
 export const timing = {
