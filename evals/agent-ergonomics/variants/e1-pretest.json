@@ -1,7 +1,8 @@
 {
-  "description": "E1 (stronger): e1-check plus a pretest hook, so every `npm test` runs `sygnal-check --strict` first",
+  "description": "E1 (stronger): e1-check plus a pretest hook, so every `npm test` runs `sygnal-check --strict` first. Starter 1, as in Phase 3; not recommended (E1 verdict: drop the pretest hook)",
   "sygnal": "branch",
   "skill": { "dir": "skills/sygnal-dev" },
+  "starter": 1,
   "overlay": {
     "sygnal": {
       "packs": { "sygnal-check": { "dir": "sygnal-check", "dependency": "devDependencies" } },

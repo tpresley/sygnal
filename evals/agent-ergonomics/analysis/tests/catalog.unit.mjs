@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { CATALOG, matchResult, matchReport, matchWorkaround, frictionIds, trackerStatus } from '../catalog.mjs'
+import { CATALOG, matchResult, matchReport, matchWorkaround, matchInput, frictionIds, trackerStatus } from '../catalog.mjs'
 import { FAIL_B007, FAIL_B006, GUARD } from './fixtures.mjs'
 
 test('catalog entries are well-formed and unique', () => {
@@ -51,6 +51,19 @@ test('workaround matching', () => {
   assert.ok(matchWorkaround('// import.meta.hot -- keeps the plugin away', 'sygnal').includes('B-007'))
   assert.ok(matchWorkaround("const run = sygnal['ru' + 'n']", 'sygnal').includes('B-007'))
   assert.deepEqual(matchWorkaround("import { run } from 'sygnal'", 'sygnal'), [])
+})
+
+test('input matching: G-125 API guesses (t.state, t.html() before the first render)', () => {
+  const guess = "const t = renderComponent(App, { strict: true })\nawait t.ready()\nexpect(t.state.items).toHaveLength(1)"
+  assert.deepEqual(matchInput(guess, 'sygnal'), ['G-125'])
+  assert.deepEqual(matchInput(guess, 'react'), [], 'Sygnal-only')
+  assert.ok(matchInput('const app = await renderComponent(Counter)\n/* ... */ app.state', 'sygnal').includes('G-125'))
+  for (const ok of ['const t = renderComponent(App)\nawait t.ready()\nt.states.at(-1)', 'const t = renderComponent(App)\nt.state$.addListener({})', 'const s = t.state', 'return state'])
+    assert.ok(!matchInput(ok, 'sygnal').includes('G-125'), ok)
+  assert.deepEqual(matchInput("const t = renderComponent(App)\nexpect(t.html()).toContain('Add')", 'sygnal'), ['G-125-HTML'])
+  assert.deepEqual(matchInput("const t = renderComponent(App)\nawait t.ready()\nexpect(t.html()).toContain('Add')", 'sygnal'), [])
+  assert.ok(matchResult("AssertionError: expected '' to contain 'Clear completed'", 'sygnal').includes('G-125-HTML'))
+  assert.deepEqual(frictionIds(['G-125-HTML'], []), [], 'a pitfall: the agent’s test is wrong, not friction')
 })
 
 test('frictionIds: defects always count; suspects only when the report confirms', () => {

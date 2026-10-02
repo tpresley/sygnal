@@ -103,3 +103,53 @@ export function within(text, innerSelector, innerText) {
 
 /** Pause between simulated user interactions, like a human (render frames happen in between). */
 export const HUMAN_PAUSE_MS = 50
+
+/**
+ * Source text with JS comments (`// ...`, `/* ... *\/`, JSX `{/* ... *\/}`)
+ * removed, for static "the file no longer contains X" checks: a comment that
+ * mentions "Place order" doesn't render it (G-124). Strings and template
+ * literals are kept. A quote or regex the scanner misreads ends at the line
+ * break, so a misread can only touch one line. Use it for negative checks;
+ * positive checks can keep reading the raw source.
+ */
+export function stripComments(code) {
+  let out = ''
+  let i = 0
+  const n = code.length
+  const braces = [] // open template literals: `{` depth inside each one's current `${ ... }`
+  while (i < n) {
+    const c = code[i]
+    const d = code[i + 1]
+    if (c === '/' && d === '/') {
+      while (i < n && code[i] !== '\n') i++
+    } else if (c === '/' && d === '*') {
+      const end = code.indexOf('*/', i + 2)
+      const stop = end < 0 ? n : end + 2
+      out += code.slice(i, stop).includes('\n') ? '\n' : ' '
+      i = stop
+    } else if (c === "'" || c === '"') {
+      let j = i + 1
+      while (j < n && code[j] !== c && code[j] !== '\n') j += code[j] === '\\' ? 2 : 1
+      out += code.slice(i, j + 1)
+      i = j + 1
+    } else if (c === '`' || (c === '}' && braces.length && braces[braces.length - 1] === 0)) {
+      if (c === '}') braces.pop()
+      let j = i + 1
+      while (j < n && code[j] !== '`' && !(code[j] === '$' && code[j + 1] === '{')) j += code[j] === '\\' ? 2 : 1
+      if (code[j] === '$') {
+        braces.push(0)
+        out += code.slice(i, j + 2)
+        i = j + 2
+      } else {
+        out += code.slice(i, j + 1)
+        i = j + 1
+      }
+    } else {
+      if (braces.length && c === '{') braces[braces.length - 1]++
+      else if (braces.length && c === '}') braces[braces.length - 1]--
+      out += c
+      i++
+    }
+  }
+  return out
+}

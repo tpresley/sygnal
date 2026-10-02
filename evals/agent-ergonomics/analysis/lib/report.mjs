@@ -121,12 +121,12 @@ export function renderMarkdown({ meta, agg, records, tracker, skill, docs = null
   // ---- catalog
   P('## Friction catalog hits')
   P()
-  P('A trial is "affected" if the issue shows up in a failing tool result, in the agent\'s final report, or as a known workaround in its commands or final code. Time cost is the tooling-friction time attributed to the ID (from the failing run to the next green run, plus refused commands for HARNESS-GUARD). Status is read from `dev-plans/PLAN-1-status.md`.')
+  P('A trial is "affected" if the issue shows up in a failing tool result, in the agent\'s final report, as a known workaround in its commands or final code, or as an API guess in what it wrote (inputs: e.g. G-125 `t.state`). Time cost is the tooling-friction time attributed to the ID (from the failing run to the next green run, plus refused commands for HARNESS-GUARD). Status is read from `dev-plans/PLAN-1-status.md`.')
   P()
   P(
     table(
-      ['ID', 'Issue', 'Kind', 'Status', 'Sygnal trials', 'React trials', 'In results / reports / workarounds', 'Time cost total s', 's per affected trial', 's per Sygnal trial'],
-      agg.catalog.map((c) => [c.id, c.title, c.kind, c.status, c.sygnal, c.react, `${c.inResults} / ${c.inReports} / ${c.workarounds}`, f1(c.frictionSecondsTotal), f1(c.frictionSecondsPerAffected), f1(c.frictionSecondsPerSygnalTrial)])
+      ['ID', 'Issue', 'Kind', 'Status', 'Sygnal trials', 'React trials', 'In results / reports / workarounds / inputs', 'Time cost total s', 's per affected trial', 's per Sygnal trial'],
+      agg.catalog.map((c) => [c.id, c.title, c.kind, c.status, c.sygnal, c.react, `${c.inResults} / ${c.inReports} / ${c.workarounds} / ${c.inInputs ?? 0}`, f1(c.frictionSecondsTotal), f1(c.frictionSecondsPerAffected), f1(c.frictionSecondsPerSygnalTrial)])
     )
   )
   P()

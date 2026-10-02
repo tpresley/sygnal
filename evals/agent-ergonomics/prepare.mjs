@@ -3,15 +3,20 @@
 //
 // Usage:
 //   node evals/agent-ergonomics/prepare.mjs --arm sygnal|react --task 03 --dest <dir>
-//        [--tarball <sygnal.tgz>] [--build] [--no-install] [--variant-spec <prepare.json>]
+//        [--tarball <sygnal.tgz>] [--build] [--no-install] [--variant-spec <prepare.json>] [--starter 1|2]
 //
 // - Copies tasks/<task>/starter (or react/tasks/<task>/starter) to <dest>.
 // - Sygnal arm: packs this repo's Sygnal build (or uses --tarball) and puts it
 //   at <dest>/vendor/sygnal.tgz, which the starter's package.json depends on
 //   via "file:vendor/sygnal.tgz". Nothing in <dest> points back into the repo.
+// - Applies the starter version's kit (lib/starter.mjs; 4-E): starter 2 adds
+//   sygnal-check (this checkout's, packed into vendor/) and AGENTS.md +
+//   CLAUDE.md to the Sygnal arm. --starter picks it (default: the current
+//   version); with --variant-spec the spec's starter version applies instead.
 // - --variant-spec (written by orchestrate.mjs --variant, lib/variant.mjs):
-//   applies the arm's starter overlay (files, package.json merge, vendored
-//   packages) before the install, and the prompt prefix/suffix.
+//   applies the arm's starter overlay (the starter kit, then the variant's
+//   files, package.json merge, vendored packages) before the install, and the
+//   prompt prefix/suffix.
 // - Runs `npm install` so the agent starts with a working app.
 // - Runs a leak check and writes <dest>/../<basename>.prompt.txt containing the
 //   exact prompt to hand to the agent.
@@ -21,16 +26,30 @@ import path from 'node:path'
 import {
   REPO_ROOT, armPaths, resolveTask, parseArgs, copyDir, npm, packSygnal, leakCheck,
 } from './lib/common.mjs'
-import { applyOverlay, applyPrompt } from './lib/variant.mjs'
+import { applyOverlay, applyPrompt, resolveVariant, materializeVariant } from './lib/variant.mjs'
+import { STARTERS, CURRENT_STARTER, parseStarter } from './lib/starter.mjs'
 
 const args = parseArgs(process.argv.slice(2))
 if (!args.arm || !args.task || !args.dest) {
-  console.error('usage: prepare.mjs --arm sygnal|react --task <id> --dest <dir> [--tarball f.tgz] [--build] [--no-install] [--variant-spec prepare.json]')
+  console.error('usage: prepare.mjs --arm sygnal|react --task <id> --dest <dir> [--tarball f.tgz] [--build] [--no-install] [--variant-spec prepare.json] [--starter 1|2]')
+  process.exit(2)
+}
+if (typeof args['variant-spec'] === 'string' && args.starter !== undefined) {
+  console.error('--starter conflicts with --variant-spec (the variant sets the starter version)')
   process.exit(2)
 }
 const arm = args.arm
 const task = resolveTask(arm, args.task)
 const dest = path.resolve(args.dest)
+let starterVersion = 1 // with --variant-spec: the spec's (below)
+if (typeof args['variant-spec'] !== 'string') {
+  try {
+    starterVersion = parseStarter(args.starter ?? CURRENT_STARTER)
+  } catch (e) {
+    console.error(`--starter: ${e.message}`)
+    process.exit(2)
+  }
+}
 
 if ((dest + path.sep).startsWith(REPO_ROOT + path.sep)) {
   console.error(`--dest must be outside the repository (${REPO_ROOT}); the agent must not be able to find hidden/.`)
@@ -52,7 +71,19 @@ if (arm === 'sygnal') {
   fs.copyFileSync(tarball, path.join(dest, 'vendor', 'sygnal.tgz'))
 }
 
-const variant = typeof args['variant-spec'] === 'string' ? JSON.parse(fs.readFileSync(args['variant-spec'], 'utf8')).arms?.[arm] ?? null : null
+let variant = null
+if (typeof args['variant-spec'] === 'string') {
+  const spec = JSON.parse(fs.readFileSync(args['variant-spec'], 'utf8'))
+  variant = spec.arms?.[arm] ?? null
+  starterVersion = spec.starterVersion ?? 1 // prepare.json files from before 4-E: bare starters
+} else {
+  // Without a variant, materialize a starter-only one (packs sygnal-check into a temp dir).
+  if (STARTERS[starterVersion].overlay?.[arm] || STARTERS[starterVersion].overlay?.all) {
+    const v = resolveVariant({ name: `starter-${starterVersion}`, file: null, spec: { starter: starterVersion } }, { repoRoot: REPO_ROOT })
+    const mat = materializeVariant(v, fs.mkdtempSync(path.join(os.tmpdir(), 'sygnal-starter-')), { repoRoot: REPO_ROOT })
+    variant = JSON.parse(fs.readFileSync(mat.prepareSpec, 'utf8')).arms[arm]
+  }
+}
 if (variant?.overlay) {
   const touched = applyOverlay(dest, variant.overlay)
   console.error(`[prepare] variant overlay: ${touched.join(', ')}`)
@@ -81,4 +112,4 @@ const agentPrompt =
 const promptFile = path.join(path.dirname(dest), `${path.basename(dest)}.prompt.txt`)
 fs.writeFileSync(promptFile, agentPrompt + '\n')
 
-console.log(JSON.stringify({ arm, task, dest, promptFile }, null, 2))
+console.log(JSON.stringify({ arm, task, dest, promptFile, starterVersion }, null, 2))

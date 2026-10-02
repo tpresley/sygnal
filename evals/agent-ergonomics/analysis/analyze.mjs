@@ -30,7 +30,7 @@ import { buildTimeline } from './lib/timeline.mjs'
 import { loadSkill, skillUsage, SKILL_DIR_DEFAULT } from './lib/skill.mjs'
 import { diffAgainstStarter, canonicalForms, sourceText, keptTests, testApproach, runSygnalCheck, driverCatchWorkaround } from './lib/code.mjs'
 import { selfReportedIssues } from './lib/selfreport.mjs'
-import { matchReport, matchWorkaround } from './catalog.mjs'
+import { matchReport, matchWorkaround, matchInput } from './catalog.mjs'
 import { docsContext, loadTrackers, readText, DEFAULT_TRACKERS } from './lib/preconditions.mjs'
 import { isTestPath, EDIT_TOOLS, bashWritesTest } from './lib/classify.mjs'
 import { aggregate } from './lib/aggregate.mjs'
@@ -168,8 +168,10 @@ for (const [trial, agentId] of mapRows) {
   // e. catalog hits (results, report, workarounds in tool inputs)
   const resultHits = [...new Set(tl.failures.flatMap((f) => f.catalog ?? []))]
   const inputText = parsed.calls.filter((c) => EDIT_TOOLS.has(c.name) || c.name === 'Bash').map((c) => JSON.stringify(c.input)).join('\n')
-  const workaroundHits = matchWorkaround(inputText.replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\'/g, "'"), arm)
-  rec.catalog = { result: resultHits, report: reportIds, workaround: workaroundHits }
+  const inputPlain = inputText.replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\'/g, "'")
+  const workaroundHits = matchWorkaround(inputPlain, arm)
+  // input: API guesses in what the agent wrote (G-125: `t.state`, `t.html()` before the first render)
+  rec.catalog = { result: resultHits, report: reportIds, workaround: workaroundHits, input: matchInput(inputPlain, arm) }
   // f. skill/docs usage
   rec.skill = skillUsage(parsed, skill)
   // h. self-reported issues
@@ -195,6 +197,7 @@ for (const [trial, agentId] of mapRows) {
       // Workarounds that survive in kept tests
       const testsText = rec.keptTests.map((f) => fs.readFileSync(path.join(dir, f), 'utf8')).join('\n')
       for (const id of matchWorkaround(testsText, arm)) if (!rec.catalog.workaround.includes(id)) rec.catalog.workaround.push(id)
+      for (const id of matchInput(testsText, arm)) if (!rec.catalog.input.includes(id)) rec.catalog.input.push(id)
     }
   }
   rec.finalReportChars = parsed.finalReport.length

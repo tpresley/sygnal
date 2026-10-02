@@ -14,6 +14,8 @@ import {
 import { buildClaudeArgs, buildPreflightArgs } from '../lib/headless.mjs'
 import { runTrial, preflight } from '../lib/runner.mjs'
 import { EVAL_ROOT, REPO_ROOT } from '../lib/common.mjs'
+import { CURRENT_STARTER, parseStarter } from '../lib/starter.mjs'
+import crypto from 'node:crypto'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const FAKE = path.join(HERE, 'fake-claude.mjs')
@@ -31,6 +33,9 @@ function fixtureRepo() {
   fs.writeFileSync(path.join(root, 'overlay', 'src', 'extra.js'), 'export const x = 1\n')
   fs.mkdirSync(path.join(root, 'tool'))
   fs.writeFileSync(path.join(root, 'tool', 'package.json'), '{"name":"tool","version":"1.0.0"}')
+  // The current starter version packs the checkout's sygnal-check (lib/starter.mjs).
+  fs.mkdirSync(path.join(root, 'sygnal-check'))
+  fs.writeFileSync(path.join(root, 'sygnal-check', 'package.json'), '{"name":"sygnal-check","version":"0.1.0"}')
   return root
 }
 
@@ -140,19 +145,68 @@ test('materializeVariant: skill copy, packs, prepare.json, MCP config; idempoten
   assert.deepEqual(prep.arms.sygnal.overlay.append, { 'AGENTS.md': 'all\nsyg\n' }, '"all" first, then the arm')
   assert.deepEqual(prep.arms.react.overlay.append, { 'AGENTS.md': 'all\n' })
   assert.equal(prep.arms.react.overlay.vendor.length, 0)
-  assert.equal(prep.arms.sygnal.overlay.vendor[0].name, 'tool')
-  assert.equal(prep.arms.sygnal.overlay.vendor[0].dependency, 'devDependencies')
+  // The current starter's kit comes first (its dir and sygnal-check), then the variant's own layers.
+  assert.equal(prep.starterVersion, 2)
+  assert.deepEqual(prep.arms.sygnal.overlay.vendor.map((x) => x.name), ['sygnal-check', 'tool'])
+  assert.equal(prep.arms.sygnal.overlay.vendor[1].dependency, 'devDependencies')
+  assert.deepEqual(prep.arms.sygnal.overlay.dirs, [path.join(repo, 'overlay')])
+  assert.match(prep.arms.sygnal.overlay.files['AGENTS.md'], /sygnal-check --strict/)
+  assert.equal(prep.arms.sygnal.overlay.files['CLAUDE.md'], '@AGENTS.md\n', 'the variant\'s own file replaces the kit\'s')
+  assert.deepEqual(prep.arms.react.overlay.dirs, [])
   assert.equal(prep.arms.sygnal.prompt, null)
   assert.deepEqual(prep.arms.react.prompt, { prefix: '', suffix: 'Add a test.' })
   assert.deepEqual(JSON.parse(fs.readFileSync(m.mcpConfig, 'utf8')).mcpServers['sygnal-check'].args, ['sygnal-check', 'mcp'])
   assert.deepEqual(m.mcpAllow, ['mcp__sygnal-check'])
   // Second call reuses the packs and the skill copy.
   materializeVariant(v, out, { repoRoot: repo, npmPack })
-  assert.deepEqual(packs, ['sygnal@5.4.0', path.join(repo, 'tool')])
+  assert.deepEqual(packs, ['sygnal@5.4.0', path.join(repo, 'sygnal-check'), path.join(repo, 'tool')])
+})
+
+test('starter versions: current by default, 1 keeps the pre-4-E hash and adds no kit, unknown ones are rejected', () => {
+  const repo = fixtureRepo()
+  const spec = { skill: { dir: 'skills/sygnal-dev' } }
+  const cur = resolveVariant({ name: 'v', file: null, spec }, { repoRoot: repo, model: 'm' })
+  const one = resolveVariant({ name: 'v', file: null, spec: { ...spec, starter: 1 } }, { repoRoot: repo, model: 'm' })
+  assert.equal(cur.starterVersion, CURRENT_STARTER)
+  assert.equal(one.starterVersion, 1)
+  assert.notEqual(cur.hash, one.hash)
+  assert.equal(one.starter, undefined)
+  // Starter 1 hashes the object 3-H hashed (no starter key), so earlier runs' variantHash still matches.
+  const { hash, file, paths, starterVersion, ...preStarter } = one
+  assert.equal(hash, crypto.createHash('sha256').update(canonicalJson(preStarter)).digest('hex').slice(0, 12))
+  // The kit content is pinned (its file text and the packed sygnal-check's content hash).
+  assert.deepEqual(Object.keys(cur.starter.overlay.sygnal.files), ['AGENTS.md', 'CLAUDE.md'])
+  assert.match(cur.starter.overlay.sygnal.packs['sygnal-check'].contentHash, /^[0-9a-f]{64}$/)
+  assert.equal(cur.starter.overlay.sygnal.packs['sygnal-check'].source, 'sygnal-check')
+  assert.equal(parseStarter('v2'), 2)
+  assert.throws(() => validateVariant({ starter: 9 }), /starter.*Unknown starter version 9/)
+  assert.match(describeVariant(cur), /starter: 2 .*sygnal files\(AGENTS\.md,CLAUDE\.md\) packs\(sygnal-check\)/)
+  assert.match(describeVariant(one), /starter: 1 \(bare/)
+  // Applied to a starter copy: AGENTS.md + CLAUDE.md and the vendored devDependency.
+  const out = path.join(tmp('variant-starter-'), '_variant')
+  const npmPack = (what, dir) => {
+    fs.mkdirSync(dir, { recursive: true })
+    const f = path.join(dir, `${path.basename(String(what))}-0.1.0.tgz`)
+    fs.writeFileSync(f, 'tgz')
+    return f
+  }
+  const prep = JSON.parse(fs.readFileSync(materializeVariant(cur, out, { repoRoot: repo, npmPack }).prepareSpec, 'utf8'))
+  const dest = tmp('starter-copy-')
+  fs.writeFileSync(path.join(dest, 'package.json'), JSON.stringify({ name: 'eval-app', devDependencies: { vitest: '^4' } }))
+  applyOverlay(dest, prep.arms.sygnal.overlay)
+  assert.match(fs.readFileSync(path.join(dest, 'AGENTS.md'), 'utf8'), /npx --no-install sygnal-check --strict/)
+  assert.equal(fs.readFileSync(path.join(dest, 'CLAUDE.md'), 'utf8').split('\n')[0], '@AGENTS.md')
+  assert.equal(JSON.parse(fs.readFileSync(path.join(dest, 'package.json'), 'utf8')).devDependencies['sygnal-check'], 'file:vendor/sygnal-check.tgz')
+  assert.equal(prep.arms.react.overlay, null)
+  // The shipped variants: baseline-5.4.0 and the E1 runs reproduce the bare starters, branch uses the current one.
+  for (const [name, want] of [['baseline-5.4.0', 1], ['e1-check', 1], ['e1-pretest', 1], ['branch', CURRENT_STARTER]]) {
+    const s = JSON.parse(fs.readFileSync(path.join(EVAL_ROOT, 'variants', `${name}.json`), 'utf8'))
+    assert.equal(s.starter ?? CURRENT_STARTER, want, name)
+  }
 })
 
 test('materializeVariant: a skill from git is extracted (v5.4.0)', { skip: !HAS_TAG && 'no v5.4.0 tag' }, () => {
-  const v = resolveVariant({ name: 'g', file: null, spec: { skill: { gitRef: 'v5.4.0', path: 'skills/sygnal-dev' } } }, { repoRoot: REPO_ROOT })
+  const v = resolveVariant({ name: 'g', file: null, spec: { skill: { gitRef: 'v5.4.0', path: 'skills/sygnal-dev' }, starter: 1 } }, { repoRoot: REPO_ROOT })
   const m = materializeVariant(v, path.join(tmp('variant-git-'), '_variant'), { repoRoot: REPO_ROOT, npmPack: () => assert.fail('no pack expected') })
   assert.ok(fs.readFileSync(path.join(m.skillDir, 'SKILL.md'), 'utf8').startsWith('---'))
   assert.ok(fs.existsSync(path.join(m.skillDir, 'references', 'component-patterns.md')))

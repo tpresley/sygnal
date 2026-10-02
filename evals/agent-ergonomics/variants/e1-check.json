@@ -1,7 +1,8 @@
 {
-  "description": "E1: branch + sygnal-check installed in the Sygnal starter (this checkout's sygnal-check, vendored) and an AGENTS.md naming it, as the 5.4.0 templates do",
+  "description": "E1: branch + sygnal-check installed in the Sygnal starter (this checkout's sygnal-check, vendored) and an AGENTS.md naming it, as the 5.4.0 templates do. Pinned to the bare starters (starter 1): the Phase 3 E1 condition; starter 2 adopted it as the default (4-E)",
   "sygnal": "branch",
   "skill": { "dir": "skills/sygnal-dev" },
+  "starter": 1,
   "overlay": {
     "sygnal": {
       "packs": { "sygnal-check": { "dir": "sygnal-check", "dependency": "devDependencies" } },
