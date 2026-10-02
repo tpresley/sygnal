@@ -109,41 +109,15 @@ export default function component(opts: ComponentOptions): any {
     fail('SYG601', name, 'Invalid sources', 'Pass sources from run()')
   }
 
-  let fixedIsolateOpts
-  if (typeof isolateOpts == 'string') {
-    fixedIsolateOpts = { [stateSourceName]: isolateOpts }
-  } else {
-    if (isolateOpts === true) {
-      fixedIsolateOpts = {}
-    } else {
-      fixedIsolateOpts = isolateOpts
-    }
-  }
+  const fixedIsolateOpts = typeof isolateOpts == 'string' ? { [stateSourceName]: isolateOpts } : isolateOpts === true ? {} : isolateOpts
 
-  const currySources = typeof sources === 'undefined'
-  let returnFunction
-
-  if (isObj(fixedIsolateOpts)) {
-    const wrapped = (sources: any) => {
-      const fixedOpts = { ...opts, sources }
-      const instance = new Component(fixedOpts)
-      instance.sinks.__dispose = () => instance.dispose()
-      return instance.sinks
-    }
-    returnFunction = currySources ? isolate(wrapped, fixedIsolateOpts) : isolate(wrapped, fixedIsolateOpts)(sources)
-  } else {
-    if (currySources) {
-      returnFunction = (sources: any) => {
-        const instance = new Component({ ...opts, sources })
-        instance.sinks.__dispose = () => instance.dispose()
-        return instance.sinks
-      }
-    } else {
-      const instance = new Component(opts)
-      instance.sinks.__dispose = () => instance.dispose()
-      returnFunction = instance.sinks
-    }
+  const make: any = (sources: any) => {
+    const instance = new Component({ ...opts, sources })
+    instance.sinks.__dispose = () => instance.dispose()
+    return instance.sinks
   }
+  const factory = isObj(fixedIsolateOpts) ? isolate(make, fixedIsolateOpts) : make
+  const returnFunction = typeof sources === 'undefined' ? factory : factory(sources)
 
   returnFunction.componentName = name
   returnFunction.isSygnalComponent = true
@@ -224,7 +198,6 @@ class Component {
     this.model      = model
     this.hmrActions = hmrActions
     this.context    = context
-    this.response   = response
     this.view       = view
     this.peers      = peers
     this.components = components
@@ -744,12 +717,7 @@ class Component {
 
         // EFFECT sink: run the reducer for side effects only, no state change or sink output
         if (sink === EFFECT_SINK_NAME) {
-          const effect$ = this.makeEffectHandler(snapshotted$, action, reducer, this.action$)
-          if (Array.isArray(reducers[sink])) {
-            reducers[sink].push(effect$)
-          } else {
-            reducers[sink] = [effect$]
-          }
+          ;(reducers[sink] ||= []).push(this.makeEffectHandler(snapshotted$, action, reducer, this.action$))
           return
         }
 
@@ -771,11 +739,7 @@ class Component {
             }
           }))
 
-        if (Array.isArray(reducers[sink])) {
-          reducers[sink].push(wrapped$)
-        } else {
-          reducers[sink] = [wrapped$]
-        }
+        ;(reducers[sink] ||= []).push(wrapped$)
       })
     })
 
@@ -925,11 +889,7 @@ class Component {
     this.sinks = this.sourceNames.reduce((acc: Record<string, any>, name) => {
       if (name == this.DOMSourceName) return acc
       const subComponentSink$ = (this.subComponentSink$ && name !== PARENT_SINK_NAME) ? this.subComponentSink$.map((sinks: any) => sinks[name]).filter((sink: any) => !!sink).flatten() : xs.never()
-      if (name === this.stateSourceName) {
-        acc[name] = xs.merge((this.model$[name] || xs.never()), subComponentSink$, this.sources[this.stateSourceName].stream.filter((_: any) => false), ...(this.peers$[name] || []))
-      } else {
-        acc[name] = xs.merge((this.model$[name] || xs.never()), subComponentSink$, ...(this.peers$[name] || []))
-      }
+      acc[name] = xs.merge((this.model$[name] || xs.never()), subComponentSink$, ...(name === this.stateSourceName ? [this.sources[name].stream.filter((_: any) => false)] : []), ...(this.peers$[name] || []))
       return acc
     }, {} as Record<string, any>)
 
@@ -947,13 +907,7 @@ class Component {
     }
     // READY sink: if the component explicitly defined READY model entries, use them;
     // otherwise auto-emit true. Check the raw model object, not model$ (which always has keys for all sources).
-    const hasExplicitReady = this.model && isObj(this.model) && Object.values(this.model).some(
-      (sinks: any) => {
-        if (isObj(sinks) && READY_SINK_NAME in sinks) return true
-        return false
-      }
-    )
-    if (hasExplicitReady) {
+    if (isObj(this.model) && Object.values(this.model).some((sinks: any) => isObj(sinks) && READY_SINK_NAME in sinks)) {
       this.sinks[READY_SINK_NAME] = this.model$[READY_SINK_NAME]
       this.sinks[READY_SINK_NAME].__explicitReady = true
     } else {
@@ -1197,15 +1151,9 @@ class Component {
       renderParams.context = this.context$.compose(dropRepeats(objIsEqual))
     }
 
-    const names: string[] = []
-    const streams: any[] = []
+    const names = Object.keys(renderParams)
 
-    Object.entries(renderParams).forEach(([name, stream]: [string, any]) => {
-      names.push(name)
-      streams.push(stream)
-    })
-
-    let combined = xs.combine(...streams)
+    let combined = xs.combine(...Object.values(renderParams))
       .compose(debounce(1))
       // map the streams from an array back to an object with the render parameter names as the keys
       .map((arr: any) => {
@@ -1245,9 +1193,7 @@ class Component {
 
       if (entries.length === 0) {
         // Dispose any previously active sub-components
-        this._activeSubComponents.forEach((entry) => {
-          if (entry?.sink$?.__dispose) entry.sink$.__dispose()
-        })
+        this._activeSubComponents.forEach((entry) => entry?.sink$?.__dispose?.())
         this._activeSubComponents.clear()
         return rootEntry
       }
@@ -1289,21 +1235,11 @@ class Component {
         const props$    = xs.create().startWith(props)
         const children$ = xs.create().startWith(children)
 
-        let instantiator
-
-        if (isCollection) {
-          instantiator = this.instantiateCollection.bind(this)
-        } else if (isSwitchable) {
-          instantiator = this.instantiateSwitchable.bind(this)
-        } else {
-          instantiator = this.instantiateCustomComponent.bind(this)
-        }
-
         newInstanceCount++
 
         let sink$
         try {
-          sink$ = instantiator(el, props$, children$)
+          sink$ = (isCollection ? this.instantiateCollection : isSwitchable ? this.instantiateSwitchable : this.instantiateCustomComponent).call(this, el, props$, children$)
         } catch (err) {
           const error = err instanceof Error ? err : new Error(String(err))
           caught('SYG408', this, 'Sub-component threw; rendering the error fallback', ERR_FIX, error)
@@ -1338,7 +1274,7 @@ class Component {
       const currentIds = new Set(Object.keys(newComponents))
       this._activeSubComponents.forEach((entry, id) => {
         if (!currentIds.has(id)) {
-          if (entry?.sink$?.__dispose) entry.sink$.__dispose()
+          entry?.sink$?.__dispose?.()
           this._activeSubComponents.delete(id)
           delete this._childReadyState[id]
         }
@@ -1497,24 +1433,13 @@ class Component {
         }
       }
     } else if (typeof stateField === 'string') {
-      if (isObj(this.currentState)) {
-        if(!(this.currentState && stateField in this.currentState) && !(this.calculated && stateField in this.calculated)) {
-          const arrayFields = Object.keys(this.currentState).filter(k => Array.isArray(this.currentState[k]))
-          warn('SYG401', this, `Collection from="${stateField}" is not in state${arrayFields.length ? ` (array fields: '${arrayFields.join("', '")}')` : ''}; it renders nothing`, 'Set it to an array in initialState')
-          lense = undefined
-        } else if (!Array.isArray(this.currentState[stateField])) {
-          warn('SYG401', this, `Collection 'from' field '${stateField}' is not an array; it renders nothing`, 'Set it to an array in initialState')
-          lense = fieldLense
-        } else {
-          lense = fieldLense
-        }
+      const cs = this.currentState
+      if (isObj(cs) && !(stateField in cs) && !(this.calculated && stateField in this.calculated)) {
+        const arrayFields = Object.keys(cs).filter(k => Array.isArray(cs[k]))
+        warn('SYG401', this, `Collection from="${stateField}" is not in state${arrayFields.length ? ` (array fields: '${arrayFields.join("', '")}')` : ''}; it renders nothing`, 'Set it to an array in initialState')
       } else {
-        if (!Array.isArray(this.currentState[stateField])) {
-          warn('SYG401', this, `Collection 'from' field '${stateField}' is not an array; it renders nothing`, 'Set it to an array in initialState')
-          lense = fieldLense
-        } else {
-          lense = fieldLense
-        }
+        if (!Array.isArray(cs[stateField])) warn('SYG401', this, `Collection 'from' field '${stateField}' is not an array; it renders nothing`, 'Set it to an array in initialState')
+        lense = fieldLense
       }
     } else if (isObj(stateField)) {
       if (typeof stateField.get !== 'function') {
@@ -1698,8 +1623,6 @@ class Component {
             ids.push(id)
             return val.sink$[this.DOMSourceName].startWith(undefined)
           })
-
-        if (vdom$.length === 0) return xs.of(root)
 
         // Track READY state on the component instance (persists across folds)
         for (const [id, val] of entries as [string, any]) {
@@ -2230,12 +2153,7 @@ function isObj(obj: any): obj is Record<string, any> {
 const SORT_FIX = "Use a field name, { field: 'asc'|'desc'|1|-1 }, or a function"
 
 function __baseSort(a: any, b: any, ascending: boolean = true): number {
-  const direction = ascending ? 1 : -1
-  switch(true) {
-    case a > b: return 1 * direction
-    case a < b: return -1 * direction
-    default: return 0
-  }
+  return a > b ? (ascending ? 1 : -1) : a < b ? (ascending ? -1 : 1) : 0
 }
 
 function __sortFunctionFromObj(item: Record<string, any>): ((a: any, b: any) => number) | undefined {
