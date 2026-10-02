@@ -9,7 +9,8 @@ import { resolveExpr } from './resolve.js'
 import { returnedExpressions } from './intent.js'
 
 // Actions the core dispatches itself. HYDRATE is not one since 6.0 (D66): nothing dispatches it.
-export const BUILTIN_ACTIONS = new Set(['BOOTSTRAP', 'INITIALIZE', 'DISPOSE', 'READY'])
+// RESOURCE: written by the core for a `resources` static (PLAN-3 3-A, exp)
+export const BUILTIN_ACTIONS = new Set(['BOOTSTRAP', 'INITIALIZE', 'DISPOSE', 'READY', 'RESOURCE'])
 
 /** Request keys that name the action a reply arrives as (reply actions) (PLAN-3 §1.1). */
 export const REPLY_KEYS = new Set(['ok', 'error'])
@@ -112,15 +113,15 @@ export function replyNames(project, file, valueNode, keys = REPLY_KEYS) {
  * any object literal inside it, and the values of an SSE `events` map, PLAN-3 §1.3).
  * @returns {{ targets: Array<{ name, key, node, file }>, dynamic: Array<{ node, file }> }}
  */
-export function connectionNames(project, file, node) {
+export function connectionNames(project, file, node, keys = CONNECTION_KEYS) {
   const out = { targets: [], dynamic: [] }
   const r = resolveExpr(project, file, node)
   if (!r?.node) return out
   walk(r.node, (n) => {
     if (n.type !== 'ObjectProperty') return true
     const key = propName(n)
-    // G-163: an SSE spec's `events: { 'price-update': 'PRICE' }` names actions too
-    if (key === 'events' && n.value?.type === 'ObjectExpression') {
+    // G-163: an SSE spec's `events: { 'price-update': 'PRICE' }` names actions too (connections only)
+    if (keys === CONNECTION_KEYS && key === 'events' && n.value?.type === 'ObjectExpression') {
       for (const p of n.value.properties) {
         if (p.type !== 'ObjectProperty') continue
         const s = stringValue(p.value)
@@ -129,7 +130,7 @@ export function connectionNames(project, file, node) {
       }
       return false
     }
-    if (!CONNECTION_KEYS.has(key)) return true
+    if (!keys.has(key)) return true
     const s = stringValue(n.value)
     if (s != null) out.targets.push({ name: s, key, node: n.value, file: r.file })
     else out.dynamic.push({ node: n.value, file: r.file })

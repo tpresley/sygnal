@@ -130,6 +130,29 @@ Ticker.model = { TICK: (s) => s, PRICE: (s, p) => ({ ...s, price: p }), HALTED: 
     expect(found.map(d => d.data.action)).toEqual(['HALTD'])
     expect(found[0].data.suggestion).toBe('HALTED')
   })
+
+  it('PLAN-3 3-A: ok/error names in a resources static are triggers and are checked', () => {
+    const { diags } = checkSource(`
+function Zip({ state }) { return <p>{state.lookup.status}</p> }
+Zip.initialState = { zip: '' }
+Zip.resources = { lookup: (state) => state.zip && { url: '/zip/' + state.zip, ok: 'FOUND', error: 'FIALED' } }
+Zip.model = { FOUND: (s, d) => ({ ...s, city: d.city }), FAILED: { EFFECT: () => {} } }
+`)
+    const found = codes(diags, 'SYG112')
+    expect(found).toHaveLength(1)
+    expect(found[0].data).toEqual({ action: 'FIALED', key: 'error', suggestion: 'FAILED' })
+    expect(found[0].message).toContain("Zip.resources names 'FIALED' as its error reply action")
+    expect(codes(diags, 'SYG102').map(d => d.data.action)).toEqual(['FAILED'])
+  })
+
+  it('PLAN-3 3-A: a RESOURCE model entry is a built-in action (no SYG102)', () => {
+    const { diags } = checkSource(`
+function A({ state }) { return <p>{state.q.status}</p> }
+A.resources = { q: () => '/q' }
+A.model = { RESOURCE: (state, { name, ...r }) => ({ ...state, [name]: r }) }
+`)
+    expect(codes(diags, 'SYG102')).toEqual([])
+  })
 })
 
 describe('unparsable files (G-164)', () => {
