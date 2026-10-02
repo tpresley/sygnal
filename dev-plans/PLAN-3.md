@@ -243,7 +243,7 @@ The operating model is PLAN-2 §1 unchanged: integration branch, isolation-workt
 - **0-A:** Create the tracker. Re-measure the size gate and the llms.txt line count. Settle §8 Q1–Q7 with the user.
 - **0-B:** Prototype spike, throwaway: sender tagging plus routed replies in `component.ts` with `makeFetchDriver`. Measure the core bytes. **Gate:** ≤ 250 B gzipped on kanban. If it's over, propose a budget re-baseline (Q7) before Phase 1.
 - **0-C (eval, user's terminal):**
-  - New task **22-chat-socket** (WebSocket: connect per room, send, receive, reconnect status), both arms, with a hidden test against a local `ws` server.
+  - New task **22-chat-socket** (WebSocket: connect per room, send, receive, reconnect status), both arms. Hidden tests use a deterministic fake `WebSocket` (as hidden tests stub `fetch`); a local `ws` server is for the 2-A browser tests only.
   - New task **23-quote-resource** (a read that refetches when an id changes, with cancel-stale), both arms. It is written so that §1.1 and §1.4 both solve it.
   - Both go in a new tier `net`, so existing tiers stay fixed. Verify with `verify.mjs`, and catch mutants as in 0-C of PLAN-2.
 

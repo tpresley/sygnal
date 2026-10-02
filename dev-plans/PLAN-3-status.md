@@ -19,7 +19,7 @@ Tracks progress for [PLAN-3.md](PLAN-3.md). Maintained by the coordinator. The P
 |---|---|---|---|---|---|---|
 | 0-A | Tracker, baseline, decisions Q1–Q7 | ✅ | `plan3-integration` | coordinator | this commit | Baseline above; D57–D63 |
 | 0-B | Routing-core size spike (throwaway) | ✅ | `exp/p3-routing-spike` | subagent | not merged (`d67e2d2`, reference for 1-A) | **Core +53 B** gated (42,178 B; v1 +90 → v3 +53; variant D +40 rejected: no abort-on-dispose, couples driver to core). Fetch driver +260 B (1,944 → 2,204 B incremental, esbuild+gzip, no trim pass). Shape: EVENTS `__emitterId` stamp generalised to `['EVENTS', ...routing sources]` in `initSinks`; `initAction$` merges `sources[n].routed(_componentNumber)` for sources with `__sygnalRoutes === true` (strict: the DOM source Proxy returns a function for any key); driver owns a sender→listener Map, latest key (sender, `key ?? ok`), abort on stream stop; `tagRequest` must copy the sender tag. Full gate green (vitest 1,110, browser 123). Findings G-144…G-147 |
-| 0-C | Eval tier `net`: 22-chat-socket, 23-quote-resource (both arms) | 🔵 | worktree | subagent | — | verify + mutants; trials run only from the user's terminal |
+| 0-C | Eval tier `net`: 22-chat-socket, 23-quote-resource (both arms) | ✅ | `p3-0c-net-tier` | subagent | `dc2ae34` (`a7bc8eb`) | verify `--reruns 3` 90/90 (starters 0/7, solutions 7/7, both arms); 11 mutants × 2 arms all caught; hidden tests byte-identical across arms; harness 57/57 + analysis 45/45; Sygnal solutions/starters strict-clean. 22: `/ws/rooms/<general\|random>`, statuses Not connected/Connecting…/Online/Reconnecting…, fixed 1 s retry, own close never retries; fake `WebSocket` via `vi.stubGlobal` (CLOSING until acked). 23: `GET /api/quotes/<id>`, latest-only incl. same-id refetch, Refresh. Sygnal refs: custom socket driver (22), `makeFetchDriver` + `latest` (23). Baseline run awaiting the user (`p3-net-baseline`, ≈ 20 trials, ≈ $4.75) |
 | 1-A | Routing core | ⬜ | | | | after 0-B |
 | 1-B | EFFECT hardening | ⬜ | | | | after 1-A |
 | 1-C | Test fakes (G-140, G-141, G-131) | ⬜ | | | | after 1-A |
@@ -65,9 +65,12 @@ Tracks progress for [PLAN-3.md](PLAN-3.md). Maintained by the coordinator. The P
 | G-144 | 0-B | med | Routing | Dispose window: `action$` completes in a `setTimeout` after dispose, so a reply landing in that tick is still delivered to the disposed instance and the abort is a tick or two late. Fix with a `_disposed` check before routed actions apply | Open → 1-A |
 | G-145 | 0-B | low | Repo docs | CLAUDE.md fresh-worktree setup omits `npm ci --prefix sygnal-check`; without it `test/vite-plugin-dev.test.js` and `test/inspect-kanban.test.js` fail to load (`@babel/parser`) | ✅ CLAUDE.md (user-approved) |
 | G-146 | 0-B | med | Docs | A routed request built from state that the same action's STATE sets sees the pre-action state (B-003 snapshot); agents may build the URL from stale state. Recipe must compute from `(state, data)` | Open → 4-A |
+| G-148 | 0-C | med | Socket driver | Task 22 needs a fixed 1 s retry (no jitter), a distinct reconnecting state, and no `close` action when the app closes a socket itself (removed/changed connection). `makeSocketDriver` needs a `reconnect: { delayMs, jitter: false }` option and must only report closes it didn't initiate | Open → 2-A |
+| G-149 | 0-C | low | Eval harness | The Sygnal hidden-test harness can't dispose the app between tests; task 22's `afterEach` clicks "Leave room" to stop a leftover retry timer | Open (note) |
 | G-147 | 0-B | low | Routing | Generalised stamp skips non-object EVENTS values (before: spread into objects); small behaviour change, needs a test and possibly a CHANGELOG line | Open → 1-A |
 
 ## Log
 
 - 2026-10-02 — PLAN-3 approved with all §8 recommendations (D57–D63). 0-A done: baseline 42,125 B gated, llms.txt 235 lines. 0-B and 0-C started.
 - 2026-10-02 — 0-B done: routing core +53 B (fits; D64), fetch driver +260 B; spike branch kept as the 1-A reference. G-144…G-147.
+- 2026-10-02 — G-145 fixed in CLAUDE.md (user-approved). 0-C merged (`dc2ae34`): tier `net` (22, 23), verify 90/90, mutants all caught; G-148, G-149. Phase 0 code work done; the `net` baseline run is the user's (terminal).
