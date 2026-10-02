@@ -534,6 +534,16 @@ export type Component<
   components?: { [name: string]: Component };
   onError?: (error: Error, info: { componentName: string }) => any;
   debug?: boolean;
+  /**
+   * WebSocket / server-sent events connections derived from state (`makeSocketDriver()`):
+   * `Chat.connections = (state) => ({ room: state.room && { socket: '/ws/rooms/' + state.room, message: 'RECEIVED' } })`.
+   * Recomputed from the current state (after the action's reducer) and sent to the socket
+   * driver's sink whenever the result changes structurally (once at startup too): a new name
+   * opens, a removed or falsy one closes, a changed URL reconnects. Events arrive as the named
+   * actions on this instance; send with `{ to: 'room', json }` from a model entry (a connection
+   * the same action opens or changes is declared first). Dispose closes them.
+   */
+  connections?: (state: STATE & CALCULATED) => Connections;
 }
 
 /**
@@ -1299,8 +1309,11 @@ export type SseConnection = SocketActions & {
  * A value sent to a makeSocketDriver() sink: the sender's whole set of connections (a falsy
  * entry or a missing name closes that connection), or a message to send on one of them.
  */
+/** A component's whole set of connections: a falsy entry (`state.room && { ... }`) means closed */
+export type Connections = Record<string, SocketConnection | SseConnection | false | null | undefined | '' | 0>
+
 export type SocketRequest =
-  | { connections: Record<string, SocketConnection | SseConnection | false | null | undefined> }
+  | { connections: Connections }
   | {
       /** The name of one of this instance's own WebSocket connections (else SYG611, not sent) */
       to: string;

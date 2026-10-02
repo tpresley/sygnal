@@ -181,6 +181,7 @@ class Component {
   _disposed?: boolean;
   _routed?: any[];
   _ac?: AbortController;
+  _s?: any;
   _activeSubComponents: Map<string, any>;
   _childReadyState: Record<string, boolean>;
   _readyChanged$: any;
@@ -721,6 +722,24 @@ class Component {
       return acc
     }, {} as Record<string, any>)
 
+    // PLAN-3 §1.3: Component.connections(state) is sent as { connections } to the sink of a
+    // makeSocketDriver (its source is marked), from the current state (and from this
+    // component's own reducer results: below a Collection the state stream lags a debounce),
+    // without equal repeats. G-158: the component's own values on that sink go two microtasks
+    // later, after its reducer ran, so a connection the same action opens or changes is first
+    const conn = this.view?.connections
+    if (conn) this.sourceNames.forEach(n => {
+      if (this.sources[n]?.__sygnalConnections !== true) return
+      const own$: any = xs.create()
+      model$[n] = xs.merge(
+        xs.merge(this.sources[this.stateSourceName].stream, this._s = xs.create()).compose(dropRepeats())
+          .map((s: any) => {
+            try { return {connections: conn(this.addCalculated(s))} } catch (err) { caught('SYG216', this, `connections threw; nothing sent`, ERR_FIX, err) }
+          }).compose(dropRepeats(objIsEqual)),
+        (model$[n] || xs.never()).filter((v: any) => queueMicrotask(() => queueMicrotask(() => own$.shamefullySendNext(v))) as any),
+        own$)
+    })
+
     this.model$ = model$
 
     // [diagnostics hook]
@@ -924,7 +943,11 @@ class Component {
                 diag.onReducer(this, name, _state, newState, this.stateSourceName)
                 const result = this.cleanupCalculated(newState)
                 // B-013: later same-tick actions' non-STATE sinks snapshot currentState (B-003)
-                if (fresh) this.currentState = result
+                // (and the connections static: _s, which feeds it ahead of a Collection's debounce)
+                if (fresh) {
+                  this.currentState = result
+                  this._s?.shamefullySendNext(result)
+                }
                 return result
               } catch (err) {
                 caught('SYG216', this, `Reducer for '${name}' threw; state unchanged`, ERR_FIX, err)
