@@ -223,9 +223,9 @@ it('updates the query at once and searches 300 ms after the last keystroke', asy
 
 | Helper | Returns |
 |---|---|
-| `t.state` | The latest state (`t.states.at(-1)`), read-only; `undefined` before the first one |
+| `t.state` | The latest state (`t.states.at(-1)`), read-only; `undefined` before the first one. Calculated fields in it are current, also after a child component or Collection item changed the state |
 | `t.states` | Live array of every state emitted, in order (`t.states[0]` is the initial state) |
-| `t.html()` | The latest render, serialized to HTML. It throws if called before the first render, so `await t.ready()` (or a `t.next()`) first; a component that hasn't rendered by then (no state yet) gives `''` |
+| `t.html()` | The latest render, serialized to HTML like the browser's `innerHTML`: text escapes only `&`, `<` and `>` (`Couldn't`, not `Couldn&#39;t`), attribute values only `&` and `"`. It throws if called before the first render, so `await t.ready()` (or a `t.next()`) first; a component that hasn't rendered by then (no state yet) gives `''` |
 | `t.emitted` | Live array of `{ type, data }` the component (and its children) put on the EVENTS bus |
 | `t.sinkValues(name)` | Live array of values sent to a sink: `'EVENTS'`, `'PARENT'` (the plain value), `'LOG'`, or a custom driver name |
 | `t.diagnostics` | Live array of diagnostics reported while rendered |
@@ -281,9 +281,10 @@ await t.next(s => s.error !== '')
 ```
 
 - `t.requests(name)` is the live list of values sent to the sink (an alias of `sinkValues`).
+- Every value sent to the sink is its own request, even the same object sent again: a constant request object re-sent by a Retry after `t.fail` is pending again, as with the real driver.
 - `t.respond(name, value, opts?)` answers the most recent pending request and delivers `{ category, value, status: 200, request }` on `select()`. It is delivered in order with `simulateEvent`/`simulateAction` calls and waits up to 1 s (half of `timeoutMs` if lower) for the component to send a request, e.g. after a debounce.
 - `t.fail(name, error, opts?)` delivers `{ error, category, request, status, body }` on `errors()`. A number is an HTTP status: `t.fail('HTTP', 404)` fails with `Error('HTTP 404')` and `status: 404`.
-- `opts`: a category string, or `{ category, request, status, body }`. `request` picks an exact element of `t.requests(name)`; `request: null` pushes a value no request asked for.
+- `opts`: a category string, or `{ category, request, status, body }`. `request` picks an exact element of `t.requests(name)` (an object sent more than once: its newest pending send); `request: null` pushes a value no request asked for.
 - The fake follows `latest: true` and `{ category, abort: true }` like the real driver: a superseded or cancelled request is no longer pending, and answering it explicitly delivers nothing.
 - It is isolated like the real driver: each component instance (two `<Search>`es, every Collection item) gets only the replies to its own requests, and its `latest`/`abort` don't touch another instance's requests. Answer each with `{ request }` (an element of `t.requests('HTTP')`); the root component sees every reply.
 - The fake can't see options given to the real driver in `main.js`: a `makeFetchDriver({ latest: true })` there doesn't apply in tests. Write `latest: true` on the request itself (the canonical form).

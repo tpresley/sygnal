@@ -6,7 +6,7 @@ import {enrichEventStream} from '../cycle/dom/enrichEventStream';
 import eventBusDriver from './eventDriver';
 import logDriver from './logDriver';
 import component from '../component';
-import {renderToString} from './ssr';
+import {renderToInnerHtml} from './ssr';
 import {_getDiagnosticsConfig, configureDiagnostics, getDiagnosticsMode, isDiagnosticsEnabled, onDiagnostic, registerCheck, report} from './diagnostics/index';
 import xs from './xstreamCompat';
 import {tagRequest, inScope, scopeKey} from './fetchDriver';
@@ -158,7 +158,8 @@ export interface FakeReplyOptions {
   /** Answer the most recent pending request of this category */
   category?: string;
   /**
-   * Answer exactly this request (an element of t.requests(name)). `null`: push the value without
+   * Answer exactly this request (an element of t.requests(name); an object sent more than once:
+   * its newest pending send). `null`: push the value without
    * a request (for a source that emits on its own); `category` then sets its category.
    */
   request?: any;
@@ -1282,10 +1283,13 @@ export function renderComponent(
 
   // E2: t.respond / t.fail. The answered request is picked when the call is delivered (in
   // order with simulate* calls), waiting up to 1s for the component to send one.
-  const answered = new WeakSet<object>();
+  // 4-F: each send is tracked by its index in the recorded sink values, not by the request
+  // object, so a constant request object sent again (a Retry after t.fail) is a new pending
+  // request, as with the real driver
+  const answered = new Set<string>();
   const pendingRequests = (name: string) => {
-    let live: Array<{raw: any; category: any; scope: string}> = [];
-    for (const raw of sinkValues(name)) {
+    let live: Array<{raw: any; category: any; scope: string; i: number}> = [];
+    for (const [i, raw] of sinkValues(name).entries()) {
       const r = typeof raw == 'string' ? {url: raw} : raw;
       if (!r || typeof r != 'object') continue;
       // { abort: true } cancels everything; with a category, or a latest: true request, the
@@ -1293,7 +1297,7 @@ export function renderComponent(
       // R4-2: per scope: another component's requests are never cancelled
       const sc = scopeKey(r);
       if (r.abort || r.latest) live = live.filter(x => x.scope !== sc || (r.latest || 'category' in r) && x.category !== r.category);
-      if (!r.abort && !answered.has(raw)) live.push({raw, category: r.category, scope: sc});
+      if (!r.abort && !answered.has(name + '#' + i)) live.push({raw, category: r.category, scope: sc, i});
     }
     return live;
   };
@@ -1306,14 +1310,16 @@ export function renderComponent(
       // up to 1s (half of timeoutMs if lower), so a wait (next/settle) still times out later
       wait: Math.min(1000, defaultTimeout / 2),
       go: last => {
-        let request = o.request, category = o.category;
+        let request = o.request, category = o.category, send: any;
         // request: null pushes a value no request asked for (a source that emits on its own)
         if (request === null) {
           request = undefined;
         } else if (request !== undefined) {
-          // an explicit request that is no longer pending (superseded, aborted, answered) gets
-          // nothing, like the real driver
-          if (!pendingRequests(name).some(x => x.raw === request)) return true;
+          // an explicit request answers the latest pending send of that object (one sent
+          // twice is answered newest first); one no longer pending (superseded, aborted,
+          // answered) gets nothing, like the real driver
+          send = pendingRequests(name).filter(x => x.raw === request).pop();
+          if (!send) return true;
         } else {
           const live = pendingRequests(name).filter(x => !('category' in o) || x.category === category);
           if (!live.length) {
@@ -1324,9 +1330,10 @@ export function renderComponent(
                 `The component sent none: check the model entry that returns the ${name} request (t.requests('${name}') is empty).`)));
             return true;
           }
-          request = live[live.length - 1].raw;
+          send = live[live.length - 1];
+          request = send.raw;
         }
-        if (request && typeof request == 'object') answered.add(request);
+        if (send) answered.add(name + '#' + send.i);
         if (!('category' in o)) category = request?.category;
         const payload = build(category, request);
         const f = fake(name);
@@ -1662,7 +1669,7 @@ export function renderComponent(
   };
   const renderHtml = () =>
     vtree
-      ? renderToString(() => unmark(vtree)).replace(/ class="([^"]*)"/g, (_, c: string) =>
+      ? renderToInnerHtml(() => unmark(vtree)).replace(/ class="([^"]*)"/g, (_, c: string) =>
           (c = c.split(' ').filter(x => !x.startsWith('___')).join(' ')) ? ` class="${c}"` : ''
         )
       : '';
