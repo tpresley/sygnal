@@ -211,6 +211,7 @@ export const CODE_TITLES: Record<string, string> = {
   SYG608: 'Strict mode requested without the diagnostics entry',
   SYG609: 'Sink or source has no driver',
   SYG610: "Request has a 'then' or 'catch' key",
+  SYG611: 'Socket message not sent or connection not opened',
   SYG901: 'Sub-component sink stream errored',
   SYG902: 'EFFECT stream errored',
   SYG903: 'Component factory returned invalid sinks',
@@ -236,12 +237,15 @@ export const STRICT_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
 // table, kept OUT of CODE_SEVERITY (zero bytes in the main bundle); the entry registers them
 // and passes the severity explicitly.
 // PLAN-3 1-D: SYG112 (a routed request names an action with no model entry) too.
+// PLAN-3 2-A: SYG611 too, though makeSocketDriver reports it (legacy error(), severity passed
+// explicitly): kept out of CODE_SEVERITY so the core bundle doesn't pay for an opt-in driver.
 export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG112: 'error',
   SYG115: 'warn',
   SYG116: 'error',
   SYG221: 'error',
   SYG421: 'error',
+  SYG611: 'error',
 }
 
 export function getCodeInfo(code: string): DiagnosticCodeInfo | undefined {
