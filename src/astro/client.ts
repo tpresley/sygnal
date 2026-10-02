@@ -9,6 +9,7 @@ interface SygnalComponent {
   intent?: any;
   hmrActions?: any;
   connections?: any;
+  resources?: any;
   context?: any;
   peers?: any;
   components?: any;
@@ -74,6 +75,7 @@ export default (element: any) => {
     Wrapped.onError = Component.onError
     Wrapped.debug = Component.debug
     Wrapped.connections = Component.connections
+    Wrapped.resources = Component.resources
     Wrapped.componentName = Component.componentName || Component.name
     // run() names the root by `name` first: diagnostics and devtools should
     // say 'Counter', not 'Wrapped'

@@ -255,7 +255,7 @@ export function makeSocketDriver(options: any = {}) {
       isolateSink: (sink: any, scope: any) => sink.map((v: any) => v && typeof v == 'object'
         ? Object.defineProperty(keepSender(v, {...v}), SCOPE, {value: [scope, ...scopeOf(v)]}) : v),
       // the core sends a component's `connections` static here (PLAN-3 2-B)
-      __sygnalConnections: true,
+      __sygnalStatic: 'connections',
       ...replies,
     });
 

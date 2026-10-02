@@ -64,7 +64,7 @@ export const timing = {
  * Built-in actions Sygnal dispatches itself; never "missing" or "unreachable".
  * (HYDRATE is not one since 6.0, D66: nothing dispatches it, so it is an ordinary action.)
  */
-export const BUILTIN_ACTIONS = new Set(['BOOTSTRAP', 'INITIALIZE', 'DISPOSE', 'READY'])
+export const BUILTIN_ACTIONS = new Set(['BOOTSTRAP', 'INITIALIZE', 'DISPOSE', 'READY', 'RESOURCE'])
 
 /** Sinks the core handles itself: their values never go to a reply-action driver. */
 const NON_REPLY_SINK = /^(STATE|EFFECT|EVENTS|PARENT|READY|DOM|CHILD)$/
