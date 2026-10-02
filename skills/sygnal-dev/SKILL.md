@@ -303,24 +303,8 @@ it('searches once, 300 ms after the last keystroke', async () => {
 ```
 - `t.simulateAction('LOADED', data)` pushes an action straight into intent → model (all sinks run). Use it for actions without a DOM trigger. **Drivers need no wiring in tests**: a sink with no driver is recorded (`t.requests('HTTP')`), and its source is a fake: `t.respond('HTTP', body)` answers the newest pending request on `select()` (`{ category, value, status: 200, request }`; waits up to 1s for a debounced one), `t.fail('HTTP', 404 | error)` on `errors()`. Requests superseded by `latest: true` or aborted aren't pending. Options: a category, or `{ category, request }`.
 - With the Vite plugin, Vitest gets `sygnal/diagnostics` in its setupFiles automatically; otherwise `import 'sygnal/diagnostics'` in the test.
-- Full app in jsdom (`npm i -D jsdom`):
-```js
-// @vitest-environment jsdom
-import { it, expect } from 'vitest'
-import { run } from 'sygnal'
-import Counter from './Counter.jsx'
-
-it('counts in the real DOM', async () => {
-  document.body.innerHTML = '<div id="root"></div>'
-  const app = run(Counter, {}, { mountPoint: '#root' })
-  const tick = () => new Promise(r => setTimeout(r, 30))
-  await tick()
-  document.querySelector('.inc').click()
-  await tick()
-  expect(document.querySelector('.counter span').textContent).toContain('1')
-  app.dispose()
-})
-```
+- Real DOM state (`checked`, `value`, `disabled`, focus, refs): `renderComponent(C, { dom: 'real' })` in a jsdom test (`// @vitest-environment jsdom`, `npm i -D jsdom`), same `t.*` API in ONE suite (no separate `run()` + jsdom suite). `simulateEvent` then dispatches real events on any CSS selector (`{ value }` types, `'click'` toggles a checkbox/radio and skips disabled buttons, `'focus'`/`'blur'` move focus).
+- Assert on real elements: `expect(t.query('input[name="plan"]:checked').value).toBe('team')`, `t.query('.save').disabled`, `document.activeElement === t.query('input[name="city"]')`, `t.queryAll('.row')`.
 
 ## 8. Diagnostics and tools
 - Format: `[Sygnal SYG104] Lane: <what is wrong>. <how to fix> https://sygnal.js.org/reference/errors#syg104`. Severities error/warn/info. 1xx wiring, 2xx model/state, 3xx streams (SYG301: RxJS operator on an xstream stream), 4xx components (Collection, Switchable, context), 5xx strict, 6xx drivers and setup, 9xx internal.

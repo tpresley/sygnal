@@ -1,6 +1,8 @@
 import {setup} from '../cycle/run/index';
 import {withState} from '../cycle/state/index';
 import {mockDOMSource} from '../cycle/dom/mockDOMSource';
+import {makeDOMDriver} from '../cycle/dom/makeDOMDriver';
+import {enrichEventStream} from '../cycle/dom/enrichEventStream';
 import eventBusDriver from './eventDriver';
 import logDriver from './logDriver';
 import component from '../component';
@@ -106,6 +108,14 @@ import type {InspectGraph} from './diagnostics/checks/public';
  *   faked with the app's, and its time is the clock's (clockNow). ready()/next()/
  *   waitForState()/settle() drive the clock (drive(): nextAsync until the wait settles), so
  *   they resolve without the test advancing it; their timeouts are clock time.
+ * - E4 `dom: 'real'`: the DOM driver is run()'s makeDOMDriver on a fresh container in
+ *   document.body; trackSource() wraps its sources so events() calls / subscriptions feed the
+ *   same listener registry (paths with '.___scope' segments, `_hub`/`_path` like the mock).
+ *   Real isolation keeps scopes in vnode data.isolate, not in the sel (scopeOfV reads both).
+ *   simulateEvent finds the element with querySelector (container + mounted Portal content),
+ *   maps it back to its vnode chain via vnode.elm (G-039 waits, SYG104), and fire()s a real
+ *   event. The pump runs a macrotask after a render (the patch is a microtask after the sink
+ *   emits) and each input waits for a QUIET_MS-quiet tree (capped at 100ms).
  * - SYG103/104: the mock DOM source reports each events() call (selector path,
  *   isolation scopes included as '.___scope'); a diagnostics check's onIntent
  *   maps each component's innermost scope to its name. The nearest '.___'
@@ -180,6 +190,14 @@ export interface RenderOptions {
   eventWaitMs?: number;
   /** Default timeout of next(), waitForState() and settle(), in ms (default 2000) */
   timeoutMs?: number;
+  /**
+   * E4: 'mock' (default) renders into the mock DOM. 'real' patches the tree into a real
+   * container element (needs a DOM: Vitest `environment: 'jsdom'` or 'happy-dom'), so
+   * `checked`, `value`, `disabled`, focus (`document.activeElement`), refs and Portals are
+   * real. simulateEvent then dispatches a real DOM event on the first matching element;
+   * `t.container`, `t.query(sel)` and `t.queryAll(sel)` return real elements.
+   */
+  dom?: 'mock' | 'real';
 }
 
 export interface RenderResult {
@@ -267,6 +285,16 @@ export interface RenderResult {
    * match / isolation results), EVENTS and diagnostics. Requires `import 'sygnal/diagnostics'`.
    */
   inspect: () => InspectGraph;
+  /** `{ dom: 'real' }`: the element the tree is mounted in (removed on dispose()); else null */
+  container: Element | null;
+  /**
+   * `{ dom: 'real' }`: the first element matching a CSS selector in the rendered tree (Portal
+   * content included), or null. Read real DOM state from it: `.checked`, `.value`, `.disabled`,
+   * `document.activeElement === t.query('input[name="city"]')`.
+   */
+  query: (selector: string) => Element | null;
+  /** `{ dom: 'real' }`: every element matching a CSS selector in the rendered tree (Portals included) */
+  queryAll: (selector: string) => Element[];
 }
 
 const isScope = (s: string) => s.startsWith('.___');
@@ -486,6 +514,100 @@ function find(v: any, sel: Sel, chain: any[] = []): any[] | undefined {
   }
 }
 
+/**
+ * The isolation scope a vnode starts ('.___scope'): the mock DOM appends it to the sel, the
+ * real DOM driver's isolateSink puts it last in data.isolate (E4).
+ */
+function scopeOfV(v: any): string | undefined {
+  const m = v.sel.match(/\.___[^.#]+/);
+  if (m) return m[0];
+  const iso = v.data?.isolate;
+  return iso && iso.length ? '.___' + iso[iso.length - 1].scope : undefined;
+}
+/** root → element chain of the vnode patched into `el` (E4, real DOM) */
+function chainOf(v: any, el: any, chain: any[] = []): any[] | undefined {
+  if (!v || typeof v != 'object') return;
+  const c = v.sel ? chain.concat(v) : chain;
+  if (v.sel && v.elm === el) return c;
+  for (const k of [].concat(v.children || [], v.data?.portalChildren || [])) {
+    const r = chainOf(k, el, c);
+    if (r) return r;
+  }
+}
+
+// ── Real DOM (E4) ────────────────────────────────────────────────────────────
+const INNER = Symbol('sygnal.testing.inner');
+/**
+ * Wraps a real DOM source (MainDOMSource / DocumentDOMSource / BodyDOMSource) so its events()
+ * calls and subscriptions are reported like the mock's (G-039 waits, SYG103/104 bookkeeping),
+ * with the same '.___scope' path; everything else is the real source.
+ */
+function trackSource(inner: any, path: string[], hub$: any, on: (path: string[], type: string, live?: boolean) => void): any {
+  const own: any = {
+    [INNER]: inner,
+    _hub: hub$,
+    _path: path,
+    select: (sel: string) => trackSource(inner.select(sel), path.concat(sel), hub$, on),
+    events: (type: string, options?: any, bubbles?: boolean) => {
+      on(path, type);
+      const ev$ = inner.events(type, options, bubbles);
+      let l: any;
+      const out = enrichEventStream(xs.create({
+        start: (x: any) => {
+          ev$.addListener(l = {next: (v: any) => x.next(v), error: (e: any) => x.error(e), complete: () => x.complete()});
+          on(path, type, true);
+        },
+        stop: () => { ev$.removeListener(l); on(path, type, false); },
+      }));
+      out._isCycleSource = ev$._isCycleSource;
+      return out;
+    },
+  };
+  if (typeof inner.isolateSource == 'function') {
+    own.isolateSource = (source: any, scope: string) =>
+      trackSource(inner.isolateSource(source[INNER] || source, scope), (source._path || path).concat('.___' + scope), hub$, on);
+  }
+  return new Proxy(inner, {
+    get: (t, k) => k in own ? own[k] : typeof t[k] == 'function' ? t[k].bind(t) : t[k],
+    has: (t, k) => k in own || k in t,
+  });
+}
+const NO_BUBBLE = /^(blur|focus|mouseenter|mouseleave|pointerenter|pointerleave|load|unload|scroll|invalid)$/;
+/** dispatch a real DOM event, like a user would cause it (E4) */
+function fire(el: any, type: string, init: SimulatedEventInit) {
+  const {target: t = {}, value, checked, dataset, data, key, ...rest} = init;
+  if ('value' in init) el.value = value;
+  if ('checked' in init) el.checked = checked;
+  for (const k in t) if (k != 'dataset') try { el[k] = t[k]; } catch (_) {}
+  const ds = {...dataset, ...data, ...t.dataset};
+  if (el.dataset) for (const k in ds) el.dataset[k] = String(ds[k]);
+  const doc = el.ownerDocument || el;
+  // focus()/blur() move document.activeElement and fire the events themselves
+  if (type == 'focus' && typeof el.focus == 'function') {
+    el.focus();
+    if (doc.activeElement === el) return;
+  }
+  if (type == 'blur' && doc.activeElement === el && typeof el.blur == 'function') return el.blur();
+  // click() runs the default action (checkbox/radio toggle, label, submit) and skips disabled controls
+  if (type == 'click' && !Object.keys(rest).length && typeof el.click == 'function') return el.click();
+  const W: any = (doc.defaultView || globalThis);
+  const Ctor = /^key/.test(type) ? W.KeyboardEvent
+    : /^(focus|blur|focusin|focusout)$/.test(type) ? W.FocusEvent
+    : /^pointer/.test(type) ? W.PointerEvent || W.MouseEvent
+    : /click|^mouse|^contextmenu$/.test(type) ? W.MouseEvent
+    : /^(drag|drop)/.test(type) ? W.DragEvent || W.MouseEvent
+    : /^(before)?input$/.test(type) ? W.InputEvent
+    : W.Event;
+  const ev = new (Ctor || W.Event)(type, {bubbles: !NO_BUBBLE.test(type), cancelable: true, ...(key !== undefined && {key}), ...rest});
+  const extra: any = {...rest, ...(key !== undefined && {key})};
+  if (/^(drag|drop)/.test(type) && !ev.dataTransfer) {
+    const store: Record<string, string> = {};
+    extra.dataTransfer = {setData: (f: string, v: string) => { store[f] = String(v); }, getData: (f: string) => store[f] ?? '', ...rest.dataTransfer};
+  }
+  for (const k in extra) if (ev[k] !== extra[k]) try { Object.defineProperty(ev, k, {value: extra[k]}); } catch (_) {}
+  el.dispatchEvent(ev);
+}
+
 /** Internal (perf-guard tests): number of SYG104 tree walks */
 export const _testingStats = {walks: 0};
 
@@ -540,8 +662,15 @@ export function renderComponent(
   componentDef: any,
   options: RenderOptions = {}
 ): RenderResult {
-  const {initialState, mockConfig = {}, drivers = {}, diagnostics, strict} = options;
+  const {initialState, mockConfig = {}, drivers = {}, diagnostics, strict, dom = 'mock'} = options;
   const {intent, model = {}} = componentDef;
+  // E4: real DOM mode
+  const real = dom == 'real';
+  if (dom != 'mock' && !real) throw new Error(`[Sygnal] renderComponent: dom must be 'mock' (default) or 'real' (got ${String(dom)})`);
+  if (real && (typeof document == 'undefined' || !document.body)) {
+    throw new Error(`[Sygnal] renderComponent(C, { dom: 'real' }) needs a DOM, and there is no document here. Run the test in a DOM environment: add the comment // @vitest-environment jsdom at the top of the test file, or set test.environment: 'jsdom' (or 'happy-dom') in the Vitest config (npm i -D jsdom)`);
+  }
+  if (real && options.mockConfig) throw new Error(`[Sygnal] renderComponent: mockConfig drives the mock DOM, so it can't be used with { dom: 'real' }. Use simulateEvent instead`);
   const timing = {...TIMING};
   for (const k of Object.keys(TIMING) as (keyof typeof TIMING)[]) {
     const v = options[k];
@@ -688,7 +817,7 @@ export function renderComponent(
     // chain: [vnode, nearest scope][] from the root; inside: under this component's root
     const walk = (v: any, chain: any[], cur: any, inside: boolean, boundary: any): void => {
       if (!v || !v.sel || own) return;
-      const sc = (v.sel.match(/\.___[^.#]+/) || [])[0] || cur;
+      const sc = scopeOfV(v) || cur;
       const c = chain.concat([[v, sc]]);
       inside = inside || sc == scope;
       if (inside) {
@@ -709,6 +838,8 @@ export function renderComponent(
     return {own, child, hit};
   };
   const check104 = (target?: any) => {
+    // E4: on the real DOM, 'sygnal/diagnostics' runs its own (real-DOM) SYG104 check
+    if (real && core.__uninstallChecks) return;
     if (!vtree || !isDiagnosticsEnabled() || (!target && vtree === checkedTree && !newListener)) return;
     if (!target) checkedTree = vtree, newListener = false;
     listeners.forEach(path => {
@@ -808,19 +939,31 @@ export function renderComponent(
     onError,
     initialState: init,
   });
+  const onEvents = (path: string[], type: string, on?: boolean) => {
+    const k = path.join('\u0000');
+    if (on === undefined) {
+      if (!listeners.has(k)) listeners.set(k, path), newListener = true;
+      (evTypes[k] = evTypes[k] || []).push(type);
+    } else {
+      // G-039: subscribed / unsubscribed listeners (a just-mounted child subscribes late)
+      const lk = k + '\u0000' + type;
+      live.set(lk, (live.get(lk) || 0) + (on ? 1 : -1));
+      if (on) retry(0);
+    }
+  };
+  // E4: the real DOM driver (as run() sets it up) patching into a fresh container
+  let container: Element | null = null;
+  let realDOM: any;
+  if (real) {
+    container = document.createElement('div');
+    container.setAttribute('data-sygnal-test', rootName);
+    document.body.appendChild(container);
+    realDOM = makeDOMDriver(container, {snabbdomOptions: {experimental: {fragments: true}}} as any);
+  }
   const allDrivers: any = {
-    DOM: () => mockDOMSource(mockConfig, hub.$, (path, type, on) => {
-      const k = path.join('\u0000');
-      if (on === undefined) {
-        if (!listeners.has(k)) listeners.set(k, path), newListener = true;
-        (evTypes[k] = evTypes[k] || []).push(type);
-      } else {
-        // G-039: subscribed / unsubscribed listeners (a just-mounted child subscribes late)
-        const lk = k + '\u0000' + type;
-        live.set(lk, (live.get(lk) || 0) + (on ? 1 : -1));
-        if (on) retry(0);
-      }
-    }),
+    DOM: real
+      ? (vnode$: any, name: string) => trackSource(realDOM(vnode$, name), [], hub.$, onEvents)
+      : () => mockDOMSource(mockConfig, hub.$, onEvents),
     EVENTS: eventBusDriver,
     LOG: logDriver,
     ...drivers,
@@ -840,6 +983,7 @@ export function renderComponent(
     rawDispose = p.run();
   } catch (e) {
     restore();
+    container?.remove();
     throw e;
   }
 
@@ -869,13 +1013,18 @@ export function renderComponent(
   // (re-tried on every render), at most eventWaitMs; then it is delivered to the live listeners
   // (or, with no matching element, fails the test, G-070; with allowMissing it is dropped
   // with SYG103).
-  type Input = {go: (last: boolean) => boolean, until?: number, wait?: number, missing?: () => Error | undefined};
+  type Input = {go: (last: boolean) => boolean, until?: number, wait?: number, at?: number, missing?: () => Error | undefined};
   const inputs: Input[] = [];
   let isReady = false, retryTimer: any;
   const pump = () => {
     if (!isReady || disposed) return;
     while (inputs.length) {
       const head = inputs[0];
+      // E4: on the real DOM an input acts on the patched DOM, like a user: it waits until the
+      // tree has been quiet for QUIET_MS (at most 100ms), so e.g. a button enabled by the
+      // previous input is enabled when it is clicked
+      const idle = clockNow() - lastActivity;
+      if (real && idle < QUIET_MS && clockNow() - (head.at = head.at || clockNow()) < 100) return retry(QUIET_MS - idle);
       head.until = head.until || clockNow() + (head.wait ?? eventWaitMs);
       if (!head.go(clockNow() >= head.until)) return retry(5);
       inputs.shift();
@@ -926,7 +1075,8 @@ export function renderComponent(
       bump();
       check104();
       arm();
-      pump();
+      // E4: the real DOM is patched a microtask after the sink emits
+      real ? retry(0) : pump();
     });
   }
   // 1H-4: a component that never renders on its own (a model but no initialState: no state
@@ -1065,6 +1215,34 @@ export function renderComponent(
       const o: any = typeof opts == 'object' ? opts : {};
       return {error: e, category, request, status: o.status ?? e?.status, body: o.body ?? e?.body};
     }, opts);
+  // E4: where real elements are looked up: the container, and the Portal content this tree
+  // mounted outside it
+  const roots = (): Element[] => {
+    const out: Element[] = [container!];
+    const walk = (v: any) => {
+      if (!v || typeof v != 'object') return;
+      const pe = v.data?._portalVnode?.elm;
+      if (pe && !container!.contains(pe)) out.push(pe);
+      for (const k of [].concat(v.children || [], v.data?.portalChildren || [])) walk(k);
+    };
+    walk(vtree);
+    return out;
+  };
+  const needReal = (fn: string) => {
+    if (!real) throw new Error(`[Sygnal] t.${fn}() needs real DOM elements: renderComponent(C, { dom: 'real' }). The default mock DOM has none (read t.html() or t.states instead)`);
+  };
+  const queryAll = (s: string): Element[] => {
+    needReal('queryAll');
+    return roots().flatMap(r => Array.from(r.querySelectorAll(s)));
+  };
+  const query = (s: string): Element | null => {
+    needReal('query');
+    for (const r of roots()) {
+      const e = r.querySelector(s);
+      if (e) return e;
+    }
+    return null;
+  };
 
   const simulateEvent = (selector: string, type: string, init: SimulatedEventInit = {}) => {
     throwFailure();
@@ -1072,16 +1250,26 @@ export function renderComponent(
     const text = norm(String(selector));
     // 'document' / 'body' (and '') name a listener, not an element
     const page = !text || PAGE.test(text);
-    // unsupported syntax throws here, at the call (G-070)
-    const sel = page ? [] : parse(text);
+    // unsupported syntax throws here, at the call (G-070); the real DOM takes any CSS selector
+    const sel = page || real ? [] : parse(text);
+    if (real && !page) {
+      try { container!.querySelector(text); } catch (_) {
+        throw new Error(`[Sygnal] simulateEvent('${selector}', '${type}'): not a valid CSS selector`);
+      }
+    }
+    // E4: the real element: document / body / the root element for '' / the first match
+    const realEl = (): any => text == 'document' ? document : text == 'body' ? document.body
+      : !text ? container!.firstElementChild : query(text.replace(PAGE, '') || text);
+    const has = () => real ? !!realEl() : !!find(vtree, sel);
     // nothing pending and the tree is quiet (as settle() would see it): fail at the call
     if (!page && !allowMissing && isReady && !inputs.length && vtree && renderedUpTo >= states.length &&
-        clockNow() - lastActivity >= settleMs && !find(vtree, sel)) {
+        clockNow() - lastActivity >= settleMs && !has()) {
       throw noMatch(selector, type, false);
     }
     later(last => {
-      const chain = page ? undefined : find(vtree, sel);
-      const el = chain?.[chain.length - 1];
+      const rel = real ? realEl() : undefined;
+      const chain: any[] | undefined = page ? undefined : real ? rel && (chainOf(vtree, rel) || []) : find(vtree, sel);
+      const el = real ? rel : chain?.[chain.length - 1];
       if (!page && !el) {
         if (!last) return false;
         if (!allowMissing) {
@@ -1103,8 +1291,8 @@ export function renderComponent(
           const scope = path.filter(isScope).pop();
           let cur: string | undefined;
           els = chain.filter(v => {
-            const m = v.sel.match(/\.___[^.#]+/);
-            if (m) cur = m[0];
+            const m = scopeOfV(v);
+            if (m) cur = m;
             return cur == scope;
           });
         }
@@ -1117,6 +1305,11 @@ export function renderComponent(
         for (const [k, path] of listeners) {
           if ((evTypes[k] || []).includes(type) && !live.get(k + '\u0000' + type) && match(path)) return false;
         }
+      }
+      if (real) {
+        if (chain?.length) check104(chain[chain.length - 1]);
+        fire(el, type, evInit);
+        return true;
       }
       if (el) check104(el);
       const d = el?.data || {}, p = d.props || {};
@@ -1160,7 +1353,7 @@ export function renderComponent(
       };
       hub.emit({type, event, match});
       return true;
-    }, page || allowMissing ? undefined : () => (find(vtree, sel) ? undefined : noMatch(selector, type, false)));
+    }, page || allowMissing ? undefined : () => (has() ? undefined : noMatch(selector, type, false)));
   };
 
   // first state at index >= from matching predicate; resolves after the full tree rendered it
@@ -1309,7 +1502,10 @@ export function renderComponent(
     childSinks.forEach(list => list.forEach(([s, l]) => { try { s.removeListener(l); } catch (_) {} }));
     childSinks.clear();
     try { sinks.__dispose?.(); } catch (_) {}
+    // E4: unmount (the container and the Portal content mounted outside it)
+    const mounted = real ? roots() : [];
     rawDispose();
+    mounted.forEach(e => e.remove());
     restore();
     waiters.clear();
     throwFailure();
@@ -1338,5 +1534,8 @@ export function renderComponent(
     html,
     dispose,
     inspect,
+    container,
+    query,
+    queryAll,
   };
 }
