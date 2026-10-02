@@ -52,15 +52,16 @@ describe('makeFetchDriver: requests', () => {
     d.send({ url: '/search?x=1', query: { q: 'a b&c', page: 2, skip: null }, headers: { 'X-Req': '2' } })
     expect(f.calls[0].url).toBe('/api/ping')
     expect(f.calls[1].url).toBe('/api/search?x=1&q=a+b%26c&page=2')
-    expect(f.calls[1].init.headers).toEqual({ 'X-App': '1', 'X-Req': '2' })
+    // R4-5: merged case-insensitively (names lowercased, as Headers does)
+    expect(f.calls[1].init.headers).toEqual({ 'x-app': '1', 'x-req': '2' })
   })
 
-  it('json is stringified and POSTed with a JSON content-type; other keys go to fetch init', () => {
+  it('json is stringified and POSTed with a JSON content-type; fetch options go under init', () => {
     const f = controllable()
     const d = start({ fetch: f.fn })
-    d.send({ url: '/save', json: { a: 1 }, credentials: 'include' })
+    d.send({ url: '/save', json: { a: 1 }, init: { credentials: 'include' } })
     d.send({ url: '/put', method: 'PUT', json: [1], headers: { 'content-type': 'application/merge+json' } })
-    expect(f.calls[0].init).toMatchObject({ method: 'POST', body: '{"a":1}', credentials: 'include', headers: { 'Content-Type': 'application/json' } })
+    expect(f.calls[0].init).toMatchObject({ method: 'POST', body: '{"a":1}', credentials: 'include', headers: { 'content-type': 'application/json' } })
     expect(f.calls[1].init.method).toBe('PUT')
     expect(f.calls[1].init.headers).toEqual({ 'content-type': 'application/merge+json' })
   })

@@ -103,15 +103,16 @@ A request is an object (or a URL string, for a plain GET):
 | `url` | (required) | The URL, prefixed with the driver's `baseUrl` |
 | `category` | `undefined` | Tag that `select(category)` / `errors(category)` filter on; also the group for `latest` and `abort` |
 | `method` | `'POST'` with `json`/`body`, else `'GET'` | HTTP method |
-| `query` | — | Object appended as a query string: `{ q: 'dune' }` → `?q=dune` (URL-encoded; `null`/`undefined` values skipped) |
+| `query` | — | Object appended as a query string, before any `#fragment`: `{ q: 'dune' }` → `?q=dune` (URL-encoded; `null`/`undefined` values skipped; an array repeats the key: `{ tag: ['a', 'b'] }` → `?tag=a&tag=b`) |
 | `json` | — | Body sent as `JSON.stringify(json)` with `Content-Type: application/json` |
 | `body` | — | Raw body (string, `FormData`, `Blob`, …) |
-| `headers` | — | Merged over the driver's `headers` |
+| `headers` | — | Object or `Headers`, merged over the driver's `headers` case-insensitively (sent with lowercase names) |
 | `latest` | driver's `latest` (false) | Abort the requests of this category still in flight (see below) |
 | `timeoutMs` | driver's `timeoutMs` (none) | Fail with a `TimeoutError` after this many ms |
 | `parse` | `'auto'` | How the body becomes `value`: `'auto'` (JSON when the content-type says JSON, otherwise text; 204 → `null`), `'json'`, `'text'`, `'response'` (the `Response` itself), or a function `res => value` |
+| `init` | driver's `init` | Other `fetch()` options: `{ credentials: 'include', mode, cache, redirect, referrer, referrerPolicy, integrity, keepalive, priority }` |
 
-Any other field (`credentials`, `mode`, `cache`, …) is passed to `fetch()` as an init option. A sink that returns `ABORT`, `null` or `undefined` sends nothing.
+Any other field is yours (an id, the query text): it isn't sent, and it comes back on the reply's `request`. A sink that returns `ABORT`, `null` or `undefined` sends nothing.
 
 ### Responses and Failures
 
@@ -161,7 +162,11 @@ Search.model = {
 }
 ```
 
-No request ids and no `ABORT` checks in the reducers: a reply that reaches `RESULTS` or `FAILED` is always the latest one. `{ abort: true }` without a category cancels every request in flight. `makeFetchDriver({ latest: true })` makes every request latest-only (a request can still say `latest: false`).
+No request ids and no `ABORT` checks in the reducers: a reply that reaches `RESULTS` or `FAILED` is always the latest one. `{ abort: true }` without a category cancels every request of the component in flight. `makeFetchDriver({ latest: true })` makes every request latest-only (a request can still say `latest: false`); prefer `latest: true` on the request, which tests see too.
+
+### One Component Instance, Its Own Requests
+
+Each component instance has its own requests: its `HTTP.select()`/`HTTP.errors()` get only the replies to the requests it (or a component inside it) sent, and its `latest` and `abort` cancel only its own requests. Two `<Search>` components on one page, or Collection items that each load their detail with `latest: true` and the same category, never see or cancel each other's replies, so they need no request ids either. The root component sees every reply.
 
 ### Driver Options
 
@@ -169,6 +174,7 @@ No request ids and no `ABORT` checks in the reducers: a reply that reaches `RESU
 makeFetchDriver({
   baseUrl: '/api',                       // prefix for every url
   headers: { Authorization: `Bearer ${token}` },
+  init: { credentials: 'include' },      // fetch() options for every request
   latest: false,                         // default for every request
   timeoutMs: 10000,                      // default for every request (default: none)
   parse: 'auto',                         // default for every request

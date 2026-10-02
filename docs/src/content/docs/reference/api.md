@@ -934,7 +934,8 @@ An HTTP driver over `fetch`. Guide: [HTTP Requests with makeFetchDriver()](/guid
 ```typescript
 function makeFetchDriver(options?: {
   baseUrl?: string;                    // prefix for every url
-  headers?: Record<string, string>;    // for every request
+  headers?: Record<string, string> | Headers;  // for every request
+  init?: FetchInit;                    // fetch() options for every request, e.g. { credentials: 'include' }
   latest?: boolean;                    // default for every request (false)
   timeoutMs?: number;                  // default for every request (none)
   parse?: 'auto' | 'json' | 'text' | 'response' | ((res: Response) => any);  // default 'auto'
@@ -944,9 +945,9 @@ function makeFetchDriver(options?: {
 
 | Sink value (request) | Effect |
 |---|---|
-| `{ url, category?, method?, query?, json?, body?, headers?, latest?, timeoutMs?, parse?, ...fetchInit }` | `fetch(baseUrl + url + ?query, init)`. Method defaults to POST with `json`/`body`, else GET |
+| `{ url, category?, method?, query?, json?, body?, headers?, latest?, timeoutMs?, parse?, init? }` | `fetch(baseUrl + url + ?query, init)`. Method defaults to POST with `json`/`body`, else GET. Other fetch options go under `init`; any other key is app data (not sent, returned on `request`) |
 | `'/api/x'` | GET of that URL |
-| `{ category?, abort: true }` | Cancel the requests in flight in that category (all, without a category) |
+| `{ category?, abort: true }` | Cancel the component's requests in flight in that category (all of them, without a category) |
 | `ABORT`, `null`, `undefined` | Nothing |
 
 | Source | Emits |
@@ -954,7 +955,7 @@ function makeFetchDriver(options?: {
 | `HTTP.select(category?)` | `{ category, value, status, request }` for each 2xx response |
 | `HTTP.errors(category?)` | `{ error, category, request, status?, body? }` for a non-2xx status, network error, parse error or timeout |
 
-`latest: true` aborts the earlier requests of the same category still in flight; their responses and failures are never delivered. Disposing the app aborts everything in flight. No requests are made during server rendering.
+`latest: true` aborts the component's earlier requests of the same category still in flight; their responses and failures are never delivered. Each component instance sees only the replies to its own (and its children's) requests; the root sees all. Disposing the app aborts everything in flight. No requests are made during server rendering.
 
 ---
 

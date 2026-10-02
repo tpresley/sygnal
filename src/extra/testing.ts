@@ -9,6 +9,7 @@ import component from '../component';
 import {renderToString} from './ssr';
 import {_getDiagnosticsConfig, configureDiagnostics, getDiagnosticsMode, isDiagnosticsEnabled, onDiagnostic, registerCheck, report} from './diagnostics/index';
 import xs from './xstreamCompat';
+import {tagRequest, inScope, scopeKey} from './fetchDriver';
 import type {Stream} from 'xstream';
 import type {Diagnostic, DiagnosticsMode} from './diagnostics/index';
 import type {InspectGraph} from './diagnostics/checks/public';
@@ -757,8 +758,10 @@ export function renderComponent(
     queueMicrotask(() => {
       const list = childSinks.get(c);
       if (disposed || !list) return;
+      // R4-2: a child's request is tagged with its place in the tree (the fake's scope)
+      const ns = nsOf(c);
       for (const k of extra) {
-        const l = {next: (v: any) => sinkValues(k).push(v), error: noop, complete: noop};
+        const l = {next: (v: any) => sinkValues(k).push(v && typeof v == 'object' ? ns.reduceRight(tagRequest, v) : v), error: noop, complete: noop};
         m[k].addListener(l);
         list.push([m[k], l]);
       }
@@ -809,8 +812,10 @@ export function renderComponent(
     // drivers: { HTTP }) gets the scriptable fake (t.respond / t.fail), shared by name
     sources(c: any, s: any) {
       if (!mine(c) || typeof Proxy != 'function') return;
+      // R4-2: scoped to the component (it sees the replies to its own and its descendants' requests)
+      const ns = nsOf(c);
       return new Proxy(s, {
-        get: (t: any, k: any) => typeof k == 'string' && !(k in t) && DRIVER_NAME.test(k) ? fake(k) : t[k],
+        get: (t: any, k: any) => typeof k == 'string' && !(k in t) && DRIVER_NAME.test(k) ? fake(k).at(ns) : t[k],
       });
     },
     // 1H-11: forget a disposed child's listeners, so they aren't checked on every render.
@@ -913,22 +918,45 @@ export function renderComponent(
   // E2: scriptable fake sources (t.respond / t.fail) for sinks/sources with no driver. Same
   // source API as makeFetchDriver / driverFromAsync: select(category?) and errors(category?),
   // where the selector is a category string, a predicate, or nothing (everything).
-  type FakeSub = {l: any; sel: any; err: boolean};
-  const fakes = new Map<string, {select: any; errors: any; subs: Set<FakeSub>}>();
-  const fake = (name: string) => {
+  // R4-2: isolated like makeFetchDriver: a source at scope path `ns` sees the replies to
+  // requests made at or under it; requests are tagged by isolateSink (or, for a child-only
+  // sink with no driver, with the component's place in the tree, see nsOf)
+  type FakeSub = {l: any; sel: any; err: boolean; ns: any[]};
+  type Fake = {select: any; errors: any; subs: Set<FakeSub>; at: (ns: any[]) => Fake};
+  const fakes = new Map<string, Fake>();
+  const fake = (name: string): Fake => {
     let f = fakes.get(name);
     if (!f) {
       const subs = new Set<FakeSub>();
-      const src = (err: boolean) => (sel?: any) => {
-        let sub: FakeSub;
-        return xs.create({
-          start: (l: any) => { subs.add((sub = {l, sel, err})); },
-          stop: () => { subs.delete(sub); },
-        });
+      const at = (ns: any[]): any => {
+        const src = (err: boolean) => (sel?: any) => {
+          let sub: FakeSub;
+          return xs.create({
+            start: (l: any) => { subs.add((sub = {l, sel, err, ns})); },
+            stop: () => { subs.delete(sub); },
+          });
+        };
+        return {
+          select: src(false), errors: src(true), subs, at,
+          isolateSource: (_: any, scope: any) => at(ns.concat(scope)),
+          isolateSink: (sink$: any, scope: any) => sink$.map((v: any) => v && typeof v == 'object' ? tagRequest(v, scope) : v),
+          // R4-7: no legacy HTTP HYDRATE subscription
+          __sygnalFetch: true,
+        };
       };
-      fakes.set(name, (f = {select: src(false), errors: src(true), subs}));
+      fakes.set(name, (f = at([])));
     }
-    return f;
+    return f!;
+  };
+  // R4-2: a component's scope path for the child-only fake: its ancestors' numbers below the root
+  const parentOf = new Map<any, any>();
+  const nsOf = (c: any): any[] => {
+    const p = c.sources?.__parentComponentNumber;
+    if (p === undefined) return [];
+    parentOf.set(c._componentNumber, p);
+    const ns = [c._componentNumber];
+    for (let n = p; parentOf.has(n); n = parentOf.get(n)) ns.unshift(n);
+    return ns;
   };
 
   const names = Object.keys(model)
@@ -1141,8 +1169,13 @@ export function renderComponent(
     cursorUsed = false;
     readyPromise.then(() => setTimeout(() => { if (id == arming && !cursorUsed) cursor = undefined; }));
     // 4-A1: on the real DOM, ready() also waits until the first render is in the DOM
-    return drive(real ? readyPromise.then(() => untilPatched()) : readyPromise, () => disposed);
+    // R4-8: rejected by dispose()
+    return drive(new Promise<void>((resolve, reject) => {
+      readyWaiters.add(reject);
+      (real ? readyPromise.then(() => untilPatched()) : readyPromise).then(() => { readyWaiters.delete(reject); resolve(); });
+    }), () => disposed);
   };
+  const readyWaiters = new Set<(e: Error) => void>();
   const later = (go: Input['go'], missing?: Input['missing']) => { cursor = shown = undefined; inputs.push({go, missing}); pump(); };
 
   let vtree: any;
@@ -1251,15 +1284,16 @@ export function renderComponent(
   // order with simulate* calls), waiting up to 1s for the component to send one.
   const answered = new WeakSet<object>();
   const pendingRequests = (name: string) => {
-    let live: Array<{raw: any; category: any}> = [];
+    let live: Array<{raw: any; category: any; scope: string}> = [];
     for (const raw of sinkValues(name)) {
       const r = typeof raw == 'string' ? {url: raw} : raw;
       if (!r || typeof r != 'object') continue;
       // { abort: true } cancels everything; with a category, or a latest: true request, the
       // ones in flight in that category
-      if (r.abort && !('category' in r)) live = [];
-      else if (r.abort || r.latest) live = live.filter(x => x.category !== r.category);
-      if (!r.abort && !answered.has(raw)) live.push({raw, category: r.category});
+      // R4-2: per scope: another component's requests are never cancelled
+      const sc = scopeKey(r);
+      if (r.abort || r.latest) live = live.filter(x => x.scope !== sc || (r.latest || 'category' in r) && x.category !== r.category);
+      if (!r.abort && !answered.has(raw)) live.push({raw, category: r.category, scope: sc});
     }
     return live;
   };
@@ -1299,11 +1333,12 @@ export function renderComponent(
         let heard = false;
         f.subs.forEach(sub => {
           let hit = false;
-          try { hit = sub.err === err && (sub.sel === undefined || (typeof sub.sel == 'function' ? sub.sel(payload) : sub.sel === category)); } catch (_) {}
+          // a pushed value no request asked for (request: null) reaches every scope
+          try { hit = sub.err === err && (!request || inScope(sub.ns, request)) && (sub.sel === undefined || (typeof sub.sel == 'function' ? sub.sel(payload) : sub.sel === category)); } catch (_) {}
           if (hit) { heard = true; sub.l.next(payload); }
         });
         if (!heard) {
-          const ls = [...f.subs].filter(x => x.err === err).map(x => `${name}.${err ? 'errors' : 'select'}(${x.sel === undefined ? '' : typeof x.sel == 'function' ? 'fn' : `'${x.sel}'`})`);
+          const ls = [...f.subs].filter(x => x.err === err && x.sel !== 'initial').map(x => `${name}.${err ? 'errors' : 'select'}(${x.sel === undefined ? '' : typeof x.sel == 'function' ? 'fn' : `'${x.sel}'`})`);
           failWith(new Error(`[Sygnal] ${what}: nothing receives it: no intent listens to ${name}.${err ? 'errors' : 'select'}(${category === undefined ? '' : `'${category}'`})` +
             (ls.length ? ` (listening: ${ls.join(', ')})` : '') + `. ` +
             (err ? `Handle failures in the intent, e.g. FAILED: ${name}.errors('${category ?? 'category'}'), so a failed request can't leave the component loading.` :
@@ -1502,7 +1537,9 @@ export function renderComponent(
             unhold();
           });
         } else {
-          treeRendered(i + 1).then(() => { waiters.delete(fail); resolve(states[i]); });
+          // G-129: the next next() starts after this state (as on the real DOM), so a state
+          // that arrived while this one's render settled can still match
+          treeRendered(i + 1).then(() => { waiters.delete(fail); if (!disposed) shown = i + 1; resolve(states[i]); });
         }
       };
       const test = (i: number) => { try { return predicate(states[i]); } catch (_) { return false; } };
@@ -1565,7 +1602,7 @@ export function renderComponent(
   };
   const next = (predicate: (state: any) => boolean = () => true, timeoutMs: number = defaultTimeout) => {
     checkMs('next', timeoutMs);
-    // 4-A1 (real DOM): right after a wait, start after the state the DOM shows
+    // 4-A1/G-129: right after a wait, start after the state it returned (real DOM: the state the DOM shows)
     if (cursor === undefined && shown !== undefined) return drive(waitMatch(Math.min(shown, states.length), predicate, timeoutMs, 'next'), () => disposed);
     if (cursor === undefined || (cursor < 0 && !isReady)) return drive(waitMatch(states.length, predicate, timeoutMs, 'next'), () => disposed);
     const id = arming;
@@ -1583,11 +1620,13 @@ export function renderComponent(
     cursor = shown = undefined;
     const f = takeFailure();
     if (f) return reject(f);
-    const done = (e?: Error) => { waiters.delete(done); e ? reject(e) : resolve(); };
+    let wait: any;
+    const done = (e?: Error) => { clearTimeout(wait); waiters.delete(done); e ? reject(e) : resolve(); };
     waiters.add(done);
     const start = clockNow();
     (async () => {
-      await Promise.race([readyPromise, tick(timeoutMs)]);
+      await Promise.race([readyPromise, new Promise(r => { wait = setTimeout(r, timeoutMs); })]);
+      clearTimeout(wait);
       // 4-A1: on the real DOM, quiet also means the latest render is in the DOM
       const busy = () => !isReady || inputs.length > 0 || (real && !!vtree && (lastPatched !== vtree || !!held));
       if (!await quiesce(states.length, settleMs, timeoutMs, busy)) {
@@ -1654,7 +1693,13 @@ export function renderComponent(
     rawDispose();
     mounted.forEach(e => e.remove());
     restore();
+    // R4-8: every pending wait (ready, next, waitForState, settle) rejects now, its timers
+    // cleared, so nothing hangs (fake timers) or fails much later
+    const ws = [...waiters, ...readyWaiters];
     waiters.clear();
+    readyWaiters.clear();
+    const gone = new Error('[Sygnal] renderComponent was disposed while this wait was pending (t.ready/t.next/t.waitForState/t.settle). Await every wait before t.dispose()');
+    ws.forEach(w => w(gone));
     throwFailure();
   };
 
