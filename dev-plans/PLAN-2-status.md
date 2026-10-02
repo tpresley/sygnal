@@ -14,7 +14,7 @@ Tracks progress for [PLAN-2.md](PLAN-2.md). Maintained by the coordinator. The P
 | 1 — Correctness backlog | ✅ Done | `plan2-phase1` | 1-A…1-F ✅ · 1-T trim ✅ · review: 6 findings + 2 notes, all fixed in 1-R · kanban 41,803 B (2 B headroom) |
 | 2 — Known ergonomics improvements | ✅ Done | `plan2-phase2` | 2-A ✅ · 2-B ✅ · 2-C ✅ · 2-D ✅ · review: 9 findings, all fixed in 2-R · targeted eval: task 08 41.8 → 27.0 s (gap 20.8 → 6.0 s), 10 −7.5 s, 11 unchanged (`results/P2-TARGETED.md`) |
 | 3 — Experiments | ✅ Decided | `plan2-phase3` | 3-H ✅ · eval chain running (12 runs, ~700 trials) · E4 🔵 (prototype ready, eval pending 3-H) · E5 🔵 (variants ready, eval pending 3-H) · E11 🔵 (prototype ready, eval pending 3-H) · E2+E3 🟡 |
-| 4 — Adopt, measure, release | 🟡 In progress | — | 3-F 🟡 → 4-A1 (merge E11, E2, E4-adapted, skill adaptations) · 4-E eval fixes 🟡 · extra: E7 Haiku run 🟡, E10 TS tasks 🟡 |
+| 4 — Adopt, measure, release | 🟡 In progress | — | 3-F ✅ · E11, E2, E4 merged (coordinator) · 4-A1 🟡 (E4 waits, skill adaptations, `t.state`, docs pass) · 4-E eval fixes 🟡 · E10 TS tasks 🟡 · E7 Haiku: interrupted at 19/160 (external SIGTERM), resume later |
 
 Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ done · 🔴 blocked
 
@@ -154,6 +154,8 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | G-123 | Phase 3 eval | med (eval) | Eval starters | Starters lack sygnal-check while the skill says to run it: 68/85 control trials hit "npx canceled due to missing packages" (≈2 s each) | Open → E1 adapt |
 | G-124 | Phase 3 eval | low (eval) | Hidden tests | Task 16 hidden test finds "Place order" text in a code comment (p3-control 16-t4, e5-lean 16-t4 failures) | Open → eval fix |
 | G-125 | Phase 3 eval | med | Testing API | Agents guess `t.state` (doesn't exist): 2 control trials, 12–13 per lean-skill run; also `t.html()` before the first render gives `''` | Open → Phase 4 candidate (add `t.state` getter?) |
+| G-126 | Merges | low | Tests | Timing flakes under heavy machine load (load avg ~75 with evals + agents): g106 Vike settle (fixed: ≥ 60 ms then stable DOM), and one-off failures in different files per run | Partly fixed; 4-A1 told to make waits condition-based |
+| G-127 | Phase 4 | med (process) | Environment | Some process sent SIGTERM to the user's terminal eval (E7 Haiku, 141 trials not run) and earlier to vitest runs; agents told never to kill processes by name | Open (watch) |
 | G-076 | 5.4.0 release | low | browser-tests | The browser run prints expected console errors from error-path tests, which look like failures | ✅ 1-E (whitelist updated for SYG405 at the 1-B merge) |
 
 ## Worktree Setup (each subagent, inside its own isolated worktree)
@@ -177,6 +179,7 @@ gzip -c /tmp/kb/assets/index-*.js | wc -c      # budget 41,805 B
 
 ## Activity Log
 
+- 2026-10-02 — 3-F merged (Switchable PARENT + stuck pages, context lag; +111 B). Coordinator merged adopted E11 and E2 (conflicts in testing.ts/llms.txt/SKILL.md resolved; llms.txt held at 250) and E4 (5 testing.ts conflicts, both sides kept). Gate green at 1050 vitest / 123 browser / 41,934 B. 4-A1 launched. E7 Haiku run killed externally at 19/160.
 - 2026-10-02 — D53 adoption decisions; Phase 3 tagged `plan2-phase3`. 3-F (Switchable/context bugs) running; 4-E eval fixes, E10 TS tasks, E7 Haiku run started; 4-A1 integration follows 3-F.
 - 2026-10-02 — Phase 3 evals done (batch 1: 715 trials, batch 2 E2: 20; ≈$154 API-equivalent, no usage-limit stops). Analysis in `results/PHASE3-RESULTS.md`: E1 adapt, E2 adopt (pending Switchable fix + task-13 re-run), E4 adapt (real-mode waits), E5 drop variants / port facts, E7 inconclusive, E8 drop from docs, E9 drop hypothesis, E11 adopt. New framework bugs G-120/G-121 (Switchable) and G-122 (context lag) → 3-F.
 - 2026-10-01 — 3-H merged. Phase 3 eval chain started from the user's terminal (`scratchpad/phase3-runs.sh`): p3-control (Sygnal, all tiers, `branch` variant, isolated posture) + p3-control-react, e5-lean, e5-routed, e11, e4, e1-check, e1-pretest, e8-mcp, e9-add-test, e9-no-test (both arms), e7-sonnet (both arms, all tiers). First attempt aborted at $0 (zsh didn't word-split a flags variable).
