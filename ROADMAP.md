@@ -251,4 +251,39 @@ Make Sygnal's silent failures loud and give coding agents one unambiguous way to
 - Eval harness (`evals/agent-ergonomics`): Sygnal vs React tasks with hidden acceptance tests. Re-run after the changes: the gap to React fell from 46 s to 16 s per trial (standard tasks) and from 29 s to 15 s (harder tasks), with every trial passing ([report](evals/agent-ergonomics/results/REPORT.md))
 - Release: `run()` works under plain Node CommonJS and native ESM (tested with a full app in jsdom), and `create-sygnal-app` templates depend on `sygnal` ^5.4.0 and `sygnal-check`
 
-**Follow-ups (PLAN-2 candidates):** the open items in [`dev-plans/PLAN-1-status.md`](dev-plans/PLAN-1-status.md), for example B-014 (string `class` attribute), B-015 (removed props aren't unset), B-016/B-017, and auto no-op drivers for descendants' sinks under `renderComponent`.
+**Follow-ups:** the open PLAN-1 items were taken up by PLAN-2 (below).
+
+---
+
+## Agent Ergonomics, Round 2 (PLAN-2)
+
+### 15. HTTP, Testing and the PLAN-1 Backlog
+
+**Status:** `DONE` (pending release): merged on the integration branch for the next major (6.0.0, in progress), not yet published. The release notes are under `[Unreleased]` in [`CHANGELOG.md`](CHANGELOG.md). Plan: [`dev-plans/PLAN-2.md`](dev-plans/PLAN-2.md).
+
+Close the rest of the Sygnal↔React gap for agents, clear the correctness backlog PLAN-1 left, and run the experiments that decide what to build next.
+
+**Implementation:**
+- `makeFetchDriver()`: an opt-in HTTP driver (`HTTP.select(category)` / `HTTP.errors(category)`, `latest: true` aborts superseded requests, per-instance isolation, no requests during SSR); 0 bytes when unused
+- `renderComponent()`: scriptable fakes for driverless sinks (`t.respond` / `t.fail` / `t.requests`), fake timers (the waits drive the clock), `dom: 'real'` (real DOM container, real events), `t.state`, tunable timeouts
+- Diagnostics: SYG608 (strict mode without the dev entry), SYG609 (sink or source with no driver under `run()`); `run()`'s `diagnostics: { strict: true }`
+- Framework fixes from the evals and the PLAN-1 tracker: Switchable, calculated fields, Collection props (`filter`/`sort` changes in child components), Vike shell state, controlled-field null semantics, removed props
+- `sygnal/vite` aliases the `globalthis` polyfill to the native global (apps about 4 KB gzipped smaller); size gate `node scripts/size-gate.mjs`
+- Agent context: a leaner `sygnal-dev` skill (the unused `references/component-patterns.md` folded into `SKILL.md`), `llms.txt` covering the new APIs
+- Eval harness: variants, task-matched comparisons, a third task tier, usage-limit resilience
+
+---
+
+## Next Major
+
+### 16. Network Layer (HTTP + WebSocket)
+
+**Status:** `NOT STARTED` (PLAN-2 N-1: design doc first)
+
+`makeFetchDriver()` moved every agent-written side effect out of components in the PLAN-2 evals (20/20 trials used the driver; 0 hand-rolled request ids, against 15/15 before), but it covers HTTP only and is one driver among several hand-written ones. Rethink network calls as a first-class network layer for the next major version, covering HTTP and WebSocket with one model.
+
+**Approach (to be designed):**
+- One request/response and subscription model for HTTP and WebSocket (connect, send, message, reconnect, close), isolated per component instance like `makeFetchDriver()`, with `latest`/abort semantics carried over
+- Test fakes in `renderComponent()` that script both (respond/fail for requests; push messages and close events for sockets), matching requests by content, not identity
+- Open questions from the E2 prototype: whether components can declare the drivers they need (so `run()` and tests need no wiring), a clearer error when a test omits a driver, SSR and hydration of in-flight requests, and cleanup on disposal
+- Inputs: the E2/E3 results in [`evals/agent-ergonomics/results/PHASE3-RESULTS.md`](evals/agent-ergonomics/results/PHASE3-RESULTS.md) and the N-1 row in [`dev-plans/PLAN-2-status.md`](dev-plans/PLAN-2-status.md)

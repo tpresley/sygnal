@@ -203,9 +203,9 @@ Todo.intent = ({ DOM }) => ({ ADD: DOM.click('.add-todo-btn') })
 
 Severity: `warn` · Reported by: `sygnal-check`
 
-An `<input>`, `<textarea>` or `<select>` has `value` (or a checkbox/radio has `checked`) set, but the component's intent has no input/change/keyup/keydown listener on it or an ancestor. Sygnal writes the bound value back on every render, so any re-render while the user is typing or clicking resets the field; this also applies to literal values such as `value=""`. A key listener that is immediately filtered to one key (e.g. Enter) does not count.
+An `<input>`, `<textarea>` or `<select>` has `value` (or a checkbox/radio has `checked`) set, but the component's intent has no input/change/keyup/keydown listener on it or an ancestor. Sygnal writes the bound value back on every render, so any re-render while the user is typing or clicking resets the field; this also applies to literal values such as `value=""` and to `value={null}`/`checked={null}`, which clear or uncheck the field on every render (only an absent prop leaves a field uncontrolled). A key listener that is immediately filtered to one key (e.g. Enter) does not count.
 
-**Fix:** Update state on input, e.g. `DOM.input('.name').value()` (or `DOM.change(...)` for toggles/selects), or drop the `value`/`checked` prop to leave the field uncontrolled and read it on blur or submit.
+**Fix:** Update state on input, e.g. `DOM.input('.name').value()` (or `DOM.change(...)` for toggles/selects), or drop the `value`/`checked` prop (not set it to `null`) to leave the field uncontrolled and read it on blur or submit.
 
 Before:
 

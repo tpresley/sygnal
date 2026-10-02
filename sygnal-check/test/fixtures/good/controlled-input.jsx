@@ -15,7 +15,7 @@ function Form({ state }) {
       <input className="uncontrolled" />
       <input className="literal" value="" />
       <select className="pick" value="a"><option value="a">A</option></select>
-      <input className="nulled" value={null} />
+      <input className="absent" value={undefined} />
       <input type="file" className="upload" value={state.file} />
       <input className="ro" readOnly value={state.name} />
       <input type="hidden" value={state.id} />

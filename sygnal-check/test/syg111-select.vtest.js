@@ -45,8 +45,9 @@ describe('G-033: SYG111 and a literal <select value>', () => {
     expect(syg111(component('<select className="pick" value="a"><option value="a">A</option></select>', "PICK: DOM.change('.pick')"))).toHaveLength(0)
   })
 
-  it('stays quiet for value={null} and a disabled select', () => {
-    expect(syg111(component('<select className="pick" value={null}><option value="a">A</option></select>'))).toHaveLength(0)
+  it('reports value={null} (D49: still controlled) but stays quiet for value={undefined} and a disabled select', () => {
+    expect(syg111(component('<select className="pick" value={null}><option value="a">A</option></select>'))).toHaveLength(1)
+    expect(syg111(component('<select className="pick" value={undefined}><option value="a">A</option></select>'))).toHaveLength(0)
     expect(syg111(component('<select className="pick" disabled value="a"><option value="a">A</option></select>'))).toHaveLength(0)
   })
 })

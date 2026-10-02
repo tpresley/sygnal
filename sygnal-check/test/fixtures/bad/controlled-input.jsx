@@ -72,6 +72,16 @@ function Literals({ state }) {
       >
         <option value="a">A</option>
       </select>
+      {/* null is controlled too (D49): it clears/unchecks the field on every render */}
+      <input className="cleared"
+        value={null /* expect: SYG111 */}
+      />
+      <input type="checkbox" className="unset"
+        checked={null /* expect: SYG111 */}
+      />
+      <input className="maybe"
+        value={state.maybe ?? null /* expect: SYG111 */}
+      />
       <button className="tick">{state.count}</button>
     </div>
   )
