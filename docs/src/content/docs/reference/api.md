@@ -1306,6 +1306,8 @@ The DOM source wraps `@cycle/dom`'s `MainDOMSource` with a Proxy that adds short
 
 ```typescript
 type SygnalDOMSource = MainDOMSource & {
+  // standard events are typed like DOM.select(selector).events(name):
+  // DOM.keydown(sel): Stream<KeyboardEvent>, DOM.click(sel): Stream<MouseEvent>, …
   [eventName: string]: (selector: string) => Stream<Event>
 }
 ```

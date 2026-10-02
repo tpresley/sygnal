@@ -16,26 +16,49 @@ type Component<
   DRIVERS = {},
   ACTIONS = {},
   CALCULATED = {},
-  CONTEXT = {},
-  SINK_RETURNS extends NonStateSinkReturns = {}
-> = ViewFunction & {
+  CONTEXT = {},                      // the context the view and reducers see
+  SINK_RETURNS extends NonStateSinkReturns = {},
+  PROVIDED_CONTEXT = CONTEXT          // what this component's own .context provides
+> = ((props: ViewProps<STATE & CALCULATED, PROPS, CONTEXT> /* , state, context, peers */) => JSX.Element) & {
+  // with CALCULATED, also accepts an intent annotated with IntentSources<STATE>
   intent?: (sources: IntentSources<STATE & CALCULATED, DRIVERS>) => { [ACTION in keyof ACTIONS]?: Stream<any> }
   model?: ComponentModel
   initialState?: STATE
   calculated?: Calculated
-  context?: Context
+  context?: Context<PROVIDED_CONTEXT>
   onError?: (error: Error, info: { componentName: string }) => any
   // … peers, components, isolatedState, storeCalculatedInState, debug, DOMSourceName, stateSourceName
 }
 ```
 
-(Abridged; `ViewFunction`, `ComponentModel`, `Calculated` and `Context` stand for internal types.)
+(Abridged; `ComponentModel`, `Calculated` and `Context` stand for internal types.)
+
+### ViewProps, StateProp, ElementProps
+
+The view receives `ViewProps`; `state` and `context` are always there. In JSX the element takes `ElementProps` instead: the component's own props, with `state` an optional slice name or lens (`<Editor state="editor" />`, `<Editor state={lens} />`, `<Editor />`). `context` and `slots` are never passed by the parent.
+
+```typescript
+type ViewProps<STATE = any, PROPS = {}, CONTEXT = {}> = PROPS & {
+  state: STATE
+  context: CONTEXT
+  children?: JSX.Element | JSX.Element[]
+  slots?: Record<string, JSX.Element[]>
+}
+
+type StateProp = string | Lens<any, any>
+
+// used as JSX.LibraryManagedAttributes
+type ElementProps<PROPS> = /* PROPS without state, context and slots, & { state?: StateProp } */ any
+```
 
 ### RootComponent
 
+A `Component` without props, so the view's `state` is typed by `STATE` (and `CALCULATED`).
+
 ```typescript
-type RootComponent<STATE = any, DRIVERS = {}, ACTIONS = {}, CALCULATED = {}, CONTEXT = {}, SINK_RETURNS extends NonStateSinkReturns = {}> =
-  Component<STATE, any, DRIVERS, ACTIONS, CALCULATED, CONTEXT, SINK_RETURNS>
+type RootComponent<STATE = any, DRIVERS = {}, ACTIONS = {}, CALCULATED = {}, CONTEXT = {},
+                   SINK_RETURNS extends NonStateSinkReturns = {}, PROVIDED_CONTEXT = CONTEXT> =
+  Component<STATE, {}, DRIVERS, ACTIONS, CALCULATED, CONTEXT, SINK_RETURNS, PROVIDED_CONTEXT>
 ```
 
 ### IntentSources
@@ -56,10 +79,10 @@ type ActionsOf<INTENT> = { [ACTION in keyof ReturnType<INTENT>]: StreamPayload<R
 
 ### ParentPayloadOf
 
-The value type a component sends to its parent through `PARENT`, inferred from its model; `any` when it can't be inferred. `CHILD.select(Comp)` returns `Stream<ParentPayloadOf<typeof Comp>>`.
+The value type a component sends to its parent through `PARENT`: the `PARENT` type in a `Component<…>` annotation's `SINK_RETURNS`, or, for a component without an annotation, inferred from its model. A child annotated without `{ PARENT: T }` gives `unknown`; a component without a model (or with `PARENT: true` entries only) gives `any`. `CHILD.select(Comp)` returns `Stream<ParentPayloadOf<typeof Comp>>`.
 
 ```typescript
-type ParentPayloadOf<COMPONENT> = /* PARENT sink return type of COMPONENT's model, or any */ any
+type ParentPayloadOf<COMPONENT> = /* SINK_RETURNS['PARENT'], or the model's PARENT return type; unknown / any */ any
 ```
 
 ### ChildSource
@@ -308,9 +331,15 @@ interface SimulatedEventInit {
 
 ### SygnalDOMSource
 
+The shorthands for standard DOM events are typed like `DOM.select(selector).events(name)`: `DOM.keydown('.x')` is a stream of `KeyboardEvent`, `DOM.click('.x')` of `MouseEvent` (`PointerEvent` with newer DOM typings). Other names are streams of `Event`.
+
 ```typescript
-type SygnalDOMSource = MainDOMSource & {
-  [eventName: string]: (selector: string) => EnrichedEventStream<Event>
+type DOMEventShorthands = {
+  [EVENT in keyof HTMLElementEventMap]: (selector: string) => EnrichedEventStream<HTMLElementEventMap[EVENT]>
+}   // except 'select', which is DOM.select(selector)
+
+type SygnalDOMSource = MainDOMSource & DOMEventShorthands & {
+  [eventName: string]: (selector: string) => EnrichedEventStream<Event>   // custom events
 }
 ```
 

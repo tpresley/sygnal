@@ -318,10 +318,15 @@ describe('SygnalDOMSource', () => {
     expectTypeOf<SygnalDOMSource>().toHaveProperty('element')
   })
 
-  it('has event shorthand index signature', () => {
-    // DOM.click('.btn') should be valid
+  it('has typed event shorthands and an index signature for other events', () => {
+    // DOM.click('.btn') is typed like DOM.select('.btn').events('click')
     type ClickFn = SygnalDOMSource['click']
-    expectTypeOf<ClickFn>().toMatchTypeOf<(selector: string) => Stream<globalThis.Event>>()
+    expectTypeOf<ClickFn>().toMatchTypeOf<(selector: string) => Stream<HTMLElementEventMap['click']>>()
+    type KeydownFn = SygnalDOMSource['keydown']
+    expectTypeOf<KeydownFn>().toMatchTypeOf<(selector: string) => Stream<KeyboardEvent>>()
+    // custom event names stay Stream<Event>
+    type CustomFn = SygnalDOMSource['my-event']
+    expectTypeOf<CustomFn>().toMatchTypeOf<(selector: string) => Stream<globalThis.Event>>()
   })
 })
 
@@ -368,8 +373,8 @@ describe('DragSource', () => {
 describe('Component type', () => {
   it('is callable (view function) with required state', () => {
     type C = Component<{ count: number }>
-    // state is required (not optional) since the framework always provides it
-    expectTypeOf<C>().toBeCallableWith({ state: { count: 0 } }, { count: 0 }, {}, {})
+    // state and context are required (not optional) since the framework always provides them
+    expectTypeOf<C>().toBeCallableWith({ state: { count: 0 }, context: {} }, { count: 0 }, {}, {})
   })
 
   it('has optional static properties', () => {
@@ -500,7 +505,7 @@ describe('EnrichedEventStream', () => {
 describe('SygnalDOMSource event shorthands return enriched streams', () => {
   it('DOM.click() returns EnrichedEventStream', () => {
     type ClickResult = ReturnType<SygnalDOMSource['click']>
-    expectTypeOf<ClickResult>().toMatchTypeOf<EnrichedEventStream<globalThis.Event>>()
+    expectTypeOf<ClickResult>().toMatchTypeOf<EnrichedEventStream<HTMLElementEventMap['click']>>()
   })
 
   it('shorthand result has .value() method', () => {

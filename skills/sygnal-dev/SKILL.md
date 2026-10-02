@@ -241,6 +241,7 @@ Search.model = {
 | `mergeMap(f)` | `.map(f).compose(flattenConcurrently)` | `concatMap(f)` | `.map(f).compose(flattenSequentially)` |
 (Last row: `import { flattenConcurrently, flattenSequentially, concat } from 'sygnal'`.)
 
+- **TypeScript**: `const intent = ({ DOM }: IntentSources<State>) => ({ ... })`, then `const C: Component<State, Props, {}, ActionsOf<typeof intent>, Calculated, Context, { PARENT: Payload }> = ({ state, context }) => ...` (root: `RootComponent<State, {}, Actions>`; unused parameters `{}`). Without `{ PARENT: Payload }` the parent's `CHILD.select(C)` is a `Stream<unknown>`. In JSX pass `state="slice"`, a lens, or nothing, plus the declared props. Register EVENTS names in `declare module 'sygnal' { interface SygnalEvents { DOC_SAVED: { id: string } } }`: with an empty registry no event names are type-checked. Guide: https://sygnal.js.org/integration/typescript/
 - **Imports** (all from `'sygnal'`): `run ABORT set toggle event createCommand makeFetchDriver driverFromAsync xs debounce throttle delay dropRepeats sampleCombine classes processForm processDrag makeDragDriver Collection Switchable Portal Transition Slot Suspense lazy createRef createRef$ renderComponent renderToString`; types `Component RootComponent Lens`. Never import the JSX runtime by hand; the Vite plugin configures it.
 
 ## 5. Wiring rules (silent failures, and what catches them)
