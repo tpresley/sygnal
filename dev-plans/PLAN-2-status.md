@@ -89,6 +89,7 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | D52 | 2026-10-01 | E2: prototype (b) `makeFetchDriver()` + (a) test-side fakes; E3's latest-only lives in (b) (`latest: true`, abort superseded). (c) component `drivers` and (d) sanctioned fetch in EFFECT are not prototyped. The user flags a broader rethink of network calls (HTTP + WebSocket) for the **next major version**; E2 records notes for it | User | Fits the driver model, opt-in, 0 B unless used |
 | D53 | 2026-10-02 | Phase 3 adoption: **adopt** E2 (b)+(a) (after the Switchable fix and a task-13 re-run) and E11; **adapt** E4 (fix real-mode waits, re-measure 10/12/17), E5 (port the 4 facts into the current skill, delete `references/component-patterns.md`), E1 (sygnal-check in eval starters; drop the pretest hook), E8 (drop the MCP server from agent docs, keep the server); **drop** E9's hypothesis; E7 inconclusive → also run Haiku; run E10 (TS variants) | User | `results/PHASE3-RESULTS.md` |
 | D54 | 2026-10-02 | `makeFetchDriver` gets component isolation like @cycle/http: requests tagged with the isolate scope; `select`/`errors`/`latest`/`abort` per (scope, category); same in the test fake. Non-RequestInit fetch options move under `init`; unknown top-level request keys are app data, not fetch init | Coordinator | R4-2/R4-5; makes the "no request ids" guidance true per instance |
+| D55 | 2026-10-02 | Release as **sygnal 6.0.0** (TypeScript type breaks + behaviour fixes listed as breaking, each with a migration), **sygnal-check 0.2.0**, **create-sygnal-app 1.2.0** | User | 4-C semver analysis |
 | D40 | 2026-10-01 | 0-B and 0-C build and self-verify without paid eval runs (0-B may run ≤ 2 smoke trials, `v2-smoke`, to validate the headless runner); full runs and pilots wait for Q2 | Coordinator | PLAN-2 §8 (user approves budgets per phase) |
 
 ## Bugs & Gaps Found
@@ -197,6 +198,7 @@ gzip -c /tmp/kb/assets/index-*.js | wc -c      # budget 41,805 B
 
 ## Activity Log
 
+- 2026-10-02 — 4-C draft ready (`5ef8559`: CHANGELOG [Unreleased] with runtime + TS breaking tables and migrations, RELEASING with placeholders; 8/8 template smoke from local tarballs incl. tsc and Vike client nav). D55: 6.0.0. Merge after the confirming eval.
 - 2026-10-02 — 4-F merged (core: `withCalculated` lens `set` recomputes calculated fields, +20 B; fake HTTP per-send tracking; `t.html()` innerHTML escaping; AGENTS.md test-output line). Gate green (1103 vitest, 123 browser, 42,125 B). Tagged `plan2-p4-final-build-2`; confirming eval started with the process guard: p4-final2 (Sygnal, all 21 tasks), p4-baseline-ts, p4-react-ts, p4-haiku2.
 - 2026-10-02 — Diagnosis (`results/P4-REGRESSION-DIAGNOSIS.md`): the 12/13/14 slowdown is 3 harness problems (33/39 failed runs): stale calculated fields in recorded state (G-135, pre-existing, now hit via `t.state`), fake HTTP identity tracking (G-136, new in E2), `t.html()` `&#39;` (G-137); no branch framework regression. 4-F launched.
 - 2026-10-02 — Process guard merged (G-127). p4-final vs p4-baseline: wall 46.3 → 47.3 s, failed runs 0.21 → 0.66; improved 05/10/11, regressed 12/13/14 → diagnosis running.
