@@ -109,41 +109,15 @@ export default function component(opts: ComponentOptions): any {
     fail('SYG601', name, 'Invalid sources', 'Pass sources from run()')
   }
 
-  let fixedIsolateOpts
-  if (typeof isolateOpts == 'string') {
-    fixedIsolateOpts = { [stateSourceName]: isolateOpts }
-  } else {
-    if (isolateOpts === true) {
-      fixedIsolateOpts = {}
-    } else {
-      fixedIsolateOpts = isolateOpts
-    }
-  }
+  const fixedIsolateOpts = typeof isolateOpts == 'string' ? { [stateSourceName]: isolateOpts } : isolateOpts === true ? {} : isolateOpts
 
-  const currySources = typeof sources === 'undefined'
-  let returnFunction
-
-  if (isObj(fixedIsolateOpts)) {
-    const wrapped = (sources: any) => {
-      const fixedOpts = { ...opts, sources }
-      const instance = new Component(fixedOpts)
-      instance.sinks.__dispose = () => instance.dispose()
-      return instance.sinks
-    }
-    returnFunction = currySources ? isolate(wrapped, fixedIsolateOpts) : isolate(wrapped, fixedIsolateOpts)(sources)
-  } else {
-    if (currySources) {
-      returnFunction = (sources: any) => {
-        const instance = new Component({ ...opts, sources })
-        instance.sinks.__dispose = () => instance.dispose()
-        return instance.sinks
-      }
-    } else {
-      const instance = new Component(opts)
-      instance.sinks.__dispose = () => instance.dispose()
-      returnFunction = instance.sinks
-    }
+  const make: any = (sources: any) => {
+    const instance = new Component({ ...opts, sources })
+    instance.sinks.__dispose = () => instance.dispose()
+    return instance.sinks
   }
+  const factory = isObj(fixedIsolateOpts) ? isolate(make, fixedIsolateOpts) : make
+  const returnFunction = typeof sources === 'undefined' ? factory : factory(sources)
 
   returnFunction.componentName = name
   returnFunction.isSygnalComponent = true
@@ -157,25 +131,24 @@ export default function component(opts: ComponentOptions): any {
 
 class Component {
   _componentNumber: number;
-  name: string;
+  name!: string;
   sources: any;
   intent: any;
   model: any;
   hmrActions: any;
   context: any;
-  response: any;
   view: any;
-  peers: Record<string, any>;
-  components: Record<string, any>;
+  peers!: Record<string, any>;
+  components!: Record<string, any>;
   initialState: any;
   calculated: any;
-  storeCalculatedInState: boolean;
-  DOMSourceName: string;
-  stateSourceName: string;
-  sourceNames: string[];
-  _debug: boolean;
+  storeCalculatedInState!: boolean;
+  DOMSourceName!: string;
+  stateSourceName!: string;
+  sourceNames!: string[];
+  _debug!: boolean;
   onError: ((error: Error, info: { componentName: string }) => any) | undefined;
-  isolatedState: boolean;
+  isolatedState!: boolean;
   isSubComponent: boolean;
   currentState: any;
   currentProps: any;
@@ -213,30 +186,12 @@ class Component {
   _readyChanged$: any;
   _readyChangedListener: any;
 
-  constructor({name = 'NO NAME', sources, intent, model, hmrActions, context, response, view, peers = {}, components = {}, initialState, calculated, storeCalculatedInState = true, DOMSourceName = 'DOM', stateSourceName = 'STATE', isolatedState = false, onError, debug = false}: ComponentOptions) {
+  constructor({name = 'NO NAME', sources, intent, model, hmrActions, context, view, peers = {}, components = {}, initialState, calculated, storeCalculatedInState = true, DOMSourceName = 'DOM', stateSourceName = 'STATE', isolatedState = false, onError, debug = false}: ComponentOptions) {
     if (!sources || !isObj(sources)) fail('SYG601', name, 'Missing or invalid sources', 'Pass sources from run()')
 
     this._componentNumber = COMPONENT_COUNT++
 
-    this.name       = name
-    this.sources    = sources
-    this.intent     = intent
-    this.model      = model
-    this.hmrActions = hmrActions
-    this.context    = context
-    this.response   = response
-    this.view       = view
-    this.peers      = peers
-    this.components = components
-    this.initialState      = initialState
-    this.calculated        = calculated
-    this.storeCalculatedInState = storeCalculatedInState
-    this.DOMSourceName     = DOMSourceName
-    this.stateSourceName   = stateSourceName
-    this.sourceNames       = Object.keys(sources)
-    this.onError           = onError
-    this.isolatedState     = isolatedState
-    this._debug            = debug
+    Object.assign(this, { name, sources, intent, model, hmrActions, context, view, peers, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, sourceNames: Object.keys(sources), onError, isolatedState, _debug: debug })
 
     // Warn if calculated fields shadow base state keys
     if (this.calculated && this.initialState
@@ -495,20 +450,10 @@ class Component {
     this._activeSubComponents.clear()
     // Tear down streams on next macrotask to allow DISPOSE/cleanup actions to process
     setTimeout(() => {
-      // Complete the action$ stream to stop the entire component cycle
-      if (this.action$ && typeof this.action$.shamefullySendComplete === 'function') {
-        try { this.action$.shamefullySendComplete() } catch (_) {}
-      }
-      // Complete the vdom$ stream to stop rendering
-      if (this.vdom$ && typeof this.vdom$.shamefullySendComplete === 'function') {
-        try { this.vdom$.shamefullySendComplete() } catch (_) {}
-      }
-      // Unsubscribe tracked internal subscriptions
-      for (const sub of this._subscriptions) {
-        if (sub && typeof sub.unsubscribe === 'function') {
-          try { sub.unsubscribe() } catch (_) {}
-        }
-      }
+      // Complete action$ (stops the entire component cycle) and vdom$ (stops rendering), then
+      // unsubscribe the tracked internal subscriptions
+      for (const s of [this.action$, this.vdom$]) try { s?.shamefullySendComplete?.() } catch (_) {}
+      for (const sub of this._subscriptions) try { sub?.unsubscribe?.() } catch (_) {}
       this._subscriptions = []
     }, 0)
   }
@@ -540,7 +485,7 @@ class Component {
 
   initHmrActions(): void {
     if (typeof this.hmrActions === 'undefined') {
-      this.hmrAction$ = xs.of().filter((_: any) => false)
+      this.hmrAction$ = xs.empty()
       return
     }
     if (typeof this.hmrActions === 'string') {
@@ -574,7 +519,7 @@ class Component {
     const action$    = ((runner instanceof Stream) ? runner : (runner.apply && runner(this.sources) || xs.never()))
     const bootstrap$ = xs.of({ type: BOOTSTRAP_ACTION }).compose(delay(10))
     const _hmrUpdating = typeof window !== 'undefined' && window.__SYGNAL_HMR_UPDATING === true
-    const hmrAction$ = _hmrUpdating ? this.hmrAction$ : xs.of().filter((_: any) => false)
+    const hmrAction$ = _hmrUpdating ? this.hmrAction$ : xs.empty()
     const wrapped$   = (this.model?.[BOOTSTRAP_ACTION] &&!_hmrUpdating) ? concat(bootstrap$, action$) : concat(xs.of().compose(delay(1)).filter((_: any) => false), hmrAction$, action$)
 
     // PLAN-3 routed requests: a routing-capable source (makeFetchDriver, driverFromAsync, ...)
@@ -744,12 +689,7 @@ class Component {
 
         // EFFECT sink: run the reducer for side effects only, no state change or sink output
         if (sink === EFFECT_SINK_NAME) {
-          const effect$ = this.makeEffectHandler(snapshotted$, action, reducer, this.action$)
-          if (Array.isArray(reducers[sink])) {
-            reducers[sink].push(effect$)
-          } else {
-            reducers[sink] = [effect$]
-          }
+          ;(reducers[sink] ||= []).push(this.makeEffectHandler(snapshotted$, action, reducer, this.action$))
           return
         }
 
@@ -771,11 +711,7 @@ class Component {
             }
           }))
 
-        if (Array.isArray(reducers[sink])) {
-          reducers[sink].push(wrapped$)
-        } else {
-          reducers[sink] = [wrapped$]
-        }
+        ;(reducers[sink] ||= []).push(wrapped$)
       })
     })
 
@@ -792,14 +728,8 @@ class Component {
   }
 
   initPeers$(): void {
-    const initial: Record<string, any> = this.sourceNames.reduce((acc: Record<string, any>, name) => {
-      if (name == this.DOMSourceName) {
-        acc[name] = {}
-      } else {
-        acc[name] = []
-      }
-      return acc
-    }, {} as Record<string, any>)
+    const initial: Record<string, any> = {}
+    for (const name of this.sourceNames) initial[name] = name == this.DOMSourceName ? {} : []
 
     this.peers$ = Object.entries(this.peers).reduce((acc: Record<string, any>, [peerName, peerFactory]) => {
       const peer$ = peerFactory(this.sources)
@@ -925,11 +855,7 @@ class Component {
     this.sinks = this.sourceNames.reduce((acc: Record<string, any>, name) => {
       if (name == this.DOMSourceName) return acc
       const subComponentSink$ = (this.subComponentSink$ && name !== PARENT_SINK_NAME) ? this.subComponentSink$.map((sinks: any) => sinks[name]).filter((sink: any) => !!sink).flatten() : xs.never()
-      if (name === this.stateSourceName) {
-        acc[name] = xs.merge((this.model$[name] || xs.never()), subComponentSink$, this.sources[this.stateSourceName].stream.filter((_: any) => false), ...(this.peers$[name] || []))
-      } else {
-        acc[name] = xs.merge((this.model$[name] || xs.never()), subComponentSink$, ...(this.peers$[name] || []))
-      }
+      acc[name] = xs.merge((this.model$[name] || xs.never()), subComponentSink$, ...(name === this.stateSourceName ? [this.sources[name].stream.filter((_: any) => false)] : []), ...(this.peers$[name] || []))
       return acc
     }, {} as Record<string, any>)
 
@@ -947,13 +873,7 @@ class Component {
     }
     // READY sink: if the component explicitly defined READY model entries, use them;
     // otherwise auto-emit true. Check the raw model object, not model$ (which always has keys for all sources).
-    const hasExplicitReady = this.model && isObj(this.model) && Object.values(this.model).some(
-      (sinks: any) => {
-        if (isObj(sinks) && READY_SINK_NAME in sinks) return true
-        return false
-      }
-    )
-    if (hasExplicitReady) {
+    if (isObj(this.model) && Object.values(this.model).some((sinks: any) => isObj(sinks) && READY_SINK_NAME in sinks)) {
       this.sinks[READY_SINK_NAME] = this.model$[READY_SINK_NAME]
       this.sinks[READY_SINK_NAME].__explicitReady = true
     } else {
@@ -1091,18 +1011,8 @@ class Component {
       if (!isObj(this.calculated)) fail('SYG606', this, 'calculated must be an object', 'Use calculated = { field: state => value }')
 
       const calculated = this.getCalculatedValues(state)
-      if (!calculated) {
-        lastState = state
-        lastResult = state
-        return state
-      }
-
-      const newState = { ...state, ...calculated }
-
       lastState = state
-      lastResult = newState
-
-      return newState
+      return lastResult = calculated ? { ...state, ...calculated } : state
     }
   }
 
@@ -1115,43 +1025,22 @@ class Component {
     const computedSoFar: Record<string, any> = {}
 
     for (const [field, { fn, deps }] of this._calculatedOrder) {
-      if (deps !== null && this._calculatedFieldCache) {
-        const cache = this._calculatedFieldCache[field]
-        const currentDepValues = deps.map(d => mergedState[d])
-
-        if (cache.lastDepValues !== undefined) {
-          let unchanged = true
-          for (let i = 0; i < currentDepValues.length; i++) {
-            if (currentDepValues[i] !== cache.lastDepValues[i]) {
-              unchanged = false
-              break
-            }
-          }
-          if (unchanged) {
-            computedSoFar[field] = cache.lastResult
-            mergedState[field] = cache.lastResult
-            continue
-          }
-        }
-
-        try {
-          const result = fn(mergedState)
+      // memoized on the declared deps; without deps, always recomputed
+      const cache = deps && this._calculatedFieldCache?.[field]
+      const currentDepValues: any = cache && deps!.map(d => mergedState[d])
+      if (cache && cache.lastDepValues && currentDepValues.every((v: any, i: number) => v === cache.lastDepValues[i])) {
+        computedSoFar[field] = mergedState[field] = cache.lastResult
+        continue
+      }
+      try {
+        const result = fn(mergedState)
+        if (cache) {
           cache.lastDepValues = currentDepValues
           cache.lastResult = result
-          computedSoFar[field] = result
-          mergedState[field] = result
-        } catch (e: unknown) {
-          warn('SYG220', this, `Calculated field '${field}' threw (${e instanceof Error ? e.message : e}); skipped this update`, 'Guard against missing data')
         }
-      } else {
-        // No deps declared — always recompute
-        try {
-          const result = fn(mergedState)
-          computedSoFar[field] = result
-          mergedState[field] = result
-        } catch (e: unknown) {
-          warn('SYG220', this, `Calculated field '${field}' threw (${e instanceof Error ? e.message : e}); skipped this update`, 'Guard against missing data')
-        }
+        computedSoFar[field] = mergedState[field] = result
+      } catch (e: unknown) {
+        warn('SYG220', this, `Calculated field '${field}' threw (${e instanceof Error ? e.message : e}); skipped this update`, 'Guard against missing data')
       }
     }
 
@@ -1197,15 +1086,9 @@ class Component {
       renderParams.context = this.context$.compose(dropRepeats(objIsEqual))
     }
 
-    const names: string[] = []
-    const streams: any[] = []
+    const names = Object.keys(renderParams)
 
-    Object.entries(renderParams).forEach(([name, stream]: [string, any]) => {
-      names.push(name)
-      streams.push(stream)
-    })
-
-    let combined = xs.combine(...streams)
+    let combined = xs.combine(...Object.values(renderParams))
       .compose(debounce(1))
       // map the streams from an array back to an object with the render parameter names as the keys
       .map((arr: any) => {
@@ -1245,9 +1128,7 @@ class Component {
 
       if (entries.length === 0) {
         // Dispose any previously active sub-components
-        this._activeSubComponents.forEach((entry) => {
-          if (entry?.sink$?.__dispose) entry.sink$.__dispose()
-        })
+        this._activeSubComponents.forEach((entry) => entry?.sink$?.__dispose?.())
         this._activeSubComponents.clear()
         return rootEntry
       }
@@ -1289,21 +1170,11 @@ class Component {
         const props$    = xs.create().startWith(props)
         const children$ = xs.create().startWith(children)
 
-        let instantiator
-
-        if (isCollection) {
-          instantiator = this.instantiateCollection.bind(this)
-        } else if (isSwitchable) {
-          instantiator = this.instantiateSwitchable.bind(this)
-        } else {
-          instantiator = this.instantiateCustomComponent.bind(this)
-        }
-
         newInstanceCount++
 
         let sink$
         try {
-          sink$ = instantiator(el, props$, children$)
+          sink$ = (isCollection ? this.instantiateCollection : isSwitchable ? this.instantiateSwitchable : this.instantiateCustomComponent).call(this, el, props$, children$)
         } catch (err) {
           const error = err instanceof Error ? err : new Error(String(err))
           caught('SYG408', this, 'Sub-component threw; rendering the error fallback', ERR_FIX, error)
@@ -1338,7 +1209,7 @@ class Component {
       const currentIds = new Set(Object.keys(newComponents))
       this._activeSubComponents.forEach((entry, id) => {
         if (!currentIds.has(id)) {
-          if (entry?.sink$?.__dispose) entry.sink$.__dispose()
+          entry?.sink$?.__dispose?.()
           this._activeSubComponents.delete(id)
           delete this._childReadyState[id]
         }
@@ -1497,24 +1368,13 @@ class Component {
         }
       }
     } else if (typeof stateField === 'string') {
-      if (isObj(this.currentState)) {
-        if(!(this.currentState && stateField in this.currentState) && !(this.calculated && stateField in this.calculated)) {
-          const arrayFields = Object.keys(this.currentState).filter(k => Array.isArray(this.currentState[k]))
-          warn('SYG401', this, `Collection from="${stateField}" is not in state${arrayFields.length ? ` (array fields: '${arrayFields.join("', '")}')` : ''}; it renders nothing`, 'Set it to an array in initialState')
-          lense = undefined
-        } else if (!Array.isArray(this.currentState[stateField])) {
-          warn('SYG401', this, `Collection 'from' field '${stateField}' is not an array; it renders nothing`, 'Set it to an array in initialState')
-          lense = fieldLense
-        } else {
-          lense = fieldLense
-        }
+      const cs = this.currentState
+      if (isObj(cs) && !(stateField in cs) && !(this.calculated && stateField in this.calculated)) {
+        const arrayFields = Object.keys(cs).filter(k => Array.isArray(cs[k]))
+        warn('SYG401', this, `Collection from="${stateField}" is not in state${arrayFields.length ? ` (array fields: '${arrayFields.join("', '")}')` : ''}; it renders nothing`, 'Set it to an array in initialState')
       } else {
-        if (!Array.isArray(this.currentState[stateField])) {
-          warn('SYG401', this, `Collection 'from' field '${stateField}' is not an array; it renders nothing`, 'Set it to an array in initialState')
-          lense = fieldLense
-        } else {
-          lense = fieldLense
-        }
+        if (!Array.isArray(cs[stateField])) warn('SYG401', this, `Collection 'from' field '${stateField}' is not an array; it renders nothing`, 'Set it to an array in initialState')
+        lense = fieldLense
       }
     } else if (isObj(stateField)) {
       if (typeof stateField.get !== 'function') {
@@ -1699,8 +1559,6 @@ class Component {
             return val.sink$[this.DOMSourceName].startWith(undefined)
           })
 
-        if (vdom$.length === 0) return xs.of(root)
-
         // Track READY state on the component instance (persists across folds)
         for (const [id, val] of entries as [string, any]) {
           if (this._childReadyState[id] !== undefined) continue // already tracking
@@ -1772,29 +1630,17 @@ class Component {
  */
  function makeLog(context: string): any {
   return function (this: Component, msg: any, immediate: boolean = false) {
-    const fixedMsg = (typeof msg === 'function') ? msg : (_: any) => msg
-    if (immediate) {
+    const out = (value: any) => {
       if (this.debug) {
-        const text = `[${context}] ${fixedMsg(msg)}`
+        const text = `[${context}] ${typeof msg === 'function' ? msg(value) : msg}`
         console.log(text)
         if (typeof window !== 'undefined' && window.__SYGNAL_DEVTOOLS__?.connected) {
           window.__SYGNAL_DEVTOOLS__.onDebugLog(this._componentNumber, text)
         }
       }
-      return
-    } else {
-      return (stream: any) => {
-        return stream.debug((msg: any) => {
-          if (this.debug) {
-            const text = `[${context}] ${fixedMsg(msg)}`
-            console.log(text)
-            if (typeof window !== 'undefined' && window.__SYGNAL_DEVTOOLS__?.connected) {
-              window.__SYGNAL_DEVTOOLS__.onDebugLog(this._componentNumber, text)
-            }
-          }
-        })
-      }
     }
+    if (immediate) return out(msg)
+    return (stream: any) => stream.debug(out)
   }
 }
 
@@ -1929,26 +1775,12 @@ function processSuspensePost(vnode: any): any {
     const fallback = props.fallback
     const children = vnode.children || []
 
-    // Check if any child within this boundary is not ready
-    const isPending = children.some(hasNotReadyChild)
-
-    if (isPending && fallback) {
-      // Render fallback
-      if (typeof fallback === 'string') {
-        return { sel: 'div', data: { attrs: { 'data-sygnal-suspense': 'pending' } }, children: [{ text: fallback }], text: undefined, elm: undefined, key: undefined }
-      }
-      return { sel: 'div', data: { attrs: { 'data-sygnal-suspense': 'pending' } }, children: [fallback], text: undefined, elm: undefined, key: undefined }
-    }
-
-    // All children ready or no fallback — render children directly
-    if (children.length === 1) return processSuspensePost(children[0])
-    return { sel: 'div', data: { attrs: { 'data-sygnal-suspense': 'resolved' } }, children: children.map((c: any) => processSuspensePost(c)), text: undefined, elm: undefined, key: undefined }
+    // Render the fallback if a child within this boundary is not ready, else the children
+    const pending = fallback && children.some(hasNotReadyChild)
+    if (!pending && children.length === 1) return processSuspensePost(children[0])
+    return { sel: 'div', data: { attrs: { 'data-sygnal-suspense': pending ? 'pending' : 'resolved' } }, children: pending ? [typeof fallback === 'string' ? { text: fallback } : fallback] : children.map(processSuspensePost), text: undefined, elm: undefined, key: undefined }
   }
-  if (vnode.children && vnode.children.length > 0) {
-    const newChildren = vnode.children.map((c: any) => processSuspensePost(c))
-    return { ...vnode, children: newChildren }
-  }
-  return vnode
+  return vnode.children?.length > 0 ? { ...vnode, children: vnode.children.map(processSuspensePost) } : vnode
 }
 
 const portalPatch = snabbdomInit(defaultModules);
@@ -2242,12 +2074,7 @@ function isObj(obj: any): obj is Record<string, any> {
 const SORT_FIX = "Use a field name, { field: 'asc'|'desc'|1|-1 }, or a function"
 
 function __baseSort(a: any, b: any, ascending: boolean = true): number {
-  const direction = ascending ? 1 : -1
-  switch(true) {
-    case a > b: return 1 * direction
-    case a < b: return -1 * direction
-    default: return 0
-  }
+  return a > b ? (ascending ? 1 : -1) : a < b ? (ascending ? -1 : 1) : 0
 }
 
 function __sortFunctionFromObj(item: Record<string, any>): ((a: any, b: any) => number) | undefined {
