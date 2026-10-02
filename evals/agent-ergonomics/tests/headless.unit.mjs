@@ -100,11 +100,13 @@ test('transcriptStats: unstamped headless output falls back to duration_ms; suba
 // ---- planning
 
 test('taskSelector: all, tiers, single ids, ranges, lists', () => {
-  const pick = (spec) => [1, 6, 8, 9, 12, 13, 15].filter(taskSelector(spec))
-  assert.deepEqual(pick('all'), [1, 6, 8, 9, 12, 13, 15])
+  const pick = (spec) => [1, 6, 8, 9, 12, 13, 15, 18, 21].filter(taskSelector(spec))
+  assert.deepEqual(pick('all'), [1, 6, 8, 9, 12, 13, 15, 18, 21])
   assert.deepEqual(pick('tier1'), [1, 6, 8])
   assert.deepEqual(pick('tier2'), [9, 12])
   assert.deepEqual(pick('tier3'), [13, 15])
+  assert.deepEqual(pick('ts'), [18, 21])
+  assert.deepEqual(pick('tier2,ts'), [9, 12, 18, 21])
   assert.deepEqual(pick('01'), [1])
   assert.deepEqual(pick('6-9'), [6, 8, 9])
   assert.deepEqual(pick('01,tier3'), [1, 13, 15])

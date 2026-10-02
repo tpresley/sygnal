@@ -34,6 +34,20 @@ export function armPaths(arm) {
   throw new Error(`Unknown arm "${arm}" (expected one of ${ARMS.join(', ')})`)
 }
 
+/**
+ * Extra devDependencies of the TypeScript task starters (tasks 18-21, tier `ts`), on top of
+ * the arm's JS dependency set. A starter with a tsconfig.json is a TypeScript starter;
+ * verify.mjs checks its package.json against the JS set plus these.
+ */
+export const TS_EXTRA_DEV_DEPENDENCIES = {
+  sygnal: { typescript: '^5.9.3' },
+  react: { '@types/react': '^18.3.31', '@types/react-dom': '^18.3.7', typescript: '^5.9.3' },
+}
+
+export function isTsStarter(starterDir) {
+  return fs.existsSync(path.join(starterDir, 'tsconfig.json'))
+}
+
 export function listTasks(arm) {
   const { tasks } = armPaths(arm)
   return fs
