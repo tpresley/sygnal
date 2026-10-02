@@ -1,6 +1,8 @@
 /**
  * SYG105 — EVENTS type emitted but never selected, or selected but never
  * emitted (info).
+ * SYG116 — a value with no string `type` (typically a function) reached the
+ * EVENTS bus (error, G-143).
  *
  * Mechanism: the EVENTS driver (src/extra/eventDriver.ts) calls onBusSelect
  * for every EVENTS.select(type) and onBusEmit for every bus event.
@@ -12,7 +14,7 @@
  * EVENTS.select() with no type (all events) counts as selecting everything.
  */
 import type {DiagnosticCheck} from '../index'
-import {report, once, onReset, didYouMean} from './shared'
+import {report, devReport, once, onReset, didYouMean} from './shared'
 
 let selected = new Set<string>()
 let emitted = new Set<string>()
@@ -29,7 +31,20 @@ export const eventsCheck: DiagnosticCheck = {
   },
 
   onBusEmit(type, emitterName) {
-    if (typeof type !== 'string') return
+    if (typeof type !== 'string') {
+      // SYG116 (G-143): no EVENTS.select() can ever receive it. The core copies each emitted
+      // value into a new object (devtools stamp), so a function arrives here as {}.
+      if (once(`SYG116:${emitterName}`)) {
+        devReport('SYG116', {
+          component: emitterName,
+          message: `${emitterName ? emitterName + "'s model" : 'A model'} sent a value with no string 'type' to the EVENTS sink, so nothing receives it. ` +
+            `The value was probably a function (a model entry that returns event(...) instead of being event(...)), or undefined/null`,
+          fix: `Make event() the sink entry itself: ACTION: { EVENTS: event('TYPE', (state, data) => payload) }; return ABORT to send nothing`,
+          data: {type, emitter: emitterName},
+        })
+      }
+      return
+    }
     emitted.add(type)
     if (selectsAll || selected.has(type) || !once(`SYG105:emit:${type}`)) return
     report('SYG105', {

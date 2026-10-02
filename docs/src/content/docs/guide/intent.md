@@ -61,7 +61,7 @@ MyComponent.intent = ({ DOM }) => ({
 })
 ```
 
-The shorthand is powered by a JavaScript Proxy, so any valid DOM event name works — `DOM.mouseenter(sel)`, `DOM.touchstart(sel)`, `DOM.animationend(sel)`, etc.
+The shorthand is powered by a JavaScript Proxy, so any valid DOM event name works — `DOM.mouseenter(sel)`, `DOM.touchstart(sel)`, `DOM.animationend(sel)`, etc. A name that isn't a DOM event, such as `DOM.key(sel)` or `DOM.enter(sel)`, listens for an event the browser never fires; the dev checks report it as [SYG115](/reference/errors/#syg115). Listen for the real event and read the key: `DOM.keydown(sel).key()`. For a custom event you dispatch yourself, use `DOM.select(sel).events('my-event')`.
 
 The longhand `.select().events()` syntax is still fully supported and is needed when you want to chain additional stream operators directly off the DOM source selection.
 
@@ -111,7 +111,7 @@ MyComponent.intent = ({ DOM }) => ({
 | `.key(fn?)` | `e.key` | Keyboard events |
 | `.target(fn?)` | `e.target` | Any event |
 
-`.data()` looks the attribute up with `e.target.closest(...)`, so a click on a child element (an icon inside a card) still reads the card's value. The name may be camelCase or kebab-case: `.data('taskId')` and `.data('task-id')` both read the `data-task-id` attribute (`dataset.taskId`), which is what `data={{ taskId: 5 }}` renders.
+`.data()` looks the attribute up with `e.target.closest(...)`, so a click on a child element (an icon inside a card) still reads the card's value. The name may be camelCase or kebab-case: `.data('taskId')` and `.data('task-id')` both read the `data-task-id` attribute (`dataset.taskId`), which is what `data={{ taskId: 5 }}` renders. Write the keys of the `data` prop in camelCase: a kebab-case key (`data={{ 'task-id': 5 }}`, or a `data-task-id="5"` JSX attribute) makes the DOM throw a bare `DOMException` when it is rendered ([SYG421](/reference/errors/#syg421)).
 
 All methods return enriched streams, so they can be chained with standard stream operators:
 
@@ -129,6 +129,8 @@ To listen for events outside your component's DOM (like keyboard events on `docu
 
 ```jsx
 MyComponent.intent = ({ DOM }) => ({
-  KEY_PRESS: DOM.select('document').events('keydown').key()
+  KEY_PRESS: DOM.select('document').events('keydown').key(),
+  // the shorthand works on 'document' too: close on Escape anywhere on the page
+  CLOSE:     DOM.keydown('document').key().filter(k => k === 'Escape'),
 })
 ```

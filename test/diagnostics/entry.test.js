@@ -35,10 +35,29 @@ describe("'sygnal/diagnostics' build entry", () => {
     expect(found[0].data.action).toBe('ORPHAN')
   })
 
+  it('reports the dev-only codes (G-143) with their own severity, which the main bundle does not carry', async () => {
+    const sygnal = await import('sygnal')
+    const checks = await import('sygnal/diagnostics')
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {}) // 'warn' mode (resolved at load) prints errors
+    function App() { return sygnal.createElement('div', null, 'x') }
+    App.initialState = { city: '' }
+    App.intent = ({ DOM }) => ({ GO: DOM.select('.go').events('click'), KEY: DOM.key('.go') })
+    App.model = { GO: sygnal.set('city'), KEY: s => s }
+    const t = sygnal.renderComponent(App, { mockConfig: { '.go': { click: (await import('xstream')).default.periodic(10).take(1).mapTo('Paris') } } })
+    await new Promise(r => setTimeout(r, 30))
+    t.dispose()
+    const found = Object.fromEntries(sygnal.getDiagnostics().map(d => [d.code, d.severity]))
+    expect(found.SYG221).toBe('error')
+    expect(found.SYG115).toBe('warn')
+    expect(checks.getCodeInfo('SYG421').severity).toBe('error')
+    err.mockRestore()
+  })
+
   it('keeps the check code out of the main bundle', () => {
     const main = readFileSync(dist('index.esm.js'), 'utf8')
     const entry = readFileSync(dist('diagnostics.esm.js'), 'utf8')
-    for (const marker of ['has not matched any element', 'is an RxJS operator', 'likely a missing ...state spread']) {
+    for (const marker of ['has not matched any element', 'is an RxJS operator', 'likely a missing ...state spread',
+      'is not a DOM event', 'one per character of', "with no string 'type'", 'Unknown DOM event shorthand']) {
       expect(entry).toContain(marker)
       expect(main).not.toContain(marker)
     }

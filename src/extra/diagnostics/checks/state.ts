@@ -1,6 +1,8 @@
 /**
  * SYG201 — STATE reducer dropped keys that existed in the previous state (warn)
  * SYG202 — STATE reducer returned undefined (warn)
+ * SYG221 — set() called with a string (error, G-143): the string is spread
+ *          into the state as keys '0', '1', ... (one per character)
  *
  * Mechanism: onReducer(component, action, prevState, nextState). Reported once
  * per action per component name. Not reported for:
@@ -11,7 +13,7 @@
  * drop keys and never trigger SYG201.
  */
 import type {DiagnosticCheck} from '../index'
-import {report, once, nameOf, isPlainObject} from './shared'
+import {report, devReport, once, nameOf, isPlainObject} from './shared'
 
 const SKIP = new Set(['INITIALIZE', 'HYDRATE'])
 
@@ -39,6 +41,28 @@ export const stateCheck: DiagnosticCheck = {
     }
 
     if (!isPlainObject(prevState) || !isPlainObject(nextState)) return
+
+    // SYG221 (G-143): set('city') spreads the string into the state: { ...state, 0: 'c', 1: 'i', ... }
+    const chars: string[] = []
+    while (typeof nextState[chars.length] === 'string' && nextState[chars.length].length === 1 && !(chars.length in prevState)) {
+      chars.push(nextState[chars.length])
+    }
+    if (chars.length > 0 && !(chars.length in nextState)) {
+      if (!once(`SYG221:${name}:${action}`)) return
+      const field = chars.join('')
+      const update = /^[A-Za-z_$][\w$]*$/.test(field)
+        ? `set((state, ${field}) => ({ ${field} }))`
+        : `set((state, value) => ({ ['${field}']: value }))`
+      devReport('SYG221', {
+        component,
+        message: `The STATE reducer for '${action}' added the keys ${chars.map((_, i) => `'${i}'`).slice(0, 4).join(', ')}${chars.length > 4 ? ', …' : ''} ` +
+          `(one per character of '${field}'): set() was called with a string, set('${field}'). set() takes an object or a function`,
+        fix: `To store the action data in '${field}', pass a function: ${update}. For a fixed value pass an object: set({ ${field}: … })`,
+        data: {action, field},
+      })
+      return
+    }
+
     const calculated: Set<string> | null = component?._calculatedFieldNames || null
     const dropped = Object.keys(prevState).filter(key =>
       !(key in nextState) && prevState[key] !== undefined && !(calculated && calculated.has(key)))

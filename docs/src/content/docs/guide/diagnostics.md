@@ -77,7 +77,7 @@ Most runtime checks don't ship in your app. They live in a separate entry that y
 import 'sygnal/diagnostics'   // registers the checks (side effect)
 ```
 
-Loading it registers the dev checks: SYG101/102 (intent and model wiring), SYG103/104 (selectors that match nothing, or only match inside a child component), SYG105 (EVENTS types), SYG106 (props overwritten by reserved view arguments; an error in strict mode), SYG201/202 (reducer results), SYG301 (RxJS operators on xstream streams), SYG401 (Collection `from`) and the strict-mode rules. The checks only run while diagnostics are on (any mode but `'off'`).
+Loading it registers the dev checks: SYG101/102 (intent and model wiring), SYG103/104 (selectors that match nothing, or only match inside a child component), SYG105 (EVENTS types), SYG106 (props overwritten by reserved view arguments; an error in strict mode), SYG115 (a `DOM.<name>` shorthand that isn't a DOM event), SYG116 (an EVENTS value with no type, such as a function), SYG201/202 (reducer results), SYG221 (`set()` called with a string), SYG301 (RxJS operators on xstream streams), SYG401 (Collection `from`), SYG421 (a `data` key the DOM rejects), SYG609 (a sink or source with no driver) and the strict-mode rules. The checks only run while diagnostics are on (any mode but `'off'`).
 
 The entry also exports a few helpers:
 

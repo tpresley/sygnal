@@ -94,7 +94,7 @@ AddTodo.intent = ({ DOM }) => ({
   HELP:  DOM.click('.help'),
 })
 AddTodo.model = {
-  DRAFT: set((state, draft) => ({ draft })),           // merges: ({ ...state, draft })
+  DRAFT: set((state, draft) => ({ draft })),           // merges: ({ ...state, draft }); never set('draft') (SYG221)
   ADD: (state) => {
     const text = state.draft.trim()
     if (!text) return ABORT                              // "no change" is ABORT, never `return state`
@@ -155,6 +155,7 @@ TaskList.initialState = { picked: null, tasks: [{ id: 1, title: 'Write' }, { id:
 TaskList.intent = ({ CHILD }) => ({ PICKED: CHILD.select(TaskItem) })  // the function, not a string
 TaskList.model = { PICKED: (state, { taskId }) => ({ ...state, picked: taskId }) }
 ```
+- Removal in the object form keeps the STATE entry: `REMOVE: { STATE: () => undefined, EVENTS: event('REMOVED', (state) => state.id) }`. Without `STATE: () => undefined` the item stays.
 - `from` names an array field. Items are keyed by `.id` (by index if they have none). `filter={t => !t.done}`; `sort="title"`, `sort={{ title: 'desc' }}`, an array of those, or a compare function. Sorting and filtering only change what renders: the state array keeps its order, and an item's edit (`{ ...state, done: true }`) is written back to its element by key. All items render inside one `<div>` (`className` sets its class), with no other wrapper.
 - Switchable: `<Switchable of={{ home: Home, settings: Settings }} current={state.route} />` (optional `state="slice"`).
 ### Extract a component without changing the markup
@@ -225,8 +226,8 @@ Search.model = {
 - **run(App, drivers = {}, { mountPoint = '#root', diagnostics })** returns `{ sources, sinks, dispose, hmr }`. DOM, EVENTS, LOG and STATE are built in. `app.sources.STATE.stream` is the state stream; `app.dispose()` fires DISPOSE.
 - **ABORT**: from a STATE reducer, the state is unchanged; from any other sink, nothing is sent.
 - **Focus**: `blur`/`focus` don't bubble, but `DOM.blur('.field')` and `DOM.focus('.field')` work (listener on the element). For any field inside a container use the bubbling `DOM.focusout('.form')` / `DOM.focusin`.
-- **Shorthands**: `DOM.<event>('.sel')` = `DOM.select('.sel').events('<event>')` for every event name (`click input change keydown submit dblclick ...`).
-- **Enriched streams** (chainable, optional mapper): `.value(fn?)` e.target.value; `.checked(fn?)` boolean; `.key(fn?)` e.key; `.target(fn?)`; `.data('id', Number)` reads `data-id` on the target or its nearest ancestor that has it (JSX: `data={{ id: 7 }}`). camelCase names map to kebab-case attributes: `.data('taskId')` reads `data-task-id`.
+- **Shorthands**: `DOM.<event>('.sel')` = `DOM.select('.sel').events('<event>')` for every real DOM event name (`click input change keydown submit dblclick ...`). `DOM.key`, `DOM.enter` and `DOM.escape` are not events and never fire (SYG115). Escape anywhere on the page: `DOM.keydown('document').key().filter(k => k === 'Escape')`.
+- **Enriched streams** (chainable, optional mapper): `.value(fn?)` e.target.value; `.checked(fn?)` boolean; `.key(fn?)` e.key; `.target(fn?)`; `.data('id', Number)` reads `data-id` on the target or its nearest ancestor that has it (JSX: `data={{ id: 7 }}`). camelCase names map to kebab-case attributes: `.data('taskId')` reads `data-task-id`. Write camelCase keys (`data={{ taskId }}`): a kebab key (`data={{ 'task-id': 1 }}` or a `data-task-id="1"` attribute) throws a DOMException (SYG421).
 - **xstream**: `xs.merge/combine/of/periodic/never/fromPromise`; methods `map mapTo filter startWith fold take drop last endWhen flatten compose remember replaceError debug`. From `'sygnal'`, used with `.compose(...)`: `debounce(ms) throttle(ms) delay(ms) dropRepeats() sampleCombine(other$) flattenConcurrently flattenSequentially`; plus `concat(a$, b$)`.
 
 | RxJS | xstream | RxJS | xstream |
@@ -241,13 +242,13 @@ Search.model = {
 | `mergeMap(f)` | `.map(f).compose(flattenConcurrently)` | `concatMap(f)` | `.map(f).compose(flattenSequentially)` |
 (Last row: `import { flattenConcurrently, flattenSequentially, concat } from 'sygnal'`.)
 
-- **TypeScript**: `const intent = ({ DOM }: IntentSources<State>) => ({ ... })`, then `const C: Component<State, Props, {}, ActionsOf<typeof intent>, Calculated, Context, { PARENT: Payload }> = ({ state, context }) => ...` (root: `RootComponent<State, {}, Actions>`; unused parameters `{}`). Without `{ PARENT: Payload }` the parent's `CHILD.select(C)` is a `Stream<unknown>`. In JSX pass `state="slice"`, a lens, or nothing, plus the declared props. Register EVENTS names in `declare module 'sygnal' { interface SygnalEvents { DOC_SAVED: { id: string } } }`: with an empty registry no event names are type-checked. Guide: https://sygnal.js.org/integration/typescript/
+- **TypeScript**: `const intent = ({ DOM }: IntentSources<State>) => ({ ... })`, then `const C: Component<State, Props, {}, ActionsOf<typeof intent>, Calculated, Context, { PARENT: Payload }> = ({ state, context }) => ...` (root: `RootComponent<State, {}, Actions>`; unused parameters `{}`). Without `{ PARENT: Payload }` the parent's `CHILD.select(C)` is a `Stream<unknown>`. In JSX pass `state="slice"`, a lens, or nothing, plus the declared props. Register EVENTS names in `declare module 'sygnal' { interface SygnalEvents { DOC_SAVED: { id: string } } }` in a file that keeps `export {}` (without it the block replaces the 'sygnal' types: "has no exported member"): with an empty registry no event names are type-checked. Guide: https://sygnal.js.org/integration/typescript/
 - **Imports** (all from `'sygnal'`): `run ABORT set toggle event createCommand makeFetchDriver driverFromAsync xs debounce throttle delay dropRepeats sampleCombine classes processForm processDrag makeDragDriver Collection Switchable Portal Transition Slot Suspense lazy createRef createRef$ renderComponent renderToString`; types `Component RootComponent Lens`. Never import the JSX runtime by hand; the Vite plugin configures it.
 
 ## 5. Wiring rules (silent failures, and what catches them)
 - **Selectors are scoped to the component's own JSX (the isolation trap).** A parent's `DOM.click('.remove')` never fires for `.remove` rendered by a child or a Collection item. Handle the event in the child and send it up with `PARENT` (read with `CHILD.select(Child)`) or `EVENTS`. Caught as SYG104; a selector the view never renders is SYG110.
 - **Every intent action needs a model entry (SYG101), and every model entry needs a trigger (SYG102)**: an intent action, a built-in, or `next('X')`. Names match exactly.
-- **EVENTS types must match exactly** between `event('X')` and `EVENTS.select('X')` (SYG105).
+- **EVENTS types must match exactly** between `event('X')` and `EVENTS.select('X')` (SYG105). `event()` is the sink entry itself: `EVENTS: () => event('X')` sends a function, which nothing receives (SYG116).
 - **Collection `from` must name an array field of the state** (SYG401).
 - **A controlled input needs an input listener**: `value={state.x}` plus `DOM.input('.x').value()`, otherwise a re-render resets the text (SYG111). `value={null}` clears the field; leaving `value` out makes it uncontrolled.
 - Also: reducers return the complete new state (`{ ...state, ... }`); never mutate; no side effects in views or STATE reducers (use EFFECT or a driver).

@@ -143,6 +143,8 @@ export const CODE_TITLES: Record<string, string> = {
   SYG106: 'Parent prop is overwritten by a reserved view argument',
   SYG110: 'Intent selector not present in the component view',
   SYG111: 'Controlled input has no input listener',
+  SYG115: 'Unknown DOM event shorthand',
+  SYG116: 'EVENTS value has no string type',
   // SYG2xx state & reducers (1A)
   SYG201: 'STATE reducer dropped keys from the previous state',
   SYG202: 'STATE reducer returned undefined',
@@ -176,6 +178,7 @@ export const CODE_TITLES: Record<string, string> = {
   SYG218: 'Reducer returned an unsupported type',
   SYG219: 'EFFECT handler returned a value',
   SYG220: 'Calculated field threw',
+  SYG221: 'set() called with a string',
   SYG402: 'Context is not an object',
   SYG403: 'Invalid context entry',
   SYG404: 'Context stream errored',
@@ -195,6 +198,7 @@ export const CODE_TITLES: Record<string, string> = {
   SYG418: 'Invalid Collection sort prop',
   SYG419: "Invalid switchable() 'name$' parameter",
   SYG420: 'JSX tag is undefined',
+  SYG421: 'Invalid data (dataset) key',
   SYG601: 'Missing or invalid sources',
   SYG602: 'Intent is not a function',
   SYG603: 'Intent returned an invalid value',
@@ -223,6 +227,16 @@ export const STRICT_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG505: 'warn',
   SYG506: 'warn',
   SYG507: 'info',
+}
+
+// PLAN-3 1-G (G-143): codes only the 'sygnal/diagnostics' dev entry reports. Like the strict
+// table, kept OUT of CODE_SEVERITY (zero bytes in the main bundle); the entry registers them
+// and passes the severity explicitly.
+export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
+  SYG115: 'warn',
+  SYG116: 'error',
+  SYG221: 'error',
+  SYG421: 'error',
 }
 
 export function getCodeInfo(code: string): DiagnosticCodeInfo | undefined {

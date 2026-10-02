@@ -180,7 +180,8 @@ The `EVENTS` bus is untyped (`any`) until you register your event names and payl
 
 ```typescript
 // src/events.ts
-export {}   // the file must be a module
+export {}   // keep this: it makes the file a module, so the block below adds to 'sygnal'.
+            // Without it the block replaces the package's types ("has no exported member").
 
 declare module 'sygnal' {
   interface SygnalEvents {

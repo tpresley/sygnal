@@ -84,6 +84,20 @@ export const EXPLANATIONS = {
     explanation: "An `<input>`, `<textarea>` or `<select>` has `value` (or a checkbox/radio has `checked`) set, but the component's intent has no input/change/keyup/keydown listener on it or an ancestor. Sygnal writes the bound value back on every render, so any re-render while the user is typing or clicking resets the field; this also applies to literal values such as `value=\"\"` and to `value={null}`/`checked={null}`, which clear or uncheck the field on every render (only an absent prop leaves a field uncontrolled). A key listener that is immediately filtered to one key (e.g. Enter) does not count.",
     fix: "Update state on input, e.g. `DOM.input('.name').value()` (or `DOM.change(...)` for toggles/selects), or drop the `value`/`checked` prop (not set it to `null`) to leave the field uncontrolled and read it on blur or submit.",
   },
+  SYG115: {
+    title: "Unknown DOM event shorthand",
+    severity: "warn",
+    reportedBy: ["dev-entry"],
+    explanation: "`DOM.<name>(selector)` is shorthand for `DOM.select(selector).events('<name>')`, and the DOM source accepts any property name, so a made-up name such as `DOM.key('.search')`, `DOM.enter(...)` or `DOM.keyDown(...)` listens for an event the browser never fires: the action silently never happens. The dev entry reports a shorthand call whose name is not a known DOM event, once per component and name. Key names and the enriched-stream helpers (`.key()`, `.value()`, `.checked()`, `.data()`) are not events.",
+    fix: "Use the real event and an enriched-stream helper: `DOM.keydown('.search').key()` (add `.filter(k => k === 'Enter')` for one key), `DOM.input('.name').value()`, `DOM.change('.box').checked()`. For a custom event you dispatch yourself, use the explicit form `DOM.select(sel).events('my-event')`, which is never reported.",
+  },
+  SYG116: {
+    title: "EVENTS value has no string type",
+    severity: "error",
+    reportedBy: ["dev-entry"],
+    explanation: "A model sent a value without a string `type` to the `EVENTS` sink, so no `EVENTS.select(type)` can receive it and it is dropped. The usual cause is a function: a model entry that returns `event(...)` (for example `{ EVENTS: () => event('SAVED', data) }`) instead of being `event(...)`, or any other reducer that returns a function. Each emitted value is copied into a new object, so a function arrives on the bus as `{}`. A reducer that returns `undefined` or `null` (see SYG217) causes it too.",
+    fix: "Make `event()` the sink entry itself: `SAVE: { EVENTS: event('SAVED', (state, data) => payload) }`; return `ABORT` from a reducer to send nothing.",
+  },
   SYG201: {
     title: "STATE reducer dropped keys from the previous state",
     severity: "warn",
@@ -202,6 +216,13 @@ export const EXPLANATIONS = {
     reportedBy: ["runtime"],
     explanation: "A calculated field function threw while computing derived state, for example by reading a property of missing data. The error is caught and the field is skipped for that update, so it is not recomputed from the new state.",
     fix: "Guard the calculation against missing data, e.g. `state => state.user?.name ?? ''`.",
+  },
+  SYG221: {
+    title: "set() called with a string",
+    severity: "error",
+    reportedBy: ["dev-entry"],
+    explanation: "`set()` takes an object to merge (`set({ open: true })`) or a function that returns one (`set((state, data) => ({ ... }))`). Called with a field name, `set('city')` spreads the string into the state, adding the keys `'0'`, `'1'`, ... one per character, and the field itself never changes. The dev entry recognises those keys after the reducer runs and reports the field name; TypeScript also rejects a string argument.",
+    fix: "To store the action data in a field, pass a function: `set((state, city) => ({ city }))`. For a fixed value pass an object: `set({ city: 'Paris' })`.",
   },
   SYG301: {
     title: "RxJS operator used on an xstream stream",
@@ -349,6 +370,13 @@ export const EXPLANATIONS = {
     reportedBy: ["runtime"],
     explanation: "A JSX element's tag evaluated to `undefined`, usually because a component was not imported, was misspelled, or was imported as default instead of named (or vice versa). Sygnal renders an `<UNDEFINED>` element in its place and logs the message with `console.error`; it is collected like other runtime diagnostics (the JSX runtime reports it through the diagnostics core, or only prints it when no Sygnal core is loaded).",
     fix: "Import or define the component in the file that uses it, and check that the import style (default vs named) matches the export.",
+  },
+  SYG421: {
+    title: "Invalid data (dataset) key",
+    severity: "error",
+    reportedBy: ["dev-entry"],
+    explanation: "A view renders a `data` key the DOM can't store. `data={{ ... }}` (and a `data-x-y=\"...\"` JSX attribute, which becomes the key `x-y`) is written with `element.dataset[key] = value`, and the browser throws a SyntaxError DOMException for a key with a hyphen followed by a lower-case letter (`'task-id'`), or an attribute-name error for characters such as spaces, quotes or `=`. The patch fails, so rendering can stop, and the console shows only a bare `DOMException {}`. The dev entry checks every rendered dataset key before the patch and names the key; renderComponent's mock DOM never throws, so it is also the only signal there.",
+    fix: "Use a camelCase key in the `data` prop: `data={{ taskId: 7 }}` renders `data-task-id=\"7\"`; read it with `.data('taskId')`.",
   },
   SYG501: {
     title: "View uses positional arguments",
