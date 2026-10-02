@@ -23,6 +23,40 @@ Tracks progress for [PLAN-3.md](PLAN-3.md). Maintained by the coordinator. The P
 
 Delta attribution (analysis/p3-net-baseline.md): learning 11.7 s (42%, mostly reading framework source on 22), test-authoring +7 s, debug +5.1 s. Own-test failures include the G-140 trap again (`expect(() => t.fail(...)).toThrow()`, `t.fail` after supersede) and fake-socket CLOSING-state mistakes.
 
+**Network-layer checkpoint (`p3-final`, Opus 5.5, Sygnal arm, all 23 tasks, 115/115 pass; D75):** matched wall on the 21 shared tasks 43.2 → **41.1 s** vs `p4-final2` (−5%); task 22 87.6 → **49.0 s** (291 → 133 LOC; gap to React +45.8 → **+7.2 s**); 11 59.4 → 42.9, 17 70.7 → 59.7, 05 26.2 → 19.7 s; task 23 unchanged (39.8 s, React 29.5). Cost +6% and peak context +1.8k tokens per trial (the bigger agent docs, G-166). `p3-final-haiku` running.
+
+## Budgets (D76; for PLAN-3 and PLAN-4)
+
+| Budget | Cap | Now (`plan3-integration`) | PLAN-3 share | Left for PLAN-4 |
+|---|---|---|---|---|
+| Core, size gate (gated) | 42,300 B | 42,098 B (+133 B with `resources`) | driver-side only after `resources`; D77 frees ~2.3 KB | to be recorded at the end of Phase 5 |
+| `llms.txt` | 300 lines (was 250) | 250 | ≤ 285 | ≥ 15 |
+| SKILL.md | 36 KB | 32.4 KB | ≤ 35 KB | ≥ 1 KB |
+| Fetch driver (standalone gz) | 6 KB | 2.7 KB (4.1 KB with `resources`) | | |
+| Router driver (standalone gz) | 3.5 KB | — | | |
+
+## Handoff items from PLAN-4 (H-/R-/X-)
+
+| Item | Status | Where |
+|---|---|---|
+| H-0a ship `resources` regardless | ✅ accepted, eval decides canonical (skill-only A/B) | D74 |
+| H-0b hold the eval | ✅ changed: Haiku run finishes, `p3-final` kept as checkpoint, `p3-resources` not run, one final 4-C | D75 |
+| H-0c budgets | ✅ accepted: llms 300, skill 36 KB, driver caps, DevTools reserve | D76, D77 |
+| H-1 keep data while reloading | ✅ changed: same request keeps data (`refreshing`); key change clears unless `keepPrevious` | D78, 5-2 |
+| H-2 shared cache | ✅ changed: opt-in via `makeFetchDriver({ cache })` | D79, 5-3 |
+| H-3 dedupe | ✅ accepted (cache mode) | D79, 5-3 |
+| H-4 invalidation | ✅ changed: explicit tags or URL prefix, no derived tags | D80, 5-3 |
+| H-5 retries | ✅ changed: default 0 everywhere | D80, 5-3 |
+| H-6 refetch triggers | ✅ accepted (focus/reconnect in `cache`; `refetchEvery` opt-in; off in fakes) | D79, 5-3 |
+| H-7 SSR cache seeding + `{ prefetch }` | ✅ accepted | D80, 5-5 |
+| H-8 Standard Schema `validate` | ✅ accepted (own module, for PLAN-4 F-1) | D80, 5-3 |
+| H-9 HTTP fake runs the real driver | ✅ accepted, first | D80, 5-1 |
+| H-10 recipes | ✅ accepted (docs; llms only if the eval shows need) | 5-7 |
+| H-11 devtools/inspect | ✅ changed: `t.cache()` + inspect data; panel is a stretch item | D80, 5-7 |
+| R-1…R-9, R-11 router | ✅ accepted; R-2 option (a) | D81, 5-4 |
+| R-10 naming | ✅ accepted, done first | D82, 5-0 |
+| X-1 `HEAD` driver | ✅ accepted | D81, 5-4 |
+
 ## Workstreams
 
 | ID | Title | Status | Branch | Agent | Merged | Notes |
@@ -40,10 +74,18 @@ Delta attribution (analysis/p3-net-baseline.md): learning 11.7 s (42%, mostly re
 | 2-A | `makeSocketDriver` | ✅ | `p3-2a-socket` | subagent | after `416cc13` (`c042864`) | Sink `{ connections: { name: spec\|falsy } }` (diff per (sender, name); URL/protocols/credentials/share change reconnects, other changes rebind) and `{ to, json\|text\|binary }` (queued while connecting, `queueLimit` 100). Spec `{ socket\|sse, message, open, close, error, reconnect, share, protocols, events, withCredentials }`. Routed `message` (JSON-parsed), `open {reconnected}`, `close {code, reason, willReconnect}` only for closes the driver didn't make (G-148), `error {error}`; unrouted `select(name?)`. Reconnect default 500 ms→10 s ±20%, fixed mode `{ delayMs, maxDelayMs, jitter: false }`. Shared by URL by default (ref-counted). SSE: native retry, driver reconnect only after CLOSED. SSR no-op. **SYG611** (error, `DEV_CODE_SEVERITY` to keep core at 0 B). 2,571 B gz standalone. 32 unit tests (incl. task-22 port) + 2 browser tests (Node built-in WS/SSE server as a Vite plugin) |
 | 2-B | `connections` static | ✅ | `p3-2b-connections` | subagent | after `1c08bfd` (`6000efa`) | Read from `this.view?.connections` (no pragma/factory changes; `connections` added to `src/lazy.ts` statics and Astro `Wrapped`). Sent to every source marked `__sygnalConnections === true` (makeSocketDriver), from `STATE.stream` + a per-instance reducer hook (Collection items' state lags a debounce), identity `dropRepeats` → `{ connections: conn(addCalculated(s)) }` → `dropRepeats(objIsEqual)`; merged into `model$[n]` so it is sender-stamped and isolated; sent once at startup (`{}` too). **G-158**: the component's own values on that sink go two microtasks later. A throwing `connections` is SYG216. Runtime SYG112 for connection action names. **Core +104 B → 42,098 B (202 B headroom)**, so no budget change (D71). 23 tests (20 failed first) + `type-tests/connections.tsx` |
 | 2-C | Socket fakes | ✅ | `p3-2c-socket-fakes` | subagent | after `1d09241` (`936b9f3`) | One fake source, no option: values with `connections`/`to` go to a socket half that runs the **real** `makeSocketDriver` over in-memory WebSocket/EventSource classes (diff, routing, sharing, queue, reconnect timers, SYG610/611 are the driver's code). `t.connections(name)`, `t.open`, `t.push(name, data, target?)` (`{ event }` for SSE named events), `t.drop(name, {code, reason}?, target?)`, `t.sent(name, to?)`; targets: name, URL, partial connection, predicate. Shared `scripted()` with `t.respond`/`t.fail` (sync throw, promise after render). `autoConnect` option (default true: opens a macrotask after declaration; `false` holds until `t.open`). 24 tests (all failed first) incl. task 22 port; `type-tests/socket-fakes.ts`; testing.md socket section. A minimal driver hook was denied by the permission classifier (driver unchanged). G-160 |
-| 3-A | `resources` prototype + A/B eval | 🔵 eval pending | `exp/p3-resources` (worktree `agent-aa4ea152c7b5f6cc8`) | subagent | not merged; `c260b5b` includes plan3-integration | `Component.resources = { name: state => url\|request\|falsy }`; `state[name] = { status, data, error }` written by a built-in `RESOURCE` action; refetch on a changed request (JSON), latest/abort; `{ refresh: 'name' }` on the HTTP sink; `ok`/`error` on a resource also dispatch; generic `__sygnalStatic` marker replaces `__sygnalConnections`; fake + `resourceSink` option; types `Resource<D, E>`; checker knows `resources`/`RESOURCE`. **Core +133 B → 42,231 B (69 B headroom)**; fetch driver +287 B. 17 tests. Reference solutions 05/11/17/23 pass hidden suites (fit: 05 poor, 11 good, 17 good with ok/error hooks, 23 ideal). Exp gate: all green except llms.txt 265 lines (> 250, test fails; trim only if adopted). Decision rule (D73) |
+| 3-A | `resources` prototype | ✅ prototype; lands in 5-2 (D74) | `exp/p3-resources` (worktree `agent-aa4ea152c7b5f6cc8`) | subagent | not merged; `c260b5b` includes plan3-integration | `Component.resources = { name: state => url\|request\|falsy }`; `state[name] = { status, data, error }` written by a built-in `RESOURCE` action; refetch on a changed request (JSON), latest/abort; `{ refresh: 'name' }` on the HTTP sink; `ok`/`error` on a resource also dispatch; generic `__sygnalStatic` marker replaces `__sygnalConnections`; fake + `resourceSink` option; types `Resource<D, E>`; checker knows `resources`/`RESOURCE`. **Core +133 B → 42,231 B (69 B headroom)**; fetch driver +287 B. 17 tests. Reference solutions 05/11/17/23 pass hidden suites (fit: 05 poor, 11 good, 17 good with ok/error hooks, 23 ideal). Exp gate: all green except llms.txt 265 lines (> 250, test fails; trim only if adopted). Decision rule (D73) |
 | 4-A | Agent + site docs | ✅ | `p3-4a-docs` | subagent | after `9199d8a` (`8d77656`) | Routed HTTP canonical everywhere (llms §3, SKILL, guides, api.md); new pages `guide/http`, `guide/sockets`, `guide/custom-drivers`, `integration/server-functions` (Telefunc via routed `driverFromAsync` + Option E security rules); `guide/drivers` is an overview (old anchors kept); alternative-forms (SYG508 round trip, model-sent connections, driverFromAsync for HTTP); async EFFECT section; HYDRATE removed from docs; diagnostics/strict guides list the new codes; README + 8 template `AGENTS.md` lines; PENDING map removed. 12 recipes run verbatim (scratch tests). **llms.txt 250 lines (at the limit), SKILL.md 345 → 346 lines, 30,140 → 32,421 B (+7.6%)**. Closed G-146, G-150 (docs), G-154, G-155, G-161 (docs), G-162 |
 | 4-B | CHANGELOG [Unreleased] + ROADMAP §16 | 🔵 | `plan3-integration` | coordinator | `9199d8a`, links in this commit | Done except "Measured impact" (after 4-C) and the final ROADMAP status |
-| 4-C | Eval (user's terminal) | ⬜ ready | | | | Commands prepared: `p3-final` (Sygnal, all tiers, 115 trials ≈ $36), `p3-final-haiku` (Sygnal, tiers 1–3 + net, 95 ≈ $25), `p3-resources` (exp checkout, 20 ≈ $6) |
+| 5-0 | R-10 rename + router size spike + D77 DevTools out of production | ⬜ | | | | |
+| 5-1 | H-9: HTTP fake runs the real driver | ⬜ | | | | |
+| 5-2 | H-1/D78 + land `resources` | ⬜ | | | | |
+| 5-3 | Cache track (§1.6) | ⬜ | | | | |
+| 5-4 | Router track + `HEAD` (§1.7) | ⬜ | | | | |
+| 5-5 | SSR cache seeding + `{ prefetch }` | ⬜ | | | | |
+| 5-6 | Eval tasks 24, 25 | ⬜ | | | | |
+| 5-7 | Recipes, inspect, docs within D76 | ⬜ | | | | |
+| 4-C | Eval (user's terminal) | ⬜ after Phase 5 (D75) | | | | Checkpoint done: `p3-final` (115/115); `p3-final-haiku` running. `p3-resources` not run (D74) |
 | 4-D | REPORT-v3 | ⬜ | | | | |
 
 ## Gate Results
@@ -85,6 +127,15 @@ Delta attribution (analysis/p3-net-baseline.md): learning 11.7 s (42%, mostly re
 | D62 | 2026-10-02 | Q6: `resources` state lives at a top-level key named by the resource | User | Reads best; revisit on collisions/eval |
 | D63 | 2026-10-02 | Q7: size budget decided after the 0-B spike with measured bytes | User | Only 175 B headroom |
 | D68 | 2026-10-02 | Q10 / G-152: the pragma camelCases `data-*` JSX attribute names into dataset keys (`data-task-id` → `taskId`); `data={{ 'task-id': … }}` stays an SYG421 error | User | Plain HTML data attributes must work; +47 B |
+| D74 | 2026-10-02 | Amends D73: `resources` ships in 6.0.0; the final eval decides only canonical vs advanced form, by a skill-only A/B on the same build. `p3-resources` is not run | User | Handoff H-0a; caching hangs off `resources` |
+| D75 | 2026-10-02 | Eval: the running Haiku run finishes; `p3-final` and `p3-final-haiku` are the network-layer checkpoint; 4-C runs once after Phase 5, with tasks 24 and 25 | User | H-0b; avoids measuring semantics that change |
+| D76 | 2026-10-02 | Budgets: core stays 42,300 B and Phase 5 additions are driver-side; `llms.txt` cap 300 (PLAN-3 ≤ 285, PLAN-4 ≥ 15); SKILL.md ≤ 36 KB (PLAN-3 ≤ 35 KB); fetch driver ≤ 6 KB, router ≤ 3.5 KB gz standalone; learn time/peak context checked against `p3-final` (> ~10% worse → trim before release) | User | H-0c; G-166 (+6% tokens already) |
+| D77 | 2026-10-02 | G-100 in 6.0: `sygnal/vite` injects DevTools in dev; production builds don't carry it (~2.3 KB core reserve); migration note | User | Budget reserve for PLAN-3/PLAN-4 |
+| D78 | 2026-10-02 | H-1 modified: a same-request refetch keeps `data` with `refreshing: true`; a key change clears `data` unless `keepPrevious: true` | User | Detail views and task 23 must not show the previous record |
+| D79 | 2026-10-02 | The query cache is opt-in: `makeFetchDriver({ cache })` turns on stale-while-revalidate for resources, de-duplication, and focus/reconnect refetch; `refetchEvery` is per-resource opt-in | User | Existing semantics and task specs unchanged by default |
+| D80 | 2026-10-02 | Invalidation by explicit tags or URL prefix (no derived tags); retries default 0, opt-in; Standard Schema `validate`; SSR `dehydrate`/`hydrate` + `{ prefetch }`; the HTTP fake runs the real driver; `t.cache()` + inspect data, devtools panel a stretch item | User | H-2…H-11 as reviewed |
+| D81 | 2026-10-02 | The router (R-1…R-9, R-11) and the `HEAD` driver (X-1) are part of PLAN-3; R-2 option (a): a declaration static names a reply action, the app's reducer stores the route | User | Same machinery as sockets; one eval cycle |
+| D82 | 2026-10-02 | R-10 first: "routed requests" → **reply actions** (docs), `routing.ts` → `replies.ts`, SYG112 title, inspect trigger `'routed'` → `'reply'` | User | The router owns "route"; nothing released yet |
 | D73 | 2026-10-02 | 3-A decision rule: adopt `resources` into 6.0.0 if, on tasks 05/11/17/23 (Sygnal arm, 5 trials), matched mean wall improves ≥ 10% vs the `p3-final` control with no pass-rate loss and no LOC-added increase, and task 05 alone doesn't regress; otherwise park for 6.1 | Coordinator (proposed to user) | 3-A report |
 | D72 | 2026-10-02 | G-160: `renderComponent` option `socketSink` (default `'WS'`) names the driverless fake that receives the `connections` static (marked `__sygnalConnections`); it is injected for any component with a `connections` static even when no model entry names the sink. Other fakes never get connections | User | No duplicates; read-only SSE components testable; canonical name WS |
 | D71 | 2026-10-02 | Size budget before 2-B: trim first (1-S, ≥ 150 B, no behaviour change) in parallel with 2-A; measure 2-B and re-baseline only if it still doesn't fit | User | 53 B headroom (G-153) |
@@ -142,3 +193,4 @@ Delta attribution (analysis/p3-net-baseline.md): learning 11.7 s (42%, mostly re
 - 2026-10-02 — 4-A and 3-A launched. 4-B draft: CHANGELOG [Unreleased] network section, codes, breaking, TS rows, migration; ROADMAP §16 in progress.
 - 2026-10-02 — 4-A merged; G-163/G-164 fixed (checker); CHANGELOG links point at the new pages. Gate green, 0 pending doc samples. Waiting on 3-A, then 4-C (user's terminal).
 - 2026-10-02 — 3-A done; coordinator merged plan3-integration into `exp/p3-resources` (conflicts in sygnal-check resolved, G-163 kept for connections only), exp gate green except the llms line limit. Stale SYG421 docs line fixed (`7b9c1bd`: a `data-task-id` attribute works since G-152). 4-C commands prepared.
+- 2026-10-02 — `p3-final` done (115/115): network-layer checkpoint recorded. PLAN-4's handoff reviewed; D74–D82 approved (D77 included): query cache (opt-in), router, `HEAD` driver and the reply-actions rename join PLAN-3 as Phase 5; budgets re-planned (D76). `p3-resources` dropped; 4-C runs once after Phase 5.

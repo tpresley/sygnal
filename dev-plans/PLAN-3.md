@@ -2,6 +2,8 @@
 
 **Goal:** make network calls (HTTP, WebSocket, server-sent events, and later server functions) a first-class part of Sygnal for 6.0.0. A request and the place its answer goes should read together. Connections should follow component and state lifecycles. Tests should script both without wiring. 6.0.0 also takes the PLAN-2 carry-over items (G-140…G-143, G-133, N-1).
 
+**Amended 2026-10-02 (D74–D82):** PLAN-3 also takes the query cache, the SPA router and a `HEAD` driver for 6.0.0, handed over by the ecosystem-research session (PLAN-4, `claude/sygnal-component-research-b1873e:dev-plans/HANDOFF-to-PLAN-3.md`; its H- and R- items are mapped in the tracker). See §1.4 (as built), §1.6, §1.7 and Phase 5. PLAN-4 starts after PLAN-3 and depends on: the generic `__sygnalStatic` declaration mechanism, a Standard Schema helper module, a focus/online/visibility listener module, and the remaining budgets (recorded in the tracker).
+
 MVI stays intact, as in PLAN-1 and PLAN-2:
 - models return descriptions of effects;
 - drivers perform the effects;
@@ -166,17 +168,20 @@ Chat.model = {
 - **Timers and media queries:** `every(ms, 'TICK')` and similar declarations would use the same mechanism, but they are **out of scope** unless they come for free.
 - **Q5:** the static's name. Options are `connections` and Elm's `subscriptions`; the latter clashes with stream "subscriptions" in Sygnal's own docs.
 
-### 1.4 Declarative reads: `resources` (additive; may ship after 6.0.0)
+### 1.4 Declarative reads: `resources` (ships in 6.0.0; the eval decides canonical vs advanced, D74)
+
+As built in 3-A (`exp/p3-resources`), amended by D78:
 
 ```jsx
-Quote.resources = { quote: (state) => state.id && { url: `/api/quotes/${state.id}` } }
-// state.quote = { status: 'idle' | 'loading' | 'success' | 'error', data, error }
-Quote.model = { REFRESH: { RESOURCES: 'quote' } }
+Quote.resources = { quote: (state) => state.id && `/api/quotes/${state.id}` }   // a URL or a request; falsy = idle
+// state.quote = { status: 'idle' | 'loading' | 'success' | 'error', data, error, refreshing? }
+Quote.model = { REFRESH: { HTTP: { refresh: 'quote' } } }
 ```
 
-- This desugars to §1.1. When the derived request changes, the runtime sends it with `latest` and routes `ok`/`error` to built-in reducers that write `state.quote`. Each write is an action (`RESOURCE` with `{ name, … }`), visible in devtools and `t.states`.
-- Later additions: dedupe across instances, and Vike `+data` prefetch through HYDRATE.
-- It goes **last**, behind an eval gate (Phase 3), because it introduces a framework-owned state key (Q6: top-level key vs a `$resources` namespace).
+- The core sends the state-derived map to the source that declares the `resources` static (`__sygnalStatic`, generalised from 2-B's `connections`); the driver fetches a changed request with latest semantics and writes `state[name]` through the built-in `RESOURCE` action, so every write is an action.
+- **D78 (reloads):** a refetch of the **same** request (refresh, invalidation, focus, polling) keeps `data` and sets `refreshing: true`; a **key change** clears `data` (status `loading`) unless the resource sets `keepPrevious: true` (pagination). This keeps task 23's "no stale quote while loading" and SWR-style refreshes.
+- `ok`/`error` on a resource also dispatch those actions after the write. Writes (POST) stay reply actions (§1.1).
+- Risks to handle in Phase 5: a user key named like a resource is overwritten; a one-render glitch (old `success` before `loading`); a silent no-op without `makeFetchDriver` (like G-161); JSON-based change detection.
 
 ### 1.5 Server functions (6.0.0: docs plus an adapter only)
 
@@ -192,6 +197,34 @@ Quote.model = { REFRESH: { RESOURCES: 'quote' } }
   - an endpoint manifest.
 
 ---
+
+### 1.6 Query cache in `makeFetchDriver` (D79, D80)
+
+All of it lives in the fetch driver (0 B core) and the fake runs the real driver (H-9), so there is one copy of every rule.
+
+- **Opt-in:** `makeFetchDriver({ cache: true | { staleTime, gcTime, refetchOnFocus, refetchOnReconnect } })`. When on, resources use stale-while-revalidate (`staleTime` default 0: cached data shows at once, then refetches, `refreshing: true`), identical in-flight cacheable requests are **de-duplicated** across instances (each sender still gets its reply as its own action; a fetch aborts only when no sender wants it), and focus/reconnect refetch stale mounted resources. Reply-action requests stay one-send-one-request unless they set `cache: true`. Off by default so existing semantics (and task 23's spec) hold.
+- **Polling:** `refetchEvery: ms` per resource, paused while the document is hidden. Opt-in.
+- **Invalidation:** `{ invalidate: tag | tags | '/url-prefix' | (req) => boolean }` from any component; resources and cache entries carry explicit `tags`. No derived tags. Mounted matches refetch (keeping data, D78); works with or without the cache. Sugar on a write: `invalidates: ['quotes']`, on success only.
+- **Retries:** `retry: n | { count, delayMs, maxDelayMs, jitter }`, **default 0 everywhere**; GET/HEAD only unless set on the request; network errors, 408, 429 (`Retry-After`), 5xx. The `error` action fires once with `{ attempts }`. Same backoff semantics as the socket driver's `reconnect`.
+- **Validation:** `validate: schema` (any Standard Schema) on a request or resource; a failure goes to `error` with `{ issues }`. Helper in its own module (`src/extra/standardSchema.ts`), reused by PLAN-4's forms and by server functions.
+- **SSR seeding:** `dehydrate()` / `hydrate()` on the driver and `makeFetchDriver({ initialCache })`; a `{ prefetch: request }` sink command warms the cache without a reply (router link hover). Vike `+data` prefetch into the cache; verify in a real Vike app (with G-165).
+- **Testing and inspection:** `t.cache('HTTP')`, `t.focus()`, `t.online()`; triggers are off in the fake unless a test enables them; retries run on fake timers. `inspect()` lists in-flight requests, cache entries and resources. A devtools panel view is a stretch item.
+- **Diagnostics:** a non-idempotent cached request (POST with `cache`/`staleTime`); `validate` that isn't a Standard Schema; `invalidate` matching nothing (info, dev only).
+- Recipes (docs only, H-10): optimistic update with rollback, pagination with `keepPrevious`, infinite list, mutation status.
+- The focus/online/visibility listeners are an internal module PLAN-4 reuses.
+
+### 1.7 Router and `HEAD` driver (D81, D82)
+
+- **Naming first (D82):** "routed requests" become **reply actions** in the docs; `src/extra/routing.ts` → `replies.ts`; SYG112's title and the inspect trigger (`'routed'` → `'reply'`) follow. The router owns the word "route".
+- **Driver:** `run(App, { ROUTER: makeRouterDriver({ routes: { home: '/', task: '/tasks/:id', notFound: '*' }, base, mode: 'history' | 'hash' }) })` (0 B core unless used; must confirm the route static costs ~0 B core in the 5-0 spike).
+- **Reading the route:** option (a): a declaration static names a reply action (`App.route = 'ROUTE'`), and the app's own reducer stores `{ name, params, query, hash, path }`; guards and redirects stay in the model (`ROUTE` can return `ROUTER: { to, replace: true }`).
+- **Rendering:** `<Switchable of={{ home: Home, task: Task }} current={state.route.name} />`; whether route pages keep alive (Switchable's 6.0 default) is decided in the workstream.
+- **Navigating:** sink commands `{ to, params, query }`, `{ back: true }`, `{ replace: true }`; links are plain `<a href={href('task', { id })}>`; the driver intercepts same-origin anchor clicks at the document level (views bind no events), respecting modifier keys, middle-click, `target`, `download`, external origins and an opt-out attribute. Unsaved-changes guard: `{ block: 'CONFIRM_LEAVE' }`.
+- **Data:** no loader API: pages derive `resources` from `state.route.params`; link-hover `{ prefetch }`; SSR seeds the cache (§1.6).
+- **Extras:** scroll restoration; focus management after navigation; `document.title` per route through the **`HEAD` driver** (title/meta/link, SSR-aware; X-1).
+- **Tests:** `t.navigate('/tasks/2')`, `t.location`, `t.back()`; the fake runs the real driver over an in-memory history.
+- **Diagnostics:** unknown route name; missing/extra params in `{ to, params }` / `href()`; a Switchable `current` that isn't a route name; `makeRouterDriver` inside a Vike app. Typed `href()` from the route table.
+- **Vike:** aim for one API (the `ROUTER` sink maps to Vike's `navigate()`, route state from `pageContext`); otherwise a documented "in Vike, use Vike's routing" split.
 
 ## 2. What changes for existing APIs
 
@@ -275,10 +308,18 @@ The operating model is PLAN-2 §1 unchanged: integration branch, isolation-workt
 - **2-B:** The `connections` static in the core (state map → sink, sender-tagged), and the checker learning `message`/`open`/`close` triggers. **Gate:** core cost reported against the Q7 budget.
 - **2-C:** Socket fakes (`t.push`, `t.close`, `t.sent`, `t.connections`).
 
-### Phase 3: Resources (eval-gated, additive)
-- **3-A:** A `resources` prototype on an `exp/` branch. A/B against §1.1 on tasks 05, 11, 17 and 23 (user's terminal).
-  - Adopt into 6.0.0 only if it is faster or simpler with no pass-rate loss.
-  - Otherwise park it for 6.1 and record the decision.
+### Phase 3: Resources
+- **3-A:** A `resources` prototype on an `exp/` branch (done). D74: it ships in 6.0.0 (lands in 5-2); the final eval's skill-only A/B decides canonical vs advanced.
+
+### Phase 5: Cache, router, HEAD (D74–D82; before 4-C)
+- **5-0:** R-10 rename (reply actions, `replies.ts`, SYG112 title, inspect `'reply'`) across code, docs, llms.txt and skill; plus a router spike measuring the core cost of the route static (target ~0 B). D77: `sygnal/vite` injects DevTools in dev; production builds don't carry it (G-100; frees ~2.3 KB core; migration note).
+- **5-1:** H-9: the HTTP fake runs the real `makeFetchDriver` over an in-memory `fetch` (replaces 1-C's private rule copies).
+- **5-2:** H-1/D78 into `resources`; land `exp/p3-resources` on `plan3-integration` (trim llms.txt within D76).
+- **5-3 (cache track):** §1.6 (cache, dedupe, triggers, polling, invalidation, retries, validation, listener module).
+- **5-4 (router track, parallel with 5-3):** §1.7 router + `HEAD` driver, fakes, diagnostics, Vike mapping.
+- **5-5:** SSR cache seeding and `{ prefetch }` (needs 5-3 and 5-4); verify in a real Vike app (G-165).
+- **5-6:** eval tasks **24-list-detail-cache** and **25-router-spa** in the `net` tier, both arms (React arm on TanStack Query / React Router), verify + mutants.
+- **5-7:** H-10 recipes, H-11 inspect/`t.cache`, agent and site docs within the D76 budgets.
 
 ### Phase 4: Docs, agent context, measure
 - **4-A: Agent-facing sync** (owns `llms.txt`, `docs/public/llms.txt`, `skills/sygnal-dev/**`, template `AGENTS.md`, docs):
@@ -287,11 +328,12 @@ The operating model is PLAN-2 §1 unchanged: integration branch, isolation-workt
   - alternative forms page;
   - `guide/drivers.md` split into HTTP / sockets / custom drivers;
   - RPC/Telefunc page.
-  - Constraints: ≤ 250 lines; `check-doc-samples` clean; the installed skill re-synced before any eval (D35).
+  - Constraints (D76 supersedes the 250-line cap): `llms.txt` ≤ 300 lines in 6.0.0 with PLAN-3 ≤ 285; SKILL.md ≤ 36 KB with PLAN-3 ≤ 35 KB; `check-doc-samples` clean; the installed skill re-synced before any eval (D35).
 - **4-B: CHANGELOG `[Unreleased]`** (§3) and ROADMAP §16 → done or partial.
-- **4-C: Eval (user's terminal, guard on):**
-  - tiers 1–3 + `net` + TS, both arms, 5 trials, against `p4-final2`;
-  - one Haiku run on the shared tasks + `net`.
+- **4-C: Eval (user's terminal, guard on; D75: once, after Phase 5):**
+  - checkpoint already run: `p3-final` (Sygnal, all tiers) and `p3-final-haiku` measure the network layer before Phase 5;
+  - Sygnal all tiers incl. 24/25 (~125 trials), React arm for 24/25, Haiku (~105), and a skill-only `resources` canonical A/B on 05/11/17/23/24 (~25), ≈ $80;
+  - learn time and peak context per trial checked against `p3-final` (D76): > ~10% worse → trim the agent docs before release.
   Success bars:
   - task 05 ≤ React + 2 s;
   - tasks 11 and 17 gap reduced by ≥ 25%;
@@ -301,7 +343,7 @@ The operating model is PLAN-2 §1 unchanged: integration branch, isolation-workt
 - **4-D: REPORT-v3.md.** Release stays held per D56.
 
 **Dependency order:**
-- 0-A → 0-B → 1-A → (1-B, 1-C, 1-D, 1-T in parallel) → 2-A → 2-B → 2-C → 3-A → 4-A → 4-B → 4-C → 4-D.
+- 0-A → 0-B → 1-A → (1-B, 1-C, 1-D, 1-T in parallel) → 2-A → 2-B → 2-C → 3-A → 4-A → 4-B → **5-0 → 5-1 → 5-2 → (5-3 ∥ 5-4) → 5-5 → 5-6 → 5-7** → 4-C → 4-D.
 - 0-C and 1-G run in parallel with everything.
 
 ---
@@ -324,16 +366,19 @@ New for PLAN-3: browser tests for real WebSocket/SSE (a local server in `browser
 | Routing on top of the tested E2 shape is less of a win than projected (task 05 is already close to React) | The eval decides between the canonical forms. If it fails its success bar, ship routing as an alternative and keep select/errors canonical. |
 | Agents write `fetch` in async EFFECT again once it is "safe" | llms.txt/skill keep HTTP → driver. Measure fetch-in-component counts in 4-C (E2 baseline: 0/20). |
 | Socket tests are flaky in the browser | Local server per run, deterministic fakes for unit tests, `--reruns` in verify. |
-| `resources` writes a framework-owned state key | Eval-gated, additive, namespace decision Q6. |
+| `resources` writes a framework-owned state key | D62 top-level key; diagnose a user key collision in 5-2. |
+| Cache semantics surprise agents (stale data, refetch storms) | Opt-in `cache` (D79), retries default 0, triggers off in the fake; eval task 24 measures it. |
+| Router scope creep (loaders, nested layouts) | No loader API (data via `resources`); nested routes only if the 5-4 design needs them. |
+| Agent docs grow past what agents read efficiently | D76 caps; learn-time check against `p3-final` before release. |
 
 ## 7. Definition of done
 
 - Routed HTTP, hardened EFFECT, `makeSocketDriver` + `connections` and the redesigned fakes are merged, with every gate green.
 - G-133, G-140, G-141, G-131, G-142 and G-143 are closed.
-- `resources` is adopted or parked, with the eval evidence recorded.
+- `resources` (with D78), the opt-in query cache (§1.6), the router and the `HEAD` driver (§1.7) are merged; the eval decides `resources`' canonical status.
 - CHANGELOG `[Unreleased]` has the network section, breaking changes and migration.
 - ROADMAP §16 is updated, and REPORT-v3 is written.
-- Agent docs are in sync, and llms.txt is ≤ 250 lines.
+- Agent docs are in sync within D76 (llms.txt ≤ 300, SKILL ≤ 36 KB), and the tracker records the remaining core-size and llms budgets for PLAN-4.
 - Release is still held (D56).
 
 ## 8. Decisions needed before code (recommendations first)
