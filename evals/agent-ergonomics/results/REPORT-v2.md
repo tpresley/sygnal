@@ -199,16 +199,22 @@ Seconds per trial, task-matched over the 15 shared tasks:
 
 ### Haiku failure categories (first root cause)
 
-Classification is from the hidden-test messages and the agents' final reports. The Sygnal "logic" rows are not yet confirmed at code level.
+The Sygnal rows were confirmed at code level: hidden tests or `tsc` were re-run on copies, and suspected bugs were patched in scratch copies to check them.
 
 | Arm | Spec misread | Logic | TS typecheck (agent's own test file) | Incomplete | Wiring / isolation / reducer shape / stream operator |
 |---|---|---|---|---|---|
-| Sygnal (24) | 7 | 12 (selection on Escape/delete, error/Retry across switches, lookup state, stale-closure fix, moved cards) | 3 | 2 | 0 confirmed |
+| Sygnal (24) | 8 | 7 (task 13 "sent once" flag set only on success ×4; DELETE converted to `{ PARENT/EVENTS }` without `STATE: () => undefined` ×2; throttled EFFECT saving a stale snapshot) | 3 (untyped `let t`; `export {}` deleted from `events.ts`) | 1 | **5**: wiring 2 (made-up `DOM.key(sel, key)`; `event()` emitted as a function on EVENTS behind `as any`), isolation 1 (gave up), reducer shape 1 (`set('city')` with a string), stream operator 1 (`.key(fn)` used as a filter) |
 | React (33) | 23 (icon-only Pin buttons, edge Prev/Next, email rule, search text, enrollment order) | 10 (6 are stale requests not invalidated on 11/17) | 0 | 0 | 0 |
 
 **Reading:**
 - On the async tasks the framework's structure helped the smaller model. Haiku's React agents missed request invalidation on tasks 11 and 17 in 10 of 10 trials. Sygnal's `latest: true` gave 3/5 on task 11 against React's 0/5.
-- No Sygnal failure was a silent wiring error.
+- 5 of the 24 Sygnal failures are Sygnal-specific mistakes the framework could catch or prevent, though none is a Sygnal bug:
+  - `DOM.<anything>` is accepted silently;
+  - a function emitted on EVENTS isn't flagged;
+  - `set()` accepts a string;
+  - an invalid `data` key is logged only as a bare "DOMException {}";
+  - Escape-key handling is guessed two different wrong ways.
+- In 22 of the 24 failing trials the agent's own tests passed, and most final messages claimed success.
 - Haiku with Sygnal is still much slower (1.54×). The remaining cost is comprehension, not correctness.
 
 ## TypeScript tier (E10, tasks 18–21)
@@ -252,6 +258,14 @@ Classification is from the hidden-test messages and the agents' final reports. T
 ## What's left
 
 **New from this run:**
+- **Haiku-driven diagnostics and docs (G-143):**
+  - warn on an unknown `DOM.<event>` shorthand;
+  - flag a function value on the EVENTS sink;
+  - reject `set()` called with a string;
+  - give a clear error for an invalid `data` (dataset) key;
+  - show the canonical Escape pattern in the skill (`DOM.keydown('document').key().filter(k => k === 'Escape')`);
+  - add a docs line: keep `STATE: () => undefined` when converting DELETE to the object form;
+  - add a `// keep export {}` comment in TS starters' `events.ts`.
 - `t.respond` / `t.fail` on a superseded request return `void` and fail asynchronously, so assertions such as `toThrow()` don't catch it. 4 of 5 task-11 trials hit this. Return a rejecting promise, or document how to test that a stale reply is ignored.
 - `t.requests('HTTP')` includes `{ abort: true }` commands. 4 of 5 task-17 trials hit this. Filter them out, or document it.
 - `renderComponent` / `RenderResult` are not generic in the state type. This is the top TS error on both Opus and Haiku.

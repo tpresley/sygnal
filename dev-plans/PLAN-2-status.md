@@ -180,6 +180,7 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | G-140 | REPORT-v2 | med | Testing | `t.respond`/`t.fail` on a superseded/non-pending request return void and fail asynchronously, so `toThrow()`/`.rejects` asserts fail (4/5 task-11 trials) | Open → follow-up |
 | G-141 | REPORT-v2 | low | Testing | `t.requests('HTTP')` includes `{ abort: true }` commands (4/5 task-17 trials asserted an empty list) | Open → follow-up |
 | G-142 | REPORT-v2 | med | Types | `renderComponent`/`RenderResult` aren't generic in the state type → `let t: any` and TS7006 in `t.next(s => …)`; top TS error on Opus and Haiku | Open → follow-up |
+| G-143 | Haiku classification | med | Diagnostics / docs | From the 24 Haiku Sygnal failures (5 Sygnal-specific): unknown `DOM.<event>` shorthands accepted silently (`DOM.key`); a function emitted on EVENTS not flagged; `set()` with a string not rejected; invalid `data` key kills rendering with a bare "DOMException {}"; Escape pattern guessed wrong (doc the canonical `DOM.keydown('document').key().filter(...)`); DELETE converted to object form drops `STATE: () => undefined` (doc it); keep `export {}` in TS `events.ts` | Open → follow-up |
 | G-076 | 5.4.0 release | low | browser-tests | The browser run prints expected console errors from error-path tests, which look like failures | ✅ 1-E (whitelist updated for SYG405 at the 1-B merge) |
 
 ## Worktree Setup (each subagent, inside its own isolated worktree)
