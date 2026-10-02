@@ -10,6 +10,10 @@ async function check() {
   t.simulateAction('INC')
   const s = await t.waitForState(s => s.n === 1)
   const html: string = t.html()
+  // G-125: t.state is the latest state, read-only
+  const latest = t.state.n
+  // @ts-expect-error t.state is read-only
+  t.state = { n: 2 }
   const events = t.emitted.map(e => e.type)
   const sink: any[] = t.sinkValues('HTTP')
   t.expectNoDiagnostics()
@@ -30,7 +34,7 @@ async function check() {
   renderComponent(Counter, { dom: 'jsdom' })
   r.dispose()
   t.dispose()
-  void [checked, rows, root]
+  void [checked, rows, root, latest]
   return [s, html, events, sink, codes]
 }
 // G-036: run() takes diagnostics.strict

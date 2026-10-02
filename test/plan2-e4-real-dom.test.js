@@ -248,6 +248,122 @@ Counter.model = {
 }
 const disposed = vi.fn()
 
+// ─── 4-A1: waits resolve with the DOM patched to the state they resolved with ───
+
+// task 17's shape: an input starts a lookup ('Looking up…'), the response replaces it a few ms
+// later (a stubbed fetch through makeFetchDriver), before the old wait's quiet window ended.
+// The stub answers on the macrotask after 'Looking up…' is in the DOM (deterministic under
+// load: a response that beats the render would replace the state before it ever renders)
+function Zip({ state }) {
+  return h('form', null,
+    h('input', { name: 'zip', value: state.zip }),
+    h('p', { className: 'zip-status' }, state.status),
+    h('input', { name: 'city', value: state.city }),
+    h('input', { type: 'checkbox', name: 'express', checked: state.express, disabled: state.noExpress }),
+  )
+}
+Zip.initialState = { zip: '', status: '', city: '', express: true, noExpress: false }
+Zip.intent = ({ DOM, HTTP }) => ({
+  ZIP: DOM.input('input[name="zip"]').value(),
+  FOUND: HTTP.select('zip'),
+})
+Zip.model = {
+  ZIP: {
+    STATE: (s, zip) => ({ ...s, zip, status: 'Looking up…' }),
+    HTTP: (s, zip) => ({ category: 'zip', url: `/api/zip/${zip}` }),
+  },
+  FOUND: (s, { value }) => ({ ...s, status: '', city: value.city, express: value.express, noExpress: !value.express }),
+}
+const quickFetch = () => vi.fn(() => new Promise(r => {
+  const answer = () => r(new Response(JSON.stringify({ city: 'Springfield', express: false }), { headers: { 'Content-Type': 'application/json' } }))
+  const poll = () => document.querySelector('.sygnal-test .zip-status')?.textContent === 'Looking up…' ? setTimeout(answer) : setTimeout(poll)
+  poll()
+}))
+
+describe('4-A1: real-mode waits resolve after the DOM patch', () => {
+  it('right after await t.next(pred) the DOM shows that state, even when the next one follows within ms', async () => {
+    const { makeFetchDriver } = await import('../src/extra/fetchDriver.js')
+    vi.stubGlobal('fetch', quickFetch())
+    t = renderComponent(Zip, { dom: 'real', drivers: { HTTP: makeFetchDriver() } })
+    await t.ready()
+    t.simulateEvent('input[name="zip"]', 'input', { value: '62704' })
+    await t.next(s => s.status === 'Looking up…')
+    expect(t.query('.zip-status').textContent).toBe('Looking up…')
+    expect(t.query('input[name="zip"]').value).toBe('62704')
+    expect(t.query('input[name="express"]').disabled).toBe(false)
+    await t.next(s => s.city === 'Springfield')
+    expect(t.query('.zip-status').textContent).toBe('')
+    expect(t.query('input[name="city"]').value).toBe('Springfield')
+    expect(t.query('input[name="express"]').checked).toBe(false)
+    expect(t.query('input[name="express"]').disabled).toBe(true)
+  })
+
+  it('a held render goes in on the next macrotask; waitForState and settle() see the latest DOM', async () => {
+    const { makeFetchDriver } = await import('../src/extra/fetchDriver.js')
+    vi.stubGlobal('fetch', quickFetch())
+    t = renderComponent(Zip, { dom: 'real', drivers: { HTTP: makeFetchDriver() } })
+    t.simulateEvent('input[name="zip"]', 'input', { value: '62704' })
+    await t.next(s => s.status === 'Looking up…')
+    await t.settle()
+    expect(t.query('.zip-status').textContent).toBe('')
+    expect(t.query('input[name="city"]').value).toBe('Springfield')
+    expect(t.state.city).toBe('Springfield')
+    // a match from the history: the DOM shows the newest state at the match
+    await t.waitForState(s => s.status === 'Looking up…')
+    expect(t.query('input[name="city"]').value).toBe('Springfield')
+  })
+
+  it('next() right after a wait also matches the states whose render was held back', async () => {
+    const { makeFetchDriver } = await import('../src/extra/fetchDriver.js')
+    vi.stubGlobal('fetch', quickFetch())
+    t = renderComponent(Zip, { dom: 'real', drivers: { HTTP: makeFetchDriver() } })
+    t.simulateEvent('input[name="zip"]', 'input', { value: '62704' })
+    await t.next(s => s.status === 'Looking up…')
+    expect(t.query('.zip-status').textContent).toBe('Looking up…')
+    // the response state may already be recorded (held back from the DOM): next() still sees it
+    await t.next(s => s.city === 'Springfield')
+    expect(t.query('input[name="city"]').value).toBe('Springfield')
+    // an input starts a fresh next(): earlier states don't match
+    t.simulateEvent('input[name="zip"]', 'input', { value: '6270' })
+    await expect(t.next(s => s.city === 'Springfield' && s.zip === '62704', 100)).rejects.toThrow(/already matches/)
+  })
+
+  it('t.respond: each await shows its own state in the DOM', async () => {
+    t = renderComponent(Zip, { dom: 'real' })
+    await t.ready()
+    t.simulateEvent('input[name="zip"]', 'input', { value: '10001' })
+    await t.next(s => s.status === 'Looking up…')
+    expect(t.query('.zip-status').textContent).toBe('Looking up…')
+    t.respond('HTTP', { city: 'New York', express: true }, 'zip')
+    await t.next(s => s.city === 'New York')
+    expect(t.query('input[name="city"]').value).toBe('New York')
+    expect(t.query('.zip-status').textContent).toBe('')
+    expect(t.query('input[name="express"]').checked).toBe(true)
+  })
+
+  it('with vi.useFakeTimers() too', async () => {
+    vi.useFakeTimers()
+    try {
+      const { makeFetchDriver } = await import('../src/extra/fetchDriver.js')
+      vi.stubGlobal('fetch', quickFetch())
+      t = renderComponent(Zip, { dom: 'real', drivers: { HTTP: makeFetchDriver() } })
+      await t.ready()
+      expect(t.query('.zip-status')).not.toBe(null)
+      t.simulateEvent('input[name="zip"]', 'input', { value: '62704' })
+      await t.next(s => s.status === 'Looking up…')
+      expect(t.query('.zip-status').textContent).toBe('Looking up…')
+      await t.next(s => s.city === 'Springfield')
+      expect(t.query('input[name="city"]').value).toBe('Springfield')
+      expect(t.query('input[name="express"]').disabled).toBe(true)
+      await t.settle()
+      expect(t.query('.zip-status').textContent).toBe('')
+    } finally {
+      t?.dispose(); t = null
+      vi.useRealTimers()
+    }
+  })
+})
+
 describe('E4: dispose and the shared t.* API', () => {
   it('next/settle/html/emitted/sinkValues work the same; dispose fires DISPOSE and unmounts', async () => {
     t = renderComponent(Counter, { dom: 'real' })
@@ -287,6 +403,16 @@ describe('E4: dispose and the shared t.* API', () => {
     await t.next(s => s.last === 'Enter')
     t.simulateEvent('document', 'keydown', { key: 'Escape' })
     await t.next(s => s.esc === 1)
+  })
+
+  it('4-A1: query()/queryAll()/html() before the first render throw, naming await t.ready()', async () => {
+    t = renderComponent(Counter, { dom: 'real' })
+    expect(() => t.query('.inc')).toThrow(/before the component's first render was in the DOM.*await t\.ready\(\)/)
+    expect(() => t.queryAll('.inc')).toThrow(/await t\.ready\(\)/)
+    expect(() => t.html()).toThrow(/await t\.ready\(\)/)
+    await t.ready()
+    expect(t.query('.inc')).not.toBe(null)
+    expect(t.query('span').textContent).toBe('0')
   })
 
   it('mock mode: query() explains that it needs { dom: "real" }', () => {

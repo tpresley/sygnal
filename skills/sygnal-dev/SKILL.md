@@ -13,7 +13,7 @@ description: >
 
 This file is self-sufficient for everyday work: it holds the canonical forms, the API facts, the wiring rules, and the testing recipe.
 Full spec: `llms.txt` (in the sygnal package root, `node_modules/sygnal/llms.txt`, or https://sygnal.js.org/llms.txt).
-Less common features (Portals, Transitions, Suspense/lazy, Slots, forms, drag-and-drop, PWA, SSR, Astro/Vike, TypeScript) are in `references/component-patterns.md`.
+Less common features (Portals, Transitions, Suspense/lazy, Slots, forms, drag-and-drop, PWA, SSR, Astro/Vike, TypeScript): the guides at https://sygnal.js.org/guide/components/ and the API reference.
 
 **Write only the canonical forms shown here.** Other forms still run, but `sygnal-check --strict` flags them (SYG5xx).
 
@@ -67,7 +67,7 @@ Counter.model = {
 Counter.onError = (error, { componentName }) => <div className="error">{componentName} failed</div>
 export default Counter
 ```
-- Reducer `(state, data, next, props)`. `data` is the action stream's value. `next('ACTION', data?, delayMs = 10)` dispatches another action. `props` holds the parent's props plus `state`, `context`, `children`, `slots`.
+- Reducer `(state, data, next, props)`. `data` is the action stream's value. `next('ACTION', data?, delayMs = 10)` dispatches another action of this component `delayMs` after the call, whenever it is called: also later, from a timer or callback (`EFFECT: (state, data, next) => { setTimeout(() => next('TICK'), 1000) }`). HTTP goes through `makeFetchDriver` (§3), not `fetch` + `next()`. `props` holds the parent's props plus `state`, `context`, `children`, `slots`.
 - Model entry: a function is the STATE reducer. An object `{ STATE, EVENTS, PARENT, EFFECT, LOG, <DRIVER>: fn }` maps each sink to a `(state, data, next, props)` function whose return value goes to that sink. `<SINK>: true` forwards `data` as-is.
 - **Every sink of one entry sees the state from before this action**: EVENTS, PARENT, EFFECT and drivers never see what STATE returns. Compute the new value from `(state, data)` inside the sink: `INC: { STATE: s => ({ ...s, n: s.n + 1 }), PARENT: s => ({ n: s.n + 1 }) }`.
 - Built-in actions (model only): `BOOTSTRAP` (once, just after mount), `INITIALIZE` (automatic: sets initialState), `HYDRATE` (SSR data), `DISPOSE` (unmount).
@@ -155,11 +155,11 @@ TaskList.initialState = { picked: null, tasks: [{ id: 1, title: 'Write' }, { id:
 TaskList.intent = ({ CHILD }) => ({ PICKED: CHILD.select(TaskItem) })  // the function, not a string
 TaskList.model = { PICKED: (state, { taskId }) => ({ ...state, picked: taskId }) }
 ```
-- `from` names an array field; items are keyed by `.id`. Also `filter={t => !t.done}`, `sort="title"`. An item edits its own element (`{ ...state, done: true }`).
+- `from` names an array field. Items are keyed by `.id` (by index if they have none). `filter={t => !t.done}`; `sort="title"`, `sort={{ title: 'desc' }}`, an array of those, or a compare function. Sorting and filtering only change what renders: the state array keeps its order, and an item's edit (`{ ...state, done: true }`) is written back to its element by key. All items render inside one `<div>` (`className` sets its class), with no other wrapper.
 - Switchable: `<Switchable of={{ home: Home, settings: Settings }} current={state.route} />` (optional `state="slice"`).
 ### Extract a component without changing the markup
 1. **First**, on the unchanged code, write a test that pins the HTML: `expect(t.html()).toMatchSnapshot()` initially and after one interaction; run it once (with `CI` set: `npx vitest run -u`).
-2. Move the elements into the child verbatim (a component adds no wrapper). Inputs come in as props; the user's choice goes out through `PARENT` with an id; no `initialState`, no knowledge of the parent's state shape.
+2. Move the elements into the child verbatim: a component adds no wrapper element and no attributes, so the HTML stays identical. Inputs come in as props; the user's choice goes out through `PARENT` with an id; no `initialState`, no knowledge of the parent's state shape.
 3. In the parent, render `<Child name="food" value={state.food} />`, remove the old selectors for those elements (they can't see the child's DOM, SYG104), and listen with `CHILD.select(Child)`.
 4. Re-run the test without `-u`: the snapshot must still match.
 ```jsx
@@ -285,8 +285,8 @@ it('picks, then removes a task', async () => {
 })
 ```
 - `simulateEvent(sel, type, init?)`: init `{ value }`, `{ checked }`, `{ key: 'Enter' }`, `{ data: { id: 2 } }`; `'document'` targets `DOM.select('document')` listeners. Calls made before the component is ready are buffered (`await t.ready()` is optional). `sel` matches the rendered tree like the real DOM: tag, `.class`, `#id`, `[attr="v"]`, `:first-child`, `:last-child`, `:nth-child(n)`, `:nth-of-type(n)`, `:not()`, descendant and `>` (e.g. `.list:nth-child(2) .card:first-child .next`). If it matches nothing (after waiting up to 300ms for a render), the test fails with an error naming the selector (check `t.html()`, or select by attribute: `[data-id="3"]`); `{ allowMissing: true }` drops the event instead. `:has()`, `+`, `~` throw "unsupported selector syntax".
-- `t.next(pred)` matches only future states (right after `await t.ready()`, also those of the buffered calls). `t.waitForState(pred)` also matches states already recorded (e.g. the initial one), so use it only for a state that can't already exist. Both resolve after the whole tree has rendered. `t.settle()` doesn't wait out a model `next('X', data, ms)` longer than its 20ms window: `await t.next(pred)` instead (timeout errors name the pending `next()`). `t.states`, `t.emitted` (EVENTS sent) and `t.sinkValues('PARENT')` / `t.sinkValues('API')` (any sink, children's too) are live arrays.
-- Debounce/delay/timer tests: use fake timers instead of sleeping out the real delay. `t.next`/`t.waitForState`/`t.settle`/`t.ready` advance the fake clock themselves until they resolve; `vi.advanceTimersByTimeAsync(ms)` moves it by hand:
+- `t.next(pred)` matches only future states (right after `await t.ready()`, also those of the buffered calls). `t.waitForState(pred)` also matches states already recorded (e.g. the initial one), so use it only for a state that can't already exist. Both resolve after the whole tree has rendered. `t.settle()` doesn't wait out a model `next('X', data, ms)` longer than its 20ms window: `await t.next(pred)` instead (timeout errors name the pending `next()`). `t.state` is the latest state (`t.states.at(-1)`); `t.states`, `t.emitted` (EVENTS sent) and `t.sinkValues('PARENT')` / `t.sinkValues('API')` (any sink, children's too) are live arrays. `t.html()` throws before the first render: `await t.ready()` (or a `t.next`) first.
+- Debounce/delay/timer tests: use fake timers instead of sleeping out the real delay. `t.next`/`t.waitForState`/`t.settle`/`t.ready` advance the fake clock themselves until they resolve; `vi.advanceTimersByTimeAsync(ms)` moves it by hand. Drivers need no wiring (next bullet):
 ```js
 beforeEach(() => vi.useFakeTimers())
 afterEach(() => { t?.dispose(); vi.useRealTimers() })
@@ -297,14 +297,17 @@ it('searches once, 300 ms after the last keystroke', async () => {
   for (const q of ['d', 'du', 'dune']) { t.simulateEvent('.q', 'input', { value: q }); await vi.advanceTimersByTimeAsync(50) }
   await vi.advanceTimersByTimeAsync(249)
   expect(t.requests('HTTP')).toHaveLength(0)
-  await t.next(s => s.status === 'searching')       // advances to the debounce, no real wait
+  await t.next(s => s.status === 'Searching…')      // advances to the debounce, no real wait
   expect(t.requests('HTTP')).toHaveLength(1)
+  t.respond('HTTP', { results: [{ title: 'Dune' }] })  // answers the pending request
+  await t.next(s => s.results.length === 1)
+  expect(t.state.status).toBe('')
 })
 ```
 - `t.simulateAction('LOADED', data)` pushes an action straight into intent → model (all sinks run). Use it for actions without a DOM trigger. **Drivers need no wiring in tests**: a sink with no driver is recorded (`t.requests('HTTP')`), and its source is a fake: `t.respond('HTTP', body)` answers the newest pending request on `select()` (`{ category, value, status: 200, request }`; waits up to 1s for a debounced one), `t.fail('HTTP', 404 | error)` on `errors()`. Requests superseded by `latest: true` or aborted aren't pending. Options: a category, or `{ category, request }`.
 - With the Vite plugin, Vitest gets `sygnal/diagnostics` in its setupFiles automatically; otherwise `import 'sygnal/diagnostics'` in the test.
 - Real DOM state (`checked`, `value`, `disabled`, focus, refs): `renderComponent(C, { dom: 'real' })` in a jsdom test (`// @vitest-environment jsdom`, `npm i -D jsdom`), same `t.*` API in ONE suite (no separate `run()` + jsdom suite). `simulateEvent` then dispatches real events on any CSS selector (`{ value }` types, `'click'` toggles a checkbox/radio and skips disabled buttons, `'focus'`/`'blur'` move focus).
-- Assert on real elements: `expect(t.query('input[name="plan"]:checked').value).toBe('team')`, `t.query('.save').disabled`, `document.activeElement === t.query('input[name="city"]')`, `t.queryAll('.row')`.
+- Assert on real elements: `expect(t.query('input[name="plan"]:checked').value).toBe('team')`, `t.query('.save').disabled`, `document.activeElement === t.query('input[name="city"]')`, `t.queryAll('.row')`. Every wait (`ready`, `next`, `waitForState`, `settle`) resolves once its state is in the DOM, so query right after the `await` (before the first render, `t.query` throws: `await t.ready()`). `await t.next(a); await t.next(b)` also sees a `b` that arrived while the DOM showed `a`.
 
 ## 8. Diagnostics and tools
 - Format: `[Sygnal SYG104] Lane: <what is wrong>. <how to fix> https://sygnal.js.org/reference/errors#syg104`. Severities error/warn/info. 1xx wiring, 2xx model/state, 3xx streams (SYG301: RxJS operator on an xstream stream), 4xx components (Collection, Switchable, context), 5xx strict, 6xx drivers and setup, 9xx internal.
@@ -312,7 +315,6 @@ it('searches once, 300 ms after the last keystroke', async () => {
 - App graph: `npx --no-install sygnal-check --graph --json` (static), `t.inspect()` (test), `getDevTools().inspect()` (running dev app). All return the same `InspectGraph`: components, actions and their triggers, selectors (`matched`, `isolationHit`), EVENTS emitters/selectors, diagnostics.
 - Vite plugin in dev (`vite`, never `vite build`): runtime checks print warnings to the console; when `sygnal-check` is installed, the plugin also runs it on start and on every save. Stricter: `sygnal({ diagnostics: { mode: 'error', strict: true }, check: { strict: true } })`.
 - Without the plugin: `run(App, drivers, { diagnostics: 'warn' })` and `import 'sygnal/diagnostics'` for the full checks. Runtime strict: `run(App, drivers, { diagnostics: { strict: true } })`, `configureStrict(true)` from `'sygnal/diagnostics'`, or `renderComponent(C, { strict: true })` (all need `'sygnal/diagnostics'`).
-- MCP: `claude mcp add sygnal-check -- npx --no-install sygnal-check mcp` (tools `check`, `graph`, `explain`).
 
 ## 9. Project setup (Vite)
 ```
@@ -336,7 +338,6 @@ run(App)   // mounts on #root; pass drivers as the 2nd argument
 Conventions: PascalCase component files, ALL_CAPS action names, `$` suffix for streams, class-name selectors, `classes()` for conditional class names, root state in one `initialState`, `state="key"` to give a child a slice.
 
 ## 10. Where to look next
-- `references/component-patterns.md`: Switchable routing, forms (`processForm`), Portals, Transitions, Slots, Suspense/lazy, refs, drag-and-drop, PWA helpers, SSR/hydration, Astro, Vike, TypeScript.
 - Full spec: `node_modules/sygnal/llms.txt` / https://sygnal.js.org/llms.txt.
 - Error reference (every SYG code): https://sygnal.js.org/reference/errors (or `npx --no-install sygnal-check explain SYGnnn`).
 - Guides: https://sygnal.js.org/guide/components/, testing: https://sygnal.js.org/integration/testing/, API: https://sygnal.js.org/reference/api/.

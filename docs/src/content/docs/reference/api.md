@@ -618,8 +618,9 @@ function renderComponent(
 | `next` | `(predicate?, timeout?) => Promise<any>` | Next matching state emitted after the call |
 | `waitForState` | `(predicate, timeout?) => Promise<any>` | First matching state, recorded history included |
 | `settle` | `(timeout?) => Promise<void>` | Resolves once nothing is pending |
+| `state` | `any` (read-only) | The latest state (`states.at(-1)`) |
 | `states` | `any[]` | Every state emitted |
-| `html` | `() => string` | Latest render as HTML |
+| `html` | `() => string` | Latest render as HTML (throws before the first render: `await t.ready()` first) |
 | `emitted` | `{ type, data }[]` | EVENTS emissions |
 | `sinkValues` | `(sinkName) => any[]` | Values sent to a sink |
 | `requests` | `(sinkName) => any[]` | Requests sent to a driverless sink (alias of `sinkValues`) |
