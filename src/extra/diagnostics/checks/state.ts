@@ -6,7 +6,8 @@
  *
  * Mechanism: onReducer(component, action, prevState, nextState). Reported once
  * per action per component name. Not reported for:
- *   - synthetic actions (`__*`) and INITIALIZE/HYDRATE (whole-state replacement)
+ *   - synthetic actions (`__*`) and INITIALIZE (whole-state replacement; HYDRATE is an
+ *     ordinary action since 6.0, D66)
  *   - keys that are calculated fields (they are re-derived after the reducer)
  *   - keys whose previous value was undefined
  * The set()/toggle() helpers always spread the previous state, so they can't
@@ -15,7 +16,7 @@
 import type {DiagnosticCheck} from '../index'
 import {report, devReport, once, nameOf, isPlainObject} from './shared'
 
-const SKIP = new Set(['INITIALIZE', 'HYDRATE'])
+const SKIP = new Set(['INITIALIZE'])
 
 export const stateCheck: DiagnosticCheck = {
   id: 'state',

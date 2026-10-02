@@ -22,6 +22,7 @@ export const CODES = {
   SYG105: { severity: 'warn', title: 'EVENTS type selected but never emitted, or emitted but never selected' },
   SYG110: { severity: 'warn', title: 'Intent selector not present in the component view' },
   SYG111: { severity: 'warn', title: 'Controlled input has no input listener' },
+  SYG112: { severity: 'error', title: 'Routed request names an action with no model entry' },
   SYG401: { severity: 'warn', title: "Collection 'from' field is missing or not an array" },
   // strict mode (--strict), dev-plans/PLAN-1-canonical-forms.md; severities match
   // STRICT_CODE_SEVERITY in src/extra/diagnostics/codes.ts
@@ -32,6 +33,7 @@ export const CODES = {
   SYG505: { severity: 'warn', title: 'Non-canonical EVENTS emit', strict: true },
   SYG506: { severity: 'warn', title: 'CHILD.select() with a string component name', strict: true },
   SYG507: { severity: 'info', title: 'Prop drilled through more than 2 component levels', strict: true },
+  SYG508: { severity: 'warn', title: 'select()/errors() round trip where a routed request would do', strict: true },
   SYG900: { severity: 'warn', title: 'A diagnostics check threw' },
 }
 

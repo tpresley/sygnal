@@ -27,7 +27,7 @@ From a terminal, `npx --no-install sygnal-check explain SYG104` prints the same 
 
 Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`), `sygnal-check`
 
-The intent returns an action stream whose name has no matching key in `model` (shorthand keys like `'ACTION | SINK'` count as `ACTION`). Events on that stream are produced but nothing handles them, so the action silently does nothing. Built-in actions (`BOOTSTRAP`, `INITIALIZE`, `HYDRATE`, `DISPOSE`, `READY`) and internal `__*` actions are never reported.
+The intent returns an action stream whose name has no matching key in `model` (shorthand keys like `'ACTION | SINK'` count as `ACTION`). Events on that stream are produced but nothing handles them, so the action silently does nothing. Built-in actions (`BOOTSTRAP`, `INITIALIZE`, `DISPOSE`, `READY`) and internal `__*` actions are never reported. `HYDRATE` is not built in since 6.0: it is an ordinary action name.
 
 **Fix:** Add a model entry with the same name, e.g. `model = { SAVE: (state) => ({ ...state, saved: true }) }`, or remove or rename the intent action so it matches an existing model key.
 
@@ -51,9 +51,9 @@ Form.model  = { SAVE: (state) => ({ ...state, saved: true }) }
 
 Severity: `info` at runtime, `warn` in sygnal-check · Reported by: the dev checks (`sygnal/diagnostics`), `sygnal-check`
 
-A model entry has no intent action of the same name and is not a built-in action, so nothing in the intent can trigger it. It may still be reached through `next('ACTION')`, which the runtime cannot know in advance, so the runtime check reports it as info (and skips components whose intent returns a single stream). The static checker also accounts for `next()` calls with string literals and reports it as warn, downgraded to info when a `next()` call uses a non-literal name.
+A model entry has no intent action of the same name and is not a built-in action (`BOOTSTRAP`, `INITIALIZE`, `DISPOSE`, `READY`; `HYDRATE` is an ordinary action since 6.0), so nothing in the intent can trigger it. A routed request also triggers the actions it names (`{ url, ok: 'LOADED', error: 'FAILED' }` sent to a driver sink), and so does a `connections` entry (`message`, `open`, `close`, `error`). It may still be reached through `next('ACTION')`, which the runtime cannot know in advance, so the runtime check reports it as info (and skips components whose intent returns a single stream); it counts the `ok`/`error` string literals it finds in the source of the component's non-STATE sink functions. The static checker also accounts for `next()` calls and routed names with string literals and reports it as warn, downgraded to info when a `next()` call or an `ok`/`error` value uses a non-literal name.
 
-**Fix:** Add the action to the component's `intent`, dispatch it with `next('ACTION')` from another entry, or remove the dead model entry.
+**Fix:** Add the action to the component's `intent`, name it in a request (`HTTP: (state) => ({ url, ok: 'ACTION' })`), dispatch it with `next('ACTION')` from another entry, or remove the dead model entry.
 
 Before:
 
@@ -221,6 +221,32 @@ After:
 // intent: TITLE: DOM.input('.title').value()
 ```
 
+### SYG112
+
+**Routed request names an action with no model entry**
+
+Severity: `error` · Reported by: the dev checks (`sygnal/diagnostics`), `sygnal-check`
+
+A request sent to a routing driver (`makeFetchDriver`, `driverFromAsync`, the socket driver) names its reply actions, as in `{ url, ok: 'LOADED', error: 'FAILED' }`, and the driver delivers the reply to the sending component as that action. When the component's model has no entry with that name, the reply is dropped, usually because of a typo. The dev entry checks each routed request as it is sent; `sygnal-check` checks string literal `ok`/`error` values returned by non-STATE sinks and the `message`/`open`/`close`/`error` names in a `connections` static. Statically, only names that look like actions (UPPER_SNAKE_CASE) or are close to a model key are reported, because the checker cannot see which driver a sink goes to, and a custom driver may use an `error` field for data.
+
+**Fix:** Use the name of an existing model entry (the message names the closest one), or add the entry: `LOADED: (state, body) => ({ ...state, data: body })`.
+
+Before:
+
+```jsx
+Quote.model = {
+  LOAD:   { HTTP: (state) => ({ url: '/api/quote', ok: 'LOADED', error: 'FIALED' }) },
+  LOADED: (state, quote) => ({ ...state, quote }),
+  FAILED: (state, { status }) => ({ ...state, status }),
+}
+```
+
+After:
+
+```jsx
+LOAD: { HTTP: (state) => ({ url: '/api/quote', ok: 'LOADED', error: 'FAILED' }) },
+```
+
 ### SYG115
 
 **Unknown DOM event shorthand**
@@ -275,7 +301,7 @@ SAVE: { EVENTS: event('SAVED', (state) => state.id) }
 
 Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
 
-A STATE reducer returned a plain object that is missing keys present (and not `undefined`) in the previous state, which usually means a missing `...state` spread. Those keys are silently lost from state. Calculated fields, `INITIALIZE`/`HYDRATE` and internal `__*` actions are excluded; reported once per component and action.
+A STATE reducer returned a plain object that is missing keys present (and not `undefined`) in the previous state, which usually means a missing `...state` spread. Those keys are silently lost from state. Calculated fields, `INITIALIZE` and internal `__*` actions are excluded; reported once per component and action.
 
 **Fix:** Spread the previous state: `(state, data) => ({ ...state, field: data })`. If removing the keys is intended, ignore the warning.
 
@@ -297,7 +323,7 @@ SET_NAME: (state, name) => ({ ...state, name })
 
 Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
 
-A STATE reducer returned `undefined`, typically from a block-bodied arrow function without `return`. In a root component this wipes the state; in a sub-component it is reported as info instead, because returning `undefined` from a Collection item's reducer is the documented way to remove the item. `INITIALIZE`/`HYDRATE` and internal `__*` actions are excluded.
+A STATE reducer returned `undefined`, typically from a block-bodied arrow function without `return`. In a root component this wipes the state; in a sub-component it is reported as info instead, because returning `undefined` from a Collection item's reducer is the documented way to remove the item. `INITIALIZE` and internal `__*` actions are excluded.
 
 **Fix:** Return the new state, e.g. `(state, data) => ({ ...state, ... })`, or return `ABORT` to leave the state unchanged.
 
@@ -1202,6 +1228,42 @@ After:
 ```jsx
 App.context = { theme: (state) => state.theme }
 // Card: function Card({ state, context }) { … context.theme … }
+```
+
+### SYG508
+
+**select()/errors() round trip where a routed request would do**
+
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`), `sygnal-check` · Strict mode only
+
+Strict mode only. A component sends a request with `category: 'quote'` to a routing driver (`makeFetchDriver`, `driverFromAsync`, or a sink named `HTTP`) and reads the reply back in its own intent with `HTTP.select('quote')` or `HTTP.errors('quote')`. The canonical form is a routed request: it names the reply actions in the request, so the intent line, the category string and the select/errors split all go away, and the reply reaches exactly the component instance that sent it. `select()`/`errors()` remain for unrouted requests and for stream-level composition (see Alternative forms). The runtime check (`configureStrict(true)`, `renderComponent(C, { strict: true })`) reports a request whose category the same component selects on a routing source.
+
+**Fix:** Name the reply actions in the request and remove the intent line: `LOAD: { HTTP: (state) => ({ url: '/api/quote', ok: 'LOADED', error: 'FAILED' }) }`, with `LOADED: (state, body) => …` (the parsed body) and `FAILED: (state, { status }) => …` in the model.
+
+Before:
+
+```jsx
+Quote.intent = ({ DOM, HTTP }) => ({
+  LOAD:   DOM.click('.get'),
+  LOADED: HTTP.select('quote'),
+  FAILED: HTTP.errors('quote'),
+})
+Quote.model = {
+  LOAD:   { HTTP: () => ({ category: 'quote', url: '/api/quote' }) },
+  LOADED: (state, { value }) => ({ ...state, quote: value }),
+  FAILED: (state, { status }) => ({ ...state, status }),
+}
+```
+
+After:
+
+```jsx
+Quote.intent = ({ DOM }) => ({ LOAD: DOM.click('.get') })
+Quote.model = {
+  LOAD:   { HTTP: () => ({ url: '/api/quote', ok: 'LOADED', error: 'FAILED' }) },
+  LOADED: (state, quote) => ({ ...state, quote }),        // the parsed body
+  FAILED: (state, { status }) => ({ ...state, status }),
+}
 ```
 
 ## SYG6xx: Drivers, sources and component setup

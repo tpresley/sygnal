@@ -96,6 +96,14 @@ Todo.intent = ({ DOM }) => ({ ADD: DOM.click('.add-todo-button') })`,
     after: `<input className="title" value={state.title} />
 // intent: TITLE: DOM.input('.title').value()`,
   },
+  SYG112: {
+    before: `Quote.model = {
+  LOAD:   { HTTP: (state) => ({ url: '/api/quote', ok: 'LOADED', error: 'FIALED' }) },
+  LOADED: (state, quote) => ({ ...state, quote }),
+  FAILED: (state, { status }) => ({ ...state, status }),
+}`,
+    after: `LOAD: { HTTP: (state) => ({ url: '/api/quote', ok: 'LOADED', error: 'FAILED' }) },`,
+  },
   SYG115: {
     before: `Modal.intent = ({ DOM }) => ({ CLOSE: DOM.escape('document') })`,
     after: `Modal.intent = ({ DOM }) => ({
@@ -284,6 +292,24 @@ Lane.intent = ({ CHILD }) => ({ DELETE_TASK: CHILD.select(TaskCard) })`,
     before: `// App → <Board theme={state.theme} /> → <Lane theme={theme} /> → <Card theme={theme} />`,
     after: `App.context = { theme: (state) => state.theme }
 // Card: function Card({ state, context }) { … context.theme … }`,
+  },
+  SYG508: {
+    before: `Quote.intent = ({ DOM, HTTP }) => ({
+  LOAD:   DOM.click('.get'),
+  LOADED: HTTP.select('quote'),
+  FAILED: HTTP.errors('quote'),
+})
+Quote.model = {
+  LOAD:   { HTTP: () => ({ category: 'quote', url: '/api/quote' }) },
+  LOADED: (state, { value }) => ({ ...state, quote: value }),
+  FAILED: (state, { status }) => ({ ...state, status }),
+}`,
+    after: `Quote.intent = ({ DOM }) => ({ LOAD: DOM.click('.get') })
+Quote.model = {
+  LOAD:   { HTTP: () => ({ url: '/api/quote', ok: 'LOADED', error: 'FAILED' }) },
+  LOADED: (state, quote) => ({ ...state, quote }),        // the parsed body
+  FAILED: (state, { status }) => ({ ...state, status }),
+}`,
   },
   SYG602: {
     before: `Comp.intent = { CLICK: xs.never() }`,

@@ -17,6 +17,9 @@
  * | SYG502 | C3 return ABORT for "no change"          | onReducer: returned the previous state  |
  * |        |                                          | object (undefined stays SYG202)         |
  * | SYG504 | C5 object form, no 'ACTION | SINK' keys  | onModel: raw model keys containing '|'  |
+ * | SYG508 | routed request, not select()/errors()    | routing.ts: a request with a category   |
+ * |        | round trip (PLAN-3 §1.1)                 | the same instance select()ed on a       |
+ * |        |                                          | routing source                          |
  * | SYG503, SYG505, SYG506, SYG507: static only (sygnal-check --strict); the
  *   runtime can't tell emit() from { EVENTS }, a side effect from a pure
  *   reducer, or see CHILD.select() arguments without a core hook.
@@ -92,7 +95,7 @@ export const strictCheck: DiagnosticCheck = {
   },
 
   onReducer(component, action, prevState, nextState) {
-    if (!isStrictEnabled() || isInternalAction(action)) return  // incl. INITIALIZE/HYDRATE/DISPOSE
+    if (!isStrictEnabled() || isInternalAction(action)) return  // incl. INITIALIZE/DISPOSE
     // undefined is SYG202 (state check, every mode); only the identical object here.
     if (!prevState || typeof prevState !== 'object' || nextState === undefined) return
     let same = nextState === prevState

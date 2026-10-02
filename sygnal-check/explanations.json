@@ -8,7 +8,7 @@
       "dev-entry",
       "static"
     ],
-    "explanation": "The intent returns an action stream whose name has no matching key in `model` (shorthand keys like `'ACTION | SINK'` count as `ACTION`). Events on that stream are produced but nothing handles them, so the action silently does nothing. Built-in actions (`BOOTSTRAP`, `INITIALIZE`, `HYDRATE`, `DISPOSE`, `READY`) and internal `__*` actions are never reported.",
+    "explanation": "The intent returns an action stream whose name has no matching key in `model` (shorthand keys like `'ACTION | SINK'` count as `ACTION`). Events on that stream are produced but nothing handles them, so the action silently does nothing. Built-in actions (`BOOTSTRAP`, `INITIALIZE`, `DISPOSE`, `READY`) and internal `__*` actions are never reported. `HYDRATE` is not built in since 6.0: it is an ordinary action name.",
     "fix": "Add a model entry with the same name, e.g. `model = { SAVE: (state) => ({ ...state, saved: true }) }`, or remove or rename the intent action so it matches an existing model key.",
     "docsUrl": "https://sygnal.js.org/reference/errors#syg101"
   },
@@ -22,8 +22,8 @@
       "dev-entry",
       "static"
     ],
-    "explanation": "A model entry has no intent action of the same name and is not a built-in action, so nothing in the intent can trigger it. It may still be reached through `next('ACTION')`, which the runtime cannot know in advance, so the runtime check reports it as info (and skips components whose intent returns a single stream). The static checker also accounts for `next()` calls with string literals and reports it as warn, downgraded to info when a `next()` call uses a non-literal name.",
-    "fix": "Add the action to the component's `intent`, dispatch it with `next('ACTION')` from another entry, or remove the dead model entry.",
+    "explanation": "A model entry has no intent action of the same name and is not a built-in action (`BOOTSTRAP`, `INITIALIZE`, `DISPOSE`, `READY`; `HYDRATE` is an ordinary action since 6.0), so nothing in the intent can trigger it. A routed request also triggers the actions it names (`{ url, ok: 'LOADED', error: 'FAILED' }` sent to a driver sink), and so does a `connections` entry (`message`, `open`, `close`, `error`). It may still be reached through `next('ACTION')`, which the runtime cannot know in advance, so the runtime check reports it as info (and skips components whose intent returns a single stream); it counts the `ok`/`error` string literals it finds in the source of the component's non-STATE sink functions. The static checker also accounts for `next()` calls and routed names with string literals and reports it as warn, downgraded to info when a `next()` call or an `ok`/`error` value uses a non-literal name.",
+    "fix": "Add the action to the component's `intent`, name it in a request (`HTTP: (state) => ({ url, ok: 'ACTION' })`), dispatch it with `next('ACTION')` from another entry, or remove the dead model entry.",
     "docsUrl": "https://sygnal.js.org/reference/errors#syg102"
   },
   {
@@ -104,6 +104,19 @@
     "docsUrl": "https://sygnal.js.org/reference/errors#syg111"
   },
   {
+    "code": "SYG112",
+    "title": "Routed request names an action with no model entry",
+    "severity": "error",
+    "strict": false,
+    "reportedBy": [
+      "dev-entry",
+      "static"
+    ],
+    "explanation": "A request sent to a routing driver (`makeFetchDriver`, `driverFromAsync`, the socket driver) names its reply actions, as in `{ url, ok: 'LOADED', error: 'FAILED' }`, and the driver delivers the reply to the sending component as that action. When the component's model has no entry with that name, the reply is dropped, usually because of a typo. The dev entry checks each routed request as it is sent; `sygnal-check` checks string literal `ok`/`error` values returned by non-STATE sinks and the `message`/`open`/`close`/`error` names in a `connections` static. Statically, only names that look like actions (UPPER_SNAKE_CASE) or are close to a model key are reported, because the checker cannot see which driver a sink goes to, and a custom driver may use an `error` field for data.",
+    "fix": "Use the name of an existing model entry (the message names the closest one), or add the entry: `LOADED: (state, body) => ({ ...state, data: body })`.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg112"
+  },
+  {
     "code": "SYG115",
     "title": "Unknown DOM event shorthand",
     "severity": "warn",
@@ -135,7 +148,7 @@
     "reportedBy": [
       "dev-entry"
     ],
-    "explanation": "A STATE reducer returned a plain object that is missing keys present (and not `undefined`) in the previous state, which usually means a missing `...state` spread. Those keys are silently lost from state. Calculated fields, `INITIALIZE`/`HYDRATE` and internal `__*` actions are excluded; reported once per component and action.",
+    "explanation": "A STATE reducer returned a plain object that is missing keys present (and not `undefined`) in the previous state, which usually means a missing `...state` spread. Those keys are silently lost from state. Calculated fields, `INITIALIZE` and internal `__*` actions are excluded; reported once per component and action.",
     "fix": "Spread the previous state: `(state, data) => ({ ...state, field: data })`. If removing the keys is intended, ignore the warning.",
     "docsUrl": "https://sygnal.js.org/reference/errors#syg201"
   },
@@ -147,7 +160,7 @@
     "reportedBy": [
       "dev-entry"
     ],
-    "explanation": "A STATE reducer returned `undefined`, typically from a block-bodied arrow function without `return`. In a root component this wipes the state; in a sub-component it is reported as info instead, because returning `undefined` from a Collection item's reducer is the documented way to remove the item. `INITIALIZE`/`HYDRATE` and internal `__*` actions are excluded.",
+    "explanation": "A STATE reducer returned `undefined`, typically from a block-bodied arrow function without `return`. In a root component this wipes the state; in a sub-component it is reported as info instead, because returning `undefined` from a Collection item's reducer is the documented way to remove the item. `INITIALIZE` and internal `__*` actions are excluded.",
     "fix": "Return the new state, e.g. `(state, data) => ({ ...state, ... })`, or return `ABORT` to leave the state unchanged.",
     "docsUrl": "https://sygnal.js.org/reference/errors#syg202"
   },
@@ -695,6 +708,19 @@
     "explanation": "Strict mode only (`sygnal-check --strict`). A component receives a prop from its parent and passes it on unchanged, under the same name, to its own child component, so the value crosses three component levels. Data that flows that far down belongs in `.context`, which reaches every descendant without each level forwarding it. This is informational only.",
     "fix": "Provide the value as context on the top component, e.g. `Parent.context = { theme: state => state.theme }`, and read `context.theme` where it is needed.",
     "docsUrl": "https://sygnal.js.org/reference/errors#syg507"
+  },
+  {
+    "code": "SYG508",
+    "title": "select()/errors() round trip where a routed request would do",
+    "severity": "warn",
+    "strict": true,
+    "reportedBy": [
+      "dev-entry",
+      "static"
+    ],
+    "explanation": "Strict mode only. A component sends a request with `category: 'quote'` to a routing driver (`makeFetchDriver`, `driverFromAsync`, or a sink named `HTTP`) and reads the reply back in its own intent with `HTTP.select('quote')` or `HTTP.errors('quote')`. The canonical form is a routed request: it names the reply actions in the request, so the intent line, the category string and the select/errors split all go away, and the reply reaches exactly the component instance that sent it. `select()`/`errors()` remain for unrouted requests and for stream-level composition (see Alternative forms). The runtime check (`configureStrict(true)`, `renderComponent(C, { strict: true })`) reports a request whose category the same component selects on a routing source.",
+    "fix": "Name the reply actions in the request and remove the intent line: `LOAD: { HTTP: (state) => ({ url: '/api/quote', ok: 'LOADED', error: 'FAILED' }) }`, with `LOADED: (state, body) => …` (the parsed body) and `FAILED: (state, { status }) => …` in the model.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg508"
   },
   {
     "code": "SYG601",

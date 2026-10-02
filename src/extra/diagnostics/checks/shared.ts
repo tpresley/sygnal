@@ -60,8 +60,56 @@ export const timing = {
   minRenders: 3,
 }
 
-/** Built-in actions Sygnal dispatches itself; never "missing" or "unreachable". */
-export const BUILTIN_ACTIONS = new Set(['BOOTSTRAP', 'INITIALIZE', 'HYDRATE', 'DISPOSE', 'READY'])
+/**
+ * Built-in actions Sygnal dispatches itself; never "missing" or "unreachable".
+ * (HYDRATE is not one since 6.0, D66: nothing dispatches it, so it is an ordinary action.)
+ */
+export const BUILTIN_ACTIONS = new Set(['BOOTSTRAP', 'INITIALIZE', 'DISPOSE', 'READY'])
+
+/** Sinks the core handles itself: their values never go to a routing driver. */
+const NON_ROUTING_SINK = /^(STATE|EFFECT|EVENTS|PARENT|READY|DOM|CHILD)$/
+
+// `ok: 'X'` / `"error": "X"` in function source (minified code keeps string literals and keys)
+const keyedNames = (keys: string) => new RegExp(`(?:^|[{,\\s])["']?(?:${keys})["']?\\s*:\\s*(["'\`])([\\w$.:/-]+)\\1`, 'g')
+const ROUTED_IN_SOURCE = keyedNames('ok|error')
+const CONNECTION_IN_SOURCE = keyedNames('message|open|close|error')
+
+const namesIn = (fn: any, re: RegExp, out: Set<string>) => {
+  if (typeof fn !== 'function') return
+  let src = ''
+  try { src = Function.prototype.toString.call(fn) } catch (_) { return }
+  re.lastIndex = 0
+  for (let m = re.exec(src); m; m = re.exec(src)) out.add(m[2])
+}
+
+/**
+ * Action names a component's routed requests and `connections` static can name, read from the
+ * source of its non-STATE sink functions (`HTTP: (s) => ({ url, ok: 'LOADED', error: 'FAILED' })`)
+ * and of `connections` (message/open/close/error). A heuristic for SYG102 (PLAN-3): a name
+ * built at run time is missed (SYG102 stays info, so that only costs a false hint).
+ */
+export function routedNamesOf(component: any): Set<string> {
+  const out = new Set<string>()
+  const model = component && component.model
+  if (model && typeof model === 'object') {
+    for (const key of Object.keys(model)) {
+      const value = model[key]
+      const bar = key.indexOf('|')
+      if (bar >= 0) {
+        if (!NON_ROUTING_SINK.test(key.slice(bar + 1).trim())) namesIn(value, ROUTED_IN_SOURCE, out)
+      } else if (value && typeof value === 'object') {
+        for (const sink of Object.keys(value)) {
+          if (!NON_ROUTING_SINK.test(sink)) namesIn(value[sink], ROUTED_IN_SOURCE, out)
+        }
+      }
+    }
+  }
+  namesIn(component?.view?.connections, CONNECTION_IN_SOURCE, out)
+  return out
+}
+
+/** Actions a component instance's routed requests were seen naming (routing.ts → inspect). */
+export const routedSeen = new WeakMap<object, Set<string>>()
 
 /** Synthetic/internal actions (`__TEST_ACTION__`, `__NOOP_ACTION__`, ...) and built-ins. */
 export const isInternalAction = (action: string): boolean =>
