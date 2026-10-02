@@ -20,8 +20,9 @@
  * `selector` property is not known at run time; sygnal-check covers it).
  * Reported once per component name and action / category.
  *
- * TODO(2-B): `connections` declarations ({ message, open, close, error }) are
- * not checked at run time yet; the static checker covers them.
+ * `{ connections }` values (the `connections` static, which the core sends on
+ * the same model stream, or one a model entry sends) are checked the same way:
+ * each connection's message / open / close / error and its SSE `events` names.
  */
 import type {DiagnosticCheck} from '../index'
 import {STRICT_CODE_SEVERITY} from '../codes'
@@ -29,6 +30,26 @@ import {devReport, reportSafely, once, nameOf, suggest, routedSeen} from './shar
 import {isStrictEnabled} from './strict'
 
 const ROUTED_KEYS = ['ok', 'error']
+const CONNECTION_KEYS = ['message', 'open', 'close', 'error']
+
+/** [action, key, connection name?] for every action name a sink value routes to */
+function routedNames(req: any): Array<[string, string, string?]> {
+  const out: Array<[string, string, string?]> = []
+  for (const key of ROUTED_KEYS) if (typeof req[key] === 'string') out.push([req[key], key])
+  const conns = req.connections
+  if (conns && typeof conns === 'object') {
+    for (const name of Object.keys(conns)) {
+      const spec = conns[name]
+      if (!spec || typeof spec !== 'object') continue
+      for (const key of CONNECTION_KEYS) if (typeof spec[key] === 'string') out.push([spec[key], key, name])
+      const events = spec.events
+      if (events && typeof events === 'object') {
+        for (const ev of Object.keys(events)) if (typeof events[ev] === 'string') out.push([events[ev], `events.${ev}`, name])
+      }
+    }
+  }
+  return out
+}
 
 /** instance → 'SINK\0category' → the select/errors call that read it */
 const selected = new WeakMap<object, Map<string, string>>()
@@ -55,9 +76,7 @@ function checkRequest(component: any, sink: string, req: any, modelActions: stri
   if (!req || typeof req !== 'object') return
   const name = nameOf(component)
   let routed = false
-  for (const key of ROUTED_KEYS) {
-    const action = req[key]
-    if (typeof action !== 'string') continue
+  for (const [action, key, connection] of routedNames(req)) {
     routed = true
     let seen = routedSeen.get(component)
     if (!seen) routedSeen.set(component, seen = new Set())
@@ -66,12 +85,14 @@ function checkRequest(component: any, sink: string, req: any, modelActions: stri
     const near = suggest(action, modelActions.filter(a => !a.startsWith('__')))
     devReport('SYG112', {
       component,
-      message: `A ${sink} request routes its ${key} reply to '${action}', but ${name} has no model entry '${action}', so the reply is dropped` +
+      message: (connection
+        ? `${sink} connection '${connection}' routes its ${key} events to '${action}', but ${name} has no model entry '${action}', so they are dropped`
+        : `A ${sink} request routes its ${key} reply to '${action}', but ${name} has no model entry '${action}', so the reply is dropped`) +
         (near ? ` (did you mean '${near}'?)` : ''),
       fix: near
-        ? `Use the existing entry: ${key}: '${near}'`
+        ? `Use the existing entry: ${key.startsWith('events.') ? `events: { '${key.slice(7)}': '${near}' }` : `${key}: '${near}'`}`
         : `Add '${action}' to ${name}.model, e.g. ${action}: (state, data) => ({ ...state, ... }), or fix the name`,
-      data: {action, key, sink, ...(near ? {suggestion: near} : {}), modelActions},
+      data: {action, key, sink, ...(connection ? {connection} : {}), ...(near ? {suggestion: near} : {}), modelActions},
     })
   }
 
