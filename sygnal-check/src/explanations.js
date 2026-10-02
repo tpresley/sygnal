@@ -462,6 +462,13 @@ export const EXPLANATIONS = {
     explanation: "A component's model sends to a sink (for example `HTTP: (state) => ({ url: '/api/x' })`), or its intent reads a source (`HTTP.select('x')`), but `run()` got no driver with that name. Values sent to a sink without a driver are dropped silently, and a source without a driver is `undefined`, so the intent then fails with \"Cannot read properties of undefined\". `renderComponent()` does not report this: in tests it records such sinks (`t.requests(name)`) and fakes such sources (`t.respond` / `t.fail`).",
     fix: "Pass the driver to `run()` under exactly that name: `run(App, { HTTP: makeFetchDriver() })` for HTTP requests, `driverFromAsync(fn)` for any promise-returning function, or your own driver. Check the spelling against the drivers you pass.",
   },
+  SYG610: {
+    title: "Request has a 'then' or 'catch' key",
+    severity: "error",
+    reportedBy: ["runtime"],
+    explanation: "A request sent to a routing driver (`makeFetchDriver`, `driverFromAsync`) has a `then` or `catch` key, for example `HTTP: (state) => ({ url: '/api/x', then: 'LOADED' })`. An object with a `then` key is a thenable, so it breaks anything that `await`s it, and these keys look like a promise chain but do nothing. The driver does not send the request.",
+    fix: "Name the reply actions with the routing keys: `{ url: '/api/x', ok: 'LOADED', error: 'FAILED' }`. The `ok` action gets the parsed body, the `error` action `{ error, status, body, request }`.",
+  },
   SYG900: {
     title: "A diagnostics check threw",
     severity: "warn",

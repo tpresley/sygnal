@@ -1,4 +1,5 @@
 import xs, {Stream} from 'xstream';
+import {senderOf, allowed, makeRoutes} from './routing';
 
 interface DriverFromAsyncOptions {
   selector?: string;
@@ -36,11 +37,18 @@ interface DriverFromAsyncOptions {
  * the error payload. An error no errors() listener matches is logged with
  * console.error. Errors that occur before the first errors() listener
  * subscribes (a BOOTSTRAP request) are held like early replies.
+ *
+ * Routed requests (PLAN-3): a request object a component sends with `ok` /
+ * `error` action names gets its outcome as that action, on exactly the sending
+ * instance (never on select()/errors()): `ok` data is the resolved value (after
+ * `post`), `error` data `{ error, request }`. A request naming only one of them
+ * sends the other outcome down select()/errors(). A reply for a disposed
+ * instance is dropped. Requests with a `then` / `catch` key are refused (SYG610).
  */
 function driverFromAsync(
   promiseReturningFunction: (...args: any[]) => Promise<any>,
   opts: DriverFromAsyncOptions = {}
-): (fromApp$: Stream<any>) => {select: (selector?: any) => Stream<any>; errors: (selector?: any) => Stream<any>} {
+): (fromApp$: Stream<any>) => {select: (selector?: any) => Stream<any>; errors: (selector?: any) => Stream<any>; [k: string]: any} {
   const {
     selector: selectorProperty = 'category',
     args: functionArgs = 'value',
@@ -141,9 +149,15 @@ function driverFromAsync(
     // 3E/R11: set by the source's dispose(), which Cycle's engine calls on teardown just
     // before it completes the sink proxies; that completion is expected, not worth a warning.
     let disposing = false;
+    const {routes, reply} = makeRoutes();
 
     fromApp$.addListener({
       next: (incoming: any) => {
+        const isObject = typeof incoming === 'object' && incoming !== null;
+        if (isObject && !allowed(incoming, `driverFromAsync(${functionName})`)) return;
+        const sender = isObject ? senderOf(incoming) : undefined;
+        const ok = sender !== undefined && incoming.ok;
+        const error = sender !== undefined && incoming.error;
         const preProcessed = preFunction(incoming);
         let argArr: any[] = [];
         if (typeof preProcessed === 'object' && preProcessed !== null) {
@@ -184,6 +198,7 @@ function driverFromAsync(
         // Rejections (of the function, a thenable it resolves to, or post()) go to errors();
         // an error no active errors() selector matches is logged, as before.
         const reportError = (err: any) => {
+          if (error) return reply(sender, error, {error: err, request: incoming});
           const val = {error: err, [selectorProperty]: incoming?.[selectorProperty], request: incoming};
           if (errStarted) return dispatchError(val);
           if (pendingErrors.push(val) === 1) setTimeout(flushErrors);
@@ -196,10 +211,10 @@ function driverFromAsync(
               ? innerVal.then((innerOutgoing: any) => postFunction(innerOutgoing, incoming))
               : postFunction(innerVal, incoming)
           )
-          .then(constructReply)
-          .then((reply: any) => {
+          .then((val: any) => (ok ? val : constructReply(val)))
+          .then((outgoing: any) => {
             try {
-              deliver(reply);
+              ok ? reply(sender, ok, outgoing) : deliver(outgoing);
             } catch (err) {
               console.error(`${errMsg}: ${err}`);
             }
@@ -224,6 +239,7 @@ function driverFromAsync(
         disposing = true;
       },
       select: (selector?: any) => filterBy(toApp$, selector),
+      ...routes,
       errors: (selector?: any) => {
         let sub: any;
         return xs.create<any>({
