@@ -51,7 +51,7 @@ App.model = {
   SET_ROUTE: (state, route) => (route === state.route ? ABORT : { ...state, route }),
 }
 ```
-Each page is a normal component; give it a slice with `state="key"` on the Switchable.
+Each page is a normal component (its `PARENT` reaches `CHILD.select(Page)`); give it a slice with `state="key"` on the Switchable.
 
 ## 2. State lenses
 `state="key"` gives a child one field. For anything else pass a lens `{ get, set }`:

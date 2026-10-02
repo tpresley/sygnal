@@ -42,7 +42,7 @@ DeepChild.model = {
 }
 ```
 
-Context values are automatically recalculated when the source component's state changes.
+Context values are automatically recalculated when the source component's state changes, and see its current [calculated fields](/guide/calculated-fields/), also after a child or Collection item writes through a lens.
 
 ## Vike Integration
 

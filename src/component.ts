@@ -630,7 +630,9 @@ class Component {
       .map(([_, parent]: [any, any]) => {
         const _parent = isObj(parent) ? parent : {}
         const context = isObj(this.context) ? this.context : {}
-        const state = this.currentState
+        // G-122: recompute the calculated fields, as the view does. The stored ones are only
+        // refreshed by this component's own reducers, not by a child's write through a lens.
+        const state = isObj(this.currentState) ? this.addCalculated(this.currentState) : this.currentState
         const values = Object.entries(context).reduce((acc, current) => {
           const [name, value] = current
           let _value
