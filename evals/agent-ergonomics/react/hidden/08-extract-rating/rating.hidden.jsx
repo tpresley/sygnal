@@ -1,11 +1,13 @@
 import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
-import { click, mountApp, waitFor, rowOf, bodyText } from './dom.js'
+import { click, mountApp, waitFor, rowOf, bodyText, stripComments } from './dom.js'
 
 // The hidden suite always runs with cwd = the trial (app) root.
 const src = (file) => path.resolve(process.cwd(), 'src', file)
 const read = (file) => fs.readFileSync(src(file), 'utf8')
+// Source minus comments: a comment mentioning ★ doesn't render it (G-124).
+const code = (file) => stripComments(read(file))
 
 const starsIn = (label) => [...rowOf(label, 'button', '★').querySelectorAll('button')].filter((b) => b.textContent.includes('★'))
 const filledIn = (label) => starsIn(label).filter((b) => b.classList.contains('filled')).length
@@ -18,7 +20,7 @@ describe('08 refactor: extract a reusable StarRating component', () => {
   })
 
   it('App.jsx uses StarRating and no longer renders the stars itself', () => {
-    const app = read('App.jsx')
+    const app = code('App.jsx')
     expect(app).toMatch(/import\s+StarRating\s+from\s+['"]\.\/StarRating(\.jsx)?['"]/)
     expect(app).toMatch(/<StarRating\b/)
     expect(app).not.toContain('★')

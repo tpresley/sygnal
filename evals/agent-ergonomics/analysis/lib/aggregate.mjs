@@ -151,8 +151,9 @@ export function catalogTable(records, tracker) {
     const byResult = records.filter((r) => r.catalog?.result.includes(e.id))
     const byReport = records.filter((r) => r.catalog?.report.includes(e.id))
     const byWork = records.filter((r) => r.catalog?.workaround.includes(e.id))
+    const byInput = records.filter((r) => r.catalog?.input?.includes(e.id))
     const withFriction = records.filter((r) => (r.frictionSeconds?.[e.id] ?? 0) > 0)
-    const any = new Set([...byResult, ...byReport, ...byWork].map((r) => r.trial))
+    const any = new Set([...byResult, ...byReport, ...byWork, ...byInput].map((r) => r.trial))
     if (!any.size) continue
     const secs = withFriction.map((r) => r.frictionSeconds[e.id])
     const armCount = (arm) => [...any].filter((t) => t.startsWith(arm)).length
@@ -168,6 +169,7 @@ export function catalogTable(records, tracker) {
       inResults: byResult.length,
       inReports: byReport.length,
       workarounds: byWork.length,
+      inInputs: byInput.length,
       frictionTrials: withFriction.length,
       frictionSecondsTotal: r1(secs.reduce((a, b) => a + b, 0)),
       frictionSecondsPerAffected: r1(mean(secs)),

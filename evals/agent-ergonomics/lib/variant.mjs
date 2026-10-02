@@ -26,6 +26,9 @@
 //                                                      // npm pack <dir> once per run, vendored as vendor/<name>.tgz
 //     }
 //   },
+//   "starter": 2,                                      // starter version (lib/starter.mjs); default CURRENT_STARTER.
+//                                                      // Its kit overlay goes under the variant's own overlay.
+//                                                      // 1 = bare starters (all runs up to Phase 3)
 //   "prompt": { "prefix": "text", "suffix": "text", "arms": ["sygnal", "react"] },   // default arms: both
 //   "mcp": { "arms": ["sygnal"], "mcpServers": { "<name>": { "command": "...", "args": [...] } } }
 // }
@@ -43,9 +46,11 @@ import fs from 'node:fs'
 import path from 'node:path'
 import crypto from 'node:crypto'
 import { spawnSync } from 'node:child_process'
-import { pathToFileURL } from 'node:url'
+import { pathToFileURL, fileURLToPath } from 'node:url'
+import { STARTERS, CURRENT_STARTER, parseStarter } from './starter.mjs'
 
-const TOP_KEYS = new Set(['description', 'model', 'effort', 'sygnal', 'skill', 'overlay', 'prompt', 'mcp'])
+const HARNESS_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+const TOP_KEYS = new Set(['description', 'model', 'effort', 'sygnal', 'skill', 'overlay', 'starter', 'prompt', 'mcp'])
 const OVERLAY_KEYS = new Set(['dir', 'files', 'append', 'packageJson', 'packs'])
 const ARM_KEYS = ['all', 'sygnal', 'react']
 const ARMS = ['sygnal', 'react']
@@ -110,6 +115,13 @@ export function validateVariant(spec) {
           if (p.dependency != null && !['dependencies', 'devDependencies'].includes(p.dependency)) err(`overlay.${arm}.packs["${n}"].dependency must be dependencies or devDependencies`)
         }
       }
+    }
+  }
+  if (spec.starter != null) {
+    try {
+      parseStarter(spec.starter)
+    } catch (e) {
+      err(`"starter": ${e.message}`)
     }
   }
   if (spec.prompt != null) {
@@ -214,31 +226,48 @@ export function resolveVariant({ name, file, spec }, { repoRoot, model, effort }
   const overlay = {}
   paths.overlay = {}
   for (const arm of ARM_KEYS) {
-    const ov = spec.overlay?.[arm]
-    if (!ov) continue
-    const o = {}
-    const po = (paths.overlay[arm] = {})
-    if (ov.dir) {
-      po.dir = P(ov.dir)
-      o.dir = { source: ov.dir, contentHash: hashDir(po.dir) }
+    if (!spec.overlay?.[arm]) continue
+    ;[overlay[arm], paths.overlay[arm]] = resolveOverlay(spec.overlay[arm], P)
+  }
+  // starter version: its kit is an overlay layer under the variant's own
+  const starterVersion = parseStarter(spec.starter ?? CURRENT_STARTER)
+  let starter = null
+  paths.starter = {}
+  if (STARTERS[starterVersion].overlay) {
+    // ./ paths are in this harness, others in the checkout under test (lib/starter.mjs).
+    const SP = (p) => resolveSpecPath(p, { repoRoot, specDir: HARNESS_ROOT })
+    starter = { version: starterVersion, overlay: {} }
+    for (const [arm, ov] of Object.entries(STARTERS[starterVersion].overlay)) {
+      ;[starter.overlay[arm], paths.starter[arm]] = resolveOverlay(ov, SP)
     }
-    if (ov.files) o.files = ov.files
-    if (ov.append) o.append = ov.append
-    if (ov.packageJson) o.packageJson = ov.packageJson
-    if (ov.packs) {
-      o.packs = {}
-      po.packs = {}
-      for (const [n, p] of Object.entries(ov.packs)) {
-        po.packs[n] = P(p.dir)
-        o.packs[n] = { source: p.dir, dependency: p.dependency ?? 'devDependencies', contentHash: hashDir(po.packs[n]) }
-      }
-    }
-    overlay[arm] = o
   }
   const prompt = spec.prompt ? { prefix: spec.prompt.prefix ?? '', suffix: spec.prompt.suffix ?? '', arms: spec.prompt.arms ?? ARMS } : null
   const mcp = spec.mcp ? { arms: spec.mcp.arms ?? ['sygnal'], mcpServers: spec.mcp.mcpServers } : null
-  const resolved = { name, model: model ?? spec.model ?? null, effort: effort ?? spec.effort ?? null, sygnal, skill, overlay, prompt, mcp }
-  return { ...resolved, hash: sha(canonicalJson(resolved)).slice(0, 12), file: file ?? null, paths }
+  // Starter 1 adds nothing to the hashed object, so a variant on it hashes as before starter versions existed.
+  const resolved = { name, model: model ?? spec.model ?? null, effort: effort ?? spec.effort ?? null, sygnal, skill, overlay, ...(starter ? { starter } : {}), prompt, mcp }
+  return { ...resolved, starterVersion, hash: sha(canonicalJson(resolved)).slice(0, 12), file: file ?? null, paths }
+}
+
+/** One overlay layer with content hashes (resolved) and absolute paths. */
+function resolveOverlay(ov, P) {
+  const o = {}
+  const po = {}
+  if (ov.dir) {
+    po.dir = P(ov.dir)
+    o.dir = { source: ov.dir, contentHash: hashDir(po.dir) }
+  }
+  if (ov.files) o.files = ov.files
+  if (ov.append) o.append = ov.append
+  if (ov.packageJson) o.packageJson = ov.packageJson
+  if (ov.packs) {
+    o.packs = {}
+    po.packs = {}
+    for (const [n, p] of Object.entries(ov.packs)) {
+      po.packs[n] = P(p.dir)
+      o.packs[n] = { source: p.dir, dependency: p.dependency ?? 'devDependencies', contentHash: hashDir(po.packs[n]) }
+    }
+  }
+  return [o, po]
 }
 
 /** One-line-per-part description of a resolved variant, for the dry run. */
@@ -248,6 +277,8 @@ export function describeVariant(v) {
   lines.push(`  sygnal: ${sy}`)
   const sk = v.skill === 'installed' ? 'installed (~/.claude/skills, not isolated)' : v.skill === 'none' ? 'none (user skills not loaded)' : `${v.skill.name} from ${v.skill.source} (${v.skill.contentHash.slice(0, 21)}), isolated per trial`
   lines.push(`  skill: ${sk}`)
+  const sv = v.starterVersion ?? 1
+  lines.push(`  starter: ${sv} (${STARTERS[sv].description})${v.starter ? `: ${Object.entries(v.starter.overlay).map(([arm, o]) => `${arm} ${o.dir ? `dir(${o.dir.source}) ` : ''}${o.files ? `files(${Object.keys(o.files).join(',')}) ` : ''}${o.packs ? `packs(${Object.keys(o.packs).join(',')})` : ''}`.trim()).join('; ')}` : ''}`)
   for (const [arm, o] of Object.entries(v.overlay)) lines.push(`  overlay.${arm}: ${Object.keys(o).map((k) => (k === 'files' || k === 'append' ? `${k}(${Object.keys(o[k]).join(',')})` : k === 'packs' ? `packs(${Object.keys(o.packs).join(',')})` : k)).join(' ')}`)
   if (v.prompt) lines.push(`  prompt (${v.prompt.arms.join(', ')}): ${v.prompt.prefix ? `prefix ${JSON.stringify(v.prompt.prefix)} ` : ''}${v.prompt.suffix ? `suffix ${JSON.stringify(v.prompt.suffix)}` : ''}`.trimEnd())
   if (v.mcp) lines.push(`  mcp (${v.mcp.arms.join(', ')}): ${Object.keys(v.mcp.mcpServers).join(', ')}`)
@@ -283,25 +314,29 @@ export function materializeVariant(v, outDir, { repoRoot, npmPack = defaultNpmPa
     }
   }
   // packs + prepare spec
-  const prepare = { variant: v.name, hash: v.hash, arms: {} }
+  const prepare = { variant: v.name, hash: v.hash, starterVersion: v.starterVersion ?? 1, arms: {} }
   for (const arm of ARMS) {
-    const parts = ['all', arm].filter((k) => v.overlay[k])
+    // Layers in order: the starter kit ("all", then the arm), then the variant's own ("all", then the arm).
+    const layers = [
+      ...['all', arm].filter((k) => v.starter?.overlay[k]).map((k) => [v.starter.overlay[k], v.paths.starter?.[k] ?? {}]),
+      ...['all', arm].filter((k) => v.overlay[k]).map((k) => [v.overlay[k], v.paths.overlay[k] ?? {}]),
+    ]
     const ov = { dirs: [], files: {}, append: {}, packageJson: null, vendor: [] }
-    for (const k of parts) {
-      const o = v.overlay[k]
-      const po = v.paths.overlay[k] ?? {}
+    for (const [o, po] of layers) {
       if (po.dir) ov.dirs.push(po.dir)
       Object.assign(ov.files, o.files ?? {})
       for (const [rel, text] of Object.entries(o.append ?? {})) ov.append[rel] = (ov.append[rel] ?? '') + text
       if (o.packageJson) ov.packageJson = deepMerge(ov.packageJson ?? {}, o.packageJson)
       for (const [n, p] of Object.entries(o.packs ?? {})) {
-        const dest = path.join(outDir, 'packs', n.replace(/[@/]/g, '_'))
+        const dest = path.join(outDir, 'packs', `${n.replace(/[@/]/g, '_')}-${p.contentHash.slice(0, 12)}`)
         const tgz = cached(dest, () => npmPack(po.packs[n], dest))
+        // A later layer's package of the same name replaces an earlier one.
+        ov.vendor = ov.vendor.filter((x) => x.name !== n)
         ov.vendor.push({ name: n, tarball: tgz, dependency: p.dependency })
       }
     }
     const prompt = v.prompt && v.prompt.arms.includes(arm) ? { prefix: v.prompt.prefix, suffix: v.prompt.suffix } : null
-    prepare.arms[arm] = { overlay: parts.length ? ov : null, prompt }
+    prepare.arms[arm] = { overlay: layers.length ? ov : null, prompt }
   }
   fs.writeFileSync(out.prepareSpec, JSON.stringify(prepare, null, 2) + '\n')
   // mcp

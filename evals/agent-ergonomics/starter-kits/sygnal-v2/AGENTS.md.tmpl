@@ -1,0 +1,27 @@
+# Agent instructions
+
+This project uses **Sygnal**, a reactive JSX component framework built on Cycle.js (Model-View-Intent, xstream streams, one state tree). It is not React: there are no hooks and no `onClick` handlers. The spec is `node_modules/sygnal/llms.txt`; if you have the `sygnal-dev` skill, use it.
+
+## Commands
+
+| Command | What it does |
+|---|---|
+| `npm test` | Runs the Vitest tests (`*.test.jsx` / `*.test.js` next to the components) |
+| `npx --no-install sygnal-check --strict` | Static check for wiring bugs and non-canonical forms; must report nothing |
+| `npx --no-install sygnal-check explain SYG104` | Explains a `[Sygnal SYGnnn]` diagnostic and how to fix it |
+| `npx --no-install sygnal-check --graph --json` | The app graph: components, actions, selectors, EVENTS |
+| `npm run build` | Production build |
+
+`sygnal-check` is a dev dependency of this project and is already installed, so the commands above run the local copy (`--no-install` never downloads one).
+
+## Workflow
+Add a feature in this order: state (`initialState`) → intent (`ACTION: DOM.click('.x')`) → model (`ACTION: (state, data) => ({ ...state, ... })`) → view → test. Finish with `npm test` and `npx --no-install sygnal-check --strict`, both clean.
+
+## Testing your change
+```js
+import { renderComponent } from 'sygnal'
+const t = renderComponent(App, { strict: true })    // no browser needed
+t.simulateEvent('.add', 'click')                    // or ('.field', 'input', { value: 'x' })
+await t.next(s => s.items.length === 1)             // waits for a new matching state
+t.expectNoDiagnostics(); t.dispose()                // fails on any Sygnal warning
+```

@@ -20,6 +20,10 @@
 //   workaround regexes matched against the agent's tool inputs (commands,
 //             file writes) and its final code: evidence the agent routed
 //             around the issue
+//   input     (optional) regexes matched against the agent's tool inputs and
+//             kept tests: evidence the agent tried an API that isn't there or
+//             used one too early (G-125: `t.state`, `t.html()` before the
+//             first render); counted per trial, not as friction time
 //   fallback  for 'suspect' entries: the tracker IDs whose report match
 //             confirms the failure as friction
 //
@@ -178,6 +182,28 @@ export const CATALOG = [
     workaround: [],
   },
   {
+    id: 'G-125',
+    title: 'Guessed `t.state` on a `renderComponent()` handle (it has `t.states`, `t.next()`, `t.waitForState()`; no `state`)',
+    kind: 'docs',
+    arms: ['sygnal'],
+    result: [],
+    report: [/\bt\.state\b(?![\w$])[^.\n]{0,80}(doesn'?t exist|does not exist|undefined|not (a|an) (property|getter))/i, /no `?t\.state`? (getter|property)/i],
+    workaround: [],
+    // The handle is assigned from renderComponent() and later read as `.state` (not `.states` / `.state$`).
+    input: [/\b(\w+)\s*=\s*(?:await\s+)?renderComponent\s*\([^]*?\b\1\.state(?![\w$])/],
+  },
+  {
+    id: 'G-125-HTML',
+    title: '`t.html()` read before the first render (returns `\'\'`; await `t.ready()` / `t.next()` first)',
+    kind: 'pitfall',
+    arms: ['sygnal'],
+    result: [/expected '' to (contain|include|match)\b/],
+    report: [/\bhtml\(\)[^.\n]{0,80}(empty|'')[^.\n]{0,60}(before|until|first) (the )?(first )?render/i],
+    workaround: [],
+    // renderComponent(...) then .html() on the same handle with no await in between.
+    input: [/\b(\w+)\s*=\s*renderComponent\s*\((?:(?!\bawait\b)[^]){0,400}?\b\1\.html\(\)/],
+  },
+  {
     id: 'HARNESS-GUARD',
     title: 'The eval environment refused a tool call: the coordinator worktree guard (subagent trials) or the headless permission posture (both arms)',
     kind: 'harness',
@@ -208,6 +234,12 @@ export function matchReport(text, arm = null) {
 export function matchWorkaround(text, arm = null) {
   const t = String(text ?? '')
   return CATALOG.filter((e) => (!arm || e.arms.includes(arm)) && e.workaround.length && anyMatch(e.workaround, t)).map((e) => e.id)
+}
+
+/** Catalog entries whose `input` signatures (API guesses) match the agent's tool inputs or kept tests. */
+export function matchInput(text, arm = null) {
+  const t = String(text ?? '')
+  return CATALOG.filter((e) => (!arm || e.arms.includes(arm)) && e.input?.length && anyMatch(e.input, t)).map((e) => e.id)
 }
 
 /**

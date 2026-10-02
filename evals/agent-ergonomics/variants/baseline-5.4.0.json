@@ -1,5 +1,6 @@
 {
-  "description": "The release under PLAN-2 (D45): published sygnal@5.4.0 and the 5.4.0 sygnal-dev skill, isolated per trial",
+  "description": "The release under PLAN-2 (D45): published sygnal@5.4.0 and the 5.4.0 sygnal-dev skill, isolated per trial, on the bare starters (starter 1, no sygnal-check), as in v2-baseline",
   "sygnal": { "npm": "sygnal@5.4.0" },
-  "skill": { "gitRef": "v5.4.0", "path": "skills/sygnal-dev" }
+  "skill": { "gitRef": "v5.4.0", "path": "skills/sygnal-dev" },
+  "starter": 1
 }

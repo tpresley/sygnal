@@ -1,5 +1,5 @@
 {
-  "description": "This checkout: its packed build and its skills/sygnal-dev, isolated per trial",
+  "description": "This checkout: its packed build and its skills/sygnal-dev, isolated per trial, on the current starter (sygnal-check + AGENTS.md since 4-E): the control for experiments",
   "sygnal": "branch",
   "skill": { "dir": "skills/sygnal-dev" }
 }

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
-import { mountApp, waitFor, textOf, click, typeInto, setChecked, sleep, bodyText } from './dom.js'
+import { mountApp, waitFor, textOf, click, typeInto, setChecked, sleep, bodyText, stripComments } from './dom.js'
 
 // ---------------------------------------------------------------------------
 // Source layout checks (the hidden suite runs with cwd = the app root)
@@ -9,6 +9,8 @@ import { mountApp, waitFor, textOf, click, typeInto, setChecked, sleep, bodyText
 
 const src = (file) => path.resolve(process.cwd(), 'src', file)
 const read = (file) => fs.readFileSync(src(file), 'utf8')
+// Source minus comments: a comment mentioning "Place order" doesn't render it (G-124).
+const code = (file) => stripComments(read(file))
 const PARTS = ['CartTable', 'ShippingForm', 'OrderSummary']
 const importsOf = (code) => [...code.matchAll(/from\s+['"]\.\/([A-Za-z]+)(\.jsx?)?['"]/g)].map((m) => m[1])
 
@@ -111,7 +113,7 @@ describe('16 refactor: split Checkout into CartTable, ShippingForm and OrderSumm
   })
 
   it('Checkout.jsx composes the parts and no longer renders their markup; the parts do not import each other', () => {
-    const checkout = read('Checkout.jsx')
+    const checkout = code('Checkout.jsx')
     for (const part of PARTS) {
       expect(importsOf(checkout), `Checkout.jsx imports ${part}`).toContain(part)
       expect(checkout).toMatch(new RegExp(`<${part}\\b`))
@@ -120,12 +122,12 @@ describe('16 refactor: split Checkout into CartTable, ShippingForm and OrderSumm
     expect(checkout).not.toMatch(/<fieldset\b/)
     expect(checkout).not.toContain('Place order')
     expect(checkout).not.toMatch(/<dl\b/)
-    expect(read('CartTable.jsx')).toMatch(/<table\b/)
-    expect(read('ShippingForm.jsx')).toMatch(/<fieldset\b/)
-    expect(read('OrderSummary.jsx')).toContain('Place order')
+    expect(code('CartTable.jsx')).toMatch(/<table\b/)
+    expect(code('ShippingForm.jsx')).toMatch(/<fieldset\b/)
+    expect(code('OrderSummary.jsx')).toContain('Place order')
     for (const part of PARTS) {
       const others = PARTS.filter((p) => p !== part)
-      for (const other of others) expect(importsOf(read(`${part}.jsx`)), `${part} imports ${other}`).not.toContain(other)
+      for (const other of others) expect(importsOf(code(`${part}.jsx`)), `${part} imports ${other}`).not.toContain(other)
     }
   })
 

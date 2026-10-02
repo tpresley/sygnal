@@ -38,7 +38,8 @@
 // auth failure, interrupted) is moved aside to <dest>.stale-<time> and redone.
 // Results: results/<run>.json (score.mjs), results/transcripts/<run>.tsv (trial
 // map, source "headless"), results/analysis/<run>.{json,md} (analyze.mjs).
-// The run's tarball, model, CLI version, git sha and variant are in <root>/<run>/manifest.json.
+// The run's tarball, model, CLI version, git sha, variant and starter version are in <root>/<run>/manifest.json.
+// Starter version (lib/starter.mjs): the variant's ("starter", default: current); without a variant 1 (bare).
 //
 // A trial whose agent never ran (auth failure, is_error result, no API time, no
 // model turn) is not scored and leaves no analysis entry; its dir stays
@@ -59,6 +60,7 @@ import { runTrial, preflight } from './lib/runner.mjs'
 import { trialFiles, DEFAULT_TIMEOUT_MIN, DEFAULT_MODEL, resolveModel } from './lib/headless.mjs'
 import { transcriptStats } from './lib/transcript.mjs'
 import { loadVariant, resolveVariant, describeVariant, materializeVariant, claudeIsolation, expectedSkills, checkSkills } from './lib/variant.mjs'
+import { LEGACY_STARTER } from './lib/starter.mjs'
 import { parseSchedule, parseDuration, limitWait, fmtWait, DEFAULT_LIMIT_SCHEDULE, DEFAULT_LIMIT_MAX_WAIT } from './lib/limits.mjs'
 import { runPool } from './lib/pool.mjs'
 
@@ -100,6 +102,8 @@ if (variantSpec) {
   }
   if (str('tarball') && variant.sygnal !== 'branch') fail(`--tarball conflicts with variant ${variant.name}, which sets the Sygnal build (${JSON.stringify(variant.sygnal)})`)
 }
+// Starter version (lib/starter.mjs): the variant's (default: current); without a variant the legacy bare starters.
+const starterVersion = variant?.starterVersion ?? LEGACY_STARTER
 const expectedModel = resolveModel(model)
 // A relative path (tests/fake-claude.mjs) must survive the trial's cwd; a bare name is looked up on PATH.
 const claudeBin = /[\\/]/.test(str('claude-bin', 'claude')) ? path.resolve(str('claude-bin')) : str('claude-bin', 'claude')
@@ -184,6 +188,7 @@ console.log(`  arms: ${arms.join(', ')} · tasks: ${str('tasks', 'all')} · tria
 console.log(`  model: ${model}${expectedModel !== model ? ` (alias; must resolve to ${expectedModel})` : ''}${effort ? ` · effort: ${effort}` : ''} · timeout: ${timeoutMin} min per trial`)
 console.log(`  claude CLI: ${claudeVersion ?? `not found (${claudeBin})`} · a preflight call checks auth and the resolved model before the first trial${args['no-preflight'] ? ' (disabled: --no-preflight)' : ''}`)
 if (variant) console.log(describeVariant(variant).split('\n').map((l) => `  ${l}`).join('\n'))
+else console.log(`  starter: ${starterVersion} (no variant: the legacy bare starters, no sygnal-check)`)
 console.log(`  usage limits: pause ${limits.scheduleMs.map(fmtWait).join(', ')} (${limits.retries} retries), give up if the limit resets more than ${fmtWait(limits.maxWaitMs)} away`)
 const byAction = {}
 for (const i of plan.items) (byAction[i.action] ??= []).push(i.name)
@@ -311,6 +316,9 @@ if (!todo.length) {
         tarballSha256: tarball ? sha256(tarball) : null,
         gitSha: manifest?.gitSha ?? gitSha,
         variant: manifest ? (manifest.variant ?? null) : variantRec,
+        // Manifests from before 4-E have no starterVersion: those runs used the bare starters (1).
+        starterVersion: manifest ? (manifest.starterVersion ?? 1) : starterVersion,
+        starterVersions: [...new Set([...(manifest?.starterVersions ?? (manifest ? [manifest.starterVersion ?? 1] : [])), starterVersion])],
         variants: [...new Set([...(manifest?.variants ?? (manifest?.variant ? [`${manifest.variant.name}@${manifest.variant.hash}`] : [])), ...(variant ? [`${variant.name}@${variant.hash}`] : [])])],
       },
       null,
@@ -359,6 +367,7 @@ if (!todo.length) {
       const pa = ['--arm', item.arm, '--task', item.task, '--dest', dest]
       if (item.arm === 'sygnal') pa.push('--tarball', tarball)
       if (mat) pa.push('--variant-spec', mat.prepareSpec)
+      else pa.push('--starter', String(starterVersion))
       const r = await node(path.join(HERE, 'prepare.mjs'), pa)
       if (r.code !== 0) throw new Error(`prepare failed: ${r.stderr.slice(-1500)}`)
     }
@@ -404,7 +413,7 @@ if (!todo.length) {
     const sa = ['--dir', dest, '--task', item.task, '--arm', item.arm, '--trial', String(item.trial), '--run', run, '--method', 'headless', '--iterations', String(stats.iterations), '--edit-rounds', String(stats.editRounds)]
     const wall = meta?.wallMs != null ? Math.round(meta.wallMs / 1000) : stats.wallSeconds
     if (wall != null) sa.push('--wall-seconds', String(wall))
-    const opt = { 'duration-ms': meta?.durationMs, tokens: meta?.tokens, 'output-tokens': meta?.outputTokens, 'cost-usd': meta?.costUsd, model: meta?.model ?? model, variant: variant?.name, 'variant-hash': variant?.hash }
+    const opt = { 'duration-ms': meta?.durationMs, tokens: meta?.tokens, 'output-tokens': meta?.outputTokens, 'cost-usd': meta?.costUsd, model: meta?.model ?? model, variant: variant?.name, 'variant-hash': variant?.hash, 'starter-version': starterVersion }
     for (const [k, v] of Object.entries(opt)) if (v != null) sa.push(`--${k}`, String(v))
     if (meta?.timedOut) sa.push('--category', 'other')
     if (notes) sa.push('--notes', notes)

@@ -23,6 +23,8 @@ evals/agent-ergonomics/
   lib/plan.mjs          task selection (tiers, ranges), resume plan, cost/time estimate
   lib/variant.mjs       run variants: load/validate a spec, resolve + hash it, materialize it, starter overlays,
                         the per-trial skill isolation flags (orchestrate.mjs --variant)
+  lib/starter.mjs       starter versions: the kit added on top of the task starters (2: sygnal-check + AGENTS.md)
+  starter-kits/sygnal-v2/  starter 2's Sygnal-arm AGENTS.md / CLAUDE.md (as *.tmpl, so the repo has no stray CLAUDE.md), from the 5.4.0 template
   lib/limits.mjs        usage/rate-limit detection and the backoff schedule
   lib/pool.mjs          the orchestrator's worker pool, with usage-limit pauses and a clean stop
   variants/<name>.json  one spec per experiment arm (baseline-5.4.0, branch, e1-*, e5-*, e7-*, e8-*, e9-*)
@@ -83,6 +85,8 @@ The React hidden tests are the same files. Their `_support/dom.js` renders `src/
 
 **Pinned build.** The Sygnal arm installs Sygnal from an `npm pack` tarball of the checkout under test, vendored into the trial as `vendor/sygnal.tgz` (`"sygnal": "file:vendor/sygnal.tgz"`). This is the same build an npm user would get. It is a copy, not a symlink, so `node_modules/sygnal` does not lead back to the repo. Build and pack once per run, so all trials use the same build.
 
+**Starter versions.** The task starters (`tasks/*/starter`, `react/tasks/*/starter`) stay bare and match each other apart from the framework. What a real project would also have is added at prepare time as a *starter version* (`lib/starter.mjs`), recorded per record as `starterVersion`. Starter 2 (the default for variant runs since PLAN-2 4-E) gives every Sygnal trial what `create-sygnal-app`'s 5.4.0 templates ship: `sygnal-check` as a devDependency (this checkout's, packed and vendored as `vendor/sygnal-check.tgz`, so it matches the build under test; the templates take `^0.1.0` from npm) and `AGENTS.md` + `CLAUDE.md` (`@AGENTS.md`) from `starter-kits/sygnal-v2/*.tmpl`: the template's commands table, workflow and testing snippet, without its "never use" / wiring-rules lists (those are the skill's job; adding them would be a separate experiment). The React arm gets nothing extra (Vite's React template has no AGENTS.md). Starter 1 is the bare starters, used by every run up to Phase 3 and by runs without a variant.
+
 **Same budget, same tasks.** The baseline and the re-run use the same tasks, trial count, model, and spawning method. Report confidence honestly: with 1–3 trials per cell, results are directional.
 
 ## Threat model for hidden tests
@@ -110,13 +114,13 @@ node evals/agent-ergonomics/orchestrate.mjs --run v2-baseline --tasks all --tria
 node evals/agent-ergonomics/orchestrate.mjs --run v2-baseline --tasks all --trials 5 --concurrency 4 --model claude-opus-5-5             # run / resume
 ```
 
-**Experiments run as variants** (PLAN-2 Phase 3; run.md "Variants"): `--variant <name>` takes `variants/<name>.json`, which sets the Sygnal build (`branch`, a tarball, or `npm` `sygnal@5.4.0`), the `sygnal-dev` skill (a repo dir or a git ref, copied into the run and loaded per trial with `--setting-sources project,local --add-dir`, so `~/.claude` is never touched), a starter overlay (files, `package.json` merge, vendored packages such as `sygnal-check`), a prompt prefix/suffix, MCP servers, and model/effort. Each record carries the variant name and the hash of its resolved spec; a run won't resume under a different one.
+**Experiments run as variants** (PLAN-2 Phase 3; run.md "Variants"): `--variant <name>` takes `variants/<name>.json`, which sets the Sygnal build (`branch`, a tarball, or `npm` `sygnal@5.4.0`), the `sygnal-dev` skill (a repo dir or a git ref, copied into the run and loaded per trial with `--setting-sources project,local --add-dir`, so `~/.claude` is never touched), the starter version (`"starter"`, default the current one; see "Starter versions"), a starter overlay (files, `package.json` merge, vendored packages), a prompt prefix/suffix, MCP servers, and model/effort. Each record carries the variant name, the hash of its resolved spec and the starter version; a run won't resume under a different one.
 
 ```bash
-node evals/agent-ergonomics/orchestrate.mjs --run e1-control --variant branch   --arms sygnal --tasks tier1,14,15 --trials 5
-node evals/agent-ergonomics/orchestrate.mjs --run e1-check   --variant e1-check --arms sygnal --tasks tier1,14,15 --trials 5
-node evals/agent-ergonomics/analysis/compare.mjs --base e1-control --next e1-check              # task-matched
-node evals/agent-ergonomics/analysis/compare.mjs --base v2-baseline:react --next e1-check:sygnal  # the gap, across runs
+node evals/agent-ergonomics/orchestrate.mjs --run control --variant branch      --tasks all --trials 5          # both arms
+node evals/agent-ergonomics/orchestrate.mjs --run e8-mcp  --variant e8-mcp      --arms sygnal --tasks 14,15 --trials 5
+node evals/agent-ergonomics/analysis/compare.mjs --base control --next e8-mcp --tasks 14,15     # task-matched
+node evals/agent-ergonomics/analysis/compare.mjs --base control:react --next control:sygnal     # the gap within one run
 ```
 
 A usage or rate limit during a run pauses all trials and retries (`--limit-backoff`, `--limit-retries`, `--limit-max-wait`); if it persists, the run stops cleanly and prints the command that resumes it.
@@ -146,7 +150,7 @@ Each record in `results/<run>.json`:
   "iterations": 4, "editRounds": 2, "wallSeconds": 210,
   "durationMs": 209500, "tokens": 1840000, "outputTokens": 9100, "costUsd": 1.23,
   "model": "claude-opus-5-5", "method": "headless",
-  "variant": "e1-check", "variantHash": "32cdb33d3dd2",
+  "variant": "branch", "variantHash": "5df5c9c75564", "starterVersion": 2,
   "failureCategory": "wiring",
   "failures": [{ "test": "...", "message": "..." }],
   "notes": "...", "scoredAt": "..." }
@@ -162,11 +166,22 @@ Each record in `results/<run>.json`:
 | `durationMs` / `tokens` / `outputTokens` / `costUsd` | usage of the agent run (`score.mjs --duration-ms --tokens --output-tokens --cost-usd`). Headless trials take them from the run's final `result` event: `tokens` is every billed token (input + output + cache read + cache creation, over all turns), so it is far larger than the context size. `null` for PLAN-1 runs. |
 | `model` / `method` | the model id the trial ran on, and `headless` or `subagent`. |
 | `variant` / `variantHash` | the run variant (`orchestrate.mjs --variant`) and the 12-hex hash of its resolved spec (skill and overlay content, build, prompt, MCP, model, effort); absent for runs without a variant. |
+| `starterVersion` | the starter version the trial was prepared with (`lib/starter.mjs`; "Starter versions" above): 2 = Sygnal arm with sygnal-check + AGENTS.md, 1 = bare starters. Absent in records scored before PLAN-2 4-E, which are all starter 1. |
 | `failureCategory` | the root cause of a failed trial (`wiring`, `isolation`, `reducer-shape`, `stream-operator`, `other`), or `none` for a pass. A human or the coordinator sets it with `--category` / `--classify`; definitions are in run.md step 5. Automatic classification is a TODO in `score.mjs`. |
 
 `transcript-stats.mjs` computes `iterations`, `editRounds` and `wallSeconds` from the agent's JSONL transcript, so the counts are applied the same way in both runs.
 
 The report (PLAN-1 §7) compares, per arm and per task: first-attempt pass rate, mean iterations, mean edit rounds, and failure-category distribution, for baseline vs. re-run vs. React.
+
+## Method changes
+
+Changes that make a run's numbers not directly comparable with earlier runs. Compare across one only through a control run on the same side of it.
+
+- **PLAN-2 0-B: headless trials** (`claude -p` from the trial dir) instead of PLAN-1 subagents; compare headless runs only with headless runs (PLAN-2 §8). 0-B fix2 also counts Bash file writes as edits ("Metrics", `editRounds`).
+- **PLAN-2 3-H: isolated posture for variant runs** (`--setting-sources project,local`, skill via `--add-dir`): ≈8k tokens less context in both arms. Phase 3 runs compare with `p3-control` / `p3-control-react`, not with v2-baseline.
+- **PLAN-2 4-E: starter 2 for variant runs** (G-123; E1's "adapt" verdict). Every Sygnal trial of a variant run now has `sygnal-check` installed and the template-style `AGENTS.md` / `CLAUDE.md` ("Starter versions"). Before, the skill told agents to run sygnal-check but the starters lacked it: 68/85 p3-control trials lost ≈2 s to a failed `npx`. `branch` (the control) and the experiment variants use starter 2; `baseline-5.4.0` pins starter 1, reproducing the v2-baseline conditions (no sygnal-check), and so do `e1-check` / `e1-pretest`, kept to reproduce Phase 3 (`e1-pretest` is no longer recommended: E1 dropped the pretest hook). Runs without a variant stay on starter 1. Records and manifests carry `starterVersion` (absent = 1). Compare starter-2 runs with a starter-2 control; a Phase 3 run is reproduced by its spec plus `"starter": 1`, which gives the same `variantHash`.
+- **PLAN-2 4-E: static source checks ignore comments** (G-124). Tasks 08 and 16 (both arms) read the agent's source through `stripComments()` (`hidden/_support/queries.js`), so "Place order" or "★" in a comment no longer fails "the file no longer renders X". Of all recorded 08/16 failures, this changes only p3-control and e5-lean `sygnal-16-t4` (6/7 → 7/7 when re-run on the kept trial dirs); the committed results keep their original scores, and their failure category was already "other (harness strictness)" in `results/PHASE3-RESULTS.md`.
+- **PLAN-2 4-E: the analyzer counts API guesses** (G-125): catalog entries with `input` signatures, matched against the agent's tool inputs and kept tests (`t.state` on a `renderComponent()` handle; `t.html()` read before the first render). They add trials to the catalog table ("inputs" column), not friction time. Re-analyze older runs to compare.
 
 ## Friction analyzer (`analysis/`)
 
