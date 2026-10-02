@@ -8,7 +8,21 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { createElement as h } from '../dist/index.esm.js'
 
-const settle = (ms = 60) => new Promise(r => setTimeout(r, ms))
+const sleep = ms => new Promise(r => setTimeout(r, ms))
+// Wait the original 60 ms, then until the DOM has stopped changing (stable for 30 ms,
+// at most 1 s): the fixed 60 ms alone was too short under a loaded full-suite run (G-126).
+const settle = async () => {
+  let last = document.body.innerHTML, stableSince = Date.now()
+  const end = Date.now() + 1000
+  await sleep(60)
+  last = document.body.innerHTML; stableSince = Date.now()
+  while (Date.now() < end) {
+    const now = document.body.innerHTML
+    if (now !== last) { last = now; stableSince = Date.now() }
+    else if (Date.now() - stableSince >= 30) return
+    await sleep(10)
+  }
+}
 const text = (sel) => document.querySelector(sel)?.textContent
 
 function makeShell() {

@@ -1,0 +1,4625 @@
+{
+  "meta": {
+    "run": "e7-haiku",
+    "generatedAt": "2026-10-02T02:00:03.127Z",
+    "trialsInMap": 19,
+    "trialsAnalyzed": 19,
+    "trialsScored": 19,
+    "skillDir": "/private/tmp/sygnal-evals/trials/e7-haiku/_variant/skillroot/.claude/skills/sygnal-dev",
+    "llms": "/Users/troy/Documents/Displera/sygnal/.claude/worktrees/agent-ergonomics/llms.txt",
+    "sygnalCheck": true,
+    "methods": [
+      "headless"
+    ],
+    "models": [
+      "claude-haiku-4-5-20251001"
+    ]
+  },
+  "aggregates": {
+    "tasks": [
+      "01-clear-completed",
+      "02-collection-pin"
+    ],
+    "sharedTasks": [
+      "01-clear-completed",
+      "02-collection-pin"
+    ],
+    "byTask": {
+      "01-clear-completed": {
+        "sygnal": {
+          "n": 5,
+          "pass": 5,
+          "scored": 5,
+          "wall": {
+            "mean": 78.4,
+            "median": 82.5
+          },
+          "peakContext": {
+            "mean": 36215.8,
+            "median": 37118
+          },
+          "cacheCreation": {
+            "mean": 32272.8,
+            "median": 33296
+          },
+          "cacheRead": {
+            "mean": 699212.6,
+            "median": 678025
+          },
+          "messages": {
+            "mean": 24.4,
+            "median": 24
+          },
+          "costUsd": {
+            "mean": 0.165,
+            "median": 0.164
+          },
+          "billedTokens": {
+            "mean": 737731.4,
+            "median": 723752
+          },
+          "outputTokens": {
+            "mean": 6046.4,
+            "median": 6317
+          },
+          "durationSeconds": {
+            "mean": 78.4,
+            "median": 82.5
+          },
+          "iterations": {
+            "mean": 5.8,
+            "median": 6
+          },
+          "effectiveIterations": {
+            "mean": 5.8,
+            "median": 6
+          },
+          "editRounds": {
+            "mean": 2.8,
+            "median": 3
+          },
+          "toolCalls": {
+            "mean": 23.6,
+            "median": 24
+          },
+          "failedRuns": {
+            "mean": 0.8,
+            "median": 1
+          },
+          "episodes": {
+            "mean": 0.8,
+            "median": 1
+          },
+          "locAdded": {
+            "mean": 57,
+            "median": 58
+          },
+          "locRemoved": {
+            "mean": 0,
+            "median": 0
+          },
+          "wroteTest": 5,
+          "keptTest": 5,
+          "attributedShareMin": 1,
+          "attributedShareMean": 1,
+          "phases": {
+            "orient": 19.2,
+            "learn": 6.6,
+            "implement": 13.8,
+            "test-authoring": 6.4,
+            "verify": 18.4,
+            "debug": 10.3,
+            "tooling-friction": 0,
+            "think": 3.7,
+            "report": 0,
+            "other": 0
+          },
+          "friction": {},
+          "learn": {
+            "skill-load": 6.6
+          }
+        },
+        "react": {
+          "n": 5,
+          "pass": 5,
+          "scored": 5,
+          "wall": {
+            "mean": 45.5,
+            "median": 55.6
+          },
+          "peakContext": {
+            "mean": 25541.8,
+            "median": 27151
+          },
+          "cacheCreation": {
+            "mean": 15701.4,
+            "median": 17311
+          },
+          "cacheRead": {
+            "mean": 330304,
+            "median": 416851
+          },
+          "messages": {
+            "mean": 16,
+            "median": 20
+          },
+          "costUsd": {
+            "mean": 0.084,
+            "median": 0.104
+          },
+          "billedTokens": {
+            "mean": 350123.2,
+            "median": 441052
+          },
+          "outputTokens": {
+            "mean": 3987.2,
+            "median": 4778
+          },
+          "durationSeconds": {
+            "mean": 45.6,
+            "median": 55.7
+          },
+          "iterations": {
+            "mean": 3.8,
+            "median": 4
+          },
+          "effectiveIterations": {
+            "mean": 3.8,
+            "median": 4
+          },
+          "editRounds": {
+            "mean": 2.2,
+            "median": 2
+          },
+          "toolCalls": {
+            "mean": 15,
+            "median": 19
+          },
+          "failedRuns": {
+            "mean": 1,
+            "median": 1
+          },
+          "episodes": {
+            "mean": 0.8,
+            "median": 1
+          },
+          "locAdded": {
+            "mean": 13.2,
+            "median": 4
+          },
+          "locRemoved": {
+            "mean": 0,
+            "median": 0
+          },
+          "wroteTest": 3,
+          "keptTest": 1,
+          "attributedShareMin": 1,
+          "attributedShareMean": 1,
+          "phases": {
+            "orient": 11.1,
+            "learn": 2,
+            "implement": 5.8,
+            "test-authoring": 3,
+            "verify": 10.3,
+            "debug": 11,
+            "tooling-friction": 0,
+            "think": 2.4,
+            "report": 0,
+            "other": 0
+          },
+          "friction": {},
+          "learn": {
+            "skill-load": 2
+          }
+        }
+      },
+      "02-collection-pin": {
+        "sygnal": {
+          "n": 5,
+          "pass": 4,
+          "scored": 5,
+          "wall": {
+            "mean": 84.1,
+            "median": 85.7
+          },
+          "peakContext": {
+            "mean": 38297.2,
+            "median": 38373
+          },
+          "cacheCreation": {
+            "mean": 28455.8,
+            "median": 28531
+          },
+          "cacheRead": {
+            "mean": 800023.4,
+            "median": 795960
+          },
+          "messages": {
+            "mean": 26.2,
+            "median": 26
+          },
+          "costUsd": {
+            "mean": 0.172,
+            "median": 0.173
+          },
+          "billedTokens": {
+            "mean": 835719.8,
+            "median": 832009
+          },
+          "outputTokens": {
+            "mean": 7026.6,
+            "median": 7305
+          },
+          "durationSeconds": {
+            "mean": 84.2,
+            "median": 85.8
+          },
+          "iterations": {
+            "mean": 5.6,
+            "median": 6
+          },
+          "effectiveIterations": {
+            "mean": 5.6,
+            "median": 6
+          },
+          "editRounds": {
+            "mean": 2.8,
+            "median": 3
+          },
+          "toolCalls": {
+            "mean": 26.6,
+            "median": 27
+          },
+          "failedRuns": {
+            "mean": 1,
+            "median": 1
+          },
+          "episodes": {
+            "mean": 1,
+            "median": 1
+          },
+          "locAdded": {
+            "mean": 65,
+            "median": 69
+          },
+          "locRemoved": {
+            "mean": 1,
+            "median": 1
+          },
+          "wroteTest": 5,
+          "keptTest": 5,
+          "attributedShareMin": 1,
+          "attributedShareMean": 1,
+          "phases": {
+            "orient": 21.7,
+            "learn": 6.2,
+            "implement": 15.5,
+            "test-authoring": 6.2,
+            "verify": 17.4,
+            "debug": 13.2,
+            "tooling-friction": 0,
+            "think": 3.8,
+            "report": 0,
+            "other": 0
+          },
+          "friction": {},
+          "learn": {
+            "skill-load": 6.2
+          }
+        },
+        "react": {
+          "n": 4,
+          "pass": 3,
+          "scored": 4,
+          "wall": {
+            "mean": 91.5,
+            "median": 94.2
+          },
+          "peakContext": {
+            "mean": 31284,
+            "median": 29453
+          },
+          "cacheCreation": {
+            "mean": 21443.5,
+            "median": 19613
+          },
+          "cacheRead": {
+            "mean": 671792,
+            "median": 690269
+          },
+          "messages": {
+            "mean": 28.3,
+            "median": 30.5
+          },
+          "costUsd": {
+            "mean": 0.15,
+            "median": 0.146
+          },
+          "billedTokens": {
+            "mean": 701359.5,
+            "median": 717589.5
+          },
+          "outputTokens": {
+            "mean": 7895,
+            "median": 7460.5
+          },
+          "durationSeconds": {
+            "mean": 91.5,
+            "median": 94.3
+          },
+          "iterations": {
+            "mean": 5.3,
+            "median": 5.5
+          },
+          "effectiveIterations": {
+            "mean": 5.3,
+            "median": 5.5
+          },
+          "editRounds": {
+            "mean": 2.8,
+            "median": 2
+          },
+          "toolCalls": {
+            "mean": 28.5,
+            "median": 31
+          },
+          "failedRuns": {
+            "mean": 1.3,
+            "median": 0.5
+          },
+          "episodes": {
+            "mean": 0.5,
+            "median": 0.5
+          },
+          "locAdded": {
+            "mean": 45.8,
+            "median": 51
+          },
+          "locRemoved": {
+            "mean": 3,
+            "median": 3
+          },
+          "wroteTest": 2,
+          "keptTest": 2,
+          "attributedShareMin": 1,
+          "attributedShareMean": 1,
+          "phases": {
+            "orient": 24.9,
+            "learn": 3.5,
+            "implement": 16.4,
+            "test-authoring": 6,
+            "verify": 12.8,
+            "debug": 24.3,
+            "tooling-friction": 0,
+            "think": 3.7,
+            "report": 0,
+            "other": 0
+          },
+          "friction": {},
+          "learn": {
+            "skill-load": 3.5
+          }
+        }
+      }
+    },
+    "overall": {
+      "sygnal": {
+        "n": 10,
+        "pass": 9,
+        "scored": 10,
+        "wall": {
+          "mean": 81.2,
+          "median": 84.4
+        },
+        "peakContext": {
+          "mean": 37256.5,
+          "median": 37530
+        },
+        "cacheCreation": {
+          "mean": 30364.3,
+          "median": 28706
+        },
+        "cacheRead": {
+          "mean": 749618,
+          "median": 717903
+        },
+        "messages": {
+          "mean": 25.3,
+          "median": 24.5
+        },
+        "costUsd": {
+          "mean": 0.169,
+          "median": 0.167
+        },
+        "billedTokens": {
+          "mean": 786725.6,
+          "median": 752974
+        },
+        "outputTokens": {
+          "mean": 6536.5,
+          "median": 6658
+        },
+        "durationSeconds": {
+          "mean": 81.3,
+          "median": 84.5
+        },
+        "iterations": {
+          "mean": 5.7,
+          "median": 6
+        },
+        "effectiveIterations": {
+          "mean": 5.7,
+          "median": 6
+        },
+        "editRounds": {
+          "mean": 2.8,
+          "median": 3
+        },
+        "toolCalls": {
+          "mean": 25.1,
+          "median": 24
+        },
+        "failedRuns": {
+          "mean": 0.9,
+          "median": 1
+        },
+        "episodes": {
+          "mean": 0.9,
+          "median": 1
+        },
+        "locAdded": {
+          "mean": 61,
+          "median": 61.5
+        },
+        "locRemoved": {
+          "mean": 0.5,
+          "median": 0.5
+        },
+        "wroteTest": 10,
+        "keptTest": 10,
+        "attributedShareMin": 1,
+        "attributedShareMean": 1,
+        "phases": {
+          "orient": 20.5,
+          "learn": 6.4,
+          "implement": 14.7,
+          "test-authoring": 6.3,
+          "verify": 17.9,
+          "debug": 11.8,
+          "tooling-friction": 0,
+          "think": 3.8,
+          "report": 0,
+          "other": 0
+        },
+        "friction": {},
+        "learn": {
+          "skill-load": 6.4
+        }
+      },
+      "react": {
+        "n": 9,
+        "pass": 8,
+        "scored": 9,
+        "wall": {
+          "mean": 66,
+          "median": 62
+        },
+        "peakContext": {
+          "mean": 28093.9,
+          "median": 28816
+        },
+        "cacheCreation": {
+          "mean": 18253.4,
+          "median": 18976
+        },
+        "cacheRead": {
+          "mean": 482076.4,
+          "median": 442651
+        },
+        "messages": {
+          "mean": 21.4,
+          "median": 21
+        },
+        "costUsd": {
+          "mean": 0.114,
+          "median": 0.108
+        },
+        "billedTokens": {
+          "mean": 506228.2,
+          "median": 465987
+        },
+        "outputTokens": {
+          "mean": 5724,
+          "median": 5854
+        },
+        "durationSeconds": {
+          "mean": 66,
+          "median": 62
+        },
+        "iterations": {
+          "mean": 4.4,
+          "median": 5
+        },
+        "effectiveIterations": {
+          "mean": 4.4,
+          "median": 5
+        },
+        "editRounds": {
+          "mean": 2.4,
+          "median": 2
+        },
+        "toolCalls": {
+          "mean": 21,
+          "median": 20
+        },
+        "failedRuns": {
+          "mean": 1.1,
+          "median": 1
+        },
+        "episodes": {
+          "mean": 0.7,
+          "median": 1
+        },
+        "locAdded": {
+          "mean": 27.7,
+          "median": 9
+        },
+        "locRemoved": {
+          "mean": 1.3,
+          "median": 0
+        },
+        "wroteTest": 5,
+        "keptTest": 3,
+        "attributedShareMin": 1,
+        "attributedShareMean": 1,
+        "phases": {
+          "orient": 17.2,
+          "learn": 2.6,
+          "implement": 10.5,
+          "test-authoring": 4.3,
+          "verify": 11.4,
+          "debug": 16.9,
+          "tooling-friction": 0,
+          "think": 3,
+          "report": 0,
+          "other": 0
+        },
+        "friction": {},
+        "learn": {
+          "skill-load": 2.6
+        }
+      }
+    },
+    "overallShared": {
+      "sygnal": {
+        "n": 10,
+        "pass": 9,
+        "scored": 10,
+        "wall": {
+          "mean": 81.2,
+          "median": 84.4
+        },
+        "peakContext": {
+          "mean": 37256.5,
+          "median": 37530
+        },
+        "cacheCreation": {
+          "mean": 30364.3,
+          "median": 28706
+        },
+        "cacheRead": {
+          "mean": 749618,
+          "median": 717903
+        },
+        "messages": {
+          "mean": 25.3,
+          "median": 24.5
+        },
+        "costUsd": {
+          "mean": 0.169,
+          "median": 0.167
+        },
+        "billedTokens": {
+          "mean": 786725.6,
+          "median": 752974
+        },
+        "outputTokens": {
+          "mean": 6536.5,
+          "median": 6658
+        },
+        "durationSeconds": {
+          "mean": 81.3,
+          "median": 84.5
+        },
+        "iterations": {
+          "mean": 5.7,
+          "median": 6
+        },
+        "effectiveIterations": {
+          "mean": 5.7,
+          "median": 6
+        },
+        "editRounds": {
+          "mean": 2.8,
+          "median": 3
+        },
+        "toolCalls": {
+          "mean": 25.1,
+          "median": 24
+        },
+        "failedRuns": {
+          "mean": 0.9,
+          "median": 1
+        },
+        "episodes": {
+          "mean": 0.9,
+          "median": 1
+        },
+        "locAdded": {
+          "mean": 61,
+          "median": 61.5
+        },
+        "locRemoved": {
+          "mean": 0.5,
+          "median": 0.5
+        },
+        "wroteTest": 10,
+        "keptTest": 10,
+        "attributedShareMin": 1,
+        "attributedShareMean": 1,
+        "phases": {
+          "orient": 20.5,
+          "learn": 6.4,
+          "implement": 14.7,
+          "test-authoring": 6.3,
+          "verify": 17.9,
+          "debug": 11.8,
+          "tooling-friction": 0,
+          "think": 3.8,
+          "report": 0,
+          "other": 0
+        },
+        "friction": {},
+        "learn": {
+          "skill-load": 6.4
+        }
+      },
+      "react": {
+        "n": 9,
+        "pass": 8,
+        "scored": 9,
+        "wall": {
+          "mean": 66,
+          "median": 62
+        },
+        "peakContext": {
+          "mean": 28093.9,
+          "median": 28816
+        },
+        "cacheCreation": {
+          "mean": 18253.4,
+          "median": 18976
+        },
+        "cacheRead": {
+          "mean": 482076.4,
+          "median": 442651
+        },
+        "messages": {
+          "mean": 21.4,
+          "median": 21
+        },
+        "costUsd": {
+          "mean": 0.114,
+          "median": 0.108
+        },
+        "billedTokens": {
+          "mean": 506228.2,
+          "median": 465987
+        },
+        "outputTokens": {
+          "mean": 5724,
+          "median": 5854
+        },
+        "durationSeconds": {
+          "mean": 66,
+          "median": 62
+        },
+        "iterations": {
+          "mean": 4.4,
+          "median": 5
+        },
+        "effectiveIterations": {
+          "mean": 4.4,
+          "median": 5
+        },
+        "editRounds": {
+          "mean": 2.4,
+          "median": 2
+        },
+        "toolCalls": {
+          "mean": 21,
+          "median": 20
+        },
+        "failedRuns": {
+          "mean": 1.1,
+          "median": 1
+        },
+        "episodes": {
+          "mean": 0.7,
+          "median": 1
+        },
+        "locAdded": {
+          "mean": 27.7,
+          "median": 9
+        },
+        "locRemoved": {
+          "mean": 1.3,
+          "median": 0
+        },
+        "wroteTest": 5,
+        "keptTest": 3,
+        "attributedShareMin": 1,
+        "attributedShareMean": 1,
+        "phases": {
+          "orient": 17.2,
+          "learn": 2.6,
+          "implement": 10.5,
+          "test-authoring": 4.3,
+          "verify": 11.4,
+          "debug": 16.9,
+          "tooling-friction": 0,
+          "think": 3,
+          "report": 0,
+          "other": 0
+        },
+        "friction": {},
+        "learn": {
+          "skill-load": 2.6
+        }
+      }
+    },
+    "delta": {
+      "tasks": [
+        "01-clear-completed",
+        "02-collection-pin"
+      ],
+      "wallDelta": 12.7,
+      "items": [
+        {
+          "item": "phase:verify",
+          "sygnal": 17.9,
+          "react": 11.6,
+          "delta": 6.3,
+          "shareOfDelta": 0.49
+        },
+        {
+          "item": "learn:skill-load",
+          "sygnal": 6.4,
+          "react": 2.7,
+          "delta": 3.7,
+          "shareOfDelta": 0.29
+        },
+        {
+          "item": "phase:implement",
+          "sygnal": 14.7,
+          "react": 11.1,
+          "delta": 3.6,
+          "shareOfDelta": 0.28
+        },
+        {
+          "item": "phase:orient",
+          "sygnal": 20.5,
+          "react": 18,
+          "delta": 2.5,
+          "shareOfDelta": 0.2
+        },
+        {
+          "item": "phase:test-authoring",
+          "sygnal": 6.3,
+          "react": 4.5,
+          "delta": 1.8,
+          "shareOfDelta": 0.14
+        },
+        {
+          "item": "phase:think",
+          "sygnal": 3.8,
+          "react": 3.1,
+          "delta": 0.7,
+          "shareOfDelta": 0.05
+        },
+        {
+          "item": "phase:debug",
+          "sygnal": 11.8,
+          "react": 17.7,
+          "delta": -5.9,
+          "shareOfDelta": -0.46
+        }
+      ],
+      "buckets": [
+        {
+          "bucket": "build/test runs",
+          "sygnal": 17.9,
+          "react": 11.6,
+          "delta": 6.3,
+          "items": [
+            "phase:verify"
+          ],
+          "shareOfDelta": 0.49
+        },
+        {
+          "bucket": "learning: skill",
+          "sygnal": 6.4,
+          "react": 2.7,
+          "delta": 3.7,
+          "items": [
+            "learn:skill-load"
+          ],
+          "shareOfDelta": 0.29
+        },
+        {
+          "bucket": "implementation",
+          "sygnal": 14.7,
+          "react": 11.1,
+          "delta": 3.6,
+          "items": [
+            "phase:implement"
+          ],
+          "shareOfDelta": 0.28
+        },
+        {
+          "bucket": "orientation",
+          "sygnal": 20.5,
+          "react": 18,
+          "delta": 2.5,
+          "items": [
+            "phase:orient"
+          ],
+          "shareOfDelta": 0.2
+        },
+        {
+          "bucket": "self-testing: writing tests",
+          "sygnal": 6.3,
+          "react": 4.5,
+          "delta": 1.8,
+          "items": [
+            "phase:test-authoring"
+          ],
+          "shareOfDelta": 0.14
+        },
+        {
+          "bucket": "other",
+          "sygnal": 3.8,
+          "react": 3.1,
+          "delta": 0.7,
+          "items": [
+            "phase:think"
+          ],
+          "shareOfDelta": 0.05
+        },
+        {
+          "bucket": "debugging own mistakes",
+          "sygnal": 11.8,
+          "react": 17.7,
+          "delta": -5.9,
+          "items": [
+            "phase:debug"
+          ],
+          "shareOfDelta": -0.46
+        }
+      ]
+    },
+    "catalog": [],
+    "skill": {
+      "sygnalTrials": 10,
+      "skillInvoked": 10,
+      "skillBytes": {
+        "mean": 51570,
+        "median": 51570
+      },
+      "files": {
+        "SKILL.md": {
+          "trials": 10,
+          "fileLines": 357,
+          "linesSeen": {
+            "mean": 357,
+            "median": 357
+          },
+          "bytes": {
+            "mean": 51570,
+            "median": 51570
+          },
+          "how": {
+            "skill-tool": 10
+          }
+        }
+      },
+      "sections": [
+        {
+          "section": "SKILL.md#Sygnal Dev",
+          "trials": 10
+        },
+        {
+          "section": "SKILL.md#1. Workflow",
+          "trials": 10
+        },
+        {
+          "section": "SKILL.md#2. Mental model and component anatomy",
+          "trials": 10
+        },
+        {
+          "section": "SKILL.md#3. Canonical examples",
+          "trials": 10
+        },
+        {
+          "section": "SKILL.md#State update, ABORT, set / toggle, controlled input",
+          "trials": 10
+        },
+        {
+          "section": "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
+          "trials": 10
+        },
+        {
+          "section": "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
+          "trials": 10
+        },
+        {
+          "section": "SKILL.md#Extract a component without changing the markup",
+          "trials": 10
+        },
+        {
+          "section": "SKILL.md#Commands (parent → child) + EFFECT",
+          "trials": 10
+        },
+        {
+          "section": "SKILL.md#Drivers (driverFromAsync + errors()), document-level events",
+          "trials": 10
+        },
+        {
+          "section": "SKILL.md#Latest response only (stale replies)",
+          "trials": 10
+        },
+        {
+          "section": "SKILL.md#4. API facts",
+          "trials": 10
+        },
+        {
+          "section": "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
+          "trials": 10
+        },
+        {
+          "section": "SKILL.md#6. Canonical forms (never write the right-hand column)",
+          "trials": 10
+        },
+        {
+          "section": "SKILL.md#7. Testing your change",
+          "trials": 10
+        },
+        {
+          "section": "SKILL.md#8. Diagnostics and tools",
+          "trials": 10
+        },
+        {
+          "section": "SKILL.md#9. Project setup (Vite)",
+          "trials": 10
+        },
+        {
+          "section": "SKILL.md#10. Where to look next",
+          "trials": 10
+        }
+      ],
+      "library": {
+        "sygnal": {
+          "playwright": {
+            "trials": 1,
+            "files": {
+              "index.js": 1
+            }
+          }
+        },
+        "react": {}
+      },
+      "libraryBytes": {
+        "sygnal": {
+          "mean": 114.4,
+          "median": 0
+        },
+        "react": {
+          "mean": 0,
+          "median": 0
+        }
+      },
+      "libraryReaders": {
+        "sygnal": 1,
+        "react": 0
+      }
+    },
+    "canonical": {
+      "trials": 10,
+      "forms": {
+        "shorthandKeys": {
+          "total": 0,
+          "trials": 0
+        },
+        "emitCalls": {
+          "total": 0,
+          "trials": 0
+        },
+        "eventCalls": {
+          "total": 0,
+          "trials": 0
+        },
+        "rawEventsObjects": {
+          "total": 0,
+          "trials": 0
+        },
+        "childSelectString": {
+          "total": 0,
+          "trials": 0
+        },
+        "childSelectFn": {
+          "total": 5,
+          "trials": 5
+        },
+        "positionalView": {
+          "total": 0,
+          "trials": 0
+        },
+        "abortReturns": {
+          "total": 0,
+          "trials": 0
+        },
+        "effectSinks": {
+          "total": 0,
+          "trials": 0
+        }
+      },
+      "sygnalCheck": {},
+      "checkErrors": []
+    },
+    "failures": {
+      "signatures": [
+        {
+          "arm": "sygnal",
+          "signature": "AssertionError: expected '' to contain 'Nothing pinned'",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 4,
+          "trials": 4
+        },
+        {
+          "arm": "react",
+          "signature": "TestingLibraryElementError: Found multiple elements with the text: 1 remaining",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 2,
+          "trials": 2
+        },
+        {
+          "arm": "react",
+          "signature": "Error: Failed to resolve import \"@testing-library/user-event\" from \"src/App.test.jsx\". Does the file exist?",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 2,
+          "trials": 2
+        },
+        {
+          "arm": "react",
+          "signature": "TestingLibraryElementError: Unable to find an element with the text: Pinned: Buy milk. This could be because the text is broken up by multiple elements. In this",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 2,
+          "trials": 1
+        },
+        {
+          "arm": "react",
+          "signature": "Test Files 1 failed (1)",
+          "cause": "unknown (output truncated)",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "react",
+          "signature": "Error: Cannot find module 'playwright'",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "sygnal",
+          "signature": "Error: [Sygnal] simulateEvent('[data-id=\"1\"] .toggle', 'change'): the selector matched nothing in the rendered output (waited Nms for it to render; the eventWai",
+          "cause": "other",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "sygnal",
+          "signature": "AssertionError: expected '' to contain '2 remaining'",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "sygnal",
+          "signature": "Error: next timed out after Nms. A state recorded before this next() call already matches the predicate (t.states[0]); next() only matches new states. Use t.wai",
+          "cause": "other",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "sygnal",
+          "signature": "Exit code 144",
+          "cause": "other",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "react",
+          "signature": "Exit code 144",
+          "cause": "other",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "react",
+          "signature": "Cannot find package 'playwright' imported from test-pin-feature.js",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "sygnal",
+          "signature": "TypeError [ERR_UNKNOWN_FILE_EXTENSION]: Unknown file extension \".jsx\" for App.jsx",
+          "cause": "other",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        }
+      ],
+      "episodes": {
+        "sygnal": {
+          "other": {
+            "episodes": 4,
+            "seconds": 45,
+            "iterations": 2,
+            "unresolved": 2
+          },
+          "agent-mistake": {
+            "episodes": 5,
+            "seconds": 72.8,
+            "iterations": 5,
+            "unresolved": 0
+          }
+        },
+        "react": {
+          "agent-mistake": {
+            "episodes": 5,
+            "seconds": 121.3,
+            "iterations": 8,
+            "unresolved": 1
+          },
+          "other": {
+            "episodes": 1,
+            "seconds": 31,
+            "iterations": 0,
+            "unresolved": 1
+          }
+        }
+      }
+    }
+  },
+  "trials": [
+    {
+      "trial": "react-01-t1",
+      "run": "e7-haiku",
+      "arm": "react",
+      "task": "01-clear-completed",
+      "trialNo": 1,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 3,
+        "testsTotal": 3,
+        "wallSeconds": 70,
+        "iterations": 6,
+        "editRounds": 4
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 179,
+        "output": 42,
+        "cacheRead": 506275,
+        "cacheCreation": 22755,
+        "messages": 22,
+        "peakContext": 32595,
+        "total": 529251
+      },
+      "usage": {
+        "tokens": 535082,
+        "outputTokens": 5873,
+        "costUsd": 0.1256815,
+        "durationMs": 69039,
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "toolCalls": {
+        "total": 21,
+        "byTool": {
+          "Bash": 10,
+          "Read": 4,
+          "Edit": 3,
+          "Skill": 1,
+          "Write": 3
+        }
+      },
+      "wallSeconds": 69,
+      "phases": {
+        "orient": 10.9,
+        "implement": 5.4,
+        "learn": 3.9,
+        "verify": 14.1,
+        "test-authoring": 5.3,
+        "debug": 26.1,
+        "think": 3.4
+      },
+      "attributedShare": 1,
+      "iterations": 6,
+      "effectiveIterations": 6,
+      "edits": 6,
+      "editRounds": 4,
+      "failures": [
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "Exit code 127",
+          "catalog": [],
+          "cause": "other",
+          "t": 22
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "TestingLibraryElementError: Found multiple elements with the text: 1 remaining",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 34
+        },
+        {
+          "kind": "command",
+          "tool": "Edit",
+          "signature": "<tool_use_error>String to replace not found in file.",
+          "catalog": [],
+          "cause": "other",
+          "t": 44
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "Test Files 1 failed (1)",
+          "catalog": [],
+          "friction": [],
+          "cause": "unknown (output truncated)",
+          "t": 52
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 26.1,
+          "iterations": 2,
+          "signature": "TestingLibraryElementError: Found multiple elements with the text: 1 remaining",
+          "signatures": [
+            "TestingLibraryElementError: Found multiple elements with the text: 1 remaining",
+            "Test Files 1 failed (1)"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "resolved": true,
+          "t": 34
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 3.9
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": []
+      },
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 25785,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                357
+              ]
+            ],
+            "linesSeen": 357,
+            "fileLines": 357,
+            "bytes": 25785,
+            "how": [
+              "skill-tool"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Canonical examples",
+          "SKILL.md#State update, ABORT, set / toggle, controlled input",
+          "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
+          "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
+          "SKILL.md#Extract a component without changing the markup",
+          "SKILL.md#Commands (parent → child) + EFFECT",
+          "SKILL.md#Drivers (driverFromAsync + errors()), document-level events",
+          "SKILL.md#Latest response only (stale replies)",
+          "SKILL.md#4. API facts",
+          "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#6. Canonical forms (never write the right-hand column)",
+          "SKILL.md#7. Testing your change",
+          "SKILL.md#8. Diagnostics and tools",
+          "SKILL.md#9. Project setup (Vite)",
+          "SKILL.md#10. Where to look next"
+        ],
+        "library": {},
+        "libraryBytes": 0
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "trialDir": "/private/tmp/sygnal-evals/trials/e7-haiku/react-01-t1",
+      "diff": {
+        "added": 47,
+        "removed": 0,
+        "files": {
+          "src/App.jsx": {
+            "added": 4,
+            "removed": 0,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 43,
+            "removed": 0,
+            "status": "new"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "testing-library"
+      ],
+      "finalReportChars": 716
+    },
+    {
+      "trial": "react-01-t2",
+      "run": "e7-haiku",
+      "arm": "react",
+      "task": "01-clear-completed",
+      "trialNo": 2,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 3,
+        "testsTotal": 3,
+        "wallSeconds": 23,
+        "iterations": 2,
+        "editRounds": 1
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 66,
+        "output": 14,
+        "cacheRead": 133821,
+        "cacheCreation": 9418,
+        "messages": 8,
+        "peakContext": 19258,
+        "total": 143319
+      },
+      "usage": {
+        "tokens": 145008,
+        "outputTokens": 1703,
+        "costUsd": 0.040799100000000005,
+        "durationMs": 21065,
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "toolCalls": {
+        "total": 7,
+        "byTool": {
+          "Bash": 4,
+          "Read": 1,
+          "Edit": 2
+        }
+      },
+      "wallSeconds": 21,
+      "phases": {
+        "orient": 5.7,
+        "implement": 7.1,
+        "verify": 5.6,
+        "think": 2.6
+      },
+      "attributedShare": 1,
+      "iterations": 2,
+      "effectiveIterations": 2,
+      "edits": 2,
+      "editRounds": 1,
+      "failures": [],
+      "episodes": [],
+      "frictionSeconds": {},
+      "learnSeconds": {},
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": []
+      },
+      "skill": {
+        "skillInvoked": false,
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
+        "library": {},
+        "libraryBytes": 0
+      },
+      "selfReported": [],
+      "wroteTest": false,
+      "trialDir": "/private/tmp/sygnal-evals/trials/e7-haiku/react-01-t2",
+      "diff": {
+        "added": 4,
+        "removed": 0,
+        "files": {
+          "src/App.jsx": {
+            "added": 4,
+            "removed": 0,
+            "status": "modified"
+          }
+        }
+      },
+      "keptTests": [],
+      "testApproach": [],
+      "finalReportChars": 647
+    },
+    {
+      "trial": "react-01-t3",
+      "run": "e7-haiku",
+      "arm": "react",
+      "task": "01-clear-completed",
+      "trialNo": 3,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 3,
+        "testsTotal": 3,
+        "wallSeconds": 63,
+        "iterations": 4,
+        "editRounds": 3
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 171,
+        "output": 41,
+        "cacheRead": 442651,
+        "cacheCreation": 17311,
+        "messages": 21,
+        "peakContext": 27151,
+        "total": 460174
+      },
+      "usage": {
+        "tokens": 465987,
+        "outputTokens": 5854,
+        "costUsd": 0.10832810000000004,
+        "durationMs": 62039,
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "toolCalls": {
+        "total": 20,
+        "byTool": {
+          "Bash": 15,
+          "Read": 3,
+          "Edit": 1,
+          "Skill": 1
+        }
+      },
+      "wallSeconds": 62,
+      "phases": {
+        "orient": 16.7,
+        "implement": 5.4,
+        "learn": 2.9,
+        "verify": 13.5,
+        "debug": 19.9,
+        "test-authoring": 3.6
+      },
+      "attributedShare": 1,
+      "iterations": 4,
+      "effectiveIterations": 4,
+      "edits": 3,
+      "editRounds": 3,
+      "failures": [
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "Exit code 127",
+          "catalog": [],
+          "cause": "other",
+          "t": 26
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "Error: Cannot find module 'playwright'",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 32
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "Error: Failed to resolve import \"@testing-library/user-event\" from \"src/App.test.jsx\". Does the file exist?",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 46
+        },
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "Exit code 1",
+          "catalog": [],
+          "cause": "other",
+          "t": 55
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 3.7,
+          "iterations": 1,
+          "signature": "Error: Cannot find module 'playwright'",
+          "signatures": [
+            "Error: Cannot find module 'playwright'"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "resolved": true,
+          "t": 32
+        },
+        {
+          "seconds": 16.2,
+          "iterations": 0,
+          "signature": "Error: Failed to resolve import \"@testing-library/user-event\" from \"src/App.test.jsx\". Does the file exist?",
+          "signatures": [
+            "Error: Failed to resolve import \"@testing-library/user-event\" from \"src/App.test.jsx\". Does the file exist?"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "resolved": false,
+          "t": 46
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 2.9
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": []
+      },
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 25785,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                357
+              ]
+            ],
+            "linesSeen": 357,
+            "fileLines": 357,
+            "bytes": 25785,
+            "how": [
+              "skill-tool"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Canonical examples",
+          "SKILL.md#State update, ABORT, set / toggle, controlled input",
+          "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
+          "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
+          "SKILL.md#Extract a component without changing the markup",
+          "SKILL.md#Commands (parent → child) + EFFECT",
+          "SKILL.md#Drivers (driverFromAsync + errors()), document-level events",
+          "SKILL.md#Latest response only (stale replies)",
+          "SKILL.md#4. API facts",
+          "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#6. Canonical forms (never write the right-hand column)",
+          "SKILL.md#7. Testing your change",
+          "SKILL.md#8. Diagnostics and tools",
+          "SKILL.md#9. Project setup (Vite)",
+          "SKILL.md#10. Where to look next"
+        ],
+        "library": {},
+        "libraryBytes": 0
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "trialDir": "/private/tmp/sygnal-evals/trials/e7-haiku/react-01-t3",
+      "diff": {
+        "added": 4,
+        "removed": 0,
+        "files": {
+          "src/App.jsx": {
+            "added": 4,
+            "removed": 0,
+            "status": "modified"
+          }
+        }
+      },
+      "keptTests": [],
+      "testApproach": [],
+      "finalReportChars": 1156
+    },
+    {
+      "trial": "react-01-t4",
+      "run": "e7-haiku",
+      "arm": "react",
+      "task": "01-clear-completed",
+      "trialNo": 4,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 3,
+        "testsTotal": 3,
+        "wallSeconds": 57,
+        "iterations": 5,
+        "editRounds": 2
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 163,
+        "output": 51,
+        "cacheRead": 416851,
+        "cacheCreation": 19260,
+        "messages": 20,
+        "peakContext": 29102,
+        "total": 436325
+      },
+      "usage": {
+        "tokens": 441052,
+        "outputTokens": 4778,
+        "costUsd": 0.1042581,
+        "durationMs": 55699,
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "toolCalls": {
+        "total": 19,
+        "byTool": {
+          "Bash": 12,
+          "Read": 3,
+          "Edit": 2,
+          "Skill": 1,
+          "Write": 1
+        }
+      },
+      "wallSeconds": 55.6,
+      "phases": {
+        "orient": 15.8,
+        "implement": 5.7,
+        "verify": 13.7,
+        "learn": 3,
+        "test-authoring": 6,
+        "debug": 9,
+        "think": 2.5
+      },
+      "attributedShare": 1,
+      "iterations": 5,
+      "effectiveIterations": 5,
+      "edits": 3,
+      "editRounds": 2,
+      "failures": [
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "Exit code 127",
+          "catalog": [],
+          "cause": "other",
+          "t": 30
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "TestingLibraryElementError: Found multiple elements with the text: 1 remaining",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 43
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 9,
+          "iterations": 1,
+          "signature": "TestingLibraryElementError: Found multiple elements with the text: 1 remaining",
+          "signatures": [
+            "TestingLibraryElementError: Found multiple elements with the text: 1 remaining"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "resolved": true,
+          "t": 43
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 3
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": []
+      },
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 25785,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                357
+              ]
+            ],
+            "linesSeen": 357,
+            "fileLines": 357,
+            "bytes": 25785,
+            "how": [
+              "skill-tool"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Canonical examples",
+          "SKILL.md#State update, ABORT, set / toggle, controlled input",
+          "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
+          "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
+          "SKILL.md#Extract a component without changing the markup",
+          "SKILL.md#Commands (parent → child) + EFFECT",
+          "SKILL.md#Drivers (driverFromAsync + errors()), document-level events",
+          "SKILL.md#Latest response only (stale replies)",
+          "SKILL.md#4. API facts",
+          "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#6. Canonical forms (never write the right-hand column)",
+          "SKILL.md#7. Testing your change",
+          "SKILL.md#8. Diagnostics and tools",
+          "SKILL.md#9. Project setup (Vite)",
+          "SKILL.md#10. Where to look next"
+        ],
+        "library": {},
+        "libraryBytes": 0
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "trialDir": "/private/tmp/sygnal-evals/trials/e7-haiku/react-01-t4",
+      "diff": {
+        "added": 7,
+        "removed": 0,
+        "files": {
+          "src/App.jsx": {
+            "added": 7,
+            "removed": 0,
+            "status": "modified"
+          }
+        }
+      },
+      "keptTests": [],
+      "testApproach": [],
+      "finalReportChars": 566
+    },
+    {
+      "trial": "react-01-t5",
+      "run": "e7-haiku",
+      "arm": "react",
+      "task": "01-clear-completed",
+      "trialNo": 5,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 3,
+        "testsTotal": 3,
+        "wallSeconds": 22,
+        "iterations": 2,
+        "editRounds": 1
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 74,
+        "output": 16,
+        "cacheRead": 151922,
+        "cacheCreation": 9763,
+        "messages": 9,
+        "peakContext": 19603,
+        "total": 161775
+      },
+      "usage": {
+        "tokens": 163487,
+        "outputTokens": 1728,
+        "costUsd": 0.0434322,
+        "durationMs": 20068,
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "toolCalls": {
+        "total": 8,
+        "byTool": {
+          "Bash": 3,
+          "Glob": 1,
+          "Read": 2,
+          "Edit": 2
+        }
+      },
+      "wallSeconds": 20,
+      "phases": {
+        "orient": 6.5,
+        "implement": 5.3,
+        "verify": 4.7,
+        "think": 3.4
+      },
+      "attributedShare": 1,
+      "iterations": 2,
+      "effectiveIterations": 2,
+      "edits": 2,
+      "editRounds": 1,
+      "failures": [],
+      "episodes": [],
+      "frictionSeconds": {},
+      "learnSeconds": {},
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": []
+      },
+      "skill": {
+        "skillInvoked": false,
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
+        "library": {},
+        "libraryBytes": 0
+      },
+      "selfReported": [],
+      "wroteTest": false,
+      "trialDir": "/private/tmp/sygnal-evals/trials/e7-haiku/react-01-t5",
+      "diff": {
+        "added": 4,
+        "removed": 0,
+        "files": {
+          "src/App.jsx": {
+            "added": 4,
+            "removed": 0,
+            "status": "modified"
+          }
+        }
+      },
+      "keptTests": [],
+      "testApproach": [],
+      "finalReportChars": 609
+    },
+    {
+      "trial": "sygnal-01-t1",
+      "run": "e7-haiku",
+      "arm": "sygnal",
+      "task": "01-clear-completed",
+      "trialNo": 1,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 3,
+        "testsTotal": 3,
+        "wallSeconds": 75,
+        "iterations": 6,
+        "editRounds": 3
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 196,
+        "output": 46,
+        "cacheRead": 675017,
+        "cacheCreation": 35584,
+        "messages": 24,
+        "peakContext": 35596,
+        "total": 710843
+      },
+      "usage": {
+        "tokens": 715845,
+        "outputTokens": 5048,
+        "costUsd": 0.1641057,
+        "durationMs": 73359,
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "toolCalls": {
+        "total": 23,
+        "byTool": {
+          "Skill": 2,
+          "Bash": 12,
+          "Read": 3,
+          "Edit": 5,
+          "Write": 1
+        }
+      },
+      "wallSeconds": 73.3,
+      "phases": {
+        "orient": 17.7,
+        "learn": 5.1,
+        "implement": 8.5,
+        "verify": 16.6,
+        "test-authoring": 7,
+        "debug": 14.4,
+        "think": 4.1
+      },
+      "attributedShare": 1,
+      "iterations": 6,
+      "effectiveIterations": 6,
+      "edits": 6,
+      "editRounds": 3,
+      "failures": [
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "Error: [Sygnal] simulateEvent('[data-id=\"1\"] .toggle', 'change'): the selector matched nothing in the rendered output (waited Nms for it to render; the eventWai",
+          "catalog": [],
+          "friction": [],
+          "cause": "other",
+          "t": 45
+        },
+        {
+          "kind": "command",
+          "tool": "Edit",
+          "signature": "<tool_use_error>String to replace not found in file.",
+          "catalog": [],
+          "cause": "other",
+          "t": 51
+        },
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "Exit code 1",
+          "catalog": [],
+          "cause": "other",
+          "t": 65
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 14.4,
+          "iterations": 1,
+          "signature": "Error: [Sygnal] simulateEvent('[data-id=\"1\"] .toggle', 'change'): the selector matched nothing in the rendered output (waited Nms for it to render; the eventWai",
+          "signatures": [
+            "Error: [Sygnal] simulateEvent('[data-id=\"1\"] .toggle', 'change'): the selector matched nothing in the rendered output (waited Nms for it to render; the eventWai"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "other",
+          "resolved": true,
+          "t": 45
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 5.1
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": []
+      },
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 51570,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                357
+              ]
+            ],
+            "linesSeen": 357,
+            "fileLines": 357,
+            "bytes": 51570,
+            "how": [
+              "skill-tool"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Canonical examples",
+          "SKILL.md#State update, ABORT, set / toggle, controlled input",
+          "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
+          "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
+          "SKILL.md#Extract a component without changing the markup",
+          "SKILL.md#Commands (parent → child) + EFFECT",
+          "SKILL.md#Drivers (driverFromAsync + errors()), document-level events",
+          "SKILL.md#Latest response only (stale replies)",
+          "SKILL.md#4. API facts",
+          "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#6. Canonical forms (never write the right-hand column)",
+          "SKILL.md#7. Testing your change",
+          "SKILL.md#8. Diagnostics and tools",
+          "SKILL.md#9. Project setup (Vite)",
+          "SKILL.md#10. Where to look next"
+        ],
+        "library": {},
+        "libraryBytes": 0
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "trialDir": "/private/tmp/sygnal-evals/trials/e7-haiku/sygnal-01-t1",
+      "diff": {
+        "added": 65,
+        "removed": 0,
+        "files": {
+          "src/App.jsx": {
+            "added": 6,
+            "removed": 0,
+            "status": "modified"
+          },
+          "src/App.test.js": {
+            "added": 59,
+            "removed": 0,
+            "status": "new"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.js"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 0,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "finalReportChars": 855
+    },
+    {
+      "trial": "sygnal-01-t2",
+      "run": "e7-haiku",
+      "arm": "sygnal",
+      "task": "01-clear-completed",
+      "trialNo": 2,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 3,
+        "testsTotal": 3,
+        "wallSeconds": 55,
+        "iterations": 5,
+        "editRounds": 2
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 173,
+        "output": 42,
+        "cacheRead": 566976,
+        "cacheCreation": 33296,
+        "messages": 21,
+        "peakContext": 33305,
+        "total": 600487
+      },
+      "usage": {
+        "tokens": 604919,
+        "outputTokens": 4474,
+        "costUsd": 0.14583259999999998,
+        "durationMs": 53872,
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "toolCalls": {
+        "total": 20,
+        "byTool": {
+          "Skill": 2,
+          "Read": 4,
+          "Glob": 1,
+          "Edit": 3,
+          "Bash": 9,
+          "Write": 1
+        }
+      },
+      "wallSeconds": 53.8,
+      "phases": {
+        "orient": 13.7,
+        "learn": 4.4,
+        "implement": 10.3,
+        "verify": 16.8,
+        "test-authoring": 5,
+        "think": 3.6
+      },
+      "attributedShare": 1,
+      "iterations": 5,
+      "effectiveIterations": 5,
+      "edits": 5,
+      "editRounds": 2,
+      "failures": [
+        {
+          "kind": "command",
+          "tool": "Read",
+          "signature": "EISDIR: illegal operation on a directory, read 'sygnal-01-t2'",
+          "catalog": [],
+          "cause": "other",
+          "t": 4
+        },
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "Exit code 1",
+          "catalog": [],
+          "cause": "other",
+          "t": 24
+        },
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "Cannot find package 'chromium-cli' imported from test-app.js",
+          "catalog": [],
+          "cause": "other",
+          "t": 36
+        }
+      ],
+      "episodes": [],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 4.4
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": []
+      },
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 51570,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                357
+              ]
+            ],
+            "linesSeen": 357,
+            "fileLines": 357,
+            "bytes": 51570,
+            "how": [
+              "skill-tool"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Canonical examples",
+          "SKILL.md#State update, ABORT, set / toggle, controlled input",
+          "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
+          "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
+          "SKILL.md#Extract a component without changing the markup",
+          "SKILL.md#Commands (parent → child) + EFFECT",
+          "SKILL.md#Drivers (driverFromAsync + errors()), document-level events",
+          "SKILL.md#Latest response only (stale replies)",
+          "SKILL.md#4. API facts",
+          "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#6. Canonical forms (never write the right-hand column)",
+          "SKILL.md#7. Testing your change",
+          "SKILL.md#8. Diagnostics and tools",
+          "SKILL.md#9. Project setup (Vite)",
+          "SKILL.md#10. Where to look next"
+        ],
+        "library": {},
+        "libraryBytes": 0
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "trialDir": "/private/tmp/sygnal-evals/trials/e7-haiku/sygnal-01-t2",
+      "diff": {
+        "added": 45,
+        "removed": 0,
+        "files": {
+          "src/App.jsx": {
+            "added": 6,
+            "removed": 0,
+            "status": "modified"
+          },
+          "src/App.test.js": {
+            "added": 39,
+            "removed": 0,
+            "status": "new"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.js"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 0,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "finalReportChars": 804
+    },
+    {
+      "trial": "sygnal-01-t3",
+      "run": "e7-haiku",
+      "arm": "sygnal",
+      "task": "01-clear-completed",
+      "trialNo": 3,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 3,
+        "testsTotal": 3,
+        "wallSeconds": 88,
+        "iterations": 5,
+        "editRounds": 3
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 197,
+        "output": 62,
+        "cacheRead": 678025,
+        "cacheCreation": 37630,
+        "messages": 24,
+        "peakContext": 37639,
+        "total": 715914
+      },
+      "usage": {
+        "tokens": 723752,
+        "outputTokens": 7900,
+        "costUsd": 0.1827595,
+        "durationMs": 86811,
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "toolCalls": {
+        "total": 24,
+        "byTool": {
+          "Bash": 14,
+          "Glob": 1,
+          "Read": 4,
+          "Skill": 2,
+          "Edit": 3
+        }
+      },
+      "wallSeconds": 86.8,
+      "phases": {
+        "orient": 26.1,
+        "learn": 8.8,
+        "implement": 23.2,
+        "verify": 16.6,
+        "test-authoring": 6.8,
+        "think": 5.4
+      },
+      "attributedShare": 1,
+      "iterations": 5,
+      "effectiveIterations": 5,
+      "edits": 8,
+      "editRounds": 3,
+      "failures": [
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "Exit code 1",
+          "catalog": [],
+          "cause": "other",
+          "t": 38
+        },
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "Cannot find package 'playwright' imported from test-app.mjs",
+          "catalog": [],
+          "cause": "other",
+          "t": 42
+        },
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "Cannot find module 'index.js' imported from test-app.mjs",
+          "catalog": [],
+          "cause": "other",
+          "t": 55
+        },
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "Exit code 1",
+          "catalog": [],
+          "cause": "other",
+          "t": 81
+        }
+      ],
+      "episodes": [],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 8.8
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": []
+      },
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 51570,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                357
+              ]
+            ],
+            "linesSeen": 357,
+            "fileLines": 357,
+            "bytes": 51570,
+            "how": [
+              "skill-tool"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Canonical examples",
+          "SKILL.md#State update, ABORT, set / toggle, controlled input",
+          "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
+          "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
+          "SKILL.md#Extract a component without changing the markup",
+          "SKILL.md#Commands (parent → child) + EFFECT",
+          "SKILL.md#Drivers (driverFromAsync + errors()), document-level events",
+          "SKILL.md#Latest response only (stale replies)",
+          "SKILL.md#4. API facts",
+          "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#6. Canonical forms (never write the right-hand column)",
+          "SKILL.md#7. Testing your change",
+          "SKILL.md#8. Diagnostics and tools",
+          "SKILL.md#9. Project setup (Vite)",
+          "SKILL.md#10. Where to look next"
+        ],
+        "library": {
+          "playwright": [
+            "index.js"
+          ]
+        },
+        "libraryBytes": 1144
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "trialDir": "/private/tmp/sygnal-evals/trials/e7-haiku/sygnal-01-t3",
+      "diff": {
+        "added": 58,
+        "removed": 0,
+        "files": {
+          "src/App.jsx": {
+            "added": 6,
+            "removed": 0,
+            "status": "modified"
+          },
+          "src/App.test.js": {
+            "added": 52,
+            "removed": 0,
+            "status": "new"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.js"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 0,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "finalReportChars": 1258
+    },
+    {
+      "trial": "sygnal-01-t4",
+      "run": "e7-haiku",
+      "arm": "sygnal",
+      "task": "01-clear-completed",
+      "trialNo": 4,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 3,
+        "testsTotal": 3,
+        "wallSeconds": 84,
+        "iterations": 6,
+        "editRounds": 3
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 204,
+        "output": 42,
+        "cacheRead": 743881,
+        "cacheCreation": 27581,
+        "messages": 25,
+        "peakContext": 37421,
+        "total": 771708
+      },
+      "usage": {
+        "tokens": 777983,
+        "outputTokens": 6317,
+        "costUsd": 0.16133910000000007,
+        "durationMs": 82528,
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "toolCalls": {
+        "total": 24,
+        "byTool": {
+          "Skill": 2,
+          "Bash": 11,
+          "Read": 4,
+          "Edit": 6,
+          "Write": 1
+        }
+      },
+      "wallSeconds": 82.5,
+      "phases": {
+        "orient": 17.4,
+        "learn": 7.8,
+        "implement": 13.4,
+        "verify": 15.9,
+        "test-authoring": 6.4,
+        "debug": 15.8,
+        "think": 5.6
+      },
+      "attributedShare": 1,
+      "iterations": 6,
+      "effectiveIterations": 6,
+      "edits": 8,
+      "editRounds": 3,
+      "failures": [
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "Exit code 1",
+          "catalog": [],
+          "cause": "other",
+          "t": 30
+        },
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "Cannot find package 'puppeteer' imported from test-app.js",
+          "catalog": [],
+          "cause": "other",
+          "t": 46
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "AssertionError: expected '' to contain '2 remaining'",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 56
+        },
+        {
+          "kind": "command",
+          "tool": "Edit",
+          "signature": "<tool_use_error>String to replace not found in file.",
+          "catalog": [],
+          "cause": "other",
+          "t": 60
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 15.8,
+          "iterations": 1,
+          "signature": "AssertionError: expected '' to contain '2 remaining'",
+          "signatures": [
+            "AssertionError: expected '' to contain '2 remaining'"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "resolved": true,
+          "t": 56
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 7.8
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": []
+      },
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 51570,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                357
+              ]
+            ],
+            "linesSeen": 357,
+            "fileLines": 357,
+            "bytes": 51570,
+            "how": [
+              "skill-tool"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Canonical examples",
+          "SKILL.md#State update, ABORT, set / toggle, controlled input",
+          "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
+          "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
+          "SKILL.md#Extract a component without changing the markup",
+          "SKILL.md#Commands (parent → child) + EFFECT",
+          "SKILL.md#Drivers (driverFromAsync + errors()), document-level events",
+          "SKILL.md#Latest response only (stale replies)",
+          "SKILL.md#4. API facts",
+          "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#6. Canonical forms (never write the right-hand column)",
+          "SKILL.md#7. Testing your change",
+          "SKILL.md#8. Diagnostics and tools",
+          "SKILL.md#9. Project setup (Vite)",
+          "SKILL.md#10. Where to look next"
+        ],
+        "library": {},
+        "libraryBytes": 0
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "trialDir": "/private/tmp/sygnal-evals/trials/e7-haiku/sygnal-01-t4",
+      "diff": {
+        "added": 53,
+        "removed": 0,
+        "files": {
+          "src/App.jsx": {
+            "added": 6,
+            "removed": 0,
+            "status": "modified"
+          },
+          "src/App.test.js": {
+            "added": 47,
+            "removed": 0,
+            "status": "new"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.js"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 0,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "finalReportChars": 939
+    },
+    {
+      "trial": "sygnal-01-t5",
+      "run": "e7-haiku",
+      "arm": "sygnal",
+      "task": "01-clear-completed",
+      "trialNo": 5,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 3,
+        "testsTotal": 3,
+        "wallSeconds": 97,
+        "iterations": 7,
+        "editRounds": 3
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 228,
+        "output": 56,
+        "cacheRead": 832164,
+        "cacheCreation": 27273,
+        "messages": 28,
+        "peakContext": 37118,
+        "total": 859721
+      },
+      "usage": {
+        "tokens": 866158,
+        "outputTokens": 6493,
+        "costUsd": 0.1704554,
+        "durationMs": 95642,
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "toolCalls": {
+        "total": 27,
+        "byTool": {
+          "Skill": 2,
+          "Bash": 14,
+          "Read": 5,
+          "Edit": 5,
+          "Write": 1
+        }
+      },
+      "wallSeconds": 95.6,
+      "phases": {
+        "orient": 21,
+        "learn": 7,
+        "implement": 13.7,
+        "verify": 25.9,
+        "test-authoring": 6.6,
+        "debug": 21.4
+      },
+      "attributedShare": 1,
+      "iterations": 7,
+      "effectiveIterations": 7,
+      "edits": 7,
+      "editRounds": 3,
+      "failures": [
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "Exit code 1",
+          "catalog": [],
+          "cause": "other",
+          "t": 33
+        },
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "Cannot find package 'playwright' imported from test-app.mjs",
+          "catalog": [],
+          "cause": "other",
+          "t": 49
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "Error: next timed out after Nms. A state recorded before this next() call already matches the predicate (t.states[0]); next() only matches new states. Use t.wai",
+          "catalog": [],
+          "friction": [],
+          "cause": "other",
+          "t": 66
+        },
+        {
+          "kind": "command",
+          "tool": "Edit",
+          "signature": "<tool_use_error>String to replace not found in file.",
+          "catalog": [],
+          "cause": "other",
+          "t": 70
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "Exit code 144",
+          "catalog": [],
+          "friction": [],
+          "cause": "other",
+          "t": 87
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 12.7,
+          "iterations": 1,
+          "signature": "Error: next timed out after Nms. A state recorded before this next() call already matches the predicate (t.states[0]); next() only matches new states. Use t.wai",
+          "signatures": [
+            "Error: next timed out after Nms. A state recorded before this next() call already matches the predicate (t.states[0]); next() only matches new states. Use t.wai"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "other",
+          "resolved": true,
+          "t": 66
+        },
+        {
+          "seconds": 8.7,
+          "iterations": 0,
+          "signature": "Exit code 144",
+          "signatures": [
+            "Exit code 144"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "other",
+          "resolved": false,
+          "t": 87
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 7
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": []
+      },
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 51570,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                357
+              ]
+            ],
+            "linesSeen": 357,
+            "fileLines": 357,
+            "bytes": 51570,
+            "how": [
+              "skill-tool"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Canonical examples",
+          "SKILL.md#State update, ABORT, set / toggle, controlled input",
+          "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
+          "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
+          "SKILL.md#Extract a component without changing the markup",
+          "SKILL.md#Commands (parent → child) + EFFECT",
+          "SKILL.md#Drivers (driverFromAsync + errors()), document-level events",
+          "SKILL.md#Latest response only (stale replies)",
+          "SKILL.md#4. API facts",
+          "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#6. Canonical forms (never write the right-hand column)",
+          "SKILL.md#7. Testing your change",
+          "SKILL.md#8. Diagnostics and tools",
+          "SKILL.md#9. Project setup (Vite)",
+          "SKILL.md#10. Where to look next"
+        ],
+        "library": {},
+        "libraryBytes": 0
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "trialDir": "/private/tmp/sygnal-evals/trials/e7-haiku/sygnal-01-t5",
+      "diff": {
+        "added": 64,
+        "removed": 0,
+        "files": {
+          "src/App.jsx": {
+            "added": 6,
+            "removed": 0,
+            "status": "modified"
+          },
+          "src/App.test.js": {
+            "added": 58,
+            "removed": 0,
+            "status": "new"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.js"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 0,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "finalReportChars": 769
+    },
+    {
+      "trial": "react-02-t1",
+      "run": "e7-haiku",
+      "arm": "react",
+      "task": "02-collection-pin",
+      "trialNo": 1,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 4,
+        "testsTotal": 4,
+        "wallSeconds": 91,
+        "iterations": 6,
+        "editRounds": 2
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 219,
+        "output": 58,
+        "cacheRead": 610085,
+        "cacheCreation": 20250,
+        "messages": 27,
+        "peakContext": 30090,
+        "total": 630612
+      },
+      "usage": {
+        "tokens": 638307,
+        "outputTokens": 7753,
+        "costUsd": 0.14049250000000002,
+        "durationMs": 89340,
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "toolCalls": {
+        "total": 29,
+        "byTool": {
+          "Bash": 16,
+          "Read": 8,
+          "Edit": 4,
+          "Skill": 1
+        }
+      },
+      "wallSeconds": 89.3,
+      "phases": {
+        "orient": 28.1,
+        "implement": 12.5,
+        "verify": 15.3,
+        "learn": 4.6,
+        "test-authoring": 23.8,
+        "think": 5.1
+      },
+      "attributedShare": 1,
+      "iterations": 6,
+      "effectiveIterations": 6,
+      "edits": 6,
+      "editRounds": 2,
+      "failures": [
+        {
+          "kind": "command",
+          "tool": "Edit",
+          "signature": "<tool_use_error>File has not been read yet. Read it first before writing to it.</tool_use_error>",
+          "catalog": [],
+          "cause": "other",
+          "t": 67
+        }
+      ],
+      "episodes": [],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 4.6
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": []
+      },
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 25785,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                357
+              ]
+            ],
+            "linesSeen": 357,
+            "fileLines": 357,
+            "bytes": 25785,
+            "how": [
+              "skill-tool"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Canonical examples",
+          "SKILL.md#State update, ABORT, set / toggle, controlled input",
+          "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
+          "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
+          "SKILL.md#Extract a component without changing the markup",
+          "SKILL.md#Commands (parent → child) + EFFECT",
+          "SKILL.md#Drivers (driverFromAsync + errors()), document-level events",
+          "SKILL.md#Latest response only (stale replies)",
+          "SKILL.md#4. API facts",
+          "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#6. Canonical forms (never write the right-hand column)",
+          "SKILL.md#7. Testing your change",
+          "SKILL.md#8. Diagnostics and tools",
+          "SKILL.md#9. Project setup (Vite)",
+          "SKILL.md#10. Where to look next"
+        ],
+        "library": {},
+        "libraryBytes": 0
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "trialDir": "/private/tmp/sygnal-evals/trials/e7-haiku/react-02-t1",
+      "diff": {
+        "added": 54,
+        "removed": 3,
+        "files": {
+          "src/App.jsx": {
+            "added": 9,
+            "removed": 2,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 41,
+            "removed": 0,
+            "status": "new"
+          },
+          "src/TaskItem.jsx": {
+            "added": 4,
+            "removed": 1,
+            "status": "modified"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "testing-library"
+      ],
+      "finalReportChars": 879
+    },
+    {
+      "trial": "react-02-t2",
+      "run": "e7-haiku",
+      "arm": "react",
+      "task": "02-collection-pin",
+      "trialNo": 2,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 4,
+        "testsTotal": 4,
+        "wallSeconds": 100,
+        "iterations": 6,
+        "editRounds": 2
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 275,
+        "output": 60,
+        "cacheRead": 770453,
+        "cacheCreation": 18976,
+        "messages": 34,
+        "peakContext": 28816,
+        "total": 789764
+      },
+      "usage": {
+        "tokens": 796872,
+        "outputTokens": 7168,
+        "costUsd": 0.15111229999999992,
+        "durationMs": 99198,
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "toolCalls": {
+        "total": 33,
+        "byTool": {
+          "Bash": 24,
+          "Read": 6,
+          "Edit": 2,
+          "Skill": 1
+        }
+      },
+      "wallSeconds": 99.1,
+      "phases": {
+        "orient": 29.7,
+        "implement": 19.1,
+        "learn": 3.6,
+        "verify": 15.7,
+        "debug": 31
+      },
+      "attributedShare": 1,
+      "iterations": 6,
+      "effectiveIterations": 6,
+      "edits": 4,
+      "editRounds": 2,
+      "failures": [
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "Exit code 144",
+          "catalog": [],
+          "friction": [],
+          "cause": "other",
+          "t": 68
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 31,
+          "iterations": 0,
+          "signature": "Exit code 144",
+          "signatures": [
+            "Exit code 144"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "other",
+          "resolved": false,
+          "t": 68
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 3.6
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": []
+      },
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 25785,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                357
+              ]
+            ],
+            "linesSeen": 357,
+            "fileLines": 357,
+            "bytes": 25785,
+            "how": [
+              "skill-tool"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Canonical examples",
+          "SKILL.md#State update, ABORT, set / toggle, controlled input",
+          "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
+          "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
+          "SKILL.md#Extract a component without changing the markup",
+          "SKILL.md#Commands (parent → child) + EFFECT",
+          "SKILL.md#Drivers (driverFromAsync + errors()), document-level events",
+          "SKILL.md#Latest response only (stale replies)",
+          "SKILL.md#4. API facts",
+          "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#6. Canonical forms (never write the right-hand column)",
+          "SKILL.md#7. Testing your change",
+          "SKILL.md#8. Diagnostics and tools",
+          "SKILL.md#9. Project setup (Vite)",
+          "SKILL.md#10. Where to look next"
+        ],
+        "library": {},
+        "libraryBytes": 0
+      },
+      "selfReported": [],
+      "wroteTest": false,
+      "trialDir": "/private/tmp/sygnal-evals/trials/e7-haiku/react-02-t2",
+      "diff": {
+        "added": 9,
+        "removed": 3,
+        "files": {
+          "src/App.jsx": {
+            "added": 7,
+            "removed": 2,
+            "status": "modified"
+          },
+          "src/TaskItem.jsx": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          }
+        }
+      },
+      "keptTests": [],
+      "testApproach": [],
+      "finalReportChars": 1165
+    },
+    {
+      "trial": "react-02-t3",
+      "run": "e7-haiku",
+      "arm": "react",
+      "task": "02-collection-pin",
+      "trialNo": 3,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": false,
+        "testsPassed": 0,
+        "testsTotal": 4,
+        "wallSeconds": 123,
+        "iterations": 5,
+        "editRounds": 5
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 275,
+        "output": 69,
+        "cacheRead": 954709,
+        "cacheCreation": 31801,
+        "messages": 34,
+        "peakContext": 41643,
+        "total": 986854
+      },
+      "usage": {
+        "tokens": 998805,
+        "outputTokens": 12020,
+        "costUsd": 0.2194479,
+        "durationMs": 121694,
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "toolCalls": {
+        "total": 35,
+        "byTool": {
+          "Bash": 12,
+          "Read": 7,
+          "Edit": 12,
+          "Skill": 1,
+          "Write": 3
+        }
+      },
+      "wallSeconds": 121.7,
+      "phases": {
+        "orient": 20.7,
+        "implement": 19.6,
+        "learn": 2.8,
+        "verify": 7.5,
+        "debug": 66.3,
+        "think": 4.8
+      },
+      "attributedShare": 1,
+      "iterations": 5,
+      "effectiveIterations": 5,
+      "edits": 15,
+      "editRounds": 5,
+      "failures": [
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "Cannot find package 'playwright' imported from test-pin-feature.js",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 44
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "Error: Failed to resolve import \"@testing-library/user-event\" from \"src/App.test.jsx\". Does the file exist?",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 53
+        },
+        {
+          "kind": "command",
+          "tool": "Edit",
+          "signature": "<tool_use_error>String to replace not found in file.",
+          "catalog": [],
+          "cause": "other",
+          "t": 62
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "TestingLibraryElementError: Unable to find an element with the text: Pinned: Buy milk. This could be because the text is broken up by multiple elements. In this",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 78
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "TestingLibraryElementError: Unable to find an element with the text: Pinned: Buy milk. This could be because the text is broken up by multiple elements. In this",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 89
+        },
+        {
+          "kind": "command",
+          "tool": "Edit",
+          "signature": "<tool_use_error>String to replace not found in file.",
+          "catalog": [],
+          "cause": "other",
+          "t": 99
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 66.3,
+          "iterations": 4,
+          "signature": "Cannot find package 'playwright' imported from test-pin-feature.js",
+          "signatures": [
+            "Cannot find package 'playwright' imported from test-pin-feature.js",
+            "Error: Failed to resolve import \"@testing-library/user-event\" from \"src/App.test.jsx\". Does the file exist?",
+            "TestingLibraryElementError: Unable to find an element with the text: Pinned: Buy milk. This could be because the text is broken up by multiple elements. In this"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "resolved": true,
+          "t": 44
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 2.8
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": []
+      },
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 25785,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                357
+              ]
+            ],
+            "linesSeen": 357,
+            "fileLines": 357,
+            "bytes": 25785,
+            "how": [
+              "skill-tool"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Canonical examples",
+          "SKILL.md#State update, ABORT, set / toggle, controlled input",
+          "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
+          "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
+          "SKILL.md#Extract a component without changing the markup",
+          "SKILL.md#Commands (parent → child) + EFFECT",
+          "SKILL.md#Drivers (driverFromAsync + errors()), document-level events",
+          "SKILL.md#Latest response only (stale replies)",
+          "SKILL.md#4. API facts",
+          "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#6. Canonical forms (never write the right-hand column)",
+          "SKILL.md#7. Testing your change",
+          "SKILL.md#8. Diagnostics and tools",
+          "SKILL.md#9. Project setup (Vite)",
+          "SKILL.md#10. Where to look next"
+        ],
+        "library": {},
+        "libraryBytes": 0
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "trialDir": "/private/tmp/sygnal-evals/trials/e7-haiku/react-02-t3",
+      "diff": {
+        "added": 72,
+        "removed": 3,
+        "files": {
+          "src/App.jsx": {
+            "added": 14,
+            "removed": 2,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 54,
+            "removed": 0,
+            "status": "new"
+          },
+          "src/TaskItem.jsx": {
+            "added": 4,
+            "removed": 1,
+            "status": "modified"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "testing-library"
+      ],
+      "finalReportChars": 1046
+    },
+    {
+      "trial": "react-02-t4",
+      "run": "e7-haiku",
+      "arm": "react",
+      "task": "02-collection-pin",
+      "trialNo": 4,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 4,
+        "testsTotal": 4,
+        "wallSeconds": 57,
+        "iterations": 4,
+        "editRounds": 2
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 147,
+        "output": 33,
+        "cacheRead": 351921,
+        "cacheCreation": 14747,
+        "messages": 18,
+        "peakContext": 24587,
+        "total": 366848
+      },
+      "usage": {
+        "tokens": 371454,
+        "outputTokens": 4639,
+        "costUsd": 0.0880281,
+        "durationMs": 55934,
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "toolCalls": {
+        "total": 17,
+        "byTool": {
+          "Bash": 8,
+          "Glob": 1,
+          "Read": 5,
+          "Edit": 2,
+          "Skill": 1
+        }
+      },
+      "wallSeconds": 55.9,
+      "phases": {
+        "orient": 20.9,
+        "implement": 14.2,
+        "verify": 12.7,
+        "learn": 3,
+        "think": 5
+      },
+      "attributedShare": 1,
+      "iterations": 4,
+      "effectiveIterations": 4,
+      "edits": 3,
+      "editRounds": 2,
+      "failures": [
+        {
+          "kind": "command",
+          "tool": "Read",
+          "signature": "EISDIR: illegal operation on a directory, read 'src'",
+          "catalog": [],
+          "cause": "other",
+          "t": 7
+        },
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "Cannot find package 'playwright' imported from test-pin.mjs",
+          "catalog": [],
+          "cause": "other",
+          "t": 36
+        }
+      ],
+      "episodes": [],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 3
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": []
+      },
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 25785,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                357
+              ]
+            ],
+            "linesSeen": 357,
+            "fileLines": 357,
+            "bytes": 25785,
+            "how": [
+              "skill-tool"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Canonical examples",
+          "SKILL.md#State update, ABORT, set / toggle, controlled input",
+          "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
+          "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
+          "SKILL.md#Extract a component without changing the markup",
+          "SKILL.md#Commands (parent → child) + EFFECT",
+          "SKILL.md#Drivers (driverFromAsync + errors()), document-level events",
+          "SKILL.md#Latest response only (stale replies)",
+          "SKILL.md#4. API facts",
+          "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#6. Canonical forms (never write the right-hand column)",
+          "SKILL.md#7. Testing your change",
+          "SKILL.md#8. Diagnostics and tools",
+          "SKILL.md#9. Project setup (Vite)",
+          "SKILL.md#10. Where to look next"
+        ],
+        "library": {},
+        "libraryBytes": 0
+      },
+      "selfReported": [],
+      "wroteTest": false,
+      "trialDir": "/private/tmp/sygnal-evals/trials/e7-haiku/react-02-t4",
+      "diff": {
+        "added": 48,
+        "removed": 3,
+        "files": {
+          "src/App.jsx": {
+            "added": 8,
+            "removed": 2,
+            "status": "modified"
+          },
+          "src/TaskItem.jsx": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "test-pin.mjs": {
+            "added": 38,
+            "removed": 0,
+            "status": "new"
+          }
+        }
+      },
+      "keptTests": [],
+      "testApproach": [],
+      "finalReportChars": 851
+    },
+    {
+      "trial": "sygnal-02-t1",
+      "run": "e7-haiku",
+      "arm": "sygnal",
+      "task": "02-collection-pin",
+      "trialNo": 1,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 4,
+        "testsTotal": 4,
+        "wallSeconds": 85,
+        "iterations": 6,
+        "editRounds": 3
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 236,
+        "output": 82,
+        "cacheRead": 884496,
+        "cacheCreation": 28881,
+        "messages": 29,
+        "peakContext": 38724,
+        "total": 913695
+      },
+      "usage": {
+        "tokens": 920436,
+        "outputTokens": 6823,
+        "costUsd": 0.1805626,
+        "durationMs": 83163,
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "toolCalls": {
+        "total": 28,
+        "byTool": {
+          "Skill": 2,
+          "Bash": 14,
+          "Read": 6,
+          "Edit": 5,
+          "Write": 1
+        }
+      },
+      "wallSeconds": 83.1,
+      "phases": {
+        "orient": 24.2,
+        "learn": 6.3,
+        "implement": 9.1,
+        "verify": 18.6,
+        "test-authoring": 6.3,
+        "debug": 13.2,
+        "think": 5.3
+      },
+      "attributedShare": 1,
+      "iterations": 6,
+      "effectiveIterations": 6,
+      "edits": 7,
+      "editRounds": 3,
+      "failures": [
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "AssertionError: expected '' to contain 'Nothing pinned'",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 47
+        },
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "Cannot find package 'sygnal' imported from test-debug.js",
+          "catalog": [],
+          "cause": "other",
+          "t": 49
+        },
+        {
+          "kind": "command",
+          "tool": "Edit",
+          "signature": "<tool_use_error>String to replace not found in file.",
+          "catalog": [],
+          "cause": "other",
+          "t": 52
+        },
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "Exit code 1",
+          "catalog": [],
+          "cause": "other",
+          "t": 63
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 13.2,
+          "iterations": 1,
+          "signature": "AssertionError: expected '' to contain 'Nothing pinned'",
+          "signatures": [
+            "AssertionError: expected '' to contain 'Nothing pinned'"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "resolved": true,
+          "t": 47
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 6.3
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": []
+      },
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 51570,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                357
+              ]
+            ],
+            "linesSeen": 357,
+            "fileLines": 357,
+            "bytes": 51570,
+            "how": [
+              "skill-tool"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Canonical examples",
+          "SKILL.md#State update, ABORT, set / toggle, controlled input",
+          "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
+          "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
+          "SKILL.md#Extract a component without changing the markup",
+          "SKILL.md#Commands (parent → child) + EFFECT",
+          "SKILL.md#Drivers (driverFromAsync + errors()), document-level events",
+          "SKILL.md#Latest response only (stale replies)",
+          "SKILL.md#4. API facts",
+          "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#6. Canonical forms (never write the right-hand column)",
+          "SKILL.md#7. Testing your change",
+          "SKILL.md#8. Diagnostics and tools",
+          "SKILL.md#9. Project setup (Vite)",
+          "SKILL.md#10. Where to look next"
+        ],
+        "library": {},
+        "libraryBytes": 0
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "trialDir": "/private/tmp/sygnal-evals/trials/e7-haiku/sygnal-02-t1",
+      "diff": {
+        "added": 59,
+        "removed": 1,
+        "files": {
+          "src/App.jsx": {
+            "added": 11,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.test.js": {
+            "added": 45,
+            "removed": 0,
+            "status": "new"
+          },
+          "src/TaskItem.jsx": {
+            "added": 3,
+            "removed": 0,
+            "status": "modified"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.js"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 1,
+        "positionalView": 0,
+        "abortReturns": 0,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "finalReportChars": 984
+    },
+    {
+      "trial": "sygnal-02-t2",
+      "run": "e7-haiku",
+      "arm": "sygnal",
+      "task": "02-collection-pin",
+      "trialNo": 2,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 4,
+        "testsTotal": 4,
+        "wallSeconds": 87,
+        "iterations": 5,
+        "editRounds": 3
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 188,
+        "output": 44,
+        "cacheRead": 691925,
+        "cacheCreation": 28391,
+        "messages": 23,
+        "peakContext": 38231,
+        "total": 720548
+      },
+      "usage": {
+        "tokens": 727965,
+        "outputTokens": 7461,
+        "costUsd": 0.16346750000000002,
+        "durationMs": 85842,
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "toolCalls": {
+        "total": 24,
+        "byTool": {
+          "Skill": 2,
+          "Bash": 12,
+          "Read": 4,
+          "Edit": 5,
+          "Write": 1
+        }
+      },
+      "wallSeconds": 85.7,
+      "phases": {
+        "orient": 15,
+        "learn": 5.6,
+        "implement": 23.9,
+        "verify": 14.8,
+        "test-authoring": 6.1,
+        "debug": 16,
+        "think": 4.3
+      },
+      "attributedShare": 1,
+      "iterations": 5,
+      "effectiveIterations": 5,
+      "edits": 8,
+      "editRounds": 3,
+      "failures": [
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "Cannot find package 'playwright' imported from test-pin.js",
+          "catalog": [],
+          "cause": "other",
+          "t": 41
+        },
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "Exit code 1",
+          "catalog": [],
+          "cause": "other",
+          "t": 49
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "AssertionError: expected '' to contain 'Nothing pinned'",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 58
+        },
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "Exit code 1",
+          "catalog": [],
+          "cause": "other",
+          "t": 77
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 16,
+          "iterations": 1,
+          "signature": "AssertionError: expected '' to contain 'Nothing pinned'",
+          "signatures": [
+            "AssertionError: expected '' to contain 'Nothing pinned'"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "resolved": true,
+          "t": 58
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 5.6
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": []
+      },
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 51570,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                357
+              ]
+            ],
+            "linesSeen": 357,
+            "fileLines": 357,
+            "bytes": 51570,
+            "how": [
+              "skill-tool"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Canonical examples",
+          "SKILL.md#State update, ABORT, set / toggle, controlled input",
+          "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
+          "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
+          "SKILL.md#Extract a component without changing the markup",
+          "SKILL.md#Commands (parent → child) + EFFECT",
+          "SKILL.md#Drivers (driverFromAsync + errors()), document-level events",
+          "SKILL.md#Latest response only (stale replies)",
+          "SKILL.md#4. API facts",
+          "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#6. Canonical forms (never write the right-hand column)",
+          "SKILL.md#7. Testing your change",
+          "SKILL.md#8. Diagnostics and tools",
+          "SKILL.md#9. Project setup (Vite)",
+          "SKILL.md#10. Where to look next"
+        ],
+        "library": {},
+        "libraryBytes": 0
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "trialDir": "/private/tmp/sygnal-evals/trials/e7-haiku/sygnal-02-t2",
+      "diff": {
+        "added": 69,
+        "removed": 1,
+        "files": {
+          "src/App.jsx": {
+            "added": 10,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.test.js": {
+            "added": 56,
+            "removed": 0,
+            "status": "new"
+          },
+          "src/TaskItem.jsx": {
+            "added": 3,
+            "removed": 0,
+            "status": "modified"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.js"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 1,
+        "positionalView": 0,
+        "abortReturns": 0,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "finalReportChars": 1112
+    },
+    {
+      "trial": "sygnal-02-t3",
+      "run": "e7-haiku",
+      "arm": "sygnal",
+      "task": "02-collection-pin",
+      "trialNo": 3,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": false,
+        "testsPassed": 0,
+        "testsTotal": 4,
+        "wallSeconds": 92,
+        "iterations": 6,
+        "editRounds": 3
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 213,
+        "output": 56,
+        "cacheRead": 795960,
+        "cacheCreation": 28531,
+        "messages": 26,
+        "peakContext": 38373,
+        "total": 824760
+      },
+      "usage": {
+        "tokens": 832009,
+        "outputTokens": 7305,
+        "costUsd": 0.17339599999999997,
+        "durationMs": 91032,
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "toolCalls": {
+        "total": 27,
+        "byTool": {
+          "Skill": 2,
+          "Bash": 13,
+          "Glob": 2,
+          "Read": 5,
+          "Edit": 4,
+          "Write": 1
+        }
+      },
+      "wallSeconds": 91,
+      "phases": {
+        "orient": 25.2,
+        "learn": 8.2,
+        "implement": 19.5,
+        "verify": 14.9,
+        "test-authoring": 6.8,
+        "debug": 12.4,
+        "think": 3.9
+      },
+      "attributedShare": 1,
+      "iterations": 6,
+      "effectiveIterations": 6,
+      "edits": 6,
+      "editRounds": 3,
+      "failures": [
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "Exit code 1",
+          "catalog": [],
+          "cause": "other",
+          "t": 35
+        },
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "Cannot find package 'playwright' imported from test-pin.js",
+          "catalog": [],
+          "cause": "other",
+          "t": 52
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "AssertionError: expected '' to contain 'Nothing pinned'",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 69
+        },
+        {
+          "kind": "command",
+          "tool": "Edit",
+          "signature": "<tool_use_error>String to replace not found in file.",
+          "catalog": [],
+          "cause": "other",
+          "t": 73
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 12.4,
+          "iterations": 1,
+          "signature": "AssertionError: expected '' to contain 'Nothing pinned'",
+          "signatures": [
+            "AssertionError: expected '' to contain 'Nothing pinned'"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "resolved": true,
+          "t": 69
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 8.2
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": []
+      },
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 51570,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                357
+              ]
+            ],
+            "linesSeen": 357,
+            "fileLines": 357,
+            "bytes": 51570,
+            "how": [
+              "skill-tool"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Canonical examples",
+          "SKILL.md#State update, ABORT, set / toggle, controlled input",
+          "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
+          "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
+          "SKILL.md#Extract a component without changing the markup",
+          "SKILL.md#Commands (parent → child) + EFFECT",
+          "SKILL.md#Drivers (driverFromAsync + errors()), document-level events",
+          "SKILL.md#Latest response only (stale replies)",
+          "SKILL.md#4. API facts",
+          "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#6. Canonical forms (never write the right-hand column)",
+          "SKILL.md#7. Testing your change",
+          "SKILL.md#8. Diagnostics and tools",
+          "SKILL.md#9. Project setup (Vite)",
+          "SKILL.md#10. Where to look next"
+        ],
+        "library": {},
+        "libraryBytes": 0
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "trialDir": "/private/tmp/sygnal-evals/trials/e7-haiku/sygnal-02-t3",
+      "diff": {
+        "added": 52,
+        "removed": 1,
+        "files": {
+          "src/App.jsx": {
+            "added": 10,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.test.js": {
+            "added": 39,
+            "removed": 0,
+            "status": "new"
+          },
+          "src/TaskItem.jsx": {
+            "added": 3,
+            "removed": 0,
+            "status": "modified"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.js"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 1,
+        "positionalView": 0,
+        "abortReturns": 0,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "finalReportChars": 1052
+    },
+    {
+      "trial": "sygnal-02-t4",
+      "run": "e7-haiku",
+      "arm": "sygnal",
+      "task": "02-collection-pin",
+      "trialNo": 4,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 4,
+        "testsTotal": 4,
+        "wallSeconds": 90,
+        "iterations": 6,
+        "editRounds": 3
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 260,
+        "output": 83,
+        "cacheRead": 1021145,
+        "cacheCreation": 30830,
+        "messages": 32,
+        "peakContext": 40670,
+        "total": 1052318
+      },
+      "usage": {
+        "tokens": 1060306,
+        "outputTokens": 8071,
+        "costUsd": 0.20438950000000006,
+        "durationMs": 87855,
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "toolCalls": {
+        "total": 31,
+        "byTool": {
+          "Skill": 2,
+          "Glob": 1,
+          "Read": 9,
+          "Bash": 12,
+          "Edit": 6,
+          "Write": 1
+        }
+      },
+      "wallSeconds": 87.8,
+      "phases": {
+        "orient": 24.8,
+        "learn": 5.7,
+        "implement": 14.9,
+        "verify": 15.8,
+        "test-authoring": 5.6,
+        "debug": 15.4,
+        "think": 5.6
+      },
+      "attributedShare": 1,
+      "iterations": 6,
+      "effectiveIterations": 6,
+      "edits": 8,
+      "editRounds": 3,
+      "failures": [
+        {
+          "kind": "command",
+          "tool": "Read",
+          "signature": "EISDIR: illegal operation on a directory, read 'src'",
+          "catalog": [],
+          "cause": "other",
+          "t": 7
+        },
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "Exit code 1",
+          "catalog": [],
+          "cause": "other",
+          "t": 29
+        },
+        {
+          "kind": "command",
+          "tool": "Read",
+          "signature": "EISDIR: illegal operation on a directory, read 'sygnal-02-t4'",
+          "catalog": [],
+          "cause": "other",
+          "t": 34
+        },
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "Cannot find package 'playwright' imported from test_app.mjs",
+          "catalog": [],
+          "cause": "other",
+          "t": 46
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "AssertionError: expected '' to contain 'Nothing pinned'",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 59
+        },
+        {
+          "kind": "command",
+          "tool": "Edit",
+          "signature": "<tool_use_error>String to replace not found in file.",
+          "catalog": [],
+          "cause": "other",
+          "t": 61
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 15.4,
+          "iterations": 1,
+          "signature": "AssertionError: expected '' to contain 'Nothing pinned'",
+          "signatures": [
+            "AssertionError: expected '' to contain 'Nothing pinned'"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "resolved": true,
+          "t": 59
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 5.7
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": []
+      },
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 51570,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                357
+              ]
+            ],
+            "linesSeen": 357,
+            "fileLines": 357,
+            "bytes": 51570,
+            "how": [
+              "skill-tool"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Canonical examples",
+          "SKILL.md#State update, ABORT, set / toggle, controlled input",
+          "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
+          "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
+          "SKILL.md#Extract a component without changing the markup",
+          "SKILL.md#Commands (parent → child) + EFFECT",
+          "SKILL.md#Drivers (driverFromAsync + errors()), document-level events",
+          "SKILL.md#Latest response only (stale replies)",
+          "SKILL.md#4. API facts",
+          "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#6. Canonical forms (never write the right-hand column)",
+          "SKILL.md#7. Testing your change",
+          "SKILL.md#8. Diagnostics and tools",
+          "SKILL.md#9. Project setup (Vite)",
+          "SKILL.md#10. Where to look next"
+        ],
+        "library": {},
+        "libraryBytes": 0
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "trialDir": "/private/tmp/sygnal-evals/trials/e7-haiku/sygnal-02-t4",
+      "diff": {
+        "added": 71,
+        "removed": 1,
+        "files": {
+          "src/App.jsx": {
+            "added": 11,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.test.js": {
+            "added": 57,
+            "removed": 0,
+            "status": "new"
+          },
+          "src/TaskItem.jsx": {
+            "added": 3,
+            "removed": 0,
+            "status": "modified"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.js"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 1,
+        "positionalView": 0,
+        "abortReturns": 0,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "finalReportChars": 1240
+    },
+    {
+      "trial": "sygnal-02-t5",
+      "run": "e7-haiku",
+      "arm": "sygnal",
+      "task": "02-collection-pin",
+      "trialNo": 5,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 4,
+        "testsTotal": 4,
+        "wallSeconds": 74,
+        "iterations": 5,
+        "editRounds": 2
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 173,
+        "output": 56,
+        "cacheRead": 606591,
+        "cacheCreation": 25646,
+        "messages": 21,
+        "peakContext": 35488,
+        "total": 632466
+      },
+      "usage": {
+        "tokens": 637883,
+        "outputTokens": 5473,
+        "costUsd": 0.1394891,
+        "durationMs": 72945,
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "toolCalls": {
+        "total": 23,
+        "byTool": {
+          "Skill": 2,
+          "Read": 6,
+          "Bash": 12,
+          "Edit": 2,
+          "Write": 1
+        }
+      },
+      "wallSeconds": 72.8,
+      "phases": {
+        "orient": 19.5,
+        "learn": 5,
+        "implement": 10.2,
+        "verify": 22.9,
+        "test-authoring": 6.1,
+        "debug": 9.2
+      },
+      "attributedShare": 1,
+      "iterations": 5,
+      "effectiveIterations": 5,
+      "edits": 3,
+      "editRounds": 2,
+      "failures": [
+        {
+          "kind": "command",
+          "tool": "Read",
+          "signature": "EISDIR: illegal operation on a directory, read 'sygnal-02-t5'",
+          "catalog": [],
+          "cause": "other",
+          "t": 3
+        },
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "Exit code 1",
+          "catalog": [],
+          "cause": "other",
+          "t": 32
+        },
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "Exit code 1",
+          "catalog": [],
+          "cause": "other",
+          "t": 45
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "TypeError [ERR_UNKNOWN_FILE_EXTENSION]: Unknown file extension \".jsx\" for App.jsx",
+          "catalog": [],
+          "friction": [],
+          "cause": "other",
+          "t": 64
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 9.2,
+          "iterations": 0,
+          "signature": "TypeError [ERR_UNKNOWN_FILE_EXTENSION]: Unknown file extension \".jsx\" for App.jsx",
+          "signatures": [
+            "TypeError [ERR_UNKNOWN_FILE_EXTENSION]: Unknown file extension \".jsx\" for App.jsx"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "other",
+          "resolved": false,
+          "t": 64
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 5
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": []
+      },
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 51570,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                357
+              ]
+            ],
+            "linesSeen": 357,
+            "fileLines": 357,
+            "bytes": 51570,
+            "how": [
+              "skill-tool"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Canonical examples",
+          "SKILL.md#State update, ABORT, set / toggle, controlled input",
+          "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
+          "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
+          "SKILL.md#Extract a component without changing the markup",
+          "SKILL.md#Commands (parent → child) + EFFECT",
+          "SKILL.md#Drivers (driverFromAsync + errors()), document-level events",
+          "SKILL.md#Latest response only (stale replies)",
+          "SKILL.md#4. API facts",
+          "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#6. Canonical forms (never write the right-hand column)",
+          "SKILL.md#7. Testing your change",
+          "SKILL.md#8. Diagnostics and tools",
+          "SKILL.md#9. Project setup (Vite)",
+          "SKILL.md#10. Where to look next"
+        ],
+        "library": {},
+        "libraryBytes": 0
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "trialDir": "/private/tmp/sygnal-evals/trials/e7-haiku/sygnal-02-t5",
+      "diff": {
+        "added": 74,
+        "removed": 1,
+        "files": {
+          "src/App.jsx": {
+            "added": 14,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.test.js": {
+            "added": 57,
+            "removed": 0,
+            "status": "new"
+          },
+          "src/TaskItem.jsx": {
+            "added": 3,
+            "removed": 0,
+            "status": "modified"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.js"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 1,
+        "positionalView": 0,
+        "abortReturns": 0,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "finalReportChars": 1004
+    }
+  ]
+}

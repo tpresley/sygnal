@@ -178,6 +178,12 @@ export interface DiagnosticCheck {
   onSelector?: (domSource: any, selector: string) => void
   onBusEmit?: (type: string, emitterName?: string) => void
   onBusSelect?: (type: string | string[] | undefined) => void
+  /**
+   * (additive, PLAN-2 E2) Called before a component's intent runs. May return a replacement
+   * for `sources` (e.g. a Proxy that reports or fakes a source with no driver); the intent
+   * gets the last one returned. See sourcesFor().
+   */
+  sources?: (component: any, sources: any) => any
 }
 
 export class DiagnosticError extends Error {
@@ -314,6 +320,20 @@ export const onDispose: (component: any) => void = hook('onDispose')
 export const onSelector: (domSource: any, selector: string) => void = hook('onSelector')
 export const onBusEmit: (type: string, emitterName?: string) => void = hook('onBusEmit')
 export const onBusSelect: (type: string | string[] | undefined) => void = hook('onBusSelect')
+
+/**
+ * (PLAN-2 E2) The sources object a component's intent is called with: `component.sources`,
+ * wrapped by every active check with a `sources` hook (the dev entry's SYG609 check,
+ * renderComponent's fake sources). Without such a check it is `component.sources` itself.
+ */
+export function sourcesFor(component: any): any {
+  let s = component.sources
+  for (const check of checks) {
+    if (!check.sources || (!enabled && !check.always)) continue
+    try { s = check.sources(component, s) || s } catch (_) {}
+  }
+  return s
+}
 
 // Bridge for the separately bundled 'sygnal/diagnostics' checks entry.
 ;(globalThis as any).__SYGNAL_DIAGNOSTICS__ = { registerCheck, report }

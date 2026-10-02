@@ -455,6 +455,13 @@ export const EXPLANATIONS = {
     explanation: "`run(App, drivers, { diagnostics: { strict: true } })` was called but the `sygnal/diagnostics` dev entry is not loaded. The strict (canonical-form) checks live in that entry, so no strict findings are reported; the option still turns diagnostics on. Printed once per page load.",
     fix: "Import the dev entry before `run()` in development (`import 'sygnal/diagnostics'`), or use the Sygnal Vite plugin, which injects it in dev. Do not ship it in production builds.",
   },
+  SYG609: {
+    title: "Sink or source has no driver",
+    severity: "warn",
+    reportedBy: ["dev-entry"],
+    explanation: "A component's model sends to a sink (for example `HTTP: (state) => ({ url: '/api/x' })`), or its intent reads a source (`HTTP.select('x')`), but `run()` got no driver with that name. Values sent to a sink without a driver are dropped silently, and a source without a driver is `undefined`, so the intent then fails with \"Cannot read properties of undefined\". `renderComponent()` does not report this: in tests it records such sinks (`t.requests(name)`) and fakes such sources (`t.respond` / `t.fail`).",
+    fix: "Pass the driver to `run()` under exactly that name: `run(App, { HTTP: makeFetchDriver() })` for HTTP requests, `driverFromAsync(fn)` for any promise-returning function, or your own driver. Check the spelling against the drivers you pass.",
+  },
   SYG900: {
     title: "A diagnostics check threw",
     severity: "warn",

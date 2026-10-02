@@ -190,47 +190,34 @@ Controls.initialState = { player: { playing: false } }
 Controls.intent = ({ DOM }) => ({ PLAY: DOM.click('.play') })
 Controls.model = { PLAY: { EFFECT: () => player.send('play') } }  // EFFECT: side effect only, returns nothing
 ```
-### Drivers (driverFromAsync + errors()), document-level events
+### HTTP (makeFetchDriver + errors()), latest response only
 ```jsx
-import { xs } from 'sygnal'
-
-function Quote({ state }) {
-  return <div><button className="load">Load</button><p className="text">{state.error || state.text}</p></div>
+import { ABORT, debounce } from 'sygnal'
+function Search({ state }) {
+  return <div><input className="q" value={state.query} /><p className="status">{state.status}</p><ul>{state.results.map(r => <li>{r.title}</li>)}</ul></div>
 }
-Quote.initialState = { id: 1, text: '', error: null }
-Quote.intent = ({ DOM, QUOTE }) => ({
-  LOAD:   xs.merge(DOM.click('.load'), DOM.select('document').events('keydown').key().filter(k => k === 'r')),
-  LOADED: QUOTE.select('quote'),   // { category: 'quote', value }
-  FAILED: QUOTE.errors('quote'),   // { error, category, request }; unheard errors are only console.error'd
+Search.initialState = { query: '', status: '', results: [] }
+Search.intent = ({ DOM, HTTP }) => ({
+  TYPE:    DOM.input('.q').value(),
+  SEARCH:  DOM.input('.q').value().compose(debounce(300)).filter(q => q !== ''),
+  RESULTS: HTTP.select('search'),  // 2xx only: { category, value (parsed body), status, request }
+  FAILED:  HTTP.errors('search'),  // non-2xx, network error, timeout: { error, category, request, status, body }
 })
-Quote.model = {
-  LOAD:   { QUOTE: (state) => ({ category: 'quote', value: state.id }) },
-  LOADED: (state, { value }) => ({ ...state, text: value.text, error: null }),
-  FAILED: (state, { error }) => ({ ...state, error: String(error) }),
-}
-```
-```js
-// main.js. A request { category, value } calls fn(value); the reply is { category, value: result }
-import { run, driverFromAsync } from 'sygnal'
-import Quote from './Quote.jsx'
-run(Quote, { QUOTE: driverFromAsync(id => fetch(`/api/quotes/${id}`).then(r => r.json())) })
-```
-A driver is any function `sink$ => source`. Page-wide events: `DOM.select('document' | 'body').events(type)`, CSS-filtered with `DOM.select('document').select('.overlay').events('click')`.
-### Latest response only (stale replies)
-Replies arrive in settle order. Keep a request id in state, send it with the request, have the driver echo it, and `ABORT` older replies and failures. Clearing bumps the id too, so an in-flight reply is dropped.
-```jsx
 Search.model = {
-  TYPE: (state, query) => (query === '' ? { ...state, query, reqId: state.reqId + 1, loading: false, results: [] } : { ...state, query }),
-  SEARCH: {   // intent: SEARCH: query$.compose(debounce(300)).filter(q => q !== '')
-    STATE:  (state) => ({ ...state, reqId: state.reqId + 1, loading: true }),
-    SEARCH: (state, q) => ({ category: 'search', value: { id: state.reqId + 1, q } }),   // sinks see the pre-action state
+  TYPE: {
+    STATE: (state, query) => (query === '' ? { ...state, query, status: '', results: [] } : { ...state, query }),
+    HTTP:  (state, query) => (query === '' ? { category: 'search', abort: true } : ABORT),  // clearing cancels the request in flight
   },
-  RESULTS: (state, { value }) => (value.id !== state.reqId ? ABORT : { ...state, loading: false, results: value.results }),
-  FAILED:  (state, { request }) => (request.value.id !== state.reqId ? ABORT : { ...state, loading: false, error: 'Search failed.' }),
+  SEARCH: {
+    STATE: (state) => ({ ...state, status: 'Searching…' }),
+    HTTP:  (state, q) => ({ category: 'search', url: '/api/search', query: { q }, latest: true }),  // aborts older 'search' requests
+  },
+  RESULTS: (state, { value }) => ({ ...state, status: '', results: value.results }),
+  FAILED:  (state, { status }) => ({ ...state, status: status === 404 ? 'Not found.' : 'Search failed.', results: [] }),
 }
-// driver: driverFromAsync(async ({ id, q }) => ({ id, results: await searchApi(q) }))
 ```
-Full version: https://sygnal.js.org/guide/drivers/#only-the-latest-response-stale-requests
+- main.js: `run(Search, { HTTP: makeFetchDriver() })` (import both from `'sygnal'`; options `baseUrl headers latest timeoutMs`). Request: `{ url, category, query, json, body, method (POST with json/body, else GET), headers, latest, timeoutMs, parse: 'auto' | 'json' | 'text' | 'response' }`, or a URL string. Don't call `fetch` in a component, intent or EFFECT. With `latest: true` (a newer request of the category aborts the older ones; their replies never arrive), `RESULTS`/`FAILED` need no request ids or stale checks. Guide: https://sygnal.js.org/guide/drivers/#http-requests-with-makefetchdriver
+- Other async work (no HTTP): `driverFromAsync(fn)`; a request `{ category, value }` calls `fn(value)`, the reply is `{ category, value: result }`, same `select`/`errors`. A driver is any function `sink$ => source`. Page-wide events: `DOM.select('document' | 'body').events(type)`, CSS-filtered with `DOM.select('document').select('.overlay').events('click')`.
 
 ## 4. API facts
 - **Child props**: `<Rating name="food" value={state.food} />` → `function Rating({ state, name, value })`; reducers read `props.name` (4th arg); intent gets the `props$` stream. Reserved: `state` (lens: `"key"` or `{ get, set }`), `children`, `slots`, `context`, `peers` (SYG106; an error in strict mode). Without `state=` a child shares its parent's whole state.
@@ -254,7 +241,7 @@ Full version: https://sygnal.js.org/guide/drivers/#only-the-latest-response-stal
 | `mergeMap(f)` | `.map(f).compose(flattenConcurrently)` | `concatMap(f)` | `.map(f).compose(flattenSequentially)` |
 (Last row: `import { flattenConcurrently, flattenSequentially, concat } from 'sygnal'`.)
 
-- **Imports** (all from `'sygnal'`): `run ABORT set toggle event createCommand driverFromAsync xs debounce throttle delay dropRepeats sampleCombine classes processForm processDrag makeDragDriver Collection Switchable Portal Transition Slot Suspense lazy createRef createRef$ renderComponent renderToString`; types `Component RootComponent Lens`. Never import the JSX runtime by hand; the Vite plugin configures it.
+- **Imports** (all from `'sygnal'`): `run ABORT set toggle event createCommand makeFetchDriver driverFromAsync xs debounce throttle delay dropRepeats sampleCombine classes processForm processDrag makeDragDriver Collection Switchable Portal Transition Slot Suspense lazy createRef createRef$ renderComponent renderToString`; types `Component RootComponent Lens`. Never import the JSX runtime by hand; the Vite plugin configures it.
 
 ## 5. Wiring rules (silent failures, and what catches them)
 - **Selectors are scoped to the component's own JSX (the isolation trap).** A parent's `DOM.click('.remove')` never fires for `.remove` rendered by a child or a Collection item. Handle the event in the child and send it up with `PARENT` (read with `CHILD.select(Child)`) or `EVENTS`. Caught as SYG104; a selector the view never renders is SYG110.
@@ -298,23 +285,23 @@ it('picks, then removes a task', async () => {
 })
 ```
 - `simulateEvent(sel, type, init?)`: init `{ value }`, `{ checked }`, `{ key: 'Enter' }`, `{ data: { id: 2 } }`; `'document'` targets `DOM.select('document')` listeners. Calls made before the component is ready are buffered (`await t.ready()` is optional). `sel` matches the rendered tree like the real DOM: tag, `.class`, `#id`, `[attr="v"]`, `:first-child`, `:last-child`, `:nth-child(n)`, `:nth-of-type(n)`, `:not()`, descendant and `>` (e.g. `.list:nth-child(2) .card:first-child .next`). If it matches nothing (after waiting up to 300ms for a render), the test fails with an error naming the selector (check `t.html()`, or select by attribute: `[data-id="3"]`); `{ allowMissing: true }` drops the event instead. `:has()`, `+`, `~` throw "unsupported selector syntax".
-- `t.next(pred)` matches only future states (right after `await t.ready()`, also those of the buffered calls). `t.waitForState(pred)` also matches states already recorded (e.g. the initial one), so use it only for a state that can't already exist. Both resolve after the whole tree has rendered. `t.settle()` doesn't wait out a model `next('X', data, ms)` longer than its 20ms window: `await t.next(pred)` instead (timeout errors name the pending `next()`). `t.states`, `t.emitted` (EVENTS sent) and `t.sinkValues('PARENT')` / `t.sinkValues('API')` (any sink, children's too, no driver needed) are live arrays.
+- `t.next(pred)` matches only future states (right after `await t.ready()`, also those of the buffered calls). `t.waitForState(pred)` also matches states already recorded (e.g. the initial one), so use it only for a state that can't already exist. Both resolve after the whole tree has rendered. `t.settle()` doesn't wait out a model `next('X', data, ms)` longer than its 20ms window: `await t.next(pred)` instead (timeout errors name the pending `next()`). `t.states`, `t.emitted` (EVENTS sent) and `t.sinkValues('PARENT')` / `t.sinkValues('API')` (any sink, children's too) are live arrays.
 - Debounce/delay/timer tests: use fake timers instead of sleeping out the real delay. `t.next`/`t.waitForState`/`t.settle`/`t.ready` advance the fake clock themselves until they resolve; `vi.advanceTimersByTimeAsync(ms)` moves it by hand:
 ```js
 beforeEach(() => vi.useFakeTimers())
 afterEach(() => { t?.dispose(); vi.useRealTimers() })
 
 it('searches once, 300 ms after the last keystroke', async () => {
-  t = renderComponent(Search, { drivers: { SEARCH: searchDriver } })
+  t = renderComponent(Search)                       // HTTP needs no driver in tests
   await t.ready()                                   // mount first, so the input is timed from here
   for (const q of ['d', 'du', 'dune']) { t.simulateEvent('.q', 'input', { value: q }); await vi.advanceTimersByTimeAsync(50) }
   await vi.advanceTimersByTimeAsync(249)
-  expect(fetch).not.toHaveBeenCalled()
+  expect(t.requests('HTTP')).toHaveLength(0)
   await t.next(s => s.status === 'searching')       // advances to the debounce, no real wait
-  expect(fetch).toHaveBeenCalledTimes(1)
+  expect(t.requests('HTTP')).toHaveLength(1)
 })
 ```
-- `t.simulateAction('LOADED', data)` pushes an action straight into intent → model (all sinks run). Use it for actions without a DOM trigger; for drivers prefer `drivers: { QUOTE: driverFromAsync(async () => ({ text: 'hi' })) }`.
+- `t.simulateAction('LOADED', data)` pushes an action straight into intent → model (all sinks run). Use it for actions without a DOM trigger. **Drivers need no wiring in tests**: a sink with no driver is recorded (`t.requests('HTTP')`), and its source is a fake: `t.respond('HTTP', body)` answers the newest pending request on `select()` (`{ category, value, status: 200, request }`; waits up to 1s for a debounced one), `t.fail('HTTP', 404 | error)` on `errors()`. Requests superseded by `latest: true` or aborted aren't pending. Options: a category, or `{ category, request }`.
 - With the Vite plugin, Vitest gets `sygnal/diagnostics` in its setupFiles automatically; otherwise `import 'sygnal/diagnostics'` in the test.
 - Full app in jsdom (`npm i -D jsdom`):
 ```js
