@@ -13,8 +13,8 @@ Tracks progress for [PLAN-2.md](PLAN-2.md). Maintained by the coordinator. The P
 | 0 — Release follow-through, eval infrastructure | ✅ Done | `plan2-phase0` | 0-A ✅ · 0-B ✅ · 0-C ✅ · tier-3 pilot ✅ (20/20 pass; Sygnal 66.6 s vs React 45.7 s) · v2-baseline ✅ 160/160, Sygnal 48.4 s vs React 34.1 s (1.42×), see `results/V2-BASELINE.md` |
 | 1 — Correctness backlog | ✅ Done | `plan2-phase1` | 1-A…1-F ✅ · 1-T trim ✅ · review: 6 findings + 2 notes, all fixed in 1-R · kanban 41,803 B (2 B headroom) |
 | 2 — Known ergonomics improvements | ✅ Done | `plan2-phase2` | 2-A ✅ · 2-B ✅ · 2-C ✅ · 2-D ✅ · review: 9 findings, all fixed in 2-R · targeted eval: task 08 41.8 → 27.0 s (gap 20.8 → 6.0 s), 10 −7.5 s, 11 unchanged (`results/P2-TARGETED.md`) |
-| 3 — Experiments | 🟡 In progress | — | 3-H ✅ · eval chain running (12 runs, ~700 trials) · E4 🔵 (prototype ready, eval pending 3-H) · E5 🔵 (variants ready, eval pending 3-H) · E11 🔵 (prototype ready, eval pending 3-H) · E2+E3 🟡 |
-| 4 — Adopt, measure, release | ⚪ | — | |
+| 3 — Experiments | ✅ Decided | `plan2-phase3` | 3-H ✅ · eval chain running (12 runs, ~700 trials) · E4 🔵 (prototype ready, eval pending 3-H) · E5 🔵 (variants ready, eval pending 3-H) · E11 🔵 (prototype ready, eval pending 3-H) · E2+E3 🟡 |
+| 4 — Adopt, measure, release | 🟡 In progress | — | 3-F 🟡 → 4-A1 (merge E11, E2, E4-adapted, skill adaptations) · 4-E eval fixes 🟡 · extra: E7 Haiku run 🟡, E10 TS tasks 🟡 |
 
 Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ done · 🔴 blocked
 
@@ -84,6 +84,7 @@ Legend: ⚪ not started · 🟡 in progress · 🔵 in review / merging · ✅ d
 | D50 | 2026-10-01 | Vike shell state: slices stay siblings at the root, each shell component gets a `{get,set}` lens onto its slice (not nested keys) | Coordinator | Fixes G-106 without letting outer reducers wipe inner state; 5.4.0 serialized state still hydrates |
 | D51 | 2026-10-01 | Phase 3 eval budget: full plan (~$250 API-equivalent). Trials run on the user's claude.ai subscription (no API key), so the cost is notional but counts against usage limits; the harness must handle limit errors as not-run and resume | User | — |
 | D52 | 2026-10-01 | E2: prototype (b) `makeFetchDriver()` + (a) test-side fakes; E3's latest-only lives in (b) (`latest: true`, abort superseded). (c) component `drivers` and (d) sanctioned fetch in EFFECT are not prototyped. The user flags a broader rethink of network calls (HTTP + WebSocket) for the **next major version**; E2 records notes for it | User | Fits the driver model, opt-in, 0 B unless used |
+| D53 | 2026-10-02 | Phase 3 adoption: **adopt** E2 (b)+(a) (after the Switchable fix and a task-13 re-run) and E11; **adapt** E4 (fix real-mode waits, re-measure 10/12/17), E5 (port the 4 facts into the current skill, delete `references/component-patterns.md`), E1 (sygnal-check in eval starters; drop the pretest hook), E8 (drop the MCP server from agent docs, keep the server); **drop** E9's hypothesis; E7 inconclusive → also run Haiku; run E10 (TS variants) | User | `results/PHASE3-RESULTS.md` |
 | D40 | 2026-10-01 | 0-B and 0-C build and self-verify without paid eval runs (0-B may run ≤ 2 smoke trials, `v2-smoke`, to validate the headless runner); full runs and pilots wait for Q2 | Coordinator | PLAN-2 §8 (user approves budgets per phase) |
 
 ## Bugs & Gaps Found
@@ -176,6 +177,7 @@ gzip -c /tmp/kb/assets/index-*.js | wc -c      # budget 41,805 B
 
 ## Activity Log
 
+- 2026-10-02 — D53 adoption decisions; Phase 3 tagged `plan2-phase3`. 3-F (Switchable/context bugs) running; 4-E eval fixes, E10 TS tasks, E7 Haiku run started; 4-A1 integration follows 3-F.
 - 2026-10-02 — Phase 3 evals done (batch 1: 715 trials, batch 2 E2: 20; ≈$154 API-equivalent, no usage-limit stops). Analysis in `results/PHASE3-RESULTS.md`: E1 adapt, E2 adopt (pending Switchable fix + task-13 re-run), E4 adapt (real-mode waits), E5 drop variants / port facts, E7 inconclusive, E8 drop from docs, E9 drop hypothesis, E11 adopt. New framework bugs G-120/G-121 (Switchable) and G-122 (context lag) → 3-F.
 - 2026-10-01 — 3-H merged. Phase 3 eval chain started from the user's terminal (`scratchpad/phase3-runs.sh`): p3-control (Sygnal, all tiers, `branch` variant, isolated posture) + p3-control-react, e5-lean, e5-routed, e11, e4, e1-check, e1-pretest, e8-mcp, e9-add-test, e9-no-test (both arms), e7-sonnet (both arms, all tiers). First attempt aborted at $0 (zsh didn't word-split a flags variable).
 - 2026-10-01 — Phase 3 started (D51): 3-H, E4, E5, E11 launched; E2 options sent to the user (Q3).
