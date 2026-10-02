@@ -13,13 +13,23 @@ Tracks progress for [PLAN-3.md](PLAN-3.md). Maintained by the coordinator. The P
 | `llms.txt` | 235 lines / 250; `docs/public/llms.txt` byte-identical |
 | Eval reference | `p4-final2` (Opus 5.5, guard on), `p4-haiku2` (Haiku 4.5) |
 
+**`net` tier baseline (`p3-net-baseline`, Opus 5.5, guard on, pre-routing build `cf9c641`, 20/20 pass, ≈ $5.9):**
+
+| Task | Sygnal wall s | React wall s | Gap | Sygnal / React LOC added | Sygnal / React cost | Sygnal final code |
+|---|---|---|---|---|---|---|
+| 22 chat-socket | 87.6 | 41.8 | **+45.8 s (2.10×)** | 291 / 140 | $0.55 / $0.20 | 5/5 hand-wrote a socket driver file + `main.js` wiring; 5/5 hand-rolled connection-generation ids (`connId`/`gen`) + ABORT on mismatch |
+| 23 quote-resource | 39.7 | 29.5 | +10.2 s (1.35×) | 103 / 54 | $0.30 / $0.14 | 5/5 `makeFetchDriver` + `latest: true`; 0 `fetch` in components |
+| Matched | 63.7 | 35.7 | +28 s (1.78×) | | 2.47× cost | |
+
+Delta attribution (analysis/p3-net-baseline.md): learning 11.7 s (42%, mostly reading framework source on 22), test-authoring +7 s, debug +5.1 s. Own-test failures include the G-140 trap again (`expect(() => t.fail(...)).toThrow()`, `t.fail` after supersede) and fake-socket CLOSING-state mistakes.
+
 ## Workstreams
 
 | ID | Title | Status | Branch | Agent | Merged | Notes |
 |---|---|---|---|---|---|---|
 | 0-A | Tracker, baseline, decisions Q1–Q7 | ✅ | `plan3-integration` | coordinator | this commit | Baseline above; D57–D63 |
 | 0-B | Routing-core size spike (throwaway) | ✅ | `exp/p3-routing-spike` | subagent | not merged (`d67e2d2`, reference for 1-A) | **Core +53 B** gated (42,178 B; v1 +90 → v3 +53; variant D +40 rejected: no abort-on-dispose, couples driver to core). Fetch driver +260 B (1,944 → 2,204 B incremental, esbuild+gzip, no trim pass). Shape: EVENTS `__emitterId` stamp generalised to `['EVENTS', ...routing sources]` in `initSinks`; `initAction$` merges `sources[n].routed(_componentNumber)` for sources with `__sygnalRoutes === true` (strict: the DOM source Proxy returns a function for any key); driver owns a sender→listener Map, latest key (sender, `key ?? ok`), abort on stream stop; `tagRequest` must copy the sender tag. Full gate green (vitest 1,110, browser 123). Findings G-144…G-147 |
-| 0-C | Eval tier `net`: 22-chat-socket, 23-quote-resource (both arms) | ✅ | `p3-0c-net-tier` | subagent | `dc2ae34` (`a7bc8eb`) | verify `--reruns 3` 90/90 (starters 0/7, solutions 7/7, both arms); 11 mutants × 2 arms all caught; hidden tests byte-identical across arms; harness 57/57 + analysis 45/45; Sygnal solutions/starters strict-clean. 22: `/ws/rooms/<general\|random>`, statuses Not connected/Connecting…/Online/Reconnecting…, fixed 1 s retry, own close never retries; fake `WebSocket` via `vi.stubGlobal` (CLOSING until acked). 23: `GET /api/quotes/<id>`, latest-only incl. same-id refetch, Refresh. Sygnal refs: custom socket driver (22), `makeFetchDriver` + `latest` (23). Baseline run awaiting the user (`p3-net-baseline`, ≈ 20 trials, ≈ $4.75) |
+| 0-C | Eval tier `net`: 22-chat-socket, 23-quote-resource (both arms) | ✅ | `p3-0c-net-tier` | subagent | `dc2ae34` (`a7bc8eb`) | verify `--reruns 3` 90/90 (starters 0/7, solutions 7/7, both arms); 11 mutants × 2 arms all caught; hidden tests byte-identical across arms; harness 57/57 + analysis 45/45; Sygnal solutions/starters strict-clean. 22: `/ws/rooms/<general\|random>`, statuses Not connected/Connecting…/Online/Reconnecting…, fixed 1 s retry, own close never retries; fake `WebSocket` via `vi.stubGlobal` (CLOSING until acked). 23: `GET /api/quotes/<id>`, latest-only incl. same-id refetch, Refresh. Sygnal refs: custom socket driver (22), `makeFetchDriver` + `latest` (23). Baseline `p3-net-baseline` done (see Baseline) |
 | 1-A | Routing core | ⬜ | | | | after 0-B |
 | 1-B | EFFECT hardening | ⬜ | | | | after 1-A |
 | 1-C | Test fakes (G-140, G-141, G-131) | ⬜ | | | | after 1-A |
@@ -74,3 +84,4 @@ Tracks progress for [PLAN-3.md](PLAN-3.md). Maintained by the coordinator. The P
 - 2026-10-02 — PLAN-3 approved with all §8 recommendations (D57–D63). 0-A done: baseline 42,125 B gated, llms.txt 235 lines. 0-B and 0-C started.
 - 2026-10-02 — 0-B done: routing core +53 B (fits; D64), fetch driver +260 B; spike branch kept as the 1-A reference. G-144…G-147.
 - 2026-10-02 — G-145 fixed in CLAUDE.md (user-approved). 0-C merged (`dc2ae34`): tier `net` (22, 23), verify 90/90, mutants all caught; G-148, G-149. Phase 0 code work done; the `net` baseline run is the user's (terminal).
+- 2026-10-02 — `p3-net-baseline` (user's terminal, guard on): 20/20 pass; Sygnal +45.8 s on 22 (custom socket driver + generation ids in 5/5), +10.2 s on 23 (makeFetchDriver + latest in 5/5). Phase 0 complete. 1-A and 1-G running.
