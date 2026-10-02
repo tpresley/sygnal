@@ -428,14 +428,15 @@ describe('diagnostics option', () => {
 // ─── html() ──────────────────────────────────────────────────────────────────
 
 describe('html()', () => {
-  it("returns '' before the first render and the latest HTML after", async () => {
+  it('throws before the first render (naming await t.ready()) and returns the latest HTML after', async () => {
     function App({ state }) {
       return h('div', { className: 'app' }, h('h1', null, state.title), h('input', { value: state.title, attrs: { type: 'text' } }))
     }
     App.initialState = { title: 'Hi' }
     App.model = { SET: (s, title) => ({ ...s, title }) }
     t = renderComponent(App)
-    expect(t.html()).toBe('')
+    // G-125: '' here only produced "expected '' to contain ..." in agents' tests
+    expect(() => t.html()).toThrow(/t\.html\(\) ran before the component's first render\. Wait for it first: await t\.ready\(\)/)
     await t.ready()
     expect(t.html()).toBe('<div class="app"><h1>Hi</h1><input value="Hi" type="text"></div>')
     t.simulateAction('SET', 'Yo')
@@ -452,5 +453,43 @@ describe('html()', () => {
     const html = t.html()
     expect(html).toContain('<li class="item">a</li><li class="item">b</li>')
     expect(html).not.toContain('___')
+  })
+
+  it("is '' once ready for a component that hasn't rendered (no state yet)", async () => {
+    function Later({ state }) { return h('p', null, state.text) }
+    Later.model = { SET: (s, text) => ({ text }) }
+    t = renderComponent(Later)
+    await t.ready()
+    expect(t.html()).toBe('')
+    t.simulateAction('SET', 'hi')
+    await t.next()
+    expect(t.html()).toBe('<p>hi</p>')
+  })
+})
+
+// ─── t.state (G-125) ─────────────────────────────────────────────────────────
+
+describe('t.state', () => {
+  it('is the latest recorded state (t.states.at(-1)) and read-only', async () => {
+    function C({ state }) { return h('b', null, String(state.n)) }
+    C.initialState = { n: 0 }
+    C.model = { INC: s => ({ n: s.n + 1 }) }
+    t = renderComponent(C)
+    await t.ready()
+    expect(t.state).toEqual({ n: 0 })
+    t.simulateAction('INC')
+    t.simulateAction('INC')
+    await t.next(s => s.n === 2)
+    expect(t.state).toBe(t.states.at(-1))
+    expect(t.state.n).toBe(2)
+    expect(() => { 'use strict'; t.state = { n: 9 } }).toThrow(TypeError)
+    expect(t.state.n).toBe(2)
+  })
+
+  it('is undefined before the first state', () => {
+    function NoState() { return h('i') }
+    NoState.model = { SET: (s, v) => v }
+    t = renderComponent(NoState)
+    expect(t.state).toBe(undefined)
   })
 })

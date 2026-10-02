@@ -42,19 +42,22 @@ describe('E2: makeFetchDriver under run()', () => {
     const pending = []
     vi.stubGlobal('fetch', vi.fn(() => new Promise((resolve, reject) => pending.push({ resolve, reject }))))
     app = run(Quote, { HTTP: makeFetchDriver() }, { mountPoint: '#root' })
-    await sleep(30)
-    const text = () => document.querySelector('.q').textContent
+    // G-126: wait for conditions (bounded), not fixed sleeps: the machine may be loaded
+    const until = async (cond, what) => {
+      for (const end = Date.now() + 2000; !cond(); await sleep(5)) {
+        if (Date.now() > end) throw new Error(`timed out waiting for ${what}`)
+      }
+    }
+    const text = () => document.querySelector('.q')?.textContent
+    await until(() => document.querySelector('.get'), 'the first render')
     document.querySelector('.get').click()
-    await sleep(20)
-    expect(text()).toBe('Loading…')
+    await until(() => text() === 'Loading…' && pending.length === 1, 'Loading… and a request')
     pending.shift().resolve(new Response(JSON.stringify({ text: 'Hi', author: 'Me' }), { headers: { 'Content-Type': 'application/json' } }))
-    await sleep(20)
-    expect(text()).toBe('Hi — Me')
+    await until(() => text() === 'Hi — Me', 'the quote')
     document.querySelector('.get').click()
-    await sleep(20)
+    await until(() => pending.length === 1, 'the second request')
     pending.shift().reject(new TypeError('Failed to fetch'))
-    await sleep(20)
-    expect(text()).toBe('Could not load a quote.')
+    await until(() => text() === 'Could not load a quote.', 'the error text')
     expect(diagnostics('SYG609')).toEqual([])
   })
 })

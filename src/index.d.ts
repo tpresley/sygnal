@@ -1233,7 +1233,9 @@ export interface RenderResult {
    * component became ready) that satisfies the predicate (default: any state). Resolves with it
    * once the whole tree (children included) has rendered it; rejects after timeoutMs (default:
    * the timeoutMs option, 2000). The error names a model next() still scheduled, and a recorded
-   * state that already matched.
+   * state that already matched. With `{ dom: 'real' }`, a next() right after another wait (no
+   * input in between) starts after the state that wait resolved with, so
+   * `await t.next(a); await t.next(b)` sees a `b` that arrived while the DOM showed `a`.
    */
   next: (predicate?: (state: any) => boolean, timeoutMs?: number) => Promise<any>;
   /**
@@ -1244,6 +1246,8 @@ export interface RenderResult {
   settle: (timeoutMs?: number) => Promise<void>;
   /** Collected state values — grows as new states are emitted */
   states: any[];
+  /** The latest recorded state (`t.states.at(-1)`; undefined before the first one). Read-only */
+  readonly state: any;
   /** Live array of values emitted on a sink (EVENTS as {type, data}, PARENT unwrapped, custom sinks of any component in the tree) */
   sinkValues: (sinkName: string) => any[];
   /** Live array of the requests sent to a sink with no driver (alias of sinkValues) */
@@ -1268,7 +1272,10 @@ export interface RenderResult {
   diagnostics: Diagnostic[];
   /** Throws (with the formatted texts) if any warn/error diagnostics were collected */
   expectNoDiagnostics: () => void;
-  /** Latest rendered VNode serialized to HTML ('' before the first render) */
+  /**
+   * Latest rendered VNode serialized to HTML. Throws if called before the first render: wait
+   * with `await t.ready()` (or `t.next(...)`) first. '' for a component that renders nothing.
+   */
   html: () => string;
   /** Tear down the component, clean up listeners and restore the diagnostics mode */
   dispose: () => void;
@@ -1282,7 +1289,9 @@ export interface RenderResult {
   /**
    * `{ dom: 'real' }`: the first element matching a CSS selector in the rendered tree (Portal
    * content included), or null: `expect(t.query('input[name="plan"][value="team"]').checked).toBe(true)`.
-   * Throws in the mock DOM.
+   * Throws in the mock DOM, and before the first render is in the DOM (`await t.ready()` first).
+   * Right after `await t.next(pred)` / `waitForState` / `settle()` / `ready()` the DOM shows
+   * the state the wait resolved with.
    */
   query: (selector: string) => Element | null;
   /** `{ dom: 'real' }`: every element matching a CSS selector in the rendered tree (Portals included) */

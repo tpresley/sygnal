@@ -73,6 +73,19 @@ function createTestComponent(componentDef, mockConfig = {}) {
 }
 
 const settle = (ms = 100) => new Promise(r => setTimeout(r, ms))
+// G-126: under load 100ms may not be enough for the first render; wait 100ms, then until the
+// handle has rendered and no new vnode arrived for 20ms (bounded at 2s)
+const rendered = async (handle) => {
+  await settle()
+  const end = Date.now() + 2000
+  let n = -1
+  while (Date.now() < end) {
+    const len = handle.vnodes.length
+    if (len > 0 && len === n) return
+    n = len
+    await settle(20)
+  }
+}
 
 // ─── Child components for testing ────────────────────────────────────────────
 
@@ -157,7 +170,7 @@ describe('Suspense', () => {
       App.initialState = {}
       App.initialState = App.initialState || {}
       handle = createTestComponent(App)
-      await settle()
+      await rendered(handle)
 
       expect(handle.vnodes.length).toBeGreaterThan(0)
       const vnode = handle.vnodes[handle.vnodes.length - 1]
@@ -174,7 +187,7 @@ describe('Suspense', () => {
       }
       App.initialState = App.initialState || {}
       handle = createTestComponent(App)
-      await settle()
+      await rendered(handle)
 
       expect(handle.vnodes.length).toBeGreaterThan(0)
       const vnode = handle.vnodes[handle.vnodes.length - 1]
@@ -190,7 +203,7 @@ describe('Suspense', () => {
       }
       App.initialState = App.initialState || {}
       handle = createTestComponent(App)
-      await settle()
+      await rendered(handle)
 
       const vnode = handle.vnodes[handle.vnodes.length - 1]
       const suspenseNode = findByAttr(vnode, 'data-sygnal-suspense', 'pending')
@@ -206,7 +219,7 @@ describe('Suspense', () => {
       }
       App.initialState = App.initialState || {}
       handle = createTestComponent(App)
-      await settle()
+      await rendered(handle)
 
       const vnode = handle.vnodes[handle.vnodes.length - 1]
       const suspenseNode = findByAttr(vnode, 'data-sygnal-suspense', 'resolved')
@@ -221,7 +234,7 @@ describe('Suspense', () => {
       }
       App.initialState = App.initialState || {}
       handle = createTestComponent(App)
-      await settle()
+      await rendered(handle)
 
       const vnode = handle.vnodes[handle.vnodes.length - 1]
       const pNode = findBySel(vnode, 'p')
@@ -237,7 +250,7 @@ describe('Suspense', () => {
       }
       App.initialState = App.initialState || {}
       handle = createTestComponent(App)
-      await settle()
+      await rendered(handle)
 
       const vnode = handle.vnodes[handle.vnodes.length - 1]
       // Without fallback, should pass through children even when not ready
@@ -253,7 +266,7 @@ describe('Suspense', () => {
       }
       App.initialState = App.initialState || {}
       handle = createTestComponent(App)
-      await settle()
+      await rendered(handle)
 
       const vnode = handle.vnodes[handle.vnodes.length - 1]
       const suspenseNode = findByAttr(vnode, 'data-sygnal-suspense', 'pending')

@@ -116,6 +116,14 @@ import type {InspectGraph} from './diagnostics/checks/public';
  *   maps it back to its vnode chain via vnode.elm (G-039 waits, SYG104), and fire()s a real
  *   event. The pump runs a macrotask after a render (the patch is a microtask after the sink
  *   emits) and each input waits for a QUIET_MS-quiet tree (capped at 100ms).
+ * - 4-A1 real-mode waits: the driver's vnode input is gated. Each emitted tree is tagged with
+ *   the number of states recorded when a view in the tree last ran (viewTag; renders lag the
+ *   state by a few debounced ms). A wait that matches holds renders of later states, resolves
+ *   once its state is patched (and the tree is quiet, or a later state arrived), and releases
+ *   the held render on the next macrotask, so the code after `await` reads the DOM of the
+ *   state it got. The next next() starts after that state (`shown`), so the held states still
+ *   match it. ready() resolves after the first patch; query()/queryAll()/html() before the
+ *   first render throw (G-125).
  * - SYG103/104: the mock DOM source reports each events() call (selector path,
  *   isolation scopes included as '.___scope'); a diagnostics check's onIntent
  *   maps each component's innermost scope to its name. The nearest '.___'
@@ -232,7 +240,8 @@ export interface RenderResult {
    * Wait for the next state emitted AFTER this call (or, right after `await t.ready()`, after
    * the component became ready) that satisfies the predicate (default: any). Resolves with it
    * once the whole tree (children included) has rendered it. The timeout error names a model
-   * next() still scheduled, and a recorded state that already matched.
+   * next() still scheduled, and a recorded state that already matched. `dom: 'real'` (4-A1):
+   * right after another wait (no input in between) it starts after that wait's state.
    */
   next: (predicate?: (state: any) => boolean, timeoutMs?: number) => Promise<any>;
   /**
@@ -243,6 +252,8 @@ export interface RenderResult {
   settle: (timeoutMs?: number) => Promise<void>;
   /** Collected state values — grows as new states are emitted */
   states: any[];
+  /** G-125: the latest recorded state (`states.at(-1)`; undefined before the first). Read-only */
+  readonly state: any;
   /**
    * Live array of values emitted on a sink (EVENTS, PARENT, custom drivers, ...). A custom sink
    * with no driver is recorded for every component in the tree (children included, G-064).
@@ -276,7 +287,10 @@ export interface RenderResult {
   diagnostics: Diagnostic[];
   /** Throws (with the formatted texts) if any warn/error diagnostics were collected */
   expectNoDiagnostics: () => void;
-  /** Latest rendered VNode serialized to HTML ('' before the first render) */
+  /**
+   * Latest rendered VNode serialized to HTML. G-125: throws before the first render (await
+   * t.ready() first); '' for a component that renders nothing.
+   */
   html: () => string;
   /** Tear down the component, clean up listeners and restore the diagnostics mode */
   dispose: () => void;
@@ -290,7 +304,9 @@ export interface RenderResult {
   /**
    * `{ dom: 'real' }`: the first element matching a CSS selector in the rendered tree (Portal
    * content included), or null. Read real DOM state from it: `.checked`, `.value`, `.disabled`,
-   * `document.activeElement === t.query('input[name="city"]')`.
+   * `document.activeElement === t.query('input[name="city"]')`. Throws before the first render
+   * is in the DOM (await t.ready() first). 4-A1: after `await` of any wait, the DOM shows the
+   * state the wait resolved with (a later render is held back until the next macrotask).
    */
   query: (selector: string) => Element | null;
   /** `{ dom: 'real' }`: every element matching a CSS selector in the rendered tree (Portals included) */
@@ -723,6 +739,9 @@ export function renderComponent(
   let activity = 0, lastActivity = clockNow();
   const bump = () => { activity++; lastActivity = clockNow(); };
   const mine = (c: any) => c?.sources?.[c.DOMSourceName || 'DOM']?._hub === hub.$;
+  // 4-A1 (real DOM): states recorded when a view in the tree last ran (see onModel)
+  let viewTag = 0;
+  const recorded = () => states.length;
   // G-053: model next() calls of the tree's components (for the timeout explanations)
   type Scheduled = {type: string; delay: number; at: number; due: number; by: string};
   const scheduled: Scheduled[] = [];
@@ -775,6 +794,16 @@ export function renderComponent(
       if (!mine(c)) return;
       watchNext(c);
       recordChildSinks(c);
+      // 4-A1 (real DOM): note how many states were recorded when a view in the tree runs (its
+      // render parameters are computed right before the call), so each emitted tree is tagged
+      // with the states it shows; the render pipeline lags the state by a few debounced ms
+      const crp = c.collectRenderParameters;
+      if (real && typeof crp == 'function') {
+        c.collectRenderParameters = function (this: any) {
+          const p$ = crp.apply(this, arguments as any);
+          return p$ && typeof p$.map == 'function' ? p$.map((p: any) => { viewTag = recorded(); return p; }) : p$;
+        };
+      }
     },
     // E2: an intent that reads a driver-like source with no driver (HTTP.select(...) without
     // drivers: { HTTP }) gets the scriptable fake (t.respond / t.fail), shared by name
@@ -956,13 +985,58 @@ export function renderComponent(
   let realDOM: any;
   if (real) {
     container = document.createElement('div');
-    container.setAttribute('data-sygnal-test', rootName);
+    // a class, not an attribute: the DOM driver's first patch keeps only the root's id and class
+    container.className = 'sygnal-test';
     document.body.appendChild(container);
     realDOM = makeDOMDriver(container, {snabbdomOptions: {experimental: {fragments: true}}} as any);
   }
+  // 4-A1: real-mode patch tracking. Every vtree the DOM sink emits is tagged with the number
+  // of states recorded when it rendered (renderNo); the driver's input is gated so the harness
+  // knows which render is in the DOM (patchedUpTo, lastPatched) and can hold a newer one back
+  // while a wait resolves (holds: the state index a wait resolved at; a vtree rendered after a
+  // newer state waits in `held` until the waiting code has run, i.e. the next macrotask).
+  const renderNo = new WeakMap<object, number>();
+  let patchedUpTo = 0, lastPatched: any, held: any, gateOut: any;
+  const holds: number[] = [];
+  const tagOf = (v: any) => renderNo.get(v) ?? states.length;
+  const holdLimit = () => (holds.length ? Math.min(...holds) + 1 : Infinity);
+  const toDOM = (v: any) => {
+    // the driver patches synchronously when the document is ready; snabbdom sets vnode.elm
+    gateOut?.next(v);
+    if (v?.elm) patchedUpTo = Math.max(patchedUpTo, tagOf(v)), lastPatched = v;
+  };
+  const gated = (vnode$: any) => {
+    let l: any;
+    return xs.create({
+      start(out: any) {
+        gateOut = out;
+        vnode$.addListener(l = {
+          next: (v: any) => {
+            // (a state replaced before it ever rendered isn't waited for: the newer render goes in)
+            if (tagOf(v) > holdLimit() && patchedUpTo >= holdLimit()) held = v;
+            else { held = undefined; toDOM(v); }
+          },
+          error: (e: any) => out.error(e),
+          complete: () => out.complete(),
+        });
+      },
+      stop() { vnode$.removeListener(l); gateOut = undefined; },
+    });
+  };
+  const release = (h: number) => {
+    const k = holds.indexOf(h);
+    if (k < 0) return;
+    holds.splice(k, 1);
+    if (held && !disposed && tagOf(held) <= holdLimit()) {
+      const v = held;
+      held = undefined;
+      toDOM(v);
+      bump();
+    }
+  };
   const allDrivers: any = {
     DOM: real
-      ? (vnode$: any, name: string) => trackSource(realDOM(vnode$, name), [], hub.$, onEvents)
+      ? (vnode$: any, name: string) => trackSource(realDOM(gated(vnode$), name), [], hub.$, onEvents)
       : () => mockDOMSource(mockConfig, hub.$, onEvents),
     EVENTS: eventBusDriver,
     LOG: logDriver,
@@ -1024,7 +1098,14 @@ export function renderComponent(
       // tree has been quiet for QUIET_MS (at most 100ms), so e.g. a button enabled by the
       // previous input is enabled when it is clicked
       const idle = clockNow() - lastActivity;
-      if (real && idle < QUIET_MS && clockNow() - (head.at = head.at || clockNow()) < 100) return retry(QUIET_MS - idle);
+      if (real) {
+        const waited = clockNow() - (head.at = head.at || clockNow());
+        if (idle < QUIET_MS && waited < 100) return retry(QUIET_MS - idle);
+        // 4-A1: and every recorded state's render is in the DOM (under load a render can lag the
+        // quiet window), at most eventWaitMs; not while a render is held for a resolving wait
+        const behind = !!vtree && (lastPatched !== vtree || patchedUpTo < states.length);
+        if ((behind && waited < eventWaitMs) || held) return retry(1);
+      }
       head.until = head.until || clockNow() + (head.wait ?? eventWaitMs);
       if (!head.go(clockNow() >= head.until)) return retry(5);
       inputs.shift();
@@ -1044,7 +1125,7 @@ export function renderComponent(
   // the first next() that started at it resolving. If no next() has used it by the
   // macrotask after ready() resolves, it expires (an un-awaited ready() in a beforeEach
   // doesn't make a much later next() return an old state).
-  let readyAt = 0, cursor: number | undefined, arming = 0, cursorUsed = false;
+  let readyAt = 0, cursor: number | undefined, shown: number | undefined, arming = 0, cursorUsed = false;
   const readyPromise = new Promise<void>(r => {
     markReady = () => {
       readyAt = states.length;
@@ -1055,12 +1136,14 @@ export function renderComponent(
   });
   const ready = () => {
     cursor = isReady ? states.length : -1;
+    shown = undefined;
     const id = ++arming;
     cursorUsed = false;
     readyPromise.then(() => setTimeout(() => { if (id == arming && !cursorUsed) cursor = undefined; }));
-    return drive(readyPromise, () => disposed);
+    // 4-A1: on the real DOM, ready() also waits until the first render is in the DOM
+    return drive(real ? readyPromise.then(() => untilPatched()) : readyPromise, () => disposed);
   };
-  const later = (go: Input['go'], missing?: Input['missing']) => { cursor = undefined; inputs.push({go, missing}); pump(); };
+  const later = (go: Input['go'], missing?: Input['missing']) => { cursor = shown = undefined; inputs.push({go, missing}); pump(); };
 
   let vtree: any;
   let timer: any;
@@ -1072,6 +1155,7 @@ export function renderComponent(
       vtree = v;
       index(v);
       renderedUpTo = states.length;
+      if (real && v && typeof v == 'object') renderNo.set(v, viewTag || renderedUpTo);
       bump();
       check104();
       arm();
@@ -1108,6 +1192,34 @@ export function renderComponent(
     return true;
   };
   const treeRendered = (n: number) => quiesce(n, QUIET_MS, 250);
+  /**
+   * 4-A1 (real DOM): resolves once a render of states[0 .. n) is in the DOM and either the tree
+   * has been quiet for QUIET_MS (children have rendered it too) or a newer state has arrived
+   * (its render is held back by the caller's hold, so the DOM still shows state n - 1). A state
+   * that never renders (same view) counts after 100ms of quiet. Gives up after 250ms.
+   */
+  const patchedTree = async (n: number): Promise<void> => {
+    const start = clockNow();
+    let seen = -1;
+    while (!disposed && clockNow() - start <= 250) {
+      const idle = clockNow() - lastActivity;
+      const current = !vtree || lastPatched === vtree;
+      if (patchedUpTo >= n && (held || states.length > n)) return;
+      if ((patchedUpTo >= n || clockNow() - start > 100) && current && idle >= QUIET_MS) {
+        if (seen === activity) return;
+        seen = activity;
+        await tick(3);
+      } else {
+        seen = -1;
+        await tick(Math.max(1, QUIET_MS - idle));
+      }
+    }
+  };
+  /** 4-A1 (real DOM): until the latest render is in the DOM (at most 250ms) */
+  const untilPatched = async (): Promise<void> => {
+    const start = clockNow();
+    while (!disposed && vtree && (lastPatched !== vtree || held) && clockNow() - start <= 250) await tick(1);
+  };
 
   // G-070: a simulateEvent whose selector matches nothing fails the test. The error rejects
   // the pending next()/waitForState()/settle() calls; with none pending it is kept and thrown
@@ -1123,7 +1235,7 @@ export function renderComponent(
   const takeFailure = () => { const f = failure; failure = undefined; return f; };
   const throwFailure = () => { const f = takeFailure(); if (f) throw f; };
   const noMatch = (selector: string, type: string, waited: boolean) => {
-    const out = html();
+    const out = renderHtml();
     return new Error(`[Sygnal] simulateEvent('${selector}', '${type}'): the selector matched nothing in the rendered output` +
       (waited ? ` (waited ${eventWaitMs}ms for it to render; the eventWaitMs option sets this)` : '') +
       `. Check t.html() to see what rendered, or give the element an attribute and select it, e.g. [data-id="3"]` +
@@ -1200,7 +1312,7 @@ export function renderComponent(
         return true;
       },
     };
-    cursor = undefined;
+    cursor = shown = undefined;
     inputs.push(input);
     pump();
   };
@@ -1231,17 +1343,28 @@ export function renderComponent(
   const needReal = (fn: string) => {
     if (!real) throw new Error(`[Sygnal] t.${fn}() needs real DOM elements: renderComponent(C, { dom: 'real' }). The default mock DOM has none (read t.html() or t.states instead)`);
   };
+  // G-125/4-A1: reading the output before the first render can only mislead (null, '')
+  const notYet = (call: string) => {
+    if (!isReady && !(real ? lastPatched : vtree)) {
+      throw new Error(`[Sygnal] ${call} ran before the component's first render${real ? ' was in the DOM' : ''}. Wait for it first: await t.ready() (or await t.next(...))`);
+    }
+  };
   const queryAll = (s: string): Element[] => {
     needReal('queryAll');
+    notYet(`t.queryAll('${s}')`);
     return roots().flatMap(r => Array.from(r.querySelectorAll(s)));
   };
-  const query = (s: string): Element | null => {
-    needReal('query');
+  const queryIn = (s: string): Element | null => {
     for (const r of roots()) {
       const e = r.querySelector(s);
       if (e) return e;
     }
     return null;
+  };
+  const query = (s: string): Element | null => {
+    needReal('query');
+    notYet(`t.query('${s}')`);
+    return queryIn(s);
   };
 
   const simulateEvent = (selector: string, type: string, init: SimulatedEventInit = {}) => {
@@ -1259,7 +1382,7 @@ export function renderComponent(
     }
     // E4: the real element: document / body / the root element for '' / the first match
     const realEl = (): any => text == 'document' ? document : text == 'body' ? document.body
-      : !text ? container!.firstElementChild : query(text.replace(PAGE, '') || text);
+      : !text ? container!.firstElementChild : queryIn(text.replace(PAGE, '') || text);
     const has = () => real ? !!realEl() : !!find(vtree, sel);
     // nothing pending and the tree is quiet (as settle() would see it): fail at the call
     if (!page && !allowMissing && isReady && !inputs.length && vtree && renderedUpTo >= states.length &&
@@ -1361,13 +1484,29 @@ export function renderComponent(
     new Promise((resolve, reject) => {
       const f = takeFailure();
       if (f) return reject(f);
+      // 4-A1: on the real DOM, the wait resolves once the newest state at the match (h) is
+      // patched into the DOM, and a render of a later state is held back until the code after
+      // the `await` has run (the next macrotask), so t.query() reads the matched state
+      let h = -1;
+      const unhold = () => { if (h >= 0) { const k = h; h = -1; setTimeout(() => release(k)); } };
       const found = (i: number) => {
         clearTimeout(timer);
         stateStream.removeListener(listener);
-        treeRendered(i + 1).then(() => { waiters.delete(fail); resolve(states[i]); });
+        if (real) {
+          holds.push(h = states.length - 1);
+          patchedTree(h + 1).then(() => {
+            waiters.delete(fail);
+            // the states after h weren't in the DOM yet: the next next() may still match them
+            if (h >= 0) shown = h + 1;
+            resolve(states[i]);
+            unhold();
+          });
+        } else {
+          treeRendered(i + 1).then(() => { waiters.delete(fail); resolve(states[i]); });
+        }
       };
       const test = (i: number) => { try { return predicate(states[i]); } catch (_) { return false; } };
-      const fail = (err: Error) => { clearTimeout(timer); stateStream.removeListener(listener); waiters.delete(fail); reject(err); };
+      const fail = (err: Error) => { clearTimeout(timer); stateStream.removeListener(listener); waiters.delete(fail); unhold(); reject(err); };
       waiters.add(fail);
       const base = states.length;
       const listener = {
@@ -1421,11 +1560,13 @@ export function renderComponent(
 
   const waitForState = (predicate: (state: any) => boolean, timeoutMs: number = defaultTimeout) => {
     checkMs('waitForState', timeoutMs);
-    cursor = undefined;
+    cursor = shown = undefined;
     return drive(waitMatch(0, predicate, timeoutMs, 'waitForState'), () => disposed);
   };
   const next = (predicate: (state: any) => boolean = () => true, timeoutMs: number = defaultTimeout) => {
     checkMs('next', timeoutMs);
+    // 4-A1 (real DOM): right after a wait, start after the state the DOM shows
+    if (cursor === undefined && shown !== undefined) return drive(waitMatch(Math.min(shown, states.length), predicate, timeoutMs, 'next'), () => disposed);
     if (cursor === undefined || (cursor < 0 && !isReady)) return drive(waitMatch(states.length, predicate, timeoutMs, 'next'), () => disposed);
     const id = arming;
     cursorUsed = true;
@@ -1439,7 +1580,7 @@ export function renderComponent(
     return drive(settleWait(timeoutMs), () => disposed);
   };
   const settleWait = (timeoutMs: number): Promise<void> => new Promise((resolve, reject) => {
-    cursor = undefined;
+    cursor = shown = undefined;
     const f = takeFailure();
     if (f) return reject(f);
     const done = (e?: Error) => { waiters.delete(done); e ? reject(e) : resolve(); };
@@ -1447,7 +1588,9 @@ export function renderComponent(
     const start = clockNow();
     (async () => {
       await Promise.race([readyPromise, tick(timeoutMs)]);
-      if (!await quiesce(states.length, settleMs, timeoutMs, () => !isReady || inputs.length > 0)) {
+      // 4-A1: on the real DOM, quiet also means the latest render is in the DOM
+      const busy = () => !isReady || inputs.length > 0 || (real && !!vtree && (lastPatched !== vtree || !!held));
+      if (!await quiesce(states.length, settleMs, timeoutMs, busy)) {
         const [why] = explainNext(start);
         throw new Error(`settle timed out after ${timeoutMs}ms: ${inputs.length ? `${inputs.length} simulated input(s) still pending` : `the component kept rendering (it never was quiet for settleMs = ${settleMs}ms)`}.` +
           why + (why ? ' A next() loop never goes quiet: wait for a specific state with t.next(pred) instead.' : ''));
@@ -1474,7 +1617,11 @@ export function renderComponent(
     }
     return {...v, data: d, children: v.children && v.children.map(unmark)};
   };
-  const html = () =>
+  const html = () => {
+    notYet('t.html()');
+    return renderHtml();
+  };
+  const renderHtml = () =>
     vtree
       ? renderToString(() => unmark(vtree)).replace(/ class="([^"]*)"/g, (_, c: string) =>
           (c = c.split(' ').filter(x => !x.startsWith('___')).join(' ')) ? ` class="${c}"` : ''
@@ -1524,6 +1671,7 @@ export function renderComponent(
     next,
     settle,
     states,
+    get state() { return states[states.length - 1]; },
     sinkValues,
     requests: sinkValues,
     respond,
