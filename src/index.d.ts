@@ -1448,6 +1448,29 @@ export interface FakeReplyOptions {
   body?: any;
 }
 
+/** A connection on a driverless socket sink, as `t.connections(name)` lists it: the spec as declared plus these */
+export interface FakeConnection {
+  /** Its name in `{ connections: { [name]: spec } }` */
+  name: string;
+  /** The URL as declared (WebSocket) */
+  socket?: string;
+  /** The URL as declared (server-sent events) */
+  sse?: string;
+  /** The URL it opened (a socket path resolves to ws:/wss: on the page's host) */
+  url: string;
+  /** 'closed': dropped (t.drop), waiting for a retry, or gone (reconnect: false) */
+  state: 'connecting' | 'open' | 'closed';
+  /** The name of the component that declared it */
+  sender: string;
+  [key: string]: any;
+}
+/**
+ * Which connections t.open / t.push / t.drop act on: a connection name or URL (as declared or
+ * opened), a partial FakeConnection compared by value (`{ socket: '/ws/a' }`), or a predicate.
+ * Nothing: the newest connection that can take the call.
+ */
+export type FakeConnectionTarget = string | Record<string, any> | ((connection: FakeConnection) => boolean);
+
 export interface RenderOptions {
   /** Override initial state (defaults to component's .initialState) */
   initialState?: any;
@@ -1485,6 +1508,12 @@ export interface RenderOptions {
    * move focus). Read elements with `t.query(sel)` / `t.queryAll(sel)` / `t.container`.
    */
   dom?: 'mock' | 'real';
+  /**
+   * Fake socket connections open by themselves (default true; reconnects too; a t.push / t.drop
+   * right after the declaration opens it first). false: they stay 'connecting' until t.open(),
+   * for "Connecting…" assertions and failures to open (t.drop on a connecting one).
+   */
+  autoConnect?: boolean;
 }
 
 /**
@@ -1589,6 +1618,31 @@ export interface RenderResult<STATE = any> {
    * Error, a message, or an HTTP status (404 → 'HTTP 404', status 404).
    */
   fail: (sinkName: string, error: any, target?: string | FakeReplyOptions | Record<string, any> | ((request: any) => boolean)) => Promise<void>;
+  /**
+   * A driverless sink that gets `{ connections }` / `{ to }` values (e.g. `WS` with no
+   * `drivers: { WS }`) is a fake makeSocketDriver: diffed per component and connection name,
+   * `open`/`message`/`close`/`error` routed to the sender's actions (no `close` for closes the
+   * app makes), unrouted events on `WS.select(name)`, shared by URL, reconnect per the spec on
+   * the test's timers (fake timers included). The connections declared now, in order.
+   * t.open / t.push / t.drop throw at the call when no connection matches (unless input is still
+   * queued before them, as for respond) and resolve once the result has been reduced and rendered.
+   */
+  connections: (sinkName: string) => FakeConnection[];
+  /** Complete the open of connecting connection(s) (`autoConnect: false`, or a pending retry): `open` fires with `{ reconnected }` */
+  open: (sinkName: string, target?: FakeConnectionTarget) => Promise<void>;
+  /**
+   * The server sends `data` (objects as JSON text) on open connection(s): `message` fires with
+   * the data, JSON-parsed when it parses. `{ event, connection? }` sends an SSE named event.
+   */
+  push: (sinkName: string, data: any, target?: FakeConnectionTarget | { event?: string; connection?: FakeConnectionTarget }) => Promise<void>;
+  /**
+   * Connection(s) close without the app closing them: `close` fires with `{ code, reason,
+   * willReconnect }` (default `{ code: 1006, reason: '' }`; a connecting one fails to open: `error`
+   * first), then the fake reconnects per the spec's `reconnect`.
+   */
+  drop: (sinkName: string, close?: { code?: number; reason?: string } | FakeConnectionTarget, target?: FakeConnectionTarget) => Promise<void>;
+  /** Live array of the `{ to, json | text | binary }` values sent (`to`: only those to that connection) */
+  sent: (sinkName: string, to?: string) => any[];
   /** Live array of EVENTS sink emissions ({type, data}) */
   emitted: Array<{ type: string; data: any }>;
   /** Live array of diagnostics reported while rendered */
