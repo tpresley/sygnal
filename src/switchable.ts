@@ -85,21 +85,37 @@ function _switchable(
         switchedState,
         sources[stateSourceName]._name
       );
-      return [name, factory({...sources, state})] as [string, any];
+      // G-121: a hidden component gets no state updates (it stays subscribed, so it would
+      // otherwise re-render on every change); it gets the current state when shown again.
+      // `state` stays as the marker inspect() uses for a Switchable's components.
+      return [name, factory({...sources, state, [stateSourceName]: state})] as [string, any];
     }
     return [name, factory(sources)] as [string, any];
   });
 
-  const switchedSinks = Object.keys(sources).reduce<Record<string, any>>(
+  // G-120: forward every sink a component produces, not just the ones that are also sources
+  // (PARENT). READY stays out: the parent treats the switchable as ready, as before.
+  const names = new Set(Object.keys(sources));
+  sinks.forEach(([, sink]) => Object.keys(sink).forEach((n) => names.add(n)));
+  // G-121: keep each component's switched sinks (DOM) subscribed for the switchable's
+  // lifetime. Unsubscribed, a hidden page's stream chain is torn down one setTimeout per
+  // operator; switching back mid-teardown restarts it half-way, it never re-emits, and the
+  // switchable stays on the previous page. Kept alive, switching emits the page's last value.
+  const keepAlive: Array<[any, any]> = [];
+  const switchedSinks = [...names].reduce<Record<string, any>>(
     (obj, sinkName) => {
+      if (sinkName.startsWith('__') || sinkName === 'READY') return obj;
       if ((switched as string[]).includes(sinkName)) {
+        const live: Record<string, any> = {};
+        sinks.forEach(([componentName, sink]) => {
+          if (!sink[sinkName]) return;
+          const listener = {next() {}, error() {}, complete() {}};
+          live[componentName] = sink[sinkName].remember();
+          live[componentName].addListener(listener);
+          keepAlive.push([live[componentName], listener]);
+        });
         obj[sinkName] = name$
-          .map((newComponentName: string) => {
-            const sink = sinks.find(
-              ([componentName]) => componentName === newComponentName
-            );
-            return (sink && sink[1][sinkName]) || xs.never();
-          })
+          .map((newComponentName: string) => live[newComponentName] || xs.never())
           .flatten()
           .remember()
           .startWith(undefined);
@@ -114,7 +130,10 @@ function _switchable(
     {}
   );
   // B-024: every factory was instantiated above; dispose them all with the switchable
-  switchedSinks.__dispose = () => sinks.forEach(([, s]) => s.__dispose?.());
+  switchedSinks.__dispose = () => {
+    keepAlive.forEach(([stream, listener]) => stream.removeListener(listener));
+    sinks.forEach(([, s]) => s.__dispose?.());
+  };
 
   return switchedSinks;
 }
