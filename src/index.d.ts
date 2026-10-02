@@ -205,8 +205,13 @@ type AnySinkConstant =
   | readonly unknown[]
   | { [key: string]: unknown; apply?: never; call?: never; bind?: never }
 
+/**
+ * An EFFECT handler. It may be async: a returned promise is expected (no SYG219) and its
+ * rejection is reported as SYG214. `next()` after the component is disposed does nothing.
+ * `props.signal` aborts on DISPOSE (undefined where AbortController is missing).
+ */
 type EffectReducer<STATE, PROPS, ACTIONS, DATA, CALCULATED, CONTEXT = {}> =
-  | ((state: STATE & CALCULATED, args: DATA, next: NextFunction<ACTIONS>, props: ReducerExtras<PROPS, CONTEXT>) => void)
+  | ((state: STATE & CALCULATED, args: DATA, next: NextFunction<ACTIONS>, props: ReducerExtras<PROPS, CONTEXT> & { signal?: AbortSignal }) => void)
 
 type DefaultSinks<STATE, PROPS, ACTIONS, DATA, CALCULATED, SINK_RETURNS extends NonStateSinkReturns = {}, CONTEXT = {}> = {
   STATE?: SinkValue<STATE, PROPS, ACTIONS, DATA, STATE, CALCULATED, CONTEXT>;

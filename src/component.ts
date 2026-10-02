@@ -207,6 +207,7 @@ class Component {
   _dispose$: any;
   _disposed?: boolean;
   _routed?: any[];
+  _ac?: AbortController;
   _activeSubComponents: Map<string, any>;
   _childReadyState: Record<string, boolean>;
   _readyChanged$: any;
@@ -486,6 +487,8 @@ class Component {
     // G-144: stop the routed replies now, so none reaches this instance after DISPOSE and the
     // drivers abort its routed requests in flight (rather than when action$ completes below)
     this._routed?.forEach(r$ => r$.shamefullySendComplete())
+    // 1-B: abort the EFFECT props.signal (after DISPOSE ran, so a DISPOSE EFFECT gets it too)
+    this._ac?.abort()
     // Dispose the sub-components now (R3), so the whole subtree's DISPOSE actions and
     // onDispose hooks run within this call (e.g. before renderComponent restores diagnostics)
     this._activeSubComponents.forEach((entry) => entry?.sink$?.__dispose?.())
@@ -1048,21 +1051,28 @@ class Component {
       if (typeof reducer === 'function') {
         const next = (type: any, data: any, delay=10) => {
           if (typeof delay !== 'number') fail('SYG215', this, `next() delay in '${name}' must be a number`, "Use next('ACTION', data, ms)")
+          // 1-B: an async EFFECT can resolve after unmount; its next() then does nothing
+          if (this._disposed) return this.log(`next(${type}) ignored: disposed`, true)
           setTimeout(() => {
             rootAction$.shamefullySendNext({ type, data })
           }, delay)
           this.log(`<${name}> EFFECT triggered a next() action: <${type}> ${delay}ms delay`, true)
         }
+        const failed = (err: any) => caught('SYG214', this, `EFFECT handler '${name}' threw`, ERR_FIX, err)
 
         try {
           const enhancedState = this.addCalculated(STATE_SNAPSHOT in action ? action[STATE_SNAPSHOT] : this.currentState)
-          const props = { ...this.currentProps, children: this.currentChildren, slots: this.currentSlots || {}, context: this.currentContext, state: enhancedState }
+          // 1-B: signal (EFFECT only) aborts on DISPOSE; one controller per instance, made on
+          // the first EFFECT, skipped where AbortController is missing
+          const props = { ...this.currentProps, children: this.currentChildren, slots: this.currentSlots || {}, context: this.currentContext, state: enhancedState, signal: (this._ac ||= globalThis.AbortController && new AbortController())?.signal }
           const result = reducer(enhancedState, action.data, next, props)
-          if (result !== undefined && !isAbort(result)) {
+          // 1-B: a returned thenable (async EFFECT) is expected; its rejection is SYG214
+          if (result?.then) result.then(null, failed)
+          else if (result !== undefined && !isAbort(result)) {
             warn('SYG219', this, `EFFECT handler '${name}' returned a value, which is ignored`, 'Use a STATE or driver sink')
           }
         } catch (err) {
-          caught('SYG214', this, `EFFECT handler '${name}' threw`, ERR_FIX, err)
+          failed(err)
         }
       }
       return null
