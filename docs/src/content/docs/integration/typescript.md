@@ -182,7 +182,7 @@ QuoteCard.model = {
 }
 ```
 
-With the actions listed and the driver's sink typed (`FetchRequest`, or `AsyncRequest<{ ... }>` for `driverFromAsync`), `ok` and `error` must be action names: `ok: 'LODED'` is a type error. A request built outside the reducer loses the literal type (`ok: string`) and is rejected there; write `ok: 'LOADED' as const`. `then` / `catch` keys are type errors on these requests ([SYG610](/reference/errors/#syg610) at runtime). `{ abort: 'LOADED' }` cancels by action or key name.
+`ok` and `error` are typed as plain strings, so a request can be built in a helper without `as const`; a name with no model entry is caught by `sygnal-check` and the dev entry ([SYG112](/reference/errors/#syg112)), not by `tsc`. `then` / `catch` keys are type errors on these requests ([SYG610](/reference/errors/#syg610) at runtime). `{ abort: 'LOADED' }` cancels by action or key name.
 
 `IntentSources<STATE, DRIVERS>` is the type of the object an intent receives: `DOM`, `STATE`, `EVENTS`, `CHILD`, `dispose$` and your custom drivers.
 

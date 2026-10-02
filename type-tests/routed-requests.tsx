@@ -56,42 +56,14 @@ QuoteView.model = {
   FAILED: (state, { status }) => ({ ...state, status: status === 404 ? 'missing' : 'error' }),
 }
 
-const Typo: Component<State, {}, Drivers, Actions> = ({ state }) => <div>{state.status}</div>
-Typo.model = {
-  LOAD: {
-    // @ts-expect-error 'LODED' is not one of the component's actions
-    HTTP: (state) => ({ url: `/api/quotes/${state.id}`, ok: 'LODED' }),
-  },
-}
-Typo.model = {
-  LOAD: {
-    // @ts-expect-error error names an action too
-    HTTP: () => ({ url: '/api/quotes', ok: 'LOADED', error: 'FAILD' }),
-  },
-}
-// the common shapes keep the literal: block bodies, conditionals with ABORT, `as const` helpers
-const loadReq = (id: number) => ({ url: `/api/quotes/${id}`, ok: 'LOADED' as const })
-Typo.model = {
-  LOAD: {
-    HTTP: (state) => {
-      if (!state.id) return ABORT
-      return { url: `/api/quotes/${state.id}`, ok: 'LOADED', error: 'FAILED' }
-    },
-  },
+// D70: ok / error are plain strings in the types (no action-name check: a request built in a
+// helper widens to `ok: string`, which a check would reject); sygnal-check SYG112 catches typos
+const Loose2: Component<State, {}, Drivers, Actions> = ({ state }) => <div>{state.status}</div>
+const widened = (id: number) => ({ url: `/api/quotes/${id}`, ok: 'LOADED', error: 'FAILED' })
+Loose2.model = {
+  LOAD: { HTTP: (state) => widened(state.id) },                       // helper, no `as const`
   LOADED: { HTTP: (state) => (state.id ? { url: '/next', ok: 'LOADED' } : ABORT) },
-  FAILED: { HTTP: (state) => loadReq(state.id) },
-}
-// known limit: a request built outside the reducer without `as const` has `ok: string`, which
-// can't be checked, so it is rejected once ACTIONS are listed (write `ok: 'LOADED' as const`)
-const widened = (id: number) => ({ url: `/api/quotes/${id}`, ok: 'LOADED' })
-Typo.model = {
-  // @ts-expect-error ok: string is not an action name
-  LOAD: { HTTP: (state) => widened(state.id) },
-}
-Typo.model = {
-  // abort and key take any name (a key needn't be an action); constants are checked the same way
-  LOAD: { HTTP: () => ({ abort: 'LOADED' }) },
-  FAILED: { HTTP: { abort: true, key: 'anything' } },
+  FAILED: { HTTP: () => ({ abort: 'LOADED' }) },
 }
 
 // untyped components: no action list, nothing to check against
@@ -116,10 +88,6 @@ Calc.model = {
   GOT: (state, n) => ({ ...state, n }),
   FAILED: (state, { error }) => (error ? state : state),
 }
-Calc.model = {
-  // @ts-expect-error 'GOTT' is not an action
-  GO: { QUOTE: (state) => ({ value: state.n, ok: 'GOTT' }) },
-}
 
 // ── HYDRATE is an ordinary action key now (D66) ─────────────────────
 type CounterActions = { INC: null }
@@ -141,4 +109,4 @@ Hydrating.model = {
   HYDRATE: (state, data: string) => state,
 }
 
-export { QuoteView, Typo, Loose, Plain, Calc, Counter, Hydrating, onFail as _onFail }
+export { QuoteView, Loose2, Loose, Plain, Calc, Counter, Hydrating, onFail as _onFail }

@@ -222,27 +222,6 @@ type DefaultSinks<STATE, PROPS, ACTIONS, DATA, CALCULATED, SINK_RETURNS extends 
 }
 
 /** Keys a type declares by name (index signatures left out). */
-type DeclaredKeys<T> = keyof {
-  [KEY in keyof T as string extends KEY ? never : number extends KEY ? never : KEY]: 0
-}
-
-/**
- * A routing driver's sink type (one whose requests declare `ok?: string`, e.g. FetchRequest or
- * AsyncRequest) with `ok` / `error` narrowed to the component's action names, so a typo in
- * `ok: 'LOADED'` is a type error. Only when the component lists its ACTIONS
- * (`Component<S, P, D, A>`); otherwise, and for `any` sinks, the sink type is unchanged.
- */
-type RoutedSinkCheck<SINK, ACTIONS> =
-  0 extends (1 & SINK) ? SINK
-  : string extends keyof ACTIONS ? SINK
-  : SINK extends object
-    ? 'ok' extends DeclaredKeys<SINK>
-      ? string extends NonNullable<SINK['ok' & keyof SINK]>
-        ? SINK & { ok?: keyof ACTIONS & string; error?: keyof ACTIONS & string }
-        : SINK
-      : SINK
-    : SINK
-
 type CustomDriverSinks<STATE, PROPS, DRIVERS, ACTIONS, ACTION_ENTRY, CALCULATED, CONTEXT = {}> = keyof DRIVERS extends never
   ? {
       [driver: string]: NonStateSinkValue<STATE, PROPS, ACTIONS, any, any, CALCULATED, CONTEXT>
@@ -253,7 +232,7 @@ type CustomDriverSinks<STATE, PROPS, DRIVERS, ACTIONS, ACTION_ENTRY, CALCULATED,
         PROPS,
         ACTIONS,
         ACTION_ENTRY,
-        DRIVERS[DRIVER_KEY] extends { source: any; sink: any } ? RoutedSinkCheck<DRIVERS[DRIVER_KEY]['sink'], ACTIONS> : any,
+        DRIVERS[DRIVER_KEY] extends { source: any; sink: any } ? DRIVERS[DRIVER_KEY]['sink'] : any,
         CALCULATED,
         CONTEXT
       >
@@ -1030,8 +1009,8 @@ export function lazy<PROPS = any>(
  *   FAILED:  (state, { status }) => ({ ...state, status }),     // data: { error, status?, body?, request }
  *
  * The action's data type is not inferred from the request: type it in the component's ACTIONS
- * (`{ LOADED: Quote; FAILED: FetchFailure }`). With ACTIONS listed (`Component<S, P, D, A>`) and
- * the driver's sink typed, `ok` / `error` must be action names.
+ * (`{ LOADED: Quote; FAILED: FetchFailure }`). `ok` / `error` are plain strings in the types (D70);
+ * a name with no model entry is SYG112 (sygnal-check and the dev entry).
  */
 export type RoutedRequest = {
   /** Action that receives the success value (fetch: the parsed body; driverFromAsync: the resolved value) */
