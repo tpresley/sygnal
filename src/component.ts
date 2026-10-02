@@ -192,24 +192,7 @@ class Component {
 
     this._componentNumber = COMPONENT_COUNT++
 
-    this.name       = name
-    this.sources    = sources
-    this.intent     = intent
-    this.model      = model
-    this.hmrActions = hmrActions
-    this.context    = context
-    this.view       = view
-    this.peers      = peers
-    this.components = components
-    this.initialState      = initialState
-    this.calculated        = calculated
-    this.storeCalculatedInState = storeCalculatedInState
-    this.DOMSourceName     = DOMSourceName
-    this.stateSourceName   = stateSourceName
-    this.sourceNames       = Object.keys(sources)
-    this.onError           = onError
-    this.isolatedState     = isolatedState
-    this._debug            = debug
+    Object.assign(this, { name, sources, intent, model, hmrActions, context, view, peers, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, sourceNames: Object.keys(sources), onError, isolatedState, _debug: debug })
 
     // Warn if calculated fields shadow base state keys
     if (this.calculated && this.initialState
@@ -468,20 +451,10 @@ class Component {
     this._activeSubComponents.clear()
     // Tear down streams on next macrotask to allow DISPOSE/cleanup actions to process
     setTimeout(() => {
-      // Complete the action$ stream to stop the entire component cycle
-      if (this.action$ && typeof this.action$.shamefullySendComplete === 'function') {
-        try { this.action$.shamefullySendComplete() } catch (_) {}
-      }
-      // Complete the vdom$ stream to stop rendering
-      if (this.vdom$ && typeof this.vdom$.shamefullySendComplete === 'function') {
-        try { this.vdom$.shamefullySendComplete() } catch (_) {}
-      }
-      // Unsubscribe tracked internal subscriptions
-      for (const sub of this._subscriptions) {
-        if (sub && typeof sub.unsubscribe === 'function') {
-          try { sub.unsubscribe() } catch (_) {}
-        }
-      }
+      // Complete action$ (stops the entire component cycle) and vdom$ (stops rendering), then
+      // unsubscribe the tracked internal subscriptions
+      for (const s of [this.action$, this.vdom$]) try { s?.shamefullySendComplete?.() } catch (_) {}
+      for (const sub of this._subscriptions) try { sub?.unsubscribe?.() } catch (_) {}
       this._subscriptions = []
     }, 0)
   }
@@ -513,7 +486,7 @@ class Component {
 
   initHmrActions(): void {
     if (typeof this.hmrActions === 'undefined') {
-      this.hmrAction$ = xs.of().filter((_: any) => false)
+      this.hmrAction$ = xs.empty()
       return
     }
     if (typeof this.hmrActions === 'string') {
@@ -547,7 +520,7 @@ class Component {
     const action$    = ((runner instanceof Stream) ? runner : (runner.apply && runner(this.sources) || xs.never()))
     const bootstrap$ = xs.of({ type: BOOTSTRAP_ACTION }).compose(delay(10))
     const _hmrUpdating = typeof window !== 'undefined' && window.__SYGNAL_HMR_UPDATING === true
-    const hmrAction$ = _hmrUpdating ? this.hmrAction$ : xs.of().filter((_: any) => false)
+    const hmrAction$ = _hmrUpdating ? this.hmrAction$ : xs.empty()
     const wrapped$   = (this.model?.[BOOTSTRAP_ACTION] &&!_hmrUpdating) ? concat(bootstrap$, action$) : concat(xs.of().compose(delay(1)).filter((_: any) => false), hmrAction$, action$)
 
     // PLAN-3 routed requests: a routing-capable source (makeFetchDriver, driverFromAsync, ...)
@@ -756,14 +729,8 @@ class Component {
   }
 
   initPeers$(): void {
-    const initial: Record<string, any> = this.sourceNames.reduce((acc: Record<string, any>, name) => {
-      if (name == this.DOMSourceName) {
-        acc[name] = {}
-      } else {
-        acc[name] = []
-      }
-      return acc
-    }, {} as Record<string, any>)
+    const initial: Record<string, any> = {}
+    for (const name of this.sourceNames) initial[name] = name == this.DOMSourceName ? {} : []
 
     this.peers$ = Object.entries(this.peers).reduce((acc: Record<string, any>, [peerName, peerFactory]) => {
       const peer$ = peerFactory(this.sources)
@@ -1809,26 +1776,12 @@ function processSuspensePost(vnode: any): any {
     const fallback = props.fallback
     const children = vnode.children || []
 
-    // Check if any child within this boundary is not ready
-    const isPending = children.some(hasNotReadyChild)
-
-    if (isPending && fallback) {
-      // Render fallback
-      if (typeof fallback === 'string') {
-        return { sel: 'div', data: { attrs: { 'data-sygnal-suspense': 'pending' } }, children: [{ text: fallback }], text: undefined, elm: undefined, key: undefined }
-      }
-      return { sel: 'div', data: { attrs: { 'data-sygnal-suspense': 'pending' } }, children: [fallback], text: undefined, elm: undefined, key: undefined }
-    }
-
-    // All children ready or no fallback — render children directly
-    if (children.length === 1) return processSuspensePost(children[0])
-    return { sel: 'div', data: { attrs: { 'data-sygnal-suspense': 'resolved' } }, children: children.map((c: any) => processSuspensePost(c)), text: undefined, elm: undefined, key: undefined }
+    // Render the fallback if a child within this boundary is not ready, else the children
+    const pending = fallback && children.some(hasNotReadyChild)
+    if (!pending && children.length === 1) return processSuspensePost(children[0])
+    return { sel: 'div', data: { attrs: { 'data-sygnal-suspense': pending ? 'pending' : 'resolved' } }, children: pending ? [typeof fallback === 'string' ? { text: fallback } : fallback] : children.map(processSuspensePost), text: undefined, elm: undefined, key: undefined }
   }
-  if (vnode.children && vnode.children.length > 0) {
-    const newChildren = vnode.children.map((c: any) => processSuspensePost(c))
-    return { ...vnode, children: newChildren }
-  }
-  return vnode
+  return vnode.children?.length > 0 ? { ...vnode, children: vnode.children.map(processSuspensePost) } : vnode
 }
 
 const portalPatch = snabbdomInit(defaultModules);
