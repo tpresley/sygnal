@@ -1015,9 +1015,9 @@ import TaskCard from './TaskCard.jsx'
 
 Severity: `error` · Reported by: the dev checks (`sygnal/diagnostics`)
 
-A view renders a `data` key the DOM can't store. `data={{ ... }}` (and a `data-x-y="..."` JSX attribute, which becomes the key `x-y`) is written with `element.dataset[key] = value`, and the browser throws a SyntaxError DOMException for a key with a hyphen followed by a lower-case letter (`'task-id'`), or an attribute-name error for characters such as spaces, quotes or `=`. The patch fails, so rendering can stop, and the console shows only a bare `DOMException {}`. The dev entry checks every rendered dataset key before the patch and names the key; renderComponent's mock DOM never throws, so it is also the only signal there.
+A view renders a `data` key the DOM can't store. `data={{ ... }}` is written with `element.dataset[key] = value`, and the browser throws a SyntaxError DOMException for a key with a hyphen followed by a lower-case letter (`'task-id'`), or an attribute-name error for characters such as spaces, quotes or `=`. The patch fails, so rendering can stop, and the console shows only a bare `DOMException {}`. The dev entry checks every rendered dataset key before the patch and names the key; renderComponent's mock DOM never throws, so it is also the only signal there.
 
-**Fix:** Use a camelCase key in the `data` prop: `data={{ taskId: 7 }}` renders `data-task-id="7"`; read it with `.data('taskId')`.
+**Fix:** Use a camelCase key in the `data` prop: `data={{ taskId: 7 }}` renders `data-task-id="7"` (a `data-task-id="7"` JSX attribute works too); read it with `.data('taskId')`.
 
 Before:
 

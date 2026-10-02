@@ -1,8 +1,8 @@
 /**
  * SYG421 — invalid `data` (dataset) key in a view (error, G-143).
  *
- * JSX `data={{ ... }}` (and a `data-x-y="..."` attribute, which the pragma turns into the
- * dataset key 'x-y') becomes the vnode's `data.dataset`, which the DOM driver writes with
+ * JSX `data={{ ... }}` becomes the vnode's `data.dataset` (a `data-x-y="..."` attribute is
+ * camelCased to 'xY' by the pragma, G-152), which the DOM driver writes with
  * `element.dataset[key] = value`. The browser throws a SyntaxError DOMException for a key with
  * a hyphen followed by a lower-case letter (`'task-id'`), and setAttribute() throws for a name
  * with characters an attribute can't have (spaces, quotes, `=`, ...). The patch fails, so the
@@ -46,7 +46,7 @@ export const datasetCheck: DiagnosticCheck = {
         devReport('SYG421', {
           component,
           message: `The view of ${nameOf(component)} renders the data key '${key}'${sel ? ` on <${String(sel).split(/[.#]/)[0]}>` : ''} ` +
-            `(from data={{ '${key}': … }} or a data-${key}="…" attribute), but '${key}' ${why}. ` +
+            `(from data={{ '${key}': … }}), but '${key}' ${why}. ` +
             `Writing it throws a DOMException, which can stop rendering`,
           fix: `Use a camelCase key in the data prop: data={{ ${name}: … }} renders the attribute data-${attr || 'name'}; read it with .data('${name}')`,
           data: {key, suggested: good, attribute: `data-${attr}`},

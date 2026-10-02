@@ -169,12 +169,12 @@ describe('SYG421 — invalid data (dataset) key', () => {
     expect(found[0].fix).toContain(".data('taskId')")
   })
 
-  it('also catches a data-task-id="..." JSX attribute (the pragma makes it the dataset key task-id)', async () => {
+  it('does not report a data-task-id="..." JSX attribute (G-152: the pragma maps it to taskId)', async () => {
     const App = named('Board', () => createElement('div', { 'data-task-id': '7' }, 'x'))
     App.initialState = {}
     t = renderComponent(App)
     await t.ready()
-    expect(diagnostics('SYG421').map(d => d.data.key)).toEqual(['task-id'])
+    expect(diagnostics('SYG421')).toEqual([])
   })
 
   it('does not report camelCase or single-word keys', async () => {
