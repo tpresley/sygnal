@@ -1045,18 +1045,8 @@ class Component {
       if (!isObj(this.calculated)) fail('SYG606', this, 'calculated must be an object', 'Use calculated = { field: state => value }')
 
       const calculated = this.getCalculatedValues(state)
-      if (!calculated) {
-        lastState = state
-        lastResult = state
-        return state
-      }
-
-      const newState = { ...state, ...calculated }
-
       lastState = state
-      lastResult = newState
-
-      return newState
+      return lastResult = calculated ? { ...state, ...calculated } : state
     }
   }
 
@@ -1069,43 +1059,22 @@ class Component {
     const computedSoFar: Record<string, any> = {}
 
     for (const [field, { fn, deps }] of this._calculatedOrder) {
-      if (deps !== null && this._calculatedFieldCache) {
-        const cache = this._calculatedFieldCache[field]
-        const currentDepValues = deps.map(d => mergedState[d])
-
-        if (cache.lastDepValues !== undefined) {
-          let unchanged = true
-          for (let i = 0; i < currentDepValues.length; i++) {
-            if (currentDepValues[i] !== cache.lastDepValues[i]) {
-              unchanged = false
-              break
-            }
-          }
-          if (unchanged) {
-            computedSoFar[field] = cache.lastResult
-            mergedState[field] = cache.lastResult
-            continue
-          }
-        }
-
-        try {
-          const result = fn(mergedState)
+      // memoized on the declared deps; without deps, always recomputed
+      const cache = deps && this._calculatedFieldCache?.[field]
+      const currentDepValues = cache && deps!.map(d => mergedState[d])
+      if (cache && cache.lastDepValues && currentDepValues.every((v: any, i: number) => v === cache.lastDepValues[i])) {
+        computedSoFar[field] = mergedState[field] = cache.lastResult
+        continue
+      }
+      try {
+        const result = fn(mergedState)
+        if (cache) {
           cache.lastDepValues = currentDepValues
           cache.lastResult = result
-          computedSoFar[field] = result
-          mergedState[field] = result
-        } catch (e: unknown) {
-          warn('SYG220', this, `Calculated field '${field}' threw (${e instanceof Error ? e.message : e}); skipped this update`, 'Guard against missing data')
         }
-      } else {
-        // No deps declared — always recompute
-        try {
-          const result = fn(mergedState)
-          computedSoFar[field] = result
-          mergedState[field] = result
-        } catch (e: unknown) {
-          warn('SYG220', this, `Calculated field '${field}' threw (${e instanceof Error ? e.message : e}); skipped this update`, 'Guard against missing data')
-        }
+        computedSoFar[field] = mergedState[field] = result
+      } catch (e: unknown) {
+        warn('SYG220', this, `Calculated field '${field}' threw (${e instanceof Error ? e.message : e}); skipped this update`, 'Guard against missing data')
       }
     }
 
