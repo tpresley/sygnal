@@ -20,8 +20,22 @@ const ESC_MAP: Record<string, string> = {
   "'": '&#39;',
 }
 
-function escapeHtml(str: string): string {
-  return String(str).replace(/[&<>"']/g, (ch) => ESC_MAP[ch])
+// 4-F: renderComponent's t.html() serialises like the browser's innerHTML: text escapes only
+// & < >, attribute values only & and " (SSR output keeps escaping all five)
+let innerHtmlMode = false
+
+function escapeHtml(str: string, attr?: boolean): string {
+  return String(str).replace(innerHtmlMode ? (attr ? /[&"]/g : /[&<>]/g) : /[&<>"']/g, (ch) => ESC_MAP[ch])
+}
+
+/** @internal renderToString serialised like innerHTML (for renderComponent's t.html()) */
+export function renderToInnerHtml(componentDef: any): string {
+  innerHtmlMode = true
+  try {
+    return renderToString(componentDef)
+  } finally {
+    innerHtmlMode = false
+  }
 }
 
 /**
@@ -570,7 +584,7 @@ function vnodeToHtml(vnode: any): string {
     if (val === true) {
       html += ` ${key}`
     } else if (val !== false && val != null) {
-      html += ` ${key}="${escapeHtml(String(val))}"`
+      html += ` ${key}="${escapeHtml(String(val), true)}"`
     }
   }
   html += '>'

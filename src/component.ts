@@ -1357,8 +1357,10 @@ class Component {
 
   // A child's reducers get their state through its lens from this component's raw reducer
   // state; adding the calculated fields here gives them what the child's view gets (1H-3).
+  // 4-F: a child's write stores freshly computed fields too (as this component's own reducers
+  // do), so the STATE stream (t.state, devtools) is never stale after a child changes it
   withCalculated(lense: any): any {
-    return this.calculated ? { get: (state: any) => lense.get(isObj(state) ? this.addCalculated(state) : state), set: lense.set } : lense
+    return this.calculated ? { get: (state: any) => lense.get(isObj(state) ? this.addCalculated(state) : state), set: (o: any, n: any, s = lense.set(o, n)) => s === o ? s : this.cleanupCalculated(s) } : lense
   }
 
   createSubComponentLense(stateField: any, componentType: string, defaultState?: any): any {

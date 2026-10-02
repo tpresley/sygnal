@@ -1241,7 +1241,8 @@ export interface FakeReplyOptions {
   /** Answer the most recent pending request of this category */
   category?: string;
   /**
-   * Answer exactly this request (an element of t.requests(name)). `null`: push the value without
+   * Answer exactly this request (an element of t.requests(name); an object sent more than once:
+   * its newest pending send). `null`: push the value without
    * a request (for a source that emits on its own); `category` then sets its category.
    */
   request?: any;
@@ -1354,7 +1355,7 @@ export interface RenderResult {
   settle: (timeoutMs?: number) => Promise<void>;
   /** Collected state values — grows as new states are emitted */
   states: any[];
-  /** The latest recorded state (`t.states.at(-1)`; undefined before the first one). Read-only */
+  /** The latest recorded state (`t.states.at(-1)`; undefined before the first one), calculated fields current. Read-only */
   readonly state: any;
   /** Live array of values emitted on a sink (EVENTS as {type, data}, PARENT unwrapped, custom sinks of any component in the tree) */
   sinkValues: (sinkName: string) => any[];
@@ -1364,7 +1365,8 @@ export interface RenderResult {
    * Answer the most recent pending request on a driverless sink/source (e.g. `HTTP` with no
    * `drivers: { HTTP }`): `HTTP.select(category)` receives `{ category, value, status: 200,
    * request }`. Waits up to 1s (half of timeoutMs if lower) for the component to send a
-   * request (e.g. after a debounce). Requests superseded by a later `latest: true` one, or cancelled with
+   * request (e.g. after a debounce). Each send is a request (the same object sent again is
+   * pending again). Requests superseded by a later `latest: true` one, or cancelled with
    * `{ category, abort: true }`, aren't pending. Fails the test if nothing selects it.
    */
   respond: (sinkName: string, value: any, options?: string | FakeReplyOptions) => void;
@@ -1381,7 +1383,8 @@ export interface RenderResult {
   /** Throws (with the formatted texts) if any warn/error diagnostics were collected */
   expectNoDiagnostics: () => void;
   /**
-   * Latest rendered VNode serialized to HTML. Throws if called before the first render: wait
+   * Latest rendered VNode serialized to HTML like innerHTML (text escapes only & < >, so
+   * `Couldn't`, not `&#39;`). Throws if called before the first render: wait
    * with `await t.ready()` (or `t.next(...)`) first. '' for a component that renders nothing.
    */
   html: () => string;
