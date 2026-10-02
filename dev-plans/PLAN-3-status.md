@@ -35,7 +35,7 @@ Delta attribution (analysis/p3-net-baseline.md): learning 11.7 s (42%, mostly re
 | 1-C | Test fakes (G-140, G-141, G-131) | ⬜ | | | | after 1-A |
 | 1-D | Checker (SYG102 triggers, routed-action code, SYG508) | ⬜ | | | | after 1-A |
 | 1-T | Types (routed requests, G-142) | ⬜ | | | | after 1-A |
-| 1-G | Haiku diagnostics/docs gaps (G-143) | ⬜ | | | | independent |
+| 1-G | Haiku diagnostics/docs gaps (G-143) | ✅ | `p3-1g-haiku-gaps` | subagent | merge after `033d06e` (`5fd94af`) | Dev-entry only (0 core bytes; new `DEV_CODE_SEVERITY` table + `devReport()`): **SYG115** warn unknown `DOM.<name>` shorthand (second Proxy via `sources` hook; suggests `keydown(sel).key()`/near misses), **SYG116** error EVENTS value without a string `type`, **SYG221** error `set('field')` (also typed `Partial<S> & object`), **SYG421** error invalid `data` key (names camelCase fix). Escape pattern verified (mock + jsdom) and documented; DELETE object-form note; `export {}` explained in TS docs (no `events.ts` exists in templates/examples, item 7 N/A). 15 tests (9 failed first). llms.txt 235 lines. G-152 |
 | 2-A | `makeSocketDriver` | ⬜ | | | | |
 | 2-B | `connections` static | ⬜ | | | | |
 | 2-C | Socket fakes | ⬜ | | | | |
@@ -47,6 +47,7 @@ Delta attribution (analysis/p3-net-baseline.md): learning 11.7 s (42%, mostly re
 | Merge | build:all | vitest | examples | types | browser | sygnal-check | doc samples | error docs | docs build | kanban gz |
 |---|---|---|---|---|---|---|---|---|---|---|
 | baseline (main `6b7144e`) | ✅ | | | | | | | | | 42,125 B ✅ |
+| 1-A + 1-G | ✅ | 1,144 ✅ | ✅ | ✅ | 123 ✅ | 197 ✅ | 374 ✅ | ✅ | 47 pages ✅ | 42,111 B ✅ |
 | 1-A | ✅ | 1,128 ✅ | 9 ex / 105 ✅ | ✅ | 123 ✅ | 193 ✅ | 373 ✅ | ✅ | (not run: only errors.md regenerated) | 42,111 B ✅ |
 
 ## Open Questions (awaiting user)
@@ -54,7 +55,8 @@ Delta attribution (analysis/p3-net-baseline.md): learning 11.7 s (42%, mostly re
 | # | Question | Raised | Blocks | Answer |
 |---|---|---|---|---|
 | Q1–Q7 | PLAN-3 §8 | PLAN-3 | Phase 0 | ✅ All recommendations accepted (D57–D63) |
-| Q9 | G-150: `HYDRATE` is no longer dispatched by anything. Remove it as a built-in in 6.0 (docs, types, checkers; breaking + migration), or keep it reserved/documented for a future SSR hook? | 1-A | 1-D, 1-T, 4-A | open |
+| Q9 | G-150: `HYDRATE` is no longer dispatched by anything. Remove it as a built-in in 6.0 (docs, types, checkers; breaking + migration), or keep it reserved/documented for a future SSR hook? | 1-A | 1-D, 1-T, 4-A | ✅ Remove (D66) |
+| Q10 | G-152: fix the pragma so `data-task-id="…"` attributes become valid dataset keys (+50 B measured), or leave it to SYG421 + docs? | 1-G | — | open |
 | Q8 | The E2 report's "10 open design questions" were never committed (branch deleted); add any not covered by ROADMAP §16 Q-net-1…4 | PLAN-3 header | — | open |
 
 ## Decision Log
@@ -68,6 +70,8 @@ Delta attribution (analysis/p3-net-baseline.md): learning 11.7 s (42%, mostly re
 | D61 | 2026-10-02 | Q5: the declaration static is `connections` | User | `subscriptions` clashes with stream subscriptions |
 | D62 | 2026-10-02 | Q6: `resources` state lives at a top-level key named by the resource | User | Reads best; revisit on collisions/eval |
 | D63 | 2026-10-02 | Q7: size budget decided after the 0-B spike with measured bytes | User | Only 175 B headroom |
+| D66 | 2026-10-02 | Q9 / G-150: remove `HYDRATE` as a built-in action in 6.0 (docs, types, diagnostics checks, sygnal-check); breaking entry + migration (Vike `+data` / `hydrateState`). Split: 1-D (checkers, explanations), 1-T (`index.d.ts`), 4-A (llms.txt, skill, docs), 4-B (CHANGELOG) | User | Nothing dispatches it after 1-A |
+| D67 | 2026-10-02 | Phase 1 rest (1-B, 1-C, 1-D, 1-T) launched in parallel from the 1-A+1-G merge; merged one at a time with the full gate | User | No file overlap |
 | D65 | 2026-10-02 | Half-routed requests: `ok`-only sends failures to `errors()`, `error`-only sends successes to `select()` (unhandled outcomes stay observable/logged); `{ abort: true }` without key/category still cancels the whole scope incl. routed requests; G-147: EVENTS stamping unchanged (non-objects still spread; passing them through broke `EVENTS.select` listeners on `null`) | Coordinator (accepting 1-A) | 1-A report |
 | D64 | 2026-10-02 | D63 outcome: routing core fits the current budget (+53 B → 122 B headroom); no re-baseline now. Revisit at 2-B (`connections` core) with measured bytes. 1-A follows the 0-B v3 shape | Coordinator | 0-B results |
 
@@ -82,6 +86,7 @@ Delta attribution (analysis/p3-net-baseline.md): learning 11.7 s (42%, mostly re
 | G-149 | 0-C | low | Eval harness | The Sygnal hidden-test harness can't dispose the app between tests; task 22's `afterEach` clicks "Leave room" to stop a leftover retry timer | Open (note) |
 | G-147 | 0-B | low | Routing | Generalised stamp skips non-object EVENTS values (before: spread into objects); small behaviour change, needs a test and possibly a CHANGELOG line | ✅ 1-A (kept old behaviour, tested; D65) |
 | G-150 | 1-A | med | HYDRATE | Nothing in the core dispatches `HYDRATE` now (its only source was the removed legacy path), but it is documented (llms.txt:41, SKILL.md:73, guide/model.md, integration/typescript.md), typed (`index.d.ts` `HYDRATE?`), and listed as built-in in diagnostics checks and sygnal-check (`modelEntries.js`, `graph.js`, SYG101/2xx explanations, README) | Open → Q9 (user) |
+| G-152 | 1-G | med | Pragma | JSX attribute `data-task-id="5"` becomes dataset key `task-id` (`deepifyKeys`, `src/pragma/fn.ts`) and the DOM throws a bare DOMException; SYG421 reports it in dev. Core fix (camelCase keys for the `data` module) measured +50 B | Open → Q10 (user) |
 | G-151 | 1-A | low | Testing | Dead after 1-A: `__sygnalFetch` on the fake (testing.ts ~945), `x.sel !== 'initial'` (~1347). Routed requests under the fake: recorded in `t.requests` but never stamped, and `t.respond` throws "nothing receives it" — the fake needs `__sygnalRoutes`/`routed(sender)` | Open → 1-C |
 
 ## Log
@@ -91,3 +96,4 @@ Delta attribution (analysis/p3-net-baseline.md): learning 11.7 s (42%, mostly re
 - 2026-10-02 — G-145 fixed in CLAUDE.md (user-approved). 0-C merged (`dc2ae34`): tier `net` (22, 23), verify 90/90, mutants all caught; G-148, G-149. Phase 0 code work done; the `net` baseline run is the user's (terminal).
 - 2026-10-02 — `p3-net-baseline` (user's terminal, guard on): 20/20 pass; Sygnal +45.8 s on 22 (custom socket driver + generation ids in 5/5), +10.2 s on 23 (makeFetchDriver + latest in 5/5). Phase 0 complete. 1-A and 1-G running.
 - 2026-10-02 — 1-A merged (`3d1736f`), full gate green on the merge, 42,111 B. D65; G-144/G-147 closed; G-150 (HYDRATE now dead → Q9), G-151 (→ 1-C).
+- 2026-10-02 — Q9 answered (remove HYDRATE, D66). 1-G merged; explanations.json/errors.md regenerated-consistent (71 codes); full gate green incl. docs build. G-152 (data-attribute pragma bug → Q10). 1-B, 1-C, 1-D, 1-T launched (D67).
