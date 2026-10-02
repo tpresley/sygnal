@@ -1279,6 +1279,16 @@ A component's model sends to a sink (for example `HTTP: (state) => ({ url: '/api
 
 **Fix:** Pass the driver to `run()` under exactly that name: `run(App, { HTTP: makeFetchDriver() })` for HTTP requests, `driverFromAsync(fn)` for any promise-returning function, or your own driver. Check the spelling against the drivers you pass.
 
+### SYG610
+
+**Request has a 'then' or 'catch' key**
+
+Severity: `error` · Reported by: the Sygnal runtime (every app, production included)
+
+A request sent to a routing driver (`makeFetchDriver`, `driverFromAsync`) has a `then` or `catch` key, for example `HTTP: (state) => ({ url: '/api/x', then: 'LOADED' })`. An object with a `then` key is a thenable, so it breaks anything that `await`s it, and these keys look like a promise chain but do nothing. The driver does not send the request.
+
+**Fix:** Name the reply actions with the routing keys: `{ url: '/api/x', ok: 'LOADED', error: 'FAILED' }`. The `ok` action gets the parsed body, the `error` action `{ error, status, body, request }`.
+
 ## SYG9xx: Internal
 
 ### SYG900

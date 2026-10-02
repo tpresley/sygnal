@@ -20,7 +20,6 @@ const ENVIRONMENT: any =
 
 const BOOTSTRAP_ACTION = 'BOOTSTRAP';
 const INITIALIZE_ACTION = 'INITIALIZE';
-const HYDRATE_ACTION = 'HYDRATE';
 const DISPOSE_ACTION = 'DISPOSE';
 const PARENT_SINK_NAME = 'PARENT';
 const CHILD_SOURCE_NAME = 'CHILD';
@@ -97,7 +96,6 @@ export interface ComponentOptions {
   storeCalculatedInState?: boolean;
   DOMSourceName?: string;
   stateSourceName?: string;
-  requestSourceName?: string;
   isolateOpts?: string | boolean | Record<string, any>;
   isolatedState?: boolean;
   onError?: (error: Error, info: { componentName: string }) => any;
@@ -174,7 +172,6 @@ class Component {
   storeCalculatedInState: boolean;
   DOMSourceName: string;
   stateSourceName: string;
-  requestSourceName: string;
   sourceNames: string[];
   _debug: boolean;
   onError: ((error: Error, info: { componentName: string }) => any) | undefined;
@@ -209,12 +206,13 @@ class Component {
   _disposeListener: any;
   _dispose$: any;
   _disposed?: boolean;
+  _routed?: any[];
   _activeSubComponents: Map<string, any>;
   _childReadyState: Record<string, boolean>;
   _readyChanged$: any;
   _readyChangedListener: any;
 
-  constructor({name = 'NO NAME', sources, intent, model, hmrActions, context, response, view, peers = {}, components = {}, initialState, calculated, storeCalculatedInState = true, DOMSourceName = 'DOM', stateSourceName = 'STATE', requestSourceName = 'HTTP', isolatedState = false, onError, debug = false}: ComponentOptions) {
+  constructor({name = 'NO NAME', sources, intent, model, hmrActions, context, response, view, peers = {}, components = {}, initialState, calculated, storeCalculatedInState = true, DOMSourceName = 'DOM', stateSourceName = 'STATE', isolatedState = false, onError, debug = false}: ComponentOptions) {
     if (!sources || !isObj(sources)) fail('SYG601', name, 'Missing or invalid sources', 'Pass sources from run()')
 
     this._componentNumber = COMPONENT_COUNT++
@@ -234,7 +232,6 @@ class Component {
     this.storeCalculatedInState = storeCalculatedInState
     this.DOMSourceName     = DOMSourceName
     this.stateSourceName   = stateSourceName
-    this.requestSourceName = requestSourceName
     this.sourceNames       = Object.keys(sources)
     this.onError           = onError
     this.isolatedState     = isolatedState
@@ -486,6 +483,9 @@ class Component {
       } catch (_) {}
       this._disposeListener = null
     }
+    // G-144: stop the routed replies now, so none reaches this instance after DISPOSE and the
+    // drivers abort its routed requests in flight (rather than when action$ completes below)
+    this._routed?.forEach(r$ => r$.shamefullySendComplete())
     // Dispose the sub-components now (R3), so the whole subtree's DISPOSE actions and
     // onDispose hooks run within this call (e.g. before renderComponent restores diagnostics)
     this._activeSubComponents.forEach((entry) => entry?.sink$?.__dispose?.())
@@ -550,9 +550,7 @@ class Component {
   }
 
   initAction$(): void {
-    const requestSource  = (this.sources && this.sources[this.requestSourceName]) || null
-
-    // G-107: a component with a model but no intent still gets BOOTSTRAP (and HYDRATE)
+    // G-107: a component with a model but no intent still gets BOOTSTRAP
     const intent$ = this.intent$ || {}
 
     let runner
@@ -576,22 +574,14 @@ class Component {
     const hmrAction$ = _hmrUpdating ? this.hmrAction$ : xs.of().filter((_: any) => false)
     const wrapped$   = (this.model?.[BOOTSTRAP_ACTION] &&!_hmrUpdating) ? concat(bootstrap$, action$) : concat(xs.of().compose(delay(1)).filter((_: any) => false), hmrAction$, action$)
 
-
-    let initialApiData
-    if (!_hmrUpdating && requestSource && typeof requestSource.select == 'function' && !requestSource.__sygnalFetch) {
-      // legacy @cycle/http: select() emits response streams. A makeFetchDriver/driverFromAsync
-      // source named HTTP emits plain responses, which are not hydration data (E2); the fetch
-      // driver and renderComponent's fake say so up front (R4-7)
-      initialApiData = requestSource.select('initial')
-        .filter((r$: any) => r$ && typeof r$.addListener == 'function')
-        .flatten()
-    } else {
-      initialApiData = xs.never()
-    }
-
-    const hydrate$ = initialApiData.map((data: any) => ({ type: HYDRATE_ACTION, data }))
-
-    this.action$   = xs.merge(wrapped$, hydrate$)
+    // PLAN-3 routed requests: a routing-capable source (makeFetchDriver, driverFromAsync, ...)
+    // delivers the replies to this instance's own requests as actions (src/extra/routing.ts).
+    // === true: the DOM source is a Proxy that answers any property with a function.
+    // dispose() completes them, so the driver drops/aborts this instance's requests at once (G-144)
+    this._routed = this.sourceNames.filter(n => this.sources[n]?.__sygnalRoutes === true).map(n => this.sources[n].routed(this._componentNumber))
+    // xs.never(): action$ outlives a finite intent, so DISPOSE can still be sent (it was
+    // the legacy hydrate$ that did this)
+    this.action$   = xs.merge(wrapped$, xs.never(), ...this._routed)
       .compose(this.log(({ type }: any) => `<${type}> Action triggered`))
       .map((action: any) => {
         if (typeof window !== 'undefined' && window.__SYGNAL_DEVTOOLS__?.connected) {
@@ -919,11 +909,16 @@ class Component {
     // merged with the sub-components' (B-023: stamping the merged sink made every ancestor
     // re-stamp, so the emitter was always the root). Non-enumerable (G-020), so sink values
     // still toEqual what the model returned.
-    const ev$ = this.model$.EVENTS
-    if (ev$) this.model$.EVENTS = ev$.map((ev: any) => Object.defineProperties({...ev}, {
-      __emitterId: { value: this._componentNumber, configurable: true },
-      __emitterName: { value: this.name, configurable: true },
-    }))
+    // PLAN-3: the same stamp tags this component's own requests to a routing-capable source
+    // (__emitterId is the sender its replies are routed to). Only object requests are stamped
+    // (a string is an unrouted GET); every EVENTS value is, as before (G-147).
+    ;['EVENTS', ...this.sourceNames.filter(n => this.sources[n]?.__sygnalRoutes === true)].forEach(n => {
+      const s$ = this.model$[n]
+      if (s$) this.model$[n] = s$.map((v: any) => n == 'EVENTS' || isObj(v) ? Object.defineProperties({...v}, {
+        __emitterId: { value: this._componentNumber, configurable: true },
+        __emitterName: { value: this.name, configurable: true },
+      }) : v)
+    })
     this.sinks = this.sourceNames.reduce((acc: Record<string, any>, name) => {
       if (name == this.DOMSourceName) return acc
       const subComponentSink$ = (this.subComponentSink$ && name !== PARENT_SINK_NAME) ? this.subComponentSink$.map((sinks: any) => sinks[name]).filter((sink: any) => !!sink).flatten() : xs.never()

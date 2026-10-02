@@ -509,7 +509,6 @@ export type Component<
   label?: string;
   DOMSourceName?: string;
   stateSourceName?: string;
-  requestSourceName?: string;
   model?: ComponentModel<STATE, PROPS, FixDrivers<DRIVERS>, ACTIONS, CALCULATED, SINK_RETURNS, CONTEXT>;
   intent?: ComponentIntent<STATE, FixDrivers<DRIVERS>, ACTIONS, CALCULATED>;
   initialState?: STATE;
@@ -954,7 +953,6 @@ export type ComponentFactoryOptions<
   storeCalculatedInState?: boolean;
   DOMSourceName?: string;
   stateSourceName?: string;
-  requestSourceName?: string;
   debug?: boolean;
 }
 

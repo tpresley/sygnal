@@ -1,15 +1,24 @@
 import xs, {Stream} from 'xstream';
+import {senderOf, keepSender, allowed, makeRoutes} from './routing';
 
 /*
  * makeFetchDriver(options?) (PLAN-2 E2): an opt-in HTTP driver over `fetch`. Docs on the
  * declarations in src/index.d.ts and docs/guide/drivers.md. Summary:
  *
- * - Request (sink value): `{ url, category?, method?, headers?, query?, json?, body?, latest?,
- *   timeoutMs?, parse?, init? }` or a URL string. `json` is stringified with a JSON
+ * - Request (sink value): `{ url, ok?, error?, key?, category?, method?, headers?, query?, json?,
+ *   body?, latest?, timeoutMs?, parse?, init? }` or a URL string. `json` is stringified with a JSON
  *   content-type; method defaults to POST with a body/json, else GET. `query` is appended as a
  *   query string (null/undefined values skipped, arrays repeat the key, before any #fragment).
  *   Other fetch options (credentials, mode, cache, ...) go under `init` (R4-5); other top-level
  *   keys are the app's own: not sent, but returned on `request`.
+ * - Routed (PLAN-3, D57/D58): a component's request naming `ok` / `error` actions gets its
+ *   reply as that action, delivered to exactly the sending instance (./routing.ts), never to
+ *   select()/errors(): `ok` data is the parsed body (the Response with parse: 'response'),
+ *   `error` data `{ error, status?, body?, request }`. A request naming only one of them sends
+ *   the other outcome down the unrouted path (select()/errors()). `latest` acts per (sender,
+ *   `key ?? ok ?? error`); `{ abort: 'LOADED' }` / `{ abort: true, key }` cancel the sender's
+ *   requests under that key; when the sender is disposed its routed requests are aborted.
+ *   Requests with a `then` / `catch` key are refused (SYG610).
  * - `{ category?, abort: true }` cancels the component's requests in flight in that category
  *   (all of its requests without a category); a cancelled request delivers nothing.
  * - `latest: true` (per request, or the driver option): a new request aborts the component's
@@ -43,7 +52,7 @@ const SCOPE = '__sygnalScope';
 export const scopeOfRequest = (req: any): any[] => (req && typeof req == 'object' && req[SCOPE]) || [];
 /** a copy of the request tagged with one more (outer) scope */
 export const tagRequest = (req: any, scope: any) => {
-  const r = typeof req == 'string' ? {url: req} : req && typeof req == 'object' ? {...req} : req;
+  const r = typeof req == 'string' ? {url: req} : req && typeof req == 'object' ? keepSender(req, {...req}) : req;
   if (r && typeof r == 'object') Object.defineProperty(r, SCOPE, {value: [scope, ...scopeOfRequest(req)]});
   return r;
 };
@@ -104,8 +113,9 @@ export function makeFetchDriver(options: any = {}) {
   return (request$: Stream<any>) => {
     let seq = 0;
     let disposed = false;
-    // requests in flight: id → { category, scope (key), ctl (AbortController), timer }
-    const inflight = new Map<number, {category: any; scope: string; ctl?: AbortController; timer?: any}>();
+    // requests in flight: id → { category, scope (key), ctl (AbortController), timer, and for a
+    // routed request its sender and routing key }
+    const inflight = new Map<number, {category: any; scope: string; ctl?: AbortController; timer?: any; sender?: any; rk?: any}>();
     const subs = new Set<{l: any; sel: any; err: boolean; ns: any[]}>();
     // R4-4: replies held until the first select() listener, failures until the first errors()
     // listener (or the next macrotask, when they're logged if nothing listens)
@@ -156,8 +166,7 @@ export function makeFetchDriver(options: any = {}) {
         errors: make(true),
         isolateSource: (_: any, scope: any) => source(ns.concat(scope)),
         isolateSink: (sink$: any, scope: any) => sink$.map((req: any) => tagRequest(req, scope)),
-        // R4-7: not a legacy HTTP source (no HYDRATE 'initial' subscription)
-        __sygnalFetch: true,
+        ...routes,
       };
     };
 
@@ -172,15 +181,22 @@ export function makeFetchDriver(options: any = {}) {
     };
     const cancel = (which: (r: any) => boolean) =>
       inflight.forEach((r, id) => { if (which(r)) finish(id, true); });
+    // a disposed sender's routed requests are aborted
+    const {routes, reply} = makeRoutes(sender => cancel(r => r.rk !== undefined && r.sender === sender));
 
     const send = (req: any) => {
       if (typeof req == 'string') req = {url: req};
-      if (!req || typeof req != 'object' || disposed) return;
-      const {url, category, method, headers, query, json, body, latest, timeoutMs, parse, abort, init} = req;
+      if (!req || typeof req != 'object' || disposed || !allowed(req, 'makeFetchDriver')) return;
+      const {url, category, method, headers, query, json, body, latest, timeoutMs, parse, abort, init, ok, error, key} = req;
       const scope = scopeKey(req);
+      const sender = senderOf(req);
+      // routed: keyed per (sender, key ?? ok ?? error)
+      const rk = sender !== undefined && (ok || error) ? key ?? ok ?? error : undefined;
+      if (sender !== undefined && (typeof abort == 'string' || (abort && key !== undefined)))
+        return cancel(r => r.sender === sender && r.rk === (key ?? abort));
       // per (scope, category): another component's requests are never cancelled
       if (abort) return cancel(r => r.scope === scope && (!('category' in req) || r.category === category));
-      if (latest ?? options.latest) cancel(r => r.scope === scope && r.category === category);
+      if (latest ?? options.latest) cancel(rk === undefined ? r => r.rk === undefined && r.scope === scope && r.category === category : r => r.sender === sender && r.rk === rk);
 
       const href = withQuery((options.baseUrl || '') + (url ?? ''), query);
       const base = options.init, own = init;
@@ -192,9 +208,11 @@ export function makeFetchDriver(options: any = {}) {
       }
       const id = ++seq;
       const ctl = typeof AbortController == 'function' ? new AbortController() : undefined;
-      const r: any = {category, scope, ctl};
+      const r: any = {category, scope, ctl, sender, rk};
       inflight.set(id, r);
-      const fail = (error: any, extra?: any) => finish(id) && emit(true, {error, category, request: req, ...extra});
+      // a routed outcome goes to the sender's actions, the other to errors()/select()
+      const fail = (e: any, extra?: any) => finish(id) &&
+        (rk !== undefined && error ? reply(sender, error, {error: e, request: req, ...extra}) : emit(true, {error: e, category, request: req, ...extra}));
       const ms = timeoutMs ?? options.timeoutMs;
       if (ms > 0) {
         r.timer = setTimeout(() => {
@@ -237,7 +255,7 @@ export function makeFetchDriver(options: any = {}) {
           }
           let value: any;
           try { value = await parser(res); } catch (e) { return fail(e, {status: res.status}); }
-          if (finish(id)) emit(false, {category, value, status: res.status, request: req});
+          if (finish(id)) rk !== undefined && ok ? reply(sender, ok, value) : emit(false, {category, value, status: res.status, request: req});
         } catch (e) {
           fail(e);
         } finally {
