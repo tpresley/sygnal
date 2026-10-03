@@ -13,9 +13,9 @@ import { processForm } from 'sygnal'
 function ContactForm({ state }) {
   return (
     <form className="contact-form">
-      <input name="name" value={state.name} />
-      <input name="email" value={state.email} />
-      <textarea name="message">{state.message}</textarea>
+      <input name="name" aria-label="Name" value={state.name} />
+      <input name="email" aria-label="Email" value={state.email} />
+      <textarea name="message" aria-label="Message">{state.message}</textarea>
       <button type="submit">Send</button>
     </form>
   )
@@ -77,7 +77,7 @@ import { ABORT } from 'sygnal'
 function NewTodo({ state }) {
   return (
     <div>
-      <input className="new-todo" value={state.draft} />
+      <input className="new-todo" aria-label="New todo" value={state.draft} />
       <button className="add">Add</button>
     </div>
   )
@@ -151,7 +151,7 @@ function EditableTitle({ state }) {
   return (
     <div>
       {state.isEditing
-        ? <input autoFocus={true} autoSelect={true} value={state.draft} className="title-input" />
+        ? <input autoFocus={true} autoSelect={true} value={state.draft} className="title-input" aria-label="Title" />
         : <h2 className="title">{state.title}</h2>
       }
     </div>

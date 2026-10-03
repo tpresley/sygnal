@@ -24,7 +24,7 @@ function Chat({ state }) {
     <div>
       <p className="status">{state.status}</p>
       <ul>{state.messages.map(m => <li>{m.text}</li>)}</ul>
-      <input className="draft" value={state.draft} />
+      <input className="draft" aria-label="Message" value={state.draft} />
       <button className="send">Send</button>
       <button className="leave">Leave</button>
     </div>
