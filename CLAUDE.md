@@ -32,6 +32,7 @@ npm ci
 npm ci --prefix browser-tests
 npm ci --prefix sygnal-check             # @babel/parser for vite-plugin-dev and inspect-kanban tests
 npm install --prefix examples/kanban     # its file:../.. link; other examples: TEST_EXAMPLES_INSTALL=1 npm test
+npm install --prefix examples/todomvc    # test/copied and the devtools Copy-as-test tests import it
 npm ci --prefix docs                     # Astro/Starlight, for npm --prefix docs run build
 npm run build
 ```

@@ -61,6 +61,7 @@ PLAN-3's end-of-Phase-5 figures (40,403 B, 283 lines, 34,343 B) grew with #12 an
 | 2-R | Review fixes (G-214), G-216, G-218, D131, togglePopover, `t.explain` original fn, Vike `onError` check | 🟡 running | `p4-2r-fixes` | subagent | | then tags `plan4-phase1`, `plan4-phase2` |
 | 3-A | Element commands (GS-2) | ✅ merged | `p4-3a-element` (`9176436`) | subagent | | +222 B; any element method runs (D133); SYG640/641 dev-only; commands run after the next patch where the target exists, else 16 ms checks, give up after ~1 s |
 | 3-K | Checker: GS-2, GS-7 (GS-5 after 3-B) | ✅ merged (GS-5 part pending) | `p4-3k-checker` (`3da16ee`) | subagent | | sygnal-check 434; static SYG422/640/641/643; timer actions are triggers (SYG112 family); no new findings on hidden solutions/examples; G-215 frame browser test |
+| 4-B2 | Site docs, part 2 (element commands, timers, DevTools, API reference) | ✅ merged | `p4-4b2-docs` (`7c2c001`) | subagent | | 2 new pages; 33 samples in `test/p4-4b2-doc-samples.test.js`; check-doc-samples 511; G-219, G-223 closed |
 | 3-C | Timers (GS-7) | ✅ merged | `p4-3c-timers` (`6ad12b1`) | subagent | | 0 B core; +579 B per app; driver key `TIMER` by convention (found by `__sygnalStatic`); SYG643 also covers `connections`/`resources`; hidden pages restart timers from scratch; recipe waits for 3-K (SYG102 on TICK) |
 | 3-E | DevTools (GS-10) | ✅ merged | `p4-3e-devtools` (`7fa4c43`) | subagent | | 0 B production; devtools entry 3.9 → 16.5 KB gz (dev-only); Copy as test proven on kanban, todomvc, signup form (`test/copied/`); Redux bridge done (stretch) |
 | 1-E prep | Controls A/B variants `p4-ct1-a`/`p4-ct1-b` | ✅ merged | `p4-1e-ab-variant` (`ef038e0`) | subagent | | controls skill +1,902 B (+5.4%); converted starters committed as overlays; task 16 normaliser ignores `data-control`; verify 55/55 on converted solutions |
@@ -223,13 +224,14 @@ They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none o
 | G-216 | P-2b | low | HMR | `component.ts` still reads page-wide `__SYGNAL_HMR_UPDATING` / `__SYGNAL_HMR_STATE`, so an app constructed during another app's ~100 ms hot swap can take its state. Fix: scope per app through a `__hmr` source (+10–20 B). | 2-R |
 | G-217 | P-2b | — | docs | `integration/hmr.md:67` mentions the removed `__SYGNAL_HMR_PERSISTED_STATE`; `diagnostics/index.ts` comment (lines 55–58) says every run() is authoritative ("unless another app is live"). | 4-B / 2-R |
 | G-218 | 3-E | medium | testing | `t.simulateAction('A'); t.simulateAction('SUBMIT'); await t.fail('HTTP', …)` throws "The component sent none": with two queued simulateActions, the request leaves after the harness's queued-input wait. One simulateAction works. Copy as test emits `await t.settle()` as a workaround. | 2-R (testing.ts) |
-| G-219 | 3-E | — | docs | Document `copyAsTest`, `getActions`, `connectReduxDevtools`, `sygnal({ devtools: { redux: true } })`, `configureCopyAsTest`. | 4-B |
+| G-219 | 3-E | — | docs | Document `copyAsTest`, `getActions`, `connectReduxDevtools`, `sygnal({ devtools: { redux: true } })`, `configureCopyAsTest`. | ✅ 4-B2 |
 | G-220 | 3-A merge | high | browser-tests | `run-headless.mjs` passed `{ timeout }` as `waitForFunction`'s page argument, so Playwright's 30 s default always applied (the 90 s raise in G-211 did nothing). With 163 tests (~32 s) the suite failed as "timed out after 90000 ms". Fixed: options as the third argument; the runner now prints the real error and the page console. | ✅ coordinator |
 | G-221 | 3-A | low | GS-2 | `togglePopover` gets `{}` when no `force`, which boolean-only browsers read as `true`. | 2-R |
 | G-222 | 4-B1 | low | testing | `t.explain().reducer.fn/.source` is SYG222's dev wrapper when the dev entry is loaded. | 2-R |
-| G-223 | 4-B1 | — | docs | `reference/api.md` and `reference/utilities.md` not updated for PLAN-4 APIs; the `benchmarks/RESULTS.md` link targets `main` (404 until merged). | 4-B part 2 |
+| G-223 | 4-B1 | — | docs | `reference/api.md` and `reference/utilities.md` not updated for PLAN-4 APIs; the `benchmarks/RESULTS.md` link targets `main` (404 until merged). | ✅ 4-B2 |
 | G-224 | 3-K | low | diagnostics | Runtime SYG102 heuristic (`replyNamesOf` in `checks/shared.ts`) doesn't read the `timers` static, so the dev entry may report a timer action as SYG102 info under `run()`; `InspectComponent` (public.d.ts) lacks the schema's static-only `commands`/`timers`. | 3-B (owns diagnostics then) |
-| G-225 | 3-K | low | tests | `p4-3a-element-commands` "after 1 s" SYG640 test failed once on a fresh worktree run (timing-sensitive). | Watch; fix if it recurs |
+| G-225 | 3-K, 4-B2 | low | tests | Timing flakes: `p4-3a-element-commands` "after 1 s" SYG640 and `p4-3a-element-run` "reports SYG641 and SYG640" each failed once (SYG640 after ~1 s). | 3-B (make the waits deterministic) |
+| G-226 | 4-B2 | low | types | `SygnalDevTools` (from `getDevTools()` in `sygnal`) lacks `configureCopyAsTest` / `getSession`; only the `sygnal/devtools` type has them. | 3-B |
 
 ## Log
 
@@ -252,3 +254,4 @@ They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none o
 - 2026-10-03 — Merged 3-E; gates green (vitest 1,823, browser 154; size unchanged). G-218, G-219.
 - 2026-10-03 — Merged 3-A (conflicts with 3-C/P-2b in codes/explanations/check hooks/browser main: kept both, regenerated) and 4-B part 1. Found and fixed G-220 (browser runner timeout). Gates green: vitest 1,965 (+1 skipped), browser 163, sygnal-check 373, doc samples 478; 41,103 B gated (PLAN-4 +567 B of 775). D133. Started 2-R and 3-K.
 - 2026-10-03 — Merged 3-K; gates green (sygnal-check 434, browser 164). G-224, G-225.
+- 2026-10-03 — Merged 4-B part 2. CLAUDE.md setup adds `examples/todomvc`. G-226.
