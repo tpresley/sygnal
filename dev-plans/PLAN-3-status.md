@@ -29,7 +29,11 @@ Delta attribution (analysis/p3-net-baseline.md): learning 11.7 s (42%, mostly re
 
 **Network-layer checkpoint (`p3-final`, Opus 5.5, Sygnal arm, all 23 tasks, 115/115 pass; D75):** matched wall on the 21 shared tasks 43.2 → **41.1 s** vs `p4-final2` (−5%); task 22 87.6 → **49.0 s** (291 → 133 LOC; gap to React +45.8 → **+7.2 s**); 11 59.4 → 42.9, 17 70.7 → 59.7, 05 26.2 → 19.7 s; task 23 unchanged (39.8 s, React 29.5). Cost +6% and peak context +1.8k tokens per trial (the bigger agent docs, G-166). `p3-final-haiku` running.
 
-## Budgets (D76; for PLAN-3 and PLAN-4)
+## Budgets (D76; for PLAN-3 and PLAN-4) — final for PLAN-3
+
+**Left for PLAN-4 (end of Phase 5):** core **1,897 B** (40,403 / 42,300 gated; D77 already spent on DevTools), `llms.txt` **17 lines** (283 / 300), SKILL.md **1,657 B** (34,343 / 36,000). Driver sizes as bytes added to an app (D87): fetch 3,793 B (+ `queryCache` 4,556 B), router 2,823 B, HEAD 830 B, socket ≈ 2.6 KB. Modules PLAN-4 can reuse: `src/extra/standardSchema.ts` (`isStandardSchema`, `validateWith`), `src/extra/browserSignals.ts` (`onBrowserSignals`, `isHidden`), `src/extra/backoff.ts`, the generic `__sygnalStatic` declaration mechanism (`initStatics` in `component.ts`; statics work without a model, pause in hidden Switchable pages unless `background: true`). Docs layout: `guide/http`, `guide/resources`, `guide/sockets`, `guide/router`, `guide/head`, `guide/custom-drivers`, `integration/server-functions`.
+
+Earlier table:
 
 | Budget | Cap | Now (`plan3-integration`) | PLAN-3 share | Left for PLAN-4 |
 |---|---|---|---|---|
@@ -102,7 +106,7 @@ Delta attribution (analysis/p3-net-baseline.md): learning 11.7 s (42%, mostly re
 | 5-4c | Router `renderComponent` fake | ✅ | `p3-5-4c-router-fake` (`1d18e3e`) | subagent | merged (option-block conflicts with 5-3 resolved by keeping both) | `renderComponent(App, { router, url })` runs the real router over an in-memory window (no fallback route table: a declarer without `router` throws, naming the option); `t.navigate`/`t.back`/`t.forward`/`t.location`, `t.sent('ROUTER')` (declarations excluded); mock-DOM link clicks go through the driver's interception; HEAD fake with `t.head()`; options `routerSink`, `routerScroll`, `routerFocus`, `headSink`, `titleTemplate`. 22 tests + type test; no hooks outside testing.ts |
 | 5-5 | `queryCache()` split (D88) + SSR cache seeding + `{ prefetch }` | ✅ | `p3-5-5-cache-ssr` (`2299198`, `81fbe92`) | subagent | merged | `queryCache({ staleTime, gcTime, refetchOnFocus, refetchOnReconnect, initial })` with `dehydrate`/`hydrate`/`set`/`prefetch`; the driver keeps hooks; `cache: true` on the driver throws; per-request cache without queryCache = SYG635; cache keys exclude `baseUrl`; `{ prefetch }`; `renderToString(App, { cache })`; Vike: `pageContext.queryCache` from `+data` seeds SSR and the client (**verified in Vike 0.4.267, 12/12**: SSR success, hydration with 0 requests, client nav, stale refetch); **fix: Vike shell pages re-applied `initialState` over their slice and lost resource writes**. **Sizes (D87, added to an app): driver 4,200 → 3,793 B (−407; the ~2 KB estimate came from the old method), driver + queryCache 4,556 B**. 19 new tests |
 | 5-6 | Eval tasks 24, 25 | ✅ | `p3-5-6-tasks` (`92f7965`) | subagent | merged; task 24 reference + 2 mutants moved to `queryCache()` by the coordinator | **24-list-detail-cache** (list/detail, "Loading…" only on first show, cached revisit within 2 s without a request, else background "Updating…", save invalidates item + list, failed save keeps the edit, no stale overwrite; React: TanStack Query 5) and **25-router-spa** (`/`, `/tasks/:id`, `/tasks/:id/edit`, not found, real links, back/forward, route titles, in-app unsaved-changes guard; React: react-router 7). Hidden tests byte-identical across arms; verify `--reruns 3`: 24 54/54, 25 48/48; 7 + 6 mutants caught. `net` tier = 22–25. React starters' `main.jsx` comment: the harness renders `App.jsx`, so providers/routers belong there (Q17). Re-verified on the merge: 22 8/8, 23 7/7, 24 18/18 (reruns 2), 25 8/8 |
-| 5-7 | Recipes, inspect, docs within D76 | 🔵 | `p3-5-7-docs` | subagent | — | D91 |
+| 5-7 | Recipes, inspect, docs within D76 | ✅ | `p3-5-7-docs` (`979d953`) | subagent | merged | SKILL.md 35,122 → **34,343 B**, llms.txt 265 → **283 lines** (both within D76); router + HEAD, resources (`refreshing` rule D89, `keepPrevious`, invalidation, `queryCache()`), `background`, `instance`, test-fake lines; H-10 recipes on guide pages (optimistic rollback, save status, pagination, infinite list), each run in a scratch test; resources-first variant `variants/skills/resources-first` (+1.3% bytes) + `variants/p3-skill-resources-first.json` (skill-only: llms.txt ships in the package). Coordinator follow-ups: G-182, G-183, stale JSDoc/explanations |
 | 4-C | Eval (user's terminal) | ⬜ after Phase 5 (D75) | | | | Checkpoint done: `p3-final` (115/115); `p3-final-haiku` running. `p3-resources` not run (D74) |
 | 4-D | REPORT-v3 | ⬜ | | | | |
 
@@ -112,6 +116,7 @@ Delta attribution (analysis/p3-net-baseline.md): learning 11.7 s (42%, mostly re
 |---|---|---|---|---|---|---|---|---|---|---|
 | baseline (main `6b7144e`) | ✅ | | | | | | | | | 42,125 B ✅ |
 | 5-2a + G-172/173/174 | ✅ | 1,308 ✅ | ✅ | ✅ | 125 ✅ | 229 ✅ | 397 ✅ | ✅ | 51 pages ✅ | 40,211 B ✅ (+136) |
+| 5-7 + G-182/183 (**Phase 5 done**) | ✅ (1 flake on the first run, G-176) | 1,481 ✅ | ✅ | ✅ | 126 ✅ | 245 ✅ | 437 ✅ | ✅ | 54 pages ✅ | 40,403 B ✅ |
 | 5-5 | ✅ | 1,478 ✅ | ✅ | ✅ | 126 ✅ | 245 ✅ | 431 ✅ | ✅ | 54 pages ✅ | 40,403 B ✅ |
 | 5-4c | ✅ | 1,459 ✅ | ✅ | ✅ | 126 ✅ | 244 ✅ | 425 ✅ | ✅ | 54 pages ✅ | 40,403 B ✅ |
 | 5-3 (+5-2b) | ✅ | 1,437 ✅ | ✅ | ✅ | 126 ✅ | 244 ✅ | 422 ✅ | ✅ | 54 pages ✅ | 40,403 B ✅ |
@@ -220,6 +225,8 @@ Delta attribution (analysis/p3-net-baseline.md): learning 11.7 s (42%, mostly re
 | G-179 | 5-6 | med | Eval harness | `verify.mjs` reuses its `--work` dir and the packed tarball always has the same name, so npm can keep a stale Sygnal build installed (a fresh `--work` dir avoids it). `orchestrate` installs per trial dir from its own pack, so trials aren't affected | Open (use fresh `--work` dirs; fix before release) |
 | G-180 | 5-6 | low | sygnal-check | A non-literal reply-action value (`{ block: cond && 'CONFIRM_LEAVE' }`) isn't counted as a trigger: SYG102 info "never triggered" | Open |
 | G-181 | 5-6 | low | Eval analysis | The B-005 precondition looked for `errors()` in the skill; the skill now teaches reply actions (`error: 'FAILED'`) | ✅ coordinator: precondition accepts either; analysis tests 45/45 |
+| G-182 | 5-7 | med | resources | A resource returning `''` fetched `{ url: '' }` instead of going idle (string normalised before the falsy check) | ✅ coordinator: one condition; test failed first |
+| G-183 | 5-7 | med | Testing | `t.respond('HTTP', …, 'quote')` right after the `simulate*` that changes a resource's request threw "no pending request" (the fetch follows the state change) | ✅ coordinator: waits when the target names a declared resource and no state followed the last `simulate*`; superseded requests still throw (G-140); docs updated |
 | G-151 | 1-A | low | Testing | Dead after 1-A: `__sygnalFetch` on the fake (testing.ts ~945), `x.sel !== 'initial'` (~1347). Routed requests under the fake: recorded in `t.requests` but never stamped, and `t.respond` throws "nothing receives it" — the fake needs `__sygnalRoutes`/`routed(sender)` | ✅ 1-C |
 
 ## Log
@@ -256,3 +263,4 @@ Delta attribution (analysis/p3-net-baseline.md): learning 11.7 s (42%, mostly re
 - 2026-10-02 — 5-5 merged (queryCache split saved 407 B, not ~2 KB: the old estimate double-counted the core; SSR seeding verified in Vike; Vike shell-page fix). Gate green, 1,478 vitest. Waiting on 5-6; then 5-7.
 - 2026-10-02 — 5-6 merged (tasks 24, 25; `net` = 22–25); task 24 reference moved to `queryCache()` and re-verified; all net tasks re-verified on the current build. G-179…G-181, Q17. Next: 5-7 docs sync, then the final eval.
 - 2026-10-02 — D90 (keep React hint), D91 (default skill: reply actions canonical; resources-first variant for the A/B). 5-7 launched.
+- 2026-10-02 — 5-7 merged; G-182 (`''` resource) and G-183 (respond-after-simulate for resources) fixed by the coordinator; stale JSDoc/explanations cleaned. **Phase 5 complete.** PLAN-4 budgets recorded. Next: 4-C final eval (user's terminal), then REPORT-v3.

@@ -323,7 +323,7 @@ it('refreshes in place, and shows the cached quote when coming back', async () =
 })
 ```
 
-- A resource's request is sent after the state changes. After an event that changes it, wait (`await t.waitForState(...)` as above, `await t.next(...)` or `await t.settle()`) before `t.respond`, which otherwise finds nothing pending and throws.
+- A resource's request is sent after the state changes, not during the event that caused it. `t.respond` / `t.fail` by resource name right after a `simulateEvent` / `simulateAction` that hasn't produced its state yet waits (up to 1 s) for that fetch; otherwise, as for any request, they throw at the call when nothing matches.
 - `renderComponent(C, { http })` passes driver options (`cache: queryCache()`, `retry`, `timeoutMs`, …) to the fake. A seeded cache: `queryCache({ initial: snapshot })`.
 - `t.cache('HTTP')` lists the cache entries: `{ key, age, stale, subscribers, data, tags }`.
 - A `{ prefetch }` fetch is listed in `t.requests('HTTP')` as `{ url, ...request, prefetch: true }`; answer it like any other, e.g. `t.respond('HTTP', data, '/api/quotes/2')`.

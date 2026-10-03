@@ -326,7 +326,7 @@ export function makeFetchDriver(options: any = {}) {
             return;
           }
           let q = resources[n];
-          if (typeof q == 'string') q = {url: q};
+          if (q && typeof q == 'string') q = {url: q};
           const j = q ? JSON.stringify(q) : '', paused = R?.p;
           if (!R) cur.set(n, (R = {j: ''}));
           R.p = 0;

@@ -1406,8 +1406,18 @@ export function renderComponent(
   // G-141 / G-171(1): t.requests lists the requests, normalised (a string is { url }); never the
   // { abort } commands, { resources } declarations or { refresh } commands. A resource's fetches
   // are listed by the fake's fetch, with `resource: name`.
+  // 5-7: resource names declared on each sink, so t.respond(name, …, 'quote') right after the
+  // state change that (re)fetches 'quote' waits for that fetch instead of throwing
+  const declaredRes = new Map<string, Set<string>>();
+  // states.length when the last simulate* call was made: no state since then = its change is pending
+  let simAt = -1;
   const record = (name: string, v: any, track: boolean) => {
     const shown = v && typeof v == 'object' && v[STR] !== undefined ? v[STR] : v;
+    if (v && typeof v == 'object' && v.resources && typeof v.resources == 'object') {
+      const set = declaredRes.get(name) || new Set<string>();
+      Object.keys(v.resources).forEach(k => set.add(k));
+      declaredRes.set(name, set);
+    }
     sinkValues(name).push(shown);
     const obj = !!v && typeof v == 'object';
     const listed = !(obj && (v.abort || v.resources || v.refresh || 'invalidate' in v || 'prefetch' in v));
@@ -1774,6 +1784,7 @@ export function renderComponent(
   };
 
   const simulateAction = (type: string, data?: any) => {
+    simAt = states.length;
     throwFailure();
     later(() => (actions.emit({type, data}), true));
   };
@@ -1838,6 +1849,9 @@ export function renderComponent(
     if (drivers[name]) throw new Error(`[Sygnal] t.${fn}('${name}'): ${name} has a real driver (passed in drivers), so there is nothing to script. t.respond/t.fail answer the fake source renderComponent provides when no driver is passed`);
     const tg = targetOf(opts);
     const what = `t.${fn}('${name}'${typeof opts == 'string' ? `, …, '${opts}'` : ''})`;
+    // a resource named by the target may still be about to fetch (its request follows the state
+    // change): queue the call like one made behind queued input
+    const later = typeof opts == 'string' && !!declaredRes.get(name)?.has(opts) && states.length <= simAt;
     return scripted(() => tg.push ? {} : pick(name, tg), w => noPending(what, name, tg, w), hit => {
       const f = fake(name), o = tg.o;
       const e: Pending | undefined = tg.push ? undefined : hit;
@@ -1861,7 +1875,7 @@ export function renderComponent(
         (ls.length ? ` (listening: ${ls.join(', ')})` : '') + `. ` +
         (err ? `Name a reply action for the failure (error: 'FAILED' on the request), or handle it in the intent, e.g. FAILED: ${name}.errors('${category ?? 'category'}'), so a failed request can't leave the component loading.` :
           `Name a reply action for the reply (ok: 'LOADED' on the request), or select it in the intent, e.g. LOADED: ${name}.select('${category ?? 'category'}').`));
-    });
+    }, later);
   };
   /**
    * G-140 / PLAN-3 1-C: a scripted input (t.respond/t.fail, 2-C's t.open/t.push/t.drop). With
@@ -1870,9 +1884,9 @@ export function renderComponent(
    * 1s (half of timeoutMs if lower). `act(hit)` delivers it (an Error: it failed). The promise
    * resolves once the result has been reduced and the whole tree rendered.
    */
-  const scripted = (find: () => any, none: (waited: number) => Error, act: (hit: any) => Error | void): Promise<void> => {
+  const scripted = (find: () => any, none: (waited: number) => Error, act: (hit: any) => Error | void, later = false): Promise<void> => {
     throwFailure();
-    if (isReady && !inputs.length && !disposed && !find()) throw none(0);
+    if (isReady && !inputs.length && !disposed && !later && !find()) throw none(0);
     let ok!: () => void, ko!: (e: Error) => void, seen = false, open = true;
     const inner = new Promise<void>((a, b) => { ok = a; ko = b; });
     inner.catch(noop);
@@ -2123,6 +2137,7 @@ export function renderComponent(
   };
 
   const simulateEvent = (selector: string, type: string, init: SimulatedEventInit = {}) => {
+    simAt = states.length;
     throwFailure();
     const {allowMissing, ...evInit} = init;
     const text = norm(String(selector));

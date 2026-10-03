@@ -545,7 +545,7 @@ export type Component<
    */
   connections?: (state: STATE & CALCULATED) => Connections;
   /**
-   * PLAN-3 3-A (experimental): declarative reads (`makeFetchDriver()`). Each entry derives a
+   * PLAN-3: declarative reads (`makeFetchDriver()`). Each entry derives a
    * request from state; falsy means idle:
    * `Quote.resources = { quote: (state) => state.id && '/api/quotes/' + state.id }`.
    * `state.quote` is a `Resource`: `{ status: 'idle' | 'loading' | 'success' | 'error', data,
@@ -563,8 +563,8 @@ export type Component<
    * every change; the reducer stores it (`ROUTE: (state, route) => ({ ...state, route })`).
    * The first (outermost) declarer gets each route first and may redirect from that entry
    * (`ROUTER: { to: 'login', replace: true }`); the others get it a task later, only if no
-   * redirect happened. A function of state may return a falsy value to stop listening. Needs a
-   * model and state (SYG132); seed `initialState.route` with `router.current()`.
+   * redirect happened. A function of state may return a falsy value to stop listening. Works
+   * with or without a model; a root needs `initialState` (SYG132), seeded with `router.current()`.
    */
   route?: string | ((state: STATE & CALCULATED) => string | false | null | undefined);
   /**
@@ -572,7 +572,7 @@ export type Component<
    * ({ title: state.task?.title })`. Recomputed when the result changes; removed on dispose.
    * A later-mounted component's `title` wins; `meta` keys and `link`s merge. Also collected by
    * `renderToString(App, { head: list })` for SSR (`renderHead(list)`). Like every declaration
-   * static, it is only sent by a component with a model (`{}` is enough) and state (SYG132).
+   * static, it is sent with or without a model; a root needs `initialState` (SYG132).
    */
   head?: (state: STATE & CALCULATED) => HeadValue | false | null | undefined;
 }
@@ -1313,7 +1313,7 @@ export interface QueryCache {
  */
 export function queryCache(options?: FetchCacheOptions): QueryCache
 
-/** PLAN-3 3-A (experimental): a request a `resources` entry derives (a URL, or a request without `abort`) */
+/** PLAN-3: a request a `resources` entry derives (a URL, or a request without `abort`) */
 export type ResourceRequest = string | (Exclude<FetchRequest, string | { abort: true | string } | { refresh: string | string[] }> & {
   /**
    * Keep this resource live while its component is in a hidden Switchable page (default: a
@@ -1869,7 +1869,7 @@ export interface RenderOptions {
    */
   socketSink?: string;
   /**
-   * PLAN-3 3-A (experimental): the driverless sink that receives the components' `resources`
+   * PLAN-3: the driverless sink that receives the components' `resources`
    * static (default 'HTTP'); each resource fetch is pending until t.respond / t.fail, and is
    * listed in t.requests as `{ url, ...request, resource: name }`.
    */
