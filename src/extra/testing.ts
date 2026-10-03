@@ -1688,6 +1688,10 @@ export function renderComponent(
   const names = Object.keys(model)
     .map(k => k.split('|')[0].trim())
     .filter(n => n != 'INITIALIZE');
+  // GS-1: a behavior's actions ('pager.NEXT') can be simulated too; behaviors.ts merges these
+  // marked streams (__sygnalTestActions) with the behavior's own trigger
+  const uses = componentDef.uses || {};
+  for (const k in uses) for (const a in uses[k]?.model || {}) names.push(k + '.' + a);
   const actionStream = (type: string) =>
     actions.$.filter((a: any) => a.type == type).map((a: any) => a.data);
 
@@ -1708,7 +1712,8 @@ export function renderComponent(
   // G-028: with no intent, model or initialState nothing would ever emit state, so the view
   // never renders. Leave intent/model unset so the component falls back to the same no-op
   // model run() uses, and renders.
-  const bare = !intent && !Object.keys(model).length && init === undefined;
+  // (behavior actions count: a host with only `uses` still gets the simulateAction streams)
+  const bare = !intent && !Object.keys(model).length && !names.length && init === undefined;
   const app = component({
     name: componentDef.name || componentDef.componentName || 'TestComponent',
     view: componentDef,

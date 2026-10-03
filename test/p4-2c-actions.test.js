@@ -98,6 +98,30 @@ describe.each(MODES)("cause 'behavior' (%s DOM)", (_, opts) => {
     expect(of('pager.NEXT')).toEqual([expect.objectContaining({ type: 'pager.NEXT', cause: 'intent', sinks: ['STATE'] })])
   })
 
+  it("simulateAction('pager.NEXT') on a host with no entry for it runs the behavior's reducer: cause 'simulateAction'; its own trigger still works", async () => {
+    function List({ state }) { return h('div', null, h(Newer, null, '›'), h('span', null, String(state.pager.page))) }
+    List.initialState = { items: [] }
+    List.uses = { pager: pager({ next: Newer }) }
+    t = renderComponent(List, opts)
+    await t.ready()
+    t.simulateAction('pager.NEXT')
+    await t.waitForState(s => s.pager.page === 1)
+    expect(of('pager.NEXT')).toEqual([expect.objectContaining({ type: 'pager.NEXT', component: 'List', cause: 'simulateAction', sinks: ['STATE'] })])
+    t.simulateEvent(Newer, 'click')
+    await t.next(s => s.pager.page === 2)
+    expect(of('pager.NEXT').map(a => a.cause)).toEqual(['simulateAction', 'behavior'])
+  })
+
+  it('simulateAction on a host with nothing but `uses` (no initialState, model or intent)', async () => {
+    function Bare({ state }) { return h('span', null, String(state.pager.page)) }
+    Bare.uses = { pager: pager({ next: Newer }) }
+    t = renderComponent(Bare, opts)
+    await t.ready()
+    t.simulateAction('pager.NEXT')
+    await t.waitForState(s => s.pager.page === 1)
+    expect(of('pager.NEXT')[0]).toMatchObject({ cause: 'simulateAction', sinks: ['STATE'] })
+  })
+
   it("a host action named under a behavior key that the behavior doesn't own is 'intent'", async () => {
     function List({ state }) { return h('div', null, h(Go, null, 'go'), String(state.pager.page)) }
     List.uses = { pager: pager({ next: Newer }) }
