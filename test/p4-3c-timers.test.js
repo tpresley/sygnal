@@ -100,6 +100,26 @@ describe('every: a stopwatch on fake timers', () => {
   })
 })
 
+describe('renderComponent with a timer driver passed', () => {
+  it('under another key: the fake stands down (one timer, not two)', async () => {
+    vi.useFakeTimers()
+    t = renderComponent(Stopwatch, { initialState: { running: true, ticks: 0, seen: [] }, drivers: { CLOCK: makeTimerDriver() } })
+    await t.ready()
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(t.state.ticks).toBe(10)
+    expect(t.timers()).toEqual([])
+  })
+
+  it('under the timer sink: t.timers() says it lists only the fake', async () => {
+    vi.useFakeTimers()
+    t = renderComponent(Stopwatch, { initialState: { running: true, ticks: 0, seen: [] }, drivers: { TIMER: makeTimerDriver() } })
+    await t.ready()
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(t.state.ticks).toBe(10)
+    expect(() => t.timers()).toThrow(/TIMER has a real driver/)
+  })
+})
+
 describe('after: a countdown', () => {
   function Countdown({ state }) { return h('p', null, state.expired ? 'done' : 'waiting') }
   Countdown.initialState = { armed: false, expired: 0, data: null }

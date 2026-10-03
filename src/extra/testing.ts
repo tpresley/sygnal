@@ -1833,7 +1833,8 @@ export function renderComponent(
     EVENTS: eventBusDriver,
     LOG: logDriver,
     ...(hd && {[headSink]: hd.driver}),
-    ...(tm && {[timerSink]: timerDriver(tm)}),
+    // (it stands down when a timer driver is passed under another key: one runs the timers)
+    ...(tm && {[timerSink]: (s$: any) => timerDriver(tm)(s$.filter(() => !Object.keys(sources || {}).some(k => k != timerSink && sources[k]?.__sygnalStatic == 'timers')))}),
     ...(rt && {[routerSink]: routerDriver}),
     ...drivers,
     ...(options.onError && {__e: () => options.onError}),
