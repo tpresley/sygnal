@@ -39,17 +39,22 @@ PLAN-3's end-of-Phase-5 figures (40,403 B, 283 lines, 34,343 B) grew with #12 an
 |---|---|---|---|---|---|---|
 | 0-A | Setup, baseline, §11 answers | ✅ | `plan4-integration` | coordinator | | |
 | 0-B | Size spikes (CT-1 incl. spec objects, GS-1, GS-2, GS-5, GS-7, small core group) | ✅ table below | `exp/p4-spikes` (`b752a14`) | subagent | not merged | CT-1 spike includes the D101 spec path and D102 command lookup |
-| 0-C | Eval prep: `ergo` tier 26–29, CT-1 A/B variant | 🟡 ergo tier running (A/B variant after 1-D) | `p4-0c-ergo-tier` | subagent | | |
+| 0-C | Eval prep: `ergo` tier 26–29, CT-1 A/B variant | ✅ ergo tier merged; A/B variant ⬜ (next) | `p4-0c-ergo-tier` (`cbbae2d`) | subagent | `284a648` | 56 tasks / 238 checks verify OK; 18–20 mutants; dialog `close` gap → G-204 |
 | 0-D | Bug fixes (B-0, B-1, bubbling) | ✅ before PLAN-4 | `main` | other session | #12 (`2cef7ee`) | Recorded as G-144…G-146 in `PLAN-2-status.md`; 0-A re-runs X2, X2b, X7, X8 |
-| 0-E | `ergo` baseline eval (user's terminal) | ⬜ | | user | | |
-| 1-A | Controls core | 🟡 running | `p4-1a-controls` | subagent | | Includes the D101 contract |
-| 1-T | Controls types | ✅ done, merge held until 1-A | `p4-1t-types` (`c503914`) | subagent | | 19 failing-first; props from `HTMLElementTagNameMap` (Sygnal's `JSX.IntrinsicElements` is `any`); component in `DOM.click`/`query` is a type error |
+| 0-E | `ergo` baseline eval (user's terminal) | ⬜ command given to the user | run `p4-ergo-baseline` from the 0-C worktree (PLAN-3 build) | user | | |
+| 1-A | Controls core | ✅ merged `3b32e04` (with 1-T) | `p4-1a-controls` (`e4bac86`) | subagent | `3b32e04` | +51 B gated, +156 B per app using controls; 40/42 failing-first; SYG124/125 dev-only; G-202 done |
+| 1-T | Controls types | ✅ merged with 1-A | `p4-1t-types` (`c503914`) | subagent | | 19 failing-first; props from `HTMLElementTagNameMap` (Sygnal's `JSX.IntrinsicElements` is `any`); component in `DOM.click`/`query` is a type error |
 | 1-D | Controls checker | ✅ merged | `p4-1d-checker` (`36b9d4d`) | subagent | `6565844` | sygnal-check 245 → 293; 33/38 failing-first; `--fix --controls` converts kanban 7/9, todomvc 6, tests unchanged, idempotent |
 | 1-E | Controls A/B eval | ⬜ | | user | | |
-| 2-A | Core I: GS-4, GS-11, GS-9 | 🟡 running | `p4-2a-core` | subagent | | started alongside 1-A (spike showed CT-1 needs no `component.ts` change) |
-| 2-B, 2-C, 2-T | Phase 2 | ⬜ | | | | 2-C waits for 1-A (`testing.ts`); 2-T after 1-T merges |
-| 2-D | a11y checker (GS-3) | 🟡 running | `p4-2d-a11y` | subagent | | sygnal-check free after 1-D |
-| P-1 … P-4 | Prototypes | ⬜ | | | | |
+| 2-A | Core I: GS-4, GS-11, GS-9 | ✅ merged | `p4-2a-core` (`4816283`) | subagent | (merge after `284a648`) | +229 B (GS-4 +5, GS-11 +120, GS-9 +104); SYG222 dev-only (0 B core); SYG502 retired; SSR uid determinism test in the gate |
+| 2-B | Core II: GS-6, GS-1 runtime | 🟡 running | `p4-2b-core` | subagent | | |
+| 2-C | Testing: GS-10 `t.actions` | 🟡 running | `p4-2c-actions` | subagent | | core hook, if any, proposed as a separate commit |
+| 2-T | Types | folded into 2-A, 2-B, 2-C (each types its own surface) | | | | D119 |
+| 1-F | Follow-ups: dialog `close`/`cancel` delegation (G-204), SYG124/125 `reportedBy`, G-203, D116 `h` type test, stale Vite plugin comments | 🟡 running | `p4-1f-followups` | subagent | | |
+| 2-A2 | Follow-ups to 2-A: Astro hook (D120), G-206, G-207 | ⬜ after 2-B (`component.ts`) | | | | |
+| 2-D | a11y checker (GS-3) | ✅ merged `5e9c1e5` | `p4-2d-a11y` (`e7af5d7`) | subagent | `5e9c1e5` | 18/31 failing-first; sygnal-check 343; FP review 0/100 on p4-final2 + p3-final, 0/498 elsewhere; examples/templates/doc samples a11y-clean; 5 pending in llms.txt/SKILL.md (4-A) |
+| P-3 | Performance baseline (GS-16) | 🟡 running | `p4-p3-perf` | subagent | | |
+| P-1, P-2, P-4 | Prototypes | ⬜ | | | | |
 | 3-A … 3-T | Phase 3 | ⬜ | | | | 3-A includes D102 |
 | 4-A … 4-F | Phase 4 | ⬜ | | | | |
 
@@ -132,6 +137,10 @@ They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none o
 | D116 | 2026-10-03 | D101 amended: `vnode(props, children, h)`, where the pragma passes its own createElement (a widget importing it would duplicate the pragma, ~600 B, under the automatic runtime), and the control copies `key` onto the returned vnode when it has none. Backward compatible; noted for PLAN-5 in `HANDOFF-to-PLAN-5.md`. | User | 0-B finding |
 | D117 | 2026-10-03 | P4-Q12: eval spend about $180 (0-E ~$15, 1-E ~$55, 4-E ~$110); ask before more. | User | |
 | D118 | 2026-10-03 | GS-2 command object rule: the first key is the method, the remaining keys are options; `close`'s `returnValue` is passed as the argument. | Coordinator | 0-B finding |
+| D119 | 2026-10-03 | 2-T is folded into the workstreams that own each surface (2-A, 2-B, 2-C type their own API and add type tests). | Coordinator | Fewer index.d.ts conflicts |
+| D120 | 2026-10-03 | Astro app-level error hook: an integration option pointing at a module (`sygnal({ onError: './src/onError.js' })`, loaded through a virtual module) replaces 2-A's island static `onAppError`, which isn't public yet (2-A2). | Coordinator | 2-A QUESTION 1; recommendation (b) |
+| D121 | 2026-10-03 | The 0-E ergo baseline runs from the 0-C worktree (`main` + eval commits only), so it measures the PLAN-3 build even though `plan4-integration` already has PLAN-4 features. Task 29 keeps its Escape-reopen test (known framework issue 10): the baseline measures the gap GS-2 closes, and the task is solvable today. | Coordinator | 0-C QUESTION, option A |
+| D122 | 2026-10-03 | Retiring the SYG502 static rule also drops static detection of a bare `return;` / falling off a reducer; SYG202 still reports `undefined` at runtime. Accepted. | Coordinator | 2-A deviation |
 
 ## Open questions (PLAN-4 §11)
 
@@ -157,8 +166,14 @@ They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none o
 |---|---|---|---|---|---|
 | G-200 | gap study | high | DOM | B-0 (controlled inputs drop keystrokes under ~5 ms apart), B-1 (fragment-root components lose isolation in the real DOM) and the mock/real bubbling mismatch. A separate session ("Fix DOM isolation and keystroke bugs") is fixing them on a branch off `main`. | ✅ Fixed on `main` in #12 (`2cef7ee`) as G-144…G-146 (PLAN-2 tracker) |
 | G-201 | PLAN-5 §0.3 S-7 | info | GS-2 | `scrollToIndex` isn't an element command, because the target row of a virtual list usually isn't rendered. PLAN-5 uses `createCommand()` for it. Nothing changes in GS-2. | Note |
-| G-202 | 1-D | low | diagnostics | Runtime `inspect()` (dev entry) doesn't list controls yet; only the static `--graph` does. The schema fields are optional. | Open → after 1-A |
-| G-203 | 1-D | low | checker | SYG111 (controlled input) doesn't look through controls, so `<Draft value=…>` misses findings (never adds false ones). | Open → after 1-A |
+| G-202 | 1-D | low | diagnostics | Runtime `inspect()` (dev entry) doesn't list controls yet; only the static `--graph` does. The schema fields are optional. | ✅ 1-A |
+| G-203 | 1-D | low | checker | SYG111 (controlled input) doesn't look through controls, so `<Draft value=…>` misses findings (never adds false ones). | 1-F fixing |
+| G-204 | 0-C | high | DOM | Dialog `close`/`cancel` don't bubble and aren't in `eventTypesThatDontBubble`, so `DOM.close(x)` / `.events('close')` never fires (eval known issue 10). | 1-F fixing |
+| G-205 | 2-D | info | evals | Nine eval starters (01, 02, 07, 09, 12, 18, 20, 21, 25) now produce SYG702 warnings from the vendored sygnal-check. Same for both 1-E variants; differs from PLAN-3 runs, which 4-E's comparison must note. | Note |
+| G-206 | 2-A | low | GS-9 | The root uid is always `u`, so two apps on one page produce the same ids. | 2-A2 |
+| G-207 | 2-A | medium | GS-9 / Vike | With a Vike Layout/Wrapper, the server renders the Page as its own root while the client nests it in the shell, so the Page's uids differ between server and client. | 2-A2 |
+| G-208 | 2-A | info | GS-11 | The `'driver'` phase covers only drivers that throw synchronously from a sink listener (not errors inside a driver's operators or error events on its sources). | Note; docs in 4-B |
+| G-209 | 2-A, 2-D | — | docs | Lines now false after GS-4/GS-9 (`return state` rule, SYG502, reserved props without `uid`) in llms.txt, SKILL.md, guide/model, alternative-forms, strict-mode, testing, components, sygnal-check README, SYG106 explanation; 5 a11y findings in llms.txt/SKILL.md samples (`A11Y_PENDING`). | 4-A / 4-B (SYG106 explanation and the sygnal-check README in 3-D) |
 
 ## Log
 
@@ -168,3 +183,4 @@ They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none o
 - 2026-10-03 — 0-A: `plan4-integration` cut from `main` (`3214ed9`); fresh-worktree setup; baseline gates green (above). P4-Q3, Q5, Q9, Q11 answered (D108–D111). 0-B spikes (`exp/p4-spikes`) and 0-C ergo tier (`p4-0c-ergo-tier`) started. Gap-study experiments re-run (12/15; X1 expected, X7 stale assertion).
 - 2026-10-03 — 1-T done (`p4-1t-types`), held until 1-A. 1-D merged (`6565844`); all gates green, size unchanged (40,536 B). D112, D113; G-202, G-203.
 - 2026-10-03 — 0-B done (table above). P4-Q2, Q4, Q6, Q7, Q8, Q12 answered and D101 amended (D114–D117); D118. 1-A, 2-A and 2-D started.
+- 2026-10-03 — Merged 1-A + 1-T (`3b32e04`), 2-D (`5e9c1e5`), 0-C (`284a648`) and 2-A; gates green after each. Size 40,817 B gated (PLAN-4 +281 B of 650). Library vitest 1,623, browser 139, sygnal-check 343. 0-E command handed to the user. Started 1-F, 2-C, P-3, 2-B. D119–D122; G-204…G-209.
