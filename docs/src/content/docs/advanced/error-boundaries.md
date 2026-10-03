@@ -53,6 +53,7 @@ The hook is for reporting only. It is called once per error, after the component
 | `'view'` | A view threw (the boundary's fallback, or the empty `<div data-sygnal-error>`, renders) | `componentName` |
 | `'reducer'` | A STATE reducer or another sink's reducer threw; the state is unchanged | `componentName`, `action` |
 | `'effect'` | An `EFFECT` threw, or the promise it returned rejected | `componentName`, `action` |
+| `'declaration'` | A static declaration a driver reads from the component (`connections`, `resources`, a router's `route`, `head`) threw; nothing is sent for it | `componentName` |
 | `'instantiate'` | A child component failed to instantiate (reported after the parent's boundary) | `componentName` (the parent) |
 | `'driver'` | A driver threw while handling a value sent to it; the error is still thrown afterwards, as before | `driver` (the sink name) |
 | `'widget'` | Reserved for third-party widgets; Sygnal itself doesn't report it yet | |

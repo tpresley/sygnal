@@ -8,7 +8,7 @@ import type { AppErrorHook, AppErrorInfo, AppErrorPhase, RunOptions, RenderOptio
 
 describe('GS-11: onError', () => {
   it('has the phase union, incl. the reserved widget phase (D105)', () => {
-    expectTypeOf<AppErrorPhase>().toEqualTypeOf<'view' | 'reducer' | 'effect' | 'driver' | 'instantiate' | 'widget'>()
+    expectTypeOf<AppErrorPhase>().toEqualTypeOf<'view' | 'reducer' | 'effect' | 'declaration' | 'driver' | 'instantiate' | 'widget'>()
     expectTypeOf<AppErrorInfo['phase']>().toEqualTypeOf<AppErrorPhase>()
     expectTypeOf<AppErrorInfo['componentName']>().toEqualTypeOf<string | undefined>()
     expectTypeOf<AppErrorInfo['action']>().toEqualTypeOf<string | undefined>()

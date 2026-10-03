@@ -651,7 +651,7 @@ class Component {
               if (typeof f == 'function') v = f(s)
               else if (typeof f == 'object') { v = {}; for (const r in f) v[r] = f[r](s) }
               return [v]
-            } catch (err) { caught('SYG216', this, `${k} threw; nothing sent`, ERR_FIX, err, 'reducer') }
+            } catch (err) { caught('SYG216', this, `${k} threw; nothing sent`, ERR_FIX, err, 'declaration') }
           }), this.sources.__switchPage?.shown$ || xs.of(1))
           .map(([w, shown]: any) => {
             let v = w?.[0]

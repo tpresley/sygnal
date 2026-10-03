@@ -179,3 +179,24 @@ describe("G-214 (6): SYG222 sees an in-place mutation of a behavior's slice", ()
     expect(found[0]).toMatchObject({ severity: 'warn', component: 'C', data: { action: 'pager.NEXT', keys: ['pager.page'] } })
   })
 })
+
+describe("G-214 (7): a throwing static declaration is reported with phase 'declaration'", () => {
+  it('connections / resources / route statics: the app onError hook gets phase declaration', async () => {
+    const reported = []
+    const routeDriver = (sink$) => {
+      sink$.addListener({ next() {}, error() {}, complete() {} })
+      return { __sygnalStatic: 'route' }
+    }
+    function App() { return h('p', null, 'app') }
+    App.initialState = { n: 1 }
+    App.route = () => { throw new Error('boom') }
+    document.body.innerHTML = '<div id="root"></div>'
+    const errSpy = console.error
+    console.error = () => {}
+    const app = run(App, { ROUTER: routeDriver }, { diagnostics: 'off', onError: (e, info) => reported.push(info) })
+    try {
+      await until(() => reported.length > 0, 'the report')
+      expect(reported[0]).toMatchObject({ componentName: 'App', phase: 'declaration' })
+    } finally { app.dispose(); console.error = errSpy; document.body.innerHTML = '' }
+  })
+})
