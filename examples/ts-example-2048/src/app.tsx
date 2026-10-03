@@ -210,6 +210,7 @@ function intent({ DOM }: IntentSources<AppState>) {
 
   // look for when the user clicks on either the restart button (.restart),
   // or the 'Game Over' notification (.gameover)
+  // sygnal-ignore SYG701 (clicking the game-over overlay is a mouse shortcut; the Start Over button restarts from the keyboard)
   const restart$ = DOM.select('.restart, .gameover').events('click').mapTo(null)
 
   // map the streams we created above to 'action' names that will happen when those streams fire
