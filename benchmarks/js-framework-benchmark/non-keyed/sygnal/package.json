@@ -1,0 +1,19 @@
+{
+  "name": "js-framework-benchmark-non-keyed-sygnal",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Sygnal (non-keyed) for js-framework-benchmark",
+  "js-framework-benchmark": {
+    "frameworkVersionFromPackage": "sygnal",
+    "frameworkHomeURL": "https://sygnal.js.org"
+  },
+  "scripts": {
+    "dev": "vite build --watch --minify false",
+    "build-prod": "vite build"
+  },
+  "devDependencies": {
+    "sygnal": "^5.4.0",
+    "vite": "^6.4.1"
+  }
+}

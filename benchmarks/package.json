@@ -1,0 +1,20 @@
+{
+  "name": "sygnal-benchmarks",
+  "private": true,
+  "type": "module",
+  "description": "Performance baselines (PLAN-4 GS-16 / P-3). Not part of `npm test`.",
+  "scripts": {
+    "build:jfb": "npm --prefix js-framework-benchmark/keyed/sygnal run build-prod && npm --prefix js-framework-benchmark/non-keyed/sygnal run build-prod",
+    "build:perf": "vite build --config perf.vite.config.mjs",
+    "build:perf:profile": "PERF_PROFILE=1 vite build --config perf.vite.config.mjs",
+    "build": "npm run build:jfb && npm run build:perf"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.4",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "sygnal": "file:..",
+    "vite": "^6.4.1",
+    "vue": "^3.5.43"
+  }
+}
