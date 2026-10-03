@@ -1,4 +1,4 @@
-// Routed requests whose ok/error names all have model entries; the replies are the
+// Requests whose ok/error reply actions all have model entries; the replies are the
 // only triggers of LOADED / FAILED / SAVED / SAVE_FAILED, so SYG102 must not fire.
 import { ABORT } from 'sygnal'
 
@@ -32,7 +32,7 @@ Editor.model = {
     },
   },
   SAVE: { HTTP: saveRequest },
-  // a free-text error field on a non-routing sink is data, not an action name
+  // a free-text error field on a sink without reply actions is data, not an action name
   LOADED: {
     STATE: (state, doc) => ({ ...state, status: 'done', draft: doc }),
     LOG: () => ({ level: 'info', error: 'no error at all' }),

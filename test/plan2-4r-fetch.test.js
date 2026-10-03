@@ -116,11 +116,11 @@ describe('R4-2: isolation (isolateSource / isolateSink, like @cycle/http)', () =
     expect(gotLeaf[0].request).toEqual({ url: '/x' })
   })
 
-  it('the isolated sources are routing sources (PLAN-3 1-A; R4-7 __sygnalFetch removed with the legacy HYDRATE path)', () => {
+  it('the isolated sources are reply-capable sources (PLAN-3 1-A; R4-7 __sygnalFetch removed with the legacy HYDRATE path)', () => {
     const d = driver({ fetch: controllable().fn })
-    expect(d.source.__sygnalRoutes).toBe(true)
-    expect(d.source.isolateSource(d.source, 'a').__sygnalRoutes).toBe(true)
-    expect(typeof d.source.isolateSource(d.source, 'a').routed).toBe('function')
+    expect(d.source.__sygnalReplies).toBe(true)
+    expect(d.source.isolateSource(d.source, 'a').__sygnalReplies).toBe(true)
+    expect(typeof d.source.isolateSource(d.source, 'a').replies).toBe('function')
   })
 })
 

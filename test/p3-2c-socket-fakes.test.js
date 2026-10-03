@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 // PLAN-3 2-C: renderComponent's fake source behaves like makeSocketDriver for a sink that gets
 // { connections } / { to } values (no driver passed, no option): connections are diffed per
-// (sender, name), open / message / close / error are routed to the sender's action names, the
-// app's own closes send no close action, and unrouted events reach select(name?).
+// (sender, name), open / message / close / error are the sender's reply actions, the
+// app's own closes send no close action, and plain events reach select(name?).
 // t.connections / t.open / t.push / t.drop / t.sent script it; like t.respond (G-140) each call
 // throws at the call when nothing matches and returns a promise for the rendered result.
 // Until 2-B's `connections` static lands, { connections } is sent from a model sink, built
@@ -219,7 +219,7 @@ describe('socket fakes: errors at the call (G-140)', () => {
   })
 })
 
-describe('socket fakes: routing', () => {
+describe('socket fakes: reply actions', () => {
   it('two Collection items: each pushed to by URL gets only its own message; dispose of one closes its connection', async () => {
     function Item({ state }) { return h('li', { className: `item-${state.id}` }, h('button', { className: 'say' }, 'say'), state.log.join(',')) }
     Item.intent = ({ DOM }) => ({ SAY: DOM.click('.say') })
@@ -265,7 +265,7 @@ describe('socket fakes: routing', () => {
     expect(t.state).toMatchObject({ n: 1, kid: { n: 1 } })
   })
 
-  it('unrouted events (no action name) reach WS.select(name)', async () => {
+  it('plain events (no action name) reach WS.select(name)', async () => {
     function U({ state }) { return h('p', null, state.got.join(',')) }
     U.initialState = { got: [] }
     U.intent = ({ WS }) => ({ GOT: WS.select('news') })

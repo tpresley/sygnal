@@ -120,7 +120,7 @@ describe('connections static under run()', () => {
     await waitFor(() => expect(text('.log')).toBe('up:a,hi'))
   })
 
-  it('the value sent is stamped with the sender, like other routing sink values', async () => {
+  it('the value sent is stamped with the sender, like other reply-capable sink values', async () => {
     const sent = []
     start(Room, { WS: recorded(sent) })
     await waitFor(() => expect(sent).toHaveLength(1))

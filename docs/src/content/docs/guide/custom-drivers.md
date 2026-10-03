@@ -57,8 +57,8 @@ driverFromAsync(fn, {
   args: 'value',                        // a field name, an array of field names, or (request) => args
   pre: (request) => request,            // transform the request first
   post: (result, request) => result,    // transform the result before it is delivered
-  selector: 'category',                 // unrouted only: the field select()/errors() filter on
-  return: 'value',                      // unrouted only: the field the result is put in
+  selector: 'category',                 // no reply actions only: the field select()/errors() filter on
+  return: 'value',                      // no reply actions only: the field the result is put in
 })
 ```
 
@@ -67,12 +67,12 @@ driverFromAsync(fn, {
 | `args` | String, Array, or Function | `'value'` | How to get the function's arguments from a request: `args: ['call', 'args']` calls `fn(request.call, request.args)` |
 | `pre` | Function | Identity | Pre-process each request |
 | `post` | Function | Identity | Post-process each result (may return a promise) |
-| `selector` | String | `'category'` | The request field that `select()`/`errors()` filter on (unrouted requests) |
-| `return` | String | `'value'` | The field an unrouted reply carries the result in |
+| `selector` | String | `'category'` | The request field that `select()`/`errors()` filter on (requests without reply actions) |
+| `return` | String | `'value'` | The field a reply without reply actions carries the result in |
 
-### Unrouted requests
+### Requests without reply actions
 
-A request without `ok`/`error` is answered on the source: `API.select(category)` emits `{ value, category }` and `API.errors(category)` emits `{ error, request, category }`, filtered by the `selector` field (or a predicate; nothing for all). This is the form for stream composition, or for replies a component other than the sender handles; for a component reading back its own request, the routed form is canonical ([SYG508](/reference/errors/#syg508), [alternative forms](/advanced/alternative-forms/#selecterrors-round-trip)). While nothing listens to `errors()`, failures are logged with `console.error`.
+A request without `ok`/`error` is answered on the source: `API.select(category)` emits `{ value, category }` and `API.errors(category)` emits `{ error, request, category }`, filtered by the `selector` field (or a predicate; nothing for all). This is the form for stream composition, or for replies a component other than the sender handles; for a component reading back its own request, the reply-action form is canonical ([SYG508](/reference/errors/#syg508), [alternative forms](/advanced/alternative-forms/#selecterrors-round-trip)). While nothing listens to `errors()`, failures are logged with `console.error`.
 
 ### Stale replies
 
@@ -130,5 +130,5 @@ function makeClockDriver() {
 
 - The intent reads the source as `CLOCK.select(…)`. Return whatever API suits the driver; `select()` is the convention.
 - A `dispose()` on the source is called when the app is disposed (or hot-reloaded).
-- A hand-written driver doesn't route: its source is read in the intent. Use `driverFromAsync` when a request/reply shape fits.
+- A hand-written driver has no reply actions: its source is read in the intent. Use `driverFromAsync` when a request/reply shape fits.
 - In tests, any driver you don't pass is replaced by a recording fake (`t.sinkValues('CLOCK')`); pass a stub in `drivers` to emit values.

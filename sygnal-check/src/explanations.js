@@ -39,7 +39,7 @@ export const EXPLANATIONS = {
     title: "Model entry is unreachable",
     severity: "info",
     reportedBy: ["dev-entry", "static"],
-    explanation: "A model entry has no intent action of the same name and is not a built-in action (`BOOTSTRAP`, `INITIALIZE`, `DISPOSE`, `READY`; `HYDRATE` is an ordinary action since 6.0), so nothing in the intent can trigger it. A routed request also triggers the actions it names (`{ url, ok: 'LOADED', error: 'FAILED' }` sent to a driver sink), and so does a `connections` entry (`message`, `open`, `close`, `error`). It may still be reached through `next('ACTION')`, which the runtime cannot know in advance, so the runtime check reports it as info (and skips components whose intent returns a single stream); it counts the `ok`/`error` string literals it finds in the source of the component's non-STATE sink functions. The static checker also accounts for `next()` calls and routed names with string literals and reports it as warn, downgraded to info when a `next()` call or an `ok`/`error` value uses a non-literal name.",
+    explanation: "A model entry has no intent action of the same name and is not a built-in action (`BOOTSTRAP`, `INITIALIZE`, `DISPOSE`, `READY`; `HYDRATE` is an ordinary action since 6.0), so nothing in the intent can trigger it. A request also triggers the reply actions it names (`{ url, ok: 'LOADED', error: 'FAILED' }` sent to a driver sink), and so does a `connections` entry (`message`, `open`, `close`, `error`). It may still be reached through `next('ACTION')`, which the runtime cannot know in advance, so the runtime check reports it as info (and skips components whose intent returns a single stream); it counts the `ok`/`error` string literals it finds in the source of the component's non-STATE sink functions. The static checker also accounts for `next()` calls and reply-action names with string literals and reports it as warn, downgraded to info when a `next()` call or an `ok`/`error` value uses a non-literal name.",
     fix: "Add the action to the component's `intent`, name it in a request (`HTTP: (state) => ({ url, ok: 'ACTION' })`), dispatch it with `next('ACTION')` from another entry, or remove the dead model entry.",
   },
   SYG103: {
@@ -85,10 +85,10 @@ export const EXPLANATIONS = {
     fix: "Update state on input, e.g. `DOM.input('.name').value()` (or `DOM.change(...)` for toggles/selects), or drop the `value`/`checked` prop (not set it to `null`) to leave the field uncontrolled and read it on blur or submit.",
   },
   SYG112: {
-    title: "Routed request names an action with no model entry",
+    title: "Reply action has no model entry",
     severity: "error",
     reportedBy: ["dev-entry", "static"],
-    explanation: "A request sent to a routing driver (`makeFetchDriver`, `driverFromAsync`, the socket driver) names its reply actions, as in `{ url, ok: 'LOADED', error: 'FAILED' }`, and the driver delivers the reply to the sending component as that action. When the component's model has no entry with that name, the reply is dropped, usually because of a typo. The dev entry checks each routed request as it is sent; `sygnal-check` checks string literal `ok`/`error` values returned by non-STATE sinks and the `message`/`open`/`close`/`error` names in a `connections` static. Statically, only names that look like actions (UPPER_SNAKE_CASE) or are close to a model key are reported, because the checker cannot see which driver a sink goes to, and a custom driver may use an `error` field for data.",
+    explanation: "A request sent to a driver with reply actions (`makeFetchDriver`, `driverFromAsync`, the socket driver) names its reply actions, as in `{ url, ok: 'LOADED', error: 'FAILED' }`, and the driver delivers the reply to the sending component as that action. When the component's model has no entry with that name, the reply is dropped, usually because of a typo. The dev entry checks each request with reply actions as it is sent; `sygnal-check` checks string literal `ok`/`error` values returned by non-STATE sinks and the `message`/`open`/`close`/`error` names in a `connections` static. Statically, only names that look like actions (UPPER_SNAKE_CASE) or are close to a model key are reported, because the checker cannot see which driver a sink goes to, and a custom driver may use an `error` field for data.",
     fix: "Use the name of an existing model entry (the message names the closest one), or add the entry: `LOADED: (state, body) => ({ ...state, data: body })`.",
   },
   SYG115: {
@@ -435,10 +435,10 @@ export const EXPLANATIONS = {
     fix: "Provide the value as context on the top component, e.g. `Parent.context = { theme: state => state.theme }`, and read `context.theme` where it is needed.",
   },
   SYG508: {
-    title: "select()/errors() round trip where a routed request would do",
+    title: "select()/errors() round trip where reply actions would do",
     severity: "warn",
     reportedBy: ["dev-entry", "static"],
-    explanation: "Strict mode only. A component sends a request with `category: 'quote'` to a routing driver (`makeFetchDriver`, `driverFromAsync`, or a sink named `HTTP`) and reads the reply back in its own intent with `HTTP.select('quote')` or `HTTP.errors('quote')`. The canonical form is a routed request: it names the reply actions in the request, so the intent line, the category string and the select/errors split all go away, and the reply reaches exactly the component instance that sent it. `select()`/`errors()` remain for unrouted requests and for stream-level composition (see Alternative forms). The runtime check (`configureStrict(true)`, `renderComponent(C, { strict: true })`) reports a request whose category the same component selects on a routing source.",
+    explanation: "Strict mode only. A component sends a request with `category: 'quote'` to a driver with reply actions (`makeFetchDriver`, `driverFromAsync`, or a sink named `HTTP`) and reads the reply back in its own intent with `HTTP.select('quote')` or `HTTP.errors('quote')`. The canonical form is a request with reply actions: it names them in the request, so the intent line, the category string and the select/errors split all go away, and the reply reaches exactly the component instance that sent it. `select()`/`errors()` remain for requests without reply actions and for stream-level composition (see Alternative forms). The runtime check (`configureStrict(true)`, `renderComponent(C, { strict: true })`) reports a request whose category the same component selects on a source with reply actions.",
     fix: "Name the reply actions in the request and remove the intent line: `LOAD: { HTTP: (state) => ({ url: '/api/quote', ok: 'LOADED', error: 'FAILED' }) }`, with `LOADED: (state, body) => …` (the parsed body) and `FAILED: (state, { status }) => …` in the model.",
   },
   SYG601: {
@@ -508,8 +508,8 @@ export const EXPLANATIONS = {
     title: "Request has a 'then' or 'catch' key",
     severity: "error",
     reportedBy: ["runtime"],
-    explanation: "A request sent to a routing driver (`makeFetchDriver`, `driverFromAsync`) has a `then` or `catch` key, for example `HTTP: (state) => ({ url: '/api/x', then: 'LOADED' })`. An object with a `then` key is a thenable, so it breaks anything that `await`s it, and these keys look like a promise chain but do nothing. The driver does not send the request.",
-    fix: "Name the reply actions with the routing keys: `{ url: '/api/x', ok: 'LOADED', error: 'FAILED' }`. The `ok` action gets the parsed body, the `error` action `{ error, status, body, request }`.",
+    explanation: "A request sent to a driver with reply actions (`makeFetchDriver`, `driverFromAsync`) has a `then` or `catch` key, for example `HTTP: (state) => ({ url: '/api/x', then: 'LOADED' })`. An object with a `then` key is a thenable, so it breaks anything that `await`s it, and these keys look like a promise chain but do nothing. The driver does not send the request.",
+    fix: "Name the reply actions with the `ok` / `error` keys: `{ url: '/api/x', ok: 'LOADED', error: 'FAILED' }`. The `ok` action gets the parsed body, the `error` action `{ error, status, body, request }`.",
   },
   SYG611: {
     title: "Socket message not sent or connection not opened",

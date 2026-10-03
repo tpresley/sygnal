@@ -12,7 +12,7 @@ Covers `sygnal`, `sygnal-check` and `create-sygnal-app`. A few fixes change beha
 
 ### Added
 
-- **Routed requests** ([HTTP guide](https://sygnal.js.org/guide/http/)). A request to `makeFetchDriver`, `driverFromAsync` or `makeSocketDriver` names its continuation actions, and the reply arrives as that action on exactly the component instance that sent it, with no intent wiring:
+- **Reply actions** ([HTTP guide](https://sygnal.js.org/guide/http/)). A request to `makeFetchDriver`, `driverFromAsync` or `makeSocketDriver` names its continuation actions, and the reply arrives as that action on exactly the component instance that sent it, with no intent wiring:
   ```jsx
   LOAD:   { STATE: (state) => ({ ...state, status: 'loading' }),
             HTTP:  (state, id) => ({ url: `/api/quotes/${id}`, ok: 'LOADED', error: 'FAILED', latest: true }) },
@@ -21,13 +21,13 @@ Covers `sygnal`, `sygnal-check` and `create-sygnal-app`. A few fixes change beha
   ```
   - `latest: true` cancels the instance's earlier requests with the same `ok` action (or the same `key`); `{ abort: 'LOADED' }` / `{ abort: true, key }` cancel them; a disposed instance's requests are aborted at once;
   - a request with only `ok` still sends failures to `errors()` (and one with only `error` sends successes to `select()`); requests without `ok`/`error` work as before (`category` + `select()`/`errors()`);
-  - `driverFromAsync` requests route the same way (`ok` gets the resolved value, `error` gets `{ error, request }`).
+  - `driverFromAsync` requests take the same reply actions (`ok` gets the resolved value, `error` gets `{ error, request }`).
 - **`makeFetchDriver()`**, an HTTP driver over `fetch`. `run(App, { HTTP: makeFetchDriver() })`:
   - a request is `{ url, ok, error, key, method, query, json, body, headers, latest, timeoutMs, parse, init, category }` or a URL string; POST when `json`/`body` is set, else GET. Other `fetch()` options go under `init` (`init: { credentials: 'include' }`); any other key is app data that isn't sent and comes back on `request`;
-  - unrouted replies: `HTTP.select(category)` emits `{ category, value, status, request }` for 2xx responses; `HTTP.errors(category)` emits `{ error, category, request, status, body }` for non-2xx, network errors, parse errors and timeouts;
-  - unrouted requests are isolated per component instance like `@cycle/http`: a component's `select()` sees the replies to its own and its descendants' requests; the root sees everything. Header names are sent lowercased (`Headers` semantics);
+  - replies without reply actions: `HTTP.select(category)` emits `{ category, value, status, request }` for 2xx responses; `HTTP.errors(category)` emits `{ error, category, request, status, body }` for non-2xx, network errors, parse errors and timeouts;
+  - plain requests (no reply actions) are isolated per component instance like `@cycle/http`: a component's `select()` sees the replies to its own and its descendants' requests; the root sees everything. Header names are sent lowercased (`Headers` semantics);
   - driver options `baseUrl`, `headers`, `init`, `latest`, `timeoutMs`, `parse` and `fetch`; disposing the app aborts everything in flight; no requests during SSR;
-  - 0 bytes when unused (about 2.7 KB gzipped standalone, with the routing helper). New types `FetchRequest`, `FetchResponse`, `FetchError`, `FetchFailure`, `FetchSource`, `FetchDriverOptions`, `FetchInit`, `RoutedRequest` and `AsyncRequest`.
+  - 0 bytes when unused (about 2.7 KB gzipped standalone, with the reply-actions helper). New types `FetchRequest`, `FetchResponse`, `FetchError`, `FetchFailure`, `FetchSource`, `FetchDriverOptions`, `FetchInit`, `ReplyRequest` and `AsyncRequest`.
 - **`makeSocketDriver()` and the `connections` static** (WebSocket and server-sent events; [sockets guide](https://sygnal.js.org/guide/sockets/)). A component declares its connections as a function of state; Sygnal sends the set to the driver whenever it changes, and the driver opens, closes and reconnects:
   ```jsx
   Chat.connections = (state) => ({ room: state.room && {
@@ -36,13 +36,13 @@ Covers `sygnal`, `sygnal-check` and `create-sygnal-app`. A few fixes change beha
   // run(Chat, { WS: makeSocketDriver() })
   ```
   - connections are compared per instance and name: a new name opens, a removed or falsy one closes, a changed URL reconnects; dispose closes them;
-  - routed actions: `message` (JSON-parsed when it parses), `open` (`{ reconnected }`), `close` (`{ code, reason, willReconnect }`, only for closes the app didn't make), `error`; unrouted events on `WS.select(name)`;
+  - reply actions: `message` (JSON-parsed when it parses), `open` (`{ reconnected }`), `close` (`{ code, reason, willReconnect }`, only for closes the app didn't make), `error`; other events on `WS.select(name)`;
   - reconnects with jittered backoff by default (`reconnect: { delayMs, maxDelayMs, jitter }`, or `false`; a fixed delay with `jitter: false`); sends are queued while connecting; connections to the same URL share one socket; `sse:` uses `EventSource`, with `events: { name: 'ACTION' }` for named events; nothing opens during SSR;
   - a `{ to }` send in the same action that opens or changes a connection goes to the new connection;
   - 0 bytes when unused (about 2.6 KB gzipped standalone); the `connections` static costs about 100 B in the core. New types `Connections`, `SocketRequest` and the spec types.
 - **Async EFFECTs** ([EFFECT](https://sygnal.js.org/advanced/effect/)). `EFFECT: async (state, data, next, { signal }) => { … next('DONE', value) }` for async work that isn't HTTP (IndexedDB, clipboard, workers): a returned promise is expected, a rejection is reported as SYG214, `next()` after the component is disposed does nothing, and `signal` is an `AbortSignal` aborted on DISPOSE (EFFECT only).
 - **Test fakes for drivers** ([testing](https://sygnal.js.org/integration/testing/)). In `renderComponent()`, a sink with no driver, in the component or any child, is recorded, and its source is a fake that behaves like the real driver:
-  - HTTP: routed requests are answered to the sending instance; `latest`, `abort` and isolation follow `makeFetchDriver`;
+  - HTTP: reply actions are answered to the sending instance; `latest`, `abort` and isolation follow `makeFetchDriver`;
   - `await t.respond(name, value, target?)` answers, and `await t.fail(name, 404 | error, target?)` fails, the newest pending request that matches `target`: an `ok`/`error` action name, key or category, a partial request compared by value (`{ url: '/items/2' }`), a predicate, or `{ request, category, status, body }`. They **throw at the call** when nothing matching is pending (unless simulated input is still queued, or the component isn't ready yet), and return a promise that resolves after the reply has been reduced and rendered;
   - `t.requests(name)` lists requests only; `t.sinkValues(name)` keeps everything, `{ abort }` commands included;
   - sockets: the fake runs the real `makeSocketDriver` over in-memory sockets. `t.connections(name)`, `t.open(name, target?)`, `t.push(name, data, target?)`, `t.drop(name, { code, reason }?, target?)` and `t.sent(name, to?)`; options `autoConnect` (default `true`; `false` holds connections in 'connecting' until `t.open`) and `socketSink` (default `'WS'`: the fake that receives the `connections` static, created even when no model entry names it).
@@ -56,12 +56,12 @@ Covers `sygnal`, `sygnal-check` and `create-sygnal-app`. A few fixes change beha
 - **New diagnostic codes:**
   - [SYG608](https://sygnal.js.org/reference/errors#syg608) (warn): strict mode requested from `run()` without the `sygnal/diagnostics` entry loaded;
   - [SYG609](https://sygnal.js.org/reference/errors#syg609) (warn, dev entry): a component sends to a sink, or reads a source, that has no driver under `run()` (before, the values were dropped silently and the source was `undefined`);
-  - [SYG112](https://sygnal.js.org/reference/errors#syg112) (error, dev entry and `sygnal-check`): a routed request's `ok`/`error`, or a connection's `message`/`open`/`close`/`error`/`events` action, has no model entry (the reply would be dropped); suggests the nearest model key;
+  - [SYG112](https://sygnal.js.org/reference/errors#syg112) (error, dev entry and `sygnal-check`): a request's `ok`/`error` reply action, or a connection's `message`/`open`/`close`/`error`/`events` action, has no model entry (the reply would be dropped); suggests the nearest model key;
   - [SYG115](https://sygnal.js.org/reference/errors#syg115) (warn, dev entry): a `DOM.<name>` shorthand that isn't a DOM event (`DOM.key('.x')`); the fix names `DOM.keydown(sel).key()`;
   - [SYG116](https://sygnal.js.org/reference/errors#syg116) (error, dev entry): an EVENTS value without a string `type` (a function or `undefined`);
   - [SYG221](https://sygnal.js.org/reference/errors#syg221) (error, dev entry): `set()` called with a string (`set('field')`);
   - [SYG421](https://sygnal.js.org/reference/errors#syg421) (error, dev entry): a `data={{ ... }}` key the DOM can't store (`'task-id'`), which made rendering stop with a bare `DOMException {}`;
-  - [SYG508](https://sygnal.js.org/reference/errors#syg508) (strict): a component reads `HTTP.select('c')` / `errors('c')` for its own `category: 'c'` requests where a routed request would do;
+  - [SYG508](https://sygnal.js.org/reference/errors#syg508) (strict): a component reads `HTTP.select('c')` / `errors('c')` for its own `category: 'c'` requests where reply actions would do;
   - [SYG610](https://sygnal.js.org/reference/errors#syg610) (error): a request with a `then` or `catch` key (it would be a thenable); it is not sent;
   - [SYG611](https://sygnal.js.org/reference/errors#syg611) (error, dev entry): a socket send to a connection that doesn't exist, has died or is SSE, or an invalid connection spec.
 - **`sygnal/vite` `nativeGlobalThis`** (default `true`). xstream loads the `globalthis` npm polyfill and its dependency chain; the plugin now aliases it to a stub that returns the native `globalThis` in dev, build and Vitest, which makes a typical app about 4 KB gzipped smaller (kanban example: 42.1 → 38.1 KB). The Astro integration adds it to `astro build` too. A `globalthis` alias of your own wins; `nativeGlobalThis: false` keeps the polyfill ([details](https://sygnal.js.org/integration/bundler-config/#native-globalthis)). The stub is also exported as `sygnal/shims/globalthis` for other bundlers.
@@ -73,9 +73,9 @@ Covers `sygnal`, `sygnal-check` and `create-sygnal-app`. A few fixes change beha
   - an intent annotated `IntentSources<State>` is accepted on a component with `calculated` fields;
   - constants on non-STATE sinks (`LOG: 'saved'`) type-check (`NonStateSinkValue`);
   - `renderComponent()` infers the state type from the component, and `RenderResult<State>` types `t.state`, `t.states`, `t.next(s => …)` and `t.waitForState`, so typed tests need no `any`;
-  - `Component.connections`, routed request fields, and `signal` on the EFFECT props.
-- **Docs:** new pages for [HTTP](https://sygnal.js.org/guide/http/), [sockets](https://sygnal.js.org/guide/sockets/), [custom drivers](https://sygnal.js.org/guide/custom-drivers/) and [server functions](https://sygnal.js.org/integration/server-functions/) (Telefunc through a routed `driverFromAsync`, with security rules for exposing server functions); sections on sinks seeing the state from before the action, extracting a component without changing its markup, latest-only responses, HTTP, fake timers, the real DOM mode, and TypeScript sub-components and context.
-- **`sygnal-check`:** explanations for every new code (`sygnal-check explain SYG112`), SYG112 and SYG508 as static rules, routed `ok`/`error` names and `connections` names counted as triggers by SYG102, a `'routed'` action trigger in `--graph` / `inspect()`, and the updated severity semantics below.
+  - `Component.connections`, reply-action request fields, and `signal` on the EFFECT props.
+- **Docs:** new pages for [HTTP](https://sygnal.js.org/guide/http/), [sockets](https://sygnal.js.org/guide/sockets/), [custom drivers](https://sygnal.js.org/guide/custom-drivers/) and [server functions](https://sygnal.js.org/integration/server-functions/) (Telefunc through a `driverFromAsync` with reply actions, with security rules for exposing server functions); sections on sinks seeing the state from before the action, extracting a component without changing its markup, latest-only responses, HTTP, fake timers, the real DOM mode, and TypeScript sub-components and context.
+- **`sygnal-check`:** explanations for every new code (`sygnal-check explain SYG112`), SYG112 and SYG508 as static rules, `ok`/`error` reply-action names and `connections` names counted as triggers by SYG102, a `'reply'` action trigger in `--graph` / `inspect()`, and the updated severity semantics below.
 - **`create-sygnal-app`:** `README.md` in the package.
 
 ### Changed
@@ -96,7 +96,7 @@ Covers `sygnal`, `sygnal-check` and `create-sygnal-app`. A few fixes change beha
   - `urlPathname` is no longer in `passToClient` (Vike provides it on the client, and listing it logged a warning); the client falls back to `window.location.pathname`;
   - in dev, `sygnal/vike/onRenderClient` is kept out of dependency pre-bundling, so the client entry and your pages share one Sygnal core;
   - Pages, Layouts and Wrappers keep their function names (or `componentName`) in diagnostics; the root is `VikeLayoutWrapper` when a Layout or Wrapper is configured.
-- **Agent context:** `llms.txt` and the `sygnal-dev` skill cover `makeFetchDriver`, the test fakes, fake timers, `dom: 'real'`, `t.state` and TypeScript. The skill's `references/component-patterns.md` is removed (its content is in `SKILL.md`), and the agent docs no longer recommend the `sygnal-check` MCP server (the server itself is unchanged). They teach routed requests as the canonical HTTP form, `connections` for sockets, and the socket fakes; the old `category` + `select()` round trip is on the alternative-forms page.
+- **Agent context:** `llms.txt` and the `sygnal-dev` skill cover `makeFetchDriver`, the test fakes, fake timers, `dom: 'real'`, `t.state` and TypeScript. The skill's `references/component-patterns.md` is removed (its content is in `SKILL.md`), and the agent docs no longer recommend the `sygnal-check` MCP server (the server itself is unchanged). They teach reply actions as the canonical HTTP form, `connections` for sockets, and the socket fakes; the old `category` + `select()` round trip is on the alternative-forms page.
 - **The core is about 250 B smaller** (gzipped) with the same behavior, which pays for the `connections` static.
 - **`create-sygnal-app` templates:** `AGENTS.md` tells agents to read the whole `npm test` output instead of piping it through `tail`, which hid the failure.
 
@@ -153,7 +153,7 @@ These are fixes, but code or tests may depend on the old behavior:
 - **`HYDRATE` is no longer a built-in action.** Nothing dispatched it except the legacy `@cycle/http` path below. A model entry named `HYDRATE` is now an ordinary action (SYG102 if nothing triggers it).
 - **Legacy `@cycle/http` hydration removed:** an `HTTP` source's `select('initial')` no longer becomes `HYDRATE`, and the component option `requestSourceName` is gone.
 - **Async EFFECTs:** a returned promise no longer warns (SYG219); its rejection is reported as SYG214; `next()` called from an EFFECT after the component is disposed does nothing.
-- **Reserved request keys:** `ok`, `error` and `key` on requests to `makeFetchDriver`, `driverFromAsync` and `makeSocketDriver` route the reply (a 5.4.0 `driverFromAsync` request that used `ok`/`error` as data keys is now routed); a request with a `then` or `catch` key is refused (SYG610).
+- **Reserved request keys:** `ok`, `error` and `key` on requests to `makeFetchDriver`, `driverFromAsync` and `makeSocketDriver` name reply actions (a 5.4.0 `driverFromAsync` request that used `ok`/`error` as data keys now gets reply actions); a request with a `then` or `catch` key is refused (SYG610).
 - **Strict mode** reports the `select('c')` round trip for a component's own `category: 'c'` requests (SYG508), so strict-clean 5.4.0 code using `driverFromAsync` + `QUOTE.select('quote')` for its own requests gets a finding.
 - **`sygnal/vite`** aliases `globalthis` for every dependency in the app, not only xstream. Set `nativeGlobalThis: false` if a dependency needs the polyfill package.
 
@@ -174,7 +174,7 @@ Type-level only; JavaScript and runtime behavior are unaffected:
 | `HYDRATE` built-in action key | always allowed in typed models (`HYDRATE?: any`) | an ordinary action | List it in ACTIONS if you dispatch it; for SSR data use Vike `+data` / `hydrateState` |
 | `set()` argument | any | `Partial<S> & object` or a reducer | `set('field')` was always wrong (SYG221): use `set((state, v) => ({ field: v }))` |
 | `renderComponent` / `RenderResult` | not generic (`any`) | `renderComponent` infers the state; `RenderResult<S = any>` | None for untyped tests. Typed tests may now report real errors in predicates; for a handle declared before assignment use `let t: RenderResult<State>` |
-| `FetchRequest` routing keys | `ok`/`error`/`key`/`then` were free app fields | `ok`/`error`/`key` are `string`, `then`/`catch` are `never`, `abort` is `true \| string` | Rename app fields with those names, or nest them |
+| `FetchRequest` reply-action keys | `ok`/`error`/`key`/`then` were free app fields | `ok`/`error`/`key` are `string`, `then`/`catch` are `never`, `abort` is `true \| string` | Rename app fields with those names, or nest them |
 
 `FetchInit`, `FetchRequest` and the other fetch and socket types are new.
 
@@ -190,7 +190,7 @@ Most apps need no changes. Check these:
 
 - **Switchable:** if a page should start fresh each time it's shown, reset its state on the switching action.
 - **Tests:** replace `expect(t.html()).toBe('')` before a render with `await t.ready()` first; update `t.html()` snapshots containing `&#39;`/`&quot;` in text; tighten `next()` predicates that relied on skipping a state; update `ignore` lists and console expectations that named SYG408, SYG216 or SYG214 for errors that now carry their own code.
-- **HTTP:** replace a hand-written `driverFromAsync(fetch…)` driver and request-id/ABORT bookkeeping with `makeFetchDriver()`. Move the reply wiring from the intent into the request: `HTTP: (state, id) => ({ url, ok: 'LOADED', error: 'FAILED', latest: true })` replaces `category: 'quote'` + `LOADED: HTTP.select('quote')` / `FAILED: HTTP.errors('quote')` (strict mode flags the old form, SYG508). `category` + `select()` keeps working for unrouted requests and stream composition. In tests, drop the driver and use `await t.respond('HTTP', body, 'LOADED')` / `t.fail`; a test that expected answering a superseded request to do nothing now gets a synchronous throw. `makeFetchDriver` sends header names in lowercase (`Headers` semantics): a `fetch` stub that reads `init.headers['Content-Type']` must read `content-type` or use `new Headers(init.headers).get(…)`.
+- **HTTP:** replace a hand-written `driverFromAsync(fetch…)` driver and request-id/ABORT bookkeeping with `makeFetchDriver()`. Move the reply wiring from the intent into the request: `HTTP: (state, id) => ({ url, ok: 'LOADED', error: 'FAILED', latest: true })` replaces `category: 'quote'` + `LOADED: HTTP.select('quote')` / `FAILED: HTTP.errors('quote')` (strict mode flags the old form, SYG508). `category` + `select()` keeps working for requests without reply actions and stream composition. In tests, drop the driver and use `await t.respond('HTTP', body, 'LOADED')` / `t.fail`; a test that expected answering a superseded request to do nothing now gets a synchronous throw. `makeFetchDriver` sends header names in lowercase (`Headers` semantics): a `fetch` stub that reads `init.headers['Content-Type']` must read `content-type` or use `new Headers(init.headers).get(…)`.
 - **WebSockets:** replace a hand-written socket driver and connection-generation ids with `makeSocketDriver()` plus `Component.connections = (state) => ({ … })`; register it as `WS` (or pass `socketSink` to `renderComponent`).
 - **`HYDRATE` / `requestSourceName`:** pass SSR data through Vike `+data` or the SSR state handoff (`hydrateState`); drop `requestSourceName`. A model entry named `HYDRATE` must now be triggered like any other action.
 - **Async EFFECT:** tests that expected SYG219 for an async EFFECT, or relied on `next()` firing after dispose, need updating.

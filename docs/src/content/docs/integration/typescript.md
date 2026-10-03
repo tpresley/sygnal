@@ -154,9 +154,9 @@ An action that only `next()` dispatches isn't produced by the intent, so add it 
 type CounterActions = ActionsOf<typeof counterIntent> & { SAVED: { id: string } }
 ```
 
-### Routed requests
+### Reply actions
 
-The actions a [routed request](/guide/http/) names (`ok: 'LOADED'`, `error: 'FAILED'`) aren't produced by the intent either. Add them with their data: the `ok` action gets the parsed body (the type isn't inferred from the request, so name it), the `error` action a `FetchFailure` (`{ error, status?, body?, request }`):
+The [reply actions](/guide/http/) a request names (`ok: 'LOADED'`, `error: 'FAILED'`) aren't produced by the intent either. Add them with their data: the `ok` action gets the parsed body (the type isn't inferred from the request, so name it), the `error` action a `FetchFailure` (`{ error, status?, body?, request }`):
 
 ```tsx
 import type { Component, IntentSources, ActionsOf, FetchRequest, FetchSource, FetchFailure } from 'sygnal'

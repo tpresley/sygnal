@@ -1,7 +1,7 @@
 /**
  * SYG102: a model entry nothing can trigger: no intent action of that name,
- * not a built-in action, no next('X') string literal targets it, no routed
- * request names it (`ok: 'X'` / `error: 'X'` in a value a non-STATE sink
+ * not a built-in action, no next('X') string literal targets it, no request
+ * names it as a reply action (`ok: 'X'` / `error: 'X'` in a value a non-STATE sink
  * returns), and no `connections` entry names it (message/open/close/error).
  */
 import { BUILTIN_ACTIONS } from '../model/modelEntries.js'
@@ -18,23 +18,23 @@ export default {
       if (comp.staticProps.intent && (!comp.intent || !comp.intent.known)) continue
       const triggers = new Set((comp.intent?.actions || []).map(a => a.name))
       const nextTargets = new Set(model.nextTargets.map(t => t.name))
-      const routed = new Set([...model.routedTargets, ...(comp.connections?.targets || [])].map(t => t.name))
+      const replies = new Set([...model.replyTargets, ...(comp.connections?.targets || [])].map(t => t.name))
       const dynamicNext = model.dynamicNext.length > 0
-      const dynamicRouted = model.routedDynamic.length > 0 || (comp.connections?.dynamic.length || 0) > 0
-      const dynamic = dynamicNext || dynamicRouted
+      const dynamicReplies = model.replyDynamic.length > 0 || (comp.connections?.dynamic.length || 0) > 0
+      const dynamic = dynamicNext || dynamicReplies
       const seen = new Set()
       for (const e of model.entries) {
         if (seen.has(e.action)) continue
         seen.add(e.action)
-        if (BUILTIN_ACTIONS.has(e.action) || triggers.has(e.action) || nextTargets.has(e.action) || routed.has(e.action)) continue
+        if (BUILTIN_ACTIONS.has(e.action) || triggers.has(e.action) || nextTargets.has(e.action) || replies.has(e.action)) continue
         report({
           code: 'SYG102',
           severity: dynamic ? 'info' : undefined,
           component: comp.name,
           file: e.file,
           node: e.node,
-          message: `model entry '${e.action}' is never triggered: no intent action, built-in action, routed request (ok/error) or next('${e.action}') call uses it` +
-            (dynamicNext ? ' (a next() call with a non-literal name might)' : dynamicRouted ? ' (a request with a non-literal ok/error name might)' : ''),
+          message: `model entry '${e.action}' is never triggered: no intent action, built-in action, reply action (ok/error) or next('${e.action}') call uses it` +
+            (dynamicNext ? ' (a next() call with a non-literal name might)' : dynamicReplies ? ' (a request with a non-literal ok/error name might)' : ''),
           fix: comp.intent
             ? `add '${e.action}' to ${comp.name}.intent, name it in a request (ok: '${e.action}'), call next('${e.action}') from another entry, or remove it`
             : `add an intent that returns '${e.action}', name it in a request (ok: '${e.action}'), call next('${e.action}') from another entry, or remove it`,

@@ -179,7 +179,7 @@ class Component {
   _disposeListener: any;
   _dispose$: any;
   _disposed?: boolean;
-  _routed?: any[];
+  _replies?: any[];
   _ac?: AbortController;
   _s?: any;
   _activeSubComponents: Map<string, any>;
@@ -440,9 +440,9 @@ class Component {
       } catch (_) {}
       this._disposeListener = null
     }
-    // G-144: stop the routed replies now, so none reaches this instance after DISPOSE and the
-    // drivers abort its routed requests in flight (rather than when action$ completes below)
-    this._routed?.forEach(r$ => r$.shamefullySendComplete())
+    // G-144: stop the reply actions now, so none reaches this instance after DISPOSE and the
+    // drivers abort its requests with reply actions in flight (rather than when action$ completes below)
+    this._replies?.forEach(r$ => r$.shamefullySendComplete())
     // 1-B: abort the EFFECT props.signal (after DISPOSE ran, so a DISPOSE EFFECT gets it too)
     this._ac?.abort()
     // Dispose the sub-components now (R3), so the whole subtree's DISPOSE actions and
@@ -523,14 +523,14 @@ class Component {
     const hmrAction$ = _hmrUpdating ? this.hmrAction$ : xs.empty()
     const wrapped$   = (this.model?.[BOOTSTRAP_ACTION] &&!_hmrUpdating) ? concat(bootstrap$, action$) : concat(xs.of().compose(delay(1)).filter((_: any) => false), hmrAction$, action$)
 
-    // PLAN-3 routed requests: a routing-capable source (makeFetchDriver, driverFromAsync, ...)
-    // delivers the replies to this instance's own requests as actions (src/extra/routing.ts).
+    // PLAN-3 reply actions: a reply-capable source (makeFetchDriver, driverFromAsync, ...)
+    // delivers the replies to this instance's own requests as actions (src/extra/replies.ts).
     // === true: the DOM source is a Proxy that answers any property with a function.
     // dispose() completes them, so the driver drops/aborts this instance's requests at once (G-144)
-    this._routed = this.sourceNames.filter(n => this.sources[n]?.__sygnalRoutes === true).map(n => this.sources[n].routed(this._componentNumber))
+    this._replies = this.sourceNames.filter(n => this.sources[n]?.__sygnalReplies === true).map(n => this.sources[n].replies(this._componentNumber))
     // xs.never(): action$ outlives a finite intent, so DISPOSE can still be sent (it was
     // the legacy hydrate$ that did this)
-    this.action$   = xs.merge(wrapped$, xs.never(), ...this._routed)
+    this.action$   = xs.merge(wrapped$, xs.never(), ...this._replies)
       .compose(this.log(({ type }: any) => `<${type}> Action triggered`))
       .map((action: any) => {
         if (typeof window !== 'undefined' && window.__SYGNAL_DEVTOOLS__?.connected) {
@@ -861,10 +861,10 @@ class Component {
     // merged with the sub-components' (B-023: stamping the merged sink made every ancestor
     // re-stamp, so the emitter was always the root). Non-enumerable (G-020), so sink values
     // still toEqual what the model returned.
-    // PLAN-3: the same stamp tags this component's own requests to a routing-capable source
-    // (__emitterId is the sender its replies are routed to). Only object requests are stamped
-    // (a string is an unrouted GET); every EVENTS value is, as before (G-147).
-    ;['EVENTS', ...this.sourceNames.filter(n => this.sources[n]?.__sygnalRoutes === true)].forEach(n => {
+    // PLAN-3: the same stamp tags this component's own requests to a reply-capable source
+    // (__emitterId is the sender its reply actions go to). Only object requests are stamped
+    // (a string is a plain GET); every EVENTS value is, as before (G-147).
+    ;['EVENTS', ...this.sourceNames.filter(n => this.sources[n]?.__sygnalReplies === true)].forEach(n => {
       const s$ = this.model$[n]
       if (s$) this.model$[n] = s$.map((v: any) => n == 'EVENTS' || isObj(v) ? Object.defineProperties({...v}, {
         __emitterId: { value: this._componentNumber, configurable: true },

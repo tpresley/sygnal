@@ -96,13 +96,13 @@ export function getCodeInfo(code: string): DiagnosticCodeInfo | undefined
 // ---------------------------------------------------------------------------
 
 /** How an action is dispatched. */
-export type InspectActionTrigger = 'intent' | 'next' | 'routed' | 'builtin' | 'unknown'
+export type InspectActionTrigger = 'intent' | 'next' | 'reply' | 'builtin' | 'unknown'
 
 export interface InspectAction {
   name: string
   /**
    * 'intent': returned by the component's intent. 'builtin': BOOTSTRAP,
-   * INITIALIZE, DISPOSE or READY. 'routed': named by a routed request
+   * INITIALIZE, DISPOSE or READY. 'reply': named as a reply action by a request
    * (`ok: 'NAME'` / `error: 'NAME'`) or a `connections` entry (statically: a
    * string literal; at runtime: a request the instance was seen sending).
    * 'next': dispatched with next() (statically: a next('NAME') literal; at

@@ -18,7 +18,7 @@ Strict mode is off by default. Its rules are SYG501 to SYG508.
 | [SYG505](/reference/errors/#syg505) | `ACTION: { EVENTS: event('TYPE', fn) }` | `emit('TYPE', fn)` and a raw `EVENTS: s => ({ type, data })` | yes | no | yes |
 | [SYG506](/reference/errors/#syg506) | `CHILD.select(ChildFn)` | `CHILD.select('ChildName')` | yes | no | yes, when the name is in scope |
 | [SYG507](/reference/errors/#syg507) | `.context` for data that crosses levels | a prop passed on unchanged through 3 component levels | yes (info) | no | no |
-| [SYG508](/reference/errors/#syg508) | a routed request `{ url, ok: 'LOADED', error: 'FAILED' }` | `HTTP.select('c')` / `HTTP.errors('c')` reading back the component's own `category: 'c'` request | yes | yes | no |
+| [SYG508](/reference/errors/#syg508) | reply actions `{ url, ok: 'LOADED', error: 'FAILED' }` | `HTTP.select('c')` / `HTTP.errors('c')` reading back the component's own `category: 'c'` request | yes | yes | no |
 
 All strict findings are warnings, except SYG507, which is info.
 
@@ -114,7 +114,7 @@ function Card({ state, context }) {
 }
 ```
 
-### SYG508: route the reply, don't read it back
+### SYG508: name reply actions, don't read the reply back
 
 ```jsx
 // Flagged: LOADED: HTTP.select('quote') in the intent, { category: 'quote', url } in the model

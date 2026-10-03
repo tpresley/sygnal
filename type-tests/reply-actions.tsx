@@ -1,23 +1,23 @@
-// PLAN-3 1-T: routed requests (ok / error / key, abort by name), then/catch rejected,
+// PLAN-3 1-T: reply actions (ok / error / key, abort by name), then/catch rejected,
 // ok / error checked against a component's ACTIONS, and HYDRATE as an ordinary action (D66)
 import xs from 'xstream'
 import { makeFetchDriver, driverFromAsync, ABORT } from 'sygnal'
 import type {
   Component, ActionsOf, IntentSources, FetchRequest, FetchSource, FetchFailure,
-  AsyncRequest, AsyncDriverFromFunction, AsyncDriverError, RoutedRequest,
+  AsyncRequest, AsyncDriverFromFunction, AsyncDriverError, ReplyRequest,
 } from 'sygnal'
 
-// ── FetchRequest: routed shape ──────────────────────────────────────
-const routed: FetchRequest[] = [
+// ── FetchRequest: reply-action shape ────────────────────────────────
+const replies: FetchRequest[] = [
   { url: '/api/q/1', ok: 'LOADED', error: 'FAILED' },
   { url: '/api/q/1', ok: 'LOADED', latest: true, key: 'quote' },
   { url: '/api/r', ok: 'GOT', parse: 'response' },
   { abort: 'LOADED' },                 // abort by action (or key) name
   { abort: true, key: 'quote' },       // abort by key
   { abort: true },                     // the whole scope
-  { abort: true, category: 'search' }, // unrouted category
+  { abort: true, category: 'search' }, // plain category
 ]
-makeFetchDriver()(xs.fromArray(routed))
+makeFetchDriver()(xs.fromArray(replies))
 
 // @ts-expect-error a `then` key makes the request a thenable (SYG610): use ok
 export const thenKey: FetchRequest = { url: '/x', then: 'LOADED' }
@@ -30,10 +30,10 @@ export const abortFalse: FetchRequest = { abort: false }
 // ordinary objects stay assignable (then?: never doesn't get in the way)
 const built = { url: '/x', id: 7 }
 export const plain: FetchRequest = built
-const extras: RoutedRequest = { ok: 'A', error: 'B' }
+const extras: ReplyRequest = { ok: 'A', error: 'B' }
 export const spread: FetchRequest = { url: '/x', ...extras }
 
-// FetchFailure: the routed error action's data
+// FetchFailure: the error reply action's data
 export const onFail = ({ error, status, body, request }: FetchFailure) => [error, status ?? 0, body, request.url]
 
 // ── ok / error checked against ACTIONS ──────────────────────────────
@@ -42,7 +42,7 @@ type State = { id: number; status: string; quote?: Quote }
 type Drivers = { HTTP: { source: FetchSource; sink: FetchRequest } }
 
 const intent = ({ DOM }: IntentSources<State, Drivers>) => ({ LOAD: DOM.click('.load') })
-// routed actions are listed with their data: ok → the parsed body, error → FetchFailure
+// reply actions are listed with their data: ok → the parsed body, error → FetchFailure
 type Actions = ActionsOf<typeof intent> & { LOADED: Quote; FAILED: FetchFailure }
 
 const QuoteView: Component<State, {}, Drivers, Actions> = ({ state }) => <div>{state.status}</div>
@@ -72,7 +72,7 @@ Loose.model = { LOAD: { HTTP: () => ({ url: '/x', ok: 'WHATEVER' }) } }
 function Plain() { return <div /> }
 Plain.model = { LOAD: { HTTP: () => ({ url: '/x', ok: 'ANY', error: 'NAME' }) } }
 
-// ── driverFromAsync: routed requests ────────────────────────────────
+// ── driverFromAsync: reply actions ────────────────────────────────
 type QuoteReq = AsyncRequest<{ value: number }>
 const quoteDriver = driverFromAsync<QuoteReq, number>(async (n: number) => n * 10, { args: 'value' })
 export const asyncSource: AsyncDriverFromFunction = quoteDriver(xs.of<QuoteReq>({ value: 2, ok: 'GOT', error: 'FAILED' }))

@@ -1,5 +1,5 @@
-// SYG508 (PLAN-3 §1.1): a select()/errors() round trip on a routing driver, where a routed
-// request ({ url, ok: 'LOADED', error: 'FAILED' }) would do. Only the strict rules are expected.
+// SYG508 (PLAN-3 §1.1): a select()/errors() round trip on a reply-action driver, where a
+// request with reply actions ({ url, ok: 'LOADED', error: 'FAILED' }) would do. Only the strict rules are expected.
 import { run, makeFetchDriver, driverFromAsync } from 'sygnal'
 
 function Quote({ state }) {

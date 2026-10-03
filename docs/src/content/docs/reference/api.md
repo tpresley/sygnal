@@ -628,7 +628,7 @@ function renderComponent(
 | `emitted` | `{ type, data }[]` | EVENTS emissions |
 | `sinkValues` | `(sinkName) => any[]` | Values sent to a sink |
 | `requests` | `(sinkName) => any[]` | Requests sent to a sink: `sinkValues` without the `{ abort }` commands |
-| `respond` | `(sinkName, value, target?) => Promise<void>` | Answer the newest pending request on a driverless source that matches `target` (an `ok`/`error` action name or category, `{ url }` or another partial request, a predicate, or `{ request, category, status, body }`): a routed request gets `value` as its `ok` action, an unrouted one goes to `select()`. Throws at the call when nothing matching is pending (unless earlier simulated input is still queued); resolves after the reply is reduced and rendered ([Testing](/integration/testing/#answering-requests-respond-and-fail)) |
+| `respond` | `(sinkName, value, target?) => Promise<void>` | Answer the newest pending request on a driverless source that matches `target` (an `ok`/`error` action name or category, `{ url }` or another partial request, a predicate, or `{ request, category, status, body }`): a request with reply actions gets `value` as its `ok` action, a plain one goes to `select()`. Throws at the call when nothing matching is pending (unless earlier simulated input is still queued); resolves after the reply is reduced and rendered ([Testing](/integration/testing/#answering-requests-respond-and-fail)) |
 | `fail` | `(sinkName, error, target?) => Promise<void>` | Fail it the same way: its `error` action gets `{ error, request, status, body }`, or `errors()` (a number is an HTTP status) |
 | `connections` | `(sinkName) => FakeConnection[]` | Connections declared on a driverless socket sink (`name`, `url`, `state`, `sender`, the spec) |
 | `push` | `(sinkName, data, target?) => Promise<void>` | A frame from the server on the matching open connections (`{ event }` for an SSE named event) |
@@ -955,28 +955,28 @@ function makeFetchDriver(options?: {
 | Sink value (request) | Effect |
 |---|---|
 | `{ url, ok?, error?, key?, method?, query?, json?, body?, headers?, latest?, timeoutMs?, parse?, init? }` | `fetch(baseUrl + url + ?query, init)`. Method defaults to POST with `json`/`body`, else GET. Other fetch options go under `init`; any other key is app data (not sent, returned on `request`) |
-| `'/api/x'` | GET of that URL (unrouted) |
-| `{ abort: 'LOADED' }`, `{ abort: true, key }` | Cancel this instance's routed requests in flight with that key (`key`, else the `ok` action, else `error`) |
-| `{ category?, abort: true }` | Cancel the component's unrouted requests in flight in that category (all of its requests, without a category) |
+| `'/api/x'` | GET of that URL (no reply actions) |
+| `{ abort: 'LOADED' }`, `{ abort: true, key }` | Cancel this instance's requests with reply actions in flight with that key (`key`, else the `ok` action, else `error`) |
+| `{ category?, abort: true }` | Cancel the component's plain requests in flight in that category (all of its requests, without a category) |
 | `ABORT`, `null`, `undefined` | Nothing |
 
-**Routed** (canonical): a request naming `ok` / `error` is answered with that action, on exactly the sending instance.
+**Reply actions** (canonical): a request naming `ok` / `error` is answered with that action, on exactly the sending instance.
 
 | Action | Data |
 |---|---|
 | `ok` | The parsed body of a 2xx response (`parse: 'response'`: the `Response`) |
 | `error` | `{ error, status?, body?, request }` (`FetchFailure`): non-2xx (`status`, parsed `body`), network error, parse error, timeout (`error.name === 'TimeoutError'`) |
 
-`latest: true` aborts this instance's earlier requests with the same key still in flight; their replies never arrive. A removed instance's routed requests are aborted. A name with no model entry is [SYG112](/reference/errors/#syg112); a `then`/`catch` key is [SYG610](/reference/errors/#syg610) (not sent).
+`latest: true` aborts this instance's earlier requests with the same key still in flight; their replies never arrive. A removed instance's requests with reply actions are aborted. A name with no model entry is [SYG112](/reference/errors/#syg112); a `then`/`catch` key is [SYG610](/reference/errors/#syg610) (not sent).
 
-**Unrouted** (no `ok`/`error`): replies go to the source.
+**Without reply actions** (no `ok`/`error`): replies go to the source.
 
 | Source | Emits |
 |---|---|
 | `HTTP.select(category?)` | `{ category, value, status, request }` for each 2xx response |
 | `HTTP.errors(category?)` | `{ error, category, request, status?, body? }` for a non-2xx status, network error, parse error or timeout |
 
-Unrouted `latest` and `abort` act per category; each component instance sees only the replies to its own (and its children's) requests, and the root sees all. Disposing the app aborts everything in flight. No requests are made during server rendering. Guide: [HTTP](/guide/http/).
+Without reply actions, `latest` and `abort` act per category; each component instance sees only the replies to its own (and its children's) requests, and the root sees all. Disposing the app aborts everything in flight. No requests are made during server rendering. Guide: [HTTP](/guide/http/).
 
 ---
 
@@ -1042,11 +1042,11 @@ function driverFromAsync(
 | `pre` | `(incoming) => incoming` | Identity | Pre-process incoming sink values before argument extraction |
 | `post` | `(result, incoming) => result` | Identity | Post-process results before sending to source |
 
-### Routed requests
+### Reply actions
 
 A request with `ok` / `error` (from a component) is answered with that action on exactly the sending instance: `ok` gets the resolved value (after `post`), `error` gets `{ error, request }`. There is no `latest`/`abort` (a call can't be cancelled).
 
-### Source API (unrouted requests)
+### Source API (requests without reply actions)
 
 The driver source exposes:
 
@@ -1103,7 +1103,7 @@ function makeServiceWorkerDriver(
 |--------|------|-------------|
 | `scope` | `string` | Registration scope for the service worker |
 
-### Source API (unrouted requests)
+### Source API (requests without reply actions)
 
 <!-- docs-check: skip -->
 ```typescript

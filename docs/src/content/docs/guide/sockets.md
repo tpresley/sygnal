@@ -78,7 +78,7 @@ The core sends the result of `connections` to the `WS` sink at startup and whene
 | `withCredentials` | SSE: send cookies cross-origin |
 | `events` | SSE named events → actions: `{ price: 'PRICE' }` |
 
-Every action key is optional. An event without an action name goes to the unrouted source, `WS.select(name)`, as `{ name, type, data }`.
+Every action key is optional. An event without an action name goes to the source, `WS.select(name)`, as `{ name, type, data }`.
 
 The events reach **exactly the component instance** that declared the connection. A name with no model entry is reported as [SYG112](/reference/errors/#syg112); a spec with a `then` or `catch` key is ignored ([SYG610](/reference/errors/#syg610)).
 

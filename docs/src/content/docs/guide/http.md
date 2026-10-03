@@ -1,6 +1,6 @@
 ---
 title: HTTP
-description: HTTP requests with makeFetchDriver() and routed reply actions
+description: HTTP requests with makeFetchDriver() and reply actions
 ---
 
 For HTTP, use the built-in fetch driver instead of calling `fetch` in a component. Register it once in `main.js`:
@@ -91,7 +91,7 @@ Search.model = {
 
 ## Requests
 
-A request is an object (or a URL string, for a plain GET with no routing):
+A request is an object (or a URL string, for a plain GET with no reply actions):
 
 | Field | Default | Meaning |
 |---|---|---|
@@ -132,7 +132,7 @@ makeFetchDriver({
 
 ## Testing Without a Driver
 
-`renderComponent` needs no driver for `HTTP`. The requests the component sends are recorded, and the source is a fake that routes replies like the real driver. Answer a request with `t.respond` or fail it with `t.fail`, and `await` the call:
+`renderComponent` needs no driver for `HTTP`. The requests the component sends are recorded, and the source is a fake that replies like the real driver. Answer a request with `t.respond` or fail it with `t.fail`, and `await` the call:
 
 ```js
 import { it, expect, afterEach } from 'vitest'
@@ -162,12 +162,12 @@ it('shows the picked quote, then a missing one', async () => {
 
 The [Testing guide](/integration/testing/#answering-requests-respond-and-fail) has the full matching rules. In a running app, a sink with no driver is reported as [SYG609](/reference/errors/#syg609) (with the dev diagnostics on).
 
-## Unrouted Requests: select() and errors()
+## Requests Without Reply Actions: select() and errors()
 
-A request without `ok`/`error` is unrouted: its reply goes to the `HTTP` source, read in the intent with `HTTP.select(category)` (`{ category, value, status, request }`) and `HTTP.errors(category)` (`{ error, category, request, status, body }`). Use it to compose replies as streams, or for replies that a component other than the sender handles. Reading your own request back this way is the [alternative form](/advanced/alternative-forms/#selecterrors-round-trip) of a routed request, flagged in strict mode as [SYG508](/reference/errors/#syg508).
+A request without `ok`/`error` has no reply actions: its reply goes to the `HTTP` source, read in the intent with `HTTP.select(category)` (`{ category, value, status, request }`) and `HTTP.errors(category)` (`{ error, category, request, status, body }`). Use it to compose replies as streams, or for replies that a component other than the sender handles. Reading your own request back this way is the [alternative form](/advanced/alternative-forms/#selecterrors-round-trip) of reply actions, flagged in strict mode as [SYG508](/reference/errors/#syg508).
 
 ## Related
 
 - [Sockets](/guide/sockets/): WebSocket and server-sent events with `makeSocketDriver()`
 - [Custom Drivers](/guide/custom-drivers/): `driverFromAsync()` for any promise-returning function, and hand-written drivers
-- [Server Functions](/integration/server-functions/): calling Telefunc functions through a routed driver
+- [Server Functions](/integration/server-functions/): calling Telefunc functions through a driver with reply actions

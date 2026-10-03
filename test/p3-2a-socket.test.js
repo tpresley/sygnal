@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // PLAN-3 2-A: makeSocketDriver (WebSocket + server-sent events). Driver-level tests feed the sink
-// directly with sender-stamped values (what the core sends) and read the routed actions with
-// source.routed(sender); the run() tests cover Collection items, dispose, and task 22's spec.
+// directly with sender-stamped values (what the core sends) and read the reply actions with
+// source.replies(sender); the run() tests cover Collection items, dispose, and task 22's spec.
 import { it, expect, beforeEach, afterEach, vi, describe } from 'vitest'
 import xs from 'xstream'
 import run from '../src/extra/run.js'
@@ -103,12 +103,12 @@ function drive(opts = {}) {
   const sink = xs.create()
   const src = makeSocketDriver({ WebSocket: server.FakeWebSocket, EventSource: sse.FakeEventSource, ...opts })(sink)
   const subs = new Map()
-  /** the routed actions of `sender`, as [type, data] */
+  /** the reply actions of `sender`, as [type, data] */
   const actions = sender => {
     if (!subs.has(sender)) {
       const list = []
       const l = { next: a => list.push([a.type, a.data]), error: () => {}, complete: () => {} }
-      const s$ = src.routed(sender)
+      const s$ = src.replies(sender)
       s$.addListener(l)
       subs.set(sender, { list, stop: () => s$.removeListener(l) })
     }
@@ -126,7 +126,7 @@ const room = (path = '/ws/rooms/general', more = {}) =>
 const coded = code => errorSpy.mock.calls.filter(c => String(c[0]).includes(code))
 
 describe('makeSocketDriver: WebSocket', () => {
-  it('opens on declaration; open, JSON and text messages arrive as the routed actions', () => {
+  it('opens on declaration; open, JSON and text messages arrive as the reply actions', () => {
     const d = drive()
     d.declare(1, { room: room() })
     expect(server.sockets).toHaveLength(1)
@@ -358,7 +358,7 @@ describe('makeSocketDriver: WebSocket', () => {
     d.declare(2, { room: room('/two') })
     server.sockets[0].accept(); server.sockets[1].accept()
     server.sockets[0].drop()
-    d.stop(1)                       // the instance is disposed: its routed stream stops
+    d.stop(1)                       // the instance is disposed: its replies stream stops
     vi.advanceTimersByTime(60000)   // (xstream stops asynchronously)
     expect(server.sockets).toHaveLength(2)
     expect(server.sockets[1].closedByClient).toBe(false)
@@ -393,7 +393,7 @@ describe('makeSocketDriver: WebSocket', () => {
     expect(server.sockets).toHaveLength(0)
   })
 
-  it('unrouted: events without an action name reach select(name?) as { name, type, data }', () => {
+  it('plain: events without an action name reach select(name?) as { name, type, data }', () => {
     const d = drive()
     const all = [], one = []
     d.src.select().addListener({ next: e => all.push(e) })
@@ -408,7 +408,7 @@ describe('makeSocketDriver: WebSocket', () => {
     expect(d.actions(1)).toEqual([['RECEIVED', { y: 2 }]])
   })
 
-  it('isolation: a scoped source sees only the unrouted events of its own scope', () => {
+  it('isolation: a scoped source sees only the plain events of its own scope', () => {
     const sink = xs.create()
     const src = makeSocketDriver({ WebSocket: server.FakeWebSocket })(sink)
     const inner = src.isolateSource(src, 'item1')
@@ -419,7 +419,7 @@ describe('makeSocketDriver: WebSocket', () => {
     sink.shamefullySendNext(stamp({ connections: { other: { socket: '/o' } } }, 2))
     server.sockets.forEach(s => s.accept())
     expect(seen).toEqual(['mine'])
-    expect(inner.__sygnalRoutes).toBe(true)
+    expect(inner.__sygnalReplies).toBe(true)
   })
 
   it('SSR: no WebSocket / EventSource: nothing opens, nothing throws, nothing is reported', () => {
@@ -427,7 +427,7 @@ describe('makeSocketDriver: WebSocket', () => {
     vi.stubGlobal('EventSource', undefined)
     const sink = xs.create()
     const src = makeSocketDriver()(sink)
-    src.routed(1).addListener({ next: () => {} })
+    src.replies(1).addListener({ next: () => {} })
     const stamp = v => Object.defineProperty(v, '__emitterId', { value: 1 })
     sink.shamefullySendNext(stamp({ connections: { room: room(), feed: { sse: '/events' } } }))
     sink.shamefullySendNext(stamp({ to: 'room', json: { a: 1 } }))

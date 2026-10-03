@@ -1,4 +1,4 @@
-// Routed requests (PLAN-3): the ok/error names of a request are triggers (SYG102),
+// Reply actions (PLAN-3): the ok/error names of a request are triggers (SYG102),
 // and each one must name a model entry of the same component (SYG112).
 
 function Quote({ state }) {

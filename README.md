@@ -208,7 +208,7 @@ run(App, { HTTP: makeFetchDriver(), WS: makeSocketDriver() })
 
 ### Custom Drivers
 
-Wrap any other async operation as a driver; requests route the same way (`{ value, ok: 'DONE', error: 'FAILED' }`):
+Wrap any other async operation as a driver; requests take the same reply actions (`{ value, ok: 'DONE', error: 'FAILED' }`):
 
 ```javascript
 import { driverFromAsync } from 'sygnal'

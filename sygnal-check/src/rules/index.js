@@ -21,7 +21,7 @@
  */
 import intentWithoutModel from './syg101-intent-without-model.js'
 import unreachableModel from './syg102-unreachable-model.js'
-import unknownRoutedAction from './syg112-unknown-routed-action.js'
+import unknownReplyAction from './syg112-unknown-reply-action.js'
 import selectorInView from './syg110-selector-in-view.js'
 import eventsCounterpart from './syg105-events-counterpart.js'
 import collectionFrom from './syg401-collection-from.js'
@@ -31,7 +31,7 @@ import { strictRules } from './strict/index.js'
 export const coreRules = [
   intentWithoutModel,
   unreachableModel,
-  unknownRoutedAction,
+  unknownReplyAction,
   selectorInView, // also reports SYG104 (selector only found in a child component)
   eventsCounterpart,
   collectionFrom,

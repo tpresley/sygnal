@@ -169,7 +169,7 @@ See [Effect Handlers](/advanced/effect/).
 
 ## select/errors round trip
 
-Before routed requests, a component tagged its request with a `category` and read the reply back in its own intent:
+Before reply actions, a component tagged its request with a `category` and read the reply back in its own intent:
 
 ```jsx
 // Alternative
@@ -193,7 +193,7 @@ Quote.model = {
 }
 ```
 
-The routed form puts the request and the place its reply goes on one line, drops the category string and the intent lines, and delivers the reply to exactly the sending instance. Strict mode flags the round trip as [SYG508](/reference/errors/#syg508). `select()` and `errors()` remain valid, and are not flagged, for unrouted requests whose replies another component reads, for custom drivers that don't route, and for stream-level composition (combining replies with other streams in the intent). With `latest: true`, an unrouted request is superseded per category (`{ category, abort: true }` cancels), a routed one per key (`{ abort: 'LOADED' }`). See [HTTP](/guide/http/#unrouted-requests-select-and-errors).
+The reply-action form puts the request and the place its reply goes on one line, drops the category string and the intent lines, and delivers the reply to exactly the sending instance. Strict mode flags the round trip as [SYG508](/reference/errors/#syg508). `select()` and `errors()` remain valid, and are not flagged, for requests without reply actions whose replies another component reads, for custom drivers without reply actions, and for stream-level composition (combining replies with other streams in the intent). With `latest: true`, a request without reply actions is superseded per category (`{ category, abort: true }` cancels), one with reply actions per key (`{ abort: 'LOADED' }`). See [HTTP](/guide/http/#requests-without-reply-actions-select-and-errors).
 
 ## Model-sent connections
 

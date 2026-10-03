@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// PLAN-3 1-C: renderComponent's fake sources answer routed requests ({ url, ok, error }) like
+// PLAN-3 1-C: renderComponent's fake sources answer requests with reply actions ({ url, ok, error }) like
 // makeFetchDriver (to exactly the sender; latest/abort per sender; dispose drops them).
 // t.respond / t.fail pick the request by content (an action name or category, { url }, a
 // partial request, a predicate), throw at the call when nothing matching is pending (G-140)
@@ -35,7 +35,7 @@ Quote.model = {
   FAILED: (s, { error, status, body, request }) => ({ ...s, status: 'error', text: error.message, code: status, body, url: request.url }),
 }
 
-describe('routed requests in the fake', () => {
+describe('reply actions in the fake', () => {
   it('t.respond(name, body, okAction) delivers the parsed body as the ok action; the promise resolves after the render', async () => {
     t = renderComponent(Quote)
     t.simulateEvent('.get', 'click')
@@ -80,7 +80,7 @@ describe('routed requests in the fake', () => {
     expect(t.state).toMatchObject({ v: 'D', kid: { v: 'K' } })
   })
 
-  it('a child-only routed request (the root has no HTTP) is routed to the child', async () => {
+  it('a child-only request with reply actions (the root has no HTTP) gets its reply actions on the child', async () => {
     function Kid({ state }) { return h('div', { className: 'kid' }, h('button', { className: 'kload' }, 'k'), String(state.v)) }
     Kid.intent = ({ DOM }) => ({ LOAD: DOM.click('.kload') })
     Kid.model = { LOAD: { HTTP: () => ({ url: '/kid', ok: 'GOT' }) }, GOT: (s, v) => ({ ...s, v }) }
@@ -169,7 +169,7 @@ describe('G-140: t.respond / t.fail throw at the call when nothing matching is p
     expect(() => t.respond('HTTP', { text: 'b' }, 'LOADED')).toThrow(/no pending HTTP request matching 'LOADED'/)
   })
 
-  it('abort by action name cancels the routed request', async () => {
+  it('abort by action name cancels the request with reply actions', async () => {
     t = renderComponent(Search)
     t.simulateEvent('.q', 'input', { value: 'du' })
     t.simulateEvent('.q', 'input', { value: '' })
@@ -177,7 +177,7 @@ describe('G-140: t.respond / t.fail throw at the call when nothing matching is p
     expect(() => t.respond('HTTP', [], 'RESULTS')).toThrow(/aborted or superseded/)
   })
 
-  it('abort by key, and { abort: true } (no key, no category) cancels routed requests too (D65)', async () => {
+  it('abort by key, and { abort: true } (no key, no category) cancels requests with reply actions too (D65)', async () => {
     function K({ state }) { return h('div', null, h('button', { className: 'a' }), h('button', { className: 'b' }), h('button', { className: 'x' }), h('button', { className: 'all' }), state.v) }
     K.initialState = { v: '' }
     K.intent = ({ DOM }) => ({ A: DOM.click('.a'), B: DOM.click('.b'), X: DOM.click('.x'), ALL: DOM.click('.all') })
@@ -257,7 +257,7 @@ describe('G-141 and content matching', () => {
   })
 })
 
-describe('unrouted requests (select / errors) are unchanged', () => {
+describe('plain requests (select / errors) are unchanged', () => {
   function Old({ state }) { return h('div', null, h('button', { className: 'get' }, 'Get'), state.text) }
   Old.initialState = { text: '' }
   Old.intent = ({ DOM, HTTP }) => ({ LOAD: DOM.click('.get'), LOADED: HTTP.select('quote'), FAILED: HTTP.errors('quote') })
@@ -277,7 +277,7 @@ describe('unrouted requests (select / errors) are unchanged', () => {
     expect(t.state.text).toBe('failed 503')
   })
 
-  it('half-routed: ok only, a failure goes to errors()', async () => {
+  it('half reply actions: ok only, a failure goes to errors()', async () => {
     function Half({ state }) { return h('div', null, h('button', { className: 'get' }, 'Get'), state.text) }
     Half.initialState = { text: '' }
     Half.intent = ({ DOM, HTTP }) => ({ LOAD: DOM.click('.get'), FAILED: HTTP.errors() })
@@ -294,7 +294,7 @@ describe('unrouted requests (select / errors) are unchanged', () => {
 })
 
 describe('G-131: child-only string requests are scope-tagged', () => {
-  it("each child's unrouted string request is answered to that child only", async () => {
+  it("each child's plain string request is answered to that child only", async () => {
     function Kid({ state }) { return h('div', { className: `kid k${state.id}` }, h('button', { className: 'go' }, 'go'), String(state.v)) }
     Kid.intent = ({ DOM, HTTP }) => ({ GO: DOM.click('.go'), GOT: HTTP.select() })
     Kid.model = { GO: { HTTP: s => `/kid/${s.id}` }, GOT: (s, { value }) => ({ ...s, v: value }) }

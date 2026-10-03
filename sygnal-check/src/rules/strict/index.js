@@ -24,5 +24,5 @@ export const strictRules = [
   eventsEmit,         // SYG505 (C6)
   childSelectString,  // SYG506 (C7)
   propDrilling,       // SYG507 (C10, info)
-  selectRoundtrip,    // SYG508 (PLAN-3 §1.1: routed requests)
+  selectRoundtrip,    // SYG508 (PLAN-3 §1.1: reply actions)
 ]

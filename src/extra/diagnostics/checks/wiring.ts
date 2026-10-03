@@ -1,9 +1,9 @@
 /**
  * SYG101 — intent action has no model entry (warn)
  * SYG102 — model entry has no intent trigger (info; it may still be reached
- *          with next(), which is only known at call time). An action a routed
- *          request or `connections` names (`ok: 'LOADED'`, PLAN-3) counts as
- *          triggered: routedNamesOf() reads the names from the sink functions'
+ *          with next(), which is only known at call time). An action a request
+ *          names as a reply action, or `connections` names (`ok: 'LOADED'`, PLAN-3) counts as
+ *          triggered: replyNamesOf() reads the names from the sink functions'
  *          source
  * SYG609 — a model sink or an intent source has no driver (warn; see below)
  *
@@ -20,7 +20,7 @@
  * for those model actions (the test dispatches them with simulateAction).
  */
 import type {DiagnosticCheck} from '../index'
-import {report, once, isInternalAction, nameOf, didYouMean, routedNamesOf} from './shared'
+import {report, once, isInternalAction, nameOf, didYouMean, replyNamesOf} from './shared'
 
 const intentActions = new WeakMap<object, string[]>()
 
@@ -106,9 +106,9 @@ export const wiringCheck: DiagnosticCheck = {
     if (intent$ && typeof intent$.addListener === 'function') return
 
     const hmr = ([] as string[]).concat(component?.hmrActions || [])
-    const routed = routedNamesOf(component)
+    const replies = replyNamesOf(component)
     for (const action of modelActions) {
-      if (isInternalAction(action) || actions.includes(action) || hmr.includes(action) || injected.has(action) || routed.has(action)) continue
+      if (isInternalAction(action) || actions.includes(action) || hmr.includes(action) || injected.has(action) || replies.has(action)) continue
       if (!once(`SYG102:${name}:${action}`)) continue
       report('SYG102', {
         component,
