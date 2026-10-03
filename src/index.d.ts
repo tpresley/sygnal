@@ -555,6 +555,24 @@ export type Component<
    * `ok` / `error` on the request also dispatch those actions after the write.
    */
   resources?: { [name: string]: (state: STATE & CALCULATED) => ResourceRequest | false | null | undefined | '' | 0 };
+  /**
+   * The router's reply action (`makeRouter()`): `App.route = 'ROUTE'`. The driver sends this
+   * instance ROUTE with the `Route` (`{ name, params, query, hash, path }`) once declared and on
+   * every change; the reducer stores it (`ROUTE: (state, route) => ({ ...state, route })`).
+   * The first (outermost) declarer gets each route first and may redirect from that entry
+   * (`ROUTER: { to: 'login', replace: true }`); the others get it a task later, only if no
+   * redirect happened. A function of state may return a falsy value to stop listening. Needs a
+   * model and state (SYG132); seed `initialState.route` with `router.current()`.
+   */
+  route?: string | ((state: STATE & CALCULATED) => string | false | null | undefined);
+  /**
+   * Document head values for `makeHeadDriver()`, derived from state: `App.head = (state) =>
+   * ({ title: state.task?.title })`. Recomputed when the result changes; removed on dispose.
+   * A later-mounted component's `title` wins; `meta` keys and `link`s merge. Also collected by
+   * `renderToString(App, { head: list })` for SSR (`renderHead(list)`). Like every declaration
+   * static, it is only sent by a component with a model (`{}` is enough) and state (SYG132).
+   */
+  head?: (state: STATE & CALCULATED) => HeadValue | false | null | undefined;
 }
 
 /**
@@ -1413,6 +1431,133 @@ export type SocketDriverOptions = {
  */
 export function makeSocketDriver(options?: SocketDriverOptions): (sink$: Stream<any>) => SocketSource
 
+/** The names of the `:params` in a route pattern: ParamNames<'/tasks/:id'> = 'id' */
+export type ParamNames<P extends string> =
+  P extends `${string}:${infer K}/${infer Rest}` ? K | ParamNames<`/${Rest}`> :
+  P extends `${string}:${infer K}` ? K : never;
+
+/** Route names of a route table, without the `'*'` not-found route (`string` when not literal) */
+export type RouteName<R extends Record<string, string>> =
+  string extends keyof R ? string : { [K in keyof R & string]: R[K] extends '*' ? never : K }[keyof R & string];
+
+/** href()'s params for one pattern: required when it has `:params`, none otherwise */
+export type RouteParamsArg<P extends string> =
+  string extends P ? [params?: Record<string, string | number>] :
+  [ParamNames<P>] extends [never] ? [params?: Record<string, never>] :
+  [params: { [K in ParamNames<P>]: string | number }];
+
+export type RouteQuery = Record<string, string | number | boolean | null | undefined>;
+
+/** The route value the `route` reply action carries */
+export interface Route<NAME extends string = string> {
+  /** the matched route's name (the `'*'` route's name when nothing matched; null without one) */
+  name: NAME | null;
+  /** decoded `:params` */
+  params: Record<string, string>;
+  /** the query string as an object (the last value of a repeated key) */
+  query: Record<string, string>;
+  /** the decoded fragment without '#' ('' when none) */
+  hash: string;
+  /** the path without `base`, normalised: no trailing slash, no empty segments */
+  path: string;
+}
+
+/** A value for the router's sink (`ROUTER`); `{ route }` is reserved for the `route` static */
+export type RouterCommand<R extends Record<string, string> = Record<string, string>> =
+  | { to: RouteName<R>; params?: Record<string, string | number>; query?: RouteQuery; hash?: string; replace?: boolean; scroll?: boolean; force?: boolean; block?: string | false | null }
+  | { url: string; replace?: boolean; scroll?: boolean; force?: boolean; block?: string | false | null }
+  | { back: true; force?: boolean; block?: string | false | null } | { forward: true; force?: boolean; block?: string | false | null } | { go: number; force?: boolean; block?: string | false | null }
+  | { block: string | false | null }
+  | { prefetch: RouteName<R> | string; params?: Record<string, string | number>; query?: RouteQuery };
+
+/**
+ * The data of a block action (`{ block: 'CONFIRM_LEAVE' }`): the navigation that was not made.
+ * Send `proceed` to the router's sink to make it anyway.
+ */
+export interface RouterBlocked {
+  /** the URL the navigation would go to */
+  to: string;
+  route: Route;
+  proceed: RouterCommand;
+}
+
+export interface RouterOptions<R extends Record<string, string> = Record<string, string>> {
+  /** `{ name: '/path/:param' | '*' }`; first match wins; `'*'` is the not-found route */
+  routes: R;
+  /** path prefix the app lives under ('/app'); in hash mode, the page's path */
+  base?: string;
+  /** 'history' (default) or 'hash' (`/#/tasks/1`) */
+  mode?: 'history' | 'hash';
+  /** scroll to top on a push, restore on back/forward. Default true (false with `navigate`) */
+  scroll?: boolean;
+  /**
+   * After a push or back/forward, once the DOM is quiet, focus the first match of these
+   * comma-separated selectors, tried in order. Default '[data-router-focus],main h1,h1'; false disables
+   */
+  focus?: string | false;
+  /** quiet time (ms) before scroll restore and focus. Default 30 */
+  settleMs?: number;
+  /** called for `{ prefetch }` commands (until the fetch cache wires it) */
+  prefetch?: (route: Route, url: string) => void;
+  /** Vike: its `navigate()` (from 'vike/client/router'); the router then leaves links and history to Vike */
+  navigate?: (url: string, options: { overwriteLastHistoryEntry: boolean }) => any;
+  /** test seams: default the global window and its history, location and document */
+  window?: any;
+  history?: any;
+  location?: any;
+  document?: any;
+}
+
+/** The ROUTER source: reply actions plus the latest route */
+export interface RouterSource {
+  current(): Route | null;
+  href: (name: string, params?: Record<string, string | number>, query?: RouteQuery, hash?: string) => string;
+  dispose(): void;
+}
+
+export interface Router<R extends Record<string, string> = Record<string, string>> {
+  routes: R;
+  /** a link to a named route (pure, SSR-safe): href('task', { id: 2 }, { tab: 'notes' }) */
+  href<N extends RouteName<R>>(name: N, ...args: [...RouteParamsArg<R[N]>, query?: RouteQuery, hash?: string]): string;
+  /** the Route of a URL (a path or an absolute URL); pure */
+  match(url: string): Route<RouteName<R>>;
+  /** the Route of the current location, or of `url` (SSR: the request URL). The `initialState.route` seed */
+  current(url?: string): Route<RouteName<R>>;
+  /** the driver: `run(App, { ROUTER: router.driver })` */
+  driver: (sink$: Stream<any>) => RouterSource;
+  options: RouterOptions<R>;
+}
+
+/**
+ * The SPA router: `export const router = makeRouter({ routes: { home: '/', task: '/tasks/:id',
+ * notFound: '*' } })`, then `run(App, { ROUTER: router.driver })`. Components declare
+ * `App.route = 'ROUTE'` and store the route; views link with `<a href={router.href('task', { id })}>`
+ * (clicks are intercepted at the document); models navigate with `ROUTER: { to: 'task', params }`.
+ */
+export function makeRouter<const R extends Record<string, string>>(options: RouterOptions<R>): Router<R>
+
+/** `makeRouter(options).driver` */
+export function makeRouterDriver<const R extends Record<string, string>>(options: RouterOptions<R>): (sink$: Stream<any>) => RouterSource
+
+/** A `head` static value or HEAD sink value */
+export interface HeadValue {
+  title?: string;
+  /** `{ description: '...', 'og:title': '...' }`: og:/article:/... keys use `property`, others `name`; null removes */
+  meta?: Record<string, string | null | undefined>;
+  /** link tags; merged by `key`, else by `rel` for canonical, else by `rel` + `href` */
+  link?: Array<{ rel: string; href: string; key?: string; [attr: string]: any }>;
+}
+
+/**
+ * Document title, meta and link tags: `run(App, { HEAD: makeHeadDriver() })` with a `head`
+ * static (`App.head = (state) => ({ title })`) or HEAD sink values from a model entry.
+ * `titleTemplate: '%s · Tasks'` formats every title.
+ */
+export function makeHeadDriver(options?: { titleTemplate?: string; document?: any }): (sink$: Stream<any>) => { dispose(): void }
+
+/** The tags for the head values `renderToString(App, { head: list })` collected (SSR) */
+export function renderHead(list: Array<HeadValue | null | undefined | false>, options?: { titleTemplate?: string }): string
+
 export interface Ref<T = HTMLElement> {
   current: T | null;
 }
@@ -1793,6 +1938,8 @@ export interface RenderToStringOptions {
    * When a string, uses that as the variable name.
    */
   hydrateState?: boolean | string
+  /** An array that receives each rendered component's `head` static value; pass it to `renderHead()` */
+  head?: any[]
 }
 
 /**

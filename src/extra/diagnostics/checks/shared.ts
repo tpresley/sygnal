@@ -71,7 +71,8 @@ const NON_REPLY_SINK = /^(STATE|EFFECT|EVENTS|PARENT|READY|DOM|CHILD)$/
 
 // `ok: 'X'` / `"error": "X"` in function source (minified code keeps string literals and keys)
 const keyedNames = (keys: string) => new RegExp(`(?:^|[{,\\s])["']?(?:${keys})["']?\\s*:\\s*(["'\`])([\\w$.:/-]+)\\1`, 'g')
-const REPLY_IN_SOURCE = keyedNames('ok|error')
+// (PLAN-3 5-4b: and a router `{ block: 'ACTION' }`)
+const REPLY_IN_SOURCE = keyedNames('ok|error|block')
 const CONNECTION_IN_SOURCE = keyedNames('message|open|close|error')
 
 const namesIn = (fn: any, re: RegExp, out: Set<string>) => {
@@ -105,6 +106,9 @@ export function replyNamesOf(component: any): Set<string> {
     }
   }
   namesIn(component?.view?.connections, CONNECTION_IN_SOURCE, out)
+  // PLAN-3 5-4b: the router replies the action a `route` static names
+  const route = component?.view?.route
+  if (typeof route === 'string') out.add(route)
   return out
 }
 

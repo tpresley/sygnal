@@ -269,3 +269,29 @@ A.model = {
     expect(codes(diags, 'SYG508')).toEqual([])
   })
 })
+
+describe('PLAN-3 5-4b: the router `route` static and `{ block }`', () => {
+  const app = (route, block) => `
+function App({ state }) { return <button className="b">{state.route?.name}</button> }
+App.route = ${route}
+App.initialState = { route: null }
+App.intent = ({ DOM }) => ({ GUARD: DOM.click('.b') })
+App.model = {
+  ROUTE: (state, route) => ({ ...state, route }),
+  LEAVE: (state) => state,
+  GUARD: { ROUTER: () => ({ block: ${block} }) },
+}
+`
+  it('the names they give count as triggers (no SYG102)', () => {
+    const { diags } = checkSource(app("'ROUTE'", "'LEAVE'"))
+    expect(diags).toEqual([])
+  })
+  it('a name with no model entry is SYG112, with a did-you-mean', () => {
+    const { diags } = checkSource(app("'ROUTES'", "'LEAV'"))
+    expect(codes(diags, 'SYG112').map(d => [d.data.action, d.data.key, d.data.suggestion]).sort()).toEqual([
+      ['LEAV', 'block', 'LEAVE'],
+      ['ROUTES', 'route', 'ROUTE'],
+    ])
+    expect(codes(diags, 'SYG112').map(d => d.message).join('\n')).toMatch(/App\.route names 'ROUTES' as the router's reply action/)
+  })
+})

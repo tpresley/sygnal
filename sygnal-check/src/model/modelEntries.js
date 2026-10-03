@@ -13,7 +13,8 @@ import { returnedExpressions } from './intent.js'
 export const BUILTIN_ACTIONS = new Set(['BOOTSTRAP', 'INITIALIZE', 'DISPOSE', 'READY', 'RESOURCE'])
 
 /** Request keys that name the action a reply arrives as (reply actions) (PLAN-3 §1.1). */
-export const REPLY_KEYS = new Set(['ok', 'error'])
+// PLAN-3 5-4b: a router `{ block: 'CONFIRM_LEAVE' }` names the action a blocked navigation goes to
+export const REPLY_KEYS = new Set(['ok', 'error', 'block'])
 /** `connections` entry keys that name actions (PLAN-3 §1.3, D61). */
 export const CONNECTION_KEYS = new Set(['message', 'open', 'close', 'error'])
 /** Sinks the core handles itself: their values are never requests to a reply-action driver. */

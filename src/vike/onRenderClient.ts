@@ -286,6 +286,9 @@ export function onRenderClient(pageContext: PageContext) {
   if (hasShell) {
     if (currentApp) {
       // Client-side navigation: swap the Page without disposing the shell.
+      // PLAN-3 5-4b: a router given Vike's navigate() (makeRouter({ routes, navigate })) re-reads
+      // the route on this event; sent before the swap, so the new Page declares after it
+      if (typeof window !== 'undefined') window.dispatchEvent?.(new Event('sygnal:navigate'))
       currentPage = Page
       currentPageName = Page.componentName || Page.name || 'VikePageComponent'
       pageNavCounter++
