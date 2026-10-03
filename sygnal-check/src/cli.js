@@ -30,7 +30,8 @@ Options:
   --verbose              also print info-level diagnostics in text output
   --include-tests        include *.test.* / *.spec.* files
   --strict               also check canonical forms (SYG501-507, see
-                         https://sygnal.js.org/reference/errors#syg501)
+                         https://sygnal.js.org/reference/errors#syg501),
+                         and report the a11y lane (SYG701-708) as errors
   --fix                  apply the mechanical canonical-form rewrites in place
                          (implies --strict): 'A | SINK' keys → object form,
                          emit() → { EVENTS: event() }, CHILD.select('Name') →
