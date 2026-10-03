@@ -53,7 +53,10 @@ describe('inspect({ actions: true })', () => {
     App.intent = () => ({ TICK: xs.periodic(1).take(30) })
     App.model = { TICK: (s) => ({ ...s, n: s.n + 1 }) }
     const { dispose } = run(App, { DOM: () => mockDOMSource({}) }, { diagnostics: 'collect' })
-    await new Promise(r => setTimeout(r, 120))
+    // wait for all 30 ticks (a fixed sleep is flaky under a loaded full suite)
+    for (let i = 0; i < 200 && inspect({ actions: true }).recentActions.filter(a => a.type === 'TICK').length < 30; i++) {
+      await new Promise(r => setTimeout(r, 10))
+    }
     const all = inspect({ actions: 10 }).recentActions
     dispose()
     expect(all.length).toBe(10)
