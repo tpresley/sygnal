@@ -403,17 +403,24 @@ export type SygnalDOMSource = ControlSelectOverlay & MainDOMSource & DOMEventSho
 // ── Controls (PLAN-4 CT-1) ────────────────────────────────────────
 
 /**
- * The spec-object form of a control spec (D101): `controls({ DueDate: datePicker })`.
- * `vnode(props, children)` returns the one element vnode the control renders (the pragma stamps
- * `data-control` on it, keeping its key and hooks). `commands` are looked up by element
- * commands before native methods. `__props` is a phantom field (types only) that gives the
- * control its props type.
+ * The pragma's own createElement, passed to a spec's `vnode()` as `h` (D116):
+ * `h(tag, props, ...children)`. Spec authors build vnodes with it, never with an imported
+ * `createElement` (under the automatic JSX runtime that would bundle a second pragma).
+ */
+export type ControlH = (tag: any, props?: Record<string, any> | null, ...children: unknown[]) => VNode
+
+/**
+ * The spec-object form of a control spec (D101, amended D116): `controls({ DueDate: datePicker })`.
+ * `vnode(props, children, h)` returns the one element vnode the control renders (the pragma
+ * stamps `data-control` on it, keeping its key and hooks, and copies the props' `key` onto it
+ * when it has none). `commands` are looked up by element commands before native methods.
+ * `__props` is a phantom field (types only) that gives the control its props type.
  */
 export interface ControlSpecObject<P = any> {
   /** Free-form kind ('widget' in PLAN-5), shown in inspect() and diagnostics */
   kind: string;
-  /** Must return one element vnode (not a component, fragment or text) */
-  vnode(props: P, children: unknown[]): VNode;
+  /** Must return one element vnode (not a component, fragment or text), built with `h` */
+  vnode(props: P, children: unknown[], h: ControlH): VNode;
   commands?: Record<string, (elm: Element, options: Record<string, unknown>) => void>;
   /** Phantom, types only: the control's props */
   __props?: P;
@@ -421,7 +428,7 @@ export interface ControlSpecObject<P = any> {
 
 /**
  * A control spec (frozen contract D101): an intrinsic tag name (`'button'`, `'input'`,
- * `'wa-rating'`) or a spec object `{ kind, vnode(props, children), commands?, __props? }`.
+ * `'wa-rating'`) or a spec object `{ kind, vnode(props, children, h), commands?, __props? }`.
  */
 export type ControlSpec<P = any> =
   | keyof JSX.IntrinsicElements
@@ -443,6 +450,10 @@ export interface Control<KEY extends string = string, ELEMENT extends Element = 
   (props: PROPS): JSX.Element;
   /** The control's selector: `[data-control="<KEY>"]` */
   toString(): `[data-control="${KEY}"]`;
+  /** 'element' for a tag spec, else the spec object's `kind` */
+  readonly kind: string;
+  /** The spec the control was made from */
+  readonly spec: ControlSpec;
   /** Phantom, types only */
   readonly [CONTROL]: { key: KEY; element: ELEMENT; props: PROPS };
 }
