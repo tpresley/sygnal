@@ -14,7 +14,7 @@ Everything on this page works and is supported, but it is **not** the canonical 
 | [Raw `{ type, data }` from an EVENTS sink](#raw-events-objects) | `EVENTS: event('TYPE', fn)` | SYG505 | yes (expression bodies) |
 | [Positional view arguments](#positional-view-arguments) | `function C({ state, context, ...props })` | SYG501 | no |
 | [`CHILD.select('Name')`](#childselect-with-a-string) | `CHILD.select(ChildFn)` | SYG506 | yes, when the name is in scope |
-| [`return state` for "no change"](#returning-the-unchanged-state) | `return ABORT` | SYG502 | no |
+| [`return state` for "no change"](#returning-the-unchanged-state) | `return ABORT` | — (SYG502 retired in 6.0) | no |
 | [Side effect in a STATE reducer + `ABORT`](#side-effects-in-a-state-reducer) | `ACTION: { EFFECT: fn }` | SYG503 | no |
 | [`HTTP.select()`/`errors()` reading back your own request](#selecterrors-round-trip) | `{ url, ok: 'LOADED', error: 'FAILED' }` | SYG508 | no |
 | [Model-sent `{ connections }`](#model-sent-connections) | the `connections` static | — | no |
@@ -136,17 +136,17 @@ Name matching breaks when a minifier renames the function, and the parent silent
 
 ## Returning the unchanged state
 
-A STATE reducer can signal "no change" by returning the state it received:
+Since 6.0, a STATE reducer that returns the state object it received means "no change", exactly like `ABORT`: no state is emitted and nothing re-renders.
 
 ```jsx
-// Alternative
+// Also "no change" since 6.0
 RENAME: (state, title) => title ? { ...state, title } : state
 
-// Canonical
+// The form the docs use
 RENAME: (state, title) => title ? { ...state, title } : ABORT
 ```
 
-`ABORT` says explicitly that nothing changes, and skips the state update entirely.
+Both are fine, and strict mode flags neither (SYG502, which flagged `return state` before 6.0, is retired). The rest of the docs write `ABORT` because it says "no change" explicitly. Changing the state in place and then returning it is a bug, not an alternative: the change is ignored, and the dev checks report [SYG222](/reference/errors/#syg222).
 
 ## Side effects in a STATE reducer
 

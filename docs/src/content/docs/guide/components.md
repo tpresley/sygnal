@@ -45,12 +45,15 @@ Counter.model = {
 | `.context` | Object | Values passed down to all descendants |
 | `.peers` | Object | Sibling components that share the same sources |
 | `.components` | Object | Named child components |
+| `.uses` | Object | [Behaviors](/guide/behaviors/) this component uses, each under a state key |
 | `.onError` | Function | Error boundary handler — receives `(error, { componentName })`, returns fallback VNode |
 | `.isolatedState` | Boolean | Required when a sub-component has `.initialState` (prevents accidental parent state overwrite) |
 | `.storeCalculatedInState` | Boolean | Whether calculated fields are stored in state (default: `true`) |
 | `.debug` | Boolean | Enable debug logging for this component |
 | `.DOMSourceName` | String | Custom name for the DOM driver (default: `'DOM'`) |
 | `.stateSourceName` | String | Custom name for the state driver (default: `'STATE'`) |
+
+The table lists the most common statics. Sygnal also reads `connections`, `resources`, `route`, `head` and `timers`, so these names, like the ones above, are reserved: don't use them for statics of your own.
 
 ## View (The Component Function)
 
@@ -75,6 +78,7 @@ function MyComponent({ state, className, children, context }) {
 | `children` | Child elements passed between the component's opening and closing tags |
 | `slots` | Named content regions passed with `<Slot>` (see [Slots](/advanced/slots/)) |
 | `context` | Values from ancestor components' `.context` definitions |
+| `uid` | `uid(name?)` returns a stable id string unique to this component instance, for `id` / `for` / `aria-*` (see [Forms](/guide/forms/#labels-and-ids-uid)) |
 | Named peers | Any peer components defined in `.peers` are available by name |
 | Individual props | Props from the parent (e.g., `title`, `className`) are spread at the top level |
 
@@ -86,4 +90,4 @@ Always read everything from the first argument. The view is technically also cal
 
 ### Reserved Prop Names
 
-Because the view's first argument also carries `state`, `children`, `slots`, `context` and `peers`, a parent prop with one of these names is overwritten (Sygnal warns with [SYG106](/reference/errors/#syg106), an error in [strict mode](/guide/strict-mode/)). The `state` prop is special: it selects the child's [state slice](/guide/state/#passing-state-to-child-components). Name data props something else, such as `item` or `contextValue`.
+Because the view's first argument also carries `state`, `children`, `slots`, `context`, `peers` and `uid`, a parent prop with one of these names is overwritten (Sygnal warns with [SYG106](/reference/errors/#syg106), an error in [strict mode](/guide/strict-mode/)). The `state` prop is special: it selects the child's [state slice](/guide/state/#passing-state-to-child-components). Name data props something else, such as `item` or `contextValue`.

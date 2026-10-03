@@ -116,6 +116,8 @@ renderToString(Fragile)
 // → '<div class="error">Something went wrong in Fragile</div>'
 ```
 
+To report these errors, pass the [app-level error hook](/advanced/error-boundaries/#app-level-error-hook): `renderToString(App, { onError })`. It is called with the phase `'view'`, after the boundary picked the fallback.
+
 ## Special Components
 
 | Component | SSR Behavior |
@@ -170,6 +172,20 @@ const initialState = window.__SYGNAL_STATE__ || App.initialState
 run(App, '#app', { initialState })
 ```
 
+## Stable ids: uid
+
+[`uid()`](/guide/forms/#labels-and-ids-uid) ids come from each component's position in the tree, not from a counter, so `renderToString` and the client produce the same ids and hydration keeps the server's `for` / `id` pairs. Both start from the root `u`. When a page has more than one app, give each its own root, and the same one on both sides:
+
+```jsx
+// server
+const html = renderToString(Signup, { uid: 'signup' })
+
+// client, hydrating that markup
+run(Signup, {}, { mountPoint: '#signup', uid: 'signup' })
+```
+
+The ids then start with `signup-` (`signup-email`). In [Astro](/integration/astro/#props), pass a `uid` prop to the island; in [Vike](/integration/vike/), the Page, Layouts and Wrappers get matching ids on both sides without any option.
+
 ## Astro Integration
 
 The Astro server renderer uses `renderToString` internally. When using the Sygnal Astro integration, SSR happens automatically:
@@ -200,6 +216,8 @@ function renderToString(
 | `hydrateState` | `boolean \| string` | — | Embed state in `<script>` tag |
 | `head` | `any[]` | — | Receives each rendered component's `head` static ([HEAD driver](/guide/head/)) |
 | `cache` | `QueryCache` | — | A seeded `queryCache()`: `resources` found in it render as `'success'` with their data, others as `'loading'` ([Server rendering](/guide/resources/#server-rendering)) |
+| `onError` | `(error, info) => void` | — | [App-level error hook](/advanced/error-boundaries/#app-level-error-hook), called with the phase `'view'` |
+| `uid` | `string` | `'u'` | The root of the [`uid()`](#stable-ids-uid) ids; use the same value as `run()`'s `uid` on the client |
 
 ## Limitations
 

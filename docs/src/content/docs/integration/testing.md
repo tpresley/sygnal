@@ -486,6 +486,45 @@ await t.navigate({ to: 'task', params: { id: 2 } })
 expect(t.head()).toEqual({ title: 'Task 2 · Tasks', meta: { description: 'Details of task 2' }, link: [] })
 ```
 
+## Action log: t.actions and t.explain
+
+`t.actions` lists every action the rendered tree ran, in order, as it happens. Each entry is `{ type, data, component, instance, sinks, cause, at }`:
+
+```jsx
+const t = renderComponent(Counter)
+t.simulateEvent('.inc', 'click')
+t.simulateAction('SET', 5)
+await t.waitForState(s => s.count === 5)
+
+expect(t.actions.map(a => [a.type, a.cause])).toEqual([
+  ['INITIALIZE', 'built-in'],
+  ['INC', 'intent'],
+  ['SET', 'simulateAction'],
+])
+expect(t.actions[1]).toMatchObject({ component: 'Counter', sinks: ['STATE'] })
+```
+
+| Field | |
+|---|---|
+| `type` | The action name ([behavior](/guide/behaviors/) actions are namespaced: `pager.NEXT`) |
+| `data` | Its data (the DOM event for a DOM intent stream) |
+| `component`, `instance` | The component that ran it, and that instance's id (the component id of [`inspect()`](#inspect)) |
+| `sinks` | The sinks that produced a value: not `ABORT`, not the unchanged state; `EFFECT` when it ran. Empty for an action with no model entry |
+| `cause` | `'intent'`, `'next'` (a reducer's or EFFECT's `next()`), `'reply'` ([reply actions](/guide/http/)), `'built-in'` (`INITIALIZE`, `BOOTSTRAP`, `DISPOSE`, `RESOURCE`), `'simulateAction'`, or `'behavior'` (a behavior's own trigger) |
+| `at` | Milliseconds since `renderComponent()` was called (the fake clock under [fake timers](#fake-timers)) |
+
+An entry's `sinks` fill in as its reducers run, so read them after a wait. When a test fails because "nothing happened", `t.actions` shows whether the action ran at all, and what it produced.
+
+`t.explain(predicate)` answers "which action made the state look like this?": it returns the first action whose resulting root state matches, with that `state` and its STATE reducer (`reducer: { action, sink, fn }`), or `undefined`:
+
+```jsx
+const why = t.explain(s => s.count === 5)
+expect(why).toMatchObject({ type: 'SET', cause: 'simulateAction', state: { count: 5 } })
+expect(why.reducer).toMatchObject({ action: 'SET', sink: 'STATE' })
+```
+
+Actions of child components are listed too, and `explain` matches the root state they produced.
+
 ## Diagnostics in Tests
 
 While a component is rendered, diagnostics are collected (`'collect'` mode by default, or the current mode if diagnostics are already on). Error-severity messages are still printed.
@@ -493,7 +532,7 @@ While a component is rendered, diagnostics are collected (`'collect'` mode by de
 - `t.expectNoDiagnostics()` throws, with the formatted messages, if any warning or error was collected. Call it at the end of a test (after `settle()` or `next()`).
 - `t.diagnostics` lists everything collected, info included.
 - `renderComponent(C, { diagnostics: 'error' })` makes every warning throw instead.
-- `renderComponent(C, { strict: true })` turns on the [strict-mode](/guide/strict-mode/) runtime checks (SYG501, SYG502, SYG504) for this render.
+- `renderComponent(C, { strict: true })` turns on the [strict-mode](/guide/strict-mode/) runtime checks (SYG501, SYG504, SYG508) for this render.
 
 ```jsx
 const t = renderComponent(TodoList, { strict: true })
@@ -519,6 +558,13 @@ root.actions     // [{ name: 'INC', trigger: 'intent', sinks: ['STATE'] }, …]
 
 When an event "does nothing" in a test, `t.inspect()` usually shows why: a selector with `matched: false`, or an action with `sinks: []`.
 
+`t.inspect({ actions: true })` adds `recentActions`, the [action log](#action-log-tactions-and-texplain) in the same shape (a number instead of `true` keeps only the last n):
+
+```jsx
+const graph = t.inspect({ actions: true })
+expect(graph.recentActions.map(a => a.type)).toEqual(['INITIALIZE', 'INC', 'SET'])
+```
+
 ## Options
 
 | Option | Type | Default | Description |
@@ -527,6 +573,7 @@ When an event "does nothing" in a test, `t.inspect()` usually shows why: a selec
 | `drivers` | `object` | `{}` | Extra drivers beyond DOM, EVENTS, STATE and LOG |
 | `diagnostics` | `'off' \| 'collect' \| 'warn' \| 'error'` | `'collect'` (or the current mode) | Diagnostics mode while rendered |
 | `strict` | `boolean` | unchanged | Strict-mode runtime checks while rendered |
+| `onError` | `(error, info) => void` | none | The [app-level error hook](/advanced/error-boundaries/#tests), as `run()`'s `onError` |
 | `mockConfig` | `object` | `{}` | Extra mock DOM event streams, by selector (see below) |
 | `timeoutMs` | `number` | `2000` | Default timeout of `next()`, `waitForState()` and `settle()` |
 | `settleMs` | `number` | `20` | `settle()`'s quiet window: how long nothing may happen before it resolves (at most `timeoutMs`) |
@@ -574,7 +621,9 @@ The timing options (and a timeout passed to `next()`, `waitForState()` or `settl
 | `head` | `() => { title, meta, link }` | HEAD fake: the merged head the components declare |
 | `diagnostics` | `Diagnostic[]` | Diagnostics collected while rendered |
 | `expectNoDiagnostics` | `() => void` | Throws if any warning or error was collected |
-| `inspect` | `() => InspectGraph` | The app graph of the rendered tree |
+| `actions` | `TestAction[]` | Every action run so far, live ([Action log](#action-log-tactions-and-texplain)) |
+| `explain` | `(predicate) => ExplainedAction \| undefined` | The first action whose resulting state matches |
+| `inspect` | `(options?) => InspectGraph` | The app graph of the rendered tree; `{ actions: true }` adds `recentActions` |
 | `state$`, `dom$` | `Stream` | Live state and VNode streams |
 | `events$` | `EventsSource` | The event bus source (`.select(type)`) |
 | `sinks`, `sources` | `object` | All sink streams and source objects |
@@ -642,6 +691,44 @@ expect(t.query('input[name="city"]').value).toBe('Springfield')
 - `dispose()` unmounts the container. `mockConfig` can't be combined with `dom: 'real'`.
 
 Use the mock DOM (the default) for logic and output, and `dom: 'real'` when a test asserts on real element state or focus. One suite is enough; there is no need for a second `run()`-based suite.
+
+## Testing with Testing Library
+
+[Testing Library](https://testing-library.com/docs/dom-testing-library/intro) queries work on the real DOM, so use them with `dom: 'real'`. Scope the queries to the component with `within(t.container)`, and drive it with `userEvent`, which types and clicks like a user (focus, key events, `input`, `click`):
+
+```jsx
+// @vitest-environment jsdom
+import { it, expect, afterEach } from 'vitest'
+import { within } from '@testing-library/dom'
+import userEvent from '@testing-library/user-event'
+import { renderComponent } from 'sygnal'
+import NewTodo from './NewTodo.jsx'
+
+let t
+afterEach(() => t?.dispose())
+
+it('adds a todo', async () => {
+  t = renderComponent(NewTodo, { dom: 'real' })
+  await t.ready()
+  const screen = within(t.container)
+  const user = userEvent.setup()
+
+  const field = screen.getByRole('textbox', { name: 'New todo' })
+  await user.type(field, 'Buy milk')
+  await user.click(screen.getByRole('button', { name: 'Add' }))
+
+  await t.waitForState(s => s.items.length === 1)
+  expect(t.state.items).toEqual(['Buy milk'])
+  expect(field.value).toBe('')
+})
+```
+
+This tests `NewTodo` from [Controlled inputs](/guide/forms/#controlled-inputs). Notes:
+
+- Install the packages yourself: `npm install -D @testing-library/dom @testing-library/user-event`.
+- Role queries (`getByRole('textbox', { name: 'New todo' })`) find fields by their label, so they also check that the label is there ([accessibility](/guide/accessibility/)).
+- `userEvent` dispatches the events without waiting for Sygnal to render, unlike `t.simulateEvent`. Wait for the result with `t.waitForState()` (which, with `dom: 'real'`, resolves once that state is in the DOM; `t.next()` could miss a state that arrived during the `await user...` call), or with Testing Library's `findBy…` queries.
+- `t.state`, `t.actions` and the other `t.*` helpers work as usual alongside it.
 
 ## Cleanup
 

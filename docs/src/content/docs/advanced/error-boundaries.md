@@ -29,3 +29,84 @@ Error boundaries protect three code paths:
 Without `onError`, errors are logged to `console.error` and a minimal placeholder is rendered.
 
 Each case is logged with a [diagnostic code](/guide/diagnostics/): a view that throws is [SYG406](/reference/errors/#syg406), a reducer that throws [SYG216](/reference/errors/#syg216), an EFFECT that throws [SYG214](/reference/errors/#syg214), a child that fails to instantiate [SYG408](/reference/errors/#syg408), and an `onError` that throws [SYG407](/reference/errors/#syg407). When the component has an `onError` and its fallback renders, the view error is reported as a warning rather than an error.
+
+## App-level error hook
+
+A component's `onError` decides what to render. To *report* errors, for example to an error tracker, give the whole app one hook with `run()`'s `onError` option:
+
+```jsx
+import { run } from 'sygnal'
+import App from './App.jsx'
+import { tracker } from './tracker.js'
+
+run(App, {}, {
+  onError: (error, { componentName, action, phase, driver }) => {
+    tracker.captureException(error, { tags: { componentName, action, phase, driver } })
+  },
+})
+```
+
+The hook is for reporting only. It is called once per error, after the component's own `onError` (if any) has picked the fallback, and in every diagnostics mode, production included. Its second argument says where the error happened:
+
+| `phase` | When | Also set |
+|---|---|---|
+| `'view'` | A view threw (the boundary's fallback, or the empty `<div data-sygnal-error>`, renders) | `componentName` |
+| `'reducer'` | A STATE reducer or another sink's reducer threw; the state is unchanged | `componentName`, `action` |
+| `'effect'` | An `EFFECT` threw, or the promise it returned rejected | `componentName`, `action` |
+| `'instantiate'` | A child component failed to instantiate (reported after the parent's boundary) | `componentName` (the parent) |
+| `'driver'` | A driver threw while handling a value sent to it; the error is still thrown afterwards, as before | `driver` (the sink name) |
+| `'widget'` | Reserved for third-party widgets; Sygnal itself doesn't report it yet | |
+
+`'driver'` only covers a driver that throws synchronously while it receives a sink value. Errors inside a driver's own streams, or error events on its sources, are not reported there: handle them where the driver reports them (for HTTP, the `error` [reply action](/guide/http/)).
+
+Each `run()` has its own hook, so two apps on one page report separately. If the hook itself throws, the error is logged once with `console.error` and swallowed; the app keeps running. Without the option nothing changes: errors are logged as before.
+
+### Vike
+
+In a [Vike](/integration/vike/) app, `onError` is a config: define it in `+onError.js` (or in `+config.js`). It is passed to `renderToString` on the server and to `run()` in the browser:
+
+```js
+// pages/+onError.js: used by renderToString on the server and by run() in the browser
+export default function onError(error, { componentName, action, phase }) {
+  console.error('[' + phase + ']', componentName, action, error)
+}
+```
+
+### Astro
+
+The [Astro](/integration/astro/) integration takes the path of a module whose default export is the hook. It is used when islands render on the server and when they start in the browser:
+
+```js
+// astro.config.mjs
+import { defineConfig } from 'astro/config'
+import sygnal from 'sygnal/astro'
+
+export default defineConfig({
+  integrations: [sygnal({ onError: './src/onError.js' })],
+})
+```
+
+### renderToString
+
+[`renderToString`](/integration/ssr/) takes the same option. On the server only views run, so every report has the phase `'view'`:
+
+```js
+import { renderToString } from 'sygnal'
+
+const html = renderToString(Page, {
+  onError: (error, info) => logger.error({ ...info, message: error.message }),
+})
+```
+
+### Tests
+
+`renderComponent` takes it too, to assert on what would be reported:
+
+```jsx
+const reported = []
+const t = renderComponent(Checkout, { onError: (error, info) => reported.push(info) })
+t.simulateAction('PAY')
+await t.settle()
+expect(reported).toEqual([{ componentName: 'Checkout', action: 'PAY', phase: 'reducer' }])
+t.dispose()
+```

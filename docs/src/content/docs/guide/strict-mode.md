@@ -5,14 +5,14 @@ description: Keep every component in Sygnal's canonical forms
 
 Sygnal often accepts more than one way to write the same thing. A model entry can use the object form or the `'ACTION | SINK'` shorthand, an event can be emitted with `event()`, `emit()` or a hand-built `{ type, data }` object, and so on. All of these keep working. Strict mode flags every form except the canonical one, so a codebase (and any agent working on it) reads the same everywhere.
 
-Strict mode is off by default. Its rules are SYG501 to SYG508.
+Strict mode is off by default. Its rules are SYG501 to SYG508; SYG502 is retired in 6.0 and never reported.
 
 ## The rules
 
 | Code | Canonical form | Flagged | Static | Runtime | `--fix` |
 |---|---|---|---|---|---|
 | [SYG501](/reference/errors/#syg501) | `function C({ state, context, ...props })` | positional `(props, state, context)` view arguments | yes | yes | no |
-| [SYG502](/reference/errors/#syg502) | `return ABORT` for "no change" in a STATE reducer | `return state`, a bare `return;`, or a block body that can end without returning | yes | yes (same object returned) | no |
+| [SYG502](/reference/errors/#syg502) | Retired in 6.0 | — (see [below](#syg502-retired-in-60)) | — | — | — |
 | [SYG503](/reference/errors/#syg503) | `ACTION: { EFFECT: (state, data, next) => { … } }` | a STATE reducer that runs a side effect and returns `ABORT` | yes (heuristic) | no | no |
 | [SYG504](/reference/errors/#syg504) | `ACTION: { SINK: fn }` | `'ACTION \| SINK'` shorthand keys | yes | yes | yes |
 | [SYG505](/reference/errors/#syg505) | `ACTION: { EVENTS: event('TYPE', fn) }` | `emit('TYPE', fn)` and a raw `EVENTS: s => ({ type, data })` | yes | no | yes |
@@ -22,7 +22,7 @@ Strict mode is off by default. Its rules are SYG501 to SYG508.
 
 All strict findings are warnings, except SYG507, which is info.
 
-Strict mode also raises one non-strict code: [SYG106](/reference/errors/#syg106) (a parent prop named `state`, `children`, `slots`, `context` or `peers` that the view overwrites) is an **error** instead of a warning while runtime strict mode is on. SYG106 is a runtime check of `sygnal/diagnostics`; `sygnal-check` has no static rule for it.
+Strict mode also raises one non-strict code: [SYG106](/reference/errors/#syg106) (a parent prop named `state`, `children`, `slots`, `context`, `peers` or `uid` that the view overwrites) is an **error** instead of a warning while runtime strict mode is on. SYG106 is a runtime check of `sygnal/diagnostics`; `sygnal-check` has no static rule for it.
 
 ### SYG501: destructure the view's first argument
 
@@ -37,18 +37,11 @@ function Lane({ state, context, className }) {
 }
 ```
 
-### SYG502: return `ABORT` for "no change"
+### SYG502: retired in 6.0
 
-```jsx
-import { ABORT } from 'sygnal'
+Before 6.0, SYG502 flagged a STATE reducer that returned the state it received (`cond ? { ...state, title } : state`) instead of `ABORT`, because that still emitted a new state. Since 6.0, returning the same object means "no change", exactly like `ABORT` ([Model](/guide/model/#aborting-an-action)), so there is nothing left to flag. The code is never reported. A reducer that changes the state in place and returns it is [SYG222](/reference/errors/#syg222) (dev checks, not strict mode). The docs still write `ABORT`, which says "no change" explicitly.
 
-Lane.model = {
-  // Flagged: RENAME: (state, title) => title ? { ...state, title } : state
-  RENAME: (state, title) => title ? { ...state, title } : ABORT,
-}
-```
-
-Returning `undefined` from a Collection item's reducer is different: it removes the item, and strict mode doesn't flag it.
+Static detection of a bare `return;` (or a block body that can end without returning) went with it. At runtime, a STATE reducer that returns `undefined` in a root component is still [SYG202](/reference/errors/#syg202).
 
 ### SYG503: side effects go in `EFFECT`
 
@@ -187,15 +180,14 @@ import { renderComponent } from 'sygnal'
 
 const t = renderComponent(Lane, { strict: true })
 await t.ready()
-t.expectNoDiagnostics()   // fails on SYG501/502/504 (and SYG106) as well
+t.expectNoDiagnostics()   // fails on SYG501/504/508 (and SYG106) as well
 t.dispose()               // restores the previous strict setting
 ```
 
 ## Limits
 
-- The runtime only checks what it can detect reliably: SYG501, SYG502, SYG504 and SYG508. SYG503, SYG505, SYG506 and SYG507 are static only (`sygnal-check --strict`), because at runtime `emit()` and `{ EVENTS }` look the same, a side effect looks like any other call, and `CHILD.select()` arguments aren't visible.
+- The runtime only checks what it can detect reliably: SYG501, SYG504 and SYG508. SYG503, SYG505, SYG506 and SYG507 are static only (`sygnal-check --strict`), because at runtime `emit()` and `{ EVENTS }` look the same, a side effect looks like any other call, and `CHILD.select()` arguments aren't visible.
 - SYG501 at runtime uses the view's declared arity, so a default value or a rest parameter (`(props, state = {})`) can hide a positional use. The static rule doesn't have this gap.
-- SYG502 at runtime fires when a reducer returns the exact object it received. A reducer that returns a copy with no changes isn't flagged.
 - Every runtime switch (`run(App, drivers, { diagnostics: { strict: true } })`, `configureStrict(true)`, `globalThis.__SYGNAL_STRICT__ = true`, the Vite plugin's `diagnostics.strict`, `renderComponent(C, { strict: true })`) needs the `sygnal/diagnostics` entry loaded; the Vite plugin and its Vitest setup add it for you.
 - The strict codes' severities are registered by the `sygnal/diagnostics` entry, so `getCodeInfo('SYG501')` only returns them once that entry is loaded.
 - SYG503 is a heuristic: it looks for a call whose result is unused on the path to `return ABORT`.

@@ -25,7 +25,7 @@ By default, every Sygnal component's intent function receives these sources:
 | Source | Description |
 |--------|-------------|
 | `DOM` | Observe DOM events. Use `.select(cssSelector).events(eventName)` or shorthand `DOM.click(sel)` |
-| `STATE` | Access the state stream via `STATE.stream` |
+| `STATE` | React to state changes with [`STATE.watch(selector)`](#reacting-to-state-changes-statewatch); the raw state stream is `STATE.stream` |
 | `EVENTS` | Custom event bus. Use `.select(eventType)` to listen |
 | `CHILD` | Access child component events. Use `.select(ComponentFn)` — see [Parent-Child Communication](/guide/parent-child/) |
 | `props$` | Stream of props from the parent component |
@@ -145,3 +145,45 @@ MyComponent.intent = ({ DOM }) => ({
   CLOSE:     DOM.keydown('document').key().filter(k => k === 'Escape'),
 })
 ```
+
+## Reacting to State Changes: STATE.watch
+
+`STATE.watch(selector)` is a stream of `selector(state)` that emits only when that value changes. Use it for "when X changes, do Y": save a draft, reload a list when its filter changes, sync a value to the URL.
+
+```jsx
+import { debounce } from 'sygnal'
+
+function Notes({ state }) {
+  return (
+    <div>
+      <label>Notes <textarea className="notes" value={state.text} /></label>
+      <p className="status">{state.status}</p>
+    </div>
+  )
+}
+
+Notes.initialState = { text: '', status: '' }
+
+Notes.intent = ({ DOM, STATE }) => ({
+  EDIT: DOM.input('.notes').value(),
+  // one save a second after the text stops changing
+  SAVE: STATE.watch(state => state.text).compose(debounce(1000)),
+})
+
+Notes.model = {
+  EDIT: (state, text) => ({ ...state, text }),
+  SAVE: {
+    STATE: (state) => ({ ...state, status: 'Saving…' }),
+    HTTP:  (state, text) => ({ url: '/api/notes', method: 'PUT', json: { text }, ok: 'SAVED', error: 'SAVE_FAILED' }),
+  },
+  SAVED:       (state) => ({ ...state, status: 'Saved' }),
+  SAVE_FAILED: (state) => ({ ...state, status: 'Could not save' }),
+}
+```
+
+Every keystroke changes `state.text`, so `SAVE` fires one second after the last one, with the text as its data. The status changes don't re-trigger it: `watch` compares the selected value, not the whole state. The save's outcome comes back as the [reply actions](/guide/http/) `SAVED` and `SAVE_FAILED` (with `makeFetchDriver()` registered as `HTTP` in `run()`).
+
+- Values are compared structurally, so a selector that builds an object (`state => ({ page: state.page, sort: state.sort })`) emits only when a field changes, not on every new object.
+- By default the current value is not emitted, only later changes. Pass `{ immediate: true }` to get the current value first: `STATE.watch(state => state.filter, { immediate: true })` loads a list for the initial filter and again for each new one.
+- In a [Collection](/guide/collections/) item, `state` is the item's own state.
+- The stream ends when the component is disposed.

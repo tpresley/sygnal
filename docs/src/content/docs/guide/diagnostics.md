@@ -29,7 +29,7 @@ npx --no-install sygnal-check explain SYG101
 
 `sygnal-check` uses the same codes, prefixed with the location: `src/Form.jsx:12:9 SYG101 Form: …`.
 
-Codes are grouped by area: `SYG1xx` wiring (intent, model, view, EVENTS), `SYG2xx` state and reducers, `SYG3xx` streams, `SYG4xx` Collections, Switchable, sub-components and context, `SYG5xx` [strict mode](/guide/strict-mode/), `SYG6xx` drivers and setup, `SYG9xx` internal.
+Codes are grouped by area: `SYG1xx` wiring (intent, model, view, EVENTS), `SYG2xx` state and reducers, `SYG3xx` streams, `SYG4xx` Collections, Switchable, sub-components and context, `SYG5xx` [strict mode](/guide/strict-mode/), `SYG6xx` drivers and setup, `SYG7xx` [accessibility](/guide/accessibility/) (static, `sygnal-check`), `SYG9xx` internal.
 
 Each diagnostic has a severity:
 
@@ -172,6 +172,8 @@ It is also available as:
 - `t.inspect()` on a [`renderComponent()`](/integration/testing/#inspect) result;
 - `sygnal-check --graph --json`, which builds the same shape statically from source.
 
+`inspect({ actions: true })` adds `recentActions`, the last 200 actions with their component, cause and sinks (`{ actions: 20 }` keeps the last 20), in the shape of renderComponent's [`t.actions`](/integration/testing/#action-log-tactions-and-texplain).
+
 The graph is built from what the dev checks have seen, so `sygnal/diagnostics` must be loaded and diagnostics on. Its type is `InspectGraph`, exported from `sygnal` and `sygnal/diagnostics`. The JSON Schema ships with `sygnal-check` (`sygnal-check/schema/inspect.schema.json`).
 
 Things to look for in a graph:
@@ -199,5 +201,7 @@ It exits with code 1 when it finds a warning or error, so it works as a CI step.
 
 - [Error Reference](/reference/errors/): every code, its cause and its fix
 - [Strict Mode](/guide/strict-mode/): canonical-form rules
+- [Accessibility](/guide/accessibility/): the SYG7xx checks
+- [Error Boundaries](/advanced/error-boundaries/#app-level-error-hook): reporting errors to your own tracker with `run(…, { onError })`
 - [Testing](/integration/testing/#diagnostics-in-tests): `expectNoDiagnostics()` and per-test modes
 - [Debugging](/integration/debugging/): debug logging and DevTools
