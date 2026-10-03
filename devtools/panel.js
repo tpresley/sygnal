@@ -110,13 +110,14 @@ class SygnalPanel {
     this.history = []
     this.busEvents = []
     this.commands = []
+    this.actions = [] // PLAN-4 3-E: the action log (by seq, oldest first)
     this.snapshots = []
     this.selectedId = null
     this.selectedTab = 'state'
     this.componentData = new Map()
     this.rewoundComponentId = null
     this.showDiff = false
-    this.activeView = 'history' // 'history', 'events', or 'commands'
+    this.activeView = 'history' // 'history', 'events', 'commands' or 'actions'
     this.showDisposed = false
 
     this.treeView = new ComponentTreeView(this)
@@ -124,6 +125,7 @@ class SygnalPanel {
     this.historyView = new StateHistoryView(this)
     this.eventsView = new EventsMonitorView(this)
     this.commandsView = new CommandsView(this)
+    this.actionsView = new ActionsView(this)
 
     this._initPort()
     this._initUI()
@@ -203,6 +205,11 @@ class SygnalPanel {
       } else if (this.activeView === 'commands') {
         this.commands = []
         this.commandsView.render()
+      } else if (this.activeView === 'actions') {
+        // a new session on the page too: "Copy as test" starts from the state now
+        this.actions = []
+        this._send('CLEAR_ACTIONS', {})
+        this.actionsView.render()
       }
     })
 
@@ -226,17 +233,21 @@ class SygnalPanel {
       document.getElementById('view-history-btn').classList.toggle('active', view === 'history')
       document.getElementById('view-events-btn').classList.toggle('active', view === 'events')
       document.getElementById('view-cmds-btn').classList.toggle('active', view === 'commands')
+      document.getElementById('view-actions-btn').classList.toggle('active', view === 'actions')
       document.getElementById('history-filter-bar').style.display = view === 'history' ? '' : 'none'
       document.getElementById('history-container').style.display = view === 'history' ? '' : 'none'
       document.getElementById('events-container').style.display = view === 'events' ? '' : 'none'
       document.getElementById('commands-container').style.display = view === 'commands' ? '' : 'none'
+      document.getElementById('actions-container').style.display = view === 'actions' ? '' : 'none'
       document.getElementById('diff-toggle-btn').style.display = view === 'history' ? '' : 'none'
       if (view === 'events') this.eventsView.render()
       if (view === 'commands') this.commandsView.render()
+      if (view === 'actions') this.actionsView.render()
     }
     document.getElementById('view-history-btn').addEventListener('click', () => setActiveView('history'))
     document.getElementById('view-events-btn').addEventListener('click', () => setActiveView('events'))
     document.getElementById('view-cmds-btn').addEventListener('click', () => setActiveView('commands'))
+    document.getElementById('view-actions-btn').addEventListener('click', () => setActiveView('actions'))
 
     // History filter toggles
     this.historyView._initFilters()
@@ -295,7 +306,31 @@ class SygnalPanel {
       case 'SNAPSHOT_TAKEN':
         this._handleSnapshotTaken(msg.payload)
         break
+      case 'ACTIONS_RESET':
+        this.actions = []
+        this._handleActions(msg.payload)
+        break
+      case 'ACTIONS':
+        this._handleActions(msg.payload)
+        break
+      case 'COPY_AS_TEST_RESULT':
+        this.actionsView.showCopyResult(msg.payload)
+        break
     }
+  }
+
+  // PLAN-4 3-E: the action log. A batch adds new actions and updates known ones (sinks and
+  // state fill in after the action ran); the panel keeps the last MAX_ACTIONS.
+  _handleActions({ actions }) {
+    const MAX_ACTIONS = 1000
+    const bySeq = new Map(this.actions.map((a, i) => [a.seq, i]))
+    for (const a of actions || []) {
+      const i = bySeq.get(a.seq)
+      if (i === undefined) { bySeq.set(a.seq, this.actions.length); this.actions.push(a) }
+      else this.actions[i] = a
+    }
+    if (this.actions.length > MAX_ACTIONS) this.actions.splice(0, this.actions.length - MAX_ACTIONS)
+    if (this.activeView === 'actions') this.actionsView.render()
   }
 
   _handleFullTree({ components, history }) {
@@ -1615,6 +1650,202 @@ class CommandsView {
       })
 
       this.container.appendChild(el)
+    }
+  }
+}
+
+// ─── Actions View (PLAN-4 3-E) ────────────────────────────────────────────────
+
+const CAUSE_COLORS = {
+  intent: '#1976d2',
+  simulateAction: '#1976d2',
+  behavior: '#5e35b1',
+  next: '#00897b',
+  reply: '#ef6c00',
+  'built-in': '#9e9e9e',
+}
+
+class ActionsView {
+  constructor(panel) {
+    this.panel = panel
+    this.container = document.getElementById('actions-list')
+    this.componentSelect = document.getElementById('actions-component')
+    this.filterText = ''
+    this.component = ''
+    this.showBuiltIn = false
+    this.selectedSeq = null
+
+    document.getElementById('actions-type-filter')?.addEventListener('input', (e) => {
+      this.filterText = e.target.value.toLowerCase()
+      this.render()
+    })
+    this.componentSelect?.addEventListener('change', (e) => {
+      this.component = e.target.value
+      this.render()
+    })
+    document.getElementById('actions-show-builtin')?.addEventListener('change', (e) => {
+      this.showBuiltIn = e.target.checked
+      this.render()
+    })
+    document.getElementById('copy-test-btn')?.addEventListener('click', () => {
+      // the selected component's session, else the root's
+      const instance = this.panel.selectedId != null ? String(this.panel.selectedId) : undefined
+      this.panel._send('COPY_AS_TEST', { instance })
+    })
+    document.getElementById('copy-test-close')?.addEventListener('click', () => {
+      document.getElementById('copy-test-dialog').style.display = 'none'
+    })
+    document.getElementById('copy-test-copy')?.addEventListener('click', () => this._copy())
+  }
+
+  /** the actions the filters let through, oldest first */
+  visible() {
+    return this.panel.actions.filter(a =>
+      (this.showBuiltIn || a.cause !== 'built-in') &&
+      (!this.component || a.component === this.component) &&
+      (!this.filterText || a.type.toLowerCase().includes(this.filterText)))
+  }
+
+  _renderComponentOptions() {
+    if (!this.componentSelect) return
+    const names = [...new Set(this.panel.actions.map(a => a.component))].sort()
+    const current = [...this.componentSelect.options].slice(1).map(o => o.value)
+    if (names.join('\u0000') === current.join('\u0000')) return
+    this.componentSelect.innerHTML = '<option value="">All components</option>'
+    for (const n of names) {
+      const o = document.createElement('option')
+      o.value = n
+      o.textContent = n
+      this.componentSelect.appendChild(o)
+    }
+    this.componentSelect.value = names.includes(this.component) ? this.component : ''
+  }
+
+  render() {
+    if (!this.container) return
+    this._renderComponentOptions()
+    this.container.innerHTML = ''
+    const all = this.panel.actions
+    const list = this.visible()
+    const count = document.getElementById('actions-count')
+    if (count) count.textContent = list.length === all.length ? `${all.length}` : `${list.length}/${all.length}`
+
+    if (list.length === 0) {
+      this.container.innerHTML = '<div class="empty-state">' + (all.length === 0 ? 'No actions yet' : 'No matching actions') + '</div>'
+      return
+    }
+
+    // newest first
+    for (let i = list.length - 1; i >= 0; i--) {
+      const a = list[i]
+      const el = document.createElement('div')
+      el.className = 'event-entry action-entry' + (a.seq === this.selectedSeq ? ' clicked' : '')
+      el.dataset.seq = String(a.seq)
+
+      const dot = document.createElement('span')
+      dot.className = 'history-dot'
+      dot.style.background = CAUSE_COLORS[a.cause] || '#9e9e9e'
+      el.appendChild(dot)
+
+      const comp = document.createElement('span')
+      comp.className = 'history-component'
+      comp.textContent = `${a.component}#${a.instance}`
+      comp.style.cursor = 'pointer'
+      comp.addEventListener('click', (e) => {
+        e.stopPropagation()
+        this.panel.selectComponent(Number(a.instance))
+      })
+      el.appendChild(comp)
+
+      const type = document.createElement('span')
+      type.className = 'event-type'
+      type.textContent = a.type
+      el.appendChild(type)
+
+      const cause = document.createElement('span')
+      cause.className = 'action-cause'
+      cause.textContent = a.cause
+      cause.style.color = CAUSE_COLORS[a.cause] || '#9e9e9e'
+      el.appendChild(cause)
+
+      if (a.sinks && a.sinks.length) {
+        const sinks = document.createElement('span')
+        sinks.className = 'action-sinks'
+        sinks.textContent = '→ ' + a.sinks.join(', ')
+        el.appendChild(sinks)
+      }
+
+      if (a.data !== undefined && a.data !== null) {
+        const preview = document.createElement('span')
+        preview.className = 'event-data-preview'
+        const str = typeof a.data === 'object' ? JSON.stringify(a.data) : String(a.data)
+        preview.textContent = str.length > 60 ? str.slice(0, 60) + '…' : str
+        el.appendChild(preview)
+      }
+
+      const at = document.createElement('span')
+      at.className = 'history-time'
+      at.textContent = `+${Math.round(a.at)}ms`
+      el.appendChild(at)
+
+      el.addEventListener('click', () => this.select(a.seq))
+      this.container.appendChild(el)
+    }
+  }
+
+  /** show an action: the state before/after its STATE reducer (a diff), else the action itself */
+  select(seq) {
+    const a = this.panel.actions.find(x => x.seq === seq)
+    if (!a) return
+    this.selectedSeq = seq
+    this.container.querySelectorAll('.action-entry').forEach(e => e.classList.toggle('clicked', e.dataset.seq === String(seq)))
+    const title = document.getElementById('inspector-title')
+    if ('after' in a) {
+      this.panel.inspectorView.renderDiff(a.before, a.after)
+      title.textContent = `${a.type} on ${a.component}#${a.instance} (state before → after)`
+    } else {
+      const { before, after, ...rest } = a
+      this.panel.inspectorView.render(rest)
+      title.textContent = `${a.type} on ${a.component}#${a.instance} (${a.cause}; no state change)`
+    }
+  }
+
+  showCopyResult(result) {
+    const dialog = document.getElementById('copy-test-dialog')
+    const code = document.getElementById('copy-test-code')
+    const warnings = document.getElementById('copy-test-warnings')
+    const title = document.getElementById('copy-test-title')
+    if (!dialog || !code) return
+    warnings.innerHTML = ''
+    if (result.error) {
+      title.textContent = 'Copy as test: nothing to copy'
+      code.value = ''
+      const w = document.createElement('div')
+      w.textContent = result.error
+      warnings.appendChild(w)
+    } else {
+      title.textContent = result.complete ? 'Copy as test' : 'Copy as test (no final-state assertion)'
+      code.value = result.code
+      for (const text of result.warnings || []) {
+        const w = document.createElement('div')
+        w.textContent = text
+        warnings.appendChild(w)
+      }
+      this._copy()
+    }
+    dialog.style.display = ''
+  }
+
+  _copy() {
+    const code = document.getElementById('copy-test-code')
+    if (!code || !code.value) return
+    // navigator.clipboard needs focus in a DevTools panel; execCommand is the fallback
+    const fallback = () => { code.select(); try { document.execCommand('copy') } catch (e) { /* the selection stays for Cmd+C */ } }
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(code.value).catch(fallback)
+      else fallback()
+    } catch (e) {
+      fallback()
     }
   }
 }

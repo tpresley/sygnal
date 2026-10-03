@@ -48,6 +48,14 @@ describe('vite plugin: devtools option (D77)', () => {
     expect(code).toContain("import 'sygnal/diagnostics'")
   })
 
+  it('devtools: { redux: true } also connects the Redux DevTools bridge (PLAN-4 3-E)', () => {
+    const code = devPlugin({ devtools: { redux: true } }).transform(ENTRY, '/src/main.js').code
+    expect(code.startsWith("import { connectReduxDevtools as __sygnalReduxDevtools } from 'sygnal/devtools';__sygnalReduxDevtools();if (globalThis.__SYGNAL_DEV__")).toBe(true)
+    // an object without redux: the plain import
+    expect(devPlugin({ devtools: {} }).transform(ENTRY, '/src/main.js').code.startsWith(DEVTOOLS)).toBe(true)
+    expect(devPlugin({ devtools: { redux: true } }, { command: 'build' }).transform(ENTRY, '/src/main.js')).toBeNull()
+  })
+
   it('never in a build or under Vitest', () => {
     expect(devPlugin({}, { command: 'build' }).transform(ENTRY, '/src/main.js')).toBeNull()
     expect(devPlugin({}, { vitest: true }).transform(ENTRY, '/src/main.js')).toBeNull()

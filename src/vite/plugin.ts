@@ -99,7 +99,8 @@
  *      (window.__SYGNAL_DEVTOOLS__) for the browser extension. Independent of
  *      `diagnostics` ('off' still injects it). Never in `vite build` or under
  *      Vitest: production builds carry no DevTools code. `devtools: false`
- *      injects nothing.
+ *      injects nothing. PLAN-4 3-E: `devtools: { redux: true }` also calls
+ *      connectReduxDevtools() (actions + state to the Redux DevTools extension).
  *
  * Why not Vite's `define`? Vite's dependency optimizer does not apply user
  * `define` replacements to pre-bundled dependencies (only process.env.NODE_ENV),
@@ -224,9 +225,11 @@ export interface SygnalPluginOptions {
    * In dev (`vite`, never `vite build` or Vitest), import 'sygnal/devtools' in the
    * same files as the diagnostics snippet, which installs the DevTools bridge for
    * the browser extension. Production builds never contain it. false: not injected.
+   * PLAN-4 3-E: `{ redux: true }` also sends the actions and the root's state to the
+   * Redux DevTools extension (connectReduxDevtools() from 'sygnal/devtools').
    * @default true
    */
-  devtools?: boolean
+  devtools?: boolean | { redux?: boolean }
 }
 
 // Virtual modules (dev server only)
@@ -259,7 +262,10 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
   const devImports = `import 'sygnal/diagnostics';import '${DEV_CLIENT}';`
   // D77: the DevTools bridge, dev only. First, so the diagnostics entry finds it.
   const devtoolsOn = options.devtools !== false
-  const devtoolsImport = devtoolsOn ? `import 'sygnal/devtools';` : ''
+  const redux = typeof options.devtools == 'object' && !!options.devtools?.redux
+  const devtoolsImport = !devtoolsOn ? ''
+    : redux ? `import { connectReduxDevtools as __sygnalReduxDevtools } from 'sygnal/devtools';__sygnalReduxDevtools();`
+    : `import 'sygnal/devtools';`
   // What a dev entry gets: DevTools, then (unless diagnostics are 'off') flags + checks
   const devSnippet = devtoolsImport + (devOn ? flags + devImports : '')
   const devInject = devOn || devtoolsOn
