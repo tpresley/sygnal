@@ -1,0 +1,12 @@
+{
+  "description": "PLAN-4 1-E controls A/B, arm B: the same build as p4-ct1-a with the controls guidance: the controls skill (variants/skills/controls: skills/sygnal-dev with its selector guidance replaced by controls), the controls AGENTS.md over the starter kit's, the controls llms.txt over node_modules/sygnal/llms.txt after install, and the task starters converted with `sygnal-check --fix --controls --keep-classes` (p4-ct1-b/starters, from p4-ct1-b/gen-starters.mjs). For tasks 01,02,06,07,08,09,12,16,18-21",
+  "sygnal": "branch",
+  "skill": { "dir": "evals/agent-ergonomics/variants/skills/controls", "name": "sygnal-dev" },
+  "overlay": {
+    "sygnal": {
+      "taskDir": "./p4-ct1-b/starters",
+      "copy": { "AGENTS.md": "./p4-ct1-b/AGENTS.md.tmpl" },
+      "afterInstall": { "node_modules/sygnal/llms.txt": "./p4-ct1-b/llms.txt" }
+    }
+  }
+}

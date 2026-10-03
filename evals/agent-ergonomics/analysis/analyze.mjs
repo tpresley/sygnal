@@ -36,6 +36,8 @@ import { isTestPath, EDIT_TOOLS, bashWritesTest } from './lib/classify.mjs'
 import { aggregate } from './lib/aggregate.mjs'
 import { processKills } from '../lib/transcript.mjs'
 import { renderMarkdown } from './lib/report.mjs'
+import { wiringStats } from './lib/wiring.mjs'
+import os from 'node:os'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const args = parseArgs(process.argv.slice(2))
@@ -99,6 +101,30 @@ function findTrialDir(trial) {
   return null
 }
 
+/**
+ * The starter a trial actually started from: the task starter, plus the run variant's per-task
+ * overlay (`taskDir`, e.g. p4-ct1-b's converted starters) from <run>/_variant/prepare.json, so
+ * the line diff counts only the agent's changes. Cached per run and task.
+ */
+const starterCache = new Map()
+function effectiveStarter(arm, task, trialDir) {
+  const base = path.join(armPaths(arm).tasks, task, 'starter')
+  const prep = path.join(path.dirname(trialDir), '_variant', 'prepare.json')
+  let taskDirs = []
+  try {
+    taskDirs = (JSON.parse(fs.readFileSync(prep, 'utf8')).arms?.[arm]?.overlay?.taskDirs ?? []).filter((d) => fs.existsSync(path.join(d, task)))
+  } catch {}
+  if (!taskDirs.length) return base
+  const key = `${prep}|${arm}|${task}`
+  if (!starterCache.has(key)) {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'analyze-starter-'))
+    fs.cpSync(base, dir, { recursive: true })
+    for (const d of taskDirs) fs.cpSync(path.join(d, task), dir, { recursive: true })
+    starterCache.set(key, dir)
+  }
+  return starterCache.get(key)
+}
+
 const records = []
 for (const [trial, agentId] of mapRows) {
   const m = trial.match(/^(sygnal|react)-(\d\d)-t(\d+)$/)
@@ -116,7 +142,7 @@ for (const [trial, agentId] of mapRows) {
   }
   const rec = { trial, run, arm, task, trialNo: Number(trialNo), agentId, flags: [] }
   const score = scored.find((r) => r.task === task && r.arm === arm && r.trial === Number(trialNo))
-  rec.scored = score ? { pass: score.pass, testsPassed: score.testsPassed, testsTotal: score.testsTotal, wallSeconds: score.wallSeconds, iterations: score.iterations, editRounds: score.editRounds } : null
+  rec.scored = score ? { pass: score.pass, testsPassed: score.testsPassed, testsTotal: score.testsTotal, wallSeconds: score.wallSeconds, iterations: score.iterations, editRounds: score.editRounds, failureCategory: score.failureCategory ?? null } : null
   if (!score) rec.flags.push('not scored yet')
 
   const dir = findTrialDir(trial)
@@ -195,7 +221,7 @@ for (const [trial, agentId] of mapRows) {
   if (!dir) rec.flags.push('final code missing')
   else {
     rec.trialDir = dir
-    const starter = path.join(armPaths(arm).tasks, task, 'starter')
+    const starter = effectiveStarter(arm, task, dir)
     rec.diff = diffAgainstStarter(dir, starter)
     const srcDir = path.join(dir, 'src')
     const src = sourceText(srcDir)
@@ -211,6 +237,8 @@ for (const [trial, agentId] of mapRows) {
       for (const id of matchInput(testsText, arm)) if (!rec.catalog.input.includes(id)) rec.catalog.input.push(id)
     }
   }
+  // i. wiring-class measures (PLAN-4 1-E): SYG104/110/124 hits while working, in the final code, and failures they explain
+  if (arm === 'sygnal') rec.wiring = wiringStats({ calls: parsed.calls, scored: rec.scored, check: rec.sygnalCheck })
   rec.finalReportChars = parsed.finalReport.length
   if (rec.attributedShare < 0.9) rec.flags.push(`attributed share ${rec.attributedShare}`)
   records.push(rec)

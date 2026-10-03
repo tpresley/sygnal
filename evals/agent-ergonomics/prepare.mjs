@@ -15,8 +15,8 @@
 //   version); with --variant-spec the spec's starter version applies instead.
 // - --variant-spec (written by orchestrate.mjs --variant, lib/variant.mjs):
 //   applies the arm's starter overlay (the starter kit, then the variant's
-//   files, package.json merge, vendored packages) before the install, and the
-//   prompt prefix/suffix.
+//   dirs, per-task dirs, files, package.json merge, vendored packages) before
+//   the install, its afterInstall files after it, and the prompt prefix/suffix.
 // - Runs `npm install` so the agent starts with a working app.
 // - Runs a leak check and writes <dest>/../<basename>.prompt.txt containing the
 //   exact prompt to hand to the agent.
@@ -26,7 +26,7 @@ import path from 'node:path'
 import {
   REPO_ROOT, armPaths, resolveTask, parseArgs, copyDir, npm, packSygnal, leakCheck,
 } from './lib/common.mjs'
-import { applyOverlay, applyPrompt, resolveVariant, materializeVariant } from './lib/variant.mjs'
+import { applyOverlay, applyAfterInstall, applyPrompt, resolveVariant, materializeVariant } from './lib/variant.mjs'
 import { STARTERS, CURRENT_STARTER, parseStarter } from './lib/starter.mjs'
 
 const args = parseArgs(process.argv.slice(2))
@@ -85,13 +85,17 @@ if (typeof args['variant-spec'] === 'string') {
   }
 }
 if (variant?.overlay) {
-  const touched = applyOverlay(dest, variant.overlay)
+  const touched = applyOverlay(dest, variant.overlay, { task })
   console.error(`[prepare] variant overlay: ${touched.join(', ')}`)
 }
 
 if (!args['no-install']) {
   console.error(`[prepare] npm install in ${dest} ...`)
   npm(['install', '--no-audit', '--no-fund', '--loglevel=error'], dest)
+  const after = applyAfterInstall(dest, variant?.overlay)
+  if (after.length) console.error(`[prepare] variant overlay after install: ${after.join(', ')}`)
+} else if (Object.keys(variant?.overlay?.afterInstall ?? {}).length) {
+  console.error(`[prepare] --no-install: skipped the overlay's afterInstall files (${Object.keys(variant.overlay.afterInstall).join(', ')})`)
 }
 
 const leaks = leakCheck(dest)

@@ -88,7 +88,7 @@ test('self-comparison is all zeros', () => {
 
 test('rows from an analysis record and a results record; parseSide', () => {
   const [a] = rowsFromAnalysis({ trials: [{ arm: 'sygnal', task: '08-x', trialNo: 1, scored: { pass: true }, wallSeconds: 24.6, usage: { costUsd: 0.29, tokens: 1000, outputTokens: 50 }, iterations: 2, editRounds: 2, toolCalls: { total: 6 }, tokens: { peakContext: 34195 }, failures: [{ kind: 'verify', cause: 'agent' }, { kind: 'verify', cause: 'harness' }], diff: { added: 40 }, wroteTest: true, phases: { orient: 1 } }] })
-  assert.deepEqual({ ...a, phases: undefined }, { arm: 'sygnal', task: '08-x', trial: 1, pass: 1, wall: 24.6, costUsd: 0.29, tokens: 1000, outputTokens: 50, iterations: 2, editRounds: 2, toolCalls: 6, peakContext: 34195, failedRuns: 1, locAdded: 40, wroteTest: 1, phases: undefined })
+  assert.deepEqual({ ...a, phases: undefined }, { arm: 'sygnal', task: '08-x', trial: 1, pass: 1, wall: 24.6, costUsd: 0.29, tokens: 1000, outputTokens: 50, iterations: 2, editRounds: 2, toolCalls: 6, peakContext: 34195, failedRuns: 1, locAdded: 40, wroteTest: 1, learn: 0, wiringHits: null, wiringFinal: null, wiringFailure: null, phases: undefined })
   const [r] = rowsFromResults([{ arm: 'react', task: '01-a', trial: 2, pass: false, durationMs: 5000, variant: 'e1' }])
   assert.equal(r.pass, 0)
   assert.equal(r.wall, 5)

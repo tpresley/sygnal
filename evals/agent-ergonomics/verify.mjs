@@ -6,8 +6,9 @@
 // a plausible but wrong solution); the hidden suite must FAIL on each.
 //
 // Usage:
-//   node evals/agent-ergonomics/verify.mjs [--arm sygnal|react|both] [--task 03]
+//   node evals/agent-ergonomics/verify.mjs [--arm sygnal|react|both] [--task 03[,07,...]]
 //        [--work <dir>] [--tarball <sygnal.tgz>] [--build] [--reruns <n>] [--verbose]
+//        [--task-overlay <dir>] [--convert]
 //
 // --work     scratch dir for installs/copies (default: $TMPDIR/sygnal-evals-verify).
 //            Reusing it is safe: the Sygnal tarball is vendored under a
@@ -16,6 +17,12 @@
 // --tarball  use an existing `npm pack` tarball instead of packing this repo
 // --build    force `npm run build` in the repo before packing
 // --reruns   run every suite n times (default 1); any run with an unexpected result fails (flakiness)
+// --task-overlay <dir>   copy <dir>/<task>/ over each starter first (a variant's per-task starters, e.g.
+//            variants/p4-ct1-b/starters): the starter check then runs on the overlaid starter, and the
+//            solution and mutants are applied on top of it
+// --convert  also check `solution-converted`: the reference solution converted with
+//            `sygnal-check --fix --controls --keep-classes` (lib/convert.mjs) must still pass (PLAN-4 1-E:
+//            the hidden suites accept controls). Sygnal arm only
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -24,12 +31,19 @@ import {
   packSygnal, vendorTarball, installHidden, applySolution, runHidden, leakCheck, readJson,
   TS_EXTRA_DEV_DEPENDENCIES, TASK_EXTRA_DEPENDENCIES, isTsStarter,
 } from './lib/common.mjs'
+import { convertDir } from './lib/convert.mjs'
 
 const args = parseArgs(process.argv.slice(2))
 const arms = !args.arm || args.arm === 'both' ? ARMS : [args.arm]
 const work = path.resolve(args.work || path.join(os.tmpdir(), 'sygnal-evals-verify'))
 const verbose = !!args.verbose
 const reruns = Math.max(1, Number(args.reruns) || 1)
+const taskOverlay = typeof args['task-overlay'] === 'string' ? path.resolve(args['task-overlay']) : null
+if (args['task-overlay'] !== undefined && !taskOverlay) {
+  console.error('--task-overlay needs a directory')
+  process.exit(2)
+}
+const convert = !!args.convert
 
 /** Names of a task's mutants (hidden/<task>/mutants/<name>/), if any. */
 function listMutants(arm, task) {
@@ -118,20 +132,26 @@ let ok = true
 
 for (const arm of arms) {
   const armDir = prepareArm(arm)
-  const tasks = args.task ? [resolveTask(arm, args.task)] : listTasks(arm)
+  const tasks = args.task ? String(args.task).split(',').map((id) => resolveTask(arm, id.trim())) : listTasks(arm)
   for (const task of tasks) {
     const starterSrc = path.join(armPaths(arm).tasks, task, 'starter')
     const mutants = listMutants(arm, task)
-    for (const variant of ['starter', 'solution', ...mutants.map((m) => `mutant:${m}`)]) {
+    const extra = convert && arm === 'sygnal' ? ['solution-converted'] : []
+    for (const variant of ['starter', 'solution', ...extra, ...mutants.map((m) => `mutant:${m}`)]) {
       const mutant = variant.startsWith('mutant:') ? variant.slice('mutant:'.length) : null
       const dir = path.join(armDir, `${task}--${variant.replace(':', '-')}`)
       fs.rmSync(dir, { recursive: true, force: true })
       copyDir(starterSrc, dir)
+      if (taskOverlay && fs.existsSync(path.join(taskOverlay, task))) fs.cpSync(path.join(taskOverlay, task), dir, { recursive: true })
       const leaks = variant === 'starter' ? leakCheck(dir) : []
       if (variant !== 'starter') applySolution(dir, arm, task)
       if (mutant) fs.cpSync(path.join(armPaths(arm).hidden, task, 'mutants', mutant), dir, { recursive: true })
+      if (variant === 'solution-converted') {
+        const { files } = convertDir(dir, { inPlace: true })
+        console.log(`  ${task}: solution converted to controls: ${Object.keys(files).join(', ') || 'nothing to convert'}`)
+      }
       installHidden(dir, arm, task)
-      const expectedPass = variant === 'solution'
+      const expectedPass = variant === 'solution' || variant === 'solution-converted'
       for (let run = 1; run <= reruns; run++) {
         const r = runHidden(dir)
         const good = r.pass === expectedPass && r.testsTotal > 0 && leaks.length === 0
