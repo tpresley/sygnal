@@ -22,10 +22,18 @@
  * A keydown/keyup listener counts unless it is immediately filtered on a key
  * (`.filter(e => e.key === 'Enter')`): that only reacts to one key, so typing
  * still isn't written to state.
+ *
+ * Controls (G-203): `<Draft value={…}>` where Draft is a control for an
+ * input/textarea/select is checked like the element it renders, and a control
+ * argument in intent (`DOM.input(Draft)`, `DOM.select(Form.Title)`) listens on
+ * `[data-control="Draft"]`. A control for any other tag is an ancestor like
+ * its element; a spec-object control (element unknown) is skipped with its
+ * children.
  */
 import { walk, unwrap, isFunction, jsxName, jsxAttr, jsxAttrExpr, memberName, stringValue } from '../ast.js'
 import { sourceAliases, isSourceRef, DOM_SOURCE_METHODS } from '../model/intent.js'
 import { evalStrings, classTokens, tokenize, DYN } from '../strings.js'
+import { resolveControl, resolveControlJSX } from '../model/controls.js'
 
 const FIELDS = new Set(['input', 'textarea', 'select'])
 const NOT_TYPED = new Set(['hidden', 'submit', 'button', 'reset', 'image', 'file'])
@@ -41,22 +49,25 @@ const isComponentTag = (name) => !!name && (/^[A-Z]/.test(name) || name.includes
 // ─── intent: which (selector chain, event) pairs are listened to ────────────
 
 /** Selectors of a DOM chain (DOM, DOM.select(a).select(b)); null if not a chain. */
-function chainOf(node, sa) {
+function chainOf(node, sa, text) {
   node = unwrap(node)
   if (isSourceRef(node, 'DOM', sa)) return []
   if (node?.type === 'CallExpression') {
     const callee = unwrap(node.callee)
     if (callee.type === 'MemberExpression' && memberName(callee) === 'select') {
-      const inner = chainOf(callee.object, sa)
-      if (inner) return [...inner, selectorText(node.arguments[0])]
+      const inner = chainOf(callee.object, sa, text)
+      if (inner) return [...inner, text(node.arguments[0])]
     }
   }
   return null
 }
 
-function selectorText(arg) {
+/** A selector argument's text: a string, a control's [data-control="Key"], else UNKNOWN */
+const selectorTextIn = (project, file) => (arg) => {
   const s = stringValue(arg)
-  return s == null ? UNKNOWN : s
+  if (s != null) return s
+  const c = project && arg ? resolveControl(project, file, arg) : null
+  return c ? c.selector : UNKNOWN
 }
 
 const parentOf = (file, n) => file.parents.get(n)
@@ -88,21 +99,23 @@ function eventsOfOptions(opts) {
 }
 
 /** @returns {Array<{ chain: string[], event: string }>} */
-export function intentListeners(file, fn) {
+export function intentListeners(file, fn, project) {
   const sa = sourceAliases(fn)
+  const selectorText = selectorTextIn(project, file)
+  const chainOf_ = (node) => chainOf(node, sa, selectorText)
   const out = []
   walk(fn.body, (n) => {
     if (n.type !== 'CallExpression') return true
     const callee = unwrap(n.callee)
     // processForm(DOM.select('form'), { events })
     if (callee.type === 'Identifier' && callee.name === 'processForm') {
-      const chain = chainOf(n.arguments[0], sa)
+      const chain = chainOf_(n.arguments[0])
       if (chain && chain.length) for (const event of eventsOfOptions(n.arguments[1])) out.push({ chain, event })
       return true
     }
     if (callee.type !== 'MemberExpression') return true
     const method = memberName(callee)
-    const chain = chainOf(callee.object, sa)
+    const chain = chainOf_(callee.object)
     if (!chain || !method) return true
     if (method === 'events' && chain.length) {
       const ev = stringValue(n.arguments[0]) ?? UNKNOWN
@@ -112,7 +125,7 @@ export function intentListeners(file, fn) {
       const p = parentOf(file, n)
       const chained = p?.type === 'MemberExpression' && p.object === n
       const formArg = p?.type === 'CallExpression' && unwrap(p.callee)?.name === 'processForm'
-      if (!chained && !formArg) out.push({ chain: chainOf(n, sa), event: UNKNOWN })
+      if (!chained && !formArg) out.push({ chain: chainOf_(n), event: UNKNOWN })
     } else if (chain.length === 0 && !DOM_SOURCE_METHODS.has(method) && n.arguments[0]) {
       // DOM.input('.x') shorthand
       out.push({ chain: [selectorText(n.arguments[0])], event: KEY_EVENTS.has(method) && keyFiltered(file, n) ? method + ':key' : method })
@@ -126,6 +139,9 @@ export function intentListeners(file, fn) {
 
 function lastCompounds(selector) {
   return selector.split(',').map(part => {
+    // [data-control="Key"] in the last compound: only that control's element matches
+    const lastPart = part.trim().split(/[\s>+~]+(?![^[]*\])/).filter(Boolean).pop() || ''
+    const controls = [...lastPart.matchAll(/\[data-control=(['"])([^'"\]]*)\1\]/g)].map(m => m[2])
     const stripped = part.replace(/\[[^\]]*\]/g, '').replace(/::?[\w-]+(\([^)]*\))?/g, '').trim()
     const pieces = stripped.split(/[\s>+~]+/).filter(Boolean)
     const last = pieces[pieces.length - 1] || ''
@@ -133,6 +149,7 @@ function lastCompounds(selector) {
       tag: (/^[a-zA-Z][\w-]*/.exec(last) || [])[0]?.toLowerCase() || null,
       classes: [...last.matchAll(/\.([\w-]+)/g)].map(m => m[1]),
       ids: [...last.matchAll(/#([\w-]+)/g)].map(m => m[1]),
+      controls,
     }
   })
 }
@@ -141,6 +158,7 @@ const has = (set, name) => set.names.has(name) || set.patterns.some(p => p.re.te
 
 function compoundMatches(c, el) {
   if (c.tag && c.tag !== el.tag) return false
+  if (c.controls.some(k => el.control !== k)) return false
   return c.classes.every(x => has(el.classes, x)) && c.ids.every(x => has(el.ids, x))
 }
 
@@ -157,7 +175,7 @@ function listens(chain, el, ancestors) {
 
 // ─── view: controlled fields in the component's own scope ───────────────────
 
-function elementInfo(file, opening) {
+function elementInfo(file, opening, control) {
   const classes = { names: new Set(), patterns: [] }
   const ids = { names: new Set(), patterns: [] }
   const anyDyn = (set) => { if (!set.patterns.length) set.patterns.push({ source: '*', re: /^.*$/ }) }
@@ -173,6 +191,7 @@ function elementInfo(file, opening) {
       tokenize(evalStrings(v, { fileInfo: file }), ids)
     }
   }
+  if (control) return { tag: control.element.toLowerCase(), classes, ids, control: control.key, name: jsxName(opening.name) }
   return { tag: jsxName(opening.name).toLowerCase(), classes, ids }
 }
 
@@ -189,8 +208,7 @@ function attrIsOn(opening, ...names) {
 }
 
 /** The bound value/checked attribute of a controlled field, or null. */
-function controlledAttr(opening) {
-  const tag = jsxName(opening.name)
+function controlledAttr(opening, tag = jsxName(opening.name)) {
   if (!FIELDS.has(tag)) return null
   if (attrIsOn(opening, 'readOnly', 'readonly', 'disabled')) return null
   let kind = null
@@ -227,19 +245,22 @@ function controlledAttr(opening) {
   return { attr, kind, prop, literal }
 }
 
-function controlledFields(file, view) {
+function controlledFields(project, file, view) {
   const out = []
   const visit = (root, ancestors) => {
     walk(root, (n) => {
       if (n.type !== 'JSXElement') return true
       const opening = n.openingElement
       const name = jsxName(opening.name)
-      if (isComponentTag(name) && !TRANSPARENT.has(name)) return false // child scope (incl. Collection)
+      // a control for an element is that element (G-203); any other capitalised tag is a
+      // child scope (incl. Collection) or a spec-object control whose element isn't known
+      const control = isComponentTag(name) && !TRANSPARENT.has(name) ? resolveControlJSX(project, file, opening) : null
+      if (isComponentTag(name) && !TRANSPARENT.has(name) && !control?.element) return false
       if (/^(collection|switchable)$/.test(name)) return false
       let inner = ancestors
-      if (!isComponentTag(name)) {
-        const info = elementInfo(file, opening)
-        const c = controlledAttr(opening)
+      if (!isComponentTag(name) || control) {
+        const info = elementInfo(file, opening, control)
+        const c = controlledAttr(opening, info.tag)
         if (c) out.push({ ...c, el: info, ancestors, opening })
         inner = [info, ...ancestors]
       }
@@ -253,12 +274,14 @@ function controlledFields(file, view) {
 }
 
 function describe(f) {
+  if (f.el.control) return `<${f.el.name}>`
   const cls = [...f.el.classes.names][0]
   const id = [...f.el.ids.names][0]
   return `<${f.el.tag}${id ? ` id="${id}"` : cls ? ` className="${cls}"` : ''}>`
 }
 
 function selectorFor(f) {
+  if (f.el.control) return `[data-control="${f.el.control}"]`
   const id = [...f.el.ids.names][0]
   if (id) return `#${id}`
   const cls = [...f.el.classes.names][0]
@@ -276,15 +299,17 @@ export default {
       if (comp.staticProps.intent) {
         // can't see the intent: stay quiet
         if (!comp.intent || !comp.intent.fn) continue
-        listeners = intentListeners(comp.intent.file, comp.intent.fn)
+        listeners = intentListeners(comp.intent.file, comp.intent.fn, project)
       }
-      for (const f of controlledFields(comp.file, comp.view)) {
+      for (const f of controlledFields(project, comp.file, comp.view)) {
         const relevant = (ev) => ev === UNKNOWN || TEXT_EVENTS.has(ev) || (f.kind === 'toggle' && ev === 'click')
         if (listeners.some(l => relevant(l.event) && listens(l.chain, f.el, f.ancestors))) continue
         const what = describe(f)
         const sel = selectorFor(f)
+        // the argument the fix suggests: the control itself, or the selector string
+        const arg = f.el.control ? f.el.name : `'${sel}'`
         if (f.literal) {
-          const on = f.kind === 'text' ? `'input' (e.g. DOM.input('${sel}').value())` : `'change' (e.g. DOM.change('${sel}'))`
+          const on = f.kind === 'text' ? `'input' (e.g. DOM.input(${arg}).value())` : `'change' (e.g. DOM.change(${arg}))`
           report({
             code: 'SYG111',
             component: comp.name,
@@ -307,8 +332,8 @@ export default {
           message: `${what} has ${f.prop}={…} bound to state, but ${comp.name}'s intent has no input/change listener on it. ` +
             `Sygnal writes the bound ${f.prop} back on every render, so a re-render while the user ${f.kind === 'text' ? 'types resets the typed text' : 'changes it resets the field'}`,
           fix: f.kind === 'text'
-            ? `update the state on 'input' (e.g. DOM.input('${sel}').value()), or make the field uncontrolled: drop the ${f.prop} prop and read the value on blur/submit`
-            : `update the state on 'change' (e.g. DOM.change('${sel}')), or make the field uncontrolled: drop the ${f.prop} prop and read it on submit`,
+            ? `update the state on 'input' (e.g. DOM.input(${arg}).value()), or make the field uncontrolled: drop the ${f.prop} prop and read the value on blur/submit`
+            : `update the state on 'change' (e.g. DOM.change(${arg})), or make the field uncontrolled: drop the ${f.prop} prop and read it on submit`,
           data: { element: f.el.tag, prop: f.prop, selector: sel },
         })
       }

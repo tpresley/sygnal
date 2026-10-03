@@ -48,9 +48,11 @@
  *      current findings when the page loads ('sygnal:check:request'), and only
  *      that client is answered; after a source change the new findings go to
  *      every connected client, and only when they changed. Error-severity
- *      findings also open Vite's error overlay (`overlay: false`: never).
- *      sygnal-check's codes are currently all warnings or info, so in practice
- *      everything goes to the console. Warnings never use the overlay: while
+ *      findings also open Vite's error overlay (`overlay: false`: never):
+ *      always SYG112, SYG124, SYG125 and SYG128, and, when `strict` is on
+ *      (`diagnostics.strict`), the a11y lane SYG701-708 (D111; warnings
+ *      otherwise). Everything else is a warning or info and goes to the
+ *      console. Warnings never use the overlay: while
  *      one is open Vite's client reloads the page on the next HMR update
  *      (`overlay: 'warn'` is treated as 'error', with a notice). The dev
  *      client closes a sygnal-check overlay before each update, and the
@@ -161,7 +163,8 @@ export interface CheckPluginOptions {
    * default); false: never. All findings are logged in the terminal and the
    * browser console. Warnings never use the overlay (Vite reloads the page on
    * the next update while one is open): 'warn' is accepted but treated as
-   * 'error'. sygnal-check currently reports no error-severity codes.
+   * 'error'. Error-severity codes: SYG112, SYG124, SYG125, SYG128, and the
+   * a11y lane SYG701-708 when `strict` is on (D111).
    * @default 'error'
    */
   overlay?: 'error' | 'warn' | false

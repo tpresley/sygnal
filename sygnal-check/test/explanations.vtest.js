@@ -73,6 +73,18 @@ describe('explanations table', () => {
     }
   })
 
+  it('every code the dev entry reports (src/extra/diagnostics/checks) is marked as dev-entry', () => {
+    const dir = path.resolve(pkgRoot, '../src/extra/diagnostics/checks')
+    const reported = new Set()
+    for (const f of fs.readdirSync(dir)) {
+      if (!f.endsWith('.ts')) continue
+      const src = fs.readFileSync(path.join(dir, f), 'utf8')
+      for (const m of src.matchAll(/\b(?:devReport|report)\(\s*'(SYG\d{3})'/g)) reported.add(m[1])
+    }
+    expect(reported.size).toBeGreaterThan(10)
+    for (const code of reported) expect(EXPLANATIONS[code]?.reportedBy, code).toContain('dev-entry')
+  })
+
   it('explanations.json is up to date (regenerate: node bin/sygnal-check.js explain --all --json > explanations.json)', () => {
     const json = JSON.parse(fs.readFileSync(path.join(pkgRoot, 'explanations.json'), 'utf8'))
     expect(json).toEqual(listExplanations())

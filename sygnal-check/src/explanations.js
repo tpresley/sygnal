@@ -108,14 +108,14 @@ export const EXPLANATIONS = {
   SYG124: {
     title: "Component used as a control or selector",
     severity: "error",
-    reportedBy: ["static"],
+    reportedBy: ["dev-entry", "static"],
     explanation: "A component was passed where `DOM.select()` or a `DOM.<event>()` shorthand expects a control or a CSS selector, as in `DOM.click(TodoItem)`. A component is not an element: it has no single root to listen on, and its elements are isolated from the parent, so there is nothing for the listener to match. Controls look like components in JSX, which makes this an easy mistake.",
     fix: "Handle the event inside the child and send it up with `PARENT`, then read it in the parent with `CHILD.select(TodoItem)`. Or give the parent a control and render it around the child: `const { Item } = controls({ Item: 'div' })`, `<Item><TodoItem /></Item>`, `DOM.click(Item)`.",
   },
   SYG125: {
     title: "Control given .intent, .model or .initialState",
     severity: "error",
-    reportedBy: ["static"],
+    reportedBy: ["dev-entry", "static"],
     explanation: "A control from `controls({ ... })` was given `.intent`, `.model` or `.initialState`, as if it were a component. Controls are elements, not components: a control renders its element with a `data-control` marker and nothing else, so it has no intent, model or state, and these statics are never used.",
     fix: "Put the intent and model on the component that renders the control, and listen to the control there: `App.intent = ({ DOM }) => ({ ADD: DOM.click(Add) })`. For something with its own state and actions, write a component instead.",
   },

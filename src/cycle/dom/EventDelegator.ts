@@ -41,7 +41,11 @@ export const eventTypesThatDontBubble = [
   `pointerleave`,
   `gotpointercapture`,
   `lostpointercapture`,
-  // Media
+  // Media (and img/script/link error, abort)
+  `abort`,
+  `error`,
+  `loadstart`,
+  `progress`,
   `canplay`,
   `canplaythrough`,
   `durationchange`,
@@ -68,7 +72,11 @@ export const eventTypesThatDontBubble = [
   `reset`,
   `submit`,
   `formdata`,
+  // details, popover, dialog
   `toggle`,
+  `beforetoggle`,
+  `cancel`,
+  `close`,
   // Animation / Transition
   `animationstart`,
   `animationend`,
