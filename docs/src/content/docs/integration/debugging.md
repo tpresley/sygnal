@@ -24,7 +24,7 @@ When something in a Sygnal app "does nothing", work through these in order:
 
 ## inspect()
 
-With the dev checks loaded (automatic with the Vite plugin), the DevTools bridge has an `inspect()` method that returns the live app graph:
+With the dev checks and the DevTools bridge loaded (both automatic with the Vite plugin in dev), the bridge has an `inspect()` method that returns the live app graph:
 
 ```javascript
 // in the browser console
@@ -76,4 +76,18 @@ Each log entry is prefixed with the component number and name (e.g., `3 | MyComp
 
 ## DevTools Extension
 
-The Sygnal DevTools browser extension (in the repository's `devtools/` folder) shows the component tree, lets you inspect and edit state, time-travel through state history, and toggle debug logging. It connects to the same `window.__SYGNAL_DEVTOOLS__` bridge that `run()` creates in the browser.
+The Sygnal DevTools browser extension (in the repository's `devtools/` folder) shows the component tree, lets you inspect and edit state, time-travel through state history, and toggle debug logging. It connects to the `window.__SYGNAL_DEVTOOLS__` bridge, which the dev-only `sygnal/devtools` entry installs.
+
+The bridge is a development tool and is not part of production builds. With the [Vite plugin](/integration/bundler-config/#what-the-plugin-does-in-dev) nothing needs setting up: the dev server (`vite`, and the Vike and Astro dev servers) installs it, `vite build` leaves it out, and `sygnal({ devtools: false })` turns it off. `getDevTools()` from `sygnal` returns the installed bridge, or `undefined` when there is none (always in a production build).
+
+### Without Vite
+
+Import `sygnal/devtools` in development builds only, before `run()`. Components created before the import are not in the extension's tree.
+
+```javascript
+// main.dev.js: the development entry
+import 'sygnal/devtools'
+import './main.js'
+```
+
+Keep the import out of your production entry so the bridge (about 2 KB gzipped) isn't bundled.

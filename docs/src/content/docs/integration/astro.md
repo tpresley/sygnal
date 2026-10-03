@@ -74,7 +74,7 @@ export default defineConfig({
 })
 ```
 
-Islands share the app's single Sygnal core, so diagnostics and devtools name each island after its component. None of this is added to `astro build` output; both `astro dev` and `astro build` get the plugin's [`globalthis` alias](/integration/bundler-config/#native-globalthis) (opt out with `sygnal({ nativeGlobalThis: false })`).
+`astro dev` also installs the [DevTools](/integration/debugging/#devtools-extension) bridge for islands (`sygnal({ devtools: false })` turns it off). Islands share the app's single Sygnal core, so diagnostics and devtools name each island after its component. None of this is added to `astro build` output; both `astro dev` and `astro build` get the plugin's [`globalthis` alias](/integration/bundler-config/#native-globalthis) (opt out with `sygnal({ nativeGlobalThis: false })`).
 
 ## How It Works
 

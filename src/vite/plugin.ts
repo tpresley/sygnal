@@ -88,6 +88,13 @@
  *      sygnal/astro integration adds the same alias in `astro build`. Any
  *      dependency's `require('globalthis')` gets the stub; a `globalthis`
  *      entry in the user's own `resolve.alias` wins (R2-7).
+ *   9. `devtools` option (D77, default true): in dev the same files (run()
+ *      importers, the Vike wrapper, the Astro client) also get
+ *      `import 'sygnal/devtools';`, first, which installs the DevTools bridge
+ *      (window.__SYGNAL_DEVTOOLS__) for the browser extension. Independent of
+ *      `diagnostics` ('off' still injects it). Never in `vite build` or under
+ *      Vitest: production builds carry no DevTools code. `devtools: false`
+ *      injects nothing.
  *
  * Why not Vite's `define`? Vite's dependency optimizer does not apply user
  * `define` replacements to pre-bundled dependencies (only process.env.NODE_ENV),
@@ -177,7 +184,7 @@ export interface SygnalPluginOptions {
 
   /**
    * Runtime diagnostics in dev (`vite`, not `vite build`): a mode, or
-   * { mode, strict, ignore }. 'off' injects nothing. A `diagnostics` option
+   * { mode, strict, ignore }. 'off' injects no checks (DevTools: `devtools`). A `diagnostics` option
    * passed to run() itself still wins.
    * @default 'warn'
    */
@@ -206,6 +213,14 @@ export interface SygnalPluginOptions {
    * @default true
    */
   nativeGlobalThis?: boolean
+
+  /**
+   * In dev (`vite`, never `vite build` or Vitest), import 'sygnal/devtools' in the
+   * same files as the diagnostics snippet, which installs the DevTools bridge for
+   * the browser extension. Production builds never contain it. false: not injected.
+   * @default true
+   */
+  devtools?: boolean
 }
 
 // Virtual modules (dev server only)
@@ -236,6 +251,12 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
   // Statements run before the app starts: dev flag (+ strict flag)
   const flags = DEV_FLAG + (diagnostics.strict ? STRICT_FLAG : '')
   const devImports = `import 'sygnal/diagnostics';import '${DEV_CLIENT}';`
+  // D77: the DevTools bridge, dev only. First, so the diagnostics entry finds it.
+  const devtoolsOn = options.devtools !== false
+  const devtoolsImport = devtoolsOn ? `import 'sygnal/devtools';` : ''
+  // What a dev entry gets: DevTools, then (unless diagnostics are 'off') flags + checks
+  const devSnippet = devtoolsImport + (devOn ? flags + devImports : '')
+  const devInject = devOn || devtoolsOn
   let astroClient: Set<string> | undefined
 
   return {
@@ -291,13 +312,14 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
           // Vite merges arrays (and a string with an array) by concatenation
           if (setup && !loaded) result.test = { setupFiles: [setup] }
         }
-      } else if (isServe && devOn && sygnalInNodeModules(root)) {
+      } else if (isServe && devInject && sygnalInNodeModules(root)) {
         // The dependency scan reads the original sources, which don't import
-        // the checks entry: pre-bundle it with sygnal so the first page load
-        // doesn't trigger a re-optimization. Only for an installed sygnal: a
-        // linked one is served from source, and pre-bundling the checks alone
-        // would give them their own copy of the core.
-        result.optimizeDeps = { ...result.optimizeDeps, include: ['sygnal/diagnostics'] }
+        // the checks (or DevTools) entry: pre-bundle it with sygnal so the first
+        // page load doesn't trigger a re-optimization. Only for an installed
+        // sygnal: a linked one is served from source, and pre-bundling the
+        // checks alone would give them their own copy of the core.
+        const include = [...(devtoolsOn ? ['sygnal/devtools'] : []), ...(devOn ? ['sygnal/diagnostics'] : [])]
+        result.optimizeDeps = { ...result.optimizeDeps, include }
       }
 
       // B-020: Vike adds its client entry 'sygnal/vike/onRenderClient' to
@@ -350,7 +372,7 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
         if (source === 'sygnal' && importer && wrapRun && runtimeImporters.has(cleanId(importer))) {
           return RUNTIME_ID
         }
-        if (source === VIKE_CLIENT && devOn && !opts?.ssr) {
+        if (source === VIKE_CLIENT && devInject && !opts?.ssr) {
           if (importer !== VIKE_CLIENT_ID) return VIKE_CLIENT_ID
           // The wrapper's own import of the real entry: resolve it normally.
           // The real Vike client's run() then gets the run() wrapper too, when
@@ -370,7 +392,8 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
       // pre-bundled copy of it can carry its own copy of the Sygnal core
       // (e.g. with a linked sygnal), which then holds the diagnostics bridge.
       if (id === VIKE_CLIENT_ID) {
-        return `${devImports}${REINSTALL_IMPORT}\nexport * from '${VIKE_CLIENT}';\n${flags}\n${REINSTALL_CALL}`
+        if (!devOn) return `${devtoolsImport}\nexport * from '${VIKE_CLIENT}';\n`
+        return `${devtoolsImport}${devImports}${REINSTALL_IMPORT}\nexport * from '${VIKE_CLIENT}';\n${flags}\n${REINSTALL_CALL}`
       }
       return null
     },
@@ -392,11 +415,11 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
       // sygnal/astro/client (Astro islands): flags + checks first. It imports
       // the public 'sygnal' entry (the app's core, B-019), which resolves to
       // the run() wrapper when the diagnostics option needs it.
-      if (devOn && !isVitest && !opts?.ssr) {
+      if (devInject && !isVitest && !opts?.ssr) {
         astroClient = astroClient || astroClientFiles(root)
         if (astroClient.has(cleanId(id))) {
           if (wrapRun) runtimeImporters.add(cleanId(id))
-          return withSourcemap(code, [[0, flags + devImports]], '', id)
+          return withSourcemap(code, [[0, devSnippet]], '', id)
         }
       }
 
@@ -422,8 +445,8 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
       // later test files of the same worker; there the checks come from
       // test.setupFiles and renderComponent() manages the modes.
       const inserts: Array<[number, string]> = []
-      if (devOn && !isVitest) {
-        inserts.push(flagInsertion(code, flags + devImports))
+      if (devInject && !isVitest) {
+        inserts.push(flagInsertion(code, devSnippet))
         if (wrapRun) runtimeImporters.add(cleanId(id))
       }
       const done = (tail = '') => (inserts.length || tail ? withSourcemap(code, inserts, tail, id) : null)

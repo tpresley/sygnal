@@ -168,7 +168,7 @@ graph.components.find(c => c.name === 'Lane').selectors
 
 It is also available as:
 
-- `getDevTools().inspect()` (or `window.__SYGNAL_DEVTOOLS__.inspect()` in the browser console) in a dev app;
+- `getDevTools().inspect()` (or `window.__SYGNAL_DEVTOOLS__.inspect()` in the browser console) in a dev app with the [DevTools bridge](/integration/debugging/#devtools-extension) (installed by the Vite plugin in dev);
 - `t.inspect()` on a [`renderComponent()`](/integration/testing/#inspect) result;
 - `sygnal-check --graph --json`, which builds the same shape statically from source.
 
