@@ -16,6 +16,8 @@
  *               unless a request named them as reply actions: replies.ts, 'reply')
  *   onBusEmit   EVENTS types seen on the bus
  *   onBusSelect EVENTS types selected (see onIntent)
+ *   onRender    (PLAN-4 CT-1) the controls the instance renders: its own vtree, up to the
+ *               isolated child components, through ./controls' vnode -> control map
  *   onDispose   prunes the instance
  * Selectors come from the DOM check (real DOM) or from renderComponent (mock
  * DOM, passed in as options.selectors). The same shape is produced statically
@@ -28,10 +30,11 @@
  * (window.__SYGNAL_DEVTOOLS__, which is getDevTools()) once it exists.
  */
 import type {DiagnosticCheck} from '../index'
-import type {InspectGraph, InspectComponent, InspectOptions, InspectSelector, InspectDiagnostic, InspectChild, InspectResource} from './public'
+import type {InspectGraph, InspectComponent, InspectOptions, InspectSelector, InspectDiagnostic, InspectChild, InspectResource, InspectControl} from './public'
 import {bridge, onReset, nameOf, isPlainObject, BUILTIN_ACTIONS, replySeen} from './shared'
 import {checkEventBus} from './events'
 import {selectorStatus} from './dom'
+import {controlOfVnode, keyOfSelector} from './controls'
 
 type Kind = InspectComponent['kind']
 
@@ -48,6 +51,8 @@ interface Rec {
   fired: Set<string>
   eventsSelected: Set<string>
   eventsEmitted: Set<string>
+  /** CT-1: controls seen in its renders, by key (first-seen order) */
+  controls: Map<string, {element: string | null; kind?: string}>
 }
 
 let records = new Map<any, Rec>()
@@ -88,6 +93,7 @@ function ensure(c: any): Rec {
       fired: new Set(),
       eventsSelected: new Set(),
       eventsEmitted: new Set(),
+      controls: new Map(),
     }
     records.set(c, r)
   }
@@ -138,6 +144,11 @@ export const inspectCheck: DiagnosticCheck = {
     }
   },
 
+  onRender(component, root) {
+    const r = records.get(component)
+    if (r) collectControls(root, r.controls, true)
+  },
+
   onReducer(component, action) {
     const r = records.get(component)
     if (r && typeof action === 'string') r.fired.add(action)
@@ -150,6 +161,39 @@ export const inspectCheck: DiagnosticCheck = {
   onDispose(component) {
     records.delete(component)
   },
+}
+
+/**
+ * CT-1: record the controls in a component's rendered tree (data-control="<Key>"), stopping at
+ * isolated child components (their root carries data.isolate on the real DOM, a '.___<scope>'
+ * class in the mock DOM): the controls inside belong to the child.
+ */
+function collectControls(v: any, out: Rec['controls'], root: boolean): void {
+  if (!v || typeof v != 'object') return
+  if (!root && typeof v.sel == 'string' && ((v.data && v.data.isolate) || v.sel.includes('.___'))) return
+  const key = v.data && v.data.attrs && v.data.attrs['data-control']
+  if (typeof key == 'string' && !out.has(key)) {
+    const control = controlOfVnode(v)
+    const spec = control && control.spec
+    out.set(key, spec && typeof spec == 'object'
+      ? {element: null, kind: String(spec.kind)}
+      : {element: typeof spec == 'string' ? spec : typeof v.sel == 'string' ? v.sel.split(/[.#]/)[0] : null})
+  }
+  for (const k of [].concat(v.children || [], (v.data && v.data.portalChildren) || [])) collectControls(k, out, false)
+}
+
+/** CT-1: the controls a component rendered, `listened` from its intent's selectors */
+function controlsOf(r: Rec, selectors: InspectSelector[]): InspectControl[] | undefined {
+  if (!r.controls.size) return undefined
+  const listened = new Set<string>()
+  for (const s of selectors) for (const m of s.selector.matchAll(/\[data-control="([^"]+)"\]/g)) listened.add(m[1])
+  return [...r.controls].map(([name, {element, kind}]) => ({name, element, ...(kind ? {kind} : {}), listened: listened.has(name)}))
+}
+
+/** CT-1: mark a selector that is a control ([data-control="<Key>"]) with its key */
+const withControl = (s: InspectSelector): InspectSelector => {
+  const key = keyOfSelector(s.selector)
+  return key ? {...s, control: key} : s
 }
 
 const slim = (d: any): InspectDiagnostic => {
@@ -248,16 +292,16 @@ function mockSelectors(mock: MockDom): Record<string, InspectSelector[]> {
 
 function selectorsOf(r: Rec, options: InspectOptions, diags: any[]): InspectSelector[] {
   const given = options.selectors && options.selectors[r.id]
-  if (given) return given.map(s => ({...s}))
+  if (given) return given.map(s => withControl({...s}))
   return (selectorStatus(r.instance) || []).map(({selector, matched, crossed}) => {
     const hit = diags.find(d => d.code === 'SYG104' && d.component === r.name && d.data && d.data.selector === selector)
     const missed = diags.some(d => d.code === 'SYG103' && d.component === r.name && d.data && d.data.selector === selector)
-    return {
+    return withControl({
       selector,
       events: null,
       matched: matched === null && missed ? false : matched,
       isolationHit: crossed ? ((hit && hit.data.child) || 'a child component') : null,
-    }
+    })
   })
 }
 
@@ -296,6 +340,8 @@ export function inspect(options: InspectOptions = {}): InspectGraph {
   const components: InspectComponent[] = recs.map(r => {
     const c = r.instance
     const calculated = c && c.calculated && typeof c.calculated === 'object' ? Object.keys(c.calculated) : []
+    const selectors = selectorsOf(r, options, diags)
+    const controls = controlsOf(r, selectors)
     return {
       name: r.name,
       id: r.id,
@@ -309,7 +355,8 @@ export function inspect(options: InspectOptions = {}): InspectGraph {
       eventsEmitted: [...r.eventsEmitted],
       eventsSelected: [...r.eventsSelected],
       children: childrenOf(r, all),
-      selectors: selectorsOf(r, options, diags),
+      selectors,
+      ...(controls ? {controls} : {}),
       diagnostics: diags.filter(d => d && d.component === r.name).map(slim),
       ...(resourcesOf(c) ? {resources: resourcesOf(c)} : {}),
     }

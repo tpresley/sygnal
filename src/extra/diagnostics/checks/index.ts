@@ -24,6 +24,8 @@
  * | SYG633 | abort names a lane its requests don't use              | fetch.ts       |
  * | SYG635 | cache: true / staleTime / prefetch without queryCache() | fetch.ts       |
  * | SYG115 | unknown DOM event shorthand (DOM.key(...))             | shorthand.ts   |
+ * | SYG124 | component where a control or selector is expected      | controls.ts    |
+ * | SYG125 | control given component statics / bad spec vnode()     | controls.ts    |
  * | SYG116 | EVENTS value with no string type (a function)          | events.ts      |
  * | SYG130 | href() names no route / leaves out a param             | router.ts      |
  * | SYG131 | route params the pattern doesn't use                   | router.ts      |
@@ -41,7 +43,7 @@
  * | SYG508 | strict: select()/errors() round trip on a reply source | replies.ts    |
  * | —      | inspect(): the runtime app graph (2B)                  | inspect.ts     |
  *
- * SYG112, SYG130-133 (PLAN-3) and SYG115/116/221/421 (G-143) are dev-entry-only codes: their severities live in
+ * SYG112, SYG130-133 (PLAN-3), SYG115/116/221/421 (G-143) and SYG124/125 (PLAN-4 CT-1) are dev-entry-only codes: their severities live in
  * DEV_CODE_SEVERITY (codes.ts), registered by ./shared, not in the main bundle.
  *
  * Strict checks (SYG5xx) only report after configureStrict(true) (or
@@ -57,6 +59,7 @@ import {propsCheck} from './props'
 import {collectionsCheck} from './collections'
 import {domCheck} from './dom'
 import {shorthandCheck} from './shorthand'
+import {controlsCheck, installControlHooks} from './controls'
 import {datasetCheck} from './dataset'
 import {strictCheck} from './strict'
 import {repliesCheck} from './replies'
@@ -70,7 +73,7 @@ export {configureStrict, isStrictEnabled} from './strict'
 export type {EventBusSummary} from './events'
 export {RXJS_HINTS} from './rxjsHints'
 export {inspect} from './inspect'
-export type {InspectResource, InspectCacheEntry, InspectGraph, InspectComponent, InspectAction, InspectActionTrigger, InspectChild, InspectSelector, InspectDiagnostic, InspectOptions} from './public'
+export type {InspectResource, InspectCacheEntry, InspectGraph, InspectComponent, InspectAction, InspectActionTrigger, InspectChild, InspectSelector, InspectControl, InspectDiagnostic, InspectOptions} from './public'
 export {listCodes, getCodeInfo} from '../codes'
 export type {DiagnosticCodeInfo} from '../codes'
 
@@ -83,6 +86,7 @@ export const checks: DiagnosticCheck[] = [
   collectionsCheck,
   domCheck,
   shorthandCheck,
+  controlsCheck,
   datasetCheck,
   strictCheck,
   repliesCheck,
@@ -104,11 +108,13 @@ export function installChecks(): () => void {
   const uninstallHints = installRxjsHints(Stream && Stream.prototype)
   const uninstallInspect = installInspect()
   const uninstallRouter = installRouterHooks()
+  const uninstallControls = installControlHooks()
   const uninstall = () => {
     unregister.forEach(fn => fn())
     uninstallHints()
     uninstallInspect()
     uninstallRouter()
+    uninstallControls()
     if (core.__uninstallChecks === uninstall) core.__uninstallChecks = undefined
   }
   core.__uninstallChecks = uninstall
