@@ -120,6 +120,17 @@ TodoItem.model = {
 }
 ```
 
+When the entry also sends to another sink, the object form keeps the removal as its `STATE` entry. Without `STATE: () => undefined` the item announces its removal but stays in the array:
+
+```jsx
+TodoItem.model = {
+  DELETE: {
+    STATE:  () => undefined,                        // still removes the item
+    EVENTS: event('TODO_DELETED', (state) => state.id),
+  },
+}
+```
+
 This is the one place where returning `undefined` is intended. (In a root component, a reducer that returns `undefined` is a bug: [SYG202](/reference/errors/#syg202).) The parent can also remove items itself, by filtering the array in its own reducer, for example when it receives a `PARENT` event from the item (see [Parent-Child Communication](/guide/parent-child/)).
 
 ## Disposal

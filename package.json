@@ -31,6 +31,11 @@
       "import": "./dist/diagnostics.esm.js",
       "require": "./dist/diagnostics.cjs.js"
     },
+    "./devtools": {
+      "types": "./src/devtools.d.ts",
+      "import": "./dist/devtools.esm.js",
+      "require": "./dist/devtools.cjs.js"
+    },
     "./shims/globalthis": "./dist/shims/globalthis.cjs",
     "./vite": {
       "types": "./src/vite/plugin.d.ts",
@@ -94,7 +99,7 @@
     "test:browser": "npm test --prefix browser-tests",
     "test:watch": "vitest",
     "clean": "node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\"",
-    "build": "npm run clean && npx rollup -c && npx rollup -c rollup.config.dts.mjs",
+    "build": "npm run clean && npx rollup -c && npx rollup -c rollup.config.dts.mjs && node scripts/copy-guides.mjs",
     "build:types": "npx rollup -c rollup.config.dts.mjs",
     "build:all": "npm run build",
     "build:devtools": "node devtools/build.mjs",

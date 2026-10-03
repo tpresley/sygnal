@@ -415,10 +415,15 @@ describe('E4: dispose and the shared t.* API', () => {
     expect(t.query('span').textContent).toBe('0')
   })
 
-  it('mock mode: query() explains that it needs { dom: "real" }', () => {
+  // 6-B (G-185): was "query() explains that it needs { dom: 'real' }"; the mock DOM now
+  // answers query() with snapshots, and only real-DOM-only calls point to dom: 'real'
+  it('mock mode: query() reads the rendered tree; focus() explains that it needs { dom: "real" }', async () => {
     t = renderComponent(Counter)
     expect(t.container).toBe(null)
-    expect(() => t.query('.inc')).toThrow(/dom: 'real'/)
+    await t.ready()
+    expect(t.query('span').textContent).toBe('0')
+    expect(t.queryAll('.counter > *').map(e => e.tagName)).toEqual(['BUTTON', 'SPAN'])
+    expect(() => t.query('.inc').focus()).toThrow(/dom: 'real'/)
   })
 
   it('without a document it throws a clear error', () => {

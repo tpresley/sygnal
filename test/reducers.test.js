@@ -15,6 +15,7 @@ import component from '../src/component.js'
 import eventBusDriver from '../src/extra/eventDriver.js'
 import logDriver from '../src/extra/logDriver.js'
 import { createElement } from '../src/pragma/index.js'
+import { until } from './support/wait.js'
 
 describe('set()', () => {
   it('merges a static partial object into state', () => {
@@ -241,7 +242,10 @@ describe('event() runtime integration', () => {
       complete: () => {},
     })
 
-    await settle(150)
+    // G-176: the event fires on a 20ms timer; wait for it rather than a fixed 150ms
+    await until(() => expect(received).toHaveLength(1))
+    await until(() => expect(busEvents).toHaveLength(1))
+    await settle(30)
     appEnv.dispose()
 
     expect(received).toEqual([{ laneId: 'lane-1', count: 0, via: 'clicked' }])
@@ -265,7 +269,8 @@ describe('event() runtime integration', () => {
     App.initialState = {}
 
     const appEnv = runApp(App)
-    await settle(150)
+    await until(() => expect(received).toHaveLength(1))   // G-176: not a fixed 150ms
+    await settle(30)
     appEnv.dispose()
 
     expect(received).toEqual(['dark'])

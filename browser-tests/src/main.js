@@ -18,6 +18,8 @@ import { reviewTests2E2 } from './tests/review-2e2.jsx'
 import { apiFixTests3D } from './tests/api-fixes-3d.jsx'
 import { renderingTests1A } from './tests/rendering-1a.jsx'
 import { fetchDriverTestsE2 } from './tests/fetch-driver-e2.jsx'
+import { socketDriverTests2A } from './tests/socket-driver-2a.jsx'
+import { routerTests5_4b } from './tests/router-5-4b.jsx'
 import { domIsolationTests } from './tests/dom-isolation-6-0.jsx'
 import { getResults } from './harness.js'
 
@@ -42,6 +44,8 @@ async function runAll() {
   await apiFixTests3D()
   await renderingTests1A()
   await fetchDriverTestsE2()
+  await socketDriverTests2A()
+  await routerTests5_4b()
   await domIsolationTests()
 
   const results = getResults()

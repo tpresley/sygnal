@@ -35,6 +35,12 @@ export interface SygnalAstroOptions {
    * @default true
    */
   nativeGlobalThis?: boolean;
+  /**
+   * Install the DevTools bridge for islands in `astro dev` (see the sygnal/vite
+   * `devtools` option). Never in `astro build`.
+   * @default true
+   */
+  devtools?: boolean;
 }
 
 export default function sygnalAstroIntegration(options: SygnalAstroOptions = {}) {
@@ -57,7 +63,7 @@ export default function sygnalAstroIntegration(options: SygnalAstroOptions = {})
 
         // Dev mode (G-014): islands are started by sygnal/astro/client, which
         // user code never imports, so the sygnal Vite plugin wraps that entry
-        // in dev to set the dev flag and load the runtime checks first. It
+        // in dev to install DevTools, set the dev flag and load the runtime checks first. It
         // also runs sygnal-check. `astro build` only gets the `globalthis` alias.
         if (command === 'dev') {
           vite.plugins = [sygnalVite({
@@ -67,6 +73,7 @@ export default function sygnalAstroIntegration(options: SygnalAstroOptions = {})
             diagnostics: options.diagnostics,
             check: options.check,
             nativeGlobalThis: options.nativeGlobalThis,
+            devtools: options.devtools,
           })]
         } else if (options.nativeGlobalThis !== false) {
           // G-099: the same `globalthis` alias the plugin adds in dev (R2-7: unless the

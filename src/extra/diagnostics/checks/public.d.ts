@@ -96,15 +96,18 @@ export function getCodeInfo(code: string): DiagnosticCodeInfo | undefined
 // ---------------------------------------------------------------------------
 
 /** How an action is dispatched. */
-export type InspectActionTrigger = 'intent' | 'next' | 'builtin' | 'unknown'
+export type InspectActionTrigger = 'intent' | 'next' | 'reply' | 'builtin' | 'unknown'
 
 export interface InspectAction {
   name: string
   /**
    * 'intent': returned by the component's intent. 'builtin': BOOTSTRAP,
-   * INITIALIZE, HYDRATE, DISPOSE or READY. 'next': dispatched with next()
-   * (statically: a next('NAME') literal; at runtime: a model-only action whose
-   * STATE reducer was seen running). 'unknown': none of these is known.
+   * INITIALIZE, DISPOSE or READY. 'reply': named as a reply action by a request
+   * (`ok: 'NAME'` / `error: 'NAME'`) or a `connections` entry (statically: a
+   * string literal; at runtime: a request the instance was seen sending).
+   * 'next': dispatched with next() (statically: a next('NAME') literal; at
+   * runtime: a model-only action whose STATE reducer was seen running).
+   * 'unknown': none of these is known.
    */
   trigger: InspectActionTrigger
   /** sinks of the model entry (STATE, EVENTS, EFFECT, PARENT, custom drivers); [] without a model entry */
@@ -179,6 +182,28 @@ export interface InspectComponent {
   children: InspectChild[]
   selectors: InspectSelector[]
   diagnostics: InspectDiagnostic[]
+  /** runtime, PLAN-3 5-3: the instance's `resources` and their state */
+  resources?: InspectResource[]
+}
+
+/** PLAN-3 5-3: a resource of a component instance (runtime inspect()) */
+export interface InspectResource {
+  name: string
+  status: 'idle' | 'loading' | 'success' | 'error'
+  refreshing: boolean
+  /** `data` is set (a success, or kept through a refetch) */
+  hasData: boolean
+  /** the error message while 'error' */
+  error?: string
+}
+
+/** PLAN-3 5-3: a makeFetchDriver cache entry (runtime inspect(), t.cache) */
+export interface InspectCacheEntry {
+  key: string
+  age?: number
+  stale: boolean
+  subscribers: number
+  data: any
 }
 
 export interface InspectGraph {
@@ -190,6 +215,8 @@ export interface InspectGraph {
   events: Record<string, { emitters: string[]; selectors: string[] }>
   /** diagnostics not tied to a listed component */
   diagnostics: InspectDiagnostic[]
+  /** runtime, PLAN-3 5-3: makeFetchDriver cache entries, by sink name (empty when no cache) */
+  cache?: Record<string, InspectCacheEntry[]>
 }
 
 export interface InspectOptions {

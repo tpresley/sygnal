@@ -58,8 +58,9 @@ interface ExtensionMessage {
   source?: string;
 }
 
-class SygnalDevTools {
+export class SygnalDevTools {
   _connected: boolean;
+  _initialized = false;
   _components: Map<number, ComponentMeta>;
   _stateHistory: StateHistoryEntry[];
   _maxHistory: number;
@@ -80,8 +81,10 @@ class SygnalDevTools {
     return this._connected && typeof window !== 'undefined';
   }
 
+  /** Publish the bridge on window and listen for the extension. Idempotent (D77: called once, by 'sygnal/devtools'). */
   init(): void {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined' || this._initialized) return;
+    this._initialized = true;
 
     window.__SYGNAL_DEVTOOLS__ = this;
 
@@ -501,9 +504,27 @@ class SygnalDevTools {
 
 let instance: SygnalDevTools | null = null;
 
+/**
+ * The bridge singleton of the 'sygnal/devtools' entry. Not part of the core
+ * (D77): the core only calls the hooks of window.__SYGNAL_DEVTOOLS__ when it exists.
+ */
 export function getDevTools(): SygnalDevTools {
   if (!instance) instance = new SygnalDevTools();
   return instance;
+}
+
+/**
+ * Install the bridge (what run() did before 6.0): window.__SYGNAL_DEVTOOLS__ is
+ * set and the extension can connect. A bridge already on window (e.g. a second
+ * copy of this entry) is kept. Nothing happens outside a browser.
+ */
+export function installDevTools(): SygnalDevTools | undefined {
+  if (typeof window === 'undefined') return undefined;
+  const existing = window.__SYGNAL_DEVTOOLS__;
+  if (existing) return existing;
+  const dt = getDevTools();
+  dt.init();
+  return dt;
 }
 
 export default getDevTools;

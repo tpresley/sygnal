@@ -28,17 +28,38 @@ describe("'sygnal/diagnostics' build entry", () => {
     App.intent = ({ DOM }) => ({ ORPHAN: DOM.select('.x').events('click') })
     App.model = {}
     const t = sygnal.renderComponent(App)
-    await new Promise(r => setTimeout(r, 30))
+    // G-176: wait for the report rather than a fixed 30ms (a loaded machine runs later)
+    await vi.waitFor(() => expect(sygnal.getDiagnostics().some(d => d.code === 'SYG101')).toBe(true), { timeout: 5000 })
     t.dispose()
     const found = sygnal.getDiagnostics().filter(d => d.code === 'SYG101')
     expect(found).toHaveLength(1)
     expect(found[0].data.action).toBe('ORPHAN')
   })
 
+  it('reports the dev-only codes (G-143) with their own severity, which the main bundle does not carry', async () => {
+    const sygnal = await import('sygnal')
+    const checks = await import('sygnal/diagnostics')
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {}) // 'warn' mode (resolved at load) prints errors
+    function App() { return sygnal.createElement('div', null, 'x') }
+    App.initialState = { city: '' }
+    App.intent = ({ DOM }) => ({ GO: DOM.select('.go').events('click'), KEY: DOM.key('.go') })
+    App.model = { GO: sygnal.set('city'), KEY: s => s }
+    const t = sygnal.renderComponent(App, { mockConfig: { '.go': { click: (await import('xstream')).default.periodic(10).take(1).mapTo('Paris') } } })
+    // G-176: the mock click fires 10ms in (a timer): wait for its report, not a fixed 30ms
+    await vi.waitFor(() => expect(sygnal.getDiagnostics().map(d => d.code)).toEqual(expect.arrayContaining(['SYG221', 'SYG115'])), { timeout: 5000 })
+    t.dispose()
+    const found = Object.fromEntries(sygnal.getDiagnostics().map(d => [d.code, d.severity]))
+    expect(found.SYG221).toBe('error')
+    expect(found.SYG115).toBe('warn')
+    expect(checks.getCodeInfo('SYG421').severity).toBe('error')
+    err.mockRestore()
+  })
+
   it('keeps the check code out of the main bundle', () => {
     const main = readFileSync(dist('index.esm.js'), 'utf8')
     const entry = readFileSync(dist('diagnostics.esm.js'), 'utf8')
-    for (const marker of ['has not matched any element', 'is an RxJS operator', 'likely a missing ...state spread']) {
+    for (const marker of ['has not matched any element', 'is an RxJS operator', 'likely a missing ...state spread',
+      'is not a DOM event', 'one per character of', "with no string 'type'", 'Unknown DOM event shorthand']) {
       expect(entry).toContain(marker)
       expect(main).not.toContain(marker)
     }

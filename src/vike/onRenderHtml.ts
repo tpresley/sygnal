@@ -15,7 +15,7 @@
  */
 
 // @ts-ignore — resolved at runtime via package exports
-import { renderToString } from 'sygnal'
+import { renderToString, renderHead, queryCache } from 'sygnal'
 
 interface PageContext {
   Page: any
@@ -33,6 +33,12 @@ interface PageContext {
     ssr?: boolean
   }
   is404?: boolean
+  /**
+   * PLAN-3 5-5 (H-7): a queryCache() snapshot a loader (+data) seeded:
+   * `pageContext.queryCache = cache.dehydrate()`. Resources render from it here, and Vike passes
+   * it to the client (passToClient), where onRenderClient hydrates the drivers' caches with it
+   */
+  queryCache?: any
 }
 
 /**
@@ -107,6 +113,9 @@ export function onRenderHtml(pageContext: PageContext) {
     urlPathname: () => pageContext.urlPathname || '',
   }
 
+  // PLAN-3 5-5 (H-7): the seeded cache the components' resources render from
+  const cache = pageContext.queryCache ? queryCache({ initial: pageContext.queryCache }) : undefined
+
   // Determine if Wrapper(s) and/or Layout(s) are present — this affects hydration state shape
   const wrapperArray = config.Wrapper
     ? (Array.isArray(config.Wrapper) ? config.Wrapper : [config.Wrapper])
@@ -121,11 +130,15 @@ export function onRenderHtml(pageContext: PageContext) {
   // Render the page component to HTML, with error boundary.
   // When layouts are present, the hydration state is serialized separately
   // as the wrapper's combined state (with page + layout slices).
+  // PLAN-3 (HEAD driver): the `head` statics of the rendered components (shell first, so the page's win)
+  const pageHeads: any[] = [], shellHeads: any[] = []
   let pageHtml: string
   try {
     pageHtml = renderToString(Page, {
       state: initialState,
       hydrateState: hasShell ? false : '__VIKE_SYGNAL_STATE__',
+      head: pageHeads,
+      cache,
     })
   } catch (err: any) {
     // If the component has an onError boundary, try rendering its fallback
@@ -169,6 +182,8 @@ export function onRenderHtml(pageContext: PageContext) {
       const compHtml = renderToString(comp, {
         state: comp.initialState || {},
         props: { innerHTML: PLACEHOLDER },
+        head: shellHeads,
+        cache,
       })
       const splitIdx = compHtml.indexOf(PLACEHOLDER)
       if (splitIdx !== -1) {
@@ -205,8 +220,12 @@ export function onRenderHtml(pageContext: PageContext) {
   const favicon = config.favicon || ''
   const lang = config.lang || 'en'
 
-  const titleTag = title ? `<title>${esc(title)}</title>` : ''
-  const descTag = description
+  const heads = [...shellHeads, ...pageHeads].filter(Boolean)
+  // with `head` statics, config.title / description are the defaults they override
+  const titleTag = heads.length
+    ? renderHead([{ title: title || undefined, meta: { description: description || undefined } }, ...heads])
+    : title ? `<title>${esc(title)}</title>` : ''
+  const descTag = description && !heads.length
     ? `<meta name="description" content="${esc(description)}">`
     : ''
   const faviconTag = favicon

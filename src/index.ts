@@ -11,6 +11,10 @@ export { Slot } from "./slot"
 export { lazy } from "./lazy"
 export { driverFromAsync } from "./extra/driverFactories"
 export { makeFetchDriver } from "./extra/fetchDriver"
+export { queryCache } from "./extra/queryCache"
+export { makeSocketDriver } from "./extra/socketDriver"
+export { makeRouter, makeRouterDriver } from "./extra/router"
+export { makeHeadDriver, renderHead } from "./extra/head"
 export { default as processForm } from "./extra/processForm"
 export { default as processDrag } from "./extra/processDrag"
 export { makeDragDriver } from "./extra/dragDriver"
@@ -26,7 +30,7 @@ export { set, toggle, emit, event } from './extra/reducers'
 export { makeServiceWorkerDriver, onlineStatus$, createInstallPrompt } from './extra/pwa'
 export { renderToString } from './extra/ssr'
 export { default as xs } from './extra/xstreamCompat'
-export { getDevTools } from './extra/devtools'
+export { getDevTools } from './extra/devtoolsHook'
 export { getDiagnostics, clearDiagnostics, onDiagnostic } from './extra/diagnostics/index'
 
 // export dom helper functions (h, makeDOMDriver, etc.)

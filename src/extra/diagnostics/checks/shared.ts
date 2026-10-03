@@ -11,6 +11,8 @@
  */
 import '../index'
 import type {DiagnosticCheck, DiagnosticDetails, Diagnostic} from '../index'
+import {CODE_TITLES, DEV_CODE_SEVERITY, registerCodes} from '../codes'
+import type {DiagnosticSeverity} from '../codes'
 
 interface CoreBridge {
   registerCheck(check: DiagnosticCheck): () => void
@@ -38,6 +40,16 @@ export const reportSafely = (code: string, details: DiagnosticDetails): Diagnost
   }
 }
 
+registerCodes(Object.keys(DEV_CODE_SEVERITY).map(code =>
+  [code, DEV_CODE_SEVERITY[code], CODE_TITLES[code]] as [string, DiagnosticSeverity, string]))
+
+/**
+ * reportSafely() for the dev-entry-only codes (DEV_CODE_SEVERITY, G-143): the main bundle's
+ * core doesn't know their severity, so it is passed explicitly.
+ */
+export const devReport = (code: string, details: DiagnosticDetails): Diagnostic | undefined =>
+  reportSafely(code, {severity: DEV_CODE_SEVERITY[code], ...details})
+
 /** Tunables (test seam: configureChecks()). */
 export const timing = {
   /** delay after a render before DOM checks run (lets nested renders patch) */
@@ -48,8 +60,60 @@ export const timing = {
   minRenders: 3,
 }
 
-/** Built-in actions Sygnal dispatches itself; never "missing" or "unreachable". */
-export const BUILTIN_ACTIONS = new Set(['BOOTSTRAP', 'INITIALIZE', 'HYDRATE', 'DISPOSE', 'READY'])
+/**
+ * Built-in actions Sygnal dispatches itself; never "missing" or "unreachable".
+ * (HYDRATE is not one since 6.0, D66: nothing dispatches it, so it is an ordinary action.)
+ */
+export const BUILTIN_ACTIONS = new Set(['BOOTSTRAP', 'INITIALIZE', 'DISPOSE', 'READY', 'RESOURCE'])
+
+/** Sinks the core handles itself: their values never go to a reply-action driver. */
+const NON_REPLY_SINK = /^(STATE|EFFECT|EVENTS|PARENT|READY|DOM|CHILD)$/
+
+// `ok: 'X'` / `"error": "X"` in function source (minified code keeps string literals and keys)
+const keyedNames = (keys: string) => new RegExp(`(?:^|[{,\\s])["']?(?:${keys})["']?\\s*:\\s*(["'\`])([\\w$.:/-]+)\\1`, 'g')
+// (PLAN-3 5-4b: and a router `{ block: 'ACTION' }`)
+const REPLY_IN_SOURCE = keyedNames('ok|error|block')
+const CONNECTION_IN_SOURCE = keyedNames('message|open|close|error')
+
+const namesIn = (fn: any, re: RegExp, out: Set<string>) => {
+  if (typeof fn !== 'function') return
+  let src = ''
+  try { src = Function.prototype.toString.call(fn) } catch (_) { return }
+  re.lastIndex = 0
+  for (let m = re.exec(src); m; m = re.exec(src)) out.add(m[2])
+}
+
+/**
+ * Reply actions a component's requests and `connections` static can name, read from the
+ * source of its non-STATE sink functions (`HTTP: (s) => ({ url, ok: 'LOADED', error: 'FAILED' })`)
+ * and of `connections` (message/open/close/error). A heuristic for SYG102 (PLAN-3): a name
+ * built at run time is missed (SYG102 stays info, so that only costs a false hint).
+ */
+export function replyNamesOf(component: any): Set<string> {
+  const out = new Set<string>()
+  const model = component && component.model
+  if (model && typeof model === 'object') {
+    for (const key of Object.keys(model)) {
+      const value = model[key]
+      const bar = key.indexOf('|')
+      if (bar >= 0) {
+        if (!NON_REPLY_SINK.test(key.slice(bar + 1).trim())) namesIn(value, REPLY_IN_SOURCE, out)
+      } else if (value && typeof value === 'object') {
+        for (const sink of Object.keys(value)) {
+          if (!NON_REPLY_SINK.test(sink)) namesIn(value[sink], REPLY_IN_SOURCE, out)
+        }
+      }
+    }
+  }
+  namesIn(component?.view?.connections, CONNECTION_IN_SOURCE, out)
+  // PLAN-3 5-4b: the router replies the action a `route` static names
+  const route = component?.view?.route
+  if (typeof route === 'string') out.add(route)
+  return out
+}
+
+/** Reply actions a component instance's requests were seen naming (replies.ts → inspect). */
+export const replySeen = new WeakMap<object, Set<string>>()
 
 /** Synthetic/internal actions (`__TEST_ACTION__`, `__NOOP_ACTION__`, ...) and built-ins. */
 export const isInternalAction = (action: string): boolean =>

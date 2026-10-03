@@ -17,8 +17,9 @@
  *                first rendered (tag → child, Collection → collection-item,
  *                Switchable → switchable)
  *   actions      intent actions + model entries; trigger: builtin
- *                (BOOTSTRAP/INITIALIZE/HYDRATE/DISPOSE/READY), intent, next
- *                (a next('NAME') literal in the model), else unknown
+ *                (BOOTSTRAP/INITIALIZE/DISPOSE/READY), intent, reply (an
+ *                ok/error literal in a request, or a `connections` name),
+ *                next (a next('NAME') literal in the model), else unknown
  *   stateKeys    initialState keys (when statically known)
  *   contextConsumes  context fields the view reads (context.x / { context: { x } })
  *   events       EVENTS sinks returning { type: 'X' }, emit()/event() calls,
@@ -194,6 +195,7 @@ export function buildGraph(project, diagnostics = []) {
     const intentActions = (c.intent?.actions || []).map(a => a.name)
     const entries = c.model?.entries || []
     const next = new Set((c.model?.nextTargets || []).map(t => t.name))
+    const replies = new Set([...(c.model?.replyTargets || []), ...(c.connections?.targets || [])].map(t => t.name))
     const sinks = new Map()
     for (const a of intentActions) sinks.set(a, sinks.get(a) || [])
     for (const e of entries) {
@@ -203,7 +205,7 @@ export function buildGraph(project, diagnostics = []) {
     }
     const actions = [...sinks].map(([name, s]) => ({
       name,
-      trigger: BUILTIN_ACTIONS.has(name) ? 'builtin' : intentActions.includes(name) ? 'intent' : next.has(name) ? 'next' : 'unknown',
+      trigger: BUILTIN_ACTIONS.has(name) ? 'builtin' : intentActions.includes(name) ? 'intent' : replies.has(name) ? 'reply' : next.has(name) ? 'next' : 'unknown',
       sinks: s,
     }))
 

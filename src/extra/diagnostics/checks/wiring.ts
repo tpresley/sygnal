@@ -1,14 +1,18 @@
 /**
  * SYG101 — intent action has no model entry (warn)
  * SYG102 — model entry has no intent trigger (info; it may still be reached
- *          with next(), which is only known at call time)
+ *          with next(), which is only known at call time). An action a request
+ *          names as a reply action, or `connections` names (`ok: 'LOADED'`, PLAN-3) counts as
+ *          triggered: replyNamesOf() reads the names from the sink functions'
+ *          source
  * SYG609 — a model sink or an intent source has no driver (warn; see below)
  *
  * Mechanism: onIntent records the intent's action names per component;
  * onModel (always called right after, once per instance) compares them with
  * the normalized model map (shorthand already expanded by the core).
  * Synthetic actions (`__*`, e.g. renderComponent's `__TEST_ACTION__`) and the
- * built-ins BOOTSTRAP/INITIALIZE/HYDRATE/DISPOSE/READY are never reported.
+ * built-ins BOOTSTRAP/INITIALIZE/DISPOSE/READY are never reported (HYDRATE is an
+ * ordinary action since 6.0).
  * Under renderComponent, intent streams injected for model actions (so that
  * simulateAction can dispatch them by their real names) are listed on the
  * intent object's non-enumerable `__sygnalTestActions` property. They are not
@@ -16,7 +20,7 @@
  * for those model actions (the test dispatches them with simulateAction).
  */
 import type {DiagnosticCheck} from '../index'
-import {report, once, isInternalAction, nameOf, didYouMean} from './shared'
+import {report, once, isInternalAction, nameOf, didYouMean, replyNamesOf} from './shared'
 
 const intentActions = new WeakMap<object, string[]>()
 
@@ -102,13 +106,14 @@ export const wiringCheck: DiagnosticCheck = {
     if (intent$ && typeof intent$.addListener === 'function') return
 
     const hmr = ([] as string[]).concat(component?.hmrActions || [])
+    const replies = replyNamesOf(component)
     for (const action of modelActions) {
-      if (isInternalAction(action) || actions.includes(action) || hmr.includes(action) || injected.has(action)) continue
+      if (isInternalAction(action) || actions.includes(action) || hmr.includes(action) || injected.has(action) || replies.has(action)) continue
       if (!once(`SYG102:${name}:${action}`)) continue
       report('SYG102', {
         component,
         message: `Model entry '${action}' has no intent action with that name${didYouMean(action, actions)}`,
-        fix: `Add '${action}' to ${name}.intent, or remove the model entry. If it is only dispatched with next('${action}'), ignore this`,
+        fix: `Add '${action}' to ${name}.intent, name it in a request (ok: '${action}'), or remove the model entry. If it is only dispatched with next('${action}'), ignore this`,
         data: {action, intentActions: actions},
       })
     }

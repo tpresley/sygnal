@@ -14,6 +14,7 @@
     "paths": {
       "sygnal": ["../src/index.d.ts"],
       "sygnal/jsx-runtime": ["../src/jsx-runtime.d.ts"],
+      "sygnal/devtools": ["../src/devtools.d.ts"],
       "xstream": ["../node_modules/xstream"],
       "xstream/*": ["../node_modules/xstream/*"]
     }

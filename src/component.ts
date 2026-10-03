@@ -21,7 +21,6 @@ const ENVIRONMENT: any =
 
 const BOOTSTRAP_ACTION = 'BOOTSTRAP';
 const INITIALIZE_ACTION = 'INITIALIZE';
-const HYDRATE_ACTION = 'HYDRATE';
 const DISPOSE_ACTION = 'DISPOSE';
 const PARENT_SINK_NAME = 'PARENT';
 const CHILD_SOURCE_NAME = 'CHILD';
@@ -98,7 +97,6 @@ export interface ComponentOptions {
   storeCalculatedInState?: boolean;
   DOMSourceName?: string;
   stateSourceName?: string;
-  requestSourceName?: string;
   isolateOpts?: string | boolean | Record<string, any>;
   isolatedState?: boolean;
   onError?: (error: Error, info: { componentName: string }) => any;
@@ -112,41 +110,15 @@ export default function component(opts: ComponentOptions): any {
     fail('SYG601', name, 'Invalid sources', 'Pass sources from run()')
   }
 
-  let fixedIsolateOpts
-  if (typeof isolateOpts == 'string') {
-    fixedIsolateOpts = { [stateSourceName]: isolateOpts }
-  } else {
-    if (isolateOpts === true) {
-      fixedIsolateOpts = {}
-    } else {
-      fixedIsolateOpts = isolateOpts
-    }
-  }
+  const fixedIsolateOpts = typeof isolateOpts == 'string' ? { [stateSourceName]: isolateOpts } : isolateOpts === true ? {} : isolateOpts
 
-  const currySources = typeof sources === 'undefined'
-  let returnFunction
-
-  if (isObj(fixedIsolateOpts)) {
-    const wrapped = (sources: any) => {
-      const fixedOpts = { ...opts, sources }
-      const instance = new Component(fixedOpts)
-      instance.sinks.__dispose = () => instance.dispose()
-      return instance.sinks
-    }
-    returnFunction = currySources ? isolate(wrapped, fixedIsolateOpts) : isolate(wrapped, fixedIsolateOpts)(sources)
-  } else {
-    if (currySources) {
-      returnFunction = (sources: any) => {
-        const instance = new Component({ ...opts, sources })
-        instance.sinks.__dispose = () => instance.dispose()
-        return instance.sinks
-      }
-    } else {
-      const instance = new Component(opts)
-      instance.sinks.__dispose = () => instance.dispose()
-      returnFunction = instance.sinks
-    }
+  const make: any = (sources: any) => {
+    const instance = new Component({ ...opts, sources })
+    instance.sinks.__dispose = () => instance.dispose()
+    return instance.sinks
   }
+  const factory = isObj(fixedIsolateOpts) ? isolate(make, fixedIsolateOpts) : make
+  const returnFunction = typeof sources === 'undefined' ? factory : factory(sources)
 
   returnFunction.componentName = name
   returnFunction.isSygnalComponent = true
@@ -160,26 +132,24 @@ export default function component(opts: ComponentOptions): any {
 
 class Component {
   _componentNumber: number;
-  name: string;
+  name!: string;
   sources: any;
   intent: any;
   model: any;
   hmrActions: any;
   context: any;
-  response: any;
   view: any;
-  peers: Record<string, any>;
-  components: Record<string, any>;
+  peers!: Record<string, any>;
+  components!: Record<string, any>;
   initialState: any;
   calculated: any;
-  storeCalculatedInState: boolean;
-  DOMSourceName: string;
-  stateSourceName: string;
-  requestSourceName: string;
-  sourceNames: string[];
-  _debug: boolean;
+  storeCalculatedInState!: boolean;
+  DOMSourceName!: string;
+  stateSourceName!: string;
+  sourceNames!: string[];
+  _debug!: boolean;
   onError: ((error: Error, info: { componentName: string }) => any) | undefined;
-  isolatedState: boolean;
+  isolatedState!: boolean;
   declare _inputSeq: number;
   isSubComponent: boolean;
   currentState: any;
@@ -211,36 +181,21 @@ class Component {
   _disposeListener: any;
   _dispose$: any;
   _disposed?: boolean;
+  _replies?: any[];
+  _ac?: AbortController;
+  _s?: any;
+  _idle?: any;
   _activeSubComponents: Map<string, any>;
   _childReadyState: Record<string, boolean>;
   _readyChanged$: any;
   _readyChangedListener: any;
 
-  constructor({name = 'NO NAME', sources, intent, model, hmrActions, context, response, view, peers = {}, components = {}, initialState, calculated, storeCalculatedInState = true, DOMSourceName = 'DOM', stateSourceName = 'STATE', requestSourceName = 'HTTP', isolatedState = false, onError, debug = false}: ComponentOptions) {
+  constructor({name = 'NO NAME', sources, intent, model, hmrActions, context, view, peers = {}, components = {}, initialState, calculated, storeCalculatedInState = true, DOMSourceName = 'DOM', stateSourceName = 'STATE', isolatedState = false, onError, debug = false}: ComponentOptions) {
     if (!sources || !isObj(sources)) fail('SYG601', name, 'Missing or invalid sources', 'Pass sources from run()')
 
     this._componentNumber = COMPONENT_COUNT++
 
-    this.name       = name
-    this.sources    = sources
-    this.intent     = intent
-    this.model      = model
-    this.hmrActions = hmrActions
-    this.context    = context
-    this.response   = response
-    this.view       = view
-    this.peers      = peers
-    this.components = components
-    this.initialState      = initialState
-    this.calculated        = calculated
-    this.storeCalculatedInState = storeCalculatedInState
-    this.DOMSourceName     = DOMSourceName
-    this.stateSourceName   = stateSourceName
-    this.requestSourceName = requestSourceName
-    this.sourceNames       = Object.keys(sources)
-    this.onError           = onError
-    this.isolatedState     = isolatedState
-    this._debug            = debug
+    Object.assign(this, { name, sources, intent, model, hmrActions, context, view, peers, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, sourceNames: Object.keys(sources), onError, isolatedState, _debug: debug })
 
     // Warn if calculated fields shadow base state keys
     if (this.calculated && this.initialState
@@ -406,12 +361,23 @@ class Component {
 
     // Ensure that the root component has an intent and model
     // This is necessary to ensure that the component tree's state sink is subscribed to
-    if (!this.isSubComponent && typeof this.intent === 'undefined' && typeof this.model === 'undefined') {
+    // G-172: also for a root with an intent but no model (it rendered nothing under run())
+    if (!this.isSubComponent && typeof this.model === 'undefined') {
       this.initialState = initialState || true
-      this.intent = (_: any) => ({__NOOP_ACTION__:xs.never()})
+      if (typeof this.intent === 'undefined') this.intent = (_: any) => ({__NOOP_ACTION__:xs.never()})
       this.model = {
         __NOOP_ACTION__: (state: any) => state
       }
+    }
+    // PLAN-3 3-A: Component.resources = { name: state => request | falsy }. The makeFetchDriver
+    // source gets { resources } (below, as connections) and writes state[name] = { status, data,
+    // error } with the built-in RESOURCE action (a model RESOURCE entry replaces it). Until then
+    // state[name] reads as idle (addCalculated)
+    const res = (view as any)?.resources
+    if (res) {
+      this.model = { RESOURCE: (s: any, { name, ...r }: any) => ({ ...s, [name]: r }), ...this.model }
+      this._idle = {}
+      for (const k in res) this._idle[k] = { status: 'idle' }
     }
     // B-016: initialState is applied by the INITIALIZE action, which needs a model. D44: only
     // for a sub-component with no `state` prop; an existing parent slice is never overwritten
@@ -488,26 +454,21 @@ class Component {
       } catch (_) {}
       this._disposeListener = null
     }
+    // G-144: stop the reply actions now, so none reaches this instance after DISPOSE and the
+    // drivers abort its requests with reply actions in flight (rather than when action$ completes below)
+    this._replies?.forEach(r$ => r$.shamefullySendComplete())
+    // 1-B: abort the EFFECT props.signal (after DISPOSE ran, so a DISPOSE EFFECT gets it too)
+    this._ac?.abort()
     // Dispose the sub-components now (R3), so the whole subtree's DISPOSE actions and
     // onDispose hooks run within this call (e.g. before renderComponent restores diagnostics)
     this._activeSubComponents.forEach((entry) => entry?.sink$?.__dispose?.())
     this._activeSubComponents.clear()
     // Tear down streams on next macrotask to allow DISPOSE/cleanup actions to process
     setTimeout(() => {
-      // Complete the action$ stream to stop the entire component cycle
-      if (this.action$ && typeof this.action$.shamefullySendComplete === 'function') {
-        try { this.action$.shamefullySendComplete() } catch (_) {}
-      }
-      // Complete the vdom$ stream to stop rendering
-      if (this.vdom$ && typeof this.vdom$.shamefullySendComplete === 'function') {
-        try { this.vdom$.shamefullySendComplete() } catch (_) {}
-      }
-      // Unsubscribe tracked internal subscriptions
-      for (const sub of this._subscriptions) {
-        if (sub && typeof sub.unsubscribe === 'function') {
-          try { sub.unsubscribe() } catch (_) {}
-        }
-      }
+      // Complete action$ (stops the entire component cycle) and vdom$ (stops rendering), then
+      // unsubscribe the tracked internal subscriptions
+      for (const s of [this.action$, this.vdom$]) try { s?.shamefullySendComplete?.() } catch (_) {}
+      for (const sub of this._subscriptions) try { sub?.unsubscribe?.() } catch (_) {}
       this._subscriptions = []
     }, 0)
   }
@@ -539,7 +500,7 @@ class Component {
 
   initHmrActions(): void {
     if (typeof this.hmrActions === 'undefined') {
-      this.hmrAction$ = xs.of().filter((_: any) => false)
+      this.hmrAction$ = xs.empty()
       return
     }
     if (typeof this.hmrActions === 'string') {
@@ -552,9 +513,7 @@ class Component {
   }
 
   initAction$(): void {
-    const requestSource  = (this.sources && this.sources[this.requestSourceName]) || null
-
-    // G-107: a component with a model but no intent still gets BOOTSTRAP (and HYDRATE)
+    // G-107: a component with a model but no intent still gets BOOTSTRAP
     const intent$ = this.intent$ || {}
 
     let runner
@@ -575,25 +534,17 @@ class Component {
     const action$    = ((runner instanceof Stream) ? runner : (runner.apply && runner(this.sources) || xs.never()))
     const bootstrap$ = xs.of({ type: BOOTSTRAP_ACTION }).compose(delay(10))
     const _hmrUpdating = typeof window !== 'undefined' && window.__SYGNAL_HMR_UPDATING === true
-    const hmrAction$ = _hmrUpdating ? this.hmrAction$ : xs.of().filter((_: any) => false)
+    const hmrAction$ = _hmrUpdating ? this.hmrAction$ : xs.empty()
     const wrapped$   = (this.model?.[BOOTSTRAP_ACTION] &&!_hmrUpdating) ? concat(bootstrap$, action$) : concat(xs.of().compose(delay(1)).filter((_: any) => false), hmrAction$, action$)
 
-
-    let initialApiData
-    if (!_hmrUpdating && requestSource && typeof requestSource.select == 'function' && !requestSource.__sygnalFetch) {
-      // legacy @cycle/http: select() emits response streams. A makeFetchDriver/driverFromAsync
-      // source named HTTP emits plain responses, which are not hydration data (E2); the fetch
-      // driver and renderComponent's fake say so up front (R4-7)
-      initialApiData = requestSource.select('initial')
-        .filter((r$: any) => r$ && typeof r$.addListener == 'function')
-        .flatten()
-    } else {
-      initialApiData = xs.never()
-    }
-
-    const hydrate$ = initialApiData.map((data: any) => ({ type: HYDRATE_ACTION, data }))
-
-    this.action$   = xs.merge(wrapped$, hydrate$)
+    // PLAN-3 reply actions: a reply-capable source (makeFetchDriver, driverFromAsync, ...)
+    // delivers the replies to this instance's own requests as actions (src/extra/replies.ts).
+    // === true: the DOM source is a Proxy that answers any property with a function.
+    // dispose() completes them, so the driver drops/aborts this instance's requests at once (G-144)
+    this._replies = this.sourceNames.filter(n => this.sources[n]?.__sygnalReplies === true).map(n => this.sources[n].replies(this._componentNumber))
+    // xs.never(): action$ outlives a finite intent, so DISPOSE can still be sent (it was
+    // the legacy hydrate$ that did this)
+    this.action$   = xs.merge(wrapped$, xs.never(), ...this._replies)
       .compose(this.log(({ type }: any) => `<${type}> Action triggered`))
       .map((action: any) => {
         if (typeof window !== 'undefined' && window.__SYGNAL_DEVTOOLS__?.connected) {
@@ -669,12 +620,45 @@ class Component {
     this._subscriptions.push(this.context$.subscribe({ next: (_: any) => _, error: (err: any) => logError('SYG404', this, 'Context stream errored; context stops updating', 'Check the context functions', err) }))
   }
 
+  // PLAN-3 statics (connections, resources, route, head): see the comment where model$ is built
+  initStatics(model$: Record<string, any>, keep?: any): void {
+    this.sourceNames.forEach(n => {
+      const k = this.sources[n]?.__sygnalStatic, f = typeof k == 'string' && this.view?.[k]
+      if (!f) return
+      const own$: any = xs.create()
+      model$[n] = xs.merge(
+        xs.combine(xs.merge(this.sources[this.stateSourceName].stream, this._s ||= xs.create()).compose(dropRepeats())
+          .map((s: any) => {
+            try {
+              s = this.addCalculated(s)
+              let v = f
+              if (typeof f == 'function') v = f(s)
+              else if (typeof f == 'object') { v = {}; for (const r in f) v[r] = f[r](s) }
+              return [v]
+            } catch (err) { caught('SYG216', this, `${k} threw; nothing sent`, ERR_FIX, err) }
+          }), this.sources.__switchPage?.shown$ || xs.of(1))
+          .map(([w, shown]: any) => {
+            let v = w?.[0]
+            if (!shown && v && typeof v == 'object') { v = {}; for (const r in w[0]) if (w[0][r]?.background) v[r] = w[0][r] }
+            return w && {[k]: v}
+          }).compose(dropRepeats(objIsEqual)),
+        (model$[n] || xs.never()).filter((v: any) => queueMicrotask(() => queueMicrotask(() => own$.shamefullySendNext(v))) as any),
+        // G-167: without a model nothing else subscribes action$ (and its replies), so the driver
+        // would never see this sender stop
+        keep ? keep.filter(() => false) : xs.never(),
+        own$)
+    })
+
+  }
+
   initModel$(): void {
     if (typeof this.model == 'undefined') {
       this.model$ = this.sourceNames.reduce((a: Record<string, any>, s) => {
         a[s] = xs.never()
         return a
       }, {} as Record<string, any>)
+      // G-167: statics are sent without a model too
+      this.initStatics(this.model$, this.action$)
       // [diagnostics hook]
       diag.onModel(this, {})
       return
@@ -753,12 +737,7 @@ class Component {
 
         // EFFECT sink: run the reducer for side effects only, no state change or sink output
         if (sink === EFFECT_SINK_NAME) {
-          const effect$ = this.makeEffectHandler(snapshotted$, action, reducer, this.action$)
-          if (Array.isArray(reducers[sink])) {
-            reducers[sink].push(effect$)
-          } else {
-            reducers[sink] = [effect$]
-          }
+          ;(reducers[sink] ||= []).push(this.makeEffectHandler(snapshotted$, action, reducer, this.action$))
           return
         }
 
@@ -780,11 +759,7 @@ class Component {
             }
           }))
 
-        if (Array.isArray(reducers[sink])) {
-          reducers[sink].push(wrapped$)
-        } else {
-          reducers[sink] = [wrapped$]
-        }
+        ;(reducers[sink] ||= []).push(wrapped$)
       })
     })
 
@@ -794,6 +769,18 @@ class Component {
       return acc
     }, {} as Record<string, any>)
 
+    // PLAN-3 §1.3: Component.connections(state) is sent as { connections } to the sink of a
+    // makeSocketDriver (its source is marked), from the current state (and from this
+    // component's own reducer results: below a Collection the state stream lags a debounce),
+    // without equal repeats. G-158: the component's own values on that sink go two microtasks
+    // later, after its reducer ran, so a connection the same action opens or changes is first
+    // 3-A: the same for Component.resources ({ name: state => request }) to makeFetchDriver: the
+    // source names the static it takes (__sygnalStatic)
+    // D85: in a hidden Switchable page, an object declaration keeps only its entries with
+    // `background: true` (the driver closes / idles the rest as removed); shown, all of them.
+    // Any other value (a `route` string) stays as it is
+    this.initStatics(model$)
+
     this.model$ = model$
 
     // [diagnostics hook]
@@ -801,14 +788,8 @@ class Component {
   }
 
   initPeers$(): void {
-    const initial: Record<string, any> = this.sourceNames.reduce((acc: Record<string, any>, name) => {
-      if (name == this.DOMSourceName) {
-        acc[name] = {}
-      } else {
-        acc[name] = []
-      }
-      return acc
-    }, {} as Record<string, any>)
+    const initial: Record<string, any> = {}
+    for (const name of this.sourceNames) initial[name] = name == this.DOMSourceName ? {} : []
 
     this.peers$ = Object.entries(this.peers).reduce((acc: Record<string, any>, [peerName, peerFactory]) => {
       const peer$ = peerFactory(this.sources)
@@ -921,19 +902,20 @@ class Component {
     // merged with the sub-components' (B-023: stamping the merged sink made every ancestor
     // re-stamp, so the emitter was always the root). Non-enumerable (G-020), so sink values
     // still toEqual what the model returned.
-    const ev$ = this.model$.EVENTS
-    if (ev$) this.model$.EVENTS = ev$.map((ev: any) => Object.defineProperties({...ev}, {
-      __emitterId: { value: this._componentNumber, configurable: true },
-      __emitterName: { value: this.name, configurable: true },
-    }))
+    // PLAN-3: the same stamp tags this component's own requests to a reply-capable source
+    // (__emitterId is the sender its reply actions go to). Only object requests are stamped
+    // (a string is a plain GET); every EVENTS value is, as before (G-147).
+    ;['EVENTS', ...this.sourceNames.filter(n => this.sources[n]?.__sygnalReplies === true)].forEach(n => {
+      const s$ = this.model$[n]
+      if (s$) this.model$[n] = s$.map((v: any) => n == 'EVENTS' || isObj(v) ? Object.defineProperties({...v}, {
+        __emitterId: { value: this._componentNumber, configurable: true },
+        __emitterName: { value: this.name, configurable: true },
+      }) : v)
+    })
     this.sinks = this.sourceNames.reduce((acc: Record<string, any>, name) => {
       if (name == this.DOMSourceName) return acc
       const subComponentSink$ = (this.subComponentSink$ && name !== PARENT_SINK_NAME) ? this.subComponentSink$.map((sinks: any) => sinks[name]).filter((sink: any) => !!sink).flatten() : xs.never()
-      if (name === this.stateSourceName) {
-        acc[name] = xs.merge((this.model$[name] || xs.never()), subComponentSink$, this.sources[this.stateSourceName].stream.filter((_: any) => false), ...(this.peers$[name] || []))
-      } else {
-        acc[name] = xs.merge((this.model$[name] || xs.never()), subComponentSink$, ...(this.peers$[name] || []))
-      }
+      acc[name] = xs.merge((this.model$[name] || xs.never()), subComponentSink$, ...(name === this.stateSourceName ? [this.sources[name].stream.filter((_: any) => false)] : []), ...(this.peers$[name] || []))
       return acc
     }, {} as Record<string, any>)
 
@@ -951,13 +933,7 @@ class Component {
     }
     // READY sink: if the component explicitly defined READY model entries, use them;
     // otherwise auto-emit true. Check the raw model object, not model$ (which always has keys for all sources).
-    const hasExplicitReady = this.model && isObj(this.model) && Object.values(this.model).some(
-      (sinks: any) => {
-        if (isObj(sinks) && READY_SINK_NAME in sinks) return true
-        return false
-      }
-    )
-    if (hasExplicitReady) {
+    if (isObj(this.model) && Object.values(this.model).some((sinks: any) => isObj(sinks) && READY_SINK_NAME in sinks)) {
       this.sinks[READY_SINK_NAME] = this.model$[READY_SINK_NAME]
       this.sinks[READY_SINK_NAME].__explicitReady = true
     } else {
@@ -1008,7 +984,11 @@ class Component {
                 diag.onReducer(this, name, _state, newState, this.stateSourceName)
                 const result = this.cleanupCalculated(newState)
                 // B-013: later same-tick actions' non-STATE sinks snapshot currentState (B-003)
-                if (fresh) this.currentState = result
+                // (and the connections static: _s, which feeds it ahead of a Collection's debounce)
+                if (fresh) {
+                  this.currentState = result
+                  this._s?.shamefullySendNext(result)
+                }
                 return result
               } catch (err) {
                 caught('SYG216', this, `Reducer for '${name}' threw; state unchanged`, ERR_FIX, err)
@@ -1055,21 +1035,28 @@ class Component {
       if (typeof reducer === 'function') {
         const next = (type: any, data: any, delay=10) => {
           if (typeof delay !== 'number') fail('SYG215', this, `next() delay in '${name}' must be a number`, "Use next('ACTION', data, ms)")
+          // 1-B: an async EFFECT can resolve after unmount; its next() then does nothing
+          if (this._disposed) return this.log(`next(${type}) ignored: disposed`, true)
           setTimeout(() => {
             rootAction$.shamefullySendNext({ type, data })
           }, delay)
           this.log(`<${name}> EFFECT triggered a next() action: <${type}> ${delay}ms delay`, true)
         }
+        const failed = (err: any) => caught('SYG214', this, `EFFECT handler '${name}' threw`, ERR_FIX, err)
 
         try {
           const enhancedState = this.addCalculated(STATE_SNAPSHOT in action ? action[STATE_SNAPSHOT] : this.currentState)
-          const props = { ...this.currentProps, children: this.currentChildren, slots: this.currentSlots || {}, context: this.currentContext, state: enhancedState }
+          // 1-B: signal (EFFECT only) aborts on DISPOSE; one controller per instance, made on
+          // the first EFFECT, skipped where AbortController is missing
+          const props = { ...this.currentProps, children: this.currentChildren, slots: this.currentSlots || {}, context: this.currentContext, state: enhancedState, signal: (this._ac ||= globalThis.AbortController && new AbortController())?.signal }
           const result = reducer(enhancedState, action.data, next, props)
-          if (result !== undefined && !isAbort(result)) {
+          // 1-B: a returned thenable (async EFFECT) is expected; its rejection is SYG214
+          if (result?.then) result.then(null, failed)
+          else if (result !== undefined && !isAbort(result)) {
             warn('SYG219', this, `EFFECT handler '${name}' returned a value, which is ignored`, 'Use a STATE or driver sink')
           }
         } catch (err) {
-          caught('SYG214', this, `EFFECT handler '${name}' threw`, ERR_FIX, err)
+          failed(err)
         }
       }
       return null
@@ -1081,25 +1068,17 @@ class Component {
     let lastResult: any
 
     return function(this: Component, state: any) {
-      if (!this.calculated || !isObj(state) || Array.isArray(state)) return state
+      const idle = this._idle
+      if (!(this.calculated || idle) || !isObj(state) || Array.isArray(state)) return state
       if (state === lastState) {
         return lastResult
       }
-      if (!isObj(this.calculated)) fail('SYG606', this, 'calculated must be an object', 'Use calculated = { field: state => value }')
+      if (this.calculated && !isObj(this.calculated)) fail('SYG606', this, 'calculated must be an object', 'Use calculated = { field: state => value }')
 
       const calculated = this.getCalculatedValues(state)
-      if (!calculated) {
-        lastState = state
-        lastResult = state
-        return state
-      }
-
-      const newState = { ...state, ...calculated }
-
       lastState = state
-      lastResult = newState
-
-      return newState
+      // 3-A: a resource with no state[name] yet reads as idle
+      return lastResult = calculated || idle ? { ...idle, ...state, ...calculated } : state
     }
   }
 
@@ -1112,43 +1091,22 @@ class Component {
     const computedSoFar: Record<string, any> = {}
 
     for (const [field, { fn, deps }] of this._calculatedOrder) {
-      if (deps !== null && this._calculatedFieldCache) {
-        const cache = this._calculatedFieldCache[field]
-        const currentDepValues = deps.map(d => mergedState[d])
-
-        if (cache.lastDepValues !== undefined) {
-          let unchanged = true
-          for (let i = 0; i < currentDepValues.length; i++) {
-            if (currentDepValues[i] !== cache.lastDepValues[i]) {
-              unchanged = false
-              break
-            }
-          }
-          if (unchanged) {
-            computedSoFar[field] = cache.lastResult
-            mergedState[field] = cache.lastResult
-            continue
-          }
-        }
-
-        try {
-          const result = fn(mergedState)
+      // memoized on the declared deps; without deps, always recomputed
+      const cache = deps && this._calculatedFieldCache?.[field]
+      const currentDepValues: any = cache && deps!.map(d => mergedState[d])
+      if (cache && cache.lastDepValues && currentDepValues.every((v: any, i: number) => v === cache.lastDepValues[i])) {
+        computedSoFar[field] = mergedState[field] = cache.lastResult
+        continue
+      }
+      try {
+        const result = fn(mergedState)
+        if (cache) {
           cache.lastDepValues = currentDepValues
           cache.lastResult = result
-          computedSoFar[field] = result
-          mergedState[field] = result
-        } catch (e: unknown) {
-          warn('SYG220', this, `Calculated field '${field}' threw (${e instanceof Error ? e.message : e}); skipped this update`, 'Guard against missing data')
         }
-      } else {
-        // No deps declared — always recompute
-        try {
-          const result = fn(mergedState)
-          computedSoFar[field] = result
-          mergedState[field] = result
-        } catch (e: unknown) {
-          warn('SYG220', this, `Calculated field '${field}' threw (${e instanceof Error ? e.message : e}); skipped this update`, 'Guard against missing data')
-        }
+        computedSoFar[field] = mergedState[field] = result
+      } catch (e: unknown) {
+        warn('SYG220', this, `Calculated field '${field}' threw (${e instanceof Error ? e.message : e}); skipped this update`, 'Guard against missing data')
       }
     }
 
@@ -1194,15 +1152,9 @@ class Component {
       renderParams.context = this.context$.compose(dropRepeats(objIsEqual))
     }
 
-    const names: string[] = []
-    const streams: any[] = []
+    const names = Object.keys(renderParams)
 
-    Object.entries(renderParams).forEach(([name, stream]: [string, any]) => {
-      names.push(name)
-      streams.push(stream)
-    })
-
-    let combined = xs.combine(...streams)
+    let combined = xs.combine(...Object.values(renderParams))
       // G-146: the input counter as of the state and props this render will show
       .map((arr: any) => (this._inputSeq = renderSeq(), arr))
       .compose(debounce(1))
@@ -1244,9 +1196,7 @@ class Component {
 
       if (entries.length === 0) {
         // Dispose any previously active sub-components
-        this._activeSubComponents.forEach((entry) => {
-          if (entry?.sink$?.__dispose) entry.sink$.__dispose()
-        })
+        this._activeSubComponents.forEach((entry) => entry?.sink$?.__dispose?.())
         this._activeSubComponents.clear()
         return rootEntry
       }
@@ -1288,21 +1238,11 @@ class Component {
         const props$    = xs.create().startWith(props)
         const children$ = xs.create().startWith(children)
 
-        let instantiator
-
-        if (isCollection) {
-          instantiator = this.instantiateCollection.bind(this)
-        } else if (isSwitchable) {
-          instantiator = this.instantiateSwitchable.bind(this)
-        } else {
-          instantiator = this.instantiateCustomComponent.bind(this)
-        }
-
         newInstanceCount++
 
         let sink$
         try {
-          sink$ = instantiator(el, props$, children$)
+          sink$ = (isCollection ? this.instantiateCollection : isSwitchable ? this.instantiateSwitchable : this.instantiateCustomComponent).call(this, el, props$, children$)
         } catch (err) {
           const error = err instanceof Error ? err : new Error(String(err))
           caught('SYG408', this, 'Sub-component threw; rendering the error fallback', ERR_FIX, error)
@@ -1337,7 +1277,7 @@ class Component {
       const currentIds = new Set(Object.keys(newComponents))
       this._activeSubComponents.forEach((entry, id) => {
         if (!currentIds.has(id)) {
-          if (entry?.sink$?.__dispose) entry.sink$.__dispose()
+          entry?.sink$?.__dispose?.()
           this._activeSubComponents.delete(id)
           delete this._childReadyState[id]
         }
@@ -1496,24 +1436,13 @@ class Component {
         }
       }
     } else if (typeof stateField === 'string') {
-      if (isObj(this.currentState)) {
-        if(!(this.currentState && stateField in this.currentState) && !(this.calculated && stateField in this.calculated)) {
-          const arrayFields = Object.keys(this.currentState).filter(k => Array.isArray(this.currentState[k]))
-          warn('SYG401', this, `Collection from="${stateField}" is not in state${arrayFields.length ? ` (array fields: '${arrayFields.join("', '")}')` : ''}; it renders nothing`, 'Set it to an array in initialState')
-          lense = undefined
-        } else if (!Array.isArray(this.currentState[stateField])) {
-          warn('SYG401', this, `Collection 'from' field '${stateField}' is not an array; it renders nothing`, 'Set it to an array in initialState')
-          lense = fieldLense
-        } else {
-          lense = fieldLense
-        }
+      const cs = this.currentState
+      if (isObj(cs) && !(stateField in cs) && !(this.calculated && stateField in this.calculated)) {
+        const arrayFields = Object.keys(cs).filter(k => Array.isArray(cs[k]))
+        warn('SYG401', this, `Collection from="${stateField}" is not in state${arrayFields.length ? ` (array fields: '${arrayFields.join("', '")}')` : ''}; it renders nothing`, 'Set it to an array in initialState')
       } else {
-        if (!Array.isArray(this.currentState[stateField])) {
-          warn('SYG401', this, `Collection 'from' field '${stateField}' is not an array; it renders nothing`, 'Set it to an array in initialState')
-          lense = fieldLense
-        } else {
-          lense = fieldLense
-        }
+        if (!Array.isArray(cs[stateField])) warn('SYG401', this, `Collection 'from' field '${stateField}' is not an array; it renders nothing`, 'Set it to an array in initialState')
+        lense = fieldLense
       }
     } else if (isObj(stateField)) {
       if (typeof stateField.get !== 'function') {
@@ -1596,7 +1525,7 @@ class Component {
     })
     const sources = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$, __parentContext$: this.context$, __parentComponentNumber: this._componentNumber }
 
-    const sink$ = isolate(switchable(switchableComponents, props$.map((props: any) => props.current), ''), { [this.stateSourceName]: lense })(sources)
+    const sink$ = isolate(switchable(switchableComponents, props$.map((props: any) => [props.current, props.instance]), ''), { [this.stateSourceName]: lense })(sources)
 
     if (!isObj(sink$)) {
       fail('SYG903', this, 'Switchable factory returned invalid sinks', 'Return a sinks object')
@@ -1698,8 +1627,6 @@ class Component {
             return val.sink$[this.DOMSourceName].startWith(undefined)
           })
 
-        if (vdom$.length === 0) return xs.of(root)
-
         // Track READY state on the component instance (persists across folds)
         for (const [id, val] of entries as [string, any]) {
           if (this._childReadyState[id] !== undefined) continue // already tracking
@@ -1771,29 +1698,17 @@ class Component {
  */
  function makeLog(context: string): any {
   return function (this: Component, msg: any, immediate: boolean = false) {
-    const fixedMsg = (typeof msg === 'function') ? msg : (_: any) => msg
-    if (immediate) {
+    const out = (value: any) => {
       if (this.debug) {
-        const text = `[${context}] ${fixedMsg(msg)}`
+        const text = `[${context}] ${typeof msg === 'function' ? msg(value) : msg}`
         console.log(text)
         if (typeof window !== 'undefined' && window.__SYGNAL_DEVTOOLS__?.connected) {
           window.__SYGNAL_DEVTOOLS__.onDebugLog(this._componentNumber, text)
         }
       }
-      return
-    } else {
-      return (stream: any) => {
-        return stream.debug((msg: any) => {
-          if (this.debug) {
-            const text = `[${context}] ${fixedMsg(msg)}`
-            console.log(text)
-            if (typeof window !== 'undefined' && window.__SYGNAL_DEVTOOLS__?.connected) {
-              window.__SYGNAL_DEVTOOLS__.onDebugLog(this._componentNumber, text)
-            }
-          }
-        })
-      }
     }
+    if (immediate) return out(msg)
+    return (stream: any) => stream.debug(out)
   }
 }
 
@@ -1928,26 +1843,12 @@ function processSuspensePost(vnode: any): any {
     const fallback = props.fallback
     const children = vnode.children || []
 
-    // Check if any child within this boundary is not ready
-    const isPending = children.some(hasNotReadyChild)
-
-    if (isPending && fallback) {
-      // Render fallback
-      if (typeof fallback === 'string') {
-        return { sel: 'div', data: { attrs: { 'data-sygnal-suspense': 'pending' } }, children: [{ text: fallback }], text: undefined, elm: undefined, key: undefined }
-      }
-      return { sel: 'div', data: { attrs: { 'data-sygnal-suspense': 'pending' } }, children: [fallback], text: undefined, elm: undefined, key: undefined }
-    }
-
-    // All children ready or no fallback — render children directly
-    if (children.length === 1) return processSuspensePost(children[0])
-    return { sel: 'div', data: { attrs: { 'data-sygnal-suspense': 'resolved' } }, children: children.map((c: any) => processSuspensePost(c)), text: undefined, elm: undefined, key: undefined }
+    // Render the fallback if a child within this boundary is not ready, else the children
+    const pending = fallback && children.some(hasNotReadyChild)
+    if (!pending && children.length === 1) return processSuspensePost(children[0])
+    return { sel: 'div', data: { attrs: { 'data-sygnal-suspense': pending ? 'pending' : 'resolved' } }, children: pending ? [typeof fallback === 'string' ? { text: fallback } : fallback] : children.map(processSuspensePost), text: undefined, elm: undefined, key: undefined }
   }
-  if (vnode.children && vnode.children.length > 0) {
-    const newChildren = vnode.children.map((c: any) => processSuspensePost(c))
-    return { ...vnode, children: newChildren }
-  }
-  return vnode
+  return vnode.children?.length > 0 ? { ...vnode, children: vnode.children.map(processSuspensePost) } : vnode
 }
 
 const portalPatch = snabbdomInit(defaultModules);
@@ -2249,12 +2150,7 @@ function isObj(obj: any): obj is Record<string, any> {
 const SORT_FIX = "Use a field name, { field: 'asc'|'desc'|1|-1 }, or a function"
 
 function __baseSort(a: any, b: any, ascending: boolean = true): number {
-  const direction = ascending ? 1 : -1
-  switch(true) {
-    case a > b: return 1 * direction
-    case a < b: return -1 * direction
-    default: return 0
-  }
+  return a > b ? (ascending ? 1 : -1) : a < b ? (ascending ? -1 : 1) : 0
 }
 
 function __sortFunctionFromObj(item: Record<string, any>): ((a: any, b: any) => number) | undefined {

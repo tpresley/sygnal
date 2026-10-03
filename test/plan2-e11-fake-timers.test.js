@@ -38,17 +38,27 @@ Search.model = {
 
 describe('E11: renderComponent with vi.useFakeTimers()', () => {
   it('ready(), next(), waitForState() and settle() resolve without the test advancing the clock', async () => {
+    // G-176: this compares real time with virtual time. With the 300ms debounce, a loaded machine
+    // took longer than the 250ms bound in real CPU time alone; a 20s debounce leaves room for that
+    // and still fails by far if the debounce were waited for in real time
+    const SlowSearch = (p) => Search(p)
+    SlowSearch.initialState = Search.initialState
+    SlowSearch.intent = ({ DOM }) => {
+      const q$ = DOM.input('.q').value()
+      return { TYPE: q$, SEND: q$.compose(debounce(20000)) }
+    }
+    SlowSearch.model = Search.model
     vi.useFakeTimers()
     const started = realNow()
-    t = renderComponent(Search)
+    t = renderComponent(SlowSearch, { timeoutMs: 60000 })
     await t.ready()
     t.simulateEvent('.q', 'input', { value: 'du' })
     await t.next(s => s.sent.length === 1)
     expect(t.html()).toContain('<p class="sent">du</p>')
     await t.waitForState(s => s.query === 'du')
     await t.settle()
-    // a 300ms debounce, but no real wait
-    expect(realNow() - started).toBeLessThan(250)
+    // a 20s debounce, but no real wait
+    expect(realNow() - started).toBeLessThan(10000)
   })
 
   it('a debounce fires exactly at its period, measured from the input after ready()', async () => {
