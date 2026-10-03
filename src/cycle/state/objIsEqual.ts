@@ -1,6 +1,6 @@
 /** Structural equality (to depth 5): the core's state/props/context diffing and STATE.watch (GS-6) */
 export function objIsEqual(obj1: any, obj2?: any, maxDepth: number = 5, depth: number = 0): boolean {
-  // Base case: if the current depth exceeds maxDepth, return true
+  // Past maxDepth the values count as different (false): the caller then treats them as changed
   if (depth > maxDepth) {
       return false;
   }
