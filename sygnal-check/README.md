@@ -34,6 +34,8 @@ Each line has the form `file:line:col CODE [severity] Component: message (fix)`.
 | `--include-tests` | Also scan `*.test.*` / `*.spec.*` files found through directories or globs (skipped by default; a file named explicitly is always scanned) |
 | `--strict` | Also run the strict-mode canonical-form rules (SYG501-507, see [Strict mode](#strict-mode)) |
 | `--fix` | Apply the mechanical canonical-form rewrites in place, then check (implies `--strict`) |
+| `--controls` | With `--fix` (implied): also convert single-class intent selectors into [controls](#controls) |
+| `--keep-classes` | With `--controls` (implied): keep every converted class on its element |
 | `--graph` | Print the [app graph](#app-graph---graph) instead of the findings list; with `--json`, as JSON. Exits 0 (findings are part of the graph). Combines with `--strict`, not with `--fix` |
 
 Exit codes: `0` clean, `1` findings at or above `--fail-on`, `2` usage error (bad option, no files, unknown code for `explain`).
@@ -48,11 +50,16 @@ The codes are the same as Sygnal's runtime diagnostics (`https://sygnal.js.org/r
 |---|---|---|
 | SYG110 | warn | An intent selector (`DOM.select('.x')`, `DOM.click('.x')` or any other shorthand) whose class or id the component's own view never renders. The view is read from static `className`/`class`/`id` strings, `classes()`/`clsx()` calls, template literals, `+` concatenation, conditionals, `[..].join(' ')`, local and module-level consts, module-level render helpers, `h()` and hyperscript helpers, and the `className` of `<Collection>`/`<Switchable>`. The fix suggests the closest class the view does render. The finding is downgraded to **info** when a dynamic className (e.g. `` `tab-${kind}` `` or `props.className`) might produce the class, or when the selector itself isn't a static string. |
 | SYG111 | warn | A controlled field: an `<input>`/`<textarea>`/`<select>` whose `value` (or a checkbox/radio whose `checked`) is bound to an expression, while the component's intent has no `input`/`change`/`keyup`/`keydown` listener on that element or an ancestor (a `keydown`/`keyup` listener that is immediately filtered on a key, such as Enter, doesn't count; `processForm` counts). Sygnal writes the bound value back on every render, so a re-render while the user types resets the text. Fix: update the state on `input`, or drop the `value` prop and read the value on blur/submit. A **literal** `value` on a text-like field (`value=""`, `value="default"`) or a literal `checked` on a checkbox/radio is reported too, since Sygnal controls literals as well: every re-render resets the field to the literal. Fix: drop the prop (uncontrolled), or move the value into state and update it on `input`/`change`. Stays quiet for readOnly/disabled/hidden/file fields, a `<select>` with a literal `value`, `value={null}`, dynamic selectors, and DOM selectors handed to helpers. |
-| SYG104 | warn | The class or id is rendered, but only inside a **child** component, i.e. in the child's JSX, in JSX passed into it as children or slots, or in a `<Collection of={X}>`/`<Switchable of={{…}}>` child, resolved through imports. Child components are isolated, so the parent never sees those events. |
+| SYG104 | warn | The class or id is rendered, but only inside a **child** component, i.e. in the child's JSX, in JSX passed into it as children or slots, or in a `<Collection of={X}>`/`<Switchable of={{…}}>` child, resolved through imports. Child components are isolated, so the parent never sees those events. The same for a control (`DOM.click(Remove)` where only a child renders `<Remove>`). |
 | SYG101 | warn | An intent action with no model entry. `'ACTION \| SINK'` shorthand keys are expanded first. |
 | SYG102 | warn | A model entry nothing can trigger: no intent action, not a built-in (`BOOTSTRAP`, `INITIALIZE`, `DISPOSE`, `READY`; `HYDRATE` is an ordinary action since 6.0), never named as a reply action (`ok: 'X'` / `error: 'X'` returned by a driver sink) or a `connections` entry (`message`/`open`/`close`/`error`), and never the target of a `next('X')` string literal. This is downgraded to info when the model calls `next()`, or a request names its action, with a non-literal name. |
 | SYG112 | error | A request names a reply action the component has no model entry for, so the reply is dropped: a string literal `ok`/`error` in an object a driver sink returns (`HTTP: (s) => ({ url, ok: 'LOADED', error: 'FIALED' })`; not STATE/EFFECT/EVENTS/PARENT/READY), or a `message`/`open`/`close`/`error` name in a `connections` static. The fix names the closest model key. Only UPPER_SNAKE_CASE names, or names close to a model key, are reported (a custom driver's `error: 'Not found'` field is data). |
 | SYG105 | warn | An EVENTS type that is selected (`EVENTS.select('X')`) but never emitted, or emitted (`emit('X')`, `event('X')`, or `{ type: 'X' }` returned from an `EVENTS` sink) but never selected, anywhere in the scanned files. Only string literals are matched. This is downgraded to info when non-literal emits or selects exist. |
+| SYG110 (control) | warn | The intent listens to a [control](#controls) (`DOM.click(Add)`) that the component's view never renders as `<Add>`. |
+| SYG124 | error | A component passed where a control or selector is expected: `DOM.click(TodoItem)`, `DOM.select(Badge)`. A component is a function or class with statics, or a capitalised function. The fix names both ways out: `PARENT` + `CHILD.select(TodoItem)`, or a parent-owned control around the child. |
+| SYG125 | error | A control given `.intent`, `.model` or `.initialState` (`Add.intent = …`, `C.Add.model = …`, `Object.assign(Add, {…})`). Controls are elements, not components. |
+| SYG126 | info | A component renders a control its intent never listens to (also counts `DOM.select('document').select(Add)`). Not reported when the intent can't be read statically. |
+| SYG128 | error | Two `controls()` calls in one file declare the same key, or one call repeats a key: both render `data-control="Key"`. |
 | SYG401 | warn | `<Collection from="x">` where `x` isn't a key of the component's `initialState` (or `calculated`), or its initial value is a literal that isn't an array. This is only checked when `initialState` is statically known. |
 | SYG900 | warn | A file couldn't be parsed, or a rule crashed. |
 
@@ -74,6 +81,12 @@ The codes are the same as Sygnal's runtime diagnostics (`https://sygnal.js.org/r
 `--fix` adds `event` to the file's existing `import { … } from 'sygnal'` when a rewrite needs it (and skips the rewrite when there is no such import, or `event` is bound to something else), and removes an `emit` import the rewrite left unused. It re-checks after every pass; running it again changes nothing. Review the diff: it rewrites source files in place.
 
 The runtime has a matching opt-in strict mode for the rules it can detect reliably (SYG501, SYG502, SYG504): `import { configureStrict } from 'sygnal/diagnostics'; configureStrict(true)`, or `renderComponent(C, { strict: true })` in tests.
+
+### Controls
+
+A control comes from `controls({ Key: 'tag' })` (`import { controls } from 'sygnal'`) and renders its element with `data-control="Key"`; anywhere a selector is accepted, it resolves to `[data-control="Key"]`. The checker follows controls declared as `const { Add } = controls({…})`, `const C = controls({…})` (used as `<C.Add>` / `DOM.click(C.Add)`), and imported from a relative module, including `export { Add } from './controls'` and `export * from './controls'` re-exports. A control tag renders in the component's own scope (it is not a child component), and a control in a template-string selector (`` `li ${Done}` ``) counts as listened to.
+
+`--fix --controls` (or `--controls`) converts a selector such as `DOM.click('.add')` into a control when the class is on exactly one intrinsic element of the component's own view as a static `className` string, and nowhere else: no other element (or dynamic className, spread, `<Collection className>`) that might produce it, no child view, no JSX passed in, and no other selector in the project (compound, `document`/`body`). It adds the key (the class in PascalCase, numbered when the name is taken) to the file's `const { … } = controls({ … })` or adds one after the imports, replaces the tag and every `'.add'` selector of that intent, and adds `controls` to the file's `import { … } from 'sygnal'`. The class stays on the element when a CSS/SCSS/Less/HTML file in the project mentions `.add`, a string in another source file does (a test's `simulateEvent('.add', …)`), or `--keep-classes` is set. An element whose rendered markup a string asserts (`toContain('<button class="add">')`) is left alone, since the control adds `data-control` to it. Running it again changes nothing. It is opt-in while controls' canonical status is open (PLAN-4 P4-D).
 
 ### What counts as a component
 
@@ -118,7 +131,8 @@ A component is any function that gets an `.intent`, `.model`, `.initialState`, `
 | `stateKeys` | `initialState` keys | current state keys |
 | `contextConsumes` | context fields the view reads | `null` |
 | `children[].via` | `tag`, `collection` (with `from`), `switchable`, `slot` (passed into a child as children/slots) | `tag`, `collection`, `switchable`, plus `count` |
-| `selectors[]` | intent DOM selectors; `matched`/`isolationHit` from SYG110/SYG104 (`null` for `document`, dynamic selectors) | real DOM: what the DOM checks saw, `events: null`; `renderComponent`: matched against the mock DOM, with event types |
+| `selectors[]` | intent DOM selectors; `matched`/`isolationHit` from SYG110/SYG104 (`null` for `document`, dynamic selectors); `control` names a control selector (`selector` is then `[data-control="Add"]`) | real DOM: what the DOM checks saw, `events: null`; `renderComponent`: matched against the mock DOM, with event types |
+| `controls[]` | the controls the view renders: `{ name, element, kind?, listened }` (omitted when none) | not produced yet |
 | `diagnostics` | the rule findings (strict ones with `--strict`), with `file`/`line`/`column` | collected diagnostics, by component name |
 
 Without `--json`, `--graph` prints a compact per-component summary.
@@ -213,7 +227,7 @@ This is the runtime `Diagnostic` shape plus `file`, `line` and `column` (1-based
 
 - `options.rules`: a custom rule list.
 
-`fixFiles(absPaths, { cwd })` applies the `--fix` rewrites in place and returns `{ fixed, files, passes }`. A strict diagnostic that can be fixed mechanically carries its text edits on a non-enumerable `edits` property (`[{ file, start, end, text }]`).
+`fixFiles(absPaths, { cwd })` applies the `--fix` rewrites in place and returns `{ fixed, files, passes }`; with `{ controls: true, keepClasses? }` it also converts selectors to controls and adds `controls` (how many it made) and `controlFiles`. A strict diagnostic that can be fixed mechanically carries its text edits on a non-enumerable `edits` property (`[{ file, start, end, text }]`).
 
 `graph(inputs, options)` returns the [app graph](#app-graph---graph) (`InspectGraph`). It takes the same options as `check()`. `buildGraph(project, diagnostics)` does the same for an already built project. `validateSchema(schema, value)` is the small JSON Schema validator the tests use.
 
