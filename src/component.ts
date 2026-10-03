@@ -359,9 +359,10 @@ class Component {
 
     // Ensure that the root component has an intent and model
     // This is necessary to ensure that the component tree's state sink is subscribed to
-    if (!this.isSubComponent && typeof this.intent === 'undefined' && typeof this.model === 'undefined') {
+    // G-172: also for a root with an intent but no model (it rendered nothing under run())
+    if (!this.isSubComponent && typeof this.model === 'undefined') {
       this.initialState = initialState || true
-      this.intent = (_: any) => ({__NOOP_ACTION__:xs.never()})
+      if (typeof this.intent === 'undefined') this.intent = (_: any) => ({__NOOP_ACTION__:xs.never()})
       this.model = {
         __NOOP_ACTION__: (state: any) => state
       }

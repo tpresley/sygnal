@@ -40,6 +40,7 @@ Covers `sygnal`, `sygnal-check` and `create-sygnal-app`. A few fixes change beha
   - reconnects with jittered backoff by default (`reconnect: { delayMs, maxDelayMs, jitter }`, or `false`; a fixed delay with `jitter: false`); sends are queued while connecting; connections to the same URL share one socket; `sse:` uses `EventSource`, with `events: { name: 'ACTION' }` for named events; nothing opens during SSR;
   - a `{ to }` send in the same action that opens or changes a connection goes to the new connection;
   - 0 bytes when unused (about 2.6 KB gzipped standalone); the `connections` static costs about 100 B in the core. New types `Connections`, `SocketRequest` and the spec types.
+- **`resources` (experimental)**: reads declared from state for `makeFetchDriver()`: `Quote.resources = { quote: (state) => state.id && `/api/quotes/${state.id}` }`. Sygnal keeps `state.quote` as `{ status: 'idle' | 'loading' | 'success' | 'error', data, error }` through the built-in `RESOURCE` action (a model `RESOURCE` entry replaces it); a changed request is fetched with latest semantics, so a stale reply is never shown; a falsy request aborts and goes idle; `{ refresh: 'quote' }` on the HTTP sink refetches; `ok`/`error` on the request also dispatch those actions. Tests answer it with `t.respond('HTTP', body, 'quote')` (`resourceSink` option, default `'HTTP'`). Types `Resource<D, E>` and `ResourceRequest`.
 - **Async EFFECTs** ([EFFECT](https://sygnal.js.org/advanced/effect/)). `EFFECT: async (state, data, next, { signal }) => { … next('DONE', value) }` for async work that isn't HTTP (IndexedDB, clipboard, workers): a returned promise is expected, a rejection is reported as SYG214, `next()` after the component is disposed does nothing, and `signal` is an `AbortSignal` aborted on DISPOSE (EFFECT only).
 - **Test fakes for drivers** ([testing](https://sygnal.js.org/integration/testing/)). In `renderComponent()`, a sink with no driver, in the component or any child, is recorded, and its source is a fake that behaves like the real driver:
   - HTTP: reply actions are answered to the sending instance; `latest`, `abort` and isolation follow `makeFetchDriver`;
@@ -110,6 +111,8 @@ Covers `sygnal`, `sygnal-check` and `create-sygnal-app`. A few fixes change beha
   - After a child's lens write (a Collection item or a `state="slice"` child), the stored root state (`STATE` stream, devtools, `t.state`/`t.states`) kept stale calculated fields; the view was right.
   - `.context` reading a calculated field lagged one update behind a Collection item's write.
   - An `isolatedState` sub-component with `initialState` and no model never applied its `initialState`.
+  - A root component with an `intent` but no `model` rendered nothing under `run()` (its `initialState` was never applied), while `renderComponent()` rendered it.
+  - A component static that is neither a function nor an object (such as `App.route = 'ROUTE'`) was iterated character by character and threw SYG216; it is sent to its driver as is.
   - A sub-component with a `model` but no `intent` never got `BOOTSTRAP`.
   - A child rendered inside another child was instantiated once per ancestor; the duplicates ran BOOTSTRAP and timers and wrote state.
 - **Collections.**

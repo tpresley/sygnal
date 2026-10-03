@@ -21,6 +21,8 @@ Less common features (Portals, Transitions, Suspense/lazy, Slots, forms, drag-an
 
 **New app** (no prompts): `npm create sygnal-app@latest my-app -- --template vite --js --install` (templates `vite`, `vite-pwa`, `vike`, `astro`; `--ts` for TypeScript). Or add Sygnal to a Vite app: `npm i sygnal`, `npm i -D vitest`, `plugins: [sygnal()]` from `'sygnal/vite'`, and `run(App)` in `src/main.js` (see §9).
 
+**The task text is the spec**: copy labels, messages and punctuation verbatim (`Search failed.` keeps its period) and implement it; don't stop to explain or ask. Re-read the task itself, not a summary of it (such as the arguments you passed to this skill).
+
 **Add a feature** (in this order):
 1. **State**: add the fields to the root `initialState` (children get state from their parent).
 2. **Intent**: name the action and its trigger (`DOM.click('.save')`, `EVENTS.select('X')`, `CHILD.select(Child)`).
@@ -207,7 +209,7 @@ Search.model = {
 }
 ```
 - main.js: `run(Search, { HTTP: makeFetchDriver() })` (options `baseUrl headers init timeoutMs`). Request: `{ url, ok, error, key, query, json, body, method, headers, latest, timeoutMs, init }` (POST with json/body). `ok` gets the parsed body; `error` gets `{ error, status, body, request }` (`status` undefined for a network error or timeout). The reply reaches exactly the sending instance. Never read your own request back with `HTTP.select`/`HTTP.errors` (SYG508) or use `then`/`catch` keys (SYG610: not sent); an `ok`/`error` name with no model entry is SYG112.
-- `latest: true`: a newer request with the same key (`key`, default the `ok` action) from the same instance aborts the older ones, whose replies never arrive (no request ids). `{ abort: 'RESULTS' }` cancels without sending. **Build the request from `(state, data)`**: sinks see the state before the action, so `SHOW: { STATE: (s, id) => ({ ...s, id }), HTTP: (s, id) => ({ url: '/api/q/' + id, ok: 'LOADED' }) }`, not `s.id`.
+- `latest: true`: a newer request in the same lane (`key`: a constant name, never an id or URL; default the `ok` action) from the same instance aborts the older ones, whose replies never arrive (no request ids). `{ abort: 'RESULTS' }` cancels without sending (it names the lane: with a custom `key`, abort that key). **Build the request from `(state, data)`**: sinks see the state before the action, so `SHOW: { STATE: (s, id) => ({ ...s, id }), HTTP: (s, id) => ({ url: '/api/q/' + id, ok: 'LOADED' }) }`, not `s.id`.
 - Other promise APIs: `driverFromAsync(fn)` takes the same reply actions (`{ value, ok: 'DONE', error: 'FAILED' }` calls `fn(value)`). One-off async work: `EFFECT: async (state, data, next, { signal }) => { ...; next('DONE', r) }` (rejection: SYG214; no concurrency control). Page-wide events: `DOM.select('document' | 'body').events(type)`, CSS-filtered with `DOM.select('document').select('.overlay').events('click')`.
 ### WebSocket / SSE (makeSocketDriver + connections)
 ```jsx
@@ -217,7 +219,8 @@ Chat.connections = (state) => ({   // from state, diffed by name: new opens, fal
     reconnect: { delayMs: 1000, maxDelayMs: 1000, jitter: false } },   // fixed 1 s retry (default: 500 ms doubling to 10 s)
 })
 Chat.model = {
-  SAY:       { WS: (state, text) => ({ to: 'room', json: { text } }) },                  // queued while (re)connecting
+  JOIN:      (state, room) => room === state.room ? ABORT : { ...state, room, status: 'connecting', messages: [] },  // same room: no new `open`
+  SAY:       { WS: (state, text) => text.trim() ? { to: 'room', json: { text } } : ABORT },   // queued while (re)connecting
   LEAVE:     (state) => ({ ...state, room: null, status: 'offline', messages: [] }),     // closes it: no DROPPED
   RECEIVED:  (state, msg) => ({ ...state, messages: [...state.messages, msg] }),          // the JSON-parsed frame
   CONNECTED: (state) => ({ ...state, status: 'online' }),                                 // { reconnected }
@@ -269,7 +272,7 @@ Quote.model = { REFRESH: { HTTP: { refresh: 'quote' } } }  // refetch the same r
 - **Selectors are scoped to the component's own JSX (the isolation trap).** A parent's `DOM.click('.remove')` never fires for `.remove` rendered by a child or a Collection item. Handle the event in the child and send it up with `PARENT` (read with `CHILD.select(Child)`) or `EVENTS`. Caught as SYG104; a selector the view never renders is SYG110.
 - **Every intent action needs a model entry (SYG101), and every model entry needs a trigger (SYG102)**: an intent action, a built-in, or `next('X')`. Names match exactly.
 - **EVENTS types must match exactly** between `event('X')` and `EVENTS.select('X')` (SYG105). `event()` is the sink entry itself: `EVENTS: () => event('X')` sends a function, which nothing receives (SYG116).
-- **Collection `from` must name an array field of the state** (SYG401).
+- **Collection `from` must name an array field of the state** (SYG401). Over a calculated field the list is read-only: item writes and removal (`() => undefined`) are discarded, so use `from="items"` with `sort=`/`filter=`.
 - **A controlled input needs an input listener**: `value={state.x}` plus `DOM.input('.x').value()`, otherwise a re-render resets the text (SYG111). `value={null}` clears the field; leaving `value` out makes it uncontrolled.
 - Also: reducers return the complete new state (`{ ...state, ... }`); never mutate; no side effects in views or STATE reducers (use EFFECT or a driver).
 
@@ -284,7 +287,7 @@ Quote.model = { REFRESH: { HTTP: { refresh: 'quote' } } }  // refetch the same r
 | Emit a global event | `EVENTS: event('TYPE', (state, data) => payload)` | `emit(...)`, raw `EVENTS: s => ({ type, data })` (SYG505) |
 | Child → parent | child `PARENT: fn`; parent `CHILD.select(ChildFn)` | `CHILD.select('ChildName')` (SYG506) |
 | HTTP reply | `HTTP: s => ({ url, ok: 'LOADED', error: 'FAILED' })` | `HTTP.select('cat')` / `errors('cat')` for your own request (SYG508); `fetch` in an EFFECT |
-| Top-down data | `.context` | drilling a prop through 3+ levels (SYG507) |
+| Top-down data | `.context = { total: (state) => … }` (an object of functions) | drilling a prop through 3+ levels (SYG507); `.context = (state) => ({ … })` (SYG402) |
 | Parent → child call | `createCommand()` as a prop; child `commands$.select('name')` | — |
 
 ## 7. Testing your change
