@@ -13,7 +13,7 @@ import run from '../src/extra/run.js'
 import { renderToString } from '../src/extra/ssr.ts'
 import { defineBehavior } from '../src/extra/behaviors.js'
 import { undoable } from '../src/extra/undo.js'
-import { setupChecks, settle } from './diagnostics/helpers.js'
+import { setupChecks, settle, diagnostics } from './diagnostics/helpers.js'
 import { _resetDiagnostics } from '../src/extra/diagnostics/index.js'
 
 let t
@@ -157,5 +157,25 @@ describe("G-214 (5): collection() / switchable() without a __uid source use the 
     const Page = (so) => { seen.push(so.__uid); return { EVENTS: xs.never() } }
     switchable({ a: Page }, xs.of('a').remember())({ EVENTS: xs.never() })
     expect(seen).toEqual(['u-a'])
+  })
+})
+
+describe("G-214 (6): SYG222 sees an in-place mutation of a behavior's slice", () => {
+  it('a behavior reducer that mutates its slice and returns it is reported (keys as key.field)', async () => {
+    const b = defineBehavior({
+      initialState: { page: 0 },
+      model: { NEXT: (p) => { p.page++; return p }, OK: (p) => ({ ...p, page: p.page + 1 }) },
+    })
+    function C({ state }) { return h('div', null, String(state.pager.page)) }
+    C.initialState = { n: 0 }
+    C.uses = { pager: b() }
+    t = renderComponent(C)
+    await t.ready(); await t.settle()
+    t.simulateAction('pager.OK'); await t.next(s => s.pager.page === 1)
+    expect(diagnostics('SYG222')).toHaveLength(0)
+    t.simulateAction('pager.NEXT'); await t.settle()
+    const found = diagnostics('SYG222')
+    expect(found).toHaveLength(1)
+    expect(found[0]).toMatchObject({ severity: 'warn', component: 'C', data: { action: 'pager.NEXT', keys: ['pager.page'] } })
   })
 })
