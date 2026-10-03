@@ -10,6 +10,7 @@ interface SygnalComponent {
   hmrActions?: any;
   connections?: any;
   resources?: any;
+  route?: any;
   context?: any;
   peers?: any;
   components?: any;
@@ -76,6 +77,7 @@ export default (element: any) => {
     Wrapped.debug = Component.debug
     Wrapped.connections = Component.connections
     Wrapped.resources = Component.resources
+    Wrapped.route = Component.route
     Wrapped.componentName = Component.componentName || Component.name
     // run() names the root by `name` first: diagnostics and devtools should
     // say 'Counter', not 'Wrapped'

@@ -751,7 +751,7 @@ class Component {
               s = this.addCalculated(s)
               let v = f
               if (typeof f == 'function') v = f(s)
-              else { v = {}; for (const r in f) v[r] = f[r](s) }
+              else if (typeof f == 'object') { v = {}; for (const r in f) v[r] = f[r](s) }
               return {[k]: v}
             } catch (err) { caught('SYG216', this, `${k} threw; nothing sent`, ERR_FIX, err) }
           }).compose(dropRepeats(objIsEqual)),

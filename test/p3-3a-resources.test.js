@@ -433,3 +433,20 @@ describe('task 23 with resources (hidden assertions)', () => {
     await waitFor(() => expectShown(Q103))
   })
 })
+
+describe('a string static (5-0c router spike fix)', () => {
+  it('is sent as is, not iterated: no SYG216', async () => {
+    const seen = []
+    const routeDriver = (sink$) => {
+      sink$.addListener({ next: (v) => seen.push(v), error: () => {}, complete: () => {} })
+      return { __sygnalStatic: 'route' }
+    }
+    function App() { return h('p', { className: 'p' }, 'app') }
+    App.route = 'ROUTE'
+    app = run(App, { ROUTER: routeDriver }, { mountPoint: '#root' })
+    await waitFor(() => expect(seen).toEqual([{ route: 'ROUTE' }]))
+    await sleep(10)
+    expect(seen).toEqual([{ route: 'ROUTE' }])
+    expect(errorSpy.mock.calls.flat().join(' ')).not.toMatch(/SYG216/)
+  })
+})
