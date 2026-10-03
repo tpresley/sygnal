@@ -56,14 +56,18 @@ describe('explanations table', () => {
       expect(e.title).toBe(titles[code])
       expect(e.severity).toBe(severities[code])
       expect(e.reportedBy.length).toBeGreaterThan(0)
-      for (const r of e.reportedBy) expect(['runtime', 'dev-entry', 'static']).toContain(r)
+      // PLAN-4 GS-4: a retired code (kept documented, never reported) says so instead
+      for (const r of e.reportedBy) expect(['runtime', 'dev-entry', 'static', 'retired']).toContain(r)
+      if (e.reportedBy.includes('retired')) expect(e.reportedBy).toEqual(['retired'])
       expect(e.explanation.length).toBeGreaterThan(80)
       expect(e.fix.length).toBeGreaterThan(20)
     })
   }
 
   it('every code sygnal-check reports is marked as static (and vice versa for its CODES table)', () => {
-    for (const code of Object.keys(CODES)) expect(EXPLANATIONS[code].reportedBy, code).toContain('static')
+    for (const code of Object.keys(CODES)) {
+      if (!EXPLANATIONS[code].reportedBy.includes('retired')) expect(EXPLANATIONS[code].reportedBy, code).toContain('static')
+    }
     for (const [code, e] of Object.entries(EXPLANATIONS)) {
       if (e.reportedBy.includes('static')) expect(CODES[code], code).toBeDefined()
     }

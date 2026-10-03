@@ -41,9 +41,16 @@ type ComponentProps<STATE, PROPS, CONTEXT> = (
   peers: { [peer: string]: JSX.Element | JSX.Element[] }
 ) => JSX.Element
 
-/** The first argument of a component's view: its props plus `state`, `context`, `children` and `slots`. */
+/**
+ * PLAN-4 GS-9: `uid()` is a stable id string for this component instance (from its position in
+ * the tree: the same in renderToString and after hydration); `uid('name')` derives one from it,
+ * e.g. `<input id={uid('email')} />` with `<label for={uid('email')}>`.
+ */
+export type UidFunction = (name?: string) => string
+
+/** The first argument of a component's view: its props plus `state`, `context`, `children`, `slots` and `uid`. */
 export type ViewProps<STATE = any, PROPS = {}, CONTEXT = {}> =
-  PROPS & { state: STATE; context: CONTEXT; children?: JSX.Element | JSX.Element[]; slots?: Record<string, JSX.Element[]> }
+  PROPS & { state: STATE; context: CONTEXT; children?: JSX.Element | JSX.Element[]; slots?: Record<string, JSX.Element[]>; uid: UidFunction }
 
 /**
  * The `state` prop a parent passes to a sub-component in JSX: the name of a field of the
@@ -60,9 +67,9 @@ export type ElementProps<PROPS> =
   : 'state' extends keyof PROPS ? WithoutViewOnlyProps<PROPS> & { state?: StateProp }
   : PROPS
 
-/** PROPS without `state`, `context` and `slots` (keeps optionality and index signatures, unlike Omit). */
+/** PROPS without `state`, `context`, `slots` and `uid` (keeps optionality and index signatures, unlike Omit). */
 type WithoutViewOnlyProps<PROPS> = {
-  [KEY in keyof PROPS as KEY extends 'state' | 'context' | 'slots' ? never : KEY]: PROPS[KEY]
+  [KEY in keyof PROPS as KEY extends 'state' | 'context' | 'slots' | 'uid' ? never : KEY]: PROPS[KEY]
 }
 
 type NextFunction<ACTIONS = any> = ACTIONS extends object
@@ -73,7 +80,7 @@ type NextFunction<ACTIONS = any> = ACTIONS extends object
     ) => void
   : (action: string, data?: any, delay?: number) => void
 
-type ReducerExtras<PROPS, CONTEXT> = PROPS & { context: CONTEXT; children?: JSX.Element | JSX.Element[]; slots?: Record<string, JSX.Element[]> }
+type ReducerExtras<PROPS, CONTEXT> = PROPS & { context: CONTEXT; children?: JSX.Element | JSX.Element[]; slots?: Record<string, JSX.Element[]>; uid: UidFunction }
 
 type Reducer<STATE, PROPS, ACTIONS = any, DATA = any, RETURN = any, CONTEXT = {}> = (
   state: STATE,
@@ -917,6 +924,30 @@ export type DiagnosticsOptions = {
   strict?: boolean;
 }
 
+/**
+ * Where an error reported to the app-level `onError` hook happened (PLAN-4 GS-11). `'widget'` is
+ * reserved for widgets (PLAN-5); nothing in the core reports it.
+ */
+export type AppErrorPhase = 'view' | 'reducer' | 'effect' | 'driver' | 'instantiate' | 'widget'
+
+/** What the app-level `onError` hook gets with the error */
+export interface AppErrorInfo {
+  /** The component whose view, reducer, EFFECT or sub-component threw (not for 'driver') */
+  componentName?: string
+  /** The action whose reducer or EFFECT threw ('reducer', 'effect') */
+  action?: string
+  phase: AppErrorPhase
+  /** The driver (sink) name, for 'driver' */
+  driver?: string
+}
+
+/**
+ * App-level error hook: reporting only (e.g. to an error tracker). It is called after the
+ * component's own `onError` boundary chose the fallback, once per error, in every diagnostics
+ * mode. An exception thrown by the hook is logged with console.error and swallowed.
+ */
+export type AppErrorHook = (error: any, info: AppErrorInfo) => void
+
 export type RunOptions = {
   mountPoint?: string;
   fragments?: boolean;
@@ -926,6 +957,8 @@ export type RunOptions = {
    * (set by the Sygnal Vite plugin in dev), which enables 'warn'. Default: 'off'.
    */
   diagnostics?: DiagnosticsMode | DiagnosticsOptions;
+  /** App-level error hook for this app (each run() has its own); see AppErrorHook */
+  onError?: AppErrorHook;
 }
 
 /** All diagnostics collected so far (most recent last). */
@@ -2051,6 +2084,8 @@ export interface RenderOptions {
   initialState?: any;
   /** Mock DOM configuration — maps selectors to event streams */
   mockConfig?: Record<string, any>;
+  /** The app-level error hook, as run()'s `onError` (PLAN-4 GS-11) */
+  onError?: AppErrorHook;
   /**
    * Additional drivers beyond DOM, EVENTS, STATE, and LOG. A custom sink without a driver, in
    * the component or any child, gets a recording one (read it with sinkValues / requests), and
@@ -2383,6 +2418,8 @@ export interface RenderToStringOptions {
    * is fetched during SSR)
    */
   cache?: QueryCache
+  /** The app-level error hook, as run()'s `onError`: phase 'view' only (PLAN-4 GS-11) */
+  onError?: AppErrorHook
 }
 
 /**

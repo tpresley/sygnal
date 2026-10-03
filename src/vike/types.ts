@@ -27,6 +27,11 @@ declare global {
       lang?: string
       /** Additional Cycle.js drivers to pass to run() (e.g. WebSocket, HTTP). Client-only. */
       drivers?: Record<string, (sink: any) => any>
+      /**
+       * App-level error hook (PLAN-4 GS-11), passed to run() on the client and to renderToString
+       * on the server: called after a component's onError boundary, reporting only
+       */
+      onError?: (error: any, info: { componentName?: string; action?: string; phase: 'view' | 'reducer' | 'effect' | 'driver' | 'instantiate' | 'widget'; driver?: string }) => void
       /** Enable/disable SSR for this page (default: true). Set false for SPA mode. */
       ssr?: boolean
     }

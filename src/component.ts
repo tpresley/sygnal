@@ -9,7 +9,7 @@ import {makeCommandSource} from './extra/command';
 import type {Command} from './extra/command';
 // [diagnostics hook] shared diagnostics core — hooks are no-ops when diagnostics are off
 import * as diag from './extra/diagnostics/index';
-import {warn, error as logError, fail, caught} from './extra/diagnostics/legacy';
+import {warn, error as logError, fail, caught, appError} from './extra/diagnostics/legacy';
 
 import xs, {Stream} from './extra/xstreamCompat';
 import {delay, concat, debounce, dropRepeats} from './extra/xstreamExtras';
@@ -187,6 +187,7 @@ class Component {
   _idle?: any;
   _activeSubComponents: Map<string, any>;
   _childReadyState: Record<string, boolean>;
+  _uid!: (name?: string) => string;
   _readyChanged$: any;
   _readyChangedListener: any;
 
@@ -398,6 +399,12 @@ class Component {
       stop: () => {},
     })
     this.sources.dispose$ = this._dispose$
+    // PLAN-4 GS-9: uid(name?) from the instance's position: the parent sets sources.__uid (its uid
+    // + the child's path or id prop, + a Collection item's key, + a Switchable page name); 'u' at
+    // the root. Anything but [A-Za-z0-9_-] becomes '_' ('Name::r.0.2' → 'u-0_2'). renderToString
+    // builds the same strings (ssr.ts)
+    const base = (sources.__uid || 'u').replace(/[^\w-]+/g, '_')
+    this._uid = (n?: string) => n ? base + '-' + n : base
 
     this.addCalculated = this.createMemoizedAddCalculated()
     this.log = makeLog(`${this._componentNumber} | ${name}`)
@@ -635,7 +642,7 @@ class Component {
               if (typeof f == 'function') v = f(s)
               else if (typeof f == 'object') { v = {}; for (const r in f) v[r] = f[r](s) }
               return [v]
-            } catch (err) { caught('SYG216', this, `${k} threw; nothing sent`, ERR_FIX, err) }
+            } catch (err) { caught('SYG216', this, `${k} threw; nothing sent`, ERR_FIX, err, 'reducer') }
           }), this.sources.__switchPage?.shown$ || xs.of(1))
           .map(([w, shown]: any) => {
             let v = w?.[0]
@@ -871,21 +878,23 @@ class Component {
         const { props, state, children, slots, context, ...peers }: any = params
         const { sygnalFactory, sygnalOptions, ...sanitizedProps}: any = props || {}
         try {
-          return this.view({ ...sanitizedProps, state, children, slots: slots || {}, context, peers }, state, context, peers)
+          return this.view({ ...sanitizedProps, state, children, slots: slots || {}, context, peers, uid: this._uid }, state, context, peers)
         } catch (err) {
           const error = err instanceof Error ? err : new Error(String(err))
+          let fallback: any = { sel: 'div', data: { attrs: { 'data-sygnal-error': this.name } }, children: [] }
           // B-022: an error handled by .onError is a warning, without the "add .onError" hint
           if (typeof this.onError === 'function') {
             try {
-              const fallback = this.onError(error, { componentName: this.name })
+              fallback = this.onError(error, { componentName: this.name })
               warn('SYG406', this, 'View threw; rendered the onError fallback', undefined, error)
-              return fallback
             } catch (fallbackErr) {
               logError('SYG406', this, 'View threw; rendering the error fallback', undefined, error)
               logError('SYG407', this, 'onError threw; rendering an empty error <div>', 'Make onError return a vnode', fallbackErr)
             }
           } else logError('SYG406', this, 'View threw; rendering the error fallback', 'Add .onError for a custom fallback', error)
-          return { sel: 'div', data: { attrs: { 'data-sygnal-error': this.name } }, children: [] }
+          // GS-11: the app hook, after the boundary chose the fallback
+          appError(this, error, 'view')
+          return fallback
         }
       })
       .compose(this.log('View rendered'))
@@ -959,7 +968,7 @@ class Component {
             this.log(`<${name}> Triggered a next() action: <${type}> ${delay}ms delay`, true)
           }
 
-          const props = { ...this.currentProps, children: this.currentChildren, slots: this.currentSlots || {}, context: this.currentContext }
+          const props = { ...this.currentProps, children: this.currentChildren, slots: this.currentSlots || {}, context: this.currentContext, uid: this._uid }
 
           let data = action.data
           if (isStateSink) {
@@ -979,7 +988,8 @@ class Component {
                 const enhancedState = this.addCalculated(_state)
                 props.state = enhancedState
                 const newState = reducer(enhancedState, data, next, props)
-                if (isAbort(newState)) return _state
+                // PLAN-4 GS-4: the object it got back = no change, as ABORT (the dev entry flags an in-place mutation)
+                if (newState === enhancedState || isAbort(newState)) return _state
                 // [diagnostics hook]
                 diag.onReducer(this, name, _state, newState, this.stateSourceName)
                 const result = this.cleanupCalculated(newState)
@@ -991,7 +1001,7 @@ class Component {
                 }
                 return result
               } catch (err) {
-                caught('SYG216', this, `Reducer for '${name}' threw; state unchanged`, ERR_FIX, err)
+                caught('SYG216', this, `Reducer for '${name}' threw; state unchanged`, ERR_FIX, err, 'reducer', name)
                 return _state
               }
             }
@@ -1012,7 +1022,7 @@ class Component {
               if (type === 'undefined') warn('SYG217', this, `Reducer for '${name}' sent undefined to the driver`, 'Return a value, or ABORT to send nothing')
               return reduced
             } catch (err) {
-              caught('SYG216', this, `Reducer for '${name}' threw; nothing sent`, ERR_FIX, err)
+              caught('SYG216', this, `Reducer for '${name}' threw; nothing sent`, ERR_FIX, err, 'reducer', name)
               return ABORT
             }
           }
@@ -1042,13 +1052,13 @@ class Component {
           }, delay)
           this.log(`<${name}> EFFECT triggered a next() action: <${type}> ${delay}ms delay`, true)
         }
-        const failed = (err: any) => caught('SYG214', this, `EFFECT handler '${name}' threw`, ERR_FIX, err)
+        const failed = (err: any) => caught('SYG214', this, `EFFECT handler '${name}' threw`, ERR_FIX, err, 'effect', name)
 
         try {
           const enhancedState = this.addCalculated(STATE_SNAPSHOT in action ? action[STATE_SNAPSHOT] : this.currentState)
           // 1-B: signal (EFFECT only) aborts on DISPOSE; one controller per instance, made on
           // the first EFFECT, skipped where AbortController is missing
-          const props = { ...this.currentProps, children: this.currentChildren, slots: this.currentSlots || {}, context: this.currentContext, state: enhancedState, signal: (this._ac ||= globalThis.AbortController && new AbortController())?.signal }
+          const props = { ...this.currentProps, children: this.currentChildren, slots: this.currentSlots || {}, context: this.currentContext, uid: this._uid, state: enhancedState, signal: (this._ac ||= globalThis.AbortController && new AbortController())?.signal }
           const result = reducer(enhancedState, action.data, next, props)
           // 1-B: a returned thenable (async EFFECT) is expected; its rejection is SYG214
           if (result?.then) result.then(null, failed)
@@ -1242,10 +1252,11 @@ class Component {
 
         let sink$
         try {
+          // GS-9: the child's uid: this uid + its path or id prop (read by its constructor)
+          this.sources.__uid = this._uid(id.replace(/.*::(r\.)?/, ''))
           sink$ = (isCollection ? this.instantiateCollection : isSwitchable ? this.instantiateSwitchable : this.instantiateCustomComponent).call(this, el, props$, children$)
         } catch (err) {
           const error = err instanceof Error ? err : new Error(String(err))
-          caught('SYG408', this, 'Sub-component threw; rendering the error fallback', ERR_FIX, error)
           let fallbackVNode = { sel: 'div', data: { attrs: { 'data-sygnal-error': this.name } }, children: [] }
           if (typeof this.onError === 'function') {
             try {
@@ -1254,6 +1265,8 @@ class Component {
               logError('SYG407', this, 'onError threw; rendering an empty error <div>', 'Make onError return a vnode', fallbackErr)
             }
           }
+          // GS-11: logged (and given to the app's onError) after the boundary chose the fallback
+          caught('SYG408', this, 'Sub-component threw; rendering the error fallback', ERR_FIX, error, 'instantiate')
           sink$ = { [this.DOMSourceName]: xs.of(fallbackVNode) }
         }
 

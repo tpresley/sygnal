@@ -42,7 +42,7 @@ export const CODES = {
   // strict mode (--strict), dev-plans/PLAN-1-canonical-forms.md; severities match
   // STRICT_CODE_SEVERITY in src/extra/diagnostics/codes.ts
   SYG501: { severity: 'warn', title: 'View uses positional arguments', strict: true },
-  SYG502: { severity: 'warn', title: 'STATE reducer signals no change without ABORT', strict: true },
+  SYG502: { severity: 'warn', title: 'Retired in 6.0: STATE reducer signals no change without ABORT', strict: true },
   SYG503: { severity: 'warn', title: 'Side effect in a STATE reducer that returns ABORT', strict: true },
   SYG504: { severity: 'warn', title: "'ACTION | SINK' shorthand model key", strict: true },
   SYG505: { severity: 'warn', title: 'Non-canonical EVENTS emit', strict: true },

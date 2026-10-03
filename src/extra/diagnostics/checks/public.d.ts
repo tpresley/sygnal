@@ -34,9 +34,8 @@ export interface DiagnosticCheck {
  * Strict mode (canonical forms, SYG5xx): turn the runtime strict checks on
  * (true), off (false), or back to the default (undefined → on only when
  * globalThis.__SYGNAL_STRICT__ === true). Off by default. Diagnostics must
- * also be on. Runtime rules: SYG501 (positional view args), SYG502 (reducer
- * returned the unchanged state instead of ABORT), SYG504 ('ACTION | SINK'
- * keys); `sygnal-check --strict` checks all of SYG501-507 statically.
+ * also be on. Runtime rules: SYG501 (positional view args), SYG504 ('ACTION | SINK'
+ * keys); `sygnal-check --strict` checks SYG501-508 statically (SYG502 is retired in 6.0).
  * In tests: renderComponent(C, { strict: true }).
  */
 export function configureStrict(on?: boolean): void

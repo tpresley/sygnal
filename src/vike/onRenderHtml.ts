@@ -31,6 +31,8 @@ interface PageContext {
     favicon?: string
     lang?: string
     ssr?: boolean
+    // PLAN-4 GS-11: the app-level error hook
+    onError?: (error: any, info: any) => void
   }
   is404?: boolean
   /**
@@ -136,6 +138,7 @@ export function onRenderHtml(pageContext: PageContext) {
   try {
     pageHtml = renderToString(Page, {
       state: initialState,
+      onError: config.onError,
       hydrateState: hasShell ? false : '__VIKE_SYGNAL_STATE__',
       head: pageHeads,
       cache,
@@ -184,6 +187,7 @@ export function onRenderHtml(pageContext: PageContext) {
         props: { innerHTML: PLACEHOLDER },
         head: shellHeads,
         cache,
+        onError: config.onError,
       })
       const splitIdx = compHtml.indexOf(PLACEHOLDER)
       if (splitIdx !== -1) {

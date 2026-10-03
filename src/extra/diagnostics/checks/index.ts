@@ -34,11 +34,12 @@
  * | SYG201 | STATE reducer dropped keys                             | state.ts       |
  * | SYG202 | STATE reducer returned undefined                       | state.ts       |
  * | SYG221 | set() called with a string                             | state.ts       |
+ * | SYG222 | same object returned after an in-place mutation        | state.ts       |
  * | SYG301 | RxJS operator used on an xstream stream                | rxjsHints.ts   |
  * | SYG401 | Collection `from` missing or not an array              | collections.ts |
  * | SYG421 | invalid data (dataset) key in a view                   | dataset.ts     |
  * | SYG501 | strict: view uses positional (props, state, ...) args  | strict.ts      |
- * | SYG502 | strict: STATE reducer returned the unchanged state     | strict.ts      |
+ * | SYG502 | retired in 6.0 (never reported; GS-4)                  | —              |
  * | SYG504 | strict: 'ACTION | SINK' shorthand model key           | strict.ts      |
  * | SYG508 | strict: select()/errors() round trip on a reply source | replies.ts    |
  * | —      | inspect(): the runtime app graph (2B)                  | inspect.ts     |

@@ -379,8 +379,8 @@ describe('DragSource', () => {
 describe('Component type', () => {
   it('is callable (view function) with required state', () => {
     type C = Component<{ count: number }>
-    // state and context are required (not optional) since the framework always provides them
-    expectTypeOf<C>().toBeCallableWith({ state: { count: 0 }, context: {} }, { count: 0 }, {}, {})
+    // state, context and uid (PLAN-4 GS-9) are required (not optional) since the framework always provides them
+    expectTypeOf<C>().toBeCallableWith({ state: { count: 0 }, context: {}, uid: (n?: string) => n || 'u' }, { count: 0 }, {}, {})
   })
 
   it('has optional static properties', () => {

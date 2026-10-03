@@ -30,12 +30,8 @@ exports[`strict bad fixtures > prop-drilling.jsx 1`] = `
 
 exports[`strict bad fixtures > reducers.jsx 1`] = `
 [
-  "test/fixtures/strict/bad/reducers.jsx:33:1 SYG502 Player: the STATE reducer for 'MUTATE' never returns a value (undefined) (return the new state (\`({ ...state, … })\`) or ABORT; if it only runs side effects, use \`MUTATE: { EFFECT: (state, data, next) => { … } }\`)",
-  "test/fixtures/strict/bad/reducers.jsx:36:62 SYG502 Player: the STATE reducer for 'SAVE' returns the unchanged \`state\` for "no change" (return ABORT instead: \`SAVE: (state) => state.title ? { ...state, saved: true } : ABORT\`)",
-  "test/fixtures/strict/bad/reducers.jsx:38:23 SYG502 Player: a bare \`return\` in the STATE reducer for 'RESET' returns undefined (use \`return ABORT\` for "no change" (or \`return undefined\` explicitly if this removes a Collection item))",
-  "test/fixtures/strict/bad/reducers.jsx:45:3 SYG502 Player: the STATE reducer for 'MAYBE' can reach its end without returning (undefined) (end every path with a return: the new state, or \`return ABORT\` for "no change" (or \`return undefined\` explicitly if this removes a Collection item))",
-  "test/fixtures/strict/bad/reducers.jsx:48:5 SYG503 Player: the STATE reducer for 'PLAY' runs a side effect (\`player.send('play')\`) and returns ABORT (move it to an EFFECT sink: \`PLAY: { EFFECT: (state, data, next) => { player.send('play') } }\` (no return value needed))",
-  "test/fixtures/strict/bad/reducers.jsx:53:7 SYG503 Player: the STATE reducer for 'LOG' runs a side effect (\`console.log('LOG', data)\`) and returns ABORT (keep the state change in STATE and move the side effect to EFFECT: \`LOG: { STATE: (state, data) => …, EFFECT: (state, data, next) => { console.log('LOG', data) } }\`)",
+  "test/fixtures/strict/bad/reducers.jsx:49:5 SYG503 Player: the STATE reducer for 'PLAY' runs a side effect (\`player.send('play')\`) and returns ABORT (move it to an EFFECT sink: \`PLAY: { EFFECT: (state, data, next) => { player.send('play') } }\` (no return value needed))",
+  "test/fixtures/strict/bad/reducers.jsx:54:7 SYG503 Player: the STATE reducer for 'LOG' runs a side effect (\`console.log('LOG', data)\`) and returns ABORT (keep the state change in STATE and move the side effect to EFFECT: \`LOG: { STATE: (state, data) => …, EFFECT: (state, data, next) => { console.log('LOG', data) } }\`)",
 ]
 `;
 
@@ -50,7 +46,6 @@ exports[`strict bad fixtures > select-roundtrip.jsx 1`] = `
 exports[`strict bad fixtures > typed.tsx 1`] = `
 [
   "test/fixtures/strict/bad/typed.tsx:7:53 SYG501 Counter: the view uses positional arguments (props, state) (destructure the first argument: \`const Counter = ({ state }) => …\`)",
-  "test/fixtures/strict/bad/typed.tsx:24:45 SYG502 Counter: the STATE reducer for 'INC' returns the unchanged \`state\` for "no change" (return ABORT instead: \`INC: (state: State) => state.count > 9 ? ABORT : { ...state, count: state.count + 1 }\`)",
   "test/fixtures/strict/bad/typed.tsx:25:3 SYG504 Counter: model key 'RESET | EVENTS' uses the 'ACTION | SINK' shorthand (use the object form: \`RESET: { EVENTS: event('RESET_DONE') }\`)",
   "test/fixtures/strict/bad/typed.tsx:25:21 SYG505 Counter: the EVENTS sink of 'RESET' builds the { type: 'RESET_DONE', data } object by hand (use the object form with event(): \`RESET: { EVENTS: event('RESET_DONE') }\`)",
 ]

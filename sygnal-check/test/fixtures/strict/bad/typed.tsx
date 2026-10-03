@@ -21,7 +21,7 @@ Counter.intent = ({ DOM, EVENTS }) => ({
 })
 
 Counter.model = {
-  INC: (state: State) => (state.count > 9 ? state : { ...state, count: state.count + 1 }), // expect: SYG502
+  INC: (state: State) => (state.count > 9 ? state : { ...state, count: state.count + 1 }),
   'RESET | EVENTS': () => ({ type: 'RESET_DONE' }), // expect: SYG504, SYG505
   RESET_DONE: (state: State) => ({ ...state, count: 0 }),
 } satisfies Record<string, any>

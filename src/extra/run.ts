@@ -19,6 +19,8 @@ interface RunOptions {
   useDefaultDrivers?: boolean;
   /** Diagnostics mode (or mode + ignore list + strict). Overrides globalThis.__SYGNAL_DEV__. */
   diagnostics?: DiagnosticsMode | RunDiagnosticsOptions;
+  /** PLAN-4 GS-11: app-level error hook, reporting only (after the component's onError boundary) */
+  onError?: (error: any, info: {componentName?: string; action?: string; phase: string; driver?: string}) => void;
 }
 
 let warnedStrict = false;
@@ -61,7 +63,7 @@ export default function run(
     }
   }
 
-  const {mountPoint = '#root', fragments = true, useDefaultDrivers = true} = options;
+  const {mountPoint = '#root', fragments = true, useDefaultDrivers = true, onError} = options;
   if (!app.isSygnalComponent) {
     app = component(optionsOf(app, app.name || app.componentName || app.label || 'FUNCTIONAL_COMPONENT'));
   }
@@ -84,7 +86,8 @@ export default function run(
       }
     : {};
 
-  const combinedDrivers = {...baseDrivers, ...drivers};
+  // GS-11: the hook is a source (`__e`) every component inherits, so it is per app
+  const combinedDrivers = {...baseDrivers, ...drivers, ...(onError && {__e: () => onError})};
 
   const {sources, sinks, run: _run} = setup(wrapped, combinedDrivers as any);
   const rawDispose = _run();

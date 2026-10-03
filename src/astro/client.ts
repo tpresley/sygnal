@@ -21,6 +21,8 @@ interface SygnalComponent {
   DOMSourceName?: string;
   stateSourceName?: string;
   onError?: (error: Error, info: { componentName: string }) => any;
+  /** PLAN-4 GS-11: the island app's error hook (run()'s `onError`); islands have no run() call */
+  onAppError?: (error: any, info: any) => void;
   debug?: boolean;
   componentName?: string;
   name?: string;
@@ -85,7 +87,7 @@ export default (element: any) => {
     // say 'Counter', not 'Wrapped'
     try { Object.defineProperty(Wrapped, 'name', { value: Wrapped.componentName, configurable: true }) } catch (_) {}
 
-    const app = run(Wrapped, {}, { mountPoint })
+    const app = run(Wrapped, {}, { mountPoint, onError: Component.onAppError })
     element.__sygnal = app
   }
 }

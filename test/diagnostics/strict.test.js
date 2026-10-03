@@ -1,4 +1,4 @@
-// Strict mode (2A): runtime canonical-form checks SYG501 / SYG502 / SYG504
+// Strict mode (2A): runtime canonical-form checks SYG501 / SYG504 (SYG502 retired in 6.0)
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { setupChecks, diagnostics, settle, later } from './helpers.js'
 import { configureStrict, isStrictEnabled, listCodes, getCodeInfo } from '../../src/extra/diagnostics/checks/index.js'
@@ -90,51 +90,8 @@ describe('SYG501 — positional view arguments', () => {
   })
 })
 
-describe('SYG502 — no-op STATE reducer without ABORT', () => {
-  it('reports a reducer that returns the identical state object', async () => {
-    const App = make({ model: { GO: (state, _d) => (state.count > 5 ? { ...state, count: 0 } : state) } })
-    t = renderComponent(App, { strict: true, mockConfig: { '.go': { click: later() } } })
-    await until(() => expect(diagnostics('SYG502')).toHaveLength(1))   // G-176: wait for the report
-    await settle(150)
-    const found = diagnostics('SYG502')
-    expect(found).toHaveLength(1)
-    expect(found[0]).toMatchObject({ severity: 'warn', component: 'App', data: { action: 'GO' } })
-    expect(found[0].fix).toContain('ABORT')
-  })
-
-  it('also sees through calculated fields (the reducer gets the enhanced state)', async () => {
-    const App = make({
-      model: { GO: state => state },
-      extra: { calculated: { double: s => s.count * 2 } },
-    })
-    t = renderComponent(App, { strict: true, mockConfig: { '.go': { click: later() } } })
-    await settle(150)
-    expect(diagnostics('SYG502')).toHaveLength(1)
-  })
-
-  it('does not report ABORT, new objects, set(), or undefined (that is SYG202)', async () => {
-    const App = make({
-      model: {
-        GO: state => ABORT,
-        GO2: set({ count: 3 }),
-        GO3: state => ({ ...state }),
-        GO4: () => undefined,
-      },
-    })
-    t = renderComponent(App, { strict: true })
-    for (const a of ['GO', 'GO2', 'GO3', 'GO4']) t.simulateAction(a)
-    await settle(150)
-    expect(diagnostics('SYG502')).toEqual([])
-    expect(diagnostics('SYG202')).toHaveLength(1)
-  })
-
-  it('does not report primitive state (a reducer may legitimately return the same number)', async () => {
-    const App = make({ initialState: 5, model: { GO: (s, d) => 5 }, view: function App({ state }) { return createElement('div', null, String(state)) } })
-    t = renderComponent(App, { strict: true, mockConfig: { '.go': { click: later() } } })
-    await settle(150)
-    expect(diagnostics('SYG502')).toEqual([])
-  })
-})
+// SYG502 is retired in 6.0 (PLAN-4 GS-4): returning the state object is "no change", like
+// ABORT, and is never reported. Covered in test/p4-2a-gs4-same-object.test.js.
 
 describe('SYG504 — shorthand model keys', () => {
   it("reports 'ACTION | SINK' keys with the object-form rewrite", async () => {

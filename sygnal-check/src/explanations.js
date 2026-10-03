@@ -287,6 +287,13 @@ export const EXPLANATIONS = {
     explanation: "`set()` takes an object to merge (`set({ open: true })`) or a function that returns one (`set((state, data) => ({ ... }))`). Called with a field name, `set('city')` spreads the string into the state, adding the keys `'0'`, `'1'`, ... one per character, and the field itself never changes. The dev entry recognises those keys after the reducer runs and reports the field name; TypeScript also rejects a string argument.",
     fix: "To store the action data in a field, pass a function: `set((state, city) => ({ city }))`. For a fixed value pass an object: `set({ city: 'Paris' })`.",
   },
+  SYG222: {
+    title: "STATE reducer returned the same object after it was mutated in place",
+    severity: "warn",
+    reportedBy: ["dev-entry"],
+    explanation: "A STATE reducer changed the state object it received (`state.count++`, `state.done = true`, `delete state.x`) and returned that same object. Since 6.0 a reducer that returns the object it got means \"no change\" (the same as `ABORT`), so the change is ignored: no state is emitted and nothing re-renders. The dev entry takes a shallow snapshot of the state (its keys and top-level values) before each STATE reducer runs and compares it when the reducer returns the same object; the report names the changed keys. Mutations below the top level (`state.items.push(x)`) are not seen. In production the mutation is silently ignored.",
+    fix: "Return a new object: `INC: (state) => ({ ...state, count: state.count + 1 })`. To write updates as mutations, wrap the reducer in immer's `produce()`: `INC: produce((draft) => { draft.count++ })`, which returns a new object when something changed and the same object when nothing did.",
+  },
   SYG301: {
     title: "RxJS operator used on an xstream stream",
     severity: "error",
@@ -449,11 +456,11 @@ export const EXPLANATIONS = {
     fix: "Destructure the first argument: `function Lane({ state, context, ...props })`.",
   },
   SYG502: {
-    title: "STATE reducer signals no change without ABORT",
+    title: "Retired in 6.0: STATE reducer signals no change without ABORT",
     severity: "warn",
-    reportedBy: ["dev-entry", "static"],
-    explanation: "Strict mode only. A STATE reducer signals \"no change\" by returning the previous state object instead of `ABORT`; at runtime it is reported when the reducer returns the same object it received. `sygnal-check --strict` also flags `return state`, a bare `return;`, and a block body that can reach its end without returning. An explicit `return undefined` is not flagged statically, because that is how a Collection item removes itself.",
-    fix: "Return `ABORT` for \"no change\": `TOGGLE: (state, data) => cond ? { ...state, open: !state.open } : ABORT`.",
+    reportedBy: ["retired"],
+    explanation: "Retired in 6.0 and never reported. Before 6.0, strict mode flagged a STATE reducer that returned the state object it received (`return state`, `cond ? next : state`) instead of `ABORT`, because that still produced a new state. Since 6.0 returning the identical object is \"no change\", the same as `ABORT`: no state is emitted and nothing re-renders. A reducer that mutates the state in place and then returns it is reported by SYG222 instead.",
+    fix: "Nothing to change: `return state` and `return ABORT` are equivalent in a STATE reducer. To change the state, return a new object.",
   },
   SYG503: {
     title: "Side effect in a STATE reducer that returns ABORT",

@@ -116,7 +116,8 @@ export function setupReusable<D extends Drivers>(drivers: D): Engine<D> {
   function _run<M extends MatchingMain<D, M>>(
     sinks: Sinks<M>
   ): DisposeFunction {
-    return replicateMany(sinks, sinkProxies as any);
+    // PLAN-4 GS-11: the app's onError hook (a source run() adds) for driver errors
+    return replicateMany(sinks, sinkProxies as any, (sources as any).__e);
   }
   function disposeEngine() {
     disposeSources(sources);

@@ -8,7 +8,6 @@
  * mechanical rewrites applied by `--fix` (see ../../fix.js).
  */
 import positionalView from './syg501-positional-view.js'
-import noopReducer from './syg502-noop-reducer.js'
 import effectInState from './syg503-effect-in-state.js'
 import shorthandKey from './syg504-shorthand-key.js'
 import eventsEmit from './syg505-events-emit.js'
@@ -18,7 +17,7 @@ import selectRoundtrip from './syg508-select-roundtrip.js'
 
 export const strictRules = [
   positionalView,     // SYG501 (C1)
-  noopReducer,        // SYG502 (C3)
+  // SYG502 (C3) retired in 6.0 (PLAN-4 GS-4): returning the state object is "no change"
   effectInState,      // SYG503 (C4)
   shorthandKey,       // SYG504 (C5)
   eventsEmit,         // SYG505 (C6)

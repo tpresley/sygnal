@@ -723,6 +723,16 @@ After:
 CITY: set((state, city) => ({ city }))
 ```
 
+### SYG222
+
+**STATE reducer returned the same object after it was mutated in place**
+
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+A STATE reducer changed the state object it received (`state.count++`, `state.done = true`, `delete state.x`) and returned that same object. Since 6.0 a reducer that returns the object it got means "no change" (the same as `ABORT`), so the change is ignored: no state is emitted and nothing re-renders. The dev entry takes a shallow snapshot of the state (its keys and top-level values) before each STATE reducer runs and compares it when the reducer returns the same object; the report names the changed keys. Mutations below the top level (`state.items.push(x)`) are not seen. In production the mutation is silently ignored.
+
+**Fix:** Return a new object: `INC: (state) => ({ ...state, count: state.count + 1 })`. To write updates as mutations, wrap the reducer in immer's `produce()`: `INC: produce((draft) => { draft.count++ })`, which returns a new object when something changed and the same object when nothing did.
+
 ## SYG3xx: Streams
 
 ### SYG301
@@ -1168,13 +1178,13 @@ function Lane({ state, context, ...props }) {
 
 ### SYG502
 
-**STATE reducer signals no change without ABORT**
+**Retired in 6.0: STATE reducer signals no change without ABORT**
 
-Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`), `sygnal-check` · Strict mode only
+Severity: `warn` · Reported by: retired · Strict mode only
 
-Strict mode only. A STATE reducer signals "no change" by returning the previous state object instead of `ABORT`; at runtime it is reported when the reducer returns the same object it received. `sygnal-check --strict` also flags `return state`, a bare `return;`, and a block body that can reach its end without returning. An explicit `return undefined` is not flagged statically, because that is how a Collection item removes itself.
+Retired in 6.0 and never reported. Before 6.0, strict mode flagged a STATE reducer that returned the state object it received (`return state`, `cond ? next : state`) instead of `ABORT`, because that still produced a new state. Since 6.0 returning the identical object is "no change", the same as `ABORT`: no state is emitted and nothing re-renders. A reducer that mutates the state in place and then returns it is reported by SYG222 instead.
 
-**Fix:** Return `ABORT` for "no change": `TOGGLE: (state, data) => cond ? { ...state, open: !state.open } : ABORT`.
+**Fix:** Nothing to change: `return state` and `return ABORT` are equivalent in a STATE reducer. To change the state, return a new object.
 
 Before:
 
