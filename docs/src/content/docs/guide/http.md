@@ -128,13 +128,13 @@ makeFetchDriver({
   timeoutMs: 10000,                      // default for every request (default: none)
   parse: 'auto',                         // default for every request
   fetch: myFetch,                        // default: globalThis.fetch, read at each request
-  cache: true,                           // the query cache (default: off), see Resources and Caching
+  cache: queryCache(),                   // the query cache (default: none), see Resources and Caching
   retry: 2,                              // default for GET/HEAD requests (default: 0)
 })
 ```
 
 - Disposing the app (or a hot reload) aborts every request in flight; nothing is delivered after.
-- Server rendering (`renderToString`, Vike, Astro) runs views only, so no request is made on the server; drivers run on the client. Server data for the first render comes from Vike's [`+data`](/integration/vike/) or [`hydrateState`](/integration/ssr/).
+- Server rendering (`renderToString`, Vike, Astro) runs views only, so no request is made on the server; drivers run on the client. Server data for the first render comes from Vike's [`+data`](/integration/vike/) or [`hydrateState`](/integration/ssr/), and resources can be rendered from a seeded query cache ([Server rendering](/guide/resources/#server-rendering)).
 
 ## Testing Without a Driver
 

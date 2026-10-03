@@ -1188,9 +1188,10 @@ export type FetchRequest = string | {
   /** Not allowed (SYG610, not sent). Use `error` */
   catch?: never;
   /**
-   * PLAN-3 5-3 (D79): cache this request's reply in the driver (any method; a POST is
-   * SYG630). `false`: never cached (a resource under `makeFetchDriver({ cache })` too). A request
-   * with reply actions is otherwise one-send-one-request
+   * PLAN-3 5-3 (D79): cache this request's reply in the driver's `queryCache()` (any method; a
+   * POST is SYG630; without a queryCache nothing is cached, SYG635). `false`: never cached (a
+   * resource under `makeFetchDriver({ cache: queryCache() })` too). A request with reply actions
+   * is otherwise one-send-one-request
    */
   cache?: boolean;
   /** How long a cached reply stays fresh, in ms (served without a fetch). Implies `cache` */
@@ -1233,6 +1234,13 @@ export type FetchRequest = string | {
    * resources refetch, keeping data. With or without the cache
    */
   invalidate: FetchInvalidate;
+} | {
+  /**
+   * PLAN-3 5-5 (H-7): fetch this request into the driver's `queryCache()` without a reply (a
+   * fresh entry or the same fetch in flight: nothing new), so a resource that reads it later
+   * renders 'success' at once. Without a queryCache it does nothing (SYG635)
+   */
+  prefetch: string | { url: string; [field: string]: any };
 }
 
 /**
@@ -1255,7 +1263,7 @@ export type StandardSchemaLike = {
   };
 }
 
-/** PLAN-3 5-3 (D79): `makeFetchDriver({ cache })` */
+/** PLAN-3 5-3 (D79), D88: `queryCache(options)` */
 export type FetchCacheOptions = {
   /** How long a reply stays fresh, in ms: a fresh entry is served without a fetch. Default 0 (always refetch, showing the cached data meanwhile) */
   staleTime?: number;
@@ -1265,7 +1273,45 @@ export type FetchCacheOptions = {
   refetchOnFocus?: boolean;
   /** Refetch stale mounted resources when the browser comes back online. Default true */
   refetchOnReconnect?: boolean;
+  /** PLAN-3 5-5 (H-7): entries to start with, from `dehydrate()` (SSR seeding) */
+  initial?: QueryCacheSnapshot;
 }
+
+/** PLAN-3 5-5 (H-7): one entry of a `dehydrate()` snapshot (JSON-safe when `data` is) */
+export type QueryCacheSnapshotEntry = {
+  /** method, URL as written (query sorted), body and parse: `'GET /api/quotes/1'` */
+  key: string;
+  /** the parsed (and validated) body */
+  data: any;
+  /** when it was fetched (ms since the epoch): it is fresh until `updatedAt + staleTime` */
+  updatedAt: number;
+  /** the request's invalidation tags */
+  tags?: string[];
+}
+export type QueryCacheSnapshot = QueryCacheSnapshotEntry[];
+
+/** PLAN-3 D88: the query cache of a makeFetchDriver (`makeFetchDriver({ cache: queryCache() })`) */
+export interface QueryCache {
+  /** the entries with data, as a JSON-safe snapshot (serialise it into the page) */
+  dehydrate(): QueryCacheSnapshot;
+  /** writes a snapshot's entries (an entry newer than the snapshot's is kept) */
+  hydrate(snapshot: QueryCacheSnapshot | null | undefined): void;
+  /** writes one entry, keyed like the request (a loader on the server: `cache.set('/api/quotes/1', quote)`) */
+  set(request: ResourceRequest, data: any): void;
+  /** the driver given this cache fetches the request into it, without a reply (like the `{ prefetch }` command) */
+  prefetch(request: ResourceRequest): void;
+}
+
+/**
+ * PLAN-3 D88: the opt-in query cache, passed to `makeFetchDriver({ cache: queryCache({ staleTime: 30000 }) })`.
+ * Resources' GET/HEAD replies are cached (stale-while-revalidate: cached data shows at once,
+ * `refreshing` while it refetches; an entry younger than `staleTime` is served without a fetch),
+ * identical cacheable requests in flight share one fetch, focus / reconnect refetch stale
+ * mounted resources, and unused entries are dropped after `gcTime`. SSR seeding:
+ * `renderToString(App, { cache })` renders cached resources as 'success', `dehydrate()` /
+ * `queryCache({ initial })` carry the entries to the client. One cache per driver
+ */
+export function queryCache(options?: FetchCacheOptions): QueryCache
 
 /** PLAN-3 3-A (experimental): a request a `resources` entry derives (a URL, or a request without `abort`) */
 export type ResourceRequest = string | (Exclude<FetchRequest, string | { abort: true | string } | { refresh: string | string[] }> & {
@@ -1365,12 +1411,12 @@ export type FetchDriverOptions = {
   /** The fetch implementation. Default: `globalThis.fetch`, read at each request (so test stubs apply) */
   fetch?: (input: string, init?: any) => Promise<any>;
   /**
-   * PLAN-3 5-3 (D79): the query cache, off by default. On: resources' GET/HEAD replies are cached
-   * (stale-while-revalidate: cached data shows at once, `refreshing` while it refetches),
-   * identical cacheable requests in flight share one fetch, and focus / reconnect refetch
-   * stale mounted resources
+   * PLAN-3 D88: the query cache, off by default: `cache: queryCache({ staleTime })`. On:
+   * resources' GET/HEAD replies are cached (stale-while-revalidate: cached data shows at once,
+   * `refreshing` while it refetches), identical cacheable requests in flight share one fetch,
+   * and focus / reconnect refetch stale mounted resources
    */
-  cache?: boolean | FetchCacheOptions;
+  cache?: QueryCache;
   /** Default `retry` for GET/HEAD requests (a request's own `retry` applies to any method). Default 0 */
   retry?: number | FetchRetry;
 }
@@ -1388,7 +1434,7 @@ export type FetchDriverOptions = {
  * During SSR no requests are made (server rendering runs views only). In renderComponent
  * tests, pass no driver and answer with `t.respond('HTTP', value)` / `t.fail('HTTP', 404)`.
  */
-export function makeFetchDriver(options?: FetchDriverOptions): (request$: Stream<any>) => FetchSource
+export function makeFetchDriver(options?: FetchDriverOptions): ((request$: Stream<any>) => FetchSource) & { cache?: QueryCache }
 
 /**
  * Reconnect policy of a makeSocketDriver() connection. Delay of retry n (from 0):
@@ -1579,7 +1625,10 @@ export interface RouterOptions<R extends Record<string, string> = Record<string,
   focus?: string | false;
   /** quiet time (ms) before scroll restore and focus. Default 30 */
   settleMs?: number;
-  /** called for `{ prefetch }` commands (until the fetch cache wires it) */
+  /**
+   * called for `{ prefetch }` commands, e.g. to warm a route's data in the fetch driver's cache:
+   * `prefetch: (route) => routeData[route.name]?.(route).forEach(cache.prefetch)`
+   */
   prefetch?: (route: Route, url: string) => void;
   /** Vike: its `navigate()` (from 'vike/client/router'); the router then leaves links and history to Vike */
   navigate?: (url: string, options: { overwriteLastHistoryEntry: boolean }) => any;
@@ -1827,7 +1876,7 @@ export interface RenderOptions {
   resourceSink?: string;
   /**
    * PLAN-3 5-3: options for the HTTP fakes' makeFetchDriver (all but `fetch`), e.g.
-   * `{ cache: true }`. Focus / reconnect refetches come only from t.focus() / t.online()
+   * `{ cache: queryCache() }`. Focus / reconnect refetches come only from t.focus() / t.online()
    */
   http?: FetchDriverOptions;
   /**
@@ -1969,7 +2018,7 @@ export interface RenderResult<STATE = any> {
    * queued before them, as for respond) and resolve once the result has been reduced and rendered.
    */
   connections: (sinkName: string) => FakeConnection[];
-  /** PLAN-3 5-3: the cache entries of an HTTP fake (`renderComponent(C, { http: { cache: true } })`) */
+  /** PLAN-3 5-3: the cache entries of an HTTP fake (`renderComponent(C, { http: { cache: queryCache() } })`) */
   cache: (sinkName: string) => FakeCacheEntry[];
   /** PLAN-3 5-3: the window regains focus (queued like simulate*): stale mounted resources refetch (cache on) */
   focus: () => void;
@@ -2092,6 +2141,12 @@ export interface RenderToStringOptions {
   hydrateState?: boolean | string
   /** An array that receives each rendered component's `head` static value; pass it to `renderHead()` */
   head?: any[]
+  /**
+   * PLAN-3 5-5 (H-7): a seeded `queryCache()` the components' `resources` render from: a cached
+   * entry as `{ status: 'success', data }`, any other request as `{ status: 'loading' }` (nothing
+   * is fetched during SSR)
+   */
+  cache?: QueryCache
 }
 
 /**

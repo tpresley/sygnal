@@ -1,8 +1,8 @@
 // PLAN-3 3-A (experimental): the `resources` static and the Resource state slot. Entries derive
 // a ResourceRequest (a URL or a request) or falsy from STATE & CALCULATED; `{ refresh }` is an
 // HTTP sink value; Resource<T> narrows on status.
-import { ABORT, makeFetchDriver, renderComponent } from 'sygnal'
-import type { Component, RootComponent, FetchRequest, Resource, ResourceRequest, FetchCacheOptions, FakeCacheEntry, StandardSchemaLike } from 'sygnal'
+import { ABORT, makeFetchDriver, renderComponent, queryCache, renderToString } from 'sygnal'
+import type { Component, RootComponent, FetchRequest, Resource, ResourceRequest, FetchCacheOptions, FakeCacheEntry, StandardSchemaLike, QueryCache, QueryCacheSnapshot } from 'sygnal'
 
 type Quote = { id: number; text: string; author: string }
 type QuoteState = { selected: number | null; quote: Resource<Quote> }
@@ -60,19 +60,36 @@ const refreshing: Resource<number> = { status: 'success', data: 1, refreshing: t
 const failedRefetch: Resource<number> = { status: 'error', data: 1, error: new Error('x') }
 export { refreshing, failedRefetch }
 const cacheOptions: FetchCacheOptions = { staleTime: 30000, gcTime: Infinity, refetchOnFocus: false, refetchOnReconnect: true }
+// D88: the cache is queryCache(); `cache: true` / an options object is an error
+// @ts-expect-error cache takes queryCache()
 makeFetchDriver({ cache: true })
-makeFetchDriver({ cache: cacheOptions, retry: { count: 2, delayMs: 200, jitter: false } })
+// @ts-expect-error cache takes queryCache()
+makeFetchDriver({ cache: cacheOptions })
+const qc: QueryCache = queryCache(cacheOptions)
+const driver = makeFetchDriver({ cache: qc, retry: { count: 2, delayMs: 200, jitter: false } })
+const same: QueryCache | undefined = driver.cache
+// 5-5 (H-7): SSR seeding and prefetch
+qc.set('/api/quotes/1', { text: 'x' })
+qc.set({ url: '/api/search', query: { q: 'x' } }, [])
+const snap: QueryCacheSnapshot = qc.dehydrate()
+const seeded = queryCache({ staleTime: 30000, initial: snap })
+seeded.hydrate(JSON.parse(JSON.stringify(snap)))
+seeded.prefetch('/api/quotes/2')
+const html: string = renderToString(App, { cache: seeded })
+export { same, html }
 const writes: FetchRequest[] = [
   { invalidate: 'quotes' },
   { invalidate: ['quotes', '/api/users'] },
   { invalidate: (req) => req.url.startsWith('/api') },
   { url: '/api/quotes/1', method: 'PUT', json: {}, ok: 'SAVED', invalidates: ['quotes'] },
   { url: '/api/user', ok: 'GOT', cache: true, staleTime: 60000, retry: 1 },
+  { prefetch: '/api/quotes/2' },
+  { prefetch: { url: '/api/search', query: { q: 'x' } } },
 ]
 export { writes }
 // @ts-expect-error retry is a count or a policy
 makeFetchDriver({ retry: 'twice' })
-const tc = renderComponent(App, { http: { cache: { staleTime: 1000 } } })
+const tc = renderComponent(App, { http: { cache: queryCache({ staleTime: 1000 }) } })
 const entries: FakeCacheEntry[] = tc.cache('HTTP')
 tc.focus()
 tc.online()

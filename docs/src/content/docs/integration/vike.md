@@ -193,6 +193,8 @@ export default Page
 
 The data fields (`description`, `renderedAt`) are merged into `initialState` when the page loads on the client.
 
+Pages that read with [`resources`](/guide/resources/) can render with data on the server too: the `+data` hook seeds a `queryCache()` and sets `pageContext.queryCache = cache.dehydrate()`, and the extension renders the resources from it and hydrates the client's fetch-driver cache, so the page doesn't fetch again. See [Server rendering with Vike](/guide/resources/#with-vike).
+
 ### Accessing Data in Sub-Components
 
 Page data, route params, and the current URL pathname are automatically injected into Sygnal's context system. Any descendant component can access them without prop drilling:

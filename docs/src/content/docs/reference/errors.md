@@ -1508,7 +1508,7 @@ A value sent to the router's sink (`makeRouter().driver`) could not be acted on,
 
 Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
 
-A request to `makeFetchDriver()` sets `cache: true` or `staleTime` but is not a GET or HEAD (a request with `json` or `body` defaults to POST), for example `{ url: '/api/quotes', method: 'POST', json, cache: true }`. The driver caches its reply by method, URL and body, so a second identical write within `staleTime` is answered from the cache and never reaches the server, and identical writes in flight share one fetch. Writes should always be sent.
+A request to `makeFetchDriver()` sets `cache: true` or `staleTime` but is not a GET or HEAD (a request with `json` or `body` defaults to POST), for example `{ url: '/api/quotes', method: 'POST', json, cache: true }`. The driver's `queryCache()` keeps its reply by method, URL and body, so a second identical write within `staleTime` is answered from the cache and never reaches the server, and identical writes in flight share one fetch. Writes should always be sent.
 
 **Fix:** Remove `cache` / `staleTime` from the write. To refresh cached reads after it succeeds, tag the reads (`tags: ['quotes']`) and add `invalidates: ['quotes']` to the write.
 
@@ -1551,6 +1551,16 @@ Severity: `info` · Reported by: `sygnal-check`
 A request has `latest: true` and a `key` that is not a string literal, for example `key: 'search-' + state.q`. `latest` cancels this instance's earlier requests with the same key, so a key that changes with state gives every value its own lane, and a new request never cancels the previous one: out-of-order replies can still arrive. That is right for independent lanes, such as one save per row, so this is info.
 
 **Fix:** Use a fixed key (`key: 'search'`) or none (the lane is the `ok` action) so the newest request cancels the others. Keep a computed key only for lanes that should run side by side (`// sygnal-ignore SYG634`).
+
+### SYG635
+
+**Caching asked for without a queryCache**
+
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+A request or resource sets `cache: true` or `staleTime`, or the component sends `{ prefetch: request }`, but the sink's `makeFetchDriver()` has no query cache. The cache is a separate export (D88), so a driver without `cache: queryCache()` caches nothing: the request is sent as an ordinary one, and a prefetch does nothing. In tests the HTTP fake has no cache unless `renderComponent(C, { http: { cache: queryCache() } })` gives it one.
+
+**Fix:** Give the driver a cache: `makeFetchDriver({ cache: queryCache({ staleTime: 30000 }) })` with `import { queryCache } from 'sygnal'` (in tests, `renderComponent(C, { http: { cache: queryCache() } })`). Or remove `cache` / `staleTime` / the prefetch.
 
 ## SYG9xx: Internal
 

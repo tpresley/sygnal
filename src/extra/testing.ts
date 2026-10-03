@@ -257,12 +257,14 @@ export interface RenderOptions {
    * PLAN-3 3-A (exp): the driverless sink that receives the `resources` static (default
    * 'HTTP'). Its fake (5-1: makeFetchDriver over an in-memory fetch) keeps each resource fetch
    * pending until t.respond / t.fail (target: the resource name, its URL or a partial request)
-   * answers it; t.requests lists it as `{ url, ...request, resource: name }`.
+   * answers it; t.requests lists it as `{ url, ...request, resource: name }` (5-5: a `{ prefetch }`
+   * fetch as `{ url, ...request, prefetch: true }`).
    */
   resourceSink?: string;
   /**
    * PLAN-3 5-3: options for the HTTP fakes' makeFetchDriver (all but `fetch`), e.g.
-   * `{ cache: true }` or `{ cache: { staleTime: 30000 }, retry: 2 }`. Focus / reconnect refetches
+   * `{ cache: queryCache() }` or `{ cache: queryCache({ staleTime: 30000 }), retry: 2 }` (D88; a
+   * seeded cache: `queryCache({ initial: snapshot })`). Focus / reconnect refetches
    * come only from t.focus() / t.online(), never from the test's window.
    */
   http?: Record<string, any>;
@@ -377,8 +379,9 @@ export interface RenderResult {
    */
   connections: (sinkName: string) => FakeConnection[];
   /**
-   * PLAN-3 5-3: the cache entries of an HTTP fake (renderComponent(C, { http: { cache: true } })):
-   * `{ key, age, stale, subscribers, data, tags }` each (age in ms; undefined before data arrives)
+   * PLAN-3 5-3: the cache entries of an HTTP fake (renderComponent(C, { http: { cache: queryCache() } })):
+   * `{ key, age, stale, subscribers, data, tags }` each (age in ms; undefined before data arrives);
+   * [] without a queryCache
    */
   cache: (sinkName: string) => Array<{key: string; age?: number; stale: boolean; subscribers: number; data: any; tags?: string[]}>;
   /** PLAN-3 5-3: the window regains focus (queued like simulate*): stale mounted resources refetch (cache on) */
@@ -1257,8 +1260,9 @@ export function renderComponent(
   // copy here. `subs` mirrors each select()/errors() subscription, for `request: null` pushes and
   // for the "nothing receives it" check on plain replies.
   type FakeSub = {l: any; sel: any; err: boolean; ns: any[]};
-  // value: what t.requests lists (normalised); req: the request the driver got; res: the resource
-  type Pending = {value: any; req: any; category: any; res?: string; live: boolean; settle: (ok: boolean, v: any) => void};
+  // value: what t.requests lists (normalised); req: the request the driver got; res: the resource;
+  // pf: a { prefetch } fetch (5-5: answered into the cache, no reply)
+  type Pending = {value: any; req: any; category: any; res?: string; pf?: any; live: boolean; settle: (ok: boolean, v: any) => void};
   type Fake = {select: any; errors: any; subs: Set<FakeSub>; at: (ns: any[]) => any; pending: Pending[]; in$: any; http: any; ws: Sock};
   const fakes = new Map<string, Fake>();
   // 5-3: the fake drivers' focus / online listeners (t.focus, t.online)
@@ -1276,14 +1280,15 @@ export function renderComponent(
         ...httpOptions,
         // 5-3: focus / online come from t.focus() / t.online() only
         _on: (f: any) => { signals.add(f); return () => signals.delete(f); },
-        _tap: (req: any, res?: string) => { tapped = [req, res]; },
+        _tap: (req: any, res?: string, pf?: any) => { tapped = [req, res, pf]; },
         fetch: (url: string, init: any) => new Promise((resolve, reject) => {
-          const [req, res] = tapped || [{url}];
+          const [req, res, pf] = tapped || [{url}];
           tapped = undefined;
-          // G-171(1): a resource fetch is listed as { url, ...request, resource: name }
-          const value = res !== undefined ? {...req, resource: res} : sending !== undefined ? sending : req;
-          if (res !== undefined) requests(name).push(value);
-          const p: Pending = {value, req, category: req.category, res, live: true, settle: (ok, v) => { p.live = false; (ok ? resolve : reject)(v); }};
+          // G-171(1): a resource fetch is listed as { url, ...request, resource: name }; 5-5: a
+          // { prefetch } fetch as { url, ...request, prefetch: true }
+          const value = res !== undefined ? {...req, resource: res} : pf ? {...req, prefetch: true} : sending !== undefined ? sending : req;
+          if (res !== undefined || pf) requests(name).push(value);
+          const p: Pending = {value, req, category: req.category, res, pf, live: true, settle: (ok, v) => { p.live = false; (ok ? resolve : reject)(v); }};
           pending.push(p);
           init?.signal?.addEventListener?.('abort', () => {
             if (!p.live) return;
@@ -1405,7 +1410,7 @@ export function renderComponent(
     const shown = v && typeof v == 'object' && v[STR] !== undefined ? v[STR] : v;
     sinkValues(name).push(shown);
     const obj = !!v && typeof v == 'object';
-    const listed = !(obj && (v.abort || v.resources || v.refresh || 'invalidate' in v));
+    const listed = !(obj && (v.abort || v.resources || v.refresh || 'invalidate' in v || 'prefetch' in v));
     const value = typeof shown == 'string' ? {url: shown} : shown;
     if (listed) requests(name).push(value);
     if (!track) return;
@@ -1838,8 +1843,9 @@ export function renderComponent(
       const e: Pending | undefined = tg.push ? undefined : hit;
       const category = 'category' in o ? o.category : e?.category;
       // the driver delivers a resource's reply, and a reply action for a request that names one
-      // for this outcome (from a component), as that action; anything else on select()/errors()
-      if (e && (e.res !== undefined || (senderOf(e.req) !== undefined && (err ? e.req.error : e.req.ok)))) return deliver(e, o);
+      // for this outcome (from a component), as that action; a prefetch into the cache; anything
+      // else on select()/errors()
+      if (e && (e.res !== undefined || e.pf || (senderOf(e.req) !== undefined && (err ? e.req.error : e.req.ok)))) return deliver(e, o);
       const data = payload(category, o, e);
       let heard = false;
       f.subs.forEach(sub => {
@@ -1947,7 +1953,7 @@ export function renderComponent(
   const conns = (name: string): Conn[] => [...(fakes.get(name)?.ws.conns.values() || [])].flatMap(m => [...m.values()]);
   const connections = (name: string) => conns(name).map(sockView);
   // 5-3: the driver's own view of its cache; t.focus / t.online fire the fake drivers' signals
-  const cache = (name: string) => fake(name).http.__inspect().cache;
+  const cache = (name: string) => fake(name).http.__inspect().cache || [];
   const signal = (s: string) => later(() => (signals.forEach(f => f(s)), true));
   const sent = (name: string, to?: string) => {
     const all = fake(name).ws.sent;
