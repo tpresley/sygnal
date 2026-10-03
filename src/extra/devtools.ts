@@ -1,5 +1,9 @@
 import {getDiagnostics} from './diagnostics/index';
 import type {Diagnostic} from './diagnostics/index';
+import {recordActions, clearActions, getActions, onAction, getSession, preview} from './devtoolsActions';
+import type {DevtoolsAction, SessionRecording} from './devtoolsActions';
+import {sessionToTest} from './copyAsTest';
+import type {CopyAsTestOptions, CopyAsTestResult} from './copyAsTest';
 
 const DEVTOOLS_SOURCE = '__SYGNAL_DEVTOOLS_PAGE__';
 const EXTENSION_SOURCE = '__SYGNAL_DEVTOOLS_EXTENSION__';
@@ -64,6 +68,10 @@ export class SygnalDevTools {
   _components: Map<number, ComponentMeta>;
   _stateHistory: StateHistoryEntry[];
   _maxHistory: number;
+  /** PLAN-4 3-E: actions changed since the last ACTIONS post (flushed on a timeout) */
+  _dirty = new Set<DevtoolsAction>();
+  _flush: any = null;
+  _copyOptions: CopyAsTestOptions = {};
 
   constructor() {
     this._connected = false;
@@ -88,6 +96,15 @@ export class SygnalDevTools {
 
     window.__SYGNAL_DEVTOOLS__ = this;
 
+    // PLAN-4 3-E (GS-10): the action log (recorded from now on, connected or not)
+    recordActions();
+    onAction((a, kind) => {
+      if (!this.connected) return;
+      if (kind == 'reset') { this._dirty.clear(); this._post('ACTIONS_RESET', {actions: []}); return; }
+      this._dirty.add(a!);
+      if (this._flush === null) this._flush = setTimeout(() => this._flushActions(), 0);
+    });
+
     window.addEventListener('message', (event: MessageEvent) => {
       if (event.source !== window) return;
       if (event.data?.source === EXTENSION_SOURCE) {
@@ -102,6 +119,13 @@ export class SygnalDevTools {
         this._connected = true;
         if (msg.payload?.maxHistory) this._maxHistory = msg.payload.maxHistory;
         this._sendFullTree();
+        this._post('ACTIONS_RESET', {actions: getActions().slice(-500).map(a => this._serializeAction(a))});
+        break;
+      case 'CLEAR_ACTIONS':
+        clearActions();
+        break;
+      case 'COPY_AS_TEST':
+        this._post('COPY_AS_TEST_RESULT', this._copyAsTest(msg.payload?.instance));
         break;
       case 'DISCONNECT':
         this._connected = false;
@@ -284,6 +308,42 @@ export class SygnalDevTools {
       message: message,
       timestamp: Date.now(),
     });
+  }
+
+  /** PLAN-4 3-E: post the actions added or changed since the last flush */
+  _flushActions(): void {
+    this._flush = null;
+    if (!this.connected || !this._dirty.size) { this._dirty.clear(); return; }
+    const list = [...this._dirty].sort((a, b) => a.seq - b.seq).map(a => this._serializeAction(a));
+    this._dirty.clear();
+    this._post('ACTIONS', {actions: list});
+  }
+
+  _serializeAction(a: DevtoolsAction): any {
+    return {
+      seq: a.seq, type: a.type, data: preview(a.data), component: a.component, instance: a.instance, parent: a.parent,
+      sinks: [...a.sinks], cause: a.cause, at: a.at,
+      ...('after' in a ? {before: this._safeClone(a.before), after: this._safeClone(a.after)} : {}),
+    };
+  }
+
+  /** "Copy as test" for the panel: the session of `instance` (default: the root) */
+  _copyAsTest(instance?: string | number): CopyAsTestResult | {error: string} {
+    try {
+      return sessionToTest(getSession(instance ?? undefined), this._copyOptions);
+    } catch (e: any) {
+      return {error: String(e?.message || e)};
+    }
+  }
+
+  /** Defaults for "Copy as test" from the panel (componentImport, drivers, imports, ...) */
+  configureCopyAsTest(options: CopyAsTestOptions): void {
+    this._copyOptions = {...this._copyOptions, ...options};
+  }
+
+  /** The recorded session of an instance (see sygnal/devtools getSession) */
+  getSession(target?: any): SessionRecording {
+    return getSession(target);
   }
 
   _setDebug({componentId, enabled}: {componentId?: number; enabled: boolean}): void {
