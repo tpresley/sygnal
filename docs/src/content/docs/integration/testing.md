@@ -99,10 +99,11 @@ Selectors are matched against the rendered vnode tree with the same rules as the
 | `:nth-child(an+b)`, `:nth-last-child()`, including `odd` / `even` | `.card:nth-child(3) .next` |
 | `:first-of-type`, `:last-of-type`, `:only-of-type`, `:nth-of-type()`, `:nth-last-of-type()` | `p:nth-of-type(2)` |
 | `:not(...)` (no combinators inside) | `.item:not(.done)` |
+| `:checked`, `:disabled`, `:enabled` (as the view rendered them) | `input[name="plan"]:checked` |
 | Descendant (space) and child (`>`) combinators | `.board > .list:nth-child(2) .card:first-child .next` |
 | Selector lists (`,`) | `.save, .submit` |
 
-Anything else, such as `:has()`, the `+` and `~` combinators, `:hover` or pseudo-elements, throws an "Unsupported selector syntax" error when you call `simulateEvent`. It is never silently ignored. Positional selectors follow the rendered DOM, so `:nth-child` counts every element sibling, including headings and other elements around a Collection's items. If the position is hard to pin down, give the element an attribute and select that instead, e.g. `[data-id="3"]`.
+Anything else, such as `:has()`, the `+` and `~` combinators, `:hover` or pseudo-elements, throws an "Unsupported selector syntax" error when you call `simulateEvent` (or `t.query`). It is never silently ignored. Positional selectors follow the rendered DOM, so `:nth-child` counts every element sibling, including headings and other elements around a Collection's items. If the position is hard to pin down, give the element an attribute and select that instead, e.g. `[data-id="3"]`.
 
 ### simulateAction
 
@@ -225,6 +226,7 @@ it('updates the query at once and searches 300 ms after the last keystroke', asy
 |---|---|
 | `t.state` | The latest state (`t.states.at(-1)`), read-only; `undefined` before the first one. Calculated fields in it are current, also after a child component or Collection item changed the state |
 | `t.states` | Live array of every state emitted, in order (`t.states[0]` is the initial state) |
+| `t.query(sel)`, `t.queryAll(sel)` | The first element matching `sel` (or `null`), and all of them, in the latest render. On the mock DOM each is a read-only snapshot of what the view rendered (below); with [`dom: 'real'`](#real-dom), the real element |
 | `t.html()` | The latest render, serialized to HTML like the browser's `innerHTML`: text escapes only `&`, `<` and `>` (`Couldn't`, not `Couldn&#39;t`), attribute values only `&` and `"`. It throws if called before the first render, so `await t.ready()` (or a `t.next()`) first; a component that hasn't rendered by then (no state yet) gives `''` |
 | `t.emitted` | Live array of `{ type, data }` the component (and its children) put on the EVENTS bus |
 | `t.sinkValues(name)` | Live array of values sent to a sink: `'EVENTS'`, `'PARENT'` (the plain value), `'LOG'`, or a custom driver name |
@@ -248,6 +250,18 @@ await t.next(s => s.count === 0)
 
 expect(t.emitted).toEqual([{ type: 'COUNTER_RESET', data: 1 }])
 expect(t.html()).toContain('<span class="count">0</span>')
+```
+
+**Elements on the mock DOM.** `t.query()` and `t.queryAll()` take the selectors `simulateEvent` takes, and return snapshot elements with the usual reads: `textContent`, `value`, `checked`, `disabled`, `selected`, `tagName`, `id`, `className`, `classList.contains()`, `dataset`, `getAttribute()`, `hasAttribute()`, `name`, `type`, `href` (as written), `children`, `parentElement`, `querySelector()`, `querySelectorAll()`, `closest()`, `matches()`, `innerHTML` and `outerHTML`. They show what the view rendered: an input's `value` is its `value` prop and a checkbox is `checked` when the view says so, so a `simulateEvent` with `{ value }` shows up only once the model puts it in state and the view renders it. Query again after each wait. There is no focus or layout: `focus()`, `click()` and the like throw and point to `simulateEvent` or `dom: 'real'`.
+
+```jsx
+t.simulateEvent('input[name="email"]', 'input', { value: 'ada@example.com' })
+await t.next(s => s.email === 'ada@example.com')
+expect(t.query('input[name="email"]').value).toBe('ada@example.com')
+expect(t.query('input[name="plan"]:checked').value).toBe('free')
+expect(t.query('.next').disabled).toBe(false)
+expect(t.queryAll('.row').map(e => e.dataset.id)).toEqual(['1', '2'])
+expect(t.query('.missing')).toBeNull()
 ```
 
 A custom sink with no driver (for example `API` when you don't pass an `API` driver) gets a recording no-op driver, for the rendered component and for every child, grandchild and Collection item, so its output is still visible through `sinkValues`:
@@ -307,8 +321,24 @@ it('loads a quote', async () => {
 | `{ url: '/items/2' }` | whose fields equal these, compared by value (a partial request in its `t.requests` form; also the constant object the model returns) |
 | `(request) => request.query.q === 'du'` | for which the predicate is true (it gets the request in its `t.requests` form) |
 | `{ request, category, status, body }` | `request` is any of the above, or an element of `t.requests(name)`. Among equal pending requests, that very element is answered. `request: null` pushes a value no request asked for. `category` narrows the match, and `status`/`body` set the reply's |
+| `{ nth: 0 }`, `{ request, nth: -2 }` | that very request by its position in `t.requests(name)`: `0` is the first, `-1` the newest. With `request` or `category`, it counts only the requests that match them. It throws if that request is no longer pending |
 
-An object whose keys are all `request`, `category`, `status` or `body` is read as options. Any other object is a request pattern.
+An object whose keys are all `request`, `category`, `status`, `body` or `nth` is read as options. Any other object is a request pattern.
+
+**Identical requests.** Content can't tell two identical requests apart, and an equal pending one is always there to match: after a resource refetch or a second click, `t.respond('HTTP', body, 'quote')`, the URL, and even the older element of `t.requests('HTTP')` all pick the newest. Use `nth` to name one by position:
+
+```jsx
+t.simulateAction('REFRESH')
+await t.next(s => s.quote.refreshing)
+t.simulateAction('REFRESH')                   // refetch again: an identical request
+await t.settle()
+expect(() => t.respond('HTTP', { text: 'stale' }, { nth: -2 })).toThrow()   // superseded by the newer one
+await t.respond('HTTP', { text: 'fresh' }, { nth: -1 })
+
+// two identical pending requests, both live (no latest: true): answer the older one first
+await t.respond('HTTP', { n: 1 }, { nth: 0 })
+await t.respond('HTTP', { n: 2 }, { nth: 1 })
+```
 
 **When nothing matches.** `t.respond` and `t.fail` throw at the call, so `expect(() => t.respond('HTTP', [], { query: { q: 'du' } })).toThrow()` asserts that a stale request is no longer pending. The exception is a call made while `simulateEvent`/`simulateAction`/`respond`/`fail` calls are still queued before it, or before the component is ready (a request sent on `BOOTSTRAP`). That call is delivered after them and waits up to 1 s (half of `timeoutMs` if lower) for its request, e.g. after a debounce. If none comes, its promise rejects, and if nothing awaited it, the next wait (`next`, `settle`, ...) fails.
 
@@ -549,7 +579,7 @@ The timing options (and a timeout passed to `next()`, `waitForState()` or `settl
 | `events$` | `EventsSource` | The event bus source (`.select(type)`) |
 | `sinks`, `sources` | `object` | All sink streams and source objects |
 | `dispose` | `() => void` | Tear down the tree (fires `DISPOSE`) and restore the diagnostics settings |
-| `query`, `queryAll` | `(selector) => Element \| null`, `Element[]` | `dom: 'real'` only: real elements of the rendered tree |
+| `query`, `queryAll` | `(selector) => Element \| null`, `Element[]` | Elements of the latest render: snapshots on the mock DOM ([Reading Output](#reading-output)), real elements with `dom: 'real'` |
 | `container` | `Element \| null` | `dom: 'real'`: the mount element (`null` with the mock DOM) |
 
 ## Mock DOM Streams
@@ -570,7 +600,7 @@ await t.waitForState(s => s.count === 2)
 
 ## Real DOM
 
-The mock DOM has no elements, so it can't tell you whether a checkbox is really checked, what an input really holds, whether a button is disabled, or where focus is. For that, pass `dom: 'real'`: the tree is patched into a real container element by the same DOM driver `run()` uses, and the rest of the `t.*` API stays the same. It needs a DOM in the test environment (`npm install -D jsdom`, then `// @vitest-environment jsdom` at the top of the file, or `test.environment: 'jsdom'`; `happy-dom` works too).
+The mock DOM has no real elements: `t.query()` there shows what the view rendered, so it can't tell you whether a checkbox the user clicked is really checked, what an uncontrolled input really holds, or where focus is. For that, pass `dom: 'real'`: the tree is patched into a real container element by the same DOM driver `run()` uses, and the rest of the `t.*` API stays the same. It needs a DOM in the test environment (`npm install -D jsdom`, then `// @vitest-environment jsdom` at the top of the file, or `test.environment: 'jsdom'`; `happy-dom` works too).
 
 ```jsx
 // @vitest-environment jsdom
@@ -596,7 +626,7 @@ What changes with `dom: 'real'`:
 
 - `simulateEvent(selector, type, init?)` dispatches a real DOM event on the first element matching `selector` (any CSS selector the DOM supports, `:has()`, `+` and `:checked` included). `init.value` / `init.checked` / `init.dataset` are set on the element first, so `{ value }` is like typing. A plain `'click'` runs the browser's default action (a checkbox or radio toggles and fires `change`; a click on a disabled control does nothing). `'focus'` and `'blur'` move `document.activeElement`. Events travel through the real event delegation and isolation, so Portal content outside the component is reached only by `DOM.select('document')` listeners, as in the browser.
 - Each event waits until every state so far is rendered into the DOM and the tree has been quiet for 10 ms, like a user who acts on what is on the screen: a button that the previous input enabled is enabled when it is clicked.
-- `t.query(selector)` returns the first matching element (or `null`) and `t.queryAll(selector)` all of them, searching the rendered tree and the Portal content it mounted. Before the first render is in the DOM they throw (`await t.ready()` first). `t.container` is the mount element. Refs (`createRef()`) point at the real elements.
+- `t.query(selector)` returns the first matching real element (or `null`) and `t.queryAll(selector)` all of them, for any CSS selector, searching the rendered tree and the Portal content it mounted. Before the first render is in the DOM they throw (`await t.ready()` first). `t.container` is the mount element. Refs (`createRef()`) point at the real elements.
 - Every wait resolves once its state is in the DOM: `ready()` after the first render, `next()` and `waitForState()` after the matching state's render, `settle()` after the latest one. If a later state arrives meanwhile (a fast response, a model `next()`), its render is held back until the code after your `await` has run, so `t.query()` there reads the state the wait returned. A `next()` right after another wait (with no input in between) also matches such a later state:
 
 ```jsx

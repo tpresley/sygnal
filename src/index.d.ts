@@ -1780,6 +1780,12 @@ export interface FakeReplyOptions {
   status?: number;
   /** fail(): the parsed error body */
   body?: any;
+  /**
+   * That very request by its position in t.requests(name) (counting only those matching
+   * `request`/`category`): 0 the first, -1 the newest. Answers the older of two identical
+   * requests; throws at the call when it is no longer pending (answered, aborted, superseded).
+   */
+  nth?: number;
 }
 
 /** A connection on a driverless socket sink, as `t.connections(name)` lists it: the spec as declared plus these */
@@ -2085,14 +2091,16 @@ export interface RenderResult<STATE = any> {
   /** `{ dom: 'real' }`: the element the tree is mounted in (removed by dispose()); otherwise null */
   container: Element | null;
   /**
-   * `{ dom: 'real' }`: the first element matching a CSS selector in the rendered tree (Portal
-   * content included), or null: `expect(t.query('input[name="plan"][value="team"]').checked).toBe(true)`.
-   * Throws in the mock DOM, and before the first render is in the DOM (`await t.ready()` first).
-   * Right after `await t.next(pred)` / `waitForState` / `settle()` / `ready()` the DOM shows
-   * the state the wait resolved with.
+   * The first element matching a selector in the rendered tree (Portal content included), or
+   * null: `expect(t.query('input[name="plan"]:checked').value).toBe('team')`. With `dom: 'real'`
+   * a real element (any CSS selector); with the mock DOM a read-only snapshot of what the view
+   * rendered (simulateEvent's selectors plus `:checked`/`:disabled`/`:enabled`; textContent,
+   * value, checked, disabled, getAttribute, classList, dataset, querySelector, closest...; no
+   * focus()). Throws before the first render (`await t.ready()` first). Right after
+   * `await t.next(pred)` / `waitForState` / `settle()` / `ready()` it shows the state the wait resolved with.
    */
   query: (selector: string) => Element | null;
-  /** `{ dom: 'real' }`: every element matching a CSS selector in the rendered tree (Portals included) */
+  /** Every element matching a selector in the rendered tree (Portals included), as query() */
   queryAll: (selector: string) => Element[];
 }
 

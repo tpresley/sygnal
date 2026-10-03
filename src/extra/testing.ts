@@ -176,6 +176,11 @@ export interface FakeReplyOptions {
   status?: number;
   /** fail(): the parsed error body */
   body?: any;
+  /**
+   * 6-B: that very request by its position in t.requests(name) (counting only those matching
+   * `request`/`category`): 0 the first, -1 the newest; throws at the call when it isn't pending
+   */
+  nth?: number;
 }
 /** E2 / PLAN-3 1-C: a t.respond()/t.fail() target */
 export type FakeReplyTarget = string | FakeReplyOptions | Record<string, any> | ((request: any) => boolean);
@@ -438,14 +443,15 @@ export interface RenderResult {
   /** `{ dom: 'real' }`: the element the tree is mounted in (removed on dispose()); else null */
   container: Element | null;
   /**
-   * `{ dom: 'real' }`: the first element matching a CSS selector in the rendered tree (Portal
-   * content included), or null. Read real DOM state from it: `.checked`, `.value`, `.disabled`,
-   * `document.activeElement === t.query('input[name="city"]')`. Throws before the first render
-   * is in the DOM (await t.ready() first). 4-A1: after `await` of any wait, the DOM shows the
-   * state the wait resolved with (a later render is held back until the next macrotask).
+   * The first element matching a selector in the rendered tree (Portal content included), or
+   * null. `{ dom: 'real' }`: the real element (`document.activeElement === t.query(...)`). 6-B:
+   * the mock DOM gives a MockElement, a snapshot of what the view rendered (`.textContent`,
+   * `.value`, `.checked`, `.disabled`, getAttribute, querySelector...). Throws before the first
+   * render (await t.ready() first). 4-A1: after `await` of any wait, it shows the state the wait
+   * resolved with (a later render is held back until the next macrotask).
    */
   query: (selector: string) => Element | null;
-  /** `{ dom: 'real' }`: every element matching a CSS selector in the rendered tree (Portals included) */
+  /** Every element matching a selector in the rendered tree (Portals included), as query() */
   queryAll: (selector: string) => Element[];
 }
 
@@ -468,8 +474,10 @@ type Pseudo = {k: string; a: number; b: number; last?: boolean; type?: boolean; 
 type Compound = {tag?: string; id?: string; cls: string[]; attrs: [string, string, string?][]; ps: Pseudo[]};
 type Complex = {parts: Compound[]; combs: string[]};
 type Sel = Complex[];
-const SUPPORTED = "tag, *, .class, #id, [attr], [attr=\"v\"] (also ^= $= *= ~=), :first-child, :last-child, :only-child, :nth-child(an+b|odd|even), :nth-last-child(), :first-of-type, :last-of-type, :only-of-type, :nth-of-type(), :nth-last-of-type(), :not(...), the descendant (' ') and child ('>') combinators, ',' lists";
+const SUPPORTED = "tag, *, .class, #id, [attr], [attr=\"v\"] (also ^= $= *= ~=), :first-child, :last-child, :only-child, :nth-child(an+b|odd|even), :nth-last-child(), :first-of-type, :last-of-type, :only-of-type, :nth-of-type(), :nth-last-of-type(), :not(...), :checked, :disabled, :enabled, the descendant (' ') and child ('>') combinators, ',' lists";
 const IDENT = /^(?:[\w-]|\\.)+/;
+const STATES = ['checked', 'disabled', 'enabled'];
+const FORM = ['button', 'input', 'select', 'textarea', 'option', 'optgroup', 'fieldset'];
 const unesc = (x: string) => x.replace(/\\(.)/g, '$1');
 const parsed = new Map<string, Sel | Error>();
 function parse(src: string): Sel {
@@ -485,7 +493,7 @@ const tryParse = (src: string): Sel | undefined => { try { return parse(src); } 
 function parseSel(src: string): Sel {
   let i = 0;
   const bad = (what: string): never => {
-    const e: any = new Error(`[Sygnal] Unsupported selector syntax in '${src}': ${what}. Supported: ${SUPPORTED}. Or give the element an attribute and select it, e.g. [data-id="3"]`);
+    const e: any = new Error(`[Sygnal] Unsupported selector syntax in '${src}': ${what}. Supported: ${SUPPORTED}. Or give the element an attribute and select it, e.g. [data-id="3"]. With renderComponent(C, { dom: 'real' }) any CSS selector works`);
     e.unsupported = true;
     throw e;
   };
@@ -546,6 +554,8 @@ function parseSel(src: string): Sel {
             [p.a, p.b] = anb(arg!);
             p.last = !!m[2];
           }
+        } else if (STATES.includes(k) && arg === undefined) {
+          // 6-B: element state, as the view rendered it
         } else if (k == 'not' && arg !== undefined) {
           p.not = parse(arg);
           if (p.not.some(cx => cx.parts.length > 1)) bad("combinators inside ':not()'");
@@ -632,6 +642,10 @@ function is(v: any, c: Compound): boolean {
   }
   for (const ps of c.ps) {
     if (ps.not) { if (matches(ps.not, [v])) return false; continue; }
+    if (STATES.includes(ps.k)) {
+      if (ps.k == 'checked' ? !flag(v, 'checked') && !(tagOf(v) == 'option' && flag(v, 'selected')) : !FORM.includes(tagOf(v)) || flag(v, 'disabled') == (ps.k == 'enabled')) return false;
+      continue;
+    }
     let sibs = (meta.get(v) || {sibs: [v]}).sibs;
     if (ps.type) sibs = sibs.filter(s => tagOf(s) == tagOf(v));
     if (ps.k == 'only') { if (sibs.length != 1) return false; continue; }
@@ -665,6 +679,152 @@ function find(v: any, sel: Sel, chain: any[] = []): any[] | undefined {
     if (r) return r;
   }
 }
+/** root → element chains of every element (document order) matching `sel`, below `v` (and `v` with `self`) */
+function findAll(v: any, sel: Sel, chain: any[], out: any[][], self = true): any[][] {
+  if (!v || typeof v != 'object') return out;
+  const c = v.sel ? chain.concat(v) : chain;
+  if (v.sel && self && matches(sel, c)) out.push(c);
+  for (const k of [].concat(v.children || [], v.data?.portalChildren || [])) findAll(k, sel, c, out);
+  return out;
+}
+
+// ── Mock elements (PLAN-3 6-B, G-185) ────────────────────────────────────────
+// t.query() / t.queryAll() on the mock DOM return these: read-only snapshots of one rendered
+// vnode with the common Element reads (text, attributes, classes, form state, traversal,
+// querySelector). They show what the view rendered: an input's value is its `value` prop, a
+// checkbox is checked when the view says so; nothing is typed, focused or laid out.
+const PROP_OF: Record<string, string> = {class: 'className', for: 'htmlFor', readonly: 'readOnly', tabindex: 'tabIndex'};
+/** a boolean property (checked, disabled, ...) as rendered: the prop, else the attribute */
+function flag(v: any, name: string): boolean {
+  const d = v.data || {}, p = d.props || {}, a = d.attrs || {};
+  if (name in p) return !!p[name];
+  const x = name in a ? a[name] : a[name.toLowerCase()];
+  return x != null && x !== false;
+}
+function classesOf(v: any): string[] {
+  const d = v.data || {}, p = d.props || {}, a = d.attrs || {};
+  const all: string[] = v.sel.split('#').flatMap((x: string) => x.split('.').slice(1)).concat(
+    `${p.className || ''} ${a.class || ''}`.split(/\s+/), Object.keys(d.class || {}).filter(k => d.class[k]));
+  return all.filter((c, i) => c && !c.startsWith('___') && all.indexOf(c) == i);
+}
+/** an attribute as getAttribute() reads it (null: absent) */
+function attrOf(v: any, name: string): string | null {
+  const d = v.data || {}, p = d.props || {}, a = d.attrs || {};
+  const n = name.toLowerCase();
+  if (n == 'class') { const c = classesOf(v); return c.length ? c.join(' ') : null; }
+  if (n == 'id' && v.sel.includes('#')) return v.sel.split('#')[1].split('.')[0];
+  const x = name in a ? a[name] : n in a ? a[n]
+    : name in p ? p[name] : PROP_OF[n] && PROP_OF[n] in p ? p[PROP_OF[n]]
+    : n.startsWith('data-') ? (d.dataset || {})[n.slice(5).replace(/-(\w)/g, (_: any, l: string) => l.toUpperCase())]
+    : undefined;
+  return x == null || x === false ? null : x === true ? '' : String(x);
+}
+function textOf(v: any): string {
+  if (v == null || typeof v == 'boolean') return '';
+  if (typeof v != 'object') return String(v);
+  if (v.sel == '!') return '';
+  return (v.text != null ? String(v.text) : '') + [].concat(v.children || []).map(textOf).join('');
+}
+const mockEls = new WeakMap<any, MockElement>();
+/** the MockElement for the last vnode of a root → element chain */
+const mockOf = (chain: any[], html: (v: any) => string): MockElement =>
+  chain.reduce((parent: MockElement | null, v: any) => {
+    const m = mockEls.get(v);
+    return m && m._p === parent ? m : new MockElement(v, parent, html);
+  }, null)!;
+class MockElement {
+  declare readonly nodeType: 1;
+  declare private _v: any;
+  declare readonly _p: MockElement | null;
+  declare private _html: (v: any) => string;
+  constructor(v: any, parent: MockElement | null, html: (v: any) => string) {
+    Object.defineProperties(this, {_v: {value: v}, _p: {value: parent}, _html: {value: html}, nodeType: {value: 1}});
+    mockEls.set(v, this);
+  }
+  private chain(): any[] {
+    const c: any[] = [];
+    for (let e: MockElement | null = this; e; e = e._p) c.unshift(e._v);
+    return c;
+  }
+  get tagName() { return tagOf(this._v).toUpperCase(); }
+  get nodeName() { return this.tagName; }
+  get localName() { return tagOf(this._v); }
+  get id() { return attrOf(this._v, 'id') ?? ''; }
+  get className() { return classesOf(this._v).join(' '); }
+  get classList() {
+    const c = classesOf(this._v);
+    return Object.assign(c, {contains: (x: string) => c.includes(x), item: (i: number) => c[i] ?? null, value: c.join(' ')});
+  }
+  get dataset() {
+    const d = this._v.data || {}, out: Record<string, string> = {...str(d.dataset)};
+    for (const src of [d.props || {}, d.attrs || {}]) {
+      for (const k in src) if (k.startsWith('data-') && src[k] != null) out[k.slice(5).replace(/-(\w)/g, (_: any, l: string) => l.toUpperCase())] = String(src[k]);
+    }
+    return out;
+  }
+  get style() { return {...(this._v.data?.style || {})}; }
+  get textContent() { return textOf(this._v); }
+  get innerText() { return this.textContent; }
+  get outerHTML() { return this._html(this._v); }
+  get innerHTML() {
+    const o = this.outerHTML, end = `</${this.localName}>`;
+    return o.endsWith(end) ? o.slice(o.indexOf('>') + 1, -end.length) : '';
+  }
+  get value(): string {
+    const v = this._v, p = v.data?.props || {}, tag = this.localName;
+    if (p.value != null) return String(p.value);
+    const a = attrOf(v, 'value');
+    if (a !== null) return a;
+    if (tag == 'textarea' || tag == 'option') return this.textContent;
+    if (tag == 'select') {
+      const o = this.querySelector('option:checked') || this.querySelector('option');
+      return o ? o.value : '';
+    }
+    return tag == 'input' && /^(checkbox|radio)$/.test(this.type) ? 'on' : '';
+  }
+  get checked() { return flag(this._v, 'checked'); }
+  get selected() { return flag(this._v, 'selected'); }
+  get disabled() { return flag(this._v, 'disabled'); }
+  get readOnly() { return flag(this._v, 'readOnly') || flag(this._v, 'readonly'); }
+  get required() { return flag(this._v, 'required'); }
+  get hidden() { return flag(this._v, 'hidden'); }
+  get type() { return attrOf(this._v, 'type') ?? (this.localName == 'input' ? 'text' : this.localName == 'button' ? 'submit' : ''); }
+  get name() { return attrOf(this._v, 'name') ?? ''; }
+  /** as written in the view (a real <a>'s href is absolute) */
+  get href() { return attrOf(this._v, 'href') ?? ''; }
+  get src() { return attrOf(this._v, 'src') ?? ''; }
+  get placeholder() { return attrOf(this._v, 'placeholder') ?? ''; }
+  get title() { return attrOf(this._v, 'title') ?? ''; }
+  get alt() { return attrOf(this._v, 'alt') ?? ''; }
+  get htmlFor() { return attrOf(this._v, 'for') ?? ''; }
+  getAttribute(name: string) { return attrOf(this._v, name); }
+  hasAttribute(name: string) { return attrOf(this._v, name) !== null; }
+  get parentElement() { return this._p; }
+  get children(): MockElement[] { return kids(this._v).map(k => mockOf([...this.chain(), k], this._html)); }
+  get childElementCount() { return this.children.length; }
+  get firstElementChild() { return this.children[0] ?? null; }
+  get lastElementChild() { const c = this.children; return c[c.length - 1] ?? null; }
+  matches(selector: string) { return matches(parse(norm(selector)), this.chain()); }
+  closest(selector: string): MockElement | null {
+    const sel = parse(norm(selector));
+    for (let e: MockElement | null = this; e; e = e._p) if (matches(sel, e.chain())) return e;
+    return null;
+  }
+  querySelectorAll(selector: string): MockElement[] {
+    return findAll(this._v, parse(norm(selector)), this.chain().slice(0, -1), [], false).map(ch => mockOf(ch, this._html));
+  }
+  querySelector(selector: string): MockElement | null { return this.querySelectorAll(selector)[0] ?? null; }
+  /** vitest / pretty-format print an element as its HTML */
+  toJSON() { return this.outerHTML; }
+  // no events, focus or layout on a snapshot
+  focus(): never { throw realOnly('focus'); }
+  blur(): never { throw realOnly('blur'); }
+  click(): never { throw realOnly('click'); }
+  dispatchEvent(_e?: any): never { throw realOnly('dispatchEvent'); }
+  addEventListener(..._a: any[]): never { throw realOnly('addEventListener'); }
+  getBoundingClientRect(): never { throw realOnly('getBoundingClientRect'); }
+}
+const realOnly = (fn: string) => new Error(`[Sygnal] element.${fn}(): t.query() on the default mock DOM returns a snapshot of what the view rendered. Fire events with t.simulateEvent(selector, type), or use real elements: renderComponent(C, { dom: 'real' })`);
 
 /**
  * The isolation scope a vnode starts ('.___scope'): the mock DOM appends it to the sel, the
@@ -1800,7 +1960,7 @@ export function renderComponent(
   // The returned promise resolves once the reply has been reduced and the tree rendered. A
   // failure later on rejects it; when nothing awaits it, it also fails the next wait.
   const replyWaits = new Set<(e?: Error, quiet?: boolean) => void>();
-  const OPTION_KEYS = ['category', 'request', 'status', 'body'];
+  const OPTION_KEYS = ['category', 'request', 'status', 'body', 'nth'];
   type Target = {match: (r: Pending) => boolean; exact?: any; desc: string; push?: boolean; o: any};
   // a pending request is matched by its t.requests form (`value`): a string request is { url },
   // a resource fetch carries `resource: name`
@@ -1812,7 +1972,8 @@ export function renderComponent(
     let tg = isOpts ? o.request : opts;
     if (isOpts && typeof tg == 'string') tg = {url: tg};
     const cat = 'category' in o ? (r: Pending) => r.category === o.category : () => true;
-    const catDesc = 'category' in o ? ` with category '${o.category}'` : '';
+    if ('nth' in o && !Number.isInteger(o.nth)) throw new Error(`[Sygnal] t.respond/t.fail: nth must be an integer (a position in t.requests(name): 0 the first, -1 the newest; got ${brief(o.nth)})`);
+    const catDesc = ('category' in o ? ` with category '${o.category}'` : '') + ('nth' in o ? ` at nth: ${o.nth}` : '');
     if (tg === undefined) return {match: cat, desc: catDesc, o};
     if (typeof tg == 'string') {
       // an ok/error action name, key, category, resource name or URL
@@ -1827,11 +1988,30 @@ export function renderComponent(
     }
     throw new Error(`[Sygnal] t.respond/t.fail: the target must be an action name, key, category, resource name or URL, a request object, a predicate or { request, category, status, body } options (got ${typeof tg})`);
   };
+  // 6-B (G-185): `nth` picks one request of t.requests(name) (those matching the rest of the
+  // target) by position, pending or not: identical requests can't be told apart by content
+  const nthOf = (name: string, tg: Target): {list: Pending[]; hit?: Pending} => {
+    const ps = fakes.get(name)?.pending || [];
+    const list = requests(name).map(v => ps.find(p => p.value === v) ||
+      {value: v, req: v, category: v?.category, res: v?.resource, live: false, settle: noop} as Pending).filter(tg.match);
+    const n = tg.o.nth;
+    return {list, hit: list[n < 0 ? list.length + n : n]};
+  };
   const pick = (name: string, tg: Target): Pending | undefined => {
+    if ('nth' in tg.o) {
+      const {hit} = nthOf(name, tg);
+      return hit?.live ? hit : undefined;
+    }
     const live = (fakes.get(name)?.pending || []).filter(r => r.live && tg.match(r));
     return (tg.exact !== undefined && live.filter(r => r.value === tg.exact || r.req === tg.exact).pop()) || live.pop();
   };
   const noPending = (what: string, name: string, tg: Target, waited: number) => {
+    if ('nth' in tg.o) {
+      const {list, hit} = nthOf(name, tg), all = requests(name).length;
+      return new Error(`[Sygnal] ${what}: ` + (hit
+        ? `t.requests('${name}')[${requests(name).indexOf(hit.value)}] (the one${tg.desc}) is not pending: it was answered, aborted, or superseded by a later latest: true request or a refetch of its resource. That is what expect(() => t.respond(...)).toThrow() asserts.`
+        : `no pending ${name} request${tg.desc}${waited ? ` after ${waited}ms` : ''}: t.requests('${name}') has ${list.length} request${list.length == 1 ? '' : 's'}${list.length < all ? ` matching (${all} in all)` : ''}.`));
+    }
     const sent = requests(name).length, live = fakes.get(name)?.pending.filter(r => r.live) || [];
     return new Error(`[Sygnal] ${what}: no pending ${name} request${tg.desc}${waited ? ` after ${waited}ms` : ''}. ` +
       (live.length ? `Pending: ${live.map(r => brief(r.value)).join(', ')}. ` : '') +
@@ -2109,18 +2289,17 @@ export function renderComponent(
     walk(vtree);
     return out;
   };
-  const needReal = (fn: string) => {
-    if (!real) throw new Error(`[Sygnal] t.${fn}() needs real DOM elements: renderComponent(C, { dom: 'real' }). The default mock DOM has none (read t.html() or t.states instead)`);
-  };
   // G-125/4-A1: reading the output before the first render can only mislead (null, '')
   const notYet = (call: string) => {
     if (!isReady && !(real ? lastPatched : vtree)) {
       throw new Error(`[Sygnal] ${call} ran before the component's first render${real ? ' was in the DOM' : ''}. Wait for it first: await t.ready() (or await t.next(...))`);
     }
   };
+  // 6-B (G-185): on the mock DOM, MockElement snapshots of the latest rendered tree
+  const mockAll = (s: string): any[] => findAll(vtree, parse(norm(s)), [], []).map(c => mockOf(c, htmlOf));
   const queryAll = (s: string): Element[] => {
-    needReal('queryAll');
     notYet(`t.queryAll('${s}')`);
+    if (!real) return mockAll(s);
     return roots().flatMap(r => Array.from(r.querySelectorAll(s)));
   };
   const queryIn = (s: string): Element | null => {
@@ -2131,8 +2310,8 @@ export function renderComponent(
     return null;
   };
   const query = (s: string): Element | null => {
-    needReal('query');
     notYet(`t.query('${s}')`);
+    if (!real) return mockAll(s)[0] ?? null;
     return queryIn(s);
   };
 
@@ -2397,12 +2576,11 @@ export function renderComponent(
     notYet('t.html()');
     return renderHtml();
   };
-  const renderHtml = () =>
-    vtree
-      ? renderToInnerHtml(() => unmark(vtree)).replace(/ class="([^"]*)"/g, (_, c: string) =>
-          (c = c.split(' ').filter(x => !x.startsWith('___')).join(' ')) ? ` class="${c}"` : ''
-        )
-      : '';
+  const htmlOf = (v: any) =>
+    renderToInnerHtml(() => unmark(v)).replace(/ class="([^"]*)"/g, (_, c: string) =>
+      (c = c.split(' ').filter(x => !x.startsWith('___')).join(' ')) ? ` class="${c}"` : ''
+    );
+  const renderHtml = () => vtree ? htmlOf(vtree) : '';
 
   const inspect = (): InspectGraph => {
     if (!core.inspect) throw Error(`[Sygnal] t.inspect() needs import 'sygnal/diagnostics'`);
