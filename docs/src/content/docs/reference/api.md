@@ -31,6 +31,8 @@ function run(
 | `fragments` | `boolean` | `true` | Enable JSX fragment support in the DOM driver |
 | `useDefaultDrivers` | `boolean` | `true` | Include default drivers (DOM, STATE, EVENTS, LOG) |
 | `diagnostics` | `DiagnosticsMode \| { mode?, ignore?, strict? }` | `'off'` (`'warn'` in the Vite dev server) | Runtime [diagnostics](/guide/diagnostics/): `'off'`, `'collect'`, `'warn'` or `'error'`, plus codes to ignore and [strict mode](/guide/strict-mode/) (`strict: true` needs `sygnal/diagnostics`; without a `mode` it also turns diagnostics on). Takes precedence over the dev flag the Vite plugin sets |
+| `onError` | `(error, info) => void` | none | [App-level error hook](/advanced/error-boundaries/#app-level-error-hook) for reporting: called once per error, after the component's own `onError` boundary, with `{ componentName?, action?, phase, driver? }` (`phase`: `'view'`, `'reducer'`, `'effect'`, `'driver'`, `'instantiate'`) |
+| `uid` | `string` | `'u'` | The root of this app's [`uid()`](#uid-view-and-reducer-prop) ids. Give each app on a page its own, and pass the same value to `renderToString` when hydrating ([SSR](/integration/ssr/#stable-ids-uid)) |
 
 ### Returns: SygnalApp
 
@@ -59,6 +61,10 @@ run(RootComponent, { MY_DRIVER: myDriver })
 
 // Fail fast on any diagnostic (e.g. in CI)
 run(RootComponent, {}, { diagnostics: 'error' })
+
+// With timers (the timers static needs its driver)
+import { makeTimerDriver } from 'sygnal'
+run(RootComponent, { TIMER: makeTimerDriver() })
 
 // With HMR (Vite)
 const { hmr, dispose } = run(RootComponent)
@@ -92,6 +98,7 @@ export default defineConfig({
 | `check` | `boolean \| { strict, include, ignore, overlay }` | `true` | Run `sygnal-check` in the dev server, when installed |
 | `vitestSetup` | `boolean` | `true` | Under Vitest, add `sygnal/diagnostics` to `test.setupFiles` |
 | `nativeGlobalThis` | `boolean` | `true` | Alias xstream's `globalthis` polyfill to the native `globalThis`, in dev, build and Vitest |
+| `devtools` | `boolean \| { redux }` | `true` | Install the [DevTools](/integration/debugging/#devtools-extension) bridge (`sygnal/devtools`) in the dev server; `{ redux: true }` also connects the [Redux DevTools](/integration/debugging/#redux-devtools) extension |
 
 The HMR transform and the diagnostics setup run only in dev mode (`vite` / `vite dev`); production builds get none of it. Files that already contain `import.meta.hot` are left untouched.
 
@@ -444,7 +451,7 @@ function MyComponent({ state }) {
 }
 
 MyComponent.intent = () => ({
-  ELEMENT: el$.stream,
+  MOUNTED: el$.stream,
 })
 ```
 
@@ -561,6 +568,36 @@ See [Effect Handlers guide](/advanced/effect/) for more patterns.
 
 ---
 
+## ELEMENT (Built-in Sink)
+
+A built-in sink for element commands: calls a method of an element the component rendered, such as `focus()`, `scrollIntoView()` or a `<dialog>`'s `showModal()`. No driver to register. Guide: [Element Commands](/guide/element-commands/).
+
+```typescript
+// the value of an ELEMENT entry: a command, an array of them, or a reducer returning either (or ABORT)
+type ElementSinkValue =
+  | ElementCommand
+  | ElementCommand[]
+  | ((state, data, next, props) => ElementCommand | ElementCommand[] | typeof ABORT)
+// ElementCommand: { <method>: target, ...options }; target: a control or a selector
+```
+
+| Command | Calls |
+|---|---|
+| `{ focus: target, preventScroll?, focusVisible? }` | `element.focus(options)` |
+| `{ blur: target }`, `{ select: target }`, `{ click: target }` | `element.blur()`, `element.select()`, `element.click()` |
+| `{ scrollIntoView: target, block?, inline?, behavior? }` | `element.scrollIntoView(options)` |
+| `{ showModal: target }`, `{ show: target }` | A `<dialog>`'s `showModal()`, `show()` |
+| `{ close: target, returnValue? }` | A `<dialog>`'s `close(returnValue)` |
+| `{ showPopover: target }`, `{ hidePopover: target }`, `{ togglePopover: target, force? }` | A popover's methods |
+
+- The first key of a command is the method; the other keys are its options, passed as one object (`close` gets `returnValue`). Any other method the element has also runs; add it to the `ElementCommandRegistry` interface for TypeScript.
+- A control made from a spec object with `commands` is asked first: `{ open: DueDate }` calls `spec.commands.open(element, options)`.
+- The target is looked up in the sending instance's own view (children and Collection items are isolated). The command runs after the next patch at which the target exists; it gives up after about 1 s ([SYG640](/reference/errors/#syg640)). An unknown or DOM-mutating method is [SYG641](/reference/errors/#syg641).
+- An array runs its commands in order; `ABORT` sends nothing. Nothing runs during server rendering.
+- In tests: `t.commands('ELEMENT')` lists the commands sent; with `dom: 'real'` they also run.
+
+---
+
 ## event()
 
 Creates an `EVENTS` sink function that puts `{ type, data }` on the global event bus. Use it as the `EVENTS` value inside a model entry.
@@ -611,6 +648,11 @@ function renderComponent(
 | `mockConfig` | `object` | `{}` | Mock DOM event streams, by selector |
 | `autoConnect` | `boolean` | `true` | Fake socket connections open by themselves; `false` holds them until `t.open()` |
 | `socketSink` | `string` | `'WS'` | The driverless sink that receives the `connections` static |
+| `dom` | `'mock' \| 'real'` | `'mock'` | `'real'` patches the tree into a real container element ([Real DOM](/integration/testing/#real-dom)) |
+| `onError` | `(error, info) => void` | none | The [app-level error hook](/advanced/error-boundaries/#tests), as `run()`'s `onError` |
+| `timerSink` | `string` | `'TIMER'` | The sink of the timer fake (the real `makeTimerDriver()` on the test's clock), unless a driver is passed under that name |
+
+The [Testing guide's options table](/integration/testing/#options) lists the rest (timing, HTTP, router and head fakes).
 
 ### Returns: RenderResult
 
@@ -637,7 +679,13 @@ function renderComponent(
 | `sent` | `(sinkName, to?) => any[]` | The `{ to, json \| text \| binary }` values sent |
 | `diagnostics` | `Diagnostic[]` | Diagnostics collected while rendered |
 | `expectNoDiagnostics` | `() => void` | Throws if a warning or error was collected |
-| `inspect` | `() => InspectGraph` | App graph of the rendered tree (needs `sygnal/diagnostics`) |
+| `actions` | `TestAction[]` | Live log of every action the tree ran: `{ type, data, component, instance, sinks, cause, at }` ([Action log](/integration/testing/#action-log-tactions-and-texplain)) |
+| `explain` | `(predicate) => ExplainedAction \| undefined` | The first action whose resulting state matches, with that state and its STATE reducer |
+| `commands` | `(sinkName = 'ELEMENT') => ElementCommand[]` | The [element commands](/guide/element-commands/#testing) sent, one per command; another sink name gives its `sinkValues` |
+| `timers` | `() => ActiveTimer[]` | The [timers](/guide/timers/#testing) running now: each spec plus `name`, `action`, `component` |
+| `query`, `queryAll` | `(selector \| control) => Element \| null`, `Element[]` | Elements of the latest render (snapshots on the mock DOM, real elements with `dom: 'real'`) |
+| `container` | `Element \| null` | `dom: 'real'`: the mount element |
+| `inspect` | `(options?) => InspectGraph` | App graph of the rendered tree (needs `sygnal/diagnostics`); `{ actions: true }` (or a number: the last n) adds `recentActions` |
 | `state$`, `dom$`, `events$`, `sinks`, `sources` | | Live streams and driver objects |
 | `dispose` | `() => void` | Tear down the tree and restore the diagnostics settings |
 
@@ -676,6 +724,10 @@ function renderToString(
 | `props` | `Record<string, any>` | `{}` | Props to pass to the component |
 | `context` | `Record<string, any>` | `{}` | Parent context to merge with |
 | `hydrateState` | `boolean \| string` | — | Embed state in `<script>` tag for client hydration |
+| `onError` | `(error, info) => void` | — | [App-level error hook](/advanced/error-boundaries/#rendertostring), called with the phase `'view'` |
+| `uid` | `string` | `'u'` | The root of the [`uid()`](#uid-view-and-reducer-prop) ids; the same value as `run()`'s `uid` on the client |
+
+See [SSR](/integration/ssr/#rendertostringoptions) for every option.
 
 ### Examples
 
@@ -749,7 +801,20 @@ MyComponent.onError = (error, { componentName }) => (
 )
 ```
 
-If not defined, errors render an empty `<div data-sygnal-error>` and log to `console.error` ([SYG406](/reference/errors/#syg406)). An `onError` that throws is reported as [SYG407](/reference/errors/#syg407).
+If not defined, errors render an empty `<div data-sygnal-error>` and log to `console.error` ([SYG406](/reference/errors/#syg406)). An `onError` that throws is reported as [SYG407](/reference/errors/#syg407). To report errors from the whole app (to an error tracker), use `run()`'s [`onError` option](/advanced/error-boundaries/#app-level-error-hook).
+
+---
+
+## uid (View and Reducer Prop)
+
+A stable id for the component instance, passed to the view and to reducers (on their `props` argument):
+
+```typescript
+function uid(): string               // this instance's id, e.g. 'u'
+function uid(name: string): string   // an id derived from it, e.g. 'u-email'
+```
+
+Ids come from the instance's position in the tree (and its Collection item key), so they differ between instances, stay the same across renders, and match between `renderToString` and the client. Use them for `id` / `for` / `aria-*` pairs. `uid` is a reserved prop. The root is `'u'`, or `run()`'s and `renderToString()`'s `uid` option. Guide: [Labels and ids](/guide/forms/#labels-and-ids-uid).
 
 ---
 
@@ -763,6 +828,87 @@ Widget.isolatedState = true  // Required — without this, Sygnal throws an erro
 ```
 
 When `isolatedState = true` and the parent state doesn't have the child's state slice, the child's `initialState` seeds it automatically.
+
+---
+
+## controls()
+
+`controls({ Name: 'input', Save: 'button' })` returns element tokens that the view renders (`<Save>Save</Save>`, a `<button data-control="Save">`) and the intent, element commands, behaviors and tests select (`DOM.click(Save)`). See [what a control is](/guide/behaviors/#using-a-behavior).
+
+---
+
+## uses (Static Property)
+
+The [behaviors](/guide/behaviors/) a component uses, each under a state key:
+
+```jsx
+TaskList.uses = { pager: pager({ pageSize: 10, next: Newer, prev: Older }) }
+```
+
+The behavior's state is at `state.pager` (its calculated fields stored on it), and its actions are named after the key (`pager.NEXT`). A host model entry for a behavior action runs after the behavior's; a host intent action of the same name replaces the behavior's trigger. A key that is also in `initialState`, or a value that isn't a behavior, is [SYG127](/reference/errors/#syg127). Types: `UsesState<typeof uses>`, `UsesActions<typeof uses>`.
+
+---
+
+## defineBehavior()
+
+Defines a reusable [behavior](/guide/behaviors/#writing-a-behavior): state, intent and model without a view.
+
+```typescript
+function defineBehavior(definition: {
+  initialState: Slice;
+  intent?: (sources, options) => { [action: string]: Stream<any> };
+  model?: { [action: string]: Reducer | { [sink: string]: Reducer } };   // reducers get the slice
+  calculated?: { [field: string]: (slice) => any };
+}): (options?) => Behavior
+```
+
+Returns a factory: call it with the options of one use (`disclosure({ toggle: Toggle })`). Options that name a key of `initialState` set that key's starting value. The intent gets the host's sources and the options; actions are named without the key.
+
+---
+
+## pager()
+
+A behavior: a page cursor over a list. [Guide](/guide/behaviors/#pager).
+
+```typescript
+function pager(options?: { pageSize?: number; page?: number; total?: number | null; next?: Control | string; prev?: Control | string }): Behavior
+```
+
+| | |
+|---|---|
+| State | `page` (from 0), `pageSize` (20), `total` (`null`: unknown); calculated `offset`, `pages`, `hasPrev`, `hasNext` |
+| Actions | `NEXT`, `PREV` (no change at the bounds), `GOTO` (a page number, kept in range), `SET_TOTAL` |
+
+---
+
+## selection() / isSelected()
+
+A behavior: single or multiple selection over a list. [Guide](/guide/behaviors/#selection).
+
+```typescript
+function selection(options?: { multi?: boolean; item?: Control | string; all?: Control | string; clear?: Control | string; attr?: string; from?: string; idField?: string }): Behavior
+function isSelected(slice: { selected: string[] }, id: string | number): boolean
+```
+
+| | |
+|---|---|
+| State | `selected` (ids as strings, in selection order); calculated `count` |
+| Actions | `SELECT` (an id, or a click on an `item`), `SELECT_ALL`, `TOGGLE_ALL`, `CLEAR` |
+
+`isSelected(state.sel, id)` compares ids as strings.
+
+---
+
+## undo() / undoable()
+
+Undo history for one key of the state. [Guide](/advanced/undo/).
+
+```typescript
+function undo(options: { key: string; limit?: number; track?: string[]; coalesceMs?: number; resetOn?: string[]; undo?: Control | string; redo?: Control | string }): Behavior
+function undoable(model: Model, options: { key: string; limit?: number; track?: string[]; coalesceMs?: number; resetOn?: string[] }): Model
+```
+
+`uses = { history: undo({ key: 'doc' }) }` gives `state.history = { past, future, canUndo, canRedo }` and the actions `history.UNDO` / `history.REDO`. `model = undoable({ ... }, { key: 'doc' })` wraps the model's STATE reducers instead and adds plain `UNDO` / `REDO` actions. Options: `limit` (100 snapshots), `track` (only these actions are recorded), `coalesceMs` (changes by one action within this many ms are one step), `resetOn` (actions that clear the history). A `track` or `resetOn` name with no model entry is [SYG226](/reference/errors/#syg226).
 
 ---
 
@@ -1014,6 +1160,39 @@ Sent to the `makeSocketDriver()` sink at startup and whenever the result changes
 
 ---
 
+## makeTimerDriver()
+
+Runs the components' `timers` statics. Guide: [Timers](/guide/timers/).
+
+```typescript
+function makeTimerDriver(): Driver
+```
+
+```javascript
+run(App, { TIMER: makeTimerDriver() })
+```
+
+The key is free (`TIMER` by convention): the core finds the driver by the static it takes. Each timer's action goes to the instance that declared it, with every sink of its model entry. A removed instance's timers stop; disposing the app stops all of them; nothing runs during server rendering. A component that declares `timers` without the driver is [SYG643](/reference/errors/#syg643) in dev. `renderComponent` provides it (`timerSink`, `t.timers()`).
+
+### timers (Static Property)
+
+```typescript
+// (state: State & Calculated) => { [name]: spec | falsy }
+Stopwatch.timers = (state) => ({
+  tick: state.running && { every: 100, action: 'TICK' },
+})
+```
+
+| Spec | Action data |
+|---|---|
+| `{ every: ms, action, background? }`: repeats every `ms` (> 0), drift-free; late ticks coalesce (`n` jumps) | `{ n, t }`: tick number from 1, `Date.now()` |
+| `{ after: ms, action, background? }`: once, after `ms` (≥ 0); not again while the same spec stays declared | `{ t }` |
+| `{ frame: 'ACTION', background? }`: every animation frame (`requestAnimationFrame`, else 16 ms) | `{ t, dt }`: `Date.now()`, ms since the previous frame (0 first) |
+
+The result is compared by name whenever the state changes: a new name starts, a falsy or missing one stops, a changed spec restarts, an equal one keeps running. A hidden Switchable page's timers stop (and start from scratch when it is shown) unless `background: true`. An invalid spec is not started ([SYG422](/reference/errors/#syg422)). Types: `TimerSpec`, `Timers`, `TimerTick`, `TimerAfter`, `TimerFrame`.
+
+---
+
 ## driverFromAsync()
 
 Creates a Cycle.js driver from a Promise-returning function.
@@ -1245,6 +1424,29 @@ The dev-only entry with the runtime checks. Importing it registers them; it also
 
 ---
 
+## sygnal/devtools
+
+The dev-only entry for the [DevTools extension](/integration/debugging/#devtools-extension). Importing it installs the bridge (`window.__SYGNAL_DEVTOOLS__`) and, in a browser, starts the action log. The Vite plugin imports it in the dev server; production builds never contain it.
+
+| Export | Description |
+|---|---|
+| `getDevTools()`, `installDevTools()` | The bridge (installed on import); it also has `configureCopyAsTest(options)` and `getSession(target?)` |
+| `getActions(filter?)`, `onAction(fn)`, `clearActions()` | The [action log](/integration/debugging/#the-action-log): every instance's actions with their cause, sinks and state change |
+| `recordActions()`, `isRecording()` | Start recording (automatic in a browser) and check it |
+| `copyAsTest(target?, options?)`, `copyAsTestResult(target?, options?)` | ["Copy as test"](/integration/debugging/#copy-as-test): a `renderComponent` test that replays a session |
+| `getSession(target?)` | One instance's recorded session, as plain data |
+| `connectReduxDevtools(target?, { name?, filter? })` | Send the actions and the root's state to the [Redux DevTools](/integration/debugging/#redux-devtools) extension; returns a disconnect function |
+
+See [From code](/integration/debugging/#from-code-copyastest-and-getactions) for the arguments.
+
+---
+
+## sygnal/element
+
+`defineElement(tag, Component, options?)` from `sygnal/element` publishes a component as a custom element (props from attributes and properties, sinks as DOM events, optional shadow root).
+
+---
+
 ## xs
 
 The xstream Observable library, re-exported for convenience.
@@ -1335,6 +1537,26 @@ When the source emits, combine with the latest value from other streams.
 const withState$ = click$.compose(sampleCombine(state$))
 // Emits [clickEvent, latestState] each time click$ fires
 ```
+
+---
+
+## STATE.watch()
+
+A stream, in intent, of a value selected from the component's state, emitted only when that value changes (compared structurally). Guide: [Reacting to state changes](/guide/intent/#reacting-to-state-changes-statewatch).
+
+```typescript
+interface StateSource<State> {
+  watch<T>(selector: (state: State) => T, options?: { immediate?: boolean }): Stream<T>
+}
+```
+
+```jsx
+Notes.intent = ({ STATE }) => ({
+  SAVE: STATE.watch(state => state.text).compose(debounce(1000)),
+})
+```
+
+By default only later changes are emitted; `{ immediate: true }` emits the current value first. In a Collection item, `state` is the item's state. The stream ends when the component is disposed. The raw state stream is `STATE.stream`.
 
 ---
 
