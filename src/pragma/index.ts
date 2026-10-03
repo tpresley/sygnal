@@ -168,7 +168,7 @@ const defaultModules: Record<string, string> = {
 }
 
 export const createElementWithModules = (modules: Record<string, any>) => {
-  return (sel: any, data: any, ...children: any[]) => {
+  const ce = (sel: any, data: any, ...children: any[]): any => {
     if (typeof sel === 'undefined') {
       sel = 'UNDEFINED'
       // The JSX runtime entries bundle this file standalone and must not carry a second
@@ -179,6 +179,9 @@ export const createElementWithModules = (modules: Record<string, any>) => {
       if (core && core.error) core.error('SYG420', 'JSX', msg, fix)
       else console.error(`[Sygnal SYG420] JSX: ${msg}. ${fix}. https://sygnal.js.org/reference/errors#syg420`)
     }
+    // CT-1: a control (src/extra/controls.ts) renders its element itself and stamps its marker.
+    // It gets this createElement: the JSX runtime entries carry their own copy of the pragma.
+    if (sel?.__sygnalControl) return sel.__sygnalControl(data, children, ce)
     const isComponent = is.fun(sel)
     if (isComponent) {
       if ((sel as any).__sygnalFragment || sel.name === 'Fragment') {
@@ -214,6 +217,7 @@ export const createElementWithModules = (modules: Record<string, any>) => {
       key: data ? data.key : undefined
     })
   }
+  return ce
 }
 
 export const createElement = createElementWithModules(defaultModules)

@@ -12,6 +12,8 @@ export class DocumentDOMSource {
     this._selector = selector || null;
   }
 
+  // CT-1: a control works as is: querySelectorAll() and matches() stringify their argument,
+  // and a control stringifies to its selector
   public select(selector: string): DocumentDOMSource {
     return new DocumentDOMSource(this._name, selector);
   }

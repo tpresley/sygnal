@@ -95,7 +95,15 @@ export class MockedDOMSource {
     return out;
   }
 
-  public select(selector: string): MockedDOMSource {
+  public select(selector: any): MockedDOMSource {
+    // CT-1: a control selects by its marker; a component (any other function) is rejected
+    // like the real DOM source does (SYG124 in the dev entry names the fixes)
+    if (typeof selector == 'function') {
+      if (!selector.__sygnalControl) {
+        throw new Error(`DOM driver's select() expects the argument to be a string as a CSS selector`);
+      }
+      selector = '' + selector;
+    }
     const mockConfigForSelector = this._mockConfig[selector] || {};
 
     return new MockedDOMSource(
