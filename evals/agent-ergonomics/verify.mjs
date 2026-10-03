@@ -9,7 +9,10 @@
 //   node evals/agent-ergonomics/verify.mjs [--arm sygnal|react|both] [--task 03]
 //        [--work <dir>] [--tarball <sygnal.tgz>] [--build] [--reruns <n>] [--verbose]
 //
-// --work     scratch dir for installs/copies (default: $TMPDIR/sygnal-evals-verify)
+// --work     scratch dir for installs/copies (default: $TMPDIR/sygnal-evals-verify).
+//            Reusing it is safe: the Sygnal tarball is vendored under a
+//            content-hashed name (<work>/sygnal/vendor/sygnal-<sha>.tgz), so a
+//            rebuilt Sygnal is always reinstalled and an unchanged one is not (G-179).
 // --tarball  use an existing `npm pack` tarball instead of packing this repo
 // --build    force `npm run build` in the repo before packing
 // --reruns   run every suite n times (default 1); any run with an unexpected result fails (flakiness)
@@ -18,7 +21,7 @@ import os from 'node:os'
 import path from 'node:path'
 import {
   ARMS, EVAL_ROOT, REPO_ROOT, armPaths, listTasks, resolveTask, parseArgs, copyDir, npm,
-  packSygnal, installHidden, applySolution, runHidden, leakCheck, readJson,
+  packSygnal, vendorTarball, installHidden, applySolution, runHidden, leakCheck, readJson,
   TS_EXTRA_DEV_DEPENDENCIES, TASK_EXTRA_DEPENDENCIES, isTsStarter,
 } from './lib/common.mjs'
 
@@ -71,7 +74,7 @@ function prepareArm(arm) {
     }
     pkg = {
       name: 'verify-sygnal', private: true, type: 'module',
-      dependencies: { ...starterPkgs[j].dependencies, ...allTaskExtra, sygnal: `file:${tarball}` },
+      dependencies: { ...starterPkgs[j].dependencies, ...allTaskExtra, sygnal: vendorTarball(tarball, armDir, 'sygnal') },
       devDependencies: { ...starterPkgs[j].devDependencies, ...tsExtra },
     }
     console.log(`sygnal tarball: ${tarball}`)

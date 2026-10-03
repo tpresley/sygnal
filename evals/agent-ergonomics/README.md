@@ -164,7 +164,9 @@ node evals/agent-ergonomics/score.mjs --dir <dest> --task 03 --arm sygnal --tria
 node evals/agent-ergonomics/score.mjs --classify --run baseline --task 03 --arm sygnal --trial 1 --category wiring   # failures only
 ```
 
-`verify.mjs` options: `--arm sygnal|react|both`, `--task 03`, `--reruns <n>`, `--work <dir>` (default `$TMPDIR/sygnal-evals-verify`, must be outside the repo), `--tarball <tgz>` (else it packs the repo, building first if `dist/` is missing), `--build`, `--verbose`. It needs network access for `npm install` the first time. Set `SYGNAL_EVAL_REPO_ROOT` to measure a different checkout than the one containing the harness.
+`verify.mjs` options: `--arm sygnal|react|both`, `--task 03`, `--reruns <n>`, `--work <dir>` (default `$TMPDIR/sygnal-evals-verify`, must be outside the repo; safe to reuse, see below), `--tarball <tgz>` (else it packs the repo, building first if `dist/` is missing), `--build`, `--verbose`. It needs network access for `npm install` the first time. Set `SYGNAL_EVAL_REPO_ROOT` to measure a different checkout than the one containing the harness.
+
+Reusing a `--work` dir always installs the current build (G-179). `npm pack` names the tarball `sygnal-<version>.tgz` whatever it contains, and npm does not re-extract a `file:` tarball whose path is unchanged, so before the fix a reused dir could keep an old Sygnal build and judge solutions and mutants against it. `verify.mjs` now copies the tarball to `<work>/sygnal/vendor/sygnal-<sha256 prefix>.tgz` (`vendorTarball` in `lib/common.mjs`) and depends on that path: a rebuilt Sygnal gets a new path, which npm reinstalls, and an unchanged one keeps its path, so the install stays a no-op. Superseded copies are deleted. Trials are not affected: `prepare.mjs` refuses a non-empty `--dest`, so every trial installs into a fresh dir, and variant packs (`sygnal-check`) are already cached under a content-hash dir. Test: `node --test evals/agent-ergonomics/tests/vendor.unit.mjs`.
 
 ## Scoring and metrics
 
