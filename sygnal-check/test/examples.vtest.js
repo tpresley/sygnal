@@ -22,6 +22,12 @@ describe('repo examples', () => {
     })
   }
 
+  // PLAN-4 §1.2 a11y-clean gate (GS-3): no SYG7xx findings in any example or template
+  it('every example and create-sygnal-app template is a11y-clean', () => {
+    const diags = check(['examples', 'create-sygnal-app'], { cwd: repo, strict: true })
+    expect(diags.filter(d => /^SYG7/.test(d.code)).map(d => d.text)).toEqual([])
+  })
+
   it('kanban no longer has the SYG111 controlled lane-title input (fixed in 2D-A with titleDraft)', () => {
     const hits = check(['examples/kanban/src'], { cwd: repo }).filter(d => d.code === 'SYG111')
     expect(hits).toEqual([])
@@ -35,8 +41,9 @@ describe('repo examples', () => {
 
   it('finds the real bugs in the eval starters (tasks 06 and 07)', () => {
     const t06 = check(['evals/agent-ergonomics/tasks/06-fix-add-button/starter/src'], { cwd: repo })
-    expect(t06.map(d => d.code)).toEqual(['SYG110'])
+    const wiring = (diags) => diags.map(d => d.code).filter(c => !/^SYG7/.test(c)) // the a11y lane is checked separately
+    expect(wiring(t06)).toEqual(['SYG110'])
     const t07 = check(['evals/agent-ergonomics/tasks/07-fix-remove-button/starter/src'], { cwd: repo })
-    expect(t07.map(d => d.code)).toEqual(['SYG104'])
+    expect(wiring(t07)).toEqual(['SYG104'])
   })
 })

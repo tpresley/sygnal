@@ -4,7 +4,7 @@ import { set } from 'sygnal'
 function Form({ state }) {
   return (
     <form className="form">
-      <input className="name" value={state.name} />
+      <input className="name" value={state.name} aria-label="field" />
       <button className="save">Save</button>
       <button className="reset">Reset</button>
     </form>

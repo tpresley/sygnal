@@ -5,26 +5,26 @@ import { processForm } from 'sygnal'
 function Form({ state }) {
   return (
     <div className="form">
-      <input className="name" value={state.name} />
-      <input className="email" value={state.email} />
-      <input className="age" value={state.age} />
-      <input className="code" value={state.code} />
-      <input type="checkbox" className="agree" checked={state.agree} />
-      <input type="radio" name="size" className="size" checked={state.size === 's'} />
-      <select className="kind" value={state.kind}><option value="a">A</option></select>
-      <input className="uncontrolled" />
-      <input className="literal" value="" />
-      <select className="pick" value="a"><option value="a">A</option></select>
-      <input className="absent" value={undefined} />
-      <input type="file" className="upload" value={state.file} />
-      <input className="ro" readOnly value={state.name} />
+      <input className="name" value={state.name} aria-label="field" />
+      <input className="email" value={state.email} aria-label="field" />
+      <input className="age" value={state.age} aria-label="field" />
+      <input className="code" value={state.code} aria-label="field" />
+      <input type="checkbox" className="agree" checked={state.agree} aria-label="field" />
+      <input type="radio" name="size" className="size" checked={state.size === 's'} aria-label="field" />
+      <select className="kind" value={state.kind} aria-label="field"><option value="a">A</option></select>
+      <input className="uncontrolled" aria-label="field" />
+      <input className="literal" value="" aria-label="field" />
+      <select className="pick" value="a" aria-label="field"><option value="a">A</option></select>
+      <input className="absent" value={undefined} aria-label="field" />
+      <input type="file" className="upload" value={state.file} aria-label="field" />
+      <input className="ro" readOnly value={state.name} aria-label="field" />
       <input type="hidden" value={state.id} />
       <button type="submit" value={state.id}>Go</button>
       <form className="profile">
-        <input name="city" value={state.city} />
+        <input name="city" value={state.city} aria-label="field" />
       </form>
       <div className="wrap">
-        <input className="inner" value={state.inner} />
+        <input className="inner" value={state.inner} aria-label="field" />
       </div>
     </div>
   )
@@ -65,14 +65,14 @@ Form.model = {
 // a dynamic selector might match: stay quiet
 const SEL = window.sel
 function Dyn({ state }) {
-  return <input className="d" value={state.v} />
+  return <input className="d" value={state.v} aria-label="field" />
 }
 Dyn.intent = ({ DOM }) => ({ V: DOM.input(SEL) }) // expect: SYG110 info
 Dyn.model = { V: (s) => s }
 
 // a selector handed to a helper is an unknown listener: stay quiet
 function Helped({ state }) {
-  return <input className="h" value={state.v} />
+  return <input className="h" value={state.v} aria-label="field" />
 }
 Helped.intent = ({ DOM }) => ({ V: watch(DOM.select('.h')) })
 Helped.model = { V: (s) => s }

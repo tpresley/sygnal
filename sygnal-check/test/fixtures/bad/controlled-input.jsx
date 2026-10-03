@@ -7,16 +7,16 @@ function TitleEditor({ state }) {
     <div className="editor">
       <input className="title-input"
         value={state.title /* expect: SYG111 */}
-      />
+ aria-label="field"      />
       <textarea id="notes"
         value={state.notes /* expect: SYG111 */}
-      />
+ aria-label="field"      />
       <input type="checkbox" className="done"
         checked={state.done /* expect: SYG111 */}
-      />
+ aria-label="field"      />
       <select className="kind"
         value={state.kind /* expect: SYG111 */}
-      >
+ aria-label="field"      >
         <option value="a">A</option>
       </select>
       <button className="save">Save</button>
@@ -51,37 +51,37 @@ function Literals({ state }) {
     <div className="lit">
       <input className="search"
         value="" // expect: SYG111
-      />
+ aria-label="field"      />
       <input type="email" className="mail"
         value="default@example.com" // expect: SYG111
-      />
+ aria-label="field"      />
       <textarea className="body"
         value={'text' /* expect: SYG111 */}
-      />
+ aria-label="field"      />
       <input type="number" className="qty"
         value={0 /* expect: SYG111 */}
-      />
+ aria-label="field"      />
       <input type="checkbox" className="opt"
         checked // expect: SYG111
-      />
+ aria-label="field"      />
       <input type="radio" name="r" className="r"
         checked={false /* expect: SYG111 */}
-      />
+ aria-label="field"      />
       <select className="pick"
         value="a" // expect: SYG111
-      >
+ aria-label="field"      >
         <option value="a">A</option>
       </select>
       {/* null is controlled too (D49): it clears/unchecks the field on every render */}
       <input className="cleared"
         value={null /* expect: SYG111 */}
-      />
+ aria-label="field"      />
       <input type="checkbox" className="unset"
         checked={null /* expect: SYG111 */}
-      />
+ aria-label="field"      />
       <input className="maybe"
         value={state.maybe ?? null /* expect: SYG111 */}
-      />
+ aria-label="field"      />
       <button className="tick">{state.count}</button>
     </div>
   )
@@ -94,7 +94,7 @@ Literals.model = { TICK: (s) => ({ ...s, count: s.count + 1 }) }
 function Display({ state }) {
   return <input className="shown"
     value={state.text /* expect: SYG111 */}
-  />
+ aria-label="field"  />
 }
 Display.initialState = { text: 'x' }
 

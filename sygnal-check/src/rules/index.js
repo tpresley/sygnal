@@ -17,7 +17,8 @@
  * and drops findings located outside the scanned files.
  *
  * Strict-mode rules (workstream 2A) go in ./strict/ and are exported from
- * ./strict/index.js.
+ * ./strict/index.js. The a11y lane (SYG7xx, PLAN-4 GS-3) is in ./a11y/: core
+ * rules at warn, swapped for error-severity copies under --strict.
  */
 import intentWithoutModel from './syg101-intent-without-model.js'
 import unreachableModel from './syg102-unreachable-model.js'
@@ -29,6 +30,7 @@ import controlledInput from './syg111-controlled-input.js'
 import latestComputedKey from './syg634-latest-computed-key.js'
 import controls from './syg124-controls.js'
 import { strictRules } from './strict/index.js'
+import { a11yRules, strictA11yRules } from './a11y/index.js'
 
 export const coreRules = [
   intentWithoutModel,
@@ -40,10 +42,13 @@ export const coreRules = [
   controlledInput,
   latestComputedKey,
   controls, // SYG124, SYG125, SYG126, SYG128 (PLAN-4 CT-1)
+  ...a11yRules, // SYG701-708 (PLAN-4 GS-3): warn; error under --strict (D111)
 ]
 
-export { strictRules }
+export { strictRules, a11yRules }
 
 export function selectRules({ strict = false } = {}) {
-  return strict ? [...coreRules, ...strictRules] : coreRules
+  if (!strict) return coreRules
+  const a11y = new Set(a11yRules)
+  return [...coreRules.filter(r => !a11y.has(r)), ...strictA11yRules, ...strictRules]
 }

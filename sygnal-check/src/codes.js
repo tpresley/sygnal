@@ -30,6 +30,15 @@ export const CODES = {
   SYG128: { severity: 'error', title: 'Duplicate control key' },
   SYG401: { severity: 'warn', title: "Collection 'from' field is missing or not an array" },
   SYG634: { severity: 'info', title: 'latest: true with a computed key' },
+  // PLAN-4 GS-3: the a11y lane (rules/a11y/); warn, error under --strict (D111)
+  SYG701: { severity: 'warn', title: 'Click listener on a non-interactive element' },
+  SYG702: { severity: 'warn', title: 'Form field without an accessible label' },
+  SYG703: { severity: 'warn', title: 'Image without alt text' },
+  SYG704: { severity: 'warn', title: 'Link without href used as a button' },
+  SYG705: { severity: 'warn', title: 'Button without an accessible name' },
+  SYG706: { severity: 'warn', title: 'Positive tabIndex' },
+  SYG707: { severity: 'warn', title: 'Unknown ARIA attribute or invalid role' },
+  SYG708: { severity: 'warn', title: 'Label or ARIA reference to an id that is not rendered' },
   // strict mode (--strict), dev-plans/PLAN-1-canonical-forms.md; severities match
   // STRICT_CODE_SEVERITY in src/extra/diagnostics/codes.ts
   SYG501: { severity: 'warn', title: 'View uses positional arguments', strict: true },

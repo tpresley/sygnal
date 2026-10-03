@@ -4,13 +4,13 @@ import { xs, Collection, Switchable, Portal, classes, emit, event, set } from 's
 const ACTIVE = 'is-active'
 
 function renderFilter(name, current) {
-  return <a className={classes('filter', { selected: name === current })}>{name}</a>
+  return <a className={classes('filter', { selected: name === current })} href="#">{name}</a>
 }
 
 function TodoItem({ state }) {
   return (
     <li className={`todo ${state.done ? 'done' : ''}`}>
-      <input className="toggle" type="checkbox" checked={state.done} />
+      <input className="toggle" type="checkbox" checked={state.done} aria-label="field" />
       <span className="title">{state.title}</span>
       <button className="remove">x</button>
     </li>
@@ -51,7 +51,7 @@ function App({ state }) {
   return (
     <div className="app">
       <header className={headerClass}>
-        <input className="new-todo" value={state.input} />
+        <input className="new-todo" value={state.input} aria-label="field" />
         <button className={['add-btn', state.input && ACTIVE].filter(Boolean).join(' ')}>Add</button>
       </header>
       <ul className="filters">{['all', 'done'].map(f => renderFilter(f, state.filter))}</ul>
@@ -67,7 +67,7 @@ function App({ state }) {
           </div>
         </Portal>
       )}
-      <span id="status">{state.status}</span>
+      <span id="status" role="button" tabIndex={0}>{state.status}</span>
     </div>
   )
 }
