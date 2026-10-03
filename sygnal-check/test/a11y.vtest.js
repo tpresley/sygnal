@@ -142,6 +142,15 @@ describe('SYG702 form field without a label', () => {
   </form>`))).toEqual([])
   })
 
+  it('names an unlinked sibling <label> in the message', () => {
+    const diags = project({ 'App.jsx': view(`<div>
+    <label>Email</label>
+    <input type="email" />
+  </div>`) })().filter(d => d.code === 'SYG702')
+    expect(diags.map(d => d.line)).toEqual([4])
+    expect(diags[0].message).toContain("the <label> next to it (line 3) isn't linked to it")
+  })
+
   it('a uid() id needs a label with the same uid() key', () => {
     expect(one(view(`<form>
     <label for={uid('a')}>A</label><input id={uid('b')} />

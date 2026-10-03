@@ -13,10 +13,23 @@
  * passed into a child component (it may render the label), or JSX kept in a
  * variable or helper we can't follow.
  */
-import { attr, attrString, elementsOf, labelState, idIndex, uidKey, componentName } from './shared.js'
+import { loc } from '../../ast.js'
+import { attr, attrString, describe, elementsOf, labelState, idIndex, uidKey, componentName } from './shared.js'
 
 const UNLABELLED_INPUT_TYPES = new Set(['hidden', 'submit', 'reset', 'button', 'image'])
 const FIELDS = new Set(['input', 'select', 'textarea'])
+
+/** Line of a <label> without for/htmlFor among the field's siblings, or null. */
+function unlinkedSiblingLabel(project, info) {
+  const parent = info.file.parents.get(info.el)
+  if (parent?.type !== 'JSXElement' && parent?.type !== 'JSXFragment') return null
+  for (const c of parent.children) {
+    if (c.type !== 'JSXElement' || c === info.el) continue
+    const s = describe(project, info.file, c)
+    if (s.tag === 'label' && !s.spread && !attr(s, 'htmlFor', 'for')) return loc(c.openingElement).line
+  }
+  return null
+}
 
 export default {
   id: 'a11y-field-label',
@@ -46,13 +59,18 @@ export default {
       const ctx = labelState(project, info.file, info.el)
       if (ctx !== 'none') continue
       const what = info.kind === 'control' ? `control <${info.name}> (a <${info.tag}>)` : `<${info.tag}>`
+      const sibling = unlinkedSiblingLabel(project, info)
       report({
         code: 'SYG702',
         component: componentName(project, info.file, info.el),
         file: info.file,
         node: info.opening,
-        message: `${what} has no label, so screen readers announce it without a name`,
-        fix: `wrap it in a <label>, or pair id={uid('x')} with <label for={uid('x')}>; with no visible label, add aria-label`,
+        message: sibling
+          ? `${what} has no label: the <label> next to it (line ${sibling}) isn't linked to it, so screen readers announce the field without a name`
+          : `${what} has no label, so screen readers announce it without a name`,
+        fix: sibling
+          ? `move the field inside that <label>, or link them: <label for={uid('x')}> and id={uid('x')} on the field`
+          : `wrap it in a <label>, or pair id={uid('x')} with <label for={uid('x')}>; with no visible label, add aria-label`,
         data: { element: info.tag },
       })
     }
