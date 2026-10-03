@@ -959,7 +959,21 @@ export type Component<
    * `state.pager` and the actions 'pager.NEXT', 'pager.PREV'. See `defineBehavior`.
    */
   uses?: { [key: string]: Behavior<any, any, any, any> };
+  /**
+   * PLAN-4 GS-7: timers derived from state, run by `makeTimerDriver()` (registered:
+   * `run(App, { TIMER: makeTimerDriver() })`; renderComponent provides it) and delivered as this
+   * instance's own actions:
+   * `Stopwatch.timers = (state) => ({ tick: state.running && { every: 100, action: 'TICK' } })`.
+   * Diffed by name whenever the result changes structurally: a new name starts, a falsy or
+   * removed one stops, a changed spec restarts. `every` is drift-free (data `{ n, t }`), `after`
+   * fires once (`{ t }`), `frame` runs every animation frame (`{ t, dt }`). A hidden Switchable
+   * page's timers stop unless `background: true`; dispose stops them; nothing runs during SSR.
+   */
+  timers?: (state: STATE & CALCULATED) => Timers<ActionNameOf<ACTIONS>>;
 }
+
+/** The action names of an ACTIONS map (any string when it names none) */
+type ActionNameOf<ACTIONS> = keyof ACTIONS extends never ? string : keyof ACTIONS & string;
 
 /**
  * Sygnal Root Component (the one passed to `run()`): a Component without props, so the
@@ -2115,6 +2129,36 @@ export interface HeadValue {
  */
 export function makeHeadDriver(options?: { titleTemplate?: string; document?: any }): (sink$: Stream<any>) => { dispose(): void }
 
+/**
+ * PLAN-4 GS-7: one timer of a `timers` static. `every`: a positive interval in ms, drift-free
+ * (tick n is due at start + n * every; a late tick coalesces the missed ones and n jumps);
+ * `after`: once, after ms (0 or more); `frame`: every animation frame (requestAnimationFrame,
+ * else every 16 ms). `background: true` keeps it running while its Switchable page is hidden.
+ * An invalid spec is not started (SYG422 in dev).
+ */
+export type TimerSpec<ACTION extends string = string> =
+  | { every: number; action: ACTION; background?: boolean; after?: never; frame?: never }
+  | { after: number; action: ACTION; background?: boolean; every?: never; frame?: never }
+  | { frame: ACTION; background?: boolean; every?: never; after?: never; action?: never }
+
+/** A component's whole set of timers, by name: a falsy entry (`state.running && { ... }`) is stopped */
+export type Timers<ACTION extends string = string> = { [name: string]: TimerSpec<ACTION> | false | null | undefined | 0 | '' }
+
+/** The data of an `every` timer's action: the tick number from 1 (it jumps over coalesced ticks) and Date.now() */
+export interface TimerTick { n: number; t: number }
+/** The data of an `after` timer's action: Date.now() */
+export interface TimerAfter { t: number }
+/** The data of a `frame` timer's action: Date.now() and the ms since the previous frame (0 on the first) */
+export interface TimerFrame { t: number; dt: number }
+
+/**
+ * PLAN-4 GS-7: runs the components' `timers` statics: `run(App, { TIMER: makeTimerDriver() })`.
+ * The key is free (the core finds the driver by the static it takes); `TIMER` by convention.
+ * Each timer's action goes to the instance that declared it. A disposed instance's timers stop;
+ * app dispose stops them all. A component declaring `timers` with no timer driver gets SYG643 in dev.
+ */
+export function makeTimerDriver(): (sink$: Stream<any>) => { dispose(): void }
+
 /** The tags for the head values `renderToString(App, { head: list })` collected (SSR) */
 export function renderHead(list: Array<HeadValue | null | undefined | false>, options?: { titleTemplate?: string }): string
 
@@ -2343,6 +2387,18 @@ export interface RenderOptions {
   headSink?: string;
   /** The HEAD fake's `titleTemplate` (`'%s · App'`), as passed to makeHeadDriver */
   titleTemplate?: string;
+  /** PLAN-4 GS-7: the sink the timer fake serves (default 'TIMER'); with no driver for it, the real makeTimerDriver() runs on the test's timers and `t.timers()` lists them */
+  timerSink?: string;
+}
+
+/** PLAN-4 GS-7: an active timer, as `t.timers()` lists it: the spec as declared plus these */
+export type ActiveTimer = TimerSpec & {
+  /** Its name in the `timers` static */
+  name: string;
+  /** The action it sends (a `frame` timer's is its `frame`) */
+  action: string;
+  /** The declaring component's name */
+  component: string;
 }
 
 /**
@@ -2548,6 +2604,14 @@ export interface RenderResult<STATE = any> {
    * link: [{ rel, href }] }`, `titleTemplate` applied
    */
   head: () => { title: string | undefined; meta: Record<string, string>; link: Array<Record<string, any>> };
+  /**
+   * PLAN-4 GS-7: the timer fake's active timers, in start order (`{ name, every | after | frame,
+   * action, background?, component }`): a fired `after`, a stopped one or an invalid spec is not
+   * listed. The fake is the real makeTimerDriver(), so fake timers drive it
+   * (`vi.useFakeTimers()`, then `await vi.advanceTimersByTimeAsync(ms)`). Throws when a driver
+   * was passed for the timer sink.
+   */
+  timers: () => ActiveTimer[];
   /** Live array of EVENTS sink emissions ({type, data}) */
   emitted: Array<{ type: string; data: any }>;
   /** Live array of diagnostics reported while rendered */

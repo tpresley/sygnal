@@ -213,6 +213,7 @@ export const CODE_TITLES: Record<string, string> = {
   SYG419: "Invalid switchable() 'name$' parameter",
   SYG420: 'JSX tag is undefined',
   SYG421: 'Invalid data (dataset) key',
+  SYG422: 'Invalid timer spec',
   SYG601: 'Missing or invalid sources',
   SYG602: 'Intent is not a function',
   SYG603: 'Intent returned an invalid value',
@@ -233,6 +234,8 @@ export const CODE_TITLES: Record<string, string> = {
   SYG634: 'latest: true with a computed key',
   // PLAN-3 5-5 (D88)
   SYG635: 'Caching asked for without a queryCache',
+  // PLAN-4 GS-7: timers (checks/timers.ts; dev entry)
+  SYG643: 'Declaration static with no driver to take it',
   // PLAN-4 GS-3: a11y lane (static only, sygnal-check)
   SYG701: 'Click listener on a non-interactive element',
   SYG702: 'Form field without an accessible label',
@@ -302,6 +305,10 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG634: 'info',
   // PLAN-3 5-5 (fetch.ts)
   SYG635: 'warn',
+  // PLAN-4 GS-7 (timers.ts): an invalid timer spec (not started); timers / connections /
+  // resources declared with no driver registered
+  SYG422: 'error',
+  SYG643: 'warn',
   // PLAN-4 GS-3: a11y lane, static only (sygnal-check; error under --strict); listed so the entry knows its title
   SYG701: 'warn',
   SYG702: 'warn',

@@ -14,6 +14,7 @@ import {senderOf} from './replies';
 import {makeSocketDriver} from './socketDriver';
 import {makeRouter, paramsOf} from './router';
 import {mergeHead} from './head';
+import {timerDriver} from './timers';
 import {makeReplies} from './replies';
 import type {Stream} from 'xstream';
 import type {Diagnostic, DiagnosticsMode} from './diagnostics/index';
@@ -297,6 +298,8 @@ export interface RenderOptions {
   routerFocus?: boolean | string;
   /** PLAN-3 5-4c: the sink the HEAD fake serves (default 'HEAD'); t.head() reads it */
   headSink?: string;
+  /** PLAN-4 GS-7: the sink the timer fake serves (default 'TIMER'; the real makeTimerDriver()); t.timers() reads it */
+  timerSink?: string;
   /** PLAN-3 5-4c: the HEAD fake's titleTemplate ('%s · App'), as makeHeadDriver's */
   titleTemplate?: string;
   /** PLAN-4 GS-11: the app-level error hook, as run()'s `onError` option */
@@ -471,6 +474,8 @@ export interface RenderResult {
   readonly location: {path: string; search: string; hash: string; href: string};
   /** PLAN-3 5-4c: the HEAD fake's merged head (titleTemplate applied) */
   head: () => {title: string | undefined; meta: Record<string, any>; link: any[]};
+  /** PLAN-4 GS-7: the timer fake's active timers, in start order: `{ name, every | after | frame, action, background?, component }` */
+  timers: () => Array<Record<string, any>>;
   /** Live array of EVENTS sink emissions ({type, data}) */
   emitted: any[];
   /** Live array of diagnostics reported while rendered */
@@ -1817,6 +1822,10 @@ export function renderComponent(
     return f.r.driver(xs.merge(app$, f.cmd$));
   };
   const hd = drivers[headSink] ? undefined : headFake();
+  // PLAN-4 GS-7: the timer fake (the real makeTimerDriver() over a runner map t.timers() reads),
+  // unless a driver is passed under timerSink; the test's timers (fake ones too) drive it
+  const {timerSink = 'TIMER'} = options;
+  const tm = drivers[timerSink] ? undefined : new Map<any, any>();
   const allDrivers: any = {
     DOM: real
       ? (vnode$: any, name: string) => trackSource(realDOM(gated(vnode$), name), [], hub.$, onEvents)
@@ -1824,6 +1833,7 @@ export function renderComponent(
     EVENTS: eventBusDriver,
     LOG: logDriver,
     ...(hd && {[headSink]: hd.driver}),
+    ...(tm && {[timerSink]: timerDriver(tm)}),
     ...(rt && {[routerSink]: routerDriver}),
     ...drivers,
     ...(options.onError && {__e: () => options.onError}),
@@ -2814,6 +2824,12 @@ export function renderComponent(
     forward: () => traverse('forward', 1),
     get location() { return routerLocation(); },
     head,
+    timers: () => {
+      if (!tm) throw new Error(`[Sygnal] t.timers(): ${timerSink} has a real driver (passed in drivers); t.timers lists the timers of the fake renderComponent provides when no driver is passed`);
+      const list: any[] = [];
+      tm.forEach(r => { for (const name in r.on) { const {ok, d, s} = r.on[name]; if (ok && !d) list.push({name, ...s, action: s.action ?? s.frame, component: r.c}); } });
+      return list;
+    },
     emitted: sinkValues('EVENTS'),
     diagnostics: collected,
     expectNoDiagnostics,

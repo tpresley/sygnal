@@ -462,6 +462,13 @@ export const EXPLANATIONS = {
     explanation: "A view renders a `data` key the DOM can't store. `data={{ ... }}` is written with `element.dataset[key] = value`, and the browser throws a SyntaxError DOMException for a key with a hyphen followed by a lower-case letter (`'task-id'`), or an attribute-name error for characters such as spaces, quotes or `=`. The patch fails, so rendering can stop, and the console shows only a bare `DOMException {}`. The dev entry checks every rendered dataset key before the patch and names the key; renderComponent's mock DOM never throws, so it is also the only signal there.",
     fix: "Use a camelCase key in the `data` prop: `data={{ taskId: 7 }}` renders `data-task-id=\"7\"` (a `data-task-id=\"7\"` JSX attribute works too); read it with `.data('taskId')`.",
   },
+  SYG422: {
+    title: "Invalid timer spec",
+    severity: "error",
+    reportedBy: ["dev-entry"],
+    explanation: "A component's `timers` static declares a timer that `makeTimerDriver()` can't run, so it is not started (the other timers are). A spec is `{ every: ms, action }` (a positive interval), `{ after: ms, action }` (0 or more) or `{ frame: 'ACTION' }`, each with an optional `background: true`. Reported for a non-positive or non-numeric `every`, a negative `after`, both `every` and `after`, a missing or non-string `action`, or a `frame` that isn't an action name. A falsy entry (`state.running && { ... }`) is not an error: it means the timer is stopped.",
+    fix: "Use `tick: state.running && { every: 100, action: 'TICK' }`, `done: state.armed && { after: 5000, action: 'EXPIRE' }` or `frame: state.animating && { frame: 'FRAME' }`. To stop a timer, return a falsy value for it instead of an invalid spec.",
+  },
   SYG501: {
     title: "View uses positional arguments",
     severity: "warn",
@@ -643,6 +650,13 @@ export const EXPLANATIONS = {
     reportedBy: ["dev-entry"],
     explanation: "A request or resource sets `cache: true` or `staleTime`, or the component sends `{ prefetch: request }`, but the sink's `makeFetchDriver()` has no query cache. The cache is a separate export (D88), so a driver without `cache: queryCache()` caches nothing: the request is sent as an ordinary one, and a prefetch does nothing. In tests the HTTP fake has no cache unless `renderComponent(C, { http: { cache: queryCache() } })` gives it one.",
     fix: "Give the driver a cache: `makeFetchDriver({ cache: queryCache({ staleTime: 30000 }) })` with `import { queryCache } from 'sygnal'` (in tests, `renderComponent(C, { http: { cache: queryCache() } })`). Or remove `cache` / `staleTime` / the prefetch.",
+  },
+  SYG643: {
+    title: "Declaration static with no driver to take it",
+    severity: "warn",
+    reportedBy: ["dev-entry"],
+    explanation: "A component declares `timers`, `connections` or `resources`, but no registered driver takes that static, so nothing happens and nothing else says so: the timers never fire, the connections never open, the resources stay idle. The core sends each of these statics to the source of the driver that asks for it (`makeTimerDriver()`, `makeSocketDriver()`, `makeFetchDriver()`), and the driver is opt-in: `run()` doesn't register it for you. `renderComponent` provides fakes for all three (the timer fake runs the real driver), so the warning only appears under `run()`.",
+    fix: "Register the driver when you start the app: `run(App, { TIMER: makeTimerDriver() })` for `timers`, `run(App, { WS: makeSocketDriver() })` for `connections`, `run(App, { HTTP: makeFetchDriver() })` for `resources` (the key is yours to choose; the core finds the driver by the static it takes).",
   },
   SYG701: {
     title: "Click listener on a non-interactive element",
