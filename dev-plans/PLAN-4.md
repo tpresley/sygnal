@@ -6,7 +6,7 @@
 
 **Release:** 6.0.0, together with PLAN-3 (network layer) and PLAN-5 (ecosystem components). It is one major release, held until the user says otherwise (D56): no version bumps, tags, PR to main or publish.
 
-**Status:** plan only. No code changes until the user answers §11. The coordinator creates the tracker, `dev-plans/PLAN-4-status.md`, in Phase 0, in the PLAN-3 tracker format.
+**Status:** plan only. No code changes until the user answers §11. The tracker, [`PLAN-4-status.md`](PLAN-4-status.md), was created early to record PLAN-5's requests (D100–D107). The coordinator completes it in 0-A.
 
 **Inputs (read these; this plan references them rather than repeating them):**
 
@@ -32,7 +32,7 @@ Controls keep this: a view renders a control, and only the intent says which eve
 **ID conventions:**
 - Features: **CT-1** (controls) and **GS-1…GS-16**, where GS-n is the gap study's G-n. The "GS" prefix avoids a clash with the trackers' G-### gap numbers.
 - Open questions: **P4-Q1…**.
-- Decisions and gaps continue the global numbering, D92… and G-184…, if PLAN-4 runs before PLAN-5 or after it (§0.3). If the two plans run concurrently, PLAN-4 uses P4-D… and P4-G… instead.
+- Decisions start at **D100** and gaps at **G-200**. That leaves D92–D99 and G-184–G-199 for PLAN-3, which is still recording its final eval. PLAN-5 continues after PLAN-4's last number. "P4-D" with no number is the CT-1 canonical-form decision made after 1-E (P4-Q10); PLAN-5 refers to it by that name.
 
 ---
 
@@ -82,7 +82,13 @@ These modules exist on `plan3-integration`; read them there.
 - the constraints PLAN-5 inherits (budgets, the code reservations in §5, terminology, eval task numbers 30+, the a11y gate);
 - 14 suggested updates and investigations (S-1…S-14).
 
-One affects this plan: **S-1** (a widget as a kind of control). 1-A keeps room for it in the control marker, for example a `kind` field. The coordinator records PLAN-5's answers to S-1…S-14 in the tracker when they arrive.
+**PLAN-5's answers** (`claude/sygnal-component-research-b1873e` `acc9b12`, `PLAN-5.md` §0.3) accept all 14 suggestions, some with changes, and are recorded in [`PLAN-4-status.md`](PLAN-4-status.md). Four requests affect this plan, all user-approved and accepted:
+- the control spec contract (CT-1, D101);
+- kind-blind acceptance (CT-1);
+- the spec-provided props type (CT-1, D101);
+- widget commands through `ELEMENT` (GS-2, D102).
+
+Also: G-17 moves to PLAN-5 as B-4 (D103); the names `defineWidget` and `defineElement` are both kept (D104); `onError` gets a `'widget'` phase (D105). PLAN-5's code reservations (SYG140–149, 230–239, 430–439, 660–669, 720–729) don't overlap §5.
 
 ---
 
@@ -207,6 +213,7 @@ t.simulateEvent(Add, 'click'); t.query(Draft).value
 - `controls(spec)` returns one **control** per key. A control is a JSX tag that renders the named intrinsic element with every prop passed through, plus a marker attribute `data-control="<Key>"` (name per P4-Q3). The marker is the only thing it adds.
   - A control is not a component: no instantiation, no state, no isolation scope, no wrapper.
   - The pragma recognises it through a dedicated flag. It doesn't borrow the fragment path, as the X5 prototype did.
+  - **Control specs (D101, for PLAN-5 widgets):** a spec value is either an intrinsic tag string or a **spec object** `{ kind, vnode(props, children), commands? }` (§2 "Control spec contract"). For a spec object, the pragma calls `spec.vnode(props, children)` and stamps `data-control` on the vnode it returns, the same way as for a tag. The stamp merges into `data.attrs` and keeps the returned vnode's `key`, `hook` and other data. PLAN-4 ships no spec kind except the tag string. Its tests use a test-only spec object to prove the hook.
 - Anywhere a selector string is accepted today, a control is accepted:
   - `DOM.select(control)` and every `DOM.<event>(control)` shorthand;
   - enriched streams;
@@ -214,7 +221,7 @@ t.simulateEvent(Add, 'click'); t.query(Draft).value
   - `simulateEvent`, `query` and `queryAll`;
   - the GS-2 element commands.
 
-  It resolves to `[data-control="<Key>"]`. The `MainDOMSource.select` string check (`"expects the argument to be a string"`) accepts controls.
+  It resolves to `[data-control="<Key>"]`. Acceptance is **kind-blind**: every control resolves this way whatever its spec. The `MainDOMSource.select` string check (`"expects the argument to be a string"`) accepts controls.
 - **Isolation is unchanged.** A control used in a Collection item matches only that item's element. A parent that listens to a child's control never fires: SYG104, now detected exactly by identifier.
 - **Scoping inside a Collection in tests:** `t.simulateEvent(Done, 'click', { within: '[data-id="2"]' })`. Template strings (`` `li:nth-child(2) ${Done}` ``) also work, because a control stringifies to its selector.
 - **Names:** the keys are the names, so the HTML is deterministic (SSR and hydration safe) and readable. Two `controls()` calls in one file may not reuse a key; that's a checker error.
@@ -226,6 +233,7 @@ t.simulateEvent(Add, 'click'); t.query(Draft).value
 - `controls({ Draft: 'input' })` gives `Draft` the props of `JSX.IntrinsicElements['input']`.
 - `DOM.input(Draft)` returns an event stream typed for `HTMLInputElement` events, and `.value()` is typed.
 - `t.query(Draft)` returns `HTMLInputElement`.
+- **Type hook (D101):** for a spec object, `controls()` takes the props type from the spec (a phantom `__props?: P` field on `ControlSpec<P>`), not from `JSX.IntrinsicElements`. A type test covers a test-only spec.
 
 **Checker (sygnal-check):**
 - resolves control identifiers in the same file and through relative imports;
@@ -242,7 +250,24 @@ t.simulateEvent(Add, 'click'); t.query(Draft).value
 - A Collection with per-item controls, a nested child using the same key names, SSR plus hydration, and HMR all work.
 - Every diagnostic above has failing-first tests.
 - `--fix` converts kanban and todomvc with no behaviour change: their tests pass unchanged.
+- A test-only spec object renders through `vnode()`, gets the stamp, keeps its hooks, and is accepted by `DOM.*`, `simulateEvent`, `query` and element commands.
 - Core cost is within the 0-B estimate (target ≤ 120 B gated).
+
+**Control spec contract** (frozen for 1-A, 1-T and 3-A; PLAN-5 builds `defineWidget` on it):
+
+```ts
+type ControlSpec<P = any> =
+  | keyof JSX.IntrinsicElements                     // 'button', 'input', 'wa-rating', ...
+  | {
+      kind: string                                 // 'widget' (PLAN-5); free-form, shown in inspect() and diagnostics
+      vnode(props: P, children: unknown[]): VNode   // must return one element vnode (not a component, fragment or text)
+      commands?: Record<string, (elm: Element, options: Record<string, unknown>) => void>
+      __props?: P                                  // phantom, types only
+    }
+```
+
+- A `vnode()` that returns anything but one element vnode is SYG125, extended to cover it (error, names the control key).
+- `commands` is read only by element commands (GS-2). Each handler gets the resolved host element and the command's options. The spec maps the element to its own instance.
 
 ### GS-1 Reusable behaviors (P1)
 
@@ -308,7 +333,8 @@ Signup.intent = ({ DOM }) => ({ CLOSE_HELP: DOM.close(HelpDialog) })
   - `click` (programmatic, for file inputs).
 - An array sends several commands.
 - **Scoping:** the target is resolved inside the **sending instance's** DOM scope, using the PLAN-3 sender tag and that instance's isolated DOM source. Commands run **after the next patch** of that instance, so they reach elements rendered by the same action.
-- No match is SYG640 (warn, dev). An unknown method is SYG641 (error).
+- **Spec commands (D102):** when the target is a control whose spec object declares `commands`, the method is looked up there first, so `ELEMENT: { open: DueDate }` calls `spec.commands.open(hostElement, options)`. A spec command overrides a native method of the same name. Only then does a native element method apply.
+- No match is SYG640 (warn, dev). An unknown method is SYG641 (error). SYG641 is raised only after both lookups fail. It names the control's declared commands when it has any.
 - SSR: no-op.
 
 **Built in or registered** (P4-Q6): decided with 0-B's measured bytes. A registered driver needs `run(App, { ELEMENT: makeElementDriver() })` and an automatic fake in `renderComponent`.
@@ -488,7 +514,7 @@ Report: gap study G-10.
 ### GS-11 App-level error hook (P2)
 
 Report: gap study G-11.
-- `run(App, drivers, { onError: (error, { componentName, action, phase }) => … })`, where `phase` is one of `'view' | 'reducer' | 'effect' | 'driver' | 'instantiate'`. It is reporting only, called after the component's `onError` boundary has chosen a fallback.
+- `run(App, drivers, { onError: (error, { componentName, action, phase }) => … })`, where `phase` is one of `'view' | 'reducer' | 'effect' | 'driver' | 'instantiate' | 'widget'`. `'widget'` is reserved for PLAN-5's `defineWidget` (D105); nothing in PLAN-4 emits it. It is reporting only, called after the component's `onError` boundary has chosen a fallback.
 - It also works with the Vike and Astro wrappers and `renderToString`, and as a `renderComponent` option.
 - An exception thrown inside `onError` itself is swallowed, with one console error.
 
@@ -510,6 +536,7 @@ Report: gap study G-12.
 ### GS-13 Custom-element output (prototype, then decide)
 
 Report: gap study G-13.
+- **Name (D104):** `defineElement` (a Sygnal component published as a custom element) keeps its name next to PLAN-5's `defineWidget` (a foreign widget brought into Sygnal). If adopted, PLAN-5 owns the shared "Web components" guide (S-11).
 - **P-2 spike** (`exp/p4-elements`):
   - `sygnal/element` `defineElement(tag, Component, { props, events: { PARENT: 'task-picked' }, shadow, styles })`;
   - property/attribute → state;
@@ -573,7 +600,7 @@ The dependency order is listed at the end of this section.
   - settle §11 with the user, in batches;
   - post the §5 code reservations into the tracker, and note them in PLAN-5's tracker when it exists.
 - **0-B spikes** (one subagent, `exp/p4-spikes`, throwaway). Measure gated core bytes for:
-  1. CT-1 pragma marker plus DOM source and testing acceptance;
+  1. CT-1 pragma marker plus DOM source and testing acceptance, including the D101 spec-object path and the D102 command lookup;
   2. GS-1 `uses` static merge vs `withBehaviors`;
   3. GS-2 built-in vs registered element commands;
   4. GS-5 plain-object static vs `persist()` helper;
@@ -679,6 +706,8 @@ Pre-allocated so that parallel workstreams don't collide (the PLAN-3 SYG620 clas
 | 5xx strict | **SYG502** retired (documented as such) · **SYG510** single-class intent selector where a control would do (only if P4-D makes controls canonical) | GS-4, CT-1 |
 | 6xx drivers/setup | **SYG640** element command target not found (warn, dev) · **SYG641** unknown element command (error) · **SYG642** persist read/write/migrate failure (warn) · **SYG643** `timers` declared with no timer driver (warn, dev; if registered) · SYG644–649 spare | GS-2, GS-5, GS-7 |
 | 7xx a11y (new lane) | **SYG701–SYG708** (§2 GS-3) · SYG709–719 spare | GS-3 |
+
+**PLAN-5's reservations**, which PLAN-4 must not use: SYG140–149, 230–239, 430–439, 660–669 and 720–729 (`PLAN-5.md` §4).
 
 Per CLAUDE.md, each new code goes into both tables in `codes.ts` (non-core codes in `DEV_CODE_SEVERITY`, G-159), gets an explanation, and is followed by a regeneration of `explanations.json` and the errors doc. The new 7xx lane also updates the lane list in `codes.ts`, `llms.txt` §6 and `guide/diagnostics`.
 
@@ -786,7 +815,8 @@ Total about $180. Anything beyond that is asked first.
 
 ## 10. Out of scope
 
-- Gap-study items G-17…G-20: deferred loading triggers (after PLAN-5 B-3), scoped-styles docs, Storybook, props contracts.
+- Gap-study item G-17 (deferred loading triggers): **moved to PLAN-5 as B-4** (D103).
+- Gap-study items G-18…G-20: scoped-styles docs, Storybook, props contracts.
 - N-1…N-5: signals, a compiler, server components/resumability, two-way binding sugar, an optimistic primitive.
 - `<button intent="X">`-style action tags (PLAN-1 §0).
 - `DOM.click(Component)` (view-intent-linking follow-up; SYG124 replaces it).
