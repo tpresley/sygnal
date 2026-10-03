@@ -8,7 +8,12 @@ Network calls get a first-class layer. A request names the actions its answer be
 
 Covers `sygnal`, `sygnal-check` and `create-sygnal-app`. A few fixes change behavior that an app or test could have relied on, and the TypeScript declarations are stricter in several places; both are listed under [Breaking changes](#breaking-changes-runtime-behavior) and [Migration](#migration).
 
-**Measured impact.** _Placeholder: filled in from [`evals/agent-ergonomics/results/REPORT-v2.md`](evals/agent-ergonomics/results/REPORT-v2.md) (Sygnal vs React gap per tier, tier-3 pass rates, model sensitivity, against the 5.4.0 `v2-baseline`)._
+**Measured impact** (agent evals; Opus 5.5 unless noted; [REPORT-v2](evals/agent-ergonomics/results/REPORT-v2.md), [REPORT-v3](evals/agent-ergonomics/results/REPORT-v3.md)). On tiers 1–3 (15 tasks shared with React), Sygnal agents finish in 40.5 s on average against 49.6 s on 5.4.0, which cuts the gap to React from 1.50× to 1.22×; the TypeScript tier went from 1.40× to 1.30×. Every Opus trial passes in both versions.
+- A one-request HTTP task is now faster than React. The gaps on debounced search and form-plus-lookup fell by 70% and 50% during PLAN-3.
+- The new network tier passes 20/20 on Opus. WebSocket chat with `makeSocketDriver` and `connections` takes 63 s, against 88 s with a hand-written driver before PLAN-3 (React: 42 s), and the router task is within 1.14× of React.
+- List/detail caching is still 2.25× React, because agents hand-build caches instead of using `queryCache()`.
+- Haiku 4.5 now passes the WebSocket task 10/10 (was 1/5), and its pass rate on the 15 tasks shared with React is 75% against React's 65% (not significant at n = 5).
+- `resources` ships as an advanced form: a resources-first skill was not faster (+3%).
 
 ### Added
 
