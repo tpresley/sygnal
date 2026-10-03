@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "test": "node run-headless.mjs"
+    "test": "node run-headless.mjs",
+    "perf": "node perf/run-perf.mjs"
   },
   "dependencies": {
     "sygnal": "file:.."
