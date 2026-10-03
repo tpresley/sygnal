@@ -7,6 +7,7 @@ import {init as snabbdomInit} from './cycle/dom/snabbdom';
 import defaultModules from './cycle/dom/modules';
 import {renderSeq} from './cycle/dom/controlledInputModule';
 import {makeCommandSource} from './extra/command';
+import {runElementCommands} from './extra/elementCommands';
 import type {Command} from './extra/command';
 // [diagnostics hook] shared diagnostics core — hooks are no-ops when diagnostics are off
 import * as diag from './extra/diagnostics/index';
@@ -946,6 +947,9 @@ class Component {
       this._subscriptions.push(effectSub)
       delete this.sinks[EFFECT_SINK_NAME]
     }
+    // PLAN-4 GS-2: the built-in ELEMENT sink (element commands) runs against this instance's own
+    // DOM source after the next patch (./extra/elementCommands)
+    if (this.model$.ELEMENT) this._subscriptions.push(this.model$.ELEMENT.subscribe({ next: (c: any) => runElementCommands(this, c) }))
     // READY sink: if the component explicitly defined READY model entries, use them;
     // otherwise auto-emit true. Check the raw model object, not model$ (which always has keys for all sources).
     if (isObj(this.model) && Object.values(this.model).some((sinks: any) => isObj(sinks) && READY_SINK_NAME in sinks)) {

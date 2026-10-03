@@ -24,6 +24,7 @@ import { domIsolationTests } from './tests/dom-isolation-6-0.jsx'
 import { controlsTests } from './tests/controls-ct1.jsx'
 import { nonBubblingTests1F } from './tests/nonbubbling-1f.jsx'
 import { elementTestsP2b } from './tests/element-p2b.jsx'
+import { elementCommandTests3A } from './tests/element-commands-3a.jsx'
 import { getResults } from './harness.js'
 
 async function runAll() {
@@ -53,6 +54,7 @@ async function runAll() {
   await controlsTests()
   await nonBubblingTests1F()
   await elementTestsP2b()
+  await elementCommandTests3A()
 
   const results = getResults()
   const passed = results.filter(r => r.status === 'pass').length

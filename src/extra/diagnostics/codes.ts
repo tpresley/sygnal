@@ -234,6 +234,9 @@ export const CODE_TITLES: Record<string, string> = {
   SYG634: 'latest: true with a computed key',
   // PLAN-3 5-5 (D88)
   SYG635: 'Caching asked for without a queryCache',
+  // PLAN-4 GS-2: element commands (reported by the dev entry, checks/elementCommands.ts)
+  SYG640: 'Element command target not found',
+  SYG641: 'Unknown element command',
   // PLAN-4 GS-7: timers (checks/timers.ts; dev entry)
   SYG643: 'Declaration static with no driver to take it',
   // PLAN-4 GS-3: a11y lane (static only, sygnal-check)
@@ -305,6 +308,9 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG634: 'info',
   // PLAN-3 5-5 (fetch.ts)
   SYG635: 'warn',
+  // PLAN-4 GS-2 (checks/elementCommands.ts, through the core bridge; renderComponent too)
+  SYG640: 'warn',
+  SYG641: 'error',
   // PLAN-4 GS-7 (timers.ts): an invalid timer spec (not started); timers / connections /
   // resources declared with no driver registered
   SYG422: 'error',

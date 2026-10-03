@@ -67,7 +67,8 @@ export const timing = {
 export const BUILTIN_ACTIONS = new Set(['BOOTSTRAP', 'INITIALIZE', 'DISPOSE', 'READY', 'RESOURCE'])
 
 /** Sinks the core handles itself: their values never go to a reply-action driver. */
-const NON_REPLY_SINK = /^(STATE|EFFECT|EVENTS|PARENT|READY|DOM|CHILD)$/
+// (PLAN-4 GS-2: ELEMENT too; `{ scrollIntoView: Row, block: 'center' }` names no action)
+const NON_REPLY_SINK = /^(STATE|EFFECT|EVENTS|PARENT|READY|DOM|CHILD|ELEMENT)$/
 
 // `ok: 'X'` / `"error": "X"` in function source (minified code keeps string literals and keys)
 const keyedNames = (keys: string) => new RegExp(`(?:^|[{,\\s])["']?(?:${keys})["']?\\s*:\\s*(["'\`])([\\w$.:/-]+)\\1`, 'g')
