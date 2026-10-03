@@ -190,6 +190,7 @@ class Component {
   _activeSubComponents: Map<string, any>;
   _childReadyState: Record<string, boolean>;
   _uid!: (name?: string) => string;
+  _cu?: string;
   _readyChanged$: any;
   _readyChangedListener: any;
 
@@ -1262,8 +1263,9 @@ class Component {
 
         let sink$
         try {
-          // GS-9: the child's uid: this uid + its path or id prop (read by its constructor)
-          this.sources.__uid = this._uid(id.replace(/.*::(r\.)?/, ''))
+          // GS-9: the child's uid: this uid + its path or id prop (the instantiate* functions put it
+          // in the child's own sources; the sources this component received stay as they are, G-214)
+          this._cu = this._uid(id.replace(/.*::(r\.)?/, ''))
           sink$ = (isCollection ? this.instantiateCollection : isSwitchable ? this.instantiateSwitchable : this.instantiateCustomComponent).call(this, el, props$, children$)
         } catch (err) {
           const error = err instanceof Error ? err : new Error(String(err))
@@ -1505,7 +1507,7 @@ class Component {
       return itemProps
     })
 
-    const sources = { ...this.sources, [this.stateSourceName]: stateSource, props$: itemProps$, children$, __parentContext$: this.context$, PARENT: null, __parentComponentNumber: this._componentNumber }
+    const sources = { ...this.sources, [this.stateSourceName]: stateSource, props$: itemProps$, children$, __parentContext$: this.context$, PARENT: null, __parentComponentNumber: this._componentNumber, __uid: this._cu }
     const sink$   = collection(factory, lense as any, { container: null as any })(sources)
     if (!isObj(sink$)) {
       fail('SYG903', this, 'Collection factory returned invalid sinks', 'Return a sinks object')
@@ -1546,7 +1548,7 @@ class Component {
         switchableComponents[key] = component(optionsOf(current, current.componentName || current.label || current.name || 'FUNCTION_COMPONENT'))
       }
     })
-    const sources = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$, __parentContext$: this.context$, __parentComponentNumber: this._componentNumber }
+    const sources = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$, __parentContext$: this.context$, __parentComponentNumber: this._componentNumber, __uid: this._cu }
 
     const sink$ = isolate(switchable(switchableComponents, props$.map((props: any) => [props.current, props.instance]), ''), { [this.stateSourceName]: lense })(sources)
 
@@ -1601,7 +1603,7 @@ class Component {
       stateSource = new StateSource(xs.merge(state$.filter(() => local === undefined), local$), this.stateSourceName)
     }
 
-    const sources: Record<string, any> = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$, __parentContext$: this.context$, __parentComponentNumber: this._componentNumber, __localState: local$ }
+    const sources: Record<string, any> = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$, __parentContext$: this.context$, __parentComponentNumber: this._componentNumber, __localState: local$, __uid: this._cu }
     lense = local$ ? null : this.withCalculated(lense)
 
     // Detect Command objects in props and expose as commands$ source

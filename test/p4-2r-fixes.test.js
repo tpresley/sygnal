@@ -5,6 +5,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { renderComponent } from '../src/extra/testing.js'
 import { createElement as h } from '../src/pragma/index.js'
 import { ABORT } from '../src/index.js'
+import { Collection } from '../src/collection.js'
+import run from '../src/extra/run.js'
 import { defineBehavior } from '../src/extra/behaviors.js'
 import { undoable } from '../src/extra/undo.js'
 import { setupChecks, settle } from './diagnostics/helpers.js'
@@ -51,5 +53,36 @@ describe('G-214 (1): constant sink values in a behavior model entry', () => {
     t.simulateAction('B', 'x'); await settle(30)
     t.simulateAction('UNDO'); await t.next(s => s.doc === 0)
     expect(t.sinkValues('PARENT').map(v => v?.value ?? v)).toEqual(['a', 'x', 'u'])
+  })
+})
+
+const sleep = ms => new Promise(r => setTimeout(r, ms))
+const until = async (cond, what, ms = 2000) => {
+  for (const end = Date.now() + ms; !cond(); await sleep(5)) if (Date.now() > end) throw new Error(`timed out waiting for ${what}`)
+}
+
+describe('G-214 (2): the parent does not write child uids into the sources it received', () => {
+  const ids = () => [...document.querySelectorAll('#root [id]')].map(e => e.id)
+  function Field({ uid }) { return h('input', { attrs: { id: uid('input') } }) }
+  function Row({ state, uid }) { return h('li', { attrs: { id: uid() } }, state.text) }
+  function Form({ uid }) {
+    return h('form', { attrs: { id: uid('form') } }, h(Field), h('ul', null, h(Collection, { of: Row, from: 'rows' })))
+  }
+  Form.initialState = { rows: [{ id: 'a', text: 'one' }] }
+
+  for (const uid of [undefined, 'app1']) it(`a root remount via app.hmr() keeps the same uids (uid option: ${uid})`, async () => {
+    document.body.innerHTML = '<div id="root"></div>'
+    const app = run(Form, {}, { diagnostics: 'off', ...(uid && { uid }) })
+    try {
+      await until(() => document.querySelectorAll('#root li').length === 1, 'first render'); await sleep(20)
+      const before = ids()
+      expect(before).toHaveLength(3)
+      expect(app.sources.__uid).toBe(uid)     // not the last child's uid
+      app.hmr(Form)
+      await sleep(150)
+      await until(() => document.querySelectorAll('#root li').length === 1, 'remount')
+      expect(ids()).toEqual(before)
+      expect(app.sources.__uid).toBe(uid)
+    } finally { app.dispose(); document.body.innerHTML = '' }
   })
 })
