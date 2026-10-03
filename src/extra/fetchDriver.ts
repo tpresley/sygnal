@@ -47,6 +47,9 @@ import {senderOf, keepSender, allowed, makeReplies} from './replies';
  *   current request (nothing while idle).
  * - dispose / sink completion aborts everything in flight.
  * - `fetch` is read at request time (options.fetch, else globalThis.fetch), so test stubs work.
+ * - PLAN-3 5-1 (H-9): renderComponent's HTTP fake runs this driver over an in-memory fetch;
+ *   the internal `_tap(request, resourceName?)` option is called right before each fetch so the
+ *   fake can name what is pending. There is no other copy of these rules.
  */
 
 const EARLY_LIMIT = 100;
@@ -257,6 +260,8 @@ export function makeFetchDriver(options: any = {}) {
       let p: Promise<any>;
       try {
         if (typeof doFetch != 'function') throw new Error('fetch is not available in this environment (pass makeFetchDriver({ fetch }))');
+        // 5-1 (H-9): renderComponent's fake learns which request (and resource) the next fetch is for
+        options._tap?.(req, rn);
         // called synchronously, so a test sees the call right after the sink emitted
         p = Promise.resolve(doFetch(href, {
           ...pickInit(base),

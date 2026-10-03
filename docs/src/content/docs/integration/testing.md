@@ -264,7 +264,7 @@ A driver you pass in `drivers` still wins: it receives the values (and `sinkValu
 
 ### Answering requests: respond() and fail()
 
-The source of a driver you don't pass is a fake you answer from the test, so a component that uses [`makeFetchDriver()`](/guide/http/) (or any `driverFromAsync` driver) needs no driver wiring in tests. The fake replies like the real driver: a request that names `ok` / `error` actions gets its reply as that action, on exactly the component instance that sent it.
+The source of a driver you don't pass is a fake you answer from the test, so a component that uses [`makeFetchDriver()`](/guide/http/) (or any `driverFromAsync` driver) needs no driver wiring in tests. The fake **is** `makeFetchDriver()`, run over an in-memory `fetch`: every request it sends stays pending until the test answers it, so `ok` / `error` reply actions, `latest`, `abort`, `timeoutMs`, isolation and `resources` behave exactly as in the app. A request that names `ok` / `error` actions gets its reply as that action, on exactly the component instance that sent it.
 
 ```jsx
 function Quote({ state }) {
@@ -294,8 +294,8 @@ it('loads a quote', async () => {
 })
 ```
 
-- `t.respond(name, value, target?)` answers a pending request. A request with reply actions (`ok: 'LOADED'`) gets `value` (the parsed body) as its `LOADED` action. A plain one gets `{ category, value, status: 200, request }` on `select()`.
-- `t.fail(name, error, target?)` fails it. A request with reply actions (`error: 'FAILED'`) gets `{ error, request, status, body }` as its `FAILED` action. A plain one gets `{ error, category, request, status, body }` on `errors()`. A number is an HTTP status: `t.fail('HTTP', 404)` fails with `Error('HTTP 404')` and `status: 404`.
+- `t.respond(name, value, target?)` answers a pending request with a response whose body is `value` (JSON, or text for a string; `{ status: 201 }` sets the status). The driver parses it as it would a server's, so a request with reply actions (`ok: 'LOADED'`) gets the parsed body as its `LOADED` action, and a plain one gets `{ category, value, status, request }` on `select()`. The body goes through JSON, as over the network: a `Date` arrives as a string, and `undefined` as `null`.
+- `t.fail(name, error, target?)` fails it. A request with reply actions (`error: 'FAILED'`) gets `{ error, request, status, body }` as its `FAILED` action. A plain one gets `{ error, category, request, status, body }` on `errors()`. A number (or a `status` option) is an HTTP error response: `t.fail('HTTP', 404, { body: { message: 'gone' } })` fails with the driver's `Error('HTTP 404: /api/quote')`, with `status: 404` and the body. An `Error` or a message is a network failure: the fetch rejects with it, and there is no `status`.
 - Both return a promise that resolves once the reply action has been reduced and the whole tree has rendered (on the real DOM, once it is in the DOM). `await` it, then assert.
 
 **Which request.** `target` picks the newest pending request that matches it. Matching is by content, never by object identity alone:
@@ -303,20 +303,58 @@ it('loads a quote', async () => {
 | `target` | Matches a request |
 |---|---|
 | (none) | any (the newest pending one) |
-| `'LOADED'` | whose `ok`, `error`, `key` or `category` is `'LOADED'` |
-| `{ url: '/items/2' }` | whose fields equal these, compared by value (a partial request; also the constant object the model returns) |
-| `(request) => request.query.q === 'du'` | for which the predicate is true (a string request is passed as `{ url }`) |
+| `'LOADED'` | whose `ok`, `error`, `key` or `category` is `'LOADED'`; also a resource name (`'quote'`) or a URL (`'/api/quotes/2'`) |
+| `{ url: '/items/2' }` | whose fields equal these, compared by value (a partial request in its `t.requests` form; also the constant object the model returns) |
+| `(request) => request.query.q === 'du'` | for which the predicate is true (it gets the request in its `t.requests` form) |
 | `{ request, category, status, body }` | `request` is any of the above, or an element of `t.requests(name)`. Among equal pending requests, that very element is answered. `request: null` pushes a value no request asked for. `category` narrows the match, and `status`/`body` set the reply's |
 
 An object whose keys are all `request`, `category`, `status` or `body` is read as options. Any other object is a request pattern.
 
 **When nothing matches.** `t.respond` and `t.fail` throw at the call, so `expect(() => t.respond('HTTP', [], { query: { q: 'du' } })).toThrow()` asserts that a stale request is no longer pending. The exception is a call made while `simulateEvent`/`simulateAction`/`respond`/`fail` calls are still queued before it, or before the component is ready (a request sent on `BOOTSTRAP`). That call is delivered after them and waits up to 1 s (half of `timeoutMs` if lower) for its request, e.g. after a debounce. If none comes, its promise rejects, and if nothing awaited it, the next wait (`next`, `settle`, ...) fails.
 
-- **Pending** works as in the real driver. Each send is its own request, even the same object sent again. A request stops being pending when it is answered, superseded by `latest: true`, aborted (`{ abort: 'LOADED' }`, `{ abort: true, key }`, `{ category, abort: true }`), or when the instance that sent it is disposed (a removed Collection item).
-- **Isolation** works as in the real driver. A reply action reaches only its sender, so a parent and a child can both use `ok: 'LOADED'`. Two Collection items can be answered by URL: `t.respond('HTTP', detail, { url: '/items/2' })`. Plain replies keep the scoped `select()`/`errors()` behaviour: each instance sees the replies to its own and its descendants' requests, and the root sees every reply.
-- **`t.requests(name)` vs `t.sinkValues(name)`.** `t.requests(name)` is the live list of requests sent to the sink. `t.sinkValues(name)` also contains the `{ abort }` commands, so after a clear that aborts a search, `t.requests('HTTP')` still lists only the search.
+- **Pending** is the driver's own. Each send is its own request, even the same object sent again. A request stops being pending when it is answered, superseded by `latest: true` (or by a newer request for the same resource), aborted (`{ abort: 'LOADED' }`, `{ abort: true, key }`, `{ category, abort: true }`), timed out (`timeoutMs`), or when the instance that sent it is disposed (a removed Collection item).
+- **Isolation** is the driver's own. A reply action reaches only its sender, so a parent and a child can both use `ok: 'LOADED'`. Two Collection items can be answered by URL: `t.respond('HTTP', detail, { url: '/items/2' })`. Plain replies keep the scoped `select()`/`errors()` behaviour: each instance sees the replies to its own and its descendants' requests, and the root sees every reply.
+- **`t.requests(name)` vs `t.sinkValues(name)`.** `t.requests(name)` is the live list of requests, each as an object: a string request is listed as `{ url }`, so `expect(t.requests('HTTP')[0]).toMatchObject({ url: '/api/quote' })` works for either form, and a resource fetch is listed with its name (below). `t.sinkValues(name)` is every value the sink was sent, as sent: strings, the `{ abort }` commands, and the `{ resources }` and `{ refresh }` values. After a clear that aborts a search, `t.requests('HTTP')` still lists only the search.
+- **Timers.** `timeoutMs` runs on the test's timers, so under `vi.useFakeTimers()` a request fails with a `TimeoutError` when the clock passes it, and is no longer pending.
 - The fake can't see options given to the real driver in `main.js`: a `makeFetchDriver({ latest: true })` there doesn't apply in tests. Write `latest: true` on the request itself (the canonical form).
 - A plain reply that nothing selects fails the test with an explanation (a category typo, or no `errors()` handler for a failure).
+
+### Resources
+
+A component's `resources` static goes to the fake named `HTTP` (`renderComponent(C, { resourceSink: 'API' })` for another name). Each fetch the driver makes for a resource is a pending request, listed in `t.requests('HTTP')` as `{ url, ...request, resource: 'quote' }`. The `{ resources }` declarations and `{ refresh }` commands are not requests: they are only in `t.sinkValues('HTTP')`. Answer a fetch by the resource name, its URL, or a partial request:
+
+```jsx
+function Quote({ state }) {
+  return <p className="status">{state.quote.status === 'success' ? state.quote.data.text : state.quote.status}</p>
+}
+Quote.initialState = { id: null }
+Quote.resources = { quote: (state) => state.id && `/api/quotes/${state.id}` }
+Quote.model = { PICK: (state, id) => ({ ...state, id }), REFRESH: { HTTP: { refresh: 'quote' } } }
+
+it('loads the picked quote, and only the latest one', async () => {
+  const t = renderComponent(Quote)
+  await t.ready()
+  expect(t.requests('HTTP')).toEqual([])                  // idle: nothing fetched
+
+  t.simulateAction('PICK', 1)
+  t.simulateAction('PICK', 2)
+  await t.waitForState((s) => s.id === 2 && s.quote.status === 'loading')
+  expect(t.requests('HTTP')).toEqual([
+    { url: '/api/quotes/1', resource: 'quote' },
+    { url: '/api/quotes/2', resource: 'quote' },
+  ])
+  expect(() => t.respond('HTTP', { text: 'old' }, '/api/quotes/1')).toThrow()  // superseded
+  await t.respond('HTTP', { text: 'Hi' }, 'quote')        // or '/api/quotes/2', or { url: '/api/quotes/2' }
+  expect(t.html()).toContain('Hi')
+
+  t.simulateAction('REFRESH')
+  await t.waitForState((s) => s.quote.status === 'loading')
+  await t.fail('HTTP', 500, 'quote')
+  expect(t.state.quote.error.status).toBe(500)
+})
+```
+
+`t.states` shows every `RESOURCE` write (`idle`, `loading`, `success`, `error`), and `ok` / `error` actions on the resource's request run after the write, as in the app.
 
 ### Sockets: connections(), push(), drop()
 
@@ -421,6 +459,7 @@ When an event "does nothing" in a test, `t.inspect()` usually shows why: a selec
 | `dom` | `'mock' \| 'real'` | `'mock'` | `'real'` mounts into a real container element; see [Real DOM](#real-dom) |
 | `autoConnect` | `boolean` | `true` | Fake socket connections open by themselves; `false` holds them until `t.open()` (see [Sockets](#sockets-connections-push-drop)) |
 | `socketSink` | `string` | `'WS'` | The driverless sink that receives the components' `connections` static; created even when no model entry names it (a read-only SSE component). Pass a driver under this name in `drivers` to use a real one |
+| `resourceSink` | `string` | `'HTTP'` | The driverless sink that receives the components' `resources` static (see [Resources](#resources)) |
 
 The timing options (and a timeout passed to `next()`, `waitForState()` or `settle()`) must be finite numbers of milliseconds from 0 to 2147483647 (`setTimeout`'s limit); anything else throws.
 
@@ -439,7 +478,7 @@ The timing options (and a timeout passed to `next()`, `waitForState()` or `settl
 | `html` | `() => string` | Latest render as HTML (throws before the first render) |
 | `emitted` | `{ type, data }[]` | EVENTS emissions |
 | `sinkValues` | `(sink) => any[]` | Values sent to a sink |
-| `requests` | `(sink) => any[]` | Requests sent to a sink (`sinkValues` without `{ abort }` commands) |
+| `requests` | `(sink) => any[]` | Requests sent to a sink, as objects (a string is `{ url }`, a resource fetch has `resource`); no `{ abort }`, `{ resources }` or `{ refresh }` values |
 | `respond` | `(sink, value, target?) => Promise<void>` | Answer the newest pending request matching `target` on the fake source (its `ok` action, or `select()`); throws if none is pending |
 | `fail` | `(sink, error, target?) => Promise<void>` | Fail it (its `error` action, or `errors()`); throws if none is pending |
 | `connections` | `(sink) => FakeConnection[]` | The connections declared on a fake socket sink (`name`, `url`, `state`, `sender`, the spec) |

@@ -49,7 +49,8 @@ describe('reply actions in the fake', () => {
     t = renderComponent(Quote)
     t.simulateEvent('.get', 'click')
     await t.fail('HTTP', 404, { body: { message: 'gone' } })
-    expect(t.state).toMatchObject({ status: 'error', text: 'HTTP 404', code: 404, body: { message: 'gone' }, url: '/api/quote' })
+    // 5-1: the real driver's Error message names the URL
+    expect(t.state).toMatchObject({ status: 'error', text: 'HTTP 404: /api/quote', code: 404, body: { message: 'gone' }, url: '/api/quote' })
   })
 
   it('the target may be the error action name too, or { url }', async () => {
@@ -304,7 +305,9 @@ describe('G-131: child-only string requests are scope-tagged', () => {
     t.simulateEvent('.ka .go', 'click')
     t.simulateEvent('.kb .go', 'click')
     await t.settle()
-    expect(t.requests('HTTP')).toEqual(['/kid/a', '/kid/b'])
+    // G-171(1): t.requests lists a string request as { url } (t.sinkValues keeps the strings)
+    expect(t.requests('HTTP')).toEqual([{ url: '/kid/a' }, { url: '/kid/b' }])
+    expect(t.sinkValues('HTTP')).toEqual(['/kid/a', '/kid/b'])
     await t.respond('HTTP', 'A', { url: '/kid/a' })
     expect(t.state).toMatchObject({ a: { v: 'A' }, b: { v: '-' } })
     await t.respond('HTTP', 'B', { request: '/kid/b' })
