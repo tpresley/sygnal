@@ -559,6 +559,81 @@ export type ControlsOf<SPECS> = {
  */
 export function controls<const SPECS extends Record<string, ControlSpec>>(spec: SPECS): ControlsOf<SPECS>
 
+// ── Behaviors (PLAN-4 GS-1) ────────────────────────────────────────
+
+/**
+ * What a behavior's intent receives: the host component's sources (DOM is the host's isolated
+ * DOM source; CHILD, EVENTS, drivers as they are), with STATE lensed to the behavior's slice.
+ */
+export type BehaviorSources<SLICE = any> = IntentSources<SLICE> & { [source: string]: any }
+
+/** The object passed to `defineBehavior()`. Reducers and sinks get the slice, not the host state. */
+export interface BehaviorDefinition<SLICE = any, ACTIONS = {}, CALCULATED = {}, OPTIONS = Record<string, any>> {
+  /** The slice a host starts with (`state[key]`); options naming one of its keys override it. */
+  initialState: SLICE;
+  /** Actions named without the key (`NEXT`); the host sees them as `'<key>.NEXT'`. */
+  intent?: (sources: BehaviorSources<SLICE>, options: OPTIONS) => { [ACTION in keyof ACTIONS]: Stream<ACTIONS[ACTION]> };
+  /**
+   * Model entries on the slice: ABORT, or the slice itself, means no change. `next('X')` names
+   * the behavior's own actions. (The slice's calculated fields are there at runtime, but typed
+   * only on the host's state: TypeScript can't infer them while typing these functions.)
+   */
+  model?: ComponentModel<SLICE, {}, {}, {}, {}>;
+  /** Fields of the slice (`state.pager.offset`), stored on it and recomputed when it changes. */
+  calculated?: { [FIELD in keyof CALCULATED]: (slice: SLICE) => CALCULATED[FIELD] };
+}
+
+/** One use of a behavior (a `defineBehavior()` factory's result), for a component's `uses`. */
+export interface Behavior<SLICE = any, ACTIONS = any, CALCULATED = {}, OPTIONS = any> {
+  readonly initialState: SLICE;
+  readonly options: OPTIONS;
+  /** The slice a host starts with: initialState, the options naming its keys, the calculated fields. */
+  readonly state: SLICE & CALCULATED;
+  /** Merges the behavior into a component instance under `key`; called by the core for each `uses` entry. */
+  merge(component: any, key: string): void;
+  /** Phantom, types only */
+  readonly __behavior?: { actions: ACTIONS };
+}
+
+/** What `defineBehavior()` returns: call it with the options of one use. */
+export type BehaviorFactory<SLICE = any, ACTIONS = {}, CALCULATED = {}, OPTIONS = Record<string, any>> =
+  (options?: OPTIONS & Partial<SLICE>) => Behavior<SLICE, ACTIONS, CALCULATED, OPTIONS>
+
+/**
+ * A reusable piece of state, intent and model (GS-1). A host uses it under a key:
+ *
+ *   const pager = defineBehavior({
+ *     initialState: { page: 0, pageSize: 20 },
+ *     intent: ({ DOM }, { next, prev }) => ({ NEXT: DOM.click(next), PREV: DOM.click(prev) }),
+ *     model: { NEXT: (p) => ({ ...p, page: p.page + 1 }), PREV: (p) => (p.page === 0 ? ABORT : { ...p, page: p.page - 1 }) },
+ *     calculated: { offset: (p) => p.page * p.pageSize },
+ *   })
+ *   TaskList.uses = { pager: pager({ pageSize: 10, next: Newer, prev: Older }) }   // state.pager, 'pager.NEXT'
+ *
+ * A host model entry for a behavior action ('pager.NEXT') runs after the behavior's: its STATE
+ * reducer gets the full state with the behavior's update, its EFFECT runs too, and its value
+ * sinks (EVENTS, PARENT, drivers) replace the behavior's. A host intent action of the same name
+ * replaces the behavior's trigger.
+ */
+export function defineBehavior<SLICE extends Record<string, any>, ACTIONS = {}, CALCULATED = {}, OPTIONS = Record<string, any>>(
+  definition: BehaviorDefinition<SLICE, ACTIONS, CALCULATED, OPTIONS>
+): BehaviorFactory<SLICE, ACTIONS, CALCULATED, OPTIONS>
+
+/** The slice a behavior gives its host (initialState & calculated fields). */
+export type BehaviorState<BEHAVIOR> = BEHAVIOR extends Behavior<infer SLICE, any, infer CALCULATED, any> ? SLICE & CALCULATED : never
+
+/** The state keys a `uses` object adds: `type State = { tasks: Task[] } & UsesState<typeof uses>`. */
+export type UsesState<USES> = { [KEY in keyof USES]: BehaviorState<USES[KEY]> }
+
+type UsesActionEntries<USES> = {
+  [KEY in keyof USES & string]: USES[KEY] extends Behavior<any, infer ACTIONS, any, any>
+    ? { [ACTION in keyof ACTIONS & string]: [`${KEY}.${ACTION}`, ACTIONS[ACTION]] }[keyof ACTIONS & string]
+    : never
+}[keyof USES & string]
+
+/** The namespaced actions a `uses` object adds ('pager.NEXT'), for a typed ACTIONS map. */
+export type UsesActions<USES> = { [ENTRY in UsesActionEntries<USES> as ENTRY[0]]: ENTRY[1] }
+
 type EventsSelect = keyof SygnalEvents extends never
   ? { select<T = any>(type: string): Stream<T>; }
   : { select<TYPE extends keyof SygnalEvents & string>(type: TYPE): Stream<SygnalEvents[TYPE]>; }
@@ -785,6 +860,12 @@ export type Component<
    * static, it is sent with or without a model; a root needs `initialState` (SYG132).
    */
   head?: (state: STATE & CALCULATED) => HeadValue | false | null | undefined;
+  /**
+   * PLAN-4 GS-1: behaviors this component uses, each under its state key:
+   * `TaskList.uses = { pager: pager({ pageSize: 10, next: Newer, prev: Older }) }` gives
+   * `state.pager` and the actions 'pager.NEXT', 'pager.PREV'. See `defineBehavior`.
+   */
+  uses?: { [key: string]: Behavior<any, any, any, any> };
 }
 
 /**

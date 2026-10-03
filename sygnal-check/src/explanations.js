@@ -126,6 +126,13 @@ export const EXPLANATIONS = {
     explanation: "A component renders a control (for example `<Add>`), but its intent never listens to it. A control exists to link an element to an intent, so an unused one is usually a missing intent entry or a leftover from a refactor. It is info because a control may also be used only to find the element in tests (`t.query(Draft)`).",
     fix: "Listen to it in the component's intent (`ADD: DOM.click(Add)`), or render the plain element (`<button>`) if it needs no events.",
   },
+  SYG127: {
+    title: "Behavior collision or unresolvable uses entry",
+    severity: "error",
+    reportedBy: ["dev-entry"],
+    explanation: "A component's `uses` static names behaviors: `TaskList.uses = { pager: pager({ pageSize: 10 }) }` runs the behavior on `state.pager`, with its actions named `pager.NEXT`. Two things break that. The host's `initialState` already has the key (`initialState = { pager: ... }`): the behavior's slice replaces it, so the host's value is lost. Or a `uses` value is not what a `defineBehavior()` factory returns (a plain object, the factory itself without the call, `undefined`): it is skipped, so `state[key]` and its actions never exist. The `sygnal/diagnostics` dev entry checks each component definition once; production builds don't. A host intent or model entry with the behavior's namespaced name (`'pager.NEXT'`) is not a collision: it is how a host overrides or extends a behavior action.",
+    fix: "Remove the key from the host's `initialState` (set the behavior's values through its options: `pager({ pageSize: 10 })`), or rename the `uses` key. For an unresolvable entry, call the factory: `uses = { pager: pager() }`, with `pager = defineBehavior({ ... })`.",
+  },
   SYG128: {
     title: "Duplicate control key",
     severity: "error",

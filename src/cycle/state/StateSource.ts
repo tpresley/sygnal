@@ -3,6 +3,7 @@ import {dropRepeats} from '../../extra/xstreamExtras';
 import {DevToolEnabledSource} from '../run/types';
 import {adapt} from '../run/adapt';
 import {Getter, Setter, Scope, Reducer} from './types';
+import {objIsEqual} from './objIsEqual';
 
 function updateArrayEntry<T>(
   array: Array<T>,
@@ -87,8 +88,10 @@ export class StateSource<S> {
   public stream: MemoryStream<S>;
   private _stream: MemoryStream<S>;
   private _name: string;
+  private _end?: Stream<any>;
 
-  constructor(stream: Stream<S>, name: string) {
+  constructor(stream: Stream<S>, name: string, end?: Stream<any>) {
+    this._end = end;
     this._stream = stream
       .filter(s => typeof s !== 'undefined')
       .compose(dropRepeats())
@@ -106,6 +109,16 @@ export class StateSource<S> {
   public select<R>(scope: Scope<S, R>): StateSource<R> {
     const get = makeGetter(scope);
     return new StateSource<R>(this._stream.map(get) as Stream<R>, this._name);
+  }
+
+  /**
+   * PLAN-4 GS-6: selector(state) whenever it changes structurally (objIsEqual). The current
+   * value is the baseline, not a change, unless { immediate: true }. Ends with the state stream
+   * or, for a component's own STATE source, when the component is disposed
+   */
+  public watch<R>(selector: (state: S) => R, {immediate}: {immediate?: boolean} = {}): Stream<R> {
+    const s$ = this._stream.map(selector).compose(dropRepeats(objIsEqual)).endWhen(this._end || xs.never());
+    return immediate ? s$ : s$.drop(1);
   }
 
   public isolateSource = isolateSource;

@@ -26,6 +26,7 @@
  * | SYG115 | unknown DOM event shorthand (DOM.key(...))             | shorthand.ts   |
  * | SYG124 | component where a control or selector is expected      | controls.ts    |
  * | SYG125 | control given component statics / bad spec vnode()     | controls.ts    |
+ * | SYG127 | behavior key in initialState / unresolvable uses entry | behaviors.ts   |
  * | SYG116 | EVENTS value with no string type (a function)          | events.ts      |
  * | SYG130 | href() names no route / leaves out a param             | router.ts      |
  * | SYG131 | route params the pattern doesn't use                   | router.ts      |
@@ -44,7 +45,7 @@
  * | SYG508 | strict: select()/errors() round trip on a reply source | replies.ts    |
  * | —      | inspect(): the runtime app graph (2B)                  | inspect.ts     |
  *
- * SYG112, SYG130-133 (PLAN-3), SYG115/116/221/421 (G-143) and SYG124/125 (PLAN-4 CT-1) are dev-entry-only codes: their severities live in
+ * SYG112, SYG130-133 (PLAN-3), SYG115/116/221/421 (G-143) SYG124/125 (PLAN-4 CT-1) and SYG127 (GS-1) are dev-entry-only codes: their severities live in
  * DEV_CODE_SEVERITY (codes.ts), registered by ./shared, not in the main bundle.
  *
  * Strict checks (SYG5xx) only report after configureStrict(true) (or
@@ -61,6 +62,7 @@ import {collectionsCheck} from './collections'
 import {domCheck} from './dom'
 import {shorthandCheck} from './shorthand'
 import {controlsCheck, installControlHooks} from './controls'
+import {behaviorsCheck} from './behaviors'
 import {datasetCheck} from './dataset'
 import {strictCheck} from './strict'
 import {repliesCheck} from './replies'
@@ -88,6 +90,7 @@ export const checks: DiagnosticCheck[] = [
   domCheck,
   shorthandCheck,
   controlsCheck,
+  behaviorsCheck,
   datasetCheck,
   strictCheck,
   repliesCheck,

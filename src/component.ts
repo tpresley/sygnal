@@ -2,6 +2,7 @@ import isolate from './cycle/isolate/index';
 import collection from './collection';
 import switchable from './switchable';
 import {StateSource} from './cycle/state/index';
+import {objIsEqual} from './cycle/state/objIsEqual';
 import {init as snabbdomInit} from './cycle/dom/snabbdom';
 import defaultModules from './cycle/dom/modules';
 import {renderSeq} from './cycle/dom/controlledInputModule';
@@ -315,6 +316,12 @@ class Component {
 
     this.currentSlots = {}
 
+    this._disposeListener = null
+    this._dispose$ = xs.create({
+      start: (listener: any) => { this._disposeListener = listener },
+      stop: () => {},
+    })
+
     if (state$) {
       this.currentState = initialState || {}
       this.sources[stateSourceName] = new StateSource(state$.map((val: any) => {
@@ -323,7 +330,7 @@ class Component {
           window.__SYGNAL_DEVTOOLS__.onStateChanged(this._componentNumber, this.name, val)
         }
         return val
-      }), stateSourceName)
+      }), stateSourceName, this._dispose$) // GS-6: STATE.watch ends on dispose
     }
 
     const props$ = sources.props$
@@ -380,6 +387,10 @@ class Component {
       this._idle = {}
       for (const k in res) this._idle[k] = { status: 'idle' }
     }
+    // PLAN-4 GS-1: Component.uses = { key: behavior(options) }. Each defineBehavior value carries
+    // its own merge (src/extra/behaviors.ts, D114); anything else is skipped (reported by the dev entry)
+    const uses = (view as any)?.uses
+    for (const k in uses) uses[k]?.merge?.(this, k)
     // B-016: initialState is applied by the INITIALIZE action, which needs a model. D44: only
     // for a sub-component with no `state` prop; an existing parent slice is never overwritten
     if (sources.__localState && isolatedState && initialState !== undefined && !this.model) this.model = {}
@@ -391,11 +402,6 @@ class Component {
     this._readyChangedListener = null
     this._readyChanged$ = xs.create({
       start: (listener: any) => { this._readyChangedListener = listener },
-      stop: () => {},
-    })
-    this._disposeListener = null
-    this._dispose$ = xs.create({
-      start: (listener: any) => { this._disposeListener = listener },
       stop: () => {},
     })
     this.sources.dispose$ = this._dispose$
@@ -2097,56 +2103,6 @@ function createPortalPlaceholder(target: string, children: any[]): any {
 
 function propsIsEqual(obj1: any, obj2: any): boolean {
   return objIsEqual(sanitizeObject(obj1), sanitizeObject(obj2))
-}
-
-function objIsEqual(obj1: any, obj2?: any, maxDepth: number = 5, depth: number = 0): boolean {
-  // Base case: if the current depth exceeds maxDepth, return true
-  if (depth > maxDepth) {
-      return false;
-  }
-
-  // If both are the same object or are both exactly null or undefined
-  if (obj1 === obj2) {
-      return true;
-  }
-
-  // If either is not an object (null, undefined, or primitive), directly compare
-  if (typeof obj1 !== 'object' || obj1 === null || typeof obj2 !== 'object' || obj2 === null) {
-      return false;
-  }
-
-  // Special handling for arrays
-  if (Array.isArray(obj1) && Array.isArray(obj2)) {
-    if (obj1.length !== obj2.length) {
-        return false;
-    }
-    for (let i = 0; i < obj1.length; i++) {
-        if (!objIsEqual(obj1[i], obj2[i], maxDepth, depth + 1)) {
-            return false;
-        }
-    }
-    return true;
-  }
-
-  // Get keys of both objects
-  const keys1 = Object.keys(obj1);
-
-  // Check if the number of properties is different
-  if (keys1.length !== Object.keys(obj2).length) {
-      return false;
-  }
-
-  // Recursively check each property
-  for (const key of keys1) {
-      if (!(key in obj2)) {
-          return false;
-      }
-      if (!objIsEqual(obj1[key], obj2[key], maxDepth, depth + 1)) {
-          return false;
-      }
-  }
-
-  return true;
 }
 
 function sanitizeObject(obj: any): any {
