@@ -32,7 +32,7 @@ Each line has the form `file:line:col CODE [severity] Component: message (fix)`.
 | `--fail-on=warn\|error\|never` | Exit with code 1 when a diagnostic at this level or above exists. The default is `warn`. Info never fails the run |
 | `--verbose` | Also print info-level findings |
 | `--include-tests` | Also scan `*.test.*` / `*.spec.*` files found through directories or globs (skipped by default; a file named explicitly is always scanned) |
-| `--strict` | Also run the strict-mode canonical-form rules (SYG501-507, see [Strict mode](#strict-mode)) |
+| `--strict` | Also run the strict-mode canonical-form rules (SYG501, SYG503-508, see [Strict mode](#strict-mode)) |
 | `--fix` | Apply the mechanical canonical-form rewrites in place, then check (implies `--strict`) |
 | `--controls` | With `--fix` (implied): also convert single-class intent selectors into [controls](#controls) |
 | `--keep-classes` | With `--controls` (implied): keep every converted class on its element |
@@ -60,6 +60,8 @@ The codes are the same as Sygnal's runtime diagnostics (`https://sygnal.js.org/r
 | SYG125 | error | A control given `.intent`, `.model` or `.initialState` (`Add.intent = …`, `C.Add.model = …`, `Object.assign(Add, {…})`). Controls are elements, not components. |
 | SYG126 | info | A component renders a control its intent never listens to (also counts `DOM.select('document').select(Add)`). Not reported when the intent can't be read statically. |
 | SYG128 | error | Two `controls()` calls in one file declare the same key, or one call repeats a key: both render `data-control="Key"`. |
+| SYG127 | error | A [behavior](#behaviors) `uses` entry the core skips (an object literal, an uncalled factory: `uses = { pager }`), a `uses` key the component's `initialState` already has, or an option the behavior never reads (a typo: `pager({ nxt: Newer })`, with the closest option suggested). |
+| SYG226 | warn | `undoable(model, { track, resetOn })` or `undo({ track, resetOn })` names an action with no model entry (for `undo()`, the host's actions, including other behaviors' `'pager.NEXT'`). |
 | SYG401 | warn | `<Collection from="x">` where `x` isn't a key of the component's `initialState` (or `calculated`), or its initial value is a literal that isn't an array. This is only checked when `initialState` is statically known. |
 | SYG900 | warn | A file couldn't be parsed, or a rule crashed. |
 
@@ -85,7 +87,7 @@ The a11y lane runs by default: **warn**, and **error** with `--strict` (also in 
 | Code | Severity | Canonical form | Flags | `--fix` |
 |---|---|---|---|---|
 | SYG501 | warn | `function C({ state, context, ...props })` | a view (any component, or a function rendered as a component tag) with a 2nd/3rd parameter, i.e. the positional `(props, state, context)` arguments | no |
-| SYG502 | warn | `return ABORT` for "no change" in a STATE reducer | `return state` / `cond ? next : state` (`state` = the first parameter), a bare `return;`, or a block body that can end without returning. An explicit `undefined` isn't flagged (a Collection item removes itself that way) | no |
+| SYG502 | — | retired in 6.0, never reported | since 6.0 a STATE reducer that returns the object it got means "no change", the same as `ABORT` (a mutated-then-returned state is SYG222 in the dev entry) | — |
 | SYG503 | warn | `ACTION: { EFFECT: (state, data, next) => { … } }` | heuristic: a STATE reducer with a call statement whose result is unused (`cmd.send()`, `next()`, `console.log()`) on the path to a `return ABORT` | no |
 | SYG504 | warn | `ACTION: { SINK: fn }` | `'ACTION \| SINK'` shorthand keys | yes, unless another entry handles the same action (merge by hand) |
 | SYG505 | warn | `ACTION: { EVENTS: event('TYPE', (state, data) => payload) }` | `ACTION: emit('TYPE', fn)`, `{ …, ...emit('TYPE', fn) }`, and a raw `EVENTS: s => ({ type: 'TYPE', data })` with a static type | yes (emit forms; raw arrows with an expression body) |
@@ -95,13 +97,17 @@ The a11y lane runs by default: **warn**, and **error** with `--strict` (also in 
 
 `--fix` adds `event` to the file's existing `import { … } from 'sygnal'` when a rewrite needs it (and skips the rewrite when there is no such import, or `event` is bound to something else), and removes an `emit` import the rewrite left unused. It re-checks after every pass; running it again changes nothing. Review the diff: it rewrites source files in place.
 
-The runtime has a matching opt-in strict mode for the rules it can detect reliably (SYG501, SYG502, SYG504): `import { configureStrict } from 'sygnal/diagnostics'; configureStrict(true)`, or `renderComponent(C, { strict: true })` in tests.
+The runtime has a matching opt-in strict mode for the rules it can detect reliably (SYG501, SYG504): `import { configureStrict } from 'sygnal/diagnostics'; configureStrict(true)`, or `renderComponent(C, { strict: true })` in tests.
 
 ### Controls
 
 A control comes from `controls({ Key: 'tag' })` (`import { controls } from 'sygnal'`) and renders its element with `data-control="Key"`; anywhere a selector is accepted, it resolves to `[data-control="Key"]`. The checker follows controls declared as `const { Add } = controls({…})`, `const C = controls({…})` (used as `<C.Add>` / `DOM.click(C.Add)`), and imported from a relative module, including `export { Add } from './controls'` and `export * from './controls'` re-exports. A control tag renders in the component's own scope (it is not a child component), and a control in a template-string selector (`` `li ${Done}` ``) counts as listened to.
 
 `--fix --controls` (or `--controls`) converts a selector such as `DOM.click('.add')` into a control when the class is on exactly one intrinsic element of the component's own view as a static `className` string, and nowhere else: no other element (or dynamic className, spread, `<Collection className>`) that might produce it, no child view, no JSX passed in, and no other selector in the project (compound, `document`/`body`). It adds the key (the class in PascalCase, numbered when the name is taken) to the file's `const { … } = controls({ … })` or adds one after the imports, replaces the tag and every `'.add'` selector of that intent, and adds `controls` to the file's `import { … } from 'sygnal'`. The class stays on the element when a CSS/SCSS/Less/HTML file in the project mentions `.add`, a string in another source file does (a test's `simulateEvent('.add', …)`), or `--keep-classes` is set. An element whose rendered markup a string asserts (`toContain('<button class="add">')`) is left alone, since the control adds `data-control` to it. Running it again changes nothing. It is opt-in while controls' canonical status is open (PLAN-4 P4-D).
+
+### Behaviors
+
+A component's `uses` static (`List.uses = { pager: pager({ pageSize: 10, next: Newer, prev: Older }) }`) is resolved to the behaviors it names: a `defineBehavior({ … })` factory in the same file or a relative module (also through re-exports and an options const), or the first-party `pager`, `selection` and `undo` from `'sygnal'`, which the checker knows. The behavior's actions join the component's under their namespaced names (`'pager.NEXT'`): SYG101 and SYG102 see them, so a host model entry `'pager.NEXT'` counts as handled and `'pager.NXT'` is SYG102 naming the behavior's actions; a behavior's `next('X')` targets and reply actions count as triggers. What its intent listens to through an option (`DOM.click(next)`, with `next: Newer` at the `uses` site) is checked like the host's own intent selectors: SYG110 when the view never renders `<Newer>`, SYG104 when only a child does, and it counts as listened for SYG126 and SYG111. A behavior intent action with no model entry (in the behavior or as `'key.ACTION'` on the host) is SYG101 at the `uses` entry. A `uses` value that calls anything else (a package's behavior, a wrapper) is opaque: nothing is reported about it, controls passed to it count as listened, and the host's model is not checked for unreachable entries. `undoable(model, options)` as a `model` is read as the model plus `UNDO` and `REDO`.
 
 ### What counts as a component
 
@@ -148,6 +154,8 @@ A component is any function that gets an `.intent`, `.model`, `.initialState`, `
 | `children[].via` | `tag`, `collection` (with `from`), `switchable`, `slot` (passed into a child as children/slots) | `tag`, `collection`, `switchable`, plus `count` |
 | `selectors[]` | intent DOM selectors; `matched`/`isolationHit` from SYG110/SYG104 (`null` for `document`, dynamic selectors); `control` names a control selector (`selector` is then `[data-control="Add"]`) | real DOM: what the DOM checks saw, `events: null`; `renderComponent`: matched against the mock DOM, with event types |
 | `controls[]` | the controls the view renders: `{ name, element, kind?, listened }` (omitted when none) | not produced yet |
+| `uses[]` | the `uses` entries: `{ key, behavior, status }` (`resolved`, `opaque` or `invalid`; omitted when none). Behavior-owned actions are in `actions` with `behavior: key`, and what a behavior listens to through a control option is in `selectors` with `behavior: key` | not produced |
+| `recentActions` | — | with `inspect({ actions })`: the latest actions, `{ type, data, component, instance, sinks, cause, at }` |
 | `diagnostics` | the rule findings (strict ones with `--strict`), with `file`/`line`/`column` | collected diagnostics, by component name |
 
 Without `--json`, `--graph` prints a compact per-component summary.
@@ -238,7 +246,7 @@ This is the runtime `Diagnostic` shape plus `file`, `line` and `column` (1-based
 - `options.cwd`: the base for relative inputs and reported paths.
 - `options.ignore`: codes to drop, e.g. `['SYG105']`.
 - `options.includeTests`: also scan test and spec files.
-- `options.strict`: also run the strict-mode rules (SYG501-507).
+- `options.strict`: also run the strict-mode rules (SYG501, SYG503-508).
 
 - `options.rules`: a custom rule list.
 

@@ -6,6 +6,7 @@
  *   SYG125 (error)  a control given .intent / .model / .initialState
  *                   (Add.intent = …, C.Add.model = …, Object.assign(Add, { … }))
  *   SYG126 (info)   a control the component renders but its intent never listens to
+ *                   (nor a behavior it uses, through a control option: PLAN-4 GS-1)
  *   SYG128 (error)  a key declared again by a controls() call in the same file
  *
  * SYG110 / SYG104 by identifier (a control listened to but not rendered, or
@@ -13,6 +14,7 @@
  */
 import { walk, unwrap, memberName, propName } from '../ast.js'
 import { controlsOf, resolveControl } from '../model/controls.js'
+import { assumedListened } from '../model/behaviors.js'
 import { loc } from '../ast.js'
 
 const COMPONENT_STATICS = new Set(['intent', 'model', 'initialState'])
@@ -81,7 +83,7 @@ function reportUnlistened(project, report) {
     if (!comp.viewInfo) continue
     // an intent we can't see into (e.g. built elsewhere) may listen: say nothing
     if (comp.staticProps.intent && !comp.intent?.fn) continue
-    const listened = new Set((comp.intent?.selectors || []).flatMap(s => s.controls || []))
+    const listened = listenedControls(project, comp)
     const sinks = [comp.viewInfo, ...project.injectedInto(comp.view)]
     const done = new Set()
     for (const sink of sinks) {
@@ -100,6 +102,18 @@ function reportUnlistened(project, report) {
       }
     }
   }
+}
+
+/**
+ * Controls a component listens to: its intent's, its behaviors' (an option bound to a control
+ * the behavior's intent listens to, PLAN-4 GS-1), and controls passed to a behavior we can't
+ * see into (assumed listened: no false positives).
+ */
+export function listenedControls(project, comp) {
+  return new Set([
+    ...[...(comp.intent?.selectors || []), ...(comp.behaviorSelectors || [])].flatMap(s => s.controls || []),
+    ...assumedListened(project, comp.uses),
+  ])
 }
 
 /** The FileInfo a JSX node belongs to (the component's own file, a helper's, or a parent's). */

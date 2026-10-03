@@ -32,6 +32,7 @@
  */
 import { walk, unwrap, isFunction, jsxName, jsxAttr, jsxAttrExpr, memberName, stringValue } from '../ast.js'
 import { sourceAliases, isSourceRef, DOM_SOURCE_METHODS } from '../model/intent.js'
+import { assumedListened } from '../model/behaviors.js'
 import { evalStrings, classTokens, tokenize, DYN } from '../strings.js'
 import { resolveControl, resolveControlJSX } from '../model/controls.js'
 
@@ -301,6 +302,12 @@ export default {
         if (!comp.intent || !comp.intent.fn) continue
         listeners = intentListeners(comp.intent.file, comp.intent.fn, project)
       }
+      // PLAN-4 GS-1: what its behaviors listen to through their options (selection({ item: Pick })
+      // → a click on <Pick>), and controls passed to behaviors we can't see into (any event)
+      for (const sel of comp.behaviorSelectors || []) {
+        if (sel.selector != null) listeners.push({ chain: [sel.selector], event: sel.method === 'select' ? UNKNOWN : sel.method })
+      }
+      for (const c of assumedListened(project, comp.uses)) listeners.push({ chain: [c.selector], event: UNKNOWN })
       for (const f of controlledFields(project, comp.file, comp.view)) {
         const relevant = (ev) => ev === UNKNOWN || TEXT_EVENTS.has(ev) || (f.kind === 'toggle' && ev === 'click')
         if (listeners.some(l => relevant(l.event) && listens(l.chain, f.el, f.ancestors))) continue

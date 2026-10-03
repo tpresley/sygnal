@@ -31,6 +31,10 @@
  *                `control` names the control a selector is ([data-control="Add"])
  *   controls     controls the view renders: { name, element, kind?, listened }
  *                (omitted when there are none; PLAN-4 CT-1)
+ *   uses         the `uses` static's entries: { key, behavior, status } (omitted when
+ *                none; PLAN-4 GS-1). Behavior-owned actions ('pager.NEXT') are in
+ *                `actions` with `behavior: key`; what a behavior listens to through
+ *                a control option is in `selectors` with `behavior: key`
  *   diagnostics  the normal rules (+ strict ones with `strict: true`),
  *                attached to their component, the rest app-wide
  */
@@ -42,6 +46,8 @@ import { runRules, sortDiagnostics } from './run.js'
 import { walk, unwrap, propName, memberName, stringValue, loc } from './ast.js'
 import { resolveExpr } from './model/resolve.js'
 import { BUILTIN_ACTIONS } from './model/modelEntries.js'
+import { listenedControls } from './rules/syg124-controls.js'
+import { behaviorActions } from './model/behaviors.js'
 
 const VIA_KIND = { tag: 'child', collection: 'collection-item', switchable: 'switchable' }
 
@@ -206,33 +212,52 @@ export function buildGraph(project, diagnostics = []) {
       for (const s of e.sinks) if (!list.includes(s)) list.push(s)
       sinks.set(e.action, list)
     }
-    const actions = [...sinks].map(([name, s]) => ({
-      name,
-      trigger: BUILTIN_ACTIONS.has(name) ? 'builtin' : intentActions.includes(name) ? 'intent' : replies.has(name) ? 'reply' : next.has(name) ? 'next' : 'unknown',
-      sinks: s,
-    }))
+    // PLAN-4 GS-1: behavior-owned actions ('pager.NEXT'), with the uses key that owns them
+    const owned = behaviorActions(c.uses)
+    for (const e of c.uses?.entries || []) {
+      if (!e.def) continue
+      for (const t of e.def.nextTargets) next.add(e.def.model?.has(t) ? `${e.key}.${t}` : t)
+      for (const t of e.def.replyTargets) replies.add(t)
+    }
+    for (const [name, b] of owned) {
+      const list = sinks.get(name) || []
+      for (const s of b.sinks) if (!list.includes(s)) list.push(s)
+      sinks.set(name, list)
+    }
+    const actions = [...sinks].map(([name, s]) => {
+      const b = owned.get(name)
+      const action = {
+        name,
+        trigger: BUILTIN_ACTIONS.has(name) ? 'builtin' : intentActions.includes(name) || b?.intent ? 'intent' : replies.has(name) ? 'reply' : next.has(name) ? 'next' : 'unknown',
+        sinks: s,
+      }
+      if (b) action.behavior = b.entry.key
+      return action
+    })
 
     const own = byComp.get(c)
-    const selectors = (c.intent?.selectors || []).map(sel => {
+    const selectors = [...(c.intent?.selectors || []), ...(c.behaviorSelectors || [])].map(sel => {
       const where = loc(sel.node)
-      const file = rel(c.intent.file)
-      const text = sel.selector ?? c.intent.file.source.slice(sel.node.start, sel.node.end)
+      const srcFile = sel.file || c.intent.file
+      const file = rel(srcFile)
+      const text = sel.selector ?? srcFile.source.slice(sel.node.start, sel.node.end)
       const found = own.filter(d => d.file === file && d.line === where.line && d.column === where.column)
       const crossed = found.find(d => d.code === 'SYG104')
       const missing = found.find(d => d.code === 'SYG110' && d.severity !== 'info')
       const unsure = sel.global || sel.dynamic || found.some(d => d.code === 'SYG110' && d.severity === 'info')
       const out = {
         selector: text,
-        events: sel.method === 'select' ? selectEvents(c.intent.file, sel.node) : [sel.method],
+        events: sel.method === 'select' ? (sel.behavior ? null : selectEvents(srcFile, sel.node)) : [sel.method],
         matched: crossed || missing ? false : unsure ? null : true,
         isolationHit: crossed ? crossed.data?.child ?? null : null,
       }
       if (sel.control) out.control = sel.control.key
+      if (sel.behavior) out.behavior = sel.behavior
       return out
     })
 
     // controls the view renders (PLAN-4 CT-1), next to the selectors
-    const listened = new Set((c.intent?.selectors || []).flatMap(s => s.controls || []))
+    const listened = listenedControls(project, c)
     const unknownIntent = !!c.staticProps.intent && !c.intent?.fn
     const controls = []
     for (const sink of c.viewInfo ? [c.viewInfo, ...project.injectedInto(c.view)] : []) {
@@ -257,7 +282,7 @@ export function buildGraph(project, diagnostics = []) {
       file: rel(c.file),
       kind: VIA_KIND[renderedAs.get(c)] || 'root',
       actions,
-      stateKeys: c.initialState ? [...c.initialState.keys.keys()] : [],
+      stateKeys: [...new Set([...(c.initialState ? c.initialState.keys.keys() : []), ...(c.uses?.entries || []).filter(e => e.status !== 'invalid').map(e => e.key)])],
       calculated: [...c.calculatedKeys],
       contextProvides: [...c.contextKeys],
       contextConsumes: contextConsumes(c),
@@ -266,6 +291,9 @@ export function buildGraph(project, diagnostics = []) {
       children,
       selectors,
       diagnostics: own.map(slimDiagnostic),
+    }
+    if (c.uses?.entries.length) {
+      node.uses = c.uses.entries.map(e => ({ key: e.key, behavior: e.def?.name ?? null, status: e.status }))
     }
     if (controls.length) {
       node.controls = controls.map(({ name, element, kind, listened }) => {

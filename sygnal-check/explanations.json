@@ -75,8 +75,8 @@
     "reportedBy": [
       "dev-entry"
     ],
-    "explanation": "The view is called with `{ ...props, state, children, slots, context, peers }`, so a prop named `children`, `slots`, `context` or `peers` passed by the parent is overwritten and never reaches the child. A `state` prop is also reported when its value is not a state lens (a field-name string or a `{ get, set }` object), because Sygnal reads `state` as the child's state lens rather than as data. Reported once per component and prop, as a warning, or as an error in strict mode (`--strict` has no static SYG106 rule; the runtime strict switches are `configureStrict(true)`, `renderComponent(C, { strict: true })`, `run(App, drivers, { diagnostics: { strict: true } })` and `globalThis.__SYGNAL_STRICT__`).",
-    "fix": "Rename the prop in both parent and child (e.g. `contextValue`, or `item` instead of `state`); to give the child a slice of parent state use `state=\"fieldName\"`.",
+    "explanation": "The view is called with `{ ...props, state, children, slots, context, peers, uid }`, so a prop named `children`, `slots`, `context`, `peers` or `uid` passed by the parent is overwritten and never reaches the child. A `state` prop is also reported when its value is not a state lens (a field-name string or a `{ get, set }` object), because Sygnal reads `state` as the child's state lens rather than as data. Reported once per component and prop, as a warning, or as an error in strict mode (`--strict` has no static SYG106 rule; the runtime strict switches are `configureStrict(true)`, `renderComponent(C, { strict: true })`, `run(App, drivers, { diagnostics: { strict: true } })` and `globalThis.__SYGNAL_STRICT__`).",
+    "fix": "Rename the prop in both parent and child (e.g. `contextValue`, `itemId` instead of `uid`, or `item` instead of `state`); to give the child a slice of parent state use `state=\"fieldName\"`.",
     "docsUrl": "https://sygnal.js.org/reference/errors#syg106"
   },
   {
@@ -184,10 +184,11 @@
     "severity": "error",
     "strict": false,
     "reportedBy": [
+      "static",
       "dev-entry"
     ],
-    "explanation": "A component's `uses` static names behaviors: `TaskList.uses = { pager: pager({ pageSize: 10 }) }` runs the behavior on `state.pager`, with its actions named `pager.NEXT`. Two things break that. The host's `initialState` already has the key (`initialState = { pager: ... }`): the behavior's slice replaces it, so the host's value is lost. Or a `uses` value is not what a `defineBehavior()` factory returns (a plain object, the factory itself without the call, `undefined`): it is skipped, so `state[key]` and its actions never exist. The `sygnal/diagnostics` dev entry checks each component definition once; production builds don't. A host intent or model entry with the behavior's namespaced name (`'pager.NEXT'`) is not a collision: it is how a host overrides or extends a behavior action.",
-    "fix": "Remove the key from the host's `initialState` (set the behavior's values through its options: `pager({ pageSize: 10 })`), or rename the `uses` key. For an unresolvable entry, call the factory: `uses = { pager: pager() }`, with `pager = defineBehavior({ ... })`.",
+    "explanation": "A component's `uses` static names behaviors: `TaskList.uses = { pager: pager({ pageSize: 10, next: Newer }) }` runs the behavior on `state.pager`, with its actions named `pager.NEXT`. Three things break that. The host's `initialState` already has the key (`initialState = { pager: ... }`): the behavior's slice replaces it, so the host's value is lost. A `uses` value is not what a `defineBehavior()` factory returns (a plain object, the factory itself without the call, `undefined`): it is skipped, so `state[key]` and its actions never exist. Or (sygnal-check) an option the behavior never reads, usually a typo: `pager({ nxt: Newer })` where the pager listens to `next`, so the control is never listened to. sygnal-check resolves `uses` entries to `defineBehavior()` calls in the same file and through relative imports, and knows the first-party `pager`, `selection` and `undo`; a behavior from a package is opaque and never reported. The `sygnal/diagnostics` dev entry checks each component definition once; production builds don't. A host intent or model entry with the behavior's namespaced name (`'pager.NEXT'`) is not a collision: it is how a host overrides or extends a behavior action.",
+    "fix": "Remove the key from the host's `initialState` (set the behavior's values through its options: `pager({ pageSize: 10 })`), or rename the `uses` key. For an unresolvable entry, call the factory: `uses = { pager: pager() }`, with `pager = defineBehavior({ ... })`. For an unknown option, use the name the behavior reads (the message lists them and suggests the closest).",
     "docsUrl": "https://sygnal.js.org/reference/errors#syg127"
   },
   {
@@ -477,6 +478,19 @@
     "explanation": "A STATE reducer changed the state object it received (`state.count++`, `state.done = true`, `delete state.x`) and returned that same object. Since 6.0 a reducer that returns the object it got means \"no change\" (the same as `ABORT`), so the change is ignored: no state is emitted and nothing re-renders. The dev entry takes a shallow snapshot of the state (its keys and top-level values) before each STATE reducer runs and compares it when the reducer returns the same object; the report names the changed keys. Mutations below the top level (`state.items.push(x)`) are not seen. In production the mutation is silently ignored.",
     "fix": "Return a new object: `INC: (state) => ({ ...state, count: state.count + 1 })`. To write updates as mutations, wrap the reducer in immer's `produce()`: `INC: produce((draft) => { draft.count++ })`, which returns a new object when something changed and the same object when nothing did.",
     "docsUrl": "https://sygnal.js.org/reference/errors#syg222"
+  },
+  {
+    "code": "SYG226",
+    "title": "Undo track or resetOn names an unknown action",
+    "severity": "warn",
+    "strict": false,
+    "reportedBy": [
+      "runtime",
+      "static"
+    ],
+    "explanation": "`undoable(model, { key, track, resetOn })` (and the `undo({ ... })` behavior) records changes to `state[key]` made by the actions in `track`, and clears the history on the actions in `resetOn`. A name in either list that has no model entry never runs, so with `track` its changes are never recorded (undo skips them), and with `resetOn` the history is never cleared (after a load, undo would bring back the old document). It is usually a typo or a renamed action. For `undo()` the names are the host component's actions, including other behaviors' namespaced ones (`'pager.NEXT'`). `undoable()` reports it when diagnostics are on (dev, `renderComponent`) as it wraps the model, `undo()` when the component is first created; sygnal-check reports it statically, with the closest model entry as a suggestion.",
+    "fix": "Use the name of a model entry (`track: ['TYPE']`, `resetOn: ['LOADED']`), or add the entry to the model. Leave `track` out to record every action that changes `state[key]`.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg226"
   },
   {
     "code": "SYG301",

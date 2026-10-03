@@ -25,6 +25,8 @@
  *     contextKeys: Set<string>
  *     connections: { targets, dynamic } | null  (action names in a `connections` static)
  *     viewInfo: Sink | null            (model/view.js: classes, ids, children, collections)
+ *     uses: UsesInfo | null            (model/behaviors.js: the `uses` static, resolved)
+ *     behaviorSelectors: Selector[]    what its behaviors listen to through their options
  *   }
  *
  * The structure is plain data plus AST node references so later work (the
@@ -42,6 +44,7 @@ import { analyzeIntent } from './intent.js'
 import { analyzeModel, connectionNames, REPLY_KEYS } from './modelEntries.js'
 import { scanFileEvents } from './events.js'
 import { resolveSelectorControls } from './controls.js'
+import { analyzeUses } from './behaviors.js'
 
 export const STATIC_PROPS = ['intent', 'model', 'initialState', 'context', 'calculated', 'connections', 'resources', 'route', 'head', 'uses']
 
@@ -228,6 +231,11 @@ export class Project {
       if (keys) comp.contextKeys = new Set(keys.keys())
     }
     if (comp.view) comp.viewInfo = this.viewOf({ file, node: comp.view })
+    // PLAN-4 GS-1: `uses` resolved to behavior definitions; what their intents listen to
+    // through the options (controls passed at the uses site) joins the intent's selectors
+    comp.uses = undefined
+    analyzeUses(this, comp)
+    comp.behaviorSelectors = (comp.uses?.entries || []).flatMap(e => e.selectors)
   }
 
   /** Scan the given files and build the full model. */
