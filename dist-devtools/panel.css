@@ -817,3 +817,88 @@ html, body {
 ::-webkit-scrollbar-thumb:hover {
   background: #aaa;
 }
+
+/* ─── Action Log (PLAN-4 3-E) ─────────────────────────────────────────── */
+
+#actions-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+#actions-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.filter-select {
+  max-width: 140px;
+  padding: 2px 4px;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  font-family: inherit;
+  font-size: 10px;
+  color: #333;
+  background: #fff;
+}
+
+.action-entry .event-type {
+  color: #333;
+}
+
+.action-cause {
+  font-size: 10px;
+  flex-shrink: 0;
+}
+
+.action-sinks {
+  color: #666;
+  font-size: 10px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.copy-test-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.copy-test-box {
+  display: flex;
+  flex-direction: column;
+  width: min(900px, 92vw);
+  height: min(600px, 86vh);
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+.copy-test-warnings {
+  padding: 4px 10px;
+  color: #b26a00;
+  font-size: 11px;
+}
+
+.copy-test-warnings:empty {
+  display: none;
+}
+
+.copy-test-code {
+  flex: 1;
+  margin: 6px 10px 10px;
+  padding: 6px;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  font-family: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', monospace;
+  font-size: 11px;
+  white-space: pre;
+  resize: none;
+}

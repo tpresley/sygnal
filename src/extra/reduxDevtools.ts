@@ -18,12 +18,26 @@ export interface ReduxDevtoolsOptions {
 
 const clone = (s: any) => preview(s)
 
+let shared: (() => void) | undefined
+
 /**
  * Connect the app's root (run()'s result, a component, an instance id; default: the newest root)
  * to the Redux DevTools extension. Returns a disconnect function; does nothing without the
  * extension.
  */
-export function connectReduxDevtools(target?: any, options: ReduxDevtoolsOptions = {}): () => void {
+export function connectReduxDevtools(target?: any, options?: ReduxDevtoolsOptions): () => void {
+  // the default connection (sygnal/vite may inject the call in several files) is made once
+  if (target === undefined && options === undefined) {
+    if (!shared) {
+      const off = connect(undefined, {})
+      shared = () => { off(); shared = undefined }
+    }
+    return shared
+  }
+  return connect(target, options || {})
+}
+
+function connect(target: any, options: ReduxDevtoolsOptions): () => void {
   const ext = typeof window != 'undefined' && (window as any).__REDUX_DEVTOOLS_EXTENSION__
   if (!ext || typeof ext.connect != 'function') return () => {}
   recordActions()
@@ -53,7 +67,10 @@ export function connectReduxDevtools(target?: any, options: ReduxDevtoolsOptions
   start()
   const off = onAction((a, kind) => {
     if (kind == 'reset') { queue.length = 0; started = false; start(); return }
-    if (kind != 'add' || !keep(a!)) return
+    if (kind != 'add') return
+    // connected before run() (sygnal/vite): the root's first action, its state still the initial one
+    if (!started) start()
+    if (!keep(a!)) return
     queue.push(a!)
     if (timer === null) timer = setTimeout(flush, 0)
   })

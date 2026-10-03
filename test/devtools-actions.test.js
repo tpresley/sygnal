@@ -314,6 +314,29 @@ describe('Redux DevTools bridge (PLAN-4 3-E stretch)', () => {
       delete window.__REDUX_DEVTOOLS_EXTENSION__
     }
     // no extension: a no-op
-    expect(typeof dev.connectReduxDevtools()).toBe('function')
+    expect(typeof dev.connectReduxDevtools({ sources: {} }, {})).toBe('function')
+  })
+
+  it('the default connection (what sygnal/vite injects, maybe in several files) is made once, before run()', async () => {
+    const inits = [], sent = []
+    let connects = 0
+    window.__REDUX_DEVTOOLS_EXTENSION__ = {
+      connect: () => { connects++; return { init: (s) => inits.push(s), send: (a) => sent.push(a.type), subscribe: () => () => {} } },
+    }
+    let off
+    try {
+      off = dev.connectReduxDevtools()
+      expect(dev.connectReduxDevtools()).toBe(off)
+      expect(connects).toBe(1)
+      mount(Counter)
+      await tick(20)
+      click('.inc')
+      await tick(30)
+      expect(inits).toEqual([{ count: 0, last: null }])
+      expect(sent).toEqual(['Counter/INC', 'Counter/NOTE'])
+    } finally {
+      off?.()
+      delete window.__REDUX_DEVTOOLS_EXTENSION__
+    }
   })
 })

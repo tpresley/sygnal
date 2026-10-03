@@ -52,6 +52,7 @@
             <button id="view-history-btn" class="small-btn active" title="State history">History</button>
             <button id="view-events-btn" class="small-btn" title="EVENTS bus monitor">Events</button>
             <button id="view-cmds-btn" class="small-btn" title="Command sends">Cmds</button>
+            <button id="view-actions-btn" class="small-btn" title="Action log (every component's actions, with their cause)">Actions</button>
           </span>
           <span class="section-header-actions">
             <button id="snapshot-btn" class="small-btn" title="Snapshot all component states">Snap</button>
@@ -80,7 +81,36 @@
           </div>
           <div id="commands-list"></div>
         </div>
+        <div id="actions-container" style="display: none;">
+          <div class="filter-bar">
+            <select id="actions-component" class="filter-select" title="Component">
+              <option value="">All components</option>
+            </select>
+            <input type="text" id="actions-type-filter" class="filter-input" placeholder="Filter action types...">
+            <label class="toolbar-toggle" title="Show BOOTSTRAP / INITIALIZE / DISPOSE / RESOURCE">
+              <input type="checkbox" id="actions-show-builtin">
+              Built-in
+            </label>
+            <span id="actions-count" class="filter-count"></span>
+            <button id="copy-test-btn" class="small-btn" title="Copy the session as a renderComponent test (the selected component, else the root)">Copy as test</button>
+          </div>
+          <div id="actions-list"></div>
+        </div>
       </div>
+    </div>
+  </div>
+
+  <div id="copy-test-dialog" class="copy-test-dialog" style="display: none;">
+    <div class="copy-test-box">
+      <div class="section-header">
+        <span id="copy-test-title">Copy as test</span>
+        <span class="section-header-actions">
+          <button id="copy-test-copy" class="small-btn">Copy</button>
+          <button id="copy-test-close" class="small-btn">Close</button>
+        </span>
+      </div>
+      <div id="copy-test-warnings" class="copy-test-warnings"></div>
+      <textarea id="copy-test-code" class="copy-test-code" readonly spellcheck="false"></textarea>
     </div>
   </div>
 
