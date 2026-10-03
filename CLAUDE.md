@@ -9,15 +9,15 @@ npm run build          # Rollup → dist/ (15 inputs: core UMD/CJS/ESM, JSX runt
                        #   sygnal/devtools, sygnal/vite, Astro, Vike) + bundled .d.ts
 npm run build:all      # same as build (kept for prepublishOnly)
 npm test               # the full gate, in order:
-                       #   vitest run          library tests in test/ (1,289)
+                       #   vitest run          library tests in test/ (1,515)
                        #   test:examples       each example's own suite (9 examples, 105 tests)
                        #   test:types          tsc on type-tests/
-                       #   test:browser        browser-tests/ (125)
+                       #   test:browser        browser-tests/ (126)
 npm run test:examples  # only the example suites (TEST_EXAMPLES_INSTALL=1 or --install runs npm install first)
-npm --prefix sygnal-check test       # static checker package (227 tests, *.vtest.js)
+npm --prefix sygnal-check test       # static checker package (245 tests, *.vtest.js)
 npm --prefix docs run build          # docs site + internal link check
 node scripts/gen-error-docs.mjs      # regenerate docs reference/errors.md from sygnal-check/explanations.json
-node scripts/check-doc-samples.mjs   # sygnal-check --strict on every docs code sample (395 checked, 5 skipped by marker)
+node scripts/check-doc-samples.mjs   # sygnal-check --strict on every docs code sample (443 checked, 5 skipped by marker)
 node scripts/size-gate.mjs           # size gate: kanban gzip with nativeGlobalThis: false ≤ 42,300 B gated (D48;
                                      #   needs build + examples/kanban install); also prints the default
                                      #   (globalthis-aliased) size. `--budget <bytes>` overrides
@@ -32,6 +32,7 @@ npm ci
 npm ci --prefix browser-tests
 npm ci --prefix sygnal-check             # @babel/parser for vite-plugin-dev and inspect-kanban tests
 npm install --prefix examples/kanban     # its file:../.. link; other examples: TEST_EXAMPLES_INSTALL=1 npm test
+npm ci --prefix docs                     # Astro/Starlight, for npm --prefix docs run build
 npm run build
 ```
 
