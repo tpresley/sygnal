@@ -97,7 +97,7 @@ const mergeBehavior = (c: any, k: string, b: any): void => {
     c.intent = (so: any) => {
       const o: any = {}
       for (const [k, b, slice] of list) {
-        const st = so[S], i = b.intent?.({...so, [S]: st && Object.assign(st.select({get: (s: any) => s?.[k] ?? slice}), {_end: st._end})}, b.options)
+        const st = so[S], i = b.intent?.({...so, [S]: st?.select({get: (s: any) => s?.[k] ?? slice})}, b.options)
         for (const a in i) o[k + '.' + a] = i[a], owned[k + '.' + a] = k
       }
       const h = own?.(so), test = h?.__sygnalTestActions || []

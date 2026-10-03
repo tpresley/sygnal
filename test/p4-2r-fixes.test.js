@@ -117,3 +117,24 @@ describe('G-214 (3): uid path parts are encoded injectively (client and SSR alik
     expect(renderToString(C, { uid: 'my_app' })).toContain('id="my_app-x"')
   })
 })
+
+describe('G-214 (4): STATE.select(...).watch() ends on dispose', () => {
+  it('a selected source keeps the end stream (and a behavior intent sees it)', async () => {
+    const ev = []
+    const b = defineBehavior({
+      initialState: { v: 0 },
+      intent: ({ STATE }) => { const w = STATE.watch(s => s.v); w.addListener({ complete: () => ev.push('behavior-end') }); return { W: w } },
+    })
+    function C({ state }) { return h('div', null, String(state.a.n)) }
+    C.initialState = { a: { n: 1 } }
+    C.uses = { b: b() }
+    C.intent = ({ STATE }) => { const w = STATE.select('a').watch(s => s.n); w.addListener({ complete: () => ev.push('select-end') }); return { N: w } }
+    C.model = { N: s => s }
+    t = renderComponent(C)
+    await t.ready()
+    ev.push('--')
+    t.dispose()
+    await sleep(30)
+    expect(ev.sort()).toEqual(['--', 'behavior-end', 'select-end'])
+  })
+})
