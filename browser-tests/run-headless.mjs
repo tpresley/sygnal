@@ -90,13 +90,17 @@ async function run() {
     await page.goto(url);
 
     // Wait for tests to complete
+    let waitError = null;
     const done = await page.waitForFunction(
       () => window.__browserTestsDone === true,
+      undefined, // waitForFunction(fn, arg, options): the options are the third argument
       { timeout: TIMEOUT }
-    ).catch(() => null);
+    ).catch((err) => { waitError = err; return null; });
 
     if (!done) {
-      console.error('Browser tests timed out after', TIMEOUT, 'ms');
+      // a page crash or closed target also rejects the wait: say which, and show the page's console
+      console.error(`Browser tests did not finish (limit ${TIMEOUT} ms)${waitError ? `: ${waitError.message.split('\n')[0]}` : ''}`);
+      for (const m of consoleMsgs.slice(-20)) console.error('  ' + m);
       process.exit(1);
     }
 
