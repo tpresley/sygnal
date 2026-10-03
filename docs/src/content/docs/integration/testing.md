@@ -411,6 +411,49 @@ it('chats, and reconnects after a drop', async () => {
 
 Disposing a component closes its connections, and `t.dispose()` closes all of them, with no `close` action.
 
+### Routing: navigate(), back(), location
+
+A component that declares `route` needs the app's router: pass the object `makeRouter()` returns as `router`. With no `ROUTER` driver in `drivers`, `renderComponent` runs that router's real driver over an in-memory history, so guards, redirects, `block` and link handling are the driver's own code. The real `window.location` never changes. The history starts at `url` (default `'/'`). Without `router`, a component that declares `route` throws, naming the option.
+
+```jsx
+import { renderComponent } from 'sygnal'
+import { router } from './routes.js'
+import App from './App.jsx'
+
+it('opens a task from the list, and goes back', async () => {
+  const t = renderComponent(App, { router, url: '/tasks/2' })
+  await t.ready()                                    // the route for url is in the state
+  expect(t.html()).toContain('<h1>Beta</h1>')
+
+  await t.navigate('/')                              // as a click on <a href="/">
+  t.simulateEvent('li:nth-child(1) a', 'click')      // a real link click, intercepted by the router
+  await t.waitForState(s => s.route.name === 'task')
+  expect(t.location.path + t.location.search).toBe('/tasks/1?tab=notes')
+
+  await t.back()                                     // the browser's back button
+  expect(t.state.route.name).toBe('home')
+  await t.navigate({ to: 'task', params: { id: 2 } })
+})
+```
+
+- `t.navigate(url)` navigates as a click on a link with that `href` would. `t.navigate({ to, params, query?, hash?, replace? })` sends that command. Both go through `{ block }` like the real thing. An unknown route name, a missing param or a URL on another origin throws at the call.
+- `t.back()` and `t.forward()` press the browser's buttons: the history moves, and `popstate` fires a task later. A `block` undoes it, as in a browser. They throw when there is no entry to go to.
+- `t.location` is `{ path, search, hash, href }` of the in-memory location.
+- `t.sent('ROUTER')` lists the commands the components sent (`{ to, params }`, `{ back: true }`, `{ block }`). The `route` declarations aren't listed.
+- Links: in the mock DOM, `simulateEvent(selector, 'click')` on an `<a>`, or on an element inside one, also reaches the router's document listener, so the driver decides as it would in a browser. Modified clicks (`{ metaKey: true }`), `target="_blank"`, `download`, `rel="external"`, `data-router-ignore` and other origins are left alone. With `dom: 'real'` the click is a real event that bubbles to the document.
+- Each call returns a promise that resolves once the new route has been reduced and the tree has rendered, as `t.respond` does. Fake timers work: `popstate` and the redirect order run on the test's clock.
+- Scroll restoration and focus are off by default, so tests stay deterministic. `routerScroll: true` runs the scroll handling, with positions kept in memory. `routerFocus: true` (or a selector string) runs the focus handling, with `dom: 'real'`.
+
+**Head.** With no `HEAD` driver, a fake records what the components declare (`head` statics and `HEAD` sink values). `t.head()` returns the merged result, `{ title, meta, link }`, as `makeHeadDriver` would write it. Pass its `titleTemplate` to apply it:
+
+```jsx
+const t = renderComponent(App, { router, titleTemplate: '%s · Tasks' })
+await t.ready()
+expect(t.head().title).toBe('All tasks · Tasks')
+await t.navigate({ to: 'task', params: { id: 2 } })
+expect(t.head()).toEqual({ title: 'Task 2 · Tasks', meta: { description: 'Details of task 2' }, link: [] })
+```
+
 ## Diagnostics in Tests
 
 While a component is rendered, diagnostics are collected (`'collect'` mode by default, or the current mode if diagnostics are already on). Error-severity messages are still printed.
@@ -461,6 +504,12 @@ When an event "does nothing" in a test, `t.inspect()` usually shows why: a selec
 | `socketSink` | `string` | `'WS'` | The driverless sink that receives the components' `connections` static; created even when no model entry names it (a read-only SSE component). Pass a driver under this name in `drivers` to use a real one |
 | `resourceSink` | `string` | `'HTTP'` | The driverless sink that receives the components' `resources` static (see [Resources](#resources)) |
 | `http` | `object` | — | Options for the HTTP fakes' `makeFetchDriver()` (all but `fetch`), e.g. `{ cache: true }` or `{ retry: 2 }` ([Resources and Caching](/guide/resources/#testing)) |
+| `router` | `Router` | none | The app's router (`makeRouter()`'s result): runs its driver over an in-memory history (see [Routing](#routing-navigate-back-location)). Required when a component declares `route` |
+| `url` | `string` | `'/'` | The router fake's start URL |
+| `routerSink` | `string` | `'ROUTER'` | The sink the router fake serves |
+| `routerScroll`, `routerFocus` | `boolean` (`routerFocus`: or selectors) | `false` | Run the router's scroll restoration / focus handling |
+| `headSink` | `string` | `'HEAD'` | The sink the HEAD fake serves (`t.head()`) |
+| `titleTemplate` | `string` | none | The HEAD fake's title template (`'%s · App'`) |
 
 The timing options (and a timeout passed to `next()`, `waitForState()` or `settle()`) must be finite numbers of milliseconds from 0 to 2147483647 (`setTimeout`'s limit); anything else throws.
 
@@ -486,7 +535,11 @@ The timing options (and a timeout passed to `next()`, `waitForState()` or `settl
 | `fail` | `(sink, error, target?) => Promise<void>` | Fail it (its `error` action, or `errors()`); throws if none is pending |
 | `connections` | `(sink) => FakeConnection[]` | The connections declared on a fake socket sink (`name`, `url`, `state`, `sender`, the spec) |
 | `push`, `drop`, `open` | `(sink, …, target?) => Promise<void>` | Server frame, unexpected close, completed open on the matching connections; throw if none matches |
-| `sent` | `(sink, to?) => any[]` | The `{ to, json \| text \| binary }` values sent |
+| `sent` | `(sink, to?) => any[]` | The `{ to, json \| text \| binary }` values sent; for the router's sink, the commands sent |
+| `navigate` | `(url \| { to, params }) => Promise<void>` | Router fake: navigate as a link click or a command (through `block`); throws for an unknown route |
+| `back`, `forward` | `() => Promise<void>` | Router fake: the browser's back and forward buttons |
+| `location` | `{ path, search, hash, href }` | Router fake: the in-memory location |
+| `head` | `() => { title, meta, link }` | HEAD fake: the merged head the components declare |
 | `diagnostics` | `Diagnostic[]` | Diagnostics collected while rendered |
 | `expectNoDiagnostics` | `() => void` | Throws if any warning or error was collected |
 | `inspect` | `() => InspectGraph` | The app graph of the rendered tree |

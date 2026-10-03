@@ -1830,6 +1830,27 @@ export interface RenderOptions {
    * `{ cache: true }`. Focus / reconnect refetches come only from t.focus() / t.online()
    */
   http?: FetchDriverOptions;
+  /**
+   * The app's router (the object `makeRouter()` returns). With no driver for `routerSink` in
+   * `drivers`, renderComponent runs its real driver over an in-memory window (location, history,
+   * popstate a task later, document listeners): read with `t.location`, drive with
+   * `t.navigate` / `t.back` / `t.forward`; the commands the app sent are `t.sent('ROUTER')`.
+   * Required when the component declares `route` (renderComponent throws naming it otherwise).
+   * The real `window.location` is never changed.
+   */
+  router?: Router<any>;
+  /** The router fake's start URL (default '/'), e.g. '/tasks/2?tab=notes' */
+  url?: string;
+  /** The sink the router fake serves (default 'ROUTER') */
+  routerSink?: string;
+  /** Run the router's scroll handling in the fake (default false; positions are kept in memory) */
+  routerScroll?: boolean;
+  /** Run the router's focus handling (default false; true: the router's own `focus` selectors; a string: these selectors). Needs `dom: 'real'` */
+  routerFocus?: boolean | string;
+  /** The sink the HEAD fake serves (default 'HEAD'); with no driver for it, `t.head()` reads what the components declared */
+  headSink?: string;
+  /** The HEAD fake's `titleTemplate` (`'%s · App'`), as passed to makeHeadDriver */
+  titleTemplate?: string;
 }
 
 /**
@@ -1967,8 +1988,32 @@ export interface RenderResult<STATE = any> {
    * first), then the fake reconnects per the spec's `reconnect`.
    */
   drop: (sinkName: string, close?: { code?: number; reason?: string } | FakeConnectionTarget, target?: FakeConnectionTarget) => Promise<void>;
-  /** Live array of the `{ to, json | text | binary }` values sent (`to`: only those to that connection) */
+  /**
+   * Live array of the `{ to, json | text | binary }` values sent (`to`: only those to that connection).
+   * For the router fake's sink (`t.sent('ROUTER')`): the commands the components sent
+   * (`{ to, params }`, `{ back: true }`, `{ block }`...), not the `route` declarations
+   */
   sent: (sinkName: string, to?: string) => any[];
+  /**
+   * Router fake (`renderComponent(App, { router })`): navigate as a click on a link with this
+   * href (`'/tasks/2'`), or as the command `{ to: 'task', params: { id: 2 }, query?, hash?,
+   * replace? }`. Goes through `{ block }` like the real thing. Throws at the call for an unknown
+   * route name, a missing param or another origin; resolves once the route has been reduced
+   * and the tree rendered.
+   */
+  navigate: (target: string | { to: string; params?: Record<string, string | number>; query?: Record<string, any>; hash?: string; replace?: boolean }) => Promise<void>;
+  /** Router fake: the browser's back button (popstate a task later; a block undoes it). Throws with no entry to go back to */
+  back: () => Promise<void>;
+  /** Router fake: the browser's forward button. Throws with no entry to go forward to */
+  forward: () => Promise<void>;
+  /** Router fake: the in-memory location: `path` (pathname), `search` ('?tab=x' or ''), `hash` ('#c' or ''), `href` */
+  readonly location: { path: string; search: string; hash: string; href: string };
+  /**
+   * HEAD fake (no HEAD driver passed): the head the components declare now (`head` statics and
+   * HEAD sink values), merged as makeHeadDriver merges them: `{ title, meta: { name: content },
+   * link: [{ rel, href }] }`, `titleTemplate` applied
+   */
+  head: () => { title: string | undefined; meta: Record<string, string>; link: Array<Record<string, any>> };
   /** Live array of EVENTS sink emissions ({type, data}) */
   emitted: Array<{ type: string; data: any }>;
   /** Live array of diagnostics reported while rendered */

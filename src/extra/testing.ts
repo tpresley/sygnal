@@ -12,6 +12,9 @@ import xs from './xstreamCompat';
 import {tagRequest, inScope, makeFetchDriver} from './fetchDriver';
 import {senderOf} from './replies';
 import {makeSocketDriver} from './socketDriver';
+import {makeRouter, paramsOf} from './router';
+import {mergeHead} from './head';
+import {makeReplies} from './replies';
 import type {Stream} from 'xstream';
 import type {Diagnostic, DiagnosticsMode} from './diagnostics/index';
 import type {InspectGraph} from './diagnostics/checks/public';
@@ -263,7 +266,29 @@ export interface RenderOptions {
    * come only from t.focus() / t.online(), never from the test's window.
    */
   http?: Record<string, any>;
+  /**
+   * PLAN-3 5-4c: the app's router (the object makeRouter() returns). With no driver for
+   * `routerSink`, its real driver runs over an in-memory window (location, history with async
+   * popstate, document listeners): t.navigate / t.back / t.forward / t.location / t.sent. Required
+   * when the component declares `route` (else renderComponent throws, naming this option).
+   */
+  router?: any;
+  /** PLAN-3 5-4c: the router fake's start URL (default '/') */
+  url?: string;
+  /** PLAN-3 5-4c: the sink the router fake serves (default 'ROUTER') */
+  routerSink?: string;
+  /** PLAN-3 5-4c: run the router's scroll handling in the fake (default false; positions are kept in memory) */
+  routerScroll?: boolean;
+  /** PLAN-3 5-4c: run the router's focus handling (default false; true: the router's own selector; a string: selectors) */
+  routerFocus?: boolean | string;
+  /** PLAN-3 5-4c: the sink the HEAD fake serves (default 'HEAD'); t.head() reads it */
+  headSink?: string;
+  /** PLAN-3 5-4c: the HEAD fake's titleTemplate ('%s · App'), as makeHeadDriver's */
+  titleTemplate?: string;
 }
+
+/** PLAN-3 5-4c: what t.navigate takes: an href, or a route command */
+export type FakeNavigateTarget = string | {to: string; params?: Record<string, any>; query?: Record<string, any>; hash?: string; replace?: boolean};
 
 export interface RenderResult {
   /** Stream of state values */
@@ -375,6 +400,20 @@ export interface RenderResult {
   drop: (sinkName: string, close?: {code?: number; reason?: string} | FakeConnectionTarget, target?: FakeConnectionTarget) => Promise<void>;
   /** PLAN-3 2-C: the `{ to, json | text | binary }` values the components sent (live; with `to`: those to that connection) */
   sent: (sinkName: string, to?: string) => any[];
+  /**
+   * PLAN-3 5-4c (router fake): navigate as a link click (a URL) or a command (`{ to, params,
+   * query?, hash?, replace? }`) would, through `block`. Throws at the call for an unknown route,
+   * a missing param or another origin; resolves once reduced and rendered.
+   */
+  navigate: (target: FakeNavigateTarget) => Promise<void>;
+  /** PLAN-3 5-4c: the browser's back button on the in-memory history (throws with no entry to go back to) */
+  back: () => Promise<void>;
+  /** PLAN-3 5-4c: the browser's forward button */
+  forward: () => Promise<void>;
+  /** PLAN-3 5-4c: the in-memory location */
+  readonly location: {path: string; search: string; hash: string; href: string};
+  /** PLAN-3 5-4c: the HEAD fake's merged head (titleTemplate applied) */
+  head: () => {title: string | undefined; meta: Record<string, any>; link: any[]};
   /** Live array of EVENTS sink emissions ({type, data}) */
   emitted: any[];
   /** Live array of diagnostics reported while rendered */
@@ -839,6 +878,81 @@ const drive = <T>(p: Promise<T>, stop: () => boolean): Promise<T> => {
     return p;
   })();
 };
+/**
+ * PLAN-3 5-4c: the in-memory window the router fake gives makeRouter's real driver: a location,
+ * a history whose go() fires popstate a task later (like a browser), window listeners, scroll
+ * kept in memory, and a document whose listeners are recorded in `docLs` (the mock DOM's link
+ * clicks call them) and, with `real` (dom: 'real'), also added to the real document, so real
+ * clicks bubble into the driver's link interception. `baseURI` is the in-memory URL, so relative
+ * links resolve against it.
+ */
+function memoryWindow(start: string, real: boolean, query: (s: string) => any, observe: boolean) {
+  const entries = [{url: start, state: null as any}];
+  const on: Record<string, any[]> = {}, docLs: Record<string, any[]> = {};
+  let i = 0;
+  const at = () => new URL(entries[i].url);
+  const fire = (type: string) => (on[type] || []).slice().forEach(f => f({type}));
+  const D: any = real ? document : null;
+  const w: any = {
+    location: {
+      get href() { return entries[i].url; }, get pathname() { return at().pathname; }, get search() { return at().search; },
+      get hash() { return at().hash; }, get origin() { return at().origin; },
+    },
+    history: {
+      get state() { return entries[i].state; }, get length() { return entries.length; },
+      pushState(state: any, _: any, url: string) { entries.splice(i + 1); entries.push({url: new URL(url, entries[i].url).href, state}); i++; },
+      replaceState(state: any, _: any, url?: string) { entries[i] = {url: url ? new URL(url, entries[i].url).href : entries[i].url, state}; },
+      go(n: number) { const j = i + n; if (n && j >= 0 && j < entries.length) setTimeout(() => { i = j; fire('popstate'); }); },
+      back() { this.go(-1); }, forward() { this.go(1); },
+    },
+    addEventListener(t: string, f: any) { (on[t] = on[t] || []).push(f); },
+    removeEventListener(t: string, f: any) { on[t] = (on[t] || []).filter(x => x !== f); },
+    document: {
+      addEventListener(t: string, f: any) { (docLs[t] = docLs[t] || []).push(f); D?.addEventListener(t, f); },
+      removeEventListener(t: string, f: any) { docLs[t] = (docLs[t] || []).filter(x => x !== f); D?.removeEventListener(t, f); },
+      querySelector: (s: string) => (D ? query(s) : null),
+      getElementById: (id: string) => (D ? D.getElementById(id) : null),
+      get body() { return D?.body; },
+      get baseURI() { return entries[i].url; },
+    },
+    scrollX: 0, scrollY: 0,
+    scrollTo(x: any, y?: any) { if (typeof x == 'object') ({left: x = w.scrollX, top: y = w.scrollY} = x); w.scrollX = x; w.scrollY = y; },
+    MutationObserver: real && observe ? (globalThis as any).MutationObserver : undefined,
+  };
+  return {w, docLs, index: () => i, size: () => entries.length};
+}
+/**
+ * PLAN-3 5-4c: an element-like `<a>` for the router's click handler (mock DOM), from the vnode:
+ * its attrs, its props (href, target, rel, download) and its dataset as data-* attributes
+ */
+const anchorOf = (v: any): any => {
+  const d = v.data || {}, all: Record<string, any> = {...d.attrs};
+  for (const k in d.props || {}) if (k != 'className') all[k] = d.props[k];
+  for (const k in d.dataset || {}) all['data-' + k.replace(/[A-Z]/g, c => '-' + c.toLowerCase())] = d.dataset[k];
+  const get = (k: string) => all[k] == null || all[k] === false ? null : all[k] === true ? '' : String(all[k]);
+  return {localName: 'a', getAttribute: get, hasAttribute: (k: string) => get(k) != null, getAttributeNS: () => null};
+};
+/**
+ * PLAN-3 5-4c: the HEAD fake: the real driver's entry rules (one entry per component instance,
+ * replaced by its next value, removed by a falsy value or its dispose), kept for t.head() to
+ * merge with head.ts's mergeHead instead of written to a document
+ */
+const headFake = () => {
+  const entries = new Map<any, any>();
+  const {replies} = makeReplies(s => { entries.delete(s); });
+  const driver = (sink$: Stream<any>) => {
+    sink$.addListener({
+      next: (v: any) => {
+        if (!v || typeof v != 'object') return;
+        const s = senderOf(v), h = 'head' in v ? v.head : v;
+        h && typeof h == 'object' ? entries.set(s, h) : entries.delete(s);
+      },
+      error: () => {}, complete: () => {},
+    });
+    return {...replies, __sygnalStatic: 'head'};
+  };
+  return {entries, driver};
+};
 let savedConfig: ReturnType<typeof _getDiagnosticsConfig>;
 let savedStrict: any;
 
@@ -870,6 +984,18 @@ export function renderComponent(
   const checkMs = (name: string, ms: any) => {
     if (!validMs(ms)) throw new Error(`[Sygnal] ${name}: the timeout must be a finite number of ms between 0 and ${MAX_MS} (got ${String(ms)})`);
   };
+  // PLAN-3 5-4c: the router fake (makeRouter's real driver over an in-memory window) when the
+  // app's router is passed and no driver is; the HEAD fake unless a HEAD driver is passed
+  const {router, url, routerSink = 'ROUTER', headSink = 'HEAD', titleTemplate} = options;
+  const compName = componentDef.name || componentDef.componentName || 'TestComponent';
+  if (router !== undefined && !(router && typeof router == 'object' && router.options && typeof router.driver == 'function')) {
+    throw new Error(`[Sygnal] renderComponent: the router option takes the object makeRouter() returns (import { router } from './routes.js'), not ${typeof router == 'function' ? 'router.driver' : 'a ' + typeof router}`);
+  }
+  const fakeRouter = !!router && !drivers[routerSink];
+  if (!router && componentDef.route && !drivers[routerSink]) {
+    throw new Error(`[Sygnal] renderComponent(${compName}, { router }): ${compName} declares \`route\`, so the test needs the app's router: the object makeRouter() returns (import { router } from './routes.js'). renderComponent then runs its real driver over an in-memory history starting at the url option (default '/'). Or pass a ${routerSink} driver in drivers`);
+  }
+  if (url !== undefined && !fakeRouter) throw new Error(`[Sygnal] renderComponent: url is the router fake's start URL: pass the app's router too (renderComponent(${compName}, { router, url }))`);
 
   const prevMode = getDiagnosticsMode();
   // 2A: strict flag on the core bridge (read by the 'sygnal/diagnostics' strict checks)
@@ -989,6 +1115,8 @@ export function renderComponent(
       bump();
       if (mine(c)) senderNames.set(c._componentNumber, c.name);
       if (mine(c)) inject(c);
+      // PLAN-3 5-4c: a sub-component declaring `route` with no router (fake or driver) to answer it
+      if (mine(c) && c.view?.route && !(routerSink in (c.sources || {}))) failWith(new Error(`[Sygnal] ${c.name} declares \`route\`, and nothing answers it: pass the app's router, renderComponent(${compName}, { router }) (the object makeRouter() returns), or a ${routerSink} driver in drivers`));
       const sc = scopeOf(c);
       if (sc) owners.set(sc, c.name);
       if (c.sources[c.DOMSourceName || 'DOM']?._hub == hub.$) scopeIds.set(sc || '', c._componentNumber);
@@ -1401,12 +1529,38 @@ export function renderComponent(
       bump();
     }
   };
+  // PLAN-3 5-4c: the router fake: the app router's options with an in-memory window (scroll and
+  // focus off unless asked for, no Vike navigate), commands the app sent (t.sent), and t.*'s own
+  // commands merged into the driver's input (no sender: they go through `block` like a click)
+  type RouterFake = {mem: ReturnType<typeof memoryWindow>; r: any; cmd$: any; sent: any[]};
+  let rt: RouterFake | undefined;
+  if (fakeRouter) {
+    const loc = (globalThis as any).location;
+    const origin = loc && /^https?:$/.test(loc.protocol) ? loc.origin : 'http://localhost';
+    const mem = memoryWindow(new URL(url ?? '/', origin + '/').href, real, (s: string) => queryIn(s), !!(options.routerScroll || options.routerFocus));
+    const o = router.options;
+    const r = makeRouter({...o, navigate: undefined, location: undefined, history: undefined, document: undefined, window: mem.w,
+      scroll: !!options.routerScroll, focus: options.routerFocus ? (typeof options.routerFocus == 'string' ? options.routerFocus : o.focus) : false});
+    rt = {mem, r, cmd$: xs.create(), sent: []};
+  }
+  const routerDriver = (sink$: any) => {
+    const f = rt!;
+    const app$ = sink$.map((v: any) => {
+      // the `{ route }` declarations are the core's, not commands
+      if (v && typeof v == 'object' && !('route' in v && Object.keys(v).length == 1)) f.sent.push(v);
+      return v;
+    });
+    return f.r.driver(xs.merge(app$, f.cmd$));
+  };
+  const hd = drivers[headSink] ? undefined : headFake();
   const allDrivers: any = {
     DOM: real
       ? (vnode$: any, name: string) => trackSource(realDOM(gated(vnode$), name), [], hub.$, onEvents)
       : () => mockDOMSource(mockConfig, hub.$, onEvents),
     EVENTS: eventBusDriver,
     LOG: logDriver,
+    ...(hd && {[headSink]: hd.driver}),
+    ...(rt && {[routerSink]: routerDriver}),
     ...drivers,
   };
   const faked = new Set<string>();
@@ -1861,6 +2015,67 @@ export function renderComponent(
       sockFire(s, 'close', {type: 'close', code, reason, wasClean: false});
     });
   };
+  // PLAN-3 5-4c: the router fake's test API. t.navigate / t.back / t.forward follow
+  // t.respond's rules (scripted()): they throw at the call when they can't act, and resolve once
+  // the result has been reduced and rendered.
+  const needRouter = (fn: string): RouterFake => {
+    if (rt) return rt;
+    throw new Error(drivers[routerSink]
+      ? `[Sygnal] t.${fn}(): ${routerSink} has a real driver (passed in drivers), so there is no in-memory history to drive. Drop it from drivers and pass the app's router: renderComponent(${compName}, { router })`
+      : `[Sygnal] t.${fn}() needs the router fake: renderComponent(${compName}, { router }), with the object makeRouter() returns (import { router } from './routes.js')`);
+  };
+  const navigate = (target: any): Promise<void> => {
+    const f = needRouter('navigate'), routes = f.r.routes, L = f.mem.w.location;
+    let cmd: any;
+    if (typeof target == 'string') {
+      // an href, as a link has it: navigating to it is what a click on that link does
+      const u = new URL(target, L.href);
+      if (u.origin != L.origin) throw new Error(`[Sygnal] t.navigate('${target}'): that URL is on another origin (${u.origin}, the test's is ${L.origin}); the router leaves external links to the browser. Navigate to a path: t.navigate('/tasks/2')`);
+      cmd = {url: u.pathname + u.search + u.hash};
+    } else if (target && typeof target == 'object' && typeof target.to == 'string') {
+      const pat = routes[target.to];
+      if (pat == null || pat == '*') throw new Error(`[Sygnal] t.navigate({ to: '${target.to}' }): no route named '${target.to}'. Routes: ${Object.keys(routes).filter(k => routes[k] != '*').join(', ')}`);
+      const missing = paramsOf(pat).filter(k => target.params?.[k] == null);
+      if (missing.length) throw new Error(`[Sygnal] t.navigate({ to: '${target.to}' }): route '${target.to}' (${pat}) needs params: ${missing.join(', ')}. t.navigate({ to: '${target.to}', params: { ${missing.join(', ')} } })`);
+      cmd = {...target};
+    } else {
+      throw new Error(`[Sygnal] t.navigate(): pass a URL ('/tasks/2') or { to: 'task', params: { id: 2 }, query?, hash?, replace? } (got ${brief(target)})`);
+    }
+    return scripted(() => true, () => new Error(''), () => { f.cmd$.shamefullySendNext(cmd); });
+  };
+  // the browser's back / forward buttons: the history moves, popstate fires a task later
+  const traverse = (fn: string, n: number): Promise<void> => {
+    const f = needRouter(fn), can = () => f.mem.index() + n >= 0 && f.mem.index() + n < f.mem.size();
+    return scripted(can, w => new Error(`[Sygnal] t.${fn}(): no history entry to go ${n < 0 ? 'back' : 'forward'} to${w ? ` after ${w}ms` : ''} (at ${f.mem.w.location.pathname}, entry ${f.mem.index() + 1} of ${f.mem.size()}). Navigate first: await t.navigate('/…')`),
+      () => { f.mem.w.history.go(n); });
+  };
+  const routerLocation = () => {
+    const L = needRouter('location').mem.w.location;
+    return {path: L.pathname, search: L.search, hash: L.hash, href: L.href};
+  };
+  // mock DOM: a click on (or inside) an <a> also reaches the router's document click listener,
+  // as it would bubble to the document: the driver's own interception decides
+  const routerClick = (chain: any[], ev: any) => {
+    const ls = rt?.mem.docLs.click;
+    if (!ls?.length) return;
+    let k = chain.length - 1;
+    while (k >= 0 && String(chain[k]?.sel || '').split(/[.#]/)[0].toLowerCase() != 'a') k--;
+    if (k < 0) return;
+    const a = anchorOf(chain[k]);
+    const e: any = {
+      type: 'click', button: 0, metaKey: false, ctrlKey: false, shiftKey: false, altKey: false, ...ev,
+      defaultPrevented: !!ev.defaultPrevented, target: a, composedPath: () => [a],
+      preventDefault() { e.defaultPrevented = true; },
+    };
+    ls.slice().forEach((l: any) => l(e));
+  };
+  const sentTo = (name: string, to?: string) => (rt && name == routerSink ? rt.sent : sent(name, to));
+  const head = () => {
+    if (!hd) throw new Error(`[Sygnal] t.head(): ${headSink} has a real driver (passed in drivers), so the fake that records the head isn't there. Read the document it writes, or drop it from drivers`);
+    const m = mergeHead([...hd.entries.values()], titleTemplate);
+    return {title: m.title, meta: Object.fromEntries(m.meta.map(([, k, c]) => [k, c])), link: m.link.map(([, l]) => l)};
+  };
+
   // E4: where real elements are looked up: the container, and the Portal content this tree
   // mounted outside it
   const roots = (): Element[] => {
@@ -2009,6 +2224,8 @@ export function renderComponent(
         ...rest,
       };
       hub.emit({type, event, match});
+      // PLAN-3 5-4c: and a link click reaches the router fake's document listener
+      if (type == 'click' && chain) routerClick(chain, event);
       return true;
     }, page || allowMissing ? undefined : () => (has() ? undefined : noMatch(selector, type, false)));
   };
@@ -2234,7 +2451,12 @@ export function renderComponent(
     open,
     push,
     drop,
-    sent,
+    sent: sentTo,
+    navigate,
+    back: () => traverse('back', -1),
+    forward: () => traverse('forward', 1),
+    get location() { return routerLocation(); },
+    head,
     emitted: sinkValues('EVENTS'),
     diagnostics: collected,
     expectNoDiagnostics,

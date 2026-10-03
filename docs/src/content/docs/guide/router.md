@@ -239,4 +239,21 @@ Write the route table to match the Vike routes, with `:param` for Vike's `@param
 
 ## Testing
 
-The router works in tests with a DOM (jsdom, happy-dom) and `window.history`. `makeRouter({ routes, window })` (and `history`, `location`, `document`) takes stand-ins, for an in-memory history.
+Pass the router to [`renderComponent`](/integration/testing/#routing-navigate-back-location). It runs the router's driver over an in-memory history that starts at `url`, and the test drives it like a user:
+
+```jsx
+import { renderComponent } from 'sygnal'
+import { router } from './routes.js'
+import App from './App.jsx'
+
+it('redirects to login from the admin page', async () => {
+  const t = renderComponent(App, { router, url: '/admin' })
+  await t.waitForState(s => s.route.name === 'login')
+  expect(t.location.path).toBe('/login')
+  expect(t.sent('ROUTER')).toEqual([{ to: 'login', replace: true }])
+})
+```
+
+`t.navigate('/tasks/2')` or `t.navigate({ to: 'task', params: { id: 2 } })` navigates, `t.back()` and `t.forward()` traverse, and `t.location` is the current location. A `simulateEvent` click on a link goes through the router's link interception. Each call resolves once the route has been reduced and rendered. A `{ block }` stops them as it would stop a user. `t.head()` returns the merged head when no `HEAD` driver is passed.
+
+Outside `renderComponent`, `makeRouter({ routes, window })` (and `history`, `location`, `document`) takes stand-ins, for an in-memory history in a test that calls `run()`.
