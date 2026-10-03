@@ -1,6 +1,7 @@
 // SYG106 — parent prop silently overwritten by a reserved view argument (G-007 item 2)
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { setupChecks, diagnostics, settle } from './helpers.js'
+import { until } from '../support/wait.js'
 import { renderComponent } from '../../src/extra/testing.js'
 import { createElement } from '../../src/pragma/index.js'
 
@@ -19,6 +20,9 @@ function parentRendering(childProps) {
 describe('SYG106 — reserved prop names', () => {
   it('reports a prop named context / peers / slots that the view overwrites', async () => {
     t = renderComponent(parentRendering({ title: 'a', context: 'mine', peers: 1, slots: 2 }))
+    // G-176: the child reports when it is instantiated, which a loaded machine does later than a
+    // fixed 120ms (and a late report then leaked into the next test): wait for it
+    await until(() => expect(diagnostics('SYG106')).toHaveLength(3))
     await settle(120)
     const found = diagnostics('SYG106')
     expect(found.map(d => d.data.prop).sort()).toEqual(['context', 'peers', 'slots'])
@@ -29,6 +33,7 @@ describe('SYG106 — reserved prop names', () => {
   it("reports a 'state' prop that can't be a state lens", async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {}) // Sygnal's own "invalid 'state' field" message
     t = renderComponent(parentRendering({ state: 42 }))
+    await until(() => expect(diagnostics('SYG106')).toHaveLength(1))
     await settle(120)
     const found = diagnostics('SYG106')
     expect(found).toHaveLength(1)
@@ -37,6 +42,7 @@ describe('SYG106 — reserved prop names', () => {
 
   it("does not report ordinary props or a state lens (state=\"field\")", async () => {
     t = renderComponent(parentRendering({ title: 'a', state: 'card', item: { id: 1 } }))
+    await until(() => expect(t.html()).toContain('card'))   // the child rendered
     await settle(120)
     expect(diagnostics('SYG106')).toEqual([])
   })

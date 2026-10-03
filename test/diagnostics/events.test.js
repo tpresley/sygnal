@@ -4,6 +4,7 @@ import { setupChecks, diagnostics, settle, later } from './helpers.js'
 import { checkEventBus } from '../../src/extra/diagnostics/checks/index.js'
 import { renderComponent } from '../../src/extra/testing.js'
 import { createElement } from '../../src/pragma/index.js'
+import { until } from '../support/wait.js'
 
 let t
 beforeEach(() => setupChecks())
@@ -28,6 +29,7 @@ function makeBusApp(name, emitType, selectType) {
 describe('SYG105 — EVENTS emitted but never selected', () => {
   it('reports an event nobody selects, naming the emitter and the near miss', async () => {
     t = renderComponent(makeBusApp('Emitter', 'SAVED', 'SAVE'), { mockConfig: { '.send': { click: later() } } })
+    await until(() => expect(diagnostics('SYG105')).toHaveLength(1))   // G-176: wait for the report
     await settle(150)
     const found = diagnostics('SYG105')
     expect(found).toHaveLength(1)

@@ -28,7 +28,8 @@ describe("'sygnal/diagnostics' build entry", () => {
     App.intent = ({ DOM }) => ({ ORPHAN: DOM.select('.x').events('click') })
     App.model = {}
     const t = sygnal.renderComponent(App)
-    await new Promise(r => setTimeout(r, 30))
+    // G-176: wait for the report rather than a fixed 30ms (a loaded machine runs later)
+    await vi.waitFor(() => expect(sygnal.getDiagnostics().some(d => d.code === 'SYG101')).toBe(true), { timeout: 5000 })
     t.dispose()
     const found = sygnal.getDiagnostics().filter(d => d.code === 'SYG101')
     expect(found).toHaveLength(1)
@@ -44,7 +45,8 @@ describe("'sygnal/diagnostics' build entry", () => {
     App.intent = ({ DOM }) => ({ GO: DOM.select('.go').events('click'), KEY: DOM.key('.go') })
     App.model = { GO: sygnal.set('city'), KEY: s => s }
     const t = sygnal.renderComponent(App, { mockConfig: { '.go': { click: (await import('xstream')).default.periodic(10).take(1).mapTo('Paris') } } })
-    await new Promise(r => setTimeout(r, 30))
+    // G-176: the mock click fires 10ms in (a timer): wait for its report, not a fixed 30ms
+    await vi.waitFor(() => expect(sygnal.getDiagnostics().map(d => d.code)).toEqual(expect.arrayContaining(['SYG221', 'SYG115'])), { timeout: 5000 })
     t.dispose()
     const found = Object.fromEntries(sygnal.getDiagnostics().map(d => [d.code, d.severity]))
     expect(found.SYG221).toBe('error')

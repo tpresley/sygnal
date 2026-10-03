@@ -6,7 +6,7 @@
 //
 // The probes run in a child `node` process so Vitest's own interop cannot mask the problem.
 // SYGNAL_DIST_DIR overrides the dist directory (used to show the test fails on an old build).
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { execFileSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
@@ -68,7 +68,6 @@ describe('dist exports outside Vite interop (3E/R1)', () => {
 
 // The ports must behave exactly like xstream/extra/* (same event order, errors, completion).
 const trace = (s$, out) => s$.addListener({ next: v => out.push(v), error: e => out.push('E:' + e), complete: () => out.push('|') })
-const sleep = ms => new Promise(r => setTimeout(r, ms))
 
 describe('xstream extras ESM ports match xstream/extra (3E/R1)', () => {
   it('concat, dropRepeats and sampleCombine (synchronous)', async () => {
@@ -102,6 +101,8 @@ describe('xstream extras ESM ports match xstream/extra (3E/R1)', () => {
       throttle: (await import('xstream/extra/throttle.js')).default,
       delay: (await import('xstream/extra/delay.js')).default,
     }
+    // G-176: on the fake clock, so a loaded machine can't stretch the 5ms gap past a 20ms window
+    // in one run and not the other
     const scenario = async lib => {
       const out = []
       const src = xs.create()
@@ -109,16 +110,22 @@ describe('xstream extras ESM ports match xstream/extra (3E/R1)', () => {
       trace(src.compose(lib.throttle(20)).map(v => 't' + v), out)
       trace(src.compose(lib.delay(10)).map(v => 'w' + v), out)
       src.shamefullySendNext(1); src.shamefullySendNext(2)
-      await sleep(40)
+      await vi.advanceTimersByTimeAsync(40)
       src.shamefullySendNext(3)
-      await sleep(5)
+      await vi.advanceTimersByTimeAsync(5)
       src.shamefullySendNext(4)
       src.shamefullySendComplete()
-      await sleep(40)
+      await vi.advanceTimersByTimeAsync(40)
       return out
     }
-    const a = await scenario(ports)
-    const b = await scenario(orig)
-    expect(a).toEqual(b)
+    vi.useFakeTimers()
+    try {
+      const a = await scenario(ports)
+      const b = await scenario(orig)
+      expect(a).toEqual(b)
+      expect(a.length).toBeGreaterThan(0)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

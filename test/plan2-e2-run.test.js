@@ -44,7 +44,7 @@ describe('E2: makeFetchDriver under run()', () => {
     app = run(Quote, { HTTP: makeFetchDriver() }, { mountPoint: '#root' })
     // G-126: wait for conditions (bounded), not fixed sleeps: the machine may be loaded
     const until = async (cond, what) => {
-      for (const end = Date.now() + 2000; !cond(); await sleep(5)) {
+      for (const end = Date.now() + 5000; !cond(); await sleep(5)) {
         if (Date.now() > end) throw new Error(`timed out waiting for ${what}`)
       }
     }
@@ -81,6 +81,8 @@ describe('SYG609: sink or source with no driver', () => {
     function App() { return h('div', null, h(Saver, { state: 'saver' })) }
     App.initialState = { saver: {} }
     app = run(App, {}, { mountPoint: '#root', diagnostics: 'collect' })
+    // G-176: the child reports when it is instantiated: wait for it, not a fixed 30ms
+    await vi.waitFor(() => expect(diagnostics('SYG609')).toHaveLength(1), { timeout: 5000, interval: 5 })
     await sleep(30)
     const found = diagnostics('SYG609')
     expect(found).toHaveLength(1)

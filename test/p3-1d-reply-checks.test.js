@@ -12,8 +12,10 @@ import { driverFromAsync } from '../src/extra/driverFactories.js'
 import { onIntent, onModel } from '../src/extra/diagnostics/index.js'
 import { configureStrict, inspect } from '../src/extra/diagnostics/checks/index.js'
 import { setupChecks, diagnostics, settle } from './diagnostics/helpers.js'
+import { clickWhenRendered, until } from './support/wait.js'
 
-const click = sel => document.querySelector(sel).click()
+// G-176: wait for the element (and below, for the outcome) rather than a fixed settle
+const click = sel => clickWhenRendered(sel)
 const json = body => Promise.resolve({ ok: true, status: 200, headers: { get: () => 'application/json' }, text: async () => JSON.stringify(body) })
 
 let app, errorSpy
@@ -78,7 +80,8 @@ describe('SYG112: reply action with no model entry', () => {
     start(make(() => ({ url: '/q', ok: 'LAODED', error: 'FAILED' })), { HTTP: makeFetchDriver({ fetch: () => json({ text: 'hi' }) }) })
     await settle(20)
     expect(diagnostics('SYG112')).toEqual([])   // nothing sent yet
-    click('.load')
+    await click('.load')
+    await until(() => expect(diagnostics('SYG112')).toHaveLength(1))
     await settle(30)
     const found = diagnostics('SYG112')
     expect(found).toHaveLength(1)
@@ -93,7 +96,8 @@ describe('SYG112: reply action with no model entry', () => {
   it('reports once per component and name, and not for names the model has', async () => {
     start(make(() => ({ url: '/q', ok: 'LOADED', error: 'OOPS_NOT_HANDLED' })), { HTTP: makeFetchDriver({ fetch: () => json({ text: 'hi' }) }) })
     await settle(20)
-    click('.load'); click('.load')
+    await click('.load'); await click('.load')
+    await until(() => expect(document.querySelector('.out').textContent).toBe('done:hi'))
     await settle(30)
     const found = diagnostics('SYG112')
     expect(found.map(d => d.data.action)).toEqual(['OOPS_NOT_HANDLED'])
@@ -108,7 +112,8 @@ describe('SYG112: reply action with no model entry', () => {
     const log = () => ({ select: () => null })
     start(C, { QUOTE: driverFromAsync(async () => ({ text: 'x' })), HTTP: makeFetchDriver({ fetch: () => json({}) }), LOG: () => { return log() } })
     await settle(20)
-    click('.load')
+    await click('.load')
+    await until(() => expect(diagnostics('SYG112')).not.toEqual([]))
     await settle(30)
     expect(diagnostics('SYG112').map(d => [d.data.sink, d.data.action])).toEqual([['QUOTE', 'LOADDE']])
   })
@@ -125,8 +130,8 @@ describe('SYG508 (strict): select()/errors() round trip on a reply-capable sourc
     configureStrict(true)
     start(roundTrip(), { HTTP: makeFetchDriver({ fetch: () => json({ text: 'hi' }) }) })
     await settle(20)
-    click('.load')
-    await settle(30)
+    await click('.load')
+    await until(() => expect(document.querySelector('.out').textContent).toBe('done:hi'))
     const found = diagnostics('SYG508')
     expect(found).toHaveLength(1)
     expect(found[0].severity).toBe('warn')
@@ -139,8 +144,8 @@ describe('SYG508 (strict): select()/errors() round trip on a reply-capable sourc
   it('is quiet when strict is off, and for requests with reply actions', async () => {
     start(roundTrip(), { HTTP: makeFetchDriver({ fetch: () => json({ text: 'hi' }) }) })
     await settle(20)
-    click('.load')
-    await settle(30)
+    await click('.load')
+    await until(() => expect(document.querySelector('.out').textContent).toBe('done:hi'))
     expect(diagnostics('SYG508')).toEqual([])
     app.dispose(); app = null
 
@@ -150,8 +155,8 @@ describe('SYG508 (strict): select()/errors() round trip on a reply-capable sourc
     C.model.OTHER = (s) => s
     start(C, { HTTP: makeFetchDriver({ fetch: () => json({ text: 'hi' }) }) })
     await settle(20)
-    click('.load')
-    await settle(30)
+    await click('.load')
+    await until(() => expect(document.querySelector('.out').textContent).toBe('done:hi'))
     expect(diagnostics('SYG508')).toEqual([])
   })
 })
@@ -160,8 +165,8 @@ describe('inspect(): reply trigger', () => {
   it("marks actions a sent request named as 'reply'", async () => {
     start(make(() => ({ url: '/q', ok: 'LOADED', error: 'FAILED' })), { HTTP: makeFetchDriver({ fetch: () => json({ text: 'hi' }) }) })
     await settle(20)
-    click('.load')
-    await settle(30)
+    await click('.load')
+    await until(() => expect(document.querySelector('.out').textContent).toBe('done:hi'))
     const quote = inspect().components.find(c => c.name === 'Quote')
     const t = Object.fromEntries(quote.actions.map(a => [a.name, a.trigger]))
     expect(t).toMatchObject({ LOAD: 'intent', LOADED: 'reply', FAILED: 'reply', INITIALIZE: 'builtin' })
@@ -188,8 +193,8 @@ describe('HYDRATE is an ordinary action (D66)', () => {
     C.intent = ({ DOM }) => ({ LOAD: DOM.click('.load'), HYDRATE: DOM.click('.load') })
     start(C, { HTTP: makeFetchDriver({ fetch: () => json({ text: 'hi' }) }) })
     await settle(20)
-    click('.load')
-    await settle(30)
+    await click('.load')
+    await until(() => expect(diagnostics('SYG201').map(d => d.data.action)).toContain('HYDRATE'))
     expect(diagnostics('SYG201').map(d => d.data.action)).toContain('HYDRATE')
   })
 })

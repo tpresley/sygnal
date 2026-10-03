@@ -12,6 +12,7 @@ import { makeFetchDriver } from '../src/extra/fetchDriver.js'
 import { renderComponent } from '../src/extra/testing.js'
 import { _resetDiagnostics } from '../src/extra/diagnostics/index.js'
 import { waitFor, textOf, sleep } from '../evals/agent-ergonomics/hidden/_support/queries.js'
+import { clickWhenRendered } from './support/wait.js'
 
 function jsonResponse(body, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
@@ -63,7 +64,8 @@ afterEach(() => {
 })
 const start = (App) => (app = run(App, { HTTP: makeFetchDriver() }, { mountPoint: '#root' }))
 const text = (sel) => textOf(document.querySelector(sel))
-const click = (sel) => document.querySelector(sel).click()
+// G-176: the first request goes out before the first render; wait for the element
+const click = (sel) => clickWhenRendered(sel)
 
 function Quote({ state }) {
   const q = state.quote
@@ -104,7 +106,7 @@ describe('resources with makeFetchDriver', () => {
   it('refetches when the derived request changes, aborting the stale one', async () => {
     start(Quote)
     await waitFor(() => expect(srv.fn).toHaveBeenCalledTimes(1))
-    click('.next')
+    await click('.next')
     await waitFor(() => expect(srv.paths()).toEqual(['/api/quotes/1', '/api/quotes/2']))
     expect(srv.requests[0].aborted).toBe(true)
     srv.respond(1, { text: 'two' })
@@ -119,7 +121,7 @@ describe('resources with makeFetchDriver', () => {
     C.model = { BUMP: (s) => ({ ...s, n: s.n + 1 }) }
     start(C)
     await waitFor(() => expect(srv.fn).toHaveBeenCalledTimes(1))
-    click('p'); click('p')
+    await click('p'); await click('p')
     await waitFor(() => expect(text('.status')).toBe('loading2'))
     await sleep(30)
     expect(srv.fn).toHaveBeenCalledTimes(1)
@@ -128,7 +130,7 @@ describe('resources with makeFetchDriver', () => {
   it('out-of-order replies: only the latest request is shown (also a same-id refetch)', async () => {
     start(Quote)
     await waitFor(() => expect(srv.fn).toHaveBeenCalledTimes(1))
-    click('.next')
+    await click('.next')
     await waitFor(() => expect(srv.fn).toHaveBeenCalledTimes(2))
     srv.respond(1, { text: 'two' })
     await waitFor(() => expect(text('.text')).toBe('two'))
@@ -136,8 +138,8 @@ describe('resources with makeFetchDriver', () => {
     await sleep(30)
     expect(text('.text')).toBe('two')
     // same id twice: the first refresh's late reply is stale
-    click('.refresh')
-    click('.refresh')
+    await click('.refresh')
+    await click('.refresh')
     await waitFor(() => expect(srv.fn).toHaveBeenCalledTimes(4))
     expect(srv.paths().slice(2)).toEqual(['/api/quotes/2', '/api/quotes/2'])
     srv.respond(3, { text: 'latest' })
@@ -159,9 +161,9 @@ describe('resources with makeFetchDriver', () => {
     await waitFor(() => expect(text('.status')).toBe('idle'))
     await sleep(30)
     expect(srv.fn).not.toHaveBeenCalled()
-    click('p')
+    await click('p')
     await waitFor(() => expect(text('.status')).toBe('loading'))
-    click('p')
+    await click('p')
     await waitFor(() => expect(text('.status')).toBe('idle'))
     expect(srv.requests[0].aborted).toBe(true)
   })
@@ -171,7 +173,7 @@ describe('resources with makeFetchDriver', () => {
     await waitFor(() => expect(srv.fn).toHaveBeenCalledTimes(1))
     srv.respond(0, { text: 'one' })
     await waitFor(() => expect(text('.text')).toBe('one'))
-    click('.refresh')
+    await click('.refresh')
     await waitFor(() => expect(srv.paths()).toEqual(['/api/quotes/1', '/api/quotes/1']))
     // D78: the same request again keeps data and status, with refreshing: true
     await waitFor(() => expect(text('.busy')).toBe('refreshing'))
@@ -180,9 +182,9 @@ describe('resources with makeFetchDriver', () => {
     srv.respond(1, { text: 'one again' })
     await waitFor(() => expect(text('.text')).toBe('one again'))
     expect(text('.busy')).toBe('')
-    click('.none')
+    await click('.none')
     await waitFor(() => expect(text('.status')).toBe('idle'))
-    click('.refresh')
+    await click('.refresh')
     await sleep(30)
     expect(srv.fn).toHaveBeenCalledTimes(2)
   })
@@ -192,7 +194,7 @@ describe('resources with makeFetchDriver', () => {
     await waitFor(() => expect(srv.fn).toHaveBeenCalledTimes(1))
     srv.respond(0, { text: 'one' })
     await waitFor(() => expect(text('.text')).toBe('one'))
-    click('.refresh')
+    await click('.refresh')
     await waitFor(() => expect(text('.busy')).toBe('refreshing'))
     expect(text('.text')).toBe('one')
     srv.status(1, 500)
@@ -200,7 +202,7 @@ describe('resources with makeFetchDriver', () => {
     expect(text('.err')).toBe('500')
     expect(text('.text')).toBe('one')
     expect(text('.busy')).toBe('')
-    click('.refresh')
+    await click('.refresh')
     await waitFor(() => expect(srv.fn).toHaveBeenCalledTimes(3))
     await waitFor(() => expect(text('.busy')).toBe('refreshing'))
     expect(text('.status')).toBe('error')
@@ -209,7 +211,7 @@ describe('resources with makeFetchDriver', () => {
     await waitFor(() => expect(text('.err')).toBe('Failed to fetch'))
     expect(text('.status')).toBe('error')
     // a new request (key change) clears data and error
-    click('.next')
+    await click('.next')
     await waitFor(() => expect(text('.status')).toBe('loading'))
     expect(text('.text')).toBe('')
     expect(text('.err')).toBe('')
@@ -229,7 +231,7 @@ describe('resources with makeFetchDriver', () => {
     await waitFor(() => expect(srv.fn).toHaveBeenCalledTimes(1))
     srv.respond(0, { city: 'Springfield' })
     await waitFor(() => expect(text('.log')).toBe('found Springfield success'))
-    click('p')
+    await click('p')
     await waitFor(() => expect(srv.fn).toHaveBeenCalledTimes(2))
     srv.status(1, 404)
     await waitFor(() => expect(text('.log')).toBe('found Springfield success,missing 404 error'))
@@ -280,7 +282,7 @@ describe('resources with makeFetchDriver', () => {
     start(Parent)
     await waitFor(() => expect(srv.fn).toHaveBeenCalledTimes(1))
     await waitFor(() => expect(text('.c')).toBe('loading'))
-    click('.hide')
+    await click('.hide')
     await waitFor(() => expect(srv.requests[0].aborted).toBe(true))
   })
 })
@@ -413,10 +415,12 @@ describe('task 23 with resources (hidden assertions)', () => {
   it('picking another shows Loading… instead of the old quote', async () => {
     await begin()
     await pick(101)
+    await waitFor(() => expect(srv.fn).toHaveBeenCalledTimes(1))
     srv.respond(0, Q101)
     await waitFor(() => expectShown(Q101))
     await pick(102)
     await waitFor(() => expectLoading())
+    await waitFor(() => expect(srv.fn).toHaveBeenCalledTimes(2))
     srv.respond(1, Q102)
     await waitFor(() => expectShown(Q102))
   })
@@ -446,6 +450,7 @@ describe('task 23 with resources (hidden assertions)', () => {
     await waitFor(() => expect(inDetail('.status')).toBe('Could not load the quote.'))
     expect(inDetail('.quote-text')).toBe('')
     await pick(103)
+    await waitFor(() => expect(srv.fn).toHaveBeenCalledTimes(7))
     srv.respond(6, Q103)
     await waitFor(() => expectShown(Q103))
   })

@@ -3,6 +3,7 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import { run, makeHeadDriver, Switchable } from '../src/index.js'
 import { createElement as h } from '../src/pragma/index.js'
+import { until, clickWhenRendered } from './support/wait.js'
 
 let app
 afterEach(() => { app?.dispose(); app = null; document.body.innerHTML = ''; document.title = '' })
@@ -20,11 +21,15 @@ describe('head + hidden Switchable pages', () => {
     App.model = { GO: (s) => ({ ...s, page: s.page === 'a' ? 'b' : 'a' }) }
     document.body.innerHTML = '<div id="root"></div>'
     app = run(App, { HEAD: makeHeadDriver() }, { mountPoint: '#root' })
+    // G-176: wait for each title rather than a fixed 60ms
+    await until(() => expect(document.title).toBe('Page A'))
+    await clickWhenRendered('.go')
+    await until(() => expect(document.title).toBe('Page B'))
     await tick()
-    expect(document.title).toBe('Page A')
-    document.querySelector('.go').click(); await tick()
-    expect(document.title).toBe('Page B')
-    document.querySelector('.go').click(); await tick()
+    expect(document.title).toBe('Page B')   // the hidden page A doesn't take it back
+    await clickWhenRendered('.go')
+    await until(() => expect(document.title).toBe('Page A'))
+    await tick()
     expect(document.title).toBe('Page A')
   })
 })

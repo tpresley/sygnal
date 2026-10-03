@@ -5,6 +5,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { setupChecks, diagnostics, settle } from './helpers.js'
 import { renderComponent } from '../../src/extra/testing.js'
 import { createElement } from '../../src/pragma/index.js'
+import { until } from '../support/wait.js'
 
 let t
 beforeEach(() => setupChecks())
@@ -30,6 +31,7 @@ describe('G-143 with a real DOM', () => {
     function Card() { return createElement('div', { className: 'card', data: { 'task-id': 7 } }, 'x') }
     t = renderComponent(Card, { dom: 'real' })
     await t.ready().catch(() => {})
+    await until(() => expect(diagnostics('SYG421')).toHaveLength(1))   // G-176: wait for the report
     await settle(30)
     const found = diagnostics('SYG421')
     expect(found).toHaveLength(1)

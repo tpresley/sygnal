@@ -5,6 +5,7 @@ import { renderComponent } from '../../src/extra/testing.js'
 import { createElement } from '../../src/pragma/index.js'
 import { ABORT } from '../../src/component.js'
 import { set, toggle } from '../../src/extra/reducers.js'
+import { until } from '../support/wait.js'
 
 let t
 beforeEach(() => setupChecks())
@@ -26,6 +27,7 @@ describe('SYG201 — STATE reducer dropped keys', () => {
     const App = make({ GO: state => ({ count: state.count + 1 }) })
     t = renderComponent(App, { mockConfig: { '.go': { click: times(2) } } })
     await t.waitForState(s => s && s.count === 1)
+    await until(() => expect(diagnostics('SYG201')).toHaveLength(1))   // G-176: wait for the report
     await settle(120)
     const found = diagnostics('SYG201')
     expect(found).toHaveLength(1)
@@ -70,6 +72,7 @@ describe('SYG202 — STATE reducer returned undefined', () => {
       GO: (state) => { state.count++ }, // mutates and forgets to return
     })
     t = renderComponent(App, { mockConfig: { '.go': { click: later() } } })
+    await until(() => expect(diagnostics('SYG202')).toHaveLength(1))   // G-176: wait for the report
     await settle(150)
     const found = diagnostics('SYG202')
     expect(found).toHaveLength(1)
@@ -89,6 +92,7 @@ describe('SYG202 — STATE reducer returned undefined', () => {
     await t.ready()
     t.simulateEvent('.rm', 'click')
     await t.waitForState(s => s.items.length === 1)
+    await until(() => expect(diagnostics('SYG202')).toHaveLength(1))   // G-176: wait for the report
     await settle(50)
     const found = diagnostics('SYG202')
     expect(found).toHaveLength(1)

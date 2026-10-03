@@ -12,7 +12,7 @@ afterEach(() => { if (t) t.dispose(); t = null; vi.restoreAllMocks() })
 const settle = (ms = 40) => new Promise(r => setTimeout(r, ms))
 const names = (html) => [...html.matchAll(/<li>([^<]*)<\/li>/g)].map(m => m[1])
 // G-132: poll for a condition (bounded) instead of sleeping a fixed time
-async function until(cond, { timeout = 2000, interval = 5 } = {}) {
+async function until(cond, { timeout = 5000, interval = 5 } = {}) {
   const end = Date.now() + timeout
   while (!cond()) {
     if (Date.now() > end) throw new Error(`condition not met within ${timeout} ms`)
@@ -52,13 +52,13 @@ describe('G-102: Collection props inside a child component', () => {
     const App = makeApp(List, s => ({ filter: s.hideDone ? notDone : undefined }))
     t = renderComponent(App)
     await t.ready()
-    await settle()
+    await until(sameNames(t, ['b', 'a', 'c']))   // G-176: not a fixed settle
     expect(names(t.html())).toEqual(['b', 'a', 'c'])
     t.simulateEvent('.toggle', 'click')
-    await settle(80)
+    await until(sameNames(t, ['b', 'c']))   // G-176: not a fixed settle
     expect(names(t.html())).toEqual(['b', 'c'])
     t.simulateEvent('.toggle', 'click')
-    await settle(80)
+    await until(sameNames(t, ['b', 'a', 'c']))   // G-176: not a fixed settle
     expect(names(t.html())).toEqual(['b', 'a', 'c'])
   })
 
@@ -69,10 +69,10 @@ describe('G-102: Collection props inside a child component', () => {
     const App = makeApp(List, s => ({ state: 'list', filter: s.hideDone ? notDone : undefined }))
     t = renderComponent(App)
     await t.ready()
-    await settle()
+    await until(sameNames(t, ['b', 'a', 'c']))   // G-176: not a fixed settle
     expect(names(t.html())).toEqual(['b', 'a', 'c'])
     t.simulateEvent('.toggle', 'click')
-    await settle(80)
+    await until(sameNames(t, ['b', 'c']))   // G-176: not a fixed settle
     expect(names(t.html())).toEqual(['b', 'c'])
   })
 
@@ -101,12 +101,12 @@ describe('G-102: Collection props inside a child component', () => {
     App.model = { TOGGLE: s => ({ ...s, hideDone: !s.hideDone }) }
     t = renderComponent(App)
     await t.ready()
-    await settle()
+    await until(sameNames(t, ['b', 'a', 'c']))
     t.simulateEvent('.toggle', 'click')
-    await settle(80)
+    await until(sameNames(t, ['b', 'c']))   // G-176: not a fixed settle
     expect(names(t.html())).toEqual(['b', 'c'])
     t.simulateEvent('.toggle', 'click')
-    await settle(80)
+    await until(sameNames(t, ['b', 'a', 'c']))   // G-176: not a fixed settle
     expect(names(t.html())).toEqual(['b', 'a', 'c'])
   })
 })
@@ -118,7 +118,7 @@ describe('G-107: BOOTSTRAP without an intent', () => {
     App.model = { BOOTSTRAP: s => ({ ...s, booted: true }) }
     t = renderComponent(App)
     await t.ready()
-    await settle(60)
+    await until(() => t.html() === '<p>true</p>')
     expect(t.html()).toBe('<p>true</p>')
   })
 
@@ -130,6 +130,7 @@ describe('G-107: BOOTSTRAP without an intent', () => {
     App.initialState = { booted: false }
     t = renderComponent(App)
     await t.ready()
+    await until(() => t.html() === '<div><i>true</i></div>')
     await settle(60)
     expect(boots).toBe(1)
     expect(t.html()).toBe('<div><i>true</i></div>')

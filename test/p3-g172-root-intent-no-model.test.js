@@ -5,10 +5,10 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import { run } from '../src/index.js'
 import { createElement } from '../src/pragma/index.js'
+import { until } from './support/wait.js'
 
 let app
 afterEach(() => { app?.dispose(); app = null; document.body.innerHTML = '' })
-const tick = (ms = 50) => new Promise(r => setTimeout(r, ms))
 
 describe('G-172: root with intent and no model', () => {
   it('renders its initialState under run()', async () => {
@@ -17,7 +17,6 @@ describe('G-172: root with intent and no model', () => {
     App.intent = () => ({})
     document.body.innerHTML = '<div id="root"></div>'
     app = run(App, {}, { mountPoint: '#root' })
-    await tick()
-    expect(document.querySelector('#root').textContent).toBe('hello')
+    await until(() => expect(document.querySelector('#root').textContent).toBe('hello'))   // G-176: not a fixed tick
   })
 })
