@@ -83,6 +83,10 @@ async function run() {
       consoleMsgs.push(`[uncaught] ${err.stack || err.message}`);
     });
 
+    // G-146: real keyboard input for the tests (typed by Playwright at full speed)
+    await page.exposeFunction('__pwType', (selector, text, delay) =>
+      page.locator(selector).pressSequentially(text, { delay }));
+
     await page.goto(url);
 
     // Wait for tests to complete

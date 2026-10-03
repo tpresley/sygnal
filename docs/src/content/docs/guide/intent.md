@@ -42,6 +42,17 @@ Additionally, any custom drivers registered via `run()` are available as sources
 - If multiple events should trigger the same action, merge them with `xs.merge()`.
 - **Never** attach event handlers in the view. All event handling goes through intent.
 - **Selectors only see the component's own JSX.** The DOM source is isolated to the current component: selectors don't match elements rendered by parent, sibling **or child** components (including Collection items). To react to a click inside a child, handle it in the child and send it up with [`PARENT`](/guide/parent-child/) or [`EVENTS`](/guide/drivers/#the-event-bus-events-driver). Sygnal reports a selector that only matches inside a child as [SYG104](/reference/errors/#syg104), and one that matches nothing as [SYG103](/reference/errors/#syg103)/[SYG110](/reference/errors/#syg110).
+- **Events bubble out of children, as in the browser.** A listener on an element the component rendered itself hears events from inside the child components it wraps, after the children's own listeners (a child can call `e.stopPropagation()`). The parent still can't select an element inside the child: `DOM.click('.slot')` below fires for any click in the card, `DOM.click('.title')` never does. Use it when the parent owns the area around a child (selecting a card, closing a menu on an outside click); when the child owns the interaction, use `PARENT`.
+
+```jsx
+function Board({ state }) {
+  return <div className="board">
+    <div className="slot"><TaskCard state="task" /></div>
+  </div>
+}
+Board.intent = ({ DOM }) => ({ SELECT: DOM.click('.slot') })
+Board.model = { SELECT: (state) => ({ ...state, selected: true }) }
+```
 
 ## Event Shorthands
 

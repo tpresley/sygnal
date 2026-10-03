@@ -245,7 +245,7 @@ Search.model = {
 - **Imports** (all from `'sygnal'`): `run ABORT set toggle event createCommand makeFetchDriver driverFromAsync xs debounce throttle delay dropRepeats sampleCombine classes processForm processDrag makeDragDriver Collection Switchable Portal Transition Slot Suspense lazy createRef createRef$ renderComponent renderToString`; types `Component RootComponent Lens`. Never import the JSX runtime by hand; the Vite plugin configures it.
 
 ## 5. Wiring rules (silent failures, and what catches them)
-- **Selectors are scoped to the component's own JSX (the isolation trap).** A parent's `DOM.click('.remove')` never fires for `.remove` rendered by a child or a Collection item. Handle the event in the child and send it up with `PARENT` (read with `CHILD.select(Child)`) or `EVENTS`. Caught as SYG104; a selector the view never renders is SYG110.
+- **Selectors are scoped to the component's own JSX (the isolation trap).** A parent's `DOM.click('.remove')` never fires for `.remove` rendered by a child or a Collection item. Handle the event in the child and send it up with `PARENT` (read with `CHILD.select(Child)`) or `EVENTS`. Caught as SYG104; a selector the view never renders is SYG110. Events still bubble like in the browser: a listener on an element the parent rendered itself (`<div className="slot"><Child /></div>` with `DOM.click('.slot')`) hears clicks from inside the child, after the child's own listeners.
 - **Every intent action needs a model entry (SYG101), and every model entry needs a trigger (SYG102)**: an intent action, a built-in, or `next('X')`. Names match exactly.
 - **EVENTS types must match exactly** between `event('X')` and `EVENTS.select('X')` (SYG105).
 - **Collection `from` must name an array field of the state** (SYG401).
