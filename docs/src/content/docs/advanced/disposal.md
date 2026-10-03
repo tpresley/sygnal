@@ -3,7 +3,9 @@ title: "Disposal Hooks"
 description: "Cleanup on component unmount"
 ---
 
-Run cleanup logic when components unmount — close WebSocket connections, clear timers, disconnect observers.
+Run cleanup logic when components unmount — clear timers, disconnect observers, release resources a component opened itself.
+
+Driver work is cleaned up for you: a removed component's HTTP requests with reply actions are aborted, the connections it declared with [`connections`](/guide/sockets/) close (with no `close` action), and an `async` [EFFECT](/advanced/effect/#async-work-that-isnt-http) gets an aborted `signal`.
 
 ## The `DISPOSE` Action
 

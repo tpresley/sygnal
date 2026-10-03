@@ -36,6 +36,12 @@ export interface SygnalAstroOptions {
    * @default true
    */
   nativeGlobalThis?: boolean;
+  /**
+   * Install the DevTools bridge for islands in `astro dev` (see the sygnal/vite
+   * `devtools` option). Never in `astro build`.
+   * @default true
+   */
+  devtools?: boolean;
 }
 
 /**

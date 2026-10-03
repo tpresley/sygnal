@@ -1,0 +1,1853 @@
+{
+  "meta": {
+    "run": "p3-v6-react",
+    "generatedAt": "2026-10-03T04:03:41.395Z",
+    "trialsInMap": 10,
+    "trialsAnalyzed": 10,
+    "trialsScored": 10,
+    "skillDir": "/private/tmp/sygnal-evals/trials/p3-v6-react/_variant/skillroot/.claude/skills/sygnal-dev",
+    "llms": "/Users/troy/Documents/Displera/sygnal/.claude/worktrees/network-call-patterns-bcdf34/llms.txt",
+    "sygnalCheck": true,
+    "methods": [
+      "headless"
+    ],
+    "models": [
+      "claude-opus-5-5"
+    ]
+  },
+  "aggregates": {
+    "tasks": [
+      "24-list-detail-cache",
+      "25-router-spa"
+    ],
+    "sharedTasks": [],
+    "byTask": {
+      "24-list-detail-cache": {
+        "react": {
+          "n": 5,
+          "pass": 5,
+          "scored": 5,
+          "wall": {
+            "mean": 84.6,
+            "median": 86.8
+          },
+          "peakContext": {
+            "mean": 23163,
+            "median": 23273
+          },
+          "cacheCreation": {
+            "mean": 11393.8,
+            "median": 11195
+          },
+          "cacheRead": {
+            "mean": 169776.8,
+            "median": 150891
+          },
+          "messages": {
+            "mean": 10,
+            "median": 9
+          },
+          "costUsd": {
+            "mean": 0.295,
+            "median": 0.291
+          },
+          "billedTokens": {
+            "mean": 189685,
+            "median": 170059
+          },
+          "outputTokens": {
+            "mean": 8494.4,
+            "median": 8862
+          },
+          "durationSeconds": {
+            "mean": 84.7,
+            "median": 86.8
+          },
+          "iterations": {
+            "mean": 4.8,
+            "median": 5
+          },
+          "effectiveIterations": {
+            "mean": 4.8,
+            "median": 5
+          },
+          "editRounds": {
+            "mean": 3.8,
+            "median": 4
+          },
+          "toolCalls": {
+            "mean": 9,
+            "median": 8
+          },
+          "failedRuns": {
+            "mean": 2,
+            "median": 2
+          },
+          "episodes": {
+            "mean": 1.2,
+            "median": 1
+          },
+          "locAdded": {
+            "mean": 215.8,
+            "median": 228
+          },
+          "locRemoved": {
+            "mean": 22,
+            "median": 22
+          },
+          "wroteTest": 5,
+          "keptTest": 4,
+          "attributedShareMin": 1,
+          "attributedShareMean": 1,
+          "phases": {
+            "orient": 5,
+            "learn": 0,
+            "implement": 37.4,
+            "test-authoring": 15.9,
+            "verify": 5,
+            "debug": 13.8,
+            "tooling-friction": 0,
+            "think": 7.6,
+            "report": 0,
+            "other": 0
+          },
+          "friction": {},
+          "learn": {}
+        }
+      },
+      "25-router-spa": {
+        "react": {
+          "n": 5,
+          "pass": 5,
+          "scored": 5,
+          "wall": {
+            "mean": 69.3,
+            "median": 66.4
+          },
+          "peakContext": {
+            "mean": 22985,
+            "median": 23743
+          },
+          "cacheCreation": {
+            "mean": 16660.2,
+            "median": 17286
+          },
+          "cacheRead": {
+            "mean": 123832.2,
+            "median": 127178
+          },
+          "messages": {
+            "mean": 8,
+            "median": 8
+          },
+          "costUsd": {
+            "mean": 0.305,
+            "median": 0.313
+          },
+          "billedTokens": {
+            "mean": 147828.6,
+            "median": 153647
+          },
+          "outputTokens": {
+            "mean": 7320.2,
+            "median": 7474
+          },
+          "durationSeconds": {
+            "mean": 69.3,
+            "median": 66.4
+          },
+          "iterations": {
+            "mean": 2,
+            "median": 2
+          },
+          "effectiveIterations": {
+            "mean": 2,
+            "median": 2
+          },
+          "editRounds": {
+            "mean": 2,
+            "median": 2
+          },
+          "toolCalls": {
+            "mean": 9.4,
+            "median": 10
+          },
+          "failedRuns": {
+            "mean": 0.8,
+            "median": 0
+          },
+          "episodes": {
+            "mean": 0.4,
+            "median": 0
+          },
+          "locAdded": {
+            "mean": 179.2,
+            "median": 189
+          },
+          "locRemoved": {
+            "mean": 32.2,
+            "median": 32
+          },
+          "wroteTest": 5,
+          "keptTest": 4,
+          "attributedShareMin": 1,
+          "attributedShareMean": 1,
+          "phases": {
+            "orient": 3.6,
+            "learn": 13.8,
+            "implement": 28.2,
+            "test-authoring": 9.4,
+            "verify": 2.1,
+            "debug": 4.1,
+            "tooling-friction": 0,
+            "think": 8,
+            "report": 0,
+            "other": 0
+          },
+          "friction": {},
+          "learn": {
+            "framework-source": 10.5,
+            "types": 3.3
+          }
+        }
+      }
+    },
+    "overall": {
+      "react": {
+        "n": 10,
+        "pass": 10,
+        "scored": 10,
+        "wall": {
+          "mean": 77,
+          "median": 72.5
+        },
+        "peakContext": {
+          "mean": 23074,
+          "median": 23508
+        },
+        "cacheCreation": {
+          "mean": 14027,
+          "median": 14101
+        },
+        "cacheRead": {
+          "mean": 146804.5,
+          "median": 140703.5
+        },
+        "messages": {
+          "mean": 9,
+          "median": 9
+        },
+        "costUsd": {
+          "mean": 0.3,
+          "median": 0.303
+        },
+        "billedTokens": {
+          "mean": 168756.8,
+          "median": 160748
+        },
+        "outputTokens": {
+          "mean": 7907.3,
+          "median": 7743.5
+        },
+        "durationSeconds": {
+          "mean": 77,
+          "median": 72.5
+        },
+        "iterations": {
+          "mean": 3.4,
+          "median": 4
+        },
+        "effectiveIterations": {
+          "mean": 3.4,
+          "median": 4
+        },
+        "editRounds": {
+          "mean": 2.9,
+          "median": 3
+        },
+        "toolCalls": {
+          "mean": 9.2,
+          "median": 9
+        },
+        "failedRuns": {
+          "mean": 1.4,
+          "median": 1.5
+        },
+        "episodes": {
+          "mean": 0.8,
+          "median": 1
+        },
+        "locAdded": {
+          "mean": 197.5,
+          "median": 198
+        },
+        "locRemoved": {
+          "mean": 27.1,
+          "median": 27
+        },
+        "wroteTest": 10,
+        "keptTest": 8,
+        "attributedShareMin": 1,
+        "attributedShareMean": 1,
+        "phases": {
+          "orient": 4.3,
+          "learn": 6.9,
+          "implement": 32.8,
+          "test-authoring": 12.7,
+          "verify": 3.6,
+          "debug": 9,
+          "tooling-friction": 0,
+          "think": 7.8,
+          "report": 0,
+          "other": 0
+        },
+        "friction": {},
+        "learn": {
+          "framework-source": 5.3,
+          "types": 1.6
+        }
+      }
+    },
+    "overallShared": {},
+    "delta": {
+      "tasks": [],
+      "wallDelta": null,
+      "items": []
+    },
+    "catalog": [],
+    "skill": {
+      "sygnalTrials": 0,
+      "skillInvoked": 0,
+      "skillBytes": {
+        "mean": null,
+        "median": null
+      },
+      "files": {},
+      "sections": [],
+      "library": {
+        "sygnal": {},
+        "react": {
+          "@tanstack/query-core": {
+            "trials": 1,
+            "files": {
+              "build/modern/query.js": 1
+            }
+          },
+          "react-router": {
+            "trials": 5,
+            "files": {
+              "dist": 4,
+              "dist/development": 2,
+              "package.json": 4,
+              "(dir)": 1,
+              "dist/development/chunk-": 1,
+              "dist/development/index.d.ts": 1,
+              "dist/development/index.mjs": 1
+            }
+          }
+        }
+      },
+      "libraryBytes": {
+        "sygnal": {
+          "mean": null,
+          "median": null
+        },
+        "react": {
+          "mean": 2997.1,
+          "median": 1977
+        }
+      },
+      "libraryReaders": {
+        "sygnal": 0,
+        "react": 6
+      }
+    },
+    "canonical": {
+      "trials": 0,
+      "forms": {},
+      "sygnalCheck": {},
+      "checkErrors": []
+    },
+    "failures": {
+      "signatures": [
+        {
+          "arm": "react",
+          "signature": "Test Files 1 failed (1)",
+          "cause": "unknown (output truncated)",
+          "catalog": [],
+          "count": 7,
+          "trials": 5
+        },
+        {
+          "arm": "react",
+          "signature": "TypeError: Cannot read properties of undefined (reading 'opts')",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 3,
+          "trials": 3
+        },
+        {
+          "arm": "react",
+          "signature": "TypeError: Cannot read properties of null (reading 'textContent')",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "react",
+          "signature": "TypeError: Cannot destructure property 'basename' of 'React.useContext(...)' as it is null.]",
+          "cause": "other",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "react",
+          "signature": "AssertionError: expected '2' to be '/' // Object.is equality",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "react",
+          "signature": "AssertionError: expected '1' to be 'edit' // Object.is equality",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        }
+      ],
+      "episodes": {
+        "sygnal": {},
+        "react": {
+          "agent-mistake": {
+            "episodes": 3,
+            "seconds": 29.3,
+            "iterations": 6,
+            "unresolved": 0
+          },
+          "unknown (output truncated)": {
+            "episodes": 5,
+            "seconds": 60.3,
+            "iterations": 8,
+            "unresolved": 0
+          }
+        }
+      }
+    }
+  },
+  "trials": [
+    {
+      "trial": "react-24-t1",
+      "run": "p3-v6-react",
+      "arm": "react",
+      "task": "24-list-detail-cache",
+      "trialNo": 1,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 6,
+        "testsTotal": 6,
+        "wallSeconds": 97,
+        "iterations": 5,
+        "editRounds": 3
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 24,
+        "output": 160,
+        "cacheRead": 220382,
+        "cacheCreation": 11549,
+        "messages": 12,
+        "peakContext": 23273,
+        "total": 232115
+      },
+      "usage": {
+        "tokens": 240817,
+        "outputTokens": 8862,
+        "costUsd": 0.31380439999999993,
+        "durationMs": 95926,
+        "model": "claude-opus-5-5"
+      },
+      "toolCalls": {
+        "total": 11,
+        "byTool": {
+          "Bash": 10,
+          "Write": 1
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "wallSeconds": 95.9,
+      "phases": {
+        "orient": 9.5,
+        "implement": 58.6,
+        "verify": 4.2,
+        "debug": 8.8,
+        "test-authoring": 8.9,
+        "think": 5.8
+      },
+      "attributedShare": 1,
+      "iterations": 5,
+      "effectiveIterations": 5,
+      "edits": 4,
+      "editRounds": 3,
+      "failures": [
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "TypeError: Cannot read properties of undefined (reading 'opts')",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 63
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "Test Files 1 failed (1)",
+          "catalog": [],
+          "friction": [],
+          "cause": "unknown (output truncated)",
+          "t": 67
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 8.8,
+          "iterations": 2,
+          "signature": "TypeError: Cannot read properties of undefined (reading 'opts')",
+          "signatures": [
+            "TypeError: Cannot read properties of undefined (reading 'opts')",
+            "Test Files 1 failed (1)"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "resolved": true,
+          "t": 63
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {},
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "skill": {
+        "skillInvoked": false,
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
+        "library": {},
+        "libraryBytes": 0
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p3-v6-react/react-24-t1",
+      "diff": {
+        "added": 153,
+        "removed": 21,
+        "files": {
+          "src/App.jsx": {
+            "added": 153,
+            "removed": 21,
+            "status": "modified"
+          }
+        }
+      },
+      "keptTests": [],
+      "testApproach": [],
+      "finalReportChars": 1758
+    },
+    {
+      "trial": "react-24-t2",
+      "run": "p3-v6-react",
+      "arm": "react",
+      "task": "24-list-detail-cache",
+      "trialNo": 2,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 6,
+        "testsTotal": 6,
+        "wallSeconds": 98,
+        "iterations": 5,
+        "editRounds": 4
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 18,
+        "output": 709,
+        "cacheRead": 150891,
+        "cacheCreation": 10257,
+        "messages": 9,
+        "peakContext": 23900,
+        "total": 161875
+      },
+      "usage": {
+        "tokens": 170059,
+        "outputTokens": 8893,
+        "costUsd": 0.2901662,
+        "durationMs": 96335,
+        "model": "claude-opus-5-5"
+      },
+      "toolCalls": {
+        "total": 8,
+        "byTool": {
+          "Bash": 7,
+          "Write": 1
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "wallSeconds": 96.3,
+      "phases": {
+        "orient": 5.4,
+        "implement": 43.7,
+        "test-authoring": 16.1,
+        "verify": 9,
+        "debug": 12.4,
+        "think": 9.7
+      },
+      "attributedShare": 1,
+      "iterations": 5,
+      "effectiveIterations": 5,
+      "edits": 5,
+      "editRounds": 4,
+      "failures": [
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "Test Files 1 failed (1)",
+          "catalog": [],
+          "friction": [],
+          "cause": "unknown (output truncated)",
+          "t": 59
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "Test Files 1 failed (1)",
+          "catalog": [],
+          "friction": [],
+          "cause": "unknown (output truncated)",
+          "t": 65
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 12.4,
+          "iterations": 2,
+          "signature": "Test Files 1 failed (1)",
+          "signatures": [
+            "Test Files 1 failed (1)"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "unknown (output truncated)",
+          "resolved": true,
+          "t": 59
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {},
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "skill": {
+        "skillInvoked": false,
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
+        "library": {},
+        "libraryBytes": 0
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p3-v6-react/react-24-t2",
+      "diff": {
+        "added": 249,
+        "removed": 23,
+        "files": {
+          "src/App.jsx": {
+            "added": 162,
+            "removed": 23,
+            "status": "modified"
+          },
+          "src/__tests__/app.test.jsx": {
+            "added": 87,
+            "removed": 0,
+            "status": "new"
+          }
+        }
+      },
+      "keptTests": [
+        "src/__tests__/app.test.jsx"
+      ],
+      "testApproach": [
+        "testing-library"
+      ],
+      "finalReportChars": 2306
+    },
+    {
+      "trial": "react-24-t3",
+      "run": "p3-v6-react",
+      "arm": "react",
+      "task": "24-list-detail-cache",
+      "trialNo": 3,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 6,
+        "testsTotal": 6,
+        "wallSeconds": 74,
+        "iterations": 4,
+        "editRounds": 4
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 18,
+        "output": 73,
+        "cacheRead": 143133,
+        "cacheCreation": 9409,
+        "messages": 9,
+        "peakContext": 22425,
+        "total": 152633
+      },
+      "usage": {
+        "tokens": 160491,
+        "outputTokens": 7931,
+        "costUsd": 0.2625906,
+        "durationMs": 72561,
+        "model": "claude-opus-5-5"
+      },
+      "toolCalls": {
+        "total": 8,
+        "byTool": {
+          "Bash": 6,
+          "Write": 1,
+          "Read": 1
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "wallSeconds": 72.5,
+      "phases": {
+        "orient": 3.4,
+        "implement": 25.2,
+        "test-authoring": 16,
+        "verify": 2.5,
+        "debug": 18,
+        "think": 7.5
+      },
+      "attributedShare": 1,
+      "iterations": 4,
+      "effectiveIterations": 4,
+      "edits": 5,
+      "editRounds": 4,
+      "failures": [
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "Test Files 1 failed (1)",
+          "catalog": [],
+          "friction": [],
+          "cause": "unknown (output truncated)",
+          "t": 38
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "TypeError: Cannot read properties of undefined (reading 'opts')",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 44
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 18,
+          "iterations": 2,
+          "signature": "Test Files 1 failed (1)",
+          "signatures": [
+            "Test Files 1 failed (1)",
+            "TypeError: Cannot read properties of undefined (reading 'opts')"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "unknown (output truncated)",
+          "resolved": true,
+          "t": 38
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {},
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "skill": {
+        "skillInvoked": false,
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
+        "library": {},
+        "libraryBytes": 0
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p3-v6-react/react-24-t3",
+      "diff": {
+        "added": 221,
+        "removed": 21,
+        "files": {
+          "src/App.check.test.jsx": {
+            "added": 68,
+            "removed": 0,
+            "status": "new"
+          },
+          "src/App.jsx": {
+            "added": 153,
+            "removed": 21,
+            "status": "modified"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.check.test.jsx"
+      ],
+      "testApproach": [
+        "testing-library"
+      ],
+      "finalReportChars": 2075
+    },
+    {
+      "trial": "react-24-t4",
+      "run": "p3-v6-react",
+      "arm": "react",
+      "task": "24-list-detail-cache",
+      "trialNo": 4,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 6,
+        "testsTotal": 6,
+        "wallSeconds": 88,
+        "iterations": 6,
+        "editRounds": 5
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 24,
+        "output": 780,
+        "cacheRead": 216466,
+        "cacheCreation": 11195,
+        "messages": 12,
+        "peakContext": 24859,
+        "total": 228465
+      },
+      "usage": {
+        "tokens": 236915,
+        "outputTokens": 9230,
+        "costUsd": 0.3175491999999999,
+        "durationMs": 86834,
+        "model": "claude-opus-5-5"
+      },
+      "toolCalls": {
+        "total": 11,
+        "byTool": {
+          "Bash": 9,
+          "Write": 1,
+          "Read": 1
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "wallSeconds": 86.8,
+      "phases": {
+        "orient": 3.5,
+        "implement": 28.5,
+        "test-authoring": 19.7,
+        "verify": 3.6,
+        "debug": 23.4,
+        "think": 8.1
+      },
+      "attributedShare": 1,
+      "iterations": 6,
+      "effectiveIterations": 6,
+      "edits": 6,
+      "editRounds": 5,
+      "failures": [
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "Test Files 1 failed (1)",
+          "catalog": [],
+          "friction": [],
+          "cause": "unknown (output truncated)",
+          "t": 46
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "TypeError: Cannot read properties of undefined (reading 'opts')",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 52
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "Test Files 1 failed (1)",
+          "catalog": [],
+          "friction": [],
+          "cause": "unknown (output truncated)",
+          "t": 74
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 20.5,
+          "iterations": 2,
+          "signature": "Test Files 1 failed (1)",
+          "signatures": [
+            "Test Files 1 failed (1)",
+            "TypeError: Cannot read properties of undefined (reading 'opts')"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "unknown (output truncated)",
+          "resolved": true,
+          "t": 46
+        },
+        {
+          "seconds": 3,
+          "iterations": 1,
+          "signature": "Test Files 1 failed (1)",
+          "signatures": [
+            "Test Files 1 failed (1)"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "unknown (output truncated)",
+          "resolved": true,
+          "t": 74
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {},
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "skill": {
+        "skillInvoked": false,
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
+        "library": {
+          "@tanstack/query-core": [
+            "build/modern/query.js"
+          ]
+        },
+        "libraryBytes": 641
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p3-v6-react/react-24-t4",
+      "diff": {
+        "added": 228,
+        "removed": 23,
+        "files": {
+          "src/App.jsx": {
+            "added": 149,
+            "removed": 23,
+            "status": "modified"
+          },
+          "src/app.check.test.jsx": {
+            "added": 79,
+            "removed": 0,
+            "status": "new"
+          }
+        }
+      },
+      "keptTests": [
+        "src/app.check.test.jsx"
+      ],
+      "testApproach": [
+        "testing-library"
+      ],
+      "finalReportChars": 2454
+    },
+    {
+      "trial": "react-24-t5",
+      "run": "p3-v6-react",
+      "arm": "react",
+      "task": "24-list-detail-cache",
+      "trialNo": 5,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 6,
+        "testsTotal": 6,
+        "wallSeconds": 73,
+        "iterations": 4,
+        "editRounds": 3
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 16,
+        "output": 694,
+        "cacheRead": 118012,
+        "cacheCreation": 14559,
+        "messages": 8,
+        "peakContext": 21358,
+        "total": 133281
+      },
+      "usage": {
+        "tokens": 140143,
+        "outputTokens": 7556,
+        "costUsd": 0.2912584,
+        "durationMs": 71752,
+        "model": "claude-opus-5-5"
+      },
+      "toolCalls": {
+        "total": 7,
+        "byTool": {
+          "Bash": 6,
+          "Write": 1
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "wallSeconds": 71.7,
+      "phases": {
+        "orient": 3.2,
+        "implement": 31.1,
+        "test-authoring": 18.6,
+        "verify": 5.6,
+        "debug": 6.4,
+        "think": 6.9
+      },
+      "attributedShare": 1,
+      "iterations": 4,
+      "effectiveIterations": 4,
+      "edits": 4,
+      "editRounds": 3,
+      "failures": [
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "Test Files 1 failed (1)",
+          "catalog": [],
+          "friction": [],
+          "cause": "unknown (output truncated)",
+          "t": 48
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 6.4,
+          "iterations": 1,
+          "signature": "Test Files 1 failed (1)",
+          "signatures": [
+            "Test Files 1 failed (1)"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "unknown (output truncated)",
+          "resolved": true,
+          "t": 48
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {},
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "skill": {
+        "skillInvoked": false,
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
+        "library": {},
+        "libraryBytes": 0
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p3-v6-react/react-24-t5",
+      "diff": {
+        "added": 228,
+        "removed": 22,
+        "files": {
+          "src/App.jsx": {
+            "added": 149,
+            "removed": 22,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 79,
+            "removed": 0,
+            "status": "new"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "testing-library"
+      ],
+      "finalReportChars": 2108
+    },
+    {
+      "trial": "react-25-t1",
+      "run": "p3-v6-react",
+      "arm": "react",
+      "task": "25-router-spa",
+      "trialNo": 1,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 9,
+        "testsTotal": 9,
+        "wallSeconds": 80,
+        "iterations": 4,
+        "editRounds": 4
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 18,
+        "output": 101,
+        "cacheRead": 146055,
+        "cacheCreation": 17569,
+        "messages": 9,
+        "peakContext": 23743,
+        "total": 163743
+      },
+      "usage": {
+        "tokens": 171668,
+        "outputTokens": 8026,
+        "costUsd": 0.330355,
+        "durationMs": 79572,
+        "model": "claude-opus-5-5"
+      },
+      "toolCalls": {
+        "total": 12,
+        "byTool": {
+          "Bash": 7,
+          "Write": 5
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "wallSeconds": 79.6,
+      "phases": {
+        "orient": 3.1,
+        "learn": 22.1,
+        "implement": 30,
+        "verify": 1.4,
+        "debug": 15,
+        "think": 8
+      },
+      "attributedShare": 1,
+      "iterations": 4,
+      "effectiveIterations": 4,
+      "edits": 9,
+      "editRounds": 4,
+      "failures": [
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "TypeError: Cannot read properties of null (reading 'textContent')",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 57
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "TypeError: Cannot destructure property 'basename' of 'React.useContext(...)' as it is null.]",
+          "catalog": [],
+          "friction": [],
+          "cause": "other",
+          "t": 62
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "AssertionError: expected '2' to be '/' // Object.is equality",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 66
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 15,
+          "iterations": 3,
+          "signature": "TypeError: Cannot read properties of null (reading 'textContent')",
+          "signatures": [
+            "TypeError: Cannot read properties of null (reading 'textContent')",
+            "TypeError: Cannot destructure property 'basename' of 'React.useContext(...)' as it is null.]",
+            "AssertionError: expected '2' to be '/' // Object.is equality"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "resolved": true,
+          "t": 57
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "framework-source": 22.1
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "skill": {
+        "skillInvoked": false,
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
+        "library": {
+          "react-router": [
+            "dist",
+            "dist/development",
+            "package.json"
+          ]
+        },
+        "libraryBytes": 4515
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p3-v6-react/react-25-t1",
+      "diff": {
+        "added": 123,
+        "removed": 33,
+        "files": {
+          "index.html": {
+            "added": 1,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 56,
+            "removed": 20,
+            "status": "modified"
+          },
+          "src/EditPage.jsx": {
+            "added": 31,
+            "removed": 5,
+            "status": "modified"
+          },
+          "src/NotFound.jsx": {
+            "added": 14,
+            "removed": 0,
+            "status": "new"
+          },
+          "src/TaskList.jsx": {
+            "added": 10,
+            "removed": 3,
+            "status": "modified"
+          },
+          "src/TaskPage.jsx": {
+            "added": 11,
+            "removed": 4,
+            "status": "modified"
+          }
+        }
+      },
+      "keptTests": [],
+      "testApproach": [],
+      "finalReportChars": 1899
+    },
+    {
+      "trial": "react-25-t2",
+      "run": "p3-v6-react",
+      "arm": "react",
+      "task": "25-router-spa",
+      "trialNo": 2,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 9,
+        "testsTotal": 9,
+        "wallSeconds": 73,
+        "iterations": 2,
+        "editRounds": 2
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 16,
+        "output": 843,
+        "cacheRead": 127178,
+        "cacheCreation": 17286,
+        "messages": 8,
+        "peakContext": 24205,
+        "total": 145323
+      },
+      "usage": {
+        "tokens": 151954,
+        "outputTokens": 7474,
+        "costUsd": 0.3132676,
+        "durationMs": 72498,
+        "model": "claude-opus-5-5"
+      },
+      "toolCalls": {
+        "total": 7,
+        "byTool": {
+          "Bash": 6,
+          "Edit": 1
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "wallSeconds": 72.5,
+      "phases": {
+        "orient": 3.4,
+        "learn": 14.4,
+        "implement": 28.9,
+        "test-authoring": 15.4,
+        "verify": 2.6,
+        "think": 7.9
+      },
+      "attributedShare": 1,
+      "iterations": 2,
+      "effectiveIterations": 2,
+      "edits": 4,
+      "editRounds": 2,
+      "failures": [],
+      "episodes": [],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "framework-source": 14.4
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "skill": {
+        "skillInvoked": false,
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
+        "library": {
+          "react-router": [
+            "(dir)",
+            "dist/development/chunk-",
+            "package.json"
+          ]
+        },
+        "libraryBytes": 8631
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p3-v6-react/react-25-t2",
+      "diff": {
+        "added": 206,
+        "removed": 32,
+        "files": {
+          "src/App.jsx": {
+            "added": 55,
+            "removed": 20,
+            "status": "modified"
+          },
+          "src/EditPage.jsx": {
+            "added": 32,
+            "removed": 5,
+            "status": "modified"
+          },
+          "src/NotFound.jsx": {
+            "added": 12,
+            "removed": 0,
+            "status": "new"
+          },
+          "src/TaskList.jsx": {
+            "added": 8,
+            "removed": 3,
+            "status": "modified"
+          },
+          "src/TaskPage.jsx": {
+            "added": 9,
+            "removed": 4,
+            "status": "modified"
+          },
+          "src/__tests__/routing.test.jsx": {
+            "added": 82,
+            "removed": 0,
+            "status": "new"
+          },
+          "src/useDocumentTitle.js": {
+            "added": 8,
+            "removed": 0,
+            "status": "new"
+          }
+        }
+      },
+      "keptTests": [
+        "src/__tests__/routing.test.jsx"
+      ],
+      "testApproach": [
+        "testing-library"
+      ],
+      "finalReportChars": 2048
+    },
+    {
+      "trial": "react-25-t3",
+      "run": "p3-v6-react",
+      "arm": "react",
+      "task": "25-router-spa",
+      "trialNo": 3,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 9,
+        "testsTotal": 9,
+        "wallSeconds": 63,
+        "iterations": 2,
+        "editRounds": 2
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 18,
+        "output": 155,
+        "cacheRead": 138274,
+        "cacheCreation": 15724,
+        "messages": 9,
+        "peakContext": 21901,
+        "total": 154171
+      },
+      "usage": {
+        "tokens": 161005,
+        "outputTokens": 6989,
+        "costUsd": 0.29329879999999997,
+        "durationMs": 61871,
+        "model": "claude-opus-5-5"
+      },
+      "toolCalls": {
+        "total": 13,
+        "byTool": {
+          "Bash": 6,
+          "Write": 6,
+          "Edit": 1
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "wallSeconds": 61.9,
+      "phases": {
+        "orient": 2,
+        "learn": 11.9,
+        "implement": 21.6,
+        "test-authoring": 9.8,
+        "verify": 2.7,
+        "debug": 5.5,
+        "think": 8.5
+      },
+      "attributedShare": 1,
+      "iterations": 2,
+      "effectiveIterations": 2,
+      "edits": 8,
+      "editRounds": 2,
+      "failures": [
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "AssertionError: expected '1' to be 'edit' // Object.is equality",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 48
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 5.5,
+          "iterations": 1,
+          "signature": "AssertionError: expected '1' to be 'edit' // Object.is equality",
+          "signatures": [
+            "AssertionError: expected '1' to be 'edit' // Object.is equality"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "resolved": true,
+          "t": 48
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "framework-source": 11.9
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "skill": {
+        "skillInvoked": false,
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
+        "library": {
+          "react-router": [
+            "dist",
+            "dist/development",
+            "package.json"
+          ]
+        },
+        "libraryBytes": 4413
+      },
+      "selfReported": [
+        "Back button limitation: when there are unsaved changes, the browser changes the URL before the app can react."
+      ],
+      "wroteTest": true,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p3-v6-react/react-25-t3",
+      "diff": {
+        "added": 190,
+        "removed": 32,
+        "files": {
+          "index.html": {
+            "added": 1,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 47,
+            "removed": 19,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 76,
+            "removed": 0,
+            "status": "new"
+          },
+          "src/EditPage.jsx": {
+            "added": 31,
+            "removed": 5,
+            "status": "modified"
+          },
+          "src/NotFound.jsx": {
+            "added": 14,
+            "removed": 0,
+            "status": "new"
+          },
+          "src/TaskList.jsx": {
+            "added": 10,
+            "removed": 3,
+            "status": "modified"
+          },
+          "src/TaskPage.jsx": {
+            "added": 11,
+            "removed": 4,
+            "status": "modified"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "testing-library"
+      ],
+      "finalReportChars": 1939
+    },
+    {
+      "trial": "react-25-t4",
+      "run": "p3-v6-react",
+      "arm": "react",
+      "task": "25-router-spa",
+      "trialNo": 4,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 9,
+        "testsTotal": 9,
+        "wallSeconds": 67,
+        "iterations": 1,
+        "editRounds": 1
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 16,
+        "output": 108,
+        "cacheRead": 127023,
+        "cacheCreation": 19079,
+        "messages": 8,
+        "peakContext": 25255,
+        "total": 146226
+      },
+      "usage": {
+        "tokens": 153647,
+        "outputTokens": 7529,
+        "costUsd": 0.32868060000000004,
+        "durationMs": 66161,
+        "model": "claude-opus-5-5"
+      },
+      "toolCalls": {
+        "total": 10,
+        "byTool": {
+          "Bash": 5,
+          "Write": 5
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "wallSeconds": 66.1,
+      "phases": {
+        "orient": 2,
+        "learn": 17.9,
+        "implement": 24.2,
+        "test-authoring": 13,
+        "verify": 1.9,
+        "think": 7.3
+      },
+      "attributedShare": 1,
+      "iterations": 1,
+      "effectiveIterations": 1,
+      "edits": 7,
+      "editRounds": 1,
+      "failures": [],
+      "episodes": [],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "framework-source": 1.5,
+        "types": 16.3
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "skill": {
+        "skillInvoked": false,
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
+        "library": {
+          "react-router": [
+            "dist",
+            "dist/development/index.d.ts",
+            "dist/development/index.mjs",
+            "package.json"
+          ]
+        },
+        "libraryBytes": 8458
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p3-v6-react/react-25-t4",
+      "diff": {
+        "added": 188,
+        "removed": 33,
+        "files": {
+          "src/App.jsx": {
+            "added": 61,
+            "removed": 21,
+            "status": "modified"
+          },
+          "src/EditPage.jsx": {
+            "added": 31,
+            "removed": 5,
+            "status": "modified"
+          },
+          "src/NotFound.jsx": {
+            "added": 12,
+            "removed": 0,
+            "status": "new"
+          },
+          "src/TaskList.jsx": {
+            "added": 8,
+            "removed": 3,
+            "status": "modified"
+          },
+          "src/TaskPage.jsx": {
+            "added": 9,
+            "removed": 4,
+            "status": "modified"
+          },
+          "src/routing.test.jsx": {
+            "added": 59,
+            "removed": 0,
+            "status": "new"
+          },
+          "src/useDocumentTitle.js": {
+            "added": 8,
+            "removed": 0,
+            "status": "new"
+          }
+        }
+      },
+      "keptTests": [
+        "src/routing.test.jsx"
+      ],
+      "testApproach": [
+        "testing-library"
+      ],
+      "finalReportChars": 1902
+    },
+    {
+      "trial": "react-25-t5",
+      "run": "p3-v6-react",
+      "arm": "react",
+      "task": "25-router-spa",
+      "trialNo": 5,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 9,
+        "testsTotal": 9,
+        "wallSeconds": 67,
+        "iterations": 1,
+        "editRounds": 1
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 12,
+        "output": 55,
+        "cacheRead": 80631,
+        "cacheCreation": 13643,
+        "messages": 6,
+        "peakContext": 19821,
+        "total": 94341
+      },
+      "usage": {
+        "tokens": 100869,
+        "outputTokens": 6583,
+        "costUsd": 0.2569782,
+        "durationMs": 66449,
+        "model": "claude-opus-5-5"
+      },
+      "toolCalls": {
+        "total": 5,
+        "byTool": {
+          "Bash": 5
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "wallSeconds": 66.4,
+      "phases": {
+        "orient": 7.6,
+        "learn": 2.7,
+        "implement": 36.5,
+        "test-authoring": 9,
+        "verify": 2.1,
+        "think": 8.5
+      },
+      "attributedShare": 1,
+      "iterations": 1,
+      "effectiveIterations": 1,
+      "edits": 2,
+      "editRounds": 1,
+      "failures": [],
+      "episodes": [],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "framework-source": 2.7
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "skill": {
+        "skillInvoked": false,
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
+        "library": {
+          "react-router": [
+            "dist"
+          ]
+        },
+        "libraryBytes": 3313
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p3-v6-react/react-25-t5",
+      "diff": {
+        "added": 189,
+        "removed": 31,
+        "files": {
+          "src/App.jsx": {
+            "added": 59,
+            "removed": 19,
+            "status": "modified"
+          },
+          "src/EditPage.jsx": {
+            "added": 32,
+            "removed": 5,
+            "status": "modified"
+          },
+          "src/TaskList.jsx": {
+            "added": 5,
+            "removed": 3,
+            "status": "modified"
+          },
+          "src/TaskPage.jsx": {
+            "added": 8,
+            "removed": 4,
+            "status": "modified"
+          },
+          "src/__tests__/app.test.jsx": {
+            "added": 77,
+            "removed": 0,
+            "status": "new"
+          },
+          "src/useDocumentTitle.js": {
+            "added": 8,
+            "removed": 0,
+            "status": "new"
+          }
+        }
+      },
+      "keptTests": [
+        "src/__tests__/app.test.jsx"
+      ],
+      "testApproach": [
+        "testing-library"
+      ],
+      "finalReportChars": 1978
+    }
+  ]
+}

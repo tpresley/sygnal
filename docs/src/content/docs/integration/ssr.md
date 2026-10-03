@@ -198,10 +198,13 @@ function renderToString(
 | `props` | `Record<string, any>` | `{}` | Props to pass to the component |
 | `context` | `Record<string, any>` | `{}` | Parent context to merge with |
 | `hydrateState` | `boolean \| string` | — | Embed state in `<script>` tag |
+| `head` | `any[]` | — | Receives each rendered component's `head` static ([HEAD driver](/guide/head/)) |
+| `cache` | `QueryCache` | — | A seeded `queryCache()`: `resources` found in it render as `'success'` with their data, others as `'loading'` ([Server rendering](/guide/resources/#server-rendering)) |
 
 ## Limitations
 
 - **Intent and Model are skipped** — SSR is render-only. Event handlers, streams, and state reducers don't run on the server.
+- **No requests** — drivers don't run, so `resources` render as `'loading'` unless the `cache` option has them; seed it in a loader with `cache.set(request, data)` and send `cache.dehydrate()` to the client ([Server rendering](/guide/resources/#server-rendering)).
 - **Refs are not populated** — No DOM exists, so `createRef()` objects remain `{ current: null }`.
 - **Lazy components** — `lazy()` wrappers render their loading placeholder. For SSR, import components directly instead.
 - **Factory components** — Components created via the `component()` factory (with `isSygnalComponent`) render a placeholder `<div>` since the view function can't be extracted from the wrapped factory.

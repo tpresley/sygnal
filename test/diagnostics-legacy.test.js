@@ -16,6 +16,7 @@ import {
 import { getCodeInfo } from '../src/extra/diagnostics/codes.js'
 import { renderComponent } from '../src/extra/testing.js'
 import { createElement } from '../src/pragma/index.js'
+import { until } from './support/wait.js'
 import collection from '../src/collection.js'
 import switchable from '../src/switchable.js'
 
@@ -165,7 +166,9 @@ describe('retrofitted call sites', () => {
     function Broken() { throw boom }
     Broken.initialState = { a: 1 }
     const t = renderComponent(Broken, { diagnostics: 'off' }) // renderComponent defaults to 'collect'
-    await settle()
+    // G-176: wait for the first render (a loaded machine renders later than a fixed 60ms; a late
+    // SYG406 then landed in the next test)
+    await until(() => expect(errorSpy.mock.calls.some(c => String(c[0]).includes('SYG406'))).toBe(true))
     const call = errorSpy.mock.calls.find(c => String(c[0]).includes('SYG406'))
     expect(call).toBeTruthy()
     expect(call[0]).toMatch(/^\[Sygnal SYG406\] Broken: View threw; rendering the error fallback\./)
@@ -179,6 +182,7 @@ describe('retrofitted call sites', () => {
     function Broken2() { throw new Error('view boom') }
     Broken2.initialState = { a: 1 }
     const t = renderComponent(Broken2)
+    await until(() => expect(getDiagnostics().some(d => d.code === 'SYG406')).toBe(true))
     await settle()
     const d = getDiagnostics().find(d => d.code === 'SYG406')
     expect(d.component).toBe('Broken2')
@@ -194,9 +198,10 @@ describe('retrofitted call sites', () => {
     Throws.initialState = { n: 1 }
     Throws.model = { BAD: () => { throw new Error('reducer boom') } }
     const t = renderComponent(Throws, { diagnostics: 'off' }) // renderComponent defaults to 'collect'
-    await settle()
+    await t.ready()
     t.simulateAction('BAD')
-    await settle()
+    await until(() => expect(errorSpy.mock.calls.some(c => String(c[0]).includes('SYG216'))).toBe(true))
+    await t.settle()
     const call = errorSpy.mock.calls.find(c => String(c[0]).includes('SYG216'))
     expect(call[0]).toMatch(/^\[Sygnal SYG216\] Throws: Reducer for '[^']+' threw; state unchanged\./)
     expect(call[1].message).toBe('reducer boom')

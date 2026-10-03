@@ -7,6 +7,7 @@ import { renderComponent } from '../../src/extra/testing.js'
 import { createElement } from '../../src/pragma/index.js'
 import { ABORT } from '../../src/component.js'
 import { set } from '../../src/extra/reducers.js'
+import { until } from '../support/wait.js'
 
 let t
 beforeEach(() => { setupChecks(); configureStrict(undefined); delete globalThis.__SYGNAL_STRICT__ })
@@ -39,7 +40,8 @@ describe('strict mode switch', () => {
   it('registers the SYG5xx codes with titles and severities', () => {
     expect(getCodeInfo('SYG501')).toMatchObject({ severity: 'warn', title: 'View uses positional arguments' })
     expect(getCodeInfo('SYG507')).toMatchObject({ severity: 'info' })
-    expect(listCodes().filter(c => /^SYG5/.test(c.code))).toHaveLength(7)
+    expect(getCodeInfo('SYG508')).toMatchObject({ severity: 'warn', title: 'select()/errors() round trip where reply actions would do' })
+    expect(listCodes().filter(c => /^SYG5/.test(c.code))).toHaveLength(8)
   })
 
   it('reports nothing when strict is off, even for every non-canonical form', async () => {
@@ -72,6 +74,7 @@ describe('SYG501 — positional view arguments', () => {
   it('reports a view that takes (props, state, context)', async () => {
     function Lane(props, state, context) { return createElement('div', null, String(state.count)) }
     t = renderComponent(make({ view: Lane }), { strict: true })
+    await until(() => expect(diagnostics('SYG501')).toHaveLength(1))   // G-176: wait for the report
     await settle(50)
     const found = diagnostics('SYG501')
     expect(found).toHaveLength(1)
@@ -91,6 +94,7 @@ describe('SYG502 — no-op STATE reducer without ABORT', () => {
   it('reports a reducer that returns the identical state object', async () => {
     const App = make({ model: { GO: (state, _d) => (state.count > 5 ? { ...state, count: 0 } : state) } })
     t = renderComponent(App, { strict: true, mockConfig: { '.go': { click: later() } } })
+    await until(() => expect(diagnostics('SYG502')).toHaveLength(1))   // G-176: wait for the report
     await settle(150)
     const found = diagnostics('SYG502')
     expect(found).toHaveLength(1)

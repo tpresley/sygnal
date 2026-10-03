@@ -1,4 +1,5 @@
 // Shared plumbing for prepare.mjs, score.mjs and verify.mjs.
+import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { spawnSync } from 'node:child_process'
@@ -42,6 +43,20 @@ export function armPaths(arm) {
 export const TS_EXTRA_DEV_DEPENDENCIES = {
   sygnal: { typescript: '^5.9.3' },
   react: { '@types/react': '^18.3.31', '@types/react-dom': '^18.3.7', typescript: '^5.9.3' },
+}
+
+/**
+ * Extra dependencies of single task starters, on top of the arm's dependency set (PLAN-3 5-6):
+ * the React arm's library for the task, as a real project would already have it installed.
+ * verify.mjs checks each starter's package.json against the set plus its task's extras, and
+ * installs the union in its shared node_modules.
+ */
+export const TASK_EXTRA_DEPENDENCIES = {
+  sygnal: {},
+  react: {
+    '24-list-detail-cache': { '@tanstack/react-query': '^5.104.1' },
+    '25-router-spa': { 'react-router': '^7.18.4' },
+  },
 }
 
 export function isTsStarter(starterDir) {
@@ -121,6 +136,29 @@ export function packSygnal(outDir, { build = false } = {}) {
   const res = npm(['pack', '--json', '--pack-destination', outDir], REPO_ROOT)
   const info = JSON.parse(res.stdout.slice(res.stdout.indexOf('[')))
   return path.join(outDir, info[0].filename)
+}
+
+/**
+ * Copy a locally packed tarball into <dir>/vendor/ under a content-hashed name
+ * and return the `file:` spec to depend on (G-179). `npm pack` always names the
+ * tarball <name>-<version>.tgz, and npm does not re-extract a `file:` tarball
+ * whose path is unchanged, so a reused install dir would keep a stale build.
+ * A new content gets a new path, which npm reinstalls; the same content keeps
+ * the same spec, so an unchanged reused dir stays a no-op install. Older
+ * vendored copies of the same package are removed.
+ */
+export function vendorTarball(tarball, dir, name) {
+  const hash = crypto.createHash('sha256').update(fs.readFileSync(tarball)).digest('hex').slice(0, 16)
+  const base = name.replace(/[@/]/g, '_')
+  const vendor = path.join(dir, 'vendor')
+  fs.mkdirSync(vendor, { recursive: true })
+  const file = `${base}-${hash}.tgz`
+  for (const f of fs.readdirSync(vendor)) {
+    if (f !== file && f.startsWith(`${base}-`) && /^[0-9a-f]{16}\.tgz$/.test(f.slice(base.length + 1))) fs.rmSync(path.join(vendor, f))
+  }
+  const dest = path.join(vendor, file)
+  if (!fs.existsSync(dest)) fs.copyFileSync(tarball, dest)
+  return `file:vendor/${file}`
 }
 
 /** Copy the arm's support files and the task's *.hidden.* tests into <dir>/__hidden__. */

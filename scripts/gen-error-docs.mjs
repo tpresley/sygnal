@@ -96,6 +96,24 @@ Todo.intent = ({ DOM }) => ({ ADD: DOM.click('.add-todo-button') })`,
     after: `<input className="title" value={state.title} />
 // intent: TITLE: DOM.input('.title').value()`,
   },
+  SYG112: {
+    before: `Quote.model = {
+  LOAD:   { HTTP: (state) => ({ url: '/api/quote', ok: 'LOADED', error: 'FIALED' }) },
+  LOADED: (state, quote) => ({ ...state, quote }),
+  FAILED: (state, { status }) => ({ ...state, status }),
+}`,
+    after: `LOAD: { HTTP: (state) => ({ url: '/api/quote', ok: 'LOADED', error: 'FAILED' }) },`,
+  },
+  SYG115: {
+    before: `Modal.intent = ({ DOM }) => ({ CLOSE: DOM.escape('document') })`,
+    after: `Modal.intent = ({ DOM }) => ({
+  CLOSE: DOM.keydown('document').key().filter(k => k === 'Escape'),
+})`,
+  },
+  SYG116: {
+    before: `SAVE: { EVENTS: (state) => event('SAVED', state.id) }   // returns a function`,
+    after: `SAVE: { EVENTS: event('SAVED', (state) => state.id) }`,
+  },
   SYG201: {
     before: `SET_NAME: (state, name) => ({ name })`,
     after: `SET_NAME: (state, name) => ({ ...state, name })`,
@@ -155,6 +173,10 @@ BOOTSTRAP:  { EFFECT: () => analytics.track('start') },`,
   SYG220: {
     before: `Profile.calculated = { name: state => state.user.name }`,
     after: `Profile.calculated = { name: state => state.user?.name ?? '' }`,
+  },
+  SYG221: {
+    before: `CITY: set('city')`,
+    after: `CITY: set((state, city) => ({ city }))`,
   },
   SYG301: {
     before: `RESULTS: DOM.input('.q').value().pipe(debounceTime(300))`,
@@ -222,6 +244,11 @@ Profile.onError = (error, { componentName }) => <p>Could not render {componentNa
     before: `import { TaskCard } from './TaskCard.jsx'   // TaskCard is a default export`,
     after: `import TaskCard from './TaskCard.jsx'`,
   },
+  SYG421: {
+    before: `<li className="task" data={{ 'task-id': task.id }}>{task.title}</li>`,
+    after: `<li className="task" data={{ taskId: task.id }}>{task.title}</li>
+// intent: DOM.click('.task').data('taskId')`,
+  },
   SYG501: {
     before: `function Lane(props, state, context) {
   return <h2>{state.title}</h2>
@@ -265,6 +292,24 @@ Lane.intent = ({ CHILD }) => ({ DELETE_TASK: CHILD.select(TaskCard) })`,
     before: `// App → <Board theme={state.theme} /> → <Lane theme={theme} /> → <Card theme={theme} />`,
     after: `App.context = { theme: (state) => state.theme }
 // Card: function Card({ state, context }) { … context.theme … }`,
+  },
+  SYG508: {
+    before: `Quote.intent = ({ DOM, HTTP }) => ({
+  LOAD:   DOM.click('.get'),
+  LOADED: HTTP.select('quote'),
+  FAILED: HTTP.errors('quote'),
+})
+Quote.model = {
+  LOAD:   { HTTP: () => ({ category: 'quote', url: '/api/quote' }) },
+  LOADED: (state, { value }) => ({ ...state, quote: value }),
+  FAILED: (state, { status }) => ({ ...state, status }),
+}`,
+    after: `Quote.intent = ({ DOM }) => ({ LOAD: DOM.click('.get') })
+Quote.model = {
+  LOAD:   { HTTP: () => ({ url: '/api/quote', ok: 'LOADED', error: 'FAILED' }) },
+  LOADED: (state, quote) => ({ ...state, quote }),        // the parsed body
+  FAILED: (state, { status }) => ({ ...state, status }),
+}`,
   },
   SYG602: {
     before: `Comp.intent = { CLICK: xs.never() }`,

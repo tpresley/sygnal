@@ -145,6 +145,9 @@ type SwitchableProps<PROPS = any> = {
 An empty interface you augment to type the EVENTS bus:
 
 ```typescript
+// src/events.ts
+export {}   // keep: without it the block below replaces the 'sygnal' types instead of adding to them
+
 declare module 'sygnal' {
   interface SygnalEvents {
     DELETE_LANE: { laneId: string }
@@ -231,6 +234,8 @@ type Diagnostic = {
 ```
 
 ### SygnalDevTools
+
+The [DevTools](/integration/debugging/#devtools-extension) bridge, installed by the dev-only `sygnal/devtools` entry (the Vite plugin loads it in dev). `getDevTools()` returns `SygnalDevTools | undefined`.
 
 ```typescript
 interface SygnalDevTools {
@@ -472,6 +477,7 @@ import { renderComponent, renderToString } from 'sygnal'
 // Diagnostics
 import { getDiagnostics, clearDiagnostics, onDiagnostic, getDevTools } from 'sygnal'
 import { inspect, configureStrict, checkEventBus } from 'sygnal/diagnostics'
+import 'sygnal/devtools'   // dev only: installs the DevTools bridge (automatic with sygnal/vite)
 
 // PWA
 import { makeServiceWorkerDriver, onlineStatus$, createInstallPrompt } from 'sygnal'

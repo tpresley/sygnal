@@ -5,14 +5,15 @@ import {isEqualNamespace} from './utils';
 import SymbolTree from './SymbolTree';
 
 export class IsolateModule {
-  private namespaceTree = new SymbolTree<Element, Scope>(x => x.scope);
-  private namespaceByElement: Map<Element, Array<Scope>>;
+  // G-144: a scope can own several root elements (a fragment-rooted component)
+  private namespaceTree = new SymbolTree<Set<Element>, Scope>(x => x.scope);
+  private namespaceByElement: WeakMap<Element, Array<Scope>>;
   private eventDelegator: EventDelegator | undefined;
 
   private vnodesBeingRemoved: Array<VNode>;
 
   constructor() {
-    this.namespaceByElement = new Map<Element, Array<Scope>>();
+    this.namespaceByElement = new WeakMap<Element, Array<Scope>>();
     this.vnodesBeingRemoved = [];
   }
 
@@ -22,22 +23,22 @@ export class IsolateModule {
 
   private insertElement(namespace: Array<Scope>, el: Element): void {
     this.namespaceByElement.set(el, namespace);
-    this.namespaceTree.set(namespace, el);
+    this.namespaceTree.get(namespace, () => new Set())!.add(el);
   }
 
+  // the element keeps its scope (a leaving element under a Transition still is the
+  // child's); only the scope's set of root elements forgets it
   private removeElement(elm: Element): void {
-    this.namespaceByElement.delete(elm);
-    const namespace = this.getNamespace(elm);
-    if (namespace) {
-      this.namespaceTree.delete(namespace);
+    const namespace = this.namespaceByElement.get(elm);
+    const els = namespace && this.namespaceTree.get(namespace);
+    if (els) {
+      els.delete(elm);
     }
   }
 
-  public getElement(
-    namespace: Array<Scope>,
-    max?: number
-  ): Element | undefined {
-    return this.namespaceTree.get(namespace, undefined, max);
+  public getElements(namespace: Array<Scope>): Array<Element> {
+    const els = this.namespaceTree.get(namespace);
+    return els ? Array.from(els) : [];
   }
 
   public getRootElement(elm: Element): Element | undefined {
@@ -106,17 +107,12 @@ export class IsolateModule {
         const vnodesBeingRemoved = self.vnodesBeingRemoved;
         for (let i = vnodesBeingRemoved.length - 1; i >= 0; i--) {
           const vnode = vnodesBeingRemoved[i];
-          const namespace =
-            vnode.data !== undefined
-              ? (vnode.data as any).isolation
-              : undefined;
-          if (namespace !== undefined) {
-            self.removeElement(namespace);
+          const elm = vnode.elm as Element;
+          // G-144: a removed root element is no longer one of its scope's roots
+          if (vnode.data !== undefined && Array.isArray((vnode.data as any).isolate)) {
+            self.removeElement(elm);
           }
-          (self.eventDelegator as EventDelegator).removeElement(
-            vnode.elm as Element,
-            namespace
-          );
+          (self.eventDelegator as EventDelegator).removeElement(elm);
         }
         self.vnodesBeingRemoved = [];
       },

@@ -205,8 +205,13 @@ type AnySinkConstant =
   | readonly unknown[]
   | { [key: string]: unknown; apply?: never; call?: never; bind?: never }
 
+/**
+ * An EFFECT handler. It may be async: a returned promise is expected (no SYG219) and its
+ * rejection is reported as SYG214. `next()` after the component is disposed does nothing.
+ * `props.signal` aborts on DISPOSE (undefined where AbortController is missing).
+ */
 type EffectReducer<STATE, PROPS, ACTIONS, DATA, CALCULATED, CONTEXT = {}> =
-  | ((state: STATE & CALCULATED, args: DATA, next: NextFunction<ACTIONS>, props: ReducerExtras<PROPS, CONTEXT>) => void)
+  | ((state: STATE & CALCULATED, args: DATA, next: NextFunction<ACTIONS>, props: ReducerExtras<PROPS, CONTEXT> & { signal?: AbortSignal }) => void)
 
 type DefaultSinks<STATE, PROPS, ACTIONS, DATA, CALCULATED, SINK_RETURNS extends NonStateSinkReturns = {}, CONTEXT = {}> = {
   STATE?: SinkValue<STATE, PROPS, ACTIONS, DATA, STATE, CALCULATED, CONTEXT>;
@@ -216,6 +221,7 @@ type DefaultSinks<STATE, PROPS, ACTIONS, DATA, CALCULATED, SINK_RETURNS extends 
   EFFECT?: EffectReducer<STATE, PROPS, ACTIONS, DATA, CALCULATED, CONTEXT>;
 }
 
+/** Keys a type declares by name (index signatures left out). */
 type CustomDriverSinks<STATE, PROPS, DRIVERS, ACTIONS, ACTION_ENTRY, CALCULATED, CONTEXT = {}> = keyof DRIVERS extends never
   ? {
       [driver: string]: NonStateSinkValue<STATE, PROPS, ACTIONS, any, any, CALCULATED, CONTEXT>
@@ -242,7 +248,6 @@ type ModelEntry<STATE, PROPS, DRIVERS, ACTIONS, ACTION_ENTRY, CALCULATED, SINK_R
 type WithDefaultActions<STATE, ACTIONS> = ACTIONS & {
   BOOTSTRAP?: never;
   INITIALIZE?: STATE;
-  HYDRATE?: any;
   DISPOSE?: never;
 }
 
@@ -432,10 +437,10 @@ type IntentReturnToActions<RETURN> = {
  *   Counter.model  = { INC: (state, n) => ..., NAME: (state, name) => ... }  // n: number, name: string
  *
  * With it, model keys not returned by the intent are type errors (the built-ins BOOTSTRAP,
- * INITIALIZE, HYDRATE and DISPOSE stay allowed). Actions reached only through `next()` are
- * added explicitly:
+ * INITIALIZE and DISPOSE stay allowed). Actions reached only through `next()` or as reply actions
+ * of a request (`ok: 'LOADED'`, `error: 'FAILED'`) are added explicitly, typed by their data:
  *
- *   type Actions = ActionsOf<typeof intent> & { SAVED: { id: string } }
+ *   type Actions = ActionsOf<typeof intent> & { SAVED: { id: string }; LOADED: Quote; FAILED: FetchFailure }
  */
 export type ActionsOf<INTENT> = INTENT extends (...args: any[]) => infer RETURN
   ? IntentReturnToActions<RETURN>
@@ -509,7 +514,6 @@ export type Component<
   label?: string;
   DOMSourceName?: string;
   stateSourceName?: string;
-  requestSourceName?: string;
   model?: ComponentModel<STATE, PROPS, FixDrivers<DRIVERS>, ACTIONS, CALCULATED, SINK_RETURNS, CONTEXT>;
   intent?: ComponentIntent<STATE, FixDrivers<DRIVERS>, ACTIONS, CALCULATED>;
   initialState?: STATE;
@@ -530,6 +534,47 @@ export type Component<
   components?: { [name: string]: Component };
   onError?: (error: Error, info: { componentName: string }) => any;
   debug?: boolean;
+  /**
+   * WebSocket / server-sent events connections derived from state (`makeSocketDriver()`):
+   * `Chat.connections = (state) => ({ room: state.room && { socket: '/ws/rooms/' + state.room, message: 'RECEIVED' } })`.
+   * Recomputed from the current state (after the action's reducer) and sent to the socket
+   * driver's sink whenever the result changes structurally (once at startup too): a new name
+   * opens, a removed or falsy one closes, a changed URL reconnects. Events arrive as the named
+   * actions on this instance; send with `{ to: 'room', json }` from a model entry (a connection
+   * the same action opens or changes is declared first). Dispose closes them.
+   */
+  connections?: (state: STATE & CALCULATED) => Connections;
+  /**
+   * PLAN-3: declarative reads (`makeFetchDriver()`). Each entry derives a
+   * request from state; falsy means idle:
+   * `Quote.resources = { quote: (state) => state.id && '/api/quotes/' + state.id }`.
+   * `state.quote` is a `Resource`: `{ status: 'idle' | 'loading' | 'success' | 'error', data,
+   * error, refreshing }`, written by the built-in RESOURCE action (idle until the first request).
+   * A changed request is fetched with latest semantics (the stale one aborted, its reply never
+   * shown): 'loading' with no data (unless `keepPrevious: true`). A refetch of the same request
+   * (`{ refresh: 'quote' }` on the HTTP sink, `{ invalidate }`, focus, `refetchEvery`) keeps
+   * `data`, `error` and `status` and sets `refreshing: true` (D78). `ok` / `error` on the
+   * request also dispatch those actions after the write.
+   */
+  resources?: { [name: string]: (state: STATE & CALCULATED) => ResourceRequest | false | null | undefined | '' | 0 };
+  /**
+   * The router's reply action (`makeRouter()`): `App.route = 'ROUTE'`. The driver sends this
+   * instance ROUTE with the `Route` (`{ name, params, query, hash, path }`) once declared and on
+   * every change; the reducer stores it (`ROUTE: (state, route) => ({ ...state, route })`).
+   * The first (outermost) declarer gets each route first and may redirect from that entry
+   * (`ROUTER: { to: 'login', replace: true }`); the others get it a task later, only if no
+   * redirect happened. A function of state may return a falsy value to stop listening. Works
+   * with or without a model; a root needs `initialState` (SYG132), seeded with `router.current()`.
+   */
+  route?: string | ((state: STATE & CALCULATED) => string | false | null | undefined);
+  /**
+   * Document head values for `makeHeadDriver()`, derived from state: `App.head = (state) =>
+   * ({ title: state.task?.title })`. Recomputed when the result changes; removed on dispose.
+   * A later-mounted component's `title` wins; `meta` keys and `link`s merge. Also collected by
+   * `renderToString(App, { head: list })` for SSR (`renderHead(list)`). Like every declaration
+   * static, it is sent with or without a model; a root needs `initialState` (SYG132).
+   */
+  head?: (state: STATE & CALCULATED) => HeadValue | false | null | undefined;
 }
 
 /**
@@ -587,8 +632,14 @@ export type CollectionProps<PROPS = any, STATE = any> = {
 export type SwitchableProps<PROPS = any> = {
   of: Record<string, AnyComponent>;
   current: string;
+  /**
+   * The current page's instance key. When it changes, the current page is disposed and created
+   * again (fresh state); a hidden page shown with another key than it last had is re-created on
+   * show. Switching `current` alone keeps pages alive. Router recipe: `instance={state.route.path}`
+   */
+  instance?: string | number;
   state?: string | Lense;
-} & Omit<PROPS, 'of' | 'state' | 'current'>
+} & Omit<PROPS, 'of' | 'state' | 'current' | 'instance'>
 
 export type PortalProps = {
   target: string;
@@ -694,8 +745,9 @@ export type {
 } from './extra/diagnostics/checks/public'
 
 /**
- * The Sygnal DevTools bridge (also `window.__SYGNAL_DEVTOOLS__` once run() has
- * initialized it in a browser). Only the stable, documented members are typed.
+ * The Sygnal DevTools bridge (also `window.__SYGNAL_DEVTOOLS__`), installed in a
+ * browser by the dev-only 'sygnal/devtools' entry, which sygnal/vite injects in dev.
+ * Only the stable, documented members are typed.
  */
 export interface SygnalDevTools {
   /** true while the browser extension is connected */
@@ -709,7 +761,7 @@ export interface SygnalDevTools {
   inspect?(): InspectGraph
 }
 
-/** The DevTools bridge singleton. */
+/** The installed DevTools bridge; undefined unless 'sygnal/devtools' was loaded (always in production builds). */
 export function getDevTools(): SygnalDevTools | undefined
 
 export type SygnalSinks<STATE = any, DRIVERS = {}> = {
@@ -774,9 +826,11 @@ export function exactState<STATE>(): <ACTUAL extends STATE>(state: ExactShape<ST
  * Dynamic form — function receives (state, data, next, props) and
  * returns the partial update to merge:
  *   `set((state, title) => ({ title }))`
+ *
+ * Not a field name: `set('title')` is a type error (and SYG221 in the dev checks).
  */
 export function set<S = any>(
-  partial: Partial<S> | ((state: S, data: any, next: Function, props: any) => Partial<S>)
+  partial: (Partial<S> & object) | ((state: S, data: any, next: Function, props: any) => Partial<S>)
 ): (state: S, data: any, next: Function, props: any) => S
 
 /**
@@ -954,7 +1008,6 @@ export type ComponentFactoryOptions<
   storeCalculatedInState?: boolean;
   DOMSourceName?: string;
   stateSourceName?: string;
-  requestSourceName?: string;
   debug?: boolean;
 }
 
@@ -994,13 +1047,44 @@ export function lazy<PROPS = any>(
   loadFn: () => Promise<{ default: Component<any, PROPS> } | Component<any, PROPS>>
 ): LazyComponent<PROPS>
 
+/**
+ * The reply-action keys of a request to makeFetchDriver or driverFromAsync: the
+ * outcome becomes an action on exactly the component instance that sent the request, instead
+ * of reaching `select()` / `errors()`.
+ *
+ *   LOAD:    { HTTP: (state) => ({ url: `/api/q/${state.id}`, ok: 'LOADED', error: 'FAILED' }) },
+ *   LOADED:  (state, quote) => ({ ...state, quote }),          // data: the parsed body
+ *   FAILED:  (state, { status }) => ({ ...state, status }),     // data: { error, status?, body?, request }
+ *
+ * The action's data type is not inferred from the request: type it in the component's ACTIONS
+ * (`{ LOADED: Quote; FAILED: FetchFailure }`). `ok` / `error` are plain strings in the types (D70);
+ * a name with no model entry is SYG112 (sygnal-check and the dev entry).
+ */
+export type ReplyRequest = {
+  /** Action that receives the success value (fetch: the parsed body; driverFromAsync: the resolved value) */
+  ok?: string;
+  /** Action that receives the failure (`{ error, request }`, plus `status` / `body` for fetch) */
+  error?: string;
+  /** Not allowed: a `then` key makes the request a thenable (SYG610, not sent). Use `ok` */
+  then?: never;
+  /** Not allowed (SYG610, not sent). Use `error` */
+  catch?: never;
+}
+
+/**
+ * A request to a driverFromAsync() sink: your own fields (`value`, the args, ...) plus the
+ * reply-action keys `ok` / `error`. Type the driver's sink with it: `{ QUOTE: { source:
+ * AsyncDriverFromFunction; sink: AsyncRequest<{ value: number }> } }`.
+ */
+export type AsyncRequest<FIELDS = { [field: string]: any }> = FIELDS & ReplyRequest
+
 /** Payload on `errors()` of a driverFromAsync source when a request fails */
 export type AsyncDriverError<INCOMING = any> = {
   /** The rejection reason (or what `post` threw) */
   error: any;
   /** The request that failed */
   request: INCOMING;
-  /** The request's selector property (default 'category') is copied here */
+  /** The request's selector property (default 'category') is copied here (not for an `error` reply action) */
   [selectorProperty: string]: any;
 }
 
@@ -1049,6 +1133,10 @@ export type FetchInit = {
  * Other fetch() options go under `init` (`init: { credentials: 'include' }`). Any other key is
  * the app's own: not sent, but returned on the reply's `request`.
  *
+ * Reply actions (canonical): `{ url, ok: 'LOADED', error: 'FAILED' }` delivers the parsed body as
+ * LOADED, a failure as FAILED (`FetchFailure`), to exactly the sending instance (see
+ * ReplyRequest). Without `ok` / `error` the reply goes to `select()` / `errors()`.
+ *
  * Isolation: the replies, `latest` and `abort` of a component instance are its own (and its
  * descendants'): two instances, or Collection items, using the same category never see or
  * cancel each other's requests. The root component sees every reply.
@@ -1056,7 +1144,16 @@ export type FetchInit = {
 export type FetchRequest = string | {
   /** Request URL (prefixed with the driver's `baseUrl`) */
   url: string;
-  /** Tag read back with `select(category)` / `errors(category)`; also the `latest` / `abort` group */
+  /** Reply action that receives the parsed body of a 2xx response (the Response with `parse: 'response'`) */
+  ok?: string;
+  /** Reply action that receives a failure, `{ error, status?, body?, request }` (FetchFailure) */
+  error?: string;
+  /**
+   * Reply actions: the `latest` / `abort` group (default: the `ok` action, else `error`). Requests with
+   * the same key from the same instance supersede each other under `latest: true`
+   */
+  key?: string;
+  /** Without reply actions: tag read back with `select(category)` / `errors(category)`; also the `latest` / `abort` group */
   category?: string;
   /** Default: 'POST' when `json` or `body` is set, else 'GET' */
   method?: string;
@@ -1086,15 +1183,190 @@ export type FetchRequest = string | {
   parse?: 'auto' | 'json' | 'text' | 'response' | ((response: Response) => any);
   /** Other fetch() options (merged over the driver's `init`) */
   init?: FetchInit;
+  /** Not allowed: a `then` key makes the request a thenable (SYG610, not sent). Use `ok` */
+  then?: never;
+  /** Not allowed (SYG610, not sent). Use `error` */
+  catch?: never;
+  /**
+   * PLAN-3 5-3 (D79): cache this request's reply in the driver's `queryCache()` (any method; a
+   * POST is SYG630; without a queryCache nothing is cached, SYG635). `false`: never cached (a
+   * resource under `makeFetchDriver({ cache: queryCache() })` too). A request with reply actions
+   * is otherwise one-send-one-request
+   */
+  cache?: boolean;
+  /** How long a cached reply stays fresh, in ms (served without a fetch). Implies `cache` */
+  staleTime?: number;
+  /** Invalidation tags of this request (and its cache entry): `{ invalidate: 'quotes' }` matches `tags: ['quotes']` */
+  tags?: string[];
+  /**
+   * After a 2xx reply: invalidate these tags / URL prefixes / the predicate's matches (like
+   * `{ invalidate }`). A read of them already in flight is aborted, so an older reply never lands
+   */
+  invalidates?: FetchInvalidate;
+  /**
+   * PLAN-3 6-A (G-184; React Query's setQueryData): after a 2xx reply, write it into this
+   * component's resources with these names (and their `queryCache()` entries) before the `ok`
+   * action and before `invalidates`: `updates: 'item'` (the reply becomes `state.item.data`), or
+   * `{ items: (list, reply) => newList }` to derive it. A read of them in flight is aborted;
+   * other mounted resources on the same cache entry show it too. Resources without a request
+   * (idle) are skipped. The `ok` action still gets the reply
+   */
+  updates?: string | string[] | Record<string, true | ((data: any, reply: any) => any)>;
+  /**
+   * Retries (default 0): a count, or a count with the backoff of makeSocketDriver's reconnect
+   * (`{ count: 3, delayMs: 500, maxDelayMs: 10000, jitter: 0.2 }`; count defaults to 3).
+   * Network errors, 408, 429 (a Retry-After in seconds wins) and 5xx are retried, never other
+   * 4xx; the failure arrives once, after the last attempt, with `attempts`
+   */
+  retry?: number | FetchRetry;
+  /**
+   * A Standard Schema (zod, valibot, arktype, ...) the parsed 2xx body must pass; the reply is the
+   * schema's (possibly transformed) value. A failure is an error with `issues`
+   */
+  validate?: StandardSchemaLike;
   /** Your own fields (an id, ...): not sent, returned on the reply's `request` */
   [appData: string]: any;
 } | {
   /**
-   * Cancel: `{ category: 'search', abort: true }` aborts this component's requests in flight in
-   * that category (all of them without a category). Nothing is delivered for a cancelled request.
+   * Cancel. Reply actions: `{ abort: 'LOADED' }` aborts this instance's requests in flight whose key
+   * (`key`, else `ok`, else `error`) is 'LOADED'; `{ abort: true, key: 'search' }` does the same
+   * by key. Without reply actions: `{ category: 'search', abort: true }` aborts this component's requests in
+   * that category (all of them, reply-action ones included, without a category or key). Nothing is
+   * delivered for a cancelled request.
    */
-  abort: true;
+  abort: true | string;
+  key?: string;
   category?: string;
+} | {
+  /** PLAN-3 3-A: refetch this instance's resource(s) by name, keeping data (nothing while idle) */
+  refresh: string | string[];
+} | {
+  /**
+   * PLAN-3 5-3 (D80), from any component: matching cache entries go stale and matching mounted
+   * resources refetch, keeping data. With or without the cache
+   */
+  invalidate: FetchInvalidate;
+} | {
+  /**
+   * PLAN-3 5-5 (H-7): fetch this request into the driver's `queryCache()` without a reply (a
+   * fresh entry or the same fetch in flight: nothing new), so a resource that reads it later
+   * renders 'success' at once. Without a queryCache it does nothing (SYG635)
+   */
+  prefetch: string | { url: string; [field: string]: any };
+}
+
+/**
+ * What `{ invalidate }` / `invalidates` match: a tag (`tags: ['quotes']` on the request), a URL
+ * prefix of the request's `url` (a string starting with '/'), several of them, or a predicate
+ */
+export type FetchInvalidate = string | string[] | ((request: any) => boolean);
+
+/** Retry policy of a makeFetchDriver() request: the reconnect backoff of makeSocketDriver plus a count */
+export type FetchRetry = SocketReconnect & {
+  /** Retries after the first attempt. Default 3 in this object form */
+  count?: number;
+}
+
+/** Any Standard Schema (https://standardschema.dev): an object with `~standard.validate` */
+export type StandardSchemaLike = {
+  readonly '~standard': {
+    validate: (value: unknown) => {value?: any; issues?: ReadonlyArray<{message: string; path?: ReadonlyArray<any>}>} | Promise<{value?: any; issues?: ReadonlyArray<{message: string; path?: ReadonlyArray<any>}>}>;
+    [key: string]: any;
+  };
+}
+
+/** PLAN-3 5-3 (D79), D88: `queryCache(options)` */
+export type FetchCacheOptions = {
+  /** How long a reply stays fresh, in ms: a fresh entry is served without a fetch. Default 0 (always refetch, showing the cached data meanwhile) */
+  staleTime?: number;
+  /** How long an entry no resource uses is kept, in ms. Default 300000 (5 min); Infinity keeps it */
+  gcTime?: number;
+  /** Refetch stale mounted resources when the window regains focus / the page becomes visible. Default true */
+  refetchOnFocus?: boolean;
+  /** Refetch stale mounted resources when the browser comes back online. Default true */
+  refetchOnReconnect?: boolean;
+  /** PLAN-3 5-5 (H-7): entries to start with, from `dehydrate()` (SSR seeding) */
+  initial?: QueryCacheSnapshot;
+}
+
+/** PLAN-3 5-5 (H-7): one entry of a `dehydrate()` snapshot (JSON-safe when `data` is) */
+export type QueryCacheSnapshotEntry = {
+  /** method, URL as written (query sorted), body and parse: `'GET /api/quotes/1'` */
+  key: string;
+  /** the parsed (and validated) body */
+  data: any;
+  /** when it was fetched (ms since the epoch): it is fresh until `updatedAt + staleTime` */
+  updatedAt: number;
+  /** the request's invalidation tags */
+  tags?: string[];
+}
+export type QueryCacheSnapshot = QueryCacheSnapshotEntry[];
+
+/** PLAN-3 D88: the query cache of a makeFetchDriver (`makeFetchDriver({ cache: queryCache() })`) */
+export interface QueryCache {
+  /** the entries with data, as a JSON-safe snapshot (serialise it into the page) */
+  dehydrate(): QueryCacheSnapshot;
+  /** writes a snapshot's entries (an entry newer than the snapshot's is kept) */
+  hydrate(snapshot: QueryCacheSnapshot | null | undefined): void;
+  /** writes one entry, keyed like the request (a loader on the server: `cache.set('/api/quotes/1', quote)`) */
+  set(request: ResourceRequest, data: any): void;
+  /** the driver given this cache fetches the request into it, without a reply (like the `{ prefetch }` command) */
+  prefetch(request: ResourceRequest): void;
+}
+
+/**
+ * PLAN-3 D88: the opt-in query cache, passed to `makeFetchDriver({ cache: queryCache({ staleTime: 30000 }) })`.
+ * Resources' GET/HEAD replies are cached (stale-while-revalidate: cached data shows at once,
+ * `refreshing` while it refetches; an entry younger than `staleTime` is served without a fetch),
+ * identical cacheable requests in flight share one fetch, focus / reconnect refetch stale
+ * mounted resources, and unused entries are dropped after `gcTime`. SSR seeding:
+ * `renderToString(App, { cache })` renders cached resources as 'success', `dehydrate()` /
+ * `queryCache({ initial })` carry the entries to the client. One cache per driver
+ */
+export function queryCache(options?: FetchCacheOptions): QueryCache
+
+/** PLAN-3: a request a `resources` entry derives (a URL, or a request without `abort`) */
+export type ResourceRequest = string | (Exclude<FetchRequest, string | { abort: true | string } | { refresh: string | string[] }> & {
+  /**
+   * Keep this resource live while its component is in a hidden Switchable page (default: a
+   * hidden page's resources are paused, keeping their last result, and refetched when it is shown)
+   */
+  background?: boolean;
+  /** D78: on a new request (key change), keep the previous `data` (status unchanged, `refreshing: true`) instead of 'loading' (pagination) */
+  keepPrevious?: boolean;
+  /** Refetch every this many ms after each result (skipped while the document is hidden) */
+  refetchEvery?: number;
+})
+
+/**
+ * PLAN-3: the state slot of a resource (`state.quote`), written by the built-in RESOURCE action.
+ * `data` is the parsed (validated) body; `error` is the Error (`error.status` / `error.body` for
+ * a non-2xx response, `error.issues` for a validation failure). D78: a refetch of the same
+ * request keeps `data` and `error` with `refreshing: true`; a failed refetch keeps `data`.
+ */
+export type Resource<DATA = any, ERROR = any> =
+  | { status: 'idle' | 'loading'; data?: undefined; error?: undefined; refreshing?: undefined }
+  | { status: 'success'; data: DATA; error?: undefined; refreshing?: boolean }
+  | { status: 'error'; data?: DATA; error: ERROR; refreshing?: boolean }
+
+/** The data of the `error` reply action of a makeFetchDriver() request (`error: 'FAILED'`) */
+export type FetchFailure<REQUEST = any> = {
+  /**
+   * 'HTTP 404 ...' for a non-2xx status (with `.status` and `.body`), the network error
+   * (TypeError), the body parse error, a TimeoutError (`.name === 'TimeoutError'`), or
+   * "fetch is not available"
+   */
+  error: any;
+  /** HTTP status, for a non-2xx response (undefined for a network error or timeout) */
+  status?: number;
+  /** The non-2xx response's body, parsed like 'auto' */
+  body?: any;
+  /** The request as the app sent it */
+  request: REQUEST;
+  /** With `retry`: how many attempts were made */
+  attempts?: number;
+  /** With `validate`: the schema's issues (the body didn't validate) */
+  issues?: ReadonlyArray<{message: string; path?: ReadonlyArray<any>}>;
 }
 
 /** A successful (2xx) response on `select()` of a makeFetchDriver() source */
@@ -1150,10 +1422,22 @@ export type FetchDriverOptions = {
   parse?: 'auto' | 'json' | 'text' | 'response' | ((response: Response) => any);
   /** The fetch implementation. Default: `globalThis.fetch`, read at each request (so test stubs apply) */
   fetch?: (input: string, init?: any) => Promise<any>;
+  /**
+   * PLAN-3 D88: the query cache, off by default: `cache: queryCache({ staleTime })`. On:
+   * resources' GET/HEAD replies are cached (stale-while-revalidate: cached data shows at once,
+   * `refreshing` while it refetches), identical cacheable requests in flight share one fetch,
+   * and focus / reconnect refetch stale mounted resources
+   */
+  cache?: QueryCache;
+  /** Default `retry` for GET/HEAD requests (a request's own `retry` applies to any method). Default 0 */
+  retry?: number | FetchRetry;
 }
 
 /**
- * An HTTP driver over `fetch`: `run(App, { HTTP: makeFetchDriver() })`. The model sends a
+ * An HTTP driver over `fetch`: `run(App, { HTTP: makeFetchDriver() })`. Canonical: a request with reply actions
+ * (`HTTP: (state) => ({ url: '/api/quote', ok: 'LOADED', error: 'FAILED' })`) whose
+ * outcome arrives as the LOADED (parsed body) or FAILED (FetchFailure) action of the sending
+ * instance. Without reply actions: the model sends a
  * request (`HTTP: (state) => ({ category: 'quote', url: '/api/quote' })`); the intent reads
  * `HTTP.select('quote')` (`{ category, value, status, request }`) and `HTTP.errors('quote')`
  * (`{ error, category, request, status?, body? }`). Non-2xx statuses, network errors and
@@ -1162,7 +1446,260 @@ export type FetchDriverOptions = {
  * During SSR no requests are made (server rendering runs views only). In renderComponent
  * tests, pass no driver and answer with `t.respond('HTTP', value)` / `t.fail('HTTP', 404)`.
  */
-export function makeFetchDriver(options?: FetchDriverOptions): (request$: Stream<any>) => FetchSource
+export function makeFetchDriver(options?: FetchDriverOptions): ((request$: Stream<any>) => FetchSource) & { cache?: QueryCache }
+
+/**
+ * Reconnect policy of a makeSocketDriver() connection. Delay of retry n (from 0):
+ * `min(maxDelayMs, delayMs * 2^n)`, varied by ±`jitter` (a fraction). A fixed 1 s retry:
+ * `{ delayMs: 1000, maxDelayMs: 1000, jitter: false }`. Defaults: 500 ms, 10 s, 0.2.
+ */
+export type SocketReconnect = {
+  delayMs?: number;
+  maxDelayMs?: number;
+  /** false (or 0): no jitter; true: 0.2; a number: that fraction (0.2 = ±20%) */
+  jitter?: boolean | number;
+}
+
+/** The reply actions of a connection. Each is optional; an event without one goes to `select()` */
+export type SocketActions = {
+  /** Action for each incoming message: the JSON-parsed frame when it parses, else the raw data (binary as is) */
+  message?: string;
+  /** Action when the connection opens, every time: `SocketOpen` (`{ reconnected }`) */
+  open?: string;
+  /**
+   * Action when the connection closes or fails to open without the app closing it (never for a
+   * connection the app removed or replaced, or on dispose): `SocketClose`
+   */
+  close?: string;
+  /** Action on an error event: `{ error }` (`SocketError`) */
+  error?: string;
+  /**
+   * Reconnect after a drop (default on, with jittered backoff; the driver's `reconnect` option
+   * is the default). `false`: a drop closes the connection for good. SSE: EventSource retries
+   * transient drops itself; this applies when it gives up
+   */
+  reconnect?: false | SocketReconnect;
+  /** Default true: connections to the same URL (and protocols) share one socket. false: a socket of its own */
+  share?: boolean;
+  /**
+   * Keep this connection open while its component is in a hidden Switchable page (default: a
+   * hidden page's connections close, and open again as new ones when it is shown)
+   */
+  background?: boolean;
+  /** Not allowed: a `then` key makes the value a thenable (SYG610). Use `message` / `open` */
+  then?: never;
+  catch?: never;
+}
+
+/** A WebSocket connection of `{ connections }` */
+export type SocketConnection = SocketActions & {
+  /** URL or path (`/ws/rooms/general`: resolved against the page, ws: for http:, wss: for https:), after `baseUrl` */
+  socket: string;
+  /** WebSocket subprotocols (part of the connection's identity: a change reconnects) */
+  protocols?: string | string[];
+}
+
+/** A server-sent events (EventSource) connection of `{ connections }`: read-only */
+export type SseConnection = SocketActions & {
+  /** URL (after `baseUrl`) */
+  sse: string;
+  withCredentials?: boolean;
+  /** Named events → actions: `{ 'price-update': 'PRICE' }` (data JSON-parsed when it parses) */
+  events?: Record<string, string>;
+}
+
+/**
+ * A value sent to a makeSocketDriver() sink: the sender's whole set of connections (a falsy
+ * entry or a missing name closes that connection), or a message to send on one of them.
+ */
+/** A component's whole set of connections: a falsy entry (`state.room && { ... }`) means closed */
+export type Connections = Record<string, SocketConnection | SseConnection | false | null | undefined | '' | 0>
+
+export type SocketRequest =
+  | { connections: Connections }
+  | {
+      /** The name of one of this instance's own WebSocket connections (else SYG611, not sent) */
+      to: string;
+      /** Sent as JSON.stringify(json) */
+      json?: any;
+      /** Sent as is */
+      text?: string;
+      /** Sent as is (ArrayBuffer, Blob, typed array) */
+      binary?: any;
+    }
+
+/** Data of a connection's `open` action */
+export type SocketOpen = { reconnected: boolean }
+/** Data of a connection's `close` action (SSE: no code / reason) */
+export type SocketClose = { code?: number; reason?: string; willReconnect: boolean }
+/** Data of a connection's `error` action: the error Event (or the constructor's exception) */
+export type SocketError = { error: any }
+
+/** An event without a reply action, on `select(name?)` */
+export type SocketEvent<DATA = any> =
+  | { name: string; type: 'message'; data: DATA }
+  | { name: string; type: 'open'; data: SocketOpen }
+  | { name: string; type: 'close'; data: SocketClose }
+  | { name: string; type: 'error'; data: SocketError }
+
+export type SocketSource = {
+  /** Events of connections without an action name for that event type, for one connection name or all */
+  select: (name?: string) => Stream<SocketEvent>
+}
+
+export type SocketDriverOptions = {
+  /** Prefix for relative URLs, e.g. '/api' or 'https://api.example.com' */
+  baseUrl?: string;
+  /** Default reconnect policy (a connection's `reconnect` wins, merged over it). Default on */
+  reconnect?: false | SocketReconnect;
+  /** Messages kept per connection while it (re)connects; the oldest are dropped. Default 100 */
+  queueLimit?: number;
+  /** The WebSocket class. Default: `globalThis.WebSocket`, read at connect time (so test stubs apply) */
+  WebSocket?: any;
+  /** The EventSource class. Default: `globalThis.EventSource`, read at connect time */
+  EventSource?: any;
+}
+
+/**
+ * WebSocket and server-sent events: `run(App, { WS: makeSocketDriver() })`. A component sends
+ * `{ connections: { room: { socket: '/ws/rooms/general', message: 'RECEIVED', open: 'ONLINE',
+ * close: 'DROPPED' } } }` to declare its connections (diffed by name: new ones open, removed or
+ * falsy ones close, a changed URL reconnects) and `{ to: 'room', json: { text } }` to send.
+ * Events arrive as the named actions on exactly that instance. Drops reconnect with backoff;
+ * connections to the same URL are shared; a disposed instance's connections close. No
+ * connections during SSR.
+ */
+export function makeSocketDriver(options?: SocketDriverOptions): (sink$: Stream<any>) => SocketSource
+
+/** The names of the `:params` in a route pattern: ParamNames<'/tasks/:id'> = 'id' */
+export type ParamNames<P extends string> =
+  P extends `${string}:${infer K}/${infer Rest}` ? K | ParamNames<`/${Rest}`> :
+  P extends `${string}:${infer K}` ? K : never;
+
+/** Route names of a route table, without the `'*'` not-found route (`string` when not literal) */
+export type RouteName<R extends Record<string, string>> =
+  string extends keyof R ? string : { [K in keyof R & string]: R[K] extends '*' ? never : K }[keyof R & string];
+
+/** href()'s params for one pattern: required when it has `:params`, none otherwise */
+export type RouteParamsArg<P extends string> =
+  string extends P ? [params?: Record<string, string | number>] :
+  [ParamNames<P>] extends [never] ? [params?: Record<string, never>] :
+  [params: { [K in ParamNames<P>]: string | number }];
+
+export type RouteQuery = Record<string, string | number | boolean | null | undefined>;
+
+/** The route value the `route` reply action carries */
+export interface Route<NAME extends string = string> {
+  /** the matched route's name (the `'*'` route's name when nothing matched; null without one) */
+  name: NAME | null;
+  /** decoded `:params` */
+  params: Record<string, string>;
+  /** the query string as an object (the last value of a repeated key) */
+  query: Record<string, string>;
+  /** the decoded fragment without '#' ('' when none) */
+  hash: string;
+  /** the path without `base`, normalised: no trailing slash, no empty segments */
+  path: string;
+}
+
+/** A value for the router's sink (`ROUTER`); `{ route }` is reserved for the `route` static */
+export type RouterCommand<R extends Record<string, string> = Record<string, string>> =
+  | { to: RouteName<R>; params?: Record<string, string | number>; query?: RouteQuery; hash?: string; replace?: boolean; scroll?: boolean; force?: boolean; block?: string | false | null }
+  | { url: string; replace?: boolean; scroll?: boolean; force?: boolean; block?: string | false | null }
+  | { back: true; force?: boolean; block?: string | false | null } | { forward: true; force?: boolean; block?: string | false | null } | { go: number; force?: boolean; block?: string | false | null }
+  | { block: string | false | null }
+  | { prefetch: RouteName<R> | string; params?: Record<string, string | number>; query?: RouteQuery };
+
+/**
+ * The data of a block action (`{ block: 'CONFIRM_LEAVE' }`): the navigation that was not made.
+ * Send `proceed` to the router's sink to make it anyway.
+ */
+export interface RouterBlocked {
+  /** the URL the navigation would go to */
+  to: string;
+  route: Route;
+  proceed: RouterCommand;
+}
+
+export interface RouterOptions<R extends Record<string, string> = Record<string, string>> {
+  /** `{ name: '/path/:param' | '*' }`; first match wins; `'*'` is the not-found route */
+  routes: R;
+  /** path prefix the app lives under ('/app'); in hash mode, the page's path */
+  base?: string;
+  /** 'history' (default) or 'hash' (`/#/tasks/1`) */
+  mode?: 'history' | 'hash';
+  /** scroll to top on a push, restore on back/forward. Default true (false with `navigate`) */
+  scroll?: boolean;
+  /**
+   * After a push or back/forward, once the DOM is quiet, focus the first match of these
+   * comma-separated selectors, tried in order. Default '[data-router-focus],main h1,h1'; false disables
+   */
+  focus?: string | false;
+  /** quiet time (ms) before scroll restore and focus. Default 30 */
+  settleMs?: number;
+  /**
+   * called for `{ prefetch }` commands, e.g. to warm a route's data in the fetch driver's cache:
+   * `prefetch: (route) => routeData[route.name]?.(route).forEach(cache.prefetch)`
+   */
+  prefetch?: (route: Route, url: string) => void;
+  /** Vike: its `navigate()` (from 'vike/client/router'); the router then leaves links and history to Vike */
+  navigate?: (url: string, options: { overwriteLastHistoryEntry: boolean }) => any;
+  /** test seams: default the global window and its history, location and document */
+  window?: any;
+  history?: any;
+  location?: any;
+  document?: any;
+}
+
+/** The ROUTER source: reply actions plus the latest route */
+export interface RouterSource {
+  current(): Route | null;
+  href: (name: string, params?: Record<string, string | number>, query?: RouteQuery, hash?: string) => string;
+  dispose(): void;
+}
+
+export interface Router<R extends Record<string, string> = Record<string, string>> {
+  routes: R;
+  /** a link to a named route (pure, SSR-safe): href('task', { id: 2 }, { tab: 'notes' }) */
+  href<N extends RouteName<R>>(name: N, ...args: [...RouteParamsArg<R[N]>, query?: RouteQuery, hash?: string]): string;
+  /** the Route of a URL (a path or an absolute URL); pure */
+  match(url: string): Route<RouteName<R>>;
+  /** the Route of the current location, or of `url` (SSR: the request URL). The `initialState.route` seed */
+  current(url?: string): Route<RouteName<R>>;
+  /** the driver: `run(App, { ROUTER: router.driver })` */
+  driver: (sink$: Stream<any>) => RouterSource;
+  options: RouterOptions<R>;
+}
+
+/**
+ * The SPA router: `export const router = makeRouter({ routes: { home: '/', task: '/tasks/:id',
+ * notFound: '*' } })`, then `run(App, { ROUTER: router.driver })`. Components declare
+ * `App.route = 'ROUTE'` and store the route; views link with `<a href={router.href('task', { id })}>`
+ * (clicks are intercepted at the document); models navigate with `ROUTER: { to: 'task', params }`.
+ */
+export function makeRouter<const R extends Record<string, string>>(options: RouterOptions<R>): Router<R>
+
+/** `makeRouter(options).driver` */
+export function makeRouterDriver<const R extends Record<string, string>>(options: RouterOptions<R>): (sink$: Stream<any>) => RouterSource
+
+/** A `head` static value or HEAD sink value */
+export interface HeadValue {
+  title?: string;
+  /** `{ description: '...', 'og:title': '...' }`: og:/article:/... keys use `property`, others `name`; null removes */
+  meta?: Record<string, string | null | undefined>;
+  /** link tags; merged by `key`, else by `rel` for canonical, else by `rel` + `href` */
+  link?: Array<{ rel: string; href: string; key?: string; [attr: string]: any }>;
+}
+
+/**
+ * Document title, meta and link tags: `run(App, { HEAD: makeHeadDriver() })` with a `head`
+ * static (`App.head = (state) => ({ title })`) or HEAD sink values from a model entry.
+ * `titleTemplate: '%s · Tasks'` formats every title.
+ */
+export function makeHeadDriver(options?: { titleTemplate?: string; document?: any }): (sink$: Stream<any>) => { dispose(): void }
+
+/** The tags for the head values `renderToString(App, { head: list })` collected (SSR) */
+export function renderHead(list: Array<HeadValue | null | undefined | false>, options?: { titleTemplate?: string }): string
 
 export interface Ref<T = HTMLElement> {
   current: T | null;
@@ -1236,20 +1773,68 @@ export interface SimulatedEventInit {
   [prop: string]: any;
 }
 
-/** Which request a t.respond()/t.fail() answers (a string is the category) */
+/**
+ * Which request a t.respond()/t.fail() answers, as options. An object with only these keys is
+ * options; any other object is a request pattern (see `respond`).
+ */
 export interface FakeReplyOptions {
-  /** Answer the most recent pending request of this category */
+  /** Only requests with this category */
   category?: string;
   /**
-   * Answer exactly this request (an element of t.requests(name); an object sent more than once:
-   * its newest pending send). `null`: push the value without
-   * a request (for a source that emits on its own); `category` then sets its category.
+   * The request to answer, compared by value: a request object (e.g. an element of
+   * t.requests(name), or the constant the model returns; among equal pending requests that very
+   * object, else the newest), a partial request (`{ url: '/a' }`), a URL string, or a predicate
+   * `(request) => boolean`. `null`: push the value without a request (for a source that emits
+   * on its own); `category` then sets its category.
    */
   request?: any;
-  /** respond(): the status (default 200). fail(): the status (default error.status) */
+  /** respond(): the status (default 200). fail(): an HTTP error response with this status */
   status?: number;
   /** fail(): the parsed error body */
   body?: any;
+  /**
+   * That very request by its position in t.requests(name) (counting only those matching
+   * `request`/`category`): 0 the first, -1 the newest. Answers the older of two identical
+   * requests; throws at the call when it is no longer pending (answered, aborted, superseded).
+   */
+  nth?: number;
+}
+
+/** A connection on a driverless socket sink, as `t.connections(name)` lists it: the spec as declared plus these */
+export interface FakeConnection {
+  /** Its name in `{ connections: { [name]: spec } }` */
+  name: string;
+  /** The URL as declared (WebSocket) */
+  socket?: string;
+  /** The URL as declared (server-sent events) */
+  sse?: string;
+  /** The URL it opened (a socket path resolves to ws:/wss: on the page's host) */
+  url: string;
+  /** 'closed': dropped (t.drop), waiting for a retry, or gone (reconnect: false) */
+  state: 'connecting' | 'open' | 'closed';
+  /** The name of the component that declared it */
+  sender: string;
+  [key: string]: any;
+}
+/**
+ * Which connections t.open / t.push / t.drop act on: a connection name or URL (as declared or
+ * opened), a partial FakeConnection compared by value (`{ socket: '/ws/a' }`), or a predicate.
+ * Nothing: the newest connection that can take the call.
+ */
+export type FakeConnectionTarget = string | Record<string, any> | ((connection: FakeConnection) => boolean);
+
+/** PLAN-3 5-3: a cache entry of an HTTP fake (t.cache) */
+export type FakeCacheEntry = {
+  /** method, URL (query sorted), body and parse */
+  key: string;
+  /** ms since the reply was cached (undefined before data arrives) */
+  age?: number;
+  /** older than staleTime, or invalidated */
+  stale: boolean;
+  /** mounted resources using it */
+  subscribers: number;
+  /** the parsed body */
+  data: any;
 }
 
 export interface RenderOptions {
@@ -1289,11 +1874,60 @@ export interface RenderOptions {
    * move focus). Read elements with `t.query(sel)` / `t.queryAll(sel)` / `t.container`.
    */
   dom?: 'mock' | 'real';
+  /**
+   * Fake socket connections open by themselves (default true; reconnects too; a t.push / t.drop
+   * right after the declaration opens it first). false: they stay 'connecting' until t.open(),
+   * for "Connecting…" assertions and failures to open (t.drop on a connecting one).
+   */
+  autoConnect?: boolean;
+  /**
+   * PLAN-3 G-160: the driverless sink that receives the components' `connections` static
+   * (default 'WS'). It is created even when no model entry names it. Pass a driver for it in
+   * `drivers` to use a real one.
+   */
+  socketSink?: string;
+  /**
+   * PLAN-3: the driverless sink that receives the components' `resources`
+   * static (default 'HTTP'); each resource fetch is pending until t.respond / t.fail, and is
+   * listed in t.requests as `{ url, ...request, resource: name }`.
+   */
+  resourceSink?: string;
+  /**
+   * PLAN-3 5-3: options for the HTTP fakes' makeFetchDriver (all but `fetch`), e.g.
+   * `{ cache: queryCache() }`. Focus / reconnect refetches come only from t.focus() / t.online()
+   */
+  http?: FetchDriverOptions;
+  /**
+   * The app's router (the object `makeRouter()` returns). With no driver for `routerSink` in
+   * `drivers`, renderComponent runs its real driver over an in-memory window (location, history,
+   * popstate a task later, document listeners): read with `t.location`, drive with
+   * `t.navigate` / `t.back` / `t.forward`; the commands the app sent are `t.sent('ROUTER')`.
+   * Required when the component declares `route` (renderComponent throws naming it otherwise).
+   * The real `window.location` is never changed.
+   */
+  router?: Router<any>;
+  /** The router fake's start URL (default '/'), e.g. '/tasks/2?tab=notes' */
+  url?: string;
+  /** The sink the router fake serves (default 'ROUTER') */
+  routerSink?: string;
+  /** Run the router's scroll handling in the fake (default false; positions are kept in memory) */
+  routerScroll?: boolean;
+  /** Run the router's focus handling (default false; true: the router's own `focus` selectors; a string: these selectors). Needs `dom: 'real'` */
+  routerFocus?: boolean | string;
+  /** The sink the HEAD fake serves (default 'HEAD'); with no driver for it, `t.head()` reads what the components declared */
+  headSink?: string;
+  /** The HEAD fake's `titleTemplate` (`'%s · App'`), as passed to makeHeadDriver */
+  titleTemplate?: string;
 }
 
-export interface RenderResult {
+/**
+ * What renderComponent() returns. STATE is the component's state type (calculated fields
+ * included), inferred by renderComponent; name it for a handle declared before it is assigned:
+ * `let t: RenderResult<State>`. Defaults to `any` (untyped tests compile as before).
+ */
+export interface RenderResult<STATE = any> {
   /** Stream of state values */
-  state$: Stream<any>;
+  state$: Stream<STATE>;
   /** Stream of rendered VNode trees */
   dom$: Stream<any>;
   /** Event bus source — call .select(type) to filter */
@@ -1336,7 +1970,7 @@ export interface RenderResult {
    * with the initial state). Resolves with the matching state once the whole tree (children
    * included) has rendered it. Use `next()` to wait for a new state.
    */
-  waitForState: (predicate: (state: any) => boolean, timeoutMs?: number) => Promise<any>;
+  waitForState: (predicate: (state: STATE) => boolean, timeoutMs?: number) => Promise<STATE>;
   /**
    * Wait for the next state emitted AFTER this call (right after `await t.ready()`: after the
    * component became ready) that satisfies the predicate (default: any state). Resolves with it
@@ -1346,7 +1980,7 @@ export interface RenderResult {
    * input in between) starts after the state that wait resolved with, so
    * `await t.next(a); await t.next(b)` sees a `b` that arrived while the DOM showed `a`.
    */
-  next: (predicate?: (state: any) => boolean, timeoutMs?: number) => Promise<any>;
+  next: (predicate?: (state: STATE) => boolean, timeoutMs?: number) => Promise<STATE>;
   /**
    * Resolves once nothing is pending: the component is ready, no simulated input is waiting,
    * and nothing in the tree has rendered, reduced or changed state for settleMs (default 20,
@@ -1354,28 +1988,99 @@ export interface RenderResult {
    */
   settle: (timeoutMs?: number) => Promise<void>;
   /** Collected state values — grows as new states are emitted */
-  states: any[];
+  states: STATE[];
   /** The latest recorded state (`t.states.at(-1)`; undefined before the first one), calculated fields current. Read-only */
-  readonly state: any;
+  readonly state: STATE;
   /** Live array of values emitted on a sink (EVENTS as {type, data}, PARENT unwrapped, custom sinks of any component in the tree) */
   sinkValues: (sinkName: string) => any[];
-  /** Live array of the requests sent to a sink with no driver (alias of sinkValues) */
+  /**
+   * Live array of the requests a sink was sent, as objects: a string request is `{ url }`, a
+   * resource fetch `{ url, ...request, resource: name }`. Never the `{ abort }` commands,
+   * `{ resources }` declarations or `{ refresh }` commands (sinkValues has every value, as sent)
+   */
   requests: (sinkName: string) => any[];
   /**
-   * Answer the most recent pending request on a driverless sink/source (e.g. `HTTP` with no
-   * `drivers: { HTTP }`): `HTTP.select(category)` receives `{ category, value, status: 200,
-   * request }`. Waits up to 1s (half of timeoutMs if lower) for the component to send a
-   * request (e.g. after a debounce). Each send is a request (the same object sent again is
-   * pending again). Requests superseded by a later `latest: true` one, or cancelled with
-   * `{ category, abort: true }`, aren't pending. Fails the test if nothing selects it.
+   * Answer a pending request on a driverless sink/source (e.g. `HTTP` with no
+   * `drivers: { HTTP }`, which runs makeFetchDriver over an in-memory fetch) with a response whose
+   * body is `value` (JSON; text for a string): a request with reply actions (`ok: 'LOADED'`) gets
+   * the parsed body as its `LOADED` action, on exactly the component that sent it; a plain one gets
+   * `{ category, value, status: 200, request }` on `HTTP.select(category)`.
+   * Which request (the newest pending one that matches): `target` is an `ok`/`error` action
+   * name, key, category, resource name or URL (`'LOADED'`); a partial request compared by value
+   * with its t.requests form (`{ url: '/a' }`,
+   * the constant the model returns); a predicate `(request) => boolean`; or FakeReplyOptions.
+   * Nothing: the newest pending request. Requests answered, superseded by `latest: true`,
+   * aborted, or whose component is gone aren't pending.
+   * Throws at the call when nothing matching is pending, unless simulateEvent/simulateAction/
+   * respond/fail calls are still queued before it or the component isn't ready yet: then it is
+   * delivered after them, waiting up to 1s (half of timeoutMs if lower) for the request.
+   * Resolves once the reply has been reduced and the tree rendered; rejects (and, if not
+   * awaited, fails the next wait) when no request comes or nothing receives a plain reply.
    */
-  respond: (sinkName: string, value: any, options?: string | FakeReplyOptions) => void;
+  respond: (sinkName: string, value: any, target?: string | FakeReplyOptions | Record<string, any> | ((request: any) => boolean)) => Promise<void>;
   /**
-   * Fail the most recent pending request: `HTTP.errors(category)` receives `{ error, category,
-   * request, status, body }`. `error`: an Error, a message, or an HTTP status (404 → 'HTTP 404',
-   * status 404). Fails the test if nothing listens to errors().
+   * Fail a pending request (chosen as in respond): one with reply actions (`error: 'FAILED'`) gets
+   * `{ error, request, status?, body? }` as its `FAILED` action, on its sender; a plain one
+   * `{ error, category, request, status, body }` on `HTTP.errors(category)`. `error`: an HTTP
+   * status (an error response: 404 → the driver's Error 'HTTP 404: url', status 404), or an
+   * Error / message (a network failure: no status).
    */
-  fail: (sinkName: string, error: any, options?: string | FakeReplyOptions) => void;
+  fail: (sinkName: string, error: any, target?: string | FakeReplyOptions | Record<string, any> | ((request: any) => boolean)) => Promise<void>;
+  /**
+   * A driverless sink that gets `{ connections }` / `{ to }` values (e.g. `WS` with no
+   * `drivers: { WS }`) is a fake makeSocketDriver: diffed per component and connection name,
+   * `open`/`message`/`close`/`error` as reply actions of the sender (no `close` for closes the
+   * app makes), other events on `WS.select(name)`, shared by URL, reconnect per the spec on
+   * the test's timers (fake timers included). The connections declared now, in order.
+   * t.open / t.push / t.drop throw at the call when no connection matches (unless input is still
+   * queued before them, as for respond) and resolve once the result has been reduced and rendered.
+   */
+  connections: (sinkName: string) => FakeConnection[];
+  /** PLAN-3 5-3: the cache entries of an HTTP fake (`renderComponent(C, { http: { cache: queryCache() } })`) */
+  cache: (sinkName: string) => FakeCacheEntry[];
+  /** PLAN-3 5-3: the window regains focus (queued like simulate*): stale mounted resources refetch (cache on) */
+  focus: () => void;
+  /** PLAN-3 5-3: the browser comes back online (queued like simulate*): stale mounted resources refetch (cache on) */
+  online: () => void;
+  /** Complete the open of connecting connection(s) (`autoConnect: false`, or a pending retry): `open` fires with `{ reconnected }` */
+  open: (sinkName: string, target?: FakeConnectionTarget) => Promise<void>;
+  /**
+   * The server sends `data` (objects as JSON text) on open connection(s): `message` fires with
+   * the data, JSON-parsed when it parses. `{ event, connection? }` sends an SSE named event.
+   */
+  push: (sinkName: string, data: any, target?: FakeConnectionTarget | { event?: string; connection?: FakeConnectionTarget }) => Promise<void>;
+  /**
+   * Connection(s) close without the app closing them: `close` fires with `{ code, reason,
+   * willReconnect }` (default `{ code: 1006, reason: '' }`; a connecting one fails to open: `error`
+   * first), then the fake reconnects per the spec's `reconnect`.
+   */
+  drop: (sinkName: string, close?: { code?: number; reason?: string } | FakeConnectionTarget, target?: FakeConnectionTarget) => Promise<void>;
+  /**
+   * Live array of the `{ to, json | text | binary }` values sent (`to`: only those to that connection).
+   * For the router fake's sink (`t.sent('ROUTER')`): the commands the components sent
+   * (`{ to, params }`, `{ back: true }`, `{ block }`...), not the `route` declarations
+   */
+  sent: (sinkName: string, to?: string) => any[];
+  /**
+   * Router fake (`renderComponent(App, { router })`): navigate as a click on a link with this
+   * href (`'/tasks/2'`), or as the command `{ to: 'task', params: { id: 2 }, query?, hash?,
+   * replace? }`. Goes through `{ block }` like the real thing. Throws at the call for an unknown
+   * route name, a missing param or another origin; resolves once the route has been reduced
+   * and the tree rendered.
+   */
+  navigate: (target: string | { to: string; params?: Record<string, string | number>; query?: Record<string, any>; hash?: string; replace?: boolean }) => Promise<void>;
+  /** Router fake: the browser's back button (popstate a task later; a block undoes it). Throws with no entry to go back to */
+  back: () => Promise<void>;
+  /** Router fake: the browser's forward button. Throws with no entry to go forward to */
+  forward: () => Promise<void>;
+  /** Router fake: the in-memory location: `path` (pathname), `search` ('?tab=x' or ''), `hash` ('#c' or ''), `href` */
+  readonly location: { path: string; search: string; hash: string; href: string };
+  /**
+   * HEAD fake (no HEAD driver passed): the head the components declare now (`head` statics and
+   * HEAD sink values), merged as makeHeadDriver merges them: `{ title, meta: { name: content },
+   * link: [{ rel, href }] }`, `titleTemplate` applied
+   */
+  head: () => { title: string | undefined; meta: Record<string, string>; link: Array<Record<string, any>> };
   /** Live array of EVENTS sink emissions ({type, data}) */
   emitted: Array<{ type: string; data: any }>;
   /** Live array of diagnostics reported while rendered */
@@ -1398,18 +2103,48 @@ export interface RenderResult {
   /** `{ dom: 'real' }`: the element the tree is mounted in (removed by dispose()); otherwise null */
   container: Element | null;
   /**
-   * `{ dom: 'real' }`: the first element matching a CSS selector in the rendered tree (Portal
-   * content included), or null: `expect(t.query('input[name="plan"][value="team"]').checked).toBe(true)`.
-   * Throws in the mock DOM, and before the first render is in the DOM (`await t.ready()` first).
-   * Right after `await t.next(pred)` / `waitForState` / `settle()` / `ready()` the DOM shows
-   * the state the wait resolved with.
+   * The first element matching a selector in the rendered tree (Portal content included), or
+   * null: `expect(t.query('input[name="plan"]:checked').value).toBe('team')`. With `dom: 'real'`
+   * a real element (any CSS selector); with the mock DOM a read-only snapshot of what the view
+   * rendered (simulateEvent's selectors plus `:checked`/`:disabled`/`:enabled`; textContent,
+   * value, checked, disabled, getAttribute, classList, dataset, querySelector, closest...; no
+   * focus()). Throws before the first render (`await t.ready()` first). Right after
+   * `await t.next(pred)` / `waitForState` / `settle()` / `ready()` it shows the state the wait resolved with.
    */
   query: (selector: string) => Element | null;
-  /** `{ dom: 'real' }`: every element matching a CSS selector in the rendered tree (Portals included) */
+  /** Every element matching a selector in the rendered tree (Portals included), as query() */
   queryAll: (selector: string) => Element[];
 }
 
-export function renderComponent(componentDef: any, options?: RenderOptions): RenderResult
+/**
+ * A component renderComponent() accepts. STATE is inferred from its view's `state` (a
+ * `Component<State, ...>` annotation, or a typed `({ state }: { state: State })` parameter;
+ * calculated fields included), else from its `initialState` (INITIAL).
+ */
+export type RenderableComponent<STATE = any, INITIAL = STATE> =
+  // a method signature: parameters are compared bivariantly, so views with their own required
+  // props are accepted
+  & { view(props: { state: STATE }, state: STATE, ...rest: any[]): any }['view']
+  & { initialState?: INITIAL }
+
+/**
+ * STATE, or INITIAL when STATE is unknown (an untyped view with a typed `initialState`). `never`
+ * (a generic call inlined as the argument, `renderComponent(component({...}))`) becomes `any`.
+ */
+type RenderedState<STATE, INITIAL> =
+  [STATE] extends [never] ? any
+  : 0 extends (1 & STATE) ? AnyIfNever<INITIAL>
+  : STATE
+
+/**
+ * Render a component in tests (mock DOM, fake drivers). The handle's state is typed from the
+ * component, so `await t.next(s => s.count > 0)` needs no annotation. Pass the state type
+ * explicitly for an untyped component: `renderComponent<State>(Counter)`.
+ */
+export function renderComponent<STATE = any, INITIAL = STATE>(
+  componentDef: RenderableComponent<STATE, INITIAL>,
+  options?: RenderOptions
+): RenderResult<RenderedState<STATE, INITIAL>>
 
 export interface RenderToStringOptions {
   /** Initial state for the root component */
@@ -1424,6 +2159,14 @@ export interface RenderToStringOptions {
    * When a string, uses that as the variable name.
    */
   hydrateState?: boolean | string
+  /** An array that receives each rendered component's `head` static value; pass it to `renderHead()` */
+  head?: any[]
+  /**
+   * PLAN-3 5-5 (H-7): a seeded `queryCache()` the components' `resources` render from: a cached
+   * entry as `{ status: 'success', data }`, any other request as `{ status: 'loading' }` (nothing
+   * is fetched during SSR)
+   */
+  cache?: QueryCache
 }
 
 /**

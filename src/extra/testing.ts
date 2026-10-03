@@ -9,7 +9,12 @@ import component from '../component';
 import {renderToInnerHtml} from './ssr';
 import {_getDiagnosticsConfig, configureDiagnostics, getDiagnosticsMode, isDiagnosticsEnabled, onDiagnostic, registerCheck, report} from './diagnostics/index';
 import xs from './xstreamCompat';
-import {tagRequest, inScope, scopeKey} from './fetchDriver';
+import {tagRequest, inScope, makeFetchDriver} from './fetchDriver';
+import {senderOf} from './replies';
+import {makeSocketDriver} from './socketDriver';
+import {makeRouter, paramsOf} from './router';
+import {mergeHead} from './head';
+import {makeReplies} from './replies';
 import type {Stream} from 'xstream';
 import type {Diagnostic, DiagnosticsMode} from './diagnostics/index';
 import type {InspectGraph} from './diagnostics/checks/public';
@@ -153,21 +158,58 @@ export interface SimulatedEventInit {
   [prop: string]: any;
 }
 
-/** E2: which request a t.respond()/t.fail() answers (a string is the category) */
+/**
+ * E2 / PLAN-3 1-C: which request a t.respond()/t.fail() answers, as options. An object with
+ * only these keys is options; any other object is a request pattern compared by value.
+ */
 export interface FakeReplyOptions {
-  /** Answer the most recent pending request of this category */
+  /** Only requests with this category */
   category?: string;
   /**
-   * Answer exactly this request (an element of t.requests(name); an object sent more than once:
-   * its newest pending send). `null`: push the value without
-   * a request (for a source that emits on its own); `category` then sets its category.
+   * The request, compared by value: a request object (among equal pending requests that very
+   * object, else the newest), a partial request, a URL string, or a predicate. `null`: push
+   * the value without a request (for a source that emits on its own); `category` then sets
+   * its category.
    */
   request?: any;
-  /** Response status (respond: default 200) or failure status (fail: default error.status) */
+  /** Response status (respond: default 200), or fail(): an HTTP error response with this status */
   status?: number;
   /** fail(): the parsed error body */
   body?: any;
+  /**
+   * 6-B: that very request by its position in t.requests(name) (counting only those matching
+   * `request`/`category`): 0 the first, -1 the newest; throws at the call when it isn't pending
+   */
+  nth?: number;
 }
+/** E2 / PLAN-3 1-C: a t.respond()/t.fail() target */
+export type FakeReplyTarget = string | FakeReplyOptions | Record<string, any> | ((request: any) => boolean);
+
+/**
+ * PLAN-3 2-C: a connection declared on a fake socket source (t.connections(name)): the spec as
+ * declared (`socket` or `sse`, action names, reconnect...) plus where and what it is.
+ */
+export interface FakeConnection {
+  /** The connection's name in `{ connections: { [name]: spec } }` */
+  name: string;
+  /** The URL as declared (`socket` connections) */
+  socket?: string;
+  /** The URL as declared (`sse` connections) */
+  sse?: string;
+  /** The URL the socket was opened with (a socket path resolves to ws:/wss: on the page's host) */
+  url: string;
+  /** 'closed': dropped (t.drop), waiting for a retry or (reconnect: false) gone */
+  state: 'connecting' | 'open' | 'closed';
+  /** The name of the component that declared it */
+  sender: string;
+  [key: string]: any;
+}
+/**
+ * PLAN-3 2-C: which connections a t.open/t.push/t.drop acts on: a connection name or URL (as
+ * declared or as opened), a partial FakeConnection compared by value (`{ socket: '/ws/a' }`),
+ * or a predicate. Nothing: the newest one that can take the call.
+ */
+export type FakeConnectionTarget = string | Record<string, any> | ((connection: FakeConnection) => boolean);
 
 export interface RenderOptions {
   /** Override or provide initial state (defaults to component's .initialState) */
@@ -208,7 +250,52 @@ export interface RenderOptions {
    * `t.container`, `t.query(sel)` and `t.queryAll(sel)` return real elements.
    */
   dom?: 'mock' | 'real';
+  /**
+   * PLAN-3 2-C: fake socket connections (a sink with no driver that gets `{ connections }`)
+   * open by themselves (default true), reconnects included. false: they stay 'connecting' until
+   * t.open(), for "Connecting…" assertions and failures to open (t.drop on a connecting one).
+   */
+  autoConnect?: boolean;
+  /** PLAN-3 G-160: the driverless sink that receives the `connections` static (default 'WS') */
+  socketSink?: string;
+  /**
+   * PLAN-3 3-A (exp): the driverless sink that receives the `resources` static (default
+   * 'HTTP'). Its fake (5-1: makeFetchDriver over an in-memory fetch) keeps each resource fetch
+   * pending until t.respond / t.fail (target: the resource name, its URL or a partial request)
+   * answers it; t.requests lists it as `{ url, ...request, resource: name }` (5-5: a `{ prefetch }`
+   * fetch as `{ url, ...request, prefetch: true }`).
+   */
+  resourceSink?: string;
+  /**
+   * PLAN-3 5-3: options for the HTTP fakes' makeFetchDriver (all but `fetch`), e.g.
+   * `{ cache: queryCache() }` or `{ cache: queryCache({ staleTime: 30000 }), retry: 2 }` (D88; a
+   * seeded cache: `queryCache({ initial: snapshot })`). Focus / reconnect refetches
+   * come only from t.focus() / t.online(), never from the test's window.
+   */
+  http?: Record<string, any>;
+  /**
+   * PLAN-3 5-4c: the app's router (the object makeRouter() returns). With no driver for
+   * `routerSink`, its real driver runs over an in-memory window (location, history with async
+   * popstate, document listeners): t.navigate / t.back / t.forward / t.location / t.sent. Required
+   * when the component declares `route` (else renderComponent throws, naming this option).
+   */
+  router?: any;
+  /** PLAN-3 5-4c: the router fake's start URL (default '/') */
+  url?: string;
+  /** PLAN-3 5-4c: the sink the router fake serves (default 'ROUTER') */
+  routerSink?: string;
+  /** PLAN-3 5-4c: run the router's scroll handling in the fake (default false; positions are kept in memory) */
+  routerScroll?: boolean;
+  /** PLAN-3 5-4c: run the router's focus handling (default false; true: the router's own selector; a string: selectors) */
+  routerFocus?: boolean | string;
+  /** PLAN-3 5-4c: the sink the HEAD fake serves (default 'HEAD'); t.head() reads it */
+  headSink?: string;
+  /** PLAN-3 5-4c: the HEAD fake's titleTemplate ('%s · App'), as makeHeadDriver's */
+  titleTemplate?: string;
 }
+
+/** PLAN-3 5-4c: what t.navigate takes: an href, or a route command */
+export type FakeNavigateTarget = string | {to: string; params?: Record<string, any>; query?: Record<string, any>; hash?: string; replace?: boolean};
 
 export interface RenderResult {
   /** Stream of state values */
@@ -262,27 +349,79 @@ export interface RenderResult {
    */
   sinkValues: (sinkName: string) => any[];
   /**
-   * E2: requests the component sent to a sink that has no driver (alias of sinkValues(name)).
-   * Answer them with respond() / fail().
+   * E2: the requests sent to a sink (live), as objects (G-171: a string is `{ url }`, a resource
+   * fetch `{ url, ...request, resource: name }`); never `{ abort }` commands (G-141), `{ resources }`
+   * declarations or `{ refresh }` commands. Answer the pending ones of a driverless sink with
+   * respond() / fail().
    */
   requests: (sinkName: string) => any[];
   /**
-   * E2: answer a request on a fake source. A sink/source with no driver (e.g. `HTTP` with
-   * no `drivers: { HTTP }`) gets a scriptable fake whose `select(category)` / `errors(category)`
-   * behave like makeFetchDriver / driverFromAsync. respond() delivers
-   * `{ category, value, status, request }` on `select()` for the most recent pending request
-   * (of `category`, if given; or exactly `request`), waiting up to 1s (half of timeoutMs if
-   * lower) for the component to send one (e.g. after a debounce). Requests superseded by a later `latest: true` request,
-   * or cancelled with `{ category, abort: true }`, are not pending; answering one explicitly
-   * delivers nothing, like the real driver. Fails the test if nothing selects the response.
+   * E2 / PLAN-3 1-C / 5-1: answer a pending request on a fake source (a sink/source with no
+   * driver, e.g. `HTTP` with no `drivers: { HTTP }`: makeFetchDriver over an in-memory fetch) with
+   * a response whose body is `value` (JSON; text for a string): a request with reply actions
+   * (`ok: 'LOADED'`) gets the parsed body as its LOADED action, on exactly its sender; a plain one
+   * `{ category, value, status, request }` on `select()`. The request: the newest pending one
+   * matching `target` (an ok/error action name, key, category, resource name or URL; a partial
+   * request compared by value with its t.requests form; a predicate; FakeReplyOptions), or the
+   * newest pending one. Throws at the call when
+   * none matches, unless input is still queued before it or the component isn't ready: then
+   * it waits up to 1s (half of timeoutMs if lower) for one. Resolves after the reply has been
+   * reduced and rendered; rejects (and, un-awaited, fails the next wait) otherwise.
    */
-  respond: (sinkName: string, value: any, opts?: string | FakeReplyOptions) => void;
+  respond: (sinkName: string, value: any, target?: FakeReplyTarget) => Promise<void>;
   /**
-   * E2: fail a pending request on a fake source: delivers `{ error, category, request, status,
-   * body }` on `errors()`. `error` may be an Error, a message, or an HTTP status number (404 →
-   * an Error 'HTTP 404' with `status: 404`). Targeting, waiting and failures as in respond().
+   * E2 / PLAN-3 1-C: fail a pending request (chosen as in respond()): one with reply actions
+   * (`error: 'FAILED'`) gets `{ error, request, status?, body? }` as its FAILED action; an
+   * plain one `{ error, category, request, status, body }` on `errors()`. `error` may be an HTTP
+   * status number or `{ status }` (an error response: the driver's Error 'HTTP 404: url' with
+   * `status`/`body`), or an Error / message (a network failure: the fetch rejects with it).
    */
-  fail: (sinkName: string, error: any, opts?: string | FakeReplyOptions) => void;
+  fail: (sinkName: string, error: any, target?: FakeReplyTarget) => Promise<void>;
+  /**
+   * PLAN-3 2-C: a sink with no driver that gets `{ connections }` / `{ to }` values behaves like
+   * makeSocketDriver (reply actions for open/message/close/error, diffed per component and name, shared by
+   * URL, reconnect per spec on the test's timers). The connections declared now, in order.
+   */
+  connections: (sinkName: string) => FakeConnection[];
+  /**
+   * PLAN-3 5-3: the cache entries of an HTTP fake (renderComponent(C, { http: { cache: queryCache() } })):
+   * `{ key, age, stale, subscribers, data, tags }` each (age in ms; undefined before data arrives);
+   * [] without a queryCache
+   */
+  cache: (sinkName: string) => Array<{key: string; age?: number; stale: boolean; subscribers: number; data: any; tags?: string[]}>;
+  /** PLAN-3 5-3: the window regains focus (queued like simulate*): stale mounted resources refetch (cache on) */
+  focus: () => void;
+  /** PLAN-3 5-3: the browser goes back online (queued like simulate*): stale mounted resources refetch (cache on) */
+  online: () => void;
+  /** PLAN-3 2-C: complete the open of connecting connection(s) (`autoConnect: false`, or a pending reconnect): `open` fires */
+  open: (sinkName: string, target?: FakeConnectionTarget) => Promise<void>;
+  /**
+   * PLAN-3 2-C: the server sends `data` (objects as JSON text) on the open connection(s): `message`
+   * fires (the data JSON-parsed when it parses). `{ event, connection? }`: an SSE named event.
+   */
+  push: (sinkName: string, data: any, target?: FakeConnectionTarget | {event?: string; connection?: FakeConnectionTarget}) => Promise<void>;
+  /**
+   * PLAN-3 2-C: the connection(s) close without the app closing them (a connecting one fails to
+   * open: `error` first): `close` fires with `{ code, reason, willReconnect }` and the fake
+   * reconnects per the spec. `close` defaults to `{ code: 1006, reason: '' }`.
+   */
+  drop: (sinkName: string, close?: {code?: number; reason?: string} | FakeConnectionTarget, target?: FakeConnectionTarget) => Promise<void>;
+  /** PLAN-3 2-C: the `{ to, json | text | binary }` values the components sent (live; with `to`: those to that connection) */
+  sent: (sinkName: string, to?: string) => any[];
+  /**
+   * PLAN-3 5-4c (router fake): navigate as a link click (a URL) or a command (`{ to, params,
+   * query?, hash?, replace? }`) would, through `block`. Throws at the call for an unknown route,
+   * a missing param or another origin; resolves once reduced and rendered.
+   */
+  navigate: (target: FakeNavigateTarget) => Promise<void>;
+  /** PLAN-3 5-4c: the browser's back button on the in-memory history (throws with no entry to go back to) */
+  back: () => Promise<void>;
+  /** PLAN-3 5-4c: the browser's forward button */
+  forward: () => Promise<void>;
+  /** PLAN-3 5-4c: the in-memory location */
+  readonly location: {path: string; search: string; hash: string; href: string};
+  /** PLAN-3 5-4c: the HEAD fake's merged head (titleTemplate applied) */
+  head: () => {title: string | undefined; meta: Record<string, any>; link: any[]};
   /** Live array of EVENTS sink emissions ({type, data}) */
   emitted: any[];
   /** Live array of diagnostics reported while rendered */
@@ -304,14 +443,15 @@ export interface RenderResult {
   /** `{ dom: 'real' }`: the element the tree is mounted in (removed on dispose()); else null */
   container: Element | null;
   /**
-   * `{ dom: 'real' }`: the first element matching a CSS selector in the rendered tree (Portal
-   * content included), or null. Read real DOM state from it: `.checked`, `.value`, `.disabled`,
-   * `document.activeElement === t.query('input[name="city"]')`. Throws before the first render
-   * is in the DOM (await t.ready() first). 4-A1: after `await` of any wait, the DOM shows the
-   * state the wait resolved with (a later render is held back until the next macrotask).
+   * The first element matching a selector in the rendered tree (Portal content included), or
+   * null. `{ dom: 'real' }`: the real element (`document.activeElement === t.query(...)`). 6-B:
+   * the mock DOM gives a MockElement, a snapshot of what the view rendered (`.textContent`,
+   * `.value`, `.checked`, `.disabled`, getAttribute, querySelector...). Throws before the first
+   * render (await t.ready() first). 4-A1: after `await` of any wait, it shows the state the wait
+   * resolved with (a later render is held back until the next macrotask).
    */
   query: (selector: string) => Element | null;
-  /** `{ dom: 'real' }`: every element matching a CSS selector in the rendered tree (Portals included) */
+  /** Every element matching a selector in the rendered tree (Portals included), as query() */
   queryAll: (selector: string) => Element[];
 }
 
@@ -334,8 +474,10 @@ type Pseudo = {k: string; a: number; b: number; last?: boolean; type?: boolean; 
 type Compound = {tag?: string; id?: string; cls: string[]; attrs: [string, string, string?][]; ps: Pseudo[]};
 type Complex = {parts: Compound[]; combs: string[]};
 type Sel = Complex[];
-const SUPPORTED = "tag, *, .class, #id, [attr], [attr=\"v\"] (also ^= $= *= ~=), :first-child, :last-child, :only-child, :nth-child(an+b|odd|even), :nth-last-child(), :first-of-type, :last-of-type, :only-of-type, :nth-of-type(), :nth-last-of-type(), :not(...), the descendant (' ') and child ('>') combinators, ',' lists";
+const SUPPORTED = "tag, *, .class, #id, [attr], [attr=\"v\"] (also ^= $= *= ~=), :first-child, :last-child, :only-child, :nth-child(an+b|odd|even), :nth-last-child(), :first-of-type, :last-of-type, :only-of-type, :nth-of-type(), :nth-last-of-type(), :not(...), :checked, :disabled, :enabled, the descendant (' ') and child ('>') combinators, ',' lists";
 const IDENT = /^(?:[\w-]|\\.)+/;
+const STATES = ['checked', 'disabled', 'enabled'];
+const FORM = ['button', 'input', 'select', 'textarea', 'option', 'optgroup', 'fieldset'];
 const unesc = (x: string) => x.replace(/\\(.)/g, '$1');
 const parsed = new Map<string, Sel | Error>();
 function parse(src: string): Sel {
@@ -351,7 +493,7 @@ const tryParse = (src: string): Sel | undefined => { try { return parse(src); } 
 function parseSel(src: string): Sel {
   let i = 0;
   const bad = (what: string): never => {
-    const e: any = new Error(`[Sygnal] Unsupported selector syntax in '${src}': ${what}. Supported: ${SUPPORTED}. Or give the element an attribute and select it, e.g. [data-id="3"]`);
+    const e: any = new Error(`[Sygnal] Unsupported selector syntax in '${src}': ${what}. Supported: ${SUPPORTED}. Or give the element an attribute and select it, e.g. [data-id="3"]. With renderComponent(C, { dom: 'real' }) any CSS selector works`);
     e.unsupported = true;
     throw e;
   };
@@ -412,6 +554,8 @@ function parseSel(src: string): Sel {
             [p.a, p.b] = anb(arg!);
             p.last = !!m[2];
           }
+        } else if (STATES.includes(k) && arg === undefined) {
+          // 6-B: element state, as the view rendered it
         } else if (k == 'not' && arg !== undefined) {
           p.not = parse(arg);
           if (p.not.some(cx => cx.parts.length > 1)) bad("combinators inside ':not()'");
@@ -498,6 +642,10 @@ function is(v: any, c: Compound): boolean {
   }
   for (const ps of c.ps) {
     if (ps.not) { if (matches(ps.not, [v])) return false; continue; }
+    if (STATES.includes(ps.k)) {
+      if (ps.k == 'checked' ? !flag(v, 'checked') && !(tagOf(v) == 'option' && flag(v, 'selected')) : !FORM.includes(tagOf(v)) || flag(v, 'disabled') == (ps.k == 'enabled')) return false;
+      continue;
+    }
     let sibs = (meta.get(v) || {sibs: [v]}).sibs;
     if (ps.type) sibs = sibs.filter(s => tagOf(s) == tagOf(v));
     if (ps.k == 'only') { if (sibs.length != 1) return false; continue; }
@@ -531,6 +679,152 @@ function find(v: any, sel: Sel, chain: any[] = []): any[] | undefined {
     if (r) return r;
   }
 }
+/** root → element chains of every element (document order) matching `sel`, below `v` (and `v` with `self`) */
+function findAll(v: any, sel: Sel, chain: any[], out: any[][], self = true): any[][] {
+  if (!v || typeof v != 'object') return out;
+  const c = v.sel ? chain.concat(v) : chain;
+  if (v.sel && self && matches(sel, c)) out.push(c);
+  for (const k of [].concat(v.children || [], v.data?.portalChildren || [])) findAll(k, sel, c, out);
+  return out;
+}
+
+// ── Mock elements (PLAN-3 6-B, G-185) ────────────────────────────────────────
+// t.query() / t.queryAll() on the mock DOM return these: read-only snapshots of one rendered
+// vnode with the common Element reads (text, attributes, classes, form state, traversal,
+// querySelector). They show what the view rendered: an input's value is its `value` prop, a
+// checkbox is checked when the view says so; nothing is typed, focused or laid out.
+const PROP_OF: Record<string, string> = {class: 'className', for: 'htmlFor', readonly: 'readOnly', tabindex: 'tabIndex'};
+/** a boolean property (checked, disabled, ...) as rendered: the prop, else the attribute */
+function flag(v: any, name: string): boolean {
+  const d = v.data || {}, p = d.props || {}, a = d.attrs || {};
+  if (name in p) return !!p[name];
+  const x = name in a ? a[name] : a[name.toLowerCase()];
+  return x != null && x !== false;
+}
+function classesOf(v: any): string[] {
+  const d = v.data || {}, p = d.props || {}, a = d.attrs || {};
+  const all: string[] = v.sel.split('#').flatMap((x: string) => x.split('.').slice(1)).concat(
+    `${p.className || ''} ${a.class || ''}`.split(/\s+/), Object.keys(d.class || {}).filter(k => d.class[k]));
+  return all.filter((c, i) => c && !c.startsWith('___') && all.indexOf(c) == i);
+}
+/** an attribute as getAttribute() reads it (null: absent) */
+function attrOf(v: any, name: string): string | null {
+  const d = v.data || {}, p = d.props || {}, a = d.attrs || {};
+  const n = name.toLowerCase();
+  if (n == 'class') { const c = classesOf(v); return c.length ? c.join(' ') : null; }
+  if (n == 'id' && v.sel.includes('#')) return v.sel.split('#')[1].split('.')[0];
+  const x = name in a ? a[name] : n in a ? a[n]
+    : name in p ? p[name] : PROP_OF[n] && PROP_OF[n] in p ? p[PROP_OF[n]]
+    : n.startsWith('data-') ? (d.dataset || {})[n.slice(5).replace(/-(\w)/g, (_: any, l: string) => l.toUpperCase())]
+    : undefined;
+  return x == null || x === false ? null : x === true ? '' : String(x);
+}
+function textOf(v: any): string {
+  if (v == null || typeof v == 'boolean') return '';
+  if (typeof v != 'object') return String(v);
+  if (v.sel == '!') return '';
+  return (v.text != null ? String(v.text) : '') + [].concat(v.children || []).map(textOf).join('');
+}
+const mockEls = new WeakMap<any, MockElement>();
+/** the MockElement for the last vnode of a root → element chain */
+const mockOf = (chain: any[], html: (v: any) => string): MockElement =>
+  chain.reduce((parent: MockElement | null, v: any) => {
+    const m = mockEls.get(v);
+    return m && m._p === parent ? m : new MockElement(v, parent, html);
+  }, null)!;
+class MockElement {
+  declare readonly nodeType: 1;
+  declare private _v: any;
+  declare readonly _p: MockElement | null;
+  declare private _html: (v: any) => string;
+  constructor(v: any, parent: MockElement | null, html: (v: any) => string) {
+    Object.defineProperties(this, {_v: {value: v}, _p: {value: parent}, _html: {value: html}, nodeType: {value: 1}});
+    mockEls.set(v, this);
+  }
+  private chain(): any[] {
+    const c: any[] = [];
+    for (let e: MockElement | null = this; e; e = e._p) c.unshift(e._v);
+    return c;
+  }
+  get tagName() { return tagOf(this._v).toUpperCase(); }
+  get nodeName() { return this.tagName; }
+  get localName() { return tagOf(this._v); }
+  get id() { return attrOf(this._v, 'id') ?? ''; }
+  get className() { return classesOf(this._v).join(' '); }
+  get classList() {
+    const c = classesOf(this._v);
+    return Object.assign(c, {contains: (x: string) => c.includes(x), item: (i: number) => c[i] ?? null, value: c.join(' ')});
+  }
+  get dataset() {
+    const d = this._v.data || {}, out: Record<string, string> = {...str(d.dataset)};
+    for (const src of [d.props || {}, d.attrs || {}]) {
+      for (const k in src) if (k.startsWith('data-') && src[k] != null) out[k.slice(5).replace(/-(\w)/g, (_: any, l: string) => l.toUpperCase())] = String(src[k]);
+    }
+    return out;
+  }
+  get style() { return {...(this._v.data?.style || {})}; }
+  get textContent() { return textOf(this._v); }
+  get innerText() { return this.textContent; }
+  get outerHTML() { return this._html(this._v); }
+  get innerHTML() {
+    const o = this.outerHTML, end = `</${this.localName}>`;
+    return o.endsWith(end) ? o.slice(o.indexOf('>') + 1, -end.length) : '';
+  }
+  get value(): string {
+    const v = this._v, p = v.data?.props || {}, tag = this.localName;
+    if (p.value != null) return String(p.value);
+    const a = attrOf(v, 'value');
+    if (a !== null) return a;
+    if (tag == 'textarea' || tag == 'option') return this.textContent;
+    if (tag == 'select') {
+      const o = this.querySelector('option:checked') || this.querySelector('option');
+      return o ? o.value : '';
+    }
+    return tag == 'input' && /^(checkbox|radio)$/.test(this.type) ? 'on' : '';
+  }
+  get checked() { return flag(this._v, 'checked'); }
+  get selected() { return flag(this._v, 'selected'); }
+  get disabled() { return flag(this._v, 'disabled'); }
+  get readOnly() { return flag(this._v, 'readOnly') || flag(this._v, 'readonly'); }
+  get required() { return flag(this._v, 'required'); }
+  get hidden() { return flag(this._v, 'hidden'); }
+  get type() { return attrOf(this._v, 'type') ?? (this.localName == 'input' ? 'text' : this.localName == 'button' ? 'submit' : ''); }
+  get name() { return attrOf(this._v, 'name') ?? ''; }
+  /** as written in the view (a real <a>'s href is absolute) */
+  get href() { return attrOf(this._v, 'href') ?? ''; }
+  get src() { return attrOf(this._v, 'src') ?? ''; }
+  get placeholder() { return attrOf(this._v, 'placeholder') ?? ''; }
+  get title() { return attrOf(this._v, 'title') ?? ''; }
+  get alt() { return attrOf(this._v, 'alt') ?? ''; }
+  get htmlFor() { return attrOf(this._v, 'for') ?? ''; }
+  getAttribute(name: string) { return attrOf(this._v, name); }
+  hasAttribute(name: string) { return attrOf(this._v, name) !== null; }
+  get parentElement() { return this._p; }
+  get children(): MockElement[] { return kids(this._v).map(k => mockOf([...this.chain(), k], this._html)); }
+  get childElementCount() { return this.children.length; }
+  get firstElementChild() { return this.children[0] ?? null; }
+  get lastElementChild() { const c = this.children; return c[c.length - 1] ?? null; }
+  matches(selector: string) { return matches(parse(norm(selector)), this.chain()); }
+  closest(selector: string): MockElement | null {
+    const sel = parse(norm(selector));
+    for (let e: MockElement | null = this; e; e = e._p) if (matches(sel, e.chain())) return e;
+    return null;
+  }
+  querySelectorAll(selector: string): MockElement[] {
+    return findAll(this._v, parse(norm(selector)), this.chain().slice(0, -1), [], false).map(ch => mockOf(ch, this._html));
+  }
+  querySelector(selector: string): MockElement | null { return this.querySelectorAll(selector)[0] ?? null; }
+  /** vitest / pretty-format print an element as its HTML */
+  toJSON() { return this.outerHTML; }
+  // no events, focus or layout on a snapshot
+  focus(): never { throw realOnly('focus'); }
+  blur(): never { throw realOnly('blur'); }
+  click(): never { throw realOnly('click'); }
+  dispatchEvent(_e?: any): never { throw realOnly('dispatchEvent'); }
+  addEventListener(..._a: any[]): never { throw realOnly('addEventListener'); }
+  getBoundingClientRect(): never { throw realOnly('getBoundingClientRect'); }
+}
+const realOnly = (fn: string) => new Error(`[Sygnal] element.${fn}(): t.query() on the default mock DOM returns a snapshot of what the view rendered. Fire events with t.simulateEvent(selector, type), or use real elements: renderComponent(C, { dom: 'real' })`);
 
 /**
  * The isolation scope a vnode starts ('.___scope'): the mock DOM appends it to the sel, the
@@ -657,6 +951,80 @@ const clockNow = (): number => { const c = fakeClock(); return c ? c.now : Date.
  * one) until `p` settles. Every pending wait has a timer (its timeout, a quiet-window tick), so
  * this ends; with no timer left it stops and leaves `p` to the test. Real timers: `p` as is.
  */
+/**
+ * PLAN-3 1-C: what t.respond / t.fail return: a Promise that notes when it is awaited (then()),
+ * so an un-awaited failing call can still fail the next wait, and an awaited one under fake
+ * timers can drive the clock. Its then() returns a plain Promise.
+ */
+class Reply extends Promise<void> {
+  _seen?: () => void;
+  static get [Symbol.species]() { return Promise; }
+  then(a?: any, b?: any): any { this._seen?.(); return super.then(a, b); }
+}
+/**
+ * PLAN-3 5-1 (H-9): the reply the HTTP fake's in-memory fetch resolves with: a Response-like
+ * object the real driver parses (a string body is text/plain, anything else JSON).
+ */
+const fakeResponse = (status: number, body: any, url: string): any => {
+  const text = typeof body == 'string' ? body : body === undefined ? '' : JSON.stringify(body);
+  const type = typeof body == 'string' ? 'text/plain;charset=UTF-8' : 'application/json';
+  const isType = (k: string) => /^content-type$/i.test(k);
+  return {
+    ok: status > 199 && status < 300, status, statusText: '', url, redirected: false, type: 'basic', bodyUsed: false,
+    headers: typeof Headers == 'function' ? new Headers({'content-type': type}) : {get: (k: string) => isType(k) ? type : null, has: isType},
+    text: async () => text,
+    json: async () => JSON.parse(text),
+    clone: () => fakeResponse(status, body, url),
+  };
+};
+/** a request field compared by value (t.respond / t.fail targets) */
+const same = (a: any, b: any): boolean => {
+  if (a === b) return true;
+  if (!a || !b || typeof a != 'object' || typeof b != 'object' || Array.isArray(a) != Array.isArray(b)) return false;
+  const ka = Object.keys(a), kb = Object.keys(b);
+  return ka.length == kb.length && ka.every(k => same(a[k], b[k]));
+};
+/**
+ * PLAN-3 2-C: where makeSocketDriver (no baseUrl) opens a declared URL (its resolve(); keep the
+ * two in step), and the transport identity it shares by (its key, without the share flag)
+ */
+const sockUrl = (u: string, sse: boolean) => {
+  const loc = (globalThis as any).location;
+  if (sse || /^wss?:/i.test(u) || !loc) return u;
+  try {
+    const r = new URL(u, loc.href);
+    r.protocol = r.protocol == 'https:' ? 'wss:' : 'ws:';
+    return r.href;
+  } catch (_) { return u; }
+};
+const alive = (s: any) => s && s.readyState < 2;
+const sockKey = (sse: boolean, url: string, arg: any) => (sse ? 'e' + !!(arg && arg.withCredentials) : 's' + JSON.stringify(arg)) + url;
+/**
+ * PLAN-3 2-C: the in-memory WebSocket / EventSource the fake's makeSocketDriver opens. The
+ * harness drives it (t.open / t.push / t.drop); the driver's own close() is the app's close.
+ */
+const fakeSocketClass = (sse: boolean, made: (s: any) => void) => class {
+  readyState = 0;
+  sse = sse;
+  byApp = false;
+  k: string;
+  url: string;
+  ls: Record<string, any[]> = {};
+  onopen: any; onmessage: any; onerror: any; onclose: any;
+  constructor(url: string, arg?: any) {
+    this.url = String(url);
+    this.k = sockKey(sse, this.url, arg);
+    made(this);
+  }
+  send() {}
+  close() { if (this.readyState < 2) { this.readyState = 3; this.byApp = true; } }
+  addEventListener(type: string, f: any) { (this.ls[type] = this.ls[type] || []).push(f); }
+};
+const brief = (v: any) => {
+  let s: string;
+  try { s = typeof v == 'string' ? `'${v}'` : JSON.stringify(v); } catch (_) { s = String(v); }
+  return s && s.length > 80 ? s.slice(0, 80) + '…' : s;
+};
 const drive = <T>(p: Promise<T>, stop: () => boolean): Promise<T> => {
   const clock = fakeClock();
   if (!clock) return p;
@@ -673,6 +1041,81 @@ const drive = <T>(p: Promise<T>, stop: () => boolean): Promise<T> => {
     return p;
   })();
 };
+/**
+ * PLAN-3 5-4c: the in-memory window the router fake gives makeRouter's real driver: a location,
+ * a history whose go() fires popstate a task later (like a browser), window listeners, scroll
+ * kept in memory, and a document whose listeners are recorded in `docLs` (the mock DOM's link
+ * clicks call them) and, with `real` (dom: 'real'), also added to the real document, so real
+ * clicks bubble into the driver's link interception. `baseURI` is the in-memory URL, so relative
+ * links resolve against it.
+ */
+function memoryWindow(start: string, real: boolean, query: (s: string) => any, observe: boolean) {
+  const entries = [{url: start, state: null as any}];
+  const on: Record<string, any[]> = {}, docLs: Record<string, any[]> = {};
+  let i = 0;
+  const at = () => new URL(entries[i].url);
+  const fire = (type: string) => (on[type] || []).slice().forEach(f => f({type}));
+  const D: any = real ? document : null;
+  const w: any = {
+    location: {
+      get href() { return entries[i].url; }, get pathname() { return at().pathname; }, get search() { return at().search; },
+      get hash() { return at().hash; }, get origin() { return at().origin; },
+    },
+    history: {
+      get state() { return entries[i].state; }, get length() { return entries.length; },
+      pushState(state: any, _: any, url: string) { entries.splice(i + 1); entries.push({url: new URL(url, entries[i].url).href, state}); i++; },
+      replaceState(state: any, _: any, url?: string) { entries[i] = {url: url ? new URL(url, entries[i].url).href : entries[i].url, state}; },
+      go(n: number) { const j = i + n; if (n && j >= 0 && j < entries.length) setTimeout(() => { i = j; fire('popstate'); }); },
+      back() { this.go(-1); }, forward() { this.go(1); },
+    },
+    addEventListener(t: string, f: any) { (on[t] = on[t] || []).push(f); },
+    removeEventListener(t: string, f: any) { on[t] = (on[t] || []).filter(x => x !== f); },
+    document: {
+      addEventListener(t: string, f: any) { (docLs[t] = docLs[t] || []).push(f); D?.addEventListener(t, f); },
+      removeEventListener(t: string, f: any) { docLs[t] = (docLs[t] || []).filter(x => x !== f); D?.removeEventListener(t, f); },
+      querySelector: (s: string) => (D ? query(s) : null),
+      getElementById: (id: string) => (D ? D.getElementById(id) : null),
+      get body() { return D?.body; },
+      get baseURI() { return entries[i].url; },
+    },
+    scrollX: 0, scrollY: 0,
+    scrollTo(x: any, y?: any) { if (typeof x == 'object') ({left: x = w.scrollX, top: y = w.scrollY} = x); w.scrollX = x; w.scrollY = y; },
+    MutationObserver: real && observe ? (globalThis as any).MutationObserver : undefined,
+  };
+  return {w, docLs, index: () => i, size: () => entries.length};
+}
+/**
+ * PLAN-3 5-4c: an element-like `<a>` for the router's click handler (mock DOM), from the vnode:
+ * its attrs, its props (href, target, rel, download) and its dataset as data-* attributes
+ */
+const anchorOf = (v: any): any => {
+  const d = v.data || {}, all: Record<string, any> = {...d.attrs};
+  for (const k in d.props || {}) if (k != 'className') all[k] = d.props[k];
+  for (const k in d.dataset || {}) all['data-' + k.replace(/[A-Z]/g, c => '-' + c.toLowerCase())] = d.dataset[k];
+  const get = (k: string) => all[k] == null || all[k] === false ? null : all[k] === true ? '' : String(all[k]);
+  return {localName: 'a', getAttribute: get, hasAttribute: (k: string) => get(k) != null, getAttributeNS: () => null};
+};
+/**
+ * PLAN-3 5-4c: the HEAD fake: the real driver's entry rules (one entry per component instance,
+ * replaced by its next value, removed by a falsy value or its dispose), kept for t.head() to
+ * merge with head.ts's mergeHead instead of written to a document
+ */
+const headFake = () => {
+  const entries = new Map<any, any>();
+  const {replies} = makeReplies(s => { entries.delete(s); });
+  const driver = (sink$: Stream<any>) => {
+    sink$.addListener({
+      next: (v: any) => {
+        if (!v || typeof v != 'object') return;
+        const s = senderOf(v), h = 'head' in v ? v.head : v;
+        h && typeof h == 'object' ? entries.set(s, h) : entries.delete(s);
+      },
+      error: () => {}, complete: () => {},
+    });
+    return {...replies, __sygnalStatic: 'head'};
+  };
+  return {entries, driver};
+};
 let savedConfig: ReturnType<typeof _getDiagnosticsConfig>;
 let savedStrict: any;
 
@@ -680,7 +1123,7 @@ export function renderComponent(
   componentDef: any,
   options: RenderOptions = {}
 ): RenderResult {
-  const {initialState, mockConfig = {}, drivers = {}, diagnostics, strict, dom = 'mock'} = options;
+  const {initialState, mockConfig = {}, drivers = {}, diagnostics, strict, dom = 'mock', autoConnect = true, socketSink = 'WS', resourceSink = 'HTTP', http: httpOptions} = options;
   const {intent, model = {}} = componentDef;
   // E4: real DOM mode
   const real = dom == 'real';
@@ -704,6 +1147,18 @@ export function renderComponent(
   const checkMs = (name: string, ms: any) => {
     if (!validMs(ms)) throw new Error(`[Sygnal] ${name}: the timeout must be a finite number of ms between 0 and ${MAX_MS} (got ${String(ms)})`);
   };
+  // PLAN-3 5-4c: the router fake (makeRouter's real driver over an in-memory window) when the
+  // app's router is passed and no driver is; the HEAD fake unless a HEAD driver is passed
+  const {router, url, routerSink = 'ROUTER', headSink = 'HEAD', titleTemplate} = options;
+  const compName = componentDef.name || componentDef.componentName || 'TestComponent';
+  if (router !== undefined && !(router && typeof router == 'object' && router.options && typeof router.driver == 'function')) {
+    throw new Error(`[Sygnal] renderComponent: the router option takes the object makeRouter() returns (import { router } from './routes.js'), not ${typeof router == 'function' ? 'router.driver' : 'a ' + typeof router}`);
+  }
+  const fakeRouter = !!router && !drivers[routerSink];
+  if (!router && componentDef.route && !drivers[routerSink]) {
+    throw new Error(`[Sygnal] renderComponent(${compName}, { router }): ${compName} declares \`route\`, so the test needs the app's router: the object makeRouter() returns (import { router } from './routes.js'). renderComponent then runs its real driver over an in-memory history starting at the url option (default '/'). Or pass a ${routerSink} driver in drivers`);
+  }
+  if (url !== undefined && !fakeRouter) throw new Error(`[Sygnal] renderComponent: url is the router fake's start URL: pass the app's router too (renderComponent(${compName}, { router, url }))`);
 
   const prevMode = getDiagnosticsMode();
   // 2A: strict flag on the core bridge (read by the 'sygnal/diagnostics' strict checks)
@@ -749,22 +1204,53 @@ export function renderComponent(
   const scheduled: Scheduled[] = [];
   // G-064: listeners on the driverless sinks of descendants (removed when they're disposed)
   const childSinks = new Map<any, Array<[any, any]>>();
+  // PLAN-3 1-C (G-151): a sink in a descendant's model that no driver provides (the root's
+  // model doesn't name it) gets the fake as a real source before the component wires its
+  // actions and sinks, so the core stamps its requests and delivers the reply actions, as under run()
+  // with the driver. Its descendants inherit it; their requests reach its sink.
+  const injected = new Map<any, string[]>();
+  // 2-C: component number (a request's sender) → name, for t.connections (a tagged copy of a
+  // value keeps the sender, not the name)
+  const senderNames = new Map<any, string>();
+  const inject = (c: any) => {
+    const m = c.model, src = c.sources, names: string[] = [];
+    if (!m || typeof m != 'object' || !src || !Array.isArray(c.sourceNames)) return;
+    for (const k in m) {
+      const e = m[k], [, sink] = k.split('|');
+      for (const n of sink ? [sink.trim()] : e && typeof e == 'object' ? Object.keys(e) : []) {
+        if (n in src || RESERVED_SINKS.test(n) || n == c.stateSourceName || names.includes(n)) continue;
+        src[n] = fake(n).at(nsOf(c));
+        c.sourceNames.push(n);
+        names.push(n);
+      }
+    }
+    // G-160: a component with a connections static gets the socket fake even when no model entry
+    // names the sink (a read-only SSE feed), unless a driver provides it
+    // 3-A: likewise the resources static and resourceSink
+    for (const [st, n] of [['connections', socketSink], ['resources', resourceSink]]) {
+      if (c.view?.[st] && !(n in src) && !names.includes(n)) {
+        src[n] = fake(n).at(nsOf(c));
+        c.sourceNames.push(n);
+        names.push(n);
+      }
+    }
+    if (names.length) injected.set(c, names);
+  };
   const recordChildSinks = (c: any) => {
-    const m = c.model$ || {}, own = new Set<string>(c.sourceNames || []);
-    const extra = Object.keys(m).filter(k => !own.has(k) && !RESERVED_SINKS.test(k) &&
-      k != c.stateSourceName && typeof m[k]?.addListener == 'function');
-    if (!extra.length) return;
+    const extra = injected.get(c);
+    if (!extra) return;
     childSinks.set(c, []);
     // subscribed after the constructor, as a parent's sinks would be; actions start >= 1ms later
     queueMicrotask(() => {
-      const list = childSinks.get(c);
+      const list = childSinks.get(c), sk = c.sinks || {};
       if (disposed || !list) return;
       // R4-2: a child's request is tagged with its place in the tree (the fake's scope)
       const ns = nsOf(c);
       for (const k of extra) {
-        const l = {next: (v: any) => sinkValues(k).push(v && typeof v == 'object' ? ns.reduceRight(tagRequest, v) : v), error: noop, complete: noop};
-        m[k].addListener(l);
-        list.push([m[k], l]);
+        if (typeof sk[k]?.addListener != 'function') continue;
+        const l = {next: (v: any) => record(k, ns.reduceRight(tag, v), true), error: noop, complete: noop};
+        sk[k].addListener(l);
+        list.push([sk[k], l]);
       }
     });
   };
@@ -790,6 +1276,10 @@ export function renderComponent(
     onReducer: bump,
     onIntent(c: any) {
       bump();
+      if (mine(c)) senderNames.set(c._componentNumber, c.name);
+      if (mine(c)) inject(c);
+      // PLAN-3 5-4c: a sub-component declaring `route` with no router (fake or driver) to answer it
+      if (mine(c) && c.view?.route && !(routerSink in (c.sources || {}))) failWith(new Error(`[Sygnal] ${c.name} declares \`route\`, and nothing answers it: pass the app's router, renderComponent(${compName}, { router }) (the object makeRouter() returns), or a ${routerSink} driver in drivers`));
       const sc = scopeOf(c);
       if (sc) owners.set(sc, c.name);
       if (c.sources[c.DOMSourceName || 'DOM']?._hub == hub.$) scopeIds.set(sc || '', c._componentNumber);
@@ -919,35 +1409,189 @@ export function renderComponent(
   // E2: scriptable fake sources (t.respond / t.fail) for sinks/sources with no driver. Same
   // source API as makeFetchDriver / driverFromAsync: select(category?) and errors(category?),
   // where the selector is a category string, a predicate, or nothing (everything).
-  // R4-2: isolated like makeFetchDriver: a source at scope path `ns` sees the replies to
-  // requests made at or under it; requests are tagged by isolateSink (or, for a child-only
-  // sink with no driver, with the component's place in the tree, see nsOf)
+  // R4-2: isolated like the drivers: a source at scope path `ns` sees the replies to requests
+  // made at or under it; requests are tagged by isolateSink (or, for a child-only sink with no
+  // driver, with the component's place in the tree, see nsOf)
+  // PLAN-3 5-1 (H-9): the HTTP half IS makeFetchDriver, run over an in-memory fetch. Every
+  // fetch is a pending entry until t.respond / t.fail resolve it with a Response-like object (or
+  // reject it); the driver aborts superseded / cancelled / disposed requests through their
+  // AbortSignal, which takes them off the pending list. So latest, abort, timeouts, isolation,
+  // reply actions (each to exactly its sender) and resources are the driver's own rules, with no
+  // copy here. `subs` mirrors each select()/errors() subscription, for `request: null` pushes and
+  // for the "nothing receives it" check on plain replies.
   type FakeSub = {l: any; sel: any; err: boolean; ns: any[]};
-  type Fake = {select: any; errors: any; subs: Set<FakeSub>; at: (ns: any[]) => Fake};
+  // value: what t.requests lists (normalised); req: the request the driver got; res: the resource;
+  // pf: a { prefetch } fetch (5-5: answered into the cache, no reply)
+  type Pending = {value: any; req: any; category: any; res?: string; pf?: any; live: boolean; settle: (ok: boolean, v: any) => void};
+  type Fake = {select: any; errors: any; subs: Set<FakeSub>; at: (ns: any[]) => any; pending: Pending[]; in$: any; http: any; ws: Sock};
   const fakes = new Map<string, Fake>();
+  // 5-3: the fake drivers' focus / online listeners (t.focus, t.online)
+  const signals = new Set<(s: string) => void>();
+  // the value record() is sending (as listed in t.requests), and what the driver's _tap named
+  let sending: any, tapped: any[] | undefined;
   const fake = (name: string): Fake => {
     let f = fakes.get(name);
     if (!f) {
       const subs = new Set<FakeSub>();
+      const pending: Pending[] = [];
+      const in$ = xs.create();
+      const ws = sockFake();
+      const http = makeFetchDriver({
+        ...httpOptions,
+        // 5-3: focus / online come from t.focus() / t.online() only
+        _on: (f: any) => { signals.add(f); return () => signals.delete(f); },
+        _tap: (req: any, res?: string, pf?: any) => { tapped = [req, res, pf]; },
+        fetch: (url: string, init: any) => new Promise((resolve, reject) => {
+          const [req, res, pf] = tapped || [{url}];
+          tapped = undefined;
+          // G-171(1): a resource fetch is listed as { url, ...request, resource: name }; 5-5: a
+          // { prefetch } fetch as { url, ...request, prefetch: true }
+          const value = res !== undefined ? {...req, resource: res} : pf ? {...req, prefetch: true} : sending !== undefined ? sending : req;
+          if (res !== undefined || pf) requests(name).push(value);
+          const p: Pending = {value, req, category: req.category, res, pf, live: true, settle: (ok, v) => { p.live = false; (ok ? resolve : reject)(v); }};
+          pending.push(p);
+          init?.signal?.addEventListener?.('abort', () => {
+            if (!p.live) return;
+            p.live = false;
+            const e: any = new Error('The operation was aborted.');
+            e.name = 'AbortError';
+            reject(e);
+          });
+        }),
+      })(in$);
       const at = (ns: any[]): any => {
-        const src = (err: boolean) => (sel?: any) => {
+        const own = (err: boolean) => (sel?: any) => {
           let sub: FakeSub;
           return xs.create({
             start: (l: any) => { subs.add((sub = {l, sel, err, ns})); },
             stop: () => { subs.delete(sub); },
           });
         };
+        const hs = ns.reduce((s, sc) => s.isolateSource(s, sc), http);
+        // 2-C: the socket driver's source, isolated alike (events without an action reach select(name?))
+        const sock = ns.reduce((s, sc) => s.isolateSource(s, sc), ws.src);
         return {
-          select: src(false), errors: src(true), subs, at,
+          select: (sel?: any) => xs.merge(hs.select(sel), own(false)(sel), sock.select(sel)),
+          errors: (sel?: any) => xs.merge(hs.errors(sel), own(true)(sel)),
+          subs, at, pending, in$, http, ws,
+          // 5-3: the driver's matcher / inspection (the dev checks' SYG632, t.cache)
+          __matches: http.__matches, __inspect: http.__inspect,
           isolateSource: (_: any, scope: any) => at(ns.concat(scope)),
-          isolateSink: (sink$: any, scope: any) => sink$.map((v: any) => v && typeof v == 'object' ? tagRequest(v, scope) : v),
-          // R4-7: no legacy HTTP HYDRATE subscription
-          __sygnalFetch: true,
+          isolateSink: (sink$: any, scope: any) => sink$.map((v: any) => tag(v, scope)),
+          // G-160: the fake named by `socketSink` receives the components' connections static
+          // 3-A: and the one named by `resourceSink` the resources static
+          ...(name == socketSink ? {__sygnalStatic: 'connections'} : name == resourceSink ? {__sygnalStatic: 'resources'} : {}),
+          __sygnalReplies: true,
+          // both drivers' reply actions; a disposed sender's connections leave t.connections
+          replies: (sender: any) => xs.merge(http.replies(sender), ws.src.replies(sender),
+            xs.create({start: noop, stop: () => { ws.conns.delete(sender); }})),
         };
       };
       fakes.set(name, (f = at([])));
     }
     return f!;
+  };
+  // PLAN-3 2-C: the socket half of a fake source. Values with `connections` / `to` go to a real
+  // makeSocketDriver over in-memory sockets, so diffing, reply actions, sharing, queueing and
+  // reconnect are the driver's own. `conns` mirrors what each sender has declared (sender →
+  // name → Conn) and which fake socket serves each connection, for t.connections and targets.
+  type Conn = {by: string; name: string; spec: any; sse: boolean; url: string; k: string; own: boolean; s?: any};
+  type Sock = {src: any; in$: any; conns: Map<any, Map<string, Conn>>; sockets: any[]; sent: any[]; declaring: Conn[] | null};
+  const sockFake = (): Sock => {
+    const w: Sock = {src: null, in$: xs.create(), conns: new Map(), sockets: [], sent: [], declaring: null};
+    const made = (s: any) => {
+      w.sockets.push(s);
+      const all = [...w.conns.values()].flatMap(m => [...m.values()]).filter(c => c.k == s.k);
+      if (w.declaring) {
+        // a declaration opened it: the first new connection with its key (and, shared, the
+        // other new shared ones)
+        const first = w.declaring.find(c => c.k == s.k && !c.s);
+        if (first) [first, ...(first.own ? [] : w.declaring.filter(c => c.k == s.k && !c.s && !c.own))].forEach(c => { c.s = s; });
+      } else {
+        // a reconnect: replaces the oldest dropped socket with its key
+        const old = all.map(c => c.s).filter(x => x && !alive(x)).sort((a, b) => w.sockets.indexOf(a) - w.sockets.indexOf(b))[0];
+        all.forEach(c => { if (c.s === old) c.s = s; });
+      }
+      // autoConnect: it opens on the next macrotask (or at once when a t.push / t.drop needs it)
+      if (autoConnect) {
+        s.auto = true;
+        setTimeout(() => { if (s.readyState === 0 && !disposed) sockOpen(s); });
+      }
+    };
+    w.src = makeSocketDriver({WebSocket: fakeSocketClass(false, made), EventSource: fakeSocketClass(true, made)})(w.in$);
+    return w;
+  };
+  const sockValue = (v: any) => !!v && typeof v == 'object' && ('connections' in v || 'to' in v);
+  const sockRecord = (w: Sock, v: any) => {
+    if ('to' in v && !('connections' in v)) w.sent.push(v);
+    else if (!('then' in v || 'catch' in v)) {
+      const sender = senderOf(v), next = v.connections || {}, old = w.conns.get(sender) || new Map(), now = new Map<string, Conn>();
+      const fresh: Conn[] = [];
+      Object.keys(next).forEach(name => {
+        const spec = next[name];
+        if (!spec || typeof spec != 'object' || (typeof spec.socket != 'string' && typeof spec.sse != 'string') || 'then' in spec || 'catch' in spec) return;
+        const sse = typeof spec.sse == 'string', url = sockUrl(sse ? spec.sse : spec.socket, sse);
+        const k = sockKey(sse, url, sse ? spec : spec.protocols), own = spec.share === false;
+        const c = old.get(name);
+        if (c && c.k == k && c.own == own) { c.spec = spec; now.set(name, c); }
+        else { const n: Conn = {by: v.__emitterName ?? senderNames.get(sender), name, spec, sse, url, k, own}; now.set(name, n); fresh.push(n); }
+      });
+      w.conns.set(sender, now);
+      w.declaring = fresh;
+      try { w.in$.shamefullySendNext(v); } finally { w.declaring = null; }
+      // joined a shared socket that was already there
+      fresh.forEach(c => { if (!c.s && !c.own) c.s = w.sockets.filter(s => s.k == c.k && alive(s)).pop(); });
+      return;
+    }
+    w.in$.shamefullySendNext(v);
+  };
+  const sockFire = (s: any, type: string, ev: any) => {
+    try { s['on' + type]?.(ev); } catch (e) { console.error(e); }
+  };
+  const sockOpen = (s: any) => { s.readyState = 1; sockFire(s, 'open', {type: 'open'}); };
+  const sockState = (c: Conn) => !c.s || c.s.readyState == 0 ? 'connecting' : c.s.readyState == 1 ? 'open' : 'closed';
+  const sockView = (c: Conn): FakeConnection => ({...c.spec, name: c.name, url: c.url, state: sockState(c), sender: c.by});
+  // G-131: a string request is scope-tagged as { url } (like makeFetchDriver's isolateSink),
+  // remembering the string, so t.requests still shows what the component sent
+  const STR = '__sygnalString';
+  const tag = (v: any, scope: any) => {
+    if (typeof v != 'string' && !(v && typeof v == 'object')) return v;
+    const r = tagRequest(v, scope), str = typeof v == 'string' ? v : v[STR];
+    if (str !== undefined) Object.defineProperty(r, STR, {value: str});
+    return r;
+  };
+  const requests = (k: string) => (reqValues[k] = reqValues[k] || []);
+  const reqValues: Record<string, any[]> = {};
+  // a sink value: recorded (t.sinkValues: everything) and, on a fake source, sent to its driver.
+  // G-141 / G-171(1): t.requests lists the requests, normalised (a string is { url }); never the
+  // { abort } commands, { resources } declarations or { refresh } commands. A resource's fetches
+  // are listed by the fake's fetch, with `resource: name`.
+  // 5-7: resource names declared on each sink, so t.respond(name, …, 'quote') right after the
+  // state change that (re)fetches 'quote' waits for that fetch instead of throwing
+  const declaredRes = new Map<string, Set<string>>();
+  // states.length when the last simulate* call was made: no state since then = its change is pending
+  let simAt = -1;
+  // G-189: true from a simulate* call until the requests it causes have left: a sink that also
+  // carries `resources` sends them two microtasks after the action (G-158)
+  let sendDue = false, dueSeq = 0;
+  const record = (name: string, v: any, track: boolean) => {
+    const shown = v && typeof v == 'object' && v[STR] !== undefined ? v[STR] : v;
+    if (v && typeof v == 'object' && v.resources && typeof v.resources == 'object') {
+      const set = declaredRes.get(name) || new Set<string>();
+      Object.keys(v.resources).forEach(k => set.add(k));
+      declaredRes.set(name, set);
+    }
+    sinkValues(name).push(shown);
+    const obj = !!v && typeof v == 'object';
+    const listed = !(obj && (v.abort || v.resources || v.refresh || 'invalidate' in v || 'prefetch' in v));
+    const value = typeof shown == 'string' ? {url: shown} : shown;
+    if (listed) requests(name).push(value);
+    if (!track) return;
+    // 2-C: a socket value goes to the fake's socket driver (it reports SYG610/SYG611 itself)
+    if (obj && sockValue(v)) return sockRecord(fake(name).ws, v);
+    const f = fake(name);
+    sending = listed ? value : undefined;
+    try { f.in$.shamefullySendNext(v); } finally { sending = tapped = undefined; }
   };
   // R4-2: a component's scope path for the child-only fake: its ancestors' numbers below the root
   const parentOf = new Map<any, any>();
@@ -1063,19 +1707,47 @@ export function renderComponent(
       bump();
     }
   };
+  // PLAN-3 5-4c: the router fake: the app router's options with an in-memory window (scroll and
+  // focus off unless asked for, no Vike navigate), commands the app sent (t.sent), and t.*'s own
+  // commands merged into the driver's input (no sender: they go through `block` like a click)
+  type RouterFake = {mem: ReturnType<typeof memoryWindow>; r: any; cmd$: any; sent: any[]};
+  let rt: RouterFake | undefined;
+  if (fakeRouter) {
+    const loc = (globalThis as any).location;
+    const origin = loc && /^https?:$/.test(loc.protocol) ? loc.origin : 'http://localhost';
+    const mem = memoryWindow(new URL(url ?? '/', origin + '/').href, real, (s: string) => queryIn(s), !!(options.routerScroll || options.routerFocus));
+    const o = router.options;
+    const r = makeRouter({...o, navigate: undefined, location: undefined, history: undefined, document: undefined, window: mem.w,
+      scroll: !!options.routerScroll, focus: options.routerFocus ? (typeof options.routerFocus == 'string' ? options.routerFocus : o.focus) : false});
+    rt = {mem, r, cmd$: xs.create(), sent: []};
+  }
+  const routerDriver = (sink$: any) => {
+    const f = rt!;
+    const app$ = sink$.map((v: any) => {
+      // the `{ route }` declarations are the core's, not commands
+      if (v && typeof v == 'object' && !('route' in v && Object.keys(v).length == 1)) f.sent.push(v);
+      return v;
+    });
+    return f.r.driver(xs.merge(app$, f.cmd$));
+  };
+  const hd = drivers[headSink] ? undefined : headFake();
   const allDrivers: any = {
     DOM: real
       ? (vnode$: any, name: string) => trackSource(realDOM(gated(vnode$), name), [], hub.$, onEvents)
       : () => mockDOMSource(mockConfig, hub.$, onEvents),
     EVENTS: eventBusDriver,
     LOG: logDriver,
+    ...(hd && {[headSink]: hd.driver}),
+    ...(rt && {[routerSink]: routerDriver}),
     ...drivers,
   };
+  const faked = new Set<string>();
   for (const k in model) {
     const e = model[k], [, sink] = k.split('|');
     for (const n of sink ? [sink.trim()] : e && typeof e == 'object' ? Object.keys(e) : []) {
       if (!allDrivers[n] && !/^(STATE|EFFECT|PARENT|READY)$/.test(n)) {
         allDrivers[n] = () => fake(n);
+        faked.add(n);
       }
     }
   }
@@ -1105,9 +1777,7 @@ export function renderComponent(
   const sinkValues = (k: string) => (values[k] = values[k] || []);
   for (const k in sinks) {
     if (k != 'DOM' && k != 'STATE' && typeof sinks[k]?.addListener == 'function') {
-      listen(sinks[k], v => sinkValues(k).push(
-        k == 'EVENTS' ? {type: v.type, data: v.data} : k == 'PARENT' ? v.value : v
-      ));
+      listen(sinks[k], v => record(k, k == 'EVENTS' ? {type: v.type, data: v.data} : k == 'PARENT' ? v.value : v, faked.has(k)));
     }
   }
   // Input queue (G-049/G-039): simulateAction/simulateEvent calls are delivered in order,
@@ -1198,8 +1868,16 @@ export function renderComponent(
     });
   }
   // 1H-4: a component that never renders on its own (a model but no initialState: no state
-  // until an action sets it) still becomes ready, so buffered input is delivered
-  const fallback = setTimeout(arm, sinks.DOM ? 30 : 0);
+  // until an action sets it) still becomes ready, so buffered input is delivered.
+  // G-176: one that has a state but hasn't rendered it yet is only slow (a loaded machine):
+  // keep waiting for its first render (at most timeoutMs), or ready() resolves before it and
+  // query() returns null
+  const fallbackFrom = clockNow();
+  const fallbackCheck = () => {
+    if (!timer && sinks.DOM && states.length && clockNow() - fallbackFrom < defaultTimeout) fallback = setTimeout(fallbackCheck, 10);
+    else arm();
+  };
+  let fallback = setTimeout(fallbackCheck, sinks.DOM ? 30 : 0);
 
   const tick = (ms: number) => new Promise(r => setTimeout(r, ms));
   /**
@@ -1276,99 +1954,347 @@ export function renderComponent(
       ` (pass { allowMissing: true } to drop the event instead).\nRendered: ${out.length > 600 ? out.slice(0, 600) + '…' : out || '(nothing)'}`);
   };
 
+  const due = () => {
+    const n = ++dueSeq;
+    sendDue = true;
+    Promise.resolve().then(noop).then(noop).then(noop).then(() => { if (n == dueSeq) sendDue = false; });
+  };
   const simulateAction = (type: string, data?: any) => {
+    simAt = states.length; due();
     throwFailure();
     later(() => (actions.emit({type, data}), true));
   };
 
-  // E2: t.respond / t.fail. The answered request is picked when the call is delivered (in
-  // order with simulate* calls), waiting up to 1s for the component to send one.
-  // 4-F: each send is tracked by its index in the recorded sink values, not by the request
-  // object, so a constant request object sent again (a Retry after t.fail) is a new pending
-  // request, as with the real driver
-  const answered = new Set<string>();
-  const pendingRequests = (name: string) => {
-    let live: Array<{raw: any; category: any; scope: string; i: number}> = [];
-    for (const [i, raw] of sinkValues(name).entries()) {
-      const r = typeof raw == 'string' ? {url: raw} : raw;
-      if (!r || typeof r != 'object') continue;
-      // { abort: true } cancels everything; with a category, or a latest: true request, the
-      // ones in flight in that category
-      // R4-2: per scope: another component's requests are never cancelled
-      const sc = scopeKey(r);
-      if (r.abort || r.latest) live = live.filter(x => x.scope !== sc || (r.latest || 'category' in r) && x.category !== r.category);
-      if (!r.abort && !answered.has(name + '#' + i)) live.push({raw, category: r.category, scope: sc, i});
+  // E2: t.respond / t.fail. PLAN-3 1-C: the request is chosen by content (G-140, E2 13-t4):
+  // a string is an ok/error action name, key or category; a function a predicate; an object
+  // (or `{ request }`) a partial request compared by value, preferring the very object of
+  // t.requests among equal ones. With no target: the newest pending request.
+  // When to pick: a call made while simulate*/respond/fail calls are still queued, or before
+  // the component is ready, is queued behind them and picks its request when it is delivered,
+  // waiting up to 1s for it (a debounce); otherwise the request must be pending at the call,
+  // or the call throws (`expect(() => t.respond(...)).toThrow()`).
+  // The returned promise resolves once the reply has been reduced and the tree rendered. A
+  // failure later on rejects it; when nothing awaits it, it also fails the next wait.
+  const replyWaits = new Set<(e?: Error, quiet?: boolean) => void>();
+  const OPTION_KEYS = ['category', 'request', 'status', 'body', 'nth'];
+  type Target = {match: (r: Pending) => boolean; exact?: any; desc: string; push?: boolean; o: any};
+  // a pending request is matched by its t.requests form (`value`): a string request is { url },
+  // a resource fetch carries `resource: name`
+  const targetOf = (opts: any): Target => {
+    const isOpts = !!opts && typeof opts == 'object' && !Array.isArray(opts) && Object.keys(opts).every(k => OPTION_KEYS.includes(k));
+    const o = isOpts ? opts : {};
+    // request: null pushes a value no request asked for (a source that emits on its own)
+    if (isOpts && o.request === null) return {match: () => false, desc: '', push: true, o};
+    let tg = isOpts ? o.request : opts;
+    if (isOpts && typeof tg == 'string') tg = {url: tg};
+    const cat = 'category' in o ? (r: Pending) => r.category === o.category : () => true;
+    if ('nth' in o && !Number.isInteger(o.nth)) throw new Error(`[Sygnal] t.respond/t.fail: nth must be an integer (a position in t.requests(name): 0 the first, -1 the newest; got ${brief(o.nth)})`);
+    const catDesc = ('category' in o ? ` with category '${o.category}'` : '') + ('nth' in o ? ` at nth: ${o.nth}` : '');
+    if (tg === undefined) return {match: cat, desc: catDesc, o};
+    if (typeof tg == 'string') {
+      // an ok/error action name, key, category, resource name or URL
+      return {match: r => { const v = r.value || {}; return cat(r) && [v.ok, v.error, v.key, v.category, r.res, v.url].includes(tg); }, desc: ` matching '${tg}'${catDesc}`, o};
     }
-    return live;
+    if (typeof tg == 'function') {
+      return {match: r => { try { return cat(r) && !!tg(r.value); } catch (_) { return false; } }, desc: ` matching the predicate${catDesc}`, o};
+    }
+    if (tg && typeof tg == 'object') {
+      const keys = Object.keys(tg);
+      return {match: r => cat(r) && !!r.value && keys.every(k => same(tg[k], r.value[k])), exact: isOpts ? o.request : tg, desc: ` matching ${brief(tg)}${catDesc}`, o};
+    }
+    throw new Error(`[Sygnal] t.respond/t.fail: the target must be an action name, key, category, resource name or URL, a request object, a predicate or { request, category, status, body } options (got ${typeof tg})`);
   };
-  const reply = (fn: string, name: string, err: boolean, build: (category: any, request: any) => any, opts: any) => {
+  // 6-B (G-185): `nth` picks one request of t.requests(name) (those matching the rest of the
+  // target) by position, pending or not: identical requests can't be told apart by content
+  const nthOf = (name: string, tg: Target): {list: Pending[]; hit?: Pending} => {
+    const ps = fakes.get(name)?.pending || [];
+    const list = requests(name).map(v => ps.find(p => p.value === v) ||
+      {value: v, req: v, category: v?.category, res: v?.resource, live: false, settle: noop} as Pending).filter(tg.match);
+    const n = tg.o.nth;
+    return {list, hit: list[n < 0 ? list.length + n : n]};
+  };
+  const pick = (name: string, tg: Target): Pending | undefined => {
+    if ('nth' in tg.o) {
+      const {hit} = nthOf(name, tg);
+      return hit?.live ? hit : undefined;
+    }
+    const live = (fakes.get(name)?.pending || []).filter(r => r.live && tg.match(r));
+    return (tg.exact !== undefined && live.filter(r => r.value === tg.exact || r.req === tg.exact).pop()) || live.pop();
+  };
+  const noPending = (what: string, name: string, tg: Target, waited: number) => {
+    if ('nth' in tg.o) {
+      const {list, hit} = nthOf(name, tg), all = requests(name).length;
+      return new Error(`[Sygnal] ${what}: ` + (hit
+        ? `t.requests('${name}')[${requests(name).indexOf(hit.value)}] (the one${tg.desc}) is not pending: it was answered, aborted, or superseded by a later latest: true request or a refetch of its resource. That is what expect(() => t.respond(...)).toThrow() asserts.`
+        : `no pending ${name} request${tg.desc}${waited ? ` after ${waited}ms` : ''}: t.requests('${name}') has ${list.length} request${list.length == 1 ? '' : 's'}${list.length < all ? ` matching (${all} in all)` : ''}.`));
+    }
+    const sent = requests(name).length, live = fakes.get(name)?.pending.filter(r => r.live) || [];
+    return new Error(`[Sygnal] ${what}: no pending ${name} request${tg.desc}${waited ? ` after ${waited}ms` : ''}. ` +
+      (live.length ? `Pending: ${live.map(r => brief(r.value)).join(', ')}. ` : '') +
+      (sent ? `The component sent ${sent} (t.requests('${name}'))${live.length ? '; the others were' : ','} all answered, aborted or superseded by a later latest: true request.` :
+        `The component sent none: check the model entry that returns the ${name} request (t.requests('${name}') is empty).`) +
+      (waited ? '' : ` t.respond/t.fail answer a request already sent, or one sent by the simulate* calls queued before them: wait for a later one first (await t.next(...) or t.settle()).`));
+  };
+  /**
+   * 5-1: `deliver(e, o)` settles the pending fetch `e` (the driver then routes the reply);
+   * `payload(category, o, e?)` is what select()/errors() would get, for a `request: null` push
+   * and for the "nothing receives it" check on a plain reply.
+   */
+  const reply = (fn: string, name: string, err: boolean, opts: any, deliver: (e: Pending, o: any) => void, payload: (category: any, o: any, e?: Pending) => any): Promise<void> => {
     throwFailure();
     if (drivers[name]) throw new Error(`[Sygnal] t.${fn}('${name}'): ${name} has a real driver (passed in drivers), so there is nothing to script. t.respond/t.fail answer the fake source renderComponent provides when no driver is passed`);
-    const o = typeof opts == 'string' ? {category: opts} : opts || {};
+    const tg = targetOf(opts);
     const what = `t.${fn}('${name}'${typeof opts == 'string' ? `, …, '${opts}'` : ''})`;
+    // a resource named by the target may still be about to fetch (its request follows the state
+    // change): queue the call like one made behind queued input
+    const later = typeof opts == 'string' && !!declaredRes.get(name)?.has(opts) && states.length <= simAt ||
+      // G-189: called at once after a simulate* call, on a sink that carries `resources`: the
+      // requests it causes leave two microtasks later (G-158), so the call waits for them
+      sendDue && declaredRes.has(name) && !tg.push && !('nth' in tg.o);
+    return scripted(() => tg.push ? {} : pick(name, tg), w => noPending(what, name, tg, w), hit => {
+      const f = fake(name), o = tg.o;
+      const e: Pending | undefined = tg.push ? undefined : hit;
+      const category = 'category' in o ? o.category : e?.category;
+      // the driver delivers a resource's reply, and a reply action for a request that names one
+      // for this outcome (from a component), as that action; a prefetch into the cache; anything
+      // else on select()/errors()
+      if (e && (e.res !== undefined || e.pf || (senderOf(e.req) !== undefined && (err ? e.req.error : e.req.ok)))) return deliver(e, o);
+      const data = payload(category, o, e);
+      let heard = false;
+      f.subs.forEach(sub => {
+        let hit = false;
+        // a pushed value no request asked for (request: null) reaches every scope
+        try { hit = sub.err === err && (!e || inScope(sub.ns, e.req)) && (sub.sel === undefined || (typeof sub.sel == 'function' ? sub.sel(data) : sub.sel === category)); } catch (_) {}
+        if (hit) { heard = true; if (!e) sub.l.next(data); }
+      });
+      if (heard) return e && deliver(e, o);
+      if (e) e.live = false;
+      const ls = [...f.subs].filter(x => x.err === err).map(x => `${name}.${err ? 'errors' : 'select'}(${x.sel === undefined ? '' : typeof x.sel == 'function' ? 'fn' : `'${x.sel}'`})`);
+      return new Error(`[Sygnal] ${what}: nothing receives it: no intent listens to ${name}.${err ? 'errors' : 'select'}(${category === undefined ? '' : `'${category}'`})` +
+        (ls.length ? ` (listening: ${ls.join(', ')})` : '') + `. ` +
+        (err ? `Name a reply action for the failure (error: 'FAILED' on the request), or handle it in the intent, e.g. FAILED: ${name}.errors('${category ?? 'category'}'), so a failed request can't leave the component loading.` :
+          `Name a reply action for the reply (ok: 'LOADED' on the request), or select it in the intent, e.g. LOADED: ${name}.select('${category ?? 'category'}').`));
+    }, later);
+  };
+  /**
+   * G-140 / PLAN-3 1-C: a scripted input (t.respond/t.fail, 2-C's t.open/t.push/t.drop). With
+   * nothing queued before it and the component ready, `find()` must match now or the call
+   * throws `none(0)`; otherwise it is queued and finds its target when delivered, waiting up to
+   * 1s (half of timeoutMs if lower). `act(hit)` delivers it (an Error: it failed). The promise
+   * resolves once the result has been reduced and the whole tree rendered.
+   */
+  const scripted = (find: () => any, none: (waited: number) => Error, act: (hit: any) => Error | void, later = false): Promise<void> => {
+    throwFailure();
+    if (isReady && !inputs.length && !disposed && !later && !find()) throw none(0);
+    let ok!: () => void, ko!: (e: Error) => void, seen = false, open = true;
+    const inner = new Promise<void>((a, b) => { ok = a; ko = b; });
+    inner.catch(noop);
+    const out = new Reply((a, b) => inner.then(a, b));
+    Promise.prototype.then.call(out, undefined, noop);
+    out._seen = () => {
+      if (seen) return;
+      seen = true;
+      // E11: under fake timers, an awaited reply drives the clock like the harness's waits
+      if (open && fakeClock()) drive(inner, () => disposed).catch(noop);
+    };
+    const settle = (e?: Error, quiet?: boolean) => {
+      if (!open) return;
+      open = false;
+      replyWaits.delete(settle);
+      if (!e) return ok();
+      if (!seen && !quiet) failWith(e);
+      ko(e);
+    };
+    replyWaits.add(settle);
+    const wait = Math.min(1000, defaultTimeout / 2);
     const input: Input = {
       // up to 1s (half of timeoutMs if lower), so a wait (next/settle) still times out later
-      wait: Math.min(1000, defaultTimeout / 2),
+      wait,
       go: last => {
-        let request = o.request, category = o.category, send: any;
-        // request: null pushes a value no request asked for (a source that emits on its own)
-        if (request === null) {
-          request = undefined;
-        } else if (request !== undefined) {
-          // an explicit request answers the latest pending send of that object (one sent
-          // twice is answered newest first); one no longer pending (superseded, aborted,
-          // answered) gets nothing, like the real driver
-          send = pendingRequests(name).filter(x => x.raw === request).pop();
-          if (!send) return true;
-        } else {
-          const live = pendingRequests(name).filter(x => !('category' in o) || x.category === category);
-          if (!live.length) {
-            if (!last) return false;
-            const sent = sinkValues(name).length;
-            failWith(new Error(`[Sygnal] ${what}: no pending ${name} request${'category' in o ? ` with category '${category}'` : ''} after ${Math.min(1000, defaultTimeout / 2)}ms. ` +
-              (sent ? `The component sent ${sent} (t.requests('${name}')), all answered, aborted or superseded by a later latest: true request.` :
-                `The component sent none: check the model entry that returns the ${name} request (t.requests('${name}') is empty).`)));
-            return true;
-          }
-          send = live[live.length - 1];
-          request = send.raw;
+        const hit = find();
+        if (!hit) {
+          if (!last) return false;
+          settle(none(wait));
+          return true;
         }
-        if (send) answered.add(name + '#' + send.i);
-        if (!('category' in o)) category = request?.category;
-        const payload = build(category, request);
-        const f = fake(name);
-        let heard = false;
-        f.subs.forEach(sub => {
-          let hit = false;
-          // a pushed value no request asked for (request: null) reaches every scope
-          try { hit = sub.err === err && (!request || inScope(sub.ns, request)) && (sub.sel === undefined || (typeof sub.sel == 'function' ? sub.sel(payload) : sub.sel === category)); } catch (_) {}
-          if (hit) { heard = true; sub.l.next(payload); }
-        });
-        if (!heard) {
-          const ls = [...f.subs].filter(x => x.err === err && x.sel !== 'initial').map(x => `${name}.${err ? 'errors' : 'select'}(${x.sel === undefined ? '' : typeof x.sel == 'function' ? 'fn' : `'${x.sel}'`})`);
-          failWith(new Error(`[Sygnal] ${what}: nothing receives it: no intent listens to ${name}.${err ? 'errors' : 'select'}(${category === undefined ? '' : `'${category}'`})` +
-            (ls.length ? ` (listening: ${ls.join(', ')})` : '') + `. ` +
-            (err ? `Handle failures in the intent, e.g. FAILED: ${name}.errors('${category ?? 'category'}'), so a failed request can't leave the component loading.` :
-              `Select the request's category in the intent, e.g. LOADED: ${name}.select('${category ?? 'category'}').`)));
+        const failed = act(hit);
+        if (failed) {
+          settle(failed);
+          return true;
         }
+        // resolved once the reply has been reduced and the whole tree rendered (in the DOM)
+        treeRendered(states.length).then(() => real ? untilPatched() : undefined).then(() => settle(), noop);
         return true;
       },
     };
     cursor = shown = undefined;
     inputs.push(input);
     pump();
+    return out;
   };
-  const respond = (name: string, value: any, opts?: string | FakeReplyOptions) =>
-    reply('respond', name, false, (category, request) =>
-      ({category, value, status: (opts as any)?.status ?? 200, request}), opts);
-  const fail = (name: string, error: any, opts?: string | FakeReplyOptions) =>
-    reply('fail', name, true, (category, request) => {
-      let e = error;
-      if (typeof e == 'number') { e = new Error(`HTTP ${error}`); e.status = error; }
-      else if (typeof e == 'string') e = new Error(e);
-      const o: any = typeof opts == 'object' ? opts : {};
-      return {error: e, category, request, status: o.status ?? e?.status, body: o.body ?? e?.body};
-    }, opts);
+  // 5-1: the fetch resolves with a Response-like object (status, the body as JSON, or text for a
+  // string), which the driver parses as it would a server's (a Response passed in is used as is)
+  const urlOf = (e: Pending) => e.value?.url ?? e.req.url ?? '';
+  const respond = (name: string, value: any, opts?: FakeReplyTarget) =>
+    reply('respond', name, false, opts,
+      (e, o) => e.settle(true, typeof Response == 'function' && value instanceof Response ? value : fakeResponse(o.status ?? 200, value, urlOf(e))),
+      (category, o, e) => ({category, value, status: o.status ?? 200, request: e?.req}));
+  // 5-1: a number (or a `status` option) is an HTTP error response the driver turns into its
+  // Error('HTTP 404: url') with `status` / `body`; an Error or a message is a network failure
+  // (the fetch rejects with it)
+  const failureOf = (error: any, o: any) => {
+    const status = typeof error == 'number' ? error : o.status;
+    const x = typeof error == 'string' ? new Error(error) : error;
+    return {status, x, body: o.body ?? (x && typeof x == 'object' ? x.body : undefined)};
+  };
+  const fail = (name: string, error: any, opts?: FakeReplyTarget) =>
+    reply('fail', name, true, opts,
+      (e, o) => {
+        const {status, x, body} = failureOf(error, o);
+        status !== undefined ? e.settle(true, fakeResponse(status, body, urlOf(e))) : e.settle(false, x);
+      },
+      (category, o, e) => {
+        const {status, x, body} = failureOf(error, o);
+        const err = typeof error == 'number' ? Object.assign(new Error(`HTTP ${status}`), {status}) : x;
+        return {error: err, category, request: e?.req, status: status ?? x?.status, body};
+      });
+
+  // PLAN-3 2-C: socket fakes. t.connections lists what the components declared; t.open /
+  // t.push / t.drop act on the fake sockets serving the connections `target` picks (a name or
+  // URL, a partial connection, a predicate; nothing: the newest socket that can take the call),
+  // with t.respond's rules (scripted()): they throw at the call when nothing matches.
+  const conns = (name: string): Conn[] => [...(fakes.get(name)?.ws.conns.values() || [])].flatMap(m => [...m.values()]);
+  const connections = (name: string) => conns(name).map(sockView);
+  // 5-3: the driver's own view of its cache; t.focus / t.online fire the fake drivers' signals
+  const cache = (name: string) => fake(name).http.__inspect().cache || [];
+  const signal = (s: string) => later(() => (signals.forEach(f => f(s)), true));
+  const sent = (name: string, to?: string) => {
+    const all = fake(name).ws.sent;
+    return to === undefined ? all : all.filter(v => v.to === to);
+  };
+  const connTarget = (tg: any): [(c: Conn) => boolean, string] => {
+    if (tg === undefined) return [() => true, ''];
+    if (typeof tg == 'string') return [c => c.name === tg || c.url === tg || (c.sse ? c.spec.sse : c.spec.socket) === tg, ` matching '${tg}'`];
+    if (typeof tg == 'function') return [c => { try { return !!tg(sockView(c)); } catch (_) { return false; } }, ' matching the predicate'];
+    if (tg && typeof tg == 'object') {
+      return [c => { const v: any = sockView(c); return Object.keys(tg).every(k => same(tg[k], v[k])); }, ` matching ${brief(tg)}`];
+    }
+    throw new Error(`[Sygnal] the connection target must be a connection name or URL, a partial connection ({ socket: '/ws/a' }) or a predicate (got ${typeof tg})`);
+  };
+  const sockCall = (fn: string, name: string, tg: any, states: number[], act: (s: any) => void): Promise<void> => {
+    if (drivers[name]) throw new Error(`[Sygnal] t.${fn}('${name}'): ${name} has a real driver (passed in drivers), so there is nothing to script. t.${fn} drives the fake socket source renderComponent provides when no driver is passed`);
+    const [match, desc] = connTarget(tg);
+    const kind = states.length > 1 ? 'open or connecting' : states[0] ? 'open' : 'connecting';
+    const w = () => fake(name).ws;
+    const find = () => {
+      const ok = new Set<any>();
+      // (autoConnect: a socket about to open counts as open)
+      conns(name).forEach(c => { if (c.s && states.includes(c.s.auto && !c.s.readyState ? 1 : c.s.readyState) && match(c)) ok.add(c.s); });
+      const list = [...ok];
+      return list.length ? (tg === undefined ? [list.sort((a, b) => w().sockets.indexOf(a) - w().sockets.indexOf(b)).pop()] : list) : undefined;
+    };
+    const none = (waited: number) => {
+      const list = connections(name);
+      return new Error(`[Sygnal] t.${fn}('${name}'${desc ? ', …' : ''}): no ${kind} ${name} connection${desc}${waited ? ` after ${waited}ms` : ''}. ` +
+        (list.length ? `Connections: ${list.map(c => `${c.name} (${c.socket ?? c.sse}, ${c.state})`).join(', ')}.` :
+          `None is declared: declare it with { connections: { room: { socket: '/ws/…' } } } on the ${name} sink first (t.connections('${name}') is empty).`) +
+        (states.includes(1) && list.some(c => c.state == 'connecting') ? ` A connecting one (autoConnect: false) opens with t.open('${name}').` : '') +
+        (!states.includes(1) && autoConnect ? ` With autoConnect (the default) connections open by themselves: renderComponent(C, { autoConnect: false }) holds them for t.open.` : '') +
+        (waited ? '' : ` A call made while simulate* / t.* calls are still queued waits for them; otherwise the connection must be there at the call.`));
+    };
+    return scripted(find, none, (hit: any[]) => hit.forEach(s => {
+      if (s.auto && !s.readyState) sockOpen(s);
+      act(s);
+    }));
+  };
+  const open = (name: string, target?: FakeConnectionTarget) => sockCall('open', name, target, [0], sockOpen);
+  const push = (name: string, data: any, target?: any) => {
+    const o = target && typeof target == 'object' && !Array.isArray(target) && Object.keys(target).length && Object.keys(target).every(k => k == 'event' || k == 'connection') ? target : {connection: target};
+    const raw = typeof data == 'string' || (data && typeof data == 'object' && (data instanceof ArrayBuffer || ArrayBuffer.isView(data) || (typeof Blob != 'undefined' && data instanceof Blob))) ? data : JSON.stringify(data);
+    const ev = o.event;
+    return sockCall('push', name, o.connection, [1], s => {
+      const m = {type: ev || 'message', data: raw};
+      if (!ev || ev == 'message') sockFire(s, 'message', m);
+      if (s.sse) (s.ls[ev || 'message'] || []).forEach((f: any) => { try { f(m); } catch (e) { console.error(e); } });
+    });
+  };
+  const drop = (name: string, close?: any, target?: any) => {
+    const info = close && typeof close == 'object' && !Array.isArray(close) && Object.keys(close).every(k => k == 'code' || k == 'reason');
+    const tg = info || close === undefined ? target : close;
+    const {code = 1006, reason = ''} = info ? close : {};
+    return sockCall('drop', name, tg, [0, 1], s => {
+      const connecting = s.readyState == 0;
+      if (s.sse) {
+        // EventSource gave up (CLOSED): the driver's reconnect applies
+        s.readyState = 2;
+        return sockFire(s, 'error', {type: 'error'});
+      }
+      s.readyState = 3;
+      if (connecting) sockFire(s, 'error', {type: 'error'});
+      sockFire(s, 'close', {type: 'close', code, reason, wasClean: false});
+    });
+  };
+  // PLAN-3 5-4c: the router fake's test API. t.navigate / t.back / t.forward follow
+  // t.respond's rules (scripted()): they throw at the call when they can't act, and resolve once
+  // the result has been reduced and rendered.
+  const needRouter = (fn: string): RouterFake => {
+    if (rt) return rt;
+    throw new Error(drivers[routerSink]
+      ? `[Sygnal] t.${fn}(): ${routerSink} has a real driver (passed in drivers), so there is no in-memory history to drive. Drop it from drivers and pass the app's router: renderComponent(${compName}, { router })`
+      : `[Sygnal] t.${fn}() needs the router fake: renderComponent(${compName}, { router }), with the object makeRouter() returns (import { router } from './routes.js')`);
+  };
+  const navigate = (target: any): Promise<void> => {
+    const f = needRouter('navigate'), routes = f.r.routes, L = f.mem.w.location;
+    let cmd: any;
+    if (typeof target == 'string') {
+      // an href, as a link has it: navigating to it is what a click on that link does
+      const u = new URL(target, L.href);
+      if (u.origin != L.origin) throw new Error(`[Sygnal] t.navigate('${target}'): that URL is on another origin (${u.origin}, the test's is ${L.origin}); the router leaves external links to the browser. Navigate to a path: t.navigate('/tasks/2')`);
+      cmd = {url: u.pathname + u.search + u.hash};
+    } else if (target && typeof target == 'object' && typeof target.to == 'string') {
+      const pat = routes[target.to];
+      if (pat == null || pat == '*') throw new Error(`[Sygnal] t.navigate({ to: '${target.to}' }): no route named '${target.to}'. Routes: ${Object.keys(routes).filter(k => routes[k] != '*').join(', ')}`);
+      const missing = paramsOf(pat).filter(k => target.params?.[k] == null);
+      if (missing.length) throw new Error(`[Sygnal] t.navigate({ to: '${target.to}' }): route '${target.to}' (${pat}) needs params: ${missing.join(', ')}. t.navigate({ to: '${target.to}', params: { ${missing.join(', ')} } })`);
+      cmd = {...target};
+    } else {
+      throw new Error(`[Sygnal] t.navigate(): pass a URL ('/tasks/2') or { to: 'task', params: { id: 2 }, query?, hash?, replace? } (got ${brief(target)})`);
+    }
+    return scripted(() => true, () => new Error(''), () => { f.cmd$.shamefullySendNext(cmd); });
+  };
+  // the browser's back / forward buttons: the history moves, popstate fires a task later
+  const traverse = (fn: string, n: number): Promise<void> => {
+    const f = needRouter(fn), can = () => f.mem.index() + n >= 0 && f.mem.index() + n < f.mem.size();
+    return scripted(can, w => new Error(`[Sygnal] t.${fn}(): no history entry to go ${n < 0 ? 'back' : 'forward'} to${w ? ` after ${w}ms` : ''} (at ${f.mem.w.location.pathname}, entry ${f.mem.index() + 1} of ${f.mem.size()}). Navigate first: await t.navigate('/…')`),
+      () => { f.mem.w.history.go(n); });
+  };
+  const routerLocation = () => {
+    const L = needRouter('location').mem.w.location;
+    return {path: L.pathname, search: L.search, hash: L.hash, href: L.href};
+  };
+  // mock DOM: a click on (or inside) an <a> also reaches the router's document click listener,
+  // as it would bubble to the document: the driver's own interception decides
+  const routerClick = (chain: any[], ev: any) => {
+    const ls = rt?.mem.docLs.click;
+    if (!ls?.length) return;
+    let k = chain.length - 1;
+    while (k >= 0 && String(chain[k]?.sel || '').split(/[.#]/)[0].toLowerCase() != 'a') k--;
+    if (k < 0) return;
+    const a = anchorOf(chain[k]);
+    const e: any = {
+      type: 'click', button: 0, metaKey: false, ctrlKey: false, shiftKey: false, altKey: false, ...ev,
+      defaultPrevented: !!ev.defaultPrevented, target: a, composedPath: () => [a],
+      preventDefault() { e.defaultPrevented = true; },
+    };
+    ls.slice().forEach((l: any) => l(e));
+  };
+  const sentTo = (name: string, to?: string) => (rt && name == routerSink ? rt.sent : sent(name, to));
+  const head = () => {
+    if (!hd) throw new Error(`[Sygnal] t.head(): ${headSink} has a real driver (passed in drivers), so the fake that records the head isn't there. Read the document it writes, or drop it from drivers`);
+    const m = mergeHead([...hd.entries.values()], titleTemplate);
+    return {title: m.title, meta: Object.fromEntries(m.meta.map(([, k, c]) => [k, c])), link: m.link.map(([, l]) => l)};
+  };
+
   // E4: where real elements are looked up: the container, and the Portal content this tree
   // mounted outside it
   const roots = (): Element[] => {
@@ -1382,18 +2308,17 @@ export function renderComponent(
     walk(vtree);
     return out;
   };
-  const needReal = (fn: string) => {
-    if (!real) throw new Error(`[Sygnal] t.${fn}() needs real DOM elements: renderComponent(C, { dom: 'real' }). The default mock DOM has none (read t.html() or t.states instead)`);
-  };
   // G-125/4-A1: reading the output before the first render can only mislead (null, '')
   const notYet = (call: string) => {
     if (!isReady && !(real ? lastPatched : vtree)) {
       throw new Error(`[Sygnal] ${call} ran before the component's first render${real ? ' was in the DOM' : ''}. Wait for it first: await t.ready() (or await t.next(...))`);
     }
   };
+  // 6-B (G-185): on the mock DOM, MockElement snapshots of the latest rendered tree
+  const mockAll = (s: string): any[] => findAll(vtree, parse(norm(s)), [], []).map(c => mockOf(c, htmlOf));
   const queryAll = (s: string): Element[] => {
-    needReal('queryAll');
     notYet(`t.queryAll('${s}')`);
+    if (!real) return mockAll(s);
     return roots().flatMap(r => Array.from(r.querySelectorAll(s)));
   };
   const queryIn = (s: string): Element | null => {
@@ -1404,12 +2329,13 @@ export function renderComponent(
     return null;
   };
   const query = (s: string): Element | null => {
-    needReal('query');
     notYet(`t.query('${s}')`);
+    if (!real) return mockAll(s)[0] ?? null;
     return queryIn(s);
   };
 
   const simulateEvent = (selector: string, type: string, init: SimulatedEventInit = {}) => {
+    simAt = states.length; due();
     throwFailure();
     const {allowMissing, ...evInit} = init;
     const text = norm(String(selector));
@@ -1447,11 +2373,14 @@ export function renderComponent(
           {selector, type});
         return true;
       }
-      const match = (path: string[]) => {
+      // the chain index of the deepest element a listener at `path` hears this event on
+      // (-1: a document/body listener), or undefined when it doesn't hear it
+      const depthOf = (path: string[]): number | undefined => {
         let ls = selText(path);
-        if (!chain) return ls == text;
+        if (!chain) return ls == text ? 0 : undefined;
         let els = chain;
-        if (PAGE.test(ls)) ls = ls.replace(PAGE, '');
+        const pageLs = PAGE.test(ls);
+        if (pageLs) ls = ls.replace(PAGE, '');
         else {
           const scope = path.filter(isScope).pop();
           let cur: string | undefined;
@@ -1461,10 +2390,15 @@ export function renderComponent(
             return cur == scope;
           });
         }
-        if (!ls) return true;
+        if (!ls) return pageLs || !els.length ? -1 : chain.indexOf(els[0]);
         const lsel = tryParse(ls);
-        return !!lsel && els.some((_, k) => matches(lsel, els.slice(0, k + 1)));
+        if (!lsel) return undefined;
+        for (let k = els.length - 1; k >= 0; k--) {
+          if (matches(lsel, els.slice(0, k + 1))) return pageLs ? -1 : chain.indexOf(els[k]);
+        }
+        return undefined;
       };
+      const match = (path: string[]) => depthOf(path) !== undefined;
       // G-039: wait until every listener this event would reach is subscribed
       if (!last) {
         for (const [k, path] of listeners) {
@@ -1516,7 +2450,12 @@ export function renderComponent(
         stopPropagation: noop,
         ...rest,
       };
-      hub.emit({type, event, match});
+      // G-145: like native bubbling, listeners on deeper elements (a child's) hear the
+      // event before those on their ancestors (the parent's wrapper), then document/body
+      if (!chain) hub.emit({type, event, match});
+      else for (let k = chain.length - 1; k >= -1; k--) hub.emit({type, event, match: (p: string[]) => depthOf(p) === k});
+      // PLAN-3 5-4c: and a link click reaches the router fake's document listener
+      if (type == 'click' && chain) routerClick(chain, event);
       return true;
     }, page || allowMissing ? undefined : () => (has() ? undefined : noMatch(selector, type, false)));
   };
@@ -1667,12 +2606,11 @@ export function renderComponent(
     notYet('t.html()');
     return renderHtml();
   };
-  const renderHtml = () =>
-    vtree
-      ? renderToInnerHtml(() => unmark(vtree)).replace(/ class="([^"]*)"/g, (_, c: string) =>
-          (c = c.split(' ').filter(x => !x.startsWith('___')).join(' ')) ? ` class="${c}"` : ''
-        )
-      : '';
+  const htmlOf = (v: any) =>
+    renderToInnerHtml(() => unmark(v)).replace(/ class="([^"]*)"/g, (_, c: string) =>
+      (c = c.split(' ').filter(x => !x.startsWith('___')).join(' ')) ? ` class="${c}"` : ''
+    );
+  const renderHtml = () => vtree ? htmlOf(vtree) : '';
 
   const inspect = (): InspectGraph => {
     if (!core.inspect) throw Error(`[Sygnal] t.inspect() needs import 'sygnal/diagnostics'`);
@@ -1698,6 +2636,9 @@ export function renderComponent(
     // E4: unmount (the container and the Portal content mounted outside it)
     const mounted = real ? roots() : [];
     rawDispose();
+    // 2-C: every fake connection closes (as the app's own close: no close action)
+    // 5-1: and every fetch still in flight is aborted
+    fakes.forEach(f => { f.ws.src.dispose(); f.ws.conns.clear(); f.http.dispose(); });
     mounted.forEach(e => e.remove());
     restore();
     // R4-8: every pending wait (ready, next, waitForState, settle) rejects now, its timers
@@ -1707,6 +2648,10 @@ export function renderComponent(
     readyWaiters.clear();
     const gone = new Error('[Sygnal] renderComponent was disposed while this wait was pending (t.ready/t.next/t.waitForState/t.settle). Await every wait before t.dispose()');
     ws.forEach(w => w(gone));
+    // a t.respond/t.fail still queued rejects too (it never fails a later wait: there is none)
+    const rs = [...replyWaits];
+    replyWaits.clear();
+    rs.forEach(r => r(new Error('[Sygnal] renderComponent was disposed before this t.respond/t.fail was delivered'), true));
     throwFailure();
   };
 
@@ -1725,9 +2670,22 @@ export function renderComponent(
     states,
     get state() { return states[states.length - 1]; },
     sinkValues,
-    requests: sinkValues,
+    requests,
     respond,
     fail,
+    connections,
+    cache,
+    focus: () => signal('focus'),
+    online: () => signal('online'),
+    open,
+    push,
+    drop,
+    sent: sentTo,
+    navigate,
+    back: () => traverse('back', -1),
+    forward: () => traverse('forward', 1),
+    get location() { return routerLocation(); },
+    head,
     emitted: sinkValues('EVENTS'),
     diagnostics: collected,
     expectNoDiagnostics,

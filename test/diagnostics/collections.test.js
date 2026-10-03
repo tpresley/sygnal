@@ -4,6 +4,7 @@ import { setupChecks, diagnostics, settle } from './helpers.js'
 import { renderComponent } from '../../src/extra/testing.js'
 import { createElement } from '../../src/pragma/index.js'
 import { Collection } from '../../src/collection.js'
+import { until } from '../support/wait.js'
 
 let t
 beforeEach(() => setupChecks())
@@ -21,6 +22,7 @@ describe('SYG401 — Collection from field', () => {
   it('reports a from field that does not exist in state, listing the array fields', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {}) // existing console output
     t = renderComponent(listOf('todo', { todos: [{ id: 1, title: 'a' }] }))
+    await until(() => expect(diagnostics('SYG401')).toHaveLength(1))   // G-176: wait for the report
     await settle(120)
     // Reported once, by the core (1E retrofit), with the available array fields
     const found = diagnostics('SYG401')
@@ -35,6 +37,7 @@ describe('SYG401 — Collection from field', () => {
   it('reports a from field that is not an array', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {}) // existing console output
     t = renderComponent(listOf('todos', { todos: { 1: { title: 'a' } } }))
+    await until(() => expect(diagnostics('SYG401')).toHaveLength(1))   // G-176: wait for the report
     await settle(120)
     const found = diagnostics('SYG401')
     expect(found).toHaveLength(1)

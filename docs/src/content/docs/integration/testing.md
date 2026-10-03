@@ -99,10 +99,11 @@ Selectors are matched against the rendered vnode tree with the same rules as the
 | `:nth-child(an+b)`, `:nth-last-child()`, including `odd` / `even` | `.card:nth-child(3) .next` |
 | `:first-of-type`, `:last-of-type`, `:only-of-type`, `:nth-of-type()`, `:nth-last-of-type()` | `p:nth-of-type(2)` |
 | `:not(...)` (no combinators inside) | `.item:not(.done)` |
+| `:checked`, `:disabled`, `:enabled` (as the view rendered them) | `input[name="plan"]:checked` |
 | Descendant (space) and child (`>`) combinators | `.board > .list:nth-child(2) .card:first-child .next` |
 | Selector lists (`,`) | `.save, .submit` |
 
-Anything else, such as `:has()`, the `+` and `~` combinators, `:hover` or pseudo-elements, throws an "Unsupported selector syntax" error when you call `simulateEvent`. It is never silently ignored. Positional selectors follow the rendered DOM, so `:nth-child` counts every element sibling, including headings and other elements around a Collection's items. If the position is hard to pin down, give the element an attribute and select that instead, e.g. `[data-id="3"]`.
+Anything else, such as `:has()`, the `+` and `~` combinators, `:hover` or pseudo-elements, throws an "Unsupported selector syntax" error when you call `simulateEvent` (or `t.query`). It is never silently ignored. Positional selectors follow the rendered DOM, so `:nth-child` counts every element sibling, including headings and other elements around a Collection's items. If the position is hard to pin down, give the element an attribute and select that instead, e.g. `[data-id="3"]`.
 
 ### simulateAction
 
@@ -225,6 +226,7 @@ it('updates the query at once and searches 300 ms after the last keystroke', asy
 |---|---|
 | `t.state` | The latest state (`t.states.at(-1)`), read-only; `undefined` before the first one. Calculated fields in it are current, also after a child component or Collection item changed the state |
 | `t.states` | Live array of every state emitted, in order (`t.states[0]` is the initial state) |
+| `t.query(sel)`, `t.queryAll(sel)` | The first element matching `sel` (or `null`), and all of them, in the latest render. On the mock DOM each is a read-only snapshot of what the view rendered (below); with [`dom: 'real'`](#real-dom), the real element |
 | `t.html()` | The latest render, serialized to HTML like the browser's `innerHTML`: text escapes only `&`, `<` and `>` (`Couldn't`, not `Couldn&#39;t`), attribute values only `&` and `"`. It throws if called before the first render, so `await t.ready()` (or a `t.next()`) first; a component that hasn't rendered by then (no state yet) gives `''` |
 | `t.emitted` | Live array of `{ type, data }` the component (and its children) put on the EVENTS bus |
 | `t.sinkValues(name)` | Live array of values sent to a sink: `'EVENTS'`, `'PARENT'` (the plain value), `'LOG'`, or a custom driver name |
@@ -250,6 +252,18 @@ expect(t.emitted).toEqual([{ type: 'COUNTER_RESET', data: 1 }])
 expect(t.html()).toContain('<span class="count">0</span>')
 ```
 
+**Elements on the mock DOM.** `t.query()` and `t.queryAll()` take the selectors `simulateEvent` takes, and return snapshot elements with the usual reads: `textContent`, `value`, `checked`, `disabled`, `selected`, `tagName`, `id`, `className`, `classList.contains()`, `dataset`, `getAttribute()`, `hasAttribute()`, `name`, `type`, `href` (as written), `children`, `parentElement`, `querySelector()`, `querySelectorAll()`, `closest()`, `matches()`, `innerHTML` and `outerHTML`. They show what the view rendered: an input's `value` is its `value` prop and a checkbox is `checked` when the view says so, so a `simulateEvent` with `{ value }` shows up only once the model puts it in state and the view renders it. Query again after each wait. There is no focus or layout: `focus()`, `click()` and the like throw and point to `simulateEvent` or `dom: 'real'`.
+
+```jsx
+t.simulateEvent('input[name="email"]', 'input', { value: 'ada@example.com' })
+await t.next(s => s.email === 'ada@example.com')
+expect(t.query('input[name="email"]').value).toBe('ada@example.com')
+expect(t.query('input[name="plan"]:checked').value).toBe('free')
+expect(t.query('.next').disabled).toBe(false)
+expect(t.queryAll('.row').map(e => e.dataset.id)).toEqual(['1', '2'])
+expect(t.query('.missing')).toBeNull()
+```
+
 A custom sink with no driver (for example `API` when you don't pass an `API` driver) gets a recording no-op driver, for the rendered component and for every child, grandchild and Collection item, so its output is still visible through `sinkValues`:
 
 ```jsx
@@ -264,31 +278,213 @@ A driver you pass in `drivers` still wins: it receives the values (and `sinkValu
 
 ### Answering requests: respond() and fail()
 
-The source of a driver you don't pass is a fake you answer from the test, so a component that uses [`makeFetchDriver()`](/guide/drivers/#http-requests-with-makefetchdriver) (or any `driverFromAsync` driver) needs no driver wiring in tests:
+The source of a driver you don't pass is a fake you answer from the test, so a component that uses [`makeFetchDriver()`](/guide/http/) (or any `driverFromAsync` driver) needs no driver wiring in tests. The fake **is** `makeFetchDriver()`, run over an in-memory `fetch`: every request it sends stays pending until the test answers it, so `ok` / `error` reply actions, `latest`, `abort`, `timeoutMs`, isolation and `resources` behave exactly as in the app. A request that names `ok` / `error` actions gets its reply as that action, on exactly the component instance that sent it.
 
 ```jsx
-// Quote: LOAD: { HTTP: () => ({ category: 'quote', url: '/api/quote' }) },
-//        LOADED: HTTP.select('quote'), FAILED: HTTP.errors('quote')
-const t = renderComponent(Quote)
-t.simulateEvent('.get', 'click')
-t.respond('HTTP', { text: 'Hi', author: 'Me' })
-await t.next(s => s.text === 'Hi — Me')
-expect(t.requests('HTTP')).toEqual([{ category: 'quote', url: '/api/quote' }])
+function Quote({ state }) {
+  return <div><button className="get">Get</button><p>{state.text}</p></div>
+}
+Quote.initialState = { text: '', status: 'idle' }
+Quote.intent = ({ DOM }) => ({ LOAD: DOM.click('.get') })
+Quote.model = {
+  LOAD: {
+    STATE: (state) => ({ ...state, status: 'loading' }),
+    HTTP: () => ({ url: '/api/quote', ok: 'LOADED', error: 'FAILED' }),
+  },
+  LOADED: (state, quote) => ({ ...state, status: 'done', text: quote.text }),
+  FAILED: (state, { status }) => ({ ...state, status: status === 404 ? 'missing' : 'error' }),
+}
 
-t.simulateEvent('.get', 'click')
-t.fail('HTTP', 404)                   // an HTTP status, an Error, or a message
-await t.next(s => s.error !== '')
+it('loads a quote', async () => {
+  const t = renderComponent(Quote)
+  t.simulateEvent('.get', 'click')
+  await t.respond('HTTP', { text: 'Hi' }, 'LOADED')   // resolves once LOADED is reduced and rendered
+  expect(t.html()).toContain('Hi')
+  expect(t.requests('HTTP')).toEqual([{ url: '/api/quote', ok: 'LOADED', error: 'FAILED' }])
+
+  t.simulateEvent('.get', 'click')
+  await t.fail('HTTP', 404)                           // an HTTP status, an Error, or a message
+  expect(t.state.status).toBe('missing')
+})
 ```
 
-- `t.requests(name)` is the live list of values sent to the sink (an alias of `sinkValues`).
-- Every value sent to the sink is its own request, even the same object sent again: a constant request object re-sent by a Retry after `t.fail` is pending again, as with the real driver.
-- `t.respond(name, value, opts?)` answers the most recent pending request and delivers `{ category, value, status: 200, request }` on `select()`. It is delivered in order with `simulateEvent`/`simulateAction` calls and waits up to 1 s (half of `timeoutMs` if lower) for the component to send a request, e.g. after a debounce.
-- `t.fail(name, error, opts?)` delivers `{ error, category, request, status, body }` on `errors()`. A number is an HTTP status: `t.fail('HTTP', 404)` fails with `Error('HTTP 404')` and `status: 404`.
-- `opts`: a category string, or `{ category, request, status, body }`. `request` picks an exact element of `t.requests(name)` (an object sent more than once: its newest pending send); `request: null` pushes a value no request asked for.
-- The fake follows `latest: true` and `{ category, abort: true }` like the real driver: a superseded or cancelled request is no longer pending, and answering it explicitly delivers nothing.
-- It is isolated like the real driver: each component instance (two `<Search>`es, every Collection item) gets only the replies to its own requests, and its `latest`/`abort` don't touch another instance's requests. Answer each with `{ request }` (an element of `t.requests('HTTP')`); the root component sees every reply.
+- `t.respond(name, value, target?)` answers a pending request with a response whose body is `value` (JSON, or text for a string; `{ status: 201 }` sets the status). The driver parses it as it would a server's, so a request with reply actions (`ok: 'LOADED'`) gets the parsed body as its `LOADED` action, and a plain one gets `{ category, value, status, request }` on `select()`. The body goes through JSON, as over the network: a `Date` arrives as a string, and `undefined` as `null`.
+- `t.fail(name, error, target?)` fails it. A request with reply actions (`error: 'FAILED'`) gets `{ error, request, status, body }` as its `FAILED` action. A plain one gets `{ error, category, request, status, body }` on `errors()`. A number (or a `status` option) is an HTTP error response: `t.fail('HTTP', 404, { body: { message: 'gone' } })` fails with the driver's `Error('HTTP 404: /api/quote')`, with `status: 404` and the body. An `Error` or a message is a network failure: the fetch rejects with it, and there is no `status`.
+- Both return a promise that resolves once the reply action has been reduced and the whole tree has rendered (on the real DOM, once it is in the DOM). `await` it, then assert.
+
+**Which request.** `target` picks the newest pending request that matches it. Matching is by content, never by object identity alone:
+
+| `target` | Matches a request |
+|---|---|
+| (none) | any (the newest pending one) |
+| `'LOADED'` | whose `ok`, `error`, `key` or `category` is `'LOADED'`; also a resource name (`'quote'`) or a URL (`'/api/quotes/2'`) |
+| `{ url: '/items/2' }` | whose fields equal these, compared by value (a partial request in its `t.requests` form; also the constant object the model returns) |
+| `(request) => request.query.q === 'du'` | for which the predicate is true (it gets the request in its `t.requests` form) |
+| `{ request, category, status, body }` | `request` is any of the above, or an element of `t.requests(name)`. Among equal pending requests, that very element is answered. `request: null` pushes a value no request asked for. `category` narrows the match, and `status`/`body` set the reply's |
+| `{ nth: 0 }`, `{ request, nth: -2 }` | that very request by its position in `t.requests(name)`: `0` is the first, `-1` the newest. With `request` or `category`, it counts only the requests that match them. It throws if that request is no longer pending |
+
+An object whose keys are all `request`, `category`, `status`, `body` or `nth` is read as options. Any other object is a request pattern.
+
+**Identical requests.** Content can't tell two identical requests apart, and an equal pending one is always there to match: after a resource refetch or a second click, `t.respond('HTTP', body, 'quote')`, the URL, and even the older element of `t.requests('HTTP')` all pick the newest. Use `nth` to name one by position:
+
+```jsx
+t.simulateAction('REFRESH')
+await t.next(s => s.quote.refreshing)
+t.simulateAction('REFRESH')                   // refetch again: an identical request
+await t.settle()
+expect(() => t.respond('HTTP', { text: 'stale' }, { nth: -2 })).toThrow()   // superseded by the newer one
+await t.respond('HTTP', { text: 'fresh' }, { nth: -1 })
+
+// two identical pending requests, both live (no latest: true): answer the older one first
+await t.respond('HTTP', { n: 1 }, { nth: 0 })
+await t.respond('HTTP', { n: 2 }, { nth: 1 })
+```
+
+**When nothing matches.** `t.respond` and `t.fail` throw at the call, so `expect(() => t.respond('HTTP', [], { query: { q: 'du' } })).toThrow()` asserts that a stale request is no longer pending. The exception is a call made while `simulateEvent`/`simulateAction`/`respond`/`fail` calls are still queued before it, or before the component is ready (a request sent on `BOOTSTRAP`). The same goes for a call made right after a `simulate*` call when the component declares `resources` on that sink: its requests leave two microtasks after the action, so `t.simulateAction('SAVE'); await t.respond('HTTP', reply, 'SAVED')` waits for the PUT (an `nth` target doesn't wait). That call is delivered after them and waits up to 1 s (half of `timeoutMs` if lower) for its request, e.g. after a debounce. If none comes, its promise rejects, and if nothing awaited it, the next wait (`next`, `settle`, ...) fails.
+
+- **Pending** is the driver's own. Each send is its own request, even the same object sent again. A request stops being pending when it is answered, superseded by `latest: true` (or by a newer request for the same resource), aborted (`{ abort: 'LOADED' }`, `{ abort: true, key }`, `{ category, abort: true }`), timed out (`timeoutMs`), or when the instance that sent it is disposed (a removed Collection item).
+- **Isolation** is the driver's own. A reply action reaches only its sender, so a parent and a child can both use `ok: 'LOADED'`. Two Collection items can be answered by URL: `t.respond('HTTP', detail, { url: '/items/2' })`. Plain replies keep the scoped `select()`/`errors()` behaviour: each instance sees the replies to its own and its descendants' requests, and the root sees every reply.
+- **`t.requests(name)` vs `t.sinkValues(name)`.** `t.requests(name)` is the live list of requests, each as an object: a string request is listed as `{ url }`, so `expect(t.requests('HTTP')[0]).toMatchObject({ url: '/api/quote' })` works for either form, and a resource fetch is listed with its name (below). `t.sinkValues(name)` is every value the sink was sent, as sent: strings, the `{ abort }` commands, and the `{ resources }` and `{ refresh }` values. After a clear that aborts a search, `t.requests('HTTP')` still lists only the search.
+- **Timers.** `timeoutMs` runs on the test's timers, so under `vi.useFakeTimers()` a request fails with a `TimeoutError` when the clock passes it, and is no longer pending.
 - The fake can't see options given to the real driver in `main.js`: a `makeFetchDriver({ latest: true })` there doesn't apply in tests. Write `latest: true` on the request itself (the canonical form).
-- The test fails with an explanation when no request is pending, or when nothing selects the reply (a category typo, or no `errors()` handler for a failure).
+- A plain reply that nothing selects fails the test with an explanation (a category typo, or no `errors()` handler for a failure).
+
+### Resources
+
+A component's `resources` static goes to the fake named `HTTP` (`renderComponent(C, { resourceSink: 'API' })` for another name). Each fetch the driver makes for a resource is a pending request, listed in `t.requests('HTTP')` as `{ url, ...request, resource: 'quote' }`. The `{ resources }` declarations and the `{ refresh }` and `{ invalidate }` commands are not requests: they are only in `t.sinkValues('HTTP')`. Answer a fetch by the resource name, its URL, or a partial request:
+
+```jsx
+function Quote({ state }) {
+  return <p className="status">{state.quote.status === 'success' ? state.quote.data.text : state.quote.status}</p>
+}
+Quote.initialState = { id: null }
+Quote.resources = { quote: (state) => state.id && `/api/quotes/${state.id}` }
+Quote.model = { PICK: (state, id) => ({ ...state, id }), REFRESH: { HTTP: { refresh: 'quote' } } }
+
+it('loads the picked quote, and only the latest one', async () => {
+  const t = renderComponent(Quote)
+  await t.ready()
+  expect(t.requests('HTTP')).toEqual([])                  // idle: nothing fetched
+
+  t.simulateAction('PICK', 1)
+  t.simulateAction('PICK', 2)
+  await t.waitForState((s) => s.id === 2 && s.quote.status === 'loading')
+  expect(t.requests('HTTP')).toEqual([
+    { url: '/api/quotes/1', resource: 'quote' },
+    { url: '/api/quotes/2', resource: 'quote' },
+  ])
+  expect(() => t.respond('HTTP', { text: 'old' }, '/api/quotes/1')).toThrow()  // superseded
+  await t.respond('HTTP', { text: 'Hi' }, 'quote')        // or '/api/quotes/2', or { url: '/api/quotes/2' }
+  expect(t.html()).toContain('Hi')
+
+  t.simulateAction('REFRESH')
+  await t.waitForState((s) => s.quote.refreshing)       // a refetch keeps status and data
+  await t.fail('HTTP', 500, 'quote')
+  expect(t.state.quote.error.status).toBe(500)
+})
+```
+
+A resource's request is derived from state, so it is sent after the state change, not during the event that caused it. `t.respond('HTTP', body, 'quote')` by resource name right after a `simulateEvent` / `simulateAction` that hasn't produced its state yet waits (up to 1 s) for that fetch, so no `await t.settle()` is needed in between. Targeting it by URL or a partial request still needs the fetch to be pending.
+
+`t.states` shows every `RESOURCE` write (`idle`, `loading`, `success`, `error`, with `refreshing` during a refetch), and `ok` / `error` actions on the resource's request run after the write, as in the app. For the cache (`renderComponent(C, { http: { cache: queryCache() } })`, `t.cache`, `t.focus`, `t.online`, `{ prefetch }`), see [Resources and Caching](/guide/resources/#testing).
+
+### Sockets: connections(), push(), drop()
+
+A driverless sink that receives `{ connections }` or `{ to, json }` values (a component written for `makeSocketDriver()`) gets a fake that behaves like the real driver, with in-memory sockets in place of the network. You don't pass an option: the same fake handles HTTP requests and socket values, and a component's `connections` static goes to the fake named `WS` (`renderComponent(C, { socketSink: 'SOCKET' })` for another name). Connections are compared per component and name, so a room switch closes the old connection and opens the new one. `open`, `message`, `close` and `error` reach the sender's actions. Closes the app makes itself never send a `close` action. Events without an action name reach `WS.select(name)`. Reconnects follow the spec's `reconnect` on the test's timers.
+
+```jsx
+function Chat({ state }) {
+  return <div><p className="status">{state.status}</p><ul>{state.messages.map(m => <li>{m.text}</li>)}</ul></div>
+}
+Chat.initialState = { room: 'general', status: 'connecting', messages: [] }
+Chat.connections = (state) => ({
+  room: {
+    socket: `/ws/rooms/${state.room}`,
+    message: 'RECEIVED', open: 'CONNECTED', close: 'DROPPED',
+    reconnect: { delayMs: 1000, maxDelayMs: 1000, jitter: false },
+  },
+})
+Chat.model = {
+  SAY: { WS: (state, text) => ({ to: 'room', json: { text } }) },
+  RECEIVED: (state, msg) => ({ ...state, messages: [...state.messages, msg] }),
+  CONNECTED: (state) => ({ ...state, status: 'online' }),
+  DROPPED: (state) => ({ ...state, status: 'reconnecting' }),
+}
+
+it('chats, and reconnects after a drop', async () => {
+  vi.useFakeTimers()
+  const t = renderComponent(Chat)
+  await t.push('WS', { text: 'hi' })                 // the server sends a frame (objects as JSON)
+  expect(t.html()).toContain('<li>hi</li>')
+  expect(t.connections('WS')[0]).toMatchObject({ name: 'room', socket: '/ws/rooms/general', state: 'open' })
+
+  t.simulateAction('SAY', 'hello')
+  await t.settle()
+  expect(t.sent('WS')).toEqual([{ to: 'room', json: { text: 'hello' } }])
+
+  await t.drop('WS', { code: 1011 })                 // a close the app didn't make
+  expect(t.state.status).toBe('reconnecting')
+  await vi.advanceTimersByTimeAsync(1000)            // the retry opens
+  await t.waitForState(s => s.status === 'online')
+})
+```
+
+- `t.connections(name)` lists the connections declared now, in order: the spec as declared, plus `name`, `url` (the URL opened: a socket path resolves to `ws:`/`wss:` on the page's host), `state` (`'connecting'`, `'open'` or `'closed'`) and `sender` (the component's name). A removed or replaced connection is not listed. `'closed'` is one that dropped and is waiting for its retry, or one that dropped with `reconnect: false`.
+- `t.push(name, data, target?)` sends a frame from the server on the matching open connections, and `message` fires with the data, JSON-parsed when it parses. Objects are sent as JSON. Strings and binary data are sent as they are. For an SSE named event, pass `{ event: 'price', connection? }`.
+- `t.drop(name, { code, reason }?, target?)` closes connections the app didn't close. `close` fires with `{ code, reason, willReconnect }` (default code 1006), and the fake reconnects per the spec. Dropping a connection that is still connecting is a failure to open: `error` fires first.
+- `t.open(name, target?)` completes a pending open: `open` fires with `{ reconnected }`.
+- `t.sent(name, to?)` is the live list of `{ to, json | text | binary }` values the components sent. `t.requests(name)` and `t.sinkValues(name)` keep their meaning: every value, the `{ connections }` ones included.
+
+**Opening.** Connections open by themselves a moment after they are declared, retries included, so a test can `t.push` right away. A `t.push` or `t.drop` made before then opens the connection first. To assert a "Connecting…" state, or to make an open fail, render with `renderComponent(C, { autoConnect: false })`. Connections then stay `'connecting'` until `t.open('WS')`, or until `t.drop('WS')` makes the open fail.
+
+**Which connection.** `target` is a connection name (`'room'`), a URL as declared or opened (`'/ws/rooms/general'`), a partial connection compared by value (`{ socket: '/ws/b' }`), or a predicate `(connection) => boolean`. A call acts on every matching connection. Two Collection items can be told apart by URL, and connections that share a URL share one socket, so one push reaches all of them. With no target, the call acts on the newest connection that can take it.
+
+**When nothing matches.** As with `t.respond`, `t.push`, `t.drop` and `t.open` throw at the call when no connection matches. A push needs an open connection, an open needs a connecting one, and a drop needs either. The same exception applies: a call made while input is still queued, or before the component is ready, waits up to 1 s for its connection. Each call returns a promise that resolves once the resulting actions have been reduced and the tree has rendered.
+
+Disposing a component closes its connections, and `t.dispose()` closes all of them, with no `close` action.
+
+### Routing: navigate(), back(), location
+
+A component that declares `route` needs the app's router: pass the object `makeRouter()` returns as `router`. With no `ROUTER` driver in `drivers`, `renderComponent` runs that router's real driver over an in-memory history, so guards, redirects, `block` and link handling are the driver's own code. The real `window.location` never changes. The history starts at `url` (default `'/'`). Without `router`, a component that declares `route` throws, naming the option.
+
+```jsx
+import { renderComponent } from 'sygnal'
+import { router } from './routes.js'
+import App from './App.jsx'
+
+it('opens a task from the list, and goes back', async () => {
+  const t = renderComponent(App, { router, url: '/tasks/2' })
+  await t.ready()                                    // the route for url is in the state
+  expect(t.html()).toContain('<h1>Beta</h1>')
+
+  await t.navigate('/')                              // as a click on <a href="/">
+  t.simulateEvent('li:nth-child(1) a', 'click')      // a real link click, intercepted by the router
+  await t.waitForState(s => s.route.name === 'task')
+  expect(t.location.path + t.location.search).toBe('/tasks/1?tab=notes')
+
+  await t.back()                                     // the browser's back button
+  expect(t.state.route.name).toBe('home')
+  await t.navigate({ to: 'task', params: { id: 2 } })
+})
+```
+
+- `t.navigate(url)` navigates as a click on a link with that `href` would. `t.navigate({ to, params, query?, hash?, replace? })` sends that command. Both go through `{ block }` like the real thing. An unknown route name, a missing param or a URL on another origin throws at the call.
+- `t.back()` and `t.forward()` press the browser's buttons: the history moves, and `popstate` fires a task later. A `block` undoes it, as in a browser. They throw when there is no entry to go to.
+- `t.location` is `{ path, search, hash, href }` of the in-memory location.
+- `t.sent('ROUTER')` lists the commands the components sent (`{ to, params }`, `{ back: true }`, `{ block }`). The `route` declarations aren't listed.
+- Links: in the mock DOM, `simulateEvent(selector, 'click')` on an `<a>`, or on an element inside one, also reaches the router's document listener, so the driver decides as it would in a browser. Modified clicks (`{ metaKey: true }`), `target="_blank"`, `download`, `rel="external"`, `data-router-ignore` and other origins are left alone. With `dom: 'real'` the click is a real event that bubbles to the document.
+- Each call returns a promise that resolves once the new route has been reduced and the tree has rendered, as `t.respond` does. Fake timers work: `popstate` and the redirect order run on the test's clock.
+- Scroll restoration and focus are off by default, so tests stay deterministic. `routerScroll: true` runs the scroll handling, with positions kept in memory. `routerFocus: true` (or a selector string) runs the focus handling, with `dom: 'real'`.
+
+**Head.** With no `HEAD` driver, a fake records what the components declare (`head` statics and `HEAD` sink values). `t.head()` returns the merged result, `{ title, meta, link }`, as `makeHeadDriver` would write it. Pass its `titleTemplate` to apply it:
+
+```jsx
+const t = renderComponent(App, { router, titleTemplate: '%s · Tasks' })
+await t.ready()
+expect(t.head().title).toBe('All tasks · Tasks')
+await t.navigate({ to: 'task', params: { id: 2 } })
+expect(t.head()).toEqual({ title: 'Task 2 · Tasks', meta: { description: 'Details of task 2' }, link: [] })
+```
 
 ## Diagnostics in Tests
 
@@ -336,6 +532,16 @@ When an event "does nothing" in a test, `t.inspect()` usually shows why: a selec
 | `settleMs` | `number` | `20` | `settle()`'s quiet window: how long nothing may happen before it resolves (at most `timeoutMs`) |
 | `eventWaitMs` | `number` | `300` | How long `simulateEvent` waits for a matching element (and its listeners) |
 | `dom` | `'mock' \| 'real'` | `'mock'` | `'real'` mounts into a real container element; see [Real DOM](#real-dom) |
+| `autoConnect` | `boolean` | `true` | Fake socket connections open by themselves; `false` holds them until `t.open()` (see [Sockets](#sockets-connections-push-drop)) |
+| `socketSink` | `string` | `'WS'` | The driverless sink that receives the components' `connections` static; created even when no model entry names it (a read-only SSE component). Pass a driver under this name in `drivers` to use a real one |
+| `resourceSink` | `string` | `'HTTP'` | The driverless sink that receives the components' `resources` static (see [Resources](#resources)) |
+| `http` | `object` | — | Options for the HTTP fakes' `makeFetchDriver()` (all but `fetch`), e.g. `{ cache: queryCache() }` or `{ retry: 2 }` ([Resources and Caching](/guide/resources/#testing)) |
+| `router` | `Router` | none | The app's router (`makeRouter()`'s result): runs its driver over an in-memory history (see [Routing](#routing-navigate-back-location)). Required when a component declares `route` |
+| `url` | `string` | `'/'` | The router fake's start URL |
+| `routerSink` | `string` | `'ROUTER'` | The sink the router fake serves |
+| `routerScroll`, `routerFocus` | `boolean` (`routerFocus`: or selectors) | `false` | Run the router's scroll restoration / focus handling |
+| `headSink` | `string` | `'HEAD'` | The sink the HEAD fake serves (`t.head()`) |
+| `titleTemplate` | `string` | none | The HEAD fake's title template (`'%s · App'`) |
 
 The timing options (and a timeout passed to `next()`, `waitForState()` or `settle()`) must be finite numbers of milliseconds from 0 to 2147483647 (`setTimeout`'s limit); anything else throws.
 
@@ -354,9 +560,18 @@ The timing options (and a timeout passed to `next()`, `waitForState()` or `settl
 | `html` | `() => string` | Latest render as HTML (throws before the first render) |
 | `emitted` | `{ type, data }[]` | EVENTS emissions |
 | `sinkValues` | `(sink) => any[]` | Values sent to a sink |
-| `requests` | `(sink) => any[]` | Requests sent to a driverless sink (alias of `sinkValues`) |
-| `respond` | `(sink, value, opts?) => void` | Answer the latest pending request on the fake source (`select()`) |
-| `fail` | `(sink, error, opts?) => void` | Fail the latest pending request on the fake source (`errors()`) |
+| `requests` | `(sink) => any[]` | Requests sent to a sink, as objects (a string is `{ url }`, a resource fetch has `resource`); no `{ abort }`, `{ resources }`, `{ refresh }` or `{ invalidate }` values |
+| `cache` | `(sink) => FakeCacheEntry[]` | The cache entries of an HTTP fake (`{ key, age, stale, subscribers, data, tags }`; with the `http: { cache: queryCache() }` option; `[]` without) |
+| `focus`, `online` | `() => void` | The window regains focus / the browser comes back online (queued like `simulate*`): stale mounted resources refetch when the cache is on |
+| `respond` | `(sink, value, target?) => Promise<void>` | Answer the newest pending request matching `target` on the fake source (its `ok` action, or `select()`); throws if none is pending |
+| `fail` | `(sink, error, target?) => Promise<void>` | Fail it (its `error` action, or `errors()`); throws if none is pending |
+| `connections` | `(sink) => FakeConnection[]` | The connections declared on a fake socket sink (`name`, `url`, `state`, `sender`, the spec) |
+| `push`, `drop`, `open` | `(sink, …, target?) => Promise<void>` | Server frame, unexpected close, completed open on the matching connections; throw if none matches |
+| `sent` | `(sink, to?) => any[]` | The `{ to, json \| text \| binary }` values sent; for the router's sink, the commands sent |
+| `navigate` | `(url \| { to, params }) => Promise<void>` | Router fake: navigate as a link click or a command (through `block`); throws for an unknown route |
+| `back`, `forward` | `() => Promise<void>` | Router fake: the browser's back and forward buttons |
+| `location` | `{ path, search, hash, href }` | Router fake: the in-memory location |
+| `head` | `() => { title, meta, link }` | HEAD fake: the merged head the components declare |
 | `diagnostics` | `Diagnostic[]` | Diagnostics collected while rendered |
 | `expectNoDiagnostics` | `() => void` | Throws if any warning or error was collected |
 | `inspect` | `() => InspectGraph` | The app graph of the rendered tree |
@@ -364,7 +579,7 @@ The timing options (and a timeout passed to `next()`, `waitForState()` or `settl
 | `events$` | `EventsSource` | The event bus source (`.select(type)`) |
 | `sinks`, `sources` | `object` | All sink streams and source objects |
 | `dispose` | `() => void` | Tear down the tree (fires `DISPOSE`) and restore the diagnostics settings |
-| `query`, `queryAll` | `(selector) => Element \| null`, `Element[]` | `dom: 'real'` only: real elements of the rendered tree |
+| `query`, `queryAll` | `(selector) => Element \| null`, `Element[]` | Elements of the latest render: snapshots on the mock DOM ([Reading Output](#reading-output)), real elements with `dom: 'real'` |
 | `container` | `Element \| null` | `dom: 'real'`: the mount element (`null` with the mock DOM) |
 
 ## Mock DOM Streams
@@ -385,7 +600,7 @@ await t.waitForState(s => s.count === 2)
 
 ## Real DOM
 
-The mock DOM has no elements, so it can't tell you whether a checkbox is really checked, what an input really holds, whether a button is disabled, or where focus is. For that, pass `dom: 'real'`: the tree is patched into a real container element by the same DOM driver `run()` uses, and the rest of the `t.*` API stays the same. It needs a DOM in the test environment (`npm install -D jsdom`, then `// @vitest-environment jsdom` at the top of the file, or `test.environment: 'jsdom'`; `happy-dom` works too).
+The mock DOM has no real elements: `t.query()` there shows what the view rendered, so it can't tell you whether a checkbox the user clicked is really checked, what an uncontrolled input really holds, or where focus is. For that, pass `dom: 'real'`: the tree is patched into a real container element by the same DOM driver `run()` uses, and the rest of the `t.*` API stays the same. It needs a DOM in the test environment (`npm install -D jsdom`, then `// @vitest-environment jsdom` at the top of the file, or `test.environment: 'jsdom'`; `happy-dom` works too).
 
 ```jsx
 // @vitest-environment jsdom
@@ -411,7 +626,7 @@ What changes with `dom: 'real'`:
 
 - `simulateEvent(selector, type, init?)` dispatches a real DOM event on the first element matching `selector` (any CSS selector the DOM supports, `:has()`, `+` and `:checked` included). `init.value` / `init.checked` / `init.dataset` are set on the element first, so `{ value }` is like typing. A plain `'click'` runs the browser's default action (a checkbox or radio toggles and fires `change`; a click on a disabled control does nothing). `'focus'` and `'blur'` move `document.activeElement`. Events travel through the real event delegation and isolation, so Portal content outside the component is reached only by `DOM.select('document')` listeners, as in the browser.
 - Each event waits until every state so far is rendered into the DOM and the tree has been quiet for 10 ms, like a user who acts on what is on the screen: a button that the previous input enabled is enabled when it is clicked.
-- `t.query(selector)` returns the first matching element (or `null`) and `t.queryAll(selector)` all of them, searching the rendered tree and the Portal content it mounted. Before the first render is in the DOM they throw (`await t.ready()` first). `t.container` is the mount element. Refs (`createRef()`) point at the real elements.
+- `t.query(selector)` returns the first matching real element (or `null`) and `t.queryAll(selector)` all of them, for any CSS selector, searching the rendered tree and the Portal content it mounted. Before the first render is in the DOM they throw (`await t.ready()` first). `t.container` is the mount element. Refs (`createRef()`) point at the real elements.
 - Every wait resolves once its state is in the DOM: `ready()` after the first render, `next()` and `waitForState()` after the matching state's render, `settle()` after the latest one. If a later state arrives meanwhile (a fast response, a model `next()`), its render is held back until the code after your `await` has run, so `t.query()` there reads the state the wait returned. A `next()` right after another wait (with no input in between) also matches such a later state:
 
 ```jsx

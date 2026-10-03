@@ -278,7 +278,9 @@ Close the rest of the Sygnal↔React gap for agents, clear the correctness backl
 
 ### 16. Network Layer (HTTP + WebSocket)
 
-**Status:** `NOT STARTED` (PLAN-2 N-1: design doc first)
+**Status:** `IN PROGRESS` for 6.0.0 ([PLAN-3](dev-plans/PLAN-3.md), tracker [PLAN-3-status](dev-plans/PLAN-3-status.md))
+
+Done on `plan3-integration`: reply actions (`ok`/`error`) for `makeFetchDriver` and `driverFromAsync`; `makeSocketDriver` (WebSocket + SSE) with the `connections` static; async EFFECT hardening; test fakes for routed requests and sockets (`t.respond`/`t.fail` by content, `t.push`/`t.drop`/`t.sent`/`t.connections`); checker rules SYG112/SYG508/SYG610/SYG611; `HYDRATE` and the legacy `@cycle/http` hydration removed. Also done: the agent docs, `resources` (advanced form, D92), `queryCache()` with SSR seeding, the router, the HEAD driver, and the final eval ([REPORT-v3](evals/agent-ergonomics/results/REPORT-v3.md)). Open: the report's recommendations (G-184…G-188). Server functions: docs for Telefunc via routed `driverFromAsync`; a native `serverFn` is deferred.
 
 `makeFetchDriver()` moved every agent-written side effect out of components in the PLAN-2 evals (20/20 trials used the driver; 0 hand-rolled request ids, against 15/15 before), but it covers HTTP only and is one driver among several hand-written ones. Rethink network calls as a first-class network layer for the next major version, covering HTTP and WebSocket with one model.
 
