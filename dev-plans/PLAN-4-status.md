@@ -47,11 +47,11 @@ PLAN-3's end-of-Phase-5 figures (40,403 B, 283 lines, 34,343 B) grew with #12 an
 | 1-D | Controls checker | ✅ merged | `p4-1d-checker` (`36b9d4d`) | subagent | `6565844` | sygnal-check 245 → 293; 33/38 failing-first; `--fix --controls` converts kanban 7/9, todomvc 6, tests unchanged, idempotent |
 | 1-E | Controls A/B eval | ⬜ | | user | | |
 | 2-A | Core I: GS-4, GS-11, GS-9 | ✅ merged | `p4-2a-core` (`4816283`) | subagent | (merge after `284a648`) | +229 B (GS-4 +5, GS-11 +120, GS-9 +104); SYG222 dev-only (0 B core); SYG502 retired; SSR uid determinism test in the gate |
-| 2-B | Core II: GS-6, GS-1 runtime | 🟡 running | `p4-2b-core` | subagent | | |
+| 2-B | Core II: GS-6, GS-1 runtime | ✅ merged | `p4-2b-core` (`bf463ba`) | subagent | | +78 B (GS-6 +50 incl. end-on-dispose, GS-1 +28); `behaviors.ts` ≈ 925 B per app using it; 20/22 failing-first; SYG127 dev-only; merge rules in `behaviors.ts` header |
 | 2-C | Testing: GS-10 `t.actions` | ✅ merged | `p4-2c-actions` (`3e9dd23`) | subagent | | 0 B production (no core hook); 22/22 failing-first; `t.explain` (stretch) done; `inspect({ actions })` opt-in (G-210); 'behavior' cause hook = `isBehaviorAction` in `checks/actionLog.ts` |
 | 2-T | Types | folded into 2-A, 2-B, 2-C (each types its own surface) | | | | D119 |
 | 1-F | Follow-ups: dialog `close`/`cancel` delegation (G-204), SYG124/125 `reportedBy`, G-203, D116 `h` type test, stale Vite plugin comments | ✅ merged | `p4-1f-followups` (`555eeb2`) | subagent | | +30 B (non-bubbling list incl. media events); mock DOM no longer bubbles non-bubbling events; browser 143 |
-| 2-A2 | Follow-ups to 2-A: Astro hook (D120), G-206, G-207 | ⬜ after 2-B (`component.ts`) | | | | |
+| 2-A2 | Follow-ups: Astro hook (D120), G-206, G-207, 'behavior' cause, `simulateAction` of behavior actions, SSR with behaviors | 🟡 running | `p4-2a2-followups` | subagent | | |
 | 2-D | a11y checker (GS-3) | ✅ merged `5e9c1e5` | `p4-2d-a11y` (`e7af5d7`) | subagent | `5e9c1e5` | 18/31 failing-first; sygnal-check 343; FP review 0/100 on p4-final2 + p3-final, 0/498 elsewhere; examples/templates/doc samples a11y-clean; 5 pending in llms.txt/SKILL.md (4-A) |
 | P-3 | Performance baseline (GS-16) | ✅ merged (non-gating) | `p4-p3-perf` (`88f0b2f`) | subagent | | `benchmarks/RESULTS.md`; `npm --prefix browser-tests run perf`; proposes "Collection O(1) item lookups" (+28 B) → user |
 | P-1 | View Transitions spike (GS-12) | 🟡 running | `exp/p4-view-transitions` | subagent | not merged | decision record → user |
@@ -159,6 +159,8 @@ They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none o
 | D120 | 2026-10-03 | Astro app-level error hook: an integration option pointing at a module (`sygnal({ onError: './src/onError.js' })`, loaded through a virtual module) replaces 2-A's island static `onAppError`, which isn't public yet (2-A2). | Coordinator | 2-A QUESTION 1; recommendation (b) |
 | D121 | 2026-10-03 | The 0-E ergo baseline runs from the 0-C worktree (`main` + eval commits only), so it measures the PLAN-3 build even though `plan4-integration` already has PLAN-4 features. Task 29 keeps its Escape-reopen test (known framework issue 10): the baseline measures the gap GS-2 closes, and the task is solvable today. | Coordinator | 0-C QUESTION, option A |
 | D122 | 2026-10-03 | Retiring the SYG502 static rule also drops static detection of a bare `return;` / falling off a reducer; SYG202 still reports `undefined` at runtime. Accepted. | Coordinator | 2-A deviation |
+| D123 | 2026-10-03 | GS-1 merge rules (2-B): the slice lives at `state[key]` with calculated fields on the slice; a host entry for a behavior action runs after the behavior's (host STATE on the full state, host EFFECT after, host value sinks replace the behavior's); a host intent action of the same name replaces the behavior's trigger. Behavior reply actions are not namespaced. | Coordinator | 2-B report |
+| D124 | 2026-10-03 | Budget watch: PLAN-4 is at +389 B; GS-2 (spike 238 B) + GS-5 (26 B) would reach ≈ 653 B, over the 650 B cap (D115). 3-A's target is ≤ 225 B; if PLAN-4 still exceeds 650 B, the coordinator asks the user before merging. | Coordinator | |
 
 ## Open questions (PLAN-4 §11)
 
@@ -206,3 +208,4 @@ They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none o
 - 2026-10-03 — Merged 1-A + 1-T (`3b32e04`), 2-D (`5e9c1e5`), 0-C (`284a648`) and 2-A; gates green after each. Size 40,817 B gated (PLAN-4 +281 B of 650). Library vitest 1,623, browser 139, sygnal-check 343. 0-E command handed to the user. Started 1-F, 2-C, P-3, 2-B. D119–D122; G-204…G-209.
 - 2026-10-03 — Merged 2-C and 1-F; gates green (vitest 1,655, browser 143, sygnal-check 346; 40,846 B gated, PLAN-4 +310 B). Started 1-E variant prep and P-1.
 - 2026-10-03 — Merged P-3 (non-gating perf suite); gates green. Started P-2.
+- 2026-10-03 — Merged 2-B; gates green (vitest 1,678, sygnal-check 347; 40,925 B gated, PLAN-4 +389 B). Started 2-A2. D123, D124.
