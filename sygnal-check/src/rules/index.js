@@ -30,6 +30,8 @@ import controlledInput from './syg111-controlled-input.js'
 import latestComputedKey from './syg634-latest-computed-key.js'
 import controls from './syg124-controls.js'
 import behaviors from './syg127-behaviors.js'
+import elementCommands from './syg640-element-commands.js'
+import timers from './syg422-timers.js'
 import { strictRules } from './strict/index.js'
 import { a11yRules, strictA11yRules } from './a11y/index.js'
 
@@ -44,6 +46,8 @@ export const coreRules = [
   latestComputedKey,
   controls, // SYG124, SYG125, SYG126, SYG128 (PLAN-4 CT-1)
   behaviors, // SYG127, SYG226 (PLAN-4 GS-1, GS-8)
+  elementCommands, // SYG640, SYG641 (PLAN-4 GS-2)
+  timers, // SYG422, SYG643 (PLAN-4 GS-7)
   ...a11yRules, // SYG701-708 (PLAN-4 GS-3): warn; error under --strict (D111)
 ]
 

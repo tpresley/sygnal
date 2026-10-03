@@ -35,6 +35,13 @@
  *                none; PLAN-4 GS-1). Behavior-owned actions ('pager.NEXT') are in
  *                `actions` with `behavior: key`; what a behavior listens to through
  *                a control option is in `selectors` with `behavior: key`
+ *   commands     the ELEMENT commands the model sends: { action, method, target, control?,
+ *                triggers? } (target: the control's key or the selector; null when dynamic;
+ *                triggers: the intent actions listening on the target for a native event the
+ *                command causes, e.g. close → DOM.close(Dialog); omitted when none; PLAN-4 GS-2)
+ *   timers       the `timers` static's literal specs: { name, every?, after?, frame?, action?,
+ *                background? } (omitted when none; PLAN-4 GS-7). Timer actions are in `actions`
+ *                with trigger 'reply' (the timer driver dispatches them as reply actions)
  *   diagnostics  the normal rules (+ strict ones with `strict: true`),
  *                attached to their component, the rest app-wide
  */
@@ -48,6 +55,8 @@ import { resolveExpr } from './model/resolve.js'
 import { BUILTIN_ACTIONS } from './model/modelEntries.js'
 import { listenedControls } from './rules/syg124-controls.js'
 import { behaviorActions } from './model/behaviors.js'
+import { specFields } from './model/timers.js'
+import { CAUSED_EVENTS } from './model/elementCommands.js'
 
 const VIA_KIND = { tag: 'child', collection: 'collection-item', switchable: 'switchable' }
 
@@ -295,6 +304,21 @@ export function buildGraph(project, diagnostics = []) {
     if (c.uses?.entries.length) {
       node.uses = c.uses.entries.map(e => ({ key: e.key, behavior: e.def?.name ?? null, status: e.status }))
     }
+    // PLAN-4 GS-2: the ELEMENT commands its model sends (literal command objects)
+    if (c.commands?.length) {
+      node.commands = c.commands.map(cmd => {
+        const out = { action: cmd.action, method: cmd.method, target: cmd.control ? cmd.control.key : cmd.selector ?? null }
+        if (cmd.control) out.control = cmd.control.key
+        const triggers = commandTriggers(c, cmd)
+        if (triggers.length) out.triggers = triggers
+        return out
+      })
+    }
+    // PLAN-4 GS-7: the `timers` static's literal specs
+    if (c.timers?.specs.length) {
+      node.timers = c.timers.specs.filter(s => s.node.type === 'ObjectExpression').map(s => ({ name: s.name, ...specFields(s.node) }))
+      if (!node.timers.length) delete node.timers
+    }
     if (controls.length) {
       node.controls = controls.map(({ name, element, kind, listened }) => {
         const entry = { name, element: element ?? null, listened }
@@ -306,6 +330,29 @@ export function buildGraph(project, diagnostics = []) {
   })
 
   return { version: 1, source: 'static', components, events, diagnostics: appWide.map(slimDiagnostic) }
+}
+
+/**
+ * The intent actions a command sets off: those listening on its target for a native event the
+ * command makes the element fire (`{ close: HelpDialog }` → DOM.close(HelpDialog) → HELP_CLOSED).
+ */
+function commandTriggers(comp, cmd) {
+  const events = CAUSED_EVENTS[cmd.method]
+  const intent = comp.intent
+  if (!events || !intent?.fn) return []
+  const out = []
+  for (const sel of intent.selectors) {
+    const same = cmd.control ? sel.control === cmd.control : sel.selector != null && sel.selector === cmd.selector
+    if (!same) continue
+    const types = sel.method === 'select' ? selectEvents(intent.file, sel.node) : [sel.method]
+    if (!types.some(t => events.includes(t))) continue
+    for (const a of intent.actions) {
+      const prop = intent.file.parents.get(a.node)
+      const v = prop?.value
+      if (v && v.start <= sel.node.start && sel.node.end <= v.end && !out.includes(a.name)) out.push(a.name)
+    }
+  }
+  return out
 }
 
 /** Event types of DOM.select(x).events('click') / .events('a').… chains (one level). */

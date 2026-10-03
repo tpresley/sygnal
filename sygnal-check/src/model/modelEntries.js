@@ -18,7 +18,8 @@ export const REPLY_KEYS = new Set(['ok', 'error', 'block'])
 /** `connections` entry keys that name actions (PLAN-3 §1.3, D61). */
 export const CONNECTION_KEYS = new Set(['message', 'open', 'close', 'error'])
 /** Sinks the core handles itself: their values are never requests to a reply-action driver. */
-export const NON_REPLY_SINKS = new Set(['STATE', 'EFFECT', 'EVENTS', 'PARENT', 'READY', 'DOM', 'CHILD'])
+// PLAN-4 GS-2: ELEMENT takes element commands (`{ scrollIntoView: Row, block: 'nearest' }`), not requests
+export const NON_REPLY_SINKS = new Set(['STATE', 'EFFECT', 'EVENTS', 'PARENT', 'READY', 'DOM', 'CHILD', 'ELEMENT'])
 
 const SHORTHAND = /^(.+?)\s*\|\s*(.+)$/
 
@@ -159,10 +160,11 @@ export function connectionNames(project, file, node, keys = CONNECTION_KEYS) {
  *   replyTargets: Array<{ name, key, sink, action, node, file }>,   // ok/error names of requests
  *   replyDynamic: Array<{ node, file }>,
  *   requests: Array<{ node, file, sink, action }>,   // object literals non-STATE sinks return (PLAN-3 5-3)
+ *   sinkValues: Array<{ action, sink, node, file }>,  // every non-STATE-shorthand sink value (PLAN-4 GS-2: ELEMENT)
  * }}
  */
 export function analyzeModel(project, file, modelNode) {
-  const res = { known: true, entries: [], nextTargets: [], dynamicNext: [], eventsEmitted: [], eventsDynamic: [], replyTargets: [], replyDynamic: [], requests: [] }
+  const res = { known: true, entries: [], nextTargets: [], dynamicNext: [], eventsEmitted: [], eventsDynamic: [], replyTargets: [], replyDynamic: [], requests: [], sinkValues: [] }
   const r = resolveExpr(project, file, modelNode)
   // PLAN-4 GS-8: undoable(model, options) is the model plus UNDO / REDO (src/extra/undo.ts)
   if (r?.node?.type === 'CallExpression' && isSygnalImport(r.file, r.node.callee, 'undoable') && r.node.arguments[0]) {
@@ -200,6 +202,7 @@ export function analyzeModel(project, file, modelNode) {
       sinks = [sink]
       if (sink === 'EVENTS') addEvents(value)
       addReplies(action, sink, value)
+      res.sinkValues.push({ action, sink, node: value, file: mfile })
     } else if (value && value.type === 'ObjectExpression') {
       sinks = []
       for (const sp of value.properties) {
@@ -210,6 +213,7 @@ export function analyzeModel(project, file, modelNode) {
         const sval = sp.type === 'ObjectMethod' ? sp : sp.value
         if (sname === 'EVENTS') addEvents(sval)
         addReplies(action, sname, sp.type === 'ObjectMethod' ? sp : unwrap(sp.value))
+        res.sinkValues.push({ action, sink: sname, node: sp.type === 'ObjectMethod' ? sp : unwrap(sp.value), file: mfile })
       }
     } else {
       sinks = ['STATE']

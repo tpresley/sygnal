@@ -6,7 +6,8 @@
  *
  * Sources of names: string literal `ok` / `error` values in the objects a
  * non-STATE sink returns (not EFFECT, EVENTS, PARENT, READY), and the
- * message/open/close/error values in a `connections` static.
+ * message/open/close/error values in a `connections` static, and the action names of a
+ * `timers` static (`{ every, action }`, `{ frame: 'FRAME' }`, PLAN-4 GS-7).
  *
  * Only names that look like actions are reported: UPPER_SNAKE_CASE, or close
  * to a model key (a case or spelling slip). Other strings (`error: 'Not found'`
@@ -32,6 +33,8 @@ export default {
           ? { ...t, via: `${comp.name}.route names '${t.name}' as the router's reply action` }
           : t.res
           ? { ...t, via: `${comp.name}.resources names '${t.name}' as its ${t.key} reply action` }
+          : t.timer
+          ? { ...t, via: `${comp.name}.timers names '${t.name}' as a timer action`, ticks: true }
           : { ...t, via: `${comp.name}.connections names '${t.name}' as its ${t.key} reply action`, conn: true }),
       ]
       const seen = new Set()
@@ -45,7 +48,7 @@ export default {
           component: comp.name,
           file: t.file,
           node: t.node,
-          message: `${t.via}, but ${comp.name} has no model entry '${t.name}', so ${t.conn ? 'those events are' : 'the reply is'} dropped` +
+          message: `${t.via}, but ${comp.name} has no model entry '${t.name}', so ${t.conn ? 'those events are' : t.ticks ? 'its ticks are' : 'the reply is'} dropped` +
             (near ? ` (did you mean '${near}'?)` : ''),
           fix: near
             ? `rename it to the existing entry: ${t.key}: '${near}'`

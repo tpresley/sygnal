@@ -6,7 +6,8 @@
  *   SYG125 (error)  a control given .intent / .model / .initialState
  *                   (Add.intent = …, C.Add.model = …, Object.assign(Add, { … }))
  *   SYG126 (info)   a control the component renders but its intent never listens to
- *                   (nor a behavior it uses, through a control option: PLAN-4 GS-1)
+ *                   (nor a behavior it uses, through a control option: PLAN-4 GS-1), and its
+ *                   model sends no element command to (ELEMENT: { showModal: Dialog }, GS-2)
  *   SYG128 (error)  a key declared again by a controls() call in the same file
  *
  * SYG110 / SYG104 by identifier (a control listened to but not rendered, or
@@ -84,6 +85,8 @@ function reportUnlistened(project, report) {
     // an intent we can't see into (e.g. built elsewhere) may listen: say nothing
     if (comp.staticProps.intent && !comp.intent?.fn) continue
     const listened = listenedControls(project, comp)
+    // PLAN-4 GS-2: a control the model sends element commands to is used (a dialog it opens)
+    for (const cmd of comp.commands || []) if (cmd.control) listened.add(cmd.control)
     const sinks = [comp.viewInfo, ...project.injectedInto(comp.view)]
     const done = new Set()
     for (const sink of sinks) {
