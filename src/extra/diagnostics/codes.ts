@@ -223,6 +223,8 @@ export const CODE_TITLES: Record<string, string> = {
   SYG632: 'invalidate matched nothing',
   SYG633: 'abort names a lane the requests do not use',
   SYG634: 'latest: true with a computed key',
+  // PLAN-3 5-5 (D88)
+  SYG635: 'Caching asked for without a queryCache',
   SYG901: 'Sub-component sink stream errored',
   SYG902: 'EFFECT stream errored',
   SYG903: 'Component factory returned invalid sinks',
@@ -270,6 +272,8 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG633: 'warn',
   // static only (sygnal-check); listed so the entry knows its title
   SYG634: 'info',
+  // PLAN-3 5-5 (fetch.ts)
+  SYG635: 'warn',
 }
 
 export function getCodeInfo(code: string): DiagnosticCodeInfo | undefined {

@@ -15,7 +15,7 @@
  */
 
 // @ts-ignore — resolved at runtime via package exports
-import { renderToString, renderHead } from 'sygnal'
+import { renderToString, renderHead, queryCache } from 'sygnal'
 
 interface PageContext {
   Page: any
@@ -33,6 +33,12 @@ interface PageContext {
     ssr?: boolean
   }
   is404?: boolean
+  /**
+   * PLAN-3 5-5 (H-7): a queryCache() snapshot a loader (+data) seeded:
+   * `pageContext.queryCache = cache.dehydrate()`. Resources render from it here, and Vike passes
+   * it to the client (passToClient), where onRenderClient hydrates the drivers' caches with it
+   */
+  queryCache?: any
 }
 
 /**
@@ -107,6 +113,9 @@ export function onRenderHtml(pageContext: PageContext) {
     urlPathname: () => pageContext.urlPathname || '',
   }
 
+  // PLAN-3 5-5 (H-7): the seeded cache the components' resources render from
+  const cache = pageContext.queryCache ? queryCache({ initial: pageContext.queryCache }) : undefined
+
   // Determine if Wrapper(s) and/or Layout(s) are present — this affects hydration state shape
   const wrapperArray = config.Wrapper
     ? (Array.isArray(config.Wrapper) ? config.Wrapper : [config.Wrapper])
@@ -129,6 +138,7 @@ export function onRenderHtml(pageContext: PageContext) {
       state: initialState,
       hydrateState: hasShell ? false : '__VIKE_SYGNAL_STATE__',
       head: pageHeads,
+      cache,
     })
   } catch (err: any) {
     // If the component has an onError boundary, try rendering its fallback
@@ -173,6 +183,7 @@ export function onRenderHtml(pageContext: PageContext) {
         state: comp.initialState || {},
         props: { innerHTML: PLACEHOLDER },
         head: shellHeads,
+        cache,
       })
       const splitIdx = compHtml.indexOf(PLACEHOLDER)
       if (splitIdx !== -1) {

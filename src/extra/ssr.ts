@@ -84,10 +84,37 @@ export interface RenderToStringOptions {
    * value (in render order); `renderHead(list)` turns it into tags.
    */
   head?: any[]
+  /**
+   * PLAN-3 5-5 (H-7): a queryCache() the components' `resources` render from: a cached entry
+   * renders as `{ status: 'success', data }`, any other request as `{ status: 'loading' }`.
+   * Nothing is fetched during SSR; seed the cache in a loader (`cache.set(request, data)`)
+   */
+  cache?: any
 }
 
 // the `head` option of the outermost renderToString call that has one
 let heads: any[] | undefined
+// 5-5: the `cache` option of the outermost renderToString call that has one
+let ssrCache: any
+
+/**
+ * 5-5 (H-7): the state a component's view renders with: each `resources` entry missing from the
+ * state reads from the cache ('success' with the cached data), else 'loading' ('idle' for a
+ * falsy request), as the client's first paint does with the same (hydrated) cache
+ */
+function withResources(def: any, state: any): any {
+  const res = def && def.resources
+  if (!res || !state || typeof state !== 'object' || Array.isArray(state)) return state
+  const out = {...state}
+  for (const n of Object.keys(res)) {
+    if (out[n] !== undefined) continue
+    let q: any
+    try { q = typeof res[n] === 'function' ? res[n](state) : res[n] } catch (_) {}
+    const E = q && ssrCache ? ssrCache.get(ssrCache.key(q, 1)) : undefined
+    out[n] = E && E.at > 0 ? {status: 'success', data: E.v} : {status: q ? 'loading' : 'idle'}
+  }
+  return out
+}
 
 function collectHead(def: any, state: any): void {
   const h = def && def.head
@@ -112,19 +139,23 @@ export function renderToString(
   componentDef: any,
   options: RenderToStringOptions = {}
 ): string {
-  const prevHeads = heads
+  const prevHeads = heads, prevCache = ssrCache
   if (options.head) heads = options.head
+  if (options.cache) ssrCache = options.cache
   try {
     return renderRoot(componentDef, options)
   } finally {
     heads = prevHeads
+    ssrCache = prevCache
   }
 }
 
 function renderRoot(componentDef: any, options: RenderToStringOptions): string {
   const {state, props = {}, context = {}, hydrateState} = options
 
-  const resolvedState = state !== undefined ? state : componentDef.initialState
+  const ownState = state !== undefined ? state : componentDef.initialState
+  // 5-5: the view sees its resources; the hydration script keeps the state as it was given
+  const resolvedState = withResources(componentDef, ownState)
   collectHead(componentDef, resolvedState)
 
   // Build context: merge parent context with component's own context definitions
@@ -175,10 +206,10 @@ function renderRoot(componentDef: any, options: RenderToStringOptions): string {
   let html = vnodeToHtml(vnode)
 
   // Optionally embed state for hydration
-  if (hydrateState && resolvedState != null) {
+  if (hydrateState && ownState != null) {
     const varName = typeof hydrateState === 'string' ? hydrateState : '__SYGNAL_STATE__'
-    const serialized = escapeHtml(JSON.stringify(resolvedState))
-    html += `<script>window.${varName}=${JSON.stringify(resolvedState)}</script>`
+    const serialized = escapeHtml(JSON.stringify(ownState))
+    html += `<script>window.${varName}=${JSON.stringify(ownState)}</script>`
   }
 
   return html
@@ -363,6 +394,7 @@ function renderSubComponent(vnode: any, context: Record<string, any>, parentStat
     // State passed directly
     childState = stateProp
   }
+  childState = withResources(componentDef, childState)
 
   // Build child context
   const childContext: Record<string, any> = {...context}
@@ -537,7 +569,7 @@ function renderSwitchable(vnode: any, context: Record<string, any>, parentState?
  * Internal helper: render a component def to a VNode (not HTML string).
  */
 function renderToStringInternal(componentDef: any, state: any, context: Record<string, any>): any {
-  const resolvedState = state !== undefined ? state : componentDef.initialState
+  const resolvedState = withResources(componentDef, state !== undefined ? state : componentDef.initialState)
 
   const componentContext = componentDef.context || {}
   const mergedContext: Record<string, any> = {...context}

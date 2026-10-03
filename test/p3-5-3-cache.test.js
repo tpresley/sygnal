@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // PLAN-3 5-2b + 5-3: resource reload semantics (D78, G-177) and makeFetchDriver's opt-in query
-// cache (D79, D80): stale-while-revalidate, de-duplication across senders, gcTime, focus /
+// cache (D79, D80; D88: queryCache()): stale-while-revalidate, de-duplication across senders, gcTime, focus /
 // online / polling triggers, invalidation by tag / URL prefix / predicate, retries, Standard
 // Schema validation, t.cache / t.focus / t.online, and the dev diagnostics SYG630-SYG633.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
@@ -8,6 +8,7 @@ import run from '../src/extra/run.js'
 import { createElement as h } from '../src/pragma/index.js'
 import { Switchable } from '../src/switchable.js'
 import { makeFetchDriver } from '../src/extra/fetchDriver.js'
+import { queryCache } from '../src/extra/queryCache.js'
 import { renderComponent } from '../src/extra/testing.js'
 import { isStandardSchema, validateWith } from '../src/extra/standardSchema.js'
 import { onBrowserSignals } from '../src/extra/browserSignals.js'
@@ -208,7 +209,7 @@ describe('G-177: a hidden page keeps its resource', () => {
 
 describe('D79: stale-while-revalidate', () => {
   it('cache on: switching back shows the cached data at once (refreshing), then refetches', async () => {
-    start(quote(), { cache: true })
+    start(quote(), { cache: queryCache() })
     await waitFor(() => expect(srv.fn).toHaveBeenCalledTimes(1))
     srv.respond(0, { text: 'one' })
     await waitFor(() => expect(text('.text')).toBe('one'))
@@ -226,7 +227,7 @@ describe('D79: stale-while-revalidate', () => {
   })
 
   it('staleTime: a fresh entry is served without a fetch; cache off: every switch fetches', async () => {
-    start(quote(), { cache: { staleTime: 60000 } })
+    start(quote(), { cache: queryCache({ staleTime: 60000 }) })
     await waitFor(() => expect(srv.fn).toHaveBeenCalledTimes(1))
     srv.respond(0, { text: 'one' })
     await waitFor(() => expect(text('.text')).toBe('one'))
@@ -289,7 +290,7 @@ describe('D79: de-duplication across senders', () => {
     function App() { return h('div', null, h(A, { state: 'a' }), h(B, { state: 'b' })) }
     App.initialState = { a: {}, b: {} }
     App.model = { NOOP: (s) => s }
-    start(App, { cache: true })
+    start(App, { cache: queryCache() })
     await waitFor(() => expect(srv.fn).toHaveBeenCalledTimes(1))
     await sleep(20)
     expect(srv.fn).toHaveBeenCalledTimes(1)
@@ -312,7 +313,7 @@ describe('D79: de-duplication across senders', () => {
     function App() { return h('div', null, h(A, { state: 'a' }), h(B, { state: 'b' })) }
     App.initialState = { a: { got: '' }, b: { got: '' } }
     App.model = { NOOP: (s) => s }
-    start(App, { cache: true })
+    start(App, { cache: queryCache() })
     await sleep(20)
     await click('.load-a')
     await click('.load-b')
@@ -341,7 +342,7 @@ describe('D79: de-duplication across senders', () => {
     function App() { return h('div', null, h(A, { state: 'a' }), h(B, { state: 'b' })) }
     App.initialState = { a: { got: '' }, b: { got: '' } }
     App.model = { NOOP: (s) => s }
-    start(App, { cache: true })
+    start(App, { cache: queryCache() })
     await sleep(20)
     await click('.load-a')
     await click('.load-b')
@@ -351,7 +352,7 @@ describe('D79: de-duplication across senders', () => {
 
 describe('t.cache and gcTime', () => {
   it('lists entries (key, age, stale, subscribers, data); an unused entry is evicted after gcTime', async () => {
-    t = renderComponent(quote(), { http: { cache: { gcTime: 40 } } })
+    t = renderComponent(quote(), { http: { cache: queryCache({ gcTime: 40 }) } })
     await t.waitForState(s => s.quote.status === 'loading')
     expect(t.cache('HTTP')).toEqual([{ key: 'GET /api/quotes/1', age: undefined, stale: true, subscribers: 1, data: undefined, tags: undefined }])
     await t.respond('HTTP', { text: 'one' }, 'quote')
@@ -367,7 +368,7 @@ describe('t.cache and gcTime', () => {
 
   it('the key sorts the query and includes method, body and parse; staleTime makes an entry fresh', async () => {
     const C = quote((s) => ({ url: '/api/search', query: { q: 'x', a: s.id } }))
-    t = renderComponent(C, { http: { cache: { staleTime: 60000 } } })
+    t = renderComponent(C, { http: { cache: queryCache({ staleTime: 60000 }) } })
     await t.waitForState(s => s.quote.status === 'loading')
     await t.respond('HTTP', { text: 'r' }, 'quote')
     expect(t.cache('HTTP')).toMatchObject([{ key: 'GET /api/search?a=1&q=x', stale: false }])
@@ -376,7 +377,7 @@ describe('t.cache and gcTime', () => {
 
 describe('triggers: focus, online, polling', () => {
   it('t.focus / t.online refetch stale mounted resources (cache on), keeping data', async () => {
-    t = renderComponent(quote(), { http: { cache: true } })
+    t = renderComponent(quote(), { http: { cache: queryCache() } })
     await t.waitForState(s => s.quote.status === 'loading')
     await t.respond('HTTP', { text: 'one' }, 'quote')
     t.focus()
@@ -390,7 +391,7 @@ describe('triggers: focus, online, polling', () => {
   })
 
   it('fresh entries, refetchOnFocus: false and cache off: no refetch', async () => {
-    for (const http of [{ cache: { staleTime: 60000 } }, { cache: { refetchOnFocus: false, refetchOnReconnect: false } }, undefined]) {
+    for (const http of [{ cache: queryCache({ staleTime: 60000 }) }, { cache: queryCache({ refetchOnFocus: false, refetchOnReconnect: false }) }, undefined]) {
       t = renderComponent(quote(), { http })
       await t.waitForState(s => s.quote.status === 'loading')
       await t.respond('HTTP', { text: 'one' }, 'quote')
@@ -403,7 +404,7 @@ describe('triggers: focus, online, polling', () => {
   })
 
   it('run(): window focus refetches (cache on); a hidden page\'s resource does not', async () => {
-    start(Pages, { cache: true })
+    start(Pages, { cache: queryCache() })
     await waitFor(() => expect(srv.fn).toHaveBeenCalledTimes(1))
     srv.respond(0, { v: 'hello' })
     await waitFor(() => expect(text('.info')).toBe('success:hello'))
@@ -536,7 +537,7 @@ describe('D80: invalidation', () => {
 
   it('cache entries: an unmounted match is marked stale, so a fresh entry is refetched on return', async () => {
     const C = quote((s) => ({ url: `/api/quotes/${s.id}`, tags: ['quotes'] }), { INVAL: { HTTP: { invalidate: 'quotes' } } })
-    t = renderComponent(C, { http: { cache: { staleTime: 60000 } } })
+    t = renderComponent(C, { http: { cache: queryCache({ staleTime: 60000 }) } })
     await t.waitForState(s => s.quote.status === 'loading')
     await t.respond('HTTP', { text: 'one' }, 'quote')
     t.simulateAction('NEXT')
@@ -805,7 +806,7 @@ describe('dev diagnostics', () => {
   })
 
   it('inspect(): each instance\'s resources, and the cache by sink', async () => {
-    t = renderComponent(quote(), { http: { cache: true } })
+    t = renderComponent(quote(), { http: { cache: queryCache() } })
     await t.waitForState(s => s.quote.status === 'loading')
     await t.respond('HTTP', { text: 'one' }, 'quote')
     t.simulateAction('REFRESH')
@@ -818,7 +819,7 @@ describe('dev diagnostics', () => {
   it('no reports for canonical cached reads', async () => {
     const C = sender({ GO: { url: '/api/x', ok: 'GOT', cache: true }, STOP: { abort: 'GOT' } })
     C.resources = { r: () => ({ url: '/api/res', tags: ['res'] }) }
-    startDiag(C, { cache: true })
+    startDiag(C, { cache: queryCache() })
     await settle(20)
     await click('.go'); await click('.stop')
     await settle(20)
@@ -839,7 +840,7 @@ describe('the Resources and Caching docs Testing sample', () => {
   DocQuote.model = { NEXT: (state) => ({ ...state, id: state.id + 1 }), REFRESH: { HTTP: { refresh: 'quote' } } }
 
   it('refreshes in place, and shows the cached quote when coming back', async () => {
-    t = renderComponent(DocQuote, { http: { cache: true } })
+    t = renderComponent(DocQuote, { http: { cache: queryCache() } })
     await t.waitForState((s) => s.quote.status === 'loading')
     await t.respond('HTTP', { text: 'One' }, 'quote')
     t.simulateAction('REFRESH')

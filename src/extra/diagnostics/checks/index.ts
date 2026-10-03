@@ -22,6 +22,7 @@
  * | SYG631 | validate is not a Standard Schema                      | fetch.ts       |
  * | SYG632 | invalidate matched nothing (info)                      | fetch.ts       |
  * | SYG633 | abort names a lane its requests don't use              | fetch.ts       |
+ * | SYG635 | cache: true / staleTime / prefetch without queryCache() | fetch.ts       |
  * | SYG115 | unknown DOM event shorthand (DOM.key(...))             | shorthand.ts   |
  * | SYG116 | EVENTS value with no string type (a function)          | events.ts      |
  * | SYG130 | href() names no route / leaves out a param             | router.ts      |

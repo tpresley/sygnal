@@ -9,6 +9,9 @@
  * SYG632 — `{ invalidate }` matched no cache entry and no mounted resource (info)
  * SYG633 — `{ abort: 'X' }` cancels the lane 'X', but this instance sends its `ok: 'X'`
  *          requests under another `key`, so nothing is cancelled (warn)
+ * SYG635 — `cache: true` / `staleTime` / `{ prefetch }` sent to a driver without a
+ *          `queryCache()` (D88): nothing is cached (warn). The source's `__inspect().cache`
+ *          is undefined without one
  *
  * Mechanism: onModel wraps the component's own model stream for every sink whose source
  * takes the `resources` static (makeFetchDriver and renderComponent's HTTP fake) and checks
@@ -26,6 +29,20 @@ const IDEMPOTENT = /^(GET|HEAD)$/i
 const lanes = new WeakMap<object, {used: Set<string>; keyed: Map<string, string>}>()
 
 const fetchSink = (component: any, name: string) => component?.sources?.[name]?.__sygnalStatic === 'resources'
+/** 5-5: the sink's driver has no queryCache() */
+const noCache = (component: any, sink: string) => {
+  const i = component?.sources?.[sink]?.__inspect?.()
+  return !!i && i.cache === undefined
+}
+const reportNoCache = (component: any, sink: string, what: string, url: string) => {
+  if (!noCache(component, sink) || !once(`SYG635:${nameOf(component)}:${what}:${url}`)) return
+  devReport('SYG635', {
+    component,
+    message: `${sink} ${url ? url + ' ' : ''}uses ${what}, but the ${sink} driver has no queryCache(), so nothing is cached`,
+    fix: `Give the driver a cache: makeFetchDriver({ cache: queryCache({ staleTime: 30000 }) }) (import { queryCache } from 'sygnal'); in tests renderComponent(C, { http: { cache: queryCache() } }). Or remove ${what}`,
+    data: {sink, url, what},
+  })
+}
 
 function checkOne(component: any, sink: string, req: any, where: string) {
   if (!req || typeof req !== 'object') return
@@ -40,6 +57,7 @@ function checkOne(component: any, sink: string, req: any, where: string) {
       data: {sink, method, url},
     })
   }
+  if (req.cache === true || req.staleTime != null) reportNoCache(component, sink, req.cache === true ? 'cache: true' : 'staleTime', url)
   if ('validate' in req && !isStandardSchema(req.validate) && once(`SYG631:${name}:${url}`)) {
     devReport('SYG631', {
       component,
@@ -56,6 +74,11 @@ function check(component: any, sink: string, req: any) {
   const res = req.resources
   if (res && typeof res === 'object') {
     for (const k of Object.keys(res)) checkOne(component, sink, typeof res[k] === 'string' ? {url: res[k]} : res[k], `${name}.resources.${k}:`)
+    return
+  }
+  if (req.prefetch) {
+    const p = req.prefetch
+    reportNoCache(component, sink, '{ prefetch }', typeof p === 'string' ? p : String(p?.url ?? ''))
     return
   }
   if ('invalidate' in req) {

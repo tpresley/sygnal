@@ -1,7 +1,7 @@
 import xs, {Stream} from 'xstream';
 import {senderOf, keepSender, allowed, makeReplies} from './replies';
 import {backoff} from './backoff';
-import {onBrowserSignals, isHidden} from './browserSignals';
+import {isHidden} from './browserSignals';
 import {validateWith} from './standardSchema';
 
 /*
@@ -54,15 +54,17 @@ import {validateWith} from './standardSchema';
  *   G-177 / D85: a name left out of the declaration (a hidden Switchable page) is paused: its
  *   request is aborted and it keeps its last result (`refreshing` off; 'idle' if it had none);
  *   declared again, the same request is a refetch that keeps data, another one a key change.
- * - Cache (D79, opt-in: `cache: true | { staleTime, gcTime, refetchOnFocus, refetchOnReconnect }`):
- *   entries keyed by method + URL (query sorted) + body + parse. Cached: resources' GET/HEAD
- *   requests (cache on), and any request with `cache: true` or `staleTime` (`cache: false` opts
- *   out; a `parse` function / 'response' or a non-string body never is). A resource with a
- *   cached entry shows it at once ('success', `refreshing` while it refetches); an entry younger
- *   than `staleTime` (default 0) is served without a fetch. Identical cacheable requests in
- *   flight share one fetch (each sender gets its own reply); the fetch aborts only when no
- *   request still wants it. Entries no resource uses are evicted after `gcTime` (5 min).
- *   Focus / reconnect (default on with the cache) refetch stale mounted (not paused) resources.
+ * - Cache (D79; D88: opt-in, `cache: queryCache({ staleTime, gcTime, refetchOnFocus,
+ *   refetchOnReconnect, initial })`, ./queryCache.ts owns the entries, keys, gc, de-duplication,
+ *   the triggers and SSR seeding; this driver only calls its hooks). Cached: resources' GET/HEAD
+ *   requests, and any request with `cache: true` or `staleTime`. A resource with a cached entry
+ *   shows it at once ('success', `refreshing` while it refetches); an entry younger than
+ *   `staleTime` (default 0) is served without a fetch. Identical cacheable requests in flight
+ *   share one fetch (each sender gets its own reply); the fetch aborts only when no request
+ *   still wants it. Focus / reconnect refetch stale mounted (not paused) resources. Without a
+ *   queryCache, `cache: true` / `staleTime` / `{ prefetch }` do nothing (dev: SYG635).
+ * - `{ prefetch: request }` (H-7): fetched into the cache with no reply (a fresh entry or a
+ *   fetch in flight: nothing new).
  * - `refetchEvery: ms` on a resource polls (after each result; skipped while the document is hidden).
  * - `{ invalidate: tag | tags | '/url-prefix' | (request) => boolean }` (D80): matching cache
  *   entries go stale and matching mounted resources refetch (keeping data). Tags are explicit
@@ -153,14 +155,23 @@ const mergeHeaders = (...all: any[]) => {
 };
 
 const IDEMPOTENT = /^(GET|HEAD)$/i;
+// D80: an invalidate value matches a request by tag, URL prefix ('/…') or predicate
+export const hit = (x: any, q: any) => {
+  try {
+    return typeof x == 'function' ? !!x(q) : [].concat(x).some((t: any) =>
+      t[0] == '/' ? String(q.url).startsWith(t) : [].concat(q.tags).includes(t as never));
+  } catch (_) { return false; }
+};
 // a settled resource status ('success' / 'error')
 const SETTLED = /^[se]/;
 
 export function makeFetchDriver(options: any = {}) {
-  return (request$: Stream<any>) => {
+  // D88: the query cache (queryCache()), or none
+  const C = options.cache;
+  if (C && !C.key) throw new Error('[Sygnal] makeFetchDriver: cache takes queryCache(...) from sygnal');
+  const driver = (request$: Stream<any>) => {
     let seq = 0;
     let disposed = false;
-    const co = options.cache, copt = co && typeof co == 'object' ? co : {};
     // requests in flight: id → { category, scope (key), sender, rk (reply key), rn (resource),
     // q (the request), timer, f (the fetch it waits on), ok / ko (its outcomes) }
     const inflight = new Map<number, any>();
@@ -224,55 +235,11 @@ export function makeFetchDriver(options: any = {}) {
       };
     };
 
-    // D79: the cache, key → { k, q (the request), v (data), at (fetched at), s (marked stale),
-    // n (resources using it), g (gc timer) }; and the fetches identical requests share, key → fetch
-    const cache = new Map<string, any>();
-    const flights = new Map<string, any>();
-    const now = () => Date.now();
-    const fresh = (E: any, q: any) => E?.at > 0 && !E.s && now() - E.at < (q.staleTime ?? copt.staleTime ?? 0);
-    const gc = (E: any) => {
-      clearTimeout(E.g);
-      const ms = copt.gcTime ?? 3e5;
-      if (ms < 1 / 0) E.g = setTimeout(() => E.n || cache.delete(E.k), ms);
-    };
-    const entry = (k: string, q: any) => {
-      let E = cache.get(k);
-      if (!E) cache.set(k, (E = {k, q, n: 0}));
-      return E;
-    };
-    // resource R now uses cache key k (or none): the entries' subscriber counts
-    const use = (R: any, k?: string) => {
-      if (R.k === k) return;
-      const O = cache.get(R.k);
-      if (O && !--O.n) gc(O);
-      if ((R.k = k) !== undefined) {
-        const E = entry(k as string, R.q);
-        E.n++;
-        clearTimeout(E.g);
-      }
-    };
-    // the cache key of a cacheable request (else undefined); `res`: a resource's
-    const keyOf = (q: any, res?: any) => {
-      const {method, json, body, parse, query} = q;
-      const m = (method || (json !== undefined || body !== undefined ? 'POST' : 'GET')).toUpperCase();
-      const b = json !== undefined ? JSON.stringify(json) : body ?? '';
-      if (q.cache === false || typeof b != 'string' || typeof parse == 'function' || parse == 'response' ||
-        !(q.cache || q.staleTime != null || (res && co && IDEMPOTENT.test(m)))) return;
-      return [m, withQuery((options.baseUrl || '') + (q.url ?? ''), query, 1), b, parse].join(' ').trim();
-    };
-    // D80: an invalidate value matches a request by tag, URL prefix ('/…') or predicate
-    const hit = (x: any, q: any) => {
-      try {
-        return typeof x == 'function' ? !!x(q) : [].concat(x).some((t: any) =>
-          t[0] == '/' ? String(q.url).startsWith(t) : [].concat(q.tags).includes(t as never));
-      } catch (_) { return false; }
-    };
     // marks matching cache entries stale and refetches matching mounted resources (keeping
     // data); `dry`: only counts them
     const inval = (x: any, dry?: any) => {
-      let n = 0;
+      let n = C ? C.inval(x, dry) : 0;
       const m = seq;
-      cache.forEach(E => { if (hit(x, E.q)) { n++; dry || (E.s = 1); } });
       rsrc.forEach((cur, s) => cur.forEach((R, name) => { if (!R.p && R.q && hit(x, R.q)) { n++; dry || load(s, name, R, 1, m); } }));
       return n;
     };
@@ -294,7 +261,7 @@ export function makeFetchDriver(options: any = {}) {
     const done = (F: any) => {
       F.x = 1;
       clearTimeout(F.t);
-      if (flights.get(F.k) === F) flights.delete(F.k);
+      if (C?.f.get(F.k) === F) C.f.delete(F.k);
     };
     const cancel = (which: (r: any) => boolean) =>
       inflight.forEach((r, id) => { if (which(r)) finish(id); });
@@ -308,7 +275,7 @@ export function makeFetchDriver(options: any = {}) {
     };
     // a disposed sender's requests with reply actions (and resources) are aborted
     const {replies, reply} = makeReplies(sender => {
-      rsrc.get(sender)?.forEach(R => { clearTimeout(R.t); use(R); });
+      rsrc.get(sender)?.forEach(R => { clearTimeout(R.t); C?.use(R); });
       rsrc.delete(sender);
       cancel(r => r.rk !== undefined && r.sender === sender);
     });
@@ -323,20 +290,22 @@ export function makeFetchDriver(options: any = {}) {
     // D78: (re)loads resource R. `same`: the same request again (keeps data); `after` (a
     // refetch: refresh, invalidation, focus, polling) skips the cache and fetches anew
     const load = (s: any, n: string, R: any, same?: any, after?: number) => {
-      const q = R.q, k = keyOf(q, 1), E = cache.get(k as string), L = R.last, go = after !== undefined || !fresh(E, q);
+      const q = R.q, k = C?.key(q, 1), E = C?.get(k), L = R.last, go = after !== undefined || !C?.fresh(k, q);
       stop(s, n, R);
-      use(R, k as any);
+      C?.use(R, k);
       if (E && 'v' in E && !q.validate) write(s, n, R, 'success', E.v, undefined, go);
       else if ((same || q.keepPrevious) && L && SETTLED.test(L.status)) write(s, n, R, L.status, L.data, L.error, true);
       else write(s, n, R, 'loading');
       if (go || q.validate) R.i = send(q, s, n, after, R);
     };
 
-    const send = (req: any, sender = senderOf(req), rn?: string, after = -1, R?: any): any => {
+    // `pf`: a prefetch (into the cache, no reply)
+    const send = (req: any, sender = senderOf(req), rn?: string, after = -1, R?: any, pf?: any): any => {
       if (typeof req == 'string') req = {url: req};
       if (!req || typeof req != 'object' || disposed || !allowed(req, 'makeFetchDriver')) return;
-      const {url, category, method, headers, query, json, body, latest, timeoutMs, parse, abort, init, ok, error, key, resources, refresh, invalidates, retry, validate} = req;
+      const {url, category, method, headers, query, json, body, latest, timeoutMs, parse, abort, init, ok, error, key, resources, refresh, invalidates, retry, validate, prefetch} = req;
       if ('invalidate' in req) return inval(req.invalidate);
+      if (prefetch) return C && send(prefetch, 0, rn, -1, R, 1);
       if (resources || refresh) {
         if (sender === undefined) return;
         const cur = rsrc.get(sender) || new Map();
@@ -349,7 +318,7 @@ export function makeFetchDriver(options: any = {}) {
             if (R && !R.p) {
               R.p = 1;
               stop(sender, n, R);
-              use(R);
+              C?.use(R);
               const L = R.last;
               if (!L || !SETTLED.test(L.status)) write(sender, n, R, 'idle');
               else if (L.refreshing) write(sender, n, R, L.status, L.data, L.error);
@@ -366,18 +335,18 @@ export function makeFetchDriver(options: any = {}) {
           R.j = j;
           R.q = q;
           if (q) load(sender, n, R, same);
-          else { stop(sender, n, R); use(R); write(sender, n, R, 'idle'); }
+          else { stop(sender, n, R); C?.use(R); write(sender, n, R, 'idle'); }
         });
         return;
       }
       const scope = scopeKey(req);
       // reply actions: keyed per (sender, key ?? ok ?? error); a resource per (sender, '\0' + name)
-      const rk = rn !== undefined ? '\0' + rn : sender !== undefined && (ok || error) ? key ?? ok ?? error : undefined;
+      const rk = rn !== undefined ? '\0' + rn : !pf && sender !== undefined && (ok || error) ? key ?? ok ?? error : undefined;
       if (sender !== undefined && (typeof abort == 'string' || (abort && key !== undefined)))
         return cancel(r => r.sender === sender && r.rk === (key ?? abort));
       // per (scope, category): another component's requests are never cancelled
       if (abort) return cancel(r => r.scope === scope && (!('category' in req) || r.category === category));
-      if (rn !== undefined || (latest ?? options.latest)) cancel(rk === undefined ? r => r.rk === undefined && r.scope === scope && r.category === category : r => r.sender === sender && r.rk === rk);
+      if (rn !== undefined || (!pf && (latest ?? options.latest))) cancel(rk === undefined ? r => r.rk === undefined && r.scope === scope && r.category === category : r => r.sender === sender && r.rk === rk);
 
       const href = withQuery((options.baseUrl || '') + (url ?? ''), query);
       const base = options.init, own = init;
@@ -388,18 +357,18 @@ export function makeFetchDriver(options: any = {}) {
         if (!Object.keys(h).some(k => k.toLowerCase() == 'content-type')) h['content-type'] = 'application/json';
       }
       const m = method || own?.method || base?.method || (b !== undefined ? 'POST' : 'GET');
-      const k = keyOf(req, rn !== undefined);
+      const k = C?.key(req, rn !== undefined || pf);
       const id = ++seq;
       const r: any = {category, scope, sender, rk};
       inflight.set(id, r);
       // an outcome with a reply action goes to the sender's actions, the other to errors()/select()
       const fail = r.ko = (e: any, extra?: any) => finish(id) && (R && write(sender, rn!, R, 'error', R.last?.data, e),
-        rk !== undefined && error ? reply(sender, error, {error: e, request: req, ...extra}) : rn === undefined && emit(true, {error: e, category, request: req, ...extra}));
+        rk !== undefined && error ? reply(sender, error, {error: e, request: req, ...extra}) : rn === undefined && !pf && emit(true, {error: e, category, request: req, ...extra}));
       r.ok = async (v: any, status: number) => {
         if (validate) try { v = await validateWith(validate, v); } catch (e: any) { return fail(e, {status, issues: e.issues}); }
         if (!finish(id)) return;
         if (R) write(sender, rn!, R, 'success', v);
-        rk !== undefined && ok ? reply(sender, ok, v) : rn === undefined && emit(false, {category, value: v, status, request: req});
+        rk !== undefined && ok ? reply(sender, ok, v) : rn === undefined && !pf && emit(false, {category, value: v, status, request: req});
         if (invalidates) inval(invalidates);
       };
       const ms = timeoutMs ?? options.timeoutMs;
@@ -411,16 +380,15 @@ export function makeFetchDriver(options: any = {}) {
         }, ms);
       }
       // D79: a fresh cache entry answers without a fetch
-      const E = cache.get(k as string);
-      if (after < 0 && fresh(E, req)) return queueMicrotask(() => r.ok(E.v, 200)), id;
+      if (after < 0 && C?.fresh(k, req)) return queueMicrotask(() => r.ok(C.get(k).v, 200)), id;
       // D79: identical cacheable requests share a fetch (a refetch only one started after it asked)
-      let F = flights.get(k as string);
+      let F = k !== undefined && C.f.get(k);
       if (!F || F.id <= after) {
         const rp = retry ?? (IDEMPOTENT.test(m) ? options.retry : 0);
         const pol = rp && typeof rp == 'object' ? rp : {count: +rp || 0};
         const tries = pol.count ?? 3;
         F = {id, k, s: new Set(), n: 0};
-        if (k !== undefined) flights.set(k, F);
+        if (k !== undefined) C.f.set(k, F);
         const pz = parse || options.parse || 'auto';
         const parser = typeof pz == 'function' ? pz : PARSERS[pz] || autoParse;
         // the global fetch is called as a method: a detached window.fetch throws "Illegal invocation"
@@ -452,7 +420,7 @@ export function makeFetchDriver(options: any = {}) {
           try {
             if (typeof doFetch != 'function') throw new Error('fetch is not available in this environment (pass makeFetchDriver({ fetch }))');
             // 5-1 (H-9): renderComponent's fake learns which request (and resource) the next fetch is for
-            options._tap?.(req, rn);
+            options._tap?.(req, rn, pf);
             // called synchronously, so a test sees the call right after the sink emitted
             p = Promise.resolve(doFetch(href, {...fetchInit, signal: ctl.signal}));
           } catch (e) {
@@ -475,14 +443,7 @@ export function makeFetchDriver(options: any = {}) {
               let v: any;
               try { v = await parser(res); } catch (e) { return live() && end(e, {status: st}); }
               if (!live()) return;
-              if (k !== undefined) {
-                const C = entry(k, req);
-                C.v = v;
-                C.at = now();
-                C.s = 0;
-                C.q = req;
-                C.n || gc(C);
-              }
+              if (k !== undefined) C.put(k, req, v);
               end(0, v, st);
             } catch (e) {
               live() && end(e);
@@ -496,21 +457,19 @@ export function makeFetchDriver(options: any = {}) {
       return id;
     };
 
-    // D79: focus / reconnect refetch the stale mounted resources (cache on; the fake passes `_on`)
-    const off = co && (options._on || onBrowserSignals)((sig: string) => {
-      if (copt[sig == 'focus' ? 'refetchOnFocus' : 'refetchOnReconnect'] === false) return;
+    // D79: focus / reconnect refetch the stale mounted resources (the fake passes `_on`)
+    const off = C?.on(options._on, () => {
       const m = seq;
       rsrc.forEach((cur, s) => cur.forEach((R, n) => {
-        if (!R.p && R.q && R.k !== undefined && !inflight.has(R.i) && !fresh(cache.get(R.k), R.q)) load(s, n, R, 1, m);
+        if (!R.p && R.q && R.k !== undefined && !inflight.has(R.i) && !C.fresh(R.k, R.q)) load(s, n, R, 1, m);
       }));
     });
-    const inspect = () => ({
-      cache: [...cache.values()].map(E => ({key: E.k, age: E.at && now() - E.at, stale: !fresh(E, E.q), subscribers: E.n, data: E.v})),
-    });
+    if (C) C.d = send;
+    // the cache listing (t.cache, inspect()); undefined without a queryCache (dev: SYG635)
+    const inspect = () => ({cache: C?.list()});
     const shut = () => {
       cancel(() => true);
       off?.();
-      cache.forEach(E => clearTimeout(E.g));
       rsrc.forEach(cur => cur.forEach(R => clearTimeout(R.t)));
     };
 
@@ -522,4 +481,7 @@ export function makeFetchDriver(options: any = {}) {
 
     return {...source([]), dispose: () => { shut(); disposed = true; }};
   };
+  // the Vike glue hydrates the cache of the drivers it is given (pageContext.queryCache)
+  driver.cache = C;
+  return driver;
 }
