@@ -886,7 +886,8 @@ function trackSource(inner: any, path: string[], hub$: any, on: (path: string[],
     has: (t, k) => k in own || k in t,
   });
 }
-const NO_BUBBLE = /^(blur|focus|mouseenter|mouseleave|pointerenter|pointerleave|load|unload|scroll|invalid)$/;
+// events the browser fires without bubbling (cf. eventTypesThatDontBubble; submit/reset do bubble)
+const NO_BUBBLE = /^(blur|focus|mouseenter|mouseleave|pointerenter|pointerleave|load|unload|scroll|scrollend|invalid|close|cancel|toggle|beforetoggle|error|abort)$/;
 /** dispatch a real DOM event, like a user would cause it (E4) */
 function fire(el: any, type: string, init: SimulatedEventInit) {
   const {target: t = {}, value, checked, dataset, data, key, ...rest} = init;
@@ -2459,6 +2460,7 @@ export function renderComponent(
         };
         target.closest = closestFrom(chain.length - 1);
       }
+      const noBubble = NO_BUBBLE.test(type);
       const event = {
         type,
         target,
@@ -2467,12 +2469,14 @@ export function renderComponent(
         dataTransfer: {},
         preventDefault: noop,
         stopPropagation: noop,
+        bubbles: !noBubble,
         ...rest,
       };
       // G-145: like native bubbling, listeners on deeper elements (a child's) hear the
-      // event before those on their ancestors (the parent's wrapper), then document/body
+      // event before those on their ancestors (the parent's wrapper), then document/body.
+      // 1-F: an event that doesn't bubble (dialog close, focus, ...) reaches the target only
       if (!chain) hub.emit({type, event, match});
-      else for (let k = chain.length - 1; k >= -1; k--) hub.emit({type, event, match: (p: string[]) => depthOf(p) === k});
+      else for (let k = chain.length - 1; k >= (noBubble ? chain.length - 1 : -1); k--) hub.emit({type, event, match: (p: string[]) => depthOf(p) === k});
       // PLAN-3 5-4c: and a link click reaches the router fake's document listener
       if (type == 'click' && chain) routerClick(chain, event);
       return true;
