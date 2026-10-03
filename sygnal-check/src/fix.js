@@ -14,12 +14,17 @@
  * diagnostic's edits are applied together or not at all; overlapping edits
  * wait for the next pass (the files are re-checked after every pass, up to
  * MAX_PASSES). Running it again on the result changes nothing.
+ *
+ * With `controls: true` (CLI --controls) it then converts single-class intent
+ * selectors to controls (fixControls.js; `keepClasses` keeps every class on
+ * the element) and returns how many controls it made as `controls`.
  */
 import fs from 'node:fs'
 import path from 'node:path'
 import { checkFiles } from './index.js'
 import { parseSource, walk } from './ast.js'
 import { makeDiagnostic } from './diagnostic.js'
+import { convertControls } from './fixControls.js'
 
 const MAX_PASSES = 5
 
@@ -128,5 +133,18 @@ export function fixFiles(files, options = {}) {
     }
     fixed += owners.filter(edits => !edits.some(e => skipped.has(e.file))).length
   }
-  return { fixed, files: [...changed], passes, diagnostics }
+  if (!options.controls) return { fixed, files: [...changed], passes, diagnostics }
+  // --controls (PLAN-4 CT-1): single-class selectors → controls (fixControls.js)
+  const c = convertControls(files.filter(f => !skipped.has(f)), { cwd, keepClasses: options.keepClasses })
+  c.files.forEach(f => changed.add(f))
+  for (const f of c.skipped) {
+    diagnostics.push(makeDiagnostic('SYG900', {
+      message: 'controls conversion skipped: the rewrite of this file would not parse, so the file was left unchanged',
+      fix: 'convert the selectors by hand (and please report this with the file that triggers it)',
+      file: path.relative(cwd, f) || f,
+      line: 1,
+      column: 1,
+    }))
+  }
+  return { fixed, files: [...changed], passes, diagnostics, controls: c.controls, controlFiles: c.files.length }
 }

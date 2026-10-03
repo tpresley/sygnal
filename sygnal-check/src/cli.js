@@ -1,5 +1,5 @@
 /**
- * sygnal-check [paths...] [--json] [--strict] [--fix] [--graph] [--fail-on=warn|error|never] [--verbose]
+ * sygnal-check [paths...] [--json] [--strict] [--fix] [--controls] [--keep-classes] [--graph] [--fail-on=warn|error|never] [--verbose]
  * sygnal-check explain <code> [--json] | explain --all [--json]
  * sygnal-check mcp            (MCP server on stdio; see src/mcp.js and bin/sygnal-check.js)
  */
@@ -35,6 +35,12 @@ Options:
                          (implies --strict): 'A | SINK' keys → object form,
                          emit() → { EVENTS: event() }, CHILD.select('Name') →
                          CHILD.select(Name); then report what is left
+  --controls             with --fix (implied): also convert single-class intent
+                         selectors into controls: DOM.click('.add') on the one
+                         <button className="add"> becomes DOM.click(Add) on
+                         <Add> from controls({ Add: 'button' }). The class is
+                         removed unless CSS (or a string elsewhere) uses it
+  --keep-classes         with --controls (implied): keep every converted class
   --graph                print the app graph (components, actions, children,
                          selectors, EVENTS, diagnostics) instead of the
                          diagnostics list; with --json, as InspectGraph JSON
@@ -47,11 +53,13 @@ Suppress a finding with a comment on the same line or the line above:
 `
 
 export function parseArgs(argv) {
-  const opts = { paths: [], json: false, strict: false, fix: false, graph: false, failOn: 'warn', verbose: false, includeTests: false, help: false }
+  const opts = { paths: [], json: false, strict: false, fix: false, controls: false, keepClasses: false, graph: false, failOn: 'warn', verbose: false, includeTests: false, help: false }
   for (const a of argv) {
     if (a === '--json') opts.json = true
     else if (a === '--strict') opts.strict = true
     else if (a === '--fix') opts.fix = opts.strict = true
+    else if (a === '--controls') opts.controls = opts.fix = opts.strict = true
+    else if (a === '--keep-classes') opts.keepClasses = opts.controls = opts.fix = opts.strict = true
     else if (a === '--graph') opts.graph = true
     else if (a === '--verbose' || a === '-v') opts.verbose = true
     else if (a === '--include-tests') opts.includeTests = true
@@ -123,8 +131,10 @@ export function main(argv, { stdout = process.stdout, stderr = process.stderr, c
 
   let fixDiags = []
   if (opts.fix) {
-    const r = fixFiles(files, { cwd })
-    stderr.write(`sygnal-check: fixed ${r.fixed} issue${r.fixed === 1 ? '' : 's'} in ${r.files.length} file${r.files.length === 1 ? '' : 's'}\n`)
+    const r = fixFiles(files, { cwd, controls: opts.controls, keepClasses: opts.keepClasses })
+    const n = r.files.length
+    stderr.write(`sygnal-check: fixed ${r.fixed} issue${r.fixed === 1 ? '' : 's'}${opts.controls ? '' : ` in ${n} file${n === 1 ? '' : 's'}`}\n`)
+    if (opts.controls) stderr.write(`sygnal-check: converted ${r.controls} selector${r.controls === 1 ? '' : 's'} to controls in ${r.controlFiles} file${r.controlFiles === 1 ? '' : 's'}\n`)
     fixDiags = r.diagnostics // SYG900 "fix skipped" (a rewrite that would not parse was rolled back)
   }
   const diags = sortDiagnostics([...fixDiags, ...checkFiles(files, { cwd, strict: opts.strict })])

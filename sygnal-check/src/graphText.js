@@ -7,6 +7,7 @@
  *     context   provides draggingTaskId
  *     events    selects DELETE_LANE
  *     children  LaneComponent (collection from 'lanes')
+ *     controls  Add <button> ✓
  *     selectors .add-lane-btn [click] ✓
  *     ! SYG110 …
  *   EVENTS
@@ -16,7 +17,7 @@ const list = (xs) => xs.join(', ')
 
 function selectorText(s) {
   const mark = s.isolationHit ? `✗ inside <${s.isolationHit}>` : s.matched === true ? '✓' : s.matched === false ? '✗ not in view' : '?'
-  return `${s.selector}${s.events?.length ? ` [${s.events.join(',')}]` : ''} ${mark}`
+  return `${s.control ?? s.selector}${s.events?.length ? ` [${s.events.join(',')}]` : ''} ${mark}`
 }
 
 export function formatGraph(g, { verbose = false } = {}) {
@@ -39,6 +40,7 @@ export function formatGraph(g, { verbose = false } = {}) {
     ].filter(Boolean).join('; ')
     row('events', evs)
     row('children', list(c.children.map(ch => `${ch.name} (${ch.via}${ch.from ? ` from '${ch.from}'` : ''})`)))
+    row('controls', list((c.controls || []).map(x => `${x.name}${x.element ? ` <${x.element}>` : x.kind ? ` (${x.kind})` : ''} ${x.listened ? '✓' : x.listened === false ? '(not listened to)' : '?'}`)))
     row('selectors', list(c.selectors.map(selectorText)))
     for (const d of c.diagnostics.filter(shown)) out.push(`  ! ${d.code}${d.severity === 'warn' ? '' : ` [${d.severity}]`} ${d.message}`)
   }

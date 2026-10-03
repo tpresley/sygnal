@@ -108,7 +108,8 @@ export function returnedExpressions(fn) {
  *   fn, file,
  *   known: boolean,               // every action name is statically known
  *   actions: Array<{ name, node }>,
- *   selectors: Array<{ selector: string|null, node, method, dynamic, global }>,
+ *   selectors: Array<{ selector: string|null, node, method, dynamic, global,
+ *                      control?, controls? }>,   // set by resolveSelectorControls (controls.js)
  * }}
  */
 export function analyzeIntent(file, fn) {

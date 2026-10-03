@@ -27,6 +27,7 @@ import eventsCounterpart from './syg105-events-counterpart.js'
 import collectionFrom from './syg401-collection-from.js'
 import controlledInput from './syg111-controlled-input.js'
 import latestComputedKey from './syg634-latest-computed-key.js'
+import controls from './syg124-controls.js'
 import { strictRules } from './strict/index.js'
 
 export const coreRules = [
@@ -38,6 +39,7 @@ export const coreRules = [
   collectionFrom,
   controlledInput,
   latestComputedKey,
+  controls, // SYG124, SYG125, SYG126, SYG128 (PLAN-4 CT-1)
 ]
 
 export { strictRules }

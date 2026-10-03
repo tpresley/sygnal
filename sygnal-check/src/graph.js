@@ -27,7 +27,10 @@
  *   children     tag / Collection / Switchable usages in the view, and
  *                components passed into a child as children or slots ('slot')
  *   selectors    intent DOM selectors; matched / isolationHit from the
- *                SYG110 / SYG104 findings (null for document/body/dynamic)
+ *                SYG110 / SYG104 findings (null for document/body/dynamic);
+ *                `control` names the control a selector is ([data-control="Add"])
+ *   controls     controls the view renders: { name, element, kind?, listened }
+ *                (omitted when there are none; PLAN-4 CT-1)
  *   diagnostics  the normal rules (+ strict ones with `strict: true`),
  *                attached to their component, the rest app-wide
  */
@@ -218,13 +221,26 @@ export function buildGraph(project, diagnostics = []) {
       const crossed = found.find(d => d.code === 'SYG104')
       const missing = found.find(d => d.code === 'SYG110' && d.severity !== 'info')
       const unsure = sel.global || sel.dynamic || found.some(d => d.code === 'SYG110' && d.severity === 'info')
-      return {
+      const out = {
         selector: text,
         events: sel.method === 'select' ? selectEvents(c.intent.file, sel.node) : [sel.method],
         matched: crossed || missing ? false : unsure ? null : true,
         isolationHit: crossed ? crossed.data?.child ?? null : null,
       }
+      if (sel.control) out.control = sel.control.key
+      return out
     })
+
+    // controls the view renders (PLAN-4 CT-1), next to the selectors
+    const listened = new Set((c.intent?.selectors || []).flatMap(s => s.controls || []))
+    const unknownIntent = !!c.staticProps.intent && !c.intent?.fn
+    const controls = []
+    for (const sink of c.viewInfo ? [c.viewInfo, ...project.injectedInto(c.view)] : []) {
+      for (const ctrl of sink.controls.keys()) {
+        if (controls.some(x => x.ctrl === ctrl)) continue
+        controls.push({ ctrl, name: ctrl.key, element: ctrl.element, kind: ctrl.kind, listened: unknownIntent ? null : listened.has(ctrl) })
+      }
+    }
 
     const children = []
     for (const { usage, via, from } of usagesByComp.get(c)) {
@@ -234,7 +250,7 @@ export function buildGraph(project, diagnostics = []) {
       children.push(child)
     }
 
-    return {
+    const node = {
       name: c.name,
       id: idOf(c),
       parentId: null,
@@ -251,6 +267,14 @@ export function buildGraph(project, diagnostics = []) {
       selectors,
       diagnostics: own.map(slimDiagnostic),
     }
+    if (controls.length) {
+      node.controls = controls.map(({ name, element, kind, listened }) => {
+        const entry = { name, element: element ?? null, listened }
+        if (kind) entry.kind = kind
+        return entry
+      })
+    }
+    return node
   })
 
   return { version: 1, source: 'static', components, events, diagnostics: appWide.map(slimDiagnostic) }
