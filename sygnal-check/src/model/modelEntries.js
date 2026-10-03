@@ -1,13 +1,24 @@
 /**
  * Model analysis: action entries (shorthand expanded), sinks, next('X')
- * targets, and EVENTS types returned from EVENTS sinks.
+ * targets, EVENTS types returned from EVENTS sinks, and the action names of
+ * reply actions of requests (`{ url, ok: 'LOADED', error: 'FAILED' }`, PLAN-3).
  */
 import { walk, unwrap, isFunction, propName, stringValue } from '../ast.js'
 import { findBinding } from '../scope.js'
 import { resolveExpr } from './resolve.js'
 import { returnedExpressions } from './intent.js'
 
-export const BUILTIN_ACTIONS = new Set(['BOOTSTRAP', 'INITIALIZE', 'HYDRATE', 'DISPOSE', 'READY'])
+// Actions the core dispatches itself. HYDRATE is not one since 6.0 (D66): nothing dispatches it.
+// RESOURCE: written by the core for a `resources` static (PLAN-3 3-A, exp)
+export const BUILTIN_ACTIONS = new Set(['BOOTSTRAP', 'INITIALIZE', 'DISPOSE', 'READY', 'RESOURCE'])
+
+/** Request keys that name the action a reply arrives as (reply actions) (PLAN-3 §1.1). */
+// PLAN-3 5-4b: a router `{ block: 'CONFIRM_LEAVE' }` names the action a blocked navigation goes to
+export const REPLY_KEYS = new Set(['ok', 'error', 'block'])
+/** `connections` entry keys that name actions (PLAN-3 §1.3, D61). */
+export const CONNECTION_KEYS = new Set(['message', 'open', 'close', 'error'])
+/** Sinks the core handles itself: their values are never requests to a reply-action driver. */
+export const NON_REPLY_SINKS = new Set(['STATE', 'EFFECT', 'EVENTS', 'PARENT', 'READY', 'DOM', 'CHILD'])
 
 const SHORTHAND = /^(.+?)\s*\|\s*(.+)$/
 
@@ -59,6 +70,76 @@ export function eventSinkTypes(project, file, valueNode) {
   return out
 }
 
+/** Object literals a sink value can produce: the object itself, or a function's returns (through ?:, &&, ||). */
+export function returnedObjects(project, file, valueNode) {
+  const r = resolveExpr(project, file, valueNode)
+  const fn = r?.node
+  if (!fn) return []
+  const objs = []
+  const collect = (e) => {
+    e = unwrap(e)
+    if (!e) return
+    if (e.type === 'ConditionalExpression') { collect(e.consequent); collect(e.alternate); return }
+    if (e.type === 'LogicalExpression') { collect(e.right); if (e.operator !== '&&') collect(e.left); return }
+    if (e.type === 'SequenceExpression') { collect(e.expressions[e.expressions.length - 1]); return }
+    if (e.type === 'ObjectExpression') objs.push({ node: e, file: r.file })
+  }
+  if (isFunction(fn)) returnedExpressions(fn).forEach(collect)
+  else collect(fn)
+  return objs
+}
+
+/**
+ * Reply action names in the requests a sink value returns:
+ *   targets  Array<{ name, key, node, file }>   (string literal `ok` / `error` values)
+ *   dynamic  Array<{ node, file }>              (non-literal values)
+ */
+export function replyNames(project, file, valueNode, keys = REPLY_KEYS) {
+  const out = { targets: [], dynamic: [] }
+  for (const { node: obj, file: f } of returnedObjects(project, file, valueNode)) {
+    for (const p of obj.properties) {
+      if (p.type !== 'ObjectProperty') continue
+      const key = propName(p)
+      if (!keys.has(key)) continue
+      const s = stringValue(p.value)
+      if (s != null) out.targets.push({ name: s, key, node: p.value, file: f })
+      else out.dynamic.push({ node: p.value, file: f })
+    }
+  }
+  return out
+}
+
+/**
+ * Action names a `connections` static names (message/open/close/error keys of
+ * any object literal inside it, and the values of an SSE `events` map, PLAN-3 §1.3).
+ * @returns {{ targets: Array<{ name, key, node, file }>, dynamic: Array<{ node, file }> }}
+ */
+export function connectionNames(project, file, node, keys = CONNECTION_KEYS) {
+  const out = { targets: [], dynamic: [] }
+  const r = resolveExpr(project, file, node)
+  if (!r?.node) return out
+  walk(r.node, (n) => {
+    if (n.type !== 'ObjectProperty') return true
+    const key = propName(n)
+    // G-163: an SSE spec's `events: { 'price-update': 'PRICE' }` names actions too (connections only)
+    if (keys === CONNECTION_KEYS && key === 'events' && n.value?.type === 'ObjectExpression') {
+      for (const p of n.value.properties) {
+        if (p.type !== 'ObjectProperty') continue
+        const s = stringValue(p.value)
+        if (s != null) out.targets.push({ name: s, key: 'events', node: p.value, file: r.file })
+        else out.dynamic.push({ node: p.value, file: r.file })
+      }
+      return false
+    }
+    if (!keys.has(key)) return true
+    const s = stringValue(n.value)
+    if (s != null) out.targets.push({ name: s, key, node: n.value, file: r.file })
+    else out.dynamic.push({ node: n.value, file: r.file })
+    return true
+  })
+  return out
+}
+
 /**
  * @returns {{
  *   known: boolean,
@@ -67,10 +148,13 @@ export function eventSinkTypes(project, file, valueNode) {
  *   dynamicNext: Array<{ node, file }>,
  *   eventsEmitted: Array<{ type, node, file }>,
  *   eventsDynamic: Array<{ node, file }>,
+ *   replyTargets: Array<{ name, key, sink, action, node, file }>,   // ok/error names of requests
+ *   replyDynamic: Array<{ node, file }>,
+ *   requests: Array<{ node, file, sink, action }>,   // object literals non-STATE sinks return (PLAN-3 5-3)
  * }}
  */
 export function analyzeModel(project, file, modelNode) {
-  const res = { known: true, entries: [], nextTargets: [], dynamicNext: [], eventsEmitted: [], eventsDynamic: [] }
+  const res = { known: true, entries: [], nextTargets: [], dynamicNext: [], eventsEmitted: [], eventsDynamic: [], replyTargets: [], replyDynamic: [], requests: [] }
   const r = resolveExpr(project, file, modelNode)
   const obj = r?.node
   if (!obj || obj.type !== 'ObjectExpression') { res.known = false; return res }
@@ -80,6 +164,13 @@ export function analyzeModel(project, file, modelNode) {
     const t = eventSinkTypes(project, mfile, valueNode)
     res.eventsEmitted.push(...t.types)
     res.eventsDynamic.push(...t.dynamic)
+  }
+  const addReplies = (action, sink, valueNode) => {
+    if (NON_REPLY_SINKS.has(sink)) return
+    const t = replyNames(project, mfile, valueNode)
+    res.replyTargets.push(...t.targets.map(x => ({ ...x, sink, action })))
+    res.replyDynamic.push(...t.dynamic)
+    res.requests.push(...returnedObjects(project, mfile, valueNode).map(o => ({ ...o, sink, action })))
   }
 
   for (const p of obj.properties) {
@@ -92,6 +183,7 @@ export function analyzeModel(project, file, modelNode) {
     if (shorthand) {
       sinks = [sink]
       if (sink === 'EVENTS') addEvents(value)
+      addReplies(action, sink, value)
     } else if (value && value.type === 'ObjectExpression') {
       sinks = []
       for (const sp of value.properties) {
@@ -101,6 +193,7 @@ export function analyzeModel(project, file, modelNode) {
         sinks.push(sname)
         const sval = sp.type === 'ObjectMethod' ? sp : sp.value
         if (sname === 'EVENTS') addEvents(sval)
+        addReplies(action, sname, sp.type === 'ObjectMethod' ? sp : unwrap(sp.value))
       }
     } else {
       sinks = ['STATE']

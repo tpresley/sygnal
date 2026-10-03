@@ -193,6 +193,8 @@ export default Page
 
 The data fields (`description`, `renderedAt`) are merged into `initialState` when the page loads on the client.
 
+Pages that read with [`resources`](/guide/resources/) can render with data on the server too: the `+data` hook seeds a `queryCache()` and sets `pageContext.queryCache = cache.dehydrate()`, and the extension renders the resources from it and hydrates the client's fetch-driver cache, so the page doesn't fetch again. See [Server rendering with Vike](/guide/resources/#with-vike).
+
 ### Accessing Data in Sub-Components
 
 Page data, route params, and the current URL pathname are automatically injected into Sygnal's context system. Any descendant component can access them without prop drilling:
@@ -235,22 +237,21 @@ In SPA mode, the server returns an empty HTML shell and all rendering happens cl
 
 ## Custom Drivers
 
-Pass additional Cycle.js drivers via the `drivers` config option. These are merged with the default drivers (DOM, STATE, EVENTS, LOG) and made available to all components:
+Register additional drivers in a `+drivers.js` file. Its default export sets the `drivers` setting; the drivers are merged with the default drivers (DOM, STATE, EVENTS, LOG) and made available to all components:
 
 ```javascript
-// pages/+config.js
-import vikeSygnal from 'sygnal/config'
-import { makeWebSocketDriver } from '../src/drivers/ws.js'
+// pages/+drivers.js
+import { makeFetchDriver, makeSocketDriver } from 'sygnal'
 
 export default {
-  extends: [vikeSygnal],
-  drivers: {
-    WS: makeWebSocketDriver('/ws'),
-  },
+  HTTP: makeFetchDriver(),
+  WS: makeSocketDriver(),
 }
 ```
 
-Components access driver sources in `intent` and emit to driver sinks via `model`, just like in a standalone Sygnal app:
+`pages/+drivers.js` applies to every page. Don't set `drivers` inside `+config.js`: drivers are runtime values, and Vike only accepts serializable values there, so `vike build` stops with `drivers defined by /pages/+config.js must be defined using a separate file +drivers.js` (in `vike dev` the server render works but the page never hydrates).
+
+Components use them just like in a standalone Sygnal app ([HTTP](/guide/http/), [Sockets](/guide/sockets/)):
 
 ```jsx
 function Dashboard({ state }) {
@@ -264,15 +265,16 @@ function Dashboard({ state }) {
 
 Dashboard.initialState = { messages: [] }
 
-Dashboard.intent = ({ DOM, WS }) => ({
-  NEW_MESSAGE: WS.select('message'),
+Dashboard.connections = () => ({ feed: { socket: '/ws', message: 'NEW_MESSAGE' } })
+
+Dashboard.intent = ({ DOM }) => ({
   SEND: DOM.click('.send-btn'),
 })
 
 Dashboard.model = {
   NEW_MESSAGE: (state, msg) => ({ ...state, messages: [...state.messages, msg] }),
   SEND: {
-    WS: (state) => ({ type: 'ping' }),
+    WS: () => ({ to: 'feed', json: { type: 'ping' } }),
   },
 }
 ```
@@ -281,7 +283,7 @@ Drivers are client-only — they are not available during SSR. The same drivers 
 
 ## Config Options
 
-These options can be set in any `+config.js` file:
+These options can be set in any `+config.js` file or in their own `+<option>.js` file (`drivers` only in `+drivers.js`):
 
 | Option | Type | Description |
 |--------|------|-------------|
@@ -290,7 +292,7 @@ These options can be set in any `+config.js` file:
 | `favicon` | `string` | Path to favicon (global) |
 | `lang` | `string` | HTML lang attribute |
 | `ssr` | `boolean` | Set to `false` for client-only rendering |
-| `drivers` | `Record<string, Driver>` | Additional Cycle.js drivers passed to `run()` (client-only) |
+| `drivers` | `Record<string, Driver>` | Additional Cycle.js drivers passed to `run()` (client-only; in `+drivers.js`) |
 | `Layout` | component | Sygnal component wrapping page content |
 | `Head` | component | Component rendered into `<head>` |
 
@@ -317,7 +319,7 @@ During SSR, the `fallback` is rendered instead of the children. If no fallback i
 
 ## Diagnostics in Dev
 
-With the Sygnal Vite plugin in your `vite.config.js`, `vite dev` gets the same [diagnostics](/guide/diagnostics/) as any Sygnal app, even though the app is started by Sygnal's own Vike client entry (`sygnal/vike/onRenderClient`), which your code never imports: in dev, the plugin wraps that entry so it sets the dev flag and loads the dev checks first. `disableHmr: true` doesn't affect this. The plugin also keeps that entry out of Vite's dependency pre-bundling, so it always shares your pages' Sygnal core (also with a linked `file:` sygnal). Diagnostics name Pages, Layouts and Wrappers by their function name (or `componentName`); the root is `VikeLayoutWrapper` when a Layout or Wrapper is configured.
+With the Sygnal Vite plugin in your `vite.config.js`, `vite dev` gets the same [diagnostics](/guide/diagnostics/) as any Sygnal app, even though the app is started by Sygnal's own Vike client entry (`sygnal/vike/onRenderClient`), which your code never imports: in dev, the plugin wraps that entry so it installs the [DevTools](/integration/debugging/#devtools-extension) bridge, sets the dev flag and loads the dev checks first. `disableHmr: true` doesn't affect this. The plugin also keeps that entry out of Vite's dependency pre-bundling, so it always shares your pages' Sygnal core (also with a linked `file:` sygnal). Diagnostics name Pages, Layouts and Wrappers by their function name (or `componentName`); the root is `VikeLayoutWrapper` when a Layout or Wrapper is configured.
 
 When `sygnal-check` is installed, the plugin also checks your source on startup and after every change. By default it checks the `src/`, `pages/` and `renderer/` directories that exist; set `check.include` to choose others:
 

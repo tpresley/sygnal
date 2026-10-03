@@ -17,12 +17,13 @@
  *
  *   ComponentInfo {
  *     name, file, node (definition), view (function node | null),
- *     staticProps: { intent?, model?, initialState?, context?, calculated? }  (assigned value nodes)
+ *     staticProps: { intent?, model?, initialState?, context?, calculated?, connections? }  (assigned value nodes)
  *     intent:  IntentInfo | null       (model/intent.js)
  *     model:   ModelInfo  | null       (model/modelEntries.js)
  *     initialState: { known, keys: Map<key, valueNode> } | null
  *     calculatedKeys: Set<string>
  *     contextKeys: Set<string>
+ *     connections: { targets, dynamic } | null  (action names in a `connections` static)
  *     viewInfo: Sink | null            (model/view.js: classes, ids, children, collections)
  *   }
  *
@@ -38,10 +39,10 @@ import { resolveImport } from '../files.js'
 import { resolveExpr } from './resolve.js'
 import { collectView, newSink } from './view.js'
 import { analyzeIntent } from './intent.js'
-import { analyzeModel } from './modelEntries.js'
+import { analyzeModel, connectionNames, REPLY_KEYS } from './modelEntries.js'
 import { scanFileEvents } from './events.js'
 
-export const STATIC_PROPS = ['intent', 'model', 'initialState', 'context', 'calculated']
+export const STATIC_PROPS = ['intent', 'model', 'initialState', 'context', 'calculated', 'connections', 'resources', 'route', 'head']
 
 function parseSuppressions(ast) {
   const map = new Map()
@@ -153,7 +154,7 @@ export class Project {
       const comp = {
         name: info.name, file, node: b.node, view,
         staticProps: info.props, staticPropNodes: info.propNodes,
-        intent: null, model: null, initialState: null,
+        intent: null, model: null, initialState: null, connections: null,
         calculatedKeys: new Set(), contextKeys: new Set(), viewInfo: null,
       }
       file.components.push(comp)
@@ -198,6 +199,20 @@ export class Project {
       comp.intent = analyzeIntent(r.file, isFunction(r.node) ? r.node : null)
     }
     if (sp.model) comp.model = analyzeModel(this, file, sp.model)
+    // PLAN-3 §1.3: action names a `connections` static sends socket/SSE events to
+    comp.connections = sp.connections ? connectionNames(this, file, sp.connections) : null
+    // PLAN-3 3-A (exp): and the ok/error names of a `resources` static's requests
+    if (sp.resources) {
+      const r = connectionNames(this, file, sp.resources, REPLY_KEYS)
+      r.targets.forEach(t => { t.res = true })
+      comp.connections = { targets: [...(comp.connections?.targets || []), ...r.targets], dynamic: [...(comp.connections?.dynamic || []), ...r.dynamic] }
+    }
+    // PLAN-3 5-4b: `App.route = 'ROUTE'` names the router's reply action
+    if (sp.route) {
+      const conn = comp.connections || (comp.connections = { targets: [], dynamic: [] })
+      if (sp.route.type === 'StringLiteral') conn.targets.push({ name: sp.route.value, key: 'route', node: sp.route, file, route: true })
+      else conn.dynamic.push({ node: sp.route, file })
+    }
     if (sp.initialState) {
       const keys = this.objectKeys(file, sp.initialState)
       comp.initialState = { known: !!keys, keys: keys || new Map() }

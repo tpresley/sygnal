@@ -143,6 +143,31 @@ export default [
 		]
   },
 
+  // 'sygnal/devtools' (D77): the DevTools bridge, dev only (sygnal/vite injects it in
+  // dev). Its diagnostics import becomes the external 'sygnal' so it reads the app's
+  // diagnostics core, as 'sygnal/diagnostics' does.
+  {
+    input: 'src/devtools.ts',
+    external: (id) => isExternal(id) || id === 'sygnal',
+    output: [
+      { file: pkg.exports['./devtools'].require, format: 'cjs', ...sourcemapOptions },
+      { file: pkg.exports['./devtools'].import, format: 'es', ...sourcemapOptions }
+    ],
+		plugins: [
+			{
+				name: 'sygnal-devtools-core-external',
+				resolveId(source, importer) {
+					if (source === './diagnostics/index' && importer && /[\\/]extra[\\/]devtools\.ts$/.test(importer)) {
+						return { id: 'sygnal', external: true }
+					}
+					return null
+				},
+			},
+			typescript({ tsconfig: './tsconfig.json' }),
+			resolve({ extensions: ['.mjs', '.js', '.ts', '.json'] }),
+		]
+  },
+
   // sygnal/vite aliases xstream's `globalthis` dependency to this stub (G-099).
   // CommonJS: xstream require()s it. `exports: 'default'` → module.exports = fn.
   {

@@ -1,0 +1,1 @@
+{"name":"gap-exp","private":true,"type":"module","scripts":{"test":"vitest run"},"dependencies":{"@babel/parser":"^8.0.6","@babel/traverse":"^8.0.6","sygnal":"file:../../.."},"devDependencies":{"@testing-library/dom":"*","@testing-library/user-event":"*","immer":"*","jsdom":"*","vite":"^8.0.3","vitest":"^4.1.2"}}

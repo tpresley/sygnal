@@ -32,8 +32,11 @@ export const deepifyKeys = (obj: Record<string, any>, modules: Record<string, an
   (key: string, val: any) => {
     const dashIndex = key.indexOf('-')
     if (dashIndex > -1 && modules[key.slice(0, dashIndex)] !== undefined) {
+      let sub = key.slice(dashIndex + 1)
+      // G-152: data-task-id → dataset key taskId (a hyphenated dataset key makes the DOM throw)
+      if (dashIndex == 4 && key.startsWith('data')) sub = sub.replace(/-([a-z])/g, (_, c) => c.toUpperCase())
       const moduleData = {
-        [key.slice(dashIndex + 1)]: val
+        [sub]: val
       }
       return {
         [key.slice(0, dashIndex)]: moduleData

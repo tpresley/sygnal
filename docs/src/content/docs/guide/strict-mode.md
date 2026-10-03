@@ -5,7 +5,7 @@ description: Keep every component in Sygnal's canonical forms
 
 Sygnal often accepts more than one way to write the same thing. A model entry can use the object form or the `'ACTION | SINK'` shorthand, an event can be emitted with `event()`, `emit()` or a hand-built `{ type, data }` object, and so on. All of these keep working. Strict mode flags every form except the canonical one, so a codebase (and any agent working on it) reads the same everywhere.
 
-Strict mode is off by default. Its rules are SYG501 to SYG507.
+Strict mode is off by default. Its rules are SYG501 to SYG508.
 
 ## The rules
 
@@ -18,6 +18,7 @@ Strict mode is off by default. Its rules are SYG501 to SYG507.
 | [SYG505](/reference/errors/#syg505) | `ACTION: { EVENTS: event('TYPE', fn) }` | `emit('TYPE', fn)` and a raw `EVENTS: s => ({ type, data })` | yes | no | yes |
 | [SYG506](/reference/errors/#syg506) | `CHILD.select(ChildFn)` | `CHILD.select('ChildName')` | yes | no | yes, when the name is in scope |
 | [SYG507](/reference/errors/#syg507) | `.context` for data that crosses levels | a prop passed on unchanged through 3 component levels | yes (info) | no | no |
+| [SYG508](/reference/errors/#syg508) | reply actions `{ url, ok: 'LOADED', error: 'FAILED' }` | `HTTP.select('c')` / `HTTP.errors('c')` reading back the component's own `category: 'c'` request | yes | yes | no |
 
 All strict findings are warnings, except SYG507, which is info.
 
@@ -113,6 +114,20 @@ function Card({ state, context }) {
 }
 ```
 
+### SYG508: name reply actions, don't read the reply back
+
+```jsx
+// Flagged: LOADED: HTTP.select('quote') in the intent, { category: 'quote', url } in the model
+Quote.intent = ({ DOM }) => ({ LOAD: DOM.click('.get') })
+Quote.model = {
+  LOAD:   { HTTP: () => ({ url: '/api/quote', ok: 'LOADED', error: 'FAILED' }) },
+  LOADED: (state, quote) => ({ ...state, quote }),
+  FAILED: (state, { status }) => ({ ...state, status }),
+}
+```
+
+See [HTTP](/guide/http/).
+
 The [Alternative Forms](/advanced/alternative-forms/) page lists every non-canonical form with its canonical equivalent.
 
 ## Enabling strict mode
@@ -120,7 +135,7 @@ The [Alternative Forms](/advanced/alternative-forms/) page lists every non-canon
 ### In the static checker
 
 ```bash
-npx --no-install sygnal-check --strict   # report SYG501-507 with the regular rules
+npx --no-install sygnal-check --strict   # report SYG501-508 with the regular rules
 npx --no-install sygnal-check --fix      # rewrite SYG504/505/506 in place, then check (implies --strict)
 ```
 
@@ -178,7 +193,7 @@ t.dispose()               // restores the previous strict setting
 
 ## Limits
 
-- The runtime only checks what it can detect reliably: SYG501, SYG502 and SYG504. SYG503, SYG505, SYG506 and SYG507 are static only (`sygnal-check --strict`), because at runtime `emit()` and `{ EVENTS }` look the same, a side effect looks like any other call, and `CHILD.select()` arguments aren't visible.
+- The runtime only checks what it can detect reliably: SYG501, SYG502, SYG504 and SYG508. SYG503, SYG505, SYG506 and SYG507 are static only (`sygnal-check --strict`), because at runtime `emit()` and `{ EVENTS }` look the same, a side effect looks like any other call, and `CHILD.select()` arguments aren't visible.
 - SYG501 at runtime uses the view's declared arity, so a default value or a rest parameter (`(props, state = {})`) can hide a positional use. The static rule doesn't have this gap.
 - SYG502 at runtime fires when a reducer returns the exact object it received. A reducer that returns a copy with no changes isn't flagged.
 - Every runtime switch (`run(App, drivers, { diagnostics: { strict: true } })`, `configureStrict(true)`, `globalThis.__SYGNAL_STRICT__ = true`, the Vite plugin's `diagnostics.strict`, `renderComponent(C, { strict: true })`) needs the `sygnal/diagnostics` entry loaded; the Vite plugin and its Vitest setup add it for you.

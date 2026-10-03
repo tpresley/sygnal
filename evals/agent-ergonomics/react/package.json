@@ -1,7 +1,7 @@
 {
   "name": "sygnal-agent-ergonomics-react-arm",
   "private": true,
-  "description": "Canonical dependency set for the React comparison arm. Every react/tasks/*/starter/package.json must carry exactly these dependencies (verify.mjs checks this).",
+  "description": "Canonical dependency set for the React comparison arm. Every react/tasks/*/starter/package.json must carry exactly these dependencies, plus its task's TASK_EXTRA_DEPENDENCIES and (TypeScript starters) TS_EXTRA_DEV_DEPENDENCIES from lib/common.mjs (verify.mjs checks this).",
   "type": "module",
   "dependencies": {
     "react": "^18.3.1",

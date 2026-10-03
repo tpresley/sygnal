@@ -31,6 +31,8 @@ interface PageContext {
   routeParams?: Record<string, string>
   urlPathname?: string
   isHydration?: boolean
+  /** PLAN-3 5-5 (H-7): the queryCache() snapshot a loader seeded (see onRenderHtml) */
+  queryCache?: any
   config: {
     Layout?: any | any[]
     Wrapper?: any | any[]
@@ -116,7 +118,10 @@ function pageChildVNode(pageState: any, stateField: any = 'page'): any {
           context: currentPage.context,
           peers: currentPage.peers,
           components: currentPage.components,
-          initialState: pageState,
+          // PLAN-3 5-5: no initialState: `pageState` is the page's root slice already, and an
+          // INITIALIZE (sent a tick later) would overwrite the replies the page's statics got
+          // in between, e.g. a resource served from the seeded cache
+          initialState: undefined,
           isolatedState: true,
           calculated: currentPage.calculated,
           storeCalculatedInState: currentPage.storeCalculatedInState,
@@ -274,6 +279,12 @@ export function onRenderClient(pageContext: PageContext) {
   // siblings at the root (D50).
   const shell = shellKeys(wrappers, layouts)
 
+  // PLAN-3 5-5 (H-7): seed the caches of the fetch drivers (makeFetchDriver({ cache: queryCache() })
+  // exposes it as driver.cache) before the page renders, so its resources start at 'success'
+  if (pageContext.queryCache) {
+    for (const d of Object.values(config.drivers || {})) (d as any)?.cache?.hydrate?.(pageContext.queryCache)
+  }
+
   // Update mutable context references (used by the wrapper's context functions)
   currentPageData = data
   currentRouteParams = pageContext.routeParams || {}
@@ -286,6 +297,9 @@ export function onRenderClient(pageContext: PageContext) {
   if (hasShell) {
     if (currentApp) {
       // Client-side navigation: swap the Page without disposing the shell.
+      // PLAN-3 5-4b: a router given Vike's navigate() (makeRouter({ routes, navigate })) re-reads
+      // the route on this event; sent before the swap, so the new Page declares after it
+      if (typeof window !== 'undefined') window.dispatchEvent?.(new Event('sygnal:navigate'))
       currentPage = Page
       currentPageName = Page.componentName || Page.name || 'VikePageComponent'
       pageNavCounter++

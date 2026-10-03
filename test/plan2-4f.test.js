@@ -143,8 +143,8 @@ describe('C2: the fake HTTP source tracks each send', () => {
     // the earlier send is still pending
     t.respond('HTTP', ['first'], { request: REQ })
     await t.next(s => s.courses[0] === 'first')
-    // now both are answered: an explicit request gets nothing (like the real driver)
-    t.respond('HTTP', ['third'], { request: REQ })
+    // now both are answered: nothing matches (PLAN-3 1-C, G-140: throws at the call)
+    expect(() => t.respond('HTTP', ['third'], { request: REQ })).toThrow(/no pending HTTP request/)
     await t.settle()
     expect(t.state.courses).toEqual(['first'])
   })

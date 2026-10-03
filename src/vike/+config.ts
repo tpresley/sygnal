@@ -17,7 +17,8 @@ export default {
 
   // urlPathname is not listed: Vike provides it on the client with Client
   // Routing, and listing it logs a warning in the browser (G-046)
-  passToClient: ['data', 'routeParams'],
+  // PLAN-3 5-5 (H-7): queryCache, a loader's cache snapshot (see onRenderHtml)
+  passToClient: ['data', 'routeParams', 'queryCache'],
 
   meta: {
     Layout: {

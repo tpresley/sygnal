@@ -1,0 +1,466 @@
+[
+  {
+    "task": "24-list-detail-cache",
+    "arm": "react",
+    "trial": 2,
+    "pass": false,
+    "testsPassed": 0,
+    "testsTotal": 6,
+    "iterations": 5,
+    "editRounds": 4,
+    "wallSeconds": 164,
+    "durationMs": 163370,
+    "tokens": 698623,
+    "outputTokens": 20137,
+    "costUsd": 0.23921579999999995,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "branch",
+    "variantHash": "27358a6639c7",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "24 list/detail with a cache: loading, background updates, saving loads the list: \"Loading…\" first, then one entry per item",
+        "message": "AssertionError: expected [] to deeply equal [ 'Alpha', 'Beta', 'Gamma' ]"
+      },
+      {
+        "test": "24 list/detail with a cache: loading, background updates, saving an item shows \"Loading…\" (and nothing of another item) the first time; data less than 2 s old is shown again without a request",
+        "message": "AssertionError: expected [] to deeply equal [ 'Alpha', 'Beta', 'Gamma' ]"
+      },
+      {
+        "test": "24 list/detail with a cache: loading, background updates, saving data older than 2 s is shown at once with \"Updating…\", reloaded in the background, then replaced",
+        "message": "AssertionError: expected [] to deeply equal [ 'Alpha', 'Beta', 'Gamma' ]"
+      },
+      {
+        "test": "24 list/detail with a cache: loading, background updates, saving Save sends PUT; afterwards the form closes, and the item and the list (though less than 2 s old) are reloaded with the new title",
+        "message": "AssertionError: expected [] to deeply equal [ 'Alpha', 'Beta', 'Gamma' ]"
+      },
+      {
+        "test": "24 list/detail with a cache: loading, background updates, saving a failed save shows \"Could not save the item.\" and keeps the typed title; a later save succeeds",
+        "message": "AssertionError: expected [] to deeply equal [ 'Alpha', 'Beta', 'Gamma' ]"
+      },
+      {
+        "test": "24 list/detail with a cache: loading, background updates, saving a background reload that started before a save never overwrites the saved title",
+        "message": "AssertionError: expected [] to deeply equal [ 'Alpha', 'Beta', 'Gamma' ]"
+      }
+    ],
+    "notes": "PROCESS-KILL: 1 machine-wide kill command(s), refused by the guard (G-127); AUDIT: 1 flagged call(s), review before trusting (run.md step 3)",
+    "scoredAt": "2026-10-03T07:06:03.039Z"
+  },
+  {
+    "task": "24-list-detail-cache",
+    "arm": "react",
+    "trial": 3,
+    "pass": false,
+    "testsPassed": 0,
+    "testsTotal": 6,
+    "iterations": 6,
+    "editRounds": 5,
+    "wallSeconds": 173,
+    "durationMs": 171561,
+    "tokens": 1489979,
+    "outputTokens": 18720,
+    "costUsd": 0.3105124,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "branch",
+    "variantHash": "27358a6639c7",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "24 list/detail with a cache: loading, background updates, saving loads the list: \"Loading…\" first, then one entry per item",
+        "message": "Error: No QueryClient set, use QueryClientProvider to set one"
+      },
+      {
+        "test": "24 list/detail with a cache: loading, background updates, saving an item shows \"Loading…\" (and nothing of another item) the first time; data less than 2 s old is shown again without a request",
+        "message": "Error: No QueryClient set, use QueryClientProvider to set one"
+      },
+      {
+        "test": "24 list/detail with a cache: loading, background updates, saving data older than 2 s is shown at once with \"Updating…\", reloaded in the background, then replaced",
+        "message": "Error: No QueryClient set, use QueryClientProvider to set one"
+      },
+      {
+        "test": "24 list/detail with a cache: loading, background updates, saving Save sends PUT; afterwards the form closes, and the item and the list (though less than 2 s old) are reloaded with the new title",
+        "message": "Error: No QueryClient set, use QueryClientProvider to set one"
+      },
+      {
+        "test": "24 list/detail with a cache: loading, background updates, saving a failed save shows \"Could not save the item.\" and keeps the typed title; a later save succeeds",
+        "message": "Error: No QueryClient set, use QueryClientProvider to set one"
+      },
+      {
+        "test": "24 list/detail with a cache: loading, background updates, saving a background reload that started before a save never overwrites the saved title",
+        "message": "Error: No QueryClient set, use QueryClientProvider to set one"
+      }
+    ],
+    "notes": "PROCESS-KILL: 1 machine-wide kill command(s), refused by the guard (G-127); AUDIT: 3 flagged call(s), review before trusting (run.md step 3)",
+    "scoredAt": "2026-10-03T07:06:03.701Z"
+  },
+  {
+    "task": "24-list-detail-cache",
+    "arm": "react",
+    "trial": 1,
+    "pass": false,
+    "testsPassed": 2,
+    "testsTotal": 6,
+    "iterations": 8,
+    "editRounds": 7,
+    "wallSeconds": 206,
+    "durationMs": 204982,
+    "tokens": 1459905,
+    "outputTokens": 18866,
+    "costUsd": 0.3212909,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "branch",
+    "variantHash": "27358a6639c7",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "24 list/detail with a cache: loading, background updates, saving an item shows \"Loading…\" (and nothing of another item) the first time; data less than 2 s old is shown again without a request",
+        "message": "TypeError: Cannot read properties of undefined (reading 'timestamp')"
+      },
+      {
+        "test": "24 list/detail with a cache: loading, background updates, saving data older than 2 s is shown at once with \"Updating…\", reloaded in the background, then replaced",
+        "message": "TypeError: Cannot read properties of undefined (reading 'timestamp')"
+      },
+      {
+        "test": "24 list/detail with a cache: loading, background updates, saving Save sends PUT; afterwards the form closes, and the item and the list (though less than 2 s old) are reloaded with the new title",
+        "message": "TypeError: Cannot read properties of undefined (reading 'timestamp')"
+      },
+      {
+        "test": "24 list/detail with a cache: loading, background updates, saving a background reload that started before a save never overwrites the saved title",
+        "message": "TypeError: Cannot read properties of undefined (reading 'timestamp')"
+      }
+    ],
+    "scoredAt": "2026-10-03T07:06:36.480Z"
+  },
+  {
+    "task": "25-router-spa",
+    "arm": "react",
+    "trial": 1,
+    "pass": false,
+    "testsPassed": 0,
+    "testsTotal": 9,
+    "iterations": 7,
+    "editRounds": 3,
+    "wallSeconds": 129,
+    "durationMs": 128459,
+    "tokens": 1016002,
+    "outputTokens": 11639,
+    "costUsd": 0.22115890000000005,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "branch",
+    "variantHash": "27358a6639c7",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "the browser's Back and Forward buttons move through the visited pages",
+        "message": "AssertionError: expected '/' to be '/tasks/1' // Object.is equality"
+      },
+      {
+        "test": "opening the app at /tasks/3/edit shows that form; Back returns to it",
+        "message": "Error: useBlocker must be used within a data router.  See https://reactrouter.com/en/main/routers/picking-a-router."
+      },
+      {
+        "test": "\"Leave\" completes the navigation and discards the change; an unchanged form leaves at once",
+        "message": "AssertionError: expected '/tasks/2' to be '/tasks/2/edit' // Object.is equality"
+      },
+      {
+        "test": "leaving the form with unsaved changes asks first; \"Stay\" keeps the form and the typed text",
+        "message": "Error: No <a> with text Edit in: All tasks Tasks Write the report Book the venue Send the invites"
+      },
+      {
+        "test": "links: real hrefs, the URL and the page change without a reload, titles follow",
+        "message": "AssertionError: expected '/' to be '/tasks/2' // Object.is equality"
+      },
+      {
+        "test": "the edit URL of a task id that doesn't exist shows \"Not found\"",
+        "message": "TypeError: Cannot read properties of undefined (reading 'title')"
+      },
+      {
+        "test": "an unknown URL shows \"Not found\"; \"All tasks\" leads back to the list",
+        "message": "AssertionError: expected '/projects/1' to be '/' // Object.is equality"
+      },
+      {
+        "test": "a task id that doesn't exist shows \"Not found\"",
+        "message": "AssertionError: expected '/tasks/99' to be '/' // Object.is equality"
+      },
+      {
+        "test": "\"Save\" saves the title and goes to the task's page without asking",
+        "message": "Error: useBlocker must be used within a data router.  See https://reactrouter.com/en/main/routers/picking-a-router."
+      }
+    ],
+    "notes": "PROCESS-KILL: 1 machine-wide kill command(s), refused by the guard (G-127)",
+    "scoredAt": "2026-10-03T07:08:26.754Z"
+  },
+  {
+    "task": "25-router-spa",
+    "arm": "react",
+    "trial": 2,
+    "pass": false,
+    "testsPassed": 7,
+    "testsTotal": 9,
+    "iterations": 4,
+    "editRounds": 3,
+    "wallSeconds": 156,
+    "durationMs": 155276,
+    "tokens": 827182,
+    "outputTokens": 14559,
+    "costUsd": 0.21511680000000002,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "branch",
+    "variantHash": "27358a6639c7",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "\"Leave\" completes the navigation and discards the change; an unchanged form leaves at once",
+        "message": "AssertionError: expected null not to be null"
+      },
+      {
+        "test": "leaving the form with unsaved changes asks first; \"Stay\" keeps the form and the typed text",
+        "message": "AssertionError: expected null not to be null"
+      }
+    ],
+    "notes": "PROCESS-KILL: 1 machine-wide kill command(s), refused by the guard (G-127)",
+    "scoredAt": "2026-10-03T07:09:23.431Z"
+  },
+  {
+    "task": "24-list-detail-cache",
+    "arm": "react",
+    "trial": 4,
+    "pass": false,
+    "testsPassed": 3,
+    "testsTotal": 6,
+    "iterations": 8,
+    "editRounds": 7,
+    "wallSeconds": 387,
+    "durationMs": 386460,
+    "tokens": 4462939,
+    "outputTokens": 35051,
+    "costUsd": 0.7506224,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "branch",
+    "variantHash": "27358a6639c7",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "24 list/detail with a cache: loading, background updates, saving an item shows \"Loading…\" (and nothing of another item) the first time; data less than 2 s old is shown again without a request",
+        "message": "AssertionError: expected 'Updating…' to match /^Loading(…|\\.\\.\\.)$/"
+      },
+      {
+        "test": "24 list/detail with a cache: loading, background updates, saving Save sends PUT; afterwards the form closes, and the item and the list (though less than 2 s old) are reloaded with the new title",
+        "message": "AssertionError: expected [ 'Alpha', 'Beta', 'Gamma' ] to deeply equal [ 'Alpha renamed', 'Beta', 'Gamma' ]"
+      },
+      {
+        "test": "24 list/detail with a cache: loading, background updates, saving a background reload that started before a save never overwrites the saved title",
+        "message": "AssertionError: expected 'Alpha' to be 'Alpha v3' // Object.is equality"
+      }
+    ],
+    "notes": "PROCESS-KILL: 1 machine-wide kill command(s), refused by the guard (G-127); AUDIT: 1 flagged call(s), review before trusting (run.md step 3)",
+    "scoredAt": "2026-10-03T07:09:46.480Z"
+  },
+  {
+    "task": "24-list-detail-cache",
+    "arm": "react",
+    "trial": 5,
+    "pass": false,
+    "testsPassed": 2,
+    "testsTotal": 6,
+    "iterations": 3,
+    "editRounds": 3,
+    "wallSeconds": 221,
+    "durationMs": 220597,
+    "tokens": 1897646,
+    "outputTokens": 23203,
+    "costUsd": 0.4034873,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "branch",
+    "variantHash": "27358a6639c7",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "24 list/detail with a cache: loading, background updates, saving an item shows \"Loading…\" (and nothing of another item) the first time; data less than 2 s old is shown again without a request",
+        "message": "AssertionError: expected 'Alpha' to be '' // Object.is equality"
+      },
+      {
+        "test": "24 list/detail with a cache: loading, background updates, saving data older than 2 s is shown at once with \"Updating…\", reloaded in the background, then replaced",
+        "message": "AssertionError: expected 3 to be 2 // Object.is equality"
+      },
+      {
+        "test": "24 list/detail with a cache: loading, background updates, saving a failed save shows \"Could not save the item.\" and keeps the typed title; a later save succeeds",
+        "message": "AssertionError: expected '' to be 'Alpha' // Object.is equality"
+      },
+      {
+        "test": "24 list/detail with a cache: loading, background updates, saving a background reload that started before a save never overwrites the saved title",
+        "message": "AssertionError: expected 'Alpha' to be 'Alpha v3' // Object.is equality"
+      }
+    ],
+    "notes": "PROCESS-KILL: 2 machine-wide kill command(s), refused by the guard (G-127)",
+    "scoredAt": "2026-10-03T07:09:54.994Z"
+  },
+  {
+    "task": "25-router-spa",
+    "arm": "react",
+    "trial": 3,
+    "pass": false,
+    "testsPassed": 1,
+    "testsTotal": 9,
+    "iterations": 7,
+    "editRounds": 4,
+    "wallSeconds": 238,
+    "durationMs": 236830,
+    "tokens": 1271321,
+    "outputTokens": 18030,
+    "costUsd": 0.2957017,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "branch",
+    "variantHash": "27358a6639c7",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "the browser's Back and Forward buttons move through the visited pages",
+        "message": "AssertionError: expected '/' to be '/tasks/1' // Object.is equality"
+      },
+      {
+        "test": "opening the app at /tasks/3/edit shows that form; Back returns to it",
+        "message": "AssertionError: expected 'Edit Send the invites' to be 'Edit task' // Object.is equality"
+      },
+      {
+        "test": "\"Leave\" completes the navigation and discards the change; an unchanged form leaves at once",
+        "message": "AssertionError: expected '/tasks/2' to be '/tasks/2/edit' // Object.is equality"
+      },
+      {
+        "test": "leaving the form with unsaved changes asks first; \"Stay\" keeps the form and the typed text",
+        "message": "Error: No <a> with text Edit in: All tasks Tasks Write the report Book the venue Send the invites"
+      },
+      {
+        "test": "links: real hrefs, the URL and the page change without a reload, titles follow",
+        "message": "AssertionError: expected '/' to be '/tasks/2' // Object.is equality"
+      },
+      {
+        "test": "an unknown URL shows \"Not found\"; \"All tasks\" leads back to the list",
+        "message": "AssertionError: expected '/projects/1' to be '/' // Object.is equality"
+      },
+      {
+        "test": "a task id that doesn't exist shows \"Not found\"",
+        "message": "AssertionError: expected '/tasks/99' to be '/' // Object.is equality"
+      },
+      {
+        "test": "\"Save\" saves the title and goes to the task's page without asking",
+        "message": "AssertionError: expected 'Edit Write the report' to be 'Edit task' // Object.is equality"
+      }
+    ],
+    "notes": "PROCESS-KILL: 1 machine-wide kill command(s), refused by the guard (G-127); AUDIT: 5 flagged call(s), review before trusting (run.md step 3)",
+    "scoredAt": "2026-10-03T07:12:47.582Z"
+  },
+  {
+    "task": "25-router-spa",
+    "arm": "react",
+    "trial": 5,
+    "pass": false,
+    "testsPassed": 3,
+    "testsTotal": 9,
+    "iterations": 6,
+    "editRounds": 3,
+    "wallSeconds": 168,
+    "durationMs": 167180,
+    "tokens": 1787828,
+    "outputTokens": 17029,
+    "costUsd": 0.3648737000000001,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "branch",
+    "variantHash": "27358a6639c7",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "the browser's Back and Forward buttons move through the visited pages",
+        "message": "Error: useBlocker must be used within a data router.  See https://reactrouter.com/en/main/routers/picking-a-router."
+      },
+      {
+        "test": "opening the app at /tasks/3/edit shows that form; Back returns to it",
+        "message": "Error: useBlocker must be used within a data router.  See https://reactrouter.com/en/main/routers/picking-a-router."
+      },
+      {
+        "test": "\"Leave\" completes the navigation and discards the change; an unchanged form leaves at once",
+        "message": "Error: useBlocker must be used within a data router.  See https://reactrouter.com/en/main/routers/picking-a-router."
+      },
+      {
+        "test": "leaving the form with unsaved changes asks first; \"Stay\" keeps the form and the typed text",
+        "message": "Error: useBlocker must be used within a data router.  See https://reactrouter.com/en/main/routers/picking-a-router."
+      },
+      {
+        "test": "links: real hrefs, the URL and the page change without a reload, titles follow",
+        "message": "Error: useBlocker must be used within a data router.  See https://reactrouter.com/en/main/routers/picking-a-router."
+      },
+      {
+        "test": "\"Save\" saves the title and goes to the task's page without asking",
+        "message": "Error: useBlocker must be used within a data router.  See https://reactrouter.com/en/main/routers/picking-a-router."
+      }
+    ],
+    "notes": "PROCESS-KILL: 1 machine-wide kill command(s), refused by the guard (G-127)",
+    "scoredAt": "2026-10-03T07:12:50.929Z"
+  },
+  {
+    "task": "25-router-spa",
+    "arm": "react",
+    "trial": 4,
+    "pass": false,
+    "testsPassed": 3,
+    "testsTotal": 9,
+    "iterations": 8,
+    "editRounds": 6,
+    "wallSeconds": 207,
+    "durationMs": 205982,
+    "tokens": 2034108,
+    "outputTokens": 19851,
+    "costUsd": 0.42290060000000007,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "branch",
+    "variantHash": "27358a6639c7",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "the browser's Back and Forward buttons move through the visited pages",
+        "message": "AssertionError: expected 'Edit Write the report' to be 'Edit task' // Object.is equality"
+      },
+      {
+        "test": "opening the app at /tasks/3/edit shows that form; Back returns to it",
+        "message": "AssertionError: expected 'Edit Send the invites' to be 'Edit task' // Object.is equality"
+      },
+      {
+        "test": "\"Leave\" completes the navigation and discards the change; an unchanged form leaves at once",
+        "message": "AssertionError: expected 'Edit Book the venue' to be 'Edit task' // Object.is equality"
+      },
+      {
+        "test": "leaving the form with unsaved changes asks first; \"Stay\" keeps the form and the typed text",
+        "message": "AssertionError: expected 'Edit Write the report' to be 'Edit task' // Object.is equality"
+      },
+      {
+        "test": "links: real hrefs, the URL and the page change without a reload, titles follow",
+        "message": "AssertionError: expected 'Edit Book the venue' to be 'Edit task' // Object.is equality"
+      },
+      {
+        "test": "\"Save\" saves the title and goes to the task's page without asking",
+        "message": "AssertionError: expected 'Edit Write the report' to be 'Edit task' // Object.is equality"
+      }
+    ],
+    "scoredAt": "2026-10-03T07:13:04.825Z"
+  }
+]

@@ -77,7 +77,9 @@ Most runtime checks don't ship in your app. They live in a separate entry that y
 import 'sygnal/diagnostics'   // registers the checks (side effect)
 ```
 
-Loading it registers the dev checks: SYG101/102 (intent and model wiring), SYG103/104 (selectors that match nothing, or only match inside a child component), SYG105 (EVENTS types), SYG106 (props overwritten by reserved view arguments; an error in strict mode), SYG201/202 (reducer results), SYG301 (RxJS operators on xstream streams), SYG401 (Collection `from`) and the strict-mode rules. The checks only run while diagnostics are on (any mode but `'off'`).
+Loading it registers the dev checks: SYG101/102 (intent and model wiring; `ok`/`error` reply actions and `connections` actions count as triggers), SYG103/104 (selectors that match nothing, or only match inside a child component), SYG105 (EVENTS types), SYG106 (props overwritten by reserved view arguments; an error in strict mode), SYG112 (a request or connection names a reply action with no model entry), SYG115 (a `DOM.<name>` shorthand that isn't a DOM event), SYG116 (an EVENTS value with no type, such as a function), SYG201/202 (reducer results), SYG221 (`set()` called with a string), SYG301 (RxJS operators on xstream streams), SYG401 (Collection `from`), SYG421 (a `data` key the DOM rejects), SYG609 (a sink or source with no driver) and the strict-mode rules, including SYG508 (a `select()`/`errors()` round trip where reply actions would do). The checks only run while diagnostics are on (any mode but `'off'`).
+
+The network drivers report two codes themselves, in every build: [SYG610](/reference/errors/#syg610) (a request or connection spec with a `then`/`catch` key, not sent; use `ok`/`error`) and [SYG611](/reference/errors/#syg611) (a socket send to a connection the instance hasn't declared, that closed for good or is read-only SSE, or a value `makeSocketDriver()` can't use). A component with a `connections` static but no registered `makeSocketDriver()` opens nothing and is not reported: check `run()`'s drivers first.
 
 The entry also exports a few helpers:
 
@@ -166,7 +168,7 @@ graph.components.find(c => c.name === 'Lane').selectors
 
 It is also available as:
 
-- `getDevTools().inspect()` (or `window.__SYGNAL_DEVTOOLS__.inspect()` in the browser console) in a dev app;
+- `getDevTools().inspect()` (or `window.__SYGNAL_DEVTOOLS__.inspect()` in the browser console) in a dev app with the [DevTools bridge](/integration/debugging/#devtools-extension) (installed by the Vite plugin in dev);
 - `t.inspect()` on a [`renderComponent()`](/integration/testing/#inspect) result;
 - `sygnal-check --graph --json`, which builds the same shape statically from source.
 

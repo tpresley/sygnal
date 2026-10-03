@@ -522,7 +522,9 @@ Component.model = {
 | `state` | `STATE` | Current component state (with calculated fields) |
 | `data` | `any` | Data from the triggering action |
 | `next` | `(action, data?, delay?) => void` | Dispatch a follow-up action |
-| `props` | `object` | Current props, children, slots, context |
+| `props` | `object` | Current props, children, slots, context, and `signal`: an `AbortSignal` aborted on unmount (EFFECT only) |
+
+An EFFECT may be `async` and call `next()` after an `await`: a rejection is reported as [SYG214](/reference/errors/#syg214), and `next()` after unmount is ignored ([Async work that isn't HTTP](/advanced/effect/#async-work-that-isnt-http)).
 
 ### Examples
 
@@ -595,7 +597,7 @@ Render a Sygnal component in isolation for testing. Creates a minimal Cycle.js r
 function renderComponent(
   component: ComponentFunction,
   options?: RenderOptions
-): RenderResult
+): RenderResult<State>   // State inferred from the component (or renderComponent<State>(C))
 ```
 
 ### RenderOptions
@@ -607,6 +609,8 @@ function renderComponent(
 | `diagnostics` | `DiagnosticsMode` | `'collect'` (or the current mode) | Diagnostics mode while rendered |
 | `strict` | `boolean` | unchanged | Strict-mode runtime checks while rendered |
 | `mockConfig` | `object` | `{}` | Mock DOM event streams, by selector |
+| `autoConnect` | `boolean` | `true` | Fake socket connections open by themselves; `false` holds them until `t.open()` |
+| `socketSink` | `string` | `'WS'` | The driverless sink that receives the `connections` static |
 
 ### Returns: RenderResult
 
@@ -623,9 +627,14 @@ function renderComponent(
 | `html` | `() => string` | Latest render as HTML (throws before the first render: `await t.ready()` first) |
 | `emitted` | `{ type, data }[]` | EVENTS emissions |
 | `sinkValues` | `(sinkName) => any[]` | Values sent to a sink |
-| `requests` | `(sinkName) => any[]` | Requests sent to a driverless sink (alias of `sinkValues`) |
-| `respond` | `(sinkName, value, opts?) => void` | Answer the latest pending request on a driverless source's `select()` ([Testing](/integration/testing/#answering-requests-respond-and-fail)) |
-| `fail` | `(sinkName, error, opts?) => void` | Fail the latest pending request on its `errors()` (a number is an HTTP status) |
+| `requests` | `(sinkName) => any[]` | Requests sent to a sink: `sinkValues` without the `{ abort }` commands |
+| `respond` | `(sinkName, value, target?) => Promise<void>` | Answer the newest pending request on a driverless source that matches `target` (an `ok`/`error` action name or category, `{ url }` or another partial request, a predicate, or `{ request, category, status, body }`): a request with reply actions gets `value` as its `ok` action, a plain one goes to `select()`. Throws at the call when nothing matching is pending (unless earlier simulated input is still queued); resolves after the reply is reduced and rendered ([Testing](/integration/testing/#answering-requests-respond-and-fail)) |
+| `fail` | `(sinkName, error, target?) => Promise<void>` | Fail it the same way: its `error` action gets `{ error, request, status, body }`, or `errors()` (a number is an HTTP status) |
+| `connections` | `(sinkName) => FakeConnection[]` | Connections declared on a driverless socket sink (`name`, `url`, `state`, `sender`, the spec) |
+| `push` | `(sinkName, data, target?) => Promise<void>` | A frame from the server on the matching open connections (`{ event }` for an SSE named event) |
+| `drop` | `(sinkName, { code, reason }?, target?) => Promise<void>` | A close the app didn't make: `close` fires, the fake reconnects per the spec |
+| `open` | `(sinkName, target?) => Promise<void>` | Complete a pending open (with `autoConnect: false`) |
+| `sent` | `(sinkName, to?) => any[]` | The `{ to, json \| text \| binary }` values sent |
 | `diagnostics` | `Diagnostic[]` | Diagnostics collected while rendered |
 | `expectNoDiagnostics` | `() => void` | Throws if a warning or error was collected |
 | `inspect` | `() => InspectGraph` | App graph of the rendered tree (needs `sygnal/diagnostics`) |
@@ -945,17 +954,63 @@ function makeFetchDriver(options?: {
 
 | Sink value (request) | Effect |
 |---|---|
-| `{ url, category?, method?, query?, json?, body?, headers?, latest?, timeoutMs?, parse?, init? }` | `fetch(baseUrl + url + ?query, init)`. Method defaults to POST with `json`/`body`, else GET. Other fetch options go under `init`; any other key is app data (not sent, returned on `request`) |
-| `'/api/x'` | GET of that URL |
-| `{ category?, abort: true }` | Cancel the component's requests in flight in that category (all of them, without a category) |
+| `{ url, ok?, error?, key?, method?, query?, json?, body?, headers?, latest?, timeoutMs?, parse?, init? }` | `fetch(baseUrl + url + ?query, init)`. Method defaults to POST with `json`/`body`, else GET. Other fetch options go under `init`; any other key is app data (not sent, returned on `request`) |
+| `'/api/x'` | GET of that URL (no reply actions) |
+| `{ abort: 'LOADED' }`, `{ abort: true, key }` | Cancel this instance's requests with reply actions in flight with that key (`key`, else the `ok` action, else `error`) |
+| `{ category?, abort: true }` | Cancel the component's plain requests in flight in that category (all of its requests, without a category) |
 | `ABORT`, `null`, `undefined` | Nothing |
+
+**Reply actions** (canonical): a request naming `ok` / `error` is answered with that action, on exactly the sending instance.
+
+| Action | Data |
+|---|---|
+| `ok` | The parsed body of a 2xx response (`parse: 'response'`: the `Response`) |
+| `error` | `{ error, status?, body?, request }` (`FetchFailure`): non-2xx (`status`, parsed `body`), network error, parse error, timeout (`error.name === 'TimeoutError'`) |
+
+`latest: true` aborts this instance's earlier requests with the same key still in flight; their replies never arrive. A removed instance's requests with reply actions are aborted. A name with no model entry is [SYG112](/reference/errors/#syg112); a `then`/`catch` key is [SYG610](/reference/errors/#syg610) (not sent).
+
+**Without reply actions** (no `ok`/`error`): replies go to the source.
 
 | Source | Emits |
 |---|---|
 | `HTTP.select(category?)` | `{ category, value, status, request }` for each 2xx response |
 | `HTTP.errors(category?)` | `{ error, category, request, status?, body? }` for a non-2xx status, network error, parse error or timeout |
 
-`latest: true` aborts the component's earlier requests of the same category still in flight; their responses and failures are never delivered. Each component instance sees only the replies to its own (and its children's) requests; the root sees all. Disposing the app aborts everything in flight. No requests are made during server rendering.
+Without reply actions, `latest` and `abort` act per category; each component instance sees only the replies to its own (and its children's) requests, and the root sees all. Disposing the app aborts everything in flight. No requests are made during server rendering. Guide: [HTTP](/guide/http/).
+
+---
+
+## makeSocketDriver()
+
+WebSocket and server-sent events. Guide: [Sockets](/guide/sockets/).
+
+```typescript
+function makeSocketDriver(options?: {
+  baseUrl?: string;                    // prefix for relative URLs
+  reconnect?: false | { delayMs?: number; maxDelayMs?: number; jitter?: boolean | number };  // default for every connection
+  queueLimit?: number;                 // sends kept per connection while (re)connecting (100)
+  WebSocket?: any;                     // default: globalThis.WebSocket, read at connect time
+  EventSource?: any;                   // default: globalThis.EventSource
+}): Driver
+```
+
+| Sink value | Effect |
+|---|---|
+| `{ connections: { [name]: spec \| falsy } }` | The sender's whole set of connections, diffed by name: new names open, removed or falsy ones close, a changed URL / `protocols` / `withCredentials` / `share` reconnects. The `connections` static sends this for you |
+| `{ to: name, json? \| text? \| binary? }` | Send on the sender's own WebSocket connection; queued while (re)connecting. Unknown, closed-for-good or SSE connection: [SYG611](/reference/errors/#syg611) |
+
+Spec: `{ socket: url, protocols? }` or `{ sse: url, withCredentials?, events?: { eventName: 'ACTION' } }`, plus the optional actions `message` (the JSON-parsed frame), `open` (`{ reconnected }`), `close` (`{ code, reason, willReconnect }`, only for closes the app didn't make), `error` (`{ error }`), and `reconnect` (default `{ delayMs: 500, maxDelayMs: 10000, jitter: 0.2 }`; `false` for none) and `share` (default `true`: one socket per URL, ref-counted). Events without an action go to `WS.select(name?)` as `{ name, type, data }`. A disposed instance's connections close; no connections during server rendering.
+
+### connections (Static Property)
+
+```typescript
+// (state: State & Calculated) => Connections: { [name]: spec | falsy }
+Chat.connections = (state) => ({
+  room: state.room && { socket: `/ws/rooms/${state.room}`, message: 'RECEIVED' },
+})
+```
+
+Sent to the `makeSocketDriver()` sink at startup and whenever the result changes (structurally equal results are not resent). Without a registered `makeSocketDriver()` nothing opens and nothing is reported. Use the static or a model-sent `{ connections }` value, not both. In `renderComponent`, the static goes to the fake sink named by `socketSink` (default `'WS'`).
 
 ---
 
@@ -987,7 +1042,11 @@ function driverFromAsync(
 | `pre` | `(incoming) => incoming` | Identity | Pre-process incoming sink values before argument extraction |
 | `post` | `(result, incoming) => result` | Identity | Post-process results before sending to source |
 
-### Source API
+### Reply actions
+
+A request with `ok` / `error` (from a component) is answered with that action on exactly the sending instance: `ok` gets the resolved value (after `post`), `error` gets `{ error, request }`. There is no `latest`/`abort` (a call can't be cancelled).
+
+### Source API (requests without reply actions)
 
 The driver source exposes:
 
@@ -1006,35 +1065,15 @@ source.errors(selector?: string | Function): Stream<AsyncDriverError>
 
 ```javascript
 import { driverFromAsync } from 'sygnal'
+import { geocode } from './geo.js'   // async (address) => ({ lat, lng })
 
-// Create a driver from a fetch function
-const apiDriver = driverFromAsync(
-  async (url, method = 'GET') => {
-    const res = await fetch(url, { method })
-    return res.json()
-  },
-  {
-    selector: 'endpoint',
-    args: (incoming) => [incoming.url, incoming.method],
-    return: 'data',
-    post: (result) => ({ success: true, payload: result })
-  }
-)
+run(RootComponent, { GEO: driverFromAsync(geocode) })
 
-// Register it
-run(RootComponent, { API: apiDriver })
-
-// Use in intent
-MyComponent.intent = ({ API }) => ({
-  USERS_LOADED: API.select('users'),
-  USERS_FAILED: API.errors('users'),
-})
-
-// Use in model
-MyComponent.model = {
-  FETCH_USERS: {
-    API: () => ({ endpoint: 'users', url: '/api/users', method: 'GET' })
-  }
+// Use in model: geocode(state.address); the reply is FOUND or NOT_FOUND
+Place.model = {
+  FIND:      { GEO: (state) => ({ value: state.address, ok: 'FOUND', error: 'NOT_FOUND' }) },
+  FOUND:     (state, coords) => ({ ...state, coords }),
+  NOT_FOUND: (state, { error }) => ({ ...state, status: error.message }),
 }
 ```
 
@@ -1064,7 +1103,7 @@ function makeServiceWorkerDriver(
 |--------|------|-------------|
 | `scope` | `string` | Registration scope for the service worker |
 
-### Source API
+### Source API (requests without reply actions)
 
 <!-- docs-check: skip -->
 ```typescript
@@ -1184,7 +1223,7 @@ Runtime [diagnostics](/guide/diagnostics/) helpers, exported from `sygnal`. They
 | `getDiagnostics()` | All diagnostics collected so far (most recent last, up to 500) |
 | `clearDiagnostics()` | Clear the collected diagnostics |
 | `onDiagnostic(callback)` | Call `callback(diagnostic)` for each new diagnostic; returns an unsubscribe function |
-| `getDevTools()` | The DevTools bridge (`window.__SYGNAL_DEVTOOLS__` in a browser): `connected`, `getDiagnostics()`, and `inspect()` once `sygnal/diagnostics` is loaded |
+| `getDevTools()` | The DevTools bridge (`window.__SYGNAL_DEVTOOLS__`) installed by the dev-only `sygnal/devtools` entry, or `undefined` (always in production builds): `connected`, `getDiagnostics()`, and `inspect()` once `sygnal/diagnostics` is loaded. See [DevTools](/integration/debugging/#devtools-extension) |
 
 A diagnostic is `{ code, severity, component?, message, fix?, data?, docsUrl, text, timestamp }`, where `text` is the formatted `[Sygnal CODE] …` line. Every code is listed in the [Error Reference](/reference/errors/).
 

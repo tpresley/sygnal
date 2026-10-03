@@ -18,20 +18,18 @@ export class ElementFinder {
     const selector = getSelectors(namespace);
 
     const scopeChecker = new ScopeChecker(namespace, this.isolateModule);
-    const topNode = this.isolateModule.getElement(
+    // G-144: every root element of the scope (a fragment-rooted component has several)
+    const topNodes = this.isolateModule.getElements(
       namespace.filter(n => n.type !== 'selector')
     );
 
-    if (topNode === undefined) {
-      return [];
-    }
-
     if (selector === '') {
-      return [topNode];
+      return topNodes;
     }
 
-    return toElArray(topNode.querySelectorAll(selector))
-      .filter(scopeChecker.isDirectlyInScope, scopeChecker)
-      .concat(topNode.matches(selector) ? [topNode] : []);
+    return topNodes.reduce((out: Array<Element>, topNode) => out.concat(
+      toElArray(topNode.querySelectorAll(selector)).filter(scopeChecker.isDirectlyInScope, scopeChecker),
+      topNode.matches(selector) ? [topNode] : []
+    ), []);
   }
 }

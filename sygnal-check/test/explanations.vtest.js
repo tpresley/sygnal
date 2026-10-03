@@ -1,7 +1,7 @@
 /**
  * Drift guard for the error reference (src/explanations.js): every code in the
  * runtime registry (src/extra/diagnostics/codes.ts: CODE_SEVERITY, CODE_TITLES,
- * STRICT_CODE_SEVERITY) has exactly one entry with the same title and default
+ * STRICT_CODE_SEVERITY, DEV_CODE_SEVERITY) has exactly one entry with the same title and default
  * severity; every code sygnal-check reports is covered; explanations.json
  * matches the table. Read as text so the package has no runtime dependency on
  * sygnal.
@@ -30,7 +30,7 @@ function table(name) {
 }
 
 const titles = table('CODE_TITLES')
-const severities = { ...table('CODE_SEVERITY'), ...table('STRICT_CODE_SEVERITY') }
+const severities = { ...table('CODE_SEVERITY'), ...table('STRICT_CODE_SEVERITY'), ...table('DEV_CODE_SEVERITY') }
 const registered = Object.keys({ ...titles, ...severities }).sort()
 
 function run(args) {

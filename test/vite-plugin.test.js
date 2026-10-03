@@ -7,8 +7,9 @@ import sygnal from '../dist/vite/plugin.mjs'
 const RESOLVE = { alias: [{ find: /^globalthis$/, replacement: path.resolve('dist/shims/globalthis.cjs') }] }
 
 const DEV_FLAG = 'if (globalThis.__SYGNAL_DEV__ === undefined) globalThis.__SYGNAL_DEV__ = true;'
-// What a dev server (not Vitest) injects: the flag plus the dev checks and dev client
-const SNIPPET = DEV_FLAG + "import 'sygnal/diagnostics';import 'virtual:sygnal/dev';"
+// What a dev server (not Vitest) injects: DevTools (D77), the flag, the dev checks and dev client
+const DEVTOOLS = "import 'sygnal/devtools';"
+const SNIPPET = DEVTOOLS + DEV_FLAG + "import 'sygnal/diagnostics';import 'virtual:sygnal/dev';"
 
 // The plugin skips HMR wiring under Vitest (process.env.VITEST, read in
 // config()). These tests run under Vitest, so configure as a plain dev server.
@@ -339,7 +340,7 @@ run(App)
 
     it('prepends the dev flag to the entry file in serve mode', () => {
       const result = servePlugin().transform(entry, '/src/main.js')
-      expect(result.code.startsWith(DEV_FLAG)).toBe(true)
+      expect(result.code.startsWith(DEVTOOLS + DEV_FLAG)).toBe(true)
     })
 
     it('keeps line numbers unchanged (flag is on the first line)', () => {
@@ -356,7 +357,7 @@ run(App)
         `import { run } from 'sygnal'\nimport App from './App.jsx'\nconst { hmr, dispose } = run(App)\n`,
       ]
       for (const code of variants) {
-        expect(plugin.transform(code, '/src/main.js').code.startsWith(DEV_FLAG)).toBe(true)
+        expect(plugin.transform(code, '/src/main.js').code.startsWith(DEVTOOLS + DEV_FLAG)).toBe(true)
       }
     })
 

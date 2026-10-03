@@ -17,14 +17,32 @@
  * | SYG104 | intent selector only matches inside a child component  | dom.ts         |
  * | SYG105 | EVENTS type emitted-not-selected / selected-not-emitted| events.ts      |
  * | SYG106 | parent prop overwritten by a reserved view argument    | props.ts       |
+ * | SYG112 | reply action has no model entry                        | replies.ts     |
+ * | SYG630 | cached request that isn't idempotent (POST + cache)    | fetch.ts       |
+ * | SYG631 | validate is not a Standard Schema                      | fetch.ts       |
+ * | SYG632 | invalidate matched nothing (info)                      | fetch.ts       |
+ * | SYG633 | abort names a lane its requests don't use              | fetch.ts       |
+ * | SYG635 | cache: true / staleTime / prefetch without queryCache() | fetch.ts       |
+ * | SYG115 | unknown DOM event shorthand (DOM.key(...))             | shorthand.ts   |
+ * | SYG116 | EVENTS value with no string type (a function)          | events.ts      |
+ * | SYG130 | href() names no route / leaves out a param             | router.ts      |
+ * | SYG131 | route params the pattern doesn't use                   | router.ts      |
+ * | SYG132 | declaration static never sent: a root without initialState    | router.ts      |
+ * | SYG133 | SPA router inside a Vike app                           | router.ts      |
  * | SYG201 | STATE reducer dropped keys                             | state.ts       |
  * | SYG202 | STATE reducer returned undefined                       | state.ts       |
+ * | SYG221 | set() called with a string                             | state.ts       |
  * | SYG301 | RxJS operator used on an xstream stream                | rxjsHints.ts   |
  * | SYG401 | Collection `from` missing or not an array              | collections.ts |
+ * | SYG421 | invalid data (dataset) key in a view                   | dataset.ts     |
  * | SYG501 | strict: view uses positional (props, state, ...) args  | strict.ts      |
  * | SYG502 | strict: STATE reducer returned the unchanged state     | strict.ts      |
  * | SYG504 | strict: 'ACTION | SINK' shorthand model key           | strict.ts      |
+ * | SYG508 | strict: select()/errors() round trip on a reply source | replies.ts    |
  * | —      | inspect(): the runtime app graph (2B)                  | inspect.ts     |
+ *
+ * SYG112, SYG130-133 (PLAN-3) and SYG115/116/221/421 (G-143) are dev-entry-only codes: their severities live in
+ * DEV_CODE_SEVERITY (codes.ts), registered by ./shared, not in the main bundle.
  *
  * Strict checks (SYG5xx) only report after configureStrict(true) (or
  * renderComponent(C, { strict: true }), or globalThis.__SYGNAL_STRICT__).
@@ -38,7 +56,12 @@ import {eventsCheck} from './events'
 import {propsCheck} from './props'
 import {collectionsCheck} from './collections'
 import {domCheck} from './dom'
+import {shorthandCheck} from './shorthand'
+import {datasetCheck} from './dataset'
 import {strictCheck} from './strict'
+import {repliesCheck} from './replies'
+import {routerCheck, installRouterHooks} from './router'
+import {fetchCheck} from './fetch'
 import {installRxjsHints} from './rxjsHints'
 import {inspectCheck, installInspect} from './inspect'
 
@@ -47,7 +70,7 @@ export {configureStrict, isStrictEnabled} from './strict'
 export type {EventBusSummary} from './events'
 export {RXJS_HINTS} from './rxjsHints'
 export {inspect} from './inspect'
-export type {InspectGraph, InspectComponent, InspectAction, InspectActionTrigger, InspectChild, InspectSelector, InspectDiagnostic, InspectOptions} from './public'
+export type {InspectResource, InspectCacheEntry, InspectGraph, InspectComponent, InspectAction, InspectActionTrigger, InspectChild, InspectSelector, InspectDiagnostic, InspectOptions} from './public'
 export {listCodes, getCodeInfo} from '../codes'
 export type {DiagnosticCodeInfo} from '../codes'
 
@@ -59,7 +82,12 @@ export const checks: DiagnosticCheck[] = [
   propsCheck,
   collectionsCheck,
   domCheck,
+  shorthandCheck,
+  datasetCheck,
   strictCheck,
+  repliesCheck,
+  routerCheck,
+  fetchCheck,
   inspectCheck,
 ]
 
@@ -75,10 +103,12 @@ export function installChecks(): () => void {
   const unregister = checks.map(check => core.registerCheck(check))
   const uninstallHints = installRxjsHints(Stream && Stream.prototype)
   const uninstallInspect = installInspect()
+  const uninstallRouter = installRouterHooks()
   const uninstall = () => {
     unregister.forEach(fn => fn())
     uninstallHints()
     uninstallInspect()
+    uninstallRouter()
     if (core.__uninstallChecks === uninstall) core.__uninstallChecks = undefined
   }
   core.__uninstallChecks = uninstall

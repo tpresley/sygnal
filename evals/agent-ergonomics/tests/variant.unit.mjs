@@ -40,7 +40,8 @@ function fixtureRepo() {
 }
 
 test('validateVariant: accepts the shipped variants and rejects typos and bad shapes', async () => {
-  for (const f of fs.readdirSync(path.join(EVAL_ROOT, 'variants'))) {
+  // variants/ also holds skill copies (variants/skills/<name>/) that a variant points at.
+  for (const f of fs.readdirSync(path.join(EVAL_ROOT, 'variants')).filter((n) => n.endsWith('.json'))) {
     const v = await loadVariant(path.join(EVAL_ROOT, 'variants', f), { evalRoot: EVAL_ROOT })
     assert.ok(v.name && v.spec, f)
   }

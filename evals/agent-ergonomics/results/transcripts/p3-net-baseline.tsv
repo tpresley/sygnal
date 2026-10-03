@@ -1,0 +1,21 @@
+# p3-net-baseline: headless trials (orchestrate.mjs); transcripts are <trials-root>/p3-net-baseline/<trial>.transcript.jsonl
+react-22-t1	headless
+react-22-t2	headless
+react-22-t3	headless
+react-22-t4	headless
+react-22-t5	headless
+react-23-t1	headless
+react-23-t2	headless
+react-23-t3	headless
+react-23-t4	headless
+react-23-t5	headless
+sygnal-22-t1	headless
+sygnal-22-t2	headless
+sygnal-22-t3	headless
+sygnal-22-t4	headless
+sygnal-22-t5	headless
+sygnal-23-t1	headless
+sygnal-23-t2	headless
+sygnal-23-t3	headless
+sygnal-23-t4	headless
+sygnal-23-t5	headless

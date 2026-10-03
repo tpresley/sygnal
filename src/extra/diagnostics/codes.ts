@@ -126,6 +126,7 @@ export const CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG607: 'error',
   SYG608: 'warn',
   SYG609: 'warn',
+  SYG610: 'error',
   SYG901: 'error',
   SYG902: 'error',
   SYG903: 'error',
@@ -142,6 +143,13 @@ export const CODE_TITLES: Record<string, string> = {
   SYG106: 'Parent prop is overwritten by a reserved view argument',
   SYG110: 'Intent selector not present in the component view',
   SYG111: 'Controlled input has no input listener',
+  SYG115: 'Unknown DOM event shorthand',
+  SYG116: 'EVENTS value has no string type',
+  SYG112: 'Reply action has no model entry',
+  SYG130: 'href() names no route or leaves out a param',
+  SYG131: 'Route params the pattern does not use',
+  SYG132: 'Declaration static that is never sent',
+  SYG133: 'SPA router inside a Vike app',
   // SYG2xx state & reducers (1A)
   SYG201: 'STATE reducer dropped keys from the previous state',
   SYG202: 'STATE reducer returned undefined',
@@ -157,6 +165,7 @@ export const CODE_TITLES: Record<string, string> = {
   SYG505: 'Non-canonical EVENTS emit',
   SYG506: 'CHILD.select() with a string component name',
   SYG507: 'Prop drilled through more than 2 component levels',
+  SYG508: 'select()/errors() round trip where reply actions would do',
   // SYG9xx internal (0B)
   SYG900: 'A diagnostics check threw',
   // ---- 1E retrofit codes (SYG206-299, 402-499, 601-699, 901-999) ----
@@ -175,6 +184,7 @@ export const CODE_TITLES: Record<string, string> = {
   SYG218: 'Reducer returned an unsupported type',
   SYG219: 'EFFECT handler returned a value',
   SYG220: 'Calculated field threw',
+  SYG221: 'set() called with a string',
   SYG402: 'Context is not an object',
   SYG403: 'Invalid context entry',
   SYG404: 'Context stream errored',
@@ -194,6 +204,7 @@ export const CODE_TITLES: Record<string, string> = {
   SYG418: 'Invalid Collection sort prop',
   SYG419: "Invalid switchable() 'name$' parameter",
   SYG420: 'JSX tag is undefined',
+  SYG421: 'Invalid data (dataset) key',
   SYG601: 'Missing or invalid sources',
   SYG602: 'Intent is not a function',
   SYG603: 'Intent returned an invalid value',
@@ -203,6 +214,17 @@ export const CODE_TITLES: Record<string, string> = {
   SYG607: 'State source not found',
   SYG608: 'Strict mode requested without the diagnostics entry',
   SYG609: 'Sink or source has no driver',
+  SYG610: "Request has a 'then' or 'catch' key",
+  SYG611: 'Socket message not sent or connection not opened',
+  SYG620: 'Router command not performed',
+  // PLAN-3 5-3: makeFetchDriver's cache, invalidation and validation (dev entry; SYG634 static only)
+  SYG630: 'Cached request is not idempotent',
+  SYG631: 'validate is not a Standard Schema',
+  SYG632: 'invalidate matched nothing',
+  SYG633: 'abort names a lane the requests do not use',
+  SYG634: 'latest: true with a computed key',
+  // PLAN-3 5-5 (D88)
+  SYG635: 'Caching asked for without a queryCache',
   SYG901: 'Sub-component sink stream errored',
   SYG902: 'EFFECT stream errored',
   SYG903: 'Component factory returned invalid sinks',
@@ -221,6 +243,37 @@ export const STRICT_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG505: 'warn',
   SYG506: 'warn',
   SYG507: 'info',
+  SYG508: 'warn',
+}
+
+// PLAN-3 1-G (G-143): codes only the 'sygnal/diagnostics' dev entry reports. Like the strict
+// table, kept OUT of CODE_SEVERITY (zero bytes in the main bundle); the entry registers them
+// and passes the severity explicitly.
+// PLAN-3 1-D: SYG112 (a reply action has no model entry) too.
+// PLAN-3 2-A: SYG611 too, though makeSocketDriver reports it (legacy error(), severity passed
+// explicitly): kept out of CODE_SEVERITY so the core bundle doesn't pay for an opt-in driver.
+export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
+  SYG112: 'error',
+  SYG115: 'warn',
+  SYG116: 'error',
+  SYG221: 'error',
+  SYG421: 'error',
+  SYG611: 'error',
+  // PLAN-3 5-4b: router (SYG620 is reported by the router itself, like SYG611) and G-167
+  SYG130: 'error',
+  SYG131: 'warn',
+  SYG132: 'warn',
+  SYG133: 'warn',
+  SYG620: 'error',
+  // PLAN-3 5-3 (fetch.ts)
+  SYG630: 'warn',
+  SYG631: 'error',
+  SYG632: 'info',
+  SYG633: 'warn',
+  // static only (sygnal-check); listed so the entry knows its title
+  SYG634: 'info',
+  // PLAN-3 5-5 (fetch.ts)
+  SYG635: 'warn',
 }
 
 export function getCodeInfo(code: string): DiagnosticCodeInfo | undefined {

@@ -43,6 +43,8 @@ Panel.model = {
 }
 ```
 
+`set()` takes an object or a function, never a field name: `set('title')` doesn't store the action data in `title` ([SYG221](/reference/errors/#syg221)). Use `set((state, title) => ({ title }))`.
+
 ## Aborting an Action
 
 Return `ABORT` from a STATE reducer to mean "no change". The state update is skipped entirely:
@@ -115,6 +117,8 @@ Counter.model = {
 ```
 
 If several sinks need the same derived value, put it in a helper function that each of them calls with `(state, data)`.
+
+The same holds for requests: when one action sets `state.id` and sends a request for it, build the URL from `data`, not `state` (`` HTTP: (state, id) => ({ url: `/api/quotes/${id}`, ok: 'LOADED' }) ``). See [HTTP](/guide/http/#build-the-request-from-state-data).
 
 ## Emitting Events with `event()`
 
@@ -198,8 +202,9 @@ Sygnal dispatches these actions itself; add a model entry to react to them:
 |--------|---------------|
 | `BOOTSTRAP` | Once, when the component is instantiated (like React's `useEffect(() => {}, [])`) |
 | `INITIALIZE` | When the component receives its first state. STATE sink only ([SYG210](/reference/errors/#syg210)) |
-| `HYDRATE` | When the component receives its first state during HMR |
 | `DISPOSE` | When the component is about to unmount (see [Disposal Hooks](/advanced/disposal/)) |
+
+`HYDRATE` is no longer a built-in action (6.0): nothing dispatches it, and it is an ordinary action name. Server data reaches the state through Vike's [`+data`](/integration/vike/) or the [`hydrateState`](/integration/ssr/) option.
 
 ```jsx
 MyComponent.model = {

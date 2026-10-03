@@ -1,0 +1,5 @@
+{
+  "description": "PLAN-3 3-A treatment: the exp/p3-resources build (the `resources` static) and that branch's skills/sygnal-dev, isolated per trial, on the current starter. Run it from a checkout of exp/p3-resources (\"branch\" packs the checkout that runs it); the control is the 4-A merge's build and skill",
+  "sygnal": "branch",
+  "skill": { "dir": "skills/sygnal-dev" }
+}

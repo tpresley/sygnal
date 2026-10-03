@@ -93,12 +93,13 @@ function appearsInView(component: any, selector: string): boolean {
   return tokens.every(t => new RegExp(`(^|[^\\w-])${t.replace(/[-]/g, '\\-')}($|[^\\w-])`).test(src))
 }
 
-function rootElementOf(t: Tracked): Element | undefined {
+// G-144: a fragment-rooted component has several root elements
+function rootElementsOf(t: Tracked): Element[] {
   try {
     const im = t.source._isolateModule
-    return im && im.getElement(scopesOf(t.source.namespace))
+    return (im && im.getElements(scopesOf(t.source.namespace))) || []
   } catch (_) {
-    return undefined
+    return []
   }
 }
 
@@ -133,8 +134,8 @@ function report103(component: any, t: Tracked, selector: string, severity: 'info
 
 function sweep(component: any, t: Tracked, escalate: boolean): void {
   if (t.disposed) return
-  const root = rootElementOf(t)
-  if (!root || typeof root.querySelectorAll !== 'function') return
+  const roots = rootElementsOf(t).filter(r => typeof r.querySelectorAll === 'function')
+  if (!roots.length) return
   const im = t.source._isolateModule
   const checker = new ScopeChecker(t.source.namespace, im)
   let unmatched = false
@@ -144,8 +145,11 @@ function sweep(component: any, t: Tracked, escalate: boolean): void {
     if (matched.has(matchKey) || t.crossed.has(selector)) continue
     let all: Element[]
     try {
-      all = Array.prototype.slice.call(root.querySelectorAll(selector))
-      if (root.matches(selector)) all.push(root)
+      all = []
+      for (const root of roots) {
+        all.push(...Array.prototype.slice.call(root.querySelectorAll(selector)))
+        if (root.matches(selector)) all.push(root)
+      }
     } catch (_) {
       continue // invalid selector: the DOM driver reports that itself
     }

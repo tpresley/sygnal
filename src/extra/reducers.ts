@@ -17,7 +17,7 @@
  *   set((state, title) => ({ title }))
  */
 export function set<S = any>(
-  partial: Partial<S> | ((state: S, data: any, next: Function, props: any) => Partial<S>)
+  partial: (Partial<S> & object) | ((state: S, data: any, next: Function, props: any) => Partial<S>)
 ): (state: S, data: any, next: Function, props: any) => S {
   if (typeof partial === 'function') {
     return (state, data, next, props) => ({

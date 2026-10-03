@@ -109,9 +109,10 @@ function stripTables(text) {
     .join('\n')
 }
 
-/** Does the skill's driverFromAsync example still throw on a non-OK response with no error path? (B-005 docs) */
+/** Does the skill's driver example show an error path? (B-005 docs) Before 6.0 that was
+ * `driverFromAsync` + `errors()`; since PLAN-3 the canonical form is a reply action (`error: 'FAILED'`). */
 export function driverExampleShowsErrors(ctx) {
-  return /driverFromAsync/.test(ctx.skillText) && /errors\(\)/.test(ctx.skillText)
+  return /driverFromAsync|makeFetchDriver/.test(ctx.skillText) && /errors\(\)|\berror: '/.test(ctx.skillText)
 }
 
 /** Were the records produced by a harness that records usage (tokens/duration)? */

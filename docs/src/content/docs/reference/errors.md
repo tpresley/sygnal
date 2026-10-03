@@ -27,7 +27,7 @@ From a terminal, `npx --no-install sygnal-check explain SYG104` prints the same 
 
 Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`), `sygnal-check`
 
-The intent returns an action stream whose name has no matching key in `model` (shorthand keys like `'ACTION | SINK'` count as `ACTION`). Events on that stream are produced but nothing handles them, so the action silently does nothing. Built-in actions (`BOOTSTRAP`, `INITIALIZE`, `HYDRATE`, `DISPOSE`, `READY`) and internal `__*` actions are never reported.
+The intent returns an action stream whose name has no matching key in `model` (shorthand keys like `'ACTION | SINK'` count as `ACTION`). Events on that stream are produced but nothing handles them, so the action silently does nothing. Built-in actions (`BOOTSTRAP`, `INITIALIZE`, `DISPOSE`, `READY`, and `RESOURCE`, which the core writes for a `resources` static) and internal `__*` actions are never reported. `HYDRATE` is not built in since 6.0: it is an ordinary action name.
 
 **Fix:** Add a model entry with the same name, e.g. `model = { SAVE: (state) => ({ ...state, saved: true }) }`, or remove or rename the intent action so it matches an existing model key.
 
@@ -51,9 +51,9 @@ Form.model  = { SAVE: (state) => ({ ...state, saved: true }) }
 
 Severity: `info` at runtime, `warn` in sygnal-check · Reported by: the dev checks (`sygnal/diagnostics`), `sygnal-check`
 
-A model entry has no intent action of the same name and is not a built-in action, so nothing in the intent can trigger it. It may still be reached through `next('ACTION')`, which the runtime cannot know in advance, so the runtime check reports it as info (and skips components whose intent returns a single stream). The static checker also accounts for `next()` calls with string literals and reports it as warn, downgraded to info when a `next()` call uses a non-literal name.
+A model entry has no intent action of the same name and is not a built-in action (`BOOTSTRAP`, `INITIALIZE`, `DISPOSE`, `READY`, `RESOURCE`; `HYDRATE` is an ordinary action since 6.0), so nothing in the intent can trigger it. A request also triggers the reply actions it names (`{ url, ok: 'LOADED', error: 'FAILED' }` sent to a driver sink), and so does a `connections` entry (`message`, `open`, `close`, `error`) or a request a `resources` entry derives (`ok`, `error`). A `RESOURCE` entry replaces the built-in reducer that writes `state[name]` for a `resources` static. It may still be reached through `next('ACTION')`, which the runtime cannot know in advance, so the runtime check reports it as info (and skips components whose intent returns a single stream); it counts the `ok`/`error` string literals it finds in the source of the component's non-STATE sink functions. The static checker also accounts for `next()` calls and reply-action names with string literals and reports it as warn, downgraded to info when a `next()` call or an `ok`/`error` value uses a non-literal name.
 
-**Fix:** Add the action to the component's `intent`, dispatch it with `next('ACTION')` from another entry, or remove the dead model entry.
+**Fix:** Add the action to the component's `intent`, name it in a request (`HTTP: (state) => ({ url, ok: 'ACTION' })`), dispatch it with `next('ACTION')` from another entry, or remove the dead model entry.
 
 Before:
 
@@ -221,6 +221,118 @@ After:
 // intent: TITLE: DOM.input('.title').value()
 ```
 
+### SYG112
+
+**Reply action has no model entry**
+
+Severity: `error` · Reported by: the dev checks (`sygnal/diagnostics`), `sygnal-check`
+
+A request sent to a driver with reply actions (`makeFetchDriver`, `driverFromAsync`, the socket driver) names its reply actions, as in `{ url, ok: 'LOADED', error: 'FAILED' }`, and the driver delivers the reply to the sending component as that action. When the component's model has no entry with that name, the reply is dropped, usually because of a typo. The dev entry checks each request with reply actions as it is sent; `sygnal-check` checks string literal `ok`/`error` values returned by non-STATE sinks and the `message`/`open`/`close`/`error` names in a `connections` static. Statically, only names that look like actions (UPPER_SNAKE_CASE) or are close to a model key are reported, because the checker cannot see which driver a sink goes to, and a custom driver may use an `error` field for data.
+
+**Fix:** Use the name of an existing model entry (the message names the closest one), or add the entry: `LOADED: (state, body) => ({ ...state, data: body })`.
+
+Before:
+
+```jsx
+Quote.model = {
+  LOAD:   { HTTP: (state) => ({ url: '/api/quote', ok: 'LOADED', error: 'FIALED' }) },
+  LOADED: (state, quote) => ({ ...state, quote }),
+  FAILED: (state, { status }) => ({ ...state, status }),
+}
+```
+
+After:
+
+```jsx
+LOAD: { HTTP: (state) => ({ url: '/api/quote', ok: 'LOADED', error: 'FAILED' }) },
+```
+
+### SYG115
+
+**Unknown DOM event shorthand**
+
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+`DOM.<name>(selector)` is shorthand for `DOM.select(selector).events('<name>')`, and the DOM source accepts any property name, so a made-up name such as `DOM.key('.search')`, `DOM.enter(...)` or `DOM.keyDown(...)` listens for an event the browser never fires: the action silently never happens. The dev entry reports a shorthand call whose name is not a known DOM event, once per component and name. Key names and the enriched-stream helpers (`.key()`, `.value()`, `.checked()`, `.data()`) are not events.
+
+**Fix:** Use the real event and an enriched-stream helper: `DOM.keydown('.search').key()` (add `.filter(k => k === 'Enter')` for one key), `DOM.input('.name').value()`, `DOM.change('.box').checked()`. For a custom event you dispatch yourself, use the explicit form `DOM.select(sel).events('my-event')`, which is never reported.
+
+Before:
+
+```jsx
+Modal.intent = ({ DOM }) => ({ CLOSE: DOM.escape('document') })
+```
+
+After:
+
+```jsx
+Modal.intent = ({ DOM }) => ({
+  CLOSE: DOM.keydown('document').key().filter(k => k === 'Escape'),
+})
+```
+
+### SYG116
+
+**EVENTS value has no string type**
+
+Severity: `error` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+A model sent a value without a string `type` to the `EVENTS` sink, so no `EVENTS.select(type)` can receive it and it is dropped. The usual cause is a function: a model entry that returns `event(...)` (for example `{ EVENTS: () => event('SAVED', data) }`) instead of being `event(...)`, or any other reducer that returns a function. Each emitted value is copied into a new object, so a function arrives on the bus as `{}`. A reducer that returns `undefined` or `null` (see SYG217) causes it too.
+
+**Fix:** Make `event()` the sink entry itself: `SAVE: { EVENTS: event('SAVED', (state, data) => payload) }`; return `ABORT` from a reducer to send nothing.
+
+Before:
+
+```jsx
+SAVE: { EVENTS: (state) => event('SAVED', state.id) }   // returns a function
+```
+
+After:
+
+```jsx
+SAVE: { EVENTS: event('SAVED', (state) => state.id) }
+```
+
+### SYG130
+
+**href() names no route or leaves out a param**
+
+Severity: `error` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+`router.href(name, params)` builds a link from the route table passed to `makeRouter({ routes })`. When `name` is not a route (or is the `'*'` not-found route), href() returns the app's root path; when the pattern has a `:param` that `params` leaves out, that segment is empty (`/tasks/`). Either way the link goes somewhere else than intended. The `sygnal/diagnostics` dev entry checks every href() call; production builds don't. A `{ to }` command with the same problem is SYG620.
+
+**Fix:** Use a route name from the table (the message suggests the closest one) and pass every param the pattern names: `href('task', { id: task.id })`.
+
+### SYG131
+
+**Route params the pattern does not use**
+
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+An href() call or a `{ to, params }` router command passes a param that the route's pattern has no `:name` for. It is ignored, so the value never reaches the URL; usually it was meant for the query string, or the route is the wrong one.
+
+**Fix:** Pass only the pattern's params, and put other values in the query: `href('tasks', {}, { page: 2 })` or `{ to: 'tasks', query: { page: 2 } }`.
+
+### SYG132
+
+**Declaration static that is never sent**
+
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+Declaration statics (`route`, `resources`, `connections`, `head`) are computed from the component's state and sent to their driver whenever they change, with or without a model. A root component (the one passed to `run()`) with a model but no `initialState` has no state, so its state stream never emits: the route never arrives, the resources never load, the connections never open, the head never changes. Sub-components share their parent's state, so this only happens at the root.
+
+**Fix:** Give the root an `initialState`, even an empty object; for the router, seed the route: `App.initialState = { route: router.current() }`. Don't add an `initialState` to a sub-component that shares its parent's state: it would replace that state (SYG405).
+
+### SYG133
+
+**SPA router inside a Vike app**
+
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+`makeRouter()` intercepts link clicks and writes the history itself, and so does Vike's client router. Running the SPA router inside a Vike app makes both handle each click and navigation. In Vike, give the router Vike's `navigate()`: it then leaves links and history to Vike, navigates with `navigate()`, and re-reads the route after each Vike navigation.
+
+**Fix:** `makeRouter({ routes, navigate })` with `import { navigate } from 'vike/client/router'`, using a route table that mirrors the Vike routes; or read the route from Vike's page context and drop the router.
+
 ## SYG2xx: State and reducers
 
 ### SYG201
@@ -229,7 +341,7 @@ After:
 
 Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
 
-A STATE reducer returned a plain object that is missing keys present (and not `undefined`) in the previous state, which usually means a missing `...state` spread. Those keys are silently lost from state. Calculated fields, `INITIALIZE`/`HYDRATE` and internal `__*` actions are excluded; reported once per component and action.
+A STATE reducer returned a plain object that is missing keys present (and not `undefined`) in the previous state, which usually means a missing `...state` spread. Those keys are silently lost from state. Calculated fields, `INITIALIZE` and internal `__*` actions are excluded; reported once per component and action.
 
 **Fix:** Spread the previous state: `(state, data) => ({ ...state, field: data })`. If removing the keys is intended, ignore the warning.
 
@@ -251,7 +363,7 @@ SET_NAME: (state, name) => ({ ...state, name })
 
 Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
 
-A STATE reducer returned `undefined`, typically from a block-bodied arrow function without `return`. In a root component this wipes the state; in a sub-component it is reported as info instead, because returning `undefined` from a Collection item's reducer is the documented way to remove the item. `INITIALIZE`/`HYDRATE` and internal `__*` actions are excluded.
+A STATE reducer returned `undefined`, typically from a block-bodied arrow function without `return`. In a root component this wipes the state; in a sub-component it is reported as info instead, because returning `undefined` from a Collection item's reducer is the documented way to remove the item. `INITIALIZE` and internal `__*` actions are excluded.
 
 **Fix:** Return the new state, e.g. `(state, data) => ({ ...state, ... })`, or return `ABORT` to leave the state unchanged.
 
@@ -547,6 +659,28 @@ After:
 
 ```jsx
 Profile.calculated = { name: state => state.user?.name ?? '' }
+```
+
+### SYG221
+
+**set() called with a string**
+
+Severity: `error` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+`set()` takes an object to merge (`set({ open: true })`) or a function that returns one (`set((state, data) => ({ ... }))`). Called with a field name, `set('city')` spreads the string into the state, adding the keys `'0'`, `'1'`, ... one per character, and the field itself never changes. The dev entry recognises those keys after the reducer runs and reports the field name; TypeScript also rejects a string argument.
+
+**Fix:** To store the action data in a field, pass a function: `set((state, city) => ({ city }))`. For a fixed value pass an object: `set({ city: 'Paris' })`.
+
+Before:
+
+```jsx
+CITY: set('city')
+```
+
+After:
+
+```jsx
+CITY: set((state, city) => ({ city }))
 ```
 
 ## SYG3xx: Streams
@@ -941,6 +1075,29 @@ After:
 import TaskCard from './TaskCard.jsx'
 ```
 
+### SYG421
+
+**Invalid data (dataset) key**
+
+Severity: `error` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+A view renders a `data` key the DOM can't store. `data={{ ... }}` is written with `element.dataset[key] = value`, and the browser throws a SyntaxError DOMException for a key with a hyphen followed by a lower-case letter (`'task-id'`), or an attribute-name error for characters such as spaces, quotes or `=`. The patch fails, so rendering can stop, and the console shows only a bare `DOMException {}`. The dev entry checks every rendered dataset key before the patch and names the key; renderComponent's mock DOM never throws, so it is also the only signal there.
+
+**Fix:** Use a camelCase key in the `data` prop: `data={{ taskId: 7 }}` renders `data-task-id="7"` (a `data-task-id="7"` JSX attribute works too); read it with `.data('taskId')`.
+
+Before:
+
+```jsx
+<li className="task" data={{ 'task-id': task.id }}>{task.title}</li>
+```
+
+After:
+
+```jsx
+<li className="task" data={{ taskId: task.id }}>{task.title}</li>
+// intent: DOM.click('.task').data('taskId')
+```
+
 ## SYG5xx: Strict mode (canonical forms)
 
 ### SYG501
@@ -1113,6 +1270,42 @@ App.context = { theme: (state) => state.theme }
 // Card: function Card({ state, context }) { … context.theme … }
 ```
 
+### SYG508
+
+**select()/errors() round trip where reply actions would do**
+
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`), `sygnal-check` · Strict mode only
+
+Strict mode only. A component sends a request with `category: 'quote'` to a driver with reply actions (`makeFetchDriver`, `driverFromAsync`, or a sink named `HTTP`) and reads the reply back in its own intent with `HTTP.select('quote')` or `HTTP.errors('quote')`. The canonical form is a request with reply actions: it names them in the request, so the intent line, the category string and the select/errors split all go away, and the reply reaches exactly the component instance that sent it. `select()`/`errors()` remain for requests without reply actions and for stream-level composition (see Alternative forms). The runtime check (`configureStrict(true)`, `renderComponent(C, { strict: true })`) reports a request whose category the same component selects on a source with reply actions.
+
+**Fix:** Name the reply actions in the request and remove the intent line: `LOAD: { HTTP: (state) => ({ url: '/api/quote', ok: 'LOADED', error: 'FAILED' }) }`, with `LOADED: (state, body) => …` (the parsed body) and `FAILED: (state, { status }) => …` in the model.
+
+Before:
+
+```jsx
+Quote.intent = ({ DOM, HTTP }) => ({
+  LOAD:   DOM.click('.get'),
+  LOADED: HTTP.select('quote'),
+  FAILED: HTTP.errors('quote'),
+})
+Quote.model = {
+  LOAD:   { HTTP: () => ({ category: 'quote', url: '/api/quote' }) },
+  LOADED: (state, { value }) => ({ ...state, quote: value }),
+  FAILED: (state, { status }) => ({ ...state, status }),
+}
+```
+
+After:
+
+```jsx
+Quote.intent = ({ DOM }) => ({ LOAD: DOM.click('.get') })
+Quote.model = {
+  LOAD:   { HTTP: () => ({ url: '/api/quote', ok: 'LOADED', error: 'FAILED' }) },
+  LOADED: (state, quote) => ({ ...state, quote }),        // the parsed body
+  FAILED: (state, { status }) => ({ ...state, status }),
+}
+```
+
 ## SYG6xx: Drivers, sources and component setup
 
 ### SYG601
@@ -1278,6 +1471,96 @@ Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
 A component's model sends to a sink (for example `HTTP: (state) => ({ url: '/api/x' })`), or its intent reads a source (`HTTP.select('x')`), but `run()` got no driver with that name. Values sent to a sink without a driver are dropped silently, and a source without a driver is `undefined`, so the intent then fails with "Cannot read properties of undefined". `renderComponent()` does not report this: in tests it records such sinks (`t.requests(name)`) and fakes such sources (`t.respond` / `t.fail`).
 
 **Fix:** Pass the driver to `run()` under exactly that name: `run(App, { HTTP: makeFetchDriver() })` for HTTP requests, `driverFromAsync(fn)` for any promise-returning function, or your own driver. Check the spelling against the drivers you pass.
+
+### SYG610
+
+**Request has a 'then' or 'catch' key**
+
+Severity: `error` · Reported by: the Sygnal runtime (every app, production included)
+
+A request sent to a driver with reply actions (`makeFetchDriver`, `driverFromAsync`) has a `then` or `catch` key, for example `HTTP: (state) => ({ url: '/api/x', then: 'LOADED' })`. An object with a `then` key is a thenable, so it breaks anything that `await`s it, and these keys look like a promise chain but do nothing. The driver does not send the request.
+
+**Fix:** Name the reply actions with the `ok` / `error` keys: `{ url: '/api/x', ok: 'LOADED', error: 'FAILED' }`. The `ok` action gets the parsed body, the `error` action `{ error, status, body, request }`.
+
+### SYG611
+
+**Socket message not sent or connection not opened**
+
+Severity: `error` · Reported by: the Sygnal runtime (every app, production included)
+
+A value sent to a `makeSocketDriver()` sink could not be acted on. Either a send (`{ to: 'room', json }`) names a connection that this component instance has not declared, that has closed for good (`reconnect: false`, or a URL the browser rejected), or that is a server-sent events connection, which is read-only. Or a declared connection has neither a `socket` nor an `sse` URL. Or the value is neither `{ connections }` nor `{ to, … }`. Connection names are per component instance: a parent cannot send on a child's connection. The message is dropped; a connection that is only (re)connecting is not an error, its sends are queued.
+
+**Fix:** Declare the connection first, `{ connections: { room: { socket: '/ws/rooms/general', message: 'RECEIVED' } } }`, then send on it from the same component: `{ to: 'room', json: { text } }`. Use a WebSocket (`socket:`) for two-way traffic.
+
+### SYG620
+
+**Router command not performed**
+
+Severity: `error` · Reported by: the Sygnal runtime (every app, production included)
+
+A value sent to the router's sink (`makeRouter().driver`) could not be acted on, so nothing was navigated. Either `{ to }` names no route (or the `'*'` not-found route), or the route's pattern needs a param that `params` leaves out, or the value uses the `route` key, which is reserved for the component's `route` declaration (`App.route = 'ROUTE'`), or it is none of the router's commands. The router reports this in production too.
+
+**Fix:** Navigate with `{ to: 'task', params: { id } }` (plus `query`, `hash`, `replace` as needed), `{ url: router.href(...) }`, `{ back: true }`, `{ forward: true }`, `{ block: 'CONFIRM_LEAVE' }` or `{ prefetch: 'task', params }`.
+
+### SYG630
+
+**Cached request is not idempotent**
+
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+A request to `makeFetchDriver()` sets `cache: true` or `staleTime` but is not a GET or HEAD (a request with `json` or `body` defaults to POST), for example `{ url: '/api/quotes', method: 'POST', json, cache: true }`. The driver's `queryCache()` keeps its reply by method, URL and body, so a second identical write within `staleTime` is answered from the cache and never reaches the server, and identical writes in flight share one fetch. Writes should always be sent.
+
+**Fix:** Remove `cache` / `staleTime` from the write. To refresh cached reads after it succeeds, tag the reads (`tags: ['quotes']`) and add `invalidates: ['quotes']` to the write.
+
+### SYG631
+
+**validate is not a Standard Schema**
+
+Severity: `error` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+A request or resource to `makeFetchDriver()` has a `validate` value that is not a Standard Schema, an object with a `~standard.validate` function (zod, valibot and arktype schemas are). A plain function or another validator's object does not qualify. The driver cannot validate the reply, so the request fails with a TypeError on its `error` action (or as the resource's error).
+
+**Fix:** Pass the schema object itself: `validate: QuoteSchema` (for zod, `z.object({ ... })`). To check a body with your own function, use `parse: (res) => res.json().then(check)` instead.
+
+### SYG632
+
+**invalidate matched nothing**
+
+Severity: `info` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+A `{ invalidate }` value sent to `makeFetchDriver()` matched no cache entry and no mounted resource, so nothing was refetched or marked stale. Tags are explicit: `{ invalidate: 'quotes' }` matches only requests with `tags: ['quotes']`; a string starting with '/' is a prefix of the request's `url` as written (without the driver's `baseUrl`); a function is called with each request. This is info: invalidating data that no component shows at the moment is often fine.
+
+**Fix:** Add `tags: ['quotes']` to the resources (or cached requests) the write should refresh, or invalidate by URL prefix: `{ invalidate: '/quotes' }`.
+
+### SYG633
+
+**abort names a lane the requests do not use**
+
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+`{ abort: 'X' }` cancels this component instance's requests whose key is 'X'; a request's key is its `key`, else its `ok` action, else its `error` action. The instance sends its `ok: 'X'` requests with another `key`, so the abort matches none of them and they still deliver. (G-175.)
+
+**Fix:** Abort by that key: `{ abort: true, key: 'search' }`, or drop `key` from the requests so their lane is the `ok` action.
+
+### SYG634
+
+**latest: true with a computed key**
+
+Severity: `info` · Reported by: `sygnal-check`
+
+A request has `latest: true` and a `key` that is not a string literal, for example `key: 'search-' + state.q`. `latest` cancels this instance's earlier requests with the same key, so a key that changes with state gives every value its own lane, and a new request never cancels the previous one: out-of-order replies can still arrive. That is right for independent lanes, such as one save per row, so this is info.
+
+**Fix:** Use a fixed key (`key: 'search'`) or none (the lane is the `ok` action) so the newest request cancels the others. Keep a computed key only for lanes that should run side by side (`// sygnal-ignore SYG634`).
+
+### SYG635
+
+**Caching asked for without a queryCache**
+
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+A request or resource sets `cache: true` or `staleTime`, or the component sends `{ prefetch: request }`, but the sink's `makeFetchDriver()` has no query cache. The cache is a separate export (D88), so a driver without `cache: queryCache()` caches nothing: the request is sent as an ordinary one, and a prefetch does nothing. In tests the HTTP fake has no cache unless `renderComponent(C, { http: { cache: queryCache() } })` gives it one.
+
+**Fix:** Give the driver a cache: `makeFetchDriver({ cache: queryCache({ staleTime: 30000 }) })` with `import { queryCache } from 'sygnal'` (in tests, `renderComponent(C, { http: { cache: queryCache() } })`). Or remove `cache` / `staleTime` / the prefetch.
 
 ## SYG9xx: Internal
 
