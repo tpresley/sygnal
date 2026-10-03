@@ -13,8 +13,7 @@
  *
  * 'next' and 'built-in' actions are consequences (the replay produces them again), never replayed;
  * nor is an intent action whose data is the component's own state (an intent over STATE.stream).
- * Before a t.respond / t.fail that follows simulateAction calls, `await t.settle()` lets the
- * request those calls cause leave first.
+ * A t.respond / t.fail that follows simulateAction calls waits for the request they send (G-218).
  * Data is written as JS literals: JSON values, Date, Map, Set, NaN / Infinity / -0, bigint. A DOM
  * event or element becomes a stub ({ type, key, target: { dataset, value, checked, id } }), with a
  * comment. Anything else (functions, class instances, cycles) is left out with a comment.
@@ -179,14 +178,9 @@ export function sessionToTest(rec: SessionRecording, options: CopyAsTestOptions 
   if (options.renderOptions) opts.push(options.renderOptions)
 
   const names = rec.actionNames && new Set(rec.actionNames)
-  // t.respond / t.fail right after several queued simulateAction calls can run before the request
-  // leaves (a request sent after a same-tick STATE reducer is deferred): settle first
-  let queued = 0
-  const answer = (line: string) => {
-    if (queued) body.push(`${I}await t.settle()`)
-    queued = 0
-    body.push(line)
-  }
+  // (G-218: t.respond / t.fail right after queued simulateAction calls wait for the request
+  // those calls send, so no settle() is needed before them)
+  const answer = (line: string) => body.push(line)
   for (const a of rec.actions) {
     const changes = a.sinks.includes('STATE') || a.sinks.includes('state')
     if (REPLAY.has(a.cause)) {
@@ -195,7 +189,6 @@ export function sessionToTest(rec: SessionRecording, options: CopyAsTestOptions 
       // an intent action with no model entry does nothing (renderComponent can't send it)
       if (names && !names.has(a.type) && a.cause != 'behavior') continue
       replayed++
-      queued++
       if (a.data === undefined) { body.push(`${I}t.simulateAction(${q(a.type)})`); continue }
       const l = tryLit(a.data, 'data', I)
       if ('error' in l) {

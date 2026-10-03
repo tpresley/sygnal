@@ -2263,8 +2263,10 @@ export function renderComponent(
     // change): queue the call like one made behind queued input
     const later = typeof opts == 'string' && !!declaredRes.get(name)?.has(opts) && states.length <= simAt ||
       // G-189: called at once after a simulate* call, on a sink that carries `resources`: the
-      // requests it causes leave two microtasks later (G-158), so the call waits for them
-      sendDue && declaredRes.has(name) && !tg.push && !('nth' in tg.o);
+      // requests it causes leave two microtasks later (G-158), so the call waits for them.
+      // G-218: so does any request: behind a same-tick STATE reducer (several queued simulate*
+      // calls), an action's non-STATE sinks run in a microtask (B-003)
+      sendDue && !tg.push && !('nth' in tg.o);
     return scripted(() => tg.push ? {} : pick(name, tg), w => noPending(what, name, tg, w), hit => {
       const f = fake(name), o = tg.o;
       const e: Pending | undefined = tg.push ? undefined : hit;

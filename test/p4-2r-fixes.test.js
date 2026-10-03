@@ -303,3 +303,38 @@ describe('D131: SYG644, a defineElement prop that hides an HTMLElement member', 
     } finally { console.warn = prev; globalThis.__SYGNAL_DEV__ = prevDev; document.body.innerHTML = '' }
   })
 })
+
+describe('G-218: t.respond / t.fail right after several queued simulateAction calls', () => {
+  function Signup({ state }) { return h('p', null, `${state.email}|${state.busy}|${state.error}|${state.user}`) }
+  Signup.initialState = { email: '', busy: false, error: null, user: null }
+  Signup.model = {
+    EMAIL: (s, email) => ({ ...s, email }),
+    SUBMIT: {
+      STATE: (s) => ({ ...s, busy: true }),
+      HTTP: (s) => ({ url: '/signup', method: 'POST', body: { email: s.email }, ok: 'SIGNED', error: 'SIGNUP_FAILED' }),
+    },
+    SIGNED: (s, user) => ({ ...s, busy: false, user: user.name }),
+    SIGNUP_FAILED: (s, err) => ({ ...s, busy: false, error: err.status }),
+  }
+
+  it('t.fail waits for the request the queued actions send', async () => {
+    t = renderComponent(Signup)
+    await t.ready()
+    t.simulateAction('EMAIL', 'ada')
+    t.simulateAction('SUBMIT')
+    await t.fail('HTTP', 422, 'SIGNUP_FAILED')
+    expect(t.state).toMatchObject({ email: 'ada', busy: false, error: 422 })
+    expect(t.requests('HTTP')).toHaveLength(1)
+    expect(t.requests('HTTP')[0].body).toEqual({ email: 'ada' })
+  })
+
+  it('t.respond too, with three queued actions', async () => {
+    t = renderComponent(Signup)
+    await t.ready()
+    t.simulateAction('EMAIL', 'a')
+    t.simulateAction('EMAIL', 'ada')
+    t.simulateAction('SUBMIT')
+    await t.respond('HTTP', { name: 'Ada' }, 'SIGNED')
+    expect(t.state).toMatchObject({ email: 'ada', busy: false, user: 'Ada' })
+  })
+})

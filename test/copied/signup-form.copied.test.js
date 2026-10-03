@@ -10,12 +10,10 @@ it('signup form: a recorded session with replies replays (copied from sygnal/dev
     t.simulateAction('EMAIL', 'ada')
     // SUBMIT: DOM event/element data as a stub (type, key, target dataset/value/checked/id)
     t.simulateAction('SUBMIT', { type: 'click' })
-    await t.settle()
     await t.fail('HTTP', 422, { request: (r) => r.error === 'SIGNUP_FAILED', body: { message: 'Email is invalid' } })
     t.simulateAction('EMAIL', 'ada@example.com')
     // SUBMIT: DOM event/element data as a stub (type, key, target dataset/value/checked/id)
     t.simulateAction('SUBMIT', { type: 'click' })
-    await t.settle()
     await t.respond('HTTP', { id: 1, name: 'Ada', email: 'ada@example.com' }, 'SIGNED_UP')
     await t.settle()
     expect(t.state).toEqual({
