@@ -27,7 +27,7 @@ export { set, toggle, emit, event } from './extra/reducers'
 export { makeServiceWorkerDriver, onlineStatus$, createInstallPrompt } from './extra/pwa'
 export { renderToString } from './extra/ssr'
 export { default as xs } from './extra/xstreamCompat'
-export { getDevTools } from './extra/devtools'
+export { getDevTools } from './extra/devtoolsHook'
 export { getDiagnostics, clearDiagnostics, onDiagnostic } from './extra/diagnostics/index'
 
 // export dom helper functions (h, makeDOMDriver, etc.)

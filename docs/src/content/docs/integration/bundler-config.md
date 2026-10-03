@@ -35,7 +35,7 @@ The plugin detects the `run()` call, finds the imported root component, and auto
 |---|---|---|---|
 | `disableJsx` | `boolean` | `false` | Don't configure JSX (set it up yourself) |
 | `disableHmr` | `boolean` | `false` | Don't inject HMR wiring (handle HMR yourself, or let a framework such as Vike do it) |
-| `diagnostics` | `'off' \| 'collect' \| 'warn' \| 'error'` or `{ mode, strict, ignore }` | `'warn'` | Runtime diagnostics in the dev server. `'off'` injects nothing |
+| `diagnostics` | `'off' \| 'collect' \| 'warn' \| 'error'` or `{ mode, strict, ignore }` | `'warn'` | Runtime diagnostics in the dev server. `'off'` injects no checks |
 | `diagnostics.mode` | same as above | `'warn'` | The runtime [diagnostics mode](/guide/diagnostics/#modes) |
 | `diagnostics.strict` | `boolean` | `false` | Turn on the [strict-mode](/guide/strict-mode/) runtime checks; also the default for `check.strict` |
 | `diagnostics.ignore` | `string[]` | `[]` | Codes to drop, at runtime and in `sygnal-check` |
@@ -46,6 +46,7 @@ The plugin detects the `run()` call, finds the imported root component, and auto
 | `check.overlay` | `'error' \| false` | `'error'` | Whether error-severity findings open Vite's error overlay |
 | `vitestSetup` | `boolean` | `true` | Under Vitest, add `sygnal/diagnostics` to `test.setupFiles` |
 | `nativeGlobalThis` | `boolean` | `true` | Resolve xstream's `globalthis` polyfill to the native `globalThis` (see [below](#native-globalthis)) |
+| `devtools` | `boolean` | `true` | Install the [DevTools](/integration/debugging/#devtools-extension) bridge in the dev server. `false` leaves it out |
 
 ```javascript
 sygnal({
@@ -56,7 +57,9 @@ sygnal({
 
 ### What the plugin does in dev
 
-Everything below happens only in `vite` / `vite dev`. A production build (`vite build`) gets the JSX configuration and the [`globalthis` alias](#native-globalthis), and nothing else: no flags, checks, wrappers or dev client.
+Everything below happens only in `vite` / `vite dev`. A production build (`vite build`) gets the JSX configuration and the [`globalthis` alias](#native-globalthis), and nothing else: no flags, checks, wrappers, dev client or DevTools.
+
+- **DevTools.** The same files also import `sygnal/devtools` first, which installs the bridge the [DevTools extension](/integration/debugging/#devtools-extension) connects to (`window.__SYGNAL_DEVTOOLS__`). It is independent of `diagnostics` (`'off'` still installs it); `sygnal({ devtools: false })` leaves it out.
 
 - **Diagnostics.** Every file that imports `run` from `sygnal` gets a dev flag (runtime diagnostics in `'warn'` mode) and imports of `sygnal/diagnostics` (the dev checks) and `virtual:sygnal/dev` (which logs `sygnal-check` results in the browser console). They're added on an existing line, so line numbers and source maps don't change. A mode other than `'warn'`, or an ignore list, is passed to `run()` as its `diagnostics` option, unless the `run()` call sets that option itself. Opt out for one app with `run(App, drivers, { diagnostics: 'off' })`, or for the whole server with `sygnal({ diagnostics: 'off' })`.
 - **Vike and Astro.** Their apps are started by Sygnal's own client entries, which get the same dev setup (see [Vike](/integration/vike/#diagnostics-in-dev) and [Astro](/integration/astro/#diagnostics-in-dev)).
@@ -139,7 +142,7 @@ For TypeScript projects, also add to `tsconfig.json`:
 }
 ```
 
-And wire HMR yourself — see [Hot Module Replacement](/integration/hmr/). For diagnostics without the plugin, see [Diagnostics](/guide/diagnostics/#without-vite).
+And wire HMR yourself — see [Hot Module Replacement](/integration/hmr/). For diagnostics without the plugin, see [Diagnostics](/guide/diagnostics/#without-vite); for the DevTools extension, import `sygnal/devtools` in dev (see [DevTools without Vite](/integration/debugging/#without-vite)).
 
 ## Other Bundlers
 

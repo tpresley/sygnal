@@ -156,6 +156,7 @@ These are fixes, but code or tests may depend on the old behavior:
 - **Reserved request keys:** `ok`, `error` and `key` on requests to `makeFetchDriver`, `driverFromAsync` and `makeSocketDriver` route the reply (a 5.4.0 `driverFromAsync` request that used `ok`/`error` as data keys is now routed); a request with a `then` or `catch` key is refused (SYG610).
 - **Strict mode** reports the `select('c')` round trip for a component's own `category: 'c'` requests (SYG508), so strict-clean 5.4.0 code using `driverFromAsync` + `QUOTE.select('quote')` for its own requests gets a finding.
 - **`sygnal/vite`** aliases `globalthis` for every dependency in the app, not only xstream. Set `nativeGlobalThis: false` if a dependency needs the polyfill package.
+- **DevTools are no longer in production builds** ([Debugging](https://sygnal.js.org/integration/debugging/#devtools-extension)). `run()` no longer installs the DevTools bridge (`window.__SYGNAL_DEVTOOLS__`); the new dev-only entry `sygnal/devtools` does on import, and `sygnal/vite` injects it in dev (`vite`, the Vike and Astro dev servers; `devtools: false` opts out), never in `vite build`. With `sygnal/vite` nothing changes in dev, and the bridge (about 2 KB gzipped) leaves every production bundle. `getDevTools()` from `sygnal` returns `undefined` when the bridge isn't installed (before: a bridge object even outside a browser), so `getDevTools().inspect()` needs the bridge loaded. The UMD build (`sygnal.min.js`) has no DevTools.
 
 ### Breaking changes (TypeScript)
 
@@ -197,6 +198,7 @@ Most apps need no changes. Check these:
 - **Requests with `ok`/`error`/`key`/`then`/`catch` data keys:** rename them or nest them under `value`.
 - **Vike:** if you imported `sygnal/dist/vike/+config.js` or `+config.cjs.js` directly, import `sygnal/config` instead. If client code read `pageContext.urlPathname` without Client Routing, use `window.location.pathname`.
 - **Bundles:** if a dependency needs the real `globalthis` package, set `sygnal({ nativeGlobalThis: false })`.
+- **DevTools:** DevTools are no longer in production builds. With `sygnal/vite` nothing changes in dev; without it, `import 'sygnal/devtools'` in your development entry, before `run()`. Code that called `getDevTools()` unconditionally should use `getDevTools()?.…`.
 - **TypeScript:** see the table above. The most common fixes are adding `{ PARENT: Payload }` to children selected with `CHILD.select`, and correcting DOM event annotations.
 - **Fake timers:** tests that switched fake timers off around `renderComponent()` can now keep them on.
 

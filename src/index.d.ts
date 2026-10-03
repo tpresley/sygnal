@@ -708,8 +708,9 @@ export type {
 } from './extra/diagnostics/checks/public'
 
 /**
- * The Sygnal DevTools bridge (also `window.__SYGNAL_DEVTOOLS__` once run() has
- * initialized it in a browser). Only the stable, documented members are typed.
+ * The Sygnal DevTools bridge (also `window.__SYGNAL_DEVTOOLS__`), installed in a
+ * browser by the dev-only 'sygnal/devtools' entry, which sygnal/vite injects in dev.
+ * Only the stable, documented members are typed.
  */
 export interface SygnalDevTools {
   /** true while the browser extension is connected */
@@ -723,7 +724,7 @@ export interface SygnalDevTools {
   inspect?(): InspectGraph
 }
 
-/** The DevTools bridge singleton. */
+/** The installed DevTools bridge; undefined unless 'sygnal/devtools' was loaded (always in production builds). */
 export function getDevTools(): SygnalDevTools | undefined
 
 export type SygnalSinks<STATE = any, DRIVERS = {}> = {

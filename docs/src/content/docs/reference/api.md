@@ -1223,7 +1223,7 @@ Runtime [diagnostics](/guide/diagnostics/) helpers, exported from `sygnal`. They
 | `getDiagnostics()` | All diagnostics collected so far (most recent last, up to 500) |
 | `clearDiagnostics()` | Clear the collected diagnostics |
 | `onDiagnostic(callback)` | Call `callback(diagnostic)` for each new diagnostic; returns an unsubscribe function |
-| `getDevTools()` | The DevTools bridge (`window.__SYGNAL_DEVTOOLS__` in a browser): `connected`, `getDiagnostics()`, and `inspect()` once `sygnal/diagnostics` is loaded |
+| `getDevTools()` | The DevTools bridge (`window.__SYGNAL_DEVTOOLS__`) installed by the dev-only `sygnal/devtools` entry, or `undefined` (always in production builds): `connected`, `getDiagnostics()`, and `inspect()` once `sygnal/diagnostics` is loaded. See [DevTools](/integration/debugging/#devtools-extension) |
 
 A diagnostic is `{ code, severity, component?, message, fix?, data?, docsUrl, text, timestamp }`, where `text` is the formatted `[Sygnal CODE] …` line. Every code is listed in the [Error Reference](/reference/errors/).
 

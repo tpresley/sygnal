@@ -15,6 +15,8 @@ const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const DEV_FLAG = 'if (globalThis.__SYGNAL_DEV__ === undefined) globalThis.__SYGNAL_DEV__ = true;'
 const STRICT_FLAG = 'if (globalThis.__SYGNAL_STRICT__ === undefined) globalThis.__SYGNAL_STRICT__ = true;'
 const IMPORTS = "import 'sygnal/diagnostics';import 'virtual:sygnal/dev';"
+// D77: the DevTools bridge, first in every dev snippet (the `devtools` option)
+const DEVTOOLS = "import 'sygnal/devtools';"
 const ENTRY = `import { run } from 'sygnal'\nimport App from './App.jsx'\nrun(App)\n`
 
 // Call config() as Vite would, with process.env.VITEST set or unset
@@ -52,7 +54,7 @@ describe('vite plugin — dev checks import (deliverable 1)', () => {
   it('injects the dev flag and the sygnal/diagnostics import on the first line', () => {
     const result = devPlugin().transform(ENTRY, '/src/main.js')
     const lines = result.code.split('\n')
-    expect(lines[0]).toBe(DEV_FLAG + IMPORTS + "import { run } from 'sygnal'")
+    expect(lines[0]).toBe(DEVTOOLS + DEV_FLAG + IMPORTS + "import { run } from 'sygnal'")
     expect(lines[1]).toBe("import App from './App.jsx'")
     expect(parseErrors(result.code)).toEqual([])
   })
@@ -71,15 +73,17 @@ describe('vite plugin — dev checks import (deliverable 1)', () => {
     ]).then(results => expect(results).toEqual([null, null, null]))
   })
 
-  it("diagnostics: 'off' injects nothing (HMR wiring still works)", () => {
+  it("diagnostics: 'off' injects no checks, only DevTools (HMR wiring still works)", () => {
     const plugin = devPlugin({ diagnostics: 'off' })
     const result = plugin.transform(ENTRY, '/src/main.js')
     expect(result.code).not.toContain('__SYGNAL_DEV__')
     expect(result.code).not.toContain('sygnal/diagnostics')
+    expect(result.code.startsWith(DEVTOOLS + "import { run } from 'sygnal'")).toBe(true)
     expect(result.code).toContain('import.meta.hot.accept')
-    // nothing at all for an entry with manual HMR wiring
+    // with devtools: false too, nothing at all for an entry with manual HMR wiring
     const manual = ENTRY + 'if (import.meta.hot) {}\n'
-    expect(plugin.transform(manual, '/src/main.js')).toBeNull()
+    expect(plugin.transform(manual, '/src/main.js').code).toBe(DEVTOOLS + manual)
+    expect(devPlugin({ diagnostics: 'off', devtools: false }).transform(manual, '/src/main.js')).toBeNull()
   })
 
   it('under Vitest nothing goes in (the checks come from setupFiles; see vite-plugin-vitest.test.js)', () => {
@@ -120,7 +124,7 @@ describe('vite plugin — diagnostics option (deliverable 3)', () => {
 
   it('strict: true also sets globalThis.__SYGNAL_STRICT__ (only when undefined)', () => {
     const result = devPlugin({ diagnostics: { strict: true } }).transform(ENTRY, '/src/main.js')
-    expect(result.code.split('\n')[0]).toBe(DEV_FLAG + STRICT_FLAG + IMPORTS + "import { run } from 'sygnal'")
+    expect(result.code.split('\n')[0]).toBe(DEVTOOLS + DEV_FLAG + STRICT_FLAG + IMPORTS + "import { run } from 'sygnal'")
     const g = { __SYGNAL_STRICT__: false }
     new Function('globalThis', STRICT_FLAG)(g)
     expect(g.__SYGNAL_STRICT__).toBe(false)
@@ -232,8 +236,10 @@ describe('vite plugin — dependency scan', () => {
       fs.mkdirSync(pkg, { recursive: true })
       fs.writeFileSync(path.join(pkg, 'package.json'), JSON.stringify({ name: 'sygnal', main: 'index.js' }))
       fs.writeFileSync(path.join(pkg, 'index.js'), 'module.exports = {}')
-      expect(configure(sygnal(), { config: { root: dir } }).optimizeDeps.include).toEqual(['sygnal/diagnostics', 'sygnal'])
-      expect(configure(sygnal({ diagnostics: 'off' }), { config: { root: dir } }).optimizeDeps.include).toEqual(['sygnal'])
+      expect(configure(sygnal(), { config: { root: dir } }).optimizeDeps.include).toEqual(['sygnal/devtools', 'sygnal/diagnostics', 'sygnal'])
+      expect(configure(sygnal({ diagnostics: 'off' }), { config: { root: dir } }).optimizeDeps.include).toEqual(['sygnal/devtools', 'sygnal'])
+      expect(configure(sygnal({ devtools: false }), { config: { root: dir } }).optimizeDeps.include).toEqual(['sygnal/diagnostics', 'sygnal'])
+      expect(configure(sygnal({ diagnostics: 'off', devtools: false }), { config: { root: dir } }).optimizeDeps.include).toEqual(['sygnal'])
       // not in a build, and not under Vitest
       expect(configure(sygnal(), { command: 'build', config: { root: dir } }).optimizeDeps).toBeUndefined()
       expect(configure(sygnal(), { vitest: true, config: { root: dir } }).optimizeDeps).toBeUndefined()
@@ -248,11 +254,12 @@ describe('vite plugin — Vike and Astro dev mode (deliverable 4, G-014)', () =>
     const plugin = devPlugin()
     const virtualEntry = '\0virtual:vike:page-entry:client:/pages/index'
     expect(await resolve(plugin, 'sygnal/vike/onRenderClient', virtualEntry)).toBe('\0sygnal-dev:vike-client')
-    // not on the server, and not with diagnostics off
+    // not on the server, and not with diagnostics off and devtools: false
     expect(await resolve(plugin, 'sygnal/vike/onRenderClient', virtualEntry, { ssr: true })).toBeNull()
-    expect(await resolve(devPlugin({ diagnostics: 'off' }), 'sygnal/vike/onRenderClient', virtualEntry)).toBeNull()
+    expect(await resolve(devPlugin({ diagnostics: 'off', devtools: false }), 'sygnal/vike/onRenderClient', virtualEntry)).toBeNull()
 
     const code = plugin.load('\0sygnal-dev:vike-client')
+    expect(code.startsWith(DEVTOOLS)).toBe(true)
     expect(code).toContain("import 'sygnal/diagnostics'")
     expect(code).toContain("export * from 'sygnal/vike/onRenderClient'")
     expect(code).toContain(DEV_FLAG)
@@ -275,7 +282,7 @@ describe('vite plugin — Vike and Astro dev mode (deliverable 4, G-014)', () =>
     // the island client imports the public 'sygnal' entry (no bundled core)
     expect(code).toMatch(/from ['"]sygnal['"]/)
     const result = plugin.transform(code, file)
-    expect(result.code).toBe(DEV_FLAG + STRICT_FLAG + IMPORTS + code)
+    expect(result.code).toBe(DEVTOOLS + DEV_FLAG + STRICT_FLAG + IMPORTS + code)
     expect(result.code).not.toContain('installChecks')
     // the default 'warn' mode needs no run() wrapper
     expect(await resolve(plugin, 'sygnal', file)).toBeNull()
@@ -286,11 +293,12 @@ describe('vite plugin — Vike and Astro dev mode (deliverable 4, G-014)', () =>
     // every original line keeps its number
     expect(result.code.split('\n').slice(1, code.split('\n').length)).toEqual(code.split('\n').slice(1))
     expect(parseErrors(result.code)).toEqual([])
-    // not in SSR, not under Vitest, not in build, not with diagnostics off
+    // not in SSR, not under Vitest, not in build; diagnostics off: DevTools only
     expect(plugin.transform(code, file, { ssr: true })).toBeNull()
     expect(devPlugin({}, { vitest: true, config: { root: REPO } }).transform(code, file)).toBeNull()
     expect(devPlugin({}, { command: 'build', config: { root: REPO } }).transform(code, file)).toBeNull()
-    expect(devPlugin({ diagnostics: 'off' }, { config: { root: REPO } }).transform(code, file)).toBeNull()
+    expect(devPlugin({ diagnostics: 'off' }, { config: { root: REPO } }).transform(code, file).code).toBe(DEVTOOLS + code)
+    expect(devPlugin({ diagnostics: 'off', devtools: false }, { config: { root: REPO } }).transform(code, file)).toBeNull()
   })
 
   it('the Astro integration adds the plugin in `astro dev` only', () => {

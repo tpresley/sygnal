@@ -235,6 +235,8 @@ type Diagnostic = {
 
 ### SygnalDevTools
 
+The [DevTools](/integration/debugging/#devtools-extension) bridge, installed by the dev-only `sygnal/devtools` entry (the Vite plugin loads it in dev). `getDevTools()` returns `SygnalDevTools | undefined`.
+
 ```typescript
 interface SygnalDevTools {
   readonly connected: boolean
@@ -475,6 +477,7 @@ import { renderComponent, renderToString } from 'sygnal'
 // Diagnostics
 import { getDiagnostics, clearDiagnostics, onDiagnostic, getDevTools } from 'sygnal'
 import { inspect, configureStrict, checkEventBus } from 'sygnal/diagnostics'
+import 'sygnal/devtools'   // dev only: installs the DevTools bridge (automatic with sygnal/vite)
 
 // PWA
 import { makeServiceWorkerDriver, onlineStatus$, createInstallPrompt } from 'sygnal'

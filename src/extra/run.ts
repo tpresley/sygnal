@@ -4,7 +4,6 @@ import {makeDOMDriver} from '../cycle/dom/index';
 import eventBusDriver from './eventDriver';
 import logDriver from './logDriver';
 import component, {ABORT, optionsOf} from '../component';
-import {getDevTools} from './devtools';
 import {configureDiagnostics, isDiagnosticsEnabled} from './diagnostics/index';
 import {warn} from './diagnostics/legacy';
 import type {DiagnosticsMode, DiagnosticsOptions} from './diagnostics/index';
@@ -36,11 +35,8 @@ export default function run(
   drivers: Record<string, any> = {},
   options: RunOptions = {}
 ): SygnalRunResult {
-  // Initialize DevTools instrumentation bridge early (before component creation)
-  if (typeof window !== 'undefined') {
-    const dt = getDevTools();
-    dt.init();
-  }
+  // D77: the DevTools bridge is not installed here; 'sygnal/devtools' (injected by
+  // sygnal/vite in dev) installs window.__SYGNAL_DEVTOOLS__ before run() is called.
 
   // Resolve diagnostics mode: explicit option > globalThis.__SYGNAL_DEV__ > 'off'.
   // Each run() is authoritative: without the option, mode and ignore list
@@ -128,7 +124,7 @@ export default function run(
 
   const exposed: SygnalRunResult = {sources, sinks, dispose};
 
-  // Store app reference for time-travel
+  // Store app reference for DevTools time-travel (root STATE fallback)
   if (typeof window !== 'undefined') {
     window.__SYGNAL_DEVTOOLS_APP__ = exposed;
   }

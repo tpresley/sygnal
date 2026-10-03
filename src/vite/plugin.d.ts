@@ -68,7 +68,7 @@ export interface SygnalPluginOptions {
    * Runtime diagnostics in dev (`vite`, never `vite build`). In every file
    * that imports `run` from 'sygnal' the plugin sets the dev flag and imports
    * 'sygnal/diagnostics' (the runtime checks); the Vike and Astro client
-   * entries get the same. 'off' injects nothing. Any other mode than 'warn',
+   * entries get the same. 'off' injects none of it (DevTools: see `devtools`). Any other mode than 'warn',
    * or an ignore list, is passed as run()'s `diagnostics` option, unless the
    * run() call sets that option itself.
    * @default 'warn'
@@ -100,14 +100,23 @@ export interface SygnalPluginOptions {
    * @default true
    */
   nativeGlobalThis?: boolean
+
+  /**
+   * In dev (`vite`, never `vite build` or Vitest), import 'sygnal/devtools' in the
+   * same files as the diagnostics snippet. It installs the DevTools bridge
+   * (`window.__SYGNAL_DEVTOOLS__`) for the browser extension. Production builds
+   * never contain it. false: not injected.
+   * @default true
+   */
+  devtools?: boolean
 }
 
 /**
  * Sygnal Vite plugin.
  *
  * Auto-configures the JSX transform and injects HMR boilerplate. In dev
- * (`vite`) it also turns on runtime diagnostics with the dev checks and runs
- * sygnal-check when installed; under Vitest it adds the dev checks to the
+ * (`vite`) it also installs the DevTools bridge, turns on runtime diagnostics
+ * with the dev checks and runs sygnal-check when installed; under Vitest it adds the dev checks to the
  * test setup. Nothing is added to production builds.
  *
  * @example
