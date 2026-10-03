@@ -233,6 +233,24 @@ export interface InspectGraph {
   diagnostics: InspectDiagnostic[]
   /** runtime, PLAN-3 5-3: makeFetchDriver cache entries, by sink name (empty when no cache) */
   cache?: Record<string, InspectCacheEntry[]>
+  /** runtime, PLAN-4 2-C (GS-10): with `inspect({ actions })`, the most recent actions, oldest first */
+  recentActions?: InspectRecentAction[]
+}
+
+/** PLAN-4 2-C (GS-10): one recent action (inspect({ actions })) */
+export interface InspectRecentAction {
+  type: string
+  /** the action's data, when it is JSON-safe and small (a DOM event is left out) */
+  data?: any
+  /** the component's name */
+  component: string
+  /** the instance's id (InspectComponent.id) */
+  instance: string
+  /** the sinks that produced a value for it (not ABORT) */
+  sinks: string[]
+  cause: 'intent' | 'next' | 'reply' | 'built-in' | 'simulateAction' | 'behavior'
+  /** ms since the dev entry started recording (or the last resetChecks()) */
+  at: number
 }
 
 export interface InspectOptions {
@@ -242,6 +260,8 @@ export interface InspectOptions {
   selectors?: Record<string, InspectSelector[]>
   /** diagnostics to attach (default: the devtools' collected diagnostics, when available) */
   diagnostics?: Array<{ code: string; severity: DiagnosticSeverity; component?: string; message: string; [key: string]: any }>
+  /** PLAN-4 2-C: add `recentActions`: true for every kept one (the last 200), a number for the last n */
+  actions?: boolean | number
 }
 
 /**

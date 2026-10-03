@@ -73,7 +73,7 @@ export {configureStrict, isStrictEnabled} from './strict'
 export type {EventBusSummary} from './events'
 export {RXJS_HINTS} from './rxjsHints'
 export {inspect} from './inspect'
-export type {InspectResource, InspectCacheEntry, InspectGraph, InspectComponent, InspectAction, InspectActionTrigger, InspectChild, InspectSelector, InspectControl, InspectDiagnostic, InspectOptions} from './public'
+export type {InspectResource, InspectCacheEntry, InspectGraph, InspectComponent, InspectAction, InspectActionTrigger, InspectChild, InspectSelector, InspectControl, InspectDiagnostic, InspectOptions, InspectRecentAction} from './public'
 export {listCodes, getCodeInfo} from '../codes'
 export type {DiagnosticCodeInfo} from '../codes'
 

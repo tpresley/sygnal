@@ -6,7 +6,7 @@ import type { EventsFnOptions } from './cycle/dom/DOMSource'
 import type { VNode } from './cycle/dom/snabbdom'
 import type { StateSource } from './cycle/state/index'
 import xsDefault from 'xstream'
-import type { InspectGraph } from './extra/diagnostics/checks/public'
+import type { InspectGraph, InspectOptions } from './extra/diagnostics/checks/public'
 import type { MemoryStream, Stream } from 'xstream'
 
 export declare const ABORT: unique symbol
@@ -945,6 +945,7 @@ export type {
   InspectChild,
   InspectSelector,
   InspectDiagnostic,
+  InspectRecentAction,
 } from './extra/diagnostics/checks/public'
 
 /**
@@ -2134,6 +2135,38 @@ export interface RenderOptions {
  * included), inferred by renderComponent; name it for a handle declared before it is assigned:
  * `let t: RenderResult<State>`. Defaults to `any` (untyped tests compile as before).
  */
+/** PLAN-4 GS-10: where an action in `t.actions` came from */
+export type ActionCause = 'intent' | 'next' | 'reply' | 'built-in' | 'simulateAction' | 'behavior'
+
+/**
+ * PLAN-4 GS-10: one action in renderComponent's `t.actions`. `sinks` fills in as the action's
+ * reducers run (STATE a microtask later), so an entry is live.
+ */
+export interface TestAction {
+  /** The action name (a behavior's actions are namespaced: `pager.NEXT`) */
+  type: string
+  /** Its data (the DOM event for a DOM intent stream) */
+  data: any
+  /** The name of the component that ran it */
+  component: string
+  /** That component instance's id (stable for its life; inspect()'s component id) */
+  instance: string
+  /** The sinks that produced a value: not ABORT; STATE not the unchanged state; EFFECT when it ran */
+  sinks: string[]
+  /** 'intent' | 'next' (a reducer's or EFFECT's next()) | 'reply' (reply actions) | 'built-in' (INITIALIZE, BOOTSTRAP, DISPOSE, RESOURCE) | 'simulateAction' | 'behavior' */
+  cause: ActionCause
+  /** ms since renderComponent() was called (the fake clock under fake timers) */
+  at: number
+}
+
+/** PLAN-4 GS-10: what `t.explain()` returns */
+export interface ExplainedAction<STATE = any> extends TestAction {
+  /** The root state the action produced (the first recorded after its STATE reducer ran) */
+  state: STATE
+  /** Its STATE reducer: the model's function and its source text (JS exposes no source location) */
+  reducer?: { action: string; sink: string; fn: Function; source: string }
+}
+
 export interface RenderResult<STATE = any> {
   /** Stream of state values */
   state$: Stream<STATE>;
@@ -2198,6 +2231,16 @@ export interface RenderResult<STATE = any> {
   settle: (timeoutMs?: number) => Promise<void>;
   /** Collected state values — grows as new states are emitted */
   states: STATE[];
+  /**
+   * PLAN-4 GS-10: every action the rendered tree ran (children and Collection items included),
+   * in order, as `{ type, data, component, instance, sinks, cause, at }`. Live array.
+   */
+  actions: TestAction[];
+  /**
+   * PLAN-4 GS-10: the first action whose resulting root state matches the predicate, with that
+   * state and its STATE reducer; undefined when none did.
+   */
+  explain: (predicate: (state: STATE) => boolean) => ExplainedAction<STATE> | undefined;
   /** The latest recorded state (`t.states.at(-1)`; undefined before the first one), calculated fields current. Read-only */
   readonly state: STATE;
   /** Live array of values emitted on a sink (EVENTS as {type, data}, PARENT unwrapped, custom sinks of any component in the tree) */
@@ -2307,8 +2350,9 @@ export interface RenderResult<STATE = any> {
   /**
    * The app graph of the rendered tree (components, actions, selectors with the mock DOM's
    * match / isolation results, EVENTS, diagnostics). Throws unless 'sygnal/diagnostics' is loaded.
+   * `{ actions: true }` (or a number: the last n) adds `recentActions` (GS-10).
    */
-  inspect: () => InspectGraph;
+  inspect: (options?: Pick<InspectOptions, 'actions'>) => InspectGraph;
   /** `{ dom: 'real' }`: the element the tree is mounted in (removed by dispose()); otherwise null */
   container: Element | null;
   /**
