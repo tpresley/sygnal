@@ -66,7 +66,8 @@ PLAN-3's end-of-Phase-5 figures (40,403 B, 283 lines, 34,343 B) grew with #12 an
 | 1-E | Controls A/B eval (user's terminal) | ⬜ commands given | runs `p4-ct1-a`, `p4-ct1-b`, `-haiku` (5 trials) | user | | from the `p4-1e-ab-variant` worktree |
 | P-2 | Custom elements spike (GS-13) | ✅ record done → user | `exp/p4-elements` (`7d1d67f`) | subagent | not merged | `dev-plans/research/p2-custom-elements.md` on the exp branch; 0 B core, entry 1,003 B gz; shadow DOM, React 19 (`ontask-picked` only), HMR work; recommends adopt + making `run()` per-instance (G-212) |
 | 3-D | Behaviors complete (GS-1 checker, pager/selection/undoable, SYG226, G-210) | ✅ merged | `p4-3d-behaviors` (`03ce0e2`) | subagent | | 0 B core; app cost pager 951 B, selection 1,168 B, undoable 836 B, undo 1,624 B; sygnal-check 369; recipes in `test/p4-3d-recipes.test.js` |
-| P-4 | Dev-context design note (GS-15) | 🟡 running | `p4-p4-devcontext` | subagent | | |
+| P-4 | Dev-context design note (GS-15) | ✅ merged, decided (D132) | `p4-p4-devcontext` (`1e4a73f`) | subagent | | `dev-plans/research/p4-dev-context.md` |
+| 4-B1 | Site docs, part 1 (merged non-CT-1 features) | 🟡 running | `p4-4b1-docs` | subagent | | |
 | 3-A … 3-T | Phase 3 | ⬜ | | | | 3-A includes D102 |
 | 4-A … 4-F | Phase 4 | ⬜ | | | | |
 
@@ -177,6 +178,7 @@ They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none o
 | D129 | 2026-10-03 | GS-12 form B: `viewTransitions` static in core (+29 B), the transition hook as an opt-in helper DOM driver, `App.viewTransitions = ['ROUTE']` for routes (no router option), a dev diagnostic when the static is set without the driver. P-1b also tries a slimmer core hook; if form A fits in ≤ ~60 B more, back to the user to fold it in. PLAN-5 A-1 shrinks to item naming + a CSS recipe + a FLIP fallback for drag/rapid reorder. | User | P-1 record and coordinator's answers on core vs helper, framework expectations, agent risk |
 | D130 | 2026-10-03 | Accepted 2-A2's surface: Astro `uid` island prop; Vike Layout/Wrapper/Page views receive `id` props (`w0`, `l0`, `p`) so uids match SSR. | Coordinator | 2-A2 QUESTION |
 | D131 | 2026-10-03 | SYG644 (warn, dev) for a `defineElement` prop that hides an `HTMLElement` member, from PLAN-4's spare 6xx range; done in 2-R. | Coordinator | P-2b QUESTION 2 |
+| D132 | 2026-10-03 | GS-15 deferred past 6.0 (no code). 4-A adds a one-line skill pointer to `t.actions` / `t.inspect()`, measured in 4-E. The note's eval design (≈ $44, live-app harness mode) stays on file for a 6.x minor. | User | P-4 note |
 
 ## Open questions (PLAN-4 §11)
 
@@ -236,3 +238,4 @@ They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none o
 - 2026-10-03 — Started 3-A, 3-C, 3-E, P-2b. Phase 1+2 code review (high): 9 findings (G-214) → 2-R after 3-A.
 - 2026-10-03 — Merged 3-C; gates green (vitest 1,766, sygnal-check 371; size unchanged 40,938 B). Started P-4.
 - 2026-10-03 — Merged P-2b; gates green (vitest 1,797, browser 154; 40,866 B gated, PLAN-4 +330 B). D131; G-216, G-217.
+- 2026-10-03 — P-4 note merged; GS-15 deferred (D132). Started 4-B part 1.
