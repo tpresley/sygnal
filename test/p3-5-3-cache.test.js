@@ -453,8 +453,12 @@ describe('triggers: focus, online, polling', () => {
     await waitFor(() => expect(text('.text')).toBe('one'))
     await click('.next')
     await waitFor(() => expect(text('.status')).toBe('idle'))
+    // G-176: on a loaded machine a 20ms poll can go out before the click lands; what matters is
+    // that none goes out once the resource is gone (a poll still in flight is aborted)
+    await waitFor(() => expect(srv.requests.slice(1).every(r => r.aborted)).toBe(true))
+    const sent = srv.fn.mock.calls.length
     await sleep(60)
-    expect(srv.fn).toHaveBeenCalledTimes(1)
+    expect(srv.fn).toHaveBeenCalledTimes(sent)
   })
 
   it('onBrowserSignals: focus, visible and online call back; unsubscribe stops them', () => {
