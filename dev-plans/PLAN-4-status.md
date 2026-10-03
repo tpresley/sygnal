@@ -56,7 +56,8 @@ PLAN-3's end-of-Phase-5 figures (40,403 B, 283 lines, 34,343 B) grew with #12 an
 | P-3 | Performance baseline (GS-16) | ✅ merged (non-gating) | `p4-p3-perf` (`88f0b2f`) | subagent | | `benchmarks/RESULTS.md`; `npm --prefix browser-tests run perf`; proposes "Collection O(1) item lookups" (+28 B) → user |
 | P-1 | View Transitions spike (GS-12) | 🟡 running | `exp/p4-view-transitions` | subagent | not merged | decision record → user |
 | 1-E prep | Controls A/B variants `p4-ct1-a`/`p4-ct1-b` | 🟡 running | `p4-1e-ab-variant` | subagent | | |
-| P-2 | Custom elements spike (GS-13) | 🟡 running | `exp/p4-elements` | subagent | not merged | |
+| P-2 | Custom elements spike (GS-13) | ✅ record done → user | `exp/p4-elements` (`7d1d67f`) | subagent | not merged | `dev-plans/research/p2-custom-elements.md` on the exp branch; 0 B core, entry 1,003 B gz; shadow DOM, React 19 (`ontask-picked` only), HMR work; recommends adopt + making `run()` per-instance (G-212) |
+| 3-D | Behaviors complete (GS-1 checker, pager/selection/undoable, SYG226, G-210) | 🟡 running | `p4-3d-behaviors` | subagent | | |
 | P-4 | Dev-context design note (GS-15) | ⬜ | | | | |
 | 3-A … 3-T | Phase 3 | ⬜ | | | | 3-A includes D102 |
 | 4-A … 4-F | Phase 4 | ⬜ | | | | |
@@ -196,6 +197,7 @@ They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none o
 | G-209 | 2-A, 2-D | — | docs | Lines now false after GS-4/GS-9 (`return state` rule, SYG502, reserved props without `uid`) in llms.txt, SKILL.md, guide/model, alternative-forms, strict-mode, testing, components, sygnal-check README, SYG106 explanation; 5 a11y findings in llms.txt/SKILL.md samples (`A11Y_PENDING`). | 4-A / 4-B (SYG106 explanation and the sygnal-check README in 3-D) |
 | G-210 | 2-C | low | inspect | `inspect()` lists recent actions only with `{ actions }`, because `sygnal-check/schema/inspect.schema.json` has no `recentActions` (additionalProperties false). Add the schema entry (2-C's proposed JSON) in 3-D, then decide on default. | 3-D |
 | G-211 | 2-C merge | low | tests | `p4-2c-inspect-actions` relied on 30 × 1 ms ticks in a fixed 120 ms window; flaky under load. Fixed to wait for the ticks. Browser headless timeout raised 30 → 90 s (suite ~27 s). | ✅ coordinator |
+| G-212 | P-2 | medium | run | `run()` writes page-wide globals (`__SYGNAL_HMR_PERSISTED_STATE`, `__SYGNAL_DEVTOOLS_APP__`) and resets the diagnostics config, so two apps (or a host app plus custom elements) on one page interfere: HMR may restore another app's state, diagnostics mode is reset. Related to G-206. | Open → with the P-2 decision |
 
 ## Log
 
@@ -209,3 +211,4 @@ They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none o
 - 2026-10-03 — Merged 2-C and 1-F; gates green (vitest 1,655, browser 143, sygnal-check 346; 40,846 B gated, PLAN-4 +310 B). Started 1-E variant prep and P-1.
 - 2026-10-03 — Merged P-3 (non-gating perf suite); gates green. Started P-2.
 - 2026-10-03 — Merged 2-B; gates green (vitest 1,678, sygnal-check 347; 40,925 B gated, PLAN-4 +389 B). Started 2-A2. D123, D124.
+- 2026-10-03 — P-2 decision record done (pending user, batched with P-1). Started 3-D. G-212.
