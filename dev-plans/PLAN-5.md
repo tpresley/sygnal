@@ -6,7 +6,7 @@
 
 **Release:** 6.0.0, one major release together with PLAN-3 (network layer, router, cache, HEAD) and PLAN-4 (controls and core ergonomics). The release stays held until the user says otherwise (D56).
 
-**Status:** plan only. **Execution starts after PLAN-4 is complete.** Phase 0 rebases this branch onto the completed `plan4-integration`. The tracker, `dev-plans/PLAN-5-status.md`, is created in Phase 0 in the PLAN-3/PLAN-4 format.
+**Status:** plan only, merged to `main` alongside PLAN-3 (done, #14) and PLAN-4 (planned, #15). **Execution starts after PLAN-4 is complete.** PLAN-4's 0-A cuts `plan4-integration` from `main` once this plan is merged there. PLAN-5's Phase 0 cuts `plan5-integration` from the completed `plan4-integration`. The tracker, `dev-plans/PLAN-5-status.md`, is created in Phase 0 in the PLAN-3/PLAN-4 format.
 
 **Branches:**
 - integration: `plan5-integration`;
@@ -19,12 +19,12 @@
 - decisions and gaps continue the global D-/G- numbering.
 
 **Inputs:**
-- Research report: https://claude.ai/artifact/3BYaNEUmLK5Z9w25cEHiXD (npm downloads for 2026-09-24…30, a category-by-category assessment, six experiments).
+- Research report: [`research/ecosystem-survey.html`](research/ecosystem-survey.html), a copy of https://claude.ai/artifact/3BYaNEUmLK5Z9w25cEHiXD (npm downloads for 2026-09-24…30, a category-by-category assessment, six experiments). The artifact is private, so subagents read the copy.
 - Experiments: [`research/ecosystem-experiments/`](research/ecosystem-experiments/) (E1–E6; see its README).
 - Handoff to PLAN-3: [`HANDOFF-to-PLAN-3.md`](HANDOFF-to-PLAN-3.md), accepted with changes as D74–D82.
-- PLAN-4, its handoff and its reports, read with `git show claude/sygnal-feature-gaps-c61a02:<path>` until `plan4-integration` exists:
-  - `dev-plans/PLAN-4.md` and `dev-plans/HANDOFF-to-PLAN-5.md`;
-  - `dev-plans/research/sygnal-6-gap-study.html` and `dev-plans/research/view-intent-linking.html`.
+- PLAN-3's record: [`PLAN-3.md`](PLAN-3.md) and [`PLAN-3-status.md`](PLAN-3-status.md) (final budgets, reusable modules, docs layout).
+- PLAN-4 and its handoff: [`PLAN-4.md`](PLAN-4.md), [`PLAN-4-status.md`](PLAN-4-status.md) (decisions D100–D105 and "Interfaces promised to PLAN-5"), [`HANDOFF-to-PLAN-5.md`](HANDOFF-to-PLAN-5.md).
+- PLAN-4's reports: [`research/sygnal-6-gap-study.html`](research/sygnal-6-gap-study.html) and [`research/view-intent-linking.html`](research/view-intent-linking.html).
 
 **Invariants:** MVI stays intact, as in PLAN-1…4.
 - Models return descriptions of effects, and drivers perform them.
@@ -58,17 +58,25 @@ On 2026-10-02 this plan handed these items to PLAN-3. The user accepted them wit
 | Naming | "Reply actions"; `routing.ts` → `replies.ts` (D82) |
 | DevTools out of production builds | Frees about 2.3 KB of core as a shared reserve (D77) |
 
-**From PLAN-3, PLAN-5 uses:**
+**From PLAN-3 (final, on `main`; `PLAN-3-status.md` "Budgets"), PLAN-5 uses:**
 
 | PLAN-3 output | Used by |
 |---|---|
-| the `__sygnalStatic` declaration mechanism | B-3, through PLAN-4 GS-7's shape |
-| `src/extra/standardSchema.ts` | F-1 |
-| `src/extra/browserSignals.ts` (focus, online, visibility) | B-3 |
-| the reply-action machinery | F-1 async validation |
-| the docs layout: `guide/http`, `guide/sockets`, `guide/custom-drivers`, `integration/server-functions`, plus the router, cache and HEAD pages | §1.4 recipes and Phase 4 |
+| the `__sygnalStatic` declaration mechanism (`initStatics` in `component.ts`): statics work without a model and pause in hidden Switchable pages unless `background: true` | B-3, through PLAN-4 GS-7's shape |
+| `src/extra/standardSchema.ts` (`isStandardSchema`, `validateWith`) | F-1 |
+| `src/extra/browserSignals.ts` (`onBrowserSignals`, `isHidden`) | B-3, B-4 |
+| `src/extra/backoff.ts` | any PLAN-5 retry (adapter peer loading, if needed) |
+| the reply-action machinery (`src/extra/replies.ts`) | F-1 async validation |
+| the docs layout: `guide/http`, `guide/resources`, `guide/sockets`, `guide/router`, `guide/head`, `guide/custom-drivers`, `integration/server-functions` | §1.4 recipes and Phase 4 |
 
-The final page names are in the PLAN-3 tracker.
+**Lesson from PLAN-3's G-184:** agents skipped `queryCache` because it was configured in `main.js`, which tests don't see. Anything PLAN-5 configures at `run()` time (adapters, browser sources) must also reach `renderComponent`, or be diagnosed when it's missing.
+
+**Budget left after PLAN-3:**
+- core **1,897 B** (40,403 / 42,300 gated), shared by PLAN-4 and PLAN-5; the D77 DevTools reserve is already spent;
+- `llms.txt` 285 / 300 lines;
+- SKILL.md 34,995 / 36,000 B.
+
+Driver sizes are measured as bytes added to an app (D87).
 
 ### 0.2 Inherited from PLAN-4 (HANDOFF-to-PLAN-5 §2)
 
@@ -101,7 +109,7 @@ The final page names are in the PLAN-3 tracker.
 | **S-13** | Tests: controls in `t.widget`, `t.actions` and Testing Library | **Accepted** | `t.widget(DueDate)` takes a control. U-1 test examples assert behaviour with `t.actions`. Component docs show Testing Library role queries (`within(t.container)`, `dom: 'real'`), following GS-14's docs. |
 | **S-14** | Learn-time check against PLAN-4's 4-E | **Accepted** | §0.2 and Phase 4. |
 
-**Early answer on S-1, for PLAN-4 1-A.** Yes: PLAN-5 will make a widget a kind of control. This costs PLAN-4 a few bytes and no widget code. 1-A should leave room for:
+**Early answer on S-1, for PLAN-4 1-A.** Yes: PLAN-5 will make a widget a kind of control. PLAN-4 recorded this as **D101–D105** and froze the interfaces in `PLAN-4-status.md` ("Interfaces promised to PLAN-5"): the `ControlSpec<P>` contract (`{ kind, vnode(props, children), commands?, __props? }`), kind-blind acceptance, the spec props type, `spec.commands[name](hostElement, options)` before SYG641 (D102), and the `'widget'` `onError` phase (D105). The request was:
 1. **A control spec that isn't a tag string.** An object such as `{ kind: 'widget', … }` is accepted by `controls()`. The pragma passes vnode creation to it (for example `spec.vnode(props, children)`), then stamps `data-control` on the vnode it returns exactly as for an intrinsic tag.
 2. **Kind-blind acceptance.** `DOM.*`, `simulateEvent`, `query` and element commands resolve every control to `[data-control="<Key>"]`, whatever its kind.
 3. **A type hook.** `controls()` takes a control's props type from the spec (a phantom field on the widget spec), not only from `JSX.IntrinsicElements`.
@@ -137,7 +145,8 @@ const { DueDate } = controls({ DueDate: datePicker })
 - **Sygnal builds the vnode.** E2 found that a hand-built vnode without `children`/`text`/`elm` keys is silently dropped.
 - **Events:** `emit(name, detail)` dispatches a bubbling `CustomEvent` on the host. Declared `events` tell sygnal-check and the runtime which names exist: SYG110 and SYG126 work by identifier, and an undeclared emit is diagnosed (§4 codes).
 - **Isolation:** a widget's control in a Collection item matches only that item's host, as for any control.
-- **Errors:** a `mount`/`update` that throws goes through the component's `onError` boundary and is reported by GS-11 `onError` with phase `'widget'` (if PLAN-4 accepts the extra phase name).
+- **Errors:** a `mount`/`update` that throws goes through the component's `onError` boundary and is reported by GS-11 `onError` with phase `'widget'` (D105).
+- **Commands:** PLAN-4's element commands call `spec.commands[name](hostElement, options)` (D102). `defineWidget` builds that table from the author's `commands`, looking up the widget instance stored on the host, so authors write `open: (fp) => fp.open()`.
 - **Tests:**
   - in the mock DOM, `t.widget(Control).props` and `t.widget(Control).emit(name, detail)`;
   - with `dom: 'real'`, the widget mounts.
@@ -228,7 +237,7 @@ P1 for the first three; P3 for the rest. All are a11y-clean (§0.2).
 
 | Phase | Work | Detail |
 |---|---|---|
-| **0: Setup** (coordinator, spikes by subagents on `exp/p5-*`) | **0-A** rebase and baseline | Rebase onto the completed `plan4-integration`. Create `PLAN-5-status.md`. Record the budgets PLAN-4 left (P5-Q6) and the §4 code reservations. Read PLAN-4's decisions: P4-D (canonical controls), P4-Q4 (`uses` vs `withBehaviors`), P4-Q6 (`ELEMENT` sink), P4-Q8 (timers), and the P-1, P-2 and P-3 records. Re-run E1–E6 on the 6.0 build. Answer P5-Q1…Q9. |
+| **0: Setup** (coordinator, spikes by subagents on `exp/p5-*`) | **0-A** rebase and baseline | Rebase onto the completed `plan4-integration`. Create `PLAN-5-status.md`. Record the budgets PLAN-4 left (P5-Q6) and the §4 code reservations. Check PLAN-4's "Interfaces promised to PLAN-5" still hold (any G- item there switches W-1 to the fallback form). Read PLAN-4's decisions: P4-D (canonical controls), P4-Q4 (`uses` vs `withBehaviors`), P4-Q6 (`ELEMENT` sink), P4-Q8 (timers), and the P-1, P-2 and P-3 records. Re-run E1–E6 on the 6.0 build. Answer P5-Q1…Q9. |
 | | **0-S1** widget as a control kind (S-1) | `defineWidget` on PLAN-4's control marker: core bytes (target 0), typed props through `controls()`, Collection isolation, SSR, and widget commands through `ELEMENT` if PLAN-4 left room. |
 | | **0-S2** forms (S-2) | The `form` behavior and the helper shape side by side on the same signup-plus-address form: field arrays in a Collection, async validation via a reply action, server errors, focus on the first invalid field, `uid`-linked errors with 0 SYG7xx findings. Output: the two shapes for the Phase 4 A/B. |
 | | **0-S3** native Dialog, Popover and Tooltip (S-3) | Browser tests in Chromium, Firefox and WebKit: focus trap and return, Escape, light dismiss, anchor positioning, tooltip hover/focus delays with GS-7, screen-reader names. Output: native or Zag/Floating UI per part. |
@@ -303,19 +312,19 @@ Per CLAUDE.md, each code goes into both tables in `codes.ts` (non-core codes in 
 
 ## 5. Decisions needed before Phase 1 (recommendations first)
 
-The user answered P5-Q6…Q9 on 2026-10-02. 0-A records them in the tracker with global D-numbers, taking the next free numbers after PLAN-4's.
+The user answered P5-Q6…Q9 on 2026-10-02. PLAN-4's tracker recorded them, and S-1, as **D101–D105**. 0-A copies them into `PLAN-5-status.md`, and new PLAN-5 decisions continue after PLAN-4's last D-number.
 
 | # | Question | Recommendation |
 |---|---|---|
-| P5-Q1 | Widget form | **Answered by S-1:** a widget is a kind of control (`controls({ X: defineWidget(…) })`), with no marker component. Fallback: the 0 B function form if PLAN-4 1-A leaves no room. |
+| P5-Q1 | Widget form | **Answered by S-1 (D101):** a widget is a kind of control (`controls({ X: defineWidget(…) })`), with no marker component. Fallback: the 0 B function form if PLAN-4 1-A leaves no room. |
 | P5-Q2 | `sygnal-ui` packaging | A separate package (`sygnal-ui`), like `sygnal-check`. It keeps Zag out of `sygnal`'s dependencies and versions independently, though it ships with 6.0.0. |
 | P5-Q3 | Foreign-framework adapters in 6.0 | `fromZag` (needed by U-1) and `sygnal/react` with the preact/compat alias documented. `sygnal/vue` only on demand. |
 | P5-Q4 | Icons | Docs for Lucide vanilla; no package unless the eval shows agents struggle. |
 | P5-Q5 | Forms API shape | A/B in the Phase 4 eval: a `form` behavior through `uses` (lead, S-2) vs helpers over `processForm`. No dedicated form static. |
 | P5-Q6 | Budgets | **User, 2026-10-02: address as we go.** Whatever PLAN-4 leaves (core, `llms.txt`, SKILL.md) is recorded in 0-A. If F-1 + W-1 need more than is left, raise it with eval numbers when it comes up. (Was "resolved by D76" before PLAN-4 existed.) |
-| P5-Q7 | Widget commands through `ELEMENT` (S-1 item 4) | **User, 2026-10-02: yes.** Requested from PLAN-4: GS-2's SYG641 asks the control's spec before failing. If PLAN-4 can't fit it, widgets take a `createCommand()` like V-1. |
-| P5-Q8 | `defineWidget` vs `defineElement` naming (S-11) | **User, 2026-10-02: keep both** (if GS-13 is adopted). They describe opposite directions, so the guide pairs them in one table ("bring a foreign widget in" / "publish a Sygnal component as an element"). Revisit if the eval shows confusion. |
-| P5-Q9 | Add B-4 (deferred loading triggers, gap-study G-17) | **User, 2026-10-02: yes.** B-4 is in scope as P3, after B-3. |
+| P5-Q7 | Widget commands through `ELEMENT` (S-1 item 4) | **User, 2026-10-02: yes (D102).** Promised by PLAN-4: GS-2's SYG641 asks the control's spec before failing. If PLAN-4 can't fit it, widgets take a `createCommand()` like V-1. |
+| P5-Q8 | `defineWidget` vs `defineElement` naming (S-11) | **User, 2026-10-02: keep both (D104)** (if GS-13 is adopted). They describe opposite directions, so the guide pairs them in one table ("bring a foreign widget in" / "publish a Sygnal component as an element"). Revisit if the eval shows confusion. |
+| P5-Q9 | Add B-4 (deferred loading triggers, gap-study G-17) | **User, 2026-10-02: yes (D103).** B-4 is in scope as P3, after B-3. |
 
 ## 6. Risks
 

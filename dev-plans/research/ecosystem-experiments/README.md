@@ -2,7 +2,7 @@
 
 # Ecosystem experiments (throwaway)
 
-These are the experiments behind the ecosystem research report (https://claude.ai/artifact/3BYaNEUmLK5Z9w25cEHiXD) and [PLAN-5](../../PLAN-5.md). Each one is a Vitest + jsdom test against the built `sygnal` package (`file:../../..`), using `renderComponent(App, { dom: 'real' })`. All six passed on sygnal 5.4.0 (main `6b7144e`) on 2026-10-02.
+These are the experiments behind the ecosystem research report ([`../ecosystem-survey.html`](../ecosystem-survey.html); private artifact https://claude.ai/artifact/3BYaNEUmLK5Z9w25cEHiXD) and [PLAN-5](../../PLAN-5.md). Each one is a Vitest + jsdom test against the built `sygnal` package (`file:../../..`), using `renderComponent(App, { dom: 'real' })`. All six passed on sygnal 5.4.0 (main `6b7144e`) on 2026-10-02.
 
 ```bash
 npm --prefix dev-plans/research/ecosystem-experiments install

@@ -1,0 +1,281 @@
+<title>Sygnal Ecosystem Survey</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@500;700;800&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: single reading column (~72ch) with wide tables allowed to scroll; priority encoded by chips */
+:root {
+  --bg: #f6f7f9; --surface: #ffffff; --fg: #1b2230; --muted: #5a6475; --line: #dde1e8;
+  --accent: #0f6f8f; --accent-soft: #e2f1f6;
+  --p1: #0f7a4a; --p1-bg: #e1f3ea; --p2: #8a5a00; --p2-bg: #fbf0d9; --p3: #59606e; --p3-bg: #eceef2;
+  --warn: #a8402a; --code-bg: #eef1f5;
+  --display: "Schibsted Grotesk", "Helvetica Neue", Arial, sans-serif;
+  --body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #11151c; --surface: #181e27; --fg: #e4e8ef; --muted: #98a2b3; --line: #2a3240;
+  --accent: #5cc3e0; --accent-soft: #15303a;
+  --p1: #5fd39a; --p1-bg: #143326; --p2: #f0c060; --p2-bg: #3a2d10; --p3: #aab2c0; --p3-bg: #252c38;
+  --warn: #f08a70; --code-bg: #1f2632; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #11151c; --surface: #181e27; --fg: #e4e8ef; --muted: #98a2b3; --line: #2a3240;
+  --accent: #5cc3e0; --accent-soft: #15303a;
+  --p1: #5fd39a; --p1-bg: #143326; --p2: #f0c060; --p2-bg: #3a2d10; --p3: #aab2c0; --p3-bg: #252c38;
+  --warn: #f08a70; --code-bg: #1f2632; color-scheme: dark }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 17px; line-height: 1.6; padding: 0 16px; }
+.wrap { max-width: 980px; margin: 0 auto; padding-block: 40px 80px; }
+.prose { max-width: 72ch; }
+h1, h2, h3 { font-family: var(--display); line-height: 1.2; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(2rem, 5vw, 2.8rem); font-weight: 800; letter-spacing: -0.02em; }
+h2 { font-size: 1.6rem; font-weight: 700; margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--line); }
+h3 { font-size: 1.15rem; font-weight: 700; }
+p { margin: 12px 0; }
+a { color: var(--accent); }
+.eyebrow { font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+.meta { color: var(--muted); font-size: 0.95rem; margin-top: 10px; }
+code, .mono { font-family: var(--mono); font-size: 0.85em; }
+code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+pre { background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; overflow-x: auto; font-size: 0.82rem; line-height: 1.5; margin: 14px 0; }
+pre code { background: none; padding: 0; }
+.lede { font-size: 1.15rem; margin-top: 18px; }
+.verdict { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 20px 24px; margin-top: 28px; }
+.verdict ol { margin: 8px 0 0; padding-left: 1.3em; display: grid; gap: 10px; }
+.verdict li::marker { font-family: var(--display); font-weight: 700; color: var(--accent); }
+.chip { display: inline-block; font-family: var(--mono); font-size: 0.7rem; font-weight: 600; padding: 2px 7px; border-radius: 99px; white-space: nowrap; vertical-align: 1px; }
+.chip.p1 { color: var(--p1); background: var(--p1-bg); } .chip.p2 { color: var(--p2); background: var(--p2-bg); } .chip.p3 { color: var(--p3); background: var(--p3-bg); }
+.chip.ok { color: var(--p1); background: var(--p1-bg); } .chip.no { color: var(--warn); background: var(--p3-bg); }
+.tiers { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin-top: 20px; }
+.tier { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; min-width: 0; }
+.tier h3 { margin-bottom: 4px; }
+.tier .k { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.tier p { font-size: 0.95rem; margin: 8px 0 0; }
+.exps { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 14px; margin-top: 20px; }
+.exp { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.exp header { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.exp .id { font-family: var(--mono); font-size: 0.75rem; color: var(--muted); }
+.exp p { margin: 0; font-size: 0.93rem; }
+.exp .cost { font-family: var(--mono); font-size: 0.75rem; color: var(--muted); margin-top: auto; padding-top: 6px; }
+.tablewrap { overflow-x: auto; margin-top: 18px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; min-width: 860px; font-size: 0.88rem; }
+th, td { text-align: left; vertical-align: top; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+th { font-family: var(--mono); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; background: var(--bg); position: sticky; top: 0; }
+tr:last-child td { border-bottom: none; }
+td.cat { font-family: var(--display); font-weight: 700; white-space: nowrap; }
+td .dl { font-family: var(--mono); font-size: 0.78rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.bars { display: grid; gap: 7px; margin-top: 18px; }
+.bar { display: grid; grid-template-columns: minmax(130px, 220px) 1fr 70px; gap: 10px; align-items: center; font-size: 0.85rem; }
+.bar .lbl { min-width: 0; overflow-wrap: anywhere; }
+.bar .track { height: 14px; background: var(--code-bg); border-radius: 3px; overflow: hidden; }
+.bar .fill { height: 100%; background: var(--accent); border-radius: 3px; }
+.bar.ref .fill { background: var(--muted); }
+.bar .val { font-family: var(--mono); font-size: 0.78rem; text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+.note { font-size: 0.85rem; color: var(--muted); }
+.phases { display: grid; gap: 14px; margin-top: 18px; }
+.phase { display: grid; grid-template-columns: 110px 1fr; gap: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; }
+.phase .when { font-family: var(--display); font-weight: 700; color: var(--accent); }
+.phase ul { margin: 0; padding-left: 1.1em; display: grid; gap: 6px; }
+.phase > div { min-width: 0; }
+ul.plain { padding-left: 1.2em; display: grid; gap: 8px; }
+@media (max-width: 560px) { .phase { grid-template-columns: 1fr; gap: 6px; } .bar { grid-template-columns: 1fr 56px; } .bar .track { grid-column: 1 / -1; grid-row: 2; } body { font-size: 16px; } }
+</style>
+
+<div class="wrap">
+<header class="prose">
+  <div class="eyebrow">Research · Sygnal 5.4 / 6.0 planning</div>
+  <h1>Sygnal Ecosystem Survey</h1>
+  <p class="meta">Which React/Vue ecosystem libraries are worth porting or adapting to Sygnal, and whether an adapter can bring the long tail in. npm data for the week 2026-09-24 to 09-30. Six throwaway experiments, all passing.</p>
+  <p class="lede">The good news is that most of the ecosystem's real value has already moved into framework-agnostic cores: TanStack's <code>*-core</code> packages, Zag.js machines, Floating UI, Tiptap/ProseMirror, chart libraries and validation libraries. Their official React/Vue/Lit adapters are often under 150 lines. Sygnal does not need ports of most of these. It needs <strong>one well-designed integration primitive</strong> and a handful of native features where the gap is architectural.</p>
+</header>
+
+<section class="verdict prose">
+  <h3>Recommendations</h3>
+  <ol>
+    <li><strong>Add a first-class <code>Widget</code> primitive to core</strong> <span class="chip p1">P1</span>. It gives any imperative library (or a React/Preact/Vue component) a host element with mount/update/unmount hooks, and turns its callbacks into DOM events that <code>intent</code> reads. I prototyped it in about 25 lines; it unlocks charts, editors, carousels, date pickers, maps and the React long tail in one move.</li>
+    <li><strong>Endorse web components as Sygnal's "component library" answer</strong> <span class="chip p1">P1</span>. Web Awesome, Ionic and Material Web already work with zero code (experiment E1). Add docs, JSX typings for custom elements, and a <code>.detail()</code> stream enricher.</li>
+    <li><strong>Build three things natively</strong>, because their state belongs in Sygnal's state tree: a <strong>router</strong> <span class="chip p1">P1</span>, <strong>forms with Standard Schema validation</strong> (zod/valibot/arktype) <span class="chip p1">P1</span>, and <strong>toasts</strong> <span class="chip p2">P2</span>.</li>
+    <li><strong>Ship accessible headless primitives (Dialog, Menu, Popover, Select, Combobox, Tooltip) as a separate <code>sygnal-ui</code> package backed by Zag.js</strong> <span class="chip p2">P2</span>. Accessible focus/keyboard behaviour is the part nobody should rewrite. A Zag dialog ran under Sygnal state in about 45 lines (E3).</li>
+    <li><strong>Fold a query cache into the planned network layer</strong> (ROADMAP #16) <span class="chip p2">P2</span>. TanStack Query is the most-loved React library; its core runs as a 25-line Sygnal driver (E5).</li>
+    <li><strong>Treat a React adapter as an opt-in escape hatch, not a strategy</strong> <span class="chip p3">P3</span>. It works (E2), but costs 69 KB gzip, more than Sygnal itself. Running the same component on <code>preact/compat</code> also works (E6) and costs about 10 KB.</li>
+  </ol>
+  <p class="note" style="margin-top:16px"><strong>Update, 2026-10-02:</strong> the router and the query cache (items 3 and 5) went to the 6.0 network-layer session, which now plans them as additions to its existing PLAN-3 work. Everything else is planned in PLAN-5 (drafted as PLAN-4 and renamed when plans were numbered in run order). It runs after PLAN-4 (controls and core ergonomics) and ships in the same 6.0.0 release. Plans: <code>dev-plans/PLAN-5.md</code> and <code>dev-plans/HANDOFF-to-PLAN-3.md</code>.</p>
+</section>
+
+<section>
+  <h2>Three ways a library can reach Sygnal</h2>
+  <p class="prose">Each ecosystem category falls into one of three tiers. The tier decides the work: documentation, a thin adapter, or a native feature.</p>
+  <div class="tiers">
+    <div class="tier"><span class="k">Tier A · works today</span><h3>Use as-is</h3>
+      <p>Web components, pure functions (zod, date-fns, clsx, i18next core), and libraries that take an element through a ref (Floating UI, AutoAnimate, Motion <code>animate</code>). Work needed: documentation and recipes.</p></div>
+    <div class="tier"><span class="k">Tier B · thin adapter</span><h3>Wrap the core</h3>
+      <p>Agnostic cores with a state or lifecycle (TanStack Table/Virtual/Query, Zag.js, Tiptap, CodeMirror, Embla, Chart.js, dnd-kit/dom), plus foreign-framework components. Work needed: the <code>Widget</code> primitive, plus a small driver or helper per library.</p></div>
+    <div class="tier"><span class="k">Tier C · native</span><h3>Build in Sygnal</h3>
+      <p>Features whose state must live in the one state tree, or that shape the app: routing, forms and validation, toasts, list transitions, browser-API sources. Work needed: a Sygnal design (MVI, drivers, diagnostics, test fakes).</p></div>
+  </div>
+</section>
+
+<section>
+  <h2>Experiments</h2>
+  <p class="prose">I ran each experiment as a Vitest + jsdom test against the built <code>sygnal</code> 5.4.0 <code>dist/</code>, using <code>renderComponent(App, { dom: 'real' })</code>. All six pass. The code is in <code>dev-plans/research/ecosystem-experiments/</code> (uncommitted; <code>npm i &amp;&amp; npm test</code>).</p>
+  <div class="exps">
+    <article class="exp"><header><h3>Web components</h3><span class="chip ok">pass</span></header><span class="id">E1</span>
+      <p>A shadow-DOM custom element (a stand-in for Web Awesome). JSX props become element <em>properties</em>, so arrays and objects pass through intact. <code>attrs={{…}}</code> covers attribute-only APIs, and a composed <code>CustomEvent</code> fired inside the shadow root reaches <code>DOM.select('.pick').events('x-change')</code>.</p>
+      <span class="cost">adapter code: 0 lines</span></article>
+    <article class="exp"><header><h3>React island</h3><span class="chip ok">pass</span></header><span class="id">E2</span>
+      <p>A React 19 component with its own <code>useState</code>, mounted on a host vnode's <code>insert</code> hook, re-rendered on <code>postpatch</code>, and unmounted on <code>destroy</code>. Callback props dispatch bubbling CustomEvents on the host, so the app's intent stays canonical. Props flow both ways across re-renders.</p>
+      <span class="cost">island ≈ 25 lines · React adapter ≈ 10 lines</span></article>
+    <article class="exp"><header><h3>Zag.js dialog</h3><span class="chip ok">pass</span></header><span class="id">E3</span>
+      <p>A <code>VanillaMachine</code> per host element, rendered through a private snabbdom patch (the same technique as <code>Portal</code>). Sygnal JSX spreads <code>zp(api.getTriggerProps())</code>, which converts to <code>{ attrs, on, props, style }</code>. The <code>open</code> prop is controlled from Sygnal state, <code>onOpenChange</code> becomes an action, and ARIA wiring and Escape dismissal work.</p>
+      <span class="cost">adapter ≈ 45 lines</span></article>
+    <article class="exp"><header><h3>TanStack Table</h3><span class="chip ok">pass</span></header><span class="id">E4</span>
+      <p><code>createTable()</code> is called in the view as a pure function of Sygnal state. Sorting, global filter and pagination live in the state tree and change through ordinary model reducers. No adapter was needed. I tested v8; v9 (now current) changed the API and needs a re-check.</p>
+      <span class="cost">adapter code: 0 lines</span></article>
+    <article class="exp"><header><h3>TanStack Query driver</h3><span class="chip ok">pass</span></header><span class="id">E5</span>
+      <p><code>query-core</code> as a driver: a sink of <code>{ category, queryKey, queryFn, staleTime }</code> and a source of <code>QUERY.select(category)</code>. Verified a cache hit when switching back to a cached key, and a refetch after <code>invalidate</code>.</p>
+      <span class="cost">driver ≈ 25 lines</span></article>
+    <article class="exp"><header><h3>preact/compat island</h3><span class="chip ok">pass</span></header><span class="id">E6</span>
+      <p>The same React-API component source running on <code>preact/compat</code> through the same <code>island()</code>. This is how a bundler alias could host React-only libraries at a seventh of the cost.</p>
+      <span class="cost">adapter ≈ 6 lines</span></article>
+  </div>
+
+  <h3 style="margin-top:28px">What the app code looks like (E2)</h3>
+<pre><code>function App({ state }) {
+  return &lt;div&gt;
+    {island(reactAdapter(StarRating), {
+      props: { value: state.rating },   // in: plain props, re-sent on every render
+      events: ['onChange'],              // out: callbacks become DOM events on the host
+      className: 'rating',
+    })}
+  &lt;/div&gt;
+}
+App.intent = ({ DOM }) =&gt; ({ RATE: DOM.select('.rating').events('onChange').map(e =&gt; e.detail) })
+App.model  = { RATE: (state, rating) =&gt; ({ ...state, rating }) }</code></pre>
+  <p class="prose">This keeps Sygnal's rule that JSX has no event handlers: the foreign component's callbacks never reach the view, only the intent. Findings from building it:</p>
+  <ul class="plain prose">
+    <li>A hand-built vnode without explicit <code>children</code>/<code>text</code>/<code>elm</code> keys is silently dropped by Sygnal's JSX child handling. A core <code>Widget</code> should own vnode construction so users never hit this.</li>
+    <li>The host must be opaque to snabbdom (no children in the vnode), or the two renderers fight over the subtree. A stable <code>key</code> keeps the host element, and its widget instance, across reorders.</li>
+    <li>The first Zag version had a stale-closure bug: props captured at mount overrode later ones. A core primitive should take props from the newest vnode in every hook. This is the kind of bug users would otherwise write themselves.</li>
+    <li>Zag's controlled props settle in a microtask after <code>updateProps</code>. Sygnal's <code>t.next()</code> already waited long enough here, but the test helpers should document or absorb this.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>What each approach costs in bundle size</h2>
+  <p class="prose">esbuild, minified, production defines, gzip -9. Sygnal's own runtime (<code>run</code> + <code>Collection</code> + <code>xs</code>) is shown in grey for scale.</p>
+  <div class="bars" id="bars"></div>
+  <p class="note">Bundles share code: Zag's four components together cost 47.6 KB, not 4 × 18.5. The research agent measured React separately with terser at about 78 KB; the difference comes from minifier and entry points.</p>
+</section>
+
+<section>
+  <h2>Category by category</h2>
+  <p class="prose">Weekly npm downloads for 2026-09-24 to 09-30. They include CI and transitive installs, so a core that adapters depend on can outrank the adapters (query-core 85.7M vs react-query 80.0M). "Today" describes what Sygnal 5.4 ships.</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Category</th><th>Leaders (weekly)</th><th>Agnostic core?</th><th>Sygnal today</th><th>Recommendation</th></tr></thead>
+    <tbody>
+      <tr><td class="cat">Routing</td><td>react-router 67.5M<br>@tanstack/router-core 29.1M<br>vue-router 10.0M</td><td>router-core, but shaped around React/Solid adapters</td><td>Vike only (file routes + SSR). Nothing for a plain SPA</td><td><span class="chip p1">P1</span> <strong>Native.</strong> A history driver, routes and params in state, <code>&lt;Switchable&gt;</code> as the outlet, typed links, a <code>ROUTE</code> source. The largest functional gap for SPA users.</td></tr>
+      <tr><td class="cat">Forms &amp; validation</td><td>zod 365M · react-hook-form 68.4M<br>valibot 24.5M · yup 14.4M<br>@tanstack/form-core 4.4M</td><td>Validators yes (Standard Schema). Form state: form-core</td><td><code>processForm</code>, controlled inputs, SYG111. No validation, touched/dirty or field errors</td><td><span class="chip p1">P1</span> <strong>Native.</strong> Field state in the state tree, accepting any Standard Schema validator, so there's no zod dependency and valibot/arktype work too. form-core's reactivity model duplicates Sygnal's.</td></tr>
+      <tr><td class="cat">Component libraries</td><td>shadcn 12.5M · MUI 12.3M · antd 4.3M<br>Web Awesome 571K · Ionic 554K</td><td>Only the web-component ones</td><td>Work, but undocumented (E1)</td><td><span class="chip p1">P1</span> <strong>Docs + types.</strong> A "Using web components" guide (Web Awesome recipe), <code>JSX.IntrinsicElements</code> augmentation, a <code>.detail()</code> enricher, and a sygnal-check rule so custom-element events aren't flagged.</td></tr>
+      <tr><td class="cat">Imperative widgets</td><td>chart.js 15.3M · echarts 6.4M · d3 25.1M<br>tiptap/core 23.6M · codemirror 17.2M<br>embla 42.6M · flatpickr 2.1M</td><td>Yes, all of them</td><td><code>ref</code> hooks work, but you hand-wire lifecycle and events</td><td><span class="chip p1">P1</span> <strong><code>Widget</code> primitive</strong> plus recipes for Chart.js, Tiptap, CodeMirror and Embla. Each recipe is about 20 lines on top of the primitive.</td></tr>
+      <tr><td class="cat">Headless UI</td><td>@radix-ui/react-dialog 88.1M<br>@base-ui/react 18.4M · react-aria 11.4M<br>@zag-js/core 1.64M</td><td>Zag.js (Ark UI's engine); Floating UI 121M</td><td>Portal + Transition only. No accessible dialog, menu, select or combobox</td><td><span class="chip p2">P2</span> <strong><code>sygnal-ui</code> on Zag</strong> (E3). Dialog, Popover, Menu, Tooltip, Select, Combobox, Tabs, Accordion. Tabs, Accordion and Disclosure could be native to save weight; Zag dialog is 18.5 KB gz.</td></tr>
+      <tr><td class="cat">Data fetching / cache</td><td>@tanstack/query-core 85.7M<br>swr 21.2M · @apollo/client 7.5M</td><td>query-core</td><td><code>makeFetchDriver</code>: per-instance, <code>latest</code>/abort, test fakes. No shared cache, staleTime or invalidation</td><td><span class="chip p2">P2</span> <strong>In the network layer</strong> (ROADMAP #16): cache keys, staleTime, dedupe, invalidation, keeping <code>t.respond</code>. Either back it with query-core (9.1 KB, E5) or build natively.</td></tr>
+      <tr><td class="cat">Toasts</td><td>sonner 61.6M · react-toastify 4.5M<br>react-hot-toast 4.4M</td><td>No (React-bound)</td><td>Nothing</td><td><span class="chip p2">P2</span> <strong>Native.</strong> A natural fit: <code>EVENTS: event('TOAST', …)</code> from anywhere, and a <code>&lt;Toaster&gt;</code> using Portal, Transition and Collection. Small.</td></tr>
+      <tr><td class="cat">Virtualization</td><td>@tanstack/virtual-core 35.5M<br>react-window 7.9M · react-virtuoso 4.1M</td><td>virtual-core (Lit adapter: 89 lines)</td><td>Nothing; long Collections render every row</td><td><span class="chip p2">P2</span> <strong>Native component on virtual-core</strong> (7.1 KB): <code>&lt;VirtualCollection of={Row} from="items"&gt;</code>. Needs scroll-element access, which the Widget hooks provide.</td></tr>
+      <tr><td class="cat">Animation</td><td>framer-motion 56.6M · motion 27.3M<br>gsap 6.6M · auto-animate 1.9M</td><td>motion <code>animate()</code>, gsap, auto-animate</td><td><code>&lt;Transition&gt;</code> enter/leave. No list moves (FLIP)</td><td><span class="chip p2">P2</span> <strong>Native FLIP for Collection</strong> (Vue's TransitionGroup), plus docs for auto-animate (3.1 KB, one call via <code>ref</code>) and Motion.</td></tr>
+      <tr><td class="cat">Browser APIs</td><td>@vueuse/core 14.0M · usehooks-ts 7.1M<br>react-intersection-observer 5.8M</td><td>n/a (thin wrappers)</td><td><code>onlineStatus$</code>, document events</td><td><span class="chip p2">P2</span> <strong>Native "sources" pack</strong>, the Sygnal version of VueUse: intersection, resize, media query, storage, visibility, clipboard, geolocation, as streams or drivers with test fakes.</td></tr>
+      <tr><td class="cat">Drag &amp; drop</td><td>@dnd-kit/core 31.9M · sortablejs 5.0M<br>@dnd-kit/dom 2.0M (0.5, pre-1.0)</td><td>@dnd-kit/dom, sortablejs, pragmatic-dnd</td><td><code>makeDragDriver</code> on HTML5 DnD: no touch, keyboard or sortable lists</td><td><span class="chip p3">P3</span> <strong>Extend the driver</strong> with pointer/touch and a sortable helper, or adopt @dnd-kit/dom behind the driver once it reaches 1.0.</td></tr>
+      <tr><td class="cat">Tables / grids</td><td>@tanstack/table-core 27.5M<br>ag-grid-community 4.0M</td><td>Yes; ag-grid is vanilla</td><td>Works with no adapter (E4)</td><td><span class="chip p3">P3</span> <strong>Recipe only</strong>, re-checked against Table v9's API. AG Grid through <code>Widget</code>.</td></tr>
+      <tr><td class="cat">Head / meta</td><td>react-helmet-async 5.2M · unhead 5.2M</td><td>unhead</td><td>Vike handles it in SSR. Nothing for SPAs</td><td><span class="chip p3">P3</span> <strong>Small native <code>HEAD</code> driver</strong> (title, meta, link), SSR-aware.</td></tr>
+      <tr><td class="cat">i18n</td><td>i18next 26.8M · vue-i18n 4.4M<br>@formatjs/intl 4.1M</td><td>i18next, formatjs</td><td>Nothing</td><td><span class="chip p3">P3</span> <strong>Recipe:</strong> i18next instance + <code>.context</code> for <code>t()</code> + a locale driver. Maybe a helper later.</td></tr>
+      <tr><td class="cat">Icons, classes, dates</td><td>lucide-react 130M · clsx 150M<br>date-fns 119M · dayjs 85.6M</td><td>lucide (vanilla), all utilities</td><td><code>classes()</code>, clsx-style <code>class</code> already</td><td><span class="chip p3">P3</span> <strong>Docs only.</strong> Possibly a tiny <code>sygnal-icons</code> JSX build of Lucide, since lucide-react is the single most-installed UI package.</td></tr>
+      <tr><td class="cat">State libraries</td><td>zustand 68.2M · redux 53.1M<br>pinia 6.0M · xstate 5.8M</td><td>Yes</td><td>One state tree, context, EVENTS</td><td><strong>Skip.</strong> They solve a problem Sygnal's architecture already solves. XState is the one exception, and Zag covers the UI use.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section class="prose">
+  <h2>Can an adapter bring in React and Vue libraries?</h2>
+  <p>Yes, and it's cheap to build (E2, E6). It is the same technique Astro islands, qwik-react and r2wc use: each foreign component gets its own root on a host element. Their documented pitfalls apply to Sygnal too:</p>
+  <ul class="plain">
+    <li><strong>Size.</strong> React 19 + react-dom is 69 KB gz, Vue's runtime 25 KB, against Sygnal's 42 KB. One date picker can more than double an app. <code>preact/compat</code> (9.8 KB) is the realistic host, but libraries that depend on React 19 internals may misbehave on it.</li>
+    <li><strong>Context doesn't cross roots.</strong> Theme, QueryClient and router providers must be recreated inside every island. Component <em>systems</em> (MUI, Radix Themes, antd) fit badly; standalone widgets fit well.</li>
+    <li><strong>Portals escape the host.</strong> Radix and MUI overlays render to <code>document.body</code>, so their DOM events never pass the host and only the bridged callbacks reach intent. That's fine as long as the adapter exposes callbacks, not DOM.</li>
+    <li><strong>Testing and SSR.</strong> Islands need <code>dom: 'real'</code>; the default mock DOM can't run them. SSR would render a placeholder unless each adapter adds <code>renderToString</code> and hydration.</li>
+  </ul>
+  <p><strong>Verdict:</strong> ship the generic <code>Widget</code> in core, and offer <code>sygnal/react</code> (and possibly <code>sygnal/vue</code>) as small, explicitly opt-in packages, documented as "for that one component you can't replace". Don't make them the answer for anything common. Common needs should have a native or Tier-A answer, which is the point of this survey.</p>
+</section>
+
+<section>
+  <h2>Widget: proposed core API</h2>
+  <p class="prose">Based on what the prototypes needed. It follows the <code>preventInstantiation</code> marker pattern that <code>Portal</code> and <code>Transition</code> use, so the pipeline treats it like the other special components.</p>
+<pre><code>import { Widget, defineWidget } from 'sygnal'
+
+const DatePicker = defineWidget({
+  mount(el, props, emit) { const fp = flatpickr(el, { ...props, onChange: (d) =&gt; emit('change', d[0]) }); return fp },
+  update(fp, props)      { fp.setDate(props.value, false) },
+  unmount(fp)            { fp.destroy() },
+  events: ['change'],                         // declared, so sygnal-check / SYG110 know the names
+})
+
+// view
+&lt;Widget of={DatePicker} className="due" value={state.due} /&gt;
+// intent
+DUE: DOM.select('.due').events('change').detail()</code></pre>
+  <ul class="plain prose">
+    <li><strong>Testing:</strong> in the mock DOM, record the widget's latest props (<code>t.widget('.due').props</code>) and fake its output (<code>t.widget('.due').emit('change', date)</code>), mirroring the <code>t.respond</code> fakes for drivers.</li>
+    <li><strong>Diagnostics:</strong> catch a widget emitting an undeclared event, a missing <code>key</code> inside a Collection, and a <code>mount</code> that throws (handled by the error boundary, as for views).</li>
+    <li><strong>Adapters on top:</strong> <code>fromReact(Comp)</code>, <code>fromPreact</code>, <code>fromVue</code>, <code>fromZag(machine, render)</code>, <code>fromWebComponent</code> (properties + events). Each is a <code>defineWidget</code> call.</li>
+    <li><strong>SSR:</strong> renders the host element (optionally with a <code>fallback</code>) and mounts on the client.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>Suggested sequence</h2>
+  <div class="phases">
+    <div class="phase"><div class="when">First</div><div><ul>
+      <li><code>Widget</code> / <code>defineWidget</code> in core, with test fakes and diagnostics</li>
+      <li>Web components guide, JSX typings, <code>.detail()</code> enricher</li>
+      <li>Recipes: Chart.js, Tiptap, Floating UI, auto-animate, TanStack Table</li></ul></div></div>
+    <div class="phase"><div class="when">Next major</div><div><ul>
+      <li>Native router (SPA), designed alongside the Vike integration</li>
+      <li>Forms with Standard Schema validation</li>
+      <li>Network layer with a query cache (ROADMAP #16)</li></ul></div></div>
+    <div class="phase"><div class="when">Packages</div><div><ul>
+      <li><code>sygnal-ui</code>: Zag-backed Dialog, Popover, Menu, Tooltip, Select, Combobox; native Tabs, Accordion, Toast</li>
+      <li><code>VirtualCollection</code>, FLIP list transitions, browser sources pack</li></ul></div></div>
+    <div class="phase"><div class="when">Opt-in / later</div><div><ul>
+      <li><code>sygnal/react</code> (preact/compat-friendly), possibly <code>sygnal/vue</code></li>
+      <li>DnD pointer/touch + sortable; <code>HEAD</code> driver; i18n recipe</li></ul></div></div>
+  </div>
+  <p class="prose note" style="margin-top:16px">Each native feature should follow the PLAN-1 conventions: canonical forms only, SYG codes, a <code>renderComponent</code> fake, <code>llms.txt</code> and skill coverage, and an agent eval. That is where Sygnal can beat the React versions, which agents often misuse.</p>
+</section>
+
+<section class="prose">
+  <h2>Method and sources</h2>
+  <ul class="plain note">
+    <li>Downloads: <code>api.npmjs.org/downloads/point/last-week</code>, fetched 2026-10-02. Surveys: <a href="https://2025.stateofreact.com/en-US/libraries/">State of React 2025</a> (TanStack Query had the most positive opinions, then Zustand, then shadcn/ui; shadcn/ui usage rose from 20% to 56% in two years), State of JS 2025, and Monterail's State of Vue 2025.</li>
+    <li>Adapter line counts come from each repo's HEAD. Examples: TanStack Virtual's Lit adapter is 89 lines and Vue's 104; Table v8's Lit adapter is 57 (v9 adapters are 1,000+); Embla's React adapter is 72; <code>@zag-js/vanilla</code> is 609.</li>
+    <li>Versions tested: React 19.3, Preact 11, Zag 1.44 (vanilla), TanStack table-core 8.21 / query-core 5.104, Vitest 5, jsdom 29, Sygnal 5.4.0 built from this worktree.</li>
+    <li>Not tested: Web Awesome itself (jsdom stand-in only), SSR for any adapter, HMR of widgets, Table v9, @dnd-kit/dom, real-browser layout (virtualization, Floating UI).</li>
+  </ul>
+</section>
+</div>
+
+<script>
+(function () {
+  var data = [
+    ['React 19 + react-dom', 68851], ['Zag: dialog + menu + select + tooltip', 47619], ['Sygnal core (for scale)', 41792, 1],
+    ['Zag: combobox', 31383], ['Vue 3.5 runtime', 24714], ['Motion animate()', 20337], ['Zag: dialog', 18478],
+    ['TanStack table-core v8', 14118], ['i18next', 13943], ['Preact + compat', 9758], ['TanStack query-core', 9100],
+    ['TanStack virtual-core', 7109], ['Floating UI dom', 6400], ['Lit', 5779], ['auto-animate', 3147]
+  ];
+  var max = 68851, host = document.getElementById('bars');
+  data.forEach(function (d) {
+    var row = document.createElement('div'); row.className = 'bar' + (d[2] ? ' ref' : '');
+    row.innerHTML = '<span class="lbl"></span><span class="track"><span class="fill"></span></span><span class="val"></span>';
+    row.querySelector('.lbl').textContent = d[0];
+    row.querySelector('.fill').style.width = (d[1] / max * 100).toFixed(1) + '%';
+    row.querySelector('.fill').style.display = 'block';
+    row.querySelector('.val').textContent = (d[1] / 1000).toFixed(1) + ' KB';
+    host.appendChild(row);
+  });
+})();
+</script>
