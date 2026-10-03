@@ -57,6 +57,6 @@ function MyComponent({ state }) {
 }
 
 MyComponent.intent = () => ({
-  ELEMENT: myRef$.stream,
+  CANVAS_READY: myRef$.stream,
 })
 ```

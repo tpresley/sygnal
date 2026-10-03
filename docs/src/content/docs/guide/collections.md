@@ -170,4 +170,4 @@ function Report({ state }) {
 }
 ```
 
-In the [performance baseline](https://github.com/tpresley/sygnal/blob/main/benchmarks/RESULTS.md) (1,000 rows), creating the rows this way took about a third of the time of a Collection, and updating one row a little more than half. Rows that need a little interaction can still be mapped: put a `data-id` on the row's button and read it in the parent's intent (`DOM.click('.row-delete').map(e => e.target.dataset.id)`). Switch to a Collection when rows get state or behaviour of their own.
+In the performance baseline (1,000 rows; `benchmarks/RESULTS.md` in the repository, [on GitHub](https://github.com/tpresley/sygnal/blob/main/benchmarks/RESULTS.md) after the 6.0 release), creating the rows this way took about a third of the time of a Collection, and updating one row a little more than half. Rows that need a little interaction can still be mapped: put a `data-id` on the row's button and read it in the parent's intent (`DOM.click('.row-delete').map(e => e.target.dataset.id)`). Switch to a Collection when rows get state or behaviour of their own.

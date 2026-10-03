@@ -126,6 +126,30 @@ Panel.model = {
 
 ---
 
+## isSelected()
+
+Whether an id is in a [`selection`](/guide/behaviors/#selection) behavior's slice. Ids compare as strings, so `1` and `'1'` agree; a missing slice selects nothing.
+
+```typescript
+function isSelected(slice: { selected: string[] } | null | undefined, id: string | number): boolean
+```
+
+In a view: `checked={isSelected(state.sel, mail.id)}`. In a reducer: `state.mails.filter(mail => !isSelected(state.sel, mail.id))`.
+
+---
+
+## undoable()
+
+Wraps a model so each change to `state[key]` is recorded, and adds `UNDO` and `REDO` actions. The [`undo` behavior](/advanced/undo/#the-undo-behavior) does the same through `uses`; see [Undo and Redo](/advanced/undo/#undoable) for both.
+
+```typescript
+function undoable(model: Model, options: { key: string; limit?: number; track?: string[]; coalesceMs?: number; resetOn?: string[] }): Model
+```
+
+The history is `state.history = { past, future }`. Options: `key` (required), `limit` (100), `track` (only these actions), `coalesceMs` (one step for quick changes by one action), `resetOn` (actions that clear the history).
+
+---
+
 ## ABORT
 
 A special constant that, when returned from a state reducer, cancels the state update for that action. Returned from a non-STATE sink reducer (`EVENTS`, `PARENT`, a custom driver), it sends nothing.

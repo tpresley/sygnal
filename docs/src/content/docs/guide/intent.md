@@ -98,7 +98,7 @@ MyComponent.intent = ({ DOM }) => ({
   KEY: DOM.keydown('.input').key(),
 
   // Instead of: DOM.click('.btn').map(e => e.target)
-  ELEMENT: DOM.click('.btn').target(),
+  CLICKED: DOM.click('.btn').target(),
 })
 ```
 
