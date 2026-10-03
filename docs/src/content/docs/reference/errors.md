@@ -1632,6 +1632,26 @@ A request or resource sets `cache: true` or `staleTime`, or the component sends 
 
 **Fix:** Give the driver a cache: `makeFetchDriver({ cache: queryCache({ staleTime: 30000 }) })` with `import { queryCache } from 'sygnal'` (in tests, `renderComponent(C, { http: { cache: queryCache() } })`). Or remove `cache` / `staleTime` / the prefetch.
 
+### SYG640
+
+**Element command target not found**
+
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+A model entry sent an element command on the built-in `ELEMENT` sink, such as `{ focus: Email }` or `{ showModal: HelpDialog }`, and nothing matched its target. The target, a control or a selector, is looked up only in the view of the component instance that sent the command: an element inside a child component is isolated from its parent, and a Collection item reaches only its own elements. The command waits for the next render to reach the page (so it reaches an element the same action renders) and keeps looking for about 1 s, then it is dropped. A command with no target (`{ focus: undefined }`) is reported the same way.
+
+**Fix:** Render the element in the sending component's view, or send the command from the component that renders it: in a Collection, each item sends its own (for example on BOOTSTRAP for a new row). Check the control or selector: `ELEMENT: { focus: Email }` with `const { Email } = controls({ Email: 'input' })` rendered as `<Email />`.
+
+### SYG641
+
+**Unknown element command**
+
+Severity: `error` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+An element command (`ELEMENT` sink) names a method that can't run. The first key of a command object is the method and the other keys are its options (`{ scrollIntoView: Row, block: 'nearest' }`). A control whose spec object declares `commands` is asked first; then the element's own method runs (focus, blur, select, click, scrollIntoView, showModal, show, close, showPopover, hidePopover, togglePopover, and others such as play or reset). Reported when neither exists, for example a typo (`fokus`) or `showModal` on an element that isn't a `<dialog>`; the message names the control's declared commands. Also reported when the command is sent: a value that isn't a command object, and a method that changes the DOM Sygnal renders (`remove`, `append`, `setAttribute`...), which the next render undoes or trips over.
+
+**Fix:** Use one of the element's methods or the control's commands, with the method as the first key: `{ focus: Email, preventScroll: true }`, `{ close: HelpDialog, returnValue: 'ok' }`. Render dialogs as `<dialog>` and popovers with `attrs: { popover: 'auto' }`. To change what the page shows, change the state instead.
+
 ## SYG9xx: Internal
 
 ### SYG900

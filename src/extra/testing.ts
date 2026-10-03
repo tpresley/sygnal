@@ -20,6 +20,7 @@ import type {Diagnostic, DiagnosticsMode} from './diagnostics/index';
 import type {InspectGraph, InspectOptions} from './diagnostics/checks/public';
 import {trackActions, trackActionStreams, withCause} from './diagnostics/checks/actionLog';
 import type {ActionCause, ActionListener, ActionRecord} from './diagnostics/checks/actionLog';
+import {reportElementCommand, checkSentCommand, NATIVE_COMMAND_NAMES} from './diagnostics/checks/elementCommands';
 
 /*
  * (Docs live on these type-only declarations so the TypeScript emit drops
@@ -475,6 +476,12 @@ export interface RenderResult {
   emitted: any[];
   /** Live array of diagnostics reported while rendered */
   diagnostics: Diagnostic[];
+  /**
+   * PLAN-4 GS-2: the element commands (`ELEMENT`) the tree's instances sent, one entry per
+   * command (arrays flattened), as sent: `[{ focus: Email }]`. The mock DOM only records them;
+   * `dom: 'real'` also runs them. Any other sink name: its sinkValues.
+   */
+  commands: (sinkName?: string) => any[];
   /** Throws (with the formatted texts) if any warn/error diagnostics were collected */
   expectNoDiagnostics: () => void;
   /**
@@ -987,7 +994,7 @@ const TIMING = {eventWaitMs: 300, settleMs: 20, timeoutMs: 2000};
 // a model next() call, seen through the component's debug log (component.ts makeOnAction /
 // makeEffectHandler: "... next() action: <TYPE> 400ms delay")
 const NEXT_LOG = /next\(\) action: <(.*)> (\d+)ms delay$/;
-const RESERVED_SINKS = /^(STATE|EFFECT|PARENT|READY|DOM)$/;
+const RESERVED_SINKS = /^(STATE|EFFECT|PARENT|READY|DOM|ELEMENT)$/;
 // E2: a source name that a driver would provide (fake sources are made only for these)
 const DRIVER_NAME = /^[A-Z][A-Z0-9_]*$/;
 // R2-5: setTimeout fires at once for a delay above 2^31-1 ms (and for Infinity/NaN)
@@ -1171,6 +1178,68 @@ const headFake = () => {
 let savedConfig: ReturnType<typeof _getDiagnosticsConfig>;
 let savedStrict: any;
 
+/*
+ * PLAN-4 GS-2, mock DOM: could the element a command targets have this method? The core runs any
+ * method of the element; the mock DOM has no elements, so: the documented commands, common
+ * methods of form fields and media, and (with a DOM) the prototype of the control's tag.
+ */
+const COMMON_METHODS = ['play', 'pause', 'load', 'fastSeek', 'showPicker', 'requestSubmit', 'reset', 'checkValidity', 'reportValidity', 'setCustomValidity', 'setSelectionRange', 'setRangeText', 'stepUp', 'stepDown', 'requestFullscreen', 'scroll', 'scrollTo', 'scrollBy', 'animate', 'requestPointerLock'];
+const elementHas = (target: any, m: string): boolean => {
+  if (NATIVE_COMMAND_NAMES.includes(m) || COMMON_METHODS.includes(m)) return true;
+  if (typeof document == 'undefined') return false;
+  try {
+    const tag = typeof target == 'function' && typeof target.spec == 'string' ? target.spec : 'div';
+    return typeof (document.createElement(tag) as any)[m] == 'function';
+  } catch (_) {
+    return false;
+  }
+};
+
+/*
+ * PLAN-4 GS-2: jsdom has no <dialog> methods, no popovers and no scrollIntoView. While a
+ * `dom: 'real'` test runs, the missing ones are added (and removed after the last one): show() /
+ * showModal() set `open`; close(returnValue) clears it, sets returnValue and fires `close`; the
+ * popover methods fire `beforetoggle` / `toggle` (with oldState / newState); scrollIntoView()
+ * does nothing (spy on it after renderComponent). A browser's own methods are never replaced.
+ */
+let domFakes: (() => void) | undefined;
+function fakeElementMethods(W: any): () => void {
+  const added: Array<[any, string]> = [];
+  const add = (proto: any, name: string, fn: Function) => {
+    if (proto && !(name in proto)) { proto[name] = fn; added.push([proto, name]); }
+  };
+  const D = W.HTMLDialogElement?.prototype, E = W.HTMLElement?.prototype;
+  add(D, 'show', function (this: any) { this.open = true; });
+  add(D, 'showModal', function (this: any) { this.open = true; });
+  add(D, 'close', function (this: any, returnValue?: any) {
+    if (!this.open) return;
+    if (returnValue !== undefined) this.returnValue = String(returnValue);
+    this.open = false;
+    this.dispatchEvent(new W.Event('close'));
+  });
+  const shown = new WeakSet<any>();
+  const toggle = (el: any, open: boolean) => {
+    if (shown.has(el) == open) return;
+    const ev = (type: string) => {
+      const e = new W.Event(type, {cancelable: type == 'beforetoggle'});
+      Object.defineProperties(e, {oldState: {value: open ? 'closed' : 'open'}, newState: {value: open ? 'open' : 'closed'}});
+      return el.dispatchEvent(e);
+    };
+    if (!ev('beforetoggle') && open) return;
+    open ? shown.add(el) : shown.delete(el);
+    ev('toggle');
+  };
+  add(E, 'showPopover', function (this: any) { toggle(this, true); });
+  add(E, 'hidePopover', function (this: any) { toggle(this, false); });
+  add(E, 'togglePopover', function (this: any, options?: any) {
+    const force = options && typeof options == 'object' ? options.force : options;
+    toggle(this, force === undefined ? !shown.has(this) : !!force);
+    return shown.has(this);
+  });
+  add(W.Element?.prototype, 'scrollIntoView', function () {});
+  return () => added.forEach(([proto, name]) => { delete proto[name]; });
+}
+
 export function renderComponent(
   componentDef: any,
   options: RenderOptions = {}
@@ -1225,6 +1294,11 @@ export function renderComponent(
   }
   configureDiagnostics({mode: diagnostics || (prevMode == 'off' ? 'collect' : prevMode)});
   if (strict !== undefined) core.strict = strict;
+  // PLAN-4 GS-2: element commands run on the real DOM (jsdom gets the missing methods), and their
+  // SYG640/SYG641 are reported without the dev entry too
+  if (real && !domFakes) domFakes = fakeElementMethods(document.defaultView || globalThis);
+  const ownBridge = !core.elementCommand;
+  if (ownBridge) core.elementCommand = reportElementCommand;
   const collected: Diagnostic[] = [];
   const offDiag = onDiagnostic(d => collected.push(d));
 
@@ -1341,6 +1415,38 @@ export function renderComponent(
       awaiting.push(e);
     },
   };
+  // PLAN-4 GS-2: t.commands('ELEMENT'). The core runs an instance's ELEMENT sink itself (after
+  // initModel$, which ends with onModel): recorded here; on the mock DOM not run, but checked
+  // (SYG641 when sent, SYG640 when the target is still missing from its view after 1 s)
+  const commandLog: any[] = [];
+  const commandTimers = new Set<any>();
+  const recordCommands = (c: any) => {
+    const el$ = c.model$?.ELEMENT;
+    if (!el$) return;
+    c.model$.ELEMENT = el$.map((v: any) => {
+      bump();
+      for (const cmd of ([] as any[]).concat(v)) if (cmd) {
+        commandLog.push(cmd);
+        // the dev entry checks them itself (its elementCommands check)
+        if (!core.__uninstallChecks) checkSentCommand(c, cmd);
+        if (!real) checkCommand(c, cmd);
+      }
+      return v;
+    }).filter(() => real);
+  };
+  const checkCommand = (c: any, cmd: any) => {
+    if (typeof cmd != 'object' || Array.isArray(cmd)) return;
+    const m = Object.keys(cmd)[0], target = cmd[m];
+    if (m === undefined) return;
+    if (!target?.spec?.commands?.[m] && !elementHas(target, m)) return reportElementCommand(c, cmd, {});
+    const sel = target == null ? '' : String(target);
+    const id = setTimeout(() => {
+      commandTimers.delete(id);
+      if (disposed || (sel && !tryParse(sel))) return;
+      if (!sel || !vtree || !probe(sel, scopeOf(c) || undefined).own) reportElementCommand(c, cmd);
+    }, 1e3);
+    commandTimers.add(id);
+  };
   const offCheck = registerCheck({
     id: 'renderComponent',
     // R2-3: the harness's bookkeeping (G-064 child sinks, G-053 next() delays, settle()'s
@@ -1365,6 +1471,7 @@ export function renderComponent(
     onModel(c: any) {
       if (!mine(c)) return;
       trackActionStreams(c);
+      recordCommands(c);
       watchNext(c);
       recordChildSinks(c);
       // 4-A1 (real DOM): note how many states were recorded when a view in the tree runs (its
@@ -1469,9 +1576,12 @@ export function renderComponent(
   const restore = () => {
     offCheck();
     offDiag();
+    if (ownBridge && core.elementCommand === reportElementCommand) core.elementCommand = undefined;
     if (!--active) {
       configureDiagnostics(savedConfig);
       core.strict = savedStrict;
+      domFakes?.();
+      domFakes = undefined;
     }
   };
 
@@ -1832,7 +1942,7 @@ export function renderComponent(
   for (const k in model) {
     const e = model[k], [, sink] = k.split('|');
     for (const n of sink ? [sink.trim()] : e && typeof e == 'object' ? Object.keys(e) : []) {
-      if (!allDrivers[n] && !/^(STATE|EFFECT|PARENT|READY)$/.test(n)) {
+      if (!allDrivers[n] && !/^(STATE|EFFECT|PARENT|READY|ELEMENT)$/.test(n)) {
         allDrivers[n] = () => fake(n);
         faked.add(n);
       }
@@ -2746,6 +2856,7 @@ export function renderComponent(
   const dispose = () => {
     if (disposed) return;
     disposed = true;
+    commandTimers.forEach(clearTimeout);
     clearTimeout(timer);
     clearTimeout(fallback);
     clearTimeout(retryTimer);
@@ -2816,6 +2927,7 @@ export function renderComponent(
     head,
     emitted: sinkValues('EVENTS'),
     diagnostics: collected,
+    commands: (name = 'ELEMENT') => name == 'ELEMENT' ? commandLog : sinkValues(name),
     expectNoDiagnostics,
     html,
     dispose,

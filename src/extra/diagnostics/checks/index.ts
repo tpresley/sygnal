@@ -62,6 +62,7 @@ import {collectionsCheck} from './collections'
 import {domCheck} from './dom'
 import {shorthandCheck} from './shorthand'
 import {controlsCheck, installControlHooks} from './controls'
+import {elementCommandsCheck, installElementCommandHooks} from './elementCommands'
 import {behaviorsCheck} from './behaviors'
 import {datasetCheck} from './dataset'
 import {strictCheck} from './strict'
@@ -90,6 +91,7 @@ export const checks: DiagnosticCheck[] = [
   domCheck,
   shorthandCheck,
   controlsCheck,
+  elementCommandsCheck,
   behaviorsCheck,
   datasetCheck,
   strictCheck,
@@ -113,12 +115,14 @@ export function installChecks(): () => void {
   const uninstallInspect = installInspect()
   const uninstallRouter = installRouterHooks()
   const uninstallControls = installControlHooks()
+  const uninstallElementCommands = installElementCommandHooks()
   const uninstall = () => {
     unregister.forEach(fn => fn())
     uninstallHints()
     uninstallInspect()
     uninstallRouter()
     uninstallControls()
+    uninstallElementCommands()
     if (core.__uninstallChecks === uninstall) core.__uninstallChecks = undefined
   }
   core.__uninstallChecks = uninstall

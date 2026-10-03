@@ -230,6 +230,8 @@ type DefaultSinks<STATE, PROPS, ACTIONS, DATA, CALCULATED, SINK_RETURNS extends 
   LOG?: NonStateSinkValue<STATE, PROPS, ACTIONS, DATA, ResolvedNonStateSinkReturns<SINK_RETURNS>['LOG'], CALCULATED, CONTEXT>;
   PARENT?: NonStateSinkValue<STATE, PROPS, ACTIONS, DATA, ResolvedNonStateSinkReturns<SINK_RETURNS>['PARENT'], CALCULATED, CONTEXT>;
   EFFECT?: EffectReducer<STATE, PROPS, ACTIONS, DATA, CALCULATED, CONTEXT>;
+  /** PLAN-4 GS-2: element commands (built in, no driver): `{ focus: Email }`, `[{ ... }, { ... }]` */
+  ELEMENT?: NonStateSinkValue<STATE, PROPS, ACTIONS, DATA, ElementCommands, CALCULATED, CONTEXT>;
 }
 
 /** Keys a type declares by name (index signatures left out). */
@@ -558,6 +560,51 @@ export type ControlsOf<SPECS> = {
  * `data-control="<Key>"`. The keys are the names, so keep them unique in a file.
  */
 export function controls<const SPECS extends Record<string, ControlSpec>>(spec: SPECS): ControlsOf<SPECS>
+
+/**
+ * The target of an element command: a control, or a selector. It is looked up in the view of the
+ * component instance that sends the command (a child's elements are isolated from its parent; a
+ * Collection item reaches only its own).
+ */
+export type ElementTarget = AnyControl | string
+
+/**
+ * Element commands beyond the built-in ones, by method name → options, for a control spec's
+ * `commands` (D102) or another method of the element. Augment it (the first key of a command is
+ * the method, the rest are the options):
+ *
+ *   declare module 'sygnal' { interface ElementCommandRegistry { open: { at?: number }; play: {} } }
+ *   // ELEMENT: { open: DueDate, at: 3 }
+ */
+export interface ElementCommandRegistry {}
+
+type RegisteredElementCommand = {
+  [METHOD in keyof ElementCommandRegistry & string]: { [K in METHOD]: ElementTarget } & ElementCommandRegistry[METHOD]
+}[keyof ElementCommandRegistry & string]
+
+/**
+ * One element command (the built-in `ELEMENT` sink, PLAN-4 GS-2): `{ <method>: target, ...options }`.
+ * The FIRST key is the method, the others are its options; `close` passes `returnValue` as its
+ * argument. A control whose spec declares `commands` is asked first (`{ open: DueDate }`), then
+ * the element's own method runs, after the next render reaches the page. Register other method
+ * names (a spec's commands, `play`, `reset`...) in `ElementCommandRegistry`.
+ */
+export type ElementCommand =
+  | { focus: ElementTarget; preventScroll?: boolean; focusVisible?: boolean }
+  | { blur: ElementTarget }
+  | { select: ElementTarget }
+  | { click: ElementTarget }
+  | { scrollIntoView: ElementTarget; block?: ScrollLogicalPosition; inline?: ScrollLogicalPosition; behavior?: ScrollBehavior }
+  | { showModal: ElementTarget }
+  | { show: ElementTarget }
+  | { close: ElementTarget; returnValue?: string }
+  | { showPopover: ElementTarget }
+  | { hidePopover: ElementTarget }
+  | { togglePopover: ElementTarget; force?: boolean }
+  | RegisteredElementCommand
+
+/** What the `ELEMENT` sink takes: one command or several (run in order). */
+export type ElementCommands = ElementCommand | readonly ElementCommand[]
 
 // ── Behaviors (PLAN-4 GS-1) ────────────────────────────────────────
 
@@ -2552,6 +2599,17 @@ export interface RenderResult<STATE = any> {
   emitted: Array<{ type: string; data: any }>;
   /** Live array of diagnostics reported while rendered */
   diagnostics: Diagnostic[];
+  /**
+   * PLAN-4 GS-2: the element commands the tree's instances sent on `ELEMENT`, one entry per command
+   * (arrays flattened), as sent: `expect(t.commands('ELEMENT')).toEqual([{ focus: Email }])`. The
+   * mock DOM records them (and reports SYG640/SYG641); `dom: 'real'` also runs them (jsdom gets
+   * `<dialog>` show/showModal/close, the popover methods and a no-op scrollIntoView). Another sink
+   * name gives its sinkValues.
+   */
+  commands: {
+    (sinkName?: 'ELEMENT'): ElementCommand[];
+    (sinkName: string): any[];
+  };
   /** Throws (with the formatted texts) if any warn/error diagnostics were collected */
   expectNoDiagnostics: () => void;
   /**
