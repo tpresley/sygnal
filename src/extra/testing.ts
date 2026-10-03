@@ -456,6 +456,8 @@ export interface RenderResult {
 }
 
 const isScope = (s: string) => s.startsWith('.___');
+/** CT-1: a control (controls()) as its selector, [data-control="<Key>"]; anything else as is */
+const selOf = (s: any) => typeof s == 'function' && s.__sygnalControl ? '' + s : s;
 /** a listener path's selector text (isolation scopes dropped, whitespace normalized) */
 const selText = (path: string[]) => norm(path.filter(s => !isScope(s)).join(' '));
 const norm = (s: string) => s.trim().replace(/\s*>\s*/g, ' > ').replace(/\s+/g, ' ');
@@ -859,7 +861,7 @@ function trackSource(inner: any, path: string[], hub$: any, on: (path: string[],
     [INNER]: inner,
     _hub: hub$,
     _path: path,
-    select: (sel: string) => trackSource(inner.select(sel), path.concat(sel), hub$, on),
+    select: (sel: any) => trackSource(inner.select(sel), path.concat(selOf(sel)), hub$, on),
     events: (type: string, options?: any, bubbles?: boolean) => {
       on(path, type);
       const ev$ = inner.events(type, options, bubbles);
@@ -1378,10 +1380,12 @@ export function renderComponent(
       if (!child || !hit) return;
       done.add(key);
       const childName = owners.get(child) || 'a child component';
+      // CT-1: a control is named by its identifier
+      const control = /^\[data-control="([^"]+)"\]$/.exec(selector)?.[1];
       raise('SYG104', name,
-        `DOM.select('${selector}') in ${name} matches elements inside ${childName} (isolated), so ${name} never receives their events`,
-        `Handle the event in ${childName} and send it up with PARENT (read it here with CHILD.select(${childName})), or use EVENTS`,
-        {selector, child: childName});
+        `${control ? `The control ${control}` : `DOM.select('${selector}')`} in ${name} matches elements inside ${childName} (isolated), so ${name} never receives their events`,
+        `Handle the event in ${childName}${control ? ` (DOM.<event>(${control}) in its intent)` : ''} and send it up with PARENT (read it here with CHILD.select(${childName})), or use EVENTS`,
+        control ? {selector, child: childName, control} : {selector, child: childName});
     });
   };
 
@@ -2317,6 +2321,7 @@ export function renderComponent(
   // 6-B (G-185): on the mock DOM, MockElement snapshots of the latest rendered tree
   const mockAll = (s: string): any[] => findAll(vtree, parse(norm(s)), [], []).map(c => mockOf(c, htmlOf));
   const queryAll = (s: string): Element[] => {
+    s = selOf(s);
     notYet(`t.queryAll('${s}')`);
     if (!real) return mockAll(s);
     return roots().flatMap(r => Array.from(r.querySelectorAll(s)));
@@ -2329,29 +2334,43 @@ export function renderComponent(
     return null;
   };
   const query = (s: string): Element | null => {
+    s = selOf(s);
     notYet(`t.query('${s}')`);
     if (!real) return mockAll(s)[0] ?? null;
     return queryIn(s);
   };
 
-  const simulateEvent = (selector: string, type: string, init: SimulatedEventInit = {}) => {
+  const simulateEvent = (target: any, type: string, init: SimulatedEventInit = {}) => {
     simAt = states.length; due();
     throwFailure();
-    const {allowMissing, ...evInit} = init;
-    const text = norm(String(selector));
+    const {allowMissing, within: inside, ...evInit} = init;
+    // CT-1: a control is its selector (also for `within`)
+    const raw = String(selOf(target)), text = norm(raw);
     // 'document' / 'body' (and '') name a listener, not an element
     const page = !text || PAGE.test(text);
+    // CT-1: `within` scopes the target to the first element matching it (e.g. one Collection item)
+    const within = inside == null || page ? '' : norm(String(selOf(inside)));
+    const selector = within ? `${raw}' within '${within}` : raw;
     // unsupported syntax throws here, at the call (G-070); the real DOM takes any CSS selector
     const sel = page || real ? [] : parse(text);
+    const box = within && !real ? parse(within) : undefined;
     if (real && !page) {
-      try { container!.querySelector(text); } catch (_) {
+      try { container!.querySelector(text); if (within) container!.querySelector(within); } catch (_) {
         throw new Error(`[Sygnal] simulateEvent('${selector}', '${type}'): not a valid CSS selector`);
       }
     }
+    // the root → element chain of the target in the mock vtree (inside the `within` element)
+    const findChain = (): any[] | undefined => {
+      if (!box) return find(vtree, sel);
+      const outer = find(vtree, box);
+      return outer && findAll(outer[outer.length - 1], sel, outer.slice(0, -1), [], false)[0];
+    };
     // E4: the real element: document / body / the root element for '' / the first match
     const realEl = (): any => text == 'document' ? document : text == 'body' ? document.body
-      : !text ? container!.firstElementChild : queryIn(text.replace(PAGE, '') || text);
-    const has = () => real ? !!realEl() : !!find(vtree, sel);
+      : !text ? container!.firstElementChild
+      : within ? queryIn(within)?.querySelector(text)
+      : queryIn(text.replace(PAGE, '') || text);
+    const has = () => real ? !!realEl() : !!findChain();
     // nothing pending and the tree is quiet (as settle() would see it): fail at the call
     if (!page && !allowMissing && isReady && !inputs.length && vtree && renderedUpTo >= states.length &&
         clockNow() - lastActivity >= settleMs && !has()) {
@@ -2359,7 +2378,7 @@ export function renderComponent(
     }
     later(last => {
       const rel = real ? realEl() : undefined;
-      const chain: any[] | undefined = page ? undefined : real ? rel && (chainOf(vtree, rel) || []) : find(vtree, sel);
+      const chain: any[] | undefined = page ? undefined : real ? rel && (chainOf(vtree, rel) || []) : findChain();
       const el = real ? rel : chain?.[chain.length - 1];
       if (!page && !el) {
         if (!last) return false;
