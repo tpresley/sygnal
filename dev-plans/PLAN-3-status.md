@@ -93,8 +93,8 @@ Delta attribution (analysis/p3-net-baseline.md): learning 11.7 s (42%, mostly re
 | 5-2b | H-1/D78 in `resources` | ⬜ | | | | |
 | 5-3 | Cache track (§1.6) | ⬜ | | | | |
 | 5-4a | Switchable `instance` (D83) + hidden pause (D85) | ✅ | `p3-5-4a-switchable` (`610e815`) | subagent | merged | `instance` re-creates the current page (and a page whose key changed while hidden, on show; a never-shown page adopts its first key); `switchable()` takes `[name, instance]`. Hidden pages (and descendants, Collection items) declare only `background: true` entries; `route` stays live; a page hidden from start opens nothing. **+106 B / +70 B → 40,387 B**. 12 tests (10 failed first). Findings G-177, G-178 |
-| 5-4b | Router + `HEAD` drivers | 🔵 | `p3-5-4b-router` | subagent | — | |
-| 5-4c | Router `renderComponent` fake | ⬜ | | | | after 5-4b |
+| 5-4b | Router + `HEAD` drivers | ✅ | `p3-5-4b-router` (`a357a9f`, `18f2844`) | subagent | merged | `makeRouter` (`href`/`match`/`current`/`driver`, typed `href`), `App.route` reply action `{ name, params, query, hash, path }`, first declarer owns redirects (G-168), `{ route }` reserved for the declaration, commands to/url/back/forward/go/block/prefetch, interception gaps closed (SVG, rel=external, shadow DOM, `<base>`), trailing slashes ignored in matching, scroll restoration (`history.state` key) and focus after a MutationObserver settle (G-169), hash mode, SSR no-op, **Vike `navigate` mode verified in a real Vike 0.4.267 app** (route, links, back, head SSR + client). `makeHeadDriver` + `head` static + SSR (`renderToString({ head })`, `renderHead`, Vike `onRenderHtml`). SYG620, SYG130–SYG133. Core unchanged; router 2,823 B / HEAD 830 B added to an app (router 4,244 B by the full-standalone method, over D76's 3.5 KB → Q14). 52 new tests + browser test |
+| 5-4c | Router `renderComponent` fake | 🔵 | | | | |
 | 5-5 | SSR cache seeding + `{ prefetch }` | ⬜ | | | | |
 | 5-6 | Eval tasks 24, 25 | ⬜ | | | | |
 | 5-7 | Recipes, inspect, docs within D76 | ⬜ | | | | |
@@ -107,6 +107,7 @@ Delta attribution (analysis/p3-net-baseline.md): learning 11.7 s (42%, mostly re
 |---|---|---|---|---|---|---|---|---|---|---|
 | baseline (main `6b7144e`) | ✅ | | | | | | | | | 42,125 B ✅ |
 | 5-2a + G-172/173/174 | ✅ | 1,308 ✅ | ✅ | ✅ | 125 ✅ | 229 ✅ | 397 ✅ | ✅ | 51 pages ✅ | 40,211 B ✅ (+136) |
+| 5-4b + G-167 | ✅ | 1,391 ✅ | ✅ | ✅ | 126 ✅ | 236 ✅ | 414 ✅ | ✅ | 53 pages ✅ | 40,403 B ✅ (+16) |
 | 5-4a | ✅ | 1,336 ✅ | ✅ | ✅ | 125 ✅ | 229 ✅ | 400 ✅ | ✅ | 51 pages ✅ | 40,387 B ✅ (+176) |
 | 5-1 | ✅ (rerun; 1 flake, G-176) | 1,324 ✅ | ✅ | ✅ | 125 ✅ | 229 ✅ | 398 ✅ | ✅ | 51 pages ✅ | 40,211 B ✅ |
 | 5-0a + 5-0b | ✅ | 1,289 ✅ | ✅ | ✅ | 125 ✅ | 227 ✅ | 395 ✅ | ✅ | 51 pages ✅ | **40,075 B ✅ (−2,023)** |
@@ -133,6 +134,7 @@ Delta attribution (analysis/p3-net-baseline.md): learning 11.7 s (42%, mostly re
 | Q11 | Router + Switchable keep-alive: a kept-alive `task` page is one instance for `/tasks/1` and `/tasks/2` (local state leaks between ids) | 5-0c | 5-4 | ✅ remount key (D83) |
 | Q12 | Hidden kept-alive Switchable pages keep their declaration statics live (a hidden page's socket stays open, its resources keep refetching) | 5-0c | 5-4, 5-3 | ✅ pause, with per-declaration `background: true` (D85) |
 | Q13 | First paint: the route arrives a microtask after the first render (`state.route == null`); SSR needs a seed anyway | 5-0c | 5-4 | ✅ explicit seed (D84) |
+| Q14 | D76's router cap (3.5 KB): measure drivers as bytes added to an app (router 2,823 B: within) or full standalone incl. the diagnostics core `replies.ts` pulls in (4,244 B: over)? | 5-4b | release notes | open |
 | Q8 | The E2 report's "10 open design questions" were never committed (branch deleted); add any not covered by ROADMAP §16 Q-net-1…4 | PLAN-3 header | — | open |
 
 ## Decision Log
@@ -192,7 +194,7 @@ Delta attribution (analysis/p3-net-baseline.md): learning 11.7 s (42%, mostly re
 | G-164 | 4-A | low | sygnal-check | SYG508's `routingDrivers()` read `file.ast` of every project file, and unparsable files are kept as `null`: an extra SYG900 "rule threw" next to the parse error | ✅ coordinator: skip null files; test (failed first) |
 | G-165 | 4-A | low | Docs | Unverified Vike details: `integration/server-functions.md` registers drivers in `+drivers.js`; `vike.md` computes drivers inside `+config.js` | Open (verify in a real Vike app before release) |
 | G-166 | 4-A | med | Agent docs | `llms.txt` is at the 250-line limit; SKILL.md grew 2,281 B (+7.6%). Watch learn time/context in 4-C; trim if it costs | Watch → 4-C |
-| G-167 | 5-0c | med | Statics | A declaration static (`connections`/`resources`/`route`) is computed from the state stream, so a component with no state (no `initialState`) never declares, silently. Also `route` must be added to `src/astro/client.ts` `Wrapped` | Open → 5-4 (diagnose or make root state implicit) |
+| G-167 | 5-0c | med | Statics | A declaration static (`connections`/`resources`/`route`) is computed from the state stream, so a component with no state (no `initialState`) never declares, silently. Also `route` must be added to `src/astro/client.ts` `Wrapped` | ✅ coordinator: statics are wired with or without a model (`initStatics`; a model-less component subscribes `action$` so drivers see it stop); SYG132 narrowed to a root without `initialState`; +16 B; tests `p3-g167-statics-no-model`, `p3-head-pause` |
 | G-168 | 5-0c | med | Router | Redirect ordering with several declarers: a later declarer may briefly see the pre-redirect route; one guard owner or explicit order. Sink commands can't use a `route` key (it is the declaration). Interception gaps: SVG `<a>`, `rel="external"`, shadow DOM, `<base>`, trailing slashes, form GET | Open → 5-4 |
 | G-169 | 5-0c | low | Router | Scroll restoration needs a `history.state` key (spike pushes null); focus after navigation needs a "rendered" signal or a rAF heuristic | Open → 5-4 |
 | G-170 | p3-final-haiku | high | Eval | Haiku pass rate dropped 81.2% → 71.8% (matched); classify every failure (framework / docs-induced / spec / explain-only) and test significance before Phase 5 docs grow further | ✅ classified: mostly Haiku variance/spec misreading (~75%), not significant; leads → G-172…G-175 |
@@ -233,3 +235,4 @@ Delta attribution (analysis/p3-net-baseline.md): learning 11.7 s (42%, mostly re
 - 2026-10-02 — G-170 classified: Haiku drop not significant (p ≈ 0.2), mostly spec misreads/explain-only, linked to Skill-args paraphrasing; old framework bug G-172 found; docs G-173, G-174; diagnostics G-175.
 - 2026-10-02 — 5-2a merged (resources on the renamed code, +134 B). G-172 fixed (root with intent and no model). D86: "task text is the spec" in SKILL §1; G-173 docs in SKILL/llms; Haiku re-check folded into the final eval. Gate green, 40,211 B. SKILL.md 34,987 B: at PLAN-3's 35 KB share, so Phase 5 docs replace rather than add (G-171).
 - 2026-10-02 — 5-1 merged (fake = real driver; `t.requests` objects) and 5-4a merged (`instance`, hidden pause); gate green, **40,387 B**. SKILL.md 35,122 B, 122 B over PLAN-3's 35 KB share → 5-7 must cut. G-176 (flakes), G-177, G-178. Next: 5-2b + 5-3 as one cache workstream; 5-4c after 5-4b.
+- 2026-10-02 — 5-4b merged (router + HEAD, Vike verified). G-167 fixed by the coordinator: statics without a model (a docs line telling agents to add `initialState` to shared-state pages would have wiped parent state); head pause verified (`p3-head-pause`). Gate green, 40,403 B. Q14 (router size method). 5-4c next.

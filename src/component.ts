@@ -618,12 +618,45 @@ class Component {
     this._subscriptions.push(this.context$.subscribe({ next: (_: any) => _, error: (err: any) => logError('SYG404', this, 'Context stream errored; context stops updating', 'Check the context functions', err) }))
   }
 
+  // PLAN-3 statics (connections, resources, route, head): see the comment where model$ is built
+  initStatics(model$: Record<string, any>, keep?: any): void {
+    this.sourceNames.forEach(n => {
+      const k = this.sources[n]?.__sygnalStatic, f = typeof k == 'string' && this.view?.[k]
+      if (!f) return
+      const own$: any = xs.create()
+      model$[n] = xs.merge(
+        xs.combine(xs.merge(this.sources[this.stateSourceName].stream, this._s ||= xs.create()).compose(dropRepeats())
+          .map((s: any) => {
+            try {
+              s = this.addCalculated(s)
+              let v = f
+              if (typeof f == 'function') v = f(s)
+              else if (typeof f == 'object') { v = {}; for (const r in f) v[r] = f[r](s) }
+              return [v]
+            } catch (err) { caught('SYG216', this, `${k} threw; nothing sent`, ERR_FIX, err) }
+          }), this.sources.__switchPage?.shown$ || xs.of(1))
+          .map(([w, shown]: any) => {
+            let v = w?.[0]
+            if (!shown && v && typeof v == 'object') { v = {}; for (const r in w[0]) if (w[0][r]?.background) v[r] = w[0][r] }
+            return w && {[k]: v}
+          }).compose(dropRepeats(objIsEqual)),
+        (model$[n] || xs.never()).filter((v: any) => queueMicrotask(() => queueMicrotask(() => own$.shamefullySendNext(v))) as any),
+        // G-167: without a model nothing else subscribes action$ (and its replies), so the driver
+        // would never see this sender stop
+        keep ? keep.filter(() => false) : xs.never(),
+        own$)
+    })
+
+  }
+
   initModel$(): void {
     if (typeof this.model == 'undefined') {
       this.model$ = this.sourceNames.reduce((a: Record<string, any>, s) => {
         a[s] = xs.never()
         return a
       }, {} as Record<string, any>)
+      // G-167: statics are sent without a model too
+      this.initStatics(this.model$, this.action$)
       // [diagnostics hook]
       diag.onModel(this, {})
       return
@@ -744,29 +777,7 @@ class Component {
     // D85: in a hidden Switchable page, an object declaration keeps only its entries with
     // `background: true` (the driver closes / idles the rest as removed); shown, all of them.
     // Any other value (a `route` string) stays as it is
-    this.sourceNames.forEach(n => {
-      const k = this.sources[n]?.__sygnalStatic, f = typeof k == 'string' && this.view?.[k]
-      if (!f) return
-      const own$: any = xs.create()
-      model$[n] = xs.merge(
-        xs.combine(xs.merge(this.sources[this.stateSourceName].stream, this._s ||= xs.create()).compose(dropRepeats())
-          .map((s: any) => {
-            try {
-              s = this.addCalculated(s)
-              let v = f
-              if (typeof f == 'function') v = f(s)
-              else if (typeof f == 'object') { v = {}; for (const r in f) v[r] = f[r](s) }
-              return [v]
-            } catch (err) { caught('SYG216', this, `${k} threw; nothing sent`, ERR_FIX, err) }
-          }), this.sources.__switchPage?.shown$ || xs.of(1))
-          .map(([w, shown]: any) => {
-            let v = w?.[0]
-            if (!shown && v && typeof v == 'object') { v = {}; for (const r in w[0]) if (w[0][r]?.background) v[r] = w[0][r] }
-            return w && {[k]: v}
-          }).compose(dropRepeats(objIsEqual)),
-        (model$[n] || xs.never()).filter((v: any) => queueMicrotask(() => queueMicrotask(() => own$.shamefullySendNext(v))) as any),
-        own$)
-    })
+    this.initStatics(model$)
 
     this.model$ = model$
 

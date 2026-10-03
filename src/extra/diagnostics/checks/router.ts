@@ -74,19 +74,14 @@ export const routerCheck: DiagnosticCheck = {
       const src = sources[n]
       const k = src?.__sygnalStatic
       if (typeof k == 'string' && component.view?.[k] != null) {
-        // the core wires statics in its model setup: a component without a model never sends one,
-        // nor does a root whose state never emits (no initialState)
-        const noModel = component.model === undefined
-        if ((noModel || (!component.isSubComponent && component.initialState === undefined)) && once(`SYG132:${name}:${k}`)) {
+        // statics are computed from state (G-167: with or without a model): a root whose state
+        // never emits (a model but no initialState) never sends one
+        if (!component.isSubComponent && component.initialState === undefined && once(`SYG132:${name}:${k}`)) {
           devReport('SYG132', {
             component,
-            message: noModel
-              ? `${name} declares ${name}.${k}, but has no model, so ${k} is never sent to ${n}`
-              : `${name} declares ${name}.${k}, but a root without initialState has no state, so ${k} is never sent to ${n}`,
-            fix: noModel
-              ? `Give ${name} a model (an empty one is enough: ${name}.model = {})`
-              : `Add ${name}.initialState (e.g. { }${k == 'route' ? ', or { route: router.current() }' : ''})`,
-            data: {static: k, source: n, reason: noModel ? 'model' : 'state'},
+            message: `${name} declares ${name}.${k}, but a root without initialState has no state, so ${k} is never sent to ${n}`,
+            fix: `Add ${name}.initialState (e.g. { }${k == 'route' ? ', or { route: router.current() }' : ''})`,
+            data: {static: k, source: n, reason: 'state'},
           })
         }
       }

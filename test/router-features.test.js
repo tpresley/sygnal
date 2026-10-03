@@ -562,19 +562,19 @@ describe('dev checks (sygnal/diagnostics)', () => {
     await sleep(20)
     expect(diagnostics('SYG132').map(d => d.data)).toEqual([{ static: 'route', source: 'ROUTER', reason: 'state' }])
     app.dispose()
-    // a sub-component without a model never sends its static either
+    // G-167: a sub-component without a model sends its static (no SYG132)
     const Leaf = () => h('i', null, 'leaf')
     Leaf.route = 'ROUTE'
     const Root = () => h('div', null, h(Leaf))
     Root.initialState = {}
     app = run(Root, { ROUTER: r.driver }, { mountPoint: '#root', diagnostics: 'collect' })
     await sleep(20)
-    expect(diagnostics('SYG132').map(d => [d.component, d.data.reason])).toEqual([['Bare', 'state'], ['Leaf', 'model']])
+    expect(diagnostics('SYG132').map(d => [d.component, d.data.reason])).toEqual([['Bare', 'state']])
     app.dispose()
     const p = probe(r)
     app = run(p.P, { ROUTER: r.driver }, { mountPoint: '#root', diagnostics: 'collect' })
     await waitFor(() => expect(p.last()?.name).toBe('home'))
-    expect(diagnostics('SYG132')).toHaveLength(2)
+    expect(diagnostics('SYG132')).toHaveLength(1)
   })
 
   it('the route static and { block } name reply actions: SYG102 counts them, SYG112 checks them', async () => {

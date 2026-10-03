@@ -64,7 +64,7 @@ export default App
 - `router.current()` reads the current location, so the first render already shows the right page. On the server, pass the request URL: `router.current(request.url)`.
 - `params` are decoded strings (`{ id: '2' }`), `query` is an object of strings (the last value of a repeated key), `hash` has no `#`.
 - Matching ignores a trailing slash and empty segments: `/tasks/2/` is the `task` route, and its `path` is `/tasks/2`. `href()` never adds a trailing slash.
-- A component that declares `route` needs a model and state (the root needs `initialState`); the dev entry reports SYG132 otherwise.
+- A root that declares `route` needs an `initialState`, seeded with `router.current()` (SYG132). A sub-component can declare it too, with or without a model.
 
 Pages read the route from the state they get. A page that loads data derives its `resources` from `state.route.params`, so changing the id loads the new task.
 

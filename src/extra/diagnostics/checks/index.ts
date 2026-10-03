@@ -22,7 +22,7 @@
  * | SYG116 | EVENTS value with no string type (a function)          | events.ts      |
  * | SYG130 | href() names no route / leaves out a param             | router.ts      |
  * | SYG131 | route params the pattern doesn't use                   | router.ts      |
- * | SYG132 | declaration static never sent: no model or no state    | router.ts      |
+ * | SYG132 | declaration static never sent: a root without initialState    | router.ts      |
  * | SYG133 | SPA router inside a Vike app                           | router.ts      |
  * | SYG201 | STATE reducer dropped keys                             | state.ts       |
  * | SYG202 | STATE reducer returned undefined                       | state.ts       |

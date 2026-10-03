@@ -319,9 +319,9 @@ An href() call or a `{ to, params }` router command passes a param that the rout
 
 Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
 
-Declaration statics (`route`, `resources`, `connections`, `head`) are computed from the component's state and sent to their driver whenever they change, as part of the component's model setup. So a component without a model never sends them, and neither does a root component (the one passed to `run()`) with a model but no `initialState`: it has no state, so its state stream never emits. Either way the route never arrives, the resources never load, the connections never open, the head never changes. Sub-components share their parent's state, so the second case only happens at the root.
+Declaration statics (`route`, `resources`, `connections`, `head`) are computed from the component's state and sent to their driver whenever they change, with or without a model. A root component (the one passed to `run()`) with a model but no `initialState` has no state, so its state stream never emits: the route never arrives, the resources never load, the connections never open, the head never changes. Sub-components share their parent's state, so this only happens at the root.
 
-**Fix:** Give the component a model (an empty one is enough: `Page.model = {}`), and give the root an `initialState`, even an empty object; for the router, seed the route: `App.initialState = { route: router.current() }`.
+**Fix:** Give the root an `initialState`, even an empty object; for the router, seed the route: `App.initialState = { route: router.current() }`. Don't add an `initialState` to a sub-component that shares its parent's state: it would replace that state (SYG405).
 
 ### SYG133
 

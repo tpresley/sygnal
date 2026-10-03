@@ -35,7 +35,6 @@ describe('makeHeadDriver', () => {
     const show$ = xs.create()
     function Child() { return h('p', null, 'child') }
     Child.head = () => ({ title: 'Child', meta: { 'og:title': 'Child OG' }, link: [{ rel: 'canonical', href: '/child' }] })
-    Child.model = {} // statics need a model (SYG132, G-167)
     function App({ state }) { return h('div', null, state.child ? h(Child) : h('span', null, 'none')) }
     App.initialState = { child: false, n: 1 }
     App.head = s => ({ title: 'App ' + s.n, meta: { description: 'app desc', keywords: 'a' }, link: [{ rel: 'canonical', href: '/' }, { rel: 'icon', href: '/i.svg' }] })
