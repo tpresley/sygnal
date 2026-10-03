@@ -106,7 +106,7 @@ function _switchable(
       .remember();
     // `state` stays as the marker inspect() uses for a Switchable's components
     // PLAN-4 GS-9: each page's uid is the Switchable's + the page name
-    const u = sources.__uid + '-' + uidPart(name);
+    const u = (sources.__uid || 'u') + '-' + uidPart(name);
     page.make = () => factory(st ? {...sources, __switchPage: page, __uid: u, state: st, [stateSourceName]: st} : {...sources, __switchPage: page, __uid: u});
     page.sinks = page.make();
     return page;

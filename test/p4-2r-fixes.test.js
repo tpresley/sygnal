@@ -5,7 +5,10 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { renderComponent } from '../src/extra/testing.js'
 import { createElement as h } from '../src/pragma/index.js'
 import { ABORT } from '../src/index.js'
-import { Collection } from '../src/collection.js'
+import collection, { Collection } from '../src/collection.js'
+import switchable from '../src/switchable.js'
+import { StateSource } from '../src/cycle/state/index.js'
+import xs from 'xstream'
 import run from '../src/extra/run.js'
 import { renderToString } from '../src/extra/ssr.ts'
 import { defineBehavior } from '../src/extra/behaviors.js'
@@ -136,5 +139,23 @@ describe('G-214 (4): STATE.select(...).watch() ends on dispose', () => {
     t.dispose()
     await sleep(30)
     expect(ev.sort()).toEqual(['--', 'behavior-end', 'select-end'])
+  })
+})
+
+describe("G-214 (5): collection() / switchable() without a __uid source use the root 'u'", () => {
+  const listen = (sinks) => { for (const k in sinks) sinks[k]?.addListener?.({ next() {}, error() {} }) }
+  it('collection(): item uids are u-<key>', async () => {
+    const seen = []
+    const Item = (so) => { seen.push(so.__uid); return { EVENTS: xs.never() } }
+    const STATE = new StateSource(xs.of({ items: [{ id: 'k' }] }).remember(), 'STATE')
+    listen(collection(Item, 'items')({ STATE, EVENTS: { select: () => xs.never() } }))
+    await sleep(20)
+    expect(seen).toEqual(['u-k'])
+  })
+  it('switchable(): page uids are u-<name>', () => {
+    const seen = []
+    const Page = (so) => { seen.push(so.__uid); return { EVENTS: xs.never() } }
+    switchable({ a: Page }, xs.of('a').remember())({ EVENTS: xs.never() })
+    expect(seen).toEqual(['u-a'])
   })
 })
