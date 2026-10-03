@@ -1868,8 +1868,16 @@ export function renderComponent(
     });
   }
   // 1H-4: a component that never renders on its own (a model but no initialState: no state
-  // until an action sets it) still becomes ready, so buffered input is delivered
-  const fallback = setTimeout(arm, sinks.DOM ? 30 : 0);
+  // until an action sets it) still becomes ready, so buffered input is delivered.
+  // G-176: one that has a state but hasn't rendered it yet is only slow (a loaded machine):
+  // keep waiting for its first render (at most timeoutMs), or ready() resolves before it and
+  // query() returns null
+  const fallbackFrom = clockNow();
+  const fallbackCheck = () => {
+    if (!timer && sinks.DOM && states.length && clockNow() - fallbackFrom < defaultTimeout) fallback = setTimeout(fallbackCheck, 10);
+    else arm();
+  };
+  let fallback = setTimeout(fallbackCheck, sinks.DOM ? 30 : 0);
 
   const tick = (ms: number) => new Promise(r => setTimeout(r, ms));
   /**
