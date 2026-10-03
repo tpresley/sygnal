@@ -43,7 +43,7 @@ import { analyzeModel, connectionNames, REPLY_KEYS } from './modelEntries.js'
 import { scanFileEvents } from './events.js'
 import { resolveSelectorControls } from './controls.js'
 
-export const STATIC_PROPS = ['intent', 'model', 'initialState', 'context', 'calculated', 'connections', 'resources', 'route', 'head']
+export const STATIC_PROPS = ['intent', 'model', 'initialState', 'context', 'calculated', 'connections', 'resources', 'route', 'head', 'uses']
 
 function parseSuppressions(ast) {
   const map = new Map()

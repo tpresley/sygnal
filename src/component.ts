@@ -387,6 +387,10 @@ class Component {
       this._idle = {}
       for (const k in res) this._idle[k] = { status: 'idle' }
     }
+    // PLAN-4 GS-1: Component.uses = { key: behavior(options) }. Each defineBehavior value carries
+    // its own merge (src/extra/behaviors.ts, D114); anything else is skipped (reported by the dev entry)
+    const uses = (view as any)?.uses
+    for (const k in uses) uses[k]?.merge?.(this, k)
     // B-016: initialState is applied by the INITIALIZE action, which needs a model. D44: only
     // for a sub-component with no `state` prop; an existing parent slice is never overwritten
     if (sources.__localState && isolatedState && initialState !== undefined && !this.model) this.model = {}
