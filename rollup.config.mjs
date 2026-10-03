@@ -207,7 +207,8 @@ export default [
   {
     input: 'src/astro/client.ts',
     // 'sygnal' stays external so islands run on the app's core (B-019)
-    external: shimXstream((id) => isExternal(id) || /^sygnal(\/|$)/.test(id)),
+    // D120: the virtual onError module is served by the integration's Vite plugin
+    external: shimXstream((id) => isExternal(id) || /^sygnal(\/|$)/.test(id) || id.startsWith('virtual:')),
     output: [
       { file: pkg.exports['./astro/client'].require, format: 'cjs', ...sourcemapOptions },
       { file: pkg.exports['./astro/client'].import, format: 'es', ...sourcemapOptions }
@@ -222,7 +223,7 @@ export default [
 
   {
     input: 'src/astro/server.ts',
-    external: [],
+    external: (id) => id.startsWith('virtual:'),
     output: [
       { file: pkg.exports['./astro/server'].require, format: 'cjs', ...sourcemapOptions },
       { file: pkg.exports['./astro/server'].import, format: 'es', ...sourcemapOptions }

@@ -1,6 +1,10 @@
 // The public entry (external in the build), so islands share the app's
 // Sygnal core instead of a bundled copy (B-019).
 import { run } from 'sygnal'
+// PLAN-4 GS-11 / D120: the app-level error hook, the default export of the module the
+// integration's `onError` option names (undefined without it); served by sygnal/astro's Vite plugin
+// @ts-ignore — a virtual module
+import onError from 'virtual:sygnal/astro-on-error'
 
 interface SygnalComponent {
   (args: any): any;
@@ -21,8 +25,6 @@ interface SygnalComponent {
   DOMSourceName?: string;
   stateSourceName?: string;
   onError?: (error: Error, info: { componentName: string }) => any;
-  /** PLAN-4 GS-11: the island app's error hook (run()'s `onError`); islands have no run() call */
-  onAppError?: (error: any, info: any) => void;
   debug?: boolean;
   componentName?: string;
   name?: string;
@@ -87,7 +89,7 @@ export default (element: any) => {
     // say 'Counter', not 'Wrapped'
     try { Object.defineProperty(Wrapped, 'name', { value: Wrapped.componentName, configurable: true }) } catch (_) {}
 
-    const app = run(Wrapped, {}, { mountPoint, onError: Component.onAppError })
+    const app = run(Wrapped, {}, { mountPoint, onError })
     element.__sygnal = app
   }
 }
