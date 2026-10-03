@@ -612,8 +612,14 @@ export type CollectionProps<PROPS = any, STATE = any> = {
 export type SwitchableProps<PROPS = any> = {
   of: Record<string, AnyComponent>;
   current: string;
+  /**
+   * The current page's instance key. When it changes, the current page is disposed and created
+   * again (fresh state); a hidden page shown with another key than it last had is re-created on
+   * show. Switching `current` alone keeps pages alive. Router recipe: `instance={state.route.path}`
+   */
+  instance?: string | number;
   state?: string | Lense;
-} & Omit<PROPS, 'of' | 'state' | 'current'>
+} & Omit<PROPS, 'of' | 'state' | 'current' | 'instance'>
 
 export type PortalProps = {
   target: string;
@@ -1180,7 +1186,13 @@ export type FetchRequest = string | {
 }
 
 /** PLAN-3 3-A (experimental): a request a `resources` entry derives (a URL, or a request without `abort`) */
-export type ResourceRequest = Exclude<FetchRequest, { abort: true | string } | { refresh: string | string[] }>
+export type ResourceRequest = string | (Exclude<FetchRequest, string | { abort: true | string } | { refresh: string | string[] }> & {
+  /**
+   * Keep this resource live while its component is in a hidden Switchable page (default: a
+   * hidden page's resources are removed, aborting them, and fetched again when it is shown)
+   */
+  background?: boolean;
+})
 
 /**
  * PLAN-3 3-A (experimental): the state slot of a resource (`state.quote`), written by the
@@ -1311,6 +1323,11 @@ export type SocketActions = {
   reconnect?: false | SocketReconnect;
   /** Default true: connections to the same URL (and protocols) share one socket. false: a socket of its own */
   share?: boolean;
+  /**
+   * Keep this connection open while its component is in a hidden Switchable page (default: a
+   * hidden page's connections close, and open again as new ones when it is shown)
+   */
+  background?: boolean;
   /** Not allowed: a `then` key makes the value a thenable (SYG610). Use `message` / `open` */
   then?: never;
   catch?: never;

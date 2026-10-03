@@ -211,6 +211,12 @@ describe('SwitchableProps', () => {
     expectTypeOf<P>().toHaveProperty('of')
     expectTypeOf<P>().toHaveProperty('current')
   })
+
+  it('takes an optional instance key (D83)', () => {
+    const p: SwitchableProps = { of: {}, current: 'task', instance: '/tasks/1' }
+    assertType(p)
+    expectTypeOf<SwitchableProps['instance']>().toEqualTypeOf<string | number | undefined>()
+  })
 })
 
 // ─── PortalProps ────────────────────────────────────────────────────────────

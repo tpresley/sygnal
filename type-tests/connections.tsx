@@ -35,6 +35,8 @@ Feed.connections = (state) => ({
   e: undefined,
 })
 Feed.connections = () => ({})
+// D85: stays open while the component is in a hidden Switchable page
+Feed.connections = () => ({ live: { socket: '/live', background: true } })
 // action names are plain strings, also when built at run time (D70)
 const actionName: string = 'GOT'
 Feed.connections = () => ({ x: { socket: '/x', message: actionName } })

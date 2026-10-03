@@ -45,6 +45,8 @@ type ItemState = { id: string; quote?: Resource }
 export const Item: Component<ItemState, {}, {}, {}, { short: string }> = () => <li />
 Item.calculated = { short: (s) => s.id.slice(0, 2) }
 Item.resources = { quote: (s) => `/api/q/${s.short}` }
+// D85: stays live while the component is in a hidden Switchable page
+Item.resources = { quote: (s) => ({ url: `/api/q/${s.short}`, background: true }) }
 
 const r: Resource<number> = { status: 'success', data: 1 }
 // @ts-expect-error success needs data of the declared type
