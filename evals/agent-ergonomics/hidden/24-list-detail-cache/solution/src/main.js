@@ -1,4 +1,4 @@
 import { run, makeFetchDriver, queryCache } from 'sygnal'
 import App from './App.jsx'
 
-run(App, { HTTP: makeFetchDriver({ cache: queryCache({ staleTime: 2000 }) }) })
+run(App, { HTTP: makeFetchDriver({ cache: queryCache() }) })

@@ -110,6 +110,7 @@ A request is an object (or a URL string, for a plain GET with no reply actions):
 | `init` | driver's `init` | Other `fetch()` options: `{ credentials: 'include', mode, cache, redirect, referrer, referrerPolicy, integrity, keepalive, priority }` |
 | `cache`, `staleTime` | — | Answer from the driver's cache (GET/HEAD only): see [Resources and Caching](/guide/resources/#the-query-cache) |
 | `tags`, `invalidates` | — | Tags for [invalidation](/guide/resources/#invalidation); `invalidates: ['quotes']` refreshes the tagged reads after a 2xx reply |
+| `updates` | — | After a 2xx reply, write it into this component's resources (and their cache entries): `updates: 'item'`, or `{ items: (list, reply) => newList }` ([Writing a reply into the cache](/guide/resources/#writing-a-reply-into-the-cache)) |
 | `retry` | driver's `retry` for GET/HEAD (0) | Retry network errors, 408, 429 and 5xx: a count or `{ count, delayMs, maxDelayMs, jitter }` ([Retries](/guide/resources/#retries)) |
 | `validate` | — | A Standard Schema the body must pass ([Validation](/guide/resources/#validation)) |
 
@@ -242,7 +243,7 @@ Profile.model = {
 }
 ```
 
-To refresh the reads a save changed, add `invalidates: ['profile']` to the request ([Invalidation](/guide/resources/#invalidation)).
+To refresh the reads a save changed, add `invalidates: ['profile']` to the request ([Invalidation](/guide/resources/#invalidation)). To show the saved record at once, add `updates: 'profile'` when the profile is a resource ([Writing a reply into the cache](/guide/resources/#writing-a-reply-into-the-cache)).
 
 For reads, see the [pagination and infinite list recipes](/guide/resources/#recipes).
 

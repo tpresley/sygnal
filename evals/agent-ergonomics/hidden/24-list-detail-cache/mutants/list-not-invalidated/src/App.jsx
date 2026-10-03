@@ -51,11 +51,11 @@ App.initialState = {
   saveError: '',
 }
 
-// Each view's read follows the state; the query cache (main.js) shows a known list or item at
-// once and reloads it in the background once it is older than staleTime.
+// Each view's read is declared only while it is shown; the query cache (main.js) shows a known
+// list or item at once and reloads it in the background once it is older than staleTime.
 App.resources = {
-  items: (state) => state.view === 'list' && '/api/items',
-  item: (state) => state.view === 'detail' && `/api/items/${state.selected}`,
+  items: (state) => state.view === 'list' && { url: '/api/items', staleTime: 2000 },
+  item: (state) => state.view === 'detail' && { url: `/api/items/${state.selected}`, staleTime: 2000 },
 }
 
 App.intent = ({ DOM }) => ({
@@ -73,14 +73,16 @@ App.model = {
   TYPE: (state, draft) => ({ ...state, draft }),
   SAVE: {
     STATE: (state) => ({ ...state, saveError: '' }),
+    // updates: the reply is the item's data at once (aborting a reload already in flight);
     // '/api/items' is a URL prefix: the list and every item are marked stale, and the mounted
-    // item reloads now (aborting a reload already in flight)
+    // item reloads now, keeping the saved data
     HTTP: (state) => ({
       url: `/api/items/${state.selected}`,
       method: 'PUT',
       json: { title: state.draft },
       ok: 'SAVED',
       error: 'SAVE_FAILED',
+      updates: 'item',
       invalidates: `/api/items/${state.selected}`, // mutant: only the item, not the list
     }),
   },

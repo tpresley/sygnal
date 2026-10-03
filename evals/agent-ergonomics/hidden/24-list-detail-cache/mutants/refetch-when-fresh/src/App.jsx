@@ -54,8 +54,9 @@ App.initialState = {
 // Each view's read is declared only while it is shown; the query cache (main.js) shows a known
 // list or item at once and reloads it in the background once it is older than staleTime.
 App.resources = {
-  items: (state) => state.view === 'list' && { url: '/api/items', staleTime: 2000 },
-  item: (state) => state.view === 'detail' && { url: `/api/items/${state.selected}`, staleTime: 2000 },
+  // mutant: no staleTime (0), so every revisit reloads
+  items: (state) => state.view === 'list' && { url: '/api/items' },
+  item: (state) => state.view === 'detail' && { url: `/api/items/${state.selected}` },
 }
 
 App.intent = ({ DOM }) => ({
@@ -83,7 +84,7 @@ App.model = {
       ok: 'SAVED',
       error: 'SAVE_FAILED',
       updates: 'item',
-      // mutant: nothing is invalidated after a save
+      invalidates: '/api/items',
     }),
   },
   SAVED: (state) => ({ ...state, editing: false, saveError: '' }),

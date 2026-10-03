@@ -82,6 +82,10 @@ const writes: FetchRequest[] = [
   { invalidate: ['quotes', '/api/users'] },
   { invalidate: (req) => req.url.startsWith('/api') },
   { url: '/api/quotes/1', method: 'PUT', json: {}, ok: 'SAVED', invalidates: ['quotes'] },
+  // 6-A (G-184): the reply written into resources
+  { url: '/api/quotes/1', method: 'PUT', json: {}, ok: 'SAVED', updates: 'quote', invalidates: '/api/quotes' },
+  { url: '/api/quotes/1', method: 'PUT', json: {}, updates: ['quote', 'other'] },
+  { url: '/api/quotes/1', method: 'PUT', json: {}, updates: { quote: true, quotes: (list: any[], q: any) => list.map((x) => (x.id === q.id ? q : x)) } },
   { url: '/api/user', ok: 'GOT', cache: true, staleTime: 60000, retry: 1 },
   { prefetch: '/api/quotes/2' },
   { prefetch: { url: '/api/search', query: { q: 'x' } } },

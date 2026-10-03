@@ -1198,8 +1198,20 @@ export type FetchRequest = string | {
   staleTime?: number;
   /** Invalidation tags of this request (and its cache entry): `{ invalidate: 'quotes' }` matches `tags: ['quotes']` */
   tags?: string[];
-  /** After a 2xx reply: invalidate these tags / URL prefixes / the predicate's matches (like `{ invalidate }`) */
+  /**
+   * After a 2xx reply: invalidate these tags / URL prefixes / the predicate's matches (like
+   * `{ invalidate }`). A read of them already in flight is aborted, so an older reply never lands
+   */
   invalidates?: FetchInvalidate;
+  /**
+   * PLAN-3 6-A (G-184; React Query's setQueryData): after a 2xx reply, write it into this
+   * component's resources with these names (and their `queryCache()` entries) before the `ok`
+   * action and before `invalidates`: `updates: 'item'` (the reply becomes `state.item.data`), or
+   * `{ items: (list, reply) => newList }` to derive it. A read of them in flight is aborted;
+   * other mounted resources on the same cache entry show it too. Resources without a request
+   * (idle) are skipped. The `ok` action still gets the reply
+   */
+  updates?: string | string[] | Record<string, true | ((data: any, reply: any) => any)>;
   /**
    * Retries (default 0): a count, or a count with the backoff of makeSocketDriver's reconnect
    * (`{ count: 3, delayMs: 500, maxDelayMs: 10000, jitter: 0.2 }`; count defaults to 3).

@@ -1,6 +1,6 @@
 ---
 title: Resources and Caching
-description: Declarative reads with the resources static, refetching, the opt-in query cache, SSR seeding, prefetching, invalidation, retries and validation
+description: Declarative reads with the resources static, refetching, the opt-in query cache, SSR seeding, prefetching, invalidation, writing replies into the cache, retries and validation
 ---
 
 A **resource** is a read that follows state. The component declares which request each resource needs, and [`makeFetchDriver()`](/guide/http/) fetches it whenever that request changes, writing the result to `state[name]`. There is no model entry for loading or for the reply.
@@ -48,7 +48,7 @@ Quote.model = {
 - A Collection item, or any component instance, has its own resources. Removing it aborts them.
 - In a hidden [Switchable](/guide/switchable/#hidden-pages-pause-connections-and-resources) page, resources pause: the request in flight is aborted and the resource keeps its last result (`refreshing` off; `'idle'` if nothing had arrived yet). When the page is shown again, the same request is refetched, keeping data. Mark an entry `background: true` to keep it live while hidden.
 
-Writes stay [reply actions](/guide/http/): `{ url, method: 'PUT', json, ok: 'SAVED', error: 'SAVE_FAILED' }`.
+Writes stay [reply actions](/guide/http/): `{ url, method: 'PUT', json, ok: 'SAVED', error: 'SAVE_FAILED' }`. After a write, [`invalidates`](#invalidation) refetches the reads it changed, and [`updates`](#writing-a-reply-into-the-cache) shows its reply in them at once.
 
 ## The query cache
 
@@ -61,6 +61,8 @@ import App from './App.jsx'
 run(App, { HTTP: makeFetchDriver({ cache: queryCache() }) })
 // or: queryCache({ staleTime: 30000, gcTime: 300000, refetchOnFocus: true, refetchOnReconnect: true })
 ```
+
+**The cache goes in `main.js` and in each test**: `renderComponent(App, { http: { cache: queryCache() } })` ([Testing](#testing)). A component rendered without one gets no caching. Put `staleTime` on the resource's request (`{ url: '/api/items', staleTime: 2000 }`) rather than on the cache, so the app and its tests use the same freshness; a `staleTime` sent to a driver without a `queryCache()` is reported as [SYG635](/reference/errors/#syg635).
 
 With the cache on:
 
@@ -192,7 +194,32 @@ QuoteEditor.model = {
 - `{ invalidate: value }` on the `HTTP` sink invalidates right away, from any component: `HTTP: () => ({ invalidate: 'quotes' })`.
 - The value is a tag (`'quotes'`), a URL prefix of the request's `url` (a string starting with `/`: `'/api/quotes'`), an array of them, or a predicate `(request) => boolean`. Tags are explicit: nothing is derived from the URL.
 - Matching **mounted** resources refetch, keeping their data (`refreshing: true`); matching cache entries are marked stale, so the next use refetches. Invalidation works with or without the cache.
+- **Invalidation aborts older reads.** A refetch aborts the resource's read already in flight, so a reply sent before the save never lands after it: no request ids or sequence numbers. A shared cache fetch in flight for a matching entry still answers the requests waiting on it, but never writes the cache.
 - An `invalidate` that matches nothing is reported as [SYG632](/reference/errors/#syg632) (info).
+
+## Writing a reply into the cache
+
+`updates` on a request writes its 2xx reply into this component's resources, like React Query's `setQueryData`. The saved record shows at once, without waiting for a refetch:
+
+```jsx
+Item.model = {
+  SAVE: {
+    HTTP: (state) => ({
+      url: `/api/items/${state.id}`, method: 'PUT', json: { title: state.draft },
+      ok: 'SAVED', error: 'SAVE_FAILED',
+      updates: 'item',              // the reply becomes state.item.data now
+      invalidates: '/api/items',    // then the item and the list refetch, keeping data
+    }),
+  },
+  SAVED: (state) => ({ ...state, editing: false }),
+  SAVE_FAILED: (state) => ({ ...state, saveError: 'Could not save the item.' }),
+}
+```
+
+- The value names resources of the component that sends the request: `'item'`, `['item', 'detail']`, or an object whose functions derive the new data from the current one: `updates: { item: true, items: (list, saved) => list.map((i) => (i.id === saved.id ? { ...i, title: saved.title } : i)) }`.
+- The write comes first: the resource becomes `'success'` with the new data, its cache entry is set, and its read in flight (if any) is aborted. Then the `ok` action runs, then `invalidates`. An invalidated resource refetches keeping the written data (`refreshing: true`), and the server's reply replaces it.
+- Other mounted resources reading the same cache entry show the new data too. A resource that is idle (its entry returned a falsy value) is skipped; a paused one (a hidden page) is updated.
+- Nothing is written when the request fails. The `ok` action still gets the reply.
 
 ## Focus, reconnect and polling
 
@@ -294,6 +321,71 @@ Feed.model = {
 
 `PAGE` runs on every successful fetch of the request, refetches included, so leave the cache's focus refetch off for such a list (`queryCache({ refetchOnFocus: false })`) or de-duplicate by id in `PAGE`.
 
+### List and detail with a save
+
+Each view declares its read only while it is shown, the cache shows a known list or item at once, and a save writes the reply and refetches both:
+
+```jsx
+const statusOf = (r) => (r?.status === 'loading' ? 'Loading…' : r?.refreshing ? 'Updating…' : '')
+
+function App({ state }) {
+  if (state.view === 'list') {
+    return (
+      <section className="list">
+        <p className="status">{statusOf(state.items)}</p>
+        <ul className="items">
+          {(state.items?.data ?? []).map((item) => <li><button className="open" data-id={String(item.id)}>{item.title}</button></li>)}
+        </ul>
+      </section>
+    )
+  }
+  return (
+    <section className="detail">
+      <button className="back">Back to list</button>
+      <p className="status">{statusOf(state.item)}</p>
+      <h2 className="item-title">{state.item?.data?.title}</h2>
+      <input name="title" value={state.draft} />
+      <button className="save">Save</button>
+      <p className="save-error">{state.saveError}</p>
+    </section>
+  )
+}
+App.initialState = { view: 'list', id: null, draft: '', saveError: '' }
+App.resources = {
+  items: (state) => state.view === 'list' && { url: '/api/items', staleTime: 2000 },
+  item: (state) => state.view === 'detail' && { url: `/api/items/${state.id}`, staleTime: 2000 },
+}
+App.intent = ({ DOM }) => ({
+  OPEN: DOM.click('.open').data('id', Number),
+  BACK: DOM.click('.back'),
+  TYPE: DOM.input('input[name="title"]').value(),
+  SAVE: DOM.click('.save'),
+})
+App.model = {
+  OPEN: (state, id) => ({ ...state, view: 'detail', id, draft: '', saveError: '' }),
+  BACK: (state) => ({ ...state, view: 'list' }),
+  TYPE: (state, draft) => ({ ...state, draft }),
+  SAVE: {
+    STATE: (state) => ({ ...state, saveError: '' }),
+    HTTP: (state) => ({
+      url: `/api/items/${state.id}`, method: 'PUT', json: { title: state.draft },
+      ok: 'SAVED', error: 'SAVE_FAILED', updates: 'item', invalidates: '/api/items',
+    }),
+  },
+  SAVED: (state) => ({ ...state, draft: '' }),
+  SAVE_FAILED: (state) => ({ ...state, saveError: 'Could not save the item.' }),
+}
+```
+
+```javascript
+// main.js; the tests use renderComponent(App, { http: { cache: queryCache() } })
+run(App, { HTTP: makeFetchDriver({ cache: queryCache() }) })
+```
+
+- `state.items` and `state.item` are undefined until their first write, hence the `?.`.
+- A hidden view's resource goes `'idle'`. Shown again within `staleTime`, the cached data is shown with no request; later it is shown at once and refetched (`'Updating…'`).
+- The save shows the new title at once (`updates`), and the list and item refetch (`invalidates`). A read in flight from before the save is aborted, so its reply never overwrites the saved title.
+
 For writes, see the [optimistic update and save status recipes](/guide/http/#recipes).
 
 ## Testing
@@ -324,7 +416,7 @@ it('refreshes in place, and shows the cached quote when coming back', async () =
 ```
 
 - A resource's request is sent after the state changes, not during the event that caused it. `t.respond` / `t.fail` by resource name right after a `simulateEvent` / `simulateAction` that hasn't produced its state yet waits (up to 1 s) for that fetch; otherwise, as for any request, they throw at the call when nothing matches.
-- `renderComponent(C, { http })` passes driver options (`cache: queryCache()`, `retry`, `timeoutMs`, …) to the fake. A seeded cache: `queryCache({ initial: snapshot })`.
+- `renderComponent(C, { http })` passes driver options (`cache: queryCache()`, `retry`, `timeoutMs`, …) to the fake: give it the same `queryCache()` as `main.js`, or the test runs without a cache. A seeded cache: `queryCache({ initial: snapshot })`.
 - `t.cache('HTTP')` lists the cache entries: `{ key, age, stale, subscribers, data, tags }`.
 - A `{ prefetch }` fetch is listed in `t.requests('HTTP')` as `{ url, ...request, prefetch: true }`; answer it like any other, e.g. `t.respond('HTTP', data, '/api/quotes/2')`.
 - `t.focus()` and `t.online()` simulate the browser events; the test's own window events never trigger refetches.

@@ -69,7 +69,13 @@ import {validateWith} from './standardSchema';
  * - `{ invalidate: tag | tags | '/url-prefix' | (request) => boolean }` (D80): matching cache
  *   entries go stale and matching mounted resources refetch (keeping data). Tags are explicit
  *   (`tags: ['quotes']` on the request); a string starting with '/' is a URL prefix.
- *   `invalidates: …` on any request does the same after its success.
+ *   `invalidates: …` on any request does the same after its success. G-184: a refetch aborts
+ *   the resource's older read; a shared fetch in flight for a matching entry still answers its
+ *   waiters but never writes the cache.
+ * - `updates: name | names | { name: true | (data, reply) => data }` (G-184, setQueryData): on
+ *   a 2xx, before the `ok` action and `invalidates`, the reply becomes the data of the sender's
+ *   named resources that have a request, and of their cache entries; their reads in flight
+ *   are aborted and the other mounted resources on those entries show it too.
  * - `retry: n | { count, delayMs, maxDelayMs, jitter }` (default 0; the driver option applies
  *   to GET/HEAD only): network errors, 408, 429 (Retry-After honoured) and 5xx are retried with
  *   the socket driver's backoff; the failure (with `attempts`) is delivered once, at the end.
@@ -239,6 +245,9 @@ export function makeFetchDriver(options: any = {}) {
     // data); `dry`: only counts them
     const inval = (x: any, dry?: any) => {
       let n = C ? C.inval(x, dry) : 0;
+      // G-184: a shared fetch already in flight for a matching entry never writes the cache
+      // (and nothing new joins it)
+      dry || C?.f.forEach((F: any) => hit(x, F.q) && stale(F));
       const m = seq;
       rsrc.forEach((cur, s) => cur.forEach((R, name) => { if (!R.p && R.q && hit(x, R.q)) { n++; dry || load(s, name, R, 1, m); } }));
       return n;
@@ -263,6 +272,7 @@ export function makeFetchDriver(options: any = {}) {
       clearTimeout(F.t);
       if (C?.f.get(F.k) === F) C.f.delete(F.k);
     };
+    const stale = (F: any) => { F.z = 1; C.f.delete(F.k); };
     const cancel = (which: (r: any) => boolean) =>
       inflight.forEach((r, id) => { if (which(r)) finish(id); });
 
@@ -279,6 +289,25 @@ export function makeFetchDriver(options: any = {}) {
       rsrc.delete(sender);
       cancel(r => r.rk !== undefined && r.sender === sender);
     });
+    // G-184: `updates` (setQueryData): the reply (or fn(current data, reply)) becomes the data
+    // of the sender's named resources that have a request, and of their cache entries; a read
+    // of them in flight is aborted, and every mounted resource on that entry shows it at once
+    const upd = (s: any, u: any, v: any) => {
+      const cur = rsrc.get(s);
+      (typeof u == 'object' && !Array.isArray(u) ? Object.keys(u) : [].concat(u)).forEach((n: string) => {
+        const R = cur?.get(n), q = R?.q, f = u[n];
+        if (!q) return;
+        const k = C?.key(q, 1), d = typeof f == 'function' ? f(R.last?.data ?? C?.get(k)?.v, v) : v;
+        if (k !== undefined) {
+          C.put(k, q, d);
+          const F = C.f.get(k);
+          F && stale(F);
+        }
+        rsrc.forEach((c, s2) => c.forEach((R2, n2) => {
+          if (R2 === R || (k !== undefined && !R2.p && R2.k === k)) { stop(s2, n2, R2); write(s2, n2, R2, 'success', d); }
+        }));
+      });
+    };
     const write = (s: any, n: string, R: any, status: string, data?: any, error?: any, refreshing?: any) => {
       reply(s, 'RESOURCE', {name: n, ...(R.last = {status, data, error, refreshing: refreshing || undefined})});
       // refetchEvery: polls after each result, skipping while the document is hidden
@@ -303,7 +332,7 @@ export function makeFetchDriver(options: any = {}) {
     const send = (req: any, sender = senderOf(req), rn?: string, after = -1, R?: any, pf?: any): any => {
       if (typeof req == 'string') req = {url: req};
       if (!req || typeof req != 'object' || disposed || !allowed(req, 'makeFetchDriver')) return;
-      const {url, category, method, headers, query, json, body, latest, timeoutMs, parse, abort, init, ok, error, key, resources, refresh, invalidates, retry, validate, prefetch} = req;
+      const {url, category, method, headers, query, json, body, latest, timeoutMs, parse, abort, init, ok, error, key, resources, refresh, invalidates, updates, retry, validate, prefetch} = req;
       if ('invalidate' in req) return inval(req.invalidate);
       if (prefetch) return C && send(prefetch, 0, rn, -1, R, 1);
       if (resources || refresh) {
@@ -368,6 +397,7 @@ export function makeFetchDriver(options: any = {}) {
         if (validate) try { v = await validateWith(validate, v); } catch (e: any) { return fail(e, {status, issues: e.issues}); }
         if (!finish(id)) return;
         if (R) write(sender, rn!, R, 'success', v);
+        if (updates) upd(sender, updates, v);
         rk !== undefined && ok ? reply(sender, ok, v) : rn === undefined && !pf && emit(false, {category, value: v, status, request: req});
         if (invalidates) inval(invalidates);
       };
@@ -387,7 +417,7 @@ export function makeFetchDriver(options: any = {}) {
         const rp = retry ?? (IDEMPOTENT.test(m) ? options.retry : 0);
         const pol = rp && typeof rp == 'object' ? rp : {count: +rp || 0};
         const tries = pol.count ?? 3;
-        F = {id, k, s: new Set(), n: 0};
+        F = {id, k, q: req, s: new Set(), n: 0};
         if (k !== undefined) C.f.set(k, F);
         const pz = parse || options.parse || 'auto';
         const parser = typeof pz == 'function' ? pz : PARSERS[pz] || autoParse;
@@ -443,7 +473,7 @@ export function makeFetchDriver(options: any = {}) {
               let v: any;
               try { v = await parser(res); } catch (e) { return live() && end(e, {status: st}); }
               if (!live()) return;
-              if (k !== undefined) C.put(k, req, v);
+              if (k !== undefined && !F.z) C.put(k, req, v);
               end(0, v, st);
             } catch (e) {
               live() && end(e);

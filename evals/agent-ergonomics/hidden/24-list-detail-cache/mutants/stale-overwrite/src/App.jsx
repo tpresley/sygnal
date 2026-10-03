@@ -51,11 +51,11 @@ App.initialState = {
   saveError: '',
 }
 
-// Each view's read follows the state; the query cache (main.js) shows a known list or item at
-// once and reloads it in the background once it is older than staleTime.
+// Each view's read is declared only while it is shown; the query cache (main.js) shows a known
+// list or item at once and reloads it in the background once it is older than staleTime.
 App.resources = {
-  items: (state) => state.view === 'list' && '/api/items',
-  item: (state) => state.view === 'detail' && `/api/items/${state.selected}`,
+  items: (state) => state.view === 'list' && { url: '/api/items', staleTime: 2000 },
+  item: (state) => state.view === 'detail' && { url: `/api/items/${state.selected}`, staleTime: 2000 },
 }
 
 App.intent = ({ DOM }) => ({
@@ -73,8 +73,9 @@ App.model = {
   TYPE: (state, draft) => ({ ...state, draft }),
   SAVE: {
     STATE: (state) => ({ ...state, saveError: '' }),
+    // updates: the reply is the item's data at once (aborting a reload already in flight);
     // '/api/items' is a URL prefix: the list and every item are marked stale, and the mounted
-    // item reloads now (aborting a reload already in flight)
+    // item reloads now, keeping the saved data
     HTTP: (state) => ({
       url: `/api/items/${state.selected}`,
       method: 'PUT',
@@ -84,7 +85,7 @@ App.model = {
       invalidates: (request) => request.url === '/api/items', // mutant: the list only; the item is set from the PUT reply
     }),
   },
-  // mutant: the PUT reply is written over the item, but a reload already in flight is not cancelled
+  // mutant: the PUT reply is written over the item in the model, so a reload already in flight is not cancelled
   SAVED: (state, saved) => ({ ...state, editing: false, saveError: '', item: { ...state.item, data: saved } }),
   SAVE_FAILED: (state) => ({ ...state, saveError: 'Could not save the item.' }),
 }
