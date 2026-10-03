@@ -48,13 +48,15 @@ PLAN-3's end-of-Phase-5 figures (40,403 B, 283 lines, 34,343 B) grew with #12 an
 | 1-E | Controls A/B eval | ⬜ | | user | | |
 | 2-A | Core I: GS-4, GS-11, GS-9 | ✅ merged | `p4-2a-core` (`4816283`) | subagent | (merge after `284a648`) | +229 B (GS-4 +5, GS-11 +120, GS-9 +104); SYG222 dev-only (0 B core); SYG502 retired; SSR uid determinism test in the gate |
 | 2-B | Core II: GS-6, GS-1 runtime | 🟡 running | `p4-2b-core` | subagent | | |
-| 2-C | Testing: GS-10 `t.actions` | 🟡 running | `p4-2c-actions` | subagent | | core hook, if any, proposed as a separate commit |
+| 2-C | Testing: GS-10 `t.actions` | ✅ merged | `p4-2c-actions` (`3e9dd23`) | subagent | | 0 B production (no core hook); 22/22 failing-first; `t.explain` (stretch) done; `inspect({ actions })` opt-in (G-210); 'behavior' cause hook = `isBehaviorAction` in `checks/actionLog.ts` |
 | 2-T | Types | folded into 2-A, 2-B, 2-C (each types its own surface) | | | | D119 |
-| 1-F | Follow-ups: dialog `close`/`cancel` delegation (G-204), SYG124/125 `reportedBy`, G-203, D116 `h` type test, stale Vite plugin comments | 🟡 running | `p4-1f-followups` | subagent | | |
+| 1-F | Follow-ups: dialog `close`/`cancel` delegation (G-204), SYG124/125 `reportedBy`, G-203, D116 `h` type test, stale Vite plugin comments | ✅ merged | `p4-1f-followups` (`555eeb2`) | subagent | | +30 B (non-bubbling list incl. media events); mock DOM no longer bubbles non-bubbling events; browser 143 |
 | 2-A2 | Follow-ups to 2-A: Astro hook (D120), G-206, G-207 | ⬜ after 2-B (`component.ts`) | | | | |
 | 2-D | a11y checker (GS-3) | ✅ merged `5e9c1e5` | `p4-2d-a11y` (`e7af5d7`) | subagent | `5e9c1e5` | 18/31 failing-first; sygnal-check 343; FP review 0/100 on p4-final2 + p3-final, 0/498 elsewhere; examples/templates/doc samples a11y-clean; 5 pending in llms.txt/SKILL.md (4-A) |
 | P-3 | Performance baseline (GS-16) | 🟡 running | `p4-p3-perf` | subagent | | |
-| P-1, P-2, P-4 | Prototypes | ⬜ | | | | |
+| P-1 | View Transitions spike (GS-12) | 🟡 running | `exp/p4-view-transitions` | subagent | not merged | decision record → user |
+| 1-E prep | Controls A/B variants `p4-ct1-a`/`p4-ct1-b` | 🟡 running | `p4-1e-ab-variant` | subagent | | |
+| P-2, P-4 | Prototypes | ⬜ | | | | |
 | 3-A … 3-T | Phase 3 | ⬜ | | | | 3-A includes D102 |
 | 4-A … 4-F | Phase 4 | ⬜ | | | | |
 
@@ -167,13 +169,15 @@ They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none o
 | G-200 | gap study | high | DOM | B-0 (controlled inputs drop keystrokes under ~5 ms apart), B-1 (fragment-root components lose isolation in the real DOM) and the mock/real bubbling mismatch. A separate session ("Fix DOM isolation and keystroke bugs") is fixing them on a branch off `main`. | ✅ Fixed on `main` in #12 (`2cef7ee`) as G-144…G-146 (PLAN-2 tracker) |
 | G-201 | PLAN-5 §0.3 S-7 | info | GS-2 | `scrollToIndex` isn't an element command, because the target row of a virtual list usually isn't rendered. PLAN-5 uses `createCommand()` for it. Nothing changes in GS-2. | Note |
 | G-202 | 1-D | low | diagnostics | Runtime `inspect()` (dev entry) doesn't list controls yet; only the static `--graph` does. The schema fields are optional. | ✅ 1-A |
-| G-203 | 1-D | low | checker | SYG111 (controlled input) doesn't look through controls, so `<Draft value=…>` misses findings (never adds false ones). | 1-F fixing |
-| G-204 | 0-C | high | DOM | Dialog `close`/`cancel` don't bubble and aren't in `eventTypesThatDontBubble`, so `DOM.close(x)` / `.events('close')` never fires (eval known issue 10). | 1-F fixing |
+| G-203 | 1-D | low | checker | SYG111 (controlled input) doesn't look through controls, so `<Draft value=…>` misses findings (never adds false ones). | ✅ 1-F |
+| G-204 | 0-C | high | DOM | Dialog `close`/`cancel` don't bubble and aren't in `eventTypesThatDontBubble`, so `DOM.close(x)` / `.events('close')` never fires (eval known issue 10). | ✅ 1-F |
 | G-205 | 2-D | info | evals | Nine eval starters (01, 02, 07, 09, 12, 18, 20, 21, 25) now produce SYG702 warnings from the vendored sygnal-check. Same for both 1-E variants; differs from PLAN-3 runs, which 4-E's comparison must note. | Note |
 | G-206 | 2-A | low | GS-9 | The root uid is always `u`, so two apps on one page produce the same ids. | 2-A2 |
 | G-207 | 2-A | medium | GS-9 / Vike | With a Vike Layout/Wrapper, the server renders the Page as its own root while the client nests it in the shell, so the Page's uids differ between server and client. | 2-A2 |
 | G-208 | 2-A | info | GS-11 | The `'driver'` phase covers only drivers that throw synchronously from a sink listener (not errors inside a driver's operators or error events on its sources). | Note; docs in 4-B |
 | G-209 | 2-A, 2-D | — | docs | Lines now false after GS-4/GS-9 (`return state` rule, SYG502, reserved props without `uid`) in llms.txt, SKILL.md, guide/model, alternative-forms, strict-mode, testing, components, sygnal-check README, SYG106 explanation; 5 a11y findings in llms.txt/SKILL.md samples (`A11Y_PENDING`). | 4-A / 4-B (SYG106 explanation and the sygnal-check README in 3-D) |
+| G-210 | 2-C | low | inspect | `inspect()` lists recent actions only with `{ actions }`, because `sygnal-check/schema/inspect.schema.json` has no `recentActions` (additionalProperties false). Add the schema entry (2-C's proposed JSON) in 3-D, then decide on default. | 3-D |
+| G-211 | 2-C merge | low | tests | `p4-2c-inspect-actions` relied on 30 × 1 ms ticks in a fixed 120 ms window; flaky under load. Fixed to wait for the ticks. Browser headless timeout raised 30 → 90 s (suite ~27 s). | ✅ coordinator |
 
 ## Log
 
@@ -184,3 +188,4 @@ They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none o
 - 2026-10-03 — 1-T done (`p4-1t-types`), held until 1-A. 1-D merged (`6565844`); all gates green, size unchanged (40,536 B). D112, D113; G-202, G-203.
 - 2026-10-03 — 0-B done (table above). P4-Q2, Q4, Q6, Q7, Q8, Q12 answered and D101 amended (D114–D117); D118. 1-A, 2-A and 2-D started.
 - 2026-10-03 — Merged 1-A + 1-T (`3b32e04`), 2-D (`5e9c1e5`), 0-C (`284a648`) and 2-A; gates green after each. Size 40,817 B gated (PLAN-4 +281 B of 650). Library vitest 1,623, browser 139, sygnal-check 343. 0-E command handed to the user. Started 1-F, 2-C, P-3, 2-B. D119–D122; G-204…G-209.
+- 2026-10-03 — Merged 2-C and 1-F; gates green (vitest 1,655, browser 143, sygnal-check 346; 40,846 B gated, PLAN-4 +310 B). Started 1-E variant prep and P-1.
