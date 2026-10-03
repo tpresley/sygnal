@@ -12,10 +12,10 @@
  * The method: D102 first, a control whose spec object declares `commands` runs
  * `commands[method](element, options)` (it overrides a native method of the same name; only the
  * control itself carries a spec, a template-string selector doesn't). Then the element's own
- * method: `close` gets `returnValue` as its argument (D118), every other method the options
- * object (focus { preventScroll }, scrollIntoView { block, inline, behavior }, togglePopover
- * { force } (the options form; a browser that only takes a boolean shows the popover), blur,
- * select, click, showModal, show, showPopover, hidePopover; also play, pause, showPicker,
+ * method: `close` gets `returnValue` as its argument (D118), `togglePopover` its `force` (a
+ * boolean, or no argument: a browser that only takes a boolean treats an object as true), every
+ * other method the options object (focus { preventScroll }, scrollIntoView { block, inline,
+ * behavior }, blur, select, click, showModal, show, showPopover, hidePopover; also play, pause, showPicker,
  * requestSubmit, reset...). The core runs any method the element has (no list: it
  * would cost ~60 B); the dev entry reports the ones that change the DOM Sygnal renders (SYG641).
  *
@@ -42,7 +42,7 @@ export function runElementCommands(c: any, cmds: any): void {
       s.removeListener(l);
       clearInterval(i);
       l = 0;
-      e && (f || e[m]) ? f ? f(e, o) : e[m](m == 'close' ? o.returnValue : o)
+      e && (f || e[m]) ? f ? f(e, o) : e[m](m == 'close' ? o.returnValue : m == 'togglePopover' ? o.force : o)
         : (globalThis as any).__SYGNAL_DIAGNOSTICS__?.elementCommand?.(c, cmd, e);
     }, i = setInterval(() => run(++k > 62), 16);
     // the first value (the DOM as it is now) is skipped; the next ones follow a patch
