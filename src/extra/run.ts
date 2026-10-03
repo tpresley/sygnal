@@ -39,7 +39,9 @@ interface SygnalRunResult {
 export default function run(
   app: any,
   drivers: Record<string, any> = {},
-  options: RunOptions = {}
+  options: RunOptions = {},
+  // G-216 (internal): a hot swap's { u: swapping, s: state to keep }, this app's `__hmr` source
+  hmrSwap?: {u: boolean; s: any}
 ): SygnalRunResult {
   // D77: the DevTools bridge is not installed here; 'sygnal/devtools' (injected by
   // sygnal/vite in dev) installs window.__SYGNAL_DEVTOOLS__ before run() is called.
@@ -89,7 +91,7 @@ export default function run(
   // GS-11: the hook is a source (`__e`) every component inherits, so it is per app. G-206: the
   // uid root is the root component's `__uid` source (the Component constructor reads it); anything
   // but [A-Za-z0-9_-] becomes '_' (renderToString's root too)
-  const combinedDrivers = {...baseDrivers, ...drivers, ...(onError && {__e: () => onError}), ...(uid && {__uid: () => uid.replace(/[^\w-]+/g, '_')})};
+  const combinedDrivers = {...baseDrivers, ...drivers, ...(onError && {__e: () => onError}), ...(uid && {__uid: () => uid.replace(/[^\w-]+/g, '_')}), ...(hmrSwap && {__hmr: () => hmrSwap})};
 
   const {sources, sinks, run: _run} = setup(wrapped, combinedDrivers as any);
   const rawDispose = _run();
@@ -120,14 +122,12 @@ export default function run(
 
   const swapToComponent = (newComponent: any, state?: any) => {
     const resolvedState = typeof state === 'undefined' ? app.initialState : state;
-    if (typeof window !== 'undefined') {
-      window.__SYGNAL_HMR_UPDATING = true;
-      window.__SYGNAL_HMR_STATE = resolvedState;
-    }
+    // G-216: the swap is this app's (its successor's __hmr source), never page-wide, so an app
+    // constructed meanwhile doesn't take this state; nor is it written into the component's
+    // initialState static, which another app (or a custom element) may share
+    const swap = {u: true, s: resolvedState};
     exposed.dispose();
-    const App = newComponent.default || newComponent;
-    App.initialState = resolvedState;
-    const updated = run(App, drivers, options);
+    const updated = run(newComponent.default || newComponent, drivers, options, swap);
     exposed.sources = updated.sources;
     exposed.sinks = updated.sinks;
     exposed.dispose = updated.dispose;
@@ -142,23 +142,18 @@ export default function run(
       setTimeout(restore, 20);
     }
 
-    if (
-      typeof window !== 'undefined' &&
-      updated?.sources?.STATE?.stream &&
-      typeof updated.sources.STATE.stream.setDebugListener === 'function'
-    ) {
-      updated.sources.STATE.stream.setDebugListener({
+    const state$ = updated?.sources?.STATE?.stream;
+    if (typeof state$?.setDebugListener === 'function') {
+      state$.setDebugListener({
         next: () => {
-          updated.sources.STATE.stream.setDebugListener(null);
-          window.__SYGNAL_HMR_STATE = undefined;
-          setTimeout(() => {
-            window.__SYGNAL_HMR_UPDATING = false;
-          }, 100);
+          state$.setDebugListener(null);
+          swap.s = undefined;
+          setTimeout(() => { swap.u = false; }, 100);
         },
       });
-    } else if (typeof window !== 'undefined') {
-      window.__SYGNAL_HMR_STATE = undefined;
-      window.__SYGNAL_HMR_UPDATING = false;
+    } else {
+      swap.s = undefined;
+      swap.u = false;
     }
   };
 

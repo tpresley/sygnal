@@ -217,3 +217,54 @@ describe('G-214 (8): one isAbort', () => {
     expect(isAbort('sygnal.ABORT')).toBe(false)
   })
 })
+
+describe("G-216: an app's hot swap is scoped to that app (the __hmr source)", () => {
+  function Counter({ state }) { return h('b', null, state.label + state.count) }
+  Counter.initialState = { label: 'A', count: 1 }
+  function Other({ state }) { return h('i', null, state.name + state.n) }
+  Other.initialState = { name: 'B', n: 100 }
+  const text = sel => document.querySelector(sel)?.textContent
+
+  it("an app started during another app's swap starts from its own initialState; the swapped app keeps its state", async () => {
+    document.body.innerHTML = '<div id="a"></div><div id="b"></div>'
+    const a = run(Counter, {}, { mountPoint: '#a', diagnostics: 'off' })
+    let b
+    try {
+      await until(() => text('#a') === 'A1', 'app A')
+      a.sinks.STATE.shamefullySendNext(s => ({ ...s, count: 5 }))
+      await until(() => text('#a') === 'A5', 'A at 5')
+      a.hmr(Counter)
+      b = run(Other, {}, { mountPoint: '#b' })   // inside A's swap window
+      await until(() => text('#b') === 'B100', 'app B with its own state')
+      await sleep(150)
+      expect(text('#b')).toBe('B100')
+      expect(text('#a')).toBe('A5')
+      expect(b.sources.STATE.stream._v).toEqual({ name: 'B', n: 100 })
+      expect(window.__SYGNAL_HMR_UPDATING).toBeUndefined()
+      expect(window.__SYGNAL_HMR_STATE).toBeUndefined()
+    } finally { a.dispose(); b?.dispose(); document.body.innerHTML = '' }
+  })
+
+  it('hmrActions fire in the swapped-in app only', async () => {
+    const fired = []
+    function A({ state }) { return h('b', null, String(state.r)) }
+    A.initialState = { r: 0 }
+    A.hmrActions = 'REFRESH'
+    A.model = { REFRESH: s => (fired.push('A'), { ...s, r: s.r + 1 }) }
+    function B({ state }) { return h('i', null, String(state.r)) }
+    B.initialState = { r: 0 }
+    B.hmrActions = 'REFRESH'
+    B.model = { REFRESH: s => (fired.push('B'), { ...s, r: s.r + 1 }) }
+    document.body.innerHTML = '<div id="a"></div><div id="b"></div>'
+    const a = run(A, {}, { mountPoint: '#a', diagnostics: 'off' })
+    let b
+    try {
+      await until(() => text('#a') === '0', 'app A')
+      a.hmr(A)
+      b = run(B, {}, { mountPoint: '#b' })
+      await until(() => fired.length > 0, 'an hmrAction')
+      await sleep(150)
+      expect(fired).toEqual(['A'])
+    } finally { a.dispose(); b?.dispose(); document.body.innerHTML = '' }
+  })
+})

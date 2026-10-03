@@ -538,7 +538,8 @@ class Component {
 
     const action$    = ((runner instanceof Stream) ? runner : (runner.apply && runner(this.sources) || xs.never()))
     const bootstrap$ = xs.of({ type: BOOTSTRAP_ACTION }).compose(delay(10))
-    const _hmrUpdating = typeof window !== 'undefined' && window.__SYGNAL_HMR_UPDATING === true
+    // G-216: this app's hot swap (run()'s __hmr source: { u: swapping, s: the state to keep })
+    const _hmrUpdating = this.sources.__hmr?.u
     const hmrAction$ = _hmrUpdating ? this.hmrAction$ : xs.empty()
     const wrapped$   = (this.model?.[BOOTSTRAP_ACTION] &&!_hmrUpdating) ? concat(bootstrap$, action$) : concat(xs.of().compose(delay(1)).filter((_: any) => false), hmrAction$, action$)
 
@@ -669,14 +670,14 @@ class Component {
       return
     }
 
-    const hmrState = ENVIRONMENT?.__SYGNAL_HMR_STATE
+    const hmrState = this.sources.__hmr?.s
     const effectiveInitialState = (typeof hmrState !== 'undefined') ? hmrState : this.initialState
     const initial  = { type: INITIALIZE_ACTION, data: effectiveInitialState }
     if (this.isSubComponent && this.initialState && !this.isolatedState) {
       warn('SYG405', this, 'Sub-component initialState replaces the state its parent passes in', 'Remove initialState, or set isolatedState = true')
     }
     const hasInitialState = (typeof effectiveInitialState !== 'undefined')
-    const shouldInjectInitialState = hasInitialState && (ENVIRONMENT?.__SYGNAL_HMR_UPDATING !== true || typeof hmrState !== 'undefined')
+    const shouldInjectInitialState = hasInitialState && (!this.sources.__hmr?.u || typeof hmrState !== 'undefined')
     // Only INITIALIZE is delayed (user actions start >= 1ms later), so the other actions, and
     // their non-STATE sinks, stay synchronous with the event that caused them (1H-1).
     const shimmed$ = shouldInjectInitialState ? xs.merge(xs.of(initial).compose(delay(0)), this.action$) : this.action$

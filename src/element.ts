@@ -38,10 +38,6 @@ export interface ElementOptions {
 
 // Sinks that are the app's own drivers, never events
 const RESERVED_SINKS = ['DOM', 'STATE', 'EVENTS'];
-// A hot swap elsewhere on the page holds page-wide HMR flags for ~100 ms; an element that
-// connects meanwhile waits (dev only), up to this many retries
-const HMR_WAIT_MS = 30;
-const HMR_WAIT_TRIES = 20;
 
 // Hot-swap functions of the tags this module defined
 const swaps = new WeakMap<CustomElementConstructor, (Component: any) => void>();
@@ -64,7 +60,6 @@ function toSheet(style: string | CSSStyleSheet): CSSStyleSheet {
 }
 
 const devMode = () => (globalThis as any).__SYGNAL_DEV__ === true;
-const hmrUpdating = () => typeof window !== 'undefined' && (window as any).__SYGNAL_HMR_UPDATING === true;
 
 export function defineElement(tag: string, Component: any, options: ElementOptions = {}): CustomElementConstructor {
   const prior = customElements.get(tag);
@@ -101,7 +96,6 @@ export function defineElement(tag: string, Component: any, options: ElementOptio
     #app: any = undefined;
     #root: HTMLElement | ShadowRoot = this;
     #uid = `${tag}-${++instances}`;
-    #waits = 0;
 
     static {
       for (const name of Object.keys(types)) {
@@ -151,11 +145,7 @@ export function defineElement(tag: string, Component: any, options: ElementOptio
 
     connectedCallback() {
       if (this.#app) return; // moved, not removed: keep running
-      if (hmrUpdating() && this.#waits++ < HMR_WAIT_TRIES) {
-        setTimeout(() => this.isConnected && this.connectedCallback(), HMR_WAIT_MS);
-        return;
-      }
-      this.#waits = 0;
+      // (G-216: a hot swap elsewhere on the page is that app's own, so no need to wait it out)
       if (shadowedMembers.length && !warned && devMode()) {
         warned = true;
         console.warn(

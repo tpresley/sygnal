@@ -275,14 +275,21 @@ describe('defineElement', () => {
     expect(window.__SYGNAL_DEVTOOLS_APP__).toBe(host)
   })
 
-  it('waits while another app is hot-swapping (page-wide HMR flags), then starts with its own state', async () => {
+  it("starts at once with its own state while a host app is hot-swapping (G-216: the swap is the host's own)", async () => {
     const t = tag('wait')
     defineElement(t, Board, { props })
-    window.__SYGNAL_HMR_UPDATING = true
-    document.body.innerHTML = `<${t} count="3"></${t}>`
-    await sleep(40)
-    expect(document.querySelector('.board')).toBeNull()
-    window.__SYGNAL_HMR_UPDATING = false
-    await until(() => meta(document) === '3|false|0|0', 'started after the swap')
+    document.body.innerHTML = `<div id="root"></div><div id="el"></div>`
+    const host = run(Board, {}, { mountPoint: '#root' })
+    apps.push(host)
+    await until(() => document.querySelector('#root .board'), 'host')
+    host.sinks.STATE.shamefullySendNext(s => ({ ...s, heading: 'host', count: 9 }))
+    await until(() => meta(document.querySelector('#root')) === '9|false|0|0', 'host count 9')
+    host.hmr(Board)
+    document.querySelector('#el').innerHTML = `<${t} count="3"></${t}>`
+    await until(() => meta(document.querySelector('#el')) === '3|false|0|0', 'element with its own state')
+    await sleep(150)
+    expect(meta(document.querySelector('#el'))).toBe('3|false|0|0')
+    expect(document.querySelector('#el .title').textContent).toBe('none')
+    expect(meta(document.querySelector('#root'))).toBe('9|false|0|0')
   })
 })

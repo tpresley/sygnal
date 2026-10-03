@@ -331,18 +331,13 @@ describe('G-025: renderComponent honors .components and .hmrActions', () => {
   })
 
   it('.hmrActions fire during an HMR update', async () => {
-    const prevWindow = globalThis.window
-    globalThis.window = { __SYGNAL_HMR_UPDATING: true }
-    try {
-      function C() { return h('div', null) }
-      C.initialState = { refreshed: false }
-      C.hmrActions = 'REFRESH'
-      C.model = { REFRESH: s => ({ ...s, refreshed: true }) }
-      t = renderComponent(C)
-      await t.waitForState(s => s.refreshed === true, 500)
-    } finally {
-      globalThis.window = prevWindow
-    }
+    // G-216: the swap is the app's own __hmr source (run() passes it to a hot-swapped successor)
+    function C() { return h('div', null) }
+    C.initialState = { refreshed: false }
+    C.hmrActions = 'REFRESH'
+    C.model = { REFRESH: s => ({ ...s, refreshed: true }) }
+    t = renderComponent(C, { drivers: { __hmr: () => ({ u: true }) } })
+    await t.waitForState(s => s.refreshed === true, 500)
   })
 })
 
