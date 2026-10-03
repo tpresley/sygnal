@@ -741,20 +741,28 @@ class Component {
     // later, after its reducer ran, so a connection the same action opens or changes is first
     // 3-A: the same for Component.resources ({ name: state => request }) to makeFetchDriver: the
     // source names the static it takes (__sygnalStatic)
+    // D85: in a hidden Switchable page, an object declaration keeps only its entries with
+    // `background: true` (the driver closes / idles the rest as removed); shown, all of them.
+    // Any other value (a `route` string) stays as it is
     this.sourceNames.forEach(n => {
       const k = this.sources[n]?.__sygnalStatic, f = typeof k == 'string' && this.view?.[k]
       if (!f) return
       const own$: any = xs.create()
       model$[n] = xs.merge(
-        xs.merge(this.sources[this.stateSourceName].stream, this._s ||= xs.create()).compose(dropRepeats())
+        xs.combine(xs.merge(this.sources[this.stateSourceName].stream, this._s ||= xs.create()).compose(dropRepeats())
           .map((s: any) => {
             try {
               s = this.addCalculated(s)
               let v = f
               if (typeof f == 'function') v = f(s)
               else if (typeof f == 'object') { v = {}; for (const r in f) v[r] = f[r](s) }
-              return {[k]: v}
+              return [v]
             } catch (err) { caught('SYG216', this, `${k} threw; nothing sent`, ERR_FIX, err) }
+          }), this.sources.__switchPage?.shown$ || xs.of(1))
+          .map(([w, shown]: any) => {
+            let v = w?.[0]
+            if (!shown && v && typeof v == 'object') { v = {}; for (const r in w[0]) if (w[0][r]?.background) v[r] = w[0][r] }
+            return w && {[k]: v}
           }).compose(dropRepeats(objIsEqual)),
         (model$[n] || xs.never()).filter((v: any) => queueMicrotask(() => queueMicrotask(() => own$.shamefullySendNext(v))) as any),
         own$)
@@ -1502,7 +1510,7 @@ class Component {
     })
     const sources = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$, __parentContext$: this.context$, __parentComponentNumber: this._componentNumber }
 
-    const sink$ = isolate(switchable(switchableComponents, props$.map((props: any) => props.current), ''), { [this.stateSourceName]: lense })(sources)
+    const sink$ = isolate(switchable(switchableComponents, props$.map((props: any) => [props.current, props.instance]), ''), { [this.stateSourceName]: lense })(sources)
 
     if (!isObj(sink$)) {
       fail('SYG903', this, 'Switchable factory returned invalid sinks', 'Return a sinks object')
