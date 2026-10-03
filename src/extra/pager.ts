@@ -11,8 +11,8 @@
  * the calculated fields follow.
  */
 import { defineBehavior } from './behaviors'
+import { ABORT } from '../shared'
 
-const ABORT = Symbol.for('sygnal.ABORT')
 const pagesOf = (p: any) => p.total == null ? null : Math.max(1, Math.ceil(p.total / p.pageSize))
 const to = (p: any, page: number) => {
   const n = pagesOf(p)

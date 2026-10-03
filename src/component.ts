@@ -6,7 +6,7 @@ import {objIsEqual} from './cycle/state/objIsEqual';
 import {init as snabbdomInit} from './cycle/dom/snabbdom';
 import defaultModules from './cycle/dom/modules';
 import {renderSeq} from './cycle/dom/controlledInputModule';
-import {uidPart} from './shared';
+import {uidPart, isAbort} from './shared';
 import {makeCommandSource} from './extra/command';
 import {runElementCommands} from './extra/elementCommands';
 import type {Command} from './extra/command';
@@ -51,17 +51,6 @@ function wrapDOMSource(domSource: any): any {
 
 
 export const ABORT = Symbol.for('sygnal.ABORT')
-
-/**
- * Check if a value is the ABORT sentinel.
- * Uses Symbol.for() identity first, then falls back to description check
- * in case bundlers (e.g. Vite) create duplicate module instances with
- * separate Symbol.for() registries.
- */
-function isAbort(value: any): boolean {
-  if (value === ABORT) return true
-  return typeof value === 'symbol' && value.description === 'sygnal.ABORT'
-}
 
 
 function normalizeCalculatedEntry(field: string, entry: any): {fn: (...args: any[]) => any; deps: string[] | null} {

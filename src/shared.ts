@@ -3,6 +3,16 @@
  * out of component.ts so importing them never pulls the core in.
  */
 
+/** The "no change / send nothing" sentinel (a registered symbol: the same in every copy) */
+export const ABORT = Symbol.for('sygnal.ABORT')
+
+/**
+ * Whether a value is ABORT. Compares the description, not the identity, in case bundlers (e.g.
+ * Vite) create duplicate module instances with separate Symbol.for() registries. (G-214: the
+ * one copy, for the core, behaviors, undo and the action log)
+ */
+export const isAbort = (v: any): boolean => typeof v == 'symbol' && v.description == 'sygnal.ABORT'
+
 /**
  * PLAN-4 GS-9 / G-214: one part of a uid() path (a child's path or `id` prop, a Collection item
  * key, a Switchable page name), encoded injectively into [A-Za-z0-9_]: letters and digits stay,

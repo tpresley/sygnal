@@ -15,8 +15,8 @@
  * factory wraps the merged SELECT_ALL / TOGGLE_ALL entries to pass the host list's ids.
  */
 import { defineBehavior } from './behaviors'
+import { ABORT } from '../shared'
 
-const ABORT = Symbol.for('sygnal.ABORT')
 const ids = (d: any) => Array.isArray(d) ? d.map(String) : null
 const set = (s: any, selected: string[]) =>
   selected.join('\0') === s.selected.join('\0') ? ABORT : {...s, selected}

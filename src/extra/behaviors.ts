@@ -33,8 +33,7 @@
  *   the name it gives, not namespaced; a host intent must return an object (not one stream).
  */
 import xs from './xstreamCompat'
-
-const isAbort = (v: any): boolean => typeof v == 'symbol' && v.description == 'sygnal.ABORT'
+import {isAbort} from '../shared'
 // a model entry as { sink: fn }: a constant is sent as is, `true` sends the action's data, an
 // EFFECT constant does nothing (as the core treats them)
 const sinksOf = (e: any, S: string): any => {

@@ -19,9 +19,8 @@
  * SYG226 (dev, warn): a `track` / `resetOn` name with no model entry.
  */
 import { defineBehavior } from './behaviors'
+import { ABORT, isAbort } from '../shared'
 
-const ABORT = Symbol.for('sygnal.ABORT')
-const isAbort = (v: any): boolean => typeof v == 'symbol' && v.description == 'sygnal.ABORT'
 const BUILT_IN = /^(BOOTSTRAP|INITIALIZE|DISPOSE|READY|RESOURCE)$/
 // the last recorded change of a history, keyed by its `past` array (which a behavior's calculated
 // fields keep while they copy the history object): [action, time] (coalescing; never in state)

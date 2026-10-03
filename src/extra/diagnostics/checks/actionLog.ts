@@ -36,6 +36,7 @@
  * sends nothing. Evaluations are matched to records FIFO per action + sink (the core applies
  * them in action order; STATE reducers later, in withState's microtask).
  */
+import {isAbort} from '../../../shared'
 
 export type ActionCause = 'intent' | 'next' | 'reply' | 'built-in' | 'simulateAction' | 'behavior'
 
@@ -72,8 +73,6 @@ const KEY = '__sygnalActionLog'
 const BUILT_IN = /^(BOOTSTRAP|INITIALIZE|DISPOSE|RESOURCE)$/
 /** a record waiting for a sink that never runs (no driver subscribed it) is dropped after this */
 const MAX_PENDING = 50
-
-const isAbort = (v: any) => typeof v == 'symbol' && v.description === 'sygnal.ABORT'
 
 /** now on the test's fake clock when there is one (vi.useFakeTimers()), else Date.now() */
 export const clockNow = (): number => {

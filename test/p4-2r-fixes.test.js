@@ -200,3 +200,20 @@ describe("G-214 (7): a throwing static declaration is reported with phase 'decla
     } finally { app.dispose(); console.error = errSpy; document.body.innerHTML = '' }
   })
 })
+
+describe('G-214 (8): one isAbort', () => {
+  it('only src/shared.ts defines isAbort; it matches ABORT and a duplicate registry copy only', async () => {
+    const { readFileSync, readdirSync, statSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const walk = (d) => readdirSync(d).flatMap(f => statSync(join(d, f)).isDirectory() ? walk(join(d, f)) : [join(d, f)])
+    const src = join(__dirname, '../src')
+    const defs = walk(src).filter(f => f.endsWith('.ts') && /(const|function) isAbort\b/.test(readFileSync(f, 'utf8')))
+    expect(defs.map(f => f.slice(src.length + 1))).toEqual(['shared.ts'])
+    const { isAbort, ABORT: A } = await import('../src/shared.ts')
+    expect(isAbort(ABORT)).toBe(true)
+    expect(A).toBe(ABORT)
+    expect(isAbort(Symbol('sygnal.ABORT'))).toBe(true)
+    expect(isAbort(Symbol('x'))).toBe(false)
+    expect(isAbort('sygnal.ABORT')).toBe(false)
+  })
+})
