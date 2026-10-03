@@ -56,9 +56,9 @@ PLAN-3's end-of-Phase-5 figures (40,403 B, 283 lines, 34,343 B) grew with #12 an
 | P-3 | Performance baseline (GS-16) | ✅ merged (non-gating) | `p4-p3-perf` (`88f0b2f`) | subagent | | `benchmarks/RESULTS.md`; `npm --prefix browser-tests run perf`; proposes "Collection O(1) item lookups" (+28 B) → user |
 | P-1 | View Transitions spike (GS-12) | ✅ decided (D129) | `exp/p4-view-transitions` (`bbdc43a`) | subagent | not merged | `dev-plans/research/p1-view-transitions.md` on the exp branch |
 | P-1b | View Transitions, form B | ⬜ | | | | after 3-B (`component.ts`) |
-| P-2b | `sygnal/element` + per-instance `run()` (G-212) | 🟡 running | `p4-p2b-element` | subagent | | |
+| P-2b | `sygnal/element` + per-instance `run()` (G-212) | ✅ merged | `p4-p2b-element` (`bf36b39`) | subagent | | core **−72 B** (page-wide HMR persisted state removed); entry 1,554 B gz (1,951 B at es2020 because of `#private`); doc draft in `research/p2b-element-doc-draft.md` for PLAN-5 |
 | PF-1 | Collection O(1) item lookups (D128) | ⬜ | | | | after P-1b (`component.ts`) |
-| 2-R | Phase 1+2 review fixes (G-214) | ⬜ after 3-A | | | | then tags `plan4-phase1`, `plan4-phase2` |
+| 2-R | Phase 1+2 review fixes (G-214), G-216, D131 | ⬜ after 3-A | | | | then tags `plan4-phase1`, `plan4-phase2` |
 | 3-A | Element commands (GS-2) | 🟡 running | `p4-3a-element` | subagent | | |
 | 3-C | Timers (GS-7) | ✅ merged | `p4-3c-timers` (`6ad12b1`) | subagent | | 0 B core; +579 B per app; driver key `TIMER` by convention (found by `__sygnalStatic`); SYG643 also covers `connections`/`resources`; hidden pages restart timers from scratch; recipe waits for 3-K (SYG102 on TICK) |
 | 3-E | DevTools (GS-10) | 🟡 running | `p4-3e-devtools` | subagent | | |
@@ -176,6 +176,7 @@ They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none o
 | D128 | 2026-10-03 | "Collection O(1) item lookups" (P-3 record) approved as a separate item, ≈ +28 B within PLAN-4's cap. | User | GS-16 |
 | D129 | 2026-10-03 | GS-12 form B: `viewTransitions` static in core (+29 B), the transition hook as an opt-in helper DOM driver, `App.viewTransitions = ['ROUTE']` for routes (no router option), a dev diagnostic when the static is set without the driver. P-1b also tries a slimmer core hook; if form A fits in ≤ ~60 B more, back to the user to fold it in. PLAN-5 A-1 shrinks to item naming + a CSS recipe + a FLIP fallback for drag/rapid reorder. | User | P-1 record and coordinator's answers on core vs helper, framework expectations, agent risk |
 | D130 | 2026-10-03 | Accepted 2-A2's surface: Astro `uid` island prop; Vike Layout/Wrapper/Page views receive `id` props (`w0`, `l0`, `p`) so uids match SSR. | Coordinator | 2-A2 QUESTION |
+| D131 | 2026-10-03 | SYG644 (warn, dev) for a `defineElement` prop that hides an `HTMLElement` member, from PLAN-4's spare 6xx range; done in 2-R. | Coordinator | P-2b QUESTION 2 |
 
 ## Open questions (PLAN-4 §11)
 
@@ -211,10 +212,12 @@ They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none o
 | G-209 | 2-A, 2-D | — | docs | Lines now false after GS-4/GS-9 (`return state` rule, SYG502, reserved props without `uid`) in llms.txt, SKILL.md, guide/model, alternative-forms, strict-mode, testing, components, sygnal-check README, SYG106 explanation; 5 a11y findings in llms.txt/SKILL.md samples (`A11Y_PENDING`). | 4-A / 4-B (SYG106 explanation and the sygnal-check README in 3-D) |
 | G-210 | 2-C | low | inspect | `inspect()` lists recent actions only with `{ actions }`, because `sygnal-check/schema/inspect.schema.json` has no `recentActions` (additionalProperties false). Add the schema entry (2-C's proposed JSON) in 3-D, then decide on default. | 3-D |
 | G-211 | 2-C merge | low | tests | `p4-2c-inspect-actions` relied on 30 × 1 ms ticks in a fixed 120 ms window; flaky under load. Fixed to wait for the ticks. Browser headless timeout raised 30 → 90 s (suite ~27 s). | ✅ coordinator |
-| G-212 | P-2 | medium | run | `run()` writes page-wide globals (`__SYGNAL_HMR_PERSISTED_STATE`, `__SYGNAL_DEVTOOLS_APP__`) and resets the diagnostics config, so two apps (or a host app plus custom elements) on one page interfere: HMR may restore another app's state, diagnostics mode is reset. Related to G-206. | P-2b (D127) |
+| G-212 | P-2 | medium | run | `run()` writes page-wide globals (`__SYGNAL_HMR_PERSISTED_STATE`, `__SYGNAL_DEVTOOLS_APP__`) and resets the diagnostics config, so two apps (or a host app plus custom elements) on one page interfere: HMR may restore another app's state, diagnostics mode is reset. Related to G-206. | ✅ P-2b (residual in G-216) |
 | G-213 | P-1 | medium | Collection | Moving an item across Collections paints a frame without it (0–1 frames per move, 4–8 in rapid runs), even with no animation. | Open → PF-1 or P-1b |
 | G-214 | review (Phase 1+2, high) | — | core | Review findings: (1) behaviors.ts calls constant sink values (`{ PARENT: 'x' }`, `true`) as functions; (2) the parent mutates its received `sources.__uid` for each child (root: Cycle's sources), so a remount reads a stale base; (3) uid sanitizing isn't injective ('a.b' vs 'a_b'); (4) `STATE.select(...).watch()` doesn't end on dispose (select drops `end`); (5) Collection/Switchable uids become 'undefined-…' without a `__uid`; (6) SYG222 misses in-place mutation of a behavior slice; (7) statics errors reported with phase 'reducer'; (8) `isAbort` duplicated in 4 modules; (9) stale objIsEqual depth comment. | 2-R |
 | G-215 | 3-C | low | GS-7 | No real-browser test for `frame` timers (rAF). Add one in 3-K or 4-x. | Open |
+| G-216 | P-2b | low | HMR | `component.ts` still reads page-wide `__SYGNAL_HMR_UPDATING` / `__SYGNAL_HMR_STATE`, so an app constructed during another app's ~100 ms hot swap can take its state. Fix: scope per app through a `__hmr` source (+10–20 B). | 2-R |
+| G-217 | P-2b | — | docs | `integration/hmr.md:67` mentions the removed `__SYGNAL_HMR_PERSISTED_STATE`; `diagnostics/index.ts` comment (lines 55–58) says every run() is authoritative ("unless another app is live"). | 4-B / 2-R |
 
 ## Log
 
@@ -232,3 +235,4 @@ They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none o
 - 2026-10-03 — Merged 1-E prep, 2-A2, 3-D; gates green (vitest 1,740, sygnal-check 369, browser 143; 40,938 B gated, PLAN-4 +402 B). Decisions D125–D130; G-213. 1-E commands handed to the user.
 - 2026-10-03 — Started 3-A, 3-C, 3-E, P-2b. Phase 1+2 code review (high): 9 findings (G-214) → 2-R after 3-A.
 - 2026-10-03 — Merged 3-C; gates green (vitest 1,766, sygnal-check 371; size unchanged 40,938 B). Started P-4.
+- 2026-10-03 — Merged P-2b; gates green (vitest 1,797, browser 154; 40,866 B gated, PLAN-4 +330 B). D131; G-216, G-217.
