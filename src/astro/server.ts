@@ -1,4 +1,7 @@
 import {renderToString} from '../extra/ssr'
+// PLAN-4 GS-11 / D120: the integration's `onError` module (see client.ts)
+// @ts-ignore — a virtual module
+import onError from 'virtual:sygnal/astro-on-error'
 
 function looksLikeSygnalComponent(Component: any): boolean {
   if (typeof Component !== 'function') return false
@@ -27,8 +30,10 @@ export function renderToStaticMarkup(
     const html = renderToString(Component, {
       state: props.initialState || Component.initialState,
       props: {...props, props},
-      // PLAN-4 GS-11: the island's app-level error hook (as the client's run() gets)
-      onError: Component.onAppError,
+      // PLAN-4 GS-11: the app-level error hook (as the client's run() gets)
+      onError,
+      // G-206: a `uid` island prop is its uid root (as on the client), for two islands on a page
+      uid: props.uid,
     })
     return {html, attrs: {}}
   } catch (err: any) {

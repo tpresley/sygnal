@@ -12,6 +12,7 @@ declare type SygnalAstroIntegration = {
       updateConfig: (config: any) => void;
       command?: 'dev' | 'build' | 'preview' | 'sync';
       logger?: { warn: (message: string) => void };
+      config?: { root?: URL | string; vite?: any };
     }) => void;
   };
 };
@@ -42,6 +43,16 @@ export interface SygnalAstroOptions {
    * @default true
    */
   devtools?: boolean;
+  /**
+   * The islands' app-level error hook (PLAN-4 GS-11): the path of a module, relative to the
+   * Astro project root, whose default export is called as run()'s and renderToString's
+   * `onError`, in the browser and during SSR. Reporting only, after a component's onError
+   * boundary chose the fallback.
+   * @example sygnal({ onError: './src/onError.js' })
+   * // src/onError.js
+   * export default (error, { componentName, action, phase }) => report(error)
+   */
+  onError?: string;
 }
 
 /**

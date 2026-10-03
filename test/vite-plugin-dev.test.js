@@ -315,16 +315,17 @@ describe('vite plugin — Vike and Astro dev mode (deliverable 4, G-014)', () =>
     }
     const dev = setup('dev')
     expect(dev.vite.esbuild).toEqual({ jsx: 'automatic', jsxImportSource: 'sygnal' })
-    expect(dev.vite.plugins.map(p => p.name)).toEqual(['vite-plugin-sygnal'])
+    // D120: plus the plugin serving the virtual onError module (dev and build)
+    expect(dev.vite.plugins.map(p => p.name)).toEqual(['vite-plugin-sygnal', 'sygnal:astro-on-error'])
     const build = setup('build')
-    expect(build.vite.plugins).toBeUndefined()
+    expect(build.vite.plugins.map(p => p.name)).toEqual(['sygnal:astro-on-error'])
     // the integration's own plugin: no JSX/HMR changes, strict passes through
     const plugin = setup('dev', { diagnostics: { strict: true } }).vite.plugins[0]
     const config = configure(plugin, { config: { root: REPO } })
     expect(config.oxc).toBeUndefined()
     // every mode and ignore list is passed through (B-019: the island client
     // shares the app's core), with no warning
-    expect(setup('dev', { diagnostics: 'off' }).vite.plugins).toHaveLength(1)
+    expect(setup('dev', { diagnostics: 'off' }).vite.plugins).toHaveLength(2)
     const errorMode = setup('dev', { diagnostics: { mode: 'error', ignore: ['SYG105'] } })
     expect(errorMode.warnings).toEqual([])
     const ep = errorMode.vite.plugins[0]

@@ -23,9 +23,8 @@
  *                     action$: its STATE reducer opens the record)
  *   'next'            sent with action$.shamefullySendNext: a reducer's or EFFECT's next()
  *   'reply'           arrived on one of the instance's reply streams (src/extra/replies.ts)
- *   'behavior'        GS-1 (2-B): a namespaced `<key>.<ACTION>` whose key is in the view's
- *                     `uses` (BEHAVIOR HOOK: see isBehaviorAction below; if 2-B's merge keeps
- *                     no `uses` on the view, tag the merged behavior intent types there)
+ *   'behavior'        GS-1: a namespaced `<key>.<ACTION>` a behavior owns (the instance's
+ *                     `_behaviorActions`, see isBehaviorAction below)
  *   'intent'          anything else on action$ (the intent streams)
  * The cause slot is synchronous: a setter sets it around the emission and the first action$._n
  * that follows consumes it, so actions an action triggers synchronously (EVENTS to another
@@ -85,12 +84,13 @@ export const clockNow = (): number => {
 const logOf = (c: any): Log | undefined => c && c[KEY]
 
 /**
- * GS-1 (2-B) BEHAVIOR HOOK: an action is a behavior's when its type is `<key>.<ACTION>` and
- * `key` is in the host's `uses` (separator per P4-Q5: '.').
+ * GS-1: an action is a behavior's when the instance's `_behaviorActions` (2-B's merge, behaviors.ts)
+ * maps its namespaced type to a `uses` key ('pager.NEXT' → 'pager'). A host intent action of the
+ * same name, or a host-only action named under a behavior key, is the host's ('intent').
  */
 const isBehaviorAction = (c: any, type: string): boolean => {
-  const i = type.indexOf('.'), uses = c.view && c.view.uses
-  return i > 0 && !!uses && typeof uses == 'object' && Object.prototype.hasOwnProperty.call(uses, type.slice(0, i))
+  const owned = c._behaviorActions
+  return !!owned && Object.prototype.hasOwnProperty.call(owned, type)
 }
 
 function causeOf(c: any, log: Log, type: string): ActionCause {

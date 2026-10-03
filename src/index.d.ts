@@ -1040,6 +1040,12 @@ export type RunOptions = {
   diagnostics?: DiagnosticsMode | DiagnosticsOptions;
   /** App-level error hook for this app (each run() has its own); see AppErrorHook */
   onError?: AppErrorHook;
+  /**
+   * The root of this app's `uid()` strings (default 'u'). Give each app on one page its own
+   * (`run(Signup, {}, { mountPoint: '#signup', uid: 'signup' })`), and pass the same value to
+   * renderToString's `uid` when hydrating server markup.
+   */
+  uid?: string;
 }
 
 /** All diagnostics collected so far (most recent last). */
@@ -2545,6 +2551,8 @@ export interface RenderToStringOptions {
   cache?: QueryCache
   /** The app-level error hook, as run()'s `onError`: phase 'view' only (PLAN-4 GS-11) */
   onError?: AppErrorHook
+  /** The root of the `uid()` strings (default 'u'), as run()'s `uid`: the same value on both sides */
+  uid?: string
 }
 
 /**

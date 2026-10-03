@@ -1,8 +1,37 @@
 import sygnalVite from '../vite/plugin'
 import { globalThisAlias } from '../vite/globalthis'
 import type { DiagnosticsMode, DiagnosticsPluginOptions, CheckPluginOptions } from '../vite/plugin'
+// Node built-ins (the integration runs in Node). The package has no @types/node.
+// @ts-ignore
+import path from 'node:path'
+// @ts-ignore
+import { fileURLToPath } from 'node:url'
 
 const SYGNAL_RENDERER_NAME = '@sygnal/astro'
+
+// PLAN-4 GS-11 / D120: both island entries import this; it re-exports the default export of the
+// module the `onError` option names (undefined without it)
+const ON_ERROR_ID = 'virtual:sygnal/astro-on-error'
+
+/** The Vite plugin serving ON_ERROR_ID; `file` is absolute (undefined: no hook) */
+function onErrorPlugin(file?: string) {
+  return {
+    name: 'sygnal:astro-on-error',
+    resolveId: (id: string) => id === ON_ERROR_ID ? '\0' + ON_ERROR_ID : undefined,
+    load: (id: string) => id === '\0' + ON_ERROR_ID
+      ? (file ? `export { default } from ${JSON.stringify(file)}` : 'export default undefined')
+      : undefined,
+    // Vite 6+ (Astro 6 renders in its own 'prerender' / 'ssr' environments): the island server
+    // entry imports the virtual module, so Vite must load it (not Node). `ssr.noExternal`
+    // below covers the 'ssr' environment and older Vite
+    configEnvironment: (name: string) => name === 'client' ? undefined : { resolve: { noExternal: ['sygnal'] } },
+  }
+}
+
+/** The project root as a directory path (Astro gives a file: URL) */
+const rootDir = (root: any): string =>
+  // @ts-ignore — Node's process
+  !root ? process.cwd() : typeof root === 'string' ? root : fileURLToPath(root)
 
 interface AstroRenderer {
   name: string;
@@ -15,7 +44,7 @@ interface AstroConfigSetupArgs {
   updateConfig: (config: any) => void;
   command?: 'dev' | 'build' | 'preview' | 'sync';
   logger?: { warn: (message: string) => void };
-  config?: { vite?: { resolve?: { alias?: any } } };
+  config?: { root?: URL | string; vite?: { resolve?: { alias?: any } } };
 }
 
 export interface SygnalAstroOptions {
@@ -41,6 +70,14 @@ export interface SygnalAstroOptions {
    * @default true
    */
   devtools?: boolean;
+  /**
+   * PLAN-4 GS-11: the islands' app-level error hook: the path of a module (relative to the Astro
+   * project root) whose default export is called as run()'s / renderToString's `onError`
+   * (error, { componentName, action, phase }), in the browser and during SSR. Reporting only,
+   * after a component's onError boundary chose the fallback.
+   * @example sygnal({ onError: './src/onError.js' })
+   */
+  onError?: string;
 }
 
 export default function sygnalAstroIntegration(options: SygnalAstroOptions = {}) {
@@ -59,7 +96,12 @@ export default function sygnalAstroIntegration(options: SygnalAstroOptions = {})
             jsx: 'automatic',
             jsxImportSource: 'sygnal',
           },
+          // D120: the island entries import the virtual onError module, so they stay on Vite:
+          // not pre-bundled with it, and not externalized (loaded by Node) during SSR
+          optimizeDeps: { exclude: [ON_ERROR_ID] },
+          ssr: { noExternal: ['sygnal'] },
         }
+        const hook = options.onError ? path.resolve(rootDir(config?.root), options.onError) : undefined
 
         // Dev mode (G-014): islands are started by sygnal/astro/client, which
         // user code never imports, so the sygnal Vite plugin wraps that entry
@@ -81,6 +123,8 @@ export default function sygnalAstroIntegration(options: SygnalAstroOptions = {})
           const alias = globalThisAlias(config?.vite?.resolve?.alias)
           if (alias.length) vite.resolve = { alias }
         }
+
+        vite.plugins = [...(vite.plugins || []), onErrorPlugin(hook)]
 
         updateConfig({ vite })
       },

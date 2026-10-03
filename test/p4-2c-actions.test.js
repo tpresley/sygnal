@@ -1,14 +1,16 @@
 // @vitest-environment jsdom
 // PLAN-4 2-C (GS-10): renderComponent's t.actions, the action log of the rendered tree:
 // { type, data, component, instance, sinks, cause, at } per action, causes 'intent' | 'next' |
-// 'reply' | 'built-in' | 'simulateAction' ('behavior' arrives with 2-B's `uses`), in the mock
-// and the real DOM and under fake timers; t.explain(pred); inspect({ actions: true }).
+// 'reply' | 'built-in' | 'simulateAction' | 'behavior' (2-A2: from the instance's
+// `_behaviorActions`, 2-B's `uses` merge), in the mock and the real DOM and under fake timers;
+// t.explain(pred); inspect({ actions: true }).
 import { describe, it, expect, afterEach, vi } from 'vitest'
 import { renderComponent } from '../src/extra/testing.js'
 import { createElement as h } from '../src/pragma/index.js'
-import { Collection, ABORT } from '../src/index.js'
+import { Collection, ABORT, controls } from '../src/index.js'
 import { event } from '../src/extra/reducers.js'
 import { _resetDiagnostics } from '../src/extra/diagnostics/index.js'
+import { defineBehavior } from '../src/extra/behaviors.js'
 
 let t
 afterEach(() => {
@@ -62,6 +64,74 @@ describe.each(MODES)('t.actions (%s DOM)', (_, opts) => {
     expect(of('INITIALIZE')).toEqual([expect.objectContaining({ cause: 'built-in', sinks: ['STATE'], data: { count: 0 } })])
     expect(of('BOOTSTRAP')).toEqual([expect.objectContaining({ cause: 'built-in', sinks: ['EFFECT'] })])
     expect(t.actions[0].type).toBe('INITIALIZE')
+  })
+})
+
+// 2-A2 (GS-10 + GS-1): a behavior's own trigger is 'behavior', with the namespaced type
+const pager = defineBehavior({
+  initialState: { page: 0 },
+  intent: ({ DOM }, { next }) => ({ NEXT: DOM.click(next) }),
+  model: { NEXT: (p) => ({ ...p, page: p.page + 1 }) },
+})
+const { Newer, Go } = controls({ Newer: 'button', Go: 'button' })
+
+describe.each(MODES)("cause 'behavior' (%s DOM)", (_, opts) => {
+  it("a behavior's intent action: cause 'behavior', the namespaced type, the host component", async () => {
+    function List({ state }) { return h('div', null, h(Newer, null, '›'), h('span', null, String(state.pager.page))) }
+    List.uses = { pager: pager({ next: Newer }) }
+    t = renderComponent(List, opts)
+    await t.ready()
+    t.simulateEvent(Newer, 'click')
+    await t.next(s => s.pager.page === 1)
+    expect(of('pager.NEXT')).toEqual([expect.objectContaining({ type: 'pager.NEXT', component: 'List', cause: 'behavior', sinks: ['STATE'] })])
+    expect(of('NEXT')).toEqual([])
+  })
+
+  it("a host intent action with the namespaced name is host-owned: 'intent'", async () => {
+    function List({ state }) { return h('div', null, h(Newer, null, '›'), h(Go, null, 'go'), String(state.pager.page)) }
+    List.uses = { pager: pager({ next: Newer }) }
+    List.intent = ({ DOM }) => ({ 'pager.NEXT': DOM.click(Go) })
+    t = renderComponent(List, opts)
+    await t.ready()
+    t.simulateEvent(Go, 'click')
+    await t.next(s => s.pager.page === 1)
+    expect(of('pager.NEXT')).toEqual([expect.objectContaining({ type: 'pager.NEXT', cause: 'intent', sinks: ['STATE'] })])
+  })
+
+  it("simulateAction('pager.NEXT') on a host with no entry for it runs the behavior's reducer: cause 'simulateAction'; its own trigger still works", async () => {
+    function List({ state }) { return h('div', null, h(Newer, null, '›'), h('span', null, String(state.pager.page))) }
+    List.initialState = { items: [] }
+    List.uses = { pager: pager({ next: Newer }) }
+    t = renderComponent(List, opts)
+    await t.ready()
+    t.simulateAction('pager.NEXT')
+    await t.waitForState(s => s.pager.page === 1)
+    expect(of('pager.NEXT')).toEqual([expect.objectContaining({ type: 'pager.NEXT', component: 'List', cause: 'simulateAction', sinks: ['STATE'] })])
+    t.simulateEvent(Newer, 'click')
+    await t.next(s => s.pager.page === 2)
+    expect(of('pager.NEXT').map(a => a.cause)).toEqual(['simulateAction', 'behavior'])
+  })
+
+  it('simulateAction on a host with nothing but `uses` (no initialState, model or intent)', async () => {
+    function Bare({ state }) { return h('span', null, String(state.pager.page)) }
+    Bare.uses = { pager: pager({ next: Newer }) }
+    t = renderComponent(Bare, opts)
+    await t.ready()
+    t.simulateAction('pager.NEXT')
+    await t.waitForState(s => s.pager.page === 1)
+    expect(of('pager.NEXT')[0]).toMatchObject({ cause: 'simulateAction', sinks: ['STATE'] })
+  })
+
+  it("a host action named under a behavior key that the behavior doesn't own is 'intent'", async () => {
+    function List({ state }) { return h('div', null, h(Go, null, 'go'), String(state.pager.page)) }
+    List.uses = { pager: pager({ next: Newer }) }
+    List.intent = ({ DOM }) => ({ 'pager.RESET': DOM.click(Go) })
+    List.model = { 'pager.RESET': (s) => ({ ...s, pager: { ...s.pager, page: 0 }, reset: true }) }
+    t = renderComponent(List, opts)
+    await t.ready()
+    t.simulateEvent(Go, 'click')
+    await t.next(s => s.reset)
+    expect(of('pager.RESET')).toEqual([expect.objectContaining({ cause: 'intent', sinks: ['STATE'] })])
   })
 })
 
