@@ -237,21 +237,19 @@ In SPA mode, the server returns an empty HTML shell and all rendering happens cl
 
 ## Custom Drivers
 
-Pass additional drivers via the `drivers` config option. These are merged with the default drivers (DOM, STATE, EVENTS, LOG) and made available to all components:
+Register additional drivers in a `+drivers.js` file. Its default export sets the `drivers` setting; the drivers are merged with the default drivers (DOM, STATE, EVENTS, LOG) and made available to all components:
 
 ```javascript
-// pages/+config.js
-import vikeSygnal from 'sygnal/config'
+// pages/+drivers.js
 import { makeFetchDriver, makeSocketDriver } from 'sygnal'
 
 export default {
-  extends: [vikeSygnal],
-  drivers: {
-    HTTP: makeFetchDriver(),
-    WS: makeSocketDriver(),
-  },
+  HTTP: makeFetchDriver(),
+  WS: makeSocketDriver(),
 }
 ```
+
+`pages/+drivers.js` applies to every page. Don't set `drivers` inside `+config.js`: drivers are runtime values, and Vike only accepts serializable values there, so `vike build` stops with `drivers defined by /pages/+config.js must be defined using a separate file +drivers.js` (in `vike dev` the server render works but the page never hydrates).
 
 Components use them just like in a standalone Sygnal app ([HTTP](/guide/http/), [Sockets](/guide/sockets/)):
 
@@ -285,7 +283,7 @@ Drivers are client-only — they are not available during SSR. The same drivers 
 
 ## Config Options
 
-These options can be set in any `+config.js` file:
+These options can be set in any `+config.js` file or in their own `+<option>.js` file (`drivers` only in `+drivers.js`):
 
 | Option | Type | Description |
 |--------|------|-------------|
@@ -294,7 +292,7 @@ These options can be set in any `+config.js` file:
 | `favicon` | `string` | Path to favicon (global) |
 | `lang` | `string` | HTML lang attribute |
 | `ssr` | `boolean` | Set to `false` for client-only rendering |
-| `drivers` | `Record<string, Driver>` | Additional Cycle.js drivers passed to `run()` (client-only) |
+| `drivers` | `Record<string, Driver>` | Additional Cycle.js drivers passed to `run()` (client-only; in `+drivers.js`) |
 | `Layout` | component | Sygnal component wrapping page content |
 | `Head` | component | Component rendered into `<head>` |
 

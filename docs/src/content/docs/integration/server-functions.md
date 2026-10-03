@@ -22,7 +22,7 @@ export async function onLoadQuote(id) {
 
 ## Calling it through driverFromAsync()
 
-Register one driver for the page's functions in a `+drivers.js` file (Vike loads it on the client only; it sets the same `drivers` setting as `+config.js`). `args: ['call', 'args']` calls `call(request.call, request.args)`:
+Register one driver for the page's functions in a `+drivers.js` file (Vike loads it on the client only; drivers can't be set inside `+config.js`, see [Vike](/integration/vike/#custom-drivers)). `args: ['call', 'args']` calls `call(request.call, request.args)`:
 
 ```javascript
 // pages/quote/+drivers.js
