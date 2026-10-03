@@ -60,13 +60,13 @@ PLAN-3's end-of-Phase-5 figures (40,403 B, 283 lines, 34,343 B) grew with #12 an
 | PF-1 | Collection O(1) item lookups (D128) | ⬜ | | | | after P-1b (`component.ts`) |
 | 2-R | Phase 1+2 review fixes (G-214) | ⬜ after 3-A | | | | then tags `plan4-phase1`, `plan4-phase2` |
 | 3-A | Element commands (GS-2) | 🟡 running | `p4-3a-element` | subagent | | |
-| 3-C | Timers (GS-7) | 🟡 running | `p4-3c-timers` | subagent | | |
+| 3-C | Timers (GS-7) | ✅ merged | `p4-3c-timers` (`6ad12b1`) | subagent | | 0 B core; +579 B per app; driver key `TIMER` by convention (found by `__sygnalStatic`); SYG643 also covers `connections`/`resources`; hidden pages restart timers from scratch; recipe waits for 3-K (SYG102 on TICK) |
 | 3-E | DevTools (GS-10) | 🟡 running | `p4-3e-devtools` | subagent | | |
 | 1-E prep | Controls A/B variants `p4-ct1-a`/`p4-ct1-b` | ✅ merged | `p4-1e-ab-variant` (`ef038e0`) | subagent | | controls skill +1,902 B (+5.4%); converted starters committed as overlays; task 16 normaliser ignores `data-control`; verify 55/55 on converted solutions |
 | 1-E | Controls A/B eval (user's terminal) | ⬜ commands given | runs `p4-ct1-a`, `p4-ct1-b`, `-haiku` (5 trials) | user | | from the `p4-1e-ab-variant` worktree |
 | P-2 | Custom elements spike (GS-13) | ✅ record done → user | `exp/p4-elements` (`7d1d67f`) | subagent | not merged | `dev-plans/research/p2-custom-elements.md` on the exp branch; 0 B core, entry 1,003 B gz; shadow DOM, React 19 (`ontask-picked` only), HMR work; recommends adopt + making `run()` per-instance (G-212) |
 | 3-D | Behaviors complete (GS-1 checker, pager/selection/undoable, SYG226, G-210) | ✅ merged | `p4-3d-behaviors` (`03ce0e2`) | subagent | | 0 B core; app cost pager 951 B, selection 1,168 B, undoable 836 B, undo 1,624 B; sygnal-check 369; recipes in `test/p4-3d-recipes.test.js` |
-| P-4 | Dev-context design note (GS-15) | ⬜ | | | | |
+| P-4 | Dev-context design note (GS-15) | 🟡 running | `p4-p4-devcontext` | subagent | | |
 | 3-A … 3-T | Phase 3 | ⬜ | | | | 3-A includes D102 |
 | 4-A … 4-F | Phase 4 | ⬜ | | | | |
 
@@ -214,6 +214,7 @@ They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none o
 | G-212 | P-2 | medium | run | `run()` writes page-wide globals (`__SYGNAL_HMR_PERSISTED_STATE`, `__SYGNAL_DEVTOOLS_APP__`) and resets the diagnostics config, so two apps (or a host app plus custom elements) on one page interfere: HMR may restore another app's state, diagnostics mode is reset. Related to G-206. | P-2b (D127) |
 | G-213 | P-1 | medium | Collection | Moving an item across Collections paints a frame without it (0–1 frames per move, 4–8 in rapid runs), even with no animation. | Open → PF-1 or P-1b |
 | G-214 | review (Phase 1+2, high) | — | core | Review findings: (1) behaviors.ts calls constant sink values (`{ PARENT: 'x' }`, `true`) as functions; (2) the parent mutates its received `sources.__uid` for each child (root: Cycle's sources), so a remount reads a stale base; (3) uid sanitizing isn't injective ('a.b' vs 'a_b'); (4) `STATE.select(...).watch()` doesn't end on dispose (select drops `end`); (5) Collection/Switchable uids become 'undefined-…' without a `__uid`; (6) SYG222 misses in-place mutation of a behavior slice; (7) statics errors reported with phase 'reducer'; (8) `isAbort` duplicated in 4 modules; (9) stale objIsEqual depth comment. | 2-R |
+| G-215 | 3-C | low | GS-7 | No real-browser test for `frame` timers (rAF). Add one in 3-K or 4-x. | Open |
 
 ## Log
 
@@ -230,3 +231,4 @@ They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none o
 - 2026-10-03 — P-2 decision record done (pending user, batched with P-1). Started 3-D. G-212.
 - 2026-10-03 — Merged 1-E prep, 2-A2, 3-D; gates green (vitest 1,740, sygnal-check 369, browser 143; 40,938 B gated, PLAN-4 +402 B). Decisions D125–D130; G-213. 1-E commands handed to the user.
 - 2026-10-03 — Started 3-A, 3-C, 3-E, P-2b. Phase 1+2 code review (high): 9 findings (G-214) → 2-R after 3-A.
+- 2026-10-03 — Merged 3-C; gates green (vitest 1,766, sygnal-check 371; size unchanged 40,938 B). Started P-4.
