@@ -32,6 +32,8 @@ export function renderToStaticMarkup(
       props: {...props, props},
       // PLAN-4 GS-11: the app-level error hook (as the client's run() gets)
       onError,
+      // G-206: a `uid` island prop is its uid root (as on the client), for two islands on a page
+      uid: props.uid,
     })
     return {html, attrs: {}}
   } catch (err: any) {

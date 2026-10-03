@@ -89,7 +89,9 @@ export default (element: any) => {
     // say 'Counter', not 'Wrapped'
     try { Object.defineProperty(Wrapped, 'name', { value: Wrapped.componentName, configurable: true }) } catch (_) {}
 
-    const app = run(Wrapped, {}, { mountPoint, onError })
+    // G-206: a `uid` island prop is the island's uid root (as on the server); the view's own
+    // uid() function wins over the prop (args are spread last)
+    const app = run(Wrapped, {}, { mountPoint, onError, uid: islandProps.uid })
     element.__sygnal = app
   }
 }

@@ -95,6 +95,11 @@ export interface RenderToStringOptions {
    * the component's onError boundary chose the fallback. Reporting only
    */
   onError?: (error: any, info: {componentName?: string; action?: string; phase: string}) => void
+  /**
+   * PLAN-4 G-206: the root of the uid() strings (default 'u'), as run()'s `uid` option: pass the
+   * same value to both so the hydrated ids match
+   */
+  uid?: string
 }
 
 // the `onError` option of the outermost renderToString call that has one (GS-11)
@@ -193,6 +198,8 @@ export function renderToString(
 
 function renderRoot(componentDef: any, options: RenderToStringOptions): string {
   const {state, props = {}, context = {}, hydrateState} = options
+  // G-206: the uid root (sanitized as the client's Component constructor does)
+  const uid = makeUid(options.uid || 'u')()
 
   const ownState = state !== undefined ? state : componentDef.initialState
   // 5-5: the view sees its resources; the hydration script keeps the state as it was given
@@ -221,7 +228,7 @@ function renderRoot(componentDef: any, options: RenderToStringOptions): string {
       slots: props.slots || {},
       context: mergedContext,
       peers: {},
-      uid: makeUid('u'),
+      uid: makeUid(uid),
     }, resolvedState, mergedContext, {})
   } catch (err: any) {
     // Error boundary
@@ -233,7 +240,7 @@ function renderRoot(componentDef: any, options: RenderToStringOptions): string {
   }
 
   // Process special components in the VNode tree
-  vnode = processSSRTree(vnode, mergedContext, resolvedState, 'u', 'r')
+  vnode = processSSRTree(vnode, mergedContext, resolvedState, uid, 'r')
 
   // Serialize to HTML
   let html = vnodeToHtml(vnode)

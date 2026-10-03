@@ -21,6 +21,8 @@ interface RunOptions {
   diagnostics?: DiagnosticsMode | RunDiagnosticsOptions;
   /** PLAN-4 GS-11: app-level error hook, reporting only (after the component's onError boundary) */
   onError?: (error: any, info: {componentName?: string; action?: string; phase: string; driver?: string}) => void;
+  /** PLAN-4 G-206: the root of this app's uid() strings (default 'u'); give each app on a page its own */
+  uid?: string;
 }
 
 let warnedStrict = false;
@@ -63,7 +65,7 @@ export default function run(
     }
   }
 
-  const {mountPoint = '#root', fragments = true, useDefaultDrivers = true, onError} = options;
+  const {mountPoint = '#root', fragments = true, useDefaultDrivers = true, onError, uid} = options;
   if (!app.isSygnalComponent) {
     app = component(optionsOf(app, app.name || app.componentName || app.label || 'FUNCTIONAL_COMPONENT'));
   }
@@ -86,8 +88,9 @@ export default function run(
       }
     : {};
 
-  // GS-11: the hook is a source (`__e`) every component inherits, so it is per app
-  const combinedDrivers = {...baseDrivers, ...drivers, ...(onError && {__e: () => onError})};
+  // GS-11: the hook is a source (`__e`) every component inherits, so it is per app. G-206: the
+  // uid root is the root component's `__uid` source (the Component constructor reads it)
+  const combinedDrivers = {...baseDrivers, ...drivers, ...(onError && {__e: () => onError}), ...(uid && {__uid: () => uid})};
 
   const {sources, sinks, run: _run} = setup(wrapped, combinedDrivers as any);
   const rawDispose = _run();
