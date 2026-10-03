@@ -36,29 +36,33 @@ const { default: sygnalAstro } = await import('../dist/astro/index.mjs')
 const boom = () => { throw new Error('ssr view') }
 
 describe('GS-11: Vike', () => {
-  it('declares onError as a config on both sides', () => {
-    expect(vikeConfig.meta.onError).toEqual({ env: { server: true, client: true } })
+  // 2-R: Vike has its own global, server-only `onError` hook ((error, pageContext)), so
+  // Sygnal's app-level hook is the `sygnalOnError` config (pages/+sygnalOnError.js)
+  it("declares sygnalOnError as a config on both sides, and leaves Vike's onError alone", () => {
+    expect(vikeConfig.meta.sygnalOnError).toEqual({ env: { server: true, client: true } })
+    expect(vikeConfig.meta.onError).toBeUndefined()
   })
 
-  it('onRenderClient passes config.onError to run()', () => {
-    const onError = () => {}
+  it('onRenderClient passes config.sygnalOnError to run() (not config.onError)', () => {
+    const sygnalOnError = () => {}
     function Page() { return { sel: 'p', data: {}, children: [], text: 'x' } }
     Page.initialState = {}
     globalThis.document = { getElementById: () => null }
-    onRenderClient({ Page, config: { onError }, data: {} })
-    expect(runs.at(-1).options).toMatchObject({ mountPoint: '#page-view', onError })
+    onRenderClient({ Page, config: { sygnalOnError, onError: () => {} }, data: {} })
+    expect(runs.at(-1).options).toMatchObject({ mountPoint: '#page-view', onError: sygnalOnError })
     delete globalThis.document
   })
 
-  it("onRenderHtml passes config.onError to renderToString ('view')", () => {
-    const onError = vi.fn()
+  it("onRenderHtml passes config.sygnalOnError to renderToString ('view'); Vike's onError isn't called", () => {
+    const sygnalOnError = vi.fn(), vikeOnError = vi.fn()
     function Page() { return boom() }
     Page.initialState = {}
     Page.onError = () => ({ sel: 'p', data: {}, children: undefined, text: 'fallback' })
-    const out = onRenderHtml({ Page, config: { onError }, data: {} })
+    const out = onRenderHtml({ Page, config: { sygnalOnError, onError: vikeOnError }, data: {} })
     expect(String(out.documentHtml._escaped ?? out.documentHtml)).toContain('fallback')
-    expect(onError).toHaveBeenCalledTimes(1)
-    expect(onError.mock.calls[0][1]).toMatchObject({ componentName: 'Page', phase: 'view' })
+    expect(sygnalOnError).toHaveBeenCalledTimes(1)
+    expect(sygnalOnError.mock.calls[0][1]).toMatchObject({ componentName: 'Page', phase: 'view' })
+    expect(vikeOnError).not.toHaveBeenCalled()
   })
 })
 

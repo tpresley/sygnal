@@ -48,8 +48,9 @@ export default {
     drivers: {
       env: { client: true },
     },
-    // PLAN-4 GS-11: run()'s / renderToString's app-level error hook
-    onError: {
+    // PLAN-4 GS-11: run()'s / renderToString's app-level error hook. Not `onError`: Vike has its
+    // own global, server-only onError hook ((error, pageContext)), which this would redefine
+    sygnalOnError: {
       env: { server: true, client: true },
     },
     ssr: {

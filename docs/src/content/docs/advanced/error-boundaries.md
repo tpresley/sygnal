@@ -64,11 +64,11 @@ Each `run()` has its own hook, so two apps on one page report separately. If the
 
 ### Vike
 
-In a [Vike](/integration/vike/) app, `onError` is a config: define it in `+onError.js` (or in `+config.js`). It is passed to `renderToString` on the server and to `run()` in the browser:
+In a [Vike](/integration/vike/) app, the hook is the `sygnalOnError` config: define it in `+sygnalOnError.js` (or in `+config.js`). It is passed to `renderToString` on the server and to `run()` in the browser. (Vike's own `onError` is a different hook: server-only, called with `(error, pageContext)` for any error during rendering.)
 
 ```js
-// pages/+onError.js: used by renderToString on the server and by run() in the browser
-export default function onError(error, { componentName, action, phase }) {
+// pages/+sygnalOnError.js: used by renderToString on the server and by run() in the browser
+export default function sygnalOnError(error, { componentName, action, phase }) {
   console.error('[' + phase + ']', componentName, action, error)
 }
 ```
