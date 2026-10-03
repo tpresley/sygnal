@@ -146,6 +146,7 @@
     "severity": "error",
     "strict": false,
     "reportedBy": [
+      "dev-entry",
       "static"
     ],
     "explanation": "A component was passed where `DOM.select()` or a `DOM.<event>()` shorthand expects a control or a CSS selector, as in `DOM.click(TodoItem)`. A component is not an element: it has no single root to listen on, and its elements are isolated from the parent, so there is nothing for the listener to match. Controls look like components in JSX, which makes this an easy mistake.",
@@ -158,6 +159,7 @@
     "severity": "error",
     "strict": false,
     "reportedBy": [
+      "dev-entry",
       "static"
     ],
     "explanation": "A control from `controls({ ... })` was given `.intent`, `.model` or `.initialState`, as if it were a component. Controls are elements, not components: a control renders its element with a `data-control` marker and nothing else, so it has no intent, model or state, and these statics are never used.",

@@ -297,7 +297,7 @@ SAVE: { EVENTS: event('SAVED', (state) => state.id) }
 
 **Component used as a control or selector**
 
-Severity: `error` · Reported by: `sygnal-check`
+Severity: `error` · Reported by: the dev checks (`sygnal/diagnostics`), `sygnal-check`
 
 A component was passed where `DOM.select()` or a `DOM.<event>()` shorthand expects a control or a CSS selector, as in `DOM.click(TodoItem)`. A component is not an element: it has no single root to listen on, and its elements are isolated from the parent, so there is nothing for the listener to match. Controls look like components in JSX, which makes this an easy mistake.
 
@@ -307,7 +307,7 @@ A component was passed where `DOM.select()` or a `DOM.<event>()` shorthand expec
 
 **Control given .intent, .model or .initialState**
 
-Severity: `error` · Reported by: `sygnal-check`
+Severity: `error` · Reported by: the dev checks (`sygnal/diagnostics`), `sygnal-check`
 
 A control from `controls({ ... })` was given `.intent`, `.model` or `.initialState`, as if it were a component. Controls are elements, not components: a control renders its element with a `data-control` marker and nothing else, so it has no intent, model or state, and these statics are never used.
 
