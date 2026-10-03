@@ -354,6 +354,8 @@ it('loads the picked quote, and only the latest one', async () => {
 })
 ```
 
+A resource's request is derived from state, so it is sent after the state change, not during the event that caused it. `t.respond` right after the event finds nothing pending and throws: wait for the change first, with `await t.settle()` or `await t.next((s) => s.quote.status === 'loading')` (as with `PICK` above). The first request, sent while the component starts, needs no wait.
+
 `t.states` shows every `RESOURCE` write (`idle`, `loading`, `success`, `error`, with `refreshing` during a refetch), and `ok` / `error` actions on the resource's request run after the write, as in the app. For the cache (`renderComponent(C, { http: { cache: queryCache() } })`, `t.cache`, `t.focus`, `t.online`, `{ prefetch }`), see [Resources and Caching](/guide/resources/#testing).
 
 ### Sockets: connections(), push(), drop()

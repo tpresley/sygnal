@@ -111,6 +111,10 @@ Reconnecting is on by default. After a drop, retry `n` (from 0) waits `min(maxDe
 
 A fixed delay is `{ delayMs: 1000, maxDelayMs: 1000, jitter: false }`. `reconnect: false` makes a drop final (`close` fires with `willReconnect: false`). The driver's `reconnect` option is the default for every connection, and a connection's own `reconnect` is merged over it. A successful open resets the backoff, and `open` fires with `{ reconnected: true }`.
 
+## Hidden Pages
+
+A component inside a hidden [Switchable](/guide/switchable/#hidden-pages-pause-connections-and-resources) page closes its connections (without a `close` action) and opens them again, as new connections, when the page is shown. Messages sent in between are not replayed. A connection the page must keep while hidden, such as a notification feed that drives a badge, sets `background: true` on its entry: `alerts: { socket: '/ws/alerts', message: 'ALERT', background: true }`.
+
 ## Sharing
 
 Connections with the same URL (and the same `protocols` / `withCredentials`) share one socket, counted by reference: every instance that declares it gets each event, and the socket closes when the last one lets go. Several Collection items watching the same feed open one socket. `share: false` opts out.

@@ -158,7 +158,28 @@ StarRating.model = { PICK: { PARENT: (state, value, next, props) => ({ name: pro
 ```
 ### Commands (parent → child) + EFFECT
 `const player = createCommand()` (from `'sygnal'`); the parent renders `<Player commands={player} state="player" />` and calls it from an EFFECT (side effect only, returns nothing): `PLAY: { EFFECT: () => player.send('play', data?) }`; the child listens with `PLAY: commands$.select('play')` (emits `send()`'s data).
-### HTTP (makeFetchDriver + reply actions), latest response only
+### HTTP reads (makeFetchDriver + resources)
+```jsx
+function Quote({ state }) {
+  const { status, data, error, refreshing } = state.quote  // status: 'idle' | 'loading' | 'success' | 'error'
+  const text = status === 'loading' ? 'Loading…' : status === 'error' ? `Failed (${error.status ?? 'network'})` : refreshing ? 'Updating…' : ''
+  return <div><button className="next">Next</button><button className="refresh">Refresh</button><p className="status">{text}</p><p className="text">{data?.text}</p></div>
+}
+Quote.initialState = { id: 1 }
+Quote.resources = { quote: (state) => state.id && `/api/quotes/${state.id}` }  // a URL or a request ({ url, query, … }); falsy = idle
+Quote.intent = ({ DOM }) => ({ NEXT: DOM.click('.next'), REFRESH: DOM.click('.refresh') })
+Quote.model = {
+  NEXT:    (state) => ({ ...state, id: state.id + 1 }),  // new request: 'loading' without data; the old one is aborted
+  REFRESH: { HTTP: { refresh: 'quote' } },               // same request: data kept, refreshing: true
+}
+```
+- **The canonical form for every read**: data a component shows, derived from state (an id, a page, a query). Writes stay reply actions (below). Needs `run(Quote, { HTTP: makeFetchDriver() })`. The built-in `RESOURCE` action writes `state.quote` (not in initialState). A changed request (by value) is fetched and the older one aborted: no ids, `latest` or loading flags. `error.status` for a non-2xx. TS: `Resource<Quote>`.
+- **A refetch of the same request keeps `data` with `refreshing: true`**: when the old value must not show (Refresh shows "Loading…"), treat `refreshing` as loading. `keepPrevious: true` on the request also keeps it across a request change (pagination). `ok`/`error` on the request also dispatch after the write.
+- After a write, `invalidates: ['quotes']` refetches reads tagged `tags: ['quotes']` (or a `'/api/quotes'` URL prefix) on a 2xx; `{ invalidate: 'quotes' }` on the sink does it now.
+- A search: the debounced action sets `state.q`; `results: (state) => (state.q ? { url: '/api/search', query: { q: state.q } } : null)`.
+- Cache (opt-in): `makeFetchDriver({ cache: queryCache({ staleTime: 2000 }) })`: a request fetched before shows at once (`refreshing` while it revalidates; no request while fresh), identical requests share a fetch, stale ones refetch on focus/reconnect. Also `retry: 2` (default 0), `validate: schema`, `refetchEvery: ms`, `{ prefetch: url }`, SSR seeding. Guide and recipes (optimistic update, pagination, infinite list, save status): https://sygnal.js.org/guide/resources/
+### Writes and one-off requests (reply actions); the alternative form for reads
+Writes (POST/PUT/DELETE) and click-triggered one-off requests use reply actions. A read written this way (below) is the alternative to `resources`, for replies that need custom handling:
 ```jsx
 import { ABORT, debounce } from 'sygnal'
 function Search({ state }) {
@@ -185,25 +206,6 @@ Search.model = {
 - main.js: `run(Search, { HTTP: makeFetchDriver() })` (options `baseUrl headers init timeoutMs`). Request: `{ url, ok, error, key, query, json, body, method, headers, latest, timeoutMs, init }` (POST with json/body); extra fields aren't sent and come back on `request`. `ok` gets the parsed body; `error` gets `{ error, status, body, request }` (`status` undefined for a network error). The reply reaches exactly the sending instance. Never `HTTP.select`/`HTTP.errors` for your own request (SYG508), never `then`/`catch` keys (SYG610).
 - `latest: true`: a newer request in the same lane (`key`: a constant name, never an id or URL; default the `ok` action) aborts this instance's older ones; their replies never arrive. `{ abort: 'RESULTS' }` cancels (it names the lane: with a custom `key`, abort that key). **Build the request from `(state, data)`**: sinks see the state before the action, so `SHOW: { STATE: (s, id) => ({ ...s, id }), HTTP: (s, id) => ({ url: '/api/q/' + id, ok: 'LOADED' }) }`, not `s.id`.
 - Other promise APIs: `driverFromAsync(fn)` takes the same reply actions (`{ value, ok: 'DONE', error: 'FAILED' }` calls `fn(value)`). One-off async work: `EFFECT: async (state, data, next, { signal }) => { ...; next('DONE', r) }`. Page-wide events: `DOM.select('document').events(type)`, filtered: `DOM.select('document').select('.overlay').events('click')`.
-### Reads that follow state: `resources`
-```jsx
-function Quote({ state }) {
-  const { status, data, error, refreshing } = state.quote  // status: 'idle' | 'loading' | 'success' | 'error'
-  const text = status === 'loading' ? 'Loading…' : status === 'error' ? `Failed (${error.status ?? 'network'})` : refreshing ? 'Updating…' : ''
-  return <div><button className="next">Next</button><button className="refresh">Refresh</button><p className="status">{text}</p><p className="text">{data?.text}</p></div>
-}
-Quote.initialState = { id: 1 }
-Quote.resources = { quote: (state) => state.id && `/api/quotes/${state.id}` }  // a URL or a request ({ url, query, … }); falsy = idle
-Quote.intent = ({ DOM }) => ({ NEXT: DOM.click('.next'), REFRESH: DOM.click('.refresh') })
-Quote.model = {
-  NEXT:    (state) => ({ ...state, id: state.id + 1 }),  // new request: 'loading' without data; the old one is aborted
-  REFRESH: { HTTP: { refresh: 'quote' } },               // same request: data kept, refreshing: true
-}
-```
-- For data a component shows; writes and click-triggered requests stay reply actions. Needs `run(Quote, { HTTP: makeFetchDriver() })`. The built-in `RESOURCE` action writes `state.quote` (not in initialState). A changed request (by value) is fetched and the older one aborted: no ids, `latest` or loading flags. `error.status` for a non-2xx. TS: `Resource<Quote>`.
-- **A refetch of the same request keeps `data` with `refreshing: true`**: when the old value must not show (Refresh shows "Loading…"), treat `refreshing` as loading. `keepPrevious: true` on the request also keeps it across a request change (pagination). `ok`/`error` on the request also dispatch after the write.
-- After a write, `invalidates: ['quotes']` refetches reads tagged `tags: ['quotes']` (or a `'/api/quotes'` URL prefix) on a 2xx; `{ invalidate: 'quotes' }` on the sink does it now.
-- Cache (opt-in): `makeFetchDriver({ cache: queryCache({ staleTime: 2000 }) })`: a request fetched before shows at once (`refreshing` while it revalidates; no request while fresh), identical requests share a fetch, stale ones refetch on focus/reconnect. Also `retry: 2` (default 0), `validate: schema`, `refetchEvery: ms`, `{ prefetch: url }`, SSR seeding. Guide and recipes (optimistic update, pagination, infinite list, save status): https://sygnal.js.org/guide/resources/
 ### WebSocket / SSE (makeSocketDriver + connections)
 ```jsx
 Chat.initialState = { room: 'general', status: 'connecting', messages: [] }
@@ -290,7 +292,7 @@ TaskPage.model = {
 | Any non-STATE sink | object form `ACTION: { SINK: fn }` | `'ACTION \| SINK'` shorthand keys (SYG504) |
 | Emit a global event | `EVENTS: event('TYPE', (state, data) => payload)` | `emit(...)`, raw `EVENTS: s => ({ type, data })` (SYG505) |
 | Child → parent | child `PARENT: fn`; parent `CHILD.select(ChildFn)` | `CHILD.select('ChildName')` (SYG506) |
-| HTTP reply | `HTTP: s => ({ url, ok: 'LOADED', error: 'FAILED' })` | `HTTP.select('cat')` / `errors('cat')` for your own request (SYG508); `fetch` in an EFFECT |
+| HTTP | reads: `.resources = { item: s => url }`; writes: `HTTP: s => ({ url, method: 'PUT', ok, error })` | `HTTP.select('cat')` / `errors('cat')` for your own request (SYG508); `fetch` in an EFFECT |
 | Top-down data | `.context = { total: (state) => … }` (an object of functions) | drilling a prop through 3+ levels (SYG507); `.context = (state) => ({ … })` (SYG402) |
 | Parent → child call | `createCommand()` as a prop; child `commands$.select('name')` | — |
 
@@ -331,7 +333,7 @@ it('searches once, 300 ms after the last keystroke', async () => {
 })
 ```
 - `t.simulateAction('LOADED', data)` pushes an action into intent → model. **Drivers need no wiring in tests**: the HTTP fake is the real `makeFetchDriver` over an in-memory fetch. `t.requests('HTTP')` lists requests as objects (a string URL is `{ url }`). `await t.respond('HTTP', body, target?)` answers one (its `ok` action gets the body); `await t.fail('HTTP', 404 | error, target?)` fails it. Both resolve once reduced and rendered. Target: an action/key name, a resource name, a URL, a partial request (`{ url: '/items/2' }`) or a predicate; none = the newest pending. A superseded, aborted or answered request **throws at the call** (`expect(() => t.respond('HTTP', {}, { query: { q: 'du' } })).toThrow()`). Write `latest: true` on the request: the fake can't see main.js.
-- Resources: a fetch is `{ url, resource: 'quote' }`: `await t.respond('HTTP', data, 'quote')`. It is sent after the state changes, so after an event that changes it, `await t.settle()` before `t.respond`. Cache: `renderComponent(C, { http: { cache: queryCache({ staleTime: 2000 }) } })`, `t.cache('HTTP')` (`{ key, stale, data }`), `t.focus()`, `t.online()`.
+- Resources (reads): a fetch is `{ url, resource: 'quote' }`: `await t.respond('HTTP', data, 'quote')`. It is sent after the state changes, so after an event that changes it, `await t.settle()` before `t.respond`. Cache: `renderComponent(C, { http: { cache: queryCache({ staleTime: 2000 }) } })`, `t.cache('HTTP')` (`{ key, stale, data }`), `t.focus()`, `t.online()`.
 - Sockets: `connections` get a fake `WS` (the real driver; they open by themselves, `{ autoConnect: false }` waits for `await t.open('WS')`). `await t.push('WS', { text: 'hi' })` = a server frame; `await t.drop('WS', { code: 1011 })` = a drop the app didn't make (retry: `await vi.advanceTimersByTimeAsync(1000)`); `t.sent('WS')` = the `{ to, json }` sent; `t.connections('WS')` = `{ name, url, state }`.
 - Router: `renderComponent(App, { router, url: '/tasks/2' })` runs the real router on an in-memory history: `await t.navigate('/admin')` or `t.navigate({ to: 'task', params: { id: 1 } })`, `await t.back()`, `t.location.path`, `t.sent('ROUTER')` (commands); a `simulateEvent` click on a link goes through the router. `t.head()` = `{ title, meta, link }`.
 - TypeScript: `renderComponent` infers the state; declare `let t: RenderResult<State>`, not `any`. Without the Vite plugin, `import 'sygnal/diagnostics'` in the test.
