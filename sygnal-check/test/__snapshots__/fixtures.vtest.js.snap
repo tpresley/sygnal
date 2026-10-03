@@ -27,6 +27,17 @@ exports[`bad fixtures > controlled-input.jsx 1`] = `
 ]
 `;
 
+exports[`bad fixtures > controlled-input-controls.jsx 1`] = `
+[
+  "test/fixtures/bad/controlled-input-controls.jsx:14:9 SYG111 Editor: <Draft> has value={…} bound to state, but Editor's intent has no input/change listener on it. Sygnal writes the bound value back on every render, so a re-render while the user types resets the typed text (update the state on 'input' (e.g. DOM.input(Draft).value()), or make the field uncontrolled: drop the value prop and read the value on blur/submit)",
+  "test/fixtures/bad/controlled-input-controls.jsx:17:9 SYG111 Editor: <Notes> has value={…} bound to state, but Editor's intent has no input/change listener on it. Sygnal writes the bound value back on every render, so a re-render while the user types resets the typed text (update the state on 'input' (e.g. DOM.input(Notes).value()), or make the field uncontrolled: drop the value prop and read the value on blur/submit)",
+  "test/fixtures/bad/controlled-input-controls.jsx:20:9 SYG111 Editor: <Kind> has value={…} bound to state, but Editor's intent has no input/change listener on it. Sygnal writes the bound value back on every render, so a re-render while the user changes it resets the field (update the state on 'change' (e.g. DOM.change(Kind)), or make the field uncontrolled: drop the value prop and read it on submit)",
+  "test/fixtures/bad/controlled-input-controls.jsx:25:9 SYG111 Editor: <Done> has checked={…} bound to state, but Editor's intent has no input/change listener on it. Sygnal writes the bound checked back on every render, so a re-render while the user changes it resets the field (update the state on 'change' (e.g. DOM.change(Done)), or make the field uncontrolled: drop the checked prop and read it on submit)",
+  "test/fixtures/bad/controlled-input-controls.jsx:28:9 SYG111 Editor: <Form.Title> has a literal value="", and Editor's intent has no input/change listener on it. Sygnal controls value even when it is a literal, so every re-render resets the typed text to it (drop the value prop to leave the field uncontrolled, or move the value into state and update it on 'input' (e.g. DOM.input(Form.Title).value()))",
+  "test/fixtures/bad/controlled-input-controls.jsx:32:11 SYG111 Editor: <input className="inner"> has value={…} bound to state, but Editor's intent has no input/change listener on it. Sygnal writes the bound value back on every render, so a re-render while the user types resets the typed text (update the state on 'input' (e.g. DOM.input('.inner').value()), or make the field uncontrolled: drop the value prop and read the value on blur/submit)",
+]
+`;
+
 exports[`bad fixtures > events-no-counterpart.jsx 1`] = `
 [
   "test/fixtures/bad/events-no-counterpart.jsx:15:14 SYG105 Editor: EVENTS type 'DOC_SAVED' is emitted but nothing in the scanned files selects it (listen with EVENTS.select('DOC_SAVED') in the receiving component's intent, or fix the event name)",
