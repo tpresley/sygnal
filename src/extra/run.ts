@@ -26,6 +26,8 @@ interface RunOptions {
 }
 
 let warnedStrict = false;
+// G-212: apps running now (an HMR swap disposes, then starts the new one)
+let liveApps = 0;
 
 interface SygnalRunResult {
   sources: any;
@@ -43,12 +45,13 @@ export default function run(
   // sygnal/vite in dev) installs window.__SYGNAL_DEVTOOLS__ before run() is called.
 
   // Resolve diagnostics mode: explicit option > globalThis.__SYGNAL_DEV__ > 'off'.
-  // Each run() is authoritative: without the option, mode and ignore list
-  // reset to defaults (no leakage from an earlier run()/configureDiagnostics()).
+  // Each run() with the option is authoritative. Without it, mode and ignore list reset to
+  // the defaults (no leakage from an earlier run()/configureDiagnostics()), unless another
+  // app is still running (G-212: a second app or a custom element keeps the host's mode).
   const {diagnostics} = options;
   const diagOptions: RunDiagnosticsOptions = typeof diagnostics === 'string' ? {mode: diagnostics} : diagnostics || {};
   const {mode, strict} = diagOptions;
-  configureDiagnostics({mode, ignore: diagOptions.ignore || []});
+  if (diagnostics || !liveApps) configureDiagnostics({mode, ignore: diagOptions.ignore || []});
   // G-036: strict is applied only when given (an earlier configureStrict() is kept). It sets
   // the flag the dev entry's strict checks read; strict without a mode turns diagnostics on.
   // G-093: dispose() restores the previous value (an HMR swap disposes, then re-applies it).
@@ -70,13 +73,8 @@ export default function run(
     app = component(optionsOf(app, app.name || app.componentName || app.label || 'FUNCTIONAL_COMPONENT'));
   }
 
-  if (
-    typeof window !== 'undefined' &&
-    window.__SYGNAL_HMR_UPDATING === true &&
-    typeof window.__SYGNAL_HMR_PERSISTED_STATE !== 'undefined'
-  ) {
-    app.initialState = window.__SYGNAL_HMR_PERSISTED_STATE;
-  }
+  // G-212: no page-wide persisted state. A hot swap sets the new component's initialState
+  // itself (swapToComponent), and hmr() reads this app's own STATE stream.
 
   const wrapped = withState(app, 'STATE');
 
@@ -94,32 +92,15 @@ export default function run(
 
   const {sources, sinks, run: _run} = setup(wrapped, combinedDrivers as any);
   const rawDispose = _run();
-  let persistListener: any = null;
-
-  if (
-    typeof window !== 'undefined' &&
-    (sources as any)?.STATE?.stream &&
-    typeof (sources as any).STATE.stream.addListener === 'function'
-  ) {
-    persistListener = {
-      next: (state: any) => {
-        window.__SYGNAL_HMR_PERSISTED_STATE = state;
-      },
-      error: () => {},
-      complete: () => {},
-    };
-    (sources as any).STATE.stream.addListener(persistListener);
-  }
+  liveApps++;
+  let disposed = false;
 
   const dispose = () => {
-    if (
-      persistListener &&
-      (sources as any)?.STATE?.stream &&
-      typeof (sources as any).STATE.stream.removeListener === 'function'
-    ) {
-      (sources as any).STATE.stream.removeListener(persistListener);
-      persistListener = null;
-    }
+    if (disposed) return;
+    disposed = true;
+    liveApps--;
+    // G-212: unregister from DevTools (a later app, or this app's hot-swapped successor, registers)
+    if (typeof window !== 'undefined' && window.__SYGNAL_DEVTOOLS_APP__ === exposed) window.__SYGNAL_DEVTOOLS_APP__ = undefined;
     // Trigger the component's dispose() which fires the DISPOSE action and dispose$ stream
     if (typeof (sinks as any).__dispose === 'function') {
       try { (sinks as any).__dispose(); } catch (_) {}
@@ -130,20 +111,17 @@ export default function run(
 
   const exposed: SygnalRunResult = {sources, sinks, dispose};
 
-  // Store app reference for DevTools time-travel (root STATE fallback)
+  // Store app reference for DevTools time-travel (root STATE fallback). G-212: the first
+  // live app on the page keeps it (a second app or a custom element doesn't take it over)
   if (typeof window !== 'undefined') {
-    window.__SYGNAL_DEVTOOLS_APP__ = exposed;
+    window.__SYGNAL_DEVTOOLS_APP__ ||= exposed;
   }
 
   const swapToComponent = (newComponent: any, state?: any) => {
-    const persistedState =
-      typeof window !== 'undefined' ? window.__SYGNAL_HMR_PERSISTED_STATE : undefined;
-    const fallbackState = typeof persistedState !== 'undefined' ? persistedState : app.initialState;
-    const resolvedState = typeof state === 'undefined' ? fallbackState : state;
+    const resolvedState = typeof state === 'undefined' ? app.initialState : state;
     if (typeof window !== 'undefined') {
       window.__SYGNAL_HMR_UPDATING = true;
       window.__SYGNAL_HMR_STATE = resolvedState;
-      window.__SYGNAL_HMR_PERSISTED_STATE = resolvedState;
     }
     exposed.dispose();
     const App = newComponent.default || newComponent;
@@ -199,9 +177,8 @@ export default function run(
       swapToComponent(moduleToUse, state);
     };
 
-    // State to keep, in order: explicit, last persisted, the state stream's current value
+    // State to keep, in order: explicit, this app's current state (G-212: never a page-wide value)
     let state = explicitState;
-    if (typeof state === 'undefined' && typeof window !== 'undefined') state = window.__SYGNAL_HMR_PERSISTED_STATE;
     if (typeof state === 'undefined') state = exposed?.sources?.STATE?.stream?._v;
     if (typeof state !== 'undefined') return swapWith(state);
 
