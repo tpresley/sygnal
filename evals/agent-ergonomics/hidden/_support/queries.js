@@ -2,13 +2,18 @@
 // hidden/_support/queries.js and react/hidden/_support/queries.js must stay
 // byte-identical (verify.mjs checks), so both arms are judged the same way.
 
+// Captured at load, so pauses and waitFor run on real time even while a test
+// has installed fake timers (vi.useFakeTimers(); the ergo tier's tasks 26-28).
+const realSetTimeout = globalThis.setTimeout
+const realNow = Date.now
+
 export function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms))
+  return new Promise((resolve) => realSetTimeout(resolve, ms))
 }
 
 /** Retry `fn` until it stops throwing (and does not return false) or times out. */
 export async function waitFor(fn, { timeout = 1500, interval = 10 } = {}) {
-  const start = Date.now()
+  const start = realNow()
   let lastError
   for (;;) {
     try {
@@ -18,7 +23,7 @@ export async function waitFor(fn, { timeout = 1500, interval = 10 } = {}) {
     } catch (err) {
       lastError = err
     }
-    if (Date.now() - start > timeout) throw lastError
+    if (realNow() - start > timeout) throw lastError
     await sleep(interval)
   }
 }

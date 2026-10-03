@@ -1,0 +1,67 @@
+import { ABORT, debounce, xs } from 'sygnal'
+import { loadDraft, storeDraft } from './draft.js'
+
+const countWords = (text) => (text.trim() ? text.trim().split(/\s+/).length : 0)
+
+function App({ state }) {
+  const words = countWords(state.body)
+  return (
+    <main className="note-editor">
+      <h1>Note</h1>
+      <label className="field">
+        <span>Title</span>
+        <input name="title" value={state.title} />
+      </label>
+      <label className="field">
+        <span>Body</span>
+        <textarea name="body" rows="8" value={state.body}></textarea>
+      </label>
+      <p className="word-count">{`${words} ${words === 1 ? 'word' : 'words'}`}</p>
+      <p className="save-status">{state.status}</p>
+    </main>
+  )
+}
+
+// The draft kept in localStorage is the starting point.
+App.initialState = {
+  ...loadDraft(),
+  status: '',
+}
+
+App.intent = ({ DOM }) => {
+  const title$ = DOM.input('input[name="title"]').value()
+  const body$ = DOM.input('textarea[name="body"]').value()
+  return {
+    TITLE: title$,
+    BODY: body$,
+    SAVE: xs.merge(title$, body$).compose(debounce(1000)),
+  }
+}
+
+App.model = {
+  TITLE: {
+    STATE: (state, title) => ({ ...state, title, status: 'Unsaved changes' }),
+  },
+  BODY: {
+    STATE: (state, body) => ({ ...state, body, status: 'Unsaved changes' }),
+  },
+  // latest: a newer save aborts the one in flight, so its reply never arrives.
+  SAVE: {
+    STATE: (state) => ({ ...state, status: 'Saving…' }),
+    // MUTANT: the local draft is only written when the (debounced) save starts
+    EFFECT: (state) => storeDraft({ title: state.title, body: state.body }),
+    HTTP: (state) => ({
+      url: '/api/draft',
+      method: 'PUT',
+      json: { title: state.title, body: state.body },
+      ok: 'SAVED',
+      error: 'SAVE_FAILED',
+      latest: true,
+    }),
+  },
+  // A reply that arrives after a newer edit (status "Unsaved changes") is ignored.
+  SAVED: (state) => (state.status === 'Saving…' ? { ...state, status: 'Saved' } : ABORT),
+  SAVE_FAILED: (state) => (state.status === 'Saving…' ? { ...state, status: 'Save failed.' } : ABORT),
+}
+
+export default App
