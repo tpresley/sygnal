@@ -46,7 +46,7 @@ import { scanFileEvents } from './events.js'
 import { resolveSelectorControls } from './controls.js'
 import { analyzeUses } from './behaviors.js'
 
-export const STATIC_PROPS = ['intent', 'model', 'initialState', 'context', 'calculated', 'connections', 'resources', 'route', 'head', 'uses']
+export const STATIC_PROPS = ['intent', 'model', 'initialState', 'context', 'calculated', 'connections', 'resources', 'route', 'head', 'uses', 'timers']
 
 function parseSuppressions(ast) {
   const map = new Map()
