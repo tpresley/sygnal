@@ -5,6 +5,7 @@ import { setupChecks, diagnostics, settle } from './helpers.js'
 import { renderComponent } from '../../src/extra/testing.js'
 import { createElement } from '../../src/pragma/index.js'
 import { onIntent, onModel } from '../../src/extra/diagnostics/index.js'
+import { until } from '../support/wait.js'
 
 let t
 beforeEach(() => setupChecks())
@@ -23,6 +24,7 @@ describe('SYG101 — intent action has no model entry', () => {
       DECREMENT: s => ({ ...s, n: s.n - 1 }),
     }
     t = renderComponent(App)
+    await until(() => expect(diagnostics('SYG101')).toHaveLength(1))   // G-176: wait for the report
     await settle(50)
     const found = diagnostics('SYG101')
     expect(found).toHaveLength(1)
@@ -71,6 +73,7 @@ describe('SYG102 — model entry is unreachable', () => {
     const component = { name: 'App', intent$: { INCREMENT: xs.never() } }
     onIntent(component, ['INCREMENT'], undefined)
     onModel(component, { INCREMENT: ['STATE'], RESET: ['STATE'] })
+    await until(() => expect(diagnostics('SYG102')).toHaveLength(1))   // G-176: wait for the report
     await settle(10)
     const found = diagnostics('SYG102')
     expect(found).toHaveLength(1)

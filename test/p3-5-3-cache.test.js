@@ -15,7 +15,7 @@ import { onBrowserSignals } from '../src/extra/browserSignals.js'
 import { _resetDiagnostics } from '../src/extra/diagnostics/index.js'
 import { setupChecks, diagnostics, settle } from './diagnostics/helpers.js'
 import { waitFor, textOf, sleep } from '../evals/agent-ergonomics/hidden/_support/queries.js'
-import { clickWhenRendered } from './support/wait.js'
+import { clickWhenRendered, until } from './support/wait.js'
 
 function jsonResponse(body, status = 200, headers = {}) {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json', ...headers } })
@@ -818,6 +818,7 @@ describe('dev diagnostics', () => {
     startDiag(sender({ GO: { url: '/api/x', ok: 'GOT', key: 'search' }, STOP: { abort: 'GOT' }, STOP2: { abort: true, key: 'search' } }))
     await settle(20)
     await click('.go'); await click('.stop'); await click('.stop2')
+    await until(() => expect(diagnostics('SYG633')).toHaveLength(1))   // G-176: wait for the report
     await settle(20)
     const found = diagnostics('SYG633')
     expect(found).toHaveLength(1)

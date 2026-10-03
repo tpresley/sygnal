@@ -11,6 +11,7 @@ import { createElement } from '../../src/pragma/index.js'
 import { ABORT } from '../../src/component.js'
 import { set, event } from '../../src/extra/reducers.js'
 import { listCodes, getCodeInfo } from '../../src/extra/diagnostics/checks/index.js'
+import { until } from '../support/wait.js'
 
 let t
 beforeEach(() => setupChecks())
@@ -93,6 +94,7 @@ describe('SYG116 — EVENTS value with no string type', () => {
     App.intent = ({ DOM, EVENTS }) => ({ GO: DOM.select('.go').events('click'), GOT: EVENTS.select('SAVED') })
     App.model = { GO: { EVENTS: () => event('SAVED', 1) }, GOT: s => s }
     t = renderComponent(App, { mockConfig: { '.go': { click: later() } } })
+    await until(() => expect(diagnostics('SYG116')).toHaveLength(1))   // G-176: wait for the report
     await settle(120)
     const found = diagnostics('SYG116')
     expect(found).toHaveLength(1)
@@ -131,6 +133,7 @@ describe('SYG221 — set() called with a string', () => {
 
   it("reports set('city') with the canonical function form", async () => {
     t = renderComponent(make(set('city')), { mockConfig: { '.go': { click: later('Paris') } } })
+    await until(() => expect(diagnostics('SYG221')).toHaveLength(1))   // G-176: wait for the report
     await settle(120)
     const found = diagnostics('SYG221')
     expect(found).toHaveLength(1)
