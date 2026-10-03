@@ -105,7 +105,7 @@ The final page names are in the PLAN-3 tracker.
 1. **A control spec that isn't a tag string.** An object such as `{ kind: 'widget', … }` is accepted by `controls()`. The pragma passes vnode creation to it (for example `spec.vnode(props, children)`), then stamps `data-control` on the vnode it returns exactly as for an intrinsic tag.
 2. **Kind-blind acceptance.** `DOM.*`, `simulateEvent`, `query` and element commands resolve every control to `[data-control="<Key>"]`, whatever its kind.
 3. **A type hook.** `controls()` takes a control's props type from the spec (a phantom field on the widget spec), not only from `JSX.IntrinsicElements`.
-4. **Optional (P5-Q7):** GS-2's unknown-method check (SYG641) asks the control's spec before failing, so a widget can declare commands (`ELEMENT: { open: DueDate }` → `datePicker.commands.open(instance)`).
+4. **Requested (P5-Q7, user-approved 2026-10-02):** GS-2's unknown-method check (SYG641) asks the control's spec before failing, so a widget can declare commands (`ELEMENT: { open: DueDate }` → `datePicker.commands.open(instance)`).
 
 If 1-A can't fit these, PLAN-5 falls back to the 0 B function form (`widget(DatePicker, props)`, the E2 `island()` shape) with a class selector or a plain control around the host.
 
@@ -172,7 +172,7 @@ The docs say plainly that adapters are for the one component you can't replace. 
 | **A-1** | **Collection move transitions**, conditional on PLAN-4 P-1 (S-6): a per-item `view-transition-name` option if View Transitions are adopted, otherwise FLIP extending `<Transition>`. | Plus AutoAnimate (3.1 KB) and Motion `animate()` recipes via `ref`. | P2 |
 | **V-1** | **`<VirtualCollection>`** on `@tanstack/virtual-core` (7.1 KB). Same `of`/`from`/`filter`/`sort` props as Collection; `commands={list}` with `scrollToIndex` (S-7). | Targets and the default threshold come from PLAN-4 P-3's numbers. Browser-tested (jsdom has no layout). | P2 |
 | **B-3** | **Browser sources pack** in GS-7's declaration shape (S-8): intersection, resize, media query, storage (read and observe keys), visibility, online, clipboard, geolocation. This is Sygnal's VueUse (14.0M/wk). | No timers (GS-7) and no persistence (GS-5). Test fakes for each source. | P2 |
-| **B-4** | **Deferred loading triggers**: `lazy(() => import('./Chart'), { when: 'visible' \| 'idle' })`. This is gap-study G-17, which PLAN-4 left out of scope pending B-3. | Small once B-3's intersection and idle sources exist. Proposed addition (P5-Q9). | P3 |
+| **B-4** | **Deferred loading triggers**: `lazy(() => import('./Chart'), { when: 'visible' \| 'idle' })`. This is gap-study G-17, which PLAN-4 left out of scope pending B-3. | Small once B-3's intersection and idle sources exist. In scope (P5-Q9). | P3 |
 | **B-1** | **Drag and drop:** pointer, touch and keyboard support, plus `sortable` (S-9: a behavior if spike 0-S5 works, otherwise a driver helper). Keyboard moves pass SYG701/705 and restore focus with element commands. | Option: `@dnd-kit/dom` behind the driver if it reaches 1.0 by then (0.5 today). | P3 |
 | **B-2** | **i18n:** a recipe (an i18next instance, `.context` for `t()`, a locale driver, and the locale saved with GS-5 `persist`, S-12), plus a helper if the recipe is clumsy. | | P3 |
 
@@ -237,7 +237,7 @@ P1 for the first three; P3 for the rest. All are a11y-clean (§0.2).
 | | **0-S6** web components via controls (S-10) | Real Web Awesome in `browser-tests`: typed control props, `.detail()`, SYG110/SYG126 by identifier. |
 | **1: Foundation** | W-1 → W-3; F-1 in parallel | F-1 needs PLAN-4's GS-1. |
 | **2: Components** (parallel where files don't overlap) | W-2 (`fromZag` first) → U-1; T-1, A-1 (per P-1), V-1, B-3 | |
-| **3: Remaining items** | B-1, B-2, B-4 (if accepted), §1.4 recipes | |
+| **3: Remaining items** | B-1, B-2, B-4, §1.4 recipes | |
 | **4: Docs, agent context, measure** | Agent sync, eval, report | `llms.txt`/SKILL sync within the budgets PLAN-4 leaves (docs rules below), then the eval and REPORT-v5. |
 
 **Phase 4 eval:**
@@ -303,6 +303,8 @@ Per CLAUDE.md, each code goes into both tables in `codes.ts` (non-core codes in 
 
 ## 5. Decisions needed before Phase 1 (recommendations first)
 
+The user answered P5-Q6…Q9 on 2026-10-02. 0-A records them in the tracker with global D-numbers, taking the next free numbers after PLAN-4's.
+
 | # | Question | Recommendation |
 |---|---|---|
 | P5-Q1 | Widget form | **Answered by S-1:** a widget is a kind of control (`controls({ X: defineWidget(…) })`), with no marker component. Fallback: the 0 B function form if PLAN-4 1-A leaves no room. |
@@ -310,10 +312,10 @@ Per CLAUDE.md, each code goes into both tables in `codes.ts` (non-core codes in 
 | P5-Q3 | Foreign-framework adapters in 6.0 | `fromZag` (needed by U-1) and `sygnal/react` with the preact/compat alias documented. `sygnal/vue` only on demand. |
 | P5-Q4 | Icons | Docs for Lucide vanilla; no package unless the eval shows agents struggle. |
 | P5-Q5 | Forms API shape | A/B in the Phase 4 eval: a `form` behavior through `uses` (lead, S-2) vs helpers over `processForm`. No dedicated form static. |
-| P5-Q6 | Budgets | Whatever PLAN-4 leaves (core, `llms.txt`, SKILL.md), recorded in 0-A. If F-1 + W-1 need more than is left, ask the user with eval numbers. (Was "resolved by D76" before PLAN-4 existed.) |
-| P5-Q7 | Widget commands through `ELEMENT` (S-1 item 4) | Yes, if PLAN-4's GS-2 lets SYG641 ask the control's spec. Otherwise widgets take a `createCommand()` like V-1. |
-| P5-Q8 | `defineWidget` vs `defineElement` naming (S-11) | Keep both, if GS-13 is adopted. They describe opposite directions, so the guide pairs them in one table ("bring a foreign widget in" / "publish a Sygnal component as an element"). Revisit if the eval shows confusion. |
-| P5-Q9 | Add B-4 (deferred loading triggers, gap-study G-17) | Add it as P3. It is small on top of B-3, and the user wants as much in 6.0 as makes sense. |
+| P5-Q6 | Budgets | **User, 2026-10-02: address as we go.** Whatever PLAN-4 leaves (core, `llms.txt`, SKILL.md) is recorded in 0-A. If F-1 + W-1 need more than is left, raise it with eval numbers when it comes up. (Was "resolved by D76" before PLAN-4 existed.) |
+| P5-Q7 | Widget commands through `ELEMENT` (S-1 item 4) | **User, 2026-10-02: yes.** Requested from PLAN-4: GS-2's SYG641 asks the control's spec before failing. If PLAN-4 can't fit it, widgets take a `createCommand()` like V-1. |
+| P5-Q8 | `defineWidget` vs `defineElement` naming (S-11) | **User, 2026-10-02: keep both** (if GS-13 is adopted). They describe opposite directions, so the guide pairs them in one table ("bring a foreign widget in" / "publish a Sygnal component as an element"). Revisit if the eval shows confusion. |
+| P5-Q9 | Add B-4 (deferred loading triggers, gap-study G-17) | **User, 2026-10-02: yes.** B-4 is in scope as P3, after B-3. |
 
 ## 6. Risks
 
