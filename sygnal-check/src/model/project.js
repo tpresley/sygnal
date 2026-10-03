@@ -39,10 +39,10 @@ import { resolveImport } from '../files.js'
 import { resolveExpr } from './resolve.js'
 import { collectView, newSink } from './view.js'
 import { analyzeIntent } from './intent.js'
-import { analyzeModel, connectionNames } from './modelEntries.js'
+import { analyzeModel, connectionNames, REPLY_KEYS } from './modelEntries.js'
 import { scanFileEvents } from './events.js'
 
-export const STATIC_PROPS = ['intent', 'model', 'initialState', 'context', 'calculated', 'connections']
+export const STATIC_PROPS = ['intent', 'model', 'initialState', 'context', 'calculated', 'connections', 'resources']
 
 function parseSuppressions(ast) {
   const map = new Map()
@@ -201,6 +201,12 @@ export class Project {
     if (sp.model) comp.model = analyzeModel(this, file, sp.model)
     // PLAN-3 §1.3: action names a `connections` static sends socket/SSE events to
     comp.connections = sp.connections ? connectionNames(this, file, sp.connections) : null
+    // PLAN-3 3-A (exp): and the ok/error names of a `resources` static's requests
+    if (sp.resources) {
+      const r = connectionNames(this, file, sp.resources, REPLY_KEYS)
+      r.targets.forEach(t => { t.res = true })
+      comp.connections = { targets: [...(comp.connections?.targets || []), ...r.targets], dynamic: [...(comp.connections?.dynamic || []), ...r.dynamic] }
+    }
     if (sp.initialState) {
       const keys = this.objectKeys(file, sp.initialState)
       comp.initialState = { known: !!keys, keys: keys || new Map() }

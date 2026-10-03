@@ -185,6 +185,21 @@ Chat.model = {
 ```
 - main.js: `run(Chat, { WS: makeSocketDriver() })` (options `baseUrl reconnect queueLimit`). Without it the static opens nothing and nothing reports it. Spec keys: `socket` (a path gets ws:/wss: from the page) or `sse` (read-only; `events: { 'price-update': 'PRICE' }` for named events), `message open close error` (all optional reply actions, to this instance only), `reconnect` (`false` = never), `share` (default true: one socket per URL, ref-counted), `protocols`, `withCredentials`. `close` fires only for drops the app didn't cause; leaving, a URL change, unmount and dispose close silently, so no connection-generation ids. `error` gets `{ error }`. `{ to, json | text | binary }` on a name this instance didn't declare, a closed-for-good or an SSE connection is SYG611. Use the static OR a model-sent `{ connections }`, never both (each is the whole set). Guide: https://sygnal.js.org/guide/sockets/
 
+### Reads derived from state: `resources` (experimental)
+```jsx
+function Quote({ state }) {
+  const { status, data, error } = state.quote  // status: 'idle' | 'loading' | 'success' | 'error'
+  const text = status === 'loading' ? 'Loading…' : status === 'error' ? `Failed (${error.status ?? 'network'})` : ''
+  return <div><button className="refresh">Refresh</button><p className="status">{text}</p><p className="text">{data?.text}</p></div>
+}
+Quote.initialState = { id: 1 }
+Quote.resources = { quote: (state) => state.id && `/api/quotes/${state.id}` }  // a URL or a request; falsy = idle
+Quote.intent = ({ DOM }) => ({ REFRESH: DOM.click('.refresh') })
+Quote.model = { REFRESH: { HTTP: { refresh: 'quote' } } }  // refetch the same request
+```
+- Needs `run(Quote, { HTTP: makeFetchDriver() })`. The core keeps `state.quote` (named by the resource; don't set it in initialState: it reads as `{ status: 'idle' }`) and writes it with the built-in `RESOURCE` action. When the request changes (by value) it is fetched and the older one aborted, so a stale reply is never shown: no ids, `latest`, ok/error actions or loading flags to write. `data` (parsed body) is set only while `'success'` (cleared while loading and on error); `error` is the Error (`error.status` for a non-2xx). Falsy aborts and goes idle.
+- `ok: 'FOUND'` / `error: 'FAILED'` on the request also dispatch those actions after the write, for effects beyond the status (fill a field, focus). Writes and click-triggered one-off requests (POST) keep reply actions (above). TS: `quote: Resource<Quote>` in the state type. Tests: `t.respond('HTTP', body, 'quote')` / `t.fail('HTTP', 404, 'quote')` (or `{ url }`) answer the pending fetch; `t.requests('HTTP')` lists the fetches.
+
 ## 4. API facts
 - **Child props**: `<Rating name="food" value={state.food} />` → `function Rating({ state, name, value })`; reducers read `props.name` (4th arg); intent gets the `props$` stream. Reserved: `state` (lens: `"key"` or `{ get, set }`), `children`, `slots`, `context`, `peers` (SYG106; an error in strict mode). Without `state=` a child shares its parent's whole state.
 - **CHILD.select(Comp)** emits exactly what the child's `PARENT` function returned, for every instance (Collection items too). Put an id in the payload.

@@ -182,6 +182,7 @@ class Component {
   _replies?: any[];
   _ac?: AbortController;
   _s?: any;
+  _idle?: any;
   _activeSubComponents: Map<string, any>;
   _childReadyState: Record<string, boolean>;
   _readyChanged$: any;
@@ -364,6 +365,16 @@ class Component {
       this.model = {
         __NOOP_ACTION__: (state: any) => state
       }
+    }
+    // PLAN-3 3-A: Component.resources = { name: state => request | falsy }. The makeFetchDriver
+    // source gets { resources } (below, as connections) and writes state[name] = { status, data,
+    // error } with the built-in RESOURCE action (a model RESOURCE entry replaces it). Until then
+    // state[name] reads as idle (addCalculated)
+    const res = (view as any)?.resources
+    if (res) {
+      this.model = { RESOURCE: (s: any, { name, ...r }: any) => ({ ...s, [name]: r }), ...this.model }
+      this._idle = {}
+      for (const k in res) this._idle[k] = { status: 'idle' }
     }
     // B-016: initialState is applied by the INITIALIZE action, which needs a model. D44: only
     // for a sub-component with no `state` prop; an existing parent slice is never overwritten
@@ -727,14 +738,22 @@ class Component {
     // component's own reducer results: below a Collection the state stream lags a debounce),
     // without equal repeats. G-158: the component's own values on that sink go two microtasks
     // later, after its reducer ran, so a connection the same action opens or changes is first
-    const conn = this.view?.connections
-    if (conn) this.sourceNames.forEach(n => {
-      if (this.sources[n]?.__sygnalConnections !== true) return
+    // 3-A: the same for Component.resources ({ name: state => request }) to makeFetchDriver: the
+    // source names the static it takes (__sygnalStatic)
+    this.sourceNames.forEach(n => {
+      const k = this.sources[n]?.__sygnalStatic, f = typeof k == 'string' && this.view?.[k]
+      if (!f) return
       const own$: any = xs.create()
       model$[n] = xs.merge(
-        xs.merge(this.sources[this.stateSourceName].stream, this._s = xs.create()).compose(dropRepeats())
+        xs.merge(this.sources[this.stateSourceName].stream, this._s ||= xs.create()).compose(dropRepeats())
           .map((s: any) => {
-            try { return {connections: conn(this.addCalculated(s))} } catch (err) { caught('SYG216', this, `connections threw; nothing sent`, ERR_FIX, err) }
+            try {
+              s = this.addCalculated(s)
+              let v = f
+              if (typeof f == 'function') v = f(s)
+              else if (typeof f == 'object') { v = {}; for (const r in f) v[r] = f[r](s) }
+              return {[k]: v}
+            } catch (err) { caught('SYG216', this, `${k} threw; nothing sent`, ERR_FIX, err) }
           }).compose(dropRepeats(objIsEqual)),
         (model$[n] || xs.never()).filter((v: any) => queueMicrotask(() => queueMicrotask(() => own$.shamefullySendNext(v))) as any),
         own$)
@@ -1027,15 +1046,17 @@ class Component {
     let lastResult: any
 
     return function(this: Component, state: any) {
-      if (!this.calculated || !isObj(state) || Array.isArray(state)) return state
+      const idle = this._idle
+      if (!(this.calculated || idle) || !isObj(state) || Array.isArray(state)) return state
       if (state === lastState) {
         return lastResult
       }
-      if (!isObj(this.calculated)) fail('SYG606', this, 'calculated must be an object', 'Use calculated = { field: state => value }')
+      if (this.calculated && !isObj(this.calculated)) fail('SYG606', this, 'calculated must be an object', 'Use calculated = { field: state => value }')
 
       const calculated = this.getCalculatedValues(state)
       lastState = state
-      return lastResult = calculated ? { ...state, ...calculated } : state
+      // 3-A: a resource with no state[name] yet reads as idle
+      return lastResult = calculated || idle ? { ...idle, ...state, ...calculated } : state
     }
   }
 
