@@ -1,6 +1,6 @@
 ---
 title: Resources and Caching
-description: Declarative reads with the resources static, refetching, the opt-in query cache, invalidation, retries and validation
+description: Declarative reads with the resources static, refetching, the opt-in query cache, SSR seeding, prefetching, invalidation, retries and validation
 ---
 
 A **resource** is a read that follows state. The component declares which request each resource needs, and [`makeFetchDriver()`](/guide/http/) fetches it whenever that request changes, writing the result to `state[name]`. There is no model entry for loading or for the reply.
@@ -52,14 +52,14 @@ Writes stay [reply actions](/guide/http/): `{ url, method: 'PUT', json, ok: 'SAV
 
 ## The query cache
 
-The cache is off by default. Turn it on for the whole app:
+The cache is off by default, and it is a separate export, so an app that only sends requests doesn't ship it. Give the driver one:
 
 ```javascript
-import { run, makeFetchDriver } from 'sygnal'
+import { run, makeFetchDriver, queryCache } from 'sygnal'
 import App from './App.jsx'
 
-run(App, { HTTP: makeFetchDriver({ cache: true }) })
-// or: makeFetchDriver({ cache: { staleTime: 30000, gcTime: 300000, refetchOnFocus: true, refetchOnReconnect: true } })
+run(App, { HTTP: makeFetchDriver({ cache: queryCache() }) })
+// or: queryCache({ staleTime: 30000, gcTime: 300000, refetchOnFocus: true, refetchOnReconnect: true })
 ```
 
 With the cache on:
@@ -79,7 +79,97 @@ User.model = {
 }
 ```
 
-Cache reads only. A POST, PUT, PATCH or DELETE with `cache` or `staleTime` is reported as [SYG630](/reference/errors/#syg630): its writes would be answered from the cache.
+Cache reads only. A POST, PUT, PATCH or DELETE with `cache` or `staleTime` is reported as [SYG630](/reference/errors/#syg630): its writes would be answered from the cache. Without a `queryCache()` on the driver, `cache`, `staleTime` and `{ prefetch }` do nothing, which is reported as [SYG635](/reference/errors/#syg635).
+
+## Prefetching
+
+`{ prefetch: request }` on the `HTTP` sink fetches a request into the cache without a reply. A resource that reads it later starts at `'success'`, and while the entry is fresh (`staleTime`) it sends nothing. A fresh entry, or the same fetch already in flight, is not fetched again.
+
+```jsx
+QuoteList.model = {
+  HOVER: { HTTP: (state, id) => ({ prefetch: `/api/quotes/${id}` }) },
+}
+```
+
+`cache.prefetch(request)` does the same from outside a component, through the driver that was given the cache.
+
+### Prefetching a route's data
+
+There is no loader API: route pages derive their resources from `state.route`. To warm a page's data on link hover, keep the page's requests in one map and use it twice, in the page's `resources` and in the [router](/guide/router/#prefetching)'s `prefetch` option:
+
+```javascript
+// data.js
+import { makeRouter, queryCache } from 'sygnal'
+
+export const cache = queryCache({ staleTime: 30000 })
+export const routeData = {
+  task: (route) => [`/api/tasks/${route.params.id}`],
+}
+export const router = makeRouter({
+  routes: { home: '/', task: '/tasks/:id', notFound: '*' },
+  prefetch: (route) => routeData[route.name]?.(route).forEach(cache.prefetch),
+})
+```
+
+```jsx
+// TaskPage.jsx: the page reads the same request
+TaskPage.resources = { task: (state) => routeData.task(state.route)[0] }
+
+// App.jsx: { prefetch } on the ROUTER sink, e.g. on hover, warms the route's data
+App.model = {
+  HOVER_TASK: { ROUTER: (state, id) => ({ prefetch: 'task', params: { id } }) },
+}
+```
+
+Register the driver with the same cache: `run(App, { ROUTER: router.driver, HTTP: makeFetchDriver({ cache }) })`. Navigating to the task then renders it at once, with no request while the entry is fresh.
+
+## Server rendering
+
+Requests are never sent during server rendering. To render a resource with data on the server, a loader fetches it into a cache, and the snapshot travels to the client:
+
+- `cache.set(request, data)` writes one entry, keyed like the request the component declares.
+- `renderToString(App, { cache })` renders each resource found in the cache as `{ status: 'success', data }`; any other request renders as `'loading'`.
+- `cache.dehydrate()` returns a snapshot, `[{ key, data, updatedAt, tags }]`, that is safe to serialise. `queryCache({ initial: snapshot })` or `cache.hydrate(snapshot)` loads it on the client.
+
+A seeded entry keeps its `updatedAt`, so it stays fresh for `staleTime` after the server fetched it. While it is fresh, the client's first paint is `'success'` with no request. A stale entry is shown at once and refetched (`refreshing: true`). Give the client cache a `staleTime`, or every seeded page refetches right after hydration.
+
+### With Vike
+
+A `+data` hook seeds a cache and puts its snapshot on `pageContext.queryCache`. The Sygnal Vike extension renders the page's resources from it, passes it to the client, and hydrates the cache of every fetch driver in the `drivers` config before the page runs. On client-side navigation it does the same with the next page's snapshot.
+
+```javascript
+// pages/quote/@id/+data.js
+import { queryCache } from 'sygnal'
+
+export async function data(pageContext) {
+  const id = Number(pageContext.routeParams.id)
+  const cache = queryCache()
+  const quote = await (await fetch(`https://api.example.com/quotes/${id}`)).json()
+  cache.set(`/api/quotes/${id}`, quote)   // the request the page's resource declares
+  pageContext.queryCache = cache.dehydrate()
+  return { id }
+}
+```
+
+```javascript
+// pages/+drivers.js: client-only; one cache for the session
+import { makeFetchDriver, queryCache } from 'sygnal'
+
+export default { HTTP: makeFetchDriver({ cache: queryCache({ staleTime: 30000 }) }) }
+```
+
+```jsx
+// pages/quote/@id/+Page.jsx
+function Page({ state }) {
+  const { status, data } = state.quote
+  return <p className="quote">{status === 'success' ? data.text : 'Loading…'}</p>
+}
+Page.initialState = { id: 1 }
+Page.resources = { quote: (state) => `/api/quotes/${state.id}` }
+export default Page
+```
+
+The server HTML contains the quote, and the client hydrates without fetching it again.
 
 ## Invalidation
 
@@ -106,7 +196,7 @@ QuoteEditor.model = {
 
 ## Focus, reconnect and polling
 
-- With the cache on, when the window regains focus (or the tab becomes visible) and when the browser comes back online, every **stale** mounted resource refetches, keeping its data. Turn either off with `refetchOnFocus: false` / `refetchOnReconnect: false`. Resources in hidden pages don't refetch.
+- With a `queryCache()`, when the window regains focus (or the tab becomes visible) and when the browser comes back online, every **stale** mounted resource refetches, keeping its data. Turn either off with `refetchOnFocus: false` / `refetchOnReconnect: false`. Resources in hidden pages don't refetch.
 - `refetchEvery: ms` on a resource request polls: it refetches that long after each reply, and skips while the document is hidden. It works with or without the cache.
 
 ```jsx
@@ -150,11 +240,11 @@ A body that fails goes to `'error'` (or the `error` action) with the schema's `i
 
 ```js
 import { it, expect } from 'vitest'
-import { renderComponent } from 'sygnal'
+import { renderComponent, queryCache } from 'sygnal'
 import Quote from './Quote.jsx'
 
 it('refreshes in place, and shows the cached quote when coming back', async () => {
-  const t = renderComponent(Quote, { http: { cache: true } })
+  const t = renderComponent(Quote, { http: { cache: queryCache() } })
   await t.waitForState((s) => s.quote.status === 'loading')
   await t.respond('HTTP', { text: 'One' }, 'quote')
 
@@ -171,7 +261,8 @@ it('refreshes in place, and shows the cached quote when coming back', async () =
 })
 ```
 
-- `renderComponent(C, { http })` passes driver options (`cache`, `retry`, `timeoutMs`, …) to the fake.
-- `t.cache('HTTP')` lists the cache entries: `{ key, age, stale, subscribers, data }`.
+- `renderComponent(C, { http })` passes driver options (`cache: queryCache()`, `retry`, `timeoutMs`, …) to the fake. A seeded cache: `queryCache({ initial: snapshot })`.
+- `t.cache('HTTP')` lists the cache entries: `{ key, age, stale, subscribers, data, tags }`.
+- A `{ prefetch }` fetch is listed in `t.requests('HTTP')` as `{ url, ...request, prefetch: true }`; answer it like any other, e.g. `t.respond('HTTP', data, '/api/quotes/2')`.
 - `t.focus()` and `t.online()` simulate the browser events; the test's own window events never trigger refetches.
 - Retries and `refetchEvery` run on the test's timers, fake timers included. `t.requests('HTTP')` lists what the component sent (and each resource fetch), not each retry.

@@ -210,7 +210,7 @@ After a push, back or forward, focus moves to the first `[data-router-focus]` el
 
 ## Prefetching
 
-`{ prefetch: 'task', params: { id } }` (for example on a link's hover) calls `makeRouter({ prefetch: (route, url) => … })` and does not navigate. Without the option it does nothing. It is the hook the fetch cache uses to warm a route's data.
+`{ prefetch: 'task', params: { id } }` (for example on a link's hover) calls `makeRouter({ prefetch: (route, url) => … })` and does not navigate. Without the option it does nothing. Use it to warm a route's data in the fetch driver's `queryCache()`: see [Prefetching a route's data](/guide/resources/#prefetching-a-routes-data).
 
 ## Server-Side Rendering
 
