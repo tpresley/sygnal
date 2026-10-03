@@ -17,7 +17,9 @@ import {mergeHead} from './head';
 import {makeReplies} from './replies';
 import type {Stream} from 'xstream';
 import type {Diagnostic, DiagnosticsMode} from './diagnostics/index';
-import type {InspectGraph} from './diagnostics/checks/public';
+import type {InspectGraph, InspectOptions} from './diagnostics/checks/public';
+import {trackActions, trackActionStreams, withCause} from './diagnostics/checks/actionLog';
+import type {ActionCause, ActionListener, ActionRecord} from './diagnostics/checks/actionLog';
 
 /*
  * (Docs live on these type-only declarations so the TypeScript emit drops
@@ -130,6 +132,11 @@ import type {InspectGraph} from './diagnostics/checks/public';
  *   state it got. The next next() starts after that state (`shown`), so the held states still
  *   match it. ready() resolves after the first patch; query()/queryAll()/html() before the
  *   first render throw (G-125).
+ * - PLAN-4 2-C (GS-10) t.actions: ./diagnostics/checks/actionLog patches each instance of this
+ *   tree (onIntent: its makeOnAction/makeEffectHandler wrap the reducers; onModel: its action$
+ *   and reply streams), so nothing is in the core. simulateAction() marks its injection on the
+ *   root (withCause). t.explain() pairs each action whose STATE reducer produced a value with
+ *   the next recorded root state.
  * - SYG103/104: the mock DOM source reports each events() call (selector path,
  *   isolation scopes included as '.___scope'); a diagnostics check's onIntent
  *   maps each component's innermost scope to its name. The nearest '.___'
@@ -296,6 +303,35 @@ export interface RenderOptions {
   onError?: (error: any, info: {componentName?: string; action?: string; phase: string; driver?: string}) => void;
 }
 
+/**
+ * PLAN-4 2-C (GS-10): one action in t.actions. `sinks` fills in as the action's reducers run
+ * (STATE a microtask later), so the entry is live.
+ */
+export interface TestAction {
+  /** The action name (a behavior's actions are namespaced, `pager.NEXT`) */
+  type: string;
+  /** Its data (the DOM event for a DOM intent stream) */
+  data: any;
+  /** The name of the component that ran it */
+  component: string;
+  /** That component instance's id (stable for its life; inspect()'s component id) */
+  instance: string;
+  /** The sinks that produced a value for it: not ABORT; STATE not the unchanged state; EFFECT when it ran */
+  sinks: string[];
+  /** Where it came from */
+  cause: ActionCause;
+  /** ms since renderComponent() was called (the fake clock under fake timers) */
+  at: number;
+}
+export type {ActionCause};
+/** PLAN-4 2-C: what t.explain() returns: the action, the root state it produced, and its STATE reducer */
+export interface ExplainedAction extends TestAction {
+  /** The first recorded root state after the action's STATE reducer ran */
+  state: any;
+  /** The STATE reducer: the model's function and its source text (JS exposes no source location) */
+  reducer?: {action: string; sink: string; fn: Function; source: string};
+}
+
 /** PLAN-3 5-4c: what t.navigate takes: an href, or a route command */
 export type FakeNavigateTarget = string | {to: string; params?: Record<string, any>; query?: Record<string, any>; hash?: string; replace?: boolean};
 
@@ -343,6 +379,17 @@ export interface RenderResult {
   settle: (timeoutMs?: number) => Promise<void>;
   /** Collected state values — grows as new states are emitted */
   states: any[];
+  /**
+   * PLAN-4 2-C (GS-10): every action the rendered tree ran (children and Collection items
+   * included), in order: `{ type, data, component, instance, sinks, cause, at }`. cause is
+   * 'intent' | 'next' | 'reply' | 'built-in' | 'simulateAction' | 'behavior'. Live array.
+   */
+  actions: TestAction[];
+  /**
+   * PLAN-4 2-C: the first action whose resulting root state matches `predicate`, with that state
+   * and its STATE reducer (function and source text); undefined when none did.
+   */
+  explain: (predicate: (state: any) => boolean) => ExplainedAction | undefined;
   /** G-125: the latest recorded state (`states.at(-1)`; undefined before the first). Read-only */
   readonly state: any;
   /**
@@ -441,7 +488,7 @@ export interface RenderResult {
    * The app graph (2B) of the rendered tree: components, actions, selectors (with the mock DOM's
    * match / isolation results), EVENTS and diagnostics. Requires `import 'sygnal/diagnostics'`.
    */
-  inspect: () => InspectGraph;
+  inspect: (options?: Pick<InspectOptions, 'actions'>) => InspectGraph;
   /** `{ dom: 'real' }`: the element the tree is mounted in (removed on dispose()); else null */
   container: Element | null;
   /**
@@ -1271,6 +1318,28 @@ export function renderComponent(
       return log.apply(this, arguments as any);
     };
   };
+  // PLAN-4 2-C (GS-10): t.actions, from the action log (./diagnostics/checks/actionLog), which
+  // patches each instance of this tree from the onIntent / onModel hooks (0 B in apps)
+  const t0 = clockNow();
+  const actionList: TestAction[] = [];
+  const entryOf = new WeakMap<ActionRecord, TestAction>();
+  const stateReducer = new WeakMap<TestAction, Function>();
+  const resulting = new WeakMap<TestAction, {s: any}>();
+  let awaiting: TestAction[] = [];
+  let rootC: any;
+  const actionListener: ActionListener = {
+    action(r) {
+      const e: TestAction = {type: r.type, data: r.data, component: r.component, instance: r.instance, sinks: r.sinks, cause: r.cause, at: r.time - t0};
+      entryOf.set(r, e);
+      actionList.push(e);
+    },
+    sink(r, sink, reducer) {
+      const e = entryOf.get(r);
+      if (!e || sink != 'STATE') return;
+      if (typeof reducer == 'function') stateReducer.set(e, reducer);
+      awaiting.push(e);
+    },
+  };
   const offCheck = registerCheck({
     id: 'renderComponent',
     // R2-3: the harness's bookkeeping (G-064 child sinks, G-053 next() delays, settle()'s
@@ -1282,6 +1351,10 @@ export function renderComponent(
       bump();
       if (mine(c)) senderNames.set(c._componentNumber, c.name);
       if (mine(c)) inject(c);
+      if (mine(c)) {
+        trackActions(c, actionListener);
+        if (c.sources?.__parentComponentNumber === undefined) rootC = c;
+      }
       // PLAN-3 5-4c: a sub-component declaring `route` with no router (fake or driver) to answer it
       if (mine(c) && c.view?.route && !(routerSink in (c.sources || {}))) failWith(new Error(`[Sygnal] ${c.name} declares \`route\`, and nothing answers it: pass the app's router, renderComponent(${compName}, { router }) (the object makeRouter() returns), or a ${routerSink} driver in drivers`));
       const sc = scopeOf(c);
@@ -1290,6 +1363,7 @@ export function renderComponent(
     },
     onModel(c: any) {
       if (!mine(c)) return;
+      trackActionStreams(c);
       watchNext(c);
       recordChildSinks(c);
       // 4-A1 (real DOM): note how many states were recorded when a view in the tree runs (its
@@ -1778,7 +1852,13 @@ export function renderComponent(
 
   const states: any[] = [];
   const stateStream: Stream<any> = sources.STATE?.stream || xs.never();
-  listen(stateStream, s => { states.push(s); bump(); });
+  listen(stateStream, s => {
+    states.push(s);
+    // 2-C: the actions whose STATE reducer ran since the last state produced this one
+    for (const e of awaiting) resulting.set(e, {s});
+    awaiting = [];
+    bump();
+  });
 
   const values: Record<string, any[]> = {};
   const sinkValues = (k: string) => (values[k] = values[k] || []);
@@ -1969,7 +2049,7 @@ export function renderComponent(
   const simulateAction = (type: string, data?: any) => {
     simAt = states.length; due();
     throwFailure();
-    later(() => (actions.emit({type, data}), true));
+    later(() => (withCause(rootC, 'simulateAction', () => actions.emit({type, data})), true));
   };
 
   // E2: t.respond / t.fail. PLAN-3 1-C: the request is chosen by content (G-140, E2 13-t4):
@@ -2634,9 +2714,24 @@ export function renderComponent(
     );
   const renderHtml = () => vtree ? htmlOf(vtree) : '';
 
-  const inspect = (): InspectGraph => {
+  const inspect = (o: Pick<InspectOptions, 'actions'> = {}): InspectGraph => {
     if (!core.inspect) throw Error(`[Sygnal] t.inspect() needs import 'sygnal/diagnostics'`);
-    return core.inspect({ids: [...scopeIds.values()], diagnostics: collected, mock: {listeners, evTypes, owners, scopeIds, probe, vtree}});
+    return core.inspect({ids: [...scopeIds.values()], diagnostics: collected, mock: {listeners, evTypes, owners, scopeIds, probe, vtree}, ...(o.actions !== undefined && {actions: o.actions})});
+  };
+
+  // PLAN-4 2-C: the first action whose resulting root state matches
+  const explain = (pred: (state: any) => boolean): ExplainedAction | undefined => {
+    if (typeof pred != 'function') throw new Error('[Sygnal] t.explain(predicate): pass a function of the state, e.g. t.explain(s => s.status === \'error\')');
+    for (const e of actionList) {
+      const r = resulting.get(e);
+      let hit = false;
+      if (r) try { hit = !!pred(r.s); } catch (_) {}
+      if (!hit) continue;
+      const fn = stateReducer.get(e);
+      let source = '';
+      try { source = fn ? Function.prototype.toString.call(fn) : ''; } catch (_) {}
+      return {...e, sinks: [...e.sinks], state: r!.s, ...(fn && {reducer: {action: e.type, sink: 'STATE', fn, source: source.length > 400 ? source.slice(0, 400) + '…' : source}})};
+    }
   };
 
   const dispose = () => {
@@ -2690,6 +2785,8 @@ export function renderComponent(
     next,
     settle,
     states,
+    actions: actionList,
+    explain,
     get state() { return states[states.length - 1]; },
     sinkValues,
     requests,

@@ -19,6 +19,8 @@
  *   onRender    (PLAN-4 CT-1) the controls the instance renders: its own vtree, up to the
  *               isolated child components, through ./controls' vnode -> control map
  *   onDispose   prunes the instance
+ *   (PLAN-4 2-C) onIntent / onModel also install the action log (./actionLog) on the instance;
+ *               inspect({ actions }) lists the recent actions (the last RECENT_MAX, any instance)
  * Selectors come from the DOM check (real DOM) or from renderComponent (mock
  * DOM, passed in as options.selectors). The same shape is produced statically
  * by `sygnal-check --graph`; the JSON Schema is
@@ -30,7 +32,9 @@
  * (window.__SYGNAL_DEVTOOLS__, which is getDevTools()) once it exists.
  */
 import type {DiagnosticCheck} from '../index'
-import type {InspectGraph, InspectComponent, InspectOptions, InspectSelector, InspectDiagnostic, InspectChild, InspectResource, InspectControl} from './public'
+import type {InspectGraph, InspectComponent, InspectOptions, InspectSelector, InspectDiagnostic, InspectChild, InspectResource, InspectControl, InspectRecentAction} from './public'
+import {trackActions, trackActionStreams, clockNow} from './actionLog'
+import type {ActionListener, ActionRecord} from './actionLog'
 import {bridge, onReset, nameOf, isPlainObject, BUILTIN_ACTIONS, replySeen} from './shared'
 import {checkEventBus} from './events'
 import {selectorStatus} from './dom'
@@ -59,11 +63,20 @@ let records = new Map<any, Rec>()
 let pendingSelects: string[] = []
 /** every EVENTS type seen on the bus */
 let busTypes = new Set<string>()
+/** PLAN-4 2-C (GS-10): the most recent actions of any instance, oldest first */
+const RECENT_MAX = 200
+let recent: ActionRecord[] = []
+let epoch = clockNow()
+const actionListener: ActionListener = {
+  action(r) { if (recent.push(r) > RECENT_MAX) recent.shift() },
+}
 
 onReset(() => {
   records = new Map()
   pendingSelects = []
   busTypes = new Set()
+  recent = []
+  epoch = clockNow()
 })
 const uniq = <T>(list: Iterable<T>): T[] => [...new Set(list)]
 
@@ -121,6 +134,7 @@ export const inspectCheck: DiagnosticCheck = {
 
   onIntent(component, actionNames) {
     attachDevtools()
+    trackActions(component, actionListener)
     const r = ensure(component)
     const intent$ = component && component.intent$
     r.intentActions = intent$ && typeof intent$.addListener === 'function' ? null : (actionNames || [])
@@ -130,6 +144,7 @@ export const inspectCheck: DiagnosticCheck = {
   },
 
   onModel(component, modelMap) {
+    trackActionStreams(component)
     const r = ensure(component)
     r.modelMap = modelMap || {}
     const model$ = component && component.model$
@@ -380,7 +395,32 @@ export function inspect(options: InspectOptions = {}): InspectGraph {
     events,
     diagnostics: diags.filter(d => d && (!d.component || !names.has(d.component))).map(slim),
     ...(Object.keys(cache).length ? {cache} : {}),
+    ...(options.actions ? {recentActions: recentActions(options.actions, ids)} : {}),
   }
+}
+
+/** a JSON-safe copy of an action's data (dropped when it doesn't serialize, or is large: a DOM event) */
+function jsonData(d: any): {data?: any} {
+  if (d === undefined) return {}
+  try {
+    const text = JSON.stringify(d)
+    return text === undefined || text.length > 1000 ? {} : {data: JSON.parse(text)}
+  } catch (_) { return {} }
+}
+
+/** PLAN-4 2-C: the last `limit` actions (true: all kept) of the listed instances */
+function recentActions(limit: true | number, ids: Set<string> | undefined): InspectRecentAction[] {
+  const list = ids ? recent.filter(r => ids.has(r.instance)) : recent
+  const n = limit === true ? list.length : Math.max(0, Math.floor(limit))
+  return list.slice(list.length - n).map(r => ({
+    type: r.type,
+    ...jsonData(r.data),
+    component: r.component,
+    instance: r.instance,
+    sinks: [...r.sinks],
+    cause: r.cause,
+    at: r.time - epoch,
+  }))
 }
 
 /** Publish inspect() on the core bridge and the devtools object. Returns an uninstall function. */
