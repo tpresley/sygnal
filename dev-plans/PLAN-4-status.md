@@ -51,13 +51,17 @@ PLAN-3's end-of-Phase-5 figures (40,403 B, 283 lines, 34,343 B) grew with #12 an
 | 2-C | Testing: GS-10 `t.actions` | ✅ merged | `p4-2c-actions` (`3e9dd23`) | subagent | | 0 B production (no core hook); 22/22 failing-first; `t.explain` (stretch) done; `inspect({ actions })` opt-in (G-210); 'behavior' cause hook = `isBehaviorAction` in `checks/actionLog.ts` |
 | 2-T | Types | folded into 2-A, 2-B, 2-C (each types its own surface) | | | | D119 |
 | 1-F | Follow-ups: dialog `close`/`cancel` delegation (G-204), SYG124/125 `reportedBy`, G-203, D116 `h` type test, stale Vite plugin comments | ✅ merged | `p4-1f-followups` (`555eeb2`) | subagent | | +30 B (non-bubbling list incl. media events); mock DOM no longer bubbles non-bubbling events; browser 143 |
-| 2-A2 | Follow-ups: Astro hook (D120), G-206, G-207, 'behavior' cause, `simulateAction` of behavior actions, SSR with behaviors | 🟡 running | `p4-2a2-followups` | subagent | | |
+| 2-A2 | Follow-ups: Astro hook (D120), G-206, G-207, 'behavior' cause, `simulateAction` of behavior actions, SSR with behaviors | ✅ merged | `p4-2a2-followups` (`27b5753`) | subagent | | +13 B (`run(…, { uid })`); Astro `onError` integration option via a virtual module; Astro `uid` island prop; Vike shells/Page get `id` props (`w0`/`l0`/`p`) |
 | 2-D | a11y checker (GS-3) | ✅ merged `5e9c1e5` | `p4-2d-a11y` (`e7af5d7`) | subagent | `5e9c1e5` | 18/31 failing-first; sygnal-check 343; FP review 0/100 on p4-final2 + p3-final, 0/498 elsewhere; examples/templates/doc samples a11y-clean; 5 pending in llms.txt/SKILL.md (4-A) |
 | P-3 | Performance baseline (GS-16) | ✅ merged (non-gating) | `p4-p3-perf` (`88f0b2f`) | subagent | | `benchmarks/RESULTS.md`; `npm --prefix browser-tests run perf`; proposes "Collection O(1) item lookups" (+28 B) → user |
-| P-1 | View Transitions spike (GS-12) | 🟡 running | `exp/p4-view-transitions` | subagent | not merged | decision record → user |
-| 1-E prep | Controls A/B variants `p4-ct1-a`/`p4-ct1-b` | 🟡 running | `p4-1e-ab-variant` | subagent | | |
+| P-1 | View Transitions spike (GS-12) | ✅ decided (D129) | `exp/p4-view-transitions` (`bbdc43a`) | subagent | not merged | `dev-plans/research/p1-view-transitions.md` on the exp branch |
+| P-1b | View Transitions, form B | ⬜ | | | | after 3-B (`component.ts`) |
+| P-2b | `sygnal/element` + per-instance `run()` (G-212) | ⬜ | | | | |
+| PF-1 | Collection O(1) item lookups (D128) | ⬜ | | | | after P-1b (`component.ts`) |
+| 1-E prep | Controls A/B variants `p4-ct1-a`/`p4-ct1-b` | ✅ merged | `p4-1e-ab-variant` (`ef038e0`) | subagent | | controls skill +1,902 B (+5.4%); converted starters committed as overlays; task 16 normaliser ignores `data-control`; verify 55/55 on converted solutions |
+| 1-E | Controls A/B eval (user's terminal) | ⬜ commands given | runs `p4-ct1-a`, `p4-ct1-b`, `-haiku` (5 trials) | user | | from the `p4-1e-ab-variant` worktree |
 | P-2 | Custom elements spike (GS-13) | ✅ record done → user | `exp/p4-elements` (`7d1d67f`) | subagent | not merged | `dev-plans/research/p2-custom-elements.md` on the exp branch; 0 B core, entry 1,003 B gz; shadow DOM, React 19 (`ontask-picked` only), HMR work; recommends adopt + making `run()` per-instance (G-212) |
-| 3-D | Behaviors complete (GS-1 checker, pager/selection/undoable, SYG226, G-210) | 🟡 running | `p4-3d-behaviors` | subagent | | |
+| 3-D | Behaviors complete (GS-1 checker, pager/selection/undoable, SYG226, G-210) | ✅ merged | `p4-3d-behaviors` (`03ce0e2`) | subagent | | 0 B core; app cost pager 951 B, selection 1,168 B, undoable 836 B, undo 1,624 B; sygnal-check 369; recipes in `test/p4-3d-recipes.test.js` |
 | P-4 | Dev-context design note (GS-15) | ⬜ | | | | |
 | 3-A … 3-T | Phase 3 | ⬜ | | | | 3-A includes D102 |
 | 4-A … 4-F | Phase 4 | ⬜ | | | | |
@@ -162,6 +166,12 @@ They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none o
 | D122 | 2026-10-03 | Retiring the SYG502 static rule also drops static detection of a bare `return;` / falling off a reducer; SYG202 still reports `undefined` at runtime. Accepted. | Coordinator | 2-A deviation |
 | D123 | 2026-10-03 | GS-1 merge rules (2-B): the slice lives at `state[key]` with calculated fields on the slice; a host entry for a behavior action runs after the behavior's (host STATE on the full state, host EFFECT after, host value sinks replace the behavior's); a host intent action of the same name replaces the behavior's trigger. Behavior reply actions are not namespaced. | Coordinator | 2-B report |
 | D124 | 2026-10-03 | Budget watch: PLAN-4 is at +389 B; GS-2 (spike 238 B) + GS-5 (26 B) would reach ≈ 653 B, over the 650 B cap (D115). 3-A's target is ≤ 225 B; if PLAN-4 still exceeds 650 B, the coordinator asks the user before merging. | Coordinator | |
+| D125 | 2026-10-03 | PLAN-4 core cap raised from 650 B to **775 B** gated (projection ≈ 750 B); anything beyond comes back to the user. ≈ 990 B left for PLAN-5 under 42,300 B. | User | Budget question after 2-B |
+| D126 | 2026-10-03 | 1-E runs Haiku at 5 trials too: ≈ $69 instead of $55 (eval total ≈ $194). | User | 1-E prep cost estimate |
+| D127 | 2026-10-03 | GS-13 adopted (P-2b): a polished `sygnal/element` entry (0 B core), plus making `run()` per-instance (G-212, est. 20–40 B core). Docs in PLAN-5's "Web components" guide (D104). | User | P-2 record |
+| D128 | 2026-10-03 | "Collection O(1) item lookups" (P-3 record) approved as a separate item, ≈ +28 B within PLAN-4's cap. | User | GS-16 |
+| D129 | 2026-10-03 | GS-12 form B: `viewTransitions` static in core (+29 B), the transition hook as an opt-in helper DOM driver, `App.viewTransitions = ['ROUTE']` for routes (no router option), a dev diagnostic when the static is set without the driver. P-1b also tries a slimmer core hook; if form A fits in ≤ ~60 B more, back to the user to fold it in. PLAN-5 A-1 shrinks to item naming + a CSS recipe + a FLIP fallback for drag/rapid reorder. | User | P-1 record and coordinator's answers on core vs helper, framework expectations, agent risk |
+| D130 | 2026-10-03 | Accepted 2-A2's surface: Astro `uid` island prop; Vike Layout/Wrapper/Page views receive `id` props (`w0`, `l0`, `p`) so uids match SSR. | Coordinator | 2-A2 QUESTION |
 
 ## Open questions (PLAN-4 §11)
 
@@ -197,7 +207,8 @@ They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none o
 | G-209 | 2-A, 2-D | — | docs | Lines now false after GS-4/GS-9 (`return state` rule, SYG502, reserved props without `uid`) in llms.txt, SKILL.md, guide/model, alternative-forms, strict-mode, testing, components, sygnal-check README, SYG106 explanation; 5 a11y findings in llms.txt/SKILL.md samples (`A11Y_PENDING`). | 4-A / 4-B (SYG106 explanation and the sygnal-check README in 3-D) |
 | G-210 | 2-C | low | inspect | `inspect()` lists recent actions only with `{ actions }`, because `sygnal-check/schema/inspect.schema.json` has no `recentActions` (additionalProperties false). Add the schema entry (2-C's proposed JSON) in 3-D, then decide on default. | 3-D |
 | G-211 | 2-C merge | low | tests | `p4-2c-inspect-actions` relied on 30 × 1 ms ticks in a fixed 120 ms window; flaky under load. Fixed to wait for the ticks. Browser headless timeout raised 30 → 90 s (suite ~27 s). | ✅ coordinator |
-| G-212 | P-2 | medium | run | `run()` writes page-wide globals (`__SYGNAL_HMR_PERSISTED_STATE`, `__SYGNAL_DEVTOOLS_APP__`) and resets the diagnostics config, so two apps (or a host app plus custom elements) on one page interfere: HMR may restore another app's state, diagnostics mode is reset. Related to G-206. | Open → with the P-2 decision |
+| G-212 | P-2 | medium | run | `run()` writes page-wide globals (`__SYGNAL_HMR_PERSISTED_STATE`, `__SYGNAL_DEVTOOLS_APP__`) and resets the diagnostics config, so two apps (or a host app plus custom elements) on one page interfere: HMR may restore another app's state, diagnostics mode is reset. Related to G-206. | P-2b (D127) |
+| G-213 | P-1 | medium | Collection | Moving an item across Collections paints a frame without it (0–1 frames per move, 4–8 in rapid runs), even with no animation. | Open → PF-1 or P-1b |
 
 ## Log
 
@@ -212,3 +223,4 @@ They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none o
 - 2026-10-03 — Merged P-3 (non-gating perf suite); gates green. Started P-2.
 - 2026-10-03 — Merged 2-B; gates green (vitest 1,678, sygnal-check 347; 40,925 B gated, PLAN-4 +389 B). Started 2-A2. D123, D124.
 - 2026-10-03 — P-2 decision record done (pending user, batched with P-1). Started 3-D. G-212.
+- 2026-10-03 — Merged 1-E prep, 2-A2, 3-D; gates green (vitest 1,740, sygnal-check 369, browser 143; 40,938 B gated, PLAN-4 +402 B). Decisions D125–D130; G-213. 1-E commands handed to the user.
