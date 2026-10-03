@@ -58,8 +58,9 @@ PLAN-3's end-of-Phase-5 figures (40,403 B, 283 lines, 34,343 B) grew with #12 an
 | P-1b | View Transitions, form B | ⬜ | | | | after 3-B (`component.ts`) |
 | P-2b | `sygnal/element` + per-instance `run()` (G-212) | ✅ merged | `p4-p2b-element` (`bf36b39`) | subagent | | core **−72 B** (page-wide HMR persisted state removed); entry 1,554 B gz (1,951 B at es2020 because of `#private`); doc draft in `research/p2b-element-doc-draft.md` for PLAN-5 |
 | PF-1 | Collection O(1) item lookups (D128) | ⬜ | | | | after P-1b (`component.ts`) |
-| 2-R | Phase 1+2 review fixes (G-214), G-216, D131 | ⬜ after 3-A | | | | then tags `plan4-phase1`, `plan4-phase2` |
-| 3-A | Element commands (GS-2) | 🟡 running | `p4-3a-element` | subagent | | |
+| 2-R | Review fixes (G-214), G-216, G-218, D131, togglePopover, `t.explain` original fn, Vike `onError` check | 🟡 running | `p4-2r-fixes` | subagent | | then tags `plan4-phase1`, `plan4-phase2` |
+| 3-A | Element commands (GS-2) | ✅ merged | `p4-3a-element` (`9176436`) | subagent | | +222 B; any element method runs (D133); SYG640/641 dev-only; commands run after the next patch where the target exists, else 16 ms checks, give up after ~1 s |
+| 3-K | Checker: GS-2, GS-7 (GS-5 after 3-B) | 🟡 running | `p4-3k-checker` | subagent | | |
 | 3-C | Timers (GS-7) | ✅ merged | `p4-3c-timers` (`6ad12b1`) | subagent | | 0 B core; +579 B per app; driver key `TIMER` by convention (found by `__sygnalStatic`); SYG643 also covers `connections`/`resources`; hidden pages restart timers from scratch; recipe waits for 3-K (SYG102 on TICK) |
 | 3-E | DevTools (GS-10) | ✅ merged | `p4-3e-devtools` (`7fa4c43`) | subagent | | 0 B production; devtools entry 3.9 → 16.5 KB gz (dev-only); Copy as test proven on kanban, todomvc, signup form (`test/copied/`); Redux bridge done (stretch) |
 | 1-E prep | Controls A/B variants `p4-ct1-a`/`p4-ct1-b` | ✅ merged | `p4-1e-ab-variant` (`ef038e0`) | subagent | | controls skill +1,902 B (+5.4%); converted starters committed as overlays; task 16 normaliser ignores `data-control`; verify 55/55 on converted solutions |
@@ -67,7 +68,7 @@ PLAN-3's end-of-Phase-5 figures (40,403 B, 283 lines, 34,343 B) grew with #12 an
 | P-2 | Custom elements spike (GS-13) | ✅ record done → user | `exp/p4-elements` (`7d1d67f`) | subagent | not merged | `dev-plans/research/p2-custom-elements.md` on the exp branch; 0 B core, entry 1,003 B gz; shadow DOM, React 19 (`ontask-picked` only), HMR work; recommends adopt + making `run()` per-instance (G-212) |
 | 3-D | Behaviors complete (GS-1 checker, pager/selection/undoable, SYG226, G-210) | ✅ merged | `p4-3d-behaviors` (`03ce0e2`) | subagent | | 0 B core; app cost pager 951 B, selection 1,168 B, undoable 836 B, undo 1,624 B; sygnal-check 369; recipes in `test/p4-3d-recipes.test.js` |
 | P-4 | Dev-context design note (GS-15) | ✅ merged, decided (D132) | `p4-p4-devcontext` (`1e4a73f`) | subagent | | `dev-plans/research/p4-dev-context.md` |
-| 4-B1 | Site docs, part 1 (merged non-CT-1 features) | 🟡 running | `p4-4b1-docs` | subagent | | |
+| 4-B1 | Site docs, part 1 (merged non-CT-1 features) | ✅ merged | `p4-4b1-docs` (`6c35ad4`) | subagent | | 3 new pages, 13 updated; 31 samples run verbatim in `test/p4-4b1-doc-samples.test.js`; check-doc-samples 478 |
 | 3-A … 3-T | Phase 3 | ⬜ | | | | 3-A includes D102 |
 | 4-A … 4-F | Phase 4 | ⬜ | | | | |
 
@@ -179,6 +180,7 @@ They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none o
 | D130 | 2026-10-03 | Accepted 2-A2's surface: Astro `uid` island prop; Vike Layout/Wrapper/Page views receive `id` props (`w0`, `l0`, `p`) so uids match SSR. | Coordinator | 2-A2 QUESTION |
 | D131 | 2026-10-03 | SYG644 (warn, dev) for a `defineElement` prop that hides an `HTMLElement` member, from PLAN-4's spare 6xx range; done in 2-R. | Coordinator | P-2b QUESTION 2 |
 | D132 | 2026-10-03 | GS-15 deferred past 6.0 (no code). 4-A adds a one-line skill pointer to `t.actions` / `t.inspect()`, measured in 4-E. The note's eval design (≈ $44, live-app harness mode) stays on file for a 6.x minor. | User | P-4 note |
+| D133 | 2026-10-03 | GS-2: the core runs any method the element has (no whitelist, +222 B instead of +294 B); the 11 methods stay the documented, typed set (others via `ElementCommandRegistry`); dev SYG641 still flags typos, missing methods and DOM-mutating methods at send. | Coordinator | 3-A QUESTION 1 |
 
 ## Open questions (PLAN-4 §11)
 
@@ -222,6 +224,10 @@ They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none o
 | G-217 | P-2b | — | docs | `integration/hmr.md:67` mentions the removed `__SYGNAL_HMR_PERSISTED_STATE`; `diagnostics/index.ts` comment (lines 55–58) says every run() is authoritative ("unless another app is live"). | 4-B / 2-R |
 | G-218 | 3-E | medium | testing | `t.simulateAction('A'); t.simulateAction('SUBMIT'); await t.fail('HTTP', …)` throws "The component sent none": with two queued simulateActions, the request leaves after the harness's queued-input wait. One simulateAction works. Copy as test emits `await t.settle()` as a workaround. | 2-R (testing.ts) |
 | G-219 | 3-E | — | docs | Document `copyAsTest`, `getActions`, `connectReduxDevtools`, `sygnal({ devtools: { redux: true } })`, `configureCopyAsTest`. | 4-B |
+| G-220 | 3-A merge | high | browser-tests | `run-headless.mjs` passed `{ timeout }` as `waitForFunction`'s page argument, so Playwright's 30 s default always applied (the 90 s raise in G-211 did nothing). With 163 tests (~32 s) the suite failed as "timed out after 90000 ms". Fixed: options as the third argument; the runner now prints the real error and the page console. | ✅ coordinator |
+| G-221 | 3-A | low | GS-2 | `togglePopover` gets `{}` when no `force`, which boolean-only browsers read as `true`. | 2-R |
+| G-222 | 4-B1 | low | testing | `t.explain().reducer.fn/.source` is SYG222's dev wrapper when the dev entry is loaded. | 2-R |
+| G-223 | 4-B1 | — | docs | `reference/api.md` and `reference/utilities.md` not updated for PLAN-4 APIs; the `benchmarks/RESULTS.md` link targets `main` (404 until merged). | 4-B part 2 |
 
 ## Log
 
@@ -242,3 +248,4 @@ They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none o
 - 2026-10-03 — Merged P-2b; gates green (vitest 1,797, browser 154; 40,866 B gated, PLAN-4 +330 B). D131; G-216, G-217.
 - 2026-10-03 — P-4 note merged; GS-15 deferred (D132). Started 4-B part 1.
 - 2026-10-03 — Merged 3-E; gates green (vitest 1,823, browser 154; size unchanged). G-218, G-219.
+- 2026-10-03 — Merged 3-A (conflicts with 3-C/P-2b in codes/explanations/check hooks/browser main: kept both, regenerated) and 4-B part 1. Found and fixed G-220 (browser runner timeout). Gates green: vitest 1,965 (+1 skipped), browser 163, sygnal-check 373, doc samples 478; 41,103 B gated (PLAN-4 +567 B of 775). D133. Started 2-R and 3-K.
