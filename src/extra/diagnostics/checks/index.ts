@@ -18,6 +18,10 @@
  * | SYG105 | EVENTS type emitted-not-selected / selected-not-emitted| events.ts      |
  * | SYG106 | parent prop overwritten by a reserved view argument    | props.ts       |
  * | SYG112 | reply action has no model entry                        | replies.ts     |
+ * | SYG620 | cached request that isn't idempotent (POST + cache)    | fetch.ts       |
+ * | SYG621 | validate is not a Standard Schema                      | fetch.ts       |
+ * | SYG622 | invalidate matched nothing (info)                      | fetch.ts       |
+ * | SYG623 | abort names a lane its requests don't use              | fetch.ts       |
  * | SYG115 | unknown DOM event shorthand (DOM.key(...))             | shorthand.ts   |
  * | SYG116 | EVENTS value with no string type (a function)          | events.ts      |
  * | SYG201 | STATE reducer dropped keys                             | state.ts       |
@@ -51,6 +55,7 @@ import {shorthandCheck} from './shorthand'
 import {datasetCheck} from './dataset'
 import {strictCheck} from './strict'
 import {repliesCheck} from './replies'
+import {fetchCheck} from './fetch'
 import {installRxjsHints} from './rxjsHints'
 import {inspectCheck, installInspect} from './inspect'
 
@@ -75,6 +80,7 @@ export const checks: DiagnosticCheck[] = [
   datasetCheck,
   strictCheck,
   repliesCheck,
+  fetchCheck,
   inspectCheck,
 ]
 

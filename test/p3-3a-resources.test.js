@@ -72,6 +72,7 @@ function Quote({ state }) {
     h('button', { className: 'none' }, 'none'),
     h('button', { className: 'refresh' }, 'refresh'),
     h('p', { className: 'status' }, q.status),
+    h('p', { className: 'busy' }, q.refreshing ? 'refreshing' : ''),
     h('p', { className: 'text' }, q.data ? q.data.text : ''),
     h('p', { className: 'err' }, q.error ? String(q.error.status ?? q.error.message) : ''))
 }
@@ -172,9 +173,13 @@ describe('resources with makeFetchDriver', () => {
     await waitFor(() => expect(text('.text')).toBe('one'))
     click('.refresh')
     await waitFor(() => expect(srv.paths()).toEqual(['/api/quotes/1', '/api/quotes/1']))
-    await waitFor(() => expect(text('.status')).toBe('loading'))
+    // D78: the same request again keeps data and status, with refreshing: true
+    await waitFor(() => expect(text('.busy')).toBe('refreshing'))
+    expect(text('.status')).toBe('success')
+    expect(text('.text')).toBe('one')
     srv.respond(1, { text: 'one again' })
     await waitFor(() => expect(text('.text')).toBe('one again'))
+    expect(text('.busy')).toBe('')
     click('.none')
     await waitFor(() => expect(text('.status')).toBe('idle'))
     click('.refresh')
@@ -182,23 +187,32 @@ describe('resources with makeFetchDriver', () => {
     expect(srv.fn).toHaveBeenCalledTimes(2)
   })
 
-  it('loading and error clear data; a non-2xx error has its status; a network error its message', async () => {
+  it('D78: a refetch keeps data and the last error; a non-2xx error has its status; a network error its message', async () => {
     start(Quote)
     await waitFor(() => expect(srv.fn).toHaveBeenCalledTimes(1))
     srv.respond(0, { text: 'one' })
     await waitFor(() => expect(text('.text')).toBe('one'))
     click('.refresh')
-    await waitFor(() => expect(text('.status')).toBe('loading'))
-    expect(text('.text')).toBe('')
+    await waitFor(() => expect(text('.busy')).toBe('refreshing'))
+    expect(text('.text')).toBe('one')
     srv.status(1, 500)
     await waitFor(() => expect(text('.status')).toBe('error'))
     expect(text('.err')).toBe('500')
-    expect(text('.text')).toBe('')
+    expect(text('.text')).toBe('one')
+    expect(text('.busy')).toBe('')
     click('.refresh')
     await waitFor(() => expect(srv.fn).toHaveBeenCalledTimes(3))
+    await waitFor(() => expect(text('.busy')).toBe('refreshing'))
+    expect(text('.status')).toBe('error')
+    expect(text('.err')).toBe('500')
     srv.networkError(2)
     await waitFor(() => expect(text('.err')).toBe('Failed to fetch'))
     expect(text('.status')).toBe('error')
+    // a new request (key change) clears data and error
+    click('.next')
+    await waitFor(() => expect(text('.status')).toBe('loading'))
+    expect(text('.text')).toBe('')
+    expect(text('.err')).toBe('')
   })
 
   it('ok / error on a resource request also dispatch those actions (after the RESOURCE write)', async () => {
@@ -223,7 +237,7 @@ describe('resources with makeFetchDriver', () => {
 
   it('a Collection: each item has its own resource and gets only its own replies', async () => {
     function Item({ state }) {
-      return h('li', { className: `item-${state.id}` }, h('button', { className: 'r' }, 'r'), h('span', { className: 'v' }, `${state.quote.status}:${state.quote.data?.text ?? ''}`))
+      return h('li', { className: `item-${state.id}` }, h('button', { className: 'r' }, 'r'), h('span', { className: 'v' }, `${state.quote.status}${state.quote.refreshing ? '*' : ''}:${state.quote.data?.text ?? ''}`))
     }
     Item.resources = { quote: (s) => `/api/quotes/${s.id}` }
     Item.intent = ({ DOM }) => ({ R: DOM.click('.r') })
@@ -242,7 +256,7 @@ describe('resources with makeFetchDriver', () => {
     document.querySelector('.item-a .r').click()
     await waitFor(() => expect(srv.fn).toHaveBeenCalledTimes(3))
     expect(srv.paths()[2]).toBe('/api/quotes/a')
-    await waitFor(() => expect(text('.item-a .v')).toBe('loading:'))
+    await waitFor(() => expect(text('.item-a .v')).toBe('success*:A'))
     expect(text('.item-b .v')).toBe('success:B')
   })
 
@@ -336,8 +350,10 @@ describe('resources under renderComponent (the HTTP fake)', () => {
 // test's assertions ported to run() with makeFetchDriver.
 const QUOTE_IDS = [101, 102, 103]
 const STATUS_TEXT = { loading: 'Loading…', error: 'Could not load the quote.' }
+// D78: a refresh keeps the quote in `data` (refreshing: true); the task hides it while loading
 function App({ state }) {
-  const { status, data } = state.quote
+  const { status, data, refreshing } = state.quote
+  const shown = status === 'success' && !refreshing ? data : null
   return h('div', { className: 'quotes' },
     h('ul', { className: 'quote-list' }, ...QUOTE_IDS.map(id => h('li', null,
       h('button', { className: id === state.selected ? 'pick selected' : 'pick', 'data-id': String(id) }, `Quote ${id}`)))),
@@ -345,9 +361,9 @@ function App({ state }) {
       ? h('p', { className: 'placeholder' }, 'Select a quote.')
       : h('div', { className: 'quote' },
         h('button', { className: 'refresh' }, 'Refresh'),
-        h('p', { className: 'status' }, STATUS_TEXT[status] ?? ''),
-        h('blockquote', { className: 'quote-text' }, data?.text ?? ''),
-        h('p', { className: 'quote-author' }, data?.author ?? ''))))
+        h('p', { className: 'status' }, refreshing ? 'Loading…' : STATUS_TEXT[status] ?? ''),
+        h('blockquote', { className: 'quote-text' }, shown?.text ?? ''),
+        h('p', { className: 'quote-author' }, shown?.author ?? ''))))
 }
 App.initialState = { selected: null }
 App.resources = { quote: (state) => state.selected !== null && `/api/quotes/${state.selected}` }

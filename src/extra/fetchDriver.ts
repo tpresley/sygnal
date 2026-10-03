@@ -1,5 +1,8 @@
 import xs, {Stream} from 'xstream';
 import {senderOf, keepSender, allowed, makeReplies} from './replies';
+import {backoff} from './backoff';
+import {onBrowserSignals, isHidden} from './browserSignals';
+import {validateWith} from './standardSchema';
 
 /*
  * makeFetchDriver(options?) (PLAN-2 E2): an opt-in HTTP driver over `fetch`. Docs on the
@@ -37,14 +40,39 @@ import {senderOf, keepSender, allowed, makeReplies} from './replies';
  *   always a failure (its body parsed with 'auto').
  * - Early replies (before anything listens) are held until the first select() listener;
  *   early failures until the first errors() listener or the next macrotask (R4-4, G-092).
- * - Resources (PLAN-3 3-A, exp): the core sends a component's `resources` static as
+ * - Resources (PLAN-3 3-A; D78): the core sends a component's `resources` static as
  *   `{ resources: { name: request | falsy } }` (sender-stamped). Per (sender, name), a request
  *   that changed (by JSON) is fetched with latest semantics (the stale one aborted); falsy aborts
- *   it. Each step is the reply action RESOURCE `{ name, status, data, error }`: 'loading' (data
- *   and error undefined), 'success' (data: the parsed body), 'error' (error: the Error, with
- *   `status`/`body` for a non-2xx), 'idle' (back to falsy). `ok` / `error` on the request also
- *   dispatch those actions after the RESOURCE write. `{ refresh: name | names }` refetches the
- *   current request (nothing while idle).
+ *   it. Each step is the reply action RESOURCE `{ name, status, data, error, refreshing }`:
+ *   - a new request (key change): 'loading', data and error cleared, unless `keepPrevious: true`;
+ *   - a refetch of the same request (`{ refresh: name | names }`, invalidation, focus, polling,
+ *     or the same request declared again after a pause): `data` and `error` kept, `status`
+ *     unchanged, `refreshing: true` (a resource with no result yet stays 'loading');
+ *   - 'success' (data: the parsed body, validated), 'error' (error: the Error, with
+ *     `status`/`body` for a non-2xx; `data` kept), 'idle' (back to falsy).
+ *   `ok` / `error` on the request also dispatch those actions after the RESOURCE write.
+ *   G-177 / D85: a name left out of the declaration (a hidden Switchable page) is paused: its
+ *   request is aborted and it keeps its last result (`refreshing` off; 'idle' if it had none);
+ *   declared again, the same request is a refetch that keeps data, another one a key change.
+ * - Cache (D79, opt-in: `cache: true | { staleTime, gcTime, refetchOnFocus, refetchOnReconnect }`):
+ *   entries keyed by method + URL (query sorted) + body + parse. Cached: resources' GET/HEAD
+ *   requests (cache on), and any request with `cache: true` or `staleTime` (`cache: false` opts
+ *   out; a `parse` function / 'response' or a non-string body never is). A resource with a
+ *   cached entry shows it at once ('success', `refreshing` while it refetches); an entry younger
+ *   than `staleTime` (default 0) is served without a fetch. Identical cacheable requests in
+ *   flight share one fetch (each sender gets its own reply); the fetch aborts only when no
+ *   request still wants it. Entries no resource uses are evicted after `gcTime` (5 min).
+ *   Focus / reconnect (default on with the cache) refetch stale mounted (not paused) resources.
+ * - `refetchEvery: ms` on a resource polls (after each result; skipped while the document is hidden).
+ * - `{ invalidate: tag | tags | '/url-prefix' | (request) => boolean }` (D80): matching cache
+ *   entries go stale and matching mounted resources refetch (keeping data). Tags are explicit
+ *   (`tags: ['quotes']` on the request); a string starting with '/' is a URL prefix.
+ *   `invalidates: …` on any request does the same after its success.
+ * - `retry: n | { count, delayMs, maxDelayMs, jitter }` (default 0; the driver option applies
+ *   to GET/HEAD only): network errors, 408, 429 (Retry-After honoured) and 5xx are retried with
+ *   the socket driver's backoff; the failure (with `attempts`) is delivered once, at the end.
+ * - `validate: schema` (a Standard Schema): the parsed body is validated (and transformed); a
+ *   failure is an error with `issues`.
  * - dispose / sink completion aborts everything in flight.
  * - `fetch` is read at request time (options.fetch, else globalThis.fetch), so test stubs work.
  * - PLAN-3 5-1 (H-9): renderComponent's HTTP fake runs this driver over an in-memory fetch;
@@ -74,11 +102,15 @@ export const inScope = (ns: any[], req: any) => {
 };
 export const scopeKey = (req: any) => scopeOfRequest(req).join('\u0001');
 
-/** a URL with the query appended (arrays repeat the key) before any #fragment (R4-6) */
-export const withQuery = (href: string, query: any) => {
+/**
+ * a URL with the query appended (arrays repeat the key) before any #fragment (R4-6); `sort`:
+ * sorted by name (the cache key)
+ */
+export const withQuery = (href: string, query: any, sort?: any) => {
   if (!query) return href;
   const qs = new URLSearchParams();
   Object.keys(query).forEach(k => [].concat(query[k]).forEach((v: any) => v != null && qs.append(k, String(v))));
+  if (sort) qs.sort();
   const s = qs.toString();
   if (!s) return href;
   const hash = href.indexOf('#');
@@ -120,13 +152,18 @@ const mergeHeaders = (...all: any[]) => {
   return out;
 };
 
+const IDEMPOTENT = /^(GET|HEAD)$/i;
+// a settled resource status ('success' / 'error')
+const SETTLED = /^[se]/;
+
 export function makeFetchDriver(options: any = {}) {
   return (request$: Stream<any>) => {
     let seq = 0;
     let disposed = false;
-    // requests in flight: id → { category, scope (key), ctl (AbortController), timer, and for a
-    // request with reply actions its sender and reply key }
-    const inflight = new Map<number, {category: any; scope: string; ctl?: AbortController; timer?: any; sender?: any; rk?: any}>();
+    const co = options.cache, copt = co && typeof co == 'object' ? co : {};
+    // requests in flight: id → { category, scope (key), sender, rk (reply key), rn (resource),
+    // q (the request), timer, f (the fetch it waits on), ok / ko (its outcomes) }
+    const inflight = new Map<number, any>();
     const subs = new Set<{l: any; sel: any; err: boolean; ns: any[]}>();
     // R4-4: replies held until the first select() listener, failures until the first errors()
     // listener (or the next macrotask, when they're logged if nothing listens)
@@ -179,44 +216,157 @@ export function makeFetchDriver(options: any = {}) {
         isolateSink: (sink$: any, scope: any) => sink$.map((req: any) => tagRequest(req, scope)),
         // the core sends a component's `resources` static here (PLAN-3 3-A)
         __sygnalStatic: 'resources',
+        // 5-3: what is in flight, cached and declared (t.cache, inspect()); how many cache
+        // entries / mounted resources an `invalidate` value matches (dev diagnostics)
+        __inspect: inspect,
+        __matches: (x: any) => inval(x, 1),
         ...replies,
       };
     };
 
-    // ends a request: true if it was still live (so its result may be delivered)
-    const finish = (id: number, abort?: boolean) => {
+    // D79: the cache, key → { k, q (the request), v (data), at (fetched at), s (marked stale),
+    // n (resources using it), g (gc timer) }; and the fetches identical requests share, key → fetch
+    const cache = new Map<string, any>();
+    const flights = new Map<string, any>();
+    const now = () => Date.now();
+    const fresh = (E: any, q: any) => E?.at > 0 && !E.s && now() - E.at < (q.staleTime ?? copt.staleTime ?? 0);
+    const gc = (E: any) => {
+      clearTimeout(E.g);
+      const ms = copt.gcTime ?? 3e5;
+      if (ms < 1 / 0) E.g = setTimeout(() => E.n || cache.delete(E.k), ms);
+    };
+    const entry = (k: string, q: any) => {
+      let E = cache.get(k);
+      if (!E) cache.set(k, (E = {k, q, n: 0}));
+      return E;
+    };
+    // resource R now uses cache key k (or none): the entries' subscriber counts
+    const use = (R: any, k?: string) => {
+      if (R.k === k) return;
+      const O = cache.get(R.k);
+      if (O && !--O.n) gc(O);
+      if ((R.k = k) !== undefined) {
+        const E = entry(k as string, R.q);
+        E.n++;
+        clearTimeout(E.g);
+      }
+    };
+    // the cache key of a cacheable request (else undefined); `res`: a resource's
+    const keyOf = (q: any, res?: any) => {
+      const {method, json, body, parse, query} = q;
+      const m = (method || (json !== undefined || body !== undefined ? 'POST' : 'GET')).toUpperCase();
+      const b = json !== undefined ? JSON.stringify(json) : body ?? '';
+      if (q.cache === false || typeof b != 'string' || typeof parse == 'function' || parse == 'response' ||
+        !(q.cache || q.staleTime != null || (res && co && IDEMPOTENT.test(m)))) return;
+      return [m, withQuery((options.baseUrl || '') + (q.url ?? ''), query, 1), b, parse].join(' ');
+    };
+    // D80: an invalidate value matches a request by tag, URL prefix ('/…') or predicate
+    const hit = (x: any, q: any) => {
+      try {
+        return typeof x == 'function' ? !!x(q) : [].concat(x).some((t: any) =>
+          t[0] == '/' ? String(q.url).startsWith(t) : [].concat(q.tags).includes(t as never));
+      } catch (_) { return false; }
+    };
+    // marks matching cache entries stale and refetches matching mounted resources (keeping
+    // data); `dry`: only counts them
+    const inval = (x: any, dry?: any) => {
+      let n = 0;
+      const m = seq;
+      cache.forEach(E => { if (hit(x, E.q)) { n++; dry || (E.s = 1); } });
+      rsrc.forEach((cur, s) => cur.forEach((R, name) => { if (!R.p && R.q && hit(x, R.q)) { n++; dry || load(s, name, R, 1, m); } }));
+      return n;
+    };
+
+    // ends a request: true if it was still live (so its result may be delivered). D79: its fetch
+    // is aborted when no request still wants it
+    const finish = (id: number) => {
       const r = inflight.get(id);
       if (!r) return false;
       inflight.delete(id);
       clearTimeout(r.timer);
-      if (abort) try { r.ctl?.abort(); } catch (_) {}
+      const F = r.f;
+      if (F && !F.x && F.s.delete(r) && !F.s.size) {
+        done(F);
+        try { F.c.abort?.(); } catch (_) {}
+      }
       return true;
     };
+    const done = (F: any) => {
+      F.x = 1;
+      clearTimeout(F.t);
+      if (flights.get(F.k) === F) flights.delete(F.k);
+    };
     const cancel = (which: (r: any) => boolean) =>
-      inflight.forEach((r, id) => { if (which(r)) finish(id, true); });
-    // 3-A: sender → resource name → [JSON of its request, the request]
-    const rsrc = new Map<any, Map<string, any[]>>();
-    // a disposed sender's requests with reply actions (and resources) are aborted
-    const {replies, reply} = makeReplies(sender => { rsrc.delete(sender); cancel(r => r.rk !== undefined && r.sender === sender); });
-    const write = (sender: any, name: string, status: string, data?: any, error?: any) =>
-      reply(sender, 'RESOURCE', {name, status, data, error});
-    const load = (sender: any, name: string, q: any) => { write(sender, name, 'loading'); send(q, sender, name); };
+      inflight.forEach((r, id) => { if (which(r)) finish(id); });
 
-    const send = (req: any, sender = senderOf(req), rn?: string) => {
+    // 3-A: sender → resource name → R { j (JSON of its request), q (the request), k (cache key),
+    // last (the last write), p (paused), t (poll timer), i (its request id) }
+    const rsrc = new Map<any, Map<string, any>>();
+    const stop = (s: any, n: string, R: any) => {
+      clearTimeout(R.t);
+      cancel(r => r.sender === s && r.rk === '\0' + n);
+    };
+    // a disposed sender's requests with reply actions (and resources) are aborted
+    const {replies, reply} = makeReplies(sender => {
+      rsrc.get(sender)?.forEach(R => { clearTimeout(R.t); use(R); });
+      rsrc.delete(sender);
+      cancel(r => r.rk !== undefined && r.sender === sender);
+    });
+    const write = (s: any, n: string, R: any, status: string, data?: any, error?: any, refreshing?: any) => {
+      reply(s, 'RESOURCE', {name: n, ...(R.last = {status, data, error, refreshing: refreshing || undefined})});
+      // refetchEvery: polls after each result, skipping while the document is hidden
+      clearTimeout(R.t);
+      const ms = R.q?.refetchEvery;
+      if (ms > 0 && !R.p && !refreshing && SETTLED.test(status))
+        R.t = setTimeout(function tick() { isHidden() ? (R.t = setTimeout(tick, ms)) : load(s, n, R, 1, seq); }, ms);
+    };
+    // D78: (re)loads resource R. `same`: the same request again (keeps data); `after` (a
+    // refetch: refresh, invalidation, focus, polling) skips the cache and fetches anew
+    const load = (s: any, n: string, R: any, same?: any, after?: number) => {
+      const q = R.q, k = keyOf(q, 1), E = cache.get(k as string), L = R.last, go = after !== undefined || !fresh(E, q);
+      stop(s, n, R);
+      use(R, k as any);
+      if (E && 'v' in E && !q.validate) write(s, n, R, 'success', E.v, undefined, go);
+      else if ((same || q.keepPrevious) && L && SETTLED.test(L.status)) write(s, n, R, L.status, L.data, L.error, true);
+      else write(s, n, R, 'loading');
+      if (go || q.validate) R.i = send(q, s, n, after);
+    };
+
+    const send = (req: any, sender = senderOf(req), rn?: string, after = -1): any => {
       if (typeof req == 'string') req = {url: req};
       if (!req || typeof req != 'object' || disposed || !allowed(req, 'makeFetchDriver')) return;
-      const {url, category, method, headers, query, json, body, latest, timeoutMs, parse, abort, init, ok, error, key, resources, refresh} = req;
+      const {url, category, method, headers, query, json, body, latest, timeoutMs, parse, abort, init, ok, error, key, resources, refresh, invalidates, retry, validate} = req;
+      if ('invalidate' in req) return inval(req.invalidate);
       if (resources || refresh) {
         if (sender === undefined) return;
         const cur = rsrc.get(sender) || new Map();
         rsrc.set(sender, cur);
-        if (refresh) return [].concat(refresh).forEach((n: string) => { const q = cur.get(n)?.[1]; q && load(sender, n, q); });
+        if (refresh) return [].concat(refresh).forEach((n: string) => { const R = cur.get(n); R?.q && !R.p && load(sender, n, R, 1, seq); });
         new Set([...cur.keys(), ...Object.keys(resources)]).forEach(n => {
-          const q = resources[n], j = q ? JSON.stringify(q) : '';
-          if ((cur.get(n)?.[0] ?? '') === j) return;
-          cur.set(n, [j, q]);
-          if (q) load(sender, n, q);
-          else { cancel(r => r.sender === sender && r.rk === '\0' + n); write(sender, n, 'idle'); }
+          let R = cur.get(n);
+          // D85 / G-177: left out (a hidden Switchable page): paused, keeping its last result
+          if (!(n in resources)) {
+            if (R && !R.p) {
+              R.p = 1;
+              stop(sender, n, R);
+              use(R);
+              const L = R.last;
+              if (!L || !SETTLED.test(L.status)) write(sender, n, R, 'idle');
+              else if (L.refreshing) write(sender, n, R, L.status, L.data, L.error);
+            }
+            return;
+          }
+          let q = resources[n];
+          if (typeof q == 'string') q = {url: q};
+          const j = q ? JSON.stringify(q) : '', paused = R?.p;
+          if (!R) cur.set(n, (R = {j: ''}));
+          R.p = 0;
+          if (R.j === j && !paused) return;
+          const same = R.j === j;
+          R.j = j;
+          R.q = q;
+          if (q) load(sender, n, R, same);
+          else { stop(sender, n, R); use(R); write(sender, n, R, 'idle'); }
         });
         return;
       }
@@ -237,75 +387,140 @@ export function makeFetchDriver(options: any = {}) {
         b = JSON.stringify(json);
         if (!Object.keys(h).some(k => k.toLowerCase() == 'content-type')) h['content-type'] = 'application/json';
       }
+      const m = method || own?.method || base?.method || (b !== undefined ? 'POST' : 'GET');
+      const k = keyOf(req, rn !== undefined);
+      const R = rn !== undefined && rsrc.get(sender)?.get(rn);
       const id = ++seq;
-      const ctl = typeof AbortController == 'function' ? new AbortController() : undefined;
-      const r: any = {category, scope, ctl, sender, rk};
+      const r: any = {category, scope, sender, rk};
       inflight.set(id, r);
       // an outcome with a reply action goes to the sender's actions, the other to errors()/select()
-      const fail = (e: any, extra?: any) => finish(id) && (rn !== undefined && write(sender, rn, 'error', undefined, e),
+      const fail = r.ko = (e: any, extra?: any) => finish(id) && (R && write(sender, rn!, R, 'error', R.last?.data, e),
         rk !== undefined && error ? reply(sender, error, {error: e, request: req, ...extra}) : rn === undefined && emit(true, {error: e, category, request: req, ...extra}));
+      r.ok = async (v: any, status: number) => {
+        if (validate) try { v = await validateWith(validate, v); } catch (e: any) { return fail(e, {status, issues: e.issues}); }
+        if (!finish(id)) return;
+        if (R) write(sender, rn!, R, 'success', v);
+        rk !== undefined && ok ? reply(sender, ok, v) : rn === undefined && emit(false, {category, value: v, status, request: req});
+        if (invalidates) inval(invalidates);
+      };
       const ms = timeoutMs ?? options.timeoutMs;
       if (ms > 0) {
         r.timer = setTimeout(() => {
           const e: any = new Error(`Request timed out after ${ms}ms: ${href}`);
           e.name = 'TimeoutError';
-          if (inflight.has(id)) { fail(e); try { ctl?.abort(); } catch (_) {} }
+          fail(e);
         }, ms);
       }
-      const pz = parse || options.parse || 'auto';
-      const parser = typeof pz == 'function' ? pz : PARSERS[pz] || autoParse;
-      // the global fetch is called as a method: a detached window.fetch throws "Illegal invocation"
-      const g: any = globalThis;
-      const doFetch = options.fetch || (typeof g.fetch == 'function' && ((u: string, i: any) => g.fetch(u, i)));
-      let p: Promise<any>;
-      try {
-        if (typeof doFetch != 'function') throw new Error('fetch is not available in this environment (pass makeFetchDriver({ fetch }))');
-        // 5-1 (H-9): renderComponent's fake learns which request (and resource) the next fetch is for
-        options._tap?.(req, rn);
-        // called synchronously, so a test sees the call right after the sink emitted
-        p = Promise.resolve(doFetch(href, {
+      // D79: a fresh cache entry answers without a fetch
+      const E = cache.get(k as string);
+      if (after < 0 && fresh(E, req)) return queueMicrotask(() => r.ok(E.v, 200)), id;
+      // D79: identical cacheable requests share a fetch (a refetch only one started after it asked)
+      let F = flights.get(k as string);
+      if (!F || F.id <= after) {
+        const rp = retry ?? (IDEMPOTENT.test(m) ? options.retry : 0);
+        const pol = rp && typeof rp == 'object' ? rp : {count: +rp || 0};
+        const tries = pol.count ?? 3;
+        F = {id, k, s: new Set(), n: 0};
+        if (k !== undefined) flights.set(k, F);
+        const pz = parse || options.parse || 'auto';
+        const parser = typeof pz == 'function' ? pz : PARSERS[pz] || autoParse;
+        // the global fetch is called as a method: a detached window.fetch throws "Illegal invocation"
+        const g: any = globalThis;
+        const doFetch = options.fetch || (typeof g.fetch == 'function' && ((u: string, i: any) => g.fetch(u, i)));
+        const fetchInit = {
           ...pickInit(base),
           ...pickInit(own),
-          method: method || own?.method || base?.method || (b !== undefined ? 'POST' : 'GET'),
+          method: m,
           headers: h,
           body: b,
-          signal: ctl?.signal,
-        }));
-      } catch (e) {
-        p = Promise.reject(e);
+        };
+        // the outcome, to every request waiting on this fetch (the failure once, after the last attempt)
+        const end = (e: any, x?: any, status?: number) => {
+          done(F);
+          F.s.forEach((w: any) => e ? w.ko(e, tries ? {...x, attempts: F.n} : x) : w.ok(x, status));
+        };
+        const go = () => {
+          const ctl: any = F.c = typeof AbortController == "function" ? new AbortController() : {};
+          const live = () => F.c === ctl && !F.x;
+          // D80: retries left: the next attempt is scheduled (a Retry-After in seconds wins)
+          const again = (res?: any) => {
+            if (F.n > tries) return false;
+            F.t = setTimeout(go, res?.headers?.get?.('retry-after') * 1e3 || backoff(pol, F.n - 1));
+            return true;
+          };
+          F.n++;
+          let p: Promise<any>;
+          try {
+            if (typeof doFetch != 'function') throw new Error('fetch is not available in this environment (pass makeFetchDriver({ fetch }))');
+            // 5-1 (H-9): renderComponent's fake learns which request (and resource) the next fetch is for
+            options._tap?.(req, rn);
+            // called synchronously, so a test sees the call right after the sink emitted
+            p = Promise.resolve(doFetch(href, {...fetchInit, signal: ctl.signal}));
+          } catch (e) {
+            p = Promise.reject(e);
+          }
+          p.then(async (res: any) => {
+            if (!live()) return;
+            // R4-3: anything that throws here (a non-Response, a parser) fails the request
+            try {
+              const st = res.status;
+              if (res.ok === false || st < 200 || st > 299) {
+                let errBody: any;
+                try { errBody = await autoParse(res); } catch (_) {}
+                if (!live() || ((st == 408 || st == 429 || st > 499) && again(res))) return;
+                const e: any = new Error(`HTTP ${st}${res.statusText ? ' ' + res.statusText : ''}: ${href}`);
+                e.status = st;
+                e.body = errBody;
+                return end(e, {status: st, body: errBody});
+              }
+              let v: any;
+              try { v = await parser(res); } catch (e) { return live() && end(e, {status: st}); }
+              if (!live()) return;
+              if (k !== undefined) {
+                const C = entry(k, req);
+                C.v = v;
+                C.at = now();
+                C.s = 0;
+                C.q = req;
+                C.n || gc(C);
+              }
+              end(0, v, st);
+            } catch (e) {
+              live() && end(e);
+            }
+          }, (e: any) => { live() && !again() && end(e); });
+        };
+        go();
       }
-      p.then(async (res: any) => {
-        if (!inflight.has(id)) return;
-        // R4-3: anything that throws here (a non-Response, a parser) fails the request
-        try {
-          if (res.ok === false || res.status < 200 || res.status > 299) {
-            let errBody: any;
-            try { errBody = await autoParse(res); } catch (_) {}
-            const e: any = new Error(`HTTP ${res.status}${res.statusText ? ' ' + res.statusText : ''}: ${href}`);
-            e.status = res.status;
-            e.body = errBody;
-            return fail(e, {status: res.status, body: errBody});
-          }
-          let value: any;
-          try { value = await parser(res); } catch (e) { return fail(e, {status: res.status}); }
-          if (finish(id)) {
-            if (rn !== undefined) write(sender, rn, 'success', value);
-            rk !== undefined && ok ? reply(sender, ok, value) : rn === undefined && emit(false, {category, value, status: res.status, request: req});
-          }
-        } catch (e) {
-          fail(e);
-        } finally {
-          finish(id);
-        }
-      }, fail);
+      F.s.add(r);
+      r.f = F;
+      return id;
+    };
+
+    // D79: focus / reconnect refetch the stale mounted resources (cache on; the fake passes `_on`)
+    const off = co && (options._on || onBrowserSignals)((sig: string) => {
+      if (copt[sig == 'focus' ? 'refetchOnFocus' : 'refetchOnReconnect'] === false) return;
+      const m = seq;
+      rsrc.forEach((cur, s) => cur.forEach((R, n) => {
+        if (!R.p && R.q && R.k !== undefined && !inflight.has(R.i) && !fresh(cache.get(R.k), R.q)) load(s, n, R, 1, m);
+      }));
+    });
+    const inspect = () => ({
+      cache: [...cache.values()].map(E => ({key: E.k, age: E.at && now() - E.at, stale: !fresh(E, E.q), subscribers: E.n, data: E.v})),
+    });
+    const shut = () => {
+      cancel(() => true);
+      off?.();
+      cache.forEach(E => clearTimeout(E.g));
+      rsrc.forEach(cur => cur.forEach(R => clearTimeout(R.t)));
     };
 
     request$.addListener({
       next: (req: any) => { try { send(req); } catch (e) { console.error('[Sygnal] makeFetchDriver: invalid request', req, e); } },
       error: (e: any) => console.error('[Sygnal] makeFetchDriver: the request stream errored', e),
-      complete: () => cancel(() => true),
+      complete: shut,
     });
 
-    return {...source([]), dispose: () => { cancel(() => true); disposed = true; }};
+    return {...source([]), dispose: () => { shut(); disposed = true; }};
   };
 }

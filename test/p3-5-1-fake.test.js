@@ -288,8 +288,10 @@ const Q102 = { id: 102, text: 'Premature optimization is the root of all evil.',
 const Q103 = { id: 103, text: 'Talk is cheap. Show me the code.', author: 'Linus Torvalds' }
 const QUOTE_IDS = [101, 102, 103]
 const STATUS_TEXT = { loading: 'Loading…', error: 'Could not load the quote.' }
+// D78: a refresh keeps the quote in `data` (refreshing: true); the task hides it while loading
 function App({ state }) {
-  const { status, data } = state.quote
+  const { status, data: d, refreshing } = state.quote
+  const data = status === 'success' && !refreshing ? d : null
   return h('div', { className: 'quotes' },
     h('ul', { className: 'quote-list' }, ...QUOTE_IDS.map((id) =>
       h('li', null, h('button', { className: id === state.selected ? 'pick selected' : 'pick', data: { id: String(id) } }, `Quote ${id}`)))),
@@ -298,7 +300,7 @@ function App({ state }) {
         ? h('p', { className: 'placeholder' }, 'Select a quote.')
         : h('div', { className: 'quote' },
           h('button', { className: 'refresh' }, 'Refresh'),
-          h('p', { className: 'status' }, STATUS_TEXT[status] ?? ''),
+          h('p', { className: 'status' }, refreshing ? 'Loading…' : STATUS_TEXT[status] ?? ''),
           h('blockquote', { className: 'quote-text' }, data?.text ?? ''),
           h('p', { className: 'quote-author' }, data?.author ?? ''))))
 }
@@ -357,13 +359,14 @@ describe('task 23 with resources, under renderComponent', () => {
     await t.fail('HTTP', 500, 'quote')
     expect(t.html()).toContain('Could not load the quote.')
     t.simulateEvent('.refresh', 'click')
-    await t.waitForState(s => s.quote.status === 'loading')
+    await t.waitForState(s => s.quote.refreshing)
+    expect(t.html()).toContain('Loading…')
     expect(t.requests('HTTP').map(r => r.url)).toEqual(['/api/quotes/102', '/api/quotes/102'])
     await t.fail('HTTP', 'Failed to fetch', 'quote')
     expect(t.html()).toContain('Could not load the quote.')
     expect(t.state.quote.data).toBe(undefined)
     t.simulateEvent('.refresh', 'click')
-    await t.waitForState(s => s.quote.status === 'loading')
+    await t.waitForState(s => s.quote.refreshing)
     await t.respond('HTTP', Q102, 'quote')
     expect(t.html()).toContain(Q102.text)
   })
@@ -415,7 +418,7 @@ describe('the testing docs Resources sample', () => {
     await t.respond('HTTP', { text: 'Hi' }, 'quote')
     expect(t.html()).toContain('Hi')
     t.simulateAction('REFRESH')
-    await t.waitForState((s) => s.quote.status === 'loading')
+    await t.waitForState((s) => s.quote.refreshing)
     await t.fail('HTTP', 500, 'quote')
     expect(t.state.quote.error.status).toBe(500)
   })

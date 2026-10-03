@@ -549,10 +549,12 @@ export type Component<
    * request from state; falsy means idle:
    * `Quote.resources = { quote: (state) => state.id && '/api/quotes/' + state.id }`.
    * `state.quote` is a `Resource`: `{ status: 'idle' | 'loading' | 'success' | 'error', data,
-   * error }`, written by the built-in RESOURCE action (idle until the first request). A changed
-   * request is fetched with latest semantics (the stale one aborted, its reply never shown);
-   * `data` is set only while 'success'. Refetch with `{ refresh: 'quote' }` on the HTTP sink.
-   * `ok` / `error` on the request also dispatch those actions after the write.
+   * error, refreshing }`, written by the built-in RESOURCE action (idle until the first request).
+   * A changed request is fetched with latest semantics (the stale one aborted, its reply never
+   * shown): 'loading' with no data (unless `keepPrevious: true`). A refetch of the same request
+   * (`{ refresh: 'quote' }` on the HTTP sink, `{ invalidate }`, focus, `refetchEvery`) keeps
+   * `data`, `error` and `status` and sets `refreshing: true` (D78). `ok` / `error` on the
+   * request also dispatch those actions after the write.
    */
   resources?: { [name: string]: (state: STATE & CALCULATED) => ResourceRequest | false | null | undefined | '' | 0 };
 }
@@ -1167,6 +1169,30 @@ export type FetchRequest = string | {
   then?: never;
   /** Not allowed (SYG610, not sent). Use `error` */
   catch?: never;
+  /**
+   * PLAN-3 5-3 (D79): cache this request's reply in the driver (any method; a POST is
+   * SYG620). `false`: never cached (a resource under `makeFetchDriver({ cache })` too). A request
+   * with reply actions is otherwise one-send-one-request
+   */
+  cache?: boolean;
+  /** How long a cached reply stays fresh, in ms (served without a fetch). Implies `cache` */
+  staleTime?: number;
+  /** Invalidation tags of this request (and its cache entry): `{ invalidate: 'quotes' }` matches `tags: ['quotes']` */
+  tags?: string[];
+  /** After a 2xx reply: invalidate these tags / URL prefixes / the predicate's matches (like `{ invalidate }`) */
+  invalidates?: FetchInvalidate;
+  /**
+   * Retries (default 0): a count, or a count with the backoff of makeSocketDriver's reconnect
+   * (`{ count: 3, delayMs: 500, maxDelayMs: 10000, jitter: 0.2 }`; count defaults to 3).
+   * Network errors, 408, 429 (a Retry-After in seconds wins) and 5xx are retried, never other
+   * 4xx; the failure arrives once, after the last attempt, with `attempts`
+   */
+  retry?: number | FetchRetry;
+  /**
+   * A Standard Schema (zod, valibot, arktype, ...) the parsed 2xx body must pass; the reply is the
+   * schema's (possibly transformed) value. A failure is an error with `issues`
+   */
+  validate?: StandardSchemaLike;
   /** Your own fields (an id, ...): not sent, returned on the reply's `request` */
   [appData: string]: any;
 } | {
@@ -1181,28 +1207,71 @@ export type FetchRequest = string | {
   key?: string;
   category?: string;
 } | {
-  /** PLAN-3 3-A (experimental): refetch this instance's resource(s) by name (nothing while idle) */
+  /** PLAN-3 3-A: refetch this instance's resource(s) by name, keeping data (nothing while idle) */
   refresh: string | string[];
+} | {
+  /**
+   * PLAN-3 5-3 (D80), from any component: matching cache entries go stale and matching mounted
+   * resources refetch, keeping data. With or without the cache
+   */
+  invalidate: FetchInvalidate;
+}
+
+/**
+ * What `{ invalidate }` / `invalidates` match: a tag (`tags: ['quotes']` on the request), a URL
+ * prefix of the request's `url` (a string starting with '/'), several of them, or a predicate
+ */
+export type FetchInvalidate = string | string[] | ((request: any) => boolean);
+
+/** Retry policy of a makeFetchDriver() request: the reconnect backoff of makeSocketDriver plus a count */
+export type FetchRetry = SocketReconnect & {
+  /** Retries after the first attempt. Default 3 in this object form */
+  count?: number;
+}
+
+/** Any Standard Schema (https://standardschema.dev): an object with `~standard.validate` */
+export type StandardSchemaLike = {
+  readonly '~standard': {
+    validate: (value: unknown) => {value?: any; issues?: ReadonlyArray<{message: string; path?: ReadonlyArray<any>}>} | Promise<{value?: any; issues?: ReadonlyArray<{message: string; path?: ReadonlyArray<any>}>}>;
+    [key: string]: any;
+  };
+}
+
+/** PLAN-3 5-3 (D79): `makeFetchDriver({ cache })` */
+export type FetchCacheOptions = {
+  /** How long a reply stays fresh, in ms: a fresh entry is served without a fetch. Default 0 (always refetch, showing the cached data meanwhile) */
+  staleTime?: number;
+  /** How long an entry no resource uses is kept, in ms. Default 300000 (5 min); Infinity keeps it */
+  gcTime?: number;
+  /** Refetch stale mounted resources when the window regains focus / the page becomes visible. Default true */
+  refetchOnFocus?: boolean;
+  /** Refetch stale mounted resources when the browser comes back online. Default true */
+  refetchOnReconnect?: boolean;
 }
 
 /** PLAN-3 3-A (experimental): a request a `resources` entry derives (a URL, or a request without `abort`) */
 export type ResourceRequest = string | (Exclude<FetchRequest, string | { abort: true | string } | { refresh: string | string[] }> & {
   /**
    * Keep this resource live while its component is in a hidden Switchable page (default: a
-   * hidden page's resources are removed, aborting them, and fetched again when it is shown)
+   * hidden page's resources are paused, keeping their last result, and refetched when it is shown)
    */
   background?: boolean;
+  /** D78: on a new request (key change), keep the previous `data` (status unchanged, `refreshing: true`) instead of 'loading' (pagination) */
+  keepPrevious?: boolean;
+  /** Refetch every this many ms after each result (skipped while the document is hidden) */
+  refetchEvery?: number;
 })
 
 /**
- * PLAN-3 3-A (experimental): the state slot of a resource (`state.quote`), written by the
- * built-in RESOURCE action. `data` is the parsed body, set only while 'success'; `error` (set
- * only while 'error') is the Error: `error.status` / `error.body` for a non-2xx response.
+ * PLAN-3: the state slot of a resource (`state.quote`), written by the built-in RESOURCE action.
+ * `data` is the parsed (validated) body; `error` is the Error (`error.status` / `error.body` for
+ * a non-2xx response, `error.issues` for a validation failure). D78: a refetch of the same
+ * request keeps `data` and `error` with `refreshing: true`; a failed refetch keeps `data`.
  */
 export type Resource<DATA = any, ERROR = any> =
-  | { status: 'idle' | 'loading'; data?: undefined; error?: undefined }
-  | { status: 'success'; data: DATA; error?: undefined }
-  | { status: 'error'; data?: undefined; error: ERROR }
+  | { status: 'idle' | 'loading'; data?: undefined; error?: undefined; refreshing?: undefined }
+  | { status: 'success'; data: DATA; error?: undefined; refreshing?: boolean }
+  | { status: 'error'; data?: DATA; error: ERROR; refreshing?: boolean }
 
 /** The data of the `error` reply action of a makeFetchDriver() request (`error: 'FAILED'`) */
 export type FetchFailure<REQUEST = any> = {
@@ -1218,6 +1287,10 @@ export type FetchFailure<REQUEST = any> = {
   body?: any;
   /** The request as the app sent it */
   request: REQUEST;
+  /** With `retry`: how many attempts were made */
+  attempts?: number;
+  /** With `validate`: the schema's issues (the body didn't validate) */
+  issues?: ReadonlyArray<{message: string; path?: ReadonlyArray<any>}>;
 }
 
 /** A successful (2xx) response on `select()` of a makeFetchDriver() source */
@@ -1273,6 +1346,15 @@ export type FetchDriverOptions = {
   parse?: 'auto' | 'json' | 'text' | 'response' | ((response: Response) => any);
   /** The fetch implementation. Default: `globalThis.fetch`, read at each request (so test stubs apply) */
   fetch?: (input: string, init?: any) => Promise<any>;
+  /**
+   * PLAN-3 5-3 (D79): the query cache, off by default. On: resources' GET/HEAD replies are cached
+   * (stale-while-revalidate: cached data shows at once, `refreshing` while it refetches),
+   * identical cacheable requests in flight share one fetch, and focus / reconnect refetch
+   * stale mounted resources
+   */
+  cache?: boolean | FetchCacheOptions;
+  /** Default `retry` for GET/HEAD requests (a request's own `retry` applies to any method). Default 0 */
+  retry?: number | FetchRetry;
 }
 
 /**
@@ -1529,6 +1611,20 @@ export interface FakeConnection {
  */
 export type FakeConnectionTarget = string | Record<string, any> | ((connection: FakeConnection) => boolean);
 
+/** PLAN-3 5-3: a cache entry of an HTTP fake (t.cache) */
+export type FakeCacheEntry = {
+  /** method, URL (query sorted), body and parse */
+  key: string;
+  /** ms since the reply was cached (undefined before data arrives) */
+  age?: number;
+  /** older than staleTime, or invalidated */
+  stale: boolean;
+  /** mounted resources using it */
+  subscribers: number;
+  /** the parsed body */
+  data: any;
+}
+
 export interface RenderOptions {
   /** Override initial state (defaults to component's .initialState) */
   initialState?: any;
@@ -1584,6 +1680,11 @@ export interface RenderOptions {
    * listed in t.requests as `{ url, ...request, resource: name }`.
    */
   resourceSink?: string;
+  /**
+   * PLAN-3 5-3: options for the HTTP fakes' makeFetchDriver (all but `fetch`), e.g.
+   * `{ cache: true }`. Focus / reconnect refetches come only from t.focus() / t.online()
+   */
+  http?: FetchDriverOptions;
 }
 
 /**
@@ -1702,6 +1803,12 @@ export interface RenderResult<STATE = any> {
    * queued before them, as for respond) and resolve once the result has been reduced and rendered.
    */
   connections: (sinkName: string) => FakeConnection[];
+  /** PLAN-3 5-3: the cache entries of an HTTP fake (`renderComponent(C, { http: { cache: true } })`) */
+  cache: (sinkName: string) => FakeCacheEntry[];
+  /** PLAN-3 5-3: the window regains focus (queued like simulate*): stale mounted resources refetch (cache on) */
+  focus: () => void;
+  /** PLAN-3 5-3: the browser comes back online (queued like simulate*): stale mounted resources refetch (cache on) */
+  online: () => void;
   /** Complete the open of connecting connection(s) (`autoConnect: false`, or a pending retry): `open` fires with `{ reconnected }` */
   open: (sinkName: string, target?: FakeConnectionTarget) => Promise<void>;
   /**

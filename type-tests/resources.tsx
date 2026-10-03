@@ -1,8 +1,8 @@
 // PLAN-3 3-A (experimental): the `resources` static and the Resource state slot. Entries derive
 // a ResourceRequest (a URL or a request) or falsy from STATE & CALCULATED; `{ refresh }` is an
 // HTTP sink value; Resource<T> narrows on status.
-import { ABORT } from 'sygnal'
-import type { Component, RootComponent, FetchRequest, Resource, ResourceRequest } from 'sygnal'
+import { ABORT, makeFetchDriver, renderComponent } from 'sygnal'
+import type { Component, RootComponent, FetchRequest, Resource, ResourceRequest, FetchCacheOptions, FakeCacheEntry, StandardSchemaLike } from 'sygnal'
 
 type Quote = { id: number; text: string; author: string }
 type QuoteState = { selected: number | null; quote: Resource<Quote> }
@@ -52,3 +52,28 @@ const r: Resource<number> = { status: 'success', data: 1 }
 // @ts-expect-error success needs data of the declared type
 const bad: Resource<number> = { status: 'success', data: 'x' }
 export { r, bad }
+
+// PLAN-3 5-2b/5-3: D78 refreshing, keepPrevious, refetchEvery, tags, validate; the cache options
+const QuoteSchema: StandardSchemaLike = { '~standard': { validate: (v: unknown) => ({ value: v }) } }
+Item.resources = { quote: (s) => ({ url: `/api/q/${s.short}`, keepPrevious: true, refetchEvery: 5000, tags: ['quotes'], validate: QuoteSchema, retry: 2 }) }
+const refreshing: Resource<number> = { status: 'success', data: 1, refreshing: true }
+const failedRefetch: Resource<number> = { status: 'error', data: 1, error: new Error('x') }
+export { refreshing, failedRefetch }
+const cacheOptions: FetchCacheOptions = { staleTime: 30000, gcTime: Infinity, refetchOnFocus: false, refetchOnReconnect: true }
+makeFetchDriver({ cache: true })
+makeFetchDriver({ cache: cacheOptions, retry: { count: 2, delayMs: 200, jitter: false } })
+const writes: FetchRequest[] = [
+  { invalidate: 'quotes' },
+  { invalidate: ['quotes', '/api/users'] },
+  { invalidate: (req) => req.url.startsWith('/api') },
+  { url: '/api/quotes/1', method: 'PUT', json: {}, ok: 'SAVED', invalidates: ['quotes'] },
+  { url: '/api/user', ok: 'GOT', cache: true, staleTime: 60000, retry: 1 },
+]
+export { writes }
+// @ts-expect-error retry is a count or a policy
+makeFetchDriver({ retry: 'twice' })
+const tc = renderComponent(App, { http: { cache: { staleTime: 1000 } } })
+const entries: FakeCacheEntry[] = tc.cache('HTTP')
+tc.focus()
+tc.online()
+export { entries }
