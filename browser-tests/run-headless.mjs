@@ -9,7 +9,7 @@ import { createServer } from 'vite';
 import { chromium } from 'playwright';
 
 const HOST = '127.0.0.1';
-const TIMEOUT = 30000;
+const TIMEOUT = 90000; // the full suite takes ~27 s (PLAN-4 1-F)
 
 /**
  * Console errors the error-path tests provoke on purpose (G-076). Each entry
