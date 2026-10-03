@@ -1,5 +1,7 @@
 # PLAN-3: Network Layer and the rest of 6.0.0
 
+> **Plan renumbering (2026-10-02, the user's decision):** later plans are numbered by run order. In PLAN-3 documents written before this date, "PLAN-4" means the ecosystem plan, now **PLAN-5**. The new **PLAN-4** is "controls and core ergonomics" (`claude/sygnal-feature-gaps-c61a02:dev-plans/PLAN-4.md`); it runs after PLAN-3 and before PLAN-5. Earlier text is left unchanged.
+
 **Goal:** make network calls (HTTP, WebSocket, server-sent events, and later server functions) a first-class part of Sygnal for 6.0.0. A request and the place its answer goes should read together. Connections should follow component and state lifecycles. Tests should script both without wiring. 6.0.0 also takes the PLAN-2 carry-over items (G-140…G-143, G-133, N-1).
 
 **Amended 2026-10-02 (D74–D82):** PLAN-3 also takes the query cache, the SPA router and a `HEAD` driver for 6.0.0, handed over by the ecosystem-research session (PLAN-4, `claude/sygnal-component-research-b1873e:dev-plans/HANDOFF-to-PLAN-3.md`; its H- and R- items are mapped in the tracker). See §1.4 (as built), §1.6, §1.7 and Phase 5. PLAN-4 starts after PLAN-3 and depends on: the generic `__sygnalStatic` declaration mechanism, a Standard Schema helper module, a focus/online/visibility listener module, and the remaining budgets (recorded in the tracker).

@@ -1,5 +1,7 @@
 # PLAN-3 Status Tracker
 
+> **Plan renumbering (2026-10-02, the user's decision):** later plans are numbered by run order. In PLAN-3 documents written before this date, "PLAN-4" means the ecosystem plan, now **PLAN-5**. The new **PLAN-4** is "controls and core ergonomics" (`claude/sygnal-feature-gaps-c61a02:dev-plans/PLAN-4.md`); it runs after PLAN-3 and before PLAN-5. Earlier text is left unchanged.
+
 Tracks progress for [PLAN-3.md](PLAN-3.md). Maintained by the coordinator. The PLAN-2 tracker ([PLAN-2-status.md](PLAN-2-status.md)) remains the record for G-072…G-143 and D39–D56; new items here continue that numbering (G-144…, D57…).
 
 **Integration branch:** `plan3-integration` (cut from main `6b7144e`). Release stays held (D56): no version bumps, tags, PR to main or publish.
@@ -31,7 +33,7 @@ Delta attribution (analysis/p3-net-baseline.md): learning 11.7 s (42%, mostly re
 
 ## Budgets (D76; for PLAN-3 and PLAN-4) — final for PLAN-3
 
-**Left for PLAN-4 (end of Phase 5):** core **1,897 B** (40,403 / 42,300 gated; D77 already spent on DevTools), `llms.txt` **17 lines** (283 / 300), SKILL.md **1,657 B** (34,343 / 36,000). Driver sizes as bytes added to an app (D87): fetch 3,793 B (+ `queryCache` 4,556 B), router 2,823 B, HEAD 830 B, socket ≈ 2.6 KB. Modules PLAN-4 can reuse: `src/extra/standardSchema.ts` (`isStandardSchema`, `validateWith`), `src/extra/browserSignals.ts` (`onBrowserSignals`, `isHidden`), `src/extra/backoff.ts`, the generic `__sygnalStatic` declaration mechanism (`initStatics` in `component.ts`; statics work without a model, pause in hidden Switchable pages unless `background: true`). Docs layout: `guide/http`, `guide/resources`, `guide/sockets`, `guide/router`, `guide/head`, `guide/custom-drivers`, `integration/server-functions`.
+**Left after PLAN-3 (end of Phase 5), now shared by PLAN-4 (controls and core ergonomics) and then PLAN-5 (ecosystem, the former "PLAN-4" in this tracker), as proposed in the new PLAN-4 §6; the user decides the split:** core **1,897 B** (40,403 / 42,300 gated; D77 already spent on DevTools), `llms.txt` **17 lines** (283 / 300), SKILL.md **1,657 B** (34,343 / 36,000). Driver sizes as bytes added to an app (D87): fetch 3,793 B (+ `queryCache` 4,556 B), router 2,823 B, HEAD 830 B, socket ≈ 2.6 KB. Modules PLAN-4/PLAN-5 can reuse: `src/extra/standardSchema.ts` (`isStandardSchema`, `validateWith`), `src/extra/browserSignals.ts` (`onBrowserSignals`, `isHidden`), `src/extra/backoff.ts`, the generic `__sygnalStatic` declaration mechanism (`initStatics` in `component.ts`; statics work without a model, pause in hidden Switchable pages unless `background: true`). Docs layout: `guide/http`, `guide/resources`, `guide/sockets`, `guide/router`, `guide/head`, `guide/custom-drivers`, `integration/server-functions`.
 
 Earlier table:
 
