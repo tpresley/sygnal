@@ -15,6 +15,7 @@
       "sygnal": ["../src/index.d.ts"],
       "sygnal/jsx-runtime": ["../src/jsx-runtime.d.ts"],
       "sygnal/devtools": ["../src/devtools.d.ts"],
+      "sygnal/element": ["../src/element.d.ts"],
       "sygnal/astro": ["../src/astro/index.d.ts"],
       "xstream": ["../node_modules/xstream"],
       "xstream/*": ["../node_modules/xstream/*"]

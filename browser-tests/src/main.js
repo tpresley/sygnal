@@ -23,6 +23,7 @@ import { routerTests5_4b } from './tests/router-5-4b.jsx'
 import { domIsolationTests } from './tests/dom-isolation-6-0.jsx'
 import { controlsTests } from './tests/controls-ct1.jsx'
 import { nonBubblingTests1F } from './tests/nonbubbling-1f.jsx'
+import { elementTestsP2b } from './tests/element-p2b.jsx'
 import { getResults } from './harness.js'
 
 async function runAll() {
@@ -51,6 +52,7 @@ async function runAll() {
   await domIsolationTests()
   await controlsTests()
   await nonBubblingTests1F()
+  await elementTestsP2b()
 
   const results = getResults()
   const passed = results.filter(r => r.status === 'pass').length

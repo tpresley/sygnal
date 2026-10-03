@@ -12,7 +12,10 @@
  * What it does:
  *   1. Configures the automatic JSX transform with sygnal as the import source:
  *      `oxc` (Vite 8), plus `esbuild` under Vite 7 and older
- *   2. Detects files that call `run()` from sygnal and auto-injects HMR wiring
+ *   2. Detects files that call `run()` from sygnal and auto-injects HMR wiring.
+ *      A module that calls `defineElement()` from 'sygnal/element' at the top level
+ *      (and doesn't import run()) gets `if (import.meta.hot) import.meta.hot.accept()`
+ *      appended: re-running it swaps the elements' component, keeping their state
  *   3. Dev mode (`vite` / `vite dev` only; never `vite build`). Into every
  *      file that imports `run` from sygnal (including entries with manual HMR
  *      wiring or `disableHmr`) it inserts, on an existing line:
@@ -439,7 +442,9 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
 
       // Find: import { run, ... } from 'sygnal'
       const runImportRe = /import\s+\{[^}]*\brun\b[^}]*\}\s+from\s+['"]sygnal['"]/
-      if (!runImportRe.test(noComments)) return null
+      if (!runImportRe.test(noComments)) {
+        return disableHmr || isVitest ? null : elementHmr(code, noComments, id)
+      }
 
       // Dev snippet: injected into every file that imports run() — also when
       // HMR wiring below is skipped. Inserted after any shebang line and
@@ -883,6 +888,29 @@ function withSourcemap(code: string, inserts: Array<[number, string]>, tail: str
     map: { version: 3, sources: [id], sourcesContent: [code], names: [] as string[], mappings },
   }
 }
+
+// A top-level (column 0) defineElement(...) call, as a statement or a declaration's value
+const DEFINE_ELEMENT_CALL_RE = /^(?:(?:export\s+)?(?:const|let|var)\s+[\w$]+\s*=\s*)?defineElement\s*\(/m
+const ELEMENT_IMPORT_RE = /import\s+\{[^}]*\bdefineElement\b[^}]*\}\s+from\s+['"]sygnal\/element['"]/
+
+/**
+ * PLAN-4 GS-13: a module that defines custom elements with 'sygnal/element' accepts its own
+ * hot updates. Re-running it calls defineElement again for the same tags, which swaps the
+ * component in every live element and keeps each one's state; an edited component module it
+ * imports reaches it the same way. Only for a top-level defineElement call, outside test
+ * files, when the module has no HMR code of its own and doesn't import run() (an entry's
+ * run() wiring decides there).
+ */
+function elementHmr(code: string, noComments: string, id: string) {
+  if (/\.(test|spec)\.[jt]sx?$/.test(id)) return null
+  if (!ELEMENT_IMPORT_RE.test(noComments) || noComments.includes('import.meta.hot')) return null
+  if (!DEFINE_ELEMENT_CALL_RE.test(blankOut(code, true))) return null
+  return withSourcemap(code, [], ELEMENT_HMR_BLOCK, id)
+}
+
+const ELEMENT_HMR_BLOCK = `
+if (import.meta.hot) import.meta.hot.accept()
+`
 
 function hmrBlock(componentPath: string, hmrRef: string, disposeRef: string): string {
   return `
