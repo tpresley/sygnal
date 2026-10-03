@@ -57,7 +57,7 @@ Search.model = {
 }
 ```
 
-Sygnal runs any method the element has, so other methods work too (`{ play: Video }`, `{ showPicker: DateInput }`, `{ requestSubmit: Form }`). The eleven above are the ones the types know; for TypeScript, add others to the `ElementCommandRegistry` interface:
+Sygnal runs any method the element has, so other methods work too (`{ play: Video }`, `{ showPicker: DateInput }`, `{ requestSubmit: CheckoutForm }`). The eleven above are the ones the types know; for TypeScript, add others to the `ElementCommandRegistry` interface:
 
 ```ts
 // sygnal-commands.d.ts
@@ -72,7 +72,7 @@ Methods that change the DOM Sygnal renders (`remove`, `append`, `setAttribute` a
 
 ## Which element
 
-The target is looked up in the view of the **component instance that sent the command**, the same scope its intent's `DOM` has. An element inside a child component is isolated from its parent, and each item of a [Collection](/guide/collections/) reaches only its own elements. To focus or scroll something a child renders, send the command from the child (for example from its own model entry for an action the parent sends it). If more than one element matches, the first one gets the command.
+The target is looked up in the view of the **component instance that sent the command**, the same scope its intent's `DOM` has. An element inside a child component is isolated from its parent, and each item of a [Collection](/guide/collections/) reaches only its own elements. To focus or scroll something a child renders, send the command from the child's own model. If more than one element matches, the first one gets the command.
 
 ## When it runs
 
