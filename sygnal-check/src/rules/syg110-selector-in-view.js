@@ -17,6 +17,7 @@ import { editDistance } from '../names.js'
 const MAX_CHILD_DEPTH = 6
 
 function viewHas(sink, kind, name) {
+  if (kind === 'control') return sink.controls.has(name)
   return (kind === 'class' ? sink.classes : sink.ids).names.has(name)
 }
 
@@ -26,10 +27,11 @@ function patternMatch(sink, kind, name) {
 }
 
 /**
- * Breadth-first search through child components for an exact class/id.
+ * Breadth-first search through child components for an exact class/id
+ * (or, with kind 'control', a control: `name` is the Control).
  * @returns {{ child: string, via: string[] } | null}
  */
-function findInChildren(project, sink, kind, name) {
+export function findInChildren(project, sink, kind, name) {
   const visited = new Set()
   let frontier = sink.children.map(c => ({ usage: c, path: [c.name] }))
   for (let depth = 0; depth < MAX_CHILD_DEPTH && frontier.length; depth++) {
@@ -49,6 +51,7 @@ function findInChildren(project, sink, kind, name) {
   return null
 }
 
+const tag = (control) => `<${control.key}>`
 const show = (kind, name) => (kind === 'class' ? '.' : '#') + name
 
 export default {
@@ -63,6 +66,8 @@ export default {
       const injected = project.injectedInto(comp.view)
       for (const sel of intent.selectors) {
         if (sel.global) continue
+        if (sel.component) continue // SYG124 (rules/syg124-controls.js)
+        for (const control of sel.controls || []) checkControl(project, report, comp, sel, control, view, injected)
         if (sel.dynamic) {
           report({
             code: 'SYG110',
@@ -122,6 +127,36 @@ export default {
       }
     }
   },
+}
+
+/** SYG110 / SYG104 by identifier: a control the intent listens to. */
+function checkControl(project, report, comp, sel, control, view, injected) {
+  if (viewHas(view, 'control', control) || injected.some(sink => viewHas(sink, 'control', control))) return
+  const call = `DOM.${sel.method}(${comp.intent.file.source.slice(sel.node.start, sel.node.end)})`
+  const inChild = findInChildren(project, view, 'control', control)
+  if (inChild) {
+    const child = inChild.child
+    const where = inChild.via.length > 1 ? ` (rendered by ${inChild.via.join(' > ')})` : ''
+    report({
+      code: 'SYG104',
+      component: comp.name,
+      file: comp.intent.file,
+      node: sel.node,
+      message: `${call} listens to control ${tag(control)}, but control ${tag(control)} is only rendered inside child component <${child}>${where}; parents can't see DOM events inside child components`,
+      fix: `listen to ${control.key} in <${child}>'s intent and send it up via PARENT or EVENTS, or render ${tag(control)} in ${comp.name}'s own view`,
+      data: { selector: sel.selector, control: control.key, child, path: inChild.via },
+    })
+    return
+  }
+  report({
+    code: 'SYG110',
+    component: comp.name,
+    file: comp.intent.file,
+    node: sel.node,
+    message: `${call} listens to control ${tag(control)}, but ${comp.name}'s view never renders ${tag(control)}, so this action never fires`,
+    fix: `render ${tag(control)}${control.element ? ` (a <${control.element}>)` : ''} in ${comp.name}'s view, or listen to a control the view renders`,
+    data: { selector: sel.selector, control: control.key },
+  })
 }
 
 function commonPrefix(a, b) {

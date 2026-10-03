@@ -57,6 +57,11 @@
         "eventsSelected": { "$ref": "#/$defs/strings" },
         "children": { "type": "array", "items": { "$ref": "#/$defs/child" } },
         "selectors": { "type": "array", "items": { "$ref": "#/$defs/selector" } },
+        "controls": {
+          "description": "controls (controls() element tokens) the component renders; omitted when there are none",
+          "type": "array",
+          "items": { "$ref": "#/$defs/control" }
+        },
         "diagnostics": { "type": "array", "items": { "$ref": "#/$defs/diagnostic" } }
       }
     },
@@ -89,7 +94,19 @@
         "selector": { "type": "string" },
         "events": { "type": ["array", "null"], "items": { "type": "string" } },
         "matched": { "type": ["boolean", "null"], "description": "matches an element the component itself renders (static: in the view source; renderComponent: in the latest render; real DOM: seen by the DOM checks); null when unknown" },
-        "isolationHit": { "type": ["string", "null"], "description": "child component whose isolated elements the selector matches instead" }
+        "isolationHit": { "type": ["string", "null"], "description": "child component whose isolated elements the selector matches instead" },
+        "control": { "type": "string", "description": "the control this selector is (its key), when the intent passed a control" }
+      }
+    },
+    "control": {
+      "type": "object",
+      "required": ["name", "element", "listened"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "description": "the control's key (rendered as data-control=\"<name>\")" },
+        "element": { "type": ["string", "null"], "description": "the intrinsic tag for a tag spec; null for a spec object" },
+        "kind": { "type": "string", "description": "a spec object's kind (e.g. 'widget')" },
+        "listened": { "type": ["boolean", "null"], "description": "the component's intent listens to it; null when unknown" }
       }
     },
     "diagnostic": {

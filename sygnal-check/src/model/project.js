@@ -41,6 +41,7 @@ import { collectView, newSink } from './view.js'
 import { analyzeIntent } from './intent.js'
 import { analyzeModel, connectionNames, REPLY_KEYS } from './modelEntries.js'
 import { scanFileEvents } from './events.js'
+import { resolveSelectorControls } from './controls.js'
 
 export const STATIC_PROPS = ['intent', 'model', 'initialState', 'context', 'calculated', 'connections', 'resources', 'route', 'head']
 
@@ -197,6 +198,7 @@ export class Project {
     if (sp.intent) {
       const r = resolveExpr(this, file, sp.intent)
       comp.intent = analyzeIntent(r.file, isFunction(r.node) ? r.node : null)
+      for (const sel of comp.intent.selectors) resolveSelectorControls(this, comp.intent.file, sel)
     }
     if (sp.model) comp.model = analyzeModel(this, file, sp.model)
     // PLAN-3 §1.3: action names a `connections` static sends socket/SSE events to

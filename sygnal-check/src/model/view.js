@@ -18,6 +18,7 @@ import { evalStrings, tokenize, classTokens, DYN } from '../strings.js'
 import { hyperscriptSel } from '../selectors.js'
 import { findBinding } from '../scope.js'
 import { resolveExpr, bindingValue } from './resolve.js'
+import { resolveControlJSX } from './controls.js'
 
 const TRANSPARENT = new Set(['Fragment', 'Portal', 'Transition', 'Suspense', 'ClientOnly', 'Slot', 'React.Fragment'])
 const COLLECTION = new Set(['Collection', 'collection'])
@@ -31,6 +32,12 @@ export function newSink() {
     children: [],
     // <Collection>/<Switchable> usages (also listed in children)
     collections: [],
+    // controls rendered in this scope: Map<Control, JSXOpeningElement[]> (PLAN-4 CT-1)
+    controls: new Map(),
+    // intrinsic elements rendered in this scope: [{ node: JSXElement, file, tag }] (--fix --controls)
+    elements: [],
+    // class name → number of class attributes / selectors that may produce it (--fix --controls)
+    classCounts: new Map(),
   }
 }
 
@@ -54,11 +61,21 @@ function addDynamic(set) {
 function addClassExpr(project, file, expr, sink) {
   const e = unwrap(expr)
   if (!e) return
+  const into = { names: new Set(), patterns: [] }
   if (e.type === 'ObjectExpression' || e.type === 'ArrayExpression') {
-    tokenize([classTokens([e], { fileInfo: file }).join(' ')], sink.classes)
-    return
+    tokenize([classTokens([e], { fileInfo: file }).join(' ')], into)
+  } else {
+    tokenize(evalStrings(e, { fileInfo: file }), into)
   }
-  tokenize(evalStrings(e, { fileInfo: file }), sink.classes)
+  mergeClasses(sink, into.names, into.patterns)
+}
+
+function mergeClasses(sink, names, patterns = []) {
+  for (const n of names) {
+    sink.classes.names.add(n)
+    sink.classCounts.set(n, (sink.classCounts.get(n) || 0) + 1)
+  }
+  for (const p of patterns) if (!sink.classes.patterns.some(x => x.source === p.source)) sink.classes.patterns.push(p)
 }
 
 function addIdExpr(file, expr, sink) {
@@ -117,7 +134,7 @@ function visitInto(project, file, root, sink, visited) {
         const sel = stringValue(node.arguments[0])
         if (sel) {
           const { classes, ids } = hyperscriptSel(sel)
-          classes.forEach(c => sink.classes.names.add(c))
+          mergeClasses(sink, classes)
           ids.forEach(i => sink.ids.names.add(i))
         }
       } else if (callee.type === 'Identifier' && HYPERSCRIPT_TAGS.has(callee.name) && isHyperscriptImport(file, callee)) {
@@ -125,7 +142,7 @@ function visitInto(project, file, root, sink, visited) {
         const sel = stringValue(node.arguments[0])
         if (sel) {
           const { classes, ids } = hyperscriptSel(sel)
-          classes.forEach(c => sink.classes.names.add(c))
+          mergeClasses(sink, classes)
           ids.forEach(i => sink.ids.names.add(i))
         }
       }
@@ -217,7 +234,14 @@ function handleElement(project, file, el, sink, visited) {
     return
   }
 
-  if (isComponentTag(name) && !TRANSPARENT.has(name)) {
+  // A control is an element, not a component: it renders in this scope.
+  const control = isComponentTag(name) && !TRANSPARENT.has(name) ? resolveControlJSX(project, file, opening) : null
+  if (control) {
+    if (!sink.controls.has(control)) sink.controls.set(control, [])
+    sink.controls.get(control).push(opening)
+  }
+
+  if (!control && isComponentTag(name) && !TRANSPARENT.has(name)) {
     // Child component: everything passed to it (children, JSX props) renders in its scope.
     const injected = newSink()
     for (const a of opening.attributes) visitInto(project, file, a, injected, visited)
@@ -234,8 +258,9 @@ function handleElement(project, file, el, sink, visited) {
     return
   }
 
-  // HTML element or transparent marker
-  if (!isComponentTag(name)) handleHtmlAttrs(project, file, opening, sink)
+  // HTML element, control or transparent marker
+  if (!isComponentTag(name) || control) handleHtmlAttrs(project, file, opening, sink)
+  if (!isComponentTag(name)) sink.elements.push({ node: el, file, tag: name })
   for (const a of opening.attributes) {
     if (a.type === 'JSXAttribute') {
       const v = jsxAttrExpr(a)
