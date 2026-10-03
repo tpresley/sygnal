@@ -9,29 +9,6 @@ export default class SymbolTree<Payload, T> {
 
   constructor(private mapper: (t: T) => string) {}
 
-  public set(path: Array<T>, element: Payload | undefined, max?: number): void {
-    let curr = this.tree;
-    const _max = max !== undefined ? max : path.length;
-    for (let i = 0; i < _max; i++) {
-      const n = this.mapper(path[i]);
-      let child: Node<Payload> = curr[1][n];
-      if (!child) {
-        child = [undefined, {}];
-        curr[1][n] = child;
-      }
-      curr = child;
-    }
-    curr[0] = element;
-  }
-
-  public getDefault(
-    path: Array<T>,
-    mkDefaultElement: () => Payload,
-    max?: number
-  ): Payload {
-    return this.get(path, mkDefaultElement, max) as Payload;
-  }
-
   public get(
     path: Array<T>,
     mkDefaultElement?: () => Payload,
@@ -56,17 +33,5 @@ export default class SymbolTree<Payload, T> {
       curr[0] = mkDefaultElement();
     }
     return curr[0];
-  }
-
-  public delete(path: Array<T>): void {
-    let curr = this.tree;
-    for (let i = 0; i < path.length - 1; i++) {
-      const child = curr[1][this.mapper(path[i])];
-      if (!child) {
-        return;
-      }
-      curr = child;
-    }
-    delete curr[1][this.mapper(path[path.length - 1])];
   }
 }
