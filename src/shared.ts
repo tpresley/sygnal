@@ -14,6 +14,12 @@ export const ABORT = Symbol.for('sygnal.ABORT')
 export const isAbort = (v: any): boolean => typeof v == 'symbol' && v.description == 'sygnal.ABORT'
 
 /**
+ * Set on a dev-only wrapper of a model function (SYG222's) to the function it wraps, so the
+ * action log and t.explain() show the user's reducer (G-214 follow-up)
+ */
+export const ORIGINAL = Symbol.for('sygnal.original')
+
+/**
  * PLAN-4 GS-9 / G-214: one part of a uid() path (a child's path or `id` prop, a Collection item
  * key, a Switchable page name), encoded injectively into [A-Za-z0-9_]: letters and digits stay,
  * anything else (including '_' and '-') becomes '_<UTF-16 code>_' ('0.2' → '0_46_2', 'a_b' →

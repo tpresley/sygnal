@@ -338,3 +338,20 @@ describe('G-218: t.respond / t.fail right after several queued simulateAction ca
     expect(t.state).toMatchObject({ email: 'ada', busy: false, user: 'Ada' })
   })
 })
+
+describe("t.explain() with the dev entry loaded: the user's reducer, not SYG222's wrapper", () => {
+  it('reducer.fn is the model function and reducer.source its text', async () => {
+    const INC = (s) => ({ ...s, count: s.count + 1 }) // the user's INC
+    function C({ state }) { return h('p', null, String(state.count)) }
+    C.initialState = { count: 0 }
+    C.model = { INC, SET: { STATE: (s, n) => ({ ...s, count: n }) } }
+    t = renderComponent(C)   // setupChecks(): diagnostics on, the dev entry's checks installed
+    await t.ready()
+    t.simulateAction('INC'); await t.next(s => s.count === 1)
+    t.simulateAction('SET', 5); await t.next(s => s.count === 5)
+    const e = t.explain(s => s.count === 1)
+    expect(e.reducer.fn).toBe(INC)
+    expect(e.reducer.source).toBe(INC.toString())
+    expect(t.explain(s => s.count === 5).reducer.fn).toBe(C.model.SET.STATE)
+  })
+})

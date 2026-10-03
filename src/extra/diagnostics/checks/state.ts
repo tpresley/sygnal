@@ -24,6 +24,7 @@
  */
 import type {DiagnosticCheck} from '../index'
 import {report, devReport, once, nameOf, isPlainObject} from './shared'
+import {ORIGINAL} from '../../../shared'
 
 const SKIP = new Set(['INITIALIZE'])
 
@@ -56,8 +57,10 @@ function watchMutation(component: any, action: string, fn: any): any {
     return out
   }
   wrapped[WRAPPED] = true
-  // checks that read reducer source (reply actions) see the original
+  // checks that read reducer source (reply actions) see the original; so do the action log
+  // and t.explain() (ORIGINAL)
   wrapped.toString = () => fn.toString()
+  wrapped[ORIGINAL] = fn
   return wrapped
 }
 
