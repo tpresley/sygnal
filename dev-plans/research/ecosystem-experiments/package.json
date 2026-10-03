@@ -1,0 +1,40 @@
+{
+  "name": "sygnal-ecosystem-experiments",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@dnd-kit/dom": "^0.5.0",
+    "@floating-ui/dom": "^1.8.0",
+    "@formkit/auto-animate": "^0.10.0",
+    "@tanstack/form-core": "^1.33.5",
+    "@tanstack/query-core": "^5.104.1",
+    "@tanstack/table-core": "^8.21.3",
+    "@tanstack/virtual-core": "^3.17.11",
+    "@zag-js/collection": "^1.44.0",
+    "@zag-js/combobox": "^1.44.0",
+    "@zag-js/dialog": "^1.44.0",
+    "@zag-js/menu": "^1.44.0",
+    "@zag-js/select": "^1.44.0",
+    "@zag-js/tooltip": "^1.44.0",
+    "@zag-js/vanilla": "^1.44.0",
+    "i18next": "^26.4.2",
+    "lit": "^3.3.3",
+    "motion": "^14.0.0",
+    "preact": "^11.0.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "snabbdom": "^3.6.4",
+    "vue": "^3.5.43",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "jsdom": "^29.1.1",
+    "sygnal": "file:../../..",
+    "vite": "^8.3.2",
+    "vitest": "^5.0.3"
+  }
+}

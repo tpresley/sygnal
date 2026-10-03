@@ -10,6 +10,8 @@ import { configDefaults, defineConfig } from 'vitest/config'
 // - sygnal-check/**, browser-tests/**, evals/**, docs/**: separate packages
 //   with their own test runners.
 // - .claude/**: agent worktrees (full repo copies) would otherwise be collected.
+// - dev-plans/**: throwaway research experiments, each with its own package.json
+//   and dependencies (run with `npm --prefix dev-plans/research/<dir> test`).
 export default defineConfig({
   test: {
     exclude: [
@@ -21,6 +23,7 @@ export default defineConfig({
       'evals/**',
       'docs/**',
       '.claude/**',
+      'dev-plans/**',
     ],
   },
 })
