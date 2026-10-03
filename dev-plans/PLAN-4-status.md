@@ -61,7 +61,7 @@ PLAN-3's end-of-Phase-5 figures (40,403 B, 283 lines, 34,343 B) grew with #12 an
 | 2-R | Phase 1+2 review fixes (G-214), G-216, D131 | ⬜ after 3-A | | | | then tags `plan4-phase1`, `plan4-phase2` |
 | 3-A | Element commands (GS-2) | 🟡 running | `p4-3a-element` | subagent | | |
 | 3-C | Timers (GS-7) | ✅ merged | `p4-3c-timers` (`6ad12b1`) | subagent | | 0 B core; +579 B per app; driver key `TIMER` by convention (found by `__sygnalStatic`); SYG643 also covers `connections`/`resources`; hidden pages restart timers from scratch; recipe waits for 3-K (SYG102 on TICK) |
-| 3-E | DevTools (GS-10) | 🟡 running | `p4-3e-devtools` | subagent | | |
+| 3-E | DevTools (GS-10) | ✅ merged | `p4-3e-devtools` (`7fa4c43`) | subagent | | 0 B production; devtools entry 3.9 → 16.5 KB gz (dev-only); Copy as test proven on kanban, todomvc, signup form (`test/copied/`); Redux bridge done (stretch) |
 | 1-E prep | Controls A/B variants `p4-ct1-a`/`p4-ct1-b` | ✅ merged | `p4-1e-ab-variant` (`ef038e0`) | subagent | | controls skill +1,902 B (+5.4%); converted starters committed as overlays; task 16 normaliser ignores `data-control`; verify 55/55 on converted solutions |
 | 1-E | Controls A/B eval (user's terminal) | ⬜ commands given | runs `p4-ct1-a`, `p4-ct1-b`, `-haiku` (5 trials) | user | | from the `p4-1e-ab-variant` worktree |
 | P-2 | Custom elements spike (GS-13) | ✅ record done → user | `exp/p4-elements` (`7d1d67f`) | subagent | not merged | `dev-plans/research/p2-custom-elements.md` on the exp branch; 0 B core, entry 1,003 B gz; shadow DOM, React 19 (`ontask-picked` only), HMR work; recommends adopt + making `run()` per-instance (G-212) |
@@ -220,6 +220,8 @@ They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none o
 | G-215 | 3-C | low | GS-7 | No real-browser test for `frame` timers (rAF). Add one in 3-K or 4-x. | Open |
 | G-216 | P-2b | low | HMR | `component.ts` still reads page-wide `__SYGNAL_HMR_UPDATING` / `__SYGNAL_HMR_STATE`, so an app constructed during another app's ~100 ms hot swap can take its state. Fix: scope per app through a `__hmr` source (+10–20 B). | 2-R |
 | G-217 | P-2b | — | docs | `integration/hmr.md:67` mentions the removed `__SYGNAL_HMR_PERSISTED_STATE`; `diagnostics/index.ts` comment (lines 55–58) says every run() is authoritative ("unless another app is live"). | 4-B / 2-R |
+| G-218 | 3-E | medium | testing | `t.simulateAction('A'); t.simulateAction('SUBMIT'); await t.fail('HTTP', …)` throws "The component sent none": with two queued simulateActions, the request leaves after the harness's queued-input wait. One simulateAction works. Copy as test emits `await t.settle()` as a workaround. | 2-R (testing.ts) |
+| G-219 | 3-E | — | docs | Document `copyAsTest`, `getActions`, `connectReduxDevtools`, `sygnal({ devtools: { redux: true } })`, `configureCopyAsTest`. | 4-B |
 
 ## Log
 
@@ -239,3 +241,4 @@ They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none o
 - 2026-10-03 — Merged 3-C; gates green (vitest 1,766, sygnal-check 371; size unchanged 40,938 B). Started P-4.
 - 2026-10-03 — Merged P-2b; gates green (vitest 1,797, browser 154; 40,866 B gated, PLAN-4 +330 B). D131; G-216, G-217.
 - 2026-10-03 — P-4 note merged; GS-15 deferred (D132). Started 4-B part 1.
+- 2026-10-03 — Merged 3-E; gates green (vitest 1,823, browser 154; size unchanged). G-218, G-219.
