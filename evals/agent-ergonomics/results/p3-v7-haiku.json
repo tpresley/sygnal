@@ -1,0 +1,554 @@
+[
+  {
+    "task": "14-fix-support-inbox",
+    "arm": "sygnal",
+    "trial": 1,
+    "pass": false,
+    "testsPassed": 3,
+    "testsTotal": 6,
+    "iterations": 3,
+    "editRounds": 1,
+    "wallSeconds": 74,
+    "durationMs": 73074,
+    "tokens": 675551,
+    "outputTokens": 6672,
+    "costUsd": 0.17895330000000004,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "branch",
+    "variantHash": "cffc32636041",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "14 fix: activity entries for closed tickets, and \"Assign to me\" \"Assign to me\" assigns the ticket to Priya and updates the header",
+        "message": "AssertionError: expected 'Cannot reset password #101 · Jo · Ope…' to contain 'Assignee: Priya'"
+      },
+      {
+        "test": "14 fix: activity entries for closed tickets, and \"Assign to me\" assigning, then closing and reopening, keeps the assignee and the counts right",
+        "message": "AssertionError: expected '3 open · 0 assigned to me' to be '3 open · 1 assigned to me' // Object.is equality"
+      },
+      {
+        "test": "14 fix: activity entries for closed tickets, and \"Assign to me\" \"Release my tickets\" still unassigns the open tickets assigned to me, including newly assigned ones",
+        "message": "AssertionError: expected '3 open · 0 assigned to me' to be '3 open · 2 assigned to me' // Object.is equality"
+      }
+    ],
+    "scoredAt": "2026-10-03T08:25:28.758Z"
+  },
+  {
+    "task": "14-fix-support-inbox",
+    "arm": "sygnal",
+    "trial": 3,
+    "pass": false,
+    "testsPassed": 3,
+    "testsTotal": 6,
+    "iterations": 3,
+    "editRounds": 1,
+    "wallSeconds": 95,
+    "durationMs": 93819,
+    "tokens": 1008231,
+    "outputTokens": 9502,
+    "costUsd": 0.23316260000000003,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "branch",
+    "variantHash": "cffc32636041",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "14 fix: activity entries for closed tickets, and \"Assign to me\" \"Assign to me\" assigns the ticket to Priya and updates the header",
+        "message": "AssertionError: expected 'Cannot reset password #101 · Jo · Ope…' to contain 'Assignee: Priya'"
+      },
+      {
+        "test": "14 fix: activity entries for closed tickets, and \"Assign to me\" assigning, then closing and reopening, keeps the assignee and the counts right",
+        "message": "AssertionError: expected '3 open · 0 assigned to me' to be '3 open · 1 assigned to me' // Object.is equality"
+      },
+      {
+        "test": "14 fix: activity entries for closed tickets, and \"Assign to me\" \"Release my tickets\" still unassigns the open tickets assigned to me, including newly assigned ones",
+        "message": "AssertionError: expected '3 open · 0 assigned to me' to be '3 open · 2 assigned to me' // Object.is equality"
+      }
+    ],
+    "scoredAt": "2026-10-03T08:25:49.498Z"
+  },
+  {
+    "task": "14-fix-support-inbox",
+    "arm": "sygnal",
+    "trial": 2,
+    "pass": true,
+    "testsPassed": 6,
+    "testsTotal": 6,
+    "iterations": 5,
+    "editRounds": 3,
+    "wallSeconds": 111,
+    "durationMs": 109810,
+    "tokens": 906127,
+    "outputTokens": 9995,
+    "costUsd": 0.2240379,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "branch",
+    "variantHash": "cffc32636041",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "failures": [],
+    "scoredAt": "2026-10-03T08:26:01.308Z"
+  },
+  {
+    "task": "14-fix-support-inbox",
+    "arm": "sygnal",
+    "trial": 4,
+    "pass": true,
+    "testsPassed": 6,
+    "testsTotal": 6,
+    "iterations": 3,
+    "editRounds": 2,
+    "wallSeconds": 122,
+    "durationMs": 120985,
+    "tokens": 906796,
+    "outputTokens": 11100,
+    "costUsd": 0.23342879999999996,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "branch",
+    "variantHash": "cffc32636041",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "failures": [],
+    "scoredAt": "2026-10-03T08:26:12.619Z"
+  },
+  {
+    "task": "14-fix-support-inbox",
+    "arm": "sygnal",
+    "trial": 5,
+    "pass": true,
+    "testsPassed": 6,
+    "testsTotal": 6,
+    "iterations": 2,
+    "editRounds": 1,
+    "wallSeconds": 72,
+    "durationMs": 71510,
+    "tokens": 648122,
+    "outputTokens": 6876,
+    "costUsd": 0.15573529999999997,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "branch",
+    "variantHash": "cffc32636041",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "failures": [],
+    "scoredAt": "2026-10-03T08:26:44.642Z"
+  },
+  {
+    "task": "24-list-detail-cache",
+    "arm": "sygnal",
+    "trial": 1,
+    "pass": false,
+    "testsPassed": 5,
+    "testsTotal": 6,
+    "iterations": 4,
+    "editRounds": 3,
+    "wallSeconds": 214,
+    "durationMs": 213185,
+    "tokens": 688627,
+    "outputTokens": 23793,
+    "costUsd": 0.27319479999999996,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "branch",
+    "variantHash": "cffc32636041",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "24 list/detail with a cache: loading, background updates, saving a failed save shows \"Could not save the item.\" and keeps the typed title; a later save succeeds",
+        "message": "AssertionError: expected 'Alpha' to be 'Alpha v2' // Object.is equality"
+      }
+    ],
+    "scoredAt": "2026-10-03T08:29:32.586Z"
+  },
+  {
+    "task": "24-list-detail-cache",
+    "arm": "sygnal",
+    "trial": 3,
+    "pass": false,
+    "testsPassed": 5,
+    "testsTotal": 6,
+    "iterations": 14,
+    "editRounds": 13,
+    "wallSeconds": 326,
+    "durationMs": 325162,
+    "tokens": 3806608,
+    "outputTokens": 35504,
+    "costUsd": 0.6914425000000001,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "branch",
+    "variantHash": "cffc32636041",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "24 list/detail with a cache: loading, background updates, saving a failed save shows \"Could not save the item.\" and keeps the typed title; a later save succeeds",
+        "message": "AssertionError: expected 'Alpha' to be 'Alpha v2' // Object.is equality"
+      }
+    ],
+    "notes": "PROCESS-KILL: 1 machine-wide kill command(s), refused by the guard (G-127)",
+    "scoredAt": "2026-10-03T08:31:47.818Z"
+  },
+  {
+    "task": "24-list-detail-cache",
+    "arm": "sygnal",
+    "trial": 5,
+    "pass": false,
+    "testsPassed": 5,
+    "testsTotal": 6,
+    "iterations": 2,
+    "editRounds": 1,
+    "wallSeconds": 131,
+    "durationMs": 130158,
+    "tokens": 572210,
+    "outputTokens": 12112,
+    "costUsd": 0.19012700000000002,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "branch",
+    "variantHash": "cffc32636041",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "24 list/detail with a cache: loading, background updates, saving a failed save shows \"Could not save the item.\" and keeps the typed title; a later save succeeds",
+        "message": "AssertionError: expected 'Alpha' to be 'Alpha v2' // Object.is equality"
+      }
+    ],
+    "notes": "PROCESS-KILL: 1 machine-wide kill command(s), refused by the guard (G-127)",
+    "scoredAt": "2026-10-03T08:31:59.272Z"
+  },
+  {
+    "task": "24-list-detail-cache",
+    "arm": "sygnal",
+    "trial": 2,
+    "pass": false,
+    "testsPassed": 4,
+    "testsTotal": 6,
+    "iterations": 14,
+    "editRounds": 11,
+    "wallSeconds": 376,
+    "durationMs": 375438,
+    "tokens": 3077253,
+    "outputTokens": 41500,
+    "costUsd": 0.6755672000000004,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "branch",
+    "variantHash": "cffc32636041",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "24 list/detail with a cache: loading, background updates, saving Save sends PUT; afterwards the form closes, and the item and the list (though less than 2 s old) are reloaded with the new title",
+        "message": "AssertionError: expected <input type=\"text\" name=\"title\"></input> to be null"
+      },
+      {
+        "test": "24 list/detail with a cache: loading, background updates, saving a failed save shows \"Could not save the item.\" and keeps the typed title; a later save succeeds",
+        "message": "AssertionError: expected '' to be 'Alpha v2' // Object.is equality"
+      }
+    ],
+    "scoredAt": "2026-10-03T08:32:28.228Z"
+  },
+  {
+    "task": "25-router-spa",
+    "arm": "sygnal",
+    "trial": 1,
+    "pass": false,
+    "testsPassed": 3,
+    "testsTotal": 9,
+    "iterations": 7,
+    "editRounds": 5,
+    "wallSeconds": 366,
+    "durationMs": 364693,
+    "tokens": 2168895,
+    "outputTokens": 37238,
+    "costUsd": 0.5235137000000002,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "branch",
+    "variantHash": "cffc32636041",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "the browser's Back and Forward buttons move through the visited pages",
+        "message": "AssertionError: expected 'Edit Write the report' to be 'Edit task' // Object.is equality"
+      },
+      {
+        "test": "opening the app at /tasks/3/edit shows that form; Back returns to it",
+        "message": "AssertionError: expected 'Edit Send the invites' to be 'Edit task' // Object.is equality"
+      },
+      {
+        "test": "\"Leave\" completes the navigation and discards the change; an unchanged form leaves at once",
+        "message": "AssertionError: expected 'Edit Book the venue' to be 'Edit task' // Object.is equality"
+      },
+      {
+        "test": "leaving the form with unsaved changes asks first; \"Stay\" keeps the form and the typed text",
+        "message": "AssertionError: expected 'Edit Write the report' to be 'Edit task' // Object.is equality"
+      },
+      {
+        "test": "links: real hrefs, the URL and the page change without a reload, titles follow",
+        "message": "AssertionError: expected 'Edit Book the venue' to be 'Edit task' // Object.is equality"
+      },
+      {
+        "test": "\"Save\" saves the title and goes to the task's page without asking",
+        "message": "AssertionError: expected 'Edit Write the report' to be 'Edit task' // Object.is equality"
+      }
+    ],
+    "scoredAt": "2026-10-03T08:38:07.975Z"
+  },
+  {
+    "task": "24-list-detail-cache",
+    "arm": "sygnal",
+    "trial": 4,
+    "pass": false,
+    "testsPassed": 1,
+    "testsTotal": 6,
+    "iterations": 3,
+    "editRounds": 4,
+    "wallSeconds": 683,
+    "durationMs": 681712,
+    "tokens": 4399961,
+    "outputTokens": 56304,
+    "costUsd": 0.8959989999999999,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "branch",
+    "variantHash": "cffc32636041",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "24 list/detail with a cache: loading, background updates, saving an item shows \"Loading…\" (and nothing of another item) the first time; data less than 2 s old is shown again without a request",
+        "message": "AssertionError: expected '' to be 'Beta' // Object.is equality"
+      },
+      {
+        "test": "24 list/detail with a cache: loading, background updates, saving data older than 2 s is shown at once with \"Updating…\", reloaded in the background, then replaced",
+        "message": "AssertionError: expected 'The first item.' to be 'The first item, updated.' // Object.is equality"
+      },
+      {
+        "test": "24 list/detail with a cache: loading, background updates, saving Save sends PUT; afterwards the form closes, and the item and the list (though less than 2 s old) are reloaded with the new title",
+        "message": "AssertionError: expected 'Updating…' to be '' // Object.is equality"
+      },
+      {
+        "test": "24 list/detail with a cache: loading, background updates, saving a failed save shows \"Could not save the item.\" and keeps the typed title; a later save succeeds",
+        "message": "AssertionError: expected '' to be 'Could not save the item.' // Object.is equality"
+      },
+      {
+        "test": "24 list/detail with a cache: loading, background updates, saving a background reload that started before a save never overwrites the saved title",
+        "message": "AssertionError: expected 'Updating…' to be '' // Object.is equality"
+      }
+    ],
+    "notes": "PROCESS-KILL: 1 machine-wide kill command(s), refused by the guard (G-127)",
+    "scoredAt": "2026-10-03T08:38:23.915Z"
+  },
+  {
+    "task": "25-router-spa",
+    "arm": "sygnal",
+    "trial": 3,
+    "pass": false,
+    "testsPassed": 3,
+    "testsTotal": 9,
+    "iterations": 5,
+    "editRounds": 4,
+    "wallSeconds": 371,
+    "durationMs": 369364,
+    "tokens": 2519223,
+    "outputTokens": 36668,
+    "costUsd": 0.5591588,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "branch",
+    "variantHash": "cffc32636041",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "the browser's Back and Forward buttons move through the visited pages",
+        "message": "AssertionError: expected 'Edit Write the report' to be 'Edit task' // Object.is equality"
+      },
+      {
+        "test": "opening the app at /tasks/3/edit shows that form; Back returns to it",
+        "message": "AssertionError: expected 'Edit Send the invites' to be 'Edit task' // Object.is equality"
+      },
+      {
+        "test": "\"Leave\" completes the navigation and discards the change; an unchanged form leaves at once",
+        "message": "AssertionError: expected 'Edit Book the venue' to be 'Edit task' // Object.is equality"
+      },
+      {
+        "test": "leaving the form with unsaved changes asks first; \"Stay\" keeps the form and the typed text",
+        "message": "AssertionError: expected 'Edit Write the report' to be 'Edit task' // Object.is equality"
+      },
+      {
+        "test": "links: real hrefs, the URL and the page change without a reload, titles follow",
+        "message": "AssertionError: expected 'Edit Book the venue' to be 'Edit task' // Object.is equality"
+      },
+      {
+        "test": "\"Save\" saves the title and goes to the task's page without asking",
+        "message": "AssertionError: expected 'Edit Write the report' to be 'Edit task' // Object.is equality"
+      }
+    ],
+    "notes": "PROCESS-KILL: 1 machine-wide kill command(s), refused by the guard (G-127)",
+    "scoredAt": "2026-10-03T08:38:53.193Z"
+  },
+  {
+    "task": "25-router-spa",
+    "arm": "sygnal",
+    "trial": 5,
+    "pass": false,
+    "testsPassed": 3,
+    "testsTotal": 9,
+    "iterations": 12,
+    "editRounds": 5,
+    "wallSeconds": 259,
+    "durationMs": 257651,
+    "tokens": 2316502,
+    "outputTokens": 24124,
+    "costUsd": 0.4612548,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "branch",
+    "variantHash": "cffc32636041",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "the browser's Back and Forward buttons move through the visited pages",
+        "message": "AssertionError: expected 'Edit Write the report' to be 'Edit task' // Object.is equality"
+      },
+      {
+        "test": "opening the app at /tasks/3/edit shows that form; Back returns to it",
+        "message": "AssertionError: expected 'Edit Send the invites' to be 'Edit task' // Object.is equality"
+      },
+      {
+        "test": "\"Leave\" completes the navigation and discards the change; an unchanged form leaves at once",
+        "message": "AssertionError: expected 'Edit Book the venue' to be 'Edit task' // Object.is equality"
+      },
+      {
+        "test": "leaving the form with unsaved changes asks first; \"Stay\" keeps the form and the typed text",
+        "message": "AssertionError: expected 'Edit Write the report' to be 'Edit task' // Object.is equality"
+      },
+      {
+        "test": "links: real hrefs, the URL and the page change without a reload, titles follow",
+        "message": "AssertionError: expected 'Edit Book the venue' to be 'Edit task' // Object.is equality"
+      },
+      {
+        "test": "\"Save\" saves the title and goes to the task's page without asking",
+        "message": "AssertionError: expected 'Edit Write the report' to be 'Edit task' // Object.is equality"
+      }
+    ],
+    "notes": "PROCESS-KILL: 1 machine-wide kill command(s), refused by the guard (G-127)",
+    "scoredAt": "2026-10-03T08:42:56.939Z"
+  },
+  {
+    "task": "25-router-spa",
+    "arm": "sygnal",
+    "trial": 2,
+    "pass": false,
+    "testsPassed": 3,
+    "testsTotal": 9,
+    "iterations": 7,
+    "editRounds": 3,
+    "wallSeconds": 744,
+    "durationMs": 743181,
+    "tokens": 6508158,
+    "outputTokens": 61740,
+    "costUsd": 1.1482654,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "branch",
+    "variantHash": "cffc32636041",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "the browser's Back and Forward buttons move through the visited pages",
+        "message": "AssertionError: expected 'Edit Write the report' to be 'Edit task' // Object.is equality"
+      },
+      {
+        "test": "opening the app at /tasks/3/edit shows that form; Back returns to it",
+        "message": "AssertionError: expected 'Edit Send the invites' to be 'Edit task' // Object.is equality"
+      },
+      {
+        "test": "\"Leave\" completes the navigation and discards the change; an unchanged form leaves at once",
+        "message": "AssertionError: expected 'Edit Book the venue' to be 'Edit task' // Object.is equality"
+      },
+      {
+        "test": "leaving the form with unsaved changes asks first; \"Stay\" keeps the form and the typed text",
+        "message": "AssertionError: expected 'Edit Write the report' to be 'Edit task' // Object.is equality"
+      },
+      {
+        "test": "links: real hrefs, the URL and the page change without a reload, titles follow",
+        "message": "AssertionError: expected 'Edit Book the venue' to be 'Edit task' // Object.is equality"
+      },
+      {
+        "test": "\"Save\" saves the title and goes to the task's page without asking",
+        "message": "AssertionError: expected 'Edit Write the report' to be 'Edit task' // Object.is equality"
+      }
+    ],
+    "notes": "PROCESS-KILL: 1 machine-wide kill command(s), refused by the guard (G-127)",
+    "scoredAt": "2026-10-03T08:44:37.966Z"
+  },
+  {
+    "task": "25-router-spa",
+    "arm": "sygnal",
+    "trial": 4,
+    "pass": false,
+    "testsPassed": 2,
+    "testsTotal": 9,
+    "iterations": 4,
+    "editRounds": 2,
+    "wallSeconds": 1287,
+    "durationMs": 1286604,
+    "tokens": 5126065,
+    "outputTokens": 54953,
+    "costUsd": 0.9725378000000001,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "branch",
+    "variantHash": "cffc32636041",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "the browser's Back and Forward buttons move through the visited pages",
+        "message": "AssertionError: expected 'Edit Write the report' to be 'Edit task' // Object.is equality"
+      },
+      {
+        "test": "opening the app at /tasks/3/edit shows that form; Back returns to it",
+        "message": "AssertionError: expected 'Edit Send the invites' to be 'Edit task' // Object.is equality"
+      },
+      {
+        "test": "\"Leave\" completes the navigation and discards the change; an unchanged form leaves at once",
+        "message": "AssertionError: expected 'Edit Book the venue' to be 'Edit task' // Object.is equality"
+      },
+      {
+        "test": "leaving the form with unsaved changes asks first; \"Stay\" keeps the form and the typed text",
+        "message": "AssertionError: expected 'Edit Write the report' to be 'Edit task' // Object.is equality"
+      },
+      {
+        "test": "links: real hrefs, the URL and the page change without a reload, titles follow",
+        "message": "AssertionError: expected 'Edit Book the venue' to be 'Edit task' // Object.is equality"
+      },
+      {
+        "test": "an unknown URL shows \"Not found\"; \"All tasks\" leads back to the list",
+        "message": "AssertionError: expected 'Tasks' to be 'Not found · Tasks' // Object.is equality"
+      },
+      {
+        "test": "\"Save\" saves the title and goes to the task's page without asking",
+        "message": "AssertionError: expected 'Edit Write the report' to be 'Edit task' // Object.is equality"
+      }
+    ],
+    "notes": "PROCESS-KILL: 1 machine-wide kill command(s), refused by the guard (G-127); AUDIT: 5 flagged call(s), review before trusting (run.md step 3)",
+    "scoredAt": "2026-10-03T08:59:57.184Z"
+  }
+]

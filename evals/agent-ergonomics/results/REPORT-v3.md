@@ -21,6 +21,8 @@ The final runs used the PLAN-3 build: one tarball (sha256 `9096b4b1…`; `gitSha
 | `p3-v6-skill-ab` | Opus 5.5, Sygnal, resources-first skill (D91), tasks 05, 11, 17, 23, 24 × 5 | 25/25 | $12.67 |
 | `p3-v6-haiku` | Haiku 4.5, Sygnal, tiers 1–3 + `net` × 5, plus trials 6–10 on 02, 10, 11, 17, 22 (D86) | 91/130 | $42.47 |
 | `p3-v6-react-haiku` | Haiku 4.5, React, tasks 24 and 25 × 5 | 0/10 | $3.54 |
+| `p3-v7` | Opus 5.5, Sygnal, tasks 23, 24, 25 × 5, after G-184/G-185/G-189 (D94; see [the re-run](#targeted-re-run-after-g-184-and-g-185-d94)) | 15/15 | $8.29 |
+| `p3-v7-haiku` | Haiku 4.5, Sygnal, tasks 14, 24, 25 × 5, same build | 3/15 | $7.42 |
 
 React baselines:
 - `p3-control-react`: tasks 01–17, run 2026-10-01;
@@ -406,6 +408,43 @@ Cost tracks peak context, which tracks the injected skill (34 KB, read whole in 
 - **Day and time effects.** The React arms for tiers 1–TS are one to two days older, and the A/B ran 3.5 hours after `p3-v6`.
 - **Pass rate is saturated on Opus.** The pass-rate signal rests on Haiku, which is noisy even at n = 10.
 - **Phase attribution is heuristic.** A long model turn is charged to the next tool call, so a design turn before writing `App.jsx` shows up as "orient" or "implement".
+
+## Targeted re-run after G-184 and G-185 (D94)
+
+After recommendations 1 and 2 were implemented, two runs on the changed build re-measured the affected cells: `p3-v7` and `p3-v7-haiku`, with the `branch` variant, starter v2 and the guard on, as before.
+- G-184: `updates` on a request, guides shipped in `dist/guide/`, and the list/detail + save recipe.
+- G-185: `t.query` on the mock DOM, and the `{ nth }` reply target.
+- G-189, found while doing G-184: a reply call right after a `simulate*` call on a sink that carries `resources` waits for the request.
+
+**Opus (`p3-v7` against `p3-v6`, task-matched):**
+- Every trial passed in both runs. Matched wall time fell from 109.6 s to **80.3 s** (0.73×), iterations from 3.6 to 2.3, failed runs per trial from 1.13 to 0.47, and cost from $0.64 to $0.55 per trial.
+
+| Task | `p3-v6` wall | `p3-v7` wall | React | Ratio to React (`p3-v6` → `p3-v7`) | Iterations |
+|---|---|---|---|---|---|
+| 23 quote resource | 59.3 s | **42.1 s** | 29.5 s (`p3-net-baseline`) | 2.01× → 1.43× | 4.2 → 1.8 |
+| 24 list/detail cache | 190.2 s | **116.2 s** | 84.6 s (`p3-v6-react`) | 2.25× → **1.37×** | 3.4 → 2.8 |
+| 25 router | 79.2 s | 82.7 s | 69.3 s (`p3-v6-react`) | 1.14× → 1.19× | 3.2 → 2.4 |
+
+Adoption, measured from the final code:
+- **Task 24:** `queryCache` went from 0/5 to **5/5** trials, `staleTime` on the request to 5/5, `invalidates` to 5/5 and `updates` to 3/5.
+- **Tests:**
+  - `t.query` without `dom: 'real'`: 15/15 trials on 23–25, and none used `dom: 'real'` (`p3-v6`: 8/15 used `dom: 'real'`).
+  - `{ nth }`: 5/5 trials on 23 and 3/5 on 24, with no identity predicates.
+  - `t.settle()`: 9/15 trials, the same as at `p3-v6`.
+- **Size of the sample:** n = 5 per cell, so only the task 24 drop (−74 s) is large next to the trial spread. Task 25 didn't change; its fixes weren't in this round.
+
+**Haiku (`p3-v7-haiku` against `p3-v6-haiku`):**
+- Pass counts: 14 went from 2/5 to 3/5, 24 from 1/5 to 0/5, and 25 stayed at 0/5. None of these changes is significant at n = 5.
+- **Task 24:** 4 of 5 trials used `queryCache` and 3 of 5 used `updates`, so the new path reaches Haiku too.
+  - Its failures are mostly the `DOM.click` selector clash of recommendation 4(a), in 3/5 trials (`p3-v6-haiku`: 3/5). The spec asks for `div.edit`; the agents also give the Edit button the class `edit`. `DOM.click('.edit')` then fires for a click on Save inside `div.edit`, so `EDIT` resets the typed title.
+  - The other two failures are logic errors: one form never closes, and one trial failed 5 tests.
+- **Task 25:** every trial still titles the edit page "Edit <title>" where the spec says "Edit task", as in `p3-v6-haiku` 4/5. That is spec misreading; React Haiku scored 0/5 there too.
+- None of these failures is in the G-184/G-185 paths. The remaining Haiku traps are G-187 in PLAN-4's backlog.
+
+**Status of the recommendations below:**
+- 1(a)–(c) and 2(a)–(b) are done, and the re-run shows their effect.
+- Recommendation 6 (keep `resources` advanced) is unchanged: this re-run doesn't retest D74.
+- The rest are in PLAN-4's backlog (G-186, G-187) or are release steps (G-188).
 
 ## Recommendations (ranked by expected impact)
 
