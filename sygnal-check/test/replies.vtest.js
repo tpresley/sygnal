@@ -1,8 +1,8 @@
 /**
- * PLAN-3 1-D: routed requests in the static checker. SYG102 counts ok/error (and
- * `connections`) names as triggers, SYG112 flags a routed name with no model entry,
+ * PLAN-3 1-D: reply actions in the static checker. SYG102 counts ok/error (and
+ * `connections`) names as triggers, SYG112 flags a reply action with no model entry,
  * strict SYG508 flags the select()/errors() round trip, HYDRATE is an ordinary action,
- * and --graph reports the 'routed' trigger. (Fixture expectations: fixtures.vtest.js,
+ * and --graph reports the 'reply' trigger. (Fixture expectations: fixtures.vtest.js,
  * strict.vtest.js.)
  */
 import { describe, it, expect, afterEach } from 'vitest'
@@ -16,7 +16,7 @@ afterEach(() => { if (dir) fs.rmSync(dir, { recursive: true, force: true }); dir
 
 /** check() one source string (written to a temp .jsx file) */
 function checkSource(source, opts = {}) {
-  dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sygnal-check-routing-'))
+  dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sygnal-check-replies-'))
   const file = path.join(dir, 'App.jsx')
   fs.writeFileSync(file, source)
   return { diags: check([file], { cwd: dir, ...opts }), file }
@@ -34,7 +34,7 @@ Quote.model = {
 }
 `
 
-describe('SYG102: routed names are triggers', () => {
+describe('SYG102: reply actions are triggers', () => {
   it('ok/error string literals in a request trigger their actions', () => {
     const { diags } = checkSource(quote(`(state) => ({ url: '/q', ok: 'LOADED', error: 'FAILED' })`))
     expect(diags).toEqual([])
@@ -63,7 +63,7 @@ const req = (state) => state.id ? { url: '/q/' + state.id, ok: 'LOADED' } : { ur
   })
 })
 
-describe('SYG112: routed action with no model entry', () => {
+describe('SYG112: reply action with no model entry', () => {
   it('is an error that names the closest model key', () => {
     const { diags } = checkSource(quote(`(state) => ({ url: '/q', ok: 'LAODED', error: 'FAILED' })`))
     const [d] = codes(diags, 'SYG112')
@@ -134,7 +134,7 @@ Ticker.model = { TICK: (s) => s, PRICE: (s, p) => ({ ...s, price: p }), HALTED: 
 
 describe('unparsable files (G-164)', () => {
   it('SYG508 skips a project file that failed to parse (no SYG900 next to the parse error)', () => {
-    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sygnal-check-routing-'))
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sygnal-check-replies-'))
     const good = path.join(dir, 'Quote.jsx'), bad = path.join(dir, 'Broken.jsx')
     fs.writeFileSync(good, `
 function Quote({ state }) { return <button className="load">{state.status}</button> }
@@ -179,11 +179,11 @@ A.model = { HYDRATE: (state, data) => ({ ...state, ...data }), INITIALIZE: (s) =
   })
 })
 
-describe('--graph: routed trigger', () => {
-  it('actions named by a request or a connection are routed', () => {
+describe('--graph: reply trigger', () => {
+  it('actions named by a request or a connection are reply actions', () => {
     const { file } = checkSource(quote(`(state) => ({ url: '/q', ok: 'LOADED', error: 'FAILED' })`))
     const actions = Object.fromEntries(graph([file], { cwd: dir }).components[0].actions.map(a => [a.name, a.trigger]))
-    expect(actions).toEqual({ LOAD: 'intent', LOADED: 'routed', FAILED: 'routed' })
+    expect(actions).toEqual({ LOAD: 'intent', LOADED: 'reply', FAILED: 'reply' })
   })
 })
 
@@ -207,7 +207,7 @@ Search.model = {
 }
 ${drivers}`
 
-  it('flags both calls with the routed before/after, using the intent action names', () => {
+  it('flags both calls with the reply-action before/after, using the intent action names', () => {
     const { diags } = checkSource(roundTrip(), { strict: true })
     const found = codes(diags, 'SYG508')
     expect(found.map(d => d.data.method)).toEqual(['select', 'errors'])
@@ -226,7 +226,7 @@ ${drivers}`
     expect(codes(diags, 'SYG508')).toEqual([])
   })
 
-  it('does not flag a request that is already routed, an abort, or a category the component never sends', () => {
+  it('does not flag a request that already has reply actions, an abort, or a category the component never sends', () => {
     const { diags } = checkSource(`
 function A({ state }) { return <button className="go">{state.n}</button> }
 A.initialState = { n: 0 }

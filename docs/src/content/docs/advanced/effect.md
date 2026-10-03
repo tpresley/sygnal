@@ -86,7 +86,7 @@ Editor.model = {
 - `next()` after the component unmounted is ignored.
 - `signal` is the same for every EFFECT of one instance. Pass it to APIs that accept one (`fetch`, `addEventListener`, many SDKs) so their work stops on unmount. It is `undefined` where `AbortController` doesn't exist.
 - There is no concurrency control: two clicks run two EFFECTs, and both results arrive. Work that needs "latest only", cancellation or retries belongs in a driver.
-- **HTTP goes through [`makeFetchDriver()`](/guide/http/)**, not `fetch` in an EFFECT: the driver gives routed replies, `latest`, abort on unmount, and a test fake. Other promise-based APIs used from several places fit [`driverFromAsync()`](/guide/custom-drivers/).
+- **HTTP goes through [`makeFetchDriver()`](/guide/http/)**, not `fetch` in an EFFECT: the driver gives reply actions, `latest`, abort on unmount, and a test fake. Other promise-based APIs used from several places fit [`driverFromAsync()`](/guide/custom-drivers/).
 
 ## Return Value Warning
 

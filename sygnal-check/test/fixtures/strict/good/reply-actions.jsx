@@ -1,4 +1,4 @@
-// The routed form (PLAN-3 §1.1), plus select() round trips SYG508 must leave alone.
+// The reply-action form (PLAN-3 §1.1), plus select() round trips SYG508 must leave alone.
 import { run, makeFetchDriver } from 'sygnal'
 
 function Quote({ state }) {
@@ -12,7 +12,7 @@ Quote.model = {
   FAILED: (state) => ({ ...state, text: 'failed' }),
 }
 
-// a custom (non-routing) driver keeps select(): nothing says it can route replies
+// a custom driver keeps select(): nothing says it has reply actions
 function Feed({ state }) {
   return <button className="refresh">{state.items.length}</button>
 }

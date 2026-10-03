@@ -39,7 +39,7 @@ describe('strict mode switch', () => {
   it('registers the SYG5xx codes with titles and severities', () => {
     expect(getCodeInfo('SYG501')).toMatchObject({ severity: 'warn', title: 'View uses positional arguments' })
     expect(getCodeInfo('SYG507')).toMatchObject({ severity: 'info' })
-    expect(getCodeInfo('SYG508')).toMatchObject({ severity: 'warn', title: 'select()/errors() round trip where a routed request would do' })
+    expect(getCodeInfo('SYG508')).toMatchObject({ severity: 'warn', title: 'select()/errors() round trip where reply actions would do' })
     expect(listCodes().filter(c => /^SYG5/.test(c.code))).toHaveLength(8)
   })
 

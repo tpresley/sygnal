@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// PLAN-3 1-A: routed requests ({ url, ok, error }) delivered as actions to exactly the sending
+// PLAN-3 1-A: reply actions ({ url, ok, error }) delivered to exactly the sending
 // component instance (makeFetchDriver, driverFromAsync), SYG610 (then/catch keys), G-144
 // (dispose mid-flight), G-147 (EVENTS stamping), and the removed legacy HTTP 'initial' hydration.
 import { it, expect, beforeEach, afterEach, vi, describe } from 'vitest'
@@ -77,7 +77,7 @@ const quoteModel = (req = {}) => ({
 })
 Quote.model = quoteModel()
 
-describe('makeFetchDriver: routed requests', () => {
+describe('makeFetchDriver: reply actions', () => {
   it('happy path: the parsed body arrives as the ok action; select()/errors() see nothing', async () => {
     const f = stubFetch()
     start(Quote, { HTTP: makeFetchDriver({ fetch: f.fetch }) })
@@ -338,7 +338,7 @@ describe('dispose mid-flight (G-144)', () => {
     expect(errorSpy).not.toHaveBeenCalled()
   })
 
-  it('app.dispose(): the routed request is aborted synchronously; a reply in that tick is not delivered', async () => {
+  it('app.dispose(): the request with reply actions is aborted synchronously; a reply in that tick is not delivered', async () => {
     const f = stubFetch()
     const got = []
     function D() { return h('button', { className: 'go' }, 'go') }
@@ -357,15 +357,15 @@ describe('dispose mid-flight (G-144)', () => {
     expect(got).toEqual([])
   })
 
-  it('no routed action reaches a disposed instance even if the driver still replies', async () => {
-    // a hand-made routing driver that ignores the stop and keeps replying
+  it('no reply action reaches a disposed instance even if the driver still replies', async () => {
+    // a hand-made reply-action driver that ignores the stop and keeps replying
     const listeners = new Map()
     const driver = req$ => {
       const reqs = []
       req$.addListener({ next: r => reqs.push(r), error() {}, complete() {} })
       return {
-        __sygnalRoutes: true,
-        routed: sender => xs.create({ start: l => listeners.set(sender, l), stop() {} }),
+        __sygnalReplies: true,
+        replies: sender => xs.create({ start: l => listeners.set(sender, l), stop() {} }),
         reqs,
       }
     }
@@ -389,7 +389,7 @@ describe('dispose mid-flight (G-144)', () => {
 })
 
 // ---------------------------------------------------------------------------------------------
-describe('driverFromAsync: routed requests', () => {
+describe('driverFromAsync: reply actions', () => {
   function A() { return h('div', null, h('button', { className: 'ok' }, 'ok'), h('button', { className: 'bad' }, 'bad')) }
   A.intent = ({ DOM }) => ({ OK: DOM.click('.ok'), BAD: DOM.click('.bad') })
   A.initialState = {}
@@ -417,7 +417,7 @@ describe('driverFromAsync: routed requests', () => {
     expect(errored).toEqual([])
   })
 
-  it('category + select()/errors() are unchanged for unrouted requests', async () => {
+  it('category + select()/errors() are unchanged for plain requests', async () => {
     const got = []
     A.model = {
       OK: { QUOTE: () => ({ value: 2, category: 'q' }) },
@@ -477,8 +477,8 @@ describe("SYG610: requests with a 'then' / 'catch' key are refused", () => {
 })
 
 // ---------------------------------------------------------------------------------------------
-describe('unrouted requests are unchanged', () => {
-  it('category + select()/errors(); a string request is a GET with no routing', async () => {
+describe('plain requests are unchanged', () => {
+  it('category + select()/errors(); a string request is a GET with no reply actions', async () => {
     const f = stubFetch()
     function Plain() { return h('div', null, h('button', { className: 'x' }, 'x'), h('button', { className: 's' }, 's')) }
     Plain.intent = ({ DOM, HTTP }) => ({ GO: DOM.click('.x'), STR: DOM.click('.s'), DONE: HTTP.select('c'), ANY: HTTP.select(), FAIL: HTTP.errors('c') })
@@ -531,11 +531,11 @@ describe('G-147: sender stamps', () => {
     expect(ping).toEqual({ type: 'PING', data: 1 })  // non-enumerable stamp
   })
 
-  it('object requests to a routing source are stamped; non-objects pass through untouched', async () => {
+  it('object requests to a reply-capable source are stamped; non-objects pass through untouched', async () => {
     const reqs = []
     const driver = req$ => {
       req$.addListener({ next: r => reqs.push(r), error() {}, complete() {} })
-      return { __sygnalRoutes: true, routed: () => xs.never() }
+      return { __sygnalReplies: true, replies: () => xs.never() }
     }
     function S() { return h('div', null, 's') }
     S.model = { BOOTSTRAP: { X: () => '/a-string' }, AGAIN: { X: () => ({ url: '/obj' }) } }
@@ -548,9 +548,9 @@ describe('G-147: sender stamps', () => {
     expect(reqs[1]).toEqual({ url: '/obj' })
   })
 
-  it('a source without __sygnalRoutes === true gets unstamped values (the DOM Proxy answers any key)', async () => {
+  it('a source without __sygnalReplies === true gets unstamped values (the DOM Proxy answers any key)', async () => {
     const reqs = []
-    const driver = req$ => { req$.addListener({ next: r => reqs.push(r), error() {}, complete() {} }); return { routed: () => xs.never() } }
+    const driver = req$ => { req$.addListener({ next: r => reqs.push(r), error() {}, complete() {} }); return { replies: () => xs.never() } }
     function S() { return h('div', null, 's') }
     S.model = { BOOTSTRAP: { X: () => ({ url: '/obj' }) } }
     S.initialState = {}

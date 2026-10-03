@@ -199,7 +199,7 @@ export class Project {
       comp.intent = analyzeIntent(r.file, isFunction(r.node) ? r.node : null)
     }
     if (sp.model) comp.model = analyzeModel(this, file, sp.model)
-    // PLAN-3 §1.3: action names a `connections` static routes socket/SSE events to
+    // PLAN-3 §1.3: action names a `connections` static sends socket/SSE events to
     comp.connections = sp.connections ? connectionNames(this, file, sp.connections) : null
     if (sp.initialState) {
       const keys = this.objectKeys(file, sp.initialState)

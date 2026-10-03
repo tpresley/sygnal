@@ -13,7 +13,7 @@
  *               emitting component's, but it is only a name, and this
  *               graph is per instance, so the per-instance tap stays.
  *   onReducer   which model-only actions actually ran (=> dispatched by next(),
- *               unless a routed request named them: routing.ts, 'routed')
+ *               unless a request named them as reply actions: replies.ts, 'reply')
  *   onBusEmit   EVENTS types seen on the bus
  *   onBusSelect EVENTS types selected (see onIntent)
  *   onDispose   prunes the instance
@@ -29,7 +29,7 @@
  */
 import type {DiagnosticCheck} from '../index'
 import type {InspectGraph, InspectComponent, InspectOptions, InspectSelector, InspectDiagnostic, InspectChild} from './public'
-import {bridge, onReset, nameOf, isPlainObject, BUILTIN_ACTIONS, routedSeen} from './shared'
+import {bridge, onReset, nameOf, isPlainObject, BUILTIN_ACTIONS, replySeen} from './shared'
 import {checkEventBus} from './events'
 import {selectorStatus} from './dom'
 
@@ -167,12 +167,12 @@ const slim = (d: any): InspectDiagnostic => {
 function actionsOf(r: Rec): InspectComponent['actions'] {
   const intent = (r.intentActions || []).filter(a => !r.injected.has(a))
   const names = uniq([...intent, ...Object.keys(r.modelMap)]).filter(a => typeof a === 'string' && !a.startsWith('__'))
-  const routed = routedSeen.get(r.instance)
+  const replies = replySeen.get(r.instance)
   return names.map(name => ({
     name,
     trigger: BUILTIN_ACTIONS.has(name) ? 'builtin'
       : intent.includes(name) ? 'intent'
-      : routed?.has(name) ? 'routed'
+      : replies?.has(name) ? 'reply'
       : !r.injected.has(name) && r.fired.has(name) ? 'next'
       : 'unknown',
     sinks: [...(r.modelMap[name] || [])],

@@ -1,7 +1,7 @@
 /**
  * Model analysis: action entries (shorthand expanded), sinks, next('X')
  * targets, EVENTS types returned from EVENTS sinks, and the action names of
- * routed requests (`{ url, ok: 'LOADED', error: 'FAILED' }`, PLAN-3).
+ * reply actions of requests (`{ url, ok: 'LOADED', error: 'FAILED' }`, PLAN-3).
  */
 import { walk, unwrap, isFunction, propName, stringValue } from '../ast.js'
 import { findBinding } from '../scope.js'
@@ -11,12 +11,12 @@ import { returnedExpressions } from './intent.js'
 // Actions the core dispatches itself. HYDRATE is not one since 6.0 (D66): nothing dispatches it.
 export const BUILTIN_ACTIONS = new Set(['BOOTSTRAP', 'INITIALIZE', 'DISPOSE', 'READY'])
 
-/** Request keys that name the action a routed reply arrives as (PLAN-3 §1.1). */
-export const ROUTED_KEYS = new Set(['ok', 'error'])
+/** Request keys that name the action a reply arrives as (reply actions) (PLAN-3 §1.1). */
+export const REPLY_KEYS = new Set(['ok', 'error'])
 /** `connections` entry keys that name actions (PLAN-3 §1.3, D61). */
 export const CONNECTION_KEYS = new Set(['message', 'open', 'close', 'error'])
-/** Sinks the core handles itself: their values are never requests to a routing driver. */
-export const NON_ROUTING_SINKS = new Set(['STATE', 'EFFECT', 'EVENTS', 'PARENT', 'READY', 'DOM', 'CHILD'])
+/** Sinks the core handles itself: their values are never requests to a reply-action driver. */
+export const NON_REPLY_SINKS = new Set(['STATE', 'EFFECT', 'EVENTS', 'PARENT', 'READY', 'DOM', 'CHILD'])
 
 const SHORTHAND = /^(.+?)\s*\|\s*(.+)$/
 
@@ -88,11 +88,11 @@ export function returnedObjects(project, file, valueNode) {
 }
 
 /**
- * Routed action names in the requests a sink value returns:
+ * Reply action names in the requests a sink value returns:
  *   targets  Array<{ name, key, node, file }>   (string literal `ok` / `error` values)
  *   dynamic  Array<{ node, file }>              (non-literal values)
  */
-export function routedNames(project, file, valueNode, keys = ROUTED_KEYS) {
+export function replyNames(project, file, valueNode, keys = REPLY_KEYS) {
   const out = { targets: [], dynamic: [] }
   for (const { node: obj, file: f } of returnedObjects(project, file, valueNode)) {
     for (const p of obj.properties) {
@@ -146,12 +146,12 @@ export function connectionNames(project, file, node) {
  *   dynamicNext: Array<{ node, file }>,
  *   eventsEmitted: Array<{ type, node, file }>,
  *   eventsDynamic: Array<{ node, file }>,
- *   routedTargets: Array<{ name, key, sink, action, node, file }>,   // ok/error names of requests
- *   routedDynamic: Array<{ node, file }>,
+ *   replyTargets: Array<{ name, key, sink, action, node, file }>,   // ok/error names of requests
+ *   replyDynamic: Array<{ node, file }>,
  * }}
  */
 export function analyzeModel(project, file, modelNode) {
-  const res = { known: true, entries: [], nextTargets: [], dynamicNext: [], eventsEmitted: [], eventsDynamic: [], routedTargets: [], routedDynamic: [] }
+  const res = { known: true, entries: [], nextTargets: [], dynamicNext: [], eventsEmitted: [], eventsDynamic: [], replyTargets: [], replyDynamic: [] }
   const r = resolveExpr(project, file, modelNode)
   const obj = r?.node
   if (!obj || obj.type !== 'ObjectExpression') { res.known = false; return res }
@@ -162,11 +162,11 @@ export function analyzeModel(project, file, modelNode) {
     res.eventsEmitted.push(...t.types)
     res.eventsDynamic.push(...t.dynamic)
   }
-  const addRouted = (action, sink, valueNode) => {
-    if (NON_ROUTING_SINKS.has(sink)) return
-    const t = routedNames(project, mfile, valueNode)
-    res.routedTargets.push(...t.targets.map(x => ({ ...x, sink, action })))
-    res.routedDynamic.push(...t.dynamic)
+  const addReplies = (action, sink, valueNode) => {
+    if (NON_REPLY_SINKS.has(sink)) return
+    const t = replyNames(project, mfile, valueNode)
+    res.replyTargets.push(...t.targets.map(x => ({ ...x, sink, action })))
+    res.replyDynamic.push(...t.dynamic)
   }
 
   for (const p of obj.properties) {
@@ -179,7 +179,7 @@ export function analyzeModel(project, file, modelNode) {
     if (shorthand) {
       sinks = [sink]
       if (sink === 'EVENTS') addEvents(value)
-      addRouted(action, sink, value)
+      addReplies(action, sink, value)
     } else if (value && value.type === 'ObjectExpression') {
       sinks = []
       for (const sp of value.properties) {
@@ -189,7 +189,7 @@ export function analyzeModel(project, file, modelNode) {
         sinks.push(sname)
         const sval = sp.type === 'ObjectMethod' ? sp : sp.value
         if (sname === 'EVENTS') addEvents(sval)
-        addRouted(action, sname, sp.type === 'ObjectMethod' ? sp : unwrap(sp.value))
+        addReplies(action, sname, sp.type === 'ObjectMethod' ? sp : unwrap(sp.value))
       }
     } else {
       sinks = ['STATE']

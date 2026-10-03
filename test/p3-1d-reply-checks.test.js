@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
-// PLAN-3 1-D: the dev-entry checks for routed requests. SYG102 counts a routed request's
-// ok/error names as triggers, SYG112 reports a routed name with no model entry when the
+// PLAN-3 1-D: the dev-entry checks for reply actions. SYG102 counts a request's
+// ok/error names as triggers, SYG112 reports a reply action with no model entry when the
 // request is sent (with a did-you-mean), strict SYG508 reports the select()/errors() round
-// trip on a routing source, inspect() reports the 'routed' trigger, and HYDRATE is an
+// trip on a reply-capable source, inspect() reports the 'reply' trigger, and HYDRATE is an
 // ordinary action (D66).
 import { it, expect, beforeEach, afterEach, vi, describe } from 'vitest'
 import run from '../src/extra/run.js'
@@ -47,8 +47,8 @@ const make = (request, extra = {}) => {
   return C
 }
 
-describe('SYG102: routed names count as triggers', () => {
-  it('reports nothing for entries a routed request names', async () => {
+describe('SYG102: reply-action names count as triggers', () => {
+  it('reports nothing for entries a request with reply actions names', async () => {
     start(make(() => ({ url: '/q', ok: 'LOADED', error: 'FAILED' })), { HTTP: makeFetchDriver({ fetch: () => json({ text: 'hi' }) }) })
     await settle(30)
     expect(diagnostics('SYG102')).toEqual([])
@@ -73,7 +73,7 @@ describe('SYG102: routed names count as triggers', () => {
   })
 })
 
-describe('SYG112: routed action with no model entry', () => {
+describe('SYG112: reply action with no model entry', () => {
   it('reports when the request is sent, as an error, with the nearest model key', async () => {
     start(make(() => ({ url: '/q', ok: 'LAODED', error: 'FAILED' })), { HTTP: makeFetchDriver({ fetch: () => json({ text: 'hi' }) }) })
     await settle(20)
@@ -101,7 +101,7 @@ describe('SYG112: routed action with no model entry', () => {
     expect(document.querySelector('.out').textContent).toBe('done:hi')
   })
 
-  it('works for driverFromAsync too, and ignores unrouted requests and non-routing sinks', async () => {
+  it('works for driverFromAsync too, and ignores plain requests and sinks without reply actions', async () => {
     const C = make(() => ({ url: '/q', ok: 'LOADED' }), {
       LOAD: { QUOTE: () => ({ value: 1, ok: 'LOADDE' }), LOG: () => ({ ok: 'NOPE' }), HTTP: () => '/plain-get' },
     })
@@ -114,14 +114,14 @@ describe('SYG112: routed action with no model entry', () => {
   })
 })
 
-describe('SYG508 (strict): select()/errors() round trip on a routing source', () => {
+describe('SYG508 (strict): select()/errors() round trip on a reply-capable source', () => {
   const roundTrip = () => {
     const C = make(() => ({ category: 'quote', url: '/q' }))
     C.intent = ({ DOM, HTTP }) => ({ LOAD: DOM.click('.load'), LOADED: HTTP.select('quote').map(r => r.value), FAILED: HTTP.errors('quote') })
     return C
   }
 
-  it('reports when an unrouted request goes out whose category the instance selects', async () => {
+  it('reports when a plain request goes out whose category the instance selects', async () => {
     configureStrict(true)
     start(roundTrip(), { HTTP: makeFetchDriver({ fetch: () => json({ text: 'hi' }) }) })
     await settle(20)
@@ -136,7 +136,7 @@ describe('SYG508 (strict): select()/errors() round trip on a routing source', ()
     expect(document.querySelector('.out').textContent).toBe('done:hi')   // the wrapped source still works
   })
 
-  it('is quiet when strict is off, and for routed requests', async () => {
+  it('is quiet when strict is off, and for requests with reply actions', async () => {
     start(roundTrip(), { HTTP: makeFetchDriver({ fetch: () => json({ text: 'hi' }) }) })
     await settle(20)
     click('.load')
@@ -156,15 +156,15 @@ describe('SYG508 (strict): select()/errors() round trip on a routing source', ()
   })
 })
 
-describe('inspect(): routed trigger', () => {
-  it("marks actions a sent request named as 'routed'", async () => {
+describe('inspect(): reply trigger', () => {
+  it("marks actions a sent request named as 'reply'", async () => {
     start(make(() => ({ url: '/q', ok: 'LOADED', error: 'FAILED' })), { HTTP: makeFetchDriver({ fetch: () => json({ text: 'hi' }) }) })
     await settle(20)
     click('.load')
     await settle(30)
     const quote = inspect().components.find(c => c.name === 'Quote')
     const t = Object.fromEntries(quote.actions.map(a => [a.name, a.trigger]))
-    expect(t).toMatchObject({ LOAD: 'intent', LOADED: 'routed', FAILED: 'routed', INITIALIZE: 'builtin' })
+    expect(t).toMatchObject({ LOAD: 'intent', LOADED: 'reply', FAILED: 'reply', INITIALIZE: 'builtin' })
   })
 })
 

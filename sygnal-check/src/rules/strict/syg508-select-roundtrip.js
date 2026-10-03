@@ -1,6 +1,6 @@
 /**
  * SYG508 (PLAN-3 §1.1, strict): the select()/errors() round trip where a
- * routed request would do.
+ * request with reply actions would do.
  *
  *   Quote.intent = ({ DOM, HTTP }) => ({ LOAD: DOM.click('.get'), LOADED: HTTP.select('quote') })
  *   Quote.model  = { LOAD: { HTTP: () => ({ category: 'quote', url }) }, LOADED: … }
@@ -12,10 +12,10 @@
  *
  * Flags `X.select('c')` / `X.errors('c')` in an intent when the same
  * component's model sends sink X an object with `category: 'c'` (or the
- * driverFromAsync `selector` property) and no ok/error, and X is a routing
+ * driverFromAsync `selector` property) and no ok/error, and X is a reply-action
  * driver: registered somewhere in the scanned files as makeFetchDriver(),
  * driverFromAsync() or makeSocketDriver(), or named HTTP and not registered as
- * another `…Driver()`. A custom driver can't route replies, so its select()
+ * another `…Driver()`. A custom driver has no reply actions, so its select()
  * is left alone.
  */
 import { walk, unwrap, propName, memberName, stringValue } from '../../ast.js'
@@ -23,7 +23,7 @@ import { sourceAliases } from '../../model/intent.js'
 import { returnedObjects } from '../../model/modelEntries.js'
 import { modelEntries, sinkProps } from './shared.js'
 
-const ROUTING_FACTORIES = new Set(['makeFetchDriver', 'driverFromAsync', 'makeSocketDriver'])
+const REPLY_FACTORIES = new Set(['makeFetchDriver', 'driverFromAsync', 'makeSocketDriver'])
 const NOT_DRIVER_SOURCES = new Set(['DOM', 'EVENTS', 'CHILD', 'STATE', 'props$', 'dispose$'])
 
 const calleeName = (call) => {
@@ -33,10 +33,10 @@ const calleeName = (call) => {
   return null
 }
 
-/** sink name → { selectorKey } for routing drivers; plus the names registered as other drivers. */
-function routingDrivers(project) {
-  if (project._routingDrivers) return project._routingDrivers
-  const routing = new Map()
+/** sink name → { selectorKey } for reply-action drivers; plus the names registered as other drivers. */
+function replyDrivers(project) {
+  if (project._replyDrivers) return project._replyDrivers
+  const replying = new Map()
   const other = new Set()
   for (const file of project.files.values()) {
     // G-164: a file that failed to parse is kept as null (its parse error is reported once)
@@ -47,7 +47,7 @@ function routingDrivers(project) {
       const v = unwrap(n.value)
       if (!key || v?.type !== 'CallExpression') return true
       const name = calleeName(v)
-      if (ROUTING_FACTORIES.has(name)) {
+      if (REPLY_FACTORIES.has(name)) {
         let selectorKey = 'category'
         const opts = name === 'driverFromAsync' ? unwrap(v.arguments[1]) : null
         if (opts?.type === 'ObjectExpression') {
@@ -55,19 +55,19 @@ function routingDrivers(project) {
           const s = sel && stringValue(sel.value)
           if (s) selectorKey = s
         }
-        routing.set(key, { selectorKey })
+        replying.set(key, { selectorKey })
       } else if (name && /Driver$/.test(name)) {
         other.add(key)
       }
       return true
     })
   }
-  return (project._routingDrivers = { routing, other })
+  return (project._replyDrivers = { replying, other })
 }
 
-function routingInfo(project, sink) {
-  const { routing, other } = routingDrivers(project)
-  if (routing.has(sink)) return routing.get(sink)
+function replyInfo(project, sink) {
+  const { replying, other } = replyDrivers(project)
+  if (replying.has(sink)) return replying.get(sink)
   if (sink === 'HTTP' && !other.has('HTTP')) return { selectorKey: 'category' }
   return null
 }
@@ -119,7 +119,7 @@ function requestsFor(project, comp, sink, key, category) {
 export default {
   id: 'strict-select-roundtrip',
   codes: ['SYG508'],
-  description: 'select()/errors() round trip where a routed request would do',
+  description: 'select()/errors() round trip where reply actions would do',
   strict: true,
   run(project, report) {
     for (const comp of project.components) {
@@ -137,7 +137,7 @@ export default {
         const sink = sourceName(callee.object, sa)
         const category = stringValue(n.arguments[0])
         if (!sink || NOT_DRIVER_SOURCES.has(sink) || category == null) return true
-        const info = routingInfo(project, sink)
+        const info = replyInfo(project, sink)
         if (!info) return true
         const senders = requestsFor(project, comp, sink, info.selectorKey, category)
         if (senders.length) calls.push({ node: n, method, sink, category, senders, key: info.selectorKey, action: intentActionAt(fn, n) })
@@ -155,7 +155,7 @@ export default {
           file,
           node: c.node,
           message: `${comp.name}.intent reads ${reading} for the replies to its own ${c.sink} request ` +
-            `('${sender}' sends ${c.key}: '${c.category}'); a routed request delivers them as actions directly`,
+            `('${sender}' sends ${c.key}: '${c.category}'); reply actions deliver them directly`,
           fix: `name the reply actions in the request and drop the intent line: ` +
             `before \`${sender}: { ${c.sink}: (state) => ({ ${c.key}: '${c.category}', … }) }\` + \`${c.action || 'ACTION'}: ${reading}\`; ` +
             `after \`${sender}: { ${c.sink}: (state) => ({ …, ok: '${ok}', error: '${error}' }) }\` ` +

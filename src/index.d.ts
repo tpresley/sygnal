@@ -437,8 +437,8 @@ type IntentReturnToActions<RETURN> = {
  *   Counter.model  = { INC: (state, n) => ..., NAME: (state, name) => ... }  // n: number, name: string
  *
  * With it, model keys not returned by the intent are type errors (the built-ins BOOTSTRAP,
- * INITIALIZE and DISPOSE stay allowed). Actions reached only through `next()` or a routed
- * request (`ok: 'LOADED'`, `error: 'FAILED'`) are added explicitly, typed by their data:
+ * INITIALIZE and DISPOSE stay allowed). Actions reached only through `next()` or as reply actions
+ * of a request (`ok: 'LOADED'`, `error: 'FAILED'`) are added explicitly, typed by their data:
  *
  *   type Actions = ActionsOf<typeof intent> & { SAVED: { id: string }; LOADED: Quote; FAILED: FetchFailure }
  */
@@ -1010,7 +1010,7 @@ export function lazy<PROPS = any>(
 ): LazyComponent<PROPS>
 
 /**
- * The routing keys of a request to a routing driver (makeFetchDriver, driverFromAsync): the
+ * The reply-action keys of a request to makeFetchDriver or driverFromAsync: the
  * outcome becomes an action on exactly the component instance that sent the request, instead
  * of reaching `select()` / `errors()`.
  *
@@ -1022,7 +1022,7 @@ export function lazy<PROPS = any>(
  * (`{ LOADED: Quote; FAILED: FetchFailure }`). `ok` / `error` are plain strings in the types (D70);
  * a name with no model entry is SYG112 (sygnal-check and the dev entry).
  */
-export type RoutedRequest = {
+export type ReplyRequest = {
   /** Action that receives the success value (fetch: the parsed body; driverFromAsync: the resolved value) */
   ok?: string;
   /** Action that receives the failure (`{ error, request }`, plus `status` / `body` for fetch) */
@@ -1035,10 +1035,10 @@ export type RoutedRequest = {
 
 /**
  * A request to a driverFromAsync() sink: your own fields (`value`, the args, ...) plus the
- * routing keys `ok` / `error`. Type the driver's sink with it: `{ QUOTE: { source:
+ * reply-action keys `ok` / `error`. Type the driver's sink with it: `{ QUOTE: { source:
  * AsyncDriverFromFunction; sink: AsyncRequest<{ value: number }> } }`.
  */
-export type AsyncRequest<FIELDS = { [field: string]: any }> = FIELDS & RoutedRequest
+export type AsyncRequest<FIELDS = { [field: string]: any }> = FIELDS & ReplyRequest
 
 /** Payload on `errors()` of a driverFromAsync source when a request fails */
 export type AsyncDriverError<INCOMING = any> = {
@@ -1046,7 +1046,7 @@ export type AsyncDriverError<INCOMING = any> = {
   error: any;
   /** The request that failed */
   request: INCOMING;
-  /** The request's selector property (default 'category') is copied here (not for a routed `error` action) */
+  /** The request's selector property (default 'category') is copied here (not for an `error` reply action) */
   [selectorProperty: string]: any;
 }
 
@@ -1095,9 +1095,9 @@ export type FetchInit = {
  * Other fetch() options go under `init` (`init: { credentials: 'include' }`). Any other key is
  * the app's own: not sent, but returned on the reply's `request`.
  *
- * Routed (canonical): `{ url, ok: 'LOADED', error: 'FAILED' }` delivers the parsed body as
+ * Reply actions (canonical): `{ url, ok: 'LOADED', error: 'FAILED' }` delivers the parsed body as
  * LOADED, a failure as FAILED (`FetchFailure`), to exactly the sending instance (see
- * RoutedRequest). Without `ok` / `error` the reply goes to `select()` / `errors()`.
+ * ReplyRequest). Without `ok` / `error` the reply goes to `select()` / `errors()`.
  *
  * Isolation: the replies, `latest` and `abort` of a component instance are its own (and its
  * descendants'): two instances, or Collection items, using the same category never see or
@@ -1106,16 +1106,16 @@ export type FetchInit = {
 export type FetchRequest = string | {
   /** Request URL (prefixed with the driver's `baseUrl`) */
   url: string;
-  /** Routed: the action that receives the parsed body of a 2xx response (the Response with `parse: 'response'`) */
+  /** Reply action that receives the parsed body of a 2xx response (the Response with `parse: 'response'`) */
   ok?: string;
-  /** Routed: the action that receives a failure, `{ error, status?, body?, request }` (FetchFailure) */
+  /** Reply action that receives a failure, `{ error, status?, body?, request }` (FetchFailure) */
   error?: string;
   /**
-   * Routed: the `latest` / `abort` group (default: the `ok` action, else `error`). Requests with
+   * Reply actions: the `latest` / `abort` group (default: the `ok` action, else `error`). Requests with
    * the same key from the same instance supersede each other under `latest: true`
    */
   key?: string;
-  /** Unrouted: tag read back with `select(category)` / `errors(category)`; also the `latest` / `abort` group */
+  /** Without reply actions: tag read back with `select(category)` / `errors(category)`; also the `latest` / `abort` group */
   category?: string;
   /** Default: 'POST' when `json` or `body` is set, else 'GET' */
   method?: string;
@@ -1153,10 +1153,10 @@ export type FetchRequest = string | {
   [appData: string]: any;
 } | {
   /**
-   * Cancel. Routed: `{ abort: 'LOADED' }` aborts this instance's requests in flight whose key
+   * Cancel. Reply actions: `{ abort: 'LOADED' }` aborts this instance's requests in flight whose key
    * (`key`, else `ok`, else `error`) is 'LOADED'; `{ abort: true, key: 'search' }` does the same
-   * by key. Unrouted: `{ category: 'search', abort: true }` aborts this component's requests in
-   * that category (all of them, routed included, without a category or key). Nothing is
+   * by key. Without reply actions: `{ category: 'search', abort: true }` aborts this component's requests in
+   * that category (all of them, reply-action ones included, without a category or key). Nothing is
    * delivered for a cancelled request.
    */
   abort: true | string;
@@ -1164,7 +1164,7 @@ export type FetchRequest = string | {
   category?: string;
 }
 
-/** The data of a routed `error` action of a makeFetchDriver() request (`error: 'FAILED'`) */
+/** The data of the `error` reply action of a makeFetchDriver() request (`error: 'FAILED'`) */
 export type FetchFailure<REQUEST = any> = {
   /**
    * 'HTTP 404 ...' for a non-2xx status (with `.status` and `.body`), the network error
@@ -1236,10 +1236,10 @@ export type FetchDriverOptions = {
 }
 
 /**
- * An HTTP driver over `fetch`: `run(App, { HTTP: makeFetchDriver() })`. Canonical: a routed
- * request (`HTTP: (state) => ({ url: '/api/quote', ok: 'LOADED', error: 'FAILED' })`) whose
+ * An HTTP driver over `fetch`: `run(App, { HTTP: makeFetchDriver() })`. Canonical: a request with reply actions
+ * (`HTTP: (state) => ({ url: '/api/quote', ok: 'LOADED', error: 'FAILED' })`) whose
  * outcome arrives as the LOADED (parsed body) or FAILED (FetchFailure) action of the sending
- * instance. Unrouted: the model sends a
+ * instance. Without reply actions: the model sends a
  * request (`HTTP: (state) => ({ category: 'quote', url: '/api/quote' })`); the intent reads
  * `HTTP.select('quote')` (`{ category, value, status, request }`) and `HTTP.errors('quote')`
  * (`{ error, category, request, status?, body? }`). Non-2xx statuses, network errors and
@@ -1262,7 +1262,7 @@ export type SocketReconnect = {
   jitter?: boolean | number;
 }
 
-/** The routed actions of a connection. Each is optional; an event without one goes to `select()` */
+/** The reply actions of a connection. Each is optional; an event without one goes to `select()` */
 export type SocketActions = {
   /** Action for each incoming message: the JSON-parsed frame when it parses, else the raw data (binary as is) */
   message?: string;
@@ -1332,7 +1332,7 @@ export type SocketClose = { code?: number; reason?: string; willReconnect: boole
 /** Data of a connection's `error` action: the error Event (or the constructor's exception) */
 export type SocketError = { error: any }
 
-/** An unrouted event on `select(name?)` */
+/** An event without a reply action, on `select(name?)` */
 export type SocketEvent<DATA = any> =
   | { name: string; type: 'message'; data: DATA }
   | { name: string; type: 'open'; data: SocketOpen }
@@ -1615,8 +1615,8 @@ export interface RenderResult<STATE = any> {
   requests: (sinkName: string) => any[];
   /**
    * Answer a pending request on a driverless sink/source (e.g. `HTTP` with no
-   * `drivers: { HTTP }`), like makeFetchDriver: a routed request (`ok: 'LOADED'`) gets `value`
-   * as its `LOADED` action, on exactly the component that sent it; an unrouted one gets
+   * `drivers: { HTTP }`), like makeFetchDriver: a request with reply actions (`ok: 'LOADED'`) gets `value`
+   * as its `LOADED` action, on exactly the component that sent it; a plain one gets
    * `{ category, value, status: 200, request }` on `HTTP.select(category)`.
    * Which request (the newest pending one that matches): `target` is an `ok`/`error` action
    * name, key or category (`'LOADED'`); a partial request compared by value (`{ url: '/a' }`,
@@ -1627,12 +1627,12 @@ export interface RenderResult<STATE = any> {
    * respond/fail calls are still queued before it or the component isn't ready yet: then it is
    * delivered after them, waiting up to 1s (half of timeoutMs if lower) for the request.
    * Resolves once the reply has been reduced and the tree rendered; rejects (and, if not
-   * awaited, fails the next wait) when no request comes or nothing receives an unrouted reply.
+   * awaited, fails the next wait) when no request comes or nothing receives a plain reply.
    */
   respond: (sinkName: string, value: any, target?: string | FakeReplyOptions | Record<string, any> | ((request: any) => boolean)) => Promise<void>;
   /**
-   * Fail a pending request (chosen as in respond): a routed one (`error: 'FAILED'`) gets
-   * `{ error, request, status?, body? }` as its `FAILED` action, on its sender; an unrouted one
+   * Fail a pending request (chosen as in respond): one with reply actions (`error: 'FAILED'`) gets
+   * `{ error, request, status?, body? }` as its `FAILED` action, on its sender; a plain one
    * `{ error, category, request, status, body }` on `HTTP.errors(category)`. `error`: an
    * Error, a message, or an HTTP status (404 → 'HTTP 404', status 404).
    */
@@ -1640,8 +1640,8 @@ export interface RenderResult<STATE = any> {
   /**
    * A driverless sink that gets `{ connections }` / `{ to }` values (e.g. `WS` with no
    * `drivers: { WS }`) is a fake makeSocketDriver: diffed per component and connection name,
-   * `open`/`message`/`close`/`error` routed to the sender's actions (no `close` for closes the
-   * app makes), unrouted events on `WS.select(name)`, shared by URL, reconnect per the spec on
+   * `open`/`message`/`close`/`error` as reply actions of the sender (no `close` for closes the
+   * app makes), other events on `WS.select(name)`, shared by URL, reconnect per the spec on
    * the test's timers (fake timers included). The connections declared now, in order.
    * t.open / t.push / t.drop throw at the call when no connection matches (unless input is still
    * queued before them, as for respond) and resolve once the result has been reduced and rendered.

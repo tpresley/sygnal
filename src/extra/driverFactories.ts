@@ -1,5 +1,5 @@
 import xs, {Stream} from 'xstream';
-import {senderOf, allowed, makeRoutes} from './routing';
+import {senderOf, allowed, makeReplies} from './replies';
 
 interface DriverFromAsyncOptions {
   selector?: string;
@@ -38,7 +38,7 @@ interface DriverFromAsyncOptions {
  * console.error. Errors that occur before the first errors() listener
  * subscribes (a BOOTSTRAP request) are held like early replies.
  *
- * Routed requests (PLAN-3): a request object a component sends with `ok` /
+ * Reply actions (PLAN-3): a request object a component sends with `ok` /
  * `error` action names gets its outcome as that action, on exactly the sending
  * instance (never on select()/errors()): `ok` data is the resolved value (after
  * `post`), `error` data `{ error, request }`. A request naming only one of them
@@ -149,7 +149,7 @@ function driverFromAsync(
     // 3E/R11: set by the source's dispose(), which Cycle's engine calls on teardown just
     // before it completes the sink proxies; that completion is expected, not worth a warning.
     let disposing = false;
-    const {routes, reply} = makeRoutes();
+    const {replies, reply} = makeReplies();
 
     fromApp$.addListener({
       next: (incoming: any) => {
@@ -239,7 +239,7 @@ function driverFromAsync(
         disposing = true;
       },
       select: (selector?: any) => filterBy(toApp$, selector),
-      ...routes,
+      ...replies,
       errors: (selector?: any) => {
         let sub: any;
         return xs.create<any>({

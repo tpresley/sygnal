@@ -1,10 +1,10 @@
 import xs, {Stream} from 'xstream';
-import {senderOf, keepSender, allowed, makeRoutes} from './routing';
+import {senderOf, keepSender, allowed, makeReplies} from './replies';
 import {error as logError} from './diagnostics/legacy';
 
 /*
  * makeSocketDriver(options?) (PLAN-3 §1.3): WebSocket and server-sent events, declared per
- * component instance and answered with routed actions (./routing.ts). Docs on the declarations
+ * component instance and answered with reply actions (./replies.ts). Docs on the declarations
  * in src/index.d.ts. Summary:
  *
  * - Sink values:
@@ -20,11 +20,11 @@ import {error as logError} from './diagnostics/legacy';
  *   `{ sse: url, withCredentials?, message?, open?, close?, error?, events?, reconnect?, share? }`.
  *   URLs are prefixed with `baseUrl` unless absolute; a socket path resolves against `location`
  *   with ws:/wss: for http:/https:.
- * - Routed actions (to exactly the sender): `message` (data: the JSON-parsed frame when it parses,
+ * - Reply actions (to exactly the sender): `message` (data: the JSON-parsed frame when it parses,
  *   else the raw data), `open` ({ reconnected }), `close` ({ code, reason, willReconnect }: only
  *   for closes the driver didn't make, G-148), `error` ({ error }); SSE `events: { name: 'ACTION' }`
- *   routes named events. An event type without an action name goes to `select(name?)` as
- *   `{ name, type, data }` (the unrouted form).
+ *   names actions for named events. An event type without an action name goes to `select(name?)` as
+ *   `{ name, type, data }` (the plain form).
  * - Reconnect (default on): jittered exponential backoff, `{ delayMs: 500, maxDelayMs: 10000,
  *   jitter: 0.2 }`, per spec over the driver's `reconnect`; `jitter: false` + equal delays is a
  *   fixed delay. A failure to open is a drop. Removal, replacement or dispose cancels a retry.
@@ -227,7 +227,7 @@ export function makeSocketDriver(options: any = {}) {
       conns.forEach(m => m.forEach(e => detach(e)));
       conns.clear();
     };
-    const {routes, reply} = makeRoutes(sender => {
+    const {replies, reply} = makeReplies(sender => {
       conns.get(sender)?.forEach(e => detach(e));
       conns.delete(sender);
     });
@@ -256,7 +256,7 @@ export function makeSocketDriver(options: any = {}) {
         ? Object.defineProperty(keepSender(v, {...v}), SCOPE, {value: [scope, ...scopeOf(v)]}) : v),
       // the core sends a component's `connections` static here (PLAN-3 2-B)
       __sygnalConnections: true,
-      ...routes,
+      ...replies,
     });
 
     return {...source([]), dispose: () => { closeAll(); disposed = true; }};

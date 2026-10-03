@@ -10,7 +10,7 @@ import {renderToInnerHtml} from './ssr';
 import {_getDiagnosticsConfig, configureDiagnostics, getDiagnosticsMode, isDiagnosticsEnabled, onDiagnostic, registerCheck, report} from './diagnostics/index';
 import xs from './xstreamCompat';
 import {tagRequest, inScope, scopeKey} from './fetchDriver';
-import {senderOf, allowed, makeRoutes} from './routing';
+import {senderOf, allowed, makeReplies} from './replies';
 import {makeSocketDriver} from './socketDriver';
 import type {Stream} from 'xstream';
 import type {Diagnostic, DiagnosticsMode} from './diagnostics/index';
@@ -310,8 +310,8 @@ export interface RenderResult {
   requests: (sinkName: string) => any[];
   /**
    * E2 / PLAN-3 1-C: answer a pending request on a fake source (a sink/source with no driver,
-   * e.g. `HTTP` with no `drivers: { HTTP }`), like makeFetchDriver: a routed request
-   * (`ok: 'LOADED'`) gets `value` as its LOADED action, on exactly its sender; an unrouted one
+   * e.g. `HTTP` with no `drivers: { HTTP }`), like makeFetchDriver: a request with reply actions
+   * (`ok: 'LOADED'`) gets `value` as its LOADED action, on exactly its sender; a plain one
    * `{ category, value, status, request }` on `select()`. The request: the newest pending one
    * matching `target` (an ok/error action name, key or category; a partial request compared by
    * value; a predicate; FakeReplyOptions), or the newest pending one. Throws at the call when
@@ -321,15 +321,15 @@ export interface RenderResult {
    */
   respond: (sinkName: string, value: any, target?: FakeReplyTarget) => Promise<void>;
   /**
-   * E2 / PLAN-3 1-C: fail a pending request (chosen as in respond()): a routed one
+   * E2 / PLAN-3 1-C: fail a pending request (chosen as in respond()): one with reply actions
    * (`error: 'FAILED'`) gets `{ error, request, status?, body? }` as its FAILED action; an
-   * unrouted one `{ error, category, request, status, body }` on `errors()`. `error` may be an
+   * plain one `{ error, category, request, status, body }` on `errors()`. `error` may be an
    * Error, a message, or an HTTP status number (404 → an Error 'HTTP 404' with `status: 404`).
    */
   fail: (sinkName: string, error: any, target?: FakeReplyTarget) => Promise<void>;
   /**
    * PLAN-3 2-C: a sink with no driver that gets `{ connections }` / `{ to }` values behaves like
-   * makeSocketDriver (routed open/message/close/error, diffed per component and name, shared by
+   * makeSocketDriver (reply actions for open/message/close/error, diffed per component and name, shared by
    * URL, reconnect per spec on the test's timers). The connections declared now, in order.
    */
   connections: (sinkName: string) => FakeConnection[];
@@ -736,9 +736,9 @@ class Reply extends Promise<void> {
  * PLAN-3 1-C: which pending requests (`{ scope, category, sender, rk }`) a request sent to a
  * fake source cancels, or undefined: makeFetchDriver's send() rules, kept here so the driver
  * stays as small as it is (keep the two in step; test/p3-1c-fakes.test.js mirrors
- * test/p3-1a-routing.test.js). `rk`: a routed request's key, (sender, `key ?? ok ?? error`).
+ * test/p3-1a-replies.test.js). `rk`: the reply key of a request with reply actions, (sender, `key ?? ok ?? error`).
  */
-const routeKey = (req: any, sender: any) =>
+const replyKey = (req: any, sender: any) =>
   sender !== undefined && (req.ok || req.error) ? req.key ?? req.ok ?? req.error : undefined;
 const cancels = (req: any, scope: any, sender: any, rk: any) => {
   const {abort, key, category} = req;
@@ -891,7 +891,7 @@ export function renderComponent(
   const childSinks = new Map<any, Array<[any, any]>>();
   // PLAN-3 1-C (G-151): a sink in a descendant's model that no driver provides (the root's
   // model doesn't name it) gets the fake as a real source before the component wires its
-  // actions and sinks, so the core stamps its requests and routes the replies, as under run()
+  // actions and sinks, so the core stamps its requests and delivers the reply actions, as under run()
   // with the driver. Its descendants inherit it; their requests reach its sink.
   const injected = new Map<any, string[]>();
   // 2-C: component number (a request's sender) → name, for t.connections (a tagged copy of a
@@ -1092,14 +1092,14 @@ export function renderComponent(
   // R4-2: isolated like makeFetchDriver: a source at scope path `ns` sees the replies to
   // requests made at or under it; requests are tagged by isolateSink (or, for a child-only
   // sink with no driver, with the component's place in the tree, see nsOf)
-  // PLAN-3 1-C (G-151): routing-capable like makeFetchDriver (__sygnalRoutes / routed(sender)),
-  // so the core stamps each component's requests with their sender and a routed request
+  // PLAN-3 1-C (G-151): reply-capable like makeFetchDriver (__sygnalReplies / replies(sender)),
+  // so the core stamps each component's requests with their sender and a request with reply actions
   // ({ ok, error }) is answered as that action to exactly that instance. `sent` tracks what is
-  // pending with the driver's own rules (routing.ts: latest/abort per sender or scope; a
-  // disposed sender's routed requests are dropped).
+  // pending with the driver's own rules (replies.ts: latest/abort per sender or scope; a
+  // disposed sender's requests with reply actions are dropped).
   type FakeSub = {l: any; sel: any; err: boolean; ns: any[]};
   type Sent = {value: any; req: any; category: any; scope: string; sender: any; rk: any; live: boolean};
-  type Fake = {select: any; errors: any; subs: Set<FakeSub>; at: (ns: any[]) => any; sent: Sent[]; route: (sender: any, type: any, data: any) => void; ws: Sock};
+  type Fake = {select: any; errors: any; subs: Set<FakeSub>; at: (ns: any[]) => any; sent: Sent[]; reply: (sender: any, type: any, data: any) => void; ws: Sock};
   const fakes = new Map<string, Fake>();
   const fake = (name: string): Fake => {
     let f = fakes.get(name);
@@ -1107,7 +1107,7 @@ export function renderComponent(
       const subs = new Set<FakeSub>();
       const sent: Sent[] = [];
       const ws = sockFake();
-      const {routes, reply: route} = makeRoutes(sender => {
+      const {replies, reply} = makeReplies(sender => {
         sent.forEach(r => { if (r.rk !== undefined && r.sender === sender) r.live = false; });
         ws.conns.delete(sender);
       });
@@ -1119,17 +1119,17 @@ export function renderComponent(
             stop: () => { subs.delete(sub); },
           });
         };
-        // 2-C: the socket driver's source, isolated alike (unrouted events reach select(name?))
+        // 2-C: the socket driver's source, isolated alike (events without an action reach select(name?))
         const sock = ns.reduce((s, sc) => s.isolateSource(s, sc), ws.src);
         const select = src(false);
         return {
-          select: (sel?: any) => xs.merge(select(sel), sock.select(sel)), errors: src(true), subs, at, sent, route, ws,
+          select: (sel?: any) => xs.merge(select(sel), sock.select(sel)), errors: src(true), subs, at, sent, reply, ws,
           isolateSource: (_: any, scope: any) => at(ns.concat(scope)),
           isolateSink: (sink$: any, scope: any) => sink$.map((v: any) => tag(v, scope)),
           // G-160: the fake named by `socketSink` receives the components' connections static
           ...(name == socketSink ? {__sygnalConnections: true} : {}),
-          ...routes,
-          routed: (sender: any) => xs.merge(routes.routed(sender), ws.src.routed(sender)),
+          ...replies,
+          replies: (sender: any) => xs.merge(replies.replies(sender), ws.src.replies(sender)),
         };
       };
       fakes.set(name, (f = at([])));
@@ -1137,7 +1137,7 @@ export function renderComponent(
     return f!;
   };
   // PLAN-3 2-C: the socket half of a fake source. Values with `connections` / `to` go to a real
-  // makeSocketDriver over in-memory sockets, so diffing, routing, sharing, queueing and
+  // makeSocketDriver over in-memory sockets, so diffing, reply actions, sharing, queueing and
   // reconnect are the driver's own. `conns` mirrors what each sender has declared (sender →
   // name → Conn) and which fake socket serves each connection, for t.connections and targets.
   type Conn = {by: string; name: string; spec: any; sse: boolean; url: string; k: string; own: boolean; s?: any};
@@ -1218,7 +1218,7 @@ export function renderComponent(
     // 2-C: a socket value goes to the fake's socket driver (it reports SYG610/SYG611 itself)
     if (track && sockValue(req)) return sockRecord(fake(name).ws, req);
     if (!track || !obj || !allowed(req, `renderComponent's fake ${name}`)) return;
-    const f = fake(name), scope = scopeKey(req), sender = senderOf(req), rk = routeKey(req, sender);
+    const f = fake(name), scope = scopeKey(req), sender = senderOf(req), rk = replyKey(req, sender);
     const which = cancels(req, scope, sender, rk);
     if (which) f.sent.forEach(r => { if (r.live && which(r)) r.live = false; });
     if (!req.abort) f.sent.push({value: shown, req, category: req.category, scope, sender, rk, live: true});
@@ -1611,9 +1611,9 @@ export function renderComponent(
       const f = fake(name);
       const e: Sent | undefined = tg.push ? undefined : hit;
       const category = 'category' in tg.o ? tg.o.category : e?.category;
-      const [routedTo, payload] = build(e, category);
+      const [action, payload] = build(e, category);
       if (e) e.live = false;
-      if (routedTo !== undefined) return void f.route(e!.sender, routedTo, payload);
+      if (action !== undefined) return void f.reply(e!.sender, action, payload);
       let heard = false;
       f.subs.forEach(sub => {
         let hit = false;
@@ -1625,8 +1625,8 @@ export function renderComponent(
       const ls = [...f.subs].filter(x => x.err === err).map(x => `${name}.${err ? 'errors' : 'select'}(${x.sel === undefined ? '' : typeof x.sel == 'function' ? 'fn' : `'${x.sel}'`})`);
       return new Error(`[Sygnal] ${what}: nothing receives it: no intent listens to ${name}.${err ? 'errors' : 'select'}(${category === undefined ? '' : `'${category}'`})` +
         (ls.length ? ` (listening: ${ls.join(', ')})` : '') + `. ` +
-        (err ? `Route the failure to an action (error: 'FAILED' on the request), or handle it in the intent, e.g. FAILED: ${name}.errors('${category ?? 'category'}'), so a failed request can't leave the component loading.` :
-          `Route the reply to an action (ok: 'LOADED' on the request), or select it in the intent, e.g. LOADED: ${name}.select('${category ?? 'category'}').`));
+        (err ? `Name a reply action for the failure (error: 'FAILED' on the request), or handle it in the intent, e.g. FAILED: ${name}.errors('${category ?? 'category'}'), so a failed request can't leave the component loading.` :
+          `Name a reply action for the reply (ok: 'LOADED' on the request), or select it in the intent, e.g. LOADED: ${name}.select('${category ?? 'category'}').`));
     });
   };
   /**
@@ -1688,7 +1688,7 @@ export function renderComponent(
   const respond = (name: string, value: any, opts?: FakeReplyTarget) =>
     reply('respond', name, false, (e, category) => {
       const o: any = opts && typeof opts == 'object' ? opts : {};
-      // routed (D58): the ok action gets the parsed body; else select() gets the E2 payload
+      // reply actions (D58): the ok action gets the parsed body; else select() gets the E2 payload
       return e && e.rk !== undefined && e.req.ok ? [e.req.ok, value] :
         [undefined, {category, value, status: o.status ?? 200, request: e?.req}];
     }, opts);

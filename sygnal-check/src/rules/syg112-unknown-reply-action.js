@@ -1,6 +1,6 @@
 /**
- * SYG112: a routed request names an action the component has no model entry
- * for, so its reply is dropped (the routed form of SYG101; PLAN-3 §1.1).
+ * SYG112: a request names a reply action the component has no model entry
+ * for, so its reply is dropped (the reply-action form of SYG101; PLAN-3 §1.1).
  *
  *   LOAD: { HTTP: (state) => ({ url, ok: 'LOADED', error: 'FIALED' }) }   // no FIALED entry
  *
@@ -18,17 +18,17 @@ import { closestName } from '../names.js'
 const ACTION_LIKE = /^[A-Z][A-Z0-9_]*$/
 
 export default {
-  id: 'unknown-routed-action',
+  id: 'unknown-reply-action',
   codes: ['SYG112'],
-  description: 'Routed request names an action with no model entry',
+  description: 'Reply action has no model entry',
   run(project, report) {
     for (const comp of project.components) {
       if (comp.model && !comp.model.known) continue
       if (!comp.model && comp.staticProps.model) continue
       const keys = new Set((comp.model?.entries || []).map(e => e.action))
       const named = [
-        ...(comp.model?.routedTargets || []).map(t => ({ ...t, via: `the ${t.sink} request of '${t.action}' routes its ${t.key} reply` })),
-        ...(comp.connections?.targets || []).map(t => ({ ...t, via: `${comp.name}.connections routes '${t.key}' events`, conn: true })),
+        ...(comp.model?.replyTargets || []).map(t => ({ ...t, via: `the ${t.sink} request of '${t.action}' names '${t.name}' as its ${t.key} reply action` })),
+        ...(comp.connections?.targets || []).map(t => ({ ...t, via: `${comp.name}.connections names '${t.name}' as its ${t.key} reply action`, conn: true })),
       ]
       const seen = new Set()
       for (const t of named) {
@@ -41,7 +41,7 @@ export default {
           component: comp.name,
           file: t.file,
           node: t.node,
-          message: `${t.via} to '${t.name}', but ${comp.name} has no model entry '${t.name}', so ${t.conn ? 'they are' : 'the reply is'} dropped` +
+          message: `${t.via}, but ${comp.name} has no model entry '${t.name}', so ${t.conn ? 'those events are' : 'the reply is'} dropped` +
             (near ? ` (did you mean '${near}'?)` : ''),
           fix: near
             ? `rename it to the existing entry: ${t.key}: '${near}'`
