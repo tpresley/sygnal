@@ -258,7 +258,7 @@ export function makeFetchDriver(options: any = {}) {
       const b = json !== undefined ? JSON.stringify(json) : body ?? '';
       if (q.cache === false || typeof b != 'string' || typeof parse == 'function' || parse == 'response' ||
         !(q.cache || q.staleTime != null || (res && co && IDEMPOTENT.test(m)))) return;
-      return [m, withQuery((options.baseUrl || '') + (q.url ?? ''), query, 1), b, parse].join(' ');
+      return [m, withQuery((options.baseUrl || '') + (q.url ?? ''), query, 1), b, parse].join(' ').trim();
     };
     // D80: an invalidate value matches a request by tag, URL prefix ('/…') or predicate
     const hit = (x: any, q: any) => {
@@ -329,10 +329,10 @@ export function makeFetchDriver(options: any = {}) {
       if (E && 'v' in E && !q.validate) write(s, n, R, 'success', E.v, undefined, go);
       else if ((same || q.keepPrevious) && L && SETTLED.test(L.status)) write(s, n, R, L.status, L.data, L.error, true);
       else write(s, n, R, 'loading');
-      if (go || q.validate) R.i = send(q, s, n, after);
+      if (go || q.validate) R.i = send(q, s, n, after, R);
     };
 
-    const send = (req: any, sender = senderOf(req), rn?: string, after = -1): any => {
+    const send = (req: any, sender = senderOf(req), rn?: string, after = -1, R?: any): any => {
       if (typeof req == 'string') req = {url: req};
       if (!req || typeof req != 'object' || disposed || !allowed(req, 'makeFetchDriver')) return;
       const {url, category, method, headers, query, json, body, latest, timeoutMs, parse, abort, init, ok, error, key, resources, refresh, invalidates, retry, validate} = req;
@@ -389,7 +389,6 @@ export function makeFetchDriver(options: any = {}) {
       }
       const m = method || own?.method || base?.method || (b !== undefined ? 'POST' : 'GET');
       const k = keyOf(req, rn !== undefined);
-      const R = rn !== undefined && rsrc.get(sender)?.get(rn);
       const id = ++seq;
       const r: any = {category, scope, sender, rk};
       inflight.set(id, r);

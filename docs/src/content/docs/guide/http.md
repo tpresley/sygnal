@@ -108,6 +108,10 @@ A request is an object (or a URL string, for a plain GET with no reply actions):
 | `timeoutMs` | driver's `timeoutMs` (none) | Fail with a `TimeoutError` after this many ms |
 | `parse` | `'auto'` | How the body becomes the `ok` data: `'auto'` (JSON when the content-type says JSON, otherwise text; 204 → `null`), `'json'`, `'text'`, `'response'` (the `Response` itself), or a function `res => value` |
 | `init` | driver's `init` | Other `fetch()` options: `{ credentials: 'include', mode, cache, redirect, referrer, referrerPolicy, integrity, keepalive, priority }` |
+| `cache`, `staleTime` | — | Answer from the driver's cache (GET/HEAD only): see [Resources and Caching](/guide/resources/#the-query-cache) |
+| `tags`, `invalidates` | — | Tags for [invalidation](/guide/resources/#invalidation); `invalidates: ['quotes']` refreshes the tagged reads after a 2xx reply |
+| `retry` | driver's `retry` for GET/HEAD (0) | Retry network errors, 408, 429 and 5xx: a count or `{ count, delayMs, maxDelayMs, jitter }` ([Retries](/guide/resources/#retries)) |
+| `validate` | — | A Standard Schema the body must pass ([Validation](/guide/resources/#validation)) |
 
 Any other field is yours (an id, the query text): it isn't sent, and it comes back on the failure's `request`. A sink that returns `ABORT`, `null` or `undefined` sends nothing.
 
@@ -124,6 +128,8 @@ makeFetchDriver({
   timeoutMs: 10000,                      // default for every request (default: none)
   parse: 'auto',                         // default for every request
   fetch: myFetch,                        // default: globalThis.fetch, read at each request
+  cache: true,                           // the query cache (default: off), see Resources and Caching
+  retry: 2,                              // default for GET/HEAD requests (default: 0)
 })
 ```
 
@@ -162,12 +168,17 @@ it('shows the picked quote, then a missing one', async () => {
 
 The [Testing guide](/integration/testing/#answering-requests-respond-and-fail) has the full matching rules. In a running app, a sink with no driver is reported as [SYG609](/reference/errors/#syg609) (with the dev diagnostics on).
 
+## Reads That Follow State: resources
+
+For data a component shows, declare it instead of loading it in the model: `` Quote.resources = { quote: (state) => state.id && `/api/quotes/${state.id}` } `` fetches whenever the request changes and writes `state.quote = { status, data, error, refreshing }`. [Resources and Caching](/guide/resources/) covers refetching, the opt-in cache, invalidation, retries and validation.
+
 ## Requests Without Reply Actions: select() and errors()
 
 A request without `ok`/`error` has no reply actions: its reply goes to the `HTTP` source, read in the intent with `HTTP.select(category)` (`{ category, value, status, request }`) and `HTTP.errors(category)` (`{ error, category, request, status, body }`). Use it to compose replies as streams, or for replies that a component other than the sender handles. Reading your own request back this way is the [alternative form](/advanced/alternative-forms/#selecterrors-round-trip) of reply actions, flagged in strict mode as [SYG508](/reference/errors/#syg508).
 
 ## Related
 
+- [Resources and Caching](/guide/resources/): declarative reads, the query cache, invalidation, retries, validation
 - [Sockets](/guide/sockets/): WebSocket and server-sent events with `makeSocketDriver()`
 - [Custom Drivers](/guide/custom-drivers/): `driverFromAsync()` for any promise-returning function, and hand-written drivers
 - [Server Functions](/integration/server-functions/): calling Telefunc functions through a driver with reply actions

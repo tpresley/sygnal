@@ -43,6 +43,7 @@ export default defineConfig({
             { label: 'Streams', slug: 'guide/streams' },
             { label: 'Drivers', slug: 'guide/drivers' },
             { label: 'HTTP', slug: 'guide/http' },
+            { label: 'Resources and Caching', slug: 'guide/resources' },
             { label: 'Sockets', slug: 'guide/sockets' },
             { label: 'Custom Drivers', slug: 'guide/custom-drivers' },
             { label: 'Collections', slug: 'guide/collections' },

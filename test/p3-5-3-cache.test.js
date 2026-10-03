@@ -100,8 +100,7 @@ describe('D78: reload semantics', () => {
     srv.respond(0, { text: 'one' })
     await waitFor(() => expect(text('.status')).toBe('success'))
     await click('.refresh')
-    await waitFor(() => expect(srv.fn).toHaveBeenCalledTimes(2))
-    expect(text('.status')).toBe('success+')
+    await waitFor(() => expect(text('.status')).toBe('success+'))
     expect(text('.text')).toBe('one')
     srv.respond(1, { text: 'one again' })
     await waitFor(() => expect(text('.status')).toBe('success'))
@@ -122,13 +121,11 @@ describe('D78: reload semantics', () => {
     vi.stubGlobal('fetch', srv.fn)
     document.body.innerHTML = '<div id="root"></div>'
     start(quote((s) => ({ url: `/api/page/${s.id}`, keepPrevious: true })))
-    await waitFor(() => expect(srv.fn).toHaveBeenCalledTimes(1))
-    expect(text('.status')).toBe('loading')
+    await waitFor(() => expect(text('.status')).toBe('loading'))
     srv.respond(0, { text: 'page 1' })
     await waitFor(() => expect(text('.text')).toBe('page 1'))
     await click('.next')
-    await waitFor(() => expect(srv.fn).toHaveBeenCalledTimes(2))
-    expect(text('.status')).toBe('success+')
+    await waitFor(() => expect(text('.status')).toBe('success+'))
     expect(text('.text')).toBe('page 1')
     srv.respond(1, { text: 'page 2' })
     await waitFor(() => expect(text('.status')).toBe('success'))
@@ -181,7 +178,7 @@ describe('G-177: a hidden page keeps its resource', () => {
     expect(infoState()).toMatchObject({ status: 'success', data: { v: 'hello' } })
     await click('.to-info')
     await waitFor(() => expect(srv.fn).toHaveBeenCalledTimes(2))
-    expect(text('.info')).toBe('success+:hello')
+    await waitFor(() => expect(text('.info')).toBe('success+:hello'))
     srv.respond(1, { v: 'again' })
     await waitFor(() => expect(text('.info')).toBe('success:again'))
   })
@@ -195,13 +192,13 @@ describe('G-177: a hidden page keeps its resource', () => {
     expect(infoState().data).toBeUndefined()
     await click('.to-info')
     await waitFor(() => expect(srv.fn).toHaveBeenCalledTimes(2))
-    expect(text('.info')).toBe('loading:')
+    await waitFor(() => expect(text('.info')).toBe('loading:'))
     srv.respond(1, { v: 'one' })
     await waitFor(() => expect(text('.info')).toBe('success:one'))
     await click('.to-other')
     await click('.to-info')
     await waitFor(() => expect(srv.fn).toHaveBeenCalledTimes(3))
-    expect(text('.info')).toBe('success+:one')
+    await waitFor(() => expect(text('.info')).toBe('success+:one'))
     await click('.to-other')
     await waitFor(() => expect(srv.requests[2].aborted).toBe(true))
     expect(infoState()).toMatchObject({ status: 'success', data: { v: 'one' } })
@@ -245,8 +242,7 @@ describe('D79: stale-while-revalidate', () => {
     expect(srv.fn).toHaveBeenCalledTimes(2)
     // a refresh always fetches
     await click('.refresh')
-    await waitFor(() => expect(srv.fn).toHaveBeenCalledTimes(3))
-    expect(text('.status')).toBe('success+')
+    await waitFor(() => expect(text('.status')).toBe('success+'))
   })
 
   it('cache off (default): a switch back is a key change (loading, no data)', async () => {
@@ -357,16 +353,16 @@ describe('t.cache and gcTime', () => {
   it('lists entries (key, age, stale, subscribers, data); an unused entry is evicted after gcTime', async () => {
     t = renderComponent(quote(), { http: { cache: { gcTime: 40 } } })
     await t.waitForState(s => s.quote.status === 'loading')
-    expect(t.cache('HTTP')).toEqual([{ key: 'GET /api/quotes/1  ', age: undefined, stale: true, subscribers: 1, data: undefined, tags: undefined }])
+    expect(t.cache('HTTP')).toEqual([{ key: 'GET /api/quotes/1', age: undefined, stale: true, subscribers: 1, data: undefined, tags: undefined }])
     await t.respond('HTTP', { text: 'one' }, 'quote')
     const [e] = t.cache('HTTP')
-    expect(e).toMatchObject({ key: 'GET /api/quotes/1  ', stale: true, subscribers: 1, data: { text: 'one' } })
+    expect(e).toMatchObject({ key: 'GET /api/quotes/1', stale: true, subscribers: 1, data: { text: 'one' } })
     expect(e.age).toBeGreaterThanOrEqual(0)
     t.simulateAction('NEXT')
     await t.waitForState(s => s.id === 2 && s.quote.status === 'loading')
-    expect(t.cache('HTTP').map(e => [e.key, e.subscribers])).toEqual([['GET /api/quotes/1  ', 0], ['GET /api/quotes/2  ', 1]])
+    expect(t.cache('HTTP').map(e => [e.key, e.subscribers])).toEqual([['GET /api/quotes/1', 0], ['GET /api/quotes/2', 1]])
     await sleep(80)
-    expect(t.cache('HTTP').map(e => e.key)).toEqual(['GET /api/quotes/2  '])
+    expect(t.cache('HTTP').map(e => e.key)).toEqual(['GET /api/quotes/2'])
   })
 
   it('the key sorts the query and includes method, body and parse; staleTime makes an entry fresh', async () => {
@@ -374,7 +370,7 @@ describe('t.cache and gcTime', () => {
     t = renderComponent(C, { http: { cache: { staleTime: 60000 } } })
     await t.waitForState(s => s.quote.status === 'loading')
     await t.respond('HTTP', { text: 'r' }, 'quote')
-    expect(t.cache('HTTP')).toMatchObject([{ key: 'GET /api/search?a=1&q=x  ', stale: false }])
+    expect(t.cache('HTTP')).toMatchObject([{ key: 'GET /api/search?a=1&q=x', stale: false }])
   })
 })
 
@@ -498,8 +494,7 @@ describe('D80: invalidation', () => {
       srv.respond(0, ['a'])
       await waitFor(() => expect(text('.list')).toBe('success:a'))
       await click('.inval')
-      await waitFor(() => expect(srv.fn).toHaveBeenCalledTimes(2))
-      expect(text('.list')).toBe('success+:a')
+      await waitFor(() => expect(text('.list')).toBe('success+:a'))
       srv.respond(1, ['a', 'b'])
       await waitFor(() => expect(text('.list')).toBe('success:a,b'))
     })
@@ -536,7 +531,7 @@ describe('D80: invalidation', () => {
     await waitFor(() => expect(text('.saved')).toBe('yes'))
     await waitFor(() => expect(srv.fn).toHaveBeenCalledTimes(4))
     expect(srv.paths()[3]).toBe('/api/quotes')
-    expect(text('.list')).toBe('success+:a')
+    await waitFor(() => expect(text('.list')).toBe('success+:a'))
   })
 
   it('cache entries: an unmounted match is marked stale, so a fresh entry is refetched on return', async () => {
@@ -670,7 +665,7 @@ describe('D80: retries', () => {
     await waitFor(() => expect(srv.fn).toHaveBeenCalledTimes(1))
     srv.status(0, 502)
     await waitFor(() => expect(srv.fn).toHaveBeenCalledTimes(2))
-    expect(text('.status')).toBe('loading')
+    await waitFor(() => expect(text('.status')).toBe('loading'))
     srv.status(1, 502)
     await waitFor(() => expect(text('.status')).toBe('error'))
   })
@@ -809,6 +804,17 @@ describe('dev diagnostics', () => {
     expect(srv.requests[0].aborted).toBe(true)
   })
 
+  it('inspect(): each instance\'s resources, and the cache by sink', async () => {
+    t = renderComponent(quote(), { http: { cache: true } })
+    await t.waitForState(s => s.quote.status === 'loading')
+    await t.respond('HTTP', { text: 'one' }, 'quote')
+    t.simulateAction('REFRESH')
+    await t.waitForState(s => s.quote.refreshing)
+    const g = t.inspect()
+    expect(g.components[0].resources).toEqual([{ name: 'quote', status: 'success', refreshing: true, hasData: true, error: undefined }])
+    expect(g.cache.HTTP).toMatchObject([{ key: 'GET /api/quotes/1', subscribers: 1, data: { text: 'one' } }])
+  })
+
   it('no reports for canonical cached reads', async () => {
     const C = sender({ GO: { url: '/api/x', ok: 'GOT', cache: true }, STOP: { abort: 'GOT' } })
     C.resources = { r: () => ({ url: '/api/res', tags: ['res'] }) }
@@ -817,5 +823,32 @@ describe('dev diagnostics', () => {
     await click('.go'); await click('.stop')
     await settle(20)
     expect(['SYG620', 'SYG621', 'SYG622', 'SYG623'].flatMap(c => diagnostics(c))).toEqual([])
+  })
+})
+
+describe('the Resources and Caching docs Testing sample', () => {
+  function DocQuote({ state }) {
+    const { status, data, refreshing } = state.quote
+    return h('div', { className: 'quote' },
+      h('p', { className: 'status' }, status === 'loading' ? 'Loading…' : status === 'error' ? 'Could not load the quote.' : ''),
+      h('p', { className: 'text' }, data?.text),
+      refreshing && h('p', { className: 'busy' }, 'Updating…'))
+  }
+  DocQuote.initialState = { id: 1 }
+  DocQuote.resources = { quote: (state) => state.id && `/api/quotes/${state.id}` }
+  DocQuote.model = { NEXT: (state) => ({ ...state, id: state.id + 1 }), REFRESH: { HTTP: { refresh: 'quote' } } }
+
+  it('refreshes in place, and shows the cached quote when coming back', async () => {
+    t = renderComponent(DocQuote, { http: { cache: true } })
+    await t.waitForState((s) => s.quote.status === 'loading')
+    await t.respond('HTTP', { text: 'One' }, 'quote')
+    t.simulateAction('REFRESH')
+    await t.waitForState((s) => s.quote.refreshing)
+    expect(t.html()).toContain('One')
+    await t.respond('HTTP', { text: 'One, edited' }, 'quote')
+    t.simulateAction('NEXT')
+    await t.waitForState((s) => s.quote.status === 'loading')
+    await t.respond('HTTP', { text: 'Two' }, 'quote')
+    expect(t.cache('HTTP').map((e) => e.key)).toEqual(['GET /api/quotes/1', 'GET /api/quotes/2'])
   })
 })

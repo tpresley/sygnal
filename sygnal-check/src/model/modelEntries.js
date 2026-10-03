@@ -149,10 +149,11 @@ export function connectionNames(project, file, node, keys = CONNECTION_KEYS) {
  *   eventsDynamic: Array<{ node, file }>,
  *   replyTargets: Array<{ name, key, sink, action, node, file }>,   // ok/error names of requests
  *   replyDynamic: Array<{ node, file }>,
+ *   requests: Array<{ node, file, sink, action }>,   // object literals non-STATE sinks return (PLAN-3 5-3)
  * }}
  */
 export function analyzeModel(project, file, modelNode) {
-  const res = { known: true, entries: [], nextTargets: [], dynamicNext: [], eventsEmitted: [], eventsDynamic: [], replyTargets: [], replyDynamic: [] }
+  const res = { known: true, entries: [], nextTargets: [], dynamicNext: [], eventsEmitted: [], eventsDynamic: [], replyTargets: [], replyDynamic: [], requests: [] }
   const r = resolveExpr(project, file, modelNode)
   const obj = r?.node
   if (!obj || obj.type !== 'ObjectExpression') { res.known = false; return res }
@@ -168,6 +169,7 @@ export function analyzeModel(project, file, modelNode) {
     const t = replyNames(project, mfile, valueNode)
     res.replyTargets.push(...t.targets.map(x => ({ ...x, sink, action })))
     res.replyDynamic.push(...t.dynamic)
+    res.requests.push(...returnedObjects(project, mfile, valueNode).map(o => ({ ...o, sink, action })))
   }
 
   for (const p of obj.properties) {

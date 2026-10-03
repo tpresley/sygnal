@@ -28,7 +28,7 @@
  * (window.__SYGNAL_DEVTOOLS__, which is getDevTools()) once it exists.
  */
 import type {DiagnosticCheck} from '../index'
-import type {InspectGraph, InspectComponent, InspectOptions, InspectSelector, InspectDiagnostic, InspectChild} from './public'
+import type {InspectGraph, InspectComponent, InspectOptions, InspectSelector, InspectDiagnostic, InspectChild, InspectResource} from './public'
 import {bridge, onReset, nameOf, isPlainObject, BUILTIN_ACTIONS, replySeen} from './shared'
 import {checkEventBus} from './events'
 import {selectorStatus} from './dom'
@@ -184,6 +184,32 @@ function stateKeysOf(c: any, calculated: string[]): string[] {
   return isPlainObject(s) ? Object.keys(s).filter(k => !calculated.includes(k)) : []
 }
 
+/** PLAN-3 5-3: the instance's resources (`resources` static) and their state slots */
+function resourcesOf(c: any): InspectResource[] | undefined {
+  const res = c && c.view && c.view.resources
+  if (!res || typeof res !== 'object') return undefined
+  const s = c.currentState || {}
+  return Object.keys(res).map(name => {
+    const r = s[name] || {}
+    return {name, status: r.status ?? 'idle', refreshing: !!r.refreshing, hasData: r.data !== undefined, error: r.error ? String(r.error.message ?? r.error) : undefined}
+  })
+}
+
+/** PLAN-3 5-3: the cache entries of every makeFetchDriver source the instances use, by sink name (sinks with an empty cache left out) */
+function cacheOf(recs: Rec[]): InspectGraph['cache'] {
+  const out: NonNullable<InspectGraph['cache']> = {}
+  for (const r of recs) {
+    const sources = r.instance && r.instance.sources
+    if (!sources || typeof sources !== 'object') continue
+    for (const k of Object.keys(sources)) {
+      const src = sources[k]
+      if (out[k] || !src || src.__sygnalStatic !== 'resources' || typeof src.__inspect !== 'function') continue
+      try { const list = src.__inspect().cache; if (list.length) out[k] = list } catch (_) { /* a driver without the cache listing */ }
+    }
+  }
+  return out
+}
+
 /**
  * renderComponent's mock DOM (src/extra/testing.ts passes its listener registry):
  * listener paths are the select() chain with isolation scopes as '.___<scope>' entries;
@@ -285,9 +311,11 @@ export function inspect(options: InspectOptions = {}): InspectGraph {
       children: childrenOf(r, all),
       selectors: selectorsOf(r, options, diags),
       diagnostics: diags.filter(d => d && d.component === r.name).map(slim),
+      ...(resourcesOf(c) ? {resources: resourcesOf(c)} : {}),
     }
   })
 
+  const cache = cacheOf(recs) || {}
   const events: InspectGraph['events'] = {}
   const ev = (type: string) => events[type] || (events[type] = {emitters: [], selectors: []})
   const add = (list: string[], name: string) => { if (!list.includes(name)) list.push(name) }
@@ -304,6 +332,7 @@ export function inspect(options: InspectOptions = {}): InspectGraph {
     components,
     events,
     diagnostics: diags.filter(d => d && (!d.component || !names.has(d.component))).map(slim),
+    ...(Object.keys(cache).length ? {cache} : {}),
   }
 }
 
