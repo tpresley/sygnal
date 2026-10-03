@@ -104,7 +104,9 @@ function _switchable(
       .map(([n, o]: any) => (page.shown = (page.own = n == name) && o))
       .remember();
     // `state` stays as the marker inspect() uses for a Switchable's components
-    page.make = () => factory(st ? {...sources, __switchPage: page, state: st, [stateSourceName]: st} : {...sources, __switchPage: page});
+    // PLAN-4 GS-9: each page's uid is the Switchable's + the page name
+    const u = sources.__uid + '-' + name;
+    page.make = () => factory(st ? {...sources, __switchPage: page, __uid: u, state: st, [stateSourceName]: st} : {...sources, __switchPage: page, __uid: u});
     page.sinks = page.make();
     return page;
   });

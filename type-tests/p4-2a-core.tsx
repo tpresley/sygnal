@@ -4,7 +4,7 @@
  */
 import { describe, it, expectTypeOf } from 'vitest'
 import { run, renderComponent, renderToString } from 'sygnal'
-import type { AppErrorHook, AppErrorInfo, AppErrorPhase, RunOptions, RenderOptions, RenderToStringOptions } from 'sygnal'
+import type { AppErrorHook, AppErrorInfo, AppErrorPhase, RunOptions, RenderOptions, RenderToStringOptions, Component, UidFunction, ViewProps } from 'sygnal'
 
 describe('GS-11: onError', () => {
   it('has the phase union, incl. the reserved widget phase (D105)', () => {
@@ -31,5 +31,23 @@ describe('GS-11: onError', () => {
     // @ts-expect-error not a phase
     const bad: AppErrorPhase = 'render'
     void bad
+  })
+})
+
+describe('GS-9: uid', () => {
+  it('is on the view props and the reducer props', () => {
+    expectTypeOf<ViewProps['uid']>().toEqualTypeOf<UidFunction>()
+    expectTypeOf<ReturnType<UidFunction>>().toEqualTypeOf<string>()
+    type S = { email: string }
+    const Signup: Component<S, {}, any, { SET: string }> = ({ state, uid }) => (
+      <p><label for={uid('email')}>Email</label><input id={uid('email')} value={state.email} /></p>
+    )
+    Signup.model = {
+      SET: (state, email, _next, props) => {
+        expectTypeOf(props.uid).toEqualTypeOf<UidFunction>()
+        return { ...state, email }
+      },
+    }
+    void Signup
   })
 })

@@ -130,7 +130,8 @@ export function makeCollection<S, So = any, Si = any>(
               const itemComp = opts.itemFactory
                 ? opts.itemFactory(nextState[i], i)
                 : opts.item;
-              const sinks: any = isolate(itemComp, scopes)(sources);
+              // PLAN-4 GS-9: an item's uid is the Collection's + its key
+              const sinks: any = isolate(itemComp, scopes)({...sources, __uid: sources.__uid + '-' + key});
               dict.set(key, sinks);
               nextInstArray[i] = sinks;
             } else {

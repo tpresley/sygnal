@@ -37,9 +37,16 @@ type ComponentProps<STATE, PROPS, CONTEXT> = (
   peers: { [peer: string]: JSX.Element | JSX.Element[] }
 ) => JSX.Element
 
-/** The first argument of a component's view: its props plus `state`, `context`, `children` and `slots`. */
+/**
+ * PLAN-4 GS-9: `uid()` is a stable id string for this component instance (from its position in
+ * the tree: the same in renderToString and after hydration); `uid('name')` derives one from it,
+ * e.g. `<input id={uid('email')} />` with `<label for={uid('email')}>`.
+ */
+export type UidFunction = (name?: string) => string
+
+/** The first argument of a component's view: its props plus `state`, `context`, `children`, `slots` and `uid`. */
 export type ViewProps<STATE = any, PROPS = {}, CONTEXT = {}> =
-  PROPS & { state: STATE; context: CONTEXT; children?: JSX.Element | JSX.Element[]; slots?: Record<string, JSX.Element[]> }
+  PROPS & { state: STATE; context: CONTEXT; children?: JSX.Element | JSX.Element[]; slots?: Record<string, JSX.Element[]>; uid: UidFunction }
 
 /**
  * The `state` prop a parent passes to a sub-component in JSX: the name of a field of the
@@ -56,9 +63,9 @@ export type ElementProps<PROPS> =
   : 'state' extends keyof PROPS ? WithoutViewOnlyProps<PROPS> & { state?: StateProp }
   : PROPS
 
-/** PROPS without `state`, `context` and `slots` (keeps optionality and index signatures, unlike Omit). */
+/** PROPS without `state`, `context`, `slots` and `uid` (keeps optionality and index signatures, unlike Omit). */
 type WithoutViewOnlyProps<PROPS> = {
-  [KEY in keyof PROPS as KEY extends 'state' | 'context' | 'slots' ? never : KEY]: PROPS[KEY]
+  [KEY in keyof PROPS as KEY extends 'state' | 'context' | 'slots' | 'uid' ? never : KEY]: PROPS[KEY]
 }
 
 type NextFunction<ACTIONS = any> = ACTIONS extends object
@@ -69,7 +76,7 @@ type NextFunction<ACTIONS = any> = ACTIONS extends object
     ) => void
   : (action: string, data?: any, delay?: number) => void
 
-type ReducerExtras<PROPS, CONTEXT> = PROPS & { context: CONTEXT; children?: JSX.Element | JSX.Element[]; slots?: Record<string, JSX.Element[]> }
+type ReducerExtras<PROPS, CONTEXT> = PROPS & { context: CONTEXT; children?: JSX.Element | JSX.Element[]; slots?: Record<string, JSX.Element[]>; uid: UidFunction }
 
 type Reducer<STATE, PROPS, ACTIONS = any, DATA = any, RETURN = any, CONTEXT = {}> = (
   state: STATE,

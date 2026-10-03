@@ -187,6 +187,7 @@ class Component {
   _idle?: any;
   _activeSubComponents: Map<string, any>;
   _childReadyState: Record<string, boolean>;
+  _uid!: (name?: string) => string;
   _readyChanged$: any;
   _readyChangedListener: any;
 
@@ -398,6 +399,12 @@ class Component {
       stop: () => {},
     })
     this.sources.dispose$ = this._dispose$
+    // PLAN-4 GS-9: uid(name?) from the instance's position: the parent sets sources.__uid (its uid
+    // + the child's path or id prop, + a Collection item's key, + a Switchable page name); 'u' at
+    // the root. Anything but [A-Za-z0-9_-] becomes '_' ('Name::r.0.2' → 'u-0_2'). renderToString
+    // builds the same strings (ssr.ts)
+    const base = (sources.__uid || 'u').replace(/[^\w-]+/g, '_')
+    this._uid = (n?: string) => n ? base + '-' + n : base
 
     this.addCalculated = this.createMemoizedAddCalculated()
     this.log = makeLog(`${this._componentNumber} | ${name}`)
@@ -871,7 +878,7 @@ class Component {
         const { props, state, children, slots, context, ...peers }: any = params
         const { sygnalFactory, sygnalOptions, ...sanitizedProps}: any = props || {}
         try {
-          return this.view({ ...sanitizedProps, state, children, slots: slots || {}, context, peers }, state, context, peers)
+          return this.view({ ...sanitizedProps, state, children, slots: slots || {}, context, peers, uid: this._uid }, state, context, peers)
         } catch (err) {
           const error = err instanceof Error ? err : new Error(String(err))
           let fallback: any = { sel: 'div', data: { attrs: { 'data-sygnal-error': this.name } }, children: [] }
@@ -961,7 +968,7 @@ class Component {
             this.log(`<${name}> Triggered a next() action: <${type}> ${delay}ms delay`, true)
           }
 
-          const props = { ...this.currentProps, children: this.currentChildren, slots: this.currentSlots || {}, context: this.currentContext }
+          const props = { ...this.currentProps, children: this.currentChildren, slots: this.currentSlots || {}, context: this.currentContext, uid: this._uid }
 
           let data = action.data
           if (isStateSink) {
@@ -1051,7 +1058,7 @@ class Component {
           const enhancedState = this.addCalculated(STATE_SNAPSHOT in action ? action[STATE_SNAPSHOT] : this.currentState)
           // 1-B: signal (EFFECT only) aborts on DISPOSE; one controller per instance, made on
           // the first EFFECT, skipped where AbortController is missing
-          const props = { ...this.currentProps, children: this.currentChildren, slots: this.currentSlots || {}, context: this.currentContext, state: enhancedState, signal: (this._ac ||= globalThis.AbortController && new AbortController())?.signal }
+          const props = { ...this.currentProps, children: this.currentChildren, slots: this.currentSlots || {}, context: this.currentContext, uid: this._uid, state: enhancedState, signal: (this._ac ||= globalThis.AbortController && new AbortController())?.signal }
           const result = reducer(enhancedState, action.data, next, props)
           // 1-B: a returned thenable (async EFFECT) is expected; its rejection is SYG214
           if (result?.then) result.then(null, failed)
@@ -1245,6 +1252,8 @@ class Component {
 
         let sink$
         try {
+          // GS-9: the child's uid: this uid + its path or id prop (read by its constructor)
+          this.sources.__uid = this._uid(id.replace(/.*::(r\.)?/, ''))
           sink$ = (isCollection ? this.instantiateCollection : isSwitchable ? this.instantiateSwitchable : this.instantiateCustomComponent).call(this, el, props$, children$)
         } catch (err) {
           const error = err instanceof Error ? err : new Error(String(err))

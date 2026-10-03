@@ -124,6 +124,16 @@ function withResources(def: any, state: any): any {
   return out
 }
 
+// PLAN-4 GS-9: uid(name?) as on the client: the root is 'u'; a child component adds its path in
+// the parent's view (or its `id` prop), as getComponentIdFromElement and instantiateSubComponents
+// in component.ts do; a Collection item adds its key, a Switchable page its name; anything but
+// [A-Za-z0-9_-] becomes '_' (the Component constructor). SSR ids = hydration ids
+const makeUid = (base: string) => (base = base.replace(/[^\w-]+/g, '_'), (n?: string) => n ? base + '-' + n : base)
+function childUid(uid: string, vnode: any, path: string): string {
+  const id = vnode.data?.props?.id
+  return uid + '-' + ('::' + ((id && JSON.stringify(id).replaceAll('"', '')) || path)).replace(/.*::(r\.)?/, '')
+}
+
 const errorDiv = (): any => ({sel: 'div', data: {attrs: {'data-sygnal-error': ''}}, children: [], text: undefined, elm: undefined, key: undefined})
 
 /**
@@ -211,6 +221,7 @@ function renderRoot(componentDef: any, options: RenderToStringOptions): string {
       slots: props.slots || {},
       context: mergedContext,
       peers: {},
+      uid: makeUid('u'),
     }, resolvedState, mergedContext, {})
   } catch (err: any) {
     // Error boundary
@@ -222,7 +233,7 @@ function renderRoot(componentDef: any, options: RenderToStringOptions): string {
   }
 
   // Process special components in the VNode tree
-  vnode = processSSRTree(vnode, mergedContext, resolvedState)
+  vnode = processSSRTree(vnode, mergedContext, resolvedState, 'u', 'r')
 
   // Serialize to HTML
   let html = vnodeToHtml(vnode)
@@ -241,7 +252,7 @@ function renderRoot(componentDef: any, options: RenderToStringOptions): string {
  * Walk the VNode tree and recursively render sub-components,
  * handle Suspense/Portal/Transition markers, and process Collections.
  */
-function processSSRTree(vnode: any, context: Record<string, any>, parentState?: any): any {
+function processSSRTree(vnode: any, context: Record<string, any>, parentState: any, uid: string, path: string): any {
   if (!vnode) return vnode
   if (typeof vnode === 'string' || vnode.text != null) return vnode
 
@@ -250,7 +261,7 @@ function processSSRTree(vnode: any, context: Record<string, any>, parentState?: 
   // Fragment: no selector, recurse into children
   if (!sel && vnode.children && Array.isArray(vnode.children)) {
     vnode.children = vnode.children
-      .map((c: any) => processSSRTree(c, context, parentState))
+      .map((c: any, i: number) => processSSRTree(c, context, parentState, uid, `${path}.${i}`))
       .filter((c: any) => c != null)
     return vnode
   }
@@ -259,11 +270,11 @@ function processSSRTree(vnode: any, context: Record<string, any>, parentState?: 
   if (sel === 'portal') {
     const children = vnode.children || []
     if (children.length === 0) return null
-    if (children.length === 1) return processSSRTree(children[0], context, parentState)
+    if (children.length === 1) return processSSRTree(children[0], context, parentState, uid, `${path}.0`)
     return {
       sel: 'div',
       data: {attrs: {'data-sygnal-portal': ''}},
-      children: children.map((c: any) => processSSRTree(c, context, parentState)),
+      children: children.map((c: any, i: number) => processSSRTree(c, context, parentState, uid, `${path}.${i}`)),
       text: undefined,
       elm: undefined,
       key: undefined,
@@ -275,18 +286,18 @@ function processSSRTree(vnode: any, context: Record<string, any>, parentState?: 
     const children = vnode.children || []
     const child = children[0]
     if (!child) return null
-    return processSSRTree(child, context, parentState)
+    return processSSRTree(child, context, parentState, uid, path)
   }
 
   // Suspense: render children (SSR always shows content, not fallback)
   if (sel === 'suspense') {
     const children = vnode.children || []
     if (children.length === 0) return null
-    if (children.length === 1) return processSSRTree(children[0], context, parentState)
+    if (children.length === 1) return processSSRTree(children[0], context, parentState, uid, `${path}.0`)
     return {
       sel: 'div',
       data: {attrs: {'data-sygnal-suspense': 'resolved'}},
-      children: children.map((c: any) => processSSRTree(c, context, parentState)),
+      children: children.map((c: any, i: number) => processSSRTree(c, context, parentState, uid, `${path}.${i}`)),
       text: undefined,
       elm: undefined,
       key: undefined,
@@ -299,7 +310,7 @@ function processSSRTree(vnode: any, context: Record<string, any>, parentState?: 
     const fallback = props.fallback
     if (fallback) {
       // fallback can be a VNode or a string
-      return processSSRTree(fallback, context, parentState)
+      return processSSRTree(fallback, context, parentState, uid, path)
     }
     // No fallback — render an empty placeholder div
     return {
@@ -316,11 +327,11 @@ function processSSRTree(vnode: any, context: Record<string, any>, parentState?: 
   if (sel === 'slot') {
     const children = vnode.children || []
     if (children.length === 0) return null
-    if (children.length === 1) return processSSRTree(children[0], context, parentState)
+    if (children.length === 1) return processSSRTree(children[0], context, parentState, uid, `${path}.0`)
     return {
       sel: 'div',
       data: {},
-      children: children.map((c: any) => processSSRTree(c, context, parentState)),
+      children: children.map((c: any, i: number) => processSSRTree(c, context, parentState, uid, `${path}.${i}`)),
       text: undefined,
       elm: undefined,
       key: undefined,
@@ -330,17 +341,17 @@ function processSSRTree(vnode: any, context: Record<string, any>, parentState?: 
   // Sub-component: render recursively
   const props = vnode.data?.props || {}
   if (props.sygnalOptions || typeof props.sygnalFactory === 'function') {
-    return renderSubComponent(vnode, context, parentState)
+    return renderSubComponent(vnode, context, parentState, childUid(uid, vnode, path))
   }
 
   // Collection: render each item
   if (sel === 'collection') {
-    return renderCollection(vnode, context, parentState)
+    return renderCollection(vnode, context, parentState, childUid(uid, vnode, path))
   }
 
   // Switchable: render the active component
   if (sel === 'switchable') {
-    return renderSwitchable(vnode, context, parentState)
+    return renderSwitchable(vnode, context, parentState, childUid(uid, vnode, path))
   }
 
   // Regular element: recurse into children
@@ -348,12 +359,12 @@ function processSSRTree(vnode: any, context: Record<string, any>, parentState?: 
     if (Array.isArray(vnode.children)) {
       if (vnode.children.length > 0) {
         vnode.children = vnode.children
-          .map((c: any) => processSSRTree(c, context, parentState))
+          .map((c: any, i: number) => processSSRTree(c, context, parentState, uid, `${path}.${i}`))
           .filter((c: any) => c != null)
       }
     } else if (vnode.children && typeof vnode.children === 'object') {
       // Single child object (text element)
-      vnode.children = processSSRTree(vnode.children, context, parentState)
+      vnode.children = processSSRTree(vnode.children, context, parentState, uid, `${path}.0`)
     }
   }
 
@@ -363,7 +374,7 @@ function processSSRTree(vnode: any, context: Record<string, any>, parentState?: 
 /**
  * Render a sub-component (identified by sygnalOptions or sygnalFactory in props).
  */
-function renderSubComponent(vnode: any, context: Record<string, any>, parentState?: any): any {
+function renderSubComponent(vnode: any, context: Record<string, any>, parentState: any, uid: string): any {
   const props = vnode.data?.props || {}
   const {sygnalOptions, sygnalFactory, ...childProps} = props
 
@@ -461,6 +472,7 @@ function renderSubComponent(vnode: any, context: Record<string, any>, parentStat
       slots,
       context: childContext,
       peers: {},
+      uid: makeUid(uid),
     }, childState, childContext, {})
   } catch (err: any) {
     result = viewFailed(componentDef, err, componentDef.componentName || componentDef.name || 'Component')
@@ -471,15 +483,15 @@ function renderSubComponent(vnode: any, context: Record<string, any>, parentStat
   }
 
   // Recursively process the rendered sub-tree
-  return processSSRTree(result, childContext, childState)
+  return processSSRTree(result, childContext, childState, uid, 'r')
 }
 
 /**
  * Render a Collection by iterating over the state array.
  */
-function renderCollection(vnode: any, context: Record<string, any>, parentState?: any): any {
+function renderCollection(vnode: any, context: Record<string, any>, parentState: any, uid: string): any {
   const props = vnode.data?.props || {}
-  const {of: itemComponent, from, className} = props
+  const {of: itemComponent, from, className, idfield: idField = 'id'} = props
 
   if (!itemComponent || !from || !parentState) {
     return {sel: 'div', data: {}, children: [], text: undefined, elm: undefined, key: undefined}
@@ -491,6 +503,11 @@ function renderCollection(vnode: any, context: Record<string, any>, parentState?
   }
 
   const renderedItems = items.map((itemState: any, index: number) => {
+    // GS-9: the key the client's Collection gives this item (instantiateCollection's lens, then
+    // the collection's itemKey)
+    const isItemObj = itemState && typeof itemState === 'object' && !Array.isArray(itemState)
+    const keyed: any = isItemObj ? {...itemState, [idField]: itemState[idField] || index} : {[idField]: index}
+    const itemUid = uid + '-' + (keyed.id !== undefined ? keyed.id : index)
     // Build context for this item
     const itemContext: Record<string, any> = {...context}
     const componentContext = itemComponent.context || {}
@@ -511,12 +528,13 @@ function renderCollection(vnode: any, context: Record<string, any>, parentState?
         slots: {},
         context: itemContext,
         peers: {},
+        uid: makeUid(itemUid),
       }, itemState, itemContext, {})
     } catch (err: any) {
       itemVnode = viewFailed(itemComponent, err, itemComponent.name || 'CollectionItem')
     }
 
-    return processSSRTree(itemVnode, itemContext, itemState)
+    return processSSRTree(itemVnode, itemContext, itemState, itemUid, 'r')
   }).filter((v: any) => v != null)
 
   const containerData: any = {}
@@ -537,7 +555,7 @@ function renderCollection(vnode: any, context: Record<string, any>, parentState?
 /**
  * Render a Switchable by determining the active component from state.
  */
-function renderSwitchable(vnode: any, context: Record<string, any>, parentState?: any): any {
+function renderSwitchable(vnode: any, context: Record<string, any>, parentState: any, uid: string): any {
   const props = vnode.data?.props || {}
   const {components, active, initial} = props
 
@@ -567,13 +585,13 @@ function renderSwitchable(vnode: any, context: Record<string, any>, parentState?
     return {sel: 'div', data: {}, children: [], text: undefined, elm: undefined, key: undefined}
   }
 
-  return renderToStringInternal(activeComponent, parentState, context)
+  return renderToStringInternal(activeComponent, parentState, context, uid + '-' + activeName)
 }
 
 /**
  * Internal helper: render a component def to a VNode (not HTML string).
  */
-function renderToStringInternal(componentDef: any, state: any, context: Record<string, any>): any {
+function renderToStringInternal(componentDef: any, state: any, context: Record<string, any>, uid: string): any {
   const resolvedState = withResources(componentDef, state !== undefined ? state : componentDef.initialState)
 
   const componentContext = componentDef.context || {}
@@ -596,6 +614,7 @@ function renderToStringInternal(componentDef: any, state: any, context: Record<s
       slots: {},
       context: mergedContext,
       peers: {},
+      uid: makeUid(uid),
     }, resolvedState, mergedContext, {})
   } catch (err: any) {
     vnode = viewFailed(componentDef, err, componentDef.name || 'Component')
@@ -605,7 +624,7 @@ function renderToStringInternal(componentDef: any, state: any, context: Record<s
     vnode = {sel: 'div', data: {}, children: [], text: undefined, elm: undefined, key: undefined}
   }
 
-  return processSSRTree(vnode, mergedContext, resolvedState)
+  return processSSRTree(vnode, mergedContext, resolvedState, uid, 'r')
 }
 
 /**
