@@ -168,6 +168,31 @@ export default [
 		]
   },
 
+  // 'sygnal/element' (PLAN-4 GS-13, D127): defineElement. Its './index' import becomes the
+  // external 'sygnal', so the entry adds 0 B to the core bundle. ES2022: native #private
+  // fields and a static block (custom elements need a modern browser anyway).
+  {
+    input: 'src/element.ts',
+    external: (id) => isExternal(id) || id === 'sygnal',
+    output: [
+      { file: pkg.exports['./element'].require, format: 'cjs', ...sourcemapOptions },
+      { file: pkg.exports['./element'].import, format: 'es', ...sourcemapOptions }
+    ],
+		plugins: [
+			{
+				name: 'sygnal-element-core-external',
+				resolveId(source, importer) {
+					if (source === './index' && importer && /[\\/]src[\\/]element\.ts$/.test(importer)) {
+						return { id: 'sygnal', external: true }
+					}
+					return null
+				},
+			},
+			typescript({ tsconfig: './tsconfig.json', compilerOptions: { target: 'ES2022' } }),
+			resolve({ extensions: ['.mjs', '.js', '.ts', '.json'] }),
+		]
+  },
+
   // sygnal/vite aliases xstream's `globalthis` dependency to this stub (G-099).
   // CommonJS: xstream require()s it. `exports: 'default'` → module.exports = fn.
   {

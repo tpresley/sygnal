@@ -1,0 +1,10 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>p2 plain page</title></head>
+<body>
+  <task-board id="tb" heading="plain" tasks='[{"id":"p","name":"Plain"}]'></task-board>
+  <p id="picked"></p>
+  <script type="module">
+    import './src/elements.js'
+    document.addEventListener('task-picked', (e) => { document.getElementById('picked').textContent = e.detail.id })
+  </script>
+</body></html>

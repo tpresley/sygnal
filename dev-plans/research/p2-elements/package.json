@@ -1,0 +1,19 @@
+{
+  "name": "p2-elements-scratch",
+  "private": true,
+  "type": "module",
+  "description": "PLAN-4 P-2/P-2b: sygnal/element inside a React 19 app (built) and a Vite-dev HMR check (sygnal/vite injects the accept). Scratch only, not part of npm test: npm install; npm test; npm run hmr",
+  "scripts": {
+    "test": "node run.mjs",
+    "hmr": "node hmr.mjs"
+  },
+  "dependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "sygnal": "file:../../.."
+  },
+  "devDependencies": {
+    "playwright": "1.58.2",
+    "vite": "^6.4.1"
+  }
+}

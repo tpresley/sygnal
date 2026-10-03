@@ -5,8 +5,8 @@ Reactive component framework built on Cycle.js patterns. All source is TypeScrip
 ## Build & Test
 
 ```bash
-npm run build          # Rollup → dist/ (15 inputs: core UMD/CJS/ESM, JSX runtimes, sygnal/diagnostics,
-                       #   sygnal/devtools, sygnal/vite, Astro, Vike) + bundled .d.ts
+npm run build          # Rollup → dist/ (16 inputs: core UMD/CJS/ESM, JSX runtimes, sygnal/diagnostics,
+                       #   sygnal/devtools, sygnal/element, sygnal/vite, Astro, Vike) + bundled .d.ts
 npm run build:all      # same as build (kept for prepublishOnly)
 npm test               # the full gate, in order:
                        #   vitest run          library tests in test/ (1,546)
