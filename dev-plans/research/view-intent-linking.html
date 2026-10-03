@@ -1,0 +1,323 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>View–Intent Linking Options</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column; options shown as side-by-side "view | intent" code pairs on the same example, then a comparison matrix. */
+:root {
+  --bg: #f4f6f8; --surface: #ffffff; --fg: #18212c; --muted: #5a6776; --line: #d9dfe6;
+  --accent: #0f6a86; --accent-soft: #e2f0f4; --code-bg: #eef2f5;
+  --good: #1d7a46; --good-bg: #e3f3e9; --mid: #9a6400; --mid-bg: #fbf0d9; --bad: #8a3b3b; --bad-bg: #f6e4e4;
+  --f-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11161c; --surface: #18202a; --fg: #e3e9ef; --muted: #9aa8b6; --line: #2a3542;
+    --accent: #5cc0dc; --accent-soft: #15303a; --code-bg: #0d1218;
+    --good: #6fd39a; --good-bg: #143323; --mid: #e7b453; --mid-bg: #352812; --bad: #e09a9a; --bad-bg: #361c1e;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11161c; --surface: #18202a; --fg: #e3e9ef; --muted: #9aa8b6; --line: #2a3542;
+  --accent: #5cc0dc; --accent-soft: #15303a; --code-bg: #0d1218;
+  --good: #6fd39a; --good-bg: #143323; --mid: #e7b453; --mid-bg: #352812; --bad: #e09a9a; --bad-bg: #361c1e;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--f-body); font-size: 15.5px; line-height: 1.6; }
+.wrap { max-width: 980px; margin: 0 auto; padding-inline: 20px; padding-block: 40px 80px; }
+.prose { max-width: 70ch; }
+h1, h2, h3 { font-family: var(--f-display); text-wrap: balance; line-height: 1.15; margin: 0; }
+h1 { font-size: clamp(2rem, 5vw, 2.8rem); font-weight: 700; }
+h2 { font-size: 1.55rem; font-weight: 700; margin-top: 52px; margin-bottom: 12px; }
+h3 { font-size: 1.2rem; font-weight: 700; }
+p { margin: 0 0 12px; }
+a { color: var(--accent); }
+code { font-family: var(--f-mono); font-size: 0.86em; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+pre { font-family: var(--f-mono); font-size: 12.8px; line-height: 1.55; background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; overflow-x: auto; margin: 6px 0 12px; }
+pre code { background: none; padding: 0; font-size: inherit; }
+.eyebrow { font-size: 12px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); font-weight: 600; }
+.lede { font-size: 1.1rem; margin-top: 14px; }
+.meta { color: var(--muted); font-size: 0.92rem; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-top: 22px; }
+.stats div { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; }
+.stats b { display: block; font-family: var(--f-display); font-size: 1.7rem; font-variant-numeric: tabular-nums; }
+.stats span { color: var(--muted); font-size: 0.9rem; }
+.opt { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 18px 20px; margin-top: 18px; min-width: 0; }
+.opt.rec { border: 2px solid var(--accent); }
+.opt-head { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: baseline; }
+.opt-head .id { font-family: var(--f-mono); color: var(--muted); font-size: 13px; }
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px; }
+.pair > div { min-width: 0; }
+@media (max-width: 760px) { .pair { grid-template-columns: 1fr; } }
+.label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); font-weight: 600; margin: 10px 0 2px; }
+.opt ul { margin: 4px 0 8px; padding-left: 20px; }
+.opt li { margin: 2px 0; }
+.chip { display: inline-block; font-size: 11.5px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.c-good { color: var(--good); background: var(--good-bg); }
+.c-mid { color: var(--mid); background: var(--mid-bg); }
+.c-bad { color: var(--bad); background: var(--bad-bg); }
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); margin-top: 12px; }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; min-width: 860px; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 600; }
+tr:last-child td { border-bottom: 0; }
+td.y { color: var(--good); } td.m { color: var(--mid); } td.n { color: var(--bad); }
+tr.hl td { background: var(--accent-soft); }
+.recbox { margin-top: 12px; padding: 12px 16px; background: var(--accent-soft); border-radius: 6px; }
+.ruled { border-left: 4px solid var(--line); padding: 4px 0 4px 14px; margin-top: 18px; }
+footer { margin-top: 60px; border-top: 1px solid var(--line); padding-top: 16px; color: var(--muted); font-size: 0.9rem; }
+</style>
+
+<div class="wrap">
+  <div class="eyebrow">Design exploration · 6.0.0 · 2 October 2026</div>
+  <h1>View–Intent Linking Options</h1>
+  <p class="lede prose">Today a view and its intent are linked by a CSS class written twice: <code>className="inc"</code> in the view and <code>DOM.click('.inc')</code> in the intent. This page measures how that link is used in practice, shows six alternatives on the same component, and recommends one. Every option keeps actions defined only in <code>.intent</code> and puts no handlers in the view.</p>
+  <p class="meta">Hard constraint, from PLAN-1 §0: the view never names an action. That rules out <code>&lt;button action:click="X"&gt;</code> and its relatives, which are discussed separately at the end.</p>
+
+  <h2>What the code actually does</h2>
+  <p class="prose">I parsed the Sygnal code from the final Opus eval (<code>p4-final2</code>, 105 trials) and the Haiku eval (<code>p4-haiku2</code>), plus the 11 repo examples. Each intent selector was resolved to the JSX element it targets.</p>
+  <div class="stats">
+    <div><b>96–99%</b><span>of intent targets are form controls (<code>button</code>, <code>input</code>, <code>textarea</code>, <code>select</code>, <code>form</code>): 292/303 Opus, 285/294 Haiku, 67/68 examples. The rest are mostly <code>span</code>.</span></div>
+    <div><b>81%</b><span>of class names in agent intents are the action name re-spelled: <code>INC</code> ← <code>.inc</code>, <code>ADD_TASK</code> ← <code>.add-task</code> (66% exact, 15% a near match). The second vocabulary is mostly redundant.</span></div>
+    <div><b>38%</b><span>of intent classes in the examples are also styling hooks (26/68), so renaming a style can silently unwire an action. The eval tasks have no CSS, so this can't be measured there.</span></div>
+    <div><b>0</b><span>complex selectors in agent code. Every selector is a single <code>.class</code>, <code>[attr]</code> or <code>document</code>. Full CSS selector power is unused.</span></div>
+  </div>
+  <p class="prose" style="margin-top:14px">Three conclusions follow:</p>
+  <ul class="prose">
+    <li>The link is almost always "this one control". It isn't a query.</li>
+    <li>People already name the control after the action, so the second vocabulary adds little.</li>
+    <li>The class doing double duty as style hook and wiring hook is a real hazard in hand-written apps.</li>
+  </ul>
+  <p class="prose">The cognitive load comes from two sources. The link is a <em>string by convention</em>, so nothing in the language connects its two ends. And a reader of the view can't tell which elements are wired.</p>
+
+  <h2>The same component, six ways</h2>
+  <p class="prose">This is a todo item with two controls inside a Collection, plus a draft field. The status quo comes first for reference.</p>
+
+  <div class="opt">
+    <div class="opt-head"><span class="id">0</span><h3>Status quo: shared class string</h3></div>
+    <div class="pair">
+      <div><div class="label">View</div>
+<pre><code>&lt;li className="item"&gt;
+  {state.text}
+  &lt;button className="done"&gt;✓&lt;/button&gt;
+  &lt;button className="remove danger"&gt;x&lt;/button&gt;
+&lt;/li&gt;</code></pre></div>
+      <div><div class="label">Intent and test</div>
+<pre><code>Item.intent = ({ DOM }) => ({
+  DONE:   DOM.click('.done'),
+  REMOVE: DOM.click('.remove'),
+})
+t.simulateEvent('.done', 'click')</code></pre></div>
+    </div>
+    <p>A typo is caught by SYG110 (sygnal-check or the runtime), not by the editor. Renaming takes edits in three places: view, intent and tests. Agents know CSS well.</p>
+  </div>
+
+  <div class="opt">
+    <div class="opt-head"><span class="id">A</span><h3>Reserved naming prop + <code>DOM.target()</code> (your baseline)</h3><span class="chip c-mid">Works, small gain</span></div>
+    <div class="pair">
+      <div><div class="label">View</div>
+<pre><code>&lt;button ui="done"&gt;✓&lt;/button&gt;
+&lt;button ui="remove" className="danger"&gt;x&lt;/button&gt;</code></pre></div>
+      <div><div class="label">Intent</div>
+<pre><code>DONE:   DOM.target('done').events('click'),
+REMOVE: DOM.target('remove').events('click'),</code></pre></div>
+    </div>
+    <ul>
+      <li>It separates wiring from styling and marks the wired elements.</li>
+      <li>The link is still a string in two places, it adds a reserved prop and a source function, and typos are still found only by the checker.</li>
+      <li>Prior art: <code>@cycle/react</code> uses a <code>sel</code> prop and <code>select('inc')</code>, and also accepts Symbols, which points toward option D. (From memory; not re-checked.)</li>
+    </ul>
+  </div>
+
+  <div class="opt">
+    <div class="opt-head"><span class="id">B</span><h3>Native <code>name</code> attribute</h3><span class="chip c-mid">Cheap, partial</span></div>
+    <div class="pair">
+      <div><div class="label">View</div>
+<pre><code>&lt;button name="done"&gt;✓&lt;/button&gt;
+&lt;button name="remove" className="danger"&gt;x&lt;/button&gt;
+&lt;input name="draft" value={state.draft} /&gt;</code></pre></div>
+      <div><div class="label">Intent</div>
+<pre><code>DONE:  DOM.click('[name="done"]'),       // works today
+DRAFT: DOM.input({ name: 'draft' }).value(),  // possible sugar</code></pre></div>
+    </div>
+    <ul>
+      <li>It needs no new concept, since <code>name</code> is HTML and works today (experiment X6). It is valid on form-associated elements, which is 96–99% of the measured targets, and the gap is mostly clickable <code>span</code>s, an accessibility smell anyway.</li>
+      <li>It lines up with forms: PLAN-4's F-1 and <code>processForm</code> key fields by <code>name</code>.</li>
+      <li>It is option A with a native attribute: two strings, checker-only typo detection, no editor support.</li>
+    </ul>
+  </div>
+
+  <div class="opt">
+    <div class="opt-head"><span class="id">C</span><h3>Role + accessible name (Testing Library style)</h3><span class="chip c-bad">Not for wiring</span></div>
+    <div class="pair">
+      <div><div class="label">View</div>
+<pre><code>&lt;button aria-label="Mark done"&gt;✓&lt;/button&gt;
+&lt;button className="danger"&gt;Remove&lt;/button&gt;</code></pre></div>
+      <div><div class="label">Intent</div>
+<pre><code>DONE:   DOM.click({ role: 'button', label: 'Mark done' }),
+REMOVE: DOM.click({ role: 'button', label: 'Remove' }),</code></pre></div>
+    </div>
+    <ul>
+      <li>It reads best of all: the intent describes what the user sees, there is no name to invent, it forces accessible labels, and agents know <code>getByRole</code> well. A userland version passed in X6.</li>
+      <li>It breaks as soon as copy changes or the app is translated. Duplicate labels are ambiguous, a label built from state (<code>{state.x}</code>) can't be checked statically, and computing accessible names costs runtime bytes in both the real and the mock DOM.</li>
+      <li>It belongs in tests (G-14), not in wiring.</li>
+    </ul>
+  </div>
+
+  <div class="opt rec">
+    <div class="opt-head"><span class="id">D</span><h3>Element tokens used as JSX tags ("controls")</h3><span class="chip c-good">Recommended</span></div>
+    <div class="pair">
+      <div><div class="label">View</div>
+<pre><code>import { controls } from 'sygnal'
+const { Done, Remove } = controls({ Done: 'button', Remove: 'button' })
+
+function Item({ state }) {
+  return (
+    &lt;li className="item"&gt;
+      {state.text}
+      &lt;Done&gt;✓&lt;/Done&gt;
+      &lt;Remove className="danger"&gt;x&lt;/Remove&gt;
+    &lt;/li&gt;
+  )
+}</code></pre></div>
+      <div><div class="label">Intent and test</div>
+<pre><code>Item.intent = ({ DOM }) => ({
+  DONE:   DOM.click(Done),
+  REMOVE: DOM.click(Remove),
+})
+
+// renders &lt;button data-control="Done"&gt;✓&lt;/button&gt;
+t.simulateEvent(Done, 'click')
+expect(t.query(Remove).className).toBe('danger')</code></pre></div>
+    </div>
+    <div class="label">Why it is better</div>
+    <ul>
+      <li><b>The link is a variable, not a string.</b> A typo is a <code>ReferenceError</code> at import time or a TS error in the editor. Go to definition, find references and rename across view, intent and tests come free from the TypeScript language service, with no Sygnal tooling.</li>
+      <li><b>The view shows what's wired.</b> Capitalized control tags stand out from static markup, so a reader can see every interactive element without opening the intent.</li>
+      <li><b>Styling is decoupled.</b> <code>className</code> goes back to being style-only, which removes the 38% double-duty hazard.</li>
+      <li><b>It types the element.</b> <code>controls({ Draft: 'input' })</code> makes <code>&lt;Draft&gt;</code> accept exactly the props an input accepts, and <code>DOM.input(Draft).value()</code> knows it's an input.</li>
+      <li><b>Nothing else changes.</b> The shorthands (<code>DOM.click</code>, <code>.value()</code>, <code>.data('id')</code>), isolation (each Collection item sees only its own <code>Done</code>), <code>document</code> selectors and SSR stay as they are. Names are given, so the attribute is deterministic and readable in HTML.</li>
+      <li><b>It fits existing habits.</b> 81% of agent code already names the element after the action, so <code>INC: DOM.click(Inc)</code> is the same habit with a checked link. The pattern resembles <code>styled.button</code>, which agents know.</li>
+    </ul>
+    <div class="label">Prototype (experiment X5)</div>
+    <p>A 15-line userland <code>controls()</code> using the pragma's fragment path rendered <code>&lt;button class="danger" data-sygnal-control="Remove"&gt;</code>. It drove a todo list with a draft input and a Collection with per-item Done/Remove, and passed in both mock and real DOM. One thing failed: today <code>DOM.select()</code> requires a string ("expects the argument to be a string as a CSS selector"), so the prototype used <code>DOM.click(Done.sel)</code>. Accepting the token is the core change.</p>
+    <div class="label">Costs and risks</div>
+    <ul>
+      <li><b>Core:</b> estimated at about 80 B gzipped, not measured. That covers a control marker in the pragma (instead of borrowing the fragment path), the DOM source and shorthands accepting a token, and <code>simulateEvent</code>/<code>query</code> accepting one.</li>
+      <li><b>One new concept,</b> and a declaration line per component. The view, intent and tests lose their string bookkeeping in exchange.</li>
+      <li><b>Capitalized tags normally mean components.</b> An agent might give <code>Done</code> an intent or state. Name the concept "controls, not components" in the docs, and diagnose <code>.intent</code>/<code>.model</code> set on a control.</li>
+      <li><b>Isolation still applies.</b> A parent that imports a child's control and listens to it never fires, the SYG104 case. The checker can now flag it exactly by identifier, rather than by CSS cross-referencing.</li>
+      <li><b>Two forms during migration.</b> Class selectors keep working as an alternative form. <code>sygnal-check --fix</code> can rewrite the 96–99% single-control cases mechanically: create the control, replace the tag, and drop the class when no CSS uses it.</li>
+    </ul>
+  </div>
+
+  <div class="opt">
+    <div class="opt-head"><span class="id">D′</span><h3>Variant: controls as a component static</h3><span class="chip c-mid">Fallback shape</span></div>
+    <div class="pair">
+      <div><div class="label">View</div>
+<pre><code>Item.controls = { Done: 'button', Remove: 'button' }
+function Item({ state, controls: { Done, Remove } }) {
+  return &lt;li&gt;{state.text} &lt;Done&gt;✓&lt;/Done&gt; &lt;Remove&gt;x&lt;/Remove&gt;&lt;/li&gt;
+}</code></pre></div>
+      <div><div class="label">Intent</div>
+<pre><code>Item.intent = ({ DOM, controls: { Done, Remove } }) => ({
+  DONE: DOM.click(Done), REMOVE: DOM.click(Remove),
+})</code></pre></div>
+    </div>
+    <p>This keeps everything in Sygnal's fixed component slots, which agents like. But it means destructuring in two signatures, it loses import-time <code>ReferenceError</code>s for typos (a missing key is just <code>undefined</code>), tests can't import the controls, and TypeScript typing needs another generic. Prefer D unless the eval shows agents struggle with the module-level declaration.</p>
+  </div>
+
+  <div class="opt">
+    <div class="opt-head"><span class="id">E</span><h3>Keep strings, add editor tooling</h3><span class="chip c-mid">Complement only</span></div>
+    <p>A TypeScript language-service plugin would give completion of view classes inside <code>DOM.click('…')</code>, go-to-definition between class and selector, cross-file rename, and inlay hints showing <code>→ DONE</code> beside each wired element. It changes no API and helps humans in an editor. It does nothing for agents, who already rely on sygnal-check, and doesn't fix the style/wiring overlap. If D is adopted, standard TS tooling makes most of this unnecessary.</p>
+  </div>
+
+  <h2>Comparison</h2>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Option</th><th>Link is</th><th>Typo caught</th><th>Rename</th><th>View shows what's wired</th><th>Style decoupled</th><th>New concepts</th><th>Agent prior</th><th>Core cost</th></tr></thead>
+    <tbody>
+      <tr><td>0 Status quo</td><td class="n">string ×2</td><td class="m">checker</td><td class="n">manual ×3</td><td class="n">no</td><td class="n">no</td><td class="y">0</td><td class="y">high (CSS)</td><td>0</td></tr>
+      <tr><td>A Reserved prop</td><td class="n">string ×2</td><td class="m">checker</td><td class="n">manual ×3</td><td class="y">yes</td><td class="y">yes</td><td class="m">2</td><td class="m">low</td><td>≈ 30 B</td></tr>
+      <tr><td>B Native <code>name</code></td><td class="n">string ×2</td><td class="m">checker</td><td class="n">manual ×3</td><td class="m">partly</td><td class="y">yes</td><td class="y">0–1</td><td class="y">high (HTML)</td><td>0–30 B</td></tr>
+      <tr><td>C Role + label</td><td class="m">visible text</td><td class="m">checker (literal labels only)</td><td class="n">copy edits break it</td><td class="m">implicit</td><td class="y">yes</td><td class="m">1</td><td class="y">very high (RTL)</td><td>≈ 0.5 KB</td></tr>
+      <tr class="hl"><td><b>D Controls</b></td><td class="y">identifier</td><td class="y">editor / import time</td><td class="y">IDE rename</td><td class="y">yes, visibly</td><td class="y">yes</td><td class="m">1</td><td class="m">medium (styled-components)</td><td>≈ 80 B</td></tr>
+      <tr><td>D′ Static</td><td class="m">property</td><td class="m">checker / TS</td><td class="m">TS rename</td><td class="y">yes</td><td class="y">yes</td><td class="m">1</td><td class="m">medium</td><td>≈ 100 B</td></tr>
+      <tr><td>E Tooling</td><td class="n">string ×2</td><td class="m">editor (plugin)</td><td class="m">plugin rename</td><td class="m">inlay hints</td><td class="n">no</td><td class="y">0</td><td class="y">high</td><td>0</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h2>Recommendation</h2>
+  <div class="recbox prose">
+    <p><b>Adopt D (controls) for 6.0, gated by an eval A/B before it becomes the canonical form.</b> It is the only option that removes the string link instead of moving it, and it does that with the language's own scoping, so humans get IDE navigation and agents get immediate errors. It is also the only option that improves both ends: the view shows what's wired, and the intent names a real, typed element.</p>
+    <p>Steps:</p>
+    <ol>
+      <li><b>Core:</b> a pragma marker for controls; <code>DOM.select</code> and every shorthand accept a control; <code>simulateEvent</code>, <code>query</code> and <code>queryAll</code> accept one. Measure the bytes against the D77 reserve.</li>
+      <li><b>Types:</b> <code>controls()</code> infers intrinsic props per tag, and enriched streams know the element type.</li>
+      <li><b>Checker:</b> a control declared but never rendered (the new SYG110), rendered but never listened to (info), listened to by a parent (SYG104 by identifier), and a control given <code>.intent</code>/<code>.model</code>. Plus <code>--fix</code> to migrate single-class selectors.</li>
+      <li><b>Eval:</b> run tasks 06, 07, 08, 12 and 16 plus the TS tier, on Opus and Haiku, with the skill rewritten to controls. Measure learn time, iterations and wiring failures. Make it canonical only if learn time doesn't rise. Task 06 ("fix selector typo") becomes a <code>ReferenceError</code>, which is itself the point.</li>
+      <li><b>Docs:</b> about neutral in <code>llms.txt</code>. The control recipe replaces the class-selector and SYG110 guidance lines. CSS-selector strings move to alternative forms, still used for <code>document</code> and the rare structural query.</li>
+    </ol>
+    <p>Use B (<code>name</code>) for forms through F-1, and C only in tests (G-14). Both complement D; neither replaces it.</p>
+  </div>
+
+  <h2 id="components">Follow-up: should <code>DOM.click(MyComponent)</code> work?</h2>
+  <p class="prose">The idea: let intent take a component as well as a control, with the event bound to the component's root element. <b>Recommendation: don't support it.</b> Raise a diagnostic with a fix instead, and point to two patterns that already work.</p>
+  <div class="opt">
+    <div class="opt-head"><span class="id">Why not</span><h3>Three problems</h3></div>
+    <ul>
+      <li><b>The parent would depend on the child's markup.</b> A child's public output is what its <code>PARENT</code> sink returns, read with <code>CHILD.select(Child)</code>. A listener on the child's root also hears every click that bubbles up from inside the child. In experiment X7, one click on the child's inner button produced both the child's <code>PARENT</code> value and the parent's wrapper event. Restructuring the child would silently change the parent's behaviour.</li>
+      <li><b>"Root element" is often undefined.</b> Fragments have several roots. Some components switch roots between renders (a loading <code>&lt;div&gt;</code> that becomes a <code>&lt;ul&gt;</code>). A component can render nothing. A Collection holds many instances, so the parent would need an id anyway. A Portal's DOM lives elsewhere, so its events never bubble to the root. Each case would need its own rule.</li>
+      <li><b>Agents will try it,</b> because controls look like components. <code>DOM.click(Component)</code> should therefore fail loudly with the fix, not quietly do something.</li>
+    </ul>
+  </div>
+  <div class="opt">
+    <div class="opt-head"><span class="id">Instead</span><h3>Two patterns, depending on who owns the interaction</h3></div>
+    <div class="pair">
+      <div><div class="label">The child owns it (canonical, unchanged)</div>
+<pre><code>// TaskCard
+TaskCard.intent = ({ DOM }) => ({ PICK: DOM.click(Pick) })
+TaskCard.model  = { PICK: { PARENT: (s) => ({ id: s.id }) } }
+// parent
+Board.intent = ({ CHILD }) => ({ PICKED: CHILD.select(TaskCard) })</code></pre></div>
+      <div><div class="label">The parent owns the area around a child</div>
+<pre><code>const { Pick } = controls({ Pick: 'div' })
+// the parent's view: its own element around the child
+&lt;Pick&gt;&lt;TaskCard state="task" /&gt;&lt;/Pick&gt;
+Board.intent = ({ DOM }) => ({ SELECT: DOM.click(Pick) })</code></pre></div>
+    </div>
+    <p>In the second pattern the wrapper belongs to the parent, so ownership is explicit and the child's root shape doesn't matter: fragments, conditional roots and empty renders all work. It depends on one rule that still needs to be decided (see below).</p>
+  </div>
+  <div class="opt" style="border-color: var(--bad)">
+    <div class="opt-head"><span class="id">Bugs found</span><h3>Testing this exposed two isolation problems</h3><span class="chip c-bad">Fix in 6.0</span></div>
+    <ul>
+      <li><b>Fragment-root components lose isolation in the real DOM</b> (experiment X8). A child whose view returns <code>&lt;&gt;…&lt;/&gt;</code> never receives its own events, and the parent's <code>DOM.click('.fa')</code> catches them instead (<code>fragHits=0, leakFrag=1</code>). The mock DOM gets it right (<code>fragHits=1, leakFrag=0</code>), so <code>renderComponent</code> tests pass while the real app is broken. The likely cause is that <code>makeIsolateSink</code> puts the scope on a single root vnode, and a fragment doesn't have one. Fragment roots are already broken with today's plain selectors, independent of controls.</li>
+      <li><b>The mock and real DOM disagree about bubbling out of a child</b> (X7). Clicking inside an isolated child reaches the parent's wrapper listener in the mock DOM but not in the real DOM. Until they agree, the wrapper pattern above works only under the mock DOM.</li>
+    </ul>
+    <div class="recbox"><b>Decision needed:</b> should a listener on an element the parent itself rendered hear events that bubble out of its children? Recommendation: yes. That is native DOM behaviour, it is what the mock already does, and the wrapper pattern needs it. The parent still can't <em>select</em> elements inside a child, so SYG104 is unchanged.</div>
+  </div>
+
+  <div class="ruled prose">
+    <h3>Deliberately not proposed: action-tagged elements</h3>
+    <p>The data shows that 81% of the time the class already <em>is</em> the action name, so <code>&lt;button intent="INC"&gt;</code>, with a default event by element type and the intent listing only exceptions, would remove the most code. It is also how Elm (<code>onClick Msg</code>) and Hyperapp (<code>onclick={Action}</code>) work, and PLAN-3's router already intercepts plain <code>&lt;a href&gt;</code> clicks, a view-declared intent of the same kind. It still names actions in the view, though, which is exactly what PLAN-1 rejected because readers would look in two places. I'm recording the data point, not reopening the decision. Option D gets most of the benefit while keeping intent as the only place where actions are defined.</p>
+  </div>
+
+  <h2>Experiments</h2>
+  <ul class="prose">
+    <li><b>Corpus analysis:</b> Babel parse of 270 + 270 agent-written source files and 44 example files; selectors resolved to JSX tags by class; class names compared with intent keys.</li>
+    <li><b>X5 controls prototype:</b> userland, 15 lines, mock and real DOM, Collection isolation. Passed. The only blocker is that <code>DOM.select</code> requires a string.</li>
+    <li><b>X6 native name + role/label:</b> both selection styles passed under <code>dom: 'real'</code>, including a click on a child <code>&lt;b&gt;</code> inside a named button.</li>
+    <li><b>X7 parent wrapper around children:</b> the mock DOM logged <code>wrap:BUTTON | child:inner-clicked | wrap:SPAN | wrap:BUTTON | wrap:P</code>; the real DOM logged <code>child:inner-clicked | wrap:a | wrap:b</code>.</li>
+    <li><b>X8 fragment-root isolation:</b> the mock DOM gave <code>frag=1 box=1 | leak frag=0 box=0</code>; the real DOM gave <code>frag=0 box=1 | leak frag=1 box=0</code>.</li>
+  </ul>
+  <p class="meta">The experiments are saved in <code>dev-plans/research/gap-study-experiments/</code>. This page follows the <a href="https://claude.ai/artifact/MxVtAh3FVeJtmnVCbd5zXL">Sygnal 6.0 Gap Study</a>.</p>
+
+  <footer>Prepared for 6.0.0 planning. Related: PLAN-1 §0 (element-bound triggers rejected), SYG104/SYG110, PLAN-4 F-1 (forms).</footer>
+</div>
