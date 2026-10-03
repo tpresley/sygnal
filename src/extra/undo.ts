@@ -23,7 +23,8 @@ import { defineBehavior } from './behaviors'
 const ABORT = Symbol.for('sygnal.ABORT')
 const isAbort = (v: any): boolean => typeof v == 'symbol' && v.description == 'sygnal.ABORT'
 const BUILT_IN = /^(BOOTSTRAP|INITIALIZE|DISPOSE|READY|RESOURCE)$/
-// the last recorded change of a history object: [action, time] (coalescing; never in state)
+// the last recorded change of a history, keyed by its `past` array (which a behavior's calculated
+// fields keep while they copy the history object): [action, time] (coalescing; never in state)
 const last = new WeakMap<object, [string, number]>()
 const reported = new WeakSet<object>()
 
@@ -61,10 +62,10 @@ const wrap = (model: any, o: UndoOptions, hk: string, ns: string, S = 'STATE'): 
       if (!r || typeof r != 'object' || isAbort(r)) return r
       if (reset) return h.past.length || h.future.length ? {...r, [hk]: {...h, past: [], future: []}} : r
       if (r === s || r[key] === s[key]) return r
-      const at = Date.now(), prev = last.get(h)
+      const at = Date.now(), prev = last.get(h.past)
       const join = coalesceMs > 0 && prev && prev[0] == name && at - prev[1] < coalesceMs && h.past.length
       const nh = {...h, past: join ? h.past : [...h.past, s[key]].slice(-limit), future: []}
-      last.set(nh, [name, at])
+      last.set(nh.past, [name, at])
       return {...r, [hk]: nh}
     }
     out[a] = sink || typeof e == 'function' ? w : {...e, [S]: w}

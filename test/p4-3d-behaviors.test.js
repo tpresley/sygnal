@@ -350,6 +350,18 @@ describe('undo (GS-8 behavior)', () => {
     t.expectNoDiagnostics()
   })
 
+  it('coalesceMs works in the behavior form too (the calculated fields copy the history object)', async () => {
+    vi.useFakeTimers()
+    function E({ state }) { return h('div', null, String(state.doc.n)) }
+    E.initialState = { doc: { n: 0 } }
+    E.model = { SET: (s, n) => ({ ...s, doc: { n } }) }
+    E.uses = { history: undo({ key: 'doc', coalesceMs: 500 }) }
+    t = renderComponent(E)
+    await t.ready()
+    for (let i = 1; i <= 3; i++) { t.simulateAction('SET', i); await t.next(s => s.doc.n === i); await vi.advanceTimersByTimeAsync(100) }
+    expect(t.state.history).toEqual({ past: [{ n: 0 }], future: [], canUndo: true, canRedo: false })
+  })
+
   it('a host intent action triggers history.UNDO (keyboard shortcut)', async () => {
     function K({ state }) { return h('div', null, String(state.doc.n)) }
     K.initialState = { doc: { n: 0 } }
