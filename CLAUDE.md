@@ -9,10 +9,10 @@ npm run build          # Rollup → dist/ (16 inputs: core UMD/CJS/ESM, JSX runt
                        #   sygnal/devtools, sygnal/element, sygnal/vite, Astro, Vike) + bundled .d.ts
 npm run build:all      # same as build (kept for prepublishOnly)
 npm test               # the full gate, in order:
-                       #   vitest run          library tests in test/ (1,546)
+                       #   vitest run          library tests in test/ (1,771)
                        #   test:examples       each example's own suite (9 examples, 105 tests)
                        #   test:types          tsc on type-tests/
-                       #   test:browser        browser-tests/ (136)
+                       #   test:browser        browser-tests/ (154)
 npm run test:examples  # only the example suites (TEST_EXAMPLES_INSTALL=1 or --install runs npm install first)
 npm --prefix sygnal-check test       # static checker package (245 tests, *.vtest.js)
 npm --prefix docs run build          # docs site + internal link check
