@@ -133,6 +133,7 @@ Covers `sygnal`, `sygnal-check` and `create-sygnal-app`. A few fixes change beha
 
 ### Fixed
 
+- **Vike docs:** custom drivers go in `pages/+drivers.js`. The [Vike guide](https://sygnal.js.org/integration/vike/#custom-drivers) showed `drivers` inside `+config.js`, which Vike rejects: `vike build` fails with "must be defined using a separate file +drivers.js", and in `vike dev` the page never hydrates.
 - **Switchable.**
   - A page's `PARENT` never reached the parent's `CHILD.select(Page)`: only sinks that were also sources were forwarded.
   - The Switchable could stay on the previous page after a switch (a page shown again while its stream chain was being torn down never rendered).
