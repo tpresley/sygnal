@@ -9,8 +9,8 @@ import component from '../component';
 import {renderToInnerHtml} from './ssr';
 import {_getDiagnosticsConfig, configureDiagnostics, getDiagnosticsMode, isDiagnosticsEnabled, onDiagnostic, registerCheck, report} from './diagnostics/index';
 import xs from './xstreamCompat';
-import {tagRequest, inScope, scopeKey} from './fetchDriver';
-import {senderOf, allowed, makeReplies} from './replies';
+import {tagRequest, inScope, makeFetchDriver} from './fetchDriver';
+import {senderOf} from './replies';
 import {makeSocketDriver} from './socketDriver';
 import type {Stream} from 'xstream';
 import type {Diagnostic, DiagnosticsMode} from './diagnostics/index';
@@ -169,7 +169,7 @@ export interface FakeReplyOptions {
    * its category.
    */
   request?: any;
-  /** Response status (respond: default 200) or failure status (fail: default error.status) */
+  /** Response status (respond: default 200), or fail(): an HTTP error response with this status */
   status?: number;
   /** fail(): the parsed error body */
   body?: any;
@@ -252,8 +252,9 @@ export interface RenderOptions {
   socketSink?: string;
   /**
    * PLAN-3 3-A (exp): the driverless sink that receives the `resources` static (default
-   * 'HTTP'). Its fake fetches nothing: each resource request is pending until t.respond /
-   * t.fail (target: the resource name, its URL or a partial request) answers it.
+   * 'HTTP'). Its fake (5-1: makeFetchDriver over an in-memory fetch) keeps each resource fetch
+   * pending until t.respond / t.fail (target: the resource name, its URL or a partial request)
+   * answers it; t.requests lists it as `{ url, ...request, resource: name }`.
    */
   resourceSink?: string;
 }
@@ -310,17 +311,21 @@ export interface RenderResult {
    */
   sinkValues: (sinkName: string) => any[];
   /**
-   * E2: the requests sent to a sink (live): sinkValues(name) without `{ abort }` commands
-   * (G-141). Answer the pending ones of a driverless sink with respond() / fail().
+   * E2: the requests sent to a sink (live), as objects (G-171: a string is `{ url }`, a resource
+   * fetch `{ url, ...request, resource: name }`); never `{ abort }` commands (G-141), `{ resources }`
+   * declarations or `{ refresh }` commands. Answer the pending ones of a driverless sink with
+   * respond() / fail().
    */
   requests: (sinkName: string) => any[];
   /**
-   * E2 / PLAN-3 1-C: answer a pending request on a fake source (a sink/source with no driver,
-   * e.g. `HTTP` with no `drivers: { HTTP }`), like makeFetchDriver: a request with reply actions
-   * (`ok: 'LOADED'`) gets `value` as its LOADED action, on exactly its sender; a plain one
+   * E2 / PLAN-3 1-C / 5-1: answer a pending request on a fake source (a sink/source with no
+   * driver, e.g. `HTTP` with no `drivers: { HTTP }`: makeFetchDriver over an in-memory fetch) with
+   * a response whose body is `value` (JSON; text for a string): a request with reply actions
+   * (`ok: 'LOADED'`) gets the parsed body as its LOADED action, on exactly its sender; a plain one
    * `{ category, value, status, request }` on `select()`. The request: the newest pending one
-   * matching `target` (an ok/error action name, key or category; a partial request compared by
-   * value; a predicate; FakeReplyOptions), or the newest pending one. Throws at the call when
+   * matching `target` (an ok/error action name, key, category, resource name or URL; a partial
+   * request compared by value with its t.requests form; a predicate; FakeReplyOptions), or the
+   * newest pending one. Throws at the call when
    * none matches, unless input is still queued before it or the component isn't ready: then
    * it waits up to 1s (half of timeoutMs if lower) for one. Resolves after the reply has been
    * reduced and rendered; rejects (and, un-awaited, fails the next wait) otherwise.
@@ -329,8 +334,9 @@ export interface RenderResult {
   /**
    * E2 / PLAN-3 1-C: fail a pending request (chosen as in respond()): one with reply actions
    * (`error: 'FAILED'`) gets `{ error, request, status?, body? }` as its FAILED action; an
-   * plain one `{ error, category, request, status, body }` on `errors()`. `error` may be an
-   * Error, a message, or an HTTP status number (404 → an Error 'HTTP 404' with `status: 404`).
+   * plain one `{ error, category, request, status, body }` on `errors()`. `error` may be an HTTP
+   * status number or `{ status }` (an error response: the driver's Error 'HTTP 404: url' with
+   * `status`/`body`), or an Error / message (a network failure: the fetch rejects with it).
    */
   fail: (sinkName: string, error: any, target?: FakeReplyTarget) => Promise<void>;
   /**
@@ -739,21 +745,20 @@ class Reply extends Promise<void> {
   then(a?: any, b?: any): any { this._seen?.(); return super.then(a, b); }
 }
 /**
- * PLAN-3 1-C: which pending requests (`{ scope, category, sender, rk }`) a request sent to a
- * fake source cancels, or undefined: makeFetchDriver's send() rules, kept here so the driver
- * stays as small as it is (keep the two in step; test/p3-1c-fakes.test.js mirrors
- * test/p3-1a-replies.test.js). `rk`: the reply key of a request with reply actions, (sender, `key ?? ok ?? error`).
+ * PLAN-3 5-1 (H-9): the reply the HTTP fake's in-memory fetch resolves with: a Response-like
+ * object the real driver parses (a string body is text/plain, anything else JSON).
  */
-const replyKey = (req: any, sender: any) =>
-  sender !== undefined && (req.ok || req.error) ? req.key ?? req.ok ?? req.error : undefined;
-const cancels = (req: any, scope: any, sender: any, rk: any) => {
-  const {abort, key, category} = req;
-  if (sender !== undefined && (typeof abort == 'string' || (abort && key !== undefined)))
-    return (r: any) => r.sender === sender && r.rk === (key ?? abort);
-  // per (scope, category): another component's requests are never cancelled
-  if (abort) return (r: any) => r.scope === scope && (!('category' in req) || r.category === category);
-  if (req.latest) return rk === undefined ? (r: any) => r.rk === undefined && r.scope === scope && r.category === category
-    : (r: any) => r.sender === sender && r.rk === rk;
+const fakeResponse = (status: number, body: any, url: string): any => {
+  const text = typeof body == 'string' ? body : body === undefined ? '' : JSON.stringify(body);
+  const type = typeof body == 'string' ? 'text/plain;charset=UTF-8' : 'application/json';
+  const isType = (k: string) => /^content-type$/i.test(k);
+  return {
+    ok: status > 199 && status < 300, status, statusText: '', url, redirected: false, type: 'basic', bodyUsed: false,
+    headers: typeof Headers == 'function' ? new Headers({'content-type': type}) : {get: (k: string) => isType(k) ? type : null, has: isType},
+    text: async () => text,
+    json: async () => JSON.parse(text),
+    clone: () => fakeResponse(status, body, url),
+  };
 };
 /** a request field compared by value (t.respond / t.fail targets) */
 const same = (a: any, b: any): boolean => {
@@ -1098,52 +1103,73 @@ export function renderComponent(
   // E2: scriptable fake sources (t.respond / t.fail) for sinks/sources with no driver. Same
   // source API as makeFetchDriver / driverFromAsync: select(category?) and errors(category?),
   // where the selector is a category string, a predicate, or nothing (everything).
-  // R4-2: isolated like makeFetchDriver: a source at scope path `ns` sees the replies to
-  // requests made at or under it; requests are tagged by isolateSink (or, for a child-only
-  // sink with no driver, with the component's place in the tree, see nsOf)
-  // PLAN-3 1-C (G-151): reply-capable like makeFetchDriver (__sygnalReplies / replies(sender)),
-  // so the core stamps each component's requests with their sender and a request with reply actions
-  // ({ ok, error }) is answered as that action to exactly that instance. `sent` tracks what is
-  // pending with the driver's own rules (replies.ts: latest/abort per sender or scope; a
-  // disposed sender's requests with reply actions are dropped).
+  // R4-2: isolated like the drivers: a source at scope path `ns` sees the replies to requests
+  // made at or under it; requests are tagged by isolateSink (or, for a child-only sink with no
+  // driver, with the component's place in the tree, see nsOf)
+  // PLAN-3 5-1 (H-9): the HTTP half IS makeFetchDriver, run over an in-memory fetch. Every
+  // fetch is a pending entry until t.respond / t.fail resolve it with a Response-like object (or
+  // reject it); the driver aborts superseded / cancelled / disposed requests through their
+  // AbortSignal, which takes them off the pending list. So latest, abort, timeouts, isolation,
+  // reply actions (each to exactly its sender) and resources are the driver's own rules, with no
+  // copy here. `subs` mirrors each select()/errors() subscription, for `request: null` pushes and
+  // for the "nothing receives it" check on plain replies.
   type FakeSub = {l: any; sel: any; err: boolean; ns: any[]};
-  // res: the resource a request was sent for (3-A)
-  type Sent = {value: any; req: any; category: any; scope: string; sender: any; rk: any; live: boolean; res?: string};
-  type Fake = {select: any; errors: any; subs: Set<FakeSub>; at: (ns: any[]) => any; sent: Sent[]; reply: (sender: any, type: any, data: any) => void; ws: Sock; rs: Map<any, Map<string, any[]>>};
+  // value: what t.requests lists (normalised); req: the request the driver got; res: the resource
+  type Pending = {value: any; req: any; category: any; res?: string; live: boolean; settle: (ok: boolean, v: any) => void};
+  type Fake = {select: any; errors: any; subs: Set<FakeSub>; at: (ns: any[]) => any; pending: Pending[]; in$: any; http: any; ws: Sock};
   const fakes = new Map<string, Fake>();
+  // the value record() is sending (as listed in t.requests), and what the driver's _tap named
+  let sending: any, tapped: any[] | undefined;
   const fake = (name: string): Fake => {
     let f = fakes.get(name);
     if (!f) {
       const subs = new Set<FakeSub>();
-      const sent: Sent[] = [];
+      const pending: Pending[] = [];
+      const in$ = xs.create();
       const ws = sockFake();
-      // 3-A: sender → resource name → [JSON of its request, the request] (as makeFetchDriver)
-      const rs = new Map<any, Map<string, any[]>>();
-      const {replies, reply} = makeReplies(sender => {
-        sent.forEach(r => { if (r.rk !== undefined && r.sender === sender) r.live = false; });
-        ws.conns.delete(sender);
-        rs.delete(sender);
-      });
+      const http = makeFetchDriver({
+        _tap: (req: any, res?: string) => { tapped = [req, res]; },
+        fetch: (url: string, init: any) => new Promise((resolve, reject) => {
+          const [req, res] = tapped || [{url}];
+          tapped = undefined;
+          // G-171(1): a resource fetch is listed as { url, ...request, resource: name }
+          const value = res !== undefined ? {...req, resource: res} : sending !== undefined ? sending : req;
+          if (res !== undefined) requests(name).push(value);
+          const p: Pending = {value, req, category: req.category, res, live: true, settle: (ok, v) => { p.live = false; (ok ? resolve : reject)(v); }};
+          pending.push(p);
+          init?.signal?.addEventListener?.('abort', () => {
+            if (!p.live) return;
+            p.live = false;
+            const e: any = new Error('The operation was aborted.');
+            e.name = 'AbortError';
+            reject(e);
+          });
+        }),
+      })(in$);
       const at = (ns: any[]): any => {
-        const src = (err: boolean) => (sel?: any) => {
+        const own = (err: boolean) => (sel?: any) => {
           let sub: FakeSub;
           return xs.create({
             start: (l: any) => { subs.add((sub = {l, sel, err, ns})); },
             stop: () => { subs.delete(sub); },
           });
         };
+        const hs = ns.reduce((s, sc) => s.isolateSource(s, sc), http);
         // 2-C: the socket driver's source, isolated alike (events without an action reach select(name?))
         const sock = ns.reduce((s, sc) => s.isolateSource(s, sc), ws.src);
-        const select = src(false);
         return {
-          select: (sel?: any) => xs.merge(select(sel), sock.select(sel)), errors: src(true), subs, at, sent, reply, ws, rs,
+          select: (sel?: any) => xs.merge(hs.select(sel), own(false)(sel), sock.select(sel)),
+          errors: (sel?: any) => xs.merge(hs.errors(sel), own(true)(sel)),
+          subs, at, pending, in$, http, ws,
           isolateSource: (_: any, scope: any) => at(ns.concat(scope)),
           isolateSink: (sink$: any, scope: any) => sink$.map((v: any) => tag(v, scope)),
           // G-160: the fake named by `socketSink` receives the components' connections static
           // 3-A: and the one named by `resourceSink` the resources static
           ...(name == socketSink ? {__sygnalStatic: 'connections'} : name == resourceSink ? {__sygnalStatic: 'resources'} : {}),
-          ...replies,
-          replies: (sender: any) => xs.merge(replies.replies(sender), ws.src.replies(sender)),
+          __sygnalReplies: true,
+          // both drivers' reply actions; a disposed sender's connections leave t.connections
+          replies: (sender: any) => xs.merge(http.replies(sender), ws.src.replies(sender),
+            xs.create({start: noop, stop: () => { ws.conns.delete(sender); }})),
         };
       };
       fakes.set(name, (f = at([])));
@@ -1221,50 +1247,23 @@ export function renderComponent(
   };
   const requests = (k: string) => (reqValues[k] = reqValues[k] || []);
   const reqValues: Record<string, any[]> = {};
-  // a sink value: recorded (t.sinkValues; t.requests unless it is an { abort } command, G-141)
-  // and, on a fake source, tracked as pending like makeFetchDriver would
+  // a sink value: recorded (t.sinkValues: everything) and, on a fake source, sent to its driver.
+  // G-141 / G-171(1): t.requests lists the requests, normalised (a string is { url }); never the
+  // { abort } commands, { resources } declarations or { refresh } commands. A resource's fetches
+  // are listed by the fake's fetch, with `resource: name`.
   const record = (name: string, v: any, track: boolean) => {
     const shown = v && typeof v == 'object' && v[STR] !== undefined ? v[STR] : v;
     sinkValues(name).push(shown);
-    const req = typeof v == 'string' ? {url: v} : v;
-    const obj = !!req && typeof req == 'object';
-    // 3-A: a { resources } / { refresh } value: its fetches are the requests (resRecord)
-    if (track && obj && (req.resources || req.refresh)) return resRecord(name, req);
-    if (!(obj && req.abort)) requests(name).push(shown);
+    const obj = !!v && typeof v == 'object';
+    const listed = !(obj && (v.abort || v.resources || v.refresh));
+    const value = typeof shown == 'string' ? {url: shown} : shown;
+    if (listed) requests(name).push(value);
+    if (!track) return;
     // 2-C: a socket value goes to the fake's socket driver (it reports SYG610/SYG611 itself)
-    if (track && sockValue(req)) return sockRecord(fake(name).ws, req);
-    if (!track || !obj || !allowed(req, `renderComponent's fake ${name}`)) return;
-    const f = fake(name), scope = scopeKey(req), sender = senderOf(req), rk = replyKey(req, sender);
-    const which = cancels(req, scope, sender, rk);
-    if (which) f.sent.forEach(r => { if (r.live && which(r)) r.live = false; });
-    if (!req.abort) f.sent.push({value: shown, req, category: req.category, scope, sender, rk, live: true});
-  };
-  // PLAN-3 3-A: makeFetchDriver's resources rules (keep the two in step): per (sender, name) a
-  // request that changed by JSON is sent (pending until t.respond / t.fail) with latest
-  // semantics; falsy cancels it. Each step is the RESOURCE reply action.
-  const resRecord = (name: string, v: any) => {
-    const f = fake(name), sender = senderOf(v);
-    if (sender === undefined || !allowed(v, `renderComponent's fake ${name}`)) return;
-    const cur = f.rs.get(sender) || new Map();
-    f.rs.set(sender, cur);
-    const write = (n: string, status: string) => f.reply(sender, 'RESOURCE', {name: n, status, data: undefined, error: undefined});
-    const drop = (n: string) => f.sent.forEach(r => { if (r.live && r.sender === sender && r.res === n) r.live = false; });
-    const load = (n: string, q: any) => {
-      drop(n);
-      const req = typeof q == 'string' ? {url: q} : q;
-      requests(name).push(q);
-      f.sent.push({value: q, req, category: req.category, scope: '', sender, rk: '\0' + n, live: true, res: n});
-      write(n, 'loading');
-    };
-    if (v.refresh) return [].concat(v.refresh).forEach((n: string) => { const q = cur.get(n)?.[1]; if (q) load(n, q); });
-    const next = v.resources || {};
-    new Set([...cur.keys(), ...Object.keys(next)]).forEach(n => {
-      const q = next[n], j = q ? JSON.stringify(q) : '';
-      if ((cur.get(n)?.[0] ?? '') === j) return;
-      cur.set(n, [j, q]);
-      if (q) load(n, q);
-      else { drop(n); write(n, 'idle'); }
-    });
+    if (obj && sockValue(v)) return sockRecord(fake(name).ws, v);
+    const f = fake(name);
+    sending = listed ? value : undefined;
+    try { f.in$.shamefullySendNext(v); } finally { sending = tapped = undefined; }
   };
   // R4-2: a component's scope path for the child-only fake: its ancestors' numbers below the root
   const parentOf = new Map<any, any>();
@@ -1610,7 +1609,9 @@ export function renderComponent(
   // failure later on rejects it; when nothing awaits it, it also fails the next wait.
   const replyWaits = new Set<(e?: Error, quiet?: boolean) => void>();
   const OPTION_KEYS = ['category', 'request', 'status', 'body'];
-  type Target = {match: (r: Sent) => boolean; exact?: any; desc: string; push?: boolean; o: any};
+  type Target = {match: (r: Pending) => boolean; exact?: any; desc: string; push?: boolean; o: any};
+  // a pending request is matched by its t.requests form (`value`): a string request is { url },
+  // a resource fetch carries `resource: name`
   const targetOf = (opts: any): Target => {
     const isOpts = !!opts && typeof opts == 'object' && !Array.isArray(opts) && Object.keys(opts).every(k => OPTION_KEYS.includes(k));
     const o = isOpts ? opts : {};
@@ -1618,58 +1619,61 @@ export function renderComponent(
     if (isOpts && o.request === null) return {match: () => false, desc: '', push: true, o};
     let tg = isOpts ? o.request : opts;
     if (isOpts && typeof tg == 'string') tg = {url: tg};
-    const cat = 'category' in o ? (r: Sent) => r.category === o.category : () => true;
+    const cat = 'category' in o ? (r: Pending) => r.category === o.category : () => true;
     const catDesc = 'category' in o ? ` with category '${o.category}'` : '';
     if (tg === undefined) return {match: cat, desc: catDesc, o};
     if (typeof tg == 'string') {
-      return {match: r => cat(r) && [r.req.ok, r.req.error, r.req.key, r.req.category, r.res].includes(tg), desc: ` matching '${tg}'${catDesc}`, o};
+      // an ok/error action name, key, category, resource name or URL
+      return {match: r => { const v = r.value || {}; return cat(r) && [v.ok, v.error, v.key, v.category, r.res, v.url].includes(tg); }, desc: ` matching '${tg}'${catDesc}`, o};
     }
     if (typeof tg == 'function') {
-      return {match: r => { try { return cat(r) && !!tg(r.req); } catch (_) { return false; } }, desc: ` matching the predicate${catDesc}`, o};
+      return {match: r => { try { return cat(r) && !!tg(r.value); } catch (_) { return false; } }, desc: ` matching the predicate${catDesc}`, o};
     }
     if (tg && typeof tg == 'object') {
       const keys = Object.keys(tg);
-      return {match: r => cat(r) && keys.every(k => same(tg[k], r.req[k])), exact: isOpts ? o.request : tg, desc: ` matching ${brief(tg)}${catDesc}`, o};
+      return {match: r => cat(r) && !!r.value && keys.every(k => same(tg[k], r.value[k])), exact: isOpts ? o.request : tg, desc: ` matching ${brief(tg)}${catDesc}`, o};
     }
-    throw new Error(`[Sygnal] t.respond/t.fail: the target must be an action name or category, a request object, a predicate or { request, category, status, body } options (got ${typeof tg})`);
+    throw new Error(`[Sygnal] t.respond/t.fail: the target must be an action name, key, category, resource name or URL, a request object, a predicate or { request, category, status, body } options (got ${typeof tg})`);
   };
-  const pick = (name: string, tg: Target): Sent | undefined => {
-    const live = fake(name).sent.filter(r => r.live && tg.match(r));
+  const pick = (name: string, tg: Target): Pending | undefined => {
+    const live = (fakes.get(name)?.pending || []).filter(r => r.live && tg.match(r));
     return (tg.exact !== undefined && live.filter(r => r.value === tg.exact || r.req === tg.exact).pop()) || live.pop();
   };
   const noPending = (what: string, name: string, tg: Target, waited: number) => {
-    const sent = requests(name).length, live = fakes.get(name)?.sent.filter(r => r.live) || [];
+    const sent = requests(name).length, live = fakes.get(name)?.pending.filter(r => r.live) || [];
     return new Error(`[Sygnal] ${what}: no pending ${name} request${tg.desc}${waited ? ` after ${waited}ms` : ''}. ` +
       (live.length ? `Pending: ${live.map(r => brief(r.value)).join(', ')}. ` : '') +
       (sent ? `The component sent ${sent} (t.requests('${name}'))${live.length ? '; the others were' : ','} all answered, aborted or superseded by a later latest: true request.` :
         `The component sent none: check the model entry that returns the ${name} request (t.requests('${name}') is empty).`) +
       (waited ? '' : ` t.respond/t.fail answer a request already sent, or one sent by the simulate* calls queued before them: wait for a later one first (await t.next(...) or t.settle()).`));
   };
-  const reply = (fn: string, name: string, err: boolean, build: (e: Sent | undefined, category: any) => any[], opts: any): Promise<void> => {
+  /**
+   * 5-1: `deliver(e, o)` settles the pending fetch `e` (the driver then routes the reply);
+   * `payload(category, o, e?)` is what select()/errors() would get, for a `request: null` push
+   * and for the "nothing receives it" check on a plain reply.
+   */
+  const reply = (fn: string, name: string, err: boolean, opts: any, deliver: (e: Pending, o: any) => void, payload: (category: any, o: any, e?: Pending) => any): Promise<void> => {
     throwFailure();
     if (drivers[name]) throw new Error(`[Sygnal] t.${fn}('${name}'): ${name} has a real driver (passed in drivers), so there is nothing to script. t.respond/t.fail answer the fake source renderComponent provides when no driver is passed`);
     const tg = targetOf(opts);
     const what = `t.${fn}('${name}'${typeof opts == 'string' ? `, …, '${opts}'` : ''})`;
     return scripted(() => tg.push ? {} : pick(name, tg), w => noPending(what, name, tg, w), hit => {
-      const f = fake(name);
-      const e: Sent | undefined = tg.push ? undefined : hit;
-      const category = 'category' in tg.o ? tg.o.category : e?.category;
-      const [action, payload, then] = build(e, category);
-      if (e) e.live = false;
-      if (action !== undefined) {
-        f.reply(e!.sender, action, payload);
-        // 3-A: a resource's ok / error action after its RESOURCE write
-        if (then?.[0]) f.reply(e!.sender, then[0], then[1]);
-        return;
-      }
+      const f = fake(name), o = tg.o;
+      const e: Pending | undefined = tg.push ? undefined : hit;
+      const category = 'category' in o ? o.category : e?.category;
+      // the driver delivers a resource's reply, and a reply action for a request that names one
+      // for this outcome (from a component), as that action; anything else on select()/errors()
+      if (e && (e.res !== undefined || (senderOf(e.req) !== undefined && (err ? e.req.error : e.req.ok)))) return deliver(e, o);
+      const data = payload(category, o, e);
       let heard = false;
       f.subs.forEach(sub => {
         let hit = false;
         // a pushed value no request asked for (request: null) reaches every scope
-        try { hit = sub.err === err && (!e || inScope(sub.ns, e.req)) && (sub.sel === undefined || (typeof sub.sel == 'function' ? sub.sel(payload) : sub.sel === category)); } catch (_) {}
-        if (hit) { heard = true; sub.l.next(payload); }
+        try { hit = sub.err === err && (!e || inScope(sub.ns, e.req)) && (sub.sel === undefined || (typeof sub.sel == 'function' ? sub.sel(data) : sub.sel === category)); } catch (_) {}
+        if (hit) { heard = true; if (!e) sub.l.next(data); }
       });
-      if (heard) return;
+      if (heard) return e && deliver(e, o);
+      if (e) e.live = false;
       const ls = [...f.subs].filter(x => x.err === err).map(x => `${name}.${err ? 'errors' : 'select'}(${x.sel === undefined ? '' : typeof x.sel == 'function' ? 'fn' : `'${x.sel}'`})`);
       return new Error(`[Sygnal] ${what}: nothing receives it: no intent listens to ${name}.${err ? 'errors' : 'select'}(${category === undefined ? '' : `'${category}'`})` +
         (ls.length ? ` (listening: ${ls.join(', ')})` : '') + `. ` +
@@ -1733,36 +1737,32 @@ export function renderComponent(
     pump();
     return out;
   };
+  // 5-1: the fetch resolves with a Response-like object (status, the body as JSON, or text for a
+  // string), which the driver parses as it would a server's (a Response passed in is used as is)
+  const urlOf = (e: Pending) => e.value?.url ?? e.req.url ?? '';
   const respond = (name: string, value: any, opts?: FakeReplyTarget) =>
-    reply('respond', name, false, (e, category) => {
-      const o: any = opts && typeof opts == 'object' ? opts : {};
-      // 3-A: a resource request: the RESOURCE write, then its ok action
-      if (e?.res !== undefined) return ['RESOURCE', {name: e.res, status: 'success', data: value, error: undefined}, [e.req.ok, value]];
-      // reply actions (D58): the ok action gets the parsed body; else select() gets the E2 payload
-      return e && e.rk !== undefined && e.req.ok ? [e.req.ok, value] :
-        [undefined, {category, value, status: o.status ?? 200, request: e?.req}];
-    }, opts);
+    reply('respond', name, false, opts,
+      (e, o) => e.settle(true, typeof Response == 'function' && value instanceof Response ? value : fakeResponse(o.status ?? 200, value, urlOf(e))),
+      (category, o, e) => ({category, value, status: o.status ?? 200, request: e?.req}));
+  // 5-1: a number (or a `status` option) is an HTTP error response the driver turns into its
+  // Error('HTTP 404: url') with `status` / `body`; an Error or a message is a network failure
+  // (the fetch rejects with it)
+  const failureOf = (error: any, o: any) => {
+    const status = typeof error == 'number' ? error : o.status;
+    const x = typeof error == 'string' ? new Error(error) : error;
+    return {status, x, body: o.body ?? (x && typeof x == 'object' ? x.body : undefined)};
+  };
   const fail = (name: string, error: any, opts?: FakeReplyTarget) =>
-    reply('fail', name, true, (e, category) => {
-      let x = error;
-      if (typeof x == 'number') { x = new Error(`HTTP ${error}`); x.status = error; }
-      else if (typeof x == 'string') x = new Error(x);
-      const o: any = opts && typeof opts == 'object' ? opts : {};
-      const status = o.status ?? x?.status, body = o.body ?? x?.body;
-      const data: any = {error: x, request: e?.req};
-      if (status !== undefined) data.status = status;
-      if (body !== undefined) data.body = body;
-      // 3-A: a resource request: the RESOURCE write (error: the Error, with status / body), then its error action
-      if (e?.res !== undefined) {
-        if (x && typeof x == 'object') {
-          if (status !== undefined) x.status = status;
-          if (body !== undefined) x.body = body;
-        }
-        return ['RESOURCE', {name: e.res, status: 'error', data: undefined, error: x}, [e.req.error, data]];
-      }
-      if (e && e.rk !== undefined && e.req.error) return [e.req.error, data];
-      return [undefined, {error: x, category, request: e?.req, status, body}];
-    }, opts);
+    reply('fail', name, true, opts,
+      (e, o) => {
+        const {status, x, body} = failureOf(error, o);
+        status !== undefined ? e.settle(true, fakeResponse(status, body, urlOf(e))) : e.settle(false, x);
+      },
+      (category, o, e) => {
+        const {status, x, body} = failureOf(error, o);
+        const err = typeof error == 'number' ? Object.assign(new Error(`HTTP ${status}`), {status}) : x;
+        return {error: err, category, request: e?.req, status: status ?? x?.status, body};
+      });
 
   // PLAN-3 2-C: socket fakes. t.connections lists what the components declared; t.open /
   // t.push / t.drop act on the fake sockets serving the connections `target` picks (a name or
@@ -2166,7 +2166,8 @@ export function renderComponent(
     const mounted = real ? roots() : [];
     rawDispose();
     // 2-C: every fake connection closes (as the app's own close: no close action)
-    fakes.forEach(f => { f.ws.src.dispose(); f.ws.conns.clear(); });
+    // 5-1: and every fetch still in flight is aborted
+    fakes.forEach(f => { f.ws.src.dispose(); f.ws.conns.clear(); f.http.dispose(); });
     mounted.forEach(e => e.remove());
     restore();
     // R4-8: every pending wait (ready, next, waitForState, settle) rejects now, its timers

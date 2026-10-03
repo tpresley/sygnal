@@ -82,7 +82,8 @@ describe('E2: fake sources in renderComponent', () => {
     t.simulateEvent('.get', 'click')
     t.fail('HTTP', 404)
     await t.next(s => s.status === 'error')
-    expect(t.states.at(-1)).toMatchObject({ code: 404, text: 'HTTP 404' })
+    // 5-1: the real driver's Error message names the URL
+    expect(t.states.at(-1)).toMatchObject({ code: 404, text: 'HTTP 404: /api/quote' })
     t.simulateEvent('.get', 'click')
     t.fail('HTTP', 'Failed to fetch')
     await t.next(s => s.status === 'error' && s.text === 'Failed to fetch')

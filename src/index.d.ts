@@ -1483,7 +1483,7 @@ export interface FakeReplyOptions {
    * on its own); `category` then sets its category.
    */
   request?: any;
-  /** respond(): the status (default 200). fail(): the status (default error.status) */
+  /** respond(): the status (default 200). fail(): an HTTP error response with this status */
   status?: number;
   /** fail(): the parsed error body */
   body?: any;
@@ -1563,7 +1563,8 @@ export interface RenderOptions {
   socketSink?: string;
   /**
    * PLAN-3 3-A (experimental): the driverless sink that receives the components' `resources`
-   * static (default 'HTTP'); each resource request is pending until t.respond / t.fail.
+   * static (default 'HTTP'); each resource fetch is pending until t.respond / t.fail, and is
+   * listed in t.requests as `{ url, ...request, resource: name }`.
    */
   resourceSink?: string;
 }
@@ -1642,17 +1643,20 @@ export interface RenderResult<STATE = any> {
   /** Live array of values emitted on a sink (EVENTS as {type, data}, PARENT unwrapped, custom sinks of any component in the tree) */
   sinkValues: (sinkName: string) => any[];
   /**
-   * Live array of the requests a sink was sent: `sinkValues(name)` without the `{ abort }`
-   * commands (those stay in sinkValues)
+   * Live array of the requests a sink was sent, as objects: a string request is `{ url }`, a
+   * resource fetch `{ url, ...request, resource: name }`. Never the `{ abort }` commands,
+   * `{ resources }` declarations or `{ refresh }` commands (sinkValues has every value, as sent)
    */
   requests: (sinkName: string) => any[];
   /**
    * Answer a pending request on a driverless sink/source (e.g. `HTTP` with no
-   * `drivers: { HTTP }`), like makeFetchDriver: a request with reply actions (`ok: 'LOADED'`) gets `value`
-   * as its `LOADED` action, on exactly the component that sent it; a plain one gets
+   * `drivers: { HTTP }`, which runs makeFetchDriver over an in-memory fetch) with a response whose
+   * body is `value` (JSON; text for a string): a request with reply actions (`ok: 'LOADED'`) gets
+   * the parsed body as its `LOADED` action, on exactly the component that sent it; a plain one gets
    * `{ category, value, status: 200, request }` on `HTTP.select(category)`.
    * Which request (the newest pending one that matches): `target` is an `ok`/`error` action
-   * name, key or category (`'LOADED'`); a partial request compared by value (`{ url: '/a' }`,
+   * name, key, category, resource name or URL (`'LOADED'`); a partial request compared by value
+   * with its t.requests form (`{ url: '/a' }`,
    * the constant the model returns); a predicate `(request) => boolean`; or FakeReplyOptions.
    * Nothing: the newest pending request. Requests answered, superseded by `latest: true`,
    * aborted, or whose component is gone aren't pending.
@@ -1666,8 +1670,9 @@ export interface RenderResult<STATE = any> {
   /**
    * Fail a pending request (chosen as in respond): one with reply actions (`error: 'FAILED'`) gets
    * `{ error, request, status?, body? }` as its `FAILED` action, on its sender; a plain one
-   * `{ error, category, request, status, body }` on `HTTP.errors(category)`. `error`: an
-   * Error, a message, or an HTTP status (404 → 'HTTP 404', status 404).
+   * `{ error, category, request, status, body }` on `HTTP.errors(category)`. `error`: an HTTP
+   * status (an error response: 404 → the driver's Error 'HTTP 404: url', status 404), or an
+   * Error / message (a network failure: no status).
    */
   fail: (sinkName: string, error: any, target?: string | FakeReplyOptions | Record<string, any> | ((request: any) => boolean)) => Promise<void>;
   /**

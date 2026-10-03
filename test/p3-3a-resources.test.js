@@ -276,7 +276,8 @@ describe('resources under renderComponent (the HTTP fake)', () => {
     t = renderComponent(Quote)
     await t.ready()
     await t.waitForState(s => s.quote?.status === 'loading')
-    expect(t.requests('HTTP')).toEqual([{ url: '/api/quotes/1' }])
+    // G-171(1): a resource fetch is listed with its resource name
+    expect(t.requests('HTTP')).toEqual([{ url: '/api/quotes/1', resource: 'quote' }])
     await t.respond('HTTP', { text: 'one' }, 'quote')
     expect(t.state.quote).toEqual({ status: 'success', data: { text: 'one' }, error: undefined })
     expect(t.html()).toContain('one')
@@ -291,7 +292,7 @@ describe('resources under renderComponent (the HTTP fake)', () => {
     expect(t.states.map(s => s.quote?.status).filter(Boolean)).toEqual(['idle', 'loading', 'success', 'success', 'loading', 'error'])
     t.simulateAction('REFRESH')
     await t.waitForState(s => s.quote.status === 'loading')
-    expect(t.requests('HTTP')).toEqual([{ url: '/api/quotes/1' }, { url: '/api/quotes/2' }, { url: '/api/quotes/2' }])
+    expect(t.requests('HTTP')).toEqual(['/api/quotes/1', '/api/quotes/2', '/api/quotes/2'].map(url => ({ url, resource: 'quote' })))
     await t.respond('HTTP', { text: 'two' })
     expect(t.state.quote.data).toEqual({ text: 'two' })
   })
