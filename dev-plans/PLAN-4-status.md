@@ -7,20 +7,20 @@ Tracks progress for [PLAN-4.md](PLAN-4.md) (controls and core ergonomics). The c
 - PLAN-5 (ecosystem) continues after PLAN-4's last number.
 - "P4-D" with no number is the CT-1 canonical-form decision made after 1-E (P4-Q10).
 
-**Integration branch:** `plan4-integration`. It doesn't exist yet: it is cut from `plan3-integration` after PLAN-3's 4-C, in 0-A. The release stays held (D56): no version bumps, tags, PR to main or publish.
+**Integration branch:** `plan4-integration`. It doesn't exist yet: 0-A cuts it from `main` once the PLAN-4 and PLAN-5 plans are merged there. The release stays held (D56): no version bumps, tags, PR to main or publish.
 
-**State:** pre-Phase 0. The plan is written (`aac8ccd`, amended since). P4-Q1 is decided (D100); P4-Q2…Q13 are open (below). This tracker was created early so PLAN-5's requests have a place to land; 0-A completes it.
+**State:** pre-Phase 0. The plan is merged to `main` together with this tracker. PLAN-3 is done on `main` (#14), and the DOM bug fixes are on `main` (#12). P4-Q1 is decided (D100); P4-Q2…Q13 are open (below). This tracker was created early so PLAN-5's requests have a place to land; 0-A completes it.
 
 ## Baseline (0-A)
 
-To be measured in 0-A on `plan4-integration`. PLAN-3's last recorded figures, from the end of its Phase 5:
+To be measured in 0-A on `plan4-integration`. PLAN-3's last recorded figures, from the end of its Phase 5. The #12 fixes added about 145 B to the core afterwards, so re-measure on `main`:
 
 | Measure | Value |
 |---|---|
 | Size gate, kanban gated | 40,403 B / 42,300 B (1,897 B left for PLAN-4 + PLAN-5) |
 | `llms.txt` | 283 lines / 300 |
 | SKILL.md | 34,343 B / 36,000 B |
-| Eval reference | PLAN-3 4-C (pending) |
+| Eval reference | PLAN-3 4-C and Phase 6 runs (`results/REPORT-v3.md`) |
 
 ## Workstreams
 
@@ -29,7 +29,7 @@ To be measured in 0-A on `plan4-integration`. PLAN-3's last recorded figures, fr
 | 0-A | Setup, baseline, §11 answers | ⬜ | `plan4-integration` | coordinator | | |
 | 0-B | Size spikes (CT-1 incl. spec objects, GS-1, GS-2, GS-5, GS-7, small core group) | ⬜ | `exp/p4-spikes` | subagent | not merged | CT-1 spike includes the D101 spec path and D102 command lookup |
 | 0-C | Eval prep: `ergo` tier 26–29, CT-1 A/B variant | ⬜ | | subagent | | |
-| 0-D | Merge the bug-fix branch (B-0, B-1, bubbling) | ⬜ | | coordinator | | G-200 |
+| 0-D | Bug fixes (B-0, B-1, bubbling) | ✅ before PLAN-4 | `main` | other session | #12 (`2cef7ee`) | Recorded as G-144…G-146 in `PLAN-2-status.md`; 0-A re-runs X2, X2b, X7, X8 |
 | 0-E | `ergo` baseline eval (user's terminal) | ⬜ | | user | | |
 | 1-A / 1-T / 1-D / 1-E | Controls | ⬜ | | | | Includes the D101 contract |
 | 2-A … 2-T, P-1 … P-4 | Phase 2 | ⬜ | | | | |
@@ -57,7 +57,7 @@ If 1-A finds that any of these can't fit (size, or the pragma path), record it h
 | PLAN-4 (§5) | SYG124–129, 222–226, 422–423, 510 (if P4-D), 640–649, 701–719; SYG502 retired |
 | PLAN-5 (`PLAN-5.md` §4) | SYG140–149, 230–239, 430–439, 660–669, 720–729 |
 
-They don't overlap (checked 2026-10-02). 0-A confirms both against the final `codes.ts` after PLAN-3's 4-C.
+They don't overlap (checked 2026-10-02). 0-A confirms both against `codes.ts` on `main`.
 
 ## Decisions
 
@@ -88,16 +88,17 @@ They don't overlap (checked 2026-10-02). 0-A confirms both against the final `co
 | P4-Q10 | CT-1 canonical bar → P4-D | Open (after 1-E) |
 | P4-Q11 | a11y default severity | Open |
 | P4-Q12 | Eval spend | Open |
-| P4-Q13 | Bubbling semantics | Pending in the bug-fix session |
+| P4-Q13 | Bubbling semantics | ✅ Settled in #12 (G-145): native bubbling in both drivers |
 
 ## Gaps
 
 | ID | Found | Sev | Area | Description | Status |
 |---|---|---|---|---|---|
-| G-200 | gap study | high | DOM | B-0 (controlled inputs drop keystrokes under ~5 ms apart), B-1 (fragment-root components lose isolation in the real DOM) and the mock/real bubbling mismatch. A separate session ("Fix DOM isolation and keystroke bugs") is fixing them on a branch off `main`. | Open → 0-D merges it |
+| G-200 | gap study | high | DOM | B-0 (controlled inputs drop keystrokes under ~5 ms apart), B-1 (fragment-root components lose isolation in the real DOM) and the mock/real bubbling mismatch. A separate session ("Fix DOM isolation and keystroke bugs") is fixing them on a branch off `main`. | ✅ Fixed on `main` in #12 (`2cef7ee`) as G-144…G-146 (PLAN-2 tracker) |
 | G-201 | PLAN-5 §0.3 S-7 | info | GS-2 | `scrollToIndex` isn't an element command, because the target row of a virtual list usually isn't rendered. PLAN-5 uses `createCommand()` for it. Nothing changes in GS-2. | Note |
 
 ## Log
 
 - 2026-10-02 — Plan written as PLAN-5 and renamed to PLAN-4 in run order (D100); `HANDOFF-to-PLAN-5.md` sent (`aac8ccd`).
 - 2026-10-02 — PLAN-5 session answered the handoff (`claude/sygnal-component-research-b1873e` `cbef7c8`, `acc9b12`): S-1…S-14 all accepted (S-2, S-3, S-4, S-7 with changes; S-9 and S-10 to be investigated). Its requests are recorded as D101–D105. PLAN-4 §0.5, §2 CT-1, GS-2, GS-11, GS-13, §5 and §10 are updated. Tracker created early to hold them.
+- 2026-10-03 — Updated for the state of `main`. PLAN-3 is merged (#14; its last IDs are D95 and G-189, so D100/G-200 still leave a gap), and the bug fixes are merged (#12, G-144…G-146), which closes G-200 and P4-Q13. `plan4-integration` will be cut from `main`. The PLAN-4 plan and tracker were merged to `main` so that all plans live in one place.

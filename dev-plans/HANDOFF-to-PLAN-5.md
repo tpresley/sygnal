@@ -16,7 +16,7 @@ Plans are numbered in run order:
 
 | Plan | Was | Now | Runs |
 |---|---|---|---|
-| Network layer, router, cache, HEAD | PLAN-3 | PLAN-3 | now (4-C eval pending) |
+| Network layer, router, cache, HEAD | PLAN-3 | PLAN-3 | done; merged to `main` (#14) |
 | Controls and core ergonomics (CT-1, GS-1…GS-16) | drafted as PLAN-5 | **PLAN-4** | after PLAN-3 |
 | Ecosystem components and integrations | PLAN-4 | **PLAN-5** | after PLAN-4; rebases onto `plan4-integration` |
 

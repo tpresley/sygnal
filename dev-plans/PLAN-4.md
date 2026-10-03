@@ -15,7 +15,7 @@
 | Gap study | [`research/sygnal-6-gap-study.html`](research/sygnal-6-gap-study.html) (https://claude.ai/artifact/MxVtAh3FVeJtmnVCbd5zXL) | For each GS item: rationale, prior art in other frameworks, fit/importance scores, sketch, budget notes |
 | View–intent linking study | [`research/view-intent-linking.html`](research/view-intent-linking.html) (https://claude.ai/artifact/ELiw7MwhZDoNL1LrchMT3U) | Corpus measurements, options A–E, the controls design (option D), the `DOM.click(Component)` follow-up, bugs B-1 and the bubbling mismatch |
 | Experiments | [`research/gap-study-experiments/`](research/gap-study-experiments/) | Throwaway tests X1–X8, the `controls()` userland prototype, corpus scripts. The README lists the expected results |
-| PLAN-3 | `plan3-integration:dev-plans/PLAN-3.md` and `PLAN-3-status.md` | Mechanisms reused here, budgets (D76, D87), process lessons |
+| PLAN-3 | `dev-plans/PLAN-3.md` and `PLAN-3-status.md` on `main`, plus `evals/agent-ergonomics/results/REPORT-v3.md` | Mechanisms reused here, budgets (D76, D87), process lessons |
 | PLAN-5 (ecosystem) | `claude/sygnal-component-research-b1873e:dev-plans/PLAN-5.md` (named `PLAN-4.md` there until that session applies the rename) | Overlaps (§0.3) and the shared budgets |
 | PLAN-1 §0, §1 | `dev-plans/PLAN-1.md` | The rejected element-bound triggers; the coordinator operating model |
 
@@ -42,14 +42,14 @@ Controls keep this: a view renders a control, and only the intent says which eve
 
 | Item | State | Effect on PLAN-4 |
 |---|---|---|
-| PLAN-3 | Phase 5 done on `plan3-integration` (`0e39a6a`); 4-C final eval and REPORT-v3 pending | PLAN-4 branches from `plan3-integration` once 4-C has run, so 4-C measures PLAN-3 alone. Phase 0 can start earlier on a provisional base. |
+| PLAN-3 | **Done and merged to `main`** as #14 (`6852127`, 2026-10-03), including its 4-C eval, REPORT-v3 and Phase 6. Its last IDs are D95 and G-189. | PLAN-4 branches from `main`. |
 | PLAN-5 (ecosystem; was PLAN-4) | Plan only | Runs after PLAN-4 (P4-Q1, decided) and rebases onto `plan4-integration`. |
-| Budgets after PLAN-3 | Core **1,897 B** left (40,403 / 42,300 B gated), `llms.txt` **17 lines** (283 / 300), SKILL.md **1,657 B** (34,343 / 36,000) | Shared with PLAN-5. See §6 and **P4-Q2**. |
-| Bug-fix session "Fix DOM isolation and keystroke bugs" | Running separately, on a branch off `main` | Fixes B-0 (fast keystrokes), B-1 (fragment-root isolation) and the mock/real bubbling mismatch, after asking the user about the bubbling semantics. Merge it in Phase 0 (0-D). GS-14 docs and the controls wrapper pattern depend on it. |
+| Budgets after PLAN-3 | Core **about 1,897 B** left (40,403 / 42,300 B gated at the end of PLAN-3 Phase 5; the #12 fixes added about 145 B, so 0-A re-measures on `main`), `llms.txt` **17 lines** (283 / 300), SKILL.md **1,657 B** (34,343 / 36,000) | Shared with PLAN-5. See §6 and **P4-Q2**. |
+| Bug-fix session "Fix DOM isolation and keystroke bugs" | **Merged to `main`** as #12 (`2cef7ee`), recorded as G-144…G-146 in `PLAN-2-status.md` | B-0, B-1 and the bubbling mismatch are fixed. Bubbling follows native DOM semantics: a parent's own wrapper hears events from inside a child, after the child's listeners, and the mock DOM delivers innermost listeners first (G-145). That settles P4-Q13. GS-14 docs and the controls wrapper pattern can rely on it. |
 
 ### 0.2 What PLAN-4 reuses from PLAN-3
 
-These modules exist on `plan3-integration`; read them there.
+These modules are on `main`.
 - **The `__sygnalStatic` declaration mechanism** (`initStatics` in `src/component.ts`). Statics work without a model and pause in hidden Switchable pages unless `background: true`. Used by GS-7 (timers) and possibly GS-5 (persist).
 - **Sender tagging and reply actions** (`src/extra/replies.ts`): a value on a sink is tagged with the sending instance, and replies reach exactly that instance. Used by GS-2 (element commands) and by `t.actions` causes (GS-10).
 - **`src/extra/browserSignals.ts`** (focus, online, visibility): GS-7 pausing, GS-5 cross-tab sync.
@@ -104,7 +104,7 @@ PLAN-1 §1.1–§1.6 and PLAN-2 §1 apply unchanged, with the PLAN-3 lessons inc
 The coordinator may split, merge or reorder workstreams when that improves quality or reduces conflicts, provided it respects file ownership (§1.3) and records the change in the tracker. The workstream list in §4 is the default split.
 
 ### 1.1 Branches, tracker and setup
-- **Integration branch:** `plan4-integration`, cut from `plan3-integration` after PLAN-3's 4-C. Phase tags `plan4-phaseN`.
+- **Integration branch:** `plan4-integration`, cut from `main` (at or after the commit that merges the PLAN-4 and PLAN-5 plans). Phase tags `plan4-phaseN`.
 - **Subagent branches:** `p4-<id>` (e.g. `p4-1a-controls`). Experiments: `exp/p4-<name>`.
 - **Tracker:** `dev-plans/PLAN-4-status.md`, with a baseline, a workstream table, a gate table per merge, gaps, decisions, questions and a dated log (PLAN-3-status format).
 - **Fresh-worktree setup** (in every brief):
@@ -146,7 +146,7 @@ Only the listed owner edits a hot file during a phase. Anyone else returns `QUES
 | Area | Phase 0 | Phase 1 | Phase 2 | Phase 3 | Phase 4 |
 |---|---|---|---|---|---|
 | `src/pragma/**` | 0-B (exp only) | **1-A** | — | P-2b if adopted | — |
-| `src/cycle/dom/**` | 0-D (coordinator merge of the bug fixes) | **1-A** | — | 3-A (command resolution hook only) | — |
+| `src/cycle/dom/**` | — | **1-A** | — | 3-A (command resolution hook only) | — |
 | `src/component.ts` | 0-B (exp only) | 1-A (only if needed for DOM-source tokens) | **2-A**, then **2-B** (serial) | 3-A, then 3-B, then 3-C (serial; small hooks), P-1b if adopted | — |
 | `src/cycle/state/**` | — | — | **2-B** (`STATE.watch`) | — | — |
 | `src/extra/testing.ts` | — | **1-A** (accept controls) | **2-C** (`t.actions`) | 3-A/3-B/3-C fakes (serial, after 2-C) | — |
@@ -594,7 +594,7 @@ The dependency order is listed at the end of this section.
 
 ### Phase 0: Setup (coordinator, with subagents for 0-B and 0-C)
 - **0-A:**
-  - create `plan4-integration` from `plan3-integration` after PLAN-3's 4-C;
+  - create `plan4-integration` from `main`;
   - create the tracker;
   - baseline the size gate, `llms.txt`, SKILL.md and test counts;
   - settle §11 with the user, in batches;
@@ -611,10 +611,7 @@ The dependency order is listed at the end of this section.
 - **0-C eval prep** (subagent, owns `evals/**`):
   - the new **`ergo` tier** (tasks 26–29, §7), both arms, with `verify.mjs` and mutants;
   - the CT-1 A/B variant: the controls skill, plus starters converted with `--fix --keep-classes` from 1-D. The variant is assembled after 1-D merges.
-- **0-D:**
-  - merge the bug-fix session's branch (B-0, B-1, bubbling semantics) into `plan4-integration`;
-  - port its tests if it was built against `main`;
-  - gate.
+- **0-D (done before PLAN-4 started):** the bug fixes merged to `main` as #12. 0-A only re-runs experiments X2, X2b, X7 and X8 on `plan4-integration` to confirm they pass.
 - **0-E (user's terminal):** run the `ergo` tier baseline on the PLAN-3 build, both arms.
 
 ### Phase 1: Controls
@@ -682,7 +679,7 @@ The dependency order is listed at the end of this section.
 - **4-F REPORT-v4.md** (PLAN-3 writes REPORT-v3).
 
 **Dependency order:**
-1. 0-A → 0-B (spikes) → §11 budget and form answers. 0-C and 0-D run alongside 0-B.
+1. 0-A → 0-B (spikes) → §11 budget and form answers. 0-C runs alongside 0-B.
 2. 1-A ∥ 1-T ∥ 1-D → 1-E (eval) → P4-D.
 3. 2-A → 2-B (serial on `component.ts`), with 2-C ∥ 2-D ∥ 2-T beside them. P-1…P-4 run from Phase 2 on.
 4. 3-D → 3-K (serial on sygnal-check), with 3-A → 3-B → 3-C (serial on `component.ts` hooks) ∥ 3-E ∥ 3-T beside them.
@@ -793,7 +790,6 @@ Total about $180. Anything beyond that is asked first.
 | a11y rules are noisy, and agents spend time on warnings | Only high-precision rules; the false-positive review on agent corpora (< 5%); warn level outside strict |
 | Budgets (core, `llms.txt`, SKILL) are too small for PLAN-5 plus PLAN-4 | 0-B measures before committing; P4-Q2; the 4-A trim target; learn-time check |
 | Two plans touch the same hot files (`component.ts`, `testing.ts`, sygnal-check) | PLAN-4 then PLAN-5, one coordinator at a time (P4-Q1) |
-| The bug-fix branch, based on `main`, conflicts with `plan3-integration` | 0-D merges it early and ports its tests; `src/cycle/dom/**` has had little PLAN-3 churn |
 | Prototype items grow into scope creep (View Transitions, custom elements, dev context) | Spike → decision record → user; nothing merges from `exp/*` without a decision |
 | Eval noise (n = 5) hides small effects | Matched-task means, a Haiku arm for pass-rate signal, and the bars stated before the runs |
 
@@ -842,4 +838,4 @@ Total about $180. Anything beyond that is asked first.
 | P4-Q10 | CT-1 canonical bar (§7) | As written. The user decides after 1-E with the numbers. |
 | P4-Q11 | a11y default severity | warn by default and error under `--strict`; on in the Vite dev checker. |
 | P4-Q12 | Eval spend (§7) | About $180 across 0-E, 1-E and 4-E; ask before more. |
-| P4-Q13 | Bubbling semantics (from the bug-fix session) | Whatever the user decided there; PLAN-4 docs (CT-1 wrapper pattern) follow it. |
+| P4-Q13 | Bubbling semantics (from the bug-fix session) | **Settled in #12 (G-145):** native bubbling in both drivers. PLAN-4 docs (CT-1 wrapper pattern) follow it. |

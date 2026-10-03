@@ -4,7 +4,7 @@ These experiments back two reports:
 - [`../sygnal-6-gap-study.html`](../sygnal-6-gap-study.html), published at https://claude.ai/artifact/MxVtAh3FVeJtmnVCbd5zXL
 - [`../view-intent-linking.html`](../view-intent-linking.html), published at https://claude.ai/artifact/ELiw7MwhZDoNL1LrchMT3U
 
-They were written against main `6b7144e`. To run them, build the library at the repo root first (`npm run build`), then:
+They were written against main `6b7144e`. Bugs B-0, B-1 and the bubbling mismatch were fixed on `main` in #12 (G-144…G-146), so on current `main` X2, X2b, X7 and X8 are expected to pass. That hasn't been re-run here; PLAN-4 0-A does it. To run them, build the library at the repo root first (`npm run build`), then:
 
 ```bash
 npm install --prefix dev-plans/research/gap-study-experiments
