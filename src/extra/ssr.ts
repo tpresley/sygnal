@@ -111,11 +111,33 @@ let heads: any[] | undefined
 let ssrCache: any
 
 /**
+ * PLAN-4 GS-1: a host's behaviors: each `uses` key missing from the state is the slice the
+ * behavior starts with (its initialState, the options naming its keys, its calculated fields: the
+ * factory's precomputed `state`), as the client's merge gives it (behaviors.ts). A host with no
+ * state gets an object with just its slices
+ */
+function withUses(def: any, state: any): any {
+  const uses = def && def.uses
+  if (!uses || typeof uses !== 'object') return state
+  if (state == null) state = {}
+  if (typeof state !== 'object' || Array.isArray(state)) return state
+  let out = state
+  for (const k in uses) {
+    if (out[k] === undefined && uses[k] && uses[k].state !== undefined) {
+      if (out === state) out = {...state}
+      out[k] = uses[k].state
+    }
+  }
+  return out
+}
+
+/**
  * 5-5 (H-7): the state a component's view renders with: each `resources` entry missing from the
  * state reads from the cache ('success' with the cached data), else 'loading' ('idle' for a
  * falsy request), as the client's first paint does with the same (hydrated) cache
  */
 function withResources(def: any, state: any): any {
+  state = withUses(def, state)
   const res = def && def.resources
   if (!res || !state || typeof state !== 'object' || Array.isArray(state)) return state
   const out = {...state}
@@ -515,6 +537,8 @@ function renderCollection(vnode: any, context: Record<string, any>, parentState:
     const isItemObj = itemState && typeof itemState === 'object' && !Array.isArray(itemState)
     const keyed: any = isItemObj ? {...itemState, [idField]: itemState[idField] || index} : {[idField]: index}
     const itemUid = uid + '-' + (keyed.id !== undefined ? keyed.id : index)
+    // GS-1: an item host's behavior slices (the client reads them as defaults, behaviors.ts)
+    itemState = withUses(itemComponent, itemState)
     // Build context for this item
     const itemContext: Record<string, any> = {...context}
     const componentContext = itemComponent.context || {}
