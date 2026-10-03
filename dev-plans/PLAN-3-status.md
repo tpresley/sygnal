@@ -51,6 +51,7 @@ Earlier table:
 |---|---|---|
 | H-0a ship `resources` regardless | ✅ accepted, eval decides canonical (skill-only A/B) | D93 | 2026-10-03 | Before PLAN-3 closes: G-184 (cache path: recipe, docs offline, model-level cache write) and G-185 (`t.query` on the mock DOM, answering one of identical pending requests). G-186 and G-187 move to PLAN-4's backlog; G-188 (publish the guides) is a release step | User | REPORT-v3 recommendations 1–2 |
 | D94 | 2026-10-03 | After G-184/G-185: a targeted re-run from the user's terminal: Opus Sygnal 23, 24, 25 × 5; Haiku Sygnal 14, 24, 25 × 5 | User | Confirm the fixes before release |
+| D95 | 2026-10-03 | G-176 (flake hunt), G-179 (`verify.mjs` stale install) and G-165 (`drivers` in Vike `+config.js`) are done in PLAN-3 rather than handed on: none is in PLAN-4/PLAN-5, they need no budget, and PLAN-4 builds on the same gate, harness and Vike wrappers | User | Clean base for PLAN-4 |
 | D92 | 2026-10-03 | D74 outcome: the resources-first skill was +3% (p = 0.13), not ≥ 10% faster, so `resources` stays an advanced form; the default skill (D91) stands | Rule | REPORT-v3 |
 | D90 | 2026-10-02 | Q17: keep the React starters' `main.jsx` comment for 24/25 (the harness renders `App.jsx`) | User | Avoids harness-caused React failures |
 | D91 | 2026-10-02 | 5-7: the default skill keeps reply actions as the canonical HTTP form, with `resources` as the form for state-derived reads; the A/B variant (same size) is resources-first; the eval decides (D74) | User | — |
@@ -115,6 +116,8 @@ Earlier table:
 | 4-C | Eval | ✅ | — | user's terminal (117 `p3-v6` trials started by mistake from the coordinator's session, same build/guard; see REPORT-v3 Method) | — | `p3-v6` 125/125, `p3-v6-react` 10/10, `p3-v6-haiku` 91/130, `p3-v6-skill-ab` 25/25, `p3-v6-react-haiku` 0/10; $107.74 |
 | 6-A | G-184 cache path (recipe, offline guides, model-level cache write) | ✅ | `p3-6a-cache-path` | subagent | `79afd7e`, merged | D93 |
 | 6-B | G-185 test traps (`t.query` mock DOM, identical pending requests) | ✅ | `p3-6b-test-traps` | subagent | `2b41a06`, merged | D93 |
+| 6-D | G-176 flake hunt | 🔵 | `p3-6d-flakes` | subagent | — | D95 |
+| 6-E | G-179 verify.mjs stale install; G-165 Vike `+config.js` drivers | 🔵 | `p3-6e-harness-vike` | subagent | — | D95 |
 | 6-C | Targeted re-run (D94) | ✅ | — | user's terminal | — | `p3-v7` 15/15 (wall 109.6 → 80.3 s matched; 24: 2.25× → 1.37× React, `queryCache` 0/5 → 5/5), `p3-v7-haiku` 3/15; $15.71; REPORT-v3 "Targeted re-run" |
 | 4-D | REPORT-v3 | ✅ | `p3-4d-report` (results) | subagent (analysis) + coordinator (wrote the file: subagents can't write report files) | `a04ad06` + this commit | `results/REPORT-v3.md`; CHANGELOG "Measured impact" filled (vs 5.4.0). Tiers 1–3 gap 1.50× (5.4.0) → 1.22×; `p4-final2` → v6 −11% (p = 0.0001); 22/23/24 slower than React (24: 2.25×, cache not adopted); D74 bar not met; D76 passes; Haiku changes not significant except 22 (1/5 → 10/10) |
 
