@@ -3,7 +3,9 @@
 //
 // mountApp() renders the default export of src/App.jsx with
 // @testing-library/react; interactions go through RTL's fireEvent (wrapped in
-// act) so React's controlled inputs see real value changes.
+// act) so React's controlled inputs see real value changes. Under fake timers
+// (vi.useFakeTimers(), the ergo tier) the pause advances the fake clock by
+// HUMAN_PAUSE_MS inside act() instead of sleeping, and advance(ms) moves it further.
 import { vi, afterEach } from 'vitest'
 import { createElement } from 'react'
 import { render, cleanup, fireEvent, act } from '@testing-library/react'
@@ -21,12 +23,21 @@ export async function mountApp() {
   await act(async () => {
     render(createElement(App))
   })
+  if (vi.isFakeTimers()) await advance(HUMAN_PAUSE_MS)
   await waitFor(() => {
     if (document.body.textContent.trim() === '') throw new Error('app did not render')
   })
 }
 
+/** Fake timers: move the clock by `ms` (running due timers and the renders they cause). */
+export async function advance(ms) {
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(ms)
+  })
+}
+
 async function pause() {
+  if (vi.isFakeTimers()) return advance(HUMAN_PAUSE_MS)
   await act(async () => {
     await sleep(HUMAN_PAUSE_MS)
   })
@@ -58,11 +69,16 @@ export async function blur(el) {
   await pause()
 }
 
-/** Press a key: keydown + keyup on `target` (default: the focused element, else <body>); both bubble to document. */
-export async function pressKey(key, target = document.activeElement || document.body) {
+/**
+ * Press a key: keydown + keyup on `target` (default: the focused element, else <body>); both bubble to document.
+ * `init` adds modifiers ({ ctrlKey, metaKey, shiftKey, altKey }). Returns the keydown event (e.g. for defaultPrevented).
+ */
+export async function pressKey(key, target = document.activeElement || document.body, init = {}) {
+  const down = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...init })
   act(() => {
-    target.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }))
-    target.dispatchEvent(new KeyboardEvent('keyup', { key, bubbles: true, cancelable: true }))
+    target.dispatchEvent(down)
+    target.dispatchEvent(new KeyboardEvent('keyup', { key, bubbles: true, cancelable: true, ...init }))
   })
   await pause()
+  return down
 }
