@@ -192,7 +192,7 @@ export const CODE_TITLES: Record<string, string> = {
   SYG220: 'Calculated field threw',
   SYG221: 'set() called with a string',
   SYG222: 'STATE reducer returned the same object after it was mutated in place',
-  SYG226: 'undoable/undo track or resetOn names an unknown action',
+  SYG226: 'Undo track or resetOn names an unknown action',
   SYG402: 'Context is not an object',
   SYG403: 'Invalid context entry',
   SYG404: 'Context stream errored',

@@ -52,6 +52,8 @@ export function findInChildren(project, sink, kind, name) {
 }
 
 const tag = (control) => `<${control.key}>`
+// a behavior's option selector names its uses entry in the message
+const via = (sel) => sel.behavior ? `behavior '${sel.behavior}' (option ${sel.option}): ` : ''
 const show = (kind, name) => (kind === 'class' ? '.' : '#') + name
 
 export default {
@@ -62,18 +64,23 @@ export default {
     for (const comp of project.components) {
       const intent = comp.intent
       const view = comp.viewInfo
-      if (!intent || !view || intent.selectors.length === 0) continue
+      // PLAN-4 GS-1: what the component's behaviors listen to through their options
+      // (pager({ next: Newer }) → DOM.click(Newer) in the host's DOM scope)
+      const selectors = [...(intent?.selectors || []), ...(comp.behaviorSelectors || [])]
+      if (!view || selectors.length === 0) continue
       const injected = project.injectedInto(comp.view)
-      for (const sel of intent.selectors) {
+      for (const sel of selectors) {
+        const file = sel.file || intent.file
         if (sel.global) continue
         if (sel.component) continue // SYG124 (rules/syg124-controls.js)
         for (const control of sel.controls || []) checkControl(project, report, comp, sel, control, view, injected)
         if (sel.dynamic) {
+          if (sel.behavior) continue // an option value we can't follow: the behavior may use it any way
           report({
             code: 'SYG110',
             severity: 'info',
             component: comp.name,
-            file: intent.file,
+            file,
             node: sel.node,
             message: `DOM.${sel.method}() selector is not a static string, so it was not checked against the view`,
             fix: 'use a string literal selector (or a module-level const) so it can be checked',
@@ -91,9 +98,9 @@ export default {
             report({
               code: 'SYG104',
               component: comp.name,
-              file: intent.file,
+              file,
               node: sel.node,
-              message: `selector '${sel.selector}' targets ${show(kind, name)}, which is only rendered inside child component <${child}>${where}; parents can't see DOM events inside child components`,
+              message: `${via(sel)}selector '${sel.selector}' targets ${show(kind, name)}, which is only rendered inside child component <${child}>${where}; parents can't see DOM events inside child components`,
               fix: `handle it in <${child}> and send it up via PARENT or EVENTS`,
               data: { selector: sel.selector, [kind]: name, child, path: inChild.via },
             })
@@ -105,9 +112,9 @@ export default {
               code: 'SYG110',
               severity: 'info',
               component: comp.name,
-              file: intent.file,
+              file,
               node: sel.node,
-              message: `selector '${sel.selector}' targets ${show(kind, name)}, which is not a static ${kind === 'class' ? 'className' : 'id'} in the view; ` +
+              message: `${via(sel)}selector '${sel.selector}' targets ${show(kind, name)}, which is not a static ${kind === 'class' ? 'className' : 'id'} in the view; ` +
                 (pattern.source === '*' ? 'a dynamic value might produce it' : `it might come from the dynamic value '${pattern.source}'`),
               fix: `check that the view really renders ${show(kind, name)}, or add it as a static ${kind === 'class' ? 'class' : 'id'}`,
               data: { selector: sel.selector, [kind]: name, pattern: pattern.source },
@@ -117,9 +124,9 @@ export default {
           report({
             code: 'SYG110',
             component: comp.name,
-            file: intent.file,
+            file,
             node: sel.node,
-            message: `selector '${sel.selector}' targets ${show(kind, name)}, but ${comp.name}'s view never renders ${kind === 'class' ? 'that class' : 'that id'}, so this action never fires`,
+            message: `${via(sel)}selector '${sel.selector}' targets ${show(kind, name)}, but ${comp.name}'s view never renders ${kind === 'class' ? 'that class' : 'that id'}, so this action never fires`,
             fix: closestHint(view, kind, name) || `add ${kind === 'class' ? 'className' : 'id'}="${name}" to the element in the view, or fix the selector`,
             data: { selector: sel.selector, [kind]: name },
           })
@@ -132,7 +139,10 @@ export default {
 /** SYG110 / SYG104 by identifier: a control the intent listens to. */
 function checkControl(project, report, comp, sel, control, view, injected) {
   if (viewHas(view, 'control', control) || injected.some(sink => viewHas(sink, 'control', control))) return
-  const call = `DOM.${sel.method}(${comp.intent.file.source.slice(sel.node.start, sel.node.end)})`
+  const file = sel.file || comp.intent.file
+  const call = sel.behavior
+    ? `behavior '${sel.behavior}' (option ${sel.option}: ${file.source.slice(sel.node.start, sel.node.end)}, DOM.${sel.method}())`
+    : `DOM.${sel.method}(${file.source.slice(sel.node.start, sel.node.end)})`
   const inChild = findInChildren(project, view, 'control', control)
   if (inChild) {
     const child = inChild.child
@@ -140,7 +150,7 @@ function checkControl(project, report, comp, sel, control, view, injected) {
     report({
       code: 'SYG104',
       component: comp.name,
-      file: comp.intent.file,
+      file,
       node: sel.node,
       message: `${call} listens to control ${tag(control)}, but control ${tag(control)} is only rendered inside child component <${child}>${where}; parents can't see DOM events inside child components`,
       fix: `listen to ${control.key} in <${child}>'s intent and send it up via PARENT or EVENTS, or render ${tag(control)} in ${comp.name}'s own view`,
@@ -151,7 +161,7 @@ function checkControl(project, report, comp, sel, control, view, injected) {
   report({
     code: 'SYG110',
     component: comp.name,
-    file: comp.intent.file,
+    file,
     node: sel.node,
     message: `${call} listens to control ${tag(control)}, but ${comp.name}'s view never renders ${tag(control)}, so this action never fires`,
     fix: `render ${tag(control)}${control.element ? ` (a <${control.element}>)` : ''} in ${comp.name}'s view, or listen to a control the view renders`,

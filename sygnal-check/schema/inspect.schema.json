@@ -27,6 +27,24 @@
       "description": "Diagnostics not tied to a listed component",
       "type": "array",
       "items": { "$ref": "#/$defs/diagnostic" }
+    },
+    "recentActions": {
+      "description": "runtime only, with inspect({ actions }): the most recent actions of any instance, oldest first",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type", "component", "instance", "sinks", "cause", "at"],
+        "additionalProperties": false,
+        "properties": {
+          "type": { "type": "string" },
+          "data": {},
+          "component": { "type": "string" },
+          "instance": { "type": "string" },
+          "sinks": { "$ref": "#/$defs/strings" },
+          "cause": { "enum": ["intent", "next", "reply", "built-in", "simulateAction", "behavior"] },
+          "at": { "type": "number" }
+        }
+      }
     }
   },
   "$defs": {
@@ -57,6 +75,11 @@
         "eventsSelected": { "$ref": "#/$defs/strings" },
         "children": { "type": "array", "items": { "$ref": "#/$defs/child" } },
         "selectors": { "type": "array", "items": { "$ref": "#/$defs/selector" } },
+        "uses": {
+          "description": "static: the entries of the component's `uses` static (behaviors); omitted when it has none",
+          "type": "array",
+          "items": { "$ref": "#/$defs/uses" }
+        },
         "controls": {
           "description": "controls (controls() element tokens) the component renders; omitted when there are none",
           "type": "array",
@@ -72,7 +95,18 @@
       "properties": {
         "name": { "type": "string" },
         "trigger": { "enum": ["intent", "next", "reply", "builtin", "unknown"] },
-        "sinks": { "$ref": "#/$defs/strings" }
+        "sinks": { "$ref": "#/$defs/strings" },
+        "behavior": { "type": "string", "description": "the `uses` key of the behavior that owns this action ('pager' for 'pager.NEXT')" }
+      }
+    },
+    "uses": {
+      "type": "object",
+      "required": ["key", "behavior", "status"],
+      "additionalProperties": false,
+      "properties": {
+        "key": { "type": "string", "description": "the state key and action prefix" },
+        "behavior": { "type": ["string", "null"], "description": "the behavior's name (its factory), when resolved" },
+        "status": { "enum": ["resolved", "opaque", "invalid"], "description": "resolved to a defineBehavior() definition or a first-party behavior; opaque (e.g. from a package); invalid (not a behavior, SYG127)" }
       }
     },
     "child": {
@@ -95,7 +129,8 @@
         "events": { "type": ["array", "null"], "items": { "type": "string" } },
         "matched": { "type": ["boolean", "null"], "description": "matches an element the component itself renders (static: in the view source; renderComponent: in the latest render; real DOM: seen by the DOM checks); null when unknown" },
         "isolationHit": { "type": ["string", "null"], "description": "child component whose isolated elements the selector matches instead" },
-        "control": { "type": "string", "description": "the control this selector is (its key), when the intent passed a control" }
+        "control": { "type": "string", "description": "the control this selector is (its key), when the intent passed a control" },
+        "behavior": { "type": "string", "description": "the `uses` key of the behavior that listens to it (a control or selector passed as its option)" }
       }
     },
     "control": {

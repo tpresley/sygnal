@@ -22,6 +22,14 @@ export const NON_REPLY_SINKS = new Set(['STATE', 'EFFECT', 'EVENTS', 'PARENT', '
 
 const SHORTHAND = /^(.+?)\s*\|\s*(.+)$/
 
+/** Is `ident` bound to the export `name` of 'sygnal' (any local name)? */
+function isSygnalImport(file, ident, name) {
+  ident = unwrap(ident)
+  if (ident?.type !== 'Identifier') return false
+  const b = findBinding(file, ident.name, ident)
+  return !!b && b.kind === 'import' && b.imported === name && /^sygnal(\/|$)/.test(b.source)
+}
+
 export function splitModelKey(key) {
   const m = SHORTHAND.exec(key)
   return m ? { action: m[1].trim(), sink: m[2].trim(), shorthand: true } : { action: key, sink: null, shorthand: false }
@@ -156,6 +164,14 @@ export function connectionNames(project, file, node, keys = CONNECTION_KEYS) {
 export function analyzeModel(project, file, modelNode) {
   const res = { known: true, entries: [], nextTargets: [], dynamicNext: [], eventsEmitted: [], eventsDynamic: [], replyTargets: [], replyDynamic: [], requests: [] }
   const r = resolveExpr(project, file, modelNode)
+  // PLAN-4 GS-8: undoable(model, options) is the model plus UNDO / REDO (src/extra/undo.ts)
+  if (r?.node?.type === 'CallExpression' && isSygnalImport(r.file, r.node.callee, 'undoable') && r.node.arguments[0]) {
+    const inner = analyzeModel(project, r.file, r.node.arguments[0])
+    for (const a of ['UNDO', 'REDO']) {
+      if (!inner.entries.some(e => e.action === a)) inner.entries.push({ action: a, sinks: ['STATE'], node: r.node.callee, key: a, shorthand: false, file: r.file })
+    }
+    return inner
+  }
   const obj = r?.node
   if (!obj || obj.type !== 'ObjectExpression') { res.known = false; return res }
   const mfile = r.file

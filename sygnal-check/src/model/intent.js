@@ -83,7 +83,7 @@ function domChain(node, sa) {
   return null
 }
 
-function selectorValue(arg, file) {
+export function selectorValue(arg, file) {
   const s = stringValue(arg)
   if (s != null) return { selector: s, dynamic: false }
   const alts = evalStrings(arg, { fileInfo: file })

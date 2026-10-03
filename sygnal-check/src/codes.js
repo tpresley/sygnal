@@ -27,7 +27,11 @@ export const CODES = {
   SYG124: { severity: 'error', title: 'Component used as a control or selector' },
   SYG125: { severity: 'error', title: 'Control given .intent, .model or .initialState' },
   SYG126: { severity: 'info', title: 'Control rendered but never listened to' },
+  // PLAN-4 GS-1 behaviors (model/behaviors.js)
+  SYG127: { severity: 'error', title: 'Behavior collision or unresolvable uses entry' },
   SYG128: { severity: 'error', title: 'Duplicate control key' },
+  // PLAN-4 GS-8 undo (rules/syg127-behaviors.js)
+  SYG226: { severity: 'warn', title: 'Undo track or resetOn names an unknown action' },
   SYG401: { severity: 'warn', title: "Collection 'from' field is missing or not an array" },
   SYG634: { severity: 'info', title: 'latest: true with a computed key' },
   // PLAN-4 GS-3: the a11y lane (rules/a11y/); warn, error under --strict (D111)
