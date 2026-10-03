@@ -35,7 +35,16 @@
 import xs from './xstreamCompat'
 
 const isAbort = (v: any): boolean => typeof v == 'symbol' && v.description == 'sygnal.ABORT'
-const sinksOf = (e: any, S: string): any => typeof e == 'function' ? {[S]: e} : {...e}
+// a model entry as { sink: fn }: a constant is sent as is, `true` sends the action's data, an
+// EFFECT constant does nothing (as the core treats them)
+const sinksOf = (e: any, S: string): any => {
+  const o: any = typeof e == 'function' ? {[S]: e} : {...e}
+  for (const s in o) {
+    const v = o[s]
+    if (typeof v != 'function') o[s] = s == 'EFFECT' ? () => {} : v === true || v === undefined ? (_: any, d: any) => d : () => v
+  }
+  return o
+}
 
 const calcOf = (calcs: any) => (r: any) => {
   if (r && typeof r == 'object') for (const f in calcs) r = {...r, [f]: calcs[f](r)}

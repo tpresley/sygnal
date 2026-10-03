@@ -54,7 +54,10 @@ const wrap = (model: any, o: UndoOptions, hk: string, ns: string, S = 'STATE'): 
   for (const a in model) {
     const e = model[a], [name, sink] = a.split('|').map(x => x.trim())
     const reset = resetOn.includes(name)
-    const f = sink ? (sink == S ? e : null) : typeof e == 'function' ? e : e?.[S]
+    const f0 = sink ? (sink == S ? e : null) : typeof e == 'function' ? e : e?.[S]
+    // a constant STATE value isn't a reducer: the entry is left alone (G-214)
+    if (f0 != null && typeof f0 != 'function') { out[a] = e; continue }
+    const f = f0
     // an entry without a STATE reducer is left alone, except a resetOn object entry (gets one)
     if (!(f || reset && !sink) || !(reset || (track ? track.includes(name) : !BUILT_IN.test(name)))) { out[a] = e; continue }
     const w = (s: any, ...x: any[]) => {
@@ -83,7 +86,7 @@ const wrap = (model: any, o: UndoOptions, hk: string, ns: string, S = 'STATE'): 
     if (!own) return out[ns + a] = f
     const g = typeof own == 'function' ? own : own[S]
     // the model's own entry runs after the built-in step (its ABORT keeps the step)
-    const both = !g ? f : (s: any, ...x: any[]) => {
+    const both = typeof g != 'function' ? f : (s: any, ...x: any[]) => {
       const r = f(s, ...x), q = g(isAbort(r) ? s : r, ...x)
       return isAbort(q) ? r : q
     }
