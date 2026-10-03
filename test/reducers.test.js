@@ -269,7 +269,8 @@ describe('event() runtime integration', () => {
     App.initialState = {}
 
     const appEnv = runApp(App)
-    await settle(150)
+    await until(() => expect(received).toHaveLength(1))   // G-176: not a fixed 150ms
+    await settle(30)
     appEnv.dispose()
 
     expect(received).toEqual(['dark'])
