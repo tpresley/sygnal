@@ -979,7 +979,8 @@ class Component {
                 const enhancedState = this.addCalculated(_state)
                 props.state = enhancedState
                 const newState = reducer(enhancedState, data, next, props)
-                if (isAbort(newState)) return _state
+                // PLAN-4 GS-4: the object it got back = no change, as ABORT (the dev entry flags an in-place mutation)
+                if (newState === enhancedState || isAbort(newState)) return _state
                 // [diagnostics hook]
                 diag.onReducer(this, name, _state, newState, this.stateSourceName)
                 const result = this.cleanupCalculated(newState)

@@ -1,4 +1,5 @@
-// SYG502 (no-op without ABORT) and SYG503 (side effect + ABORT in STATE).
+// SYG503 (side effect + ABORT in STATE). The no-op forms below were SYG502, retired in 6.0
+// (PLAN-4 GS-4): they must not be reported.
 import { ABORT, createCommand } from 'sygnal'
 
 const player = createCommand()
@@ -30,19 +31,19 @@ Player.intent = ({ DOM }) => ({
 
 function mutate(state) {
   state.saved = true
-} // expect: SYG502
+}
 
 Player.model = {
-  SAVE: (state) => state.title ? { ...state, saved: true } : state, // expect: SYG502
+  SAVE: (state) => state.title ? { ...state, saved: true } : state,
   RESET: (state) => {
-    if (!state.saved) return // expect: SYG502
+    if (!state.saved) return
     return { ...state, saved: false }
   },
   MAYBE: (state, data) => {
     if (data) {
       return { ...state, title: data }
     }
-  }, // expect: SYG502
+  },
   MUTATE: mutate,
   PLAY: (state) => {
     player.send('play') // expect: SYG503

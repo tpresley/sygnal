@@ -14,8 +14,8 @@
  * | Code   | Rule (canonical form)                    | Runtime mechanism                       |
  * |--------|------------------------------------------|-----------------------------------------|
  * | SYG501 | C1 destructure the view's first argument | onModel: component.view.length > 1      |
- * | SYG502 | C3 return ABORT for "no change"          | onReducer: returned the previous state  |
- * |        |                                          | object (undefined stays SYG202)         |
+ * | SYG502 | retired in 6.0 (PLAN-4 GS-4): returning the state object a reducer got is "no      |
+ * |        | change", the same as ABORT. Never reported; the code entry stays (documented).   |
  * | SYG504 | C5 object form, no 'ACTION | SINK' keys  | onModel: raw model keys containing '|'  |
  * | SYG508 | reply actions, not select()/errors()     | replies.ts: a request with a category   |
  * |        | round trip (PLAN-3 §1.1)                 | the same instance select()ed on a       |
@@ -31,7 +31,7 @@
 import type {DiagnosticCheck} from '../index'
 import {CODE_TITLES, STRICT_CODE_SEVERITY, registerCodes} from '../codes'
 import type {DiagnosticSeverity} from '../codes'
-import {bridge, report, once, nameOf, isInternalAction} from './shared'
+import {bridge, report, once, nameOf} from './shared'
 
 registerCodes(Object.keys(STRICT_CODE_SEVERITY).map(code =>
   [code, STRICT_CODE_SEVERITY[code], CODE_TITLES[code]] as [string, DiagnosticSeverity, string]))
@@ -92,24 +92,5 @@ export const strictCheck: DiagnosticCheck = {
         data: {key, action, sink},
       })
     }
-  },
-
-  onReducer(component, action, prevState, nextState) {
-    if (!isStrictEnabled() || isInternalAction(action)) return  // incl. INITIALIZE/DISPOSE
-    // undefined is SYG202 (state check, every mode); only the identical object here.
-    if (!prevState || typeof prevState !== 'object' || nextState === undefined) return
-    let same = nextState === prevState
-    if (!same && typeof component?.addCalculated === 'function') {
-      // with calculated fields the reducer saw addCalculated(prev) (memoized: same object)
-      try { same = component.addCalculated(prevState) === nextState } catch (_) {}
-    }
-    const name = nameOf(component)
-    if (!same || !once(`SYG502:${name}:${action}`)) return
-    strictReport('SYG502', {
-      component,
-      message: `The STATE reducer for '${action}' returned the unchanged state object`,
-      fix: `Return ABORT for "no change": ${action}: (state, data) => cond ? { ...state, ... } : ABORT`,
-      data: {action},
-    })
   },
 }

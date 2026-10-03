@@ -163,7 +163,7 @@ export const CODE_TITLES: Record<string, string> = {
   SYG401: "Collection 'from' field is missing or not an array",
   // SYG5xx strict mode / canonical forms (2A; dev-plans/PLAN-1-canonical-forms.md)
   SYG501: 'View uses positional arguments',
-  SYG502: 'STATE reducer signals no change without ABORT',
+  SYG502: 'Retired in 6.0: STATE reducer signals no change without ABORT',
   SYG503: 'Side effect in a STATE reducer that returns ABORT',
   SYG504: "'ACTION | SINK' shorthand model key",
   SYG505: 'Non-canonical EVENTS emit',
@@ -189,6 +189,7 @@ export const CODE_TITLES: Record<string, string> = {
   SYG219: 'EFFECT handler returned a value',
   SYG220: 'Calculated field threw',
   SYG221: 'set() called with a string',
+  SYG222: 'STATE reducer returned the same object after it was mutated in place',
   SYG402: 'Context is not an object',
   SYG403: 'Invalid context entry',
   SYG404: 'Context stream errored',
@@ -266,6 +267,8 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG126: 'info',
   SYG128: 'error',
   SYG221: 'error',
+  // PLAN-4 GS-4 (state.ts)
+  SYG222: 'warn',
   SYG421: 'error',
   SYG611: 'error',
   // PLAN-3 5-4b: router (SYG620 is reported by the router itself, like SYG611) and G-167

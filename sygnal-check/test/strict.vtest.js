@@ -41,9 +41,15 @@ const find = (diags, code, re) => diags.find(d => d.code === code && (!re || re.
 
 describe('strict rule registry', () => {
   it('has one rule per canonical-form row, all strict', () => {
-    expect(strictRules.flatMap(r => r.codes).sort()).toEqual(['SYG501', 'SYG502', 'SYG503', 'SYG504', 'SYG505', 'SYG506', 'SYG507', 'SYG508'])
+    expect(strictRules.flatMap(r => r.codes).sort()).toEqual(['SYG501', 'SYG503', 'SYG504', 'SYG505', 'SYG506', 'SYG507', 'SYG508'])
     expect(strictRules.every(r => r.strict === true)).toBe(true)
     expect(CODES.SYG507.severity).toBe('info')
+  })
+
+  it('SYG502 is retired in 6.0 (PLAN-4 GS-4): no rule reports it, the code entry stays', () => {
+    expect(CODES.SYG502.title).toMatch(/^Retired in 6\.0/)
+    const diags = strict(path.join(dir('bad'), 'reducers.jsx'))
+    expect(diags.filter(d => d.code === 'SYG502')).toEqual([])
   })
 })
 
@@ -82,12 +88,6 @@ describe('canonical rewrites in the messages', () => {
     expect(find(diags, 'SYG501').fix).toContain('`function Counter({ state, ...props })`')
     expect(diags.find(d => d.component === 'Badge').fix).toContain('`const Badge = ({ label, state, context }) => …`')
     expect(diags.find(d => d.component === 'Panel').fix).toContain('`function Panel({ state: { count } })`')
-  })
-
-  it('SYG502 shows the statement with ABORT', () => {
-    const diags = strict(path.join(dir('bad'), 'reducers.jsx'))
-    expect(find(diags, 'SYG502', /'SAVE'/).fix).toContain('`SAVE: (state) => state.title ? { ...state, saved: true } : ABORT`')
-    expect(find(diags, 'SYG502', /'RESET'/).fix).toContain('`return ABORT`')
   })
 
   it('SYG503 shows the EFFECT form', () => {

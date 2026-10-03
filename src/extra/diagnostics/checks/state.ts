@@ -3,6 +3,13 @@
  * SYG202 — STATE reducer returned undefined (warn)
  * SYG221 — set() called with a string (error, G-143): the string is spread
  *          into the state as keys '0', '1', ... (one per character)
+ * SYG222 — STATE reducer returned the object it got after mutating it in place (warn, dev;
+ *          PLAN-4 GS-4): since 6.0 the same object back means "no change", so the mutation
+ *          is ignored. Mechanism: onIntent (called before the model is read) wraps the
+ *          instance's STATE reducers; the wrapper takes a shallow snapshot (keys and top-level
+ *          values) before the reducer runs and compares it when the reducer returns the same
+ *          reference. Nested mutations (state.list.push) are below the snapshot. Zero bytes
+ *          in the core: the wrapping only happens with the dev entry and diagnostics on.
  *
  * Mechanism: onReducer(component, action, prevState, nextState). Reported once
  * per action per component name. Not reported for:
@@ -18,8 +25,57 @@ import {report, devReport, once, nameOf, isPlainObject} from './shared'
 
 const SKIP = new Set(['INITIALIZE'])
 
+// SYG222: the instance's STATE reducers, wrapped (see the header)
+const WRAPPED = Symbol('SYG222')
+
+function watchMutation(component: any, action: string, fn: any): any {
+  if (typeof fn !== 'function' || fn[WRAPPED]) return fn
+  const wrapped: any = (state: any, ...rest: any[]) => {
+    const keys = isPlainObject(state) ? Object.keys(state) : null
+    const values = keys && keys.map(k => state[k])
+    const out = fn(state, ...rest)
+    if (keys && out === state) {
+      const changed = keys.filter((k, i) => !(k in state) || state[k] !== values![i])
+        .concat(Object.keys(state).filter(k => !keys.includes(k)))
+      const name = nameOf(component)
+      if (changed.length && once(`SYG222:${name}:${action}`)) {
+        const list = changed.map(k => `'${k}'`).join(', ')
+        devReport('SYG222', {
+          component,
+          message: `The STATE reducer for '${action}' changed ${list} in place and returned the same object. Returning the object a reducer got means "no change" (as ABORT), so the change is ignored and nothing re-renders`,
+          fix: `Return a new object: (state, data) => ({ ...state, ${changed[0]}: … }). To write updates as mutations, wrap the reducer in immer's produce()`,
+          data: {action, keys: changed},
+        })
+      }
+    }
+    return out
+  }
+  wrapped[WRAPPED] = true
+  // checks that read reducer source (reply actions) see the original
+  wrapped.toString = () => fn.toString()
+  return wrapped
+}
+
 export const stateCheck: DiagnosticCheck = {
   id: 'state',
+
+  // SYG222: onIntent runs before initModel$ reads `component.model`
+  onIntent(component) {
+    const model = component?.model
+    if (!isPlainObject(model)) return
+    const S = component.stateSourceName || 'STATE'
+    const out: Record<string, any> = {}
+    for (const key of Object.keys(model)) {
+      const entry = model[key]
+      const bar = key.indexOf('|')
+      out[key] = bar >= 0
+        ? (key.slice(bar + 1).trim() === S ? watchMutation(component, key.slice(0, bar).trim(), entry) : entry)
+        : typeof entry === 'function'
+          ? watchMutation(component, key, entry)
+          : isPlainObject(entry) && typeof entry[S] === 'function' ? {...entry, [S]: watchMutation(component, key, entry[S])} : entry
+    }
+    component.model = out
+  },
 
   onReducer(component, action, prevState, nextState) {
     if (typeof action !== 'string' || action.startsWith('__') || SKIP.has(action)) return
