@@ -9,7 +9,7 @@
 //                                       build, skill (isolated per trial), starter overlay, prompt prefix/suffix,
 //                                       MCP servers, model/effort. Its name and spec hash go into every record
 //        [--arms sygnal,react]          default: both
-//        [--tasks all]                  all | tier1 | tier2 | tier3 | ts | net | 03 | 01-05 | comma list
+//        [--tasks all]                  all | tier1 | tier2 | tier3 | ts | net | ergo | 03 | 01-05 | comma list
 //        [--trials 1]                   trials per (task, arm); ids start at --start-trial (1)
 //        [--concurrency 2]              trials in flight at once
 //        [--model claude-opus-5-5]      trial model (default: the variant's, else claude-opus-5-5). Aliases (opus,
