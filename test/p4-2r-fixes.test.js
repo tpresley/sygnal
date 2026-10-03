@@ -7,6 +7,7 @@ import { createElement as h } from '../src/pragma/index.js'
 import { ABORT } from '../src/index.js'
 import { Collection } from '../src/collection.js'
 import run from '../src/extra/run.js'
+import { renderToString } from '../src/extra/ssr.ts'
 import { defineBehavior } from '../src/extra/behaviors.js'
 import { undoable } from '../src/extra/undo.js'
 import { setupChecks, settle } from './diagnostics/helpers.js'
@@ -84,5 +85,35 @@ describe('G-214 (2): the parent does not write child uids into the sources it re
       expect(ids()).toEqual(before)
       expect(app.sources.__uid).toBe(uid)
     } finally { app.dispose(); document.body.innerHTML = '' }
+  })
+})
+
+describe('G-214 (3): uid path parts are encoded injectively (client and SSR alike)', () => {
+  function Item({ uid }) { return h('i', { attrs: { id: uid() } }) }
+  function Row({ uid }) { return h('li', { attrs: { id: uid() } }) }
+  function Page({ uid }) {
+    return h('main', { attrs: { id: uid() } },
+      h(Item, { id: 'x/y' }), h(Item, { id: 'x y' }), h(Item, { id: 'x_y' }), h(Item, { id: 'x.y' }),
+      h('ul', null, h(Collection, { of: Row, from: 'rows' })))
+  }
+  Page.initialState = { rows: [{ id: 'a.b' }, { id: 'a_b' }, { id: 'a b' }, { id: 'a_2eb' }] }
+
+  it("'a.b' / 'a_b' and 'x/y' / 'x y' give distinct, valid ids; renderToString gives the same ids", async () => {
+    const html = renderToString(Page)
+    const ssrIds = [...html.matchAll(/ id="([^"]+)"/g)].map(m => m[1])
+    expect(ssrIds).toHaveLength(9)
+    expect(new Set(ssrIds).size).toBe(9)
+    for (const id of ssrIds) expect(id).toMatch(/^[A-Za-z][\w-]*$/)
+    document.body.innerHTML = `<div id="root">${html}</div>`
+    const app = run(Page, {}, { diagnostics: 'off' })
+    try {
+      await until(() => document.querySelectorAll('#root li').length === 4, 'hydration'); await sleep(30)
+      expect([...document.querySelectorAll('#root [id]')].map(e => e.id)).toEqual(ssrIds)
+    } finally { app.dispose(); document.body.innerHTML = '' }
+  })
+
+  it("a root uid option keeps its readable form ('my_app')", () => {
+    function C({ uid }) { return h('p', { attrs: { id: uid('x') } }) }
+    expect(renderToString(C, { uid: 'my_app' })).toContain('id="my_app-x"')
   })
 })

@@ -6,6 +6,7 @@ import {objIsEqual} from './cycle/state/objIsEqual';
 import {init as snabbdomInit} from './cycle/dom/snabbdom';
 import defaultModules from './cycle/dom/modules';
 import {renderSeq} from './cycle/dom/controlledInputModule';
+import {uidPart} from './shared';
 import {makeCommandSource} from './extra/command';
 import {runElementCommands} from './extra/elementCommands';
 import type {Command} from './extra/command';
@@ -408,10 +409,10 @@ class Component {
     })
     this.sources.dispose$ = this._dispose$
     // PLAN-4 GS-9: uid(name?) from the instance's position: the parent sets sources.__uid (its uid
-    // + the child's path or id prop, + a Collection item's key, + a Switchable page name); 'u' at
-    // the root. Anything but [A-Za-z0-9_-] becomes '_' ('Name::r.0.2' → 'u-0_2'). renderToString
-    // builds the same strings (ssr.ts)
-    const base = (sources.__uid || 'u').replace(/[^\w-]+/g, '_')
+    // + the child's path or id prop, + a Collection item's key, + a Switchable page name, each
+    // encoded by uidPart: 'Name::r.0.2' → 'u-0_46_2'); 'u' at the root (run() sanitizes its `uid`
+    // option). renderToString builds the same strings (ssr.ts)
+    const base = sources.__uid || 'u'
     this._uid = (n?: string) => n ? base + '-' + n : base
 
     this.addCalculated = this.createMemoizedAddCalculated()
@@ -1265,7 +1266,7 @@ class Component {
         try {
           // GS-9: the child's uid: this uid + its path or id prop (the instantiate* functions put it
           // in the child's own sources; the sources this component received stay as they are, G-214)
-          this._cu = this._uid(id.replace(/.*::(r\.)?/, ''))
+          this._cu = this._uid(uidPart(id.replace(/.*::(r\.)?/, '')))
           sink$ = (isCollection ? this.instantiateCollection : isSwitchable ? this.instantiateSwitchable : this.instantiateCustomComponent).call(this, el, props$, children$)
         } catch (err) {
           const error = err instanceof Error ? err : new Error(String(err))

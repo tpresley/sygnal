@@ -87,8 +87,9 @@ export default function run(
     : {};
 
   // GS-11: the hook is a source (`__e`) every component inherits, so it is per app. G-206: the
-  // uid root is the root component's `__uid` source (the Component constructor reads it)
-  const combinedDrivers = {...baseDrivers, ...drivers, ...(onError && {__e: () => onError}), ...(uid && {__uid: () => uid})};
+  // uid root is the root component's `__uid` source (the Component constructor reads it); anything
+  // but [A-Za-z0-9_-] becomes '_' (renderToString's root too)
+  const combinedDrivers = {...baseDrivers, ...drivers, ...(onError && {__e: () => onError}), ...(uid && {__uid: () => uid.replace(/[^\w-]+/g, '_')})};
 
   const {sources, sinks, run: _run} = setup(wrapped, combinedDrivers as any);
   const rawDispose = _run();
