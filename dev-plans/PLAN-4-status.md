@@ -42,7 +42,10 @@ PLAN-3's end-of-Phase-5 figures (40,403 B, 283 lines, 34,343 B) grew with #12 an
 | 0-C | Eval prep: `ergo` tier 26–29, CT-1 A/B variant | 🟡 ergo tier running (A/B variant after 1-D) | `p4-0c-ergo-tier` | subagent | | |
 | 0-D | Bug fixes (B-0, B-1, bubbling) | ✅ before PLAN-4 | `main` | other session | #12 (`2cef7ee`) | Recorded as G-144…G-146 in `PLAN-2-status.md`; 0-A re-runs X2, X2b, X7, X8 |
 | 0-E | `ergo` baseline eval (user's terminal) | ⬜ | | user | | |
-| 1-A / 1-T / 1-D / 1-E | Controls | ⬜ | | | | Includes the D101 contract |
+| 1-A | Controls core | ⬜ waits for 0-B | `p4-1a-controls` | subagent | | Includes the D101 contract |
+| 1-T | Controls types | ✅ done, merge held until 1-A | `p4-1t-types` (`c503914`) | subagent | | 19 failing-first; props from `HTMLElementTagNameMap` (Sygnal's `JSX.IntrinsicElements` is `any`); component in `DOM.click`/`query` is a type error |
+| 1-D | Controls checker | ✅ merged | `p4-1d-checker` (`36b9d4d`) | subagent | `6565844` | sygnal-check 245 → 293; 33/38 failing-first; `--fix --controls` converts kanban 7/9, todomvc 6, tests unchanged, idempotent |
+| 1-E | Controls A/B eval | ⬜ | | user | | |
 | 2-A … 2-T, P-1 … P-4 | Phase 2 | ⬜ | | | | |
 | 3-A … 3-T | Phase 3 | ⬜ | | | | 3-A includes D102 |
 | 4-A … 4-F | Phase 4 | ⬜ | | | | |
@@ -86,6 +89,8 @@ They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none o
 | D109 | 2026-10-03 | P4-Q5: behavior actions are namespaced `<key>.<ACTION>` (`pager.NEXT`). | User | |
 | D110 | 2026-10-03 | P4-Q9: GS-4 adopted (a STATE reducer returning the identical object is "no change"), SYG502 retired, SYG222 added (dev). | User | Breaking; CHANGELOG entry in 4-D |
 | D111 | 2026-10-03 | P4-Q11: the 7xx a11y lane is warn by default, error under `--strict`, and on in the Vite dev checker. | User | |
+| D112 | 2026-10-03 | Duplicate control keys across `controls()` calls in one file are **SYG128** (error, static), taken from the spare 1xx reservation. | Coordinator | 1-D |
+| D113 | 2026-10-03 | The `--fix` control conversion is opt-in (`--fix --controls`, `--keep-classes`) until P4-D. If controls become canonical, 4-C makes it the default (one line). The fixer also skips elements whose markup a project string asserts, and keeps classes that other source files select. | Coordinator | 1-D deviations 1–3 |
 
 ## Open questions (PLAN-4 §11)
 
@@ -111,6 +116,8 @@ They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none o
 |---|---|---|---|---|---|
 | G-200 | gap study | high | DOM | B-0 (controlled inputs drop keystrokes under ~5 ms apart), B-1 (fragment-root components lose isolation in the real DOM) and the mock/real bubbling mismatch. A separate session ("Fix DOM isolation and keystroke bugs") is fixing them on a branch off `main`. | ✅ Fixed on `main` in #12 (`2cef7ee`) as G-144…G-146 (PLAN-2 tracker) |
 | G-201 | PLAN-5 §0.3 S-7 | info | GS-2 | `scrollToIndex` isn't an element command, because the target row of a virtual list usually isn't rendered. PLAN-5 uses `createCommand()` for it. Nothing changes in GS-2. | Note |
+| G-202 | 1-D | low | diagnostics | Runtime `inspect()` (dev entry) doesn't list controls yet; only the static `--graph` does. The schema fields are optional. | Open → after 1-A |
+| G-203 | 1-D | low | checker | SYG111 (controlled input) doesn't look through controls, so `<Draft value=…>` misses findings (never adds false ones). | Open → after 1-A |
 
 ## Log
 
@@ -118,3 +125,4 @@ They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none o
 - 2026-10-02 — PLAN-5 session answered the handoff (`claude/sygnal-component-research-b1873e` `cbef7c8`, `acc9b12`): S-1…S-14 all accepted (S-2, S-3, S-4, S-7 with changes; S-9 and S-10 to be investigated). Its requests are recorded as D101–D105. PLAN-4 §0.5, §2 CT-1, GS-2, GS-11, GS-13, §5 and §10 are updated. Tracker created early to hold them.
 - 2026-10-03 — Updated for the state of `main`. PLAN-3 is merged (#14; its last IDs are D95 and G-189, so D100/G-200 still leave a gap), and the bug fixes are merged (#12, G-144…G-146), which closes G-200 and P4-Q13. `plan4-integration` will be cut from `main`. The PLAN-4 plan and tracker were merged to `main` so that all plans live in one place.
 - 2026-10-03 — 0-A: `plan4-integration` cut from `main` (`3214ed9`); fresh-worktree setup; baseline gates green (above). P4-Q3, Q5, Q9, Q11 answered (D108–D111). 0-B spikes (`exp/p4-spikes`) and 0-C ergo tier (`p4-0c-ergo-tier`) started. Gap-study experiments re-run (12/15; X1 expected, X7 stale assertion).
+- 2026-10-03 — 1-T done (`p4-1t-types`), held until 1-A. 1-D merged (`6565844`); all gates green, size unchanged (40,536 B). D112, D113; G-202, G-203.
