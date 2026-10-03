@@ -22,8 +22,13 @@
 //       "append": { "AGENTS.md": "text" },             // appended (file created if missing)
 //       "packageJson": { "devDependencies": { "sygnal-check": "^0.1.0" }, "scripts": { "pretest": "..." } },
 //                                                      // deep-merged into package.json (null deletes a key)
-//       "packs": { "sygnal-check": { "dir": "sygnal-check", "dependency": "devDependencies" } }
+//       "packs": { "sygnal-check": { "dir": "sygnal-check", "dependency": "devDependencies" } },
 //                                                      // npm pack <dir> once per run, vendored as vendor/<name>.tgz
+//       "taskDir": "<path>",                           // <path>/<NN-slug>/ (if present) is copied over that task's
+//                                                      // starter, after "dir" (per-task starter overlays, PLAN-4 1-E)
+//       "copy": { "AGENTS.md": "<path>" },             // written from a file (replace), after "files"
+//       "afterInstall": { "node_modules/sygnal/llms.txt": "<path>" }
+//                                                      // written from a file after `npm install` (e.g. a package's docs)
 //     }
 //   },
 //   "starter": 2,                                      // starter version (lib/starter.mjs); default CURRENT_STARTER.
@@ -51,7 +56,7 @@ import { STARTERS, CURRENT_STARTER, parseStarter } from './starter.mjs'
 
 const HARNESS_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const TOP_KEYS = new Set(['description', 'model', 'effort', 'sygnal', 'skill', 'overlay', 'starter', 'prompt', 'mcp'])
-const OVERLAY_KEYS = new Set(['dir', 'files', 'append', 'packageJson', 'packs'])
+const OVERLAY_KEYS = new Set(['dir', 'files', 'append', 'packageJson', 'packs', 'taskDir', 'copy', 'afterInstall'])
 const ARM_KEYS = ['all', 'sygnal', 'react']
 const ARMS = ['sygnal', 'react']
 export const ISOLATED_SETTING_SOURCES = 'project,local'
@@ -104,6 +109,15 @@ export function validateVariant(spec) {
         if (!isObj(ov[k])) err(`overlay.${arm}.${k} must map file paths to text`)
         for (const [rel, text] of Object.entries(ov[k])) {
           if (typeof text !== 'string') err(`overlay.${arm}.${k}["${rel}"] must be text`)
+          safeRel(rel, err)
+        }
+      }
+      if (ov.taskDir != null && typeof ov.taskDir !== 'string') err(`overlay.${arm}.taskDir must be a path`)
+      for (const k of ['copy', 'afterInstall']) {
+        if (ov[k] == null) continue
+        if (!isObj(ov[k])) err(`overlay.${arm}.${k} must map file paths to source files`)
+        for (const [rel, src] of Object.entries(ov[k])) {
+          if (typeof src !== 'string') err(`overlay.${arm}.${k}["${rel}"] must be a source path`)
           safeRel(rel, err)
         }
       }
@@ -256,7 +270,21 @@ function resolveOverlay(ov, P) {
     po.dir = P(ov.dir)
     o.dir = { source: ov.dir, contentHash: hashDir(po.dir) }
   }
+  if (ov.taskDir) {
+    po.taskDir = P(ov.taskDir)
+    o.taskDir = { source: ov.taskDir, contentHash: hashDir(po.taskDir) }
+  }
   if (ov.files) o.files = ov.files
+  for (const k of ['copy', 'afterInstall']) {
+    if (!ov[k]) continue
+    o[k] = {}
+    po[k] = {}
+    for (const [rel, src] of Object.entries(ov[k])) {
+      po[k][rel] = P(src)
+      if (!fs.existsSync(po[k][rel])) throw new Error(`overlay ${k}["${rel}"]: no such file ${po[k][rel]}`)
+      o[k][rel] = { source: src, sha256: sha(fs.readFileSync(po[k][rel])) }
+    }
+  }
   if (ov.append) o.append = ov.append
   if (ov.packageJson) o.packageJson = ov.packageJson
   if (ov.packs) {
@@ -279,7 +307,8 @@ export function describeVariant(v) {
   lines.push(`  skill: ${sk}`)
   const sv = v.starterVersion ?? 1
   lines.push(`  starter: ${sv} (${STARTERS[sv].description})${v.starter ? `: ${Object.entries(v.starter.overlay).map(([arm, o]) => `${arm} ${o.dir ? `dir(${o.dir.source}) ` : ''}${o.files ? `files(${Object.keys(o.files).join(',')}) ` : ''}${o.packs ? `packs(${Object.keys(o.packs).join(',')})` : ''}`.trim()).join('; ')}` : ''}`)
-  for (const [arm, o] of Object.entries(v.overlay)) lines.push(`  overlay.${arm}: ${Object.keys(o).map((k) => (k === 'files' || k === 'append' ? `${k}(${Object.keys(o[k]).join(',')})` : k === 'packs' ? `packs(${Object.keys(o.packs).join(',')})` : k)).join(' ')}`)
+  const part = (o, k) => (['files', 'append', 'copy', 'afterInstall'].includes(k) ? `${k}(${Object.keys(o[k]).join(',')})` : k === 'packs' ? `packs(${Object.keys(o.packs).join(',')})` : k === 'taskDir' ? `taskDir(${o.taskDir.source}, ${o.taskDir.contentHash.slice(0, 12)})` : k)
+  for (const [arm, o] of Object.entries(v.overlay)) lines.push(`  overlay.${arm}: ${Object.keys(o).map((k) => part(o, k)).join(' ')}`)
   if (v.prompt) lines.push(`  prompt (${v.prompt.arms.join(', ')}): ${v.prompt.prefix ? `prefix ${JSON.stringify(v.prompt.prefix)} ` : ''}${v.prompt.suffix ? `suffix ${JSON.stringify(v.prompt.suffix)}` : ''}`.trimEnd())
   if (v.mcp) lines.push(`  mcp (${v.mcp.arms.join(', ')}): ${Object.keys(v.mcp.mcpServers).join(', ')}`)
   if (v.model || v.effort) lines.push(`  model: ${v.model ?? 'default'} · effort: ${v.effort ?? 'default'}`)
@@ -321,10 +350,18 @@ export function materializeVariant(v, outDir, { repoRoot, npmPack = defaultNpmPa
       ...['all', arm].filter((k) => v.starter?.overlay[k]).map((k) => [v.starter.overlay[k], v.paths.starter?.[k] ?? {}]),
       ...['all', arm].filter((k) => v.overlay[k]).map((k) => [v.overlay[k], v.paths.overlay[k] ?? {}]),
     ]
-    const ov = { dirs: [], files: {}, append: {}, packageJson: null, vendor: [] }
+    const ov = { dirs: [], taskDirs: [], files: {}, copy: {}, append: {}, afterInstall: {}, packageJson: null, vendor: [] }
     for (const [o, po] of layers) {
       if (po.dir) ov.dirs.push(po.dir)
+      if (po.taskDir) ov.taskDirs.push(po.taskDir)
       Object.assign(ov.files, o.files ?? {})
+      // A later layer's file replaces an earlier one, whether inline (files) or from a source file (copy).
+      for (const rel of Object.keys(o.files ?? {})) delete ov.copy[rel]
+      for (const [rel, src] of Object.entries(po.copy ?? {})) {
+        delete ov.files[rel]
+        ov.copy[rel] = src
+      }
+      Object.assign(ov.afterInstall, po.afterInstall ?? {})
       for (const [rel, text] of Object.entries(o.append ?? {})) ov.append[rel] = (ov.append[rel] ?? '') + text
       if (o.packageJson) ov.packageJson = deepMerge(ov.packageJson ?? {}, o.packageJson)
       for (const [n, p] of Object.entries(o.packs ?? {})) {
@@ -394,18 +431,36 @@ export function deepMerge(base, patch) {
   return out
 }
 
-/** Apply one arm's resolved overlay (prepare.json arms[arm].overlay) to a fresh starter copy. */
-export function applyOverlay(dest, ov) {
+/**
+ * Apply one arm's resolved overlay (prepare.json arms[arm].overlay) to a fresh starter copy:
+ * dirs, then the task's subdir of each taskDir (`task`: the NN-slug dir name), files and copy,
+ * append, package.json. `afterInstall` files are applied by applyAfterInstall().
+ */
+export function applyOverlay(dest, ov, { task } = {}) {
   if (!ov) return []
   const touched = []
+  const noJunk = (p) => !['node_modules', '.git'].includes(path.basename(p))
   for (const d of ov.dirs ?? []) {
-    fs.cpSync(d, dest, { recursive: true, filter: (p) => !['node_modules', '.git'].includes(path.basename(p)) })
+    fs.cpSync(d, dest, { recursive: true, filter: noJunk })
     touched.push(`dir ${path.basename(d)}`)
+  }
+  for (const d of ov.taskDirs ?? []) {
+    if (!task) throw new Error('applyOverlay: this overlay has a taskDir, so it needs { task }')
+    const sub = path.join(d, task)
+    if (!fs.existsSync(sub)) continue
+    fs.cpSync(sub, dest, { recursive: true, filter: noJunk })
+    touched.push(`taskDir ${path.basename(d)}/${task}`)
   }
   for (const [rel, text] of Object.entries(ov.files ?? {})) {
     const p = path.join(dest, rel)
     fs.mkdirSync(path.dirname(p), { recursive: true })
     fs.writeFileSync(p, text)
+    touched.push(rel)
+  }
+  for (const [rel, src] of Object.entries(ov.copy ?? {})) {
+    const p = path.join(dest, rel)
+    fs.mkdirSync(path.dirname(p), { recursive: true })
+    fs.copyFileSync(src, p)
     touched.push(rel)
   }
   for (const [rel, text] of Object.entries(ov.append ?? {})) {
@@ -427,6 +482,18 @@ export function applyOverlay(dest, ov) {
     }
     fs.writeFileSync(pj, JSON.stringify(pkg, null, 2) + '\n')
     touched.push('package.json')
+  }
+  return touched
+}
+
+/** Write an overlay's afterInstall files (prepare.mjs runs it after `npm install`). */
+export function applyAfterInstall(dest, ov) {
+  const touched = []
+  for (const [rel, src] of Object.entries(ov?.afterInstall ?? {})) {
+    const p = path.join(dest, rel)
+    fs.mkdirSync(path.dirname(p), { recursive: true })
+    fs.copyFileSync(src, p)
+    touched.push(rel)
   }
   return touched
 }

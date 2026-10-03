@@ -40,7 +40,7 @@ node $EVAL/orchestrate.mjs --run e7-sonnet --arms sygnal --tasks tier2 --trials 
 |---|---|---|
 | `sygnal` | `"branch"` (default) · `{ "tarball": "x.tgz" }` · `{ "npm": "sygnal@5.4.0" }` | the Sygnal build vendored into every Sygnal trial |
 | `skill` | `"installed"` (default, legacy) · `"none"` · `{ "dir": "skills/sygnal-dev" }` · `{ "gitRef": "v5.4.0", "path": "skills/sygnal-dev" }` (+ `"name"`) | the `sygnal-dev` skill the Sygnal arm sees, **isolated per trial** |
-| `overlay` | `{ "all" \| "sygnal" \| "react": { "dir", "files", "append", "packageJson", "packs" } }` | applied to each starter after the copy and before `npm install`: copy a dir over it, write or append files, deep-merge `package.json` (`null` deletes a key), and `npm pack` a repo dir once per run and vendor it (`"packs": { "sygnal-check": { "dir": "sygnal-check" } }` → `vendor/sygnal-check.tgz` as a devDependency) |
+| `overlay` | `{ "all" \| "sygnal" \| "react": { "dir", "taskDir", "files", "copy", "append", "packageJson", "packs", "afterInstall" } }` | applied to each starter after the copy and before `npm install`: copy a dir over it, copy `<taskDir>/<NN-slug>/` over that task's starter (per-task starters, e.g. converted ones), write files (`files`: inline text; `copy`: from a source file) or append to them, deep-merge `package.json` (`null` deletes a key), and `npm pack` a repo dir once per run and vendor it (`"packs": { "sygnal-check": { "dir": "sygnal-check" } }` → `vendor/sygnal-check.tgz` as a devDependency); `afterInstall` files (from source files) are written after `npm install`, e.g. over `node_modules/sygnal/llms.txt`. Every source's content is in the variant hash |
 | `starter` | `2` (default, current) · `1` | the starter version (`lib/starter.mjs`, 4-E): `2` puts this checkout's `sygnal-check` (packed, `vendor/sygnal-check.tgz`, devDependency) and the template-style `AGENTS.md` + `CLAUDE.md` (`starter-kits/sygnal-v2/*.tmpl`) into every Sygnal trial, as the 5.4.0 templates do; `1` is the bare starters every run up to Phase 3 used. The kit is applied first, then the variant's own `overlay` |
 | `prompt` | `{ "prefix", "suffix", "arms" }` | text before / after the task's `PROMPT.md` text (before the skill line), in the listed arms (default both) |
 | `mcp` | `{ "arms": ["sygnal"], "mcpServers": { ... } }` | an MCP config for those arms' trials (`--mcp-config`, still `--strict-mcp-config`); its tools are pre-approved (`mcp__<server>`) |
@@ -52,7 +52,7 @@ Relative paths resolve against the repo root, `./` and `../` against the spec fi
 
 **What is recorded.** The variant is resolved once per run: content hashes of the skill (or its git tree id), overlay dirs and packed dirs, a given tarball's sha256, the effective model and effort. Its name and a 12-hex hash of that resolved spec go into every result record (`variant`, `variantHash`) and the manifest (`variant` with the resolved spec, `variants`). The starter version goes into every record (`starterVersion`) and the manifest (`starterVersion`, `starterVersions`); a record or manifest without it is starter 1. The starter kit's content (its file text and the packed `sygnal-check`) is part of the hash; a variant on starter 1 hashes exactly as before starter versions existed, so a Phase 3 run's `variantHash` is reproduced by its spec plus `"starter": 1` (same file name; the name is hashed; skill and sygnal-check content as at the time). Runs without a variant (the legacy posture) use starter 1. Resuming a run with a different variant, or the same variant after its skill or overlay changed, is refused unless `--allow-mixed`. The materialized variant (skill copy, packs, `prepare.json`, `mcp.json`, an npm tarball) is in `<trials-root>/<run>/_variant/`, and `analyze.mjs` gets the skill copy as `--skill-dir`.
 
-Shipped variants: `baseline-5.4.0` (published `sygnal@5.4.0` + the 5.4.0 skill from git, on starter 1, so it reproduces the v2-baseline conditions without sygnal-check: the D45 reference), `branch` (this checkout's build + `skills/sygnal-dev` on the current starter: the control for experiments), `e5-no-skill`, `e7-sonnet`, `e7-haiku`, `e8-mcp`, `e9-add-test`, `e9-no-test` (all on the current starter). Kept for reproducing Phase 3, not recommended: `e1-check` and `e1-pretest` (starter 1 plus their own sygnal-check overlay; E1 was adopted as starter 2, and its verdict drops the pretest hook). Run each experiment's control as a variant too (`branch`), so both sides share the isolated posture and the starter; older runs (`v2-baseline`) used the installed-skill posture, and every run up to Phase 3 the bare starters.
+Shipped variants: `baseline-5.4.0` (published `sygnal@5.4.0` + the 5.4.0 skill from git, on starter 1, so it reproduces the v2-baseline conditions without sygnal-check: the D45 reference), `branch` (this checkout's build + `skills/sygnal-dev` on the current starter: the control for experiments), `e5-no-skill`, `e7-sonnet`, `e7-haiku`, `e8-mcp`, `e9-add-test`, `e9-no-test` (all on the current starter), `p4-ct1-a` / `p4-ct1-b` (PLAN-4 1-E, below). Kept for reproducing Phase 3, not recommended: `e1-check` and `e1-pretest` (starter 1 plus their own sygnal-check overlay; E1 was adopted as starter 2, and its verdict drops the pretest hook). Run each experiment's control as a variant too (`branch`), so both sides share the isolated posture and the starter; older runs (`v2-baseline`) used the installed-skill posture, and every run up to Phase 3 the bare starters.
 
 ```bash
 # The control (Sygnal arm; add react for gap measurements)
@@ -82,12 +82,43 @@ node $EVAL/analysis/compare.mjs --base e9-no-test:react  --next e9-no-test:sygna
 
 `--dry-run` prints the resolved variant (sources, hashes, overlays, prompt, MCP) with the plan, without materializing anything.
 
+### PLAN-4 1-E: controls A/B (`p4-ct1-a`, `p4-ct1-b`)
+
+`dev-plans/PLAN-4.md` §7. Both arms pack the same build (this checkout, with the controls runtime); only the guidance and the starters differ:
+
+- **A** (`p4-ct1-a`): `skills/sygnal-dev`, the starter kit's AGENTS.md, the package's llms.txt, the task starters as they are. Same content as `branch`.
+- **B** (`p4-ct1-b`): `variants/skills/controls/SKILL.md` (the skill with its selector guidance replaced by controls: `controls()`, `<Add>`, `DOM.click(Add)`, `t.simulateEvent(Add, …)`, `t.query(Draft)`, `{ within }`, the rules and SYG104/110/124/125/126/128), `variants/p4-ct1-b/AGENTS.md.tmpl` over the kit's AGENTS.md, `variants/p4-ct1-b/llms.txt` over `node_modules/sygnal/llms.txt` after the install (the same replacement in the spec), and the task starters converted with `sygnal-check --fix --controls --keep-classes` (`variants/p4-ct1-b/starters/`, a `taskDir` overlay; the hidden tests select by class, so the classes stay). The converted starters are committed; `node evals/agent-ergonomics/variants/p4-ct1-b/gen-starters.mjs` regenerates them, `--check` (and `tests/ct1.unit.mjs`) fails on drift. Task 08 has nothing to convert (its stars are a list), so it differs in guidance only.
+
+Check, then run from the user's terminal (in a checkout of the branch, built, with `npm install --prefix sygnal-check`; `branch` packs that checkout). Each command is resumable:
+
+```bash
+node evals/agent-ergonomics/verify.mjs --arm sygnal --task 01,02,06,07,08,09,12,16,18,19,20,21 --task-overlay evals/agent-ergonomics/variants/p4-ct1-b/starters --convert
+node evals/agent-ergonomics/orchestrate.mjs --run p4-ct1-a       --variant p4-ct1-a --arms sygnal --tasks 01,02,06,07,08,09,12,16,18,19,20,21 --trials 5 --concurrency 4 --model claude-opus-5-5
+node evals/agent-ergonomics/orchestrate.mjs --run p4-ct1-b       --variant p4-ct1-b --arms sygnal --tasks 01,02,06,07,08,09,12,16,18,19,20,21 --trials 5 --concurrency 4 --model claude-opus-5-5
+node evals/agent-ergonomics/orchestrate.mjs --run p4-ct1-a-haiku --variant p4-ct1-a --arms sygnal --tasks 01,02,06,07,08,09,12,16,18,19,20,21 --trials 5 --concurrency 4 --model claude-haiku-4-5-20251001
+node evals/agent-ergonomics/orchestrate.mjs --run p4-ct1-b-haiku --variant p4-ct1-b --arms sygnal --tasks 01,02,06,07,08,09,12,16,18,19,20,21 --trials 5 --concurrency 4 --model claude-haiku-4-5-20251001
+```
+
+Analysis (the orchestrator already ran `analyze.mjs` for each run):
+
+```bash
+# 1. Wiring-class failures: list them, classify the failed trials (run.md step 5; the script prints
+#    a score.mjs --classify line per unclassified failure), then re-analyze so the categories count.
+node evals/agent-ergonomics/analysis/wiring.mjs --run p4-ct1-a --run p4-ct1-b --run p4-ct1-a-haiku --run p4-ct1-b-haiku
+node evals/agent-ergonomics/analysis/analyze.mjs --run p4-ct1-a --trials-root /tmp/sygnal-evals/trials --skill-dir /tmp/sygnal-evals/trials/p4-ct1-a/_variant/skillroot/.claude/skills/sygnal-dev   # same for the other three runs
+# 2. The bar (P4-D), task-matched:
+node evals/agent-ergonomics/analysis/compare.mjs --base p4-ct1-a       --next p4-ct1-b       --arms sygnal --metrics pass,wall,learn,peakContext,wiringHits,wiringFailure
+node evals/agent-ergonomics/analysis/compare.mjs --base p4-ct1-a-haiku --next p4-ct1-b-haiku --arms sygnal --metrics pass,wall,learn,wiringHits,wiringFailure
+```
+
+Read the bar off the matched-mean tables: Opus `wall (s)` ratio ≤ 1.05×; Haiku `pass rate` Δ ≥ 0; `wiring failures` (failed for a wiring/isolation reason, or unclassified with a SYG104/110/124 finding left in the final code) and `SYG104/110/124 hits` (tool results that showed one of those diagnostics while the agent worked) Δ ≤ 0 on both models; `learn (s)` Δ ≤ +1 (Opus; Haiku for context). Peak context is reported, not gated. With 5 trials per cell the result is directional.
+
 ### Comparing runs (task-matched, G-119)
 
 `analysis/compare.mjs --base <run>[:arm] --next <run>[:arm]` compares only the (arm, task) cells both sides have: per cell the mean of its trials, then the **matched mean** over the shared tasks (each task weighs the same) and the delta next − base, with the ratio; then a per-task table. Tasks only one side has are listed, not averaged in. Pinning an arm on a side (`v2-baseline:react`) compares across arms and runs: cells match on task alone, so `--base v2-baseline:react --next e1-check:sygnal` is the remaining Sygnal − React gap with E1, and `--base e7-sonnet:react --next e7-sonnet:sygnal` is the gap within one run.
 
 - `--arms sygnal,react` and `--tasks tier1|01-05|14,15` (the `--tasks` syntax of the orchestrator) restrict the cells.
-- `--metrics pass,wall,costUsd,iterations` picks the per-task columns; the matched-mean table shows every metric both sides have (pass rate, wall, cost, billed and output tokens, iterations, edit rounds; from an analysis also tool calls, peak context, failed runs, LOC added, wrote-a-test).
+- `--metrics pass,wall,costUsd,iterations` picks the per-task columns; the matched-mean table shows every metric both sides have (pass rate, wall, cost, billed and output tokens, iterations, edit rounds; from an analysis also tool calls, peak context, failed runs, LOC added, wrote-a-test, learn time, and the Sygnal arm's wiring measures `wiringHits`, `wiringFinal`, `wiringFailure` from `analysis/lib/wiring.mjs`).
 - `--source auto` reads `results/analysis/<run>.json` when it exists, else `results/<run>.json`; if only one side has an analysis both use the results files. `--json` prints the data; `--out f.md` writes it.
 - `--full` appends the old whole-run aggregate diff (phases, catalog, canonical forms), labeled as not task-matched; it is context, not a comparison.
 

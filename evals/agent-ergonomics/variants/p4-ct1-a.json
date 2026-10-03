@@ -1,0 +1,5 @@
+{
+  "description": "PLAN-4 1-E controls A/B, arm A: this checkout's packed build (with the controls runtime) and its skills/sygnal-dev (class-selector guidance), isolated per trial, on the current starter with the task starters unchanged. Same content as branch.json, under its own name so its runs are labeled. The control for p4-ct1-b",
+  "sygnal": "branch",
+  "skill": { "dir": "skills/sygnal-dev" }
+}

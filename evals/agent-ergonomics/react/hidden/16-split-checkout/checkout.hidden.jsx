@@ -16,14 +16,16 @@ const importsOf = (code) => [...code.matchAll(/from\s+['"]\.\/([A-Za-z]+)(\.jsx?
 
 // ---------------------------------------------------------------------------
 // Markup normalizer: tag + sorted attributes (minus value/checked/disabled,
-// whose live state is read from the DOM properties instead), merged and
-// whitespace-collapsed text. Both arms render the same normalized markup.
+// whose live state is read from the DOM properties instead, and minus
+// data-control, the marker a Sygnal control adds: PLAN-4 1-E, so a split that
+// keeps or adds controls renders the same page), merged and whitespace-collapsed
+// text. Both arms render the same normalized markup.
 // ---------------------------------------------------------------------------
 
 function normalize(node) {
   if (node.nodeType !== Node.ELEMENT_NODE) return ''
   const tag = node.tagName.toLowerCase()
-  const skip = new Set(['value', 'checked', 'disabled', 'selected'])
+  const skip = new Set(['value', 'checked', 'disabled', 'selected', 'data-control'])
   const attrs = [...node.attributes]
     .filter((a) => !skip.has(a.name))
     .map((a) => `${a.name}="${a.value.replace(/\s+/g, ' ').trim()}"`)

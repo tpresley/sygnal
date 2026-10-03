@@ -8,7 +8,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
 import {
-  loadVariant, validateVariant, resolveVariant, materializeVariant, applyOverlay, applyPrompt, deepMerge,
+  loadVariant, validateVariant, resolveVariant, materializeVariant, applyOverlay, applyAfterInstall, applyPrompt, deepMerge,
   claudeIsolation, expectedSkills, checkSkills, canonicalJson, hashDir, resolveSpecPath, describeVariant,
 } from '../lib/variant.mjs'
 import { buildClaudeArgs, buildPreflightArgs } from '../lib/headless.mjs'
@@ -56,6 +56,10 @@ test('validateVariant: accepts the shipped variants and rejects typos and bad sh
     { overlay: { sygnal: { files: { '../escape.txt': 'x' } } } },
     { overlay: { sygnal: { files: { '/abs.txt': 'x' } } } },
     { overlay: { sygnal: { packs: { x: { dir: 'd', dependency: 'peer' } } } } },
+    { overlay: { sygnal: { taskDir: 1 } } },
+    { overlay: { sygnal: { copy: { 'AGENTS.md': 1 } } } },
+    { overlay: { sygnal: { copy: { '../x': 'src' } } } },
+    { overlay: { sygnal: { afterInstall: 'x' } } },
     { prompt: { suffix: 1 } },
     { prompt: { arms: ['vue'] } },
     { mcp: { mcpServers: {} } },
@@ -237,6 +241,94 @@ test('applyOverlay / applyPrompt / deepMerge', () => {
   assert.deepEqual(deepMerge({ a: { b: 1, c: 2 }, d: [1] }, { a: { c: null, e: 3 }, d: [2] }), { a: { b: 1, e: 3 }, d: [2] })
   assert.equal(canonicalJson({ b: 1, a: [{ d: 1, c: 2 }] }), '{"a":[{"c":2,"d":1}],"b":1}')
   assert.match(hashDir(src), /^[0-9a-f]{64}$/)
+})
+
+test('per-task overlays (taskDir), file copies (copy) and after-install files (afterInstall)', () => {
+  const repo = fixtureRepo()
+  fs.mkdirSync(path.join(repo, 'ct', 'starters', '01-a', 'src'), { recursive: true })
+  fs.writeFileSync(path.join(repo, 'ct', 'starters', '01-a', 'src', 'App.jsx'), 'converted 01\n')
+  fs.writeFileSync(path.join(repo, 'ct', 'AGENTS.md.tmpl'), 'controls agents\n')
+  fs.writeFileSync(path.join(repo, 'ct', 'llms.txt'), 'controls llms\n')
+  const spec = { skill: { dir: 'skills/sygnal-dev' }, overlay: { sygnal: { taskDir: 'ct/starters', copy: { 'AGENTS.md': 'ct/AGENTS.md.tmpl' }, afterInstall: { 'node_modules/sygnal/llms.txt': 'ct/llms.txt' } } } }
+  validateVariant(spec)
+  const v = resolveVariant({ name: 'ct', file: null, spec }, { repoRoot: repo, model: 'm' })
+  assert.match(v.overlay.sygnal.taskDir.contentHash, /^[0-9a-f]{64}$/)
+  assert.match(v.overlay.sygnal.copy['AGENTS.md'].sha256, /^[0-9a-f]{64}$/)
+  assert.match(describeVariant(v), /overlay\.sygnal: taskDir\(ct\/starters, [0-9a-f]{12}\) copy\(AGENTS\.md\) afterInstall\(node_modules\/sygnal\/llms\.txt\)/)
+  // Content is pinned: a converted starter or a copied file changes the hash.
+  fs.appendFileSync(path.join(repo, 'ct', 'starters', '01-a', 'src', 'App.jsx'), 'x')
+  const v2 = resolveVariant({ name: 'ct', file: null, spec }, { repoRoot: repo, model: 'm' })
+  assert.notEqual(v2.hash, v.hash)
+  fs.appendFileSync(path.join(repo, 'ct', 'llms.txt'), 'x')
+  assert.notEqual(resolveVariant({ name: 'ct', file: null, spec }, { repoRoot: repo, model: 'm' }).hash, v2.hash)
+  assert.throws(() => resolveVariant({ name: 'ct', file: null, spec: { overlay: { sygnal: { copy: { 'A.md': 'ct/missing' } } } } }, { repoRoot: repo }), /no such file/)
+  const npmPack = (what, dir) => {
+    fs.mkdirSync(dir, { recursive: true })
+    const f = path.join(dir, 'p-0.1.0.tgz')
+    fs.writeFileSync(f, 'tgz')
+    return f
+  }
+  const prep = JSON.parse(fs.readFileSync(materializeVariant(v2, path.join(tmp('variant-ct-'), '_variant'), { repoRoot: repo, npmPack }).prepareSpec, 'utf8'))
+  const ov = prep.arms.sygnal.overlay
+  assert.deepEqual(ov.taskDirs, [path.join(repo, 'ct', 'starters')])
+  // The variant's copied AGENTS.md replaces the starter kit's inline one; CLAUDE.md stays the kit's.
+  assert.equal(ov.files['AGENTS.md'], undefined)
+  assert.equal(ov.copy['AGENTS.md'], path.join(repo, 'ct', 'AGENTS.md.tmpl'))
+  assert.match(ov.files['CLAUDE.md'], /@AGENTS\.md/)
+  const mk = () => {
+    const d = tmp('ct-starter-')
+    fs.mkdirSync(path.join(d, 'src'))
+    fs.writeFileSync(path.join(d, 'src', 'App.jsx'), 'original\n')
+    fs.writeFileSync(path.join(d, 'package.json'), '{"name":"eval-app"}')
+    return d
+  }
+  const d1 = mk()
+  const touched = applyOverlay(d1, ov, { task: '01-a' })
+  assert.ok(touched.includes('taskDir starters/01-a'))
+  assert.equal(fs.readFileSync(path.join(d1, 'src', 'App.jsx'), 'utf8'), 'converted 01\nx')
+  assert.equal(fs.readFileSync(path.join(d1, 'AGENTS.md'), 'utf8'), 'controls agents\n')
+  assert.ok(!fs.existsSync(path.join(d1, 'node_modules')), 'afterInstall waits for the install')
+  // A task without a converted starter keeps its own files.
+  const d2 = mk()
+  applyOverlay(d2, ov, { task: '02-b' })
+  assert.equal(fs.readFileSync(path.join(d2, 'src', 'App.jsx'), 'utf8'), 'original\n')
+  assert.throws(() => applyOverlay(mk(), ov), /needs \{ task \}/)
+  // After the install: the package's file is replaced.
+  fs.mkdirSync(path.join(d1, 'node_modules', 'sygnal'), { recursive: true })
+  fs.writeFileSync(path.join(d1, 'node_modules', 'sygnal', 'llms.txt'), 'original llms\n')
+  assert.deepEqual(applyAfterInstall(d1, ov), ['node_modules/sygnal/llms.txt'])
+  assert.equal(fs.readFileSync(path.join(d1, 'node_modules', 'sygnal', 'llms.txt'), 'utf8'), 'controls llms\nx')
+  assert.deepEqual(applyAfterInstall(d1, null), [])
+  // An inline file in a later layer replaces an earlier copy.
+  const v3 = resolveVariant({ name: 'ct', file: null, spec: { ...spec, overlay: { all: { copy: { 'N.md': 'ct/llms.txt' } }, sygnal: { files: { 'N.md': 'inline' } } } } }, { repoRoot: repo })
+  const p3 = JSON.parse(fs.readFileSync(materializeVariant(v3, path.join(tmp('variant-ct3-'), '_variant'), { repoRoot: repo, npmPack }).prepareSpec, 'utf8'))
+  assert.equal(p3.arms.sygnal.overlay.files['N.md'], 'inline')
+  assert.equal(p3.arms.sygnal.overlay.copy['N.md'], undefined)
+  assert.equal(p3.arms.react.overlay.copy['N.md'], path.join(repo, 'ct', 'llms.txt'))
+})
+
+test('PLAN-4 1-E variants: p4-ct1-a is branch under its own name; p4-ct1-b swaps only the guidance and the starters', async () => {
+  const load = (n) => loadVariant(n, { evalRoot: EVAL_ROOT })
+  const [br, a, b] = await Promise.all([load('branch'), load('p4-ct1-a'), load('p4-ct1-b')])
+  const res = (x) => resolveVariant(x, { repoRoot: REPO_ROOT, model: 'claude-opus-5-5' })
+  const [rbr, ra, rb] = [res(br), res(a), res(b)]
+  const { name: n1, hash: h1, file: f1, paths: p1, ...restBr } = rbr
+  const { name: n2, hash: h2, file: f2, paths: p2, ...restA } = ra
+  assert.deepEqual(restA, restBr, 'A has exactly the content of branch')
+  assert.equal(rb.sygnal, 'branch', 'both arms pack this checkout')
+  assert.equal(rb.starterVersion, ra.starterVersion)
+  assert.deepEqual(rb.starter, ra.starter, 'same starter kit (sygnal-check, CLAUDE.md)')
+  assert.equal(rb.skill.name, 'sygnal-dev')
+  assert.notEqual(rb.skill.contentHash, ra.skill.contentHash)
+  assert.deepEqual(Object.keys(rb.overlay), ['sygnal'])
+  assert.deepEqual(Object.keys(rb.overlay.sygnal).sort(), ['afterInstall', 'copy', 'taskDir'])
+  // The converted starters exist for the 1-E tasks only, and only as changed files.
+  const starters = b.spec.overlay.sygnal.taskDir.replace('./', path.join(EVAL_ROOT, 'variants') + '/')
+  const ids = fs.readdirSync(starters).map((d) => d.slice(0, 2))
+  for (const id of ids) assert.ok(['01', '02', '06', '07', '08', '09', '12', '16', '18', '19', '20', '21'].includes(id), id)
+  const skill = fs.readFileSync(path.join(EVAL_ROOT, 'variants', 'skills', 'controls', 'SKILL.md'), 'utf8')
+  assert.match(skill, /^---\nname: sygnal-dev\n/)
+  assert.match(skill, /controls\(\{/)
 })
 
 test('claudeIsolation + buildClaudeArgs: isolated skills per arm, MCP only where asked', () => {

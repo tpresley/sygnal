@@ -28,6 +28,11 @@ export const METRICS = {
   failedRuns: { label: 'failed runs', digits: 2, from: 'analysis' },
   locAdded: { label: 'LOC added', from: 'analysis' },
   wroteTest: { label: 'wrote a test', unit: '%', scale: 100, from: 'analysis' },
+  learn: { label: 'learn (s)', from: 'analysis' },
+  // PLAN-4 1-E wiring-class measures (lib/wiring.mjs; Sygnal arm only)
+  wiringHits: { label: 'SYG104/110/124 hits', digits: 2, from: 'analysis' },
+  wiringFinal: { label: 'SYG104/110/124 in final code', unit: '%', scale: 100, from: 'analysis' },
+  wiringFailure: { label: 'wiring failures', unit: '%', scale: 100, from: 'analysis' },
 }
 export const DEFAULT_TASK_METRICS = ['pass', 'wall', 'costUsd', 'iterations']
 
@@ -51,6 +56,10 @@ export function rowsFromAnalysis(a) {
     failedRuns: Array.isArray(t.failures) ? t.failures.filter((f) => f.kind === 'verify' && f.cause !== 'harness').length : null,
     locAdded: num(t.diff?.added),
     wroteTest: t.wroteTest == null ? null : t.wroteTest ? 1 : 0,
+    learn: t.phases ? num(t.phases.learn) ?? 0 : null,
+    wiringHits: num(t.wiring?.hitCalls),
+    wiringFinal: t.wiring?.finalChecked ? (t.wiring.finalCodes.length ? 1 : 0) : null,
+    wiringFailure: t.wiring?.failure == null ? null : t.wiring.failure ? 1 : 0,
     phases: t.phases ?? null,
   }))
 }
