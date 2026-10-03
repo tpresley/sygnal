@@ -146,6 +146,10 @@ export const CODE_TITLES: Record<string, string> = {
   SYG115: 'Unknown DOM event shorthand',
   SYG116: 'EVENTS value has no string type',
   SYG112: 'Reply action has no model entry',
+  SYG130: 'href() names no route or leaves out a param',
+  SYG131: 'Route params the pattern does not use',
+  SYG132: 'Declaration static that is never sent',
+  SYG133: 'SPA router inside a Vike app',
   // SYG2xx state & reducers (1A)
   SYG201: 'STATE reducer dropped keys from the previous state',
   SYG202: 'STATE reducer returned undefined',
@@ -212,6 +216,7 @@ export const CODE_TITLES: Record<string, string> = {
   SYG609: 'Sink or source has no driver',
   SYG610: "Request has a 'then' or 'catch' key",
   SYG611: 'Socket message not sent or connection not opened',
+  SYG620: 'Router command not performed',
   SYG901: 'Sub-component sink stream errored',
   SYG902: 'EFFECT stream errored',
   SYG903: 'Component factory returned invalid sinks',
@@ -246,6 +251,12 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG221: 'error',
   SYG421: 'error',
   SYG611: 'error',
+  // PLAN-3 5-4b: router (SYG620 is reported by the router itself, like SYG611) and G-167
+  SYG130: 'error',
+  SYG131: 'warn',
+  SYG132: 'warn',
+  SYG133: 'warn',
+  SYG620: 'error',
 }
 
 export function getCodeInfo(code: string): DiagnosticCodeInfo | undefined {

@@ -42,7 +42,7 @@ import { analyzeIntent } from './intent.js'
 import { analyzeModel, connectionNames, REPLY_KEYS } from './modelEntries.js'
 import { scanFileEvents } from './events.js'
 
-export const STATIC_PROPS = ['intent', 'model', 'initialState', 'context', 'calculated', 'connections', 'resources']
+export const STATIC_PROPS = ['intent', 'model', 'initialState', 'context', 'calculated', 'connections', 'resources', 'route', 'head']
 
 function parseSuppressions(ast) {
   const map = new Map()
@@ -206,6 +206,12 @@ export class Project {
       const r = connectionNames(this, file, sp.resources, REPLY_KEYS)
       r.targets.forEach(t => { t.res = true })
       comp.connections = { targets: [...(comp.connections?.targets || []), ...r.targets], dynamic: [...(comp.connections?.dynamic || []), ...r.dynamic] }
+    }
+    // PLAN-3 5-4b: `App.route = 'ROUTE'` names the router's reply action
+    if (sp.route) {
+      const conn = comp.connections || (comp.connections = { targets: [], dynamic: [] })
+      if (sp.route.type === 'StringLiteral') conn.targets.push({ name: sp.route.value, key: 'route', node: sp.route, file, route: true })
+      else conn.dynamic.push({ node: sp.route, file })
     }
     if (sp.initialState) {
       const keys = this.objectKeys(file, sp.initialState)

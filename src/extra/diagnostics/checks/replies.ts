@@ -30,12 +30,14 @@ import {devReport, reportSafely, once, nameOf, suggest, replySeen} from './share
 import {isStrictEnabled} from './strict'
 
 const REPLY_KEYS = ['ok', 'error']
+// PLAN-3 5-4b: on the router's sink, `{ route }` (the route static) and `{ block }` name reply actions
+const ROUTER_KEYS = ['route', 'block']
 const CONNECTION_KEYS = ['message', 'open', 'close', 'error']
 
 /** [action, key, connection name?] for every reply action name a sink value names */
-function replyNames(req: any): Array<[string, string, string?]> {
+function replyNames(req: any, router?: boolean): Array<[string, string, string?]> {
   const out: Array<[string, string, string?]> = []
-  for (const key of REPLY_KEYS) if (typeof req[key] === 'string') out.push([req[key], key])
+  for (const key of router ? REPLY_KEYS.concat(ROUTER_KEYS) : REPLY_KEYS) if (typeof req[key] === 'string') out.push([req[key], key])
   const conns = req.connections
   if (conns && typeof conns === 'object') {
     for (const name of Object.keys(conns)) {
@@ -76,7 +78,7 @@ function checkRequest(component: any, sink: string, req: any, modelActions: stri
   if (!req || typeof req !== 'object') return
   const name = nameOf(component)
   let replies = false
-  for (const [action, key, connection] of replyNames(req)) {
+  for (const [action, key, connection] of replyNames(req, !!component?.sources?.[sink]?.__sygnalRouter)) {
     replies = true
     let seen = replySeen.get(component)
     if (!seen) replySeen.set(component, seen = new Set())

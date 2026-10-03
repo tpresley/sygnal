@@ -28,7 +28,9 @@ export default {
       const keys = new Set((comp.model?.entries || []).map(e => e.action))
       const named = [
         ...(comp.model?.replyTargets || []).map(t => ({ ...t, via: `the ${t.sink} request of '${t.action}' names '${t.name}' as its ${t.key} reply action` })),
-        ...(comp.connections?.targets || []).map(t => t.res
+        ...(comp.connections?.targets || []).map(t => t.route
+          ? { ...t, via: `${comp.name}.route names '${t.name}' as the router's reply action` }
+          : t.res
           ? { ...t, via: `${comp.name}.resources names '${t.name}' as its ${t.key} reply action` }
           : { ...t, via: `${comp.name}.connections names '${t.name}' as its ${t.key} reply action`, conn: true }),
       ]

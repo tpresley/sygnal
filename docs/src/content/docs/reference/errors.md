@@ -293,6 +293,46 @@ After:
 SAVE: { EVENTS: event('SAVED', (state) => state.id) }
 ```
 
+### SYG130
+
+**href() names no route or leaves out a param**
+
+Severity: `error` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+`router.href(name, params)` builds a link from the route table passed to `makeRouter({ routes })`. When `name` is not a route (or is the `'*'` not-found route), href() returns the app's root path; when the pattern has a `:param` that `params` leaves out, that segment is empty (`/tasks/`). Either way the link goes somewhere else than intended. The `sygnal/diagnostics` dev entry checks every href() call; production builds don't. A `{ to }` command with the same problem is SYG620.
+
+**Fix:** Use a route name from the table (the message suggests the closest one) and pass every param the pattern names: `href('task', { id: task.id })`.
+
+### SYG131
+
+**Route params the pattern does not use**
+
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+An href() call or a `{ to, params }` router command passes a param that the route's pattern has no `:name` for. It is ignored, so the value never reaches the URL; usually it was meant for the query string, or the route is the wrong one.
+
+**Fix:** Pass only the pattern's params, and put other values in the query: `href('tasks', {}, { page: 2 })` or `{ to: 'tasks', query: { page: 2 } }`.
+
+### SYG132
+
+**Declaration static that is never sent**
+
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+Declaration statics (`route`, `resources`, `connections`, `head`) are computed from the component's state and sent to their driver whenever they change, as part of the component's model setup. So a component without a model never sends them, and neither does a root component (the one passed to `run()`) with a model but no `initialState`: it has no state, so its state stream never emits. Either way the route never arrives, the resources never load, the connections never open, the head never changes. Sub-components share their parent's state, so the second case only happens at the root.
+
+**Fix:** Give the component a model (an empty one is enough: `Page.model = {}`), and give the root an `initialState`, even an empty object; for the router, seed the route: `App.initialState = { route: router.current() }`.
+
+### SYG133
+
+**SPA router inside a Vike app**
+
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+`makeRouter()` intercepts link clicks and writes the history itself, and so does Vike's client router. Running the SPA router inside a Vike app makes both handle each click and navigation. In Vike, give the router Vike's `navigate()`: it then leaves links and history to Vike, navigates with `navigate()`, and re-reads the route after each Vike navigation.
+
+**Fix:** `makeRouter({ routes, navigate })` with `import { navigate } from 'vike/client/router'`, using a route table that mirrors the Vike routes; or read the route from Vike's page context and drop the router.
+
 ## SYG2xx: State and reducers
 
 ### SYG201
@@ -1451,6 +1491,16 @@ Severity: `error` · Reported by: the Sygnal runtime (every app, production incl
 A value sent to a `makeSocketDriver()` sink could not be acted on. Either a send (`{ to: 'room', json }`) names a connection that this component instance has not declared, that has closed for good (`reconnect: false`, or a URL the browser rejected), or that is a server-sent events connection, which is read-only. Or a declared connection has neither a `socket` nor an `sse` URL. Or the value is neither `{ connections }` nor `{ to, … }`. Connection names are per component instance: a parent cannot send on a child's connection. The message is dropped; a connection that is only (re)connecting is not an error, its sends are queued.
 
 **Fix:** Declare the connection first, `{ connections: { room: { socket: '/ws/rooms/general', message: 'RECEIVED' } } }`, then send on it from the same component: `{ to: 'room', json: { text } }`. Use a WebSocket (`socket:`) for two-way traffic.
+
+### SYG620
+
+**Router command not performed**
+
+Severity: `error` · Reported by: the Sygnal runtime (every app, production included)
+
+A value sent to the router's sink (`makeRouter().driver`) could not be acted on, so nothing was navigated. Either `{ to }` names no route (or the `'*'` not-found route), or the route's pattern needs a param that `params` leaves out, or the value uses the `route` key, which is reserved for the component's `route` declaration (`App.route = 'ROUTE'`), or it is none of the router's commands. The router reports this in production too.
+
+**Fix:** Navigate with `{ to: 'task', params: { id } }` (plus `query`, `hash`, `replace` as needed), `{ url: router.href(...) }`, `{ back: true }`, `{ forward: true }`, `{ block: 'CONFIRM_LEAVE' }` or `{ prefetch: 'task', params }`.
 
 ## SYG9xx: Internal
 

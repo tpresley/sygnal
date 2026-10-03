@@ -20,6 +20,10 @@
  * | SYG112 | reply action has no model entry                        | replies.ts     |
  * | SYG115 | unknown DOM event shorthand (DOM.key(...))             | shorthand.ts   |
  * | SYG116 | EVENTS value with no string type (a function)          | events.ts      |
+ * | SYG130 | href() names no route / leaves out a param             | router.ts      |
+ * | SYG131 | route params the pattern doesn't use                   | router.ts      |
+ * | SYG132 | declaration static never sent: no model or no state    | router.ts      |
+ * | SYG133 | SPA router inside a Vike app                           | router.ts      |
  * | SYG201 | STATE reducer dropped keys                             | state.ts       |
  * | SYG202 | STATE reducer returned undefined                       | state.ts       |
  * | SYG221 | set() called with a string                             | state.ts       |
@@ -32,7 +36,7 @@
  * | SYG508 | strict: select()/errors() round trip on a reply source | replies.ts    |
  * | —      | inspect(): the runtime app graph (2B)                  | inspect.ts     |
  *
- * SYG112 (PLAN-3) and SYG115/116/221/421 (G-143) are dev-entry-only codes: their severities live in
+ * SYG112, SYG130-133 (PLAN-3) and SYG115/116/221/421 (G-143) are dev-entry-only codes: their severities live in
  * DEV_CODE_SEVERITY (codes.ts), registered by ./shared, not in the main bundle.
  *
  * Strict checks (SYG5xx) only report after configureStrict(true) (or
@@ -51,6 +55,7 @@ import {shorthandCheck} from './shorthand'
 import {datasetCheck} from './dataset'
 import {strictCheck} from './strict'
 import {repliesCheck} from './replies'
+import {routerCheck, installRouterHooks} from './router'
 import {installRxjsHints} from './rxjsHints'
 import {inspectCheck, installInspect} from './inspect'
 
@@ -75,6 +80,7 @@ export const checks: DiagnosticCheck[] = [
   datasetCheck,
   strictCheck,
   repliesCheck,
+  routerCheck,
   inspectCheck,
 ]
 
@@ -90,10 +96,12 @@ export function installChecks(): () => void {
   const unregister = checks.map(check => core.registerCheck(check))
   const uninstallHints = installRxjsHints(Stream && Stream.prototype)
   const uninstallInspect = installInspect()
+  const uninstallRouter = installRouterHooks()
   const uninstall = () => {
     unregister.forEach(fn => fn())
     uninstallHints()
     uninstallInspect()
+    uninstallRouter()
     if (core.__uninstallChecks === uninstall) core.__uninstallChecks = undefined
   }
   core.__uninstallChecks = uninstall

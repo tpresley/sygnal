@@ -105,6 +105,34 @@ export const EXPLANATIONS = {
     explanation: "A model sent a value without a string `type` to the `EVENTS` sink, so no `EVENTS.select(type)` can receive it and it is dropped. The usual cause is a function: a model entry that returns `event(...)` (for example `{ EVENTS: () => event('SAVED', data) }`) instead of being `event(...)`, or any other reducer that returns a function. Each emitted value is copied into a new object, so a function arrives on the bus as `{}`. A reducer that returns `undefined` or `null` (see SYG217) causes it too.",
     fix: "Make `event()` the sink entry itself: `SAVE: { EVENTS: event('SAVED', (state, data) => payload) }`; return `ABORT` from a reducer to send nothing.",
   },
+  SYG130: {
+    title: "href() names no route or leaves out a param",
+    severity: "error",
+    reportedBy: ["dev-entry"],
+    explanation: "`router.href(name, params)` builds a link from the route table passed to `makeRouter({ routes })`. When `name` is not a route (or is the `'*'` not-found route), href() returns the app's root path; when the pattern has a `:param` that `params` leaves out, that segment is empty (`/tasks/`). Either way the link goes somewhere else than intended. The `sygnal/diagnostics` dev entry checks every href() call; production builds don't. A `{ to }` command with the same problem is SYG620.",
+    fix: "Use a route name from the table (the message suggests the closest one) and pass every param the pattern names: `href('task', { id: task.id })`.",
+  },
+  SYG131: {
+    title: "Route params the pattern does not use",
+    severity: "warn",
+    reportedBy: ["dev-entry"],
+    explanation: "An href() call or a `{ to, params }` router command passes a param that the route's pattern has no `:name` for. It is ignored, so the value never reaches the URL; usually it was meant for the query string, or the route is the wrong one.",
+    fix: "Pass only the pattern's params, and put other values in the query: `href('tasks', {}, { page: 2 })` or `{ to: 'tasks', query: { page: 2 } }`.",
+  },
+  SYG132: {
+    title: "Declaration static that is never sent",
+    severity: "warn",
+    reportedBy: ["dev-entry"],
+    explanation: "Declaration statics (`route`, `resources`, `connections`, `head`) are computed from the component's state and sent to their driver whenever they change, as part of the component's model setup. So a component without a model never sends them, and neither does a root component (the one passed to `run()`) with a model but no `initialState`: it has no state, so its state stream never emits. Either way the route never arrives, the resources never load, the connections never open, the head never changes. Sub-components share their parent's state, so the second case only happens at the root.",
+    fix: "Give the component a model (an empty one is enough: `Page.model = {}`), and give the root an `initialState`, even an empty object; for the router, seed the route: `App.initialState = { route: router.current() }`.",
+  },
+  SYG133: {
+    title: "SPA router inside a Vike app",
+    severity: "warn",
+    reportedBy: ["dev-entry"],
+    explanation: "`makeRouter()` intercepts link clicks and writes the history itself, and so does Vike's client router. Running the SPA router inside a Vike app makes both handle each click and navigation. In Vike, give the router Vike's `navigate()`: it then leaves links and history to Vike, navigates with `navigate()`, and re-reads the route after each Vike navigation.",
+    fix: "`makeRouter({ routes, navigate })` with `import { navigate } from 'vike/client/router'`, using a route table that mirrors the Vike routes; or read the route from Vike's page context and drop the router.",
+  },
   SYG201: {
     title: "STATE reducer dropped keys from the previous state",
     severity: "warn",
@@ -517,6 +545,13 @@ export const EXPLANATIONS = {
     reportedBy: ["runtime"],
     explanation: "A value sent to a `makeSocketDriver()` sink could not be acted on. Either a send (`{ to: 'room', json }`) names a connection that this component instance has not declared, that has closed for good (`reconnect: false`, or a URL the browser rejected), or that is a server-sent events connection, which is read-only. Or a declared connection has neither a `socket` nor an `sse` URL. Or the value is neither `{ connections }` nor `{ to, … }`. Connection names are per component instance: a parent cannot send on a child's connection. The message is dropped; a connection that is only (re)connecting is not an error, its sends are queued.",
     fix: "Declare the connection first, `{ connections: { room: { socket: '/ws/rooms/general', message: 'RECEIVED' } } }`, then send on it from the same component: `{ to: 'room', json: { text } }`. Use a WebSocket (`socket:`) for two-way traffic.",
+  },
+  SYG620: {
+    title: "Router command not performed",
+    severity: "error",
+    reportedBy: ["runtime"],
+    explanation: "A value sent to the router's sink (`makeRouter().driver`) could not be acted on, so nothing was navigated. Either `{ to }` names no route (or the `'*'` not-found route), or the route's pattern needs a param that `params` leaves out, or the value uses the `route` key, which is reserved for the component's `route` declaration (`App.route = 'ROUTE'`), or it is none of the router's commands. The router reports this in production too.",
+    fix: "Navigate with `{ to: 'task', params: { id } }` (plus `query`, `hash`, `replace` as needed), `{ url: router.href(...) }`, `{ back: true }`, `{ forward: true }`, `{ block: 'CONFIRM_LEAVE' }` or `{ prefetch: 'task', params }`.",
   },
   SYG900: {
     title: "A diagnostics check threw",

@@ -27,7 +27,7 @@ export function lazy(loadFn: () => Promise<any>): any {
       // Copy static properties so the component works on next render
       const statics = ['model', 'intent', 'hmrActions', 'context', 'peers', 'components',
         'initialState', 'calculated', 'storeCalculatedInState', 'DOMSourceName',
-        'stateSourceName', 'onError', 'debug', 'componentName', 'connections', 'resources', 'route'];
+        'stateSourceName', 'onError', 'debug', 'componentName', 'connections', 'resources', 'route', 'head'];
       for (const key of statics) {
         if (cachedComponent[key] !== undefined && (LazyWrapper as any)[key] === undefined) {
           (LazyWrapper as any)[key] = cachedComponent[key];

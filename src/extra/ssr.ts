@@ -79,6 +79,20 @@ export interface RenderToStringOptions {
    * When a string, uses that as the variable name instead.
    */
   hydrateState?: boolean | string
+  /**
+   * PLAN-3 (HEAD driver): an array that receives each rendered component's `head` static
+   * value (in render order); `renderHead(list)` turns it into tags.
+   */
+  head?: any[]
+}
+
+// the `head` option of the outermost renderToString call that has one
+let heads: any[] | undefined
+
+function collectHead(def: any, state: any): void {
+  const h = def && def.head
+  if (!heads || !h) return
+  try { heads.push(typeof h === 'function' ? h(state) : h) } catch (_) {}
 }
 
 /**
@@ -98,9 +112,20 @@ export function renderToString(
   componentDef: any,
   options: RenderToStringOptions = {}
 ): string {
+  const prevHeads = heads
+  if (options.head) heads = options.head
+  try {
+    return renderRoot(componentDef, options)
+  } finally {
+    heads = prevHeads
+  }
+}
+
+function renderRoot(componentDef: any, options: RenderToStringOptions): string {
   const {state, props = {}, context = {}, hydrateState} = options
 
   const resolvedState = state !== undefined ? state : componentDef.initialState
+  collectHead(componentDef, resolvedState)
 
   // Build context: merge parent context with component's own context definitions
   const componentContext = componentDef.context || {}
@@ -370,6 +395,8 @@ function renderSubComponent(vnode: any, context: Record<string, any>, parentStat
     slots.default.push(...defaultSlotChildren)
   }
 
+  collectHead(componentDef, childState)
+
   // Call the view function
   let result: any
   try {
@@ -523,6 +550,7 @@ function renderToStringInternal(componentDef: any, state: any, context: Record<s
     }
   }
 
+  collectHead(componentDef, resolvedState)
   let vnode: any
   try {
     vnode = componentDef({

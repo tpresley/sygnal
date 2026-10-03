@@ -11,6 +11,7 @@ interface SygnalComponent {
   connections?: any;
   resources?: any;
   route?: any;
+  head?: any;
   context?: any;
   peers?: any;
   components?: any;
@@ -78,6 +79,7 @@ export default (element: any) => {
     Wrapped.connections = Component.connections
     Wrapped.resources = Component.resources
     Wrapped.route = Component.route
+    Wrapped.head = Component.head
     Wrapped.componentName = Component.componentName || Component.name
     // run() names the root by `name` first: diagnostics and devtools should
     // say 'Counter', not 'Wrapped'
