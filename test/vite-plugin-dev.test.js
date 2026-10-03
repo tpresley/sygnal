@@ -388,7 +388,7 @@ describe('vite plugin — sygnal-check in dev (deliverable 3)', () => {
     }
   }
 
-  const BUGGY = `function App() { return <div className="x">hi</div> }
+  const BUGGY = `function App() { return <button className="x">hi</button> }
 App.intent = ({ DOM }) => ({ ORPHAN: DOM.click('.x') })
 App.model = {}
 export default App
@@ -459,6 +459,22 @@ export default App
     const quiet = start(project({ files: { 'App.jsx': BUGGY } }), { diagnostics: { ignore: ['SYG101'] } })
     await until(() => quiet.logs.length > 0)
     expect(quiet.logs[0]).toEqual(['info', 'sygnal-check: 0 warnings'])
+  })
+
+  // PLAN-4 GS-3 / D111: the a11y lane is on in the dev checker; warn, and an error under strict
+  it('reports the a11y lane (SYG7xx): warn, error with diagnostics.strict', async () => {
+    const CLICK_DIV = `function App() { return <div className="x">hi</div> }
+App.intent = ({ DOM }) => ({ OPEN: DOM.click('.x') })
+App.model = { OPEN: s => s }
+export default App
+`
+    const server = start(project({ files: { 'App.jsx': CLICK_DIV } }))
+    await until(() => server.logs.length > 0)
+    expect(server.logs[0][0]).toBe('warn')
+    expect(server.logs[0][1]).toMatch(/^src\/App\.jsx:2:\d+ SYG701 App: DOM\.click\('\.x'\) listens on a <div>/)
+    const strict = start(project({ files: { 'App.jsx': CLICK_DIV } }), { diagnostics: { strict: true } })
+    await until(() => strict.logs.length > 0)
+    expect(strict.logs[0][1]).toMatch(/SYG701 \[error\]/)
   })
 
   it('passes strict (default: diagnostics.strict) and ignore to check()', async () => {
