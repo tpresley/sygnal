@@ -21,7 +21,8 @@ import {senderOf, makeReplies} from './replies';
  * - Commands: `{ to: name, params?, query?, hash?, replace?, scroll? }`, `{ url, replace? }`,
  *   `{ back: true }`, `{ forward: true }`, `{ go: n }`, `{ block: 'ACTION' | false }`,
  *   `{ prefetch: name | url, params?, query? }` (calls options.prefetch(route, url); else a
- *   no-op hook until the fetch cache, 5-5). `force: true` skips a block.
+ *   no-op hook until the fetch cache, 5-5). `force: true` skips a block. `block` may come with a
+ *   navigation: `{ ...proceed, block: false }` clears the block and makes it.
  * - Block: while a component has `{ block: 'ACTION' }`, an attempted navigation (link click,
  *   command, back/forward) is not made; the last blocker gets ACTION with `{ to, route,
  *   proceed }` (`proceed` is the command that makes it anyway). A back/forward is undone with
@@ -252,20 +253,28 @@ export function makeRouter(options: any = {}) {
           if (Object.keys(v).length > 1 || v.route in routes) return bad(v, '`route` is the declaration key', "Navigate with { to: 'name', params }");
           if (!v.route || s === undefined) return void declared.delete(s);
           declared.set(s, v.route);
-          // the guard owner (first declarer) at once; the others after it could redirect
+          // a task later: the instance's replies are listened to by then (a first declarer below
+          // the root, e.g. a Vike Layout, may declare before), and timers keep mount order, so the
+          // guard owner still answers first; a redirect in between supersedes the old route
           const v0 = ver, f = () => declared.get(s) == v.route && ver == v0 && reply(s, v.route, cur);
-          if (cur) declared.keys().next().value === s ? queueMicrotask(f) : setTimeout(f);
-        } else if ('block' in v) {
+          if (cur) setTimeout(f);
+          return;
+        }
+        // `block` combines with a navigation: { ...proceed, block: false } clears it and goes
+        const nav = v.back || v.forward || v.go || v.to != null || v.url != null;
+        if ('block' in v) {
           v.block ? blocks.set(s, v.block) : blocks.delete(s);
           syncUnload();
-        } else if ('prefetch' in v) {
+          if (!nav) return;
+        }
+        if ('prefetch' in v) {
           const url = v.prefetch in routes ? target({...v, to: v.prefetch}, v.prefetch) : v.prefetch;
           if (url) prefetch?.(match(url), url);
         } else if (!w) return;
         else if (v.back || v.forward || v.go) {
           force = v.force ? 1 : 0;
           H.go(v.back ? -1 : v.forward ? 1 : v.go);
-        } else if (v.to != null || v.url != null) {
+        } else if (nav) {
           const url = v.url ?? target(v, v.to);
           if (url) go(url, v.replace, v.scroll, v.force);
         } else bad(v, 'unknown command', "{ to: 'name', params?, query?, hash?, replace? }, { back: true }, { forward: true }, { block: 'ACTION' } or { prefetch: 'name' }");

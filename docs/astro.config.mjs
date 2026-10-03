@@ -44,6 +44,8 @@ export default defineConfig({
             { label: 'Drivers', slug: 'guide/drivers' },
             { label: 'HTTP', slug: 'guide/http' },
             { label: 'Sockets', slug: 'guide/sockets' },
+            { label: 'Router', slug: 'guide/router' },
+            { label: 'Document Head', slug: 'guide/head' },
             { label: 'Custom Drivers', slug: 'guide/custom-drivers' },
             { label: 'Collections', slug: 'guide/collections' },
             { label: 'Switchable', slug: 'guide/switchable' },

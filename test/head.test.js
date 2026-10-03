@@ -110,6 +110,7 @@ describe('makeHeadDriver', () => {
     App.model = { ROUTE: (s, route) => ({ ...s, route }) }
     app = run(App, { ROUTER: router.driver, HEAD: makeHeadDriver() }, { mountPoint: '#root' })
     await waitFor(() => expect(document.title).toBe('Home'))
+    await waitFor(() => !!document.querySelector('.t2'))
     document.querySelector('.t2').click()
     await waitFor(() => expect(document.title).toBe('Task 2'))
   })

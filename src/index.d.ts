@@ -1447,9 +1447,9 @@ export interface Route<NAME extends string = string> {
 
 /** A value for the router's sink (`ROUTER`); `{ route }` is reserved for the `route` static */
 export type RouterCommand<R extends Record<string, string> = Record<string, string>> =
-  | { to: RouteName<R>; params?: Record<string, string | number>; query?: RouteQuery; hash?: string; replace?: boolean; scroll?: boolean; force?: boolean }
-  | { url: string; replace?: boolean; scroll?: boolean; force?: boolean }
-  | { back: true; force?: boolean } | { forward: true; force?: boolean } | { go: number; force?: boolean }
+  | { to: RouteName<R>; params?: Record<string, string | number>; query?: RouteQuery; hash?: string; replace?: boolean; scroll?: boolean; force?: boolean; block?: string | false | null }
+  | { url: string; replace?: boolean; scroll?: boolean; force?: boolean; block?: string | false | null }
+  | { back: true; force?: boolean; block?: string | false | null } | { forward: true; force?: boolean; block?: string | false | null } | { go: number; force?: boolean; block?: string | false | null }
   | { block: string | false | null }
   | { prefetch: RouteName<R> | string; params?: Record<string, string | number>; query?: RouteQuery };
 

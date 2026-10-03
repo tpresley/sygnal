@@ -92,7 +92,7 @@ export const routerCheck: DiagnosticCheck = {
       }
       const opts = src?.__sygnalRouter
       const g: any = globalThis
-      if (opts && !opts.navigate && g.document?.getElementById?.('vike_pageContext') && once('SYG133')) {
+      if (opts && typeof opts == 'object' && !opts.navigate && g.document?.getElementById?.('vike_pageContext') && once('SYG133')) {
         devReport('SYG133', {
           component,
           message: `The SPA router (${n}) runs inside a Vike app: Vike owns links and history, so both would handle a click`,
