@@ -54,6 +54,16 @@ function esc(str: string): string {
     .replace(/"/g, '&quot;')
 }
 
+/**
+ * PLAN-4 G-207: the uid() path part of a shell component or the Page (wrapper_0 → 'w0',
+ * layout_1 → 'l1', page → 'p'), as onRenderClient gives each nested vnode in its `id` prop. Each
+ * one renders here as its own root, so its root is 'u' plus the parts of the shell around it and
+ * its own: the same uids as the client's nested instances.
+ */
+function uidPart(key: string): string {
+  return key == 'page' ? 'p' : key[0] + key.slice(key.indexOf('_') + 1)
+}
+
 export function onRenderHtml(pageContext: PageContext) {
   const { Page, config } = pageContext
   const data = pageContext.data || {}
@@ -128,6 +138,16 @@ export function onRenderHtml(pageContext: PageContext) {
         .filter((L: any) => typeof L === 'function')
     : []
   const hasShell = wrapperArray.length > 0 || layoutArray.length > 0
+  // Combined shell: wrappers (outermost) + layouts (innermost around Page)
+  // Must match the order used in onRenderClient's createLayoutWrapper.
+  const shell = [
+    ...wrapperArray.map((w: any, i: number) => ({ comp: w, key: 'wrapper_' + i })),
+    ...layoutArray.map((l: any, i: number) => ({ comp: l, key: 'layout_' + i })),
+  ]
+  // G-207: with a shell, the client nests each shell component and the Page in the one outside it
+  // with an `id` prop (onRenderClient), so their uid roots are 'u-w0', 'u-w0-l0', 'u-w0-l0-p'
+  const uidRoot = (i: number) => ['u', ...shell.slice(0, i + 1).map(s => uidPart(s.key))].join('-')
+  const pageUid = hasShell ? uidRoot(shell.length - 1) + '-' + uidPart('page') : undefined
 
   // Render the page component to HTML, with error boundary.
   // When layouts are present, the hydration state is serialized separately
@@ -139,6 +159,8 @@ export function onRenderHtml(pageContext: PageContext) {
     pageHtml = renderToString(Page, {
       state: initialState,
       onError: config.onError,
+      // G-207: the client's uid base and `id` prop for the nested Page
+      ...(hasShell && { uid: pageUid, props: { id: uidPart('page') } }),
       hydrateState: hasShell ? false : '__VIKE_SYGNAL_STATE__',
       head: pageHeads,
       cache,
@@ -171,20 +193,15 @@ export function onRenderHtml(pageContext: PageContext) {
   // Each shell component receives page content via a placeholder in its children slot.
   let pageViewContent = pageHtml
   if (hasShell) {
-    // Combined shell: wrappers (outermost) + layouts (innermost around Page)
-    // Must match the order used in onRenderClient's createLayoutWrapper.
-    const shell = [
-      ...wrapperArray.map((w: any, i: number) => ({ comp: w, key: 'wrapper_' + i })),
-      ...layoutArray.map((l: any, i: number) => ({ comp: l, key: 'layout_' + i })),
-    ]
-
     // Wrap from innermost to outermost (reverse order)
     for (let i = shell.length - 1; i >= 0; i--) {
-      const { comp } = shell[i]
+      const { comp, key } = shell[i]
       const PLACEHOLDER = '<!--SYGNAL_PAGE_SLOT-->'
       const compHtml = renderToString(comp, {
         state: comp.initialState || {},
-        props: { innerHTML: PLACEHOLDER },
+        // G-207: the uid root and `id` prop the client's nested instance has
+        uid: uidRoot(i),
+        props: { innerHTML: PLACEHOLDER, id: uidPart(key) },
         head: shellHeads,
         cache,
         onError: config.onError,

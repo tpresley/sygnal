@@ -59,6 +59,16 @@ let currentUrlPathname: string = ''
 let pageNavCounter: number = 0
 
 /**
+ * PLAN-4 G-207: the uid() path part of a shell component or the Page: wrapper_0 → 'w0',
+ * layout_1 → 'l1', page → 'p'. Given as the nested vnode's `id` prop, so the Page's uid is
+ * 'u-w0-l0-p' however the shell nests it; onRenderHtml renders each one with the same root
+ * (renderToString's `uid`), so server and client ids match. (Same helper in onRenderHtml.ts.)
+ */
+function uidPart(key: string): string {
+  return key == 'page' ? 'p' : key[0] + key.slice(key.indexOf('_') + 1)
+}
+
+/**
  * Build a component vnode that matches what the JSX pragma produces.
  */
 function componentVNode(comp: any, key: string, stateField: any, children: any[], compInitialState?: any): any {
@@ -68,6 +78,8 @@ function componentVNode(comp: any, key: string, stateField: any, children: any[]
     data: {
       props: {
         state: stateField,
+        // G-207: the uid() base, as onRenderHtml gives this shell component (see uidPart)
+        id: uidPart(key),
         sygnalOptions: {
           name,
           view: comp,
@@ -109,6 +121,8 @@ function pageChildVNode(pageState: any, stateField: any = 'page'): any {
     data: {
       props: {
         state: stateField,
+        // G-207: the Page's uid() base, as onRenderHtml gives it (the same across navigations)
+        id: uidPart('page'),
         sygnalOptions: {
           // G-037: diagnostics, devtools and onError name the component by
           // `name`; keep the user's name (the nav counter is only in `sel`).
