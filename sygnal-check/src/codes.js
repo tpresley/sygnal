@@ -33,7 +33,13 @@ export const CODES = {
   // PLAN-4 GS-8 undo (rules/syg127-behaviors.js)
   SYG226: { severity: 'warn', title: 'Undo track or resetOn names an unknown action' },
   SYG401: { severity: 'warn', title: "Collection 'from' field is missing or not an array" },
+  // PLAN-4 GS-7 timers (rules/syg422-timers.js)
+  SYG422: { severity: 'error', title: 'Invalid timer spec' },
   SYG634: { severity: 'info', title: 'latest: true with a computed key' },
+  // PLAN-4 GS-2 element commands (rules/syg640-element-commands.js), GS-7 (rules/syg422-timers.js)
+  SYG640: { severity: 'warn', title: 'Element command target not found' },
+  SYG641: { severity: 'error', title: 'Unknown element command' },
+  SYG643: { severity: 'warn', title: 'Declaration static with no driver to take it' },
   // PLAN-4 GS-3: the a11y lane (rules/a11y/); warn, error under --strict (D111)
   SYG701: { severity: 'warn', title: 'Click listener on a non-interactive element' },
   SYG702: { severity: 'warn', title: 'Form field without an accessible label' },

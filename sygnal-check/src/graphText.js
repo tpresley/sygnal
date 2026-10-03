@@ -9,6 +9,8 @@
  *     children  LaneComponent (collection from 'lanes')
  *     controls  Add <button> ✓
  *     selectors .add-lane-btn [click] ✓
+ *     commands  OPEN_HELP → showModal HelpDialog
+ *     timers    tick every 100 ms → TICK
  *     ! SYG110 …
  *   EVENTS
  *     DELETE_LANE  LaneComponent → RootComponent
@@ -18,6 +20,12 @@ const list = (xs) => xs.join(', ')
 function selectorText(s) {
   const mark = s.isolationHit ? `✗ inside <${s.isolationHit}>` : s.matched === true ? '✓' : s.matched === false ? '✗ not in view' : '?'
   return `${s.control ?? s.selector}${s.events?.length ? ` [${s.events.join(',')}]` : ''} ${mark}`
+}
+
+function timerText(t) {
+  const ms = (v) => v == null ? '?' : `${v} ms`
+  const how = 'frame' in t ? 'frame' : 'every' in t ? `every ${ms(t.every)}` : 'after' in t ? `after ${ms(t.after)}` : '?'
+  return `${t.name} ${how} → ${('frame' in t ? t.frame : t.action) ?? '?'}${t.background ? ' (background)' : ''}`
 }
 
 export function formatGraph(g, { verbose = false } = {}) {
@@ -42,6 +50,8 @@ export function formatGraph(g, { verbose = false } = {}) {
     row('children', list(c.children.map(ch => `${ch.name} (${ch.via}${ch.from ? ` from '${ch.from}'` : ''})`)))
     row('controls', list((c.controls || []).map(x => `${x.name}${x.element ? ` <${x.element}>` : x.kind ? ` (${x.kind})` : ''} ${x.listened ? '✓' : x.listened === false ? '(not listened to)' : '?'}`)))
     row('selectors', list(c.selectors.map(selectorText)))
+    row('commands', list((c.commands || []).map(x => `${x.action} → ${x.method} ${x.target ?? '?'}${x.triggers ? ` (→ ${x.triggers.join(', ')})` : ''}`)))
+    row('timers', list((c.timers || []).map(timerText)))
     for (const d of c.diagnostics.filter(shown)) out.push(`  ! ${d.code}${d.severity === 'warn' ? '' : ` [${d.severity}]`} ${d.message}`)
   }
   const types = Object.keys(g.events)

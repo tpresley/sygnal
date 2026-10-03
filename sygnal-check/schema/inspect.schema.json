@@ -85,7 +85,42 @@
           "type": "array",
           "items": { "$ref": "#/$defs/control" }
         },
+        "commands": {
+          "description": "static: the element commands (ELEMENT sink) its model sends; omitted when there are none",
+          "type": "array",
+          "items": { "$ref": "#/$defs/command" }
+        },
+        "timers": {
+          "description": "static: the literal timer specs of its `timers` static; omitted when there are none",
+          "type": "array",
+          "items": { "$ref": "#/$defs/timer" }
+        },
         "diagnostics": { "type": "array", "items": { "$ref": "#/$defs/diagnostic" } }
+      }
+    },
+    "command": {
+      "type": "object",
+      "required": ["action", "method", "target"],
+      "additionalProperties": false,
+      "properties": {
+        "action": { "type": "string", "description": "the model entry that sends it" },
+        "method": { "type": "string", "description": "the command's method (its first key)" },
+        "target": { "type": ["string", "null"], "description": "the control's key or the selector; null when not static" },
+        "control": { "type": "string", "description": "the control it targets (its key)" },
+        "triggers": { "$ref": "#/$defs/strings", "description": "intent actions listening on the target for a native event the command causes (close, toggle...)" }
+      }
+    },
+    "timer": {
+      "type": "object",
+      "required": ["name"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "every": { "type": ["number", "null"] },
+        "after": { "type": ["number", "null"] },
+        "frame": { "type": ["string", "null"], "description": "the action a frame timer dispatches" },
+        "action": { "type": ["string", "null"] },
+        "background": { "const": true }
       }
     },
     "action": {

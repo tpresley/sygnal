@@ -14,9 +14,10 @@
  *     calls:      [{ call, controls: Control[] }]   every controls() call in the file
  *     duplicates: [{ control, first }]               a key declared again in the file (SYG128)
  *   }
- *   Control = { key, file, call, keyNode, element: string | null, kind: string | null, selector }
+ *   Control = { key, file, call, keyNode, element: string | null, kind: string | null, commands, selector }
  *     element  the intrinsic tag for a tag-string spec; null for a spec object
  *     kind     a spec object's `kind` when it is a string literal
+ *     commands a spec object's `commands` names (D102, PLAN-4 GS-2): [] for none, null when unknown
  *
  *   resolveControl(project, file, node, from?) → Control | null
  *     node is an expression (Identifier / MemberExpression); `from` is the node
@@ -47,12 +48,28 @@ export function isControlsCall(file, node) {
 function specOf(value) {
   const v = unwrap(value)
   const tag = stringValue(v)
-  if (tag != null) return { element: tag, kind: null }
+  if (tag != null) return { element: tag, kind: null, commands: [] }
   if (v?.type === 'ObjectExpression') {
     const k = v.properties.find(p => p.type === 'ObjectProperty' && propName(p) === 'kind')
-    return { element: null, kind: k ? stringValue(k.value) : null }
+    return { element: null, kind: k ? stringValue(k.value) : null, commands: specCommands(v) }
   }
-  return { element: null, kind: null }
+  return { element: null, kind: null, commands: null }
+}
+
+// a spec object's `commands` names (D102): [] when it has none, null when they can't be listed
+function specCommands(spec) {
+  if (spec.properties.some(p => p.type === 'SpreadElement')) return null
+  const c = spec.properties.find(p => (p.type === 'ObjectProperty' || p.type === 'ObjectMethod') && propName(p) === 'commands')
+  if (!c) return []
+  const v = c.type === 'ObjectProperty' ? unwrap(c.value) : null
+  if (v?.type !== 'ObjectExpression') return null
+  const names = []
+  for (const p of v.properties) {
+    const n = p.type === 'SpreadElement' ? null : propName(p)
+    if (n == null) return null
+    names.push(n)
+  }
+  return names
 }
 
 const cache = new WeakMap() // file → info

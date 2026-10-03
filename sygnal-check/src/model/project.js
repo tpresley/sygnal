@@ -23,7 +23,10 @@
  *     initialState: { known, keys: Map<key, valueNode> } | null
  *     calculatedKeys: Set<string>
  *     contextKeys: Set<string>
- *     connections: { targets, dynamic } | null  (action names in a `connections` static)
+ *     connections: { targets, dynamic } | null  (action names in a `connections`, `resources`,
+ *                                                `route` or `timers` static: reply actions)
+ *     timers: TimersInfo | null        (model/timers.js: the `timers` static, PLAN-4 GS-7)
+ *     commands: Command[]              (model/elementCommands.js: ELEMENT commands, PLAN-4 GS-2)
  *     viewInfo: Sink | null            (model/view.js: classes, ids, children, collections)
  *     uses: UsesInfo | null            (model/behaviors.js: the `uses` static, resolved)
  *     behaviorSelectors: Selector[]    what its behaviors listen to through their options
@@ -45,6 +48,8 @@ import { analyzeModel, connectionNames, REPLY_KEYS } from './modelEntries.js'
 import { scanFileEvents } from './events.js'
 import { resolveSelectorControls } from './controls.js'
 import { analyzeUses } from './behaviors.js'
+import { analyzeTimers } from './timers.js'
+import { analyzeCommands } from './elementCommands.js'
 
 export const STATIC_PROPS = ['intent', 'model', 'initialState', 'context', 'calculated', 'connections', 'resources', 'route', 'head', 'uses', 'timers']
 
@@ -218,6 +223,13 @@ export class Project {
       if (sp.route.type === 'StringLiteral') conn.targets.push({ name: sp.route.value, key: 'route', node: sp.route, file, route: true })
       else conn.dynamic.push({ node: sp.route, file })
     }
+    // PLAN-4 GS-7: the action names a `timers` static dispatches (reply actions of the timer driver)
+    comp.timers = sp.timers ? analyzeTimers(this, file, sp.timers) : null
+    if (comp.timers) {
+      const conn = comp.connections || (comp.connections = { targets: [], dynamic: [] })
+      conn.targets.push(...comp.timers.targets)
+      conn.dynamic.push(...comp.timers.dynamic)
+    }
     if (sp.initialState) {
       const keys = this.objectKeys(file, sp.initialState)
       comp.initialState = { known: !!keys, keys: keys || new Map() }
@@ -231,6 +243,8 @@ export class Project {
       if (keys) comp.contextKeys = new Set(keys.keys())
     }
     if (comp.view) comp.viewInfo = this.viewOf({ file, node: comp.view })
+    // PLAN-4 GS-2: the ELEMENT commands its model sends (literal command objects)
+    comp.commands = analyzeCommands(this, comp)
     // PLAN-4 GS-1: `uses` resolved to behavior definitions; what their intents listen to
     // through the options (controls passed at the uses site) joins the intent's selectors
     comp.uses = undefined

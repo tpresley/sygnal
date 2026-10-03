@@ -2,7 +2,12 @@
  * SYG102: a model entry nothing can trigger: no intent action of that name,
  * not a built-in action, no next('X') string literal targets it, no request
  * names it as a reply action (`ok: 'X'` / `error: 'X'` in a value a non-STATE sink
- * returns), and no `connections` entry names it (message/open/close/error).
+ * returns), and no `connections` entry names it (message/open/close/error), nor a `timers`
+ * static (`{ every, action }`, `{ frame: 'FRAME' }`, PLAN-4 GS-7: comp.connections carries them).
+ *
+ * Element commands (PLAN-4 GS-2): the native events a command causes (`{ close: Dialog }` →
+ * `close`) reach the model through intent actions (`DOM.close(Dialog)`), which are triggers like
+ * any other; the graph lists them as the command's `triggers`.
  *
  * Behaviors (PLAN-4 GS-1): every action of a resolved behavior counts as a
  * trigger under its namespaced name ('pager.NEXT': a host entry for it runs

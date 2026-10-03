@@ -91,10 +91,8 @@ const laps = () => t.queryAll('.laps li').map(li => li.textContent)
 describe('the recipe is strict-clean and a11y-clean (sygnal-check --strict)', () => {
   it('stopwatch', () => {
     const d = checkFiles([path.join(dir, 'stopwatch.jsx')], { cwd: dir, strict: true })
-    // sygnal-check doesn't know timer actions yet (PLAN-4 3-K adds the SYG102 trigger): the
-    // only finding is that info, and this assertion should drop it once 3-K lands
-    expect(d.map(x => `${x.code} ${x.severity}`)).toEqual(['SYG102 warn'])
-    expect(d[0].message).toContain("'TICK'")
+    // the timer action TICK is a trigger (PLAN-4 3-K): no SYG102
+    expect(d.map(x => `${x.code} ${x.message}`)).toEqual([])
   })
 })
 

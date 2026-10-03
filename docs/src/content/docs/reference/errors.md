@@ -51,7 +51,7 @@ Form.model  = { SAVE: (state) => ({ ...state, saved: true }) }
 
 Severity: `info` at runtime, `warn` in sygnal-check · Reported by: the dev checks (`sygnal/diagnostics`), `sygnal-check`
 
-A model entry has no intent action of the same name and is not a built-in action (`BOOTSTRAP`, `INITIALIZE`, `DISPOSE`, `READY`, `RESOURCE`; `HYDRATE` is an ordinary action since 6.0), so nothing in the intent can trigger it. A request also triggers the reply actions it names (`{ url, ok: 'LOADED', error: 'FAILED' }` sent to a driver sink), and so does a `connections` entry (`message`, `open`, `close`, `error`) or a request a `resources` entry derives (`ok`, `error`). A `RESOURCE` entry replaces the built-in reducer that writes `state[name]` for a `resources` static. It may still be reached through `next('ACTION')`, which the runtime cannot know in advance, so the runtime check reports it as info (and skips components whose intent returns a single stream); it counts the `ok`/`error` string literals it finds in the source of the component's non-STATE sink functions. The static checker also accounts for `next()` calls and reply-action names with string literals and reports it as warn, downgraded to info when a `next()` call or an `ok`/`error` value uses a non-literal name.
+A model entry has no intent action of the same name and is not a built-in action (`BOOTSTRAP`, `INITIALIZE`, `DISPOSE`, `READY`, `RESOURCE`; `HYDRATE` is an ordinary action since 6.0), so nothing in the intent can trigger it. A request also triggers the reply actions it names (`{ url, ok: 'LOADED', error: 'FAILED' }` sent to a driver sink), and so does a `connections` entry (`message`, `open`, `close`, `error`) or a request a `resources` entry derives (`ok`, `error`). A `RESOURCE` entry replaces the built-in reducer that writes `state[name]` for a `resources` static. It may still be reached through `next('ACTION')`, which the runtime cannot know in advance, so the runtime check reports it as info (and skips components whose intent returns a single stream); it counts the `ok`/`error` string literals it finds in the source of the component's non-STATE sink functions. The static checker also accounts for `next()` calls and reply-action names with string literals and reports it as warn, downgraded to info when a `next()` call or an `ok`/`error` value uses a non-literal name. It also counts the actions a `timers` static names (`{ every: 100, action: 'TICK' }`, `{ frame: 'FRAME' }`), which the timer driver dispatches.
 
 **Fix:** Add the action to the component's `intent`, name it in a request (`HTTP: (state) => ({ url, ok: 'ACTION' })`), dispatch it with `next('ACTION')` from another entry, or remove the dead model entry.
 
@@ -227,7 +227,7 @@ After:
 
 Severity: `error` · Reported by: the dev checks (`sygnal/diagnostics`), `sygnal-check`
 
-A request sent to a driver with reply actions (`makeFetchDriver`, `driverFromAsync`, the socket driver) names its reply actions, as in `{ url, ok: 'LOADED', error: 'FAILED' }`, and the driver delivers the reply to the sending component as that action. When the component's model has no entry with that name, the reply is dropped, usually because of a typo. The dev entry checks each request with reply actions as it is sent; `sygnal-check` checks string literal `ok`/`error` values returned by non-STATE sinks and the `message`/`open`/`close`/`error` names in a `connections` static. Statically, only names that look like actions (UPPER_SNAKE_CASE) or are close to a model key are reported, because the checker cannot see which driver a sink goes to, and a custom driver may use an `error` field for data.
+A request sent to a driver with reply actions (`makeFetchDriver`, `driverFromAsync`, the socket driver) names its reply actions, as in `{ url, ok: 'LOADED', error: 'FAILED' }`, and the driver delivers the reply to the sending component as that action. When the component's model has no entry with that name, the reply is dropped, usually because of a typo. The dev entry checks each request with reply actions as it is sent; `sygnal-check` checks string literal `ok`/`error` values returned by non-STATE sinks the `message`/`open`/`close`/`error` names in a `connections` static, and the action names in a `timers` static. Statically, only names that look like actions (UPPER_SNAKE_CASE) or are close to a model key are reported, because the checker cannot see which driver a sink goes to, and a custom driver may use an `error` field for data.
 
 **Fix:** Use the name of an existing model entry (the message names the closest one), or add the entry: `LOADED: (state, body) => ({ ...state, data: body })`.
 
@@ -319,7 +319,7 @@ A control from `controls({ ... })` was given `.intent`, `.model` or `.initialSta
 
 Severity: `info` · Reported by: `sygnal-check`
 
-A component renders a control (for example `<Add>`), but its intent never listens to it. A control exists to link an element to an intent, so an unused one is usually a missing intent entry or a leftover from a refactor. It is info because a control may also be used only to find the element in tests (`t.query(Draft)`).
+A component renders a control (for example `<Add>`), but its intent never listens to it. A control exists to link an element to an intent, so an unused one is usually a missing intent entry or a leftover from a refactor. A control the model sends element commands to (`ELEMENT: { showModal: HelpDialog }`) counts as used. It is info because a control may also be used only to find the element in tests (`t.query(Draft)`).
 
 **Fix:** Listen to it in the component's intent (`ADD: DOM.click(Add)`), or render the plain element (`<button>`) if it needs no events.
 
@@ -1172,9 +1172,9 @@ After:
 
 **Invalid timer spec**
 
-Severity: `error` · Reported by: the dev checks (`sygnal/diagnostics`)
+Severity: `error` · Reported by: the dev checks (`sygnal/diagnostics`), `sygnal-check`
 
-A component's `timers` static declares a timer that `makeTimerDriver()` can't run, so it is not started (the other timers are). A spec is `{ every: ms, action }` (a positive interval), `{ after: ms, action }` (0 or more) or `{ frame: 'ACTION' }`, each with an optional `background: true`. Reported for a non-positive or non-numeric `every`, a negative `after`, both `every` and `after`, a missing or non-string `action`, or a `frame` that isn't an action name. A falsy entry (`state.running && { ... }`) is not an error: it means the timer is stopped.
+A component's `timers` static declares a timer that `makeTimerDriver()` can't run, so it is not started (the other timers are). A spec is `{ every: ms, action }` (a positive interval), `{ after: ms, action }` (0 or more) or `{ frame: 'ACTION' }`, each with an optional `background: true`. Reported for a non-positive or non-numeric `every`, a negative `after`, both `every` and `after`, a missing or non-string `action`, or a `frame` that isn't an action name. A falsy entry (`state.running && { ... }`) is not an error: it means the timer is stopped. sygnal-check reports it too, for specs written as literals (`{ every: 0, action: 'TICK' }`); a value computed from state is checked only at run time.
 
 **Fix:** Use `tick: state.running && { every: 100, action: 'TICK' }`, `done: state.armed && { after: 5000, action: 'EXPIRE' }` or `frame: state.animating && { frame: 'FRAME' }`. To stop a timer, return a falsy value for it instead of an invalid spec.
 
@@ -1646,9 +1646,9 @@ A request or resource sets `cache: true` or `staleTime`, or the component sends 
 
 **Element command target not found**
 
-Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`), `sygnal-check`
 
-A model entry sent an element command on the built-in `ELEMENT` sink, such as `{ focus: Email }` or `{ showModal: HelpDialog }`, and nothing matched its target. The target, a control or a selector, is looked up only in the view of the component instance that sent the command: an element inside a child component is isolated from its parent, and a Collection item reaches only its own elements. The command waits for the next render to reach the page (so it reaches an element the same action renders) and keeps looking for about 1 s, then it is dropped. A command with no target (`{ focus: undefined }`) is reported the same way.
+A model entry sent an element command on the built-in `ELEMENT` sink, such as `{ focus: Email }` or `{ showModal: HelpDialog }`, and nothing matched its target. The target, a control or a selector, is looked up only in the view of the component instance that sent the command: an element inside a child component is isolated from its parent, and a Collection item reaches only its own elements. The command waits for the next render to reach the page (so it reaches an element the same action renders) and keeps looking for about 1 s, then it is dropped. A command with no target (`{ focus: undefined }`) is reported the same way. sygnal-check reports it before the app runs when a literal command targets a control (or a static class or id selector) that the sending component's view never renders, or renders only inside a child component; a dynamic target, a `document`/`body` selector and a class a dynamic `className` might produce are left to the runtime.
 
 **Fix:** Render the element in the sending component's view, or send the command from the component that renders it: in a Collection, each item sends its own (for example on BOOTSTRAP for a new row). Check the control or selector: `ELEMENT: { focus: Email }` with `const { Email } = controls({ Email: 'input' })` rendered as `<Email />`.
 
@@ -1656,9 +1656,9 @@ A model entry sent an element command on the built-in `ELEMENT` sink, such as `{
 
 **Unknown element command**
 
-Severity: `error` · Reported by: the dev checks (`sygnal/diagnostics`)
+Severity: `error` · Reported by: the dev checks (`sygnal/diagnostics`), `sygnal-check`
 
-An element command (`ELEMENT` sink) names a method that can't run. The first key of a command object is the method and the other keys are its options (`{ scrollIntoView: Row, block: 'nearest' }`). A control whose spec object declares `commands` is asked first; then the element's own method runs (focus, blur, select, click, scrollIntoView, showModal, show, close, showPopover, hidePopover, togglePopover, and others such as play or reset). Reported when neither exists, for example a typo (`fokus`) or `showModal` on an element that isn't a `<dialog>`; the message names the control's declared commands. Also reported when the command is sent: a value that isn't a command object, and a method that changes the DOM Sygnal renders (`remove`, `append`, `setAttribute`...), which the next render undoes or trips over.
+An element command (`ELEMENT` sink) names a method that can't run. The first key of a command object is the method and the other keys are its options (`{ scrollIntoView: Row, block: 'nearest' }`). A control whose spec object declares `commands` is asked first; then the element's own method runs (focus, blur, select, click, scrollIntoView, showModal, show, close, showPopover, hidePopover, togglePopover, and others such as play or reset). Reported when neither exists, for example a typo (`fokus`) or `showModal` on an element that isn't a `<dialog>`; the message names the control's declared commands. Also reported when the command is sent: a value that isn't a command object, and a method that changes the DOM Sygnal renders (`remove`, `append`, `setAttribute`...), which the next render undoes or trips over. sygnal-check reports the method of a literal command object before the app runs: a slip of a documented command or of the control's spec commands (`{ fokus: Email }`, did you mean 'focus'), and a DOM-mutating method. Any other method name is left alone, since the core runs any method the element has.
 
 **Fix:** Use one of the element's methods or the control's commands, with the method as the first key: `{ focus: Email, preventScroll: true }`, `{ close: HelpDialog, returnValue: 'ok' }`. Render dialogs as `<dialog>` and popovers with `attrs: { popover: 'auto' }`. To change what the page shows, change the state instead.
 
@@ -1666,9 +1666,9 @@ An element command (`ELEMENT` sink) names a method that can't run. The first key
 
 **Declaration static with no driver to take it**
 
-Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`), `sygnal-check`
 
-A component declares `timers`, `connections` or `resources`, but no registered driver takes that static, so nothing happens and nothing else says so: the timers never fire, the connections never open, the resources stay idle. The core sends each of these statics to the source of the driver that asks for it (`makeTimerDriver()`, `makeSocketDriver()`, `makeFetchDriver()`), and the driver is opt-in: `run()` doesn't register it for you. `renderComponent` provides fakes for all three (the timer fake runs the real driver), so the warning only appears under `run()`.
+A component declares `timers`, `connections` or `resources`, but no registered driver takes that static, so nothing happens and nothing else says so: the timers never fire, the connections never open, the resources stay idle. The core sends each of these statics to the source of the driver that asks for it (`makeTimerDriver()`, `makeSocketDriver()`, `makeFetchDriver()`), and the driver is opt-in: `run()` doesn't register it for you. `renderComponent` provides fakes for all three (the timer fake runs the real driver), so the warning only appears under `run()`. sygnal-check reports it statically when it finds the app's `run(App, drivers)` call, its drivers are an object literal it can read, and the component is rendered by `App`; otherwise it says nothing.
 
 **Fix:** Register the driver when you start the app: `run(App, { TIMER: makeTimerDriver() })` for `timers`, `run(App, { WS: makeSocketDriver() })` for `connections`, `run(App, { HTTP: makeFetchDriver() })` for `resources` (the key is yours to choose; the core finds the driver by the static it takes).
 
