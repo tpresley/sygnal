@@ -37,6 +37,7 @@ import type {DiagnosticCheck} from '../index'
 import {ScopeChecker} from '../../../cycle/dom/ScopeChecker'
 import type {Scope} from '../../../cycle/dom/isolate'
 import {reportSafely, once, onReset, timing, nameOf} from './shared'
+import {keyOfSelector} from './controls'
 
 interface Tracked {
   name: string
@@ -83,7 +84,9 @@ function viewSource(component: any): string {
 
 /** class / id / tag tokens of a selector: '.a .b-c > #d' -> ['a', 'b-c', 'd'] */
 const tokensOf = (selector: string): string[] =>
-  (selector.replace(/\[[^\]]*\]|:[\w-]+(\([^)]*\))?/g, ' ').match(/[A-Za-z_][\w-]*/g) || [])
+  (selector.replace(/\[[^\]]*\]|:[\w-]+(\([^)]*\))?/g, ' ').match(/[A-Za-z_][\w-]*/g) || [] as string[])
+    // CT-1: a control's key (`<Add>` / `h(Add)` in the view source)
+    .concat(Array.from(selector.matchAll(/\[data-control="([^"]+)"\]/g), m => m[1]))
 
 function appearsInView(component: any, selector: string): boolean {
   const src = viewSource(component)
@@ -160,11 +163,13 @@ function sweep(component: any, t: Tracked, escalate: boolean): void {
       t.crossed.add(selector)
       if (!once(`SYG104:${t.name}:${selector}`)) continue
       const child = childNameFor(t, all) || 'a child component'
+      // CT-1: a control is named by its identifier
+      const control = keyOfSelector(selector)
       reportSafely('SYG104', {
         component,
-        message: `DOM.select('${selector}') in ${t.name} matches elements inside ${child} (isolated), so ${t.name} never receives their events`,
-        fix: `Handle the event in ${child} and send it up with PARENT (read it here with CHILD.select(${child})), or use EVENTS`,
-        data: {selector, child},
+        message: `${control ? `The control ${control}` : `DOM.select('${selector}')`} in ${t.name} matches elements inside ${child} (isolated), so ${t.name} never receives their events`,
+        fix: `Handle the event in ${child}${control ? ` (DOM.<event>(${control}) in its intent)` : ''} and send it up with PARENT (read it here with CHILD.select(${child})), or use EVENTS`,
+        data: control ? {selector, child, control} : {selector, child},
       })
       continue
     }

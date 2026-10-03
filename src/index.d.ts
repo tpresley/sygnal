@@ -1,5 +1,9 @@
 import type { MainDOMSource } from './cycle/dom/MainDOMSource'
 import type { EnrichedEventStream } from './cycle/dom/enrichEventStream'
+import type { DocumentDOMSource } from './cycle/dom/DocumentDOMSource'
+import type { BodyDOMSource } from './cycle/dom/BodyDOMSource'
+import type { EventsFnOptions } from './cycle/dom/DOMSource'
+import type { VNode } from './cycle/dom/snabbdom'
 import type { StateSource } from './cycle/state/index'
 import xsDefault from 'xstream'
 import type { InspectGraph } from './extra/diagnostics/checks/public'
@@ -341,13 +345,212 @@ type ChildSource = {
  * `DOM.click('.x')` of MouseEvent (PointerEvent in newer DOM typings), and so on.
  */
 export type DOMEventShorthands = {
-  [EVENT in Exclude<keyof HTMLElementEventMap, keyof MainDOMSource>]: (selector: string) => EnrichedEventStream<HTMLElementEventMap[EVENT]>
+  [EVENT in Exclude<keyof HTMLElementEventMap, keyof MainDOMSource>]: DOMEventShorthand<HTMLElementEventMap[EVENT]>
 }
 
-export type SygnalDOMSource = MainDOMSource & DOMEventShorthands & {
-  /** Any other event name (custom events): `DOM['my-event']('.x')` */
-  [eventName: string]: (selector: string) => EnrichedEventStream<globalThis.Event>
+/**
+ * One `DOM.<event>` shorthand: a selector string gives a stream of the event; a control gives
+ * the event with `currentTarget` (and `ownerTarget`) typed as the control's element.
+ */
+export interface DOMEventShorthand<EVENT> {
+  <CONTROL extends AnyControl>(control: CONTROL): EnrichedEventStream<ControlEvent<EVENT, ControlElementOf<CONTROL>>>
+  // last, so ReturnType<SygnalDOMSource['click']> stays the selector form
+  (selector: string): EnrichedEventStream<EVENT>
 }
+
+/**
+ * `select()` overloads added to the DOM source: a control selects its element, typed;
+ * `'document'` / `'body'` give sources that also take a control; a selector string gives a
+ * source whose `select()` takes controls too.
+ */
+type ControlSelectOverlay = {
+  select<CONTROL extends AnyControl>(control: CONTROL): ControlDOMSource<ControlElementOf<CONTROL>>
+  select(selector: 'document'): SygnalDocumentDOMSource
+  select(selector: 'body'): SygnalBodyDOMSource
+  select(selector: string): SelectedDOMSource
+}
+
+/** What `DOM.select('<selector>')` returns: a MainDOMSource whose `select()` also takes controls. */
+export type SelectedDOMSource = ControlSelectOverlay & MainDOMSource
+
+/** `DOM.select('document')`: document-level listeners, optionally filtered to a selector or control. */
+export type SygnalDocumentDOMSource = DocumentDOMSource & {
+  select(control: AnyControl): DocumentDOMSource
+}
+
+/** `DOM.select('body')`: body-level listeners, optionally filtered to a selector or control. */
+export type SygnalBodyDOMSource = BodyDOMSource & {
+  select(control: AnyControl): BodyDOMSource
+}
+
+/**
+ * `DOM.select(control)`: a DOM source scoped to a control's element. `events(name)` is typed
+ * like a selector's, with `currentTarget` typed as the control's element; `element()` and
+ * `elements()` give that element type.
+ */
+export type ControlDOMSource<ELEMENT extends Element = Element> = ControlSelectOverlay & Omit<MainDOMSource, 'select' | 'events' | 'element' | 'elements'> & {
+  events<K extends keyof HTMLElementEventMap>(eventType: K, options?: EventsFnOptions, bubbles?: boolean): EnrichedEventStream<ControlEvent<HTMLElementEventMap[K], ELEMENT>>
+  events(eventType: string, options?: EventsFnOptions, bubbles?: boolean): EnrichedEventStream<ControlEvent<globalThis.Event, ELEMENT>>
+  element(): MemoryStream<ELEMENT>
+  elements(): MemoryStream<ELEMENT[]>
+}
+
+export type SygnalDOMSource = ControlSelectOverlay & MainDOMSource & DOMEventShorthands & {
+  /** Any other event name (custom events): `DOM['my-event']('.x')`, `DOM['my-event'](Control)` */
+  [eventName: string]: DOMEventShorthand<globalThis.Event>
+}
+
+// ── Controls (PLAN-4 CT-1) ────────────────────────────────────────
+
+/**
+ * The pragma's own createElement, passed to a spec's `vnode()` as `h` (D116):
+ * `h(tag, props, ...children)`. Spec authors build vnodes with it, never with an imported
+ * `createElement` (under the automatic JSX runtime that would bundle a second pragma).
+ */
+export type ControlH = (tag: any, props?: Record<string, any> | null, ...children: unknown[]) => VNode
+
+/**
+ * The spec-object form of a control spec (D101, amended D116): `controls({ DueDate: datePicker })`.
+ * `vnode(props, children, h)` returns the one element vnode the control renders (the pragma
+ * stamps `data-control` on it, keeping its key and hooks, and copies the props' `key` onto it
+ * when it has none). `commands` are looked up by element commands before native methods.
+ * `__props` is a phantom field (types only) that gives the control its props type.
+ */
+export interface ControlSpecObject<P = any> {
+  /** Free-form kind ('widget' in PLAN-5), shown in inspect() and diagnostics */
+  kind: string;
+  /** Must return one element vnode (not a component, fragment or text), built with `h` */
+  vnode(props: P, children: unknown[], h: ControlH): VNode;
+  commands?: Record<string, (elm: Element, options: Record<string, unknown>) => void>;
+  /** Phantom, types only: the control's props */
+  __props?: P;
+}
+
+/**
+ * A control spec (frozen contract D101): an intrinsic tag name (`'button'`, `'input'`,
+ * `'wa-rating'`) or a spec object `{ kind, vnode(props, children, h), commands?, __props? }`.
+ */
+export type ControlSpec<P = any> =
+  | keyof JSX.IntrinsicElements
+  | ControlSpecObject<P>
+
+declare const CONTROL: unique symbol
+
+/**
+ * A control (`controls({ Add: 'button' }).Add`): a JSX tag that renders its element with the
+ * props passed plus `data-control="<KEY>"`. Not a component (no state, intent or isolation).
+ * Anywhere a selector is accepted (`DOM.select`, `DOM.<event>`, `simulateEvent`, `query`,
+ * `queryAll`), a control selects its element; in a template string it is its selector:
+ * `` `li ${Add}` `` is `li [data-control="Add"]`.
+ *
+ * KEY is the control's name, ELEMENT the element type (`HTMLButtonElement` for 'button';
+ * `Element` for a spec object), PROPS its JSX props.
+ */
+export interface Control<KEY extends string = string, ELEMENT extends Element = Element, PROPS = any> {
+  (props: PROPS): JSX.Element;
+  /** The control's selector: `[data-control="<KEY>"]` */
+  toString(): `[data-control="${KEY}"]`;
+  /** 'element' for a tag spec, else the spec object's `kind` */
+  readonly kind: string;
+  /** The spec the control was made from */
+  readonly spec: ControlSpec;
+  /** Phantom, types only */
+  readonly [CONTROL]: { key: KEY; element: ELEMENT; props: PROPS };
+}
+
+/** Any control, whatever its key, element and props. */
+export type AnyControl = Control<string, any, any>
+
+/** The element type a control (or a control spec) renders. */
+export type ControlElementOf<C> =
+  C extends { readonly [CONTROL]: { element: infer ELEMENT } } ? ELEMENT
+  : C extends keyof HTMLElementTagNameMap ? HTMLElementTagNameMap[C]
+  : C extends keyof SVGElementTagNameMap ? SVGElementTagNameMap[C]
+  : C extends string ? HTMLElement
+  : Element
+
+/** An event from a control's listener: `currentTarget` / `ownerTarget` are the control's element. */
+export type ControlEvent<EVENT, ELEMENT extends Element = Element> = EVENT & {
+  readonly currentTarget: ELEMENT;
+  readonly ownerTarget: ELEMENT;
+}
+
+type IfEqual<X, Y, A, B> = (<T>() => T extends X ? 1 : 2) extends (<T>() => T extends Y ? 1 : 2) ? A : B
+
+/** Keys of T that are not readonly. */
+type WritableKeys<T> = {
+  [KEY in keyof T]-?: IfEqual<{ [Q in KEY]: T[KEY] }, { -readonly [Q in KEY]: T[KEY] }, KEY, never>
+}[keyof T]
+
+/** Writable, non-function, non-constant properties of an element: its settable DOM props. */
+type SettableElementProps<ELEMENT> = {
+  [KEY in WritableKeys<ELEMENT> as KEY extends string
+    ? KEY extends Uppercase<KEY> ? never
+      : NonNullable<ELEMENT[KEY]> extends (...args: any[]) => any ? never
+      : KEY
+    : never
+  ]?: KEY extends 'value' ? ELEMENT[KEY] | number : ELEMENT[KEY]
+}
+
+/** JSX props every control takes, besides its element's own props (or the spec's props). */
+export type ControlCommonProps<ELEMENT = Element> = {
+  key?: string | number;
+  children?: any;
+  ref?: Ref<any> | ((element: ELEMENT | null) => void);
+}
+
+/**
+ * JSX props of an intrinsic element as rendered by Sygnal: the element's settable DOM
+ * properties (no event handlers: listen in the intent), plus `class`, `style`, `attrs`,
+ * `props`, `hook`, `for`, `tabindex`, `autoFocus` / `autoSelect`. `data-*` / `aria-*` are
+ * accepted as hyphenated attributes. Custom elements (`'wa-rating'`) and SVG elements take any prop.
+ */
+export type IntrinsicControlProps<TAG extends string> =
+  ControlCommonProps<ControlElementOf<TAG>> & {
+    class?: string | ReadonlyArray<unknown> | Record<string, boolean | null | undefined>;
+    style?: string | Record<string, any>;
+    attrs?: Record<string, any>;
+    props?: Record<string, any>;
+    hook?: Record<string, (...args: any[]) => any>;
+    for?: string;
+    tabindex?: number | string;
+    /** Focus the element when it enters the DOM */
+    autoFocus?: boolean;
+    /** Select the element's text after focusing (input/textarea) */
+    autoSelect?: boolean;
+  } & (TAG extends keyof HTMLElementTagNameMap
+    ? Omit<SettableElementProps<HTMLElementTagNameMap[TAG]>, 'style'>
+    : { [prop: string]: any })
+
+/** The JSX props of a control made from a spec: a tag's IntrinsicControlProps, or a spec object's P. */
+export type ControlPropsOf<SPEC> =
+  SPEC extends string ? IntrinsicControlProps<SPEC>
+  : SPEC extends { __props?: infer P }
+    ? unknown extends P
+      ? (SPEC extends { vnode(props: infer VP, ...rest: any[]): any } ? VP : any) & ControlCommonProps
+      : P & ControlCommonProps
+    : any
+
+/** The controls `controls(spec)` returns: one per key, typed from its spec. */
+export type ControlsOf<SPECS> = {
+  [KEY in keyof SPECS & string]: Control<
+    KEY,
+    SPECS[KEY] extends string ? ControlElementOf<SPECS[KEY]> : Element,
+    ControlPropsOf<SPECS[KEY]>
+  >
+}
+
+/**
+ * Element tokens for linking a view to its intent by identifier (CT-1):
+ *
+ *   const { Draft, Add } = controls({ Draft: 'input', Add: 'button' })
+ *   <Draft className="field" value={state.draft} /><Add>Add</Add>
+ *   AddTodo.intent = ({ DOM }) => ({ DRAFT: DOM.input(Draft).value(), ADD: DOM.click(Add) })
+ *
+ * Each key becomes a control that renders its spec (a tag name, or a spec object) with
+ * `data-control="<Key>"`. The keys are the names, so keep them unique in a file.
+ */
+export function controls<const SPECS extends Record<string, ControlSpec>>(spec: SPECS): ControlsOf<SPECS>
 
 type EventsSelect = keyof SygnalEvents extends never
   ? { select<T = any>(type: string): Stream<T>; }
@@ -1769,6 +1972,12 @@ export interface SimulatedEventInit {
    * drop the event with SYG103 (info). Not copied onto the event.
    */
   allowMissing?: boolean;
+  /**
+   * Target the matching element inside the first element matching this selector or control
+   * (e.g. one Collection item): `t.simulateEvent(Done, 'click', { within: '[data-id="2"]' })`.
+   * Not copied onto the event.
+   */
+  within?: string | AnyControl;
   /** Any other event properties are copied onto the event */
   [prop: string]: any;
 }
@@ -1957,7 +2166,7 @@ export interface RenderResult<STATE = any> {
    * simulateAction/simulateEvent calls are delivered in call order; a waiting event holds the
    * calls after it. Reports SYG104 (selector only matches inside a child component).
    */
-  simulateEvent: (selector: string, eventType: string, eventInit?: SimulatedEventInit) => void;
+  simulateEvent: (selector: string | AnyControl, eventType: string, eventInit?: SimulatedEventInit) => void;
   /**
    * Resolves once the component is subscribed (earlier simulate* calls are buffered and replayed).
    * Also a cursor: the first next() after `await t.ready()` also matches the states the replayed
@@ -2111,9 +2320,16 @@ export interface RenderResult<STATE = any> {
    * focus()). Throws before the first render (`await t.ready()` first). Right after
    * `await t.next(pred)` / `waitForState` / `settle()` / `ready()` it shows the state the wait resolved with.
    */
-  query: (selector: string) => Element | null;
-  /** Every element matching a selector in the rendered tree (Portals included), as query() */
-  queryAll: (selector: string) => Element[];
+  query: {
+    (selector: string): Element | null;
+    /** A control's element (`t.query(Draft)` is an HTMLInputElement for an 'input' control), or null */
+    <CONTROL extends AnyControl>(control: CONTROL): ControlElementOf<CONTROL> | null;
+  };
+  /** Every element matching a selector (or a control) in the rendered tree (Portals included), as query() */
+  queryAll: {
+    (selector: string): Element[];
+    <CONTROL extends AnyControl>(control: CONTROL): Array<ControlElementOf<CONTROL>>;
+  };
 }
 
 /**

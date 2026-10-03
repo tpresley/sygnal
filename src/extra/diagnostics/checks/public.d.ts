@@ -137,6 +137,20 @@ export interface InspectSelector {
   matched: boolean | null
   /** the child component whose (isolated) elements it matches instead, if any */
   isolationHit: string | null
+  /** PLAN-4 CT-1: the control this selector is (its key), when it is `[data-control="<Key>"]` */
+  control?: string
+}
+
+/** PLAN-4 CT-1: a control (controls()) a component renders */
+export interface InspectControl {
+  /** the control's key (rendered as data-control="<name>") */
+  name: string
+  /** the intrinsic tag of a tag spec; null for a spec object */
+  element: string | null
+  /** a spec object's kind (e.g. 'widget') */
+  kind?: string
+  /** whether the component's intent listens to it; null when unknown */
+  listened: boolean | null
 }
 
 export interface InspectDiagnostic {
@@ -181,6 +195,8 @@ export interface InspectComponent {
   eventsSelected: string[]
   children: InspectChild[]
   selectors: InspectSelector[]
+  /** PLAN-4 CT-1: the controls it renders (runtime: seen in its renders); omitted when none */
+  controls?: InspectControl[]
   diagnostics: InspectDiagnostic[]
   /** runtime, PLAN-3 5-3: the instance's `resources` and their state */
   resources?: InspectResource[]

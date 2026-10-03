@@ -79,7 +79,9 @@ export class MainDOMSource {
     selector: T
   ): SpecialSelector[T];
   public select(selector: string): MainDOMSource;
-  public select(selector: string): DOMSource {
+  public select(selector: any): DOMSource {
+    // CT-1: a control (controls()) selects its elements by its marker, [data-control="<Key>"]
+    if (selector?.__sygnalControl) selector = '' + selector;
     if (typeof selector !== 'string') {
       throw new Error(
         `DOM driver's select() expects the argument to be a ` +
