@@ -119,7 +119,8 @@ footer { margin-top: 64px; border-top: 1px solid var(--line); padding-top: 18px;
 <header>
   <div class="eyebrow">Research report · 6.0.0 scope · 2 October 2026</div>
   <h1>Sygnal 6.0 Gap Study</h1>
-  <p class="lede prose">This report compares Sygnal with React 19.3, Vue 3.5/3.6, Svelte 5, Solid 2, Angular 22, Qwik, Lit, Elm, Preact and htmx 4. It covers only capabilities that the PLAN-3 network work and the PLAN-4 ecosystem work don't already include. Each candidate gets a fit and importance score, a sketch of how it would read in Sygnal, its cost against the 6.0 budgets, and a recommendation.</p>
+  <p class="lede prose">This report compares Sygnal with React 19.3, Vue 3.5/3.6, Svelte 5, Solid 2, Angular 22, Qwik, Lit, Elm, Preact and htmx 4. It covers only capabilities that the PLAN-3 network work and the PLAN-5 ecosystem work don't already include. Each candidate gets a fit and importance score, a sketch of how it would read in Sygnal, its cost against the 6.0 budgets, and a recommendation.</p>
+  <p class="meta"><b>Plan numbers (updated 2 October 2026):</b> the plans are numbered in run order. The ecosystem plan, called PLAN-4 when this report was written, is now PLAN-5. The items recommended here are planned in PLAN-4 (controls and core ergonomics).</p>
   <p class="meta">Scoring lens: easy for agents to write, easy for humans to read, MVI kept intact (models describe effects, drivers perform them, every state change is an action, views have no event binding). Fit and importance are scored 1–5.</p>
 </header>
 
@@ -131,7 +132,7 @@ footer { margin-top: 64px; border-top: 1px solid var(--line); padding-top: 18px;
 </div>
 
 <h2 id="summary">Summary</h2>
-<p class="prose">Ordered by recommended priority. Agent-doc cost is the number of <code>llms.txt</code> lines the feature needs. PLAN-4 currently has at least 15 lines left (D76), so the "implement" set needs about 9 more lines, or some trimming elsewhere.</p>
+<p class="prose">Ordered by recommended priority. Agent-doc cost is the number of <code>llms.txt</code> lines the feature needs. PLAN-5 currently has at least 15 lines left (D76), so the "implement" set needs about 9 more lines, or some trimming elsewhere.</p>
 <div class="filters" role="group" aria-label="Filter by recommendation">
   <button type="button" data-f="all" aria-pressed="true">All</button>
   <button type="button" data-f="yes" aria-pressed="false">Implement</button>
@@ -169,16 +170,16 @@ footer { margin-top: 64px; border-top: 1px solid var(--line); padding-top: 18px;
 </table>
 </div>
 
-<h2 id="planned">Already covered by PLAN-3 / PLAN-4</h2>
+<h2 id="planned">Already covered by PLAN-3 / PLAN-5</h2>
 <p class="prose">These are 6.0.0 scope already, so this report doesn't score them again. They account for most of the "big" gaps a framework comparison usually finds.</p>
 <ul class="planned small">
   <li>Reply-action HTTP, async EFFECT hardening, <code>resources</code>, opt-in query cache (dedupe, SWR, invalidation, retries, polling, SSR seeding), Standard Schema <code>validate</code> (PLAN-3)</li>
   <li>WebSocket/SSE <code>connections</code>, <code>makeSocketDriver</code> (PLAN-3)</li>
   <li>SPA router with scroll and focus restoration, <code>HEAD</code> driver for title/meta (PLAN-3)</li>
   <li>Server functions: Telefunc guide and a <code>makeAsyncDriver</code> (PLAN-3)</li>
-  <li><code>defineWidget</code>, Zag/React/Preact adapters, web components as a first-class input (PLAN-4 W-1…W-3)</li>
+  <li><code>defineWidget</code>, Zag/React/Preact adapters, web components as a first-class input (PLAN-5 W-1…W-3)</li>
   <li>Forms with Standard Schema validation (F-1), which also absorbs two-way binding sugar</li>
-  <li>Toasts, FLIP list transitions, <code>VirtualCollection</code>, a browser-sources pack (intersection, resize, media, storage, online…), pointer/keyboard DnD, i18n recipe, <code>sygnal-ui</code> headless components (PLAN-4)</li>
+  <li>Toasts, FLIP list transitions, <code>VirtualCollection</code>, a browser-sources pack (intersection, resize, media, storage, online…), pointer/keyboard DnD, i18n recipe, <code>sygnal-ui</code> headless components (PLAN-5)</li>
   <li>Keep-alive for Switchable pages (the Switchable 6.0 default), Portal, Suspense, lazy, slots, error boundaries, context (already shipped)</li>
 </ul>
 
@@ -279,7 +280,7 @@ Signup.intent = ({ DOM }) => ({ CLOSE_HELP: DOM.close('dialog.help') })   // the
   <ul>
     <li>Commands: <code>focus</code>, <code>blur</code>, <code>select</code>, <code>scrollIntoView</code>, <code>showModal</code>, <code>show</code>, <code>close</code>, <code>showPopover</code>, <code>hidePopover</code>. Commands run after the next patch, so they reach elements that the same action renders.</li>
     <li>A selector is resolved inside the sending component's DOM scope. That is the same isolation rule as intent selectors, so the existing SYG110 check also covers commands.</li>
-    <li>It gives PLAN-4 a lighter path to modals: a native <code>&lt;dialog&gt;</code> plus this driver instead of an 18.5 KB Zag dialog, which keeps U-1 for the widgets that are hard to build.</li>
+    <li>It gives PLAN-5 a lighter path to modals: a native <code>&lt;dialog&gt;</code> plus this driver instead of an 18.5 KB Zag dialog, which keeps U-1 for the widgets that are hard to build.</li>
   </ul>
   <div class="rec"><b>Recommendation: implement.</b> It is the purest MVI answer: the model describes the effect, and a driver performs it. Decide at the start whether it is built in (like DOM and EVENTS) or registered; a built-in avoids SYG609 confusion and should cost only a few hundred bytes. Measure that against the D77 reserve.</div>
 </article>
@@ -347,7 +348,7 @@ Board.model = {
     </div>
     <div>
       <div class="label">Sygnal today</div>
-      <p>Only HMR keeps state (<code>__SYGNAL_HMR_PERSISTED_STATE</code>). PLAN-4's B-3 adds a storage <em>source</em>, which is a stream, not persistence. A single state tree is the ideal shape for this, which makes the gap more noticeable.</p>
+      <p>Only HMR keeps state (<code>__SYGNAL_HMR_PERSISTED_STATE</code>). PLAN-5's B-3 adds a storage <em>source</em>, which is a stream, not persistence. A single state tree is the ideal shape for this, which makes the gap more noticeable.</p>
     </div>
   </div>
   <div class="label">How it could look</div>
@@ -410,7 +411,7 @@ Editor.model = {
 })
 Stopwatch.model = { TICK: (s) => ({ ...s, elapsed: s.elapsed + 100 }) }
 // tests: vi.useFakeTimers(); await vi.advanceTimersByTimeAsync(300) → 3 TICKs</code></pre>
-  <div class="rec"><b>Recommendation: implement</b>, or fold it into PLAN-4 B-3 if that pack ends up with the same declaration shape. The name should match whatever B-3 settles on.</div>
+  <div class="rec"><b>Recommendation: implement</b>, or fold it into PLAN-5 B-3 if that pack ends up with the same declaration shape. The name should match whatever B-3 settles on.</div>
 </article>
 </section>
 
@@ -483,7 +484,7 @@ t.explain((s) => s.status === 'error')   // the action that first produced a mat
 <article class="item s-proto" id="g12">
   <div class="item-head"><span class="id">G-12</span><h3>View Transitions</h3><span class="chip v-proto">Prototype</span></div>
   <div class="scores"><span><b>Fit</b><span class="dots" aria-label="4 of 5">●●●●<span class="off">●</span></span></span><span><b>Importance</b><span class="dots" aria-label="3 of 5">●●●<span class="off">●●</span></span></span><span><b>Effort</b>M</span><span><b>Core</b>≈ 120 B</span></div>
-  <p class="prose">Same-document View Transitions are in every engine (Firefox 144, October 2025). React 19.3 stabilised <code>&lt;ViewTransition&gt;</code> in September 2026, and Astro, SvelteKit and Angular's router use them. One opt-in could cover route changes, list reorders and shared-element moves, which overlaps with PLAN-4's A-1 FLIP work.</p>
+  <p class="prose">Same-document View Transitions are in every engine (Firefox 144, October 2025). React 19.3 stabilised <code>&lt;ViewTransition&gt;</code> in September 2026, and Astro, SvelteKit and Angular's router use them. One opt-in could cover route changes, list reorders and shared-element moves, which overlaps with PLAN-5's A-1 FLIP work.</p>
 <pre><code>Board.viewTransitions = ['MOVE', 'SORT']   // renders caused by these actions run inside document.startViewTransition
 function Card({ state }) { return &lt;div className="card" style={{ viewTransitionName: `card-${state.id}` }}&gt;…&lt;/div&gt; }
 // router: makeRouterDriver({ routes, viewTransitions: true })</code></pre>
@@ -495,7 +496,7 @@ function Card({ state }) { return &lt;div className="card" style={{ viewTransiti
 <article class="item s-proto" id="g13">
   <div class="item-head"><span class="id">G-13</span><h3>Publish Sygnal components as custom elements</h3><span class="chip v-proto">Prototype</span></div>
   <div class="scores"><span><b>Fit</b><span class="dots" aria-label="4 of 5">●●●●<span class="off">●</span></span></span><span><b>Importance</b><span class="dots" aria-label="3 of 5">●●●<span class="off">●●</span></span></span><span><b>Effort</b>M</span><span><b>Core</b>0 B (<code>sygnal/element</code> entry)</span></div>
-  <p class="prose">PLAN-4 W-3 makes web components easy to <em>consume</em>. The other direction (Vue <code>defineCustomElement</code>, Svelte <code>customElement</code>, Angular Elements, solid-element) is how a framework gets into existing apps, CMSs and micro-frontends without a rewrite. That makes it an adoption channel.</p>
+  <p class="prose">PLAN-5 W-3 makes web components easy to <em>consume</em>. The other direction (Vue <code>defineCustomElement</code>, Svelte <code>customElement</code>, Angular Elements, solid-element) is how a framework gets into existing apps, CMSs and micro-frontends without a rewrite. That makes it an adoption channel.</p>
 <pre><code>import { defineElement } from 'sygnal/element'
 defineElement('task-board', TaskBoard, {
   props: ['tasks', 'readonly'],                 // properties/attributes → state
@@ -541,7 +542,7 @@ await t.next((s) => s.items.length === 1)</code></pre>
 <section data-v="docs">
 <article class="item s-docs" id="g17">
   <div class="item-head"><span class="id">G-17</span><h3>Deferred loading triggers</h3><span class="chip v-docs">After B-3</span></div>
-  <p class="prose">Angular's <code>@defer (on viewport | idle | interaction)</code>, Vue 3.5 hydration strategies and Astro's <code>client:visible</code> load code when it is needed. Sygnal has <code>lazy()</code> with Suspense but no triggers. Possible shape: <code>lazy(() =&gt; import('./Chart'), { when: 'visible' })</code>. <b>Recommendation:</b> build it on PLAN-4 B-3's intersection/idle sources once they exist. Astro users already have <code>client:visible</code>.</p>
+  <p class="prose">Angular's <code>@defer (on viewport | idle | interaction)</code>, Vue 3.5 hydration strategies and Astro's <code>client:visible</code> load code when it is needed. Sygnal has <code>lazy()</code> with Suspense but no triggers. Possible shape: <code>lazy(() =&gt; import('./Chart'), { when: 'visible' })</code>. <b>Recommendation:</b> build it on PLAN-5 B-3's intersection/idle sources once they exist. Astro users already have <code>client:visible</code>.</p>
 </article>
 </section>
 
@@ -573,7 +574,7 @@ await t.next((s) => s.items.length === 1)</code></pre>
     <li><b>N-1 Fine-grained signals as the state model</b> (Angular, Vue, Svelte, Solid, Preact, Qwik; TC39 Signals is still Stage 1). They would replace the single state tree and actions, which are the source of Sygnal's testability, time travel and agent-readable wiring. If G-16 shows a need, optimise rendering under the existing model instead.</li>
     <li><b>N-2 A compiler or Vapor-style output.</b> It costs a lot, it adds a build step that every agent path must understand, and React Compiler shows the realistic win is memoization. Revisit after G-16.</li>
     <li><b>N-3 Server components, resumability (Qwik) and streaming SSR in-house.</b> Vike and Astro integrations already cover SSR and islands, and PLAN-3 covers server functions. Building this in would be a different framework.</li>
-    <li><b>N-4 Two-way binding sugar</b> (<code>v-model</code>, <code>bind:value</code>, <code>defineModel</code>). Binding in the view breaks "views have no event binding". The real need (less boilerplate per field) belongs in PLAN-4 F-1's forms API.</li>
+    <li><b>N-4 Two-way binding sugar</b> (<code>v-model</code>, <code>bind:value</code>, <code>defineModel</code>). Binding in the view breaks "views have no event binding". The real need (less boilerplate per field) belongs in PLAN-5 F-1's forms API.</li>
     <li><b>N-5 An optimistic-update primitive</b> (<code>useOptimistic</code>, <code>createOptimistic</code>). In MVI it is already natural: a STATE update plus an HTTP request with <code>error: 'ROLLBACK'</code>. PLAN-3's recipe is enough.</li>
   </ul>
 </article>
@@ -582,16 +583,16 @@ await t.next((s) => s.items.length === 1)</code></pre>
 <h2 id="budget">Budget and sequencing notes</h2>
 <div class="prose">
   <ul>
-    <li><b>Agent docs:</b> the "implement" set needs about 9 <code>llms.txt</code> lines. That is G-1 (4), G-2 (2), G-3, G-5, G-6 and G-10 (1 each), less 1 from G-4. PLAN-4 has at least 15 lines and also needs about 13 for F-1 and W-1. Either raise the 300-line cap slightly or move the G-6/G-10 facts into the skill. Run PLAN-3's learn-time check on these too.</li>
+    <li><b>Agent docs:</b> the "implement" set needs about 9 <code>llms.txt</code> lines. That is G-1 (4), G-2 (2), G-3, G-5, G-6 and G-10 (1 each), less 1 from G-4. PLAN-5 has at least 15 lines and also needs about 13 for F-1 and W-1. Either raise the 300-line cap slightly or move the G-6/G-10 facts into the skill. Run PLAN-3's learn-time check on these too.</li>
     <li><b>Core bytes:</b> G-4, G-6, G-9, G-11 and G-12 together are about 260 B. Everything else is 0 B core. G-2 is the only one that might want to be built in; measure it against the D77 reserve.</li>
-    <li><b>Order:</b> B-0 can start any time. G-4 and G-11 are small and independent. G-2, G-5 and G-7 depend on PLAN-3's sender tag and <code>__sygnalStatic</code>. G-1 should land before the first-party behaviors (G-8). G-3 and G-9 go together. G-12 goes before PLAN-4 A-1.</li>
+    <li><b>Order:</b> B-0 can start any time. G-4 and G-11 are small and independent. G-2, G-5 and G-7 depend on PLAN-3's sender tag and <code>__sygnalStatic</code>. G-1 should land before the first-party behaviors (G-8). G-3 and G-9 go together. G-12 goes before PLAN-5 A-1.</li>
     <li><b>Breaking changes this major can absorb:</b> G-4 (a same-reference return no longer emits; the strict rule is retired), the new reserved prop <code>uid</code> (G-9), and the new reserved statics <code>uses</code>, <code>persist</code>, <code>timers</code> and <code>viewTransitions</code>.</li>
   </ul>
 </div>
 
 <h2 id="method">Method and experiments</h2>
 <div class="prose">
-  <p>Inputs: <code>llms.txt</code> on <code>plan3-integration</code>, PLAN-3 and PLAN-4, REPORT-v2 (agent eval findings), and the 6.0 source tree. A web survey checked framework releases up to 2 October 2026. Experiments ran on a throwaway Vitest + jsdom project against a fresh build of <code>main</code> (<code>6b7144e</code>); they are saved in <code>dev-plans/research/gap-study-experiments/</code>.</p>
+  <p>Inputs: <code>llms.txt</code> on <code>plan3-integration</code>, PLAN-3 and PLAN-5, REPORT-v2 (agent eval findings), and the 6.0 source tree. A web survey checked framework releases up to 2 October 2026. Experiments ran on a throwaway Vitest + jsdom project against a fresh build of <code>main</code> (<code>6b7144e</code>); they are saved in <code>dev-plans/research/gap-study-experiments/</code>.</p>
   <ul>
     <li><b>X1 Immer reducers:</b> passed for root reducers, Collection item writes and calculated fields. A no-op <code>produce</code> emitted 1 extra state (basis for G-4).</li>
     <li><b>X2 Testing Library + user-event</b> under <code>dom: 'real'</code>: queries work, and typing exposed B-0.</li>
@@ -603,7 +604,7 @@ await t.next((s) => s.items.length === 1)</code></pre>
   <p class="small">Sources: <a href="https://react.dev/blog/2025/10/01/react-19-2">React 19.2</a> · <a href="https://react.dev/blog/2026/09/09/react-19-3">React 19.3</a> · <a href="https://react.dev/blog/2025/10/07/react-compiler-1">React Compiler 1.0</a> · <a href="https://blog.vuejs.org/posts/vue-3-5">Vue 3.5</a> · <a href="https://svelte.dev/docs/svelte/await-expressions">Svelte async</a> · <a href="https://svelte.dev/docs/ai/mcp">Svelte MCP</a> · <a href="https://docs.solidjs.com/v2/reference/stores/create-optimistic-store">Solid 2 optimistic stores</a> · <a href="https://www.infoq.com/news/2025/11/angular-21-released">Angular 21</a> · <a href="https://v21.angular.dev/ai/mcp">Angular MCP</a> · <a href="https://nextjs.org/docs/app/guides/mcp">Next.js MCP</a> · <a href="https://four.htmx.org/announcements/2026-08-28-htmx-4.0.0-is-released">htmx 4</a> · <a href="https://developer.chrome.com/blog/view-transitions-in-2025">View Transitions 2025</a> · <a href="https://web.dev/blog/baseline-navigation-api">Navigation API Baseline</a> · <a href="https://storybook.js.org/docs/configure/frameworks">Storybook frameworks</a> · <a href="https://github.com/tc39/proposal-signals">TC39 Signals</a></p>
 </div>
 
-<footer class="small">Prepared for the Sygnal 6.0.0 planning sessions. It complements PLAN-3 (network layer) and PLAN-4 (ecosystem components) and doesn't change either plan.</footer>
+<footer class="small">Prepared for the Sygnal 6.0.0 planning sessions. It complements PLAN-3 (network layer) and PLAN-5 (ecosystem components) and doesn't change either plan.</footer>
 </div>
 
 <script>

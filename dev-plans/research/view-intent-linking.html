@@ -78,6 +78,7 @@ footer { margin-top: 60px; border-top: 1px solid var(--line); padding-top: 16px;
   <div class="eyebrow">Design exploration · 6.0.0 · 2 October 2026</div>
   <h1>View–Intent Linking Options</h1>
   <p class="lede prose">Today a view and its intent are linked by a CSS class written twice: <code>className="inc"</code> in the view and <code>DOM.click('.inc')</code> in the intent. This page measures how that link is used in practice, shows six alternatives on the same component, and recommends one. Every option keeps actions defined only in <code>.intent</code> and puts no handlers in the view.</p>
+  <p class="meta"><b>Plan numbers (updated 2 October 2026):</b> the ecosystem plan, called PLAN-4 when this page was written, is now PLAN-5. Controls are planned in PLAN-4 (controls and core ergonomics), as CT-1.</p>
   <p class="meta">Hard constraint, from PLAN-1 §0: the view never names an action. That rules out <code>&lt;button action:click="X"&gt;</code> and its relatives, which are discussed separately at the end.</p>
 
   <h2>What the code actually does</h2>
@@ -148,7 +149,7 @@ DRAFT: DOM.input({ name: 'draft' }).value(),  // possible sugar</code></pre></di
     </div>
     <ul>
       <li>It needs no new concept, since <code>name</code> is HTML and works today (experiment X6). It is valid on form-associated elements, which is 96–99% of the measured targets, and the gap is mostly clickable <code>span</code>s, an accessibility smell anyway.</li>
-      <li>It lines up with forms: PLAN-4's F-1 and <code>processForm</code> key fields by <code>name</code>.</li>
+      <li>It lines up with forms: PLAN-5's F-1 and <code>processForm</code> key fields by <code>name</code>.</li>
       <li>It is option A with a native attribute: two strings, checker-only typo detection, no editor support.</li>
     </ul>
   </div>
@@ -319,5 +320,5 @@ Board.intent = ({ DOM }) => ({ SELECT: DOM.click(Pick) })</code></pre></div>
   </ul>
   <p class="meta">The experiments are saved in <code>dev-plans/research/gap-study-experiments/</code>. This page follows the <a href="https://claude.ai/artifact/MxVtAh3FVeJtmnVCbd5zXL">Sygnal 6.0 Gap Study</a>.</p>
 
-  <footer>Prepared for 6.0.0 planning. Related: PLAN-1 §0 (element-bound triggers rejected), SYG104/SYG110, PLAN-4 F-1 (forms).</footer>
+  <footer>Prepared for 6.0.0 planning. Related: PLAN-1 §0 (element-bound triggers rejected), SYG104/SYG110, PLAN-5 F-1 (forms).</footer>
 </div>
