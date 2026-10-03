@@ -1571,6 +1571,9 @@ export function renderComponent(
   const declaredRes = new Map<string, Set<string>>();
   // states.length when the last simulate* call was made: no state since then = its change is pending
   let simAt = -1;
+  // G-189: true from a simulate* call until the requests it causes have left: a sink that also
+  // carries `resources` sends them two microtasks after the action (G-158)
+  let sendDue = false, dueSeq = 0;
   const record = (name: string, v: any, track: boolean) => {
     const shown = v && typeof v == 'object' && v[STR] !== undefined ? v[STR] : v;
     if (v && typeof v == 'object' && v.resources && typeof v.resources == 'object') {
@@ -1943,8 +1946,13 @@ export function renderComponent(
       ` (pass { allowMissing: true } to drop the event instead).\nRendered: ${out.length > 600 ? out.slice(0, 600) + '…' : out || '(nothing)'}`);
   };
 
+  const due = () => {
+    const n = ++dueSeq;
+    sendDue = true;
+    Promise.resolve().then(noop).then(noop).then(noop).then(() => { if (n == dueSeq) sendDue = false; });
+  };
   const simulateAction = (type: string, data?: any) => {
-    simAt = states.length;
+    simAt = states.length; due();
     throwFailure();
     later(() => (actions.emit({type, data}), true));
   };
@@ -2031,7 +2039,10 @@ export function renderComponent(
     const what = `t.${fn}('${name}'${typeof opts == 'string' ? `, …, '${opts}'` : ''})`;
     // a resource named by the target may still be about to fetch (its request follows the state
     // change): queue the call like one made behind queued input
-    const later = typeof opts == 'string' && !!declaredRes.get(name)?.has(opts) && states.length <= simAt;
+    const later = typeof opts == 'string' && !!declaredRes.get(name)?.has(opts) && states.length <= simAt ||
+      // G-189: called at once after a simulate* call, on a sink that carries `resources`: the
+      // requests it causes leave two microtasks later (G-158), so the call waits for them
+      sendDue && declaredRes.has(name) && !tg.push && !('nth' in tg.o);
     return scripted(() => tg.push ? {} : pick(name, tg), w => noPending(what, name, tg, w), hit => {
       const f = fake(name), o = tg.o;
       const e: Pending | undefined = tg.push ? undefined : hit;
@@ -2316,7 +2327,7 @@ export function renderComponent(
   };
 
   const simulateEvent = (selector: string, type: string, init: SimulatedEventInit = {}) => {
-    simAt = states.length;
+    simAt = states.length; due();
     throwFailure();
     const {allowMissing, ...evInit} = init;
     const text = norm(String(selector));

@@ -330,9 +330,7 @@ describe('the recipe in app and test', () => {
     await t.waitForState((s) => s.item?.status === 'success')
     expect(t.requests('HTTP').filter((r) => r.resource === 'item')).toHaveLength(1)
     t.simulateAction('SAVE')
-    // G-158: a sink that also carries resources sends two microtasks after the action, so a
-    // t.respond at once finds nothing pending yet (reported to the coordinator as a test trap)
-    await t.settle()
+    // G-189: the PUT leaves two microtasks after the action (G-158); t.respond waits for it
     await t.respond('HTTP', { ...ITEM1, title: 'Renamed' }, 'SAVED')
     expect(t.state.item).toMatchObject({ status: 'success', data: { title: 'Renamed' }, refreshing: true })
     expect(t.state.savedReply).toEqual({ ...ITEM1, title: 'Renamed' })
