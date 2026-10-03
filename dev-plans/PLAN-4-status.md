@@ -60,7 +60,7 @@ PLAN-3's end-of-Phase-5 figures (40,403 B, 283 lines, 34,343 B) grew with #12 an
 | PF-1 | Collection O(1) item lookups (D128) | ⬜ | | | | after P-1b (`component.ts`) |
 | 2-R | Review fixes (G-214), G-216, G-218, D131, togglePopover, `t.explain` original fn, Vike `onError` check | 🟡 running | `p4-2r-fixes` | subagent | | then tags `plan4-phase1`, `plan4-phase2` |
 | 3-A | Element commands (GS-2) | ✅ merged | `p4-3a-element` (`9176436`) | subagent | | +222 B; any element method runs (D133); SYG640/641 dev-only; commands run after the next patch where the target exists, else 16 ms checks, give up after ~1 s |
-| 3-K | Checker: GS-2, GS-7 (GS-5 after 3-B) | 🟡 running | `p4-3k-checker` | subagent | | |
+| 3-K | Checker: GS-2, GS-7 (GS-5 after 3-B) | ✅ merged (GS-5 part pending) | `p4-3k-checker` (`3da16ee`) | subagent | | sygnal-check 434; static SYG422/640/641/643; timer actions are triggers (SYG112 family); no new findings on hidden solutions/examples; G-215 frame browser test |
 | 3-C | Timers (GS-7) | ✅ merged | `p4-3c-timers` (`6ad12b1`) | subagent | | 0 B core; +579 B per app; driver key `TIMER` by convention (found by `__sygnalStatic`); SYG643 also covers `connections`/`resources`; hidden pages restart timers from scratch; recipe waits for 3-K (SYG102 on TICK) |
 | 3-E | DevTools (GS-10) | ✅ merged | `p4-3e-devtools` (`7fa4c43`) | subagent | | 0 B production; devtools entry 3.9 → 16.5 KB gz (dev-only); Copy as test proven on kanban, todomvc, signup form (`test/copied/`); Redux bridge done (stretch) |
 | 1-E prep | Controls A/B variants `p4-ct1-a`/`p4-ct1-b` | ✅ merged | `p4-1e-ab-variant` (`ef038e0`) | subagent | | controls skill +1,902 B (+5.4%); converted starters committed as overlays; task 16 normaliser ignores `data-control`; verify 55/55 on converted solutions |
@@ -219,7 +219,7 @@ They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none o
 | G-212 | P-2 | medium | run | `run()` writes page-wide globals (`__SYGNAL_HMR_PERSISTED_STATE`, `__SYGNAL_DEVTOOLS_APP__`) and resets the diagnostics config, so two apps (or a host app plus custom elements) on one page interfere: HMR may restore another app's state, diagnostics mode is reset. Related to G-206. | ✅ P-2b (residual in G-216) |
 | G-213 | P-1 | medium | Collection | Moving an item across Collections paints a frame without it (0–1 frames per move, 4–8 in rapid runs), even with no animation. | Open → PF-1 or P-1b |
 | G-214 | review (Phase 1+2, high) | — | core | Review findings: (1) behaviors.ts calls constant sink values (`{ PARENT: 'x' }`, `true`) as functions; (2) the parent mutates its received `sources.__uid` for each child (root: Cycle's sources), so a remount reads a stale base; (3) uid sanitizing isn't injective ('a.b' vs 'a_b'); (4) `STATE.select(...).watch()` doesn't end on dispose (select drops `end`); (5) Collection/Switchable uids become 'undefined-…' without a `__uid`; (6) SYG222 misses in-place mutation of a behavior slice; (7) statics errors reported with phase 'reducer'; (8) `isAbort` duplicated in 4 modules; (9) stale objIsEqual depth comment. | 2-R |
-| G-215 | 3-C | low | GS-7 | No real-browser test for `frame` timers (rAF). Add one in 3-K or 4-x. | Open |
+| G-215 | 3-C | low | GS-7 | No real-browser test for `frame` timers (rAF). Add one in 3-K or 4-x. | ✅ 3-K |
 | G-216 | P-2b | low | HMR | `component.ts` still reads page-wide `__SYGNAL_HMR_UPDATING` / `__SYGNAL_HMR_STATE`, so an app constructed during another app's ~100 ms hot swap can take its state. Fix: scope per app through a `__hmr` source (+10–20 B). | 2-R |
 | G-217 | P-2b | — | docs | `integration/hmr.md:67` mentions the removed `__SYGNAL_HMR_PERSISTED_STATE`; `diagnostics/index.ts` comment (lines 55–58) says every run() is authoritative ("unless another app is live"). | 4-B / 2-R |
 | G-218 | 3-E | medium | testing | `t.simulateAction('A'); t.simulateAction('SUBMIT'); await t.fail('HTTP', …)` throws "The component sent none": with two queued simulateActions, the request leaves after the harness's queued-input wait. One simulateAction works. Copy as test emits `await t.settle()` as a workaround. | 2-R (testing.ts) |
@@ -228,6 +228,8 @@ They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none o
 | G-221 | 3-A | low | GS-2 | `togglePopover` gets `{}` when no `force`, which boolean-only browsers read as `true`. | 2-R |
 | G-222 | 4-B1 | low | testing | `t.explain().reducer.fn/.source` is SYG222's dev wrapper when the dev entry is loaded. | 2-R |
 | G-223 | 4-B1 | — | docs | `reference/api.md` and `reference/utilities.md` not updated for PLAN-4 APIs; the `benchmarks/RESULTS.md` link targets `main` (404 until merged). | 4-B part 2 |
+| G-224 | 3-K | low | diagnostics | Runtime SYG102 heuristic (`replyNamesOf` in `checks/shared.ts`) doesn't read the `timers` static, so the dev entry may report a timer action as SYG102 info under `run()`; `InspectComponent` (public.d.ts) lacks the schema's static-only `commands`/`timers`. | 3-B (owns diagnostics then) |
+| G-225 | 3-K | low | tests | `p4-3a-element-commands` "after 1 s" SYG640 test failed once on a fresh worktree run (timing-sensitive). | Watch; fix if it recurs |
 
 ## Log
 
@@ -249,3 +251,4 @@ They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none o
 - 2026-10-03 — P-4 note merged; GS-15 deferred (D132). Started 4-B part 1.
 - 2026-10-03 — Merged 3-E; gates green (vitest 1,823, browser 154; size unchanged). G-218, G-219.
 - 2026-10-03 — Merged 3-A (conflicts with 3-C/P-2b in codes/explanations/check hooks/browser main: kept both, regenerated) and 4-B part 1. Found and fixed G-220 (browser runner timeout). Gates green: vitest 1,965 (+1 skipped), browser 163, sygnal-check 373, doc samples 478; 41,103 B gated (PLAN-4 +567 B of 775). D133. Started 2-R and 3-K.
+- 2026-10-03 — Merged 3-K; gates green (sygnal-check 434, browser 164). G-224, G-225.
