@@ -53,10 +53,11 @@ PLAN-3's end-of-Phase-5 figures (40,403 B, 283 lines, 34,343 B) grew with #12 an
 | 1-F | Follow-ups: dialog `close`/`cancel` delegation (G-204), SYG124/125 `reportedBy`, G-203, D116 `h` type test, stale Vite plugin comments | ✅ merged | `p4-1f-followups` (`555eeb2`) | subagent | | +30 B (non-bubbling list incl. media events); mock DOM no longer bubbles non-bubbling events; browser 143 |
 | 2-A2 | Follow-ups to 2-A: Astro hook (D120), G-206, G-207 | ⬜ after 2-B (`component.ts`) | | | | |
 | 2-D | a11y checker (GS-3) | ✅ merged `5e9c1e5` | `p4-2d-a11y` (`e7af5d7`) | subagent | `5e9c1e5` | 18/31 failing-first; sygnal-check 343; FP review 0/100 on p4-final2 + p3-final, 0/498 elsewhere; examples/templates/doc samples a11y-clean; 5 pending in llms.txt/SKILL.md (4-A) |
-| P-3 | Performance baseline (GS-16) | 🟡 running | `p4-p3-perf` | subagent | | |
+| P-3 | Performance baseline (GS-16) | ✅ merged (non-gating) | `p4-p3-perf` (`88f0b2f`) | subagent | | `benchmarks/RESULTS.md`; `npm --prefix browser-tests run perf`; proposes "Collection O(1) item lookups" (+28 B) → user |
 | P-1 | View Transitions spike (GS-12) | 🟡 running | `exp/p4-view-transitions` | subagent | not merged | decision record → user |
 | 1-E prep | Controls A/B variants `p4-ct1-a`/`p4-ct1-b` | 🟡 running | `p4-1e-ab-variant` | subagent | | |
-| P-2, P-4 | Prototypes | ⬜ | | | | |
+| P-2 | Custom elements spike (GS-13) | 🟡 running | `exp/p4-elements` | subagent | not merged | |
+| P-4 | Dev-context design note (GS-15) | ⬜ | | | | |
 | 3-A … 3-T | Phase 3 | ⬜ | | | | 3-A includes D102 |
 | 4-A … 4-F | Phase 4 | ⬜ | | | | |
 
@@ -92,6 +93,21 @@ Spike findings carried into the briefs:
 - GS-11: no single place where driver errors surface; the view phase must fire after the component's `onError` picks its fallback; the hook must be per app, not module-global.
 - GS-9: spike uids are long path strings; 2-A should shorten them and must run the SSR/hydration check.
 - GS-4: the strict SYG502 tests must be retired; the "no re-render" check needs a test that the view's dropRepeats doesn't already hide.
+
+
+## GS-16 performance baseline (P-3, 2026-10-03)
+
+Median DOM-settled ms over 10 runs (Apple M3 Max, Chromium 145 headless). Full table, method and profile in `benchmarks/RESULTS.md`.
+
+| Op | Sygnal Collection | Sygnal mapped rows | React 19 | Vue 3.5 |
+|---|---:|---:|---:|---:|
+| create 1,000 | 68.3 | 22.3 | 12.3 | 10.7 |
+| edit one row | 16.4 | 9.5 | 0.7 | 1.3 |
+| swap two rows | 11.0 | 9.5 | 10.5 | 1.4 |
+| append 1,000 | 94.4 | 25.1 | 14.2 | 12.7 |
+| clear 2,000 | 15.0 (+~287 ms teardown) | 7.0 | 4.0 | 3.4 |
+
+Proposal from the record: **Collection O(1) item lookups** (index hint + Map by id in `instanceLens().get` and `instantiateCollection`'s `fieldLense`; no new API), measured edit 16.7 → 8.2 ms, swap 11.6 → 5.7 ms, +28 B. Not proposed: Elm-style `lazy` (≈ 250–400 B). Pending the user's decision (§10: memoization work only with approval).
 
 ## Interfaces promised to PLAN-5
 
@@ -189,3 +205,4 @@ They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none o
 - 2026-10-03 — 0-B done (table above). P4-Q2, Q4, Q6, Q7, Q8, Q12 answered and D101 amended (D114–D117); D118. 1-A, 2-A and 2-D started.
 - 2026-10-03 — Merged 1-A + 1-T (`3b32e04`), 2-D (`5e9c1e5`), 0-C (`284a648`) and 2-A; gates green after each. Size 40,817 B gated (PLAN-4 +281 B of 650). Library vitest 1,623, browser 139, sygnal-check 343. 0-E command handed to the user. Started 1-F, 2-C, P-3, 2-B. D119–D122; G-204…G-209.
 - 2026-10-03 — Merged 2-C and 1-F; gates green (vitest 1,655, browser 143, sygnal-check 346; 40,846 B gated, PLAN-4 +310 B). Started 1-E variant prep and P-1.
+- 2026-10-03 — Merged P-3 (non-gating perf suite); gates green. Started P-2.
