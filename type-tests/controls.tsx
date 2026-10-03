@@ -9,7 +9,7 @@
  * - a component where a control or selector is expected is a type error (SYG124 at runtime)
  */
 import { controls, renderComponent } from 'sygnal'
-import type { Component, Control, ControlSpec, ControlSpecObject, IntentSources, VNode } from 'sygnal'
+import type { Component, Control, ControlH, ControlSpec, ControlSpecObject, IntentSources, VNode } from 'sygnal'
 import type { Stream, MemoryStream } from 'xstream'
 
 type Equal<A, B> =
@@ -97,6 +97,35 @@ const badStars1 = <Stars label="x" />
 // @ts-expect-error props come from the spec, not from an intrinsic element
 const badStars2 = <Stars2 stars={2} value="x" />
 void okStars; void okStars2; void badStars1; void badStars2
+
+// D116: vnode(props, children, h) gets the pragma's own createElement as `h`
+type ChipProps = { text: string; tone?: 'info' | 'warn' }
+const chipSpec: ControlSpecObject<ChipProps> = {
+  kind: 'test-chip',
+  vnode: (props, children, h) => {
+    expectType<Equal<typeof h, ControlH>>()
+    expectType<Equal<typeof props, ChipProps>>()
+    expectType<Equal<typeof children, unknown[]>>()
+    return h('span', { className: props.tone ?? 'info' }, props.text, ...children)
+  },
+}
+const chipInline = {
+  kind: 'test-chip',
+  vnode: (props: ChipProps, children: unknown[], h: ControlH): VNode => h('span', null, props.text, ...children),
+}
+// @ts-expect-error h returns a VNode, not a string
+const badChip: ControlSpecObject<ChipProps> = { kind: 'x', vnode: (p, c, h) => String(h('span')) }
+void badChip
+// the pre-D116 two-argument form still type-checks
+const twoArgSpec: ControlSpecObject<ChipProps> = {
+  kind: 'test-chip',
+  vnode(props: ChipProps, children: unknown[]) { return ({ sel: 'span', data: {}, children, text: props.text }) as unknown as VNode },
+}
+const { Chip, Chip2, Chip3 } = controls({ Chip: chipSpec, Chip2: chipInline, Chip3: twoArgSpec })
+const okChips = [<Chip text="a" tone="warn" />, <Chip2 text="b" />, <Chip3 text="c" />]
+// @ts-expect-error `text` is required by the spec's props
+const badChip2 = <Chip tone="info" />
+void okChips; void badChip2
 
 // spec-object controls are accepted everywhere a control is
 const specIntent = ({ DOM }: IntentSources<State>) => ({ RATE: DOM.click(Stars) })
