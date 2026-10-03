@@ -192,6 +192,7 @@ export const CODE_TITLES: Record<string, string> = {
   SYG220: 'Calculated field threw',
   SYG221: 'set() called with a string',
   SYG222: 'STATE reducer returned the same object after it was mutated in place',
+  SYG226: 'undoable/undo track or resetOn names an unknown action',
   SYG402: 'Context is not an object',
   SYG403: 'Invalid context entry',
   SYG404: 'Context stream errored',
@@ -282,6 +283,8 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG221: 'error',
   // PLAN-4 GS-4 (state.ts)
   SYG222: 'warn',
+  // PLAN-4 GS-8 (undo.ts reports it when diagnostics are on; sygnal-check statically)
+  SYG226: 'warn',
   SYG421: 'error',
   SYG611: 'error',
   // PLAN-3 5-4b: router (SYG620 is reported by the router itself, like SYG611) and G-167

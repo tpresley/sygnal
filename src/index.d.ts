@@ -634,6 +634,99 @@ type UsesActionEntries<USES> = {
 /** The namespaced actions a `uses` object adds ('pager.NEXT'), for a typed ACTIONS map. */
 export type UsesActions<USES> = { [ENTRY in UsesActionEntries<USES> as ENTRY[0]]: ENTRY[1] }
 
+// ── First-party behaviors (PLAN-4 GS-1, GS-8) ──────────────────────
+
+/** Where a behavior option takes something to listen to: a control or a CSS selector. */
+export type BehaviorTarget = AnyControl | string
+
+/** A `pager` slice: `state.pager`. */
+export interface PagerState { page: number; pageSize: number; total: number | null }
+/** A `pager` slice's calculated fields. `pages` is null while `total` is unknown. */
+export interface PagerCalculated { offset: number; pages: number | null; hasPrev: boolean; hasNext: boolean }
+export interface PagerOptions {
+  /** Items per page (default 20) */
+  pageSize?: number;
+  /** Starting page, from 0 (default 0) */
+  page?: number;
+  /** Item count; null (default) = unknown, NEXT has no upper bound */
+  total?: number | null;
+  /** Its clicks dispatch NEXT */
+  next?: BehaviorTarget;
+  /** Its clicks dispatch PREV */
+  prev?: BehaviorTarget;
+}
+export interface PagerActions { NEXT: any; PREV: any; GOTO: number; SET_TOTAL: number }
+
+/**
+ * A page cursor (GS-1): `List.uses = { pager: pager({ pageSize: 10, total, next: Newer, prev: Older }) }`
+ * gives `state.pager = { page, pageSize, total, offset, pages, hasPrev, hasNext }` and the actions
+ * 'pager.NEXT' / 'pager.PREV' (no change at the bounds), 'pager.GOTO' (a page number, clamped)
+ * and 'pager.SET_TOTAL' (the item count).
+ */
+export function pager(options?: PagerOptions): Behavior<PagerState, PagerActions, PagerCalculated, PagerOptions>
+
+/** A `selection` slice: the selected ids, as strings, in selection order. */
+export interface SelectionState { selected: string[] }
+export interface SelectionCalculated { count: number }
+export interface SelectionOptions {
+  /** Several items at once: an item click toggles its id (default false: it replaces the selection) */
+  multi?: boolean;
+  /** The control on each item; its clicks dispatch SELECT with the item's `attr` */
+  item?: BehaviorTarget;
+  /** Select-all toggle: dispatches TOGGLE_ALL (needs `from`) */
+  all?: BehaviorTarget;
+  /** Its clicks dispatch CLEAR */
+  clear?: BehaviorTarget;
+  /** The item element's attribute that holds its id (default 'data-id') */
+  attr?: string;
+  /** The host state key of the item list, for SELECT_ALL / TOGGLE_ALL */
+  from?: string;
+  /** The id field of the `from` list's items (default 'id') */
+  idField?: string;
+}
+export interface SelectionActions { SELECT: string | number | Event; SELECT_ALL: Array<string | number> | undefined; TOGGLE_ALL: Array<string | number> | Event | undefined; CLEAR: any }
+
+/**
+ * Single or multiple selection (GS-1): `uses = { sel: selection({ multi: true, item: Pick, all: All, from: 'mails' }) }`
+ * gives `state.sel = { selected, count }` and 'sel.SELECT' (an id or an item click),
+ * 'sel.SELECT_ALL' (ids, or every id of `state[from]`), 'sel.TOGGLE_ALL' and 'sel.CLEAR'.
+ */
+export function selection(options?: SelectionOptions): Behavior<SelectionState, SelectionActions, SelectionCalculated, SelectionOptions>
+
+/** Is `id` in a `selection` slice? Ids compare as strings. */
+export function isSelected(slice: SelectionState | undefined | null, id: string | number): boolean
+
+/** `state.history` of `undoable()` / `undo()`: snapshots of `state[key]`, newest last in `past`. */
+export interface UndoHistory<T = any> { past: T[]; future: T[] }
+export interface UndoOptions {
+  /** The state key whose value is snapshotted */
+  key: string;
+  /** The most snapshots kept in `past` (default 100) */
+  limit?: number;
+  /** Only these actions are recorded (default: every action with a STATE reducer) */
+  track?: string[];
+  /** Changes by one action within this many ms join one undo step (default 0: off) */
+  coalesceMs?: number;
+  /** These actions clear the history (a load) and are not recorded */
+  resetOn?: string[];
+}
+
+/**
+ * Undo / redo for `state[key]` (GS-8): wraps the model's STATE reducers so each change pushes
+ * the old value onto `state.history.past`, and adds UNDO and REDO (no change when there is
+ * nothing to undo or redo). `Editor.model = undoable({ TYPE: ... }, { key: 'doc', coalesceMs: 500 })`.
+ */
+export function undoable<MODEL extends Record<string, any>>(model: MODEL, options: UndoOptions): MODEL & { UNDO: any; REDO: any }
+
+/** `undo()` options: undoable()'s, plus the controls that trigger UNDO / REDO. */
+export interface UndoBehaviorOptions extends UndoOptions { undo?: BehaviorTarget; redo?: BehaviorTarget }
+
+/**
+ * undoable() as a behavior (GS-8): `uses = { history: undo({ key: 'doc', undo: UndoButton, redo: RedoButton }) }`
+ * gives `state.history = { past, future, canUndo, canRedo }` and 'history.UNDO' / 'history.REDO'.
+ */
+export function undo(options: UndoBehaviorOptions): Behavior<UndoHistory, { UNDO: any; REDO: any }, { canUndo: boolean; canRedo: boolean }, UndoBehaviorOptions>
+
 type EventsSelect = keyof SygnalEvents extends never
   ? { select<T = any>(type: string): Stream<T>; }
   : { select<TYPE extends keyof SygnalEvents & string>(type: TYPE): Stream<SygnalEvents[TYPE]>; }
