@@ -82,7 +82,7 @@ export function defineElement(tag: string, Component: any, options: ElementOptio
   }
   const shadowMode = options.shadow ? (options.shadow === 'closed' ? 'closed' : 'open') : undefined;
   const sheets = shadowMode ? ([] as Array<string | CSSStyleSheet>).concat(options.styles || []).map(toSheet) : [];
-  // Props that hide a member of HTMLElement (e.g. title, hidden): warned once, in dev
+  // Props that hide a member of HTMLElement (e.g. title, hidden): SYG644 once per tag (D131)
   const shadowedMembers = Object.keys(types).filter((name) => name in HTMLElement.prototype);
   let warned = false;
 
@@ -146,12 +146,22 @@ export function defineElement(tag: string, Component: any, options: ElementOptio
     connectedCallback() {
       if (this.#app) return; // moved, not removed: keep running
       // (G-216: a hot swap elsewhere on the page is that app's own, so no need to wait it out)
-      if (shadowedMembers.length && !warned && devMode()) {
-        warned = true;
-        console.warn(
-          `[sygnal/element] <${tag}>: props hide the HTMLElement members of the same name ` +
-            `(${shadowedMembers.join(', ')}). Rename them to keep the native behaviour.`
-        );
+      if (shadowedMembers.length && !warned) {
+        // D131: SYG644 through the diagnostics core when diagnostics are on; else a console
+        // warning in dev
+        const message = `props hide the HTMLElement members of the same name (${shadowedMembers.join(', ')})`;
+        const fix = 'Rename them to keep the native behaviour';
+        let reported: any;
+        try {
+          reported = (globalThis as any).__SYGNAL_DIAGNOSTICS__?.report('SYG644', {
+            severity: 'warn', component: `<${tag}>`, message, fix, data: {tag, members: shadowedMembers},
+          });
+        } catch (e) {
+          reported = true; // mode 'error': thrown after the element starts
+          queueMicrotask(() => { throw e; });
+        }
+        if (reported || devMode()) warned = true;
+        if (!reported && devMode()) console.warn(`[sygnal/element] <${tag}>: ${message}. ${fix}.`);
       }
       const mount = document.createElement('div');
       this.#root.appendChild(mount);

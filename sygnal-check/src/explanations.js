@@ -672,6 +672,13 @@ export const EXPLANATIONS = {
     explanation: "A component declares `timers`, `connections` or `resources`, but no registered driver takes that static, so nothing happens and nothing else says so: the timers never fire, the connections never open, the resources stay idle. The core sends each of these statics to the source of the driver that asks for it (`makeTimerDriver()`, `makeSocketDriver()`, `makeFetchDriver()`), and the driver is opt-in: `run()` doesn't register it for you. `renderComponent` provides fakes for all three (the timer fake runs the real driver), so the warning only appears under `run()`.",
     fix: "Register the driver when you start the app: `run(App, { TIMER: makeTimerDriver() })` for `timers`, `run(App, { WS: makeSocketDriver() })` for `connections`, `run(App, { HTTP: makeFetchDriver() })` for `resources` (the key is yours to choose; the core finds the driver by the static it takes).",
   },
+  SYG644: {
+    title: "Custom element prop hides an HTMLElement member",
+    severity: "warn",
+    reportedBy: ["runtime"],
+    explanation: "A `defineElement(tag, Component, { props })` declaration names a prop that is also a member of `HTMLElement`, such as `title`, `hidden`, `lang`, `dir` or `translate`. The element defines its own property for each prop, so the native member of that name stops working on this element: setting `el.hidden = true` updates the prop instead of hiding the element, and the matching attribute no longer has its native effect. `sygnal/element` reports it once per tag when the element first connects, through the diagnostics core when diagnostics are on (a console warning in dev otherwise).",
+    fix: "Rename the prop (`heading` instead of `title`, `collapsed` instead of `hidden`) and update the attribute and the component's state key that it feeds. Keep the name only when replacing the native behaviour is what you want.",
+  },
   SYG701: {
     title: "Click listener on a non-interactive element",
     severity: "warn",

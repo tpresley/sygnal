@@ -14,7 +14,8 @@ import { renderToString } from '../src/extra/ssr.ts'
 import { defineBehavior } from '../src/extra/behaviors.js'
 import { undoable } from '../src/extra/undo.js'
 import { setupChecks, settle, diagnostics } from './diagnostics/helpers.js'
-import { _resetDiagnostics } from '../src/extra/diagnostics/index.js'
+import { _resetDiagnostics, configureDiagnostics } from '../src/extra/diagnostics/index.js'
+import { defineElement } from '../src/element.ts'
 
 let t
 beforeEach(() => { setupChecks() })
@@ -266,5 +267,39 @@ describe("G-216: an app's hot swap is scoped to that app (the __hmr source)", ()
       await sleep(150)
       expect(fired).toEqual(['A'])
     } finally { a.dispose(); b?.dispose(); document.body.innerHTML = '' }
+  })
+})
+
+describe('D131: SYG644, a defineElement prop that hides an HTMLElement member', () => {
+  let n = 0
+  function Card({ state }) { return h('p', { className: 'card' }, String(state.title)) }
+  Card.initialState = { title: 'none' }
+
+  it('is reported through the diagnostics core when diagnostics are on (once per tag)', async () => {
+    const tag = `r2-shadowed-${++n}`
+    defineElement(tag, Card, { props: { title: String, hidden: Boolean, count: Number } })
+    document.body.innerHTML = `<${tag} title="a"></${tag}><${tag} title="b"></${tag}>`
+    await until(() => document.querySelectorAll('.card').length === 2, 'render')
+    const found = diagnostics('SYG644')
+    expect(found).toHaveLength(1)
+    expect(found[0]).toMatchObject({ severity: 'warn', data: { tag, members: ['title', 'hidden'] } })
+    expect(found[0].fix).toMatch(/Rename/)
+    document.body.innerHTML = ''
+  })
+
+  it('falls back to console.warn in dev with diagnostics off', async () => {
+    _resetDiagnostics()
+    configureDiagnostics({ mode: 'off' })
+    const warns = []
+    const prev = console.warn, prevDev = globalThis.__SYGNAL_DEV__
+    console.warn = (...a) => warns.push(a.join(' '))
+    globalThis.__SYGNAL_DEV__ = true
+    try {
+      const tag = `r2-shadowed-${++n}`
+      defineElement(tag, Card, { props: { title: String } })
+      document.body.innerHTML = `<${tag} title="a"></${tag}>`
+      await until(() => document.querySelector('.card'), 'render')
+      expect(warns.filter(w => w.includes('hide the HTMLElement members'))).toHaveLength(1)
+    } finally { console.warn = prev; globalThis.__SYGNAL_DEV__ = prevDev; document.body.innerHTML = '' }
   })
 })
