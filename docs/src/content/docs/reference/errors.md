@@ -105,7 +105,7 @@ Counter.intent = ({ DOM }) => ({ INC: DOM.click('.increment') })
 
 Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`), the Sygnal runtime (every app, production included), `sygnal-check`
 
-An intent selector matches nothing in the component's own scope, but does match elements rendered inside a child component or Collection item. Child components are isolated, so the parent's `DOM` source never receives events from those elements and the action never fires. The dev entry checks the real DOM after renders, `renderComponent` checks the mock vtree, and `sygnal-check` finds the class/id only in a child component's view.
+An intent selector matches nothing in the component's own scope, but does match elements rendered inside a child component or Collection item. Child components are isolated, so the parent's `DOM` source never receives events from those elements and the action never fires. The dev entry checks the real DOM after renders, `renderComponent` checks the mock vtree, and `sygnal-check` finds the class/id, or the control (`DOM.click(Remove)` with `<Remove>` rendered by the child), only in a child component's view.
 
 **Fix:** Handle the event inside the child component and send it up with `PARENT` (read it in the parent with `CHILD.select(Child)`), or broadcast it with `EVENTS`.
 
@@ -178,9 +178,9 @@ After:
 
 Severity: `warn` · Reported by: `sygnal-check`
 
-A class or id selector used in the intent (`DOM.select('.x')`, `DOM.click('.x')`, ...) is never rendered by the component's own view, nor by JSX passed into it as children/slots, so the action never fires. It is reported as info instead of warn when a dynamic `className`/`id` in the view might produce the name, or when the selector itself is not a static string and could not be checked.
+A class or id selector used in the intent (`DOM.select('.x')`, `DOM.click('.x')`, ...) is never rendered by the component's own view, nor by JSX passed into it as children/slots, so the action never fires. For a control (`DOM.click(Add)`), the view never renders `<Add>`. It is reported as info instead of warn when a dynamic `className`/`id` in the view might produce the name, or when the selector itself is not a static string and could not be checked.
 
-**Fix:** Fix the selector to match the view, or add the class/id to the element, e.g. `className="x"`; use a string literal (or module-level const) selector so it can be checked.
+**Fix:** Fix the selector to match the view, or add the class/id to the element, e.g. `className="x"`; use a string literal (or module-level const) selector so it can be checked. For a control, render it in the view (`<Add>Add</Add>`) or listen to a control the view does render.
 
 Before:
 
@@ -292,6 +292,46 @@ After:
 ```jsx
 SAVE: { EVENTS: event('SAVED', (state) => state.id) }
 ```
+
+### SYG124
+
+**Component used as a control or selector**
+
+Severity: `error` · Reported by: `sygnal-check`
+
+A component was passed where `DOM.select()` or a `DOM.<event>()` shorthand expects a control or a CSS selector, as in `DOM.click(TodoItem)`. A component is not an element: it has no single root to listen on, and its elements are isolated from the parent, so there is nothing for the listener to match. Controls look like components in JSX, which makes this an easy mistake.
+
+**Fix:** Handle the event inside the child and send it up with `PARENT`, then read it in the parent with `CHILD.select(TodoItem)`. Or give the parent a control and render it around the child: `const { Item } = controls({ Item: 'div' })`, `<Item><TodoItem /></Item>`, `DOM.click(Item)`.
+
+### SYG125
+
+**Control given .intent, .model or .initialState**
+
+Severity: `error` · Reported by: `sygnal-check`
+
+A control from `controls({ ... })` was given `.intent`, `.model` or `.initialState`, as if it were a component. Controls are elements, not components: a control renders its element with a `data-control` marker and nothing else, so it has no intent, model or state, and these statics are never used.
+
+**Fix:** Put the intent and model on the component that renders the control, and listen to the control there: `App.intent = ({ DOM }) => ({ ADD: DOM.click(Add) })`. For something with its own state and actions, write a component instead.
+
+### SYG126
+
+**Control rendered but never listened to**
+
+Severity: `info` · Reported by: `sygnal-check`
+
+A component renders a control (for example `<Add>`), but its intent never listens to it. A control exists to link an element to an intent, so an unused one is usually a missing intent entry or a leftover from a refactor. It is info because a control may also be used only to find the element in tests (`t.query(Draft)`).
+
+**Fix:** Listen to it in the component's intent (`ADD: DOM.click(Add)`), or render the plain element (`<button>`) if it needs no events.
+
+### SYG128
+
+**Duplicate control key**
+
+Severity: `error` · Reported by: `sygnal-check`
+
+Two `controls()` calls in one file declare the same key, or one call repeats a key. Every control renders `data-control="<Key>"` and is selected by that key, so two controls with one key match each other's elements: a listener on one also fires for the other.
+
+**Fix:** Rename one of the keys, or declare both controls in a single `controls({ ... })` call.
 
 ### SYG130
 

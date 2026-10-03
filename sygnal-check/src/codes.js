@@ -23,6 +23,11 @@ export const CODES = {
   SYG110: { severity: 'warn', title: 'Intent selector not present in the component view' },
   SYG111: { severity: 'warn', title: 'Controlled input has no input listener' },
   SYG112: { severity: 'error', title: 'Reply action has no model entry' },
+  // PLAN-4 CT-1 controls (model/controls.js)
+  SYG124: { severity: 'error', title: 'Component used as a control or selector' },
+  SYG125: { severity: 'error', title: 'Control given .intent, .model or .initialState' },
+  SYG126: { severity: 'info', title: 'Control rendered but never listened to' },
+  SYG128: { severity: 'error', title: 'Duplicate control key' },
   SYG401: { severity: 'warn', title: "Collection 'from' field is missing or not an array" },
   SYG634: { severity: 'info', title: 'latest: true with a computed key' },
   // strict mode (--strict), dev-plans/PLAN-1-canonical-forms.md; severities match
