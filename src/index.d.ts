@@ -714,6 +714,30 @@ export type DiagnosticsOptions = {
   strict?: boolean;
 }
 
+/**
+ * Where an error reported to the app-level `onError` hook happened (PLAN-4 GS-11). `'widget'` is
+ * reserved for widgets (PLAN-5); nothing in the core reports it.
+ */
+export type AppErrorPhase = 'view' | 'reducer' | 'effect' | 'driver' | 'instantiate' | 'widget'
+
+/** What the app-level `onError` hook gets with the error */
+export interface AppErrorInfo {
+  /** The component whose view, reducer, EFFECT or sub-component threw (not for 'driver') */
+  componentName?: string
+  /** The action whose reducer or EFFECT threw ('reducer', 'effect') */
+  action?: string
+  phase: AppErrorPhase
+  /** The driver (sink) name, for 'driver' */
+  driver?: string
+}
+
+/**
+ * App-level error hook: reporting only (e.g. to an error tracker). It is called after the
+ * component's own `onError` boundary chose the fallback, once per error, in every diagnostics
+ * mode. An exception thrown by the hook is logged with console.error and swallowed.
+ */
+export type AppErrorHook = (error: any, info: AppErrorInfo) => void
+
 export type RunOptions = {
   mountPoint?: string;
   fragments?: boolean;
@@ -723,6 +747,8 @@ export type RunOptions = {
    * (set by the Sygnal Vite plugin in dev), which enables 'warn'. Default: 'off'.
    */
   diagnostics?: DiagnosticsMode | DiagnosticsOptions;
+  /** App-level error hook for this app (each run() has its own); see AppErrorHook */
+  onError?: AppErrorHook;
 }
 
 /** All diagnostics collected so far (most recent last). */
@@ -1842,6 +1868,8 @@ export interface RenderOptions {
   initialState?: any;
   /** Mock DOM configuration — maps selectors to event streams */
   mockConfig?: Record<string, any>;
+  /** The app-level error hook, as run()'s `onError` (PLAN-4 GS-11) */
+  onError?: AppErrorHook;
   /**
    * Additional drivers beyond DOM, EVENTS, STATE, and LOG. A custom sink without a driver, in
    * the component or any child, gets a recording one (read it with sinkValues / requests), and
@@ -2167,6 +2195,8 @@ export interface RenderToStringOptions {
    * is fetched during SSR)
    */
   cache?: QueryCache
+  /** The app-level error hook, as run()'s `onError`: phase 'view' only (PLAN-4 GS-11) */
+  onError?: AppErrorHook
 }
 
 /**

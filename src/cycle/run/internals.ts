@@ -1,5 +1,6 @@
 import xs, {Stream} from 'xstream';
 import {adapt} from './adapt';
+import {callHook} from '../../extra/diagnostics/legacy';
 import {
   DevToolEnabledSource,
   DisposeFunction,
@@ -74,7 +75,8 @@ type ReplicationBuffers<Si> = {
 
 export function replicateMany<Si extends any>(
   sinks: Si,
-  sinkProxies: SinkProxies<Si>
+  sinkProxies: SinkProxies<Si>,
+  onError?: any
 ): DisposeFunction {
   const sinkNames: Array<keyof Si> = Object.keys(sinks as any).filter(
     name => !!(sinkProxies as any)[name]
@@ -97,8 +99,12 @@ export function replicateMany<Si extends any>(
 
   sinkNames.forEach(name => {
     const listener = (sinkProxies as any)[name];
+    // PLAN-4 GS-11: a driver that throws handling a sink value is reported to the app's
+    // onError ('driver'); the exception still propagates, as before
     const next = (x: any) => {
-      queueMicrotask(() => listener._n(x));
+      queueMicrotask(() => {
+        try { listener._n(x) } catch (e) { callHook(onError, e, {phase: 'driver', driver: name}); throw e }
+      });
     };
     const error = (err: any) => {
       queueMicrotask(() => {

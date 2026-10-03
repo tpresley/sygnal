@@ -27,6 +27,8 @@ export function renderToStaticMarkup(
     const html = renderToString(Component, {
       state: props.initialState || Component.initialState,
       props: {...props, props},
+      // PLAN-4 GS-11: the island's app-level error hook (as the client's run() gets)
+      onError: Component.onAppError,
     })
     return {html, attrs: {}}
   } catch (err: any) {

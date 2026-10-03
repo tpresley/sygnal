@@ -292,6 +292,8 @@ export interface RenderOptions {
   headSink?: string;
   /** PLAN-3 5-4c: the HEAD fake's titleTemplate ('%s · App'), as makeHeadDriver's */
   titleTemplate?: string;
+  /** PLAN-4 GS-11: the app-level error hook, as run()'s `onError` option */
+  onError?: (error: any, info: {componentName?: string; action?: string; phase: string; driver?: string}) => void;
 }
 
 /** PLAN-3 5-4c: what t.navigate takes: an href, or a route command */
@@ -1740,6 +1742,7 @@ export function renderComponent(
     ...(hd && {[headSink]: hd.driver}),
     ...(rt && {[routerSink]: routerDriver}),
     ...drivers,
+    ...(options.onError && {__e: () => options.onError}),
   };
   const faked = new Set<string>();
   for (const k in model) {

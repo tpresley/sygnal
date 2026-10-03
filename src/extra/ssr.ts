@@ -90,7 +90,15 @@ export interface RenderToStringOptions {
    * Nothing is fetched during SSR; seed the cache in a loader (`cache.set(request, data)`)
    */
   cache?: any
+  /**
+   * PLAN-4 GS-11: the app-level error hook, as run()'s `onError`: called with phase 'view' after
+   * the component's onError boundary chose the fallback. Reporting only
+   */
+  onError?: (error: any, info: {componentName?: string; action?: string; phase: string}) => void
 }
+
+// the `onError` option of the outermost renderToString call that has one (GS-11)
+let ssrOnError: any
 
 // the `head` option of the outermost renderToString call that has one
 let heads: any[] | undefined
@@ -116,6 +124,27 @@ function withResources(def: any, state: any): any {
   return out
 }
 
+const errorDiv = (): any => ({sel: 'div', data: {attrs: {'data-sygnal-error': ''}}, children: [], text: undefined, elm: undefined, key: undefined})
+
+/**
+ * A view threw: the component's onError boundary picks the fallback (the error <div> without
+ * one, or when it throws), then the app's onError hook is told (GS-11)
+ */
+function viewFailed(def: any, err: any, name: string): any {
+  let vnode: any = errorDiv()
+  if (typeof def.onError === 'function') {
+    try {
+      vnode = def.onError(err, {componentName: name})
+    } catch (_) {
+      vnode = errorDiv()
+    }
+  }
+  // reporting only: a throwing hook is logged and swallowed (no diagnostics import: the Astro and
+  // Vike server bundles carry this file without the core)
+  try { ssrOnError && ssrOnError(err, {componentName: name, phase: 'view'}) } catch (e) { console.error(e) }
+  return vnode
+}
+
 function collectHead(def: any, state: any): void {
   const h = def && def.head
   if (!heads || !h) return
@@ -139,14 +168,16 @@ export function renderToString(
   componentDef: any,
   options: RenderToStringOptions = {}
 ): string {
-  const prevHeads = heads, prevCache = ssrCache
+  const prevHeads = heads, prevCache = ssrCache, prevOnError = ssrOnError
   if (options.head) heads = options.head
   if (options.cache) ssrCache = options.cache
+  if (options.onError) ssrOnError = options.onError
   try {
     return renderRoot(componentDef, options)
   } finally {
     heads = prevHeads
     ssrCache = prevCache
+    ssrOnError = prevOnError
   }
 }
 
@@ -183,16 +214,7 @@ function renderRoot(componentDef: any, options: RenderToStringOptions): string {
     }, resolvedState, mergedContext, {})
   } catch (err: any) {
     // Error boundary
-    if (typeof componentDef.onError === 'function') {
-      const name = componentDef.componentName || componentDef.name || 'Component'
-      try {
-        vnode = componentDef.onError(err, {componentName: name})
-      } catch (_) {
-        vnode = {sel: 'div', data: {attrs: {'data-sygnal-error': ''}}, children: [], text: undefined, elm: undefined, key: undefined}
-      }
-    } else {
-      vnode = {sel: 'div', data: {attrs: {'data-sygnal-error': ''}}, children: [], text: undefined, elm: undefined, key: undefined}
-    }
+    vnode = viewFailed(componentDef, err, componentDef.componentName || componentDef.name || 'Component')
   }
 
   if (!vnode) {
@@ -441,16 +463,7 @@ function renderSubComponent(vnode: any, context: Record<string, any>, parentStat
       peers: {},
     }, childState, childContext, {})
   } catch (err: any) {
-    if (typeof componentDef.onError === 'function') {
-      const name = componentDef.componentName || componentDef.name || 'Component'
-      try {
-        result = componentDef.onError(err, {componentName: name})
-      } catch (_) {
-        result = {sel: 'div', data: {attrs: {'data-sygnal-error': ''}}, children: [], text: undefined, elm: undefined, key: undefined}
-      }
-    } else {
-      result = {sel: 'div', data: {attrs: {'data-sygnal-error': ''}}, children: [], text: undefined, elm: undefined, key: undefined}
-    }
+    result = viewFailed(componentDef, err, componentDef.componentName || componentDef.name || 'Component')
   }
 
   if (!result) {
@@ -500,15 +513,7 @@ function renderCollection(vnode: any, context: Record<string, any>, parentState?
         peers: {},
       }, itemState, itemContext, {})
     } catch (err: any) {
-      if (typeof itemComponent.onError === 'function') {
-        try {
-          itemVnode = itemComponent.onError(err, {componentName: itemComponent.name || 'CollectionItem'})
-        } catch (_) {
-          itemVnode = {sel: 'div', data: {attrs: {'data-sygnal-error': ''}}, children: [], text: undefined, elm: undefined, key: undefined}
-        }
-      } else {
-        itemVnode = {sel: 'div', data: {attrs: {'data-sygnal-error': ''}}, children: [], text: undefined, elm: undefined, key: undefined}
-      }
+      itemVnode = viewFailed(itemComponent, err, itemComponent.name || 'CollectionItem')
     }
 
     return processSSRTree(itemVnode, itemContext, itemState)
@@ -593,15 +598,7 @@ function renderToStringInternal(componentDef: any, state: any, context: Record<s
       peers: {},
     }, resolvedState, mergedContext, {})
   } catch (err: any) {
-    if (typeof componentDef.onError === 'function') {
-      try {
-        vnode = componentDef.onError(err, {componentName: componentDef.name || 'Component'})
-      } catch (_) {
-        vnode = {sel: 'div', data: {attrs: {'data-sygnal-error': ''}}, children: [], text: undefined, elm: undefined, key: undefined}
-      }
-    } else {
-      vnode = {sel: 'div', data: {attrs: {'data-sygnal-error': ''}}, children: [], text: undefined, elm: undefined, key: undefined}
-    }
+    vnode = viewFailed(componentDef, err, componentDef.name || 'Component')
   }
 
   if (!vnode) {

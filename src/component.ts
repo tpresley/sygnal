@@ -9,7 +9,7 @@ import {makeCommandSource} from './extra/command';
 import type {Command} from './extra/command';
 // [diagnostics hook] shared diagnostics core — hooks are no-ops when diagnostics are off
 import * as diag from './extra/diagnostics/index';
-import {warn, error as logError, fail, caught} from './extra/diagnostics/legacy';
+import {warn, error as logError, fail, caught, appError} from './extra/diagnostics/legacy';
 
 import xs, {Stream} from './extra/xstreamCompat';
 import {delay, concat, debounce, dropRepeats} from './extra/xstreamExtras';
@@ -635,7 +635,7 @@ class Component {
               if (typeof f == 'function') v = f(s)
               else if (typeof f == 'object') { v = {}; for (const r in f) v[r] = f[r](s) }
               return [v]
-            } catch (err) { caught('SYG216', this, `${k} threw; nothing sent`, ERR_FIX, err) }
+            } catch (err) { caught('SYG216', this, `${k} threw; nothing sent`, ERR_FIX, err, 'reducer') }
           }), this.sources.__switchPage?.shown$ || xs.of(1))
           .map(([w, shown]: any) => {
             let v = w?.[0]
@@ -874,18 +874,20 @@ class Component {
           return this.view({ ...sanitizedProps, state, children, slots: slots || {}, context, peers }, state, context, peers)
         } catch (err) {
           const error = err instanceof Error ? err : new Error(String(err))
+          let fallback: any = { sel: 'div', data: { attrs: { 'data-sygnal-error': this.name } }, children: [] }
           // B-022: an error handled by .onError is a warning, without the "add .onError" hint
           if (typeof this.onError === 'function') {
             try {
-              const fallback = this.onError(error, { componentName: this.name })
+              fallback = this.onError(error, { componentName: this.name })
               warn('SYG406', this, 'View threw; rendered the onError fallback', undefined, error)
-              return fallback
             } catch (fallbackErr) {
               logError('SYG406', this, 'View threw; rendering the error fallback', undefined, error)
               logError('SYG407', this, 'onError threw; rendering an empty error <div>', 'Make onError return a vnode', fallbackErr)
             }
           } else logError('SYG406', this, 'View threw; rendering the error fallback', 'Add .onError for a custom fallback', error)
-          return { sel: 'div', data: { attrs: { 'data-sygnal-error': this.name } }, children: [] }
+          // GS-11: the app hook, after the boundary chose the fallback
+          appError(this, error, 'view')
+          return fallback
         }
       })
       .compose(this.log('View rendered'))
@@ -992,7 +994,7 @@ class Component {
                 }
                 return result
               } catch (err) {
-                caught('SYG216', this, `Reducer for '${name}' threw; state unchanged`, ERR_FIX, err)
+                caught('SYG216', this, `Reducer for '${name}' threw; state unchanged`, ERR_FIX, err, 'reducer', name)
                 return _state
               }
             }
@@ -1013,7 +1015,7 @@ class Component {
               if (type === 'undefined') warn('SYG217', this, `Reducer for '${name}' sent undefined to the driver`, 'Return a value, or ABORT to send nothing')
               return reduced
             } catch (err) {
-              caught('SYG216', this, `Reducer for '${name}' threw; nothing sent`, ERR_FIX, err)
+              caught('SYG216', this, `Reducer for '${name}' threw; nothing sent`, ERR_FIX, err, 'reducer', name)
               return ABORT
             }
           }
@@ -1043,7 +1045,7 @@ class Component {
           }, delay)
           this.log(`<${name}> EFFECT triggered a next() action: <${type}> ${delay}ms delay`, true)
         }
-        const failed = (err: any) => caught('SYG214', this, `EFFECT handler '${name}' threw`, ERR_FIX, err)
+        const failed = (err: any) => caught('SYG214', this, `EFFECT handler '${name}' threw`, ERR_FIX, err, 'effect', name)
 
         try {
           const enhancedState = this.addCalculated(STATE_SNAPSHOT in action ? action[STATE_SNAPSHOT] : this.currentState)
@@ -1246,7 +1248,6 @@ class Component {
           sink$ = (isCollection ? this.instantiateCollection : isSwitchable ? this.instantiateSwitchable : this.instantiateCustomComponent).call(this, el, props$, children$)
         } catch (err) {
           const error = err instanceof Error ? err : new Error(String(err))
-          caught('SYG408', this, 'Sub-component threw; rendering the error fallback', ERR_FIX, error)
           let fallbackVNode = { sel: 'div', data: { attrs: { 'data-sygnal-error': this.name } }, children: [] }
           if (typeof this.onError === 'function') {
             try {
@@ -1255,6 +1256,8 @@ class Component {
               logError('SYG407', this, 'onError threw; rendering an empty error <div>', 'Make onError return a vnode', fallbackErr)
             }
           }
+          // GS-11: logged (and given to the app's onError) after the boundary chose the fallback
+          caught('SYG408', this, 'Sub-component threw; rendering the error fallback', ERR_FIX, error, 'instantiate')
           sink$ = { [this.DOMSourceName]: xs.of(fallbackVNode) }
         }
 

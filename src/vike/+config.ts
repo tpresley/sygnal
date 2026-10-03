@@ -48,6 +48,10 @@ export default {
     drivers: {
       env: { client: true },
     },
+    // PLAN-4 GS-11: run()'s / renderToString's app-level error hook
+    onError: {
+      env: { server: true, client: true },
+    },
     ssr: {
       env: { config: true },
       effect({ configDefinedAt, configValue }: { configDefinedAt: string; configValue: unknown }) {

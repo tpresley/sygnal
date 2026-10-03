@@ -39,6 +39,8 @@ interface PageContext {
     title?: string
     ssr?: boolean
     drivers?: Record<string, (sink: any) => any>
+    // PLAN-4 GS-11: the app-level error hook
+    onError?: (error: any, info: any) => void
   }
 }
 
@@ -351,7 +353,7 @@ export function onRenderClient(pageContext: PageContext) {
       const Component = createLayoutWrapper(wrappers, layouts, Page)
 
       try {
-        currentApp = run(Component, config.drivers || {}, { mountPoint: '#page-view' }) as any
+        currentApp = run(Component, config.drivers || {}, { mountPoint: '#page-view', onError: config.onError }) as any
       } catch (err: any) {
         console.error('[sygnal/vike] Client render error:', err)
         const container = document.getElementById('page-view')
@@ -388,7 +390,7 @@ export function onRenderClient(pageContext: PageContext) {
     }
 
     try {
-      currentApp = run(Page, config.drivers || {}, { mountPoint: '#page-view' }) as any
+      currentApp = run(Page, config.drivers || {}, { mountPoint: '#page-view', onError: config.onError }) as any
     } catch (err: any) {
       console.error('[sygnal/vike] Client render error:', err)
       const container = document.getElementById('page-view')
