@@ -13,6 +13,7 @@ import eventBusDriver from '../src/extra/eventDriver.js'
 import logDriver from '../src/extra/logDriver.js'
 import { createElement } from '../src/pragma/index.js'
 import { Slot } from '../src/slot.js'
+import { until } from './support/wait.js'
 
 // ─── Test helper ───────────────────────────────────────────────────────────────
 
@@ -72,7 +73,6 @@ function createTestComponent(componentDef, mockConfig = {}) {
   }
 }
 
-const settle = (ms = 100) => new Promise(r => setTimeout(r, ms))
 
 // ─── Tests ──────────────────────────────────────────────────────────────────────
 
@@ -114,7 +114,7 @@ describe('Slot', () => {
       Parent.initialState = { active: true }
 
       env = createTestComponent(Parent)
-      await settle()
+      await until(() => expect(receivedSlots).toBeTruthy())   // G-176: the child view ran (not a fixed settle)
 
       expect(receivedSlots).toBeTruthy()
       expect(receivedSlots.header).toBeDefined()
@@ -154,7 +154,7 @@ describe('Slot', () => {
       Parent.initialState = { active: true }
 
       env = createTestComponent(Parent)
-      await settle()
+      await until(() => expect(receivedSlots).toBeTruthy())   // G-176: the child view ran (not a fixed settle)
 
       expect(receivedSlots).toBeTruthy()
       expect(receivedSlots.header).toBeDefined()
@@ -190,7 +190,7 @@ describe('Slot', () => {
       Parent.initialState = { active: true }
 
       env = createTestComponent(Parent)
-      await settle()
+      await until(() => expect(receivedSlots).toBeTruthy())   // G-176: the child view ran (not a fixed settle)
 
       // children should be the same as before (all unnamed children)
       expect(receivedChildren).toBeDefined()
@@ -223,7 +223,7 @@ describe('Slot', () => {
       Parent.initialState = { active: true }
 
       env = createTestComponent(Parent)
-      await settle()
+      await until(() => expect(receivedSlots).toBeTruthy())   // G-176: the child view ran (not a fixed settle)
 
       expect(receivedSlots).toEqual({})
       expect(receivedChildren).toEqual([])
@@ -254,7 +254,7 @@ describe('Slot', () => {
       Parent.initialState = { active: true }
 
       env = createTestComponent(Parent)
-      await settle()
+      await until(() => expect(receivedSlots).toBeTruthy())   // G-176: the child view ran (not a fixed settle)
 
       expect(receivedSlots).toBeTruthy()
       expect(receivedSlots.actions).toBeDefined()
@@ -285,7 +285,7 @@ describe('Slot', () => {
       Parent.initialState = { active: true }
 
       env = createTestComponent(Parent)
-      await settle()
+      await until(() => expect(receivedSlots).toBeTruthy())   // G-176: the child view ran (not a fixed settle)
 
       expect(receivedSlots).toBeTruthy()
       expect(receivedSlots.default).toBeDefined()
@@ -316,7 +316,7 @@ describe('Slot', () => {
       Parent.initialState = { active: true }
 
       env = createTestComponent(Parent)
-      await settle()
+      await until(() => expect(receivedSlots).toBeTruthy())   // G-176: the child view ran (not a fixed settle)
 
       expect(receivedSlots).toBeTruthy()
       expect(receivedSlots.default).toBeDefined()

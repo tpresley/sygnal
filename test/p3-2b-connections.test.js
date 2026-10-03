@@ -14,6 +14,7 @@ import { Collection } from '../src/collection.js'
 import { makeSocketDriver } from '../src/extra/socketDriver.js'
 import { setupChecks, diagnostics, settle } from './diagnostics/helpers.js'
 import { waitFor, textOf, getByText, queryByText, sleep } from '../evals/agent-ergonomics/hidden/_support/queries.js'
+import { clickWhenRendered } from './support/wait.js'
 
 // The fake chat server of test/p3-2a-socket.test.js (after task 22's hidden test)
 function chatServer() {
@@ -78,7 +79,8 @@ const start = (App, drivers, opts = {}) => (app = run(App, drivers, { mountPoint
 const recorded = (sent, opts = {}) => sink$ => makeSocketDriver({ WebSocket: server.FakeWebSocket, ...opts })(sink$.map(v => (sent.push(v), v)))
 const coded = code => errorSpy.mock.calls.filter(c => String(c[0]).includes(code))
 const text = sel => textOf(document.querySelector(sel))
-const click = sel => document.querySelector(sel).click()
+// G-176: a connection can open before the first render; wait for the element
+const click = sel => clickWhenRendered(sel)
 const byPath = path => server.sockets.find(s => s.path === path)
 
 // A room component: state.room names the connection; buttons switch, leave, send, and bump an
@@ -135,7 +137,7 @@ describe('connections static under run()', () => {
     const a = server.sockets[0]
     a.accept()
     await waitFor(() => expect(text('.log')).toBe('up:a'))
-    click('.b')
+    await click('.b')
     await waitFor(() => expect(server.sockets).toHaveLength(2))
     expect(a.closedByClient).toBe(true)
     const b = server.sockets[1]
@@ -152,7 +154,7 @@ describe('connections static under run()', () => {
     await waitFor(() => expect(server.sockets).toHaveLength(1))
     server.sockets[0].accept()
     await waitFor(() => expect(text('.log')).toBe('up:a'))
-    click('.leave')
+    await click('.leave')
     await waitFor(() => expect(server.sockets[0].closedByClient).toBe(true))
     server.finishCloses()
     await sleep(20)
@@ -165,13 +167,13 @@ describe('connections static under run()', () => {
     start(Room, { WS: recorded(sent) })
     await waitFor(() => expect(sent).toHaveLength(1))
     server.sockets[0].accept()
-    click('.bump'); click('.bump')
+    await click('.bump'); await click('.bump')
     await waitFor(() => expect(text('.log')).toBe('up:a'))
     await sleep(30)
-    click('.a')   // the same room again: an equal result
+    await click('.a')   // the same room again: an equal result
     await sleep(30)
     expect(sent.filter(v => v.connections)).toHaveLength(1)
-    click('.b')
+    await click('.b')
     await waitFor(() => expect(sent.filter(v => v.connections)).toHaveLength(2))
     expect(sent[1].connections.room.socket).toBe('/ws/b')
     expect(server.sockets).toHaveLength(2)
@@ -223,13 +225,14 @@ describe('connections static under run()', () => {
     Flaky.model = { GO: (s) => ({ ...s, n: s.n + 1 }) }
     start(Flaky, { WS: makeSocketDriver({ WebSocket: server.FakeWebSocket }) })
     await waitFor(() => expect(server.sockets).toHaveLength(1))
-    click('.go')
+    await click('.go')
     await waitFor(() => expect(text('.n')).toBe('1'))
+    await waitFor(() => expect(coded('SYG216')).toHaveLength(1))
     await sleep(20)
     expect(coded('SYG216')).toHaveLength(1)
     expect(server.sockets).toHaveLength(1)
     expect(server.sockets[0].closedByClient).toBe(false)
-    click('.go')
+    await click('.go')
     await waitFor(() => expect(byPath('/live/2')).toBeTruthy())
     expect(server.sockets[0].closedByClient).toBe(true)
   })
@@ -239,7 +242,7 @@ describe('connections static under run()', () => {
     const plain = sink$ => { sink$.addListener({ next: v => seen.push(v) }); return { select: () => xs.never() } }
     start(Room, { WS: plain })
     await waitFor(() => expect(text('.log')).toBe(''))
-    click('.bump')
+    await click('.bump')
     await sleep(30)
     expect(seen).toEqual([])
   })
@@ -263,7 +266,7 @@ describe('G-158: a state change and a send on the connection in the same action'
   it('opening: the new connection reaches the driver before the send (no SYG611, the send is queued)', async () => {
     start(Chat, { WS: makeSocketDriver({ WebSocket: server.FakeWebSocket }) })
     await waitFor(() => expect(text('.room')).toBe('null'))
-    click('.a')
+    await click('.a')
     await waitFor(() => expect(server.sockets).toHaveLength(1))
     await sleep(20)
     expect(coded('SYG611')).toEqual([])
@@ -274,10 +277,10 @@ describe('G-158: a state change and a send on the connection in the same action'
   it('changing: the send goes to the new connection, not the old one', async () => {
     start(Chat, { WS: makeSocketDriver({ WebSocket: server.FakeWebSocket }) })
     await waitFor(() => expect(text('.room')).toBe('null'))
-    click('.a')
+    await click('.a')
     await waitFor(() => expect(server.sockets).toHaveLength(1))
     server.sockets[0].accept()
-    click('.b')
+    await click('.b')
     await waitFor(() => expect(server.sockets).toHaveLength(2))
     server.sockets[1].accept()
     expect(server.sockets[0].sent).toEqual(['{"hello":"a"}'])
@@ -302,11 +305,11 @@ describe('G-158: a state change and a send on the connection in the same action'
     List.model = { NOOP: (s) => s }
     start(List, { WS: makeSocketDriver({ WebSocket: server.FakeWebSocket }) })
     await waitFor(() => expect(document.querySelector('.item-y .go')).toBeTruthy())
-    click('.item-y .go')
+    await click('.item-y .go')
     await waitFor(() => expect(byPath('/ws/y/1')).toBeTruthy())
     byPath('/ws/y/1').accept()
     expect(byPath('/ws/y/1').sent).toEqual(['from y'])
-    click('.item-y .go')
+    await click('.item-y .go')
     await waitFor(() => expect(byPath('/ws/y/2')).toBeTruthy())
     byPath('/ws/y/2').accept()
     expect(byPath('/ws/y/2').sent).toEqual(['from y'])
@@ -343,10 +346,10 @@ describe('connections per instance', () => {
     b.receive({ text: 'for-b' })
     await waitFor(() => expect(text('.item-a .log')).toBe('up,for-a'))
     await waitFor(() => expect(text('.item-b .log')).toBe('up,for-b'))
-    click('.item-b .say')
+    await click('.item-b .say')
     await waitFor(() => expect(b.sent).toEqual(['{"from":"b"}']))
     expect(a.sent).toEqual([])
-    click('.drop-b')
+    await click('.drop-b')
     await waitFor(() => expect(b.closedByClient).toBe(true))
     expect(a.closedByClient).toBe(false)
     expect(server.sockets).toHaveLength(2)
@@ -373,7 +376,7 @@ describe('connections per instance', () => {
     byPath('/ws/child/one').receive({ text: 'c' })
     await waitFor(() => expect(text('.parent')).toBe('p'))
     await waitFor(() => expect(text('.child')).toBe('c'))
-    click('.topic')
+    await click('.topic')
     await waitFor(() => expect(byPath('/ws/child/two')).toBeTruthy())
     expect(byPath('/ws/child/one').closedByClient).toBe(true)
     expect(byPath('/ws/parent').closedByClient).toBe(false)
@@ -501,7 +504,7 @@ describe('task 22 (chat socket) with the connections static', () => {
     const random = server.sockets[1]
     expect(random.path).toBe('/ws/rooms/random')
     await waitFor(() => expect(general.closedByClient).toBe(true))
-    expect(messages()).toEqual([])
+    await waitFor(() => expect(messages()).toEqual([]))
     random.accept()
     await waitFor(() => expect(connection()).toBe('Online'))
     server.finishCloses()
@@ -581,6 +584,7 @@ describe('SYG112 (dev entry): a connection names an action with no model entry',
     })
     Feed.model = { RECEIVED: (s) => s, ONLINE: (s) => s, TICK: (s) => s }
     start(Feed, { WS: makeSocketDriver({ WebSocket: server.FakeWebSocket, EventSource: class { addEventListener() {} close() {} } }) }, { diagnostics: 'collect' })
+    await waitFor(() => expect(diagnostics('SYG112')).toHaveLength(2))
     await settle(40)
     const found = diagnostics('SYG112')
     expect(found.map(d => d.data.action).sort()).toEqual(['RECIEVED', 'TIK'])

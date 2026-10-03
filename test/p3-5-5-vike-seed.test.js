@@ -4,6 +4,7 @@
 // from it, and onRenderClient hydrates the fetch drivers' caches with it before the page runs,
 // so a fresh entry paints 'success' with no fetch, on first load and on client navigation.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { until } from './support/wait.js'
 import { createElement as h, makeFetchDriver, queryCache } from '../dist/index.esm.js'
 
 const sleep = ms => new Promise(r => setTimeout(r, ms))
@@ -69,8 +70,8 @@ describe('Vike: SSR cache seeding', () => {
     function Quote2(p) { return Quote(p) }
     Object.assign(Quote2, Quote)
     onRenderClient({ Page: Quote2, data: { id: 2 }, config, queryCache: snapshot(2) })
-    await sleep(50)
-    expect(text('.text')).toBe('seeded 2')
+    await until(() => expect(text('.text')).toBe('seeded 2'))   // G-176: not a fixed sleep
+    await sleep(20)
     expect(text('.status')).toBe('success')
     expect(fetchFn).not.toHaveBeenCalled()
   })

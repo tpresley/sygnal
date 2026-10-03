@@ -15,6 +15,7 @@ import { onBrowserSignals } from '../src/extra/browserSignals.js'
 import { _resetDiagnostics } from '../src/extra/diagnostics/index.js'
 import { setupChecks, diagnostics, settle } from './diagnostics/helpers.js'
 import { waitFor, textOf, sleep } from '../evals/agent-ergonomics/hidden/_support/queries.js'
+import { clickWhenRendered } from './support/wait.js'
 
 function jsonResponse(body, status = 200, headers = {}) {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json', ...headers } })
@@ -67,7 +68,8 @@ afterEach(() => {
 })
 const start = (App, options) => (app = run(App, { HTTP: makeFetchDriver(options) }, { mountPoint: '#root' }))
 const text = (sel) => textOf(document.querySelector(sel))
-const click = async (sel) => { document.querySelector(sel).click(); await sleep(10) }
+// G-176: a request can go out before the first render, so wait for the element
+const click = async (sel) => { await clickWhenRendered(sel); await sleep(10) }
 
 // the quote view shows status, refreshing, data and error
 function Quote({ state }) {
@@ -218,7 +220,7 @@ describe('D79: stale-while-revalidate', () => {
     srv.respond(1, { text: 'two' })
     await waitFor(() => expect(text('.text')).toBe('two'))
     await click('.prev')
-    expect(text('.status')).toBe('success+')
+    await waitFor(() => expect(text('.status')).toBe('success+'))
     expect(text('.text')).toBe('one')
     await waitFor(() => expect(srv.paths()).toEqual(['/api/quotes/1', '/api/quotes/2', '/api/quotes/1']))
     srv.respond(2, { text: 'one, newer' })
@@ -232,13 +234,15 @@ describe('D79: stale-while-revalidate', () => {
     srv.respond(0, { text: 'one' })
     await waitFor(() => expect(text('.text')).toBe('one'))
     await click('.next')
+    await waitFor(() => expect(srv.fn).toHaveBeenCalledTimes(2))
     srv.respond(1, { text: 'two' })
     await waitFor(() => expect(text('.text')).toBe('two'))
     await click('.prev')
+    await waitFor(() => expect(text('.text')).toBe('one'))
     expect(text('.status')).toBe('success')
-    expect(text('.text')).toBe('one')
     await click('.next')
-    expect(text('.text')).toBe('two')
+    await waitFor(() => expect(text('.text')).toBe('two'))
+    expect(text('.status')).toBe('success')
     await sleep(20)
     expect(srv.fn).toHaveBeenCalledTimes(2)
     // a refresh always fetches
@@ -316,7 +320,9 @@ describe('D79: de-duplication across senders', () => {
     start(App, { cache: queryCache() })
     await sleep(20)
     await click('.load-a')
+    await waitFor(() => expect(srv.fn).toHaveBeenCalledTimes(1))
     await click('.load-b')
+    await sleep(20)
     expect(srv.fn).toHaveBeenCalledTimes(1)
     await click('.stop-a')
     expect(srv.requests[0].aborted).toBeFalsy()
@@ -327,11 +333,13 @@ describe('D79: de-duplication across senders', () => {
 
     // a fresh entry? staleTime 0: the next load fetches again; both stop: the fetch is aborted
     await click('.load-a')
+    await waitFor(() => expect(srv.fn).toHaveBeenCalledTimes(2))
     await click('.load-b')
+    await sleep(20)
     expect(srv.fn).toHaveBeenCalledTimes(2)
     await click('.stop-a')
     await click('.stop-b')
-    expect(srv.requests[1].aborted).toBe(true)
+    await waitFor(() => expect(srv.requests[1].aborted).toBe(true))
   })
 
   it('a reply-action request without cache: true stays one-send-one-request', async () => {
@@ -346,7 +354,7 @@ describe('D79: de-duplication across senders', () => {
     await sleep(20)
     await click('.load-a')
     await click('.load-b')
-    expect(srv.fn).toHaveBeenCalledTimes(2)
+    await waitFor(() => expect(srv.fn).toHaveBeenCalledTimes(2))
   })
 })
 
@@ -444,7 +452,7 @@ describe('triggers: focus, online, polling', () => {
     srv.respond(0, { text: 'one' })
     await waitFor(() => expect(text('.text')).toBe('one'))
     await click('.next')
-    expect(text('.status')).toBe('idle')
+    await waitFor(() => expect(text('.status')).toBe('idle'))
     await sleep(60)
     expect(srv.fn).toHaveBeenCalledTimes(1)
   })
@@ -506,6 +514,7 @@ describe('D80: invalidation', () => {
       start(editorApp(inval))
       await waitFor(() => expect(srv.fn).toHaveBeenCalledTimes(1))
       srv.respond(0, ['a'])
+      await waitFor(() => expect(text('.list')).toBe('success:a'))
       await click('.inval')
       await sleep(20)
       expect(srv.fn).toHaveBeenCalledTimes(1)
@@ -522,12 +531,13 @@ describe('D80: invalidation', () => {
     srv.respond(0, ['a'])
     await waitFor(() => expect(text('.list')).toBe('success:a'))
     await click('.save')
-    expect(srv.requests[1].method).toBe('PUT')
+    await waitFor(() => expect(srv.requests[1]?.method).toBe('PUT'))
     srv.status(1, 500)
     await waitFor(() => expect(text('.saved')).toBe('no'))
     await sleep(20)
     expect(srv.fn).toHaveBeenCalledTimes(2)
     await click('.save')
+    await waitFor(() => expect(srv.requests.length).toBeGreaterThan(2))
     srv.respond(2, { ok: true })
     await waitFor(() => expect(text('.saved')).toBe('yes'))
     await waitFor(() => expect(srv.fn).toHaveBeenCalledTimes(4))
@@ -576,6 +586,7 @@ describe('D80: retries', () => {
     start(retrying(fast(2)))
     await sleep(20)
     await click('.go')
+    await waitFor(() => expect(srv.requests.length).toBeGreaterThan(0))
     srv.status(0, 500)
     await waitFor(() => expect(srv.fn).toHaveBeenCalledTimes(2))
     srv.networkError(1)
@@ -605,9 +616,11 @@ describe('D80: retries', () => {
     start(retrying(fast(3)))
     await sleep(20)
     await click('.go')
+    await waitFor(() => expect(srv.requests.length).toBeGreaterThan(0))
     srv.status(0, 404)
     await waitFor(() => expect(text('.out')).toBe('failed 404 after 1'))
     await click('.go')
+    await waitFor(() => expect(srv.requests.length).toBeGreaterThan(1))
     srv.status(1, 408)
     await waitFor(() => expect(srv.fn).toHaveBeenCalledTimes(3))
   })
@@ -616,6 +629,7 @@ describe('D80: retries', () => {
     start(retrying({ count: 1, delayMs: 60000 }))
     await sleep(20)
     await click('.go')
+    await waitFor(() => expect(srv.requests.length).toBeGreaterThan(0))
     srv.status(0, 429, { 'Retry-After': '0.03' })
     await waitFor(() => expect(srv.fn).toHaveBeenCalledTimes(2))
   })
@@ -624,6 +638,7 @@ describe('D80: retries', () => {
     start(retrying(undefined))
     await sleep(20)
     await click('.go')
+    await waitFor(() => expect(srv.requests.length).toBeGreaterThan(0))
     srv.status(0, 500)
     await waitFor(() => expect(text('.out')).toBe('failed 500 after undefined'))
     app.dispose()
@@ -634,6 +649,7 @@ describe('D80: retries', () => {
     start(retrying(undefined, { method: 'POST', json: {} }), { retry: fast(2) })
     await sleep(20)
     await click('.go')
+    await waitFor(() => expect(srv.requests.length).toBeGreaterThan(0))
     srv.status(0, 500)
     await waitFor(() => expect(text('.out')).toContain('failed 500'))
     expect(srv.fn).toHaveBeenCalledTimes(1)
@@ -645,19 +661,23 @@ describe('D80: retries', () => {
     start(retrying(fast(1), { method: 'POST', json: {} }))
     await sleep(20)
     await click('.go')
+    await waitFor(() => expect(srv.requests.length).toBeGreaterThan(0))
     srv.status(0, 500)
     await waitFor(() => expect(srv.fn).toHaveBeenCalledTimes(2))
   })
 
   it('latest cancels a pending retry; so does abort', async () => {
-    start(retrying({ count: 3, delayMs: 40, jitter: false }, { latest: true }))
+    // G-176: a real-time backoff; the second click must land while the retry is pending, so the
+    // delay is far longer than a loaded machine's timer lag, and the check waits past it
+    start(retrying({ count: 3, delayMs: 300, jitter: false }, { latest: true }))
     await sleep(20)
     await click('.go')
+    await waitFor(() => expect(srv.requests.length).toBeGreaterThan(0))
     srv.status(0, 500)
     await sleep(5)
     await click('.go')
-    expect(srv.fn).toHaveBeenCalledTimes(2)
-    await sleep(100)
+    await waitFor(() => expect(srv.fn).toHaveBeenCalledTimes(2))
+    await sleep(450)
     expect(srv.fn).toHaveBeenCalledTimes(2)
   })
 

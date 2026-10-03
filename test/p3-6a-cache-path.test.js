@@ -15,6 +15,7 @@ import { renderComponent } from '../src/extra/testing.js'
 import { _resetDiagnostics } from '../src/extra/diagnostics/index.js'
 import { setupChecks, diagnostics } from './diagnostics/helpers.js'
 import { waitFor, textOf, sleep } from '../evals/agent-ergonomics/hidden/_support/queries.js'
+import { clickWhenRendered } from './support/wait.js'
 
 function jsonResponse(body, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
@@ -68,7 +69,13 @@ afterEach(() => {
 })
 const start = (App, options) => (app = run(App, { HTTP: makeFetchDriver(options) }, { mountPoint: '#root' }))
 const text = (sel) => { const el = document.querySelector(sel); return el ? textOf(el) : '' }
-const click = async (sel) => { document.querySelector(sel).click(); await sleep(10) }
+// G-176: wait for the element (renders lag their state on a loaded machine); a save waits for its PUT
+const click = async (sel) => {
+  const puts = srv.count('PUT', '/api/items/1')
+  await clickWhenRendered(sel)
+  if (sel === '.save') await waitFor(() => expect(srv.count('PUT', '/api/items/1')).toBe(puts + 1))
+  await sleep(10)
+}
 
 // ---- the recipe (SKILL.md "List/detail + save"), with h() instead of JSX ----
 const ITEMS = [{ id: 1, title: 'Alpha' }, { id: 2, title: 'Beta' }]
@@ -150,7 +157,7 @@ describe('updates: the reply written into a resource (setQueryData analogue)', (
     srv.respond(srv.last('PUT', '/api/items/1'), { ...ITEM1, title: 'Renamed' })
     await waitFor(() => expect(text('.item-title')).toBe('Renamed'))
     await waitFor(() => expect(srv.count('GET', '/api/items/1')).toBe(2))
-    expect(text('.status')).toBe('Updating…')
+    await waitFor(() => expect(text('.status')).toBe('Updating…'))
     expect(text('.item-title')).toBe('Renamed')
     srv.respond(srv.last('GET', '/api/items/1'), { ...ITEM1, title: 'Renamed (server)' })
     await waitFor(() => expect(text('.item-title')).toBe('Renamed (server)'))
@@ -164,7 +171,7 @@ describe('updates: the reply written into a resource (setQueryData analogue)', (
     await waitFor(() => expect(text('.item-title')).toBe('Renamed'))
     await click('.back')
     await click('.open[data-id="1"]')
-    expect(text('.item-title')).toBe('Renamed')
+    await waitFor(() => expect(text('.item-title')).toBe('Renamed'))
     expect(text('.status')).toBe('')
     await sleep(20)
     expect(srv.count('GET', '/api/items/1')).toBe(1)
@@ -299,21 +306,22 @@ describe('the recipe in app and test', () => {
   it('run(): loading, cache hit while fresh, save shows the new title at once, list refetched with Updating…', async () => {
     await openItem1(makeApp())
     await click('.back')                                // fresh list: from the cache, no request
-    expect(text('.items')).toBe('Alpha Beta')
+    await waitFor(() => expect(text('.items')).toBe('Alpha Beta'))
     expect(text('.status')).toBe('')
     expect(srv.count('GET', '/api/items')).toBe(1)
     await click('.open[data-id="1"]')
-    expect(text('.item-title')).toBe('Alpha')
+    await waitFor(() => expect(text('.item-title')).toBe('Alpha'))
     await click('.save')
     srv.respond(srv.last('PUT', '/api/items/1'), { ...ITEM1, title: 'Renamed' })
     await waitFor(() => expect(text('.item-title')).toBe('Renamed'))
-    expect(text('.status')).toBe('Updating…')
+    await waitFor(() => expect(text('.status')).toBe('Updating…'))
+    await waitFor(() => expect(srv.count('GET', '/api/items/1')).toBe(2))
     srv.respond(srv.last('GET', '/api/items/1'), { ...ITEM1, title: 'Renamed' })
     await waitFor(() => expect(text('.status')).toBe(''))
     await click('.back')                                // the list was invalidated: shown, and refetched
-    expect(text('.items')).toBe('Alpha Beta')
+    await waitFor(() => expect(text('.items')).toBe('Alpha Beta'))
     await waitFor(() => expect(srv.count('GET', '/api/items')).toBe(2))
-    expect(text('.status')).toBe('Updating…')
+    await waitFor(() => expect(text('.status')).toBe('Updating…'))
     srv.respond(srv.last('GET', '/api/items'), [{ id: 1, title: 'Renamed' }, ITEMS[1]])
     await waitFor(() => expect(text('.items')).toBe('Renamed Beta'))
   })

@@ -44,6 +44,9 @@ describe("R2-3: the harness's own hooks run with diagnostics: 'off'", () => {
     }
     t = renderComponent(S, { diagnostics: 'off', timeoutMs: 100 })
     t.simulateAction('SAVE')
+    // G-176: the 100ms timeout is for the next() below; a loaded machine can take longer than
+    // that to deliver SAVE, and then nothing is pending yet to name
+    await t.waitForState(s => s.status === 'saving', 5000)
     await expect(t.next(s => s.status === 'done')).rejects.toThrow(/next\('DONE'\) scheduled by S.*400ms/s)
   })
 

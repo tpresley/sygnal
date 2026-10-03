@@ -13,6 +13,7 @@ import { createElement as h } from '../src/pragma/index.js'
 import { makeRouter } from '../src/extra/router.js'
 import { waitFor, textOf, sleep } from '../evals/agent-ergonomics/hidden/_support/queries.js'
 import { setupChecks, diagnostics } from './diagnostics/helpers.js'
+import { rendered } from './support/wait.js'
 import { _resetDiagnostics } from '../src/extra/diagnostics/index.js'
 
 const routes = { home: '/', task: '/tasks/:id', note: '/tasks/:id/notes/:noteId', notFound: '*' }
@@ -211,7 +212,7 @@ describe('block (unsaved-changes guard)', () => {
     await waitFor(() => expect(p.last()?.name).toBe('home'))
     p.send({ block: 'LEAVE' })
     await sleep(10)
-    const ev = clickOn(document.querySelector('.go'))
+    const ev = clickOn(await rendered('.go'))
     expect(ev.defaultPrevented).toBe(true)
     await waitFor(() => expect(state.blocked).toHaveLength(1))
     expect(path()).toBe('/')
@@ -286,9 +287,9 @@ describe('link interception', () => {
     await waitFor(() => expect(p.last()?.name).toBe('home'))
     document.body.insertAdjacentHTML('beforeend',
       '<svg><a href="/tasks/2"><text class="s1">x</text></a><a xlink:href="/tasks/3" xmlns:xlink="http://www.w3.org/1999/xlink"><text class="s2">y</text></a></svg>')
-    expect(clickOn(document.querySelector('.s1')).defaultPrevented).toBe(true)
+    expect(clickOn(await rendered('.s1')).defaultPrevented).toBe(true)
     await waitFor(() => expect(p.last().path).toBe('/tasks/2'))
-    expect(clickOn(document.querySelector('.s2')).defaultPrevented).toBe(true)
+    expect(clickOn(await rendered('.s2')).defaultPrevented).toBe(true)
     await waitFor(() => expect(p.last().path).toBe('/tasks/3'))
   })
 
@@ -296,7 +297,7 @@ describe('link interception', () => {
     const p = start()
     await waitFor(() => expect(p.last()?.name).toBe('home'))
     document.body.insertAdjacentHTML('beforeend', '<a class="x" rel="noopener external" href="/tasks/2">x</a>')
-    expect(clickOn(document.querySelector('.x')).defaultPrevented).toBe(false)
+    expect(clickOn(await rendered('.x')).defaultPrevented).toBe(false)
   })
 
   it('a link inside an open shadow root (composedPath)', async () => {
@@ -314,9 +315,9 @@ describe('link interception', () => {
     await waitFor(() => expect(p.last()?.name).toBe('home'))
     document.head.innerHTML = '<base href="/tasks/">'
     document.body.insertAdjacentHTML('beforeend', '<a class="rel" href="5">x</a><a class="slash" href="/tasks/6/">y</a>')
-    clickOn(document.querySelector('.rel'))
+    clickOn(await rendered('.rel'))
     await waitFor(() => expect(p.last()).toMatchObject({ name: 'task', params: { id: '5' }, path: '/tasks/5' }))
-    clickOn(document.querySelector('.slash'))
+    clickOn(await rendered('.slash'))
     await waitFor(() => expect(p.last()).toMatchObject({ name: 'task', params: { id: '6' }, path: '/tasks/6' }))
     expect(path()).toBe('/tasks/6/')
   })
@@ -328,7 +329,7 @@ describe('link interception', () => {
     const submit = new Event('submit', { bubbles: true, cancelable: true })
     document.querySelector('.f').dispatchEvent(submit)
     expect(submit.defaultPrevented).toBe(false)
-    expect(clickOn(document.querySelector('.h')).defaultPrevented).toBe(false)
+    expect(clickOn(await rendered('.h')).defaultPrevented).toBe(false)
     await waitFor(() => expect(p.last().hash).toBe('sec'))
     expect(p.last().path).toBe('/')
   })
@@ -340,8 +341,8 @@ describe('link interception', () => {
     p.start()
     await waitFor(() => expect(p.last()).toMatchObject({ name: 'task', path: '/tasks/1' }))
     document.body.insertAdjacentHTML('beforeend', '<a class="out" href="/apple/tasks/2">o</a><a class="in" href="/app/tasks/2">i</a>')
-    expect(clickOn(document.querySelector('.out')).defaultPrevented).toBe(false)
-    expect(clickOn(document.querySelector('.in')).defaultPrevented).toBe(true)
+    expect(clickOn(await rendered('.out')).defaultPrevented).toBe(false)
+    expect(clickOn(await rendered('.in')).defaultPrevented).toBe(true)
     await waitFor(() => expect(p.last()).toMatchObject({ name: 'task', params: { id: '2' }, path: '/tasks/2' }))
     expect(r.href('home')).toBe('/app/')
   })
@@ -352,24 +353,28 @@ describe('link interception', () => {
     app.dispose()
     app = null
     document.body.insertAdjacentHTML('beforeend', '<a class="x" href="/tasks/2">x</a>')
-    expect(clickOn(document.querySelector('.x')).defaultPrevented).toBe(false)
+    expect(clickOn(await rendered('.x')).defaultPrevented).toBe(false)
   })
 })
 
 describe('scroll and focus (G-169)', () => {
+  // G-176: scroll and focus wait for the DOM to be quiet for settleMs (real time, MutationObserver).
+  // A render that lags the route by more than that on a loaded machine is missed (the documented
+  // limit), so the window is far wider than a loaded machine's render lag
+  const SETTLE = 100
   const pages = s => s.route?.name == 'task'
     ? [h('h1', { className: 'h' }, 'Task ' + s.route.params.id), h('div', { id: 'c3' }, 'comments'), h('a', { href: '/', className: 'home' }, 'home')]
     : [h('h1', { className: 'h' }, 'Home'), h('a', { href: '/tasks/1', className: 't1' }, 'one'), h('a', { href: '/tasks/1#c3', className: 'c3' }, 'c3')]
 
   it('push scrolls to the top; back restores the saved position (after render); history uses manual restoration', async () => {
-    const r = makeRouter({ routes, settleMs: 5 })
+    const r = makeRouter({ routes, settleMs: SETTLE })
     const p = probe(r, { body: pages })
     p.start()
     await waitFor(() => expect(p.last()?.name).toBe('home'))
     expect(window.history.scrollRestoration).toBe('manual')
     window.scrollTo(0, 240)
     scrolls = []
-    clickOn(document.querySelector('.t1'))
+    clickOn(await rendered('.t1'))
     expect(scrolls).toEqual([[0, 0]])
     await waitFor(() => expect(text('.h')).toBe('Task 1'))
     window.history.back()
@@ -380,11 +385,11 @@ describe('scroll and focus (G-169)', () => {
   })
 
   it('a push with a hash scrolls the target into view after render; scroll: false skips the top', async () => {
-    const r = makeRouter({ routes, settleMs: 5 })
+    const r = makeRouter({ routes, settleMs: SETTLE })
     const p = probe(r, { body: pages })
     p.start()
     await waitFor(() => expect(p.last()?.name).toBe('home'))
-    clickOn(document.querySelector('.c3'))
+    clickOn(await rendered('.c3'))
     await waitFor(() => expect(Element.prototype.scrollIntoView).toHaveBeenCalled())
     expect(Element.prototype.scrollIntoView.mock.contexts[0].id).toBe('c3')
     scrolls = []
@@ -394,7 +399,7 @@ describe('scroll and focus (G-169)', () => {
   })
 
   it('focus moves to [data-router-focus] or h1 after a push and a back, not on start or replace', async () => {
-    const r = makeRouter({ routes, settleMs: 5 })
+    const r = makeRouter({ routes, settleMs: SETTLE })
     const p = probe(r, { body: s => s.route?.name == 'home' && s.route.query.f
       ? [h('div', { className: 'mark', 'data-router-focus': '' }, 'x'), h('h1', null, 'H')]
       : pages(s) })
@@ -402,29 +407,29 @@ describe('scroll and focus (G-169)', () => {
     await waitFor(() => expect(p.last()?.name).toBe('home'))
     await sleep(30)
     expect(document.activeElement).toBe(document.body)
-    clickOn(document.querySelector('.t1'))
+    clickOn(await rendered('.t1'))
     await waitFor(() => expect(document.activeElement?.textContent).toBe('Task 1'))
     expect(document.activeElement.getAttribute('tabindex')).toBe('-1')
     document.activeElement.blur()
     p.send({ to: 'task', params: { id: 2 }, replace: true })
     await waitFor(() => expect(text('.h')).toBe('Task 2'))
-    await sleep(40)
+    await sleep(SETTLE + 40)
     expect(document.activeElement).toBe(document.body)
     p.send({ to: 'home', query: { f: 1 } })
     await waitFor(() => expect(document.activeElement?.className).toBe('mark'))
   })
 
   it('focus: false and scroll: false turn both off', async () => {
-    const r = makeRouter({ routes, settleMs: 5, focus: false, scroll: false })
+    const r = makeRouter({ routes, settleMs: SETTLE, focus: false, scroll: false })
     const p = probe(r, { body: pages })
     p.start()
     await waitFor(() => expect(p.last()?.name).toBe('home'))
     expect(window.history.scrollRestoration).toBe('auto')
     window.scrollTo(0, 100)
     scrolls = []
-    clickOn(document.querySelector('.t1'))
+    clickOn(await rendered('.t1'))
     await waitFor(() => expect(text('.h')).toBe('Task 1'))
-    await sleep(40)
+    await sleep(SETTLE + 40)
     expect(scrolls).toEqual([])
     expect(document.activeElement).toBe(document.body)
   })
@@ -440,10 +445,10 @@ describe('hash mode', () => {
     const p = probe(r, { body: () => [h('a', { href: r.href('task', { id: 2 }), className: 't2' }, 'two'), h('a', { href: '#plain', className: 'plain' }, 'p')] })
     p.start()
     await waitFor(() => expect(p.last()).toMatchObject({ name: 'task', params: { id: '1' } }))
-    expect(clickOn(document.querySelector('.t2')).defaultPrevented).toBe(true)
+    expect(clickOn(await rendered('.t2')).defaultPrevented).toBe(true)
     await waitFor(() => expect(p.last().params).toEqual({ id: '2' }))
     expect(path()).toBe('/index.html#/tasks/2')
-    expect(clickOn(document.querySelector('.plain')).defaultPrevented).toBe(false)
+    expect(clickOn(await rendered('.plain')).defaultPrevented).toBe(false)
     // a plain #fragment is native, and in hash mode it is a route ('/plain': notFound); jsdom
     // navigates to it a task later
     await waitFor(() => expect(p.last().name).toBe('notFound'))
@@ -522,7 +527,7 @@ describe('Vike (navigate option)', () => {
     p.send({ to: 'task', params: { id: 2 }, replace: true })
     await waitFor(() => expect(p.last().path).toBe('/tasks/2'))
     expect(navigate).toHaveBeenCalledWith('/tasks/2', { overwriteLastHistoryEntry: true })
-    expect(clickOn(document.querySelector('.l')).defaultPrevented).toBe(false)
+    expect(clickOn(await rendered('.l')).defaultPrevented).toBe(false)
     window.history.pushState(null, '', '/tasks/8')
     window.dispatchEvent(new Event('sygnal:navigate'))
     await waitFor(() => expect(p.last().path).toBe('/tasks/8'))
@@ -597,7 +602,8 @@ describe('dev checks (sygnal/diagnostics)', () => {
     expect(diagnostics('SYG112')).toEqual([])
     app.dispose()
     app = run(make('ROUTES', () => ({ block: 'LEAV' })), { ROUTER: r.driver }, { mountPoint: '#root', diagnostics: 'collect' })
-    await sleep(20)
+    // the new app's button: its route action isn't ROUTE, so it stays '-' (the old one showed '/')
+    await waitFor(() => expect(document.querySelector('.g')?.textContent).toBe('-'))
     document.querySelector('.g').click()
     await waitFor(() => expect(diagnostics('SYG112').map(d => [d.data.action, d.data.key, d.data.suggestion])).toEqual([
       ['ROUTES', 'route', 'ROUTE'], ['LEAV', 'block', 'LEAVE'],

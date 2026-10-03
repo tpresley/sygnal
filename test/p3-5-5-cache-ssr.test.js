@@ -15,6 +15,7 @@ import { renderComponent } from '../src/extra/testing.js'
 import { _resetDiagnostics } from '../src/extra/diagnostics/index.js'
 import { setupChecks, diagnostics, settle } from './diagnostics/helpers.js'
 import { waitFor, textOf, sleep } from '../evals/agent-ergonomics/hidden/_support/queries.js'
+import { clickWhenRendered } from './support/wait.js'
 
 const jsonResponse = (body) => new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } })
 const pathOf = (u) => { const x = new URL(String(u), 'http://localhost'); return x.pathname + x.search }
@@ -173,7 +174,7 @@ describe('H-7: seeded first paint', () => {
     const watch = watchStatus()
     app = run(Quote, { HTTP: makeFetchDriver({ cache: queryCache({ staleTime: 60000, initial: serverSnapshot(120000) }) }) }, { mountPoint: '#root' })
     await waitFor(() => expect(srv.fn).toHaveBeenCalledTimes(1))
-    expect(text('.text')).toBe('seeded')
+    await waitFor(() => expect(text('.text')).toBe('seeded'))   // G-176: the refetch can go out before the paint
     srv.respond(0, { text: 'fresh' })
     await waitFor(() => expect(text('.text')).toBe('fresh'))
     watch.stop()
@@ -247,9 +248,9 @@ describe('H-7: { prefetch }', () => {
     document.querySelector('.warm').click()
     await waitFor(() => expect(srv.paths()).toEqual(['/api/quotes/1', '/api/quotes/2']))
     document.querySelector('.next').click()
+    await waitFor(() => expect(text('.status')).toBe('loading'))
     await sleep(20)
     expect(srv.fn).toHaveBeenCalledTimes(2)
-    expect(text('.status')).toBe('loading')
     srv.respond(1, { text: 'two' })
     await waitFor(() => expect(text('.text')).toBe('two'))
     expect(seen).toEqual([])
@@ -318,9 +319,10 @@ describe('SYG635: caching asked for without a queryCache', () => {
     C.resources = { quote: (s) => ({ url: `/api/quotes/${s.id}`, staleTime: 1000 }) }
     C.model = { ...C.model, NEXT: { HTTP: () => ({ url: '/api/x', cache: true, ok: 'GOT' }) }, GOT: (s) => s }
     app = run(C, { HTTP: makeFetchDriver() }, { mountPoint: '#root', diagnostics: 'collect' })
-    await settle(20)
-    document.querySelector('.warm').click()
-    document.querySelector('.next').click()
+    // G-176: wait for the buttons and the reports, not fixed settles
+    await clickWhenRendered('.warm')
+    await clickWhenRendered('.next')
+    await waitFor(() => expect(diagnostics('SYG635')).toHaveLength(3))
     await settle(20)
     const found = diagnostics('SYG635')
     expect(found.map(d => d.data.what).sort()).toEqual(['cache: true', 'staleTime', '{ prefetch }'])
@@ -331,9 +333,8 @@ describe('SYG635: caching asked for without a queryCache', () => {
     setupChecks()
     document.body.innerHTML = '<div id="root"></div>'
     app = run(C, { HTTP: makeFetchDriver({ cache: queryCache() }) }, { mountPoint: '#root', diagnostics: 'collect' })
-    await settle(20)
-    document.querySelector('.warm').click()
-    document.querySelector('.next').click()
+    await clickWhenRendered('.warm')
+    await clickWhenRendered('.next')
     await settle(20)
     expect(diagnostics('SYG635')).toEqual([])
   })
