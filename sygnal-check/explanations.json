@@ -915,6 +915,66 @@
     "docsUrl": "https://sygnal.js.org/reference/errors#syg620"
   },
   {
+    "code": "SYG630",
+    "title": "Cached request is not idempotent",
+    "severity": "warn",
+    "strict": false,
+    "reportedBy": [
+      "dev-entry"
+    ],
+    "explanation": "A request to `makeFetchDriver()` sets `cache: true` or `staleTime` but is not a GET or HEAD (a request with `json` or `body` defaults to POST), for example `{ url: '/api/quotes', method: 'POST', json, cache: true }`. The driver caches its reply by method, URL and body, so a second identical write within `staleTime` is answered from the cache and never reaches the server, and identical writes in flight share one fetch. Writes should always be sent.",
+    "fix": "Remove `cache` / `staleTime` from the write. To refresh cached reads after it succeeds, tag the reads (`tags: ['quotes']`) and add `invalidates: ['quotes']` to the write.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg630"
+  },
+  {
+    "code": "SYG631",
+    "title": "validate is not a Standard Schema",
+    "severity": "error",
+    "strict": false,
+    "reportedBy": [
+      "dev-entry"
+    ],
+    "explanation": "A request or resource to `makeFetchDriver()` has a `validate` value that is not a Standard Schema, an object with a `~standard.validate` function (zod, valibot and arktype schemas are). A plain function or another validator's object does not qualify. The driver cannot validate the reply, so the request fails with a TypeError on its `error` action (or as the resource's error).",
+    "fix": "Pass the schema object itself: `validate: QuoteSchema` (for zod, `z.object({ ... })`). To check a body with your own function, use `parse: (res) => res.json().then(check)` instead.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg631"
+  },
+  {
+    "code": "SYG632",
+    "title": "invalidate matched nothing",
+    "severity": "info",
+    "strict": false,
+    "reportedBy": [
+      "dev-entry"
+    ],
+    "explanation": "A `{ invalidate }` value sent to `makeFetchDriver()` matched no cache entry and no mounted resource, so nothing was refetched or marked stale. Tags are explicit: `{ invalidate: 'quotes' }` matches only requests with `tags: ['quotes']`; a string starting with '/' is a prefix of the request's `url` as written (without the driver's `baseUrl`); a function is called with each request. This is info: invalidating data that no component shows at the moment is often fine.",
+    "fix": "Add `tags: ['quotes']` to the resources (or cached requests) the write should refresh, or invalidate by URL prefix: `{ invalidate: '/quotes' }`.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg632"
+  },
+  {
+    "code": "SYG633",
+    "title": "abort names a lane the requests do not use",
+    "severity": "warn",
+    "strict": false,
+    "reportedBy": [
+      "dev-entry"
+    ],
+    "explanation": "`{ abort: 'X' }` cancels this component instance's requests whose key is 'X'; a request's key is its `key`, else its `ok` action, else its `error` action. The instance sends its `ok: 'X'` requests with another `key`, so the abort matches none of them and they still deliver. (G-175.)",
+    "fix": "Abort by that key: `{ abort: true, key: 'search' }`, or drop `key` from the requests so their lane is the `ok` action.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg633"
+  },
+  {
+    "code": "SYG634",
+    "title": "latest: true with a computed key",
+    "severity": "info",
+    "strict": false,
+    "reportedBy": [
+      "static"
+    ],
+    "explanation": "A request has `latest: true` and a `key` that is not a string literal, for example `key: 'search-' + state.q`. `latest` cancels this instance's earlier requests with the same key, so a key that changes with state gives every value its own lane, and a new request never cancels the previous one: out-of-order replies can still arrive. That is right for independent lanes, such as one save per row, so this is info.",
+    "fix": "Use a fixed key (`key: 'search'`) or none (the lane is the `ok` action) so the newest request cancels the others. Keep a computed key only for lanes that should run side by side (`// sygnal-ignore SYG634`).",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg634"
+  },
+  {
     "code": "SYG900",
     "title": "A diagnostics check threw",
     "severity": "warn",

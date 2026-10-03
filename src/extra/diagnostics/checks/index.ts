@@ -18,6 +18,10 @@
  * | SYG105 | EVENTS type emitted-not-selected / selected-not-emitted| events.ts      |
  * | SYG106 | parent prop overwritten by a reserved view argument    | props.ts       |
  * | SYG112 | reply action has no model entry                        | replies.ts     |
+ * | SYG630 | cached request that isn't idempotent (POST + cache)    | fetch.ts       |
+ * | SYG631 | validate is not a Standard Schema                      | fetch.ts       |
+ * | SYG632 | invalidate matched nothing (info)                      | fetch.ts       |
+ * | SYG633 | abort names a lane its requests don't use              | fetch.ts       |
  * | SYG115 | unknown DOM event shorthand (DOM.key(...))             | shorthand.ts   |
  * | SYG116 | EVENTS value with no string type (a function)          | events.ts      |
  * | SYG130 | href() names no route / leaves out a param             | router.ts      |
@@ -56,6 +60,7 @@ import {datasetCheck} from './dataset'
 import {strictCheck} from './strict'
 import {repliesCheck} from './replies'
 import {routerCheck, installRouterHooks} from './router'
+import {fetchCheck} from './fetch'
 import {installRxjsHints} from './rxjsHints'
 import {inspectCheck, installInspect} from './inspect'
 
@@ -64,7 +69,7 @@ export {configureStrict, isStrictEnabled} from './strict'
 export type {EventBusSummary} from './events'
 export {RXJS_HINTS} from './rxjsHints'
 export {inspect} from './inspect'
-export type {InspectGraph, InspectComponent, InspectAction, InspectActionTrigger, InspectChild, InspectSelector, InspectDiagnostic, InspectOptions} from './public'
+export type {InspectResource, InspectCacheEntry, InspectGraph, InspectComponent, InspectAction, InspectActionTrigger, InspectChild, InspectSelector, InspectDiagnostic, InspectOptions} from './public'
 export {listCodes, getCodeInfo} from '../codes'
 export type {DiagnosticCodeInfo} from '../codes'
 
@@ -81,6 +86,7 @@ export const checks: DiagnosticCheck[] = [
   strictCheck,
   repliesCheck,
   routerCheck,
+  fetchCheck,
   inspectCheck,
 ]
 

@@ -182,6 +182,28 @@ export interface InspectComponent {
   children: InspectChild[]
   selectors: InspectSelector[]
   diagnostics: InspectDiagnostic[]
+  /** runtime, PLAN-3 5-3: the instance's `resources` and their state */
+  resources?: InspectResource[]
+}
+
+/** PLAN-3 5-3: a resource of a component instance (runtime inspect()) */
+export interface InspectResource {
+  name: string
+  status: 'idle' | 'loading' | 'success' | 'error'
+  refreshing: boolean
+  /** `data` is set (a success, or kept through a refetch) */
+  hasData: boolean
+  /** the error message while 'error' */
+  error?: string
+}
+
+/** PLAN-3 5-3: a makeFetchDriver cache entry (runtime inspect(), t.cache) */
+export interface InspectCacheEntry {
+  key: string
+  age?: number
+  stale: boolean
+  subscribers: number
+  data: any
 }
 
 export interface InspectGraph {
@@ -193,6 +215,8 @@ export interface InspectGraph {
   events: Record<string, { emitters: string[]; selectors: string[] }>
   /** diagnostics not tied to a listed component */
   diagnostics: InspectDiagnostic[]
+  /** runtime, PLAN-3 5-3: makeFetchDriver cache entries, by sink name (empty when no cache) */
+  cache?: Record<string, InspectCacheEntry[]>
 }
 
 export interface InspectOptions {

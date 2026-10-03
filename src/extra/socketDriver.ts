@@ -1,6 +1,7 @@
 import xs, {Stream} from 'xstream';
 import {senderOf, keepSender, allowed, makeReplies} from './replies';
 import {error as logError} from './diagnostics/legacy';
+import {backoff} from './backoff';
 
 /*
  * makeSocketDriver(options?) (PLAN-3 §1.3): WebSocket and server-sent events, declared per
@@ -83,10 +84,6 @@ export function makeSocketDriver(options: any = {}) {
       const r = spec.reconnect, d = options.reconnect;
       return r === false || (r == null && d === false) ? null : {...(d && typeof d == 'object' && d), ...(r && typeof r == 'object' && r)};
     };
-    const delay = (p: any, n: number) => {
-      const j = p.jitter === false ? 0 : p.jitter == null || p.jitter === true ? 0.2 : +p.jitter;
-      return Math.min(p.maxDelayMs ?? 10000, (p.delayMs ?? 500) * 2 ** n) * (1 + j * (2 * Math.random() - 1));
-    };
 
     const out = (t: any, data: any, e: any) => {
       try { t.s.send(data); } catch (error) { deliver(e, 'error', {error}); }
@@ -113,7 +110,7 @@ export function makeSocketDriver(options: any = {}) {
         if (p) again = again || p;
         else detach(e, true);
       });
-      if (again && t.subs.size) t.timer = setTimeout(() => connect(t), delay(again, t.n++));
+      if (again && t.subs.size) t.timer = setTimeout(() => connect(t), backoff(again, t.n++));
     };
 
     const connect = (t: any) => {

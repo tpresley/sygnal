@@ -1502,6 +1502,56 @@ A value sent to the router's sink (`makeRouter().driver`) could not be acted on,
 
 **Fix:** Navigate with `{ to: 'task', params: { id } }` (plus `query`, `hash`, `replace` as needed), `{ url: router.href(...) }`, `{ back: true }`, `{ forward: true }`, `{ block: 'CONFIRM_LEAVE' }` or `{ prefetch: 'task', params }`.
 
+### SYG630
+
+**Cached request is not idempotent**
+
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+A request to `makeFetchDriver()` sets `cache: true` or `staleTime` but is not a GET or HEAD (a request with `json` or `body` defaults to POST), for example `{ url: '/api/quotes', method: 'POST', json, cache: true }`. The driver caches its reply by method, URL and body, so a second identical write within `staleTime` is answered from the cache and never reaches the server, and identical writes in flight share one fetch. Writes should always be sent.
+
+**Fix:** Remove `cache` / `staleTime` from the write. To refresh cached reads after it succeeds, tag the reads (`tags: ['quotes']`) and add `invalidates: ['quotes']` to the write.
+
+### SYG631
+
+**validate is not a Standard Schema**
+
+Severity: `error` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+A request or resource to `makeFetchDriver()` has a `validate` value that is not a Standard Schema, an object with a `~standard.validate` function (zod, valibot and arktype schemas are). A plain function or another validator's object does not qualify. The driver cannot validate the reply, so the request fails with a TypeError on its `error` action (or as the resource's error).
+
+**Fix:** Pass the schema object itself: `validate: QuoteSchema` (for zod, `z.object({ ... })`). To check a body with your own function, use `parse: (res) => res.json().then(check)` instead.
+
+### SYG632
+
+**invalidate matched nothing**
+
+Severity: `info` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+A `{ invalidate }` value sent to `makeFetchDriver()` matched no cache entry and no mounted resource, so nothing was refetched or marked stale. Tags are explicit: `{ invalidate: 'quotes' }` matches only requests with `tags: ['quotes']`; a string starting with '/' is a prefix of the request's `url` as written (without the driver's `baseUrl`); a function is called with each request. This is info: invalidating data that no component shows at the moment is often fine.
+
+**Fix:** Add `tags: ['quotes']` to the resources (or cached requests) the write should refresh, or invalidate by URL prefix: `{ invalidate: '/quotes' }`.
+
+### SYG633
+
+**abort names a lane the requests do not use**
+
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+`{ abort: 'X' }` cancels this component instance's requests whose key is 'X'; a request's key is its `key`, else its `ok` action, else its `error` action. The instance sends its `ok: 'X'` requests with another `key`, so the abort matches none of them and they still deliver. (G-175.)
+
+**Fix:** Abort by that key: `{ abort: true, key: 'search' }`, or drop `key` from the requests so their lane is the `ok` action.
+
+### SYG634
+
+**latest: true with a computed key**
+
+Severity: `info` · Reported by: `sygnal-check`
+
+A request has `latest: true` and a `key` that is not a string literal, for example `key: 'search-' + state.q`. `latest` cancels this instance's earlier requests with the same key, so a key that changes with state gives every value its own lane, and a new request never cancels the previous one: out-of-order replies can still arrive. That is right for independent lanes, such as one save per row, so this is info.
+
+**Fix:** Use a fixed key (`key: 'search'`) or none (the lane is the `ok` action) so the newest request cancels the others. Keep a computed key only for lanes that should run side by side (`// sygnal-ignore SYG634`).
+
 ## SYG9xx: Internal
 
 ### SYG900

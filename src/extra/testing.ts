@@ -257,6 +257,12 @@ export interface RenderOptions {
    * answers it; t.requests lists it as `{ url, ...request, resource: name }`.
    */
   resourceSink?: string;
+  /**
+   * PLAN-3 5-3: options for the HTTP fakes' makeFetchDriver (all but `fetch`), e.g.
+   * `{ cache: true }` or `{ cache: { staleTime: 30000 }, retry: 2 }`. Focus / reconnect refetches
+   * come only from t.focus() / t.online(), never from the test's window.
+   */
+  http?: Record<string, any>;
 }
 
 export interface RenderResult {
@@ -345,6 +351,15 @@ export interface RenderResult {
    * URL, reconnect per spec on the test's timers). The connections declared now, in order.
    */
   connections: (sinkName: string) => FakeConnection[];
+  /**
+   * PLAN-3 5-3: the cache entries of an HTTP fake (renderComponent(C, { http: { cache: true } })):
+   * `{ key, age, stale, subscribers, data, tags }` each (age in ms; undefined before data arrives)
+   */
+  cache: (sinkName: string) => Array<{key: string; age?: number; stale: boolean; subscribers: number; data: any; tags?: string[]}>;
+  /** PLAN-3 5-3: the window regains focus (queued like simulate*): stale mounted resources refetch (cache on) */
+  focus: () => void;
+  /** PLAN-3 5-3: the browser goes back online (queued like simulate*): stale mounted resources refetch (cache on) */
+  online: () => void;
   /** PLAN-3 2-C: complete the open of connecting connection(s) (`autoConnect: false`, or a pending reconnect): `open` fires */
   open: (sinkName: string, target?: FakeConnectionTarget) => Promise<void>;
   /**
@@ -831,7 +846,7 @@ export function renderComponent(
   componentDef: any,
   options: RenderOptions = {}
 ): RenderResult {
-  const {initialState, mockConfig = {}, drivers = {}, diagnostics, strict, dom = 'mock', autoConnect = true, socketSink = 'WS', resourceSink = 'HTTP'} = options;
+  const {initialState, mockConfig = {}, drivers = {}, diagnostics, strict, dom = 'mock', autoConnect = true, socketSink = 'WS', resourceSink = 'HTTP', http: httpOptions} = options;
   const {intent, model = {}} = componentDef;
   // E4: real DOM mode
   const real = dom == 'real';
@@ -1118,6 +1133,8 @@ export function renderComponent(
   type Pending = {value: any; req: any; category: any; res?: string; live: boolean; settle: (ok: boolean, v: any) => void};
   type Fake = {select: any; errors: any; subs: Set<FakeSub>; at: (ns: any[]) => any; pending: Pending[]; in$: any; http: any; ws: Sock};
   const fakes = new Map<string, Fake>();
+  // 5-3: the fake drivers' focus / online listeners (t.focus, t.online)
+  const signals = new Set<(s: string) => void>();
   // the value record() is sending (as listed in t.requests), and what the driver's _tap named
   let sending: any, tapped: any[] | undefined;
   const fake = (name: string): Fake => {
@@ -1128,6 +1145,9 @@ export function renderComponent(
       const in$ = xs.create();
       const ws = sockFake();
       const http = makeFetchDriver({
+        ...httpOptions,
+        // 5-3: focus / online come from t.focus() / t.online() only
+        _on: (f: any) => { signals.add(f); return () => signals.delete(f); },
         _tap: (req: any, res?: string) => { tapped = [req, res]; },
         fetch: (url: string, init: any) => new Promise((resolve, reject) => {
           const [req, res] = tapped || [{url}];
@@ -1161,6 +1181,8 @@ export function renderComponent(
           select: (sel?: any) => xs.merge(hs.select(sel), own(false)(sel), sock.select(sel)),
           errors: (sel?: any) => xs.merge(hs.errors(sel), own(true)(sel)),
           subs, at, pending, in$, http, ws,
+          // 5-3: the driver's matcher / inspection (the dev checks' SYG632, t.cache)
+          __matches: http.__matches, __inspect: http.__inspect,
           isolateSource: (_: any, scope: any) => at(ns.concat(scope)),
           isolateSink: (sink$: any, scope: any) => sink$.map((v: any) => tag(v, scope)),
           // G-160: the fake named by `socketSink` receives the components' connections static
@@ -1255,7 +1277,7 @@ export function renderComponent(
     const shown = v && typeof v == 'object' && v[STR] !== undefined ? v[STR] : v;
     sinkValues(name).push(shown);
     const obj = !!v && typeof v == 'object';
-    const listed = !(obj && (v.abort || v.resources || v.refresh));
+    const listed = !(obj && (v.abort || v.resources || v.refresh || 'invalidate' in v));
     const value = typeof shown == 'string' ? {url: shown} : shown;
     if (listed) requests(name).push(value);
     if (!track) return;
@@ -1770,6 +1792,9 @@ export function renderComponent(
   // with t.respond's rules (scripted()): they throw at the call when nothing matches.
   const conns = (name: string): Conn[] => [...(fakes.get(name)?.ws.conns.values() || [])].flatMap(m => [...m.values()]);
   const connections = (name: string) => conns(name).map(sockView);
+  // 5-3: the driver's own view of its cache; t.focus / t.online fire the fake drivers' signals
+  const cache = (name: string) => fake(name).http.__inspect().cache;
+  const signal = (s: string) => later(() => (signals.forEach(f => f(s)), true));
   const sent = (name: string, to?: string) => {
     const all = fake(name).ws.sent;
     return to === undefined ? all : all.filter(v => v.to === to);
@@ -2203,6 +2228,9 @@ export function renderComponent(
     respond,
     fail,
     connections,
+    cache,
+    focus: () => signal('focus'),
+    online: () => signal('online'),
     open,
     push,
     drop,

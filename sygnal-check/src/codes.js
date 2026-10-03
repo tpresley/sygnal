@@ -24,6 +24,7 @@ export const CODES = {
   SYG111: { severity: 'warn', title: 'Controlled input has no input listener' },
   SYG112: { severity: 'error', title: 'Reply action has no model entry' },
   SYG401: { severity: 'warn', title: "Collection 'from' field is missing or not an array" },
+  SYG634: { severity: 'info', title: 'latest: true with a computed key' },
   // strict mode (--strict), dev-plans/PLAN-1-canonical-forms.md; severities match
   // STRICT_CODE_SEVERITY in src/extra/diagnostics/codes.ts
   SYG501: { severity: 'warn', title: 'View uses positional arguments', strict: true },

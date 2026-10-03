@@ -217,6 +217,12 @@ export const CODE_TITLES: Record<string, string> = {
   SYG610: "Request has a 'then' or 'catch' key",
   SYG611: 'Socket message not sent or connection not opened',
   SYG620: 'Router command not performed',
+  // PLAN-3 5-3: makeFetchDriver's cache, invalidation and validation (dev entry; SYG634 static only)
+  SYG630: 'Cached request is not idempotent',
+  SYG631: 'validate is not a Standard Schema',
+  SYG632: 'invalidate matched nothing',
+  SYG633: 'abort names a lane the requests do not use',
+  SYG634: 'latest: true with a computed key',
   SYG901: 'Sub-component sink stream errored',
   SYG902: 'EFFECT stream errored',
   SYG903: 'Component factory returned invalid sinks',
@@ -257,6 +263,13 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG132: 'warn',
   SYG133: 'warn',
   SYG620: 'error',
+  // PLAN-3 5-3 (fetch.ts)
+  SYG630: 'warn',
+  SYG631: 'error',
+  SYG632: 'info',
+  SYG633: 'warn',
+  // static only (sygnal-check); listed so the entry knows its title
+  SYG634: 'info',
 }
 
 export function getCodeInfo(code: string): DiagnosticCodeInfo | undefined {

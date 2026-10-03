@@ -85,7 +85,7 @@ The stream form takes `[name, instance]` pairs: `switchable({ list: TaskList, ta
 
 ## Hidden pages pause connections and resources
 
-While a page is hidden, it and every component inside it (sub-components and Collection items) declare only the [`connections`](/guide/sockets/) and `resources` entries marked `background: true`. The others are removed, as if they had returned a falsy value: their sockets close (without a `close` action) and their requests are aborted (the resource goes back to `idle`). When the page is shown again, every entry is declared again: the sockets open as new connections (`open` with `reconnected: false`) and the resources are fetched again.
+While a page is hidden, it and every component inside it (sub-components and Collection items) declare only the [`connections`](/guide/sockets/) and `resources` entries marked `background: true`. The others pause: their sockets close (without a `close` action), and their resource requests in flight are aborted while each resource keeps its last result (or goes back to `idle` if nothing had arrived). When the page is shown again, every entry is declared again: the sockets open as new connections (`open` with `reconnected: false`) and the resources refetch, keeping their data with `refreshing: true` ([Resources and Caching](/guide/resources/)).
 
 ```jsx
 function Chat({ state }) {

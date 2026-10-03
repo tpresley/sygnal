@@ -321,7 +321,7 @@ An object whose keys are all `request`, `category`, `status` or `body` is read a
 
 ### Resources
 
-A component's `resources` static goes to the fake named `HTTP` (`renderComponent(C, { resourceSink: 'API' })` for another name). Each fetch the driver makes for a resource is a pending request, listed in `t.requests('HTTP')` as `{ url, ...request, resource: 'quote' }`. The `{ resources }` declarations and `{ refresh }` commands are not requests: they are only in `t.sinkValues('HTTP')`. Answer a fetch by the resource name, its URL, or a partial request:
+A component's `resources` static goes to the fake named `HTTP` (`renderComponent(C, { resourceSink: 'API' })` for another name). Each fetch the driver makes for a resource is a pending request, listed in `t.requests('HTTP')` as `{ url, ...request, resource: 'quote' }`. The `{ resources }` declarations and the `{ refresh }` and `{ invalidate }` commands are not requests: they are only in `t.sinkValues('HTTP')`. Answer a fetch by the resource name, its URL, or a partial request:
 
 ```jsx
 function Quote({ state }) {
@@ -348,13 +348,13 @@ it('loads the picked quote, and only the latest one', async () => {
   expect(t.html()).toContain('Hi')
 
   t.simulateAction('REFRESH')
-  await t.waitForState((s) => s.quote.status === 'loading')
+  await t.waitForState((s) => s.quote.refreshing)       // a refetch keeps status and data
   await t.fail('HTTP', 500, 'quote')
   expect(t.state.quote.error.status).toBe(500)
 })
 ```
 
-`t.states` shows every `RESOURCE` write (`idle`, `loading`, `success`, `error`), and `ok` / `error` actions on the resource's request run after the write, as in the app.
+`t.states` shows every `RESOURCE` write (`idle`, `loading`, `success`, `error`, with `refreshing` during a refetch), and `ok` / `error` actions on the resource's request run after the write, as in the app. For the cache (`renderComponent(C, { http: { cache: true } })`, `t.cache`, `t.focus`, `t.online`), see [Resources and Caching](/guide/resources/#testing).
 
 ### Sockets: connections(), push(), drop()
 
@@ -460,6 +460,7 @@ When an event "does nothing" in a test, `t.inspect()` usually shows why: a selec
 | `autoConnect` | `boolean` | `true` | Fake socket connections open by themselves; `false` holds them until `t.open()` (see [Sockets](#sockets-connections-push-drop)) |
 | `socketSink` | `string` | `'WS'` | The driverless sink that receives the components' `connections` static; created even when no model entry names it (a read-only SSE component). Pass a driver under this name in `drivers` to use a real one |
 | `resourceSink` | `string` | `'HTTP'` | The driverless sink that receives the components' `resources` static (see [Resources](#resources)) |
+| `http` | `object` | — | Options for the HTTP fakes' `makeFetchDriver()` (all but `fetch`), e.g. `{ cache: true }` or `{ retry: 2 }` ([Resources and Caching](/guide/resources/#testing)) |
 
 The timing options (and a timeout passed to `next()`, `waitForState()` or `settle()`) must be finite numbers of milliseconds from 0 to 2147483647 (`setTimeout`'s limit); anything else throws.
 
@@ -478,7 +479,9 @@ The timing options (and a timeout passed to `next()`, `waitForState()` or `settl
 | `html` | `() => string` | Latest render as HTML (throws before the first render) |
 | `emitted` | `{ type, data }[]` | EVENTS emissions |
 | `sinkValues` | `(sink) => any[]` | Values sent to a sink |
-| `requests` | `(sink) => any[]` | Requests sent to a sink, as objects (a string is `{ url }`, a resource fetch has `resource`); no `{ abort }`, `{ resources }` or `{ refresh }` values |
+| `requests` | `(sink) => any[]` | Requests sent to a sink, as objects (a string is `{ url }`, a resource fetch has `resource`); no `{ abort }`, `{ resources }`, `{ refresh }` or `{ invalidate }` values |
+| `cache` | `(sink) => FakeCacheEntry[]` | The cache entries of an HTTP fake (`{ key, age, stale, subscribers, data }`; with the `http: { cache }` option) |
+| `focus`, `online` | `() => void` | The window regains focus / the browser comes back online (queued like `simulate*`): stale mounted resources refetch when the cache is on |
 | `respond` | `(sink, value, target?) => Promise<void>` | Answer the newest pending request matching `target` on the fake source (its `ok` action, or `select()`); throws if none is pending |
 | `fail` | `(sink, error, target?) => Promise<void>` | Fail it (its `error` action, or `errors()`); throws if none is pending |
 | `connections` | `(sink) => FakeConnection[]` | The connections declared on a fake socket sink (`name`, `url`, `state`, `sender`, the spec) |

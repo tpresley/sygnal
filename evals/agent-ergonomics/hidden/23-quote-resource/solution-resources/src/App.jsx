@@ -4,7 +4,9 @@ const QUOTE_IDS = [101, 102, 103]
 const STATUS_TEXT = { loading: 'Loading…', error: 'Could not load the quote.' }
 
 function App({ state }) {
-  const { status, data } = state.quote
+  // D78: Refresh keeps the shown quote in `data` with refreshing: true; this task hides it
+  const { status, refreshing } = state.quote
+  const data = status === 'success' && !refreshing ? state.quote.data : null
   return (
     <div className="quotes">
       <h1>Quotes</h1>
@@ -24,7 +26,7 @@ function App({ state }) {
           <div className="quote">
             <h2>{`Quote ${state.selected}`}</h2>
             <button className="refresh">Refresh</button>
-            <p className="status">{STATUS_TEXT[status] ?? ''}</p>
+            <p className="status">{refreshing ? 'Loading…' : STATUS_TEXT[status] ?? ''}</p>
             <blockquote className="quote-text">{data?.text ?? ''}</blockquote>
             <p className="quote-author">{data?.author ?? ''}</p>
           </div>
@@ -38,7 +40,7 @@ App.initialState = {
   selected: null,
 }
 
-// state.quote = { status: 'idle' | 'loading' | 'success' | 'error', data, error }
+// state.quote = { status: 'idle' | 'loading' | 'success' | 'error', data, error, refreshing }
 App.resources = {
   quote: (state) => state.selected !== null && `/api/quotes/${state.selected}`,
 }
