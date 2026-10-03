@@ -64,7 +64,7 @@ if (module.hot) {
 4. A new instance is created with the updated code
 5. The captured state is restored into the new instance
 
-State is preserved across reloads via `window.__SYGNAL_HMR_PERSISTED_STATE`.
+Each app keeps its own state: `hmr()` reads the current state from that app's own state stream (there is no page-wide saved state). Two apps on one page each get their own state back after a swap.
 
 ## TypeScript HMR
 

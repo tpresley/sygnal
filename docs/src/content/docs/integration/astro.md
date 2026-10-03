@@ -55,6 +55,17 @@ export default Counter
 
 A prop named `initialState` overrides the component's `.initialState` for that island. `state`, `context`, `children`, `slots` and `peers` are reserved view arguments, so don't use them as prop names.
 
+A prop named `uid` sets the island's [`uid()`](/guide/forms/#labels-and-ids-uid) root, on the server and on the client. Every island starts from the same root (`u`), so two islands of the same component on one page would render the same ids; give each its own:
+
+```astro
+<Signup client:load uid="signup-top" />
+<Signup client:load uid="signup-footer" />
+```
+
+## Error reporting
+
+The integration's `onError` option names a module whose default export is the [app-level error hook](/advanced/error-boundaries/#app-level-error-hook) for every island, on the server and in the browser: `sygnal({ onError: './src/onError.js' })`.
+
 ## Diagnostics in Dev
 
 In `astro dev`, islands get the same [diagnostics](/guide/diagnostics/) as a Vite app: the integration adds the Sygnal Vite plugin, which turns on the dev checks for the island client and runs `sygnal-check` (when installed). All diagnostics modes, strict mode and the ignore list are supported, with the same options as the [Vite plugin](/integration/bundler-config/#plugin-options):

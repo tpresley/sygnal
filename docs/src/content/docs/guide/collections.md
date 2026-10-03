@@ -146,3 +146,28 @@ The Collection renders its items inside a `<div>` container. `className` sets th
 ```
 
 Inside a Collection item, selectors in the item's own intent see only that item's elements. A parent can't select elements inside its items ([SYG104](/reference/errors/#syg104)).
+
+## Big Lists: Collection or Mapped Rows
+
+Each Collection item is a full component, with its own intent, model, state lens and isolation. That is what you want when rows have behaviour: editing in place, their own buttons, their own requests. It also costs something per row, at creation and on every update.
+
+For a big list that is mostly read (a report, a log, search results), map the rows in one component instead:
+
+```jsx
+function Report({ state }) {
+  return (
+    <table>
+      <tbody>
+        {state.rows.map(row => (
+          <tr key={row.id}>
+            <td>{row.name}</td>
+            <td>{row.total}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )
+}
+```
+
+In the [performance baseline](https://github.com/tpresley/sygnal/blob/main/benchmarks/RESULTS.md) (1,000 rows), creating the rows this way took about a third of the time of a Collection, and updating one row a little more than half. Rows that need a little interaction can still be mapped: put a `data-id` on the row's button and read it in the parent's intent (`DOM.click('.row-delete').map(e => e.target.dataset.id)`). Switch to a Collection when rows get state or behaviour of their own.

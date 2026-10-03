@@ -16,14 +16,14 @@ MyComponent.model = {
 }
 ```
 
-Always return a new object and spread the previous state. A reducer that drops keys is reported as [SYG201](/reference/errors/#syg201).
+Always return a new object and spread the previous state. A reducer that drops keys is reported as [SYG201](/reference/errors/#syg201), and one that changes the state in place as [SYG222](#aborting-an-action).
 
 Every reducer receives four arguments:
 
 1. `state`: the current component state (including [calculated fields](/guide/calculated-fields/))
 2. `data`: the value emitted by the action's stream in intent
 3. `next`: a function that dispatches another action (see [Chaining Actions](#chaining-actions-with-next))
-4. `props`: the props the parent passed, plus `context`, `children` and `slots`
+4. `props`: the props the parent passed, plus `context`, `children`, `slots` and [`uid`](/guide/forms/#labels-and-ids-uid)
 
 ```jsx
 Item.model = {
@@ -57,7 +57,40 @@ MyComponent.model = {
 }
 ```
 
-Use `ABORT` rather than returning `state` unchanged; [strict mode](/guide/strict-mode/) flags the latter ([SYG502](/reference/errors/#syg502)). Returning `undefined` is different: in a [Collection](/guide/collections/#self-removal) item it removes the item, and in a root component it wipes the state ([SYG202](/reference/errors/#syg202)).
+Returning the state object the reducer received means the same thing: no state is emitted and nothing re-renders, so `(state, x) => x ? { ...state, x } : state` is a no-op when `x` is empty. The docs use `ABORT` because it says so explicitly. (Before 6.0, returning `state` produced a new state and strict mode flagged it as SYG502; that rule is retired.)
+
+Because the same object means "no change", a reducer that changes the state in place and returns it has no effect. In dev, Sygnal reports that as [SYG222](/reference/errors/#syg222). Return a new object:
+
+```jsx
+Todo.model = {
+  // SYG222: the same object comes back, so the change is ignored
+  // DONE: (state) => { state.done = true; return state },
+  DONE: (state) => ({ ...state, done: true }),
+}
+```
+
+Returning `undefined` is different: in a [Collection](/guide/collections/#self-removal) item it removes the item, and in a root component it wipes the state ([SYG202](/reference/errors/#syg202)).
+
+### Writing updates as mutations with Immer
+
+Deep updates by spreading get long. [Immer](https://immerjs.github.io/immer/)'s curried `produce()` lets you write them as mutations of a draft, and returns a new object, or the original one when the recipe changed nothing, which Sygnal then treats as "no change". A `produce()` recipe is a STATE reducer as it is:
+
+```jsx
+import { produce } from 'immer'
+
+Todos.model = {
+  ADD: produce((draft, text) => {
+    draft.todos.push({ id: draft.nextId, text, done: false })
+    draft.nextId += 1
+  }),
+  TOGGLE: produce((draft, id) => {
+    const todo = draft.todos.find(t => t.id === id)
+    if (todo) todo.done = !todo.done
+  }),
+}
+```
+
+The recipe gets the reducer's arguments: `(draft, data, next, props)`. Immer is not bundled with Sygnal; install it yourself (`npm install immer`). By default Immer freezes the objects it returns, so another reducer that changes them in place throws instead of being silently ignored.
 
 ## Driver Sinks: the Object Form
 

@@ -120,6 +120,34 @@ What doesn't work is a bound `value` with no `input`/`change` listener, for exam
 
 `value={null}` (or `checked={null}`) clears the field and keeps it controlled; leaving the prop out makes the field uncontrolled, so whatever the user typed stays.
 
+## Labels and ids: uid()
+
+Every field needs a label ([SYG702](/guide/accessibility/#syg702-form-field-without-a-label)). Wrapping the field in a `<label>` needs no id. When the label sits elsewhere, or a hint is attached with `aria-describedby`, the elements need ids, and a literal `id="email"` is repeated as soon as the component renders twice. Use the `uid` view prop instead:
+
+```jsx
+function Signup({ state, uid }) {
+  return (
+    <form className="signup">
+      <label for={uid('email')}>Email</label>
+      <input id={uid('email')} type="email" className="email" value={state.email} aria-describedby={uid('email-help')} />
+      <p id={uid('email-help')}>We only use it to sign you in.</p>
+    </form>
+  )
+}
+
+Signup.initialState = { email: '' }
+Signup.intent = ({ DOM }) => ({ EMAIL: DOM.input('.email').value() })
+Signup.model = { EMAIL: (state, email) => ({ ...state, email }) }
+```
+
+`uid()` returns an id for this component instance, and `uid('email')` one derived from it (for example `u-email` at the root, longer further down the tree). Ids come from the instance's position in the tree and its Collection item key, never from a counter, so they:
+
+- differ between two instances of the component, and between Collection items;
+- stay the same across renders, and move with their item when a Collection is reordered;
+- are the same on the server and after hydration ([SSR](/integration/ssr/#stable-ids-uid)).
+
+`uid` is also on the reducers' `props` argument. It is a reserved prop: a parent can't pass its own `uid` to a child ([SYG106](/reference/errors/#syg106)). `sygnal-check` matches `for={uid('email')}` with `id={uid('email')}` ([SYG708](/guide/accessibility/#syg708-label-or-aria-reference-to-an-id-that-isnt-rendered)).
+
 ## Focus Management
 
 Sygnal components are pure functions — they never touch real DOM elements. But web apps frequently need to focus an element programmatically, for example when an input appears for inline editing.
