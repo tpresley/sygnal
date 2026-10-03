@@ -44,6 +44,20 @@ export const TS_EXTRA_DEV_DEPENDENCIES = {
   react: { '@types/react': '^18.3.31', '@types/react-dom': '^18.3.7', typescript: '^5.9.3' },
 }
 
+/**
+ * Extra dependencies of single task starters, on top of the arm's dependency set (PLAN-3 5-6):
+ * the React arm's library for the task, as a real project would already have it installed.
+ * verify.mjs checks each starter's package.json against the set plus its task's extras, and
+ * installs the union in its shared node_modules.
+ */
+export const TASK_EXTRA_DEPENDENCIES = {
+  sygnal: {},
+  react: {
+    '24-list-detail-cache': { '@tanstack/react-query': '^5.104.1' },
+    '25-router-spa': { 'react-router': '^7.18.4' },
+  },
+}
+
 export function isTsStarter(starterDir) {
   return fs.existsSync(path.join(starterDir, 'tsconfig.json'))
 }

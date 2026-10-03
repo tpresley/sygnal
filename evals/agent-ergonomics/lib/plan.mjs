@@ -3,15 +3,15 @@
 // Tasks are read from the task catalog (tasks/NN-slug, react/tasks/NN-slug), so
 // new tasks are picked up without code changes. Tiers are number ranges:
 // tier1 = 01-08, tier2 = 09-12, tier3 = 13-17, ts = 18-21 (TypeScript variants of
-// 02, 03, 09 and 12; PLAN-2 E10), net = 22-23 (WebSocket and declarative-read tasks;
-// PLAN-3 0-C). A new task in an existing tier needs its range widened here.
+// 02, 03, 09 and 12; PLAN-2 E10), net = 22-25 (WebSocket, declarative read, query cache, router;
+// PLAN-3 0-C, 5-6). A new task in an existing tier needs its range widened here.
 
 export const TIERS = {
   tier1: (n) => n >= 1 && n <= 8,
   tier2: (n) => n >= 9 && n <= 12,
   tier3: (n) => n >= 13 && n <= 17,
   ts: (n) => n >= 18 && n <= 21,
-  net: (n) => n >= 22 && n <= 23,
+  net: (n) => n >= 22 && n <= 25,
 }
 
 const taskNum = (t) => Number(String(t).slice(0, 2))
