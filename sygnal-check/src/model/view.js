@@ -41,7 +41,7 @@ export function newSink() {
   }
 }
 
-const HYPERSCRIPT_TAGS = new Set([
+export const HYPERSCRIPT_TAGS = new Set([
   'a', 'article', 'aside', 'button', 'div', 'footer', 'form', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'header',
   'i', 'img', 'input', 'label', 'li', 'main', 'nav', 'ol', 'option', 'p', 'section', 'select', 'span',
   'strong', 'table', 'tbody', 'td', 'textarea', 'th', 'thead', 'tr', 'ul',

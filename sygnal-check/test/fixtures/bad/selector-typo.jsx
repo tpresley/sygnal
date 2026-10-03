@@ -4,7 +4,7 @@ import { xs, ABORT } from 'sygnal'
 function App({ state }) {
   return (
     <div className="todo-app">
-      <input className="new-todo-input" value={state.input} />
+      <input className="new-todo-input" value={state.input} aria-label="field" />
       <button className="add-todo-btn">Add</button>
       <ul className="todo-list">{state.todos.map(t => <li className="todo-item">{t}</li>)}</ul>
       <span id="count">{state.todos.length}</span>

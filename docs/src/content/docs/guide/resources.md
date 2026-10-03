@@ -344,7 +344,7 @@ function App({ state }) {
       <button className="back">Back to list</button>
       <p className="status">{statusOf(state.item)}</p>
       <h2 className="item-title">{state.item?.data?.title}</h2>
-      <input name="title" value={state.draft} />
+      <input name="title" aria-label="Title" value={state.draft} />
       <button className="save">Save</button>
       <p className="save-error">{state.saveError}</p>
     </section>

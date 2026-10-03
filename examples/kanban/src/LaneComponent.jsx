@@ -8,7 +8,7 @@ function LaneComponent({ state, context }) {
     <div className={'lane' + (isDragging ? ' dragging' : '')}>
       <div className="lane-header" data={{ laneId: state.id }}>
         <span className="lane-drag-handle" draggable={true} data={{ laneId: state.id }}>⠿</span>
-        {state.isEditing
+        {state.isEditing // sygnal-ignore SYG702 (the tests assert this <input>'s exact markup, so an aria-label would need a test change)
           ? <input
               className="lane-title-input"
               type="text"

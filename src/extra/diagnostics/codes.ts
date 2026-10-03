@@ -40,6 +40,7 @@
  *   SYG4xx  Collections, Switchable, sub-components, context
  *   SYG5xx  Strict mode / canonical-form violations
  *   SYG6xx  Drivers & run configuration
+ *   SYG7xx  Accessibility (a11y; static only, sygnal-check, PLAN-4 GS-3)
  *   SYG9xx  Internal invariants
  *
  * ---------------------------------------------------------------------------
@@ -229,6 +230,15 @@ export const CODE_TITLES: Record<string, string> = {
   SYG634: 'latest: true with a computed key',
   // PLAN-3 5-5 (D88)
   SYG635: 'Caching asked for without a queryCache',
+  // PLAN-4 GS-3: a11y lane (static only, sygnal-check)
+  SYG701: 'Click listener on a non-interactive element',
+  SYG702: 'Form field without an accessible label',
+  SYG703: 'Image without alt text',
+  SYG704: 'Link without href used as a button',
+  SYG705: 'Button without an accessible name',
+  SYG706: 'Positive tabIndex',
+  SYG707: 'Unknown ARIA attribute or invalid role',
+  SYG708: 'Label or ARIA reference to an id that is not rendered',
   SYG901: 'Sub-component sink stream errored',
   SYG902: 'EFFECT stream errored',
   SYG903: 'Component factory returned invalid sinks',
@@ -283,6 +293,15 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG634: 'info',
   // PLAN-3 5-5 (fetch.ts)
   SYG635: 'warn',
+  // PLAN-4 GS-3: a11y lane, static only (sygnal-check; error under --strict); listed so the entry knows its title
+  SYG701: 'warn',
+  SYG702: 'warn',
+  SYG703: 'warn',
+  SYG704: 'warn',
+  SYG705: 'warn',
+  SYG706: 'warn',
+  SYG707: 'warn',
+  SYG708: 'warn',
 }
 
 export function getCodeInfo(code: string): DiagnosticCodeInfo | undefined {

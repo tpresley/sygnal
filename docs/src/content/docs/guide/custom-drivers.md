@@ -22,7 +22,7 @@ run(App, { GEO: driverFromAsync(geocode) })
 function Place({ state }) {
   return (
     <div>
-      <input className="address" value={state.address} />
+      <input className="address" aria-label="Address" value={state.address} />
       <button className="find">Find</button>
       <p className="where">{state.status === 'found' ? `${state.coords.lat}, ${state.coords.lng}` : state.status}</p>
     </div>

@@ -2,7 +2,7 @@
 function TodoItem({ state }) {
   return (
     <li className="todo-item">
-      <span>{state.text}</span>
+      <span role="button" tabIndex={0}>{state.text}</span>
       <button className="remove">x</button>
       <Badge />
     </li>

@@ -39,13 +39,15 @@ function project(files) {
   const sources = () => Object.keys(files).filter(f => /\.[jt]sx?$/.test(f)).map(f => path.join(root, f))
   return {
     root,
-    check: (opts = {}) => checkFiles(sources(), { cwd: root, ...opts }),
+    // the a11y lane (SYG7xx) has its own suite (a11y.vtest.js); these sources are about controls
+    check: (opts = {}) => checkFiles(sources(), { cwd: root, ignore: A11Y, ...opts }),
     graph: () => graphFiles(sources(), { cwd: root }),
     fix: (opts = {}) => fixFiles(sources(), { cwd: root, controls: true, ...opts }),
     read: (rel) => fs.readFileSync(path.join(root, rel), 'utf8'),
   }
 }
 
+const A11Y = ['SYG701', 'SYG702', 'SYG703', 'SYG704', 'SYG705', 'SYG706', 'SYG707', 'SYG708']
 const codes = (diags) => diags.map(d => `${d.code} ${d.severity}`).sort()
 const only = (diags, code) => diags.filter(d => d.code === code)
 

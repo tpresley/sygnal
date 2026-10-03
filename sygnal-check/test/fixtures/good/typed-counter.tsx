@@ -13,7 +13,7 @@ const Counter: RootComponent<State, {}, Actions> = function ({ state }) {
     <div className={cls}>
       <button className="inc">+</button>
       <button className="dec">-</button>
-      <input className="step" type="number" value={state.step as number} />
+      <input className="step" type="number" value={state.step as number} aria-label="field" />
       <ul className="history">{state.history.map(h => <li className={`entry entry-${h}`}>{h}</li>)}</ul>
     </div>
   )
@@ -43,7 +43,7 @@ Counter.model = {
   RESET: () => ({ ...INITIAL }),
 } satisfies Record<string, any>
 
-const Entry: Component<{ value: number }> = ({ state }) => <span className="entry-value">{state.value}</span>
+const Entry: Component<{ value: number }> = ({ state }) => <span className="entry-value" role="button" tabIndex={0}>{state.value}</span>
 Entry.intent = ({ DOM }) => ({ CLICK: DOM.click('.entry-value') }) as const
 Entry.model = { CLICK: (s) => s }
 

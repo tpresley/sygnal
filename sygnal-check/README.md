@@ -63,6 +63,21 @@ The codes are the same as Sygnal's runtime diagnostics (`https://sygnal.js.org/r
 | SYG401 | warn | `<Collection from="x">` where `x` isn't a key of the component's `initialState` (or `calculated`), or its initial value is a literal that isn't an array. This is only checked when `initialState` is statically known. |
 | SYG900 | warn | A file couldn't be parsed, or a rule crashed. |
 
+### Accessibility (SYG7xx)
+
+The a11y lane runs by default: **warn**, and **error** with `--strict` (also in the Vite plugin's dev checker). Each rule stays quiet when it can't see enough: spread props, dynamic values, child components that might render a label or a button.
+
+| Code | Finds |
+|---|---|
+| SYG701 | A click listener (`DOM.click('.card')`, `DOM.select('.card').events('click')`, or a control declared `'div'`) on a `div`, `span`, `li`, `p`, `img` or other non-interactive element with no `role` and `tabIndex`. Crosses intent and view like SYG110. Not reported when the element contains a button, link, form field or child component (a click there bubbles to the listener). |
+| SYG702 | An `<input>` (not hidden/submit/reset/button/image), `<select>` or `<textarea>` with no label: no wrapping `<label>` (followed through helpers and component usages), no `<label for>` matching its id (a literal, or the same `uid('x')` call), no `aria-label`/`aria-labelledby`/`title`/`placeholder`. Names an unlinked sibling `<label>` when there is one. |
+| SYG703 | An `<img>` without `alt` (`alt=""` is fine). |
+| SYG704 | A click listener on an `<a>` without `href`. |
+| SYG705 | A `<button>` with no text, `aria-label`, `aria-labelledby` or `title` (literal children only: `{state.label}` or a child component means no finding). |
+| SYG706 | `tabIndex` greater than 0. |
+| SYG707 | An `aria-*` attribute that isn't in WAI-ARIA, or a `role` that isn't a WAI-ARIA role (typos, abstract roles); `doc-*` and `graphics-*` roles are accepted. |
+| SYG708 | `<label for>`, `aria-describedby` or `aria-labelledby` naming an id nothing renders. Literal ids may be rendered in any scanned file (not checked when some id is dynamic); `uid('x')` needs `id={uid('x')}` in the same file. |
+
 ## Strict mode
 
 `--strict` adds one rule per row of Sygnal's canonical-forms table: code that works, but isn't written the one blessed way. Each message shows the canonical rewrite of the offending code. Without `--strict` these rules don't run.
@@ -252,7 +267,7 @@ export default {
 }
 ```
 
-Strict-mode rules go in `src/rules/strict/`, with `strict: true`; a report may carry `edits: [{ file, start, end, text }]` (absolute path, source offsets) for `--fix`. Every code must exist, with the same title, in Sygnal's runtime registry (`src/extra/diagnostics/codes.ts`). `test/codes.vtest.js` enforces this.
+a11y rules go in `src/rules/a11y/` (registered in `src/rules/a11y/index.js`; they report at warn and are swapped for error-severity copies under `--strict`). Strict-mode rules go in `src/rules/strict/`, with `strict: true`; a report may carry `edits: [{ file, start, end, text }]` (absolute path, source offsets) for `--fix`. Every code must exist, with the same title, in Sygnal's runtime registry (`src/extra/diagnostics/codes.ts`). `test/codes.vtest.js` enforces this.
 
 ## Development
 

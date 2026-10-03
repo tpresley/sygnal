@@ -56,11 +56,11 @@ const TODO: Todo = function ({ state, context, showDelete }) {
     <Transition name="todo" duration={300}>
       <li className={classNames} data-theme={theme}>
         <div className="view">
-          <input className="toggle" type="checkbox" checked={checked} />
+          <input className="toggle" type="checkbox" checked={checked} aria-label="Toggle" />
           <label>{displayTitle}</label>
-          {showDelete && <button className="destroy" />}
+          {showDelete && <button className="destroy" aria-label="Delete" />}
         </div>
-        <input className="edit" type="text" value={editValue} autoFocus={editing} />
+        <input className="edit" type="text" value={editValue} autoFocus={editing} aria-label="Edit" />
       </li>
     </Transition>
   )

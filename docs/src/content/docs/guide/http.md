@@ -64,7 +64,7 @@ Responses arrive in the order the server answers, not the order the requests wer
 import { ABORT, debounce } from 'sygnal'
 
 function Search({ state }) {
-  return <div><input className="q" value={state.query} /><p className="status">{state.status}</p><ul>{state.results.map(r => <li>{r.title}</li>)}</ul></div>
+  return <div><input className="q" aria-label="Search" value={state.query} /><p className="status">{state.status}</p><ul>{state.results.map(r => <li>{r.title}</li>)}</ul></div>
 }
 Search.initialState = { query: '', status: '', results: [] }
 Search.intent = ({ DOM }) => ({
@@ -224,7 +224,7 @@ function Profile({ state }) {
   const label = { idle: '', saving: 'Saving…', saved: 'Saved.', failed: 'Could not save.' }[state.save]
   return (
     <form>
-      <input className="name" value={state.name} />
+      <input className="name" aria-label="Name" value={state.name} />
       <button className="save" disabled={state.save === 'saving'}>Save</button>
       <p className="save-status">{label}</p>
     </form>

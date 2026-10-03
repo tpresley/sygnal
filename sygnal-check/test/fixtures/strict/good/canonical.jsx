@@ -8,7 +8,7 @@ function Lane({ state, context }) {                                    // C1
   return (
     <div className="lane">
       <h2 className="lane-title">{state.title}</h2>
-      <input className="lane-title-input" value={state.title} />
+      <input className="lane-title-input" value={state.title} aria-label="field" />
       <button className="delete-lane-btn">×</button>
       <button className="play">play</button>
       <button className="clear">clear</button>

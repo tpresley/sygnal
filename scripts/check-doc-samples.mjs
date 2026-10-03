@@ -10,8 +10,11 @@
  * skill, the create-sygnal-app AGENTS.md files) is written to its own file in a
  * temp directory (or --out <dir>), then sygnal-check runs on that directory
  * with --strict --json. Samples are fragments, so only the strict-mode codes
- * (SYG5xx) fail the run; other findings (SYG101/102/105/110 on half a
- * component) are listed with --verbose.
+ * (SYG5xx) and the a11y lane (SYG7xx, PLAN-4 GS-3: the a11y-clean gate) fail
+ * the run; other findings (SYG101/102/105/110 on half a component) are listed
+ * with --verbose. A11Y_PENDING lists a11y findings in files another workstream
+ * owns, until it fixes them: they are printed but don't fail the run (an entry
+ * whose finding is gone is reported as stale).
  *
  * Pages and blocks that are excluded on purpose:
  *   - the "Alternative forms" page (it shows the non-canonical forms);
@@ -20,7 +23,7 @@
  *     preceded by an `<!-- docs-check: skip -->` HTML comment.
  *
  * Usage: node scripts/check-doc-samples.mjs [--verbose] [--out <dir>]
- * Exit code 1 when a strict (SYG5xx) finding exists.
+ * Exit code 1 when a strict (SYG5xx) or a11y (SYG7xx) finding exists.
  */
 import fs from 'node:fs'
 import os from 'node:os'
@@ -43,6 +46,15 @@ const EXTRA_FILES = [
     .filter(f => fs.existsSync(path.join(repo, f)))
     .sort(),
 ]
+// a11y findings (sample id → code) in agent-facing files PLAN-4 2-D may not edit
+// (llms.txt, the skill: 4-A's); they print as PENDING and don't fail the run.
+const A11Y_PENDING = new Map([
+  ['llms.txt:44', 'SYG702'],
+  ['llms.txt:122', 'SYG702'],
+  ['llms.txt:149', 'SYG702'],
+  ['skills/sygnal-dev/SKILL.md:70', 'SYG702'],
+  ['skills/sygnal-dev/SKILL.md:162', 'SYG702'],
+])
 const LANGS = { js: 'jsx', javascript: 'jsx', jsx: 'jsx', ts: 'tsx', typescript: 'tsx', tsx: 'tsx' }
 
 const args = process.argv.slice(2)
@@ -137,18 +149,26 @@ const byName = Object.fromEntries(samples.map(s => [s.name, s.id]))
 const where = d => byName[path.basename(d.file)] || d.file
 
 const strict = diagnostics.filter(d => /^SYG5/.test(d.code))
+const a11yAll = diagnostics.filter(d => /^SYG7/.test(d.code))
+const isPending = d => A11Y_PENDING.get(where(d)) === d.code
+const a11y = a11yAll.filter(d => !isPending(d))
+const pending = a11yAll.filter(isPending)
+const stale = [...A11Y_PENDING].filter(([id, code]) => !pending.some(d => where(d) === id && d.code === code))
 const unparsable = diagnostics.filter(d => d.code === 'SYG900')
-const other = diagnostics.filter(d => !/^SYG5/.test(d.code) && d.code !== 'SYG900')
+const other = diagnostics.filter(d => !/^SYG[57]/.test(d.code) && d.code !== 'SYG900')
 
 for (const d of strict) console.log(`STRICT  ${where(d)} ${d.code} ${d.message}`)
+for (const d of a11y) console.log(`A11Y    ${where(d)} ${d.code} ${d.message}`)
+for (const d of pending) console.log(`PENDING ${where(d)} ${d.code} ${d.message} (A11Y_PENDING)`)
+for (const [id, code] of stale) console.log(`STALE   A11Y_PENDING entry ${id} ${code} has no finding any more: remove it`)
 for (const h of patternHits) console.log(`PATTERN ${h.id} (+${h.line}) ${h.code} ${h.label}: ${h.text}`)
 for (const d of unparsable) console.log(`PARSE   ${where(d)} ${d.message}`)
 if (verbose) for (const d of other) console.log(`other   ${where(d)} ${d.code} [${d.severity}] ${d.message}`)
 if (verbose) for (const id of skipped) console.log(`skip    ${id}`)
 
-const dirty = new Set([...strict.map(where), ...patternHits.map(h => h.id), ...unparsable.map(where)])
+const dirty = new Set([...strict.map(where), ...a11y.map(where), ...patternHits.map(h => h.id), ...unparsable.map(where)])
 console.log(`\n${samples.length} samples checked, ${samples.length - dirty.size} clean, ${skipped.length} skipped by marker; ` +
-  `${strict.length} strict findings, ${patternHits.length} pattern findings, ${unparsable.length} unparsable, ` +
+  `${strict.length} strict findings, ${a11y.length} a11y findings (${pending.length} pending), ${patternHits.length} pattern findings, ${unparsable.length} unparsable, ` +
   `${other.length} non-strict findings (fragments; --verbose to list)`)
 if (outIdx < 0) fs.rmSync(outDir, { recursive: true, force: true })
-process.exit(strict.length || patternHits.length || unparsable.length ? 1 : 0)
+process.exit(strict.length || a11y.length || patternHits.length || unparsable.length ? 1 : 0)

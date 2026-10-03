@@ -28,7 +28,7 @@ import { SEVERITY_RANK } from './diagnostic.js'
 import { runRules, sortDiagnostics } from './run.js'
 
 export { CODES, listCodes, getCodeInfo, docsUrlFor } from './codes.js'
-export { coreRules, strictRules } from './rules/index.js'
+export { coreRules, strictRules, a11yRules } from './rules/index.js'
 export { buildProject, Project } from './model/project.js'
 export { makeDiagnostic, formatText } from './diagnostic.js'
 export { formatDiagnostics } from './format.js'

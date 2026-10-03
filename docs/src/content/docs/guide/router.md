@@ -168,7 +168,7 @@ With several declaring components, the **first one declared is the guard owner**
 function Editor({ state }) {
   return (
     <div>
-      <textarea className="text" value={state.text} />
+      <textarea className="text" aria-label="Text" value={state.text} />
       {state.pending && <p className="confirm">Discard changes? <button className="yes">Leave</button><button className="no">Stay</button></p>}
     </div>
   )

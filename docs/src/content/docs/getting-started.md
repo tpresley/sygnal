@@ -200,7 +200,7 @@ function Greeter({ state }) {
   return (
     <div>
       <h1>Hello {state.name}!</h1>
-      <input className="name-input" value={state.name} />
+      <input className="name-input" aria-label="Name" value={state.name} />
     </div>
   )
 }

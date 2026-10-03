@@ -23,7 +23,7 @@ type AppActions = ActionsOf<typeof intent>
 const App: RootComponent<AppState, {}, AppActions> = ({ state }) => (
   <div>
     <h1>{state.name}: {state.count}</h1>
-    <input className="name" value={state.name} />
+    <input className="name" aria-label="Name" value={state.name} />
     <button className="btn">+1</button>
   </div>
 )
