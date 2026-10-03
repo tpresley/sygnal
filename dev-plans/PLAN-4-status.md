@@ -9,7 +9,7 @@ Tracks progress for [PLAN-4.md](PLAN-4.md) (controls and core ergonomics). The c
 
 **Integration branch:** `plan4-integration`, cut from `main` at `3214ed9` on 2026-10-03 (worktree `.claude/worktrees/plan-4-execution-7ae8e8`). The release stays held (D56): no version bumps, tags, PR to main or publish.
 
-**State:** Phase 0. 0-A baseline done; 0-B and 0-C running. P4-Q3, Q5, Q9 and Q11 answered (D108–D111); Q2, Q4, Q6, Q7, Q8 wait for 0-B; Q12 asked with them.
+**State:** Phase 1 (with Phase 2 started in parallel). All §11 questions answered except Q10 (after 1-E). 0-C running.
 
 ## Baseline (0-A)
 
@@ -37,18 +37,54 @@ PLAN-3's end-of-Phase-5 figures (40,403 B, 283 lines, 34,343 B) grew with #12 an
 
 | ID | Workstream | Status | Branch | Owner | Merge | Notes |
 |---|---|---|---|---|---|---|
-| 0-A | Setup, baseline, §11 answers | 🟡 baseline done; Q2/4/6/7/8/12 pending | `plan4-integration` | coordinator | | |
-| 0-B | Size spikes (CT-1 incl. spec objects, GS-1, GS-2, GS-5, GS-7, small core group) | 🟡 running | `exp/p4-spikes` | subagent | not merged | CT-1 spike includes the D101 spec path and D102 command lookup |
+| 0-A | Setup, baseline, §11 answers | ✅ | `plan4-integration` | coordinator | | |
+| 0-B | Size spikes (CT-1 incl. spec objects, GS-1, GS-2, GS-5, GS-7, small core group) | ✅ table below | `exp/p4-spikes` (`b752a14`) | subagent | not merged | CT-1 spike includes the D101 spec path and D102 command lookup |
 | 0-C | Eval prep: `ergo` tier 26–29, CT-1 A/B variant | 🟡 ergo tier running (A/B variant after 1-D) | `p4-0c-ergo-tier` | subagent | | |
 | 0-D | Bug fixes (B-0, B-1, bubbling) | ✅ before PLAN-4 | `main` | other session | #12 (`2cef7ee`) | Recorded as G-144…G-146 in `PLAN-2-status.md`; 0-A re-runs X2, X2b, X7, X8 |
 | 0-E | `ergo` baseline eval (user's terminal) | ⬜ | | user | | |
-| 1-A | Controls core | ⬜ waits for 0-B | `p4-1a-controls` | subagent | | Includes the D101 contract |
+| 1-A | Controls core | 🟡 running | `p4-1a-controls` | subagent | | Includes the D101 contract |
 | 1-T | Controls types | ✅ done, merge held until 1-A | `p4-1t-types` (`c503914`) | subagent | | 19 failing-first; props from `HTMLElementTagNameMap` (Sygnal's `JSX.IntrinsicElements` is `any`); component in `DOM.click`/`query` is a type error |
 | 1-D | Controls checker | ✅ merged | `p4-1d-checker` (`36b9d4d`) | subagent | `6565844` | sygnal-check 245 → 293; 33/38 failing-first; `--fix --controls` converts kanban 7/9, todomvc 6, tests unchanged, idempotent |
 | 1-E | Controls A/B eval | ⬜ | | user | | |
-| 2-A … 2-T, P-1 … P-4 | Phase 2 | ⬜ | | | | |
+| 2-A | Core I: GS-4, GS-11, GS-9 | 🟡 running | `p4-2a-core` | subagent | | started alongside 1-A (spike showed CT-1 needs no `component.ts` change) |
+| 2-B, 2-C, 2-T | Phase 2 | ⬜ | | | | 2-C waits for 1-A (`testing.ts`); 2-T after 1-T merges |
+| 2-D | a11y checker (GS-3) | 🟡 running | `p4-2d-a11y` | subagent | | sygnal-check free after 1-D |
+| P-1 … P-4 | Prototypes | ⬜ | | | | |
 | 3-A … 3-T | Phase 3 | ⬜ | | | | 3-A includes D102 |
 | 4-A … 4-F | Phase 4 | ⬜ | | | | |
+
+
+## 0-B size spikes (2026-10-03)
+
+`exp/p4-spikes` `b752a14`, one commit per spike; `dev-plans/research/p4-spikes/measure.mjs` on that branch reproduces them. Gated kanban, gzip, whole-build differences. Spikes 2–6 measured on top of the CT-1 build (40,585 B).
+
+| Spike | Form | Core Δ (kanban not using it) | Added to an app using it | Threshold | Outcome |
+|---|---|---|---|---|---|
+| CT-1 controls | pragma flag calls the control's render; `MainDOMSource.select` stringifies a control; `controls()` in `src/extra/controls.ts` | **+49 B** | +122 B | ≤ 120 B | Adopt |
+| GS-1 | (a) `uses` merge in core | +253 B | +50 B | ≤ 100 B | No |
+| GS-1 | (a') `uses`; each behavior carries its own `.merge`, core loops | **+30 B** | +286 B | ≤ 100 B | **Adopted (D114)** |
+| GS-1 | (b) `withBehaviors` | 0 B | +321 B | — | Fallback |
+| GS-2 | (a) built-in `ELEMENT` sink (D102 lookup +19 B of it) | **+238 B** | 0 B | ≤ 300 B | **Adopted (D114)** |
+| GS-2 | (b) registered driver | +85 B | +227 B | — | No |
+| GS-5 | (a) plain-object static | +415 B | 0 B | ≤ 150 B | No |
+| GS-5 | (b) `persist({...})` helper, core calls `.setup` on root | **+26 B** | +443 B | — | **Adopted (D114)** |
+| GS-7 | (a) built in | +240 B | 0 B | ≤ 200 B | No |
+| GS-7 | (b) registered `makeTimerDriver()` on `__sygnalStatic` + replies | **0 B** | +375 B (incl. `makeReplies`) | — | **Adopted (D114)**, SYG643 in dev |
+| GS-4 | same object = ABORT | +5 B | — | ~15 B | Adopt |
+| GS-6 | `STATE.watch` | +29 B | — | ~70 B | Adopt |
+| GS-9 | `uid` | +68 B | — | ~50 B | Adopt (over estimate) |
+| GS-11 | `run(…, { onError })` | +89 B | — | ~40 B | Adopt (over estimate) |
+| Group GS-4/6/9/11 | together | +192 B | — | ~175 B | — |
+
+**Total with the adopted forms ≈ 535 B** (cap 650 B, D115). Unused helper modules add exactly 0 B.
+
+Spike findings carried into the briefs:
+- The JSX runtime has its own pragma copy; `controls.ts` must not import `createElement` (that cost +735 B per app). The pragma passes its own `h` to the control hook (~18 B core, included).
+- GS-2: the **first key** of a command object is the method, the rest are options (string options like `block: 'center'` are otherwise indistinguishable from selectors). `close` takes `returnValue` as a plain argument. "After the next patch" needs a real hook: an action that only sends a command causes no patch, so 3-A must run commands after the patch if one is pending, else on the next tick.
+- GS-1 (a') and GS-5 (b) both use "the static's value carries its own setup/merge". 2-B and 3-B should share one call-site hook if that saves bytes.
+- GS-11: no single place where driver errors surface; the view phase must fire after the component's `onError` picks its fallback; the hook must be per app, not module-global.
+- GS-9: spike uids are long path strings; 2-A should shorten them and must run the SSR/hydration check.
+- GS-4: the strict SYG502 tests must be retired; the "no re-render" check needs a test that the view's dropRepeats doesn't already hide.
 
 ## Interfaces promised to PLAN-5
 
@@ -56,10 +92,10 @@ PLAN-5's W-1 (`defineWidget`) builds on these, so they are frozen once 1-A merge
 
 | Interface | Plan section | Promised |
 |---|---|---|
-| Control spec contract `ControlSpec<P>`: a tag string or `{ kind, vnode(props, children), commands?, __props? }`; the pragma calls `vnode()` and stamps `data-control`, keeping key and hooks | PLAN-4 §2 CT-1 | D101 |
+| Control spec contract `ControlSpec<P>`: a tag string or `{ kind, vnode(props, children, h), commands?, __props? }`; the pragma calls `vnode()` with its own `h` (createElement) and stamps `data-control`, keeping hooks and copying `key` onto the returned vnode when it has none | PLAN-4 §2 CT-1 | D101, amended D116 |
 | Kind-blind acceptance: `DOM.*`, `simulateEvent`, `query`/`queryAll` and element commands resolve any control to `[data-control="<Key>"]` | CT-1 | D101 |
 | Props type from the spec (`__props` phantom) | CT-1 Types | D101 |
-| Element commands consult `spec.commands[name](hostElement, options)` before native methods, and only then raise SYG641 | GS-2 | D102 |
+| Element commands consult `spec.commands[name](hostElement, options)` before native methods, and only then raise SYG641. Only when the target is the control itself (a template-string selector has no spec) | GS-2 | D102 |
 | `onError` phase `'widget'` in the type union (emitted by PLAN-5 only) | GS-11 | D105 |
 
 If 1-A finds that any of these can't fit (size, or the pragma path), record it here as a G- item and tell the user. PLAN-5 then falls back to its 0 B function form (`widget(DatePicker, props)`).
@@ -91,23 +127,28 @@ They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none o
 | D111 | 2026-10-03 | P4-Q11: the 7xx a11y lane is warn by default, error under `--strict`, and on in the Vite dev checker. | User | |
 | D112 | 2026-10-03 | Duplicate control keys across `controls()` calls in one file are **SYG128** (error, static), taken from the spare 1xx reservation. | Coordinator | 1-D |
 | D113 | 2026-10-03 | The `--fix` control conversion is opt-in (`--fix --controls`, `--keep-classes`) until P4-D. If controls become canonical, 4-C makes it the default (one line). The fixer also skips elements whose markup a project string asserts, and keeps classes that other source files select. | Coordinator | 1-D deviations 1–3 |
+| D114 | 2026-10-03 | P4-Q4/Q6/Q7/Q8 forms: GS-1 static `uses`, each `defineBehavior` value carrying its own merge (+30 B core); GS-2 `ELEMENT` sink built in (+238 B); GS-5 `persist({...})` helper (+26 B core); GS-7 registered `makeTimerDriver()` (0 B core) with SYG643 when missing. | User | 0-B table |
+| D115 | 2026-10-03 | P4-Q2 budgets: PLAN-4 core cap **650 B** gated (measured ≈ 535 B), leaving ≈ 1.1 KB for PLAN-5; `llms.txt` cap **315** lines with a −5 trim target in 4-A; SKILL.md cap **38 KB**; doc caps conditional on the 4-E learn-time check (D76 rule). | User | |
+| D116 | 2026-10-03 | D101 amended: `vnode(props, children, h)`, where the pragma passes its own createElement (a widget importing it would duplicate the pragma, ~600 B, under the automatic runtime), and the control copies `key` onto the returned vnode when it has none. Backward compatible; noted for PLAN-5 in `HANDOFF-to-PLAN-5.md`. | User | 0-B finding |
+| D117 | 2026-10-03 | P4-Q12: eval spend about $180 (0-E ~$15, 1-E ~$55, 4-E ~$110); ask before more. | User | |
+| D118 | 2026-10-03 | GS-2 command object rule: the first key is the method, the remaining keys are options; `close`'s `returnValue` is passed as the argument. | Coordinator | 0-B finding |
 
 ## Open questions (PLAN-4 §11)
 
 | # | Question | Status |
 |---|---|---|
 | P4-Q1 | Order relative to PLAN-5 | ✅ D100 |
-| P4-Q2 | Budgets | Open. Note: PLAN-5 handles its own budgets "as they come up" (its P5-Q6), so P4-Q2 only needs PLAN-4's caps. |
+| P4-Q2 | Budgets | ✅ D115 |
 | P4-Q3 | Controls naming (`controls`, `data-control`) | ✅ D108 |
-| P4-Q4 | Behaviors form (`uses` vs `withBehaviors`) | Open (after 0-B). PLAN-5's `form` behavior and `sygnal-ui` parts depend on the answer. |
+| P4-Q4 | Behaviors form | ✅ D114: `uses` |
 | P4-Q5 | Behavior action separator | ✅ D109 |
-| P4-Q6 | Element commands: sink name, built in or registered | Open (after 0-B). PLAN-5 assumes the name `ELEMENT`. |
-| P4-Q7 | Persist form; `PERSIST` sink for `{ clear }` | Open (after 0-B) |
-| P4-Q8 | Timers: built in or registered; shape shared with PLAN-5 B-3 | Open (after 0-B). PLAN-5 accepted the shared shape (S-8). |
+| P4-Q6 | Element commands | ✅ D114: `ELEMENT`, built in |
+| P4-Q7 | Persist form | ✅ D114: `persist()` helper; `PERSIST: { clear: true }` sink as recommended |
+| P4-Q8 | Timers | ✅ D114: registered driver; shape shared with B-3 |
 | P4-Q9 | GS-4 breaking change and SYG502 retirement | ✅ D110 |
 | P4-Q10 | CT-1 canonical bar → P4-D | Open (after 1-E) |
 | P4-Q11 | a11y default severity | ✅ D111 |
-| P4-Q12 | Eval spend | Open |
+| P4-Q12 | Eval spend | ✅ D117 |
 | P4-Q13 | Bubbling semantics | ✅ Settled in #12 (G-145): native bubbling in both drivers |
 
 ## Gaps
@@ -126,3 +167,4 @@ They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none o
 - 2026-10-03 — Updated for the state of `main`. PLAN-3 is merged (#14; its last IDs are D95 and G-189, so D100/G-200 still leave a gap), and the bug fixes are merged (#12, G-144…G-146), which closes G-200 and P4-Q13. `plan4-integration` will be cut from `main`. The PLAN-4 plan and tracker were merged to `main` so that all plans live in one place.
 - 2026-10-03 — 0-A: `plan4-integration` cut from `main` (`3214ed9`); fresh-worktree setup; baseline gates green (above). P4-Q3, Q5, Q9, Q11 answered (D108–D111). 0-B spikes (`exp/p4-spikes`) and 0-C ergo tier (`p4-0c-ergo-tier`) started. Gap-study experiments re-run (12/15; X1 expected, X7 stale assertion).
 - 2026-10-03 — 1-T done (`p4-1t-types`), held until 1-A. 1-D merged (`6565844`); all gates green, size unchanged (40,536 B). D112, D113; G-202, G-203.
+- 2026-10-03 — 0-B done (table above). P4-Q2, Q4, Q6, Q7, Q8, Q12 answered and D101 amended (D114–D117); D118. 1-A, 2-A and 2-D started.

@@ -6,7 +6,7 @@
 
 **Release:** 6.0.0, together with PLAN-3 (network layer) and PLAN-5 (ecosystem components). It is one major release, held until the user says otherwise (D56): no version bumps, tags, PR to main or publish.
 
-**Status:** plan only. No code changes until the user answers §11. The tracker, [`PLAN-4-status.md`](PLAN-4-status.md), was created early to record PLAN-5's requests (D100–D107). The coordinator completes it in 0-A.
+**Status:** in execution (see the tracker). §11 is answered except P4-Q10 (after 1-E); decisions D108–D118. The tracker, [`PLAN-4-status.md`](PLAN-4-status.md), was created early to record PLAN-5's requests (D100–D107). The coordinator completes it in 0-A.
 
 **Inputs (read these; this plan references them rather than repeating them):**
 
@@ -260,13 +260,14 @@ type ControlSpec<P = any> =
   | keyof JSX.IntrinsicElements                     // 'button', 'input', 'wa-rating', ...
   | {
       kind: string                                 // 'widget' (PLAN-5); free-form, shown in inspect() and diagnostics
-      vnode(props: P, children: unknown[]): VNode   // must return one element vnode (not a component, fragment or text)
+      vnode(props: P, children: unknown[], h: typeof createElement): VNode   // must return one element vnode; h is the pragma's own createElement (D116)
       commands?: Record<string, (elm: Element, options: Record<string, unknown>) => void>
       __props?: P                                  // phantom, types only
     }
 ```
 
 - A `vnode()` that returns anything but one element vnode is SYG125, extended to cover it (error, names the control key).
+- The control copies `key` onto the returned vnode when it has none (D116). Spec authors build vnodes with the `h` argument, never with an imported `createElement` (that would duplicate the pragma under the automatic JSX runtime).
 - `commands` is read only by element commands (GS-2). Each handler gets the resolved host element and the command's options. The spec maps the element to its own instance.
 
 ### GS-1 Reusable behaviors (P1)
@@ -331,7 +332,7 @@ Signup.intent = ({ DOM }) => ({ CLOSE_HELP: DOM.close(HelpDialog) })
   - `showModal`, `show`, `close` (`{ returnValue }`);
   - `showPopover`, `hidePopover`, `togglePopover`;
   - `click` (programmatic, for file inputs).
-- An array sends several commands.
+- An array sends several commands. The **first key** of a command object is the method; the other keys are its options (D118). `close` passes `returnValue` as its argument.
 - **Scoping:** the target is resolved inside the **sending instance's** DOM scope, using the PLAN-3 sender tag and that instance's isolated DOM source. Commands run **after the next patch** of that instance, so they reach elements rendered by the same action.
 - **Spec commands (D102):** when the target is a control whose spec object declares `commands`, the method is looked up there first, so `ELEMENT: { open: DueDate }` calls `spec.commands.open(hostElement, options)`. A spec command overrides a native method of the same name. Only then does a native element method apply.
 - No match is SYG640 (warn, dev). An unknown method is SYG641 (error). SYG641 is raised only after both lookups fail. It names the control's declared commands when it has any.

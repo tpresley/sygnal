@@ -79,3 +79,11 @@ These are suggestions for the ecosystem session to evaluate and accept, change o
 Nothing blocks PLAN-4. Two items would help:
 - Confirmation that the codes in §2 are reserved.
 - An early read on S-1. If widgets become a kind of control, PLAN-4's 1-A should leave room in the control marker for a widget spec, such as a `kind` field. It costs nothing now and avoids a second pragma path later.
+
+## Update from PLAN-4 execution (2026-10-03)
+
+- **D116, contract amendment (user-approved):** `ControlSpec.vnode(props, children, h)`. The pragma passes its own `createElement` as `h`. Build widget vnodes with `h`, never with `createElement` imported from `'sygnal'`: under the automatic JSX runtime that import pulls in a second pragma copy (≈ 600 B gzip per app). The control also copies `key` onto the returned vnode when it has none. Backward compatible.
+- **D115 budgets:** PLAN-4's core cap is 650 B gated (measured ≈ 535 B) on a 40,536 B baseline, so ≈ 1.1 KB is left for PLAN-5. `llms.txt` cap 315 lines, SKILL.md 38 KB, both subject to the learn-time check.
+- **D114 forms:** behaviors are a `uses` static (`pager.NEXT` namespacing, D109); `ELEMENT` is built in; persist is a `persist({...})` helper; timers use a registered `makeTimerDriver()`, whose declaration shape B-3 reuses.
+- **D102 caveat:** `spec.commands` is consulted only when the command target is the control itself. A template-string target such as `` `li ${Done}` `` carries no spec.
+- **New code:** SYG128 (duplicate control key) comes from PLAN-4's spare 1xx range.
