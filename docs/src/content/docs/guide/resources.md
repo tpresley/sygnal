@@ -234,6 +234,68 @@ Quote.resources = {
 
 A body that fails goes to `'error'` (or the `error` action) with the schema's `issues`: `{ error, status, issues, request }`. A `validate` that isn't a Standard Schema fails the request and is reported as [SYG631](/reference/errors/#syg631).
 
+## Recipes
+
+### Pagination
+
+`keepPrevious: true` keeps the current page on screen, with `refreshing: true`, while the next one loads:
+
+```jsx
+function Pages({ state }) {
+  const { data, refreshing } = state.list
+  return (
+    <div>
+      <ul className={refreshing ? 'rows stale' : 'rows'}>{(data?.items ?? []).map(item => <li>{item.title}</li>)}</ul>
+      <button className="prev" disabled={state.page === 1}>Previous</button>
+      <span className="page">Page {state.page}</span>
+      <button className="next">Next</button>
+    </div>
+  )
+}
+Pages.initialState = { page: 1 }
+Pages.resources = {
+  list: (state) => ({ url: '/api/items', query: { page: state.page }, keepPrevious: true }),
+}
+Pages.intent = ({ DOM }) => ({ PREV: DOM.click('.prev'), NEXT: DOM.click('.next') })
+Pages.model = {
+  PREV: (state) => ({ ...state, page: Math.max(1, state.page - 1) }),
+  NEXT: (state) => ({ ...state, page: state.page + 1 }),
+}
+```
+
+With a `queryCache()`, going back to a page fetched less than `staleTime` ago shows it without a request.
+
+### Infinite list
+
+The resource fetches the current page; its `ok` action appends each page to a list the component owns:
+
+```jsx
+import { ABORT } from 'sygnal'
+
+function Feed({ state }) {
+  return (
+    <div>
+      <ul>{state.items.map(item => <li>{item.title}</li>)}</ul>
+      {state.feed.status === 'loading' && <p className="loading">Loading…</p>}
+      {state.hasMore && <button className="more">Load more</button>}
+    </div>
+  )
+}
+Feed.initialState = { page: 1, items: [], hasMore: true }
+Feed.resources = {
+  feed: (state) => ({ url: '/api/feed', query: { page: state.page }, ok: 'PAGE' }),
+}
+Feed.intent = ({ DOM }) => ({ MORE: DOM.click('.more') })
+Feed.model = {
+  MORE: (state) => (state.feed.status === 'loading' ? ABORT : { ...state, page: state.page + 1 }),
+  PAGE: (state, body) => ({ ...state, items: [...state.items, ...body.items], hasMore: body.hasMore }),
+}
+```
+
+`PAGE` runs on every successful fetch of the request, refetches included, so leave the cache's focus refetch off for such a list (`queryCache({ refetchOnFocus: false })`) or de-duplicate by id in `PAGE`.
+
+For writes, see the [optimistic update and save status recipes](/guide/http/#recipes).
+
 ## Testing
 
 `renderComponent` runs the real driver over an in-memory `fetch` ([Testing](/integration/testing/#resources)), so every rule on this page applies in tests. Each fetch stays pending until `t.respond` or `t.fail` answers it, by the resource name, its URL or a partial request:
@@ -261,6 +323,7 @@ it('refreshes in place, and shows the cached quote when coming back', async () =
 })
 ```
 
+- A resource's request is sent after the state changes. After an event that changes it, wait (`await t.waitForState(...)` as above, `await t.next(...)` or `await t.settle()`) before `t.respond`, which otherwise finds nothing pending and throws.
 - `renderComponent(C, { http })` passes driver options (`cache: queryCache()`, `retry`, `timeoutMs`, …) to the fake. A seeded cache: `queryCache({ initial: snapshot })`.
 - `t.cache('HTTP')` lists the cache entries: `{ key, age, stale, subscribers, data, tags }`.
 - A `{ prefetch }` fetch is listed in `t.requests('HTTP')` as `{ url, ...request, prefetch: true }`; answer it like any other, e.g. `t.respond('HTTP', data, '/api/quotes/2')`.

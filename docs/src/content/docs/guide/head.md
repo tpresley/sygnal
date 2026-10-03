@@ -27,7 +27,6 @@ TaskPage.head = (state) => ({
   meta: { description: state.task.summary, 'og:title': state.task.title },
   link: [{ rel: 'canonical', href: `https://example.com/tasks/${state.task.id}` }],
 })
-TaskPage.model = {}
 
 export default TaskPage
 ```

@@ -1,0 +1,5 @@
+{
+  "description": "PLAN-3 D91 A/B treatment: this checkout's packed build (same as branch.json) with the resources-first sygnal-dev skill (variants/skills/resources-first: `resources` is the canonical read form, reply-action reads the alternative; writes stay reply actions; size within 2% of skills/sygnal-dev), isolated per trial, on the current starter. Skill-only: llms.txt ships in the package, so both arms read the same llms.txt. The control is branch.json",
+  "sygnal": "branch",
+  "skill": { "dir": "evals/agent-ergonomics/variants/skills/resources-first", "name": "sygnal-dev" }
+}

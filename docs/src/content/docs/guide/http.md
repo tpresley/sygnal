@@ -176,6 +176,76 @@ For data a component shows, declare it instead of loading it in the model: `` Qu
 
 A request without `ok`/`error` has no reply actions: its reply goes to the `HTTP` source, read in the intent with `HTTP.select(category)` (`{ category, value, status, request }`) and `HTTP.errors(category)` (`{ error, category, request, status, body }`). Use it to compose replies as streams, or for replies that a component other than the sender handles. Reading your own request back this way is the [alternative form](/advanced/alternative-forms/#selecterrors-round-trip) of reply actions, flagged in strict mode as [SYG508](/reference/errors/#syg508).
 
+## Recipes
+
+### Optimistic update with rollback
+
+Change the state at once and send the write in the same action. Put the previous value on the request as your own field: fields the driver doesn't know aren't sent, and they come back on the failure's `request`, so the `error` action can restore it.
+
+```jsx
+function Todos({ state }) {
+  return (
+    <div>
+      <ul>{state.todos.map(t => <li className={t.done ? 'todo done' : 'todo'}><button className="toggle" data-id={String(t.id)}>{t.title}</button></li>)}</ul>
+      <p className="error">{state.error}</p>
+    </div>
+  )
+}
+Todos.initialState = { todos: [{ id: 1, title: 'Write', done: false }], error: '' }
+Todos.intent = ({ DOM }) => ({ TOGGLE: DOM.click('.toggle').data('id', Number) })
+Todos.model = {
+  TOGGLE: {
+    STATE: (state, id) => ({ ...state, error: '', todos: state.todos.map(t => (t.id === id ? { ...t, done: !t.done } : t)) }),
+    HTTP:  (state, id) => {
+      const before = state.todos.find(t => t.id === id)   // the state before this action
+      return { url: `/api/todos/${id}`, method: 'PATCH', json: { done: !before.done }, ok: 'SAVED', error: 'SAVE_FAILED', before }
+    },
+  },
+  SAVED:       (state, saved) => ({ ...state, todos: state.todos.map(t => (t.id === saved.id ? saved : t)) }),
+  SAVE_FAILED: (state, { request }) => ({   // request is the request as sent, with your own fields
+    ...state,
+    error: 'Could not save.',
+    todos: state.todos.map(t => (t.id === request.before.id ? request.before : t)),
+  }),
+}
+```
+
+`SAVED` replaces the item with the server's version. In a test, `await t.fail('HTTP', 500)` and check that the item is back.
+
+### Save status
+
+A write's status is ordinary state: set it when the request is sent and in the reply actions. Ignoring a second click while saving keeps one request in flight.
+
+```jsx
+import { ABORT } from 'sygnal'
+
+function Profile({ state }) {
+  const label = { idle: '', saving: 'Saving…', saved: 'Saved.', failed: 'Could not save.' }[state.save]
+  return (
+    <form>
+      <input className="name" value={state.name} />
+      <button className="save" disabled={state.save === 'saving'}>Save</button>
+      <p className="save-status">{label}</p>
+    </form>
+  )
+}
+Profile.initialState = { name: '', save: 'idle' }   // 'idle' | 'saving' | 'saved' | 'failed'
+Profile.intent = ({ DOM }) => ({ NAME: DOM.input('.name').value(), SAVE: DOM.click('.save') })
+Profile.model = {
+  NAME: (state, name) => ({ ...state, name, save: 'idle' }),
+  SAVE: {
+    STATE: (state) => (state.save === 'saving' ? ABORT : { ...state, save: 'saving' }),
+    HTTP:  (state) => (state.save === 'saving' ? ABORT : { url: '/api/profile', method: 'PUT', json: { name: state.name }, ok: 'SAVED', error: 'SAVE_FAILED' }),
+  },
+  SAVED:       (state) => ({ ...state, save: 'saved' }),
+  SAVE_FAILED: (state) => ({ ...state, save: 'failed' }),
+}
+```
+
+To refresh the reads a save changed, add `invalidates: ['profile']` to the request ([Invalidation](/guide/resources/#invalidation)).
+
+For reads, see the [pagination and infinite list recipes](/guide/resources/#recipes).
+
 ## Related
 
 - [Resources and Caching](/guide/resources/): declarative reads, the query cache, invalidation, retries, validation
