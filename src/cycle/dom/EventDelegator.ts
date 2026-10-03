@@ -217,10 +217,7 @@ export class EventDelegator {
     }
   }
 
-  public removeElement(element: Element, namespace?: Array<Scope>): void {
-    if (namespace !== undefined) {
-      this.virtualListeners.delete(namespace);
-    }
+  public removeElement(element: Element): void {
     const toRemove: Array<[string, Element]> = [];
     this.nonBubblingListeners.forEach((map, type) => {
       if (map.has(element)) {
@@ -295,11 +292,11 @@ export class EventDelegator {
       }
     }
 
-    const map = this.virtualListeners.getDefault(
+    const map = this.virtualListeners.get(
       namespace,
       () => new Map<string, PriorityQueue<Destination>>(),
       _max
-    );
+    )!;
 
     if (!map.has(eventType)) {
       map.set(eventType, new PriorityQueue<Destination>());
@@ -507,12 +504,19 @@ export class EventDelegator {
 
     let newRoot: Element | undefined = rootElement;
     let newIndex = index;
+    let newListeners = listeners;
     if (elm === rootElement) {
-      if (index >= 0 && namespace[index].type === 'sibling') {
-        newRoot = this.isolateModule.getElement(namespace, index);
-        newIndex--;
-      } else {
+      if (index < 0 || !elm.parentNode) {
         return;
+      }
+      // the parent scope's root that contains elm (G-144: it may have several)
+      newRoot = this.isolateModule.getRootElement(elm.parentNode as Element);
+      newIndex--;
+      // G-145: like the browser, the event bubbles out of a total scope (a child
+      // component) to the parent's own elements; their listeners live in the parent's
+      // scope, and isDirectlyInScope keeps them from matching the child's elements
+      if (namespace[index].type === 'total') {
+        newListeners = this.getVirtualListeners(eventType, namespace.slice(0, index));
       }
     }
 
@@ -522,7 +526,7 @@ export class EventDelegator {
         elm.parentNode as Element,
         newRoot,
         event,
-        listeners,
+        newListeners,
         namespace,
         newIndex,
         useCapture,

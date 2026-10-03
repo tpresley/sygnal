@@ -24,26 +24,26 @@ export function makeIsolateSink<T extends VNode>(
       if (!node) {
         return node;
       }
-      const scopeObj = getScopeObj(scope);
-      const newNode = {
-        ...(node as any),
-        data: {
-          ...node.data,
-          isolate:
-            !node.data || !Array.isArray((node.data as any).isolate)
-              ? namespace.concat([scopeObj])
-              : (node.data as any).isolate,
-        },
-      };
+      const isolate = namespace.concat([getScopeObj(scope)]);
+      const newNode = scoped(node, isolate);
       return {
         ...newNode,
         key:
           newNode.key !== undefined
             ? newNode.key
-            : JSON.stringify(newNode.data.isolate),
+            : JSON.stringify((newNode.data && newNode.data.isolate) || isolate),
       } as T;
     });
   };
+}
+
+// G-144: a fragment has no element of its own, so each of its top-level elements (through
+// nested fragments) carries the scope; the fragment keeps the key
+function scoped(node: any, isolate: Array<Scope>): any {
+  return !node || typeof node != 'object' ? node
+    : node.sel ? {...node, data: {...node.data, isolate: node.data && Array.isArray(node.data.isolate) ? node.data.isolate : isolate}}
+    : node.children ? {...node, children: node.children.map((c: any) => scoped(c, isolate))}
+    : node;
 }
 
 export function getScopeObj(scope: string): Scope {

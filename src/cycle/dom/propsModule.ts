@@ -19,6 +19,7 @@
  */
 
 import type {VNode} from 'snabbdom/build/vnode.js';
+import {isStale} from './controlledInputModule';
 
 function clearProp(elm: any, key: string, nullish?: boolean): void {
   if (key === 'className') return;
@@ -47,12 +48,14 @@ function updateProps(oldVnode: VNode, vnode: VNode): void {
   const props: any = vnode.data?.props || {};
   const oldProps: any = oldVnode.data?.props || {};
   if (!elm || oldProps === props) return;
+  // G-146: the user typed into this form field after the state being rendered
+  const stale = isStale(vnode);
   for (const key in oldProps) {
     if (!(key in props)) clearProp(elm, key);
   }
   for (const key in props) {
     const cur = props[key];
-    if (cur === oldProps[key]) continue;
+    if (cur === oldProps[key] || (stale && (key === 'value' || key === 'checked'))) continue;
     // a nullish className is left to classNameModule, which rebuilds the attribute (B-012)
     if (cur == null) clearProp(elm, key, true);
     else if (key !== 'value' || elm[key] !== cur) elm[key] = cur;

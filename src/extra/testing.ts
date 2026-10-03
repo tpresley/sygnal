@@ -1447,11 +1447,14 @@ export function renderComponent(
           {selector, type});
         return true;
       }
-      const match = (path: string[]) => {
+      // the chain index of the deepest element a listener at `path` hears this event on
+      // (-1: a document/body listener), or undefined when it doesn't hear it
+      const depthOf = (path: string[]): number | undefined => {
         let ls = selText(path);
-        if (!chain) return ls == text;
+        if (!chain) return ls == text ? 0 : undefined;
         let els = chain;
-        if (PAGE.test(ls)) ls = ls.replace(PAGE, '');
+        const pageLs = PAGE.test(ls);
+        if (pageLs) ls = ls.replace(PAGE, '');
         else {
           const scope = path.filter(isScope).pop();
           let cur: string | undefined;
@@ -1461,10 +1464,15 @@ export function renderComponent(
             return cur == scope;
           });
         }
-        if (!ls) return true;
+        if (!ls) return pageLs || !els.length ? -1 : chain.indexOf(els[0]);
         const lsel = tryParse(ls);
-        return !!lsel && els.some((_, k) => matches(lsel, els.slice(0, k + 1)));
+        if (!lsel) return undefined;
+        for (let k = els.length - 1; k >= 0; k--) {
+          if (matches(lsel, els.slice(0, k + 1))) return pageLs ? -1 : chain.indexOf(els[k]);
+        }
+        return undefined;
       };
+      const match = (path: string[]) => depthOf(path) !== undefined;
       // G-039: wait until every listener this event would reach is subscribed
       if (!last) {
         for (const [k, path] of listeners) {
@@ -1516,7 +1524,10 @@ export function renderComponent(
         stopPropagation: noop,
         ...rest,
       };
-      hub.emit({type, event, match});
+      // G-145: like native bubbling, listeners on deeper elements (a child's) hear the
+      // event before those on their ancestors (the parent's wrapper), then document/body
+      if (!chain) hub.emit({type, event, match});
+      else for (let k = chain.length - 1; k >= -1; k--) hub.emit({type, event, match: (p: string[]) => depthOf(p) === k});
       return true;
     }, page || allowMissing ? undefined : () => (has() ? undefined : noMatch(selector, type, false)));
   };

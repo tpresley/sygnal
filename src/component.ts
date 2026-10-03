@@ -4,6 +4,7 @@ import switchable from './switchable';
 import {StateSource} from './cycle/state/index';
 import {init as snabbdomInit} from './cycle/dom/snabbdom';
 import defaultModules from './cycle/dom/modules';
+import {renderSeq} from './cycle/dom/controlledInputModule';
 import {makeCommandSource} from './extra/command';
 import type {Command} from './extra/command';
 // [diagnostics hook] shared diagnostics core — hooks are no-ops when diagnostics are off
@@ -179,6 +180,7 @@ class Component {
   _debug: boolean;
   onError: ((error: Error, info: { componentName: string }) => any) | undefined;
   isolatedState: boolean;
+  declare _inputSeq: number;
   isSubComponent: boolean;
   currentState: any;
   currentProps: any;
@@ -906,7 +908,7 @@ class Component {
         }
       })
       .compose(this.log('View rendered'))
-      .map((vDom: any) => vDom || { sel: 'div', data: {}, children: [] })
+      .map((vDom: any) => stampFields(vDom || { sel: 'div', data: {}, children: [] }, this._inputSeq))
       .map((vdom: any) => preprocessVdom(vdom, this))
       .compose(this.instantiateSubComponents.bind(this))
       .filter((val: any) => val !== undefined)
@@ -1201,6 +1203,8 @@ class Component {
     })
 
     let combined = xs.combine(...streams)
+      // G-146: the input counter as of the state and props this render will show
+      .map((arr: any) => (this._inputSeq = renderSeq(), arr))
       .compose(debounce(1))
       // map the streams from an array back to an object with the render parameter names as the keys
       .map((arr: any) => {
@@ -1988,6 +1992,14 @@ function applyTransitionHooks(vnode: any, name: string, duration?: number): any 
     })
   }
 
+  return vnode
+}
+
+// G-146: stamp the view's vnodes with the input counter of the state it shows (the DOM
+// modules read it on form fields)
+function stampFields(vnode: any, seq: number): any {
+  if (vnode && vnode.data) vnode.data.inputSeq = seq
+  if (vnode && vnode.children) for (const c of vnode.children) stampFields(c, seq)
   return vnode
 }
 
