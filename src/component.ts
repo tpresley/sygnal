@@ -65,7 +65,12 @@ const hub = (fixed: any[]): any => {
   })
   h.set = (a: any[]) => {
     cur = a
-    if (L) { on.forEach((s, k) => fixed.includes(k) || a.includes(k) || (s.unsubscribe(), on.delete(k))); a.forEach(add) }
+    // G-271: a Set (two array scans per kept stream made each render O(children^2))
+    if (L) {
+      const keep = new Set(fixed.concat(a))
+      on.forEach((s, k) => keep.has(k) || (s.unsubscribe(), on.delete(k)))
+      a.forEach(add)
+    }
     return h
   }
   return h
