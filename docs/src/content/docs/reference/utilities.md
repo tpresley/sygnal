@@ -143,10 +143,10 @@ In a view: `checked={isSelected(state.sel, mail.id)}`. In a reducer: `state.mail
 Wraps a model so each change to `state[key]` is recorded, and adds `UNDO` and `REDO` actions. The [`undo` behavior](/advanced/undo/#the-undo-behavior) does the same through `uses`; see [Undo and Redo](/advanced/undo/#undoable) for both.
 
 ```typescript
-function undoable(model: Model, options: { key: string; limit?: number; track?: string[]; coalesceMs?: number; resetOn?: string[] }): Model
+function undoable(model: Model, options: { key: string; limit?: number; track?: string[]; coalesceMs?: number; coalesce?: string[]; resetOn?: string[] }): Model
 ```
 
-The history is `state.history = { past, future }`. Options: `key` (required), `limit` (100), `track` (only these actions), `coalesceMs` (one step for quick changes by one action), `resetOn` (actions that clear the history).
+The history is `state.history = { past, future }`. Options: `key` (required), `limit` (100), `track` (only these actions), `coalesceMs` (one step for quick changes by one action), `coalesce` (only these actions join a step), `resetOn` (actions that clear the history).
 
 ---
 

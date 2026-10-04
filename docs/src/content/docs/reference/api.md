@@ -651,7 +651,7 @@ function renderComponent(
 | `dom` | `'mock' \| 'real'` | `'mock'` | `'real'` patches the tree into a real container element ([Real DOM](/integration/testing/#real-dom)) |
 | `onError` | `(error, info) => void` | none | The [app-level error hook](/advanced/error-boundaries/#tests), as `run()`'s `onError` |
 | `timerSink` | `string` | `'TIMER'` | The sink of the timer fake (the real `makeTimerDriver()` on the test's clock), unless a driver is passed under that name |
-| `storage` | `Record<string, entry \| string>` | `{}` | The fake storage of a root's [`persist()`](/guide/persistence/#testing) (`'local'` and `'session'` alike): key to `{ version, state }` or a raw string. Used as is: writes land in it, and calls given the same object share it |
+| `storage` | `Record<string, entry \| string>` | `{}` | The fake storage of a root's [`persist()`](/guide/persistence/#testing) (`'local'` and `'session'` alike): key to `{ version, state }` (with `format: 'plain'`, the stored keys) or a raw string. Used as is: writes land in it, and calls given the same object share it |
 
 The [Testing guide's options table](/integration/testing/#options) lists the rest (timing, HTTP, router and head fakes).
 
@@ -684,7 +684,7 @@ The [Testing guide's options table](/integration/testing/#options) lists the res
 | `explain` | `(predicate) => ExplainedAction \| undefined` | The first action whose resulting state matches, with that state and its STATE reducer |
 | `commands` | `(sinkName = 'ELEMENT') => ElementCommand[]` | The [element commands](/guide/element-commands/#testing) sent, one per command; another sink name gives its `sinkValues` |
 | `timers` | `() => ActiveTimer[]` | The [timers](/guide/timers/#testing) running now: each spec plus `name`, `action`, `component` |
-| `storage` | `(key) => { version, state } \| undefined` | The fake storage's entry for `key` ([persist()](/guide/persistence/#testing)); `settle()` makes the pending writes first |
+| `storage` | `(key) => { version, state } \| undefined` | The fake storage's entry for `key` ([persist()](/guide/persistence/#testing)); with `format: 'plain'`, the stored keys (TS: `t.storage<Entry>(key)`). `settle()` makes the pending writes first |
 | `query`, `queryAll` | `(selector \| control) => Element \| null`, `Element[]` | Elements of the latest render (snapshots on the mock DOM, real elements with `dom: 'real'`) |
 | `container` | `Element \| null` | `dom: 'real'`: the mount element |
 | `inspect` | `(options?) => InspectGraph` | App graph of the rendered tree (needs `sygnal/diagnostics`); `{ actions: true }` (or a number: the last n) adds `recentActions` |
@@ -907,11 +907,11 @@ function isSelected(slice: { selected: string[] }, id: string | number): boolean
 Undo history for one key of the state. [Guide](/advanced/undo/).
 
 ```typescript
-function undo(options: { key: string; limit?: number; track?: string[]; coalesceMs?: number; resetOn?: string[]; undo?: Control | string; redo?: Control | string }): Behavior
-function undoable(model: Model, options: { key: string; limit?: number; track?: string[]; coalesceMs?: number; resetOn?: string[] }): Model
+function undo(options: { key: string; limit?: number; track?: string[]; coalesceMs?: number; coalesce?: string[]; resetOn?: string[]; undo?: Control | string; redo?: Control | string }): Behavior
+function undoable(model: Model, options: { key: string; limit?: number; track?: string[]; coalesceMs?: number; coalesce?: string[]; resetOn?: string[] }): Model
 ```
 
-`uses = { history: undo({ key: 'doc' }) }` gives `state.history = { past, future, canUndo, canRedo }` and the actions `history.UNDO` / `history.REDO`. `model = undoable({ ... }, { key: 'doc' })` wraps the model's STATE reducers instead and adds plain `UNDO` / `REDO` actions. Options: `limit` (100 snapshots), `track` (only these actions are recorded), `coalesceMs` (changes by one action within this many ms are one step), `resetOn` (actions that clear the history). A `track` or `resetOn` name with no model entry is [SYG226](/reference/errors/#syg226).
+`uses = { history: undo({ key: 'doc' }) }` gives `state.history = { past, future, canUndo, canRedo }` and the actions `history.UNDO` / `history.REDO`. `model = undoable({ ... }, { key: 'doc' })` wraps the model's STATE reducers instead and adds plain `UNDO` / `REDO` actions. Options: `limit` (100 snapshots), `track` (only these actions are recorded), `coalesceMs` (changes by one action within this many ms are one step), `coalesce` (only these actions' changes join a step, e.g. typing; every other action is always its own step; `coalesceMs` defaults to 500 with it), `resetOn` (actions that clear the history). A `track` or `resetOn` name with no model entry is [SYG226](/reference/errors/#syg226).
 
 ---
 
@@ -930,6 +930,7 @@ function persist(options: {
   sync?: boolean                    // apply other tabs' writes (RESTORE)
   hydrate?: boolean                 // restore after the first render; detected when omitted
   debounceMs?: number               // default 100
+  format?: 'versioned' | 'plain'    // default 'versioned'; 'plain': no version / migrate
 }): Persist<State>
 ```
 
@@ -937,7 +938,7 @@ function persist(options: {
 TodoApp.persist = persist({ key: 'todo-app', pick: ['todos', 'filter'], version: 2, migrate })
 ```
 
-- Stored as JSON `{ version, state }`: the `pick` keys (or all but `omit`; never calculated fields).
+- Stored as JSON `{ version, state }`: the `pick` keys (or all but `omit`; never calculated fields). `format: 'plain'` stores those keys themselves (`{"title":"…","body":"…"}`), with no `version` / `migrate` ([A plain format](/guide/persistence/#a-plain-format)).
 - Restored synchronously before `INITIALIZE` and merged into `initialState`. When the app hydrates server-rendered HTML, in a `RESTORE` action after the first render instead, so that render matches the server's markup. That is detected: `renderToString()` markup in `run()`'s mount point (its root element has `data-sygnal-ssr`), a server-rendered [Astro](/integration/astro/) island, a [Vike](/integration/vike/) hydration; `hydrate: true` / `false` override it ([Server rendering](/guide/persistence/#server-rendering-hydrate)). Another stored version goes through `migrate` (nothing returned, or no `migrate`: ignored).
 - Written after `debounceMs` without a state change, on `pagehide` and on dispose; not when unchanged.
 - Root component only ([SYG224](/reference/errors/#syg224)); a `pick` / `omit` key not in `initialState` is [SYG223](/reference/errors/#syg223); a failed restore, migrate or write is [SYG642](/reference/errors/#syg642) (warning) and the app continues.
