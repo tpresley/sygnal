@@ -19,6 +19,7 @@ Everything on this page works and is supported, but it is **not** the canonical 
 | [`HTTP.select()`/`errors()` reading back your own request](#selecterrors-round-trip) | `{ url, ok: 'LOADED', error: 'FAILED' }` | SYG508 | no |
 | [Model-sent `{ connections }`](#model-sent-connections) | the `connections` static | — | no |
 | [`driverFromAsync` around `fetch`](#driverfromasync-for-http) | `makeFetchDriver()` | — | no |
+| [Controls](#controls-instead-of-class-selectors) (`controls()`, `<Add>`, `DOM.click(Add)`) | class and attribute selectors: `<button className="add">`, `DOM.click('.add')` | — | the other way: `--fix --controls` converts selectors to controls (opt-in) |
 
 ## Model shorthand
 
@@ -243,3 +244,29 @@ Quote.model = {
 ```
 
 `makeFetchDriver()` also turns non-2xx responses into failures with `status` and `body`, handles timeouts, query strings and JSON bodies, and is faked in tests. Keep `driverFromAsync` for promise APIs that aren't HTTP. See [HTTP](/guide/http/).
+
+## Controls instead of class selectors
+
+`controls()` names an element with an identifier instead of a class string. The view renders the control as a tag, and the intent, behaviors, element commands and tests take the same identifier:
+
+```jsx
+// Alternative
+import { controls } from 'sygnal'
+
+const { Draft, Add } = controls({ Draft: 'input', Add: 'button' })
+
+function AddTodo({ state }) {
+  return <div><label>New todo <Draft value={state.draft} /></label><Add>Add</Add></div>
+}
+AddTodo.intent = ({ DOM }) => ({ DRAFT: DOM.input(Draft).value(), ADD: DOM.click(Add) })
+// tests: t.simulateEvent(Add, 'click'); behaviors: pager({ next: Newer }); commands: { focus: Draft }
+
+// Canonical
+function AddTodo({ state }) {
+  return <div><label>New todo <input className="draft" value={state.draft} /></label><button className="add">Add</button></div>
+}
+AddTodo.intent = ({ DOM }) => ({ DRAFT: DOM.input('.draft').value(), ADD: DOM.click('.add') })
+// tests: t.simulateEvent('.add', 'click'); behaviors: pager({ next: '.newer' }); commands: { focus: '.draft' }
+```
+
+A control renders its element with a `data-control` attribute and resolves to `[data-control="Add"]` wherever a selector is accepted. Both forms behave the same: isolation, Collections, SSR and hydration are unchanged, and no strict rule flags either. Controls help when you want the link between a view and its intent checked by identifier: a renamed or misspelled control is a reference error or a [SYG110](/reference/errors/#syg110) finding, where a misspelled class silently matches nothing, and the types follow the element (`t.query(Draft)` is an `HTMLInputElement`). They are also the extension point for widget libraries (spec objects). In the 6.0 A/B eval they didn't pay for themselves as the default: a smaller model read a control's name as the button's label (`<Pin>📌</Pin>`) and imported one component's controls into a sibling, so selectors stay canonical. See [Controls](/guide/controls/).

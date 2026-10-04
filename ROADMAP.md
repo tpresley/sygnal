@@ -294,12 +294,12 @@ Done on `plan3-integration`: reply actions (`ok`/`error`) for `makeFetchDriver` 
 
 ### 17. Controls and Core Ergonomics (PLAN-4)
 
-**Status:** `IN PROGRESS` for 6.0.0 ([PLAN-4](dev-plans/PLAN-4.md), tracker [PLAN-4-status](dev-plans/PLAN-4-status.md)). Phases 1–3 are merged on `plan4-integration`; the docs, agent context, migration and final eval (Phase 4) are next. The release notes are under `[Unreleased]` in [`CHANGELOG.md`](CHANGELOG.md).
+**Status:** `IN PROGRESS` for 6.0.0 ([PLAN-4](dev-plans/PLAN-4.md), tracker [PLAN-4-status](dev-plans/PLAN-4-status.md)). Phases 1–3 are merged on `plan4-integration`; the docs, agent context and final eval (Phase 4) are next. The release notes are under `[Unreleased]` in [`CHANGELOG.md`](CHANGELOG.md).
 
 Close the everyday gaps that the gap study found between Sygnal and React/Vue apps: the ones agents and people hit in forms, dialogs, lists, persistence and debugging. Every feature had a size spike first; helpers that an app doesn't import cost 0 bytes, and PLAN-4 adds about 0.8 KB gzipped to the core.
 
 **What 6.0 gains:**
-- `controls()`: views and intents linked by identifier (`DOM.click(Add)`, `<Add>`), accepted wherever a selector is, with SYG124–126/128 and `sygnal-check --fix --controls`. Whether controls become the canonical form is decided by the 1-E A/B eval (P4-D) <!-- TODO(P4-D): replace this sentence with the outcome (canonical, or an alternative form). -->
+- `controls()`: views and intents linked by identifier (`DOM.click(Add)`, `<Add>`), accepted wherever a selector is, with SYG124–126/128 and `sygnal-check --fix --controls`. They ship as an [alternative form](docs/src/content/docs/advanced/alternative-forms.md) with their own guide page (`guide/controls`); class selectors stay canonical, with no strict rule against them (P4-D, D141)
 - Behaviors: `defineBehavior()` and the `uses` static, with first-party `pager`, `selection` and `undo` (plus `undoable()` for a whole model)
 - Element commands: the built-in `ELEMENT` sink (`focus`, `<dialog>` and popover methods, `scrollIntoView`, any element method), resolved in the sender's own view after the next patch
 - `persist()` for the root's state (versions and `migrate`, cross-tab `sync`, automatic restore after hydration), `STATE.watch()`, and declarative `timers` with `makeTimerDriver()`
@@ -318,4 +318,6 @@ Close the everyday gaps that the gap study found between Sygnal and React/Vue ap
 - `t.screen` / `t.user` Testing Library getters: built only if the 4-E A/B shows less test-authoring time; until then the docs stand alone
 - A runtime a11y pass for dynamic markup, and async storage adapters for `persist()`
 
-**Open:** the 1-E controls A/B eval and the P4-D decision <!-- TODO(P4-D): record the 1-E outcome (Opus wall time, Haiku pass rate, wiring failures, learn time) and the decision here. -->; the 4-E final eval and REPORT-v4 <!-- TODO(4-E): link REPORT-v4 and the measured impact. -->. Components and integrations (widgets, browser sources, the "Web components" guide) follow in PLAN-5.
+**Controls outcome (1-E, P4-D):** the A/B eval (12 tasks × 5 trials, selectors vs controls) met two of its four bars. Opus passed every task either way, but its wall time rose 1.06× (bar: at most +5%); Haiku's pass rate fell from 91.7% to 73.3% (bar: not lower), mostly because it read a control's name as the button's label (`<Pin>📌</Pin>`, dropping the visible text) and imported one component's controls into a sibling. Learn time (+0.6 s Opus, −1.7 s Haiku) and wiring failures (0% both) met theirs. With mixed results, controls are an alternative form in 6.0 (D141): fully supported and documented, not canonical, and no migration of examples or templates.
+
+**Open:** the 4-E final eval and REPORT-v4 <!-- TODO(4-E): link REPORT-v4 and the measured impact. -->. Components and integrations (widgets, browser sources, the "Web components" guide) follow in PLAN-5.
