@@ -34,4 +34,13 @@ export default class SymbolTree<Payload, T> {
     }
     return curr[0];
   }
+
+  // P45-A: drop the payload at path and prune the nodes left empty; true when node is empty
+  public delete(path: Array<T>, max = path.length, node = this.tree, i = 0): boolean {
+    if (i < max) {
+      const k = this.mapper(path[i]), child = node[1][k];
+      if (child && this.delete(path, max, child, i + 1)) delete node[1][k];
+    } else node[0] = undefined;
+    return !node[0] && !Object.keys(node[1]).length;
+  }
 }

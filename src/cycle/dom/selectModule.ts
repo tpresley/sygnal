@@ -12,14 +12,17 @@
  */
 
 import type {VNode} from 'snabbdom/build/vnode.js';
+import {isField} from './controlledInputModule';
 
 let pendingSelects: Array<{elm: HTMLSelectElement; value: any}> = [];
 
 function queueSelect(_oldVnode: VNode, vnode: VNode): void {
-  const elm = vnode.elm as Element;
+  // P45-A: a form field by the vnode's tag first; most vnodes aren't
+  if (!isField(vnode)) return;
+  const elm = vnode.elm as HTMLSelectElement;
   const value = vnode.data?.props?.value;
   if (elm && elm.tagName === 'SELECT' && value != null) {
-    pendingSelects.push({elm: elm as HTMLSelectElement, value});
+    pendingSelects.push({elm, value});
   }
 }
 

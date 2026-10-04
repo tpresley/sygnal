@@ -33,6 +33,8 @@ export class IsolateModule {
     const els = namespace && this.namespaceTree.get(namespace);
     if (els) {
       els.delete(elm);
+      // P45-A: an unmounted scope leaves no node behind
+      if (!els.size) this.namespaceTree.delete(namespace!);
     }
   }
 

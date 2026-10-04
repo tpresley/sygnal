@@ -485,7 +485,8 @@ describe('G-024: renderComponent reports isolation-boundary (SYG104) and typo (S
 // ─── B-004: controlled value/checked follow the vnode after coalesced renders ─
 
 describe('B-004: controlledInputModule', () => {
-  const vn = (props, elm) => ({ data: { props }, elm })
+  // P45-A: the module checks the vnode's tag (sel), as snabbdom's vnodes always carry it
+  const vn = (props, elm) => ({ sel: elm ? elm.tagName.toLowerCase() : undefined, data: { props }, elm })
   it('rewrites value/checked when the prop is unchanged but the live element differs', () => {
     const elm = { tagName: 'INPUT', value: 'typed', checked: true }
     controlledInputModule.update(vn({ value: '', checked: false }), vn({ value: '', checked: false }, elm))

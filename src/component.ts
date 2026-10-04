@@ -1828,8 +1828,14 @@ function injectComponents(currentElement: any, components: Record<string, any>, 
       return component
     }
   } else if (children.length > 0) {
-    const newChildren = children.map((child: any, i: any) => injectComponents(child, components, componentNameSet, `${path}.${i}`, id, readyMap)).flat()
-    return { ...currentElement, children: newChildren }
+    // P45-A: copy only the ancestors of injected nodes, so unchanged subtrees keep their identity
+    let changed: any
+    const newChildren = children.map((child: any, i: any) => {
+      const out = injectComponents(child, components, componentNameSet, `${path}.${i}`, id, readyMap)
+      if (out !== child) changed = 1
+      return out
+    })
+    return changed ? { ...currentElement, children: newChildren.flat() } : currentElement
   } else {
     return currentElement
   }
@@ -1863,7 +1869,9 @@ function hasNotReadyChild(vnode: any): boolean {
 }
 
 function processSuspensePost(vnode: any): any {
-  if (!vnode || !vnode.sel) return vnode
+  // P45-A: a child component's vnode (scoped: data.isolate) went through its own
+  // processSuspensePost before it was emitted, so there is nothing to do below it
+  if (!vnode || !vnode.sel || vnode.data?.isolate) return vnode
   if (vnode.sel === 'suspense') {
     const props = vnode.data?.props || {}
     const fallback = props.fallback
@@ -1874,7 +1882,14 @@ function processSuspensePost(vnode: any): any {
     if (!pending && children.length === 1) return processSuspensePost(children[0])
     return { sel: 'div', data: { attrs: { 'data-sygnal-suspense': pending ? 'pending' : 'resolved' } }, children: pending ? [typeof fallback === 'string' ? { text: fallback } : fallback] : children.map(processSuspensePost), text: undefined, elm: undefined, key: undefined }
   }
-  return vnode.children?.length > 0 ? { ...vnode, children: vnode.children.map(processSuspensePost) } : vnode
+  // P45-A: the input when no Suspense is below, else a copy of the path to it only
+  const kids = vnode.children
+  let children: any
+  for (let i = 0; kids && i < kids.length; i++) {
+    const out = processSuspensePost(kids[i])
+    if (out !== kids[i]) (children ||= kids.slice())[i] = out
+  }
+  return children ? { ...vnode, children } : vnode
 }
 
 const portalPatch = snabbdomInit(defaultModules);

@@ -33,7 +33,8 @@ const lastInput = new WeakMap<Element, number>();
  * that will show them is the input counter now
  */
 export const renderSeq = (): number => (changed = seq);
-const isField = (elm: any): boolean => !!elm && /^(INPUT|TEXTAREA|SELECT)$/.test(elm.tagName);
+// P45-A: a form field by its vnode's tag (sel), checked before any other work: most vnodes aren't
+export const isField = (vnode: VNode): boolean => /^(input|textarea|select)(?![\w-])/i.test(vnode.sel as string);
 /**
  * The vnode is older than the form field's live value: the user changed the field after
  * the render's state, and some state changed since, so a newer render is on its way. (A
@@ -47,13 +48,14 @@ export const isStale = (vnode: VNode): boolean => {
 function track(_: VNode, vnode: VNode): void {
   const elm = vnode.elm as Element;
   // a listener on the field itself runs before the app's delegated one (and its reducer)
-  if (isField(elm)) elm.addEventListener('input', () => lastInput.set(elm, ++seq));
+  if (isField(vnode)) elm.addEventListener('input', () => lastInput.set(elm, ++seq));
 }
 
 function syncControlled(oldVnode: VNode, vnode: VNode): void {
+  if (!isField(vnode)) return;
   const props = vnode.data?.props;
   const elm = vnode.elm as any;
-  if (!props || !isField(elm) || elm.type == 'file' || isStale(vnode)) return;
+  if (!props || !elm || elm.type == 'file' || isStale(vnode)) return;
   const oldProps: any = oldVnode.data?.props || {};
   const {value, checked} = props;
   // Only the case propsModule skipped (prop unchanged); it handles real changes.
