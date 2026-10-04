@@ -6,7 +6,7 @@ Tracks progress for [PLAN-4.5.md](PLAN-4.5.md) (performance). The coordinator ma
 
 **Integration branch:** `plan45-integration`, cut from `plan4-integration` at `eb9f9fe` (tag `plan4-phase4`) on 2026-10-04, in worktree `.claude/worktrees/plan-4-execution-7ae8e8`. The release stays held (D56).
 
-**State:** P45-0, A, B, C, D and R merged. Size decision (P45-Q10) and P45-EV pending.
+**State:** P45-0, A, B, C, D, R and S merged (net core −153 B). P45-EV (user's terminal) pending.
 
 ## Baseline
 
@@ -36,6 +36,7 @@ From `research/p45-perf-baseline.md` (PLAN-4 build `a7efb5d`; `plan4-phase4` has
 | P45-C | One render scheduler per app (+ rest of Collection, post-patch DOM emission) | ✅ merged | `p45-c-scheduler` (`6b59d7e`) | 2026-10-04 | −168 B (41,141 B; PLAN-4.5 net −202 B). `src/cycle/run/scheduler.ts`: per-app keyed microtask flush (render by depth, Collection, child views by reverse depth, one patch). MutationObserver, G-213 hold and the VT 20 ms window removed. Patches 1/1/1, streams 122/item. Limits lowered |
 | P45-D | Lazy wiring, synchronous teardown + G-255/256 fixes (D151) + dev-only statics freeze (D152) | ✅ merged | `p45-d-lazy` (`a2c2158`) | 2026-10-04 | +132 B (41,273 B; PLAN-4.5 net −70 B). Streams 22/item, unmount setTimeouts 9, heap 0.95 MB. Teardown in `tearDown()` stops one level per macrotask (keeps xstream's restart guard). Freeze in `checks/statics.ts` (0 B core). Limits lowered |
 | P45-R | Phase review fixes (G-257…G-272) | ✅ merged | `p45-r-fixes` (`69bd051`) | 2026-10-04 | +222 B (41,495 B; PLAN-4.5 net **+152 B**, over the ≤ 0 rule → P45-Q10). Counts unchanged. G-257 hold: a pending first-render gate holds the patch (≤ 50 ms) |
+| P45-S | Core size trim, no behaviour change (D157) | ✅ merged | `p45-s-trim` (`7981cde`) | 2026-10-04 | −305 B (41,190 B; PLAN-4.5 net **−153 B**, 1,110 B headroom). Calculated-field setup, EventDelegator, Portal/Suspense/Transition, Collection sort; new `test/p45-s-trim.test.js` pins the rewritten paths |
 | P45-E | Change detection (only if profiles show it) | ⬜ | | | |
 | P45-EV | Agent regression eval (~$30, user's terminal) | ⬜ | | | after P45-D |
 
@@ -43,6 +44,7 @@ From `research/p45-perf-baseline.md` (PLAN-4 build `a7efb5d`; `plan4-phase4` has
 
 | ID | Date | Decision | By |
 |---|---|---|---|
+| D157 | 2026-10-04 | P45-Q10: one no-behaviour-change trim pass, then accept what's left. Result: −305 B, PLAN-4.5 net −153 B (the ≤ 0 rule holds). Further savings needing behaviour changes, for PLAN-5 to weigh: drop snabbdom's Fragment tag side effect (~150 B), move `run()` HMR swap code to a dev entry, drop the old `'ACTION | SINK'` forms, register marker handlers (Portal/Transition/ClientOnly/Lazy/Suspense) on import, strip the debug log in production | User |
 | D156 | 2026-10-04 | P45-R: while a component created in this flush waits for its first-render gate, the app's patch is held (≈ 1 ms, ≤ 50 ms) so a cross-Collection move is one patch — the mechanism of D153. G-272 lands as a guard without a failing-first test (no public path reproduces it). G-265: devtools/diagnostics plain-object checks deliberately keep treating vnodes as non-plain | Coordinator |
 | D155 | 2026-10-04 | P45-Q9: after an input event a controlled field is always put back to the model's value, even when the state is structurally equal (React's controlled-input behaviour); CHANGELOG entry | User |
 | D154 | 2026-10-04 | P45-D: `app.sinks` and child sinks no longer carry placeholder READY/PARENT/non-driver sinks (undocumented); DevTools `onContextChanged` fires only for components with their own `.context`; teardown stops one stream level per macrotask (not one global stop) to keep xstream's restart guard; frozen-static mutations report as the existing SYG216 (no new code) | Coordinator |
@@ -78,7 +80,7 @@ From `research/p45-perf-baseline.md` (PLAN-4 build `a7efb5d`; `plan4-phase4` has
 | G-270 | review D | Low | scheduler | A shared start timer that never fires (`vi.clearAllTimers()`) blocks every later component with that delay | Fixed (P45-R) |
 | G-271 | review D | Low | component.ts | `hub.set` is O(children² × sinks) per render | Fixed (P45-R) |
 | G-272 | review D | Low | component.ts | INITIALIZE timer not cancelled on stop/restart → sent twice | Fixed (P45-R) |
-| G-251 | P45-0 | Low | docs | `research/p45-perf-baseline.md` still names the old `perf/` paths | Open (fix at close-out) |
+| G-251 | P45-0 | Low | docs | `research/p45-perf-baseline.md` still names the old `perf/` paths | Fixed (close-out) |
 
 ## Merge measurements
 
@@ -90,6 +92,7 @@ From `research/p45-perf-baseline.md` (PLAN-4 build `a7efb5d`; `plan4-phase4` has
 | + P45-C | 41,141 | 11.3× / 2.8× (10.15 ms) | 3.9× (58.4 ms) | 4.0× (2.4 ms) | **1.9× (1.5 ms) met** | 4.4× (4.0 ms) |
 | + P45-D | 41,273 | 16.4× / 2.6× (8.2 ms) | **2.6× (36.8 ms) met** | **1.8× (1.0 ms) met** | **1.8× (1.55 ms) met** | 7.4× (3.7 ms) |
 | + P45-R | 41,495 | 10.5× (7.35 ms) | 2.4× (37.4 ms) | 2.8× (1.7 ms) | 1.8× (1.45 ms) | 4.4× (3.1 ms) |
+| + P45-S | 41,190 | (no runtime change) | | | | |
 
 React's times were 0.65–0.8 ms in the P45-B run (0.5 before), so the P45-B ratios flatter; the absolute Sygnal times in parentheses are the fairer comparison.
 
@@ -97,6 +100,7 @@ Latency is now held up mostly by the per-component 1 ms debounce floor (P45-C); 
 
 ## Log
 
+- 2026-10-04 — P45-S merged (`7981cde`); all gates green; 41,190 B (net −153 B). D157. G-251 fixed. P45-EV commands handed over; a review of R+S runs on a side branch (not merged while the eval runs).
 - 2026-10-04 — P45-R merged (`69bd051`); all gates green; counts unchanged. Net +152 B → P45-Q10 asked. D156.
 - 2026-10-04 — Review of D: 7 findings (G-266…G-272), sent to P45-R.
 - 2026-10-04 — P45-D merged (`a2c2158`); gates green first time; limits lowered (streams 22, timeouts 100, heap 1.2). A–C review: 9 findings (G-257…G-265). D154/D155. P45-R and a review of D started.

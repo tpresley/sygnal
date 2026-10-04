@@ -1,15 +1,17 @@
 # PLAN-4.5 performance baseline (re-run of the 5.4.0 audit on PLAN-4)
 
+> Paths updated after P45-0 moved the harness from `perf/` to `benchmarks/audit/` (G-251).
+
 Branch `exp/p45-perf-baseline` from `plan4-integration` @ `a7efb5d`. Measurement and analysis only; no product changes.
-The harness is `perf/`: the 5.4.0 audit's harness unchanged, plus `perf/instrument.mjs` (counts) and `perf/retained.mjs` (settled retention). The 5.4.0 results are in `perf/baseline-5.4.0/`, the audit report is `perf/report.html`, and this run's raw output is in `perf/results-plan4/`.
+The harness is `benchmarks/audit/`: the 5.4.0 audit's harness unchanged, plus `benchmarks/audit/instrument.mjs` (counts) and `benchmarks/audit/retained.mjs` (settled retention). The 5.4.0 results are in `benchmarks/audit/baseline-5.4.0/`, the audit report is `benchmarks/audit/report.html`, and this run's raw output is in `benchmarks/audit/results-plan4/`.
 
 ```bash
 npm --prefix perf install && npm run build
-node perf/build.mjs && node perf/build.mjs --profile
-node perf/bench.mjs --out=results/plan4.json         # speed + memory, median of 10 after 3 warmups
-node perf/instrument.mjs                             # patches, streams, timers, retained ScopeCheckers (heap snapshots)
-node perf/retained.mjs [--dist=<other build>]        # heap/DOM nodes 200 ms, 1 s, 3 s after create/clear cycles
-node perf/profile.mjs --page=table-coll --op="select row (1k)" --inclusive
+node benchmarks/audit/build.mjs && node benchmarks/audit/build.mjs --profile
+node benchmarks/audit/bench.mjs --out=results/plan4.json         # speed + memory, median of 10 after 3 warmups
+node benchmarks/audit/instrument.mjs                             # patches, streams, timers, retained ScopeCheckers (heap snapshots)
+node benchmarks/audit/retained.mjs [--dist=<other build>]        # heap/DOM nodes 200 ms, 1 s, 3 s after create/clear cycles
+node benchmarks/audit/profile.mjs --page=table-coll --op="select row (1k)" --inclusive
 ```
 
 ## 1. Before → after (5.4.0 → plan4-integration)
@@ -64,7 +66,7 @@ The settled leak is about 1.75 MB per 1k-item cycle in both builds (one cycle: 4
 
 ## 2. Findings 1–6 on the current code
 
-Counts come from `perf/instrument.mjs`, run on an unminified build with the patch and Stream-constructor counters injected at build time.
+Counts come from `benchmarks/audit/instrument.mjs`, run on an unminified build with the patch and Stream-constructor counters injected at build time.
 
 | # | Finding | Status | Numbers 5.4.0 → PLAN-4 | Current source |
 |---|---|---|---|---|
@@ -90,13 +92,13 @@ Byte deltas are rough estimates of the core gzip change (kanban gate: 41,343 B a
 | 7 | Tag checks first in selectModule, controlledInputModule and classNameModule | Yes (11.5% of Collection select) | `selectModule.ts:18–23`, `controlledInputModule.ts:36–58`, `classNameModule.ts:41–70` | +10–30 | Low. classNameModule applies to any element with `className` (B-012), so gate it on the prop, not on the tag |
 | 8 | Cheaper change detection (identity, then shallow) | Partly; identity-first already exists, and GS-4 made "same object = no change" the semantics | `component.ts:590–626`, `:1157–1169`, `:2112`; `objIsEqual.ts` | ±20 | Low priority (0.2% of the profile). Props built inline in JSX still need a structural compare; GS-6 `STATE.watch` uses `objIsEqual` |
 | 9 | Drop the subtree MutationObserver; emit the root from a snabbdom post hook | Yes | `makeDOMDriver.ts:89–97`, `:120–143` | **S: −60…−120** | **Element commands** need the DOM source to emit after each patch (`elementCommands.ts:22–26`); a post hook does exactly that, but DOM mutations made outside a patch no longer re-emit. The router has its own observer (`router.ts:145`) and is unaffected; `testing.ts:1176` passes the observer through |
-| 10 | Perf regression gate in CI | Yes | new `scripts/perf-gate.mjs` next to `size-gate.mjs`, built on `perf/instrument.mjs` | 0 | Timings depend on the machine, so gate on counts (below) |
+| 10 | Perf regression gate in CI | Yes | new `scripts/perf-gate.mjs` next to `size-gate.mjs`, built on `benchmarks/audit/instrument.mjs` | 0 | Timings depend on the machine, so gate on counts (below) |
 
 Net bytes if all are done: about −100 to +300 B. #6 and #9 pay for #1, #3 and #4, and #1 can also remove the G-213 hold.
 
 ## 4. Suggested PLAN-4.5 workstreams (in order)
 
-1. **P45-0 Gate and harness** (#10): `scripts/perf-gate.mjs` on top of `instrument.mjs` and `retained.mjs`, ratcheted at today's counts, so each later stream proves its gain. Move `perf/` to `benchmarks/audit/` (see §6).
+1. **P45-0 Gate and harness** (#10): `scripts/perf-gate.mjs` on top of `instrument.mjs` and `retained.mjs`, ratcheted at today's counts, so each later stream proves its gain. Move `benchmarks/audit/` to `benchmarks/audit/` (see §6).
 2. **P45-A Identity and leaks** (#2, #3, #7): small, independent, low risk. #2 cuts patch cost before batching lands; #3 removes the 10.4 MB per 5k-item leak.
 3. **P45-B Pragma** (#6, plus fusing the walks): saves 300–500 B, which buys room for #1; independent of the rest.
 4. **P45-C Render scheduler** (#1, the rest of #4, #9; revisit the G-213 hold and the View Transitions quiet window): one workstream, because all of these change when the DOM patches. Largest gain and largest risk. Needs the full browser suite and the G-146, B-003/B-013, E11 and G-213 tests; an A/B re-run of this bench at merge.
@@ -121,13 +123,13 @@ Net bytes if all are done: about −100 to +300 B. #6 and #9 pay for #1, #3 and 
 
 ## 6. Harness recommendation
 
-Keep both; delete neither. **For PLAN-4.5, use `perf/` (this branch) as the primary harness** and move it to `benchmarks/audit/` when P45-0 lands. Why:
+Keep both; delete neither. **For PLAN-4.5, use `benchmarks/audit/` (this branch) as the primary harness** and move it to `benchmarks/audit/` when P45-0 lands. Why:
 - It has 16 ops across 5 scenarios (P-3 has 5 ops in 1 scenario), including the ops that expose findings 1, 2 and 6 (select, deep, keystroke, mount/unmount).
 - It records CPU as well as latency, measures memory, has a source-mapped profiler down to `src/*.ts`, and now has the count instrumentation the gate needs.
 
 From P-3 (`browser-tests/perf/` and `benchmarks/`), adopt:
-1. the quiet-page step before each op (100 ms plus three idle callbacks), instead of `perf/`'s fixed `settle()`; it matters for the Collection ops with trailing teardown;
+1. the quiet-page step before each op (100 ms plus three idle callbacks), instead of `benchmarks/audit/`'s fixed `settle()`; it matters for the Collection ops with trailing teardown;
 2. the paint and busy metrics;
 3. the js-framework-benchmark entries (`benchmarks/js-framework-benchmark/`), which stay as-is for upstream submission.
 
-Then align dependencies: `perf/` uses Vite 7 and React 19.2, while `benchmarks/` uses Vite 6 and React 19.3. P-3's clear-2k scenario can become one more op in `perf/lib/ops.mjs`, after which `browser-tests/perf/` can be retired.
+Then align dependencies: `benchmarks/audit/` uses Vite 7 and React 19.2, while `benchmarks/` uses Vite 6 and React 19.3. P-3's clear-2k scenario can become one more op in `benchmarks/audit/lib/ops.mjs`, after which `browser-tests/perf/` can be retired.
