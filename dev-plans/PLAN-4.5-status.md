@@ -6,7 +6,7 @@ Tracks progress for [PLAN-4.5.md](PLAN-4.5.md) (performance). The coordinator ma
 
 **Integration branch:** `plan45-integration`, cut from `plan4-integration` at `eb9f9fe` (tag `plan4-phase4`) on 2026-10-04, in worktree `.claude/worktrees/plan-4-execution-7ae8e8`. The release stays held (D56).
 
-**State:** complete (2026-10-04), pending the P45-R2 review. See Close-out.
+**State:** complete except P45-R3 (fixes from the P45-R2 review), then the `plan45-complete` tag. See Close-out.
 
 ## Baseline
 
@@ -38,6 +38,7 @@ From `research/p45-perf-baseline.md` (PLAN-4 build `a7efb5d`; `plan4-phase4` has
 | P45-R | Phase review fixes (G-257…G-272) | ✅ merged | `p45-r-fixes` (`69bd051`) | 2026-10-04 | +222 B (41,495 B; PLAN-4.5 net **+152 B**, over the ≤ 0 rule → P45-Q10). Counts unchanged. G-257 hold: a pending first-render gate holds the patch (≤ 50 ms) |
 | P45-S | Core size trim, no behaviour change (D157) | ✅ merged | `p45-s-trim` (`7981cde`) | 2026-10-04 | −305 B (41,190 B; PLAN-4.5 net **−153 B**, 1,110 B headroom). Calculated-field setup, EventDelegator, Portal/Suspense/Transition, Collection sort; new `test/p45-s-trim.test.js` pins the rewritten paths |
 | P45-R2 | Review fixes for R+S (G-273…G-281) | ✅ merged | `p45-r2-fixes` (`e528c7e`) | 2026-10-04 | +90 B (41,280 B; PLAN-4.5 net −63 B). The agent's install was refused, so the coordinator ran the full gates at merge: all green. G-278 documented (testing guide) |
+| P45-R3 | Fixes from the P45-R2 review (G-283…G-289) | 🟡 running | `p45-r3-fixes` | | G-283 is a regression from R2 (runaway-loop throttle lost) |
 | P45-E | Change detection (only if profiles show it) | ⏭ not done | | | Not needed for the met targets; Collection/single select left for PLAN-5 (handoff) |
 | P45-EV | Agent regression eval (~$30, user's terminal) | ✅ no regression | `p45-ev-opus` | 2026-10-04 | 80/80 pass; see Close-out |
 
@@ -92,6 +93,13 @@ From `research/p45-perf-baseline.md` (PLAN-4 build `a7efb5d`; `plan4-phase4` has
 | G-280 | review R+S | Low | diagnostics | D152 no longer freezes `component({ … })` option statics | Fixed (P45-R2) |
 | G-281 | review R+S | Low | component.ts | Root detection `_r = !sources.__k` depends on the caller's sources object being mutated (`A(sources); B(sources)`) | Fixed (P45-R2) |
 | G-282 | P45-EV | Low | testing | `renderComponent` has no `props` option and doesn't report unknown options: agents guessed `props:` for a props-only component and got an empty render (task 08; also in PLAN-4) | → PLAN-5 (handoff) |
+| G-283 | review R2 | Med | scheduler | R2's G-274 fix arms a capped-flush timer per `go()`: a non-settling loop for 200 ms → 117k timers / 9.7M stage runs (before: 324 / 81k). Regression of G-260's throttle. Confirmed | → P45-R3 |
+| G-284 | review R2 | Med/Low | scheduler/testing | With fake timers never advanced, raw `run()` still stops after 99 flushes. Confirmed | → P45-R3 |
+| G-285 | review R2 | Low/Med | DOM driver | The poke listener is never removed on dispose: each run/dispose on the same root leaves one (retaining the old driver). Confirmed | → P45-R3 |
+| G-286 | review R2 | Low | scheduler | One 51 ms release timer per held flush (27 in a 30 ms hold). Confirmed | → P45-R3 |
+| G-287 | review R2 | Low | scheduler | A late, dropped gate can consume a newer component's gate (no generation) | → P45-R3 |
+| G-288 | review R2 | Low | component.ts | G-281 root detection covers only un-isolated siblings in a hand-written main | → P45-R3 (note only) |
+| G-289 | review R2 | Low | testing/diagnostics | `owned()` permanently marks caller objects (incl. a component's static passed to renderComponent); Proxy/sealed edge cases | → P45-R3 |
 | G-251 | P45-0 | Low | docs | `research/p45-perf-baseline.md` still names the old `perf/` paths | Fixed (close-out) |
 
 ## Merge measurements
@@ -137,6 +145,7 @@ Latency is now held up mostly by the per-component 1 ms debounce floor (P45-C); 
 
 ## Log
 
+- 2026-10-04 — Review of R2: 7 findings (G-283…G-289), one a regression from R2 itself; P45-R3 started.
 - 2026-10-04 — P45-EV done (80/80; no regression; wall +13% traced to machine load). P45-R2 merged (gates green, 41,280 B). Close-out written; review of R2 running before the tag.
 - 2026-10-04 — P45-R2 committed (`e528c7e`), gates pending (install refused in the agent's session; the coordinator runs them after the eval to avoid loading the machine). D158.
 - 2026-10-04 — Review of R+S: 9 findings (G-273…G-281), 3 confirmed; P45-R2 started on its own branch. P45-S: no behaviour change found.
