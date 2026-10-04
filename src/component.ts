@@ -220,7 +220,7 @@ class Component {
   _w = 0;
   declare _f: number;
   declare _i: any;
-  declare _r: boolean;
+  declare _r: any;
   declare _o: ComponentOptions;
   _go!: () => any;
 
@@ -388,9 +388,12 @@ class Component {
     // P45-C: this app's render scheduler (the root makes it; children inherit it) and the depth
     this._d = sources.__d | 0
     // G-262: the root is the component that makes the scheduler (not depth 0: a public
-    // collection()/switchable() given a root's sources has items at depth 0)
-    this._r = !sources.__k
-    sources.__k ||= makeScheduler()
+    // collection()/switchable() given a root's sources has items at depth 0). G-281: or one given
+    // the root's own sources once the root is made (a hand-written main: A(sources); B(sources));
+    // not a peer (given them while the root is being made, before its sinks)
+    const k = sources.__k
+    this._r = !k || k.r.sources == sources && k.r.sinks
+    if (!k) (sources.__k = makeScheduler()).r = this
     // PLAN-4 GS-9: uid(name?) from the instance's position: the parent sets sources.__uid (its uid
     // + the child's path or id prop, + a Collection item's key, + a Switchable page name, each
     // encoded by uidPart: 'Name::r.0.2' → 'u-0_46_2'); 'u' at the root (run() sanitizes its `uid`

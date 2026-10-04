@@ -28,7 +28,7 @@ import xs, {Stream, NO} from 'xstream';
  * vi.clearAllTimers(), can't hold every later patch; a gate that fires after that can't make the
  * count negative).
  */
-export type Scheduler = ((k?: number, f?: () => void) => any) & {t?: (ms: number, f: () => void, h?: any) => void};
+export type Scheduler = ((k?: number, f?: () => void) => any) & {t?: (ms: number, f: () => void, h?: any) => void, r?: any};
 export const B = 1e6;
 // runs f; an error is rethrown asynchronously (the others in the loop still run)
 const safe = (f: () => void) => { try { f(); } catch (e) { setTimeout(() => { throw e; }); } };
