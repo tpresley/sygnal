@@ -37,7 +37,7 @@ From `research/p45-perf-baseline.md` (PLAN-4 build `a7efb5d`; `plan4-phase4` has
 | P45-D | Lazy wiring, synchronous teardown + G-255/256 fixes (D151) + dev-only statics freeze (D152) | ✅ merged | `p45-d-lazy` (`a2c2158`) | 2026-10-04 | +132 B (41,273 B; PLAN-4.5 net −70 B). Streams 22/item, unmount setTimeouts 9, heap 0.95 MB. Teardown in `tearDown()` stops one level per macrotask (keeps xstream's restart guard). Freeze in `checks/statics.ts` (0 B core). Limits lowered |
 | P45-R | Phase review fixes (G-257…G-272) | ✅ merged | `p45-r-fixes` (`69bd051`) | 2026-10-04 | +222 B (41,495 B; PLAN-4.5 net **+152 B**, over the ≤ 0 rule → P45-Q10). Counts unchanged. G-257 hold: a pending first-render gate holds the patch (≤ 50 ms) |
 | P45-S | Core size trim, no behaviour change (D157) | ✅ merged | `p45-s-trim` (`7981cde`) | 2026-10-04 | −305 B (41,190 B; PLAN-4.5 net **−153 B**, 1,110 B headroom). Calculated-field setup, EventDelegator, Portal/Suspense/Transition, Collection sort; new `test/p45-s-trim.test.js` pins the rewritten paths |
-| P45-R2 | Review fixes for R+S (G-273…G-281) | 🟡 running | `p45-r2-fixes` | | merged after P45-EV finishes (the eval packs the integration worktree) |
+| P45-R2 | Review fixes for R+S (G-273…G-281) | 🟠 committed, gates not run | `p45-r2-fixes` (`e528c7e`) | | The agent's install/build was refused by the auto-mode classifier; partial checks only (src vitest: no regressions; tsc). Merge + full gates after P45-EV finishes. Est. +110 B |
 | P45-E | Change detection (only if profiles show it) | ⬜ | | | |
 | P45-EV | Agent regression eval (~$30, user's terminal) | ⬜ | | | after P45-D |
 
@@ -45,6 +45,7 @@ From `research/p45-perf-baseline.md` (PLAN-4 build `a7efb5d`; `plan4-phase4` has
 
 | ID | Date | Decision | By |
 |---|---|---|---|
+| D158 | 2026-10-04 | P45-R2: keep the 41 B G-281 fix (root recorded on the scheduler) over the 15 B option that would stop peers writing into the root's sources (behaviour change). Vike's live shell state slices are marked caller-owned, so the dev freeze skips them. G-278 documented, not fixed (detection would rely on fake-timer internals) | Coordinator |
 | D157 | 2026-10-04 | P45-Q10: one no-behaviour-change trim pass, then accept what's left. Result: −305 B, PLAN-4.5 net −153 B (the ≤ 0 rule holds). Further savings needing behaviour changes, for PLAN-5 to weigh: drop snabbdom's Fragment tag side effect (~150 B), move `run()` HMR swap code to a dev entry, drop the old `'ACTION | SINK'` forms, register marker handlers (Portal/Transition/ClientOnly/Lazy/Suspense) on import, strip the debug log in production | User |
 | D156 | 2026-10-04 | P45-R: while a component created in this flush waits for its first-render gate, the app's patch is held (≈ 1 ms, ≤ 50 ms) so a cross-Collection move is one patch — the mechanism of D153. G-272 lands as a guard without a failing-first test (no public path reproduces it). G-265: devtools/diagnostics plain-object checks deliberately keep treating vnodes as non-plain | Coordinator |
 | D155 | 2026-10-04 | P45-Q9: after an input event a controlled field is always put back to the model's value, even when the state is structurally equal (React's controlled-input behaviour); CHANGELOG entry | User |
@@ -110,6 +111,7 @@ Latency is now held up mostly by the per-component 1 ms debounce floor (P45-C); 
 
 ## Log
 
+- 2026-10-04 — P45-R2 committed (`e528c7e`), gates pending (install refused in the agent's session; the coordinator runs them after the eval to avoid loading the machine). D158.
 - 2026-10-04 — Review of R+S: 9 findings (G-273…G-281), 3 confirmed; P45-R2 started on its own branch. P45-S: no behaviour change found.
 - 2026-10-04 — P45-S merged (`7981cde`); all gates green; 41,190 B (net −153 B). D157. G-251 fixed. P45-EV commands handed over; a review of R+S runs on a side branch (not merged while the eval runs).
 - 2026-10-04 — P45-R merged (`69bd051`); all gates green; counts unchanged. Net +152 B → P45-Q10 asked. D156.
