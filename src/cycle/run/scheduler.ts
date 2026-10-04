@@ -34,7 +34,7 @@ export const B = 1e6;
 const safe = (f: () => void) => { try { f(); } catch (e) { setTimeout(() => { throw e; }); } };
 
 export function makeScheduler(): Scheduler {
-  let q: Record<number, Array<() => void>> = {}, on = 0, n = 0, seen = -1, y = 0, g = 0, x = 0, c = 0, p: any = 0, b: any = 0;
+  let q: Record<number, Array<() => void>> = {}, on = 0, n = 0, seen = -1, y = 0, g = 0, x = 0, c = 0, p: any = 0, b: any = 0, G = 0;
   // G-260: flushes are counted (reset by a timer the 9th sets): after 100 in a macrotask (a
   // patch -> element -> action loop that never settles) the next one waits for a macrotask.
   // G-274: the capped flush's timer resets the count too, and it doesn't set `on`. G-283: one
@@ -57,7 +57,9 @@ export function makeScheduler(): Scheduler {
         // flush sets a timer that flushes after the bound. G-286: one per hold (`b`: the
         // setTimeout it used; set again if setTimeout was replaced since: fake timers switched)
         if (g && (Date.now() - (x ||= Date.now())) >>> 0 < 50) return (b == setTimeout || setTimeout(go, 51, b = setTimeout), on = y = 0, seen = -1);
-        g = x = b = 0;
+        // G-287: a new generation of gates (one of a dropped hold that fires late doesn't count
+        // down a newer component's gate)
+        g = x = b = 0, G++;
       }
       const a = q[k];
       delete q[k];
@@ -74,7 +76,7 @@ export function makeScheduler(): Scheduler {
   // timer is shared within the microtask that set it only (one set earlier may have been
   // cleared, or its 0 ms sibling may have fired)
   const t: Record<number, Array<() => void>> = {};
-  s.t = (ms, f, h) => {
+  s.t = (ms, f, h, e = G) => {
     let a = t[ms];
     if (!a) {
       a = t[ms] = [];
@@ -84,7 +86,7 @@ export function makeScheduler(): Scheduler {
         go();
       }, ms);
     }
-    a.push(h ? (g++, () => (g && g--, f())) : f);
+    a.push(h ? (g++, () => (e == G && g--, f())) : f);
   };
   return s;
 }

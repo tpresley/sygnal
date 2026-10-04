@@ -7,6 +7,8 @@
 //   (fake) timer: after 100 renders the next waits for the clock. Documented (testing guide);
 //   pinned here: advancing the clock now and then keeps a long run of input rendering.
 // - G-286: a held patch (G-257) armed one 51 ms timer per held flush, not one per hold.
+// - G-287: a gate that fires after its hold was dropped (the 50 ms bound) could consume the
+//   count of a newer component's gate, so that component's patch wasn't held (two patches).
 import { describe, it, expect, afterEach, vi } from 'vitest'
 import { makeScheduler, B } from '../src/cycle/run/scheduler.ts'
 import { run } from '../src/index.js'
@@ -118,3 +120,30 @@ describe('P45-R3 G-286: one bound timer per hold', () => {
   })
 })
 
+describe('P45-R3 G-287: a late gate from a dropped hold', () => {
+  it("doesn't consume a newer component's gate", async () => {
+    vi.useFakeTimers()
+    const s = makeScheduler()
+    // gate A (its timer will fire late: a throttled tab)
+    let fireA
+    const st = globalThis.setTimeout
+    globalThis.setTimeout = (f, ms) => (ms == 1 && !fireA ? (fireA = f, 0) : st(f, ms))
+    s.t(1, () => {}, 1)
+    globalThis.setTimeout = st
+    let patches = 0
+    s(2 * B, () => patches++)
+    await microtasks()
+    expect(patches).toBe(0) // held by A
+    await vi.advanceTimersByTimeAsync(60) // the bound passes: the hold (and A's count) dropped
+    expect(patches).toBe(1)
+    await microtasks() // the next microtask: a new timer for the next gate
+    s.t(1, () => {}, 1) // gate B, pending
+    fireA() // A fires late
+    s(2 * B, () => patches++)
+    await microtasks()
+    expect(patches).toBe(1) // still held by B
+    await vi.advanceTimersByTimeAsync(1) // B fires
+    await microtasks()
+    expect(patches).toBe(2)
+  })
+})
