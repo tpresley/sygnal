@@ -1837,10 +1837,13 @@ function applyTransitionHooks(vnode: any, name: string, duration?: number): any 
     if (remove) remove(vn, () => {})
     const el = vn.elm
     if (!el || !el.classList) { rm(); return }
+    // G-279: poke once the element is gone (a style `remove` the element also has delays the
+    // removal to its own transitionend, which runs before this listener)
     run(el, 'leave', () => {
-      const p = el.parentNode
+      const p = el.parentNode, f = () => el.parentNode || pokeDOM(p)
       rm()
-      pokeDOM(p)
+      f()
+      el.addEventListener('transitionend', f)
     })
   }
 
