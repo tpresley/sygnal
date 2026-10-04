@@ -9,7 +9,7 @@ Tracks progress for [PLAN-4.md](PLAN-4.md) (controls and core ergonomics). The c
 
 **Integration branch:** `plan4-integration`, cut from `main` at `3214ed9` on 2026-10-03 (worktree `.claude/worktrees/plan-4-execution-7ae8e8`). The release stays held (D56): no version bumps, tags, PR to main or publish.
 
-**State:** Phase 1 (with Phase 2 started in parallel). All §11 questions answered except Q10 (after 1-E). 0-C running.
+**State:** Phases 1–3 implemented and merged (phases 1–2 tagged; Phase 3 review next). Phase 4 waits for the 1-E eval (P4-D). All §11 questions answered except Q10 (after 1-E).
 
 ## Baseline (0-A)
 
@@ -57,10 +57,10 @@ PLAN-3's end-of-Phase-5 figures (40,403 B, 283 lines, 34,343 B) grew with #12 an
 | P-1 | View Transitions spike (GS-12) | ✅ decided (D129) | `exp/p4-view-transitions` (`bbdc43a`) | subagent | not merged | `dev-plans/research/p1-view-transitions.md` on the exp branch |
 | P-2b | `sygnal/element` + per-instance `run()` (G-212) | ✅ merged | `p4-p2b-element` (`bf36b39`) | subagent | | core **−72 B** (page-wide HMR persisted state removed); entry 1,554 B gz (1,951 B at es2020 because of `#private`); doc draft in `research/p2b-element-doc-draft.md` for PLAN-5 |
 | PF-1 | Collection O(1) item lookups (D128) | ✅ merged | `p4-pf1-collection` (`007e8ff`) | subagent | | +42 B (est. 28; accepted within D125); Collection edit 16.2 → 8.3 ms, swap 10.7 → 5.5 ms; identity kept for unchanged items; duplicate-id behaviour pinned |
-| P-1b | View Transitions, form B (D129) + G-213 | 🟡 running | `p4-p1b-vt` | subagent | | runs alongside 3-B |
+| P-1b | View Transitions, form B (D129) + G-213 | ✅ merged | `p4-p1b-vt` (`c44709d`); G-213 fix `exp/p4-g213` (`baecc34`) merged (D137) | subagent | | +30 B core; `makeViewTransitionDOMDriver` +354 B per app; form A ≥ +139 B over B (stays on `exp/p4-vt-slim`); SYG645; G-213 fix +148 B |
 | 2-R | Review fixes (G-214), G-216, G-218, D131, togglePopover, `t.explain` original fn, Vike `onError` check | ✅ merged | `p4-2r-fixes` (`c2188b6`) | subagent | | +26 B net (uid encoding +28, togglePopover +17, per-app HMR −37); tags `plan4-phase1`, `plan4-phase2` |
 | 3-B | Persist (GS-5) | ✅ merged | `p4-3b-persist` (`38b4ec0`) | subagent | | +16 B core; helper ≈ 830 B per app; PERSIST handled by the helper (rewritten to EFFECT); RESTORE built-in entry; `{ version, state }` format; G-224/225/226 done |
-| 3-B2 | Persist follow-ups: automatic hydration, Astro statics forwarding, Vike SYG224 note, drop `'A \| PERSIST'` rewrite | 🟡 running | `p4-3b2-persist` | subagent | | D136 |
+| 3-B2 | Persist follow-ups: automatic hydration, Astro statics forwarding, Vike SYG224 note, drop `'A \| PERSIST'` rewrite | ✅ merged | `p4-3b2-persist` (`dd23f87`) | subagent | | +5 B (`__m` mount-point source); helper 865 B per app; G-227 fixed |
 | 3-A | Element commands (GS-2) | ✅ merged | `p4-3a-element` (`9176436`) | subagent | | +222 B; any element method runs (D133); SYG640/641 dev-only; commands run after the next patch where the target exists, else 16 ms checks, give up after ~1 s |
 | 3-K | Checker: GS-2, GS-7 (GS-5 after 3-B) | ✅ merged (GS-5 part pending) | `p4-3k-checker` (`3da16ee`) | subagent | | sygnal-check 434; static SYG422/640/641/643; timer actions are triggers (SYG112 family); no new findings on hidden solutions/examples; G-215 frame browser test |
 | 4-B2 | Site docs, part 2 (element commands, timers, DevTools, API reference) | ✅ merged | `p4-4b2-docs` (`7c2c001`) | subagent | | 2 new pages; 33 samples in `test/p4-4b2-doc-samples.test.js`; check-doc-samples 511; G-219, G-223 closed |
@@ -187,6 +187,7 @@ They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none o
 | D134 | 2026-10-03 | uid parts use an injective encoding: letters and digits stay, every other character (including `_` and `-`) becomes `_<code>_` (`'0.2'` → `0_46_2`); the root `uid` option keeps the readable form. uids are opaque ids, so injectivity wins over readability. | Coordinator | 2-R QUESTION |
 | D135 | 2026-10-03 | Vike: Sygnal's app-level hook config is `sygnalOnError` (`pages/+sygnalOnError.js`), because Vike 0.4.267 has its own global `onError` hook with a different signature. | Coordinator | 2-R item 15 |
 | D136 | 2026-10-03 | Persist follow-ups (3-B2): hydration restore becomes automatic (per-app signal from run()/wrappers; `hydrate` stays an override); Astro roots forward `persist`/`uses`/`timers`/`viewTransitions`; Vike pages don't support persist in 6.0 (SYG224 names Vike, docs say where persist works); the non-canonical `'A \| PERSIST'` shorthand rewrite is dropped. | Coordinator | 3-B QUESTIONs |
+| D137 | 2026-10-03 | G-213 fixed in PLAN-4 (`pickCombine` holds a removal while a moved item's new instance is still rendering, ≤ 100 ms; +148 B) and PLAN-4's core cap raised to **850 B** (≈ 880 B left for PLAN-5 under 42,300 B). Form A of View Transitions stays out (≥ +139 B over B, beyond D129's 60 B). | User (G-213, cap); coordinator (form A, per D129) | P-1b report |
 
 ## Open questions (PLAN-4 §11)
 
@@ -223,7 +224,7 @@ They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none o
 | G-210 | 2-C | low | inspect | `inspect()` lists recent actions only with `{ actions }`, because `sygnal-check/schema/inspect.schema.json` has no `recentActions` (additionalProperties false). Add the schema entry (2-C's proposed JSON) in 3-D, then decide on default. | 3-D |
 | G-211 | 2-C merge | low | tests | `p4-2c-inspect-actions` relied on 30 × 1 ms ticks in a fixed 120 ms window; flaky under load. Fixed to wait for the ticks. Browser headless timeout raised 30 → 90 s (suite ~27 s). | ✅ coordinator |
 | G-212 | P-2 | medium | run | `run()` writes page-wide globals (`__SYGNAL_HMR_PERSISTED_STATE`, `__SYGNAL_DEVTOOLS_APP__`) and resets the diagnostics config, so two apps (or a host app plus custom elements) on one page interfere: HMR may restore another app's state, diagnostics mode is reset. Related to G-206. | ✅ P-2b (residual in G-216) |
-| G-213 | P-1 | medium | Collection | Moving an item across Collections paints a frame without it (0–1 frames per move, 4–8 in rapid runs), even with no animation. | Open → PF-1 or P-1b |
+| G-213 | P-1 | medium | Collection | Moving an item across Collections paints a frame without it (0–1 frames per move, 4–8 in rapid runs), even with no animation. | ✅ D137 (`exp/p4-g213`) |
 | G-214 | review (Phase 1+2, high) | — | core | Review findings: (1) behaviors.ts calls constant sink values (`{ PARENT: 'x' }`, `true`) as functions; (2) the parent mutates its received `sources.__uid` for each child (root: Cycle's sources), so a remount reads a stale base; (3) uid sanitizing isn't injective ('a.b' vs 'a_b'); (4) `STATE.select(...).watch()` doesn't end on dispose (select drops `end`); (5) Collection/Switchable uids become 'undefined-…' without a `__uid`; (6) SYG222 misses in-place mutation of a behavior slice; (7) statics errors reported with phase 'reducer'; (8) `isAbort` duplicated in 4 modules; (9) stale objIsEqual depth comment. | ✅ 2-R |
 | G-215 | 3-C | low | GS-7 | No real-browser test for `frame` timers (rAF). Add one in 3-K or 4-x. | ✅ 3-K |
 | G-216 | P-2b | low | HMR | `component.ts` still reads page-wide `__SYGNAL_HMR_UPDATING` / `__SYGNAL_HMR_STATE`, so an app constructed during another app's ~100 ms hot swap can take its state. Fix: scope per app through a `__hmr` source (+10–20 B). | ✅ 2-R |
@@ -237,7 +238,10 @@ They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none o
 | G-224 | 3-K | low | diagnostics | Runtime SYG102 heuristic (`replyNamesOf` in `checks/shared.ts`) doesn't read the `timers` static, so the dev entry may report a timer action as SYG102 info under `run()`; `InspectComponent` (public.d.ts) lacks the schema's static-only `commands`/`timers`. | ✅ 3-B |
 | G-225 | 3-K, 4-B2 | low | tests | Timing flakes: `p4-3a-element-commands` "after 1 s" SYG640 and `p4-3a-element-run` "reports SYG641 and SYG640" each failed once (SYG640 after ~1 s). | ✅ 3-B |
 | G-226 | 4-B2 | low | types | `SygnalDevTools` (from `getDevTools()` in `sygnal`) lacks `configureCopyAsTest` / `getSession`; only the `sygnal/devtools` type has them. | ✅ 3-B |
-| G-227 | 3-B | medium | Astro | `src/astro/client.ts` copies a fixed list of statics into its root wrapper; `persist`, `uses`, `timers` are missing, so behaviors, timers and persist don't work on Astro islands. | 3-B2 |
+| G-227 | 3-B | medium | Astro | `src/astro/client.ts` copies a fixed list of statics into its root wrapper; `persist`, `uses`, `timers` are missing, so behaviors, timers and persist don't work on Astro islands. | ✅ 3-B2 |
+| G-228 | P-1b merge | low | GS-12 | A non-array `viewTransitions` static (e.g. `true`) throws inside every STATE reducer (`.includes`), surfacing as SYG216. Add a dev check (SYG645's module) for a non-array value; types already require an array. | Phase 4 follow-up |
+| G-229 | 3-B2 | low | Astro | Astro islands get no drivers (only `__hydrate`), so forwarded `timers`/`resources`/`connections` can't run there. Possible `drivers` integration option (like `onError`). | 6.x candidate; docs note in 4-B |
+| G-230 | 3-B2 | — | docs | `reference/api.md` ~940/951 still say restore-after-first-render happens "with `hydrate: true`" (now automatic). | 4-B |
 
 ## Log
 
@@ -264,3 +268,4 @@ They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none o
 - 2026-10-03 — Merged 2-R; fixed the debugging page's copied test (2-R removed the settle workaround). Gates green: vitest 2,082 (+1 skipped), browser 165, sygnal-check 435, doc samples 511; 41,129 B gated (PLAN-4 +593 B of 775). Review findings all fixed. Tagged `plan4-phase1` and `plan4-phase2`. D134, D135. Started 3-B.
 - 2026-10-03 — Merged PF-1 (+42 B; 41,171 B gated, PLAN-4 +635 B of 775). 3-B and P-1b running in parallel (each with a few localized `component.ts` lines).
 - 2026-10-03 — Merged 3-B; gates green (vitest 2,153, browser 167, sygnal-check 447, doc samples 520; 41,187 B gated, PLAN-4 +651 B). D136; G-227. Started 3-B2.
+- 2026-10-03 — Merged P-1b (conflicts with 3-B in statics lists/d.ts/check registry/browser main: kept both), 3-B2, and the G-213 fix (D137). Fixed an island test that set `viewTransitions = true` (G-228). Gates green: vitest 2,189 (+1 skipped), browser 177, sygnal-check 448, doc samples 529; **41,371 B gated, PLAN-4 +835 B of 850**. Phase 3 implementation complete.
