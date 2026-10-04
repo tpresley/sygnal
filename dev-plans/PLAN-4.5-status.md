@@ -93,6 +93,13 @@ From `research/p45-perf-baseline.md` (PLAN-4 build `a7efb5d`; `plan4-phase4` has
 | G-281 | review R+S | Low | component.ts | Root detection `_r = !sources.__k` depends on the caller's sources object being mutated (`A(sources); B(sources)`) | Fixed (P45-R2) |
 | G-282 | P45-EV | Low | testing | `renderComponent` has no `props` option and doesn't report unknown options: agents guessed `props:` for a props-only component and got an empty render (task 08; also in PLAN-4) | → PLAN-5 (handoff) |
 | G-251 | P45-0 | Low | docs | `research/p45-perf-baseline.md` still names the old `perf/` paths | Fixed (close-out) |
+| G-283 | review R2 | Med | scheduler | Regression from G-274: once capped, every go() armed its own capped-flush timer (each resetting the count): a non-settling loop dirtying 5 stages set 117k timers in 200 ms and ran ~2 s after it stopped. Confirmed | Fixed (P45-R3) |
+| G-284 | review R2 | Med/Low | scheduler/testing | With `vi.useFakeTimers()` never advanced, raw `run()` stops after 99 renders (count reset and capped flush are fake timers). Confirmed | Documented (testing guide, P45-R3): a MessageChannel reset measured +42 B, over budget |
+| G-285 | review R2 | Low/Med | DOM driver | The `sygnal-dom` poke listener was never removed: run/dispose cycles on one root left one each, retaining the disposed driver. Confirmed | Fixed (P45-R3) |
+| G-286 | review R2 | Low | scheduler | G-273 armed one 51 ms timer per held flush (27 in a 30 ms hold). Confirmed | Fixed (P45-R3) |
+| G-287 | review R2 | Low | scheduler | A gate of a dropped hold firing late consumed a newer component's gate (G-257 two patches within the bound) | Fixed (P45-R3) |
+| G-288 | review R2 | Low | component.ts | G-281 doesn't see isolated siblings (`isolate(B,'b')(sources)`, `component({ isolateOpts })`) in a hand-written main as roots | Known (code comment + CHANGELOG; needs a caller marker) |
+| G-289 | review R2 | Low | testing/diagnostics | `owned()` marks caller objects for good (a component's static passed as `initialState` escapes the freeze; a sealed fixture is frozen; a Proxy throws) | Fixed (P45-R3) |
 
 ## Merge measurements
 
@@ -136,6 +143,8 @@ Latency is now held up mostly by the per-component 1 ms debounce floor (P45-C); 
 **Process notes:** three review rounds (A–C, D, R+S) found 25 issues (G-257…G-281), all fixed or documented; a fourth review covers P45-R2. Subagents shared the scratchpad (G-250: prefix names). The auto-mode classifier refused one agent's worktree install during the eval; the coordinator ran its gates at merge instead.
 
 ## Log
+
+- 2026-10-04 — P45-R3 (review of R2: G-283…G-289) committed on `p45-r3-fixes`: 5 fixed, G-284 documented, G-288 noted. 41,343 B gated (PLAN-4.5 net 0).
 
 - 2026-10-04 — P45-EV done (80/80; no regression; wall +13% traced to machine load). P45-R2 merged (gates green, 41,280 B). Close-out written; review of R2 running before the tag.
 - 2026-10-04 — P45-R2 committed (`e528c7e`), gates pending (install refused in the agent's session; the coordinator runs them after the eval to avoid loading the machine). D158.
