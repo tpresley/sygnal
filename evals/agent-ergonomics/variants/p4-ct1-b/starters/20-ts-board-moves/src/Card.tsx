@@ -13,7 +13,7 @@ type CardActions = ActionsOf<typeof intent>
 
 const Card: Component<CardState, {}, {}, CardActions> = ({ state }) => (
   <div className={state.done ? 'card done' : 'card'}>
-    <Toggle type="checkbox" className="toggle" checked={state.done} />
+    <Toggle type="checkbox" className="toggle" aria-label="Done" checked={state.done} />
     <span className="title">{state.title}</span>
     <Delete className="delete">Delete</Delete>
   </div>

@@ -10,6 +10,7 @@ function App({ state }) {
             <input
               type="checkbox"
               className="toggle"
+              aria-label="Done"
               checked={task.done}
               data-id={String(task.id)}
             />

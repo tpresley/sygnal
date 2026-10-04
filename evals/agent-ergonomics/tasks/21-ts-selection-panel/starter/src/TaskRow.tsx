@@ -10,7 +10,7 @@ type TaskRowActions = ActionsOf<typeof intent>
 
 const TaskRow: Component<TaskState, {}, {}, TaskRowActions> = ({ state }) => (
   <div className={state.done ? 'task-row done' : 'task-row'}>
-    <input type="checkbox" className="toggle" checked={state.done} />
+    <input type="checkbox" className="toggle" aria-label="Done" checked={state.done} />
     <span className="task-title">{state.title}</span>
     <span className="assignee">{state.assignee}</span>
     <button className="delete">Delete</button>

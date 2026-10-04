@@ -1,7 +1,7 @@
 function TaskItem({ state }) {
   return (
     <div className={state.done ? 'task done' : 'task'}>
-      <input type="checkbox" className="toggle" checked={state.done} />
+      <input type="checkbox" className="toggle" aria-label="Done" checked={state.done} />
       <span className="title">{state.title}</span>
     </div>
   )
