@@ -102,7 +102,7 @@ describe('item 2: the island root forwards persist, uses, timers and viewTransit
     Island.uses = { c: counter() }
     Island.persist = persist({ key: 'todo-app', pick: ['todos'] })
     Island.timers = (state) => ({})
-    Island.viewTransitions = true
+    Island.viewTransitions = ['ADD']
     return Island
   }
 
