@@ -5,6 +5,7 @@ import {pickMerge} from './pickMerge';
 import {pickCombine} from './pickCombine';
 import {StateSource} from './StateSource';
 import {uidPart} from '../../shared';
+import {B} from '../run/scheduler';
 import {
   InternalInstances,
   Lens,
@@ -19,9 +20,11 @@ import {
  */
 export class Instances<Si> {
   private _instances$: Stream<InternalInstances<Si>>;
+  private _s?: (f: () => void) => void;
 
-  constructor(instances$: Stream<InternalInstances<Si>>) {
+  constructor(instances$: Stream<InternalInstances<Si>>, s?: (f: () => void) => void) {
     this._instances$ = instances$;
+    this._s = s;
   }
 
   public pickMerge(selector: string): Stream<any> {
@@ -29,7 +32,7 @@ export class Instances<Si> {
   }
 
   public pickCombine(selector: string): Stream<Array<any>> {
-    return adapt(this._instances$.compose(pickCombine(selector)));
+    return adapt(this._instances$.compose(pickCombine(selector, this._s)));
   }
 }
 
@@ -176,7 +179,8 @@ export function makeCollection<S, So = any, Si = any>(
       },
       {dict, arr: []} as InternalInstances<Si>
     );
-    const sinks = opts.collectSinks(new Instances<Si>(instances$));
+    // P45-C: the app's render scheduler; the items are at depth __d, the Collection one above
+    const k = sources.__k, sinks = opts.collectSinks(new Instances<Si>(instances$, k && ((f: () => void) => k(B - sources.__d + 1, f))));
     // B-024: disposing the collection (its owner was disposed or stopped rendering it)
     // disposes every live item, and so their subtrees
     sinks.__dispose = () => {
