@@ -94,7 +94,7 @@ MyComponent.onError = (error, { componentName }) => fallbackVNode  // Error boun
 - `dev-plans/` — Plans and status trackers (PLAN-1: agent ergonomics; PLAN-2: follow-up ergonomics, the next major)
 
 **Absorbed dependencies:**
-All `@cycle/*` packages have been absorbed into `src/cycle/`. The only external runtime dependencies are `snabbdom`, `xstream`, and `extend`.
+All `@cycle/*` packages have been absorbed into `src/cycle/`. The only external runtime dependencies are `snabbdom` and `xstream`.
 
 - `src/cycle/dom/snabbdom.ts` — Local barrel that imports from snabbdom subpaths (e.g., `snabbdom/build/h`) to avoid snabbdom's broken barrel export which triggers a `styleModule` `window` ReferenceError in Node.js
 - `src/cycle/dom/styleModule.ts` — Local copy of snabbdom's styleModule with a fixed `typeof window !== "undefined"` guard (snabbdom 3.6.3 regression)

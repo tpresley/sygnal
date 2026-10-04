@@ -3,7 +3,8 @@
 // 9d5dfcd) with P45B_WRITE=1; each vnode is serialized structurally: functions by their tag (a
 // user function) or as "fn" (a wrapper the pragma made), undefined as "<undef>" in a vnode's
 // fields, its data, the data's buckets and children arrays (deeper, an undefined key counts as
-// absent, as toEqual does: the old deep copy dropped them, by-reference objects keep them).
+// absent, as toEqual does: the old deep copy dropped them, by-reference objects keep them; a
+// vnode inside a prop, e.g. Suspense's fallback, too).
 // Object identity is not compared: nested prop objects by reference is the intended change (D146).
 import { describe, it, expect, vi } from 'vitest'
 import { readFileSync, writeFileSync } from 'node:fs'
@@ -36,15 +37,13 @@ function loose(x, seen = new Set()) {
   if (Array.isArray(x)) {
     out = []
     for (let i = 0; i < x.length; i++) out.push(i in x ? loose(x[i], seen) : '<hole>')
-  } else if (isVnode(x)) out = vnode(x, seen)
-  else {
+  } else {
     out = {}
     for (const k of Object.keys(x).sort()) if (x[k] !== undefined) out[k] = loose(x[k], seen)
   }
   seen.delete(x)
   return out
 }
-const isVnode = (x) => x && typeof x === 'object' && 'sel' in x && 'children' in x && 'text' in x
 function strictObj(o, seen, inner) {
   if (!o || typeof o !== 'object' || Array.isArray(o)) return loose(o, seen)
   const out = {}

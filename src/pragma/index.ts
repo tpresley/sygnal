@@ -1,6 +1,5 @@
 
 import * as is from './is'
-import * as fn from './fn'
 
 const createTextElement = (text: any): any => !is.text(text) ? undefined : {
   text,
@@ -11,64 +10,72 @@ const createTextElement = (text: any): any => !is.text(text) ? undefined : {
   key: undefined
 }
 
-const applySvg = (vnode: any): any => {
-  // Skip text vnodes (sel is undefined) and nullish values
-  if (!vnode || is.undefinedv(vnode.sel)) return vnode
+// P45-B: a vnode this pragma made whose subtree has no component (or other marker the view
+// walk handles), no form field and no vnode from elsewhere. component.ts's view walk skips it
+// (and, at the root, the whole walk). The flag is on the prototype, not enumerable, so the
+// vnode's own fields are snabbdom's six. Checked by name (`$p`), not by class: the JSX runtime
+// entries carry their own copy of this file.
+function Plain(this: any, sel: any, data: any, children: any, text: any, key: any) {
+  this.sel = sel
+  this.data = data
+  this.children = children
+  this.text = text
+  this.elm = undefined
+  this.key = key
+}
+Object.defineProperty(Plain.prototype, '$p', { value: 1 })
+// A tag the view walk has to see: a form field (G-146 stamp; a superset of isField) or a
+// component name it knows as a string
+const SPECIAL = /^(input|textarea|select|collection$|switchable$|sygnal-factory$)/i
 
+// Mutates the vnode (and its SVG children, not below a foreignObject: that contains HTML):
+// the props become attributes (className as class, attrs win), and the SVG namespace is set
+const applySvg = (vnode: any): void => {
+  // Skip text vnodes (sel is undefined) and nullish values; a vnode this pragma made in the
+  // SVG namespace was done, with its subtree, when it was made
+  if (!vnode || is.undefinedv(vnode.sel) || (vnode.$p && vnode.data.ns)) return
   const data = vnode.data || {}
   const props = data.props || {}
-  const propsWithoutClassName = fn.omit('className', props)
-  const classAttr = props.className !== undefined ? { class: props.className } : {}
-  const mergedAttrs = fn.assign({}, propsWithoutClassName, classAttr, data.attrs || {})
-
-  return fn.assign(vnode,
-    { data: fn.omit('props', fn.assign({}, data,
-      { ns: 'http://www.w3.org/2000/svg', attrs: mergedAttrs }
-    )) },
-    // foreignObject contains HTML, not SVG — do not recurse into its children
-    { children: (!Array.isArray(vnode.children) || vnode.sel === 'foreignObject')
-      ? vnode.children
-      : vnode.children.map((child: any) => applySvg(child))
-    }
-  )
+  const attrs: any = {}
+  for (const k in props) if (k != 'className' && props[k] !== undefined) attrs[k] = props[k]
+  if (props.className !== undefined) attrs.class = props.className
+  for (const k in data.attrs) if (data.attrs[k] !== undefined) attrs[k] = data.attrs[k]
+  const svgData = { ...data, ns: 'http://www.w3.org/2000/svg', attrs }
+  delete svgData.props
+  vnode.data = svgData
+  if (Array.isArray(vnode.children) && vnode.sel !== 'foreignObject') vnode.children.forEach(applySvg)
 }
 
-const considerSvg = (vnode: any): any => !is.svg(vnode) ? vnode : applySvg(vnode)
-
-const rewrites: Record<string, string | null> = {
-  for: 'attrs',
-  role: 'attrs',
-  tabindex: 'attrs',
-  'aria-*': 'attrs',
-  key: null
+const svgTags: Record<string, number> = {
+  // Container / structural
+  svg: 1, g: 1, defs: 1, symbol: 1, use: 1,
+  // Shape
+  circle: 1, ellipse: 1, line: 1, path: 1, polygon: 1, polyline: 1, rect: 1,
+  // Text  (no HTML collision: HTML has no <text>, <tspan>, or <textPath>)
+  text: 1, tspan: 1, textPath: 1,
+  // Gradient / paint
+  linearGradient: 1, radialGradient: 1, stop: 1, pattern: 1,
+  // Clipping / masking
+  clipPath: 1, mask: 1,
+  // Marker
+  marker: 1,
+  // Filter primitives
+  filter: 1, feBlend: 1, feColorMatrix: 1, feComponentTransfer: 1,
+  feComposite: 1, feConvolveMatrix: 1, feDiffuseLighting: 1,
+  feDisplacementMap: 1, feDropShadow: 1, feFlood: 1, feGaussianBlur: 1,
+  feImage: 1, feMerge: 1, feMergeNode: 1, feMorphology: 1, feOffset: 1,
+  fePointLight: 1, feSpecularLighting: 1, feSpotLight: 1, feTile: 1,
+  feTurbulence: 1, feFuncR: 1, feFuncG: 1, feFuncB: 1, feFuncA: 1,
+  // Descriptive  (excluding 'title' — collides with HTML <title>)
+  desc: 1, metadata: 1,
+  // Other  (excluding 'a', 'image', 'style', 'script' — collide with HTML)
+  foreignObject: 1, switch: 1,
+  // Animation
+  animate: 1, animateMotion: 1, animateTransform: 1, set: 1, mpath: 1,
 }
 
-const rewriteModules = (data: any, modules: Record<string, any>): any => fn.mapObject(data, (key: string, val: any) => {
-  const inner = { [key]: val }
-  if (rewrites[key] && modules[rewrites[key] as string] !== undefined) {
-    return { [rewrites[key] as string]: inner }
-  }
-  if (rewrites[key] === null) {
-    return {}
-  }
-  const keys = Object.keys(rewrites)
-  for (let i = 0; i < keys.length; i++) {
-    const k = keys[i]
-    if (k.charAt(k.length - 1) === '*' && key.indexOf(k.slice(0, -1)) === 0 && modules[rewrites[k] as string] !== undefined) {
-      return { [rewrites[k] as string]: inner }
-    }
-  }
-  if (modules[key] !== undefined) {
-    return { [modules[key] ? modules[key] : key]: val }
-  }
-  if (modules.props !== undefined) {
-    return { props: inner }
-  }
-  return inner
-})
-
-// Adds snabbdom hooks to data.hook; a hook already there runs first
-const chainHooks = (data: any, hooks: Record<string, (...args: any[]) => void>): any => {
+// Adds snabbdom hooks to data.hook (a copy); a hook already there runs first
+const chainHooks = (data: any, hooks: Record<string, (...args: any[]) => void>): void => {
   const existing = data.hook || {}
   const hook = { ...existing }
   for (const name in hooks) {
@@ -78,13 +85,10 @@ const chainHooks = (data: any, hooks: Record<string, (...args: any[]) => void>):
     }
   }
   data.hook = hook
-  return data
 }
 
-const applyFocusProps = (data: any): any => {
-  if (!data.props) return data
+const applyFocusProps = (data: any): void => {
   const { autoFocus, autoSelect, ...rest } = data.props
-  if (!autoFocus && !autoSelect) return data
 
   data.props = rest
   data._autoFocus = !!autoFocus
@@ -101,7 +105,7 @@ const applyFocusProps = (data: any): any => {
     }
   }
 
-  return chainHooks(data, {
+  chainHooks(data, {
     insert: (vnode: any) => doFocus(vnode.elm),
     postpatch: (oldVnode: any, vnode: any) => {
       const wasFocused = oldVnode.data?._autoFocus
@@ -111,9 +115,7 @@ const applyFocusProps = (data: any): any => {
   })
 }
 
-const applyRefProps = (data: any, ref: any): any => {
-  if (!ref) return data
-
+const applyRefProps = (data: any, ref: any): void => {
   const setRef = (elm: any) => {
     if (typeof ref === 'function') {
       ref(elm)
@@ -122,7 +124,7 @@ const applyRefProps = (data: any, ref: any): any => {
     }
   }
 
-  return chainHooks(data, {
+  chainHooks(data, {
     insert: (vnode: any) => setRef(vnode.elm),
     postpatch: (_oldVnode: any, vnode: any) => setRef(vnode.elm),
     destroy: () => setRef(null),
@@ -141,21 +143,88 @@ const addClasses = (map: Record<string, boolean>, klass: any): any => {
 const toClassMap = (klass: any): any =>
   typeof klass !== 'string' && !Array.isArray(klass) ? klass : addClasses({}, klass)
 
+const isObject = (v: any): boolean => is.object(v) && !Array.isArray(v)
+
+// P45-B (D146): nested objects are passed by reference. An object with an undefined entry is
+// copied without it (the DOM modules would write "undefined"; the old deep copy dropped it)
+const clean = (obj: any): any => {
+  if (isObject(obj)) for (const k in obj) if (obj[k] === undefined) {
+    const out: any = {}
+    for (const j in obj) if (obj[j] !== undefined) out[j] = obj[j]
+    return out
+  }
+  return obj
+}
+
+// One pass over the JSX props into snabbdom's module buckets (audit rec 6):
+// - `<module>-<name>` (on-click, attrs-href, data-task-id → dataset.taskId) and `<module>={...}`
+//   go to that module's bucket (`data` is snabbdom's `dataset`)
+// - for, role, tabindex and aria-* go to attrs; key is dropped; anything else is a prop
+// - an undefined value is skipped (a `<module>-<name>` one still makes its bucket)
+// A bucket is the object passed until a second source adds to it; then it is a copy (`own`).
 const sanitizeData = (data: any, modules: Record<string, any>): any => {
-  const { ref, ...rest } = data
-  if (modules.class !== undefined && 'class' in rest) rest.class = toClassMap(rest.class)
-  const sanitized = applyFocusProps(rewriteModules(fn.deepifyKeys(rest, modules), modules))
-  return applyRefProps(sanitized, ref)
+  const out: any = {}, own: any = {}
+  const bucket = (b: string): any => {
+    const o = out[b]
+    return own[b] ? o : (own[b] = 1, out[b] = is.object(o) ? { ...o } : {})
+  }
+  const add = (b: string, v: any): void => {
+    if (v === undefined) return
+    if (isObject(out[b]) && isObject(v)) {
+      const o = bucket(b)
+      for (const k in v) if (v[k] !== undefined) o[k] = v[k]
+    } else {
+      out[b] = clean(v)
+      own[b] = 0
+    }
+  }
+  const hasAttrs = modules.attrs !== undefined
+  for (const key in data) {
+    let val = data[key]
+    if (key == 'ref' || key == 'key') continue
+    if (key == 'class' && modules.class !== undefined) val = toClassMap(val)
+    const dash = key.indexOf('-')
+    const prefix = dash > -1 && key.slice(0, dash)
+    if (prefix && modules[prefix] !== undefined) {
+      let sub = key.slice(dash + 1)
+      // G-152: data-task-id → dataset key taskId (a hyphenated dataset key makes the DOM throw)
+      if (prefix == 'data') sub = sub.replace(/-([a-z])/g, (_, c) => c.toUpperCase())
+      const o = bucket(modules[prefix] || prefix)
+      if (val !== undefined) o[sub] = val
+    } else if (val === undefined) {
+      continue
+    } else if (hasAttrs && (key == 'for' || key == 'role' || key == 'tabindex' || prefix == 'aria')) {
+      bucket('attrs')[key] = val
+    } else if (modules[key] !== undefined) {
+      add(modules[key] || key, val)
+    } else if (modules.props !== undefined) {
+      bucket('props')[key] = val
+    } else {
+      out[key] = val
+    }
+  }
+  const props = out.props
+  if (props && (props.autoFocus || props.autoSelect)) applyFocusProps(out)
+  if (data.ref) applyRefProps(out, data.ref)
+  return out
 }
 
 const sanitizeText = (children: any[]): string | undefined => children.length > 1 || !is.text(children[0]) ? undefined : children[0].toString()
 
-const sanitizeChildren = (children: any[]): any[] => fn.reduceDeep(children, (acc: any[], child: any) => {
-  const vnode = is.vnode(child) ? child : createTextElement(child)
-  acc.push(vnode)
-  return acc
+// Flattens the children into `out` (a non-vnode child becomes a text vnode, or undefined);
+// 1 when every child is plain: none, text, or a plain vnode
+const flatten = (children: any[], out: any[]): number => {
+  let plain = 1
+  for (let i = 0; i < children.length; i++) {
+    const child = children[i]
+    if (is.array(child)) plain &= flatten(child, out)
+    else if (is.vnode(child)) {
+      out.push(child)
+      if (!child.$p && (child.sel !== undefined || child.children)) plain = 0
+    } else out.push(createTextElement(child))
+  }
+  return plain
 }
-, [])
 
 const defaultModules: Record<string, string> = {
   attrs: '',
@@ -208,14 +277,14 @@ export const createElementWithModules = (modules: Record<string, any>) => {
     // never both; snabbdom's diff mishandles a vnode with both. A component placeholder
     // keeps an array so the component receives its text child via `children`.
     const text = isComponent ? undefined : sanitizeText(children)
-    return considerSvg({
-      sel,
-      data: data ? sanitizeData(data, modules) : {},
-      children: typeof text !== 'undefined' ? undefined : sanitizeChildren(children),
-      text,
-      elm: undefined,
-      key: data ? data.key : undefined
-    })
+    let kids: any
+    let plain = !isComponent && is.string(sel) && !SPECIAL.test(sel)
+    if (typeof text === 'undefined') plain = !!(flatten(children, kids = []) & +plain)
+    const d = data ? sanitizeData(data, modules) : {}
+    const key = data ? data.key : undefined
+    const vnode = plain ? new (Plain as any)(sel, d, kids, text, key) : { sel, data: d, children: kids, text, elm: undefined, key }
+    if (sel in svgTags) applySvg(vnode)
+    return vnode
   }
   return ce
 }

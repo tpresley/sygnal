@@ -14,7 +14,7 @@ A reactive component framework with pure functions, zero side effects, and autom
 - **Pure components** — Views are plain functions. All side effects are handled by drivers, outside your code.
 - **Automatic state management** — Monolithic state tree with no store setup, no providers, no hooks. Trivial undo/redo and time-travel debugging.
 - **Model-View-Intent** — Cleanly separate *what* happens (Model), *when* it happens (Intent), and *how* it looks (View).
-- **Tiny footprint** — Three runtime dependencies: [snabbdom](https://github.com/snabbdom/snabbdom), [xstream](https://github.com/staltz/xstream), and [extend](https://github.com/nicjohnson145/extend).
+- **Tiny footprint** — Two runtime dependencies: [snabbdom](https://github.com/snabbdom/snabbdom) and [xstream](https://github.com/staltz/xstream).
 
 ## Quick Start
 
@@ -523,7 +523,7 @@ h('div', [h('h1', 'Hello'), h('button.btn', 'Click')])
 
 ## Acknowledgments
 
-Sygnal's reactive architecture is built on patterns from [Cycle.js](https://cycle.js.org/) by [André Staltz](https://github.com/staltz). The Cycle.js runtime, DOM driver, state management, and isolation modules have been absorbed into the library — snabbdom, xstream, and extend are the only external dependencies.
+Sygnal's reactive architecture is built on patterns from [Cycle.js](https://cycle.js.org/) by [André Staltz](https://github.com/staltz). The Cycle.js runtime, DOM driver, state management, and isolation modules have been absorbed into the library — snabbdom and xstream are the only external dependencies.
 
 ## License
 
