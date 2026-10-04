@@ -157,3 +157,25 @@ npm --prefix browser-tests run perf -- --jfb   # js-framework-benchmark entries:
 ```
 
 None of this runs in `npm test`. Absolute numbers depend on the machine; compare apps within one run.
+
+## After PF-1 (Collection O(1) item lookups, D128)
+
+Implemented on branch `p4-pf1-collection` (from `plan4-integration` at 5bebf3f), 2026-10-03. No API change.
+
+- `instanceLens().get` (`src/cycle/state/Collection.ts`): the scan starts at the item's last index and wraps around, so it is one check while the order doesn't change, and only moved items scan.
+- `fieldLense.set` (`src/component.ts` `instantiateCollection`): one `Map` by id per write instead of a `find()` per item. The map is filled from the end, so with duplicate ids the first match still wins.
+- `fieldLense.get` / `set`: an object item that has a (truthy) id is passed as is instead of a `{ ...item }` copy. Items without an id still get a copy with their index as the id, and primitives are still wrapped as `{ value, id }`. Unchanged items, including filtered-out ones, keep their identity in the parent's array after an item writes back.
+
+Same machine and method as above, `npm --prefix browser-tests run perf -- --runs 10 --apps sygnal-collection`, median **dom** ms [p25–p75] (paint):
+
+| Op | before (5bebf3f) | after PF-1 | change |
+|---|---:|---:|---:|
+| create 1,000 | 71.0 [66.8–72.4] (73.9) | 70.5 [68.7–72.2] (73.2) | ≈ 0 |
+| edit one row | 16.2 [15.8–16.5] (17.1) | **8.3** [8.1–8.4] (10.5) | −49% |
+| swap two rows | 10.7 [10.4–11.3] (12.0) | **5.5** [5.1–5.7] (9.3) | −49% |
+| append 1,000 | 97.4 [91.1–98.4] (100.6) | 92.7 [89.5–94.2] (96.0) | −5% |
+| clear 2,000 | 16.0 [15.4–16.9] (86.3) | 16.0 [15.9–16.2] (85.3) | 0 |
+
+Busy (click → idle): edit 31.8 → 25.3 ms, swap 25.9 → 24.0 ms; create, append and clear unchanged (clear still ≈ 300 ms of teardown).
+
+Size: kanban gated bundle 41,129 → 41,171 B (**+42 B**; the bundle prototype's +28 B was measured on `dist/index.esm.js` at gzip -9 and without the duplicate-id ordering). Tests: `test/p4-pf1-collection-lookups.test.js` (17; 7 failed first: 5 identity checks and the two O(n) work counters).
