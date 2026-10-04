@@ -9,7 +9,7 @@ Tracks progress for [PLAN-4.md](PLAN-4.md) (controls and core ergonomics). The c
 
 **Integration branch:** `plan4-integration`, cut from `main` at `3214ed9` on 2026-10-03 (worktree `.claude/worktrees/plan-4-execution-7ae8e8`). The release stays held (D56): no version bumps, tags, PR to main or publish.
 
-**State:** Phases 1–3 implemented and merged (phases 1–2 tagged; Phase 3 review next). Phase 4 waits for the 1-E eval (P4-D). All §11 questions answered except Q10 (after 1-E).
+**State:** Phases 1–3 done and tagged. Phase 4: everything not depending on controls is merged (4-A1, 4-B1/2, 4-D1, 4-X). Waiting for the user's 0-E and 1-E eval runs → P4-D → 4-C, 4-A2, 4-D2 → 4-E → 4-F.
 
 ## Baseline (0-A)
 
@@ -67,6 +67,7 @@ PLAN-3's end-of-Phase-5 figures (40,403 B, 283 lines, 34,343 B) grew with #12 an
 | 3-R | Phase 3 review fixes (G-231) | ✅ merged; tag `plan4-phase3` | `p4-3r-fixes` (`036d380`) | subagent | | **−31 B** core (pickCombine simplified); Collection clear 70.7 → 17.1 ms; SSR marker `data-sygnal-ssr` (D139) |
 | 4-A1 | Agent docs, part 1 (all but controls) | ✅ merged | `p4-4a1-agentdocs` (`30fd99b`) | subagent | | llms.txt 285 → 290 (+11, −5 trims; cap test raised to 315 per D115); SKILL.md 34,996 → 38,889 B (23 B under the 38 KB cap: CT-1 guidance will need trims); templates synced; A11Y_PENDING empty; 74 samples in `test/p4-4a1-agent-doc-samples.test.js` |
 | 4-D1 | CHANGELOG, ROADMAP, canonical-forms (all but controls) | ✅ merged | `p4-4d-changelog` (`03656b4`) | subagent | | `TODO(P4-D)` / `TODO(3-R)` / `TODO(4-E)` HTML comments mark what changes after the eval and 3-R |
+| 4-X | Cleanup: G-230, G-232, G-233, G-234 | ✅ merged | `p4-4x-cleanup` (`c020419`) | subagent | | +3 B (ELEMENT skipped in the sinks reduce) |
 | 3-C | Timers (GS-7) | ✅ merged | `p4-3c-timers` (`6ad12b1`) | subagent | | 0 B core; +579 B per app; driver key `TIMER` by convention (found by `__sygnalStatic`); SYG643 also covers `connections`/`resources`; hidden pages restart timers from scratch; recipe waits for 3-K (SYG102 on TICK) |
 | 3-E | DevTools (GS-10) | ✅ merged | `p4-3e-devtools` (`7fa4c43`) | subagent | | 0 B production; devtools entry 3.9 → 16.5 KB gz (dev-only); Copy as test proven on kanban, todomvc, signup form (`test/copied/`); Redux bridge done (stretch) |
 | 1-E prep | Controls A/B variants `p4-ct1-a`/`p4-ct1-b` | ✅ merged | `p4-1e-ab-variant` (`ef038e0`) | subagent | | controls skill +1,902 B (+5.4%); converted starters committed as overlays; task 16 normaliser ignores `data-control`; verify 55/55 on converted solutions |
@@ -246,11 +247,12 @@ They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none o
 | G-227 | 3-B | medium | Astro | `src/astro/client.ts` copies a fixed list of statics into its root wrapper; `persist`, `uses`, `timers` are missing, so behaviors, timers and persist don't work on Astro islands. | ✅ 3-B2 |
 | G-228 | P-1b merge | low | GS-12 | A non-array `viewTransitions` static (e.g. `true`) throws inside every STATE reducer (`.includes`), surfacing as SYG216. Add a dev check (SYG645's module) for a non-array value; types already require an array. | ✅ 3-R |
 | G-229 | 3-B2 | low | Astro | Astro islands get no drivers (only `__hydrate`), so forwarded `timers`/`resources`/`connections` can't run there. Possible `drivers` integration option (like `onError`). | 6.x candidate; docs note in 4-B |
-| G-230 | 3-B2 | — | docs | `reference/api.md` ~940/951 still say restore-after-first-render happens "with `hydrate: true`" (now automatic). | 4-B |
+| G-230 | 3-B2 | — | docs | `reference/api.md` ~940/951 still say restore-after-first-render happens "with `hydrate: true`" (now automatic). | ✅ 4-X |
 | G-231 | review (Phase 3, high) | — | core | (1) G-213's pending-item set is module-global (one slow item holds every Collection's removals page-wide; flush clears all); (2) every removal is now a task late even with no move; (3) non-array `viewTransitions` throws in every reducer (G-228); (4) persist SYG642 repeats on every failed write (prints in production); (5) persist hydration heuristic treats a placeholder in #root as server markup; (6) View Transition request expires after 100 ms wall time, so slow renders don't animate. | ✅ 3-R |
-| G-232 | 4-D1 | low | GS-2 | The core subscribes to the model's `ELEMENT` sink but doesn't remove it from the sinks, so a user driver registered as `ELEMENT` also receives the command objects (both run). The CHANGELOG migration says to rename such a driver; decide whether to delete the sink like EFFECT (0–5 B). | Phase 4 follow-up |
-| G-233 | 4-A1 | low | tests | `test/devtools-actions.test.js` and `test/devtools-copy-as-test.test.js` use fixed `tick(50)` waits and fail occasionally under full-suite load. | Phase 4 follow-up |
-| G-234 | 3-R | — | docs | `integration/ssr.md` and the JSDoc in `src/extra/ssr.ts` / `index.d.ts` show renderToString output without the `data-sygnal-ssr` marker; CHANGELOG `TODO(3-R)` entry (Collection removal timing) and a Changed entry for the marker. G-213 browser test: ~1 in 60 loops shows a duplicate frame (destination debounce merges two rapid moves; pre-existing rate). | Phase 4 cleanup |
+| G-232 | 4-D1 | low | GS-2 | The core subscribes to the model's `ELEMENT` sink but doesn't remove it from the sinks, so a user driver registered as `ELEMENT` also receives the command objects (both run). The CHANGELOG migration says to rename such a driver; decide whether to delete the sink like EFFECT (0–5 B). | ✅ 4-X |
+| G-233 | 4-A1 | low | tests | `test/devtools-actions.test.js` and `test/devtools-copy-as-test.test.js` use fixed `tick(50)` waits and fail occasionally under full-suite load. | ✅ 4-X |
+| G-234 | 3-R | — | docs | `integration/ssr.md` and the JSDoc in `src/extra/ssr.ts` / `index.d.ts` show renderToString output without the `data-sygnal-ssr` marker; CHANGELOG `TODO(3-R)` entry (Collection removal timing) and a Changed entry for the marker. G-213 browser test: ~1 in 60 loops shows a duplicate frame (destination debounce merges two rapid moves; pre-existing rate). | ✅ 4-X |
+| G-235 | 4-X | low | docs | `integration/ssr.md` ~172 shows `run(App, '#app', { initialState })`, not the current `run(App, drivers, { mountPoint })` form. | 4-C/4-B docs pass after P4-D |
 
 ## Log
 
@@ -282,3 +284,4 @@ They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none o
 - 2026-10-03 — Merged 4-D part 1. Gave the user the 0-E and 1-E commands again. G-232.
 - 2026-10-03 — Merged 4-A part 1; llms.txt cap test → 315. Gates green: vitest 2,263 (+1 skipped), browser 177, doc samples 529 with 0 a11y pending; llms.txt 290 lines, SKILL.md 38,889 B. G-233.
 - 2026-10-03 — Merged 3-R; gates green (vitest 2,282 +1 skipped, browser 177, sygnal-check 448; **41,340 B gated, PLAN-4 +804 B of 850**). Phase 3 review findings all fixed; tagged `plan4-phase3`. D138, D139; G-234.
+- 2026-10-03 — Merged 4-X; gates green (vitest 2,283 +1 skipped, browser 177; 41,343 B gated, PLAN-4 +807 B of 850). Waiting on 0-E/1-E. G-235.
