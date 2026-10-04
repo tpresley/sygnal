@@ -30,19 +30,26 @@ export const CODES = {
   // PLAN-4 GS-1 behaviors (model/behaviors.js)
   SYG127: { severity: 'error', title: 'Behavior collision or unresolvable uses entry' },
   SYG128: { severity: 'error', title: 'Duplicate control key' },
+  // PLAN-4 4-G2 (rules/syg129-child-select-grandchild.js; PLAN-3 G-187)
+  SYG129: { severity: 'warn', title: "CHILD.select() of a component this one doesn't render" },
   // PLAN-4 GS-8 undo (rules/syg127-behaviors.js)
   SYG223: { severity: 'warn', title: 'persist pick or omit names a key that is not in initialState' },
   SYG224: { severity: 'error', title: 'persist on a component that is not the root' },
-  SYG226: { severity: 'warn', title: 'Undo track or resetOn names an unknown action' },
+  SYG226: { severity: 'warn', title: 'Undo track, resetOn or coalesce names an unknown action' },
   SYG401: { severity: 'warn', title: "Collection 'from' field is missing or not an array" },
+  // PLAN-4 4-G2 (rules/syg405-initial-state.js): error for a child rendered by tag, warn for a
+  // Collection / Switchable target (the rule passes the severity)
+  SYG405: { severity: 'error', title: 'Sub-component has initialState without isolatedState' },
   // PLAN-4 GS-7 timers (rules/syg422-timers.js)
   SYG422: { severity: 'error', title: 'Invalid timer spec' },
+  // PLAN-4 4-G2 (rules/syg609-sink-driver.js): the run() call registers no driver for a model sink
+  SYG609: { severity: 'warn', title: 'Sink or source has no driver' },
   SYG634: { severity: 'info', title: 'latest: true with a computed key' },
   // PLAN-4 GS-2 element commands (rules/syg640-element-commands.js), GS-7 (rules/syg422-timers.js)
   SYG640: { severity: 'warn', title: 'Element command target not found' },
   SYG641: { severity: 'error', title: 'Unknown element command' },
   SYG643: { severity: 'warn', title: 'Declaration static with no driver to take it' },
-  // PLAN-4 GS-3: the a11y lane (rules/a11y/); warn, error under --strict (D111)
+  // PLAN-4 GS-3: the a11y lane (rules/a11y/); warn, also under --strict; error with --a11y=error (D144)
   SYG701: { severity: 'warn', title: 'Click listener on a non-interactive element' },
   SYG702: { severity: 'warn', title: 'Form field without an accessible label' },
   SYG703: { severity: 'warn', title: 'Image without alt text' },

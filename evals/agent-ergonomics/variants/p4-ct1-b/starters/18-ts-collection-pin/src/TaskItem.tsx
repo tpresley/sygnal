@@ -12,7 +12,7 @@ type TaskItemActions = ActionsOf<typeof intent>
 
 const TaskItem: Component<Task, {}, {}, TaskItemActions> = ({ state }) => (
   <div className={state.done ? 'task done' : 'task'}>
-    <Toggle type="checkbox" className="toggle" checked={state.done} />
+    <Toggle type="checkbox" className="toggle" aria-label="Done" checked={state.done} />
     <span className="title">{state.title}</span>
   </div>
 )

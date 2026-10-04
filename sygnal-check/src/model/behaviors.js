@@ -67,7 +67,7 @@ export const FIRST_PARTY = {
     stateKeys: ['past', 'future'],
     calculated: ['canUndo', 'canRedo'],
     model: ['UNDO', 'REDO'],
-    options: ['key', 'limit', 'track', 'coalesceMs', 'resetOn', 'undo', 'redo'],
+    options: ['key', 'limit', 'track', 'coalesce', 'coalesceMs', 'resetOn', 'undo', 'redo'],
     listens: [['undo', 'UNDO'], ['redo', 'REDO']],
   },
 }

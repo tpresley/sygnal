@@ -33,6 +33,7 @@ Each line has the form `file:line:col CODE [severity] Component: message (fix)`.
 | `--verbose` | Also print info-level findings |
 | `--include-tests` | Also scan `*.test.*` / `*.spec.*` files found through directories or globs (skipped by default; a file named explicitly is always scanned) |
 | `--strict` | Also run the strict-mode canonical-form rules (SYG501, SYG503-508, see [Strict mode](#strict-mode)) |
+| `--a11y=<level>` | Severity of the [a11y lane](#accessibility-syg7xx) (SYG701-708): `warn` (default, also with `--strict`) or `error` |
 | `--fix` | Apply the mechanical canonical-form rewrites in place, then check (implies `--strict`) |
 | `--controls` | With `--fix` (implied): also convert single-class intent selectors into [controls](#controls) |
 | `--keep-classes` | With `--controls` (implied): keep every converted class on its element |
@@ -66,12 +67,15 @@ The codes are the same as Sygnal's runtime diagnostics (`https://sygnal.js.org/r
 | SYG640 | warn | An element command (`ELEMENT: { focus: Email }`, a literal command object) whose target control, or static class/id selector, the sending component's view never renders, or renders only inside a child component: a command reaches only its sender's own elements. |
 | SYG641 | error | The method (first key) of a literal element command: a slip of a documented command (`focus`, `blur`, `select`, `click`, `scrollIntoView`, `showModal`, `show`, `close`, `showPopover`, `hidePopover`, `togglePopover`) or of the control's spec `commands` (`{ fokus: Email }`: did you mean 'focus'), or a method that changes the DOM Sygnal renders (`remove`, `append`, `setAttribute`...). Other element methods (`play`, `requestSubmit`, a custom element's own) are fine. |
 | SYG643 | warn | A component declares `timers`, `connections` or `resources`, and the app's `run(App, drivers)` call renders it but registers no `makeTimerDriver()`, `makeSocketDriver()` or `makeFetchDriver()`. Only when the `run()` call is in the scanned files and its drivers are an object literal the checker can list (a driver from a package, a spread or a local driver that may wrap one makes it say nothing). |
+| SYG609 | warn | A model entry sends to a sink (`HTTP`, `WS`, any name the core doesn't handle) of a component that the app's `run(App, drivers)` call renders, and that call registers no driver under that name, so every value sent there is dropped (`renderComponent()` fakes the sink, so tests pass). Only when the `run()` call is in the scanned files and its drivers are an object literal (or absent); `STATE`, `EFFECT`, `EVENTS`, `PARENT`, `READY`, `DOM`, `CHILD`, `ELEMENT`, `PERSIST` and `LOG` need no driver. |
+| SYG129 | warn | `CHILD.select(TaskRow)` in a component whose view doesn't render `TaskRow`, while a component it renders does (a grandchild, e.g. a Collection item inside a child): `PARENT` reaches only the direct parent, so it never fires. The message names the chain and the fix relays the value through the component in between. Quiet when the view renders it itself, mentions it some other way, or has a Collection/Switchable target the checker can't resolve. |
+| SYG405 | error | A component with an `initialState` (and no `isolatedState = true`) that a view renders, reported at the `initialState`: it would replace the state its parent passes in, and the runtime throws for a tag (`<Stopwatch state="stopwatch" />` or `<Stopwatch />`). A **warning** when it is a Collection item or Switchable target (the runtime warns). |
 | SYG401 | warn | `<Collection from="x">` where `x` isn't a key of the component's `initialState` (or `calculated`), or its initial value is a literal that isn't an array. This is only checked when `initialState` is statically known. |
 | SYG900 | warn | A file couldn't be parsed, or a rule crashed. |
 
 ### Accessibility (SYG7xx)
 
-The a11y lane runs by default: **warn**, and **error** with `--strict` (also in the Vite plugin's dev checker). Each rule stays quiet when it can't see enough: spread props, dynamic values, child components that might render a label or a button.
+The a11y lane runs by default, also in the Vite plugin's dev checker. It reports **warnings**, also under `--strict`: strict mode is about canonical forms, and upgrading an existing app shouldn't fail on markup nobody touched. `--a11y=error` (`check(…, { a11y: 'error' })`, or `check: { a11y: 'error' }` in the Vite plugin, where errors open the overlay) makes them **errors**. Each rule stays quiet when it can't see enough: spread props, dynamic values, child components that might render a label or a button.
 
 | Code | Finds |
 |---|---|
@@ -187,8 +191,8 @@ SYG104: Intent selector crosses an isolation boundary
 
 | Tool | Arguments | Returns |
 |---|---|---|
-| `check` | `{ paths?: string[], strict?: boolean }` | `{ diagnostics, summary: { error, warn, info } }` |
-| `graph` | `{ paths?: string[], strict?: boolean }` | the `InspectGraph` |
+| `check` | `{ paths?: string[], strict?: boolean, a11y?: 'warn' \| 'error' }` | `{ diagnostics, summary: { error, warn, info } }` |
+| `graph` | `{ paths?: string[], strict?: boolean, a11y?: 'warn' \| 'error' }` | the `InspectGraph` |
 | `explain` | `{ code: string }` | `{ code, title, severity, staticSeverity?, strict, reportedBy, explanation, fix, docsUrl }` |
 
 Results come back as `structuredContent` and as JSON text. A bad path or an unknown code is a tool result with `isError: true`.
@@ -253,6 +257,7 @@ This is the runtime `Diagnostic` shape plus `file`, `line` and `column` (1-based
 - `options.ignore`: codes to drop, e.g. `['SYG105']`.
 - `options.includeTests`: also scan test and spec files.
 - `options.strict`: also run the strict-mode rules (SYG501, SYG503-508).
+- `options.a11y`: `'warn'` (default) or `'error'`, the severity of the a11y lane (SYG701-708). `strict` doesn't change it.
 
 - `options.rules`: a custom rule list.
 
@@ -281,7 +286,7 @@ export default {
 }
 ```
 
-a11y rules go in `src/rules/a11y/` (registered in `src/rules/a11y/index.js`; they report at warn and are swapped for error-severity copies under `--strict`). Strict-mode rules go in `src/rules/strict/`, with `strict: true`; a report may carry `edits: [{ file, start, end, text }]` (absolute path, source offsets) for `--fix`. Every code must exist, with the same title, in Sygnal's runtime registry (`src/extra/diagnostics/codes.ts`). `test/codes.vtest.js` enforces this.
+a11y rules go in `src/rules/a11y/` (registered in `src/rules/a11y/index.js`; they report at warn and are swapped for error-severity copies with `--a11y=error`). Strict-mode rules go in `src/rules/strict/`, with `strict: true`; a report may carry `edits: [{ file, start, end, text }]` (absolute path, source offsets) for `--fix`. Every code must exist, with the same title, in Sygnal's runtime registry (`src/extra/diagnostics/codes.ts`). `test/codes.vtest.js` enforces this.
 
 ## Development
 

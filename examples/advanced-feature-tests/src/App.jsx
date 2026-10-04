@@ -201,7 +201,7 @@ function BadChild({ state } = {}) {
     Bad child rendered (this should not appear!)
   </div>
 }
-BadChild.initialState = { value: 42 }
+BadChild.initialState = { value: 42 } // sygnal-ignore SYG405 (on purpose: this section demonstrates the error)
 
 // Good: has .initialState WITH .isolatedState — should work
 function GoodChild({ state } = {}) {

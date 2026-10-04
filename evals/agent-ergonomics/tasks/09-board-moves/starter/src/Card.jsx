@@ -1,7 +1,7 @@
 function Card({ state }) {
   return (
     <div className={state.done ? 'card done' : 'card'}>
-      <input type="checkbox" className="toggle" checked={state.done} />
+      <input type="checkbox" className="toggle" aria-label="Done" checked={state.done} />
       <span className="title">{state.title}</span>
       <button className="delete">Delete</button>
     </div>

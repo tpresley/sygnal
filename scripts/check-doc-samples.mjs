@@ -9,9 +9,10 @@
  * and in the other agent-facing files (EXTRA_FILES: llms.txt, the sygnal-dev
  * skill, the create-sygnal-app AGENTS.md files) is written to its own file in a
  * temp directory (or --out <dir>), then sygnal-check runs on that directory
- * with --strict --json. Samples are fragments, so only the strict-mode codes
- * (SYG5xx) and the a11y lane (SYG7xx, PLAN-4 GS-3: the a11y-clean gate) fail
- * the run; other findings (SYG101/102/105/110 on half a component) are listed
+ * with --strict --a11y=error --json. Samples are fragments, so only the
+ * strict-mode codes (SYG5xx) and the a11y lane (SYG7xx, PLAN-4 GS-3: the
+ * a11y-clean gate) fail the run. The a11y lane is a warning under --strict
+ * (D144); this gate fails on any 7xx finding whatever its severity; other findings (SYG101/102/105/110 on half a component) are listed
  * with --verbose. A11Y_PENDING lists a11y findings in files another workstream
  * owns, until it fixes them: they are printed but don't fail the run (an entry
  * whose finding is gone is reported as stale).
@@ -133,7 +134,7 @@ for (const s of samples) {
 fs.mkdirSync(outDir, { recursive: true })
 for (const s of samples) fs.writeFileSync(path.join(outDir, s.name), withStubs(s.code) + '\n')
 
-const res = spawnSync(process.execPath, [checker, outDir, '--strict', '--json', '--fail-on=never', '--verbose'], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
+const res = spawnSync(process.execPath, [checker, outDir, '--strict', '--a11y=error', '--json', '--fail-on=never', '--verbose'], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
 if (res.status !== 0 && !res.stdout) {
   console.error(res.stderr)
   process.exit(2)

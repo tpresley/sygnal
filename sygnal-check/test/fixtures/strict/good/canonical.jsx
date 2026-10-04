@@ -24,7 +24,7 @@ function Header({ title }) {
   return <h3>{title}</h3>
 }
 
-Lane.initialState = { title: '', count: 0, tasks: [] }
+Lane.initialState = { title: '', count: 0, tasks: [] } ; Lane.isolatedState = true // Board renders <Lane /> (SYG405)
 
 Lane.intent = ({ DOM, CHILD }) => ({
   RENAME:      DOM.input('.lane-title-input').map(e => e.target.value),

@@ -5,7 +5,7 @@ const { Toggle } = controls({ Toggle: 'input' })
 function TodoItem({ state }) {
   return (
     <div className={state.done ? 'todo done' : 'todo'}>
-      <Toggle type="checkbox" className="toggle" checked={state.done} />
+      <Toggle type="checkbox" className="toggle" aria-label="Done" checked={state.done} />
       <span className="title">{state.title}</span>
       <button className="remove" data-id={String(state.id)} title="Remove">×</button>
     </div>

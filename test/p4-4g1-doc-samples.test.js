@@ -114,9 +114,7 @@ describe('every sample is in its docs page, verbatim', () => {
 describe('sygnal-check --strict', () => {
   for (const [name, { code }] of Object.entries(SAMPLES)) {
     it(name, () => {
-      // sygnal-check's model of undo() options (sygnal-check/src/model/behaviors.js, owned by
-      // 4-G2) doesn't list `coalesce` yet: its SYG127 for that option is expected until it does
-      const found = check(name, code).filter(f => !/^SYG127 behavior 'undo' .* has no option 'coalesce'/.test(f))
+      const found = check(name, code)
       expect(WHOLE.has(name) ? found : found.filter(f => /^SYG[57]\d\d /.test(f))).toEqual([])
     })
   }

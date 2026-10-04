@@ -2,7 +2,7 @@ function EditPage({ state }) {
   return (
     <section className="edit-page">
       <h1>Edit task</h1>
-      <input name="title" value={state.draft} />
+      <input name="title" aria-label="Title" value={state.draft} />
       <button className="save">Save</button>
       <button className="cancel">Cancel</button>
     </section>

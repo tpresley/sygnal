@@ -6,8 +6,8 @@
  *                   key the component's initialState already has, or an
  *                   option the behavior never reads (a typo: `pager({ nxt:
  *                   Newer })`, where pager reads `next`)
- *   SYG226 (warn)   undoable(model, { track, resetOn }) or undo({ track,
- *                   resetOn }) naming an action with no model entry
+ *   SYG226 (warn)   undoable(model, { track, resetOn, coalesce }) or undo({ track,
+ *                   resetOn, coalesce }) naming an action with no model entry
  *
  * Opaque behaviors (from packages, wrappers) are never reported.
  */
@@ -76,13 +76,20 @@ function names(node) {
   return node.elements.map(el => ({ name: stringValue(el), node: el }))
 }
 
+// what a name in each undo option does, for SYG226's message (coalesce: 4-G1, D143)
+const EFFECT_OF = {
+  track: 'its changes are never recorded',
+  resetOn: 'it never clears the history',
+  coalesce: 'nothing is grouped under that name',
+}
+
 function checkNames(report, comp, file, optionsNode, known, open, where) {
   const obj = unwrap(optionsNode)
   if (obj?.type !== 'ObjectExpression') return
   for (const p of obj.properties) {
     if (p.type !== 'ObjectProperty') continue
     const opt = propName(p)
-    if (opt !== 'track' && opt !== 'resetOn') continue
+    if (!EFFECT_OF[opt]) continue
     for (const { name, node } of names(p.value) || []) {
       if (name == null || known.has(name) || open.some(x => name.startsWith(x))) continue
       const near = closestName(name, [...known])
@@ -91,7 +98,7 @@ function checkNames(report, comp, file, optionsNode, known, open, where) {
         component: comp?.name,
         file,
         node,
-        message: `${where} ${opt} names '${name}', which has no model entry, so ${opt === 'track' ? 'its changes are never recorded' : 'it never clears the history'}${near ? `; did you mean '${near}'?` : ''}`,
+        message: `${where} ${opt} names '${name}', which has no model entry, so ${EFFECT_OF[opt]}${near ? `; did you mean '${near}'?` : ''}`,
         fix: near ? `rename '${name}' to '${near}'` : `use the name of a model entry, or add '${name}' to the model`,
         data: { action: name, option: opt },
       })
@@ -102,7 +109,7 @@ function checkNames(report, comp, file, optionsNode, known, open, where) {
 export default {
   id: 'behaviors',
   codes: ['SYG127', 'SYG226'],
-  description: 'Behaviors: unresolvable uses entry, collision, unknown option; undo track/resetOn naming an unknown action',
+  description: 'Behaviors: unresolvable uses entry, collision, unknown option; undo track/resetOn/coalesce naming an unknown action',
   run(project, report) {
     for (const comp of project.components) {
       if (!comp.uses) continue

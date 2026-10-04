@@ -9,6 +9,8 @@
  *     statics: Set<'timers' | 'connections' | 'resources'> | null   what its drivers take; null when
  *              the drivers can't be listed (not an object literal, a spread, a driver from a package
  *              or a local one that may wrap a static driver)
+ *     drivers: Set<string> | null   the keys of its drivers object (empty with no drivers argument);
+ *              null when they can't be listed (not an object literal, a spread, a computed key)
  *     components: Set<ComponentInfo>   the root and every component its view renders (tags,
  *              Collection / Switchable targets, slots), as far as the checker can follow
  *   }
@@ -54,6 +56,23 @@ function driverStatic(project, file, node) {
     if (MENTIONS.test(text(c.file, c.node))) return null
   }
   return MENTIONS.test(text(r.file, n)) ? null : ''
+}
+
+/** The driver names of a run() call's drivers argument (PLAN-4 4-G2, SYG609): a Set, null when unknown. */
+function driverNames(project, file, arg) {
+  if (!arg) return new Set()
+  if (arg.type === 'SpreadElement') return null
+  const r = resolveExpr(project, file, arg)
+  const obj = unwrap(r?.node)
+  if (obj?.type !== 'ObjectExpression') return null
+  const out = new Set()
+  for (const p of obj.properties) {
+    if (p.type === 'SpreadElement') return null
+    const k = propName(p)
+    if (k == null) return null
+    out.add(k)
+  }
+  return out
 }
 
 function driverStatics(project, file, arg) {
@@ -108,6 +127,7 @@ export function findApps(project) {
         file,
         root: ref ? project.componentForFunction(ref.node) || null : null,
         statics: drivers?.type === 'SpreadElement' ? null : driverStatics(project, file, drivers),
+        drivers: driverNames(project, file, drivers),
         components: ref ? reachable(project, ref) : new Set(),
       })
       return true

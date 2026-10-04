@@ -343,6 +343,16 @@ Two `controls()` calls in one file declare the same key, or one call repeats a k
 
 **Fix:** Rename one of the keys, or declare both controls in a single `controls({ ... })` call.
 
+### SYG129
+
+**CHILD.select() of a component this one doesn't render**
+
+Severity: `warn` · Reported by: `sygnal-check`
+
+An intent reads `CHILD.select(TaskRow)`, but the component's view doesn't render `TaskRow`: a component it renders does (a grandchild, for example a Collection item inside a child). A component's `PARENT` output reaches only the component that renders it, so the action never fires and nothing says why. sygnal-check follows the views it can read and reports the chain (`App > ProjectSection > TaskRow`). It says nothing when the view renders the component itself (by tag, as a Collection or Switchable target, or passed into a child), mentions its name some other way, has a Collection or Switchable target it can't resolve, or when nothing it can see renders the component.
+
+**Fix:** Relay the value through the component in between: in `ProjectSection.intent` read `RELAY: CHILD.select(TaskRow)`, in `ProjectSection.model` send it on with `RELAY: { PARENT: (state, data) => data }`, and read `CHILD.select(ProjectSection)` in `App`. For a value many components need, broadcast it with `EVENTS` instead.
+
 ### SYG130
 
 **href() names no route or leaves out a param**
@@ -765,13 +775,13 @@ Severity: `error` · Reported by: the dev checks (`sygnal/diagnostics`), `sygnal
 
 ### SYG226
 
-**Undo track or resetOn names an unknown action**
+**Undo track, resetOn or coalesce names an unknown action**
 
 Severity: `warn` · Reported by: the Sygnal runtime (every app, production included), `sygnal-check`
 
-`undoable(model, { key, track, resetOn })` (and the `undo({ ... })` behavior) records changes to `state[key]` made by the actions in `track`, and clears the history on the actions in `resetOn`. A name in either list that has no model entry never runs, so with `track` its changes are never recorded (undo skips them), and with `resetOn` the history is never cleared (after a load, undo would bring back the old document). It is usually a typo or a renamed action. For `undo()` the names are the host component's actions, including other behaviors' namespaced ones (`'pager.NEXT'`). `undoable()` reports it when diagnostics are on (dev, `renderComponent`) as it wraps the model, `undo()` when the component is first created; sygnal-check reports it statically, with the closest model entry as a suggestion.
+`undoable(model, { key, track, resetOn, coalesce })` (and the `undo({ ... })` behavior) records changes to `state[key]` made by the actions in `track`, clears the history on the actions in `resetOn`, and groups quick repeats of the actions in `coalesce` into one step. A name in any of these lists that has no model entry never runs, so with `track` its changes are never recorded (undo skips them), with `resetOn` the history is never cleared (after a load, undo would bring back the old document), and with `coalesce` the action meant to be grouped (typing) is recorded one step per change. It is usually a typo or a renamed action. For `undo()` the names are the host component's actions, including other behaviors' namespaced ones (`'pager.NEXT'`). `undoable()` reports it when diagnostics are on (dev, `renderComponent`) as it wraps the model, `undo()` when the component is first created; sygnal-check reports it statically, with the closest model entry as a suggestion.
 
-**Fix:** Use the name of a model entry (`track: ['TYPE']`, `resetOn: ['LOADED']`), or add the entry to the model. Leave `track` out to record every action that changes `state[key]`.
+**Fix:** Use the name of a model entry (`track: ['TYPE']`, `resetOn: ['LOADED']`, `coalesce: ['TYPE']`), or add the entry to the model. Leave `track` out to record every action that changes `state[key]`.
 
 ## SYG3xx: Streams
 
@@ -883,11 +893,11 @@ The stream that computes a component's context emitted an error, most often beca
 
 **Sub-component has initialState without isolatedState**
 
-Severity: `error` · Reported by: the Sygnal runtime (every app, production included)
+Severity: `error` · Reported by: the Sygnal runtime (every app, production included), `sygnal-check`
 
-A sub-component defines `initialState` but not `isolatedState = true`, so its `initialState` would overwrite the state slice its parent passes in. For a component rendered by tag in a parent's view this is an error: it is thrown when the child is instantiated, and the parent catches it, logs it under this code and renders its error fallback instead of the child. For Collection items and Switchable children it is only a warning and the initial state still replaces what the parent passed.
+A sub-component defines `initialState` but not `isolatedState = true`, so its `initialState` would overwrite the state slice its parent passes in. For a component rendered by tag in a parent's view this is an error: it is thrown when the child is instantiated, and the parent catches it, logs it under this code and renders its error fallback instead of the child. For Collection items and Switchable children it is only a warning and the initial state still replaces what the parent passed. It doesn't matter whether the tag has a `state` prop: `<Stopwatch state="stopwatch" />` and `<Stopwatch />` both throw. `sygnal-check` reports it at the child's `initialState` when a view it can follow renders the child (an error for a tag, a warning for a Collection or Switchable target), and says nothing when `isolatedState` is set to anything but a literal `false`.
 
-**Fix:** Remove `initialState` from the sub-component and let the parent own the state, or set `Child.isolatedState = true` if the child should keep its own local state.
+**Fix:** Remove `initialState` from the sub-component and let the parent own the state: put the child's start values in the parent's `initialState`, under the field the `state` prop names (`App.initialState = { stopwatch: { ms: 0 } }` for `<Stopwatch state="stopwatch" />`). Or set `Child.isolatedState = true` if the child should keep its own local state.
 
 Before:
 
@@ -1566,9 +1576,9 @@ run(App, {}, { diagnostics: { strict: true } })
 
 **Sink or source has no driver**
 
-Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`), `sygnal-check`
 
-A component's model sends to a sink (for example `HTTP: (state) => ({ url: '/api/x' })`), or its intent reads a source (`HTTP.select('x')`), but `run()` got no driver with that name. Values sent to a sink without a driver are dropped silently, and a source without a driver is `undefined`, so the intent then fails with "Cannot read properties of undefined". `renderComponent()` does not report this: in tests it records such sinks (`t.requests(name)`) and fakes such sources (`t.respond` / `t.fail`).
+A component's model sends to a sink (for example `HTTP: (state) => ({ url: '/api/x' })`), or its intent reads a source (`HTTP.select('x')`), but `run()` got no driver with that name. Values sent to a sink without a driver are dropped silently, and a source without a driver is `undefined`, so the intent then fails with "Cannot read properties of undefined". `renderComponent()` does not report this: in tests it records such sinks (`t.requests(name)`) and fakes such sources (`t.respond` / `t.fail`), so a test suite can pass while the app drops every request. sygnal-check reports the sink case before the app runs: a model sink of a component that a `run()` call renders, when that call's drivers are an object literal (or absent) without that name. It says nothing when no `run()` call is in the checked files (Vike, Astro, a library), when the drivers can't be listed (a variable from another module, a spread, a computed key), or for the sinks the core handles itself (`STATE`, `EFFECT`, `EVENTS`, `PARENT`, `READY`, `DOM`, `CHILD`, `ELEMENT`, `PERSIST`, `LOG`).
 
 **Fix:** Pass the driver to `run()` under exactly that name: `run(App, { HTTP: makeFetchDriver() })` for HTTP requests, `driverFromAsync(fn)` for any promise-returning function, or your own driver. Check the spelling against the drivers you pass.
 
@@ -1772,7 +1782,7 @@ When instantiating a sub-component, Collection, or Switchable, the factory retur
 
 Severity: `warn` · Reported by: `sygnal-check`
 
-The intent listens for clicks (`DOM.click('.card')`, `DOM.select('.card').events('click')`, or a control such as `controls({ Card: 'div' })`) on an element that is not interactive, such as a `<div>`, `<span>`, `<li>`, `<p>` or `<img>`, and that has no `role` and `tabIndex`. Mouse users can click it, but keyboard users can't focus it and screen readers don't announce it as something to activate, so the action is out of their reach. sygnal-check matches the intent selector against the component's own view; it says nothing when the element contains a button, link or form field (a click on those bubbles to the listener), a child component, or spread props. It is a warning, and an error under `--strict`.
+The intent listens for clicks (`DOM.click('.card')`, `DOM.select('.card').events('click')`, or a control such as `controls({ Card: 'div' })`) on an element that is not interactive, such as a `<div>`, `<span>`, `<li>`, `<p>` or `<img>`, and that has no `role` and `tabIndex`. Mouse users can click it, but keyboard users can't focus it and screen readers don't announce it as something to activate, so the action is out of their reach. sygnal-check matches the intent selector against the component's own view; it says nothing when the element contains a button, link or form field (a click on those bubbles to the listener), a child component, or spread props. It is a warning, also under `--strict`; `--a11y=error` (or `a11y: 'error'` in `check()` and the Vite plugin's `check` options) makes it an error.
 
 **Fix:** Render a `<button type="button">` (or declare the control as `'button'`) and style it as needed. If the element must stay a `<div>`, add `role="button" tabIndex={0}` and also handle `DOM.keydown(x)` for Enter and Space. To keep one on purpose, add `// sygnal-ignore SYG701` above the intent line.
 
@@ -1782,7 +1792,7 @@ The intent listens for clicks (`DOM.click('.card')`, `DOM.select('.card').events
 
 Severity: `warn` · Reported by: `sygnal-check`
 
-An `<input>` (other than hidden, submit, reset, button or image), `<select>` or `<textarea>` has no accessible name: no `<label>` wraps it, no `<label for>` matches its id, and it has no `aria-label`, `aria-labelledby`, `title` or `placeholder`. Screen readers then announce only "edit text" or "combo box". A `placeholder` counts as a last-resort name (as axe does), though a visible label is better. sygnal-check follows the field to the component or helper that renders it and accepts a label around every place it is used; a `uid('x')` id matches a label with the same `uid('x')` call. It says nothing for spread props, a dynamic `type` or `id`, or a field passed into a child component.
+An `<input>` (other than hidden, submit, reset, button or image), `<select>` or `<textarea>` has no accessible name: no `<label>` wraps it, no `<label for>` matches its id, and it has no `aria-label`, `aria-labelledby`, `title` or `placeholder`. Screen readers then announce only "edit text" or "combo box". A `placeholder` counts as a last-resort name (as axe does), though a visible label is better. sygnal-check follows the field to the component or helper that renders it and accepts a label around every place it is used; a `uid('x')` id matches a label with the same `uid('x')` call. It says nothing for spread props, a dynamic `type` or `id`, or a field passed into a child component. It is a warning, also under `--strict`; `--a11y=error` (or `a11y: 'error'` in `check()` and the Vite plugin's `check` options) makes it an error.
 
 **Fix:** Wrap the field: `<label>Email <input type="email" /></label>`, or link them by id: `<label for={uid('email')}>Email</label><input id={uid('email')} />` (`uid` is a view prop). For a field with no visible label, add `aria-label="Search"`.
 
@@ -1792,7 +1802,7 @@ An `<input>` (other than hidden, submit, reset, button or image), `<select>` or 
 
 Severity: `warn` · Reported by: `sygnal-check`
 
-An `<img>` has no `alt` attribute. Screen readers then read out the file name, or skip the image without saying what it shows. `alt=""` is allowed: it marks the image as decorative. Images named another way (`aria-label`, `aria-labelledby`, `title`) or hidden (`role="presentation"`, `aria-hidden`) are not reported.
+An `<img>` has no `alt` attribute. Screen readers then read out the file name, or skip the image without saying what it shows. `alt=""` is allowed: it marks the image as decorative. Images named another way (`aria-label`, `aria-labelledby`, `title`) or hidden (`role="presentation"`, `aria-hidden`) are not reported. It is a warning, also under `--strict`; `--a11y=error` (or `a11y: 'error'` in `check()` and the Vite plugin's `check` options) makes it an error.
 
 **Fix:** Add `alt="what the image shows"` (for a dynamic image, `alt={item.name}`); for a purely decorative image use `alt=""`.
 
@@ -1802,7 +1812,7 @@ An `<img>` has no `alt` attribute. Screen readers then read out the file name, o
 
 Severity: `warn` · Reported by: `sygnal-check`
 
-The intent listens for clicks on an `<a>` that has no `href`. Without `href` an `<a>` is not focusable and is announced as plain text, so keyboard and screen-reader users can't trigger the action. sygnal-check matches the intent's click selectors against the component's own view, like SYG701. It is a warning, and an error under `--strict`.
+The intent listens for clicks on an `<a>` that has no `href`. Without `href` an `<a>` is not focusable and is announced as plain text, so keyboard and screen-reader users can't trigger the action. sygnal-check matches the intent's click selectors against the component's own view, like SYG701. It is a warning, also under `--strict`; `--a11y=error` (or `a11y: 'error'` in `check()` and the Vite plugin's `check` options) makes it an error.
 
 **Fix:** For an action, render `<button type="button">` (styled as a link if needed). For navigation, give the `<a>` a real `href` (with the router, `href={router.href('task', { id })}`).
 
@@ -1812,7 +1822,7 @@ The intent listens for clicks on an `<a>` that has no `href`. Without `href` an 
 
 Severity: `warn` · Reported by: `sygnal-check`
 
-A `<button>` has no text content and no `aria-label`, `aria-labelledby` or `title`, so screen readers announce only "button". This is usually an icon-only button: an `<i>`, an `<svg>` without `<title>`, or an `<img alt="">`. Only literal children are checked: a button whose children include an expression (`{state.label}`) or a child component is not reported.
+A `<button>` has no text content and no `aria-label`, `aria-labelledby` or `title`, so screen readers announce only "button". This is usually an icon-only button: an `<i>`, an `<svg>` without `<title>`, or an `<img alt="">`. Only literal children are checked: a button whose children include an expression (`{state.label}`) or a child component is not reported. It is a warning, also under `--strict`; `--a11y=error` (or `a11y: 'error'` in `check()` and the Vite plugin's `check` options) makes it an error.
 
 **Fix:** Put text in the button, or for an icon-only button add `aria-label="Close"` and mark the icon `aria-hidden="true"`.
 
@@ -1822,7 +1832,7 @@ A `<button>` has no text content and no `aria-label`, `aria-labelledby` or `titl
 
 Severity: `warn` · Reported by: `sygnal-check`
 
-An element has `tabIndex` greater than 0. Positive values move it ahead of every element with `tabIndex={0}` or none, so the Tab order no longer follows the page, and every other positive value has to be kept in step by hand.
+An element has `tabIndex` greater than 0. Positive values move it ahead of every element with `tabIndex={0}` or none, so the Tab order no longer follows the page, and every other positive value has to be kept in step by hand. It is a warning, also under `--strict`; `--a11y=error` (or `a11y: 'error'` in `check()` and the Vite plugin's `check` options) makes it an error.
 
 **Fix:** Use `tabIndex={0}` to make an element focusable in document order, or `tabIndex={-1}` to focus it only from code. Change the order of the markup if the Tab order should change.
 
@@ -1832,7 +1842,7 @@ An element has `tabIndex` greater than 0. Positive values move it ahead of every
 
 Severity: `warn` · Reported by: `sygnal-check`
 
-An element has an `aria-*` attribute that is not in WAI-ARIA (usually a typo such as `aria-lable` or `aria-labeledby`), or a `role` that is not a WAI-ARIA role: a typo, or an abstract role such as `widget` or `section` that authors may not use. Assistive technology ignores both, so the intended label, state or role never reaches users. The lists are WAI-ARIA 1.2 plus the 1.3 additions, and the `doc-*` and `graphics-*` role modules; dynamic role values are not checked.
+An element has an `aria-*` attribute that is not in WAI-ARIA (usually a typo such as `aria-lable` or `aria-labeledby`), or a `role` that is not a WAI-ARIA role: a typo, or an abstract role such as `widget` or `section` that authors may not use. Assistive technology ignores both, so the intended label, state or role never reaches users. The lists are WAI-ARIA 1.2 plus the 1.3 additions, and the `doc-*` and `graphics-*` role modules; dynamic role values are not checked. It is a warning, also under `--strict`; `--a11y=error` (or `a11y: 'error'` in `check()` and the Vite plugin's `check` options) makes it an error.
 
 **Fix:** Fix the spelling (the message suggests the closest name), or use a concrete role such as `button`, `checkbox`, `tab` or `region`. For your own data, use a `data-*` attribute.
 
@@ -1842,6 +1852,6 @@ An element has an `aria-*` attribute that is not in WAI-ARIA (usually a typo suc
 
 Severity: `warn` · Reported by: `sygnal-check`
 
-A `<label for>`, `aria-describedby` or `aria-labelledby` names an id that no element renders, so the label or description is attached to nothing (often a typo, or an id that was renamed on one side only). A literal id may be rendered anywhere in the checked files; a `uid('x')` reference needs an element in the same component with `id={uid('x')}`. When some id in the project is dynamic (`id={props.id}`), literal references are not checked, and dynamic references never are.
+A `<label for>`, `aria-describedby` or `aria-labelledby` names an id that no element renders, so the label or description is attached to nothing (often a typo, or an id that was renamed on one side only). A literal id may be rendered anywhere in the checked files; a `uid('x')` reference needs an element in the same component with `id={uid('x')}`. When some id in the project is dynamic (`id={props.id}`), literal references are not checked, and dynamic references never are. It is a warning, also under `--strict`; `--a11y=error` (or `a11y: 'error'` in `check()` and the Vite plugin's `check` options) makes it an error.
 
 **Fix:** Render the target with the same id, or fix the reference. Inside a component, use `uid('x')` on both sides: `<input id={uid('email')} aria-describedby={uid('email-error')} />` and `<p id={uid('email-error')}>`.

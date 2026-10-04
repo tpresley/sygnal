@@ -6,8 +6,8 @@
  *
  * Tools (paths are resolved against the server's working directory, default
  * ['src']):
- *   check({ paths?, strict? })  → { diagnostics: Diagnostic[], summary }
- *   graph({ paths?, strict? })  → InspectGraph (schema/inspect.schema.json)
+ *   check({ paths?, strict?, a11y? })  → { diagnostics: Diagnostic[], summary }
+ *   graph({ paths?, strict?, a11y? })  → InspectGraph (schema/inspect.schema.json)
  *   explain({ code })           → Explanation (title, severity, explanation, fix, docsUrl)
  * Each result is returned as structuredContent and as JSON text content.
  *
@@ -32,20 +32,21 @@ const pathsSchema = {
   items: { type: 'string' },
   description: "Files, directories or globs, relative to the server's working directory (default: [\"src\"])",
 }
-const strictSchema = { type: 'boolean', description: 'Also run the strict-mode canonical-form rules (SYG501-507)' }
+const strictSchema = { type: 'boolean', description: 'Also run the strict-mode canonical-form rules (SYG501-508)' }
+const a11ySchema = { type: 'string', enum: ['warn', 'error'], description: "Severity of the a11y findings (SYG701-708): 'warn' (default, also with strict) or 'error'" }
 
 export const TOOLS = [
   {
     name: 'check',
     title: 'Check a Sygnal app',
     description: 'Statically check Sygnal components for wiring bugs that fail silently at runtime (intent selectors missing from the view or hidden inside a child component, intent/model mismatches, EVENTS without a counterpart, Collection from fields, controlled inputs). Returns diagnostics with code, severity, file:line:column, message, fix and docsUrl. Call explain with a code for details.',
-    inputSchema: { type: 'object', properties: { paths: pathsSchema, strict: strictSchema }, additionalProperties: false },
+    inputSchema: { type: 'object', properties: { paths: pathsSchema, strict: strictSchema, a11y: a11ySchema }, additionalProperties: false },
   },
   {
     name: 'graph',
     title: 'Sygnal app graph',
     description: "The app's structure as one JSON graph (the same shape as the runtime inspect()): components with their actions (and what triggers them), state keys, context provided/read, EVENTS emitted/selected, child components (tag/Collection/Switchable/slot), intent DOM selectors (matched in the view, or hidden inside a child), and the diagnostics attached to each component.",
-    inputSchema: { type: 'object', properties: { paths: pathsSchema, strict: strictSchema }, additionalProperties: false },
+    inputSchema: { type: 'object', properties: { paths: pathsSchema, strict: strictSchema, a11y: a11ySchema }, additionalProperties: false },
   },
   {
     name: 'explain',
@@ -80,14 +81,19 @@ function summarize(diags) {
   return { error: count('error'), warn: count('warn'), info: count('info') }
 }
 
+function a11yOf(args) {
+  if (args.a11y !== undefined && !['warn', 'error'].includes(args.a11y)) throw new ToolError("a11y must be 'warn' or 'error'")
+  return args.a11y
+}
+
 function callTool(name, args, cwd) {
   args = isObj(args) ? args : {}
   if (name === 'check') {
-    const diagnostics = checkFiles(filesFor(cwd, args.paths), { cwd, strict: !!args.strict })
+    const diagnostics = checkFiles(filesFor(cwd, args.paths), { cwd, strict: !!args.strict, a11y: a11yOf(args) })
     return { diagnostics, summary: summarize(diagnostics) }
   }
   if (name === 'graph') {
-    return graphFiles(filesFor(cwd, args.paths), { cwd, strict: !!args.strict })
+    return graphFiles(filesFor(cwd, args.paths), { cwd, strict: !!args.strict, a11y: a11yOf(args) })
   }
   if (name === 'explain') {
     const e = typeof args.code === 'string' ? getExplanation(args.code) : undefined

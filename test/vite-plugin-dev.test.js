@@ -462,20 +462,54 @@ export default App
     expect(quiet.logs[0]).toEqual(['info', 'sygnal-check: 0 warnings'])
   })
 
-  // PLAN-4 GS-3 / D111: the a11y lane is on in the dev checker; warn, and an error under strict
-  it('reports the a11y lane (SYG7xx): warn, error with diagnostics.strict', async () => {
-    const CLICK_DIV = `function App() { return <div className="x">hi</div> }
+  // PLAN-4 GS-3: the a11y lane is on in the dev checker. D144 (amends D111): warn even with
+  // diagnostics.strict, so no overlay; check.a11y: 'error' opts in to errors (and the overlay)
+  const CLICK_DIV = `function App() { return <div className="x">hi</div> }
 App.intent = ({ DOM }) => ({ OPEN: DOM.click('.x') })
 App.model = { OPEN: s => s }
 export default App
 `
+  const overlayOf = (server) => {
+    const page = []
+    server.emit('ws:sygnal:check:request', undefined, { send: p => page.push(p) })
+    return page.filter(p => p.type === 'error')
+  }
+
+  it('reports the a11y lane (SYG7xx) as warnings, also with diagnostics.strict (no overlay)', async () => {
     const server = start(project({ files: { 'App.jsx': CLICK_DIV } }))
     await until(() => server.logs.length > 0)
     expect(server.logs[0][0]).toBe('warn')
     expect(server.logs[0][1]).toMatch(/^src\/App\.jsx:2:\d+ SYG701 App: DOM\.click\('\.x'\) listens on a <div>/)
     const strict = start(project({ files: { 'App.jsx': CLICK_DIV } }), { diagnostics: { strict: true } })
     await until(() => strict.logs.length > 0)
-    expect(strict.logs[0][1]).toMatch(/SYG701 \[error\]/)
+    expect(strict.logs[0][1]).toMatch(/SYG701 App:/)
+    expect(strict.logs[0][1]).not.toMatch(/\[error\]/)
+    expect(overlayOf(strict)).toEqual([])
+  })
+
+  it("check.a11y: 'error' reports SYG7xx as errors and opens the overlay", async () => {
+    const server = start(project({ files: { 'App.jsx': CLICK_DIV } }), { check: { a11y: 'error' } })
+    await until(() => server.logs.length > 0)
+    expect(server.logs[0][1]).toMatch(/SYG701 \[error\]/)
+    const overlay = overlayOf(server)
+    expect(overlay).toHaveLength(1)
+    expect(overlay[0].err.message).toMatch(/SYG701/)
+  })
+
+  it('an older sygnal-check that reports SYG7xx as errors under strict: the overlay stays closed (D144)', async () => {
+    const old = `export function check() { return [
+      { code: 'SYG702', severity: 'error', file: 'src/App.jsx', line: 1, column: 1, message: 'm', text: 't' },
+      { code: 'SYG124', severity: 'error', file: 'src/App.jsx', line: 2, column: 1, message: 'm', text: 't' },
+    ] }`
+    const server = start(project({ checker: old }), { diagnostics: { strict: true } })
+    await until(() => server.logs.length > 0)
+    const overlay = overlayOf(server)
+    expect(overlay).toHaveLength(1)
+    expect(overlay[0].err.message).toMatch(/SYG124/)
+    expect(overlay[0].err.message).not.toMatch(/SYG702/)
+    const payload = []
+    server.emit('ws:sygnal:check:request', undefined, { send: p => payload.push(p) })
+    expect(payload.find(p => p.type === 'custom').data.diagnostics.map(d => `${d.code} ${d.severity}`)).toEqual(['SYG702 warn', 'SYG124 error'])
   })
 
   it('passes strict (default: diagnostics.strict) and ignore to check()', async () => {
@@ -485,8 +519,8 @@ export default App
     start(project({ checker: recorder }), { diagnostics: { strict: true }, check: { strict: false, include: ['app'] } })
     await until(() => globalThis.__checkCalls.length === 2)
     const calls = globalThis.__checkCalls.sort((a, b) => a.inputs[0].localeCompare(b.inputs[0]))
-    expect(calls[0]).toMatchObject({ inputs: ['app'], options: { strict: false, ignore: [] } })
-    expect(calls[1]).toMatchObject({ inputs: ['src'], options: { strict: true, ignore: ['SYG105'] } })
+    expect(calls[0]).toMatchObject({ inputs: ['app'], options: { strict: false, ignore: [], a11y: 'warn' } })
+    expect(calls[1]).toMatchObject({ inputs: ['src'], options: { strict: true, ignore: ['SYG105'], a11y: 'warn' } })
     delete globalThis.__checkCalls
   })
 

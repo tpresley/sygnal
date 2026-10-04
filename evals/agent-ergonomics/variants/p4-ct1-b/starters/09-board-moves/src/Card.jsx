@@ -5,7 +5,7 @@ const { Toggle, Delete } = controls({ Toggle: 'input', Delete: 'button' })
 function Card({ state }) {
   return (
     <div className={state.done ? 'card done' : 'card'}>
-      <Toggle type="checkbox" className="toggle" checked={state.done} />
+      <Toggle type="checkbox" className="toggle" aria-label="Done" checked={state.done} />
       <span className="title">{state.title}</span>
       <Delete className="delete">Delete</Delete>
     </div>

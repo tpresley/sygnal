@@ -411,6 +411,14 @@ describe('SYG226', () => {
     expect(d[0].severity).toBe('warn')
   })
 
+  // 4-G2: `coalesce` (4-G1) names are checked like track / resetOn
+  it('undoable(): a coalesce name with no model entry', () => {
+    undoable({ TYPE: (s) => s, LOAD: (s) => s }, { key: 'doc', coalesce: ['TYPE', 'TYEP'] })
+    const d = diagnostics('SYG226')
+    expect(d.map(x => x.data.action)).toEqual(['TYEP'])
+    expect(d[0].message).toContain("coalesce names 'TYEP'")
+  })
+
   it('no report when every name is a model entry (shorthand keys count by their action)', () => {
     undoable({ INC: (s) => s, 'LOAD | STATE': (s) => s }, { key: 'doc', track: ['INC'], resetOn: ['LOAD'] })
     expect(diagnostics('SYG226')).toEqual([])

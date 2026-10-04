@@ -638,10 +638,13 @@ Banner.model = { DISMISS: (state) => ({ ...state, message: '' }) }
     })
   }
 
-  it('the a11y lane is an error under --strict and a warning without it', () => {
+  // D144 (amends D111): a warning, also under --strict; an error with a11y: 'error'
+  it("the a11y lane is a warning, also under --strict, and an error with a11y: 'error'", () => {
     const file = path.join(dir, 'check', 'flagged-SYG701.jsx')
-    expect(checkFiles([file], { cwd: path.dirname(file), strict: true }).find(d => d.code === 'SYG701').severity).toBe('error')
-    expect(checkFiles([file], { cwd: path.dirname(file) }).find(d => d.code === 'SYG701').severity).toBe('warn')
+    const sev = (opts) => checkFiles([file], { cwd: path.dirname(file), ...opts }).find(d => d.code === 'SYG701').severity
+    expect(sev({ strict: true })).toBe('warn')
+    expect(sev({})).toBe('warn')
+    expect(sev({ a11y: 'error' })).toBe('error')
   })
 
   it('without its sygnal-ignore line the backdrop listener is SYG701', () => {

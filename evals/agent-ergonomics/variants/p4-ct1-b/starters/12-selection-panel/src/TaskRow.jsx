@@ -5,7 +5,7 @@ const { Toggle, Delete } = controls({ Toggle: 'input', Delete: 'button' })
 function TaskRow({ state }) {
   return (
     <div className={state.done ? 'task-row done' : 'task-row'}>
-      <Toggle type="checkbox" className="toggle" checked={state.done} />
+      <Toggle type="checkbox" className="toggle" aria-label="Done" checked={state.done} />
       <span className="task-title">{state.title}</span>
       <span className="assignee">{state.assignee}</span>
       <Delete className="delete">Delete</Delete>

@@ -151,6 +151,7 @@ export const CODE_TITLES: Record<string, string> = {
   SYG126: 'Control rendered but never listened to',
   SYG127: 'Behavior collision or unresolvable uses entry',
   SYG128: 'Duplicate control key',
+  SYG129: "CHILD.select() of a component this one doesn't render",
   SYG112: 'Reply action has no model entry',
   SYG130: 'href() names no route or leaves out a param',
   SYG131: 'Route params the pattern does not use',
@@ -194,7 +195,7 @@ export const CODE_TITLES: Record<string, string> = {
   SYG222: 'STATE reducer returned the same object after it was mutated in place',
   SYG223: 'persist pick or omit names a key that is not in initialState',
   SYG224: 'persist on a component that is not the root',
-  SYG226: 'Undo track or resetOn names an unknown action',
+  SYG226: 'Undo track, resetOn or coalesce names an unknown action',
   SYG402: 'Context is not an object',
   SYG403: 'Invalid context entry',
   SYG404: 'Context stream errored',
@@ -294,6 +295,8 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   // PLAN-4 GS-1: behaviors (checks/behaviors.ts)
   SYG127: 'error',
   SYG128: 'error',
+  // PLAN-4 4-G2: static only (sygnal-check); listed so the entry knows its title
+  SYG129: 'warn',
   SYG221: 'error',
   // PLAN-4 GS-4 (state.ts)
   SYG222: 'warn',
@@ -332,7 +335,7 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG644: 'warn',
   // PLAN-4 GS-12 (viewTransitions.ts): the static set, but the app's DOM driver isn't makeViewTransitionDOMDriver()
   SYG645: 'warn',
-  // PLAN-4 GS-3: a11y lane, static only (sygnal-check; error under --strict); listed so the entry knows its title
+  // PLAN-4 GS-3: a11y lane, static only (sygnal-check; warn, also under --strict; error with --a11y=error, D144); listed so the entry knows its title
   SYG701: 'warn',
   SYG702: 'warn',
   SYG703: 'warn',

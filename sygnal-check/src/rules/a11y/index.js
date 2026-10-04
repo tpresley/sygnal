@@ -1,9 +1,10 @@
 /**
  * The 7xx "a11y" lane (PLAN-4 GS-3): static accessibility checks.
  *
- * On by default (they are core rules), warn severity; with --strict /
- * check(…, { strict: true }) they report errors (D111). See ./shared.js for
- * the precision rules every check follows.
+ * On by default (they are core rules), warn severity, also under --strict
+ * (D144, amending D111); --a11y=error / check(…, { a11y: 'error' }) swaps in
+ * error-severity copies. See ./shared.js for the precision rules every check
+ * follows.
  */
 import clickTarget from './syg701-click-target.js'
 import fieldLabel from './syg702-field-label.js'
@@ -23,8 +24,8 @@ export const a11yRules = [
   idReference,      // SYG708
 ]
 
-/** The same rules reporting at error severity (strict mode). */
-export const strictA11yRules = a11yRules.map(rule => ({
+/** The same rules reporting at error severity (the a11y: 'error' opt-in, D144). */
+export const errorA11yRules = a11yRules.map(rule => ({
   ...rule,
   run: (project, report) => rule.run(project, (r) => report({ ...r, severity: 'error' })),
 }))

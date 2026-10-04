@@ -132,6 +132,8 @@ npx --no-install sygnal-check --strict   # report SYG501-508 with the regular ru
 npx --no-install sygnal-check --fix      # rewrite SYG504/505/506 in place, then check (implies --strict)
 ```
 
+`--strict` doesn't change the [accessibility](/guide/accessibility/) checks (SYG701-708): they stay warnings, so a strict run doesn't fail on markup you didn't touch. Add `--a11y=error` to make them errors too.
+
 `--fix` is mechanical and idempotent: it rewrites shorthand keys into the object form (unless another entry already handles the action), turns `emit()` and raw EVENTS returns into `event()` (adding `event` to your `sygnal` import and removing an unused `emit` import), and replaces `CHILD.select('Name')` with the identifier when a binding of that name is in scope. It re-parses each file after rewriting it. Review the diff before committing.
 
 ### In the Vite dev server
@@ -146,7 +148,7 @@ export default defineConfig({
 })
 ```
 
-`diagnostics.strict` turns on the runtime strict checks in dev (the plugin sets `globalThis.__SYGNAL_STRICT__ = true`) and is also the default for `check.strict`, so the dev server's `sygnal-check` run includes the strict rules.
+`diagnostics.strict` turns on the runtime strict checks in dev (the plugin sets `globalThis.__SYGNAL_STRICT__ = true`) and is also the default for `check.strict`, so the dev server's `sygnal-check` run includes the strict rules. The accessibility findings stay warnings there and don't open Vite's error overlay; `check: { a11y: 'error' }` makes them errors.
 
 ### At runtime, from `run()`
 

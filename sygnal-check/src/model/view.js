@@ -28,7 +28,7 @@ export function newSink() {
   return {
     classes: { names: new Set(), patterns: [] },
     ids: { names: new Set(), patterns: [] },
-    // child component usages rendered from this scope
+    // child component usages rendered from this scope: { kind, name, ref, node, file, injected }
     children: [],
     // <Collection>/<Switchable> usages (also listed in children)
     collections: [],
@@ -229,7 +229,7 @@ function handleElement(project, file, el, sink, visited) {
     }
     sink.collections.push(usage)
     for (const t of usage.targets) {
-      sink.children.push({ kind, name: t.name, ref: t.ref, node: opening, injected: newSink() })
+      sink.children.push({ kind, name: t.name, ref: t.ref, node: opening, file, injected: newSink() })
     }
     return
   }
@@ -254,7 +254,7 @@ function handleElement(project, file, el, sink, visited) {
       const r = resolveExpr(project, file, jsxToExpr(opening.name))
       if (r && isFunction(r.node)) ref = { file: r.file, node: r.node }
     }
-    sink.children.push({ kind: 'tag', name, ref, node: opening, injected })
+    sink.children.push({ kind: 'tag', name, ref, node: opening, file, injected })
     return
   }
 

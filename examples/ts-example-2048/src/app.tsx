@@ -106,7 +106,6 @@ BOARD.model = {
       next('RESTART')
       return 'Starting game...'
     },
-    SOMETHING: true
   },
 
   // restart the game

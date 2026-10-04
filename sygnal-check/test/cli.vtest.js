@@ -82,6 +82,27 @@ describe('cli', () => {
     expect(strict.out).toContain('SYG505')
   })
 
+  // D144: --strict leaves the a11y lane at warn; --a11y=error makes it an error
+  it('--a11y=error reports SYG7xx as errors; --strict alone keeps them warnings', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sygnal-check-cli-a11y-'))
+    try {
+      fs.writeFileSync(path.join(dir, 'App.jsx'), 'export function App() {\n  return <img src="a.png" />\n}\nApp.initialState = {}\n')
+      const strict = run(['App.jsx', '--strict', '--fail-on=error'], dir)
+      expect(strict.out).toContain('SYG703')
+      expect(strict.out).not.toContain('[error]')
+      expect(strict.code).toBe(0)
+      const opt = run(['App.jsx', '--a11y=error', '--fail-on=error'], dir)
+      expect(opt.out).toMatch(/SYG703 \[error\]/)
+      expect(opt.code).toBe(1)
+      expect(run(['App.jsx', '--a11y=warn', '--fail-on=error'], dir).code).toBe(0)
+      const bad = run(['App.jsx', '--a11y=loud'], dir)
+      expect(bad.code).toBe(2)
+      expect(bad.err).toContain("--a11y must be warn or error")
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
   it('accepts globs and reports missing paths', () => {
     expect(run(['test/fixtures/bad/**/*.tsx']).out).toContain('typed.tsx')
     const r = run(['does-not-exist'])
