@@ -58,6 +58,31 @@ describe('run() with the dev entry', () => {
   })
 })
 
+describe('G-232: ELEMENT is not a driver sink', () => {
+  it('a driver registered as ELEMENT receives nothing (also from a child), and the commands still run', async () => {
+    const { Field, Focus } = controls({ Field: 'input', Focus: 'button' })
+    function Child() { return h('div', null, h(Field, null), h(Focus, null, 'F')) }
+    Child.intent = ({ DOM }) => ({ FOCUS: DOM.click(Focus) })
+    Child.model = { FOCUS: { ELEMENT: { focus: Field } } }
+    function Root() { return h('div', null, h(Go, null, 'Go'), h(Search, null), h(Child, null)) }
+    Root.initialState = {}
+    Root.intent = ({ DOM }) => ({ GO: DOM.click(Go) })
+    Root.model = { GO: { ELEMENT: { focus: Search } } }
+    const got = []
+    const ELEMENT = (sink$) => { sink$.addListener({ next: (v) => got.push(v), error() {}, complete() {} }) }
+    document.body.innerHTML = '<div id="root"></div>'
+    app = run(Root, { ELEMENT }, { mountPoint: '#root', diagnostics: 'collect' })
+    const until = (fn) => vi.waitFor(fn, { timeout: 2000, interval: 10 })
+    await until(() => expect(document.querySelector(`${Focus}`)).toBeTruthy())
+    document.querySelector(`${Go}`).click()
+    await until(() => expect(document.activeElement).toBe(document.querySelector(`${Search}`)))
+    document.querySelector(`${Focus}`).click()
+    await until(() => expect(document.activeElement).toBe(document.querySelector(`${Field}`)))
+    await settle(30)
+    expect(got).toEqual([])
+  })
+})
+
 describe('run() without the dev entry (production)', () => {
   it('a failed command does nothing and prints nothing', async () => {
     const uninstall = installChecks()

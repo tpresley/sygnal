@@ -923,7 +923,7 @@ class Component {
       }) : v)
     })
     this.sinks = this.sourceNames.reduce((acc: Record<string, any>, name) => {
-      if (name == this.DOMSourceName) return acc
+      if (name == this.DOMSourceName || name == 'ELEMENT') return acc
       const subComponentSink$ = (this.subComponentSink$ && name !== PARENT_SINK_NAME) ? this.subComponentSink$.map((sinks: any) => sinks[name]).filter((sink: any) => !!sink).flatten() : xs.never()
       acc[name] = xs.merge((this.model$[name] || xs.never()), subComponentSink$, ...(name === this.stateSourceName ? [this.sources[name].stream.filter((_: any) => false)] : []), ...(this.peers$[name] || []))
       return acc
@@ -942,7 +942,8 @@ class Component {
       delete this.sinks[EFFECT_SINK_NAME]
     }
     // PLAN-4 GS-2: the built-in ELEMENT sink (element commands) runs against this instance's own
-    // DOM source after the next patch (./extra/elementCommands)
+    // DOM source after the next patch (./extra/elementCommands). Like EFFECT it is not a driver
+    // sink: the sinks reduce above skips it, so a driver registered as ELEMENT gets nothing (G-232)
     if (this.model$.ELEMENT) this._subscriptions.push(this.model$.ELEMENT.subscribe({ next: (c: any) => runElementCommands(this, c) }))
     // READY sink: if the component explicitly defined READY model entries, use them;
     // otherwise auto-emit true. Check the raw model object, not model$ (which always has keys for all sources).

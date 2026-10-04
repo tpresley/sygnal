@@ -810,8 +810,9 @@ export interface PersistOptions<STATE = any> {
   sync?: boolean
   /**
    * Restore in a RESTORE action after the first render (so the first render matches the server's
-   * HTML) instead of before INITIALIZE. Detected when omitted: run()'s mount point already has
-   * markup, a server-rendered Astro island, a Vike hydration. true / false override it
+   * HTML) instead of before INITIALIZE. Detected when omitted: run()'s mount point holds
+   * renderToString markup (its root element has `data-sygnal-ssr`), a server-rendered Astro
+   * island, a Vike hydration. true / false override it
    */
   hydrate?: boolean
   /** Writes wait for this many ms without a state change (default 100); flushed on pagehide and dispose */
@@ -2928,6 +2929,15 @@ export interface RenderToStringOptions {
 
 /**
  * Render a Sygnal component to an HTML string on the server.
+ *
+ * ```ts
+ * renderToString(App, { state: { count: 0 } })
+ * // → '<div data-sygnal-ssr=""><h1>Count: 0</h1></div>'
+ * ```
+ *
+ * The root element carries an empty `data-sygnal-ssr` attribute, which marks the markup as
+ * Sygnal's server HTML (persist() under plain run() then restores after the first render); the
+ * first client render removes it.
  */
 export function renderToString(componentDef: any, options?: RenderToStringOptions): string
 
