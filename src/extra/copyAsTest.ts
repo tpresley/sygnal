@@ -124,7 +124,8 @@ function lit(v: any, mode: 'data' | 'state', ind: string, seen: Set<any>, flag: 
     if (v instanceof Map) return `new Map(${list([...v].map(([k, x]) => list([lit(k, mode, inner + '  ', seen, flag), lit(x, mode, inner + '  ', seen, flag)], '[', ']')), '[', ']')})`
     if (v instanceof Set) return `new Set(${list([...v].map(x => lit(x, mode, inner, seen, flag)), '[', ']')})`
     const proto = Object.getPrototypeOf(v)
-    if (proto !== Object.prototype && proto !== null) throw new Unserializable(`a ${(v.constructor && v.constructor.name) || 'class instance'}`)
+    // G-265: a vnode of the JSX pragma (its own constructor, flagged $p) is a plain object
+    if (proto !== Object.prototype && proto !== null && !v.$p) throw new Unserializable(`a ${(v.constructor && v.constructor.name) || 'class instance'}`)
     const items: string[] = []
     for (const k of Object.keys(v)) {
       if (v[k] === undefined) continue
