@@ -13,7 +13,7 @@ const arg = (k, d) => process.argv.find(a => a.startsWith(`--${k}=`))?.slice(k.l
 const FW = arg('fw', 'sygnal'), PAGE = arg('page', 'table'), OPNAME = arg('op', 'select row (1k)')
 const REPEAT = +arg('repeat', 5), TOP = +arg('top', 40), TRAIL = +arg('trail', 300)
 const DIST = resolve(import.meta.dirname, arg('dist', 'dist-profile'))
-const REPO = resolve(import.meta.dirname, '..')
+const REPO = resolve(import.meta.dirname, '../..')
 const op = Object.values(OPS).flat().find(o => o.name === OPNAME)
 if (!op) throw new Error(`no op ${OPNAME}`)
 
@@ -88,9 +88,9 @@ const lat = []
 let lastProfile
 for (let i = 0; i < REPEAT + 1; i++) {
   await p.evaluate(`(async () => { const h = window.__h; ${op.setup} })()`)
-  await p.evaluate('window.gc && window.gc()')
+  await p.evaluate('window.__h.quiet()')
   if (i > 0) await cdp.send('Profiler.start')
-  lat.push(await p.evaluate(`(() => { const h = window.__h; return h.measure(() => { ${op.act} }, () => (${op.done})) })()`))
+  lat.push((await p.evaluate(`(() => { const h = window.__h; return h.measure(() => { ${op.act} }, () => (${op.done})) })()`)).dom)
   await p.waitForTimeout(TRAIL)
   if (i === 0) continue // warmup
   const { profile } = await cdp.send('Profiler.stop')

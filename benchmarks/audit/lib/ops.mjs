@@ -17,9 +17,23 @@ window.__h = {
       const t = setTimeout(() => { mo.disconnect(); reject(new Error('timeout waiting for ' + pred)) }, timeout)
     })
   },
-  // ms from dispatching the input until the DOM shows the result and layout is done
-  measure(act, done, timeout = 60000) {
-    return new Promise((resolve, reject) => {
+  // One measured op, in ms (method from P-3's browser-tests/perf harness, which this replaces):
+  //   1. gc() (Chromium runs with --expose-gc), then two animation frames
+  //   2. t0, then act() (a real, synchronous DOM event)
+  //   3. dom: a MutationObserver re-checks done() after every mutation batch (and once right
+  //      after act(), for synchronous frameworks); once it holds, force style + layout.
+  //      dom = event -> DOM settled + layout
+  //   4. paint: then rAF -> MessageChannel message, just after the next frame
+  //      (quantised by the frame clock: the noisier number)
+  //   5. busy: then the first idle callback with >= 10 ms left: event -> main thread idle,
+  //      including work done after the DOM is right (floor: about one frame)
+  // Call quiet() first (bench.mjs and profile.mjs do), so the previous op's trailing work
+  // does not land in this measurement.
+  async measure(act, done, timeout = 60000) {
+    if (typeof window.gc === 'function') window.gc()
+    await this.frame(); await this.frame()
+    let t0 = 0
+    const tDom = await new Promise((resolve, reject) => {
       let finished = false
       const check = () => {
         if (finished || !done()) return
@@ -27,15 +41,29 @@ window.__h = {
         document.body.offsetHeight // force style + layout so it is counted
         const t1 = performance.now()
         mo.disconnect(); clearTimeout(t)
-        resolve(t1 - t0)
+        resolve(t1)
       }
       const mo = new MutationObserver(check)
       mo.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true })
       const t = setTimeout(() => { mo.disconnect(); reject(new Error('timeout: ' + done)) }, timeout)
-      const t0 = performance.now()
+      t0 = performance.now()
       act()
       check()
     })
+    await this.afterFrame()
+    const tPaint = performance.now()
+    const tIdle = await this.idle()
+    return { dom: tDom - t0, paint: tPaint - t0, busy: tIdle - t0 }
+  },
+  frame: () => new Promise(r => requestAnimationFrame(() => r())),
+  afterFrame: () => new Promise(r => requestAnimationFrame(() => { const c = new MessageChannel(); c.port1.onmessage = () => r(); c.port2.postMessage(0) })),
+  // time of the first idle callback with >= 10 ms left: no framework work queued for this frame
+  idle: () => new Promise(r => requestIdleCallback(function cb(d) { if (d.timeRemaining() >= 10) r(performance.now()); else requestIdleCallback(cb) })),
+  // the page is quiet: 100 ms, then three idle callbacks in a row with >= 10 ms left
+  // (a Collection keeps working for tens of ms, up to ~300 ms, after its DOM settles)
+  async quiet() {
+    await new Promise(r => setTimeout(r, 100))
+    for (let i = 0; i < 3; i++) await this.idle()
   },
   type(sel, ch) {
     const el = document.querySelector(sel)
@@ -60,6 +88,8 @@ export const OPS = {
     { name: 'create 10k rows', setup: `h.click('#clear'); await h.waitFor(() => h.n('.row') === 0); await h.settle()`, act: `h.click('#runlots')`, done: `h.n('.row') === 10000`, iterations: 4, fresh: true },
     { name: 'append 1k to 1k', setup: runRows(1000), act: `h.click('#add')`, done: `h.n('.row') === 2000` },
     { name: 'clear 1k rows', setup: runRows(1000), act: `h.click('#clear')`, done: `h.n('.row') === 0` },
+    // P-3's clear-2k (from the retired browser-tests/perf scenario): clear after an append
+    { name: 'clear 2k rows', setup: `${runRows(1000)}; h.click('#add'); await h.waitFor(() => h.n('.row') === 2000); await h.settle()`, act: `h.click('#clear')`, done: `h.n('.row') === 0` },
     { name: 'clear 1k after a select', setup: `${runRows(1000)}; h.click('.row:nth-child(2) .lbl'); await h.waitFor(() => h.q('.row:nth-child(2)').classList.contains('danger')); await h.settle(300)`, act: `h.click('#clear')`, done: `h.n('.row') === 0`, iterations: 5, fresh: true },
     { name: 'select row (10k)', setup: runRows(10000), act: `h.click('.row:nth-child(2) .lbl')`, done: `h.q('.row:nth-child(2)').classList.contains('danger')`, iterations: 4, fresh: true },
   ],

@@ -98,7 +98,8 @@
     "CHANGELOG.md"
   ],
   "scripts": {
-    "test": "vitest run && npm run test:examples && npm run test:types && npm run test:browser",
+    "test": "vitest run && npm run test:examples && npm run test:types && npm run test:browser && npm run test:perf-gate",
+    "test:perf-gate": "node scripts/perf-gate.mjs",
     "test:examples": "node scripts/test-examples.mjs",
     "test:types": "npx tsc --project tsconfig.json --noEmit && npx tsc --project type-tests/tsconfig.json",
     "test:browser": "npm test --prefix browser-tests",

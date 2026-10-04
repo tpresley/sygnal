@@ -1,0 +1,12 @@
+{
+  "about": "Count gate (PLAN-4.5 §3), checked by scripts/perf-gate.mjs in `npm test`. A metric fails when its value is above its limit. Limits may only go down: each PLAN-4.5 workstream lowers the ones it improves when it lands. `baseline` is the value measured when the limit was last set (`tolerance`: how far below it counts as an improvement). Exact limits for the counts, which repeat exactly (the select-row patch count can drop to 1,000 under CPU load, when two 1 ms render debounces coalesce; it never exceeds 1,001, one patch per item plus the parent); headroom only for the setTimeout count (81,000) and the heap (9.5 MB), as proposed in dev-plans/research/p45-perf-baseline.md §5.",
+  "metrics": {
+    "patches.selectCollection": { "label": "DOM patches: select row, 1k Collection", "limit": 1001, "baseline": 1001, "tolerance": 5 },
+    "patches.update10thCollection": { "label": "DOM patches: update every 10th, 1k Collection", "limit": 102, "baseline": 102 },
+    "patches.leaf30deep": { "label": "DOM patches: leaf click, 30 deep", "limit": 51, "baseline": 51 },
+    "streams.perCollectionItem": { "label": "Streams per Collection item (mount 1k counters)", "limit": 151, "baseline": 151.0, "decimals": 1 },
+    "timeouts.unmount1k": { "label": "setTimeout calls: unmount 1k counters", "limit": 81000, "baseline": 79013 },
+    "retained.scopeCheckers": { "label": "Retained ScopeCheckers after 5x1k mount/unmount", "limit": 5000, "baseline": 5000 },
+    "heap.collectionCyclesMB": { "label": "Heap MB after 5x1k Collection create/clear, minus ready (settled)", "limit": 9.5, "baseline": 8.76, "tolerance": 0.2, "decimals": 2 }
+  }
+}

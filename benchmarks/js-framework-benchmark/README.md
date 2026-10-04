@@ -24,10 +24,10 @@ The entries have no `node_modules` of their own in this repo; they resolve `sygn
 npm run build                              # the library: dist/
 npm ci --prefix benchmarks
 npm --prefix benchmarks run build:jfb      # → keyed/sygnal/dist/main.js, non-keyed/sygnal/dist/main.js
-npm --prefix browser-tests run perf -- --jfb   # checks every op in a real browser and times it
+npm --prefix benchmarks run jfb            # checks every op in a real browser and times it
 ```
 
-`--jfb` serves this directory, clicks every button and row link the way the benchmark's tests do (`tbody>tr:nth-of-type(2)>td:nth-of-type(2)>a`, `…td:nth-of-type(3)>a>span:nth-of-type(1)`), and fails if the DOM isn't what the benchmark expects. Its timings are a smoke check only (they include the check's own DOM reads); use the benchmark itself for comparable numbers.
+`jfb` (`benchmarks/jfb-smoke.mjs`) serves this directory, clicks every button and row link the way the benchmark's tests do (`tbody>tr:nth-of-type(2)>td:nth-of-type(2)>a`, `…td:nth-of-type(3)>a>span:nth-of-type(1)`), and fails if the DOM isn't what the benchmark expects. Its timings are a smoke check only (they include the check's own DOM reads); use the benchmark itself for comparable numbers.
 
 ## Drop into a js-framework-benchmark checkout
 
@@ -47,4 +47,4 @@ Before submitting upstream: pin the published `sygnal` version in each `package.
 
 ## Note: why not `<Collection>`
 
-The idiomatic Sygnal list is `<Collection of={Row} from="rows" />`, but a Collection always renders its items inside a `<div>` (`injectComponents` in `src/component.ts` sets `sel: 'div'`), so it can't produce `tbody > tr` rows, which the benchmark's selectors require. The entries therefore map the rows to keyed elements in one component. `browser-tests/perf` measures both shapes; see `benchmarks/RESULTS.md`.
+The idiomatic Sygnal list is `<Collection of={Row} from="rows" />`, but a Collection always renders its items inside a `<div>` (`injectComponents` in `src/component.ts` sets `sel: 'div'`), so it can't produce `tbody > tr` rows, which the benchmark's selectors require. The entries therefore map the rows to keyed elements in one component. `benchmarks/audit` measures both shapes (`table` and `table-coll`); see `benchmarks/README.md` and `benchmarks/RESULTS.md`.
