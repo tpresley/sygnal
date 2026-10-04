@@ -1200,7 +1200,8 @@ class Component {
       ['context', this.context$, objIsEqual],
     ]
     if (this.sources.props$) ins.push(['props', this.sources.props$, propsIsEqual])
-    if (this._processedChildren$) ins.push(['c', this._processedChildren$, (a: any, b: any) => objIsEqual(a.children, b.children) && objIsEqual(a.slots, b.slots)])
+    // G-269: 0, a name no peer can have
+    if (this._processedChildren$) ins.push([0, this._processedChildren$, (a: any, b: any) => objIsEqual(a.children, b.children) && objIsEqual(a.slots, b.slots)])
     const peers = this.peers$[this.DOMSourceName]
     for (const n in peers) ins.push([n, peers[n]])
 
@@ -1213,7 +1214,7 @@ class Component {
       if (page && !page.shown) return page.mark()
       h = 0
       const p: any = {}
-      ins.forEach(([n]: any, i: number) => n == 'c' ? (p.children = vals[i].children, p.slots = vals[i].slots) : (p[n] = vals[i]))
+      ins.forEach(([n]: any, i: number) => n === 0 ? (p.children = vals[i].children, p.slots = vals[i].slots) : (p[n] = vals[i]))
       p.state = p[this.stateSourceName] = this.addCalculated(p.state)
       p.calculated = (p.state && this.getCalculatedValues(p.state)) || {}
       L.next(p)
