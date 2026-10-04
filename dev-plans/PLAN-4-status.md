@@ -41,7 +41,7 @@ PLAN-3's end-of-Phase-5 figures (40,403 B, 283 lines, 34,343 B) grew with #12 an
 | 0-B | Size spikes (CT-1 incl. spec objects, GS-1, GS-2, GS-5, GS-7, small core group) | ✅ table below | `exp/p4-spikes` (`b752a14`) | subagent | not merged | CT-1 spike includes the D101 spec path and D102 command lookup |
 | 0-C | Eval prep: `ergo` tier 26–29, CT-1 A/B variant | ✅ ergo tier merged; A/B variant ⬜ (next) | `p4-0c-ergo-tier` (`cbbae2d`) | subagent | `284a648` | 56 tasks / 238 checks verify OK; 18–20 mutants; dialog `close` gap → G-204 |
 | 0-D | Bug fixes (B-0, B-1, bubbling) | ✅ before PLAN-4 | `main` | other session | #12 (`2cef7ee`) | Recorded as G-144…G-146 in `PLAN-2-status.md`; 0-A re-runs X2, X2b, X7, X8 |
-| 0-E | `ergo` baseline eval (user's terminal) | ⬜ command given to the user | run `p4-ergo-baseline` from the 0-C worktree (PLAN-3 build) | user | | |
+| 0-E | `ergo` baseline eval (user's terminal) | ✅ run `p4-ergo-baseline` (40/40): Sygnal 95% pass, 1.68× React wall, 2.33× peak context | run `p4-ergo-baseline` from the 0-C worktree (PLAN-3 build) | user | | |
 | 1-A | Controls core | ✅ merged `3b32e04` (with 1-T) | `p4-1a-controls` (`e4bac86`) | subagent | `3b32e04` | +51 B gated, +156 B per app using controls; 40/42 failing-first; SYG124/125 dev-only; G-202 done |
 | 1-T | Controls types | ✅ merged with 1-A | `p4-1t-types` (`c503914`) | subagent | | 19 failing-first; props from `HTMLElementTagNameMap` (Sygnal's `JSX.IntrinsicElements` is `any`); component in `DOM.click`/`query` is a type error |
 | 1-D | Controls checker | ✅ merged | `p4-1d-checker` (`36b9d4d`) | subagent | `6565844` | sygnal-check 245 → 293; 33/38 failing-first; `--fix --controls` converts kanban 7/9, todomvc 6, tests unchanged, idempotent |
@@ -71,7 +71,7 @@ PLAN-3's end-of-Phase-5 figures (40,403 B, 283 lines, 34,343 B) grew with #12 an
 | 3-C | Timers (GS-7) | ✅ merged | `p4-3c-timers` (`6ad12b1`) | subagent | | 0 B core; +579 B per app; driver key `TIMER` by convention (found by `__sygnalStatic`); SYG643 also covers `connections`/`resources`; hidden pages restart timers from scratch; recipe waits for 3-K (SYG102 on TICK) |
 | 3-E | DevTools (GS-10) | ✅ merged | `p4-3e-devtools` (`7fa4c43`) | subagent | | 0 B production; devtools entry 3.9 → 16.5 KB gz (dev-only); Copy as test proven on kanban, todomvc, signup form (`test/copied/`); Redux bridge done (stretch) |
 | 1-E prep | Controls A/B variants `p4-ct1-a`/`p4-ct1-b` | ✅ merged | `p4-1e-ab-variant` (`ef038e0`) | subagent | | controls skill +1,902 B (+5.4%); converted starters committed as overlays; task 16 normaliser ignores `data-control`; verify 55/55 on converted solutions |
-| 1-E | Controls A/B eval (user's terminal) | ⬜ commands given | runs `p4-ct1-a`, `p4-ct1-b`, `-haiku` (5 trials) | user | | from the `p4-1e-ab-variant` worktree |
+| 1-E | Controls A/B eval (user's terminal) | 🟡 Opus pair done (60/60 each, build `ef038e0`); Haiku being repaired (D140) | runs `p4-ct1-a`, `p4-ct1-b`, `-haiku` (5 trials) | user | | from the `p4-1e-ab-variant` worktree |
 | P-2 | Custom elements spike (GS-13) | ✅ record done → user | `exp/p4-elements` (`7d1d67f`) | subagent | not merged | `dev-plans/research/p2-custom-elements.md` on the exp branch; 0 B core, entry 1,003 B gz; shadow DOM, React 19 (`ontask-picked` only), HMR work; recommends adopt + making `run()` per-instance (G-212) |
 | 3-D | Behaviors complete (GS-1 checker, pager/selection/undoable, SYG226, G-210) | ✅ merged | `p4-3d-behaviors` (`03ce0e2`) | subagent | | 0 B core; app cost pager 951 B, selection 1,168 B, undoable 836 B, undo 1,624 B; sygnal-check 369; recipes in `test/p4-3d-recipes.test.js` |
 | P-4 | Dev-context design note (GS-15) | ✅ merged, decided (D132) | `p4-p4-devcontext` (`1e4a73f`) | subagent | | `dev-plans/research/p4-dev-context.md` |
@@ -194,6 +194,7 @@ They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none o
 | D137 | 2026-10-03 | G-213 fixed in PLAN-4 (`pickCombine` holds a removal while a moved item's new instance is still rendering, ≤ 100 ms; +148 B) and PLAN-4's core cap raised to **850 B** (≈ 880 B left for PLAN-5 under 42,300 B). Form A of View Transitions stays out (≥ +139 B over B, beyond D129's 60 B). | User (G-213, cap); coordinator (form A, per D129) | P-1b report |
 | D138 | 2026-10-03 | G-213 hold (3-R): a removal waits only for new items of the current batch; a plain delete is synchronous when its Collection is the only one alive, and one task late when several are (a delete can't be told from the first half of a move then). | Coordinator | 3-R QUESTION 1 |
 | D139 | 2026-10-03 | `renderToString` marks its root element with `data-sygnal-ssr=""` (removed by the first client render), so persist under plain `run()` detects hydration reliably. Changes SSR output for every app; CHANGELOG under Changed. | User | 3-R QUESTION 2 |
+| D140 | 2026-10-04 | 1-E Haiku repair: `p4-ct1-a-haiku` stopped at 33/60 and `p4-ct1-b-haiku` ran from the integration worktree (build `de5ea2b`, not `ef038e0`). Resume `p4-ct1-a-haiku` and rerun B as `p4-ct1-b-haiku2`, both from the 1-E worktree, so every 1-E run uses one build. `p4-ct1-b-haiku` is excluded from the analysis. 1-E spend ≈ $85 (approved $69 + this). | User | |
 
 ## Open questions (PLAN-4 §11)
 
@@ -285,3 +286,4 @@ They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none o
 - 2026-10-03 — Merged 4-A part 1; llms.txt cap test → 315. Gates green: vitest 2,263 (+1 skipped), browser 177, doc samples 529 with 0 a11y pending; llms.txt 290 lines, SKILL.md 38,889 B. G-233.
 - 2026-10-03 — Merged 3-R; gates green (vitest 2,282 +1 skipped, browser 177, sygnal-check 448; **41,340 B gated, PLAN-4 +804 B of 850**). Phase 3 review findings all fixed; tagged `plan4-phase3`. D138, D139; G-234.
 - 2026-10-03 — Merged 4-X; gates green (vitest 2,283 +1 skipped, browser 177; 41,343 B gated, PLAN-4 +807 B of 850). Waiting on 0-E/1-E. G-235.
+- 2026-10-04 — 0-E done. 1-E Opus pair: pass 100% → 100%, wall 44.4 → 47.1 s (1.06×; bar ≤ 1.05), learn +0.6 s (bar ≤ +1), wiring failures 0 → 0, SYG104/110/124 hits 0.17 → 0.20. Haiku pair repaired per D140.
