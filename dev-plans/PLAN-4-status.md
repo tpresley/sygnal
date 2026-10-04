@@ -72,9 +72,9 @@ PLAN-3's end-of-Phase-5 figures (40,403 B, 283 lines, 34,343 B) grew with #12 an
 | 4-E prep | Final eval variants and commands (all tiers, net, ergo; Opus + Haiku; React ergo; GS-14 A/B) | ✅ merged | `p4-4e-prep` (`da9027e`) | subagent | | variant `p4-final6` (= `branch`); GS-14 pair `p4-gs14-a/b` (tasks 03, 10, 29; Testing Library installed in both, guidance in B only); new measures testWindow, testAuthoring, testLearn, usedTestingLibrary, a11yFinal, usedActionLog; verify 238/238 on the final build |
 | 4-E | Final eval (user's terminal) | ✅ 660 trials total across PLAN-4 evals, $221.29 | runs `p4-final6-*` | user | `84ed406` | |
 | 4-F | Analysis + REPORT-v4 | ✅ merged | `p4-4f-report` (`274efd6`) + coordinator commit `8ebb635` | subagent | | 3 of 5 §7 bars missed (ergo Opus 18/20, gap 1.63×, Haiku ergo 3/20 vs 6/20); tiers no regression except G-205; D76 passes; GS-14 getters not built |
-| 4-G1 | Close-out: offline guides, missing agent-doc facts, undo `coalesce`, persist plain format | 🟡 running | `p4-4g1-docs` | subagent | | D143 |
-| 4-G2 | Close-out: static SYG405 / grandchild CHILD.select / unregistered driver; 7xx warn under strict (D144); eval starters a11y-clean | 🟡 running | `p4-4g2-checker` | subagent | | |
-| 4-E2 | Targeted re-run: ergo, Opus, both arms (~$15) | ⬜ after 4-G | | user | | D145 |
+| 4-G1 | Close-out: offline guides, missing agent-doc facts, undo `coalesce`, persist plain format | ✅ merged | `p4-4g1-docs` (`d8b2b4f`) | subagent | | 8 guides in `dist/guide/`; SKILL.md 38,882 B after trims (−648 B) and facts; llms.txt 290; 0 B core |
+| 4-G2 | Close-out: static SYG405 / grandchild CHILD.select (SYG129) / unregistered driver (SYG609); 7xx warn under strict (D144); eval starters a11y-clean | ✅ merged | `p4-4g2-checker` (`e1f1261`) | subagent | | retro check: the three static checks flag exactly the 8 known Haiku failures across 280 trials, nothing else; sygnal-check 483 |
+| 4-E2 | Targeted re-run: ergo, Opus, both arms (~$15) | ⬜ commands given | runs `p4-final7-*` from the integration worktree | user | | D145 |
 | 4-C | Controls migration | ⛔ not needed (D141) | | | | |
 | 3-C | Timers (GS-7) | ✅ merged | `p4-3c-timers` (`6ad12b1`) | subagent | | 0 B core; +579 B per app; driver key `TIMER` by convention (found by `__sygnalStatic`); SYG643 also covers `connections`/`resources`; hidden pages restart timers from scratch; recipe waits for 3-K (SYG102 on TICK) |
 | 3-E | DevTools (GS-10) | ✅ merged | `p4-3e-devtools` (`7fa4c43`) | subagent | | 0 B production; devtools entry 3.9 → 16.5 KB gz (dev-only); Copy as test proven on kanban, todomvc, signup form (`test/copied/`); Redux bridge done (stretch) |
@@ -228,6 +228,7 @@ They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none o
 | D145 | 2026-10-04 | After 4-G, one targeted re-run: `ergo` on Opus, both arms (~$15). | User | REPORT-v4 rec 7 |
 | D146 | 2026-10-04 | PLAN-4.5 (performance) approved with its recommended answers (P45-Q1…Q6): runs after PLAN-4 closes and before PLAN-5; net ≤ 0 B core; nested JSX prop objects by reference; DOM driver emits from a post-patch hook; hard count gate in `npm test`, timing ratios nightly; ~$30 agent regression eval after P45-D. | User | `dev-plans/PLAN-4.5.md` |
 | D147 | 2026-10-04 | GS-14: the `t.screen`/`t.user` getters are not built (the A/B missed the D142 rule); the Testing Library docs stand alone. The D132 `t.actions` skill line stays. No D76 trim needed. | Coordinator (per D142 rule) | REPORT-v4 |
+| D148 | 2026-10-04 | The starter-kit AGENTS.md line ("`sygnal-check --strict` … must report nothing") stays unchanged for eval comparability; with clean starters and D144 the only starter findings are the planted bugs. Static checks: SYG405 (child with its own `initialState`), SYG129 (grandchild `CHILD.select`), SYG609 static (unregistered driver sink). | Coordinator | 4-G2 |
 
 ## Open questions (PLAN-4 §11)
 
@@ -256,7 +257,7 @@ They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none o
 | G-202 | 1-D | low | diagnostics | Runtime `inspect()` (dev entry) doesn't list controls yet; only the static `--graph` does. The schema fields are optional. | ✅ 1-A |
 | G-203 | 1-D | low | checker | SYG111 (controlled input) doesn't look through controls, so `<Draft value=…>` misses findings (never adds false ones). | ✅ 1-F |
 | G-204 | 0-C | high | DOM | Dialog `close`/`cancel` don't bubble and aren't in `eventTypesThatDontBubble`, so `DOM.close(x)` / `.events('close')` never fires (eval known issue 10). | ✅ 1-F |
-| G-205 | 2-D | info | evals | Nine eval starters (01, 02, 07, 09, 12, 18, 20, 21, 25) now produce SYG702 warnings from the vendored sygnal-check. Same for both 1-E variants; differs from PLAN-3 runs, which 4-E's comparison must note. | Note |
+| G-205 | 2-D | info | evals | Nine eval starters (01, 02, 07, 09, 12, 18, 20, 21, 25) now produce SYG702 warnings from the vendored sygnal-check. Same for both 1-E variants; differs from PLAN-3 runs, which 4-E's comparison must note. | ✅ 4-G2 (starters a11y-clean; D144) |
 | G-206 | 2-A | low | GS-9 | The root uid is always `u`, so two apps on one page produce the same ids. | 2-A2 |
 | G-207 | 2-A | medium | GS-9 / Vike | With a Vike Layout/Wrapper, the server renders the Page as its own root while the client nests it in the shell, so the Page's uids differ between server and client. | 2-A2 |
 | G-208 | 2-A | info | GS-11 | The `'driver'` phase covers only drivers that throw synchronously from a sink listener (not errors inside a driver's operators or error events on its sources). | Note; docs in 4-B |
@@ -324,3 +325,4 @@ They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none o
 - 2026-10-04 — Merged 4-P (controls as an alternative form); sygnal-check README `--fix --controls` note updated.
 - 2026-10-04 — Merged 4-E prep; committed the 1-E results (the misplaced `p4-ct1-b-haiku` files moved out of the repo). D142: trimmed 4-E plan; commands handed to the user.
 - 2026-10-04 — 4-E done (all runs complete, clean). 4-F: REPORT-v4 committed (the harness blocked the subagent's file write; the coordinator wrote its text). Perf baseline spike merged (`perf/`, `research/p45-perf-baseline.md`); PLAN-4.5 drafted and approved. D143–D147. Started 4-G1 and 4-G2.
+- 2026-10-04 — Merged 4-G1 and 4-G2; agent docs and ROADMAP updated for D144. Gates green (vitest 2,367 +1 skipped, browser 177, sygnal-check 483, doc samples 546; 41,343 B). D148. 4-E2 commands handed to the user.
