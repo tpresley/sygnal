@@ -6,7 +6,7 @@ Tracks progress for [PLAN-4.5.md](PLAN-4.5.md) (performance). The coordinator ma
 
 **Integration branch:** `plan45-integration`, cut from `plan4-integration` at `eb9f9fe` (tag `plan4-phase4`) on 2026-10-04, in worktree `.claude/worktrees/plan-4-execution-7ae8e8`. The release stays held (D56).
 
-**State:** P45-0, A, B, C and D merged. Review fixes (P45-R, G-257…G-272) running.
+**State:** P45-0, A, B, C, D and R merged. Size decision (P45-Q10) and P45-EV pending.
 
 ## Baseline
 
@@ -35,7 +35,7 @@ From `research/p45-perf-baseline.md` (PLAN-4 build `a7efb5d`; `plan4-phase4` has
 | P45-B | Pragma hot path (drop `extend`) + G-252 | ✅ merged | `p45-b-pragma` (`408b9db`) | 2026-10-04 | −246 B (41,309 B; PLAN-4.5 net −34 B). One-pass pragma, nested prop objects by reference, `extend` dropped; one fused `walkView` skipped for plain subtrees; INITIALIZE per instance. Streams 149/item, ScopeCheckers 0. Limits lowered |
 | P45-C | One render scheduler per app (+ rest of Collection, post-patch DOM emission) | ✅ merged | `p45-c-scheduler` (`6b59d7e`) | 2026-10-04 | −168 B (41,141 B; PLAN-4.5 net −202 B). `src/cycle/run/scheduler.ts`: per-app keyed microtask flush (render by depth, Collection, child views by reverse depth, one patch). MutationObserver, G-213 hold and the VT 20 ms window removed. Patches 1/1/1, streams 122/item. Limits lowered |
 | P45-D | Lazy wiring, synchronous teardown + G-255/256 fixes (D151) + dev-only statics freeze (D152) | ✅ merged | `p45-d-lazy` (`a2c2158`) | 2026-10-04 | +132 B (41,273 B; PLAN-4.5 net −70 B). Streams 22/item, unmount setTimeouts 9, heap 0.95 MB. Teardown in `tearDown()` stops one level per macrotask (keeps xstream's restart guard). Freeze in `checks/statics.ts` (0 B core). Limits lowered |
-| P45-R | Phase review fixes (G-257…G-272) | 🟡 running | `p45-r-fixes` | | |
+| P45-R | Phase review fixes (G-257…G-272) | ✅ merged | `p45-r-fixes` (`69bd051`) | 2026-10-04 | +222 B (41,495 B; PLAN-4.5 net **+152 B**, over the ≤ 0 rule → P45-Q10). Counts unchanged. G-257 hold: a pending first-render gate holds the patch (≤ 50 ms) |
 | P45-E | Change detection (only if profiles show it) | ⬜ | | | |
 | P45-EV | Agent regression eval (~$30, user's terminal) | ⬜ | | | after P45-D |
 
@@ -43,6 +43,7 @@ From `research/p45-perf-baseline.md` (PLAN-4 build `a7efb5d`; `plan4-phase4` has
 
 | ID | Date | Decision | By |
 |---|---|---|---|
+| D156 | 2026-10-04 | P45-R: while a component created in this flush waits for its first-render gate, the app's patch is held (≈ 1 ms, ≤ 50 ms) so a cross-Collection move is one patch — the mechanism of D153. G-272 lands as a guard without a failing-first test (no public path reproduces it). G-265: devtools/diagnostics plain-object checks deliberately keep treating vnodes as non-plain | Coordinator |
 | D155 | 2026-10-04 | P45-Q9: after an input event a controlled field is always put back to the model's value, even when the state is structurally equal (React's controlled-input behaviour); CHANGELOG entry | User |
 | D154 | 2026-10-04 | P45-D: `app.sinks` and child sinks no longer carry placeholder READY/PARENT/non-driver sinks (undocumented); DevTools `onContextChanged` fires only for components with their own `.context`; teardown stops one stream level per macrotask (not one global stop) to keep xstream's restart guard; frozen-static mutations report as the existing SYG216 (no new code) | Coordinator |
 | D153 | 2026-10-04 | P45-C: keep the first-render gate (a new component's first render waits for its intent to subscribe, ~1 ms on mount only), so a visible element always responds. Accept the flush's microtask-hop wait (≤ 10 hops while STATE actions keep arriving) as "after the reducer queue drains". DOM source emits after every patch (within D146) | Coordinator |
@@ -57,26 +58,26 @@ From `research/p45-perf-baseline.md` (PLAN-4 build `a7efb5d`; `plan4-phase4` has
 |---|---|---|---|---|---|
 | G-250 | P45-0 | Low | process | Parallel subagents shared scratchpad log names and overwrote each other's logs. Briefs now require a workstream prefix on scratch files | Fixed (briefs) |
 | G-252 | P45-A | Med | component.ts | `initState` writes the first instance's INITIALIZE reducer onto the shared user `model`, so the first instance ever created is retained forever (its intent streams and 1 ScopeChecker), and every later instance runs the first instance's memoised `addCalculated` (shared cache). Blocks "retained ScopeCheckers = 0". Also: `devtools-copy-as-test` clicked `.toggle-all` before the render (state led DOM under load); now waits for it | Fixed (P45-B) |
-| G-253 | P45-A | Low | delegator | A non-bubbling stream that restarts after its shared record was removed, while a newer stream made a fresh record, can lose events | → G-263 |
+| G-253 | P45-A | Low | delegator | A non-bubbling stream that restarts after its shared record was removed, while a newer stream made a fresh record, can lose events | Fixed (P45-R, G-263) |
 | G-254 | P45-B | Low | tests | `p4-p1b-view-transitions` "200 ms cap" used a fixed 5 ms wait and failed once under full-suite load; now polls | Fixed |
 | G-255 | P45-B | Low | component.ts | Pre-existing: a view returning the same root vnode object twice loses its child components on the second render (root `componentsProcessed` flag) | Fixed (P45-D) |
 | G-256 | P45-B | Low | component.ts | Pre-existing: markers inside a fragment (e.g. Transition in `<>…</>`) are never processed | Fixed (P45-D) |
-| G-257 | review A–C | High | scheduler | First-render gate waits on a 1 ms timer the flush doesn't wait for: a cross-Collection move of items that have intent+model is two patches ~2 ms apart (item missing in between). Confirmed by script; kanban lanes hit it | → P45-R |
-| G-258 | review A–C | Med | view transitions | With the quiet window gone, G-257's second patch lands mid-animation (item pops in) | → P45-R (fix G-257) |
-| G-259 | review A–C | Med | component.ts | G-146 bypass reads a global input counter: any keystroke re-renders every component that gets an equal state (3 keystrokes → 3 renders of each Collection row) | → P45-R |
-| G-260 | review A–C | Med | scheduler/DOM driver | A non-idempotent element-measuring loop (patch → element → action → patch) is now microtask-only and can freeze the tab; before it was timer-paced | → P45-R |
-| G-261 | review A–C | Low | DOM driver | Transition leave `rm()` and Portal `tryMount` change the DOM outside a patch; the root isn't re-emitted | → P45-R |
-| G-262 | review A–C | Low | scheduler | Public `collection()`/`switchable()` with root sources: `__d` undefined → NaN keys; items treated as app roots | → P45-R |
-| G-263 | review A–C | Low | delegator | Never-started non-bubbling records are kept forever; a restarted stream re-adds a stale record (supersedes G-253) | → P45-R |
-| G-264 | review A–C | Low | component.ts | `addComponent` writes `props.key` into a user's lent `props` object | → P45-R |
-| G-265 | review A–C | Low | pragma | Pragma vnodes have a non-Object prototype: Copy as test throws for an action carrying JSX; devtools/diagnostics `isPlain` checks miss them | → P45-R |
-| G-266 | review D | High | scheduler | Shared start timers are per delay app-wide: a child created after the 0 ms timer fired joins the pending 1/10 ms timer, so its intent/BOOTSTRAP runs before its own INITIALIZE (isolated child shows 1 instead of 2). Confirmed | → P45-R |
-| G-267 | review D | Med | scheduler | `tearDown` loop aborts when one stream's stop throws; the rest of that level are never stopped. Confirmed | → P45-R |
-| G-268 | review D | Low/Med | diagnostics | D152 freeze also freezes caller-owned initial state (`renderComponent({ initialState: fixture })`, element host props, Vike data). Confirmed | → P45-R |
-| G-269 | review D | Low | component.ts | Internal render input `c` collides with a peer named `c` | → P45-R |
-| G-270 | review D | Low | scheduler | A shared start timer that never fires (`vi.clearAllTimers()`) blocks every later component with that delay | → P45-R |
-| G-271 | review D | Low | component.ts | `hub.set` is O(children² × sinks) per render | → P45-R |
-| G-272 | review D | Low | component.ts | INITIALIZE timer not cancelled on stop/restart → sent twice | → P45-R |
+| G-257 | review A–C | High | scheduler | First-render gate waits on a 1 ms timer the flush doesn't wait for: a cross-Collection move of items that have intent+model is two patches ~2 ms apart (item missing in between). Confirmed by script; kanban lanes hit it | Fixed (P45-R) |
+| G-258 | review A–C | Med | view transitions | With the quiet window gone, G-257's second patch lands mid-animation (item pops in) | Fixed (P45-R) |
+| G-259 | review A–C | Med | component.ts | G-146 bypass reads a global input counter: any keystroke re-renders every component that gets an equal state (3 keystrokes → 3 renders of each Collection row) | Fixed (P45-R) |
+| G-260 | review A–C | Med | scheduler/DOM driver | A non-idempotent element-measuring loop (patch → element → action → patch) is now microtask-only and can freeze the tab; before it was timer-paced | Fixed (P45-R) |
+| G-261 | review A–C | Low | DOM driver | Transition leave `rm()` and Portal `tryMount` change the DOM outside a patch; the root isn't re-emitted | Fixed (P45-R) |
+| G-262 | review A–C | Low | scheduler | Public `collection()`/`switchable()` with root sources: `__d` undefined → NaN keys; items treated as app roots | Fixed (P45-R) |
+| G-263 | review A–C | Low | delegator | Never-started non-bubbling records are kept forever; a restarted stream re-adds a stale record (supersedes G-253) | Fixed (P45-R) |
+| G-264 | review A–C | Low | component.ts | `addComponent` writes `props.key` into a user's lent `props` object | Fixed (P45-R) |
+| G-265 | review A–C | Low | pragma | Pragma vnodes have a non-Object prototype: Copy as test throws for an action carrying JSX; devtools/diagnostics `isPlain` checks miss them | Fixed (P45-R) |
+| G-266 | review D | High | scheduler | Shared start timers are per delay app-wide: a child created after the 0 ms timer fired joins the pending 1/10 ms timer, so its intent/BOOTSTRAP runs before its own INITIALIZE (isolated child shows 1 instead of 2). Confirmed | Fixed (P45-R) |
+| G-267 | review D | Med | scheduler | `tearDown` loop aborts when one stream's stop throws; the rest of that level are never stopped. Confirmed | Fixed (P45-R) |
+| G-268 | review D | Low/Med | diagnostics | D152 freeze also freezes caller-owned initial state (`renderComponent({ initialState: fixture })`, element host props, Vike data). Confirmed | Fixed (P45-R) |
+| G-269 | review D | Low | component.ts | Internal render input `c` collides with a peer named `c` | Fixed (P45-R) |
+| G-270 | review D | Low | scheduler | A shared start timer that never fires (`vi.clearAllTimers()`) blocks every later component with that delay | Fixed (P45-R) |
+| G-271 | review D | Low | component.ts | `hub.set` is O(children² × sinks) per render | Fixed (P45-R) |
+| G-272 | review D | Low | component.ts | INITIALIZE timer not cancelled on stop/restart → sent twice | Fixed (P45-R) |
 | G-251 | P45-0 | Low | docs | `research/p45-perf-baseline.md` still names the old `perf/` paths | Open (fix at close-out) |
 
 ## Merge measurements
@@ -88,6 +89,7 @@ From `research/p45-perf-baseline.md` (PLAN-4 build `a7efb5d`; `plan4-phase4` has
 | + P45-B | 41,309 | 12.0× / 7.7× (9.6 ms) | 4.7× (64.3 ms) | 11.2× (7.25 ms) | 5.7× (4.6 ms) | 9.3× (7.4 ms) |
 | + P45-C | 41,141 | 11.3× / 2.8× (10.15 ms) | 3.9× (58.4 ms) | 4.0× (2.4 ms) | **1.9× (1.5 ms) met** | 4.4× (4.0 ms) |
 | + P45-D | 41,273 | 16.4× / 2.6× (8.2 ms) | **2.6× (36.8 ms) met** | **1.8× (1.0 ms) met** | **1.8× (1.55 ms) met** | 7.4× (3.7 ms) |
+| + P45-R | 41,495 | 10.5× (7.35 ms) | 2.4× (37.4 ms) | 2.8× (1.7 ms) | 1.8× (1.45 ms) | 4.4× (3.1 ms) |
 
 React's times were 0.65–0.8 ms in the P45-B run (0.5 before), so the P45-B ratios flatter; the absolute Sygnal times in parentheses are the fairer comparison.
 
@@ -95,6 +97,7 @@ Latency is now held up mostly by the per-component 1 ms debounce floor (P45-C); 
 
 ## Log
 
+- 2026-10-04 — P45-R merged (`69bd051`); all gates green; counts unchanged. Net +152 B → P45-Q10 asked. D156.
 - 2026-10-04 — Review of D: 7 findings (G-266…G-272), sent to P45-R.
 - 2026-10-04 — P45-D merged (`a2c2158`); gates green first time; limits lowered (streams 22, timeouts 100, heap 1.2). A–C review: 9 findings (G-257…G-265). D154/D155. P45-R and a review of D started.
 - 2026-10-04 — P45-C merged (`6b59d7e`); all gates green first time; limits lowered (patches 1/1/1, streams 122, timeouts 71,000). D151–D153. P45-D and an A–C phase review started. P45-Q9 (G-146 render-after-input) asked.
