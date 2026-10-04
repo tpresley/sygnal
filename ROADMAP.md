@@ -289,3 +289,33 @@ Done on `plan3-integration`: reply actions (`ok`/`error`) for `makeFetchDriver` 
 - Test fakes in `renderComponent()` that script both (respond/fail for requests; push messages and close events for sockets), matching requests by content, not identity
 - Open questions from the E2 prototype: whether components can declare the drivers they need (so `run()` and tests need no wiring), a clearer error when a test omits a driver, SSR and hydration of in-flight requests, and cleanup on disposal
 - Inputs: the E2/E3 results in [`evals/agent-ergonomics/results/PHASE3-RESULTS.md`](evals/agent-ergonomics/results/PHASE3-RESULTS.md) and the N-1 row in [`dev-plans/PLAN-2-status.md`](dev-plans/PLAN-2-status.md)
+
+---
+
+### 17. Controls and Core Ergonomics (PLAN-4)
+
+**Status:** `IN PROGRESS` for 6.0.0 ([PLAN-4](dev-plans/PLAN-4.md), tracker [PLAN-4-status](dev-plans/PLAN-4-status.md)). Phases 1–3 are merged on `plan4-integration`; the docs, agent context, migration and final eval (Phase 4) are next. The release notes are under `[Unreleased]` in [`CHANGELOG.md`](CHANGELOG.md).
+
+Close the everyday gaps that the gap study found between Sygnal and React/Vue apps: the ones agents and people hit in forms, dialogs, lists, persistence and debugging. Every feature had a size spike first; helpers that an app doesn't import cost 0 bytes, and PLAN-4 adds about 0.8 KB gzipped to the core.
+
+**What 6.0 gains:**
+- `controls()`: views and intents linked by identifier (`DOM.click(Add)`, `<Add>`), accepted wherever a selector is, with SYG124–126/128 and `sygnal-check --fix --controls`. Whether controls become the canonical form is decided by the 1-E A/B eval (P4-D) <!-- TODO(P4-D): replace this sentence with the outcome (canonical, or an alternative form). -->
+- Behaviors: `defineBehavior()` and the `uses` static, with first-party `pager`, `selection` and `undo` (plus `undoable()` for a whole model)
+- Element commands: the built-in `ELEMENT` sink (`focus`, `<dialog>` and popover methods, `scrollIntoView`, any element method), resolved in the sender's own view after the next patch
+- `persist()` for the root's state (versions and `migrate`, cross-tab `sync`, automatic restore after hydration), `STATE.watch()`, and declarative `timers` with `makeTimerDriver()`
+- `uid()` (stable, SSR-safe ids), `run(…, { onError })` (one app-level error hook, also for Vike, Astro, `renderToString` and tests), View Transitions (`viewTransitions` static + `makeViewTransitionDOMDriver()`), and `sygnal/element` (`defineElement`, a component as a custom element; `run()` is now scoped to its app so several apps share a page)
+- Debugging and tests: `t.actions` / `t.explain`, `t.commands` / `t.timers` / `t.storage`, `inspect({ actions })`, and in DevTools an action log, "Copy as test" and a Redux DevTools bridge
+- `sygnal-check`: an accessibility lane (SYG701–708, warn by default, error under `--strict`), and resolution of controls, behaviors, timers, element commands and persist
+- Breaking: a STATE reducer returning the object it received means "no change" (SYG502 retired, SYG222 for in-place mutation); `uid` and the new statics are reserved
+- Fixes and speed: dialog/popover/media events reach intent, a card moved between Collections is never painted missing, Collection edit and swap about twice as fast (O(1) item lookups), and a performance baseline against React and Vue (`benchmarks/RESULTS.md`)
+
+**Deferred past 6.0:**
+- GS-15 live dev-server context for agents (`/__sygnal/inspect` and an MCP tool): no code in 6.0 (D132). The design note, with a cost estimate and an eval design (about $44), is in `dev-plans/research/p4-dev-context.md` for a 6.x minor
+- `persist()` on Vike pages (SYG224 says so in 6.0)
+- Drivers for Astro islands (G-229), so that `timers`, `connections` and `resources` can run in an island; possibly a `drivers` integration option like `onError`
+- View Transitions form A (the transition hook in the core instead of an opt-in DOM driver): at least +139 B over the shipped form, beyond the agreed limit (D129, D137); kept on `exp/p4-vt-slim`
+- Elm-style `lazy` view memoization (about 250–400 B), which the performance record didn't propose; slice-equality skipping beyond the O(1) lookups also waits for a measured need
+- `t.screen` / `t.user` Testing Library getters: built only if the 4-E A/B shows less test-authoring time; until then the docs stand alone
+- A runtime a11y pass for dynamic markup, and async storage adapters for `persist()`
+
+**Open:** the 1-E controls A/B eval and the P4-D decision <!-- TODO(P4-D): record the 1-E outcome (Opus wall time, Haiku pass rate, wiring failures, learn time) and the decision here. -->; the 4-E final eval and REPORT-v4 <!-- TODO(4-E): link REPORT-v4 and the measured impact. -->. Components and integrations (widgets, browser sources, the "Web components" guide) follow in PLAN-5.
