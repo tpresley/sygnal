@@ -26,6 +26,7 @@ import { nonBubblingTests1F } from './tests/nonbubbling-1f.jsx'
 import { elementTestsP2b } from './tests/element-p2b.jsx'
 import { elementCommandTests3A } from './tests/element-commands-3a.jsx'
 import { timerFrameTests3K } from './tests/timers-frame-3k.jsx'
+import { viewTransitionTestsP1b } from './tests/view-transitions-p1b.jsx'
 import { getResults } from './harness.js'
 
 async function runAll() {
@@ -57,6 +58,7 @@ async function runAll() {
   await elementTestsP2b()
   await elementCommandTests3A()
   await timerFrameTests3K()
+  await viewTransitionTestsP1b()
 
   const results = getResults()
   const passed = results.filter(r => r.status === 'pass').length

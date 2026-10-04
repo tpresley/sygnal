@@ -34,6 +34,7 @@
  * | SYG133 | SPA router inside a Vike app                           | router.ts      |
  * | SYG422 | timer spec makeTimerDriver() can't run                 | timers.ts      |
  * | SYG643 | timers/connections/resources with no driver to take it | timers.ts      |
+ * | SYG645 | viewTransitions without makeViewTransitionDOMDriver()  | viewTransitions.ts |
  * | SYG201 | STATE reducer dropped keys                             | state.ts       |
  * | SYG202 | STATE reducer returned undefined                       | state.ts       |
  * | SYG221 | set() called with a string                             | state.ts       |
@@ -72,6 +73,7 @@ import {repliesCheck} from './replies'
 import {routerCheck, installRouterHooks} from './router'
 import {fetchCheck} from './fetch'
 import {timersCheck, installTimerHooks} from './timers'
+import {viewTransitionsCheck} from './viewTransitions'
 import {installRxjsHints} from './rxjsHints'
 import {inspectCheck, installInspect} from './inspect'
 
@@ -102,6 +104,7 @@ export const checks: DiagnosticCheck[] = [
   routerCheck,
   fetchCheck,
   timersCheck,
+  viewTransitionsCheck,
   inspectCheck,
 ]
 

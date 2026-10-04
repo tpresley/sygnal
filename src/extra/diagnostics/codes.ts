@@ -241,6 +241,8 @@ export const CODE_TITLES: Record<string, string> = {
   SYG643: 'Declaration static with no driver to take it',
   // PLAN-4 D131: sygnal/element (reported through the core bridge when diagnostics are on)
   SYG644: 'Custom element prop hides an HTMLElement member',
+  // PLAN-4 GS-12 (D129): View Transitions (checks/viewTransitions.ts; dev entry)
+  SYG645: 'viewTransitions without a View Transition DOM driver',
   // PLAN-4 GS-3: a11y lane (static only, sygnal-check)
   SYG701: 'Click listener on a non-interactive element',
   SYG702: 'Form field without an accessible label',
@@ -319,6 +321,8 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG643: 'warn',
   // PLAN-4 D131 (element.ts, through the core bridge; a console warning in dev with diagnostics off)
   SYG644: 'warn',
+  // PLAN-4 GS-12 (viewTransitions.ts): the static set, but the app's DOM driver isn't makeViewTransitionDOMDriver()
+  SYG645: 'warn',
   // PLAN-4 GS-3: a11y lane, static only (sygnal-check; error under --strict); listed so the entry knows its title
   SYG701: 'warn',
   SYG702: 'warn',

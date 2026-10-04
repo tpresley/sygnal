@@ -51,7 +51,7 @@ import { analyzeUses } from './behaviors.js'
 import { analyzeTimers } from './timers.js'
 import { analyzeCommands } from './elementCommands.js'
 
-export const STATIC_PROPS = ['intent', 'model', 'initialState', 'context', 'calculated', 'connections', 'resources', 'route', 'head', 'uses', 'timers']
+export const STATIC_PROPS = ['intent', 'model', 'initialState', 'context', 'calculated', 'connections', 'resources', 'route', 'head', 'uses', 'timers', 'viewTransitions']
 
 function parseSuppressions(ast) {
   const map = new Map()
