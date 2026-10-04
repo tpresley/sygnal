@@ -126,7 +126,8 @@ describe('makeViewTransitionDOMDriver', () => {
     const timer = setInterval(() => click('.bump'), 5)
     try {
       click('.move')
-      await settle(5)
+      // poll: a fixed 5 ms wait missed the start under full-suite load
+      await vi.waitFor(() => expect(calls.length).toBeGreaterThan(0), { timeout: 150, interval: 2 })
       expect(calls.length).toBe(1)
       await calls[0].updateCallbackDone
       expect(calls[0].doneAt - calls[0].startedAt).toBeLessThan(300)

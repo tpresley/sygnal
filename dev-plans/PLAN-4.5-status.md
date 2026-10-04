@@ -6,7 +6,7 @@ Tracks progress for [PLAN-4.5.md](PLAN-4.5.md) (performance). The coordinator ma
 
 **Integration branch:** `plan45-integration`, cut from `plan4-integration` at `eb9f9fe` (tag `plan4-phase4`) on 2026-10-04, in worktree `.claude/worktrees/plan-4-execution-7ae8e8`. The release stays held (D56).
 
-**State:** P45-0 and P45-A merged. P45-B running.
+**State:** P45-0, P45-A and P45-B merged. P45-C running.
 
 ## Baseline
 
@@ -32,8 +32,8 @@ From `research/p45-perf-baseline.md` (PLAN-4 build `a7efb5d`; `plan4-phase4` has
 |---|---|---|---|---|---|
 | P45-0 | Harness to `benchmarks/audit/`, count gate in `npm test`, nightly timing report | ✅ merged | `p45-0-gate` (`fb1f4eb`) | 2026-10-04 | `npm ci --prefix benchmarks` is a new setup step; patch counter hooks snabbdom `patch` (survives P45-C); `browser-tests/perf/` retired |
 | P45-A | Listener leak, identity-preserving vnodes, DOM module fast paths | ✅ merged | `p45-a-leak-identity` (`08e208c`) | 2026-10-04 | +212 B (41,555 B, 745 B headroom). ScopeCheckers 5,000 → 1, heap 8.76 → 1.17 MB; Collection select CPU ratio 90× → 15×. Limits lowered |
-| P45-B | Pragma hot path (drop `extend`) + G-252 | 🟡 running | `p45-b-pragma` | | must recover ≥ 212 B (net ≤ 0) |
-| P45-C | One render scheduler per app (+ rest of Collection, post-patch DOM emission) | ⬜ | | | after P45-B |
+| P45-B | Pragma hot path (drop `extend`) + G-252 | ✅ merged | `p45-b-pragma` (`408b9db`) | 2026-10-04 | −246 B (41,309 B; PLAN-4.5 net −34 B). One-pass pragma, nested prop objects by reference, `extend` dropped; one fused `walkView` skipped for plain subtrees; INITIALIZE per instance. Streams 149/item, ScopeCheckers 0. Limits lowered |
+| P45-C | One render scheduler per app (+ rest of Collection, post-patch DOM emission) | 🟡 running | `p45-c-scheduler` | | |
 | P45-D | Lazy wiring, synchronous teardown | ⬜ | | | after P45-C |
 | P45-E | Change detection (only if profiles show it) | ⬜ | | | |
 | P45-EV | Agent regression eval (~$30, user's terminal) | ⬜ | | | after P45-D |
@@ -50,8 +50,11 @@ From `research/p45-perf-baseline.md` (PLAN-4 build `a7efb5d`; `plan4-phase4` has
 | ID | Found | Sev | Area | Description | Status |
 |---|---|---|---|---|---|
 | G-250 | P45-0 | Low | process | Parallel subagents shared scratchpad log names and overwrote each other's logs. Briefs now require a workstream prefix on scratch files | Fixed (briefs) |
-| G-252 | P45-A | Med | component.ts | `initState` writes the first instance's INITIALIZE reducer onto the shared user `model`, so the first instance ever created is retained forever (its intent streams and 1 ScopeChecker), and every later instance runs the first instance's memoised `addCalculated` (shared cache). Blocks "retained ScopeCheckers = 0". Also: `devtools-copy-as-test` clicked `.toggle-all` before the render (state led DOM under load); now waits for it | Test fixed; code → P45-B |
+| G-252 | P45-A | Med | component.ts | `initState` writes the first instance's INITIALIZE reducer onto the shared user `model`, so the first instance ever created is retained forever (its intent streams and 1 ScopeChecker), and every later instance runs the first instance's memoised `addCalculated` (shared cache). Blocks "retained ScopeCheckers = 0". Also: `devtools-copy-as-test` clicked `.toggle-all` before the render (state led DOM under load); now waits for it | Fixed (P45-B) |
 | G-253 | P45-A | Low | delegator | A non-bubbling stream that restarts after its shared record was removed, while a newer stream made a fresh record, can lose events | Open (P45-D review) |
+| G-254 | P45-B | Low | tests | `p4-p1b-view-transitions` "200 ms cap" used a fixed 5 ms wait and failed once under full-suite load; now polls | Fixed |
+| G-255 | P45-B | Low | component.ts | Pre-existing: a view returning the same root vnode object twice loses its child components on the second render (root `componentsProcessed` flag) | Open (P45-Q7) |
+| G-256 | P45-B | Low | component.ts | Pre-existing: markers inside a fragment (e.g. Transition in `<>…</>`) are never processed | Open (P45-Q7) |
 | G-251 | P45-0 | Low | docs | `research/p45-perf-baseline.md` still names the old `perf/` paths | Open (fix at close-out) |
 
 ## Merge measurements
@@ -60,11 +63,15 @@ From `research/p45-perf-baseline.md` (PLAN-4 build `a7efb5d`; `plan4-phase4` has
 |---|---|---|---|---|---|---|
 | P45-0 baseline | 41,343 | 28.4× / 90× | 6.9–7.5× | 12.9–15.7× | 9.0–9.2× | 16.3–16.7× |
 | + P45-A | 41,555 | 24.5× / 15.2× | 6.5× | 11.8× | 10.2× | 17.2× |
+| + P45-B | 41,309 | 12.0× / 7.7× (9.6 ms) | 4.7× (64.3 ms) | 11.2× (7.25 ms) | 5.7× (4.6 ms) | 9.3× (7.4 ms) |
+
+React's times were 0.65–0.8 ms in the P45-B run (0.5 before), so the P45-B ratios flatter; the absolute Sygnal times in parentheses are the fairer comparison.
 
 Latency is now held up mostly by the per-component 1 ms debounce floor (P45-C); P45-A's gain is in CPU (profile: Collection select busy 338 → 135 ms/run, `patchVnode` 125 → 14 ms).
 
 ## Log
 
+- 2026-10-04 — P45-B merged (`408b9db`); gates green after a flake fix (G-254); limits lowered (streams 149, timeouts 79,000, ScopeCheckers 0). P45-C started. P45-Q7/Q8 asked.
 - 2026-10-04 — P45-A merged (`08e208c`); gates green after a test-race fix (G-252 note); limits lowered (ScopeCheckers 1, heap 1.5 MB). P45-B started.
 - 2026-10-04 — P45-0 merged (`fb1f4eb`); gates re-run on integration.
 - 2026-10-04 — `plan45-integration` cut from `plan4-phase4`. Tracker created. P45-0 and P45-A started.
