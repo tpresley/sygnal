@@ -23,7 +23,7 @@ import xs, {Stream, NO} from 'xstream';
  * 1)`: a gate). While a gate is pending the patch is held (the stages before it run), so a move
  * between Collections whose items have intent and model is still one patch. The timer flushes
  * again. Holds stop 50 ms after the first one (a chain of new components, a timer that never
- * fires: neither holds the patch for long): a held flush sets a timer that flushes then (G-273),
+ * fires: neither holds the patch for long): a hold sets a timer that flushes then (G-273, G-286),
  * and a hold that outlasts the bound drops the pending gates (a lost gate timer, e.g.
  * vi.clearAllTimers(), can't hold every later patch; a gate that fires after that can't make the
  * count negative).
@@ -34,12 +34,15 @@ export const B = 1e6;
 const safe = (f: () => void) => { try { f(); } catch (e) { setTimeout(() => { throw e; }); } };
 
 export function makeScheduler(): Scheduler {
-  let q: Record<number, Array<() => void>> = {}, on = 0, n = 0, seen = -1, y = 0, g = 0, x = 0, c = 0;
+  let q: Record<number, Array<() => void>> = {}, on = 0, n = 0, seen = -1, y = 0, g = 0, x = 0, c = 0, p: any = 0, b: any = 0, G = 0;
   // G-260: flushes are counted (reset by a timer the 9th sets): after 100 in a macrotask (a
   // patch -> element -> action loop that never settles) the next one waits for a macrotask.
-  // G-274: that timer resets the count too (a lost reset timer costs one macrotask per 100
-  // flushes), and it doesn't set `on` (if it's lost, the next go() sets another)
-  const go = (): any => on || (++c > 99 ? setTimeout(() => (c = 0, go())) : (c == 9 && setTimeout(() => c = 0), on = 1, queueMicrotask(flush)));
+  // G-274: the capped flush's timer resets the count too, and it doesn't set `on`. G-283: one
+  // capped timer at a time (one per capped go() made a loop that dirties K stages set ~K timers
+  // per macrotask, each resetting the count). A lost one is set again by the next go() if it was
+  // set with a setTimeout since replaced (fake timers switched, a stub), else by every 100th
+  // capped go() (vi.clearAllTimers())
+  const go = (): any => on || (++c > 99 ? p == setTimeout && c % 100 || (p = setTimeout, setTimeout(() => (p = c = 0, go()))) : (c == 9 && setTimeout(() => c = 0), on = 1, queueMicrotask(flush)));
   const flush = (): any => {
     if (seen != n && on++ < 10) return (seen = n, queueMicrotask(flush));
     for (let k: any; ; ) {
@@ -50,10 +53,13 @@ export function makeScheduler(): Scheduler {
       // resource served from a cache): they render in this flush, not in a second patch
       if (k >= 2 * B) {
         if (!y++) return (seen = -1, queueMicrotask(flush));
-        // the hold's age (a clock that went back, fake timers switched to real, ends it); each
-        // held flush sets a timer that flushes after the bound (one of them may be lost)
-        if (g && (Date.now() - (x ||= Date.now())) >>> 0 < 50) return (setTimeout(go, 51), on = y = 0, seen = -1);
-        g = x = 0;
+        // the hold's age (a clock that went back, fake timers switched to real, ends it); a held
+        // flush sets a timer that flushes after the bound. G-286: one per hold (`b`: the
+        // setTimeout it used; set again if setTimeout was replaced since: fake timers switched)
+        if (g && (Date.now() - (x ||= Date.now())) >>> 0 < 50) return (b == setTimeout || setTimeout(go, 51, b = setTimeout), on = y = 0, seen = -1);
+        // G-287: a new generation of gates (one of a dropped hold that fires late doesn't count
+        // down a newer component's gate)
+        g = x = b = 0, G++;
       }
       const a = q[k];
       delete q[k];
@@ -70,7 +76,7 @@ export function makeScheduler(): Scheduler {
   // timer is shared within the microtask that set it only (one set earlier may have been
   // cleared, or its 0 ms sibling may have fired)
   const t: Record<number, Array<() => void>> = {};
-  s.t = (ms, f, h) => {
+  s.t = (ms, f, h, e = G) => {
     let a = t[ms];
     if (!a) {
       a = t[ms] = [];
@@ -80,7 +86,7 @@ export function makeScheduler(): Scheduler {
         go();
       }, ms);
     }
-    a.push(h ? (g++, () => (g && g--, f())) : f);
+    a.push(h ? (g++, () => (e == G && g--, f())) : f);
   };
   return s;
 }
