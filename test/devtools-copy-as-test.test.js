@@ -96,6 +96,7 @@ describe('Copy as test: three recorded sessions (PLAN-4 3-E acceptance)', () => 
     }
     await add('  Buy milk ', 1)
     await add('Walk the dog', 2)
+    await until(() => expect($('.toggle-all')).toBeTruthy()) // the render lags the state under load (G-252)
     click('.toggle-all')                                   // TOGGLE_ALL: both done
     await until(() => expect(state().todos.map(t => t.completed)).toEqual([true, true]))
     await add('Write tests', 3)
