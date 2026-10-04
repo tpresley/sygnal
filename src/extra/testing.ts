@@ -2949,7 +2949,7 @@ export function renderComponent(
     waitForState,
     next,
     // GS-5: then the pending persist() writes
-    settle: (ms?: number) => settle(ms).then(() => ps?.f.forEach(f => f())),
+    settle: (ms?: number) => settle(ms).then(() => { if (ps) ps.f.forEach((f: () => void) => f()); }),
     states,
     actions: actionList,
     explain,
