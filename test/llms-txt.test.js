@@ -1,6 +1,6 @@
 // 3E/R10a: llms.txt ships in the npm package (repo root) and on the docs site
 // (docs/public/llms.txt). The two copies must be byte-identical, and the file stays
-// within its 300-line budget (PLAN-3 D76).
+// within its 315-line budget (PLAN-3 D76, raised by PLAN-4 D115).
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
@@ -16,7 +16,7 @@ describe('llms.txt', () => {
     expect(site.equals(pkg)).toBe(true)
   })
 
-  it('is at most 300 lines (D76)', () => {
-    expect(pkg.toString('utf8').replace(/\n$/, '').split('\n').length).toBeLessThanOrEqual(300)
+  it('is at most 315 lines (D76, D115)', () => {
+    expect(pkg.toString('utf8').replace(/\n$/, '').split('\n').length).toBeLessThanOrEqual(315)
   })
 })
