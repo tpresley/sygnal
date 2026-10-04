@@ -34,12 +34,15 @@ export const B = 1e6;
 const safe = (f: () => void) => { try { f(); } catch (e) { setTimeout(() => { throw e; }); } };
 
 export function makeScheduler(): Scheduler {
-  let q: Record<number, Array<() => void>> = {}, on = 0, n = 0, seen = -1, y = 0, g = 0, x = 0, c = 0;
+  let q: Record<number, Array<() => void>> = {}, on = 0, n = 0, seen = -1, y = 0, g = 0, x = 0, c = 0, p: any = 0;
   // G-260: flushes are counted (reset by a timer the 9th sets): after 100 in a macrotask (a
   // patch -> element -> action loop that never settles) the next one waits for a macrotask.
-  // G-274: that timer resets the count too (a lost reset timer costs one macrotask per 100
-  // flushes), and it doesn't set `on` (if it's lost, the next go() sets another)
-  const go = (): any => on || (++c > 99 ? setTimeout(() => (c = 0, go())) : (c == 9 && setTimeout(() => c = 0), on = 1, queueMicrotask(flush)));
+  // G-274: the capped flush's timer resets the count too, and it doesn't set `on`. G-283: one
+  // capped timer at a time (one per capped go() made a loop that dirties K stages set ~K timers
+  // per macrotask, each resetting the count). A lost one is set again by the next go() if it was
+  // set with a setTimeout since replaced (fake timers switched, a stub), else by every 100th
+  // capped go() (vi.clearAllTimers())
+  const go = (): any => on || (++c > 99 ? p == setTimeout && c % 100 || (p = setTimeout, setTimeout(() => (p = c = 0, go()))) : (c == 9 && setTimeout(() => c = 0), on = 1, queueMicrotask(flush)));
   const flush = (): any => {
     if (seen != n && on++ < 10) return (seen = n, queueMicrotask(flush));
     for (let k: any; ; ) {
