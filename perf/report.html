@@ -1,0 +1,259 @@
+<title>Sygnal Performance Audit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Sans+Condensed:wght@500;600&display=swap">
+<style>
+/* Layout: one reading column (~72ch) with full-width data tables; findings as numbered evidence blocks */
+:root {
+  --bg: #f7f8f9;
+  --surface: #ffffff;
+  --fg: #1a2026;
+  --muted: #5b6672;
+  --rule: #dde2e7;
+  --accent: #0e6b74;        /* Sygnal teal */
+  --accent-soft: #e2f0f1;
+  --good: #2f7d4f;
+  --warn: #b0730f;
+  --bad: #b33a2c;
+  --heat-0: #eef6f0; --heat-1: #fbf3df; --heat-2: #f9e1cf; --heat-3: #f3c9bf; --heat-4: #e8a99c;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-head: "IBM Plex Sans Condensed", "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #12171b; --surface: #182026; --fg: #e3e8ec; --muted: #94a1ad; --rule: #2a343c;
+  --accent: #5cc2cb; --accent-soft: #173238; --good: #6cc391; --warn: #e2ad4d; --bad: #f08a7c;
+  --heat-0: #17302a; --heat-1: #33301b; --heat-2: #3f2a1c; --heat-3: #4a2420; --heat-4: #5c2421;
+  color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #12171b; --surface: #182026; --fg: #e3e8ec; --muted: #94a1ad; --rule: #2a343c;
+  --accent: #5cc2cb; --accent-soft: #173238; --good: #6cc391; --warn: #e2ad4d; --bad: #f08a7c;
+  --heat-0: #17302a; --heat-1: #33301b; --heat-2: #3f2a1c; --heat-3: #4a2420; --heat-4: #5c2421;
+  color-scheme: dark }
+
+* { box-sizing: border-box }
+body { background: var(--bg); color: var(--fg); font: 15px/1.6 var(--font-body); margin: 0 }
+.wrap { max-width: 980px; margin: 0 auto; padding-inline: 20px; padding-block: 40px 80px }
+.prose { max-width: 72ch }
+h1, h2, h3 { font-family: var(--font-head); font-weight: 600; text-wrap: balance; line-height: 1.2; margin: 0 }
+h1 { font-size: 2.3rem; letter-spacing: -0.01em }
+h2 { font-size: 1.55rem; margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule) }
+h3 { font-size: 1.12rem; font-family: var(--font-body) }
+p { margin: 0.7em 0 }
+code, .mono { font-family: var(--font-mono); font-size: 0.86em }
+code { background: var(--accent-soft); padding: 0.05em 0.35em; border-radius: 3px; overflow-wrap: anywhere }
+.eyebrow { font: 500 0.75rem var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent) }
+.meta { color: var(--muted); font-size: 0.9rem; margin-top: 10px }
+.lede { font-size: 1.08rem; max-width: 70ch }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 26px 0 8px }
+.stat { background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 14px 16px; min-width: 0 }
+.stat b { display: block; font: 600 1.7rem var(--font-head); color: var(--bad); font-variant-numeric: tabular-nums }
+.stat span { font-size: 0.86rem; color: var(--muted); display: block; line-height: 1.4 }
+.scroll { overflow-x: auto; margin: 14px 0; border: 1px solid var(--rule); border-radius: 6px; background: var(--surface) }
+table { border-collapse: collapse; width: 100%; font-size: 0.88rem; font-variant-numeric: tabular-nums }
+th, td { padding: 7px 10px; text-align: right; border-bottom: 1px solid var(--rule); white-space: nowrap }
+th:first-child, td:first-child { text-align: left }
+thead th { font: 500 0.74rem var(--font-mono); text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); background: var(--bg) }
+tbody tr:last-child td { border-bottom: 0 }
+td.sy { font-weight: 500 }
+td .x { display: block; font-size: 0.74rem; color: var(--muted); font-family: var(--font-mono) }
+.h0 { background: var(--heat-0) } .h1 { background: var(--heat-1) } .h2 { background: var(--heat-2) } .h3 { background: var(--heat-3) } .h4 { background: var(--heat-4) }
+tr.grp td { background: var(--bg); font: 600 0.78rem var(--font-mono); letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted) }
+.tabs { display: flex; gap: 6px; margin-top: 16px; flex-wrap: wrap }
+.tabs button { font: 500 0.84rem var(--font-body); padding: 6px 12px; border: 1px solid var(--rule); background: var(--surface); color: var(--fg); border-radius: 4px; cursor: pointer }
+.tabs button[aria-pressed="true"] { background: var(--accent); color: var(--bg); border-color: var(--accent) }
+.tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 0.8rem; color: var(--muted); align-items: center }
+.legend i { display: inline-block; width: 14px; height: 12px; border-radius: 2px; vertical-align: -1px; margin-right: 4px; border: 1px solid var(--rule) }
+.finding { display: grid; grid-template-columns: 2.4rem 1fr; gap: 0 14px; margin-top: 30px }
+.finding .n { font: 600 1.3rem var(--font-head); color: var(--accent); padding-top: 1px }
+.finding > div { min-width: 0 }
+.ev { margin: 10px 0 0; padding: 10px 14px; background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; font-size: 0.9rem }
+.ev ul { margin: 4px 0; padding-left: 18px }
+.ev li { margin: 3px 0 }
+.where { font-size: 0.82rem; color: var(--muted) }
+.pill { display: inline-block; font: 500 0.72rem var(--font-mono); padding: 1px 7px; border-radius: 999px; border: 1px solid currentColor; letter-spacing: 0.03em }
+.p-hi { color: var(--bad) } .p-md { color: var(--warn) } .p-lo { color: var(--good) }
+table.recs td { white-space: normal; vertical-align: top; text-align: left; line-height: 1.45 }
+table.recs td:first-child { white-space: nowrap; font: 600 1rem var(--font-head); color: var(--accent) }
+table.recs td.imp { min-width: 15ch } table.recs td.chg { min-width: 30ch }
+.avoid { display: grid; gap: 12px; margin-top: 14px }
+.avoid > div { padding: 12px 14px; border-left: 3px solid var(--warn); background: var(--surface); border-radius: 0 6px 6px 0 }
+.avoid b { display: block; margin-bottom: 2px }
+pre { background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 12px 14px; overflow-x: auto; font: 0.84rem/1.5 var(--font-mono) }
+.foot { color: var(--muted); font-size: 0.86rem }
+@media (max-width: 560px) { h1 { font-size: 1.8rem } .finding { grid-template-columns: 1fr } .finding .n { padding: 0 } }
+</style>
+
+<div class="wrap">
+  <div class="eyebrow">Research report · 3 Oct 2026 · sygnal 5.4.0</div>
+  <h1>Sygnal Performance Audit</h1>
+  <p class="meta">Benchmarked against React 19.2 and Vue 3.5 in headless Chromium 153 (Playwright, macOS). Production builds, median of 10 runs after 3 warmups.</p>
+
+  <p class="lede">A Sygnal app that renders a list from one component is competitive: it creates 10,000 rows faster than React. It is slow at small updates, where it is 4 to 15 times behind, and it slows down further when every list item is its own component. With <code>Collection</code>, a row costs about 31 KB of heap, a click can repatch the whole page a thousand times, and memory is not fully released on unmount. Most of this comes from a few places in <code>src/component.ts</code> and the Collection plumbing, not from xstream or snabbdom themselves.</p>
+
+  <div class="stats">
+    <div class="stat"><b>1,001</b><span>full-tree DOM patches after one row click in a 1k-row Collection</span></div>
+    <div class="stat"><b>141</b><span>xstream streams created per component instance (31 KB heap each)</span></div>
+    <div class="stat"><b>11×</b><span>slower mounting 1,000 components than React or Vue (97 ms vs 9 ms)</span></div>
+    <div class="stat"><b>152 s</b><span>to clear 10k Collection rows right after selecting one (0.4 s otherwise)</span></div>
+  </div>
+
+  <h2>Baseline</h2>
+  <div class="prose">
+    <p>Four scenarios, each written idiomatically in all three frameworks with the same data and markup. The table is <a href="https://github.com/krausest/js-framework-benchmark">js-framework-benchmark</a> style; Sygnal has two variants: one component mapping rows (<em>Sygnal</em>), and one <code>Collection</code> item component per row (<em>Sygnal (Collection)</em>). <strong>Latency</strong> runs from dispatching the DOM event until the DOM shows the result, layout included. <strong>CPU</strong> is main-thread task time from dispatch until 150 ms after the result, so it includes work that keeps running after the screen updated.</p>
+  </div>
+  <div class="tabs" role="group" aria-label="Metric">
+    <button type="button" id="tab-lat" aria-pressed="true">Latency (ms)</button>
+    <button type="button" id="tab-cpu" aria-pressed="false">CPU (ms)</button>
+  </div>
+  <div class="scroll"><table id="speed"><thead><tr><th>Operation</th><th>Sygnal</th><th>Sygnal (Collection)</th><th>React</th><th>Vue</th></tr></thead><tbody></tbody></table></div>
+  <div class="legend"><span>Cell shade = times slower than the fastest of React and Vue:</span><span><i class="h0"></i>≤ 1.5×</span><span><i class="h1"></i>≤ 3×</span><span><i class="h2"></i>≤ 8×</span><span><i class="h3"></i>≤ 25×</span><span><i class="h4"></i>&gt; 25×</span></div>
+
+  <h3 style="margin-top:30px">Memory (JS heap after forced GC, MB)</h3>
+  <div class="scroll"><table id="mem"><thead><tr><th>App</th><th>Ready</th><th>Populated</th><th>10k rows</th><th>After create/clear cycles</th></tr></thead><tbody></tbody></table></div>
+  <p class="where">Populated = 1,000 table rows, or 1,000 mounted counter components. The last column is 5 cycles of 1k create + clear for tables, 6 mount/unmount cycles for counters. The Collection table at 10k rows also kept 7,000 detached DOM nodes from the previous 1k rows.</p>
+
+  <h2>Where it hurts</h2>
+  <div class="prose">
+    <p>The results split into three patterns.</p>
+    <p><strong>Small updates carry a fixed cost proportional to the whole view.</strong> Selecting one row of 1,000 takes 7.3 ms in single-component Sygnal and 0.5 ms in React; at 10,000 rows it is 44 ms against 4 ms. Every state change re-runs the full view, then walks and copies the whole vnode tree several times before snabbdom diffs it.</p>
+    <p><strong>Component-per-item is the worst case.</strong> Mounting, unmounting, appending, and anything that touches every item (a context change, an update to 100 rows) is 5 to 100 times slower, and most of the CPU lands after the screen has already updated. Each Collection item is a full component with roughly 140 streams, and each item's render repatches the entire page.</p>
+    <p><strong>Depth adds latency.</strong> A click 30 components deep takes 5.8 ms (React: 0.35 ms) and causes 51 DOM patches, because each level adds its own 1 ms debounce timer and its own repatch.</p>
+  </div>
+
+  <h2>Root causes</h2>
+  <p class="prose">Found with CDP CPU profiles of the unminified build, mapped back to <code>src/*.ts</code> through two source-map hops, plus instrumented counts of patches, streams, and timers, and heap-snapshot diffs.</p>
+
+  <div class="finding"><div class="n">1</div><div>
+    <h3>No render batching across components: each child render repatches the whole app</h3>
+    <p>A component's render goes through <code>debounce(1)</code> in <code>collectRenderParameters</code>, again in <code>renderVdom</code>, and once more in <code>instantiateCollection</code>. These timers are per component, so 1,000 sibling renders arrive as 1,000 separate emissions. Each one re-runs the parent's <code>injectComponents</code> and <code>processSuspensePost</code>, and the DOM driver patches from the root every time. <code>processSuspensePost</code> also copies every vnode that has children, including all descendants' subtrees, so snabbdom's <code>oldVnode === vnode</code> shortcut never applies and the full tree is diffed on each patch.</p>
+    <div class="ev"><ul>
+      <li>DOM patches per action: select row (1k Collection) <b>1,001</b>; update every 10th row <b>102</b>; leaf click 30 deep <b>51</b>; single-component table <b>1</b>.</li>
+      <li>Profile of Collection select: 74% of 514 ms in the DOM driver's patch; <code>patchVnode</code> alone 36%, <code>processSuspensePost</code> 7%, <code>IsolateModule.update</code> 7%.</li>
+      <li>This is also the 152 s clear: 10,000 row renders, each patching a 10,000-row tree.</li>
+    </ul><span class="where">src/component.ts:1160, 1361, 1614, 1768 (injectComponents), 1839 (processSuspensePost)</span></div>
+  </div></div>
+
+  <div class="finding"><div class="n">2</div><div>
+    <h3>About 141 streams and 31 KB per component, torn down with one timer per stream</h3>
+    <p>Every instance builds its full wiring whether it uses it or not: context, READY, children and slots, HMR actions, statics, peers, EFFECT, CHILD sources, three debounce stages, and an isolated copy of every source channel. Unmount completes the streams one <code>setTimeout</code> at a time, because xstream stops a stream asynchronously when its last listener goes.</p>
+    <div class="ev"><ul>
+      <li>Mounting 1,000 counters created <b>141,008</b> streams and 4,005 interval timers; heap 30.3 MB vs 2.7 MB (React) and 3.7 MB (Vue).</li>
+      <li>Unmounting them scheduled <b>74,011</b> <code>setTimeout</code> calls: 9 ms to clear the screen, 126 ms of CPU after it.</li>
+      <li>Mount profile: about 35% xstream construction and subscription, 10% native <code>setTimeout</code>.</li>
+    </ul><span class="where">src/component.ts:193–432 (constructor and init*), src/cycle/isolate/index.ts, xstream Stream._remove</span></div>
+  </div></div>
+
+  <div class="finding"><div class="n">3</div><div>
+    <h3>Quadratic Collection plumbing</h3>
+    <p>Several Collection paths do O(N) work per item, so O(N²) per state change:</p>
+    <div class="ev"><ul>
+      <li><code>instanceLens.get</code> finds each item by linear scan with a string conversion, once per item per state emission.</li>
+      <li><code>fieldLense.set</code> calls <code>newState.find()</code> inside a loop over every old item, on every item write.</li>
+      <li><code>fieldLense.get</code> copies every item (<code>{ ...item, id }</code>) on every emission, so identity checks downstream always fail and every item runs a deep compare.</li>
+      <li><code>PickCombine.up()</code> rebuilds the N-element array on every single item emission.</li>
+      <li>In "update 1 of 1k", <code>fieldLense.set</code> and <code>instanceLens.get</code> are 28% of busy time. Collection create at 10k rows is 1.46 s (React 0.25 s).</li>
+    </ul><span class="where">src/cycle/state/Collection.ts:65, src/component.ts:1398–1426, src/cycle/state/pickCombine.ts:108</span></div>
+  </div></div>
+
+  <div class="finding"><div class="n">4</div><div>
+    <h3>Event-listener leak on unmount</h3>
+    <p>Bubbling listeners registered by <code>DOM.click(…)</code> and friends are added to the EventDelegator's per-scope priority queues and never removed. Each disposed component keeps its <code>ScopeChecker</code>, its subject stream, and five enriched-stream closures (<code>data</code>, <code>target</code>, <code>key</code>, <code>value</code>, <code>checked</code>) per intent stream.</p>
+    <div class="ev"><ul>
+      <li>Heap diff after 5 × 1,000 counters mounted and unmounted: exactly 5,000 retained <code>ScopeChecker</code>s and 5,000 of each closure; the 2-stream table row retained 10,000.</li>
+      <li>Retained heap after cycles: 6.3 MB (counters) and 27.6 MB (Collection table), against about 2 MB for React and Vue. It grows without bound in apps whose lists churn.</li>
+    </ul><span class="where">src/cycle/dom/EventDelegator.ts:247 (insertListener has no removal path)</span></div>
+  </div></div>
+
+  <div class="finding"><div class="n">5</div><div>
+    <h3>Per-render fixed costs in the view path</h3>
+    <p>For the single-component table, half of a row select is spent creating vnodes. The JSX pragma's <code>sanitizeData</code> runs two <code>mapObject</code> passes per element, and each pass allocates an object per key and merges them with the deep-copying <code>extend(true, …)</code>. Each render then walks the whole tree again in <code>stampFields</code>, <code>preprocessVdom</code>, <code>getComponents</code>, and <code>processSuspensePost</code>, even when the view has no components, portals, or Suspense.</p>
+    <div class="ev"><ul>
+      <li>Select row (1k, single component): pragma 48% of busy time (<code>sanitizeData</code> 42%, <code>extend</code> 9%); snabbdom 12%.</li>
+      <li>Experiment: replacing <code>mapObject</code> with a single shallow pass cut update and select time by 10–15%. Bulk create did not change (it is bound by DOM creation).</li>
+    </ul><span class="where">src/pragma/fn.ts:24–46, src/pragma/index.ts:144, src/component.ts:892–893, 1901, 1911</span></div>
+  </div></div>
+
+  <div class="finding"><div class="n">6</div><div>
+    <h3>Latency floor from timers, and per-vnode module work</h3>
+    <p>Even with little to compute, an update waits on at least two 1 ms interval timers (re-armed on every emission), more with nesting. The keystroke test is 4.35 ms latency on 2.7 ms of CPU. Snabbdom runs eight modules on every vnode of every patch; <code>selectModule.queueSelect</code>, <code>controlledInputModule.syncControlled</code>, and <code>classNameModule.syncClassName</code> together cost 12% of the Collection select profile, almost all of it on elements that are not form fields. Smaller costs: deep <code>objIsEqual</code> (depth 5) on state, props, context, and children for every component, and the DOM driver's subtree <code>MutationObserver</code> with old-value recording.</p>
+    <span class="where">src/extra/xstreamExtras.ts:48 (setInterval debounce), src/cycle/dom/modules.ts, src/component.ts:2089, src/cycle/dom/makeDOMDriver.ts:88</span>
+  </div></div>
+
+  <h2>Recommended improvements</h2>
+  <p class="prose">Ordered by expected impact relative to effort and risk. Impact estimates come from the profiles and the two experiments below.</p>
+  <div class="scroll"><table class="recs"><thead><tr><th>#</th><th>Change</th><th>Fixes</th><th>Expected impact</th><th>Effort / risk</th></tr></thead><tbody>
+    <tr><td>1</td><td class="chg"><b>One render scheduler for the whole tree.</b> Mark components dirty and flush once per tick, parents before children, with one DOM patch per flush. Replace the three per-component <code>debounce(1)</code> stages with it. Flush on a microtask after the reducer queue drains (or MessageChannel), not on <code>requestAnimationFrame</code>.</td><td>1, 6</td><td class="imp">Collection select and update: 1,001 → 1 patch. Deep click: 51 → 1 patch, latency near the CPU cost. Removes the 152 s clear.</td><td><span class="pill p-md">L / medium</span><br>Timing semantics (G-146 input sequencing, B-003 snapshots) need care; the test suite covers them.</td></tr>
+    <tr><td>2</td><td class="chg"><b>Keep unchanged vnodes identical.</b> In <code>processSuspensePost</code> and <code>injectComponents</code>, copy only the path down to what changed, and return the input when there is no Suspense and no injected child, so snabbdom skips unchanged subtrees.</td><td>1, 5</td><td class="imp">Removes most of the 36% <code>patchVnode</code> time. Patches cost O(changed), not O(tree).</td><td><span class="pill p-lo">S / low</span></td></tr>
+    <tr><td>3</td><td class="chg"><b>Remove delegator listeners on stop.</b> Have <code>addEventListener</code> return a stream whose <code>stop</code> removes its destination from the priority queues and prunes empty scopes in the SymbolTree.</td><td>4</td><td class="imp">Fixes unbounded growth (about 1 KB per disposed component per intent stream) and detached DOM retention.</td><td><span class="pill p-lo">S / low</span></td></tr>
+    <tr><td>4</td><td class="chg"><b>Linear-time Collection.</b> Build a key → index map once per state emission (cache it per array with a WeakMap) for <code>instanceLens.get/set</code>; write back in <code>fieldLense.set</code> through a map instead of <code>find</code>; copy only items that lack an id; coalesce <code>PickCombine.up()</code> per tick.</td><td>3</td><td class="imp">Removes the O(N²) terms. Large on 10k lists; 25–30% of a single item update at 1k.</td><td><span class="pill p-lo">M / low</span><br>Existing sort/filter tests (B-010, G-102) guard behaviour.</td></tr>
+    <tr><td>5</td><td class="chg"><b>Lazy per-component wiring.</b> Create context, READY, children/slots, HMR, statics, peers, EFFECT, and CHILD streams only when the component (or a descendant) uses them. Isolate only DOM and STATE per Collection item. Tear down a disposed subtree synchronously instead of one <code>setTimeout</code> per stream.</td><td>2</td><td class="imp">Target under 40 streams and under 10 KB per simple item. Mount and unmount 2–4× faster; much less trailing CPU.</td><td><span class="pill p-md">L / medium</span><br>Touches every init* method.</td></tr>
+    <tr><td>6</td><td class="chg"><b>Rewrite the pragma hot path.</b> One pass over JSX props into module buckets, no <code>extend</code>, and skip <code>applyFocusProps</code>, <code>omit</code>, and SVG checks when they can't apply. Fuse <code>stampFields</code>, <code>preprocessVdom</code>, and <code>getComponents</code> into one walk, skipped when the pragma saw no special nodes.</td><td>5</td><td class="imp">10–15% measured from the <code>mapObject</code> change alone; about 30–40% of single-component update time in total.</td><td><span class="pill p-lo">M / low</span></td></tr>
+    <tr><td>7</td><td class="chg"><b>Fast paths in DOM modules.</b> Check the tag before doing any work in <code>selectModule</code>, <code>controlledInputModule</code>, and <code>classNameModule</code>; only fields and selects need them.</td><td>6</td><td class="imp">5–10% of patch time.</td><td><span class="pill p-lo">S / low</span></td></tr>
+    <tr><td>8</td><td class="chg"><b>Cheaper change detection.</b> Compare state by identity first, then shallow, keeping the deep compare only where a test proves it is needed (props built inline in JSX).</td><td>6</td><td class="imp">Small today; grows with state size.</td><td><span class="pill p-md">S / medium</span><br>Observable if any app mutates state.</td></tr>
+    <tr><td>9</td><td class="chg"><b>Drop the subtree MutationObserver</b> in the DOM driver; emit the root element from a snabbdom <code>post</code> hook instead.</td><td>6</td><td class="imp">Removes native mutation-record cost on large patches.</td><td><span class="pill p-md">S / medium</span><br>Check external-mutation cases.</td></tr>
+    <tr><td>10</td><td class="chg"><b>Add this benchmark to CI</b> as a regression gate (single-component and Collection select, mount 1k, retained heap after cycles), next to the existing size gate.</td><td>all</td><td class="imp">Keeps the gains.</td><td><span class="pill p-lo">S / low</span></td></tr>
+  </tbody></table></div>
+  <p class="prose">Items 2, 3, 4, and 7 are self-contained and safe to do first. Item 1 has the largest effect and should come with item 2, since batching alone still leaves each patch diffing the full tree.</p>
+
+  <h2>What to avoid</h2>
+  <div class="avoid">
+    <div><b>Throttling patches to requestAnimationFrame in the DOM driver as the fix</b>I tried it. It cut the Collection storms (clear after select: 424 → 111 ms; select CPU 180 → 128 ms) but added about 7 ms latency to every single update (update 1 of 1k: 13.7 → 20.3 ms; deep click: 6.1 → 11.3 ms). Batch upstream, at render scheduling.</div>
+    <div><b>Replacing xstream or adopting signals</b>The cost is in how many streams Sygnal builds per component and how it tears them down, not in xstream's per-event speed. A rewrite would break the public stream API and the Cycle model for gains that items 1, 4, and 5 deliver.</div>
+    <div><b>Replacing snabbdom</b>Its diff is fast when it receives identity-stable vnodes. The 36% <code>patchVnode</code> time is self-inflicted by copying and repeated root patches.</div>
+    <div><b>Shipping a user-facing memo or thunk API first</b>It would push the problem onto app authors and add a non-canonical form. Fix identity and scheduling internally; revisit only if profiles still show view cost.</div>
+    <div><b>Micro-tuning objIsEqual or the debounce operator alone</b>Neither shows up above a few percent in any profile. Their cost is in how often they run, which items 1 and 5 address.</div>
+    <div><b>Optimizing for bulk-create numbers</b>Single-component Sygnal already beats React at 10k rows and is within 1.7× of Vue at 1k. The gap is in updates, Collections, and memory.</div>
+  </div>
+
+  <h2>Method and limits</h2>
+  <div class="prose">
+    <p>Apps, harness, and scripts are in <code>perf/</code> in this worktree (uncommitted). React uses hooks with <code>memo</code> rows, as in js-framework-benchmark; Vue uses SFCs with <code>shallowRef</code> and immutable updates, the same data pattern as Sygnal. Sygnal apps use the canonical forms from <code>llms.txt</code> and the <code>sygnal/vite</code> plugin; the production bundle carries no diagnostics. Each op runs on a fresh page with warmups. Ops whose setup would be distorted by the previous run (10k create, 10k select, clear after select) use a new page per iteration.</p>
+    <p>Limits: one machine, headless Chromium, no CPU throttling, so absolute numbers are optimistic for phones; ratios are the useful part. React 19 and Vue flush discrete events synchronously or on a microtask, so their latency is close to CPU time, while Sygnal's includes timer waits; both are reported. Retained-heap numbers taken 200 ms after the last cycle include some deferred teardown; the heap-snapshot diff, taken after 1.5 s, isolates the true leak.</p>
+  </div>
+  <pre>npm --prefix perf install
+npm run build                              # sygnal dist, then:
+node perf/build.mjs                        # production apps   (--profile: unminified + maps)
+node perf/bench.mjs                        # speed + memory    (--fw= --scenario= --op= --iter=)
+node perf/profile.mjs --page=table-coll --op="select row (1k)" --inclusive</pre>
+  <p class="foot">Bundle size, gzip, framework plus all four apps: Vue 26.3 KB, Sygnal 36.8 KB, React 69.5 KB.</p>
+</div>
+
+<script>
+const S = {"create 1k rows":{"sygnal":[20.25,23.04],"sygnal (Collection)":[128.45,167.16],"react":[13.2,18.28],"vue":[12.2,17.5]},"replace 1k rows":{"sygnal":[21.9,22.7],"sygnal (Collection)":[153.3,266.04],"react":[15.95,19.04],"vue":[13.55,16.68]},"update every 10th (1k)":{"sygnal":[8.5,7.76],"sygnal (Collection)":[31.1,114.81],"react":[1.85,3.28],"vue":[1.7,3.04]},"select row (1k)":{"sygnal":[7.3,6.34],"sygnal (Collection)":[31.95,179.03],"react":[0.5,1.37],"vue":[0.5,1.55]},"swap rows (1k)":{"sygnal":[7.2,6.46],"sygnal (Collection)":[19.3,56.61],"react":[12.75,15.86],"vue":[1.1,2.24]},"remove row (1k)":{"sygnal":[7.4,8.12],"sygnal (Collection)":[25.9,67.17],"react":[1.2,3.8],"vue":[0.8,3.4]},"create 10k rows":{"sygnal":[179.75,198.5],"sygnal (Collection)":[1458.2,1536.35],"react":[254.45,274.81],"vue":[134.95,155.74]},"append 1k to 1k":{"sygnal":[23.85,24.71],"sygnal (Collection)":[170.85,246.07],"react":[15.15,18.26],"vue":[12.85,15.81]},"clear 1k rows":{"sygnal":[4.85,3.1],"sygnal (Collection)":[9.45,124.24],"react":[2.3,2.78],"vue":[1.9,2.25]},"clear 1k after a select":{"sygnal":[5.1,3.55],"sygnal (Collection)":[422.5,539.77],"react":[3,3.63],"vue":[2.3,3.01]},"select row (10k)":{"sygnal":[44.1,46.32],"sygnal (Collection)":[137.2,283.15],"react":[4,7.56],"vue":[7.4,11.61]},"mount 1k components":{"sygnal":[97.15,141.6],"react":[9.3,15.34],"vue":[8.95,15.24]},"update 1 of 1k":{"sygnal":[13.25,13.56],"react":[0.8,2.81],"vue":[0.55,2.56]},"unmount 1k components":{"sygnal":[9,125.82],"react":[2.1,2.79],"vue":[2.15,2.86]},"leaf update, 30 deep":{"sygnal":[5.75,18.99],"react":[0.35,0.71],"vue":[0.4,0.76]},"keystroke (1k list)":{"sygnal":[4.35,2.66],"react":[0.4,1.41],"vue":[0.4,1.34]}}
+const GROUPS = [["Table, 1k–10k rows", ["create 1k rows","replace 1k rows","update every 10th (1k)","select row (1k)","swap rows (1k)","remove row (1k)","create 10k rows","append 1k to 1k","clear 1k rows","clear 1k after a select","select row (10k)"]], ["1,000 counter components", ["mount 1k components","update 1 of 1k","unmount 1k components"]], ["Nesting and input", ["leaf update, 30 deep","keystroke (1k list)"]]]
+const COLS = ["sygnal", "sygnal (Collection)", "react", "vue"]
+const fmt = v => v >= 100 ? Math.round(v).toLocaleString() : v >= 10 ? v.toFixed(1) : v.toFixed(2)
+const heat = r => r <= 1.5 ? 0 : r <= 3 ? 1 : r <= 8 ? 2 : r <= 25 ? 3 : 4
+function renderSpeed(m) {
+  const tb = document.querySelector('#speed tbody'); tb.textContent = ''
+  for (const [g, ops] of GROUPS) {
+    const gr = tb.insertRow(); gr.className = 'grp'; const c = gr.insertCell(); c.colSpan = 5; c.textContent = g
+    for (const op of ops) {
+      const row = tb.insertRow(); row.insertCell().textContent = op
+      const best = Math.min(S[op].react[m], S[op].vue[m])
+      for (const col of COLS) {
+        const td = row.insertCell(), v = S[op][col]
+        if (!v) { td.textContent = '—'; td.style.color = 'var(--muted)'; continue }
+        const r = v[m] / best
+        td.className = 'h' + heat(r) + (col.startsWith('sygnal') ? ' sy' : '')
+        td.textContent = fmt(v[m])
+        if (col.startsWith('sygnal')) { const x = document.createElement('span'); x.className = 'x'; x.textContent = r < 1 ? `${(1 / r).toFixed(1)}× faster` : `${r.toFixed(1)}×`; td.append(x) }
+      }
+    }
+  }
+}
+for (const [id, m] of [['tab-lat', 0], ['tab-cpu', 1]]) document.getElementById(id).addEventListener('click', () => {
+  document.querySelectorAll('.tabs button').forEach(b => b.setAttribute('aria-pressed', String(b.id === id))); renderSpeed(m)
+})
+renderSpeed(0)
+const MEM = [["Sygnal table", 1.55, 2.4, 9.12, 1.89], ["Sygnal (Collection) table", 1.62, 32.73, 329.76, 27.63], ["React table", 1.54, 2.9, 12.52, 2.32], ["Vue table", 1.32, 2.64, 12.4, 1.64], ["Sygnal counters", 1.54, 30.29, null, 6.33], ["React counters", 1.45, 2.66, null, 2.21], ["Vue counters", 1.29, 3.69, null, 1.91]]
+const mt = document.querySelector('#mem tbody')
+for (const r of MEM) {
+  const row = mt.insertRow(); row.insertCell().textContent = r[0]
+  r.slice(1).forEach((v, i) => {
+    const td = row.insertCell(); td.textContent = v == null ? '—' : v.toFixed(1)
+    if (v != null && r[0].startsWith('Sygnal')) { const ref = MEM.filter(x => !x[0].startsWith('Sygnal') && x[0].split(' ').pop() === r[0].split(' ').pop()).map(x => x[i + 1]); const best = Math.min(...ref); td.className = 'h' + heat(v / best); td.style.fontWeight = 500 }
+  })
+}
+</script>
