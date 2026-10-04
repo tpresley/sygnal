@@ -825,7 +825,20 @@ export interface PersistOptions<STATE = any> {
   hydrate?: boolean
   /** Writes wait for this many ms without a state change (default 100); flushed on pagehide and dispose */
   debounceMs?: number
+  /**
+   * 'versioned' (the default) stores `{ version, state }`; 'plain' stores the picked keys
+   * themselves (`{ title, body }`), with no `version` / `migrate`
+   */
+  format?: 'versioned' | 'plain'
 }
+
+/**
+ * The options `persist()` takes: `format: 'plain'` rules out `version` and `migrate` (a plain
+ * entry has no version to migrate from)
+ */
+export type PersistOptionsFor<STATE = any> =
+  | (PersistOptions<STATE> & { format?: 'versioned' })
+  | (Omit<PersistOptions<STATE>, 'version' | 'migrate' | 'format'> & { format: 'plain'; version?: never; migrate?: never })
 
 /** The value `persist()` returns: set it as the root component's `persist` static */
 export interface Persist<STATE = any> {
@@ -837,12 +850,12 @@ export interface Persist<STATE = any> {
 /**
  * PLAN-4 GS-5: save the root component's state and restore it at startup:
  * `TodoApp.persist = persist({ key: 'todo-app', pick: ['todos', 'filter'], version: 2, migrate })`.
- * Stored as JSON `{ version, state }`. The restore is merged into initialState (part of
+ * Stored as JSON `{ version, state }` (`format: 'plain'`: the picked keys themselves). The restore is merged into initialState (part of
  * INITIALIZE); writes are debounced (`debounceMs`) and flushed on pagehide and dispose.
  * `PERSIST: { clear: true }` in a model entry removes the stored copy. Root component only
  * (SYG224); failures are SYG642 (warn) and the app continues on initialState.
  */
-export function persist<STATE = any>(options: PersistOptions<[STATE] extends [infer S] ? S : never>): Persist<STATE>
+export function persist<STATE = any>(options: PersistOptionsFor<[STATE] extends [infer S] ? S : never>): Persist<STATE>
 
 type EventsSelect = keyof SygnalEvents extends never
   ? { select<T = any>(type: string): Stream<T>; }
@@ -2585,11 +2598,12 @@ export interface RenderOptions {
   timerSink?: string;
   /**
    * PLAN-4 GS-5: the fake storage behind the root's `persist()` ('local' and 'session' alike), as
-   * key -> stored entry (`{ version, state }`, or a raw string). Used as is, not copied: writes
+   * key -> stored entry (`{ version, state }`; with `format: 'plain'` the stored keys themselves;
+   * or a raw string). Used as is, not copied: writes
    * land in it, and renderComponent calls given the same object share one storage (`sync: true`
    * applies one's writes in the other). Default: a new empty object.
    */
-  storage?: Record<string, PersistedEntry | string>;
+  storage?: Record<string, PersistedEntry | Record<string, any> | string>;
 }
 
 /** PLAN-4 GS-5: a stored persist() entry (as `t.storage(key)` returns it) */
@@ -2821,9 +2835,10 @@ export interface RenderResult<STATE = any> {
   timers: () => ActiveTimer[];
   /**
    * PLAN-4 GS-5: the fake storage's entry for `key` (`{ version, state }`), undefined when none
-   * (a raw string when what is stored isn't JSON). Pending persist() writes are flushed by t.settle()
+   * (a raw string when what is stored isn't JSON). Pending persist() writes are flushed by t.settle().
+   * A `format: 'plain'` entry is the stored keys: `t.storage<{ title: string }>('note-draft')`
    */
-  storage: (key: string) => PersistedEntry<STATE> | undefined;
+  storage: <ENTRY = PersistedEntry<STATE>>(key: string) => ENTRY | undefined;
   /** Live array of EVENTS sink emissions ({type, data}) */
   emitted: Array<{ type: string; data: any }>;
   /** Live array of diagnostics reported while rendered */

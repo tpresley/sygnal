@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-// PLAN-4 4-G1 (D143): the samples added for undo({ coalesce }) (advanced/undo), run verbatim as test/p4-3b-doc-samples.test.js
+// PLAN-4 4-G1 (D143): the samples added for undo({ coalesce }) (advanced/undo) and
+// persist({ format: 'plain' }) (guide/persistence), run verbatim as test/p4-3b-doc-samples.test.js
 // does: each SAMPLES entry is the exact code block of its page (checked by "in the docs"),
 // compiled with the automatic JSX runtime, imported against the built package (dist: `npm run
 // build` first) and exercised; every sample is checked with `sygnal-check --strict`.
@@ -42,6 +43,20 @@ Poster.model = {
 }
 ` },
 
+  plainNote: { page: 'guide/persistence.md', code: `Note.persist = persist({ key: 'note-draft', pick: ['title', 'body'], format: 'plain' })
+` },
+
+  plainTest: { page: 'guide/persistence.md', code: `it('saves the draft as { title, body }', async () => {
+  const t = renderComponent(Note, { storage: { 'note-draft': { title: 'Groceries', body: '' } } })
+  await t.ready()
+  expect(t.state.title).toBe('Groceries')
+
+  t.simulateAction('BODY', 'milk')
+  await t.settle()
+  expect(t.storage('note-draft')).toEqual({ title: 'Groceries', body: 'milk' })
+  t.dispose()
+})
+` },
 }
 
 // whole modules (any finding fails); the rest are fragments
@@ -107,6 +122,19 @@ describe('sygnal-check --strict', () => {
   }
 })
 
+// the Note component the persistence fragments belong to
+const NOTE = `import { persist } from 'sygnal'
+export function Note({ state }) {
+  return <div><label>Title <input className="title" value={state.title} /></label><label>Body <textarea className="body" value={state.body} /></label></div>
+}
+Note.initialState = { title: '', body: '' }
+Note.intent = ({ DOM }) => ({ TITLE: DOM.input('.title').value(), BODY: DOM.input('.body').value() })
+Note.model = {
+  TITLE: (state, title) => ({ ...state, title }),
+  BODY: (state, body) => ({ ...state, body }),
+}
+`
+
 describe('advanced/undo: coalesce', () => {
   it('typing is one step; two quick Larger clicks are two (REPORT-v4 27-t3)', async () => {
     vi.useFakeTimers()
@@ -125,5 +153,34 @@ describe('advanced/undo: coalesce', () => {
       t.simulateEvent('.redo', 'click'); await t.next(s => s.poster.headline === 'Sale')
       t.expectNoDiagnostics()
     } finally { vi.useRealTimers() }
+  })
+})
+
+describe("guide/persistence: format 'plain'", () => {
+  it('the persist line stores { title, body } raw', async () => {
+    const { mod: { Note } } = await load({ 'Note.jsx': NOTE + SAMPLES.plainNote.code }, 'Note.jsx')
+    const store = { 'note-draft': { title: 'Groceries', body: '' } }
+    t = renderComponent(Note, { storage: store })
+    await t.ready()
+    expect(t.state).toEqual({ title: 'Groceries', body: '' })
+    t.simulateEvent('.body', 'input', { value: 'milk, eggs' })
+    await t.settle()
+    expect(store['note-draft']).toEqual({ title: 'Groceries', body: 'milk, eggs' })
+    t.expectNoDiagnostics()
+  })
+
+  it('the test sample runs', async () => {
+    const files = {
+      'Note.jsx': NOTE + SAMPLES.plainNote.code,
+      'Note.test.jsx': `import { expect, it } from './vitest-shim.mjs'\nimport { renderComponent } from 'sygnal'\nimport { Note } from './Note.jsx'\n` + SAMPLES.plainTest.code,
+      'vitest-shim.mjs': `export { expect } from 'vitest'
+export const registered = { tests: [] }
+export const it = (name, fn) => { registered.tests.push(fn) }
+`,
+    }
+    const { base } = await load(files, 'Note.test.jsx')
+    const { registered } = await import(pathToFileURL(path.join(base, 'vitest-shim.mjs')).href)
+    expect(registered.tests).toHaveLength(1)
+    await registered.tests[0]()
   })
 })
