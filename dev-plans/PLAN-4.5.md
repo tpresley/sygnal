@@ -94,7 +94,7 @@ All PLAN-4 gates stay (§1.2 of PLAN-4: build, `npm test`, sygnal-check, doc sam
 | Retained `ScopeChecker`s after 5×1k cycles | 5,000 | **0** | 0 | 0 |
 | Heap after 5×1k Collection cycles minus ready (after teardown) | 8.8 MB | ≤ 2 MB | ≤ 2 MB | ≤ 1 MB |
 
-Timing targets (warn-only, nightly; ratio to React in the same run): Collection select ≤ 5× (now 70×), mount 1k ≤ 3× (now 11×), leaf 30 deep ≤ 3× (now 15×), keystroke ≤ 2× (now 9×), single-component select ≤ 4× (now 13×).
+Timing targets (warn-only, nightly; ratio to React in the same run): Collection select ≤ 5× (now 28×), mount 1k ≤ 3× (now 7×), leaf 30 deep ≤ 3× (now 13–16×), keystroke ≤ 2× (now 9×), single-component select ≤ 4× (now 16×). "Now" is P45-0's `perf-report` baseline, which waits for idle before each op (D150); the audit's no-wait figures were 70×, 11×, 15×, 9×, 13×.
 
 **Size:** core at 41,343 B gated against 42,300 B. PLAN-4.5's net must be **≤ 0 B** (P45-B's savings pay for P45-A/C), so PLAN-5's ≈ 950 B headroom is preserved (§8 Q2).
 
