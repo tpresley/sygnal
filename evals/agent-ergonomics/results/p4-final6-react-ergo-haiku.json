@@ -1,0 +1,603 @@
+[
+  {
+    "task": "26-autosave-draft",
+    "arm": "react",
+    "trial": 1,
+    "pass": false,
+    "testsPassed": 3,
+    "testsTotal": 7,
+    "iterations": 2,
+    "editRounds": 1,
+    "wallSeconds": 33,
+    "durationMs": 31839,
+    "tokens": 183902,
+    "outputTokens": 3564,
+    "costUsd": 0.059545,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p4-final6",
+    "variantHash": "a3515c1624d7",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "26 autosave: debounced PUT, save status, latest save only, draft kept in localStorage opens empty with no status, and opening the app saves nothing",
+        "message": "AssertionError: expected 'Unsaved changes' to be '' // Object.is equality"
+      },
+      {
+        "test": "26 autosave: debounced PUT, save status, latest save only, draft kept in localStorage an edit during a save shows \"Unsaved changes\"; the older success never changes the status",
+        "message": "AssertionError: expected 'Saved' to be 'Unsaved changes' // Object.is equality"
+      },
+      {
+        "test": "26 autosave: debounced PUT, save status, latest save only, draft kept in localStorage keeps the draft in localStorage within 300 ms and restores it when the app opens again",
+        "message": "AssertionError: expected 'Unsaved changes' to be '' // Object.is equality"
+      },
+      {
+        "test": "26 autosave: debounced PUT, save status, latest save only, draft kept in localStorage starts empty when the stored draft is not valid JSON, and stores valid JSON again after an edit",
+        "message": "AssertionError: expected 'Unsaved changes' to be '' // Object.is equality"
+      }
+    ],
+    "scoredAt": "2026-10-04T08:16:31.984Z"
+  },
+  {
+    "task": "26-autosave-draft",
+    "arm": "react",
+    "trial": 3,
+    "pass": true,
+    "testsPassed": 7,
+    "testsTotal": 7,
+    "iterations": 4,
+    "editRounds": 2,
+    "wallSeconds": 125,
+    "durationMs": 124252,
+    "tokens": 658039,
+    "outputTokens": 11204,
+    "costUsd": 0.1925558,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p4-final6",
+    "variantHash": "a3515c1624d7",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "failures": [],
+    "notes": "PROCESS-KILL: 1 machine-wide kill command(s), refused by the guard (G-127)",
+    "scoredAt": "2026-10-04T08:18:04.706Z"
+  },
+  {
+    "task": "26-autosave-draft",
+    "arm": "react",
+    "trial": 4,
+    "pass": false,
+    "testsPassed": 6,
+    "testsTotal": 7,
+    "iterations": 7,
+    "editRounds": 3,
+    "wallSeconds": 156,
+    "durationMs": 155578,
+    "tokens": 819085,
+    "outputTokens": 20258,
+    "costUsd": 0.27137140000000004,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p4-final6",
+    "variantHash": "a3515c1624d7",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "26 autosave: debounced PUT, save status, latest save only, draft kept in localStorage an edit during a save shows \"Unsaved changes\"; the older success never changes the status",
+        "message": "AssertionError: expected 'Saved' to be 'Unsaved changes' // Object.is equality"
+      }
+    ],
+    "notes": "AUDIT: 1 flagged call(s), review before trusting (run.md step 3)",
+    "scoredAt": "2026-10-04T08:18:35.795Z"
+  },
+  {
+    "task": "27-undo-editor",
+    "arm": "react",
+    "trial": 1,
+    "pass": false,
+    "testsPassed": 4,
+    "testsTotal": 7,
+    "iterations": 5,
+    "editRounds": 1,
+    "wallSeconds": 93,
+    "durationMs": 91655,
+    "tokens": 531850,
+    "outputTokens": 5380,
+    "costUsd": 0.12665790000000002,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p4-final6",
+    "variantHash": "a3515c1624d7",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "27 undo editor: steps, grouped typing, redo, disabled buttons and shortcuts typing is one step per burst: a 1 s pause or another change starts a new step",
+        "message": "AssertionError: expected true to be false // Object.is equality"
+      },
+      {
+        "test": "27 undo editor: steps, grouped typing, redo, disabled buttons and shortcuts Undo and Redo end a typing group: the next edit is a new step",
+        "message": "AssertionError: expected 'Summer sale today (28px)' to be 'Summer sale (28px)' // Object.is equality"
+      },
+      {
+        "test": "27 undo editor: steps, grouped typing, redo, disabled buttons and shortcuts keyboard shortcuts work anywhere, also in the field, and prevent the default",
+        "message": "AssertionError: expected 'Summer sale (28px)' to be 'Summer sale (30px)' // Object.is equality"
+      }
+    ],
+    "notes": "PROCESS-KILL: 1 machine-wide kill command(s), refused by the guard (G-127)",
+    "scoredAt": "2026-10-04T08:19:40.037Z"
+  },
+  {
+    "task": "26-autosave-draft",
+    "arm": "react",
+    "trial": 2,
+    "pass": false,
+    "testsPassed": 6,
+    "testsTotal": 7,
+    "iterations": 8,
+    "editRounds": 6,
+    "wallSeconds": 226,
+    "durationMs": 224797,
+    "tokens": 1159836,
+    "outputTokens": 22198,
+    "costUsd": 0.322938,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p4-final6",
+    "variantHash": "a3515c1624d7",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "26 autosave: debounced PUT, save status, latest save only, draft kept in localStorage an edit during a save shows \"Unsaved changes\"; the older success never changes the status",
+        "message": "AssertionError: expected 'Saved' to be 'Unsaved changes' // Object.is equality"
+      }
+    ],
+    "scoredAt": "2026-10-04T08:19:45.004Z"
+  },
+  {
+    "task": "26-autosave-draft",
+    "arm": "react",
+    "trial": 5,
+    "pass": false,
+    "testsPassed": 6,
+    "testsTotal": 7,
+    "iterations": 10,
+    "editRounds": 7,
+    "wallSeconds": 264,
+    "durationMs": 263595,
+    "tokens": 1500011,
+    "outputTokens": 26644,
+    "costUsd": 0.38290290000000005,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p4-final6",
+    "variantHash": "a3515c1624d7",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "26 autosave: debounced PUT, save status, latest save only, draft kept in localStorage an edit during a save shows \"Unsaved changes\"; the older success never changes the status",
+        "message": "AssertionError: expected 'Saved' to be 'Unsaved changes' // Object.is equality"
+      }
+    ],
+    "notes": "PROCESS-KILL: 1 machine-wide kill command(s), refused by the guard (G-127)",
+    "scoredAt": "2026-10-04T08:20:59.091Z"
+  },
+  {
+    "task": "27-undo-editor",
+    "arm": "react",
+    "trial": 3,
+    "pass": false,
+    "testsPassed": 6,
+    "testsTotal": 7,
+    "iterations": 4,
+    "editRounds": 3,
+    "wallSeconds": 159,
+    "durationMs": 158119,
+    "tokens": 813141,
+    "outputTokens": 15551,
+    "costUsd": 0.22697259999999997,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p4-final6",
+    "variantHash": "a3515c1624d7",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "27 undo editor: steps, grouped typing, redo, disabled buttons and shortcuts keyboard shortcuts work anywhere, also in the field, and prevent the default",
+        "message": "AssertionError: expected 'Summer sale (30px)' to be 'Summer sale (28px)' // Object.is equality"
+      }
+    ],
+    "notes": "PROCESS-KILL: 1 machine-wide kill command(s), refused by the guard (G-127)",
+    "scoredAt": "2026-10-04T08:22:21.762Z"
+  },
+  {
+    "task": "27-undo-editor",
+    "arm": "react",
+    "trial": 4,
+    "pass": false,
+    "testsPassed": 5,
+    "testsTotal": 7,
+    "iterations": 1,
+    "editRounds": 2,
+    "wallSeconds": 164,
+    "durationMs": 163537,
+    "tokens": 551646,
+    "outputTokens": 16794,
+    "costUsd": 0.19808730000000002,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p4-final6",
+    "variantHash": "a3515c1624d7",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "27 undo editor: steps, grouped typing, redo, disabled buttons and shortcuts typing is one step per burst: a 1 s pause or another change starts a new step",
+        "message": "AssertionError: expected true to be false // Object.is equality"
+      },
+      {
+        "test": "27 undo editor: steps, grouped typing, redo, disabled buttons and shortcuts Undo and Redo end a typing group: the next edit is a new step",
+        "message": "AssertionError: expected 'Summer sale today (28px)' to be 'Summer sale (28px)' // Object.is equality"
+      }
+    ],
+    "notes": "AUDIT: 3 flagged call(s), review before trusting (run.md step 3)",
+    "scoredAt": "2026-10-04T08:22:32.096Z"
+  },
+  {
+    "task": "27-undo-editor",
+    "arm": "react",
+    "trial": 2,
+    "pass": true,
+    "testsPassed": 7,
+    "testsTotal": 7,
+    "iterations": 6,
+    "editRounds": 3,
+    "wallSeconds": 277,
+    "durationMs": 276180,
+    "tokens": 854730,
+    "outputTokens": 24563,
+    "costUsd": 0.28393179999999996,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p4-final6",
+    "variantHash": "a3515c1624d7",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "failures": [],
+    "scoredAt": "2026-10-04T08:23:15.867Z"
+  },
+  {
+    "task": "28-stopwatch",
+    "arm": "react",
+    "trial": 1,
+    "pass": false,
+    "testsPassed": 4,
+    "testsTotal": 7,
+    "iterations": 9,
+    "editRounds": 4,
+    "wallSeconds": 109,
+    "durationMs": 107903,
+    "tokens": 770054,
+    "outputTokens": 12814,
+    "costUsd": 0.19545360000000003,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p4-final6",
+    "variantHash": "a3515c1624d7",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "28 stopwatch: start, pause, resume, laps and reset on the clock, no stray timers pausing and resuming never loses time",
+        "message": "AssertionError: expected '00:02.2' to be '00:02.3' // Object.is equality"
+      },
+      {
+        "test": "28 stopwatch: start, pause, resume, laps and reset on the clock, no stray timers laps record the running time of each lap, not counting pauses",
+        "message": "AssertionError: expected [ 'Lap 1: 00:01.1' ] to deeply equal [ 'Lap 1: 00:01.2' ]"
+      },
+      {
+        "test": "28 stopwatch: start, pause, resume, laps and reset on the clock, no stray timers Reset is only for a paused stopwatch and brings back the initial state",
+        "message": "AssertionError: expected [ 'Lap 1: 00:00.9' ] to deeply equal [ 'Lap 1: 00:01.0' ]"
+      }
+    ],
+    "notes": "PROCESS-KILL: 1 machine-wide kill command(s), refused by the guard (G-127)",
+    "scoredAt": "2026-10-04T08:24:13.972Z"
+  },
+  {
+    "task": "27-undo-editor",
+    "arm": "react",
+    "trial": 5,
+    "pass": false,
+    "testsPassed": 4,
+    "testsTotal": 7,
+    "iterations": 5,
+    "editRounds": 5,
+    "wallSeconds": 194,
+    "durationMs": 193244,
+    "tokens": 866857,
+    "outputTokens": 19758,
+    "costUsd": 0.2663558,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p4-final6",
+    "variantHash": "a3515c1624d7",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "27 undo editor: steps, grouped typing, redo, disabled buttons and shortcuts typing is one step per burst: a 1 s pause or another change starts a new step",
+        "message": "AssertionError: expected true to be false // Object.is equality"
+      },
+      {
+        "test": "27 undo editor: steps, grouped typing, redo, disabled buttons and shortcuts Undo and Redo end a typing group: the next edit is a new step",
+        "message": "AssertionError: expected 'Summer sale today (28px)' to be 'Summer sale (28px)' // Object.is equality"
+      },
+      {
+        "test": "27 undo editor: steps, grouped typing, redo, disabled buttons and shortcuts keyboard shortcuts work anywhere, also in the field, and prevent the default",
+        "message": "AssertionError: expected 'Summer sale (30px)' to be 'Summer sale (28px)' // Object.is equality"
+      }
+    ],
+    "scoredAt": "2026-10-04T08:24:24.089Z"
+  },
+  {
+    "task": "28-stopwatch",
+    "arm": "react",
+    "trial": 2,
+    "pass": false,
+    "testsPassed": 6,
+    "testsTotal": 7,
+    "iterations": 1,
+    "editRounds": 2,
+    "wallSeconds": 111,
+    "durationMs": 109671,
+    "tokens": 469027,
+    "outputTokens": 13335,
+    "costUsd": 0.17150110000000002,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p4-final6",
+    "variantHash": "a3515c1624d7",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "28 stopwatch: start, pause, resume, laps and reset on the clock, no stray timers laps record the running time of each lap, not counting pauses",
+        "message": "AssertionError: expected [ 'Lap 1: 00:01.2', …(2) ] to deeply equal [ 'Lap 1: 00:01.2', …(2) ]"
+      }
+    ],
+    "notes": "PROCESS-KILL: 1 machine-wide kill command(s), refused by the guard (G-127)",
+    "scoredAt": "2026-10-04T08:24:26.352Z"
+  },
+  {
+    "task": "28-stopwatch",
+    "arm": "react",
+    "trial": 3,
+    "pass": true,
+    "testsPassed": 7,
+    "testsTotal": 7,
+    "iterations": 1,
+    "editRounds": 2,
+    "wallSeconds": 95,
+    "durationMs": 94199,
+    "tokens": 475882,
+    "outputTokens": 10091,
+    "costUsd": 0.1384131,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p4-final6",
+    "variantHash": "a3515c1624d7",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "failures": [],
+    "notes": "PROCESS-KILL: 1 machine-wide kill command(s), refused by the guard (G-127)",
+    "scoredAt": "2026-10-04T08:24:54.506Z"
+  },
+  {
+    "task": "28-stopwatch",
+    "arm": "react",
+    "trial": 5,
+    "pass": false,
+    "testsPassed": 3,
+    "testsTotal": 7,
+    "iterations": 3,
+    "editRounds": 2,
+    "wallSeconds": 59,
+    "durationMs": 57893,
+    "tokens": 409033,
+    "outputTokens": 5865,
+    "costUsd": 0.1146762,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p4-final6",
+    "variantHash": "a3515c1624d7",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "28 stopwatch: start, pause, resume, laps and reset on the clock, no stray timers starts at 00:00.0 with only Start enabled, and nothing runs before Start",
+        "message": "AssertionError: expected false to be true // Object.is equality"
+      },
+      {
+        "test": "28 stopwatch: start, pause, resume, laps and reset on the clock, no stray timers pausing and resuming never loses time",
+        "message": "AssertionError: expected '00:02.2' to be '00:02.3' // Object.is equality"
+      },
+      {
+        "test": "28 stopwatch: start, pause, resume, laps and reset on the clock, no stray timers laps record the running time of each lap, not counting pauses",
+        "message": "AssertionError: expected [ 'Lap 1: 00:01.1' ] to deeply equal [ 'Lap 1: 00:01.2' ]"
+      },
+      {
+        "test": "28 stopwatch: start, pause, resume, laps and reset on the clock, no stray timers Reset is only for a paused stopwatch and brings back the initial state",
+        "message": "AssertionError: expected [ 'Lap 1: 00:00.9' ] to deeply equal [ 'Lap 1: 00:01.0' ]"
+      }
+    ],
+    "notes": "PROCESS-KILL: 1 machine-wide kill command(s), refused by the guard (G-127)",
+    "scoredAt": "2026-10-04T08:25:26.222Z"
+  },
+  {
+    "task": "29-accessible-signup",
+    "arm": "react",
+    "trial": 1,
+    "pass": false,
+    "testsPassed": 6,
+    "testsTotal": 8,
+    "iterations": 11,
+    "editRounds": 8,
+    "wallSeconds": 199,
+    "durationMs": 198664,
+    "tokens": 1570969,
+    "outputTokens": 24371,
+    "costUsd": 0.3697987,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p4-final6",
+    "variantHash": "a3515c1624d7",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "29 accessible signup: labels, described errors, focus, native modal dialog a valid form opens the confirmation as a modal dialog; Cancel closes it",
+        "message": "AssertionError: expected true to be false // Object.is equality"
+      },
+      {
+        "test": "29 accessible signup: labels, described errors, focus, native modal dialog Escape closes the dialog and the page keeps working; Confirm creates the account",
+        "message": "AssertionError: expected true to be false // Object.is equality"
+      }
+    ],
+    "notes": "PROCESS-KILL: 1 machine-wide kill command(s), refused by the guard (G-127)",
+    "scoredAt": "2026-10-04T08:27:53.335Z"
+  },
+  {
+    "task": "29-accessible-signup",
+    "arm": "react",
+    "trial": 3,
+    "pass": false,
+    "testsPassed": 7,
+    "testsTotal": 8,
+    "iterations": 8,
+    "editRounds": 4,
+    "wallSeconds": 204,
+    "durationMs": 202895,
+    "tokens": 1901608,
+    "outputTokens": 24647,
+    "costUsd": 0.41945480000000007,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p4-final6",
+    "variantHash": "a3515c1624d7",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "29 accessible signup: labels, described errors, focus, native modal dialog after the first submit, messages follow the typing in both directions",
+        "message": "AssertionError: a message for name: expected null not to be null"
+      }
+    ],
+    "scoredAt": "2026-10-04T08:28:54.522Z"
+  },
+  {
+    "task": "29-accessible-signup",
+    "arm": "react",
+    "trial": 2,
+    "pass": false,
+    "testsPassed": 7,
+    "testsTotal": 8,
+    "iterations": 4,
+    "editRounds": 4,
+    "wallSeconds": 256,
+    "durationMs": 254307,
+    "tokens": 1684641,
+    "outputTokens": 21357,
+    "costUsd": 0.36349590000000004,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p4-final6",
+    "variantHash": "a3515c1624d7",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "29 accessible signup: labels, described errors, focus, native modal dialog a valid form opens the confirmation as a modal dialog; Cancel closes it",
+        "message": "TypeError: Cannot read properties of null (reading 'nodeType')"
+      }
+    ],
+    "notes": "PROCESS-KILL: 1 machine-wide kill command(s), refused by the guard (G-127)",
+    "scoredAt": "2026-10-04T08:29:14.765Z"
+  },
+  {
+    "task": "28-stopwatch",
+    "arm": "react",
+    "trial": 4,
+    "pass": true,
+    "testsPassed": 7,
+    "testsTotal": 7,
+    "iterations": 11,
+    "editRounds": 8,
+    "wallSeconds": 324,
+    "durationMs": 322643,
+    "tokens": 2908338,
+    "outputTokens": 36590,
+    "costUsd": 0.6058514000000002,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p4-final6",
+    "variantHash": "a3515c1624d7",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "failures": [],
+    "notes": "PROCESS-KILL: 1 machine-wide kill command(s), refused by the guard (G-127)",
+    "scoredAt": "2026-10-04T08:29:41.305Z"
+  },
+  {
+    "task": "29-accessible-signup",
+    "arm": "react",
+    "trial": 4,
+    "pass": true,
+    "testsPassed": 8,
+    "testsTotal": 8,
+    "iterations": 8,
+    "editRounds": 5,
+    "wallSeconds": 172,
+    "durationMs": 170775,
+    "tokens": 1056588,
+    "outputTokens": 17256,
+    "costUsd": 0.26650670000000004,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p4-final6",
+    "variantHash": "a3515c1624d7",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "failures": [],
+    "notes": "PROCESS-KILL: 1 machine-wide kill command(s), refused by the guard (G-127)",
+    "scoredAt": "2026-10-04T08:30:54.758Z"
+  },
+  {
+    "task": "29-accessible-signup",
+    "arm": "react",
+    "trial": 5,
+    "pass": true,
+    "testsPassed": 8,
+    "testsTotal": 8,
+    "iterations": 13,
+    "editRounds": 7,
+    "wallSeconds": 313,
+    "durationMs": 311572,
+    "tokens": 2788315,
+    "outputTokens": 38218,
+    "costUsd": 0.6104530000000001,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p4-final6",
+    "variantHash": "a3515c1624d7",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "failures": [],
+    "notes": "PROCESS-KILL: 1 machine-wide kill command(s), refused by the guard (G-127)",
+    "scoredAt": "2026-10-04T08:34:11.740Z"
+  }
+]

@@ -1,0 +1,4865 @@
+{
+  "meta": {
+    "run": "p4-final6-react-ergo-haiku",
+    "generatedAt": "2026-10-04T08:34:11.909Z",
+    "trialsInMap": 20,
+    "trialsAnalyzed": 20,
+    "trialsScored": 20,
+    "skillDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/_variant/skillroot/.claude/skills/sygnal-dev",
+    "llms": "/Users/troy/Documents/Displera/sygnal/.claude/worktrees/plan-4-execution-7ae8e8/llms.txt",
+    "sygnalCheck": true,
+    "methods": [
+      "headless"
+    ],
+    "models": [
+      "claude-haiku-4-5-20251001"
+    ]
+  },
+  "aggregates": {
+    "tasks": [
+      "26-autosave-draft",
+      "27-undo-editor",
+      "28-stopwatch",
+      "29-accessible-signup"
+    ],
+    "sharedTasks": [],
+    "byTask": {
+      "26-autosave-draft": {
+        "react": {
+          "n": 5,
+          "pass": 1,
+          "scored": 5,
+          "wall": {
+            "mean": 160,
+            "median": 155.5
+          },
+          "peakContext": {
+            "mean": 50499,
+            "median": 57327
+          },
+          "cacheCreation": {
+            "mean": 40568,
+            "median": 47392
+          },
+          "cacheRead": {
+            "mean": 806638.2,
+            "median": 751264
+          },
+          "messages": {
+            "mean": 24,
+            "median": 21
+          },
+          "costUsd": {
+            "mean": 0.246,
+            "median": 0.271
+          },
+          "billedTokens": {
+            "mean": 864174.6,
+            "median": 819085
+          },
+          "outputTokens": {
+            "mean": 16773.6,
+            "median": 20258
+          },
+          "durationSeconds": {
+            "mean": 160,
+            "median": 155.6
+          },
+          "iterations": {
+            "mean": 6.2,
+            "median": 7
+          },
+          "effectiveIterations": {
+            "mean": 6.2,
+            "median": 7
+          },
+          "editRounds": {
+            "mean": 3.8,
+            "median": 3
+          },
+          "toolCalls": {
+            "mean": 23.4,
+            "median": 20
+          },
+          "failedRuns": {
+            "mean": 2.2,
+            "median": 2
+          },
+          "episodes": {
+            "mean": 0.6,
+            "median": 1
+          },
+          "locAdded": {
+            "mean": 142,
+            "median": 103
+          },
+          "locRemoved": {
+            "mean": 3.6,
+            "median": 4
+          },
+          "wroteTest": 3,
+          "keptTest": 2,
+          "attributedShareMin": 1,
+          "attributedShareMean": 1,
+          "phases": {
+            "orient": 18.1,
+            "learn": 3.6,
+            "implement": 42.8,
+            "test-authoring": 11.3,
+            "verify": 16,
+            "debug": 61.5,
+            "tooling-friction": 1.3,
+            "think": 5.3,
+            "report": 0,
+            "other": 0
+          },
+          "friction": {
+            "HARNESS-GUARD": 1.3
+          },
+          "learn": {
+            "skill-load": 3.6
+          }
+        }
+      },
+      "27-undo-editor": {
+        "react": {
+          "n": 5,
+          "pass": 1,
+          "scored": 5,
+          "wall": {
+            "mean": 176.5,
+            "median": 163.5
+          },
+          "peakContext": {
+            "mean": 45436.8,
+            "median": 46391
+          },
+          "cacheCreation": {
+            "mean": 35506.2,
+            "median": 36461
+          },
+          "cacheRead": {
+            "mean": 671540.8,
+            "median": 760926
+          },
+          "messages": {
+            "mean": 23.2,
+            "median": 24
+          },
+          "costUsd": {
+            "mean": 0.22,
+            "median": 0.227
+          },
+          "billedTokens": {
+            "mean": 723644.8,
+            "median": 813141
+          },
+          "outputTokens": {
+            "mean": 16409.2,
+            "median": 16794
+          },
+          "durationSeconds": {
+            "mean": 176.5,
+            "median": 163.5
+          },
+          "iterations": {
+            "mean": 4.2,
+            "median": 5
+          },
+          "effectiveIterations": {
+            "mean": 4.2,
+            "median": 5
+          },
+          "editRounds": {
+            "mean": 2.8,
+            "median": 3
+          },
+          "toolCalls": {
+            "mean": 22.2,
+            "median": 23
+          },
+          "failedRuns": {
+            "mean": 0.8,
+            "median": 1
+          },
+          "episodes": {
+            "mean": 0.6,
+            "median": 1
+          },
+          "locAdded": {
+            "mean": 100.8,
+            "median": 100
+          },
+          "locRemoved": {
+            "mean": 5.6,
+            "median": 5
+          },
+          "wroteTest": 1,
+          "keptTest": 0,
+          "attributedShareMin": 1,
+          "attributedShareMean": 1,
+          "phases": {
+            "orient": 41.7,
+            "learn": 7.3,
+            "implement": 69.7,
+            "test-authoring": 3.6,
+            "verify": 13,
+            "debug": 36.6,
+            "tooling-friction": 0.7,
+            "think": 3.9,
+            "report": 0,
+            "other": 0
+          },
+          "friction": {
+            "HARNESS-GUARD": 0.7
+          },
+          "learn": {
+            "skill-load": 7.3
+          }
+        }
+      },
+      "28-stopwatch": {
+        "react": {
+          "n": 5,
+          "pass": 2,
+          "scored": 5,
+          "wall": {
+            "mean": 138.5,
+            "median": 107.9
+          },
+          "peakContext": {
+            "mean": 45307.4,
+            "median": 39119
+          },
+          "cacheCreation": {
+            "mean": 35375.8,
+            "median": 29187
+          },
+          "cacheRead": {
+            "mean": 955132.8,
+            "median": 443931
+          },
+          "messages": {
+            "mean": 27,
+            "median": 19
+          },
+          "costUsd": {
+            "mean": 0.245,
+            "median": 0.172
+          },
+          "billedTokens": {
+            "mean": 1006466.8,
+            "median": 475882
+          },
+          "outputTokens": {
+            "mean": 15739,
+            "median": 12814
+          },
+          "durationSeconds": {
+            "mean": 138.5,
+            "median": 107.9
+          },
+          "iterations": {
+            "mean": 5,
+            "median": 3
+          },
+          "effectiveIterations": {
+            "mean": 5,
+            "median": 3
+          },
+          "editRounds": {
+            "mean": 3.6,
+            "median": 2
+          },
+          "toolCalls": {
+            "mean": 26.6,
+            "median": 18
+          },
+          "failedRuns": {
+            "mean": 2.4,
+            "median": 1
+          },
+          "episodes": {
+            "mean": 0.8,
+            "median": 1
+          },
+          "locAdded": {
+            "mean": 131.4,
+            "median": 102
+          },
+          "locRemoved": {
+            "mean": 5,
+            "median": 5
+          },
+          "wroteTest": 2,
+          "keptTest": 1,
+          "attributedShareMin": 1,
+          "attributedShareMean": 1,
+          "phases": {
+            "orient": 28.1,
+            "learn": 3.2,
+            "implement": 26.1,
+            "test-authoring": 5.6,
+            "verify": 7.1,
+            "debug": 61.3,
+            "tooling-friction": 0.8,
+            "think": 6.2,
+            "report": 0,
+            "other": 0
+          },
+          "friction": {
+            "HARNESS-GUARD": 0.8
+          },
+          "learn": {
+            "skill-load": 3.2
+          }
+        }
+      },
+      "29-accessible-signup": {
+        "react": {
+          "n": 5,
+          "pass": 2,
+          "scored": 5,
+          "wall": {
+            "mean": 227.6,
+            "median": 202.9
+          },
+          "peakContext": {
+            "mean": 63743.6,
+            "median": 58871
+          },
+          "cacheCreation": {
+            "mean": 53812.4,
+            "median": 48940
+          },
+          "cacheRead": {
+            "mean": 1721082.2,
+            "median": 1615519
+          },
+          "messages": {
+            "mean": 44.6,
+            "median": 46
+          },
+          "costUsd": {
+            "mean": 0.406,
+            "median": 0.37
+          },
+          "billedTokens": {
+            "mean": 1800424.2,
+            "median": 1684641
+          },
+          "outputTokens": {
+            "mean": 25169.8,
+            "median": 24371
+          },
+          "durationSeconds": {
+            "mean": 227.6,
+            "median": 202.9
+          },
+          "iterations": {
+            "mean": 8.8,
+            "median": 8
+          },
+          "effectiveIterations": {
+            "mean": 8.8,
+            "median": 8
+          },
+          "editRounds": {
+            "mean": 5.6,
+            "median": 5
+          },
+          "toolCalls": {
+            "mean": 43.6,
+            "median": 45
+          },
+          "failedRuns": {
+            "mean": 3.6,
+            "median": 3
+          },
+          "episodes": {
+            "mean": 1,
+            "median": 1
+          },
+          "locAdded": {
+            "mean": 399.8,
+            "median": 416
+          },
+          "locRemoved": {
+            "mean": 14.2,
+            "median": 14
+          },
+          "wroteTest": 4,
+          "keptTest": 3,
+          "attributedShareMin": 1,
+          "attributedShareMean": 1,
+          "phases": {
+            "orient": 28.1,
+            "learn": 3.3,
+            "implement": 62.2,
+            "test-authoring": 24,
+            "verify": 15.8,
+            "debug": 87.4,
+            "tooling-friction": 0.8,
+            "think": 5.9,
+            "report": 0,
+            "other": 0
+          },
+          "friction": {
+            "HARNESS-GUARD": 0.8
+          },
+          "learn": {
+            "skill-load": 3.3
+          }
+        }
+      }
+    },
+    "overall": {
+      "react": {
+        "n": 20,
+        "pass": 6,
+        "scored": 20,
+        "wall": {
+          "mean": 175.6,
+          "median": 167.2
+        },
+        "peakContext": {
+          "mean": 51246.7,
+          "median": 50441
+        },
+        "cacheCreation": {
+          "mean": 41315.6,
+          "median": 40511
+        },
+        "cacheRead": {
+          "mean": 1038598.5,
+          "median": 774932
+        },
+        "messages": {
+          "mean": 29.7,
+          "median": 26.5
+        },
+        "costUsd": {
+          "mean": 0.279,
+          "median": 0.266
+        },
+        "billedTokens": {
+          "mean": 1098677.6,
+          "median": 836907.5
+        },
+        "outputTokens": {
+          "mean": 18522.9,
+          "median": 18507
+        },
+        "durationSeconds": {
+          "mean": 175.7,
+          "median": 167.2
+        },
+        "iterations": {
+          "mean": 6.1,
+          "median": 5.5
+        },
+        "effectiveIterations": {
+          "mean": 6.1,
+          "median": 5.5
+        },
+        "editRounds": {
+          "mean": 4,
+          "median": 3.5
+        },
+        "toolCalls": {
+          "mean": 29,
+          "median": 25.5
+        },
+        "failedRuns": {
+          "mean": 2.3,
+          "median": 1.5
+        },
+        "episodes": {
+          "mean": 0.8,
+          "median": 1
+        },
+        "locAdded": {
+          "mean": 193.5,
+          "median": 108.5
+        },
+        "locRemoved": {
+          "mean": 7.1,
+          "median": 5
+        },
+        "wroteTest": 10,
+        "keptTest": 6,
+        "attributedShareMin": 1,
+        "attributedShareMean": 1,
+        "phases": {
+          "orient": 29,
+          "learn": 4.4,
+          "implement": 50.2,
+          "test-authoring": 11.1,
+          "verify": 13,
+          "debug": 61.7,
+          "tooling-friction": 0.9,
+          "think": 5.3,
+          "report": 0,
+          "other": 0
+        },
+        "friction": {
+          "HARNESS-GUARD": 0.9
+        },
+        "learn": {
+          "skill-load": 4.4
+        }
+      }
+    },
+    "overallShared": {},
+    "delta": {
+      "tasks": [],
+      "wallDelta": null,
+      "items": []
+    },
+    "catalog": [
+      {
+        "id": "HARNESS-GUARD",
+        "title": "The eval environment refused a tool call: the coordinator worktree guard (subagent trials) or the headless permission posture (both arms)",
+        "kind": "harness",
+        "status": "untracked",
+        "trialsAffected": 9,
+        "sygnal": "0/0",
+        "react": "9/20",
+        "inResults": 9,
+        "inReports": 0,
+        "workarounds": 0,
+        "inInputs": 0,
+        "frictionTrials": 9,
+        "frictionSecondsTotal": 18.2,
+        "frictionSecondsPerAffected": 2,
+        "frictionSecondsPerSygnalTrial": 0,
+        "frictionSecondsPerReactTrial": 0.9,
+        "trials": [
+          "react-26-t5",
+          "react-27-t1",
+          "react-27-t3",
+          "react-28-t1",
+          "react-28-t3",
+          "react-28-t4",
+          "react-29-t1",
+          "react-29-t2",
+          "react-29-t4"
+        ]
+      }
+    ],
+    "skill": {
+      "sygnalTrials": 0,
+      "skillInvoked": 0,
+      "skillBytes": {
+        "mean": null,
+        "median": null
+      },
+      "files": {},
+      "sections": [],
+      "library": {
+        "sygnal": {},
+        "react": {}
+      },
+      "libraryBytes": {
+        "sygnal": {
+          "mean": null,
+          "median": null
+        },
+        "react": {
+          "mean": 0,
+          "median": 0
+        }
+      },
+      "libraryReaders": {
+        "sygnal": 0,
+        "react": 0
+      }
+    },
+    "canonical": {
+      "trials": 0,
+      "forms": {},
+      "sygnalCheck": {},
+      "checkErrors": []
+    },
+    "failures": {
+      "signatures": [
+        {
+          "arm": "react",
+          "signature": "Error: Failed to resolve import \"@testing-library/user-event\" from \"src/App.test.jsx\". Does the file exist?",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 4,
+          "trials": 4
+        },
+        {
+          "arm": "react",
+          "signature": "Test Files 1 failed (1)",
+          "cause": "unknown (output truncated)",
+          "catalog": [],
+          "count": 5,
+          "trials": 3
+        },
+        {
+          "arm": "react",
+          "signature": "TestingLibraryElementError: Found multiple elements with the display value: .",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 2,
+          "trials": 2
+        },
+        {
+          "arm": "react",
+          "signature": "Exit code 1",
+          "cause": "other",
+          "catalog": [],
+          "count": 2,
+          "trials": 2
+        },
+        {
+          "arm": "react",
+          "signature": "TestingLibraryElementError: Found multiple elements with the text of: Email",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 2,
+          "trials": 2
+        },
+        {
+          "arm": "react",
+          "signature": "AssertionError: expected 'Unsaved changes' to be 'Saving…' // Object.is equality",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 2,
+          "trials": 1
+        },
+        {
+          "arm": "react",
+          "signature": "FAIL src/App.test.jsx > Signup Page > Signup Form Validation > should clear errors when field becomes valid",
+          "cause": "unknown (output truncated)",
+          "catalog": [],
+          "count": 2,
+          "trials": 1
+        },
+        {
+          "arm": "react",
+          "signature": "TestingLibraryElementError: Found multiple elements with the role \"main\"",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "react",
+          "signature": "AssertionError: expected null to deeply equal '{\"title\":\"New Title\",\"body\":\"\"}'",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "react",
+          "signature": "TestingLibraryElementError: Unable to find an element with the display value: .",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "react",
+          "signature": "Error: Failed to resolve import \"@testing-library/jest-dom\" from \"src/setup.js\". Does the file exist?",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "react",
+          "signature": "TypeError: vi.flushPromises is not a function",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "react",
+          "signature": "AssertionError: expected 'Unsaved changes' to be 'Saving...' // Object.is equality",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "react",
+          "signature": "Permission to use Bash with command kill 20004 2>null; sleep 1; cd react-27-t2 && npm run dev > vite-dev.log 2>&1 &",
+          "cause": "other",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "react",
+          "signature": "SyntaxError: Cannot use import statement outside a module",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "react",
+          "signature": "TestingLibraryElementError: Found multiple elements with the role \"button\" and name \"Undo\"",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "react",
+          "signature": "TestingLibraryElementError: Found multiple elements with the text: 00:00.0",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "react",
+          "signature": "Permission to use Bash with command kill 21905 2>null || true; sleep 1; cd react-28-t1 && npm run dev > vite-dev.log 2>&1 &",
+          "cause": "other",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "react",
+          "signature": "FAIL",
+          "cause": "unknown (output truncated)",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "react",
+          "signature": "TestingLibraryElementError: Found multiple elements with the role \"button\" and name \"Start\"",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "react",
+          "signature": "Error: Failed to resolve import \"@testing-library/jest-dom\" from \"vitest.setup.js\". Does the file exist?",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "react",
+          "signature": "TestingLibraryElementError: Unable to find an element with the text: 00:00.6. This could be because the text is broken up by multiple elements. In this case, yo",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "react",
+          "signature": "FAIL src/Stopwatch.test.jsx > Stopwatch > time advances while running",
+          "cause": "unknown (output truncated)",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "react",
+          "signature": "Error: Invalid Chai property: toBeInTheDocument",
+          "cause": "other",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "react",
+          "signature": "ReferenceError: HTMLDialogElement is not defined",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "react",
+          "signature": "AssertionError: expected null to be '' // Object.is equality",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "react",
+          "signature": "AssertionError: expected '' to contain 'test@example.com'",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "react",
+          "signature": "TestingLibraryElementError: Found multiple elements with the text: At least 8 characters.",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "react",
+          "signature": "TestingLibraryElementError: Unable to find an accessible element with the role \"dialog\"",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "react",
+          "signature": "RangeError: Maximum call stack size exceeded]",
+          "cause": "other",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "react",
+          "signature": "AssertionError: expected <input id=\"signup-email\" …(5)></input> to be <input id=\"signup-name\" …(2)></input> // Object.is equality",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "react",
+          "signature": "TestingLibraryElementError: Found multiple elements with the role \"button\" and name `/Create account/i`",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "react",
+          "signature": "Permission to use Bash with command pkill -f \"npm run dev\" ; sleep 1; cd react-29-t5 && npm run dev 2>&1 &",
+          "cause": "other",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        }
+      ],
+      "episodes": {
+        "sygnal": {},
+        "react": {
+          "agent-mistake": {
+            "episodes": 10,
+            "seconds": 1061.6,
+            "iterations": 36,
+            "unresolved": 2
+          },
+          "other": {
+            "episodes": 3,
+            "seconds": 119,
+            "iterations": 3,
+            "unresolved": 0
+          },
+          "unknown (output truncated)": {
+            "episodes": 2,
+            "seconds": 53.1,
+            "iterations": 3,
+            "unresolved": 1
+          }
+        }
+      }
+    }
+  },
+  "trials": [
+    {
+      "trial": "react-26-t1",
+      "run": "p4-final6-react-ergo-haiku",
+      "arm": "react",
+      "task": "26-autosave-draft",
+      "trialNo": 1,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": false,
+        "testsPassed": 3,
+        "testsTotal": 7,
+        "wallSeconds": 33,
+        "iterations": 2,
+        "editRounds": 1,
+        "failureCategory": null
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 74,
+        "output": 21,
+        "cacheRead": 167830,
+        "cacheCreation": 12434,
+        "messages": 9,
+        "peakContext": 22364,
+        "total": 180359
+      },
+      "usage": {
+        "tokens": 183902,
+        "outputTokens": 3564,
+        "costUsd": 0.059545,
+        "durationMs": 31839,
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "toolCalls": {
+        "total": 8,
+        "byTool": {
+          "Bash": 3,
+          "Glob": 1,
+          "Read": 2,
+          "Edit": 2
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "wallSeconds": 31.8,
+      "phases": {
+        "orient": 8.2,
+        "implement": 15.9,
+        "verify": 3.4,
+        "think": 4.2
+      },
+      "attributedShare": 1,
+      "iterations": 2,
+      "effectiveIterations": 2,
+      "edits": 2,
+      "editRounds": 1,
+      "failures": [],
+      "episodes": [],
+      "frictionSeconds": {},
+      "learnSeconds": {},
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "skill": {
+        "skillInvoked": false,
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
+        "library": {},
+        "libraryBytes": 0
+      },
+      "selfReported": [],
+      "wroteTest": false,
+      "testWindow": null,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-26-t1",
+      "diff": {
+        "added": 64,
+        "removed": 2,
+        "files": {
+          "src/App.jsx": {
+            "added": 64,
+            "removed": 2,
+            "status": "modified"
+          }
+        }
+      },
+      "keptTests": [],
+      "testApproach": [],
+      "finalReportChars": 949
+    },
+    {
+      "trial": "react-26-t2",
+      "run": "p4-final6-react-ergo-haiku",
+      "arm": "react",
+      "task": "26-autosave-draft",
+      "trialNo": 2,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": false,
+        "testsPassed": 6,
+        "testsTotal": 7,
+        "wallSeconds": 226,
+        "iterations": 8,
+        "editRounds": 6,
+        "failureCategory": null
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 251,
+        "output": 59,
+        "cacheRead": 1085830,
+        "cacheCreation": 51557,
+        "messages": 31,
+        "peakContext": 61487,
+        "total": 1137697
+      },
+      "usage": {
+        "tokens": 1159836,
+        "outputTokens": 22198,
+        "costUsd": 0.322938,
+        "durationMs": 224797,
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "toolCalls": {
+        "total": 32,
+        "byTool": {
+          "Bash": 11,
+          "Glob": 2,
+          "Read": 7,
+          "Edit": 7,
+          "Skill": 1,
+          "Write": 4
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "wallSeconds": 224.8,
+      "phases": {
+        "orient": 18.4,
+        "implement": 22,
+        "verify": 10.2,
+        "learn": 5.3,
+        "test-authoring": 16.3,
+        "debug": 144.7,
+        "think": 8
+      },
+      "attributedShare": 1,
+      "iterations": 8,
+      "effectiveIterations": 8,
+      "edits": 11,
+      "editRounds": 6,
+      "failures": [
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "Error: Failed to resolve import \"@testing-library/user-event\" from \"src/App.test.jsx\". Does the file exist?",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 68
+        },
+        {
+          "kind": "command",
+          "tool": "Edit",
+          "signature": "<tool_use_error>String to replace not found in file.",
+          "catalog": [],
+          "cause": "other",
+          "t": 96
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "TestingLibraryElementError: Found multiple elements with the role \"main\"",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 115
+        },
+        {
+          "kind": "command",
+          "tool": "Edit",
+          "signature": "<tool_use_error>String to replace not found in file.",
+          "catalog": [],
+          "cause": "other",
+          "t": 145
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "TestingLibraryElementError: Found multiple elements with the display value: .",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 150
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "AssertionError: expected null to deeply equal '{\"title\":\"New Title\",\"body\":\"\"}'",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 195
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 144.7,
+          "iterations": 4,
+          "signature": "Error: Failed to resolve import \"@testing-library/user-event\" from \"src/App.test.jsx\". Does the file exist?",
+          "signatures": [
+            "Error: Failed to resolve import \"@testing-library/user-event\" from \"src/App.test.jsx\". Does the file exist?",
+            "TestingLibraryElementError: Found multiple elements with the role \"main\"",
+            "TestingLibraryElementError: Found multiple elements with the display value: .",
+            "AssertionError: expected null to deeply equal '{\"title\":\"New Title\",\"body\":\"\"}'"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "resolved": true,
+          "t": 68
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 5.3
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 38889,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                385
+              ]
+            ],
+            "linesSeen": 385,
+            "fileLines": 385,
+            "bytes": 38889,
+            "how": [
+              "skill-tool"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Canonical examples",
+          "SKILL.md#State update, ABORT, set / toggle, controlled input",
+          "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
+          "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
+          "SKILL.md#Extract a component without changing the markup",
+          "SKILL.md#Commands (parent → child) + EFFECT",
+          "SKILL.md#Behaviors (`uses`): shared state + actions",
+          "SKILL.md#Element commands, timers, persistence",
+          "SKILL.md#HTTP (makeFetchDriver + reply actions), latest response only",
+          "SKILL.md#Reads that follow state: `resources`",
+          "SKILL.md#List/detail + save, cached",
+          "SKILL.md#WebSocket / SSE (makeSocketDriver + connections)",
+          "SKILL.md#Router (makeRouter + route) and HEAD",
+          "SKILL.md#4. API facts",
+          "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#6. Canonical forms (never write the right-hand column)",
+          "SKILL.md#7. Testing your change",
+          "SKILL.md#8. Diagnostics and tools",
+          "SKILL.md#9. Project setup (Vite)",
+          "SKILL.md#10. Where to look next"
+        ],
+        "library": {},
+        "libraryBytes": 0
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 160.5,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-26-t2",
+      "diff": {
+        "added": 196,
+        "removed": 4,
+        "files": {
+          "src/App.jsx": {
+            "added": 85,
+            "removed": 4,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 111,
+            "removed": 0,
+            "status": "new"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "testing-library"
+      ],
+      "finalReportChars": 1284
+    },
+    {
+      "trial": "react-26-t3",
+      "run": "p4-final6-react-ergo-haiku",
+      "arm": "react",
+      "task": "26-autosave-draft",
+      "trialNo": 3,
+      "agentId": "headless",
+      "flags": [
+        "machine-wide process kill (blocked by the guard)"
+      ],
+      "scored": {
+        "pass": true,
+        "testsPassed": 7,
+        "testsTotal": 7,
+        "wallSeconds": 125,
+        "iterations": 4,
+        "editRounds": 2,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 171,
+        "output": 40,
+        "cacheRead": 608928,
+        "cacheCreation": 37736,
+        "messages": 21,
+        "peakContext": 47666,
+        "total": 646875
+      },
+      "usage": {
+        "tokens": 658039,
+        "outputTokens": 11204,
+        "costUsd": 0.1925558,
+        "durationMs": 124252,
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "toolCalls": {
+        "total": 20,
+        "byTool": {
+          "Bash": 15,
+          "Read": 3,
+          "Edit": 1,
+          "Skill": 1
+        }
+      },
+      "processKills": [
+        {
+          "kind": "pkill",
+          "machineWide": true,
+          "command": "pkill -f \"vite\""
+        }
+      ],
+      "processGuard": 1,
+      "wallSeconds": 124.2,
+      "phases": {
+        "orient": 25.2,
+        "implement": 75.9,
+        "verify": 13.2,
+        "learn": 3.7,
+        "think": 6.2
+      },
+      "attributedShare": 1,
+      "iterations": 4,
+      "effectiveIterations": 4,
+      "edits": 7,
+      "editRounds": 2,
+      "failures": [
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "SyntaxError: Cannot use import statement outside a module",
+          "catalog": [],
+          "cause": "other",
+          "t": 51
+        },
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "Error: listen EADDRINUSE: address already in use :::3001",
+          "catalog": [],
+          "cause": "other",
+          "t": 75
+        },
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "Error: listen EADDRINUSE: address already in use :::3002",
+          "catalog": [],
+          "cause": "other",
+          "t": 81
+        },
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "Permission to use Bash with command pkill -f \"vite\" || true",
+          "catalog": [],
+          "cause": "other",
+          "t": 116
+        }
+      ],
+      "episodes": [],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 3.7
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 38889,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                385
+              ]
+            ],
+            "linesSeen": 385,
+            "fileLines": 385,
+            "bytes": 38889,
+            "how": [
+              "skill-tool"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Canonical examples",
+          "SKILL.md#State update, ABORT, set / toggle, controlled input",
+          "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
+          "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
+          "SKILL.md#Extract a component without changing the markup",
+          "SKILL.md#Commands (parent → child) + EFFECT",
+          "SKILL.md#Behaviors (`uses`): shared state + actions",
+          "SKILL.md#Element commands, timers, persistence",
+          "SKILL.md#HTTP (makeFetchDriver + reply actions), latest response only",
+          "SKILL.md#Reads that follow state: `resources`",
+          "SKILL.md#List/detail + save, cached",
+          "SKILL.md#WebSocket / SSE (makeSocketDriver + connections)",
+          "SKILL.md#Router (makeRouter + route) and HEAD",
+          "SKILL.md#4. API facts",
+          "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#6. Canonical forms (never write the right-hand column)",
+          "SKILL.md#7. Testing your change",
+          "SKILL.md#8. Diagnostics and tools",
+          "SKILL.md#9. Project setup (Vite)",
+          "SKILL.md#10. Where to look next"
+        ],
+        "library": {},
+        "libraryBytes": 0
+      },
+      "selfReported": [],
+      "wroteTest": false,
+      "testWindow": null,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-26-t3",
+      "diff": {
+        "added": 69,
+        "removed": 4,
+        "files": {
+          "src/App.jsx": {
+            "added": 69,
+            "removed": 4,
+            "status": "modified"
+          }
+        }
+      },
+      "keptTests": [],
+      "testApproach": [],
+      "finalReportChars": 1943
+    },
+    {
+      "trial": "react-26-t4",
+      "run": "p4-final6-react-ergo-haiku",
+      "arm": "react",
+      "task": "26-autosave-draft",
+      "trialNo": 4,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": false,
+        "testsPassed": 6,
+        "testsTotal": 7,
+        "wallSeconds": 156,
+        "iterations": 7,
+        "editRounds": 3,
+        "failureCategory": null
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 171,
+        "output": 47,
+        "cacheRead": 751264,
+        "cacheCreation": 47392,
+        "messages": 21,
+        "peakContext": 57327,
+        "total": 798874
+      },
+      "usage": {
+        "tokens": 819085,
+        "outputTokens": 20258,
+        "costUsd": 0.27137140000000004,
+        "durationMs": 155578,
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "toolCalls": {
+        "total": 20,
+        "byTool": {
+          "Bash": 11,
+          "Glob": 1,
+          "Read": 3,
+          "Edit": 2,
+          "Skill": 1,
+          "Write": 2
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "wallSeconds": 155.5,
+      "phases": {
+        "orient": 15,
+        "implement": 62.1,
+        "learn": 5.9,
+        "verify": 24.6,
+        "test-authoring": 25,
+        "debug": 18.1,
+        "think": 4.8
+      },
+      "attributedShare": 1,
+      "iterations": 7,
+      "effectiveIterations": 7,
+      "edits": 4,
+      "editRounds": 3,
+      "failures": [
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "TestingLibraryElementError: Found multiple elements with the display value: .",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 133
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "TestingLibraryElementError: Unable to find an element with the display value: .",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 142
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 18.1,
+          "iterations": 2,
+          "signature": "TestingLibraryElementError: Found multiple elements with the display value: .",
+          "signatures": [
+            "TestingLibraryElementError: Found multiple elements with the display value: .",
+            "TestingLibraryElementError: Unable to find an element with the display value: ."
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "resolved": true,
+          "t": 133
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 5.9
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 38889,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                385
+              ]
+            ],
+            "linesSeen": 385,
+            "fileLines": 385,
+            "bytes": 38889,
+            "how": [
+              "skill-tool"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Canonical examples",
+          "SKILL.md#State update, ABORT, set / toggle, controlled input",
+          "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
+          "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
+          "SKILL.md#Extract a component without changing the markup",
+          "SKILL.md#Commands (parent → child) + EFFECT",
+          "SKILL.md#Behaviors (`uses`): shared state + actions",
+          "SKILL.md#Element commands, timers, persistence",
+          "SKILL.md#HTTP (makeFetchDriver + reply actions), latest response only",
+          "SKILL.md#Reads that follow state: `resources`",
+          "SKILL.md#List/detail + save, cached",
+          "SKILL.md#WebSocket / SSE (makeSocketDriver + connections)",
+          "SKILL.md#Router (makeRouter + route) and HEAD",
+          "SKILL.md#4. API facts",
+          "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#6. Canonical forms (never write the right-hand column)",
+          "SKILL.md#7. Testing your change",
+          "SKILL.md#8. Diagnostics and tools",
+          "SKILL.md#9. Project setup (Vite)",
+          "SKILL.md#10. Where to look next"
+        ],
+        "library": {},
+        "libraryBytes": 0
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 43.3,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-26-t4",
+      "diff": {
+        "added": 103,
+        "removed": 4,
+        "files": {
+          "src/App.jsx": {
+            "added": 103,
+            "removed": 4,
+            "status": "modified"
+          }
+        }
+      },
+      "keptTests": [],
+      "testApproach": [],
+      "finalReportChars": 1356
+    },
+    {
+      "trial": "react-26-t5",
+      "run": "p4-final6-react-ergo-haiku",
+      "arm": "react",
+      "task": "26-autosave-draft",
+      "trialNo": 5,
+      "agentId": "headless",
+      "flags": [
+        "machine-wide process kill (blocked by the guard)"
+      ],
+      "scored": {
+        "pass": false,
+        "testsPassed": 6,
+        "testsTotal": 7,
+        "wallSeconds": 264,
+        "iterations": 10,
+        "editRounds": 7,
+        "failureCategory": null
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 307,
+        "output": 71,
+        "cacheRead": 1419339,
+        "cacheCreation": 53721,
+        "messages": 38,
+        "peakContext": 63651,
+        "total": 1473438
+      },
+      "usage": {
+        "tokens": 1500011,
+        "outputTokens": 26644,
+        "costUsd": 0.38290290000000005,
+        "durationMs": 263595,
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "toolCalls": {
+        "total": 37,
+        "byTool": {
+          "Bash": 17,
+          "Read": 7,
+          "Edit": 6,
+          "Skill": 1,
+          "Write": 6
+        }
+      },
+      "processKills": [
+        {
+          "kind": "pkill",
+          "machineWide": true,
+          "command": "pkill -f \"npm run dev\""
+        }
+      ],
+      "processGuard": 1,
+      "wallSeconds": 263.6,
+      "phases": {
+        "orient": 23.9,
+        "implement": 38.2,
+        "verify": 28.6,
+        "learn": 3.2,
+        "test-authoring": 15.1,
+        "debug": 144.8,
+        "tooling-friction": 6.5,
+        "think": 3.3
+      },
+      "attributedShare": 1,
+      "iterations": 10,
+      "effectiveIterations": 10,
+      "edits": 13,
+      "editRounds": 7,
+      "failures": [
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "AssertionError: expected 'Unsaved changes' to be 'Saving…' // Object.is equality",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 105
+        },
+        {
+          "kind": "command",
+          "tool": "Edit",
+          "signature": "<tool_use_error>String to replace not found in file.",
+          "catalog": [],
+          "cause": "other",
+          "t": 143
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "Error: Failed to resolve import \"@testing-library/jest-dom\" from \"src/setup.js\". Does the file exist?",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 162
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "AssertionError: expected 'Unsaved changes' to be 'Saving…' // Object.is equality",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 174
+        },
+        {
+          "kind": "command",
+          "tool": "Edit",
+          "signature": "<tool_use_error>String to replace not found in file.",
+          "catalog": [],
+          "cause": "other",
+          "t": 181
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "TypeError: vi.flushPromises is not a function",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 211
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "AssertionError: expected 'Unsaved changes' to be 'Saving...' // Object.is equality",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 230
+        },
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "environment refused the command (worktree guard)",
+          "catalog": [
+            "HARNESS-GUARD"
+          ],
+          "cause": "harness",
+          "t": 260
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 144.8,
+          "iterations": 5,
+          "signature": "AssertionError: expected 'Unsaved changes' to be 'Saving…' // Object.is equality",
+          "signatures": [
+            "AssertionError: expected 'Unsaved changes' to be 'Saving…' // Object.is equality",
+            "Error: Failed to resolve import \"@testing-library/jest-dom\" from \"src/setup.js\". Does the file exist?",
+            "TypeError: vi.flushPromises is not a function",
+            "AssertionError: expected 'Unsaved changes' to be 'Saving...' // Object.is equality"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "resolved": true,
+          "t": 105
+        }
+      ],
+      "frictionSeconds": {
+        "HARNESS-GUARD": 6.5
+      },
+      "learnSeconds": {
+        "skill-load": 3.2
+      },
+      "catalog": {
+        "result": [
+          "HARNESS-GUARD"
+        ],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 38889,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                385
+              ]
+            ],
+            "linesSeen": 385,
+            "fileLines": 385,
+            "bytes": 38889,
+            "how": [
+              "skill-tool"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Canonical examples",
+          "SKILL.md#State update, ABORT, set / toggle, controlled input",
+          "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
+          "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
+          "SKILL.md#Extract a component without changing the markup",
+          "SKILL.md#Commands (parent → child) + EFFECT",
+          "SKILL.md#Behaviors (`uses`): shared state + actions",
+          "SKILL.md#Element commands, timers, persistence",
+          "SKILL.md#HTTP (makeFetchDriver + reply actions), latest response only",
+          "SKILL.md#Reads that follow state: `resources`",
+          "SKILL.md#List/detail + save, cached",
+          "SKILL.md#WebSocket / SSE (makeSocketDriver + connections)",
+          "SKILL.md#Router (makeRouter + route) and HEAD",
+          "SKILL.md#4. API facts",
+          "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#6. Canonical forms (never write the right-hand column)",
+          "SKILL.md#7. Testing your change",
+          "SKILL.md#8. Diagnostics and tools",
+          "SKILL.md#9. Project setup (Vite)",
+          "SKILL.md#10. Where to look next"
+        ],
+        "library": {},
+        "libraryBytes": 0
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 175.7,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-26-t5",
+      "diff": {
+        "added": 278,
+        "removed": 4,
+        "files": {
+          "src/App.jsx": {
+            "added": 99,
+            "removed": 4,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 179,
+            "removed": 0,
+            "status": "new"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "testing-library"
+      ],
+      "finalReportChars": 922
+    },
+    {
+      "trial": "react-27-t1",
+      "run": "p4-final6-react-ergo-haiku",
+      "arm": "react",
+      "task": "27-undo-editor",
+      "trialNo": 1,
+      "agentId": "headless",
+      "flags": [
+        "machine-wide process kill (blocked by the guard)"
+      ],
+      "scored": {
+        "pass": false,
+        "testsPassed": 4,
+        "testsTotal": 7,
+        "wallSeconds": 93,
+        "iterations": 5,
+        "editRounds": 1,
+        "failureCategory": null
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 163,
+        "output": 33,
+        "cacheRead": 501589,
+        "cacheCreation": 24718,
+        "messages": 20,
+        "peakContext": 34648,
+        "total": 526503
+      },
+      "usage": {
+        "tokens": 531850,
+        "outputTokens": 5380,
+        "costUsd": 0.12665790000000002,
+        "durationMs": 91655,
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "toolCalls": {
+        "total": 19,
+        "byTool": {
+          "Bash": 13,
+          "Read": 4,
+          "Edit": 1,
+          "Skill": 1
+        }
+      },
+      "processKills": [
+        {
+          "kind": "pkill",
+          "machineWide": true,
+          "command": "pkill -f \"vite\" 2>/dev/null"
+        }
+      ],
+      "processGuard": 1,
+      "wallSeconds": 91.6,
+      "phases": {
+        "orient": 32,
+        "implement": 13.5,
+        "learn": 23.3,
+        "verify": 15.5,
+        "tooling-friction": 1.9,
+        "think": 5.6
+      },
+      "attributedShare": 1,
+      "iterations": 5,
+      "effectiveIterations": 5,
+      "edits": 1,
+      "editRounds": 1,
+      "failures": [
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "environment refused the command (worktree guard)",
+          "catalog": [
+            "HARNESS-GUARD"
+          ],
+          "cause": "harness",
+          "t": 86
+        }
+      ],
+      "episodes": [],
+      "frictionSeconds": {
+        "HARNESS-GUARD": 1.9
+      },
+      "learnSeconds": {
+        "skill-load": 23.3
+      },
+      "catalog": {
+        "result": [
+          "HARNESS-GUARD"
+        ],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 38889,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                385
+              ]
+            ],
+            "linesSeen": 385,
+            "fileLines": 385,
+            "bytes": 38889,
+            "how": [
+              "skill-tool"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Canonical examples",
+          "SKILL.md#State update, ABORT, set / toggle, controlled input",
+          "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
+          "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
+          "SKILL.md#Extract a component without changing the markup",
+          "SKILL.md#Commands (parent → child) + EFFECT",
+          "SKILL.md#Behaviors (`uses`): shared state + actions",
+          "SKILL.md#Element commands, timers, persistence",
+          "SKILL.md#HTTP (makeFetchDriver + reply actions), latest response only",
+          "SKILL.md#Reads that follow state: `resources`",
+          "SKILL.md#List/detail + save, cached",
+          "SKILL.md#WebSocket / SSE (makeSocketDriver + connections)",
+          "SKILL.md#Router (makeRouter + route) and HEAD",
+          "SKILL.md#4. API facts",
+          "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#6. Canonical forms (never write the right-hand column)",
+          "SKILL.md#7. Testing your change",
+          "SKILL.md#8. Diagnostics and tools",
+          "SKILL.md#9. Project setup (Vite)",
+          "SKILL.md#10. Where to look next"
+        ],
+        "library": {},
+        "libraryBytes": 0
+      },
+      "selfReported": [],
+      "wroteTest": false,
+      "testWindow": null,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-27-t1",
+      "diff": {
+        "added": 93,
+        "removed": 5,
+        "files": {
+          "src/App.jsx": {
+            "added": 93,
+            "removed": 5,
+            "status": "modified"
+          }
+        }
+      },
+      "keptTests": [],
+      "testApproach": [],
+      "finalReportChars": 1218
+    },
+    {
+      "trial": "react-27-t2",
+      "run": "p4-final6-react-ergo-haiku",
+      "arm": "react",
+      "task": "27-undo-editor",
+      "trialNo": 2,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 7,
+        "testsTotal": 7,
+        "wallSeconds": 277,
+        "iterations": 6,
+        "editRounds": 3,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 235,
+        "output": 58,
+        "cacheRead": 788938,
+        "cacheCreation": 40994,
+        "messages": 29,
+        "peakContext": 50924,
+        "total": 830225
+      },
+      "usage": {
+        "tokens": 854730,
+        "outputTokens": 24563,
+        "costUsd": 0.28393179999999996,
+        "durationMs": 276180,
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "toolCalls": {
+        "total": 28,
+        "byTool": {
+          "Bash": 20,
+          "Read": 5,
+          "Edit": 2,
+          "Skill": 1
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "wallSeconds": 276.1,
+      "phases": {
+        "orient": 60,
+        "implement": 95.8,
+        "verify": 11.5,
+        "learn": 4,
+        "debug": 97.2,
+        "think": 7.8
+      },
+      "attributedShare": 1,
+      "iterations": 6,
+      "effectiveIterations": 6,
+      "edits": 7,
+      "editRounds": 3,
+      "failures": [
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "Exit code 127",
+          "catalog": [],
+          "cause": "other",
+          "t": 41
+        },
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "Exit code 1",
+          "catalog": [],
+          "cause": "other",
+          "t": 44
+        },
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "SyntaxError: Cannot use import statement outside a module",
+          "catalog": [],
+          "cause": "other",
+          "t": 62
+        },
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "Exit code 1",
+          "catalog": [],
+          "cause": "other",
+          "t": 102
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "Permission to use Bash with command kill 20004 2>null; sleep 1; cd react-27-t2 && npm run dev > vite-dev.log 2>&1 &",
+          "catalog": [],
+          "friction": [],
+          "cause": "other",
+          "t": 170
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 97.2,
+          "iterations": 1,
+          "signature": "Permission to use Bash with command kill 20004 2>null; sleep 1; cd react-27-t2 && npm run dev > vite-dev.log 2>&1 &",
+          "signatures": [
+            "Permission to use Bash with command kill 20004 2>null; sleep 1; cd react-27-t2 && npm run dev > vite-dev.log 2>&1 &"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "other",
+          "resolved": true,
+          "t": 170
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 4
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 38889,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                385
+              ]
+            ],
+            "linesSeen": 385,
+            "fileLines": 385,
+            "bytes": 38889,
+            "how": [
+              "skill-tool"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Canonical examples",
+          "SKILL.md#State update, ABORT, set / toggle, controlled input",
+          "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
+          "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
+          "SKILL.md#Extract a component without changing the markup",
+          "SKILL.md#Commands (parent → child) + EFFECT",
+          "SKILL.md#Behaviors (`uses`): shared state + actions",
+          "SKILL.md#Element commands, timers, persistence",
+          "SKILL.md#HTTP (makeFetchDriver + reply actions), latest response only",
+          "SKILL.md#Reads that follow state: `resources`",
+          "SKILL.md#List/detail + save, cached",
+          "SKILL.md#WebSocket / SSE (makeSocketDriver + connections)",
+          "SKILL.md#Router (makeRouter + route) and HEAD",
+          "SKILL.md#4. API facts",
+          "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#6. Canonical forms (never write the right-hand column)",
+          "SKILL.md#7. Testing your change",
+          "SKILL.md#8. Diagnostics and tools",
+          "SKILL.md#9. Project setup (Vite)",
+          "SKILL.md#10. Where to look next"
+        ],
+        "library": {},
+        "libraryBytes": 0
+      },
+      "selfReported": [],
+      "wroteTest": false,
+      "testWindow": null,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-27-t2",
+      "diff": {
+        "added": 100,
+        "removed": 8,
+        "files": {
+          "src/App.jsx": {
+            "added": 100,
+            "removed": 8,
+            "status": "modified"
+          }
+        }
+      },
+      "keptTests": [],
+      "testApproach": [],
+      "finalReportChars": 1307
+    },
+    {
+      "trial": "react-27-t3",
+      "run": "p4-final6-react-ergo-haiku",
+      "arm": "react",
+      "task": "27-undo-editor",
+      "trialNo": 3,
+      "agentId": "headless",
+      "flags": [
+        "machine-wide process kill (blocked by the guard)"
+      ],
+      "scored": {
+        "pass": false,
+        "testsPassed": 6,
+        "testsTotal": 7,
+        "wallSeconds": 159,
+        "iterations": 4,
+        "editRounds": 3,
+        "failureCategory": null
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 203,
+        "output": 47,
+        "cacheRead": 760926,
+        "cacheCreation": 36461,
+        "messages": 25,
+        "peakContext": 46391,
+        "total": 797637
+      },
+      "usage": {
+        "tokens": 813141,
+        "outputTokens": 15551,
+        "costUsd": 0.22697259999999997,
+        "durationMs": 158119,
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "toolCalls": {
+        "total": 24,
+        "byTool": {
+          "Bash": 16,
+          "Read": 4,
+          "Edit": 3,
+          "Skill": 1
+        }
+      },
+      "processKills": [
+        {
+          "kind": "xargs kill",
+          "machineWide": true,
+          "command": "xargs kill 2>/dev/null"
+        }
+      ],
+      "processGuard": 1,
+      "wallSeconds": 158.1,
+      "phases": {
+        "orient": 39.3,
+        "implement": 91.4,
+        "verify": 16.3,
+        "learn": 3.2,
+        "tooling-friction": 1.8,
+        "think": 6.1
+      },
+      "attributedShare": 1,
+      "iterations": 4,
+      "effectiveIterations": 4,
+      "edits": 6,
+      "editRounds": 3,
+      "failures": [
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "Cannot find package '@chromium-cli/headless-chromium' imported from test_app.mjs",
+          "catalog": [],
+          "cause": "other",
+          "t": 46
+        },
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "environment refused the command (worktree guard)",
+          "catalog": [
+            "HARNESS-GUARD"
+          ],
+          "cause": "harness",
+          "t": 127
+        }
+      ],
+      "episodes": [],
+      "frictionSeconds": {
+        "HARNESS-GUARD": 1.8
+      },
+      "learnSeconds": {
+        "skill-load": 3.2
+      },
+      "catalog": {
+        "result": [
+          "HARNESS-GUARD"
+        ],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 38889,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                385
+              ]
+            ],
+            "linesSeen": 385,
+            "fileLines": 385,
+            "bytes": 38889,
+            "how": [
+              "skill-tool"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Canonical examples",
+          "SKILL.md#State update, ABORT, set / toggle, controlled input",
+          "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
+          "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
+          "SKILL.md#Extract a component without changing the markup",
+          "SKILL.md#Commands (parent → child) + EFFECT",
+          "SKILL.md#Behaviors (`uses`): shared state + actions",
+          "SKILL.md#Element commands, timers, persistence",
+          "SKILL.md#HTTP (makeFetchDriver + reply actions), latest response only",
+          "SKILL.md#Reads that follow state: `resources`",
+          "SKILL.md#List/detail + save, cached",
+          "SKILL.md#WebSocket / SSE (makeSocketDriver + connections)",
+          "SKILL.md#Router (makeRouter + route) and HEAD",
+          "SKILL.md#4. API facts",
+          "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#6. Canonical forms (never write the right-hand column)",
+          "SKILL.md#7. Testing your change",
+          "SKILL.md#8. Diagnostics and tools",
+          "SKILL.md#9. Project setup (Vite)",
+          "SKILL.md#10. Where to look next"
+        ],
+        "library": {},
+        "libraryBytes": 0
+      },
+      "selfReported": [],
+      "wroteTest": false,
+      "testWindow": null,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-27-t3",
+      "diff": {
+        "added": 107,
+        "removed": 5,
+        "files": {
+          "src/App.jsx": {
+            "added": 107,
+            "removed": 5,
+            "status": "modified"
+          }
+        }
+      },
+      "keptTests": [],
+      "testApproach": [],
+      "finalReportChars": 1702
+    },
+    {
+      "trial": "react-27-t4",
+      "run": "p4-final6-react-ergo-haiku",
+      "arm": "react",
+      "task": "27-undo-editor",
+      "trialNo": 4,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": false,
+        "testsPassed": 5,
+        "testsTotal": 7,
+        "wallSeconds": 164,
+        "iterations": 1,
+        "editRounds": 2,
+        "failureCategory": null
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 147,
+        "output": 41,
+        "cacheRead": 502863,
+        "cacheCreation": 31842,
+        "messages": 18,
+        "peakContext": 41775,
+        "total": 534893
+      },
+      "usage": {
+        "tokens": 551646,
+        "outputTokens": 16794,
+        "costUsd": 0.19808730000000002,
+        "durationMs": 163537,
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "toolCalls": {
+        "total": 17,
+        "byTool": {
+          "Bash": 9,
+          "Read": 6,
+          "Edit": 1,
+          "Skill": 1
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "wallSeconds": 163.5,
+      "phases": {
+        "orient": 22.8,
+        "implement": 98.7,
+        "learn": 3,
+        "verify": 7,
+        "debug": 32.1
+      },
+      "attributedShare": 1,
+      "iterations": 1,
+      "effectiveIterations": 1,
+      "edits": 3,
+      "editRounds": 2,
+      "failures": [
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "SyntaxError: Cannot use import statement outside a module",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 131
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 32.1,
+          "iterations": 0,
+          "signature": "SyntaxError: Cannot use import statement outside a module",
+          "signatures": [
+            "SyntaxError: Cannot use import statement outside a module"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "resolved": false,
+          "t": 131
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 3
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 38889,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                385
+              ]
+            ],
+            "linesSeen": 385,
+            "fileLines": 385,
+            "bytes": 38889,
+            "how": [
+              "skill-tool"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Canonical examples",
+          "SKILL.md#State update, ABORT, set / toggle, controlled input",
+          "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
+          "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
+          "SKILL.md#Extract a component without changing the markup",
+          "SKILL.md#Commands (parent → child) + EFFECT",
+          "SKILL.md#Behaviors (`uses`): shared state + actions",
+          "SKILL.md#Element commands, timers, persistence",
+          "SKILL.md#HTTP (makeFetchDriver + reply actions), latest response only",
+          "SKILL.md#Reads that follow state: `resources`",
+          "SKILL.md#List/detail + save, cached",
+          "SKILL.md#WebSocket / SSE (makeSocketDriver + connections)",
+          "SKILL.md#Router (makeRouter + route) and HEAD",
+          "SKILL.md#4. API facts",
+          "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#6. Canonical forms (never write the right-hand column)",
+          "SKILL.md#7. Testing your change",
+          "SKILL.md#8. Diagnostics and tools",
+          "SKILL.md#9. Project setup (Vite)",
+          "SKILL.md#10. Where to look next"
+        ],
+        "library": {},
+        "libraryBytes": 0
+      },
+      "selfReported": [],
+      "wroteTest": false,
+      "testWindow": null,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-27-t4",
+      "diff": {
+        "added": 90,
+        "removed": 5,
+        "files": {
+          "src/App.jsx": {
+            "added": 90,
+            "removed": 5,
+            "status": "modified"
+          }
+        }
+      },
+      "keptTests": [],
+      "testApproach": [],
+      "finalReportChars": 1201
+    },
+    {
+      "trial": "react-27-t5",
+      "run": "p4-final6-react-ergo-haiku",
+      "arm": "react",
+      "task": "27-undo-editor",
+      "trialNo": 5,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": false,
+        "testsPassed": 4,
+        "testsTotal": 7,
+        "wallSeconds": 194,
+        "iterations": 5,
+        "editRounds": 5,
+        "failureCategory": null
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 195,
+        "output": 39,
+        "cacheRead": 803388,
+        "cacheCreation": 43516,
+        "messages": 24,
+        "peakContext": 53446,
+        "total": 847138
+      },
+      "usage": {
+        "tokens": 866857,
+        "outputTokens": 19758,
+        "costUsd": 0.2663558,
+        "durationMs": 193244,
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "toolCalls": {
+        "total": 23,
+        "byTool": {
+          "Bash": 15,
+          "Read": 3,
+          "Edit": 3,
+          "Skill": 1,
+          "Write": 1
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "wallSeconds": 193.2,
+      "phases": {
+        "orient": 54.3,
+        "implement": 49.3,
+        "verify": 14.8,
+        "learn": 3.1,
+        "test-authoring": 18.2,
+        "debug": 53.5
+      },
+      "attributedShare": 1,
+      "iterations": 5,
+      "effectiveIterations": 5,
+      "edits": 6,
+      "editRounds": 5,
+      "failures": [
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "Error: Failed to resolve import \"@testing-library/user-event\" from \"src/App.test.jsx\". Does the file exist?",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 140
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "TestingLibraryElementError: Found multiple elements with the role \"button\" and name \"Undo\"",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 145
+        },
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "SyntaxError: Cannot use import statement outside a module",
+          "catalog": [],
+          "cause": "other",
+          "t": 156
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 53.5,
+          "iterations": 1,
+          "signature": "Error: Failed to resolve import \"@testing-library/user-event\" from \"src/App.test.jsx\". Does the file exist?",
+          "signatures": [
+            "Error: Failed to resolve import \"@testing-library/user-event\" from \"src/App.test.jsx\". Does the file exist?",
+            "TestingLibraryElementError: Found multiple elements with the role \"button\" and name \"Undo\""
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "resolved": false,
+          "t": 140
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 3.1
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 38889,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                385
+              ]
+            ],
+            "linesSeen": 385,
+            "fileLines": 385,
+            "bytes": 38889,
+            "how": [
+              "skill-tool"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Canonical examples",
+          "SKILL.md#State update, ABORT, set / toggle, controlled input",
+          "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
+          "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
+          "SKILL.md#Extract a component without changing the markup",
+          "SKILL.md#Commands (parent → child) + EFFECT",
+          "SKILL.md#Behaviors (`uses`): shared state + actions",
+          "SKILL.md#Element commands, timers, persistence",
+          "SKILL.md#HTTP (makeFetchDriver + reply actions), latest response only",
+          "SKILL.md#Reads that follow state: `resources`",
+          "SKILL.md#List/detail + save, cached",
+          "SKILL.md#WebSocket / SSE (makeSocketDriver + connections)",
+          "SKILL.md#Router (makeRouter + route) and HEAD",
+          "SKILL.md#4. API facts",
+          "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#6. Canonical forms (never write the right-hand column)",
+          "SKILL.md#7. Testing your change",
+          "SKILL.md#8. Diagnostics and tools",
+          "SKILL.md#9. Project setup (Vite)",
+          "SKILL.md#10. Where to look next"
+        ],
+        "library": {},
+        "libraryBytes": 0
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 56.1,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-27-t5",
+      "diff": {
+        "added": 114,
+        "removed": 5,
+        "files": {
+          "src/App.jsx": {
+            "added": 114,
+            "removed": 5,
+            "status": "modified"
+          }
+        }
+      },
+      "keptTests": [],
+      "testApproach": [],
+      "finalReportChars": 1070
+    },
+    {
+      "trial": "react-28-t1",
+      "run": "p4-final6-react-ergo-haiku",
+      "arm": "react",
+      "task": "28-stopwatch",
+      "trialNo": 1,
+      "agentId": "headless",
+      "flags": [
+        "machine-wide process kill (blocked by the guard)"
+      ],
+      "scored": {
+        "pass": false,
+        "testsPassed": 4,
+        "testsTotal": 7,
+        "wallSeconds": 109,
+        "iterations": 9,
+        "editRounds": 4,
+        "failureCategory": null
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 227,
+        "output": 64,
+        "cacheRead": 727826,
+        "cacheCreation": 29187,
+        "messages": 28,
+        "peakContext": 39119,
+        "total": 757304
+      },
+      "usage": {
+        "tokens": 770054,
+        "outputTokens": 12814,
+        "costUsd": 0.19545360000000003,
+        "durationMs": 107903,
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "toolCalls": {
+        "total": 27,
+        "byTool": {
+          "Bash": 19,
+          "Read": 6,
+          "Edit": 1,
+          "Skill": 1
+        }
+      },
+      "processKills": [
+        {
+          "kind": "pkill",
+          "machineWide": true,
+          "command": "pkill -f \"npm run dev\""
+        }
+      ],
+      "processGuard": 1,
+      "wallSeconds": 107.9,
+      "phases": {
+        "orient": 21.3,
+        "implement": 21.6,
+        "verify": 8.1,
+        "learn": 2.7,
+        "test-authoring": 9.5,
+        "debug": 36.2,
+        "tooling-friction": 1.3,
+        "think": 7.1
+      },
+      "attributedShare": 1,
+      "iterations": 9,
+      "effectiveIterations": 9,
+      "edits": 5,
+      "editRounds": 4,
+      "failures": [
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "SyntaxError: Cannot use import statement outside a module",
+          "catalog": [],
+          "cause": "other",
+          "t": 47
+        },
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "Exit code 1",
+          "catalog": [],
+          "cause": "other",
+          "t": 51
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "Test Files 1 failed (1)",
+          "catalog": [],
+          "friction": [],
+          "cause": "unknown (output truncated)",
+          "t": 60
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "Test Files 1 failed (1)",
+          "catalog": [],
+          "friction": [],
+          "cause": "unknown (output truncated)",
+          "t": 72
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "TestingLibraryElementError: Found multiple elements with the text: 00:00.0",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 74
+        },
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "environment refused the command (worktree guard)",
+          "catalog": [
+            "HARNESS-GUARD"
+          ],
+          "cause": "harness",
+          "t": 83
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "Permission to use Bash with command kill 21905 2>null || true; sleep 1; cd react-28-t1 && npm run dev > vite-dev.log 2>&1 &",
+          "catalog": [],
+          "friction": [],
+          "cause": "other",
+          "t": 85
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 22,
+          "iterations": 3,
+          "signature": "Test Files 1 failed (1)",
+          "signatures": [
+            "Test Files 1 failed (1)",
+            "TestingLibraryElementError: Found multiple elements with the text: 00:00.0"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "unknown (output truncated)",
+          "resolved": true,
+          "t": 60
+        },
+        {
+          "seconds": 14.2,
+          "iterations": 1,
+          "signature": "Permission to use Bash with command kill 21905 2>null || true; sleep 1; cd react-28-t1 && npm run dev > vite-dev.log 2>&1 &",
+          "signatures": [
+            "Permission to use Bash with command kill 21905 2>null || true; sleep 1; cd react-28-t1 && npm run dev > vite-dev.log 2>&1 &"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "other",
+          "resolved": true,
+          "t": 85
+        }
+      ],
+      "frictionSeconds": {
+        "HARNESS-GUARD": 1.3
+      },
+      "learnSeconds": {
+        "skill-load": 2.7
+      },
+      "catalog": {
+        "result": [
+          "HARNESS-GUARD"
+        ],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 38889,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                385
+              ]
+            ],
+            "linesSeen": 385,
+            "fileLines": 385,
+            "bytes": 38889,
+            "how": [
+              "skill-tool"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Canonical examples",
+          "SKILL.md#State update, ABORT, set / toggle, controlled input",
+          "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
+          "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
+          "SKILL.md#Extract a component without changing the markup",
+          "SKILL.md#Commands (parent → child) + EFFECT",
+          "SKILL.md#Behaviors (`uses`): shared state + actions",
+          "SKILL.md#Element commands, timers, persistence",
+          "SKILL.md#HTTP (makeFetchDriver + reply actions), latest response only",
+          "SKILL.md#Reads that follow state: `resources`",
+          "SKILL.md#List/detail + save, cached",
+          "SKILL.md#WebSocket / SSE (makeSocketDriver + connections)",
+          "SKILL.md#Router (makeRouter + route) and HEAD",
+          "SKILL.md#4. API facts",
+          "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#6. Canonical forms (never write the right-hand column)",
+          "SKILL.md#7. Testing your change",
+          "SKILL.md#8. Diagnostics and tools",
+          "SKILL.md#9. Project setup (Vite)",
+          "SKILL.md#10. Where to look next"
+        ],
+        "library": {},
+        "libraryBytes": 0
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 48.5,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-28-t1",
+      "diff": {
+        "added": 110,
+        "removed": 5,
+        "files": {
+          "src/Stopwatch.jsx": {
+            "added": 110,
+            "removed": 5,
+            "status": "modified"
+          }
+        }
+      },
+      "keptTests": [],
+      "testApproach": [],
+      "finalReportChars": 888
+    },
+    {
+      "trial": "react-28-t2",
+      "run": "p4-final6-react-ergo-haiku",
+      "arm": "react",
+      "task": "28-stopwatch",
+      "trialNo": 2,
+      "agentId": "headless",
+      "flags": [
+        "machine-wide process kill (blocked by the guard)"
+      ],
+      "scored": {
+        "pass": false,
+        "testsPassed": 6,
+        "testsTotal": 7,
+        "wallSeconds": 111,
+        "iterations": 1,
+        "editRounds": 2,
+        "failureCategory": null
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 139,
+        "output": 41,
+        "cacheRead": 424431,
+        "cacheCreation": 31122,
+        "messages": 17,
+        "peakContext": 41052,
+        "total": 455733
+      },
+      "usage": {
+        "tokens": 469027,
+        "outputTokens": 13335,
+        "costUsd": 0.17150110000000002,
+        "durationMs": 109671,
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "toolCalls": {
+        "total": 16,
+        "byTool": {
+          "Bash": 10,
+          "Read": 4,
+          "Edit": 1,
+          "Skill": 1
+        }
+      },
+      "processKills": [
+        {
+          "kind": "pkill",
+          "machineWide": true,
+          "command": "pkill -f \"vite\""
+        }
+      ],
+      "processGuard": 1,
+      "wallSeconds": 109.7,
+      "phases": {
+        "orient": 44,
+        "implement": 23.4,
+        "learn": 3.4,
+        "verify": 7.6,
+        "debug": 31.1
+      },
+      "attributedShare": 1,
+      "iterations": 1,
+      "effectiveIterations": 1,
+      "edits": 4,
+      "editRounds": 2,
+      "failures": [
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "FAIL",
+          "catalog": [],
+          "friction": [],
+          "cause": "unknown (output truncated)",
+          "t": 79
+        },
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "Permission to use Bash with command pkill -f \"vite\" || true",
+          "catalog": [],
+          "cause": "other",
+          "t": 105
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 31.1,
+          "iterations": 0,
+          "signature": "FAIL",
+          "signatures": [
+            "FAIL"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "unknown (output truncated)",
+          "resolved": false,
+          "t": 79
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 3.4
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 38889,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                385
+              ]
+            ],
+            "linesSeen": 385,
+            "fileLines": 385,
+            "bytes": 38889,
+            "how": [
+              "skill-tool"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Canonical examples",
+          "SKILL.md#State update, ABORT, set / toggle, controlled input",
+          "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
+          "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
+          "SKILL.md#Extract a component without changing the markup",
+          "SKILL.md#Commands (parent → child) + EFFECT",
+          "SKILL.md#Behaviors (`uses`): shared state + actions",
+          "SKILL.md#Element commands, timers, persistence",
+          "SKILL.md#HTTP (makeFetchDriver + reply actions), latest response only",
+          "SKILL.md#Reads that follow state: `resources`",
+          "SKILL.md#List/detail + save, cached",
+          "SKILL.md#WebSocket / SSE (makeSocketDriver + connections)",
+          "SKILL.md#Router (makeRouter + route) and HEAD",
+          "SKILL.md#4. API facts",
+          "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#6. Canonical forms (never write the right-hand column)",
+          "SKILL.md#7. Testing your change",
+          "SKILL.md#8. Diagnostics and tools",
+          "SKILL.md#9. Project setup (Vite)",
+          "SKILL.md#10. Where to look next"
+        ],
+        "library": {},
+        "libraryBytes": 0
+      },
+      "selfReported": [],
+      "wroteTest": false,
+      "testWindow": null,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-28-t2",
+      "diff": {
+        "added": 102,
+        "removed": 5,
+        "files": {
+          "src/Stopwatch.jsx": {
+            "added": 98,
+            "removed": 5,
+            "status": "modified"
+          },
+          "test-results/.last-run.json": {
+            "added": 4,
+            "removed": 0,
+            "status": "new"
+          }
+        }
+      },
+      "keptTests": [],
+      "testApproach": [],
+      "finalReportChars": 1251
+    },
+    {
+      "trial": "react-28-t3",
+      "run": "p4-final6-react-ergo-haiku",
+      "arm": "react",
+      "task": "28-stopwatch",
+      "trialNo": 3,
+      "agentId": "headless",
+      "flags": [
+        "machine-wide process kill (blocked by the guard)"
+      ],
+      "scored": {
+        "pass": true,
+        "testsPassed": 7,
+        "testsTotal": 7,
+        "wallSeconds": 95,
+        "iterations": 1,
+        "editRounds": 2,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 155,
+        "output": 40,
+        "cacheRead": 443931,
+        "cacheCreation": 21705,
+        "messages": 19,
+        "peakContext": 31635,
+        "total": 465831
+      },
+      "usage": {
+        "tokens": 475882,
+        "outputTokens": 10091,
+        "costUsd": 0.1384131,
+        "durationMs": 94199,
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "toolCalls": {
+        "total": 18,
+        "byTool": {
+          "Bash": 10,
+          "Read": 4,
+          "Edit": 3,
+          "Skill": 1
+        }
+      },
+      "processKills": [
+        {
+          "kind": "pkill",
+          "machineWide": true,
+          "command": "pkill -f \"npm run dev\""
+        }
+      ],
+      "processGuard": 1,
+      "wallSeconds": 94.2,
+      "phases": {
+        "orient": 27.7,
+        "implement": 54.8,
+        "learn": 3.2,
+        "verify": 1.8,
+        "tooling-friction": 1.1,
+        "think": 5.6
+      },
+      "attributedShare": 1,
+      "iterations": 1,
+      "effectiveIterations": 1,
+      "edits": 7,
+      "editRounds": 2,
+      "failures": [
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "environment refused the command (worktree guard)",
+          "catalog": [
+            "HARNESS-GUARD"
+          ],
+          "cause": "harness",
+          "t": 89
+        }
+      ],
+      "episodes": [],
+      "frictionSeconds": {
+        "HARNESS-GUARD": 1.1
+      },
+      "learnSeconds": {
+        "skill-load": 3.2
+      },
+      "catalog": {
+        "result": [
+          "HARNESS-GUARD"
+        ],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 38889,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                385
+              ]
+            ],
+            "linesSeen": 385,
+            "fileLines": 385,
+            "bytes": 38889,
+            "how": [
+              "skill-tool"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Canonical examples",
+          "SKILL.md#State update, ABORT, set / toggle, controlled input",
+          "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
+          "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
+          "SKILL.md#Extract a component without changing the markup",
+          "SKILL.md#Commands (parent → child) + EFFECT",
+          "SKILL.md#Behaviors (`uses`): shared state + actions",
+          "SKILL.md#Element commands, timers, persistence",
+          "SKILL.md#HTTP (makeFetchDriver + reply actions), latest response only",
+          "SKILL.md#Reads that follow state: `resources`",
+          "SKILL.md#List/detail + save, cached",
+          "SKILL.md#WebSocket / SSE (makeSocketDriver + connections)",
+          "SKILL.md#Router (makeRouter + route) and HEAD",
+          "SKILL.md#4. API facts",
+          "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#6. Canonical forms (never write the right-hand column)",
+          "SKILL.md#7. Testing your change",
+          "SKILL.md#8. Diagnostics and tools",
+          "SKILL.md#9. Project setup (Vite)",
+          "SKILL.md#10. Where to look next"
+        ],
+        "library": {},
+        "libraryBytes": 0
+      },
+      "selfReported": [],
+      "wroteTest": false,
+      "testWindow": null,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-28-t3",
+      "diff": {
+        "added": 83,
+        "removed": 5,
+        "files": {
+          "src/Stopwatch.jsx": {
+            "added": 83,
+            "removed": 5,
+            "status": "modified"
+          }
+        }
+      },
+      "keptTests": [],
+      "testApproach": [],
+      "finalReportChars": 1562
+    },
+    {
+      "trial": "react-28-t4",
+      "run": "p4-final6-react-ergo-haiku",
+      "arm": "react",
+      "task": "28-stopwatch",
+      "trialNo": 4,
+      "agentId": "headless",
+      "flags": [
+        "machine-wide process kill (blocked by the guard)"
+      ],
+      "scored": {
+        "pass": true,
+        "testsPassed": 7,
+        "testsTotal": 7,
+        "wallSeconds": 324,
+        "iterations": 11,
+        "editRounds": 8,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 435,
+        "output": 98,
+        "cacheRead": 2800084,
+        "cacheCreation": 71229,
+        "messages": 54,
+        "peakContext": 81162,
+        "total": 2871846
+      },
+      "usage": {
+        "tokens": 2908338,
+        "outputTokens": 36590,
+        "costUsd": 0.6058514000000002,
+        "durationMs": 322643,
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "toolCalls": {
+        "total": 56,
+        "byTool": {
+          "Bash": 20,
+          "Read": 9,
+          "Glob": 1,
+          "Edit": 19,
+          "Skill": 1,
+          "Write": 6
+        }
+      },
+      "processKills": [
+        {
+          "kind": "pkill",
+          "machineWide": true,
+          "command": "pkill -f \"vite\" 2>/dev/null"
+        }
+      ],
+      "processGuard": 1,
+      "wallSeconds": 322.6,
+      "phases": {
+        "orient": 28.2,
+        "implement": 13,
+        "learn": 3.4,
+        "verify": 9.6,
+        "test-authoring": 18.5,
+        "debug": 239,
+        "tooling-friction": 1.7,
+        "think": 9.2
+      },
+      "attributedShare": 1,
+      "iterations": 11,
+      "effectiveIterations": 11,
+      "edits": 26,
+      "editRounds": 8,
+      "failures": [
+        {
+          "kind": "command",
+          "tool": "Read",
+          "signature": "EISDIR: illegal operation on a directory, read 'src'",
+          "catalog": [],
+          "cause": "other",
+          "t": 6
+        },
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "Exit code 1",
+          "catalog": [],
+          "cause": "other",
+          "t": 47
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "TestingLibraryElementError: Found multiple elements with the role \"button\" and name \"Start\"",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 71
+        },
+        {
+          "kind": "command",
+          "tool": "Edit",
+          "signature": "<tool_use_error>String to replace not found in file.",
+          "catalog": [],
+          "cause": "other",
+          "t": 109
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "Error: Failed to resolve import \"@testing-library/jest-dom\" from \"vitest.setup.js\". Does the file exist?",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 127
+        },
+        {
+          "kind": "command",
+          "tool": "Edit",
+          "signature": "<tool_use_error>String to replace not found in file.",
+          "catalog": [],
+          "cause": "other",
+          "t": 158
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "Exit code 1",
+          "catalog": [],
+          "friction": [],
+          "cause": "other",
+          "t": 176
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "Test Files 1 failed (1)",
+          "catalog": [],
+          "friction": [],
+          "cause": "unknown (output truncated)",
+          "t": 207
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "TestingLibraryElementError: Unable to find an element with the text: 00:00.6. This could be because the text is broken up by multiple elements. In this case, yo",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 209
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "FAIL src/Stopwatch.test.jsx > Stopwatch > time advances while running",
+          "catalog": [],
+          "friction": [],
+          "cause": "unknown (output truncated)",
+          "t": 243
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "Test Files 1 failed (1)",
+          "catalog": [],
+          "friction": [],
+          "cause": "unknown (output truncated)",
+          "t": 268
+        },
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "Exit code 1",
+          "catalog": [],
+          "cause": "other",
+          "t": 292
+        },
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "environment refused the command (worktree guard)",
+          "catalog": [
+            "HARNESS-GUARD"
+          ],
+          "cause": "harness",
+          "t": 312
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 239,
+          "iterations": 7,
+          "signature": "TestingLibraryElementError: Found multiple elements with the role \"button\" and name \"Start\"",
+          "signatures": [
+            "TestingLibraryElementError: Found multiple elements with the role \"button\" and name \"Start\"",
+            "Error: Failed to resolve import \"@testing-library/jest-dom\" from \"vitest.setup.js\". Does the file exist?",
+            "Exit code 1",
+            "Test Files 1 failed (1)",
+            "TestingLibraryElementError: Unable to find an element with the text: 00:00.6. This could be because the text is broken up by multiple elements. In this case, yo"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "resolved": true,
+          "t": 71
+        }
+      ],
+      "frictionSeconds": {
+        "HARNESS-GUARD": 1.7
+      },
+      "learnSeconds": {
+        "skill-load": 3.4
+      },
+      "catalog": {
+        "result": [
+          "HARNESS-GUARD"
+        ],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 38889,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                385
+              ]
+            ],
+            "linesSeen": 385,
+            "fileLines": 385,
+            "bytes": 38889,
+            "how": [
+              "skill-tool"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Canonical examples",
+          "SKILL.md#State update, ABORT, set / toggle, controlled input",
+          "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
+          "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
+          "SKILL.md#Extract a component without changing the markup",
+          "SKILL.md#Commands (parent → child) + EFFECT",
+          "SKILL.md#Behaviors (`uses`): shared state + actions",
+          "SKILL.md#Element commands, timers, persistence",
+          "SKILL.md#HTTP (makeFetchDriver + reply actions), latest response only",
+          "SKILL.md#Reads that follow state: `resources`",
+          "SKILL.md#List/detail + save, cached",
+          "SKILL.md#WebSocket / SSE (makeSocketDriver + connections)",
+          "SKILL.md#Router (makeRouter + route) and HEAD",
+          "SKILL.md#4. API facts",
+          "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#6. Canonical forms (never write the right-hand column)",
+          "SKILL.md#7. Testing your change",
+          "SKILL.md#8. Diagnostics and tools",
+          "SKILL.md#9. Project setup (Vite)",
+          "SKILL.md#10. Where to look next"
+        ],
+        "library": {},
+        "libraryBytes": 0
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 254.4,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-28-t4",
+      "diff": {
+        "added": 283,
+        "removed": 5,
+        "files": {
+          "src/Stopwatch.jsx": {
+            "added": 80,
+            "removed": 5,
+            "status": "modified"
+          },
+          "src/Stopwatch.test.jsx": {
+            "added": 194,
+            "removed": 0,
+            "status": "new"
+          },
+          "vite.config.js": {
+            "added": 2,
+            "removed": 0,
+            "status": "modified"
+          },
+          "vitest.setup.js": {
+            "added": 7,
+            "removed": 0,
+            "status": "new"
+          }
+        }
+      },
+      "keptTests": [
+        "src/Stopwatch.test.jsx"
+      ],
+      "testApproach": [
+        "testing-library"
+      ],
+      "finalReportChars": 1040
+    },
+    {
+      "trial": "react-28-t5",
+      "run": "p4-final6-react-ergo-haiku",
+      "arm": "react",
+      "task": "28-stopwatch",
+      "trialNo": 5,
+      "agentId": "headless",
+      "flags": [
+        "machine-wide process kill (blocked by the guard)"
+      ],
+      "scored": {
+        "pass": false,
+        "testsPassed": 3,
+        "testsTotal": 7,
+        "wallSeconds": 59,
+        "iterations": 3,
+        "editRounds": 2,
+        "failureCategory": null
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 140,
+        "output": 49,
+        "cacheRead": 379392,
+        "cacheCreation": 23636,
+        "messages": 17,
+        "peakContext": 33569,
+        "total": 403217
+      },
+      "usage": {
+        "tokens": 409033,
+        "outputTokens": 5865,
+        "costUsd": 0.1146762,
+        "durationMs": 57893,
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "toolCalls": {
+        "total": 16,
+        "byTool": {
+          "Bash": 9,
+          "Read": 5,
+          "Edit": 1,
+          "Skill": 1
+        }
+      },
+      "processKills": [
+        {
+          "kind": "pkill",
+          "machineWide": true,
+          "command": "pkill -f \"npm run dev\""
+        }
+      ],
+      "processGuard": 1,
+      "wallSeconds": 57.9,
+      "phases": {
+        "orient": 19.3,
+        "implement": 17.8,
+        "verify": 8.5,
+        "learn": 3.2,
+        "think": 9.1
+      },
+      "attributedShare": 1,
+      "iterations": 3,
+      "effectiveIterations": 3,
+      "edits": 3,
+      "editRounds": 2,
+      "failures": [
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "Cannot find package 'jsdom' imported from test-stopwatch.mjs",
+          "catalog": [],
+          "cause": "other",
+          "t": 39
+        },
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "Permission to use Bash with command pkill -f \"npm run dev\" || true",
+          "catalog": [],
+          "cause": "other",
+          "t": 46
+        }
+      ],
+      "episodes": [],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 3.2
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 38889,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                385
+              ]
+            ],
+            "linesSeen": 385,
+            "fileLines": 385,
+            "bytes": 38889,
+            "how": [
+              "skill-tool"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Canonical examples",
+          "SKILL.md#State update, ABORT, set / toggle, controlled input",
+          "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
+          "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
+          "SKILL.md#Extract a component without changing the markup",
+          "SKILL.md#Commands (parent → child) + EFFECT",
+          "SKILL.md#Behaviors (`uses`): shared state + actions",
+          "SKILL.md#Element commands, timers, persistence",
+          "SKILL.md#HTTP (makeFetchDriver + reply actions), latest response only",
+          "SKILL.md#Reads that follow state: `resources`",
+          "SKILL.md#List/detail + save, cached",
+          "SKILL.md#WebSocket / SSE (makeSocketDriver + connections)",
+          "SKILL.md#Router (makeRouter + route) and HEAD",
+          "SKILL.md#4. API facts",
+          "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#6. Canonical forms (never write the right-hand column)",
+          "SKILL.md#7. Testing your change",
+          "SKILL.md#8. Diagnostics and tools",
+          "SKILL.md#9. Project setup (Vite)",
+          "SKILL.md#10. Where to look next"
+        ],
+        "library": {},
+        "libraryBytes": 0
+      },
+      "selfReported": [],
+      "wroteTest": false,
+      "testWindow": null,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-28-t5",
+      "diff": {
+        "added": 79,
+        "removed": 5,
+        "files": {
+          "src/Stopwatch.jsx": {
+            "added": 79,
+            "removed": 5,
+            "status": "modified"
+          }
+        }
+      },
+      "keptTests": [],
+      "testApproach": [],
+      "finalReportChars": 1005
+    },
+    {
+      "trial": "react-29-t1",
+      "run": "p4-final6-react-ergo-haiku",
+      "arm": "react",
+      "task": "29-accessible-signup",
+      "trialNo": 1,
+      "agentId": "headless",
+      "flags": [
+        "machine-wide process kill (blocked by the guard)"
+      ],
+      "scored": {
+        "pass": false,
+        "testsPassed": 6,
+        "testsTotal": 8,
+        "wallSeconds": 199,
+        "iterations": 11,
+        "editRounds": 8,
+        "failureCategory": null
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 331,
+        "output": 83,
+        "cacheRead": 1497327,
+        "cacheCreation": 48940,
+        "messages": 41,
+        "peakContext": 58871,
+        "total": 1546681
+      },
+      "usage": {
+        "tokens": 1570969,
+        "outputTokens": 24371,
+        "costUsd": 0.3697987,
+        "durationMs": 198664,
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "toolCalls": {
+        "total": 40,
+        "byTool": {
+          "Bash": 23,
+          "Glob": 1,
+          "Read": 10,
+          "Edit": 5,
+          "Skill": 1
+        }
+      },
+      "processKills": [
+        {
+          "kind": "pkill",
+          "machineWide": true,
+          "command": "pkill -f \"npm run dev\""
+        }
+      ],
+      "processGuard": 1,
+      "wallSeconds": 198.6,
+      "phases": {
+        "orient": 20.6,
+        "verify": 10.5,
+        "implement": 30.2,
+        "learn": 4.3,
+        "test-authoring": 11.2,
+        "debug": 115,
+        "tooling-friction": 1.4,
+        "think": 5.5
+      },
+      "attributedShare": 1,
+      "iterations": 11,
+      "effectiveIterations": 11,
+      "edits": 13,
+      "editRounds": 8,
+      "failures": [
+        {
+          "kind": "command",
+          "tool": "Read",
+          "signature": "EISDIR: illegal operation on a directory, read 'src'",
+          "catalog": [],
+          "cause": "other",
+          "t": 9
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "Error: Failed to resolve import \"@testing-library/user-event\" from \"src/App.test.jsx\". Does the file exist?",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 71
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "Error: Invalid Chai property: toBeInTheDocument",
+          "catalog": [],
+          "friction": [],
+          "cause": "other",
+          "t": 83
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "ReferenceError: HTMLDialogElement is not defined",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 112
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "Exit code 1",
+          "catalog": [],
+          "friction": [],
+          "cause": "other",
+          "t": 119
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "AssertionError: expected null to be '' // Object.is equality",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 152
+        },
+        {
+          "kind": "command",
+          "tool": "Edit",
+          "signature": "<tool_use_error>File has not been read yet. Read it first before writing to it.</tool_use_error>",
+          "catalog": [],
+          "cause": "other",
+          "t": 163
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "AssertionError: expected '' to contain 'test@example.com'",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 173
+        },
+        {
+          "kind": "command",
+          "tool": "Edit",
+          "signature": "<tool_use_error>String to replace not found in file.",
+          "catalog": [],
+          "cause": "other",
+          "t": 179
+        },
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "environment refused the command (worktree guard)",
+          "catalog": [
+            "HARNESS-GUARD"
+          ],
+          "cause": "harness",
+          "t": 193
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 115,
+          "iterations": 6,
+          "signature": "Error: Failed to resolve import \"@testing-library/user-event\" from \"src/App.test.jsx\". Does the file exist?",
+          "signatures": [
+            "Error: Failed to resolve import \"@testing-library/user-event\" from \"src/App.test.jsx\". Does the file exist?",
+            "Error: Invalid Chai property: toBeInTheDocument",
+            "ReferenceError: HTMLDialogElement is not defined",
+            "Exit code 1",
+            "AssertionError: expected null to be '' // Object.is equality"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "resolved": true,
+          "t": 71
+        }
+      ],
+      "frictionSeconds": {
+        "HARNESS-GUARD": 1.4
+      },
+      "learnSeconds": {
+        "skill-load": 4.3
+      },
+      "catalog": {
+        "result": [
+          "HARNESS-GUARD"
+        ],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 38889,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                385
+              ]
+            ],
+            "linesSeen": 385,
+            "fileLines": 385,
+            "bytes": 38889,
+            "how": [
+              "skill-tool"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Canonical examples",
+          "SKILL.md#State update, ABORT, set / toggle, controlled input",
+          "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
+          "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
+          "SKILL.md#Extract a component without changing the markup",
+          "SKILL.md#Commands (parent → child) + EFFECT",
+          "SKILL.md#Behaviors (`uses`): shared state + actions",
+          "SKILL.md#Element commands, timers, persistence",
+          "SKILL.md#HTTP (makeFetchDriver + reply actions), latest response only",
+          "SKILL.md#Reads that follow state: `resources`",
+          "SKILL.md#List/detail + save, cached",
+          "SKILL.md#WebSocket / SSE (makeSocketDriver + connections)",
+          "SKILL.md#Router (makeRouter + route) and HEAD",
+          "SKILL.md#4. API facts",
+          "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#6. Canonical forms (never write the right-hand column)",
+          "SKILL.md#7. Testing your change",
+          "SKILL.md#8. Diagnostics and tools",
+          "SKILL.md#9. Project setup (Vite)",
+          "SKILL.md#10. Where to look next"
+        ],
+        "library": {},
+        "libraryBytes": 0
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 128.6,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-29-t1",
+      "diff": {
+        "added": 416,
+        "removed": 14,
+        "files": {
+          "manual-test.mjs": {
+            "added": 111,
+            "removed": 0,
+            "status": "new"
+          },
+          "src/App.jsx": {
+            "added": 215,
+            "removed": 14,
+            "status": "modified"
+          },
+          "test-app.mjs": {
+            "added": 90,
+            "removed": 0,
+            "status": "new"
+          }
+        }
+      },
+      "keptTests": [],
+      "testApproach": [],
+      "finalReportChars": 1820
+    },
+    {
+      "trial": "react-29-t2",
+      "run": "p4-final6-react-ergo-haiku",
+      "arm": "react",
+      "task": "29-accessible-signup",
+      "trialNo": 2,
+      "agentId": "headless",
+      "flags": [
+        "machine-wide process kill (blocked by the guard)"
+      ],
+      "scored": {
+        "pass": false,
+        "testsPassed": 7,
+        "testsTotal": 8,
+        "wallSeconds": 256,
+        "iterations": 4,
+        "editRounds": 4,
+        "failureCategory": null
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 371,
+        "output": 105,
+        "cacheRead": 1615519,
+        "cacheCreation": 47394,
+        "messages": 46,
+        "peakContext": 57324,
+        "total": 1663389
+      },
+      "usage": {
+        "tokens": 1684641,
+        "outputTokens": 21357,
+        "costUsd": 0.36349590000000004,
+        "durationMs": 254307,
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "toolCalls": {
+        "total": 45,
+        "byTool": {
+          "Bash": 25,
+          "Read": 10,
+          "Edit": 9,
+          "Skill": 1
+        }
+      },
+      "processKills": [
+        {
+          "kind": "pkill",
+          "machineWide": true,
+          "command": "pkill -f \"npm run dev\" 2>/dev/null"
+        }
+      ],
+      "processGuard": 1,
+      "wallSeconds": 254.3,
+      "phases": {
+        "orient": 29.5,
+        "implement": 194.2,
+        "verify": 20.9,
+        "learn": 2.7,
+        "tooling-friction": 1.2,
+        "think": 5.8
+      },
+      "attributedShare": 1,
+      "iterations": 4,
+      "effectiveIterations": 4,
+      "edits": 18,
+      "editRounds": 4,
+      "failures": [
+        {
+          "kind": "command",
+          "tool": "Read",
+          "signature": "EISDIR: illegal operation on a directory, read 'react-29-t2'",
+          "catalog": [],
+          "cause": "other",
+          "t": 9
+        },
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "environment refused the command (worktree guard)",
+          "catalog": [
+            "HARNESS-GUARD"
+          ],
+          "cause": "harness",
+          "t": 248
+        }
+      ],
+      "episodes": [],
+      "frictionSeconds": {
+        "HARNESS-GUARD": 1.2
+      },
+      "learnSeconds": {
+        "skill-load": 2.7
+      },
+      "catalog": {
+        "result": [
+          "HARNESS-GUARD"
+        ],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 38889,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                385
+              ]
+            ],
+            "linesSeen": 385,
+            "fileLines": 385,
+            "bytes": 38889,
+            "how": [
+              "skill-tool"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Canonical examples",
+          "SKILL.md#State update, ABORT, set / toggle, controlled input",
+          "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
+          "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
+          "SKILL.md#Extract a component without changing the markup",
+          "SKILL.md#Commands (parent → child) + EFFECT",
+          "SKILL.md#Behaviors (`uses`): shared state + actions",
+          "SKILL.md#Element commands, timers, persistence",
+          "SKILL.md#HTTP (makeFetchDriver + reply actions), latest response only",
+          "SKILL.md#Reads that follow state: `resources`",
+          "SKILL.md#List/detail + save, cached",
+          "SKILL.md#WebSocket / SSE (makeSocketDriver + connections)",
+          "SKILL.md#Router (makeRouter + route) and HEAD",
+          "SKILL.md#4. API facts",
+          "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#6. Canonical forms (never write the right-hand column)",
+          "SKILL.md#7. Testing your change",
+          "SKILL.md#8. Diagnostics and tools",
+          "SKILL.md#9. Project setup (Vite)",
+          "SKILL.md#10. Where to look next"
+        ],
+        "library": {},
+        "libraryBytes": 0
+      },
+      "selfReported": [],
+      "wroteTest": false,
+      "testWindow": null,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-29-t2",
+      "diff": {
+        "added": 227,
+        "removed": 14,
+        "files": {
+          "src/App.jsx": {
+            "added": 227,
+            "removed": 14,
+            "status": "modified"
+          }
+        }
+      },
+      "keptTests": [],
+      "testApproach": [],
+      "finalReportChars": 1893
+    },
+    {
+      "trial": "react-29-t3",
+      "run": "p4-final6-react-ergo-haiku",
+      "arm": "react",
+      "task": "29-accessible-signup",
+      "trialNo": 3,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": false,
+        "testsPassed": 7,
+        "testsTotal": 8,
+        "wallSeconds": 204,
+        "iterations": 8,
+        "editRounds": 4,
+        "failureCategory": null
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 371,
+        "output": 115,
+        "cacheRead": 1819648,
+        "cacheCreation": 56942,
+        "messages": 46,
+        "peakContext": 66873,
+        "total": 1877076
+      },
+      "usage": {
+        "tokens": 1901608,
+        "outputTokens": 24647,
+        "costUsd": 0.41945480000000007,
+        "durationMs": 202895,
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "toolCalls": {
+        "total": 45,
+        "byTool": {
+          "Bash": 19,
+          "Read": 8,
+          "Edit": 14,
+          "Skill": 1,
+          "Write": 3
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "wallSeconds": 202.9,
+      "phases": {
+        "orient": 39.7,
+        "implement": 43.7,
+        "verify": 16.1,
+        "learn": 3.1,
+        "test-authoring": 20.4,
+        "debug": 74.6,
+        "think": 5.3
+      },
+      "attributedShare": 1,
+      "iterations": 8,
+      "effectiveIterations": 8,
+      "edits": 18,
+      "editRounds": 4,
+      "failures": [
+        {
+          "kind": "command",
+          "tool": "Read",
+          "signature": "EISDIR: illegal operation on a directory, read 'react-29-t3'",
+          "catalog": [],
+          "cause": "other",
+          "t": 12
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "Error: Failed to resolve import \"@testing-library/user-event\" from \"src/App.test.jsx\". Does the file exist?",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 106
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "TestingLibraryElementError: Found multiple elements with the text: At least 8 characters.",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 112
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "TestingLibraryElementError: Unable to find an accessible element with the role \"dialog\"",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 156
+        },
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "Exit code 128",
+          "catalog": [],
+          "cause": "other",
+          "t": 198
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 74.6,
+          "iterations": 3,
+          "signature": "Error: Failed to resolve import \"@testing-library/user-event\" from \"src/App.test.jsx\". Does the file exist?",
+          "signatures": [
+            "Error: Failed to resolve import \"@testing-library/user-event\" from \"src/App.test.jsx\". Does the file exist?",
+            "TestingLibraryElementError: Found multiple elements with the text: At least 8 characters.",
+            "TestingLibraryElementError: Unable to find an accessible element with the role \"dialog\""
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "resolved": true,
+          "t": 106
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 3.1
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 38889,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                385
+              ]
+            ],
+            "linesSeen": 385,
+            "fileLines": 385,
+            "bytes": 38889,
+            "how": [
+              "skill-tool"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Canonical examples",
+          "SKILL.md#State update, ABORT, set / toggle, controlled input",
+          "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
+          "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
+          "SKILL.md#Extract a component without changing the markup",
+          "SKILL.md#Commands (parent → child) + EFFECT",
+          "SKILL.md#Behaviors (`uses`): shared state + actions",
+          "SKILL.md#Element commands, timers, persistence",
+          "SKILL.md#HTTP (makeFetchDriver + reply actions), latest response only",
+          "SKILL.md#Reads that follow state: `resources`",
+          "SKILL.md#List/detail + save, cached",
+          "SKILL.md#WebSocket / SSE (makeSocketDriver + connections)",
+          "SKILL.md#Router (makeRouter + route) and HEAD",
+          "SKILL.md#4. API facts",
+          "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#6. Canonical forms (never write the right-hand column)",
+          "SKILL.md#7. Testing your change",
+          "SKILL.md#8. Diagnostics and tools",
+          "SKILL.md#9. Project setup (Vite)",
+          "SKILL.md#10. Where to look next"
+        ],
+        "library": {},
+        "libraryBytes": 0
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 98.4,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-29-t3",
+      "diff": {
+        "added": 492,
+        "removed": 12,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 0,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 170,
+            "removed": 12,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 299,
+            "removed": 0,
+            "status": "new"
+          },
+          "vite.config.js": {
+            "added": 2,
+            "removed": 0,
+            "status": "modified"
+          },
+          "vitest.setup.js": {
+            "added": 19,
+            "removed": 0,
+            "status": "new"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "testing-library"
+      ],
+      "finalReportChars": 1811
+    },
+    {
+      "trial": "react-29-t4",
+      "run": "p4-final6-react-ergo-haiku",
+      "arm": "react",
+      "task": "29-accessible-signup",
+      "trialNo": 4,
+      "agentId": "headless",
+      "flags": [
+        "machine-wide process kill (blocked by the guard)"
+      ],
+      "scored": {
+        "pass": true,
+        "testsPassed": 8,
+        "testsTotal": 8,
+        "wallSeconds": 172,
+        "iterations": 8,
+        "editRounds": 5,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 267,
+        "output": 66,
+        "cacheRead": 999037,
+        "cacheCreation": 40028,
+        "messages": 33,
+        "peakContext": 49958,
+        "total": 1039398
+      },
+      "usage": {
+        "tokens": 1056588,
+        "outputTokens": 17256,
+        "costUsd": 0.26650670000000004,
+        "durationMs": 170775,
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "toolCalls": {
+        "total": 32,
+        "byTool": {
+          "Bash": 16,
+          "Read": 5,
+          "Edit": 8,
+          "Skill": 1,
+          "Write": 2
+        }
+      },
+      "processKills": [
+        {
+          "kind": "pkill",
+          "machineWide": true,
+          "command": "pkill -f \"vite\""
+        }
+      ],
+      "processGuard": 1,
+      "wallSeconds": 170.8,
+      "phases": {
+        "orient": 29.4,
+        "implement": 17.8,
+        "verify": 14.4,
+        "learn": 3.9,
+        "test-authoring": 25.6,
+        "debug": 71.4,
+        "tooling-friction": 1.3,
+        "think": 6.8
+      },
+      "attributedShare": 1,
+      "iterations": 8,
+      "effectiveIterations": 8,
+      "edits": 10,
+      "editRounds": 5,
+      "failures": [
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "Exit code 1",
+          "catalog": [],
+          "cause": "other",
+          "t": 60
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "TestingLibraryElementError: Found multiple elements with the text of: Email",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 89
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "RangeError: Maximum call stack size exceeded]",
+          "catalog": [],
+          "friction": [],
+          "cause": "other",
+          "t": 127
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "AssertionError: expected <input id=\"signup-email\" …(5)></input> to be <input id=\"signup-name\" …(2)></input> // Object.is equality",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 141
+        },
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "environment refused the command (worktree guard)",
+          "catalog": [
+            "HARNESS-GUARD"
+          ],
+          "cause": "harness",
+          "t": 164
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 71.4,
+          "iterations": 3,
+          "signature": "TestingLibraryElementError: Found multiple elements with the text of: Email",
+          "signatures": [
+            "TestingLibraryElementError: Found multiple elements with the text of: Email",
+            "RangeError: Maximum call stack size exceeded]",
+            "AssertionError: expected <input id=\"signup-email\" …(5)></input> to be <input id=\"signup-name\" …(2)></input> // Object.is equality"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "resolved": true,
+          "t": 89
+        }
+      ],
+      "frictionSeconds": {
+        "HARNESS-GUARD": 1.3
+      },
+      "learnSeconds": {
+        "skill-load": 3.9
+      },
+      "catalog": {
+        "result": [
+          "HARNESS-GUARD"
+        ],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 38889,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                385
+              ]
+            ],
+            "linesSeen": 385,
+            "fileLines": 385,
+            "bytes": 38889,
+            "how": [
+              "skill-tool"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Canonical examples",
+          "SKILL.md#State update, ABORT, set / toggle, controlled input",
+          "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
+          "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
+          "SKILL.md#Extract a component without changing the markup",
+          "SKILL.md#Commands (parent → child) + EFFECT",
+          "SKILL.md#Behaviors (`uses`): shared state + actions",
+          "SKILL.md#Element commands, timers, persistence",
+          "SKILL.md#HTTP (makeFetchDriver + reply actions), latest response only",
+          "SKILL.md#Reads that follow state: `resources`",
+          "SKILL.md#List/detail + save, cached",
+          "SKILL.md#WebSocket / SSE (makeSocketDriver + connections)",
+          "SKILL.md#Router (makeRouter + route) and HEAD",
+          "SKILL.md#4. API facts",
+          "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#6. Canonical forms (never write the right-hand column)",
+          "SKILL.md#7. Testing your change",
+          "SKILL.md#8. Diagnostics and tools",
+          "SKILL.md#9. Project setup (Vite)",
+          "SKILL.md#10. Where to look next"
+        ],
+        "library": {},
+        "libraryBytes": 0
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 85.4,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-29-t4",
+      "diff": {
+        "added": 479,
+        "removed": 13,
+        "files": {
+          "src/App.jsx": {
+            "added": 149,
+            "removed": 13,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 330,
+            "removed": 0,
+            "status": "new"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "testing-library"
+      ],
+      "finalReportChars": 2062
+    },
+    {
+      "trial": "react-29-t5",
+      "run": "p4-final6-react-ergo-haiku",
+      "arm": "react",
+      "task": "29-accessible-signup",
+      "trialNo": 5,
+      "agentId": "headless",
+      "flags": [
+        "machine-wide process kill (blocked by the guard)"
+      ],
+      "scored": {
+        "pass": true,
+        "testsPassed": 8,
+        "testsTotal": 8,
+        "wallSeconds": 313,
+        "iterations": 13,
+        "editRounds": 7,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 459,
+        "output": 116,
+        "cacheRead": 2673880,
+        "cacheCreation": 75758,
+        "messages": 57,
+        "peakContext": 85692,
+        "total": 2750213
+      },
+      "usage": {
+        "tokens": 2788315,
+        "outputTokens": 38218,
+        "costUsd": 0.6104530000000001,
+        "durationMs": 311572,
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "toolCalls": {
+        "total": 56,
+        "byTool": {
+          "Bash": 19,
+          "Read": 10,
+          "Edit": 22,
+          "Skill": 1,
+          "Write": 4
+        }
+      },
+      "processKills": [
+        {
+          "kind": "pkill",
+          "machineWide": true,
+          "command": "pkill -f \"npm run dev\" 2>/dev/null"
+        }
+      ],
+      "processGuard": 1,
+      "wallSeconds": 311.6,
+      "phases": {
+        "orient": 21.2,
+        "implement": 25.2,
+        "verify": 17.3,
+        "learn": 2.6,
+        "test-authoring": 63,
+        "debug": 176,
+        "think": 6.2
+      },
+      "attributedShare": 1,
+      "iterations": 13,
+      "effectiveIterations": 13,
+      "edits": 27,
+      "editRounds": 7,
+      "failures": [
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "SyntaxError: Cannot use import statement outside a module",
+          "catalog": [],
+          "cause": "other",
+          "t": 48
+        },
+        {
+          "kind": "command",
+          "tool": "Edit",
+          "signature": "<tool_use_error>String to replace not found in file.",
+          "catalog": [],
+          "cause": "other",
+          "t": 87
+        },
+        {
+          "kind": "command",
+          "tool": "Edit",
+          "signature": "<tool_use_error>String to replace not found in file.",
+          "catalog": [],
+          "cause": "other",
+          "t": 109
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "TestingLibraryElementError: Found multiple elements with the role \"button\" and name `/Create account/i`",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 115
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "TestingLibraryElementError: Found multiple elements with the text of: Email",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 149
+        },
+        {
+          "kind": "command",
+          "tool": "Edit",
+          "signature": "<tool_use_error>String to replace not found in file.",
+          "catalog": [],
+          "cause": "other",
+          "t": 169
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "Test Files 1 failed (1)",
+          "catalog": [],
+          "friction": [],
+          "cause": "unknown (output truncated)",
+          "t": 179
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "FAIL src/App.test.jsx > Signup Page > Signup Form Validation > should clear errors when field becomes valid",
+          "catalog": [],
+          "friction": [],
+          "cause": "unknown (output truncated)",
+          "t": 194
+        },
+        {
+          "kind": "command",
+          "tool": "Edit",
+          "signature": "<tool_use_error>String to replace not found in file.",
+          "catalog": [],
+          "cause": "other",
+          "t": 215
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "FAIL src/App.test.jsx > Signup Page > Signup Form Validation > should clear errors when field becomes valid",
+          "catalog": [],
+          "friction": [],
+          "cause": "unknown (output truncated)",
+          "t": 239
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "Permission to use Bash with command pkill -f \"npm run dev\" ; sleep 1; cd react-29-t5 && npm run dev 2>&1 &",
+          "catalog": [],
+          "friction": [],
+          "cause": "other",
+          "t": 286
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 168.4,
+          "iterations": 5,
+          "signature": "TestingLibraryElementError: Found multiple elements with the role \"button\" and name `/Create account/i`",
+          "signatures": [
+            "TestingLibraryElementError: Found multiple elements with the role \"button\" and name `/Create account/i`",
+            "TestingLibraryElementError: Found multiple elements with the text of: Email",
+            "Test Files 1 failed (1)",
+            "FAIL src/App.test.jsx > Signup Page > Signup Form Validation > should clear errors when field becomes valid"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "resolved": true,
+          "t": 115
+        },
+        {
+          "seconds": 7.6,
+          "iterations": 1,
+          "signature": "Permission to use Bash with command pkill -f \"npm run dev\" ; sleep 1; cd react-29-t5 && npm run dev 2>&1 &",
+          "signatures": [
+            "Permission to use Bash with command pkill -f \"npm run dev\" ; sleep 1; cd react-29-t5 && npm run dev 2>&1 &"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "other",
+          "resolved": true,
+          "t": 286
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 2.6
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 38889,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                385
+              ]
+            ],
+            "linesSeen": 385,
+            "fileLines": 385,
+            "bytes": 38889,
+            "how": [
+              "skill-tool"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Canonical examples",
+          "SKILL.md#State update, ABORT, set / toggle, controlled input",
+          "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
+          "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
+          "SKILL.md#Extract a component without changing the markup",
+          "SKILL.md#Commands (parent → child) + EFFECT",
+          "SKILL.md#Behaviors (`uses`): shared state + actions",
+          "SKILL.md#Element commands, timers, persistence",
+          "SKILL.md#HTTP (makeFetchDriver + reply actions), latest response only",
+          "SKILL.md#Reads that follow state: `resources`",
+          "SKILL.md#List/detail + save, cached",
+          "SKILL.md#WebSocket / SSE (makeSocketDriver + connections)",
+          "SKILL.md#Router (makeRouter + route) and HEAD",
+          "SKILL.md#4. API facts",
+          "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#6. Canonical forms (never write the right-hand column)",
+          "SKILL.md#7. Testing your change",
+          "SKILL.md#8. Diagnostics and tools",
+          "SKILL.md#9. Project setup (Vite)",
+          "SKILL.md#10. Where to look next"
+        ],
+        "library": {},
+        "libraryBytes": 0
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 247.4,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-29-t5",
+      "diff": {
+        "added": 385,
+        "removed": 18,
+        "files": {
+          "src/App.jsx": {
+            "added": 175,
+            "removed": 18,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 210,
+            "removed": 0,
+            "status": "new"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "testing-library"
+      ],
+      "finalReportChars": 1399
+    }
+  ]
+}
