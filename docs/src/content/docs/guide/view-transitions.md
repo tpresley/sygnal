@@ -31,6 +31,7 @@ It is the DOM driver that `run()` creates by default (it also takes the same opt
 - Only actions with a `STATE` change ask for a transition. An action that returns `ABORT`, or only has non-STATE sinks, renders nothing new.
 - The transition covers the whole render, including the changes in child components and Collections that the new state causes.
 - Any component of the app can declare it, not only the root: a list item can list its own `REMOVE`.
+- It must be an array, even for one action. A value that isn't (`true`, `'MOVE'`) lists no action, and development reports [SYG645](/reference/errors/#syg645).
 
 ## Recipe: moving cards between lanes
 

@@ -246,7 +246,7 @@ export const CODE_TITLES: Record<string, string> = {
   // PLAN-4 D131: sygnal/element (reported through the core bridge when diagnostics are on)
   SYG644: 'Custom element prop hides an HTMLElement member',
   // PLAN-4 GS-12 (D129): View Transitions (checks/viewTransitions.ts; dev entry)
-  SYG645: 'viewTransitions without a View Transition DOM driver',
+  SYG645: "viewTransitions that can't run",
   // PLAN-4 GS-3: a11y lane (static only, sygnal-check)
   SYG701: 'Click listener on a non-interactive element',
   SYG702: 'Form field without an accessible label',

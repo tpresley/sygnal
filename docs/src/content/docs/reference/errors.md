@@ -1714,13 +1714,13 @@ A `defineElement(tag, Component, { props })` declaration names a prop that is al
 
 ### SYG645
 
-**viewTransitions without a View Transition DOM driver**
+**viewTransitions that can't run**
 
 Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
 
-A component declares `viewTransitions` (for example `Board.viewTransitions = ['MOVE']`), but the app's DOM driver can't run View Transitions, so those actions patch the page at once, without the animation, and nothing else says so. The static only asks: the transition is run by the DOM driver from `makeViewTransitionDOMDriver()`, which is opt-in so that apps without View Transitions don't ship it, and `run()`'s default DOM driver is the plain one. Reported once per component when it starts. Not reported under `renderComponent` (the mock DOM and the `dom: 'real'` container don't animate). Browsers without the API and `prefers-reduced-motion: reduce` also patch at once, silently: that is the intended fallback, not this warning.
+A component declares `viewTransitions` (for example `Board.viewTransitions = ['MOVE']`), but the app's DOM driver can't run View Transitions, so those actions patch the page at once, without the animation, and nothing else says so. The static only asks: the transition is run by the DOM driver from `makeViewTransitionDOMDriver()`, which is opt-in so that apps without View Transitions don't ship it, and `run()`'s default DOM driver is the plain one. Reported once per component when it starts. Not reported under `renderComponent` (the mock DOM and the `dom: 'real'` container don't animate). Browsers without the API and `prefers-reduced-motion: reduce` also patch at once, silently: that is the intended fallback, not this warning. The same code reports a `viewTransitions` static that is not an array (`Board.viewTransitions = true`, or a single string): it lists no action, so nothing animates (the core tolerates the value instead of throwing in every reducer; a string is matched as a substring, which is never what was meant).
 
-**Fix:** Give `run()` the View Transition DOM driver: `run(App, { DOM: makeViewTransitionDOMDriver('#root') })` with `import { makeViewTransitionDOMDriver } from 'sygnal'` (use the same mount point as before). Or remove the `viewTransitions` static.
+**Fix:** Give `run()` the View Transition DOM driver: `run(App, { DOM: makeViewTransitionDOMDriver('#root') })` with `import { makeViewTransitionDOMDriver } from 'sygnal'` (use the same mount point as before). Or remove the `viewTransitions` static. For a value that isn't an array, list the action names in one: `Board.viewTransitions = ['MOVE']`.
 
 ## SYG9xx: Internal
 
