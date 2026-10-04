@@ -996,7 +996,7 @@ class Component {
                 if (newState === enhancedState || isAbort(newState)) return _state
                 // [diagnostics hook]
                 diag.onReducer(this, name, _state, newState, this.stateSourceName)
-                // PLAN-4 GS-12: ask this app's DOM driver to patch inside a View Transition (makeViewTransitionDOMDriver); includes?.: a non-array static is SYG645 in dev, not a throw (G-228)
+                // PLAN-4 GS-12: ask this app's DOM driver to patch inside a View Transition (makeViewTransitionDOMDriver); includes?.: a non-array static lists nothing (G-228; the dev entry reports it)
                 if (this.view?.viewTransitions?.includes?.(name)) (this.sources[this.DOMSourceName]?._isolateModule || {}).vt = 1
                 const result = this.cleanupCalculated(newState)
                 // B-013: later same-tick actions' non-STATE sinks snapshot currentState (B-003)
