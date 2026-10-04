@@ -9,7 +9,7 @@ Tracks progress for [PLAN-4.md](PLAN-4.md) (controls and core ergonomics). The c
 
 **Integration branch:** `plan4-integration`, cut from `main` at `3214ed9` on 2026-10-03 (worktree `.claude/worktrees/plan-4-execution-7ae8e8`). The release stays held (D56): no version bumps, tags, PR to main or publish.
 
-**State:** Phases 1–3 done and tagged. P4-D decided (D141: alternative form). Phase 4: 4-P (apply P4-D) and 4-E prep running → 4-E (user's terminal) → 4-F REPORT-v4.
+**State:** Phases 1–3 done and tagged; P4-D decided (D141). 4-E done and REPORT-v4 written. Close-out 4-G1/4-G2 running → 4-E2 re-run → tag `plan4-phase4` and close. Then PLAN-4.5 (D146).
 
 ## Baseline (0-A)
 
@@ -70,7 +70,11 @@ PLAN-3's end-of-Phase-5 figures (40,403 B, 283 lines, 34,343 B) grew with #12 an
 | 4-X | Cleanup: G-230, G-232, G-233, G-234 | ✅ merged | `p4-4x-cleanup` (`c020419`) | subagent | | +3 B (ELEMENT skipped in the sinks reduce) |
 | 4-P | Apply P4-D: guide/controls + alternative-forms entry; recipes back to canonical selectors; CHANGELOG/ROADMAP/canonical-forms P4-D markers | ✅ merged | `p4-4p-p4d` (`5a83b08`) | subagent | | 44 controls samples tested; recipes in behaviors, undo, element commands, timers, persistence converted; doc samples 542 |
 | 4-E prep | Final eval variants and commands (all tiers, net, ergo; Opus + Haiku; React ergo; GS-14 A/B) | ✅ merged | `p4-4e-prep` (`da9027e`) | subagent | | variant `p4-final6` (= `branch`); GS-14 pair `p4-gs14-a/b` (tasks 03, 10, 29; Testing Library installed in both, guidance in B only); new measures testWindow, testAuthoring, testLearn, usedTestingLibrary, a11yFinal, usedActionLog; verify 238/238 on the final build |
-| 4-E | Final eval (user's terminal) | ⬜ commands given (D142) | runs `p4-final6-*` from the integration worktree | user | | no merges or rebuilds in the integration worktree while it runs |
+| 4-E | Final eval (user's terminal) | ✅ 660 trials total across PLAN-4 evals, $221.29 | runs `p4-final6-*` | user | `84ed406` | |
+| 4-F | Analysis + REPORT-v4 | ✅ merged | `p4-4f-report` (`274efd6`) + coordinator commit `8ebb635` | subagent | | 3 of 5 §7 bars missed (ergo Opus 18/20, gap 1.63×, Haiku ergo 3/20 vs 6/20); tiers no regression except G-205; D76 passes; GS-14 getters not built |
+| 4-G1 | Close-out: offline guides, missing agent-doc facts, undo `coalesce`, persist plain format | 🟡 running | `p4-4g1-docs` | subagent | | D143 |
+| 4-G2 | Close-out: static SYG405 / grandchild CHILD.select / unregistered driver; 7xx warn under strict (D144); eval starters a11y-clean | 🟡 running | `p4-4g2-checker` | subagent | | |
+| 4-E2 | Targeted re-run: ergo, Opus, both arms (~$15) | ⬜ after 4-G | | user | | D145 |
 | 4-C | Controls migration | ⛔ not needed (D141) | | | | |
 | 3-C | Timers (GS-7) | ✅ merged | `p4-3c-timers` (`6ad12b1`) | subagent | | 0 B core; +579 B per app; driver key `TIMER` by convention (found by `__sygnalStatic`); SYG643 also covers `connections`/`resources`; hidden pages restart timers from scratch; recipe waits for 3-K (SYG102 on TICK) |
 | 3-E | DevTools (GS-10) | ✅ merged | `p4-3e-devtools` (`7fa4c43`) | subagent | | 0 B production; devtools entry 3.9 → 16.5 KB gz (dev-only); Copy as test proven on kanban, todomvc, signup form (`test/copied/`); Redux bridge done (stretch) |
@@ -219,6 +223,11 @@ They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none o
 | D140 | 2026-10-04 | 1-E Haiku repair: `p4-ct1-a-haiku` stopped at 33/60 and `p4-ct1-b-haiku` ran from the integration worktree (build `de5ea2b`, not `ef038e0`). Resume `p4-ct1-a-haiku` and rerun B as `p4-ct1-b-haiku2`, both from the 1-E worktree, so every 1-E run uses one build. `p4-ct1-b-haiku` is excluded from the analysis. 1-E spend ≈ $85 (approved $69 + this). | User | |
 | D141 | 2026-10-04 | **P4-D: controls are an alternative form in 6.0.** They ship fully supported, documented on their own page (`guide/controls`) and on `advanced/alternative-forms`; class selectors stay canonical; no SYG510; no 4-C migration; `--fix --controls` stays opt-in (D113). Docs, examples and agent docs use canonical forms only, so recipes merged with controls (behaviors, element commands, timers, persistence, View Transitions) are rewritten with selectors (4-P). | User | 1-E missed 2 of 4 bars (§7 rule: mixed → alternative) |
 | D142 | 2026-10-04 | 4-E plan: the trimmed one (≈ $106): Sygnal all 29 tasks on Opus; Sygnal tiers 1–3 + ergo on Haiku (no Haiku `ts`/`net`); React ergo on Opus and Haiku; GS-14 A/B on Opus (tasks 03, 10, 29). The GS-14 getters (`t.screen`/`t.user`) are built only if B's `testWindow` is ≥ 10% lower, test-authoring time isn't higher, pass rate isn't lower and B uses Testing Library in ≥ 60% of trials. | User | |
+| D143 | 2026-10-04 | Close the two API gaps the final eval found (helper-only, 0 B core): `undo()` can group only listed actions (`coalesce: [...]`); `persist()` can write a plain format (no `{ version, state }` envelope). | User | REPORT-v4 rec 3 |
+| D144 | 2026-10-04 | a11y (SYG7xx) stays **warn even under `--strict`**; an explicit opt-in (`--a11y=error`, and the matching Vite/diagnostics option) makes it an error; `diagnostics.strict`'s Vite overlay ignores 7xx. Amends D111. | User | REPORT-v4 rec 5 (G-205) |
+| D145 | 2026-10-04 | After 4-G, one targeted re-run: `ergo` on Opus, both arms (~$15). | User | REPORT-v4 rec 7 |
+| D146 | 2026-10-04 | PLAN-4.5 (performance) approved with its recommended answers (P45-Q1…Q6): runs after PLAN-4 closes and before PLAN-5; net ≤ 0 B core; nested JSX prop objects by reference; DOM driver emits from a post-patch hook; hard count gate in `npm test`, timing ratios nightly; ~$30 agent regression eval after P45-D. | User | `dev-plans/PLAN-4.5.md` |
+| D147 | 2026-10-04 | GS-14: the `t.screen`/`t.user` getters are not built (the A/B missed the D142 rule); the Testing Library docs stand alone. The D132 `t.actions` skill line stays. No D76 trim needed. | Coordinator (per D142 rule) | REPORT-v4 |
 
 ## Open questions (PLAN-4 §11)
 
@@ -314,3 +323,4 @@ They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none o
 - 2026-10-04 — 1-E Haiku repaired and complete. 1-E missed 2 of 4 bars → P4-D: alternative form (D141). 4-C not needed. Started 4-P and 4-E prep.
 - 2026-10-04 — Merged 4-P (controls as an alternative form); sygnal-check README `--fix --controls` note updated.
 - 2026-10-04 — Merged 4-E prep; committed the 1-E results (the misplaced `p4-ct1-b-haiku` files moved out of the repo). D142: trimmed 4-E plan; commands handed to the user.
+- 2026-10-04 — 4-E done (all runs complete, clean). 4-F: REPORT-v4 committed (the harness blocked the subagent's file write; the coordinator wrote its text). Perf baseline spike merged (`perf/`, `research/p45-perf-baseline.md`); PLAN-4.5 drafted and approved. D143–D147. Started 4-G1 and 4-G2.
