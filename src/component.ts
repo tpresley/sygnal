@@ -1411,6 +1411,9 @@ class Component {
       fail('SYG411', this, `Collection 'of' is not a component: ${collectionOf}`, 'Use of={ItemComponent}')
     }
 
+    // PLAN-4 PF-1: an item that has an id is passed as is (its identity lets the item's state
+    // source skip it when unchanged); one without gets a copy with its index as the id
+    const keyed = (item: any, index: any) => item[idField] ? item : { ...item, [idField]: index }
     const fieldLense = {
       get: (state: any) => {
         if (!Array.isArray(state[stateField])) return []
@@ -1418,7 +1421,7 @@ class Component {
         const filtered = typeof arrayOperators.filter === 'function' ? items.filter(arrayOperators.filter) : items
         const sorted = typeof arrayOperators.sort === 'function' ? [...filtered].sort(arrayOperators.sort) : filtered
         const mapped = sorted.map((item: any, index: any) => {
-          return (isObj(item)) ? { ...item, [idField]: item[idField] || index } : { value: item, [idField]: index }
+          return (isObj(item)) ? keyed(item, index) : { value: item, [idField]: index }
         })
 
         return mapped
@@ -1428,12 +1431,14 @@ class Component {
           warn('SYG409', this, `Collection tried to update calculated field '${stateField}'; ignored`, 'Bind it to a non-calculated field')
           return oldState
         }
+        // PF-1: one Map by id (filled from the end, so the first match wins, as find() did)
+        const byId = new Map<any, any>(newState.map((item: any) => [item[idField], item]).reverse())
         const updated = []
-        for (const oldItem of oldState[stateField].map((item: any, index: any) => (isObj(item) ? { ...item, [idField]: item[idField] || index } : { __primitive: true, value: item, [idField]: index }))) {
+        for (const oldItem of oldState[stateField].map((item: any, index: any) => (isObj(item) ? keyed(item, index) : { __primitive: true, value: item, [idField]: index }))) {
           if (typeof arrayOperators.filter === 'function' && !arrayOperators.filter(oldItem)) {
             updated.push(oldItem.__primitive ? oldItem.value : oldItem)
           } else {
-            const newItem = newState.find((item: any) => item[idField] === oldItem[idField])
+            const newItem = byId.get(oldItem[idField])
             if (typeof newItem !== 'undefined') updated.push(oldItem.__primitive ? newItem.value : newItem)
           }
         }

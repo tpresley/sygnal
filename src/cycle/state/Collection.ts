@@ -62,14 +62,17 @@ function instanceLens(
   itemKey: ItemKeyFn<any>,
   key: string
 ): Lens<Array<any>, any> {
+  // PLAN-4 PF-1: the scan starts at the item's last index, so the lookup is O(1) while the
+  // order doesn't change (a scan from 0 for each of n items made every state change O(n²))
+  let last = 0;
   return {
     get(arr: Array<any> | undefined): any {
       if (typeof arr === 'undefined') {
         return void 0;
       } else {
-        for (let i = 0, n = arr.length; i < n; ++i) {
-          if (`${itemKey(arr[i], i)}` === key) {
-            return arr[i];
+        for (let j = 0, n = arr.length, i; j < n; ++j) {
+          if (`${itemKey(arr[(i = (j + last) % n)], i)}` === key) {
+            return arr[(last = i)];
           }
         }
         return void 0;
