@@ -6,7 +6,7 @@
 
 **Release:** 6.0.0, together with PLAN-3 (network layer) and PLAN-5 (ecosystem components). It is one major release, held until the user says otherwise (D56): no version bumps, tags, PR to main or publish.
 
-**Status:** in execution (see the tracker). §11 is answered except P4-Q10 (after 1-E); decisions D108–D118. The tracker, [`PLAN-4-status.md`](PLAN-4-status.md), was created early to record PLAN-5's requests (D100–D107). The coordinator completes it in 0-A.
+**Status:** complete (2026-10-04). See the tracker's close-out section and `evals/agent-ergonomics/results/REPORT-v4.md`. Decisions D100–D148. Next: [PLAN-4.5](PLAN-4.5.md) (performance), then PLAN-5. The tracker, [`PLAN-4-status.md`](PLAN-4-status.md), was created early to record PLAN-5's requests (D100–D107). The coordinator completes it in 0-A.
 
 **Inputs (read these; this plan references them rather than repeating them):**
 

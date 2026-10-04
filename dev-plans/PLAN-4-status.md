@@ -9,7 +9,7 @@ Tracks progress for [PLAN-4.md](PLAN-4.md) (controls and core ergonomics). The c
 
 **Integration branch:** `plan4-integration`, cut from `main` at `3214ed9` on 2026-10-03 (worktree `.claude/worktrees/plan-4-execution-7ae8e8`). The release stays held (D56): no version bumps, tags, PR to main or publish.
 
-**State:** Phases 1–3 done and tagged; P4-D decided (D141). 4-E done and REPORT-v4 written. Close-out 4-G1/4-G2 running → 4-E2 re-run → tag `plan4-phase4` and close. Then PLAN-4.5 (D146).
+**State: PLAN-4 complete (2026-10-04).** All phases tagged (`plan4-phase1`…`plan4-phase4`). Next: PLAN-4.5 (performance, D146) on `plan45-integration`, then PLAN-5. The release stays held (D56).
 
 ## Baseline (0-A)
 
@@ -74,7 +74,7 @@ PLAN-3's end-of-Phase-5 figures (40,403 B, 283 lines, 34,343 B) grew with #12 an
 | 4-F | Analysis + REPORT-v4 | ✅ merged | `p4-4f-report` (`274efd6`) + coordinator commit `8ebb635` | subagent | | 3 of 5 §7 bars missed (ergo Opus 18/20, gap 1.63×, Haiku ergo 3/20 vs 6/20); tiers no regression except G-205; D76 passes; GS-14 getters not built |
 | 4-G1 | Close-out: offline guides, missing agent-doc facts, undo `coalesce`, persist plain format | ✅ merged | `p4-4g1-docs` (`d8b2b4f`) | subagent | | 8 guides in `dist/guide/`; SKILL.md 38,882 B after trims (−648 B) and facts; llms.txt 290; 0 B core |
 | 4-G2 | Close-out: static SYG405 / grandchild CHILD.select (SYG129) / unregistered driver (SYG609); 7xx warn under strict (D144); eval starters a11y-clean | ✅ merged | `p4-4g2-checker` (`e1f1261`) | subagent | | retro check: the three static checks flag exactly the 8 known Haiku failures across 280 trials, nothing else; sygnal-check 483 |
-| 4-E2 | Targeted re-run: ergo, Opus, both arms (~$15) | ⬜ commands given | runs `p4-final7-*` from the integration worktree | user | | D145 |
+| 4-E2 | Targeted re-run: ergo, Opus, both arms (~$15) | ✅ ergo Opus **20/20**, gap 1.63× → **1.45×**, learn 19.2 → 9.8 s | `p4-final7-*` | user | `c821969` | REPORT-v4 addendum |
 | 4-C | Controls migration | ⛔ not needed (D141) | | | | |
 | 3-C | Timers (GS-7) | ✅ merged | `p4-3c-timers` (`6ad12b1`) | subagent | | 0 B core; +579 B per app; driver key `TIMER` by convention (found by `__sygnalStatic`); SYG643 also covers `connections`/`resources`; hidden pages restart timers from scratch; recipe waits for 3-K (SYG102 on TICK) |
 | 3-E | DevTools (GS-10) | ✅ merged | `p4-3e-devtools` (`7fa4c43`) | subagent | | 0 B production; devtools entry 3.9 → 16.5 KB gz (dev-only); Copy as test proven on kanban, todomvc, signup form (`test/copied/`); Redux bridge done (stretch) |
@@ -175,6 +175,26 @@ If 1-A finds that any of these can't fit (size, or the pragma path), record it h
 | PLAN-5 (`PLAN-5.md` §4) | SYG140–149, 230–239, 430–439, 660–669, 720–729 |
 
 They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none of these codes exists in `codes.ts` on `main`.
+
+
+## Close-out (2026-10-04)
+
+**Definition of done (§9):** CT-1 and GS-1…GS-11 merged with every gate green, including the tree-shaking, a11y-clean and SSR-determinism gates. GS-12 (form B, D129), GS-13 (D127) and GS-15 (deferred, D132) are decided and implemented where adopted. GS-14 docs are merged and the getters not built (D147). GS-16 numbers are recorded, with PF-1 adopted. P4-D was decided (D141: alternative form), and the alternative-forms page and guide/controls are written. CHANGELOG `[Unreleased]`, ROADMAP and the canonical-forms doc are updated. Agent docs are within the approved budgets, and the D76 check passed. REPORT-v4 is written with the 4-E2 addendum. The release is still held.
+
+**§7 bars, final:** ergo Opus 20/20 ✅ (4-E2); gap 1.45× vs 1.29× ❌ (the remainder is test authoring and context, not docs); Haiku ergo 3/20 vs 6/20 ❌ (n.s.; shared task logic); tiers no regression ✅; task 29 SYG7xx 0 ✅; D76 ✅.
+
+**Remaining budgets for PLAN-4.5 and PLAN-5:**
+
+| Budget | Cap | Used | Left |
+|---|---|---|---|
+| Core, gated kanban | 42,300 B | 41,343 B (PLAN-4 +807 B of its 850 B cap) | **957 B** |
+| `llms.txt` | 315 lines | 290 | 25 |
+| SKILL.md | 38,912 B | 38,882 B | **30 B** (PLAN-5 needs trims or a cap decision) |
+| Eval spend (PLAN-4) | ≈ $206 approved + 4-E2 $15 | ≈ $236 | — |
+
+**Codes used by PLAN-4:** SYG124–129, 222–224, 226, 405 (static added), 422, 609 (static added), 640–645, 701–708; SYG502 retired. Spare: SYG225, 423, 510 (unused, controls not canonical), 646–649, 709–719.
+
+**Open items carried forward:** G-229 (Astro island drivers, 6.x), the GS-15 note (6.x), View Transitions form A (not adopted), the test-authoring gap on ergo (REPORT-v4), the SKILL.md cap.
 
 ## Decisions
 
@@ -326,3 +346,4 @@ They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none o
 - 2026-10-04 — Merged 4-E prep; committed the 1-E results (the misplaced `p4-ct1-b-haiku` files moved out of the repo). D142: trimmed 4-E plan; commands handed to the user.
 - 2026-10-04 — 4-E done (all runs complete, clean). 4-F: REPORT-v4 committed (the harness blocked the subagent's file write; the coordinator wrote its text). Perf baseline spike merged (`perf/`, `research/p45-perf-baseline.md`); PLAN-4.5 drafted and approved. D143–D147. Started 4-G1 and 4-G2.
 - 2026-10-04 — Merged 4-G1 and 4-G2; agent docs and ROADMAP updated for D144. Gates green (vitest 2,367 +1 skipped, browser 177, sygnal-check 483, doc samples 546; 41,343 B). D148. 4-E2 commands handed to the user.
+- 2026-10-04 — 4-E2 re-run done (ergo Opus 20/20, 1.45×). Phase 4 review: small src diff, no findings. **PLAN-4 closed; tagged `plan4-phase4`.** Next: PLAN-4.5.

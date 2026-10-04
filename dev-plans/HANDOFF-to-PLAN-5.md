@@ -87,3 +87,10 @@ Nothing blocks PLAN-4. Two items would help:
 - **D114 forms:** behaviors are a `uses` static (`pager.NEXT` namespacing, D109); `ELEMENT` is built in; persist is a `persist({...})` helper; timers use a registered `makeTimerDriver()`, whose declaration shape B-3 reuses.
 - **D102 caveat:** `spec.commands` is consulted only when the command target is the control itself. A template-string target such as `` `li ${Done}` `` carries no spec.
 - **New code:** SYG128 (duplicate control key) comes from PLAN-4's spare 1xx range.
+
+## PLAN-4 closed; PLAN-4.5 runs before PLAN-5 (2026-10-04)
+
+- PLAN-4 is complete on `plan4-integration` (tags `plan4-phase1`…`4`). Controls are an **alternative form** (D141): write PLAN-5's examples, recipes and components with class selectors in canonical docs; widgets still build on the control spec contract (D101/D116) and are documented on guide/controls.
+- **PLAN-4.5 (performance, `dev-plans/PLAN-4.5.md`, D146)** runs next, on `plan45-integration`. It changes render scheduling (one flush per tick, one patch), per-component wiring, the pragma hot path and the DOM driver's emission (post-patch hook). PLAN-5 rebases onto `plan45-integration` and inherits its count gate (DOM patches, streams per item, unmount timers, retained listeners).
+- Budgets left for PLAN-5 (before PLAN-4.5, whose net target is ≤ 0 B): core **957 B** gated; `llms.txt` 25 lines; SKILL.md **30 B** (cap 38,912 B), so PLAN-5's skill additions need trims or a cap decision.
+- Diagnostic codes PLAN-4 used beyond its §5 reservation: SYG129 (grandchild `CHILD.select`), SYG644 (`defineElement` prop shadows an HTMLElement member), SYG645 (`viewTransitions` without the View Transition driver or not an array); SYG405 and SYG609 gained static rules. PLAN-5's reserved ranges are untouched.
