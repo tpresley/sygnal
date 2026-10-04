@@ -4,7 +4,7 @@
 
 **Release:** part of the held 6.0.0 major (D56), with PLAN-3, PLAN-4 and PLAN-5. Runs **after PLAN-4 closes (4-F) and before PLAN-5**, so PLAN-5's components are built on, and measured against, the faster core. No version bumps, tags, PR to main or publish.
 
-**Status:** draft for the user's review. No code until §8 is answered.
+**Status:** complete (2026-10-04). Approved as D146; tracker `PLAN-4.5-status.md` (close-out section). Next: PLAN-5 rebases onto `plan45-integration`.
 
 **Inputs:**
 

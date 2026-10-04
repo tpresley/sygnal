@@ -6,7 +6,7 @@ Tracks progress for [PLAN-4.5.md](PLAN-4.5.md) (performance). The coordinator ma
 
 **Integration branch:** `plan45-integration`, cut from `plan4-integration` at `eb9f9fe` (tag `plan4-phase4`) on 2026-10-04, in worktree `.claude/worktrees/plan-4-execution-7ae8e8`. The release stays held (D56).
 
-**State:** P45-0, A, B, C, D, R and S merged (net core −153 B). P45-EV running in the user's terminal; P45-R2 running (merge after the eval).
+**State:** complete (2026-10-04), pending the P45-R2 review. See Close-out.
 
 ## Baseline
 
@@ -37,9 +37,9 @@ From `research/p45-perf-baseline.md` (PLAN-4 build `a7efb5d`; `plan4-phase4` has
 | P45-D | Lazy wiring, synchronous teardown + G-255/256 fixes (D151) + dev-only statics freeze (D152) | ✅ merged | `p45-d-lazy` (`a2c2158`) | 2026-10-04 | +132 B (41,273 B; PLAN-4.5 net −70 B). Streams 22/item, unmount setTimeouts 9, heap 0.95 MB. Teardown in `tearDown()` stops one level per macrotask (keeps xstream's restart guard). Freeze in `checks/statics.ts` (0 B core). Limits lowered |
 | P45-R | Phase review fixes (G-257…G-272) | ✅ merged | `p45-r-fixes` (`69bd051`) | 2026-10-04 | +222 B (41,495 B; PLAN-4.5 net **+152 B**, over the ≤ 0 rule → P45-Q10). Counts unchanged. G-257 hold: a pending first-render gate holds the patch (≤ 50 ms) |
 | P45-S | Core size trim, no behaviour change (D157) | ✅ merged | `p45-s-trim` (`7981cde`) | 2026-10-04 | −305 B (41,190 B; PLAN-4.5 net **−153 B**, 1,110 B headroom). Calculated-field setup, EventDelegator, Portal/Suspense/Transition, Collection sort; new `test/p45-s-trim.test.js` pins the rewritten paths |
-| P45-R2 | Review fixes for R+S (G-273…G-281) | 🟠 committed, gates not run | `p45-r2-fixes` (`e528c7e`) | | The agent's install/build was refused by the auto-mode classifier; partial checks only (src vitest: no regressions; tsc). Merge + full gates after P45-EV finishes. Est. +110 B |
-| P45-E | Change detection (only if profiles show it) | ⬜ | | | |
-| P45-EV | Agent regression eval (~$30, user's terminal) | ⬜ | | | after P45-D |
+| P45-R2 | Review fixes for R+S (G-273…G-281) | ✅ merged | `p45-r2-fixes` (`e528c7e`) | 2026-10-04 | +90 B (41,280 B; PLAN-4.5 net −63 B). The agent's install was refused, so the coordinator ran the full gates at merge: all green. G-278 documented (testing guide) |
+| P45-E | Change detection (only if profiles show it) | ⏭ not done | | | Not needed for the met targets; Collection/single select left for PLAN-5 (handoff) |
+| P45-EV | Agent regression eval (~$30, user's terminal) | ✅ no regression | `p45-ev-opus` | 2026-10-04 | 80/80 pass; see Close-out |
 
 ## Decisions
 
@@ -82,15 +82,16 @@ From `research/p45-perf-baseline.md` (PLAN-4 build `a7efb5d`; `plan4-phase4` has
 | G-270 | review D | Low | scheduler | A shared start timer that never fires (`vi.clearAllTimers()`) blocks every later component with that delay | Fixed (P45-R) |
 | G-271 | review D | Low | component.ts | `hub.set` is O(children² × sinks) per render | Fixed (P45-R) |
 | G-272 | review D | Low | component.ts | INITIALIZE timer not cancelled on stop/restart → sent twice | Fixed (P45-R) |
-| G-273 | review R+S | Med | scheduler | A first-render gate timer that never fires (`vi.clearAllTimers()`, timer switch) pins the hold: later patches wait for an unrelated flush. Confirmed | → P45-R2 |
-| G-274 | review R+S | Med | scheduler | The flush-cap counter resets only via one timer; if lost, every later flush is timer-paced; with never-advanced fake timers raw `run()` stops after 99 flushes. Confirmed | → P45-R2 |
-| G-275 | review R+S | Med | diagnostics | D152 freeze still freezes caller-owned objects that sygnal/element and Vike merge into a wrapper's `initialState` (host `arr.push` throws in dev). Confirmed for element | → P45-R2 |
-| G-276 | review R+S | Low/Med | DOM driver | The G-261 poke listener sits on the first root, which the first patch can replace (`#app` mount + `<div id="app">` view) | → P45-R2 |
-| G-277 | review R+S | Low | DOM driver | The `sygnal-dom` poke bubbles past the innermost app root (outer apps re-emit; reaches document) | → P45-R2 |
-| G-278 | review R+S | Low | scheduler/testing | With `vi.useFakeTimers()` and raw `run()`, creating a gated component holds the app's patch until the clock advances | → P45-R2 |
-| G-279 | review R+S | Low | transition | Transition-leave poke can fire before a `style.remove` delayed removal | → P45-R2 |
-| G-280 | review R+S | Low | diagnostics | D152 no longer freezes `component({ … })` option statics | → P45-R2 |
-| G-281 | review R+S | Low | component.ts | Root detection `_r = !sources.__k` depends on the caller's sources object being mutated (`A(sources); B(sources)`) | → P45-R2 |
+| G-273 | review R+S | Med | scheduler | A first-render gate timer that never fires (`vi.clearAllTimers()`, timer switch) pins the hold: later patches wait for an unrelated flush. Confirmed | Fixed (P45-R2) |
+| G-274 | review R+S | Med | scheduler | The flush-cap counter resets only via one timer; if lost, every later flush is timer-paced; with never-advanced fake timers raw `run()` stops after 99 flushes. Confirmed | Fixed (P45-R2) |
+| G-275 | review R+S | Med | diagnostics | D152 freeze still freezes caller-owned objects that sygnal/element and Vike merge into a wrapper's `initialState` (host `arr.push` throws in dev). Confirmed for element | Fixed (P45-R2) |
+| G-276 | review R+S | Low/Med | DOM driver | The G-261 poke listener sits on the first root, which the first patch can replace (`#app` mount + `<div id="app">` view) | Fixed (P45-R2) |
+| G-277 | review R+S | Low | DOM driver | The `sygnal-dom` poke bubbles past the innermost app root (outer apps re-emit; reaches document) | Fixed (P45-R2) |
+| G-278 | review R+S | Low | scheduler/testing | With `vi.useFakeTimers()` and raw `run()`, creating a gated component holds the app's patch until the clock advances | Documented (testing guide, P45-R2) |
+| G-279 | review R+S | Low | transition | Transition-leave poke can fire before a `style.remove` delayed removal | Fixed (P45-R2) |
+| G-280 | review R+S | Low | diagnostics | D152 no longer freezes `component({ … })` option statics | Fixed (P45-R2) |
+| G-281 | review R+S | Low | component.ts | Root detection `_r = !sources.__k` depends on the caller's sources object being mutated (`A(sources); B(sources)`) | Fixed (P45-R2) |
+| G-282 | P45-EV | Low | testing | `renderComponent` has no `props` option and doesn't report unknown options: agents guessed `props:` for a props-only component and got an empty render (task 08; also in PLAN-4) | → PLAN-5 (handoff) |
 | G-251 | P45-0 | Low | docs | `research/p45-perf-baseline.md` still names the old `perf/` paths | Fixed (close-out) |
 
 ## Merge measurements
@@ -104,13 +105,39 @@ From `research/p45-perf-baseline.md` (PLAN-4 build `a7efb5d`; `plan4-phase4` has
 | + P45-D | 41,273 | 16.4× / 2.6× (8.2 ms) | **2.6× (36.8 ms) met** | **1.8× (1.0 ms) met** | **1.8× (1.55 ms) met** | 7.4× (3.7 ms) |
 | + P45-R | 41,495 | 10.5× (7.35 ms) | 2.4× (37.4 ms) | 2.8× (1.7 ms) | 1.8× (1.45 ms) | 4.4× (3.1 ms) |
 | + P45-S | 41,190 | (no runtime change) | | | | |
+| + P45-R2 (final) | 41,280 | 17.1× / 2.9× (8.55 ms) | 3.8× (36.8 ms; React 9.7 ms this run) | **2.4× (0.95 ms) met** | **1.4× (0.85 ms) met** | 6.3× (3.15 ms) |
 
 React's times were 0.65–0.8 ms in the P45-B run (0.5 before), so the P45-B ratios flatter; the absolute Sygnal times in parentheses are the fairer comparison.
 
 Latency is now held up mostly by the per-component 1 ms debounce floor (P45-C); P45-A's gain is in CPU (profile: Collection select busy 338 → 135 ms/run, `patchVnode` 125 → 14 ms).
 
+## Close-out (2026-10-04)
+
+**Counts** (hard gate in `npm test`; `benchmarks/audit/gate.json`):
+
+| Count | Start (PLAN-4) | End |
+|---|---|---|
+| DOM patches: select row / every 10th / leaf 30 deep | 1,001 / 102 / 51 | **1 / 1 / 1** |
+| Streams per Collection item | 151 | **22** |
+| `setTimeout` calls, unmount 1k | 79,013 | **9** |
+| Retained ScopeCheckers after 5×1k | 5,000 | **0** |
+| Heap after 5×1k cycles | 8.76 MB | **0.95 MB** |
+
+**Timing** (warn-only, Sygnal latency; ratio to React varies with React's own 0.4–0.9 ms): keystroke 4.5 → 0.85 ms (met), leaf 30 deep 6.4 → 0.95 ms (met), mount 1k 73 → 37 ms (2.4–3.8×, at the line), single select 8.2 → 3.2 ms (6×, target 4×), Collection select 14.2 → 8.6 ms (17×; CPU ratio 90× → 3×). Left for PLAN-5 (handoff).
+
+**Size:** 41,343 → **41,280 B** gated (net −63 B; the ≤ 0 rule held after the P45-S trim, D157). `extend` dropped as a dependency.
+
+**P45-EV** (`p45-ev-opus`, Opus, Sygnal tiers 1–2 + ergo, 80 trials, ~$26):
+- Pass **80/80** (PLAN-4: 60/60 tiers 1–2, 20/20 ergo). Cost 0.99×, billed tokens 0.95×, iterations 0.89×, peak context flat. Ergo learn 9.8 → 8.1 s.
+- Wall +13% on tiers 1–2 (31.2 → 35.3 s), all in the verify phase (3.5 → 7.1 s) with the same number of test/build/check commands. The median test command moved 1.9 → 2.3 s but the mean 1.8 → 4.7 s: the slow ones cluster at the same wall-clock moments across trials (machine load from the concurrent P45-R2 agent), and the same trials' tests take the same 1.1–1.6 s on either build when re-run. Not a Sygnal regression.
+- Cross-check: every PLAN-4 trial's own final tests (80 suites) pass on the PLAN-4.5 build. 2 of the 80 PLAN-4.5 suites fail on the PLAN-4 build, both because they rely on intended PLAN-4.5 behaviour (DOM updated in the same tick; synchronous timer stop on hide).
+- Extra failed test runs (0.12 → 0.22): task 11/26 tests answering a superseded `latest: true` request (the error message names the fix; the agents corrected in one step; PLAN-4 behaved the same), task 08's `renderComponent(Comp, { props })` (G-282, pre-existing).
+
+**Process notes:** three review rounds (A–C, D, R+S) found 25 issues (G-257…G-281), all fixed or documented; a fourth review covers P45-R2. Subagents shared the scratchpad (G-250: prefix names). The auto-mode classifier refused one agent's worktree install during the eval; the coordinator ran its gates at merge instead.
+
 ## Log
 
+- 2026-10-04 — P45-EV done (80/80; no regression; wall +13% traced to machine load). P45-R2 merged (gates green, 41,280 B). Close-out written; review of R2 running before the tag.
 - 2026-10-04 — P45-R2 committed (`e528c7e`), gates pending (install refused in the agent's session; the coordinator runs them after the eval to avoid loading the machine). D158.
 - 2026-10-04 — Review of R+S: 9 findings (G-273…G-281), 3 confirmed; P45-R2 started on its own branch. P45-S: no behaviour change found.
 - 2026-10-04 — P45-S merged (`7981cde`); all gates green; 41,190 B (net −153 B). D157. G-251 fixed. P45-EV commands handed over; a review of R+S runs on a side branch (not merged while the eval runs).
