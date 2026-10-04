@@ -367,7 +367,9 @@ export function onRenderClient(pageContext: PageContext) {
       const Component = createLayoutWrapper(wrappers, layouts, Page)
 
       try {
-        currentApp = run(Component, config.drivers || {}, { mountPoint: '#page-view', onError: config.sygnalOnError }) as any
+        // 3-B2: `__vike` marks the shell's components (Page, Layouts, Wrappers: sub-components of
+        // the shell root) for the dev entry, whose SYG224 then says persist() isn't supported there
+        currentApp = run(Component, { ...config.drivers, __vike: () => 1 }, { mountPoint: '#page-view', onError: config.sygnalOnError }) as any
       } catch (err: any) {
         console.error('[sygnal/vike] Client render error:', err)
         const container = document.getElementById('page-view')
@@ -388,9 +390,12 @@ export function onRenderClient(pageContext: PageContext) {
     }
 
     let initialState: any
+    // 3-B2: the server's state is here when the page hydrates its HTML
+    let serverState = false
     if (typeof window !== 'undefined' && window.__VIKE_SYGNAL_STATE__ !== undefined) {
       initialState = window.__VIKE_SYGNAL_STATE__
       delete window.__VIKE_SYGNAL_STATE__
+      serverState = true
     } else {
       initialState = { ...(Page.initialState || {}), ...data }
     }
@@ -404,7 +409,11 @@ export function onRenderClient(pageContext: PageContext) {
     }
 
     try {
-      currentApp = run(Page, config.drivers || {}, { mountPoint: '#page-view', onError: config.sygnalOnError }) as any
+      // 3-B2: the Page is the root, so its persist() restores after the first render when this
+      // is a hydration (`__hydrate`), keeping that render equal to the server's HTML. A client-side
+      // navigation isn't one, though the previous page's markup is still in #page-view
+      const hydrating = pageContext.isHydration ?? serverState
+      currentApp = run(Page, { ...config.drivers, __hydrate: () => hydrating }, { mountPoint: '#page-view', onError: config.sygnalOnError }) as any
     } catch (err: any) {
       console.error('[sygnal/vike] Client render error:', err)
       const container = document.getElementById('page-view')

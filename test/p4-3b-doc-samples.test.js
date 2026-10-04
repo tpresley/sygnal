@@ -117,7 +117,7 @@ export const memoryStorage = {
 }
 ` },
 
-  hydrate: { page: 'guide/persistence.md', code: `App.persist = persist({ key: 'app', pick: ['theme'], hydrate: true })
+  hydrate: { page: 'guide/persistence.md', code: `App.persist = persist({ key: 'app', pick: ['theme'] })
 App.initialState = window.__SYGNAL_STATE__ || App.initialState
 
 run(App, {}, { mountPoint: '#app' })

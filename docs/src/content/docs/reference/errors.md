@@ -759,9 +759,9 @@ Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`), `sygnal-
 
 Severity: `error` · Reported by: the dev checks (`sygnal/diagnostics`), `sygnal-check`
 
-`persist({ ... })` is set up by the root component only (the one passed to `run()` or `renderComponent()`): it saves and restores the app's whole state tree, and a sub-component's state is a slice of it. On any other component the `persist` static is ignored, so nothing is saved or restored. The dev entry reports it when the component is created; sygnal-check reports it when a `run()` call in the scanned files renders the component and none has it as its root.
+`persist({ ... })` is set up by the root component only (the one passed to `run()` or `renderComponent()`): it saves and restores the app's whole state tree, and a sub-component's state is a slice of it. On any other component the `persist` static is ignored, so nothing is saved or restored. In Vike, a Page, Layout or Wrapper rendered in the Layout/Wrapper shell is a sub-component (the shell is the app's root), so `persist` isn't supported there yet, and the message says so; a Vike page with no Layout or Wrapper is its own root, where `persist` works. The dev entry reports it when the component is created; sygnal-check reports it when a `run()` call in the scanned files renders the component and none has it as its root.
 
-**Fix:** Move `persist` to the root component and `pick` the key that holds the sub-component's state: `App.persist = persist({ key: 'app', pick: ['todos'] })` for a child rendered with `state="todos"`.
+**Fix:** Move `persist` to the root component and `pick` the key that holds the sub-component's state: `App.persist = persist({ key: 'app', pick: ['todos'] })` for a child rendered with `state="todos"`. In a Vike Layout/Wrapper shell, remove it and save the state yourself (`STATE.watch` writing to `localStorage`, read back in `BOOTSTRAP`).
 
 ### SYG226
 
