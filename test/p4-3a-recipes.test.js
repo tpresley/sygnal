@@ -17,9 +17,7 @@ const here = path.dirname(fileURLToPath(import.meta.url))
 
 export const RECIPES = {
   // ── guide: focus the first invalid field ─────────────────────────────────
-  focusInvalid: `import { controls, ABORT } from 'sygnal'
-
-const { Name, Email, Submit } = controls({ Name: 'input', Email: 'input', Submit: 'button' })
+  focusInvalid: `import { ABORT } from 'sygnal'
 
 const validate = ({ name, email }) => ({
   ...(name.trim() ? {} : { name: 'Enter your name' }),
@@ -29,11 +27,11 @@ const validate = ({ name, email }) => ({
 export function Signup({ state }) {
   return (
     <form>
-      <label>Name <Name value={state.name} /></label>
+      <label>Name <input className="name" value={state.name} /></label>
       {state.errors.name && <p className="error">{state.errors.name}</p>}
-      <label>Email <Email type="email" value={state.email} /></label>
+      <label>Email <input className="email" type="email" value={state.email} /></label>
       {state.errors.email && <p className="error">{state.errors.email}</p>}
-      <Submit type="button">Sign up</Submit>
+      <button className="submit" type="button">Sign up</button>
     </form>
   )
 }
@@ -41,9 +39,9 @@ export function Signup({ state }) {
 Signup.initialState = { name: '', email: '', errors: {} }
 
 Signup.intent = ({ DOM }) => ({
-  NAME: DOM.input(Name).value(),
-  EMAIL: DOM.input(Email).value(),
-  SUBMIT: DOM.click(Submit),
+  NAME: DOM.input('.name').value(),
+  EMAIL: DOM.input('.email').value(),
+  SUBMIT: DOM.click('.submit'),
 })
 
 Signup.model = {
@@ -54,8 +52,8 @@ Signup.model = {
     // runs after the errors have rendered; the first invalid field gets the focus
     ELEMENT: (state) => {
       const errors = validate(state)
-      if (errors.name) return { focus: Name }
-      if (errors.email) return { focus: Email }
+      if (errors.name) return { focus: '.name' }
+      if (errors.email) return { focus: '.email' }
       return ABORT
     },
   },
@@ -63,23 +61,15 @@ Signup.model = {
 `,
 
   // ── guide: a native dialog ───────────────────────────────────────────────
-  dialog: `import { controls } from 'sygnal'
-
-const { HelpDialog, OpenHelp, CloseHelp } = controls({
-  HelpDialog: 'dialog',
-  OpenHelp: 'button',
-  CloseHelp: 'button',
-})
-
-export function Help({ state }) {
+  dialog: `export function Help({ state }) {
   return (
     <div>
-      <OpenHelp>Keyboard shortcuts</OpenHelp>
-      <HelpDialog>
+      <button className="open-help">Keyboard shortcuts</button>
+      <dialog className="help">
         <h2>Keyboard shortcuts</h2>
         <p>Press N for a new card.</p>
-        <CloseHelp>Close</CloseHelp>
-      </HelpDialog>
+        <button className="close-help">Close</button>
+      </dialog>
       <p className="status">{state.status}</p>
     </div>
   )
@@ -88,18 +78,18 @@ export function Help({ state }) {
 Help.initialState = { status: 'Help is closed' }
 
 Help.intent = ({ DOM }) => ({
-  OPEN_HELP: DOM.click(OpenHelp),
-  CLOSE_HELP: DOM.click(CloseHelp),
+  OPEN_HELP: DOM.click('.open-help'),
+  CLOSE_HELP: DOM.click('.close-help'),
   // close doesn't bubble; Sygnal listens on the dialog itself (Escape closes it too)
-  HELP_CLOSED: DOM.close(HelpDialog),
+  HELP_CLOSED: DOM.close('.help'),
 })
 
 Help.model = {
   OPEN_HELP: {
     STATE: (state) => ({ ...state, status: 'Help is open' }),
-    ELEMENT: { showModal: HelpDialog },
+    ELEMENT: { showModal: '.help' },
   },
-  CLOSE_HELP: { ELEMENT: { close: HelpDialog, returnValue: 'done' } },
+  CLOSE_HELP: { ELEMENT: { close: '.help', returnValue: 'done' } },
   HELP_CLOSED: (state) => ({ ...state, status: 'Help is closed' }),
 }
 `,
@@ -124,8 +114,6 @@ afterAll(() => { if (dir) fs.rmSync(dir, { recursive: true, force: true }) })
 let t
 afterEach(() => { try { t?.dispose() } catch (_) {} t = null })
 
-const control = (key) => `[data-control="${key}"]`
-
 describe('the recipes are strict-clean and a11y-clean (sygnal-check --strict)', () => {
   for (const name of Object.keys(RECIPES)) {
     it(name, () => {
@@ -139,29 +127,29 @@ describe('focus the first invalid field', () => {
   it('mock DOM: the command is recorded', async () => {
     t = renderComponent(mods.focusInvalid.Signup)
     await t.ready()
-    t.simulateEvent(control('Name'), 'input', { value: 'Ada' })
+    t.simulateEvent('.name', 'input', { value: 'Ada' })
     await t.next(s => s.name === 'Ada')
-    t.simulateEvent(control('Submit'), 'click')
+    t.simulateEvent('.submit', 'click')
     await t.next(s => !!s.errors.email)
     await t.settle()
-    expect(t.commands('ELEMENT').map(c => Object.keys(c)[0] + ':' + c[Object.keys(c)[0]])).toEqual(['focus:[data-control="Email"]'])
+    expect(t.commands('ELEMENT').map(c => Object.keys(c)[0] + ':' + c[Object.keys(c)[0]])).toEqual(['focus:.email'])
     t.expectNoDiagnostics()
   })
 
   it('real DOM: the first invalid field has the focus, after the errors rendered', async () => {
     t = renderComponent(mods.focusInvalid.Signup, { dom: 'real' })
     await t.ready()
-    t.simulateEvent(control('Submit'), 'click')
+    t.simulateEvent('.submit', 'click')
     await t.next(s => !!s.errors.name)
     await t.settle()
-    expect(document.activeElement).toBe(t.query(control('Name')))
+    expect(document.activeElement).toBe(t.query('.name'))
     expect(t.queryAll('.error').map(p => p.textContent)).toEqual(['Enter your name', 'Enter an email address'])
-    t.simulateEvent(control('Name'), 'input', { value: 'Ada' })
+    t.simulateEvent('.name', 'input', { value: 'Ada' })
     await t.next(s => s.name === 'Ada')
-    t.simulateEvent(control('Submit'), 'click')
+    t.simulateEvent('.submit', 'click')
     await t.next(s => !s.errors.name)
     await t.settle()
-    expect(document.activeElement).toBe(t.query(control('Email')))
+    expect(document.activeElement).toBe(t.query('.email'))
     t.expectNoDiagnostics()
   })
 })
@@ -170,12 +158,12 @@ describe('a native dialog', () => {
   it('mock DOM: showModal and close are recorded; close reaches intent', async () => {
     t = renderComponent(mods.dialog.Help)
     await t.ready()
-    t.simulateEvent(control('OpenHelp'), 'click')
+    t.simulateEvent('.open-help', 'click')
     await t.next(s => s.status === 'Help is open')
-    t.simulateEvent(control('CloseHelp'), 'click')
+    t.simulateEvent('.close-help', 'click')
     await t.settle()
     expect(t.commands('ELEMENT').map(c => Object.keys(c))).toEqual([['showModal'], ['close', 'returnValue']])
-    t.simulateEvent(control('HelpDialog'), 'close')
+    t.simulateEvent('.help', 'close')
     await t.next(s => s.status === 'Help is closed')
     t.expectNoDiagnostics()
   })
@@ -183,12 +171,12 @@ describe('a native dialog', () => {
   it('real DOM: the dialog opens and closes; its close event updates the state', async () => {
     t = renderComponent(mods.dialog.Help, { dom: 'real' })
     await t.ready()
-    const dialog = t.query(control('HelpDialog'))
-    t.simulateEvent(control('OpenHelp'), 'click')
+    const dialog = t.query('.help')
+    t.simulateEvent('.open-help', 'click')
     await t.next(s => s.status === 'Help is open')
     await t.settle()
     expect(dialog.open).toBe(true)
-    t.simulateEvent(control('CloseHelp'), 'click')
+    t.simulateEvent('.close-help', 'click')
     await t.next(s => s.status === 'Help is closed')
     expect(dialog.open).toBe(false)
     expect(dialog.returnValue).toBe('done')

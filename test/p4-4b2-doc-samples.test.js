@@ -31,21 +31,21 @@ export const SAMPLES = {
   ecIntro: { page: 'guide/element-commands.md', lang: 'jsx', code: `Signup.model = {
   SUBMIT: {
     STATE: (state) => ({ ...state, errors: validate(state) }),
-    ELEMENT: (state) => (validate(state).email ? { focus: Email } : ABORT),
+    ELEMENT: (state) => (validate(state).email ? { focus: '.email' } : ABORT),
   },
-  OPEN_HELP: { ELEMENT: { showModal: HelpDialog } },
+  OPEN_HELP: { ELEMENT: { showModal: '.help' } },
 }
 ` },
   ecCommands: { page: 'guide/element-commands.md', lang: 'jsx', code: `Form.model = {
-  EDIT_EMAIL:   { ELEMENT: { focus: Email } },                          // email.focus({})
-  QUIET_FOCUS:  { ELEMENT: { focus: Email, preventScroll: true } },     // email.focus({ preventScroll: true })
-  SHOW_LAST:    { ELEMENT: { scrollIntoView: Row, block: 'nearest' } }, // row.scrollIntoView({ block: 'nearest' })
-  CLOSE_HELP:   { ELEMENT: { close: HelpDialog, returnValue: 'done' } }, // helpDialog.close('done')
+  EDIT_EMAIL:   { ELEMENT: { focus: '.email' } },                          // email.focus({})
+  QUIET_FOCUS:  { ELEMENT: { focus: '.email', preventScroll: true } },     // email.focus({ preventScroll: true })
+  SHOW_LAST:    { ELEMENT: { scrollIntoView: '.row', block: 'nearest' } }, // row.scrollIntoView({ block: 'nearest' })
+  CLOSE_HELP:   { ELEMENT: { close: '.help', returnValue: 'done' } },      // dialog.close('done')
 }
 ` },
   ecArray: { page: 'guide/element-commands.md', lang: 'jsx', code: `Search.model = {
   // put the cursor in the search box and select what is in it
-  EDIT_QUERY: { ELEMENT: [{ focus: Query }, { select: Query }] },
+  EDIT_QUERY: { ELEMENT: [{ focus: '.query' }, { select: '.query' }] },
 }
 ` },
   ecRegistry: { page: 'guide/element-commands.md', lang: 'ts', code: `// sygnal-commands.d.ts
@@ -55,9 +55,7 @@ declare module 'sygnal' {
   interface ElementCommandRegistry { play: {}; showPicker: {} }
 }
 ` },
-  focusInvalid: { page: 'guide/element-commands.md', lang: 'jsx', code: `import { controls, ABORT } from 'sygnal'
-
-const { Name, Email, Submit } = controls({ Name: 'input', Email: 'input', Submit: 'button' })
+  focusInvalid: { page: 'guide/element-commands.md', lang: 'jsx', code: `import { ABORT } from 'sygnal'
 
 const validate = ({ name, email }) => ({
   ...(name.trim() ? {} : { name: 'Enter your name' }),
@@ -67,11 +65,11 @@ const validate = ({ name, email }) => ({
 export function Signup({ state }) {
   return (
     <form>
-      <label>Name <Name value={state.name} /></label>
+      <label>Name <input className="name" value={state.name} /></label>
       {state.errors.name && <p className="error">{state.errors.name}</p>}
-      <label>Email <Email type="email" value={state.email} /></label>
+      <label>Email <input className="email" type="email" value={state.email} /></label>
       {state.errors.email && <p className="error">{state.errors.email}</p>}
-      <Submit type="button">Sign up</Submit>
+      <button className="submit" type="button">Sign up</button>
     </form>
   )
 }
@@ -79,9 +77,9 @@ export function Signup({ state }) {
 Signup.initialState = { name: '', email: '', errors: {} }
 
 Signup.intent = ({ DOM }) => ({
-  NAME: DOM.input(Name).value(),
-  EMAIL: DOM.input(Email).value(),
-  SUBMIT: DOM.click(Submit),
+  NAME: DOM.input('.name').value(),
+  EMAIL: DOM.input('.email').value(),
+  SUBMIT: DOM.click('.submit'),
 })
 
 Signup.model = {
@@ -92,30 +90,22 @@ Signup.model = {
     // runs after the errors have rendered; the first invalid field gets the focus
     ELEMENT: (state) => {
       const errors = validate(state)
-      if (errors.name) return { focus: Name }
-      if (errors.email) return { focus: Email }
+      if (errors.name) return { focus: '.name' }
+      if (errors.email) return { focus: '.email' }
       return ABORT
     },
   },
 }
 ` },
-  dialog: { page: 'guide/element-commands.md', lang: 'jsx', code: `import { controls } from 'sygnal'
-
-const { HelpDialog, OpenHelp, CloseHelp } = controls({
-  HelpDialog: 'dialog',
-  OpenHelp: 'button',
-  CloseHelp: 'button',
-})
-
-export function Help({ state }) {
+  dialog: { page: 'guide/element-commands.md', lang: 'jsx', code: `export function Help({ state }) {
   return (
     <div>
-      <OpenHelp>Keyboard shortcuts</OpenHelp>
-      <HelpDialog>
+      <button className="open-help">Keyboard shortcuts</button>
+      <dialog className="help">
         <h2>Keyboard shortcuts</h2>
         <p>Press N for a new card.</p>
-        <CloseHelp>Close</CloseHelp>
-      </HelpDialog>
+        <button className="close-help">Close</button>
+      </dialog>
       <p className="status">{state.status}</p>
     </div>
   )
@@ -124,38 +114,36 @@ export function Help({ state }) {
 Help.initialState = { status: 'Help is closed' }
 
 Help.intent = ({ DOM }) => ({
-  OPEN_HELP: DOM.click(OpenHelp),
-  CLOSE_HELP: DOM.click(CloseHelp),
+  OPEN_HELP: DOM.click('.open-help'),
+  CLOSE_HELP: DOM.click('.close-help'),
   // close doesn't bubble; Sygnal listens on the dialog itself (Escape closes it too)
-  HELP_CLOSED: DOM.close(HelpDialog),
+  HELP_CLOSED: DOM.close('.help'),
 })
 
 Help.model = {
   OPEN_HELP: {
     STATE: (state) => ({ ...state, status: 'Help is open' }),
-    ELEMENT: { showModal: HelpDialog },
+    ELEMENT: { showModal: '.help' },
   },
-  CLOSE_HELP: { ELEMENT: { close: HelpDialog, returnValue: 'done' } },
+  CLOSE_HELP: { ELEMENT: { close: '.help', returnValue: 'done' } },
   HELP_CLOSED: (state) => ({ ...state, status: 'Help is closed' }),
 }
 ` },
-  scrollRow: { page: 'guide/element-commands.md', lang: 'jsx', code: `import { ABORT, Collection, controls } from 'sygnal'
-
-const { Row, AddTask } = controls({ Row: 'li', AddTask: 'button' })
+  scrollRow: { page: 'guide/element-commands.md', lang: 'jsx', code: `import { ABORT, Collection } from 'sygnal'
 
 function TaskRow({ state }) {
-  return <Row>{state.text}</Row>
+  return <li className="row">{state.text}</li>
 }
 
 TaskRow.model = {
   // only rows added by ADD scroll; the ones there at the start don't
-  BOOTSTRAP: { ELEMENT: (state) => (state.added ? { scrollIntoView: Row, block: 'nearest' } : ABORT) },
+  BOOTSTRAP: { ELEMENT: (state) => (state.added ? { scrollIntoView: '.row', block: 'nearest' } : ABORT) },
 }
 
 export function TaskList() {
   return (
     <div>
-      <AddTask>Add a task</AddTask>
+      <button className="add-task">Add a task</button>
       <ul>
         <Collection of={TaskRow} from="tasks" />
       </ul>
@@ -165,7 +153,7 @@ export function TaskList() {
 
 TaskList.initialState = { tasks: [{ id: 1, text: 'Water the plants' }] }
 
-TaskList.intent = ({ DOM }) => ({ ADD: DOM.click(AddTask) })
+TaskList.intent = ({ DOM }) => ({ ADD: DOM.click('.add-task') })
 
 TaskList.model = {
   ADD: (state) => {
@@ -185,20 +173,19 @@ afterEach(() => t?.dispose())
 it('asks for the focus on the first invalid field', async () => {
   t = renderComponent(Signup)
   await t.ready()
-  t.simulateEvent('[data-control="Submit"]', 'click')
+  t.simulateEvent('.submit', 'click')
   await t.next(s => !!s.errors.name)
   await t.settle()
-  const [command] = t.commands('ELEMENT')
-  expect(String(command.focus)).toBe('[data-control="Name"]')
+  expect(t.commands('ELEMENT')).toEqual([{ focus: '.name' }])
 })
 
 it('moves the focus there (real DOM)', async () => {
   t = renderComponent(Signup, { dom: 'real' })
   await t.ready()
-  t.simulateEvent('[data-control="Submit"]', 'click')
+  t.simulateEvent('.submit', 'click')
   await t.next(s => !!s.errors.name)
   await t.settle()
-  expect(document.activeElement).toBe(t.query('[data-control="Name"]'))
+  expect(document.activeElement).toBe(t.query('.name'))
 })
 ` },
   tIntro: { page: 'guide/timers.md', lang: 'jsx', code: `Stopwatch.timers = (state) => ({
@@ -216,11 +203,7 @@ run(App, { TIMER: makeTimerDriver() })
   frame: state.animating && { frame: 'FRAME' },
 })
 ` },
-  stopwatch: { page: 'guide/timers.md', lang: 'jsx', code: `import { controls } from 'sygnal'
-
-const { Toggle, Lap, Reset } = controls({ Toggle: 'button', Lap: 'button', Reset: 'button' })
-
-const pad = (n) => String(n).padStart(2, '0')
+  stopwatch: { page: 'guide/timers.md', lang: 'jsx', code: `const pad = (n) => String(n).padStart(2, '0')
 const format = (ms) => {
   const tenths = Math.floor(ms / 100)
   return \`\${pad(Math.floor(tenths / 600))}:\${pad(Math.floor(tenths / 10) % 60)}.\${tenths % 10}\`
@@ -234,9 +217,9 @@ export function Stopwatch({ state }) {
   return (
     <section className="stopwatch">
       <p className="time">{format(elapsed(state, state.now))}</p>
-      <Toggle>{label}</Toggle>
-      <Lap disabled={state.status !== 'running'}>Lap</Lap>
-      <Reset disabled={state.status !== 'paused'}>Reset</Reset>
+      <button className="toggle">{label}</button>
+      <button className="lap" disabled={state.status !== 'running'}>Lap</button>
+      <button className="reset" disabled={state.status !== 'paused'}>Reset</button>
       <ol className="laps">
         {state.laps.map((lap, i) => <li>{\`Lap \${i + 1}: \${format(lap)}\`}</li>)}
       </ol>
@@ -250,9 +233,9 @@ Stopwatch.initialState = INITIAL
 // a tick every 100 ms while running; stopped when it pauses, resets or unmounts
 Stopwatch.timers = (state) => ({ tick: state.status === 'running' && { every: 100, action: 'TICK' } })
 Stopwatch.intent = ({ DOM }) => ({
-  TOGGLE: DOM.click(Toggle).map(() => Date.now()),
-  LAP: DOM.click(Lap).map(() => Date.now()),
-  RESET: DOM.click(Reset),
+  TOGGLE: DOM.click('.toggle').map(() => Date.now()),
+  LAP: DOM.click('.lap').map(() => Date.now()),
+  RESET: DOM.click('.reset'),
 })
 Stopwatch.model = {
   TOGGLE: (state, at) => state.status === 'running'
@@ -288,14 +271,14 @@ it('ticks while running and stops when paused', async () => {
   await t.ready()
   expect(t.timers()).toEqual([])
 
-  t.simulateEvent('[data-control="Toggle"]', 'click')
+  t.simulateEvent('.toggle', 'click')
   await t.next(s => s.status === 'running')
   expect(t.timers()).toEqual([{ name: 'tick', every: 100, action: 'TICK', component: 'Stopwatch' }])
 
   await vi.advanceTimersByTimeAsync(1000)
   expect(t.state.now - t.state.since).toBe(1000)
 
-  t.simulateEvent('[data-control="Toggle"]', 'click')
+  t.simulateEvent('.toggle', 'click')
   await t.next(s => s.status === 'paused')
   expect(t.timers()).toEqual([])
 })
@@ -483,7 +466,6 @@ const until = async (cond, what, ms = 3000) => {
     if (Date.now() > end) throw new Error(`timed out waiting for ${what}`)
   }
 }
-const control = (key) => `[data-control="${key}"]`
 const advance = (ms) => vi.advanceTimersByTimeAsync(ms)
 
 // ── the samples are in their docs pages ─────────────────────────────────────
@@ -549,11 +531,10 @@ describe('reference signatures: valid TypeScript, naming real exports', () => {
 
 describe('guide/element-commands', () => {
   it('the intro: focus the invalid email; open the help dialog', async () => {
-    const prelude = `import { ABORT, controls } from 'sygnal'
-const { Email, HelpDialog } = controls({ Email: 'input', HelpDialog: 'dialog' })
+    const prelude = `import { ABORT } from 'sygnal'
 const validate = (state) => (state.email.includes('@') ? {} : { email: 'Enter an email address' })
 function Signup({ state }) {
-  return <div><label>Email <Email value={state.email} /></label><HelpDialog><p>Help</p></HelpDialog></div>
+  return <div><label>Email <input className="email" value={state.email} /></label><dialog className="help"><p>Help</p></dialog></div>
 }
 Signup.initialState = { email: '', errors: {} }
 `
@@ -561,17 +542,15 @@ Signup.initialState = { email: '', errors: {} }
     t = renderComponent(mod.Signup, { dom: 'real' })
     await t.ready()
     t.simulateAction('SUBMIT'); await t.next(s => !!s.errors.email); await t.settle()
-    expect(document.activeElement).toBe(t.query(control('Email')))
+    expect(document.activeElement).toBe(t.query('.email'))
     t.simulateAction('OPEN_HELP'); await t.settle()
-    expect(t.query(control('HelpDialog')).open).toBe(true)
+    expect(t.query('.help').open).toBe(true)
     t.expectNoDiagnostics()
   })
 
   it('the command objects: options as one object; close gets returnValue', async () => {
-    const prelude = `import { controls } from 'sygnal'
-const { Email, Row, HelpDialog } = controls({ Email: 'input', Row: 'li', HelpDialog: 'dialog' })
-function Form() {
-  return <div><label>Email <Email /></label><ul><Row>one</Row></ul><HelpDialog><p>Help</p></HelpDialog></div>
+    const prelude = `function Form() {
+  return <div><label>Email <input className="email" /></label><ul><li className="row">one</li></ul><dialog className="help"><p>Help</p></dialog></div>
 }
 Form.initialState = {}
 `
@@ -583,10 +562,10 @@ Form.initialState = {}
     t.simulateAction('EDIT_EMAIL'); await t.settle()
     t.simulateAction('QUIET_FOCUS'); await t.settle()
     expect(focus.mock.calls).toEqual([[{}], [{ preventScroll: true }]])
-    expect(focus.mock.instances[0]).toBe(t.query(control('Email')))
+    expect(focus.mock.instances[0]).toBe(t.query('.email'))
     t.simulateAction('SHOW_LAST'); await t.settle()
     expect(scroll.mock.calls).toEqual([[{ block: 'nearest' }]])
-    const dialog = t.query(control('HelpDialog'))
+    const dialog = t.query('.help')
     dialog.showModal()
     t.simulateAction('CLOSE_HELP'); await t.settle()
     expect(dialog.open).toBe(false)
@@ -595,16 +574,14 @@ Form.initialState = {}
   })
 
   it('an array: focus, then select the query', async () => {
-    const prelude = `import { controls } from 'sygnal'
-const { Query } = controls({ Query: 'input' })
-function Search({ state }) { return <label>Search <Query value={state.q} /></label> }
+    const prelude = `function Search({ state }) { return <label>Search <input className="query" value={state.q} /></label> }
 Search.initialState = { q: 'sygnal' }
 `
     const { mod } = await load({ 'Search.jsx': prelude + SAMPLES.ecArray.code + '\nexport { Search }\n' }, 'Search.jsx')
     t = renderComponent(mod.Search, { dom: 'real' })
     await t.ready()
     t.simulateAction('EDIT_QUERY'); await t.settle()
-    const q = t.query(control('Query'))
+    const q = t.query('.query')
     expect(document.activeElement).toBe(q)
     expect([q.selectionStart, q.selectionEnd]).toEqual([0, 6])
     expect(t.commands('ELEMENT').map(c => Object.keys(c)[0])).toEqual(['focus', 'select'])
@@ -613,11 +590,9 @@ Search.initialState = { q: 'sygnal' }
   it('ElementCommandRegistry: the augmentation types another method (tsc)', () => {
     const files = {
       'sygnal-commands.d.ts': SAMPLES.ecRegistry.code,
-      'player.tsx': `import { controls } from 'sygnal'
-import type { Component } from 'sygnal'
-const { Player } = controls({ Player: 'video' })
-export const Video: Component<{}> = () => <div><Player /></div>
-Video.model = { PLAY: { ELEMENT: { play: Player } }, PICK: { ELEMENT: { showPicker: '.date' } } }
+      'player.tsx': `import type { Component } from 'sygnal'
+export const Video: Component<{}> = () => <div><video className="player" /></div>
+Video.model = { PLAY: { ELEMENT: { play: '.player' } }, PICK: { ELEMENT: { showPicker: '.date' } } }
 `,
     }
     const base = path.join(dir, 'tsc')
@@ -641,12 +616,12 @@ Video.model = { PLAY: { ELEMENT: { play: Player } }, PICK: { ELEMENT: { showPick
     t = renderComponent(mod.TaskList, { dom: 'real' })
     await t.ready()
     const spy = vi.spyOn(Element.prototype, 'scrollIntoView')
-    t.simulateEvent(control('AddTask'), 'click')
+    t.simulateEvent('.add-task', 'click')
     await t.waitForState(s => s.tasks.length === 2)
     await vi.waitFor(() => expect(spy).toHaveBeenCalledTimes(1))
-    expect(spy.mock.instances[0]).toBe(t.queryAll(control('Row'))[1])
+    expect(spy.mock.instances[0]).toBe(t.queryAll('.row')[1])
     expect(spy.mock.calls[0]).toEqual([{ block: 'nearest' }])
-    expect(t.queryAll(control('Row')).map(r => r.textContent)).toEqual(['Water the plants', 'Task 2'])
+    expect(t.queryAll('.row').map(r => r.textContent)).toEqual(['Water the plants', 'Task 2'])
     await t.settle()
     expect(spy).toHaveBeenCalledTimes(1)
     t.expectNoDiagnostics()

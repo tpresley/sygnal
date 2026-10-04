@@ -64,10 +64,6 @@ When a tick comes very late (a browser throttles timers in a background tab), th
 The stopwatch keeps the clock time it started at and adds up the finished runs, so it is exact however late a tick comes. The tick only moves `now`, which the view reads. It stops when the stopwatch pauses, resets or is removed:
 
 ```jsx
-import { controls } from 'sygnal'
-
-const { Toggle, Lap, Reset } = controls({ Toggle: 'button', Lap: 'button', Reset: 'button' })
-
 const pad = (n) => String(n).padStart(2, '0')
 const format = (ms) => {
   const tenths = Math.floor(ms / 100)
@@ -82,9 +78,9 @@ export function Stopwatch({ state }) {
   return (
     <section className="stopwatch">
       <p className="time">{format(elapsed(state, state.now))}</p>
-      <Toggle>{label}</Toggle>
-      <Lap disabled={state.status !== 'running'}>Lap</Lap>
-      <Reset disabled={state.status !== 'paused'}>Reset</Reset>
+      <button className="toggle">{label}</button>
+      <button className="lap" disabled={state.status !== 'running'}>Lap</button>
+      <button className="reset" disabled={state.status !== 'paused'}>Reset</button>
       <ol className="laps">
         {state.laps.map((lap, i) => <li>{`Lap ${i + 1}: ${format(lap)}`}</li>)}
       </ol>
@@ -98,9 +94,9 @@ Stopwatch.initialState = INITIAL
 // a tick every 100 ms while running; stopped when it pauses, resets or unmounts
 Stopwatch.timers = (state) => ({ tick: state.status === 'running' && { every: 100, action: 'TICK' } })
 Stopwatch.intent = ({ DOM }) => ({
-  TOGGLE: DOM.click(Toggle).map(() => Date.now()),
-  LAP: DOM.click(Lap).map(() => Date.now()),
-  RESET: DOM.click(Reset),
+  TOGGLE: DOM.click('.toggle').map(() => Date.now()),
+  LAP: DOM.click('.lap').map(() => Date.now()),
+  RESET: DOM.click('.reset'),
 })
 Stopwatch.model = {
   TOGGLE: (state, at) => state.status === 'running'
@@ -114,8 +110,6 @@ Stopwatch.model = {
   RESET: () => INITIAL,
 }
 ```
-
-The examples on this page name their elements with controls; see [what a control is](/guide/behaviors/#using-a-behavior).
 
 ## Hidden pages
 
@@ -156,14 +150,14 @@ it('ticks while running and stops when paused', async () => {
   await t.ready()
   expect(t.timers()).toEqual([])
 
-  t.simulateEvent('[data-control="Toggle"]', 'click')
+  t.simulateEvent('.toggle', 'click')
   await t.next(s => s.status === 'running')
   expect(t.timers()).toEqual([{ name: 'tick', every: 100, action: 'TICK', component: 'Stopwatch' }])
 
   await vi.advanceTimersByTimeAsync(1000)
   expect(t.state.now - t.state.since).toBe(1000)
 
-  t.simulateEvent('[data-control="Toggle"]', 'click')
+  t.simulateEvent('.toggle', 'click')
   await t.next(s => s.status === 'paused')
   expect(t.timers()).toEqual([])
 })

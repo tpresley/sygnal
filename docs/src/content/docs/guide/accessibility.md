@@ -53,7 +53,7 @@ Card.intent = ({ DOM }) => ({
 Card.model = { OPEN: (state) => ({ ...state, open: true }) }
 ```
 
-With a control, the same rule applies to its element: `controls({ Card: 'div' })` listened to for clicks is flagged; declare it as `'button'`. An element that contains a button, link or form field isn't flagged, since a click on those bubbles up to the listener.
+The rule applies to a [control](/guide/controls/)'s element too (`controls({ Card: 'div' })` listened to for clicks: declare it as `'button'`). An element that contains a button, link or form field isn't flagged, since a click on those bubbles up to the listener.
 
 ### SYG702: form field without a label
 
