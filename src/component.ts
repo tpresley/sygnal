@@ -1755,8 +1755,7 @@ class Component {
  * preprocessVdom, getComponents). It
  * - stamps the vnodes with the input counter of the state they show (G-146; the DOM modules
  *   read it on form fields),
- * - replaces the Lazy, Portal, Transition and ClientOnly markers (not below a vnode without a
- *   tag, a fragment, as before),
+ * - replaces the Lazy, Portal, Transition and ClientOnly markers (G-256: inside fragments too),
  * - collects the sub-components by path id, not below a component (G-084: its children are its
  *   own; they are stamped and their markers replaced here, as before).
  * A subtree the pragma flagged plain ($p: no component, marker, form field or vnode built
@@ -1771,8 +1770,7 @@ function walkView(root: any, inst: any, nameSet: Set<string>): [any, Record<stri
     if (!vnode || (vnode.$p && !byName)) return vnode
     if (vnode.data) vnode.data.inputSeq = seq
     const sel = vnode.sel, data = vnode.data, children = vnode.children || []
-    pre &&= sel
-    if (pre) {
+    if (pre && sel) {
       const props = data?.props || {}
       const view = props.sygnalOptions?.view
       if (view?.__sygnalLazy) {
@@ -1818,11 +1816,8 @@ function walkView(root: any, inst: any, nameSet: Set<string>): [any, Record<stri
     if (kids) vnode.children = kids
     return vnode
   }
-  // a view that returns the root it returned before: its components were found then (as before)
-  const collect = !root.data?.componentsProcessed
-  const out = walk(root, 'r', collect, 1)
-  if (collect && out?.data && !out.$p) out.data.componentsProcessed = true
-  return [out, found]
+  // G-255: a root returned again is walked again (its components are found again, by the same ids)
+  return [walk(root, 'r', 1, 1), found]
 }
 
 function addComponent(el: any, path: string, componentNameSet: Set<string>, found: Record<string, any>): void {
