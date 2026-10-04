@@ -390,7 +390,9 @@ class Component {
     // G-262: the root is the component that makes the scheduler (not depth 0: a public
     // collection()/switchable() given a root's sources has items at depth 0). G-281: or one given
     // the root's own sources once the root is made (a hand-written main: A(sources); B(sources));
-    // not a peer (given them while the root is being made, before its sinks)
+    // not a peer (given them while the root is being made, before its sinks). G-288 (known gap):
+    // a sibling given a copy of them (isolate(B, 'b')(sources), component({ ..., isolateOpts }))
+    // isn't seen as a root; telling it from a child would need a marker from the caller
     const k = sources.__k
     this._r = !k || k.r.sources == sources && k.r.sinks
     if (!k) (sources.__k = makeScheduler()).r = this
