@@ -104,6 +104,7 @@ function makeDOMDriver(
     // custom element doesn't re-emit the outer app's DOM source)
     let pl: any, cur: any;
     const poke = (e: Event) => pl && (e.stopPropagation(), pl.next(cur));
+    const off = () => cur?.removeEventListener(POKE, poke);
     const rootElement$ = firstRoot$
       .map(
         firstRoot =>
@@ -116,9 +117,10 @@ function makeDOMDriver(
               .drop(1)
               .map(unwrapElementFromVNode)
               .startWith(firstRoot as any)
-              .map((el: any) => (el.addEventListener(POKE, poke), cur = el)),
-            // never completes (nor does the root element)
-            xs.create<any>({start: l => pl = l, stop: () => pl = 0})
+              .map((el: any) => (off(), el.addEventListener(POKE, poke), cur = el)),
+            // never completes (nor does the root element). G-285: the listener moves with the
+            // root and goes when the app stops (a disposed app's driver isn't kept by its root)
+            xs.create<any>({start: l => pl = l, stop: () => (pl = 0, off())})
           )
       )
       .flatten()
