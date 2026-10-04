@@ -45,3 +45,18 @@ dt.configureCopyAsTest({ componentImport: "import App from './App.js'" })
 const disconnect: () => void = connectReduxDevtools(undefined, { name: 'App', filter: a => a.cause !== 'next' })
 
 export { stop, on, cause, before, off, s2, code, done, disconnect }
+
+// G-226: the core's SygnalDevTools (getDevTools() from 'sygnal') has the entry bridge's members,
+// so either one can be used where the other is expected
+import type { SygnalDevTools as EntryDevTools } from 'sygnal/devtools'
+const fromCore = getDevTools()
+if (fromCore) {
+  fromCore.configureCopyAsTest({ componentImport: "import App from './App.jsx'", drivers: { HTTP: 'makeFetchDriver()' }, environment: 'jsdom' })
+  const recorded = fromCore.getSession('App')
+  const finalState: any = recorded.finalState
+  const names: string[] | undefined = recorded.actionNames
+  const asEntry: EntryDevTools = fromCore
+  // @ts-expect-error the options are an object
+  fromCore.configureCopyAsTest('App')
+  void [finalState, names, asEntry]
+}

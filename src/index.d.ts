@@ -1237,6 +1237,56 @@ export interface SygnalDevTools {
    * 'sygnal/diagnostics' dev entry is loaded (it attaches this method); needs diagnostics on.
    */
   inspect?(): InspectGraph
+  /** PLAN-4 3-E (G-226): defaults for "Copy as test" from the extension panel (componentImport, drivers, ...) */
+  configureCopyAsTest(options: DevToolsCopyAsTestOptions): void
+  /**
+   * PLAN-4 3-E (G-226): one instance's recorded session: undefined (the newest root), an
+   * instance id, a component, or run()'s result
+   */
+  getSession(target?: string | number | ((...args: any[]) => any) | { sources: any }): DevToolsSessionRecording
+}
+
+/** "Copy as test" options (the same as CopyAsTestOptions in 'sygnal/devtools') */
+export interface DevToolsCopyAsTestOptions {
+  /** The import line(s) for the component (default: `import <Name> from './<Name>.js'`) */
+  componentImport?: string
+  /** The component's identifier in the test (default: its recorded name) */
+  componentName?: string
+  /** More import lines (drivers, helpers) */
+  imports?: string[]
+  /** Drivers for renderComponent, as source code by sink name: { DND: 'mockDragDriver().driver' } */
+  drivers?: Record<string, string>
+  /** More renderComponent options, as source code: 'strict: true' */
+  renderOptions?: string
+  /** The test's name */
+  testName?: string
+  /** Adds a `// @vitest-environment <env>` first line */
+  environment?: string
+}
+
+export type DevToolsActionCause = 'intent' | 'next' | 'reply' | 'built-in' | 'simulateAction' | 'behavior'
+
+/** One instance's recorded session (the same as SessionRecording in 'sygnal/devtools') */
+export interface DevToolsSessionRecording {
+  version: 1
+  component: string
+  instance: string
+  /** The state when the session started for this instance */
+  initialState?: any
+  /** The component's own initialState (renderComponent's default) */
+  definitionInitialState?: any
+  finalState: any
+  /** The action names the component can be sent (model keys, behavior actions) */
+  actionNames?: string[]
+  /** Source names beyond DOM / EVENTS / STATE / LOG / CHILD / PARENT / READY */
+  drivers: string[]
+  /** Those of `drivers` renderComponent fakes (makeFetchDriver sources) */
+  fakeable: string[]
+  /** The instance's own actions, in order */
+  actions: Array<{ type: string; data: any; cause: DevToolsActionCause; sinks: string[]; at: number; replySink?: string; replyKind?: 'fetch' | 'other'; echo?: true }>
+  /** State changes in descendant instances a replay at this instance can't reproduce */
+  foreign: Array<{ type: string; component: string; instance: string; cause: DevToolsActionCause }>
+  truncated?: boolean
 }
 
 /** The installed DevTools bridge; undefined unless 'sygnal/devtools' was loaded (always in production builds). */
