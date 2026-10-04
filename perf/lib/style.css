@@ -1,0 +1,8 @@
+body { font: 13px system-ui, sans-serif; margin: 8px; }
+.row { display: flex; gap: 8px; padding: 1px 0; }
+.row.danger { background: #fdd; }
+.col-id { width: 50px; }
+.lbl { flex: 1; cursor: pointer; }
+.remove { cursor: pointer; }
+.counter { display: inline-flex; gap: 2px; margin: 1px; }
+.lvl { padding-left: 1px; }

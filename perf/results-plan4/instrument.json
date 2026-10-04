@@ -1,0 +1,98 @@
+{
+  "date": "2026-10-04T08:51:49.970Z",
+  "chromium": "153.0.8010.12",
+  "patches": {
+    "select row (1k Collection)": {
+      "patches": 1001,
+      "streams": 1005,
+      "timeouts": 12,
+      "intervals": 3005
+    },
+    "update every 10th (1k Collection)": {
+      "patches": 102,
+      "streams": 109,
+      "timeouts": 16,
+      "intervals": 304
+    },
+    "select row (1k single component)": {
+      "patches": 1,
+      "streams": 1,
+      "timeouts": 3,
+      "intervals": 2
+    },
+    "update 1 of 1k counters": {
+      "patches": 3,
+      "streams": 9,
+      "timeouts": 15,
+      "intervals": 7
+    },
+    "leaf click, 30 deep": {
+      "patches": 51,
+      "streams": 198,
+      "timeouts": 387,
+      "intervals": 945
+    },
+    "keystroke (1k list)": {
+      "patches": 1,
+      "streams": 1,
+      "timeouts": 3,
+      "intervals": 2
+    }
+  },
+  "mount": {
+    "mount 1k counters": {
+      "patches": 3,
+      "streams": 151008,
+      "timeouts": 1015,
+      "intervals": 4005
+    },
+    "unmount 1k counters": {
+      "patches": 2,
+      "streams": 4,
+      "timeouts": 79013,
+      "intervals": 5
+    },
+    "create 1k Collection rows": {
+      "patches": 3,
+      "streams": 156009,
+      "timeouts": 1016,
+      "intervals": 4005
+    },
+    "clear 1k Collection rows": {
+      "patches": 2,
+      "streams": 5,
+      "timeouts": 89014,
+      "intervals": 5
+    }
+  },
+  "retention": {
+    "counters 5x mount/unmount 1k": {
+      "before": {
+        "Component": 1,
+        "ScopeChecker": 2
+      },
+      "after": {
+        "ScopeChecker": 5002,
+        "Component": 2
+      },
+      "delta": {
+        "Component": 1,
+        "ScopeChecker": 5000
+      }
+    },
+    "Collection table 5x create/clear 1k": {
+      "before": {
+        "Component": 1,
+        "ScopeChecker": 6
+      },
+      "after": {
+        "ScopeChecker": 10006,
+        "Component": 2
+      },
+      "delta": {
+        "Component": 1,
+        "ScopeChecker": 10000
+      }
+    }
+  }
+}

@@ -1,0 +1,1156 @@
+{
+  "date": "2026-10-04T06:05:47.202Z",
+  "iter": 10,
+  "warmup": 3,
+  "chromium": "153.0.8010.12",
+  "speed": {
+    "create 1k rows": {
+      "sygnal": {
+        "latency": 20.25,
+        "cpu": 23.04,
+        "min": 19.4,
+        "samples": [
+          20.3,
+          20.8,
+          22,
+          21.4,
+          20.2,
+          19.6,
+          20.2,
+          20.5,
+          19.4,
+          19.5
+        ],
+        "errors": []
+      },
+      "sygnal (Collection)": {
+        "latency": 128.45,
+        "cpu": 167.16,
+        "min": 124.4,
+        "samples": [
+          128.8,
+          128.9,
+          136.1,
+          128.9,
+          136.1,
+          125.4,
+          128.1,
+          127.4,
+          124.4,
+          125.9
+        ],
+        "errors": []
+      },
+      "react": {
+        "latency": 13.2,
+        "cpu": 18.28,
+        "min": 12.6,
+        "samples": [
+          13.2,
+          13.6,
+          13.1,
+          13.2,
+          12.6,
+          13.1,
+          13.2,
+          13.6,
+          13.3,
+          13.1
+        ],
+        "errors": []
+      },
+      "vue": {
+        "latency": 12.2,
+        "cpu": 17.5,
+        "min": 11.7,
+        "samples": [
+          13.9,
+          13.6,
+          13,
+          12.4,
+          11.9,
+          12,
+          12,
+          11.8,
+          11.7,
+          12.8
+        ],
+        "errors": []
+      }
+    },
+    "replace 1k rows": {
+      "sygnal": {
+        "latency": 21.9,
+        "cpu": 22.7,
+        "min": 20.9,
+        "samples": [
+          22.2,
+          21.8,
+          22,
+          22.3,
+          20.9,
+          22,
+          22,
+          21.1,
+          21.1,
+          21.6
+        ],
+        "errors": []
+      },
+      "sygnal (Collection)": {
+        "latency": 153.3,
+        "cpu": 266.04,
+        "min": 145,
+        "samples": [
+          145,
+          154,
+          228.7,
+          171.3,
+          157.8,
+          152.6,
+          151.1,
+          151.3,
+          155,
+          151.8
+        ],
+        "errors": []
+      },
+      "react": {
+        "latency": 15.95,
+        "cpu": 19.04,
+        "min": 14.9,
+        "samples": [
+          18.2,
+          17.2,
+          16.9,
+          15.3,
+          15.7,
+          16.4,
+          15.3,
+          14.9,
+          15.7,
+          16.2
+        ],
+        "errors": []
+      },
+      "vue": {
+        "latency": 13.55,
+        "cpu": 16.68,
+        "min": 13.3,
+        "samples": [
+          13.8,
+          13.4,
+          13.6,
+          14,
+          13.5,
+          13.4,
+          13.4,
+          13.3,
+          14.3,
+          13.8
+        ],
+        "errors": []
+      }
+    },
+    "update every 10th (1k)": {
+      "sygnal": {
+        "latency": 8.5,
+        "cpu": 7.76,
+        "min": 8.1,
+        "samples": [
+          8.6,
+          8.1,
+          8.8,
+          8.9,
+          9,
+          8.5,
+          8.3,
+          8.4,
+          8.5,
+          8.4
+        ],
+        "errors": []
+      },
+      "sygnal (Collection)": {
+        "latency": 31.1,
+        "cpu": 114.81,
+        "min": 24.5,
+        "samples": [
+          29.1,
+          36.9,
+          32.3,
+          31,
+          33.4,
+          31.2,
+          31.4,
+          24.5,
+          26.1,
+          29
+        ],
+        "errors": []
+      },
+      "react": {
+        "latency": 1.85,
+        "cpu": 3.28,
+        "min": 1.6,
+        "samples": [
+          1.9,
+          1.6,
+          1.8,
+          1.8,
+          2.2,
+          2.2,
+          2.4,
+          2,
+          1.8,
+          1.7
+        ],
+        "errors": []
+      },
+      "vue": {
+        "latency": 1.7,
+        "cpu": 3.04,
+        "min": 1.5,
+        "samples": [
+          1.9,
+          1.6,
+          1.7,
+          1.5,
+          1.9,
+          1.5,
+          1.8,
+          1.8,
+          1.7,
+          1.7
+        ],
+        "errors": []
+      }
+    },
+    "select row (1k)": {
+      "sygnal": {
+        "latency": 7.3,
+        "cpu": 6.34,
+        "min": 6.8,
+        "samples": [
+          7,
+          6.8,
+          7.3,
+          7.6,
+          7.7,
+          7.4,
+          6.9,
+          7.4,
+          7.3,
+          7
+        ],
+        "errors": []
+      },
+      "sygnal (Collection)": {
+        "latency": 31.95,
+        "cpu": 179.03,
+        "min": 29.7,
+        "samples": [
+          40.3,
+          34.2,
+          33.9,
+          30.3,
+          29.7,
+          30.1,
+          31.2,
+          30.3,
+          32.7,
+          39.3
+        ],
+        "errors": []
+      },
+      "react": {
+        "latency": 0.5,
+        "cpu": 1.37,
+        "min": 0.4,
+        "samples": [
+          0.6,
+          0.4,
+          0.5,
+          0.5,
+          0.5,
+          0.5,
+          0.4,
+          0.5,
+          0.4,
+          0.4
+        ],
+        "errors": []
+      },
+      "vue": {
+        "latency": 0.5,
+        "cpu": 1.55,
+        "min": 0.5,
+        "samples": [
+          0.7,
+          0.5,
+          0.5,
+          0.5,
+          0.5,
+          0.5,
+          0.5,
+          0.6,
+          0.5,
+          0.6
+        ],
+        "errors": []
+      }
+    },
+    "swap rows (1k)": {
+      "sygnal": {
+        "latency": 7.2,
+        "cpu": 6.46,
+        "min": 6.9,
+        "samples": [
+          7.5,
+          7.1,
+          7.5,
+          7.2,
+          7.7,
+          6.9,
+          7.2,
+          7.2,
+          7.2,
+          7
+        ],
+        "errors": []
+      },
+      "sygnal (Collection)": {
+        "latency": 19.3,
+        "cpu": 56.61,
+        "min": 17.1,
+        "samples": [
+          19,
+          20.2,
+          20.8,
+          18.6,
+          19,
+          22.4,
+          21,
+          17.1,
+          19.6,
+          18.9
+        ],
+        "errors": []
+      },
+      "react": {
+        "latency": 12.75,
+        "cpu": 15.86,
+        "min": 12.3,
+        "samples": [
+          12.3,
+          12.9,
+          12.6,
+          12.6,
+          12.7,
+          12.8,
+          12.8,
+          13.7,
+          12.4,
+          13.1
+        ],
+        "errors": []
+      },
+      "vue": {
+        "latency": 1.1,
+        "cpu": 2.24,
+        "min": 1,
+        "samples": [
+          1.1,
+          1.1,
+          1.2,
+          1,
+          1,
+          1,
+          1.1,
+          1,
+          1.1,
+          1.3
+        ],
+        "errors": []
+      }
+    },
+    "remove row (1k)": {
+      "sygnal": {
+        "latency": 7.4,
+        "cpu": 8.12,
+        "min": 7.2,
+        "samples": [
+          8.4,
+          7.6,
+          7.5,
+          7.2,
+          7.5,
+          7.4,
+          7.3,
+          7.4,
+          7.2,
+          7.2
+        ],
+        "errors": []
+      },
+      "sygnal (Collection)": {
+        "latency": 25.9,
+        "cpu": 67.17,
+        "min": 22.8,
+        "samples": [
+          25.4,
+          26.9,
+          40.7,
+          35.9,
+          26.4,
+          31,
+          25.1,
+          22.8,
+          24.4,
+          24.1
+        ],
+        "errors": []
+      },
+      "react": {
+        "latency": 1.2,
+        "cpu": 3.8,
+        "min": 1,
+        "samples": [
+          1.2,
+          1.2,
+          1.2,
+          1.1,
+          1.2,
+          1.1,
+          1,
+          1.4,
+          1.2,
+          1.1
+        ],
+        "errors": []
+      },
+      "vue": {
+        "latency": 0.8,
+        "cpu": 3.4,
+        "min": 0.8,
+        "samples": [
+          1,
+          0.8,
+          0.8,
+          0.9,
+          0.8,
+          0.8,
+          0.8,
+          0.8,
+          0.9,
+          0.8
+        ],
+        "errors": []
+      }
+    },
+    "create 10k rows": {
+      "sygnal": {
+        "latency": 179.75,
+        "cpu": 198.5,
+        "min": 177.1,
+        "samples": [
+          180.3,
+          179.2,
+          177.1,
+          193.9
+        ],
+        "errors": []
+      },
+      "sygnal (Collection)": {
+        "latency": 1458.2,
+        "cpu": 1536.35,
+        "min": 1437.1,
+        "samples": [
+          1461.4,
+          1638.6,
+          1455,
+          1437.1
+        ],
+        "errors": []
+      },
+      "react": {
+        "latency": 254.45,
+        "cpu": 274.81,
+        "min": 247.3,
+        "samples": [
+          256.6,
+          288.9,
+          247.3,
+          252.3
+        ],
+        "errors": []
+      },
+      "vue": {
+        "latency": 134.95,
+        "cpu": 155.74,
+        "min": 133.1,
+        "samples": [
+          133.1,
+          137.1,
+          134,
+          135.9
+        ],
+        "errors": []
+      }
+    },
+    "append 1k to 1k": {
+      "sygnal": {
+        "latency": 23.85,
+        "cpu": 24.71,
+        "min": 23.3,
+        "samples": [
+          23.6,
+          24.2,
+          23.6,
+          23.8,
+          23.8,
+          24.1,
+          23.3,
+          23.9,
+          24.2,
+          23.9
+        ],
+        "errors": []
+      },
+      "sygnal (Collection)": {
+        "latency": 170.85,
+        "cpu": 246.07,
+        "min": 160.5,
+        "samples": [
+          162.6,
+          160.5,
+          178.6,
+          163.6,
+          171.8,
+          169.9,
+          163.2,
+          188.7,
+          188.7,
+          181.2
+        ],
+        "errors": []
+      },
+      "react": {
+        "latency": 15.15,
+        "cpu": 18.26,
+        "min": 14,
+        "samples": [
+          14,
+          14.8,
+          15.9,
+          14.8,
+          14.6,
+          15.1,
+          15.4,
+          15.2,
+          15.2,
+          15.2
+        ],
+        "errors": []
+      },
+      "vue": {
+        "latency": 12.85,
+        "cpu": 15.81,
+        "min": 12.6,
+        "samples": [
+          13.9,
+          13.8,
+          12.7,
+          12.6,
+          12.6,
+          13,
+          12.9,
+          12.7,
+          13,
+          12.8
+        ],
+        "errors": []
+      }
+    },
+    "clear 1k rows": {
+      "sygnal": {
+        "latency": 4.85,
+        "cpu": 3.1,
+        "min": 4.7,
+        "samples": [
+          4.7,
+          4.8,
+          4.8,
+          4.9,
+          4.9,
+          4.9,
+          4.7,
+          5.4,
+          5,
+          4.8
+        ],
+        "errors": []
+      },
+      "sygnal (Collection)": {
+        "latency": 9.45,
+        "cpu": 124.24,
+        "min": 8.7,
+        "samples": [
+          10.2,
+          9,
+          8.7,
+          9.8,
+          9.9,
+          9.9,
+          9.1,
+          9.5,
+          9.1,
+          9.4
+        ],
+        "errors": []
+      },
+      "react": {
+        "latency": 2.3,
+        "cpu": 2.78,
+        "min": 2.2,
+        "samples": [
+          2.3,
+          2.2,
+          2.2,
+          2.3,
+          2.4,
+          2.2,
+          2.4,
+          2.2,
+          2.4,
+          2.4
+        ],
+        "errors": []
+      },
+      "vue": {
+        "latency": 1.9,
+        "cpu": 2.25,
+        "min": 1.7,
+        "samples": [
+          1.9,
+          2.2,
+          1.7,
+          2.4,
+          1.8,
+          2,
+          1.7,
+          1.9,
+          1.7,
+          1.9
+        ],
+        "errors": []
+      }
+    },
+    "clear 1k after a select": {
+      "sygnal": {
+        "latency": 5.1,
+        "cpu": 3.55,
+        "min": 4.9,
+        "samples": [
+          5.7,
+          5.1,
+          5.1,
+          5.2,
+          4.9
+        ],
+        "errors": []
+      },
+      "sygnal (Collection)": {
+        "latency": 422.5,
+        "cpu": 539.77,
+        "min": 416.3,
+        "samples": [
+          416.3,
+          431,
+          422.5,
+          425.8,
+          417.9
+        ],
+        "errors": []
+      },
+      "react": {
+        "latency": 3,
+        "cpu": 3.63,
+        "min": 2.8,
+        "samples": [
+          3,
+          3.8,
+          2.8,
+          3,
+          2.8
+        ],
+        "errors": []
+      },
+      "vue": {
+        "latency": 2.3,
+        "cpu": 3.01,
+        "min": 2.1,
+        "samples": [
+          2.1,
+          2.3,
+          2.5,
+          2.1,
+          2.4
+        ],
+        "errors": []
+      }
+    },
+    "select row (10k)": {
+      "sygnal": {
+        "latency": 44.1,
+        "cpu": 46.32,
+        "min": 43.5,
+        "samples": [
+          43.9,
+          43.5,
+          44.8,
+          44.3
+        ],
+        "errors": []
+      },
+      "sygnal (Collection)": {
+        "latency": 137.2,
+        "cpu": 283.15,
+        "min": 132.6,
+        "samples": [
+          157.1,
+          135.3,
+          139.1,
+          132.6
+        ],
+        "errors": []
+      },
+      "react": {
+        "latency": 4,
+        "cpu": 7.56,
+        "min": 4,
+        "samples": [
+          4,
+          4,
+          4,
+          4.1
+        ],
+        "errors": []
+      },
+      "vue": {
+        "latency": 7.4,
+        "cpu": 11.61,
+        "min": 7.4,
+        "samples": [
+          7.5,
+          7.4,
+          7.4,
+          7.4
+        ],
+        "errors": []
+      }
+    },
+    "mount 1k components": {
+      "sygnal": {
+        "latency": 97.15,
+        "cpu": 141.6,
+        "min": 93.4,
+        "samples": [
+          94.3,
+          93.4,
+          96.5,
+          97.2,
+          97,
+          103.2,
+          100.8,
+          100.4,
+          100.6,
+          97.1
+        ],
+        "errors": []
+      },
+      "react": {
+        "latency": 9.3,
+        "cpu": 15.34,
+        "min": 9.2,
+        "samples": [
+          9.3,
+          9.6,
+          9.5,
+          9.5,
+          9.4,
+          9.3,
+          9.2,
+          9.3,
+          9.2,
+          9.2
+        ],
+        "errors": []
+      },
+      "vue": {
+        "latency": 8.95,
+        "cpu": 15.24,
+        "min": 8.8,
+        "samples": [
+          8.9,
+          8.8,
+          9.1,
+          9,
+          8.9,
+          9,
+          8.8,
+          9,
+          9,
+          8.9
+        ],
+        "errors": []
+      }
+    },
+    "update 1 of 1k": {
+      "sygnal": {
+        "latency": 13.25,
+        "cpu": 13.56,
+        "min": 12.8,
+        "samples": [
+          13.2,
+          14.2,
+          13.3,
+          13.2,
+          12.9,
+          14.1,
+          13.3,
+          12.8,
+          13.1,
+          14.2
+        ],
+        "errors": []
+      },
+      "react": {
+        "latency": 0.8,
+        "cpu": 2.81,
+        "min": 0.6,
+        "samples": [
+          1.1,
+          0.6,
+          0.6,
+          0.8,
+          1,
+          0.9,
+          1,
+          0.6,
+          0.7,
+          0.8
+        ],
+        "errors": []
+      },
+      "vue": {
+        "latency": 0.55,
+        "cpu": 2.56,
+        "min": 0.4,
+        "samples": [
+          0.7,
+          1.4,
+          0.6,
+          0.5,
+          0.6,
+          0.5,
+          0.6,
+          0.5,
+          0.5,
+          0.4
+        ],
+        "errors": []
+      }
+    },
+    "unmount 1k components": {
+      "sygnal": {
+        "latency": 9,
+        "cpu": 125.82,
+        "min": 8.5,
+        "samples": [
+          8.6,
+          8.5,
+          9,
+          9.3,
+          9.2,
+          9,
+          9.3,
+          8.8,
+          8.8,
+          9.4
+        ],
+        "errors": []
+      },
+      "react": {
+        "latency": 2.1,
+        "cpu": 2.79,
+        "min": 1.9,
+        "samples": [
+          2.1,
+          2.1,
+          2,
+          2.1,
+          1.9,
+          2.2,
+          2,
+          2.1,
+          2.4,
+          2.1
+        ],
+        "errors": []
+      },
+      "vue": {
+        "latency": 2.15,
+        "cpu": 2.86,
+        "min": 1.9,
+        "samples": [
+          2.3,
+          2.3,
+          2.1,
+          2.7,
+          1.9,
+          2,
+          2.2,
+          2.1,
+          2.1,
+          2.4
+        ],
+        "errors": []
+      }
+    },
+    "leaf update, 30 deep": {
+      "sygnal": {
+        "latency": 5.75,
+        "cpu": 18.99,
+        "min": 5.6,
+        "samples": [
+          5.8,
+          6.3,
+          5.7,
+          5.7,
+          6.3,
+          6.2,
+          5.7,
+          5.7,
+          5.6,
+          5.8
+        ],
+        "errors": []
+      },
+      "react": {
+        "latency": 0.35,
+        "cpu": 0.71,
+        "min": 0.1,
+        "samples": [
+          0.4,
+          0.5,
+          0.4,
+          0.3,
+          0.5,
+          0.3,
+          0.3,
+          0.1,
+          0.3,
+          0.4
+        ],
+        "errors": []
+      },
+      "vue": {
+        "latency": 0.4,
+        "cpu": 0.76,
+        "min": 0.2,
+        "samples": [
+          0.5,
+          0.4,
+          0.5,
+          0.4,
+          0.4,
+          0.7,
+          0.3,
+          0.4,
+          0.3,
+          0.2
+        ],
+        "errors": []
+      }
+    },
+    "keystroke (1k list)": {
+      "sygnal": {
+        "latency": 4.35,
+        "cpu": 2.66,
+        "min": 3.6,
+        "samples": [
+          4.5,
+          3.6,
+          4.4,
+          4.5,
+          4.4,
+          4.3,
+          4.3,
+          4.1,
+          4.2,
+          4.9
+        ],
+        "errors": []
+      },
+      "react": {
+        "latency": 0.4,
+        "cpu": 1.41,
+        "min": 0.4,
+        "samples": [
+          0.4,
+          0.4,
+          0.4,
+          0.8,
+          0.6,
+          0.4,
+          0.5,
+          0.6,
+          0.4,
+          0.4
+        ],
+        "errors": []
+      },
+      "vue": {
+        "latency": 0.4,
+        "cpu": 1.34,
+        "min": 0.3,
+        "samples": [
+          0.4,
+          0.4,
+          0.5,
+          0.8,
+          0.4,
+          0.4,
+          0.4,
+          0.6,
+          0.3,
+          0.4
+        ],
+        "errors": []
+      }
+    }
+  },
+  "memory": {
+    "sygnal": {
+      "sygnal": {
+        "ready": {
+          "heapMB": 1.55,
+          "domNodes": 34
+        },
+        "1k rows": {
+          "heapMB": 2.4,
+          "domNodes": 7034
+        },
+        "10k rows": {
+          "heapMB": 9.12,
+          "domNodes": 70034
+        },
+        "after 5x create/clear": {
+          "heapMB": 1.89,
+          "domNodes": 34
+        }
+      },
+      "sygnal (Collection)": {
+        "ready": {
+          "heapMB": 1.62,
+          "domNodes": 34
+        },
+        "1k rows": {
+          "heapMB": 32.73,
+          "domNodes": 7034
+        },
+        "10k rows": {
+          "heapMB": 329.76,
+          "domNodes": 77034
+        },
+        "after 5x create/clear": {
+          "heapMB": 27.63,
+          "domNodes": 41
+        }
+      },
+      "sygnal counters": {
+        "ready": {
+          "heapMB": 1.54,
+          "domNodes": 25
+        },
+        "1k components": {
+          "heapMB": 30.29,
+          "domNodes": 5025
+        },
+        "after 6x mount/unmount": {
+          "heapMB": 6.33,
+          "domNodes": 30
+        }
+      }
+    },
+    "react": {
+      "react": {
+        "ready": {
+          "heapMB": 1.54,
+          "domNodes": 34
+        },
+        "1k rows": {
+          "heapMB": 2.9,
+          "domNodes": 7034
+        },
+        "10k rows": {
+          "heapMB": 12.52,
+          "domNodes": 70034
+        },
+        "after 5x create/clear": {
+          "heapMB": 2.32,
+          "domNodes": 34
+        }
+      },
+      "react counters": {
+        "ready": {
+          "heapMB": 1.45,
+          "domNodes": 25
+        },
+        "1k components": {
+          "heapMB": 2.66,
+          "domNodes": 5025
+        },
+        "after 6x mount/unmount": {
+          "heapMB": 2.21,
+          "domNodes": 25
+        }
+      }
+    },
+    "vue": {
+      "vue": {
+        "ready": {
+          "heapMB": 1.32,
+          "domNodes": 36
+        },
+        "1k rows": {
+          "heapMB": 2.64,
+          "domNodes": 7036
+        },
+        "10k rows": {
+          "heapMB": 12.4,
+          "domNodes": 70036
+        },
+        "after 5x create/clear": {
+          "heapMB": 1.64,
+          "domNodes": 36
+        }
+      },
+      "vue counters": {
+        "ready": {
+          "heapMB": 1.29,
+          "domNodes": 27
+        },
+        "1k components": {
+          "heapMB": 3.69,
+          "domNodes": 5027
+        },
+        "after 6x mount/unmount": {
+          "heapMB": 1.91,
+          "domNodes": 27
+        }
+      }
+    }
+  }
+}

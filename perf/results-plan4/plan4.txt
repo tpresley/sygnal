@@ -1,0 +1,67 @@
+create 1k rows             sygnal               latency      20.5 ms   cpu     22.76 ms
+create 1k rows             sygnal (Collection)  latency     137.4 ms   cpu    180.57 ms
+create 1k rows             react                latency     13.55 ms   cpu      18.8 ms
+create 1k rows             vue                  latency     12.75 ms   cpu     17.53 ms
+replace 1k rows            sygnal               latency      23.3 ms   cpu     24.56 ms
+replace 1k rows            sygnal (Collection)  latency     187.7 ms   cpu    297.38 ms
+replace 1k rows            react                latency      17.8 ms   cpu     21.18 ms
+replace 1k rows            vue                  latency      15.5 ms   cpu     18.85 ms
+update every 10th (1k)     sygnal               latency      8.15 ms   cpu       7.4 ms
+update every 10th (1k)     sygnal (Collection)  latency     26.95 ms   cpu    107.43 ms
+update every 10th (1k)     react                latency       1.9 ms   cpu      3.24 ms
+update every 10th (1k)     vue                  latency       1.9 ms   cpu      3.43 ms
+select row (1k)            sygnal               latency       7.1 ms   cpu      6.11 ms
+select row (1k)            sygnal (Collection)  latency     38.45 ms   cpu    184.84 ms
+select row (1k)            react                latency      0.55 ms   cpu      1.64 ms
+select row (1k)            vue                  latency       0.5 ms   cpu      1.57 ms
+swap rows (1k)             sygnal               latency       7.8 ms   cpu      7.21 ms
+swap rows (1k)             sygnal (Collection)  latency      23.3 ms   cpu     68.74 ms
+swap rows (1k)             react                latency      13.2 ms   cpu     16.49 ms
+swap rows (1k)             vue                  latency       1.3 ms   cpu      2.65 ms
+remove row (1k)            sygnal               latency       7.9 ms   cpu      8.81 ms
+remove row (1k)            sygnal (Collection)  latency      26.2 ms   cpu     69.41 ms
+remove row (1k)            react                latency      1.35 ms   cpu      4.19 ms
+remove row (1k)            vue                  latency         1 ms   cpu      3.99 ms
+create 10k rows            sygnal               latency    195.65 ms   cpu    217.29 ms
+create 10k rows            sygnal (Collection)  latency   1493.95 ms   cpu   1527.16 ms
+create 10k rows            react                latency     273.1 ms   cpu    294.81 ms
+create 10k rows            vue                  latency    141.65 ms   cpu     163.8 ms
+append 1k to 1k            sygnal               latency      24.4 ms   cpu      25.1 ms
+append 1k to 1k            sygnal (Collection)  latency    187.85 ms   cpu    277.51 ms
+append 1k to 1k            react                latency        14 ms   cpu     16.93 ms
+append 1k to 1k            vue                  latency     14.55 ms   cpu     17.71 ms
+clear 1k rows              sygnal               latency       5.2 ms   cpu      3.54 ms
+clear 1k rows              sygnal (Collection)  latency      10.6 ms   cpu    130.95 ms
+clear 1k rows              react                latency       2.7 ms   cpu      3.11 ms
+clear 1k rows              vue                  latency       2.1 ms   cpu      2.59 ms
+clear 1k after a select    sygnal               latency       5.5 ms   cpu      3.91 ms
+clear 1k after a select    sygnal (Collection)  latency       461 ms   cpu    585.52 ms
+clear 1k after a select    react                latency       3.4 ms   cpu      4.17 ms
+clear 1k after a select    vue                  latency       2.2 ms   cpu      2.94 ms
+select row (10k)           sygnal               latency     46.15 ms   cpu     47.87 ms
+select row (10k)           sygnal (Collection)  latency    144.25 ms   cpu    291.01 ms
+select row (10k)           react                latency       4.3 ms   cpu      7.96 ms
+select row (10k)           vue                  latency      8.05 ms   cpu     12.72 ms
+mount 1k components        sygnal               latency       110 ms   cpu    157.44 ms
+mount 1k components        react                latency       9.7 ms   cpu     16.06 ms
+mount 1k components        vue                  latency      9.75 ms   cpu     16.51 ms
+update 1 of 1k             sygnal               latency      7.95 ms   cpu      7.32 ms
+update 1 of 1k             react                latency       0.8 ms   cpu      2.86 ms
+update 1 of 1k             vue                  latency      0.55 ms   cpu       2.5 ms
+unmount 1k components      sygnal               latency       9.9 ms   cpu    127.96 ms
+unmount 1k components      react                latency         2 ms   cpu       2.7 ms
+unmount 1k components      vue                  latency      2.15 ms   cpu      2.82 ms
+leaf update, 30 deep       sygnal               latency       5.9 ms   cpu     18.26 ms
+leaf update, 30 deep       react                latency       0.4 ms   cpu      0.75 ms
+leaf update, 30 deep       vue                  latency       0.4 ms   cpu       0.8 ms
+keystroke (1k list)        sygnal               latency      4.35 ms   cpu      2.85 ms
+keystroke (1k list)        react                latency       0.5 ms   cpu       1.3 ms
+keystroke (1k list)        vue                  latency       0.4 ms   cpu      1.23 ms
+memory sygnal                 ready: 1.56 MB / 34 nodes  |  1k rows: 2.4 MB / 7034 nodes  |  10k rows: 9.12 MB / 70034 nodes  |  after 5x create/clear: 1.9 MB / 34 nodes
+memory sygnal (Collection)    ready: 1.63 MB / 34 nodes  |  1k rows: 34.4 MB / 7034 nodes  |  10k rows: 347.79 MB / 77034 nodes  |  after 5x create/clear: 49.42 MB / 7041 nodes
+memory sygnal counters        ready: 1.54 MB / 25 nodes  |  1k components: 31.94 MB / 5025 nodes  |  after 6x mount/unmount: 6.33 MB / 30 nodes
+memory react                  ready: 1.54 MB / 34 nodes  |  1k rows: 2.9 MB / 7034 nodes  |  10k rows: 12.52 MB / 70034 nodes  |  after 5x create/clear: 2.32 MB / 34 nodes
+memory react counters         ready: 1.45 MB / 25 nodes  |  1k components: 2.66 MB / 5025 nodes  |  after 6x mount/unmount: 2.21 MB / 25 nodes
+memory vue                    ready: 1.32 MB / 36 nodes  |  1k rows: 2.64 MB / 7036 nodes  |  10k rows: 12.4 MB / 70036 nodes  |  after 5x create/clear: 1.64 MB / 36 nodes
+memory vue counters           ready: 1.29 MB / 27 nodes  |  1k components: 3.69 MB / 5027 nodes  |  after 6x mount/unmount: 1.91 MB / 27 nodes
+wrote results/plan4.json
