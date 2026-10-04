@@ -17,6 +17,7 @@
 //
 // Separate entry: rollup rewrites './index' to the external 'sygnal' (0 B in the core bundle).
 import {run} from './index';
+import {owned} from './extra/owned';
 
 export type ElementPropType =
   | StringConstructor
@@ -194,9 +195,10 @@ export function defineElement(tag: string, Component: any, options: ElementOptio
     }
 
     // A per-instance copy of the component whose initialState includes the current props
+    // (owned: the dev statics freeze leaves the host's values alone, G-275)
     #component() {
       const wrapped = Object.assign((...args: any[]) => Component(...args), Component, {
-        initialState: {...Component.initialState, ...this.#props},
+        initialState: owned({...Component.initialState, ...this.#props}),
       });
       return Object.defineProperty(wrapped, 'name', {value: Component.name || tag});
     }

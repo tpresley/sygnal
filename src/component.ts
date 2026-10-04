@@ -221,6 +221,7 @@ class Component {
   declare _f: number;
   declare _i: any;
   declare _r: boolean;
+  declare _o: ComponentOptions;
   _go!: () => any;
 
   constructor({name = 'NO NAME', sources, intent, model, hmrActions, context, view, peers = {}, components = {}, initialState, calculated, storeCalculatedInState = true, DOMSourceName = 'DOM', stateSourceName = 'STATE', isolatedState = false, onError, debug = false}: ComponentOptions) {
@@ -228,7 +229,8 @@ class Component {
 
     this._componentNumber = COMPONENT_COUNT++
 
-    Object.assign(this, { name, sources, intent, model, hmrActions, context, view, peers, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, sourceNames: Object.keys(sources), onError, isolatedState, _debug: debug })
+    // _o: the options as given (the dev statics freeze reads it, G-280)
+    Object.assign(this, { name, sources, intent, model, hmrActions, context, view, peers, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, sourceNames: Object.keys(sources), onError, isolatedState, _debug: debug, _o: arguments[0] })
 
     // Normalize calculated entries, build dependency graph, topological sort
     if (this.calculated && isObj(this.calculated)) {
