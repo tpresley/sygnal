@@ -2,17 +2,17 @@ import xs, {Stream, InternalListener, OutSender, Operator, NO} from 'xstream';
 import {InternalInstances} from './types';
 
 // G-213: an item that moves to another Collection is a new instance there, which renders a few
-// ms after its old Collection has dropped it; showing the drop in that gap paints a page without
-// the item. One action's state reaches each Collection in its own task (their debounces), so a
-// batch is the run of Collection updates until a task (re-armed by each) passes without one:
-// - fresh: the batch's new items that haven't rendered yet
-// - rm: the batch's Collections that showed a removal
-// - later: Collections whose removal waits for the fresh items (at most 100 ms)
-// A removal while a fresh item is pending waits; a removal shown earlier in the batch is shown
-// undone (the parent hasn't patched yet: its debounce comes after these tasks) once a new item
-// appears. A plain delete, or an item rendering late in an unrelated batch, doesn't wait.
-const fresh = new Set<any>(), rm = new Set<any>(), later = new Set<any>();
-let cap: any, T: any;
+// ms after its old Collection has dropped it; a page patched in that gap (the DOM patches as soon
+// as the old Collection emits) paints without the item. One action's state reaches each
+// Collection in its own debounce task, so:
+// - fresh: new items not rendered yet, created in the current batch (the run of new items until a
+//   task passes without one; then forgotten, unless a removal waits for them)
+// - a removal while a fresh item is pending waits for it (later; at most 100 ms)
+// - else, with another Collection alive (live > 1), the removal is checked again a task later,
+//   once the other Collections have had this action's state (the Collection it moved to has
+//   created its new item by then); with one Collection (a plain list) it is emitted at once
+const fresh = new Set<any>(), later = new Set<any>();
+let cap: any, T: any, live = 0;
 const flush = () => {
   clearTimeout(cap);
   cap = 0;
@@ -21,14 +21,9 @@ const flush = () => {
 };
 const batch = () => {
   clearTimeout(T);
-  T = setTimeout(() => (rm.clear(), later.size || fresh.clear()), 1);
+  T = setTimeout(() => later.size || fresh.clear(), 1);
 };
-const hold = (p: any) => {
-  rm.delete(p);
-  p.inst && p.v != p.w && p.out._n(p.w = p.v);
-  later.add(p);
-  cap = cap || setTimeout(flush, 100);
-};
+const hold = (p: any) => (later.add(p), cap = cap || setTimeout(flush, 100));
 // an item listener's end (its item was removed, or the Collection stopped)
 const drop = (il: any) => {
   fresh.delete(il);
@@ -74,9 +69,6 @@ class PickCombine<Si, R> implements Operator<InternalInstances<Si>, Array<R>> {
   public sel: string;
   public ils: Map<string, PickCombineListener<Si, R>>;
   public inst!: InternalInstances<Si>;
-  // G-213: the last array emitted (w), and the one before this batch's removal (v)
-  public w: any;
-  public v: any;
 
   constructor(sel: string, ins: Stream<InternalInstances<Si>>) {
     this.ins = ins;
@@ -85,11 +77,13 @@ class PickCombine<Si, R> implements Operator<InternalInstances<Si>, Array<R>> {
   }
 
   public _start(out: Stream<Array<R>>): void {
+    live++;
     this.out = out;
     this.ins._add(this);
   }
 
   public _stop(): void {
+    live--;
     this.ins._remove(this);
     this.ils.forEach(drop);
     this.ils.clear();
@@ -103,7 +97,7 @@ class PickCombine<Si, R> implements Operator<InternalInstances<Si>, Array<R>> {
       if (!il || il.val === NO) return;
       outArr[i] = il.val;
     }
-    this.out._n(this.w = outArr);
+    this.out._n(outArr);
   }
 
   public _n(inst: InternalInstances<Si>): void {
@@ -135,15 +129,13 @@ class PickCombine<Si, R> implements Operator<InternalInstances<Si>, Array<R>> {
     // emit, so re-emit when the items present before and after are in a different order. up()
     // waits until every item has emitted, so a brand new item still triggers its own emission.
     const reordered = prev?.arr.filter((s: any) => dict.has(s._key)).some((s: any, i) => s._key != kept[i]);
-    // G-213: a removal is shown at once (as is an emptied list), unless a new item of this batch
-    // is still to render; then it waits (hold), as does a removal shown earlier in the batch
+    // G-213 (see the top): a held removal is emitted by flush
+    if (later.has(this)) return;
     if (removed) {
-      this.v = this.w;
-      rm.add(this);
-      batch();
+      if (fresh.size) return hold(this);
+      if (live > 1) return setTimeout(() => this.inst && (fresh.size ? hold(this) : this.up()), 1) as any;
     }
-    fresh.size && rm.forEach(hold);
-    later.has(this) || (removed || reordered || !inst.arr.length) && this.up();
+    if (removed || reordered || !inst.arr.length) this.up();
   }
 
   public _e(e: any): void {

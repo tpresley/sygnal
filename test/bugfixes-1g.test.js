@@ -28,12 +28,21 @@ afterEach(() => {
 describe('B-010: pickCombine follows a permutation of the instances', () => {
   const item = (key) => ({ _key: key, DOM: xs.of(key).remember() })
   const inst = (items) => ({ dict: new Map(items.map(i => [i._key, i])), arr: items })
+  // G-213 (3-R): a removal is emitted at once only while its Collection is the only one alive, so
+  // each test stops its combine (xstream stops a stream a task after its last listener leaves)
+  let stops = []
+  const watch = (inst$, out) => {
+    const s = inst$.compose(pickCombine('DOM')), l = { next: v => out.push(v.join('')) }
+    s.addListener(l)
+    stops.push(() => s.removeListener(l))
+  }
+  afterEach(async () => { stops.forEach(f => f()); stops = []; await settle(5) })
 
   it('emits the new order for swap, reverse and move without any item emission', () => {
     const a = item('a'), b = item('b'), c = item('c')
     const inst$ = xs.create()
     const out = []
-    inst$.compose(pickCombine('DOM')).addListener({ next: v => out.push(v.join('')) })
+    watch(inst$, out)
     inst$.shamefullySendNext(inst([a, b, c]))
     inst$.shamefullySendNext(inst([b, a, c]))   // swap
     inst$.shamefullySendNext(inst([c, a, b]))   // reverse
@@ -47,7 +56,7 @@ describe('B-010: pickCombine follows a permutation of the instances', () => {
     const a = item('a'), b = item('b')
     const inst$ = xs.create()
     const out = []
-    inst$.compose(pickCombine('DOM')).addListener({ next: v => out.push(v.join('')) })
+    watch(inst$, out)
     inst$.shamefullySendNext(inst([a, b]))
     const n = out.length
     inst$.shamefullySendNext(inst([a, b]))
@@ -58,7 +67,7 @@ describe('B-010: pickCombine follows a permutation of the instances', () => {
     const a = item('a'), b = item('b'), c = item('c')
     const inst$ = xs.create()
     const out = []
-    inst$.compose(pickCombine('DOM')).addListener({ next: v => out.push(v.join('')) })
+    watch(inst$, out)
     inst$.shamefullySendNext(inst([a, b, c]))
     inst$.shamefullySendNext(inst([c, a]))
     expect(out[out.length - 1]).toBe('ca')
