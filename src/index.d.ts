@@ -752,8 +752,16 @@ export interface UndoOptions {
   limit?: number;
   /** Only these actions are recorded (default: every action with a STATE reducer) */
   track?: string[];
-  /** Changes by one action within this many ms join one undo step (default 0: off) */
+  /**
+   * Changes by one action within this many ms join one undo step (default 0: off; 500 when
+   * `coalesce` is given). Without `coalesce`, every action's quick repeats join
+   */
   coalesceMs?: number;
+  /**
+   * Only these actions' quick repeats join one step (typing); every other action is always its
+   * own step: `undo({ key: 'poster', coalesce: ['HEADLINE'], coalesceMs: 1000 })`
+   */
+  coalesce?: string[];
   /** These actions clear the history (a load) and are not recorded */
   resetOn?: string[];
 }

@@ -907,11 +907,11 @@ function isSelected(slice: { selected: string[] }, id: string | number): boolean
 Undo history for one key of the state. [Guide](/advanced/undo/).
 
 ```typescript
-function undo(options: { key: string; limit?: number; track?: string[]; coalesceMs?: number; resetOn?: string[]; undo?: Control | string; redo?: Control | string }): Behavior
-function undoable(model: Model, options: { key: string; limit?: number; track?: string[]; coalesceMs?: number; resetOn?: string[] }): Model
+function undo(options: { key: string; limit?: number; track?: string[]; coalesceMs?: number; coalesce?: string[]; resetOn?: string[]; undo?: Control | string; redo?: Control | string }): Behavior
+function undoable(model: Model, options: { key: string; limit?: number; track?: string[]; coalesceMs?: number; coalesce?: string[]; resetOn?: string[] }): Model
 ```
 
-`uses = { history: undo({ key: 'doc' }) }` gives `state.history = { past, future, canUndo, canRedo }` and the actions `history.UNDO` / `history.REDO`. `model = undoable({ ... }, { key: 'doc' })` wraps the model's STATE reducers instead and adds plain `UNDO` / `REDO` actions. Options: `limit` (100 snapshots), `track` (only these actions are recorded), `coalesceMs` (changes by one action within this many ms are one step), `resetOn` (actions that clear the history). A `track` or `resetOn` name with no model entry is [SYG226](/reference/errors/#syg226).
+`uses = { history: undo({ key: 'doc' }) }` gives `state.history = { past, future, canUndo, canRedo }` and the actions `history.UNDO` / `history.REDO`. `model = undoable({ ... }, { key: 'doc' })` wraps the model's STATE reducers instead and adds plain `UNDO` / `REDO` actions. Options: `limit` (100 snapshots), `track` (only these actions are recorded), `coalesceMs` (changes by one action within this many ms are one step), `coalesce` (only these actions' changes join a step, e.g. typing; every other action is always its own step; `coalesceMs` defaults to 500 with it), `resetOn` (actions that clear the history). A `track` or `resetOn` name with no model entry is [SYG226](/reference/errors/#syg226).
 
 ---
 

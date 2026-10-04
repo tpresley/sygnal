@@ -37,6 +37,39 @@ Editor.model = {
 
 `coalesceMs: 500` joins the changes one action makes less than 500 ms apart into a single step, so typing "hello" quickly is undone at once rather than letter by letter. Without it every change is its own step.
 
+### Grouping only some actions
+
+`coalesceMs` alone joins quick repeats of *any* action: two fast clicks on a Larger button would also become one step. To group only typing, list the actions that may join in `coalesce`. Every other action is then always its own step:
+
+```jsx
+import { undo } from 'sygnal'
+
+export function Poster({ state }) {
+  return (
+    <div>
+      <label>Headline <input className="headline" value={state.poster.headline} /></label>
+      <button className="larger">Larger</button>
+      <button className="undo" disabled={!state.history.canUndo}>Undo</button>
+      <button className="redo" disabled={!state.history.canRedo}>Redo</button>
+      <h1 style={{ fontSize: `${state.poster.size}px` }}>{state.poster.headline}</h1>
+    </div>
+  )
+}
+
+Poster.initialState = { poster: { headline: '', size: 24 } }
+Poster.uses = { history: undo({ key: 'poster', coalesce: ['HEADLINE'], coalesceMs: 1000, undo: '.undo', redo: '.redo' }) }
+Poster.intent = ({ DOM }) => ({
+  HEADLINE: DOM.input('.headline').value(),
+  LARGER: DOM.click('.larger'),
+})
+Poster.model = {
+  HEADLINE: (state, headline) => ({ ...state, poster: { ...state.poster, headline } }),
+  LARGER: (state) => ({ ...state, poster: { ...state.poster, size: state.poster.size + 4 } }),
+}
+```
+
+Typing "Sale" and then clicking Larger twice quickly makes three steps: the typing, and each click. A `HEADLINE` change joins only the previous change when that was a `HEADLINE` change too, less than `coalesceMs` earlier; a click in between starts a new step. With `coalesce`, `coalesceMs` defaults to 500.
+
 ### Keyboard shortcuts
 
 A host intent action with a behavior action's name replaces the behavior's trigger. To undo with Ctrl+Z (⌘Z) as well as the button, leave out the `undo` / `redo` options and trigger the actions from the host:
@@ -105,7 +138,8 @@ Editor.model = undoable({
 | `key` | (required) | The state key whose value is recorded |
 | `limit` | `100` | The most steps kept in `past`; the oldest are dropped |
 | `track` | every action with a STATE reducer | Record only these actions' changes. Built-in actions (`INITIALIZE`, `BOOTSTRAP`, …) are recorded only when listed |
-| `coalesceMs` | `0` (off) | Changes by the same action within this many ms join one step |
+| `coalesceMs` | `0` (off); `500` with `coalesce` | Changes by the same action within this many ms join one step |
+| `coalesce` | every action | Only these actions' changes join a step (typing); every other action is always its own step |
 | `resetOn` | `[]` | Actions that clear the history |
 | `undo`, `redo` | — | (`undo()` only) A selector (or a [control](/guide/controls/)) whose clicks dispatch `UNDO` / `REDO` |
 
