@@ -6,7 +6,7 @@ Tracks progress for [PLAN-4.5.md](PLAN-4.5.md) (performance). The coordinator ma
 
 **Integration branch:** `plan45-integration`, cut from `plan4-integration` at `eb9f9fe` (tag `plan4-phase4`) on 2026-10-04, in worktree `.claude/worktrees/plan-4-execution-7ae8e8`. The release stays held (D56).
 
-**State:** P45-0, A, B, C, D, R and S merged (net core −153 B). P45-EV (user's terminal) pending.
+**State:** P45-0, A, B, C, D, R and S merged (net core −153 B). P45-EV running in the user's terminal; P45-R2 running (merge after the eval).
 
 ## Baseline
 
@@ -37,6 +37,7 @@ From `research/p45-perf-baseline.md` (PLAN-4 build `a7efb5d`; `plan4-phase4` has
 | P45-D | Lazy wiring, synchronous teardown + G-255/256 fixes (D151) + dev-only statics freeze (D152) | ✅ merged | `p45-d-lazy` (`a2c2158`) | 2026-10-04 | +132 B (41,273 B; PLAN-4.5 net −70 B). Streams 22/item, unmount setTimeouts 9, heap 0.95 MB. Teardown in `tearDown()` stops one level per macrotask (keeps xstream's restart guard). Freeze in `checks/statics.ts` (0 B core). Limits lowered |
 | P45-R | Phase review fixes (G-257…G-272) | ✅ merged | `p45-r-fixes` (`69bd051`) | 2026-10-04 | +222 B (41,495 B; PLAN-4.5 net **+152 B**, over the ≤ 0 rule → P45-Q10). Counts unchanged. G-257 hold: a pending first-render gate holds the patch (≤ 50 ms) |
 | P45-S | Core size trim, no behaviour change (D157) | ✅ merged | `p45-s-trim` (`7981cde`) | 2026-10-04 | −305 B (41,190 B; PLAN-4.5 net **−153 B**, 1,110 B headroom). Calculated-field setup, EventDelegator, Portal/Suspense/Transition, Collection sort; new `test/p45-s-trim.test.js` pins the rewritten paths |
+| P45-R2 | Review fixes for R+S (G-273…G-281) | 🟡 running | `p45-r2-fixes` | | merged after P45-EV finishes (the eval packs the integration worktree) |
 | P45-E | Change detection (only if profiles show it) | ⬜ | | | |
 | P45-EV | Agent regression eval (~$30, user's terminal) | ⬜ | | | after P45-D |
 
@@ -80,6 +81,15 @@ From `research/p45-perf-baseline.md` (PLAN-4 build `a7efb5d`; `plan4-phase4` has
 | G-270 | review D | Low | scheduler | A shared start timer that never fires (`vi.clearAllTimers()`) blocks every later component with that delay | Fixed (P45-R) |
 | G-271 | review D | Low | component.ts | `hub.set` is O(children² × sinks) per render | Fixed (P45-R) |
 | G-272 | review D | Low | component.ts | INITIALIZE timer not cancelled on stop/restart → sent twice | Fixed (P45-R) |
+| G-273 | review R+S | Med | scheduler | A first-render gate timer that never fires (`vi.clearAllTimers()`, timer switch) pins the hold: later patches wait for an unrelated flush. Confirmed | → P45-R2 |
+| G-274 | review R+S | Med | scheduler | The flush-cap counter resets only via one timer; if lost, every later flush is timer-paced; with never-advanced fake timers raw `run()` stops after 99 flushes. Confirmed | → P45-R2 |
+| G-275 | review R+S | Med | diagnostics | D152 freeze still freezes caller-owned objects that sygnal/element and Vike merge into a wrapper's `initialState` (host `arr.push` throws in dev). Confirmed for element | → P45-R2 |
+| G-276 | review R+S | Low/Med | DOM driver | The G-261 poke listener sits on the first root, which the first patch can replace (`#app` mount + `<div id="app">` view) | → P45-R2 |
+| G-277 | review R+S | Low | DOM driver | The `sygnal-dom` poke bubbles past the innermost app root (outer apps re-emit; reaches document) | → P45-R2 |
+| G-278 | review R+S | Low | scheduler/testing | With `vi.useFakeTimers()` and raw `run()`, creating a gated component holds the app's patch until the clock advances | → P45-R2 |
+| G-279 | review R+S | Low | transition | Transition-leave poke can fire before a `style.remove` delayed removal | → P45-R2 |
+| G-280 | review R+S | Low | diagnostics | D152 no longer freezes `component({ … })` option statics | → P45-R2 |
+| G-281 | review R+S | Low | component.ts | Root detection `_r = !sources.__k` depends on the caller's sources object being mutated (`A(sources); B(sources)`) | → P45-R2 |
 | G-251 | P45-0 | Low | docs | `research/p45-perf-baseline.md` still names the old `perf/` paths | Fixed (close-out) |
 
 ## Merge measurements
@@ -100,6 +110,7 @@ Latency is now held up mostly by the per-component 1 ms debounce floor (P45-C); 
 
 ## Log
 
+- 2026-10-04 — Review of R+S: 9 findings (G-273…G-281), 3 confirmed; P45-R2 started on its own branch. P45-S: no behaviour change found.
 - 2026-10-04 — P45-S merged (`7981cde`); all gates green; 41,190 B (net −153 B). D157. G-251 fixed. P45-EV commands handed over; a review of R+S runs on a side branch (not merged while the eval runs).
 - 2026-10-04 — P45-R merged (`69bd051`); all gates green; counts unchanged. Net +152 B → P45-Q10 asked. D156.
 - 2026-10-04 — Review of D: 7 findings (G-266…G-272), sent to P45-R.
