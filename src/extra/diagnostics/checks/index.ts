@@ -36,6 +36,7 @@
  * | SYG643 | timers/connections/resources with no driver to take it | timers.ts      |
  * | SYG223 | persist pick/omit key not in initialState              | persist.ts     |
  * | SYG224 | persist on a component that isn't the root             | persist.ts     |
+ * | SYG645 | viewTransitions without makeViewTransitionDOMDriver()  | viewTransitions.ts |
  * | SYG201 | STATE reducer dropped keys                             | state.ts       |
  * | SYG202 | STATE reducer returned undefined                       | state.ts       |
  * | SYG221 | set() called with a string                             | state.ts       |
@@ -75,6 +76,7 @@ import {routerCheck, installRouterHooks} from './router'
 import {fetchCheck} from './fetch'
 import {timersCheck, installTimerHooks} from './timers'
 import {persistCheck} from './persist'
+import {viewTransitionsCheck} from './viewTransitions'
 import {installRxjsHints} from './rxjsHints'
 import {inspectCheck, installInspect} from './inspect'
 
@@ -106,6 +108,7 @@ export const checks: DiagnosticCheck[] = [
   fetchCheck,
   timersCheck,
   persistCheck,
+  viewTransitionsCheck,
   inspectCheck,
 ]
 

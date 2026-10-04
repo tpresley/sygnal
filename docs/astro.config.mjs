@@ -61,6 +61,7 @@ export default defineConfig({
             { label: 'Element Commands', slug: 'guide/element-commands' },
             { label: 'Accessibility', slug: 'guide/accessibility' },
             { label: 'Drag and Drop', slug: 'guide/drag-and-drop' },
+            { label: 'View Transitions', slug: 'guide/view-transitions' },
             { label: 'Diagnostics', slug: 'guide/diagnostics' },
             { label: 'Strict Mode', slug: 'guide/strict-mode' },
           ],

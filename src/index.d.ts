@@ -1083,6 +1083,15 @@ export type Component<
    * are typed against STATE's keys. Root component only (SYG224 elsewhere).
    */
   persist?: Persist<STATE>;
+  /**
+   * PLAN-4 GS-12: actions whose state change animates as a View Transition:
+   * `Board.viewTransitions = ['MOVE']`, `App.viewTransitions = ['ROUTE']` (the router's reply
+   * action) for route changes. The DOM patch that the action's STATE reducer causes runs inside
+   * `document.startViewTransition()`, which needs the app's DOM driver from
+   * `makeViewTransitionDOMDriver()` (SYG645 in dev otherwise). Patched at once, without a
+   * transition, under `prefers-reduced-motion: reduce` and where the browser has no API.
+   */
+  viewTransitions?: Array<ActionNameOf<ACTIONS>>;
 }
 
 /** The action names of an ACTIONS map (any string when it names none) */
@@ -2292,6 +2301,16 @@ export interface HeadValue {
  * static (`App.head = (state) => ({ title })`) or HEAD sink values from a model entry.
  * `titleTemplate: '%s · Tasks'` formats every title.
  */
+/**
+ * PLAN-4 GS-12: a DOM driver that runs the patches asked for by a component's
+ * `viewTransitions` static inside `document.startViewTransition()`:
+ * `run(App, { DOM: makeViewTransitionDOMDriver('#root') })`. It is `makeDOMDriver(mountPoint,
+ * options)` with run()'s defaults (fragments on), plus the hook: one action's patches (a
+ * Collection move is several) are folded into one transition (20 ms quiet window, capped at
+ * 200 ms); `prefers-reduced-motion: reduce` and browsers without the API patch at once.
+ */
+export function makeViewTransitionDOMDriver(mountPoint?: string | Element | DocumentFragment, options?: import('./cycle/dom/makeDOMDriver').DOMDriverOptions): (vnode$: Stream<any>, name?: string) => MainDOMSource
+
 export function makeHeadDriver(options?: { titleTemplate?: string; document?: any }): (sink$: Stream<any>) => { dispose(): void }
 
 /**

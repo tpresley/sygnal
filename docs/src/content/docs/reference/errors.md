@@ -1712,6 +1712,16 @@ A `defineElement(tag, Component, { props })` declaration names a prop that is al
 
 **Fix:** Rename the prop (`heading` instead of `title`, `collapsed` instead of `hidden`) and update the attribute and the component's state key that it feeds. Keep the name only when replacing the native behaviour is what you want.
 
+### SYG645
+
+**viewTransitions without a View Transition DOM driver**
+
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+A component declares `viewTransitions` (for example `Board.viewTransitions = ['MOVE']`), but the app's DOM driver can't run View Transitions, so those actions patch the page at once, without the animation, and nothing else says so. The static only asks: the transition is run by the DOM driver from `makeViewTransitionDOMDriver()`, which is opt-in so that apps without View Transitions don't ship it, and `run()`'s default DOM driver is the plain one. Reported once per component when it starts. Not reported under `renderComponent` (the mock DOM and the `dom: 'real'` container don't animate). Browsers without the API and `prefers-reduced-motion: reduce` also patch at once, silently: that is the intended fallback, not this warning.
+
+**Fix:** Give `run()` the View Transition DOM driver: `run(App, { DOM: makeViewTransitionDOMDriver('#root') })` with `import { makeViewTransitionDOMDriver } from 'sygnal'` (use the same mount point as before). Or remove the `viewTransitions` static.
+
 ## SYG9xx: Internal
 
 ### SYG900

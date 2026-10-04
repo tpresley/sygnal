@@ -1176,6 +1176,18 @@
     "docsUrl": "https://sygnal.js.org/reference/errors#syg644"
   },
   {
+    "code": "SYG645",
+    "title": "viewTransitions without a View Transition DOM driver",
+    "severity": "warn",
+    "strict": false,
+    "reportedBy": [
+      "dev-entry"
+    ],
+    "explanation": "A component declares `viewTransitions` (for example `Board.viewTransitions = ['MOVE']`), but the app's DOM driver can't run View Transitions, so those actions patch the page at once, without the animation, and nothing else says so. The static only asks: the transition is run by the DOM driver from `makeViewTransitionDOMDriver()`, which is opt-in so that apps without View Transitions don't ship it, and `run()`'s default DOM driver is the plain one. Reported once per component when it starts. Not reported under `renderComponent` (the mock DOM and the `dom: 'real'` container don't animate). Browsers without the API and `prefers-reduced-motion: reduce` also patch at once, silently: that is the intended fallback, not this warning.",
+    "fix": "Give `run()` the View Transition DOM driver: `run(App, { DOM: makeViewTransitionDOMDriver('#root') })` with `import { makeViewTransitionDOMDriver } from 'sygnal'` (use the same mount point as before). Or remove the `viewTransitions` static.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg645"
+  },
+  {
     "code": "SYG701",
     "title": "Click listener on a non-interactive element",
     "severity": "warn",

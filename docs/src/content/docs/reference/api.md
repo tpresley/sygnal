@@ -1233,6 +1233,35 @@ The result is compared by name whenever the state changes: a new name starts, a 
 
 ---
 
+## makeViewTransitionDOMDriver()
+
+A DOM driver that applies the renders asked for by the components' `viewTransitions` statics inside `document.startViewTransition()`. Guide: [View Transitions](/guide/view-transitions/).
+
+```typescript
+function makeViewTransitionDOMDriver(
+  mountPoint?: string | Element | DocumentFragment, // default '#root'
+  options?: DOMDriverOptions                       // as makeDOMDriver; fragments on, as in run()
+): Driver
+```
+
+```javascript
+run(App, { DOM: makeViewTransitionDOMDriver('#root') })
+```
+
+It replaces `run()`'s default DOM driver (use the same mount point). The renders of one action are folded into one transition: the first is held until the browser has its snapshot, and the update ends 20 ms after the last render (at most 200 ms). The first render, `prefers-reduced-motion: reduce` and browsers without the API apply at once. A new transition skips one that is still animating. Opt-in, so apps without View Transitions don't ship it. `renderComponent` never animates.
+
+### viewTransitions (Static Property)
+
+```typescript
+// Array<action name>
+Board.viewTransitions = ['MOVE']
+App.viewTransitions = ['ROUTE']   // the router's reply action: route changes
+```
+
+When a listed action's `STATE` reducer changes the state, the render it causes runs as a View Transition. Any component of the app can list its own actions. Without `makeViewTransitionDOMDriver()` the render applies at once, and dev reports [SYG645](/reference/errors/#syg645). Elements are matched by `view-transition-name` (a `style={{ viewTransitionName }}`), which must be unique on the page.
+
+---
+
 ## driverFromAsync()
 
 Creates a Cycle.js driver from a Promise-returning function.
