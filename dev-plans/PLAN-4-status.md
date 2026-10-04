@@ -64,6 +64,9 @@ PLAN-3's end-of-Phase-5 figures (40,403 B, 283 lines, 34,343 B) grew with #12 an
 | 3-A | Element commands (GS-2) | ✅ merged | `p4-3a-element` (`9176436`) | subagent | | +222 B; any element method runs (D133); SYG640/641 dev-only; commands run after the next patch where the target exists, else 16 ms checks, give up after ~1 s |
 | 3-K | Checker: GS-2, GS-7 (GS-5 after 3-B) | ✅ merged (GS-5 part pending) | `p4-3k-checker` (`3da16ee`) | subagent | | sygnal-check 434; static SYG422/640/641/643; timer actions are triggers (SYG112 family); no new findings on hidden solutions/examples; G-215 frame browser test |
 | 4-B2 | Site docs, part 2 (element commands, timers, DevTools, API reference) | ✅ merged | `p4-4b2-docs` (`7c2c001`) | subagent | | 2 new pages; 33 samples in `test/p4-4b2-doc-samples.test.js`; check-doc-samples 511; G-219, G-223 closed |
+| 3-R | Phase 3 review fixes (G-231) | 🟡 running | `p4-3r-fixes` | subagent | | net ≤ +15 B core |
+| 4-A1 | Agent docs, part 1 (all but controls) | 🟡 running | `p4-4a1-agentdocs` | subagent | | |
+| 4-D1 | CHANGELOG, ROADMAP, canonical-forms (all but controls) | 🟡 running | `p4-4d-changelog` | subagent | | |
 | 3-C | Timers (GS-7) | ✅ merged | `p4-3c-timers` (`6ad12b1`) | subagent | | 0 B core; +579 B per app; driver key `TIMER` by convention (found by `__sygnalStatic`); SYG643 also covers `connections`/`resources`; hidden pages restart timers from scratch; recipe waits for 3-K (SYG102 on TICK) |
 | 3-E | DevTools (GS-10) | ✅ merged | `p4-3e-devtools` (`7fa4c43`) | subagent | | 0 B production; devtools entry 3.9 → 16.5 KB gz (dev-only); Copy as test proven on kanban, todomvc, signup form (`test/copied/`); Redux bridge done (stretch) |
 | 1-E prep | Controls A/B variants `p4-ct1-a`/`p4-ct1-b` | ✅ merged | `p4-1e-ab-variant` (`ef038e0`) | subagent | | controls skill +1,902 B (+5.4%); converted starters committed as overlays; task 16 normaliser ignores `data-control`; verify 55/55 on converted solutions |
@@ -242,6 +245,7 @@ They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none o
 | G-228 | P-1b merge | low | GS-12 | A non-array `viewTransitions` static (e.g. `true`) throws inside every STATE reducer (`.includes`), surfacing as SYG216. Add a dev check (SYG645's module) for a non-array value; types already require an array. | Phase 4 follow-up |
 | G-229 | 3-B2 | low | Astro | Astro islands get no drivers (only `__hydrate`), so forwarded `timers`/`resources`/`connections` can't run there. Possible `drivers` integration option (like `onError`). | 6.x candidate; docs note in 4-B |
 | G-230 | 3-B2 | — | docs | `reference/api.md` ~940/951 still say restore-after-first-render happens "with `hydrate: true`" (now automatic). | 4-B |
+| G-231 | review (Phase 3, high) | — | core | (1) G-213's pending-item set is module-global (one slow item holds every Collection's removals page-wide; flush clears all); (2) every removal is now a task late even with no move; (3) non-array `viewTransitions` throws in every reducer (G-228); (4) persist SYG642 repeats on every failed write (prints in production); (5) persist hydration heuristic treats a placeholder in #root as server markup; (6) View Transition request expires after 100 ms wall time, so slow renders don't animate. | 3-R |
 
 ## Log
 
@@ -269,3 +273,4 @@ They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none o
 - 2026-10-03 — Merged PF-1 (+42 B; 41,171 B gated, PLAN-4 +635 B of 775). 3-B and P-1b running in parallel (each with a few localized `component.ts` lines).
 - 2026-10-03 — Merged 3-B; gates green (vitest 2,153, browser 167, sygnal-check 447, doc samples 520; 41,187 B gated, PLAN-4 +651 B). D136; G-227. Started 3-B2.
 - 2026-10-03 — Merged P-1b (conflicts with 3-B in statics lists/d.ts/check registry/browser main: kept both), 3-B2, and the G-213 fix (D137). Fixed an island test that set `viewTransitions = true` (G-228). Gates green: vitest 2,189 (+1 skipped), browser 177, sygnal-check 448, doc samples 529; **41,371 B gated, PLAN-4 +835 B of 850**. Phase 3 implementation complete.
+- 2026-10-03 — Phase 3 code review (high): 6 findings (G-231) → 3-R. Started 4-A part 1 and 4-D part 1 (everything except controls, pending P4-D).
