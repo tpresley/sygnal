@@ -1,6 +1,22 @@
 import xs, {Stream, InternalListener, OutSender, Operator, NO} from 'xstream';
 import {InternalInstances} from './types';
 
+// G-213: item listeners (of any Collection) that haven't had their first value yet, and the
+// combines whose removal waits for them. An item that moves to another Collection is a new
+// instance there, which renders a few ms after its old Collection has dropped it; emitting the
+// drop in that gap would paint a page without the item. So a removal waits while a new item is
+// still to render (at most 100 ms), and is emitted in the task where it renders.
+const fresh = new Set<any>(), later = new Set<any>();
+let cap: any;
+const flush = () => {
+  clearTimeout(cap);
+  cap = 0;
+  fresh.clear();
+  const l = [...later];
+  later.clear();
+  l.forEach(p => p.inst && p.up());
+};
+
 class PickCombineListener<Si, T>
   implements InternalListener<T>, OutSender<Array<T>> {
   private key: string;
@@ -20,6 +36,7 @@ class PickCombineListener<Si, T>
     this.p = p;
     this.val = NO as any;
     this.ins = ins;
+    fresh.add(this);
   }
 
   public _n(t: T): void {
@@ -29,6 +46,7 @@ class PickCombineListener<Si, T>
     if (out === null) {
       return;
     }
+    if (fresh.delete(this) && !fresh.size && later.size) flush();
     this.p.up();
   }
 
@@ -93,6 +111,7 @@ class PickCombine<Si, R> implements Operator<InternalInstances<Si>, Array<R>> {
     this.ins._remove(this);
     const ils = this.ils;
     ils.forEach(il => {
+      fresh.delete(il);
       il.ins._remove(il);
       il.ins = null as any;
       il.out = null as any;
@@ -137,6 +156,7 @@ class PickCombine<Si, R> implements Operator<InternalInstances<Si>, Array<R>> {
     let removed = false;
     ils.forEach((il, key) => {
       if (!dict.has(key)) {
+        fresh.delete(il);
         il.ins._remove(il);
         il.ins = null as any;
         il.out = null as any;
@@ -145,9 +165,13 @@ class PickCombine<Si, R> implements Operator<InternalInstances<Si>, Array<R>> {
         removed = true;
       }
     });
+    // G-213: a removal emits a task later (the Collection an item moved to gets the new state in
+    // its own task, and has created the new item by then), and not while a new item is still to
+    // render: then with it, or after 100 ms
+    const up = () => removed ? setTimeout(() => this.inst && (fresh.size ? (later.add(this), cap = cap || setTimeout(flush, 100)) : this.up()), 1) : this.up();
     if (n === 0) {
       this.keys = [];
-      out._n([]);
+      up();
       return;
     }
     // add
@@ -170,9 +194,7 @@ class PickCombine<Si, R> implements Operator<InternalInstances<Si>, Array<R>> {
     // B-010: a permutation (swap, reverse, move) neither removes an item nor makes an
     // item sink emit, so re-emit whenever the order of keys changed. up() waits until
     // every item has emitted, so a brand new item still triggers its own emission.
-    if (removed || reordered) {
-      this.up();
-    }
+    if (removed || reordered) up();
   }
 
   public _e(e: any): void {
