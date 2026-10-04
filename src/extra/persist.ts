@@ -19,9 +19,10 @@ import {warn} from './diagnostics/legacy';
  *   else whether run()'s mount point (its `__m` source) already has element children.
  * - Writes: debounced (`debounceMs`, default 100), skipped when the stored text is the same,
  *   flushed on `pagehide` and on dispose.
- * - `PERSIST: { clear: true }` on any model entry (a value or a function of (state, data)) removes
- *   the stored copy; the state that same action produces isn't written (later changes are).
- *   The entry's PERSIST sink is turned into an EFFECT here, so it needs no driver.
+ * - `PERSIST: { clear: true }` in any model entry's object form (a value or a function of
+ *   (state, data)) removes the stored copy; the state that same action produces isn't written
+ *   (later changes are). The entry's PERSIST sink is turned into an EFFECT here, so it needs no
+ *   driver. An 'ACTION | PERSIST' key (non-canonical) isn't handled (3-B2).
  * - `sync: true`: another tab's write is applied through RESTORE (the `storage` event, or an
  *   adapter's `subscribe(fn)`).
  * - `storage`: 'local' (default), 'session', or a synchronous { getItem, setItem, removeItem }
@@ -69,8 +70,6 @@ export const setupPersist = (c: any, o: any): void => {
   const model: any = {RESTORE: (s: any, d: any) => ({...s, ...d})};
   for (const k in c.model) {
     let v = c.model[k];
-    const [a, s] = k.split('|');
-    if (s?.trim() == 'PERSIST') { model[a.trim() + '|EFFECT'] = wrap(v); continue; }
     if (v && typeof v == 'object' && 'PERSIST' in v) { const {PERSIST, ...rest} = v; v = {...rest, EFFECT: wrap(PERSIST, rest.EFFECT)}; }
     model[k] = v;
   }

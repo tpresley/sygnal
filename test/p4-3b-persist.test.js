@@ -183,6 +183,16 @@ describe('PERSIST: { clear: true }', () => {
     expect(t.storage('todo-app').state.todos).toEqual(['bread'])
   })
 
+  // 3-B2 item 4: only the canonical object form is handled (every non-STATE sink is an object key)
+  it("the 'ACTION | PERSIST' shorthand is not rewritten: the stored copy stays", async () => {
+    const App = makeTodo({}, { WIPE: { STATE: (s) => s }, 'WIPE | PERSIST': { clear: true } })
+    t = renderComponent(App, { storage: { 'todo-app': { version: 1, state: { todos: ['milk'] } } } })
+    await t.ready()
+    t.simulateAction('WIPE')
+    await t.settle()
+    expect(t.storage('todo-app')?.state.todos).toEqual(['milk'])
+  })
+
   it('a function value and ABORT', async () => {
     const App = makeTodo({}, { MAYBE: { PERSIST: (state, really) => really ? { clear: true } : undefined } })
     t = renderComponent(App, { storage: { 'todo-app': { version: 1, state: { todos: ['milk'] } } } })
