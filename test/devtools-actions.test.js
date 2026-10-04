@@ -217,8 +217,8 @@ describe('copyAsTest from a recording (code generation)', () => {
     expect(r.code).toContain(`await t.fail('HTTP', 500, 'FAILED')`)
     expect(r.code).toContain(`await t.fail('HTTP', new Error('Failed to fetch'), 'FAILED')`)
     expect(r.code).toContain(`await t.respond('HTTP', { id: 1 }, 'SAVED')`)
-    // settles the queued actions first: their requests may leave after the call would look
-    expect(r.code).toContain(`    t.simulateAction('SAVE')\n    await t.settle()\n    await t.respond('HTTP', { id: 1 }, 'SAVED')`)
+    // G-218: no settle() first: t.respond waits for the request the queued actions send
+    expect(r.code).toContain(`    t.simulateAction('SAVE')\n    await t.respond('HTTP', { id: 1 }, 'SAVED')`)
     expect(r.complete).toBe(true)
     // WS isn't fakeable by this generator and wasn't passed: a note, not a driver
     expect(r.code).toContain('// NOTE: the app had a driver for WS')

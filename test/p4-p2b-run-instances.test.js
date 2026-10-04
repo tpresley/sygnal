@@ -81,8 +81,8 @@ describe('G-212: HMR state is per app', () => {
     a.sinks.STATE.shamefullySendNext(s => ({ ...s, count: 5 }))
     await until(() => text('#a b') === '5', 'app A count 5')
 
-    // a page-wide "HMR in progress" flag left by A's tooling (the swap sets it for ~100 ms)
-    window.__SYGNAL_HMR_UPDATING = true
+    // B starts inside A's swap window (G-216: the swap is A's own __hmr source)
+    a.hmr(Counter)
     const b = start(Other, '#b')
     await sleep(40)
     const bState = b.sources.STATE.stream._v

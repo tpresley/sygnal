@@ -387,8 +387,8 @@ run(App, {}, {
 })
 ` },
 
-  vikeOnError: { page: 'advanced/error-boundaries.md', code: `// pages/+onError.js: used by renderToString on the server and by run() in the browser
-export default function onError(error, { componentName, action, phase }) {
+  vikeOnError: { page: 'advanced/error-boundaries.md', code: `// pages/+sygnalOnError.js: used by renderToString on the server and by run() in the browser
+export default function sygnalOnError(error, { componentName, action, phase }) {
   console.error('[' + phase + ']', componentName, action, error)
 }
 ` },
@@ -931,15 +931,15 @@ export const logger = { calls: [], error: (x) => logger.calls.push(x) }
     expect(mod.logger.calls).toEqual([{ componentName: 'Page', action: undefined, phase: 'view', message: 'no data' }])
   })
 
-  it('Vike: +onError.js as config.onError (server render)', async () => {
-    const hook = await load({ 'pages/+onError.js': SAMPLES.vikeOnError.code }, 'pages/+onError.js')
+  it('Vike: +sygnalOnError.js as config.sygnalOnError (server render)', async () => {
+    const hook = await load({ 'pages/+sygnalOnError.js': SAMPLES.vikeOnError.code }, 'pages/+sygnalOnError.js')
     const { onRenderHtml } = await import('../dist/vike/onRenderHtml.mjs')
     const logged = []
     vi.spyOn(console, 'error').mockImplementation((...a) => logged.push(a))
     function Page() { throw new Error('ssr view') }
     Page.initialState = {}
     Page.onError = () => ({ sel: 'p', data: {}, children: undefined, text: 'fallback' })
-    onRenderHtml({ Page, config: { onError: hook.default }, data: {} })
+    onRenderHtml({ Page, config: { sygnalOnError: hook.default }, data: {} })
     expect(logged.filter(a => a[0] === '[view]').map(a => [a[1], a[2], a[3].message])).toEqual([['Page', undefined, 'ssr view']])
   })
 

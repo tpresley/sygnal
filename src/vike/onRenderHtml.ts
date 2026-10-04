@@ -31,8 +31,8 @@ interface PageContext {
     favicon?: string
     lang?: string
     ssr?: boolean
-    // PLAN-4 GS-11: the app-level error hook
-    onError?: (error: any, info: any) => void
+    // PLAN-4 GS-11: the app-level error hook (not Vike's own onError)
+    sygnalOnError?: (error: any, info: any) => void
   }
   is404?: boolean
   /**
@@ -158,7 +158,7 @@ export function onRenderHtml(pageContext: PageContext) {
   try {
     pageHtml = renderToString(Page, {
       state: initialState,
-      onError: config.onError,
+      onError: config.sygnalOnError,
       // G-207: the client's uid base and `id` prop for the nested Page
       ...(hasShell && { uid: pageUid, props: { id: uidPart('page') } }),
       hydrateState: hasShell ? false : '__VIKE_SYGNAL_STATE__',
@@ -204,7 +204,7 @@ export function onRenderHtml(pageContext: PageContext) {
         props: { innerHTML: PLACEHOLDER, id: uidPart(key) },
         head: shellHeads,
         cache,
-        onError: config.onError,
+        onError: config.sygnalOnError,
       })
       const splitIdx = compHtml.indexOf(PLACEHOLDER)
       if (splitIdx !== -1) {

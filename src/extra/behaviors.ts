@@ -33,9 +33,17 @@
  *   the name it gives, not namespaced; a host intent must return an object (not one stream).
  */
 import xs from './xstreamCompat'
-
-const isAbort = (v: any): boolean => typeof v == 'symbol' && v.description == 'sygnal.ABORT'
-const sinksOf = (e: any, S: string): any => typeof e == 'function' ? {[S]: e} : {...e}
+import {isAbort} from '../shared'
+// a model entry as { sink: fn }: a constant is sent as is, `true` sends the action's data, an
+// EFFECT constant does nothing (as the core treats them)
+const sinksOf = (e: any, S: string): any => {
+  const o: any = typeof e == 'function' ? {[S]: e} : {...e}
+  for (const s in o) {
+    const v = o[s]
+    if (typeof v != 'function') o[s] = s == 'EFFECT' ? () => {} : v === true || v === undefined ? (_: any, d: any) => d : () => v
+  }
+  return o
+}
 
 const calcOf = (calcs: any) => (r: any) => {
   if (r && typeof r == 'object') for (const f in calcs) r = {...r, [f]: calcs[f](r)}
@@ -88,7 +96,7 @@ const mergeBehavior = (c: any, k: string, b: any): void => {
     c.intent = (so: any) => {
       const o: any = {}
       for (const [k, b, slice] of list) {
-        const st = so[S], i = b.intent?.({...so, [S]: st && Object.assign(st.select({get: (s: any) => s?.[k] ?? slice}), {_end: st._end})}, b.options)
+        const st = so[S], i = b.intent?.({...so, [S]: st?.select({get: (s: any) => s?.[k] ?? slice})}, b.options)
         for (const a in i) o[k + '.' + a] = i[a], owned[k + '.' + a] = k
       }
       const h = own?.(so), test = h?.__sygnalTestActions || []

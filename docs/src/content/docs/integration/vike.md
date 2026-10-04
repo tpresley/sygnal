@@ -295,7 +295,7 @@ These options can be set in any `+config.js` file or in their own `+<option>.js`
 | `drivers` | `Record<string, Driver>` | Additional Cycle.js drivers passed to `run()` (client-only; in `+drivers.js`) |
 | `Layout` | component | Sygnal component wrapping page content |
 | `Head` | component | Component rendered into `<head>` |
-| `onError` | `(error, info) => void` | [App-level error hook](/advanced/error-boundaries/#vike), passed to `renderToString` on the server and to `run()` in the browser (in `+onError.js` or `+config.js`) |
+| `sygnalOnError` | `(error, info) => void` | [App-level error hook](/advanced/error-boundaries/#vike), passed to `renderToString` on the server and to `run()` in the browser (in `+sygnalOnError.js` or `+config.js`). Not Vike's own `onError` hook, which is server-only and gets `(error, pageContext)` |
 
 ## ClientOnly
 

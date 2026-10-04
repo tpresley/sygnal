@@ -8,7 +8,9 @@
  *          is ignored. Mechanism: onIntent (called before the model is read) wraps the
  *          instance's STATE reducers; the wrapper takes a shallow snapshot (keys and top-level
  *          values) before the reducer runs and compares it when the reducer returns the same
- *          reference. Nested mutations (state.list.push) are below the snapshot. Zero bytes
+ *          reference; a behavior slice (state[key] of a `uses` entry) is snapshotted the same
+ *          way (keys reported as 'key.field', G-214). Nested mutations (state.list.push) are
+ *          below the snapshot. Zero bytes
  *          in the core: the wrapping only happens with the dev entry and diagnostics on.
  *
  * Mechanism: onReducer(component, action, prevState, nextState). Reported once
@@ -22,6 +24,7 @@
  */
 import type {DiagnosticCheck} from '../index'
 import {report, devReport, once, nameOf, isPlainObject} from './shared'
+import {ORIGINAL} from '../../../shared'
 
 const SKIP = new Set(['INITIALIZE'])
 
@@ -31,19 +34,22 @@ const WRAPPED = Symbol('SYG222')
 function watchMutation(component: any, action: string, fn: any): any {
   if (typeof fn !== 'function' || fn[WRAPPED]) return fn
   const wrapped: any = (state: any, ...rest: any[]) => {
-    const keys = isPlainObject(state) ? Object.keys(state) : null
-    const values = keys && keys.map(k => state[k])
+    if (!isPlainObject(state)) return fn(state, ...rest)
+    // the state's top level, and (G-214) each behavior slice's: a behavior reducer that mutates
+    // its slice gets the host state back unchanged (behaviors.ts), so state[key] looks the same
+    const snaps = [[state, ''], ...(component._uses || []).map(([k]: any) => [state[k], k + '.'])]
+      .filter(([o]) => isPlainObject(o)).map(([o, p]) => [o, p, Object.keys(o), Object.values(o)])
     const out = fn(state, ...rest)
-    if (keys && out === state) {
-      const changed = keys.filter((k, i) => !(k in state) || state[k] !== values![i])
-        .concat(Object.keys(state).filter(k => !keys.includes(k)))
+    if (out === state) {
+      const changed = snaps.flatMap(([o, p, keys, values]: any) => keys.filter((k: string, i: number) => !(k in o) || o[k] !== values[i])
+        .concat(Object.keys(o).filter(k => !keys.includes(k))).map((k: string) => p + k))
       const name = nameOf(component)
       if (changed.length && once(`SYG222:${name}:${action}`)) {
         const list = changed.map(k => `'${k}'`).join(', ')
         devReport('SYG222', {
           component,
           message: `The STATE reducer for '${action}' changed ${list} in place and returned the same object. Returning the object a reducer got means "no change" (as ABORT), so the change is ignored and nothing re-renders`,
-          fix: `Return a new object: (state, data) => ({ ...state, ${changed[0]}: … }). To write updates as mutations, wrap the reducer in immer's produce()`,
+          fix: `Return a new object: ${changed[0].includes('.') ? `(slice, data) => ({ ...slice, ${changed[0].split('.')[1]}: … })` : `(state, data) => ({ ...state, ${changed[0]}: … })`}. To write updates as mutations, wrap the reducer in immer's produce()`,
           data: {action, keys: changed},
         })
       }
@@ -51,8 +57,10 @@ function watchMutation(component: any, action: string, fn: any): any {
     return out
   }
   wrapped[WRAPPED] = true
-  // checks that read reducer source (reply actions) see the original
+  // checks that read reducer source (reply actions) see the original; so do the action log
+  // and t.explain() (ORIGINAL)
   wrapped.toString = () => fn.toString()
+  wrapped[ORIGINAL] = fn
   return wrapped
 }
 

@@ -52,10 +52,11 @@
  *   The mode is resolved at module load, on every run() call and on every
  *   configureDiagnostics() call. `configureDiagnostics({ mode: undefined })`
  *   clears the explicit mode and falls back to steps 2-3.
- *   Every run() call is authoritative: it sets both the explicit mode and the
- *   ignore list from its `diagnostics` option, and run() WITHOUT the option
- *   resets them to the defaults (no explicit mode, empty ignore list), so a
- *   setting from an earlier run()/configureDiagnostics() does not leak in.
+ *   A run() call with the `diagnostics` option sets both the explicit mode and
+ *   the ignore list from it. run() WITHOUT the option resets them to the
+ *   defaults (no explicit mode, empty ignore list), so a setting from an earlier
+ *   run()/configureDiagnostics() does not leak in, unless another app is still
+ *   running (G-212: a second app or a custom element keeps the host's mode).
  *
  * --- Checks ---------------------------------------------------------------
  *

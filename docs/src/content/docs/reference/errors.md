@@ -1672,6 +1672,16 @@ A component declares `timers`, `connections` or `resources`, but no registered d
 
 **Fix:** Register the driver when you start the app: `run(App, { TIMER: makeTimerDriver() })` for `timers`, `run(App, { WS: makeSocketDriver() })` for `connections`, `run(App, { HTTP: makeFetchDriver() })` for `resources` (the key is yours to choose; the core finds the driver by the static it takes).
 
+### SYG644
+
+**Custom element prop hides an HTMLElement member**
+
+Severity: `warn` · Reported by: the Sygnal runtime (every app, production included)
+
+A `defineElement(tag, Component, { props })` declaration names a prop that is also a member of `HTMLElement`, such as `title`, `hidden`, `lang`, `dir` or `translate`. The element defines its own property for each prop, so the native member of that name stops working on this element: setting `el.hidden = true` updates the prop instead of hiding the element, and the matching attribute no longer has its native effect. `sygnal/element` reports it once per tag when the element first connects, through the diagnostics core when diagnostics are on (a console warning in dev otherwise).
+
+**Fix:** Rename the prop (`heading` instead of `title`, `collapsed` instead of `hidden`) and update the attribute and the component's state key that it feeds. Keep the name only when replacing the native behaviour is what you want.
+
 ## SYG9xx: Internal
 
 ### SYG900

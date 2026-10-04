@@ -108,7 +108,8 @@ export class StateSource<S> {
    */
   public select<R>(scope: Scope<S, R>): StateSource<R> {
     const get = makeGetter(scope);
-    return new StateSource<R>(this._stream.map(get) as Stream<R>, this._name);
+    // G-214: keeps the end stream, so a selected source's watch() also ends on dispose
+    return new StateSource<R>(this._stream.map(get) as Stream<R>, this._name, this._end);
   }
 
   /**

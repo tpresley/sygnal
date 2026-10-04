@@ -78,6 +78,25 @@ Tips.model = {
   TIP_TOGGLED: (s, tip) => ({ ...s, tip }),
 }
 
+// togglePopover: no force (undefined) without `force`, the boolean with it (a browser that only
+// takes a boolean treats an options object as true)
+const { Pop, TogglePop, ForceOff, ForceOn } = controls({ Pop: 'div', TogglePop: 'button', ForceOff: 'button', ForceOn: 'button' })
+function Toggles() {
+  return (
+    <div>
+      <TogglePop>t</TogglePop><ForceOff>off</ForceOff><ForceOn>on</ForceOn>
+      <Pop attrs={{ popover: 'manual' }}>A popover</Pop>
+    </div>
+  )
+}
+Toggles.initialState = { n: 0 }
+Toggles.intent = ({ DOM }) => ({ TOGGLE: DOM.click(TogglePop), OFF: DOM.click(ForceOff), ON: DOM.click(ForceOn) })
+Toggles.model = {
+  TOGGLE: { ELEMENT: { togglePopover: Pop } },
+  OFF: { ELEMENT: { togglePopover: Pop, force: false } },
+  ON: { ELEMENT: { togglePopover: Pop, force: true } },
+}
+
 // a new Collection row scrolls itself into view
 function Row({ state }) { return <RowItem style={{ height: '40px' }}>{state.text}</RowItem> }
 Row.model = { BOOTSTRAP: { ELEMENT: (s) => (s.fresh ? { scrollIntoView: RowItem, block: 'nearest' } : ABORT) } }
@@ -173,6 +192,35 @@ export async function elementCommandTests3A() {
       q(el, HideTip).click()
       await waitFor(() => el.querySelector('.tip').textContent === 'closed', 1000)
       assert(!tip.matches(':popover-open'), 'the popover is closed')
+    } finally { app.dispose() }
+  })
+
+  await runTest(CAT, 'togglePopover: no force without the option, the boolean with it', async () => {
+    const { el, app } = await start(Toggles)
+    try {
+      const pop = q(el, Pop)
+      if (typeof pop.togglePopover !== 'function') return
+      const calls = [], native = pop.togglePopover
+      pop.togglePopover = function (...args) { calls.push(args); return native.apply(this, args) }
+      const isOpen = () => pop.matches(':popover-open')
+      q(el, TogglePop).click()
+      await waitFor(() => calls.length === 1, 1000)
+      // undefined = no argument for an optional WebIDL argument (plain toggle)
+      assert(calls[0].length <= 1 && calls[0][0] === undefined, `no force: ${JSON.stringify(calls[0])}`)
+      assert(isOpen(), 'toggled open')
+      q(el, ForceOff).click()
+      await waitFor(() => calls.length === 2, 1000)
+      assert(calls[1].length === 1 && calls[1][0] === false, `force false: ${JSON.stringify(calls[1])}`)
+      assert(!isOpen(), 'forced closed')
+      q(el, ForceOff).click()
+      await waitFor(() => calls.length === 3, 1000)
+      assert(!isOpen(), 'stays closed')
+      q(el, ForceOn).click()
+      await waitFor(() => calls.length === 4, 1000)
+      assert(calls[3][0] === true && isOpen(), 'forced open')
+      q(el, TogglePop).click()
+      await waitFor(() => calls.length === 5, 1000)
+      assert(!isOpen(), 'toggled closed')
     } finally { app.dispose() }
   })
 

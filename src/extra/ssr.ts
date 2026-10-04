@@ -4,6 +4,7 @@
  * Renders Sygnal component trees to HTML strings without a browser DOM.
  * Handles sub-components, Collections, Suspense boundaries, and Portals.
  */
+import {uidPart} from '../shared'
 
 // Void elements that must not have closing tags
 const VOID_ELEMENTS = new Set([
@@ -154,11 +155,12 @@ function withResources(def: any, state: any): any {
 // PLAN-4 GS-9: uid(name?) as on the client: the root is 'u'; a child component adds its path in
 // the parent's view (or its `id` prop), as getComponentIdFromElement and instantiateSubComponents
 // in component.ts do; a Collection item adds its key, a Switchable page its name; anything but
-// [A-Za-z0-9_-] becomes '_' (the Component constructor). SSR ids = hydration ids
-const makeUid = (base: string) => (base = base.replace(/[^\w-]+/g, '_'), (n?: string) => n ? base + '-' + n : base)
+// each part encoded by uidPart (G-214); in the root option anything but [A-Za-z0-9_-] becomes '_'
+// (as run() does). SSR ids = hydration ids
+const makeUid = (base: string) => (n?: string) => n ? base + '-' + n : base
 function childUid(uid: string, vnode: any, path: string): string {
   const id = vnode.data?.props?.id
-  return uid + '-' + ('::' + ((id && JSON.stringify(id).replaceAll('"', '')) || path)).replace(/.*::(r\.)?/, '')
+  return uid + '-' + uidPart(('::' + ((id && JSON.stringify(id).replaceAll('"', '')) || path)).replace(/.*::(r\.)?/, ''))
 }
 
 const errorDiv = (): any => ({sel: 'div', data: {attrs: {'data-sygnal-error': ''}}, children: [], text: undefined, elm: undefined, key: undefined})
@@ -220,8 +222,8 @@ export function renderToString(
 
 function renderRoot(componentDef: any, options: RenderToStringOptions): string {
   const {state, props = {}, context = {}, hydrateState} = options
-  // G-206: the uid root (sanitized as the client's Component constructor does)
-  const uid = makeUid(options.uid || 'u')()
+  // G-206: the uid root (sanitized as run() does)
+  const uid = (options.uid || 'u').replace(/[^\w-]+/g, '_')
 
   const ownState = state !== undefined ? state : componentDef.initialState
   // 5-5: the view sees its resources; the hydration script keeps the state as it was given
@@ -536,7 +538,7 @@ function renderCollection(vnode: any, context: Record<string, any>, parentState:
     // the collection's itemKey)
     const isItemObj = itemState && typeof itemState === 'object' && !Array.isArray(itemState)
     const keyed: any = isItemObj ? {...itemState, [idField]: itemState[idField] || index} : {[idField]: index}
-    const itemUid = uid + '-' + (keyed.id !== undefined ? keyed.id : index)
+    const itemUid = uid + '-' + uidPart(keyed.id !== undefined ? keyed.id : index)
     // GS-1: an item host's behavior slices (the client reads them as defaults, behaviors.ts)
     itemState = withUses(itemComponent, itemState)
     // Build context for this item
@@ -616,7 +618,7 @@ function renderSwitchable(vnode: any, context: Record<string, any>, parentState:
     return {sel: 'div', data: {}, children: [], text: undefined, elm: undefined, key: undefined}
   }
 
-  return renderToStringInternal(activeComponent, parentState, context, uid + '-' + activeName)
+  return renderToStringInternal(activeComponent, parentState, context, uid + '-' + uidPart(activeName))
 }
 
 /**

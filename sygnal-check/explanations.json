@@ -1126,6 +1126,18 @@
     "docsUrl": "https://sygnal.js.org/reference/errors#syg643"
   },
   {
+    "code": "SYG644",
+    "title": "Custom element prop hides an HTMLElement member",
+    "severity": "warn",
+    "strict": false,
+    "reportedBy": [
+      "runtime"
+    ],
+    "explanation": "A `defineElement(tag, Component, { props })` declaration names a prop that is also a member of `HTMLElement`, such as `title`, `hidden`, `lang`, `dir` or `translate`. The element defines its own property for each prop, so the native member of that name stops working on this element: setting `el.hidden = true` updates the prop instead of hiding the element, and the matching attribute no longer has its native effect. `sygnal/element` reports it once per tag when the element first connects, through the diagnostics core when diagnostics are on (a console warning in dev otherwise).",
+    "fix": "Rename the prop (`heading` instead of `title`, `collapsed` instead of `hidden`) and update the attribute and the component's state key that it feeds. Keep the name only when replacing the native behaviour is what you want.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg644"
+  },
+  {
     "code": "SYG701",
     "title": "Click listener on a non-interactive element",
     "severity": "warn",

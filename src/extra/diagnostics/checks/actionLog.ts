@@ -36,6 +36,7 @@
  * sends nothing. Evaluations are matched to records FIFO per action + sink (the core applies
  * them in action order; STATE reducers later, in withState's microtask).
  */
+import {isAbort, ORIGINAL} from '../../../shared'
 
 export type ActionCause = 'intent' | 'next' | 'reply' | 'built-in' | 'simulateAction' | 'behavior'
 
@@ -72,8 +73,6 @@ const KEY = '__sygnalActionLog'
 const BUILT_IN = /^(BOOTSTRAP|INITIALIZE|DISPOSE|RESOURCE)$/
 /** a record waiting for a sink that never runs (no driver subscribed it) is dropped after this */
 const MAX_PENDING = 50
-
-const isAbort = (v: any) => typeof v == 'symbol' && v.description === 'sygnal.ABORT'
 
 /** now on the test's fake clock when there is one (vi.useFakeTimers()), else Date.now() */
 export const clockNow = (): number => {
@@ -163,7 +162,7 @@ function wrap(c: any, log: Log, name: string, sink: string | undefined, reducer:
     // an action that never passed action$ (INITIALIZE is merged in initModel$) opens here
     if (!rec) { open(c, log, {type: name, data: arguments[1]}, causeOf(c, log, name)); rec = log.pend.get(k)?.shift() }
     const r = reducer.apply(this, arguments)
-    if (rec && !isAbort(r) && (isEffect || typeof r != 'symbol') && !(isState && r === state)) add(log, rec, sink, reducer)
+    if (rec && !isAbort(r) && (isEffect || typeof r != 'symbol') && !(isState && r === state)) add(log, rec, sink, reducer[ORIGINAL] || reducer)
     return r
   }
 }

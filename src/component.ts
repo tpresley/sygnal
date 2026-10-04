@@ -6,6 +6,7 @@ import {objIsEqual} from './cycle/state/objIsEqual';
 import {init as snabbdomInit} from './cycle/dom/snabbdom';
 import defaultModules from './cycle/dom/modules';
 import {renderSeq} from './cycle/dom/controlledInputModule';
+import {uidPart, isAbort} from './shared';
 import {makeCommandSource} from './extra/command';
 import {runElementCommands} from './extra/elementCommands';
 import type {Command} from './extra/command';
@@ -50,17 +51,6 @@ function wrapDOMSource(domSource: any): any {
 
 
 export const ABORT = Symbol.for('sygnal.ABORT')
-
-/**
- * Check if a value is the ABORT sentinel.
- * Uses Symbol.for() identity first, then falls back to description check
- * in case bundlers (e.g. Vite) create duplicate module instances with
- * separate Symbol.for() registries.
- */
-function isAbort(value: any): boolean {
-  if (value === ABORT) return true
-  return typeof value === 'symbol' && value.description === 'sygnal.ABORT'
-}
 
 
 function normalizeCalculatedEntry(field: string, entry: any): {fn: (...args: any[]) => any; deps: string[] | null} {
@@ -190,6 +180,7 @@ class Component {
   _activeSubComponents: Map<string, any>;
   _childReadyState: Record<string, boolean>;
   _uid!: (name?: string) => string;
+  _cu?: string;
   _readyChanged$: any;
   _readyChangedListener: any;
 
@@ -407,10 +398,10 @@ class Component {
     })
     this.sources.dispose$ = this._dispose$
     // PLAN-4 GS-9: uid(name?) from the instance's position: the parent sets sources.__uid (its uid
-    // + the child's path or id prop, + a Collection item's key, + a Switchable page name); 'u' at
-    // the root. Anything but [A-Za-z0-9_-] becomes '_' ('Name::r.0.2' → 'u-0_2'). renderToString
-    // builds the same strings (ssr.ts)
-    const base = (sources.__uid || 'u').replace(/[^\w-]+/g, '_')
+    // + the child's path or id prop, + a Collection item's key, + a Switchable page name, each
+    // encoded by uidPart: 'Name::r.0.2' → 'u-0_46_2'); 'u' at the root (run() sanitizes its `uid`
+    // option). renderToString builds the same strings (ssr.ts)
+    const base = sources.__uid || 'u'
     this._uid = (n?: string) => n ? base + '-' + n : base
 
     this.addCalculated = this.createMemoizedAddCalculated()
@@ -547,7 +538,8 @@ class Component {
 
     const action$    = ((runner instanceof Stream) ? runner : (runner.apply && runner(this.sources) || xs.never()))
     const bootstrap$ = xs.of({ type: BOOTSTRAP_ACTION }).compose(delay(10))
-    const _hmrUpdating = typeof window !== 'undefined' && window.__SYGNAL_HMR_UPDATING === true
+    // G-216: this app's hot swap (run()'s __hmr source: { u: swapping, s: the state to keep })
+    const _hmrUpdating = this.sources.__hmr?.u
     const hmrAction$ = _hmrUpdating ? this.hmrAction$ : xs.empty()
     const wrapped$   = (this.model?.[BOOTSTRAP_ACTION] &&!_hmrUpdating) ? concat(bootstrap$, action$) : concat(xs.of().compose(delay(1)).filter((_: any) => false), hmrAction$, action$)
 
@@ -649,7 +641,7 @@ class Component {
               if (typeof f == 'function') v = f(s)
               else if (typeof f == 'object') { v = {}; for (const r in f) v[r] = f[r](s) }
               return [v]
-            } catch (err) { caught('SYG216', this, `${k} threw; nothing sent`, ERR_FIX, err, 'reducer') }
+            } catch (err) { caught('SYG216', this, `${k} threw; nothing sent`, ERR_FIX, err, 'declaration') }
           }), this.sources.__switchPage?.shown$ || xs.of(1))
           .map(([w, shown]: any) => {
             let v = w?.[0]
@@ -678,14 +670,14 @@ class Component {
       return
     }
 
-    const hmrState = ENVIRONMENT?.__SYGNAL_HMR_STATE
+    const hmrState = this.sources.__hmr?.s
     const effectiveInitialState = (typeof hmrState !== 'undefined') ? hmrState : this.initialState
     const initial  = { type: INITIALIZE_ACTION, data: effectiveInitialState }
     if (this.isSubComponent && this.initialState && !this.isolatedState) {
       warn('SYG405', this, 'Sub-component initialState replaces the state its parent passes in', 'Remove initialState, or set isolatedState = true')
     }
     const hasInitialState = (typeof effectiveInitialState !== 'undefined')
-    const shouldInjectInitialState = hasInitialState && (ENVIRONMENT?.__SYGNAL_HMR_UPDATING !== true || typeof hmrState !== 'undefined')
+    const shouldInjectInitialState = hasInitialState && (!this.sources.__hmr?.u || typeof hmrState !== 'undefined')
     // Only INITIALIZE is delayed (user actions start >= 1ms later), so the other actions, and
     // their non-STATE sinks, stay synchronous with the event that caused them (1H-1).
     const shimmed$ = shouldInjectInitialState ? xs.merge(xs.of(initial).compose(delay(0)), this.action$) : this.action$
@@ -1262,8 +1254,9 @@ class Component {
 
         let sink$
         try {
-          // GS-9: the child's uid: this uid + its path or id prop (read by its constructor)
-          this.sources.__uid = this._uid(id.replace(/.*::(r\.)?/, ''))
+          // GS-9: the child's uid: this uid + its path or id prop (the instantiate* functions put it
+          // in the child's own sources; the sources this component received stay as they are, G-214)
+          this._cu = this._uid(uidPart(id.replace(/.*::(r\.)?/, '')))
           sink$ = (isCollection ? this.instantiateCollection : isSwitchable ? this.instantiateSwitchable : this.instantiateCustomComponent).call(this, el, props$, children$)
         } catch (err) {
           const error = err instanceof Error ? err : new Error(String(err))
@@ -1505,7 +1498,7 @@ class Component {
       return itemProps
     })
 
-    const sources = { ...this.sources, [this.stateSourceName]: stateSource, props$: itemProps$, children$, __parentContext$: this.context$, PARENT: null, __parentComponentNumber: this._componentNumber }
+    const sources = { ...this.sources, [this.stateSourceName]: stateSource, props$: itemProps$, children$, __parentContext$: this.context$, PARENT: null, __parentComponentNumber: this._componentNumber, __uid: this._cu }
     const sink$   = collection(factory, lense as any, { container: null as any })(sources)
     if (!isObj(sink$)) {
       fail('SYG903', this, 'Collection factory returned invalid sinks', 'Return a sinks object')
@@ -1546,7 +1539,7 @@ class Component {
         switchableComponents[key] = component(optionsOf(current, current.componentName || current.label || current.name || 'FUNCTION_COMPONENT'))
       }
     })
-    const sources = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$, __parentContext$: this.context$, __parentComponentNumber: this._componentNumber }
+    const sources = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$, __parentContext$: this.context$, __parentComponentNumber: this._componentNumber, __uid: this._cu }
 
     const sink$ = isolate(switchable(switchableComponents, props$.map((props: any) => [props.current, props.instance]), ''), { [this.stateSourceName]: lense })(sources)
 
@@ -1601,7 +1594,7 @@ class Component {
       stateSource = new StateSource(xs.merge(state$.filter(() => local === undefined), local$), this.stateSourceName)
     }
 
-    const sources: Record<string, any> = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$, __parentContext$: this.context$, __parentComponentNumber: this._componentNumber, __localState: local$ }
+    const sources: Record<string, any> = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$, __parentContext$: this.context$, __parentComponentNumber: this._componentNumber, __localState: local$, __uid: this._cu }
     lense = local$ ? null : this.withCalculated(lense)
 
     // Detect Command objects in props and expose as commands$ source

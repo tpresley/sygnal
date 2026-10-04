@@ -4,6 +4,7 @@ import isolate from '../isolate/index';
 import {pickMerge} from './pickMerge';
 import {pickCombine} from './pickCombine';
 import {StateSource} from './StateSource';
+import {uidPart} from '../../shared';
 import {
   InternalInstances,
   Lens,
@@ -131,7 +132,7 @@ export function makeCollection<S, So = any, Si = any>(
                 ? opts.itemFactory(nextState[i], i)
                 : opts.item;
               // PLAN-4 GS-9: an item's uid is the Collection's + its key
-              const sinks: any = isolate(itemComp, scopes)({...sources, __uid: sources.__uid + '-' + key});
+              const sinks: any = isolate(itemComp, scopes)({...sources, __uid: (sources.__uid || 'u') + '-' + uidPart(key)});
               dict.set(key, sinks);
               nextInstArray[i] = sinks;
             } else {
