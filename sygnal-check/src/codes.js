@@ -42,6 +42,8 @@ export const CODES = {
   SYG405: { severity: 'error', title: 'Sub-component has initialState without isolatedState' },
   // PLAN-4 GS-7 timers (rules/syg422-timers.js)
   SYG422: { severity: 'error', title: 'Invalid timer spec' },
+  // PLAN-4 4-G2 (rules/syg609-sink-driver.js): the run() call registers no driver for a model sink
+  SYG609: { severity: 'warn', title: 'Sink or source has no driver' },
   SYG634: { severity: 'info', title: 'latest: true with a computed key' },
   // PLAN-4 GS-2 element commands (rules/syg640-element-commands.js), GS-7 (rules/syg422-timers.js)
   SYG640: { severity: 'warn', title: 'Element command target not found' },

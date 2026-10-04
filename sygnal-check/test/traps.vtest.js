@@ -236,3 +236,98 @@ App.model = { GO: (s) => s }
     expect(only(check({ 'src/TaskRow.jsx': ROW, 'src/Section.jsx': SECTION(), 'src/App.jsx': app }), 'SYG129')).toEqual([])
   })
 })
+
+// Task 13's shape (REPORT-v4: Haiku 13-t2 kept run(App) with no makeFetchDriver; its tests passed on the fake)
+const COURSES = (sinks = "HTTP: () => ({ url: '/api/courses', ok: 'LOADED' })", extra = '') => `export function App({ state }) {
+  return <main>{state.courses.length}</main>
+}
+App.initialState = { courses: [] }
+App.intent = ({ DOM }) => ({ LOAD: DOM.click('main') })
+App.model = {
+  LOAD: { ${sinks} },
+  LOADED: (state, courses) => ({ ...state, courses }),
+}
+${extra}`
+const MAIN = (args = 'App', head = '') => `import { run, makeFetchDriver, makeSocketDriver } from 'sygnal'
+import { App } from './App.jsx'
+${head}
+run(${args})
+`
+
+describe('SYG609 (static): a model sink no run() driver takes', () => {
+  it('registered for static too (warn)', () => {
+    expect(CODES.SYG609?.severity).toBe('warn')
+    expect(getExplanation('SYG609').reportedBy).toEqual(expect.arrayContaining(['dev-entry', 'static']))
+  })
+
+  it('run(App) with no drivers and an HTTP sink: warn at the sink, naming the run() call', () => {
+    const d = only(check({ 'src/App.jsx': COURSES(), 'src/main.js': MAIN() }), 'SYG609')
+    expect(brief(d)).toEqual(['SYG609 warn src/App.jsx:7'])
+    expect(d[0].component).toBe('App')
+    expect(d[0].message).toContain("Model entry 'LOAD' sends to the HTTP sink")
+    expect(d[0].message).toContain('src/main.js:4')
+    expect(d[0].fix).toContain('run(App, { HTTP: makeFetchDriver() })')
+    expect(d[0].data).toMatchObject({ name: 'HTTP', kind: 'sink', action: 'LOAD' })
+  })
+
+  it("a literal drivers object without that key: warn; with it (quoted too): nothing", () => {
+    expect(only(check({ 'src/App.jsx': COURSES(), 'src/main.js': MAIN('App, { WS: makeSocketDriver() }') }), 'SYG609')).toHaveLength(1)
+    expect(only(check({ 'src/App.jsx': COURSES(), 'src/main.js': MAIN('App, { HTTP: makeFetchDriver() }') }), 'SYG609')).toEqual([])
+    expect(only(check({ 'src/App.jsx': COURSES(), 'src/main.js': MAIN("App, { 'HTTP': makeFetchDriver() }") }), 'SYG609')).toEqual([])
+    expect(only(check({ 'src/App.jsx': COURSES(), 'src/main.js': MAIN('App, drivers', 'const drivers = { HTTP: makeFetchDriver() }') }), 'SYG609')).toEqual([])
+  })
+
+  it("the 'ACTION | SINK' shorthand and a child component's sink count too", () => {
+    const short = COURSES().replace("LOAD: { HTTP: () => ({ url: '/api/courses', ok: 'LOADED' }) },", "'LOAD | HTTP': () => ({ url: '/api/courses', ok: 'LOADED' }),")
+    expect(only(check({ 'src/App.jsx': short, 'src/main.js': MAIN() }), 'SYG609')).toHaveLength(1)
+    const chat = `export function Chat() { return <p>chat</p> }
+Chat.intent = ({ DOM }) => ({ SEND: DOM.click('p') })
+Chat.model = { SEND: { WS: () => ({ send: 'hi' }) } }
+`
+    const app = `import { Chat } from './Chat.jsx'
+export function App() { return <main><Chat /></main> }
+App.initialState = {}
+`
+    const d = only(check({ 'src/Chat.jsx': chat, 'src/App.jsx': app, 'src/main.js': MAIN('App, { HTTP: makeFetchDriver() }') }), 'SYG609')
+    expect(brief(d)).toEqual(['SYG609 warn src/Chat.jsx:3'])
+    expect(d[0].message).toContain('the WS sink')
+  })
+
+  it('drivers the checker can not list (a variable it can not see, a spread, computed keys): nothing', () => {
+    for (const [args, head] of [
+      ['App, drivers', "import { drivers } from './drivers.js'"],
+      ['App, { ...more }', 'const more = getDrivers()'],
+      ['App, { [name]: makeFetchDriver() }', "const name = 'HTTP'"],
+    ]) {
+      expect(only(check({ 'src/App.jsx': COURSES(), 'src/main.js': MAIN(args, head) }), 'SYG609'), args).toEqual([])
+    }
+  })
+
+  it('no run() call in the scanned files (Vike, Astro, a library, a test): nothing', () => {
+    expect(only(check({ 'src/App.jsx': COURSES() }), 'SYG609')).toEqual([])
+  })
+
+  it('a component the root does not render: nothing; another app that registers the driver: nothing', () => {
+    const other = `export function Other() { return <p /> }
+Other.model = { GO: { HTTP: () => ({ url: '/x' }) } }
+Other.intent = ({ DOM }) => ({ GO: DOM.click('p') })
+`
+    expect(only(check({ 'src/App.jsx': COURSES('EFFECT: () => {}'), 'src/Other.jsx': other, 'src/main.js': MAIN() }), 'SYG609')).toEqual([])
+    const second = `import { run, makeFetchDriver } from 'sygnal'
+import { App } from './App.jsx'
+run(App, { HTTP: makeFetchDriver() })
+`
+    expect(only(check({ 'src/App.jsx': COURSES(), 'src/main.js': MAIN(), 'src/admin.js': second }), 'SYG609')).toEqual([])
+  })
+
+  it('built-in sinks need no driver (STATE, EFFECT, EVENTS, PARENT, READY, DOM, CHILD, ELEMENT, PERSIST, LOG)', () => {
+    const sinks = ['STATE: s => s', 'EFFECT: () => {}', "EVENTS: () => ({ type: 'X' })", 'PARENT: () => 1', 'READY: () => true',
+      'DOM: () => null', 'CHILD: () => null', 'ELEMENT: () => null', 'PERSIST: () => null', "LOG: () => 'hi'"].join(', ')
+    expect(only(check({ 'src/App.jsx': COURSES(sinks), 'src/main.js': MAIN() }), 'SYG609')).toEqual([])
+  })
+
+  it('// sygnal-ignore SYG609', () => {
+    const src = COURSES("// sygnal-ignore SYG609\n    HTTP: () => ({ url: '/api/courses', ok: 'LOADED' })")
+    expect(only(check({ 'src/App.jsx': src, 'src/main.js': MAIN() }), 'SYG609')).toEqual([])
+  })
+})
