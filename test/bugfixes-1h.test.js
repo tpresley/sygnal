@@ -344,7 +344,8 @@ describe('1H-6: driverFromAsync errors(selector) only claims the errors it match
 import { controlledInputModule } from '../src/cycle/dom/controlledInputModule.js'
 
 describe('1H-7: controlledInputModule scope and comparison', () => {
-  const patch = (props, elm) => controlledInputModule.update({ data: { props } }, { data: { props }, elm })
+  // P45-A: the module checks the vnode's tag (sel), as snabbdom's vnodes always carry it
+  const patch = (props, elm) => controlledInputModule.update({ data: { props } }, { sel: elm.tagName.toLowerCase(), data: { props }, elm })
   const counting = (tagName, init, extra = {}) => {
     const state = { ...init }
     const sets = { value: 0, checked: 0 }

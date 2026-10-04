@@ -39,11 +39,14 @@ const isSet = (cn: any) => cn != null && cn !== false;
 const tokens = (cn: any) => (typeof cn === 'string' ? cn.split(/\s+/).filter(Boolean) : []);
 
 function syncClassName(oldVnode: VNode, vnode: VNode): void {
-  const elm = vnode.elm as any;
-  if (!elm || !elm.classList) return;
   const props: any = vnode.data?.props;
   const oldProps: any = oldVnode.data?.props;
   const hasKey = !!props && 'className' in props;
+  const oldCn = oldProps ? oldProps.className : undefined;
+  // P45-A: keyed on the prop (B-012), not the tag: nothing to do when neither vnode has one
+  if (!hasKey && !isSet(oldCn)) return;
+  const elm = vnode.elm as any;
+  if (!elm || !elm.classList) return;
   const cn = hasKey ? props.className : undefined;
   if (isSet(cn)) {
     // propsModule replaced the whole attribute: put the selector classes and the
@@ -59,8 +62,6 @@ function syncClassName(oldVnode: VNode, vnode: VNode): void {
     }
     return;
   }
-  const oldCn = oldProps ? oldProps.className : undefined;
-  if (!isSet(oldCn)) return;
   const keep = baseClasses(vnode);
   for (const name of tokens(oldCn)) {
     if (keep.indexOf(name) === -1) elm.classList.remove(name);
