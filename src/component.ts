@@ -1759,7 +1759,8 @@ function addComponent(el: any, path: string, componentNameSet: Set<string>, foun
     if (!Object.keys(props.of).includes(props.current)) fail('SYG416', undefined, `Switchable 'current' '${props.current}' is not a key of 'of'`, "Set current to a key of 'of'")
     el.data.isSwitchable = true
   }
-  if (typeof props.key === 'undefined') (el.data.props ||= {}).key = id
+  // G-264: a copy (the props object can be the caller's, lent by reference since P45-B)
+  if (typeof props.key === 'undefined') el.data.props = { ...props, key: id }
   found[id] = el
 }
 
