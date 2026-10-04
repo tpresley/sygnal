@@ -7,31 +7,27 @@ import type {VNode} from './snabbdom';
  * `viewTransitions` action changes state (on the app's IsolateModule, so it is per app).
  *
  * - No API, or `prefers-reduced-motion: reduce`, or the first render: patched at once.
- * - One action is several patches (a Collection move: removed from one list, added to the other
- *   a few ms later), so vnodes that arrive before the browser calls back are folded into one
- *   (the latest wins), and the update callback resolves only after 20 ms without a patch. The
- *   page shows the old snapshot meanwhile, so the in-between states never paint.
- * - The window is capped at 200 ms: an app that renders continuously must not freeze the page.
+ * - P45-C: one action is one patch (the app's render scheduler flushes every component, a
+ *   Collection move included, into one), so the update callback patches with the latest vnode
+ *   that arrived before the browser called back, and is done once that patch is (no quiet
+ *   window: it was 20 ms, capped at 200 ms, for the several patches of a move).
  * - A new transition while one animates: the browser skips the running one (it jumps to its end).
  */
 export function viewTransition$(vnode$: Stream<VNode>, flags: () => any): Stream<VNode> {
   const g: any = globalThis, out$ = xs.create<VNode>();
-  let held: VNode[] | 0 = 0, quiet: any = 0, t: any, first = 1;
+  let held: VNode[] | 0 = 0, first = 1;
   return xs.merge(vnode$.filter(v => {
     const f = flags() || {}, d = g.document, want = f.vt && !first;
     // the first render has no old view to transition from (a ROUTE reply at start asks too)
     f.vt = first = 0;
     if (held) return held[0] = v, false;
-    if (quiet) return quiet(), true;
     if (!want || !d?.startViewTransition || g.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return true;
     held = [v];
-    const update = () => new Promise(r => {
-      const end = () => { quiet = 0; r(0); }, cap = setTimeout(end, 200);
-      (quiet = () => { clearTimeout(t); t = setTimeout(() => { clearTimeout(cap); end(); }, 20); })();
+    const update = () => {
       const h = held as VNode[];
       held = 0;
       out$.shamefullySendNext(h[0]);
-    });
+    };
     try {
       d.startViewTransition(update);
     } catch (_) {

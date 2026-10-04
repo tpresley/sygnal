@@ -74,15 +74,19 @@ describe('makeViewTransitionDOMDriver', () => {
 
   it('a listed action patches inside one transition; the patches of a Collection move are folded in', async () => {
     const calls = fakeVT()
+    // P45-C: the move is one patch (one flush), on the page when the update callback returns: no
+    // quiet window (it was 20 ms, for the several patches a move used to be)
+    const fake = document.startViewTransition
+    let during
+    document.startViewTransition = (update) => fake(() => { const r = update(); during = ids('.a') + '|' + ids('.b'); return r })
     start()
     await settle()
     click('.move')
     await settle(10)
     expect(calls.length).toBe(1)
     await calls[0].updateCallbackDone
+    expect(during).toBe('y|z,x')
     expect(ids('.a') + '|' + ids('.b')).toBe('y|z,x')
-    // the update callback resolves after the patches go quiet (20 ms), not at the first patch
-    expect(calls[0].doneAt - calls[0].startedAt).toBeGreaterThanOrEqual(19)
     click('.bump')
     await settle()
     expect(document.querySelector('.n').textContent).toBe('1')
