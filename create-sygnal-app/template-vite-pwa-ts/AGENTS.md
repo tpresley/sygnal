@@ -33,7 +33,6 @@ t.expectNoDiagnostics(); t.dispose()                // fails on any Sygnal warni
 - `emit(...)` or a raw `EVENTS: s => ({ type, data })`: write `EVENTS: event('TYPE', (state, data) => payload)`.
 - `CHILD.select('Name')` with a string: write `CHILD.select(ChildComponent)`.
 - Positional views `function C(props, state)`: write `function C({ state, context, ...props })`.
-- `return state` (or returning nothing) for "no change": write `return ABORT`.
 - Side effects inside a STATE reducer or a view: use `ACTION: { EFFECT: (state, data, next) => { ... } }` or a driver.
 - `fetch` in a component or EFFECT, or `HTTP.select('x')` reading back your own request: register `run(App, { HTTP: makeFetchDriver() })` and name the reply actions, `LOAD: { HTTP: (state, id) => ({ url: '/api/items/' + id, ok: 'LOADED', error: 'FAILED' }) }` with `LOADED: (state, body) => ...` and `FAILED: (state, { status }) => ...`. Tests answer it with `await t.respond('HTTP', body, 'LOADED')`. WebSocket/SSE: a `connections` static with `makeSocketDriver()` (see llms.txt).
 
@@ -43,3 +42,4 @@ t.expectNoDiagnostics(); t.dispose()                // fails on any Sygnal warni
 - `event('X')` and `EVENTS.select('X')` must use the same type string.
 - `<Collection of={Item} from="items" />`: `from` names an array field of the state.
 - An input with `value={state.x}` needs `X: DOM.input('.x').value()` in the intent.
+- "No change" is `return ABORT`. Returning nothing is SYG202, and a reducer that mutates `state` and returns it changes nothing (the same object means "no change"; SYG222): return a new object.

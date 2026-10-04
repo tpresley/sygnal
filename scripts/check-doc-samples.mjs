@@ -48,13 +48,7 @@ const EXTRA_FILES = [
 ]
 // a11y findings (sample id → code) in agent-facing files PLAN-4 2-D may not edit
 // (llms.txt, the skill: 4-A's); they print as PENDING and don't fail the run.
-const A11Y_PENDING = new Map([
-  ['llms.txt:44', 'SYG702'],
-  ['llms.txt:122', 'SYG702'],
-  ['llms.txt:149', 'SYG702'],
-  ['skills/sygnal-dev/SKILL.md:70', 'SYG702'],
-  ['skills/sygnal-dev/SKILL.md:162', 'SYG702'],
-])
+const A11Y_PENDING = new Map([])
 const LANGS = { js: 'jsx', javascript: 'jsx', jsx: 'jsx', ts: 'tsx', typescript: 'tsx', tsx: 'tsx' }
 
 const args = process.argv.slice(2)
