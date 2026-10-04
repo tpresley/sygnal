@@ -1,15 +1,6 @@
 
 import * as is from './is'
 
-const createTextElement = (text: any): any => !is.text(text) ? undefined : {
-  text,
-  sel: undefined,
-  data: undefined,
-  children: undefined,
-  elm: undefined,
-  key: undefined
-}
-
 // P45-B: a vnode this pragma made whose subtree has no component (or other marker the view
 // walk handles), no form field and no vnode from elsewhere. component.ts's view walk skips it
 // (and, at the root, the whole walk). The flag is on the prototype, not enumerable, so the
@@ -24,6 +15,8 @@ function Plain(this: any, sel: any, data: any, children: any, text: any, key: an
   this.key = key
 }
 Object.defineProperty(Plain.prototype, '$p', { value: 1 })
+
+const createTextElement = (text: any): any => is.text(text) ? new (Plain as any)(undefined, undefined, undefined, text, undefined) : undefined
 // A tag the view walk has to see: a form field (G-146 stamp; a superset of isField) or a
 // component name it knows as a string
 const SPECIAL = /^(input|textarea|select|collection$|switchable$|sygnal-factory$)/i
@@ -33,7 +26,7 @@ const SPECIAL = /^(input|textarea|select|collection$|switchable$|sygnal-factory$
 const applySvg = (vnode: any): void => {
   // Skip text vnodes (sel is undefined) and nullish values; a vnode this pragma made in the
   // SVG namespace was done, with its subtree, when it was made
-  if (!vnode || is.undefinedv(vnode.sel) || (vnode.$p && vnode.data.ns)) return
+  if (!vnode || vnode.sel === undefined || (vnode.$p && vnode.data.ns)) return
   const data = vnode.data || {}
   const props = data.props || {}
   const attrs: any = {}
@@ -161,23 +154,27 @@ const clean = (obj: any): any => {
 //   go to that module's bucket (`data` is snabbdom's `dataset`)
 // - for, role, tabindex and aria-* go to attrs; key is dropped; anything else is a prop
 // - an undefined value is skipped (a `<module>-<name>` one still makes its bucket)
-// A bucket is the object passed until a second source adds to it; then it is a copy (`own`).
+// A bucket is the object passed (`lent`) until a second source adds to it; then it is a copy.
+// sanitizeData doesn't re-enter, so `lent` is per call (null until a bucket is lent).
+let lent: any
+const bucket = (out: any, b: string): any => {
+  const o = out[b]
+  if (is.object(o) && !lent?.[b]) return o
+  if (lent) lent[b] = 0
+  return out[b] = is.object(o) ? { ...o } : {}
+}
+const add = (out: any, b: string, v: any): void => {
+  if (isObject(out[b]) && isObject(v)) {
+    const o = bucket(out, b)
+    for (const k in v) if (v[k] !== undefined) o[k] = v[k]
+  } else {
+    out[b] = clean(v);
+    (lent ||= {})[b] = 1
+  }
+}
 const sanitizeData = (data: any, modules: Record<string, any>): any => {
-  const out: any = {}, own: any = {}
-  const bucket = (b: string): any => {
-    const o = out[b]
-    return own[b] ? o : (own[b] = 1, out[b] = is.object(o) ? { ...o } : {})
-  }
-  const add = (b: string, v: any): void => {
-    if (v === undefined) return
-    if (isObject(out[b]) && isObject(v)) {
-      const o = bucket(b)
-      for (const k in v) if (v[k] !== undefined) o[k] = v[k]
-    } else {
-      out[b] = clean(v)
-      own[b] = 0
-    }
-  }
+  const out: any = {}
+  lent = null
   const hasAttrs = modules.attrs !== undefined
   for (const key in data) {
     let val = data[key]
@@ -189,16 +186,16 @@ const sanitizeData = (data: any, modules: Record<string, any>): any => {
       let sub = key.slice(dash + 1)
       // G-152: data-task-id → dataset key taskId (a hyphenated dataset key makes the DOM throw)
       if (prefix == 'data') sub = sub.replace(/-([a-z])/g, (_, c) => c.toUpperCase())
-      const o = bucket(modules[prefix] || prefix)
+      const o = bucket(out, modules[prefix] || prefix)
       if (val !== undefined) o[sub] = val
     } else if (val === undefined) {
       continue
     } else if (hasAttrs && (key == 'for' || key == 'role' || key == 'tabindex' || prefix == 'aria')) {
-      bucket('attrs')[key] = val
+      bucket(out, 'attrs')[key] = val
     } else if (modules[key] !== undefined) {
-      add(modules[key] || key, val)
+      add(out, modules[key] || key, val)
     } else if (modules.props !== undefined) {
-      bucket('props')[key] = val
+      bucket(out, 'props')[key] = val
     } else {
       out[key] = val
     }

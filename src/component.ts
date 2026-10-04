@@ -1776,15 +1776,9 @@ function walkView(root: any, inst: any, nameSet: Set<string>): [any, Record<stri
         }
         if (!view.__sygnalLazyReRenderScheduled && view.__sygnalLazyPromise) {
           view.__sygnalLazyReRenderScheduled = true
-          view.__sygnalLazyPromise.then(() => {
-            setTimeout(() => {
-              const stateSource = inst.sources?.[inst.stateSourceName]
-              if (stateSource && stateSource.stream) {
-                const stateCopy = { ...inst.currentState, __sygnalLazyTick: Date.now() }
-                stateSource.stream.shamefullySendNext(stateCopy)
-              }
-            }, 0)
-          })
+          // re-render once it has loaded (a copy of the state gets past dropRepeats)
+          view.__sygnalLazyPromise.then(() => setTimeout(() =>
+            inst.sources?.[inst.stateSourceName]?.stream?.shamefullySendNext({ ...inst.currentState, __sygnalLazyTick: Date.now() })))
         }
       }
       if (sel === 'portal') {
@@ -1826,21 +1820,19 @@ function addComponent(el: any, path: string, componentNameSet: Set<string>, foun
   const sel   = el.sel
   const props = el.data.props || {}
   const id    = getComponentIdFromElement(el, path)
-  if (sel && sel.toLowerCase() === 'collection') {
+  if (sel?.toLowerCase() === 'collection') {
     if (!props.of)   fail('SYG411', undefined, "Collection is missing 'of'", 'Use of={ItemComponent}')
     if (typeof props.of !== 'string' && typeof props.of !== 'function')         fail('SYG411', undefined, `Collection 'of' is a ${typeof props.of}`, 'Use of={ItemComponent}')
     if (typeof props.of !== 'function' && !componentNameSet.has(props.of))   fail('SYG411', undefined, `Collection 'of' component not found: ${props.of}`, 'Use of={ItemComponent}')
     // an invalid 'from' is reported once, with the component name, by instantiateCollection (G-026)
     el.data.isCollection = true
     el.data.props ||= {}
-  } else if (sel && sel.toLowerCase() === 'switchable') {
+  } else if (sel?.toLowerCase() === 'switchable') {
     if (!props.of)        fail('SYG415', undefined, "Switchable is missing 'of'", 'Use of={{ name: Component }}')
     if (!isObj(props.of)) fail('SYG415', undefined, `Switchable 'of' is a ${typeof props.of}`, 'Use of={{ name: Component }}')
-    const switchableComponents = Object.values(props.of)
-    if (!switchableComponents.every(comp => typeof comp === 'function')) fail('SYG415', undefined, "Switchable 'of' has a value that is not a component", 'Use of={{ name: Component }}')
+    if (!Object.values(props.of).every(comp => typeof comp === 'function')) fail('SYG415', undefined, "Switchable 'of' has a value that is not a component", 'Use of={{ name: Component }}')
     if (!props.current || (typeof props.current !== 'string' && typeof props.current !== 'function')) fail('SYG416', undefined, `Switchable 'current' is missing or a ${typeof props.current}`, "Set current to a key of 'of'")
-    const switchableComponentNames = Object.keys(props.of)
-    if (!switchableComponentNames.includes(props.current)) fail('SYG416', undefined, `Switchable 'current' '${props.current}' is not a key of 'of'`, "Set current to a key of 'of'")
+    if (!Object.keys(props.of).includes(props.current)) fail('SYG416', undefined, `Switchable 'current' '${props.current}' is not a key of 'of'`, "Set current to a key of 'of'")
     el.data.isSwitchable = true
   }
   if (typeof props.key === 'undefined') (el.data.props ||= {}).key = id
