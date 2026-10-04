@@ -11,6 +11,7 @@ import { renderComponent } from '../src/extra/testing.js'
 import { createElement as h } from '../src/pragma/index.js'
 import { persist } from '../src/extra/persist.js'
 import run from '../src/extra/run.js'
+import { renderToString } from '../src/extra/ssr.js'
 import { _resetDiagnostics } from '../src/extra/diagnostics/index.js'
 
 let t, app
@@ -89,5 +90,51 @@ describe('3-R item 4: SYG642 once per kind', () => {
     }
     expect(document.querySelectorAll('li').length).toBe(3)
     expect(warn.mock.calls.filter(c => /SYG642/.test(String(c[0]))).length).toBe(1)
+  })
+})
+
+describe('3-R item 5: hydration means markup from renderToString', () => {
+  const makeSeen = () => {
+    const seen = []
+    function App({ state }) {
+      seen.push(state.todos.join())
+      return h('ul', null, ...state.todos.map(x => h('li', null, x)))
+    }
+    App.initialState = { todos: [] }
+    App.model = { ADD: (s, x) => ({ ...s, todos: [...s.todos, x] }) }
+    App.persist = persist({ key: 'todo-app' })
+    return { App, seen }
+  }
+
+  it("a client-only app's loading placeholder isn't server markup: the stored state is in the first render", async () => {
+    localStorage.setItem('todo-app', JSON.stringify({ version: 1, state: { todos: ['milk'] } }))
+    const { App, seen } = makeSeen()
+    document.body.innerHTML = '<div id="root"><p class="loading">Loading…</p></div>'
+    app = run(App, {}, { mountPoint: '#root' })
+    await wait(60)
+    expect(seen[0]).toBe('milk')
+    expect(seen).not.toContain('')
+    expect(document.querySelector('li').textContent).toBe('milk')
+  })
+
+  it('renderToString marks its root element; over that markup the restore comes after the first render', async () => {
+    const { App, seen } = makeSeen()
+    const html = renderToString(App, { state: { todos: [] } })
+    expect(html).toMatch(/^<ul data-sygnal-ssr="">/)
+    localStorage.setItem('todo-app', JSON.stringify({ version: 1, state: { todos: ['milk'] } }))
+    seen.length = 0
+    document.body.innerHTML = `<div id="root">${html}</div>`
+    app = run(App, {}, { mountPoint: '#root' })
+    await wait(60)
+    expect(seen[0]).toBe('')
+    expect(seen[seen.length - 1]).toBe('milk')
+    // the client render drops the marker
+    expect(document.querySelector('#root > ul').hasAttribute('data-sygnal-ssr')).toBe(false)
+  })
+
+  it('a fragment root: its first element carries the marker', () => {
+    // (a fragment vnode: no selector, children)
+    const html = renderToString(() => ({ sel: undefined, data: {}, children: ['hi ', h('h1', null, 'a'), h('p', null, 'b')] }), {})
+    expect(html).toBe('hi <h1 data-sygnal-ssr="">a</h1><p>b</p>')
   })
 })

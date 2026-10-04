@@ -474,7 +474,7 @@ describe('renderToString', () => {
       }
       NoKids.initialState = {}
       const html = renderToString(NoKids)
-      expect(html).toBe('<div class="empty"></div>')
+      expect(html).toBe('<div class="empty" data-sygnal-ssr=""></div>')
     })
 
     it('handles deeply nested components', () => {

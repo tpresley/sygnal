@@ -119,6 +119,6 @@ describe('item 2: the island root forwards persist, uses, timers and viewTransit
 
   it('server: the island with uses renders its behavior slice', () => {
     const { html } = renderToStaticMarkup(makeIsland(), {})
-    expect(html).toBe('<div><b>0</b><i></i></div>')
+    expect(html).toBe('<div data-sygnal-ssr=""><b>0</b><i></i></div>')
   })
 })

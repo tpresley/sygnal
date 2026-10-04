@@ -69,7 +69,7 @@ describe('G-106: Vike shell state with a Wrapper and a Layout', () => {
     expect(serializedState(html)).toEqual({
       wrapper_0: { w: 1 }, layout_0: { n: 0 }, page: { title: 'Home data' },
     })
-    expect(html).toContain('<p class="page">home:Home data</p>')
+    expect(html).toContain('<p class="page" data-sygnal-ssr="">home:Home data</p>')
   })
 
   it('onRenderHtml with a single Layout: { layout_0, page }', () => {

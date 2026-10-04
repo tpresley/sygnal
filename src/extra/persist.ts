@@ -16,7 +16,8 @@ import {warn} from './diagnostics/legacy';
  *   is ignored. Hydrating server HTML, the restore is a RESTORE action after the first state
  *   instead, so the first render matches the server's. Hydrating: the `hydrate` option when given,
  *   else the integration's `__hydrate` source (Astro: a server-rendered island; Vike: a hydration),
- *   else whether run()'s mount point (its `__m` source) already has element children.
+ *   else whether run()'s mount point (its `__m` source) starts with renderToString's markup (the
+ *   root element carries `data-sygnal-ssr`; 3-R).
  * - Writes: debounced (`debounceMs`, default 100), skipped when the stored text is the same,
  *   flushed on `pagehide` and on dispose.
  * - `PERSIST: { clear: true }` in any model entry's object form (a value or a function of
@@ -38,8 +39,9 @@ export const setupPersist = (c: any, o: any): void => {
   const {key, pick, omit, version = 1, migrate, sync, debounceMs = 100} = o, src = c.sources, m = src.__m;
   const env = src.__storage, calc = c.calculated || {};
   // hydrating: the option, else the integration's signal (__hydrate: Astro, Vike), else whether
-  // run()'s mount point already has markup
-  const hydrate = o.hydrate ?? src.__hydrate ?? !!(typeof m == 'string' ? g.document?.querySelector(m) : m)?.firstElementChild;
+  // run()'s mount point starts with renderToString's markup (its root element is marked; a
+  // client-only app's loading placeholder isn't server markup)
+  const hydrate = o.hydrate ?? src.__hydrate ?? !!(typeof m == 'string' ? g.document?.querySelector(m) : m)?.firstElementChild?.hasAttribute('data-sygnal-ssr');
   let S: any, t: any, last: any, raw: any, skip: any, off: any;
   // (the docs link the message ends with explains the causes and fixes). Once per kind (restore,
   // save, clear): a storage that throws on every write must not warn on every change; a save that

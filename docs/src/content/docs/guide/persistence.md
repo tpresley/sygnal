@@ -149,7 +149,7 @@ During server rendering nothing is read or written: `renderToString` runs views 
 
 When the client starts from server-rendered HTML (the [`hydrateState`](/integration/ssr/) state), restoring before the first render would make that render differ from the server's markup. So when the app hydrates, the first render uses the server's state, and the saved keys follow in a `RESTORE` action once it is on the page. The app hydrates when:
 
-- `run()`'s mount point already has markup when `run()` starts
+- `run()`'s mount point starts with markup from [`renderToString()`](/integration/ssr/): its root element carries a `data-sygnal-ssr` attribute, which the first client render removes. Other markup in the mount point, such as a client-only app's loading placeholder, isn't server markup: the saved keys are part of the first render
 - an [Astro](/integration/astro/) island was rendered on the server (not `client:only`)
 - a [Vike](/integration/vike/) page hydrates its server HTML (not a client-side navigation)
 
@@ -160,7 +160,7 @@ App.initialState = window.__SYGNAL_STATE__ || App.initialState
 run(App, {}, { mountPoint: '#app' })
 ```
 
-The `hydrate` option overrides the detection: `hydrate: true` always restores after the first render, `hydrate: false` always before it (a mount point holding a placeholder, not the server's markup, is detected as hydrating; that costs one render of `initialState` before the `RESTORE`).
+The `hydrate` option overrides the detection: `hydrate: true` always restores after the first render, `hydrate: false` always before it. Use `hydrate: true` when the server's HTML doesn't come from `renderToString()` (another renderer, or markup you post-process without the attribute).
 
 ## With undo
 

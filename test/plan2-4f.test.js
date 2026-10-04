@@ -178,6 +178,6 @@ describe('C3: t.html() serialises like innerHTML', () => {
   })
 
   it('SSR output is unchanged', () => {
-    expect(renderToString(Msg)).toBe(`<div title="Tom&#39;s &quot;quote&quot; &amp; &lt;co&gt;"><p>Couldn&#39;t load &quot;courses&quot; &amp; &lt;retry&gt;</p></div>`)
+    expect(renderToString(Msg)).toBe(`<div title="Tom&#39;s &quot;quote&quot; &amp; &lt;co&gt;" data-sygnal-ssr=""><p>Couldn&#39;t load &quot;courses&quot; &amp; &lt;retry&gt;</p></div>`)
   })
 })

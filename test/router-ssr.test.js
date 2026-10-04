@@ -46,7 +46,7 @@ it('Vike onRenderHtml: head statics override config.title / description; without
   expect(html).not.toContain('<title>Site</title>')
   expect(html).toContain('<meta name="description" content="Desc" data-sygnal-head="m:description">')
   expect(html).toContain('<meta property="og:title" content="T" data-sygnal-head="m:og:title">')
-  expect(html).toContain('<h1>task</h1>')
+  expect(html).toContain('<h1 data-sygnal-ssr="">task</h1>')
   function Plain() { return { sel: 'p', data: {}, children: undefined, text: 'x' } }
   const plain = onRenderHtml({ Page: Plain, config: { title: 'Site', description: 'Desc' } }).documentHtml._escaped
   expect(plain).toContain('<title>Site</title>')

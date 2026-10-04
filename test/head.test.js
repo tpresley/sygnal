@@ -124,7 +124,7 @@ describe('SSR', () => {
     App.head = { title: 'App', meta: { description: 'd' }, link: [{ rel: 'icon', href: '/i.svg', type: 'image/svg+xml' }] }
     const list = []
     const html = renderToString(App, { head: list })
-    expect(html).toBe('<div><p>A &amp; &quot;B&quot;</p></div>')
+    expect(html).toBe('<div data-sygnal-ssr=""><p>A &amp; &quot;B&quot;</p></div>')
     expect(list).toHaveLength(2)
     expect(renderHead(list, { titleTemplate: '%s | Site' })).toBe(
       '<title>A &#38; &#34;B&#34; | Site</title>' +

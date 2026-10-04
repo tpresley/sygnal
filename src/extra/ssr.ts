@@ -266,6 +266,12 @@ function renderRoot(componentDef: any, options: RenderToStringOptions): string {
   // Process special components in the VNode tree
   vnode = processSSRTree(vnode, mergedContext, resolvedState, uid, 'r')
 
+  // PLAN-4 3-R: mark the root element (a fragment's first element) as Sygnal's server markup, so
+  // persist() under plain run() can tell it from a client-only app's loading placeholder. The
+  // first client render drops the attribute (the new vnode doesn't have it)
+  const first = vnode?.sel ? vnode : Array.isArray(vnode?.children) && vnode.children.find((c: any) => c?.sel && c.sel !== '!')
+  if (first && !innerHtmlMode) first.data = {...first.data, attrs: {'data-sygnal-ssr': '', ...first.data?.attrs}}
+
   // Serialize to HTML
   let html = vnodeToHtml(vnode)
 

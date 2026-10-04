@@ -188,7 +188,7 @@ describe('GS-11: renderComponent and renderToString', () => {
     Inner.onError = () => { order.push('boundary:Inner'); return h('em', null, 'fallback') }
     function Outer() { return h('div', null, h(Inner)) }
     const html = renderToString(Outer, { onError })
-    expect(html).toBe('<div><em>fallback</em></div>')
+    expect(html).toBe('<div data-sygnal-ssr=""><em>fallback</em></div>')
     expect(order).toEqual(['boundary:Inner', 'app:Inner'])
     expect(info(onError.mock.calls)).toEqual([['inner', { componentName: 'Inner', action: undefined, phase: 'view' }]])
 
