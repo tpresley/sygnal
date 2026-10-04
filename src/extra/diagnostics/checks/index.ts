@@ -48,6 +48,7 @@
  * | SYG502 | retired in 6.0 (never reported; GS-4)                  | —              |
  * | SYG504 | strict: 'ACTION | SINK' shorthand model key           | strict.ts      |
  * | SYG508 | strict: select()/errors() round trip on a reply source | replies.ts    |
+ * | —      | D152: shared statics frozen (initialState deep)        | statics.ts     |
  * | —      | inspect(): the runtime app graph (2B)                  | inspect.ts     |
  *
  * SYG112, SYG130-133 (PLAN-3), SYG115/116/221/421 (G-143) SYG124/125 (PLAN-4 CT-1) and SYG127 (GS-1) are dev-entry-only codes: their severities live in
@@ -77,6 +78,7 @@ import {fetchCheck} from './fetch'
 import {timersCheck, installTimerHooks} from './timers'
 import {persistCheck} from './persist'
 import {viewTransitionsCheck} from './viewTransitions'
+import {staticsCheck} from './statics'
 import {installRxjsHints} from './rxjsHints'
 import {inspectCheck, installInspect} from './inspect'
 
@@ -109,6 +111,7 @@ export const checks: DiagnosticCheck[] = [
   timersCheck,
   persistCheck,
   viewTransitionsCheck,
+  staticsCheck,
   inspectCheck,
 ]
 

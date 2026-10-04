@@ -3,6 +3,7 @@ import {makeCollection} from './cycle/state/index';
 import {h} from './cycle/dom/index';
 import type {Lens} from './cycle/state/types';
 import {fail} from './extra/diagnostics/legacy';
+import {NOT_SINK} from './shared';
 
 let COLLECTION_COUNT = 0;
 
@@ -45,8 +46,9 @@ export default function collection(
       collectSinks: (instances: any) => {
         return Object.entries(sources).reduce<Record<string, any>>(
           (acc, [name]) => {
-            // P45-C: the internal sources (__k, __d, __uid, ...) have no sinks
-            if (name.startsWith('__')) return acc;
+            // P45-C/D: the internal and non-driver sources (__k, props$, CHILD, ...) have no
+            // sinks, except PARENT (the items' values for the parent's CHILD)
+            if (name != 'PARENT' && NOT_SINK.test(name)) return acc;
             if (combineList.includes(name)) {
               const combined = instances.pickCombine(name);
               if (name === domSourceName && container) {

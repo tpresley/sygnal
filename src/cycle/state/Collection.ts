@@ -5,7 +5,7 @@ import {pickMerge} from './pickMerge';
 import {pickCombine} from './pickCombine';
 import {StateSource} from './StateSource';
 import {uidPart} from '../../shared';
-import {B} from '../run/scheduler';
+import {B, tearDown} from '../run/scheduler';
 import {
   InternalInstances,
   Lens,
@@ -146,21 +146,17 @@ export function makeCollection<S, So = any, Si = any>(
             }
             nextInstArray[i]._key = key;
           }
-          // remove
-          dict.forEach((sinks, key) => {
+          // remove (P45-D: the removed items' streams stop in one batch)
+          tearDown(() => dict.forEach((sinks, key) => {
             if (!nextKeys.has(key)) {
-              if (sinks && typeof sinks.__dispose === 'function') {
-                sinks.__dispose();
-              }
+              sinks?.__dispose?.();
               dict.delete(key);
             }
-          });
+          }));
           nextKeys.clear();
           return {dict: dict, arr: nextInstArray};
         } else {
-          dict.forEach((sinks) => {
-            if (sinks && typeof sinks.__dispose === 'function') sinks.__dispose();
-          });
+          tearDown(() => dict.forEach((sinks) => sinks?.__dispose?.()));
           dict.clear();
           const key = `${itemKey ? itemKey(nextState, 0) : 'this'}`;
           const stateScope = identityLens;
@@ -185,7 +181,7 @@ export function makeCollection<S, So = any, Si = any>(
     // disposes every live item, and so their subtrees
     sinks.__dispose = () => {
       disposed = true;
-      dict.forEach((s: any) => s.__dispose?.());
+      tearDown(() => dict.forEach((s: any) => s.__dispose?.()));
       dict.clear();
     };
     return sinks;
