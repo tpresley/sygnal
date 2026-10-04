@@ -1,12 +1,12 @@
 {
   "meta": {
     "run": "p4-ergo-baseline",
-    "generatedAt": "2026-10-04T01:52:39.795Z",
+    "generatedAt": "2026-10-04T08:56:07.178Z",
     "trialsInMap": 40,
     "trialsAnalyzed": 40,
     "trialsScored": 40,
-    "skillDir": "/private/tmp/sygnal-evals/trials/p4-ergo-baseline/_variant/skillroot/.claude/skills/sygnal-dev",
-    "llms": "/Users/troy/Documents/Displera/sygnal/.claude/worktrees/agent-a3cdbdb9fe442a999/llms.txt",
+    "skillDir": "/tmp/sygnal-evals/trials/p4-ergo-baseline/_variant/skillroot/.claude/skills/sygnal-dev",
+    "llms": "/Users/troy/Documents/Displera/sygnal/.claude/worktrees/agent-aae257d8e170429f0/llms.txt",
     "sygnalCheck": true,
     "methods": [
       "headless"
@@ -1703,7 +1703,8 @@
         "testsTotal": 7,
         "wallSeconds": 59,
         "iterations": 1,
-        "editRounds": 1
+        "editRounds": 1,
+        "failureCategory": "none"
       },
       "method": "headless",
       "tokens": {
@@ -1764,7 +1765,8 @@
       },
       "selfReported": [],
       "wroteTest": true,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-ergo-baseline/react-26-t1",
+      "testWindow": 11.8,
+      "trialDir": "/tmp/sygnal-evals/trials/p4-ergo-baseline/react-26-t1",
       "diff": {
         "added": 205,
         "removed": 7,
@@ -1803,7 +1805,8 @@
         "testsTotal": 7,
         "wallSeconds": 42,
         "iterations": 1,
-        "editRounds": 1
+        "editRounds": 1,
+        "failureCategory": "none"
       },
       "method": "headless",
       "tokens": {
@@ -1864,7 +1867,8 @@
       },
       "selfReported": [],
       "wroteTest": true,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-ergo-baseline/react-26-t2",
+      "testWindow": 8.3,
+      "trialDir": "/tmp/sygnal-evals/trials/p4-ergo-baseline/react-26-t2",
       "diff": {
         "added": 237,
         "removed": 6,
@@ -1903,7 +1907,8 @@
         "testsTotal": 7,
         "wallSeconds": 45,
         "iterations": 1,
-        "editRounds": 1
+        "editRounds": 1,
+        "failureCategory": "none"
       },
       "method": "headless",
       "tokens": {
@@ -1964,7 +1969,8 @@
       },
       "selfReported": [],
       "wroteTest": true,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-ergo-baseline/react-26-t3",
+      "testWindow": 9.7,
+      "trialDir": "/tmp/sygnal-evals/trials/p4-ergo-baseline/react-26-t3",
       "diff": {
         "added": 236,
         "removed": 6,
@@ -2003,7 +2009,8 @@
         "testsTotal": 7,
         "wallSeconds": 46,
         "iterations": 1,
-        "editRounds": 1
+        "editRounds": 1,
+        "failureCategory": "none"
       },
       "method": "headless",
       "tokens": {
@@ -2064,7 +2071,8 @@
       },
       "selfReported": [],
       "wroteTest": true,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-ergo-baseline/react-26-t4",
+      "testWindow": 9.4,
+      "trialDir": "/tmp/sygnal-evals/trials/p4-ergo-baseline/react-26-t4",
       "diff": {
         "added": 217,
         "removed": 7,
@@ -2103,7 +2111,8 @@
         "testsTotal": 7,
         "wallSeconds": 38,
         "iterations": 1,
-        "editRounds": 1
+        "editRounds": 1,
+        "failureCategory": "none"
       },
       "method": "headless",
       "tokens": {
@@ -2173,7 +2182,8 @@
       },
       "selfReported": [],
       "wroteTest": true,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-ergo-baseline/react-26-t5",
+      "testWindow": 8.1,
+      "trialDir": "/tmp/sygnal-evals/trials/p4-ergo-baseline/react-26-t5",
       "diff": {
         "added": 192,
         "removed": 7,
@@ -2212,7 +2222,8 @@
         "testsTotal": 7,
         "wallSeconds": 72,
         "iterations": 4,
-        "editRounds": 3
+        "editRounds": 3,
+        "failureCategory": "none"
       },
       "method": "headless",
       "tokens": {
@@ -2304,6 +2315,7 @@
           "G-125"
         ]
       },
+      "usedActionLog": false,
       "skill": {
         "skillInvoked": true,
         "skillBytes": 34996,
@@ -2359,7 +2371,8 @@
       },
       "selfReported": [],
       "wroteTest": true,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-ergo-baseline/sygnal-26-t1",
+      "testWindow": 24.1,
+      "trialDir": "/tmp/sygnal-evals/trials/p4-ergo-baseline/sygnal-26-t1",
       "diff": {
         "added": 163,
         "removed": 12,
@@ -2406,6 +2419,19 @@
       "sygnalCheck": {
         "diagnostics": []
       },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
       "finalReportChars": 1985
     },
     {
@@ -2422,7 +2448,8 @@
         "testsTotal": 7,
         "wallSeconds": 70,
         "iterations": 2,
-        "editRounds": 2
+        "editRounds": 2,
+        "failureCategory": "none"
       },
       "method": "headless",
       "tokens": {
@@ -2504,6 +2531,7 @@
         "workaround": [],
         "input": []
       },
+      "usedActionLog": false,
       "skill": {
         "skillInvoked": true,
         "skillBytes": 34996,
@@ -2557,7 +2585,8 @@
       },
       "selfReported": [],
       "wroteTest": true,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-ergo-baseline/sygnal-26-t2",
+      "testWindow": 15.5,
+      "trialDir": "/tmp/sygnal-evals/trials/p4-ergo-baseline/sygnal-26-t2",
       "diff": {
         "added": 172,
         "removed": 12,
@@ -2604,6 +2633,19 @@
       "sygnalCheck": {
         "diagnostics": []
       },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
       "finalReportChars": 2127
     },
     {
@@ -2620,7 +2662,8 @@
         "testsTotal": 7,
         "wallSeconds": 59,
         "iterations": 2,
-        "editRounds": 1
+        "editRounds": 1,
+        "failureCategory": "none"
       },
       "method": "headless",
       "tokens": {
@@ -2677,6 +2720,7 @@
           "G-125"
         ]
       },
+      "usedActionLog": false,
       "skill": {
         "skillInvoked": true,
         "skillBytes": 34996,
@@ -2730,7 +2774,8 @@
       },
       "selfReported": [],
       "wroteTest": true,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-ergo-baseline/sygnal-26-t3",
+      "testWindow": 10.1,
+      "trialDir": "/tmp/sygnal-evals/trials/p4-ergo-baseline/sygnal-26-t3",
       "diff": {
         "added": 172,
         "removed": 12,
@@ -2777,6 +2822,19 @@
       "sygnalCheck": {
         "diagnostics": []
       },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
       "finalReportChars": 1717
     },
     {
@@ -2793,7 +2851,8 @@
         "testsTotal": 7,
         "wallSeconds": 66,
         "iterations": 2,
-        "editRounds": 1
+        "editRounds": 1,
+        "failureCategory": "none"
       },
       "method": "headless",
       "tokens": {
@@ -2851,6 +2910,7 @@
           "G-125"
         ]
       },
+      "usedActionLog": false,
       "skill": {
         "skillInvoked": true,
         "skillBytes": 34996,
@@ -2907,7 +2967,8 @@
       },
       "selfReported": [],
       "wroteTest": true,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-ergo-baseline/sygnal-26-t4",
+      "testWindow": 10.7,
+      "trialDir": "/tmp/sygnal-evals/trials/p4-ergo-baseline/sygnal-26-t4",
       "diff": {
         "added": 172,
         "removed": 12,
@@ -2954,6 +3015,19 @@
       "sygnalCheck": {
         "diagnostics": []
       },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
       "finalReportChars": 1861
     },
     {
@@ -2970,7 +3044,8 @@
         "testsTotal": 7,
         "wallSeconds": 72,
         "iterations": 2,
-        "editRounds": 1
+        "editRounds": 1,
+        "failureCategory": "none"
       },
       "method": "headless",
       "tokens": {
@@ -3027,6 +3102,7 @@
           "G-125"
         ]
       },
+      "usedActionLog": false,
       "skill": {
         "skillInvoked": true,
         "skillBytes": 34996,
@@ -3082,7 +3158,8 @@
       },
       "selfReported": [],
       "wroteTest": true,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-ergo-baseline/sygnal-26-t5",
+      "testWindow": 10.5,
+      "trialDir": "/tmp/sygnal-evals/trials/p4-ergo-baseline/sygnal-26-t5",
       "diff": {
         "added": 161,
         "removed": 12,
@@ -3129,6 +3206,19 @@
       "sygnalCheck": {
         "diagnostics": []
       },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
       "finalReportChars": 1956
     },
     {
@@ -3145,7 +3235,8 @@
         "testsTotal": 7,
         "wallSeconds": 68,
         "iterations": 4,
-        "editRounds": 4
+        "editRounds": 4,
+        "failureCategory": "none"
       },
       "method": "headless",
       "tokens": {
@@ -3250,7 +3341,8 @@
       },
       "selfReported": [],
       "wroteTest": true,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-ergo-baseline/react-27-t1",
+      "testWindow": 35.6,
+      "trialDir": "/tmp/sygnal-evals/trials/p4-ergo-baseline/react-27-t1",
       "diff": {
         "added": 87,
         "removed": 8,
@@ -3280,7 +3372,8 @@
         "testsTotal": 7,
         "wallSeconds": 37,
         "iterations": 1,
-        "editRounds": 1
+        "editRounds": 1,
+        "failureCategory": "none"
       },
       "method": "headless",
       "tokens": {
@@ -3341,7 +3434,8 @@
       },
       "selfReported": [],
       "wroteTest": true,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-ergo-baseline/react-27-t2",
+      "testWindow": 8,
+      "trialDir": "/tmp/sygnal-evals/trials/p4-ergo-baseline/react-27-t2",
       "diff": {
         "added": 83,
         "removed": 8,
@@ -3371,7 +3465,8 @@
         "testsTotal": 7,
         "wallSeconds": 37,
         "iterations": 1,
-        "editRounds": 1
+        "editRounds": 1,
+        "failureCategory": "none"
       },
       "method": "headless",
       "tokens": {
@@ -3432,7 +3527,8 @@
       },
       "selfReported": [],
       "wroteTest": true,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-ergo-baseline/react-27-t3",
+      "testWindow": 8.9,
+      "trialDir": "/tmp/sygnal-evals/trials/p4-ergo-baseline/react-27-t3",
       "diff": {
         "added": 81,
         "removed": 8,
@@ -3462,7 +3558,8 @@
         "testsTotal": 7,
         "wallSeconds": 42,
         "iterations": 1,
-        "editRounds": 1
+        "editRounds": 1,
+        "failureCategory": "none"
       },
       "method": "headless",
       "tokens": {
@@ -3523,7 +3620,8 @@
       },
       "selfReported": [],
       "wroteTest": true,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-ergo-baseline/react-27-t4",
+      "testWindow": 7.2,
+      "trialDir": "/tmp/sygnal-evals/trials/p4-ergo-baseline/react-27-t4",
       "diff": {
         "added": 161,
         "removed": 8,
@@ -3562,7 +3660,8 @@
         "testsTotal": 7,
         "wallSeconds": 72,
         "iterations": 5,
-        "editRounds": 5
+        "editRounds": 5,
+        "failureCategory": "none"
       },
       "method": "headless",
       "tokens": {
@@ -3667,7 +3766,8 @@
       },
       "selfReported": [],
       "wroteTest": true,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-ergo-baseline/react-27-t5",
+      "testWindow": 40.2,
+      "trialDir": "/tmp/sygnal-evals/trials/p4-ergo-baseline/react-27-t5",
       "diff": {
         "added": 98,
         "removed": 8,
@@ -3697,7 +3797,8 @@
         "testsTotal": 7,
         "wallSeconds": 65,
         "iterations": 3,
-        "editRounds": 2
+        "editRounds": 2,
+        "failureCategory": "none"
       },
       "method": "headless",
       "tokens": {
@@ -3779,6 +3880,7 @@
           "G-125"
         ]
       },
+      "usedActionLog": false,
       "skill": {
         "skillInvoked": true,
         "skillBytes": 34996,
@@ -3831,7 +3933,8 @@
       },
       "selfReported": [],
       "wroteTest": true,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-ergo-baseline/sygnal-27-t1",
+      "testWindow": 15.3,
+      "trialDir": "/tmp/sygnal-evals/trials/p4-ergo-baseline/sygnal-27-t1",
       "diff": {
         "added": 222,
         "removed": 10,
@@ -3879,6 +3982,19 @@
       "sygnalCheck": {
         "diagnostics": []
       },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
       "finalReportChars": 1935
     },
     {
@@ -3895,7 +4011,8 @@
         "testsTotal": 7,
         "wallSeconds": 65,
         "iterations": 3,
-        "editRounds": 2
+        "editRounds": 2,
+        "failureCategory": "none"
       },
       "method": "headless",
       "tokens": {
@@ -3952,6 +4069,7 @@
           "G-125"
         ]
       },
+      "usedActionLog": false,
       "skill": {
         "skillInvoked": true,
         "skillBytes": 34996,
@@ -4003,7 +4121,8 @@
       },
       "selfReported": [],
       "wroteTest": true,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-ergo-baseline/sygnal-27-t2",
+      "testWindow": 18.1,
+      "trialDir": "/tmp/sygnal-evals/trials/p4-ergo-baseline/sygnal-27-t2",
       "diff": {
         "added": 210,
         "removed": 11,
@@ -4051,6 +4170,19 @@
       "sygnalCheck": {
         "diagnostics": []
       },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
       "finalReportChars": 1828
     },
     {
@@ -4067,7 +4199,8 @@
         "testsTotal": 7,
         "wallSeconds": 73,
         "iterations": 3,
-        "editRounds": 3
+        "editRounds": 3,
+        "failureCategory": "none"
       },
       "method": "headless",
       "tokens": {
@@ -4159,6 +4292,7 @@
           "G-125"
         ]
       },
+      "usedActionLog": false,
       "skill": {
         "skillInvoked": true,
         "skillBytes": 34996,
@@ -4214,7 +4348,8 @@
       },
       "selfReported": [],
       "wroteTest": true,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-ergo-baseline/sygnal-27-t3",
+      "testWindow": 21.7,
+      "trialDir": "/tmp/sygnal-evals/trials/p4-ergo-baseline/sygnal-27-t3",
       "diff": {
         "added": 200,
         "removed": 10,
@@ -4262,6 +4397,19 @@
       "sygnalCheck": {
         "diagnostics": []
       },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
       "finalReportChars": 2074
     },
     {
@@ -4278,7 +4426,8 @@
         "testsTotal": 7,
         "wallSeconds": 60,
         "iterations": 2,
-        "editRounds": 2
+        "editRounds": 2,
+        "failureCategory": "none"
       },
       "method": "headless",
       "tokens": {
@@ -4335,6 +4484,7 @@
           "G-125"
         ]
       },
+      "usedActionLog": false,
       "skill": {
         "skillInvoked": true,
         "skillBytes": 34996,
@@ -4386,7 +4536,8 @@
       },
       "selfReported": [],
       "wroteTest": true,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-ergo-baseline/sygnal-27-t4",
+      "testWindow": 17.7,
+      "trialDir": "/tmp/sygnal-evals/trials/p4-ergo-baseline/sygnal-27-t4",
       "diff": {
         "added": 210,
         "removed": 11,
@@ -4434,6 +4585,19 @@
       "sygnalCheck": {
         "diagnostics": []
       },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
       "finalReportChars": 1982
     },
     {
@@ -4450,7 +4614,8 @@
         "testsTotal": 7,
         "wallSeconds": 71,
         "iterations": 2,
-        "editRounds": 2
+        "editRounds": 2,
+        "failureCategory": "none"
       },
       "method": "headless",
       "tokens": {
@@ -4510,6 +4675,7 @@
           "G-125"
         ]
       },
+      "usedActionLog": false,
       "skill": {
         "skillInvoked": true,
         "skillBytes": 34996,
@@ -4564,7 +4730,8 @@
       },
       "selfReported": [],
       "wroteTest": true,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-ergo-baseline/sygnal-27-t5",
+      "testWindow": 17.6,
+      "trialDir": "/tmp/sygnal-evals/trials/p4-ergo-baseline/sygnal-27-t5",
       "diff": {
         "added": 220,
         "removed": 11,
@@ -4612,6 +4779,19 @@
       "sygnalCheck": {
         "diagnostics": []
       },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
       "finalReportChars": 1578
     },
     {
@@ -4628,7 +4808,8 @@
         "testsTotal": 7,
         "wallSeconds": 36,
         "iterations": 1,
-        "editRounds": 1
+        "editRounds": 1,
+        "failureCategory": "none"
       },
       "method": "headless",
       "tokens": {
@@ -4689,7 +4870,8 @@
       },
       "selfReported": [],
       "wroteTest": true,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-ergo-baseline/react-28-t1",
+      "testWindow": 6.8,
+      "trialDir": "/tmp/sygnal-evals/trials/p4-ergo-baseline/react-28-t1",
       "diff": {
         "added": 69,
         "removed": 5,
@@ -4719,7 +4901,8 @@
         "testsTotal": 7,
         "wallSeconds": 47,
         "iterations": 1,
-        "editRounds": 1
+        "editRounds": 1,
+        "failureCategory": "none"
       },
       "method": "headless",
       "tokens": {
@@ -4781,7 +4964,8 @@
       },
       "selfReported": [],
       "wroteTest": true,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-ergo-baseline/react-28-t2",
+      "testWindow": 13.9,
+      "trialDir": "/tmp/sygnal-evals/trials/p4-ergo-baseline/react-28-t2",
       "diff": {
         "added": 81,
         "removed": 5,
@@ -4811,7 +4995,8 @@
         "testsTotal": 7,
         "wallSeconds": 38,
         "iterations": 1,
-        "editRounds": 1
+        "editRounds": 1,
+        "failureCategory": "none"
       },
       "method": "headless",
       "tokens": {
@@ -4871,7 +5056,8 @@
       },
       "selfReported": [],
       "wroteTest": true,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-ergo-baseline/react-28-t3",
+      "testWindow": 6.7,
+      "trialDir": "/tmp/sygnal-evals/trials/p4-ergo-baseline/react-28-t3",
       "diff": {
         "added": 129,
         "removed": 5,
@@ -4910,7 +5096,8 @@
         "testsTotal": 7,
         "wallSeconds": 36,
         "iterations": 1,
-        "editRounds": 1
+        "editRounds": 1,
+        "failureCategory": "none"
       },
       "method": "headless",
       "tokens": {
@@ -4971,7 +5158,8 @@
       },
       "selfReported": [],
       "wroteTest": true,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-ergo-baseline/react-28-t4",
+      "testWindow": 7.1,
+      "trialDir": "/tmp/sygnal-evals/trials/p4-ergo-baseline/react-28-t4",
       "diff": {
         "added": 130,
         "removed": 5,
@@ -5010,7 +5198,8 @@
         "testsTotal": 7,
         "wallSeconds": 39,
         "iterations": 2,
-        "editRounds": 2
+        "editRounds": 2,
+        "failureCategory": "none"
       },
       "method": "headless",
       "tokens": {
@@ -5096,7 +5285,8 @@
       },
       "selfReported": [],
       "wroteTest": true,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-ergo-baseline/react-28-t5",
+      "testWindow": 10.8,
+      "trialDir": "/tmp/sygnal-evals/trials/p4-ergo-baseline/react-28-t5",
       "diff": {
         "added": 116,
         "removed": 5,
@@ -5135,7 +5325,8 @@
         "testsTotal": 7,
         "wallSeconds": 159,
         "iterations": 14,
-        "editRounds": 11
+        "editRounds": 11,
+        "failureCategory": "none"
       },
       "method": "headless",
       "tokens": {
@@ -5264,6 +5455,7 @@
         "workaround": [],
         "input": []
       },
+      "usedActionLog": false,
       "skill": {
         "skillInvoked": true,
         "skillBytes": 34996,
@@ -5315,7 +5507,8 @@
       },
       "selfReported": [],
       "wroteTest": true,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-ergo-baseline/sygnal-28-t1",
+      "testWindow": 113.5,
+      "trialDir": "/tmp/sygnal-evals/trials/p4-ergo-baseline/sygnal-28-t1",
       "diff": {
         "added": 184,
         "removed": 10,
@@ -5362,6 +5555,19 @@
       "sygnalCheck": {
         "diagnostics": []
       },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
       "finalReportChars": 2182
     },
     {
@@ -5378,7 +5584,8 @@
         "testsTotal": 7,
         "wallSeconds": 61,
         "iterations": 2,
-        "editRounds": 2
+        "editRounds": 2,
+        "failureCategory": null
       },
       "method": "headless",
       "tokens": {
@@ -5460,6 +5667,7 @@
         "workaround": [],
         "input": []
       },
+      "usedActionLog": false,
       "skill": {
         "skillInvoked": true,
         "skillBytes": 34996,
@@ -5511,7 +5719,8 @@
       },
       "selfReported": [],
       "wroteTest": true,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-ergo-baseline/sygnal-28-t2",
+      "testWindow": 19.5,
+      "trialDir": "/tmp/sygnal-evals/trials/p4-ergo-baseline/sygnal-28-t2",
       "diff": {
         "added": 158,
         "removed": 10,
@@ -5558,6 +5767,19 @@
       "sygnalCheck": {
         "diagnostics": []
       },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
       "finalReportChars": 1624
     },
     {
@@ -5574,7 +5796,8 @@
         "testsTotal": 7,
         "wallSeconds": 65,
         "iterations": 2,
-        "editRounds": 2
+        "editRounds": 2,
+        "failureCategory": "none"
       },
       "method": "headless",
       "tokens": {
@@ -5632,6 +5855,7 @@
           "G-125"
         ]
       },
+      "usedActionLog": false,
       "skill": {
         "skillInvoked": true,
         "skillBytes": 34996,
@@ -5683,7 +5907,8 @@
       },
       "selfReported": [],
       "wroteTest": true,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-ergo-baseline/sygnal-28-t3",
+      "testWindow": 14.5,
+      "trialDir": "/tmp/sygnal-evals/trials/p4-ergo-baseline/sygnal-28-t3",
       "diff": {
         "added": 172,
         "removed": 10,
@@ -5730,6 +5955,19 @@
       "sygnalCheck": {
         "diagnostics": []
       },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
       "finalReportChars": 1731
     },
     {
@@ -5746,7 +5984,8 @@
         "testsTotal": 7,
         "wallSeconds": 51,
         "iterations": 2,
-        "editRounds": 1
+        "editRounds": 1,
+        "failureCategory": "none"
       },
       "method": "headless",
       "tokens": {
@@ -5810,6 +6049,7 @@
         "workaround": [],
         "input": []
       },
+      "usedActionLog": false,
       "skill": {
         "skillInvoked": true,
         "skillBytes": 34996,
@@ -5861,7 +6101,8 @@
       },
       "selfReported": [],
       "wroteTest": true,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-ergo-baseline/sygnal-28-t4",
+      "testWindow": 10.6,
+      "trialDir": "/tmp/sygnal-evals/trials/p4-ergo-baseline/sygnal-28-t4",
       "diff": {
         "added": 169,
         "removed": 10,
@@ -5908,6 +6149,19 @@
       "sygnalCheck": {
         "diagnostics": []
       },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
       "finalReportChars": 1576
     },
     {
@@ -5924,7 +6178,8 @@
         "testsTotal": 7,
         "wallSeconds": 76,
         "iterations": 6,
-        "editRounds": 5
+        "editRounds": 5,
+        "failureCategory": "none"
       },
       "method": "headless",
       "tokens": {
@@ -6024,6 +6279,7 @@
           "G-125"
         ]
       },
+      "usedActionLog": false,
       "skill": {
         "skillInvoked": true,
         "skillBytes": 34996,
@@ -6075,7 +6331,8 @@
       },
       "selfReported": [],
       "wroteTest": true,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-ergo-baseline/sygnal-28-t5",
+      "testWindow": 34,
+      "trialDir": "/tmp/sygnal-evals/trials/p4-ergo-baseline/sygnal-28-t5",
       "diff": {
         "added": 170,
         "removed": 10,
@@ -6122,6 +6379,19 @@
       "sygnalCheck": {
         "diagnostics": []
       },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
       "finalReportChars": 1987
     },
     {
@@ -6138,7 +6408,8 @@
         "testsTotal": 8,
         "wallSeconds": 50,
         "iterations": 2,
-        "editRounds": 2
+        "editRounds": 2,
+        "failureCategory": "none"
       },
       "method": "headless",
       "tokens": {
@@ -6199,7 +6470,8 @@
       },
       "selfReported": [],
       "wroteTest": true,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-ergo-baseline/react-29-t1",
+      "testWindow": 8.6,
+      "trialDir": "/tmp/sygnal-evals/trials/p4-ergo-baseline/react-29-t1",
       "diff": {
         "added": 157,
         "removed": 14,
@@ -6229,7 +6501,8 @@
         "testsTotal": 8,
         "wallSeconds": 43,
         "iterations": 1,
-        "editRounds": 1
+        "editRounds": 1,
+        "failureCategory": "none"
       },
       "method": "headless",
       "tokens": {
@@ -6290,7 +6563,8 @@
       },
       "selfReported": [],
       "wroteTest": true,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-ergo-baseline/react-29-t2",
+      "testWindow": 7.1,
+      "trialDir": "/tmp/sygnal-evals/trials/p4-ergo-baseline/react-29-t2",
       "diff": {
         "added": 158,
         "removed": 22,
@@ -6320,7 +6594,8 @@
         "testsTotal": 8,
         "wallSeconds": 56,
         "iterations": 1,
-        "editRounds": 1
+        "editRounds": 1,
+        "failureCategory": "none"
       },
       "method": "headless",
       "tokens": {
@@ -6384,7 +6659,8 @@
         "I didn't use React's generated ids because they contain colons, which break `querySelector('#…')`."
       ],
       "wroteTest": true,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-ergo-baseline/react-29-t3",
+      "testWindow": 10.5,
+      "trialDir": "/tmp/sygnal-evals/trials/p4-ergo-baseline/react-29-t3",
       "diff": {
         "added": 265,
         "removed": 22,
@@ -6423,7 +6699,8 @@
         "testsTotal": 8,
         "wallSeconds": 60,
         "iterations": 1,
-        "editRounds": 1
+        "editRounds": 1,
+        "failureCategory": "none"
       },
       "method": "headless",
       "tokens": {
@@ -6486,7 +6763,8 @@
         "I didn't use React's `useId` because its ids contain colons, which break CSS selectors like `#id`."
       ],
       "wroteTest": true,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-ergo-baseline/react-29-t4",
+      "testWindow": 9.4,
+      "trialDir": "/tmp/sygnal-evals/trials/p4-ergo-baseline/react-29-t4",
       "diff": {
         "added": 265,
         "removed": 22,
@@ -6525,7 +6803,8 @@
         "testsTotal": 8,
         "wallSeconds": 48,
         "iterations": 1,
-        "editRounds": 1
+        "editRounds": 1,
+        "failureCategory": "none"
       },
       "method": "headless",
       "tokens": {
@@ -6586,7 +6865,8 @@
       },
       "selfReported": [],
       "wroteTest": true,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-ergo-baseline/react-29-t5",
+      "testWindow": 7.5,
+      "trialDir": "/tmp/sygnal-evals/trials/p4-ergo-baseline/react-29-t5",
       "diff": {
         "added": 145,
         "removed": 22,
@@ -6616,7 +6896,8 @@
         "testsTotal": 8,
         "wallSeconds": 96,
         "iterations": 2,
-        "editRounds": 1
+        "editRounds": 1,
+        "failureCategory": "none"
       },
       "method": "headless",
       "tokens": {
@@ -6675,6 +6956,7 @@
         "workaround": [],
         "input": []
       },
+      "usedActionLog": false,
       "skill": {
         "skillInvoked": true,
         "skillBytes": 34996,
@@ -6729,7 +7011,8 @@
       },
       "selfReported": [],
       "wroteTest": true,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-ergo-baseline/sygnal-29-t1",
+      "testWindow": 17.6,
+      "trialDir": "/tmp/sygnal-evals/trials/p4-ergo-baseline/sygnal-29-t1",
       "diff": {
         "added": 220,
         "removed": 12,
@@ -6771,6 +7054,19 @@
       "sygnalCheck": {
         "diagnostics": []
       },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 1,
+        "hitsByCode": {
+          "SYG104": 1,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
       "finalReportChars": 2156
     },
     {
@@ -6787,7 +7083,8 @@
         "testsTotal": 8,
         "wallSeconds": 89,
         "iterations": 2,
-        "editRounds": 1
+        "editRounds": 1,
+        "failureCategory": "none"
       },
       "method": "headless",
       "tokens": {
@@ -6846,6 +7143,7 @@
         "workaround": [],
         "input": []
       },
+      "usedActionLog": false,
       "skill": {
         "skillInvoked": true,
         "skillBytes": 34996,
@@ -6901,7 +7199,8 @@
       },
       "selfReported": [],
       "wroteTest": true,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-ergo-baseline/sygnal-29-t2",
+      "testWindow": 17.2,
+      "trialDir": "/tmp/sygnal-evals/trials/p4-ergo-baseline/sygnal-29-t2",
       "diff": {
         "added": 249,
         "removed": 12,
@@ -6943,6 +7242,19 @@
       "sygnalCheck": {
         "diagnostics": []
       },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
       "finalReportChars": 2353
     },
     {
@@ -6959,7 +7271,8 @@
         "testsTotal": 8,
         "wallSeconds": 100,
         "iterations": 2,
-        "editRounds": 1
+        "editRounds": 1,
+        "failureCategory": "none"
       },
       "method": "headless",
       "tokens": {
@@ -7017,6 +7330,7 @@
         "workaround": [],
         "input": []
       },
+      "usedActionLog": false,
       "skill": {
         "skillInvoked": true,
         "skillBytes": 34996,
@@ -7082,7 +7396,8 @@
       },
       "selfReported": [],
       "wroteTest": true,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-ergo-baseline/sygnal-29-t3",
+      "testWindow": 14,
+      "trialDir": "/tmp/sygnal-evals/trials/p4-ergo-baseline/sygnal-29-t3",
       "diff": {
         "added": 217,
         "removed": 12,
@@ -7124,6 +7439,19 @@
       "sygnalCheck": {
         "diagnostics": []
       },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 1,
+        "hitsByCode": {
+          "SYG104": 1,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
       "finalReportChars": 2142
     },
     {
@@ -7140,7 +7468,8 @@
         "testsTotal": 8,
         "wallSeconds": 105,
         "iterations": 2,
-        "editRounds": 2
+        "editRounds": 2,
+        "failureCategory": "none"
       },
       "method": "headless",
       "tokens": {
@@ -7199,6 +7528,7 @@
         "workaround": [],
         "input": []
       },
+      "usedActionLog": false,
       "skill": {
         "skillInvoked": true,
         "skillBytes": 34996,
@@ -7255,7 +7585,8 @@
       },
       "selfReported": [],
       "wroteTest": true,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-ergo-baseline/sygnal-29-t4",
+      "testWindow": 18.6,
+      "trialDir": "/tmp/sygnal-evals/trials/p4-ergo-baseline/sygnal-29-t4",
       "diff": {
         "added": 256,
         "removed": 12,
@@ -7297,6 +7628,19 @@
       "sygnalCheck": {
         "diagnostics": []
       },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 1,
+        "hitsByCode": {
+          "SYG104": 1,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
       "finalReportChars": 2229
     },
     {
@@ -7313,7 +7657,8 @@
         "testsTotal": 8,
         "wallSeconds": 82,
         "iterations": 2,
-        "editRounds": 1
+        "editRounds": 1,
+        "failureCategory": "none"
       },
       "method": "headless",
       "tokens": {
@@ -7369,6 +7714,7 @@
         "workaround": [],
         "input": []
       },
+      "usedActionLog": false,
       "skill": {
         "skillInvoked": true,
         "skillBytes": 34996,
@@ -7422,7 +7768,8 @@
       },
       "selfReported": [],
       "wroteTest": true,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-ergo-baseline/sygnal-29-t5",
+      "testWindow": 15.8,
+      "trialDir": "/tmp/sygnal-evals/trials/p4-ergo-baseline/sygnal-29-t5",
       "diff": {
         "added": 260,
         "removed": 12,
@@ -7463,6 +7810,19 @@
       },
       "sygnalCheck": {
         "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
       },
       "finalReportChars": 1912
     }

@@ -1,12 +1,12 @@
 {
   "meta": {
     "run": "p4-final6-haiku",
-    "generatedAt": "2026-10-04T08:15:03.596Z",
+    "generatedAt": "2026-10-04T09:02:41.677Z",
     "trialsInMap": 105,
     "trialsAnalyzed": 105,
     "trialsScored": 105,
-    "skillDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/_variant/skillroot/.claude/skills/sygnal-dev",
-    "llms": "/Users/troy/Documents/Displera/sygnal/.claude/worktrees/plan-4-execution-7ae8e8/llms.txt",
+    "skillDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/_variant/skillroot/.claude/skills/sygnal-dev",
+    "llms": "/Users/troy/Documents/Displera/sygnal/.claude/worktrees/agent-aae257d8e170429f0/llms.txt",
     "sygnalCheck": true,
     "methods": [
       "headless"
@@ -3572,7 +3572,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 36.3,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-01-t1",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-01-t1",
       "diff": {
         "added": 60,
         "removed": 1,
@@ -3821,7 +3821,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 23.5,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-01-t2",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-01-t2",
       "diff": {
         "added": 64,
         "removed": 1,
@@ -4046,7 +4046,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 25.8,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-01-t3",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-01-t3",
       "diff": {
         "added": 48,
         "removed": 1,
@@ -4270,7 +4270,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 28.9,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-01-t4",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-01-t4",
       "diff": {
         "added": 51,
         "removed": 1,
@@ -4524,7 +4524,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 49.4,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-01-t5",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-01-t5",
       "diff": {
         "added": 54,
         "removed": 1,
@@ -4598,7 +4598,7 @@
         "wallSeconds": 78,
         "iterations": 5,
         "editRounds": 3,
-        "failureCategory": null
+        "failureCategory": "other"
       },
       "method": "headless",
       "tokens": {
@@ -4730,7 +4730,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 14.9,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-02-t1",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-02-t1",
       "diff": {
         "added": 75,
         "removed": 3,
@@ -4787,7 +4787,7 @@
         },
         "finalCodes": [],
         "failure": false,
-        "failureSource": null,
+        "failureSource": "category",
         "finalChecked": true
       },
       "finalReportChars": 1278
@@ -4974,7 +4974,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 27.2,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-02-t2",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-02-t2",
       "diff": {
         "added": 64,
         "removed": 3,
@@ -5205,7 +5205,7 @@
       ],
       "wroteTest": true,
       "testWindow": 48.7,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-02-t3",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-02-t3",
       "diff": {
         "added": 66,
         "removed": 3,
@@ -5465,7 +5465,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 18.6,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-02-t4",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-02-t4",
       "diff": {
         "added": 50,
         "removed": 3,
@@ -5542,7 +5542,7 @@
         "wallSeconds": 62,
         "iterations": 3,
         "editRounds": 2,
-        "failureCategory": null
+        "failureCategory": "other"
       },
       "method": "headless",
       "tokens": {
@@ -5659,7 +5659,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 14.1,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-02-t5",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-02-t5",
       "diff": {
         "added": 65,
         "removed": 3,
@@ -5716,7 +5716,7 @@
         },
         "finalCodes": [],
         "failure": false,
-        "failureSource": null,
+        "failureSource": "category",
         "finalChecked": true
       },
       "finalReportChars": 1265
@@ -5870,7 +5870,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 12.6,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-03-t1",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-03-t1",
       "diff": {
         "added": 98,
         "removed": 3,
@@ -6069,7 +6069,7 @@
       ],
       "wroteTest": true,
       "testWindow": 14.9,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-03-t2",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-03-t2",
       "diff": {
         "added": 97,
         "removed": 1,
@@ -6291,7 +6291,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 9.8,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-03-t3",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-03-t3",
       "diff": {
         "added": 118,
         "removed": 3,
@@ -6491,7 +6491,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 11.8,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-03-t4",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-03-t4",
       "diff": {
         "added": 87,
         "removed": 4,
@@ -6679,7 +6679,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 14.8,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-03-t5",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-03-t5",
       "diff": {
         "added": 99,
         "removed": 3,
@@ -6882,7 +6882,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 9.8,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-04-t1",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-04-t1",
       "diff": {
         "added": 139,
         "removed": 3,
@@ -7080,7 +7080,7 @@
       "selfReported": [],
       "wroteTest": false,
       "testWindow": null,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-04-t2",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-04-t2",
       "diff": {
         "added": 16,
         "removed": 3,
@@ -7255,7 +7255,7 @@
       "selfReported": [],
       "wroteTest": false,
       "testWindow": null,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-04-t3",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-04-t3",
       "diff": {
         "added": 13,
         "removed": 4,
@@ -7430,7 +7430,7 @@
       "selfReported": [],
       "wroteTest": false,
       "testWindow": null,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-04-t4",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-04-t4",
       "diff": {
         "added": 16,
         "removed": 3,
@@ -7604,7 +7604,7 @@
       "selfReported": [],
       "wroteTest": false,
       "testWindow": null,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-04-t5",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-04-t5",
       "diff": {
         "added": 16,
         "removed": 3,
@@ -7817,7 +7817,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 19.4,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-05-t1",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-05-t1",
       "diff": {
         "added": 82,
         "removed": 3,
@@ -8005,7 +8005,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 19.7,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-05-t2",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-05-t2",
       "diff": {
         "added": 84,
         "removed": 4,
@@ -8256,7 +8256,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 59.3,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-05-t3",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-05-t3",
       "diff": {
         "added": 107,
         "removed": 4,
@@ -8442,7 +8442,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 14,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-05-t4",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-05-t4",
       "diff": {
         "added": 99,
         "removed": 5,
@@ -8663,7 +8663,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 34.4,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-05-t5",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-05-t5",
       "diff": {
         "added": 110,
         "removed": 4,
@@ -8846,7 +8846,7 @@
       "selfReported": [],
       "wroteTest": false,
       "testWindow": null,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-06-t1",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-06-t1",
       "diff": {
         "added": 6,
         "removed": 3,
@@ -9016,7 +9016,7 @@
       "selfReported": [],
       "wroteTest": false,
       "testWindow": null,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-06-t2",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-06-t2",
       "diff": {
         "added": 3,
         "removed": 2,
@@ -9188,7 +9188,7 @@
       ],
       "wroteTest": false,
       "testWindow": null,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-06-t3",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-06-t3",
       "diff": {
         "added": 3,
         "removed": 2,
@@ -9387,7 +9387,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 12.7,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-06-t4",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-06-t4",
       "diff": {
         "added": 38,
         "removed": 2,
@@ -9566,7 +9566,7 @@
       "selfReported": [],
       "wroteTest": false,
       "testWindow": null,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-06-t5",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-06-t5",
       "diff": {
         "added": 3,
         "removed": 2,
@@ -9749,7 +9749,7 @@
       ],
       "wroteTest": false,
       "testWindow": null,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-07-t1",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-07-t1",
       "diff": {
         "added": 4,
         "removed": 11,
@@ -10022,7 +10022,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 36.9,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-07-t2",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-07-t2",
       "diff": {
         "added": 69,
         "removed": 6,
@@ -10253,7 +10253,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 25.4,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-07-t3",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-07-t3",
       "diff": {
         "added": 54,
         "removed": 6,
@@ -10445,7 +10445,7 @@
       "selfReported": [],
       "wroteTest": false,
       "testWindow": null,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-07-t4",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-07-t4",
       "diff": {
         "added": 8,
         "removed": 5,
@@ -10640,7 +10640,7 @@
       ],
       "wroteTest": false,
       "testWindow": null,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-07-t5",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-07-t5",
       "diff": {
         "added": 6,
         "removed": 12,
@@ -10818,7 +10818,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 11.3,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-08-t1",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-08-t1",
       "diff": {
         "added": 118,
         "removed": 24,
@@ -11002,7 +11002,7 @@
       "selfReported": [],
       "wroteTest": false,
       "testWindow": null,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-08-t2",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-08-t2",
       "diff": {
         "added": 35,
         "removed": 24,
@@ -11198,7 +11198,7 @@
       "selfReported": [],
       "wroteTest": false,
       "testWindow": null,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-08-t3",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-08-t3",
       "diff": {
         "added": 35,
         "removed": 25,
@@ -11375,7 +11375,7 @@
       ],
       "wroteTest": false,
       "testWindow": null,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-08-t4",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-08-t4",
       "diff": {
         "added": 31,
         "removed": 24,
@@ -11577,7 +11577,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 10.8,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-08-t5",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-08-t5",
       "diff": {
         "added": 92,
         "removed": 24,
@@ -11895,7 +11895,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 250.3,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-09-t1",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-09-t1",
       "diff": {
         "added": 195,
         "removed": 3,
@@ -12133,7 +12133,7 @@
       "selfReported": [],
       "wroteTest": false,
       "testWindow": null,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-09-t2",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-09-t2",
       "diff": {
         "added": 70,
         "removed": 4,
@@ -12384,7 +12384,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 54.1,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-09-t3",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-09-t3",
       "diff": {
         "added": 158,
         "removed": 3,
@@ -12629,7 +12629,7 @@
       "selfReported": [],
       "wroteTest": false,
       "testWindow": null,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-09-t4",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-09-t4",
       "diff": {
         "added": 52,
         "removed": 4,
@@ -12866,7 +12866,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 53.9,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-09-t5",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-09-t5",
       "diff": {
         "added": 227,
         "removed": 4,
@@ -13197,7 +13197,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 249.5,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-10-t1",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-10-t1",
       "diff": {
         "added": 289,
         "removed": 6,
@@ -13281,7 +13281,7 @@
         "wallSeconds": 273,
         "iterations": 6,
         "editRounds": 4,
-        "failureCategory": null
+        "failureCategory": "other"
       },
       "method": "headless",
       "tokens": {
@@ -13446,7 +13446,7 @@
       "selfReported": [],
       "wroteTest": false,
       "testWindow": null,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-10-t2",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-10-t2",
       "diff": {
         "added": 133,
         "removed": 8,
@@ -13499,7 +13499,7 @@
         },
         "finalCodes": [],
         "failure": false,
-        "failureSource": null,
+        "failureSource": "category",
         "finalChecked": true
       },
       "finalReportChars": 1725
@@ -13682,7 +13682,7 @@
       "selfReported": [],
       "wroteTest": false,
       "testWindow": null,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-10-t3",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-10-t3",
       "diff": {
         "added": 114,
         "removed": 16,
@@ -13892,7 +13892,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 36.4,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-10-t4",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-10-t4",
       "diff": {
         "added": 247,
         "removed": 8,
@@ -13976,7 +13976,7 @@
         "wallSeconds": 201,
         "iterations": 7,
         "editRounds": 4,
-        "failureCategory": null
+        "failureCategory": "other"
       },
       "method": "headless",
       "tokens": {
@@ -14143,7 +14143,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 102.5,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-10-t5",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-10-t5",
       "diff": {
         "added": 333,
         "removed": 4,
@@ -14205,7 +14205,7 @@
         },
         "finalCodes": [],
         "failure": false,
-        "failureSource": null,
+        "failureSource": "category",
         "finalChecked": true
       },
       "finalReportChars": 1101
@@ -14225,7 +14225,7 @@
         "wallSeconds": 124,
         "iterations": 7,
         "editRounds": 4,
-        "failureCategory": null
+        "failureCategory": "other"
       },
       "method": "headless",
       "tokens": {
@@ -14379,7 +14379,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 72.1,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-11-t1",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-11-t1",
       "diff": {
         "added": 138,
         "removed": 6,
@@ -14436,7 +14436,7 @@
         },
         "finalCodes": [],
         "failure": false,
-        "failureSource": null,
+        "failureSource": "category",
         "finalChecked": true
       },
       "finalReportChars": 1196
@@ -14594,7 +14594,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 42.6,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-11-t2",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-11-t2",
       "diff": {
         "added": 160,
         "removed": 5,
@@ -14865,7 +14865,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 201.5,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-11-t3",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-11-t3",
       "diff": {
         "added": 172,
         "removed": 6,
@@ -14947,7 +14947,7 @@
         "wallSeconds": 72,
         "iterations": 3,
         "editRounds": 2,
-        "failureCategory": null
+        "failureCategory": "other"
       },
       "method": "headless",
       "tokens": {
@@ -15082,7 +15082,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 28.3,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-11-t4",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-11-t4",
       "diff": {
         "added": 135,
         "removed": 6,
@@ -15139,7 +15139,7 @@
         },
         "finalCodes": [],
         "failure": false,
-        "failureSource": null,
+        "failureSource": "category",
         "finalChecked": true
       },
       "finalReportChars": 1019
@@ -15159,7 +15159,7 @@
         "wallSeconds": 135,
         "iterations": 3,
         "editRounds": 2,
-        "failureCategory": null
+        "failureCategory": "other"
       },
       "method": "headless",
       "tokens": {
@@ -15294,7 +15294,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 49.7,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-11-t5",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-11-t5",
       "diff": {
         "added": 193,
         "removed": 5,
@@ -15351,7 +15351,7 @@
         },
         "finalCodes": [],
         "failure": false,
-        "failureSource": null,
+        "failureSource": "category",
         "finalChecked": true
       },
       "finalReportChars": 1221
@@ -15566,7 +15566,7 @@
       "selfReported": [],
       "wroteTest": false,
       "testWindow": null,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-12-t1",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-12-t1",
       "diff": {
         "added": 72,
         "removed": 9,
@@ -15831,7 +15831,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 89.4,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-12-t2",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-12-t2",
       "diff": {
         "added": 186,
         "removed": 10,
@@ -15913,7 +15913,7 @@
         "wallSeconds": 614,
         "iterations": 22,
         "editRounds": 17,
-        "failureCategory": null
+        "failureCategory": "wiring"
       },
       "method": "headless",
       "tokens": {
@@ -16220,7 +16220,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 479,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-12-t3",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-12-t3",
       "diff": {
         "added": 155,
         "removed": 10,
@@ -16286,8 +16286,8 @@
           "SYG124": 0
         },
         "finalCodes": [],
-        "failure": false,
-        "failureSource": null,
+        "failure": true,
+        "failureSource": "category",
         "finalChecked": true
       },
       "finalReportChars": 2061
@@ -16513,7 +16513,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 109,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-12-t4",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-12-t4",
       "diff": {
         "added": 185,
         "removed": 10,
@@ -16837,7 +16837,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 189.5,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-12-t5",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-12-t5",
       "diff": {
         "added": 221,
         "removed": 15,
@@ -17125,7 +17125,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 356.1,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-13-t1",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-13-t1",
       "diff": {
         "added": 413,
         "removed": 6,
@@ -17214,7 +17214,7 @@
         "wallSeconds": 296,
         "iterations": 10,
         "editRounds": 5,
-        "failureCategory": null
+        "failureCategory": "wiring"
       },
       "method": "headless",
       "tokens": {
@@ -17395,7 +17395,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 163.6,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-13-t2",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-13-t2",
       "diff": {
         "added": 328,
         "removed": 3,
@@ -17456,8 +17456,8 @@
           "SYG124": 0
         },
         "finalCodes": [],
-        "failure": false,
-        "failureSource": null,
+        "failure": true,
+        "failureSource": "category",
         "finalChecked": true
       },
       "finalReportChars": 1775
@@ -17479,7 +17479,7 @@
         "wallSeconds": 324,
         "iterations": 14,
         "editRounds": 11,
-        "failureCategory": null
+        "failureCategory": "other"
       },
       "method": "headless",
       "tokens": {
@@ -17715,7 +17715,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 146.2,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-13-t3",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-13-t3",
       "diff": {
         "added": 401,
         "removed": 6,
@@ -17787,7 +17787,7 @@
         },
         "finalCodes": [],
         "failure": false,
-        "failureSource": null,
+        "failureSource": "category",
         "finalChecked": true
       },
       "finalReportChars": 1561
@@ -17809,7 +17809,7 @@
         "wallSeconds": 317,
         "iterations": 15,
         "editRounds": 8,
-        "failureCategory": null
+        "failureCategory": "other"
       },
       "method": "headless",
       "tokens": {
@@ -18047,7 +18047,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 193.1,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-13-t4",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-13-t4",
       "diff": {
         "added": 384,
         "removed": 7,
@@ -18114,7 +18114,7 @@
         },
         "finalCodes": [],
         "failure": false,
-        "failureSource": null,
+        "failureSource": "category",
         "finalChecked": true
       },
       "finalReportChars": 2302
@@ -18136,7 +18136,7 @@
         "wallSeconds": 225,
         "iterations": 6,
         "editRounds": 4,
-        "failureCategory": null
+        "failureCategory": "other"
       },
       "method": "headless",
       "tokens": {
@@ -18323,7 +18323,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 123.3,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-13-t5",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-13-t5",
       "diff": {
         "added": 367,
         "removed": 5,
@@ -18390,7 +18390,7 @@
         },
         "finalCodes": [],
         "failure": false,
-        "failureSource": null,
+        "failureSource": "category",
         "finalChecked": true
       },
       "finalReportChars": 1874
@@ -18410,7 +18410,7 @@
         "wallSeconds": 96,
         "iterations": 2,
         "editRounds": 1,
-        "failureCategory": null
+        "failureCategory": "wiring"
       },
       "method": "headless",
       "tokens": {
@@ -18527,7 +18527,7 @@
       "selfReported": [],
       "wroteTest": false,
       "testWindow": null,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-14-t1",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-14-t1",
       "diff": {
         "added": 18,
         "removed": 9,
@@ -18574,8 +18574,8 @@
           "SYG124": 0
         },
         "finalCodes": [],
-        "failure": false,
-        "failureSource": null,
+        "failure": true,
+        "failureSource": "category",
         "finalChecked": true
       },
       "finalReportChars": 1237
@@ -18752,7 +18752,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 32.8,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-14-t2",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-14-t2",
       "diff": {
         "added": 93,
         "removed": 6,
@@ -18981,7 +18981,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 22.1,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-14-t3",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-14-t3",
       "diff": {
         "added": 72,
         "removed": 7,
@@ -19257,7 +19257,7 @@
       ],
       "wroteTest": true,
       "testWindow": 114.9,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-14-t4",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-14-t4",
       "diff": {
         "added": 92,
         "removed": 7,
@@ -19339,7 +19339,7 @@
         "wallSeconds": 231,
         "iterations": 8,
         "editRounds": 6,
-        "failureCategory": null
+        "failureCategory": "wiring"
       },
       "method": "headless",
       "tokens": {
@@ -19508,7 +19508,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 153.6,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-14-t5",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-14-t5",
       "diff": {
         "added": 70,
         "removed": 6,
@@ -19564,8 +19564,8 @@
           "SYG124": 0
         },
         "finalCodes": [],
-        "failure": false,
-        "failureSource": null,
+        "failure": true,
+        "failureSource": "category",
         "finalChecked": true
       },
       "finalReportChars": 1252
@@ -19709,7 +19709,7 @@
       ],
       "wroteTest": false,
       "testWindow": null,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-15-t1",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-15-t1",
       "diff": {
         "added": 4,
         "removed": 4,
@@ -19991,7 +19991,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 269.2,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-15-t2",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-15-t2",
       "diff": {
         "added": 145,
         "removed": 8,
@@ -20175,7 +20175,7 @@
       "selfReported": [],
       "wroteTest": false,
       "testWindow": null,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-15-t3",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-15-t3",
       "diff": {
         "added": 5,
         "removed": 4,
@@ -20459,7 +20459,7 @@
       ],
       "wroteTest": true,
       "testWindow": 319.9,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-15-t4",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-15-t4",
       "diff": {
         "added": 86,
         "removed": 11,
@@ -20833,7 +20833,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 360.5,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-15-t5",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-15-t5",
       "diff": {
         "added": 63,
         "removed": 6,
@@ -21030,7 +21030,7 @@
       "selfReported": [],
       "wroteTest": false,
       "testWindow": null,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-16-t1",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-16-t1",
       "diff": {
         "added": 225,
         "removed": 146,
@@ -21276,7 +21276,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 105.4,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-16-t2",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-16-t2",
       "diff": {
         "added": 409,
         "removed": 188,
@@ -21518,7 +21518,7 @@
       "selfReported": [],
       "wroteTest": false,
       "testWindow": null,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-16-t3",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-16-t3",
       "diff": {
         "added": 250,
         "removed": 201,
@@ -21716,7 +21716,7 @@
       "selfReported": [],
       "wroteTest": false,
       "testWindow": null,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-16-t4",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-16-t4",
       "diff": {
         "added": 239,
         "removed": 144,
@@ -21941,7 +21941,7 @@
       "selfReported": [],
       "wroteTest": false,
       "testWindow": null,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-16-t5",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-16-t5",
       "diff": {
         "added": 212,
         "removed": 144,
@@ -22019,7 +22019,7 @@
         "wallSeconds": 207,
         "iterations": 6,
         "editRounds": 4,
-        "failureCategory": null
+        "failureCategory": "other"
       },
       "method": "headless",
       "tokens": {
@@ -22164,7 +22164,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 86.2,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-17-t1",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-17-t1",
       "diff": {
         "added": 186,
         "removed": 6,
@@ -22221,7 +22221,7 @@
         },
         "finalCodes": [],
         "failure": false,
-        "failureSource": null,
+        "failureSource": "category",
         "finalChecked": true
       },
       "finalReportChars": 1711
@@ -22243,7 +22243,7 @@
         "wallSeconds": 254,
         "iterations": 9,
         "editRounds": 6,
-        "failureCategory": null
+        "failureCategory": "other"
       },
       "method": "headless",
       "tokens": {
@@ -22452,7 +22452,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 157.9,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-17-t2",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-17-t2",
       "diff": {
         "added": 206,
         "removed": 8,
@@ -22514,7 +22514,7 @@
         },
         "finalCodes": [],
         "failure": false,
-        "failureSource": null,
+        "failureSource": "category",
         "finalChecked": true
       },
       "finalReportChars": 1662
@@ -22534,7 +22534,7 @@
         "wallSeconds": 168,
         "iterations": 7,
         "editRounds": 5,
-        "failureCategory": null
+        "failureCategory": "other"
       },
       "method": "headless",
       "tokens": {
@@ -22677,7 +22677,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 115.9,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-17-t3",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-17-t3",
       "diff": {
         "added": 194,
         "removed": 6,
@@ -22734,7 +22734,7 @@
         },
         "finalCodes": [],
         "failure": false,
-        "failureSource": null,
+        "failureSource": "category",
         "finalChecked": true
       },
       "finalReportChars": 1132
@@ -22754,7 +22754,7 @@
         "wallSeconds": 143,
         "iterations": 3,
         "editRounds": 2,
-        "failureCategory": null
+        "failureCategory": "other"
       },
       "method": "headless",
       "tokens": {
@@ -22864,7 +22864,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 26.3,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-17-t4",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-17-t4",
       "diff": {
         "added": 207,
         "removed": 6,
@@ -22921,7 +22921,7 @@
         },
         "finalCodes": [],
         "failure": false,
-        "failureSource": null,
+        "failureSource": "category",
         "finalChecked": true
       },
       "finalReportChars": 1513
@@ -22941,7 +22941,7 @@
         "wallSeconds": 239,
         "iterations": 7,
         "editRounds": 5,
-        "failureCategory": null
+        "failureCategory": "other"
       },
       "method": "headless",
       "tokens": {
@@ -23126,7 +23126,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 132.2,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-17-t5",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-17-t5",
       "diff": {
         "added": 268,
         "removed": 6,
@@ -23183,7 +23183,7 @@
         },
         "finalCodes": [],
         "failure": false,
-        "failureSource": null,
+        "failureSource": "category",
         "finalChecked": true
       },
       "finalReportChars": 1375
@@ -23203,7 +23203,7 @@
         "wallSeconds": 146,
         "iterations": 4,
         "editRounds": 3,
-        "failureCategory": null
+        "failureCategory": "other"
       },
       "method": "headless",
       "tokens": {
@@ -23349,7 +23349,7 @@
       ],
       "wroteTest": true,
       "testWindow": 44.9,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-26-t1",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-26-t1",
       "diff": {
         "added": 234,
         "removed": 10,
@@ -23406,7 +23406,7 @@
         },
         "finalCodes": [],
         "failure": false,
-        "failureSource": null,
+        "failureSource": "category",
         "finalChecked": true
       },
       "finalReportChars": 1106
@@ -23428,7 +23428,7 @@
         "wallSeconds": 153,
         "iterations": 3,
         "editRounds": 2,
-        "failureCategory": null
+        "failureCategory": "other"
       },
       "method": "headless",
       "tokens": {
@@ -23565,7 +23565,7 @@
       "selfReported": [],
       "wroteTest": false,
       "testWindow": null,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-26-t2",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-26-t2",
       "diff": {
         "added": 51,
         "removed": 6,
@@ -23613,7 +23613,7 @@
         },
         "finalCodes": [],
         "failure": false,
-        "failureSource": null,
+        "failureSource": "category",
         "finalChecked": true
       },
       "finalReportChars": 1775
@@ -23633,7 +23633,7 @@
         "wallSeconds": 184,
         "iterations": 3,
         "editRounds": 3,
-        "failureCategory": null
+        "failureCategory": "other"
       },
       "method": "headless",
       "tokens": {
@@ -23770,7 +23770,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 61.9,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-26-t3",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-26-t3",
       "diff": {
         "added": 222,
         "removed": 12,
@@ -23827,7 +23827,7 @@
         },
         "finalCodes": [],
         "failure": false,
-        "failureSource": null,
+        "failureSource": "category",
         "finalChecked": true
       },
       "finalReportChars": 1545
@@ -24040,7 +24040,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 166.3,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-26-t4",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-26-t4",
       "diff": {
         "added": 323,
         "removed": 9,
@@ -24117,7 +24117,7 @@
         "wallSeconds": 144,
         "iterations": 2,
         "editRounds": 2,
-        "failureCategory": null
+        "failureCategory": "other"
       },
       "method": "headless",
       "tokens": {
@@ -24235,7 +24235,7 @@
       "selfReported": [],
       "wroteTest": false,
       "testWindow": null,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-26-t5",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-26-t5",
       "diff": {
         "added": 61,
         "removed": 10,
@@ -24283,7 +24283,7 @@
         },
         "finalCodes": [],
         "failure": false,
-        "failureSource": null,
+        "failureSource": "category",
         "finalChecked": true
       },
       "finalReportChars": 1484
@@ -24303,7 +24303,7 @@
         "wallSeconds": 238,
         "iterations": 10,
         "editRounds": 6,
-        "failureCategory": null
+        "failureCategory": "other"
       },
       "method": "headless",
       "tokens": {
@@ -24501,7 +24501,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 63.5,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-27-t1",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-27-t1",
       "diff": {
         "added": 183,
         "removed": 5,
@@ -24553,7 +24553,7 @@
         },
         "finalCodes": [],
         "failure": false,
-        "failureSource": null,
+        "failureSource": "category",
         "finalChecked": true
       },
       "finalReportChars": 1390
@@ -24573,7 +24573,7 @@
         "wallSeconds": 167,
         "iterations": 6,
         "editRounds": 5,
-        "failureCategory": null
+        "failureCategory": "other"
       },
       "method": "headless",
       "tokens": {
@@ -24744,7 +24744,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 42.8,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-27-t2",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-27-t2",
       "diff": {
         "added": 394,
         "removed": 6,
@@ -24796,7 +24796,7 @@
         },
         "finalCodes": [],
         "failure": false,
-        "failureSource": null,
+        "failureSource": "category",
         "finalChecked": true
       },
       "finalReportChars": 1434
@@ -24816,7 +24816,7 @@
         "wallSeconds": 340,
         "iterations": 12,
         "editRounds": 8,
-        "failureCategory": null
+        "failureCategory": "other"
       },
       "method": "headless",
       "tokens": {
@@ -25015,7 +25015,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 265.9,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-27-t3",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-27-t3",
       "diff": {
         "added": 347,
         "removed": 5,
@@ -25067,7 +25067,7 @@
         },
         "finalCodes": [],
         "failure": false,
-        "failureSource": null,
+        "failureSource": "category",
         "finalChecked": true
       },
       "finalReportChars": 1340
@@ -25089,7 +25089,7 @@
         "wallSeconds": 219,
         "iterations": 7,
         "editRounds": 4,
-        "failureCategory": null
+        "failureCategory": "other"
       },
       "method": "headless",
       "tokens": {
@@ -25263,7 +25263,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 68.6,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-27-t4",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-27-t4",
       "diff": {
         "added": 364,
         "removed": 5,
@@ -25315,7 +25315,7 @@
         },
         "finalCodes": [],
         "failure": false,
-        "failureSource": null,
+        "failureSource": "category",
         "finalChecked": true
       },
       "finalReportChars": 1619
@@ -25337,7 +25337,7 @@
         "wallSeconds": 147,
         "iterations": 6,
         "editRounds": 4,
-        "failureCategory": null
+        "failureCategory": "other"
       },
       "method": "headless",
       "tokens": {
@@ -25511,7 +25511,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 40.1,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-27-t5",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-27-t5",
       "diff": {
         "added": 321,
         "removed": 5,
@@ -25563,7 +25563,7 @@
         },
         "finalCodes": [],
         "failure": false,
-        "failureSource": null,
+        "failureSource": "category",
         "finalChecked": true
       },
       "finalReportChars": 1692
@@ -25583,7 +25583,7 @@
         "wallSeconds": 468,
         "iterations": 5,
         "editRounds": 3,
-        "failureCategory": null
+        "failureCategory": "other"
       },
       "method": "headless",
       "tokens": {
@@ -25796,7 +25796,7 @@
       "selfReported": [],
       "wroteTest": false,
       "testWindow": null,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-28-t1",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-28-t1",
       "diff": {
         "added": 113,
         "removed": 11,
@@ -25849,7 +25849,7 @@
         },
         "finalCodes": [],
         "failure": false,
-        "failureSource": null,
+        "failureSource": "category",
         "finalChecked": true
       },
       "finalReportChars": 1726
@@ -25871,7 +25871,7 @@
         "wallSeconds": 339,
         "iterations": 11,
         "editRounds": 8,
-        "failureCategory": null
+        "failureCategory": "other"
       },
       "method": "headless",
       "tokens": {
@@ -26093,7 +26093,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 193.5,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-28-t2",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-28-t2",
       "diff": {
         "added": 266,
         "removed": 11,
@@ -26155,7 +26155,7 @@
         },
         "finalCodes": [],
         "failure": false,
-        "failureSource": null,
+        "failureSource": "category",
         "finalChecked": true
       },
       "finalReportChars": 1490
@@ -26177,7 +26177,7 @@
         "wallSeconds": 251,
         "iterations": 7,
         "editRounds": 5,
-        "failureCategory": null
+        "failureCategory": "other"
       },
       "method": "headless",
       "tokens": {
@@ -26420,7 +26420,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 135.3,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-28-t3",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-28-t3",
       "diff": {
         "added": 238,
         "removed": 9,
@@ -26477,7 +26477,7 @@
         },
         "finalCodes": [],
         "failure": false,
-        "failureSource": null,
+        "failureSource": "category",
         "finalChecked": true
       },
       "finalReportChars": 1107
@@ -26497,7 +26497,7 @@
         "wallSeconds": 255,
         "iterations": 9,
         "editRounds": 5,
-        "failureCategory": null
+        "failureCategory": "other"
       },
       "method": "headless",
       "tokens": {
@@ -26682,7 +26682,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 101.9,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-28-t4",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-28-t4",
       "diff": {
         "added": 289,
         "removed": 11,
@@ -26744,7 +26744,7 @@
         },
         "finalCodes": [],
         "failure": false,
-        "failureSource": null,
+        "failureSource": "category",
         "finalChecked": true
       },
       "finalReportChars": 1329
@@ -26764,7 +26764,7 @@
         "wallSeconds": 212,
         "iterations": 8,
         "editRounds": 4,
-        "failureCategory": null
+        "failureCategory": "other"
       },
       "method": "headless",
       "tokens": {
@@ -26924,7 +26924,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 97.9,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-28-t5",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-28-t5",
       "diff": {
         "added": 366,
         "removed": 9,
@@ -26981,7 +26981,7 @@
         },
         "finalCodes": [],
         "failure": false,
-        "failureSource": null,
+        "failureSource": "category",
         "finalChecked": true
       },
       "finalReportChars": 1434
@@ -27163,7 +27163,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 173,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-29-t1",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-29-t1",
       "diff": {
         "added": 425,
         "removed": 12,
@@ -27235,7 +27235,7 @@
         "wallSeconds": 347,
         "iterations": 16,
         "editRounds": 11,
-        "failureCategory": null
+        "failureCategory": "other"
       },
       "method": "headless",
       "tokens": {
@@ -27438,7 +27438,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 255.3,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-29-t2",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-29-t2",
       "diff": {
         "added": 470,
         "removed": 18,
@@ -27490,7 +27490,7 @@
         },
         "finalCodes": [],
         "failure": false,
-        "failureSource": null,
+        "failureSource": "category",
         "finalChecked": true
       },
       "finalReportChars": 1541
@@ -27654,7 +27654,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 104.3,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-29-t3",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-29-t3",
       "diff": {
         "added": 489,
         "removed": 22,
@@ -27728,7 +27728,7 @@
         "wallSeconds": 185,
         "iterations": 11,
         "editRounds": 7,
-        "failureCategory": null
+        "failureCategory": "other"
       },
       "method": "headless",
       "tokens": {
@@ -27961,7 +27961,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 117.3,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-29-t4",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-29-t4",
       "diff": {
         "added": 341,
         "removed": 13,
@@ -28013,7 +28013,7 @@
         },
         "finalCodes": [],
         "failure": false,
-        "failureSource": null,
+        "failureSource": "category",
         "finalChecked": true
       },
       "finalReportChars": 1654
@@ -28035,7 +28035,7 @@
         "wallSeconds": 131,
         "iterations": 4,
         "editRounds": 2,
-        "failureCategory": null
+        "failureCategory": "other"
       },
       "method": "headless",
       "tokens": {
@@ -28184,7 +28184,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 69.9,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-29-t5",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-haiku/sygnal-29-t5",
       "diff": {
         "added": 617,
         "removed": 12,
@@ -28236,7 +28236,7 @@
         },
         "finalCodes": [],
         "failure": false,
-        "failureSource": null,
+        "failureSource": "category",
         "finalChecked": true
       },
       "finalReportChars": 2653

@@ -1,12 +1,12 @@
 {
   "meta": {
     "run": "p4-final6-gs14-a",
-    "generatedAt": "2026-10-04T08:42:26.905Z",
+    "generatedAt": "2026-10-04T09:02:43.228Z",
     "trialsInMap": 15,
     "trialsAnalyzed": 15,
     "trialsScored": 15,
-    "skillDir": "/private/tmp/sygnal-evals/trials/p4-final6-gs14-a/_variant/skillroot/.claude/skills/sygnal-dev",
-    "llms": "/Users/troy/Documents/Displera/sygnal/.claude/worktrees/plan-4-execution-7ae8e8/llms.txt",
+    "skillDir": "/tmp/sygnal-evals/trials/p4-final6-gs14-a/_variant/skillroot/.claude/skills/sygnal-dev",
+    "llms": "/Users/troy/Documents/Displera/sygnal/.claude/worktrees/agent-aae257d8e170429f0/llms.txt",
     "sygnalCheck": true,
     "methods": [
       "headless"
@@ -794,7 +794,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 6.7,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-gs14-a/sygnal-03-t1",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-gs14-a/sygnal-03-t1",
       "diff": {
         "added": 59,
         "removed": 3,
@@ -978,7 +978,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 8.1,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-gs14-a/sygnal-03-t2",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-gs14-a/sygnal-03-t2",
       "diff": {
         "added": 59,
         "removed": 3,
@@ -1162,7 +1162,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 8.3,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-gs14-a/sygnal-03-t3",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-gs14-a/sygnal-03-t3",
       "diff": {
         "added": 66,
         "removed": 3,
@@ -1355,7 +1355,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 5.5,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-gs14-a/sygnal-03-t4",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-gs14-a/sygnal-03-t4",
       "diff": {
         "added": 57,
         "removed": 3,
@@ -1539,7 +1539,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 6.4,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-gs14-a/sygnal-03-t5",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-gs14-a/sygnal-03-t5",
       "diff": {
         "added": 60,
         "removed": 4,
@@ -1729,7 +1729,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 11.9,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-gs14-a/sygnal-10-t1",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-gs14-a/sygnal-10-t1",
       "diff": {
         "added": 154,
         "removed": 6,
@@ -1920,7 +1920,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 9.9,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-gs14-a/sygnal-10-t2",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-gs14-a/sygnal-10-t2",
       "diff": {
         "added": 165,
         "removed": 6,
@@ -2115,7 +2115,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 12.2,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-gs14-a/sygnal-10-t3",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-gs14-a/sygnal-10-t3",
       "diff": {
         "added": 162,
         "removed": 6,
@@ -2314,7 +2314,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 12.8,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-gs14-a/sygnal-10-t4",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-gs14-a/sygnal-10-t4",
       "diff": {
         "added": 154,
         "removed": 6,
@@ -2504,7 +2504,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 9.7,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-gs14-a/sygnal-10-t5",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-gs14-a/sygnal-10-t5",
       "diff": {
         "added": 149,
         "removed": 6,
@@ -2706,7 +2706,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 25.2,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-gs14-a/sygnal-29-t1",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-gs14-a/sygnal-29-t1",
       "diff": {
         "added": 256,
         "removed": 13,
@@ -2902,7 +2902,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 15.9,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-gs14-a/sygnal-29-t2",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-gs14-a/sygnal-29-t2",
       "diff": {
         "added": 225,
         "removed": 23,
@@ -3122,7 +3122,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 22.6,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-gs14-a/sygnal-29-t3",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-gs14-a/sygnal-29-t3",
       "diff": {
         "added": 219,
         "removed": 20,
@@ -3344,7 +3344,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 67.2,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-gs14-a/sygnal-29-t4",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-gs14-a/sygnal-29-t4",
       "diff": {
         "added": 264,
         "removed": 13,
@@ -3532,7 +3532,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 18.5,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-gs14-a/sygnal-29-t5",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-gs14-a/sygnal-29-t5",
       "diff": {
         "added": 228,
         "removed": 12,

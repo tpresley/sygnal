@@ -1,12 +1,12 @@
 {
   "meta": {
     "run": "p4-final6-react-ergo",
-    "generatedAt": "2026-10-04T06:56:06.841Z",
+    "generatedAt": "2026-10-04T09:02:41.808Z",
     "trialsInMap": 20,
     "trialsAnalyzed": 20,
     "trialsScored": 20,
-    "skillDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo/_variant/skillroot/.claude/skills/sygnal-dev",
-    "llms": "/Users/troy/Documents/Displera/sygnal/.claude/worktrees/plan-4-execution-7ae8e8/llms.txt",
+    "skillDir": "/tmp/sygnal-evals/trials/p4-final6-react-ergo/_variant/skillroot/.claude/skills/sygnal-dev",
+    "llms": "/Users/troy/Documents/Displera/sygnal/.claude/worktrees/agent-aae257d8e170429f0/llms.txt",
     "sygnalCheck": true,
     "methods": [
       "headless"
@@ -633,7 +633,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 7.8,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo/react-26-t1",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-react-ergo/react-26-t1",
       "diff": {
         "added": 213,
         "removed": 6,
@@ -735,7 +735,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 7.5,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo/react-26-t2",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-react-ergo/react-26-t2",
       "diff": {
         "added": 202,
         "removed": 7,
@@ -837,7 +837,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 8.4,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo/react-26-t3",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-react-ergo/react-26-t3",
       "diff": {
         "added": 191,
         "removed": 6,
@@ -939,7 +939,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 7.8,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo/react-26-t4",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-react-ergo/react-26-t4",
       "diff": {
         "added": 211,
         "removed": 7,
@@ -1041,7 +1041,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 9.1,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo/react-26-t5",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-react-ergo/react-26-t5",
       "diff": {
         "added": 205,
         "removed": 6,
@@ -1169,7 +1169,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 23.6,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo/react-27-t1",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-react-ergo/react-27-t1",
       "diff": {
         "added": 100,
         "removed": 8,
@@ -1262,7 +1262,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 7.5,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo/react-27-t2",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-react-ergo/react-27-t2",
       "diff": {
         "added": 137,
         "removed": 8,
@@ -1389,7 +1389,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 19.3,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo/react-27-t3",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-react-ergo/react-27-t3",
       "diff": {
         "added": 90,
         "removed": 8,
@@ -1491,7 +1491,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 7.6,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo/react-27-t4",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-react-ergo/react-27-t4",
       "diff": {
         "added": 97,
         "removed": 8,
@@ -1609,7 +1609,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 10.9,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo/react-27-t5",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-react-ergo/react-27-t5",
       "diff": {
         "added": 145,
         "removed": 8,
@@ -1711,7 +1711,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 8.2,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo/react-28-t1",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-react-ergo/react-28-t1",
       "diff": {
         "added": 69,
         "removed": 5,
@@ -1805,7 +1805,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 7.6,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo/react-28-t2",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-react-ergo/react-28-t2",
       "diff": {
         "added": 75,
         "removed": 5,
@@ -1907,7 +1907,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 6.4,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo/react-28-t3",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-react-ergo/react-28-t3",
       "diff": {
         "added": 139,
         "removed": 5,
@@ -2018,7 +2018,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 8.4,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo/react-28-t4",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-react-ergo/react-28-t4",
       "diff": {
         "added": 77,
         "removed": 5,
@@ -2111,7 +2111,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 7.6,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo/react-28-t5",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-react-ergo/react-28-t5",
       "diff": {
         "added": 71,
         "removed": 5,
@@ -2205,7 +2205,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 10.7,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo/react-29-t1",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-react-ergo/react-29-t1",
       "diff": {
         "added": 170,
         "removed": 22,
@@ -2298,7 +2298,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 8.5,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo/react-29-t2",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-react-ergo/react-29-t2",
       "diff": {
         "added": 255,
         "removed": 22,
@@ -2427,7 +2427,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 32.4,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo/react-29-t3",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-react-ergo/react-29-t3",
       "diff": {
         "added": 146,
         "removed": 22,
@@ -2522,7 +2522,7 @@
       ],
       "wroteTest": true,
       "testWindow": 10.7,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo/react-29-t4",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-react-ergo/react-29-t4",
       "diff": {
         "added": 221,
         "removed": 14,
@@ -2623,7 +2623,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 7.3,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo/react-29-t5",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-react-ergo/react-29-t5",
       "diff": {
         "added": 157,
         "removed": 22,

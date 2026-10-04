@@ -18,7 +18,7 @@
     "variant": "p4-final6",
     "variantHash": "a3515c1624d7",
     "starterVersion": 2,
-    "failureCategory": null,
+    "failureCategory": "other",
     "failures": [
       {
         "test": "26 autosave: debounced PUT, save status, latest save only, draft kept in localStorage opens empty with no status, and opening the app saves nothing",
@@ -82,7 +82,7 @@
     "variant": "p4-final6",
     "variantHash": "a3515c1624d7",
     "starterVersion": 2,
-    "failureCategory": null,
+    "failureCategory": "other",
     "failures": [
       {
         "test": "26 autosave: debounced PUT, save status, latest save only, draft kept in localStorage an edit during a save shows \"Unsaved changes\"; the older success never changes the status",
@@ -111,7 +111,7 @@
     "variant": "p4-final6",
     "variantHash": "a3515c1624d7",
     "starterVersion": 2,
-    "failureCategory": null,
+    "failureCategory": "other",
     "failures": [
       {
         "test": "27 undo editor: steps, grouped typing, redo, disabled buttons and shortcuts typing is one step per burst: a 1 s pause or another change starts a new step",
@@ -148,7 +148,7 @@
     "variant": "p4-final6",
     "variantHash": "a3515c1624d7",
     "starterVersion": 2,
-    "failureCategory": null,
+    "failureCategory": "other",
     "failures": [
       {
         "test": "26 autosave: debounced PUT, save status, latest save only, draft kept in localStorage an edit during a save shows \"Unsaved changes\"; the older success never changes the status",
@@ -176,7 +176,7 @@
     "variant": "p4-final6",
     "variantHash": "a3515c1624d7",
     "starterVersion": 2,
-    "failureCategory": null,
+    "failureCategory": "other",
     "failures": [
       {
         "test": "26 autosave: debounced PUT, save status, latest save only, draft kept in localStorage an edit during a save shows \"Unsaved changes\"; the older success never changes the status",
@@ -205,7 +205,7 @@
     "variant": "p4-final6",
     "variantHash": "a3515c1624d7",
     "starterVersion": 2,
-    "failureCategory": null,
+    "failureCategory": "other",
     "failures": [
       {
         "test": "27 undo editor: steps, grouped typing, redo, disabled buttons and shortcuts keyboard shortcuts work anywhere, also in the field, and prevent the default",
@@ -234,7 +234,7 @@
     "variant": "p4-final6",
     "variantHash": "a3515c1624d7",
     "starterVersion": 2,
-    "failureCategory": null,
+    "failureCategory": "other",
     "failures": [
       {
         "test": "27 undo editor: steps, grouped typing, redo, disabled buttons and shortcuts typing is one step per burst: a 1 s pause or another change starts a new step",
@@ -290,7 +290,7 @@
     "variant": "p4-final6",
     "variantHash": "a3515c1624d7",
     "starterVersion": 2,
-    "failureCategory": null,
+    "failureCategory": "other",
     "failures": [
       {
         "test": "28 stopwatch: start, pause, resume, laps and reset on the clock, no stray timers pausing and resuming never loses time",
@@ -327,7 +327,7 @@
     "variant": "p4-final6",
     "variantHash": "a3515c1624d7",
     "starterVersion": 2,
-    "failureCategory": null,
+    "failureCategory": "other",
     "failures": [
       {
         "test": "27 undo editor: steps, grouped typing, redo, disabled buttons and shortcuts typing is one step per burst: a 1 s pause or another change starts a new step",
@@ -363,7 +363,7 @@
     "variant": "p4-final6",
     "variantHash": "a3515c1624d7",
     "starterVersion": 2,
-    "failureCategory": null,
+    "failureCategory": "other",
     "failures": [
       {
         "test": "28 stopwatch: start, pause, resume, laps and reset on the clock, no stray timers laps record the running time of each lap, not counting pauses",
@@ -416,7 +416,7 @@
     "variant": "p4-final6",
     "variantHash": "a3515c1624d7",
     "starterVersion": 2,
-    "failureCategory": null,
+    "failureCategory": "other",
     "failures": [
       {
         "test": "28 stopwatch: start, pause, resume, laps and reset on the clock, no stray timers starts at 00:00.0 with only Start enabled, and nothing runs before Start",
@@ -457,7 +457,7 @@
     "variant": "p4-final6",
     "variantHash": "a3515c1624d7",
     "starterVersion": 2,
-    "failureCategory": null,
+    "failureCategory": "other",
     "failures": [
       {
         "test": "29 accessible signup: labels, described errors, focus, native modal dialog a valid form opens the confirmation as a modal dialog; Cancel closes it",
@@ -490,7 +490,7 @@
     "variant": "p4-final6",
     "variantHash": "a3515c1624d7",
     "starterVersion": 2,
-    "failureCategory": null,
+    "failureCategory": "other",
     "failures": [
       {
         "test": "29 accessible signup: labels, described errors, focus, native modal dialog after the first submit, messages follow the typing in both directions",
@@ -518,7 +518,7 @@
     "variant": "p4-final6",
     "variantHash": "a3515c1624d7",
     "starterVersion": 2,
-    "failureCategory": null,
+    "failureCategory": "other",
     "failures": [
       {
         "test": "29 accessible signup: labels, described errors, focus, native modal dialog a valid form opens the confirmation as a modal dialog; Cancel closes it",

@@ -3054,7 +3054,7 @@
     "variant": "p4-final6",
     "variantHash": "9afaa841847c",
     "starterVersion": 2,
-    "failureCategory": null,
+    "failureCategory": "other",
     "failures": [
       {
         "test": "27 undo editor: steps, grouped typing, redo, disabled buttons and shortcuts undoes a mixed sequence one step at a time and redoes it in order",
@@ -3182,7 +3182,7 @@
     "variant": "p4-final6",
     "variantHash": "9afaa841847c",
     "starterVersion": 2,
-    "failureCategory": null,
+    "failureCategory": "other",
     "failures": [
       {
         "test": "28 stopwatch: start, pause, resume, laps and reset on the clock, no stray timers Start runs the display at least every 100 ms, with minutes and seconds",
