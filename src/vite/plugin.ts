@@ -52,10 +52,13 @@
  *      that client is answered; after a source change the new findings go to
  *      every connected client, and only when they changed. Error-severity
  *      findings also open Vite's error overlay (`overlay: false`: never):
- *      always SYG112, SYG124, SYG125 and SYG128, and, when `strict` is on
- *      (`diagnostics.strict`), the a11y lane SYG701-708 (D111; warnings
- *      otherwise). Everything else is a warning or info and goes to the
- *      console. Warnings never use the overlay: while
+ *      SYG112, SYG124, SYG125, SYG128, SYG405 and the checker's other
+ *      error-severity codes. The a11y lane SYG701-708 is a warning, also
+ *      under `diagnostics.strict` (D144, amending D111); `check.a11y: 'error'`
+ *      makes it an error (and opens the overlay). Without that opt-in a 7xx
+ *      finding never opens the overlay, even from an older sygnal-check that
+ *      reports it as an error under strict. Everything else is a warning or
+ *      info and goes to the console. Warnings never use the overlay: while
  *      one is open Vite's client reloads the page on the next HMR update
  *      (`overlay: 'warn'` is treated as 'error', with a notice). The dev
  *      client closes a sygnal-check overlay before each update, and the
@@ -156,6 +159,12 @@ export interface CheckPluginOptions {
   /** Also run sygnal-check's strict (SYG5xx) rules. @default `diagnostics.strict` */
   strict?: boolean
   /**
+   * Severity of the a11y lane (SYG701-708). 'warn' keeps it a warning, also
+   * under `strict` (D144); 'error' makes it an error, which opens the overlay.
+   * @default 'warn'
+   */
+  a11y?: 'warn' | 'error'
+  /**
    * Files, directories or globs to check, relative to the Vite root.
    * @default the existing ones of ['src', 'pages', 'renderer'], else the project root
    */
@@ -167,8 +176,9 @@ export interface CheckPluginOptions {
    * default); false: never. All findings are logged in the terminal and the
    * browser console. Warnings never use the overlay (Vite reloads the page on
    * the next update while one is open): 'warn' is accepted but treated as
-   * 'error'. Error-severity codes: SYG112, SYG124, SYG125, SYG128, and the
-   * a11y lane SYG701-708 when `strict` is on (D111).
+   * 'error'. Error-severity codes: SYG112, SYG124, SYG125, SYG128, SYG405
+   * and the checker's other errors; the a11y lane SYG701-708 only with
+   * `a11y: 'error'` (D144).
    * @default 'error'
    */
   overlay?: 'error' | 'warn' | false
@@ -706,6 +716,8 @@ async function startChecker(server: any, root: string, opts: CheckPluginOptions,
   const include = checkInclude(root, opts.include, (m: string) => logger.info(m))
   const ignore = opts.ignore || defaults.ignore
   const strict = opts.strict === undefined ? defaults.strict : !!opts.strict
+  // D144: the a11y lane is a warning unless asked for as an error, under strict too
+  const a11y = opts.a11y === 'error' ? 'error' : 'warn'
   // Only error-severity findings open Vite's overlay: while an overlay is open
   // Vite's client reloads the page on the first HMR update, so warnings stay
   // in the terminal and the browser console. overlay: 'warn' is treated as
@@ -734,10 +746,14 @@ async function startChecker(server: any, root: string, opts: CheckPluginOptions,
   const run = (initial = false) => {
     let diags: any[]
     try {
-      diags = mod.check(include, { cwd: root, strict, ignore })
+      diags = mod.check(include, { cwd: root, strict, ignore, a11y })
     } catch (err: any) {
       logger.warn(`[sygnal] sygnal-check failed: ${err?.message || err}`, { timestamp: true })
       return
+    }
+    // A sygnal-check from before D144 reports SYG7xx as errors under strict: keep them warnings
+    if (a11y !== 'error') {
+      diags = diags.map(d => d && d.severity === 'error' && /^SYG7\d\d$/.test(d.code) ? { ...d, severity: 'warn' } : d)
     }
     const shown = diags.filter(d => d.severity !== 'info')
     const lines = shown.map(formatLine)

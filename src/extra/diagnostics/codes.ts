@@ -332,7 +332,7 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG644: 'warn',
   // PLAN-4 GS-12 (viewTransitions.ts): the static set, but the app's DOM driver isn't makeViewTransitionDOMDriver()
   SYG645: 'warn',
-  // PLAN-4 GS-3: a11y lane, static only (sygnal-check; error under --strict); listed so the entry knows its title
+  // PLAN-4 GS-3: a11y lane, static only (sygnal-check; warn, also under --strict; error with --a11y=error, D144); listed so the entry knows its title
   SYG701: 'warn',
   SYG702: 'warn',
   SYG703: 'warn',

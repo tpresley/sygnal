@@ -191,6 +191,7 @@ Things to look for in a graph:
 npm install -D sygnal-check
 npx --no-install sygnal-check            # checks ./src (or pass paths: pages, renderer, ...)
 npx --no-install sygnal-check --strict   # plus the canonical-form rules
+npx --no-install sygnal-check --a11y=error   # accessibility findings (SYG7xx) as errors; warnings otherwise, also with --strict
 npx --no-install sygnal-check --graph    # the app graph
 npx --no-install sygnal-check explain SYG104
 ```

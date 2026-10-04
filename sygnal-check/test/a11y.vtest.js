@@ -10,7 +10,8 @@
  *   SYG707  unknown aria-* attribute or invalid role
  *   SYG708  label for / aria-describedby / aria-labelledby pointing at an id that isn't rendered
  *
- * Every rule: warn by default, error with { strict: true }, suppressed by
+ * Every rule: warn by default and with { strict: true } (D144), error with
+ * { a11y: 'error' } (--a11y=error), suppressed by
  * `// sygnal-ignore SYG70x`. Each rule has positive (finding) and negative
  * (clean) cases; when unsure (spreads, dynamic values, components that might
  * render a label) the lane says nothing.
@@ -59,10 +60,20 @@ describe('a11y lane plumbing', () => {
     expect(a11yRules.flatMap(r => r.codes).sort()).toEqual(['SYG701', 'SYG702', 'SYG703', 'SYG704', 'SYG705', 'SYG706', 'SYG707', 'SYG708'])
   })
 
-  it('warn by default, error under strict', () => {
+  // D144 (amends D111): warn even under strict; a11y: 'error' is the explicit opt-in
+  it("warn by default and under strict; error with a11y: 'error'", () => {
     const check = project({ 'App.jsx': view('<img src="a.png" />') })
-    expect(check().filter(d => d.code === 'SYG703').map(d => d.severity)).toEqual(['warn'])
-    expect(check({ strict: true }).filter(d => d.code === 'SYG703').map(d => d.severity)).toEqual(['error'])
+    const sev = (opts) => check(opts).filter(d => d.code === 'SYG703').map(d => d.severity)
+    expect(sev()).toEqual(['warn'])
+    expect(sev({ strict: true })).toEqual(['warn'])
+    expect(sev({ a11y: 'error' })).toEqual(['error'])
+    expect(sev({ strict: true, a11y: 'error' })).toEqual(['error'])
+    expect(sev({ a11y: 'warn' })).toEqual(['warn'])
+  })
+
+  it("rejects an unknown a11y level", () => {
+    const check = project({ 'App.jsx': view('<img src="a.png" />') })
+    expect(() => check({ a11y: 'loud' })).toThrow(/a11y must be 'warn' or 'error'/)
   })
 
   it('// sygnal-ignore SYG70x suppresses one finding', () => {

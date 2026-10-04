@@ -1,5 +1,5 @@
 /**
- * sygnal-check [paths...] [--json] [--strict] [--fix] [--controls] [--keep-classes] [--graph] [--fail-on=warn|error|never] [--verbose]
+ * sygnal-check [paths...] [--json] [--strict] [--a11y=warn|error] [--fix] [--controls] [--keep-classes] [--graph] [--fail-on=warn|error|never] [--verbose]
  * sygnal-check explain <code> [--json] | explain --all [--json]
  * sygnal-check mcp            (MCP server on stdio; see src/mcp.js and bin/sygnal-check.js)
  */
@@ -29,9 +29,10 @@ Options:
                          warn (default) | error | never
   --verbose              also print info-level diagnostics in text output
   --include-tests        include *.test.* / *.spec.* files
-  --strict               also check canonical forms (SYG501-507, see
-                         https://sygnal.js.org/reference/errors#syg501),
-                         and report the a11y lane (SYG701-708) as errors
+  --strict               also check canonical forms (SYG501-508, see
+                         https://sygnal.js.org/reference/errors#syg501);
+                         the a11y lane (SYG701-708) stays at warn
+  --a11y=<level>         severity of the a11y lane: warn (default) | error
   --fix                  apply the mechanical canonical-form rewrites in place
                          (implies --strict): 'A | SINK' keys → object form,
                          emit() → { EVENTS: event() }, CHILD.select('Name') →
@@ -54,7 +55,7 @@ Suppress a finding with a comment on the same line or the line above:
 `
 
 export function parseArgs(argv) {
-  const opts = { paths: [], json: false, strict: false, fix: false, controls: false, keepClasses: false, graph: false, failOn: 'warn', verbose: false, includeTests: false, help: false }
+  const opts = { paths: [], json: false, strict: false, a11y: 'warn', fix: false, controls: false, keepClasses: false, graph: false, failOn: 'warn', verbose: false, includeTests: false, help: false }
   for (const a of argv) {
     if (a === '--json') opts.json = true
     else if (a === '--strict') opts.strict = true
@@ -66,10 +67,12 @@ export function parseArgs(argv) {
     else if (a === '--include-tests') opts.includeTests = true
     else if (a === '-h' || a === '--help') opts.help = true
     else if (a.startsWith('--fail-on=')) opts.failOn = a.slice('--fail-on='.length)
+    else if (a.startsWith('--a11y=')) opts.a11y = a.slice('--a11y='.length)
     else if (a.startsWith('-')) throw new Error(`unknown option ${a}`)
     else opts.paths.push(a)
   }
   if (!['warn', 'error', 'never'].includes(opts.failOn)) throw new Error(`--fail-on must be warn, error or never (got '${opts.failOn}')`)
+  if (!['warn', 'error'].includes(opts.a11y)) throw new Error(`--a11y must be warn or error (got '${opts.a11y}')`)
   if (opts.graph && opts.fix) throw new Error('--graph and --fix cannot be combined')
   if (opts.paths.length === 0) opts.paths = ['src']
   return opts
@@ -125,7 +128,7 @@ export function main(argv, { stdout = process.stdout, stderr = process.stderr, c
   }
 
   if (opts.graph) {
-    const g = graphFiles(files, { cwd, strict: opts.strict, includeTests: opts.includeTests })
+    const g = graphFiles(files, { cwd, strict: opts.strict, a11y: opts.a11y, includeTests: opts.includeTests })
     stdout.write((opts.json ? JSON.stringify(g, null, 2) : formatGraph(g, { verbose: opts.verbose })) + '\n')
     return 0
   }
@@ -138,7 +141,7 @@ export function main(argv, { stdout = process.stdout, stderr = process.stderr, c
     if (opts.controls) stderr.write(`sygnal-check: converted ${r.controls} selector${r.controls === 1 ? '' : 's'} to controls in ${r.controlFiles} file${r.controlFiles === 1 ? '' : 's'}\n`)
     fixDiags = r.diagnostics // SYG900 "fix skipped" (a rewrite that would not parse was rolled back)
   }
-  const diags = sortDiagnostics([...fixDiags, ...checkFiles(files, { cwd, strict: opts.strict })])
+  const diags = sortDiagnostics([...fixDiags, ...checkFiles(files, { cwd, strict: opts.strict, a11y: opts.a11y })])
   if (opts.json) stdout.write(JSON.stringify(diags, null, 2) + '\n')
   else stdout.write(formatDiagnostics(diags, { verbose: opts.verbose }) + '\n')
 

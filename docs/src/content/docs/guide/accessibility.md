@@ -8,7 +8,8 @@ description: The SYG7xx accessibility checks in sygnal-check and the Vite dev ch
 ## Severity
 
 - **Warning** by default: `npx --no-install sygnal-check` prints the findings and exits with code 1, like any other warning.
-- **Error** under `--strict` (`sygnal-check --strict`, or `check: { strict: true }` in the [Vite plugin](/integration/bundler-config/#plugin-options), where errors also open Vite's error overlay).
+- **Still a warning under `--strict`.** Strict mode checks the canonical forms; it doesn't turn markup that already shipped into errors when you upgrade.
+- **Error** when you ask for it: `sygnal-check --a11y=error`, `check(paths, { a11y: 'error' })`, or `check: { a11y: 'error' }` in the [Vite plugin](/integration/bundler-config/#plugin-options), where errors also open Vite's error overlay. Use it in CI once an app is clean.
 - **On in the dev server**: the Vite plugin runs `sygnal-check` when it is installed, so the findings appear in the terminal and the browser console as you edit.
 
 The checks are static only: markup that is built at runtime (spread props, a dynamic `type` or `role`) is skipped rather than guessed at.

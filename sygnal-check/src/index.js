@@ -9,6 +9,8 @@
  *   options  {
  *     cwd?:          base for relative inputs (default process.cwd())
  *     strict?:       also run the strict-mode (canonical form, SYG5xx) rules
+ *     a11y?:         'warn' (default) | 'error': the a11y lane's (SYG7xx) severity; it stays
+ *                    'warn' under strict (D144)
  *     rules?:        explicit rule list (defaults to the registry)
  *     includeTests?: include *.test.* / *.spec.* files found through directories or globs
  *     ignore?:       codes to drop entirely, e.g. ['SYG105']
@@ -50,7 +52,7 @@ export function check(inputs = ['src'], options = {}) {
 export function checkFiles(files, options = {}) {
   const cwd = options.cwd ? path.resolve(options.cwd) : process.cwd()
   const project = buildProject(files, { cwd })
-  const rules = options.rules || selectRules({ strict: options.strict })
+  const rules = options.rules || selectRules({ strict: options.strict, a11y: options.a11y })
   let diags = runRules(project, rules)
   if (options.ignore?.length) diags = diags.filter(d => !options.ignore.includes(d.code))
   return sortDiagnostics(diags)

@@ -2,6 +2,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
+import os from 'node:os'
 import { spawn } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { validateSchema, getExplanation } from '../src/index.js'
@@ -88,6 +89,21 @@ describe('sygnal-check mcp (stdio)', () => {
   it('strict, tool errors, unknown tools / methods and parse errors', async () => {
     const strict = await s.request('tools/call', { name: 'check', arguments: { paths: ['test/fixtures/strict/bad/model-forms.jsx'], strict: true } })
     expect(strict.result.structuredContent.diagnostics.map(d => d.code)).toEqual(expect.arrayContaining(['SYG504', 'SYG505']))
+
+    // D144: a11y stays warn under strict; a11y: 'error' opts in
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sygnal-check-mcp-a11y-'))
+    try {
+      const app = path.join(dir, 'App.jsx')
+      fs.writeFileSync(app, 'export function App() {\n  return <img src="a.png" />\n}\nApp.initialState = {}\n')
+      const sev = async (args) => (await s.request('tools/call', { name: 'check', arguments: { paths: [app], ...args } }))
+        .result.structuredContent.diagnostics.filter(d => d.code === 'SYG703').map(d => d.severity)
+      expect(await sev({ strict: true })).toEqual(['warn'])
+      expect(await sev({ a11y: 'error' })).toEqual(['error'])
+      const bad = await s.request('tools/call', { name: 'check', arguments: { paths: [app], a11y: 'loud' } })
+      expect(bad.result.isError).toBe(true)
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true })
+    }
 
     const unknownCode = await s.request('tools/call', { name: 'explain', arguments: { code: 'SYG199' } })
     expect(unknownCode.result.isError).toBe(true)

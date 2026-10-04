@@ -42,7 +42,7 @@ export const CODES = {
   SYG640: { severity: 'warn', title: 'Element command target not found' },
   SYG641: { severity: 'error', title: 'Unknown element command' },
   SYG643: { severity: 'warn', title: 'Declaration static with no driver to take it' },
-  // PLAN-4 GS-3: the a11y lane (rules/a11y/); warn, error under --strict (D111)
+  // PLAN-4 GS-3: the a11y lane (rules/a11y/); warn, also under --strict; error with --a11y=error (D144)
   SYG701: { severity: 'warn', title: 'Click listener on a non-interactive element' },
   SYG702: { severity: 'warn', title: 'Form field without an accessible label' },
   SYG703: { severity: 'warn', title: 'Image without alt text' },
