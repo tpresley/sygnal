@@ -1,0 +1,15 @@
+// Builds the prototype's benchmark apps (benchmarks/audit/apps/next) into benchmarks/audit/dist[-profile]/next
+//   node build.mjs [--profile]      (run with the benchmarks/ node_modules: see README.md)
+import { build } from 'vite'
+import { resolve } from 'node:path'
+import sygnal from 'sygnal/vite'
+const profile = process.argv.includes('--profile')
+const root = resolve(import.meta.dirname, '.')
+const pages = ['table', 'table-coll', 'counters', 'deep', 'input']
+await build({
+  root, configFile: false, logLevel: 'warn', mode: 'production', base: './', plugins: [sygnal()],
+  define: { 'process.env.NODE_ENV': '"production"' },
+  build: { outDir: resolve(root, profile ? 'dist-profile' : 'dist', 'next'), emptyOutDir: true, minify: profile ? false : 'esbuild', sourcemap: profile,
+    rollupOptions: { input: Object.fromEntries(pages.map(p => [p, resolve(root, 'apps/next', p + '.html')])) } },
+})
+console.log('built next')
