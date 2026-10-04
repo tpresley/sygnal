@@ -124,12 +124,10 @@ it('signup form: a recorded session with replies replays (copied from sygnal/dev
     t.simulateAction('EMAIL', 'ada')
     // SUBMIT: DOM event/element data as a stub (type, key, target dataset/value/checked/id)
     t.simulateAction('SUBMIT', { type: 'click' })
-    await t.settle()
     await t.fail('HTTP', 422, { request: (r) => r.error === 'SIGNUP_FAILED', body: { message: 'Email is invalid' } })
     t.simulateAction('EMAIL', 'ada@example.com')
     // SUBMIT: DOM event/element data as a stub (type, key, target dataset/value/checked/id)
     t.simulateAction('SUBMIT', { type: 'click' })
-    await t.settle()
     await t.respond('HTTP', { id: 1, name: 'Ada', email: 'ada@example.com' }, 'SIGNED_UP')
     await t.settle()
     expect(t.state).toEqual({
@@ -147,7 +145,7 @@ it('signup form: a recorded session with replies replays (copied from sygnal/dev
 What is replayed:
 
 - the actions the component's intent, a behavior or a test sent (causes `intent`, `behavior`, `simulateAction`), with the data they had. `next`, `built-in` and reply actions are consequences: the replay produces them again;
-- the replies of a [`makeFetchDriver()`](/guide/http/) source, as `t.respond()` and `t.fail()` (renderComponent fakes that driver), each after an `await t.settle()` so the replayed request has left first;
+- the replies of a [`makeFetchDriver()`](/guide/http/) source, as `t.respond()` and `t.fail()` (renderComponent fakes that driver);
 - data as JavaScript literals: JSON values, `Date`, `Map`, `Set`, `NaN`, `Infinity`, `-0` and bigints. A DOM event or element becomes a **stub** with its `type`, `key` and the target's `dataset`, `value`, `checked` and `id`, marked with a comment. An intent that reads something else from the event needs the stub filled in.
 
 The final-state assertion is written only when the replay can be complete. It is left out, with a comment saying why, when an action's data couldn't be written (a function, a class instance, a cycle), when a child component changed the state through its own intent (copy the test from that child instead), when the session was longer than the log keeps (5,000 actions), or when the final state isn't JSON-safe. A test copied with its assertion passes unchanged. The dialog's title says "(no final-state assertion)" when it was left out, and lists what was.
