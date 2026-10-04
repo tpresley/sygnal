@@ -102,6 +102,9 @@ function normalizeCalculatedEntry(field: string, entry: any): {fn: (...args: any
   fail('SYG206', undefined, `Invalid calculated field '${field}'`, 'Use fn or [deps, fn]')
 }
 
+// a component function's name: componentName, label or its function name
+const nameOf = (fn: any, fallback: string): string => fn.componentName || fn.label || fn.name || fallback
+
 const OPTION_KEYS = ['model', 'intent', 'hmrActions', 'context', 'peers', 'components', 'initialState', 'calculated', 'storeCalculatedInState', 'DOMSourceName', 'stateSourceName', 'onError', 'debug']
 
 /** component() options for a function component: its static properties (`extra`: more keys), `name`, `view: fn`. */
@@ -227,18 +230,17 @@ class Component {
 
     Object.assign(this, { name, sources, intent, model, hmrActions, context, view, peers, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, sourceNames: Object.keys(sources), onError, isolatedState, _debug: debug })
 
-    // Warn if calculated fields shadow base state keys
-    if (this.calculated && this.initialState
-        && isObj(this.calculated) && isObj(this.initialState)) {
-      for (const key of Object.keys(this.calculated)) {
-        if (key in this.initialState) {
-          warn('SYG207', name, `Calculated field '${key}' overwrites the initialState key of the same name`, 'Rename one of them')
-        }
-      }
-    }
-
     // Normalize calculated entries, build dependency graph, topological sort
     if (this.calculated && isObj(this.calculated)) {
+      // Warn if calculated fields shadow base state keys
+      if (isObj(initialState)) {
+        for (const key of Object.keys(this.calculated)) {
+          if (key in initialState) {
+            warn('SYG207', name, `Calculated field '${key}' overwrites the initialState key of the same name`, 'Rename one of them')
+          }
+        }
+      }
+
       // Normalize all entries to { fn, deps } shape
       const normalized: Record<string, {fn: (...args: any[]) => any; deps: string[] | null}> = {}
       for (const [field, entry] of Object.entries(this.calculated)) {
@@ -1365,7 +1367,7 @@ class Component {
       if (collectionOf.isSygnalComponent) {
         factory = collectionOf
       } else {
-        factory = component(optionsOf(collectionOf, collectionOf.componentName || collectionOf.label || collectionOf.name || 'FUNCTION_COMPONENT'))
+        factory = component(optionsOf(collectionOf, nameOf(collectionOf, 'FUNCTION_COMPONENT')))
       }
     } else if (this.components[collectionOf]) {
       factory = this.components[collectionOf]
@@ -1474,7 +1476,7 @@ class Component {
     // Notify devtools of collection mount
     if (typeof window !== 'undefined' && (window as any).__SYGNAL_DEVTOOLS__?.connected) {
       const itemName = typeof collectionOf === 'function'
-        ? (collectionOf.componentName || collectionOf.label || collectionOf.name || 'anonymous')
+        ? nameOf(collectionOf, 'anonymous')
         : String(collectionOf)
       ;(window as any).__SYGNAL_DEVTOOLS__.onCollectionMounted(
         this._componentNumber, this.name, itemName,
@@ -1503,7 +1505,7 @@ class Component {
     keys.forEach(key => {
       const current = switchableComponents[key]
       if (!current.isSygnalComponent) {
-        switchableComponents[key] = component(optionsOf(current, current.componentName || current.label || current.name || 'FUNCTION_COMPONENT'))
+        switchableComponents[key] = component(optionsOf(current, nameOf(current, 'FUNCTION_COMPONENT')))
       }
     })
     const sources = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$, __parentContext$: this.context$, __parentComponentNumber: this._componentNumber, __uid: this._cu, __d: this._d + 1 }
@@ -1645,7 +1647,7 @@ function walkView(root: any, inst: any, nameSet: Set<string>): [any, Record<stri
       if (view?.__sygnalLazy) {
         const loaded = view.__sygnalLazyLoaded() && view.__sygnalLazyLoadedComponent
         if (loaded) {
-          const name = loaded.componentName || loaded.label || loaded.name || 'LazyLoaded'
+          const name = nameOf(loaded, 'LazyLoaded')
           const { sygnalOptions, ...rest } = props
           // its children aren't preprocessed (as before); the walk only stamps them
           return walk({ sel: name, data: { props: { ...rest, sygnalOptions: optionsOf(loaded, name, ['isolatedState']) } }, children, text: undefined, elm: undefined, key: undefined }, path, collect, 0)
@@ -1729,16 +1731,7 @@ function injectComponents(currentElement: any, components: Record<string, any>, 
     // Ready children get no attribute (G-018): moving markup into a child component
     // must not change the DOM.
     if (readyMap && id && readyMap[id] === false && component && typeof component === 'object' && component.sel) {
-      component = {
-        ...component,
-        data: {
-          ...(component.data || {}),
-          attrs: {
-            ...(component.data?.attrs || {}),
-            'data-sygnal-ready': 'false'
-          }
-        }
-      }
+      component = { ...component, data: { ...component.data, attrs: { ...component.data?.attrs, 'data-sygnal-ready': 'false' } } }
     }
     if (isCollection) {
       return {
@@ -1782,12 +1775,7 @@ function hasNotReadyChild(vnode: any): boolean {
   if (vnode.data?.attrs?.['data-sygnal-lazy'] === 'loading') return true
   // Stop at inner Suspense boundaries — they handle their own children
   if (vnode.sel === 'suspense') return false
-  if (Array.isArray(vnode.children)) {
-    for (const child of vnode.children) {
-      if (hasNotReadyChild(child)) return true
-    }
-  }
-  return false
+  return Array.isArray(vnode.children) && vnode.children.some(hasNotReadyChild)
 }
 
 function processSuspensePost(vnode: any): any {
@@ -1896,29 +1884,23 @@ function createPortalPlaceholder(target: string, children: any[]): any {
       portalChildren,
       hook: {
         insert: (vnode: any) => {
-          // Try synchronously first (target outside component tree or
-          // plain element in the same patch cycle).
-          const container = document.querySelector(target)
-          if (container) {
-            portalMount(vnode, target, portalChildren)
-            return
-          }
-          // Target may be rendered later (a lazy sub-component, say; P45-C:
-          // one in this patch is found above). Retry a few times to
-          // allow it to render.
+          // Try synchronously first (target outside component tree or plain element in the
+          // same patch cycle). The target may be rendered later (a lazy sub-component, say;
+          // P45-C: one in this patch is found at once): retried 10 times, 5 ms apart. A late
+          // mount changes the DOM outside a patch (pokeDOM)
           let attempts = 0
           const tryMount = () => {
             if (vnode.data._portalVnode) return // already mounted
             if (document.querySelector(target)) {
               portalMount(vnode, target, portalChildren)
-              pokeDOM(vnode.data._portalContainer)
-            } else if (++attempts < 10) {
+              if (attempts) pokeDOM(vnode.data._portalContainer)
+            } else if (attempts++ < 10) {
               setTimeout(tryMount, 5)
             } else {
               warn('SYG417', 'Portal', `Target '${target}' not found; content not rendered`, 'Render the target first')
             }
           }
-          setTimeout(tryMount, 5)
+          tryMount()
         },
         postpatch: (oldVnode: any, newVnode: any) => {
           const prevPortalVnode = oldVnode.data?._portalVnode
