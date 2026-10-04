@@ -7,7 +7,7 @@
  *   SYG110/104   a control passed as an option the behavior's intent listens to
  *   SYG126       ... counts as listened
  *   SYG127       unresolvable entry, initialState collision, unknown option (a typo)
- *   SYG226       undoable() / undo() track or resetOn naming an unknown action
+ *   SYG226       undoable() / undo() track, resetOn or coalesce naming an unknown action
  *   opaque       behaviors from packages: no findings about them
  *   --graph      behavior-owned actions, `uses`, behavior selectors; schema (+ recentActions, G-210)
  */
@@ -291,6 +291,26 @@ C.uses = { pager: pager({ next: Newer }), history: undo({ key: 'doc', undo: Undo
     const d = project({ 'C.jsx': src }).check()
     expect(codes(d)).toEqual(['SYG102 warn', 'SYG226 warn'])
     expect(only(d, 'SYG226')[0].message).toContain("undo() (uses key 'history') track names 'SETT'")
+  })
+
+  // 4-G1 (D143) added `coalesce`; 4-G2: a known option, and its names are checked like track's
+  it('coalesce: a known undo() option (no SYG127); a name with no model entry is SYG226', () => {
+    const src = `import { controls, undo, undoable } from 'sygnal'
+const { Undo } = controls({ Undo: 'button' })
+export function C({ state }) { return <div><Undo>Undo</Undo>{state.doc.n}</div> }
+C.initialState = { doc: { n: 0 } }
+C.model = { SET: (s, n) => ({ ...s, doc: { n } }) }
+C.uses = { history: undo({ key: 'doc', undo: Undo, coalesce: ['SET', 'SETT'], coalesceMs: 300 }) }
+export function E({ state }) { return <p>{state.doc.n}</p> }
+E.initialState = { doc: { n: 0 } }
+E.model = undoable({ TYPE: (s) => s }, { key: 'doc', coalesce: ['TYPEE'] })
+`
+    const d = project({ 'C.jsx': src }).check()
+    expect(only(d, 'SYG127')).toEqual([])
+    const s = only(d, 'SYG226')
+    expect(s.map(x => x.data)).toEqual([{ action: 'SETT', option: 'coalesce' }, { action: 'TYPEE', option: 'coalesce' }])
+    expect(s[0].message).toContain("coalesce names 'SETT'")
+    expect(s[1].message).toContain("did you mean 'TYPE'")
   })
 })
 

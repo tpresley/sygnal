@@ -18,7 +18,7 @@
  * return new objects (they do in Sygnal). A model's own UNDO / REDO entry runs after the
  * built-in one (as a host entry for a behavior action does, D123).
  *
- * SYG226 (dev, warn): a `track` / `resetOn` name with no model entry.
+ * SYG226 (dev, warn): a `track` / `resetOn` / `coalesce` name with no model entry.
  */
 import { defineBehavior } from './behaviors'
 import { ABORT, isAbort } from '../shared'
@@ -36,12 +36,12 @@ const actionOf = (a: string) => a.split('|')[0].trim()
 // SYG226: report through the diagnostics core when it is enabled (dev); nothing in production
 const check = (model: any, o: UndoOptions, component?: any, skip?: any) => {
   const known = new Set(Object.keys(model || {}).map(actionOf))
-  for (const a of [...(o.track || []), ...(o.resetOn || [])]) {
+  for (const a of [...(o.track || []), ...(o.resetOn || []), ...(o.coalesce || [])]) {
     if (known.has(a) || skip?.[a.split('.')[0]]) continue
     try {
       (globalThis as any).__SYGNAL_DIAGNOSTICS__?.report('SYG226', {
         severity: 'warn', component, data: {action: a},
-        message: `undo ${o.track?.includes(a) ? 'track' : 'resetOn'} names '${a}', which has no model entry`,
+        message: `undo ${o.track?.includes(a) ? 'track' : o.resetOn?.includes(a) ? 'resetOn' : 'coalesce'} names '${a}', which has no model entry`,
         fix: `Use the name of a model entry, or add '${a}' to the model`,
       })
     } catch (e) { queueMicrotask(() => { throw e }) }

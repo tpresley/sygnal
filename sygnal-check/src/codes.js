@@ -35,7 +35,7 @@ export const CODES = {
   // PLAN-4 GS-8 undo (rules/syg127-behaviors.js)
   SYG223: { severity: 'warn', title: 'persist pick or omit names a key that is not in initialState' },
   SYG224: { severity: 'error', title: 'persist on a component that is not the root' },
-  SYG226: { severity: 'warn', title: 'Undo track or resetOn names an unknown action' },
+  SYG226: { severity: 'warn', title: 'Undo track, resetOn or coalesce names an unknown action' },
   SYG401: { severity: 'warn', title: "Collection 'from' field is missing or not an array" },
   // PLAN-4 4-G2 (rules/syg405-initial-state.js): error for a child rendered by tag, warn for a
   // Collection / Switchable target (the rule passes the severity)

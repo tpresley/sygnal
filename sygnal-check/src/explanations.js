@@ -323,11 +323,11 @@ export const EXPLANATIONS = {
     fix: "Move `persist` to the root component and `pick` the key that holds the sub-component's state: `App.persist = persist({ key: 'app', pick: ['todos'] })` for a child rendered with `state=\"todos\"`. In a Vike Layout/Wrapper shell, remove it and save the state yourself (`STATE.watch` writing to `localStorage`, read back in `BOOTSTRAP`).",
   },
   SYG226: {
-    title: "Undo track or resetOn names an unknown action",
+    title: "Undo track, resetOn or coalesce names an unknown action",
     severity: "warn",
     reportedBy: ["runtime", "static"],
-    explanation: "`undoable(model, { key, track, resetOn })` (and the `undo({ ... })` behavior) records changes to `state[key]` made by the actions in `track`, and clears the history on the actions in `resetOn`. A name in either list that has no model entry never runs, so with `track` its changes are never recorded (undo skips them), and with `resetOn` the history is never cleared (after a load, undo would bring back the old document). It is usually a typo or a renamed action. For `undo()` the names are the host component's actions, including other behaviors' namespaced ones (`'pager.NEXT'`). `undoable()` reports it when diagnostics are on (dev, `renderComponent`) as it wraps the model, `undo()` when the component is first created; sygnal-check reports it statically, with the closest model entry as a suggestion.",
-    fix: "Use the name of a model entry (`track: ['TYPE']`, `resetOn: ['LOADED']`), or add the entry to the model. Leave `track` out to record every action that changes `state[key]`.",
+    explanation: "`undoable(model, { key, track, resetOn, coalesce })` (and the `undo({ ... })` behavior) records changes to `state[key]` made by the actions in `track`, clears the history on the actions in `resetOn`, and groups quick repeats of the actions in `coalesce` into one step. A name in any of these lists that has no model entry never runs, so with `track` its changes are never recorded (undo skips them), with `resetOn` the history is never cleared (after a load, undo would bring back the old document), and with `coalesce` the action meant to be grouped (typing) is recorded one step per change. It is usually a typo or a renamed action. For `undo()` the names are the host component's actions, including other behaviors' namespaced ones (`'pager.NEXT'`). `undoable()` reports it when diagnostics are on (dev, `renderComponent`) as it wraps the model, `undo()` when the component is first created; sygnal-check reports it statically, with the closest model entry as a suggestion.",
+    fix: "Use the name of a model entry (`track: ['TYPE']`, `resetOn: ['LOADED']`, `coalesce: ['TYPE']`), or add the entry to the model. Leave `track` out to record every action that changes `state[key]`.",
   },
   SYG301: {
     title: "RxJS operator used on an xstream stream",

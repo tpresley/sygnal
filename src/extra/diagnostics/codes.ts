@@ -195,7 +195,7 @@ export const CODE_TITLES: Record<string, string> = {
   SYG222: 'STATE reducer returned the same object after it was mutated in place',
   SYG223: 'persist pick or omit names a key that is not in initialState',
   SYG224: 'persist on a component that is not the root',
-  SYG226: 'Undo track or resetOn names an unknown action',
+  SYG226: 'Undo track, resetOn or coalesce names an unknown action',
   SYG402: 'Context is not an object',
   SYG403: 'Invalid context entry',
   SYG404: 'Context stream errored',
