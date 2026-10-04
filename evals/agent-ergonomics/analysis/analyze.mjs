@@ -37,6 +37,7 @@ import { aggregate } from './lib/aggregate.mjs'
 import { processKills } from '../lib/transcript.mjs'
 import { renderMarkdown } from './lib/report.mjs'
 import { wiringStats } from './lib/wiring.mjs'
+import { testWindowSeconds, a11yFinalCount, usedActionLog } from './lib/finalmeasures.mjs'
 import os from 'node:os'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
@@ -209,6 +210,8 @@ for (const [trial, agentId] of mapRows) {
   const workaroundHits = matchWorkaround(inputPlain, arm)
   // input: API guesses in what the agent wrote (G-125: `t.state`, `t.html()` before the first render)
   rec.catalog = { result: resultHits, report: reportIds, workaround: workaroundHits, input: matchInput(inputPlain, arm) }
+  // D132: used t.actions / t.inspect() / t.explain() while working (PLAN-4 4-E)
+  if (arm === 'sygnal') rec.usedActionLog = usedActionLog(inputPlain)
   // f. skill/docs usage
   rec.skill = skillUsage(parsed, skill)
   // h. self-reported issues
@@ -216,6 +219,8 @@ for (const [trial, agentId] of mapRows) {
   // test authoring from the transcript
   const testWrites = parsed.calls.filter((c) => (EDIT_TOOLS.has(c.name) && isTestPath(c.input.file_path)) || (c.name === 'Bash' && (c.base === 'test-authoring' || bashWritesTest(c.input?.command))))
   rec.wroteTest = testWrites.length > 0
+  // PLAN-4 4-E (GS-14): wall time from the first test-file write to the end
+  rec.testWindow = testWindowSeconds(testWrites, parsed.lastTs)
 
   // g. final code
   if (!dir) rec.flags.push('final code missing')
@@ -230,6 +235,7 @@ for (const [trial, agentId] of mapRows) {
     if (arm === 'sygnal') {
       rec.canonical = canonicalForms(src)
       if (doCheck) rec.sygnalCheck = runSygnalCheck(checkBin, srcDir)
+      if (doCheck) rec.a11yFinal = a11yFinalCount(rec.sygnalCheck)
       if (driverCatchWorkaround(src) && !rec.catalog.workaround.includes('B-005')) rec.catalog.workaround.push('B-005')
       // Workarounds that survive in kept tests
       const testsText = rec.keptTests.map((f) => fs.readFileSync(path.join(dir, f), 'utf8')).join('\n')

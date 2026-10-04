@@ -33,6 +33,13 @@ export const METRICS = {
   wiringHits: { label: 'SYG104/110/124 hits', digits: 2, from: 'analysis' },
   wiringFinal: { label: 'SYG104/110/124 in final code', unit: '%', scale: 100, from: 'analysis' },
   wiringFailure: { label: 'wiring failures', unit: '%', scale: 100, from: 'analysis' },
+  // PLAN-4 4-E (lib/finalmeasures.mjs): GS-14 test-authoring time and the a11y lane on final code
+  testAuthoring: { label: 'test-authoring phase (s)', from: 'analysis' },
+  testWindow: { label: 'first test write → end (s)', from: 'analysis' },
+  testLearn: { label: 'test-tooling learn (s)', from: 'analysis' },
+  usedTestingLibrary: { label: 'kept tests use Testing Library', unit: '%', scale: 100, from: 'analysis' },
+  a11yFinal: { label: 'SYG7xx in final code', digits: 2, from: 'analysis' },
+  usedActionLog: { label: 'used t.actions/inspect/explain', unit: '%', scale: 100, from: 'analysis' },
 }
 export const DEFAULT_TASK_METRICS = ['pass', 'wall', 'costUsd', 'iterations']
 
@@ -60,6 +67,12 @@ export function rowsFromAnalysis(a) {
     wiringHits: num(t.wiring?.hitCalls),
     wiringFinal: t.wiring?.finalChecked ? (t.wiring.finalCodes.length ? 1 : 0) : null,
     wiringFailure: t.wiring?.failure == null ? null : t.wiring.failure ? 1 : 0,
+    testAuthoring: t.phases ? num(t.phases['test-authoring']) ?? 0 : null,
+    testWindow: num(t.testWindow),
+    testLearn: t.learnSeconds ? num(t.learnSeconds['testing-utility']) ?? 0 : null,
+    usedTestingLibrary: Array.isArray(t.testApproach) ? (t.testApproach.includes('testing-library') ? 1 : 0) : null,
+    a11yFinal: num(t.a11yFinal),
+    usedActionLog: t.usedActionLog == null ? null : t.usedActionLog ? 1 : 0,
     phases: t.phases ?? null,
   }))
 }
