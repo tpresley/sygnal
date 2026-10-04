@@ -6,7 +6,7 @@ import {objIsEqual} from './cycle/state/objIsEqual';
 import {init as snabbdomInit} from './cycle/dom/snabbdom';
 import defaultModules from './cycle/dom/modules';
 import {renderSeq, inputSeq} from './cycle/dom/controlledInputModule';
-import {uidPart, isAbort} from './shared';
+import {uidPart, isAbort, NOT_SINK} from './shared';
 import {makeCommandSource} from './extra/command';
 import {runElementCommands} from './extra/elementCommands';
 import type {Command} from './extra/command';
@@ -15,7 +15,7 @@ import * as diag from './extra/diagnostics/index';
 import {warn, error as logError, fail, caught, appError} from './extra/diagnostics/legacy';
 
 import xs, {Stream} from './extra/xstreamCompat';
-import {delay, concat, dropRepeats} from './extra/xstreamExtras';
+import {dropRepeats} from './extra/xstreamExtras';
 import {makeScheduler, batch, B, tearDown} from './cycle/run/scheduler';
 
 declare var process: { env: Record<string, any> };
@@ -39,6 +39,36 @@ let COMPONENT_COUNT = 0;
 
 // 1H-1: STATE reducers emitted but not applied yet (in any component)
 let pendingReducers = 0;
+
+/** P45-D: one stream for src.map(f).filter(...): f(value, listener) emits with listener.next */
+const via = (src: any, f: (v: any, l: any) => any, init?: any): any => {
+  let sub: any
+  return xs.create({
+    start: (l: any) => { init && init(l); sub = src.subscribe({ next: (v: any) => f(v, l), error: (e: any) => l.error(e), complete: () => l.complete() }) },
+    stop: () => sub.unsubscribe(),
+  })
+}
+
+/**
+ * P45-D: a stream that merges the streams `fixed` with a set its `.set(streams)` replaces: those
+ * no longer in the set are unsubscribed, the new ones subscribed, the others kept (no re-merge,
+ * no flatten). Never completes. A component's sinks (its own + its children's) and CHILD
+ */
+const hub = (fixed: any[]): any => {
+  let L: any, cur: any[] = []
+  const on = new Map<any, any>()
+  const add = (s: any) => on.has(s) || on.set(s, s.subscribe({ next: (v: any) => L.next(v), error: (e: any) => L.error(e) }))
+  const h: any = xs.create({
+    start: (l: any) => { L = l; fixed.concat(cur).forEach(add) },
+    stop: () => { L = 0; on.forEach(s => s.unsubscribe()); on.clear() },
+  })
+  h.set = (a: any[]) => {
+    cur = a
+    if (L) { on.forEach((s, k) => fixed.includes(k) || a.includes(k) || (s.unsubscribe(), on.delete(k))); a.forEach(add) }
+    return h
+  }
+  return h
+}
 
 function wrapDOMSource(domSource: any): any {
   return new Proxy(domSource, {
@@ -150,20 +180,16 @@ class Component {
   currentProps: any;
   currentChildren: any;
   currentSlots: Record<string, any[]>;
-  currentContext: any;
   intent$: any;
-  hmrAction$: any;
   action$: any;
   model$: any;
   context$: any;
   peers$: any;
-  subComponentSink$: any;
   vdom$: any;
   sinks: any;
   log: any;
   addCalculated: (state: any) => any;
   newChildSources!: (sources: any) => void;
-  newSubComponentSinks!: (sinks: any) => void;
   _calculatedNormalized: Record<string, {fn: (...args: any[]) => any; deps: string[] | null}> | null;
   _calculatedFieldNames: Set<string> | null;
   _calculatedOrder: Array<[string, {fn: (...args: any[]) => any; deps: string[] | null}]> | null;
@@ -181,8 +207,7 @@ class Component {
   _childReadyState: Record<string, boolean>;
   _uid!: (name?: string) => string;
   _cu?: string;
-  _readyChanged$: any;
-  _readyChangedListener: any;
+  _hubs: Record<string, any> = {};
   _d!: number;
   _w = 0;
   _go!: () => any;
@@ -325,7 +350,7 @@ class Component {
           window.__SYGNAL_DEVTOOLS__.onStateChanged(this._componentNumber, this.name, val)
         }
         return val
-      }), stateSourceName, this._dispose$) // GS-6: STATE.watch ends on dispose
+      }), stateSourceName, this._dispose$, 1) // GS-6: STATE.watch ends on dispose; 1: already deduped (P45-D)
     }
 
     const props$ = sources.props$
@@ -396,11 +421,6 @@ class Component {
     this._subscriptions = []
     this._activeSubComponents = new Map()
     this._childReadyState = {}
-    this._readyChangedListener = null
-    this._readyChanged$ = xs.create({
-      start: (listener: any) => { this._readyChangedListener = listener },
-      stop: () => {},
-    })
     this.sources.dispose$ = this._dispose$
     // P45-C: this app's render scheduler (the root makes it; children inherit it) and the depth
     this._d = sources.__d | 0
@@ -423,13 +443,12 @@ class Component {
     this.initContext()
     this.initModel$()
     this.initPeers$()
-    this.initSubComponentSink$()
     this.initVdom$()
     this.initSinks()
 
     this.sinks.__index = this._componentNumber
 
-    this.log(`Instantiated`, true)
+    this.log('Instantiated', true)
 
     // Hook 1: Register with DevTools
     if (typeof window !== 'undefined' && window.__SYGNAL_DEVTOOLS__) {
@@ -491,6 +510,12 @@ class Component {
     pendingReducers ? queueMicrotask(end) : end()
   }
 
+  // P45-D: the current context (a component without .context shares its parent's stream; below a
+  // root without one: {}, as when it computed its own)
+  get currentContext(): any {
+    return this.context$?._v || (this.sources.__parentContext$ ? {} : undefined)
+  }
+
   get debug(): boolean {
     return this._debug || (ENVIRONMENT.SYGNAL_DEBUG === 'true' || ENVIRONMENT.SYGNAL_DEBUG === true)
   }
@@ -517,67 +542,65 @@ class Component {
   }
 
   initHmrActions(): void {
-    if (typeof this.hmrActions === 'undefined') {
-      this.hmrAction$ = xs.empty()
-      return
-    }
-    if (typeof this.hmrActions === 'string') {
-      this.hmrActions = [this.hmrActions]
-    }
-    if (!Array.isArray(this.hmrActions) || this.hmrActions.some(action => typeof action !== 'string')) {
+    if (typeof this.hmrActions === 'string') this.hmrActions = [this.hmrActions]
+    if (this.hmrActions !== undefined && (!Array.isArray(this.hmrActions) || this.hmrActions.some((action: any) => typeof action !== 'string'))) {
       fail('SYG604', this, 'hmrActions must be an action name or an array of action names', "Use hmrActions = ['ACTION']")
     }
-    this.hmrAction$ = xs.fromArray(this.hmrActions.map(action => ({ type: action })))
   }
 
   initAction$(): void {
     // G-107: a component with a model but no intent still gets BOOTSTRAP
     const intent$ = this.intent$ || {}
 
-    let runner
-    if (intent$ instanceof Stream) {
-      runner = intent$
-    } else {
+    let runner: any = intent$
+    if (!(intent$ instanceof Stream)) {
       // Validate that no intent action names contain '|' (reserved for model shorthand)
       for (const key of Object.keys(intent$)) {
         if (key.includes('|')) {
           fail('SYG605', this, `Intent action '${key}' contains '|', which is reserved for model shorthand`, 'Rename the action')
         }
       }
-      const mapped = Object.entries(intent$)
-                           .map(([type, data$]: [string, any]) => data$.map((data: any) => ({type, data})))
-      runner = mapped.length > 0 ? xs.merge(...mapped) : xs.never()
+      const mapped = Object.entries(intent$).map(([type, data$]: [string, any]) => data$.map((data: any) => ({type, data})))
+      runner = mapped.length > 1 ? xs.merge(...mapped) : mapped[0]
     }
 
-    const action$    = ((runner instanceof Stream) ? runner : (runner.apply && runner(this.sources) || xs.never()))
-    const bootstrap$ = xs.of({ type: BOOTSTRAP_ACTION }).compose(delay(10))
     // G-216: this app's hot swap (run()'s __hmr source: { u: swapping, s: the state to keep })
-    const _hmrUpdating = this.sources.__hmr?.u
-    const hmrAction$ = _hmrUpdating ? this.hmrAction$ : xs.empty()
+    const up = this.sources.__hmr?.u
     // P45-C: the first render waits until the intent listens (0, sent as it subscribes; as the
     // render debounce used to). With BOOTSTRAP it doesn't wait (the intent starts 10 ms later)
-    const boot = this.model?.[BOOTSTRAP_ACTION] && !_hmrUpdating
+    const boot = this.model?.[BOOTSTRAP_ACTION] && !up
     if (!boot && this.intent && this.model) this._w = 1
-    const wrapped$   = boot ? concat(bootstrap$, action$) : concat(xs.of().compose(delay(1)), hmrAction$, this._w ? action$.startWith(0) : action$)
 
     // PLAN-3 reply actions: a reply-capable source (makeFetchDriver, driverFromAsync, ...)
     // delivers the replies to this instance's own requests as actions (src/extra/replies.ts).
     // === true: the DOM source is a Proxy that answers any property with a function.
     // dispose() completes them, so the driver drops/aborts this instance's requests at once (G-144)
     this._replies = this.sourceNames.filter(n => this.sources[n]?.__sygnalReplies === true).map(n => this.sources[n].replies(this._componentNumber))
-    // xs.never(): action$ outlives a finite intent, so DISPOSE can still be sent (it was
-    // the legacy hydrate$ that did this)
-    this.action$   = xs.merge(wrapped$, xs.never(), ...this._replies)
-      .filter((action: any) => {
-        if (action === 0) return this._go?.(), false
-        if (typeof window !== 'undefined' && window.__SYGNAL_DEVTOOLS__?.connected) {
-          window.__SYGNAL_DEVTOOLS__.onActionDispatched(
-            this._componentNumber, this.name, action.type, action.data
-          )
+    // P45-D: one stream (it was eleven): the replies at once; 1 ms later (10 with BOOTSTRAP:
+    // BOOTSTRAP first) the hmrActions of a hot swap, then the intent. It never completes on its
+    // own, so DISPOSE can still be sent after a finite intent
+    let subs: any[] = [], t: any
+    this.action$ = xs.create({
+      start: (l: any) => {
+        const emit = (action: any) => {
+          if (action === 0) return this._go?.()
+          if (typeof window !== 'undefined' && window.__SYGNAL_DEVTOOLS__?.connected) {
+            window.__SYGNAL_DEVTOOLS__.onActionDispatched(this._componentNumber, this.name, action.type, action.data)
+          }
+          this.log(() => `<${action.type}> Action triggered`, true)
+          l.next(action)
         }
-        return true
-      })
-      .compose(this.log(({ type }: any) => `<${type}> Action triggered`))
+        const sub = (s: any) => s && subs.push(s.subscribe({ next: emit, error: (e: any) => l.error(e) }))
+        this._replies!.forEach(sub)
+        t = setTimeout(() => {
+          boot && emit({ type: BOOTSTRAP_ACTION })
+          up && this.hmrActions?.forEach((type: any) => emit({ type }))
+          this._w && emit(0)
+          sub(runner instanceof Stream ? runner : runner?.apply && runner(this.sources))
+        }, boot ? 10 : 1)
+      },
+      stop: () => { clearTimeout(t); subs.forEach(s => s.unsubscribe()); subs = [] },
+    })
   }
 
   initState(): void {
@@ -600,8 +623,9 @@ class Component {
   }
 
   initContext(): void {
-    if (!this.context && !this.sources.__parentContext$) {
-      this.context$ = xs.of({})
+    // P45-D: without its own context a component shares its parent's stream (the same values)
+    if (!this.context) {
+      this.context$ = this.sources.__parentContext$ || xs.of({})
       return
     }
 
@@ -635,7 +659,6 @@ class Component {
           return acc
         }, {} as Record<string, any>)
         const newContext = { ..._parent, ...values }
-        this.currentContext = newContext
         if (typeof window !== 'undefined' && window.__SYGNAL_DEVTOOLS__?.connected) {
           window.__SYGNAL_DEVTOOLS__.onContextChanged(this._componentNumber, this.name, newContext)
         }
@@ -679,10 +702,7 @@ class Component {
 
   initModel$(): void {
     if (typeof this.model == 'undefined') {
-      this.model$ = this.sourceNames.reduce((a: Record<string, any>, s) => {
-        a[s] = xs.never()
-        return a
-      }, {} as Record<string, any>)
+      this.model$ = {}
       // G-167: statics are sent without a model too
       this.initStatics(this.model$, this.action$)
       // [diagnostics hook]
@@ -702,32 +722,31 @@ class Component {
     // their non-STATE sinks, stay synchronous with the event that caused them (1H-1).
     // P45-C: no render before INITIALIZE (_w; sequenced$ below), as the render debounce used to wait for it
     if (shouldInjectInitialState) this._w++
-    const shimmed$ = shouldInjectInitialState ? xs.merge(xs.of(initial).compose(delay(0)), this.action$) : this.action$
     // B-003: STATE reducers are applied later (withState queues each one in a microtask), so
     // while one is pending a non-STATE sink must not read this.currentState. Then, before the
     // action reaches any reducer, queue a microtask (ahead of this action's own STATE reducer,
     // behind every earlier one) that snapshots the state and runs the non-STATE sinks.
     // Otherwise run them now, so EFFECT can still preventDefault() the live event (1H-1).
-    let snapListener: any = null
-    const sequenced$ = shimmed$.map((action: any) => {
+    let snapListener: any = null, snapshotted$: any
+    const seq = (action: any, l: any) => {
       if (action.type == INITIALIZE_ACTION) this._go?.()
-      const l = snapListener
-      const run = () => l.next({ ...action, [STATE_SNAPSHOT]: this.currentState })
-      if (l) pendingReducers ? queueMicrotask(run) : run()
-      return action
-    })
-    let snapSub: any
-    const snapshotted$ = xs.create({
+      const s = snapListener
+      const run = () => s.next({ ...action, [STATE_SNAPSHOT]: this.currentState })
+      if (s) pendingReducers ? queueMicrotask(run) : run()
+      l.next(action)
+    }
+    const sequenced$ = via(this.action$, seq, shouldInjectInitialState && ((l: any) => setTimeout(() => seq(initial, l), 0)))
+    const snap = () => snapshotted$ ||= xs.create({
       start: (l: any) => { snapListener = l; snapSub = sequenced$.subscribe({}) },
       stop: () => { snapListener = null; snapSub?.unsubscribe() },
     })
-    const onState  = () => this.makeOnAction(sequenced$, true, this.action$)
-    const onNormal = () => this.makeOnAction(snapshotted$, false, this.action$)
-
+    let snapSub: any
 
     const modelEntries = Object.entries(this.model)
 
-    const reducers: Record<string, any[]> = {}
+    // P45-D: sink -> [action, handler]; each sink is one stream that runs its handlers in model
+    // order (it was three streams per entry and a merge)
+    const handlers: Record<string, any[]> = {}
     const seenActionSinks = new Set<string>()
     const modelMap: Record<string, string[]> = {}  // [diagnostics hook]
 
@@ -752,51 +771,30 @@ class Component {
         fail('SYG212', this, `Model entry '${action}' must be a function or an object`, 'Use { STATE: reducer }')
       }
 
-      const sinkEntries = Object.entries(sinks)
-
-      sinkEntries.forEach((entry) => {
-        const [sink, reducer] = entry
-
+      Object.entries(sinks).forEach(([sink, reducer]) => {
         const actionSinkKey = `${action}::${sink}`
         if (seenActionSinks.has(actionSinkKey)) {
           warn('SYG213', this, `Duplicate model entry for action '${action}' on sink '${sink}'; both run`, 'Remove the duplicate')
         }
         seenActionSinks.add(actionSinkKey)
         ;(modelMap[action] ||= []).push(sink)  // [diagnostics hook]
-
-        // EFFECT sink: run the reducer for side effects only, no state change or sink output
-        if (sink === EFFECT_SINK_NAME) {
-          ;(reducers[sink] ||= []).push(this.makeEffectHandler(snapshotted$, action, reducer, this.action$))
-          return
-        }
-
-        const isStateSink  = (sink === this.stateSourceName)
-        const isParentSink = (sink === PARENT_SINK_NAME)
-
-        const on  = isStateSink ? onState() : onNormal()
-        const on$ = isParentSink ? on(action, reducer).map((value: any) => ({ name: this.name, component: this.view, value })) : on(action, reducer)
-
-        const wrapped$ = on$
-          .compose(this.log((data: any) => {
-            if (isStateSink) {
-              return `<${action}> State reducer added`
-            } else if (isParentSink) {
-              return `<${action}> Data sent to parent component: ${JSON.stringify(data.value).replaceAll('"', '')}`
-            } else {
-              const extra = data && (data.type || data.command || data.name || data.key || (Array.isArray(data) && 'Array') || data)
-              return `<${action}> Data sent to [${sink}]: ${JSON.stringify(extra).replaceAll('"', '')}`
-            }
-          }))
-
-        ;(reducers[sink] ||= []).push(wrapped$)
+        // EFFECT sink: the reducer runs for side effects only, no state change or sink output
+        ;(handlers[sink] ||= []).push([action, sink === EFFECT_SINK_NAME ? this.makeEffectHandler(0, action, reducer) : this.makeOnAction(0, sink === this.stateSourceName)(action, reducer)])
       })
     })
 
-    const model$ = Object.entries(reducers).reduce((acc: Record<string, any>, entry: [string, any]) => {
-      const [sink, streams] = entry
-      acc[sink] = streams.length === 1 ? streams[0] : xs.merge(...streams)
-      return acc
-    }, {} as Record<string, any>)
+    const model$: Record<string, any> = {}
+    for (const sink in handlers) {
+      const list = handlers[sink], isState = sink == this.stateSourceName, isParent = sink == PARENT_SINK_NAME
+      model$[sink] = via(isState ? sequenced$ : snap(), (a: any, l: any) => {
+        for (const [name, h] of list) if (a.type == name) {
+          const v = h(a)
+          if (isAbort(v)) continue
+          this.log(() => `<${name}> ${isState ? 'State reducer added' : `Data sent to [${sink}]: ${JSON.stringify(v)}`}`, true)
+          l.next(isParent ? { name: this.name, component: this.view, value: v } : v)
+        }
+      })
+    }
 
     // PLAN-3 §1.3: Component.connections(state) is sent as { connections } to the sink of a
     // makeSocketDriver (its source is marked), from the current state (and from this
@@ -834,49 +832,14 @@ class Component {
   }
 
   initChildSources$(): void {
-    let newSourcesNext: any, last: any
-    const childSources$ = xs.create({
-      // P45-C: a child's first render can come before this intent subscribes (BOOTSTRAP's 10 ms):
-      // a late subscriber gets the current children
-      start: (listener: any) => {
-        newSourcesNext = listener.next.bind(listener)
-        last && newSourcesNext(last)
-      },
-      stop: (_: any) => {
-
-      }
-    }).map((sources: any) => xs.merge(...sources)).flatten()
-
+    // P45-D: made on the first CHILD.select() (a hub of the children's PARENT sinks); until then
+    // the children's sinks are only kept, so a late select gets the current children
+    let ch: any, last: any[] = []
     this.sources[CHILD_SOURCE_NAME] = {
-      select: (nameOrComponent: any) => {
-        const all$ = childSources$
-        const filtered$ = typeof nameOrComponent === 'function'
-          ? all$.filter((entry: any) => entry.component === nameOrComponent)
-          : nameOrComponent
-            ? all$.filter((entry: any) => entry.name === nameOrComponent)
-            : all$
-        const unwrapped$ = filtered$.map((entry: any) => entry.value)
-        return unwrapped$
-      }
+      select: (x: any) => via((ch ||= hub([])).set(last), (e: any, l: any) =>
+        (typeof x === 'function' ? e.component === x : !x || e.name === x) && l.next(e.value))
     }
-
-    this.newChildSources = (sources: any) => {
-      last = sources
-      if (typeof newSourcesNext === 'function') newSourcesNext(sources)
-    }
-  }
-
-  initSubComponentSink$(): void {
-    const subComponentSink$ = xs.create({
-      start: (listener: any) => {
-        this.newSubComponentSinks = listener.next.bind(listener)
-      },
-      stop: (_: any) => {
-
-      }
-    })
-    this._subscriptions.push(subComponentSink$.subscribe({ next: (_: any) => _, error: (err: any) => logError('SYG901', this, 'Sub-component sink stream errored', ERR_FIX, err) }))
-    this.subComponentSink$ = subComponentSink$.filter((sinks: any) => Object.keys(sinks).length > 0)
+    this.newChildSources = (s: any[]) => { last = s; ch?.set(s) }
   }
 
   initVdom$(): void {
@@ -885,37 +848,97 @@ class Component {
       return
     }
 
-    const renderParameters$ = this.collectRenderParameters()
+    // Build the component name Set once
+    const nameSet = new Set(['collection', 'switchable', 'sygnal-factory', ...Object.keys(this.components)])
+    const k = this.sources.__k, d = this._d, key = d ? B - d : 2 * B
+    const params$ = this.collectRenderParameters()
+    // P45-D: the view, its sub-components and their views in one stream (it was ten). Each
+    // render's tree goes out once per flush, after the children's (deeper first; P45-C), and the
+    // app's root view to the driver last: one patch. A child's view stays subscribed while the
+    // child is there (no re-combine per render)
+    let L: any, sub: any, root: any, dirty = 0, comps: Record<string, any> = {}
+    const kids = new Map<string, any>()
+    const out = () => {
+      dirty = 0
+      const views: Record<string, any> = {}
+      for (const [id, e] of kids) if ((views[id] = e.v) === undefined) return
+      const vdom = processSuspensePost(kids.size ? injectComponents(root, views, nameSet, 'r', undefined, this._childReadyState) : root)
+      if (!vdom || !L) return
+      // [diagnostics hook]
+      diag.onRender(this, vdom)
+      L.next(vdom)
+    }
+    const mark = () => dirty++ || k(key, out)
+    const watch = (e: any) => { e.u = e.s?.subscribe({ next: (v: any) => { e.v = v; mark() } }) }
 
-    this.vdom$ = renderParameters$
-      .map((params: any) => {
-        const { props, state, children, slots, context, ...peers }: any = params
-        const { sygnalFactory, sygnalOptions, ...sanitizedProps}: any = props || {}
-        try {
-          return this.view({ ...sanitizedProps, state, children, slots: slots || {}, context, peers, uid: this._uid }, state, context, peers)
-        } catch (err) {
-          const error = err instanceof Error ? err : new Error(String(err))
-          let fallback: any = { sel: 'div', data: { attrs: { 'data-sygnal-error': this.name } }, children: [] }
-          // B-022: an error handled by .onError is a warning, without the "add .onError" hint
-          if (typeof this.onError === 'function') {
-            try {
-              fallback = this.onError(error, { componentName: this.name })
-              warn('SYG406', this, 'View threw; rendered the onError fallback', undefined, error)
-            } catch (fallbackErr) {
-              logError('SYG406', this, 'View threw; rendering the error fallback', undefined, error)
-              logError('SYG407', this, 'onError threw; rendering an empty error <div>', 'Make onError return a vnode', fallbackErr)
-            }
-          } else logError('SYG406', this, 'View threw; rendering the error fallback', 'Add .onError for a custom fallback', error)
-          // GS-11: the app hook, after the boundary chose the fallback
-          appError(this, error, 'view')
-          return fallback
+    const render = (params: any) => {
+      const { props, state, children, slots, context, ...peers }: any = params
+      const { sygnalFactory, sygnalOptions, ...sanitizedProps}: any = props || {}
+      let view
+      try {
+        view = this.view({ ...sanitizedProps, state, children, slots: slots || {}, context, peers, uid: this._uid }, state, context, peers)
+      } catch (err) {
+        const error = err instanceof Error ? err : new Error(String(err))
+        view = { sel: 'div', data: { attrs: { 'data-sygnal-error': this.name } }, children: [] }
+        // B-022: an error handled by .onError is a warning, without the "add .onError" hint
+        if (typeof this.onError === 'function') {
+          try {
+            view = this.onError(error, { componentName: this.name })
+            warn('SYG406', this, 'View threw; rendered the onError fallback', undefined, error)
+          } catch (fallbackErr) {
+            logError('SYG406', this, 'View threw; rendering the error fallback', undefined, error)
+            logError('SYG407', this, 'onError threw; rendering an empty error <div>', 'Make onError return a vnode', fallbackErr)
+          }
+        } else logError('SYG406', this, 'View threw; rendering the error fallback', 'Add .onError for a custom fallback', error)
+        // GS-11: the app hook, after the boundary chose the fallback
+        appError(this, error, 'view')
+      }
+      this.log('View rendered', true)
+      // P45-B: one walk (G-146 stamps, markers, sub-components); skipped where the pragma saw none
+      const [vDom, found] = walkView(view || { sel: 'div', data: {}, children: [] }, this, nameSet)
+      root = vDom
+      comps = this.instantiateSubComponents(found, comps)
+      // the children's views: dropped for the removed, watched for the new ones
+      kids.forEach((e, id) => comps[id] || (e.u?.unsubscribe(), kids.delete(id)))
+      for (const id in comps) if (!kids.has(id)) {
+        const e = { s: comps[id].sink$[this.DOMSourceName] }
+        kids.set(id, e)
+        watch(e)
+        this.trackReady(id, comps[id].sink$[READY_SINK_NAME], () => L && setTimeout(mark))
+      }
+      mark()
+    }
+
+    this.vdom$ = xs.createWithMemory({
+      start: (l: any) => {
+        L = l
+        kids.forEach(e => e.u || watch(e))
+        sub = params$.subscribe({ next: render, error: (e: any) => l.error(e) })
+      },
+      stop: () => { L = 0; sub.unsubscribe(); kids.forEach(e => (e.u?.unsubscribe(), e.u = 0)) },
+    })
+  }
+
+  // READY state of a child, kept on the instance (Suspense reads it when the views are injected)
+  trackReady(id: string, ready$: any, changed: () => any): void {
+    if (this._childReadyState[id] !== undefined) return // already tracking
+    if (!ready$) return void (this._childReadyState[id] = true)
+    this._childReadyState[id] = !ready$.__explicitReady
+    ready$.addListener({
+      next: (ready: any) => {
+        const was = this._childReadyState[id]
+        this._childReadyState[id] = !!ready
+        // When READY state changes, trigger a re-render
+        if (was !== !!ready) {
+          changed()
+          if (typeof window !== 'undefined' && (window as any).__SYGNAL_DEVTOOLS__?.connected) {
+            (window as any).__SYGNAL_DEVTOOLS__.onReadyChanged(this._componentNumber, this.name, id, !!ready)
+          }
         }
-      })
-      .compose(this.log('View rendered'))
-      .compose(this.instantiateSubComponents.bind(this))
-      .filter((val: any) => val !== undefined)
-      .compose(this.renderVdom.bind(this))
-
+      },
+      error: () => {},
+      complete: () => {},
+    })
   }
 
   initSinks(): void {
@@ -933,16 +956,16 @@ class Component {
         __emitterName: { value: this.name, configurable: true },
       }) : v)
     })
-    this.sinks = this.sourceNames.reduce((acc: Record<string, any>, name) => {
-      // P45-C: no sinks for the internal sources (__k, __d, __uid, ...): no driver takes them
-      if (name == this.DOMSourceName || name == 'ELEMENT' || name.startsWith('__')) return acc
-      const subComponentSink$ = (this.subComponentSink$ && name !== PARENT_SINK_NAME) ? this.subComponentSink$.map((sinks: any) => sinks[name]).filter((sink: any) => !!sink).flatten() : xs.never()
-      acc[name] = xs.merge((this.model$[name] || xs.never()), subComponentSink$, ...(name === this.stateSourceName ? [this.sources[name].stream.filter((_: any) => false)] : []), ...(this.peers$[name] || []))
-      return acc
-    }, {} as Record<string, any>)
+    // P45-D: one stream per driver sink: the model's values, the peers' and the children's (set by
+    // instantiateSubComponents). A STATE sink keeps the state source subscribed (currentState)
+    this.sinks = {}
+    for (const name of this.sourceNames) {
+      if (name == this.DOMSourceName || NOT_SINK.test(name)) continue
+      this.sinks[name] = this._hubs[name] = hub([this.model$[name], ...(this.peers$[name] || []), name == this.stateSourceName && this.sources[name].stream.filter(() => false)].filter(Boolean))
+    }
 
     this.sinks[this.DOMSourceName] = this.vdom$
-    this.sinks[PARENT_SINK_NAME] = this.model$[PARENT_SINK_NAME] || xs.never()
+    if (this.model$[PARENT_SINK_NAME]) this.sinks[PARENT_SINK_NAME] = this.model$[PARENT_SINK_NAME]
 
     // EFFECT sink: subscribe to trigger side effects but don't expose as a driver sink
     if (this.model$[EFFECT_SINK_NAME]) {
@@ -951,30 +974,26 @@ class Component {
         error: (err: any) => logError('SYG902', this, 'EFFECT stream errored; effects stop running', ERR_FIX, err),
       })
       this._subscriptions.push(effectSub)
-      delete this.sinks[EFFECT_SINK_NAME]
     }
     // PLAN-4 GS-2: the built-in ELEMENT sink (element commands) runs against this instance's own
     // DOM source after the next patch (./extra/elementCommands). Like EFFECT it is not a driver
     // sink: the sinks reduce above skips it, so a driver registered as ELEMENT gets nothing (G-232)
     if (this.model$.ELEMENT) this._subscriptions.push(this.model$.ELEMENT.subscribe({ next: (c: any) => runElementCommands(this, c) }))
-    // READY sink: if the component explicitly defined READY model entries, use them;
-    // otherwise auto-emit true. Check the raw model object, not model$ (which always has keys for all sources).
+    // READY sink: only when the component defines READY model entries (P45-D: without one, the
+    // parent counts it as ready; it was an xs.of(true))
     if (isObj(this.model) && Object.values(this.model).some((sinks: any) => isObj(sinks) && READY_SINK_NAME in sinks)) {
       this.sinks[READY_SINK_NAME] = this.model$[READY_SINK_NAME]
       this.sinks[READY_SINK_NAME].__explicitReady = true
-    } else {
-      this.sinks[READY_SINK_NAME] = xs.of(true)
     }
   }
 
-  makeOnAction(action$: any, isStateSink: boolean = true, rootAction$?: any): (name: string, reducer: any) => any {
-    rootAction$ = rootAction$ || action$
+  // P45-D: returns (name, reducer) => a handler of that action (its value, or ABORT: nothing sent).
+  // The first argument is unused (it was the action stream; the diagnostics' action log wraps this)
+  makeOnAction(_: any, isStateSink: boolean = true): (name: string, reducer: any) => (action: any) => any {
+    const rootAction$ = this.action$
     return (name, reducer) => {
-      const filtered$ = action$.filter(({type}: any) => type == name)
-
-      let returnStream$
       if (typeof reducer === 'function') {
-        returnStream$ = filtered$.map((action: any) => {
+        return (action: any) => {
           const next = (type: any, data: any, delay=10) => {
             if (typeof delay !== 'number') fail('SYG215', this, `next() delay in '${name}' must be a number`, "Use next('ACTION', data, ms)")
             // put the "next" action request at the end of the event loop so the "current" action completes first
@@ -1047,22 +1066,16 @@ class Component {
               return ABORT
             }
           }
-        }).filter((result: any) => !isAbort(result))
-      } else if (reducer === undefined || reducer === true) {
-        returnStream$ = filtered$.map(({data}: any) => data)
-      } else {
-        const value = reducer
-        returnStream$ = filtered$.mapTo(value)
+        }
       }
-
-      return returnStream$
+      return reducer === undefined || reducer === true ? ({data}: any) => data : () => reducer
     }
   }
 
-  makeEffectHandler(action$: any, name: string, reducer: any, rootAction$: any = action$): any {
-    const filtered$ = action$.filter(({type}: any) => type == name)
-
-    return filtered$.map((action: any) => {
+  // P45-D: a handler of the action (always ABORT: EFFECT sends nothing). First argument unused
+  makeEffectHandler(_: any, name: string, reducer: any): any {
+    const rootAction$ = this.action$
+    return (action: any) => {
       if (typeof reducer === 'function') {
         const next = (type: any, data: any, delay=10) => {
           if (typeof delay !== 'number') fail('SYG215', this, `next() delay in '${name}' must be a number`, "Use next('ACTION', data, ms)")
@@ -1090,8 +1103,8 @@ class Component {
           failed(err)
         }
       }
-      return null
-    }).filter((_: any) => false)  // EFFECT never emits — stream is consumed but produces no output
+      return ABORT
+    }
   }
 
   createMemoizedAddCalculated(): (state: any) => any {
@@ -1161,120 +1174,84 @@ class Component {
   }
 
   collectRenderParameters(): any {
-    const state        = this.sources[this.stateSourceName]
-    const renderParams = { ...this.peers$[this.DOMSourceName] }
+    // P45-D: the render parameters in one stream (it was ~15): each input, without its equal
+    // repeats; once all have a value, emitted once per flush at this component's depth (parents
+    // first, P45-C), held while the first render waits (_w, see initAction$) or after dispose.
+    // [name, stream, equal]
+    const st = this.sources[this.stateSourceName], page = this.sources.__switchPage, k = this.sources.__k, d = this._d
+    const ins: any[] = [
+      // G-146/P45-C: an equal state still renders after an input (a model that rewrites the typed
+      // text to what it was, e.g. at a length cap, puts the field back)
+      ['state', st ? st.stream : xs.never(), (a: any, b: any) => objIsEqual(a, b) && inputSeq() <= this._inputSeq],
+      ['context', this.context$, objIsEqual],
+    ]
+    if (this.sources.props$) ins.push(['props', this.sources.props$, propsIsEqual])
+    if (this._processedChildren$) ins.push(['c', this._processedChildren$, (a: any, b: any) => objIsEqual(a.children, b.children) && objIsEqual(a.slots, b.slots)])
+    const peers = this.peers$[this.DOMSourceName]
+    for (const n in peers) ins.push([n, peers[n]])
 
-    const enhancedState = state && state.isolateSource(state, { get: (state: any) => this.addCalculated(state) })
-    const stateStream   = (enhancedState && enhancedState.stream) || xs.never()
-
-    
-    // G-146/P45-C: an equal state still renders after an input (a model that rewrites the typed
-    // text to what it was, e.g. at a length cap, puts the field back)
-    renderParams.state  = stateStream.compose(dropRepeats((a: any, b: any) => objIsEqual(a, b) && inputSeq() <= this._inputSeq))
-
-    if (this.sources.props$) {
-      renderParams.props = this.sources.props$.compose(dropRepeats(propsIsEqual))
+    const NONE = {}
+    let L: any, subs: any[] = [], vals: any[] = [], h = 0
+    const emit = () => {
+      if (!h || this._w || this._disposed) return
+      // R4-1/G-121: in a hidden Switchable page, renders wait until it is shown (the latest
+      // parameters then render once); a skipped render marks the page stale (R4-10)
+      if (page && !page.shown) return page.mark()
+      h = 0
+      const p: any = {}
+      ins.forEach(([n]: any, i: number) => n == 'c' ? (p.children = vals[i].children, p.slots = vals[i].slots) : (p[n] = vals[i]))
+      p.state = p[this.stateSourceName] = this.addCalculated(p.state)
+      p.calculated = (p.state && this.getCalculatedValues(p.state)) || {}
+      L.next(p)
     }
-
-    if (this._processedChildren$) {
-      renderParams.children = this._processedChildren$.map((p: any) => p.children).compose(dropRepeats(objIsEqual))
-      renderParams.slots = this._processedChildren$.map((p: any) => p.slots).compose(dropRepeats(objIsEqual))
-    }
-
-    if (this.context$) {
-      renderParams.context = this.context$.compose(dropRepeats(objIsEqual))
-    }
-
-    const names = Object.keys(renderParams)
-
-    const gate = xs.combine(...Object.values(renderParams))
-      // G-146: the input counter as of the state and props this render will show
-      .map((arr: any) => (this._inputSeq = renderSeq(), arr))
-      // P45-C: rendered once per flush, parents first; the first render waits for _w (see initAction$)
-      .compose(batch(this.sources.__k, this._d, () => this._w || this._disposed))
-    this._go = () => this._w && --this._w || gate.go?.()
-    let combined = gate
-      // map the streams from an array back to an object with the render parameter names as the keys
-      .map((arr: any) => {
-        const params = names.reduce((acc: Record<string, any>, name, index) => {
-          acc[name] = arr[index]
-          if (name === 'state') {
-            acc[this.stateSourceName] = arr[index]
-            acc.calculated = (arr[index] && this.getCalculatedValues(arr[index])) || {}
-          }
-          return acc
-        }, {} as Record<string, any>)
-        return params
-      })
-
-    // R4-1/G-121: in a hidden Switchable page, renders wait until it is shown (the latest
-    // parameters then render once); a skipped render marks the page stale (R4-10)
-    const page = this.sources.__switchPage
-    if (page) {
-      let last: any
-      combined = xs.combine(combined, page.shown$)
-        .filter(([p, shown]: any) => p !== last && (shown || page.mark()))
-        .map(([p]: any) => (last = p))
-    }
-
-    return combined
+    const go = () => h && k(d, emit)
+    this._go = () => this._w && --this._w || go()
+    return xs.create({
+      start: (l: any) => {
+        L = l
+        vals = ins.map(() => NONE)
+        subs = ins.map(([, s, eq]: any, i: number) => s.subscribe({
+          next: (v: any) => {
+            if (vals[i] !== NONE && eq?.(v, vals[i])) return
+            vals[i] = v
+            if (vals.includes(NONE)) return
+            // G-146: the input counter as of the state and props this render will show
+            this._inputSeq = renderSeq()
+            h++ || k(d, emit)
+          },
+          error: (e: any) => l.error(e),
+        }))
+        page && subs.push(page.shown$.subscribe({ next: (v: any) => v && go() }))
+      },
+      stop: () => { h = 0; subs.forEach(s => s.unsubscribe()) },
+    })
   }
 
-  instantiateSubComponents(vDom$: any): any {
-    // Build the component name Set once outside the fold — avoids rebuilding per render
-    const componentNameSet = new Set(['collection', 'switchable', 'sygnal-factory', ...Object.keys(this.components)])
+  // The sub-components `found` in a view: the ones in `previous` get the new props and children,
+  // the new ones are created, the others disposed. The children's sinks go to this component's
+  // sinks and CHILD. Returns them by id
+  instantiateSubComponents(found: Record<string, any>, previous: Record<string, any>): Record<string, any> {
+    const sinkArrsByType: Record<string, any[]> = {}
+    const childSources: any[] = []
+    const newComponents: Record<string, any> = {}
+    let newInstanceCount = 0
 
-    return vDom$.fold((previousComponents: any, view: any) => {
-      // P45-B: one walk (G-146 stamps, markers, sub-components); skipped where the pragma saw none
-      const [vDom, foundComponents] = walkView(view || { sel: 'div', data: {}, children: [] }, this, componentNameSet)
-      const entries         = Object.entries(foundComponents)
+    for (const id in found) {
+      const el = found[id]
+      const data     = el.data
+      const props    = data.props  || {}
+      // a string-tag component with a single text child is a text-only vnode (B-011)
+      const children = el.children || (el.text != null ? [{ text: el.text }] : [])
 
-      const rootEntry: Record<string, any> = { '::ROOT::': vDom }
-
-      if (entries.length === 0) {
-        // Dispose any previously active sub-components
-        this._activeSubComponents.forEach((entry) => entry?.sink$?.__dispose?.())
-        this._activeSubComponents.clear()
-        return rootEntry
-      }
-
-      const sinkArrsByType: Record<string, any[]> = {}
-      const childSources: any[] = []
-      let newInstanceCount = 0
-
-      const newComponents =  entries.reduce((acc, [id, el]) => {
-        const data     = el.data
-        const props    = data.props  || {}
-        // a string-tag component with a single text child is a text-only vnode (B-011)
-        const children = el.children || (el.text != null ? [{ text: el.text }] : [])
-
-        const isCollection = data.isCollection || false
-        const isSwitchable = data.isSwitchable || false
-
-        const addSinks = (sinks: any) => {
-          Object.entries(sinks).forEach(([name, stream]: [string, any]) => {
-            sinkArrsByType[name] ||= []
-            if (name === PARENT_SINK_NAME) {
-              childSources.push(stream)
-            } else if (name !== this.DOMSourceName && name !== READY_SINK_NAME) {
-              sinkArrsByType[name].push(stream)
-            }
-          })
-        }
-
-
-        if (previousComponents[id]) {
-          const entry = previousComponents[id]
-          acc[id] = entry
-          entry.props$.shamefullySendNext(props)
-          entry.children$.shamefullySendNext(children)
-          addSinks(entry.sink$)
-          return acc
-        }
-
-        const props$    = xs.create().startWith(props)
-        const children$ = xs.create().startWith(children)
-
+      let entry = previous[id]
+      if (entry) {
+        entry.props$.shamefullySendNext(props)
+        entry.children$.shamefullySendNext(children)
+      } else {
+        // P45-D: one MemoryStream each (it was create + startWith)
+        const props$ = xs.createWithMemory(), children$ = xs.createWithMemory()
+        props$.shamefullySendNext(props)
+        children$.shamefullySendNext(children)
         newInstanceCount++
 
         let sink$
@@ -1282,7 +1259,7 @@ class Component {
           // GS-9: the child's uid: this uid + its path or id prop (the instantiate* functions put it
           // in the child's own sources; the sources this component received stay as they are, G-214)
           this._cu = this._uid(uidPart(id.replace(/.*::(r\.)?/, '')))
-          sink$ = (isCollection ? this.instantiateCollection : isSwitchable ? this.instantiateSwitchable : this.instantiateCustomComponent).call(this, el, props$, children$)
+          sink$ = (data.isCollection ? this.instantiateCollection : data.isSwitchable ? this.instantiateSwitchable : this.instantiateCustomComponent).call(this, el, props$, children$)
         } catch (err) {
           const error = err instanceof Error ? err : new Error(String(err))
           let fallbackVNode = { sel: 'div', data: { attrs: { 'data-sygnal-error': this.name } }, children: [] }
@@ -1298,40 +1275,33 @@ class Component {
           sink$ = { [this.DOMSourceName]: xs.of(fallbackVNode) }
         }
 
-        sink$[this.DOMSourceName] = sink$[this.DOMSourceName] ? sink$[this.DOMSourceName].remember() : xs.never()
+        entry = { sink$, props$, children$ }
+        this._activeSubComponents.set(id, entry)
+      }
+      newComponents[id] = entry
 
-        acc[id] = { sink$, props$, children$ }
-        this._activeSubComponents.set(id, acc[id])
+      for (const name in entry.sink$) {
+        const s = entry.sink$[name]
+        if (name === PARENT_SINK_NAME) childSources.push(s)
+        else if (name !== this.DOMSourceName && name !== READY_SINK_NAME) (sinkArrsByType[name] ||= []).push(s)
+      }
+    }
 
-        addSinks(sink$)
+    // Dispose removed sub-components (P45-D: their streams stop in one batch)
+    tearDown(() => this._activeSubComponents.forEach((entry, id) => {
+      if (!newComponents[id]) {
+        entry?.sink$?.__dispose?.()
+        this._activeSubComponents.delete(id)
+        delete this._childReadyState[id]
+      }
+    }))
 
-        return acc
-      }, rootEntry)
+    for (const name in this._hubs) this._hubs[name].set(sinkArrsByType[name] || [])
+    this.newChildSources(childSources)
 
-      const mergedSinksByType = Object.entries(sinkArrsByType).reduce((acc: Record<string, any>, [name, streamArr]: [string, any]) => {
-        if (streamArr.length === 0) return acc
-        acc[name] = streamArr.length === 1 ? streamArr[0] : xs.merge(...streamArr)
-        return acc
-      }, {} as Record<string, any>)
+    if (newInstanceCount > 0) this.log(`New sub components instantiated: ${newInstanceCount}`, true)
 
-      // Dispose removed sub-components
-      const currentIds = new Set(Object.keys(newComponents))
-      this._activeSubComponents.forEach((entry, id) => {
-        if (!currentIds.has(id)) {
-          entry?.sink$?.__dispose?.()
-          this._activeSubComponents.delete(id)
-          delete this._childReadyState[id]
-        }
-      })
-
-      this.newSubComponentSinks(mergedSinksByType)
-      this.newChildSources(childSources)
-
-
-      if (newInstanceCount > 0) this.log(`New sub components instantiated: ${newInstanceCount}`, true)
-
-      return newComponents
-    }, {})
+    return newComponents
   }
 
   // A child's reducers get their state through its lens from this component's raw reducer
@@ -1646,78 +1616,6 @@ class Component {
     return sink$
   }
 
-  renderVdom(componentInstances$: any): any {
-    // Build the component name Set once — avoids rebuilding per render cycle
-    const componentNameSet = new Set(['collection', 'switchable', 'sygnal-factory', ...Object.keys(this.components)])
-
-    const k = this.sources.__k, d = this._d
-    const out$ = xs.combine(componentInstances$, this._readyChanged$.startWith(null))
-      .map(([components]: [any, any]) => {
-        const root  = components['::ROOT::']
-        const entries = Object.entries(components).filter(([id]) => id !== '::ROOT::')
-
-        if (entries.length === 0) {
-          return xs.of(processSuspensePost(root))
-        }
-
-        const ids: string[] = []
-        const vdom$ = entries
-          .map(([id, val]: [string, any]) => {
-            ids.push(id)
-            return val.sink$[this.DOMSourceName].startWith(undefined)
-          })
-
-        // Track READY state on the component instance (persists across folds)
-        for (const [id, val] of entries as [string, any]) {
-          if (this._childReadyState[id] !== undefined) continue // already tracking
-          const readySink = val.sink$[READY_SINK_NAME]
-          if (readySink) {
-            const isExplicit = readySink.__explicitReady
-            this._childReadyState[id] = isExplicit ? false : true
-            readySink.addListener({
-              next: (ready: any) => {
-                const wasReady = this._childReadyState[id]
-                this._childReadyState[id] = !!ready
-                // When READY state changes, trigger a re-render
-                if (wasReady !== !!ready) {
-                  if (this._readyChangedListener) {
-                    setTimeout(() => {
-                      this._readyChangedListener?.next(null)
-                    }, 0)
-                  }
-                  if (typeof window !== 'undefined' && (window as any).__SYGNAL_DEVTOOLS__?.connected) {
-                    (window as any).__SYGNAL_DEVTOOLS__.onReadyChanged(this._componentNumber, this.name, id, !!ready)
-                  }
-                }
-              },
-              error: () => {},
-              complete: () => {},
-            })
-          } else {
-            this._childReadyState[id] = true
-          }
-        }
-
-        return xs.combine(...vdom$)
-          .filter((vdoms: any) => vdoms.every((v: any) => v !== undefined))
-          // P45-C: once per flush, after the children's (deeper first)
-          .compose(batch(k, B - d))
-          .map((vdoms: any) => {
-            const withIds = vdoms.reduce((acc: Record<string, any>, vdom: any, index: any) => {
-              acc[ids[index]] = vdom
-              return acc
-            }, {} as Record<string, any>)
-            const injected = injectComponents(root, withIds, componentNameSet, 'r', undefined, this._childReadyState)
-            return processSuspensePost(injected)
-          })
-      })
-      .flatten()
-      .filter((val: any) => !!val)
-      // [diagnostics hook]
-      .map((vdom: any) => { diag.onRender(this, vdom); return vdom })
-    // P45-C: the app's root view goes to the driver last in the flush: one patch
-    return (d ? out$ : out$.compose(batch(k, 2 * B))).remember()
-  }
 
 }
 
@@ -1728,30 +1626,19 @@ class Component {
 
 
 /**
- * factory to create a logging function meant to be used inside of an xstream .compose()
- *
- * @param {String} context name of the component or file to be prepended to any messages
- * @return {Function}
- *
- * returned function accepts either a `String` of `Function`
- * `String` values will be logged to `console` as is
- * `Function` values will be called with the current `stream` value and the result will be logged to `console`
- * all output will be prepended with the `context` (ex. "[CONTEXT] My output")
- * ONLY outputs if the global `DEBUG` variable is set to `true`
+ * The component's log(msg, now): prints `[context] msg` (msg may be a function giving the text)
+ * when debug is on (Component.debug, or SYGNAL_DEBUG). P45-D: always immediate (the stream
+ * form, one .debug() stream per use, is gone); renderComponent watches the `now` next() messages
  */
- function makeLog(context: string): any {
-  return function (this: Component, msg: any, immediate: boolean = false) {
-    const out = (value: any) => {
-      if (this.debug) {
-        const text = `[${context}] ${typeof msg === 'function' ? msg(value) : msg}`
-        console.log(text)
-        if (typeof window !== 'undefined' && window.__SYGNAL_DEVTOOLS__?.connected) {
-          window.__SYGNAL_DEVTOOLS__.onDebugLog(this._componentNumber, text)
-        }
+function makeLog(context: string): any {
+  return function (this: Component, msg: any) {
+    if (this.debug) {
+      const text = `[${context}] ${typeof msg === 'function' ? msg() : msg}`
+      console.log(text)
+      if (typeof window !== 'undefined' && window.__SYGNAL_DEVTOOLS__?.connected) {
+        window.__SYGNAL_DEVTOOLS__.onDebugLog(this._componentNumber, text)
       }
     }
-    if (immediate) return out(msg)
-    return (stream: any) => stream.debug(out)
   }
 }
 

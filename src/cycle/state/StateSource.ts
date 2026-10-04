@@ -90,9 +90,11 @@ export class StateSource<S> {
   private _name: string;
   private _end?: Stream<any>;
 
-  constructor(stream: Stream<S>, name: string, end?: Stream<any>) {
+  // raw (P45-D): `stream` is another StateSource's stream mapped, already without undefined and
+  // repeats (a component's own source), so one stream instead of four
+  constructor(stream: Stream<S>, name: string, end?: Stream<any>, raw?: any) {
     this._end = end;
-    this._stream = stream
+    this._stream = raw ? stream.remember() : stream
       .filter(s => typeof s !== 'undefined')
       .compose(dropRepeats())
       .remember();

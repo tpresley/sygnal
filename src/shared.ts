@@ -27,3 +27,9 @@ export const ORIGINAL = Symbol.for('sygnal.original')
  * (ssr.ts).
  */
 export const uidPart = (s: any): string => (s + '').replace(/\W|_/g, c => '_' + c.charCodeAt(0) + '_')
+
+/**
+ * P45-D: sources that aren't drivers get no sinks: props$, children$, dispose$, commands$, CHILD;
+ * PARENT, EFFECT and ELEMENT are built-in sinks; __k, __d, __uid... are internal
+ */
+export const NOT_SINK = /^(__|(props|children|dispose|commands)\$$|(CHILD|PARENT|EFFECT|ELEMENT)$)/
