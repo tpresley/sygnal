@@ -6,7 +6,7 @@ Tracks progress for [PLAN-4.5.md](PLAN-4.5.md) (performance). The coordinator ma
 
 **Integration branch:** `plan45-integration`, cut from `plan4-integration` at `eb9f9fe` (tag `plan4-phase4`) on 2026-10-04, in worktree `.claude/worktrees/plan-4-execution-7ae8e8`. The release stays held (D56).
 
-**State:** P45-0, A, B, C and D merged. Review fixes (P45-R) running; review of D running.
+**State:** P45-0, A, B, C and D merged. Review fixes (P45-R, G-257…G-272) running.
 
 ## Baseline
 
@@ -35,7 +35,7 @@ From `research/p45-perf-baseline.md` (PLAN-4 build `a7efb5d`; `plan4-phase4` has
 | P45-B | Pragma hot path (drop `extend`) + G-252 | ✅ merged | `p45-b-pragma` (`408b9db`) | 2026-10-04 | −246 B (41,309 B; PLAN-4.5 net −34 B). One-pass pragma, nested prop objects by reference, `extend` dropped; one fused `walkView` skipped for plain subtrees; INITIALIZE per instance. Streams 149/item, ScopeCheckers 0. Limits lowered |
 | P45-C | One render scheduler per app (+ rest of Collection, post-patch DOM emission) | ✅ merged | `p45-c-scheduler` (`6b59d7e`) | 2026-10-04 | −168 B (41,141 B; PLAN-4.5 net −202 B). `src/cycle/run/scheduler.ts`: per-app keyed microtask flush (render by depth, Collection, child views by reverse depth, one patch). MutationObserver, G-213 hold and the VT 20 ms window removed. Patches 1/1/1, streams 122/item. Limits lowered |
 | P45-D | Lazy wiring, synchronous teardown + G-255/256 fixes (D151) + dev-only statics freeze (D152) | ✅ merged | `p45-d-lazy` (`a2c2158`) | 2026-10-04 | +132 B (41,273 B; PLAN-4.5 net −70 B). Streams 22/item, unmount setTimeouts 9, heap 0.95 MB. Teardown in `tearDown()` stops one level per macrotask (keeps xstream's restart guard). Freeze in `checks/statics.ts` (0 B core). Limits lowered |
-| P45-R | Phase review fixes (G-257…G-265, + review of D) | 🟡 running | `p45-r-fixes` | | |
+| P45-R | Phase review fixes (G-257…G-272) | 🟡 running | `p45-r-fixes` | | |
 | P45-E | Change detection (only if profiles show it) | ⬜ | | | |
 | P45-EV | Agent regression eval (~$30, user's terminal) | ⬜ | | | after P45-D |
 
@@ -70,6 +70,13 @@ From `research/p45-perf-baseline.md` (PLAN-4 build `a7efb5d`; `plan4-phase4` has
 | G-263 | review A–C | Low | delegator | Never-started non-bubbling records are kept forever; a restarted stream re-adds a stale record (supersedes G-253) | → P45-R |
 | G-264 | review A–C | Low | component.ts | `addComponent` writes `props.key` into a user's lent `props` object | → P45-R |
 | G-265 | review A–C | Low | pragma | Pragma vnodes have a non-Object prototype: Copy as test throws for an action carrying JSX; devtools/diagnostics `isPlain` checks miss them | → P45-R |
+| G-266 | review D | High | scheduler | Shared start timers are per delay app-wide: a child created after the 0 ms timer fired joins the pending 1/10 ms timer, so its intent/BOOTSTRAP runs before its own INITIALIZE (isolated child shows 1 instead of 2). Confirmed | → P45-R |
+| G-267 | review D | Med | scheduler | `tearDown` loop aborts when one stream's stop throws; the rest of that level are never stopped. Confirmed | → P45-R |
+| G-268 | review D | Low/Med | diagnostics | D152 freeze also freezes caller-owned initial state (`renderComponent({ initialState: fixture })`, element host props, Vike data). Confirmed | → P45-R |
+| G-269 | review D | Low | component.ts | Internal render input `c` collides with a peer named `c` | → P45-R |
+| G-270 | review D | Low | scheduler | A shared start timer that never fires (`vi.clearAllTimers()`) blocks every later component with that delay | → P45-R |
+| G-271 | review D | Low | component.ts | `hub.set` is O(children² × sinks) per render | → P45-R |
+| G-272 | review D | Low | component.ts | INITIALIZE timer not cancelled on stop/restart → sent twice | → P45-R |
 | G-251 | P45-0 | Low | docs | `research/p45-perf-baseline.md` still names the old `perf/` paths | Open (fix at close-out) |
 
 ## Merge measurements
@@ -88,6 +95,7 @@ Latency is now held up mostly by the per-component 1 ms debounce floor (P45-C); 
 
 ## Log
 
+- 2026-10-04 — Review of D: 7 findings (G-266…G-272), sent to P45-R.
 - 2026-10-04 — P45-D merged (`a2c2158`); gates green first time; limits lowered (streams 22, timeouts 100, heap 1.2). A–C review: 9 findings (G-257…G-265). D154/D155. P45-R and a review of D started.
 - 2026-10-04 — P45-C merged (`6b59d7e`); all gates green first time; limits lowered (patches 1/1/1, streams 122, timeouts 71,000). D151–D153. P45-D and an A–C phase review started. P45-Q9 (G-146 render-after-input) asked.
 - 2026-10-04 — P45-B merged (`408b9db`); gates green after a flake fix (G-254); limits lowered (streams 149, timeouts 79,000, ScopeCheckers 0). P45-C started. P45-Q7/Q8 asked.
