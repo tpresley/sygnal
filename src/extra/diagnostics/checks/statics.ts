@@ -9,12 +9,16 @@
  * statics are frozen at the top level, so such a mutation throws a TypeError where it happens
  * (in a reducer: reported as SYG216 with the error attached; in a view: SYG406).
  *
- * Only the component function's own statics are frozen, not the instance's values (G-268: those
- * can be the caller's objects, e.g. renderComponent's `initialState` option or a host's props,
- * and behaviors or persist() make per-instance copies). Mechanism: onIntent, which runs during
- * construction, before the model is wired.
+ * Frozen: the component function's own statics, and the options given to component() (G-280:
+ * `component({ view, model, initialState })`; the instance's `_o`, the values before behaviors or
+ * persist() made per-instance copies). Not frozen: the instance's values (G-268), and an
+ * initial state a wrapper built from its caller's objects (G-275: marked with `owned()` by
+ * sygnal/element (host props), Vike (pageContext.data, hydrated state) and renderComponent's
+ * `initialState` option; the caller may still change those). Mechanism: onIntent, which runs
+ * during construction, before the model is wired.
  */
 import type {DiagnosticCheck} from '../index'
+import {OWNED} from '../../owned'
 
 const plain = (v: any): boolean => {
   if (!v || typeof v != 'object') return false
@@ -23,7 +27,7 @@ const plain = (v: any): boolean => {
 }
 
 const deepFreeze = (v: any): void => {
-  if (!plain(v) || Object.isFrozen(v)) return
+  if (!plain(v) || Object.isFrozen(v) || v[OWNED]) return
   Object.freeze(v)
   for (const k of Object.keys(v)) deepFreeze(v[k])
 }
@@ -39,5 +43,6 @@ export const staticsCheck: DiagnosticCheck = {
 
   onIntent(component) {
     if (typeof component?.view == 'function') freeze(component.view)
+    freeze(component?._o)
   },
 }

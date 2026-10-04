@@ -18,6 +18,7 @@
 // Import from the package entry so rollup externalizes it
 // @ts-ignore — resolved at runtime via package exports
 import { run } from 'sygnal'
+import { owned } from '../extra/owned'
 
 declare global {
   interface Window {
@@ -89,7 +90,7 @@ function componentVNode(comp: any, key: string, stateField: any, children: any[]
           context: comp.context,
           peers: comp.peers,
           components: comp.components,
-          initialState: compInitialState,
+          initialState: owned(compInitialState),
           isolatedState: true,
           calculated: comp.calculated,
           storeCalculatedInState: comp.storeCalculatedInState,
@@ -243,7 +244,8 @@ function createLayoutWrapper(wrappers: any[], layouts: any[], Page: any): any {
   const initialState: any = {}
   shell.forEach(({ comp, key }: any) => { initialState[key] = { ...(comp.initialState || {}) } })
   initialState.page = Page.initialState || {}
-  LayoutWrapperView.initialState = root = initialState
+  // G-275: owned (built from the hydrated state and pageContext.data: never frozen in dev)
+  LayoutWrapperView.initialState = root = owned(initialState)
 
   // Context uses mutable references so navigation updates are picked up.
   // Wrapper and Layout contexts are merged once; page-level context
@@ -348,12 +350,12 @@ export function onRenderClient(pageContext: PageContext) {
             if (pageState === undefined) pageState = page
             slice = rest
           }
-          allShellComps[i].initialState = slice
+          allShellComps[i].initialState = owned(slice)
         })
-        Page.initialState = pageState || { ...(Page.initialState || {}), ...data }
+        Page.initialState = owned(pageState || { ...(Page.initialState || {}), ...data })
       } else {
         // SPA mode or client-side first navigation
-        Page.initialState = { ...(Page.initialState || {}), ...data }
+        Page.initialState = owned({ ...(Page.initialState || {}), ...data })
       }
 
       // Inject page-level context into Page (for SSR renderToString compat)
@@ -400,7 +402,7 @@ export function onRenderClient(pageContext: PageContext) {
       initialState = { ...(Page.initialState || {}), ...data }
     }
 
-    Page.initialState = initialState
+    Page.initialState = owned(initialState)
     Page.context = {
       ...Page.context,
       pageData: () => currentPageData,

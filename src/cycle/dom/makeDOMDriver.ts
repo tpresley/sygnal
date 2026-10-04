@@ -99,8 +99,11 @@ function makeDOMDriver(
     // (it was a MutationObserver on the root's subtree: DOM changes made outside a patch no
     // longer emit)
     // G-261: and when Sygnal changes the DOM outside a patch (a Transition's leave, a Portal
-    // mounted late): an event that bubbles up to the root
-    let poke: any;
+    // mounted late): an event that bubbles up to the root. G-276: on the current root (a patch
+    // can replace the first one). G-277: the innermost app's root takes it (a nested app or
+    // custom element doesn't re-emit the outer app's DOM source)
+    let pl: any, cur: any;
+    const poke = (e: Event) => pl && (e.stopPropagation(), pl.next(cur));
     const rootElement$ = firstRoot$
       .map(
         firstRoot =>
@@ -112,12 +115,10 @@ function makeDOMDriver(
               .fold(patch, toVNode(firstRoot))
               .drop(1)
               .map(unwrapElementFromVNode)
-              .startWith(firstRoot as any),
+              .startWith(firstRoot as any)
+              .map((el: any) => (el.addEventListener(POKE, poke), cur = el)),
             // never completes (nor does the root element)
-            xs.create<any>({
-              start: l => firstRoot.addEventListener(POKE, poke = () => l.next(firstRoot)),
-              stop: () => firstRoot.removeEventListener(POKE, poke),
-            })
+            xs.create<any>({start: l => pl = l, stop: () => pl = 0})
           )
       )
       .flatten()

@@ -220,7 +220,8 @@ class Component {
   _w = 0;
   declare _f: number;
   declare _i: any;
-  declare _r: boolean;
+  declare _r: any;
+  declare _o: ComponentOptions;
   _go!: () => any;
 
   constructor({name = 'NO NAME', sources, intent, model, hmrActions, context, view, peers = {}, components = {}, initialState, calculated, storeCalculatedInState = true, DOMSourceName = 'DOM', stateSourceName = 'STATE', isolatedState = false, onError, debug = false}: ComponentOptions) {
@@ -228,7 +229,8 @@ class Component {
 
     this._componentNumber = COMPONENT_COUNT++
 
-    Object.assign(this, { name, sources, intent, model, hmrActions, context, view, peers, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, sourceNames: Object.keys(sources), onError, isolatedState, _debug: debug })
+    // _o: the options as given (the dev statics freeze reads it, G-280)
+    Object.assign(this, { name, sources, intent, model, hmrActions, context, view, peers, components, initialState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, sourceNames: Object.keys(sources), onError, isolatedState, _debug: debug, _o: arguments[0] })
 
     // Normalize calculated entries, build dependency graph, topological sort
     if (this.calculated && isObj(this.calculated)) {
@@ -386,9 +388,12 @@ class Component {
     // P45-C: this app's render scheduler (the root makes it; children inherit it) and the depth
     this._d = sources.__d | 0
     // G-262: the root is the component that makes the scheduler (not depth 0: a public
-    // collection()/switchable() given a root's sources has items at depth 0)
-    this._r = !sources.__k
-    sources.__k ||= makeScheduler()
+    // collection()/switchable() given a root's sources has items at depth 0). G-281: or one given
+    // the root's own sources once the root is made (a hand-written main: A(sources); B(sources));
+    // not a peer (given them while the root is being made, before its sinks)
+    const k = sources.__k
+    this._r = !k || k.r.sources == sources && k.r.sinks
+    if (!k) (sources.__k = makeScheduler()).r = this
     // PLAN-4 GS-9: uid(name?) from the instance's position: the parent sets sources.__uid (its uid
     // + the child's path or id prop, + a Collection item's key, + a Switchable page name, each
     // encoded by uidPart: 'Name::r.0.2' → 'u-0_46_2'); 'u' at the root (run() sanitizes its `uid`
@@ -1835,10 +1840,13 @@ function applyTransitionHooks(vnode: any, name: string, duration?: number): any 
     if (remove) remove(vn, () => {})
     const el = vn.elm
     if (!el || !el.classList) { rm(); return }
+    // G-279: poke once the element is gone (a style `remove` the element also has delays the
+    // removal to its own transitionend, which runs before this listener)
     run(el, 'leave', () => {
-      const p = el.parentNode
+      const p = el.parentNode, f = () => el.parentNode || pokeDOM(p)
       rm()
-      pokeDOM(p)
+      f()
+      el.addEventListener('transitionend', f)
     })
   }
 
