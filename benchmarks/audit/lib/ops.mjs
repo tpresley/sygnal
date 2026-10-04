@@ -109,5 +109,6 @@ export const OPS = {
 // app page for a framework + scenario; Sygnal also has the Collection-per-row table
 export function pagesFor(fw, scenario) {
   if (fw === 'sygnal' && scenario === 'table') return [['sygnal', 'table'], ['sygnal (Collection)', 'table-coll']]
+  if (fw === 'next' && scenario === 'table') return [['next', 'table'], ['next (Collection)', 'table-coll']]
   return [[fw, scenario]]
 }
