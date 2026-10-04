@@ -26,7 +26,7 @@ Canonical forms, API facts, wiring rules and testing for everyday work. Full spe
 4. **View**: render from `state` / `context`; add the class names the intent selects.
 5. **Test**: `renderComponent(C, { strict: true })` + `simulateEvent` + `t.next` + `expectNoDiagnostics()` (§7). Run `npm test`, then `npx --no-install sygnal-check --strict` (Vike: `npx --no-install sygnal-check pages --strict`; a dev dependency of `create-sygnal-app` projects, elsewhere `npm i -D sygnal-check`; not installed? rely on the tests' runtime diagnostics).
 
-**Debugging loop**: run `npm test` and read every `[Sygnal SYGnnn]` line; `npx --no-install sygnal-check explain SYGnnn` says what it means and how to fix it. Unclear? `t.actions` shows whether an action ran and what it produced (§7); check the wiring with `t.inspect()` or `npx --no-install sygnal-check --graph --json` (actions and triggers, selectors with `matched` / `isolationHit`, EVENTS). Fix, re-run, then `--strict` until clean. A silent no-op (a click does nothing, no error) is almost always a §5 wiring rule.
+**Debugging loop**: run `npm test` and read every `[Sygnal SYGnnn]` line; `npx --no-install sygnal-check explain SYGnnn` says what it means and how to fix it. Unclear? `t.actions` shows whether an action ran and what it produced (§7); check the wiring with `t.inspect()` or `npx --no-install sygnal-check --graph --json` (triggers, selectors' `matched` / `isolationHit`, EVENTS). Fix, re-run, then `--strict` until clean. A silent no-op (a click does nothing, no error) is almost always a §5 wiring rule.
 
 ## 2. Mental model and component anatomy
 - A component is a pure view function plus static properties: `.intent` (WHEN: sources → named action streams), `.model` (WHAT: action → one reducer per sink), `.initialState`.
@@ -59,7 +59,7 @@ Counter.model = {
 Counter.onError = (error, { componentName }) => <div className="error">{componentName} failed</div>
 export default Counter
 ```
-- Reducer `(state, data, next, props)`. `data` is the action stream's value. `next('ACTION', data?, delayMs = 10)` dispatches another action of this component, also later from a timer (`EFFECT: (state, data, next) => { setTimeout(() => next('TICK'), 1000) }`; repeating: the `timers` static, §3). HTTP goes through `makeFetchDriver` (§3), not `fetch` + `next()`. `props`: the parent's props plus `state`, `context`, `children`, `slots`.
+- Reducer `(state, data, next, props)`. `data` is the action stream's value. `next('ACTION', data?, delayMs = 10)` dispatches another action of this component, also later (repeating: the `timers` static, §3). HTTP goes through `makeFetchDriver` (§3), not `fetch` + `next()`. `props`: as the view's 1st arg.
 - Model entry: a function is the STATE reducer. An object `{ STATE, EVENTS, PARENT, EFFECT, LOG, <DRIVER>: fn }` maps each sink to a `(state, data, next, props)` function whose return value goes to that sink (`<SINK>: true` forwards `data`).
 - **Every sink of one entry sees the state from before this action**: EVENTS, PARENT, EFFECT and drivers never see what STATE returns. Compute the new value from `(state, data)` inside the sink: `INC: { STATE: s => ({ ...s, n: s.n + 1 }), PARENT: s => ({ n: s.n + 1 }) }`.
 - Built-in actions (model only): `BOOTSTRAP` (once, just after mount), `INITIALIZE` (sets initialState), `DISPOSE` (unmount). No `HYDRATE` (6.0): SSR data comes from Vike `+data` / `hydrateState`.
@@ -115,7 +115,7 @@ function Toast({ state }) {   // anywhere in the tree: EVENTS is a global bus
 Toast.intent = ({ EVENTS }) => ({ SAVED: EVENTS.select('DOC_SAVED') })  // emits the payload only
 Toast.model = { SAVED: (state, payload) => ({ ...state, lastSaved: payload.id }) }
 ```
-`event('TYPE')` with no payload sends `undefined` as the data. A child that only reacts to EVENTS needs no `initialState`; it gets its state from the parent.
+`event('TYPE')` with no payload sends `undefined` as the data.
 ### Child → parent (PARENT + CHILD.select), Collection, item removal
 ```jsx
 import { Collection } from 'sygnal'
@@ -241,7 +241,7 @@ Chat.model = {
 }
 ```
 - main.js: `run(Chat, { WS: makeSocketDriver() })`; without it nothing opens, silently. Spec: `socket` or `sse` (read-only; `events: { 'price-update': 'PRICE' }`), optional `message open close error` actions, `reconnect` (`false` = never), `share` (default: one socket per URL). `close` fires only for drops the app didn't cause (leaving, a URL change and unmount close silently), so no connection ids. `{ to }` on an undeclared, closed or SSE connection is SYG611. Guide: https://sygnal.js.org/guide/sockets/
-- A hidden Switchable page pauses its connections and resources; an entry with `background: true` stays live (`alerts: { socket: '/ws/alerts', message: 'ALERT', background: true }`).
+- A hidden Switchable page pauses its connections and resources; `background: true` on an entry keeps it live.
 ### Router (makeRouter + route) and HEAD
 ```jsx
 // src/routes.js
@@ -270,7 +270,7 @@ App.model = {
     ROUTER: (state, route) => (route.name === 'admin' && !state.user ? { to: 'home', replace: true } : ABORT),
   },
 }
-// TaskPage: a page sharing the parent's state (no initialState: SYG405); view + intent as usual
+// TaskPage: no initialState (SYG405); view + intent as usual
 TaskPage.model = {
   EDIT:  { STATE: (state, draft) => ({ ...state, draft }), ROUTER: () => ({ block: 'CONFIRM_LEAVE' }) },  // guard unsaved changes
   CONFIRM_LEAVE: (state, { proceed }) => ({ ...state, leaving: proceed }),   // a blocked navigation: { to, route, proceed }
@@ -278,7 +278,7 @@ TaskPage.model = {
   DONE:  { ROUTER: () => ({ to: 'home', block: false }) },   // also { to, params, query, replace }, { url }, { back: true }
 }
 ```
-- Links are plain `<a href={href(...)}>`: the driver intercepts same-origin clicks. `params` are strings. `instance={state.route.path}` gives `/tasks/1` and `/tasks/2` separate page state. Pages derive `resources` from `state.route.params`. SSR: `router.current(req.url)`. Vike: `makeRouter({ routes, navigate })` (from `'vike/client/router'`). Guides: https://sygnal.js.org/guide/router/, https://sygnal.js.org/guide/head/
+- Links are plain `<a href={href(...)}>`: the driver intercepts same-origin clicks. `params` are strings. `instance={state.route.path}` gives `/tasks/1` and `/tasks/2` separate page state. SSR: `router.current(req.url)`. Vike: `makeRouter({ routes, navigate })` (from `'vike/client/router'`). Guides: https://sygnal.js.org/guide/router/, https://sygnal.js.org/guide/head/
 
 ## 4. API facts
 - **Child props**: `<Rating name="food" value={state.food} />` → `function Rating({ state, name, value })`; reducers read `props.name` (4th arg); intent gets `props$`. Reserved: `state` (lens: `"key"` or `{ get, set }`), `children`, `slots`, `context`, `peers`, `uid` (SYG106). Without `state=` a child shares its parent's whole state. `uid('email')` (view prop) is a stable per-instance id for `id`/`for`/`aria-*` pairs.
@@ -352,16 +352,16 @@ it('searches once, 300 ms after the last keystroke', async () => {
 })
 ```
 - `t.actions` logs every action, `{ type, data, component, sinks, cause, at }`: when "nothing happened", it shows whether the action ran and what it produced. `t.explain(s => s.count === 5)` names the action behind a state.
-- `t.simulateAction('LOADED', data)` pushes an action into intent → model. **Drivers need no wiring in tests**: the HTTP fake is the real `makeFetchDriver` over an in-memory fetch. `t.requests('HTTP')` lists requests as objects (a string URL is `{ url }`). `await t.respond('HTTP', body, target?)` answers one (its `ok` action gets the body); `await t.fail('HTTP', 404 | error, target?)` fails it. Both resolve once reduced and rendered. Target: an action/key name, a resource name, a URL, a partial request (`{ url: '/items/2' }`) or a predicate; none = the newest pending. Identical requests (a refetch): `{ nth: 0 }` is exactly `t.requests('HTTP')[0]` (`-1` the newest). A superseded, aborted or answered request **throws at the call** (`expect(() => t.respond('HTTP', {}, { nth: -2 })).toThrow()`). Write `latest: true` on the request: the fake can't see main.js.
+- `t.simulateAction('LOADED', data)` pushes an action into intent → model. **Drivers need no wiring in tests**: the HTTP fake is the real `makeFetchDriver` over an in-memory fetch. `t.requests('HTTP')` lists requests as objects (a string URL is `{ url }`). `await t.respond('HTTP', body, target?)` answers one (its `ok` action gets the body); `await t.fail('HTTP', 404 | error, target?)` fails it. Both resolve once reduced and rendered. Target: an action/key name, a resource name, a URL, a partial request (`{ url: '/items/2' }`) or a predicate; none = the newest pending. Identical requests (a refetch): `{ nth: 0 }` is exactly `t.requests('HTTP')[0]` (`-1` the newest). A superseded, aborted or answered request **throws at the call**. Write `latest: true` on the request: the fake can't see main.js.
 - Resources: a fetch is `{ url, resource: 'quote' }`: `await t.respond('HTTP', data, 'quote')`. Right after a `simulate*`, `t.respond` waits for the fetch it causes. Cache: `renderComponent(C, { http: { cache: queryCache({ staleTime: 2000 }) } })`, `t.cache('HTTP')` (`{ key, stale, data }`), `t.focus()`, `t.online()`.
 - Sockets: `connections` get a fake `WS` (the real driver; they open by themselves, `{ autoConnect: false }` waits for `await t.open('WS')`). `await t.push('WS', { text: 'hi' })` = a server frame; `await t.drop('WS', { code: 1011 })` = a drop the app didn't make (retry: `await vi.advanceTimersByTimeAsync(1000)`); `t.sent('WS')` = the `{ to, json }` sent; `t.connections('WS')` = `{ name, url, state }`.
 - Router: `renderComponent(App, { router, url: '/tasks/2' })` runs the real router on an in-memory history: `await t.navigate('/admin')` or `t.navigate({ to: 'task', params: { id: 1 } })`, `await t.back()`, `t.location.path`, `t.sent('ROUTER')` (commands); a `simulateEvent` click on a link goes through the router. `t.head()` = `{ title, meta, link }`.
 - TypeScript: `renderComponent` infers the state; declare `let t: RenderResult<State>`, not `any`. Without the Vite plugin, `import 'sygnal/diagnostics'` in the test.
-- `t.query(sel)` / `t.queryAll(sel)` work on the mock DOM: snapshots of what the view rendered (`textContent`, `value`, `checked`, `disabled`, `getAttribute`, `querySelector`). E.g. `t.query('input:checked').value`, `t.query('.save').disabled`. State the user typed/clicked, focus: `renderComponent(C, { dom: 'real' })` in a jsdom test (`// @vitest-environment jsdom`), same `t.*` API in ONE suite; `'click'` toggles a checkbox, `'focus'` moves `document.activeElement`.
+- `t.query(sel)` / `t.queryAll(sel)` work on the mock DOM: snapshots of what the view rendered (`textContent`, `value`, `checked`, `disabled`, `getAttribute`, `querySelector`). State the user typed/clicked, focus: `renderComponent(C, { dom: 'real' })` in a jsdom test (`// @vitest-environment jsdom`), same `t.*` API in ONE suite; `'click'` toggles a checkbox, `'focus'` moves `document.activeElement`.
 
 ## 8. Diagnostics and tools
 - Format: `[Sygnal SYG104] Lane: <what is wrong>. <how to fix> https://sygnal.js.org/reference/errors#syg104`. Severities error/warn/info. 1xx wiring, 2xx model/state, 3xx streams (SYG301: RxJS operator on an xstream stream), 4xx components (Collection, Switchable, context), 5xx strict, 6xx drivers and setup, 7xx accessibility (static: a clicked `div`, an unlabelled field, `<img>` without `alt`; error under `--strict`), 9xx internal.
-- `npx --no-install sygnal-check` runs the local checker on `src` (`pages` for Vike): `--strict` for canonical forms, `--fix` for the mechanical rewrites, `--json`. Suppress one line with `// sygnal-ignore SYG110`. App graph: `--graph --json`, `t.inspect()`, or `getDevTools()?.inspect()` in a running dev app.
+- `npx --no-install sygnal-check` runs the local checker on `src` (`pages` for Vike): `--strict` for canonical forms, `--fix` for the mechanical rewrites, `--json`. Suppress one line with `// sygnal-ignore SYG110`. In a running dev app: `getDevTools()?.inspect()`.
 - Vite plugin in dev: runtime checks print to the console, and an installed `sygnal-check` runs on every save. Stricter: `sygnal({ diagnostics: { mode: 'error', strict: true }, check: { strict: true } })`. Without the plugin: `run(App, drivers, { diagnostics: 'warn' })` and `import 'sygnal/diagnostics'`.
 
 ## 9. Project setup (Vite)
@@ -381,4 +381,4 @@ run(App)   // mounts on #root; pass drivers as the 2nd argument
 Conventions: PascalCase component files, ALL_CAPS action names, `$` suffix for streams, class-name selectors, `classes()` for conditional class names, `state="key"` to give a child a slice.
 
 ## 10. Where to look next
-Every SYG code: https://sygnal.js.org/reference/errors. Testing: https://sygnal.js.org/integration/testing/. More: `node_modules/sygnal/dist/guide/undo.md`, https://sygnal.js.org/guide/view-transitions/, https://sygnal.js.org/reference/api/#sygnalelement (`defineElement`), https://sygnal.js.org/integration/debugging/ (DevTools, Copy as test), https://sygnal.js.org/advanced/error-boundaries/.
+Every SYG code: https://sygnal.js.org/reference/errors. Testing: https://sygnal.js.org/integration/testing/. More: `node_modules/sygnal/dist/guide/undo.md`, https://sygnal.js.org/guide/view-transitions/, https://sygnal.js.org/reference/api/#sygnalelement (`defineElement`), https://sygnal.js.org/advanced/error-boundaries/.
