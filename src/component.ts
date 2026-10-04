@@ -218,6 +218,7 @@ class Component {
   _w = 0;
   declare _f: number;
   declare _i: any;
+  declare _r: boolean;
   _go!: () => any;
 
   constructor({name = 'NO NAME', sources, intent, model, hmrActions, context, view, peers = {}, components = {}, initialState, calculated, storeCalculatedInState = true, DOMSourceName = 'DOM', stateSourceName = 'STATE', isolatedState = false, onError, debug = false}: ComponentOptions) {
@@ -432,6 +433,9 @@ class Component {
     this.sources.dispose$ = this._dispose$
     // P45-C: this app's render scheduler (the root makes it; children inherit it) and the depth
     this._d = sources.__d | 0
+    // G-262: the root is the component that makes the scheduler (not depth 0: a public
+    // collection()/switchable() given a root's sources has items at depth 0)
+    this._r = !sources.__k
     sources.__k ||= makeScheduler()
     // PLAN-4 GS-9: uid(name?) from the instance's position: the parent sets sources.__uid (its uid
     // + the child's path or id prop, + a Collection item's key, + a Switchable page name, each
@@ -868,7 +872,7 @@ class Component {
 
     // Build the component name Set once
     const nameSet = new Set(['collection', 'switchable', 'sygnal-factory', ...Object.keys(this.components)])
-    const k = this.sources.__k, d = this._d, key = d ? B - d : 2 * B
+    const k = this.sources.__k, d = this._d, key = this._r ? 2 * B : B - d
     const params$ = this.collectRenderParameters()
     // P45-D: the view, its sub-components and their views in one stream (it was ten). Each
     // render's tree goes out once per flush, after the children's (deeper first; P45-C), and the
