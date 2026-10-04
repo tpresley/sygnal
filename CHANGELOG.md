@@ -255,6 +255,7 @@ Covers `sygnal`, `sygnal-check` and `create-sygnal-app`. A few fixes change beha
 
 ### Fixed
 
+- **A model without `INITIALIZE` is no longer written to** (G-252). The first instance of such a component added its default `INITIALIZE` reducer to the shared `model` object, which kept that instance (and its streams) in memory for the life of the page and gave every later instance the first one's calculated-field cache. Each instance now has its own.
 - **`renderComponent` `ready()`** no longer resolves before the first render when that render takes longer than 30 ms (a loaded machine or a slow view). Before, `t.query()` could return `null` right after `await t.ready()`.
 - **Vike docs:** custom drivers go in `pages/+drivers.js`. The [Vike guide](https://sygnal.js.org/integration/vike/#custom-drivers) showed `drivers` inside `+config.js`, which Vike rejects: `vike build` fails with "must be defined using a separate file +drivers.js", and in `vike dev` the page never hydrates.
 - **Switchable.**
@@ -337,6 +338,7 @@ These are fixes, but code or tests may depend on the old behavior:
 - **Strict mode** reports the `select('c')` round trip for a component's own `category: 'c'` requests (SYG508), so strict-clean 5.4.0 code using `driverFromAsync` + `QUOTE.select('quote')` for its own requests gets a finding.
 - **`sygnal/vite`** aliases `globalthis` for every dependency in the app, not only xstream. Set `nativeGlobalThis: false` if a dependency needs the polyfill package.
 - **DevTools are no longer in production builds** ([Debugging](https://sygnal.js.org/integration/debugging/#devtools-extension)). `run()` no longer installs the DevTools bridge (`window.__SYGNAL_DEVTOOLS__`); the new dev-only entry `sygnal/devtools` does on import, and `sygnal/vite` injects it in dev (`vite`, the Vike and Astro dev servers; `devtools: false` opts out), never in `vite build`. With `sygnal/vite` nothing changes in dev, and the bridge (about 2 KB gzipped) leaves every production bundle. `getDevTools()` from `sygnal` returns `undefined` when the bridge isn't installed (before: a bridge object even outside a browser), so `getDevTools().inspect()` needs the bridge loaded. The UMD build (`sygnal.min.js`) has no DevTools.
+- **JSX: nested prop objects are passed by reference** (PLAN-4.5). The JSX pragma no longer deep-copies `style`, `attrs`, `props`, `on`, `hook`, `class` and `data` objects, or a component's object and array props: the vnode holds the object you passed, as in React, Vue and snabbdom. Changing such an object in place and rendering it again can leave the DOM as it was (the next diff compares the object with itself); create a new object instead. An entry set to `undefined` is still dropped, and an object Sygnal adds to (`attrs={…}` plus `aria-label`, a `ref` on an element with a `hook`) is copied, never written to.
 
 ### Breaking changes (TypeScript)
 
@@ -366,6 +368,7 @@ Type-level only; JavaScript and runtime behavior are unaffected:
 - `HYDRATE` as a built-in action, the `@cycle/http` `select('initial')` hydration path and the `requestSourceName` component option.
 - The strict rule SYG502 (runtime and `sygnal-check`); the code stays in the reference, marked retired.
 - The page-wide HMR globals `window.__SYGNAL_HMR_PERSISTED_STATE`, `__SYGNAL_HMR_UPDATING` and `__SYGNAL_HMR_STATE`.
+- The `extend` runtime dependency: the JSX pragma sorts props into snabbdom's modules in one pass without deep copies (about 280 B gzipped less in an app). `snabbdom` and `xstream` are the only runtime dependencies.
 
 ### Migration
 

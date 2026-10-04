@@ -76,7 +76,6 @@ export default [
 
   {
     input: 'src/jsx.ts',
-    external: ['extend'],
     output: [
       { file: pkg.exports['./jsx'].require, format: 'cjs', ...sourcemapOptions },
       { file: pkg.exports['./jsx'].import, format: 'es', ...sourcemapOptions }
@@ -90,7 +89,6 @@ export default [
 
   {
     input: 'src/jsx-runtime.ts',
-    external: ['extend'],
     output: [
       { file: pkg.exports['./jsx-runtime'].require, format: 'cjs', ...sourcemapOptions },
       { file: pkg.exports['./jsx-runtime'].import, format: 'es', ...sourcemapOptions }
@@ -104,7 +102,6 @@ export default [
 
   {
     input: 'src/jsx-dev-runtime.ts',
-    external: ['extend'],
     output: [
       { file: pkg.exports['./jsx-dev-runtime'].require, format: 'cjs', ...sourcemapOptions },
       { file: pkg.exports['./jsx-dev-runtime'].import, format: 'es', ...sourcemapOptions }
