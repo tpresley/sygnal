@@ -899,8 +899,6 @@ class Component {
         }
       })
       .compose(this.log('View rendered'))
-      .map((vDom: any) => stampFields(vDom || { sel: 'div', data: {}, children: [] }, this._inputSeq))
-      .map((vdom: any) => preprocessVdom(vdom, this))
       .compose(this.instantiateSubComponents.bind(this))
       .filter((val: any) => val !== undefined)
       .compose(this.renderVdom.bind(this))
@@ -1205,8 +1203,9 @@ class Component {
     // Build the component name Set once outside the fold — avoids rebuilding per render
     const componentNameSet = new Set(['collection', 'switchable', 'sygnal-factory', ...Object.keys(this.components)])
 
-    return vDom$.fold((previousComponents: any, vDom: any) => {
-      const foundComponents = getComponents(vDom, componentNameSet)
+    return vDom$.fold((previousComponents: any, view: any) => {
+      // P45-B: one walk (G-146 stamps, markers, sub-components); skipped where the pragma saw none
+      const [vDom, foundComponents] = walkView(view || { sel: 'div', data: {}, children: [] }, this, componentNameSet)
       const entries         = Object.entries(foundComponents)
 
       const rootEntry: Record<string, any> = { '::ROOT::': vDom }
@@ -1740,55 +1739,110 @@ class Component {
 
 
 
-function getComponents(currentElement: any, componentNameSet: Set<string>, path: string = 'r', parentId?: string, found?: Record<string, any>): Record<string, any> {
-  if (!currentElement) return found || {}
-
-  if (currentElement.data?.componentsProcessed) return found || {}
-  if (path === 'r') currentElement.data.componentsProcessed = true
-
-  // Allocate the result object only at the root call
-  if (!found) found = {}
-
-  const sel          = currentElement.sel
-  const isCollection = sel && sel.toLowerCase() === 'collection'
-  const isSwitchable = sel && sel.toLowerCase() === 'switchable'
-  const isComponent  = (sel && componentNameSet.has(sel)) || typeof currentElement.data?.props?.sygnalFactory === 'function' || isObj(currentElement.data?.props?.sygnalOptions)
-  const props        = (currentElement.data && currentElement.data.props) || {}
-  const children     = currentElement.children || []
-
-  let id = parentId
-  if (isComponent) {
-    id  = getComponentIdFromElement(currentElement, path, parentId)
-    if (isCollection) {
-      if (!props.of)   fail('SYG411', undefined, "Collection is missing 'of'", 'Use of={ItemComponent}')
-      if (typeof props.of !== 'string' && typeof props.of !== 'function')         fail('SYG411', undefined, `Collection 'of' is a ${typeof props.of}`, 'Use of={ItemComponent}')
-      if (typeof props.of !== 'function' && !componentNameSet.has(props.of))   fail('SYG411', undefined, `Collection 'of' component not found: ${props.of}`, 'Use of={ItemComponent}')
-      // an invalid 'from' is reported once, with the component name, by instantiateCollection (G-026)
-      currentElement.data.isCollection = true
-      currentElement.data.props ||= {}
-    } else if (isSwitchable) {
-      if (!props.of)        fail('SYG415', undefined, "Switchable is missing 'of'", 'Use of={{ name: Component }}')
-      if (!isObj(props.of)) fail('SYG415', undefined, `Switchable 'of' is a ${typeof props.of}`, 'Use of={{ name: Component }}')
-      const switchableComponents = Object.values(props.of)
-      if (!switchableComponents.every(comp => typeof comp === 'function')) fail('SYG415', undefined, "Switchable 'of' has a value that is not a component", 'Use of={{ name: Component }}')
-      if (!props.current || (typeof props.current !== 'string' && typeof props.current !== 'function')) fail('SYG416', undefined, `Switchable 'current' is missing or a ${typeof props.current}`, "Set current to a key of 'of'")
-      const switchableComponentNames = Object.keys(props.of)
-      if (!switchableComponentNames.includes(props.current)) fail('SYG416', undefined, `Switchable 'current' '${props.current}' is not a key of 'of'`, "Set current to a key of 'of'")
-      currentElement.data.isSwitchable = true
+/**
+ * P45-B: the one walk of a component's view per render (it was three: stampFields,
+ * preprocessVdom, getComponents). It
+ * - stamps the vnodes with the input counter of the state they show (G-146; the DOM modules
+ *   read it on form fields),
+ * - replaces the Lazy, Portal, Transition and ClientOnly markers (not below a vnode without a
+ *   tag, a fragment, as before),
+ * - collects the sub-components by path id, not below a component (G-084: its children are its
+ *   own; they are stamped and their markers replaced here, as before).
+ * A subtree the pragma flagged plain ($p: no component, marker, form field or vnode built
+ * elsewhere) has nothing for it and is skipped, unless the component has `.components`, whose
+ * registered names can be any tag. A replaced child is written into its parent's children array
+ * (a new array); everything else is left as it is.
+ * Returns [the view, the sub-components found].
+ */
+function walkView(root: any, inst: any, nameSet: Set<string>): [any, Record<string, any>] {
+  const seq = inst._inputSeq, byName = nameSet.size > 3, found: Record<string, any> = {}
+  const walk = (vnode: any, path: string, collect: any, pre: any): any => {
+    if (!vnode || (vnode.$p && !byName)) return vnode
+    if (vnode.data) vnode.data.inputSeq = seq
+    const sel = vnode.sel, data = vnode.data, children = vnode.children || []
+    pre &&= sel
+    if (pre) {
+      const props = data?.props || {}
+      const view = props.sygnalOptions?.view
+      if (view?.__sygnalLazy) {
+        const loaded = view.__sygnalLazyLoaded() && view.__sygnalLazyLoadedComponent
+        if (loaded) {
+          const name = loaded.componentName || loaded.label || loaded.name || 'LazyLoaded'
+          const { sygnalOptions, ...rest } = props
+          // its children aren't preprocessed (as before); the walk only stamps them
+          return walk({ sel: name, data: { props: { ...rest, sygnalOptions: optionsOf(loaded, name, ['isolatedState']) } }, children, text: undefined, elm: undefined, key: undefined }, path, collect, 0)
+        }
+        if (!view.__sygnalLazyReRenderScheduled && view.__sygnalLazyPromise) {
+          view.__sygnalLazyReRenderScheduled = true
+          view.__sygnalLazyPromise.then(() => {
+            setTimeout(() => {
+              const stateSource = inst.sources?.[inst.stateSourceName]
+              if (stateSource && stateSource.stream) {
+                const stateCopy = { ...inst.currentState, __sygnalLazyTick: Date.now() }
+                stateSource.stream.shamefullySendNext(stateCopy)
+              }
+            }, 0)
+          })
+        }
+      }
+      if (sel === 'portal') {
+        // its children move into the placeholder unprocessed; the walk only stamps them
+        children.forEach((c: any) => walk(c, '', 0, 0))
+        return createPortalPlaceholder(props.target, children)
+      }
+      if (sel === 'transition') {
+        const child = children[0]
+        if (!child?.sel) return child ? walk(child, path, collect, 0) : vnode
+        return applyTransitionHooks(walk(child, path, collect, 1), props.name || 'v', props.duration)
+      }
+      if (sel === 'clientonly') {
+        // unwrapped on the client
+        if (children.length < 2) return children.length ? walk(children[0], path, collect, 1) : { sel: 'div', data: {}, children: [] }
+        return { sel: 'div', data: {}, children: children.map((c: any, i: number) => walk(c, path + '.' + i, collect, 1)), text: undefined, elm: undefined, key: undefined }
+      }
     }
-    if (typeof props.key === 'undefined') (currentElement.data.props ||= {}).key = id
-    found[id] = currentElement
-    // G-084: a component's children are its own (children$): it instantiates the
-    // components among them when it renders them; instantiating them here too made
-    // a second, never-rendered instance per ancestor
-    return found
+    if (collect && (nameSet.has(sel) || typeof data?.props?.sygnalFactory === 'function' || isObj(data?.props?.sygnalOptions))) {
+      addComponent(vnode, path, nameSet, found)
+      collect = 0
+    }
+    let kids: any
+    for (let i = 0; i < children.length; i++) {
+      const out = walk(children[i], collect && path + '.' + i, collect, pre)
+      if (out !== children[i]) (kids ||= children.slice())[i] = out
+    }
+    if (kids) vnode.children = kids
+    return vnode
   }
+  // a view that returns the root it returned before: its components were found then (as before)
+  const collect = !root.data?.componentsProcessed
+  const out = walk(root, 'r', collect, 1)
+  if (collect && out?.data && !out.$p) out.data.componentsProcessed = true
+  return [out, found]
+}
 
-  for (let i = 0; i < children.length; i++) {
-    getComponents(children[i], componentNameSet, `${path}.${i}`, id, found)
+function addComponent(el: any, path: string, componentNameSet: Set<string>, found: Record<string, any>): void {
+  const sel   = el.sel
+  const props = el.data.props || {}
+  const id    = getComponentIdFromElement(el, path)
+  if (sel && sel.toLowerCase() === 'collection') {
+    if (!props.of)   fail('SYG411', undefined, "Collection is missing 'of'", 'Use of={ItemComponent}')
+    if (typeof props.of !== 'string' && typeof props.of !== 'function')         fail('SYG411', undefined, `Collection 'of' is a ${typeof props.of}`, 'Use of={ItemComponent}')
+    if (typeof props.of !== 'function' && !componentNameSet.has(props.of))   fail('SYG411', undefined, `Collection 'of' component not found: ${props.of}`, 'Use of={ItemComponent}')
+    // an invalid 'from' is reported once, with the component name, by instantiateCollection (G-026)
+    el.data.isCollection = true
+    el.data.props ||= {}
+  } else if (sel && sel.toLowerCase() === 'switchable') {
+    if (!props.of)        fail('SYG415', undefined, "Switchable is missing 'of'", 'Use of={{ name: Component }}')
+    if (!isObj(props.of)) fail('SYG415', undefined, `Switchable 'of' is a ${typeof props.of}`, 'Use of={{ name: Component }}')
+    const switchableComponents = Object.values(props.of)
+    if (!switchableComponents.every(comp => typeof comp === 'function')) fail('SYG415', undefined, "Switchable 'of' has a value that is not a component", 'Use of={{ name: Component }}')
+    if (!props.current || (typeof props.current !== 'string' && typeof props.current !== 'function')) fail('SYG416', undefined, `Switchable 'current' is missing or a ${typeof props.current}`, "Set current to a key of 'of'")
+    const switchableComponentNames = Object.keys(props.of)
+    if (!switchableComponentNames.includes(props.current)) fail('SYG416', undefined, `Switchable 'current' '${props.current}' is not a key of 'of'`, "Set current to a key of 'of'")
+    el.data.isSwitchable = true
   }
-
-  return found
+  if (typeof props.key === 'undefined') (el.data.props ||= {}).key = id
+  found[id] = el
 }
 
 function injectComponents(currentElement: any, components: Record<string, any>, componentNameSet: Set<string>, path: string = 'r', parentId?: string, readyMap?: Record<string, boolean>): any {
@@ -1936,96 +1990,6 @@ function applyTransitionHooks(vnode: any, name: string, duration?: number): any 
 
   return vnode
 }
-
-// G-146: stamp the view's vnodes with the input counter of the state it shows (the DOM
-// modules read it on form fields)
-function stampFields(vnode: any, seq: number): any {
-  if (vnode && vnode.data) vnode.data.inputSeq = seq
-  if (vnode && vnode.children) for (const c of vnode.children) stampFields(c, seq)
-  return vnode
-}
-
-/**
- * Single-pass VNode preprocessor that handles lazy, portal, transition, and clientonly
- * nodes in one recursive walk instead of four separate passes.
- */
-function preprocessVdom(vnode: any, componentInstance: any): any {
-  if (!vnode || !vnode.sel) return vnode
-
-  // Handle lazy components
-  const view = vnode.data?.props?.sygnalOptions?.view
-  if (view && view.__sygnalLazy) {
-    if (view.__sygnalLazyLoaded()) {
-      const loaded = view.__sygnalLazyLoadedComponent
-      if (loaded) {
-        const props = vnode.data?.props || {}
-        const name = loaded.componentName || loaded.label || loaded.name || 'LazyLoaded'
-        const options = optionsOf(loaded, name, ['isolatedState'])
-        const cleanProps = { ...props }
-        delete cleanProps.sygnalOptions
-        return {
-          sel: name,
-          data: { props: { ...cleanProps, sygnalOptions: options } },
-          children: vnode.children || [],
-          text: undefined, elm: undefined, key: undefined,
-        }
-      }
-    } else {
-      if (!view.__sygnalLazyReRenderScheduled && view.__sygnalLazyPromise && componentInstance) {
-        view.__sygnalLazyReRenderScheduled = true
-        view.__sygnalLazyPromise.then(() => {
-          setTimeout(() => {
-            const stateSource = componentInstance.sources?.[componentInstance.stateSourceName]
-            if (stateSource && stateSource.stream) {
-              const stateCopy = { ...componentInstance.currentState, __sygnalLazyTick: Date.now() }
-              stateSource.stream.shamefullySendNext(stateCopy)
-            }
-          }, 0)
-        })
-      }
-    }
-  }
-
-  // Handle portals
-  if (vnode.sel === 'portal') {
-    const target = vnode.data?.props?.target
-    const children = vnode.children || []
-    return createPortalPlaceholder(target, children)
-  }
-
-  // Handle transitions — recursively preprocess the child before applying hooks
-  if (vnode.sel === 'transition') {
-    const props = vnode.data?.props || {}
-    const name = props.name || 'v'
-    const duration = props.duration
-    const children = vnode.children || []
-    const child = children[0]
-    if (!child || !child.sel) return child || vnode
-    return applyTransitionHooks(preprocessVdom(child, componentInstance), name, duration)
-  }
-
-  // Handle clientonly — unwrap to children on client
-  if (vnode.sel === 'clientonly') {
-    const children = vnode.children || []
-    if (children.length === 0) return { sel: 'div', data: {}, children: [] }
-    if (children.length === 1) return preprocessVdom(children[0], componentInstance)
-    return {
-      sel: 'div',
-      data: {},
-      children: children.map((c: any) => preprocessVdom(c, componentInstance)),
-      text: undefined,
-      elm: undefined,
-      key: undefined,
-    }
-  }
-
-  // Recurse into children
-  if (vnode.children && vnode.children.length > 0) {
-    vnode.children = vnode.children.map((child: any) => preprocessVdom(child, componentInstance))
-  }
-  return vnode
-}
-
 
 function onTransitionEnd(el: any, duration: number | undefined, cb: () => void): void {
   if (typeof duration === 'number') {
