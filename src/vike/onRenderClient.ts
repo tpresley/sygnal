@@ -367,7 +367,9 @@ export function onRenderClient(pageContext: PageContext) {
       const Component = createLayoutWrapper(wrappers, layouts, Page)
 
       try {
-        currentApp = run(Component, config.drivers || {}, { mountPoint: '#page-view', onError: config.sygnalOnError }) as any
+        // 3-B2: `__vike` marks the shell's components (Page, Layouts, Wrappers: sub-components of
+        // the shell root) for the dev entry, whose SYG224 then says persist() isn't supported there
+        currentApp = run(Component, { ...config.drivers, __vike: () => 1 }, { mountPoint: '#page-view', onError: config.sygnalOnError }) as any
       } catch (err: any) {
         console.error('[sygnal/vike] Client render error:', err)
         const container = document.getElementById('page-view')
