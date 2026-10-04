@@ -51,7 +51,8 @@ import { analyzeUses } from './behaviors.js'
 import { analyzeTimers } from './timers.js'
 import { analyzeCommands } from './elementCommands.js'
 
-export const STATIC_PROPS = ['intent', 'model', 'initialState', 'context', 'calculated', 'connections', 'resources', 'route', 'head', 'uses', 'timers', 'persist', 'viewTransitions']
+// isolatedState: PLAN-4 4-G2 (static SYG405)
+export const STATIC_PROPS = ['intent', 'model', 'initialState', 'isolatedState', 'context', 'calculated', 'connections', 'resources', 'route', 'head', 'uses', 'timers', 'persist', 'viewTransitions']
 
 function parseSuppressions(ast) {
   const map = new Map()

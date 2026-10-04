@@ -34,6 +34,7 @@ import behaviors from './syg127-behaviors.js'
 import elementCommands from './syg640-element-commands.js'
 import timers from './syg422-timers.js'
 import persist from './syg223-persist.js'
+import initialStateSub from './syg405-initial-state.js'
 import { strictRules } from './strict/index.js'
 import { a11yRules, errorA11yRules } from './a11y/index.js'
 
@@ -51,6 +52,7 @@ export const coreRules = [
   elementCommands, // SYG640, SYG641 (PLAN-4 GS-2)
   timers, // SYG422, SYG643 (PLAN-4 GS-7)
   persist, // SYG223, SYG224 (PLAN-4 GS-5)
+  initialStateSub, // SYG405 statically (PLAN-4 4-G2)
   ...a11yRules, // SYG701-708 (PLAN-4 GS-3): warn, also under --strict; error with a11y: 'error' (D144)
 ]
 

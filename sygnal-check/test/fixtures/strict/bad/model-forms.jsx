@@ -17,7 +17,7 @@ function Lane({ state }) {
   )
 }
 
-Lane.initialState = { id: 1, items: [] }
+Lane.initialState = { id: 1, items: [] } ; Lane.isolatedState = true // Board renders <Lane /> (SYG405)
 
 Lane.intent = ({ DOM, CHILD }) => ({
   DELETE: DOM.click('.delete'),

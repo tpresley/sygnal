@@ -360,9 +360,9 @@ export const EXPLANATIONS = {
   SYG405: {
     title: "Sub-component has initialState without isolatedState",
     severity: "error",
-    reportedBy: ["runtime"],
-    explanation: "A sub-component defines `initialState` but not `isolatedState = true`, so its `initialState` would overwrite the state slice its parent passes in. For a component rendered by tag in a parent's view this is an error: it is thrown when the child is instantiated, and the parent catches it, logs it under this code and renders its error fallback instead of the child. For Collection items and Switchable children it is only a warning and the initial state still replaces what the parent passed.",
-    fix: "Remove `initialState` from the sub-component and let the parent own the state, or set `Child.isolatedState = true` if the child should keep its own local state.",
+    reportedBy: ["runtime", "static"],
+    explanation: "A sub-component defines `initialState` but not `isolatedState = true`, so its `initialState` would overwrite the state slice its parent passes in. For a component rendered by tag in a parent's view this is an error: it is thrown when the child is instantiated, and the parent catches it, logs it under this code and renders its error fallback instead of the child. For Collection items and Switchable children it is only a warning and the initial state still replaces what the parent passed. It doesn't matter whether the tag has a `state` prop: `<Stopwatch state=\"stopwatch\" />` and `<Stopwatch />` both throw. `sygnal-check` reports it at the child's `initialState` when a view it can follow renders the child (an error for a tag, a warning for a Collection or Switchable target), and says nothing when `isolatedState` is set to anything but a literal `false`.",
+    fix: "Remove `initialState` from the sub-component and let the parent own the state: put the child's start values in the parent's `initialState`, under the field the `state` prop names (`App.initialState = { stopwatch: { ms: 0 } }` for `<Stopwatch state=\"stopwatch\" />`). Or set `Child.isolatedState = true` if the child should keep its own local state.",
   },
   SYG406: {
     title: "View threw",
