@@ -68,7 +68,7 @@ PLAN-3's end-of-Phase-5 figures (40,403 B, 283 lines, 34,343 B) grew with #12 an
 | 4-A1 | Agent docs, part 1 (all but controls) | ✅ merged | `p4-4a1-agentdocs` (`30fd99b`) | subagent | | llms.txt 285 → 290 (+11, −5 trims; cap test raised to 315 per D115); SKILL.md 34,996 → 38,889 B (23 B under the 38 KB cap: CT-1 guidance will need trims); templates synced; A11Y_PENDING empty; 74 samples in `test/p4-4a1-agent-doc-samples.test.js` |
 | 4-D1 | CHANGELOG, ROADMAP, canonical-forms (all but controls) | ✅ merged | `p4-4d-changelog` (`03656b4`) | subagent | | `TODO(P4-D)` / `TODO(3-R)` / `TODO(4-E)` HTML comments mark what changes after the eval and 3-R |
 | 4-X | Cleanup: G-230, G-232, G-233, G-234 | ✅ merged | `p4-4x-cleanup` (`c020419`) | subagent | | +3 B (ELEMENT skipped in the sinks reduce) |
-| 4-P | Apply P4-D: guide/controls + alternative-forms entry; recipes back to canonical selectors; CHANGELOG/ROADMAP/canonical-forms TODO(P4-D) | 🟡 running | `p4-4p-p4d` | subagent | | |
+| 4-P | Apply P4-D: guide/controls + alternative-forms entry; recipes back to canonical selectors; CHANGELOG/ROADMAP/canonical-forms P4-D markers | ✅ merged | `p4-4p-p4d` (`5a83b08`) | subagent | | 44 controls samples tested; recipes in behaviors, undo, element commands, timers, persistence converted; doc samples 542 |
 | 4-E prep | Final eval variants and commands (all tiers, net, ergo; Opus + Haiku; React ergo; GS-14 A/B) | 🟡 running | `p4-4e-prep` | subagent | | |
 | 4-C | Controls migration | ⛔ not needed (D141) | | | | |
 | 3-C | Timers (GS-7) | ✅ merged | `p4-3c-timers` (`6ad12b1`) | subagent | | 0 B core; +579 B per app; driver key `TIMER` by convention (found by `__sygnalStatic`); SYG643 also covers `connections`/`resources`; hidden pages restart timers from scratch; recipe waits for 3-K (SYG102 on TICK) |
@@ -310,3 +310,4 @@ They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none o
 - 2026-10-03 — Merged 4-X; gates green (vitest 2,283 +1 skipped, browser 177; 41,343 B gated, PLAN-4 +807 B of 850). Waiting on 0-E/1-E. G-235.
 - 2026-10-04 — 0-E done. 1-E Opus pair: pass 100% → 100%, wall 44.4 → 47.1 s (1.06×; bar ≤ 1.05), learn +0.6 s (bar ≤ +1), wiring failures 0 → 0, SYG104/110/124 hits 0.17 → 0.20. Haiku pair repaired per D140.
 - 2026-10-04 — 1-E Haiku repaired and complete. 1-E missed 2 of 4 bars → P4-D: alternative form (D141). 4-C not needed. Started 4-P and 4-E prep.
+- 2026-10-04 — Merged 4-P (controls as an alternative form); sygnal-check README `--fix --controls` note updated.
