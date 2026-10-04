@@ -136,13 +136,11 @@ With no names on the pages' elements, the browser cross-fades the whole page. Na
 
 ## How the render is applied
 
-One action can update the page several times: a card that moves between Collections is removed from one lane, and appears in the other a few milliseconds later, when its new component has rendered. The driver therefore:
+Sygnal applies all the renders of one action to the page in a single update: a card that moves between Collections leaves one lane and appears in the other at once. The driver therefore:
 
-1. holds the first render after the action, and calls `document.startViewTransition()`;
-2. when the browser has taken its snapshot, applies the held render and every render that follows, until 20 ms pass with no new render (at most 200 ms, so a page that renders continuously, with a timer or a stream of messages, can't freeze it);
-3. lets the browser animate from the snapshot to the final page.
-
-The page shows the old snapshot during step 2, so the in-between states never appear.
+1. holds the render after the action, and calls `document.startViewTransition()`;
+2. when the browser has taken its snapshot, applies the latest render (one that arrived while the browser was getting ready replaces the held one);
+3. lets the browser animate from the snapshot to the new page.
 
 The first render after the action is the one held, however long the render takes. If the action's new state renders nothing new (it is equal to the old one), there is no render to hold: the request lapses once the page has been idle for 100 ms, so a later, unrelated update isn't animated.
 
@@ -150,7 +148,7 @@ If an action asks for a new transition while one is still animating, the browser
 
 ## Limits
 
-- **The page doesn't respond during a transition.** While the browser animates (250 ms by default, plus the 20 ms wait), the transition's overlay is on top of the page: clicks and hovers go to it, not to the elements, and a click in that time is lost. That is fine for a discrete change the user just asked for, and wrong for an interaction that continues.
+- **The page doesn't respond during a transition.** While the browser animates (250 ms by default), the transition's overlay is on top of the page: clicks and hovers go to it, not to the elements, and a click in that time is lost. That is fine for a discrete change the user just asked for, and wrong for an interaction that continues.
 - **Not for drag-sort or typing-driven lists.** Reordering a list while the user drags an item, or filtering it on every keystroke, starts a transition per change: the page stops responding, and each new transition skips the last one, so items jump instead of gliding. For those, animate the moved items with FLIP: measure their positions before and after the render and animate `transform`, which leaves the page interactive.
 - **Rapid actions jump.** Several listed actions in quick succession end with the right page, but each skips the previous transition, so the motion jumps.
 - **Names are your job.** The browser matches old and new elements only by `view-transition-name`. Elements without one are part of the page's snapshot, which cross-fades as a whole.
