@@ -63,3 +63,57 @@ describe('3-R item 3 (G-228): a non-array viewTransitions static', () => {
     })
   }
 })
+
+// a fake API: records each call and runs the update callback a task later (as browsers do)
+function fakeVT() {
+  const calls = []
+  document.startViewTransition = (update) => {
+    const t = { update }
+    calls.push(t)
+    t.updateCallbackDone = new Promise(r => setTimeout(r, 0)).then(() => update())
+    return t
+  }
+  return calls
+}
+
+describe('3-R item 6: a View Transition request survives a slow render', () => {
+  const busy = (ms) => { for (const end = Date.now() + ms; Date.now() < end;); }
+  function Slow({ state }) {
+    if (state.slow) busy(150)
+    return h('div', null, h('button', { className: 'go' }, 'go'), h('button', { className: 'same' }, 'same'),
+      h('button', { className: 'bump' }, 'bump'), h('p', { className: 'n' }, `${state.n}:${state.slow}`))
+  }
+  Slow.initialState = { n: 0, slow: false }
+  Slow.intent = ({ DOM }) => ({ GO: DOM.click('.go'), SAME: DOM.click('.same'), BUMP: DOM.click('.bump') })
+  // SAME returns an equal state (a new object): the request is made, but nothing renders
+  Slow.model = { GO: (s) => ({ ...s, slow: true }), SAME: (s) => ({ ...s }), BUMP: (s) => ({ ...s, n: s.n + 1 }) }
+  Slow.viewTransitions = ['GO', 'SAME']
+  const start = () => {
+    document.body.innerHTML = '<div id="root"></div>'
+    app = run(Slow, { DOM: makeViewTransitionDOMDriver('#root') }, { mountPoint: '#root' })
+  }
+
+  it('a listed action whose render takes 150 ms still runs as a View Transition', async () => {
+    const calls = fakeVT()
+    start()
+    await settle()
+    click('.go')
+    await settle(300)
+    expect(calls.length).toBe(1)
+    await calls[0].updateCallbackDone
+    await settle(40)
+    expect(document.querySelector('.n').textContent).toBe('0:true')
+  })
+
+  it('a request whose state renders nothing new expires: a later, unrelated patch is not animated', async () => {
+    const calls = fakeVT()
+    start()
+    await settle()
+    click('.same')
+    await settle(200)
+    click('.bump')
+    await settle()
+    expect(document.querySelector('.n').textContent).toBe('1:false')
+    expect(calls.length).toBe(0)
+  })
+})

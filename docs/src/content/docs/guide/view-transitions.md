@@ -144,6 +144,8 @@ One action can update the page several times: a card that moves between Collecti
 
 The page shows the old snapshot during step 2, so the in-between states never appear.
 
+The first render after the action is the one held, however long the render takes. If the action's new state renders nothing new (it is equal to the old one), there is no render to hold: the request lapses once the page has been idle for 100 ms, so a later, unrelated update isn't animated.
+
 If an action asks for a new transition while one is still animating, the browser skips the running one: its elements jump to their end positions, and the new one starts from there.
 
 ## Limits
