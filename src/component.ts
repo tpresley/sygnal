@@ -2005,19 +2005,14 @@ function extractSlots(children: any[]): { slots: Record<string, any[]>, defaultC
 
   for (const child of children) {
     if (child && child.sel === 'slot') {
-      const name = (child.data?.props?.name) || 'default'
-      if (!slots[name]) slots[name] = []
-      const slotChildren = Array.isArray(child.children) ? child.children : (child.children ? [child.children] : [])
-      slots[name].push(...slotChildren)
+      const kids = child.children
+      ;(slots[child.data?.props?.name || 'default'] ||= []).push(...(Array.isArray(kids) ? kids : kids ? [kids] : []))
     } else {
       defaultChildren.push(child)
     }
   }
 
-  if (defaultChildren.length > 0) {
-    if (!slots['default']) slots['default'] = []
-    slots['default'].push(...defaultChildren)
-  }
+  if (defaultChildren.length > 0) (slots.default ||= []).push(...defaultChildren)
 
-  return { slots, defaultChildren: slots['default'] || [] }
+  return { slots, defaultChildren: slots.default || [] }
 }
