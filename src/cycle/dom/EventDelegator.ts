@@ -99,7 +99,8 @@ interface NonBubblingListener {
   destination: Destination;
 }
 
-type NonBubblingMeta = [Stream<Event>, string, ElementFinder, Destination]
+// [subject, type, finder, destination, number of started streams]
+type NonBubblingMeta = [Stream<Event>, string, ElementFinder, Destination, number]
 
 export class EventDelegator {
   private virtualListeners = new SymbolTree<
@@ -150,9 +151,6 @@ export class EventDelegator {
     options: EventsFnOptions,
     bubbles?: boolean
   ): Stream<Event> {
-    const subject = xs.never();
-    let dest;
-
     const scopeChecker = new ScopeChecker(namespace, this.isolateModule);
 
     const shouldBubble =
@@ -165,64 +163,60 @@ export class EventDelegator {
         this.setupDOMListener(eventType, !!options.passive);
       }
 
-      dest = this.insertListener(subject, scopeChecker, eventType, options);
-      return subject;
-    } else {
-      const setArray: Array<NonBubblingMeta> = [];
-      this.nonBubblingListenersToAdd.forEach(v => setArray.push(v));
-      let found = undefined, index = 0;
-      const length = setArray.length;
-      const tester = (x: NonBubblingMeta) => {
-        const [_sub, et, ef, _] = x;
-        return eventType === et && isEqualNamespace(ef.namespace, namespace);
-      }
-
-      while (!found && index < length) {
-        const item = setArray[index]
-        found = tester(item) ? item : found;
-        index++;
-      }
-
-      let input: NonBubblingMeta = found as NonBubblingMeta;
-
-      let nonBubbleSubject: Stream<Event>;
-      if (!input) {
-        const finder = new ElementFinder(namespace, this.isolateModule);
-        dest = this.insertListener(subject, scopeChecker, eventType, options);
-        input = [subject, eventType, finder, dest];
-        nonBubbleSubject = subject;
-        this.nonBubblingListenersToAdd.add(input);
-        this.setupNonBubblingListener(input);
-      } else {
-        const [sub] = input;
-        nonBubbleSubject = sub;
-      }
-
-      const self = this;
-
-      let subscription: any = null;
-      return xs.create({
-        start: listener => {
-          subscription = nonBubbleSubject.subscribe(listener);
+      // P45-A: the destination is in the delegator only while the stream has listeners, so
+      // a disposed component leaves nothing behind (audit rec 3). Each stream has its own
+      // destination; xstream counts the stream's own listeners
+      let dest: Destination;
+      const out: Stream<Event> = xs.create({
+        start: () => {
+          dest = this.insertListener(out, scopeChecker, eventType, options);
         },
-        stop: () => {
-          const [_s, et, ef, _d] = input;
-          const elements = ef.call();
+        stop: () => this.removeListener(dest, eventType),
+      });
+      return out;
+    }
 
-          elements.forEach(function(element: any) {
-            const subs = element.subs;
-            if (subs && subs[et]) {
-              subs[et].unsubscribe();
-              delete subs[et];
+    // one record, and one listener per element, per type and scope: the streams on it share
+    // it, and the last one to stop removes it
+    let input: NonBubblingMeta | undefined;
+    this.nonBubblingListenersToAdd.forEach(x => {
+      if (!input && x[1] === eventType && isEqualNamespace(x[2].namespace, namespace)) input = x;
+    });
+    const rec: NonBubblingMeta = input || [
+      xs.never(),
+      eventType,
+      new ElementFinder(namespace, this.isolateModule),
+      undefined as any,
+      0,
+    ];
+    this.nonBubblingListenersToAdd.add(rec);
+
+    let subscription: any;
+    return xs.create({
+      start: listener => {
+        if (!rec[4]++) {
+          rec[3] = this.insertListener(rec[0], scopeChecker, eventType, options);
+          this.nonBubblingListenersToAdd.add(rec);
+          this.setupNonBubblingListener(rec);
+        }
+        subscription = rec[0].subscribe(listener);
+      },
+      stop: () => {
+        subscription.unsubscribe();
+        if (!--rec[4]) {
+          const map = this.nonBubblingListeners.get(eventType);
+          if (map) map.forEach((l, element: any) => {
+            if (l.destination === rec[3]) {
+              l.sub!.unsubscribe();
+              delete element.subs[eventType];
+              map.delete(element);
             }
           });
-
-          self.nonBubblingListenersToAdd.delete(input as any);
-
-          subscription.unsubscribe();
+          this.nonBubblingListenersToAdd.delete(rec);
+          this.removeListener(rec[3], eventType);
         }
-      });
-    }
+      },
+    });
   }
 
   public removeElement(element: Element): void {
@@ -252,21 +246,28 @@ export class EventDelegator {
     }
   }
 
+  // the queues a destination goes in: its scope's and its ancestors' up to the nearest total scope
+  private eachSet(
+    n: Array<Scope>,
+    eventType: string,
+    f: (map: Map<string, PriorityQueue<Destination>>, max: number) => void,
+    create?: boolean
+  ): void {
+    let max = n.length;
+    do {
+      const map = this.virtualListeners.get(n, create ? () => new Map() : undefined, max);
+      if (map) f(map, max);
+      max--;
+    } while (max >= 0 && n[max].type !== 'total');
+  }
+
   private insertListener(
     subject: Stream<Event>,
     scopeChecker: ScopeChecker,
     eventType: string,
     options: EventsFnOptions
   ): Destination {
-    const relevantSets: Array<PriorityQueue<Destination>> = [];
     const n = scopeChecker._namespace;
-    let max = n.length;
-
-    do {
-      relevantSets.push(this.getVirtualListeners(eventType, n, true, max));
-      max--;
-    } while (max >= 0 && n[max].type !== 'total');
-
     const destination = {
       ...options,
       scopeChecker,
@@ -276,40 +277,42 @@ export class EventDelegator {
       passive: !!options.passive,
     };
 
-    for (let i = 0; i < relevantSets.length; i++) {
-      relevantSets[i].add(destination, n.length);
-    }
+    this.eachSet(n, eventType, map => {
+      if (!map.has(eventType)) map.set(eventType, new PriorityQueue<Destination>());
+      map.get(eventType)!.add(destination, n.length);
+    }, true);
 
     return destination;
   }
 
+  // P45-A: take a stopped stream's destination out, and drop the queues and scopes left empty
+  private removeListener(dest: Destination, eventType: string): void {
+    const n = dest.scopeChecker._namespace;
+    this.eachSet(n, eventType, (map, max) => {
+      const q = map.get(eventType);
+      if (q && !q.delete(dest)) {
+        map.delete(eventType);
+        if (!map.size) this.virtualListeners.delete(n, max);
+      }
+    });
+  }
+
   private getVirtualListeners(
     eventType: string,
-    namespace: Array<Scope>,
-    exact = false,
-    max?: number
+    namespace: Array<Scope>
   ): PriorityQueue<Destination> {
-    let _max = max !== undefined ? max : namespace.length;
-    if (!exact) {
-      for (let i = _max - 1; i >= 0; i--) {
-        if (namespace[i].type === 'total') {
-          _max = i + 1;
-          break;
-        }
-        _max = i;
+    let _max = namespace.length;
+    for (let i = _max - 1; i >= 0; i--) {
+      if (namespace[i].type === 'total') {
+        _max = i + 1;
+        break;
       }
+      _max = i;
     }
 
-    const map = this.virtualListeners.get(
-      namespace,
-      () => new Map<string, PriorityQueue<Destination>>(),
-      _max
-    )!;
-
-    if (!map.has(eventType)) {
-      map.set(eventType, new PriorityQueue<Destination>());
-    }
-    return map.get(eventType) as PriorityQueue<Destination>;
+    // a lookup never adds a scope (P45-A)
+    const map = this.virtualListeners.get(namespace, undefined, _max);
+    return (map && map.get(eventType)) || ([] as any);
   }
 
   private setupDOMListener(eventType: string, passive: boolean): void {
@@ -334,8 +337,8 @@ export class EventDelegator {
   private setupNonBubblingListener(
     input: NonBubblingMeta
   ): void {
-    const [_, eventType, elementFinder, destination] = input;
-    if (!this.origin) {
+    const [_, eventType, elementFinder, destination, started] = input;
+    if (!this.origin || !started) {
       return;
     }
 

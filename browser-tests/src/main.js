@@ -29,6 +29,7 @@ import { timerFrameTests3K } from './tests/timers-frame-3k.jsx'
 import { persistTests3B } from './tests/persist-3b.jsx'
 import { viewTransitionTestsP1b } from './tests/view-transitions-p1b.jsx'
 import { g213Tests } from './tests/g213-collection-move.jsx'
+import { delegatorLeakTestsP45A } from './tests/delegator-leak-p45a.jsx'
 import { getResults } from './harness.js'
 
 async function runAll() {
@@ -63,6 +64,7 @@ async function runAll() {
   await persistTests3B()
   await viewTransitionTestsP1b()
   await g213Tests()
+  await delegatorLeakTestsP45A()
 
   const results = getResults()
   const passed = results.filter(r => r.status === 'pass').length

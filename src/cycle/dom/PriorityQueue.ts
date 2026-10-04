@@ -20,13 +20,15 @@ export default class PriorityQueue<T> {
     }
   }
 
-  public delete(t: T): void {
+  // returns how many are left
+  public delete(t: T): number {
     for (let i = 0; i < this.arr.length; i++) {
       if (this.arr[i] === t) {
         this.arr.splice(i, 1);
         this.prios.splice(i, 1);
-        return;
+        break;
       }
     }
+    return this.arr.length;
   }
 }
