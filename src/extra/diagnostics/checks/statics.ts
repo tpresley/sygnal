@@ -9,9 +9,10 @@
  * statics are frozen at the top level, so such a mutation throws a TypeError where it happens
  * (in a reducer: reported as SYG216 with the error attached; in a view: SYG406).
  *
- * Both the instance's values (after behaviors or persist() merged theirs) and the component
- * function's own statics are frozen. Mechanism: onIntent, which runs during construction,
- * before the model is wired.
+ * Only the component function's own statics are frozen, not the instance's values (G-268: those
+ * can be the caller's objects, e.g. renderComponent's `initialState` option or a host's props,
+ * and behaviors or persist() make per-instance copies). Mechanism: onIntent, which runs during
+ * construction, before the model is wired.
  */
 import type {DiagnosticCheck} from '../index'
 
@@ -37,7 +38,6 @@ export const staticsCheck: DiagnosticCheck = {
   id: 'statics',
 
   onIntent(component) {
-    freeze(component)
     if (typeof component?.view == 'function') freeze(component.view)
   },
 }
