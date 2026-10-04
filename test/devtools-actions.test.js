@@ -1,12 +1,15 @@
 // @vitest-environment jsdom
 // PLAN-4 3-E (GS-10): the DevTools action log, "Copy as test" and the Redux DevTools bridge in
 // the dev-only 'sygnal/devtools' entry. Runs against the built package (npm run build).
-import { describe, it, expect, beforeAll, afterEach } from 'vitest'
+import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest'
 import * as core from '../dist/index.esm.js'
 
 const { h, run, set, createElement, Collection } = core
 const EXT = '__SYGNAL_DEVTOOLS_EXTENSION__'
-const tick = (ms = 0) => new Promise(r => setTimeout(r, ms))
+// G-233: wait for the condition, not a fixed time (fixed ticks failed under full-suite load)
+const until = (fn) => vi.waitFor(fn, { timeout: 5000, interval: 5 })
+const rendered = (sel) => until(() => expect(document.querySelector(sel)).toBeTruthy())
+const noteAfter = (n, after) => until(() => expect(dev.getActions({ type: 'NOTE' })[n]?.after).toEqual(after))
 
 let dev
 beforeAll(async () => { dev = await import('../dist/devtools.esm.js') })
@@ -50,10 +53,10 @@ describe('sygnal/devtools action log (PLAN-4 3-E)', () => {
   it('records every action with { type, data, component, instance, sinks, cause, at } and the state around it', async () => {
     expect(dev.isRecording()).toBe(true)
     mount(Counter)
-    await tick(20)
+    await rendered('.inc')
     dev.clearActions()
     click('.inc')
-    await tick(30)
+    await noteAfter(0, { count: 1, last: 1 })
     const list = dev.getActions({ component: 'Counter' })
     expect(list.map(a => [a.type, a.cause])).toEqual([['INC', 'intent'], ['NOTE', 'next']])
     const [inc, note] = list
@@ -69,7 +72,7 @@ describe('sygnal/devtools action log (PLAN-4 3-E)', () => {
     expect(dev.getActions({ type: /^IN/ }).map(a => a.type)).toEqual(['INC'])
     // an action that changes no state has no before / after
     click('.count')
-    await tick(20)
+    await until(() => expect(dev.getActions({ type: 'PING' })).toHaveLength(1))
     const ping = dev.getActions({ type: 'PING' })[0]
     expect(ping.sinks).toEqual(['LOG'])
     expect('after' in ping).toBe(false)
@@ -77,11 +80,11 @@ describe('sygnal/devtools action log (PLAN-4 3-E)', () => {
 
   it('copyAsTest replays intent actions (not next ones) and asserts the final state', async () => {
     mount(Counter)
-    await tick(20)
+    await rendered('.inc')
     dev.clearActions()
     click('.inc')
     click('.inc')
-    await tick(30)
+    await noteAfter(1, { count: 2, last: 2 })
     const r = dev.copyAsTestResult(app, { componentImport: "import Counter from './Counter.js'" })
     expect(r.complete).toBe(true)
     expect(r.replayed).toBe(2)
@@ -97,12 +100,12 @@ describe('sygnal/devtools action log (PLAN-4 3-E)', () => {
 
   it("leaves the assertion out when a child changed the state through its own actions; the child's session replays", async () => {
     mount(List)
-    await tick(30)
+    await rendered('.toggle')
     dev.clearActions()
     click('.add')
-    await tick(30)
+    await until(() => expect(document.querySelectorAll('.toggle')).toHaveLength(2))
     click('.toggle', 1)
-    await tick(30)
+    await until(() => expect(document.querySelectorAll('.toggle')[1].textContent).toBe('done'))
     const root = dev.copyAsTestResult(List)
     expect(root.complete).toBe(false)
     expect(root.code).toContain("t.simulateAction('ADD', { type: 'click' })")
@@ -123,9 +126,9 @@ describe('sygnal/devtools action log (PLAN-4 3-E)', () => {
     Saver.intent = ({ DOM, STATE }) => ({ INC: DOM.click('.inc'), SAVE: STATE.stream.drop(1) })
     Saver.model = { INC: (s) => ({ n: s.n + 1 }), SAVE: { LOG: (s) => 'saved ' + s.n } }
     mount(Saver)
-    await tick(20)
+    await rendered('.inc')
     click('.inc')
-    await tick(30)
+    await until(() => expect(dev.getActions({ component: 'Saver', type: 'SAVE' })).toHaveLength(1))
     const save = dev.getActions({ component: 'Saver', type: 'SAVE' })
     expect(save.map(a => [a.cause, a.echo])).toEqual([['intent', true]])
     const r = dev.copyAsTestResult(Saver)
@@ -135,10 +138,10 @@ describe('sygnal/devtools action log (PLAN-4 3-E)', () => {
 
   it('getSession() is plain data, and copyAsTest takes it back', async () => {
     mount(Counter)
-    await tick(20)
+    await rendered('.inc')
     dev.clearActions()
     click('.inc')
-    await tick(30)
+    await noteAfter(0, { count: 1, last: 1 })
     const s = dev.getSession(Counter)
     expect(s).toMatchObject({ version: 1, component: 'Counter', initialState: { count: 0, last: null }, finalState: { count: 1, last: 1 } })
     expect(s.actions.map(a => [a.type, a.cause])).toEqual([['INC', 'intent'], ['NOTE', 'next']])
@@ -259,17 +262,16 @@ describe('sygnal/devtools bridge: action log messages (PLAN-4 3-E)', () => {
     const send = (type, payload = {}) => window.dispatchEvent(new MessageEvent('message', { data: { source: EXT, type, payload }, source: window }))
     try {
       mount(Counter)
-      await tick(20)
+      await rendered('.inc')
       send('CONNECT')
       expect(posted.some(m => m.type === 'ACTIONS_RESET')).toBe(true)
       send('CLEAR_ACTIONS')
       expect(posted.at(-1)).toMatchObject({ type: 'ACTIONS_RESET', payload: { actions: [] } })
       click('.inc')
-      await tick(30)
-      const batches = posted.filter(m => m.type === 'ACTIONS').flatMap(m => m.payload.actions)
-      const inc = batches.filter(a => a.type === 'INC').at(-1)
+      const batches = () => posted.filter(m => m.type === 'ACTIONS').flatMap(m => m.payload.actions)
+      await until(() => expect(batches().some(a => a.type === 'NOTE' && a.cause === 'next')).toBe(true))
+      const inc = batches().filter(a => a.type === 'INC').at(-1)
       expect(inc).toMatchObject({ component: 'Counter', cause: 'intent', sinks: ['STATE', 'EFFECT'], data: '[MouseEvent click]', before: { count: 0, last: null }, after: { count: 1, last: null } })
-      expect(batches.some(a => a.type === 'NOTE' && a.cause === 'next')).toBe(true)
 
       dt.configureCopyAsTest({ componentImport: "import Counter from './Counter.js'" })
       send('COPY_AS_TEST', {})
@@ -296,18 +298,17 @@ describe('Redux DevTools bridge (PLAN-4 3-E stretch)', () => {
     let off
     try {
       mount(Counter)
-      await tick(20)
+      await rendered('.inc')
       off = dev.connectReduxDevtools(app)
       click('.inc')
-      await tick(30)
+      await until(() => expect(sent).toHaveLength(2))
       expect(inits).toEqual([{ count: 0, last: null }])
       expect(sent.map(([a]) => a.type)).toEqual(['Counter/INC', 'Counter/NOTE'])
       expect(sent[0][0]).toMatchObject({ payload: '[MouseEvent click]', cause: 'intent' })
       expect(sent[0][1]).toEqual({ count: 1, last: null })
       expect(sent[1][1]).toEqual({ count: 1, last: 1 })
       listener({ type: 'DISPATCH', payload: { type: 'JUMP_TO_STATE' }, state: JSON.stringify({ count: 7, last: null }) })
-      await tick(30)
-      expect(document.querySelector('.count').textContent).toBe('7')
+      await until(() => expect(document.querySelector('.count').textContent).toBe('7'))
       off()
       expect(listener).toBeUndefined()
     } finally {
@@ -329,9 +330,9 @@ describe('Redux DevTools bridge (PLAN-4 3-E stretch)', () => {
       expect(dev.connectReduxDevtools()).toBe(off)
       expect(connects).toBe(1)
       mount(Counter)
-      await tick(20)
+      await rendered('.inc')
       click('.inc')
-      await tick(30)
+      await until(() => expect(sent).toHaveLength(2))
       expect(inits).toEqual([{ count: 0, last: null }])
       expect(sent).toEqual(['Counter/INC', 'Counter/NOTE'])
     } finally {
