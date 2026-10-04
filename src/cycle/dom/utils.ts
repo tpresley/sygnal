@@ -86,3 +86,8 @@ export function makeInsert(
     }
   };
 }
+
+// G-261: a DOM change Sygnal makes outside a patch (a Transition's leave, a Portal mounted late)
+// re-emits the DOM source of the app whose root contains `el` (makeDOMDriver listens on its root)
+export const POKE = 'sygnal-dom';
+export const pokeDOM = (el: any): any => el?.dispatchEvent(new Event(POKE, {bubbles: true}));

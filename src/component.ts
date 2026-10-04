@@ -5,6 +5,7 @@ import {StateSource} from './cycle/state/index';
 import {objIsEqual} from './cycle/state/objIsEqual';
 import {init as snabbdomInit} from './cycle/dom/snabbdom';
 import defaultModules from './cycle/dom/modules';
+import {pokeDOM} from './cycle/dom/utils';
 import {renderSeq, inputSeq, isField} from './cycle/dom/controlledInputModule';
 import {uidPart, isAbort, NOT_SINK} from './shared';
 import {makeCommandSource} from './extra/command';
@@ -1880,7 +1881,9 @@ function applyTransitionHooks(vnode: any, name: string, duration?: number): any 
         el.classList.add(`${name}-leave-to`)
         onTransitionEnd(el, duration, () => {
           el.classList.remove(`${name}-leave-active`, `${name}-leave-to`)
+          const p = el.parentNode
           rm()
+          pokeDOM(p)
         })
       })
     })
@@ -1943,6 +1946,7 @@ function createPortalPlaceholder(target: string, children: any[]): any {
             if (vnode.data._portalVnode) return // already mounted
             if (document.querySelector(target)) {
               portalMount(vnode, target, portalChildren)
+              pokeDOM(vnode.data._portalContainer)
             } else if (++attempts < 10) {
               setTimeout(tryMount, 5)
             } else {
