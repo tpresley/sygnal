@@ -5,7 +5,7 @@ import {StateSource} from './cycle/state/index';
 import {objIsEqual} from './cycle/state/objIsEqual';
 import {init as snabbdomInit} from './cycle/dom/snabbdom';
 import defaultModules from './cycle/dom/modules';
-import {renderSeq, inputSeq} from './cycle/dom/controlledInputModule';
+import {renderSeq, inputSeq, isField} from './cycle/dom/controlledInputModule';
 import {uidPart, isAbort, NOT_SINK} from './shared';
 import {makeCommandSource} from './extra/command';
 import {runElementCommands} from './extra/elementCommands';
@@ -210,6 +210,7 @@ class Component {
   _hubs: Record<string, any> = {};
   _d!: number;
   _w = 0;
+  declare _f: number;
   _go!: () => any;
 
   constructor({name = 'NO NAME', sources, intent, model, hmrActions, context, view, peers = {}, components = {}, initialState, calculated, storeCalculatedInState = true, DOMSourceName = 'DOM', stateSourceName = 'STATE', isolatedState = false, onError, debug = false}: ComponentOptions) {
@@ -1183,8 +1184,9 @@ class Component {
     const st = this.sources[this.stateSourceName], page = this.sources.__switchPage, k = this.sources.__k, d = this._d
     const ins: any[] = [
       // G-146/P45-C: an equal state still renders after an input (a model that rewrites the typed
-      // text to what it was, e.g. at a length cap, puts the field back)
-      ['state', st ? st.stream : xs.never(), (a: any, b: any) => objIsEqual(a, b) && inputSeq() <= this._inputSeq],
+      // text to what it was, e.g. at a length cap, puts the field back; D155). G-259: only where
+      // the last view had a form field (_f, set by walkView)
+      ['state', st ? st.stream : xs.never(), (a: any, b: any) => objIsEqual(a, b) && !(this._f && inputSeq() > this._inputSeq)],
       ['context', this.context$, objIsEqual],
     ]
     if (this.sources.props$) ins.push(['props', this.sources.props$, propsIsEqual])
@@ -1662,9 +1664,11 @@ function makeLog(context: string): any {
  */
 function walkView(root: any, inst: any, nameSet: Set<string>): [any, Record<string, any>] {
   const seq = inst._inputSeq, byName = nameSet.size > 3, found: Record<string, any> = {}
+  inst._f = 0
   const walk = (vnode: any, path: string, collect: any, pre: any): any => {
     if (!vnode || (vnode.$p && !byName)) return vnode
     if (vnode.data) vnode.data.inputSeq = seq
+    if (isField(vnode)) inst._f = 1
     const sel = vnode.sel, data = vnode.data, children = vnode.children || []
     if (pre && sel) {
       const props = data?.props || {}
