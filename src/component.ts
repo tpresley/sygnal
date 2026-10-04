@@ -1869,7 +1869,9 @@ function hasNotReadyChild(vnode: any): boolean {
 }
 
 function processSuspensePost(vnode: any): any {
-  if (!vnode || !vnode.sel) return vnode
+  // P45-A: a child component's vnode (scoped: data.isolate) went through its own
+  // processSuspensePost before it was emitted, so there is nothing to do below it
+  if (!vnode || !vnode.sel || vnode.data?.isolate) return vnode
   if (vnode.sel === 'suspense') {
     const props = vnode.data?.props || {}
     const fallback = props.fallback
@@ -1881,11 +1883,12 @@ function processSuspensePost(vnode: any): any {
     return { sel: 'div', data: { attrs: { 'data-sygnal-suspense': pending ? 'pending' : 'resolved' } }, children: pending ? [typeof fallback === 'string' ? { text: fallback } : fallback] : children.map(processSuspensePost), text: undefined, elm: undefined, key: undefined }
   }
   // P45-A: the input when no Suspense is below, else a copy of the path to it only
+  const kids = vnode.children
   let children: any
-  vnode.children?.forEach((child: any, i: number) => {
-    const out = processSuspensePost(child)
-    if (out !== child) (children ||= vnode.children.slice())[i] = out
-  })
+  for (let i = 0; kids && i < kids.length; i++) {
+    const out = processSuspensePost(kids[i])
+    if (out !== kids[i]) (children ||= kids.slice())[i] = out
+  }
   return children ? { ...vnode, children } : vnode
 }
 

@@ -148,4 +148,20 @@ describe('P45-A: unchanged vnodes keep their identity', () => {
       expect(root.querySelector('div').lastElementChild.className).toBe('go')
     }
   })
+
+  // the parent's walk skips child component vnodes: each child resolved its own Suspense
+  it('a Suspense inside child components and Collection items is still resolved', async () => {
+    function Inner() { return h('b', { className: 'inner' }, 'in') }
+    function Cell({ state }) {
+      return h('span', { className: 'cell' }, h(Suspense, { fallback: 'wait' }, h(Inner), h('i', null, String(state.id))))
+    }
+    function Grid() {
+      return h('div', null, h(Cell, { state: 'one' }), h(Collection, { of: Cell, from: 'rows' }))
+    }
+    Grid.initialState = { one: { id: 'x' }, rows: [{ id: 1 }, { id: 2 }] }
+    const root = start(Grid)
+    await until(() => root.querySelectorAll('.inner').length === 3)
+    expect(root.querySelectorAll('suspense').length).toBe(0)
+    expect(root.querySelectorAll('[data-sygnal-suspense="resolved"]').length).toBe(3)
+  })
 })
