@@ -52,7 +52,7 @@ Relative paths resolve against the repo root, `./` and `../` against the spec fi
 
 **What is recorded.** The variant is resolved once per run: content hashes of the skill (or its git tree id), overlay dirs and packed dirs, a given tarball's sha256, the effective model and effort. Its name and a 12-hex hash of that resolved spec go into every result record (`variant`, `variantHash`) and the manifest (`variant` with the resolved spec, `variants`). The starter version goes into every record (`starterVersion`) and the manifest (`starterVersion`, `starterVersions`); a record or manifest without it is starter 1. The starter kit's content (its file text and the packed `sygnal-check`) is part of the hash; a variant on starter 1 hashes exactly as before starter versions existed, so a Phase 3 run's `variantHash` is reproduced by its spec plus `"starter": 1` (same file name; the name is hashed; skill and sygnal-check content as at the time). Runs without a variant (the legacy posture) use starter 1. Resuming a run with a different variant, or the same variant after its skill or overlay changed, is refused unless `--allow-mixed`. The materialized variant (skill copy, packs, `prepare.json`, `mcp.json`, an npm tarball) is in `<trials-root>/<run>/_variant/`, and `analyze.mjs` gets the skill copy as `--skill-dir`.
 
-Shipped variants: `baseline-5.4.0` (published `sygnal@5.4.0` + the 5.4.0 skill from git, on starter 1, so it reproduces the v2-baseline conditions without sygnal-check: the D45 reference), `branch` (this checkout's build + `skills/sygnal-dev` on the current starter: the control for experiments), `e5-no-skill`, `e7-sonnet`, `e7-haiku`, `e8-mcp`, `e9-add-test`, `e9-no-test` (all on the current starter), `p4-ct1-a` / `p4-ct1-b` (PLAN-4 1-E, below). Kept for reproducing Phase 3, not recommended: `e1-check` and `e1-pretest` (starter 1 plus their own sygnal-check overlay; E1 was adopted as starter 2, and its verdict drops the pretest hook). Run each experiment's control as a variant too (`branch`), so both sides share the isolated posture and the starter; older runs (`v2-baseline`) used the installed-skill posture, and every run up to Phase 3 the bare starters.
+Shipped variants: `baseline-5.4.0` (published `sygnal@5.4.0` + the 5.4.0 skill from git, on starter 1, so it reproduces the v2-baseline conditions without sygnal-check: the D45 reference), `branch` (this checkout's build + `skills/sygnal-dev` on the current starter: the control for experiments), `e5-no-skill`, `e7-sonnet`, `e7-haiku`, `e8-mcp`, `e9-add-test`, `e9-no-test` (all on the current starter), `p4-ct1-a` / `p4-ct1-b` (PLAN-4 1-E, below), `p4-final6`, `p4-gs14-a` / `p4-gs14-b` (PLAN-4 4-E, below). Kept for reproducing Phase 3, not recommended: `e1-check` and `e1-pretest` (starter 1 plus their own sygnal-check overlay; E1 was adopted as starter 2, and its verdict drops the pretest hook). Run each experiment's control as a variant too (`branch`), so both sides share the isolated posture and the starter; older runs (`v2-baseline`) used the installed-skill posture, and every run up to Phase 3 the bare starters.
 
 ```bash
 # The control (Sygnal arm; add react for gap measurements)
@@ -113,12 +113,63 @@ node evals/agent-ergonomics/analysis/compare.mjs --base p4-ct1-a-haiku --next p4
 
 Read the bar off the matched-mean tables: Opus `wall (s)` ratio ≤ 1.05×; Haiku `pass rate` Δ ≥ 0; `wiring failures` (failed for a wiring/isolation reason, or unclassified with a SYG104/110/124 finding left in the final code) and `SYG104/110/124 hits` (tool results that showed one of those diagnostics while the agent worked) Δ ≤ 0 on both models; `learn (s)` Δ ≤ +1 (Opus; Haiku for context). Peak context is reported, not gated. With 5 trials per cell the result is directional.
 
+### PLAN-4 4-E: final eval (`p4-final6`, `p4-gs14-a`, `p4-gs14-b`)
+
+`dev-plans/PLAN-4.md` §7 "4-E final". Every run packs the same checkout (the integration branch, built once; don't rebuild between runs or while resuming one, or the tarball check refuses to resume):
+
+- **`p4-final6`**: `branch` under its own name, so the runs are labeled: this build, `skills/sygnal-dev` (the canonical selector guidance; controls are an alternative form, D141), starter 2. The Sygnal runs on all tiers, both models, and the React runs on `ergo`.
+- **GS-14 A/B** (test-authoring time; Sygnal arm, Opus, tasks 03, 10, 29, which test typing, blur/validation and labelled fields): both arms get `@testing-library/dom` and `@testing-library/user-event` in the starter's devDependencies and the prompt suffix "Add a test for your change.". **A** (`p4-gs14-a`) has the default guidance (the skill; `llms.txt` only links the docs section). **B** (`p4-gs14-b`) appends a "Testing with Testing Library" section to the kit's AGENTS.md (`within(t.container)`, `userEvent` with `dom: 'real'`, role queries, waiting with `t.waitForState`), which the kit's CLAUDE.md imports, so every B trial has it in context. The packages are in both arms so B differs from A only in guidance; a measured gain then comes from Testing Library itself, which is what the `t.screen`/`t.user` getters would make easier. The example is neutral (a todo field), so it hints at none of the three tasks.
+
+New per-trial measures (`analysis/lib/finalmeasures.mjs`, as compare metrics): `testWindow` (first test-file write → end of the trial, s), `testAuthoring` (the analyzer's test-authoring phase, s), `testLearn` (learn time on the test tooling, s), `usedTestingLibrary` (kept tests import `@testing-library`), `a11yFinal` (SYG7xx findings sygnal-check reports on the final src) and `usedActionLog` (the agent used `t.actions`, `t.inspect()` or `t.explain()` in what it wrote or ran: the D132 skill line). Analyses written before this have none of them; re-run `analyze.mjs` on a run to add them.
+
+Runs, in order, from the integration worktree after `npm run build` (each resumable; run one at a time):
+
+```bash
+node evals/agent-ergonomics/verify.mjs --arm both
+node evals/agent-ergonomics/orchestrate.mjs --run p4-final6-opus             --variant p4-final6 --arms sygnal --tasks all --trials 5 --concurrency 4 --model claude-opus-5-5
+node evals/agent-ergonomics/orchestrate.mjs --run p4-final6-react-ergo       --variant p4-final6 --arms react  --tasks ergo --trials 5 --concurrency 4 --model claude-opus-5-5
+node evals/agent-ergonomics/orchestrate.mjs --run p4-final6-haiku            --variant p4-final6 --arms sygnal --tasks tier1,tier2,tier3,ergo --trials 5 --concurrency 4 --model claude-haiku-4-5-20251001
+node evals/agent-ergonomics/orchestrate.mjs --run p4-final6-react-ergo-haiku --variant p4-final6 --arms react  --tasks ergo --trials 5 --concurrency 4 --model claude-haiku-4-5-20251001
+node evals/agent-ergonomics/orchestrate.mjs --run p4-final6-gs14-a           --variant p4-gs14-a --arms sygnal --tasks 03,10,29 --trials 5 --concurrency 4 --model claude-opus-5-5
+node evals/agent-ergonomics/orchestrate.mjs --run p4-final6-gs14-b           --variant p4-gs14-b --arms sygnal --tasks 03,10,29 --trials 5 --concurrency 4 --model claude-opus-5-5
+```
+
+The Haiku Sygnal run covers tiers 1–3 and `ergo` (the plan within the ≈ $110 budget). The full plan's Haiku run is `--tasks all` (adds `ts` and `net`, ≈ +$16): `net` 24/25 were beyond Haiku in both arms in PLAN-3, and `ts` repeats tasks 02, 03, 09 and 12. To extend a finished trimmed run, re-run its command with `--tasks all`: the scored trials are skipped.
+
+**Analysis (4-F).** The orchestrator analyzes each run. References: PLAN-3's final runs (REPORT-v3) `p3-v6` (Opus, tasks 01–25), `p3-v7` (Opus, 23–25 after the G-184/G-185 fixes), `p3-v6-haiku` (Haiku; 10 trials on 02, 10, 11, 17, 22); React `p3-control-react` (01–17); the 0-E ergo baseline `p4-ergo-baseline` (PLAN-3 build, both arms, Opus). First re-analyze the ergo baseline with this checkout so it has the new measures (its trials are in `/private/tmp/sygnal-evals/trials`; sygnal-check here is the 6.0 one, so its SYG7xx counts are what 6.0 says about 0-E's code):
+
+```bash
+node evals/agent-ergonomics/analysis/analyze.mjs --run p4-ergo-baseline --trials-root /tmp/sygnal-evals/trials --skill-dir /tmp/sygnal-evals/trials/p4-ergo-baseline/_variant/skillroot/.claude/skills/sygnal-dev
+# 1. D76 (learn time and peak context vs PLAN-3; more than about 10% worse → trim before release). Opus, task-matched:
+node evals/agent-ergonomics/analysis/compare.mjs --base p3-v6 --next p4-final6-opus --arms sygnal --tasks 01-22 --metrics pass,wall,learn,peakContext,costUsd
+node evals/agent-ergonomics/analysis/compare.mjs --base p3-v7 --next p4-final6-opus --arms sygnal --tasks 23-25 --metrics pass,wall,learn,peakContext,costUsd
+# 2. No regression on existing tiers beyond noise (the same tables per tier; Haiku pass rate):
+node evals/agent-ergonomics/analysis/compare.mjs --base p3-v6 --next p4-final6-opus --arms sygnal --tasks tier1 --metrics pass,wall   # likewise tier2, tier3, ts, net
+node evals/agent-ergonomics/analysis/compare.mjs --base p3-v6-haiku --next p4-final6-haiku --arms sygnal --metrics pass,wall,learn,peakContext
+# 3. ergo: Opus 20/20, and against the 0-E baseline (both arms):
+node evals/agent-ergonomics/analysis/compare.mjs --base p4-ergo-baseline --next p4-final6-opus --arms sygnal --tasks ergo --metrics pass,wall,learn,peakContext,iterations,usedActionLog
+node evals/agent-ergonomics/analysis/compare.mjs --base p4-ergo-baseline:react --next p4-final6-react-ergo:react --tasks ergo --metrics pass,wall
+# 4. Sygnal–React gap on ergo (bar: ≤ PLAN-3's tier-2 gap, +10.3 s / 1.29×; the 0-E ergo gap was +31.1 s / 1.68×):
+node evals/agent-ergonomics/analysis/compare.mjs --base p4-final6-react-ergo:react --next p4-final6-opus:sygnal --tasks ergo --metrics pass,wall,peakContext
+node evals/agent-ergonomics/analysis/compare.mjs --base p3-control-react:react --next p3-v6:sygnal --tasks tier2 --metrics pass,wall   # the reference gap
+# 5. Haiku ergo pass rate ≥ React Haiku (pass rate Δ ≥ 0):
+node evals/agent-ergonomics/analysis/compare.mjs --base p4-final6-react-ergo-haiku:react --next p4-final6-haiku:sygnal --tasks ergo --metrics pass,wall
+# 6. SYG7xx in Opus final code on task 29 (measured, not gating; bar 0 in every trial):
+node evals/agent-ergonomics/analysis/compare.mjs --base p4-ergo-baseline --next p4-final6-opus --arms sygnal --tasks 29 --metrics pass,a11yFinal
+# 7. GS-14 A/B:
+node evals/agent-ergonomics/analysis/compare.mjs --base p4-final6-gs14-a --next p4-final6-gs14-b --arms sygnal --metrics pass,wall,testWindow,testAuthoring,testLearn,usedTestingLibrary
+```
+
+Bars (§7): `ergo` Opus pass 100% (20/20); the ergo gap ratio ≤ 1.29× (the reference's matched wall ratio; report the Δ too, since ergo tasks are longer); Haiku ergo pass rate Δ ≥ 0 against React Haiku; no tier's matched wall or pass rate worse beyond noise (with 5 trials, a tier mean moving less than about 10% is noise; name any task that moved more); `SYG7xx in final code` = 0 on task 29. D76: `learn (s)` and `peak context (k)` matched means no more than about 10% above the reference, else trim the agent docs before release. Notes for the report: since 2-D, nine starters (01, 02, 07, 09, 12, 18, 20, 21, 25) print SYG702 warnings from the vendored sygnal-check that PLAN-3's runs didn't see (G-205); SKILL.md grew from 34,343 B (PLAN-3) to about 38.9 KB, so some peak-context rise is expected. **GS-14 rule (fixed before the runs):** build the `t.screen`/`t.user` getters only if B's `first test write → end` matched mean is at least 10% below A's, the test-authoring phase isn't higher and the pass rate isn't lower, and B's kept tests actually use Testing Library (`usedTestingLibrary` ≥ 60%); otherwise the docs stand alone.
+
+Failed trials: classify them (step 5; `analysis/wiring.mjs --run <run>` prints a `score.mjs --classify` line per unclassified failure), then re-run `analyze.mjs` for that run.
+
 ### Comparing runs (task-matched, G-119)
 
 `analysis/compare.mjs --base <run>[:arm] --next <run>[:arm]` compares only the (arm, task) cells both sides have: per cell the mean of its trials, then the **matched mean** over the shared tasks (each task weighs the same) and the delta next − base, with the ratio; then a per-task table. Tasks only one side has are listed, not averaged in. Pinning an arm on a side (`v2-baseline:react`) compares across arms and runs: cells match on task alone, so `--base v2-baseline:react --next e1-check:sygnal` is the remaining Sygnal − React gap with E1, and `--base e7-sonnet:react --next e7-sonnet:sygnal` is the gap within one run.
 
 - `--arms sygnal,react` and `--tasks tier1|01-05|14,15` (the `--tasks` syntax of the orchestrator) restrict the cells.
-- `--metrics pass,wall,costUsd,iterations` picks the per-task columns; the matched-mean table shows every metric both sides have (pass rate, wall, cost, billed and output tokens, iterations, edit rounds; from an analysis also tool calls, peak context, failed runs, LOC added, wrote-a-test, learn time, and the Sygnal arm's wiring measures `wiringHits`, `wiringFinal`, `wiringFailure` from `analysis/lib/wiring.mjs`).
+- `--metrics pass,wall,costUsd,iterations` picks the per-task columns; the matched-mean table shows every metric both sides have (pass rate, wall, cost, billed and output tokens, iterations, edit rounds; from an analysis also tool calls, peak context, failed runs, LOC added, wrote-a-test, learn time, the Sygnal arm's wiring measures `wiringHits`, `wiringFinal`, `wiringFailure` from `analysis/lib/wiring.mjs`, and the 4-E measures `testWindow`, `testAuthoring`, `testLearn`, `usedTestingLibrary`, `a11yFinal`, `usedActionLog` from `analysis/lib/finalmeasures.mjs`).
 - `--source auto` reads `results/analysis/<run>.json` when it exists, else `results/<run>.json`; if only one side has an analysis both use the results files. `--json` prints the data; `--out f.md` writes it.
 - `--full` appends the old whole-run aggregate diff (phases, catalog, canonical forms), labeled as not task-matched; it is context, not a comparison.
 

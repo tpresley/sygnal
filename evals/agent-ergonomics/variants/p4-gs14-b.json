@@ -1,0 +1,26 @@
+{
+  "description": "PLAN-4 4-E GS-14 A/B (test-authoring time), arm B: exactly p4-gs14-a plus a \"Testing with Testing Library\" section appended to the starter kit's AGENTS.md (within(t.container), userEvent with dom: 'real', role queries, waiting with t.waitForState; the docs' integration/testing section, condensed). The kit's CLAUDE.md imports AGENTS.md, so every trial has it in context. Sygnal arm only; tasks 03, 10, 29",
+  "sygnal": "branch",
+  "skill": {
+    "dir": "skills/sygnal-dev"
+  },
+  "overlay": {
+    "sygnal": {
+      "packageJson": {
+        "devDependencies": {
+          "@testing-library/dom": "^10.4.0",
+          "@testing-library/user-event": "^14.6.1"
+        }
+      },
+      "append": {
+        "AGENTS.md": "\n## Testing with Testing Library\n`@testing-library/dom` and `@testing-library/user-event` are installed. To test like a user, render with `dom: 'real'`, scope the queries to the component with `within(t.container)`, find elements by role and label, and drive them with `userEvent` (it focuses, types, blurs and clicks like a user):\n```jsx\nimport { within } from '@testing-library/dom'\nimport userEvent from '@testing-library/user-event'\nconst t = renderComponent(App, { dom: 'real' })\nawait t.ready()\nconst screen = within(t.container)\nconst user = userEvent.setup()\nawait user.type(screen.getByRole('textbox', { name: 'New todo' }), 'Buy milk')\nawait user.click(screen.getByRole('button', { name: 'Add' }))\nawait t.waitForState(s => s.items.length === 1)   // userEvent doesn't wait for Sygnal to render\nexpect(screen.getByRole('listitem').textContent).toBe('Buy milk')\nt.dispose()\n```\n- Wait with `t.waitForState()` (with `dom: 'real'` it resolves once that state is in the DOM) or a `findBy…` query; `t.next()` can miss a state that arrived during an `await user...` call.\n- Role queries find fields by their label, so they also check that the label is there. `t.state`, `t.actions` and the other `t.*` helpers work alongside.\n"
+      }
+    }
+  },
+  "prompt": {
+    "suffix": "Add a test for your change.",
+    "arms": [
+      "sygnal"
+    ]
+  }
+}

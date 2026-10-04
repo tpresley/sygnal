@@ -1,0 +1,5 @@
+{
+  "description": "PLAN-4 4-E final eval (6.0): this checkout's packed build and its skills/sygnal-dev (the canonical class-selector guidance, D141), isolated per trial, on the current starter (sygnal-check + AGENTS.md). Same content as branch.json, under its own name so the 4-E runs are labeled. Compared with PLAN-3's p3-v6 / p3-v6-haiku (all tiers) and PLAN-4's p4-ergo-baseline (ergo)",
+  "sygnal": "branch",
+  "skill": { "dir": "skills/sygnal-dev" }
+}

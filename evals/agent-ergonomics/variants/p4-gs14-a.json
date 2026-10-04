@@ -1,0 +1,11 @@
+{
+  "description": "PLAN-4 4-E GS-14 A/B (test-authoring time), arm A: p4-final6 (this build, skills/sygnal-dev, starter 2 with its AGENTS.md) plus @testing-library/dom and @testing-library/user-event installed in the starter, and the prompt asks for a test. No Testing Library guidance beyond what the package's llms.txt links to. The control for p4-gs14-b. Sygnal arm only; tasks 03, 10, 29",
+  "sygnal": "branch",
+  "skill": { "dir": "skills/sygnal-dev" },
+  "overlay": {
+    "sygnal": {
+      "packageJson": { "devDependencies": { "@testing-library/dom": "^10.4.0", "@testing-library/user-event": "^14.6.1" } }
+    }
+  },
+  "prompt": { "suffix": "Add a test for your change.", "arms": ["sygnal"] }
+}

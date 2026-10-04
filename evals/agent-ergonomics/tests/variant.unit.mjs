@@ -331,6 +331,29 @@ test('PLAN-4 1-E variants: p4-ct1-a is branch under its own name; p4-ct1-b swaps
   assert.match(skill, /controls\(\{/)
 })
 
+test('PLAN-4 4-E variants: p4-final6 is branch; p4-gs14-b is p4-gs14-a plus the Testing Library section only', async () => {
+  const load = (n) => loadVariant(n, { evalRoot: EVAL_ROOT })
+  const [br, fin, a, b] = await Promise.all([load('branch'), load('p4-final6'), load('p4-gs14-a'), load('p4-gs14-b')])
+  const res = (x) => resolveVariant(x, { repoRoot: REPO_ROOT, model: 'claude-opus-5-5' })
+  const strip = ({ name, hash, file, paths, ...rest }) => rest
+  assert.deepEqual(strip(res(fin)), strip(res(br)), 'p4-final6 has exactly the content of branch')
+  const [ra, rb] = [res(a), res(b)]
+  assert.equal(ra.skill.contentHash, res(br).skill.contentHash, 'the current canonical skill (D141)')
+  assert.equal(rb.skill.contentHash, ra.skill.contentHash)
+  assert.deepEqual(rb.prompt, ra.prompt)
+  assert.deepEqual(ra.prompt.arms, ['sygnal'])
+  // Both arms install the Testing Library packages, so B differs from A only in the AGENTS.md section.
+  const deps = (v) => v.spec.overlay.sygnal.packageJson.devDependencies
+  assert.deepEqual(deps(b), deps(a))
+  assert.deepEqual(Object.keys(deps(a)).sort(), ['@testing-library/dom', '@testing-library/user-event'])
+  const { append, ...bRest } = b.spec.overlay.sygnal
+  assert.deepEqual(bRest, a.spec.overlay.sygnal)
+  assert.deepEqual(Object.keys(append), ['AGENTS.md'])
+  for (const re of [/within\(t\.container\)/, /userEvent\.setup\(\)/, /dom: 'real'/, /getByRole\(/, /t\.waitForState\(/]) assert.match(append['AGENTS.md'], re)
+  // The example must not hint at the A/B's tasks (03 notes status, 10 signup wizard, 29 accessible signup).
+  assert.doesNotMatch(append['AGENTS.md'], /Step \d|Email|Password|Saved|Unsaved|wizard|signup|dialog/i)
+})
+
 test('claudeIsolation + buildClaudeArgs: isolated skills per arm, MCP only where asked', () => {
   const v = { skill: { name: 'sygnal-dev' }, mcp: { arms: ['sygnal'] } }
   const mat = { skillRoot: '/run/_variant/skillroot', mcpConfig: '/run/_variant/mcp.json', mcpAllow: ['mcp__sygnal-check'] }

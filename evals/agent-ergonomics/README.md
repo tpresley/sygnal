@@ -28,11 +28,12 @@ evals/agent-ergonomics/
   starter-kits/sygnal-v2/  starter 2's Sygnal-arm AGENTS.md / CLAUDE.md (as *.tmpl, so the repo has no stray CLAUDE.md), from the 5.4.0 template
   lib/limits.mjs        usage/rate-limit detection and the backoff schedule
   lib/pool.mjs          the orchestrator's worker pool, with usage-limit pauses and a clean stop
-  variants/<name>.json  one spec per experiment arm (baseline-5.4.0, branch, e1-*, e5-*, e7-*, e8-*, e9-*, p3-*, p4-ct1-*)
+  variants/<name>.json  one spec per experiment arm (baseline-5.4.0, branch, e1-*, e5-*, e7-*, e8-*, e9-*, p3-*, p4-ct1-*, p4-final6, p4-gs14-*: PLAN-4 4-E, run.md)
   variants/skills/<x>/  skill variants a spec points at (resources-first: PLAN-3 D91; controls: PLAN-4 1-E)
   variants/p4-ct1-b/    PLAN-4 1-E arm B: converted starters (starters/, from gen-starters.mjs), AGENTS.md.tmpl, llms.txt
   analysis/compare.mjs  task-matched comparison of two runs, also across arms (analysis/lib/matched.mjs)
   analysis/wiring.mjs   wiring-class failures per trial (SYG104/110/124 hits, final code, failure categories; PLAN-4 1-E)
+  analysis/lib/finalmeasures.mjs  PLAN-4 4-E measures: test-authoring time (GS-14), SYG7xx in final code, t.actions use (D132)
   tests/                node:test unit tests for the harness (node --test evals/agent-ergonomics/tests/*.unit.mjs),
                         and fake-claude.mjs, a stand-in CLI for testing the pipeline without API calls
   tasks/NN-slug/        Sygnal arm: PROMPT.md + starter/ (what the agent gets)
