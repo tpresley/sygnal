@@ -363,3 +363,22 @@ The approved figures were 0-E ≈ $15, 1-E ≈ $85 after D140, and 4-E ≈ $106 
    - Realistic expectation: learn about 19 → 9 s gives wall about 63 s and **≈ 1.4×**. That is better than 1.63×, but likely still above 1.29×, because test authoring (+7.5 s) and the remaining lookups stay.
    - Adding Haiku `ergo` at 10 trials per cell in both arms (≈ $56) is the only way to test the Haiku bar meaningfully. At 5 trials, 3 vs 6 of 20 can't be resolved.
    - If 5 is done, also re-run tiers 1 and TS on Opus (60 trials, ≈ $20) to confirm the G-205 attribution.
+
+## Addendum: 4-E2 targeted re-run (2026-10-04, D145)
+
+After the close-out fixes (4-G1: PLAN-4 guides shipped offline and linked locally, `preventDefault`/tick payload/persist format/SYG405 facts, undo `coalesce`, persist `format: 'plain'`; 4-G2: a11y-clean starters, 7xx warn under `--strict`, static SYG405/SYG129/SYG609), `ergo` was re-run on Opus, both arms, in the same hour: `p4-final7-opus-ergo` and `p4-final7-react-ergo` (build `cdb711b`, 20 + 20 trials, all completed).
+
+| Measure (matched, Opus, `ergo`) | 0-E | 4-E (`p4-final6`) | **4-E2 (`p4-final7`)** |
+|---|---|---|---|
+| Sygnal pass | 19/20 | 18/20 | **20/20** ✅ |
+| Sygnal wall (s) | 76.8 | 72.5 | **59.1** |
+| React wall (s) | 45.8 | 44.5 | 40.8 |
+| Gap | 1.68× | 1.63× | **1.45×** (bar 1.29× ❌) |
+| Sygnal learn (s) | 17.6 | 19.2 | **9.8** |
+| Test authoring (s), Sygnal vs React | 17.5 vs — | 17.2 vs 9.7 | 15.8 vs 9.0 |
+| Peak context (k), Sygnal vs React | 42.2 | 45.1 vs 18.1 | 43.1 vs 17.8 |
+| Cost per trial, Sygnal vs React | $0.519 | $0.533 vs $0.205 | $0.475 vs $0.194 |
+
+- The `ergo` Opus pass bar is now met. Learn time halved, as predicted (19 → ~10 s), and the gap moved to about the 1.4× estimate.
+- The remaining gap is test authoring (+6.7 s; fake-timer and real-DOM keyboard tests are longer in Sygnal) and peak context (2.4×, the skill and the larger code). Neither is a docs-reachability problem; both are candidates for later work (test helpers for timers/keyboard; skill size).
+- Spend for 4-E2: about $15. PLAN-4 eval total ≈ $236.
