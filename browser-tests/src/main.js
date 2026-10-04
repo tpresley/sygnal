@@ -27,6 +27,7 @@ import { elementTestsP2b } from './tests/element-p2b.jsx'
 import { elementCommandTests3A } from './tests/element-commands-3a.jsx'
 import { timerFrameTests3K } from './tests/timers-frame-3k.jsx'
 import { viewTransitionTestsP1b } from './tests/view-transitions-p1b.jsx'
+import { g213Tests } from './tests/g213-collection-move.jsx'
 import { getResults } from './harness.js'
 
 async function runAll() {
@@ -59,6 +60,7 @@ async function runAll() {
   await elementCommandTests3A()
   await timerFrameTests3K()
   await viewTransitionTestsP1b()
+  await g213Tests()
 
   const results = getResults()
   const passed = results.filter(r => r.status === 'pass').length
