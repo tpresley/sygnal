@@ -13,7 +13,13 @@ npm test               # the full gate, in order:
                        #   test:examples       each example's own suite (9 examples, 105 tests)
                        #   test:types          tsc on type-tests/
                        #   test:browser        browser-tests/ (154)
+                       #   test:perf-gate      count gate (PLAN-4.5): DOM patches, streams, timers, retained
+                       #                       objects and heap vs benchmarks/audit/gate.json (~15 s; needs
+                       #                       benchmarks/ installed; limits only go down)
 npm run test:examples  # only the example suites (TEST_EXAMPLES_INSTALL=1 or --install runs npm install first)
+node scripts/perf-gate.mjs --runs=3  # the count gate alone, 3 runs with min … max per metric
+node scripts/perf-report.mjs         # timing ratios to React vs PLAN-4.5 targets (warn-only, ~1.5 min, not in npm test);
+                                     #   harness: benchmarks/audit (see benchmarks/README.md)
 npm --prefix sygnal-check test       # static checker package (245 tests, *.vtest.js)
 npm --prefix docs run build          # docs site + internal link check
 node scripts/gen-error-docs.mjs      # regenerate docs reference/errors.md from sygnal-check/explanations.json
@@ -33,6 +39,7 @@ npm ci --prefix browser-tests
 npm ci --prefix sygnal-check             # @babel/parser for vite-plugin-dev and inspect-kanban tests
 npm install --prefix examples/kanban     # its file:../.. link; other examples: TEST_EXAMPLES_INSTALL=1 npm test
 npm install --prefix examples/todomvc    # test/copied and the devtools Copy-as-test tests import it
+npm ci --prefix benchmarks               # Vite + sygnal/vite for test:perf-gate (also: TEST_EXAMPLES_INSTALL=1 npm test)
 npm ci --prefix docs                     # Astro/Starlight, for npm --prefix docs run build
 npm run build
 ```

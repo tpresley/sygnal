@@ -1,8 +1,10 @@
 // Speed + memory benchmark: Sygnal vs React vs Vue in headless Chromium.
-//   node bench.mjs [--fw=sygnal,react] [--scenario=table] [--op=substring] [--iter=10] [--no-memory] [--out=results/x.json]
-// Per op and app: a fresh page, warmup iterations, then measured ones. Reports the median
-// latency (dispatch -> DOM shows the result, layout included) and the median main-thread
-// CPU (CDP TaskDuration from dispatch to 150 ms after the result: includes trailing work).
+//   node bench.mjs [--fw=sygnal,react] [--scenario=table] [--op=substring] [--ops="exact name;exact name"]
+//                  [--iter=10] [--warmup=3] [--no-memory] [--out=results/x.json]
+// Per op and app: a fresh page, warmup iterations, then measured ones. Before each one the page
+// must be quiet (lib/ops.mjs quiet()). Reports medians of: latency (dispatch -> DOM shows the
+// result, layout included), paint (-> next frame), busy (-> main thread idle), and main-thread
+// CPU (CDP TaskDuration from dispatch to 150 ms after idle: includes trailing work).
 import { chromium } from 'playwright'
 import { writeFile, mkdir } from 'node:fs/promises'
 import { resolve } from 'node:path'
@@ -13,6 +15,7 @@ const arg = (k, d) => process.argv.find(a => a.startsWith(`--${k}=`))?.split('='
 const FWS = arg('fw', 'sygnal,react,vue').split(',')
 const SCENARIOS = arg('scenario', Object.keys(OPS).join(',')).split(',')
 const OPF = arg('op', '')
+const OPS_EXACT = process.argv.find(a => a.startsWith('--ops='))?.slice(6).split(';').filter(Boolean)
 const ITER = +arg('iter', 10)
 const WARMUP = +arg('warmup', 3)
 const DIST = arg('dist', 'dist')
@@ -53,7 +56,7 @@ async function heap(cdp) {
 
 async function runOp(fw, page, op) {
   let { p, cdp, ctx, errors } = await openPage(fw, page)
-  const lat = [], cpu = []
+  const lat = [], paint = [], busy = [], cpu = []
   // fresh: a new page per iteration (ops whose setup would be distorted by the previous run)
   const warm = op.fresh ? 1 : WARMUP
   const n = warm + (op.iterations ?? ITER)
@@ -61,18 +64,19 @@ async function runOp(fw, page, op) {
     for (let i = 0; i < n; i++) {
       if (op.fresh && i > 0) { await ctx.close(); ({ p, cdp, ctx } = await openPage(fw, page)); p.on('pageerror', e => errors.push(e.message)) }
       await p.evaluate(`(async () => { const h = window.__h; ${op.setup} })()`)
-      await p.evaluate('window.gc && window.gc()')
+      await p.evaluate('window.__h.quiet()') // the setup's trailing work is over
       const before = await taskSeconds(cdp)
-      const ms = await p.evaluate(`(() => { const h = window.__h; return h.measure(() => { ${op.act} }, () => (${op.done})) })()`)
+      const r = await p.evaluate(`(() => { const h = window.__h; return h.measure(() => { ${op.act} }, () => (${op.done})) })()`)
       await p.waitForTimeout(150)
       const after = await taskSeconds(cdp)
-      if (i >= warm) { lat.push(ms); cpu.push((after - before) * 1000) }
+      if (i >= warm) { lat.push(r.dom); paint.push(r.paint); busy.push(r.busy); cpu.push((after - before) * 1000) }
     }
   } catch (e) {
     errors.push(String(e.message).slice(0, 300))
   }
   await ctx.close()
-  return { latency: lat.length ? round(median(lat)) : null, cpu: cpu.length ? round(median(cpu)) : null, min: lat.length ? round(Math.min(...lat)) : null, samples: lat.map(round), errors: errors.slice(0, 3) }
+  const med = (a) => (a.length ? round(median(a)) : null)
+  return { latency: med(lat), paint: med(paint), busy: med(busy), cpu: med(cpu), min: lat.length ? round(Math.min(...lat)) : null, samples: lat.map(round), errors: errors.slice(0, 3) }
 }
 
 async function memoryRuns(fw) {
@@ -111,12 +115,13 @@ const results = { date: new Date().toISOString(), iter: ITER, warmup: WARMUP, ch
 for (const scenario of SCENARIOS) {
   for (const op of OPS[scenario]) {
     if (OPF && !op.name.includes(OPF)) continue
+    if (OPS_EXACT && !OPS_EXACT.includes(op.name)) continue
     results.speed[op.name] = {}
     for (const fw of FWS) {
       for (const [label, page] of pagesFor(fw, scenario)) {
         const r = await runOp(fw, page, op)
         results.speed[op.name][label] = r
-        console.log(`${op.name.padEnd(26)} ${label.padEnd(20)} latency ${String(r.latency).padStart(9)} ms   cpu ${String(r.cpu).padStart(9)} ms${r.errors.length ? '   ERR ' + r.errors.join(' | ') : ''}`)
+        console.log(`${op.name.padEnd(26)} ${label.padEnd(20)} latency ${String(r.latency).padStart(9)} ms   paint ${String(r.paint).padStart(9)}   busy ${String(r.busy).padStart(9)}   cpu ${String(r.cpu).padStart(9)} ms${r.errors.length ? '   ERR ' + r.errors.join(' | ') : ''}`)
       }
     }
   }
