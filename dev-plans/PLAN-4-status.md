@@ -55,9 +55,9 @@ PLAN-3's end-of-Phase-5 figures (40,403 B, 283 lines, 34,343 B) grew with #12 an
 | 2-D | a11y checker (GS-3) | ✅ merged `5e9c1e5` | `p4-2d-a11y` (`e7af5d7`) | subagent | `5e9c1e5` | 18/31 failing-first; sygnal-check 343; FP review 0/100 on p4-final2 + p3-final, 0/498 elsewhere; examples/templates/doc samples a11y-clean; 5 pending in llms.txt/SKILL.md (4-A) |
 | P-3 | Performance baseline (GS-16) | ✅ merged (non-gating) | `p4-p3-perf` (`88f0b2f`) | subagent | | `benchmarks/RESULTS.md`; `npm --prefix browser-tests run perf`; proposes "Collection O(1) item lookups" (+28 B) → user |
 | P-1 | View Transitions spike (GS-12) | ✅ decided (D129) | `exp/p4-view-transitions` (`bbdc43a`) | subagent | not merged | `dev-plans/research/p1-view-transitions.md` on the exp branch |
-| P-1b | View Transitions, form B | ⬜ | | | | after 3-B (`component.ts`) |
 | P-2b | `sygnal/element` + per-instance `run()` (G-212) | ✅ merged | `p4-p2b-element` (`bf36b39`) | subagent | | core **−72 B** (page-wide HMR persisted state removed); entry 1,554 B gz (1,951 B at es2020 because of `#private`); doc draft in `research/p2b-element-doc-draft.md` for PLAN-5 |
-| PF-1 | Collection O(1) item lookups (D128) | ⬜ | | | | after P-1b (`component.ts`) |
+| PF-1 | Collection O(1) item lookups (D128) | ✅ merged | `p4-pf1-collection` (`007e8ff`) | subagent | | +42 B (est. 28; accepted within D125); Collection edit 16.2 → 8.3 ms, swap 10.7 → 5.5 ms; identity kept for unchanged items; duplicate-id behaviour pinned |
+| P-1b | View Transitions, form B (D129) + G-213 | 🟡 running | `p4-p1b-vt` | subagent | | runs alongside 3-B |
 | 2-R | Review fixes (G-214), G-216, G-218, D131, togglePopover, `t.explain` original fn, Vike `onError` check | ✅ merged | `p4-2r-fixes` (`c2188b6`) | subagent | | +26 B net (uid encoding +28, togglePopover +17, per-app HMR −37); tags `plan4-phase1`, `plan4-phase2` |
 | 3-B | Persist (GS-5) | 🟡 running | `p4-3b-persist` | subagent | | also G-224, G-225, G-226 |
 | 3-A | Element commands (GS-2) | ✅ merged | `p4-3a-element` (`9176436`) | subagent | | +222 B; any element method runs (D133); SYG640/641 dev-only; commands run after the next patch where the target exists, else 16 ms checks, give up after ~1 s |
@@ -259,3 +259,4 @@ They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none o
 - 2026-10-03 — Merged 3-K; gates green (sygnal-check 434, browser 164). G-224, G-225.
 - 2026-10-03 — Merged 4-B part 2. CLAUDE.md setup adds `examples/todomvc`. G-226.
 - 2026-10-03 — Merged 2-R; fixed the debugging page's copied test (2-R removed the settle workaround). Gates green: vitest 2,082 (+1 skipped), browser 165, sygnal-check 435, doc samples 511; 41,129 B gated (PLAN-4 +593 B of 775). Review findings all fixed. Tagged `plan4-phase1` and `plan4-phase2`. D134, D135. Started 3-B.
+- 2026-10-03 — Merged PF-1 (+42 B; 41,171 B gated, PLAN-4 +635 B of 775). 3-B and P-1b running in parallel (each with a few localized `component.ts` lines).
