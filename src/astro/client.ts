@@ -101,7 +101,8 @@ export default (element: any) => {
 
     // G-206: a `uid` island prop is the island's uid root (as on the server); the view's own
     // uid() function wins over the prop (args are spread last)
-    const app = run(Wrapped, {}, { mountPoint, onError, uid: islandProps.uid })
+    // 3-B2: `__hydrate` tells persist() whether the island starts over the server's markup
+    const app = run(Wrapped, { __hydrate: () => client !== 'only' && canHydrate }, { mountPoint, onError, uid: islandProps.uid })
     element.__sygnal = app
   }
 }

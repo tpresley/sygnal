@@ -13,8 +13,10 @@ import {warn} from './diagnostics/legacy';
  * - Restore: a synchronous read before INITIALIZE, merged into initialState, so the restore is
  *   part of the initial-state action. A stored `version` other than `version` (default 1) goes
  *   through `migrate(old, fromVersion)`; without migrate, or when it returns nothing, the entry
- *   is ignored. `hydrate: true` (an app hydrating server HTML) restores in a RESTORE action after
- *   the first state instead, so the first render matches the server's.
+ *   is ignored. Hydrating server HTML, the restore is a RESTORE action after the first state
+ *   instead, so the first render matches the server's. Hydrating: the `hydrate` option when given,
+ *   else the integration's `__hydrate` source (Astro: a server-rendered island; Vike: a hydration),
+ *   else whether run()'s mount point (its `__m` source) already has element children.
  * - Writes: debounced (`debounceMs`, default 100), skipped when the stored text is the same,
  *   flushed on `pagehide` and on dispose.
  * - `PERSIST: { clear: true }` on any model entry (a value or a function of (state, data)) removes
@@ -31,8 +33,11 @@ import {warn} from './diagnostics/legacy';
 const g: any = globalThis;
 
 export const setupPersist = (c: any, o: any): void => {
-  const {key, pick, omit, version = 1, migrate, sync, hydrate, debounceMs = 100} = o;
-  const env = c.sources.__storage, calc = c.calculated || {};
+  const {key, pick, omit, version = 1, migrate, sync, debounceMs = 100} = o, src = c.sources, m = src.__m;
+  const env = src.__storage, calc = c.calculated || {};
+  // hydrating: the option, else the integration's signal (__hydrate: Astro, Vike), else whether
+  // run()'s mount point already has markup
+  const hydrate = o.hydrate ?? src.__hydrate ?? !!(typeof m == 'string' ? g.document?.querySelector(m) : m)?.firstElementChild;
   let S: any, t: any, last: any, raw: any, skip: any, off: any;
   // (the docs link the message ends with explains the causes and fixes)
   const fail = (what: string, e?: any) => warn('SYG642', c, `persist '${key}': ${what} failed`, undefined, e);

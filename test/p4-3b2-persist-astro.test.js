@@ -52,6 +52,21 @@ const island = (attrs, html) => {
 const stored = () => vi.waitFor(() => expect(document.querySelector('li')?.textContent).toBe('stored'), { timeout: 2000, interval: 10 })
 
 describe('item 1: automatic hydration in islands', () => {
+  it('a server-rendered island: the first render is the server state, then RESTORE applies the stored keys', async () => {
+    const { App, seen } = makeApp()
+    const { html } = renderToStaticMarkup(App, { initialState: SERVER })
+    expect(html).toContain('from server')
+    store()
+    const el = island('ssr client="load"', html)
+    App.initialState = SERVER
+    seen.length = 0
+    await client(el)(App, {}, {}, { client: 'load' })
+    app = el.__sygnal
+    await stored()
+    expect(seen[0]).toBe('from server')
+    expect(seen.at(-1)).toBe('stored')
+  })
+
   it('client:only: the stored keys are in the first render (even with fallback content in the island)', async () => {
     const { App, seen } = makeApp()
     store()

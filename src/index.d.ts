@@ -809,8 +809,9 @@ export interface PersistOptions<STATE = any> {
   /** Apply other tabs' writes to this key (a RESTORE action) */
   sync?: boolean
   /**
-   * The app hydrates server-rendered HTML: restore in a RESTORE action after the first render
-   * (so the first render matches the server's) instead of before INITIALIZE
+   * Restore in a RESTORE action after the first render (so the first render matches the server's
+   * HTML) instead of before INITIALIZE. Detected when omitted: run()'s mount point already has
+   * markup, a server-rendered Astro island, a Vike hydration. true / false override it
    */
   hydrate?: boolean
   /** Writes wait for this many ms without a state change (default 100); flushed on pagehide and dispose */

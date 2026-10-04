@@ -85,6 +85,8 @@ export default function run(
         EVENTS: eventBusDriver,
         DOM: makeDOMDriver(mountPoint, {snabbdomOptions: {experimental: {fragments}}} as any),
         LOG: logDriver,
+        // 3-B2: the mount point, for persist() to tell whether it starts over server markup
+        __m: () => mountPoint,
       }
     : {};
 

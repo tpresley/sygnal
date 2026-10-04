@@ -136,14 +136,20 @@ During server rendering nothing is read or written: `renderToString` runs views 
 
 ## Server rendering: hydrate
 
-When the client starts from server-rendered HTML (the [`hydrateState`](/integration/ssr/) state), restoring before the first render would make that render differ from the server's markup. With `hydrate: true` the first render uses the server's state, and the saved keys follow in a `RESTORE` action once it is on the page:
+When the client starts from server-rendered HTML (the [`hydrateState`](/integration/ssr/) state), restoring before the first render would make that render differ from the server's markup. So when the app hydrates, the first render uses the server's state, and the saved keys follow in a `RESTORE` action once it is on the page. The app hydrates when:
+
+- `run()`'s mount point already has markup when `run()` starts
+- an [Astro](/integration/astro/) island was rendered on the server (not `client:only`)
+- a [Vike](/integration/vike/) page hydrates its server HTML (not a client-side navigation)
 
 ```jsx
-App.persist = persist({ key: 'app', pick: ['theme'], hydrate: true })
+App.persist = persist({ key: 'app', pick: ['theme'] })
 App.initialState = window.__SYGNAL_STATE__ || App.initialState
 
 run(App, {}, { mountPoint: '#app' })
 ```
+
+The `hydrate` option overrides the detection: `hydrate: true` always restores after the first render, `hydrate: false` always before it (a mount point holding a placeholder, not the server's markup, is detected as hydrating; that costs one render of `initialState` before the `RESTORE`).
 
 ## With undo
 
@@ -198,7 +204,7 @@ The object you pass is used as the storage, not copied: writes land in it, and t
 | `migrate` | none | `(old, fromVersion) => keys` for a stored entry of another version; nothing discards it |
 | `storage` | `'local'` | `'local'`, `'session'` or a synchronous `{ getItem, setItem, removeItem, subscribe? }` |
 | `sync` | `false` | Apply other tabs' writes (a `RESTORE` action) |
-| `hydrate` | `false` | Restore after the first render (in `RESTORE`), for server-rendered HTML |
+| `hydrate` | detected | Restore after the first render (in `RESTORE`): `true` / `false` override the detection of server-rendered HTML |
 | `debounceMs` | `100` | Wait this long without a state change before writing |
 
 In TypeScript, `pick` and `omit` are checked against the root component's state keys.
