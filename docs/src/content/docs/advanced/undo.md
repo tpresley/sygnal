@@ -13,23 +13,21 @@ Both take the same options and keep the same history.
 ## The undo behavior
 
 ```jsx
-import { controls, undo } from 'sygnal'
-
-const { Note, Undo, Redo } = controls({ Note: 'textarea', Undo: 'button', Redo: 'button' })
+import { undo } from 'sygnal'
 
 export function Editor({ state }) {
   return (
     <div>
-      <label>Note <Note value={state.doc.text} /></label>
-      <Undo disabled={!state.history.canUndo}>Undo</Undo>
-      <Redo disabled={!state.history.canRedo}>Redo</Redo>
+      <label>Note <textarea className="note" value={state.doc.text} /></label>
+      <button className="undo" disabled={!state.history.canUndo}>Undo</button>
+      <button className="redo" disabled={!state.history.canRedo}>Redo</button>
     </div>
   )
 }
 
 Editor.initialState = { doc: { text: '' } }
-Editor.uses = { history: undo({ key: 'doc', coalesceMs: 500, undo: Undo, redo: Redo }) }
-Editor.intent = ({ DOM }) => ({ TYPE: DOM.input(Note).value() })
+Editor.uses = { history: undo({ key: 'doc', coalesceMs: 500, undo: '.undo', redo: '.redo' }) }
+Editor.intent = ({ DOM }) => ({ TYPE: DOM.input('.note').value() })
 Editor.model = {
   TYPE: (state, text) => ({ ...state, doc: { ...state.doc, text } }),
 }
@@ -44,16 +42,14 @@ Editor.model = {
 A host intent action with a behavior action's name replaces the behavior's trigger. To undo with Ctrl+Z (⌘Z) as well as the button, leave out the `undo` / `redo` options and trigger the actions from the host:
 
 ```jsx
-import { controls, undo, xs } from 'sygnal'
-
-const { Note, Undo, Redo } = controls({ Note: 'textarea', Undo: 'button', Redo: 'button' })
+import { undo, xs } from 'sygnal'
 
 export function Editor({ state }) {
   return (
     <div>
-      <label>Note <Note value={state.doc.text} /></label>
-      <Undo disabled={!state.history.canUndo}>Undo</Undo>
-      <Redo disabled={!state.history.canRedo}>Redo</Redo>
+      <label>Note <textarea className="note" value={state.doc.text} /></label>
+      <button className="undo" disabled={!state.history.canUndo}>Undo</button>
+      <button className="redo" disabled={!state.history.canRedo}>Redo</button>
     </div>
   )
 }
@@ -64,9 +60,9 @@ const keys = (DOM, shift) => DOM.select('document').events('keydown')
 Editor.initialState = { doc: { text: '' } }
 Editor.uses = { history: undo({ key: 'doc', coalesceMs: 500 }) }
 Editor.intent = ({ DOM }) => ({
-  TYPE: DOM.input(Note).value(),
-  'history.UNDO': xs.merge(DOM.click(Undo), keys(DOM, false)),
-  'history.REDO': xs.merge(DOM.click(Redo), keys(DOM, true)),
+  TYPE: DOM.input('.note').value(),
+  'history.UNDO': xs.merge(DOM.click('.undo'), keys(DOM, false)),
+  'history.REDO': xs.merge(DOM.click('.redo'), keys(DOM, true)),
 })
 Editor.model = {
   TYPE: (state, text) => ({ ...state, doc: { ...state.doc, text } }),
@@ -78,23 +74,21 @@ Editor.model = {
 `undoable(model, options)` wraps a model's STATE reducers and adds `UNDO` and `REDO` entries for your intent to trigger. `state.history` is `{ past, future }` (no calculated fields), and it isn't there until the first change, so read it with a default:
 
 ```jsx
-import { controls, undoable } from 'sygnal'
-
-const { Note, Undo, Redo } = controls({ Note: 'textarea', Undo: 'button', Redo: 'button' })
+import { undoable } from 'sygnal'
 
 export function Editor({ state }) {
   const { past, future } = state.history || { past: [], future: [] }
   return (
     <div>
-      <label>Note <Note value={state.doc.text} /></label>
-      <Undo disabled={past.length === 0}>Undo</Undo>
-      <Redo disabled={future.length === 0}>Redo</Redo>
+      <label>Note <textarea className="note" value={state.doc.text} /></label>
+      <button className="undo" disabled={past.length === 0}>Undo</button>
+      <button className="redo" disabled={future.length === 0}>Redo</button>
     </div>
   )
 }
 
 Editor.initialState = { doc: { text: '' } }
-Editor.intent = ({ DOM }) => ({ TYPE: DOM.input(Note).value(), UNDO: DOM.click(Undo), REDO: DOM.click(Redo) })
+Editor.intent = ({ DOM }) => ({ TYPE: DOM.input('.note').value(), UNDO: DOM.click('.undo'), REDO: DOM.click('.redo') })
 Editor.model = undoable({
   BOOTSTRAP: { HTTP: () => ({ url: '/api/note', ok: 'LOADED' }) },
   LOADED: (state, doc) => ({ ...state, doc }),
@@ -113,7 +107,7 @@ Editor.model = undoable({
 | `track` | every action with a STATE reducer | Record only these actions' changes. Built-in actions (`INITIALIZE`, `BOOTSTRAP`, …) are recorded only when listed |
 | `coalesceMs` | `0` (off) | Changes by the same action within this many ms join one step |
 | `resetOn` | `[]` | Actions that clear the history |
-| `undo`, `redo` | — | (`undo()` only) A control or selector whose clicks dispatch `UNDO` / `REDO` |
+| `undo`, `redo` | — | (`undo()` only) A selector (or a [control](/guide/controls/)) whose clicks dispatch `UNDO` / `REDO` |
 
 A change is a reducer result whose `state[key]` is a different object than before, so reducers that return new objects (as Sygnal reducers do) are recorded. `UNDO` and `REDO` make no change when there is nothing to undo or redo. A model entry of your own for `UNDO` / `REDO` (`'history.UNDO'` with the behavior) runs after the built-in step.
 

@@ -836,7 +836,7 @@ When `isolatedState = true` and the parent state doesn't have the child's state 
 
 ## controls()
 
-`controls({ Name: 'input', Save: 'button' })` returns element tokens that the view renders (`<Save>Save</Save>`, a `<button data-control="Save">`) and the intent, element commands, behaviors and tests select (`DOM.click(Save)`). See [what a control is](/guide/behaviors/#using-a-behavior).
+`controls({ Name: 'input', Save: 'button' })` returns element tokens that the view renders (`<Save>Save</Save>`, a `<button data-control="Save">`) and the intent, element commands, behaviors and tests select (`DOM.click(Save)`). An [alternative form](/advanced/alternative-forms/#controls-instead-of-class-selectors) to class selectors; see [Controls](/guide/controls/).
 
 ---
 
@@ -845,7 +845,7 @@ When `isolatedState = true` and the parent state doesn't have the child's state 
 The [behaviors](/guide/behaviors/) a component uses, each under a state key:
 
 ```jsx
-TaskList.uses = { pager: pager({ pageSize: 10, next: Newer, prev: Older }) }
+TaskList.uses = { pager: pager({ pageSize: 10, next: '.newer', prev: '.older' }) }
 ```
 
 The behavior's state is at `state.pager` (its calculated fields stored on it), and its actions are named after the key (`pager.NEXT`). A host model entry for a behavior action runs after the behavior's; a host intent action of the same name replaces the behavior's trigger. A key that is also in `initialState`, or a value that isn't a behavior, is [SYG127](/reference/errors/#syg127). Types: `UsesState<typeof uses>`, `UsesActions<typeof uses>`.
@@ -865,7 +865,7 @@ function defineBehavior(definition: {
 }): (options?) => Behavior
 ```
 
-Returns a factory: call it with the options of one use (`disclosure({ toggle: Toggle })`). Options that name a key of `initialState` set that key's starting value. The intent gets the host's sources and the options; actions are named without the key.
+Returns a factory: call it with the options of one use (`disclosure({ toggle: '.toggle' })`). Options that name a key of `initialState` set that key's starting value. The intent gets the host's sources and the options; actions are named without the key.
 
 ---
 

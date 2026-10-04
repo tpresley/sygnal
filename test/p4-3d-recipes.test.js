@@ -16,9 +16,7 @@ const here = path.dirname(fileURLToPath(import.meta.url))
 
 export const RECIPES = {
   // ── guide/behaviors: pager ────────────────────────────────────────────────
-  pager: `import { controls, pager } from 'sygnal'
-
-const { Older, Newer } = controls({ Older: 'button', Newer: 'button' })
+  pager: `import { pager } from 'sygnal'
 
 export function TaskList({ state }) {
   const { offset, pageSize, page, pages, hasPrev, hasNext } = state.pager
@@ -28,16 +26,16 @@ export function TaskList({ state }) {
         {state.tasks.slice(offset, offset + pageSize).map(task => <li>{task.title}</li>)}
       </ul>
       <nav>
-        <Older disabled={!hasPrev}>Older</Older>
+        <button className="older" disabled={!hasPrev}>Older</button>
         <span className="page">Page {page + 1} of {pages}</span>
-        <Newer disabled={!hasNext}>Newer</Newer>
+        <button className="newer" disabled={!hasNext}>Newer</button>
       </nav>
     </div>
   )
 }
 
 TaskList.initialState = { tasks: [] }
-TaskList.uses = { pager: pager({ pageSize: 10, next: Newer, prev: Older }) }
+TaskList.uses = { pager: pager({ pageSize: 10, next: '.newer', prev: '.older' }) }
 TaskList.model = {
   BOOTSTRAP: { HTTP: () => ({ url: '/api/tasks', ok: 'LOADED' }) },
   LOADED: (state, tasks) => ({ ...state, tasks, pager: { ...state.pager, total: tasks.length } }),
@@ -45,23 +43,21 @@ TaskList.model = {
 `,
 
   // ── guide/behaviors: selection ────────────────────────────────────────────
-  selection: `import { controls, selection, isSelected } from 'sygnal'
-
-const { Pick, PickAll, Archive } = controls({ Pick: 'input', PickAll: 'input', Archive: 'button' })
+  selection: `import { selection, isSelected } from 'sygnal'
 
 export function Inbox({ state }) {
   const { count } = state.sel
   return (
     <div>
       <label>
-        <PickAll type="checkbox" checked={count > 0 && count === state.mails.length} /> Select all
+        <input className="pick-all" type="checkbox" checked={count > 0 && count === state.mails.length} /> Select all
       </label>
-      <Archive disabled={count === 0}>Archive ({count})</Archive>
+      <button className="archive" disabled={count === 0}>Archive ({count})</button>
       <ul>
         {state.mails.map(mail => (
           <li>
             <label>
-              <Pick type="checkbox" data-id={mail.id} checked={isSelected(state.sel, mail.id)} /> {mail.subject}
+              <input className="pick" type="checkbox" data-id={mail.id} checked={isSelected(state.sel, mail.id)} /> {mail.subject}
             </label>
           </li>
         ))}
@@ -73,8 +69,8 @@ export function Inbox({ state }) {
 Inbox.initialState = {
   mails: [{ id: 1, subject: 'Lunch?' }, { id: 2, subject: 'Invoice' }, { id: 3, subject: 'Re: plans' }],
 }
-Inbox.uses = { sel: selection({ multi: true, item: Pick, all: PickAll, from: 'mails' }) }
-Inbox.intent = ({ DOM }) => ({ ARCHIVE: DOM.click(Archive) })
+Inbox.uses = { sel: selection({ multi: true, item: '.pick', all: '.pick-all', from: 'mails' }) }
+Inbox.intent = ({ DOM }) => ({ ARCHIVE: DOM.click('.archive') })
 Inbox.model = {
   ARCHIVE: (state) => ({
     ...state,
@@ -85,39 +81,35 @@ Inbox.model = {
 `,
 
   // ── advanced/undo: the undo behavior ──────────────────────────────────────
-  undo: `import { controls, undo } from 'sygnal'
-
-const { Note, Undo, Redo } = controls({ Note: 'textarea', Undo: 'button', Redo: 'button' })
+  undo: `import { undo } from 'sygnal'
 
 export function Editor({ state }) {
   return (
     <div>
-      <label>Note <Note value={state.doc.text} /></label>
-      <Undo disabled={!state.history.canUndo}>Undo</Undo>
-      <Redo disabled={!state.history.canRedo}>Redo</Redo>
+      <label>Note <textarea className="note" value={state.doc.text} /></label>
+      <button className="undo" disabled={!state.history.canUndo}>Undo</button>
+      <button className="redo" disabled={!state.history.canRedo}>Redo</button>
     </div>
   )
 }
 
 Editor.initialState = { doc: { text: '' } }
-Editor.uses = { history: undo({ key: 'doc', coalesceMs: 500, undo: Undo, redo: Redo }) }
-Editor.intent = ({ DOM }) => ({ TYPE: DOM.input(Note).value() })
+Editor.uses = { history: undo({ key: 'doc', coalesceMs: 500, undo: '.undo', redo: '.redo' }) }
+Editor.intent = ({ DOM }) => ({ TYPE: DOM.input('.note').value() })
 Editor.model = {
   TYPE: (state, text) => ({ ...state, doc: { ...state.doc, text } }),
 }
 `,
 
   // ── advanced/undo: keyboard shortcuts (a host intent action replaces the behavior's trigger) ──
-  undoKeys: `import { controls, undo, xs } from 'sygnal'
-
-const { Note, Undo, Redo } = controls({ Note: 'textarea', Undo: 'button', Redo: 'button' })
+  undoKeys: `import { undo, xs } from 'sygnal'
 
 export function Editor({ state }) {
   return (
     <div>
-      <label>Note <Note value={state.doc.text} /></label>
-      <Undo disabled={!state.history.canUndo}>Undo</Undo>
-      <Redo disabled={!state.history.canRedo}>Redo</Redo>
+      <label>Note <textarea className="note" value={state.doc.text} /></label>
+      <button className="undo" disabled={!state.history.canUndo}>Undo</button>
+      <button className="redo" disabled={!state.history.canRedo}>Redo</button>
     </div>
   )
 }
@@ -128,9 +120,9 @@ const keys = (DOM, shift) => DOM.select('document').events('keydown')
 Editor.initialState = { doc: { text: '' } }
 Editor.uses = { history: undo({ key: 'doc', coalesceMs: 500 }) }
 Editor.intent = ({ DOM }) => ({
-  TYPE: DOM.input(Note).value(),
-  'history.UNDO': xs.merge(DOM.click(Undo), keys(DOM, false)),
-  'history.REDO': xs.merge(DOM.click(Redo), keys(DOM, true)),
+  TYPE: DOM.input('.note').value(),
+  'history.UNDO': xs.merge(DOM.click('.undo'), keys(DOM, false)),
+  'history.REDO': xs.merge(DOM.click('.redo'), keys(DOM, true)),
 })
 Editor.model = {
   TYPE: (state, text) => ({ ...state, doc: { ...state.doc, text } }),
@@ -138,23 +130,21 @@ Editor.model = {
 `,
 
   // ── advanced/undo: the undoable() model wrapper ───────────────────────────
-  undoable: `import { controls, undoable } from 'sygnal'
-
-const { Note, Undo, Redo } = controls({ Note: 'textarea', Undo: 'button', Redo: 'button' })
+  undoable: `import { undoable } from 'sygnal'
 
 export function Editor({ state }) {
   const { past, future } = state.history || { past: [], future: [] }
   return (
     <div>
-      <label>Note <Note value={state.doc.text} /></label>
-      <Undo disabled={past.length === 0}>Undo</Undo>
-      <Redo disabled={future.length === 0}>Redo</Redo>
+      <label>Note <textarea className="note" value={state.doc.text} /></label>
+      <button className="undo" disabled={past.length === 0}>Undo</button>
+      <button className="redo" disabled={future.length === 0}>Redo</button>
     </div>
   )
 }
 
 Editor.initialState = { doc: { text: '' } }
-Editor.intent = ({ DOM }) => ({ TYPE: DOM.input(Note).value(), UNDO: DOM.click(Undo), REDO: DOM.click(Redo) })
+Editor.intent = ({ DOM }) => ({ TYPE: DOM.input('.note').value(), UNDO: DOM.click('.undo'), REDO: DOM.click('.redo') })
 Editor.model = undoable({
   BOOTSTRAP: { HTTP: () => ({ url: '/api/note', ok: 'LOADED' }) },
   LOADED: (state, doc) => ({ ...state, doc }),
@@ -202,13 +192,13 @@ describe('pager recipe', () => {
     const titles = () => t.queryAll('li').map(li => li.textContent)
     expect(titles()).toHaveLength(10)
     expect(t.query('.page').textContent).toBe('Page 1 of 3')
-    expect(t.query('[data-control="Older"]').disabled).toBe(true)
-    t.simulateEvent('[data-control="Newer"]', 'click'); await t.next(s => s.pager.page === 1)
+    expect(t.query('.older').disabled).toBe(true)
+    t.simulateEvent('.newer', 'click'); await t.next(s => s.pager.page === 1)
     expect(titles()[0]).toBe('task 11')
-    t.simulateEvent('[data-control="Newer"]', 'click'); await t.next(s => s.pager.page === 2)
+    t.simulateEvent('.newer', 'click'); await t.next(s => s.pager.page === 2)
     expect(titles()).toEqual(['task 21', 'task 22', 'task 23', 'task 24', 'task 25'])
-    expect(t.query('[data-control="Newer"]').disabled).toBe(true)
-    t.simulateEvent('[data-control="Older"]', 'click'); await t.next(s => s.pager.page === 1)
+    expect(t.query('.newer').disabled).toBe(true)
+    t.simulateEvent('.older', 'click'); await t.next(s => s.pager.page === 1)
     t.expectNoDiagnostics()
   })
 })
@@ -217,16 +207,16 @@ describe('selection recipe', () => {
   it('picks, selects all, archives the selection', async () => {
     t = renderComponent(mods.selection.Inbox, { dom: 'real' })
     await t.ready()
-    const pick = (n) => t.simulateEvent(`li:nth-child(${n}) [data-control="Pick"]`, 'click')
+    const pick = (n) => t.simulateEvent(`li:nth-child(${n}) .pick`, 'click')
     pick(1); await t.next(s => s.sel.count === 1)
     pick(3); await t.next(s => s.sel.count === 2)
-    expect(t.query('[data-control="Archive"]').textContent).toBe('Archive (2)')
-    t.simulateEvent('[data-control="PickAll"]', 'click'); await t.next(s => s.sel.count === 3)
-    expect(t.query('[data-control="PickAll"]').checked).toBe(true)
-    t.simulateEvent('[data-control="PickAll"]', 'click'); await t.next(s => s.sel.count === 0)
+    expect(t.query('.archive').textContent).toBe('Archive (2)')
+    t.simulateEvent('.pick-all', 'click'); await t.next(s => s.sel.count === 3)
+    expect(t.query('.pick-all').checked).toBe(true)
+    t.simulateEvent('.pick-all', 'click'); await t.next(s => s.sel.count === 0)
     pick(1); await t.next(s => s.sel.count === 1)
     pick(3); await t.next(s => s.sel.count === 2)
-    t.simulateEvent('[data-control="Archive"]', 'click'); await t.next(s => s.mails.length === 1)
+    t.simulateEvent('.archive', 'click'); await t.next(s => s.mails.length === 1)
     expect(t.state.mails).toEqual([{ id: 2, subject: 'Invoice' }])
     expect(t.state.sel).toEqual({ selected: [], count: 0 })
     t.expectNoDiagnostics()
@@ -234,7 +224,7 @@ describe('selection recipe', () => {
 })
 
 describe('undo recipes', () => {
-  const type = async (text) => { t.simulateEvent('[data-control="Note"]', 'input', { value: text }); await t.next(s => s.doc.text === text) }
+  const type = async (text) => { t.simulateEvent('.note', 'input', { value: text }); await t.next(s => s.doc.text === text) }
 
   it('undo behavior: typing within coalesceMs is one step; undo / redo buttons', async () => {
     t = renderComponent(mods.undo.Editor, { dom: 'real' })
@@ -244,12 +234,12 @@ describe('undo recipes', () => {
     await sleep(550)
     await type('hello')
     expect(t.state.history.past).toEqual([{ text: '' }, { text: 'hel' }])
-    expect(t.query('[data-control="Redo"]').disabled).toBe(true)
-    t.simulateEvent('[data-control="Undo"]', 'click'); await t.next(s => s.doc.text === 'hel')
-    t.simulateEvent('[data-control="Undo"]', 'click'); await t.next(s => s.doc.text === '')
-    expect(t.query('[data-control="Undo"]').disabled).toBe(true)
-    t.simulateEvent('[data-control="Redo"]', 'click'); await t.next(s => s.doc.text === 'hel')
-    expect(t.query('[data-control="Note"]').value).toBe('hel')
+    expect(t.query('.redo').disabled).toBe(true)
+    t.simulateEvent('.undo', 'click'); await t.next(s => s.doc.text === 'hel')
+    t.simulateEvent('.undo', 'click'); await t.next(s => s.doc.text === '')
+    expect(t.query('.undo').disabled).toBe(true)
+    t.simulateEvent('.redo', 'click'); await t.next(s => s.doc.text === 'hel')
+    expect(t.query('.note').value).toBe('hel')
     t.expectNoDiagnostics()
   })
 
@@ -259,7 +249,7 @@ describe('undo recipes', () => {
     await type('a'); await sleep(550); await type('ab')
     t.simulateEvent('document', 'keydown', { ctrlKey: true, key: 'z', shiftKey: false }); await t.next(s => s.doc.text === 'a')
     t.simulateEvent('document', 'keydown', { ctrlKey: true, key: 'Z', shiftKey: true }); await t.next(s => s.doc.text === 'ab')
-    t.simulateEvent('[data-control="Undo"]', 'click'); await t.next(s => s.doc.text === 'a')
+    t.simulateEvent('.undo', 'click'); await t.next(s => s.doc.text === 'a')
     expect(t.state.history.canRedo).toBe(true)
     t.expectNoDiagnostics()
   })
@@ -272,10 +262,10 @@ describe('undo recipes', () => {
     t.respond('HTTP', { text: 'saved note' })
     await t.next(s => s.doc.text === 'saved note')
     expect(t.state.history).toEqual({ past: [], future: [] })
-    expect(t.query('[data-control="Undo"]').disabled).toBe(true)
+    expect(t.query('.undo').disabled).toBe(true)
     await type('saved note!')
-    t.simulateEvent('[data-control="Undo"]', 'click'); await t.next(s => s.doc.text === 'saved note')
-    t.simulateEvent('[data-control="Redo"]', 'click'); await t.next(s => s.doc.text === 'saved note!')
+    t.simulateEvent('.undo', 'click'); await t.next(s => s.doc.text === 'saved note')
+    t.simulateEvent('.redo', 'click'); await t.next(s => s.doc.text === 'saved note!')
     t.expectNoDiagnostics()
   })
 })

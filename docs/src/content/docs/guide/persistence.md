@@ -7,21 +7,17 @@ description: Save the root component's state to localStorage and restore it on t
 
 ```jsx
 // TodoApp.jsx
-import { ABORT, controls, persist } from 'sygnal'
-
-const { Draft, Add, ShowAll, ShowOpen, StartOver } = controls({
-  Draft: 'input', Add: 'button', ShowAll: 'button', ShowOpen: 'button', StartOver: 'button',
-})
+import { ABORT, persist } from 'sygnal'
 
 export function TodoApp({ state }) {
   const shown = state.filter === 'open' ? state.todos.filter((todo) => !todo.done) : state.todos
   return (
     <main>
-      <label>New todo <Draft value={state.draft} /></label>
-      <Add>Add</Add>
-      <ShowAll>All</ShowAll>
-      <ShowOpen>Open</ShowOpen>
-      <StartOver>Start over</StartOver>
+      <label>New todo <input className="draft" value={state.draft} /></label>
+      <button className="add">Add</button>
+      <button className="show-all">All</button>
+      <button className="show-open">Open</button>
+      <button className="start-over">Start over</button>
       <ul>{shown.map((todo) => <li>{todo.title}</li>)}</ul>
     </main>
   )
@@ -30,11 +26,11 @@ export function TodoApp({ state }) {
 TodoApp.initialState = { todos: [], filter: 'all', draft: '' }
 
 TodoApp.intent = ({ DOM }) => ({
-  DRAFT: DOM.input(Draft).value(),
-  ADD: DOM.click(Add),
-  SHOW_ALL: DOM.click(ShowAll),
-  SHOW_OPEN: DOM.click(ShowOpen),
-  START_OVER: DOM.click(StartOver),
+  DRAFT: DOM.input('.draft').value(),
+  ADD: DOM.click('.add'),
+  SHOW_ALL: DOM.click('.show-all'),
+  SHOW_OPEN: DOM.click('.show-open'),
+  START_OVER: DOM.click('.start-over'),
 })
 
 TodoApp.model = {

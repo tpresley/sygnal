@@ -12,7 +12,7 @@ Sygnal ships three behaviors: [`pager`](#pager), [`selection`](#selection) and [
 `uses` maps a state key to a behavior, called with its options:
 
 ```jsx
-TaskList.uses = { pager: pager({ pageSize: 10, next: Newer, prev: Older }) }
+TaskList.uses = { pager: pager({ pageSize: 10, next: '.newer', prev: '.older' }) }
 ```
 
 This gives the component:
@@ -21,7 +21,7 @@ This gives the component:
 - **actions** `pager.NEXT`, `pager.PREV`, `pager.GOTO` and `pager.SET_TOTAL`, which change only `state.pager`;
 - **triggers**: the behavior's intent listens to what its options name. Here a click on the `Newer` button dispatches `pager.NEXT`.
 
-The options that tell a behavior what to listen to take a control or a CSS selector. The examples on this page use controls: `const { Newer } = controls({ Newer: 'button' })` declares a `Newer` element, which the view renders as `<Newer>Newer</Newer>` (a `<button data-control="Newer">`) and the behavior listens to. `next: '.newer'` with `<button className="newer">` works the same way.
+The options that tell a behavior what to listen to take a CSS selector: `next: '.newer'` listens to clicks on the view's `<button className="newer">`. They take a [control](/guide/controls/) too.
 
 Options that name a key of the behavior's state (`pageSize` here) set its starting value.
 
@@ -30,9 +30,7 @@ Options that name a key of the behavior's state (`pageSize` here) set its starti
 A page cursor over a list. The view slices the list with the calculated `offset`, and the buttons disable at the ends:
 
 ```jsx
-import { controls, pager } from 'sygnal'
-
-const { Older, Newer } = controls({ Older: 'button', Newer: 'button' })
+import { pager } from 'sygnal'
 
 export function TaskList({ state }) {
   const { offset, pageSize, page, pages, hasPrev, hasNext } = state.pager
@@ -42,16 +40,16 @@ export function TaskList({ state }) {
         {state.tasks.slice(offset, offset + pageSize).map(task => <li>{task.title}</li>)}
       </ul>
       <nav>
-        <Older disabled={!hasPrev}>Older</Older>
+        <button className="older" disabled={!hasPrev}>Older</button>
         <span className="page">Page {page + 1} of {pages}</span>
-        <Newer disabled={!hasNext}>Newer</Newer>
+        <button className="newer" disabled={!hasNext}>Newer</button>
       </nav>
     </div>
   )
 }
 
 TaskList.initialState = { tasks: [] }
-TaskList.uses = { pager: pager({ pageSize: 10, next: Newer, prev: Older }) }
+TaskList.uses = { pager: pager({ pageSize: 10, next: '.newer', prev: '.older' }) }
 TaskList.model = {
   BOOTSTRAP: { HTTP: () => ({ url: '/api/tasks', ok: 'LOADED' }) },
   LOADED: (state, tasks) => ({ ...state, tasks, pager: { ...state.pager, total: tasks.length } }),
@@ -71,23 +69,21 @@ Without a `total`, `NEXT` has no upper bound. Set it with an option, with `pager
 Single or multiple selection over a list, with a select-all toggle:
 
 ```jsx
-import { controls, selection, isSelected } from 'sygnal'
-
-const { Pick, PickAll, Archive } = controls({ Pick: 'input', PickAll: 'input', Archive: 'button' })
+import { selection, isSelected } from 'sygnal'
 
 export function Inbox({ state }) {
   const { count } = state.sel
   return (
     <div>
       <label>
-        <PickAll type="checkbox" checked={count > 0 && count === state.mails.length} /> Select all
+        <input className="pick-all" type="checkbox" checked={count > 0 && count === state.mails.length} /> Select all
       </label>
-      <Archive disabled={count === 0}>Archive ({count})</Archive>
+      <button className="archive" disabled={count === 0}>Archive ({count})</button>
       <ul>
         {state.mails.map(mail => (
           <li>
             <label>
-              <Pick type="checkbox" data-id={mail.id} checked={isSelected(state.sel, mail.id)} /> {mail.subject}
+              <input className="pick" type="checkbox" data-id={mail.id} checked={isSelected(state.sel, mail.id)} /> {mail.subject}
             </label>
           </li>
         ))}
@@ -99,8 +95,8 @@ export function Inbox({ state }) {
 Inbox.initialState = {
   mails: [{ id: 1, subject: 'Lunch?' }, { id: 2, subject: 'Invoice' }, { id: 3, subject: 'Re: plans' }],
 }
-Inbox.uses = { sel: selection({ multi: true, item: Pick, all: PickAll, from: 'mails' }) }
-Inbox.intent = ({ DOM }) => ({ ARCHIVE: DOM.click(Archive) })
+Inbox.uses = { sel: selection({ multi: true, item: '.pick', all: '.pick-all', from: 'mails' }) }
+Inbox.intent = ({ DOM }) => ({ ARCHIVE: DOM.click('.archive') })
 Inbox.model = {
   ARCHIVE: (state) => ({
     ...state,
@@ -112,7 +108,7 @@ Inbox.model = {
 
 | | |
 |---|---|
-| Options | `multi` (false: a click replaces the selection; true: it toggles the item), `item` (the control on each item), `attr` (the item element's attribute that holds its id, default `data-id`), `all` (a select-all toggle), `clear`, `from` (the host state key of the list, for select-all), `idField` (`'id'`) |
+| Options | `multi` (false: a click replaces the selection; true: it toggles the item), `item` (a selector for the element on each item), `attr` (the item element's attribute that holds its id, default `data-id`), `all` (a select-all toggle), `clear`, `from` (the host state key of the list, for select-all), `idField` (`'id'`) |
 | State | `selected` (the ids, as strings, in selection order); calculated `count` |
 | Actions | `SELECT` (an id, or a click on an item), `SELECT_ALL` (an array of ids, or every id of `state[from]`), `TOGGLE_ALL` (all selected → none, else all), `CLEAR` |
 
@@ -153,26 +149,23 @@ A host uses it like a first-party behavior:
 
 ```jsx
 // Product.jsx
-import { controls } from 'sygnal'
 import { disclosure } from './behaviors/disclosure.js'
-
-const { Toggle } = controls({ Toggle: 'button' })
 
 export function Product({ state }) {
   return (
     <section>
       <h2>{state.name}</h2>
-      <Toggle aria-expanded={String(state.more.open)}>{state.more.label}</Toggle>
+      <button className="toggle" aria-expanded={String(state.more.open)}>{state.more.label}</button>
       {state.more.open && <p>{state.description}</p>}
     </section>
   )
 }
 
 Product.initialState = { name: 'Desk lamp', description: 'Warm light, three brightness levels.' }
-Product.uses = { more: disclosure({ toggle: Toggle }) }
+Product.uses = { more: disclosure({ toggle: '.toggle' }) }
 ```
 
-`state.more` is `{ open: false, label: 'Show details' }` to begin with, and a click on `Toggle` dispatches `more.TOGGLE`. To start it open, pass the state key as an option: `disclosure({ toggle: Toggle, open: true })`.
+`state.more` is `{ open: false, label: 'Show details' }` to begin with, and a click on the `.toggle` button dispatches `more.TOGGLE`. To start it open, pass the state key as an option: `disclosure({ toggle: '.toggle', open: true })`.
 
 Two components can use the same behavior, and so can every item of a [Collection](/guide/collections/): each instance gets its own slice. In a Collection item (or any child that gets its state from its parent), `state[key]` reads as the behavior's initial state until the first action writes it.
 
@@ -182,15 +175,13 @@ The host can trigger a behavior action, and add its own entry for one. Both use 
 
 ```jsx
 // Faq.jsx
-import { ABORT, controls } from 'sygnal'
+import { ABORT } from 'sygnal'
 import { disclosure } from './behaviors/disclosure.js'
-
-const { Toggle } = controls({ Toggle: 'button' })
 
 export function Faq({ state }) {
   return (
     <section>
-      <Toggle aria-expanded={String(state.answer.open)}>{state.answer.label}</Toggle>
+      <button className="toggle" aria-expanded={String(state.answer.open)}>{state.answer.label}</button>
       {state.answer.open && <p>{state.text}</p>}
       <p className="opened">Opened {state.opened} times</p>
     </section>
@@ -198,7 +189,7 @@ export function Faq({ state }) {
 }
 
 Faq.initialState = { text: 'Yes, returns are free for 30 days.', opened: 0 }
-Faq.uses = { answer: disclosure({ toggle: Toggle }) }
+Faq.uses = { answer: disclosure({ toggle: '.toggle' }) }
 Faq.intent = ({ DOM }) => ({
   // a behavior action triggered by the host: Escape closes the answer
   'answer.CLOSE': DOM.keydown('document').key().filter(key => key === 'Escape'),
@@ -244,7 +235,7 @@ A `uses` entry that can't work is [SYG127](/reference/errors/#syg127), an error:
 
 - the host's `initialState` already has the key (`initialState = { pager: … }` with `uses = { pager: … }`): set the behavior's values through its options instead;
 - the value isn't a behavior: a plain object, or the factory without the call (`uses = { pager }` instead of `pager()`);
-- an option the behavior never reads, usually a typo (`pager({ nxt: Newer })`). Only `sygnal-check` reports this one.
+- an option the behavior never reads, usually a typo (`pager({ nxt: '.newer' })`). Only `sygnal-check` reports this one.
 
 `sygnal-check` follows `uses` entries to their `defineBehavior()` call in the same file or a relative import, and knows the first-party behaviors, so its other rules ([SYG101](/reference/errors/#syg101), [SYG102](/reference/errors/#syg102), …) see the behavior's actions too. A behavior imported from a package is not checked. The dev checks report SYG127 once per component definition.
 

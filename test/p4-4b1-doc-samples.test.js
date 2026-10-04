@@ -46,35 +46,30 @@ export const disclosure = defineBehavior({
 ` },
 
   product: { page: 'guide/behaviors.md', code: `// Product.jsx
-import { controls } from 'sygnal'
 import { disclosure } from './behaviors/disclosure.js'
-
-const { Toggle } = controls({ Toggle: 'button' })
 
 export function Product({ state }) {
   return (
     <section>
       <h2>{state.name}</h2>
-      <Toggle aria-expanded={String(state.more.open)}>{state.more.label}</Toggle>
+      <button className="toggle" aria-expanded={String(state.more.open)}>{state.more.label}</button>
       {state.more.open && <p>{state.description}</p>}
     </section>
   )
 }
 
 Product.initialState = { name: 'Desk lamp', description: 'Warm light, three brightness levels.' }
-Product.uses = { more: disclosure({ toggle: Toggle }) }
+Product.uses = { more: disclosure({ toggle: '.toggle' }) }
 ` },
 
   faq: { page: 'guide/behaviors.md', code: `// Faq.jsx
-import { ABORT, controls } from 'sygnal'
+import { ABORT } from 'sygnal'
 import { disclosure } from './behaviors/disclosure.js'
-
-const { Toggle } = controls({ Toggle: 'button' })
 
 export function Faq({ state }) {
   return (
     <section>
-      <Toggle aria-expanded={String(state.answer.open)}>{state.answer.label}</Toggle>
+      <button className="toggle" aria-expanded={String(state.answer.open)}>{state.answer.label}</button>
       {state.answer.open && <p>{state.text}</p>}
       <p className="opened">Opened {state.opened} times</p>
     </section>
@@ -82,7 +77,7 @@ export function Faq({ state }) {
 }
 
 Faq.initialState = { text: 'Yes, returns are free for 30 days.', opened: 0 }
-Faq.uses = { answer: disclosure({ toggle: Toggle }) }
+Faq.uses = { answer: disclosure({ toggle: '.toggle' }) }
 Faq.intent = ({ DOM }) => ({
   // a behavior action triggered by the host: Escape closes the answer
   'answer.CLOSE': DOM.keydown('document').key().filter(key => key === 'Escape'),
@@ -661,17 +656,17 @@ Banner.model = { DISMISS: (state) => ({ ...state, message: '' }) }
 describe('guide/behaviors', () => {
   const files = () => ({ 'behaviors/disclosure.js': SAMPLES.disclosure.code, 'Product.jsx': SAMPLES.product.code, 'Faq.jsx': SAMPLES.faq.code })
 
-  it('Product: state.more from the behavior, calculated label, the Toggle control opens it', async () => {
+  it('Product: state.more from the behavior, calculated label, the toggle button opens it', async () => {
     const { Product } = await load(files(), 'Product.jsx')
     t = renderComponent(Product, { dom: 'real' })
     await t.ready()
     expect(t.state).toEqual({ name: 'Desk lamp', description: 'Warm light, three brightness levels.', more: { open: false, label: 'Show details' } })
-    const toggle = t.query('[data-control="Toggle"]')
+    const toggle = t.query('.toggle')
     expect(toggle.getAttribute('aria-expanded')).toBe('false')
     expect(t.queryAll('p')).toHaveLength(0)
-    t.simulateEvent('[data-control="Toggle"]', 'click'); await t.next(s => s.more.open)
-    expect(t.query('[data-control="Toggle"]').textContent).toBe('Hide details')
-    expect(t.query('[data-control="Toggle"]').getAttribute('aria-expanded')).toBe('true')
+    t.simulateEvent('.toggle', 'click'); await t.next(s => s.more.open)
+    expect(t.query('.toggle').textContent).toBe('Hide details')
+    expect(t.query('.toggle').getAttribute('aria-expanded')).toBe('true')
     expect(t.query('p').textContent).toBe('Warm light, three brightness levels.')
     expect(t.actions.at(-1)).toMatchObject({ type: 'more.TOGGLE', cause: 'behavior', component: 'Product' })
     t.expectNoDiagnostics()
@@ -681,7 +676,7 @@ describe('guide/behaviors', () => {
     const { Faq } = await load(files(), 'Faq.jsx')
     t = renderComponent(Faq, { dom: 'real' })
     await t.ready()
-    t.simulateEvent('[data-control="Toggle"]', 'click'); await t.next(s => s.answer.open)
+    t.simulateEvent('.toggle', 'click'); await t.next(s => s.answer.open)
     expect(t.state.opened).toBe(1)
     t.simulateEvent('document', 'keydown', { key: 'Escape' }); await t.next(s => !s.answer.open)
     expect(t.state.opened).toBe(1)
@@ -689,8 +684,8 @@ describe('guide/behaviors', () => {
     const states = t.states.length
     t.simulateEvent('document', 'keydown', { key: 'Escape' }); await t.settle()   // CLOSE when closed: ABORT
     expect(t.states.length).toBe(states)
-    t.simulateEvent('[data-control="Toggle"]', 'click'); await t.next(s => s.answer.open)
-    t.simulateEvent('[data-control="Toggle"]', 'click'); await t.next(s => !s.answer.open)   // closing: host ABORT keeps the toggle
+    t.simulateEvent('.toggle', 'click'); await t.next(s => s.answer.open)
+    t.simulateEvent('.toggle', 'click'); await t.next(s => !s.answer.open)   // closing: host ABORT keeps the toggle
     expect(t.state.opened).toBe(2)
     expect(t.query('.opened').textContent).toBe('Opened 2 times')
     t.expectNoDiagnostics()

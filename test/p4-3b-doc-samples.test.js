@@ -20,21 +20,17 @@ const docs = path.join(here, '..', 'docs/src/content/docs')
 
 export const SAMPLES = {
   todoApp: { page: 'guide/persistence.md', code: `// TodoApp.jsx
-import { ABORT, controls, persist } from 'sygnal'
-
-const { Draft, Add, ShowAll, ShowOpen, StartOver } = controls({
-  Draft: 'input', Add: 'button', ShowAll: 'button', ShowOpen: 'button', StartOver: 'button',
-})
+import { ABORT, persist } from 'sygnal'
 
 export function TodoApp({ state }) {
   const shown = state.filter === 'open' ? state.todos.filter((todo) => !todo.done) : state.todos
   return (
     <main>
-      <label>New todo <Draft value={state.draft} /></label>
-      <Add>Add</Add>
-      <ShowAll>All</ShowAll>
-      <ShowOpen>Open</ShowOpen>
-      <StartOver>Start over</StartOver>
+      <label>New todo <input className="draft" value={state.draft} /></label>
+      <button className="add">Add</button>
+      <button className="show-all">All</button>
+      <button className="show-open">Open</button>
+      <button className="start-over">Start over</button>
       <ul>{shown.map((todo) => <li>{todo.title}</li>)}</ul>
     </main>
   )
@@ -43,11 +39,11 @@ export function TodoApp({ state }) {
 TodoApp.initialState = { todos: [], filter: 'all', draft: '' }
 
 TodoApp.intent = ({ DOM }) => ({
-  DRAFT: DOM.input(Draft).value(),
-  ADD: DOM.click(Add),
-  SHOW_ALL: DOM.click(ShowAll),
-  SHOW_OPEN: DOM.click(ShowOpen),
-  START_OVER: DOM.click(StartOver),
+  DRAFT: DOM.input('.draft').value(),
+  ADD: DOM.click('.add'),
+  SHOW_ALL: DOM.click('.show-all'),
+  SHOW_OPEN: DOM.click('.show-open'),
+  START_OVER: DOM.click('.start-over'),
 })
 
 TodoApp.model = {
@@ -216,11 +212,11 @@ describe('guide/persistence', () => {
     const { mod: { TodoApp } } = await load({ 'TodoApp.jsx': SAMPLES.todoApp.code }, 'TodoApp.jsx')
     document.body.innerHTML = '<div id="root"></div>'
     let app = run(TodoApp, {}, { mountPoint: '#root' })
-    await vi.waitFor(() => expect(document.querySelector('[data-control="Add"]')).toBeTruthy())
-    const input = document.querySelector('[data-control="Draft"]')
+    await vi.waitFor(() => expect(document.querySelector('.add')).toBeTruthy())
+    const input = document.querySelector('.draft')
     input.value = 'milk'
     input.dispatchEvent(new Event('input', { bubbles: true }))
-    document.querySelector('[data-control="Add"]').click()
+    document.querySelector('.add').click()
     await vi.waitFor(() => expect(document.querySelector('li')?.textContent).toBe('milk'))
     app.dispose() // flushes the pending write
     expect(JSON.parse(localStorage.getItem('todo-app'))).toEqual({ version: 2, state: { todos: [{ title: 'milk', done: false }], filter: 'all' } })

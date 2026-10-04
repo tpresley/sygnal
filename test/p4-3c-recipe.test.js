@@ -15,11 +15,7 @@ import { checkFiles } from '../sygnal-check/src/index.js'
 const here = path.dirname(fileURLToPath(import.meta.url))
 
 // ── guide/timers: stopwatch ─────────────────────────────────────────────────
-export const RECIPE = `import { controls } from 'sygnal'
-
-const { Toggle, Lap, Reset } = controls({ Toggle: 'button', Lap: 'button', Reset: 'button' })
-
-const pad = (n) => String(n).padStart(2, '0')
+export const RECIPE = `const pad = (n) => String(n).padStart(2, '0')
 const format = (ms) => {
   const tenths = Math.floor(ms / 100)
   return \`\${pad(Math.floor(tenths / 600))}:\${pad(Math.floor(tenths / 10) % 60)}.\${tenths % 10}\`
@@ -33,9 +29,9 @@ export function Stopwatch({ state }) {
   return (
     <section className="stopwatch">
       <p className="time">{format(elapsed(state, state.now))}</p>
-      <Toggle>{label}</Toggle>
-      <Lap disabled={state.status !== 'running'}>Lap</Lap>
-      <Reset disabled={state.status !== 'paused'}>Reset</Reset>
+      <button className="toggle">{label}</button>
+      <button className="lap" disabled={state.status !== 'running'}>Lap</button>
+      <button className="reset" disabled={state.status !== 'paused'}>Reset</button>
       <ol className="laps">
         {state.laps.map((lap, i) => <li>{\`Lap \${i + 1}: \${format(lap)}\`}</li>)}
       </ol>
@@ -49,9 +45,9 @@ Stopwatch.initialState = INITIAL
 // a tick every 100 ms while running; stopped when it pauses, resets or unmounts
 Stopwatch.timers = (state) => ({ tick: state.status === 'running' && { every: 100, action: 'TICK' } })
 Stopwatch.intent = ({ DOM }) => ({
-  TOGGLE: DOM.click(Toggle).map(() => Date.now()),
-  LAP: DOM.click(Lap).map(() => Date.now()),
-  RESET: DOM.click(Reset),
+  TOGGLE: DOM.click('.toggle').map(() => Date.now()),
+  LAP: DOM.click('.lap').map(() => Date.now()),
+  RESET: DOM.click('.reset'),
 })
 Stopwatch.model = {
   TOGGLE: (state, at) => state.status === 'running'
@@ -84,7 +80,7 @@ afterEach(() => { try { t?.dispose() } catch (_) {} t = null; vi.useRealTimers()
 
 const advance = (ms) => vi.advanceTimersByTimeAsync(ms)
 // as the eval's helpers: each click lets 50 ms pass
-const click = async (control) => { t.simulateEvent(`[data-control="${control}"]`, 'click'); await advance(50) }
+const click = async (selector) => { t.simulateEvent(selector, 'click'); await advance(50) }
 const time = () => t.query('.time').textContent
 const laps = () => t.queryAll('.laps li').map(li => li.textContent)
 
@@ -110,41 +106,41 @@ describe('stopwatch recipe', () => {
     await t.ready()
     expect(time()).toBe('00:00.0')
     expect(t.timers()).toEqual([])
-    await click('Toggle')                     // start
+    await click('.toggle')                     // start
     expect(t.timers()).toEqual([{ name: 'tick', every: 100, action: 'TICK', component: 'Stopwatch' }])
-    expect(t.query('[data-control="Toggle"]').textContent).toBe('Pause')
+    expect(t.query('.toggle').textContent).toBe('Pause')
     await advance(1150)
-    await click('Lap')                        // lap 1
+    await click('.lap')                        // lap 1
     const lap1 = at('LAP')[0] - at('TOGGLE')[0]
     await advance(40)
-    await click('Toggle')                     // pause: the display shows the exact running time
+    await click('.toggle')                     // pause: the display shows the exact running time
     let [s1, p1] = at('TOGGLE')
     expect(time()).toBe(fmt(p1 - s1))
-    expect(t.query('[data-control="Toggle"]').textContent).toBe('Resume')
+    expect(t.query('.toggle').textContent).toBe('Resume')
     expect(t.timers()).toEqual([])
     const ticks = at('TICK').length
     await advance(5000)
     expect(at('TICK').length).toBe(ticks)     // nothing ticks while paused
     expect(time()).toBe(fmt(p1 - s1))
-    await click('Toggle')                     // resume
+    await click('.toggle')                     // resume
     await advance(910)
-    await click('Toggle')                     // pause: both runs, the pause not counted
+    await click('.toggle')                     // pause: both runs, the pause not counted
     const [, , s2, p2] = at('TOGGLE')
     expect(time()).toBe(fmt(p1 - s1 + p2 - s2))
-    await click('Toggle')                     // resume
+    await click('.toggle')                     // resume
     await advance(300)
-    await click('Lap')                        // lap 2: its own running time
+    await click('.lap')                        // lap 2: its own running time
     const [, , , , s3] = at('TOGGLE')
     const lap2 = (p1 - s1) + (p2 - s2) + (at('LAP')[1] - s3) - lap1
     expect(laps()).toEqual([`Lap 1: ${fmt(lap1)}`, `Lap 2: ${fmt(lap2)}`])
     // while running the display is at most one tick (100 ms) behind
     const running = (p1 - s1) + (p2 - s2) + (Date.now() - s3)
     expect([fmt(running), fmt(running - 100)]).toContain(time())
-    await click('Toggle')
-    await click('Reset')
+    await click('.toggle')
+    await click('.reset')
     expect(time()).toBe('00:00.0')
     expect(laps()).toEqual([])
-    expect(t.query('[data-control="Toggle"]').textContent).toBe('Start')
+    expect(t.query('.toggle').textContent).toBe('Start')
     expect(t.timers()).toEqual([])
     t.expectNoDiagnostics()
   })
@@ -153,7 +149,7 @@ describe('stopwatch recipe', () => {
     vi.useFakeTimers()
     t = renderComponent(mod.Stopwatch, { dom: 'real' })
     await t.ready()
-    await click('Toggle')
+    await click('.toggle')
     const [s] = at('TOGGLE')
     await advance(s + 100_000 - Date.now())   // exactly 100 s after the start
     const ticks = at('TICK')
@@ -162,8 +158,8 @@ describe('stopwatch recipe', () => {
     expect(ticks.every((x, i) => x.t === s + (i + 1) * 100)).toBe(true)
     await advance(20)                         // the patch of the last tick's render (an animation frame)
     expect(time()).toBe('01:40.0')
-    await click('Toggle')                     // pause, resume, unmount while running
-    await click('Toggle')
+    await click('.toggle')                     // pause, resume, unmount while running
+    await click('.toggle')
     t.dispose()
     t = null
     await advance(100)
