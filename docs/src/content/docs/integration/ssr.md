@@ -9,8 +9,10 @@ description: "Render Sygnal components to HTML strings on the server"
 import { renderToString } from 'sygnal'
 
 const html = renderToString(App, { state: { count: 0 } })
-// → '<div class="counter"><h1>Count: 0</h1><button>+</button></div>'
+// → '<div class="counter" data-sygnal-ssr=""><h1>Count: 0</h1><button>+</button></div>'
 ```
+
+The root element carries an empty `data-sygnal-ssr` attribute. It marks the markup as Sygnal's server HTML, so the client can tell it from other content in the mount point (a [persisted](/guide/persistence/#server-rendering-hydrate) app restores its saved state after the first render instead of before it). The first client render removes it.
 
 ## Basic Usage
 
@@ -25,11 +27,11 @@ Greeting.initialState = { name: 'World' }
 
 // Uses component's initialState
 renderToString(Greeting)
-// → '<div class="greeting">Hello, World!</div>'
+// → '<div class="greeting" data-sygnal-ssr="">Hello, World!</div>'
 
 // Override state
 renderToString(Greeting, { state: { name: 'Alice' } })
-// → '<div class="greeting">Hello, Alice!</div>'
+// → '<div class="greeting" data-sygnal-ssr="">Hello, Alice!</div>'
 ```
 
 ## Sub-Components
@@ -80,7 +82,7 @@ TodoList.initialState = {
 }
 
 renderToString(TodoList)
-// → '<ul><div><li>Buy milk</li><li>Write docs</li></div></ul>'
+// → '<ul data-sygnal-ssr=""><div><li>Buy milk</li><li>Write docs</li></div></ul>'
 ```
 
 ## Context
@@ -96,7 +98,7 @@ App.initialState = { label: 'Hello', darkMode: true }
 App.context = { theme: (state) => state.darkMode ? 'dark' : 'light' }
 
 renderToString(App)
-// → '<div class="theme-dark">Hello</div>'
+// → '<div class="theme-dark" data-sygnal-ssr="">Hello</div>'
 ```
 
 ## Error Boundaries
@@ -113,7 +115,7 @@ Fragile.onError = (err, { componentName }) => (
 )
 
 renderToString(Fragile)
-// → '<div class="error">Something went wrong in Fragile</div>'
+// → '<div class="error" data-sygnal-ssr="">Something went wrong in Fragile</div>'
 ```
 
 To report these errors, pass the [app-level error hook](/advanced/error-boundaries/#app-level-error-hook): `renderToString(App, { onError })`. It is called with the phase `'view'`, after the boundary picked the fallback.

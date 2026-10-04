@@ -200,8 +200,12 @@ function collectHead(def: any, state: any): void {
  * import { renderToString } from 'sygnal'
  *
  * const html = renderToString(App, { state: { count: 0 } })
- * // → '<div><h1>Count: 0</h1></div>'
+ * // → '<div data-sygnal-ssr=""><h1>Count: 0</h1></div>'
  * ```
+ *
+ * The root element (a fragment's first element) carries an empty `data-sygnal-ssr` attribute,
+ * which marks the markup as Sygnal's server HTML (persist() under plain run() then restores after
+ * the first render); the first client render removes it.
  */
 export function renderToString(
   componentDef: any,

@@ -738,6 +738,7 @@ import { renderToString } from 'sygnal'
 
 // Basic usage
 const html = renderToString(App, { state: { count: 0 } })
+// The root element carries data-sygnal-ssr="" (removed by the first client render)
 
 // With hydration state
 const html = renderToString(App, {
@@ -927,7 +928,7 @@ function persist(options: {
   migrate?: (old: any, fromVersion: number) => Partial<State> | null | undefined
   storage?: 'local' | 'session' | { getItem, setItem, removeItem, subscribe? }   // default 'local'
   sync?: boolean                    // apply other tabs' writes (RESTORE)
-  hydrate?: boolean                 // restore after the first render (server-rendered HTML)
+  hydrate?: boolean                 // restore after the first render; detected when omitted
   debounceMs?: number               // default 100
 }): Persist<State>
 ```
@@ -937,7 +938,7 @@ TodoApp.persist = persist({ key: 'todo-app', pick: ['todos', 'filter'], version:
 ```
 
 - Stored as JSON `{ version, state }`: the `pick` keys (or all but `omit`; never calculated fields).
-- Restored synchronously before `INITIALIZE` and merged into `initialState`; with `hydrate: true`, in a `RESTORE` action after the first render. Another stored version goes through `migrate` (nothing returned, or no `migrate`: ignored).
+- Restored synchronously before `INITIALIZE` and merged into `initialState`. When the app hydrates server-rendered HTML, in a `RESTORE` action after the first render instead, so that render matches the server's markup. That is detected: `renderToString()` markup in `run()`'s mount point (its root element has `data-sygnal-ssr`), a server-rendered [Astro](/integration/astro/) island, a [Vike](/integration/vike/) hydration; `hydrate: true` / `false` override it ([Server rendering](/guide/persistence/#server-rendering-hydrate)). Another stored version goes through `migrate` (nothing returned, or no `migrate`: ignored).
 - Written after `debounceMs` without a state change, on `pagehide` and on dispose; not when unchanged.
 - Root component only ([SYG224](/reference/errors/#syg224)); a `pick` / `omit` key not in `initialState` is [SYG223](/reference/errors/#syg223); a failed restore, migrate or write is [SYG642](/reference/errors/#syg642) (warning) and the app continues.
 - Nothing is read or written during server rendering. In tests: `renderComponent`'s `storage` option and `t.storage(key)`.
@@ -948,7 +949,7 @@ TodoApp.persist = persist({ key: 'todo-app', pick: ['todos', 'filter'], version:
 
 ### RESTORE (Built-in Action)
 
-Sent to the persisting root with the saved keys as its data: after the first render with `hydrate: true`, and for another tab's write with `sync: true`. The built-in entry merges them into the state (`{ ...state, ...data }`); a `RESTORE` model entry replaces it.
+Sent to the persisting root with the saved keys as its data: after the first render when the app hydrates server-rendered HTML (see [persist()](#persist)), and for another tab's write with `sync: true`. The built-in entry merges them into the state (`{ ...state, ...data }`); a `RESTORE` model entry replaces it.
 
 ---
 
