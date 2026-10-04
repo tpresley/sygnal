@@ -196,10 +196,9 @@ class Component {
   log: any;
   addCalculated: (state: any) => any;
   newChildSources!: (sources: any) => void;
-  _calculatedNormalized: Record<string, {fn: (...args: any[]) => any; deps: string[] | null}> | null;
   _calculatedFieldNames: Set<string> | null;
-  _calculatedOrder: Array<[string, {fn: (...args: any[]) => any; deps: string[] | null}]> | null;
-  _calculatedFieldCache: Record<string, {lastDepValues: any; lastResult: any}> | null;
+  // [field, its { fn, deps }, the memo of a field with deps: { v: the dep values, r: the result }]
+  _calculatedOrder: Array<[string, {fn: (...args: any[]) => any; deps: string[] | null}, any]> | null;
   _subscriptions: any[];
   _processedChildren$: any;
   _disposeListener: any;
@@ -240,103 +239,54 @@ class Component {
 
     // Normalize calculated entries, build dependency graph, topological sort
     if (this.calculated && isObj(this.calculated)) {
-      const calcEntries = Object.entries(this.calculated)
-
       // Normalize all entries to { fn, deps } shape
-      this._calculatedNormalized = {}
-      for (const [field, entry] of calcEntries) {
-        this._calculatedNormalized[field] = normalizeCalculatedEntry(field, entry)
+      const normalized: Record<string, {fn: (...args: any[]) => any; deps: string[] | null}> = {}
+      for (const [field, entry] of Object.entries(this.calculated)) {
+        normalized[field] = normalizeCalculatedEntry(field, entry)
       }
+      const names = this._calculatedFieldNames = new Set(Object.keys(normalized))
 
-      this._calculatedFieldNames = new Set(Object.keys(this._calculatedNormalized))
-
-      // Warn on deps referencing nonexistent keys
-      for (const [field, { deps }] of Object.entries(this._calculatedNormalized)) {
-        if (deps !== null) {
-          for (const dep of deps) {
-            if (!this._calculatedFieldNames.has(dep)
-                && this.initialState && !(dep in this.initialState)) {
-              warn('SYG208', name, `Calculated field '${field}' depends on unknown key '${dep}'`, 'Add it to initialState')
-            }
+      // Kahn's algorithm: per field, the calculated fields it depends on (calcDeps), how many of
+      // them are not sorted yet (waiting) and the fields that depend on it (dependents)
+      const calcDeps: Record<string, string[]> = {}, waiting: Record<string, number> = {}, dependents: Record<string, string[]> = {}
+      for (const [field, { deps }] of Object.entries(normalized)) {
+        // Warn on deps referencing nonexistent keys
+        for (const dep of deps || []) {
+          if (!names.has(dep) && this.initialState && !(dep in this.initialState)) {
+            warn('SYG208', name, `Calculated field '${field}' depends on unknown key '${dep}'`, 'Add it to initialState')
           }
         }
+        const depList = calcDeps[field] = deps ? deps.filter(d => names.has(d)) : []
+        waiting[field] = depList.length
+        dependents[field] ||= []
+        for (const dep of depList) (dependents[dep] ||= []).push(field)
+      }
+      // the fields with nothing to wait for, then each field once the ones it depends on are in
+      const sorted = Object.keys(waiting).filter(f => !waiting[f])
+      for (let i = 0; i < sorted.length; i++) {
+        for (const dependent of dependents[sorted[i]]) if (!--waiting[dependent]) sorted.push(dependent)
       }
 
-      // Build adjacency: for each field, which other calculated fields must run first?
-      const calcDeps: Record<string, string[]> = {}
-      for (const [field, { deps }] of Object.entries(this._calculatedNormalized)) {
-        if (deps === null) {
-          calcDeps[field] = []
-        } else {
-          calcDeps[field] = deps.filter(d => this._calculatedFieldNames!.has(d))
-        }
-      }
-
-      // Kahn's algorithm for topological sort
-      const inDegree: Record<string, number> = {}
-      const reverseGraph: Record<string, string[]> = {}
-      for (const field of this._calculatedFieldNames) {
-        inDegree[field] = 0
-        reverseGraph[field] = []
-      }
-      for (const [field, depList] of Object.entries(calcDeps)) {
-        inDegree[field] = depList.length
-        for (const dep of depList) {
-          reverseGraph[dep].push(field)
-        }
-      }
-
-      const queue = []
-      for (const [field, degree] of Object.entries(inDegree)) {
-        if (degree === 0) queue.push(field)
-      }
-
-      const sorted: string[] = []
-      while (queue.length > 0) {
-        const current: string = queue.shift()!
-        sorted.push(current)
-        for (const dependent of reverseGraph[current]) {
-          inDegree[dependent]--
-          if (inDegree[dependent] === 0) queue.push(dependent)
-        }
-      }
-
-      if (sorted.length !== this._calculatedFieldNames.size) {
+      if (sorted.length !== names.size) {
         // Cycle detected — build error message with cycle path
-        const inCycle = [...this._calculatedFieldNames].filter(f => !sorted.includes(f))
-        const visited = new Set()
+        const inCycle = [...names].filter(f => !sorted.includes(f))
         const path: string[] = []
-        const traceCycle = (node: any) => {
-          if (visited.has(node)) { path.push(node); return true }
-          visited.add(node)
+        const traceCycle = (node: string): boolean => {
+          if (path.includes(node)) { path.push(node); return true }
           path.push(node)
-          for (const dep of calcDeps[node]) {
-            if (inCycle.includes(dep) && traceCycle(dep)) return true
-          }
+          if (calcDeps[node].some(dep => inCycle.includes(dep) && traceCycle(dep))) return true
           path.pop()
-          visited.delete(node)
           return false
         }
         traceCycle(inCycle[0])
         const start = path[path.length - 1]
-        const cycle = path.slice(path.indexOf(start))
-        fail('SYG209', name, `Circular calculated dependency: ${cycle.join(' \u2192 ')}`, 'Break the cycle')
+        fail('SYG209', name, `Circular calculated dependency: ${path.slice(path.indexOf(start)).join(' \u2192 ')}`, 'Break the cycle')
       }
 
-      this._calculatedOrder = sorted.map(f => [f, this._calculatedNormalized![f]])
-
-      // Initialize per-field memoization caches for fields with declared deps
-      this._calculatedFieldCache = {}
-      for (const [field, { deps }] of this._calculatedOrder) {
-        if (deps !== null) {
-          this._calculatedFieldCache[field] = { lastDepValues: undefined, lastResult: undefined }
-        }
-      }
+      this._calculatedOrder = sorted.map(f => [f, normalized[f], normalized[f].deps && {}])
     } else {
       this._calculatedOrder = null
-      this._calculatedNormalized = null
       this._calculatedFieldNames = null
-      this._calculatedFieldCache = null
     }
 
     this.isSubComponent = this.sourceNames.includes('props$')
@@ -1156,19 +1106,18 @@ class Component {
     const mergedState: Record<string, any> = { ...state }
     const computedSoFar: Record<string, any> = {}
 
-    for (const [field, { fn, deps }] of this._calculatedOrder) {
+    for (const [field, { fn, deps }, cache] of this._calculatedOrder) {
       // memoized on the declared deps; without deps, always recomputed
-      const cache = deps && this._calculatedFieldCache?.[field]
       const currentDepValues: any = cache && deps!.map(d => mergedState[d])
-      if (cache && cache.lastDepValues && currentDepValues.every((v: any, i: number) => v === cache.lastDepValues[i])) {
-        computedSoFar[field] = mergedState[field] = cache.lastResult
+      if (cache && cache.v && currentDepValues.every((v: any, i: number) => v === cache.v[i])) {
+        computedSoFar[field] = mergedState[field] = cache.r
         continue
       }
       try {
         const result = fn(mergedState)
         if (cache) {
-          cache.lastDepValues = currentDepValues
-          cache.lastResult = result
+          cache.v = currentDepValues
+          cache.r = result
         }
         computedSoFar[field] = mergedState[field] = result
       } catch (e: unknown) {
@@ -1868,44 +1817,40 @@ function processSuspensePost(vnode: any): any {
 const portalPatch = snabbdomInit(defaultModules);
 
 function applyTransitionHooks(vnode: any, name: string, duration?: number): any {
-  const existingInsert = vnode.data?.hook?.insert
-  const existingRemove = vnode.data?.hook?.remove
-
   vnode.data = vnode.data || {}
-  vnode.data.hook = vnode.data.hook || {}
-
-  vnode.data.hook.insert = (vn: any) => {
-    if (existingInsert) existingInsert(vn)
-    const el = vn.elm
-    if (!el || !el.classList) return
-    el.classList.add(`${name}-enter-from`, `${name}-enter-active`)
+  const hook = vnode.data.hook = vnode.data.hook || {}
+  const { insert, remove } = hook
+  // `${name}-${phase}-from` and -active, two frames later -from becomes -to; at its end -active
+  // and -to are removed and done() runs
+  const run = (el: any, phase: string, done?: () => void) => {
+    const c = (s: string) => `${name}-${phase}-${s}`
+    el.classList.add(c('from'), c('active'))
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        el.classList.remove(`${name}-enter-from`)
-        el.classList.add(`${name}-enter-to`)
+        el.classList.remove(c('from'))
+        el.classList.add(c('to'))
         onTransitionEnd(el, duration, () => {
-          el.classList.remove(`${name}-enter-active`, `${name}-enter-to`)
+          el.classList.remove(c('active'), c('to'))
+          done && done()
         })
       })
     })
   }
 
-  vnode.data.hook.remove = (vn: any, rm: () => void) => {
-    if (existingRemove) existingRemove(vn, () => {})
+  hook.insert = (vn: any) => {
+    if (insert) insert(vn)
+    const el = vn.elm
+    if (el && el.classList) run(el, 'enter')
+  }
+
+  hook.remove = (vn: any, rm: () => void) => {
+    if (remove) remove(vn, () => {})
     const el = vn.elm
     if (!el || !el.classList) { rm(); return }
-    el.classList.add(`${name}-leave-from`, `${name}-leave-active`)
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        el.classList.remove(`${name}-leave-from`)
-        el.classList.add(`${name}-leave-to`)
-        onTransitionEnd(el, duration, () => {
-          el.classList.remove(`${name}-leave-active`, `${name}-leave-to`)
-          const p = el.parentNode
-          rm()
-          pokeDOM(p)
-        })
-      })
+    run(el, 'leave', () => {
+      const p = el.parentNode
+      rm()
+      pokeDOM(p)
     })
   }
 
@@ -2025,6 +1970,7 @@ function isObj(obj: any): obj is Record<string, any> {
 }
 
 const SORT_FIX = "Use a field name, { field: 'asc'|'desc'|1|-1 }, or a function"
+const sortError = (msg: string, value: any): undefined => void logError('SYG418', 'Collection', msg, SORT_FIX, value)
 
 function __baseSort(a: any, b: any, ascending: boolean = true): number {
   return a > b ? (ascending ? 1 : -1) : a < b ? (ascending ? -1 : 1) : 0
@@ -2032,31 +1978,17 @@ function __baseSort(a: any, b: any, ascending: boolean = true): number {
 
 function __sortFunctionFromObj(item: Record<string, any>): ((a: any, b: any) => number) | undefined {
   const entries = Object.entries(item)
-  if (entries.length > 1) {
-    logError('SYG418', 'Collection', 'sort object must have one key; ignored', SORT_FIX, item)
-    return undefined
-  }
-  const entry = entries[0]
-  const [field, directionRaw] = entry
-  if (!['string', 'number'].includes(typeof directionRaw)) {
-    logError('SYG418', 'Collection', 'sort direction must be a string or number; ignored', SORT_FIX, item)
-    return undefined
-  }
-  let ascending = true
+  if (entries.length > 1) return sortError('sort object must have one key; ignored', item)
+  const [field, directionRaw] = entries[0]
+  let ascending
   if (typeof directionRaw === 'string') {
-    if (!['asc', 'desc'].includes(directionRaw.toLowerCase())) {
-      logError('SYG418', 'Collection', "sort direction must be 'asc' or 'desc'; ignored", SORT_FIX, item)
-      return undefined
-    }
-    ascending = directionRaw.toLowerCase() !== 'desc'
-  }
-  if (typeof directionRaw === 'number') {
-    if (directionRaw !== 1 && directionRaw !== -1) {
-      logError('SYG418', 'Collection', 'sort direction must be 1 or -1; ignored', SORT_FIX, item)
-      return undefined
-    }
+    const direction = directionRaw.toLowerCase()
+    if (direction !== 'asc' && direction !== 'desc') return sortError("sort direction must be 'asc' or 'desc'; ignored", item)
+    ascending = direction === 'asc'
+  } else if (typeof directionRaw === 'number') {
+    if (directionRaw !== 1 && directionRaw !== -1) return sortError('sort direction must be 1 or -1; ignored', item)
     ascending = directionRaw === 1
-  }
+  } else return sortError('sort direction must be a string or number; ignored', item)
   return (a, b) => __baseSort(a[field], b[field], ascending)
 }
 
@@ -2067,32 +1999,22 @@ function sortFunctionFromProp(sortProp: any): ((a: any, b: any) => number) | und
   if (propType === 'function') return sortProp
   if (propType === 'string') {
     // if passed either 'asc' or 'desc' sort on the entire item
-    if (sortProp.toLowerCase() === 'asc' || sortProp.toLowerCase() === 'desc') {
-      const ascending = sortProp.toLowerCase() !== 'desc'
-      return (a, b) => __baseSort(a, b, ascending)
-    }
+    const direction = sortProp.toLowerCase()
+    if (direction === 'asc' || direction === 'desc') return (a, b) => __baseSort(a, b, direction === 'asc')
     // assume it's a field/property name, and sort it ascending
-    const field = sortProp
-    return (a, b) => __baseSort(a[field], b[field], true)
-  } else if (Array.isArray(sortProp)) {
-    const sorters = sortProp.map(item => {
-      if (typeof item === 'function') return item
-      if (typeof item === 'string' && !['asc', 'desc'].includes(item.toLowerCase())) return (a: any, b: any) => __baseSort(a[item], b[item], true)
-      if (isObj(item)) {
-        return __sortFunctionFromObj(item)
-      }
-    })
-    
-    return (a, b) => sorters.filter(sorter => typeof sorter === 'function').reduce((comparisonSoFar, currentSorter) => {
-      if (comparisonSoFar !== 0) return comparisonSoFar
-      return currentSorter(a, b)
-    }, 0)
-  } else if (isObj(sortProp)) {
-    return __sortFunctionFromObj(sortProp)
-  } else {
-    logError('SYG418', 'Collection', 'Invalid sort prop; ignored', SORT_FIX, sortProp)
-    return undefined
+    return (a, b) => __baseSort(a[sortProp], b[sortProp])
   }
+  if (Array.isArray(sortProp)) {
+    // the valid sorters, each tried until one tells the items apart
+    const sorters: any[] = sortProp.map(item =>
+      typeof item === 'function' ? item
+      : typeof item === 'string' ? (['asc', 'desc'].includes(item.toLowerCase()) ? undefined : (a: any, b: any) => __baseSort(a[item], b[item]))
+      : isObj(item) ? __sortFunctionFromObj(item) : undefined
+    ).filter(sorter => typeof sorter === 'function')
+    return (a, b) => sorters.reduce((comparisonSoFar, currentSorter) => comparisonSoFar !== 0 ? comparisonSoFar : currentSorter(a, b), 0)
+  }
+  if (isObj(sortProp)) return __sortFunctionFromObj(sortProp)
+  return sortError('Invalid sort prop; ignored', sortProp)
 }
 
 function extractSlots(children: any[]): { slots: Record<string, any[]>, defaultChildren: any[] } {
