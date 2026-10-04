@@ -196,9 +196,38 @@ export interface InspectComponent {
   selectors: InspectSelector[]
   /** PLAN-4 CT-1: the controls it renders (runtime: seen in its renders); omitted when none */
   controls?: InspectControl[]
+  /** static only, PLAN-4 GS-2 (G-224): the element commands (ELEMENT sink) its model sends; omitted when none */
+  commands?: InspectCommand[]
+  /** static only, PLAN-4 GS-7 (G-224): the literal timer specs of its `timers` static; omitted when none */
+  timers?: InspectTimer[]
   diagnostics: InspectDiagnostic[]
   /** runtime, PLAN-3 5-3: the instance's `resources` and their state */
   resources?: InspectResource[]
+}
+
+/** PLAN-4 GS-2: an element command a model entry sends (static inspect, sygnal-check --graph) */
+export interface InspectCommand {
+  /** the model entry that sends it */
+  action: string
+  /** the command's method (its first key) */
+  method: string
+  /** the control's key or the selector; null when not static */
+  target: string | null
+  /** the control it targets (its key) */
+  control?: string
+  /** intent actions listening on the target for a native event the command causes (close, toggle...) */
+  triggers?: string[]
+}
+
+/** PLAN-4 GS-7: a literal timer spec of a `timers` static (static inspect, sygnal-check --graph) */
+export interface InspectTimer {
+  name: string
+  every?: number | null
+  after?: number | null
+  /** the action a frame timer dispatches */
+  frame?: string | null
+  action?: string | null
+  background?: true
 }
 
 /** PLAN-3 5-3: a resource of a component instance (runtime inspect()) */

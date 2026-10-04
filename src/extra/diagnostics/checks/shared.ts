@@ -75,6 +75,8 @@ const keyedNames = (keys: string) => new RegExp(`(?:^|[{,\\s])["']?(?:${keys})["
 // (PLAN-3 5-4b: and a router `{ block: 'ACTION' }`)
 const REPLY_IN_SOURCE = keyedNames('ok|error|block')
 const CONNECTION_IN_SOURCE = keyedNames('message|open|close|error')
+// G-224: a `timers` static's `action: 'TICK'` / `frame: 'FRAME'`
+const TIMER_IN_SOURCE = keyedNames('action|frame')
 
 const namesIn = (fn: any, re: RegExp, out: Set<string>) => {
   if (typeof fn !== 'function') return
@@ -107,6 +109,11 @@ export function replyNamesOf(component: any): Set<string> {
     }
   }
   namesIn(component?.view?.connections, CONNECTION_IN_SOURCE, out)
+  // G-224: makeTimerDriver() replies the actions the `timers` static names (a function of the
+  // state, or an object of them)
+  const timers = component?.view?.timers
+  if (timers && typeof timers === 'object') for (const k in timers) namesIn(timers[k], TIMER_IN_SOURCE, out)
+  else namesIn(timers, TIMER_IN_SOURCE, out)
   // PLAN-3 5-4b: the router replies the action a `route` static names
   const route = component?.view?.route
   if (typeof route === 'string') out.add(route)
