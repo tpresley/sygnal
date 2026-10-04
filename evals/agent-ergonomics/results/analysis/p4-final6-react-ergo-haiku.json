@@ -1,12 +1,12 @@
 {
   "meta": {
     "run": "p4-final6-react-ergo-haiku",
-    "generatedAt": "2026-10-04T08:34:11.909Z",
+    "generatedAt": "2026-10-04T09:02:41.992Z",
     "trialsInMap": 20,
     "trialsAnalyzed": 20,
     "trialsScored": 20,
-    "skillDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/_variant/skillroot/.claude/skills/sygnal-dev",
-    "llms": "/Users/troy/Documents/Displera/sygnal/.claude/worktrees/plan-4-execution-7ae8e8/llms.txt",
+    "skillDir": "/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/_variant/skillroot/.claude/skills/sygnal-dev",
+    "llms": "/Users/troy/Documents/Displera/sygnal/.claude/worktrees/agent-aae257d8e170429f0/llms.txt",
     "sygnalCheck": true,
     "methods": [
       "headless"
@@ -889,7 +889,7 @@
         "wallSeconds": 33,
         "iterations": 2,
         "editRounds": 1,
-        "failureCategory": null
+        "failureCategory": "other"
       },
       "method": "headless",
       "tokens": {
@@ -952,7 +952,7 @@
       "selfReported": [],
       "wroteTest": false,
       "testWindow": null,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-26-t1",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-26-t1",
       "diff": {
         "added": 64,
         "removed": 2,
@@ -983,7 +983,7 @@
         "wallSeconds": 226,
         "iterations": 8,
         "editRounds": 6,
-        "failureCategory": null
+        "failureCategory": "other"
       },
       "method": "headless",
       "tokens": {
@@ -1162,7 +1162,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 160.5,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-26-t2",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-26-t2",
       "diff": {
         "added": 196,
         "removed": 4,
@@ -1348,7 +1348,7 @@
       "selfReported": [],
       "wroteTest": false,
       "testWindow": null,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-26-t3",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-26-t3",
       "diff": {
         "added": 69,
         "removed": 4,
@@ -1379,7 +1379,7 @@
         "wallSeconds": 156,
         "iterations": 7,
         "editRounds": 3,
-        "failureCategory": null
+        "failureCategory": "other"
       },
       "method": "headless",
       "tokens": {
@@ -1522,7 +1522,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 43.3,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-26-t4",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-26-t4",
       "diff": {
         "added": 103,
         "removed": 4,
@@ -1555,7 +1555,7 @@
         "wallSeconds": 264,
         "iterations": 10,
         "editRounds": 7,
-        "failureCategory": null
+        "failureCategory": "other"
       },
       "method": "headless",
       "tokens": {
@@ -1763,7 +1763,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 175.7,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-26-t5",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-26-t5",
       "diff": {
         "added": 278,
         "removed": 4,
@@ -1805,7 +1805,7 @@
         "wallSeconds": 93,
         "iterations": 5,
         "editRounds": 1,
-        "failureCategory": null
+        "failureCategory": "other"
       },
       "method": "headless",
       "tokens": {
@@ -1932,7 +1932,7 @@
       "selfReported": [],
       "wroteTest": false,
       "testWindow": null,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-27-t1",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-27-t1",
       "diff": {
         "added": 93,
         "removed": 5,
@@ -2125,7 +2125,7 @@
       "selfReported": [],
       "wroteTest": false,
       "testWindow": null,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-27-t2",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-27-t2",
       "diff": {
         "added": 100,
         "removed": 8,
@@ -2158,7 +2158,7 @@
         "wallSeconds": 159,
         "iterations": 4,
         "editRounds": 3,
-        "failureCategory": null
+        "failureCategory": "other"
       },
       "method": "headless",
       "tokens": {
@@ -2293,7 +2293,7 @@
       "selfReported": [],
       "wroteTest": false,
       "testWindow": null,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-27-t3",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-27-t3",
       "diff": {
         "added": 107,
         "removed": 5,
@@ -2324,7 +2324,7 @@
         "wallSeconds": 164,
         "iterations": 1,
         "editRounds": 2,
-        "failureCategory": null
+        "failureCategory": "other"
       },
       "method": "headless",
       "tokens": {
@@ -2453,7 +2453,7 @@
       "selfReported": [],
       "wroteTest": false,
       "testWindow": null,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-27-t4",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-27-t4",
       "diff": {
         "added": 90,
         "removed": 5,
@@ -2484,7 +2484,7 @@
         "wallSeconds": 194,
         "iterations": 5,
         "editRounds": 5,
-        "failureCategory": null
+        "failureCategory": "other"
       },
       "method": "headless",
       "tokens": {
@@ -2633,7 +2633,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 56.1,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-27-t5",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-27-t5",
       "diff": {
         "added": 114,
         "removed": 5,
@@ -2666,7 +2666,7 @@
         "wallSeconds": 109,
         "iterations": 9,
         "editRounds": 4,
-        "failureCategory": null
+        "failureCategory": "other"
       },
       "method": "headless",
       "tokens": {
@@ -2875,7 +2875,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 48.5,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-28-t1",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-28-t1",
       "diff": {
         "added": 110,
         "removed": 5,
@@ -2908,7 +2908,7 @@
         "wallSeconds": 111,
         "iterations": 1,
         "editRounds": 2,
-        "failureCategory": null
+        "failureCategory": "other"
       },
       "method": "headless",
       "tokens": {
@@ -3051,7 +3051,7 @@
       "selfReported": [],
       "wroteTest": false,
       "testWindow": null,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-28-t2",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-28-t2",
       "diff": {
         "added": 102,
         "removed": 5,
@@ -3216,7 +3216,7 @@
       "selfReported": [],
       "wroteTest": false,
       "testWindow": null,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-28-t3",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-28-t3",
       "diff": {
         "added": 83,
         "removed": 5,
@@ -3501,7 +3501,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 254.4,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-28-t4",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-28-t4",
       "diff": {
         "added": 283,
         "removed": 5,
@@ -3553,7 +3553,7 @@
         "wallSeconds": 59,
         "iterations": 3,
         "editRounds": 2,
-        "failureCategory": null
+        "failureCategory": "other"
       },
       "method": "headless",
       "tokens": {
@@ -3681,7 +3681,7 @@
       "selfReported": [],
       "wroteTest": false,
       "testWindow": null,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-28-t5",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-28-t5",
       "diff": {
         "added": 79,
         "removed": 5,
@@ -3714,7 +3714,7 @@
         "wallSeconds": 199,
         "iterations": 11,
         "editRounds": 8,
-        "failureCategory": null
+        "failureCategory": "other"
       },
       "method": "headless",
       "tokens": {
@@ -3940,7 +3940,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 128.6,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-29-t1",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-29-t1",
       "diff": {
         "added": 416,
         "removed": 14,
@@ -3983,7 +3983,7 @@
         "wallSeconds": 256,
         "iterations": 4,
         "editRounds": 4,
-        "failureCategory": null
+        "failureCategory": "other"
       },
       "method": "headless",
       "tokens": {
@@ -4118,7 +4118,7 @@
       "selfReported": [],
       "wroteTest": false,
       "testWindow": null,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-29-t2",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-29-t2",
       "diff": {
         "added": 227,
         "removed": 14,
@@ -4149,7 +4149,7 @@
         "wallSeconds": 204,
         "iterations": 8,
         "editRounds": 4,
-        "failureCategory": null
+        "failureCategory": "other"
       },
       "method": "headless",
       "tokens": {
@@ -4317,7 +4317,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 98.4,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-29-t3",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-29-t3",
       "diff": {
         "added": 492,
         "removed": 12,
@@ -4555,7 +4555,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 85.4,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-29-t4",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-29-t4",
       "diff": {
         "added": 479,
         "removed": 13,
@@ -4836,7 +4836,7 @@
       "selfReported": [],
       "wroteTest": true,
       "testWindow": 247.4,
-      "trialDir": "/private/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-29-t5",
+      "trialDir": "/tmp/sygnal-evals/trials/p4-final6-react-ergo-haiku/react-29-t5",
       "diff": {
         "added": 385,
         "removed": 18,

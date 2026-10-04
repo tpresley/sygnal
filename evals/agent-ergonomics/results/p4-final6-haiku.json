@@ -133,7 +133,7 @@
     "variant": "p4-final6",
     "variantHash": "a3515c1624d7",
     "starterVersion": 2,
-    "failureCategory": null,
+    "failureCategory": "other",
     "failures": [
       {
         "test": "02 pin a task (child -> parent through a Collection) starts with nothing pinned and a Pin button on every row",
@@ -220,7 +220,7 @@
     "variant": "p4-final6",
     "variantHash": "a3515c1624d7",
     "starterVersion": 2,
-    "failureCategory": null,
+    "failureCategory": "other",
     "failures": [
       {
         "test": "02 pin a task (child -> parent through a Collection) starts with nothing pinned and a Pin button on every row",
@@ -1145,7 +1145,7 @@
     "variant": "p4-final6",
     "variantHash": "a3515c1624d7",
     "starterVersion": 2,
-    "failureCategory": null,
+    "failureCategory": "other",
     "failures": [
       {
         "test": "10 two-step signup wizard with validation leaving a field shows only that field's message, which then follows the value as the user types",
@@ -1174,7 +1174,7 @@
     "variant": "p4-final6",
     "variantHash": "a3515c1624d7",
     "starterVersion": 2,
-    "failureCategory": null,
+    "failureCategory": "other",
     "failures": [
       {
         "test": "11 debounced search with stale-response handling shows the results, then \"No results\" for an empty list",
@@ -1225,7 +1225,7 @@
     "variant": "p4-final6",
     "variantHash": "a3515c1624d7",
     "starterVersion": 2,
-    "failureCategory": null,
+    "failureCategory": "other",
     "failures": [
       {
         "test": "10 two-step signup wizard with validation leaving a field shows only that field's message, which then follows the value as the user types",
@@ -1278,7 +1278,7 @@
     "variant": "p4-final6",
     "variantHash": "a3515c1624d7",
     "starterVersion": 2,
-    "failureCategory": null,
+    "failureCategory": "other",
     "failures": [
       {
         "test": "11 debounced search with stale-response handling shows the results, then \"No results\" for an empty list",
@@ -1306,7 +1306,7 @@
     "variant": "p4-final6",
     "variantHash": "a3515c1624d7",
     "starterVersion": 2,
-    "failureCategory": null,
+    "failureCategory": "other",
     "failures": [
       {
         "test": "11 debounced search with stale-response handling shows the results, then \"No results\" for an empty list",
@@ -1474,7 +1474,7 @@
     "variant": "p4-final6",
     "variantHash": "a3515c1624d7",
     "starterVersion": 2,
-    "failureCategory": null,
+    "failureCategory": "wiring",
     "failures": [
       {
         "test": "12 selected task across a nested tree (rows -> sibling details panel) clicking a title selects it and fills the panel; clicking another moves the selection",
@@ -1526,7 +1526,7 @@
     "variant": "p4-final6",
     "variantHash": "a3515c1624d7",
     "starterVersion": 2,
-    "failureCategory": null,
+    "failureCategory": "wiring",
     "failures": [
       {
         "test": "13 courses page: routing + list + data loading adds a Courses tab after Profile and does not load anything at startup",
@@ -1583,7 +1583,7 @@
     "variant": "p4-final6",
     "variantHash": "a3515c1624d7",
     "starterVersion": 2,
-    "failureCategory": null,
+    "failureCategory": "other",
     "failures": [
       {
         "test": "13 courses page: routing + list + data loading lists the courses with seats and the right button for each",
@@ -1612,7 +1612,7 @@
     "variant": "p4-final6",
     "variantHash": "a3515c1624d7",
     "starterVersion": 2,
-    "failureCategory": null,
+    "failureCategory": "wiring",
     "failures": [
       {
         "test": "14 fix: activity entries for closed tickets, and \"Assign to me\" \"Assign to me\" assigns the ticket to Priya and updates the header",
@@ -1694,7 +1694,7 @@
     "variant": "p4-final6",
     "variantHash": "a3515c1624d7",
     "starterVersion": 2,
-    "failureCategory": null,
+    "failureCategory": "other",
     "failures": [
       {
         "test": "13 courses page: routing + list + data loading the Profile page lists the enrolled courses in course-list order",
@@ -1727,7 +1727,7 @@
     "variant": "p4-final6",
     "variantHash": "a3515c1624d7",
     "starterVersion": 2,
-    "failureCategory": null,
+    "failureCategory": "other",
     "failures": [
       {
         "test": "13 courses page: routing + list + data loading shows an error with Retry for a failed load, and Retry loads again",
@@ -1825,7 +1825,7 @@
     "variant": "p4-final6",
     "variantHash": "a3515c1624d7",
     "starterVersion": 2,
-    "failureCategory": null,
+    "failureCategory": "wiring",
     "failures": [
       {
         "test": "14 fix: activity entries for closed tickets, and \"Assign to me\" \"Assign to me\" assigns the ticket to Priya and updates the header",
@@ -2024,7 +2024,7 @@
     "variant": "p4-final6",
     "variantHash": "a3515c1624d7",
     "starterVersion": 2,
-    "failureCategory": null,
+    "failureCategory": "other",
     "failures": [
       {
         "test": "17 ZIP lookup: latest response only, real form state and focus editing the ZIP to fewer digits cancels the lookup in flight and re-enables the checkbox",
@@ -2076,7 +2076,7 @@
     "variant": "p4-final6",
     "variantHash": "a3515c1624d7",
     "starterVersion": 2,
-    "failureCategory": null,
+    "failureCategory": "other",
     "failures": [
       {
         "test": "17 ZIP lookup: latest response only, real form state and focus a successful lookup fills the City field, clears the status and leaves focus alone",
@@ -2105,7 +2105,7 @@
     "variant": "p4-final6",
     "variantHash": "a3515c1624d7",
     "starterVersion": 2,
-    "failureCategory": null,
+    "failureCategory": "other",
     "failures": [
       {
         "test": "17 ZIP lookup: latest response only, real form state and focus a ZIP without express delivery unchecks and disables the checkbox, even if the user checked it",
@@ -2137,7 +2137,7 @@
     "variant": "p4-final6",
     "variantHash": "a3515c1624d7",
     "starterVersion": 2,
-    "failureCategory": null,
+    "failureCategory": "other",
     "failures": [
       {
         "test": "17 ZIP lookup: latest response only, real form state and focus a successful lookup fills the City field, clears the status and leaves focus alone",
@@ -2173,7 +2173,7 @@
     "variant": "p4-final6",
     "variantHash": "a3515c1624d7",
     "starterVersion": 2,
-    "failureCategory": null,
+    "failureCategory": "other",
     "failures": [
       {
         "test": "26 autosave: debounced PUT, save status, latest save only, draft kept in localStorage an edit during a save shows \"Unsaved changes\"; the older success never changes the status",
@@ -2201,7 +2201,7 @@
     "variant": "p4-final6",
     "variantHash": "a3515c1624d7",
     "starterVersion": 2,
-    "failureCategory": null,
+    "failureCategory": "other",
     "failures": [
       {
         "test": "26 autosave: debounced PUT, save status, latest save only, draft kept in localStorage an older reply arriving after a newer save never changes the status, success or failure",
@@ -2230,7 +2230,7 @@
     "variant": "p4-final6",
     "variantHash": "a3515c1624d7",
     "starterVersion": 2,
-    "failureCategory": null,
+    "failureCategory": "other",
     "failures": [
       {
         "test": "17 ZIP lookup: latest response only, real form state and focus a ZIP without express delivery unchecks and disables the checkbox, even if the user checked it",
@@ -2274,7 +2274,7 @@
     "variant": "p4-final6",
     "variantHash": "a3515c1624d7",
     "starterVersion": 2,
-    "failureCategory": null,
+    "failureCategory": "other",
     "failures": [
       {
         "test": "26 autosave: debounced PUT, save status, latest save only, draft kept in localStorage an edit during a save shows \"Unsaved changes\"; the older success never changes the status",
@@ -2302,7 +2302,7 @@
     "variant": "p4-final6",
     "variantHash": "a3515c1624d7",
     "starterVersion": 2,
-    "failureCategory": null,
+    "failureCategory": "other",
     "failures": [
       {
         "test": "26 autosave: debounced PUT, save status, latest save only, draft kept in localStorage an edit during a save shows \"Unsaved changes\"; the older success never changes the status",
@@ -2330,7 +2330,7 @@
     "variant": "p4-final6",
     "variantHash": "a3515c1624d7",
     "starterVersion": 2,
-    "failureCategory": null,
+    "failureCategory": "other",
     "failures": [
       {
         "test": "27 undo editor: steps, grouped typing, redo, disabled buttons and shortcuts keyboard shortcuts work anywhere, also in the field, and prevent the default",
@@ -2358,7 +2358,7 @@
     "variant": "p4-final6",
     "variantHash": "a3515c1624d7",
     "starterVersion": 2,
-    "failureCategory": null,
+    "failureCategory": "other",
     "failures": [
       {
         "test": "27 undo editor: steps, grouped typing, redo, disabled buttons and shortcuts keyboard shortcuts work anywhere, also in the field, and prevent the default",
@@ -2410,7 +2410,7 @@
     "variant": "p4-final6",
     "variantHash": "a3515c1624d7",
     "starterVersion": 2,
-    "failureCategory": null,
+    "failureCategory": "other",
     "failures": [
       {
         "test": "27 undo editor: steps, grouped typing, redo, disabled buttons and shortcuts keyboard shortcuts work anywhere, also in the field, and prevent the default",
@@ -2439,7 +2439,7 @@
     "variant": "p4-final6",
     "variantHash": "a3515c1624d7",
     "starterVersion": 2,
-    "failureCategory": null,
+    "failureCategory": "other",
     "failures": [
       {
         "test": "27 undo editor: steps, grouped typing, redo, disabled buttons and shortcuts keyboard shortcuts work anywhere, also in the field, and prevent the default",
@@ -2468,7 +2468,7 @@
     "variant": "p4-final6",
     "variantHash": "a3515c1624d7",
     "starterVersion": 2,
-    "failureCategory": null,
+    "failureCategory": "other",
     "failures": [
       {
         "test": "27 undo editor: steps, grouped typing, redo, disabled buttons and shortcuts keyboard shortcuts work anywhere, also in the field, and prevent the default",
@@ -2496,7 +2496,7 @@
     "variant": "p4-final6",
     "variantHash": "a3515c1624d7",
     "starterVersion": 2,
-    "failureCategory": null,
+    "failureCategory": "other",
     "failures": [
       {
         "test": "28 stopwatch: start, pause, resume, laps and reset on the clock, no stray timers starts at 00:00.0 with only Start enabled, and nothing runs before Start",
@@ -2549,7 +2549,7 @@
     "variant": "p4-final6",
     "variantHash": "a3515c1624d7",
     "starterVersion": 2,
-    "failureCategory": null,
+    "failureCategory": "other",
     "failures": [
       {
         "test": "28 stopwatch: start, pause, resume, laps and reset on the clock, no stray timers starts at 00:00.0 with only Start enabled, and nothing runs before Start",
@@ -2601,7 +2601,7 @@
     "variant": "p4-final6",
     "variantHash": "a3515c1624d7",
     "starterVersion": 2,
-    "failureCategory": null,
+    "failureCategory": "other",
     "failures": [
       {
         "test": "28 stopwatch: start, pause, resume, laps and reset on the clock, no stray timers starts at 00:00.0 with only Start enabled, and nothing runs before Start",
@@ -2654,7 +2654,7 @@
     "variant": "p4-final6",
     "variantHash": "a3515c1624d7",
     "starterVersion": 2,
-    "failureCategory": null,
+    "failureCategory": "other",
     "failures": [
       {
         "test": "28 stopwatch: start, pause, resume, laps and reset on the clock, no stray timers laps record the running time of each lap, not counting pauses",
@@ -2682,7 +2682,7 @@
     "variant": "p4-final6",
     "variantHash": "a3515c1624d7",
     "starterVersion": 2,
-    "failureCategory": null,
+    "failureCategory": "other",
     "failures": [
       {
         "test": "28 stopwatch: start, pause, resume, laps and reset on the clock, no stray timers starts at 00:00.0 with only Start enabled, and nothing runs before Start",
@@ -2757,7 +2757,7 @@
     "variant": "p4-final6",
     "variantHash": "a3515c1624d7",
     "starterVersion": 2,
-    "failureCategory": null,
+    "failureCategory": "other",
     "failures": [
       {
         "test": "29 accessible signup: labels, described errors, focus, native modal dialog a valid form opens the confirmation as a modal dialog; Cancel closes it",
@@ -2813,7 +2813,7 @@
     "variant": "p4-final6",
     "variantHash": "a3515c1624d7",
     "starterVersion": 2,
-    "failureCategory": null,
+    "failureCategory": "other",
     "failures": [
       {
         "test": "29 accessible signup: labels, described errors, focus, native modal dialog a valid form opens the confirmation as a modal dialog; Cancel closes it",
@@ -2845,7 +2845,7 @@
     "variant": "p4-final6",
     "variantHash": "a3515c1624d7",
     "starterVersion": 2,
-    "failureCategory": null,
+    "failureCategory": "other",
     "failures": [
       {
         "test": "29 accessible signup: labels, described errors, focus, native modal dialog an empty form shows each message, wired to its field, and focuses Name without reloading",
