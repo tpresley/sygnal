@@ -1,0 +1,315 @@
+<title>Sygnal Core Rewrite Proposal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a single reading column (~68ch) with wide tables and charts allowed to break out to 980px. */
+:root {
+  --bg: #f5f6f4;
+  --surface: #ffffff;
+  --fg: #1b2124;
+  --muted: #5b6669;
+  --rule: #d8dcda;
+  --accent: #0a7b70;      /* prototype / "next" */
+  --accent-soft: #d9efec;
+  --current: #8a6a2f;     /* current core */
+  --current-soft: #f1e6cf;
+  --react: #9aa3a6;
+  --good: #1f7a3a; --warn: #9a6200; --bad: #a3302a;
+  --code-bg: #eceeec;
+  --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --body: "IBM Plex Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #12171a; --surface: #192024; --fg: #e3e8e6; --muted: #98a3a2; --rule: #2c3538;
+  --accent: #4cc2b5; --accent-soft: #163a37; --current: #d1a85a; --current-soft: #3a2f1a; --react: #6b7679;
+  --good: #6cc486; --warn: #e0a647; --bad: #e57a72; --code-bg: #20292c; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #12171a; --surface: #192024; --fg: #e3e8e6; --muted: #98a3a2; --rule: #2c3538;
+  --accent: #4cc2b5; --accent-soft: #163a37; --current: #d1a85a; --current-soft: #3a2f1a; --react: #6b7679;
+  --good: #6cc486; --warn: #e0a647; --bad: #e57a72; --code-bg: #20292c; color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font: 400 16px/1.6 var(--body); padding-inline: 20px; padding-block: 40px 80px; }
+main { max-width: 980px; margin: 0 auto; display: flex; flex-direction: column; gap: 56px; }
+.col { max-width: 68ch; }
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; line-height: 1.15; margin: 0; }
+h1 { font-size: clamp(2rem, 4.5vw, 2.9rem); font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: 1.6rem; font-weight: 700; }
+h3 { font-size: 1.15rem; font-weight: 600; }
+p { margin: 0; }
+section { display: flex; flex-direction: column; gap: 16px; }
+.eyebrow { font: 500 0.75rem/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+code, .mono { font-family: var(--mono); font-size: 0.88em; }
+:not(pre) > code { background: var(--code-bg); padding: 0.1em 0.35em; border-radius: 4px; }
+pre { background: var(--code-bg); border-radius: 8px; padding: 16px; overflow-x: auto; margin: 0; font: 400 0.84rem/1.55 var(--mono); }
+a { color: var(--accent); }
+a:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+ul, ol { margin: 0; padding-left: 1.3em; display: flex; flex-direction: column; gap: 6px; }
+strong { font-weight: 600; }
+
+header { display: flex; flex-direction: column; gap: 14px; border-bottom: 1px solid var(--rule); padding-bottom: 28px; }
+.lede { font-size: 1.12rem; color: var(--fg); max-width: 64ch; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px 20px; font: 400 0.82rem/1.4 var(--mono); color: var(--muted); }
+.meta span { min-width: 0; overflow-wrap: anywhere; }
+
+.callout { background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 20px 22px; display: flex; flex-direction: column; gap: 10px; }
+.callout.warn { border-color: color-mix(in srgb, var(--warn) 45%, var(--rule)); }
+
+/* timing-source diagram */
+.sources { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.src { background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.src .k { font: 500 0.78rem/1 var(--mono); color: var(--current); }
+.src p { font-size: 0.93rem; color: var(--muted); }
+
+/* chart */
+.chart { background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 20px 22px; display: flex; flex-direction: column; gap: 18px; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 0.85rem; color: var(--muted); }
+.legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -1px; margin-right: 6px; }
+.row { display: grid; grid-template-columns: minmax(150px, 220px) 1fr; gap: 6px 18px; align-items: center; }
+.row .label { font-size: 0.92rem; font-weight: 500; }
+.row .label small { display: block; color: var(--muted); font-weight: 400; font-size: 0.78rem; }
+.bars { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.bar { display: flex; align-items: center; gap: 8px; font: 400 0.78rem/1 var(--mono); font-variant-numeric: tabular-nums; color: var(--muted); }
+.bar b { height: 11px; border-radius: 2px; display: block; flex: none; min-width: 2px; }
+.bar.cur b { background: var(--current); }
+.bar.nxt b { background: var(--accent); }
+.bar.nxt { color: var(--fg); font-weight: 500; }
+.bar.rct b { background: var(--react); }
+.chart-note { font-size: 0.82rem; color: var(--muted); }
+@media (max-width: 560px) { .row { grid-template-columns: 1fr; } }
+
+/* stats */
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.stat { border-top: 2px solid var(--accent); padding-top: 10px; display: flex; flex-direction: column; gap: 4px; }
+.stat .v { font: 700 1.6rem/1.1 var(--display); font-variant-numeric: tabular-nums; }
+.stat .d { font-size: 0.88rem; color: var(--muted); }
+
+/* tables */
+.tbl { overflow-x: auto; border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+th, td { text-align: left; vertical-align: top; padding: 10px 14px; border-bottom: 1px solid var(--rule); }
+tr:last-child td { border-bottom: 0; }
+th { font: 500 0.74rem/1.3 var(--mono); text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); background: color-mix(in srgb, var(--surface) 70%, var(--bg)); }
+td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pill { display: inline-block; font: 500 0.72rem/1 var(--mono); padding: 4px 7px; border-radius: 999px; white-space: nowrap; }
+.pill.drop { background: color-mix(in srgb, var(--bad) 14%, transparent); color: var(--bad); }
+.pill.compat { background: color-mix(in srgb, var(--warn) 16%, transparent); color: var(--warn); }
+.pill.keep { background: color-mix(in srgb, var(--good) 14%, transparent); color: var(--good); }
+.pill.st { background: var(--code-bg); color: var(--muted); }
+
+/* layers */
+.layers { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.layer { border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.layer.edge { border-style: dashed; }
+.layer .path { font: 500 0.8rem/1.2 var(--mono); color: var(--accent); }
+.layer p { font-size: 0.92rem; color: var(--muted); }
+
+.phases { display: flex; flex-direction: column; gap: 0; border-left: 2px solid var(--rule); margin-left: 6px; }
+.phase { display: grid; grid-template-columns: 56px 1fr; gap: 4px 14px; padding: 0 0 18px 18px; position: relative; }
+.phase::before { content: ""; position: absolute; left: -7px; top: 6px; width: 12px; height: 12px; border-radius: 50%; background: var(--bg); border: 2px solid var(--accent); }
+.phase .id { font: 500 0.85rem/1.5 var(--mono); color: var(--accent); }
+.phase .c { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.phase .exit { font-size: 0.85rem; color: var(--muted); }
+
+.decide { display: flex; flex-direction: column; gap: 12px; }
+.decide .q { background: var(--surface); border: 1px solid var(--rule); border-left: 3px solid var(--accent); border-radius: 8px; padding: 14px 18px; display: flex; flex-direction: column; gap: 6px; }
+details { border-top: 1px solid var(--rule); padding-top: 12px; }
+summary { cursor: pointer; font-weight: 600; }
+footer { border-top: 1px solid var(--rule); padding-top: 20px; font-size: 0.85rem; color: var(--muted); display: flex; flex-direction: column; gap: 6px; }
+@media (prefers-reduced-motion: no-preference) { .bar b { transition: width .4s ease; } }
+</style>
+
+<main>
+<header>
+  <div class="eyebrow">Sygnal 6.0 · core rewrite study</div>
+  <h1>A rewritten component core for Sygnal 6.0</h1>
+  <p class="lede">The current core gets its performance by managing three competing clocks. This proposal removes two of them: state updates become synchronous and startup timers go away. Streams stay only where users and drivers see them. A 370-line prototype running the same apps mounts components 2.4× faster and builds a 10k-row Collection 4× faster.</p>
+  <div class="meta">
+    <span>Branch claude/component-core-rewrite-experiment</span>
+    <span>Base plan45-integration @ b67c208</span>
+    <span>2026-10-04</span>
+  </div>
+</header>
+
+<section>
+  <div class="eyebrow">Measured</div>
+  <h2>Prototype vs current core vs React</h2>
+  <p class="col">Each row compares the same benchmark app, JSX and DOM driver; only the component core differs. Figures are median latency over 10 runs in headless Chromium, production builds, all run in the same session with the PLAN-4.5 audit harness. Bars within a row share one scale.</p>
+  <div class="chart" role="figure" aria-label="Benchmark latency by operation">
+    <div class="legend"><span><i style="background:var(--current)"></i>Current core</span><span><i style="background:var(--accent)"></i>Prototype</span><span><i style="background:var(--react)"></i>React</span></div>
+    <div id="rows"></div>
+    <p class="chart-note">Single-component ops (plain table, keystroke) are unchanged. They are bound by the pragma, snabbdom and the DOM driver, not the core.</p>
+  </div>
+  <div class="stats">
+    <div class="stat"><span class="v">22 → 1.8 ms</span><span class="d">Core self time to mount 1k components (current: component.ts + xstream + Collection + isolate)</span></div>
+    <div class="stat"><span class="v">37.5 → 20.9 KB</span><span class="d">Gzipped shared chunk of the benchmark apps</span></div>
+    <div class="stat"><span class="v">0 core streams</span><span class="d">Per Collection item in the prototype, apart from the user's intent streams (151 in 5.4, 22 after PLAN-4.5)</span></div>
+  </div>
+  <div class="callout warn">
+    <h3>What the prototype leaves out</h3>
+    <p>It covers only the canonical subset the benchmark apps use: view, object intent, model sinks, initialState, function context, tag children, Collection and <code>CHILD.select(Fn)</code>. A production core adds calculated fields, statics, Suspense and the other markers, Switchable, replies, hooks and the error boundary. Those costs scale with the features a component declares, not with the number of instances, so most of the speed gain should survive. The size gain will shrink.</p>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">Why rewrite</div>
+  <h2>Three clocks the current design can't remove</h2>
+  <p class="col">PLAN-4.5 already took the "lower-level xstream primitives" route inside the current design. It added single-stream helpers, a keyed microtask scheduler, and a patch to <code>Stream.prototype._remove</code> for batched teardown. That took streams per Collection item from 151 to 22 and patches per update to 1. Its own review findings show the cost. G-257, G-266, G-272–274, G-284 and G-287 are all races between three timing sources:</p>
+  <div class="sources">
+    <div class="src"><span class="k">withState · microtask per reducer</span><h3>State lags its action</h3><p>The lag requires <code>STATE_SNAPSHOT</code>, a module-global <code>pendingReducers</code>, "fresh" checks, and a scheduler that waits up to 10 microtask hops for reducers.</p></div>
+    <div class="src"><span class="k">0 / 1 / 10 ms timers</span><h3>Startup on timers</h3><p>INITIALIZE, then the intent, then BOOTSTRAP each run on a timer. First-render gates and patch holds with a 50 ms bound exist so that a newly visible element always responds.</p></div>
+    <div class="src"><span class="k">StateSource + isolate per child</span><h3>A stream chain per component</h3><p>State reaches every child through its own map/filter/dropRepeats/remember chain. Writes climb back up as one reducer wrapper per ancestor. Sink values pass through one hub per ancestor.</p></div>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">Proposal</div>
+  <h2>Streams at the edges, plain data inside</h2>
+  <div class="col" style="display:flex;flex-direction:column;gap:12px">
+    <p>Users write streams (intent) and drivers speak streams, so those stay xstream. Nothing between "an action arrived" and "a vnode went to the DOM driver" needs to be a stream. In that span the core uses function calls over plain objects:</p>
+    <ul>
+      <li><strong>One clock.</strong> Actions run synchronously and to completion, in order. Rendering happens once, in a microtask after the queue drains. Timers exist only where the user asked for time: <code>next(…, ms)</code>, <code>timers</code>, transitions.</li>
+      <li><strong>Per app, never per module.</strong> Queue, scheduler, ids and flags hang off the app runtime.</li>
+      <li><strong>Normalize at definition time.</strong> The model table, calculated order, context entries and statics are computed once per component function, in a <code>WeakMap</code>.</li>
+      <li><strong>Explicit extension points.</strong> Every module that patches instance methods today gets a named hook instead.</li>
+    </ul>
+  </div>
+  <div class="layers">
+    <div class="layer edge"><span class="path">sources.ts · edge</span><h3>Boundary streams</h3><p>The isolated DOM source with its shorthand; <code>STATE.stream</code>/<code>watch</code> as a lazy facade; CHILD; <code>props$</code>, <code>children$</code>, <code>dispose$</code> created on first use.</p></div>
+    <div class="layer"><span class="path">runtime.ts</span><h3>App runtime</h3><p>Root state, a run-to-completion action queue, one microtask flush, one bus stream per driver sink, the hooks registry.</p></div>
+    <div class="layer"><span class="path">cell.ts</span><h3>State cells</h3><p><code>{ get, set }</code> lens views memoized on parent identity: root, key, lens, Collection item (shared id → index map), local (<code>isolatedState</code>).</p></div>
+    <div class="layer"><span class="path">define.ts</span><h3>Definitions</h3><p>A normalized <code>Def</code> per component function. <code>defineComponent(opts)</code> replaces the <code>component()</code> factory and returns an ordinary function component.</p></div>
+    <div class="layer"><span class="path">instance.ts · actions.ts</span><h3>Instances</h3><p>Dirty-checked render (state, props, children, context keys read), children reconciled through a Map, handler execution for STATE, driver sinks, PARENT, EFFECT and ELEMENT.</p></div>
+    <div class="layer"><span class="path">hosts/ · markers.ts · statics.ts</span><h3>Hosts and markers</h3><p>Collection, Switchable (hidden pages skip render), tag children. Portal, Transition, ClientOnly, Lazy and Suspense register their handlers on import (D157). The generic <code>__sygnalStatic</code> path stays, because PLAN-5's B-3 browser sources reuse it.</p></div>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">Runtime semantics</div>
+  <h2>How an action and a render work</h2>
+  <div class="col" style="display:flex;flex-direction:column;gap:12px">
+    <p><strong>An action.</strong> Read <code>pre = cell.get()</code>, then run the handlers in model order with <code>(pre, data, next, props)</code>.</p>
+    <ul>
+      <li>STATE writes the cell unless the handler returns ABORT or the same state.</li>
+      <li>Every other sink receives <code>pre</code>, which is exactly the documented "every sink sees the state from before this action". No snapshot symbol or extra microtask is needed.</li>
+      <li>EFFECT runs synchronously, so <code>preventDefault()</code> on the live event keeps working.</li>
+      <li>PARENT goes straight to the parent's CHILD hub.</li>
+      <li>Driver values are stamped with <code>__emitterId</code> and the instance's scope chain, then pushed to the app bus. That is O(1) per value instead of one hub per ancestor.</li>
+    </ul>
+    <p><strong>Startup.</strong> A new instance writes its <code>initialState</code> to its cell synchronously; INITIALIZE becomes a synchronous action. Its intent is subscribed immediately, and anything emitted on subscribe is queued. The first render lands in the same flush, so no element can be visible before its intent listens. BOOTSTRAP fires after the first commit, which matches the docs' "once, just after mount".</p>
+    <p><strong>A render.</strong> The flush walks top-down. An instance re-runs its view only when its state cell, props, children, or <em>the context keys its last view read</em> changed. Otherwise it returns the same vnode object, and snabbdom skips the whole subtree. The context passed to the view is a Proxy that records reads, so selecting a row re-renders only the rows that read the changed key.</p>
+  </div>
+<pre>interface Hooks {
+  transformDef?(def, view): Def            // behaviors, undo, selection, persist
+  onCreate?(inst); onDispose?(inst); onRender?(inst, vnode)
+  onAction?(inst, action, cause)           // devtools, action log, t.actions
+  wrapHandler?(inst, action, sink, fn): fn // SYG222 / action-log wrappers
+  onReducer?(inst, action, prev, next)
+  onNext?(inst, type, data, ms)            // replaces testing's regex over debug-log text
+  wrapSources?(inst, sources): sources     // test fakes, diagnostics proxies
+}</pre>
+</section>
+
+<section>
+  <div class="eyebrow">Legacy audit</div>
+  <h2>What the core supports that 6.0 doesn't need</h2>
+  <p class="col">Each feature below is checked against the normative docs (llms.txt, the skill, <code>docs/</code>, the CHANGELOG and the plan trackers) and against actual use in source, tests, examples and docs. "A" means documented only as an alternative form; "U" means undocumented.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Feature</th><th>Docs</th><th>Real use</th><th>Proposal</th></tr></thead>
+    <tbody>
+      <tr><td><code>component({ sources, isolateOpts })</code></td><td><span class="pill st">U</span></td><td>3 tests</td><td><span class="pill drop">Drop</span></td></tr>
+      <tr><td>Intent returning a single stream</td><td><span class="pill st">U</span></td><td>2 tests</td><td><span class="pill drop">Drop</span></td></tr>
+      <tr><td><code>sygnalFactory</code> / <code>sygnalOptions</code> vnode props</td><td><span class="pill st">U</span></td><td>internal; an options object is rebuilt per vnode per render</td><td><span class="pill drop">Replace</span> with <code>data.c = fn</code></td></tr>
+      <tr><td>Context entry as a string key or <code>true</code></td><td>SYG403 text only</td><td>zero</td><td><span class="pill drop">Drop</span></td></tr>
+      <tr><td><code>DOMSourceName</code> / <code>stateSourceName</code></td><td><span class="pill st">A</span></td><td>1 test; can't work under <code>run()</code></td><td><span class="pill drop">Drop</span></td></tr>
+      <tr><td><code>.components</code>, string tags, <code>of="Item"</code>, <code>CHILD.select('Name')</code></td><td><span class="pill st">A</span> · SYG506</td><td>3 tests; disables the pragma's fast path</td><td><span class="pill drop">Drop</span></td></tr>
+      <tr><td><code>component({...})</code> as public API</td><td><span class="pill st">A</span> "lower-level"</td><td>tests only</td><td><span class="pill compat">Compat</span> <code>defineComponent()</code></td></tr>
+      <tr><td><code>'ACTION | SINK'</code> model keys</td><td><span class="pill st">A</span> · SYG504</td><td>parsed in 12 places</td><td><span class="pill drop">Drop</span> (D157)</td></tr>
+      <tr><td><code>.peers</code>, <code>hmrActions</code></td><td><span class="pill st">A</span></td><td>tests only, no examples</td><td><span class="pill drop">Drop</span></td></tr>
+      <tr><td>Positional view args, <code>storeCalculatedInState: false</code></td><td><span class="pill st">A</span> · SYG501</td><td>tests / docs only</td><td><span class="pill drop">Drop</span></td></tr>
+      <tr><td><code>isolatedState</code></td><td>contradictory: the guide shows it, llms.txt calls it an error</td><td>tests</td><td><span class="pill keep">Keep</span>, as a local cell; fix the docs</td></tr>
+      <tr><td>Canonical forms, statics, markers, replies, <code>uid()</code></td><td><span class="pill st">C</span></td><td>everywhere</td><td><span class="pill keep">Keep</span></td></tr>
+    </tbody>
+  </table></div>
+  <details class="col"><summary>Hidden internal contracts the hooks replace</summary>
+    <ul style="margin-top:10px">
+      <li>Behaviors, undo, selection and persist mutate <code>inst.model</code>, <code>intent</code> and <code>initialState</code> from inside the constructor.</li>
+      <li>The dev action log replaces <code>makeOnAction</code> and <code>makeEffectHandler</code>, and patches <code>action$._n</code> and the reply streams.</li>
+      <li>Testing replaces <code>collectRenderParameters</code> and <code>log</code>, and parses the <code>next()</code> debug-log text (<code>NEXT_LOG</code>).</li>
+      <li>Devtools keeps the raw instance, reads about 15 fields, and time-travels through <code>sinks.STATE.shamefullySendNext</code>.</li>
+      <li>Checks and fakes rewrite the mutable <code>model$</code> object after <code>onModel</code>.</li>
+    </ul>
+  </details>
+</section>
+
+<section>
+  <div class="eyebrow">Trade-offs</div>
+  <h2>Behaviour changes and risks</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>Change</th><th>Who notices</th></tr></thead>
+    <tbody>
+      <tr><td>A STATE reducer is applied synchronously, not in a microtask</td><td>Code reading <code>STATE.stream._v</code> mid-tick; tests that awaited a microtask "for the reducer"</td></tr>
+      <tr><td>BOOTSTRAP fires in a microtask after mount, not at 10 ms</td><td>Fake-timer tests that advanced 10 ms to see it</td></tr>
+      <tr><td>Context changes skip components that don't read the changed key</td><td>A view that relied on re-rendering for a side effect (unsupported)</td></tr>
+      <tr><td>Sink values skip ancestor hubs: same values, same order, possibly earlier in the tick</td><td>Nothing documented</td></tr>
+    </tbody>
+  </table></div>
+  <ul class="col">
+    <li><strong>Test coupling.</strong> Many <code>test/p45-*</code>, <code>p4-*</code> and <code>diagnostics/*</code> tests poke internals. The behavioural suites (examples, browser tests, docs samples, agent evals) are the parity bar.</li>
+    <li><strong>Extensions</strong> (behaviors, undo, selection, persist, action log, testing, devtools) all move to hooks in the same release.</li>
+    <li><strong>Reentrancy:</strong> drivers that emit synchronously during sink delivery (event bus, <code>driverFromAsync</code> early replies, G-176, G-189) need failing-first tests before the switch.</li>
+    <li><strong>Value isolation:</strong> the fetch and socket drivers tag requests with every ancestor's scope. The bus applies the instance's whole scope chain per value. A value-level <code>isolateValue(v, scopes)</code> joins the source contract, with a stream fallback.</li>
+  </ul>
+</section>
+
+<section>
+  <div class="eyebrow">If pursued</div>
+  <h2>A dual-core path to parity</h2>
+  <p class="col">The new core ships behind <code>run({ core: 'next' })</code>, so the full suite runs against both cores. The old core remains the parity oracle until the last phase deletes it.</p>
+  <div class="phases">
+    <div class="phase"><span class="id">R0</span><div class="c"><strong>Decide the API removals; write failing-first parity and reentrancy tests; define Hooks</strong><span class="exit">Exit: user decisions, red tests</span></div></div>
+    <div class="phase"><span class="id">R1</span><div class="c"><strong>Runtime, cells, define, instance, actions; the pragma emits <code>data.c</code></strong><span class="exit">Exit: canonical-subset tests and examples green on both cores</span></div></div>
+    <div class="phase"><span class="id">R2</span><div class="c"><strong>Collection, Switchable, marker registry, Suspense/READY, Lazy, Portal, Transition, ClientOnly, Slot</strong><span class="exit">Exit: browser tests green on next</span></div></div>
+    <div class="phase"><span class="id">R3</span><div class="c"><strong>Statics, replies, scope chains, commands, ELEMENT, controls; behaviors via <code>transformDef</code></strong><span class="exit">Exit: PLAN-3/4 suites green</span></div></div>
+    <div class="phase"><span class="id">R4</span><div class="c"><strong>Diagnostics, devtools, <code>renderComponent</code> via hooks; SSR, Vike, Astro, element</strong><span class="exit">Exit: full <code>npm test</code>, docs samples, a lowered perf gate</span></div></div>
+    <div class="phase"><span class="id">R5</span><div class="c"><strong>Delete the old core, the <code>cycle/state</code> chains and the teardown patch</strong><span class="exit">Exit: all gates, size ≤ today, agent regression eval</span></div></div>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">Open questions</div>
+  <h2>Decisions needed</h2>
+  <div class="decide col">
+    <div class="q"><strong>Which API removals to accept?</strong><p>PLAN-1 says non-canonical forms are never removed. Dropping the forms above needs a 6.0 exception, with migration notes and the strict codes that already flag them.</p></div>
+    <div class="q"><strong>Where does this run?</strong><p>Either as its own plan (PLAN-4.6) before PLAN-5, so PLAN-5's components are built on the new core, or as a PLAN-5 pre-phase.</p></div>
+  </div>
+</section>
+
+<footer>
+  <span>Sources: <span class="mono">dev-plans/research/core-rewrite/</span> (01 current structure, 02 legacy audit, 03 proposal, proto/core-next.ts, results-core-rewrite.json).</span>
+  <span>To reproduce, run <span class="mono">node benchmarks/audit/build.mjs &amp;&amp; node benchmarks/audit/build-next.mjs &amp;&amp; node benchmarks/audit/bench.mjs --fw=sygnal,next,react --no-memory</span></span>
+</footer>
+</main>
+
+<script>
+const DATA = [
+  ['Mount 1k components', '', 35.2, 14.65, 10.55],
+  ['Unmount 1k components', '', 6.4, 3.15, 2.1],
+  ['Update 1 of 1k', 'Collection items', 3.05, 1.3, 1.25],
+  ['Create 1k rows', 'Collection', 43.35, 21.2, 15.45],
+  ['Replace 1k rows', 'Collection', 60.4, 21.7, 16.0],
+  ['Create 10k rows', 'Collection', 947.25, 233.4, 273.2],
+  ['Select row (1k)', 'Collection', 8.25, 3.65, 0.5],
+  ['Remove row (1k)', 'Collection', 11.7, 1.25, 1.25],
+  ['Clear 2k rows', 'Collection', 16.1, 7.7, 4.65],
+  ['Leaf update, 30 deep', 'nested components', 1.0, 0.6, 0.5],
+];
+const fmt = v => (v >= 100 ? v.toFixed(0) : v >= 10 ? v.toFixed(1) : v.toFixed(2)) + ' ms';
+document.getElementById('rows').innerHTML = DATA.map(([name, sub, c, n, r]) => {
+  const max = Math.max(c, n, r);
+  const bar = (cls, v, who) => `<div class="bar ${cls}" aria-label="${who} ${fmt(v)}"><b style="width:calc((100% - 5.5em) * ${(v / max).toFixed(4)})"></b>${fmt(v)}</div>`;
+  return `<div class="row"><div class="label">${name}${sub ? `<small>${sub}</small>` : ''}</div><div class="bars">${bar('cur', c, 'Current')}${bar('nxt', n, 'Prototype')}${bar('rct', r, 'React')}</div></div>`;
+}).join('');
+</script>
