@@ -177,43 +177,38 @@ export class EventDelegator {
     }
 
     // one record, and one listener per element, per type and scope: the streams on it share
-    // it, and the last one to stop removes it
-    let input: NonBubblingMeta | undefined;
-    this.nonBubblingListenersToAdd.forEach(x => {
-      if (!input && x[1] === eventType && isEqualNamespace(x[2].namespace, namespace)) input = x;
-    });
-    const rec: NonBubblingMeta = input || [
-      xs.never(),
-      eventType,
-      new ElementFinder(namespace, this.isolateModule),
-      undefined as any,
-      0,
-    ];
-    this.nonBubblingListenersToAdd.add(rec);
-
-    let subscription: any;
+    // it, and the last one to stop removes it. G-263: a stream finds (or makes) the live record
+    // each time it starts, so a stream never started leaves none, and one restarted after its
+    // record was removed shares the record made meanwhile
+    let rec: NonBubblingMeta | undefined, subscription: any;
     return xs.create({
       start: listener => {
-        if (!rec[4]++) {
-          rec[3] = this.insertListener(rec[0], scopeChecker, eventType, options);
+        rec = undefined;
+        this.nonBubblingListenersToAdd.forEach(x => {
+          if (!rec && x[1] === eventType && isEqualNamespace(x[2].namespace, namespace)) rec = x;
+        });
+        if (!rec) {
+          const s = xs.never();
+          rec = [s, eventType, new ElementFinder(namespace, this.isolateModule), this.insertListener(s, scopeChecker, eventType, options), 0];
           this.nonBubblingListenersToAdd.add(rec);
-          this.setupNonBubblingListener(rec);
         }
+        if (!rec[4]++) this.setupNonBubblingListener(rec);
         subscription = rec[0].subscribe(listener);
       },
       stop: () => {
+        const r = rec!;
         subscription.unsubscribe();
-        if (!--rec[4]) {
+        if (!--r[4]) {
           const map = this.nonBubblingListeners.get(eventType);
           if (map) map.forEach((l, element: any) => {
-            if (l.destination === rec[3]) {
+            if (l.destination === r[3]) {
               l.sub!.unsubscribe();
               delete element.subs[eventType];
               map.delete(element);
             }
           });
-          this.nonBubblingListenersToAdd.delete(rec);
-          this.removeListener(rec[3], eventType);
+          this.nonBubblingListenersToAdd.delete(r);
+          this.removeListener(r[3], eventType);
         }
       },
     });

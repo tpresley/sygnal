@@ -32,6 +32,7 @@ import { g213Tests } from './tests/g213-collection-move.jsx'
 import { delegatorLeakTestsP45A } from './tests/delegator-leak-p45a.jsx'
 import { schedulerTestsP45C } from './tests/scheduler-p45c.jsx'
 import { lazyTeardownTestsP45D } from './tests/lazy-teardown-p45d.jsx'
+import { reviewFixesTestsP45R } from './tests/review-fixes-p45r.jsx'
 import { getResults } from './harness.js'
 
 async function runAll() {
@@ -69,6 +70,7 @@ async function runAll() {
   await delegatorLeakTestsP45A()
   await schedulerTestsP45C()
   await lazyTeardownTestsP45D()
+  await reviewFixesTestsP45R()
 
   const results = getResults()
   const passed = results.filter(r => r.status === 'pass').length

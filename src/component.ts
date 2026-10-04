@@ -5,7 +5,8 @@ import {StateSource} from './cycle/state/index';
 import {objIsEqual} from './cycle/state/objIsEqual';
 import {init as snabbdomInit} from './cycle/dom/snabbdom';
 import defaultModules from './cycle/dom/modules';
-import {renderSeq, inputSeq} from './cycle/dom/controlledInputModule';
+import {pokeDOM} from './cycle/dom/utils';
+import {renderSeq, inputSeq, isField} from './cycle/dom/controlledInputModule';
 import {uidPart, isAbort, NOT_SINK} from './shared';
 import {makeCommandSource} from './extra/command';
 import {runElementCommands} from './extra/elementCommands';
@@ -64,7 +65,12 @@ const hub = (fixed: any[]): any => {
   })
   h.set = (a: any[]) => {
     cur = a
-    if (L) { on.forEach((s, k) => fixed.includes(k) || a.includes(k) || (s.unsubscribe(), on.delete(k))); a.forEach(add) }
+    // G-271: a Set (two array scans per kept stream made each render O(children^2))
+    if (L) {
+      const keep = new Set(fixed.concat(a))
+      on.forEach((s, k) => keep.has(k) || (s.unsubscribe(), on.delete(k)))
+      a.forEach(add)
+    }
     return h
   }
   return h
@@ -210,6 +216,9 @@ class Component {
   _hubs: Record<string, any> = {};
   _d!: number;
   _w = 0;
+  declare _f: number;
+  declare _i: any;
+  declare _r: boolean;
   _go!: () => any;
 
   constructor({name = 'NO NAME', sources, intent, model, hmrActions, context, view, peers = {}, components = {}, initialState, calculated, storeCalculatedInState = true, DOMSourceName = 'DOM', stateSourceName = 'STATE', isolatedState = false, onError, debug = false}: ComponentOptions) {
@@ -424,6 +433,9 @@ class Component {
     this.sources.dispose$ = this._dispose$
     // P45-C: this app's render scheduler (the root makes it; children inherit it) and the depth
     this._d = sources.__d | 0
+    // G-262: the root is the component that makes the scheduler (not depth 0: a public
+    // collection()/switchable() given a root's sources has items at depth 0)
+    this._r = !sources.__k
     sources.__k ||= makeScheduler()
     // PLAN-4 GS-9: uid(name?) from the instance's position: the parent sets sources.__uid (its uid
     // + the child's path or id prop, + a Collection item's key, + a Switchable page name, each
@@ -593,13 +605,15 @@ class Component {
         }
         const sub = (s: any) => s && subs.push(s.subscribe({ next: emit, error: (e: any) => l.error(e) }))
         this._replies!.forEach(sub)
-        this.sources.__k.t(boot ? 10 : 1, () => {
+        const go = () => {
           if (me != run) return
           boot && emit({ type: BOOTSTRAP_ACTION })
           up && this.hmrActions?.forEach((type: any) => emit({ type }))
           this._w && emit(0)
           sub(runner instanceof Stream ? runner : runner?.apply && runner(this.sources))
-        })
+        }
+        // G-266: never before this component's own INITIALIZE (_i: pending, see initAction$)
+        this.sources.__k.t(boot ? 10 : 1, () => this._i ? this._i = go : go(), !boot && this._w)
       },
       stop: () => { run++; subs.forEach(s => s.unsubscribe()); subs = [] },
     })
@@ -737,7 +751,13 @@ class Component {
       if (s) pendingReducers ? queueMicrotask(run) : run()
       l.next(action)
     }
-    const sequenced$ = via(this.action$, seq, shouldInjectInitialState && ((l: any) => this.sources.__k.t(0, () => seq(initial, l))))
+    // G-272: scheduled once while pending; then the intent if it waited for it (G-266)
+    const sequenced$ = via(this.action$, seq, shouldInjectInitialState && ((l: any) => this._i ||= (this.sources.__k.t(0, () => {
+      const f = this._i
+      this._i = 0
+      seq(initial, l)
+      f.call && f()
+    }, 1), 1)))
     const snap = () => snapshotted$ ||= xs.create({
       start: (l: any) => { snapListener = l; snapSub = sequenced$.subscribe({}) },
       stop: () => { snapListener = null; snapSub?.unsubscribe() },
@@ -852,7 +872,7 @@ class Component {
 
     // Build the component name Set once
     const nameSet = new Set(['collection', 'switchable', 'sygnal-factory', ...Object.keys(this.components)])
-    const k = this.sources.__k, d = this._d, key = d ? B - d : 2 * B
+    const k = this.sources.__k, d = this._d, key = this._r ? 2 * B : B - d
     const params$ = this.collectRenderParameters()
     // P45-D: the view, its sub-components and their views in one stream (it was ten). Each
     // render's tree goes out once per flush, after the children's (deeper first; P45-C), and the
@@ -1183,12 +1203,14 @@ class Component {
     const st = this.sources[this.stateSourceName], page = this.sources.__switchPage, k = this.sources.__k, d = this._d
     const ins: any[] = [
       // G-146/P45-C: an equal state still renders after an input (a model that rewrites the typed
-      // text to what it was, e.g. at a length cap, puts the field back)
-      ['state', st ? st.stream : xs.never(), (a: any, b: any) => objIsEqual(a, b) && inputSeq() <= this._inputSeq],
+      // text to what it was, e.g. at a length cap, puts the field back; D155). G-259: only where
+      // the last view had a form field (_f, set by walkView)
+      ['state', st ? st.stream : xs.never(), (a: any, b: any) => objIsEqual(a, b) && !(this._f && inputSeq() > this._inputSeq)],
       ['context', this.context$, objIsEqual],
     ]
     if (this.sources.props$) ins.push(['props', this.sources.props$, propsIsEqual])
-    if (this._processedChildren$) ins.push(['c', this._processedChildren$, (a: any, b: any) => objIsEqual(a.children, b.children) && objIsEqual(a.slots, b.slots)])
+    // G-269: 0, a name no peer can have
+    if (this._processedChildren$) ins.push([0, this._processedChildren$, (a: any, b: any) => objIsEqual(a.children, b.children) && objIsEqual(a.slots, b.slots)])
     const peers = this.peers$[this.DOMSourceName]
     for (const n in peers) ins.push([n, peers[n]])
 
@@ -1201,7 +1223,7 @@ class Component {
       if (page && !page.shown) return page.mark()
       h = 0
       const p: any = {}
-      ins.forEach(([n]: any, i: number) => n == 'c' ? (p.children = vals[i].children, p.slots = vals[i].slots) : (p[n] = vals[i]))
+      ins.forEach(([n]: any, i: number) => n === 0 ? (p.children = vals[i].children, p.slots = vals[i].slots) : (p[n] = vals[i]))
       p.state = p[this.stateSourceName] = this.addCalculated(p.state)
       p.calculated = (p.state && this.getCalculatedValues(p.state)) || {}
       L.next(p)
@@ -1662,9 +1684,11 @@ function makeLog(context: string): any {
  */
 function walkView(root: any, inst: any, nameSet: Set<string>): [any, Record<string, any>] {
   const seq = inst._inputSeq, byName = nameSet.size > 3, found: Record<string, any> = {}
+  inst._f = 0
   const walk = (vnode: any, path: string, collect: any, pre: any): any => {
     if (!vnode || (vnode.$p && !byName)) return vnode
     if (vnode.data) vnode.data.inputSeq = seq
+    if (isField(vnode)) inst._f = 1
     const sel = vnode.sel, data = vnode.data, children = vnode.children || []
     if (pre && sel) {
       const props = data?.props || {}
@@ -1735,7 +1759,8 @@ function addComponent(el: any, path: string, componentNameSet: Set<string>, foun
     if (!Object.keys(props.of).includes(props.current)) fail('SYG416', undefined, `Switchable 'current' '${props.current}' is not a key of 'of'`, "Set current to a key of 'of'")
     el.data.isSwitchable = true
   }
-  if (typeof props.key === 'undefined') (el.data.props ||= {}).key = id
+  // G-264: a copy (the props object can be the caller's, lent by reference since P45-B)
+  if (typeof props.key === 'undefined') el.data.props = { ...props, key: id }
   found[id] = el
 }
 
@@ -1876,7 +1901,9 @@ function applyTransitionHooks(vnode: any, name: string, duration?: number): any 
         el.classList.add(`${name}-leave-to`)
         onTransitionEnd(el, duration, () => {
           el.classList.remove(`${name}-leave-active`, `${name}-leave-to`)
+          const p = el.parentNode
           rm()
+          pokeDOM(p)
         })
       })
     })
@@ -1939,6 +1966,7 @@ function createPortalPlaceholder(target: string, children: any[]): any {
             if (vnode.data._portalVnode) return // already mounted
             if (document.querySelector(target)) {
               portalMount(vnode, target, portalChildren)
+              pokeDOM(vnode.data._portalContainer)
             } else if (++attempts < 10) {
               setTimeout(tryMount, 5)
             } else {

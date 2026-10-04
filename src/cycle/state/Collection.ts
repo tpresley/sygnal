@@ -176,7 +176,8 @@ export function makeCollection<S, So = any, Si = any>(
       {dict, arr: []} as InternalInstances<Si>
     );
     // P45-C: the app's render scheduler; the items are at depth __d, the Collection one above
-    const k = sources.__k, sinks = opts.collectSinks(new Instances<Si>(instances$, k && ((f: () => void) => k(B - sources.__d + 1, f))));
+    // (G-262: __d is undefined in a root's own sources)
+    const k = sources.__k, sinks = opts.collectSinks(new Instances<Si>(instances$, k && ((f: () => void) => k(B - (sources.__d | 0) + 1, f))));
     // B-024: disposing the collection (its owner was disposed or stopped rendering it)
     // disposes every live item, and so their subtrees
     sinks.__dispose = () => {

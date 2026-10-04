@@ -3,7 +3,7 @@ import {init, Module, Options as SnabbdomOptions, VNode, toVNode} from './snabbd
 import xs, {Stream, Listener} from 'xstream';
 import {MainDOMSource} from './MainDOMSource';
 import {VNodeWrapper} from './VNodeWrapper';
-import {getValidNode, checkValidContainer} from './utils';
+import {getValidNode, checkValidContainer, POKE} from './utils';
 import defaultModules from './modules';
 import {IsolateModule} from './IsolateModule';
 import {EventDelegator} from './EventDelegator';
@@ -33,10 +33,6 @@ export interface DOMDriverOptions {
   modules?: Array<Partial<Module>>;
   reportSnabbdomError?(err: unknown): void;
   snabbdomOptions?: SnabbdomOptions;
-}
-
-function dropCompletion<T>(input: Stream<T>): Stream<T> {
-  return xs.merge(input, xs.never());
 }
 
 function unwrapElementFromVNode(vnode: VNode): Element {
@@ -102,18 +98,27 @@ function makeDOMDriver(
     // P45-C (rec 9, D146): the root element, when the DOM is ready and then after each patch
     // (it was a MutationObserver on the root's subtree: DOM changes made outside a patch no
     // longer emit)
+    // G-261: and when Sygnal changes the DOM outside a patch (a Transition's leave, a Portal
+    // mounted late): an event that bubbles up to the root
+    let poke: any;
     const rootElement$ = firstRoot$
       .map(
         firstRoot =>
-          xs
-            .merge(rememberedVNode$.endWhen(sanitation$), sanitation$)
-            .map(vnode => vnodeWrapper.call(vnode))
-            .startWith(addRootScope(toVNode(firstRoot)))
-            .fold(patch, toVNode(firstRoot))
-            .drop(1)
-            .map(unwrapElementFromVNode)
-            .startWith(firstRoot as any)
-            .compose(dropCompletion)
+          xs.merge(
+            xs
+              .merge(rememberedVNode$.endWhen(sanitation$), sanitation$)
+              .map(vnode => vnodeWrapper.call(vnode))
+              .startWith(addRootScope(toVNode(firstRoot)))
+              .fold(patch, toVNode(firstRoot))
+              .drop(1)
+              .map(unwrapElementFromVNode)
+              .startWith(firstRoot as any),
+            // never completes (nor does the root element)
+            xs.create<any>({
+              start: l => firstRoot.addEventListener(POKE, poke = () => l.next(firstRoot)),
+              stop: () => firstRoot.removeEventListener(POKE, poke),
+            })
+          )
       )
       .flatten()
       .endWhen(sanitation$)
