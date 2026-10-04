@@ -55,17 +55,17 @@ describe('astro island props (B-026)', () => {
   it('server: the canonical { state, ...props } view renders (no data-sygnal-error), and gets `props` too', () => {
     const Canonical = makeComponent(({ state, title }) => h('h2', `${title}: ${state.count}`))
     const { html } = renderToStaticMarkup(Canonical, { title: 'Plugin Smoke Test' })
-    expect(html).toBe('<h2>Plugin Smoke Test: 0</h2>')
+    expect(html).toBe('<h2 data-sygnal-ssr="">Plugin Smoke Test: 0</h2>')
     expect(Canonical.calls[0].props).toEqual({ title: 'Plugin Smoke Test' })
 
     const Legacy = makeComponent(({ state, props }) => h('h2', `${props.title}: ${state.count}`))
-    expect(renderToStaticMarkup(Legacy, { title: 'L' }).html).toBe('<h2>L: 0</h2>')
+    expect(renderToStaticMarkup(Legacy, { title: 'L' }).html).toBe('<h2 data-sygnal-ssr="">L: 0</h2>')
   })
 
   it("G-206: a `uid` island prop is the island's uid root on both sides (two islands on one page)", async () => {
     const C = makeComponent(({ uid }) => ({ sel: 'input', data: { attrs: { id: uid('x') } }, children: undefined, text: undefined }))
-    expect(renderToStaticMarkup(C, { uid: 'c2' }).html).toBe('<input id="c2-x">')
-    expect(renderToStaticMarkup(C, {}).html).toBe('<input id="u-x">')
+    expect(renderToStaticMarkup(C, { uid: 'c2' }).html).toBe('<input data-sygnal-ssr="" id="c2-x">')
+    expect(renderToStaticMarkup(C, {}).html).toBe('<input data-sygnal-ssr="" id="u-x">')
     await clientRenderer({ hasAttribute: () => true })(C, { uid: 'c2' }, {}, { client: 'load' })
     await clientRenderer({ hasAttribute: () => true })(C, {}, {}, { client: 'load' })
     expect(runs.map(r => r.options.uid)).toEqual(['c2', undefined])

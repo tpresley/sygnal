@@ -1,216 +1,149 @@
 import xs, {Stream, InternalListener, OutSender, Operator, NO} from 'xstream';
 import {InternalInstances} from './types';
 
-// G-213: item listeners (of any Collection) that haven't had their first value yet, and the
-// combines whose removal waits for them. An item that moves to another Collection is a new
-// instance there, which renders a few ms after its old Collection has dropped it; emitting the
-// drop in that gap would paint a page without the item. So a removal waits while a new item is
-// still to render (at most 100 ms), and is emitted in the task where it renders.
+// G-213: an item that moves to another Collection is a new instance there, which renders a few
+// ms after its old Collection has dropped it; a page patched in that gap (the DOM patches as soon
+// as the old Collection emits) paints without the item. One action's state reaches each
+// Collection in its own debounce task, so:
+// - fresh: new items not rendered yet, created in the current batch (the run of new items until a
+//   task passes without one; then forgotten, unless a removal waits for them)
+// - a removal while a fresh item is pending waits for it (later; at most 100 ms)
+// - else, with another Collection alive (live > 1), the removal is checked again a task later,
+//   once the other Collections have had this action's state (the Collection it moved to has
+//   created its new item by then); with one Collection (a plain list) it is emitted at once
 const fresh = new Set<any>(), later = new Set<any>();
-let cap: any;
+let cap: any, T: any, live = 0;
 const flush = () => {
   clearTimeout(cap);
   cap = 0;
   fresh.clear();
-  const l = [...later];
-  later.clear();
-  l.forEach(p => p.inst && p.up());
+  later.forEach(p => (later.delete(p), p.inst && p.up()));
+};
+const batch = () => {
+  clearTimeout(T);
+  T = setTimeout(() => later.size || fresh.clear(), 1);
+};
+const hold = (p: any) => (later.add(p), cap = cap || setTimeout(flush, 100));
+// an item listener's end (its item was removed, or the Collection stopped)
+const drop = (il: any) => {
+  fresh.delete(il);
+  il.ins._remove(il);
+  il.ins = il.out = il.val = null;
 };
 
 class PickCombineListener<Si, T>
   implements InternalListener<T>, OutSender<Array<T>> {
-  private key: string;
   public out: Stream<Array<T>>;
   public p: PickCombine<Si, T>;
   public val: T;
   public ins: Stream<T>;
 
-  constructor(
-    key: string,
-    out: Stream<Array<T>>,
-    p: PickCombine<Si, T>,
-    ins: Stream<T>
-  ) {
-    this.key = key;
+  constructor(out: Stream<Array<T>>, p: PickCombine<Si, T>, ins: Stream<T>) {
     this.out = out;
     this.p = p;
     this.val = NO as any;
     this.ins = ins;
     fresh.add(this);
+    batch();
   }
 
   public _n(t: T): void {
-    const p = this.p,
-      out = this.out;
     this.val = t;
-    if (out === null) {
-      return;
+    if (this.out) {
+      if (fresh.delete(this) && !fresh.size && later.size) flush();
+      this.p.up();
     }
-    if (fresh.delete(this) && !fresh.size && later.size) flush();
-    this.p.up();
   }
 
   public _e(err: any): void {
-    const out = this.out;
-    if (out === null) {
-      return;
-    }
-    out._e(err);
+    this.out?._e(err);
   }
 
   public _c(): void {}
 }
 
-// True when the items present both before and after appear in a different relative
-// order. Additions emit through the new item's sink and removals are handled
-// separately, so only a permutation of the surviving items counts here.
-function isReordered(prev: Array<string>, next: Array<string>, dict: Map<string, any>): boolean {
-  const m = prev.length;
-  if (m === next.length) {
-    let same = true;
-    for (let i = 0; i < m && same; ++i) same = prev[i] === next[i];
-    if (same) return false;
-  }
-  let j = 0;
-  const seen = new Set(prev);
-  for (let i = 0; i < next.length; ++i) {
-    const key = next[i];
-    if (!seen.has(key)) continue;
-    while (j < m && !dict.has(prev[j])) ++j;
-    if (prev[j] !== key) return true;
-    ++j;
-  }
-  return false;
-}
-
 class PickCombine<Si, R> implements Operator<InternalInstances<Si>, Array<R>> {
   public type = 'combine';
   public ins: Stream<InternalInstances<Si>>;
-  public out: Stream<Array<R>>;
+  public out!: Stream<Array<R>>;
   public sel: string;
   public ils: Map<string, PickCombineListener<Si, R>>;
-  public inst: InternalInstances<Si>;
-  // item keys in the order of the last instances (B-010: detect pure reorders)
-  public keys: Array<string>;
+  public inst!: InternalInstances<Si>;
 
   constructor(sel: string, ins: Stream<InternalInstances<Si>>) {
     this.ins = ins;
     this.sel = sel;
-    this.out = null as any;
     this.ils = new Map();
-    this.inst = null as any;
-    this.keys = [];
   }
 
   public _start(out: Stream<Array<R>>): void {
+    live++;
     this.out = out;
     this.ins._add(this);
   }
 
   public _stop(): void {
+    live--;
     this.ins._remove(this);
-    const ils = this.ils;
-    ils.forEach(il => {
-      fresh.delete(il);
-      il.ins._remove(il);
-      il.ins = null as any;
-      il.out = null as any;
-      il.val = null as any;
-    });
-    ils.clear();
-    this.out = null as any;
-    this.ils = new Map();
-    this.inst = null as any;
-    this.keys = [];
+    this.ils.forEach(drop);
+    this.ils.clear();
+    this.out = this.inst = null as any;
   }
 
   public up(): void {
-    const arr = this.inst.arr;
-    const n = arr.length;
-    const ils = this.ils;
-    const outArr: Array<R> = Array(n);
+    const arr: any = this.inst.arr, n = arr.length, outArr: Array<R> = Array(n);
     for (let i = 0; i < n; ++i) {
-      const sinks = arr[i];
-      const key = (sinks as any)._key as string;
-      if (!ils.has(key)) {
-        return;
-      }
-      const val = (ils.get(key) as any).val;
-      if (val === NO) {
-        return;
-      }
-      outArr[i] = val;
+      const il = this.ils.get(arr[i]._key);
+      if (!il || il.val === NO) return;
+      outArr[i] = il.val;
     }
     this.out._n(outArr);
   }
 
   public _n(inst: InternalInstances<Si>): void {
+    const ils = this.ils, dict = inst.dict, prev = this.inst, kept: Array<string> = [];
     this.inst = inst;
-    const arrSinks = inst.arr;
-    const ils = this.ils;
-    const out = this.out;
-    const sel = this.sel;
-    const dict = inst.dict;
-    const n = arrSinks.length;
     // remove
-    let removed = false;
+    let removed: any = 0;
     ils.forEach((il, key) => {
       if (!dict.has(key)) {
-        fresh.delete(il);
-        il.ins._remove(il);
-        il.ins = null as any;
-        il.out = null as any;
-        il.val = null as any;
+        drop(il);
         ils.delete(key);
-        removed = true;
+        removed = 1;
       }
     });
-    // G-213: a removal emits a task later (the Collection an item moved to gets the new state in
-    // its own task, and has created the new item by then), and not while a new item is still to
-    // render: then with it, or after 100 ms
-    const up = () => removed ? setTimeout(() => this.inst && (fresh.size ? (later.add(this), cap = cap || setTimeout(flush, 100)) : this.up()), 1) : this.up();
-    if (n === 0) {
-      this.keys = [];
-      up();
-      return;
-    }
     // add
-    const keys: Array<string> = Array(n);
-    for (let i = 0; i < n; ++i) {
-      const sinks = arrSinks[i];
-      const key = (sinks as any)._key as string;
-      keys[i] = key;
-      if (!(sinks as any)[sel]) {
+    for (const sinks of inst.arr as any[]) {
+      const key = sinks._key, s = sinks[this.sel];
+      if (!s) {
         throw new Error('pickCombine found an undefined child sink stream');
       }
-      const sink: Stream<any> = xs.fromObservable((sinks as any)[sel]);
-      if (!ils.has(key)) {
-        ils.set(key, new PickCombineListener(key, out, this, sink));
-        sink._add(ils.get(key) as PickCombineListener<Si, R>);
+      if (ils.has(key)) kept.push(key);
+      else {
+        const sink: Stream<any> = xs.fromObservable(s), il = new PickCombineListener(this.out, this, sink);
+        ils.set(key, il);
+        sink._add(il);
       }
     }
-    const reordered = isReordered(this.keys, keys, dict);
-    this.keys = keys;
-    // B-010: a permutation (swap, reverse, move) neither removes an item nor makes an
-    // item sink emit, so re-emit whenever the order of keys changed. up() waits until
-    // every item has emitted, so a brand new item still triggers its own emission.
-    if (removed || reordered) up();
+    // B-010: a permutation (swap, reverse, move) neither removes an item nor makes an item sink
+    // emit, so re-emit when the items present before and after are in a different order. up()
+    // waits until every item has emitted, so a brand new item still triggers its own emission.
+    const reordered = prev?.arr.filter((s: any) => dict.has(s._key)).some((s: any, i) => s._key != kept[i]);
+    // G-213 (see the top): a held removal is emitted by flush
+    if (later.has(this)) return;
+    if (removed) {
+      if (fresh.size) return hold(this);
+      if (live > 1) return setTimeout(() => this.inst && (fresh.size ? hold(this) : this.up()), 1) as any;
+    }
+    if (removed || reordered || !inst.arr.length) this.up();
   }
 
   public _e(e: any): void {
-    const out = this.out;
-    if (out === null) {
-      return;
-    }
-    out._e(e);
+    this.out?._e(e);
   }
 
   public _c(): void {
-    const out = this.out;
-    if (out === null) {
-      return;
-    }
-    out._c();
+    this.out?._c();
   }
 }
 

@@ -29,6 +29,8 @@ List.uses = { pager: pager({ pageSize: 2 }) }
 let app
 afterEach(() => { app?.dispose(); app = null; document.body.innerHTML = '' })
 
+// renderToString marks its root element (data-sygnal-ssr, 3-R); the client render doesn't
+const unmarked = (html) => html.replace(' data-sygnal-ssr=""', '')
 async function clientHtml(App) {
   document.body.innerHTML = '<div id="root"></div>'
   app = run(App, {}, { mountPoint: '#root', diagnostics: 'off' })
@@ -40,15 +42,15 @@ describe('SSR of a host using a behavior', () => {
   it('a root host: state[key] is the behavior slice (options and calculated fields), as on the client', async () => {
     const html = renderToString(List)
     expect(html).toContain('<span class="page">0/2/0</span>')
-    expect(html).toBe(await clientHtml(List))
+    expect(unmarked(html)).toBe(await clientHtml(List))
   })
 
   it('a root host without initialState', async () => {
     function Bare({ state }) { return h('p', null, `page ${state.pager.page}, offset ${state.pager.offset}`) }
     Bare.uses = { pager: pager() }
     const html = renderToString(Bare)
-    expect(html).toBe('<p>page 0, offset 0</p>')
-    expect(html).toBe(await clientHtml(Bare))
+    expect(html).toBe('<p data-sygnal-ssr="">page 0, offset 0</p>')
+    expect(unmarked(html)).toBe(await clientHtml(Bare))
   })
 
   it('a slice already in the given state is kept (hydrated state wins)', () => {
@@ -72,6 +74,6 @@ describe('SSR of a host using a behavior', () => {
     const html = renderToString(Inbox)
     expect(html).toContain('panel 0')
     expect(html).toContain('t1:0/5')
-    expect(html).toBe(await clientHtml(Inbox))
+    expect(unmarked(html)).toBe(await clientHtml(Inbox))
   })
 })

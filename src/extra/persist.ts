@@ -16,7 +16,8 @@ import {warn} from './diagnostics/legacy';
  *   is ignored. Hydrating server HTML, the restore is a RESTORE action after the first state
  *   instead, so the first render matches the server's. Hydrating: the `hydrate` option when given,
  *   else the integration's `__hydrate` source (Astro: a server-rendered island; Vike: a hydration),
- *   else whether run()'s mount point (its `__m` source) already has element children.
+ *   else whether run()'s mount point (its `__m` source) starts with renderToString's markup (the
+ *   root element carries `data-sygnal-ssr`; 3-R).
  * - Writes: debounced (`debounceMs`, default 100), skipped when the stored text is the same,
  *   flushed on `pagehide` and on dispose.
  * - `PERSIST: { clear: true }` in any model entry's object form (a value or a function of
@@ -29,7 +30,8 @@ import {warn} from './diagnostics/legacy';
  *   adapter (optionally with subscribe). renderComponent passes its fake stores as the
  *   `__storage` source ({ local, session, f: flush functions t.settle() calls }).
  * - Failures (unreadable entry, migrate throws, quota) are SYG642 (warn, printed in production
- *   too); the app continues on initialState / unsaved.
+ *   too), once per kind (restore / save / clear; a save that works again re-arms it); the app
+ *   continues on initialState / unsaved, and a failed save is retried at the next change.
  */
 const g: any = globalThis;
 
@@ -37,11 +39,15 @@ export const setupPersist = (c: any, o: any): void => {
   const {key, pick, omit, version = 1, migrate, sync, debounceMs = 100} = o, src = c.sources, m = src.__m;
   const env = src.__storage, calc = c.calculated || {};
   // hydrating: the option, else the integration's signal (__hydrate: Astro, Vike), else whether
-  // run()'s mount point already has markup
-  const hydrate = o.hydrate ?? src.__hydrate ?? !!(typeof m == 'string' ? g.document?.querySelector(m) : m)?.firstElementChild;
+  // run()'s mount point starts with renderToString's markup (its root element is marked; a
+  // client-only app's loading placeholder isn't server markup)
+  const hydrate = o.hydrate ?? src.__hydrate ?? !!(typeof m == 'string' ? g.document?.querySelector(m) : m)?.firstElementChild?.hasAttribute('data-sygnal-ssr');
   let S: any, t: any, last: any, raw: any, skip: any, off: any;
-  // (the docs link the message ends with explains the causes and fixes)
-  const fail = (what: string, e?: any) => warn('SYG642', c, `persist '${key}': ${what} failed`, undefined, e);
+  // (the docs link the message ends with explains the causes and fixes). Once per kind (restore,
+  // save, clear): a storage that throws on every write must not warn on every change; a save that
+  // works again re-arms the save report
+  const bad: any = {};
+  const fail = (what: string, e?: any) => bad[what] || (bad[what] = 1, warn('SYG642', c, `persist '${key}': ${what} failed`, undefined, e));
   const only = (s: any) => {
     const out: any = {};
     for (const k in s) if ((pick ? pick.includes(k) : !omit?.includes(k)) && !(k in calc)) out[k] = s[k];
@@ -57,7 +63,8 @@ export const setupPersist = (c: any, o: any): void => {
   const write = () => {
     clearTimeout(t); t = 0;
     const r = JSON.stringify({version, state: only(last)}), p = raw;
-    if (r != raw) try { raw = r; S.setItem(key, r); } catch (e) { raw = p; fail('save', e); }
+    // a failed save is retried at the next change (raw stays the stored text)
+    if (r != raw) try { raw = r; S.setItem(key, r); bad.save = 0; } catch (e) { raw = p; fail('save', e); }
   };
   const clear = () => {
     clearTimeout(t); t = 0; skip = 1; raw = null;

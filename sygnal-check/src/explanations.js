@@ -701,11 +701,11 @@ export const EXPLANATIONS = {
     fix: "Rename the prop (`heading` instead of `title`, `collapsed` instead of `hidden`) and update the attribute and the component's state key that it feeds. Keep the name only when replacing the native behaviour is what you want.",
   },
   SYG645: {
-    title: "viewTransitions without a View Transition DOM driver",
+    title: "viewTransitions that can't run",
     severity: "warn",
     reportedBy: ["dev-entry"],
-    explanation: "A component declares `viewTransitions` (for example `Board.viewTransitions = ['MOVE']`), but the app's DOM driver can't run View Transitions, so those actions patch the page at once, without the animation, and nothing else says so. The static only asks: the transition is run by the DOM driver from `makeViewTransitionDOMDriver()`, which is opt-in so that apps without View Transitions don't ship it, and `run()`'s default DOM driver is the plain one. Reported once per component when it starts. Not reported under `renderComponent` (the mock DOM and the `dom: 'real'` container don't animate). Browsers without the API and `prefers-reduced-motion: reduce` also patch at once, silently: that is the intended fallback, not this warning.",
-    fix: "Give `run()` the View Transition DOM driver: `run(App, { DOM: makeViewTransitionDOMDriver('#root') })` with `import { makeViewTransitionDOMDriver } from 'sygnal'` (use the same mount point as before). Or remove the `viewTransitions` static.",
+    explanation: "A component declares `viewTransitions` (for example `Board.viewTransitions = ['MOVE']`), but the app's DOM driver can't run View Transitions, so those actions patch the page at once, without the animation, and nothing else says so. The static only asks: the transition is run by the DOM driver from `makeViewTransitionDOMDriver()`, which is opt-in so that apps without View Transitions don't ship it, and `run()`'s default DOM driver is the plain one. Reported once per component when it starts. Not reported under `renderComponent` (the mock DOM and the `dom: 'real'` container don't animate). Browsers without the API and `prefers-reduced-motion: reduce` also patch at once, silently: that is the intended fallback, not this warning. The same code reports a `viewTransitions` static that is not an array (`Board.viewTransitions = true`, or a single string): it lists no action, so nothing animates (the core tolerates the value instead of throwing in every reducer; a string is matched as a substring, which is never what was meant).",
+    fix: "Give `run()` the View Transition DOM driver: `run(App, { DOM: makeViewTransitionDOMDriver('#root') })` with `import { makeViewTransitionDOMDriver } from 'sygnal'` (use the same mount point as before). Or remove the `viewTransitions` static. For a value that isn't an array, list the action names in one: `Board.viewTransitions = ['MOVE']`.",
   },
   SYG701: {
     title: "Click listener on a non-interactive element",

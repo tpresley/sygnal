@@ -22,13 +22,17 @@ export function makeViewTransitionDOMDriver(mountPoint: string | Element | Docum
     const im = source._isolateModule;
     // SYG645 (dev): this app's DOM driver can do View Transitions
     im.vtDriver = 1;
-    // a request expires after 100 ms: a listed action whose new state renders the same view
-    // (the first ROUTE reply, say) sends no patch, and must not animate a later, unrelated one
-    let at = 0;
+    // a request is consumed by the next vnode (viewTransition$ resets it), however late: a render
+    // may take long. It expires when the page has been idle for 100 ms without one, since a listed
+    // action whose new state renders the same view (the first ROUTE reply, say) sends no vnode and
+    // must not animate a later, unrelated patch. A slow render keeps the main thread busy, so the
+    // expiry timer then runs late: it is re-armed instead (late by more than 30 ms = busy)
+    let on = 0, t: any;
+    const expire = (due: number): any => t = setTimeout(() => Date.now() - due > 30 ? expire(Date.now() + 100) : on = 0, 100);
     Object.defineProperty(im, 'vt', {
       configurable: true,
-      get: () => at > Date.now() - 100,
-      set: (v: any) => { at = v ? Date.now() : 0; },
+      get: () => on,
+      set: (v: any) => { clearTimeout(t); (on = v ? 1 : 0) && expire(Date.now() + 100); },
     });
     return source;
   };

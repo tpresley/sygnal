@@ -31,6 +31,7 @@ It is the DOM driver that `run()` creates by default (it also takes the same opt
 - Only actions with a `STATE` change ask for a transition. An action that returns `ABORT`, or only has non-STATE sinks, renders nothing new.
 - The transition covers the whole render, including the changes in child components and Collections that the new state causes.
 - Any component of the app can declare it, not only the root: a list item can list its own `REMOVE`.
+- It must be an array, even for one action. A value that isn't (`true`, `'MOVE'`) lists no action, and development reports [SYG645](/reference/errors/#syg645).
 
 ## Recipe: moving cards between lanes
 
@@ -142,6 +143,8 @@ One action can update the page several times: a card that moves between Collecti
 3. lets the browser animate from the snapshot to the final page.
 
 The page shows the old snapshot during step 2, so the in-between states never appear.
+
+The first render after the action is the one held, however long the render takes. If the action's new state renders nothing new (it is equal to the old one), there is no render to hold: the request lapses once the page has been idle for 100 ms, so a later, unrelated update isn't animated.
 
 If an action asks for a new transition while one is still animating, the browser skips the running one: its elements jump to their end positions, and the new one starts from there.
 

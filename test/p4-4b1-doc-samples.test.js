@@ -927,7 +927,7 @@ Page.onError = () => <p>Sorry</p>
 export const logger = { calls: [], error: (x) => logger.calls.push(x) }
 `
     const mod = await load({ 'page.jsx': prelude + SAMPLES.ssrOnError.code + '\nexport { html }\n' }, 'page.jsx')
-    expect(mod.html).toBe('<p>Sorry</p>')
+    expect(mod.html).toBe('<p data-sygnal-ssr="">Sorry</p>')
     expect(mod.logger.calls).toEqual([{ componentName: 'Page', action: undefined, phase: 'view', message: 'no data' }])
   })
 
