@@ -22,7 +22,8 @@ import xs, {Stream, NO} from 'xstream';
  * G-257: a new component's first render waits for its intent, which starts on a timer (`s.t(ms, f,
  * 1)`: a gate). While a gate is pending the patch is held (the stages before it run), so a move
  * between Collections whose items have intent and model is still one patch. The timer flushes
- * again; at most 9 holds in a row (a chain of new components can't hold the patch for long).
+ * again. Holds stop 50 ms after the first one (a chain of new components, a timer that never
+ * fires: neither holds the patch for long).
  */
 export type Scheduler = ((k?: number, f?: () => void) => any) & {t?: (ms: number, f: () => void, h?: any) => void};
 export const B = 1e6;
@@ -42,7 +43,7 @@ export function makeScheduler(): Scheduler {
       // resource served from a cache): they render in this flush, not in a second patch
       if (k >= 2 * B) {
         if (!y++) return (seen = -1, queueMicrotask(flush));
-        if (g && x++ < 9) return (on = y = 0, seen = -1);
+        if (g && (x ||= Date.now()) > Date.now() - 50) return (on = y = 0, seen = -1);
         x = 0;
       }
       const a = q[k];
@@ -55,15 +56,23 @@ export function makeScheduler(): Scheduler {
     (q[k!] ||= []).push(f);
     go();
   };
-  // P45-D: s.t(ms, f): the components created in one task start together, one timer per delay
-  // (their INITIALIZE at 0 ms, their intents 1 or 10 ms later), not one each
+  // P45-D: s.t(ms, f): the components created together start together, one timer per delay
+  // (their INITIALIZE at 0 ms, their intents 1 or 10 ms later), not one each. G-266/G-270: a
+  // timer is shared within the microtask that set it only (one set earlier may have been
+  // cleared, or its 0 ms sibling may have fired)
   const t: Record<number, Array<() => void>> = {};
-  s.t = (ms, f, h) => (t[ms] ||= (setTimeout(() => {
-    const a = t[ms];
-    delete t[ms];
-    for (const f of a) try { f(); } catch (e) { setTimeout(() => { throw e; }); }
-    go();
-  }, ms), [])).push(h ? (g++, () => (g--, f())) : f);
+  s.t = (ms, f, h) => {
+    let a = t[ms];
+    if (!a) {
+      a = t[ms] = [];
+      queueMicrotask(() => delete t[ms]);
+      setTimeout(() => {
+        for (const f of a) try { f(); } catch (e) { setTimeout(() => { throw e; }); }
+        go();
+      }, ms);
+    }
+    a.push(h ? (g++, () => (g--, f())) : f);
+  };
   return s;
 }
 

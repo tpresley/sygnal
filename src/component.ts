@@ -212,6 +212,7 @@ class Component {
   _d!: number;
   _w = 0;
   declare _f: number;
+  declare _i: any;
   _go!: () => any;
 
   constructor({name = 'NO NAME', sources, intent, model, hmrActions, context, view, peers = {}, components = {}, initialState, calculated, storeCalculatedInState = true, DOMSourceName = 'DOM', stateSourceName = 'STATE', isolatedState = false, onError, debug = false}: ComponentOptions) {
@@ -595,13 +596,15 @@ class Component {
         }
         const sub = (s: any) => s && subs.push(s.subscribe({ next: emit, error: (e: any) => l.error(e) }))
         this._replies!.forEach(sub)
-        this.sources.__k.t(boot ? 10 : 1, () => {
+        const go = () => {
           if (me != run) return
           boot && emit({ type: BOOTSTRAP_ACTION })
           up && this.hmrActions?.forEach((type: any) => emit({ type }))
           this._w && emit(0)
           sub(runner instanceof Stream ? runner : runner?.apply && runner(this.sources))
-        }, !boot && this._w)
+        }
+        // G-266: never before this component's own INITIALIZE (_i: pending, see initAction$)
+        this.sources.__k.t(boot ? 10 : 1, () => this._i ? this._i = go : go(), !boot && this._w)
       },
       stop: () => { run++; subs.forEach(s => s.unsubscribe()); subs = [] },
     })
@@ -739,7 +742,13 @@ class Component {
       if (s) pendingReducers ? queueMicrotask(run) : run()
       l.next(action)
     }
-    const sequenced$ = via(this.action$, seq, shouldInjectInitialState && ((l: any) => this.sources.__k.t(0, () => seq(initial, l), 1)))
+    // G-272: scheduled once while pending; then the intent if it waited for it (G-266)
+    const sequenced$ = via(this.action$, seq, shouldInjectInitialState && ((l: any) => this._i ||= (this.sources.__k.t(0, () => {
+      const f = this._i
+      this._i = 0
+      seq(initial, l)
+      f.call && f()
+    }, 1), 1)))
     const snap = () => snapshotted$ ||= xs.create({
       start: (l: any) => { snapListener = l; snapSub = sequenced$.subscribe({}) },
       stop: () => { snapListener = null; snapSub?.unsubscribe() },
