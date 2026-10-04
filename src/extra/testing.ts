@@ -6,7 +6,7 @@ import {enrichEventStream} from '../cycle/dom/enrichEventStream';
 import eventBusDriver from './eventDriver';
 import logDriver from './logDriver';
 import component from '../component';
-import {owned} from './owned';
+import {ownedCopy} from './owned';
 import {renderToInnerHtml} from './ssr';
 import {_getDiagnosticsConfig, configureDiagnostics, getDiagnosticsMode, isDiagnosticsEnabled, onDiagnostic, registerCheck, report} from './diagnostics/index';
 import xs from './xstreamCompat';
@@ -1853,8 +1853,9 @@ export function renderComponent(
   };
 
   const {context, calculated, storeCalculatedInState, onError, hmrActions, components} = componentDef;
-  // G-275: the caller's initialState is owned (the dev statics freeze leaves it alone)
-  const init = initialState !== undefined ? owned(initialState) : componentDef.initialState;
+  // G-275: the caller's initialState is owned (the dev statics freeze leaves it alone). G-289: a
+  // copy is marked, not the caller's object
+  const init = initialState !== undefined ? ownedCopy(initialState) : componentDef.initialState;
   // G-028: with no intent, model or initialState nothing would ever emit state, so the view
   // never renders. Leave intent/model unset so the component falls back to the same no-op
   // model run() uses, and renders.
