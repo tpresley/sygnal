@@ -6,6 +6,7 @@
 // - G-284: with vi.useFakeTimers() and raw run(), the render-loop guard's count is reset by a
 //   (fake) timer: after 100 renders the next waits for the clock. Documented (testing guide);
 //   pinned here: advancing the clock now and then keeps a long run of input rendering.
+// - G-286: a held patch (G-257) armed one 51 ms timer per held flush, not one per hold.
 import { describe, it, expect, afterEach, vi } from 'vitest'
 import { makeScheduler, B } from '../src/cycle/run/scheduler.ts'
 import { run } from '../src/index.js'
@@ -88,3 +89,32 @@ describe('P45-R3 G-284: raw run() under fake timers (documented)', () => {
     } finally { app.dispose(); document.body.innerHTML = '' }
   })
 })
+
+describe('P45-R3 G-286: one bound timer per hold', () => {
+  it('a 30 ms hold with patches every ~1 ms arms one 51 ms timer', async () => {
+    let bound = 0
+    globalThis.setTimeout = (f, ms) => { if (ms == 51) bound++; return real(f, ms) }
+    const s = makeScheduler()
+    let patches = 0
+    s.t(30, () => {}, 1)
+    for (let i = 0; i < 25; i++) { s(2 * B, () => patches++); await sleep(1) }
+    expect(bound).toBe(1)
+    await until(() => expect(patches).toBeGreaterThan(0)) // released when the gate fires
+  })
+
+  it('a lost bound timer: the next flush past the bound releases the hold', async () => {
+    const s = makeScheduler()
+    globalThis.setTimeout = () => 0 // gate and bound timers lost
+    s.t(1, () => {}, 1)
+    let patches = 0
+    s(2 * B, () => patches++)
+    await microtasks()
+    globalThis.setTimeout = real
+    expect(patches).toBe(0)
+    await sleep(60)
+    s(2 * B, () => patches++)
+    await microtasks()
+    expect(patches).toBe(2)
+  })
+})
+
