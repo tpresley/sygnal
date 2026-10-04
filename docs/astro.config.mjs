@@ -40,6 +40,7 @@ export default defineConfig({
             { label: 'Intent', slug: 'guide/intent' },
             { label: 'Model', slug: 'guide/model' },
             { label: 'State Management', slug: 'guide/state' },
+            { label: 'Persistence', slug: 'guide/persistence' },
             { label: 'Streams', slug: 'guide/streams' },
             { label: 'Drivers', slug: 'guide/drivers' },
             { label: 'HTTP', slug: 'guide/http' },

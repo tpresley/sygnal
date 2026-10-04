@@ -117,7 +117,17 @@ Editor.model = undoable({
 
 A change is a reducer result whose `state[key]` is a different object than before, so reducers that return new objects (as Sygnal reducers do) are recorded. `UNDO` and `REDO` make no change when there is nothing to undo or redo. A model entry of your own for `UNDO` / `REDO` (`'history.UNDO'` with the behavior) runs after the built-in step.
 
-Snapshots are the old values themselves, not copies. Keep `key` on the part of the state the user edits (`doc`), not on the whole state, so the history doesn't hold every loading flag and list position too. For the same reason, when you save the state (to a server or to storage), save `state.doc` and leave `history` out.
+Snapshots are the old values themselves, not copies. Keep `key` on the part of the state the user edits (`doc`), not on the whole state, so the history doesn't hold every loading flag and list position too.
+
+For the same reason, when you save the state, save `state.doc` and leave `history` out. With [`persist()`](/guide/persistence/), pick the document:
+
+```jsx
+import { persist } from 'sygnal'
+
+Editor.persist = persist({ key: 'note', pick: ['doc'] })
+```
+
+After a reload the note is back and the history starts empty, so the first undo doesn't reach into the previous visit.
 
 ## SYG226
 
