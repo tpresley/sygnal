@@ -16,6 +16,10 @@ interface SygnalComponent {
   resources?: any;
   route?: any;
   head?: any;
+  persist?: any;
+  uses?: any;
+  timers?: any;
+  viewTransitions?: any;
   context?: any;
   peers?: any;
   components?: any;
@@ -84,6 +88,12 @@ export default (element: any) => {
     Wrapped.resources = Component.resources
     Wrapped.route = Component.route
     Wrapped.head = Component.head
+    // PLAN-4 3-B2: more statics the core reads off the root view: persist (root only: the island
+    // is its app's root), uses, timers (they run only with a timer driver) and viewTransitions
+    Wrapped.persist = Component.persist
+    Wrapped.uses = Component.uses
+    Wrapped.timers = Component.timers
+    Wrapped.viewTransitions = Component.viewTransitions
     Wrapped.componentName = Component.componentName || Component.name
     // run() names the root by `name` first: diagnostics and devtools should
     // say 'Counter', not 'Wrapped'

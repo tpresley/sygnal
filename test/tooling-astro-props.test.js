@@ -71,3 +71,18 @@ describe('astro island props (B-026)', () => {
     expect(runs.map(r => r.options.uid)).toEqual(['c2', undefined])
   })
 })
+
+// PLAN-4 3-B2 item 2: statics the core reads off the root view (persist, uses, timers; P-1b's
+// viewTransitions) reach the island's Wrapped root
+describe('astro island statics (3-B2)', () => {
+  it('client: Wrapped forwards persist, uses, timers and viewTransitions', async () => {
+    const C = makeComponent(() => h('div', ''))
+    C.persist = { options: { key: 'k' }, setup() {} }
+    C.uses = { pager: { merge() {} } }
+    C.timers = () => ({})
+    C.viewTransitions = true
+    await clientRenderer({ hasAttribute: () => true })(C, {}, {}, { client: 'load' })
+    const Wrapped = runs[0].component
+    for (const k of ['persist', 'uses', 'timers', 'viewTransitions']) expect(Wrapped[k]).toBe(C[k])
+  })
+})
