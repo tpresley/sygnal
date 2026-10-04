@@ -1,4 +1,4 @@
-import xs, {Stream} from 'xstream';
+import xs, {Stream, NO} from 'xstream';
 
 /**
  * P45-C: the render scheduler, one per app (the root component makes it and its children inherit
@@ -67,4 +67,31 @@ export const batch = (s: Scheduler | undefined, k: number, w?: () => any) => (in
   });
   out.go = () => h && s(k, emit);
   return out;
+};
+
+/**
+ * P45-D: teardown. xstream stops a stream left without listeners in its own setTimeout (one per
+ * stream: ~70 for a disposed component). Inside tearDown(f) (a dispose) such a stream is queued
+ * instead (_stopID 0: an _add before the stop cancels it, as with xstream's timer) and the
+ * queue is stopped by one timer at the next macrotask; the streams those stops leave without
+ * listeners are queued for the next one. So every stream stops at the macrotask it would have
+ * with xstream (a stream that another instance, created in the same update, listens to again is
+ * kept running), with one timer per level instead of one per stream. Outside tearDown xstream is
+ * unchanged.
+ */
+let down = 0, q: any[] = [];
+const SP: any = Stream.prototype, rm = SP._remove;
+SP._remove = function (this: any, il: any) {
+  if (!down || this._target) return rm.call(this, il);
+  const a = this._ils, i = a.indexOf(il);
+  if (i < 0) return;
+  a.splice(i, 1);
+  if (this._prod !== NO && !a.length) this._err = NO, this._stopID = 0, q.push(this);
+  else if (a.length == 1) this._pruneCycles();
+};
+export const tearDown = (f: () => void): void => {
+  const mine = down++ ? q : (q = []);
+  try { f(); } finally {
+    --down || mine.length && setTimeout(() => tearDown(() => { for (const s of mine) s._stopID === 0 && s._stopNow(); }));
+  }
 };

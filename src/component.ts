@@ -16,7 +16,7 @@ import {warn, error as logError, fail, caught, appError} from './extra/diagnosti
 
 import xs, {Stream} from './extra/xstreamCompat';
 import {delay, concat, dropRepeats} from './extra/xstreamExtras';
-import {makeScheduler, batch, B} from './cycle/run/scheduler';
+import {makeScheduler, batch, B, tearDown} from './cycle/run/scheduler';
 
 declare var process: { env: Record<string, any> };
 
@@ -36,6 +36,7 @@ const ERR_FIX = 'See the attached error'
 const STATE_SNAPSHOT = Symbol('sygnal.stateSnapshot');
 
 let COMPONENT_COUNT = 0;
+
 // 1H-1: STATE reducers emitted but not applied yet (in any component)
 let pendingReducers = 0;
 
@@ -445,6 +446,10 @@ class Component {
   dispose(): void {
     if (this._disposed) return
     this._disposed = true
+    tearDown(() => this._dispose())
+  }
+
+  _dispose(): void {
     // [diagnostics hook]
     diag.onDispose(this)
     if (typeof window !== 'undefined' && window.__SYGNAL_DEVTOOLS__?.connected) {
@@ -474,14 +479,16 @@ class Component {
     // onDispose hooks run within this call (e.g. before renderComponent restores diagnostics)
     this._activeSubComponents.forEach((entry) => entry?.sink$?.__dispose?.())
     this._activeSubComponents.clear()
-    // Tear down streams on next macrotask to allow DISPOSE/cleanup actions to process
-    setTimeout(() => {
-      // Complete action$ (stops the entire component cycle) and vdom$ (stops rendering), then
-      // unsubscribe the tracked internal subscriptions
-      for (const s of [this.action$, this.vdom$]) try { s?.shamefullySendComplete?.() } catch (_) {}
+    // P45-D: torn down now (it was a setTimeout), after the DISPOSE action ran (in a microtask when
+    // reducers are pending, B-003: then after it). Complete action$ (stops the component cycle),
+    // vdom$ and, below a parent, the sinks (the parent's listeners are dropped with them), then
+    // unsubscribe the internal subscriptions. The streams left without listeners stop in one batch
+    const end = () => tearDown(() => {
+      for (const s of [this.action$, this.vdom$, ...(this.isSubComponent ? Object.values(this.sinks) : [])]) try { (s as any)?.shamefullySendComplete?.() } catch (_) {}
       for (const sub of this._subscriptions) try { sub?.unsubscribe?.() } catch (_) {}
       this._subscriptions = []
-    }, 0)
+    })
+    pendingReducers ? queueMicrotask(end) : end()
   }
 
   get debug(): boolean {
