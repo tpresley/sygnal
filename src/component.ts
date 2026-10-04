@@ -567,9 +567,11 @@ class Component {
   initState(): void {
     if (this.model !== undefined) {
       if (this.model[INITIALIZE_ACTION] === undefined) {
-        this.model[INITIALIZE_ACTION] = {
+        // G-252: this instance's own model object; the user's (shared by every instance) would
+        // keep the first instance alive and give the others its addCalculated
+        this.model = { ...this.model, [INITIALIZE_ACTION]: {
           [this.stateSourceName]: (_: any, data: any) => ({ ...this.addCalculated(data) })
-        }
+        } }
       } else if (isObj(this.model[INITIALIZE_ACTION])) {
         Object.keys(this.model[INITIALIZE_ACTION]).forEach(name => {
           if (name !== this.stateSourceName) {

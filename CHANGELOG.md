@@ -255,6 +255,7 @@ Covers `sygnal`, `sygnal-check` and `create-sygnal-app`. A few fixes change beha
 
 ### Fixed
 
+- **A model without `INITIALIZE` is no longer written to** (G-252). The first instance of such a component added its default `INITIALIZE` reducer to the shared `model` object, which kept that instance (and its streams) in memory for the life of the page and gave every later instance the first one's calculated-field cache. Each instance now has its own.
 - **`renderComponent` `ready()`** no longer resolves before the first render when that render takes longer than 30 ms (a loaded machine or a slow view). Before, `t.query()` could return `null` right after `await t.ready()`.
 - **Vike docs:** custom drivers go in `pages/+drivers.js`. The [Vike guide](https://sygnal.js.org/integration/vike/#custom-drivers) showed `drivers` inside `+config.js`, which Vike rejects: `vike build` fails with "must be defined using a separate file +drivers.js", and in `vike dev` the page never hydrates.
 - **Switchable.**
