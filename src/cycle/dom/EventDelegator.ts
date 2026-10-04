@@ -215,30 +215,20 @@ export class EventDelegator {
   }
 
   public removeElement(element: Element): void {
-    const toRemove: Array<[string, Element]> = [];
+    const types: Array<string> = [];
     this.nonBubblingListeners.forEach((map, type) => {
       if (map.has(element)) {
-        toRemove.push([type, element]);
+        types.push(type);
         const subs = (element as any).subs;
-        if (subs) {
-          Object.keys(subs).forEach((key: any) => {
-            subs[key].unsubscribe();
-          });
-        }
+        if (subs) Object.keys(subs).forEach(key => subs[key].unsubscribe());
       }
     });
-    for (let i = 0; i < toRemove.length; i++) {
-      const map = this.nonBubblingListeners.get(toRemove[i][0]);
-      if (!map) {
-        continue;
-      }
-      map.delete(toRemove[i][1]);
-      if (map.size === 0) {
-        this.nonBubblingListeners.delete(toRemove[i][0]);
-      } else {
-        this.nonBubblingListeners.set(toRemove[i][0], map);
-      }
-    }
+    types.forEach(type => {
+      const map = this.nonBubblingListeners.get(type);
+      if (!map) return;
+      map.delete(element);
+      if (!map.size) this.nonBubblingListeners.delete(type);
+    });
   }
 
   // the queues a destination goes in: its scope's and its ancestors' up to the nearest total scope
@@ -296,14 +286,9 @@ export class EventDelegator {
     eventType: string,
     namespace: Array<Scope>
   ): PriorityQueue<Destination> {
+    // up to the innermost total scope (none: the root's)
     let _max = namespace.length;
-    for (let i = _max - 1; i >= 0; i--) {
-      if (namespace[i].type === 'total') {
-        _max = i + 1;
-        break;
-      }
-      _max = i;
-    }
+    while (_max && namespace[_max - 1].type !== 'total') _max--;
 
     // a lookup never adds a scope (P45-A)
     const map = this.virtualListeners.get(namespace, undefined, _max);
@@ -337,54 +322,38 @@ export class EventDelegator {
       return;
     }
 
-    const elements = elementFinder.call();
-    if (elements.length) {
-      const self = this;
-      elements.forEach((element: Element) => {
-        const subs = (element as any).subs;
-        if (!subs || !subs[eventType]) {
-          const sub = fromEvent(
-            element,
-            eventType,
-            false,
-            false,
-            destination.passive
-          ).subscribe({
-            next: (ev: Event) =>
-              self.onEvent(eventType, ev, !!destination.passive, false),
-            error: () => {},
-            complete: () => {},
-          });
-          if (!self.nonBubblingListeners.has(eventType)) {
-            self.nonBubblingListeners.set(
-              eventType,
-              new Map<Element, NonBubblingListener>()
-            );
-          }
-          const map = self.nonBubblingListeners.get(eventType);
-          if (!map) {
-            return;
-          }
-          map.set(element, {sub, destination});
+    elementFinder.call().forEach((element: Element) => {
+      const subs = (element as any).subs;
+      if (!subs || !subs[eventType]) {
+        const sub = fromEvent(
+          element,
+          eventType,
+          false,
+          false,
+          destination.passive
+        ).subscribe({
+          next: (ev: Event) =>
+            this.onEvent(eventType, ev, !!destination.passive, false),
+          error: () => {},
+          complete: () => {},
+        });
+        let map = this.nonBubblingListeners.get(eventType);
+        if (!map) this.nonBubblingListeners.set(eventType, map = new Map());
+        map.set(element, {sub, destination});
 
-          (element as any).subs = {
-            ...subs,
-            [eventType]: sub,
-          };
-        }
-      });
-    }
+        (element as any).subs = {
+          ...subs,
+          [eventType]: sub,
+        };
+      }
+    });
   }
 
   private resetEventListeners(): void {
-    const iter = this.domListeners.entries();
-    let curr = iter.next();
-    while (!curr.done) {
-      const [type, {sub, passive}] = curr.value;
+    this.domListeners.forEach(({sub, passive}, type) => {
       sub.unsubscribe();
       this.setupDOMListener(type, passive);
-      curr = iter.next();
-    }
+    });
   }
 
   private putNonBubblingListener(
@@ -414,73 +383,43 @@ export class EventDelegator {
     bubbles = true
   ): void {
     const cycleEvent = this.patchEvent(event);
-    const rootElement = this.isolateModule.getRootElement(
-      event.target as Element
-    );
+    const target = event.target as Element;
+    const rootElement = this.isolateModule.getRootElement(target);
 
     if (bubbles) {
-      const namespace = this.isolateModule.getNamespace(
-        event.target as Element
-      );
+      const namespace = this.isolateModule.getNamespace(target);
       if (!namespace) {
         return;
       }
       const listeners = this.getVirtualListeners(eventType, namespace);
-      this.bubble(
+      const phase = (useCapture: boolean) => this.bubble(
         eventType,
-        event.target as Element,
+        target,
         rootElement,
         cycleEvent,
         listeners,
         namespace,
         namespace.length - 1,
-        true,
+        useCapture,
         passive
       );
-
-      this.bubble(
-        eventType,
-        event.target as Element,
-        rootElement,
-        cycleEvent,
-        listeners,
-        namespace,
-        namespace.length - 1,
-        false,
-        passive
-      );
+      phase(true);
+      phase(false);
     } else {
-      this.putNonBubblingListener(
-        eventType,
-        event.target as Element,
-        true,
-        passive
-      );
-      this.doBubbleStep(
-        eventType,
-        event.target as Element,
-        rootElement,
-        cycleEvent,
-        this.virtualNonBubblingListener,
-        true,
-        passive
-      );
-
-      this.putNonBubblingListener(
-        eventType,
-        event.target as Element,
-        false,
-        passive
-      );
-      this.doBubbleStep(
-        eventType,
-        event.target as Element,
-        rootElement,
-        cycleEvent,
-        this.virtualNonBubblingListener,
-        false,
-        passive
-      );
+      const phase = (useCapture: boolean) => {
+        this.putNonBubblingListener(eventType, target, useCapture, passive);
+        this.doBubbleStep(
+          eventType,
+          target,
+          rootElement,
+          cycleEvent,
+          this.virtualNonBubblingListener,
+          useCapture,
+          passive
+        );
+      };
+      phase(true);
+      phase(false);
       event.stopPropagation();
     }
   }
@@ -572,8 +511,7 @@ export class EventDelegator {
         if (
           !event.propagationHasBeenStopped &&
           dest.scopeChecker.isDirectlyInScope(elm) &&
-          ((sel !== '' && elm.matches(sel)) ||
-            (sel === '' && elm === rootElement))
+          (sel ? elm.matches(sel) : elm === rootElement)
         ) {
           preventDefaultConditional(
             event,
