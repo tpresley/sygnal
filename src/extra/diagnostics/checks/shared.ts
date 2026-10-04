@@ -68,7 +68,7 @@ export const BUILTIN_ACTIONS = new Set(['BOOTSTRAP', 'INITIALIZE', 'DISPOSE', 'R
 
 /** Sinks the core handles itself: their values never go to a reply-action driver. */
 // (PLAN-4 GS-2: ELEMENT too; `{ scrollIntoView: Row, block: 'center' }` names no action)
-const NON_REPLY_SINK = /^(STATE|EFFECT|EVENTS|PARENT|READY|DOM|CHILD|ELEMENT)$/
+const NON_REPLY_SINK = /^(STATE|EFFECT|EVENTS|PARENT|READY|DOM|CHILD|ELEMENT|PERSIST)$/
 
 // `ok: 'X'` / `"error": "X"` in function source (minified code keeps string literals and keys)
 const keyedNames = (keys: string) => new RegExp(`(?:^|[{,\\s])["']?(?:${keys})["']?\\s*:\\s*(["'\`])([\\w$.:/-]+)\\1`, 'g')
@@ -117,6 +117,8 @@ export function replyNamesOf(component: any): Set<string> {
   // PLAN-3 5-4b: the router replies the action a `route` static names
   const route = component?.view?.route
   if (typeof route === 'string') out.add(route)
+  // PLAN-4 GS-5: persist() adds RESTORE (sent after hydration and by sync)
+  if (component?.view?.persist) out.add('RESTORE')
   return out
 }
 

@@ -32,6 +32,8 @@ export default {
       const uses = comp.uses
       if (uses && (!uses.known || uses.entries.some(e => e.status === 'opaque'))) continue
       const triggers = new Set((comp.intent?.actions || []).map(a => a.name))
+      // PLAN-4 GS-5: persist() sends RESTORE (after hydration, and with sync)
+      if (comp.staticProps.persist) triggers.add('RESTORE')
       const nextTargets = new Set(model.nextTargets.map(t => t.name))
       const replies = new Set([...model.replyTargets, ...(comp.connections?.targets || [])].map(t => t.name))
       const owned = behaviorActions(uses)

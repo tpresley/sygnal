@@ -774,6 +774,66 @@ export interface UndoBehaviorOptions extends UndoOptions { undo?: BehaviorTarget
  */
 export function undo(options: UndoBehaviorOptions): Behavior<UndoHistory, { UNDO: any; REDO: any }, { canUndo: boolean; canRedo: boolean }, UndoBehaviorOptions>
 
+/** The top-level state keys of STATE (any string while STATE is unknown) */
+type PersistKey<STATE> = 0 extends (1 & STATE) ? string : keyof STATE & string
+
+/**
+ * A synchronous storage for `persist({ storage })` (async storages are not supported).
+ * `subscribe` (optional) is what `sync: true` listens to instead of the window `storage` event:
+ * call `fn(key, newValue)` when another writer changes a key; return the unsubscribe function.
+ */
+export interface PersistStorage {
+  getItem(key: string): string | null
+  setItem(key: string, value: string): void
+  removeItem(key: string): void
+  subscribe?(fn: (key: string, newValue: string | null) => void): () => void
+}
+
+/** PLAN-4 GS-5: `persist()` options */
+export interface PersistOptions<STATE = any> {
+  /** The storage key */
+  key: string
+  /** The top-level state keys to save (default: all but `omit`) */
+  pick?: ReadonlyArray<PersistKey<STATE>>
+  /** The top-level state keys not to save (calculated fields are never saved) */
+  omit?: ReadonlyArray<PersistKey<STATE>>
+  /** The version saved with the state (default 1). A stored entry with another version goes through `migrate` */
+  version?: number
+  /**
+   * Turns a stored entry of another version into this version's picked keys; nothing (undefined
+   * or null) discards it. Without migrate such an entry is ignored. If it throws: SYG642.
+   */
+  migrate?: (old: any, fromVersion: number) => Partial<STATE> | null | undefined | void
+  /** 'local' (localStorage, the default), 'session' (sessionStorage) or a synchronous adapter */
+  storage?: 'local' | 'session' | PersistStorage
+  /** Apply other tabs' writes to this key (a RESTORE action) */
+  sync?: boolean
+  /**
+   * The app hydrates server-rendered HTML: restore in a RESTORE action after the first render
+   * (so the first render matches the server's) instead of before INITIALIZE
+   */
+  hydrate?: boolean
+  /** Writes wait for this many ms without a state change (default 100); flushed on pagehide and dispose */
+  debounceMs?: number
+}
+
+/** The value `persist()` returns: set it as the root component's `persist` static */
+export interface Persist<STATE = any> {
+  readonly options: PersistOptions<STATE>
+  /** Called by the core on the root component (internal) */
+  setup(component: any): void
+}
+
+/**
+ * PLAN-4 GS-5: save the root component's state and restore it at startup:
+ * `TodoApp.persist = persist({ key: 'todo-app', pick: ['todos', 'filter'], version: 2, migrate })`.
+ * Stored as JSON `{ version, state }`. The restore is merged into initialState (part of
+ * INITIALIZE); writes are debounced (`debounceMs`) and flushed on pagehide and dispose.
+ * `PERSIST: { clear: true }` in a model entry removes the stored copy. Root component only
+ * (SYG224); failures are SYG642 (warn) and the app continues on initialState.
+ */
+export function persist<STATE = any>(options: PersistOptions<[STATE] extends [infer S] ? S : never>): Persist<STATE>
+
 type EventsSelect = keyof SygnalEvents extends never
   ? { select<T = any>(type: string): Stream<T>; }
   : { select<TYPE extends keyof SygnalEvents & string>(type: TYPE): Stream<SygnalEvents[TYPE]>; }
@@ -1017,6 +1077,12 @@ export type Component<
    * page's timers stop unless `background: true`; dispose stops them; nothing runs during SSR.
    */
   timers?: (state: STATE & CALCULATED) => Timers<ActionNameOf<ACTIONS>>;
+  /**
+   * PLAN-4 GS-5: save this root component's state and restore it at startup:
+   * `TodoApp.persist = persist({ key: 'todo-app', pick: ['todos', 'filter'] })`. `pick` / `omit`
+   * are typed against STATE's keys. Root component only (SYG224 elsewhere).
+   */
+  persist?: Persist<STATE>;
 }
 
 /** The action names of an ACTIONS map (any string when it names none) */
@@ -2488,6 +2554,19 @@ export interface RenderOptions {
   titleTemplate?: string;
   /** PLAN-4 GS-7: the sink the timer fake serves (default 'TIMER'); with no driver for it, the real makeTimerDriver() runs on the test's timers and `t.timers()` lists them */
   timerSink?: string;
+  /**
+   * PLAN-4 GS-5: the fake storage behind the root's `persist()` ('local' and 'session' alike), as
+   * key -> stored entry (`{ version, state }`, or a raw string). Used as is, not copied: writes
+   * land in it, and renderComponent calls given the same object share one storage (`sync: true`
+   * applies one's writes in the other). Default: a new empty object.
+   */
+  storage?: Record<string, PersistedEntry | string>;
+}
+
+/** PLAN-4 GS-5: a stored persist() entry (as `t.storage(key)` returns it) */
+export interface PersistedEntry<STATE = any> {
+  version: number
+  state: Partial<STATE>
 }
 
 /** PLAN-4 GS-7: an active timer, as `t.timers()` lists it: the spec as declared plus these */
@@ -2711,6 +2790,11 @@ export interface RenderResult<STATE = any> {
    * was passed for the timer sink.
    */
   timers: () => ActiveTimer[];
+  /**
+   * PLAN-4 GS-5: the fake storage's entry for `key` (`{ version, state }`), undefined when none
+   * (a raw string when what is stored isn't JSON). Pending persist() writes are flushed by t.settle()
+   */
+  storage: (key: string) => PersistedEntry<STATE> | undefined;
   /** Live array of EVENTS sink emissions ({type, data}) */
   emitted: Array<{ type: string; data: any }>;
   /** Live array of diagnostics reported while rendered */

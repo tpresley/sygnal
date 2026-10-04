@@ -743,6 +743,26 @@ A STATE reducer changed the state object it received (`state.count++`, `state.do
 
 **Fix:** Return a new object: `INC: (state) => ({ ...state, count: state.count + 1 })`. To write updates as mutations, wrap the reducer in immer's `produce()`: `INC: produce((draft) => { draft.count++ })`, which returns a new object when something changed and the same object when nothing did.
 
+### SYG223
+
+**persist pick or omit names a key that is not in initialState**
+
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`), `sygnal-check`
+
+`App.persist = persist({ key, pick, omit })` saves the top-level state keys listed in `pick` (or every key except those in `omit`). A name in either list that is not a key of the component's `initialState` is usually a typo or a renamed key: with `pick` that key is never saved (and never restored), with `omit` the key you meant to leave out is saved after all. The dev entry reports it when the root component is created; sygnal-check reports it statically when the options and `initialState` are literals, with the closest key as a suggestion.
+
+**Fix:** Use top-level keys of `initialState`: `persist({ key: 'todo-app', pick: ['todos', 'filter'] })`, or add the key to `initialState`.
+
+### SYG224
+
+**persist on a component that is not the root**
+
+Severity: `error` · Reported by: the dev checks (`sygnal/diagnostics`), `sygnal-check`
+
+`persist({ ... })` is set up by the root component only (the one passed to `run()` or `renderComponent()`): it saves and restores the app's whole state tree, and a sub-component's state is a slice of it. On any other component the `persist` static is ignored, so nothing is saved or restored. The dev entry reports it when the component is created; sygnal-check reports it when a `run()` call in the scanned files renders the component and none has it as its root.
+
+**Fix:** Move `persist` to the root component and `pick` the key that holds the sub-component's state: `App.persist = persist({ key: 'app', pick: ['todos'] })` for a child rendered with `state="todos"`.
+
 ### SYG226
 
 **Undo track or resetOn names an unknown action**
@@ -1661,6 +1681,16 @@ Severity: `error` · Reported by: the dev checks (`sygnal/diagnostics`), `sygnal
 An element command (`ELEMENT` sink) names a method that can't run. The first key of a command object is the method and the other keys are its options (`{ scrollIntoView: Row, block: 'nearest' }`). A control whose spec object declares `commands` is asked first; then the element's own method runs (focus, blur, select, click, scrollIntoView, showModal, show, close, showPopover, hidePopover, togglePopover, and others such as play or reset). Reported when neither exists, for example a typo (`fokus`) or `showModal` on an element that isn't a `<dialog>`; the message names the control's declared commands. Also reported when the command is sent: a value that isn't a command object, and a method that changes the DOM Sygnal renders (`remove`, `append`, `setAttribute`...), which the next render undoes or trips over. sygnal-check reports the method of a literal command object before the app runs: a slip of a documented command or of the control's spec commands (`{ fokus: Email }`, did you mean 'focus'), and a DOM-mutating method. Any other method name is left alone, since the core runs any method the element has.
 
 **Fix:** Use one of the element's methods or the control's commands, with the method as the first key: `{ focus: Email, preventScroll: true }`, `{ close: HelpDialog, returnValue: 'ok' }`. Render dialogs as `<dialog>` and popovers with `attrs: { popover: 'auto' }`. To change what the page shows, change the state instead.
+
+### SYG642
+
+**Persisted state could not be restored or saved**
+
+Severity: `warn` · Reported by: the Sygnal runtime (every app, production included)
+
+`persist({ ... })` failed to read, migrate or write the stored state: the stored entry is not JSON (edited by hand, written by something else), `migrate(old, fromVersion)` threw, or the storage refused the write (the quota is full, storage is blocked in a private window or by the browser's settings). The app keeps running: after a failed restore it starts from `initialState`, and after a failed write the change is simply not saved (the next change tries again). It is a warning printed in production too, since a full or blocked storage only shows up on users' machines.
+
+**Fix:** For a restore failure, check the stored entry under the persist key (DevTools > Application > Local Storage) and `migrate()` for that stored version; a corrupt entry is replaced on the next save. For a write failure, save less (`pick` only what must survive a reload) or catch quota errors in a custom `storage` adapter.
 
 ### SYG643
 

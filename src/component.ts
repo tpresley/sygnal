@@ -383,6 +383,8 @@ class Component {
     // its own merge (src/extra/behaviors.ts, D114); anything else is skipped (reported by the dev entry)
     const uses = (view as any)?.uses
     for (const k in uses) uses[k]?.merge?.(this, k)
+    // PLAN-4 GS-5: Root.persist = persist({ ... }); the helper value carries its setup (src/extra/persist.ts)
+    if (!this.isSubComponent) (view as any)?.persist?.setup?.(this)
     // B-016: initialState is applied by the INITIALIZE action, which needs a model. D44: only
     // for a sub-component with no `state` prop; an existing parent slice is never overwritten
     if (sources.__localState && isolatedState && initialState !== undefined && !this.model) this.model = {}

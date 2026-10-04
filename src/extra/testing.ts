@@ -305,6 +305,13 @@ export interface RenderOptions {
   titleTemplate?: string;
   /** PLAN-4 GS-11: the app-level error hook, as run()'s `onError` option */
   onError?: (error: any, info: {componentName?: string; action?: string; phase: string; driver?: string}) => void;
+  /**
+   * PLAN-4 GS-5: the fake storage behind a root's `persist()` ('local' and 'session' alike), as
+   * key -> stored entry (`{ version, state }`, or a raw string). It is used as is, not copied:
+   * writes land in it, and two renderComponent calls given the same object share one storage
+   * (`sync: true` then applies one's writes in the other). Default: a new empty object.
+   */
+  storage?: Record<string, any>;
 }
 
 /**
@@ -477,6 +484,8 @@ export interface RenderResult {
   head: () => {title: string | undefined; meta: Record<string, any>; link: any[]};
   /** PLAN-4 GS-7: the timer fake's active timers, in start order: `{ name, every | after | frame, action, background?, component }` */
   timers: () => Array<Record<string, any>>;
+  /** PLAN-4 GS-5: the fake storage's entry for `key` (`{ version, state }`), undefined when none. Pending writes are flushed by t.settle() */
+  storage: (key: string) => any;
   /** Live array of EVENTS sink emissions ({type, data}) */
   emitted: any[];
   /** Live array of diagnostics reported while rendered */
@@ -996,6 +1005,26 @@ const QUIET_MS = 10;
 // listeners, G-049/G-039; settleMs: settle()'s quiet window, longer than a model next()'s
 // default 10ms delay; timeoutMs: next()/waitForState()/settle())
 const TIMING = {eventWaitMs: 300, settleMs: 20, timeoutMs: 2000};
+
+// PLAN-4 GS-5: a synchronous storage over a plain record (key -> parsed entry, or a raw string
+// that isn't JSON), for persist(). The record's subscribers (persist's sync) hear every write,
+// as other tabs hear a 'storage' event; persist skips its own writes.
+const storageSubs = new WeakMap<object, Set<(k: string, v: string | null) => void>>();
+const fakeStorage = (rec: Record<string, any>) => {
+  let subs = storageSubs.get(rec);
+  if (!subs) storageSubs.set(rec, subs = new Set());
+  const notify = (k: string, v: string | null) => subs!.forEach(f => f(k, v));
+  return {
+    getItem: (k: string) => rec[k] == null ? null : typeof rec[k] == 'string' ? rec[k] : JSON.stringify(rec[k]),
+    setItem: (k: string, v: string) => {
+      v = String(v);
+      try { rec[k] = JSON.parse(v); } catch (_) { rec[k] = v; }
+      notify(k, v);
+    },
+    removeItem: (k: string) => { delete rec[k]; notify(k, null); },
+    subscribe: (f: (k: string, v: string | null) => void) => (subs!.add(f), () => { subs!.delete(f); }),
+  };
+};
 // a model next() call, seen through the component's debug log (component.ts makeOnAction /
 // makeEffectHandler: "... next() action: <TYPE> 400ms delay")
 const NEXT_LOG = /next\(\) action: <(.*)> (\d+)ms delay$/;
@@ -1936,6 +1965,8 @@ export function renderComponent(
   // unless a driver is passed under timerSink; the test's timers (fake ones too) drive it
   const {timerSink = 'TIMER'} = options;
   const tm = drivers[timerSink] ? undefined : new Map<any, any>();
+  // PLAN-4 GS-5: the fake storage a root's persist() uses (the __storage source; see persist.ts)
+  const store = options.storage || {}, ps = componentDef.persist && {local: fakeStorage(store), session: fakeStorage(store), f: new Set<() => void>()};
   const allDrivers: any = {
     DOM: real
       ? (vnode$: any, name: string) => trackSource(realDOM(gated(vnode$), name), [], hub.$, onEvents)
@@ -1948,12 +1979,13 @@ export function renderComponent(
     ...(rt && {[routerSink]: routerDriver}),
     ...drivers,
     ...(options.onError && {__e: () => options.onError}),
+    ...(ps && {__storage: () => ps}),
   };
   const faked = new Set<string>();
   for (const k in model) {
     const e = model[k], [, sink] = k.split('|');
     for (const n of sink ? [sink.trim()] : e && typeof e == 'object' ? Object.keys(e) : []) {
-      if (!allDrivers[n] && !/^(STATE|EFFECT|PARENT|READY|ELEMENT)$/.test(n)) {
+      if (!allDrivers[n] && !/^(STATE|EFFECT|PARENT|READY|ELEMENT|PERSIST)$/.test(n)) {
         allDrivers[n] = () => fake(n);
         faked.add(n);
       }
@@ -2916,7 +2948,8 @@ export function renderComponent(
     ready,
     waitForState,
     next,
-    settle,
+    // GS-5: then the pending persist() writes
+    settle: (ms?: number) => settle(ms).then(() => ps?.f.forEach(f => f())),
     states,
     actions: actionList,
     explain,
@@ -2944,6 +2977,7 @@ export function renderComponent(
       tm.forEach(r => { for (const name in r.on) { const {ok, d, s} = r.on[name]; if (ok && !d) list.push({name, ...s, action: s.action ?? s.frame, component: r.c}); } });
       return list;
     },
+    storage: (key: string) => store[key],
     emitted: sinkValues('EVENTS'),
     diagnostics: collected,
     commands: (name = 'ELEMENT') => name == 'ELEMENT' ? commandLog : sinkValues(name),

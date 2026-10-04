@@ -19,7 +19,7 @@ export const REPLY_KEYS = new Set(['ok', 'error', 'block'])
 export const CONNECTION_KEYS = new Set(['message', 'open', 'close', 'error'])
 /** Sinks the core handles itself: their values are never requests to a reply-action driver. */
 // PLAN-4 GS-2: ELEMENT takes element commands (`{ scrollIntoView: Row, block: 'nearest' }`), not requests
-export const NON_REPLY_SINKS = new Set(['STATE', 'EFFECT', 'EVENTS', 'PARENT', 'READY', 'DOM', 'CHILD', 'ELEMENT'])
+export const NON_REPLY_SINKS = new Set(['STATE', 'EFFECT', 'EVENTS', 'PARENT', 'READY', 'DOM', 'CHILD', 'ELEMENT', 'PERSIST'])
 
 const SHORTHAND = /^(.+?)\s*\|\s*(.+)$/
 

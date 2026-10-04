@@ -27,8 +27,8 @@ const intentActions = new WeakMap<object, string[]>()
 // SYG609 (G-110, PLAN-2 E2): sinks/sources that no driver provides. Sinks the core handles
 // itself never need one. renderComponent (mock DOM source) records such sinks and fakes such
 // sources (t.requests / t.respond), so its components are skipped.
-// PLAN-4 GS-2: ELEMENT (element commands) is built in
-const NO_DRIVER_NEEDED = /^(STATE|EFFECT|PARENT|READY|DOM|CHILD|ELEMENT)$/
+// PLAN-4 GS-2: ELEMENT (element commands) is built in; GS-5: PERSIST is persist()'s (an EFFECT)
+const NO_DRIVER_NEEDED = /^(STATE|EFFECT|PARENT|READY|DOM|CHILD|ELEMENT|PERSIST)$/
 const DRIVER_NAME = /^[A-Z][A-Z0-9_]*$/
 // (`in`, not a read: the DOM source's shorthand Proxy returns a function for any property)
 const underTest = (c: any) => {
