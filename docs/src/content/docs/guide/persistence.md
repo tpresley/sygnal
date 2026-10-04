@@ -71,6 +71,20 @@ The stored value is JSON, `{ version, state }`, under `key`:
 
 Values must survive `JSON.stringify`: plain objects, arrays, strings, numbers, booleans and `null`. A `Date` comes back as a string, and a `Map` or `Set` as `{}`.
 
+### A plain format
+
+When something else reads or writes the same entry (an older version of the app, another script, a spec that fixes the format), `format: 'plain'` stores the picked keys themselves, with no envelope:
+
+```jsx
+Note.persist = persist({ key: 'note-draft', pick: ['title', 'body'], format: 'plain' })
+```
+
+```json
+{"title":"Groceries","body":"milk, eggs"}
+```
+
+A plain entry has no version, so `version` and `migrate` don't apply: TypeScript rejects them with `format: 'plain'`, and they are ignored at runtime. A stored value that isn't an object (an array, a string, a number) is ignored, and the app starts from `initialState`. Everything else (`pick`/`omit`, `sync`, `storage`, clearing, the restore and the debounced writes) works as with the default `format: 'versioned'`.
+
 ## When it is restored
 
 When the app starts, the root component reads the stored entry synchronously, before its first state, and merges the saved keys into `initialState`. The first render already shows the saved todos, and the `INITIALIZE` action carries them: there is no separate "load" step and no flash of the empty list.
@@ -94,7 +108,7 @@ A write happens after the state stops changing for `debounceMs` (100 ms by defau
 
 ## Versions and migrate
 
-`version` (default 1) is saved with the state. When the stored entry has another version, `migrate(old, fromVersion)` turns the old `state` into this version's keys; the result is merged into `initialState` like any restore and saved under the new version on the next write. When `migrate` returns nothing (`undefined` or `null`), or there is no `migrate`, the stored entry is ignored and the app starts from `initialState`.
+`version` (default 1) is saved with the state (not with `format: 'plain'`). When the stored entry has another version, `migrate(old, fromVersion)` turns the old `state` into this version's keys; the result is merged into `initialState` like any restore and saved under the new version on the next write. When `migrate` returns nothing (`undefined` or `null`), or there is no `migrate`, the stored entry is ignored and the app starts from `initialState`.
 
 Bump `version` whenever the shape of a picked key changes, and keep the `migrate` branches for the versions your users may still have.
 
@@ -200,6 +214,21 @@ it('restores version 1 todos and saves version 2', async () => {
 
 The object you pass is used as the storage, not copied: writes land in it, and two `renderComponent` calls given the same object share it, so `sync: true` can be tested with two instances. The fake serves `'local'` and `'session'` alike; a component whose `storage` is an object uses that object.
 
+With `format: 'plain'` the entries are the stored keys themselves, both in the `storage` option and from `t.storage(key)`:
+
+```jsx
+it('saves the draft as { title, body }', async () => {
+  const t = renderComponent(Note, { storage: { 'note-draft': { title: 'Groceries', body: '' } } })
+  await t.ready()
+  expect(t.state.title).toBe('Groceries')
+
+  t.simulateAction('BODY', 'milk')
+  await t.settle()
+  expect(t.storage('note-draft')).toEqual({ title: 'Groceries', body: 'milk' })
+  t.dispose()
+})
+```
+
 ## Options
 
 | Option | Default | |
@@ -209,6 +238,7 @@ The object you pass is used as the storage, not copied: writes land in it, and t
 | `omit` | `[]` | The top-level state keys not to save (instead of `pick`) |
 | `version` | `1` | Saved with the state; another stored version goes through `migrate` |
 | `migrate` | none | `(old, fromVersion) => keys` for a stored entry of another version; nothing discards it |
+| `format` | `'versioned'` | `'versioned'` stores `{ version, state }`; `'plain'` stores the picked keys themselves (no `version` / `migrate`) |
 | `storage` | `'local'` | `'local'`, `'session'` or a synchronous `{ getItem, setItem, removeItem, subscribe? }` |
 | `sync` | `false` | Apply other tabs' writes (a `RESTORE` action) |
 | `hydrate` | detected | Restore after the first render (in `RESTORE`): `true` / `false` override the detection of server-rendered HTML |

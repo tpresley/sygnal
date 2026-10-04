@@ -350,7 +350,7 @@ connectReduxDevtools(app, { name: 'My app' })
 ` },
   uIsSelected: { page: 'reference/utilities.md', lang: 'typescript', code: `function isSelected(slice: { selected: string[] } | null | undefined, id: string | number): boolean
 ` },
-  uUndoable: { page: 'reference/utilities.md', lang: 'typescript', code: `function undoable(model: Model, options: { key: string; limit?: number; track?: string[]; coalesceMs?: number; resetOn?: string[] }): Model
+  uUndoable: { page: 'reference/utilities.md', lang: 'typescript', code: `function undoable(model: Model, options: { key: string; limit?: number; track?: string[]; coalesceMs?: number; coalesce?: string[]; resetOn?: string[] }): Model
 ` },
   apiElementType: { page: 'reference/api.md', lang: 'typescript', code: `// the value of an ELEMENT entry: a command, an array of them, or a reducer returning either (or ABORT)
 type ElementSinkValue =
@@ -371,8 +371,8 @@ type ElementSinkValue =
   apiSelection: { page: 'reference/api.md', lang: 'typescript', code: `function selection(options?: { multi?: boolean; item?: Control | string; all?: Control | string; clear?: Control | string; attr?: string; from?: string; idField?: string }): Behavior
 function isSelected(slice: { selected: string[] }, id: string | number): boolean
 ` },
-  apiUndo: { page: 'reference/api.md', lang: 'typescript', code: `function undo(options: { key: string; limit?: number; track?: string[]; coalesceMs?: number; resetOn?: string[]; undo?: Control | string; redo?: Control | string }): Behavior
-function undoable(model: Model, options: { key: string; limit?: number; track?: string[]; coalesceMs?: number; resetOn?: string[] }): Model
+  apiUndo: { page: 'reference/api.md', lang: 'typescript', code: `function undo(options: { key: string; limit?: number; track?: string[]; coalesceMs?: number; coalesce?: string[]; resetOn?: string[]; undo?: Control | string; redo?: Control | string }): Behavior
+function undoable(model: Model, options: { key: string; limit?: number; track?: string[]; coalesceMs?: number; coalesce?: string[]; resetOn?: string[] }): Model
 ` },
   apiTimerDriver: { page: 'reference/api.md', lang: 'typescript', code: `function makeTimerDriver(): Driver
 ` },

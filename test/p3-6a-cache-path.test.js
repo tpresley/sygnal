@@ -361,6 +361,28 @@ describe('guides shipped in the package (offline)', () => {
     expect(copyGuides({ check: true })).toBe(0)
   })
 
+  // PLAN-4 4-G1 (REPORT-v4 rec 1): the PLAN-4 guides ship too (6/6 WebFetches of them got 404)
+  it('ships the PLAN-4 guides, advanced/undo included (a section prefix), flat in dist/guide', async () => {
+    const fs = await import('node:fs')
+    const { fileURLToPath } = await import('node:url')
+    const path = await import('node:path')
+    const dist = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'dist', 'guide') + path.sep
+    const { GUIDES } = await import('../scripts/copy-guides.mjs')
+    expect(GUIDES).toEqual(['resources', 'http', 'persistence', 'timers', 'element-commands', 'behaviors', 'accessibility', 'advanced/undo'])
+    for (const page of ['persistence', 'timers', 'element-commands', 'behaviors', 'accessibility', 'undo']) {
+      const text = fs.readFileSync(dist + page + '.md', 'utf8')
+      expect(text).not.toMatch(/^---$/m)
+    }
+    expect(fs.readFileSync(dist + 'undo.md', 'utf8'))
+      .toMatch(/^<!-- Generated from docs\/src\/content\/docs\/advanced .*\n# Undo and Redo\n/)
+  })
+
+  it('links between shipped pages of any section become relative', async () => {
+    const { convert } = await import('../scripts/copy-guides.mjs')
+    const md = '---\ntitle: Behaviors\n---\nSee [undo](/advanced/undo/#keyboard-shortcuts), [save](/guide/persistence/), [faq](/advanced/faq/) and [router](/guide/router/).'
+    expect(convert(md)).toContain('See [undo](./undo.md#keyboard-shortcuts), [save](./persistence.md), [faq](https://sygnal.js.org/advanced/faq/) and [router](https://sygnal.js.org/guide/router/).')
+  })
+
   it('site links become relative (shipped pages) or absolute (the rest)', async () => {
     const { convert } = await import('../scripts/copy-guides.mjs')
     const md = '---\ntitle: HTTP\ndescription: x\n---\nSee [cache](/guide/resources/#the-query-cache), [errors](/reference/errors/#syg635) and [router](/guide/router/).'
@@ -374,6 +396,13 @@ describe('guides shipped in the package (offline)', () => {
     const llms = read('../llms.txt')
     for (const text of [skill, llms]) expect(text).toContain('node_modules/sygnal/dist/guide/resources.md')
     expect(llms).toContain('node_modules/sygnal/dist/guide/http.md')
+    // 4-G1: the PLAN-4 pages are linked locally, never by a site URL
+    for (const page of ['behaviors', 'element-commands', 'timers', 'persistence', 'undo']) {
+      for (const text of [skill, llms]) expect(text).toContain(`node_modules/sygnal/dist/guide/${page}.md`)
+    }
+    for (const url of ['/guide/behaviors/', '/guide/element-commands/', '/guide/timers/', '/guide/persistence/', '/advanced/undo/', '/guide/accessibility/']) {
+      for (const text of [skill, llms]) expect(text).not.toContain('https://sygnal.js.org' + url)
+    }
     expect(JSON.parse(read('../package.json')).files).toContain('dist')
   })
 })

@@ -11,7 +11,9 @@
  * wrapped: when its result has a different state[key], the old state[key] is pushed onto
  * `past` (at most `limit`, default 100) and `future` is cleared. With `track`, only those
  * actions are recorded; built-in actions (INITIALIZE ...) only when tracked. A change by the
- * same action within `coalesceMs` of the previous one joins that step (typing). `resetOn`
+ * same action within `coalesceMs` of the previous one joins that step (typing). With
+ * `coalesce` (4-G1, D143) only the listed actions join (`coalesceMs` then defaults to 500);
+ * every other action is always its own step (two quick clicks on Larger are two). `resetOn`
  * actions clear the history and are not recorded. Snapshots are references: reducers must
  * return new objects (they do in Sygnal). A model's own UNDO / REDO entry runs after the
  * built-in one (as a host entry for a behavior action does, D123).
@@ -27,7 +29,7 @@ const BUILT_IN = /^(BOOTSTRAP|INITIALIZE|DISPOSE|READY|RESOURCE)$/
 const last = new WeakMap<object, [string, number]>()
 const reported = new WeakSet<object>()
 
-export interface UndoOptions { key: string, limit?: number, track?: string[], coalesceMs?: number, resetOn?: string[] }
+export interface UndoOptions { key: string, limit?: number, track?: string[], coalesce?: string[], coalesceMs?: number, resetOn?: string[] }
 
 const actionOf = (a: string) => a.split('|')[0].trim()
 
@@ -47,12 +49,12 @@ const check = (model: any, o: UndoOptions, component?: any, skip?: any) => {
 }
 
 const wrap = (model: any, o: UndoOptions, hk: string, ns: string, S = 'STATE'): any => {
-  const {key, limit = 100, track, coalesceMs = 0, resetOn = []} = o
+  const {key, limit = 100, track, coalesce, coalesceMs = coalesce ? 500 : 0, resetOn = []} = o
   const out: any = {}
   const hist = (s: any) => s?.[hk] || {past: [], future: []}
   for (const a in model) {
     const e = model[a], [name, sink] = a.split('|').map(x => x.trim())
-    const reset = resetOn.includes(name)
+    const reset = resetOn.includes(name), joins = coalesceMs > 0 && (!coalesce || coalesce.includes(name))
     const f0 = sink ? (sink == S ? e : null) : typeof e == 'function' ? e : e?.[S]
     // a constant STATE value isn't a reducer: the entry is left alone (G-214)
     if (f0 != null && typeof f0 != 'function') { out[a] = e; continue }
@@ -65,7 +67,7 @@ const wrap = (model: any, o: UndoOptions, hk: string, ns: string, S = 'STATE'): 
       if (reset) return h.past.length || h.future.length ? {...r, [hk]: {...h, past: [], future: []}} : r
       if (r === s || r[key] === s[key]) return r
       const at = Date.now(), prev = last.get(h.past)
-      const join = coalesceMs > 0 && prev && prev[0] == name && at - prev[1] < coalesceMs && h.past.length
+      const join = joins && prev && prev[0] == name && at - prev[1] < coalesceMs && h.past.length
       const nh = {...h, past: join ? h.past : [...h.past, s[key]].slice(-limit), future: []}
       last.set(nh.past, [name, at])
       return {...r, [hk]: nh}
@@ -100,7 +102,8 @@ const wrap = (model: any, o: UndoOptions, hk: string, ns: string, S = 'STATE'): 
  * Wraps a model's STATE reducers so `state[key]` gets undo / redo (GS-8): `state.history =
  * { past, future }`, plus UNDO and REDO entries for the intent to trigger. Options: `key` (the
  * state key to snapshot), `limit` (100), `track` (only these actions), `coalesceMs` (join rapid
- * changes by one action), `resetOn` (actions that clear the history). Returns a new model.
+ * changes by one action), `coalesce` (only these actions join; default window 500 ms), `resetOn`
+ * (actions that clear the history). Returns a new model.
  */
 export const undoable = (model: any, options: UndoOptions): any => {
   check(model, options)

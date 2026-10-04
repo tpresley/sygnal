@@ -9,7 +9,9 @@ import {warn} from './diagnostics/legacy';
  * constructor (src/component.ts); an app that never imports persist() pays 0 B.
  *
  * - Stored as JSON `{ version, state }` under `key`; `state` has the picked top-level keys
- *   (`pick`), or all but `omit` and the calculated fields.
+ *   (`pick`), or all but `omit` and the calculated fields. `format: 'plain'` (4-G1, D143) stores
+ *   that object itself, with no envelope; `version` / `migrate` then don't apply (a type error;
+ *   ignored here), and a stored value that isn't an object is ignored.
  * - Restore: a synchronous read before INITIALIZE, merged into initialState, so the restore is
  *   part of the initial-state action. A stored `version` other than `version` (default 1) goes
  *   through `migrate(old, fromVersion)`; without migrate, or when it returns nothing, the entry
@@ -36,7 +38,7 @@ import {warn} from './diagnostics/legacy';
 const g: any = globalThis;
 
 export const setupPersist = (c: any, o: any): void => {
-  const {key, pick, omit, version = 1, migrate, sync, debounceMs = 100} = o, src = c.sources, m = src.__m;
+  const {key, pick, omit, version = 1, migrate, sync, debounceMs = 100} = o, plain = o.format == 'plain', src = c.sources, m = src.__m;
   const env = src.__storage, calc = c.calculated || {};
   // hydrating: the option, else the integration's signal (__hydrate: Astro, Vike), else whether
   // run()'s mount point starts with renderToString's markup (its root element is marked; a
@@ -56,13 +58,15 @@ export const setupPersist = (c: any, o: any): void => {
   const read = (r: any) => {
     try {
       if (r == null) return;
-      const {version: v = 1, state} = JSON.parse(r), s = v === version ? state : migrate && migrate(state, v);
+      const j = JSON.parse(r);
+      if (plain) return j && typeof j == 'object' && !Array.isArray(j) ? only(j) : undefined;
+      const {version: v = 1, state} = j, s = v === version ? state : migrate && migrate(state, v);
       return s && only(s);
     } catch (e) { fail('restore', e); }
   };
   const write = () => {
     clearTimeout(t); t = 0;
-    const r = JSON.stringify({version, state: only(last)}), p = raw;
+    const r = JSON.stringify(plain ? only(last) : {version, state: only(last)}), p = raw;
     // a failed save is retried at the next change (raw stays the stored text)
     if (r != raw) try { raw = r; S.setItem(key, r); bad.save = 0; } catch (e) { raw = p; fail('save', e); }
   };
@@ -118,7 +122,7 @@ export const setupPersist = (c: any, o: any): void => {
 };
 
 /**
- * `App.persist = persist({ key, pick | omit, version, migrate, storage, sync, hydrate, debounceMs })`:
+ * `App.persist = persist({ key, pick | omit, version, migrate, format, storage, sync, hydrate, debounceMs })`:
  * the root component's state, saved to localStorage (or sessionStorage, or an adapter) and
  * restored at startup. Only an app that imports it pays for it.
  */
