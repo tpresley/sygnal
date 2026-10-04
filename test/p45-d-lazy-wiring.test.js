@@ -225,4 +225,30 @@ describe('P45-D: what a component no longer builds', () => {
     document.querySelector('.kid').click()
     await until(() => expect(picked).toEqual(['hi']))
   })
+
+  it('components created in one task start together: one timer per delay, not one each', async () => {
+    function Item({ state }) { return h('li', { className: 'it' }, h('i', { className: 'inc' }, String(state.n))) }
+    Item.intent = ({ DOM }) => ({ INC: DOM.click('.inc') })
+    Item.model = { INC: (s) => ({ ...s, n: s.n + 1 }) }
+    function List() { return h('ul', null, h('b', { className: 'add' }, '+'), h(Collection, { of: Item, from: 'items' })) }
+    List.initialState = { items: [] }
+    List.intent = ({ DOM }) => ({ ADD: DOM.click('.add') })
+    List.model = { ADD: (s) => ({ ...s, items: Array.from({ length: 100 }, (_, i) => ({ id: i + 1, n: 0 })) }) }
+    document.body.innerHTML = '<div id="root"></div>'
+    apps.push(run(List, {}, { mountPoint: '#root' }))
+    await until(() => expect(document.querySelector('.add')).not.toBe(null))
+    await sleep(20)
+    const st = globalThis.setTimeout
+    let n = 0
+    globalThis.setTimeout = function (...a) { n++; return st.apply(this, a) }
+    try {
+      document.querySelector('.add').click()
+      await until(() => expect(document.querySelectorAll('.it').length).toBe(100))
+      await sleep(20)
+    } finally { globalThis.setTimeout = st }
+    expect(n).toBeLessThan(15)
+    // and every item listens
+    document.querySelectorAll('.it .inc')[42].click()
+    await until(() => expect(document.querySelectorAll('.it')[42].textContent).toBe('1'))
+  })
 })

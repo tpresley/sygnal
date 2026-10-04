@@ -19,7 +19,7 @@ import xs, {Stream, NO} from 'xstream';
  * reply a driver sends in a microtask (a cached resource, say) is in the same patch (at most 10
  * hops; never a timer, never rAF).
  */
-export type Scheduler = (k?: number, f?: () => void) => any;
+export type Scheduler = ((k?: number, f?: () => void) => any) & {t?: (ms: number, f: () => void) => void};
 export const B = 1e6;
 
 export function makeScheduler(): Scheduler {
@@ -38,11 +38,20 @@ export function makeScheduler(): Scheduler {
       for (const f of a) try { f(); } catch (e) { setTimeout(() => { throw e; }); }
     }
   };
-  return (k, f) => {
+  const s: Scheduler = (k, f) => {
     if (!f) return n++;
     (q[k!] ||= []).push(f);
     on || (on = 1, queueMicrotask(flush));
   };
+  // P45-D: s.t(ms, f): the components created in one task start together, one timer per delay
+  // (their INITIALIZE at 0 ms, their intents 1 or 10 ms later), not one each
+  const t: Record<number, Array<() => void>> = {};
+  s.t = (ms, f) => (t[ms] ||= (setTimeout(() => {
+    const a = t[ms];
+    delete t[ms];
+    for (const g of a) try { g(); } catch (e) { setTimeout(() => { throw e; }); }
+  }, ms), [])).push(f);
+  return s;
 }
 
 /**

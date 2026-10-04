@@ -579,9 +579,10 @@ class Component {
     // P45-D: one stream (it was eleven): the replies at once; 1 ms later (10 with BOOTSTRAP:
     // BOOTSTRAP first) the hmrActions of a hot swap, then the intent. It never completes on its
     // own, so DISPOSE can still be sent after a finite intent
-    let subs: any[] = [], t: any
+    let subs: any[] = [], run = 0
     this.action$ = xs.create({
       start: (l: any) => {
+        const me = ++run
         const emit = (action: any) => {
           if (action === 0) return this._go?.()
           if (typeof window !== 'undefined' && window.__SYGNAL_DEVTOOLS__?.connected) {
@@ -592,14 +593,15 @@ class Component {
         }
         const sub = (s: any) => s && subs.push(s.subscribe({ next: emit, error: (e: any) => l.error(e) }))
         this._replies!.forEach(sub)
-        t = setTimeout(() => {
+        this.sources.__k.t(boot ? 10 : 1, () => {
+          if (me != run) return
           boot && emit({ type: BOOTSTRAP_ACTION })
           up && this.hmrActions?.forEach((type: any) => emit({ type }))
           this._w && emit(0)
           sub(runner instanceof Stream ? runner : runner?.apply && runner(this.sources))
-        }, boot ? 10 : 1)
+        })
       },
-      stop: () => { clearTimeout(t); subs.forEach(s => s.unsubscribe()); subs = [] },
+      stop: () => { run++; subs.forEach(s => s.unsubscribe()); subs = [] },
     })
   }
 
@@ -735,7 +737,7 @@ class Component {
       if (s) pendingReducers ? queueMicrotask(run) : run()
       l.next(action)
     }
-    const sequenced$ = via(this.action$, seq, shouldInjectInitialState && ((l: any) => setTimeout(() => seq(initial, l), 0)))
+    const sequenced$ = via(this.action$, seq, shouldInjectInitialState && ((l: any) => this.sources.__k.t(0, () => seq(initial, l))))
     const snap = () => snapshotted$ ||= xs.create({
       start: (l: any) => { snapListener = l; snapSub = sequenced$.subscribe({}) },
       stop: () => { snapListener = null; snapSub?.unsubscribe() },
