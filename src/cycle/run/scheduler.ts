@@ -28,8 +28,10 @@ export type Scheduler = ((k?: number, f?: () => void) => any) & {t?: (ms: number
 export const B = 1e6;
 
 export function makeScheduler(): Scheduler {
-  let q: Record<number, Array<() => void>> = {}, on = 0, n = 0, seen = -1, y = 0, g = 0, x = 0;
-  const go = () => on || (on = 1, queueMicrotask(flush));
+  let q: Record<number, Array<() => void>> = {}, on = 0, n = 0, seen = -1, y = 0, g = 0, x = 0, c = 0;
+  // G-260: flushes are counted (reset by a timer the 9th sets): after 100 in a macrotask (a
+  // patch -> element -> action loop that never settles) the next one waits for a macrotask
+  const go = () => on || (on = 1, ++c > 99 ? setTimeout(flush) : (c == 9 && setTimeout(() => c = 0), queueMicrotask(flush)));
   const flush = (): any => {
     if (seen != n && on++ < 10) return (seen = n, queueMicrotask(flush));
     for (let k: any; ; ) {

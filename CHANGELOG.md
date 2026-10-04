@@ -309,6 +309,7 @@ Covers `sygnal`, `sygnal-check` and `create-sygnal-app`. A few fixes change beha
 - **A view that returns the same root vnode object again** (a cached or memoized tree) kept its child components (G-255). Before, they were disposed on that render and their placeholders reached the DOM as bare tags.
 - **`Transition`, `Portal`, `ClientOnly` and lazy components inside a fragment** (`<>…</>`) work (G-256). Before, they reached the DOM as `<transition>`, `<portal>`… elements.
 - **A keystroke re-rendered every component that received an equal state** (PLAN-4.5 regression, G-259): the rule that puts a controlled field back to the model's value after an input, even when the state is equal, applied to every component in every app. It now applies only to a component whose last view had a form field; a 20-row Collection next to a search box no longer re-renders each row per keystroke.
+- **A render loop no longer freezes the page** (PLAN-4.5 regression, G-260). An app that stores a value read from the DOM after each patch that is never the same twice (a measurement that changes the layout, a timestamp) re-rendered in an endless chain of microtasks. After 100 renders in one task the next one waits for the next task, so timers, input and painting still run (the loop itself is a bug in the app: compare the value before storing it).
 - **Messages.** SYG218 says "returned null" / "returned an array" instead of "returned a object".
 
 ### Performance
