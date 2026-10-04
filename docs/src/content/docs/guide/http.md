@@ -58,7 +58,7 @@ Every sink of one action sees the state from **before** that action ([Model](/gu
 
 ## Only the Latest Response
 
-Responses arrive in the order the server answers, not the order the requests were sent. With `latest: true`, sending a request aborts this instance's earlier requests **with the same key** that are still in flight, and their replies never arrive. The key is the `ok` action (else the `error` action), or an explicit `key`. A search box needs no request ids and no stale checks:
+Responses arrive in the order the server answers, not the order the requests were sent. With `latest: true`, sending a request aborts this instance's earlier requests **with the same key** that are still in flight, and their replies never arrive. The abort happens when the newer request is sent: a reply that lands before that still arrives. For example, with a debounce in front of the request, an older reply that comes back while the user is still typing (the newer request isn't sent yet) is delivered, so a reducer that must ignore it needs its own check, such as comparing the reply with the current input. The key is the `ok` action (else the `error` action), or an explicit `key`. A search box needs no request ids and no stale checks:
 
 ```jsx
 import { ABORT, debounce } from 'sygnal'

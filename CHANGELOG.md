@@ -62,6 +62,7 @@ Covers `sygnal`, `sygnal-check` and `create-sygnal-app`. A few fixes change beha
   - `updates` on a request (React Query's `setQueryData`): after a 2xx, the reply becomes the data of the sending component's named resources and their `queryCache()` entries at once (`updates: 'item'`, `['a', 'b']`, or `{ items: (list, reply) => newList }`), before the `ok` action and `invalidates`; their reads in flight are aborted, and other resources showing the same entry update too;
   - an invalidation aborts mounted resources' older reads and stops a shared cache fetch already in flight from writing the cache, so a reply from before a write never overwrites newer data;
   - the Resources and HTTP guides ship in the package (`node_modules/sygnal/dist/guide/{resources,http}.md`, copied at build) so agents can read them offline; SKILL.md and `llms.txt` link there first, and teach a list/detail + save recipe (`staleTime` on the request, `queryCache()` in `main.js` and in every test, `updates` + `invalidates` on the save, "Updating…" from `refreshing`);
+  - the PLAN-4 guides ship in the package too: `node_modules/sygnal/dist/guide/{persistence,timers,element-commands,behaviors,accessibility,undo}.md` (copied at build; `scripts/copy-guides.mjs` accepts a docs section prefix such as `advanced/undo`), and SKILL.md and `llms.txt` link them locally instead of by site URL.
   - `retry: n | { count, delayMs, maxDelayMs, jitter }` (default 0; the driver option applies to GET/HEAD): network errors, 408, 429 (`Retry-After` in seconds) and 5xx, with `attempts` on the failure;
   - `validate: schema` (any Standard Schema) on requests and resources; a failure carries `issues`;
   - tests: `renderComponent(C, { http })`, `t.cache()`, `t.focus()`, `t.online()`; `inspect()` lists resources per instance and cache entries.
@@ -81,7 +82,8 @@ Covers `sygnal`, `sygnal-check` and `create-sygnal-app`. A few fixes change beha
   - the behavior's reducers and calculated fields work on its slice (`state.pager`); its actions are named after the key (`pager.NEXT`); its intent gets the host's sources plus the options;
   - a host model entry for `'pager.NEXT'` runs after the behavior's; a host intent action of the same name replaces the behavior's trigger;
   - first-party behaviors `pager()`, `selection()` (single or multi, select-all; `isSelected()`) and `undo()`, and `undoable(model, { key, limit, track, coalesceMs, resetOn })`, which wraps a model's STATE reducers with undo/redo history ([undo](https://sygnal.js.org/advanced/undo/));
-  - SYG127 (a `uses` key already in `initialState`, or a value that isn't a behavior) and SYG226 (`track` / `resetOn` naming an unknown action); types `UsesState` and `UsesActions`;
+  - `undo()` / `undoable()` take `coalesce: ['TYPE']`: only the listed actions' quick changes join one step (within `coalesceMs`, 500 by default with `coalesce`), and every other action is always its own step, so two quick clicks on a button stay two steps while typing is one. Without `coalesce`, `coalesceMs` joins any action's repeats, as before ([undo](https://sygnal.js.org/advanced/undo/#grouping-only-some-actions)).
+  - SYG127 (a `uses` key already in `initialState`, or a value that isn't a behavior) and SYG226 (`track` / `resetOn` / `coalesce` naming an unknown action); types `UsesState` and `UsesActions`;
   - about 30 B in the core; 0 bytes unless imported (in an app: `pager` about 0.95 KB gzipped, `selection` 1.2 KB, `undo` 1.6 KB).
 - **Element commands** ([guide](https://sygnal.js.org/guide/element-commands/)). The built-in `ELEMENT` sink calls a method of an element the component rendered, with no driver to register:
   ```jsx
@@ -96,6 +98,7 @@ Covers `sygnal`, `sygnal-check` and `create-sygnal-app`. A few fixes change beha
 - **`persist()`** ([guide](https://sygnal.js.org/guide/persistence/)). `TodoApp.persist = persist({ key: 'todo-app', pick: ['todos', 'filter'], version: 2, migrate })` saves the root component's state in `localStorage` and restores it at startup:
   - restored synchronously before `INITIALIZE`, merged into `initialState`. Over server-rendered markup (a `run()` mount point with children, a hydrated Astro island or Vike page) it restores in the built-in `RESTORE` action after the first render instead, so hydration matches; `hydrate: true | false` overrides the detection;
   - stored as `{ version, state }` JSON: the `pick` keys, or all but `omit`, never calculated fields; another version goes through `migrate`;
+  - `format: 'plain'` stores the picked keys themselves (`{"title":"…","body":"…"}`) instead of `{ version, state }`, for an entry another program reads or writes; `version` / `migrate` don't apply (a TypeScript error). `t.storage<Entry>(key)` reads it typed ([a plain format](https://sygnal.js.org/guide/persistence/#a-plain-format)).
   - written after `debounceMs` (100) without a change, on `pagehide` and on dispose; `sync: true` applies other tabs' writes; `storage: 'local' | 'session'` or a synchronous `{ getItem, setItem, removeItem }` adapter;
   - `PERSIST: { clear: true }` in a model entry removes the stored copy;
   - root component only (SYG224; Vike pages are not supported in 6.0), SYG223 (a `pick` / `omit` key not in `initialState`), SYG642 (a failed read, migrate or write; the app continues on `initialState`). Nothing is read or written during SSR;
@@ -207,7 +210,6 @@ Covers `sygnal`, `sygnal-check` and `create-sygnal-app`. A few fixes change beha
     - [SYG609](https://sygnal.js.org/reference/errors#syg609) (warn): a model sink such as `HTTP` or `WS` that the scanned `run()` call registers no driver for, so the app drops every value sent there while `renderComponent()`'s fakes keep its tests passing;
   - `--graph` lists controls, behavior-owned actions, element commands and timers;
   - the SYG502 rule is removed (retired, see Changed).
-<!-- 4-G1 (coordinator): Added lines for the 4-G1 docs work go here. -->
 - **`create-sygnal-app`:** `README.md` in the package.
 
 ### Changed
