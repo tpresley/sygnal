@@ -133,10 +133,12 @@ describe('GS-4: SYG222 (dev entry) — the same object returned after an in-plac
     Row.intent = ({ DOM }) => ({ TAG: DOM.click('.row') })
     Row.model = { TAG: (state) => { state.tagged = true; return state } }
     function List() { return h('ul', null, h(Collection, { of: Row, from: 'rows' })) }
-    List.initialState = { rows: [{ id: 1, text: 'a' }] }
-    List.model = { DROP: (state) => { delete state.rows; return state } }
+    // D152 (P45-D): the dev entry deep-freezes initialState, so the row comes from an action
+    // (a row from the frozen initialState would throw on the write: SYG216, not SYG222)
+    List.initialState = { rows: [] }
+    List.model = { LOAD: (state) => ({ ...state, rows: [{ id: 1, text: 'a' }] }), DROP: (state) => { delete state.rows; return state } }
     t = renderComponent(List, { dom: 'real' })
-    await t.ready(); await t.settle()
+    await t.ready(); t.simulateAction('LOAD'); await t.settle()
     t.simulateEvent('.row', 'click'); await t.settle()
     t.simulateAction('DROP'); await t.settle()
     expect(diagnostics('SYG222').map(d => [d.component, d.data.action, d.data.keys])).toEqual([['Row', 'TAG', ['tagged']], ['List', 'DROP', ['rows']]])
