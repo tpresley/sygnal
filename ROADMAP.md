@@ -305,7 +305,7 @@ Close the everyday gaps that the gap study found between Sygnal and React/Vue ap
 - `persist()` for the root's state (versions and `migrate`, cross-tab `sync`, automatic restore after hydration), `STATE.watch()`, and declarative `timers` with `makeTimerDriver()`
 - `uid()` (stable, SSR-safe ids), `run(…, { onError })` (one app-level error hook, also for Vike, Astro, `renderToString` and tests), View Transitions (`viewTransitions` static + `makeViewTransitionDOMDriver()`), and `sygnal/element` (`defineElement`, a component as a custom element; `run()` is now scoped to its app so several apps share a page)
 - Debugging and tests: `t.actions` / `t.explain`, `t.commands` / `t.timers` / `t.storage`, `inspect({ actions })`, and in DevTools an action log, "Copy as test" and a Redux DevTools bridge
-- `sygnal-check`: an accessibility lane (SYG701–708, warn by default, error under `--strict`), and resolution of controls, behaviors, timers, element commands and persist
+- `sygnal-check`: an accessibility lane (SYG701–708, warnings also under `--strict`; `--a11y=error` opts in to errors, D144), and resolution of controls, behaviors, timers, element commands and persist
 - Breaking: a STATE reducer returning the object it received means "no change" (SYG502 retired, SYG222 for in-place mutation); `uid` and the new statics are reserved
 - Fixes and speed: dialog/popover/media events reach intent, a card moved between Collections is never painted missing, Collection edit and swap about twice as fast (O(1) item lookups), and a performance baseline against React and Vue (`benchmarks/RESULTS.md`)
 
