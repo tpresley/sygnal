@@ -192,6 +192,8 @@ export const CODE_TITLES: Record<string, string> = {
   SYG220: 'Calculated field threw',
   SYG221: 'set() called with a string',
   SYG222: 'STATE reducer returned the same object after it was mutated in place',
+  SYG223: 'persist pick or omit names a key that is not in initialState',
+  SYG224: 'persist on a component that is not the root',
   SYG226: 'Undo track or resetOn names an unknown action',
   SYG402: 'Context is not an object',
   SYG403: 'Invalid context entry',
@@ -237,6 +239,8 @@ export const CODE_TITLES: Record<string, string> = {
   // PLAN-4 GS-2: element commands (reported by the dev entry, checks/elementCommands.ts)
   SYG640: 'Element command target not found',
   SYG641: 'Unknown element command',
+  // PLAN-4 GS-5: persist() (src/extra/persist.ts reports SYG642 with an explicit severity, like SYG611)
+  SYG642: 'Persisted state could not be restored or saved',
   // PLAN-4 GS-7: timers (checks/timers.ts; dev entry)
   SYG643: 'Declaration static with no driver to take it',
   // PLAN-4 D131: sygnal/element (reported through the core bridge when diagnostics are on)
@@ -291,6 +295,9 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG221: 'error',
   // PLAN-4 GS-4 (state.ts)
   SYG222: 'warn',
+  // PLAN-4 GS-5 (checks/persist.ts; sygnal-check statically)
+  SYG223: 'warn',
+  SYG224: 'error',
   // PLAN-4 GS-8 (undo.ts reports it when diagnostics are on; sygnal-check statically)
   SYG226: 'warn',
   SYG421: 'error',
@@ -313,6 +320,8 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   // PLAN-4 GS-2 (checks/elementCommands.ts, through the core bridge; renderComponent too)
   SYG640: 'warn',
   SYG641: 'error',
+  // PLAN-4 GS-5 (persist.ts, through legacy warn(): printed in production too)
+  SYG642: 'warn',
   // PLAN-4 GS-7 (timers.ts): an invalid timer spec (not started); timers / connections /
   // resources declared with no driver registered
   SYG422: 'error',

@@ -287,7 +287,8 @@ describe('mock DOM: t.commands records the commands sent', () => {
     t = renderComponent(Broken)
     await t.ready()
     t.simulateEvent('.gone', 'click')
-    await wait(1100)
+    // G-225: wait for the report (given up after about 1 s), not a fixed sleep
+    await vi.waitFor(() => expect(codes()).toContain('SYG640'), { timeout: 5000, interval: 20 })
     const d = t.diagnostics.find(d => d.code == 'SYG640')
     expect(d && d.severity).toBe('warn')
     expect(d.message).toMatch(/matched no element: nothing in Broken's own view matches the control Missing/)
@@ -419,7 +420,7 @@ describe('real DOM (jsdom): the commands run', () => {
     t = renderComponent(Broken, { dom: 'real' })
     await t.ready()
     t.simulateEvent('.gone', 'click')
-    await wait(1100)
+    await vi.waitFor(() => expect(codes()).toContain('SYG640'), { timeout: 5000, interval: 20 })
     expect(codes()).toEqual(['SYG640'])
     expect(t.diagnostics[0].message).toMatch(/ELEMENT \{ focus: Missing \} in Broken matched no element/)
   })

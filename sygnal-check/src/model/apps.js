@@ -5,6 +5,7 @@
  *   findApps(project) → App[]
  *   App = {
  *     call, file,
+ *     root: ComponentInfo | null   the component run() is given, when the checker resolves it
  *     statics: Set<'timers' | 'connections' | 'resources'> | null   what its drivers take; null when
  *              the drivers can't be listed (not an object literal, a spread, a driver from a package
  *              or a local one that may wrap a static driver)
@@ -105,6 +106,7 @@ export function findApps(project) {
       apps.push({
         call: n,
         file,
+        root: ref ? project.componentForFunction(ref.node) || null : null,
         statics: drivers?.type === 'SpreadElement' ? null : driverStatics(project, file, drivers),
         components: ref ? reachable(project, ref) : new Set(),
       })

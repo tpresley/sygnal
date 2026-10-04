@@ -31,6 +31,8 @@ export const CODES = {
   SYG127: { severity: 'error', title: 'Behavior collision or unresolvable uses entry' },
   SYG128: { severity: 'error', title: 'Duplicate control key' },
   // PLAN-4 GS-8 undo (rules/syg127-behaviors.js)
+  SYG223: { severity: 'warn', title: 'persist pick or omit names a key that is not in initialState' },
+  SYG224: { severity: 'error', title: 'persist on a component that is not the root' },
   SYG226: { severity: 'warn', title: 'Undo track or resetOn names an unknown action' },
   SYG401: { severity: 'warn', title: "Collection 'from' field is missing or not an array" },
   // PLAN-4 GS-7 timers (rules/syg422-timers.js)
