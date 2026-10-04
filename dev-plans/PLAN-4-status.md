@@ -59,7 +59,8 @@ PLAN-3's end-of-Phase-5 figures (40,403 B, 283 lines, 34,343 B) grew with #12 an
 | PF-1 | Collection O(1) item lookups (D128) | ✅ merged | `p4-pf1-collection` (`007e8ff`) | subagent | | +42 B (est. 28; accepted within D125); Collection edit 16.2 → 8.3 ms, swap 10.7 → 5.5 ms; identity kept for unchanged items; duplicate-id behaviour pinned |
 | P-1b | View Transitions, form B (D129) + G-213 | 🟡 running | `p4-p1b-vt` | subagent | | runs alongside 3-B |
 | 2-R | Review fixes (G-214), G-216, G-218, D131, togglePopover, `t.explain` original fn, Vike `onError` check | ✅ merged | `p4-2r-fixes` (`c2188b6`) | subagent | | +26 B net (uid encoding +28, togglePopover +17, per-app HMR −37); tags `plan4-phase1`, `plan4-phase2` |
-| 3-B | Persist (GS-5) | 🟡 running | `p4-3b-persist` | subagent | | also G-224, G-225, G-226 |
+| 3-B | Persist (GS-5) | ✅ merged | `p4-3b-persist` (`38b4ec0`) | subagent | | +16 B core; helper ≈ 830 B per app; PERSIST handled by the helper (rewritten to EFFECT); RESTORE built-in entry; `{ version, state }` format; G-224/225/226 done |
+| 3-B2 | Persist follow-ups: automatic hydration, Astro statics forwarding, Vike SYG224 note, drop `'A \| PERSIST'` rewrite | 🟡 running | `p4-3b2-persist` | subagent | | D136 |
 | 3-A | Element commands (GS-2) | ✅ merged | `p4-3a-element` (`9176436`) | subagent | | +222 B; any element method runs (D133); SYG640/641 dev-only; commands run after the next patch where the target exists, else 16 ms checks, give up after ~1 s |
 | 3-K | Checker: GS-2, GS-7 (GS-5 after 3-B) | ✅ merged (GS-5 part pending) | `p4-3k-checker` (`3da16ee`) | subagent | | sygnal-check 434; static SYG422/640/641/643; timer actions are triggers (SYG112 family); no new findings on hidden solutions/examples; G-215 frame browser test |
 | 4-B2 | Site docs, part 2 (element commands, timers, DevTools, API reference) | ✅ merged | `p4-4b2-docs` (`7c2c001`) | subagent | | 2 new pages; 33 samples in `test/p4-4b2-doc-samples.test.js`; check-doc-samples 511; G-219, G-223 closed |
@@ -185,6 +186,7 @@ They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none o
 | D133 | 2026-10-03 | GS-2: the core runs any method the element has (no whitelist, +222 B instead of +294 B); the 11 methods stay the documented, typed set (others via `ElementCommandRegistry`); dev SYG641 still flags typos, missing methods and DOM-mutating methods at send. | Coordinator | 3-A QUESTION 1 |
 | D134 | 2026-10-03 | uid parts use an injective encoding: letters and digits stay, every other character (including `_` and `-`) becomes `_<code>_` (`'0.2'` → `0_46_2`); the root `uid` option keeps the readable form. uids are opaque ids, so injectivity wins over readability. | Coordinator | 2-R QUESTION |
 | D135 | 2026-10-03 | Vike: Sygnal's app-level hook config is `sygnalOnError` (`pages/+sygnalOnError.js`), because Vike 0.4.267 has its own global `onError` hook with a different signature. | Coordinator | 2-R item 15 |
+| D136 | 2026-10-03 | Persist follow-ups (3-B2): hydration restore becomes automatic (per-app signal from run()/wrappers; `hydrate` stays an override); Astro roots forward `persist`/`uses`/`timers`/`viewTransitions`; Vike pages don't support persist in 6.0 (SYG224 names Vike, docs say where persist works); the non-canonical `'A \| PERSIST'` shorthand rewrite is dropped. | Coordinator | 3-B QUESTIONs |
 
 ## Open questions (PLAN-4 §11)
 
@@ -232,9 +234,10 @@ They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none o
 | G-221 | 3-A | low | GS-2 | `togglePopover` gets `{}` when no `force`, which boolean-only browsers read as `true`. | ✅ 2-R |
 | G-222 | 4-B1 | low | testing | `t.explain().reducer.fn/.source` is SYG222's dev wrapper when the dev entry is loaded. | ✅ 2-R |
 | G-223 | 4-B1 | — | docs | `reference/api.md` and `reference/utilities.md` not updated for PLAN-4 APIs; the `benchmarks/RESULTS.md` link targets `main` (404 until merged). | ✅ 4-B2 |
-| G-224 | 3-K | low | diagnostics | Runtime SYG102 heuristic (`replyNamesOf` in `checks/shared.ts`) doesn't read the `timers` static, so the dev entry may report a timer action as SYG102 info under `run()`; `InspectComponent` (public.d.ts) lacks the schema's static-only `commands`/`timers`. | 3-B (owns diagnostics then) |
-| G-225 | 3-K, 4-B2 | low | tests | Timing flakes: `p4-3a-element-commands` "after 1 s" SYG640 and `p4-3a-element-run` "reports SYG641 and SYG640" each failed once (SYG640 after ~1 s). | 3-B (make the waits deterministic) |
-| G-226 | 4-B2 | low | types | `SygnalDevTools` (from `getDevTools()` in `sygnal`) lacks `configureCopyAsTest` / `getSession`; only the `sygnal/devtools` type has them. | 3-B |
+| G-224 | 3-K | low | diagnostics | Runtime SYG102 heuristic (`replyNamesOf` in `checks/shared.ts`) doesn't read the `timers` static, so the dev entry may report a timer action as SYG102 info under `run()`; `InspectComponent` (public.d.ts) lacks the schema's static-only `commands`/`timers`. | ✅ 3-B |
+| G-225 | 3-K, 4-B2 | low | tests | Timing flakes: `p4-3a-element-commands` "after 1 s" SYG640 and `p4-3a-element-run` "reports SYG641 and SYG640" each failed once (SYG640 after ~1 s). | ✅ 3-B |
+| G-226 | 4-B2 | low | types | `SygnalDevTools` (from `getDevTools()` in `sygnal`) lacks `configureCopyAsTest` / `getSession`; only the `sygnal/devtools` type has them. | ✅ 3-B |
+| G-227 | 3-B | medium | Astro | `src/astro/client.ts` copies a fixed list of statics into its root wrapper; `persist`, `uses`, `timers` are missing, so behaviors, timers and persist don't work on Astro islands. | 3-B2 |
 
 ## Log
 
@@ -260,3 +263,4 @@ They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none o
 - 2026-10-03 — Merged 4-B part 2. CLAUDE.md setup adds `examples/todomvc`. G-226.
 - 2026-10-03 — Merged 2-R; fixed the debugging page's copied test (2-R removed the settle workaround). Gates green: vitest 2,082 (+1 skipped), browser 165, sygnal-check 435, doc samples 511; 41,129 B gated (PLAN-4 +593 B of 775). Review findings all fixed. Tagged `plan4-phase1` and `plan4-phase2`. D134, D135. Started 3-B.
 - 2026-10-03 — Merged PF-1 (+42 B; 41,171 B gated, PLAN-4 +635 B of 775). 3-B and P-1b running in parallel (each with a few localized `component.ts` lines).
+- 2026-10-03 — Merged 3-B; gates green (vitest 2,153, browser 167, sygnal-check 447, doc samples 520; 41,187 B gated, PLAN-4 +651 B). D136; G-227. Started 3-B2.
