@@ -4,6 +4,8 @@
  *   SYG405 (static)  a component with an `initialState` (and no `isolatedState = true`) that another
  *                    component renders: by tag (error, the runtime throws) or as a Collection /
  *                    Switchable target (warn, the runtime warns). Reported at the initialState.
+ *   SYG129           `CHILD.select(X)` in a component that doesn't render X, while a component it
+ *                    renders does (a grandchild, PLAN-3 G-187): warn, with the PARENT relay fix.
  */
 import { describe, it, expect, afterEach } from 'vitest'
 import fs from 'node:fs'
@@ -134,5 +136,103 @@ App.initialState = { sw: {} }
 Stopwatch.initialState = { ms: 0 }
 `
     expect(only(check({ 'src/Stopwatch.jsx': sw, 'src/App.jsx': APP('<Stopwatch state="stopwatch" />') }), 'SYG405')).toEqual([])
+  })
+})
+
+// Task 12's shape (REPORT-v4: Haiku 12-t3; 14-t1/t5 are the tag-in-tag variant)
+const ROW = `export function TaskRow({ state }) { return <li className="row">{state.title}</li> }
+TaskRow.intent = ({ DOM }) => ({ PICK: DOM.click('.row') })
+TaskRow.model = { PICK: { PARENT: (state) => state.id } }
+`
+const SECTION = (jsx = '<Collection of={TaskRow} from="tasks" />') => `import { Collection } from 'sygnal'
+import { TaskRow } from './TaskRow.jsx'
+export function Section({ state }) { return <section>${jsx}</section> }
+`
+const APP12 = (jsx, select = 'CHILD.select(TaskRow)', imports = "import { Collection, Switchable } from 'sygnal'") => `${imports}
+import { Section } from './Section.jsx'
+import { TaskRow } from './TaskRow.jsx'
+export function App({ state }) {
+  return <main>${jsx}</main>
+}
+App.initialState = { sections: [], picked: null }
+App.intent = ({ CHILD }) => ({ PICKED: ${select} })
+App.model = { PICKED: (state, id) => ({ ...state, picked: id }) }
+`
+
+describe('SYG129: CHILD.select() of a component this one does not render (grandchild)', () => {
+  it('registered (warn, static)', () => {
+    expect(CODES.SYG129?.severity).toBe('warn')
+    expect(getExplanation('SYG129').reportedBy).toEqual(['static'])
+  })
+
+  it('a Collection item of a child: warn at the CHILD.select call, with the relay fix', () => {
+    const d = only(check({
+      'src/TaskRow.jsx': ROW,
+      'src/Section.jsx': SECTION(),
+      'src/App.jsx': APP12('<Collection of={Section} from="sections" />'),
+    }), 'SYG129')
+    expect(brief(d)).toEqual(['SYG129 warn src/App.jsx:8'])
+    expect(d[0].component).toBe('App')
+    expect(d[0].message).toContain('CHILD.select(TaskRow)')
+    expect(d[0].message).toContain('App > Section > TaskRow')
+    expect(d[0].message).toContain('PARENT')
+    expect(d[0].fix).toContain('Section')
+    expect(d[0].fix).toContain('CHILD.select(Section)')
+    expect(d[0].data).toMatchObject({ child: 'TaskRow', path: ['App', 'Section', 'TaskRow'] })
+  })
+
+  it('a tag inside a tag child (two levels down): warn, path names every level', () => {
+    const list = `import { Card } from './Card.jsx'
+export function List({ state }) { return <ul><Card state="card" /></ul> }
+`
+    const card = `export function Card({ state }) { return <li className="c">x</li> }
+Card.intent = ({ DOM }) => ({ GO: DOM.click('.c') })
+Card.model = { GO: { PARENT: () => 1 } }
+`
+    const app = `import { List } from './List.jsx'
+import { Card } from './Card.jsx'
+export function App() { return <div><List /></div> }
+App.initialState = {}
+App.intent = (sources) => ({ GO: sources.CHILD.select(Card) })
+App.model = { GO: (s) => s }
+`
+    const d = only(check({ 'src/Card.jsx': card, 'src/List.jsx': list, 'src/App.jsx': app }), 'SYG129')
+    expect(brief(d)).toEqual(['SYG129 warn src/App.jsx:5'])
+    expect(d[0].data.path).toEqual(['App', 'List', 'Card'])
+  })
+
+  it('X rendered by this component (tag, Collection, Switchable, passed as a child): nothing', () => {
+    for (const jsx of [
+      '<TaskRow state="first" /><Section />',
+      '<Collection of={TaskRow} from="rows" /><Section />',
+      '<Switchable of={{ row: TaskRow, s: Section }} current="row" />',
+      '<Section><TaskRow /></Section>',
+    ]) {
+      expect(only(check({ 'src/TaskRow.jsx': ROW, 'src/Section.jsx': SECTION(), 'src/App.jsx': APP12(jsx) }), 'SYG129'), jsx).toEqual([])
+    }
+  })
+
+  it('the view mentions X some other way (h(X), a variable): nothing', () => {
+    const src = APP12('<Section />{h(TaskRow, {})}')
+    expect(only(check({ 'src/TaskRow.jsx': ROW, 'src/Section.jsx': SECTION(), 'src/App.jsx': src }), 'SYG129')).toEqual([])
+  })
+
+  it('a child the checker cannot follow, or X rendered nowhere it can see: nothing', () => {
+    // Section from a package: its view is unknown
+    const app = APP12('<Section />').replace("from './Section.jsx'", "from 'some-ui'")
+    expect(only(check({ 'src/TaskRow.jsx': ROW, 'src/App.jsx': app }), 'SYG129')).toEqual([])
+    // nothing renders TaskRow (e.g. not written yet)
+    expect(only(check({ 'src/TaskRow.jsx': ROW, 'src/Section.jsx': SECTION('<p />'), 'src/App.jsx': APP12('<Section />') }), 'SYG129')).toEqual([])
+  })
+
+  it('a dynamic component in the own view (Switchable with a computed of): nothing', () => {
+    const app = APP12('<Section /><Switchable of={pages} current="a" />', undefined,
+      "import { Collection, Switchable } from 'sygnal'\nimport { pages } from './pages.js'")
+    expect(only(check({ 'src/TaskRow.jsx': ROW, 'src/Section.jsx': SECTION(), 'src/App.jsx': app }), 'SYG129')).toEqual([])
+  })
+
+  it('a string CHILD.select: nothing (SYG506 under --strict)', () => {
+    const app = APP12('<Section />', "CHILD.select('TaskRow')")
+    expect(only(check({ 'src/TaskRow.jsx': ROW, 'src/Section.jsx': SECTION(), 'src/App.jsx': app }), 'SYG129')).toEqual([])
   })
 })

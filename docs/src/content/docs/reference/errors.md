@@ -343,6 +343,16 @@ Two `controls()` calls in one file declare the same key, or one call repeats a k
 
 **Fix:** Rename one of the keys, or declare both controls in a single `controls({ ... })` call.
 
+### SYG129
+
+**CHILD.select() of a component this one doesn't render**
+
+Severity: `warn` · Reported by: `sygnal-check`
+
+An intent reads `CHILD.select(TaskRow)`, but the component's view doesn't render `TaskRow`: a component it renders does (a grandchild, for example a Collection item inside a child). A component's `PARENT` output reaches only the component that renders it, so the action never fires and nothing says why. sygnal-check follows the views it can read and reports the chain (`App > ProjectSection > TaskRow`). It says nothing when the view renders the component itself (by tag, as a Collection or Switchable target, or passed into a child), mentions its name some other way, has a Collection or Switchable target it can't resolve, or when nothing it can see renders the component.
+
+**Fix:** Relay the value through the component in between: in `ProjectSection.intent` read `RELAY: CHILD.select(TaskRow)`, in `ProjectSection.model` send it on with `RELAY: { PARENT: (state, data) => data }`, and read `CHILD.select(ProjectSection)` in `App`. For a value many components need, broadcast it with `EVENTS` instead.
+
 ### SYG130
 
 **href() names no route or leaves out a param**

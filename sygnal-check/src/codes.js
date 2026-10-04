@@ -30,6 +30,8 @@ export const CODES = {
   // PLAN-4 GS-1 behaviors (model/behaviors.js)
   SYG127: { severity: 'error', title: 'Behavior collision or unresolvable uses entry' },
   SYG128: { severity: 'error', title: 'Duplicate control key' },
+  // PLAN-4 4-G2 (rules/syg129-child-select-grandchild.js; PLAN-3 G-187)
+  SYG129: { severity: 'warn', title: "CHILD.select() of a component this one doesn't render" },
   // PLAN-4 GS-8 undo (rules/syg127-behaviors.js)
   SYG223: { severity: 'warn', title: 'persist pick or omit names a key that is not in initialState' },
   SYG224: { severity: 'error', title: 'persist on a component that is not the root' },

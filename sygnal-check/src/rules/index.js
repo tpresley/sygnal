@@ -35,6 +35,7 @@ import elementCommands from './syg640-element-commands.js'
 import timers from './syg422-timers.js'
 import persist from './syg223-persist.js'
 import initialStateSub from './syg405-initial-state.js'
+import childSelectGrandchild from './syg129-child-select-grandchild.js'
 import { strictRules } from './strict/index.js'
 import { a11yRules, errorA11yRules } from './a11y/index.js'
 
@@ -53,6 +54,7 @@ export const coreRules = [
   timers, // SYG422, SYG643 (PLAN-4 GS-7)
   persist, // SYG223, SYG224 (PLAN-4 GS-5)
   initialStateSub, // SYG405 statically (PLAN-4 4-G2)
+  childSelectGrandchild, // SYG129 (PLAN-4 4-G2, PLAN-3 G-187)
   ...a11yRules, // SYG701-708 (PLAN-4 GS-3): warn, also under --strict; error with a11y: 'error' (D144)
 ]
 
