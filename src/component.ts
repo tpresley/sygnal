@@ -5,7 +5,7 @@ import {StateSource} from './cycle/state/index';
 import {objIsEqual} from './cycle/state/objIsEqual';
 import {init as snabbdomInit} from './cycle/dom/snabbdom';
 import defaultModules from './cycle/dom/modules';
-import {renderSeq} from './cycle/dom/controlledInputModule';
+import {renderSeq, inputSeq} from './cycle/dom/controlledInputModule';
 import {uidPart, isAbort} from './shared';
 import {makeCommandSource} from './extra/command';
 import {runElementCommands} from './extra/elementCommands';
@@ -15,7 +15,8 @@ import * as diag from './extra/diagnostics/index';
 import {warn, error as logError, fail, caught, appError} from './extra/diagnostics/legacy';
 
 import xs, {Stream} from './extra/xstreamCompat';
-import {delay, concat, debounce, dropRepeats} from './extra/xstreamExtras';
+import {delay, concat, dropRepeats} from './extra/xstreamExtras';
+import {makeScheduler, batch, B} from './cycle/run/scheduler';
 
 declare var process: { env: Record<string, any> };
 
@@ -156,14 +157,12 @@ class Component {
   context$: any;
   peers$: any;
   subComponentSink$: any;
-  subComponentsRendered$: any;
   vdom$: any;
   sinks: any;
   log: any;
   addCalculated: (state: any) => any;
   newChildSources!: (sources: any) => void;
   newSubComponentSinks!: (sinks: any) => void;
-  triggerSubComponentsRendered!: (() => void);
   _calculatedNormalized: Record<string, {fn: (...args: any[]) => any; deps: string[] | null}> | null;
   _calculatedFieldNames: Set<string> | null;
   _calculatedOrder: Array<[string, {fn: (...args: any[]) => any; deps: string[] | null}]> | null;
@@ -183,6 +182,9 @@ class Component {
   _cu?: string;
   _readyChanged$: any;
   _readyChangedListener: any;
+  _d!: number;
+  _w = 0;
+  _go!: () => any;
 
   constructor({name = 'NO NAME', sources, intent, model, hmrActions, context, view, peers = {}, components = {}, initialState, calculated, storeCalculatedInState = true, DOMSourceName = 'DOM', stateSourceName = 'STATE', isolatedState = false, onError, debug = false}: ComponentOptions) {
     if (!sources || !isObj(sources)) fail('SYG601', name, 'Missing or invalid sources', 'Pass sources from run()')
@@ -399,6 +401,9 @@ class Component {
       stop: () => {},
     })
     this.sources.dispose$ = this._dispose$
+    // P45-C: this app's render scheduler (the root makes it; children inherit it) and the depth
+    this._d = sources.__d | 0
+    sources.__k ||= makeScheduler()
     // PLAN-4 GS-9: uid(name?) from the instance's position: the parent sets sources.__uid (its uid
     // + the child's path or id prop, + a Collection item's key, + a Switchable page name, each
     // encoded by uidPart: 'Name::r.0.2' → 'u-0_46_2'); 'u' at the root (run() sanitizes its `uid`
@@ -418,7 +423,6 @@ class Component {
     this.initModel$()
     this.initPeers$()
     this.initSubComponentSink$()
-    this.initSubComponentsRendered$()
     this.initVdom$()
     this.initSinks()
 
@@ -543,7 +547,11 @@ class Component {
     // G-216: this app's hot swap (run()'s __hmr source: { u: swapping, s: the state to keep })
     const _hmrUpdating = this.sources.__hmr?.u
     const hmrAction$ = _hmrUpdating ? this.hmrAction$ : xs.empty()
-    const wrapped$   = (this.model?.[BOOTSTRAP_ACTION] &&!_hmrUpdating) ? concat(bootstrap$, action$) : concat(xs.of().compose(delay(1)).filter((_: any) => false), hmrAction$, action$)
+    // P45-C: the first render waits until the intent listens (0, sent as it subscribes; as the
+    // render debounce used to). With BOOTSTRAP it doesn't wait (the intent starts 10 ms later)
+    const boot = this.model?.[BOOTSTRAP_ACTION] && !_hmrUpdating
+    if (!boot && this.intent && this.model) this._w = 1
+    const wrapped$   = boot ? concat(bootstrap$, action$) : concat(xs.of().compose(delay(1)), hmrAction$, this._w ? action$.startWith(0) : action$)
 
     // PLAN-3 reply actions: a reply-capable source (makeFetchDriver, driverFromAsync, ...)
     // delivers the replies to this instance's own requests as actions (src/extra/replies.ts).
@@ -553,15 +561,16 @@ class Component {
     // xs.never(): action$ outlives a finite intent, so DISPOSE can still be sent (it was
     // the legacy hydrate$ that did this)
     this.action$   = xs.merge(wrapped$, xs.never(), ...this._replies)
-      .compose(this.log(({ type }: any) => `<${type}> Action triggered`))
-      .map((action: any) => {
+      .filter((action: any) => {
+        if (action === 0) return this._go?.(), false
         if (typeof window !== 'undefined' && window.__SYGNAL_DEVTOOLS__?.connected) {
           window.__SYGNAL_DEVTOOLS__.onActionDispatched(
             this._componentNumber, this.name, action.type, action.data
           )
         }
-        return action
+        return true
       })
+      .compose(this.log(({ type }: any) => `<${type}> Action triggered`))
   }
 
   initState(): void {
@@ -684,6 +693,8 @@ class Component {
     const shouldInjectInitialState = hasInitialState && (!this.sources.__hmr?.u || typeof hmrState !== 'undefined')
     // Only INITIALIZE is delayed (user actions start >= 1ms later), so the other actions, and
     // their non-STATE sinks, stay synchronous with the event that caused them (1H-1).
+    // P45-C: no render before INITIALIZE (_w; sequenced$ below), as the render debounce used to wait for it
+    if (shouldInjectInitialState) this._w++
     const shimmed$ = shouldInjectInitialState ? xs.merge(xs.of(initial).compose(delay(0)), this.action$) : this.action$
     // B-003: STATE reducers are applied later (withState queues each one in a microtask), so
     // while one is pending a non-STATE sink must not read this.currentState. Then, before the
@@ -692,6 +703,7 @@ class Component {
     // Otherwise run them now, so EFFECT can still preventDefault() the live event (1H-1).
     let snapListener: any = null
     const sequenced$ = shimmed$.map((action: any) => {
+      if (action.type == INITIALIZE_ACTION) this._go?.()
       const l = snapListener
       const run = () => l.next({ ...action, [STATE_SNAPSHOT]: this.currentState })
       if (l) pendingReducers ? queueMicrotask(run) : run()
@@ -781,7 +793,7 @@ class Component {
 
     // PLAN-3 §1.3: Component.connections(state) is sent as { connections } to the sink of a
     // makeSocketDriver (its source is marked), from the current state (and from this
-    // component's own reducer results: below a Collection the state stream lags a debounce),
+    // component's own reducer results: below a Collection the state stream lags to the render flush),
     // without equal repeats. G-158: the component's own values on that sink go two microtasks
     // later, after its reducer ran, so a connection the same action opens or changes is first
     // 3-A: the same for Component.resources ({ name: state => request }) to makeFetchDriver: the
@@ -815,10 +827,13 @@ class Component {
   }
 
   initChildSources$(): void {
-    let newSourcesNext: any
+    let newSourcesNext: any, last: any
     const childSources$ = xs.create({
+      // P45-C: a child's first render can come before this intent subscribes (BOOTSTRAP's 10 ms):
+      // a late subscriber gets the current children
       start: (listener: any) => {
         newSourcesNext = listener.next.bind(listener)
+        last && newSourcesNext(last)
       },
       stop: (_: any) => {
 
@@ -839,6 +854,7 @@ class Component {
     }
 
     this.newChildSources = (sources: any) => {
+      last = sources
       if (typeof newSourcesNext === 'function') newSourcesNext(sources)
     }
   }
@@ -854,18 +870,6 @@ class Component {
     })
     this._subscriptions.push(subComponentSink$.subscribe({ next: (_: any) => _, error: (err: any) => logError('SYG901', this, 'Sub-component sink stream errored', ERR_FIX, err) }))
     this.subComponentSink$ = subComponentSink$.filter((sinks: any) => Object.keys(sinks).length > 0)
-  }
-
-  initSubComponentsRendered$(): void {
-    const stream = xs.create({
-      start: (listener: any) => {
-        this.triggerSubComponentsRendered = listener.next.bind(listener)
-      },
-      stop: (_: any) => {
-
-      }
-    })
-    this.subComponentsRendered$ = stream.startWith(null)
   }
 
   initVdom$(): void {
@@ -923,7 +927,8 @@ class Component {
       }) : v)
     })
     this.sinks = this.sourceNames.reduce((acc: Record<string, any>, name) => {
-      if (name == this.DOMSourceName || name == 'ELEMENT') return acc
+      // P45-C: no sinks for the internal sources (__k, __d, __uid, ...): no driver takes them
+      if (name == this.DOMSourceName || name == 'ELEMENT' || name.startsWith('__')) return acc
       const subComponentSink$ = (this.subComponentSink$ && name !== PARENT_SINK_NAME) ? this.subComponentSink$.map((sinks: any) => sinks[name]).filter((sink: any) => !!sink).flatten() : xs.never()
       acc[name] = xs.merge((this.model$[name] || xs.never()), subComponentSink$, ...(name === this.stateSourceName ? [this.sources[name].stream.filter((_: any) => false)] : []), ...(this.peers$[name] || []))
       return acc
@@ -980,11 +985,13 @@ class Component {
             // withState applies reducers in microtasks, so none is legitimately pending at the
             // next macrotask: reset then, in case one was never applied (e.g. app disposed)
             if (!pendingReducers++) setTimeout(() => { pendingReducers = 0 })
+            // P45-C: the render flush waits for this reducer
+            this.sources.__k()
             let applied = false
             return (state: any) => {
               if (!applied && pendingReducers) { applied = true; pendingReducers-- }
               // Reduce from the fresh argument, not currentState (B-013, 1H-3): below a
-              // Collection, currentState lags behind instantiateCollection's debounce, so a
+              // Collection, currentState lags behind the render flush (instantiateCollection), so a
               // second same-tick action would start from the pre-update state. The parents'
               // lenses add their calculated fields, so it matches what the view gets.
               const fresh = typeof state !== 'undefined'
@@ -1001,7 +1008,7 @@ class Component {
                 if (this.view?.viewTransitions?.includes?.(name)) (this.sources[this.DOMSourceName]?._isolateModule || {}).vt = 1
                 const result = this.cleanupCalculated(newState)
                 // B-013: later same-tick actions' non-STATE sinks snapshot currentState (B-003)
-                // (and the connections static: _s, which feeds it ahead of a Collection's debounce)
+                // (and the connections static: _s, which feeds it ahead of a Collection's render flush)
                 if (fresh) {
                   this.currentState = result
                   this._s?.shamefullySendNext(result)
@@ -1154,7 +1161,9 @@ class Component {
     const stateStream   = (enhancedState && enhancedState.stream) || xs.never()
 
     
-    renderParams.state  = stateStream.compose(dropRepeats(objIsEqual))
+    // G-146/P45-C: an equal state still renders after an input (a model that rewrites the typed
+    // text to what it was, e.g. at a length cap, puts the field back)
+    renderParams.state  = stateStream.compose(dropRepeats((a: any, b: any) => objIsEqual(a, b) && inputSeq() <= this._inputSeq))
 
     if (this.sources.props$) {
       renderParams.props = this.sources.props$.compose(dropRepeats(propsIsEqual))
@@ -1171,10 +1180,13 @@ class Component {
 
     const names = Object.keys(renderParams)
 
-    let combined = xs.combine(...Object.values(renderParams))
+    const gate = xs.combine(...Object.values(renderParams))
       // G-146: the input counter as of the state and props this render will show
       .map((arr: any) => (this._inputSeq = renderSeq(), arr))
-      .compose(debounce(1))
+      // P45-C: rendered once per flush, parents first; the first render waits for _w (see initAction$)
+      .compose(batch(this.sources.__k, this._d, () => this._w || this._disposed))
+    this._go = () => this._w && --this._w || gate.go?.()
+    let combined = gate
       // map the streams from an array back to an object with the render parameter names as the keys
       .map((arr: any) => {
         const params = names.reduce((acc: Record<string, any>, name, index) => {
@@ -1279,7 +1291,7 @@ class Component {
           sink$ = { [this.DOMSourceName]: xs.of(fallbackVNode) }
         }
 
-        sink$[this.DOMSourceName] = sink$[this.DOMSourceName] ? this.makeCoordinatedSubComponentDomSink(sink$[this.DOMSourceName]) : xs.never()
+        sink$[this.DOMSourceName] = sink$[this.DOMSourceName] ? sink$[this.DOMSourceName].remember() : xs.never()
 
         acc[id] = { sink$, props$, children$ }
         this._activeSubComponents.set(id, acc[id])
@@ -1313,12 +1325,6 @@ class Component {
 
       return newComponents
     }, {})
-  }
-
-  makeCoordinatedSubComponentDomSink(domSink$: any): any {
-    return domSink$
-      .debug((_: any) => this.triggerSubComponentsRendered())
-      .remember()
   }
 
   // A child's reducers get their state through its lens from this component's raw reducer
@@ -1378,9 +1384,9 @@ class Component {
     }
 
     const state$ = xs.combine(this.sources[this.stateSourceName].stream.startWith(this.currentState), props$.startWith(props))
-      // this debounce is important. it forces state and prop updates to happen at the same time
-      // without this, changes to sort or filter won't happen properly
-      .compose(debounce(1))
+      // state and prop updates are applied together (else sort or filter changes go wrong):
+      // once per flush, after this component's render and before the items' (P45-C)
+      .compose(batch(this.sources.__k, this._d + 1))
       .map(([state, props]: [any, any]) => {
         let changed
         if (props.filter !== arrayOperators.f) {
@@ -1509,7 +1515,7 @@ class Component {
       return itemProps
     })
 
-    const sources = { ...this.sources, [this.stateSourceName]: stateSource, props$: itemProps$, children$, __parentContext$: this.context$, PARENT: null, __parentComponentNumber: this._componentNumber, __uid: this._cu }
+    const sources = { ...this.sources, [this.stateSourceName]: stateSource, props$: itemProps$, children$, __parentContext$: this.context$, PARENT: null, __parentComponentNumber: this._componentNumber, __uid: this._cu, __d: this._d + 2 }
     const sink$   = collection(factory, lense as any, { container: null as any })(sources)
     if (!isObj(sink$)) {
       fail('SYG903', this, 'Collection factory returned invalid sinks', 'Return a sinks object')
@@ -1550,7 +1556,7 @@ class Component {
         switchableComponents[key] = component(optionsOf(current, current.componentName || current.label || current.name || 'FUNCTION_COMPONENT'))
       }
     })
-    const sources = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$, __parentContext$: this.context$, __parentComponentNumber: this._componentNumber, __uid: this._cu }
+    const sources = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$, __parentContext$: this.context$, __parentComponentNumber: this._componentNumber, __uid: this._cu, __d: this._d + 1 }
 
     const sink$ = isolate(switchable(switchableComponents, props$.map((props: any) => [props.current, props.instance]), ''), { [this.stateSourceName]: lense })(sources)
 
@@ -1605,7 +1611,7 @@ class Component {
       stateSource = new StateSource(xs.merge(state$.filter(() => local === undefined), local$), this.stateSourceName)
     }
 
-    const sources: Record<string, any> = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$, __parentContext$: this.context$, __parentComponentNumber: this._componentNumber, __localState: local$, __uid: this._cu }
+    const sources: Record<string, any> = { ...this.sources, [this.stateSourceName]: stateSource, props$, children$, __parentContext$: this.context$, __parentComponentNumber: this._componentNumber, __localState: local$, __uid: this._cu, __d: this._d + 1 }
     lense = local$ ? null : this.withCalculated(lense)
 
     // Detect Command objects in props and expose as commands$ source
@@ -1637,9 +1643,9 @@ class Component {
     // Build the component name Set once — avoids rebuilding per render cycle
     const componentNameSet = new Set(['collection', 'switchable', 'sygnal-factory', ...Object.keys(this.components)])
 
-    return xs.combine(this.subComponentsRendered$, componentInstances$, this._readyChanged$.startWith(null))
-      .compose(debounce(1))
-      .map(([_, components]: [any, any]) => {
+    const k = this.sources.__k, d = this._d
+    const out$ = xs.combine(componentInstances$, this._readyChanged$.startWith(null))
+      .map(([components]: [any, any]) => {
         const root  = components['::ROOT::']
         const entries = Object.entries(components).filter(([id]) => id !== '::ROOT::')
 
@@ -1687,6 +1693,8 @@ class Component {
 
         return xs.combine(...vdom$)
           .filter((vdoms: any) => vdoms.every((v: any) => v !== undefined))
+          // P45-C: once per flush, after the children's (deeper first)
+          .compose(batch(k, B - d))
           .map((vdoms: any) => {
             const withIds = vdoms.reduce((acc: Record<string, any>, vdom: any, index: any) => {
               acc[ids[index]] = vdom
@@ -1700,7 +1708,8 @@ class Component {
       .filter((val: any) => !!val)
       // [diagnostics hook]
       .map((vdom: any) => { diag.onRender(this, vdom); return vdom })
-      .remember()
+    // P45-C: the app's root view goes to the driver last in the flush: one patch
+    return (d ? out$ : out$.compose(batch(k, 2 * B))).remember()
   }
 
 }
@@ -2031,9 +2040,9 @@ function createPortalPlaceholder(target: string, children: any[]): any {
             portalMount(vnode, target, portalChildren)
             return
           }
-          // Target may be rendered by a sub-component whose streams
-          // haven't settled yet (debounced). Retry a few times to
-          // allow sub-component rendering to complete.
+          // Target may be rendered later (a lazy sub-component, say; P45-C:
+          // one in this patch is found above). Retry a few times to
+          // allow it to render.
           let attempts = 0
           const tryMount = () => {
             if (vnode.data._portalVnode) return // already mounted

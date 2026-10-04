@@ -14,7 +14,7 @@
  * leaves the field to the user. Other elements with a value prop
  * (<progress>, <meter>, custom elements with object values) are left alone.
  *
- * G-146: renders lag the state by a few ms (debounced), so with fast typing a
+ * G-146: renders lag the state (to the next render flush; P45-C), so with fast typing a
  * render built from an older state could write its older `value` over text the
  * user has typed since, dropping keystrokes. Each `input` event on a form field
  * takes a number from a global counter; a component stamps the vnodes it renders
@@ -33,6 +33,7 @@ const lastInput = new WeakMap<Element, number>();
  * that will show them is the input counter now
  */
 export const renderSeq = (): number => (changed = seq);
+export const inputSeq = (): number => seq;
 // P45-A: a form field by its vnode's tag (sel), checked before any other work: most vnodes aren't
 export const isField = (vnode: VNode): boolean => /^(input|textarea|select)(?![\w-])/i.test(vnode.sel as string);
 /**
