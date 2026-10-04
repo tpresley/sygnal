@@ -54,15 +54,13 @@ describe('B-010: pickCombine follows a permutation of the instances', () => {
     expect(out.length).toBe(n)
   })
 
-  it('reorders the survivors after a removal in the same update', async () => {
+  it('reorders the survivors after a removal in the same update', () => {
     const a = item('a'), b = item('b'), c = item('c')
     const inst$ = xs.create()
     const out = []
     inst$.compose(pickCombine('DOM')).addListener({ next: v => out.push(v.join('')) })
     inst$.shamefullySendNext(inst([a, b, c]))
     inst$.shamefullySendNext(inst([c, a]))
-    // G-213: a removal is emitted a task later
-    await new Promise(r => setTimeout(r, 5))
     expect(out[out.length - 1]).toBe('ca')
   })
 })
