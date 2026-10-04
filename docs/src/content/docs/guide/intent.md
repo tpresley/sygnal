@@ -76,6 +76,23 @@ The shorthand is powered by a JavaScript Proxy, so any valid DOM event name work
 
 The longhand `.select().events()` syntax is still fully supported and is needed when you want to chain additional stream operators directly off the DOM source selection.
 
+### Preventing the default action
+
+`events(type, options)` takes a `preventDefault` option; the shorthands take no options, so use the longhand. `true` calls `event.preventDefault()` on every event the stream hears. A function `(event) => boolean` calls it only when it returns true, and an object (`{ key: 'Enter' }`) when the event's fields match it:
+
+```jsx
+Editor.intent = ({ DOM }) => ({
+  // the form doesn't reload the page
+  SAVE: DOM.select('.editor').events('submit', { preventDefault: true }),
+  // Ctrl+Z (⌘Z) undoes in the app, not in the text field
+  UNDO: DOM.select('document')
+    .events('keydown', { preventDefault: (e) => (e.ctrlKey || e.metaKey) && e.key === 'z' })
+    .filter((e) => (e.ctrlKey || e.metaKey) && e.key === 'z'),
+})
+```
+
+The default is prevented as the event is dispatched, before the action reaches the model. The option only decides about the default; filter the stream for the events the action should get.
+
 ## Event Value Extraction
 
 DOM event streams have chainable convenience methods for extracting common values, eliminating verbose `.map(e => e.target.value)` patterns:

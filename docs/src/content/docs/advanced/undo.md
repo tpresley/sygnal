@@ -102,6 +102,8 @@ Editor.model = {
 }
 ```
 
+In a text field the browser runs its own undo on Ctrl+Z too. To leave undo to the app, prevent the default for those keys: `events('keydown', { preventDefault: (e) => … })` ([Preventing the default action](/guide/intent/#preventing-the-default-action)).
+
 ## undoable()
 
 `undoable(model, options)` wraps a model's STATE reducers and adds `UNDO` and `REDO` entries for your intent to trigger. `state.history` is `{ past, future }` (no calculated fields), and it isn't there until the first change, so read it with a default:
