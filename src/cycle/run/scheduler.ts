@@ -23,7 +23,10 @@ import xs, {Stream, NO} from 'xstream';
  * 1)`: a gate). While a gate is pending the patch is held (the stages before it run), so a move
  * between Collections whose items have intent and model is still one patch. The timer flushes
  * again. Holds stop 50 ms after the first one (a chain of new components, a timer that never
- * fires: neither holds the patch for long).
+ * fires: neither holds the patch for long): a held flush sets a timer that flushes then (G-273),
+ * and a hold that outlasts the bound drops the pending gates (a lost gate timer, e.g.
+ * vi.clearAllTimers(), can't hold every later patch; a gate that fires after that can't make the
+ * count negative).
  */
 export type Scheduler = ((k?: number, f?: () => void) => any) & {t?: (ms: number, f: () => void, h?: any) => void};
 export const B = 1e6;
@@ -33,8 +36,10 @@ const safe = (f: () => void) => { try { f(); } catch (e) { setTimeout(() => { th
 export function makeScheduler(): Scheduler {
   let q: Record<number, Array<() => void>> = {}, on = 0, n = 0, seen = -1, y = 0, g = 0, x = 0, c = 0;
   // G-260: flushes are counted (reset by a timer the 9th sets): after 100 in a macrotask (a
-  // patch -> element -> action loop that never settles) the next one waits for a macrotask
-  const go = () => on || (on = 1, ++c > 99 ? setTimeout(flush) : (c == 9 && setTimeout(() => c = 0), queueMicrotask(flush)));
+  // patch -> element -> action loop that never settles) the next one waits for a macrotask.
+  // G-274: that timer resets the count too (a lost reset timer costs one macrotask per 100
+  // flushes), and it doesn't set `on` (if it's lost, the next go() sets another)
+  const go = (): any => on || (++c > 99 ? setTimeout(() => (c = 0, go())) : (c == 9 && setTimeout(() => c = 0), on = 1, queueMicrotask(flush)));
   const flush = (): any => {
     if (seen != n && on++ < 10) return (seen = n, queueMicrotask(flush));
     for (let k: any; ; ) {
@@ -45,8 +50,10 @@ export function makeScheduler(): Scheduler {
       // resource served from a cache): they render in this flush, not in a second patch
       if (k >= 2 * B) {
         if (!y++) return (seen = -1, queueMicrotask(flush));
-        if (g && (x ||= Date.now()) > Date.now() - 50) return (on = y = 0, seen = -1);
-        x = 0;
+        // the hold's age (a clock that went back, fake timers switched to real, ends it); each
+        // held flush sets a timer that flushes after the bound (one of them may be lost)
+        if (g && (Date.now() - (x ||= Date.now())) >>> 0 < 50) return (setTimeout(go, 51), on = y = 0, seen = -1);
+        g = x = 0;
       }
       const a = q[k];
       delete q[k];
@@ -73,7 +80,7 @@ export function makeScheduler(): Scheduler {
         go();
       }, ms);
     }
-    a.push(h ? (g++, () => (g--, f())) : f);
+    a.push(h ? (g++, () => (g && g--, f())) : f);
   };
   return s;
 }
