@@ -27,6 +27,8 @@ import xs, {Stream, NO} from 'xstream';
  */
 export type Scheduler = ((k?: number, f?: () => void) => any) & {t?: (ms: number, f: () => void, h?: any) => void};
 export const B = 1e6;
+// runs f; an error is rethrown asynchronously (the others in the loop still run)
+const safe = (f: () => void) => { try { f(); } catch (e) { setTimeout(() => { throw e; }); } };
 
 export function makeScheduler(): Scheduler {
   let q: Record<number, Array<() => void>> = {}, on = 0, n = 0, seen = -1, y = 0, g = 0, x = 0, c = 0;
@@ -48,7 +50,7 @@ export function makeScheduler(): Scheduler {
       }
       const a = q[k];
       delete q[k];
-      for (const f of a) try { f(); } catch (e) { setTimeout(() => { throw e; }); }
+      a.forEach(safe);
     }
   };
   const s: Scheduler = (k, f) => {
@@ -67,7 +69,7 @@ export function makeScheduler(): Scheduler {
       a = t[ms] = [];
       queueMicrotask(() => delete t[ms]);
       setTimeout(() => {
-        for (const f of a) try { f(); } catch (e) { setTimeout(() => { throw e; }); }
+        a.forEach(safe);
         go();
       }, ms);
     }
@@ -123,6 +125,6 @@ SP._remove = function (this: any, il: any) {
 export const tearDown = (f: () => void): void => {
   const mine = down++ ? q : (q = []);
   try { f(); } finally {
-    --down || mine.length && setTimeout(() => tearDown(() => { for (const s of mine) s._stopID === 0 && s._stopNow(); }));
+    --down || mine.length && setTimeout(() => tearDown(() => mine.forEach(s => safe(() => s._stopID === 0 && s._stopNow()))));
   }
 };
