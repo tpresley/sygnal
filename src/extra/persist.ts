@@ -29,7 +29,8 @@ import {warn} from './diagnostics/legacy';
  *   adapter (optionally with subscribe). renderComponent passes its fake stores as the
  *   `__storage` source ({ local, session, f: flush functions t.settle() calls }).
  * - Failures (unreadable entry, migrate throws, quota) are SYG642 (warn, printed in production
- *   too); the app continues on initialState / unsaved.
+ *   too), once per kind (restore / save / clear; a save that works again re-arms it); the app
+ *   continues on initialState / unsaved, and a failed save is retried at the next change.
  */
 const g: any = globalThis;
 
@@ -40,8 +41,11 @@ export const setupPersist = (c: any, o: any): void => {
   // run()'s mount point already has markup
   const hydrate = o.hydrate ?? src.__hydrate ?? !!(typeof m == 'string' ? g.document?.querySelector(m) : m)?.firstElementChild;
   let S: any, t: any, last: any, raw: any, skip: any, off: any;
-  // (the docs link the message ends with explains the causes and fixes)
-  const fail = (what: string, e?: any) => warn('SYG642', c, `persist '${key}': ${what} failed`, undefined, e);
+  // (the docs link the message ends with explains the causes and fixes). Once per kind (restore,
+  // save, clear): a storage that throws on every write must not warn on every change; a save that
+  // works again re-arms the save report
+  const bad: any = {};
+  const fail = (what: string, e?: any) => bad[what] || (bad[what] = 1, warn('SYG642', c, `persist '${key}': ${what} failed`, undefined, e));
   const only = (s: any) => {
     const out: any = {};
     for (const k in s) if ((pick ? pick.includes(k) : !omit?.includes(k)) && !(k in calc)) out[k] = s[k];
@@ -57,7 +61,8 @@ export const setupPersist = (c: any, o: any): void => {
   const write = () => {
     clearTimeout(t); t = 0;
     const r = JSON.stringify({version, state: only(last)}), p = raw;
-    if (r != raw) try { raw = r; S.setItem(key, r); } catch (e) { raw = p; fail('save', e); }
+    // a failed save is retried at the next change (raw stays the stored text)
+    if (r != raw) try { raw = r; S.setItem(key, r); bad.save = 0; } catch (e) { raw = p; fail('save', e); }
   };
   const clear = () => {
     clearTimeout(t); t = 0; skip = 1; raw = null;

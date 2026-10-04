@@ -170,7 +170,7 @@ Keep an [undo history](/advanced/undo/) out of the saved state: pick the documen
 
 | Code | When |
 |---|---|
-| [SYG642](/reference/errors/#syg642) (warning) | The stored entry isn't JSON, `migrate` threw, or a write failed (the storage is full or blocked). The app continues: from `initialState` after a failed restore, unsaved after a failed write. Printed in production too |
+| [SYG642](/reference/errors/#syg642) (warning) | The stored entry isn't JSON, `migrate` threw, or a write failed (the storage is full or blocked). The app continues: from `initialState` after a failed restore, unsaved after a failed write (retried at the next state change). Printed in production too, once per kind (restore, save, clear): a storage that refuses every write warns once, and again only after a save has worked |
 | [SYG223](/reference/errors/#syg223) (warning) | A `pick` or `omit` key that isn't a key of `initialState` (a typo) |
 | [SYG224](/reference/errors/#syg224) (error) | `persist` on a component that isn't the root |
 
