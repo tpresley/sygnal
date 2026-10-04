@@ -18,12 +18,18 @@ import xs, {Stream, NO} from 'xstream';
  * actions keep coming (`s()` counts one), before the renders and again before the patch, so a
  * reply a driver sends in a microtask (a cached resource, say) is in the same patch (at most 10
  * hops; never a timer, never rAF).
+ *
+ * G-257: a new component's first render waits for its intent, which starts on a timer (`s.t(ms, f,
+ * 1)`: a gate). While a gate is pending the patch is held (the stages before it run), so a move
+ * between Collections whose items have intent and model is still one patch. The timer flushes
+ * again; at most 9 holds in a row (a chain of new components can't hold the patch for long).
  */
-export type Scheduler = ((k?: number, f?: () => void) => any) & {t?: (ms: number, f: () => void) => void};
+export type Scheduler = ((k?: number, f?: () => void) => any) & {t?: (ms: number, f: () => void, h?: any) => void};
 export const B = 1e6;
 
 export function makeScheduler(): Scheduler {
-  let q: Record<number, Array<() => void>> = {}, on = 0, n = 0, seen = -1, y = 0;
+  let q: Record<number, Array<() => void>> = {}, on = 0, n = 0, seen = -1, y = 0, g = 0, x = 0;
+  const go = () => on || (on = 1, queueMicrotask(flush));
   const flush = (): any => {
     if (seen != n && on++ < 10) return (seen = n, queueMicrotask(flush));
     for (let k: any; ; ) {
@@ -32,7 +38,11 @@ export function makeScheduler(): Scheduler {
       if (k === undefined) return (on = y = 0, seen = -1);
       // before the patch, wait again for the reducers the renders caused (a new component's
       // resource served from a cache): they render in this flush, not in a second patch
-      if (k >= 2 * B && !y++) return (seen = -1, queueMicrotask(flush));
+      if (k >= 2 * B) {
+        if (!y++) return (seen = -1, queueMicrotask(flush));
+        if (g && x++ < 9) return (on = y = 0, seen = -1);
+        x = 0;
+      }
       const a = q[k];
       delete q[k];
       for (const f of a) try { f(); } catch (e) { setTimeout(() => { throw e; }); }
@@ -41,16 +51,17 @@ export function makeScheduler(): Scheduler {
   const s: Scheduler = (k, f) => {
     if (!f) return n++;
     (q[k!] ||= []).push(f);
-    on || (on = 1, queueMicrotask(flush));
+    go();
   };
   // P45-D: s.t(ms, f): the components created in one task start together, one timer per delay
   // (their INITIALIZE at 0 ms, their intents 1 or 10 ms later), not one each
   const t: Record<number, Array<() => void>> = {};
-  s.t = (ms, f) => (t[ms] ||= (setTimeout(() => {
+  s.t = (ms, f, h) => (t[ms] ||= (setTimeout(() => {
     const a = t[ms];
     delete t[ms];
-    for (const g of a) try { g(); } catch (e) { setTimeout(() => { throw e; }); }
-  }, ms), [])).push(f);
+    for (const f of a) try { f(); } catch (e) { setTimeout(() => { throw e; }); }
+    go();
+  }, ms), [])).push(h ? (g++, () => (g--, f())) : f);
   return s;
 }
 

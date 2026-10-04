@@ -599,7 +599,7 @@ class Component {
           up && this.hmrActions?.forEach((type: any) => emit({ type }))
           this._w && emit(0)
           sub(runner instanceof Stream ? runner : runner?.apply && runner(this.sources))
-        })
+        }, !boot && this._w)
       },
       stop: () => { run++; subs.forEach(s => s.unsubscribe()); subs = [] },
     })
@@ -737,7 +737,7 @@ class Component {
       if (s) pendingReducers ? queueMicrotask(run) : run()
       l.next(action)
     }
-    const sequenced$ = via(this.action$, seq, shouldInjectInitialState && ((l: any) => this.sources.__k.t(0, () => seq(initial, l))))
+    const sequenced$ = via(this.action$, seq, shouldInjectInitialState && ((l: any) => this.sources.__k.t(0, () => seq(initial, l), 1)))
     const snap = () => snapshotted$ ||= xs.create({
       start: (l: any) => { snapListener = l; snapSub = sequenced$.subscribe({}) },
       stop: () => { snapListener = null; snapSub?.unsubscribe() },
