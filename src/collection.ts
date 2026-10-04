@@ -45,6 +45,8 @@ export default function collection(
       collectSinks: (instances: any) => {
         return Object.entries(sources).reduce<Record<string, any>>(
           (acc, [name]) => {
+            // P45-C: the internal sources (__k, __d, __uid, ...) have no sinks
+            if (name.startsWith('__')) return acc;
             if (combineList.includes(name)) {
               const combined = instances.pickCombine(name);
               if (name === domSourceName && container) {

@@ -215,7 +215,7 @@ it('updates the query at once and searches 300 ms after the last keystroke', asy
 ```
 
 - While fake timers are installed, `ready()`, `next()`, `waitForState()` and `settle()` advance the fake clock themselves, timer by timer, until they resolve, so they never wait in real time. They advance it only as far as they would take in real time: to the timer that produces the state, plus the few milliseconds of the render quiet window.
-- Use `vi.advanceTimersByTimeAsync(ms)` (the async form, so promises run between timers) to move the clock by hand, e.g. to check that nothing happened yet. Views render 1 ms after a state change, so read `t.html()` after a `t.next()`/`t.settle()`, not straight after advancing the clock.
+- Use `vi.advanceTimersByTimeAsync(ms)` (the async form, so promises run between timers) to move the clock by hand, e.g. to check that nothing happened yet. Views render in a microtask after a state change (a new component's first render waits for its INITIALIZE and intent timers), so read `t.html()` after a `t.next()`/`t.settle()`, not straight after advancing the clock.
 - `await t.ready()` before timing-sensitive input: the component mounts in about 15 ms of clock time, and input sent before that is delivered when it is ready.
 - Timeouts are clock time too: a wait that never matches fails at once in real time with the usual timeout error. A model `next('X', data, 5000)` needs `t.next(pred, 6000)` (or the `timeoutMs` option), as with real timers.
 - Keep the defaults for what is faked: faking `queueMicrotask` or `nextTick` stops the state pipeline. Waits that need real I/O (a real request, a dynamic `import()`) don't progress on a fake clock; test those with real timers.
@@ -690,7 +690,7 @@ await t.next(s => s.city === 'Springfield')                       // matches the
 expect(t.query('input[name="city"]').value).toBe('Springfield')
 ```
 
-  A state that is replaced before it ever renders (views render a few milliseconds after a change) never reaches the DOM, as in a browser; to see an in-flight state, answer the request yourself (`t.respond`, or a `fetch` stub you resolve later).
+  A state that is replaced before it ever renders (views render once per tick, after the reducers of that tick) never reaches the DOM, as in a browser; to see an in-flight state, answer the request yourself (`t.respond`, or a `fetch` stub you resolve later).
 - `t.html()`, `t.states`, `t.state`, `sinkValues()`, `expectNoDiagnostics()` and `inspect()` work as with the mock DOM. With `sygnal/diagnostics` loaded, its real-DOM SYG103/SYG104 checks run.
 - `dispose()` unmounts the container. `mockConfig` can't be combined with `dom: 'real'`.
 

@@ -128,7 +128,7 @@ import {reportElementCommand, checkSentCommand, NATIVE_COMMAND_NAMES} from './di
  *   emits) and each input waits for a QUIET_MS-quiet tree (capped at 100ms).
  * - 4-A1 real-mode waits: the driver's vnode input is gated. Each emitted tree is tagged with
  *   the number of states recorded when a view in the tree last ran (viewTag; renders lag the
- *   state by a few debounced ms). A wait that matches holds renders of later states, resolves
+ *   state until the next render flush). A wait that matches holds renders of later states, resolves
  *   once its state is patched (and the tree is quiet, or a later state arrived), and releases
  *   the held render on the next macrotask, so the code after `await` reads the DOM of the
  *   state it got. The next next() starts after that state (`shown`), so the held states still
@@ -1510,7 +1510,7 @@ export function renderComponent(
       recordChildSinks(c);
       // 4-A1 (real DOM): note how many states were recorded when a view in the tree runs (its
       // render parameters are computed right before the call), so each emitted tree is tagged
-      // with the states it shows; the render pipeline lags the state by a few debounced ms
+      // with the states it shows; the render pipeline lags the state until the next flush (P45-C)
       const crp = c.collectRenderParameters;
       if (real && typeof crp == 'function') {
         c.collectRenderParameters = function (this: any) {

@@ -1250,7 +1250,7 @@ function makeViewTransitionDOMDriver(
 run(App, { DOM: makeViewTransitionDOMDriver('#root') })
 ```
 
-It replaces `run()`'s default DOM driver (use the same mount point). The renders of one action are folded into one transition: the first is held until the browser has its snapshot, and the update ends 20 ms after the last render (at most 200 ms). The first render, `prefers-reduced-motion: reduce` and browsers without the API apply at once. A new transition skips one that is still animating. Opt-in, so apps without View Transitions don't ship it. `renderComponent` never animates.
+It replaces `run()`'s default DOM driver (use the same mount point). One action is one render of the page, held until the browser has its snapshot (a later render that arrives meanwhile replaces it), then applied. The first render, `prefers-reduced-motion: reduce` and browsers without the API apply at once. A new transition skips one that is still animating. Opt-in, so apps without View Transitions don't ship it. `renderComponent` never animates.
 
 ### viewTransitions (Static Property)
 

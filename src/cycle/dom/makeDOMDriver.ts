@@ -1,7 +1,6 @@
 import {Driver} from '../run/types';
 import {init, Module, Options as SnabbdomOptions, VNode, toVNode} from './snabbdom';
 import xs, {Stream, Listener} from 'xstream';
-import {concat, sampleCombine} from '../../extra/xstreamExtras';
 import {MainDOMSource} from './MainDOMSource';
 import {VNodeWrapper} from './VNodeWrapper';
 import {getValidNode, checkValidContainer} from './utils';
@@ -86,15 +85,6 @@ function makeDOMDriver(
   const patch = init([isolateModule.createModule() as Partial<Module>].concat(modules), undefined, snabbdomOptions);
   const domReady$ = makeDOMReady$();
   let vnodeWrapper: VNodeWrapper;
-  let mutationObserver: MutationObserver;
-  const mutationConfirmed$ = xs.create<null>({
-    start(listener) {
-      mutationObserver = new MutationObserver(() => listener.next(null));
-    },
-    stop() {
-      mutationObserver.disconnect();
-    },
-  });
 
   function DOMDriver(vnode$: Stream<VNode>, name = 'DOM'): MainDOMSource {
     domDriverInputGuard(vnode$);
@@ -109,9 +99,10 @@ function makeDOMDriver(
     const rememberedVNode$ = vnode$.remember();
     rememberedVNode$.addListener({});
 
-    mutationConfirmed$.addListener({});
-
-    const elementAfterPatch$ = firstRoot$
+    // P45-C (rec 9, D146): the root element, when the DOM is ready and then after each patch
+    // (it was a MutationObserver on the root's subtree: DOM changes made outside a patch no
+    // longer emit)
+    const rootElement$ = firstRoot$
       .map(
         firstRoot =>
           xs
@@ -122,25 +113,10 @@ function makeDOMDriver(
             .drop(1)
             .map(unwrapElementFromVNode)
             .startWith(firstRoot as any)
-            .map(el => {
-              mutationObserver.observe(el, {
-                childList: true,
-                attributes: true,
-                characterData: true,
-                subtree: true,
-                attributeOldValue: true,
-                characterDataOldValue: true,
-              });
-              return el;
-            })
             .compose(dropCompletion)
       )
-      .flatten();
-
-    const rootElement$ = concat(domReady$, mutationConfirmed$)
+      .flatten()
       .endWhen(sanitation$)
-      .compose(sampleCombine(elementAfterPatch$))
-      .map(arr => arr[1])
       .remember();
 
     rootElement$.addListener({

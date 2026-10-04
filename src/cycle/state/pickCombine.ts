@@ -1,32 +1,8 @@
 import xs, {Stream, InternalListener, OutSender, Operator, NO} from 'xstream';
 import {InternalInstances} from './types';
 
-// G-213: an item that moves to another Collection is a new instance there, which renders a few
-// ms after its old Collection has dropped it; a page patched in that gap (the DOM patches as soon
-// as the old Collection emits) paints without the item. One action's state reaches each
-// Collection in its own debounce task, so:
-// - fresh: new items not rendered yet, created in the current batch (the run of new items until a
-//   task passes without one; then forgotten, unless a removal waits for them)
-// - a removal while a fresh item is pending waits for it (later; at most 100 ms)
-// - else, with another Collection alive (live > 1), the removal is checked again a task later,
-//   once the other Collections have had this action's state (the Collection it moved to has
-//   created its new item by then); with one Collection (a plain list) it is emitted at once
-const fresh = new Set<any>(), later = new Set<any>();
-let cap: any, T: any, live = 0;
-const flush = () => {
-  clearTimeout(cap);
-  cap = 0;
-  fresh.clear();
-  later.forEach(p => (later.delete(p), p.inst && p.up()));
-};
-const batch = () => {
-  clearTimeout(T);
-  T = setTimeout(() => later.size || fresh.clear(), 1);
-};
-const hold = (p: any) => (later.add(p), cap = cap || setTimeout(flush, 100));
 // an item listener's end (its item was removed, or the Collection stopped)
 const drop = (il: any) => {
-  fresh.delete(il);
   il.ins._remove(il);
   il.ins = il.out = il.val = null;
 };
@@ -43,16 +19,11 @@ class PickCombineListener<Si, T>
     this.p = p;
     this.val = NO as any;
     this.ins = ins;
-    fresh.add(this);
-    batch();
   }
 
   public _n(t: T): void {
     this.val = t;
-    if (this.out) {
-      if (fresh.delete(this) && !fresh.size && later.size) flush();
-      this.p.up();
-    }
+    if (this.out) this.p.q();
   }
 
   public _e(err: any): void {
@@ -69,25 +40,34 @@ class PickCombine<Si, R> implements Operator<InternalInstances<Si>, Array<R>> {
   public sel: string;
   public ils: Map<string, PickCombineListener<Si, R>>;
   public inst!: InternalInstances<Si>;
+  public s?: (f: () => void) => void;
+  public h = 0;
 
-  constructor(sel: string, ins: Stream<InternalInstances<Si>>) {
+  constructor(sel: string, ins: Stream<InternalInstances<Si>>, s?: (f: () => void) => void) {
     this.ins = ins;
     this.sel = sel;
     this.ils = new Map();
+    this.s = s;
   }
 
   public _start(out: Stream<Array<R>>): void {
-    live++;
     this.out = out;
     this.ins._add(this);
   }
 
   public _stop(): void {
-    live--;
     this.ins._remove(this);
     this.ils.forEach(drop);
     this.ils.clear();
     this.out = this.inst = null as any;
+  }
+
+  // P45-C: the items' views are put together once per flush (with the render scheduler: after the
+  // items have rendered, so a move between Collections is one patch; without it: at once)
+  public q(): void {
+    const s = this.s;
+    if (!s) this.up();
+    else if (!this.h) this.h = 1, s(() => { this.h = 0; this.inst && this.up(); });
   }
 
   public up(): void {
@@ -129,13 +109,7 @@ class PickCombine<Si, R> implements Operator<InternalInstances<Si>, Array<R>> {
     // emit, so re-emit when the items present before and after are in a different order. up()
     // waits until every item has emitted, so a brand new item still triggers its own emission.
     const reordered = prev?.arr.filter((s: any) => dict.has(s._key)).some((s: any, i) => s._key != kept[i]);
-    // G-213 (see the top): a held removal is emitted by flush
-    if (later.has(this)) return;
-    if (removed) {
-      if (fresh.size) return hold(this);
-      if (live > 1) return setTimeout(() => this.inst && (fresh.size ? hold(this) : this.up()), 1) as any;
-    }
-    if (removed || reordered || !inst.arr.length) this.up();
+    if (removed || reordered || !inst.arr.length) this.q();
   }
 
   public _e(e: any): void {
@@ -147,10 +121,10 @@ class PickCombine<Si, R> implements Operator<InternalInstances<Si>, Array<R>> {
   }
 }
 
-export function pickCombine(selector: string) {
+export function pickCombine(selector: string, s?: (f: () => void) => void) {
   return function pickCombineOperator(
     inst$: Stream<InternalInstances<any>>
   ): Stream<Array<any>> {
-    return new Stream(new PickCombine(selector, inst$));
+    return new Stream(new PickCombine(selector, inst$, s));
   };
 }
