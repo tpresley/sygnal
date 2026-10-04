@@ -9,7 +9,7 @@ Tracks progress for [PLAN-4.md](PLAN-4.md) (controls and core ergonomics). The c
 
 **Integration branch:** `plan4-integration`, cut from `main` at `3214ed9` on 2026-10-03 (worktree `.claude/worktrees/plan-4-execution-7ae8e8`). The release stays held (D56): no version bumps, tags, PR to main or publish.
 
-**State:** Phases 1–3 done and tagged. Phase 4: everything not depending on controls is merged (4-A1, 4-B1/2, 4-D1, 4-X). Waiting for the user's 0-E and 1-E eval runs → P4-D → 4-C, 4-A2, 4-D2 → 4-E → 4-F.
+**State:** Phases 1–3 done and tagged. P4-D decided (D141: alternative form). Phase 4: 4-P (apply P4-D) and 4-E prep running → 4-E (user's terminal) → 4-F REPORT-v4.
 
 ## Baseline (0-A)
 
@@ -68,10 +68,13 @@ PLAN-3's end-of-Phase-5 figures (40,403 B, 283 lines, 34,343 B) grew with #12 an
 | 4-A1 | Agent docs, part 1 (all but controls) | ✅ merged | `p4-4a1-agentdocs` (`30fd99b`) | subagent | | llms.txt 285 → 290 (+11, −5 trims; cap test raised to 315 per D115); SKILL.md 34,996 → 38,889 B (23 B under the 38 KB cap: CT-1 guidance will need trims); templates synced; A11Y_PENDING empty; 74 samples in `test/p4-4a1-agent-doc-samples.test.js` |
 | 4-D1 | CHANGELOG, ROADMAP, canonical-forms (all but controls) | ✅ merged | `p4-4d-changelog` (`03656b4`) | subagent | | `TODO(P4-D)` / `TODO(3-R)` / `TODO(4-E)` HTML comments mark what changes after the eval and 3-R |
 | 4-X | Cleanup: G-230, G-232, G-233, G-234 | ✅ merged | `p4-4x-cleanup` (`c020419`) | subagent | | +3 B (ELEMENT skipped in the sinks reduce) |
+| 4-P | Apply P4-D: guide/controls + alternative-forms entry; recipes back to canonical selectors; CHANGELOG/ROADMAP/canonical-forms TODO(P4-D) | 🟡 running | `p4-4p-p4d` | subagent | | |
+| 4-E prep | Final eval variants and commands (all tiers, net, ergo; Opus + Haiku; React ergo; GS-14 A/B) | 🟡 running | `p4-4e-prep` | subagent | | |
+| 4-C | Controls migration | ⛔ not needed (D141) | | | | |
 | 3-C | Timers (GS-7) | ✅ merged | `p4-3c-timers` (`6ad12b1`) | subagent | | 0 B core; +579 B per app; driver key `TIMER` by convention (found by `__sygnalStatic`); SYG643 also covers `connections`/`resources`; hidden pages restart timers from scratch; recipe waits for 3-K (SYG102 on TICK) |
 | 3-E | DevTools (GS-10) | ✅ merged | `p4-3e-devtools` (`7fa4c43`) | subagent | | 0 B production; devtools entry 3.9 → 16.5 KB gz (dev-only); Copy as test proven on kanban, todomvc, signup form (`test/copied/`); Redux bridge done (stretch) |
 | 1-E prep | Controls A/B variants `p4-ct1-a`/`p4-ct1-b` | ✅ merged | `p4-1e-ab-variant` (`ef038e0`) | subagent | | controls skill +1,902 B (+5.4%); converted starters committed as overlays; task 16 normaliser ignores `data-control`; verify 55/55 on converted solutions |
-| 1-E | Controls A/B eval (user's terminal) | 🟡 Opus pair done (60/60 each, build `ef038e0`); Haiku being repaired (D140) | runs `p4-ct1-a`, `p4-ct1-b`, `-haiku` (5 trials) | user | | from the `p4-1e-ab-variant` worktree |
+| 1-E | Controls A/B eval (user's terminal) | ✅ done; P4-D = alternative form (D141) | runs `p4-ct1-a`, `p4-ct1-b`, `-haiku` (5 trials) | user | | from the `p4-1e-ab-variant` worktree |
 | P-2 | Custom elements spike (GS-13) | ✅ record done → user | `exp/p4-elements` (`7d1d67f`) | subagent | not merged | `dev-plans/research/p2-custom-elements.md` on the exp branch; 0 B core, entry 1,003 B gz; shadow DOM, React 19 (`ontask-picked` only), HMR work; recommends adopt + making `run()` per-instance (G-212) |
 | 3-D | Behaviors complete (GS-1 checker, pager/selection/undoable, SYG226, G-210) | ✅ merged | `p4-3d-behaviors` (`03ce0e2`) | subagent | | 0 B core; app cost pager 951 B, selection 1,168 B, undoable 836 B, undo 1,624 B; sygnal-check 369; recipes in `test/p4-3d-recipes.test.js` |
 | P-4 | Dev-context design note (GS-15) | ✅ merged, decided (D132) | `p4-p4-devcontext` (`1e4a73f`) | subagent | | `dev-plans/research/p4-dev-context.md` |
@@ -126,6 +129,24 @@ Median DOM-settled ms over 10 runs (Apple M3 Max, Chromium 145 headless). Full t
 | clear 2,000 | 15.0 (+~287 ms teardown) | 7.0 | 4.0 | 3.4 |
 
 Proposal from the record: **Collection O(1) item lookups** (index hint + Map by id in `instanceLens().get` and `instantiateCollection`'s `fieldLense`; no new API), measured edit 16.7 → 8.2 ms, swap 11.6 → 5.7 ms, +28 B. Not proposed: Elm-style `lazy` (≈ 250–400 B). Pending the user's decision (§10: memoization work only with approval).
+
+
+## 1-E controls A/B (P4-D)
+
+All four runs on build `ef038e0` (tarball `2090ad31…`), 12 tasks × 5 trials, isolated posture. `p4-ct1-b-haiku` (run from the integration worktree, build `de5ea2b`) is excluded; its replacement is `p4-ct1-b-haiku2` (D140).
+
+| Metric (matched mean) | Opus A → B | Haiku A → B | Bar |
+|---|---|---|---|
+| pass rate | 100% → 100% | **91.7% → 73.3%** | Haiku not lower ❌ |
+| wall (s) | 44.4 → 47.1 (**1.06×**) | 138.2 → 139.3 (1.01×) | Opus ≤ +5% ❌ (marginal) |
+| learn (s) | 3.4 → 3.9 (+0.6) | 11.1 → 9.4 (−1.7) | ≤ +1 s ✅ |
+| wiring failures | 0% → 0% | 0% → 0% | not higher ✅ |
+| SYG104/110/124 hits | 0.17 → 0.20 | 0.10 → 0.07 | — |
+| peak context (k) | 35.1 → 36.1 | 51.8 → 51.9 | — |
+
+Haiku's drop is mostly tasks 02 and 18 (collection-pin): 9 of 10 B trials rendered `<Pin className="pin">📌</Pin>` (the control's name read as the button's label, so the visible text "Pin" was dropped); A did it once. Second pattern (task 16): controls exported from one split-out component and imported by a sibling. Other 10 tasks: A 46/50, B 43/50.
+
+0-E ergo baseline (`p4-ergo-baseline`, PLAN-3 build): Sygnal 95% vs React 100% pass; Sygnal 1.68× React wall, 2.54× cost, 2.33× peak context (task-matched).
 
 ## Interfaces promised to PLAN-5
 
@@ -195,6 +216,7 @@ They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none o
 | D138 | 2026-10-03 | G-213 hold (3-R): a removal waits only for new items of the current batch; a plain delete is synchronous when its Collection is the only one alive, and one task late when several are (a delete can't be told from the first half of a move then). | Coordinator | 3-R QUESTION 1 |
 | D139 | 2026-10-03 | `renderToString` marks its root element with `data-sygnal-ssr=""` (removed by the first client render), so persist under plain `run()` detects hydration reliably. Changes SSR output for every app; CHANGELOG under Changed. | User | 3-R QUESTION 2 |
 | D140 | 2026-10-04 | 1-E Haiku repair: `p4-ct1-a-haiku` stopped at 33/60 and `p4-ct1-b-haiku` ran from the integration worktree (build `de5ea2b`, not `ef038e0`). Resume `p4-ct1-a-haiku` and rerun B as `p4-ct1-b-haiku2`, both from the 1-E worktree, so every 1-E run uses one build. `p4-ct1-b-haiku` is excluded from the analysis. 1-E spend ≈ $85 (approved $69 + this). | User | |
+| D141 | 2026-10-04 | **P4-D: controls are an alternative form in 6.0.** They ship fully supported, documented on their own page (`guide/controls`) and on `advanced/alternative-forms`; class selectors stay canonical; no SYG510; no 4-C migration; `--fix --controls` stays opt-in (D113). Docs, examples and agent docs use canonical forms only, so recipes merged with controls (behaviors, element commands, timers, persistence, View Transitions) are rewritten with selectors (4-P). | User | 1-E missed 2 of 4 bars (§7 rule: mixed → alternative) |
 
 ## Open questions (PLAN-4 §11)
 
@@ -209,7 +231,7 @@ They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none o
 | P4-Q7 | Persist form | ✅ D114: `persist()` helper; `PERSIST: { clear: true }` sink as recommended |
 | P4-Q8 | Timers | ✅ D114: registered driver; shape shared with B-3 |
 | P4-Q9 | GS-4 breaking change and SYG502 retirement | ✅ D110 |
-| P4-Q10 | CT-1 canonical bar → P4-D | Open (after 1-E) |
+| P4-Q10 | CT-1 canonical bar → P4-D | ✅ D141: alternative form |
 | P4-Q11 | a11y default severity | ✅ D111 |
 | P4-Q12 | Eval spend | ✅ D117 |
 | P4-Q13 | Bubbling semantics | ✅ Settled in #12 (G-145): native bubbling in both drivers |
@@ -287,3 +309,4 @@ They don't overlap (checked 2026-10-02). 0-A confirmed on 2026-10-03 that none o
 - 2026-10-03 — Merged 3-R; gates green (vitest 2,282 +1 skipped, browser 177, sygnal-check 448; **41,340 B gated, PLAN-4 +804 B of 850**). Phase 3 review findings all fixed; tagged `plan4-phase3`. D138, D139; G-234.
 - 2026-10-03 — Merged 4-X; gates green (vitest 2,283 +1 skipped, browser 177; 41,343 B gated, PLAN-4 +807 B of 850). Waiting on 0-E/1-E. G-235.
 - 2026-10-04 — 0-E done. 1-E Opus pair: pass 100% → 100%, wall 44.4 → 47.1 s (1.06×; bar ≤ 1.05), learn +0.6 s (bar ≤ +1), wiring failures 0 → 0, SYG104/110/124 hits 0.17 → 0.20. Haiku pair repaired per D140.
+- 2026-10-04 — 1-E Haiku repaired and complete. 1-E missed 2 of 4 bars → P4-D: alternative form (D141). 4-C not needed. Started 4-P and 4-E prep.
