@@ -158,9 +158,9 @@ export const CODE_TITLES: Record<string, string> = {
   SYG132: 'Declaration static that is never sent',
   SYG133: 'SPA router inside a Vike app',
   // PLAN-5 W-1: widgets (defineWidget; checks/widgets.ts, checks/elementCommands.ts; SYG141 static only)
-  SYG140: 'Widget emitted an undeclared event',
+  SYG140: 'Widget dispatched an undeclared event',
   SYG141: 'Listener for an event the widget does not declare',
-  SYG142: 'Widget command not declared, or a reserved name',
+  SYG142: 'Widget command not declared',
   SYG143: 'Widget tag used as a selector',
   SYG144: 'Widget event the host element also fires natively',
   // SYG2xx state & reducers (1A)

@@ -395,13 +395,13 @@ Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
 
 ### SYG140
 
-**Widget emitted an undeclared event**
+**Widget dispatched an undeclared event**
 
 Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`), `sygnal-check`
 
-A widget made with `defineWidget()` called `emit(name, detail)` with a name that is not in its `events` list. The event is still dispatched (a bubbling `CustomEvent` on the host), but `events` is what the docs, sygnal-check and the other widget diagnostics read: a listener for the declared name never hears this one, which is usually a typo (`emit('chnage', d)`) or a declaration that was never added. The dev entry reports it once per widget and name when it is emitted; sygnal-check reports a literal `emit('x')` inside `mount()` when `events` is a literal list.
+A widget made with `defineWidget()` called `dispatch(name, detail)` (the third parameter of `mount`) with a name that is not in its `events` list. The event is still dispatched (a bubbling `CustomEvent` on the host), but `events` is what the docs, sygnal-check and the other widget diagnostics read: a listener for the declared name never hears this one, which is usually a typo (`dispatch('chnage', d)`) or a declaration that was never added. The dev entry reports it once per widget and name when it is dispatched; sygnal-check reports a literal `dispatch('x')` inside `mount()` (whatever the parameter is called) when `events` is a literal list.
 
-**Fix:** Add the name to the widget's `events` (`defineWidget({ events: ['pick', 'clear'], ... })`), or emit one of the declared names.
+**Fix:** Add the name to the widget's `events` (`defineWidget({ events: ['pick', 'clear'], ... })`), or dispatch one of the declared names.
 
 ### SYG141
 
@@ -409,19 +409,19 @@ A widget made with `defineWidget()` called `emit(name, detail)` with a name that
 
 Severity: `warn` · Reported by: `sygnal-check`
 
-The intent listens for an event on a widget's host (`DOM.select('.due').events('pikc')`, or a widget control: `DOM.select(Due).events('pikc')`) that the widget doesn't list in its `events` and that no element fires natively, so the action never fires. sygnal-check resolves the selector through the static `className` and `id` of the elements the component's own view renders: it reports only when every element with that class or id is a widget host and the widgets' `events` are literal lists. Native event names (`click`, `focus`, `change`...) are never reported, since the host or its content fires them. The runtime can't tell which listener a selector serves, so this code is static only.
+The intent listens for an event on a widget's host (`DOM.select('.due').events('pikc')`, or a widget control: `DOM.select(Due).events('pikc')`) that the widget doesn't list in its `events`, that no element fires natively, and that is a near-typo of a declared event, so the action most likely never fires. sygnal-check resolves the selector through the static `className` and `id` of the elements the component's own view renders: it reports only when every element with that class or id is a widget host and the widgets' `events` are literal lists. Native event names (`click`, `focus`, `change`...) are never reported, since the host or its content fires them; neither is a name that isn't close to a declared one (a library such as Choices.js fires its own events on the host element), nor any name on a custom element host (`tag: 'my-editor'`), which may fire it itself. The runtime can't tell which listener a selector serves, so this code is static only.
 
-**Fix:** Listen for one of the widget's declared events (`DOM.select('.due').events('pick').detail()`), or add the name to the widget's `events` and emit it from `mount()`.
+**Fix:** Listen for the declared event the name is close to (`DOM.select('.due').events('pick').detail()`), or add the name to the widget's `events` and dispatch it from `mount()`.
 
 ### SYG142
 
-**Widget command not declared, or a reserved name**
+**Widget command not declared**
 
 Severity: `error` · Reported by: the dev checks (`sygnal/diagnostics`), `sygnal-check`
 
-An element command (`ELEMENT: { open: '.due' }`) reached a widget's host, but the widget declares no command of that name and the host element has no such method, so it can't run (for a non-widget element this is SYG641). The message lists the commands the widget declares. A widget's declared command wins over a native method of the same name (`focus` runs the widget's `focus`). The same code is thrown by `defineWidget()` in dev for a command named `close` or `togglePopover`: element commands pass those two methods `returnValue` and `force` instead of the options object, so the names are reserved. sygnal-check reports both for literal commands and definitions.
+An element command (`ELEMENT: { open: '.due' }`) reached a widget's host, but the widget declares no command of that name and the host element has no such method, so it can't run (for a non-widget element this is SYG641). The message lists the commands the widget declares. A widget's declared command wins over a native method of the same name (`focus` runs the widget's `focus`; `close` and `togglePopover` too, with the options object). The dev entry reports it when the command reaches the element. sygnal-check reports literal commands: as an error when the name is close to a declared command (`opne`), as info otherwise (a library may add the method to the host element), and not at all for a custom element host (`tag: 'my-editor'`), which may have the method itself.
 
-**Fix:** Send one of the widget's commands, or add the command to its definition: `defineWidget({ commands: { open: (instance, options) => instance.open() } })`. Rename a `close` command (`dismiss`) or a `togglePopover` command (`toggle`).
+**Fix:** Send one of the widget's commands, or add the command to its definition: `defineWidget({ commands: { open: (instance, options) => instance.open() } })`.
 
 ### SYG143
 

@@ -119,7 +119,8 @@ export const Stars = defineWidget({
 `,
     })
     expect(codes(ds)).toEqual(['SYG140'])
-    expect(ds[0].message).toMatch(/widget Stars's mount\(\) emits 'rtae', which is not one of its declared events \('rate'\) \(did you mean 'rate'\?\)/)
+    expect(ds[0].message).toMatch(/widget Stars's mount\(\) dispatches 'rtae', which is not one of its declared events \('rate'\) \(did you mean 'rate'\?\)/)
+    expect(ds[0].fix).toBe("emit('rate', …)")
   })
 
   it('SYG141: listening for an undeclared, non-native event on a widget host (selector and control)', () => {
@@ -150,10 +151,9 @@ Form.model = { X: (s) => s }
     expect(codes(ds)).toEqual([])
   })
 
-  it('SYG142: reserved command names in a definition', () => {
+  it('D200: close / togglePopover are ordinary command names (no SYG142)', () => {
     const ds = check({ 'picker.js': PICKER(', close: (fp) => fp.close(), togglePopover: () => {}') })
-    expect(codes(ds)).toEqual(['SYG142', 'SYG142'])
-    expect(ds.map(d => d.message).sort()[0]).toMatch(/declares a command named 'close'/)
+    expect(codes(ds)).toEqual([])
   })
 
   it('SYG142: an ELEMENT command the targeted widget does not declare (selector and control); native methods are fine', () => {
@@ -162,9 +162,41 @@ Form.model = { X: (s) => s }
       'Form.jsx': FORM(`{ GO: DOM.click('.go') }`, `{ GO: { ELEMENT: [{ opne: '.due' }, { open: '.due' }, { focus: '.due' }, { showPicker: Due }, { shut: Due }] } }`),
     })
     expect(codes(ds)).toEqual(['SYG142', 'SYG142'])
-    const m = ds.map(d => d.message).sort()
-    expect(m[0]).toMatch(/command 'opne' .* targets '\.due' \(widget DatePicker\), which declares no 'opne' command \(did you mean 'open'\?\); it declares: open/)
-    expect(m[1]).toMatch(/command 'shut' .* targets the widget control Due/)
+    const m = ds.slice().sort((a, b) => a.message < b.message ? -1 : 1)
+    expect(m[0].message).toMatch(/command 'opne' .* targets '\.due' \(widget DatePicker\), which declares no 'opne' command \(did you mean 'open'\?\); it declares: open$/)
+    expect(m[0].severity).toBe('error')
+    // G-366: not a near-typo of a declared command: info (the library may add the method)
+    expect(m[1].message).toMatch(/command 'shut' .* targets the widget control Due.*fine if the library adds shut\(\) to the host element/)
+    expect(m[1].severity).toBe('info')
+  })
+
+  it('G-366: a library-driven host (Choices.js on a <select>) fires its own events: no SYG141 for a non-typo name', () => {
+    const ds = check({
+      'App.jsx': `
+import { defineWidget } from 'sygnal'
+import Choices from 'choices.js'
+export const Picker = defineWidget({ name: 'Picker', tag: 'select', mount: (el) => new Choices(el), unmount: (c) => c.destroy(), events: [], commands: {} })
+export function App({ state }) { return <div><label>Tags <Picker className="tags" /></label></div> }
+App.initialState = { tags: [] }
+App.intent = ({ DOM }) => ({ ADD: DOM.select('.tags').events('addItem').detail() })
+App.model = { ADD: (s, d) => ({ ...s, tags: [...s.tags, d.value] }) }
+`,
+    })
+    expect(codes(ds)).toEqual([])
+  })
+
+  it('G-366: a custom element host (my-editor) is skipped by SYG141 and SYG142 (its own events and methods)', () => {
+    const ds = check({
+      'App.jsx': `
+import { defineWidget } from 'sygnal'
+export const Editor = defineWidget({ name: 'Editor', tag: 'my-editor', mount: (el) => el, events: ['save'], commands: { save: (ed) => ed.save() } })
+export function App() { return <div><Editor className="ed" /><button className="undo">Undo</button></div> }
+App.initialState = {}
+App.intent = ({ DOM }) => ({ EDITED: DOM.select('.ed').events('my-input'), SAVD: DOM.select('.ed').events('svae'), UNDO: DOM.click('.undo') })
+App.model = { EDITED: (s) => s, SAVD: (s) => s, UNDO: { ELEMENT: [{ undo: '.ed' }, { svae: '.ed' }] } }
+`,
+    })
+    expect(codes(ds)).toEqual([])
   })
 
   it('SYG143: the widget tag as a selector or command target (and no SYG110 for it)', () => {

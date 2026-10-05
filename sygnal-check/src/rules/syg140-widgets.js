@@ -1,19 +1,24 @@
 /**
  * Widgets (PLAN-5 W-1; model/widgets.js), statically:
  *
- *   SYG140 (warn)   mount() calls its emit parameter with a literal name that the definition's
- *                   literal `events` doesn't list: emit('chnage', d) with events: ['change']
+ *   SYG140 (warn)   mount() calls its dispatch parameter with a literal name that the definition's
+ *                   literal `events` doesn't list: dispatch('chnage', d) with events: ['change']
  *   SYG141 (warn)   the intent listens for an event that the widget it targets doesn't declare,
- *                   and that no element fires natively: DOM.select('.due').events('pikc'), where
- *                   every element the view renders with class `due` is a widget host; or a
- *                   widget control: DOM.select(Due).events('pikc')
- *   SYG142 (error)  a command named `close` or `togglePopover` in a definition (reserved: the core
- *                   passes those methods returnValue / force); an ELEMENT command whose method the
- *                   targeted widget doesn't declare and its host element doesn't have
+ *                   that no element fires natively, and that is a near-typo of a declared one:
+ *                   DOM.select('.due').events('pikc'), where every element the view renders with
+ *                   class `due` is a widget host; or a widget control: DOM.select(Due).events('pikc')
+ *   SYG142          an ELEMENT command whose method the targeted widget doesn't declare and its host
+ *                   element doesn't have: an error for a near-typo of a declared command
+ *                   ({ opne: '.due' }), info otherwise (a library may add the method to the host)
  *   SYG143 (warn)   the widget tag itself used as a selector or command target:
  *                   DOM.select(DatePicker), ELEMENT: { open: DatePicker } (it matches nothing)
  *   SYG144 (info)   a declared event name that elements fire natively (`'change'`): a listener
  *                   gets both the widget's event and the native one bubbling from inside the host
+ *
+ * 1-R (G-366): a widget whose host is a custom element (a hyphenated tag) is skipped by SYG141
+ * and SYG142: the element may fire the event or have the method itself. An undeclared event that
+ * isn't a near-typo is not reported (a library such as Choices.js fires its own events on the
+ * host). D200: `close` / `togglePopover` are ordinary command names (no longer reserved).
  *
  * The runtime reports SYG140, SYG142, SYG143 and SYG144 too (the dev entry); SYG141 is static
  * only. A selector is resolved to widgets through the static `className` / `class` / `id` of the
@@ -26,9 +31,10 @@ import { NATIVE_COMMAND_NAMES, DOM_MUTATORS, ELEMENT_METHODS } from '../model/el
 import { selectorRequirements, GLOBAL_SELECTORS } from '../selectors.js'
 import { editDistance } from '../names.js'
 
-const RESERVED = new Set(['close', 'togglePopover'])
 const nameOf = (w) => w.name ? `widget ${w.name}` : `widget <${w.element || '?'}>`
 const quote = (xs) => xs.map(x => `'${x}'`).join(', ')
+/** a custom element host (or an unknown one): it may fire any event or have any method itself */
+const custom = (w) => !w.element || w.element.includes('-')
 
 function closest(name, names) {
   let best = null, d = 3
@@ -44,22 +50,6 @@ const defProp = (w, key) => w.def?.properties.find(p => p.type !== 'SpreadElemen
 
 function checkDefinition(w, report) {
   const file = w.file
-  // SYG142: reserved command names
-  const cmds = unwrap(defProp(w, 'commands')?.value)
-  if (cmds?.type === 'ObjectExpression') {
-    for (const p of cmds.properties) {
-      const k = p.type === 'SpreadElement' ? null : propName(p)
-      if (!RESERVED.has(k)) continue
-      report({
-        code: 'SYG142',
-        file,
-        node: p.key,
-        message: `${nameOf(w)} declares a command named '${k}': element commands pass ${k}() ${k === 'close' ? 'returnValue' : 'force'}, not the options, so the name is reserved (defineWidget throws in dev)`,
-        fix: `rename it (e.g. '${k === 'close' ? 'dismiss' : 'toggle'}') and send { ${k === 'close' ? 'dismiss' : 'toggle'}: target }`,
-        data: { command: k },
-      })
-    }
-  }
   if (!w.events) return
   // SYG144: declared names elements fire natively
   const evProp = unwrap(defProp(w, 'events')?.value)
@@ -76,9 +66,10 @@ function checkDefinition(w, report) {
       data: { event: name },
     })
   }
-  // SYG140: emit('x') in mount with a literal name not in events
+  // SYG140: dispatch('x') in mount with a literal name not in events
   const mount = defProp(w, 'mount')
   const fn = mount && (mount.type === 'ObjectMethod' ? mount : unwrap(mount.value))
+  // (any name: `dispatch` in the docs; `emit` in older code)
   const emitParam = fn && (isFunction(fn) || fn.type === 'ObjectMethod') ? fn.params[2] : null
   if (emitParam?.type !== 'Identifier') return
   walk(fn.body, (n) => {
@@ -92,8 +83,8 @@ function checkDefinition(w, report) {
       code: 'SYG140',
       file,
       node: n.arguments[0],
-      message: `${nameOf(w)}'s mount() emits '${name}', which is not one of its declared events (${w.events.length ? quote(w.events) : 'it declares none'})` + (hint ? ` (did you mean '${hint}'?)` : ''),
-      fix: hint ? `emit('${hint}', …)` : `add '${name}' to the widget's events: events: [${quote([...w.events, name])}]`,
+      message: `${nameOf(w)}'s mount() dispatches '${name}', which is not one of its declared events (${w.events.length ? quote(w.events) : 'it declares none'})` + (hint ? ` (did you mean '${hint}'?)` : ''),
+      fix: hint ? `${emitParam.name}('${hint}', …)` : `add '${name}' to the widget's events: events: [${quote([...w.events, name])}]`,
       data: { event: name, events: w.events },
     })
     return true
@@ -180,17 +171,18 @@ function checkListeners(project, comp, report) {
     let widgets
     if (sel.control) widgets = sel.control.kind === 'widget' && sel.controls.length === 1 ? [sel.control] : null
     else widgets = view ? widgetsFor(view, sel.selector) : null
-    if (!widgets || widgets.some(w => !w.events) || widgets.some(w => w.events.includes(event))) continue
+    if (!widgets || widgets.some(w => !w.events || custom(w)) || widgets.some(w => w.events.includes(event))) continue
     const declared = [...new Set(widgets.flatMap(w => w.events))]
     const hint = closest(event, declared)
+    if (!hint) continue
     const what = sel.control ? `the widget control ${sel.control.key}` : `'${sel.selector}' (${widgets.map(nameOf).join(', ')})`
     report({
       code: 'SYG141',
       component: comp.name,
       file: sel.file || intent.file,
       node: sel.node,
-      message: `${comp.name}'s intent listens for '${event}' on ${what}, which doesn't declare that event (it declares ${declared.length ? quote(declared) : 'none'})` + (hint ? `: did you mean '${hint}'?` : '') + ', so this action never fires',
-      fix: hint ? `listen for '${hint}'` : `listen for one of the widget's events, or add '${event}' to its events and emit it`,
+      message: `${comp.name}'s intent listens for '${event}' on ${what}, which doesn't declare that event (it declares ${quote(declared)}): did you mean '${hint}'?`,
+      fix: `listen for '${hint}'`,
       data: { event, events: declared, ...(sel.control ? { control: sel.control.key } : { selector: sel.selector }) },
     })
   }
@@ -217,19 +209,21 @@ function checkCommands(comp, report) {
     let widgets
     if (cmd.control) widgets = cmd.control.kind === 'widget' ? [cmd.control] : null
     else widgets = comp.viewInfo ? widgetsFor(comp.viewInfo, cmd.selector) : null
-    if (!widgets || widgets.some(w => !w.commands)) continue
+    if (!widgets || widgets.some(w => !w.commands || custom(w))) continue
     const missing = widgets.filter(w => !w.commands.includes(cmd.method) && !isMethodOf(w.element, cmd.method))
-    if (!missing.length || !widgets.every(w => w.element)) continue
+    if (!missing.length) continue
     const declared = [...new Set(missing.flatMap(w => w.commands))]
-    const hint = closest(cmd.method, [...declared, ...NATIVE_COMMAND_NAMES])
+    const hint = closest(cmd.method, declared)
     const what = cmd.control ? `the widget control ${cmd.control.key}` : `'${cmd.selector}' (${missing.map(nameOf).join(', ')})`
     report({
       code: 'SYG142',
+      ...(hint ? {} : { severity: 'info' }),
       component: comp.name,
       file: cmd.file,
       node: cmd.methodNode,
       message: `ELEMENT command '${cmd.method}' in ${comp.name}'s '${cmd.action}' targets ${what}, which declares no '${cmd.method}' command` +
-        (hint ? ` (did you mean '${hint}'?)` : '') + (declared.length ? `; it declares: ${declared.join(', ')}` : '; it declares none'),
+        (hint ? ` (did you mean '${hint}'?)` : '') + (declared.length ? `; it declares: ${declared.join(', ')}` : '; it declares none') +
+        (hint ? '' : ` (fine if the library adds ${cmd.method}() to the host element)`),
       fix: hint ? `send { ${hint}: … }` : `add '${cmd.method}' to the widget's commands, or send one it declares`,
       data: { method: cmd.method, action: cmd.action, commands: declared },
     })
@@ -239,7 +233,7 @@ function checkCommands(comp, report) {
 export default {
   id: 'widgets',
   codes: ['SYG140', 'SYG141', 'SYG142', 'SYG143', 'SYG144'],
-  description: 'Widgets: undeclared emit / listener / command, reserved command names, the tag as a selector, native event names',
+  description: 'Widgets: undeclared dispatch / listener / command, the tag as a selector, native event names',
   run(project, report) {
     for (const path of project.scanned) {
       const file = project.files.get(path)
