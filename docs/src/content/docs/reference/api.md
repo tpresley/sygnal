@@ -900,6 +900,42 @@ function undoable(model: Model, options: { key: string; limit?: number; track?: 
 
 ---
 
+## form()
+
+A behavior: a form with validation over any Standard Schema. [Guide](/guide/forms/).
+
+```typescript
+function form<V>(schema: StandardSchemaLike, options: {
+  values: V; submit: string; check?: Record<string, { request: (value: any) => object; error?: (body: any) => string | false | null | undefined }>;
+  show?: 'blur' | 'input' | 'submit'; form?: string; http?: string
+}): Behavior
+```
+
+| | |
+|---|---|
+| State | `values`, `initial`, `errors`, `touched`, `server`, `remote`, `pending`, `submitting`, `submitted`, `submitCount`, `queued`, `validating`; calculated `fields` (per name: `{ name, value, error, invalid, touched, dirty, pending }`), `valid`, `dirty`, `error` |
+| Actions | `CHANGE` (`{ name, value }`), `BLUR` (name), `SUBMIT`, `ADD` (`{ field, value }`), `REMOVE` (`{ field, id }`), `ERRORS` (server errors), `DONE`, `RESET` (values?) |
+
+Fields are matched by `name` inside the form element (`form` option, default `'form'`); rows of an array by id (`addresses.7.city`). A valid submit dispatches the host's `submit` action with the schema's output; an invalid one focuses the first invalid field. Diagnostics: [SYG230](/reference/errors/#syg230)–[SYG236](/reference/errors/#syg236).
+
+## Form helpers
+
+The functions `form()` is built on, for a form written with plain actions. [Guide](/guide/forms/#without-the-behavior-the-helpers).
+
+```typescript
+function checkForm(schema: StandardSchemaLike, values: any): { errors: FieldErrors; value: any } | Promise<{ errors: FieldErrors; value: any }>
+function formErrors(schema: StandardSchemaLike, values: any): FieldErrors | Promise<FieldErrors>
+function setField<V>(values: V, name: string, value: any): V
+function getField(values: any, name: string): any
+function fieldName(values: any, path?: ReadonlyArray<any>): string
+function fieldNames(values: any): string[]
+function replyErrors(reply: any, values?: any): FieldErrors
+function focusInvalid(names: string[] | FieldErrors): ElementCommand | ABORT
+type FieldErrors = Record<string, string>   // by field name; '' = form-level
+```
+
+---
+
 ## persist()
 
 Saves the root component's state in the browser's storage and restores it at startup. Guide: [Persistence](/guide/persistence/).

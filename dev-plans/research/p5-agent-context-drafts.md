@@ -23,3 +23,20 @@ Phase 4 syncs agent context within the budgets (`llms.txt` 24 lines left at 0-A,
 Line count: 5 (widgets block, with its heading) + 1 = 6 `llms.txt` lines; 5 without the heading if appended to an existing section. PLAN-5's docs rules estimated "≈ 4 lines + 1 fact line".
 
 **SKILL.md:** with 39 B left, nothing fits. Candidate (≈ 160 B), if Phase 4 raises the cap or trims elsewhere: "Third-party widget → `defineWidget` tag + class selector + `.detail()`; web component → render its tag, select its class (guides: widgets, web-components)."
+
+## 1-F1: forms (F-1, D193)
+
+**Forms, 6 lines** (a `###` section after "Behaviors (`uses`)", which it builds on; canonical: the `form` behavior; the helpers stay in the guide as the escape hatch):
+
+```md
+### Forms with validation
+- `Signup.uses = { form: form(schema, { values: { email: '', addresses: [{ id: 1, city: '' }] }, submit: 'SIGN_UP' }) }`, any Standard Schema (zod, valibot, or `{ '~standard': { version: 1, vendor, validate } }`). Fields inside the `<form>` are matched by `name`, a path in `values` (array rows by id: `addresses.7.city`): no intent per field.
+- View: `const f = state.form.fields`; `<input id={uid('email')} name="email" value={f.email.value} aria-invalid={f.email.invalid} aria-describedby={uid('email-error')} />`, `<p id={uid('email-error')}>{f.email.error}</p>`, a `<label for={uid('email')}>`. `f.x.error` is what to show (after blur or a submit); also `state.form.submitting`, `state.form.error` (form-level).
+- An invalid submit shows every error and focuses the first invalid field; a valid one dispatches `SIGN_UP` with the schema's output: `SIGN_UP: { HTTP: (state, values) => ({ url, method: 'POST', json: values, ok: 'form.DONE', error: 'form.ERRORS' }) }`; `form.ERRORS` puts the server's `{ errors: { field: msg } }` on the fields.
+- Rows: `<Collection of={Row} from={{ get: (s) => s.form.values.addresses }} fields={f} />`, `'form.ADD': DOM.click('.add').mapTo({ field: 'addresses', value: { city: '' } })`, Row `REMOVE: { PARENT: (s) => ({ field: 'addresses', id: s.id }) }` + host `'form.REMOVE': CHILD.select(Row)`.
+- Async check: `check: { email: { request: (email) => ({ url: '/api/email-free', query: { email } }), error: (body) => !body.free && 'Taken' } }` (on blur; a submit waits for it; `f.email.pending`). Tests: `t.simulateEvent('[name="email"]', 'input', { value })`, `'focusout'`, `'submit'` on the form; `t.state.form.fields.email.error`. Guide: https://sygnal.js.org/guide/forms/
+```
+
+Line count: 6 with the heading (5 bullets). It relies on the Behaviors section (`uses`, namespaced actions, host entries run after the behavior's) and the reply-action facts (`ok`/`error`), so it doesn't repeat them.
+
+**SKILL.md** (≈ 150 B, if Phase 4 makes room): "Form with validation → `uses = { form: form(schema, { values, submit }) }`, inputs by `name`, `state.form.fields.x.error` (guide: forms); helpers only when the behavior doesn't fit."

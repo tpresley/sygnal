@@ -32,6 +32,8 @@
  * | SYG660 | widget mount / update / unmount threw (660/661/662)    | widgets.ts     |
  * | SYG125 | control given component statics / bad spec vnode()     | controls.ts    |
  * | SYG127 | behavior key in initialState / unresolvable uses entry | behaviors.ts   |
+ * | SYG230 | form: field name not in values; SYG231 not a Standard Schema; SYG232 submit dropped (info); SYG233 value missing from the schema output | forms.ts |
+ * | SYG234 | form submit action has no model entry; SYG235 check names an unknown field / sets reply fields; SYG236 rows without an id | forms.ts |
  * | SYG116 | EVENTS value with no string type (a function)          | events.ts      |
  * | SYG130 | href() names no route / leaves out a param             | router.ts      |
  * | SYG131 | route params the pattern doesn't use                   | router.ts      |
@@ -75,6 +77,7 @@ import {controlsCheck, installControlHooks} from './controls'
 import {elementCommandsCheck, installElementCommandHooks} from './elementCommands'
 import {installWidgetHooks} from './widgets'
 import {behaviorsCheck} from './behaviors'
+import {formsCheck, installFormHooks} from './forms'
 import {datasetCheck} from './dataset'
 import {strictCheck} from './strict'
 import {repliesCheck} from './replies'
@@ -109,6 +112,7 @@ export const checks: DiagnosticCheck[] = [
   controlsCheck,
   elementCommandsCheck,
   behaviorsCheck,
+  formsCheck,
   datasetCheck,
   strictCheck,
   repliesCheck,
@@ -138,6 +142,7 @@ export function installChecks(): () => void {
   const uninstallTimers = installTimerHooks()
   const uninstallElementCommands = installElementCommandHooks()
   const uninstallWidgets = installWidgetHooks()
+  const uninstallForms = installFormHooks()
   // PLAN-4.6 R4: the core reads its hooks from the bridge once per app (checks/next.ts)
   ;(core.layers ||= new Set()).add(nextHooks)
   const uninstall = () => {
@@ -150,6 +155,7 @@ export function installChecks(): () => void {
     uninstallTimers()
     uninstallElementCommands()
     uninstallWidgets()
+    uninstallForms()
     if (core.__uninstallChecks === uninstall) core.__uninstallChecks = undefined
   }
   core.__uninstallChecks = uninstall

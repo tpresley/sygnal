@@ -595,6 +595,90 @@
     "docsUrl": "https://sygnal.js.org/reference/errors#syg226"
   },
   {
+    "code": "SYG230",
+    "title": "Form field name not in values",
+    "severity": "warn",
+    "strict": false,
+    "reportedBy": [
+      "dev-entry"
+    ],
+    "explanation": "The `form` behavior hears `input` and `focusout` on its form element and reads the event target's `name` as a path in `values` (`email`, `addresses.7.city` for the row with id 7). A named field inside the form whose name is not a field of `values` is ignored: its value never reaches `state.form` and it is never validated. It is usually a typo, a renamed field, a row name built with the index instead of the row's `id`, or an input that belongs to something else (a search box) placed inside the form element. Reported once per name; fields without a `name` are skipped silently.",
+    "fix": "Name the input after a path in `values` (`name=\"email\"`, or `name={f.email.name}` from `state.form.fields`), add the field to `values`, or move the unrelated input out of the form element.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg230"
+  },
+  {
+    "code": "SYG231",
+    "title": "form() schema is not a Standard Schema",
+    "severity": "error",
+    "strict": false,
+    "reportedBy": [
+      "dev-entry"
+    ],
+    "explanation": "`form(schema, options)` validates with any Standard Schema (https://standardschema.dev): an object with `~standard.validate`, which zod (3.24+), valibot (1.0+), arktype and others provide. Anything else (a plain object of rules, a validator function, an older library's schema with only `parse`) can't validate, so `form()` throws when it is called, with this code in dev; in production the first validation throws a plain TypeError.",
+    "fix": "Pass a Standard Schema object: `form(z.object({ email: z.string().email() }), { ... })`, `form(v.object({ ... }), { ... })`, or a hand-written `{ '~standard': { version: 1, vendor: 'app', validate: (values) => ({ value }) | ({ issues: [{ message, path }] }) } }`.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg231"
+  },
+  {
+    "code": "SYG232",
+    "title": "Form submit dropped while one is in progress",
+    "severity": "info",
+    "strict": false,
+    "reportedBy": [
+      "dev-entry"
+    ],
+    "explanation": "A `form.SUBMIT` (the form element's submit, or `simulateAction('form.SUBMIT')`) arrived while `state.form.submitting` was true (a valid submit was dispatched and neither `form.DONE` nor `form.ERRORS` has answered it), or while a submit was queued waiting for an async `check`. The form drops it, so a double click never sends twice. Info only: it is how the form protects the submit, but a form that never leaves `submitting` usually means the host's submit action doesn't answer with `form.DONE` / `form.ERRORS`.",
+    "fix": "Disable the submit button while `state.form.submitting` is true, and answer the submit action with reply actions: `SIGN_UP: { HTTP: (state, values) => ({ url, json: values, ok: 'form.DONE', error: 'form.ERRORS' }) }`.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg232"
+  },
+  {
+    "code": "SYG233",
+    "title": "Form value missing from the schema output",
+    "severity": "warn",
+    "strict": false,
+    "reportedBy": [
+      "dev-entry"
+    ],
+    "explanation": "On a valid submit the form dispatches the `submit` action with the schema's output (trimmed, transformed values), not with `state.form.values`. A top-level key of `values` that the output doesn't have was stripped by the schema, usually because the schema doesn't declare it (`z.object()` and `v.object()` drop unknown keys), so the submit action never gets that field. Reported once per key.",
+    "fix": "Declare the field in the schema, make the schema keep unknown keys (`z.looseObject`, `v.looseObject`), or remove the field from `values` if it isn't part of the form.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg233"
+  },
+  {
+    "code": "SYG234",
+    "title": "Form submit action has no model entry",
+    "severity": "warn",
+    "strict": false,
+    "reportedBy": [
+      "dev-entry"
+    ],
+    "explanation": "`form(schema, { submit: 'SIGN_UP' })` dispatches the host action named by `submit` with the schema's output when a submit is valid. When the option is missing, or the host component has no model entry of that name, a valid submit does nothing visible: `state.form.submitting` turns true and stays true. Naming one of the form's own actions (`'SUBMIT'`, `'DONE'`, ...) dispatches that form action instead (`'form.SUBMIT'`) and loops. Reported when the component is created.",
+    "fix": "Name a host action and add it to the model: `submit: 'SIGN_UP'` with `SIGN_UP: { HTTP: (state, values) => ({ url: '/api/signup', method: 'POST', json: values, ok: 'form.DONE', error: 'form.ERRORS' }) }`.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg234"
+  },
+  {
+    "code": "SYG235",
+    "title": "Form check names an unknown field or sets reply fields",
+    "severity": "warn",
+    "strict": false,
+    "reportedBy": [
+      "dev-entry"
+    ],
+    "explanation": "`check: { email: { request, error } }` runs an async check for a field through a driver: the form sends `request(value)` with its own reply action (`ok`/`error` set to `'form.CHECKED_email'`) and `latest: true`, so a newer value's check replaces an older one. A `check` key that isn't a field of `values` never runs (reported when the component is created), and a request that sets `ok`, `error` or `latest` has them replaced by the form's (reported when the check runs).",
+    "fix": "Use a field name from `values` as the key, and return only the request from `request`: `check: { email: { request: (email) => ({ url: '/api/email-free', query: { email } }), error: (body) => !body.free && 'Taken' } }`.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg235"
+  },
+  {
+    "code": "SYG236",
+    "title": "Form array rows without an id",
+    "severity": "warn",
+    "strict": false,
+    "reportedBy": [
+      "dev-entry"
+    ],
+    "explanation": "Field arrays name their fields by row id (`addresses.7.city`), so errors, touched state, server errors and focus stay with a row when another row is removed. An array of objects in `values` whose rows have no `id` falls back to the index, and after a removal the next row inherits the removed row's errors and touched state. `form.ADD` gives new rows the next id itself; the start values need ids too. Reported when the component is created.",
+    "fix": "Give each row a unique `id` in `values`: `addresses: [{ id: 1, street: '', city: '' }]`, render rows with a Collection, and name their inputs `addresses.${state.id}.city`.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg236"
+  },
+  {
     "code": "SYG301",
     "title": "RxJS operator used on an xstream stream",
     "severity": "error",

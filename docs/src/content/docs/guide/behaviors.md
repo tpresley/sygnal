@@ -5,7 +5,7 @@ description: Reusable state, intent and model with defineBehavior and the uses s
 
 A **behavior** is a piece of state, intent and model that several components share: a pager, a selection, an undo history, a disclosure. A component lists the behaviors it uses in its `uses` static, each under a state key. The behavior then runs on that slice of the component's state, and its actions are named after the key (`pager.NEXT`).
 
-Sygnal ships three behaviors: [`pager`](#pager), [`selection`](#selection) and [`undo`](/advanced/undo/). You write your own with [`defineBehavior`](#writing-a-behavior).
+Sygnal ships four behaviors: [`pager`](#pager), [`selection`](#selection), [`undo`](/advanced/undo/) and [`form`](/guide/forms/). You write your own with [`defineBehavior`](#writing-a-behavior).
 
 ## Using a behavior
 
@@ -117,6 +117,10 @@ Read the selection with `isSelected(state.sel, id)`. Ids compare as strings, so 
 ### Undo
 
 `undo({ key: 'doc' })` records the changes to `state.doc` and adds `history.UNDO` and `history.REDO`. See [Undo and Redo](/advanced/undo/).
+
+### Form
+
+`form(schema, { values, submit })` is a form with validation: `state.form` holds the values, errors and touched fields, the fields inside the form element are matched by `name`, and a valid submit dispatches the `submit` action with the validated values. See [Forms](/guide/forms/).
 
 ## Writing a behavior
 

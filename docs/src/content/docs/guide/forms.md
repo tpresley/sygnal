@@ -1,11 +1,331 @@
 ---
-title: Forms & Focus
-description: Form handling and focus management
+title: Forms
+description: Forms with validation (the form behavior), field arrays, async checks, server errors, testing, labels, controlled inputs and focus
 ---
 
-## Form Handling
+A form with validation is one [behavior](/guide/behaviors/): `form(schema, options)` in the component's `uses`. It keeps the values, errors and touched fields in `state.form`, validates with any [Standard Schema](https://standardschema.dev) validator (zod, valibot, arktype, or your own object), and handles the submit: on an invalid submit it shows every error and focuses the first invalid field; on a valid one it dispatches your action with the validated values. Field arrays, async checks (is this email taken?) and server errors are covered too. Sygnal has no validator dependency.
 
-Sygnal provides `processForm()` to simplify working with HTML forms:
+## A form with validation
+
+```jsx
+import { form } from 'sygnal'
+import { z } from 'zod'
+
+const signupSchema = z.object({
+  name: z.string().trim().min(1, 'Enter your name'),
+  email: z.string().trim().toLowerCase().email('Enter a valid email address'),
+  password: z.string().min(8, 'Use at least 8 characters'),
+})
+
+function Signup({ state, uid }) {
+  const f = state.form.fields
+  return (
+    <form className="signup" noValidate>
+      <label for={uid('name')}>Name</label>
+      <input id={uid('name')} name="name" value={f.name.value} aria-invalid={f.name.invalid} aria-describedby={uid('name-error')} />
+      <p id={uid('name-error')}>{f.name.error}</p>
+
+      <label for={uid('email')}>Email</label>
+      <input id={uid('email')} name="email" type="email" value={f.email.value} aria-invalid={f.email.invalid} aria-describedby={uid('email-error')} />
+      <p id={uid('email-error')}>{f.email.error}</p>
+
+      <label for={uid('password')}>Password</label>
+      <input id={uid('password')} name="password" type="password" value={f.password.value} aria-invalid={f.password.invalid} aria-describedby={uid('password-error')} />
+      <p id={uid('password-error')}>{f.password.error}</p>
+
+      <p role="alert">{state.form.error}</p>
+      <button type="submit" disabled={state.form.submitting}>{state.form.submitting ? 'Signing up…' : 'Sign up'}</button>
+    </form>
+  )
+}
+
+Signup.uses = {
+  form: form(signupSchema, { values: { name: '', email: '', password: '' }, submit: 'SIGN_UP' }),
+}
+
+Signup.model = {
+  SIGN_UP: { HTTP: (state, values) => ({ url: '/api/signup', method: 'POST', json: values, ok: 'form.DONE', error: 'form.ERRORS' }) },
+}
+```
+
+That is the whole wiring: there is no intent for the fields.
+
+- **Fields are matched by `name`.** The behavior listens for `input`, `focusout` and `submit` on the form element (`form` option, default `'form'`), so every field inside it with a `name` that is a path in `values` is controlled: `value={f.email.value}` stays in sync as the user types. Fields of child components and Collection items inside the form element count too ([field arrays](#field-arrays)).
+- **`state.form.fields[name]`** is what the view needs for each field: `value`, `error` (the message to show, `''` for none), `invalid` (`!!error`, for `aria-invalid`), `touched`, `dirty` and `pending` (an [async check](#async-checks) is running), plus `name`.
+- **When errors show**: every change is validated, but a field's schema error shows once the field has lost focus (`show: 'blur'`, the default), or while typing (`show: 'input'`), or only after a submit (`show: 'submit'`). After the first submit every error shows. Server and check errors show at once.
+- **An invalid submit** shows every error, focuses the first invalid field in page order and sends nothing.
+- **A valid submit** dispatches the `submit` action (`SIGN_UP`) with the schema's output: the trimmed, transformed values (`email` lower-cased here), not the raw ones. `state.form.submitting` is `true` until the host answers with `form.DONE` (saved) or `form.ERRORS` ([server errors](#server-errors)); a second submit meanwhile is dropped, so a double click sends once.
+- **Labels and errors**: each field has a label and its error text is linked with `aria-describedby`, with ids from [`uid()`](#labels-and-ids-uid), so the form passes the [accessibility checks](/guide/accessibility/). `aria-invalid={f.email.invalid}` renders `"true"` or `"false"`.
+
+Reserve the height of the error lines in your CSS (`min-height`). A field's error appears when it loses focus, which happens on the mouse*down* of a click elsewhere: if the new line pushes the button down before the mouse*up*, the click is lost.
+
+### Any Standard Schema
+
+`form()` takes any object with `~standard.validate`: zod (3.24 and later), valibot (1.0 and later), arktype, or one you write. A schema's issue paths become field names, and an issue without a path is a form-level message (`state.form.error`, shown after a submit):
+
+```js
+const EMAIL = /^\S+@\S+\.\S+$/
+
+export const signupSchema = {
+  '~standard': {
+    version: 1,
+    vendor: 'my-app',
+    validate(values) {
+      const issues = []
+      if (!values.name.trim()) issues.push({ message: 'Enter your name', path: ['name'] })
+      if (!EMAIL.test(values.email)) issues.push({ message: 'Enter a valid email address', path: ['email'] })
+      return issues.length ? { issues } : { value: { ...values, email: values.email.trim().toLowerCase() } }
+    },
+  },
+}
+```
+
+An async schema (valibot's `pipeAsync`, zod's async refinements) works too: `state.form.validating` is `true` while it runs, and a submit waits for it. Something that isn't a Standard Schema is [SYG231](/reference/errors/#syg231).
+
+### The slice, the options and the actions
+
+`state.form` holds:
+
+| Field | |
+|---|---|
+| `values`, `initial` | The current values, and the ones the form started with (or was last saved or reset with) |
+| `errors` | Every current schema error by field name, shown or not |
+| `touched`, `server`, `remote`, `pending` | Blurred fields; [server errors](#server-errors); [check](#async-checks) results; checks running |
+| `submitting`, `submitted`, `submitCount`, `queued`, `validating` | Submit state: sent and not answered yet; `form.DONE` arrived; attempts; waiting for a check; an async schema runs |
+| `fields`, `valid`, `dirty`, `error` | Calculated: per-field view data; no errors; values differ from `initial`; the form-level message |
+
+The options:
+
+| Option | |
+|---|---|
+| `values` | The start values. Field names are paths in it: `email`, `address.city`, and `addresses.7.city` for the row with `id` 7 |
+| `submit` | The host action a valid submit dispatches with the schema's output ([SYG234](/reference/errors/#syg234) when the model has no such entry) |
+| `check` | [Async checks](#async-checks) by field name |
+| `show` | `'blur'` (default), `'input'` or `'submit'`: when a schema error shows |
+| `form` | The form element's selector, default `'form'` |
+| `http` | The driver sink the checks' requests go to, default `'HTTP'` |
+
+The actions, named after the `uses` key (`form.CHANGE` for `uses = { form: … }`):
+
+| Action | Data |
+|---|---|
+| `form.CHANGE` | `{ name, value }`: from the form element's `input` events (a checkbox gives `checked`) |
+| `form.BLUR` | The field name, from `focusout` |
+| `form.SUBMIT` | From the form element's `submit` (default prevented) |
+| `form.ADD` / `form.REMOVE` | `{ field, value }` / `{ field, id }`: [field array](#field-arrays) rows |
+| `form.ERRORS` | Server errors: an error reply or a map |
+| `form.DONE` | The submit was saved: `initial` becomes `values`, `submitted` turns on |
+| `form.RESET` | Back to `initial`, or to the values given |
+
+As for any behavior, a host model entry with the same name runs after the form's: `'form.DONE': (state) => ({ ...state, done: true })` shows a confirmation. Trigger an action from elsewhere with an intent action of that name, or `t.simulateAction('form.RESET')` in a test.
+
+## Field arrays
+
+Rows of an array of objects are named by their `id`, not their position: `addresses.7.city`. So a row's errors, touched state and focus stay with it when another row is removed. Render the rows with a [Collection](/guide/collections/), pass `fields` down, and add and remove rows with `form.ADD` and `form.REMOVE`:
+
+```jsx
+import { Collection, form } from 'sygnal'
+import { signupSchema } from './schema.js'
+
+function Address({ state, fields, uid }) {
+  const city = fields[`addresses.${state.id}.city`]
+  return (
+    <div className="address">
+      <label for={uid('city')}>City</label>
+      <input id={uid('city')} name={city.name} value={city.value} aria-invalid={city.invalid} aria-describedby={uid('city-error')} />
+      <p id={uid('city-error')}>{city.error}</p>
+      <button type="button" className="remove">Remove address</button>
+    </div>
+  )
+}
+
+Address.intent = ({ DOM }) => ({ REMOVE: DOM.click('.remove') })
+Address.model = { REMOVE: { PARENT: (state) => ({ field: 'addresses', id: state.id }) } }
+
+function Signup({ state, uid }) {
+  const f = state.form.fields
+  return (
+    <form className="signup" noValidate>
+      <label for={uid('email')}>Email</label>
+      <input id={uid('email')} name="email" type="email" value={f.email.value} aria-invalid={f.email.invalid} aria-describedby={uid('email-error')} />
+      <p id={uid('email-error')}>{f.email.error}</p>
+      <fieldset aria-describedby={uid('addresses-error')}>
+        <legend>Addresses</legend>
+        <Collection of={Address} from={{ get: (s) => s.form.values.addresses }} fields={f} />
+        <p id={uid('addresses-error')}>{f.addresses.error}</p>
+        <button type="button" className="add-address">Add address</button>
+      </fieldset>
+      <button type="submit" disabled={state.form.submitting}>Sign up</button>
+    </form>
+  )
+}
+
+Signup.uses = {
+  form: form(signupSchema, { values: { email: '', addresses: [{ id: 1, city: '' }] }, submit: 'SIGN_UP' }),
+}
+
+Signup.intent = ({ DOM, CHILD }) => ({
+  'form.ADD': DOM.click('.add-address').mapTo({ field: 'addresses', value: { city: '' } }),
+  'form.REMOVE': CHILD.select(Address),
+})
+
+Signup.model = {
+  SIGN_UP: { HTTP: (state, values) => ({ url: '/api/signup', method: 'POST', json: values, ok: 'form.DONE', error: 'form.ERRORS' }) },
+}
+```
+
+- The Collection reads the rows through a read-only lens (`from={{ get }}`): rows don't write their own state, the form does, because the row's inputs are inside the form element.
+- `form.ADD` appends `{ id, ...value }` with the next free id. Start values need ids too ([SYG236](/reference/errors/#syg236)).
+- The array itself is a field (`f.addresses`), for an array-level error such as "Add at least one address" (`z.array(…).min(1, …)`).
+- A failed submit focuses the first invalid field even inside a row.
+
+## Async checks
+
+Some checks need the server: is this email address taken? `check` names a field and the request that checks it. The request goes to the `HTTP` driver ([`makeFetchDriver`](/guide/http/)) with a reply action the form handles, and `latest: true`, so a check for a newer value replaces the older one:
+
+```jsx
+import { form } from 'sygnal'
+import { signupSchema } from './schema.js'
+
+function Signup({ state, uid }) {
+  const f = state.form.fields
+  return (
+    <form className="signup" noValidate>
+      <label for={uid('email')}>Email</label>
+      <input id={uid('email')} name="email" type="email" value={f.email.value} aria-invalid={f.email.invalid} aria-describedby={uid('email-error')} />
+      <p id={uid('email-error')}>{f.email.pending ? 'Checking…' : f.email.error}</p>
+      <button type="submit" disabled={state.form.submitting}>Sign up</button>
+    </form>
+  )
+}
+
+Signup.uses = {
+  form: form(signupSchema, {
+    values: { email: '' },
+    submit: 'SIGN_UP',
+    check: {
+      email: {
+        request: (email) => ({ url: '/api/email-available', query: { email } }),
+        error: (body) => !body.available && 'This email is already registered',
+      },
+    },
+  }),
+}
+
+Signup.model = {
+  SIGN_UP: { HTTP: (state, values) => ({ url: '/api/signup', method: 'POST', json: values, ok: 'form.DONE', error: 'form.ERRORS' }) },
+}
+```
+
+- A field is checked when it loses focus, once per value, and only when its schema error is clear and it isn't empty. `error(body)` turns the reply into a message, or a falsy value when the value is fine.
+- A submit while a check runs (or before a field was ever checked) waits for it: `state.form.queued` is `true`, and the submit goes on once every check passed, or stops and focuses the field whose check failed. Checks for several fields run one after the other.
+- Editing the field drops its check: a late reply for the old value is ignored. Editing any field cancels a queued submit.
+- A check that fails (network error, 500) doesn't block the form: the server validates again on submit.
+
+## Server errors
+
+The server has the last word. Answer the submit with `error: 'form.ERRORS'` and the form puts the reply's errors on the fields, shows them at once and focuses the first one:
+
+```json
+{ "errors": { "password": "Too common", "addresses.1.city": "Unknown city" } }
+```
+
+`form.ERRORS` accepts an error reply whose body is `{ errors: { name: message } }` (a message or a list of messages per field), the map itself, or a list of `{ path, message }` issues (index paths become row ids). A message for a name that isn't a field (`{ "message": "Down for maintenance" }`) becomes the form-level `state.form.error`, and a reply with no message at all (a network error, an empty body) shows "Request failed (500)". Editing a field clears its server error, and the form-level one.
+
+## Saving and resetting
+
+`form.DONE` marks the submit saved: `submitting` turns off, `submitted` on, and the saved values become `initial` (so `dirty` is `false` again). `form.RESET` goes back to `initial`, or to the values it is given (`t.simulateAction('form.RESET', values)`, or an intent action `'form.RESET': DOM.click('.reset')`); it clears errors, touched fields and the submit count.
+
+## Testing
+
+Simulate events on the fields by name; the form's actions show in `t.actions`:
+
+```jsx
+import { renderComponent } from 'sygnal'
+import { it, expect } from 'vitest'
+import Signup from './Signup.jsx'
+
+it('validates, checks the email, and posts the cleaned values', async () => {
+  const t = renderComponent(Signup, { strict: true })
+  await t.ready()
+  t.simulateEvent('[name="email"]', 'input', { value: 'nope' })
+  t.simulateEvent('[name="email"]', 'focusout')
+  await t.settle()
+  expect(t.state.form.fields.email.error).toBe('Enter a valid email address')
+
+  t.simulateEvent('[name="email"]', 'input', { value: 'Ada@Example.com' })
+  t.simulateEvent('[name="email"]', 'focusout')
+  await t.settle()
+  expect(t.requests('HTTP').at(-1)).toMatchObject({ url: '/api/email-available' })
+  await t.respond('HTTP', { available: true })
+
+  t.simulateEvent('.signup', 'submit')
+  await t.settle()
+  expect(t.requests('HTTP').at(-1)).toMatchObject({ url: '/api/signup', json: { email: 'ada@example.com' } })
+  await t.fail('HTTP', { status: 422, body: { errors: { email: 'Already registered' } } })
+  expect(t.state.form.fields.email.error).toBe('Already registered')
+  t.expectNoDiagnostics()
+})
+```
+
+- `t.state.form.fields[name]` is what the view shows; `t.query('[name="email"]').getAttribute('aria-invalid')` checks the markup.
+- The focus on a failed submit is an [element command](/guide/element-commands/): `t.commands('ELEMENT').at(-1).focus.within` is the selector of the invalid fields on the default mock DOM; with `renderComponent(Signup, { dom: 'real' })` the field is focused (`document.activeElement`).
+- Answer checks and the submit with `t.respond('HTTP', body)` and `t.fail('HTTP', { status, body })`.
+
+## Without the behavior: the helpers
+
+The behavior covers the common form. When a form needs its own state layout or flow, write the actions yourself and use the functions the behavior is built on; each is a pure function for a reducer:
+
+| Helper | |
+|---|---|
+| `checkForm(schema, values)` | `{ errors, value }`: errors by field name and the schema's output; a Promise for an async schema |
+| `formErrors(schema, values)` | Only the errors (`{}` when valid) |
+| `setField(values, name, value)`, `getField(values, name)` | Immutable set and get by field name (rows by id) |
+| `fieldName(values, path)`, `fieldNames(values)` | An issue path as a field name; every field name of `values` |
+| `replyErrors(reply, values?)` | Server errors (a reply, a map or a list of issues) as field errors |
+| `focusInvalid(errors)` | An `ELEMENT` command that focuses the first field with an error, children included; `ABORT` when there is none |
+
+```jsx
+import { formErrors, setField, focusInvalid, ABORT } from 'sygnal'
+import { profileSchema } from './schema.js'
+
+function Profile({ state }) {
+  return (
+    <form className="profile" noValidate>
+      <label>Display name <input name="name" value={state.values.name} /></label>
+      <p>{state.submitted ? state.errors.name : ''}</p>
+      <button type="submit">Save</button>
+    </form>
+  )
+}
+
+Profile.initialState = { values: { name: '' }, errors: formErrors(profileSchema, { name: '' }), submitted: false }
+
+Profile.intent = ({ DOM }) => ({
+  CHANGE: DOM.select('.profile').events('input').map((e) => ({ name: e.target.name, value: e.target.value })),
+  SUBMIT: DOM.select('.profile').events('submit', { preventDefault: true }),
+})
+
+Profile.model = {
+  CHANGE: (state, { name, value }) => {
+    const values = setField(state.values, name, value)
+    return { ...state, values, errors: formErrors(profileSchema, values) }
+  },
+  SUBMIT: {
+    STATE: (state) => ({ ...state, submitted: true }),
+    ELEMENT: (state) => focusInvalid(state.errors),
+    HTTP: (state) => (Object.keys(state.errors).length ? ABORT : { url: '/api/profile', method: 'PUT', json: state.values }),
+  },
+}
+```
+
+## Diagnostics
+
+With the dev checks on (the Vite plugin in dev, `renderComponent` in tests): [SYG230](/reference/errors/#syg230) a field inside the form whose name isn't in `values`, [SYG231](/reference/errors/#syg231) a schema that isn't a Standard Schema, [SYG232](/reference/errors/#syg232) a submit dropped while one is in progress (info), [SYG233](/reference/errors/#syg233) a value the schema strips from its output, [SYG234](/reference/errors/#syg234) a `submit` action the model doesn't have, [SYG235](/reference/errors/#syg235) a `check` for an unknown field, or a check request that sets `ok`/`error`/`latest`, and [SYG236](/reference/errors/#syg236) array rows without an `id`. `sygnal-check` knows `form`: an option typo is [SYG127](/reference/errors/#syg127), and fields inside the form element are not reported as uncontrolled ([SYG111](/reference/errors/#syg111)).
+
+## processForm()
+
+For a form without validation, `processForm()` reads every named field of a form element on its events:
 
 ```jsx
 import { processForm } from 'sygnal'
@@ -100,7 +420,7 @@ NewTodo.model = {
 }
 ```
 
-**Uncontrolled**: leave out `value`, and read the element's value from the event when you need it (on blur, Enter or submit), or with [`processForm()`](#form-handling):
+**Uncontrolled**: leave out `value`, and read the element's value from the event when you need it (on blur, Enter or submit), or with [`processForm()`](#processform):
 
 ```jsx
 import { ABORT } from 'sygnal'
