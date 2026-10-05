@@ -8,7 +8,7 @@ function Layout({ children, innerHTML }) {
     <div className="layout">
       <nav className="nav">
         <div className="nav-brand">
-          <img src="/favicon.svg" alt="Sygnal" className="nav-logo" />
+          <img src="/logo.svg" alt="Sygnal" className="nav-logo" />
           <strong>Sygnal + Vike</strong>
         </div>
         <div className="nav-links">

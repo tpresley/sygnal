@@ -50,7 +50,7 @@ const App: App = function ({ state }) {
 
       <header className="header">
         <div className="logo-row">
-          <img src="/favicon.svg" alt="Sygnal" className="logo" />
+          <img src="/logo.svg" alt="Sygnal" className="logo" />
           <div>
             <h1>Sygnal</h1>
             <p className="tagline">Reactive components with pure functions</p>
