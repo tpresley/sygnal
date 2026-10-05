@@ -101,7 +101,8 @@ export function specFields(node) {
   return out
 }
 
-export function analyzeTimers(project, file, node) {
+/** (`keys`: the spec keys that name actions; PLAN-5 B-3's `browser` static passes ['action', 'error'], and its specs aren't judged) */
+export function analyzeTimers(project, file, node, keys = null) {
   const res = { known: true, specs: [], targets: [], dynamic: [] }
   const r = resolveExpr(project, file, node)
   if (!r?.node) { res.known = false; res.dynamic.push({ node, file }); return res }
@@ -113,14 +114,14 @@ export function analyzeTimers(project, file, node) {
         const v = literal(s)
         if (v.known && !v.value) continue   // a stopped timer
         if (!v.known) { res.known = false; res.dynamic.push({ node: s, file: vfile }) }
-        res.specs.push({ name, nameNode, node: s, file: vfile, problem: specProblem(vfile, s) })
+        res.specs.push({ name, nameNode, node: s, file: vfile, problem: keys ? '' : specProblem(vfile, s) })
         continue
       }
-      res.specs.push({ name, nameNode, node: s, file: vfile, problem: specProblem(vfile, s) })
+      res.specs.push({ name, nameNode, node: s, file: vfile, problem: keys ? '' : specProblem(vfile, s) })
       for (const p of s.properties) {
         if (p.type === 'SpreadElement') { res.dynamic.push({ node: p, file: vfile }); continue }
         const k = propName(p)
-        if (k !== 'action' && k !== 'frame') continue
+        if (!(keys || ['action', 'frame']).includes(k)) continue
         const v = p.type === 'ObjectProperty' ? literal(p.value) : UNKNOWN
         if (v.known && typeof v.value === 'string' && v.value) res.targets.push({ name: v.value, key: k, node: p.value, file: vfile, timer: true })
         else if (!v.known) res.dynamic.push({ node: p.value || p, file: vfile })

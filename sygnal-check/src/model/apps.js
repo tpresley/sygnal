@@ -25,8 +25,8 @@ import { findBinding } from '../scope.js'
 import { resolveExpr } from './resolve.js'
 
 /** sygnal driver factories → the static their driver takes (src/extra/diagnostics/checks/timers.ts NEEDS) */
-export const STATIC_DRIVERS = { makeTimerDriver: 'timers', makeSocketDriver: 'connections', makeFetchDriver: 'resources' }
-const MENTIONS = /__sygnalStatic|\b(makeTimerDriver|makeSocketDriver|makeFetchDriver|timerDriver)\b/
+export const STATIC_DRIVERS = { makeTimerDriver: 'timers', makeSocketDriver: 'connections', makeFetchDriver: 'resources', makeBrowserDriverWith: 'browser', makeBrowserDriver: 'browser' }
+const MENTIONS = /__sygnalStatic|\b(makeTimerDriver|makeSocketDriver|makeFetchDriver|timerDriver|makeBrowserDriver|makeBrowserDriverWith|browserDriver)\b/
 
 const SYGNAL = /^sygnal(\/|$)/
 

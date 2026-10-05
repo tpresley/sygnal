@@ -8,7 +8,7 @@
  *                   judged: `{ every: state.ms, action: 'TICK' }` is left to the runtime.
  *   SYG643 (warn)   a component declares `timers` (or `connections`, `resources`), is rendered by an
  *                   app whose run() call registers no driver that takes that static
- *                   (makeTimerDriver(), makeSocketDriver(), makeFetchDriver()). Only when the run()
+ *                   (makeTimerDriver(), makeSocketDriver(), makeFetchDriver(), makeBrowserDriver()). Only when the run()
  *                   call is in the scanned files, its drivers are an object literal the checker can
  *                   list (model/apps.js), and the component is one the root renders: otherwise
  *                   nothing, so no false positives (renderComponent provides fakes; tests don't count).
@@ -16,8 +16,8 @@
 import { findApps, STATIC_DRIVERS } from '../model/apps.js'
 
 const DRIVER_OF = Object.fromEntries(Object.entries(STATIC_DRIVERS).map(([f, s]) => [s, `${f}()`]))
-const KEY = { timers: 'TIMER', connections: 'WS', resources: 'HTTP' }
-const EFFECT = { timers: 'its timers never run', connections: 'its connections never open', resources: 'its resources are never fetched' }
+const KEY = { timers: 'TIMER', connections: 'WS', resources: 'HTTP', browser: 'BROWSER' }
+const EFFECT = { timers: 'its timers never run', connections: 'its connections never open', resources: 'its resources are never fetched', browser: 'its browser sources never start' }
 
 function reportSpecs(project, report) {
   for (const comp of project.components) {

@@ -8,6 +8,7 @@ import {
 } from '../src/index.js'
 import { createElement as h } from '../src/pragma/index.js'
 import { setupChecks, diagnostics } from './diagnostics/helpers.js'
+import { replyNamesOf } from '../src/extra/diagnostics/checks/shared.js'
 
 const tick = (ms = 10) => new Promise(r => setTimeout(r, ms))
 let app
@@ -323,5 +324,11 @@ describe('dev checks', () => {
     expect(diagnostics('SYG664').map(d => [d.data.name, d.data.kind])).toEqual([['lacking', 'intersection']])
     expect(diagnostics('SYG665').map(d => [d.data.name, d.data.failure])).toEqual([['copy', { name: 'NotAllowedError', message: 'denied' }]])
     expect(diagnostics('SYG663')[0].component).toBe('C')
+  })
+
+  it('the action and error names a browser static declares are SYG102 triggers', () => {
+    const view = () => null
+    view.browser = (s) => ({ a: { media: '(x)', action: 'DARK' }, b: s.on && { geolocation: true, action: "POS", error: 'GEO_ERR' } })
+    expect([...replyNamesOf({ view, model: {} })].sort()).toEqual(['DARK', 'GEO_ERR', 'POS'])
   })
 })

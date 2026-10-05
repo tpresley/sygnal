@@ -49,10 +49,12 @@ import { scanFileEvents } from './events.js'
 import { resolveSelectorControls } from './controls.js'
 import { analyzeUses } from './behaviors.js'
 import { analyzeTimers } from './timers.js'
+
+const BROWSER_KEYS = ['action', 'error']
 import { analyzeCommands } from './elementCommands.js'
 
 // isolatedState: PLAN-4 4-G2 (static SYG405)
-export const STATIC_PROPS = ['intent', 'model', 'initialState', 'isolatedState', 'context', 'calculated', 'connections', 'resources', 'route', 'head', 'uses', 'timers', 'persist', 'viewTransitions']
+export const STATIC_PROPS = ['intent', 'model', 'initialState', 'isolatedState', 'context', 'calculated', 'connections', 'resources', 'route', 'head', 'uses', 'timers', 'persist', 'viewTransitions', 'browser']
 
 function parseSuppressions(ast) {
   const map = new Map()
@@ -230,6 +232,14 @@ export class Project {
       const conn = comp.connections || (comp.connections = { targets: [], dynamic: [] })
       conn.targets.push(...comp.timers.targets)
       conn.dynamic.push(...comp.timers.dynamic)
+    }
+    // PLAN-5 B-3: the action names a `browser` static dispatches (`action`, `error`: reply actions
+    // of the browser driver); its specs aren't judged statically (the dev entry's SYG663)
+    if (sp.browser) {
+      const b = analyzeTimers(this, file, sp.browser, BROWSER_KEYS)
+      const conn = comp.connections || (comp.connections = { targets: [], dynamic: [] })
+      conn.targets.push(...b.targets.map(t => ({ ...t, timer: false, browser: true })))
+      conn.dynamic.push(...b.dynamic)
     }
     if (sp.initialState) {
       const keys = this.objectKeys(file, sp.initialState)

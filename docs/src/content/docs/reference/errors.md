@@ -1868,9 +1868,9 @@ Severity: `warn` · Reported by: the Sygnal runtime (every app, production inclu
 
 Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`), `sygnal-check`
 
-A component declares `timers`, `connections` or `resources`, but no registered driver takes that static, so nothing happens and nothing else says so: the timers never fire, the connections never open, the resources stay idle. The core sends each of these statics to the source of the driver that asks for it (`makeTimerDriver()`, `makeSocketDriver()`, `makeFetchDriver()`), and the driver is opt-in: `run()` doesn't register it for you. `renderComponent` provides fakes for all three (the timer fake runs the real driver), so the warning only appears under `run()`. sygnal-check reports it statically when it finds the app's `run(App, drivers)` call, its drivers are an object literal it can read, and the component is rendered by `App`; otherwise it says nothing.
+A component declares `timers`, `connections`, `resources` or `browser`, but no registered driver takes that static, so nothing happens and nothing else says so: the timers never fire, the connections never open, the resources stay idle, the browser sources never start. The core sends each of these statics to the source of the driver that asks for it (`makeTimerDriver()`, `makeSocketDriver()`, `makeFetchDriver()`, `makeBrowserDriver()`), and the driver is opt-in: `run()` doesn't register it for you. `renderComponent` provides fakes for all four (the timer fake runs the real driver, the browser fake the real driver over fake sources), so the warning only appears under `run()`. sygnal-check reports it statically when it finds the app's `run(App, drivers)` call, its drivers are an object literal it can read, and the component is rendered by `App`; otherwise it says nothing.
 
-**Fix:** Register the driver when you start the app: `run(App, { TIMER: makeTimerDriver() })` for `timers`, `run(App, { WS: makeSocketDriver() })` for `connections`, `run(App, { HTTP: makeFetchDriver() })` for `resources` (the key is yours to choose; the core finds the driver by the static it takes).
+**Fix:** Register the driver when you start the app: `run(App, { TIMER: makeTimerDriver() })` for `timers`, `run(App, { WS: makeSocketDriver() })` for `connections`, `run(App, { HTTP: makeFetchDriver() })` for `resources`, `run(App, { BROWSER: makeBrowserDriver() })` for `browser` (the key is yours to choose; the core finds the driver by the static it takes).
 
 ### SYG644
 
@@ -1921,6 +1921,36 @@ Severity: `error` · Reported by: the Sygnal runtime (every app, production incl
 A widget's `unmount(instance, el)` threw when its host left the page. The host is removed anyway, but what `unmount` didn't finish (listeners on `document`, timers, observers) may keep running. The error goes to the app's `onError` hook with phase `'widget'`; there is no fallback to show, since the widget is gone. Without the dev entry it is logged as `[Sygnal SYG662]` followed by the error.
 
 **Fix:** Fix `unmount()`, for example by guarding a library's `destroy()` that throws when called twice or after its element was removed.
+
+### SYG663
+
+**Invalid browser-source spec or command**
+
+Severity: `error` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+An entry of a component's `browser` static can't be started, or a command sent to the browser driver's sink can't be run, so it is skipped and nothing would happen. A `browser` entry is an object whose first known key names its source (`intersection`, `resize`, `media`, `storage`, `visibility`, `online`, `geolocation`) and that names the action its events are delivered as (`action: 'SEEN'`, a string); `intersection` and `resize` take a selector in the component's own view, or `true` for its root element. A command's first key is its method: `copy`, `paste`, `setItem` or `removeItem` (those of the sources the driver was made with). Reported once per component, entry and spec.
+
+**Fix:** Write the entry as `seen: { intersection: '.cover', action: 'SEEN' }`, `dark: { media: '(prefers-color-scheme: dark)', action: 'DARK' }` (a falsy value stops it: `seen: !state.seen && { ... }`), and a command as `COPY: { BROWSER: (state) => ({ copy: state.link, ok: 'COPIED' }) }`. Clipboard reads and writes are commands, not `browser` entries.
+
+### SYG664
+
+**Browser source not in the driver**
+
+Severity: `error` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+A `browser` entry (or a BROWSER command) uses a source that the app's browser driver wasn't made with: `makeBrowserDriverWith(intersectionSource, mediaSource)` takes only the sources it is given, so that the others add no bytes, and an entry of any other kind is not started. `makeBrowserDriver()` has every source.
+
+**Fix:** Add the source to the driver, e.g. `makeBrowserDriverWith(intersectionSource, mediaSource, storageSource)`, or use `makeBrowserDriver()`.
+
+### SYG665
+
+**Browser source failed with no error action**
+
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+A browser source or command failed: the user denied the geolocation or clipboard permission, the API isn't available (no `navigator.clipboard` outside a secure context, no `navigator.geolocation`), the position timed out, or storage is blocked or full. Its spec names no `error` action, so the component never hears about it and keeps waiting. Reported once per component, entry and kind of failure.
+
+**Fix:** Name an `error` action and handle it: `here: { geolocation: true, action: 'POS', error: 'GEO_FAILED' }` with `GEO_FAILED: (state, { code, message }) => ...`, or `COPY: { BROWSER: (state) => ({ copy: state.link, ok: 'COPIED', error: 'COPY_FAILED' }) }` with `COPY_FAILED: (state, { name, message }) => ...`. Ask for permission-gated sources from a user action, and say why.
 
 ## SYG9xx: Internal
 

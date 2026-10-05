@@ -35,6 +35,8 @@ export default {
           ? { ...t, via: `${comp.name}.resources names '${t.name}' as its ${t.key} reply action` }
           : t.timer
           ? { ...t, via: `${comp.name}.timers names '${t.name}' as a timer action`, ticks: true }
+          : t.browser
+          ? { ...t, via: `${comp.name}.browser names '${t.name}' as ${t.key == 'error' ? 'its error action' : 'an action'}`, events: true }
           : { ...t, via: `${comp.name}.connections names '${t.name}' as its ${t.key} reply action`, conn: true }),
       ]
       const seen = new Set()
@@ -48,7 +50,7 @@ export default {
           component: comp.name,
           file: t.file,
           node: t.node,
-          message: `${t.via}, but ${comp.name} has no model entry '${t.name}', so ${t.conn ? 'those events are' : t.ticks ? 'its ticks are' : 'the reply is'} dropped` +
+          message: `${t.via}, but ${comp.name} has no model entry '${t.name}', so ${t.conn || t.events ? 'those events are' : t.ticks ? 'its ticks are' : 'the reply is'} dropped` +
             (near ? ` (did you mean '${near}'?)` : ''),
           fix: near
             ? `rename it to the existing entry: ${t.key}: '${near}'`
