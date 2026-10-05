@@ -1,0 +1,122 @@
+---
+title: Combobox
+description: An accessible autocomplete input (WAI-ARIA combobox) from sygnal/ui/zag, built on the Zag.js combobox machine
+---
+
+`Combobox` is a text input with a list of suggestions that narrows as the user types, following the [WAI-ARIA combobox pattern](https://www.w3.org/WAI/ARIA/apg/patterns/combobox/). Keyboard handling and the active option come from [Zag.js](https://zagjs.com)'s combobox machine, rendered with [`fromZag`](/guide/adapters/#zag-machines-fromzag). It is a [widget](/guide/widgets/) tag.
+
+```jsx
+import { Combobox } from 'sygnal/ui/zag'
+
+const CITIES = ['Amsterdam', 'Berlin', 'Lisbon', 'London', 'Paris', 'Prague']
+
+function Trip({ state }) {
+  return (
+    <div className="trip">
+      <Combobox className="city" label="City" items={CITIES} value={state.city} placeholder="Type a city" />
+      <p>{state.city ? `Going to ${state.city}` : ''}</p>
+    </div>
+  )
+}
+
+Trip.initialState = { city: null }
+Trip.intent = ({ DOM }) => ({
+  CITY: DOM.select('.city').events('value-change').detail(),
+})
+Trip.model = {
+  CITY: (state, city) => ({ ...state, city }),
+}
+```
+
+Typing `lo` leaves London in the list; Down and Enter pick it, the input shows "London", and `value-change` sends `'London'`.
+
+Install Zag's packages first (see [Menu](/ui/menu/#install)).
+
+## Filtering
+
+By default the list shows the items whose label contains the text, ignoring case. The filter text resets when the list closes, so the next open shows every item.
+
+- `filter={(item, text) => item.label.toLowerCase().startsWith(text.toLowerCase())}` replaces the test.
+- `filter={false}` turns it off: the app passes the items to show, from the `input-change` event. Use it for server-side search (with [`makeFetchDriver`](/guide/http/)):
+
+```jsx
+import { Combobox } from 'sygnal/ui/zag'
+
+function Search({ state }) {
+  return <Combobox className="user" label="User" items={state.matches} filter={false} placeholder="Search users" />
+}
+
+Search.initialState = { matches: [] }
+Search.intent = ({ DOM }) => ({
+  QUERY: DOM.select('.user').events('input-change').detail(),
+})
+Search.model = {
+  QUERY: { HTTP: (state, q) => ({ url: '/api/users', query: { q }, ok: 'MATCHES', error: 'FAILED', latest: true }) },
+  MATCHES: (state, users) => ({ ...state, matches: users.map((u) => ({ value: u.id, label: u.name })) }),
+  FAILED: (state) => ({ ...state, matches: [] }),
+}
+```
+
+## Props
+
+| Prop | | |
+|---|---|---|
+| `label` | | The visible label, linked to the input (its accessible name). Give every combobox one |
+| `items` | (required) | Strings, or `{ value, label, disabled }` objects |
+| `value` | | Controlled: the value (an array with `multiple`); `null` for none |
+| `defaultValue` | | The start value when `value` is left out |
+| `placeholder` | | The input's placeholder |
+| `filter` | contains | A function `(item, text) => boolean`, or `false` |
+| `allowCustomValue` | `false` | Keep text that matches no item when the input loses focus |
+| `openOnClick` | `false` | Open the list when the input is clicked |
+| `inputBehavior` | `'none'` | `'autohighlight'` highlights the first match; `'autocomplete'` also completes the text |
+| `selectionBehavior` | `'replace'` | What the input shows after a pick: `'replace'` (the label), `'clear'`, or `'preserve'` (the typed text). With `multiple`: `'clear'` |
+| `closeOnSelect` | `true` | With `multiple`: `false` |
+| `loopFocus` | `true` | The arrow keys wrap |
+| `multiple`, `name`, `form`, `disabled`, `readOnly`, `required`, `invalid`, `positioning`, `open` | | As in Zag's combobox |
+
+## Events and commands
+
+| Event | Detail |
+|---|---|
+| `value-change` | The value (with `multiple`: the array); `null` when cleared |
+| `input-change` | The text the user typed (not the label a pick writes) |
+| `open-change` | `true` / `false` |
+
+Commands for `ELEMENT`: `open`, `close`, `clear`, and `focus` (the input).
+
+## Keyboard
+
+| Key | |
+|---|---|
+| Typing | Filters the list and opens it |
+| Down / Up | Open the list; move the active option (`aria-activedescendant`, the focus stays in the input) |
+| Enter | Pick the active option |
+| Escape | Close the list |
+| Home / End | Move the caret in the input |
+
+## Styling
+
+Zag's data attributes: `[data-scope="combobox"]` with `[data-part="root"]`, `"label"`, `"control"`, `"input"`, `"trigger"`, `"positioner"`, `"content"`, `"item"`, `"item-text"` and `"item-indicator"`; `data-state`, `data-highlighted` and `data-disabled` as for [Select](/ui/select/#styling).
+
+## Testing
+
+```jsx
+import { it } from 'vitest'
+import { renderComponent } from 'sygnal'
+import Trip from './Trip.jsx'
+
+it('keeps the picked city', async () => {
+  const t = renderComponent(Trip)
+  await t.ready()
+  t.widget('.city').dispatch('value-change', 'Paris')
+  await t.next((state) => state.city === 'Paris')
+  t.dispose()
+})
+```
+
+Typing and filtering need a DOM: see [Menu](/ui/menu/#testing).
+
+## Size
+
+Gzipped, in a small app: Combobox adds **34 KB** (mostly Zag's combobox machine, its positioning and `@zag-js/vanilla`). With Menu and Select, the three add 47 KB together.

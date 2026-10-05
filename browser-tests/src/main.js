@@ -42,6 +42,7 @@ import { fixesTestsP5_1S } from './tests/fixes-p5-1s.jsx'
 import { virtualTestsP5V1 } from './tests/virtual-p5v1.jsx'
 import { uiTestsP5U } from './tests/ui-p5u.jsx'
 import { collectionViewTransitionTestsP5_2A } from './tests/collection-vt-p5-2a.jsx'
+import { uiZagTestsP5Z } from './tests/ui-zag-p5z.jsx'
 import { getResults } from './harness.js'
 
 async function runAll() {
@@ -93,6 +94,7 @@ async function runAll() {
     virtualTestsP5V1,
     uiTestsP5U,
     collectionViewTransitionTestsP5_2A,
+    uiZagTestsP5Z,
   ]
   for (const suite of suites) if (!only || suite.name.toLowerCase().includes(only.toLowerCase())) await suite()
 

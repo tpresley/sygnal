@@ -431,7 +431,15 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
       }, 0)
     },
 
-    transform(code: string, id: string, opts?: { ssr?: boolean }) {
+    transform(this: any, code: string, id: string, opts?: { ssr?: boolean }) {
+      // SYG666 (PLAN-5 W-2): an adapter entry imported without its optional peers; every mode
+      const adapters = adapterImports(code, id)
+      if (adapters) return checkPeers(this, adapters, id).then(() => devTransform.call(this, code, id, opts))
+      return devTransform.call(this, code, id, opts)
+    },
+  }
+
+  function devTransform(this: any, code: string, id: string, opts?: { ssr?: boolean }) {
       if (!isServe) return null
 
       // sygnal/astro/client (Astro islands): flags + checks first. It imports
@@ -512,7 +520,41 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
         return done(hmrBlock(componentPath, 'hmr', 'dispose'))
       }
       return done()
-    },
+  }
+}
+
+// PLAN-5 W-2 (D209): the adapter entries and the optional peer dependencies each one imports
+// (the Zag packages pinned together: they depend on each other's exact versions)
+const ZAG = '~1.45.0'
+const ADAPTER_PEERS: Record<string, string[]> = {
+  react: ['react', 'react-dom'],
+  zag: ['@zag-js/vanilla'],
+  'ui/zag': ['@zag-js/vanilla', '@zag-js/menu', '@zag-js/select', '@zag-js/combobox'],
+}
+const ADAPTER_RE = /(?:\bfrom|\bimport)\s*\(?\s*['"]sygnal\/(react|zag|ui\/zag)['"]/g
+
+/** The adapter entries an app module imports (statically or dynamically), or null */
+function adapterImports(code: string, id: string): string[] | null {
+  if (!code.includes('sygnal/') || id.includes('node_modules') || !/\.[cm]?[jt]sx?$/.test(cleanId(id))) return null
+  const found = new Set<string>()
+  for (const m of blankOut(code, false).matchAll(ADAPTER_RE)) found.add(m[1])
+  return found.size ? [...found] : null
+}
+
+/** SYG666: resolves each entry's peers from the importing module; reports the missing ones */
+async function checkPeers(ctx: any, entries: string[], id: string): Promise<void> {
+  for (const e of entries) {
+    const missing: string[] = []
+    for (const peer of ADAPTER_PEERS[e]) {
+      let r: any = null
+      try { r = await ctx.resolve(peer, id, { skipSelf: true }) } catch (_) {}
+      if (!r) missing.push(peer)
+    }
+    if (!missing.length) continue
+    const install = missing.map(m => (m.startsWith('@zag-js/') ? `${m}@${ZAG}` : m)).join(' ')
+    ctx.error(`[Sygnal SYG666] 'sygnal/${e}' needs ${missing.join(', ')}, which ${missing.length > 1 ? "aren't" : "isn't"} installed: npm install ${install}.` +
+      (e == 'react' ? " (For Preact: alias react, react-dom and react-dom/client to preact/compat.)" : '') +
+      ' https://sygnal.js.org/reference/errors#syg666')
   }
 }
 

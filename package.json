@@ -46,6 +46,21 @@
       "import": "./dist/ui.esm.js",
       "require": "./dist/ui.cjs.js"
     },
+    "./ui/zag": {
+      "types": "./src/ui-zag.d.ts",
+      "import": "./dist/ui-zag.esm.js",
+      "require": "./dist/ui-zag.cjs.js"
+    },
+    "./zag": {
+      "types": "./src/zag.d.ts",
+      "import": "./dist/zag.esm.js",
+      "require": "./dist/zag.cjs.js"
+    },
+    "./react": {
+      "types": "./src/react.d.ts",
+      "import": "./dist/react.esm.js",
+      "require": "./dist/react.cjs.js"
+    },
     "./shims/globalthis": "./dist/shims/globalthis.cjs",
     "./vite": {
       "types": "./src/vite/plugin.d.ts",
@@ -142,13 +157,49 @@
     "snabbdom": "^3.6.3",
     "xstream": "^11.14.0"
   },
+  "peerDependencies": {
+    "@zag-js/combobox": "~1.45.0",
+    "@zag-js/menu": "~1.45.0",
+    "@zag-js/select": "~1.45.0",
+    "@zag-js/vanilla": "~1.45.0",
+    "react": ">=18.0.0",
+    "react-dom": ">=18.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@zag-js/combobox": {
+      "optional": true
+    },
+    "@zag-js/menu": {
+      "optional": true
+    },
+    "@zag-js/select": {
+      "optional": true
+    },
+    "@zag-js/vanilla": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^25.0.4",
     "@rollup/plugin-node-resolve": "^15.2.1",
     "@rollup/plugin-terser": "^0.4.3",
     "@rollup/plugin-typescript": "^11.1.6",
+    "@zag-js/combobox": "1.45.0",
+    "@zag-js/dialog": "1.45.0",
+    "@zag-js/menu": "1.45.0",
+    "@zag-js/select": "1.45.0",
+    "@zag-js/vanilla": "1.45.0",
     "flatpickr": "4.6.13",
     "jsdom": "^29.1.1",
+    "preact": "11.0.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
     "rollup": "^3.28.1",
     "rollup-plugin-dts": "^6.1.1",
     "tslib": "^2.6.2",

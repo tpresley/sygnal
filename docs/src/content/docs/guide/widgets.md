@@ -187,4 +187,5 @@ The widget tag itself is not a selector: `DOM.select(DatePicker)` matches nothin
 
 - A **web component** (`<wa-rating>`, `<sl-dialog>`) is already an element: render its tag directly, no `defineWidget` needed ([Web components](/guide/web-components/)).
 - A **framework-agnostic library** (flatpickr, Chart.js, Tiptap, CodeMirror) is what `defineWidget` is for.
+- A **Zag.js machine** or a **React / Preact component** goes through an [adapter](/guide/adapters/) (`fromZag`, `fromReact`), which returns a widget tag. Adapters are an escape hatch for the one component you can't replace.
 - To publish a Sygnal component for other pages and frameworks, use `defineElement` from `sygnal/element` ([Publishing](/guide/web-components/#publishing-a-component-as-a-custom-element)).

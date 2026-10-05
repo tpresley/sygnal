@@ -17,6 +17,9 @@
       "sygnal/devtools": ["../src/devtools.d.ts"],
       "sygnal/element": ["../src/element.d.ts"],
       "sygnal/ui": ["../src/ui.d.ts"],
+      "sygnal/ui/zag": ["../src/ui-zag.d.ts"],
+      "sygnal/zag": ["../src/zag.d.ts"],
+      "sygnal/react": ["../src/react.d.ts"],
       "sygnal/astro": ["../src/astro/index.d.ts"],
       "xstream": ["../node_modules/xstream"],
       "xstream/*": ["../node_modules/xstream/*"]

@@ -84,3 +84,15 @@ View Transitions (`viewTransitions = ['MOVE']` + `makeViewTransitionDOMDriver`; 
 ```
 
 Line count: 0 (the existing line grows by ≈ 120 B). SKILL.md: nothing.
+
+## 2-Z: adapters and Zag parts (W-2, U-1; `sygnal/zag`, `sygnal/ui/zag`, `sygnal/react`, D202/D203)
+
+**One `llms.txt` line** (rank 3: guide pages reached from one pointer; after the 2-U line):
+
+```md
+- Menu / Select / Combobox (`import { Menu, Select, Combobox } from 'sygnal/ui/zag'`; needs `@zag-js/vanilla @zag-js/menu @zag-js/select @zag-js/combobox` ~1.45): widget tags, `<Select className="size" label="Size" items={['S', 'M']} value={state.size} />` + `SIZE: DOM.select('.size').events('value-change').detail()` (Menu: `'select'`; Combobox also `'input-change'`), commands `{ open: '.size' }`. Escape hatch for one React/Preact component or a Zag machine: `fromReact(Comp, { events: { rate: 'onChange' } })` (`sygnal/react`) / `fromZag(machine, render, { events })` (`sygnal/zag`) return widget tags; test them with `dom: 'real'`. Guides: https://sygnal.js.org/ui/menu/ (select, combobox), https://sygnal.js.org/guide/adapters/
+```
+
+Line count: 1. It names what agents would get wrong: the separate subpath (not `sygnal/ui`), the kebab event names (`value-change`, not `change`), `label` as the accessible name, and that the adapters are opt-in.
+
+**SKILL.md** (≈ 130 B, if Phase 4 makes room): "Menu/Select/Combobox → `sygnal/ui/zag` widget tags (events `select` / `value-change`); React or Zag component → `fromReact` / `fromZag` (guide: adapters)."

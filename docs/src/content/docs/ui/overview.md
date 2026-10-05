@@ -1,6 +1,6 @@
 ---
 title: UI Parts
-description: Headless dialogs, popovers, tooltips, tabs, accordions, disclosures and toasts from sygnal/ui, built on native HTML
+description: Headless dialogs, popovers, tooltips, tabs, accordions, disclosures and toasts from sygnal/ui, built on native HTML; menus, selects and comboboxes from sygnal/ui/zag, built on Zag.js
 ---
 
 `sygnal/ui` is a set of headless UI parts. Each part wires up what the browser already does well (`<dialog>`, the Popover API, CSS anchor positioning) and adds the state, keyboard handling and ARIA attributes it leaves out. The parts are unstyled: you write the markup and the CSS, and they give you class hooks and data attributes to style.
@@ -18,6 +18,11 @@ import { dialog, tabs, tabsAttrs, Toaster } from 'sygnal/ui'
 | [Accordion](/ui/accordion/) | A behavior + `accordionAttrs` | Your buttons and panels |
 | [Disclosure](/ui/disclosure/) | A behavior + `disclosureAttrs` | Your button and panel |
 | [Toaster](/ui/toaster/) | A component | `popover="manual"`, Collection, Transition, timers |
+| [Menu](/ui/menu/) | A widget tag, from `sygnal/ui/zag` | Zag.js's menu machine ([`fromZag`](/guide/adapters/#zag-machines-fromzag)) |
+| [Select](/ui/select/) | A widget tag, from `sygnal/ui/zag` | Zag.js's select machine |
+| [Combobox](/ui/combobox/) | A widget tag, from `sygnal/ui/zag` | Zag.js's combobox machine |
+
+Menu, Select and Combobox need keyboard and focus handling that the browser doesn't give: they run [Zag.js](https://zagjs.com) state machines, in `sygnal/ui/zag`, a subpath of their own. Zag is an optional peer dependency (`npm install @zag-js/vanilla@~1.45.0 @zag-js/menu@~1.45.0 @zag-js/select@~1.45.0 @zag-js/combobox@~1.45.0`), and `sygnal/ui` never needs it. They are [widget](/guide/widgets/) tags: `<Menu className="actions" label="Actions" items={ITEMS} />`, read with `DOM.select('.actions').events('select').detail()`.
 
 ## How the parts work
 
@@ -126,6 +131,10 @@ A module-level ref is shared by every instance; for a component rendered more th
 | Tabs, Accordion | about 1 KB each + `defineBehavior` |
 | Disclosure | 0.3 KB + `defineBehavior` |
 | Toaster | 1.1 KB + `makeTimerDriver` |
+| Menu (`sygnal/ui/zag`) | 33 KB, Zag included |
+| Select (`sygnal/ui/zag`) | 33 KB, Zag included |
+| Combobox (`sygnal/ui/zag`) | 34 KB, Zag included |
+| Menu + Select + Combobox | 47 KB (they share Zag's runtime and positioning) |
 
 ## Testing
 

@@ -251,6 +251,78 @@ export default [
 		]
   },
 
+  // PLAN-5 W-2 (D203, D209): the adapter entries. Their framework / Zag imports stay external
+  // (optional peerDependencies: an app that doesn't import the entry never needs them), and their
+  // core import becomes the external 'sygnal' (0 B in the core bundle, one core per app).
+  // 'sygnal/zag': fromZag (@zag-js/vanilla, a private snabbdom patch).
+  // 'sygnal/ui/zag': Menu, Select, Combobox on fromZag ('../../zag' → the external 'sygnal/zag',
+  // so an app using both ships fromZag once). 'sygnal/react': fromReact (react, react-dom).
+  {
+    input: 'src/zag.ts',
+    external: (id) => isExternal(id) || id === 'sygnal' || /^@zag-js\//.test(id),
+    output: [
+      { file: pkg.exports['./zag'].require, format: 'cjs', ...sourcemapOptions },
+      { file: pkg.exports['./zag'].import, format: 'es', ...sourcemapOptions }
+    ],
+		plugins: [
+			{
+				name: 'sygnal-zag-core-external',
+				resolveId(source, importer) {
+					if (source === './index' && importer && /[\\/]src[\\/]zag\.ts$/.test(importer)) {
+						return { id: 'sygnal', external: true }
+					}
+					return null
+				},
+			},
+			typescript({ tsconfig: './tsconfig.json' }),
+			resolve({ extensions: ['.mjs', '.js', '.ts', '.json'] }),
+		]
+  },
+
+  {
+    input: 'src/ui-zag.ts',
+    external: (id) => isExternal(id) || /^sygnal(\/zag)?$/.test(id) || /^@zag-js\//.test(id),
+    output: [
+      { file: pkg.exports['./ui/zag'].require, format: 'cjs', ...sourcemapOptions },
+      { file: pkg.exports['./ui/zag'].import, format: 'es', ...sourcemapOptions }
+    ],
+		plugins: [
+			{
+				name: 'sygnal-ui-zag-external',
+				resolveId(source, importer) {
+					if (!importer || !/[\\/]src[\\/]ui[\\/]zag[\\/]/.test(importer)) return null
+					if (source === '../../zag') return { id: 'sygnal/zag', external: true }
+					if (source === '../../index') return { id: 'sygnal', external: true }
+					return null
+				},
+			},
+			typescript({ tsconfig: './tsconfig.json' }),
+			resolve({ extensions: ['.mjs', '.js', '.ts', '.json'] }),
+		]
+  },
+
+  {
+    input: 'src/react.ts',
+    external: (id) => isExternal(id) || id === 'sygnal' || /^react(-dom)?(\/|$)/.test(id),
+    output: [
+      { file: pkg.exports['./react'].require, format: 'cjs', ...sourcemapOptions },
+      { file: pkg.exports['./react'].import, format: 'es', ...sourcemapOptions }
+    ],
+		plugins: [
+			{
+				name: 'sygnal-react-core-external',
+				resolveId(source, importer) {
+					if (source === './index' && importer && /[\\/]src[\\/]react\.ts$/.test(importer)) {
+						return { id: 'sygnal', external: true }
+					}
+					return null
+				},
+			},
+			typescript({ tsconfig: './tsconfig.json' }),
+			resolve({ extensions: ['.mjs', '.js', '.ts', '.json'] }),
+		]
+  },
+
   // sygnal/vite aliases xstream's `globalthis` dependency to this stub (G-099).
   // CommonJS: xstream require()s it. `exports: 'default'` → module.exports = fn.
   {
