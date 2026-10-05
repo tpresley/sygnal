@@ -45,7 +45,7 @@ It is the DOM driver that `run()` creates by default (it also takes the same opt
 - The value is a prefix, and must be a CSS identifier: letters, digits, `-` and `_`, not starting with a digit. The id is escaped to one: `row-42`, but an id with other characters gets them as their code (`'a b'` gives `row-a_32_b`, `'x_1'` gives `row-x_95_1`), so two ids never share a name.
 - Two Collections with the **same prefix** name the same item the same way: an item that moves from one to the other flies across. Give unrelated Collections different prefixes. A name must be unique on the page when the transition starts (the browser skips the whole transition otherwise), so the same id must not be in two Collections with the same prefix at once.
 - Items without an `id` (keyed by their index) get no name: they have no identity to move with. An item whose view returns a fragment, not one element, gets none either.
-- The item's own `style` wins: a `viewTransitionName` or `viewTransitionClass` set in its view replaces the Collection's.
+- The item's own `style` wins: a `viewTransitionName` or `viewTransitionClass` set in its view replaces the Collection's (an `undefined` one does not).
 - It is only a name. The animation runs when an action in a `viewTransitions` static changes the list (a reorder, a move, a removal), with the driver from `makeViewTransitionDOMDriver()`; other changes update the list at once. Server-side rendering renders the same names.
 - A [VirtualCollection](/guide/virtual-collections/) takes the same prop and names its rendered rows the same way; rows outside the window have no element, so only the rows in view animate.
 
