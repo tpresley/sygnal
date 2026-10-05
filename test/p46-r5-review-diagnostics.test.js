@@ -69,3 +69,24 @@ describe('G-332: resetChecks() forgets the definitions SYG612 has seen', () => {
     })
   }
 })
+
+describe("G-333: SYG425 ignores initialState keys whose value is undefined", () => {
+  function Ed({ state }) { return h('p', null, String(state.title)) }
+  Ed.isolatedState = true
+  it('a kept slice without `user` is fine when initialState has user: undefined', async () => {
+    Ed.initialState = { title: 'new', user: undefined }
+    function App() { return h('div', null, h(Ed, { state: 'doc' })) }
+    App.initialState = { doc: { title: 'kept' } }
+    start(App)
+    await sleep(20)
+    expect(codes('SYG425')).toEqual([])
+  })
+  it('a key with a value is still reported', async () => {
+    Ed.initialState = { title: 'new', body: '' }
+    function App() { return h('div', null, h(Ed, { state: 'doc' })) }
+    App.initialState = { doc: { title: 'kept' } }
+    start(App)
+    await sleep(20)
+    expect(codes('SYG425').map((d) => d.data.missing)).toEqual([['body']])
+  })
+})

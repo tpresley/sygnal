@@ -242,7 +242,8 @@ export function nextHooks(_api: any): any {
     },
     onStateSeed(iv: any, slice: any, init: any) {
       if (!on() || !isPlainObject(init) || !isPlainObject(slice)) return
-      const missing = Object.keys(init).filter(k => !(k in slice))
+      // G-333: a key initialState sets to undefined is no data the slice lacks
+      const missing = Object.keys(init).filter(k => init[k] !== undefined && !(k in slice))
       const name = iv.name
       if (!missing.length || !once(`SYG425:${name}:${missing.join(',')}`)) return
       const list = missing.map(k => `'${k}'`).join(', ')
