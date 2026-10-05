@@ -1,5 +1,6 @@
 import {setup} from '../cycle/run/index';
 import {withState} from '../cycle/state/index';
+import {start as startNext} from '../core/runtime';
 import {mockDOMSource} from '../cycle/dom/mockDOMSource';
 import {makeDOMDriver} from '../cycle/dom/makeDOMDriver';
 import {enrichEventStream} from '../cycle/dom/enrichEventStream';
@@ -1874,6 +1875,8 @@ export function renderComponent(
     onError,
     initialState: init,
   });
+  let started = false;
+  const nextCore = (globalThis as any).__SYGNAL_CORE__ === "next";
   const onEvents = (path: string[], type: string, on?: boolean) => {
     const k = path.join('\u0000');
     if (on === undefined) {
@@ -1883,7 +1886,8 @@ export function renderComponent(
       // G-039: subscribed / unsubscribed listeners (a just-mounted child subscribes late)
       const lk = k + '\u0000' + type;
       live.set(lk, (live.get(lk) || 0) + (on ? 1 : -1));
-      if (on) retry(0);
+      // (the next core subscribes the intent while starting, before retry exists: a microtask later)
+      if (on) started ? retry(0) : queueMicrotask(() => retry(0));
     }
   };
   // E4: the real DOM driver (as run() sets it up) patching into a fresh container
@@ -1996,15 +2000,28 @@ export function renderComponent(
   }
   let sources: any, sinks: any, rawDispose: () => void;
   try {
-    const p: any = setup(withState(app, 'STATE') as any, allDrivers);
-    ({sources, sinks} = p);
-    rawDispose = p.run();
+    if ((globalThis as any).__SYGNAL_CORE__ === 'next') {
+      // PLAN-4.6 R1 (internal, until R4 ports renderComponent onto the hooks): the next core runs
+      // the same root (the test intent, model, initial state and name) with the same drivers.
+      // The diagnostics-hook bookkeeping (t.actions, child fakes, SYG103/104 owners) is R4's
+      const p = startNext(componentDef, allDrivers, {
+        useDefaultDrivers: false, onError: options.onError,
+        __override: {intent: bare ? undefined : wrappedIntent, model: bare ? undefined : model, initialState: init, name: compName},
+      });
+      ({sources, sinks} = p);
+      rawDispose = () => {};
+    } else {
+      const p: any = setup(withState(app, 'STATE') as any, allDrivers);
+      ({sources, sinks} = p);
+      rawDispose = p.run();
+    }
   } catch (e) {
     restore();
     container?.remove();
     throw e;
   }
 
+  started = true;
   const subs: Array<[any, any]> = [];
   const listen = (s: any, next: (v: any) => void) => {
     const l = {next, error: noop, complete: noop};
@@ -2096,7 +2113,14 @@ export function renderComponent(
     }), () => disposed);
   };
   const readyWaiters = new Set<(e: Error) => void>();
-  const later = (go: Input['go'], missing?: Input['missing']) => { cursor = shown = undefined; inputs.push({go, missing}); pump(); };
+  const later = (go: Input['go'], missing?: Input['missing']) => {
+    cursor = shown = undefined;
+    // PLAN-4.6 R1 (next core): an input's STATE reducer is applied synchronously (D165), so the
+    // state it causes can be recorded before the test's next() call: next() starts at the input
+    if (nextCore) { cursor = states.length; arming++; cursorUsed = false; }
+    inputs.push({go, missing});
+    pump();
+  };
 
   let vtree: any;
   let timer: any;

@@ -66,4 +66,4 @@ parity('parity: generic statics (timers)', () => {
     await vi.advanceTimersByTimeAsync(210)
     expect(m.text('.pg')).toBe('5/10')
   })
-})
+}, 'R3')

@@ -1,9 +1,9 @@
-import { Collection } from 'sygnal'
 import { run } from 'sygnal'
 import '../../lib/next-core.js'
 import { COUNTERS } from '../../lib/data.js'
 
-// 1,000 independent counters; each is a component with its own intent/model (Collection item)
+// PLAN-4.6 R1: 1,000 counters as tag children (no Collection), each bound to its own state slice;
+// the same ops as counters.jsx (React's counters page is the same shape: a map of children)
 function Counter({ state }) {
   return (
     <div className="counter">
@@ -15,19 +15,23 @@ function Counter({ state }) {
 Counter.intent = ({ DOM }) => ({ INC: DOM.click('.inc') })
 Counter.model = { INC: (state) => ({ ...state, n: state.n + 1 }) }
 
-function App() {
+function App({ state }) {
   return (
     <div>
       <button id="create">Create counters</button>
       <button id="destroy">Destroy counters</button>
-      <Collection of={Counter} from="counters" className="counters" />
+      <div className="counters">{state.ids.map(id => <Counter id={id} state={'c' + id} />)}</div>
     </div>
   )
 }
-App.initialState = { counters: [] }
+App.initialState = { ids: [] }
 App.intent = ({ DOM }) => ({ CREATE: DOM.click('#create'), DESTROY: DOM.click('#destroy') })
 App.model = {
-  CREATE: (state) => ({ ...state, counters: Array.from({ length: COUNTERS }, (_, i) => ({ id: i + 1, n: 0 })) }),
-  DESTROY: (state) => ({ ...state, counters: [] }),
+  CREATE: () => {
+    const s = { ids: Array.from({ length: COUNTERS }, (_, i) => i + 1) }
+    for (const id of s.ids) s['c' + id] = { n: 0 }
+    return s
+  },
+  DESTROY: () => ({ ids: [] }),
 }
 run(App, {}, { mountPoint: '#main' })

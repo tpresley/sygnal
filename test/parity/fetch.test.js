@@ -85,4 +85,4 @@ parity('parity: fetch from Collection items (replies, abort, per-item select)', 
     await until(() => expect(f.calls.length).toBe(4))
     expect(f.calls.map((c) => c.aborted)).toEqual([false, false, true, false])
   })
-})
+}, 'R3')

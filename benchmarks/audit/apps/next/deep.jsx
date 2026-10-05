@@ -1,4 +1,5 @@
-import { run } from '../../../../dev-plans/research/core-rewrite/proto/core-next.ts'
+import { run } from 'sygnal'
+import '../../lib/next-core.js'
 import { DEPTH } from '../../lib/data.js'
 
 // A chain of DEPTH nested components; the leaf changes root state

@@ -1,4 +1,5 @@
-import { run } from '../../../../dev-plans/research/core-rewrite/proto/core-next.ts'
+import { run } from 'sygnal'
+import '../../lib/next-core.js'
 import { buildData } from '../../lib/data.js'
 
 function App({ state }) {

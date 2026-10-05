@@ -1,5 +1,6 @@
 import { Collection, makeFetchDriver } from 'sygnal'
-import { run } from '../../../../dev-plans/research/core-rewrite/proto/core-next.ts'
+import { run } from 'sygnal'
+import '../../lib/next-core.js'
 import { buildData } from '../../lib/data.js'
 
 // Spike 0-S: every Collection item fetches its own detail (reply actions to the exact item).

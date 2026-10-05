@@ -1,5 +1,6 @@
 import { Switchable, Collection } from 'sygnal'
-import { run } from '../../../../dev-plans/research/core-rewrite/proto/core-next.ts'
+import { run } from 'sygnal'
+import '../../lib/next-core.js'
 
 // Spike 0-S: a Switchable with two pages of 500 counters each; the hidden page stays alive
 function Counter({ state }) {

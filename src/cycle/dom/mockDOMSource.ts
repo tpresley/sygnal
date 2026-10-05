@@ -121,6 +121,11 @@ export class MockedDOMSource {
     return source.select('.' + SCOPE_PREFIX + scope);
   }
 
+  /** PLAN-4.6: isolateSink for one vnode (a copy, with the scope class) */
+  public isolateValue(vnode: any, scope: string): any {
+    return !vnode || (vnode.sel && vnode.sel.indexOf(SCOPE_PREFIX + scope) !== -1) ? vnode : {...vnode, sel: vnode.sel + `.${SCOPE_PREFIX}${scope}`};
+  }
+
   public isolateSink(sink: any, scope: string): any {
     return adapt(
       xs.fromObservable<any>(sink).map((vnode: VNode) => {

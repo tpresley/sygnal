@@ -1,5 +1,6 @@
 import { set } from 'sygnal'
-import { run } from '../../../../dev-plans/research/core-rewrite/proto/core-next.ts'
+import { run } from 'sygnal'
+import '../../lib/next-core.js'
 import { items } from '../../lib/data.js'
 
 // A controlled input next to a 1,000-item list rendered by the same component

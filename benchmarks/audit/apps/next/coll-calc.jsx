@@ -1,5 +1,6 @@
 import { Collection } from 'sygnal'
-import { run } from '../../../../dev-plans/research/core-rewrite/proto/core-next.ts'
+import { run } from 'sygnal'
+import '../../lib/next-core.js'
 import { buildData } from '../../lib/data.js'
 
 // Spike 0-S: a Collection with filter + sort, calculated fields on the items and on the parent

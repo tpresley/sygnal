@@ -4,10 +4,10 @@
 // guide (dev-plans/research/core-rewrite/05-migration-guide-draft.md), not pinned here, except
 // for the public entry's shape and the view's single argument.
 import { it, expect } from 'vitest'
-import { parity, itNext, mount, h, click, until, api, Collection } from './harness.js'
+import { parity, itNext, needs, mount, h, click, until, api, Collection } from './harness.js'
 
 parity('parity: D162-D164 (public API shape)', () => {
-  it('canonical forms: destructured view, object model with STATE/EFFECT, CHILD.select(Fn), Collection of={Fn}', async () => {
+  needs('R2').it('canonical forms: destructured view, object model with STATE/EFFECT, CHILD.select(Fn), Collection of={Fn}', async () => {
     const got = []
     function Item({ state }) { return h('li', { className: 'it' }, h('button', { className: 'up' }, state.t)) }
     Item.intent = ({ DOM }) => ({ UP: DOM.click('.up') })
@@ -32,11 +32,11 @@ parity('parity: D162-D164 (public API shape)', () => {
     expect(n).toBe(1)
   })
 
-  itNext('D162 component({...}) factory removed', "the public entry no longer exports the options factory `component`", () => {
+  needs('R5').itNext('D162 component({...}) factory removed', "the public entry no longer exports the options factory `component`", () => {
     expect('component' in api).toBe(false)
   })
 
-  itNext('D162 defineComponent(opts) added', 'defineComponent(opts) returns an ordinary function component', async () => {
+  needs('R5').itNext('D162 defineComponent(opts) added', 'defineComponent(opts) returns an ordinary function component', async () => {
     expect(typeof api.defineComponent).toBe('function')
     const C = api.defineComponent({
       name: 'Counter',

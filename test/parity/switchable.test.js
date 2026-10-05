@@ -85,7 +85,7 @@ parity('parity: Switchable hidden pages kept alive, current, instance', () => {
     expect(m.$('.pg')).toBe(null)
     expect(m.state().v).toBe(3)
   })
-})
+}, 'R2')
 
 parity('parity: an isolatedState page next to a state-bound page (G-292)', () => {
   // On the current core the isolatedState page's local state leaks into the sibling page's
@@ -113,7 +113,7 @@ parity('parity: an isolatedState page next to a state-bound page (G-292)', () =>
     await until(() => expect(m.text('.linc')).toBe('local:0'))
     expect(disposed).toEqual(['local'])
   })
-})
+}, 'R2')
 
 parity('parity: D166 hidden-page rendering and <Switchable lazy>', () => {
   // NOTE (R0 finding, see the R0 report): the current core does NOT call a hidden page's view at
@@ -153,4 +153,4 @@ parity('parity: D166 hidden-page rendering and <Switchable lazy>', () => {
     await until(() => expect(m.text('.hid')).toBe('h2')) // first shown: rendered with the current state
     expect(log.views).toBeGreaterThan(0)
   })
-})
+}, 'R2')

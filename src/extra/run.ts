@@ -7,6 +7,7 @@ import component, {ABORT, optionsOf} from '../component';
 import {configureDiagnostics, isDiagnosticsEnabled} from './diagnostics/index';
 import {warn} from './diagnostics/legacy';
 import type {DiagnosticsMode, DiagnosticsOptions} from './diagnostics/index';
+import {start as startNext} from '../core/runtime';
 
 interface RunDiagnosticsOptions extends DiagnosticsOptions {
   /** Strict (canonical-form) runtime checks; needs the 'sygnal/diagnostics' dev entry (G-036). */
@@ -71,6 +72,26 @@ export default function run(
   }
 
   const {mountPoint = '#root', fragments = true, useDefaultDrivers = true, onError, uid} = options;
+  // PLAN-4.6 R1-R4 (internal, deleted at R5): the next core, selected by a global flag that the
+  // test setup sets from SYGNAL_CORE=next. Not documented, not in the types
+  if ((globalThis as any).__SYGNAL_CORE__ === 'next') {
+    const started = startNext(app, drivers, {...options, __hooks: (options as any).__hooks, __state: hmrSwap?.s} as any);
+    liveApps++;
+    let off = false;
+    const exposed: SygnalRunResult = {
+      sources: started.sources,
+      sinks: started.sinks,
+      dispose: () => {
+        if (off) return;
+        off = true;
+        liveApps--;
+        started.dispose();
+        if (strict !== undefined) core.strict = prevStrict;
+      },
+    };
+    (exposed as any).__runtime = started.api;
+    return exposed;
+  }
   if (!app.isSygnalComponent) {
     app = component(optionsOf(app, app.name || app.componentName || app.label || 'FUNCTIONAL_COMPONENT'));
   }

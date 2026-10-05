@@ -1,0 +1,61 @@
+#!/usr/bin/env node
+/**
+ * npm run test:next — PLAN-4.6 R1-R4 test matrix (deleted at R5, when the next core is the core):
+ * the suites whose features the next component core (src/core/) implements so far, run with
+ * SYGNAL_CORE=next (test/setup-core.js, and the 'sygnal/diagnostics' setup file in the examples,
+ * set the internal flag run() and renderComponent() read).
+ *
+ * Each phase adds its files here (R2: Collection/Switchable/markers, R3: statics, replies,
+ * behaviors, R4: diagnostics, devtools, testing internals, SSR, integrations). test/parity/ is
+ * always run whole: an area or test a later phase brings is skipped on the next core with that
+ * phase in its title (test/parity/harness.js).
+ *
+ * Usage: node scripts/test-next.mjs [--no-examples]
+ */
+import { spawnSync } from 'node:child_process'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+
+/** R1: the runtime (store, queue, flush, cells, calculated, context, tag children, actions, teardown) */
+export const FILES = [
+  'test/parity/',
+  'test/p46-r1-core.test.js',
+  'test/p46-r1-pragma-data-c.test.js',
+  'test/copied/kanban.copied.test.js',
+  'test/copied/todomvc.copied.test.js',
+  'test/diagnostics-legacy.test.js',
+  'test/diagnostics/events.test.js',
+  'test/diagnostics/rxjs.test.js',
+  'test/dist-cjs-app.test.js',
+  'test/driverFromAsync-dispose.test.js',
+  'test/driverFromAsync-early-reply.test.js',
+  'test/g224-timer-trigger.test.js',
+  'test/p3-g152-data-attr.test.js',
+  'test/p3-g172-root-intent-no-model.test.js',
+  'test/p3-g176-ready-slow-render.test.js',
+  'test/p4-2a-gs11-onerror.test.js',
+  'test/p4-2a-gs11-wrappers.test.js',
+  'test/p4-3a-element-run.test.js',
+  'test/p4-p2b-element-vite.test.js',
+  'test/p45-b3-initialize-per-instance.test.js',
+  'test/p45-r-g261.test.js',
+  'test/p45-r-g271.test.js',
+  'test/p45-r3-dom-poke.test.js',
+  'test/plan2-e11-fake-timers.test.js',
+  'test/review-2e2/b022-syg406-severity.test.js',
+  'test/review-2e2/r4-strict-restore.test.js',
+  'test/testing-simulate-closest.test.js',
+  'test/xstream-extras-3d.test.js',
+]
+
+/** the examples whose features are all in the phases done (R2 adds kanban, todomvc, advanced-feature-tests) */
+export const EXAMPLES = ['ai-panel-spa', 'getting-started', 'hmr-smoke', 'playground', 'ssr', 'ts-example-2048']
+
+const env = { ...process.env, SYGNAL_CORE: 'next' }
+const run = (cmd, args) => spawnSync(cmd, args, { cwd: repo, env, stdio: 'inherit', shell: process.platform === 'win32' }).status ?? 1
+
+let status = run('npx', ['vitest', 'run', ...FILES])
+if (!status && !process.argv.includes('--no-examples')) status = run('node', ['scripts/test-examples.mjs', ...EXAMPLES])
+process.exit(status)

@@ -15,25 +15,28 @@ export type IsolateSink<T extends VNode> = (
 export function makeIsolateSink<T extends VNode>(
   namespace: Array<Scope>
 ): IsolateSink<T> {
-  return (sink, scope) => {
-    if (scope === ':root') {
-      return sink;
-    }
+  const value = makeIsolateValue(namespace);
+  return (sink, scope) => scope === ':root' ? sink : sink.map(node => value(node, scope) as T);
+}
 
-    return sink.map(node => {
-      if (!node) {
-        return node;
-      }
-      const isolate = namespace.concat([getScopeObj(scope)]);
-      const newNode = scoped(node, isolate);
-      return {
-        ...newNode,
-        key:
-          newNode.key !== undefined
-            ? newNode.key
-            : JSON.stringify((newNode.data && newNode.data.isolate) || isolate),
-      } as T;
-    });
+/**
+ * PLAN-4.6: the value-level isolateSink (the next core scopes each instance's vnode without a
+ * stream per instance): the same mapping, applied to one vnode
+ */
+export function makeIsolateValue(namespace: Array<Scope>): (node: any, scope: string) => any {
+  return (node, scope) => {
+    if (scope === ':root' || !node) {
+      return node;
+    }
+    const isolate = namespace.concat([getScopeObj(scope)]);
+    const newNode = scoped(node, isolate);
+    return {
+      ...newNode,
+      key:
+        newNode.key !== undefined
+          ? newNode.key
+          : JSON.stringify((newNode.data && newNode.data.isolate) || isolate),
+    };
   };
 }
 
