@@ -77,6 +77,8 @@ const REPLY_IN_SOURCE = keyedNames('ok|error|block')
 const CONNECTION_IN_SOURCE = keyedNames('message|open|close|error')
 // G-224: a `timers` static's `action: 'TICK'` / `frame: 'FRAME'`
 const TIMER_IN_SOURCE = keyedNames('action|frame')
+// PLAN-5 B-3: a `browser` static's `action: 'SEEN'` / `error: 'GEO_FAILED'`
+const BROWSER_IN_SOURCE = keyedNames('action|error')
 
 const namesIn = (fn: any, re: RegExp, out: Set<string>) => {
   if (typeof fn !== 'function') return
@@ -114,6 +116,10 @@ export function replyNamesOf(component: any): Set<string> {
   const timers = component?.view?.timers
   if (timers && typeof timers === 'object') for (const k in timers) namesIn(timers[k], TIMER_IN_SOURCE, out)
   else namesIn(timers, TIMER_IN_SOURCE, out)
+  // PLAN-5 B-3: the browser driver replies the actions the `browser` static names
+  const browser = component?.view?.browser
+  if (browser && typeof browser === 'object') for (const k in browser) namesIn(browser[k], BROWSER_IN_SOURCE, out)
+  else namesIn(browser, BROWSER_IN_SOURCE, out)
   // PLAN-3 5-4b: the router replies the action a `route` static names
   const route = component?.view?.route
   if (typeof route === 'string') out.add(route)

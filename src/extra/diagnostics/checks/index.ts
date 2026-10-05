@@ -40,7 +40,10 @@
  * | SYG132 | declaration static never sent: a root without initialState    | router.ts      |
  * | SYG133 | SPA router inside a Vike app                           | router.ts      |
  * | SYG422 | timer spec makeTimerDriver() can't run                 | timers.ts      |
- * | SYG643 | timers/connections/resources with no driver to take it | timers.ts      |
+ * | SYG643 | timers/connections/resources/browser with no driver    | timers.ts      |
+ * | SYG663 | browser entry / BROWSER command that can't run         | browserSources.ts |
+ * | SYG664 | browser source the driver wasn't made with             | browserSources.ts |
+ * | SYG665 | browser source failed with no error action             | browserSources.ts |
  * | SYG223 | persist pick/omit key not in initialState              | persist.ts     |
  * | SYG224 | persist on a component that isn't the root             | persist.ts     |
  * | SYG645 | viewTransitions without makeViewTransitionDOMDriver(), or not an array | viewTransitions.ts |
@@ -84,6 +87,7 @@ import {repliesCheck} from './replies'
 import {routerCheck, installRouterHooks} from './router'
 import {fetchCheck} from './fetch'
 import {timersCheck, installTimerHooks} from './timers'
+import {installBrowserSourceHooks} from './browserSources'
 import {persistCheck} from './persist'
 import {viewTransitionsCheck} from './viewTransitions'
 import {staticsCheck} from './statics'
@@ -140,6 +144,7 @@ export function installChecks(): () => void {
   const uninstallRouter = installRouterHooks()
   const uninstallControls = installControlHooks()
   const uninstallTimers = installTimerHooks()
+  const uninstallBrowser = installBrowserSourceHooks()
   const uninstallElementCommands = installElementCommandHooks()
   const uninstallWidgets = installWidgetHooks()
   const uninstallForms = installFormHooks()
@@ -153,6 +158,7 @@ export function installChecks(): () => void {
     uninstallRouter()
     uninstallControls()
     uninstallTimers()
+    uninstallBrowser()
     uninstallElementCommands()
     uninstallWidgets()
     uninstallForms()

@@ -1380,6 +1380,16 @@ export type Component<
    */
   timers?: (state: STATE & CALCULATED) => Timers<ActionNameOf<ACTIONS>>;
   /**
+   * PLAN-5 B-3: browser sources derived from state, run by `makeBrowserDriver()` (registered:
+   * `run(App, { BROWSER: makeBrowserDriver() })`; renderComponent provides a fake, `t.browser`)
+   * and delivered as this instance's own actions:
+   * `Card.browser = (state) => ({ seen: !state.seen && { intersection: '.cover', action: 'SEEN' } })`.
+   * Diffed by name as `timers`: a new name starts, a falsy or removed one stops, a changed spec
+   * restarts. A hidden Switchable page's sources stop unless `background: true`; dispose stops
+   * them; nothing runs during SSR.
+   */
+  browser?: (state: STATE & CALCULATED) => BrowserSources<ActionNameOf<ACTIONS>>;
+  /**
    * PLAN-4 GS-5: save this root component's state and restore it at startup:
    * `TodoApp.persist = persist({ key: 'todo-app', pick: ['todos', 'filter'] })`. `pick` / `omit`
    * are typed against STATE's keys. Root component only (SYG224 elsewhere).
@@ -2643,6 +2653,87 @@ export interface TimerFrame { t: number; dt: number }
  */
 export function makeTimerDriver(): (sink$: Stream<any>) => { dispose(): void }
 
+/** PLAN-5 B-3: fields every browser-source spec takes */
+interface BrowserSpecBase<ACTION extends string> {
+  /** the action each event (or the current value) is delivered as */
+  action: ACTION;
+  /** keep it running while its Switchable page is hidden */
+  background?: boolean;
+}
+/**
+ * PLAN-5 B-3: one entry of a `browser` static; its first known key is its kind:
+ * - `intersection`: the elements a selector matches in this component (`true`: its root element)
+ *   entering or leaving the viewport (IntersectionObserver), data `BrowserIntersection`;
+ * - `resize`: their content-box size (ResizeObserver), data `BrowserResize`;
+ * - `media`: a media query, data `{ matches, media }` (the current value first);
+ * - `storage`: a localStorage key (`area: 'session'`: sessionStorage; `json: true`: parsed), read
+ *   and observed (other tabs' writes, and BROWSER `setItem` / `removeItem`), data `{ key, value }`;
+ *   for state that should survive a reload use `persist()`;
+ * - `visibility: true`: the document's visibility, data `{ visible }`;
+ * - `online: true`: the network, data `{ online }`;
+ * - `geolocation`: watchPosition (permission-gated; `true` or PositionOptions), data
+ *   `BrowserPosition`, failures `{ code, message }` to `error`.
+ * An invalid spec is not started (SYG663 in dev).
+ */
+export type BrowserSpec<ACTION extends string = string> =
+  | (BrowserSpecBase<ACTION> & { intersection: string | true; threshold?: number | number[]; rootMargin?: string })
+  | (BrowserSpecBase<ACTION> & { resize: string | true })
+  | (BrowserSpecBase<ACTION> & { media: string })
+  | (BrowserSpecBase<ACTION> & { storage: string; area?: 'local' | 'session'; json?: boolean; error?: ACTION })
+  | (BrowserSpecBase<ACTION> & { visibility: true })
+  | (BrowserSpecBase<ACTION> & { online: true })
+  | (BrowserSpecBase<ACTION> & { geolocation: true | { enableHighAccuracy?: boolean; maximumAge?: number; timeout?: number }; error?: ACTION })
+
+/** A component's browser sources, by name: a falsy entry (`!state.seen && { ... }`) is stopped */
+export type BrowserSources<ACTION extends string = string> = { [name: string]: BrowserSpec<ACTION> | false | null | undefined | 0 | '' }
+
+/** The data of an `intersection` action: visible (isIntersecting), the ratio, which matched element (its index and dataset) */
+export interface BrowserIntersection { visible: boolean; ratio: number; index: number; dataset: Record<string, string> }
+/** The data of a `resize` action: the content box, which matched element */
+export interface BrowserResize { width: number; height: number; index: number; dataset: Record<string, string> }
+/** The data of a `geolocation` action */
+export interface BrowserPosition { latitude: number; longitude: number; accuracy: number; altitude: number | null; altitudeAccuracy: number | null; heading: number | null; speed: number | null; timestamp: number }
+
+/**
+ * PLAN-5 B-3: a command for the browser driver's sink, from a model entry
+ * (`COPY: { BROWSER: (state) => ({ copy: state.link, ok: 'COPIED' }) }`); the first key is the
+ * method. `ok` / `error` name reply actions (copy/paste: `{ text }`; a failure `{ name, message }`).
+ */
+export type BrowserCommand =
+  | { copy: string; ok?: string; error?: string }
+  | { paste: true; ok: string; error?: string }
+  | { setItem: string; value: any; area?: 'local' | 'session'; json?: boolean; ok?: string; error?: string }
+  | { removeItem: string; area?: 'local' | 'session'; ok?: string; error?: string }
+
+/** PLAN-5 B-3: a browser source for makeBrowserDriverWith (its declaration kinds and commands) */
+export interface BrowserSource { d?: Record<string, Function>; c?: Record<string, Function> }
+/** `intersection` declarations */
+export const intersectionSource: BrowserSource
+/** `resize` declarations */
+export const resizeSource: BrowserSource
+/** `media` declarations */
+export const mediaSource: BrowserSource
+/** `storage` declarations and the `setItem` / `removeItem` commands */
+export const storageSource: BrowserSource
+/** `visibility` declarations */
+export const visibilitySource: BrowserSource
+/** `online` declarations */
+export const onlineSource: BrowserSource
+/** `geolocation` declarations */
+export const geolocationSource: BrowserSource
+/** the `copy` / `paste` commands */
+export const clipboardSource: BrowserSource
+
+/**
+ * PLAN-5 B-3: runs the components' `browser` statics and the BROWSER sink commands, with every
+ * source: `run(App, { BROWSER: makeBrowserDriver() })`. The key is free (the core finds the driver
+ * by the static it takes); `BROWSER` by convention. A component declaring `browser` with no
+ * browser driver gets SYG643 in dev.
+ */
+export function makeBrowserDriver(): (sink$: Stream<any>, name?: string) => { dispose(): void }
+/** PLAN-5 B-3: makeBrowserDriver() with only the given sources (the others add no bytes): `makeBrowserDriverWith(intersectionSource, mediaSource)` */
+export function makeBrowserDriverWith(...sources: BrowserSource[]): (sink$: Stream<any>, name?: string) => { dispose(): void }
+
 /** The tags for the head values `renderToString(App, { head: list })` collected (SSR) */
 export function renderHead(list: Array<HeadValue | null | undefined | false>, options?: { titleTemplate?: string }): string
 
@@ -2873,6 +2964,10 @@ export interface RenderOptions {
   titleTemplate?: string;
   /** PLAN-4 GS-7: the sink the timer fake serves (default 'TIMER'); with no driver for it, the real makeTimerDriver() runs on the test's timers and `t.timers()` lists them */
   timerSink?: string;
+  /** PLAN-5 B-3: the sink the browser fake serves (default 'BROWSER'); with no driver for it, the browser driver runs over fake sources `t.browser` drives */
+  browserSink?: string;
+  /** PLAN-5 B-3: the browser fake's environment at start (default: no media query matches, empty storage, visible, online, empty clipboard, no position, nothing denied) */
+  browser?: BrowserFakeOptions;
   /**
    * PLAN-4 GS-5: the fake storage behind the root's `persist()` ('local' and 'session' alike), as
    * key -> stored entry (`{ version, state }`; with `format: 'plain'` the stored keys themselves;
@@ -2887,6 +2982,49 @@ export interface RenderOptions {
 export interface PersistedEntry<STATE = any> {
   version: number
   state: Partial<STATE>
+}
+
+/** PLAN-5 B-3: renderComponent's `browser` option: the fake environment at start */
+export interface BrowserFakeOptions {
+  /** media query -> matches */
+  media?: Record<string, boolean>;
+  /** localStorage, key -> stored string */
+  storage?: Record<string, string>;
+  /** sessionStorage, key -> stored string */
+  sessionStorage?: Record<string, string>;
+  visible?: boolean;
+  online?: boolean;
+  clipboard?: string;
+  /** the position a geolocation declaration starts with (the coords; the rest default) */
+  position?: Partial<BrowserPosition>;
+  /** permissions denied from the start */
+  deny?: Array<'geolocation' | 'clipboard'>;
+}
+
+/** PLAN-5 B-3: `t.browser` */
+export interface BrowserFake {
+  /** the declarations of `intersection: target` hear `{ visible, ratio: 1 | 0, index: 0, dataset: {}, ...data }`; `at`: only the at-th of them (start order). Throws when nothing declares it */
+  intersect(target: string | true, visible?: boolean, data?: Partial<BrowserIntersection> & { at?: number }): Promise<void>;
+  /** the declarations of `resize: target` hear `{ width, height, index: 0, dataset: {}, ...size }`. Throws when nothing declares it */
+  resize(target: string | true, size: Partial<BrowserResize> & { at?: number }): Promise<void>;
+  /** a position (accuracy 0, the rest null, timestamp now unless given) or an error `{ code, message }` for the geolocation declarations */
+  geolocation(position: Partial<BrowserPosition> | { code: number; message?: string }): Promise<void>;
+  /** a media query now matches (or not) */
+  media(query: string, matches: boolean): Promise<void>;
+  visibility(visible: boolean): Promise<void>;
+  online(online: boolean): Promise<void>;
+  /** the stored string (null when absent) */
+  storage(key: string): string | null;
+  /** another tab writes the key (a non-string is stored as JSON; null removes it) */
+  storage(key: string, value: any, area?: 'local' | 'session'): Promise<void>;
+  /** the clipboard's text */
+  clipboard(): string;
+  /** the clipboard's text is now `text` */
+  clipboard(text: string): Promise<void>;
+  /** deny permissions: copy/paste fail with NotAllowedError, geolocation with code 1 (running ones too) */
+  deny(...kinds: Array<'geolocation' | 'clipboard'>): void;
+  /** the running declarations, in start order: `{ name, ...spec, component }` */
+  active(): Array<Record<string, any>>;
 }
 
 /** PLAN-4 GS-7: an active timer, as `t.timers()` lists it: the spec as declared plus these */
@@ -3110,6 +3248,13 @@ export interface RenderResult<STATE = any> {
    * was passed for the timer sink.
    */
   timers: () => ActiveTimer[];
+  /**
+   * PLAN-5 B-3: the browser fake's controls (no browser driver passed): `await
+   * t.browser.intersect('.cover', true)`, `await t.browser.media('(prefers-color-scheme: dark)',
+   * true)`, `t.browser.active()`. Each input resolves once its actions are reduced and the tree
+   * rendered. Throws when a driver was passed for the browser sink.
+   */
+  browser: BrowserFake;
   /**
    * PLAN-4 GS-5: the fake storage's entry for `key` (`{ version, state }`), undefined when none
    * (a raw string when what is stored isn't JSON). Pending persist() writes are flushed by t.settle().
