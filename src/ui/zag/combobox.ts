@@ -70,8 +70,9 @@ export const Combobox: any = /*#__PURE__*/ fromZag(combobox, (api: any, p: any, 
       value: arr(value),
       defaultValue: arr(defaultValue),
       // typing only (not the label a selection writes): the filter text, and input-change
-      onInputValueChange: (d: any) => { if (d.reason == 'input-change') setText(x, d.inputValue), x.dispatch('input-change', d.inputValue) },
-      onOpenChange: (d: any) => { d.open || setText(x, '') },
+      // G-414: the app's own callbacks (p.onInputValueChange / p.onOpenChange) run first
+      onInputValueChange: (d: any) => { p.onInputValueChange?.(d); if (d.reason == 'input-change') setText(x, d.inputValue), x.dispatch('input-change', d.inputValue) },
+      onOpenChange: (d: any) => { p.onOpenChange?.(d); d.open || setText(x, '') },
     }
   },
   events: {
