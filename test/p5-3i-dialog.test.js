@@ -100,3 +100,44 @@ describe('G-457: CANCEL with cancelable: false', () => {
   })
 })
 
+describe('G-461: OPEN when showModal() throws', () => {
+  // (the state shows `open`, so OPEN patches and its command runs in the microtask after it)
+  function Host({ state }) {
+    return h('div', null,
+      h('button', { className: 'open first' }, 'Open 1'),
+      h('button', { className: 'open second' }, 'Open 2'),
+      h('p', null, String(state.d.open)),
+      h('dialog', { className: 'dlg' }, h('button', { className: 'inner' }, 'x')))
+  }
+  Host.uses = { d: dialog({ dialog: '.dlg', trigger: '.open', cancelable: false }) }
+
+  // (the second trigger opens it: a stale listener would focus it; the CLOSED fallback focuses the
+  // first match of the trigger)
+  it('arms no close listener and leaves no closedby: a later close does not focus the old opener', async () => {
+    const errors = [], qm = globalThis.queueMicrotask
+    P.showModal = function () { throw new DOMException('not allowed', 'InvalidStateError') }
+    setupChecks()
+    document.body.innerHTML = '<div id="root"></div>'
+    try {
+      app = run(Host, {}, { mountPoint: '#root', diagnostics: 'collect' })
+      await settle(60)
+      const d = document.querySelector('.dlg')
+      // the command's error (it reaches the caller as any command's does)
+      globalThis.queueMicrotask = (f) => qm(() => { try { f() } catch (e) { errors.push(e) } })
+      document.querySelector('.second').click()
+      await settle(60)
+      globalThis.queueMicrotask = qm
+      expect(errors.map((e) => e.name)).toEqual(['InvalidStateError'])
+      expect(d.open).toBe(false)
+      expect(d.hasAttribute('closedby')).toBe(false)
+      // later the dialog opens some other way and closes with the focus lost
+      d.open = true
+      document.querySelector('.inner').focus()
+      d.open = false
+      document.querySelector('.inner').blur()
+      d.dispatchEvent(new Event('close'))
+      await settle(60)
+      expect(document.activeElement).not.toBe(document.querySelector('.second'))
+    } finally { globalThis.queueMicrotask = qm }
+  })
+})

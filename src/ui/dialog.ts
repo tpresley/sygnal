@@ -74,6 +74,9 @@ const base = /*#__PURE__*/ defineBehavior({
           const a = document.activeElement, op: any = by?.nodeType == 1 ? by : a != document.body ? a : null
           const cb = o.cancelable === false && !el.hasAttribute('closedby')
           if (cb) el.setAttribute('closedby', 'none')
+          // G-461: a showModal() that throws (a disconnected dialog, a popover open on it) leaves
+          // no closedby and arms no listener (a later close would focus this opener)
+          try { el[m]() } catch (e) { cb && el.removeAttribute('closedby'); throw e }
           // on close: G-429 the closedby it set goes (it is the behavior's, not the host's); G-430
           // the element that opened it gets the focus back when it was lost, here rather than by a
           // command (a dialog the host renders only while open is gone by then), and nothing
@@ -84,7 +87,6 @@ const base = /*#__PURE__*/ defineBehavior({
             cb && el.removeAttribute('closedby')
             if ((o.returnFocus ?? true) === true && op?.isConnected && lost()) op.focus()
           }, {once: true, capture: true})
-          el[m]()
         })}
       },
     },
