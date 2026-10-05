@@ -1591,7 +1591,9 @@ export function makeDragDriver(): (sink$: Stream<DragDriverRegistration | DragDr
 
 /**
  * The options `defineComponent()` takes: the view plus the statics a function component carries
- * (`model`, `intent`, `initialState`, ...), and `name` (its `componentName`).
+ * (`model`, `intent`, `initialState`, ...), and `name` (its `componentName`; defaults to the view's
+ * name, or 'Component' for an anonymous inline view). Statics already on the view are copied; the
+ * options override them.
  */
 export type DefineComponentOptions<
   STATE = any,

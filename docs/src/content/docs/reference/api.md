@@ -117,7 +117,7 @@ function defineComponent(options: DefineComponentOptions): Component
 | Option | Type | Description |
 |--------|------|-------------|
 | `view` | `({ state, context, ...props }) => vnode` | The view (required) |
-| `name` | `string` | The component's name (`componentName`: diagnostics, devtools, `uid()`); defaults to the view function's name |
+| `name` | `string` | The component's name (`componentName`: diagnostics, devtools, `uid()`); defaults to the view's `componentName` or function name, or `'Component'` for an anonymous inline view |
 | any static | | `model`, `intent`, `initialState`, `isolatedState`, `calculated`, `context`, `onError`, `debug`, `connections`, `resources`, `route`, `head`, `uses`, `timers`, `persist`, `viewTransitions` |
 
 ```jsx
@@ -132,7 +132,7 @@ const Counter = defineComponent({
 })
 ```
 
-The view function itself is not changed, so one view can back several definitions. `defineComponent` replaces the `component({ ... })` factory that 6.0 removed; see [Migrating to 6.0](/guide/migrating-to-6/#component-factory).
+Statics already on the view (`Card.initialState = …`) are copied to the new component, and the options override them. The view function itself is not changed, so one view can back several definitions. `defineComponent` replaces the `component({ ... })` factory that 6.0 removed; see [Migrating to 6.0](/guide/migrating-to-6/#component-factory).
 
 ---
 

@@ -3,7 +3,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import xs from 'xstream'
 import { renderComponent } from '../src/extra/testing.js'
-import { run, createElement as h, Collection, Transition } from '../src/index.js'
+import { run, createElement as h, Collection, Transition, defineComponent } from '../src/index.js'
 
 let t, app
 afterEach(() => {
@@ -45,6 +45,32 @@ describe('G-339: SYG403 says context entries are functions of state only', () =>
     expect(msg).toContain('functions of state only')
     expect(msg).toContain('migrating-to-6#leftovers')
     expect(msg).not.toContain('state key')
+  })
+})
+
+describe('G-343: defineComponent names and statics', () => {
+  it("an inline view in the options object is not named 'view'", () => {
+    const C = defineComponent({ view: ({ state }) => h('b', null, 'x'), initialState: {} })
+    expect(C.componentName).toBe('Component')
+    expect(C.name).toBe('Component')
+    function Named() { return h('b', null, 'n') }
+    expect(defineComponent({ view: Named }).componentName).toBe('Named')
+    expect(defineComponent({ name: 'Given', view: () => h('b') }).componentName).toBe('Given')
+  })
+
+  it('statics already on the view are kept; the options override them', async () => {
+    function Card({ state }) { return h('p', { className: 'card' }, `${state.n}:${state.tag}`) }
+    Card.initialState = { n: 1, tag: 'view' }
+    Card.calculated = { tag: () => 'calc' }
+    const Plain = defineComponent({ view: Card })
+    expect(Plain.initialState).toEqual({ n: 1, tag: 'view' })
+    expect(Plain.calculated).toBe(Card.calculated)
+    const Over = defineComponent({ view: Card, initialState: { n: 2, tag: 'opt' } })
+    expect(Over.initialState).toEqual({ n: 2, tag: 'opt' })
+    expect(Card.initialState).toEqual({ n: 1, tag: 'view' })
+    t = renderComponent(Over)
+    await t.ready()
+    expect(t.html()).toContain('2:calc')
   })
 })
 
