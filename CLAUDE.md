@@ -99,7 +99,13 @@ MyComponent.onError = (error, { componentName }) => fallbackVNode  // Error boun
 - `dev-plans/` — Plans and status trackers (PLAN-1: agent ergonomics; PLAN-2: follow-up ergonomics; PLAN-4.6: the component core rewrite; PLAN-5: ecosystem)
 
 **Absorbed dependencies:**
-All `@cycle/*` packages have been absorbed into `src/cycle/`. The only external runtime dependencies are `snabbdom` and `xstream`.
+All `@cycle/*` packages have been absorbed into `src/cycle/`. The external runtime dependencies are `snabbdom`, `xstream` and `@tanstack/virtual-core` (for `<VirtualCollection>`).
+
+**Dependency rule (D209):** don't bundle actively maintained third-party code into Sygnal's npm builds; users must get its patch/security releases through npm and see it in `npm audit`.
+- Small, framework-neutral libraries a feature needs → regular `dependencies` with a caret range, kept external in the CJS/ESM builds (`isExternal` in `rollup.config.mjs`) and side-effect free so unused features cost nothing.
+- Heavy, framework-specific or rarely needed libraries (React for `fromReact`, `@zag-js/*`) → optional `peerDependencies`, usually behind a subpath.
+- Absorbing code into `src/` is only for unmaintained libraries (as with Cycle.js) or small patched copies (snabbdom's `styleModule`).
+- Only the standalone UMD build (`dist/sygnal.min.js`) bundles runtime dependencies.
 
 - `src/cycle/dom/snabbdom.ts` — Local barrel that imports from snabbdom subpaths (e.g., `snabbdom/build/h`) to avoid snabbdom's broken barrel export which triggers a `styleModule` `window` ReferenceError in Node.js
 - `src/cycle/dom/styleModule.ts` — Local copy of snabbdom's styleModule with a fixed `typeof window !== "undefined"` guard (snabbdom 3.6.3 regression)

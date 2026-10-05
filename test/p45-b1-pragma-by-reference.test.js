@@ -78,7 +78,7 @@ describe('P45-B: nested prop objects by reference', () => {
 describe('P45-B: no extend dependency', () => {
   it('package.json has no extend dependency and src does not import it', () => {
     const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
-    expect(Object.keys(pkg.dependencies)).toEqual(['snabbdom', 'xstream'])
+    expect(Object.keys(pkg.dependencies)).toEqual(['@tanstack/virtual-core', 'snabbdom', 'xstream'])  // D209
     expect(readFileSync(new URL('../src/pragma/index.ts', import.meta.url), 'utf8')).not.toMatch(/extend/)
     expect(readFileSync(new URL('../rollup.config.mjs', import.meta.url), 'utf8')).not.toMatch(/'extend'/)
   })

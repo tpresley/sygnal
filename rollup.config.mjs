@@ -4,7 +4,9 @@ import terser from '@rollup/plugin-terser';
 import typescript from '@rollup/plugin-typescript';
 import pkg from './package.json' with { type: "json" };
 
-const isExternal = (id) => /^(snabbdom|xstream)(\/|$)/.test(id);
+// Runtime dependencies stay external in the npm (CJS/ESM) builds (D209): snabbdom, xstream and
+// @tanstack/virtual-core. Only the standalone UMD build bundles them.
+const isExternal = (id) => /^(snabbdom|xstream|@tanstack\/virtual-core)(\/|$)/.test(id);
 
 // Outside a bundler (plain Node `require()` of the CJS build, or native Node ESM `import`
 // of the ESM build), `import xs from 'xstream'` gets xstream's whole `module.exports`
@@ -51,10 +53,10 @@ const jsxCorePragma = () => ({
 	},
 })
 
-// PLAN-5 V-1: @tanstack/virtual-core (VirtualCollection) is bundled into the core entries (a
-// devDependency: apps don't install it; tree-shaken when unused). Its dist reads
+// PLAN-5 V-1: @tanstack/virtual-core (VirtualCollection) is a regular dependency (D209), external
+// in the npm builds. The standalone UMD build bundles it like snabbdom and xstream; its dist reads
 // `process.env.NODE_ENV` for debug-only memo keys, which would throw in a browser without a
-// bundler (the UMD build, native ESM): it becomes "production" there
+// bundler: it becomes "production" there
 const virtualCoreEnv = () => ({
 	name: 'sygnal-virtual-core-env',
 	transform(code, id) {
@@ -96,7 +98,6 @@ export default [
 		],
 		plugins: [
 			xstreamInterop(),
-			virtualCoreEnv(),
 			typescript({ tsconfig: './tsconfig.json' }),
 			resolve({ extensions: ['.mjs', '.js', '.ts', '.json'] }),
 			commonjs()

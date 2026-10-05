@@ -6,7 +6,7 @@ Tracks progress for [PLAN-5.md](PLAN-5.md) (ecosystem components and integration
 
 **Integration branch:** `plan5-integration`, cut from `plan46-complete` (`7146161`) on 2026-10-05, in worktree `.claude/worktrees/plan-4-execution-7ae8e8`. The release stays held (D56).
 
-**State:** Phase 2: 2-B, 2-V, 2-U merged; 2-A running; reviews of 2-U/2-V and 2-Z next; fix pass 2-R after the reviews. Open: P5-Q20 (virtual-core bundling).
+**State:** Phase 2: 2-B, 2-V, 2-U merged; 2-A done (not merged; 120 B vs ≈ 30 B question open); reviews of 2-U/2-V/2-A, 2-Z and the 2-R fix pass not started (paused at the user's request).
 
 ## 0-A baseline (2026-10-05)
 
@@ -48,7 +48,7 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 | R-1F | Review of 1-F + 1-F1 | ✅ done | | 2026-10-05 | 12 findings G-370…G-381 (2 high) |
 | 1-S | Fixes G-370…G-381 + D205 + D201 `t.widget().dispatch` | ✅ merged | `p5-1s` (`e1a9e22`) | 2026-10-05 | All 12 + D205 (ABORT or same-state return on an input/change event restores the field; +27 B) + D201. Pragma routes attrs for element tags only (components get `role`/`for`/`tabindex`/`aria-*` too — breaking fix); ARIA `false` only on false-valued states; `__sygnalHome` cycle guard; forms: async double submit, initial validation, scoped focus, SYG237 two forms, field types (checkbox groups, select multiple, custom checkboxes; numbers stay strings), id-only rows. Core **41,652 B** (648 B headroom); form used ≈ 3.95 KB. After merge with 2-B: vitest 3,008; browser 230/230 ×3 |
 | 2-U | sygnal/ui native parts + Toaster | ✅ merged | `p5-2u` (`3a02349`) | 2026-10-05 | `sygnal/ui` entry (D202): `dialog`, `popover`, `tooltip`, `tabs`/`tabsAttrs`, `accordion`/`accordionAttrs`, `disclosure`/`disclosureAttrs`, `<Toaster>` (re-parenting into modals, D198). 23 browser tests × 3 engines; tree-shaken per part; core 0 B; used 1.1–2.1 KB per part, all ≈ 4.4 KB. UI Parts docs section. Follow-ups: SYG105 false positive for Toaster users + `FIRST_PARTY` entries for the six behaviors; WebKit anchor positioning offset inside `position: fixed` (documented); CLAUDE.md entry count; copy-guides flattening of `ui/` pages (Phase 4) |
-| 2-V | VirtualCollection | ✅ merged | `p5-2v` (`adf9a65`) | 2026-10-05 | `<VirtualCollection>` (Collection props + `estimateSize`, `overscan`; ARIA list semantics) exported from `sygnal` (registered on first render, 0 B unused); jumps as element commands on the container (`scrollToIndex`/`scrollToId`, D118 shape — supersedes S-7's `createCommand()`); SYG430–434; 9 browser tests × 3 engines. 10k rows at React+TanStack speed; threshold ≈ 1,000 rows. Used ≈ 8.8 KB (virtual-core ≈ 6.0 KB **bundled as a pinned devDependency** → P5-Q20) |
+| 2-V | VirtualCollection | ✅ merged | `p5-2v` (`adf9a65`) | 2026-10-05 | `<VirtualCollection>` (Collection props + `estimateSize`, `overscan`; ARIA list semantics) exported from `sygnal` (registered on first render, 0 B unused); jumps as element commands on the container (`scrollToIndex`/`scrollToId`, D118 shape — supersedes S-7's `createCommand()`); SYG430–434; 9 browser tests × 3 engines. 10k rows at React+TanStack speed; threshold ≈ 1,000 rows. Used ≈ 8.8 KB (virtual-core ≈ 6.0 KB; now a regular dependency, D209) |
 | 2-B | Browser sources + B-4 | ✅ merged | `p5-2b` (`ddbc2ed`) | 2026-10-05 | `makeBrowserDriver()` / `makeBrowserDriverWith(...)` + `Comp.browser` static (GS-7 shape): intersection, resize, media, storage, visibility, online, geolocation; clipboard and storage writes as commands; `t.browser.*` fakes; DOM binding via a definition hook registered with the first driver (0 B core). B-4 `lazy(load, { when: 'visible' \| 'idle' })` + `Comp.load()`. SYG663–665 (+ SYG643 extended). Browser suite 227/227 ×3 engines (WebKit skips cross-tab storage; paste denied in WebKit, error path tested). Used: driver ≈ 0.8 KB + ≈ 0.1–0.3 KB per source; all ≈ 2.0 KB. **Every `lazy()` user +≈ 0.55 KB** → P5-Q19 |
 | 1-F1 | F-1 `form` behavior (D193) | ✅ merged | `p5-1f1` (`5c3d07b`) | 2026-10-05 | `form()` behavior on D197 (key-named reply actions) + public helpers (`checkForm`, `formErrors`, `setField`, `getField`, `fieldName(s)`, `replyErrors`, `focusInvalid` on `focusWithin`); 4 spike bugs fixed; SYG230–236 (dev); sygnal-check `form` entry; Forms guide; 38 tests + 3-engine browser test. Used ≈ **3.0 KB** (target 2.4 KB: `defineBehavior` grew to 0.9 KB with D197) → P5-Q18. After merge: vitest 2,890; browser 216/216 ×3; sygnal-check 553; samples 577 clean; core unchanged |
 | 1-W | Widgets + web components | ✅ merged | `p5-1w` (`2c6053c`) | 2026-10-05 | `defineWidget` (tag canonical + control form; Portal support; D196 command precedence), `.detail()`, custom-event typings, SYG115 fix, `renderToString` custom elements, codes SYG140–144 + SYG660–662, guides `widgets` and `web-components` (Using + Publishing). flatpickr + Web Awesome browser tests in all three engines (Chromium/Firefox 208/208, WebKit 207 = G-355). Size: unused **41,419 B** (+23: D196 line +16, `.detail()` +7); used ≈ 1.1 KB (target 0.9). Review running |
@@ -74,12 +74,13 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 | 2-V | V-1 `<VirtualCollection>` on `@tanstack/virtual-core` | `src/extra/virtual*`, its entry, docs |
 | 2-B | B-3 browser sources (timers declaration shape) + B-4 `lazy(…, { when })` | `src/extra/browserSources*`, `src/lazy.ts` (B-4), docs |
 | 2-Z (next) | W-2 `fromZag` + Menu/Select/Combobox in `sygnal/ui`; `sygnal/react` `fromReact` | after 2-U |
-| 2-A | A-1 Collection move transitions on View Transitions form B | running |
+| 2-A | A-1 Collection move transitions on View Transitions form B | done (`p5-2a`, not merged) |
 
 ## Decisions
 
 | ID | Date | Decision | By |
 |---|---|---|---|
+| D209 | 2026-10-05 | P5-Q20 + **dependency rule**: don't bundle actively maintained third-party code into the npm builds (users must get patch/security releases through npm and see them in `npm audit`). Small framework-neutral libraries a feature needs → regular `dependencies` with a caret range, external in CJS/ESM, side-effect free (`@tanstack/virtual-core` `^3.17.11` now); heavy, framework-specific or rarely needed ones → optional peers (React, `@zag-js/*`); absorbing into `src/` only for unmaintained code (Cycle.js) or small patched copies. Only the UMD build bundles runtime dependencies. Recorded in CLAUDE.md | User |
 | D208 | 2026-10-05 | 1-S follow-ups (coordinator): D205 also restores on a same-state return (same meaning as ABORT) and only for actions handled synchronously inside the input/change event (debounced/delayed actions don't restore; documented); G-370's forwarding of `role`/`for`/`tabindex`/`aria-*` to components is a breaking fix (CHANGELOG); SYG237 sits in PLAN-5's 230–239 range; **G-382**: `valid` should keep the previous validity while an async schema re-validates after the first answer (avoid `disabled={!valid}` flicker) — next fix pass | Coordinator |
 | D207 | 2026-10-05 | P5-Q19: `lazy(load, { when: 'visible' \| 'idle' })` keeps the string form; every `lazy()` user carries ≈ +0.55 KB | User |
 | D206 | 2026-10-05 | P5-Q18: the `form` behavior's ≈ 3.0 KB used size is accepted (opt-in; `defineBehavior` grew to ≈ 0.9 KB with D197) | User |
@@ -147,6 +148,7 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 
 ## Log
 
+- 2026-10-05 — D209 (user): dependency rule; `@tanstack/virtual-core` moved to `dependencies` (^3.17.11), external in the npm builds; all gates green.
 - 2026-10-05 — 2-V and 2-U merged (resolved additive conflicts); all gates green on three engines (262/262; samples 621). Review of 2-B: 9 findings (G-383…G-391); 2-U follow-ups G-392/G-393.
 - 2026-10-05 — 1-S merged (2 additive conflicts with 2-B; CHANGELOG dedup); all gates green on three engines (230/230); core 41,652 B. D207 (user), D208.
 - 2026-10-05 — 2-B merged (three engines 227/227; core 41,500 B). Open: P5-Q19 (lazy `when` size).

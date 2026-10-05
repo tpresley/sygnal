@@ -326,6 +326,10 @@ The user answered P5-Q6…Q9 on 2026-10-02. PLAN-4's tracker recorded them, and 
 | P5-Q8 | `defineWidget` vs `defineElement` naming (S-11) | **User, 2026-10-02: keep both (D104)** (if GS-13 is adopted). They describe opposite directions, so the guide pairs them in one table ("bring a foreign widget in" / "publish a Sygnal component as an element"). Revisit if the eval shows confusion. |
 | P5-Q9 | Add B-4 (deferred loading triggers, gap-study G-17) | **User, 2026-10-02: yes (D103).** B-4 is in scope as P3, after B-3. |
 
+### Dependency rule (D209, 2026-10-05)
+
+Don't bundle actively maintained third-party code into Sygnal's npm builds. Small, framework-neutral libraries a feature needs are regular `dependencies` (caret range, external, side-effect free): `@tanstack/virtual-core` for V-1. Heavy, framework-specific or rarely needed ones are optional peers: React (`fromReact`), `@zag-js/*` (Menu/Select/Combobox, D202). Only the UMD build bundles runtime dependencies.
+
 ## 6. Risks
 
 | Risk | Mitigation |

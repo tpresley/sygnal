@@ -138,6 +138,7 @@
   },
   "homepage": "https://github.com/tpresley/sygnal#readme",
   "dependencies": {
+    "@tanstack/virtual-core": "^3.17.11",
     "snabbdom": "^3.6.3",
     "xstream": "^11.14.0"
   },
@@ -146,7 +147,6 @@
     "@rollup/plugin-node-resolve": "^15.2.1",
     "@rollup/plugin-terser": "^0.4.3",
     "@rollup/plugin-typescript": "^11.1.6",
-    "@tanstack/virtual-core": "3.17.11",
     "flatpickr": "4.6.13",
     "jsdom": "^29.1.1",
     "rollup": "^3.28.1",

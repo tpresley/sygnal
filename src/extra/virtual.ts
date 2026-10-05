@@ -8,8 +8,8 @@
  *
  * The same `of` / `from` / `filter` / `sort` as Collection (it is the core's Collection host with
  * a window: D169 keys, D177 duplicates, D178 a missing `from`, SYG401/411/412/418), and the other
- * props go to every item. Measurement and the window come from `@tanstack/virtual-core`, bundled
- * into Sygnal's build (not a dependency of apps; tree-shaken when unused).
+ * props go to every item. Measurement and the window come from `@tanstack/virtual-core`, a regular
+ * dependency of sygnal (D209; tree-shaken when unused).
  *
  * 0 B when unused: nothing runs on import. The tag is a function carrying the pragma's render
  * hook (`__sygnalControl`, as `defineWidget` tags), so its first render registers the host
