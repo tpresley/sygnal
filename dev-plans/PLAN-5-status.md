@@ -6,7 +6,7 @@ Tracks progress for [PLAN-5.md](PLAN-5.md) (ecosystem components and integration
 
 **Integration branch:** `plan5-integration`, cut from `plan46-complete` (`7146161`) on 2026-10-05, in worktree `.claude/worktrees/plan-4-execution-7ae8e8`. The release stays held (D56).
 
-**State:** Phase 1 merged (1-W, 1-F, 1-R, 1-F1); review of 1-F + 1-F1 and Phase 2 next. Open: P5-Q17 (ABORT re-sync), P5-Q18 (form size).
+**State:** Phase 1 merged; review of 1-F + 1-F1 running (its fix pass will add D205 and D201's `t.widget().dispatch`). Phase 2 running: 2-U (sygnal/ui native parts + Toaster), 2-V (VirtualCollection), 2-B (browser sources).
 
 ## 0-A baseline (2026-10-05)
 
@@ -45,6 +45,10 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 | 0-S4 | Toast top layer (confirm 0-S3's finding, 3 engines) | ✅ done (spike, not merged) | `exp/p5-s4` (`b91e30f`) | 2026-10-05 | Six strategies × 3 engines: only **`popover="manual"` re-parented into the topmost open modal** passes everything (on top, clickable, Tab-reachable and in the a11y tree inside the modal; survives close/reopen/removal; correct under transformed dialogs; Collection/Transition/timers keep working). Portal (S-5's fallback) fails (no component instantiation, fixed target, dies with the dialog). Needs a one-line core fix: `IsolateModule.getRootElement` throws for an element moved out of its component (−39 B). Toaster ≈ +0.94 KB gzip (+1.5 KB with the timer driver). Open: delegator bubbling still follows DOM parents (G-356), SYG202 on canonical item self-removal (G-357), real screen-reader check |
 | 1-F | Foundations | ✅ merged | `p5-1f` (`707e54b`) | 2026-10-05 | D196 pragma attrs (+63 B), moved-element isolation incl. bubbling via `__sygnalHome` (−27 B), form-associated custom-element sync (+42 B), D197 `defineBehavior` (`timers`, options/key in handlers, `HOST` reducer; 0 B), D194 `focusWithin` (0 B), D199 diagnostics/check items, test helpers, G-355 fixed (test isolation, not a router bug). After merge with 1-W: **41,5xx B**; vitest 2,818; browser 213/214 on all three engines (G-358) |
 | 1-R | Fixes: G-358 (merge interaction), 1-W review (G-359…G-369), D200 | ✅ merged | `p5-1r` (`451d9d5`) | 2026-10-05 | All 12 fixed (G-358 was the test: its view bound a value it never updated, which D196's re-sync correctly restores). Widget hosts keyed by widget + place (no reuse across widgets/plain/fallback); per-instance failures with recovery; Portal content destroyed on removal; Transition and refs on widgets; library classes kept; SSR IDL names + both kebab and lowercase attributes; SYG141/142 relaxed for unknown hosts; `__sw`; `dispatch`. Chromium/Firefox/WebKit 214/214; core **41,500 B** (800 B headroom); widget used ≈ 1.27 KB |
+| R-1F | Review of 1-F + 1-F1 | 🟡 running | | | |
+| 2-U | sygnal/ui native parts + Toaster | 🟡 running | `p5-2u` | | |
+| 2-V | VirtualCollection | 🟡 running | `p5-2v` | | |
+| 2-B | Browser sources + B-4 | 🟡 running | `p5-2b` | | |
 | 1-F1 | F-1 `form` behavior (D193) | ✅ merged | `p5-1f1` (`5c3d07b`) | 2026-10-05 | `form()` behavior on D197 (key-named reply actions) + public helpers (`checkForm`, `formErrors`, `setField`, `getField`, `fieldName(s)`, `replyErrors`, `focusInvalid` on `focusWithin`); 4 spike bugs fixed; SYG230–236 (dev); sygnal-check `form` entry; Forms guide; 38 tests + 3-engine browser test. Used ≈ **3.0 KB** (target 2.4 KB: `defineBehavior` grew to 0.9 KB with D197) → P5-Q18. After merge: vitest 2,890; browser 216/216 ×3; sygnal-check 553; samples 577 clean; core unchanged |
 | 1-W | Widgets + web components | ✅ merged | `p5-1w` (`2c6053c`) | 2026-10-05 | `defineWidget` (tag canonical + control form; Portal support; D196 command precedence), `.detail()`, custom-event typings, SYG115 fix, `renderToString` custom elements, codes SYG140–144 + SYG660–662, guides `widgets` and `web-components` (Using + Publishing). flatpickr + Web Awesome browser tests in all three engines (Chromium/Firefox 208/208, WebKit 207 = G-355). Size: unused **41,419 B** (+23: D196 line +16, `.detail()` +7); used ≈ 1.1 KB (target 0.9). Review running |
 | 0-S6 | Web components via tags/controls (3 engines) | ✅ done (spike, not merged) | `exp/p5-s6` (`81eb5a9`) | 2026-10-05 | Real Web Awesome 3.14 works canonically (tag + class) and as controls: 18 browser tests × Chromium/Firefox/WebKit (pointer + keyboard, shadow-DOM events, forms, Collection isolation, a11y names, late upgrade, SSR, publish + consume with `defineElement`). WA fires plain `change`/`input` (+ `wa-*` for library events; not CustomEvents). Fixed: custom event names in `events()` types (0 B), SYG115 on hyphenated shorthands (dev). sygnal-check had no false positives. +7 B core (`.detail()`). Caveats: `name` via `attrs` for some elements, Firefox FormData one keystroke behind, dashed JSX props, `renderToString` writes function/object props, controlled drift on custom elements. Guide outline drafted |
@@ -61,10 +65,22 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 | 1-W | W-1 `defineWidget` (from 0-S1, D189/D190, + D196 command precedence) and W-3 (`.detail()`, custom-event typings, SYG115 fix, "Web components" guide incl. Publishing, `renderToString` custom elements) | — | `src/extra/widget.ts`, `elementCommands.ts`, `ssr.ts`, `testing.ts` (`t.widget`), `MainDOMSource`/`DocumentDOMSource` types, sygnal-check widgets model, docs web-components |
 | 1-F1 | F-1 `form` behavior (from 0-S2, D193) on 1-F's `defineBehavior` + `focusWithin` | 1-F | `src/extra/form*.ts`, docs forms |
 
+## Phase 2 plan (2026-10-05)
+
+| ID | Work | Owns |
+|---|---|---|
+| 2-U | `sygnal/ui` subpath entry (D202) + native parts from 0-S3/0-S4: Dialog, Popover, Tooltip (behaviors), Tabs, Accordion, Disclosure (behaviors, S-4), Toaster (T-1, D198) | `src/ui/**`, rollup/package exports for `sygnal/ui`, docs `ui/*` |
+| 2-V | V-1 `<VirtualCollection>` on `@tanstack/virtual-core` | `src/extra/virtual*`, its entry, docs |
+| 2-B | B-3 browser sources (timers declaration shape) + B-4 `lazy(…, { when })` | `src/extra/browserSources*`, `src/lazy.ts` (B-4), docs |
+| 2-Z (next) | W-2 `fromZag` + Menu/Select/Combobox in `sygnal/ui`; `sygnal/react` `fromReact` | after 2-U |
+| 2-A (next) | A-1 Collection move transitions on View Transitions form B | after the review fix pass |
+
 ## Decisions
 
 | ID | Date | Decision | By |
 |---|---|---|---|
+| D206 | 2026-10-05 | P5-Q18: the `form` behavior's ≈ 3.0 KB used size is accepted (opt-in; `defineBehavior` grew to ≈ 0.9 KB with D197) | User |
+| D205 | 2026-10-05 | P5-Q17: an action triggered by input on a value-bound (controlled) field whose STATE handler ABORTs still re-renders that component, so the field is restored to the model's value (React-like). ABORT still means "no state change". Applies to native and form-associated custom elements; a few core bytes; CHANGELOG + docs | User |
 | D204 | 2026-10-05 | P5-Q4: icons via a Lucide vanilla recipe; no icon package unless the eval shows agents struggle | User |
 | D203 | 2026-10-05 | P5-Q3: adapters `fromZag` (for Menu/Select/Combobox) and `sygnal/react` `fromReact` with the preact/compat alias documented; `sygnal/vue` only on demand; docs present adapters as an escape hatch | User |
 | D202 | 2026-10-05 | P5-Q2: the headless UI parts ship as a **subpath of `sygnal`** (e.g. `sygnal/ui`), tree-shaken, with `@zag-js/*` as optional peer dependencies (not a separate `sygnal-ui` package) | User |
@@ -104,6 +120,7 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 
 ## Log
 
+- 2026-10-05 — D205 (ABORT restores controlled fields), D206 (form size accepted). Review of 1-F + 1-F1 and Phase 2 (2-U, 2-V, 2-B) started.
 - 2026-10-05 — 1-F1 merged (all gates green, three engines 216/216). D202–D204 (user: UI as a `sygnal` subpath; fromZag + React adapters; Lucide recipe).
 - 2026-10-05 — 1-R merged (all gates green, three engines 214/214; 41,500 B). D201. 1-F1 running.
 - 2026-10-05 — 1-F merged (3 conflicts with 1-W resolved); one cross-branch browser failure (G-358). Review of 1-W: 11 findings (G-359…G-369). 1-R started.
