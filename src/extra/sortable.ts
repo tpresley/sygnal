@@ -38,9 +38,10 @@
  * pointer capture.
  *
  * Nested sortables: an event is claimed by the first (innermost) sortable host it bubbles
- * through, so an outer sortable ignores the items of an inner one. Under the pointer, the
- * candidates are every item around the element, innermost first; the first whose id is in this
- * host's lists wins.
+ * through, so an outer sortable ignores the items of an inner one. A host's own items are the
+ * item elements below its root that aren't inside another item below it (an item inside an item
+ * belongs to a nested list, whose ids may repeat this host's: G-444/G-445): the press, key, the
+ * item under the pointer (the outermost one there) and the focus target are resolved among them.
  *
  * Focus: each keyboard step (but Tab) sends `{ focus: focusWithin('<item>[<attr>="<id>"] <handle>') }`
  * (D194): the keyed Collection may move the focused node when the list reorders. A keyboard
@@ -99,14 +100,9 @@ export const sortable = (options: any = {}): any => {
   // where an id is: { list, index, item, size }
   const find = (st: any, id: any) => {
     for (const l of lists) {
-      const a = st?.[l], i = Array.isArray(a) ? a.findIndex((x: any) => S(x?.[idField]) === S(id)) : -1
+      const a = st?.[l], i = id != null && Array.isArray(a) ? a.findIndex((x: any) => S(x?.[idField]) === S(id)) : -1
       if (i >= 0) return {list: l, index: i, item: a[i], size: a.length}
     }
-    return null
-  }
-  // the first of the candidate ids (innermost first) that is one of this host's items
-  const pick = (st: any, ids: any) => {
-    for (const id of ids || []) { const f = find(st, id); if (f) return f }
     return null
   }
   // move the item at `f` to list `l` at index `to` (the index it ends at)
@@ -127,8 +123,24 @@ export const sortable = (options: any = {}): any => {
     : list && lists.includes(list) && list != f.list ? {list, to: (st[list] || []).length, after: true}
     : null
   const where = (f: any, n: any) => n.list != f.list ? n.list : undefined
-  const focus = (_s: any, d: any) => d.key == 'Tab' || d.id == null ? ABORT
-    : {focus: focusWithin(":scope " + one(item) + `[${attr}="${S(d.id).replace(/["\\]/g, '\\$&')}"]` + (handle ? ' ' + one(handle) : ''))}
+  // an element below the host's root `r` (the root is an item of an outer sortable; in
+  // renderComponent's mock DOM, where the event's target is the root, it counts)
+  const inside = (el: any, r: any) => el !== r ? !r?.contains || r.contains(el) : !r.nodeType
+  // one of this host's own items: below the root and not inside another item below it (that one
+  // is a nested list's, whose ids may repeat this host's: G-444)
+  const own = (it: any, r: any) => {
+    if (!it || !inside(it, r)) return false
+    const up = it.parentElement?.closest?.(item)
+    return !(up && inside(up, r))
+  }
+  // focus the moved item's handle: D194's focusWithin, keeping to this host's own items (G-445)
+  const focus = (_s: any, d: any) => {
+    if (d.key == 'Tab' || d.id == null) return ABORT
+    const sel = ':scope ' + one(item) + `[${attr}="${S(d.id).replace(/["\\]/g, '\\$&')}"]` + (handle ? ' ' + one(handle) : '')
+    return {focus: {...focusWithin(sel), spec: {commands: {focus: (root: any, o: any) => {
+      for (const el of root.querySelectorAll?.(sel) || []) if (own(handle ? el.closest(item) : el, root)) return el.focus(o)
+    }}}}}
+  }
 
   const def = {
     initialState: {...idle, helpId: null},
@@ -137,29 +149,29 @@ export const sortable = (options: any = {}): any => {
       let root: any, checked: any // this host's root element (from its last press); SYG146 done
       const on = (f: (s: any) => any, s$: () => any) =>
         slice$.map(f).compose(dropRepeats()).map((a: any) => a ? s$() : xs.empty()).flatten()
-      // an element below the host's root (the root itself is an item of an outer sortable)
-      const inside = (el: any) => el !== root && (!root?.contains || root.contains(el))
-      // the pointer's position and what it is over: the ids of the items around the element
-      // there (innermost first), and the data-list container
+      // the pointer's position and what it is over: the id of this host's item around the
+      // element there (the outermost item below the root: G-444), and the data-list container
       const pt = (e: any) => {
         const x = e.clientX, y = e.clientY, d = typeof document != 'undefined' ? document : null
-        const el = (typeof x == 'number' && d?.elementFromPoint?.(x, y)) || e.target, over: any[] = []
-        for (let it = el?.closest?.(item); it && inside(it); it = it.parentElement?.closest?.(item)) idOf(it) != null && over.push(idOf(it))
+        const el = (typeof x == 'number' && d?.elementFromPoint?.(x, y)) || e.target
+        let o: any
+        for (let it = el?.closest?.(item); it && inside(it, root); it = it.parentElement?.closest?.(item)) o = it
         const box = lists.length > 1 && el?.closest?.('[data-list]')
-        return {x: x || 0, y: y || 0, over, list: box && inside(box) ? box.getAttribute?.('data-list') : null}
+        return {x: x || 0, y: y || 0, over: o ? idOf(o) : null, list: box && inside(box, root) ? box.getAttribute?.('data-list') : null}
       }
       // the id of the item whose handle (or the item itself) the event happened on; `self`: the
       // handle must be the event's own target (keys)
       const gripOf = (e: any, self?: boolean) => {
-        if (!checked) checked = dev(146, e.ownerTarget || e.currentTarget, item, handle, attr)
-        const t = e.target, g = !claimed.has(e) && t?.closest?.(grip)
+        const t = e.target, r = e.ownerTarget || e.currentTarget
+        if (!checked) checked = dev(146, r, item, handle, attr)
+        const g = !claimed.has(e) && t?.closest?.(grip)
         if (!g || self && g !== t) return null
         // no handle: a press or key on a button, link or field inside the item is its own
         const inner = !handle && t !== g && t.closest?.(FIELDS)
         if (inner && inner !== g && (!g.contains || g.contains(inner))) return null
-        // the host's root is not its own item (unless it is the target: renderComponent's mock DOM)
-        const it = handle ? g.closest?.(item) : g, r = e.ownerTarget || e.currentTarget
-        if (!it || it === r && it !== t) return null
+        // one of this host's own items (not its root, not a nested list's item)
+        const it = handle ? g.closest?.(item) : g
+        if (!own(it, r)) return null
         const id = idOf(it)
         if (id == null) dev(145, it, item, attr)
         return id
@@ -214,7 +226,7 @@ export const sortable = (options: any = {}): any => {
         // past the threshold: the drag starts
         const start = !s.dragging && {dragging: S(p.id), mode: 'pointer', origin: {list: f.list, index: f.index}, message: msg.lift(label(f.item), f.index + 1, f.size, false)}
         if (!s.dragging && Math.hypot(d.x - p.x, d.y - p.y) < threshold) return ABORT
-        const o = pick(st, d.over), L = landing(st, f, o, d.list)
+        const o = find(st, d.over), L = landing(st, f, o, d.list)
         const next = {...start, over: o ? S(o.item[idField]) : null, list: L?.list ?? null, after: !!L?.after}
         return !start && next.over === s.over && next.list === s.list && next.after === s.after ? ABORT : put(st, k, next)
       }},
@@ -223,7 +235,7 @@ export const sortable = (options: any = {}): any => {
         if (!s.dragging) return s.press ? put(st, k, idle) : ABORT
         const f = find(st, s.dragging)
         // the release point decides (a last move may not have been rendered)
-        const L = f && landing(st, f, pick(st, d.over), d.list)
+        const L = f && landing(st, f, find(st, d.over), d.list)
         if (!f || !L || L.list == f.list && L.to == f.index) return put(st, k, {...idle, message: f ? msg.cancel(label(f.item), f.index + 1, f.size) : ''})
         const out = move(st, f, L.list, L.to), n = find(out, s.dragging)!
         next('DROPPED', {id: s.dragging, list: n.list, index: n.index, fromList: f.list, fromIndex: f.index}, 0)
