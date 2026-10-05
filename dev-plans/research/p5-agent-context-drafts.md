@@ -96,3 +96,15 @@ Line count: 0 (the existing line grows by ≈ 120 B). SKILL.md: nothing.
 Line count: 1. It names what agents would get wrong: the separate subpath (not `sygnal/ui`), the kebab event names (`value-change`, not `change`), `label` as the accessible name, and that the adapters are opt-in.
 
 **SKILL.md** (≈ 130 B, if Phase 4 makes room): "Menu/Select/Combobox → `sygnal/ui/zag` widget tags (events `select` / `value-change`); React or Zag component → `fromReact` / `fromZag` (guide: adapters)."
+
+## 3-D: sortable lists (B-1)
+
+**One `llms.txt` line** (rank 3: in "More (guides)", next to the behaviors / forms pointer):
+
+```md
+- Reorderable list: `List.uses = { sort: sortable({ from: 'tasks', item: '.task', handle: '.grip' }) }` (mouse, touch, keyboard); items `<li className="task" data-id={state.id}><button className="grip" aria-label=… aria-describedby={context.sort.helpId}>` (context `sort: (s) => s.sort`; style from `context.sort.dragging` / `over` / `after`), host `<p role="status" aria-live="assertive">{state.sort.message}</p>`, save in `'sort.DROPPED': (state, { id, index, fromIndex }) => …`; two lists `from: ['todo', 'done']` + `data-list="todo"`. HTML5 / file drops: `makeDragDriver`. Guide: https://sygnal.js.org/guide/drag-and-drop/
+```
+
+Line count: 1. It names what agents would get wrong: the id attribute on the item element (SYG145), the live region (SYG724), that the list is already reordered when `sort.DROPPED` arrives, and `sortable` vs `makeDragDriver`.
+
+**SKILL.md** (≈ 110 B, if Phase 4 makes room): "Drag to reorder → `uses = { sort: sortable({ from, item, handle }) }` + live region (guide: drag-and-drop)."

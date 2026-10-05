@@ -892,6 +892,28 @@ function isSelected(slice: { selected: string[] }, id: string | number): boolean
 
 ---
 
+## sortable()
+
+A behavior: reorders a list in the host's state by pointer (mouse, pen, touch) and keyboard, with live-region announcements. [Guide](/guide/drag-and-drop/#sortable-lists).
+
+```typescript
+function sortable(options: {
+  from: string | string[]; item?: string; handle?: string; axis?: 'x' | 'y'; threshold?: number
+  attr?: string; idField?: string; label?: (entry: any) => string
+  messages?: Partial<Record<'lift' | 'move' | 'drop' | 'cancel', (label: string, position: number, count: number, extra?: any) => string>>
+}): Behavior
+```
+
+| | |
+|---|---|
+| Options | `from` (required: the list's state key, or keys for moves between lists, each container marked `data-list`), `item` (`'[data-id]'`), `handle` (default: the item), `attr` (`'data-id'`), `idField` (`'id'`), `axis` (`'y'`), `threshold` (4 px), `label`, `messages` |
+| State | `dragging`, `over`, `after`, `list`, `mode` (`'pointer'` / `'keyboard'` / `null`), `message` (for a live region), `helpId` (a `uid()` id for the instructions); internal `press`, `origin` |
+| Actions | `DROPPED` (`{ id, list, index, fromList, fromIndex }`, once per completed move: add a host entry to save the order); internal `INIT`, `PRESS`, `MOVE`, `UP`, `CANCEL`, `KEY` |
+
+Keys on a handle: Space / Enter lift and drop, the arrows and Home / End move (the cross axis changes lists), Escape restores, Tab drops. Focus follows the moved item ([`focusWithin`](#focuswithin)). A pointer drag shows `over` / `after` while moving and reorders on release. Dev diagnostics [SYG145](/reference/errors/#syg145)–[SYG147](/reference/errors/#syg147); `sygnal-check` [SYG724](/reference/errors/#syg724).
+
+---
+
 ## undo() / undoable()
 
 Undo history for one key of the state. [Guide](/advanced/undo/).
