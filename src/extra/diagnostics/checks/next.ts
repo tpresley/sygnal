@@ -13,7 +13,9 @@
  *   (onElementCommand), the Collection check (onHostProps), the action log (actionLog.ts);
  * - the core's own dev codes: SYG423 (D168: a view context tracking skipped would have
  *   rendered differently), SYG424 (D169/D177: duplicate Collection ids), SYG425 (D174: an
- *   isolatedState child kept a slice that lacks its initialState keys), SYG612 (D173: a form
+ *   isolatedState child kept a slice that lacks its initialState keys), SYG148 / SYG149 (G-419:
+ *   a Collection's viewTransitionName that isn't an identifier, the same name twice on the
+ *   page after a patch), SYG612 (D173: a form
  *   6.0 removed, met at runtime; once per form and component, with a link to the migration
  *   guide).
  *
@@ -148,6 +150,46 @@ function same(a: any, b: any, d = 0): boolean {
 
 const SAMPLE = 16, CAP = 20
 
+/** a CSS identifier's start, then identifier characters (`<prefix>-<id>` is one when the prefix starts one) */
+const IDENT = /^(--|-?[A-Za-z_\u0080-\uffff])[\w\u0080-\uffff-]*$/
+
+/** G-419 SYG148: a Collection's viewTransitionName that is not a CSS identifier (true: a valid one) */
+function vtPrefix(name: string, p: any): boolean {
+  if (typeof p == 'string' && IDENT.test(p)) return true
+  const shown = typeof p == 'string' ? JSON.stringify(p) : `{${typeof p}}`
+  if (once(`SYG148:${name}:${String(p)}`)) devReport('SYG148', {
+    component: name,
+    message: `A Collection in ${name} has viewTransitionName=${shown}, which is not a CSS identifier, so every item's view-transition-name (${typeof p == 'string' ? p : '<prefix>'}-<id>) is invalid CSS: the browser ignores it and nothing animates`,
+    fix: 'Use a CSS identifier as the prefix: letters, digits, - and _, not starting with a digit (viewTransitionName="card")',
+    data: {value: p},
+  })
+  return false
+}
+
+/**
+ * G-419 SYG149: two elements of the patched page with the same view-transition-name from
+ * Collections with the same prefix (the same id shown in two of them): the browser skips the
+ * whole View Transition. Walks the vnode tree (dev only, while a named Collection exists)
+ */
+function vtDuplicates(root: any, prefixes: Set<string>): void {
+  const seen = new Set<string>(), stack = [root]
+  while (stack.length) {
+    const v = stack.pop()
+    if (!v || typeof v != 'object') continue
+    const st = v.data?.style, n = st?.viewTransitionName
+    if (typeof n == 'string' && prefixes.has(st.viewTransitionClass)) {
+      if (!seen.has(n)) seen.add(n)
+      else if (once(`SYG149:${n}`)) devReport('SYG149', {
+        component: 'Collection',
+        message: `Two elements on the page have view-transition-name '${n}': Collections with viewTransitionName="${st.viewTransitionClass}" show the item with that id at the same time. Names must be unique when a View Transition starts, so the browser skips every transition while both are shown`,
+        fix: `Give Collections that can show the same item at once different prefixes (viewTransitionName="${st.viewTransitionClass}" and another), or name the item yourself with its own style`,
+        data: {name: n, prefix: st.viewTransitionClass},
+      })
+    }
+    if (Array.isArray(v.children)) for (let i = v.children.length; i--;) stack.push(v.children[i])
+  }
+}
+
 /** The hooks one app gets (installChecks publishes this on the bridge). */
 export function nextHooks(_api: any): any {
   const core = bridge(), H = core.hooks
@@ -166,6 +208,8 @@ export function nextHooks(_api: any): any {
   const skips = new WeakMap<object, number>()
   let budget = 0
   const log = actionHooks(recentActions, () => on())
+  // G-419: the viewTransitionName prefixes this app's Collections use
+  const vtp = new Set<string>()
   return {
     onCreate(iv: any) {
       if (!on()) return
@@ -230,6 +274,13 @@ export function nextHooks(_api: any): any {
       const f = fac(owner)
       if (typeof props.of == 'string') removed(f, f.name, 'collection-of-name', `of="${props.of}"`)
       try { checkCollection(f, {data: {props}}) } catch (_) { /* ignore */ }
+      // G-419: SYG148 for a prefix that isn't an identifier; a valid one is checked for
+      // duplicate names after each patch (SYG149)
+      const p = props.viewTransitionName
+      if (p != null) vtPrefix(f.name, p) && vtp.add(p)
+    },
+    onPatch(vnode: any) {
+      if (vtp.size && on()) try { vtDuplicates(vnode, vtp) } catch (_) { /* a check never breaks the app */ }
     },
     onDuplicateKey(owner: any, key: any) {
       if (!on()) return

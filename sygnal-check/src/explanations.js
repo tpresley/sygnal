@@ -210,6 +210,20 @@ export const EXPLANATIONS = {
     explanation: "A widget declares an event whose name the browser also uses (`'change'`, `'input'`, `'select'`, `'toggle'`...). Native events of that name fire on the host or bubble up from inside it (flatpickr's own input fires `change` as well), so a listener on the host gets both the widget's `CustomEvent` and the native event, and `.detail()` is `undefined` for the native one. Information only: it may be what you want. The dev entry reports it once per widget when a host mounts (names the host element knows as `on<name>`); sygnal-check reports the literal `events` entries it recognises.",
     fix: "Give the widget's event its own name (`'pick'` for a date picker's selection, `'rate'` for a rating) and emit that, or make the listener handle both (`.filter((e) => e instanceof CustomEvent)`).",
   },
+  SYG148: {
+    title: "Collection viewTransitionName is not a CSS identifier",
+    severity: "warn",
+    reportedBy: ["dev-entry"],
+    explanation: "A `<Collection>` or `<VirtualCollection>` has a `viewTransitionName` that is not a string starting a CSS identifier (a letter, `_`, `-` followed by a letter or `_`, or `--`; then letters, digits, `-` and `_`). Each item's name is `<prefix>-<id>`, so with a prefix such as `'1card'`, `'my card'` or `'card.x'` every name is invalid CSS: the browser ignores the `view-transition-name` and nothing animates, with no error. The dev entry reports it once per component and prefix when the Collection renders.",
+    fix: "Use a CSS identifier as the prefix: `viewTransitionName=\"card\"` (letters, digits, `-` and `_`, not starting with a digit). The ids are escaped for you.",
+  },
+  SYG149: {
+    title: "Two items with the same view-transition name",
+    severity: "warn",
+    reportedBy: ["dev-entry"],
+    explanation: "After a render, two elements on the page have the same `view-transition-name` from Collections with the same `viewTransitionName` prefix: the same item `id` is in two of them at once (an 'All' list and a 'Favorites' list both named `card`). A name must be unique when a View Transition starts, so the browser skips the whole transition (Chromium logs `Unexpected duplicate view-transition-name`). The same prefix on several Collections is meant for one item moving between them, never shown in two at once. The dev entry checks the rendered page after each patch while a Collection with a prefix is rendered, and reports each name once.",
+    fix: "Give Collections that can show the same item at the same time different prefixes (`viewTransitionName=\"all\"` and `viewTransitionName=\"fav\"`), or set the item's own `style={{ viewTransitionName }}` where it needs one.",
+  },
   SYG201: {
     title: "STATE reducer dropped keys from the previous state",
     severity: "warn",

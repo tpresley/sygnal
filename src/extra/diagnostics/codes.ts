@@ -163,6 +163,9 @@ export const CODE_TITLES: Record<string, string> = {
   SYG142: 'Widget command not declared',
   SYG143: 'Widget tag used as a selector',
   SYG144: 'Widget event the host element also fires natively',
+  // PLAN-5 3-F G-419: a Collection's viewTransitionName (checks/next.ts)
+  SYG148: 'Collection viewTransitionName is not a CSS identifier',
+  SYG149: 'Two items with the same view-transition name',
   // PLAN-5 V-1: VirtualCollection (checks/virtual.ts)
   SYG430: 'VirtualCollection has no bounded height',
   SYG431: 'VirtualCollection items without ids',
@@ -402,6 +405,9 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG142: 'error',
   SYG143: 'warn',
   SYG144: 'info',
+  // PLAN-5 3-F G-419 (checks/next.ts: onHostProps, onPatch)
+  SYG148: 'warn',
+  SYG149: 'warn',
   SYG660: 'error',
   SYG661: 'error',
   SYG662: 'error',
