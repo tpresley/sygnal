@@ -31,6 +31,12 @@ import {viewOf} from './view'
 import {stopQueued, INST} from './teardown'
 
 const LOOP = 100, HARD = 1000
+// the macrotask, captured at load (a test's fake timers don't hold the ping): Node drains a
+// MessagePort's messages back to back (timers starve), so its setImmediate is the macrotask
+// there; browsers have no setImmediate and get a MessageChannel
+const G: any = globalThis
+const SI: ((f: () => void) => void) | undefined = typeof G.setImmediate == 'function' ? G.setImmediate.bind(G) : undefined
+const MC: any = typeof G.MessageChannel == 'function' ? G.MessageChannel : undefined
 const SET = Symbol('setState')
 const ERR_FIX = 'See the attached error'
 
@@ -155,13 +161,10 @@ export class App {
     if (f) this.hops.push(f)
     if (this.ping) return
     this.ping = true
-    // Node drains a MessagePort's messages back to back (timers starve): its setImmediate is the
-    // macrotask there; browsers have no setImmediate
-    const si = (globalThis as any).setImmediate
-    if (typeof si == 'function') return void si(() => this.pong())
-    if (typeof MessageChannel == 'undefined') return void setTimeout(() => this.pong())
+    if (SI) return void SI(() => this.pong())
+    if (!MC) return void setTimeout(() => this.pong())
     if (!this.mc) {
-      this.mc = new MessageChannel()
+      this.mc = new MC()
       this.mc.port1.onmessage = () => this.pong()
       this.mc.port1.unref?.()
     }

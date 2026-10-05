@@ -164,9 +164,15 @@ export class Inst {
         if (typeof s.subscribe != 'function') fail('SYG603', this, `intent entry '${type}' is not a stream`, 'Return { ACTION: stream$ }')
         this.subs.push(s.subscribe({
           next: (d: any) => app.dispatch(this, type, d, 'intent'),
-          error: (e: any) => { logError('SYG216', this, `Intent stream '${type}' errored; it stops emitting`, ERR_FIX, e); app.appError(this, e, 'intent', type) },
+          // (no code of its own yet: R4's diagnostics may add one)
+          error: (e: any) => { console.error(`[Sygnal] ${def.name}: intent stream '${type}' errored; it stops emitting`, e); app.appError(this, e, 'intent', type) },
         }))
       }
+    } catch (e) {
+      // a failed instance keeps no subscription (its parent renders the error fallback)
+      for (const s of this.subs) s.unsubscribe()
+      this.subs = []
+      throw e
     } finally { app.draining = was }
     if (!was && !app.rendering && app.queue.length) app.drain()
   }
@@ -392,7 +398,7 @@ export class Inst {
         : st !== undefined ? lensCell(this.cell, st, this.def.name)
         : def.isolated ? localCell(app, this.cell) : this.cell
       const scope = app.scope()
-      return new Inst(app, def, this, cell, this.dom.isolateSource(this.dom, scope), props, children, scope,
+      return new Inst(app, def, this, cell, this.dom && this.dom.isolateSource(this.dom, scope), props, children, scope,
         this.uid(uidPart(id.replace(/.*::(r\.)?/, ''))))
     } catch (err) {
       const e = err instanceof Error ? err : new Error(String(err))
