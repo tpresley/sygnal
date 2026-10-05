@@ -6,7 +6,7 @@ Tracks progress for [PLAN-5.md](PLAN-5.md) (ecosystem components and integration
 
 **Integration branch:** `plan5-integration`, cut from `plan46-complete` (`7146161`) on 2026-10-05, in worktree `.claude/worktrees/plan-4-execution-7ae8e8`. The release stays held (D56).
 
-**State:** Phase 2: 2-B, 2-V, 2-U, 2-A merged; 2-Z and 2-R merged; 2-S merged; running: 2-T (D211/D212 follow-ups + 2-Z review fixes G-409…G-416); Phase 3 started: 3-D (B-1 `sortable`, codes SYG145–147/724), 3-R (docs recipes + B-2 i18n, docs only). Known flaky test `p5-1s-forms` (fixed in 2-R).
+**State:** Phase 2: 2-B, 2-V, 2-U, 2-A merged; 2-Z and 2-R merged; 2-S merged; running: 2-T (D211/D212 follow-ups + 2-Z review fixes G-409…G-416); Phase 3: 3-R merged; running 3-D (B-1 `sortable`, codes SYG145–147/724), 3-F (2-A/2-S review fixes, SYG148–149). Known flaky test `p5-1s-forms` (fixed in 2-R).
 
 ## 0-A baseline (2026-10-05)
 
@@ -170,6 +170,7 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 | G-430 | review 2-S | Low | ui/dialog | returnFocus `focus(opener)` targets a dialog rendered only while open → SYG640 on every close; `_opener` retains a detached trigger. Plausible | → 3-F |
 | G-431 | review 2-S | Low | ssr / virtual | Client virtual rows keyed, SSR rows not → hydration replaces every row (focus/typed text lost); SSR `data-index` shifts after null-rendering rows. Plausible | → 3-F |
 | G-432 | review 2-S | Low | ui/toaster | Re-parent into a modal then refocus sets `_from = null`; dismissing the last toast blurs instead of returning focus | → 3-F |
+| G-433 | 3-R report | Low | sygnal-check | SYG705 misses an icon-only button whose content is a call (`<button>{icon(Trash2)}</button>`); icons page tells readers to label it | → later pass |
 | G-408 | 2-R × 2-Z | Low | process | Two parallel workstreams registered the same code (SYG666); fixed at merge (2-R's → SYG668). Briefs now assign code numbers | Fixed (process) |
 | G-394 | review 2-V | High | VirtualCollection | An inline `estimateSize` function (the guide's own pattern) clears every measured row height on each owner render; rows aren't re-measured. Confirmed | → 2-S |
 | G-395 | review 2-V | Med/High | VirtualCollection | SYG430 "grows" misfires on a bounded container above viewport height that fits its rows; clamping then leaves unreachable blank rows. Confirmed | → 2-S |
@@ -195,6 +196,7 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 - 2026-10-05 — Review of 2-Z: 8 findings (G-409…G-416). 2-T started (codes assigned: SYG669, SYG722–723).
 - 2026-10-05 — 2-S merged (G-394…G-407 fixed; behaviour changes: Collection SSR applies filter/sort/props, Toaster HOVER/FOCUS + `'t<n>'` ids, keyed virtual rows with two-step patch); gates green, three engines 286/286, core 41,825 B. Review of 2-A: 5 findings (G-417…G-421), no high severity; 2-S follow-ups G-422/G-423. All to a later fix pass 3-F.
 - 2026-10-05 — Review of 2-S: 9 findings (G-424…G-432), to 3-F; G-422 closed (no `ui` entries in FIRST_PARTY).
+- 2026-10-05 — 3-R merged (docs only: Recipes section, 8 pages, tested in `dev-plans/research/p5-recipes/` — not in `npm test`); gates green, samples 666 clean, docs 87 pages. Open for the user: `renderComponent` `context` option (API), document a view reading its own `.context`, ship recipes offline (Phase 4). G-433. 3-F started (G-417…G-421, G-423…G-432; codes SYG148–149).
 - 2026-10-05 — 2-R merged (6 conflicts; SYG666 clash renumbered to SYG668); all gates green on three engines (279/279); core 41,825 B. D212, G-408.
 - 2026-10-05 — 2-Z merged; three engines 276/276; core 41,771 B. D211.
 - 2026-10-05 — Review of 2-U + 2-V: 14 findings (G-394…G-407). 2-S started.
