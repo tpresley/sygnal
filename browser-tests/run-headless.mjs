@@ -9,6 +9,7 @@ import { createServer } from 'vite';
 import { chromium } from 'playwright';
 
 const HOST = '127.0.0.1';
+const NEXT = process.env.SYGNAL_CORE === 'next';
 const TIMEOUT = 90000; // the full suite takes ~27 s (PLAN-4 1-F)
 
 /**
@@ -87,6 +88,10 @@ async function run() {
     await page.exposeFunction('__pwType', (selector, text, delay) =>
       page.locator(selector).pressSequentially(text, { delay }));
 
+    // PLAN-4.6 R1-R4 (deleted at R5): SYGNAL_CORE=next runs the suite on the next component core
+    // (run()'s internal flag, set before the app's modules load)
+    if (NEXT) await page.addInitScript(() => { globalThis.__SYGNAL_CORE__ = 'next'; });
+
     await page.goto(url);
 
     // Wait for tests to complete
@@ -119,7 +124,19 @@ async function run() {
       process.exit(1);
     }
 
-    console.log(`\nBrowser Tests: ${passed} passed, ${failed} failed, ${passed + failed} total\n`);
+    console.log(`\nBrowser Tests${NEXT ? ' (next core)' : ''}: ${passed} passed, ${failed} failed, ${passed + failed} total\n`);
+
+    if (NEXT) {
+      // per test file (category): the R2-R4 phases bring the rest
+      const by = new Map();
+      for (const t of tests) {
+        const c = by.get(t.category) || { pass: 0, fail: 0 };
+        c[t.status === 'pass' ? 'pass' : 'fail']++;
+        by.set(t.category, c);
+      }
+      for (const [c, n] of by) console.log(`  ${n.fail ? 'FAIL' : 'ok  '} ${c}: ${n.pass} passed, ${n.fail} failed`);
+      console.log('');
+    }
 
     if (failed > 0) {
       const failures = tests.filter(t => t.status === 'fail');
