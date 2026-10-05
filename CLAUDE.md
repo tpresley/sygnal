@@ -10,6 +10,8 @@ npm run build          # Rollup → dist/ (16 inputs: core UMD/CJS/ESM, JSX runt
 npm run build:all      # same as build (kept for prepublishOnly)
 npm test               # the full gate, in order:
                        #   vitest run          library tests in test/ (1,771)
+                       #   test:next           PLAN-4.6 R1-R4: the suites the next core (src/core/) covers,
+                       #                       with SYGNAL_CORE=next (scripts/test-next.mjs; deleted at R5)
                        #   test:examples       each example's own suite (9 examples, 105 tests)
                        #   test:types          tsc on type-tests/
                        #   test:browser        browser-tests/ (154)

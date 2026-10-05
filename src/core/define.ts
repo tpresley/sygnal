@@ -28,6 +28,8 @@ export interface CoreDef extends Def {
   readonly calcNames: Set<string> | null
   /** the model has a READY entry: the instance starts not ready */
   readonly ready: boolean
+  /** the definition has a model (a root without one renders from `initialState || true`) */
+  readonly model: boolean
 }
 
 export const isObj = (o: any): o is Record<string, any> => o !== null && typeof o == 'object' && !Array.isArray(o)
@@ -139,6 +141,7 @@ export function normalize(view: ComponentFn, src: DefSource): CoreDef {
     statics: [],
     behaviorActions: src.behaviorActions,
     ready: sinks.has('READY'),
+    model: model !== undefined,
     onError: typeof view.onError == 'function' ? view.onError : undefined,
   }
 }

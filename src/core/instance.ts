@@ -132,7 +132,9 @@ export class Inst {
     const H = app.hooks
     // the initial state, synchronously (INITIALIZE at construction, D165): a root (or the state an
     // HMR swap keeps), an isolated child's local state, or its default while its slice is undefined
-    const init = !parent && app.initState !== undefined ? app.initState : def.initialState
+    let init = !parent && app.initState !== undefined ? app.initState : def.initialState
+    // a root without a model renders from `initialState || true` (G-172, as today)
+    if (!parent && !def.model && !init) init = true
     if (init !== undefined && (!parent || (def.isolated && ((base as any).local || this.cell.raw() === undefined)))) this.cell.set(init)
     else if (def.idle && isObj(this.cell.raw()) && !parent) this.cell.set(this.cell.raw())
     H.onCreate?.(viewOf(this))
@@ -279,7 +281,13 @@ export class Inst {
   render(): any {
     if (this.disposed) return this.outv
     const state = this.cell.get(), ctx = this.context()
-    const viewDirty = this.forced || state !== this.ls || !shallowEq(this.props, this.lp) || !sameKids(this.children, this.lc) || this.ctxChanged(ctx)
+    let viewDirty = this.forced || state !== this.ls || !shallowEq(this.props, this.lp) || !sameKids(this.children, this.lc) || this.ctxChanged(ctx)
+    // no state (yet): the view isn't called; it keeps its last render (as today's state stream,
+    // which skips undefined). A child with none is left out of its parent's vnode
+    if (state === undefined && viewDirty) {
+      if (!this.tmpl) return this.outv
+      viewDirty = false
+    }
     if (viewDirty) {
       const H = this.app.hooks
       if (H.onStateChanged && state !== this.ls && !this.forced) H.onStateChanged(viewOf(this), state)
