@@ -296,11 +296,7 @@ export class App {
   scopeValue(parent: Inst, _: string, v: any, inst: Inst) {
     const d = parent.dom
     if (!d || inst.scope === undefined) return v
-    if (typeof d.isolateValue == 'function') {
-      // G-304: the source's per-scope function, kept on the instance (namespace and key made once)
-      const f = inst.isoV ||= d.isolateValue.for ? d.isolateValue.for(inst.scope) : (x: any) => d.isolateValue(x, inst.scope)
-      return f(v)
-    }
+    if (typeof d.isolateValue == 'function') return d.isolateValue(v, inst.scope)
     let r: any
     this.pipe(inst, '\u0000DOM', v, (s$) => d.isolateSink(s$, inst.scope), (x) => { r = x })
     return r

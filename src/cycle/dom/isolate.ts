@@ -23,28 +23,21 @@ export function makeIsolateSink<T extends VNode>(
  * PLAN-4.6: the value-level isolateSink (the next core scopes each instance's vnode without a
  * stream per instance): the same mapping, applied to one vnode
  */
-export function makeIsolateValue(namespace: Array<Scope>): ((node: any, scope: string) => any) & {for(scope: string): (node: any) => any} {
-  const f: any = (node: any, scope: string) => f.for(scope)(node);
-  // G-304: one function per scope (an instance keeps it), with the namespace and its key made once
-  f.for = (scope: string) => {
-    if (scope === ':root') return (node: any) => node;
+export function makeIsolateValue(namespace: Array<Scope>): (node: any, scope: string) => any {
+  return (node, scope) => {
+    if (scope === ':root' || !node) {
+      return node;
+    }
     const isolate = namespace.concat([getScopeObj(scope)]);
-    let key: string | undefined;
-    return (node: any) => {
-      if (!node) return node;
-      const newNode = scoped(node, isolate);
-      return {
-        ...newNode,
-        key:
-          newNode.key !== undefined
-            ? newNode.key
-            : newNode.data && newNode.data.isolate !== isolate && newNode.data.isolate
-              ? JSON.stringify(newNode.data.isolate)
-              : (key ??= JSON.stringify(isolate)),
-      };
+    const newNode = scoped(node, isolate);
+    return {
+      ...newNode,
+      key:
+        newNode.key !== undefined
+          ? newNode.key
+          : JSON.stringify((newNode.data && newNode.data.isolate) || isolate),
     };
   };
-  return f;
 }
 
 // G-144: a fragment has no element of its own, so each of its top-level elements (through
