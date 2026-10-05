@@ -20,7 +20,7 @@
  * - Removed items are disposed synchronously in the render that drops them (G-257: a move between
  *   two Collections is one patch).
  * - PLAN-5 A-1: `viewTransitionName="card"` styles each keyed item's root element with
- *   `view-transition-name: card-<id>` (the id as a CSS identifier) and `view-transition-class:
+ *   `view-transition-name: card-<id>` (shared.ts vtStyle) and `view-transition-class:
  *   card`, the item's own style winning, so a `viewTransitions` action animates each item between
  *   its places, across Collections with the same prefix too. Id-less items (keyed by index) and
  *   fragment roots get none.
@@ -29,7 +29,7 @@ import {hosts, resolvers} from '../registry'
 import {Inst, shallowEq} from '../instance'
 import {Cell, Index, indexer, itemCell, keyCell, keyOf, keyName} from '../cell'
 import {CoreDef, isObj} from '../define'
-import {uidPart} from '../../shared'
+import {uidPart, vtStyle} from '../../shared'
 import {viewOf} from '../view'
 import {warn, error as logError, fail} from '../../extra/diagnostics/legacy'
 
@@ -135,8 +135,6 @@ export class CollectionHost {
   items = new Map<any, Inst>()
   /** the items shown, in render order */
   shown: Inst[] = []
-  /** their keys */
-  sk: any[] = NONE
   arr: Cell | null
   index: Index | null
   def!: CoreDef
@@ -269,13 +267,14 @@ export class CollectionHost {
             const scope = app.scope()
             inst = new Inst(app, this.def, o, itemCell(this.arr!, this.index, k), o.dom && o.dom.isolateSource(o.dom, scope),
               this.ip, this.kids, scope, this.uidBase + '-' + keyName(k), 'item')
-            this.items.set(k, inst)
+            this.items.set(k, inst);
+            // its key (A-1's view-transition name)
+            (inst as any).k = k
           }
           shown.push(inst)
         }
         if (shown.length != this.shown.length || shown.some((s, i) => s !== this.shown[i])) changed = true
         this.shown = shown
-        this.sk = keys
       }
     }
     return changed
@@ -294,7 +293,7 @@ export class CollectionHost {
       const inst: any = shown[i], v = inst.render()
       if (v !== inst.last) { inst.last = v; changed = true }
       // an item without state yet (or a removed one) is left out
-      if (v !== undefined) out[j++] = vn ? named(inst, v, this.sk[i], vn) : v
+      if (v !== undefined) out[j++] = vn ? named(inst, v, vn) : v
     }
     out.length = j
     if (!changed) return this.outv
@@ -310,14 +309,14 @@ export class CollectionHost {
 
 /**
  * A-1: the item's vnode with its view-transition name (cached per item, so an unchanged item
- * keeps its vnode). The id is escaped to a CSS identifier: a character other than a letter, digit
- * or '-' becomes '_<hex>_' ('_' too, so two ids never share a name)
+ * keeps its vnode)
  */
-function named(inst: any, v: any, k: string, p: string): any {
+function named(inst: any, v: any, p: string): any {
+  const k = inst.k
   if (!v.sel || k[0] == '\0') return v
   if (inst.vi !== v || inst.vp !== p) {
     inst.vi = v; inst.vp = p
-    inst.vo = {...v, data: {...v.data, style: {viewTransitionName: p + '-' + k.replace(/[^a-zA-Z0-9-]/g, c => '_' + c.charCodeAt(0).toString(16) + '_'), viewTransitionClass: p, ...v.data?.style}}}
+    inst.vo = {...v, data: {...v.data, style: vtStyle(p, k, v.data?.style)}}
   }
   return inst.vo
 }

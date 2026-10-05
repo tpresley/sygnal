@@ -8,6 +8,7 @@ import { describe, it, expect, afterEach } from 'vitest'
 import { renderComponent } from '../src/extra/testing.js'
 import { createElement as h } from '../src/pragma/index.js'
 import { Collection } from '../src/collection.js'
+import { renderToString } from '../src/extra/ssr.ts'
 
 let t
 afterEach(() => { if (t) t.dispose(); t = null; document.body.innerHTML = '' })
@@ -73,8 +74,8 @@ describe('Collection viewTransitionName (PLAN-5 A-1)', () => {
     t = renderComponent(List, { initialState: { ...List.initialState, a: [{ id: 'a b' }, { id: 'a_20_b' }, { id: 'x.y' }, { id: 'é' }, { id: 'A-z_9' }] } })
     await t.ready()
     const n = t.queryAll('.a .item').map(e => e.style.viewTransitionName)
-    expect(n).toEqual(['card-a_20_b', 'card-a_5f_20_5f_b', 'card-x_2e_y', 'card-_e9_', 'card-A-z_5f_9'])
-    expect(n.every(x => /^[A-Za-z0-9_-]+$/.test(x))).toBe(true)
+    expect(n).toEqual(['card-a_32_b', 'card-a_95_20_95_b', 'card-x_46_y', 'card-_233_', 'card-A_45_z_95_9'])
+    expect(n.every(x => /^card-[A-Za-z0-9_]+$/.test(x))).toBe(true)
   })
 
   it('is not passed to the items as a prop', async () => {
@@ -83,6 +84,12 @@ describe('Collection viewTransitionName (PLAN-5 A-1)', () => {
     await t.ready()
     expect(seen.length).toBeGreaterThan(0)
     expect(seen.every(p => !('viewTransitionName' in p))).toBe(true)
+  })
+
+  it('renders the names in SSR (the hydrated page matches)', () => {
+    const html = renderToString(List)
+    expect(html).toContain('<li class="item" style="view-transition-name: card-1; view-transition-class: card">1</li>')
+    expect(html).toContain('<li class="item">9</li>')
   })
 
   it('an item that renders again gets the name again; one that does not keeps its vnode', async () => {

@@ -29,6 +29,14 @@ export const ORIGINAL = Symbol.for('sygnal.original')
 export const uidPart = (s: any): string => (s + '').replace(/\W|_/g, c => '_' + c.charCodeAt(0) + '_')
 
 /**
+ * PLAN-5 A-1: a Collection item's style with its view-transition name and class
+ * (`viewTransitionName="card"`): `card-<id>`, the id escaped as uidPart does (a valid CSS
+ * identifier, unique per id), and the class `card`; the item's own style wins. The core's
+ * Collection host and SSR share it
+ */
+export const vtStyle = (p: string, id: any, style?: any) => ({viewTransitionName: p + '-' + uidPart(id), viewTransitionClass: p, ...style})
+
+/**
  * P45-D: sources that aren't drivers get no sinks: props$, children$, dispose$, commands$, CHILD;
  * PARENT, EFFECT and ELEMENT are built-in sinks; __k, __d, __uid... are internal
  */

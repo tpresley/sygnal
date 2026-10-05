@@ -4,7 +4,7 @@
  * Renders Sygnal component trees to HTML strings without a browser DOM.
  * Handles sub-components, Collections, Suspense boundaries, and Portals.
  */
-import {uidPart} from '../shared'
+import {uidPart, vtStyle} from '../shared'
 
 // Void elements that must not have closing tags
 const VOID_ELEMENTS = new Set([
@@ -513,7 +513,7 @@ function renderSubComponent(vnode: any, context: Record<string, any>, parentStat
  */
 function renderCollection(vnode: any, context: Record<string, any>, parentState: any, uid: string): any {
   const props = vnode.data?.props || {}
-  const {of: itemComponent, from, className} = props
+  const {of: itemComponent, from, className, viewTransitionName: vtn} = props
 
   if (!itemComponent || !from || !parentState) {
     return {sel: 'div', data: {}, children: [], text: undefined, elm: undefined, key: undefined}
@@ -556,7 +556,11 @@ function renderCollection(vnode: any, context: Record<string, any>, parentState:
       itemVnode = viewFailed(itemComponent, err, itemComponent.name || 'CollectionItem')
     }
 
-    return processSSRTree(itemVnode, itemContext, itemState, itemUid, 'r')
+    const out = processSSRTree(itemVnode, itemContext, itemState, itemUid, 'r')
+    // PLAN-5 A-1: the names the client's Collection gives a keyed item's root element
+    return vtn && isItemObj && itemState.id != null && out?.sel
+      ? {...out, data: {...out.data, style: vtStyle(vtn, itemState.id, out.data?.style)}}
+      : out
   }).filter((v: any) => v != null)
 
   const containerData: any = {}
