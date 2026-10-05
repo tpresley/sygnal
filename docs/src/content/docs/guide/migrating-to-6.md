@@ -31,7 +31,7 @@ npx sygnal-check --strict --fix src
 | [`DOMSourceName` / `stateSourceName`](#source-names) | the sources are always `DOM` and `STATE` | SYG612 (dev, static; `--fix` for default values) |
 | [`storeCalculatedInState`](#storecalculatedinstate) | nothing: calculated fields are always stored | SYG612 (dev, static; `--fix`) |
 | [`component({ ... })`, `collection()`, `switchable()`](#component-factory) | a function component, or `defineComponent(opts)` | SYG612 (static: the import) |
-| [Undocumented leftovers](#leftovers) | see the table | partly SYG612 / SYG403 |
+| [Undocumented leftovers](#leftovers) | see the table | partly SYG612 / SYG603 / SYG403 |
 
 <a id="string-tags"></a><a id="components"></a>
 
@@ -238,7 +238,7 @@ const Counter = defineComponent({
 
 | Before | After |
 |---|---|
-| `C.intent = (s) => xs.merge(...).map(e => ({ type, data }))` (one stream of `{ type, data }`) | `C.intent = (s) => ({ TYPE: stream$ })` |
+| `C.intent = (s) => xs.merge(...).map(e => ({ type, data }))` (one stream of `{ type, data }`) | `C.intent = (s) => ({ TYPE: stream$ })` ([SYG603](/reference/errors/#syg603) names the form when the component starts) |
 | `C.label = 'Name'` as the component's name | the function's name, or `C.componentName = 'Name'` |
 | `<Collection idfield="key">` | items with an `id` field (or map them to one) |
 | `C.context = { user: 'user', all: true }` | `C.context = { user: (state) => state.user }` ([SYG403](/reference/errors/#syg403) flags the old form) |

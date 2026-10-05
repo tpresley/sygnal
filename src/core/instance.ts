@@ -206,6 +206,8 @@ export class Inst {
       let so = this.sources()
       if (H.wrapSources) so = H.wrapSources(viewOf(this), so) || so
       const actions = def.intent!(so)
+      // G-338: one stream of { type, data } (a form 6.0 removed), not an object of streams
+      if (actions && typeof actions.addListener == 'function') fail('SYG603', this, 'intent returned a single stream, a form Sygnal 6.0 removed', 'Return an object of streams, one per action: { ACTION: stream$ }. See https://sygnal.js.org/guide/migrating-to-6#leftovers')
       if (!isObj(actions)) fail('SYG603', this, 'intent must return an object of streams', 'Return { ACTION: stream$ }')
       H.onIntent?.(viewOf(this), Object.keys(actions))
       for (const type in actions) {
