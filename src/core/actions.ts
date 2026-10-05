@@ -19,6 +19,7 @@ import {warn, error as logError, fail} from '../extra/diagnostics/legacy'
 import {runElementCommands} from '../extra/elementCommands'
 import {viewOf} from './view'
 import {checkStatics} from './statics'
+import {objIsEqual} from '../cycle/state/objIsEqual'
 
 export function handle(inst: Inst, type: string, data: any, cause: any) {
   const hs = inst.def.handlers.get(type)
@@ -62,8 +63,10 @@ export function handle(inst: Inst, type: string, data: any, cause: any) {
       H.onReducer?.(viewOf(inst), type, pre, v)
       inst.cell.set(v)
       // GS-12: this app's DOM driver patches inside a View Transition (makeViewTransitionDOMDriver
-      // reads the flag on its IsolateModule); includes?.: a non-array static lists nothing (G-228)
-      if (def.view.viewTransitions?.includes?.(type)) { const m = inst.dom?._isolateModule; if (m) m.vt = 1 }
+      // reads the flag on its IsolateModule); includes?.: a non-array static lists nothing (G-228).
+      // Only for a state that changed structurally: today an equal one renders nothing (its
+      // request expires unused); here it would re-render the same view, so it asks for nothing
+      if (def.view.viewTransitions?.includes?.(type) && (v === undefined || !objIsEqual(pre, inst.cell.get()))) { const m = inst.dom?._isolateModule; if (m) m.vt = 1 }
       continue
     }
     if (typeof v == 'symbol') { logError('SYG218', inst, `Reducer for '${type}' returned a symbol; nothing sent`, 'Return a value, or ABORT to send nothing'); continue }
