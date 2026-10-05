@@ -31,6 +31,7 @@ export const Menu: any = /*#__PURE__*/ fromZag(menu, (api: any, p: any) => [
         : h('div', {key: i.value, ...api.getItemProps({value: i.value, disabled: !!i.disabled})}, i.label))))),
 ], {
   name: 'Menu',
+  $own: 1,
   ownProps: NAMING,
   props: ({items, label, 'aria-label': _l, 'aria-labelledby': _b, 'aria-describedby': _d, ...p}: any) => p,
   events: {select: ['onSelect', (d: any) => d.value], 'open-change': ['onOpenChange', (d: any) => d.open]},

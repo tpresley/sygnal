@@ -41,6 +41,7 @@ export const Select: any = /*#__PURE__*/ fromZag(select, (api: any, p: any, x: a
       x.items.map((i: any) => h('option', {key: i.value, value: i.value, selected: v.includes(i.value)}, i.label))))
 }, {
   name: 'Select',
+  $own: 1,
   ownProps: [...NAMING, 'name'],
   props: ({items, label, placeholder, value, defaultValue, 'aria-label': _l, 'aria-labelledby': _b, 'aria-describedby': _d, ...p}: any, x: any) => {
     x.items = norm(items)

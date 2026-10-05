@@ -7,7 +7,8 @@
  *   143  the widget tag used as a selector (DOM.select(DatePicker), `${DatePicker}`) — SYG143
  *        (warn, once per widget): it matches nothing
  *   144  a host mounted — SYG144 (info, once per widget): a declared event name the host element
- *        also fires natively (`'change'` on an `<input>` host), so the intent sees both
+ *        also fires natively (`'change'` on an `<input>` host), so the intent sees both; not
+ *        for the first-party Zag parts (`def.$own`: Menu's `select`, D211)
  *   660/661/662  mount / update / unmount threw (`extra` is the error) — SYG660–662 (error)
  *   669  fromZag (G-410): its render returned Sygnal components / widget tags / special JSX
  *        (`extra`: their tags, e.g. ['<Badge>', '<Transition>']) — SYG669 (warn, once per widget)
@@ -53,7 +54,8 @@ export function reportWidget(code: number, w: any, owner?: any, x?: any): any {
     })
   }
   if (code == 144) {
-    if (!x || !once(`SYG144:${idOf(w)}`)) return
+    // D211: not for Sygnal's own parts (Menu's `select` is its documented event)
+    if (!x || w.def.$own || !once(`SYG144:${idOf(w)}`)) return
     const native = w.events.filter((e: string) => 'on' + e in x)
     if (!native.length) return
     return devReport('SYG144', {

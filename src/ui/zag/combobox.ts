@@ -61,6 +61,7 @@ export const Combobox: any = /*#__PURE__*/ fromZag(combobox, (api: any, p: any, 
     hidden(api, p, x))
 }, {
   name: 'Combobox',
+  $own: 1,
   ownProps: [...NAMING, 'name'],
   props: ({items, label, placeholder, value, defaultValue, filter, 'aria-label': _l, 'aria-labelledby': _b, 'aria-describedby': _d, ...p}: any, x: any) => {
     x.multiple = !!p.multiple

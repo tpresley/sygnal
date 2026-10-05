@@ -207,7 +207,7 @@ export const EXPLANATIONS = {
     title: "Widget event the host element also fires natively",
     severity: "info",
     reportedBy: ["dev-entry",  "static"],
-    explanation: "A widget declares an event whose name the browser also uses (`'change'`, `'input'`, `'select'`, `'toggle'`...). Native events of that name fire on the host or bubble up from inside it (flatpickr's own input fires `change` as well), so a listener on the host gets both the widget's `CustomEvent` and the native event, and `.detail()` is `undefined` for the native one. Information only: it may be what you want. The dev entry reports it once per widget when a host mounts (names the host element knows as `on<name>`); sygnal-check reports the literal `events` entries it recognises.",
+    explanation: "A widget declares an event whose name the browser also uses (`'change'`, `'input'`, `'select'`, `'toggle'`...). Native events of that name fire on the host or bubble up from inside it (flatpickr's own input fires `change` as well), so a listener on the host gets both the widget's `CustomEvent` and the native event, and `.detail()` is `undefined` for the native one. Information only: it may be what you want. The dev entry reports it once per widget when a host mounts (names the host element knows as `on<name>`); sygnal-check reports the literal `events` entries it recognises. Sygnal's own parts are not reported (`Menu`'s `select` is its documented event, and nothing inside the menu fires a native `select`).",
     fix: "Give the widget's event its own name (`'pick'` for a date picker's selection, `'rate'` for a rating) and emit that, or make the listener handle both (`.filter((e) => e instanceof CustomEvent)`).",
   },
   SYG201: {

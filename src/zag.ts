@@ -211,6 +211,8 @@ export function fromZag(zag: any, render: any, options: any = {}): any {
     fallback: o.fallback,
     hostProps: o.hostProps,
     ownProps: o.ownProps,
+    // D211: a first-party part (sygnal/ui/menu…): its event names are documented, no SYG144
+    $own: o.$own,
     events: Object.keys(o.events || {}),
     commands,
     mount: (el: any, p: any, dispatch: any, error: any) => start(zag, render, o, el, p, dispatch, error, () => tag),
