@@ -261,8 +261,11 @@ export class App {
     const l = this.busL[n]
     if (!l) return
     try { l.next(v) } catch (e) {
-      // GS-11: a driver that throws handling a sink value goes to the app's onError ('driver')
-      callHook(this.opts.onError, e, {phase: 'driver', driver: n})
+      // GS-11: a driver that throws handling a sink value goes to the app's onError ('driver'),
+      // and to the hooks' onError (G-303)
+      const info: any = {phase: 'driver', driver: n}
+      callHook(this.opts.onError, e, info)
+      this.hooks.onError?.(e, info)
       queueMicrotask(() => { throw e })
     }
   }
