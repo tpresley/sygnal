@@ -72,7 +72,7 @@ export function sortFn(p: any): ((a: any, b: any) => number) | undefined {
 const OWN = new Set(['of', 'from', 'filter', 'sort', 'idfield', 'className'])
 const NONE: any[] = []
 
-/** the array cell for `from`, or null (renders nothing) */
+/** the array cell for `from` (D178: a missing key renders once it appears), or null for an invalid `from` (renders nothing) */
 function arrayCell(owner: Inst, from: any): Cell | null {
   const oc = owner.cell, name = owner.def.name
   if (from === undefined) {
@@ -86,10 +86,8 @@ function arrayCell(owner: Inst, from: any): Cell | null {
     const cs = oc.get(), calc = owner.def.calcNames?.has(from)
     if (isObj(cs) && !(from in cs) && !calc) {
       const arrays = Object.keys(cs).filter(k => Array.isArray(cs[k]))
-      warn('SYG401', name, `Collection from="${from}" is not in state${arrays.length ? ` (array fields: '${arrays.join("', '")}')` : ''}; it renders nothing`, 'Set it to an array in initialState')
-      return null
-    }
-    if (isObj(cs) && !Array.isArray(cs[from])) warn('SYG401', name, `Collection 'from' field '${from}' is not an array; it renders nothing`, 'Set it to an array in initialState')
+      warn('SYG401', name, `Collection from="${from}" is not in state${arrays.length ? ` (array fields: '${arrays.join("', '")}')` : ''}; it renders nothing until it exists`, 'Set it to an array in initialState')
+    } else if (isObj(cs) && !Array.isArray(cs[from])) warn('SYG401', name, `Collection 'from' field '${from}' is not an array; it renders nothing`, 'Set it to an array in initialState')
     return keyCell(oc, from, calc && name, undefined, 'Collection')
   }
   if (isObj(from) && typeof from.get == 'function') {
