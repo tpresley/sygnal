@@ -17,9 +17,11 @@ function Plain(this: any, sel: any, data: any, children: any, text: any, key: an
 Object.defineProperty(Plain.prototype, '$p', { value: 1 })
 
 const createTextElement = (text: any): any => is.text(text) ? new (Plain as any)(undefined, undefined, undefined, text, undefined) : undefined
-// A tag the view walk has to see: a form field (G-146 stamp; a superset of isField) or a
-// component name it knows as a string
-const SPECIAL = /^(input|textarea|select|collection$|switchable$|sygnal-factory$)/i
+// A tag whose tree isn't plain: a form field (a superset of isField: a re-run view with the same
+// output keeps its last vnode (P46-P sameTree), which would skip the controlled-input module's
+// re-sync of the DOM value) or a host the view walk knows by its string tag (<collection>,
+// <switchable>)
+const SPECIAL = /^(input|textarea|select|collection$|switchable$)/i
 // P46-P: by tag: 1 SPECIAL, 2 an SVG tag
 const tags: Record<string, number> = Object.create(null)
 
