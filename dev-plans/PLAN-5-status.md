@@ -6,7 +6,7 @@ Tracks progress for [PLAN-5.md](PLAN-5.md) (ecosystem components and integration
 
 **Integration branch:** `plan5-integration`, cut from `plan46-complete` (`7146161`) on 2026-10-05, in worktree `.claude/worktrees/plan-4-execution-7ae8e8`. The release stays held (D56).
 
-**State:** Phase 2: 2-B, 2-V, 2-U, 2-A merged; 2-Z and 2-R merged; 2-S, 2-T merged (Phase 2 complete); Phase 3: 3-R, 3-D merged; 3-F merged; running 3-G, 3-H (2-A/2-S review fixes, SYG148–149). Known flaky test `p5-1s-forms` (fixed in 2-R).
+**State:** Phase 2: 2-B, 2-V, 2-U, 2-A merged; 2-Z and 2-R merged; 2-S, 2-T merged (Phase 2 complete); Phase 3: 3-R, 3-D merged; 3-F merged; running 3-G, 3-H, 3-I, G-456 spike (2-A/2-S review fixes, SYG148–149). Known flaky test `p5-1s-forms` (fixed in 2-R).
 
 ## 0-A baseline (2026-10-05)
 
@@ -197,6 +197,12 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 | G-454 | review 3-D | Low | docs | Pointer into a non-empty other list can't land after its last item without a gap; document (or allow "after" on the last item's lower half) | → 3-H |
 | G-455 | review 3-D | Low | tests | Browser sortable suite passes silently without `__pwInput`; `desc === null ||` accepts a missing description; Space scroll check on a non-scrollable stage | → 3-H |
 | G-456 | 3-F report | Med | dom / ssr | Client hydration replaces (not adopts) all server markup with a class or id: snabbdom `toVNode` puts class/id in `sel` while the pragma keeps `className` in props, so `sameVnode` fails; focus, typed text and scroll from before start-up are lost app-wide. Verified in jsdom by 3-F; check whether it predates PLAN-4.6 before deciding (hydration-aware first patch: sel normalisation + keys) | → spike, then user |
+| G-457 | review 3-F | Med | ui/dialog | `cancelable:false` CANCEL from Escape keydown ignores `defaultPrevented`: a Zag combobox/menu inside handles Escape and the host CANCEL runs too; non-modal + `cancelable:false` now emits CANCEL; IME Escape in Safari (`keyCode 229`). Confirmed by reading | → 3-I |
+| G-458 | review 3-F | Med/Low | ui/toaster | `_from` never cleared: a later mouse Dismiss focuses (and scrolls to) an element the user left long ago. Clear on a real leave | → 3-I |
+| G-459 | review 3-F | Low | tests | G-430 tests: opener = trigger, so the fallback passes without the new listener; the async `close` fake never installs (`||=` after a sync one), order-dependent | → 3-I |
+| G-460 | review 3-F | Low | diagnostics | SYG149 counts unrendered elements (hidden responsive list/tab panel); SYG148 warns on a falsy prefix (`p != null` → `if (p)`); the SYG149 walk never stops once any prefix was seen | → 3-I |
+| G-461 | review 3-F | Low | ui/dialog | OPEN arms the close listener and `closedby` before `showModal()`, which can throw → stale listener focuses the wrong element later | → 3-I |
+| G-462 | review 3-F | Low | virtual | Plausible: `grows()` under ancestor CSS `zoom < 0.5`, scroll anchoring during the forced layouts; focus restore when focus is inside a shadow root in a row; stale `this.fa` ref when render returns the cached vnode | → 3-I (verify) |
 | G-408 | 2-R × 2-Z | Low | process | Two parallel workstreams registered the same code (SYG666); fixed at merge (2-R's → SYG668). Briefs now assign code numbers | Fixed (process) |
 | G-394 | review 2-V | High | VirtualCollection | An inline `estimateSize` function (the guide's own pattern) clears every measured row height on each owner render; rows aren't re-measured. Confirmed | → 2-S |
 | G-395 | review 2-V | Med/High | VirtualCollection | SYG430 "grows" misfires on a bounded container above viewport height that fits its rows; clamping then leaves unreachable blank rows. Confirmed | → 2-S |
@@ -226,6 +232,7 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 - 2026-10-05 — 2-T merged (clean; per-part `sygnal/ui/menu|select|combobox`, jsdom stubs, SYG669, SYG722, `ownProps`, `mount` `error(e)`); gates green, three engines 287/287, core 41,825 B. User: D213–D215. Review of 2-T: 7 findings (G-434…G-440, one high). Review of 3-R: G-441…G-443. 3-D merged (8 additive conflicts; SYG722+SYG724 kept; explanations/errors regenerated); gates green: vitest 3,238, browser 300 Chromium / 299 Firefox / 299 WebKit (CDP touch Chromium-only), sygnal-check 614, samples 670, core 41,825 B. 3-G started (G-433…G-443, D214, D215).
 - 2026-10-05 — Review of 3-D: 12 findings (G-444…G-455); INIT adds no undo entry (verified by reviewer). 3-H started (sortable fixes).
 - 2026-10-05 — 3-F merged (4 additive code conflicts; SYG145–149 all kept; explanations/errors regenerated). Core +15 B (`vtStyle`). Behaviour: `t.commands` logs ui dialog/popover targets as selector strings; `cancelable:false` CANCEL data is the Escape keydown; SYG430 measured. Gates green: vitest 3,275, browser 311 Chromium / 310 Firefox / 310 WebKit, sygnal-check 616, samples 670, core 41,840 B (460 B headroom). G-456 (hydration; spike running).
+- 2026-10-05 — Review of 3-F: G-457…G-462 (no high). 3-I started.
 - 2026-10-05 — 2-R merged (6 conflicts; SYG666 clash renumbered to SYG668); all gates green on three engines (279/279); core 41,825 B. D212, G-408.
 - 2026-10-05 — 2-Z merged; three engines 276/276; core 41,771 B. D211.
 - 2026-10-05 — Review of 2-U + 2-V: 14 findings (G-394…G-407). 2-S started.
