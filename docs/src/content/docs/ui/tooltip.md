@@ -45,9 +45,11 @@ The delays need the timer driver in `run()`. Tests don't: [fake timers](/guide/t
 
 - Hovering or focusing the trigger shows the tip after `showDelay`; leaving before that never shows it.
 - Leaving hides it after `hideDelay`. Moving the pointer from the trigger onto the tip keeps it open, so the tip can be read and selected ([WCAG 1.4.13](https://www.w3.org/WAI/WCAG22/Understanding/content-on-hover-or-focus)).
-- Escape hides it at once, without moving the focus.
+- The pointer and the focus count apart: it hides once both have left, so the mouse moving away doesn't hide a tip the keyboard focus still shows.
+- Touch is left out: a tap focuses the trigger, which shows the tip as focus does.
+- Escape hides it at once, without moving the focus. (The behavior listens for it on the document only while the tip is shown or about to be.)
 
-`state.saveTip` is `{ open, pending }`: `pending` is `'show'` or `'hide'` while a delay runs. The actions are `saveTip.ENTER`, `saveTip.LEAVE`, `saveTip.SHOW`, `saveTip.HIDE` (the timers), `saveTip.ESCAPE` and `saveTip.TOGGLED`. The timers are declared under the names `saveTip.show` and `saveTip.hide`, next to the component's own [`timers`](/guide/timers/).
+`state.saveTip` is `{ open, pending, hover, focus }`: `pending` is `'show'` or `'hide'` while a delay runs; `hover` and `focus` say where the pointer and the focus are. The actions are `saveTip.ENTER` and `saveTip.LEAVE` (data: `'hover'` or `'focus'`), `saveTip.SHOW`, `saveTip.HIDE` (the timers), `saveTip.ESCAPE` and `saveTip.TOGGLED`. The timers are declared under the names `saveTip.show` and `saveTip.hide`, next to the component's own [`timers`](/guide/timers/).
 
 ## Positioning
 

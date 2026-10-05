@@ -71,6 +71,61 @@ Disabled tabs (`disabled`) are skipped.
 
 Values are compared as strings.
 
+`tabsAttrs(state.tabs, uid, values)` takes the tabs' values, in order, as an optional third argument (leave disabled tabs out). Pass it when the tabs can change: a `selected` value that isn't among them (its tab was removed) then shows the first tab selected, so there is always a tab to Tab into and a panel shown. Without it, the first tab rendered is selected only while nothing is.
+
+## Closable tabs
+
+When the user closes the selected tab, select a neighbour in the same reducer and move the focus to it (the close button that had the focus is gone):
+
+```jsx
+import { ABORT } from 'sygnal'
+import { tabs, tabsAttrs } from 'sygnal/ui'
+
+function Editor({ state, uid }) {
+  const a = tabsAttrs(state.tabs, uid, state.files.map((f) => f.id))
+  return (
+    <div>
+      <div className="tab-list" {...a.list} aria-label="Open files">
+        {state.files.map((f) => (
+          <span className="tab-wrap">
+            <button className="tab" {...a.tab(f.id)}>{f.name}</button>
+            <button className="close" data-value={f.id} aria-label={'Close ' + f.name}>×</button>
+          </span>
+        ))}
+      </div>
+      {state.files.map((f) => <section className="tab-panel" {...a.panel(f.id)}>{f.text}</section>)}
+    </div>
+  )
+}
+
+Editor.uses = { tabs: tabs({ tab: '.tab' }) }
+Editor.initialState = { files: [] }
+
+Editor.intent = ({ DOM }) => ({ CLOSE: DOM.click('.close').data('value') })
+
+// the file after the closed one, or the one before it when it was the last
+const neighbour = (files, id) => {
+  const i = files.findIndex((f) => f.id === id), rest = files.filter((f) => f.id !== id)
+  return rest[Math.min(i, rest.length - 1)]
+}
+
+Editor.model = {
+  CLOSE: {
+    STATE: (state, id) => ({
+      ...state,
+      files: state.files.filter((f) => f.id !== id),
+      tabs: { ...state.tabs, selected: state.tabs.selected === id ? (neighbour(state.files, id)?.id ?? null) : state.tabs.selected },
+    }),
+    ELEMENT: (state, id) => {
+      const next = neighbour(state.files, id)
+      return next ? { focus: `.tab[data-value="${next.id}"]` } : ABORT
+    },
+  },
+}
+```
+
+(`ELEMENT` gets the state before the action, as every non-`STATE` entry does.)
+
 ## Styling
 
 ```css

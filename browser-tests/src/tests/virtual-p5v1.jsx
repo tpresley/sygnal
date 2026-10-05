@@ -153,6 +153,73 @@ export async function virtualTestsP5V1() {
     clearStage()
   })
 
+  // PLAN-5 2-S G-401: the row holding the focus stays rendered (and is never moved in the DOM,
+  // which blurs it in every engine) while the keyboard scrolls the list past it
+  await runTest(CAT, 'G-401: a focused row keeps the focus while the keyboard scrolls it out of view and back', async () => {
+    const { el, app, box } = await start(makeList(rows(10000)), {}, true)
+    await window.__pw('focus', `#${el.id} [data-index="2"] .bump`)
+    const btn = document.activeElement
+    assert(btn.closest('[data-index]')?.getAttribute('data-index') === '2', 'the row 3 button is focused')
+    let blurs = 0
+    btn.addEventListener('blur', () => blurs++)
+    // a row at a time first (the window loses rows at its front and gains rows at its end)
+    for (let i = 0; i < 6; i++) await window.__pwInput([['key', 'ArrowDown'], ['wait', 30]])
+    await window.__pwInput([['key', 'PageDown'], ['wait', 50], ['key', 'PageDown'], ['wait', 50]])
+    await until(() => box.scrollTop > 300, () => `scrollTop ${box.scrollTop}, focus ${document.activeElement?.className}`)
+    await frame(); await wait(50)
+    assert(!labels(el).slice(1).includes('Row 3'), 'scrolled past it (only the pinned row 3 is out of view)')
+    assert(document.activeElement === btn && btn.isConnected, `focus kept: ${document.activeElement?.className}`)
+    assert(blurs === 0, `no blur: ${blurs}`)
+    // the pinned row sits at its own offset (above the window), not in the window's flow
+    const top = Math.round(btn.closest('[data-index]').getBoundingClientRect().top - box.querySelector('[data-index]').parentElement.parentElement.getBoundingClientRect().top)
+    assert(top === 64, `row 3 at its offset: ${top}`)
+    await window.__pwInput([['key', 'Home'], ['wait', 50]])
+    await until(() => box.scrollTop < 32, () => `Home: scrollTop ${box.scrollTop}`)
+    await frame(); await wait(30)
+    assert(document.activeElement === btn && blurs === 0, 'still focused after scrolling back')
+    // the focus leaving the list lets the row go
+    btn.blur()
+    box.scrollTop = 32 * 3000
+    await until(() => !btn.isConnected, () => `let go: rows ${labels(el).slice(0, 3)}`)
+    app.dispose()
+    clearStage()
+  }, 6000)
+
+  // PLAN-5 2-S G-395: a container bounded by max-height that fits its rows (taller than the
+  // viewport) is not one that grows: every row renders, no SYG430
+  await runTest(CAT, 'G-395: max-height above the viewport that fits its rows: every row, no SYG430', async () => {
+    resetChecks()
+    clearDiagnostics()
+    const n = Math.ceil(window.innerHeight / 32) + 10
+    const { el, app } = await start(makeList(rows(n), { style: { maxHeight: (n * 32 + 400) + 'px' } }), { diagnostics: 'collect' })
+    await until(() => labels(el).length === n, () => `rows ${labels(el).length} of ${n}`)
+    await wait(50)
+    assert(!getDiagnostics().some(d => d.code === 'SYG430'), 'no SYG430')
+    app.dispose()
+  })
+
+  // PLAN-5 2-S G-402: rows measured after layout changes don't make a ResizeObserver loop
+  await runTest(CAT, 'G-402: growing rows and scrolling cause no ResizeObserver loop error', async () => {
+    const errs = []
+    const on = (e) => { if (/ResizeObserver/.test(e.message)) { errs.push(e.message); e.preventDefault?.(); e.stopImmediatePropagation?.() } }
+    window.addEventListener('error', on, true)
+    try {
+      function Grow({ state }) {
+        return <div className="row"><span className="lbl">{state.label}</span>{Array.from({ length: state.lines || 1 }, () => <p style={{ margin: 0, height: '20px' }}>x</p>)}<button className="bump">+</button></div>
+      }
+      Grow.intent = ({ DOM }) => ({ GROW: DOM.click('.bump') })
+      Grow.model = { GROW: (s) => ({ ...s, lines: (s.lines || 1) + 3 }) }
+      function L() { return <VirtualCollection of={Grow} from="rows" className="rows" estimateSize={24} style={{ height: '300px' }} /> }
+      L.initialState = { rows: rows(2000) }
+      const { el, app, box } = await start(L)
+      for (let i = 0; i < 4; i++) { el.querySelectorAll('.row .bump')[i].click(); await frame() }
+      for (let y = 0; y < 3000; y += 400) { box.scrollTop = y; await frame() }
+      await wait(100)
+      assert(errs.length === 0, `errors: ${errs.join(' | ')}`)
+      app.dispose()
+    } finally { window.removeEventListener('error', on, true) }
+  })
+
   await runTest(CAT, 'SYG430: a container without a bounded height renders the viewport\'s rows, not all', async () => {
     resetChecks()
     clearDiagnostics()

@@ -60,7 +60,7 @@ The timer driver dismisses toasts after their timeout. Without it, they stay unt
 | `text` | (required) | The message. `event('TOAST', 'Saved')` is short for `{ text: 'Saved' }` |
 | `kind` | `'info'` | `'info'`, `'success'`, `'warning'` or `'error'`. Errors are announced at once (`role="alert"`), the others politely (`role="status"`) |
 | `timeoutMs` | `5000` | ms until it dismisses itself; `0` keeps it until the user dismisses it |
-| `id` | a number | A toast sent with the `id` of a shown one replaces it in place and starts its timeout again |
+| `id` | `'t1'`, `'t2'`… | A toast sent with the `id` of a shown one replaces it in place and starts its timeout again. Ids compare as strings (`7` and `'7'` are the same toast); the automatic ones never equal an id of a shown toast |
 
 `event('TOAST_DISMISS', id)` removes the toast with that `id`; `event('TOAST_DISMISS')` removes all of them. With ids, a long task can report its progress in one toast:
 
@@ -115,11 +115,14 @@ The region is a popover, so the browser draws it in the top layer, centred and w
 
 An open modal `<dialog>` makes the rest of the page inert: a toast outside it would be visible but couldn't be clicked or reached with Tab, and screen readers would skip it. While a modal dialog is open, the Toaster moves its region into that dialog, where it stays on top and usable, and back when the dialog closes or is removed. Toasts shown before the dialog opened move with it. Nothing is needed on your side; the region keeps its events, Collection items and timers wherever it is.
 
+It sees the modal dialogs of the page and of its own shadow root, so a Toaster inside a [custom element](/guide/web-components/) moves into that element's dialogs too.
+
 ## Accessibility
 
 - The `role="status"` and `role="alert"` regions are always rendered, even when empty, so screen readers announce a toast when it is added.
 - Keep toasts short and don't put the only copy of important information in them: they go away. Use `timeoutMs: 0` for a message the user must act on.
-- The timeouts pause while the user hovers or tabs into the toasts ([WCAG 2.2.1](https://www.w3.org/WAI/WCAG22/Understanding/timing-adjustable)).
+- The timeouts pause while the user hovers or tabs into the toasts ([WCAG 2.2.1](https://www.w3.org/WAI/WCAG22/Understanding/timing-adjustable)), and stay paused while either the pointer or the focus is still there.
+- Dismissing a toast with its focused Dismiss button moves the focus to the next toast's Dismiss button, or the previous one's, and after the last toast back to where it was before it entered the toasts.
 
 ## Testing
 

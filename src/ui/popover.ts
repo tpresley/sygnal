@@ -14,21 +14,30 @@
  * `popovertarget` buttons are exempt.)
  *
  * Options: `popover` (required), `close` (a button inside; its click dispatches CLOSE).
- * State: { open }. Actions: OPEN, CLOSE, TOGGLE, TOGGLED (data: open, from the toggle event).
+ * State: { open }. Actions: OPEN, CLOSE, TOGGLE, TOGGLED (data: open, from the toggle event),
+ * SYNC (G-400: the popover left the page while open: `open: false`).
+ * G-400 / G-406: OPEN and CLOSE send commands that check the popover itself (`:popover-open`),
+ * not the state, which follows the asynchronous toggle event: OPEN then CLOSE in one tick ends
+ * closed, and a popover removed while open opens again.
  */
 import {ABORT, defineBehavior} from '../index'
+import {gone, on} from './shared'
+
+const isOpen = (el: any) => { try { return el.matches(':popover-open') } catch (_) { return false } }
 
 const base = /*#__PURE__*/ defineBehavior({
   initialState: {open: false},
-  intent: ({DOM}: any, {popover: p, close}: any) => ({
+  intent: ({DOM, STATE}: any, {popover: p, close}: any) => ({
     ...(close && {CLOSE: DOM.click(close)}),
     TOGGLED: DOM.toggle(p).map((e: any) => e.newState == 'open'),
+    ...(STATE && {SYNC: gone(DOM, STATE, p, isOpen)}),
   }),
   model: {
-    OPEN: {ELEMENT: (s: any, _d: any, _n: any, _p: any, o: any) => (s.open ? ABORT : {showPopover: o.popover})},
-    CLOSE: {ELEMENT: (s: any, _d: any, _n: any, _p: any, o: any) => (s.open ? {hidePopover: o.popover} : ABORT)},
+    OPEN: {ELEMENT: (_s: any, _d: any, _n: any, _p: any, o: any) => ({showPopover: on(o.popover, 'showPopover', (el: any) => { isOpen(el) || el.showPopover() })})},
+    CLOSE: {ELEMENT: (_s: any, _d: any, _n: any, _p: any, o: any) => ({hidePopover: on(o.popover, 'hidePopover', (el: any) => { isOpen(el) && el.hidePopover() })})},
     TOGGLE: {ELEMENT: (_s: any, _d: any, _n: any, _p: any, o: any) => ({togglePopover: o.popover})},
     TOGGLED: (s: any, open: boolean) => (s.open == open ? ABORT : {...s, open}),
+    SYNC: (s: any) => (s.open ? {...s, open: false} : ABORT),
   },
 })
 

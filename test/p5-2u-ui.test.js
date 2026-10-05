@@ -32,10 +32,11 @@ describe('dialog', () => {
     await t.next((s) => s.help.open)
     await t.settle()
     expect(cmds()).toEqual([{ showModal: '.help' }])
-    // a second OPEN on an open dialog sends nothing
+    // a second OPEN sends a command that checks the dialog (2-S G-400: showModal only on a closed one; real DOM: p5-2s-ui)
     t.simulateEvent('.open-help', 'click')
     await t.settle()
-    expect(cmds()).toHaveLength(1)
+    expect(cmds()).toEqual([{ showModal: '.help' }, { showModal: '.help' }])
+    expect(t.state.help.open).toBe(true)
     t.simulateEvent('.save', 'click')
     await t.settle()
     expect(cmds().at(-1)).toEqual({ close: '.help', returnValue: 'saved' })
@@ -59,12 +60,13 @@ describe('dialog', () => {
     t.simulateEvent('.help', 'close', { target: { returnValue: '' } })
     await t.next((s) => !s.help.open)
     expect(t.actions.some((a) => a.type == 'help.CANCEL')).toBe(true)
-    // CLOSE on a closed dialog sends nothing
+    // CLOSE on a closed dialog: a command that checks the dialog (2-S G-400: close only an open
+    // one; real DOM: p5-2s-ui), and no state change
     const n = cmds().length
     t.simulateAction('help.CLOSE', 'x')
     await t.settle()
-    expect(cmds().filter((c) => 'close' in c)).toHaveLength(cmds().filter((c) => 'close' in c).length)
-    expect(cmds().slice(n).some((c) => 'close' in c)).toBe(false)
+    expect(cmds().slice(n)).toEqual([{ close: '.help', returnValue: 'x' }])
+    expect(t.state.help.open).toBe(false)
   })
 
   it('returnFocus: on close, the trigger is focused only when focus was lost (WebKit, mouse); false turns it off; a selector picks another element', async () => {
@@ -338,7 +340,7 @@ describe('tabs', () => {
     const a = tabsAttrs(undefined, (n) => 'u-' + n)
     expect(a.tab('x')).toMatchObject({ id: 'u-tabs-tab-x', role: 'tab', 'aria-selected': true })
     expect(a.tab('y')['aria-selected']).toBe(false)
-    expect(a.panel('a b').id).toBe('u-tabs-panel-a_b')
+    expect(a.panel('a b').id).toBe('u-tabs-panel-a_32_b')
   })
 })
 
@@ -445,6 +447,6 @@ describe('disclosure', () => {
 describe('popover factory', () => {
   it('ignores an `open` option', () => {
     expect(popover({ popover: '.p', open: true }).state).toEqual({ open: false })
-    expect(tooltip({ trigger: '.a', tip: '.b', open: true, pending: 'show' }).state).toEqual({ open: false, pending: null })
+    expect(tooltip({ trigger: '.a', tip: '.b', open: true, pending: 'show' }).state).toEqual({ open: false, pending: null, hover: false, focus: false })
   })
 })

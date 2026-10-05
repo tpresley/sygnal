@@ -20,6 +20,9 @@
  * ('automatic' | 'manual'), `loop` (true), `id` (the ids' prefix; default: the key in `uses`).
  * State: { id, selected, orientation }. Actions: SELECT (a value, or a click), MOVE (a value:
  * focus it, and select it unless manual).
+ * G-397: `tabsAttrs(slice, uid, values)` with the tabs' values shows the first one selected when
+ * `selected` isn't among them (a removed tab); a host that removes tabs re-selects a neighbour
+ * and moves the focus to it in its own reducer (the guide's closable tabs).
  */
 import {ABORT, defineBehavior} from '../index'
 import {idsOf, keyNav, keyed, lit} from './shared'
@@ -49,14 +52,19 @@ export const tabs = (options: any = {}): any =>
 /**
  * The attributes of a tab set, from its slice: `list` (the tablist), `tab(value)` and
  * `panel(value)`. Spread them on the host's elements: `<button className="tab" {...a.tab('general')}>`.
+ * `values` (optional): the tabs' values in order (leave disabled ones out). With it, a `selected`
+ * that isn't one of them (its tab was removed) shows the first one selected (G-397); without it,
+ * the first tab rendered is selected only while nothing is.
  */
-export const tabsAttrs = (s: any, uid: any): any => {
+export const tabsAttrs = (s: any, uid: any, values?: any[]): any => {
   const id = idsOf(s, uid, 'tabs'), state = (b: boolean) => (b ? 'active' : 'inactive')
-  let first: any
-  // no selection yet: the first tab (or panel) rendered is the selected one
+  const vs = values && values.map(String)
+  let first: any = vs?.[0], sel = s?.selected == null ? null : String(s.selected)
+  if (vs && sel != null && !vs.includes(sel)) sel = null
+  // no selection (or a removed one): the first value, or the first tab (or panel) rendered
   const on = (v: any) => {
     v = String(v)
-    if (s?.selected != null) return v === String(s.selected)
+    if (sel != null) return v === sel
     first ??= v
     return v === first
   }

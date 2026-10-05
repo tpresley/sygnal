@@ -22,11 +22,17 @@
  *   first rendered row; the rows are in normal flow inside it, so a row's height is its own.
  * - Only the rows in view (+ `overscan`, default 5) have instances. A row scrolled out is disposed
  *   like a removed Collection item and made again when it comes back. Its state is its element
- *   of the array, so nothing in state is lost; what lives only in the DOM (focus, an uncontrolled
- *   input's text, a running EFFECT) is. Keep row state in the array (the canonical Collection item).
+ *   of the array, so nothing in state is lost; what lives only in the DOM (an uncontrolled input's
+ *   text, a running EFFECT) is. Keep row state in the array (the canonical Collection item).
+ * - G-401: rows are keyed (a row's element is its own). The row holding the focus stays rendered
+ *   while scrolled out (pinned at its own offset, out of the window's flow) until the focus leaves
+ *   the list, and no row element is moved in the DOM (a move blurs it in every engine): a window
+ *   that loses rows at its front while its end changes is patched in two steps.
  * - Row heights: `estimateSize` (a number, or `(item, index) => number`, default 32) until a row is
- *   rendered; then its measured height (ResizeObserver follows later changes). A 0 measurement (no
- *   layout: jsdom) keeps the estimate.
+ *   rendered; then its measured height (ResizeObserver follows later changes, applied in the next
+ *   frame: G-402). A 0 measurement (no layout: jsdom) keeps the estimate. A new function at each
+ *   render is the same estimate (G-394); a number that changes, or a switch between a number and a
+ *   function, re-measures.
  * - Each row's root element gets `data-index`, `aria-setsize` and `aria-posinset` (1-based, over the
  *   filtered list), and `role="listitem"` when the container's role is `list` and the row's root has
  *   no role of its own. A row must render one element (SYG432 for a fragment or text).
@@ -37,7 +43,8 @@
  *   the rows around it are measured. An id not in the (filtered) list: SYG433 in dev, no scroll.
  * - Without layout (SSR, the mock DOM, jsdom), the window is the first 10 rows' estimate + overscan.
  * - The container must have a bounded height. When it has none (0 tall: SYG430) or grows with its
- *   rows (it would render every row: SYG430), the window is clamped to the viewport's height.
+ *   rows (it would render every row: SYG430), the window is clamped to the viewport's height. A
+ *   max-height (or a height in a length unit, where Typed OM tells) bounds it (G-395).
  *   Items without `id`: SYG431 (index keys: rows and measured heights follow the position).
  *
  * Dev text lives in 'sygnal/diagnostics' (checks/virtual.ts), reached through the core bridge as
@@ -48,7 +55,7 @@ import {CollectionHost} from '../core/hosts/collection'
 import {Inst} from '../core/instance'
 import {itemCell, keyName, keyOf} from '../core/cell'
 import {chainHooks} from '../pragma/index'
-import {Virtualizer, elementScroll, observeElementOffset, observeElementRect} from '@tanstack/virtual-core'
+import {Virtualizer, defaultRangeExtractor, elementScroll, observeElementOffset, observeElementRect} from '@tanstack/virtual-core'
 
 const SEL = 'virtual-collection'
 /** the container's props (not passed to the items) */
@@ -60,10 +67,14 @@ const ROWS0 = 10
 const dev = (code: number, owner: any, x?: any): any => (globalThis as any).__SYGNAL_DIAGNOSTICS__?.virtual?.(code, owner, x)
 
 const px = (n: number) => n + 'px'
+/** the props the container's vnode data is made from (not estimateSize / overscan: G-394) */
+const BOX = (x: string) => x != 'estimateSize' && x != 'overscan'
 const same = (a: any, b: any, d?: any): boolean => {
-  const k = Object.keys(a)
-  return k.length == Object.keys(b).length && k.every(x => a[x] === b[x] || !d && x == 'style' && a[x] && b[x] && typeof a[x] == 'object' && same(a[x], b[x], 1))
+  const k = Object.keys(a).filter(x => d || BOX(x))
+  return k.length == Object.keys(b).filter(x => d || BOX(x)).length && k.every(x => a[x] === b[x] || !d && x == 'style' && a[x] && b[x] && typeof a[x] == 'object' && same(a[x], b[x], 1))
 }
+/** an estimate's kind: a number (by value) or 'f' (any function: an inline one is new each render, G-394) */
+const kind = (e: any) => (typeof e == 'function' ? 'f' : e)
 
 export class VirtualHost extends CollectionHost {
   // (no field initializers: the base constructor calls setProps() before they would run)
@@ -77,8 +88,20 @@ export class VirtualHost extends CollectionHost {
   declare lw: any
   declare cd: any
   declare gk: (i: number) => any
-  /** per item instance: [its vnode, index, set size, role, the decorated vnode] */
+  /** per item instance: [its vnode, index, set size, role, pinned top, the decorated vnode] */
   declare dc: WeakMap<Inst, any[]>
+  /** the shown rows' indexes (aligned with `shown`) */
+  declare si: number[]
+  /** the focused row's key and index (G-401: kept in the range), and the index pinned outside the window */
+  declare fk: any
+  declare fi: number
+  declare pin: number
+  /** the range extractor (a new one when the focused row changes: the virtualizer memoizes the range on it) */
+  declare re: (r: any) => number[]
+  /** the stable estimateSize the virtualizer calls (it reads the current prop, G-394) */
+  declare sz: (i: number) => number
+  /** a first patch step that only removed rows ran (G-401) */
+  declare p1: boolean
   declare warned: number
   declare un: (() => void) | undefined
 
@@ -86,11 +109,15 @@ export class VirtualHost extends CollectionHost {
     const vp: Record<string, any> = {}, rest: Record<string, any> = {}
     for (const k in props) (OWN.test(k) ? vp : rest)[k] = props[k]
     rest.className = props.className
-    if (!this.dc) { this.dc = new WeakMap(); this.all = NONE; this.warned = 0 }
+    if (!this.dc) { this.dc = new WeakMap(); this.all = NONE; this.warned = 0; this.si = []; this.fi = this.pin = -1 }
     const was = this.vp, cls = this.props?.className
     this.vp = vp
     super.setProps(rest, children, marker, id)
-    if (!was || vp.estimateSize !== was.estimateSize || vp.overscan !== was.overscan) this.opts(was && vp.estimateSize !== was.estimateSize)
+    // G-394: the virtualizer reads the estimate through a stable function, so a new inline function
+    // keeps the measurements; a number that changes, or a switch between a number and a function,
+    // re-measures
+    const re = was && kind(vp.estimateSize) !== kind(was.estimateSize)
+    if (!was || re || vp.overscan !== was.overscan) this.opts(re)
     // the container's data is made again when its props change (a style object one level deep)
     if (!was || cls !== rest.className || !same(vp, was)) this.cd = undefined
   }
@@ -100,12 +127,19 @@ export class VirtualHost extends CollectionHost {
     const p = this.vp, est = p.estimateSize, o = p.overscan
     if (est !== undefined && !(typeof est == 'function' || est > 0)) dev(434, this.owner, {prop: 'estimateSize', value: est})
     if (o !== undefined && !(o >= 0)) dev(434, this.owner, {prop: 'overscan', value: o})
-    const size = typeof est == 'function' ? (i: number) => { const s = est(this.itemAt(i), i); return s > 0 ? s : 32 } : () => (est > 0 ? est : 32)
+    this.sz ||= (i: number) => {
+      const e = this.vp.estimateSize, s = typeof e == 'function' ? e(this.itemAt(i), i) : e
+      return s > 0 ? s : 32
+    }
+    this.re ||= (r: any) => this.range(r)
     const opts: any = {
       count: this.all.length,
       getItemKey: this.gk ||= (i: number) => this.all[i],
       getScrollElement: () => this.el,
-      estimateSize: size,
+      estimateSize: this.sz,
+      rangeExtractor: this.re,
+      // G-402: ResizeObserver results are applied in the next frame (no ResizeObserver loop error)
+      useAnimationFrameWithResizeObserver: typeof requestAnimationFrame == 'function',
       overscan: o >= 0 ? o : 5,
       initialRect: {width: 0, height: (est > 0 ? est : 32) * ROWS0},
       scrollToFn: elementScroll,
@@ -121,6 +155,36 @@ export class VirtualHost extends CollectionHost {
       this.v.setOptions(opts)
       if (remeasure) this.v.measure()
     } else this.v = new Virtualizer(opts)
+  }
+
+  /**
+   * G-401: the default range, plus the focused row when it is outside it (its element must stay:
+   * removing it loses the focus). It is pinned at its own offset, out of the window's flow.
+   */
+  range(r: any): number[] {
+    const out = defaultRangeExtractor(r), f = this.fk === undefined ? -1 : this.fi
+    this.pin = -1
+    if (f >= 0 && f < r.count && out.length && (f < out[0] || f > out[out.length - 1])) {
+      this.pin = f
+      f < out[0] ? out.unshift(f) : out.push(f)
+    }
+    return out
+  }
+
+  /** the row element (container > spacer > window > row) holding `t`, if any */
+  rowOf(t: any): any {
+    const el = this.el
+    for (let n = t; n && n !== el; n = n.parentNode) if (n.parentNode?.parentNode?.parentNode === el && n.hasAttribute?.('data-index')) return n
+  }
+
+  /** the focused row's key changed: a new range (the virtualizer memoizes it on the extractor) */
+  focus(k: any) {
+    if (k === this.fk || this.disposed) return
+    this.fk = k
+    this.fi = k === undefined ? -1 : this.all.indexOf(k)
+    this.re = (r: any) => this.range(r)
+    this.opts()
+    this.owner.app.commit()
   }
 
   /** the raw array element shown at index i */
@@ -141,11 +205,25 @@ export class VirtualHost extends CollectionHost {
       return {width: r.width, height: v.options.initialRect!.height}
     }
     const vh = win?.innerHeight || 0
-    if (vh && total > vh && r.height >= total - 1) {
+    if (vh && total > vh && r.height >= total - 1 && this.grows(el, win)) {
       this.warn(2, {reason: 'grows', height: r.height})
       return {width: r.width, height: vh}
     }
     return r
+  }
+
+  /**
+   * G-395: as tall as its rows and taller than the viewport is "grows" only when nothing bounds
+   * it: a max-height does (it fits its rows), and so does a height in a length unit (Typed OM:
+   * Chromium, WebKit; elsewhere, without a max-height, it is taken as growing)
+   */
+  grows(el: any, win: any): boolean {
+    try {
+      const mh = win.getComputedStyle(el).maxHeight
+      if (mh && mh != 'none') return false
+      const h = el.computedStyleMap?.().get('height')
+      return !h || h.value == 'auto' || h.unit == 'percent'
+    } catch (_) { return true }
   }
 
   warn(bit: number, x: any) {
@@ -161,11 +239,18 @@ export class VirtualHost extends CollectionHost {
     if (a === this.la && filter === this.lf && sort === this.ls) return false
     // no filter, no sort and no duplicate key: the index's keys are the list, in order (100k rows:
     // no second pass making keys)
-    if (typeof filter != 'function' && !sort && m.size == a.length) { this.all = [...m.keys()]; this.ls = sort; this.cmp = undefined }
-    else this.all = this.list(a, m)
+    let all: any[]
+    if (typeof filter != 'function' && !sort && m.size == a.length) { all = [...m.keys()]; this.ls = sort; this.cmp = undefined }
+    else all = this.list(a, m)
     this.la = a; this.lf = filter
     // SYG431 (dev only: a pass over the array)
     if (a.length && !(this.warned & 4) && (globalThis as any).__SYGNAL_DIAGNOSTICS__?.virtual && a.some((x, i) => keyOf(x, i)[0] == '\0')) { this.warned |= 4; dev(431, this.owner, {count: a.length}) }
+    // G-407: the same keys in the same order (a row edited): the virtualizer keeps its key
+    // function, so it doesn't rebuild every row's measurement
+    const old = this.all
+    if (all.length == old.length && all.every((x, i) => x === old[i])) return false
+    this.all = all
+    if (this.fk !== undefined && (this.fi = all.indexOf(this.fk)) < 0) this.fk = undefined
     // a new key function: the virtualizer re-reads the keys (its measurements are by key)
     this.gk = (i: number) => this.all[i]
     this.opts()
@@ -174,11 +259,33 @@ export class VirtualHost extends CollectionHost {
 
   /** the item instances in the window; true when they changed */
   items_(): boolean {
-    this.keys()
+    const kc = this.keys()
     const v = this.v!, app = this.owner.app, o = this.owner, all = this.all
     const vis = all.length ? v.getVirtualIndexes() : NONE
     const want = new Set<any>()
     for (const i of vis) want.add(all[i])
+    const prev = this.shown
+    // G-401: rows are keyed, and snabbdom moves (detaches: the focus is lost) every kept row when
+    // rows leave the front while the end changes too. Then the rows leaving the front are removed
+    // in a patch of their own first (the ends match: nothing moves), the rest in the next one
+    // (the starts match): a microtask after the first patch, before the frame is painted. The
+    // flush may render again before it patches: the first step's rows stay until then.
+    if (this.p1 && !kc) return false
+    if (!kc && prev.length && vis.length) {
+      const k = (j: number) => (prev[j] as any).k
+      let h = 0, e = 0
+      while (h < prev.length && h < vis.length && k(h) === all[vis[h]]) h++
+      for (e = h; e < prev.length && !want.has(k(e)); e++);
+      if (e > h && e < prev.length && k(prev.length - 1) !== all[vis[vis.length - 1]]) {
+        for (let j = h; j < e; j++) { prev[j].dispose(); this.items.delete(k(j)) }
+        this.shown = prev.slice(0, h).concat(prev.slice(e))
+        this.si = this.si.slice(0, h).concat(this.si.slice(e))
+        this.p1 = true
+        queueMicrotask(() => { this.p1 = false; this.disposed || app.commit() })
+        return true
+      }
+    }
+    this.p1 = false
     for (const [k, inst] of this.items) if (!want.has(k)) { inst.dispose(); this.items.delete(k) }
     const shown: Inst[] = []
     for (const i of vis) {
@@ -188,24 +295,27 @@ export class VirtualHost extends CollectionHost {
         const scope = app.scope()
         inst = new Inst(app, this.def, o, itemCell(this.arr!, this.index!, k), o.dom && o.dom.isolateSource(o.dom, scope),
           this.ip, this.kids, scope, this.uidBase + '-' + keyName(k), 'item')
-        this.items.set(k, inst)
+        this.items.set(k, inst);
+        (inst as any).k = k
       }
       shown.push(inst)
     }
-    const changed = shown.length != this.shown.length || shown.some((s, i) => s !== this.shown[i])
+    const changed = shown.length != prev.length || shown.some((s, i) => s !== prev[i])
     this.shown = shown
+    this.si = vis as number[]
     return changed
   }
 
   clear() {
     super.clear()
     this.all = NONE
+    this.si = []
   }
 
   /** a row's root with its index, ARIA position and measuring hook (the same vnode while nothing changed) */
-  deco(inst: Inst, x: any, i: number, n: number, list: boolean): any {
+  deco(inst: Inst, x: any, i: number, n: number, list: boolean, top?: string): any {
     const c = this.dc.get(inst)
-    if (c && c[0] === x && c[1] === i && c[2] === n && c[3] === list) return c[4]
+    if (c && c[0] === x && c[1] === i && c[2] === n && c[3] === list && c[4] === top) return c[5]
     let out = x
     if (!x.sel) {
       // a fragment or text: nothing to measure or label
@@ -215,11 +325,14 @@ export class VirtualHost extends CollectionHost {
       const d = x.data || {}, role = d.attrs?.role || d.props?.role, attrs: any = {...d.attrs, 'data-index': i}
       if (list || role) attrs['aria-posinset'] = i + 1, attrs['aria-setsize'] = n
       if (list && !role) attrs.role = 'listitem'
-      const data = {...d, attrs}
+      const data: any = {...d, attrs}
+      // G-401: the focused row out of the window, at its own offset (relative to the window)
+      if (top !== undefined) data.style = {...d.style, position: 'absolute', top, left: '0', width: '100%'}
       chainHooks(data, {insert: (y: any) => this.v?.measureElement(y.elm)})
-      out = {...x, data}
+      // keyed (G-401): a row's element is its own, not the one at its position before
+      out = {...x, data, key: (inst as any).k}
     }
-    this.dc.set(inst, [x, i, n, list, out])
+    this.dc.set(inst, [x, i, n, list, top, out])
     return out
   }
 
@@ -252,7 +365,13 @@ export class VirtualHost extends CollectionHost {
       if (i < 0) return void dev(433, this.owner, {id, count: this.all.length})
       this.scrollTo(i, x)
     }
-    this.un = this.v!._didMount()
+    // G-401: which row holds the focus (a focusout to outside the list: none)
+    const fin = (e: any) => this.focus(this.all[this.rowOf(e.target)?.getAttribute('data-index')])
+    const fout = (e: any) => el.contains(e.relatedTarget) || this.focus(undefined)
+    el.addEventListener('focusin', fin)
+    el.addEventListener('focusout', fout)
+    const un = this.v!._didMount()
+    this.un = () => { un(); el.removeEventListener('focusin', fin); el.removeEventListener('focusout', fout) }
     this.v!._willUpdate()
   }
 
@@ -277,23 +396,25 @@ export class VirtualHost extends CollectionHost {
     let changed = !this.outv || this.ep !== app.ep
     this.ep = app.ep
     if (this.items_()) changed = true
-    const v = this.v!, all = this.all, n = all.length, shown = this.shown
-    const vis = n ? v.getVirtualIndexes() : NONE, first = n ? v.getVirtualItems()[0] : undefined
-    const start = first ? first.start : 0, total = v.getTotalSize()
+    const v = this.v!, all = this.all, n = all.length, shown = this.shown, si = this.si
+    const ms: any[] = n && si.length ? (v as any).getMeasurements() : NONE, pin = this.pin
+    // the window starts at its first row in the flow (a pinned row is out of it)
+    const w0 = si[0] === pin && si.length > 1 ? si[1] : si[0]
+    const start = ms[w0] ? ms[w0].start : 0, total = v.getTotalSize()
     const list = (this.vp.role === undefined ? 'list' : this.vp.role) == 'list'
     const lw = this.lw
-    if (!lw || lw[0] !== start || lw[1] !== total || lw[2] !== vis[0]) changed = true
+    if (!lw || lw[0] !== start || lw[1] !== total || lw[2] !== si[0]) changed = true
     const out: any[] = []
     for (let j = 0; j < shown.length; j++) {
-      const inst = shown[j], x = inst.render()
+      const inst = shown[j], x = inst.render(), i = si[j]
       if (x !== inst.last) { inst.last = x; changed = true }
       // an item without state yet (or a removed one) is left out
-      if (x !== undefined) out.push(this.deco(inst, x, vis[j], n, list))
+      if (x !== undefined) out.push(this.deco(inst, x, i, n, list, i === pin && ms[i] ? px(ms[i].start - start) : undefined))
     }
     const data = this.box()
     if (data !== lw?.[3]) changed = true
     if (!changed) return this.outv
-    this.lw = [start, total, vis[0], data]
+    this.lw = [start, total, si[0], data]
     const win = {sel: 'div', data: {style: {position: 'absolute', top: '0', left: '0', width: '100%', transform: `translateY(${px(start)})`}}, children: out, text: undefined, elm: undefined, key: undefined}
     const spacer = {sel: 'div', data: {style: {position: 'relative', width: '100%', height: px(total)}}, children: [win], text: undefined, elm: undefined, key: undefined}
     return (this.outv = {sel: 'div', data, children: [spacer], text: undefined, elm: undefined, key: this.key})
