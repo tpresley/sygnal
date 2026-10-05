@@ -6,7 +6,7 @@ Tracks progress for [PLAN-5.md](PLAN-5.md) (ecosystem components and integration
 
 **Integration branch:** `plan5-integration`, cut from `plan46-complete` (`7146161`) on 2026-10-05, in worktree `.claude/worktrees/plan-4-execution-7ae8e8`. The release stays held (D56).
 
-**State:** Phase 1 complete (incl. review fixes). Phase 2: 2-B merged; 2-U and 2-V running; then 2-Z, 2-A.
+**State:** Phase 2: 2-B, 2-V, 2-U merged; 2-A running; reviews of 2-U/2-V and 2-Z next; fix pass 2-R after the reviews. Open: P5-Q20 (virtual-core bundling).
 
 ## 0-A baseline (2026-10-05)
 
@@ -47,8 +47,8 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 | 1-R | Fixes: G-358 (merge interaction), 1-W review (G-359…G-369), D200 | ✅ merged | `p5-1r` (`451d9d5`) | 2026-10-05 | All 12 fixed (G-358 was the test: its view bound a value it never updated, which D196's re-sync correctly restores). Widget hosts keyed by widget + place (no reuse across widgets/plain/fallback); per-instance failures with recovery; Portal content destroyed on removal; Transition and refs on widgets; library classes kept; SSR IDL names + both kebab and lowercase attributes; SYG141/142 relaxed for unknown hosts; `__sw`; `dispatch`. Chromium/Firefox/WebKit 214/214; core **41,500 B** (800 B headroom); widget used ≈ 1.27 KB |
 | R-1F | Review of 1-F + 1-F1 | ✅ done | | 2026-10-05 | 12 findings G-370…G-381 (2 high) |
 | 1-S | Fixes G-370…G-381 + D205 + D201 `t.widget().dispatch` | ✅ merged | `p5-1s` (`e1a9e22`) | 2026-10-05 | All 12 + D205 (ABORT or same-state return on an input/change event restores the field; +27 B) + D201. Pragma routes attrs for element tags only (components get `role`/`for`/`tabindex`/`aria-*` too — breaking fix); ARIA `false` only on false-valued states; `__sygnalHome` cycle guard; forms: async double submit, initial validation, scoped focus, SYG237 two forms, field types (checkbox groups, select multiple, custom checkboxes; numbers stay strings), id-only rows. Core **41,652 B** (648 B headroom); form used ≈ 3.95 KB. After merge with 2-B: vitest 3,008; browser 230/230 ×3 |
-| 2-U | sygnal/ui native parts + Toaster | 🟡 running | `p5-2u` | | |
-| 2-V | VirtualCollection | 🟡 running | `p5-2v` | | |
+| 2-U | sygnal/ui native parts + Toaster | ✅ merged | `p5-2u` (`3a02349`) | 2026-10-05 | `sygnal/ui` entry (D202): `dialog`, `popover`, `tooltip`, `tabs`/`tabsAttrs`, `accordion`/`accordionAttrs`, `disclosure`/`disclosureAttrs`, `<Toaster>` (re-parenting into modals, D198). 23 browser tests × 3 engines; tree-shaken per part; core 0 B; used 1.1–2.1 KB per part, all ≈ 4.4 KB. UI Parts docs section. Follow-ups: SYG105 false positive for Toaster users + `FIRST_PARTY` entries for the six behaviors; WebKit anchor positioning offset inside `position: fixed` (documented); CLAUDE.md entry count; copy-guides flattening of `ui/` pages (Phase 4) |
+| 2-V | VirtualCollection | ✅ merged | `p5-2v` (`adf9a65`) | 2026-10-05 | `<VirtualCollection>` (Collection props + `estimateSize`, `overscan`; ARIA list semantics) exported from `sygnal` (registered on first render, 0 B unused); jumps as element commands on the container (`scrollToIndex`/`scrollToId`, D118 shape — supersedes S-7's `createCommand()`); SYG430–434; 9 browser tests × 3 engines. 10k rows at React+TanStack speed; threshold ≈ 1,000 rows. Used ≈ 8.8 KB (virtual-core ≈ 6.0 KB **bundled as a pinned devDependency** → P5-Q20) |
 | 2-B | Browser sources + B-4 | ✅ merged | `p5-2b` (`ddbc2ed`) | 2026-10-05 | `makeBrowserDriver()` / `makeBrowserDriverWith(...)` + `Comp.browser` static (GS-7 shape): intersection, resize, media, storage, visibility, online, geolocation; clipboard and storage writes as commands; `t.browser.*` fakes; DOM binding via a definition hook registered with the first driver (0 B core). B-4 `lazy(load, { when: 'visible' \| 'idle' })` + `Comp.load()`. SYG663–665 (+ SYG643 extended). Browser suite 227/227 ×3 engines (WebKit skips cross-tab storage; paste denied in WebKit, error path tested). Used: driver ≈ 0.8 KB + ≈ 0.1–0.3 KB per source; all ≈ 2.0 KB. **Every `lazy()` user +≈ 0.55 KB** → P5-Q19 |
 | 1-F1 | F-1 `form` behavior (D193) | ✅ merged | `p5-1f1` (`5c3d07b`) | 2026-10-05 | `form()` behavior on D197 (key-named reply actions) + public helpers (`checkForm`, `formErrors`, `setField`, `getField`, `fieldName(s)`, `replyErrors`, `focusInvalid` on `focusWithin`); 4 spike bugs fixed; SYG230–236 (dev); sygnal-check `form` entry; Forms guide; 38 tests + 3-engine browser test. Used ≈ **3.0 KB** (target 2.4 KB: `defineBehavior` grew to 0.9 KB with D197) → P5-Q18. After merge: vitest 2,890; browser 216/216 ×3; sygnal-check 553; samples 577 clean; core unchanged |
 | 1-W | Widgets + web components | ✅ merged | `p5-1w` (`2c6053c`) | 2026-10-05 | `defineWidget` (tag canonical + control form; Portal support; D196 command precedence), `.detail()`, custom-event typings, SYG115 fix, `renderToString` custom elements, codes SYG140–144 + SYG660–662, guides `widgets` and `web-components` (Using + Publishing). flatpickr + Web Awesome browser tests in all three engines (Chromium/Firefox 208/208, WebKit 207 = G-355). Size: unused **41,419 B** (+23: D196 line +16, `.detail()` +7); used ≈ 1.1 KB (target 0.9). Review running |
@@ -74,7 +74,7 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 | 2-V | V-1 `<VirtualCollection>` on `@tanstack/virtual-core` | `src/extra/virtual*`, its entry, docs |
 | 2-B | B-3 browser sources (timers declaration shape) + B-4 `lazy(…, { when })` | `src/extra/browserSources*`, `src/lazy.ts` (B-4), docs |
 | 2-Z (next) | W-2 `fromZag` + Menu/Select/Combobox in `sygnal/ui`; `sygnal/react` `fromReact` | after 2-U |
-| 2-A (next) | A-1 Collection move transitions on View Transitions form B | after the review fix pass |
+| 2-A | A-1 Collection move transitions on View Transitions form B | running |
 
 ## Decisions
 
@@ -129,13 +129,25 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 | G-379 | review 1-F1 | Low | forms | Presence checks use `!== undefined` (optional fields ignored + SYG230/235); named buttons raise SYG230 on focusout | Fixed (1-S) |
 | G-380 | review 1-F1 | Low | forms | `replyErrors`/`getField` fall back from row id to index, misplacing index-keyed server errors | Fixed (1-S) |
 | G-381 | review 1-F | Low | DOM | No guard against a `__sygnalHome` cycle (infinite loop / stack overflow) | Fixed (1-S) |
-| G-382 | 1-S | Low | forms | `valid` is false while an async schema re-validates, so `disabled={!valid}` flickers per keystroke; keep the previous validity after the first answer | Open (next fix pass) |
+| G-383 | review 2-B | High | browser sources | A component defined before the first browser driver exists never gets its DOM binding (definitions cached; `browser` not in the staleness keys): intersection/resize silently do nothing (multi-island pages, test files mixing fake and real drivers). Confirmed | → 2-R |
+| G-384 | review 2-B | Med/High | browser sources | The same-page synthetic `storage` event fires even for unchanged values, so a model that echoes the stored value loops forever (real driver and fake). Confirmed | → 2-R |
+| G-385 | review 2-B | Med | lazy when | `lazy(…, { when: 'visible' })` inside Suspense counts as pending: blanks the boundary and the placeholder lands at the boundary's position, so it loads at once | → 2-R |
+| G-386 | review 2-B | Low/Med | lazy when | A never-triggered `when` keeps disposed owners in memory (pending promise closures) | → 2-R |
+| G-387 | review 2-B | Low/Med | testing | `t.browser` fake sends no initial observer report and ignores selectors, so tests can pass on the fake and fail for real | → 2-R |
+| G-388 | review 2-B | Low | browser sources | Sink commands recognised only by their first key (`{ ok, copy }` is dropped) | → 2-R |
+| G-389 | review 2-B | Low | browser sources | Synchronous throws in command handlers (JSON.stringify of BigInt/cycles, missing clipboard methods) skip the `error` action | → 2-R |
+| G-390 | review 2-B | Low | perf | One observer and one ElementFinder subscription per declaration (1,000-item Collection → 1,000 observers, 1,000 `querySelectorAll` per patch) | → 2-R |
+| G-391 | review 2-B | Low | browser-tests | `__pwBrowser` context changes (offline, permissions, media) aren't reset between suites | → 2-R |
+| G-392 | 2-U | Low | sygnal-check | SYG105 false positive for every Toaster user (`TOAST` "emitted but nothing selects it"); `sygnal/ui` behaviors not in `FIRST_PARTY` (option typos unchecked) | → 2-R |
+| G-393 | 2-U | Low | core/testing | A root component with a `model` but no `initialState` renders nothing under `renderComponent`, with no diagnostic (verify against today's documented behaviour, G-172) | → 2-R (verify) |
+| G-382 | 1-S | Low | forms | `valid` is false while an async schema re-validates, so `disabled={!valid}` flickers per keystroke; keep the previous validity after the first answer | → 2-R |
 | G-356 | 0-S4 | Low | DOM/isolation | An element moved out of its component's DOM (toast re-parented into a modal): `IsolateModule.getRootElement` throws ("No root element found"); with the fix, the delegator's simulated bubbling still follows DOM parents, so intermediate scopes miss the moved region's events | Fixed (1-F; `__sygnalHome` for movers) |
 | G-357 | 0-S4 | Low | diagnostics | SYG202 reported for `() => undefined` on Collection items although llms.txt documents it as the canonical self-removal | Fixed (1-F) |
 | G-355 | 0-B | Low | router test | WebKit: 'link click, back, scroll restore, focus, document.title' (router-5-4b) fails: scroll not restored after back (`scrollY 1663`). Chromium/Firefox pass | Fixed (1-F: the test shared history with an earlier suite; not a router bug) |
 
 ## Log
 
+- 2026-10-05 — 2-V and 2-U merged (resolved additive conflicts); all gates green on three engines (262/262; samples 621). Review of 2-B: 9 findings (G-383…G-391); 2-U follow-ups G-392/G-393.
 - 2026-10-05 — 1-S merged (2 additive conflicts with 2-B; CHANGELOG dedup); all gates green on three engines (230/230); core 41,652 B. D207 (user), D208.
 - 2026-10-05 — 2-B merged (three engines 227/227; core 41,500 B). Open: P5-Q19 (lazy `when` size).
 - 2026-10-05 — Review of 1-F + 1-F1: 12 findings (G-370…G-381). 1-S started.
