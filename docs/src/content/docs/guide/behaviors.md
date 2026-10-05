@@ -208,8 +208,8 @@ export const hoverDelay = defineBehavior({
 
 Two markers say how a behavior's state relates to the app's data:
 
-- **`persist: false`**: the slice is UI state (an open menu, a drag in progress). A root's [`persist()`](/guide/persistence/) neither saves nor restores that `uses` key, whatever `pick` / `omit` say.
-- **`undoStep: ['DONE']`**: the actions that complete one undoable step. With the [`undo` behavior](/advanced/undo/) on the same host, the behavior's other actions are steps of a gesture: their changes to the undo key aren't recorded, and `DONE` records the value from before the gesture as one entry. A gesture that ends without `DONE` (cancelled) records nothing. The order of the two in `uses` doesn't matter.
+- **`persist: false`**: the slice is UI state (an open menu, a drag in progress). A root's [`persist()`](/guide/persistence/) neither saves nor restores that `uses` key, whatever `pick` / `omit` say. This covers the root component's own `uses` only: the slice of a behavior on a sub-component or a Collection item is part of the data around it (`state.list.sort`, `state.lanes[0].sort`) and is saved with it. The behavior has to cope with a restored slice (sortable resets restored drag state when the host starts).
+- **`undoStep: ['DONE']`**: the actions that complete one undoable step. With the [`undo` behavior](/advanced/undo/) on the same host, the behavior's other actions are steps of a gesture: their changes to the undo key aren't recorded, and `DONE` records the value from before the gesture as one entry. A gesture that ends without `DONE` (cancelled) records nothing. The order of the two in `uses` doesn't matter. A recorded change, UNDO or REDO in the middle of a gesture first records the value from before it.
 
 [`sortable`](/guide/drag-and-drop/) declares both: `persist: false`, and `undoStep: ['DROPPED']`, so one drag is one undo step.
 

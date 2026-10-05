@@ -10,7 +10,8 @@ import {warn} from './diagnostics/legacy';
  *
  * - Stored as JSON `{ version, state }` under `key`; `state` has the picked top-level keys
  *   (`pick`), or all but `omit` and the calculated fields. A `uses` key whose behavior is marked
- *   `persist: false` (sortable: drag state) is left out of both the save and the restore. `format: 'plain'` (4-G1, D143) stores
+ *   `persist: false` (sortable: drag state) is left out of both the save and the restore (the root's own
+ *   `uses` only: a sub-component's or Collection item's behavior slice is part of its data, 3-L G-476). `format: 'plain'` (4-G1, D143) stores
  *   that object itself, with no envelope; `version` / `migrate` then don't apply (a type error;
  *   ignored here), and a stored value that isn't an object is ignored.
  * - Restore: a synchronous read before INITIALIZE, merged into initialState, so the restore is
