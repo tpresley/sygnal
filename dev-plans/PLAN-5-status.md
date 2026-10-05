@@ -6,7 +6,7 @@ Tracks progress for [PLAN-5.md](PLAN-5.md) (ecosystem components and integration
 
 **Integration branch:** `plan5-integration`, cut from `plan46-complete` (`7146161`) on 2026-10-05, in worktree `.claude/worktrees/plan-4-execution-7ae8e8`. The release stays held (D56).
 
-**State:** Phase 1 merged; review of 1-F + 1-F1 running (its fix pass will add D205 and D201's `t.widget().dispatch`). Phase 2 running: 2-U (sygnal/ui native parts + Toaster), 2-V (VirtualCollection), 2-B (browser sources).
+**State:** Phase 1 complete (incl. review fixes). Phase 2: 2-B merged; 2-U and 2-V running; then 2-Z, 2-A.
 
 ## 0-A baseline (2026-10-05)
 
@@ -46,7 +46,7 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 | 1-F | Foundations | ✅ merged | `p5-1f` (`707e54b`) | 2026-10-05 | D196 pragma attrs (+63 B), moved-element isolation incl. bubbling via `__sygnalHome` (−27 B), form-associated custom-element sync (+42 B), D197 `defineBehavior` (`timers`, options/key in handlers, `HOST` reducer; 0 B), D194 `focusWithin` (0 B), D199 diagnostics/check items, test helpers, G-355 fixed (test isolation, not a router bug). After merge with 1-W: **41,5xx B**; vitest 2,818; browser 213/214 on all three engines (G-358) |
 | 1-R | Fixes: G-358 (merge interaction), 1-W review (G-359…G-369), D200 | ✅ merged | `p5-1r` (`451d9d5`) | 2026-10-05 | All 12 fixed (G-358 was the test: its view bound a value it never updated, which D196's re-sync correctly restores). Widget hosts keyed by widget + place (no reuse across widgets/plain/fallback); per-instance failures with recovery; Portal content destroyed on removal; Transition and refs on widgets; library classes kept; SSR IDL names + both kebab and lowercase attributes; SYG141/142 relaxed for unknown hosts; `__sw`; `dispatch`. Chromium/Firefox/WebKit 214/214; core **41,500 B** (800 B headroom); widget used ≈ 1.27 KB |
 | R-1F | Review of 1-F + 1-F1 | ✅ done | | 2026-10-05 | 12 findings G-370…G-381 (2 high) |
-| 1-S | Fixes G-370…G-381 + D205 + D201 `t.widget().dispatch` | 🟡 running | `p5-1s` | | |
+| 1-S | Fixes G-370…G-381 + D205 + D201 `t.widget().dispatch` | ✅ merged | `p5-1s` (`e1a9e22`) | 2026-10-05 | All 12 + D205 (ABORT or same-state return on an input/change event restores the field; +27 B) + D201. Pragma routes attrs for element tags only (components get `role`/`for`/`tabindex`/`aria-*` too — breaking fix); ARIA `false` only on false-valued states; `__sygnalHome` cycle guard; forms: async double submit, initial validation, scoped focus, SYG237 two forms, field types (checkbox groups, select multiple, custom checkboxes; numbers stay strings), id-only rows. Core **41,652 B** (648 B headroom); form used ≈ 3.95 KB. After merge with 2-B: vitest 3,008; browser 230/230 ×3 |
 | 2-U | sygnal/ui native parts + Toaster | 🟡 running | `p5-2u` | | |
 | 2-V | VirtualCollection | 🟡 running | `p5-2v` | | |
 | 2-B | Browser sources + B-4 | ✅ merged | `p5-2b` (`ddbc2ed`) | 2026-10-05 | `makeBrowserDriver()` / `makeBrowserDriverWith(...)` + `Comp.browser` static (GS-7 shape): intersection, resize, media, storage, visibility, online, geolocation; clipboard and storage writes as commands; `t.browser.*` fakes; DOM binding via a definition hook registered with the first driver (0 B core). B-4 `lazy(load, { when: 'visible' \| 'idle' })` + `Comp.load()`. SYG663–665 (+ SYG643 extended). Browser suite 227/227 ×3 engines (WebKit skips cross-tab storage; paste denied in WebKit, error path tested). Used: driver ≈ 0.8 KB + ≈ 0.1–0.3 KB per source; all ≈ 2.0 KB. **Every `lazy()` user +≈ 0.55 KB** → P5-Q19 |
@@ -80,6 +80,8 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 
 | ID | Date | Decision | By |
 |---|---|---|---|
+| D208 | 2026-10-05 | 1-S follow-ups (coordinator): D205 also restores on a same-state return (same meaning as ABORT) and only for actions handled synchronously inside the input/change event (debounced/delayed actions don't restore; documented); G-370's forwarding of `role`/`for`/`tabindex`/`aria-*` to components is a breaking fix (CHANGELOG); SYG237 sits in PLAN-5's 230–239 range; **G-382**: `valid` should keep the previous validity while an async schema re-validates after the first answer (avoid `disabled={!valid}` flicker) — next fix pass | Coordinator |
+| D207 | 2026-10-05 | P5-Q19: `lazy(load, { when: 'visible' \| 'idle' })` keeps the string form; every `lazy()` user carries ≈ +0.55 KB | User |
 | D206 | 2026-10-05 | P5-Q18: the `form` behavior's ≈ 3.0 KB used size is accepted (opt-in; `defineBehavior` grew to ≈ 0.9 KB with D197) | User |
 | D205 | 2026-10-05 | P5-Q17: an action triggered by input on a value-bound (controlled) field whose STATE handler ABORTs still re-renders that component, so the field is restored to the model's value (React-like). ABORT still means "no state change". Applies to native and form-associated custom elements; a few core bytes; CHANGELOG + docs | User |
 | D204 | 2026-10-05 | P5-Q4: icons via a Lucide vanilla recipe; no icon package unless the eval shows agents struggle | User |
@@ -115,24 +117,26 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 | G-367 | review 1-W | Low | widget | Remount path without `update`: a throwing `mount` reported as SYG661, stale record. Confirmed | Fixed (1-R) |
 | G-368 | review 1-W | Low | widget | `ref` silently dropped (guide says every prop reaches the widget) | Fixed (1-R) |
 | G-369 | review 1-W | Low | testing | Mock-DOM command check with a control wrapping a widget uses the wrong host tag; `widgetOf` not scoped | Fixed (1-R) |
-| G-370 | review 1-F | High | pragma | D196 attribute routing also applies to component tags: props named `anchor`, `command`, `commandfor`, `closedby`, `popovertarget(action)`, `interestfor` no longer reach components (`role`/`for`/`tabindex`/`aria-*` already didn't). Confirmed | → 1-S |
-| G-371 | review 1-F1 | High/Med | forms | Async schema: two submits before validation settles dispatch the submit action twice (double POST). Confirmed | → 1-S |
-| G-372 | review 1-F | Med | pragma/a11y | `aria-*={false}` renders `"false"` on string/IDREF ARIA attributes (`aria-label={cond && label}` announces "false"); `null` → `"null"` (pre-existing). Confirmed | → 1-S |
-| G-373 | review 1-F1 | Med | forms | `focusInvalid` not scoped to the form element: focuses a same-named field in another form or an earlier child. Confirmed | → 1-S |
-| G-374 | review 1-F1 | Med/Low | forms | Two `form` uses in one host default to the same `'form'` selector and listen to each other, with no diagnostic. Confirmed | → 1-S |
-| G-375 | review 1-F1 | Low/Med | forms | Async schema: initial state has no errors, so `valid` starts true; `form()` runs `validate` at module load. Confirmed | → 1-S |
-| G-376 | review 1-F1 | Low/Med | forms | Field types beyond text/checkbox unsupported and undocumented (custom checkboxes, select multiple, checkbox groups, number/date coercion, file) | → 1-S |
-| G-377 | review 1-F1 | Low | diagnostics | SYG233 false positives for schemas that reshape output (renames) | → 1-S |
-| G-378 | review 1-F | Low | behaviors | A behavior model entry with both `STATE` and `HOST` silently loses `STATE`. Confirmed | → 1-S |
-| G-379 | review 1-F1 | Low | forms | Presence checks use `!== undefined` (optional fields ignored + SYG230/235); named buttons raise SYG230 on focusout | → 1-S |
-| G-380 | review 1-F1 | Low | forms | `replyErrors`/`getField` fall back from row id to index, misplacing index-keyed server errors | → 1-S |
-| G-381 | review 1-F | Low | DOM | No guard against a `__sygnalHome` cycle (infinite loop / stack overflow) | → 1-S |
+| G-370 | review 1-F | High | pragma | D196 attribute routing also applies to component tags: props named `anchor`, `command`, `commandfor`, `closedby`, `popovertarget(action)`, `interestfor` no longer reach components (`role`/`for`/`tabindex`/`aria-*` already didn't). Confirmed | Fixed (1-S) |
+| G-371 | review 1-F1 | High/Med | forms | Async schema: two submits before validation settles dispatch the submit action twice (double POST). Confirmed | Fixed (1-S) |
+| G-372 | review 1-F | Med | pragma/a11y | `aria-*={false}` renders `"false"` on string/IDREF ARIA attributes (`aria-label={cond && label}` announces "false"); `null` → `"null"` (pre-existing). Confirmed | Fixed (1-S) |
+| G-373 | review 1-F1 | Med | forms | `focusInvalid` not scoped to the form element: focuses a same-named field in another form or an earlier child. Confirmed | Fixed (1-S) |
+| G-374 | review 1-F1 | Med/Low | forms | Two `form` uses in one host default to the same `'form'` selector and listen to each other, with no diagnostic. Confirmed | Fixed (1-S) |
+| G-375 | review 1-F1 | Low/Med | forms | Async schema: initial state has no errors, so `valid` starts true; `form()` runs `validate` at module load. Confirmed | Fixed (1-S) |
+| G-376 | review 1-F1 | Low/Med | forms | Field types beyond text/checkbox unsupported and undocumented (custom checkboxes, select multiple, checkbox groups, number/date coercion, file) | Fixed (1-S) |
+| G-377 | review 1-F1 | Low | diagnostics | SYG233 false positives for schemas that reshape output (renames) | Fixed (1-S) |
+| G-378 | review 1-F | Low | behaviors | A behavior model entry with both `STATE` and `HOST` silently loses `STATE`. Confirmed | Fixed (1-S) |
+| G-379 | review 1-F1 | Low | forms | Presence checks use `!== undefined` (optional fields ignored + SYG230/235); named buttons raise SYG230 on focusout | Fixed (1-S) |
+| G-380 | review 1-F1 | Low | forms | `replyErrors`/`getField` fall back from row id to index, misplacing index-keyed server errors | Fixed (1-S) |
+| G-381 | review 1-F | Low | DOM | No guard against a `__sygnalHome` cycle (infinite loop / stack overflow) | Fixed (1-S) |
+| G-382 | 1-S | Low | forms | `valid` is false while an async schema re-validates, so `disabled={!valid}` flickers per keystroke; keep the previous validity after the first answer | Open (next fix pass) |
 | G-356 | 0-S4 | Low | DOM/isolation | An element moved out of its component's DOM (toast re-parented into a modal): `IsolateModule.getRootElement` throws ("No root element found"); with the fix, the delegator's simulated bubbling still follows DOM parents, so intermediate scopes miss the moved region's events | Fixed (1-F; `__sygnalHome` for movers) |
 | G-357 | 0-S4 | Low | diagnostics | SYG202 reported for `() => undefined` on Collection items although llms.txt documents it as the canonical self-removal | Fixed (1-F) |
 | G-355 | 0-B | Low | router test | WebKit: 'link click, back, scroll restore, focus, document.title' (router-5-4b) fails: scroll not restored after back (`scrollY 1663`). Chromium/Firefox pass | Fixed (1-F: the test shared history with an earlier suite; not a router bug) |
 
 ## Log
 
+- 2026-10-05 — 1-S merged (2 additive conflicts with 2-B; CHANGELOG dedup); all gates green on three engines (230/230); core 41,652 B. D207 (user), D208.
 - 2026-10-05 — 2-B merged (three engines 227/227; core 41,500 B). Open: P5-Q19 (lazy `when` size).
 - 2026-10-05 — Review of 1-F + 1-F1: 12 findings (G-370…G-381). 1-S started.
 - 2026-10-05 — D205 (ABORT restores controlled fields), D206 (form size accepted). Review of 1-F + 1-F1 and Phase 2 (2-U, 2-V, 2-B) started.
