@@ -202,6 +202,14 @@ export const CODE_TITLES: Record<string, string> = {
   SYG223: 'persist pick or omit names a key that is not in initialState',
   SYG224: 'persist on a component that is not the root',
   SYG226: 'Undo track, resetOn or coalesce names an unknown action',
+  // PLAN-5 F-1: the form behavior (checks/forms.ts)
+  SYG230: 'Form field name not in values',
+  SYG231: 'form() schema is not a Standard Schema',
+  SYG232: 'Form submit dropped while one is in progress',
+  SYG233: 'Form value missing from the schema output',
+  SYG234: 'Form submit action has no model entry',
+  SYG235: 'Form check names an unknown field or sets reply fields',
+  SYG236: 'Form array rows without an id',
   SYG402: 'Context is not an object',
   SYG403: 'Invalid context entry',
   SYG404: 'Context stream errored',
@@ -321,6 +329,14 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG224: 'error',
   // PLAN-4 GS-8 (undo.ts reports it when diagnostics are on; sygnal-check statically)
   SYG226: 'warn',
+  // PLAN-5 F-1: the form behavior (checks/forms.ts; form.ts calls the bridge's form hook)
+  SYG230: 'warn',
+  SYG231: 'error',
+  SYG232: 'info',
+  SYG233: 'warn',
+  SYG234: 'warn',
+  SYG235: 'warn',
+  SYG236: 'warn',
   SYG421: 'error',
   SYG611: 'error',
   // PLAN-3 5-4b: router (SYG620 is reported by the router itself, like SYG611) and G-167
