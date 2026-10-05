@@ -171,29 +171,6 @@ describe('renderComponent', () => {
     expect(t.states[t.states.length - 1].result).toBe('from-effect')
   })
 
-  it('simulateAction resolves shorthand model entries', async () => {
-    let effectRan = false
-
-    function App() {
-      return createElement('div', null, 'test')
-    }
-    App.initialState = { x: 0 }
-    App.intent = ({ DOM }) => ({
-      DO: DOM.select('.btn').events('click'),
-    })
-    App.model = {
-      'DO | EFFECT': () => { effectRan = true },
-    }
-
-    t = renderComponent(App)
-    await settle(100)
-
-    t.simulateAction('DO')
-    await settle(100)
-
-    expect(effectRan).toBe(true)
-  })
-
   it('multiple simulateAction calls accumulate state', async () => {
     function Counter() {
       return createElement('div', null, 'test')
@@ -373,7 +350,8 @@ describe('DISPOSE built-in action', () => {
     expect(captured).toEqual([1])
   })
 
-  it('DISPOSE with model shorthand fires EFFECT', async () => {
+  // G-334 (R5): kept behaviour, ported from an 'ACTION | SINK' key to the object form (D164)
+  it('DISPOSE with an object-form EFFECT entry fires on dispose', async () => {
     let effectRan = false
 
     function App() {
@@ -384,7 +362,7 @@ describe('DISPOSE built-in action', () => {
       _NOOP: DOM.select('.__noop__').events('click'),
     })
     App.model = {
-      'DISPOSE | EFFECT': () => { effectRan = true },
+      DISPOSE: { EFFECT: () => { effectRan = true } },
     }
 
     t = renderComponent(App)

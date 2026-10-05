@@ -20,7 +20,7 @@ export function makeIsolateSink<T extends VNode>(
 }
 
 /**
- * PLAN-4.6: the value-level isolateSink (the next core scopes each instance's vnode without a
+ * PLAN-4.6: the value-level isolateSink (the core scopes each instance's vnode without a
  * stream per instance): the same mapping, applied to one vnode
  */
 export function makeIsolateValue(namespace: Array<Scope>): (node: any, scope: string) => any {

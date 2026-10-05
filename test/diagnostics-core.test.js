@@ -350,48 +350,6 @@ describe('diagnostics core — hooks', () => {
     expect(getDiagnostics()).toEqual([])
   })
 
-  it('hooks dispatch to registered checks when on', async () => {
-    configureDiagnostics({ mode: 'collect' })
-    const { calls, check } = recordingCheck()
-    registerCheck(check)
-
-    // fire INC through the real intent stream (simulateAction routes through a
-    // synthetic __TEST_ACTION__ reducer instead)
-    const click$ = xs.create()
-    const t = renderComponent(Counter, { mockConfig: { '.inc': { click: click$ } } })
-    await settle(100)
-    click$.shamefullySendNext({})
-    await settle(100)
-
-    const intentCall = calls.find(c => c[0] === 'onIntent' && c[1] === 'Counter')
-    expect(intentCall).toBeDefined()
-    expect(intentCall[2]).toContain('INC')
-    expect(intentCall[3]).toBeUndefined()
-
-    const modelCall = calls.find(c => c[0] === 'onModel' && c[1] === 'Counter')
-    expect(modelCall[2].INC).toEqual(['STATE'])
-    expect(modelCall[2].PING).toEqual(['EVENTS'])
-    expect(modelCall[2].INITIALIZE).toEqual(['STATE'])
-
-    const intentIdx = calls.indexOf(intentCall)
-    const modelIdx = calls.indexOf(modelCall)
-    expect(intentIdx).toBeLessThan(modelIdx)
-
-    const renderCall = calls.find(c => c[0] === 'onRender' && c[1] === 'Counter')
-    expect(renderCall).toBeDefined()
-    expect(renderCall[2].sel).toMatch(/^div/)
-
-    const reducerCall = calls.find(c => c[0] === 'onReducer' && c[2] === 'INC')
-    expect(reducerCall).toBeDefined()
-    expect(reducerCall[3]).toEqual({ count: 0 })
-    expect(reducerCall[4]).toEqual({ count: 1 })
-    expect(reducerCall[5]).toBe('STATE')
-
-    t.dispose()
-    await settle(20)
-    expect(calls.some(c => c[0] === 'onDispose' && c[1] === 'Counter')).toBe(true)
-  })
-
   it('unregistering a check stops dispatch', () => {
     configureDiagnostics({ mode: 'collect' })
     const { calls, check } = recordingCheck()
@@ -476,60 +434,8 @@ describe('diagnostics core — hooks', () => {
     expect(() => report('SYG101', { message: 'x' })).toThrow(DiagnosticError)
   })
 
-  describe("'error' mode keeps the component streams alive", () => {
-    const textOf = v => v == null ? '' : typeof v !== 'object' ? String(v) : (v.text ?? '') + (Array.isArray(v.children) ? v.children.map(textOf).join('') : '')
-
-    async function exercise(strictCheck) {
-      configureDiagnostics({ mode: 'error' })
-      const thrown = []
-      _setAsyncThrow(err => thrown.push(err))
-      const rendered = []
-      registerCheck({ id: 'recorder', onRender: (c, vnode) => { if (c.name === 'Counter') rendered.push(textOf(vnode)) } })
-      registerCheck(strictCheck)
-      const error = vi.spyOn(console, 'error').mockImplementation(() => {})
-
-      const click$ = xs.create()
-      const t = renderComponent(Counter, { mockConfig: { '.inc': { click: click$ } } })
-      await settle(100)
-      click$.shamefullySendNext({})   // count 1 → violation
-      await settle(100)
-      click$.shamefullySendNext({})   // count 2 → streams must still work
-      await settle(100)
-      click$.shamefullySendNext({})   // count 3
-      await settle(100)
-      t.dispose()
-      await settle(20)
-      error.mockRestore()
-      return { thrown, rendered, states: t.states }
-    }
-
-    it('a DiagnosticError from onReducer does not kill the state stream', async () => {
-      const { thrown, rendered, states } = await exercise({
-        id: 'strict-reducer',
-        onReducer(c, action, prev, next) {
-          if (next.count === 1) report('SYG202', { component: c, message: 'count reached 1' })
-        },
-      })
-      expect(thrown).toHaveLength(1)
-      expect(thrown[0].diagnostic.code).toBe('SYG202')
-      expect(states.map(s => s.count)).toEqual(expect.arrayContaining([1, 2, 3]))
-      expect(states[states.length - 1].count).toBe(3)
-      expect(rendered[rendered.length - 1]).toBe('3')
-    })
-
-    it('a DiagnosticError from onRender does not kill the view stream', async () => {
-      const { thrown, rendered, states } = await exercise({
-        id: 'strict-render',
-        onRender(c, vnode) {
-          if (textOf(vnode) === '1') report('SYG301', { component: c, message: 'rendered 1' })
-        },
-      })
-            expect(thrown.map(e => e.diagnostic.code)).toContain('SYG301')
-      expect(states[states.length - 1].count).toBe(3)
-      expect(rendered).toEqual(expect.arrayContaining(['1', '2', '3']))
-      expect(rendered[rendered.length - 1]).toBe('3')
-    })
-  })
+  // (R5: the 'error'-mode stream tests registered checks without the dev entry, which only the
+  // old core called; the dev entry's checks run through the core's hooks: diagnostics/*)
 })
 
 describe('diagnostics core — lazy text', () => {

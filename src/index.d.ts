@@ -4,7 +4,7 @@ import type { DocumentDOMSource } from './cycle/dom/DocumentDOMSource'
 import type { BodyDOMSource } from './cycle/dom/BodyDOMSource'
 import type { EventsFnOptions } from './cycle/dom/DOMSource'
 import type { VNode } from './cycle/dom/snabbdom'
-import type { StateSource } from './cycle/state/index'
+import type { StateSource } from './cycle/state/StateSource'
 import xsDefault from 'xstream'
 import type { InspectGraph, InspectOptions } from './extra/diagnostics/checks/public'
 import type { MemoryStream, Stream } from 'xstream'
@@ -35,10 +35,7 @@ export type DriverFactories<DRIVERS extends DriverSpecs = DriverSpecs> = {
  * (see `JSX.LibraryManagedAttributes` / `ElementProps`).
  */
 type ComponentProps<STATE, PROPS, CONTEXT> = (
-  props: ViewProps<STATE, PROPS, CONTEXT>,
-  state: STATE,
-  context: CONTEXT,
-  peers: { [peer: string]: JSX.Element | JSX.Element[] }
+  props: ViewProps<STATE, PROPS, CONTEXT>
 ) => JSX.Element
 
 /**
@@ -293,11 +290,6 @@ type ComponentModel<STATE, PROPS, DRIVERS, ACTIONS, CALCULATED, SINK_RETURNS ext
       >
     }
 
-type TrimSpaces<S extends string> =
-  S extends ` ${infer REST}` ? TrimSpaces<REST>
-  : S extends `${infer REST} ` ? TrimSpaces<REST>
-  : S
-
 /** Value type produced by a PARENT sink value (a reducer's return, minus ABORT/undefined). */
 type ParentSinkValueReturn<VALUE> =
   // an expando model widens `PARENT: true` (pass-through) and `PARENT: false` to boolean:
@@ -317,19 +309,11 @@ type ParentPayloadFromEntry<ENTRY> =
     ? 'PARENT' extends keyof ENTRY ? ParentSinkValueReturn<NonNullable<ENTRY['PARENT']>> : never
     : never
 
-// Shorthand 'ACTION | PARENT' keys (expando models only). Object-form entries are read by
-// distributing over the union of the entry types (see ParentPayloadOf).
-type ShorthandParentPayloads<MODEL> = {
-  [ACTION_KEY in keyof MODEL & `${string}|${string}`]-?: ACTION_KEY extends `${string}|${infer SINK}`
-    ? TrimSpaces<SINK> extends 'PARENT' ? ParentSinkValueReturn<NonNullable<MODEL[ACTION_KEY]>> : never
-    : never
-}[keyof MODEL & `${string}|${string}`]
-
 type AnyIfNever<T> = [T] extends [never] ? any : T
 
 /**
  * The value type a component sends to its parent through the `PARENT` sink, inferred from the
- * component's `model` (object-form `{ PARENT: fn }` entries and `'ACTION | PARENT'` shorthand),
+ * component's `model` (its `{ PARENT: fn }` entries),
  * or for a `Component<...>` annotation, the `PARENT` entry of its `SINK_RETURNS`. A
  * `Component<...>` annotation without one gives `unknown` (declare it: `{ PARENT: T }`); no model
  * or `PARENT: true` pass-through entries only give `any`.
@@ -339,8 +323,7 @@ export type ParentPayloadOf<COMPONENT> =
     // the union is written out here (not behind a helper alias) so hovers and errors print
     // the payload (`Stream<{ taskId: number }>`), not `Stream<Helper<...the whole model...>>`
     ? 0 extends (1 & MODEL) ? any : AnyIfNever<
-        | ParentPayloadFromEntry<NonNullable<NonNullable<MODEL>[keyof NonNullable<MODEL>]>>
-        | ShorthandParentPayloads<NonNullable<MODEL>>
+        ParentPayloadFromEntry<NonNullable<NonNullable<MODEL>[keyof NonNullable<MODEL>]>>
       >
     : any
 
@@ -348,7 +331,6 @@ type ChildSource = {
   /** Typed: the stream type is inferred from the child's PARENT sink (falls back to `any`). */
   select<COMPONENT extends (...args: any[]) => any>(component: COMPONENT): Stream<ParentPayloadOf<COMPONENT>>;
   select<T = any>(component: (...args: any[]) => any): Stream<T>;
-  select<T = any>(name: string): Stream<T>;
 }
 
 /**
@@ -976,12 +958,12 @@ type CalculatedFieldValue<FULL_STATE, RETURN> =
   | [ReadonlyArray<string & keyof FULL_STATE>, StateOnlyReducer<FULL_STATE, RETURN>]
 
 type Calculated<STATE, CALCULATED> = keyof CALCULATED extends never
-  ? { [field: string]: boolean | CalculatedFieldValue<STATE, any> }
-  : { [CALCULATED_KEY in keyof CALCULATED]: boolean | CalculatedFieldValue<STATE & CALCULATED, CALCULATED[CALCULATED_KEY]> }
+  ? { [field: string]: CalculatedFieldValue<STATE, any> }
+  : { [CALCULATED_KEY in keyof CALCULATED]: CalculatedFieldValue<STATE & CALCULATED, CALCULATED[CALCULATED_KEY]> }
 
 type Context<STATE, CONTEXT> = keyof CONTEXT extends never
-  ? { [field: string]: boolean | StateOnlyReducer<STATE, any> }
-  : { [CONTEXT_KEY in keyof CONTEXT]: boolean | StateOnlyReducer<STATE, CONTEXT[CONTEXT_KEY]> }
+  ? { [field: string]: StateOnlyReducer<STATE, any> }
+  : { [CONTEXT_KEY in keyof CONTEXT]: StateOnlyReducer<STATE, CONTEXT[CONTEXT_KEY]> }
 
 export type Lense<PARENT_STATE = any, CHILD_STATE = any> = {
   get: (state: PARENT_STATE) => CHILD_STATE;
@@ -1022,9 +1004,8 @@ export type Component<
   SINK_RETURNS extends NonStateSinkReturns = {},
   PROVIDED_CONTEXT = CONTEXT
 > = ComponentProps<STATE & CALCULATED, PROPS, CONTEXT> & {
-  label?: string;
-  DOMSourceName?: string;
-  stateSourceName?: string;
+  /** The component's name (diagnostics, devtools, uid()); defaults to the function's name. */
+  componentName?: string;
   model?: ComponentModel<STATE, PROPS, FixDrivers<DRIVERS>, ACTIONS, CALCULATED, SINK_RETURNS, CONTEXT>;
   intent?: ComponentIntent<STATE, FixDrivers<DRIVERS>, ACTIONS, CALCULATED>;
   initialState?: STATE;
@@ -1035,14 +1016,11 @@ export type Component<
    */
   isolatedState?: boolean;
   calculated?: Calculated<STATE, CALCULATED>;
-  storeCalculatedInState?: boolean;
   /**
    * Context this component provides to itself and its descendants. Typed by PROVIDED_CONTEXT,
    * which defaults to CONTEXT (the context the view and reducers see).
    */
   context?: Context<STATE & CALCULATED, PROVIDED_CONTEXT>;
-  peers?: { [name: string]: Component };
-  components?: { [name: string]: Component };
   onError?: (error: Error, info: { componentName: string }) => any;
   debug?: boolean;
   /**
@@ -1167,13 +1145,7 @@ export type CollectionProps<PROPS = any, STATE = any> = {
   from: CollectionFrom<STATE>;
   filter?: Filter;
   sort?: SortSpec;
-  /**
-   * Item field used as the key that tracks each item (its component instance, isolation
-   * scope and DOM) across updates. Items are keyed by `id` by default; keys should be
-   * unique and stable (an item without the field is keyed by its index).
-   */
-  idfield?: string;
-} & Omit<PROPS, 'of' | 'from' | 'filter' | 'sort' | 'idfield'>
+} & Omit<PROPS, 'of' | 'from' | 'filter' | 'sort'>
 
 export type SwitchableProps<PROPS = any> = {
   of: Record<string, AnyComponent>;
@@ -1617,45 +1589,45 @@ export type DragDriverSource = {
 
 export function makeDragDriver(): (sink$: Stream<DragDriverRegistration | DragDriverRegistration[]>) => DragDriverSource
 
-export type ComponentFactoryOptions<
+/**
+ * The options `defineComponent()` takes: the view plus the statics a function component carries
+ * (`model`, `intent`, `initialState`, ...), and `name` (its `componentName`).
+ */
+export type DefineComponentOptions<
   STATE = any,
-  PROPS = any,
+  PROPS = { [prop: string]: any },
   DRIVERS = {},
   ACTIONS = {},
   CALCULATED = {},
   CONTEXT = {},
   SINK_RETURNS extends NonStateSinkReturns = {}
 > = {
+  /** The view: `({ state, context, ...props }) => vnode` */
+  view: ComponentProps<STATE & CALCULATED, PROPS, CONTEXT>;
+  /** The component's name (its `componentName`); defaults to the view function's name */
   name?: string;
-  view: Component<STATE, PROPS, DRIVERS, ACTIONS, CALCULATED, CONTEXT, SINK_RETURNS>;
-  model?: Component<STATE, PROPS, DRIVERS, ACTIONS, CALCULATED, CONTEXT, SINK_RETURNS>['model'];
-  intent?: Component<STATE, PROPS, DRIVERS, ACTIONS, CALCULATED, CONTEXT, SINK_RETURNS>['intent'];
-  hmrActions?: string | string[];
-  context?: Component<STATE, PROPS, DRIVERS, ACTIONS, CALCULATED, CONTEXT, SINK_RETURNS>['context'];
-  peers?: { [name: string]: Component };
-  components?: { [name: string]: Component };
-  initialState?: STATE;
-  calculated?: Component<STATE, PROPS, DRIVERS, ACTIONS, CALCULATED, CONTEXT, SINK_RETURNS>['calculated'];
-  storeCalculatedInState?: boolean;
-  DOMSourceName?: string;
-  stateSourceName?: string;
-  debug?: boolean;
-}
+} & Omit<Component<STATE, PROPS, DRIVERS, ACTIONS, CALCULATED, CONTEXT, SINK_RETURNS>, 'componentName' | keyof Function>
 
-export function component<
+/**
+ * Build a component from an options object (for code that makes components from data). Returns
+ * an ordinary function component that calls `view`, with the other options as its statics:
+ *
+ *   const Counter = defineComponent({ name: 'Counter', view, model, initialState: { count: 0 } })
+ *
+ * Writing the function and its statics directly is the usual form.
+ */
+export function defineComponent<
   STATE = any,
-  PROPS = any,
+  PROPS = { [prop: string]: any },
   DRIVERS = {},
   ACTIONS = {},
   CALCULATED = {},
   CONTEXT = {},
   SINK_RETURNS extends NonStateSinkReturns = {}
 >(
-  options: ComponentFactoryOptions<STATE, PROPS, DRIVERS, ACTIONS, CALCULATED, CONTEXT, SINK_RETURNS>
+  options: DefineComponentOptions<STATE, PROPS, DRIVERS, ACTIONS, CALCULATED, CONTEXT, SINK_RETURNS>
 ): Component<STATE, PROPS, DRIVERS, ACTIONS, CALCULATED, CONTEXT, SINK_RETURNS>
 
-export function collection(...args: any[]): any
-export function switchable(...args: any[]): any
 export function portal(...args: any[]): any
 
 export function Collection<PROPS extends { [prop: string]: any }, STATE = any>(props: CollectionProps<PROPS, STATE>): JSX.Element
@@ -2909,7 +2881,7 @@ export type RenderableComponent<STATE = any, INITIAL = STATE> =
 
 /**
  * STATE, or INITIAL when STATE is unknown (an untyped view with a typed `initialState`). `never`
- * (a generic call inlined as the argument, `renderComponent(component({...}))`) becomes `any`.
+ * (a generic call inlined as the argument, `renderComponent(defineComponent({...}))`) becomes `any`.
  */
 type RenderedState<STATE, INITIAL> =
   [STATE] extends [never] ? any

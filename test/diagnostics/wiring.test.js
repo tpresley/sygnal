@@ -35,7 +35,7 @@ describe('SYG101 — intent action has no model entry', () => {
     expect(found[0].data.action).toBe('DECREMNT')
   })
 
-  it('does not report matched actions, shorthand entries, built-ins or synthetic __ actions', async () => {
+  it('does not report matched actions, object-form EFFECT entries, built-ins or synthetic __ actions', async () => {
     function App() { return createElement('div', null, 'x') }
     App.initialState = { n: 0 }
     App.intent = ({ DOM }) => ({
@@ -46,7 +46,7 @@ describe('SYG101 — intent action has no model entry', () => {
     })
     App.model = {
       INCREMENT: s => ({ ...s, n: s.n + 1 }),
-      'LOG_IT | EFFECT': () => {},
+      LOG_IT: { EFFECT: () => {} },
     }
     t = renderComponent(App) // also injects __TEST_ACTION__ (G-013)
     await settle(50)
@@ -95,7 +95,7 @@ describe('SYG102 — model entry is unreachable', () => {
     expect(diagnostics('SYG102')).toHaveLength(0)
   })
 
-  it('does not report built-ins, hmrActions, shorthand-expanded entries or single-stream intents', async () => {
+  it('does not report built-ins or object-form EFFECT entries', async () => {
     function App() { return createElement('div', null, 'x') }
     App.initialState = { n: 0 }
     App.intent = ({ DOM }) => ({ SAVE: DOM.select('.save').events('click') })
@@ -103,70 +103,14 @@ describe('SYG102 — model entry is unreachable', () => {
       BOOTSTRAP: { EFFECT: () => {} },
       INITIALIZE: { EFFECT: () => {} },
       DISPOSE: { EFFECT: () => {} },
-      'SAVE | EFFECT': () => {},
+      SAVE: { EFFECT: () => {} },
     }
     t = renderComponent(App)
     await settle(50)
     expect(diagnostics('SYG102')).toEqual([])
-
-    // single-stream intent: action names are unknown, so nothing is reported
-    const { default: component } = await import('../../src/component.js')
-    const { withState } = await import('../../src/cycle/state/index.js')
-    const { setup } = await import('../../src/cycle/run/index.js')
-    const { mockDOMSource } = await import('../../src/cycle/dom/index.js')
-    const Single = component({
-      name: 'Single',
-      view: () => createElement('div', null, 'y'),
-      intent: () => xs.never(),
-      model: { A: s => s, B: s => s },
-      initialState: {},
-    })
-    const { run } = setup(withState(Single), { DOM: () => mockDOMSource({}) })
-    const stop = run()
-
-    // hmrActions are triggered on hot reload, so they are reachable
-    const Hmr = component({
-      name: 'Hmr',
-      view: () => createElement('div', null, 'z'),
-      intent: () => ({}),
-      model: { REFRESH: s => s },
-      hmrActions: ['REFRESH'],
-      initialState: {},
-    })
-    const r2 = setup(withState(Hmr), { DOM: () => mockDOMSource({}) })
-    const stop2 = r2.run()
-    await settle(30)
-    stop()
-    stop2()
-    expect(diagnostics('SYG102')).toEqual([])
   })
 })
 
-describe('SYG101/102 — renderComponent-injected test actions (__sygnalTestActions)', () => {
-  it('ignores injected intent streams: no SYG102 for simulate-only model actions, no SYG101 for the injected names', async () => {
-    const { default: component } = await import('../../src/component.js')
-    const { withState } = await import('../../src/cycle/state/index.js')
-    const { setup } = await import('../../src/cycle/run/index.js')
-    const { mockDOMSource } = await import('../../src/cycle/dom/index.js')
-    // Shape produced by renderComponent (1C): injected streams plus a
-    // non-enumerable list of their names on the intent object.
-    const intent = ({ DOM }) => {
-      const out = { SAVE: DOM.select('.save').events('click'), RESET: xs.never(), PING: xs.never() }
-      Object.defineProperty(out, '__sygnalTestActions', { value: ['RESET', 'PING'], enumerable: false })
-      return out
-    }
-    const App = component({
-      name: 'Injected',
-      view: () => createElement('div', null, 'x'),
-      intent,
-      model: { SAVE: s => s, RESET: s => s, ORPHAN: s => s },
-      initialState: {},
-    })
-    const { run } = setup(withState(App), { DOM: () => mockDOMSource({}) })
-    const stop = run()
-    await settle(30)
-    stop()
-    expect(diagnostics('SYG101')).toEqual([]) // PING is injected, not a user intent action
-    expect(diagnostics('SYG102').map(d => d.data.action)).toEqual(['ORPHAN'])
-  })
-})
+// (R5: the __sygnalTestActions intent marker of the removed harness is gone: renderComponent
+// passes its simulate-only actions to the core, covered by 'does not report model-only actions
+// that renderComponent injects' above)

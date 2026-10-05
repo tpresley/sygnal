@@ -10,12 +10,12 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import xs from 'xstream'
 import run from '../src/extra/run.js'
 import { createElement as h } from '../src/pragma/index.js'
-import { Switchable, switchable } from '../src/index.js'
+import { Switchable } from '../src/index.js'
 import { Collection } from '../src/collection.js'
 import { makeSocketDriver } from '../src/extra/socketDriver.js'
 import { makeFetchDriver } from '../src/extra/fetchDriver.js'
 import { makeReplies } from '../src/extra/replies.js'
-import { StateSource } from '../src/cycle/state/index.js'
+import { StateSource } from '../src/cycle/state/StateSource.js'
 import { waitFor, textOf, sleep } from '../evals/agent-ergonomics/hidden/_support/queries.js'
 
 // The fake chat server of test/p3-2a-socket.test.js
@@ -234,33 +234,6 @@ describe('D83: Switchable instance', () => {
     expect(disposed).toEqual([])
     expect(room(8)).toHaveLength(1)
     expect(room(7)).toHaveLength(0)        // hidden from the start: never opened
-  })
-
-  it('the stream form: switchable() takes [name, instance] pairs', () => {
-    const made = [], gone = []
-    const page = (n) => () => {
-      const id = `${n}${made.length}`
-      made.push(id)
-      return { DOM: xs.of(id).remember(), __dispose: () => gone.push(id) }
-    }
-    const sel$ = xs.create()
-    const state = new StateSource(xs.of({}).remember(), 'STATE')
-    const sinks = switchable({ a: page('a'), b: page('b') }, sel$, 'a')({ STATE: state, DOM: {} })
-    const out = []
-    const listener = { next: v => out.push(v), error() {}, complete() {} }
-    sinks.DOM.addListener(listener)
-    expect(made).toEqual(['a0', 'b1'])
-    sel$.shamefullySendNext(['a', 1])     // adopts instance 1
-    sel$.shamefullySendNext('b')          // a plain name: instance undefined
-    sel$.shamefullySendNext(['a', 1])     // same instance: kept
-    expect(gone).toEqual([])
-    sel$.shamefullySendNext(['a', 2])     // re-created
-    expect(gone).toEqual(['a0'])
-    expect(made).toEqual(['a0', 'b1', 'a2'])
-    expect(out.filter(Boolean).at(-1)).toBe('a2')
-    sinks.DOM.removeListener(listener)
-    sinks.__dispose()
-    expect(gone.sort()).toEqual(['a0', 'a2', 'b1'])
   })
 })
 

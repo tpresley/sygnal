@@ -1,5 +1,5 @@
 /**
- * SYG504 (C5): every non-STATE sink uses the object form
+ * SYG504 (C5; removed in 6.0, D164): every non-STATE sink uses the object form
  *   ACTION: { SINK: fn }
  * not an 'ACTION | SINK' shorthand key.
  *
@@ -49,7 +49,7 @@ export default {
           component: comp.name,
           file: e.file,
           node: e.prop.key,
-          message: `model key '${e.key}' uses the 'ACTION | SINK' shorthand`,
+          message: `model key '${e.key}' uses the 'ACTION | SINK' shorthand, which Sygnal 6.0 removed`,
           fix: others.length
             ? `use the object form and merge it into the existing '${e.action}' entry: \`${keyText(e.action)}: { …, ${e.sink}: ${shown} }\``
             : `use the object form: \`${rewrite}\``,

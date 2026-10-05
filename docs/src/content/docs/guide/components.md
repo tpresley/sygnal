@@ -43,15 +43,11 @@ Counter.model = {
 | `.model` | Object | Defines what happens for each action |
 | `.calculated` | Object | Derived state fields computed from base state |
 | `.context` | Object | Values passed down to all descendants |
-| `.peers` | Object | Sibling components that share the same sources |
-| `.components` | Object | Named child components |
 | `.uses` | Object | [Behaviors](/guide/behaviors/) this component uses, each under a state key |
 | `.onError` | Function | Error boundary handler — receives `(error, { componentName })`, returns fallback VNode |
 | `.isolatedState` | Boolean | Required when a sub-component has `.initialState` (prevents accidental parent state overwrite) |
-| `.storeCalculatedInState` | Boolean | Whether calculated fields are stored in state (default: `true`) |
 | `.debug` | Boolean | Enable debug logging for this component |
-| `.DOMSourceName` | String | Custom name for the DOM driver (default: `'DOM'`) |
-| `.stateSourceName` | String | Custom name for the state driver (default: `'STATE'`) |
+| `.componentName` | String | The component's name in diagnostics, devtools and `uid()` (default: the function's name) |
 
 The table lists the most common statics. Sygnal also reads `connections`, `resources`, `route`, `head` and `timers`, so these names, like the ones above, are reserved: don't use them for statics of your own.
 
@@ -79,15 +75,14 @@ function MyComponent({ state, className, children, context }) {
 | `slots` | Named content regions passed with `<Slot>` (see [Slots](/advanced/slots/)) |
 | `context` | Values from ancestor components' `.context` definitions |
 | `uid` | `uid(name?)` returns a stable id string unique to this component instance, for `id` / `for` / `aria-*` (see [Forms](/guide/forms/#labels-and-ids-uid)) |
-| Named peers | Any peer components defined in `.peers` are available by name |
 | Individual props | Props from the parent (e.g., `title`, `className`) are spread at the top level |
 
 > Props are **not** nested under a `props` key. If a parent renders `<MyChild title="Hello" />`, the child destructures `title` directly: `function MyChild({ title, state }) { ... }`.
 
 The view function must be **pure**: it should only use the values it receives to produce virtual DOM. Never perform side effects (API calls, direct DOM manipulation, etc.) inside the view.
 
-Always read everything from the first argument. The view is technically also called with `state` and `context` as positional arguments, but that form is non-canonical (see [Alternative Forms](/advanced/alternative-forms/#positional-view-arguments)).
+Always read everything from the first argument: it is the only one (6.0 removed the positional `(props, state, context)` arguments; see [Migrating to 6.0](/guide/migrating-to-6/#positional-views)).
 
 ### Reserved Prop Names
 
-Because the view's first argument also carries `state`, `children`, `slots`, `context`, `peers` and `uid`, a parent prop with one of these names is overwritten (Sygnal warns with [SYG106](/reference/errors/#syg106), an error in [strict mode](/guide/strict-mode/)). The `state` prop is special: it selects the child's [state slice](/guide/state/#passing-state-to-child-components). Name data props something else, such as `item` or `contextValue`.
+Because the view's argument also carries `state`, `children`, `slots`, `context` and `uid`, a parent prop with one of these names is overwritten (Sygnal warns with [SYG106](/reference/errors/#syg106), an error in [strict mode](/guide/strict-mode/)). The `state` prop is special: it selects the child's [state slice](/guide/state/#passing-state-to-child-components). Name data props something else, such as `item` or `contextValue`.

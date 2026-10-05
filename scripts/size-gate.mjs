@@ -3,11 +3,15 @@
 //
 // Builds examples/kanban twice with its own Vite and the built sygnal/vite plugin:
 //   (a) sygnal({ nativeGlobalThis: false }): core + xstream's original deps. This is the
-//       gated number, so the gate keeps measuring core growth (budget below).
+//       number a budget gates, so it keeps measuring core growth.
 //   (b) sygnal(): the default, with `globalthis` aliased to the native stub (G-099).
 //       Reported only: what apps actually ship.
-// Exits 1 when (a) is over budget. Needs `npm run build` and `npm install --prefix
-// examples/kanban` first. `--budget <bytes>` overrides the budget.
+// and reports (c) the component core alone (src/core/**, everything else external), min + gzip.
+//
+// PLAN-4.6 D182: the core was rewritten (src/core/), and its budget is decided at the end of the
+// plan, so the gate is informational for now: it reports and exits 0. `--budget <bytes>` gates
+// (a) against that budget (exit 1 when over). Needs `npm run build` and `npm install --prefix
+// examples/kanban` first.
 //
 // The size is `gzip -c <bundle> | wc -c` (the gzip CLI's default level and header, as
 // the gate was measured before this script), falling back to zlib when gzip is missing.
@@ -19,14 +23,16 @@ import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import zlib from 'node:zlib'
 
-const BUDGET = 42300
+// PLAN-4.6 D182: no budget until the end of the plan (the old core's was 42,300 B; PLAN-4.5
+// shipped 41,343 B)
+const BUDGET = undefined
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const kanban = path.join(repo, 'examples', 'kanban')
 const budgetArg = process.argv.indexOf('--budget')
 const budget = budgetArg > 0 ? Number(process.argv[budgetArg + 1]) : BUDGET
 // R2-8: a missing or non-numeric --budget (NaN) would make the comparison always pass
-if (!Number.isFinite(budget) || budget <= 0) {
+if (budget !== undefined && (!Number.isFinite(budget) || budget <= 0)) {
   console.error(`size-gate: --budget must be a positive number of bytes (got ${budgetArg > 0 ? JSON.stringify(process.argv[budgetArg + 1] ?? '') : budget}).`)
   process.exit(2)
 }
@@ -70,18 +76,46 @@ async function measure(label, pluginOptions, define) {
   }
 }
 
-const gated = await measure('(a) nativeGlobalThis: false (gated)', { nativeGlobalThis: false })
+// (c) the component core alone: every module under src/core/, bundled and minified with
+// esbuild; everything outside src/core/ (drivers, diagnostics, xstream, snabbdom) is external
+async function coreAlone() {
+  const req2 = createRequire(path.join(repo, 'package.json'))
+  const esbuild = await import(pathToFileURL(req2.resolve('esbuild')).href)
+  const coreDir = path.join(repo, 'src', 'core')
+  const files = []
+  const walk = (d) => { for (const f of fs.readdirSync(d)) { const p = path.join(d, f); if (fs.statSync(p).isDirectory()) walk(p); else if (/\.ts$/.test(f) && !/\.d\.ts$/.test(f)) files.push(p) } }
+  walk(coreDir)
+  const entry = files.map((f, i) => `export * as m${i} from ${JSON.stringify(f)}`).join('\n')
+  const out = await esbuild.build({
+    stdin: { contents: entry, resolveDir: coreDir, loader: 'js' },
+    bundle: true, minify: true, write: false, format: 'esm', logLevel: 'silent',
+    plugins: [{ name: 'core-only', setup(b) {
+      b.onResolve({ filter: /.*/ }, (a) => {
+        if (a.kind === 'entry-point' || !a.importer) return
+        const p = a.path.startsWith('.') ? path.resolve(a.resolveDir, a.path) : a.path
+        if (p.startsWith(coreDir + path.sep)) return
+        return { path: a.path, external: true }
+      })
+    } }],
+  })
+  const code = out.outputFiles[0].contents
+  return { label: '(c) src/core/** alone (esbuild, minified; the rest external)', raw: code.length, gzip: zlib.gzipSync(code, { level: 9 }).length }
+}
+
+const gated = await measure('(a) nativeGlobalThis: false', { nativeGlobalThis: false })
 const shipped = await measure('(b) default (native globalThis)', {})
-// PLAN-4.6 (D182, informational; deleted at R5): kanban with the next core kept in the build
-// (D175 strips it from production builds); it still contains the current core until R5
-const next = await measure('(c) next core enabled (__SYGNAL_NEXT_CORE__; both cores until R5)', {}, { __SYGNAL_NEXT_CORE__: 'true' })
+const core = await coreAlone()
 
 const fmt = n => n.toLocaleString('en-US')
 console.log('kanban production bundle, gzip -c | wc -c:')
-console.log(`  ${gated.label}: ${fmt(gated.gzip)} B  (budget ${fmt(budget)} B, ${budget - gated.gzip >= 0 ? `${fmt(budget - gated.gzip)} B headroom` : `${fmt(gated.gzip - budget)} B OVER`})`)
+console.log(`  ${gated.label}: ${fmt(gated.gzip)} B  (${budget === undefined ? 'informational, budget TBD (D182); PLAN-4.5: 41,343 B' : `budget ${fmt(budget)} B, ${budget - gated.gzip >= 0 ? `${fmt(budget - gated.gzip)} B headroom` : `${fmt(gated.gzip - budget)} B OVER`}`})`)
 console.log(`  ${shipped.label}: ${fmt(shipped.gzip)} B  (informational; ${fmt(gated.gzip - shipped.gzip)} B less)`)
-console.log(`  ${next.label}: ${fmt(next.gzip)} B  (informational)`)
+console.log(`  ${core.label}: ${fmt(core.raw)} B min / ${fmt(core.gzip)} B gzip  (informational)`)
 
+if (budget === undefined) {
+  console.log('size-gate: informational, budget TBD (D182)')
+  process.exit(0)
+}
 if (gated.gzip > budget) {
   console.error(`size-gate: FAIL: ${fmt(gated.gzip)} B > ${fmt(budget)} B`)
   process.exit(1)

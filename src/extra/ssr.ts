@@ -5,10 +5,6 @@
  * Handles sub-components, Collections, Suspense boundaries, and Portals.
  */
 import {uidPart} from '../shared'
-import {NEXT_CORE} from '../core/build'
-
-/** PLAN-4.6 R1-R4 (deleted at R5): renderToString matches the next core's client where they differ */
-const nextCore = () => NEXT_CORE && (globalThis as any).__SYGNAL_CORE__ === 'next'
 
 // Void elements that must not have closing tags
 const VOID_ELEMENTS = new Set([
@@ -158,7 +154,7 @@ function withResources(def: any, state: any): any {
 
 // PLAN-4 GS-9: uid(name?) as on the client: the root is 'u'; a child component adds its path in
 // the parent's view (or its `id` prop), as getComponentIdFromElement and instantiateSubComponents
-// in component.ts do; a Collection item adds its key, a Switchable page its name; anything but
+// in the core do; a Collection item adds its key, a Switchable page its name; anything but
 // each part encoded by uidPart (G-214); in the root option anything but [A-Za-z0-9_-] becomes '_'
 // (as run() does). SSR ids = hydration ids
 const makeUid = (base: string) => (n?: string) => n ? base + '-' + n : base
@@ -259,9 +255,8 @@ function renderRoot(componentDef: any, options: RenderToStringOptions): string {
       children: props.children || [],
       slots: props.slots || {},
       context: mergedContext,
-      peers: {},
       uid: makeUid(uid),
-    }, resolvedState, mergedContext, {})
+    })
   } catch (err: any) {
     // Error boundary
     vnode = viewFailed(componentDef, err, componentDef.componentName || componentDef.name || 'Component')
@@ -385,8 +380,8 @@ function processSSRTree(vnode: any, context: Record<string, any>, parentState: a
 
   // Sub-component: render recursively
   const props = vnode.data?.props || {}
-  // (PLAN-4.6: the pragma's `data.c`, the component function; `sygnalOptions` until R5)
-  if (typeof vnode.data?.c === 'function' || props.sygnalOptions || typeof props.sygnalFactory === 'function') {
+  // (PLAN-4.6: the pragma's `data.c`, the component function)
+  if (typeof vnode.data?.c === 'function') {
     return renderSubComponent(vnode, context, parentState, childUid(uid, vnode, path))
   }
 
@@ -418,42 +413,11 @@ function processSSRTree(vnode: any, context: Record<string, any>, parentState: a
 }
 
 /**
- * Render a sub-component (identified by sygnalOptions or sygnalFactory in props).
+ * Render a sub-component (the pragma's `data.c`: the component function, with its statics).
  */
 function renderSubComponent(vnode: any, context: Record<string, any>, parentState: any, uid: string): any {
-  const props = vnode.data?.props || {}
-  const {sygnalOptions, sygnalFactory, ...childProps} = props
-
-  // Get the component definition (view function with static properties)
-  let componentDef: any
-  // PLAN-4.6 (04 §3.10): the component function on the vnode carries its statics; nothing is
-  // copied onto it (no options object)
-  if (typeof vnode.data?.c === 'function') componentDef = vnode.data.c
-  else if (sygnalOptions) {
-    componentDef = sygnalOptions.view
-    // Copy static properties
-    if (!componentDef.initialState && sygnalOptions.initialState) {
-      componentDef = Object.assign(componentDef, {
-        initialState: sygnalOptions.initialState,
-        model: sygnalOptions.model,
-        intent: sygnalOptions.intent,
-        context: sygnalOptions.context,
-        onError: sygnalOptions.onError,
-        calculated: sygnalOptions.calculated,
-      })
-    }
-  } else if (sygnalFactory && sygnalFactory.componentName) {
-    // Factory-created component — we can't easily extract the view from an already-wrapped factory.
-    // Return a placeholder.
-    return {
-      sel: 'div',
-      data: {attrs: {'data-sygnal-ssr': vnode.sel || 'component'}},
-      children: vnode.children || [],
-      text: undefined,
-      elm: undefined,
-      key: undefined,
-    }
-  }
+  const childProps = vnode.data?.props || {}
+  const componentDef: any = vnode.data?.c
 
   if (!componentDef || typeof componentDef !== 'function') {
     // Can't render — return children or empty div
@@ -520,9 +484,8 @@ function renderSubComponent(vnode: any, context: Record<string, any>, parentStat
       children: slots.default || vnodeChildren,
       slots,
       context: childContext,
-      peers: {},
       uid: makeUid(uid),
-    }, childState, childContext, {})
+    })
   } catch (err: any) {
     result = viewFailed(componentDef, err, componentDef.componentName || componentDef.name || 'Component')
   }
@@ -540,7 +503,7 @@ function renderSubComponent(vnode: any, context: Record<string, any>, parentStat
  */
 function renderCollection(vnode: any, context: Record<string, any>, parentState: any, uid: string): any {
   const props = vnode.data?.props || {}
-  const {of: itemComponent, from, className, idfield: idField = 'id'} = props
+  const {of: itemComponent, from, className} = props
 
   if (!itemComponent || !from || !parentState) {
     return {sel: 'div', data: {}, children: [], text: undefined, elm: undefined, key: undefined}
@@ -552,12 +515,10 @@ function renderCollection(vnode: any, context: Record<string, any>, parentState:
   }
 
   const renderedItems = items.map((itemState: any, index: number) => {
-    // GS-9: the key the client's Collection gives this item (instantiateCollection's lens, then
-    // the collection's itemKey)
+    // GS-9: the key the client's Collection gives this item
     const isItemObj = itemState && typeof itemState === 'object' && !Array.isArray(itemState)
-    const keyed: any = isItemObj ? {...itemState, [idField]: itemState[idField] || index} : {[idField]: index}
-    // PLAN-4.6 G-322 (next core): an id-less item's uid part is `_i<index>` (core/cell.ts keyName)
-    const itemUid = uid + '-' + (nextCore() ? (isItemObj && itemState.id != null ? uidPart(itemState.id) : '_i' + index) : uidPart(keyed.id !== undefined ? keyed.id : index))
+    // PLAN-4.6 G-322: an id-less item's uid part is `_i<index>` (core/cell.ts keyName)
+    const itemUid = uid + '-' + (isItemObj && itemState.id != null ? uidPart(itemState.id) : '_i' + index)
     // GS-1: an item host's behavior slices (the client reads them as defaults, behaviors.ts)
     itemState = withUses(itemComponent, itemState)
     // Build context for this item
@@ -579,9 +540,8 @@ function renderCollection(vnode: any, context: Record<string, any>, parentState:
         children: [],
         slots: {},
         context: itemContext,
-        peers: {},
         uid: makeUid(itemUid),
-      }, itemState, itemContext, {})
+      })
     } catch (err: any) {
       itemVnode = viewFailed(itemComponent, err, itemComponent.name || 'CollectionItem')
     }
@@ -665,9 +625,8 @@ function renderToStringInternal(componentDef: any, state: any, context: Record<s
       children: [],
       slots: {},
       context: mergedContext,
-      peers: {},
       uid: makeUid(uid),
-    }, resolvedState, mergedContext, {})
+    })
   } catch (err: any) {
     vnode = viewFailed(componentDef, err, componentDef.name || 'Component')
   }
@@ -803,8 +762,6 @@ function buildAttributes(
         result.push(['for', val])
       } else if (key === 'innerHTML' || key === 'textContent') {
         // Skip — handled separately if needed
-      } else if (key === 'sygnalOptions' || key === 'sygnalFactory') {
-        // Internal — skip
       } else if (typeof val === 'boolean') {
         if (val) result.push([key, true])
       } else if (val != null) {

@@ -102,14 +102,9 @@ export const wiringCheck: DiagnosticCheck = {
       })
     }
 
-    // A single-stream intent (intent returns one action$ stream) has no
-    // action names to compare against.
-    if (intent$ && typeof intent$.addListener === 'function') return
-
-    const hmr = ([] as string[]).concat(component?.hmrActions || [])
     const replies = replyNamesOf(component)
     for (const action of modelActions) {
-      if (isInternalAction(action) || actions.includes(action) || hmr.includes(action) || injected.has(action) || replies.has(action)) continue
+      if (isInternalAction(action) || actions.includes(action) || injected.has(action) || replies.has(action)) continue
       if (!once(`SYG102:${name}:${action}`)) continue
       report('SYG102', {
         component,

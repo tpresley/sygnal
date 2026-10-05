@@ -14,8 +14,6 @@ import { configDefaults, defineConfig } from 'vitest/config'
 //   and dependencies (run with `npm --prefix dev-plans/research/<dir> test`).
 export default defineConfig({
   test: {
-    // PLAN-4.6 R1-R4: SYGNAL_CORE=next runs the suites on the next core (test/setup-core.js)
-    setupFiles: ['test/setup-core.js'],
     exclude: [
       ...configDefaults.exclude,
       'examples/**',

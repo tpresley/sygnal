@@ -1,7 +1,7 @@
 /**
  * SYG405, statically (PLAN-4 4-G2; REPORT-v4: 4 of 5 Haiku trials on task 28): a component with an
  * `initialState` and no `isolatedState = true` that another component renders. The runtime check
- * (src/component.ts) fires for every sub-component, with or without a `state` prop:
+ * (src/core) fires for every sub-component, with or without a `state` prop:
  *
  *   - rendered by tag (`<Stopwatch state="stopwatch" />`, `<Stopwatch />`): error. The runtime
  *     throws when it creates the child; the parent renders its error fallback instead;

@@ -250,12 +250,12 @@ describe('defineElement', () => {
     expect(calls[0][0]).not.toContain('heading')
   })
 
-  it('rejects DOM/STATE/EVENTS as event sinks, and component() results', () => {
+  it('rejects DOM/STATE/EVENTS as event sinks, and a non-function component', () => {
     for (const sink of ['DOM', 'STATE', 'EVENTS']) {
       expect(() => defineElement(tag('bad'), Board, { events: { [sink]: 'x' } })).toThrow(/driver of the element's app/)
     }
-    const built = Object.assign(() => null, { isSygnalComponent: true })
-    expect(() => defineElement(tag('bad'), built)).toThrow(/plain function component/)
+    // (R5: the component() factory is gone; anything but a function is rejected)
+    expect(() => defineElement(tag('bad'), {})).toThrow(/pass a function component/)
   })
 
   it('G-212: an element keeps the host app\'s diagnostics mode and DevTools registration', async () => {

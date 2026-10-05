@@ -106,54 +106,37 @@ See [Bundler Configuration](/integration/bundler-config/#plugin-options) for eve
 
 ---
 
-## component()
+## defineComponent()
 
-Lower-level factory for creating Sygnal components with explicit options. Most users won't need this — function augmentation (attaching `.model`, `.intent`, etc. directly to the view function) is the standard approach. Use `component()` when you need advanced isolation control or are building components programmatically.
+Builds a component from an options object, for code that makes components from data (generators, wrappers). It returns an ordinary function component: a new function that calls `view` with the one view argument, with the other options assigned as its statics and `name` as its `componentName`. Writing the function and assigning its statics directly (`Counter.model = …`) is the usual form; both run the same way.
 
 ```typescript
-function component(options: ComponentFactoryOptions): Component
+function defineComponent(options: DefineComponentOptions): Component
 ```
 
-### ComponentFactoryOptions
+| Option | Type | Description |
+|--------|------|-------------|
+| `view` | `({ state, context, ...props }) => vnode` | The view (required) |
+| `name` | `string` | The component's name (`componentName`: diagnostics, devtools, `uid()`); defaults to the view function's name |
+| any static | | `model`, `intent`, `initialState`, `isolatedState`, `calculated`, `context`, `onError`, `debug`, `connections`, `resources`, `route`, `head`, `uses`, `timers`, `persist`, `viewTransitions` |
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `name` | `string` | — | Component identifier (used in debug logs) |
-| `view` | `Function` | — | The component's view function |
-| `model` | `object` | — | Action-to-reducer mapping |
-| `intent` | `Function` | — | Maps sources to action streams |
-| `initialState` | `object` | — | Starting state |
-| `calculated` | `object` | — | Derived state field definitions. Values are either `(state) => value` or `[[...deps], (state) => value]` for dependency-tracked memoization. Deps can reference base state keys or other calculated field names. Circular dependencies throw at creation time. |
-| `storeCalculatedInState` | `boolean` | `true` | Whether to store calculated fields in state |
-| `context` | `object` | — | Context values for descendants |
-| `peers` | `object` | — | Peer component definitions |
-| `components` | `object` | — | Named child component definitions |
-| `hmrActions` | `string \| string[]` | — | Actions to trigger on HMR |
-| `DOMSourceName` | `string` | `'DOM'` | Custom DOM driver name |
-| `stateSourceName` | `string` | `'STATE'` | Custom state driver name |
-| `debug` | `boolean` | `false` | Enable debug logging |
+```jsx
+import { defineComponent } from 'sygnal'
 
-### Example
-
-```javascript
-import { component } from 'sygnal'
-
-const MyComponent = component({
-  name: 'MyComponent',
-  view: ({ state }) => <div>{state.count}</div>,
+const Counter = defineComponent({
+  name: 'Counter',
+  view: ({ state }) => <button className="inc">{state.count}</button>,
   initialState: { count: 0 },
-  intent: ({ DOM }) => ({
-    INCREMENT: DOM.select('.btn').events('click')
-  }),
-  model: {
-    INCREMENT: (state) => ({ ...state, count: state.count + 1 })
-  }
+  intent: ({ DOM }) => ({ INCREMENT: DOM.click('.inc') }),
+  model: { INCREMENT: (state) => ({ ...state, count: state.count + 1 }) },
 })
 ```
 
+The view function itself is not changed, so one view can back several definitions. `defineComponent` replaces the `component({ ... })` factory that 6.0 removed; see [Migrating to 6.0](/guide/migrating-to-6/#component-factory).
+
 ---
 
-## collection() / Collection
+## Collection
 
 Renders a list of components from an array on state.
 
@@ -177,28 +160,9 @@ The lowercase `<collection>` tag works too, without an import.
 | `sort` | `string \| object \| array \| function` | No | Sort items — string (field name, `"asc"`, or `"desc"`), object (`{ field: "asc" \| "desc" \| 1 \| -1 }`), array (multi-field), or comparator function |
 | `className` | `string` | No | CSS class for the wrapping container element |
 
-### Programmatic Usage
-
-```javascript
-import { collection } from 'sygnal'
-
-const MyList = collection(ItemComponent, 'items', {
-  container: 'ul',          // HTML element for the container (default: 'div')
-  containerClass: 'my-list', // CSS class for the container
-  combineList: ['DOM'],      // Sinks to combine (default: ['DOM'])
-  globalList: ['EVENTS'],    // Sinks to merge globally (default: ['EVENTS'])
-  stateSourceName: 'STATE',  // State driver name (default: 'STATE')
-  domSourceName: 'DOM'       // DOM driver name (default: 'DOM')
-})
-```
-
 ### Item Keys
 
-Items are keyed by their `id` property if present, otherwise by array index:
-
-```javascript
-itemKey: (state, index) => state.id !== undefined ? state.id : index
-```
+Items are keyed by their `id` property if present, otherwise by their index in the state array (also under `filter` and `sort`). Ids should be unique: with duplicates only the first item renders, and [SYG424](/reference/errors/#syg424) warns in development. An item without an `id` sees its index as `state.id`; writing its state back doesn't store it.
 
 ### Self-Removal
 
@@ -214,7 +178,7 @@ Removed items are disposed, recursively (nested Collections included). Reorderin
 
 ---
 
-## switchable() / Switchable
+## Switchable
 
 Conditionally renders one component from a set based on a name.
 
@@ -234,45 +198,10 @@ import { Switchable } from 'sygnal'
 | `current` | `string` | Yes | Name of the currently visible component |
 | `state` | `string \| Lens` | No | State slice for the switched components |
 
-### Programmatic Usage
-
-```javascript
-import { switchable } from 'sygnal'
-
-// With a state property name
-const MySwitchable = switchable(
-  { tab1: Component1, tab2: Component2 },
-  'activeTab',    // State property to watch
-  'tab1',         // Initial/default value
-  { switched: ['DOM'], stateSourceName: 'STATE' }
-)
-
-// With a mapping function
-const MySwitchable = switchable(
-  { tab1: Component1, tab2: Component2 },
-  state => state.tabs.current,  // Function to extract current name from state
-  'tab1'
-)
-
-// With a stream
-const MySwitchable = switchable(
-  { tab1: Component1, tab2: Component2 },
-  name$,          // Observable stream of component names
-  'tab1'
-)
-```
-
-### Options (programmatic)
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `switched` | `string[]` | `['DOM']` | Which sinks switch with the active component |
-| `stateSourceName` | `string` | `'STATE'` | State driver name |
-
 ### Behavior
 
-- **Switched sinks** (default: `DOM`) — Only the active component's output is used
-- **Non-switched sinks** — Merged from all components (they all remain active)
+- Only the current page renders. A hidden page first renders when it is first shown.
+- Every page's intent and actions keep running while it is hidden; its declarations (`connections`, `resources`) pause unless marked `background: true`. See [Switchable](/guide/switchable/).
 
 ---
 
@@ -823,14 +752,19 @@ Ids come from the instance's position in the tree (and its Collection item key),
 
 ## isolatedState (Static Property)
 
-Required when a sub-component declares `.initialState`. Prevents accidental parent state overwrite.
+Required when a sub-component declares `.initialState` (otherwise [SYG405](/reference/errors/#syg405)).
 
 ```jsx
 Widget.initialState = { count: 0 }
-Widget.isolatedState = true  // Required — without this, Sygnal throws an error
+Widget.isolatedState = true
 ```
 
-When `isolatedState = true` and the parent state doesn't have the child's state slice, the child's `initialState` seeds it automatically.
+- Bound to a slice (`<Widget state="counter" />` or a lens): `initialState` seeds the slice only while it is `undefined`; an existing slice is kept ([SYG425](/reference/errors/#syg425) warns in development when it lacks `initialState`'s keys).
+- No `state` prop: the state is local to the instance and never written to the parent.
+
+### resetState (Tag Prop)
+
+`<Widget state="counter" resetState />` replaces the slice with the child's `initialState` each time the child is created. It is read at creation, like `state`, and is never a prop of the child. See [State Management](/guide/state/#isolated-state).
 
 ---
 

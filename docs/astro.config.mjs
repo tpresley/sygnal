@@ -56,7 +56,6 @@ export default defineConfig({
             { label: 'Context', slug: 'guide/context' },
             { label: 'Parent-Child Communication', slug: 'guide/parent-child' },
             { label: 'Calculated Fields', slug: 'guide/calculated-fields' },
-            { label: 'Peer Components', slug: 'guide/peer-components' },
             { label: 'Forms & Focus', slug: 'guide/forms' },
             { label: 'Element Commands', slug: 'guide/element-commands' },
             { label: 'Controls', slug: 'guide/controls' },
@@ -65,6 +64,7 @@ export default defineConfig({
             { label: 'View Transitions', slug: 'guide/view-transitions' },
             { label: 'Diagnostics', slug: 'guide/diagnostics' },
             { label: 'Strict Mode', slug: 'guide/strict-mode' },
+            { label: 'Migrating to 6.0', slug: 'guide/migrating-to-6' },
           ],
         },
         {

@@ -1,14 +1,9 @@
 import { describe, it, expect, afterEach } from 'vitest'
-import { setup } from '../src/cycle/run/index'
-import { withState } from '../src/cycle/state/index'
 import { mockDOMSource } from '../src/cycle/dom/index'
 import xs from 'xstream'
 
-if (typeof globalThis.window === 'undefined') {
-  globalThis.window = undefined
-}
 
-import component from '../src/component.js'
+import run from '../src/extra/run.js'
 import eventBusDriver from '../src/extra/eventDriver.js'
 import logDriver from '../src/extra/logDriver.js'
 import { createElement } from '../src/pragma/index.js'
@@ -17,37 +12,22 @@ import { until } from './support/wait.js'
 
 // ─── Test helper ───────────────────────────────────────────────────────────────
 
+// R5 (06 §3): the harness runs the component with run() (the core), with the same drivers it had
+// under the removed component() + setup + withState harness
+function startApp(view, drivers) {
+  const app = run(view, drivers, { useDefaultDrivers: false })
+  return { sources: app.sources, sinks: app.sinks, dispose: () => app.dispose(), setState: (v) => app.__runtime.setState('root', () => v) }
+}
+
 function createTestComponent(componentDef, mockConfig = {}) {
-  const name = componentDef.name || 'TestComponent'
   const view = componentDef
-  const {
-    intent,
-    model,
-    context,
-    initialState,
-  } = componentDef
 
-  const app = component({
-    name,
-    view,
-    intent,
-    model,
-    context,
-    initialState,
-  })
-
-  const wrapped = withState(app, 'STATE')
-
-  const mockDOM = () => mockDOMSource(mockConfig)
-
-  const { sources, sinks, run: _run } = setup(wrapped, {
-    DOM: mockDOM,
+  const { sources, sinks, dispose, setState } = startApp(view, {
+    DOM: () => mockDOMSource(mockConfig),
     EVENTS: eventBusDriver,
     LOG: logDriver,
     READY: () => xs.never(),
   })
-
-  const dispose = _run()
 
   const vnodes = []
   let vnodeListener
@@ -330,8 +310,8 @@ describe('Slot', () => {
       expect(Slot.preventInstantiation).toBe(true)
     })
 
-    it('should have label set to slot', () => {
-      expect(Slot.label).toBe('slot')
+    it('should have componentName set to slot', () => {
+      expect(Slot.componentName).toBe('slot')
     })
 
     it('should produce a VNode with sel "slot"', () => {

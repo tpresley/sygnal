@@ -70,7 +70,7 @@ LaneComponent.model = {
 
 With TypeScript, the stream's type is inferred from the child's `PARENT` sink (see [TypeScript](/integration/typescript/#typed-child-events)).
 
-Selecting by name string still works for older code, but breaks under minification; see [Alternative Forms](/advanced/alternative-forms/#childselect-with-a-string).
+Pass the component function: 6.0 removed selecting by a name string (see [Migrating to 6.0](/guide/migrating-to-6/#child-select-name)).
 
 ## When a Child Sends More Than One Kind of Message
 

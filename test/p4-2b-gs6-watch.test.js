@@ -8,7 +8,7 @@ import { renderComponent } from '../src/extra/testing.js'
 import { createElement as h } from '../src/pragma/index.js'
 import { Collection } from '../src/index.js'
 import { debounce } from '../src/extra/xstreamExtras.js'
-import { StateSource } from '../src/cycle/state/index.js'
+import { StateSource } from '../src/cycle/state/StateSource.js'
 import xs from '../src/extra/xstreamCompat.js'
 import { _resetDiagnostics } from '../src/extra/diagnostics/index.js'
 

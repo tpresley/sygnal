@@ -1,7 +1,7 @@
 /**
- * PLAN-4.6 R0: the extension contract of the next component core (types only; nothing imports
- * this file yet, so it adds 0 bytes to any bundle). R1-R4 implement it; R5 deletes the instance
- * patching it replaces. The prose contract, with the current consumers mapped to these hooks, is
+ * PLAN-4.6 R0: the extension contract of the component core (types only: 0 bytes in any bundle).
+ * R1-R4 implemented it; R5 deleted the old core's instance patching it replaces. The prose
+ * contract, with the consumers mapped to these hooks, is
  * dev-plans/research/core-rewrite/04-hooks-contract.md.
  *
  * Three layers:
@@ -157,7 +157,7 @@ export interface Hooks {
    * happens after this hook (today testing mutates `sources`/`sourceNames` from onIntent).
    */
   wrapSources?(inst: InstanceView, sources: Record<string, any>): Record<string, any>
-  /** the intent's action names (SYG605 wiring checks, inspect()) */
+  /** the intent's action names (the wiring checks, inspect()) */
   onIntent?(inst: InstanceView, actionNames: string[]): void
 
   // ------------------------------------------------------------------ actions
@@ -306,10 +306,8 @@ export interface StaticsSource {
   isolateValue?(value: any, scope: string): any
 }
 
-/** Options of run() the next core reads; `hooks` is internal (dev entries, testing), not documented */
+/** Options of run() the core reads; `hooks` is internal (dev entries, testing), not documented */
 export interface InternalRunOptions {
-  /** PLAN-4.6 R1-R4 only: which core (deleted in R5) */
-  __core?: 'current' | 'next'
   /** hooks of this app (testing, devtools, diagnostics install theirs through these) */
   __hooks?: Hooks
 }

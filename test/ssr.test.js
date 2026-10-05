@@ -240,13 +240,13 @@ describe('renderToString', () => {
   })
 
   describe('sub-components', () => {
-    it('renders sub-components via sygnalOptions', () => {
+    it('renders sub-components via data.c (a hand-built component vnode)', () => {
       function Parent({ state }) {
         return createElement('div', null,
           createElement('h1', null, 'Parent'),
           {
             sel: 'ChildComp',
-            data: { props: { sygnalOptions: { name: 'ChildComp', view: ChildComp, initialState: { text: 'child content' } } } },
+            data: { c: ChildComp, props: {} },
             children: [],
             text: undefined,
             elm: undefined,
@@ -271,7 +271,7 @@ describe('renderToString', () => {
         return createElement('div', null,
           {
             sel: 'Child',
-            data: { props: { sygnalOptions: { name: 'Child', view: Child, initialState: { value: 'default' } }, state: 'childData' } },
+            data: { c: Child, props: { state: 'childData' } },
             children: [],
             text: undefined,
             elm: undefined,
@@ -487,7 +487,7 @@ describe('renderToString', () => {
         return createElement('div', null,
           {
             sel: 'Level3',
-            data: { props: { sygnalOptions: { name: 'Level3', view: Level3, initialState: { depth: 3 } } } },
+            data: { c: Level3, props: {} },
             children: [],
             text: undefined, elm: undefined, key: undefined,
           }
@@ -499,7 +499,7 @@ describe('renderToString', () => {
         return createElement('div', null,
           {
             sel: 'Level2',
-            data: { props: { sygnalOptions: { name: 'Level2', view: Level2, initialState: {} } } },
+            data: { c: Level2, props: {} },
             children: [],
             text: undefined, elm: undefined, key: undefined,
           }

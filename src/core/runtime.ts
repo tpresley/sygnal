@@ -1,5 +1,5 @@
 /**
- * PLAN-4.6 next core: the app runtime, one per run() (03-proposal §3, 04 §2.4: the flush contract).
+ * PLAN-4.6 core: the app runtime, one per run() (03-proposal §3, 04 §2.4: the flush contract).
  *
  * - dispatch(): one FIFO queue, run to completion. An action dispatched while the queue drains
  *   (a driver answering synchronously during sink delivery, an EFFECT, a PARENT, a hook) is
@@ -126,7 +126,12 @@ export class App {
     // the dev entries' hooks ('sygnal/diagnostics', 'sygnal/devtools'), one layer each (04 §2.2:
     // what the bridge holds becomes hooks, read once per app); none without a dev entry
     const L = G.__SYGNAL_DIAGNOSTICS__?.layers
-    if (L) for (const f of L) this.addHooks(f(this.api()))
+    // G-330: a throwing layer factory (a dev-entry bug) is reported and skipped; the app starts
+    if (L) for (const f of L) {
+      let h
+      try { h = f(this.api()) } catch (e) { logError('SYG900', 'run', 'A dev-tools hook layer threw while the app started; it is skipped', 'Report this as a Sygnal bug', e); continue }
+      this.addHooks(h)
+    }
   }
 
   def(view: ComponentFn, override?: StartOptions['__override']) {
@@ -149,18 +154,24 @@ export class App {
       for (let i = 0; i < q.length; i += 5) {
         const inst: Inst = q[i]
         if (inst.disposed) continue
-        if (q[i + 1] === SET) {
-          const f = q[i + 2], c = inst.cell
-          const v = typeof f == 'function' ? f(c.get()) : f
-          // (ABORT: no change, as from a reducer)
-          if (v !== c.get() && !isAbort(v)) c.set(v)
-        } else if (q[i + 1] === SEED) {
-          // G-309: decided when it is applied: a parent write queued before it keeps the slice (D174)
-          const d = q[i + 2], b = d.b
-          if (d.r || !(b.has ? b.has() : b.get() !== undefined)) inst.cell.set(d.v)
-          else this.hooks.onStateSeed?.(viewOf(inst), b.get(), d.v)
+        // G-331: one item that throws (a setState function from devtools / Vike / sygnal/element,
+        // a hook) is reported; the rest of the queue still runs
+        try {
+          if (q[i + 1] === SET) {
+            const f = q[i + 2], c = inst.cell
+            const v = typeof f == 'function' ? f(c.get()) : f
+            // (ABORT: no change, as from a reducer)
+            if (v !== c.get() && !isAbort(v)) c.set(v)
+          } else if (q[i + 1] === SEED) {
+            // G-309: decided when it is applied: a parent write queued before it keeps the slice (D174)
+            const d = q[i + 2], b = d.b
+            if (d.r || !(b.has ? b.has() : b.get() !== undefined)) inst.cell.set(d.v)
+            else this.hooks.onStateSeed?.(viewOf(inst), b.get(), d.v)
+          }
+          else inst.handle(q[i + 1], q[i + 2], q[i + 3], q[i + 4])
+        } catch (e) {
+          this.caught(inst, 'SYG216', `${typeof q[i + 1] == 'string' ? `Action '${q[i + 1]}'` : 'A state update'} threw; the actions queued after it still run`, e, 'reducer', typeof q[i + 1] == 'string' ? q[i + 1] : undefined)
         }
-        else inst.handle(q[i + 1], q[i + 2], q[i + 3], q[i + 4])
         if (this.watchers.size) this.notify()
       }
     } finally {
@@ -484,7 +495,7 @@ export interface Started {
 }
 
 /**
- * Start an app on the next core: the drivers (run()'s defaults unless useDefaultDrivers is
+ * Start an app: the drivers (run()'s defaults unless useDefaultDrivers is
  * false), the root instance, the first flush. Returns run()'s shape (sources with the root's
  * STATE, sinks: one stream per driver sink, DOM and the root's PARENT) plus the runtime API.
  */

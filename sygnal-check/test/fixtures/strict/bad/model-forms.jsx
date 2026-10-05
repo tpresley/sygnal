@@ -25,14 +25,14 @@ Lane.intent = ({ DOM, CHILD }) => ({
   PING: DOM.click('.ping'),
   MARK: DOM.click('.mark'),
   MOVE: DOM.click('.move'),
-  DONE: CHILD.select('TodoItem'), // expect: SYG506
-  OTHER: CHILD.select('Unknown'), // expect: SYG506
+  DONE: CHILD.select('TodoItem'), // expect: SYG506 error
+  OTHER: CHILD.select('Unknown'), // expect: SYG506 error
 })
 
 Lane.model = {
   DELETE: emit('DELETE_LANE', (state) => ({ laneId: state.id })), // expect: SYG505
-  'PLAY | EFFECT': () => cmd.send('play'), // expect: SYG504
-  'PING | EVENTS': (state) => ({ type: 'PING', data: state.id }), // expect: SYG504, SYG505
+  'PLAY | EFFECT': () => cmd.send('play'), // expect: SYG504 error
+  'PING | EVENTS': (state) => ({ type: 'PING', data: state.id }), // expect: SYG504 error, SYG505
   MARK: {
     STATE: (state) => ({ ...state, marked: true }),
     ...emit('MARKED', (state) => state.id), // expect: SYG505

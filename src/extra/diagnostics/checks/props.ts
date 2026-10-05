@@ -2,7 +2,7 @@
  * SYG106 — a prop passed by the parent is silently overwritten (warn; error in
  * strict mode, G-007 part 2).
  *
- * The view is called with { ...props, state, children, slots, context, peers, uid },
+ * The view is called with { ...props, state, children, slots, context, uid },
  * so a parent prop with one of those names never reaches the child. (Tracker
  * G-007 item 2.) `state` is special: Sygnal reads it as the child's state
  * lens (a state field name or a { get, set } object), so it is only reported
@@ -16,7 +16,8 @@ import {report, once, nameOf} from './shared'
 import {isStrictEnabled} from './strict'
 
 // PLAN-4 GS-9: uid (the view's uid(name?) function)
-const RESERVED = ['children', 'slots', 'context', 'peers', 'uid']
+// (R5: 6.0 passes no `peers`, D164: a prop of that name reaches the view)
+const RESERVED = ['children', 'slots', 'context', 'uid']
 
 export const propsCheck: DiagnosticCheck = {
   id: 'props',

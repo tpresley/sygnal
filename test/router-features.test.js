@@ -8,7 +8,7 @@
 import { it, expect, beforeEach, afterEach, vi, describe } from 'vitest'
 import xs from 'xstream'
 import run from '../src/extra/run.js'
-import { ABORT } from '../src/component.js'
+import { ABORT } from '../src/shared.js'
 import { createElement as h } from '../src/pragma/index.js'
 import { makeRouter } from '../src/extra/router.js'
 import { waitFor, textOf, sleep } from '../evals/agent-ergonomics/hidden/_support/queries.js'

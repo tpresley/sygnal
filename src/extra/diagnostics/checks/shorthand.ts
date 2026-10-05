@@ -1,7 +1,7 @@
 /**
  * SYG115 — unknown DOM event shorthand (warn, G-143).
  *
- * The core's DOM source Proxy (wrapDOMSource in src/component.ts) turns ANY unknown property
+ * The core's DOM source Proxy (the DOM source wrapper) turns ANY unknown property
  * into an event shorthand: `DOM.<name>(sel)` = `DOM.select(sel).events('<name>')`. A made-up
  * name such as `DOM.key('.x')` or `DOM.enter('.x')` therefore listens for an event the browser
  * never fires, and the action silently never happens.

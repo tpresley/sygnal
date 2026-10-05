@@ -1,19 +1,18 @@
 /**
- * PLAN-4.6 next core: the Portal marker (R2), registered on import by the public `Portal` module.
+ * PLAN-4.6 core: the Portal marker (R2), registered on import by the public `Portal` module.
  * A template rewrite (registry `pres`): the `portal` marker becomes a hidden placeholder whose
  * hooks patch its children into the target with a separate snabbdom patch function. As today
- * (component.ts createPortalPlaceholder; a copy until R5 deletes that core):
+ * (the 5.x core's createPortalPlaceholder):
  * - the target is looked up on insert; one rendered later is retried 10 times, 5 ms apart, and a
  *   late mount pokes the DOM driver (G-261 pokeDOM); never found: SYG417;
  * - an update patches the portal's content; a removal removes it;
  * - the children move into the placeholder unprocessed (components inside a Portal are not
  *   instantiated, as today).
- * G-316 (next core only): the mount state lives in one object the placeholder's successive
+ * G-316: the mount state lives in one object the placeholder's successive
  * vnodes share (`_p`, handed on by postpatch), so a late-target retry mounts the latest children
  * once, and a removal cancels a pending retry. `_portalVnode` stays on the current vnode (testing).
  */
 import {pres} from '../registry'
-import {NEXT_CORE} from '../build'
 import {init as snabbdomInit} from '../../cycle/dom/snabbdom'
 import defaultModules from '../../cycle/dom/modules'
 import {pokeDOM} from '../../cycle/dom/utils'
@@ -52,7 +51,9 @@ function start(vnode: any, target: string, kids: any[]) {
 export function portalPlaceholder(target: string, children: any[]): any {
   const portalChildren = children || []
   return {
-    sel: 'div',
+    // G-328: a selector a plain div can't match, so snabbdom replaces (destroy / insert) the
+    // placeholder when a plain div takes its place, or the reverse, instead of patching it
+    sel: 'div.sygnal-portal',
     data: {
       style: {display: 'none'},
       attrs: {'data-sygnal-portal': target},
@@ -62,7 +63,7 @@ export function portalPlaceholder(target: string, children: any[]): any {
         postpatch: (oldVnode: any, newVnode: any) => {
           const st: PortalState | undefined = oldVnode.data?._p
           // G-318: reached by a patch, never inserted (hydration over server markup, or a plain
-          // div at the same position before): it starts here, as the current core mounts it
+          // div at the same position before): it starts here, as the 5.x core mounted it
           if (!st) return void start(newVnode, target, newVnode.data?.portalChildren || [])
           newVnode.data._p = st
           st.v = newVnode
@@ -89,5 +90,4 @@ export function portalPlaceholder(target: string, children: any[]): any {
   }
 }
 
-// D175: registered only where the next core can run (a production build drops it)
-if (NEXT_CORE) pres.portal = (n) => portalPlaceholder(n.data?.props?.target, n.children || [])
+pres.portal = (n) => portalPlaceholder(n.data?.props?.target, n.children || [])

@@ -2,7 +2,7 @@
 // PLAN-4.6 parity: D174, an isolatedState child bound to a slice (state="key"): initialState
 // seeds the slice only while it is undefined; `resetState` replaces it at creation.
 import { it, expect } from 'vitest'
-import { parity, itNext, mount, h, click, until, sleep } from './harness.js'
+import { parity, mount, h, click, until, sleep } from './harness.js'
 
 function Editor({ state, ...props }) { return h('p', { className: 'ed', 'data-props': Object.keys(props).filter((k) => k != 'children' && k != 'slots' && k != 'context' && k != 'uid').sort().join() }, `${state.title}:${state.draft ?? '-'}`) }
 Editor.isolatedState = true
@@ -26,7 +26,7 @@ parity('parity: D174 isolatedState + state="key" seeds only a missing slice; res
     expect(m.state().doc).toEqual({ title: 'new', draft: '' })
   })
 
-  itNext('D174 isolatedState keeps the parent\'s slice', "an existing slice is kept: the child shows the parent's data, and writes to it", async () => {
+  it("an existing slice is kept: the child shows the parent's data, and writes to it [D174 isolatedState keeps the parent's slice]", async () => {
     const App = host(false)
     App.initialState = { open: true, doc: { title: 'kept', draft: 'ab' } }
     const m = mount(App)
@@ -35,7 +35,7 @@ parity('parity: D174 isolatedState + state="key" seeds only a missing slice; res
     await until(() => expect(m.state().doc).toEqual({ title: 'kept', draft: 'abx' }))
   })
 
-  itNext('D174 isolatedState keeps the parent\'s slice', 'unmounted and mounted again, the child keeps what it wrote', async () => {
+  it('unmounted and mounted again, the child keeps what it wrote [D174 isolatedState keeps the parent\'s slice]', async () => {
     const App = host(false)
     App.initialState = { open: true }
     const m = mount(App)
@@ -60,11 +60,11 @@ parity('parity: D174 isolatedState + state="key" seeds only a missing slice; res
     expect(m.state().doc).toEqual({ title: 'new', draft: '' })
   })
 
-  itNext('D174 resetState is not a prop', 'resetState is read at creation, like state: the child does not get it as a prop', async () => {
+  it('resetState is read at creation, like state: the child does not get it as a prop [D174 resetState is not a prop]', async () => {
     const App = host(true)
     App.initialState = { open: true }
     const m = mount(App)
     await until(() => expect(m.$('.ed')).toBeTruthy())
     expect(m.$('.ed').getAttribute('data-props')).toBe('')
   })
-}, 'R2')
+})

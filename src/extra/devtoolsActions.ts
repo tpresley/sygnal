@@ -3,9 +3,9 @@
  * apps: nothing in the core calls it).
  *
  * It records every action of every component instance through 2-C's recorder
- * (./diagnostics/checks/actionLog: trackActions / trackActionStreams), installed from a check
- * registered on the core's diagnostics bridge (globalThis.__SYGNAL_DIAGNOSTICS__) with
- * `always: true`, so it records with diagnostics off too. On top of 2-C's record it keeps:
+ * (./diagnostics/checks/actionLog: actionHooks), a hook layer every app reads from the core's
+ * diagnostics bridge (globalThis.__SYGNAL_DIAGNOSTICS__.layers), so it records with diagnostics
+ * off too. On top of 2-C's record it keeps:
  *   seq, at        a sequence number, ms since the session started
  *   parent         the parent instance id (null: a root)
  *   before, after  the instance's state around the action's STATE reducer (onReducer), when it
@@ -16,7 +16,7 @@
  * A session runs from the recorder's start (or the last clearActions()) to now. getSession()
  * turns it into a SessionRecording for one instance (./copyAsTest generates the test).
  */
-import {trackActions, trackActionStreams, clockNow, actionHooks} from './diagnostics/checks/actionLog'
+import {clockNow, actionHooks} from './diagnostics/checks/actionLog'
 import {addLayer, devFacade} from './devtoolsNext'
 import type {ActionListener, ActionRecord, ActionCause} from './diagnostics/checks/actionLog'
 
@@ -109,9 +109,6 @@ const insts = new Map<string, Inst>()
 const byRec = new WeakMap<ActionRecord, DevtoolsAction>()
 /** instance -> the action whose STATE reducer just produced a value (its onReducer follows) */
 const pendingState = new WeakMap<any, DevtoolsAction>()
-/** instance -> the reply source delivering right now */
-const replySlot = new WeakMap<any, string>()
-const patched = new WeakSet<any>()
 const subscribers = new Set<(a: DevtoolsAction | null, kind: 'add' | 'update' | 'reset') => void>()
 
 const notify = (a: DevtoolsAction | null, kind: 'add' | 'update' | 'reset') => {
@@ -124,7 +121,7 @@ function ensure(c: any): Inst {
   const id = idOf(c)
   let i = insts.get(id)
   if (!i || i.c !== c) {
-    const p = c && (c.__next ? c.__next.parentId : c.sources && c.sources.__parentComponentNumber)
+    const p = c && c.__next && c.__next.parentId
     i = {c, id, name: c && c.name, parent: typeof p == 'number' ? String(p) : null, stateName: (c && c.stateSourceName) || 'STATE',
       inSession: true, hasInitial: false, disposed: false}
     ;(i as any).order = ++created
@@ -146,7 +143,7 @@ const listener: ActionListener = {
     else if (!info.hasInitial) { info.initial = c.currentState; info.hasInitial = true }
     const a: DevtoolsAction = {seq: ++seq, type: r.type, data: r.data, component: r.component, instance: r.instance,
       parent: info.parent, sinks: r.sinks, cause: r.cause, at: r.time - epoch}
-    const slot = (r as any).source ?? replySlot.get(c)
+    const slot = (r as any).source
     if (slot !== undefined && (r.cause == 'reply' || r.type == 'RESOURCE')) {
       a.replySink = slot
       a.replyKind = c.sources && c.sources[slot] && c.sources[slot].__sygnalStatic === 'resources' ? 'fetch' : 'other'
@@ -166,51 +163,23 @@ const listener: ActionListener = {
   },
 }
 
-/** the reply streams' source names (the order of c._replies, see src/component.ts) */
-function patchReplies(c: any): void {
-  if (patched.has(c)) return
-  patched.add(c)
-  const names = (c.sourceNames || []).filter((n: string) => c.sources && c.sources[n] && c.sources[n].__sygnalReplies === true)
-  ;(c._replies || []).forEach((r$: any, i: number) => {
-    const n = r$ && r$._n
-    if (typeof n != 'function' || names[i] === undefined) return
-    r$._n = function (this: any) {
-      const prev = replySlot.get(c)
-      replySlot.set(c, names[i])
-      try { return n.apply(this, arguments as any) } finally { prev === undefined ? replySlot.delete(c) : replySlot.set(c, prev) }
-    }
-  })
+function onReducer(c: any, name: string, prev: any, next: any): void {
+  const a = pendingState.get(c)
+  if (!a || a.type !== name || 'after' in a) return
+  pendingState.delete(c)
+  a.before = prev
+  a.after = clean(c, next)
+  notify(a, 'update')
 }
 
-const check = {
-  id: 'devtools-actions',
-  // dev-only entry: record with diagnostics 'off' too
-  always: true,
-  onIntent(c: any) {
-    ensure(c)
-    trackActions(c, listener)
-  },
-  onModel(c: any) {
-    trackActionStreams(c)
-    patchReplies(c)
-  },
-  onReducer(c: any, name: string, prev: any, next: any, sink: string) {
-    const a = pendingState.get(c)
-    if (!a || a.type !== name || sink !== (c.stateSourceName || 'STATE') || 'after' in a) return
-    pendingState.delete(c)
-    a.before = prev
-    a.after = clean(c, next)
-    notify(a, 'update')
-  },
-  onDispose(c: any) {
-    const i = insts.get(idOf(c))
-    if (i && i.c === c) { i.disposed = true; i.c = undefined }
-  },
+function onDispose(c: any): void {
+  const i = insts.get(idOf(c))
+  if (i && i.c === c) { i.disposed = true; i.c = undefined }
 }
 
 let unregister: (() => void) | undefined
 
-/** PLAN-4.6 R4: the same recorder on the next core, from its hooks (per app; a facade per instance) */
+/** PLAN-4.6 R4: the same recorder on the core, from its hooks (per app; a facade per instance) */
 function nextLayer(api: any): any {
   const L: ActionListener = {
     action: (r, iv) => listener.action(r, devFacade(iv, api)),
@@ -220,8 +189,8 @@ function nextLayer(api: any): any {
   return {
     ...log,
     onCreate(iv: any) { ensure(devFacade(iv, api)); log.onCreate(iv) },
-    onReducer(iv: any, name: string, prev: any, next: any) { check.onReducer(devFacade(iv, api), name, prev, next, 'STATE') },
-    onDispose(iv: any) { check.onDispose(devFacade(iv, api)) },
+    onReducer(iv: any, name: string, prev: any, next: any) { onReducer(devFacade(iv, api), name, prev, next) },
+    onDispose(iv: any) { onDispose(devFacade(iv, api)) },
   }
 }
 
@@ -232,9 +201,8 @@ function nextLayer(api: any): any {
 export function recordActions(): () => void {
   if (!unregister) {
     const core = (globalThis as any).__SYGNAL_DIAGNOSTICS__
-    if (!core || typeof core.registerCheck != 'function') return () => {}
-    const off = core.registerCheck(check), offNext = addLayer(nextLayer)
-    unregister = () => { off(); offNext() }
+    if (!core) return () => {}
+    unregister = addLayer(nextLayer)
   }
   return stopRecording
 }

@@ -74,7 +74,7 @@
  *   A check that throws (other than a DiagnosticError from 'error' mode) is
  *   isolated: the exception is reported as SYG900 and other checks still run.
  *
- * --- Hooks (called from src/component.ts, marked `// [diagnostics hook]`) ----
+ * --- Hooks (dispatched by checks/next.ts from the core's hook layer) ----
  *
  *   onIntent(component, actionNames, selectorsUsed?)
  *     after intent is built. actionNames = keys of the intent object ([] for a
@@ -337,7 +337,7 @@ export function sourcesFor(component: any): any {
 }
 
 // Bridge for the separately bundled 'sygnal/diagnostics' checks entry.
-// PLAN-4.6 R4: the hook dispatchers too, for the dev entry's next-core adapter (checks/next.ts)
+// PLAN-4.6 R4: the hook dispatchers too, for the dev entry's core adapter (checks/next.ts)
 ;(globalThis as any).__SYGNAL_DIAGNOSTICS__ = { registerCheck, report, hooks: { onIntent, onModel, onRender, onReducer, onDispose, sourcesFor, on: isDiagnosticsEnabled } }
 
 export function _resetDiagnostics(): void {

@@ -1,5 +1,5 @@
 /**
- * PLAN-4.6 next core: the Switchable host (R2). Registered on import (the public `Switchable`
+ * PLAN-4.6 core: the Switchable host (R2). Registered on import (the public `Switchable`
  * module imports this file).
  *
  * - `of={{ name: Fn }}` (D163: functions only; SYG415), `current` (SYG416), `state` (a key, a
@@ -17,7 +17,6 @@
  */
 import {hosts} from '../registry'
 import {resolve} from './collection'
-import {NEXT_CORE} from '../build'
 import {Inst, shallowEq} from '../instance'
 import {Cell, keyCell, lensCell, localCell} from '../cell'
 import {isObj} from '../define'
@@ -87,7 +86,7 @@ export class SwitchableHost {
   setProps(props: Record<string, any>, children: any[]) {
     let cur = props.current
     if (!(typeof cur == 'string' && cur in this.pages)) {
-      // (today this threw out of the owner's render; the next core keeps the page shown)
+      // (today this threw out of the owner's render; the core keeps the page shown)
       logError('SYG416', this.owner, `Switchable 'current' '${cur}' is not a key of 'of'`, CUR_FIX)
       cur = this.cur
     }
@@ -144,5 +143,4 @@ export class SwitchableHost {
   }
 }
 
-// D175: registered only where the next core can run (a production build drops it)
-if (NEXT_CORE) hosts.switchable = (owner, props, children, id) => new SwitchableHost(owner, props, children, id)
+hosts.switchable = (owner, props, children, id) => new SwitchableHost(owner, props, children, id)

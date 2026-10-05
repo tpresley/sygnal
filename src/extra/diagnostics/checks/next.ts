@@ -1,7 +1,7 @@
 /**
  * PLAN-4.6 R4: the dev entry's checks on the next component core (src/core/).
  *
- * The next core has no instance to patch and no diagnostics calls of its own: it reads this
+ * The core has no instance to patch and no diagnostics calls of its own: it reads this
  * entry's hooks once per app (`__SYGNAL_DIAGNOSTICS__.nextHooks(api)`, 04-hooks-contract §2.2)
  * and calls them with read-only InstanceViews. This module maps them onto the existing checks:
  *
@@ -11,7 +11,7 @@
  * - what the checks did by patching an instance becomes a hook: SYG222's reducer wrapping
  *   (wrapHandler), the reply / fetch / EVENTS taps of a sink (onSink), the ELEMENT check
  *   (onElementCommand), the Collection check (onHostProps), the action log (actionLog.ts);
- * - the next core's own dev codes: SYG423 (D168: a view context tracking skipped would have
+ * - the core's own dev codes: SYG423 (D168: a view context tracking skipped would have
  *   rendered differently), SYG424 (D169/D177: duplicate Collection ids), SYG425 (D174: an
  *   isolatedState child kept a slice that lacks its initialState keys), SYG612 (D173: a form
  *   6.0 removed, met at runtime; once per form and component, with a link to the migration
@@ -19,7 +19,7 @@
  *
  * Only while diagnostics are on (the checks' own rule); production builds never load this.
  */
-import {bridge, devReport, reportSafely, once, nameOf, isPlainObject} from './shared'
+import {bridge, devReport, reportSafely, once, onReset, nameOf, isPlainObject} from './shared'
 import {DEV_CODE_SEVERITY} from '../codes'
 import {watchMutation} from './state'
 import {checkRequest} from './replies'
@@ -60,7 +60,9 @@ function removed(component: any, name: string, anchor: string, detail?: string):
 }
 
 /** the removed forms a definition shows (statics, view arity, model keys), once per function */
-const seenDefs = new WeakSet<object>()
+let seenDefs = new WeakSet<object>()
+// G-332: resetChecks() forgets them (as the once() dedupe)
+onReset(() => { seenDefs = new WeakSet<object>() })
 function removedStatics(f: any): void {
   const view = f.view
   if (!view || seenDefs.has(view)) return
@@ -73,14 +75,13 @@ function removedStatics(f: any): void {
   if (isPlainObject(model)) for (const k of Object.keys(model)) if (k.includes('|')) removed(f, name, 'pipe-keys', `'${k}'`)
 }
 
-/** string tags and component() factories left in a rendered vnode (the next core renders them as elements) */
+/** string tags left in a rendered vnode (the core renders them as elements) */
 function removedTags(f: any, v: any, depth = 0): void {
   if (!v || typeof v != 'object' || depth > 300) return
   const sel = v.sel
-  if (typeof sel == 'string' && /^[A-Z]/.test(sel) && !(v.data && v.data.c)) {
-    if (v.data && v.data.props && v.data.props.sygnalFactory) removed(f, f.name, 'component-factory', `<${sel}>`)
-    else removed(f, f.name, 'string-tags', `<${sel}>`)
-  }
+  // G-329: a component name is PascalCase; an all-caps tag (h('SPAN'), h(el.tagName)) is an element
+  const tag = typeof sel == 'string' ? sel.split(/[.#]/)[0] : ''
+  if (/^[A-Z]/.test(tag) && /[a-z]/.test(tag) && !(v.data && v.data.c)) removed(f, f.name, 'string-tags', `<${tag}>`)
   const kids = v.children
   if (Array.isArray(kids)) for (const k of kids) removedTags(f, k, depth + 1)
 }
@@ -145,7 +146,7 @@ function same(a: any, b: any, d = 0): boolean {
 
 const SAMPLE = 16, CAP = 20
 
-/** The hooks one app on the next core gets (installChecks publishes this on the bridge). */
+/** The hooks one app gets (installChecks publishes this on the bridge). */
 export function nextHooks(_api: any): any {
   const core = bridge(), H = core.hooks
   const on = () => H.on()
@@ -241,7 +242,8 @@ export function nextHooks(_api: any): any {
     },
     onStateSeed(iv: any, slice: any, init: any) {
       if (!on() || !isPlainObject(init) || !isPlainObject(slice)) return
-      const missing = Object.keys(init).filter(k => !(k in slice))
+      // G-333: a key initialState sets to undefined is no data the slice lacks
+      const missing = Object.keys(init).filter(k => init[k] !== undefined && !(k in slice))
       const name = iv.name
       if (!missing.length || !once(`SYG425:${name}:${missing.join(',')}`)) return
       const list = missing.map(k => `'${k}'`).join(', ')
@@ -258,9 +260,11 @@ export function nextHooks(_api: any): any {
       skips.set(iv, n)
       if ((n > 2 && n % SAMPLE) || budget >= CAP) return
       if (!budget++) queueMicrotask(() => { budget = 0 })
-      let a, b
-      try { a = render(prev); b = render(next) } catch (_) { return }
-      if (same(a, b)) return
+      let a, b, c
+      try { a = render(prev); b = render(next); c = render(prev) } catch (_) { return }
+      // G-327: a control render: a view whose output differs between two calls with the same
+      // context (a render counter, Date.now(), Math.random(), generated ids) proves nothing
+      if (same(a, b) || !same(a, c)) return
       const name = iv.name
       const changed = Object.keys(next).filter(k => next[k] !== prev[k])
       if (!once(`SYG423:${name}`)) return

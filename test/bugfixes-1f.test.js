@@ -306,43 +306,6 @@ describe('G-020: EVENTS sink values compare equal to what the model returned', (
   })
 })
 
-// ─── G-025: renderComponent passes hmrActions and components through ────────
-
-import component from '../src/component.js'
-
-describe('G-025: renderComponent honors .components and .hmrActions', () => {
-  it('.components: a registered name renders that component', async () => {
-    const Badge = component({ name: 'Badge', view: () => h('b', { className: 'badge' }, 'ok') })
-    function Page() { return h('div', null, h('Badge')) }
-    Page.components = { Badge }
-    Page.initialState = {}
-    t = renderComponent(Page)
-    await t.ready()
-    await settle()
-    expect(t.html()).toMatch(/<b class="badge"[^>]*>ok<\/b>/)
-  })
-
-  it('.hmrActions is validated (SYG604) like under run()', () => {
-    function C() { return h('div', null) }
-    C.initialState = {}
-    C.model = { X: s => s }
-    C.hmrActions = 5
-    expect(() => { t = renderComponent(C) }).toThrow(/SYG604/)
-  })
-
-  it('.hmrActions fire during an HMR update', async () => {
-    // G-216: the swap is the app's own __hmr source (run() passes it to a hot-swapped successor)
-    function C() { return h('div', null) }
-    C.initialState = { refreshed: false }
-    C.hmrActions = 'REFRESH'
-    C.model = { REFRESH: s => ({ ...s, refreshed: true }) }
-    t = renderComponent(C, { drivers: { __hmr: () => ({ u: true }) } })
-    await t.waitForState(s => s.refreshed === true, 500)
-  })
-})
-
-// ─── G-026: invalid Collection 'from' reports SYG412 once, with the name ────
-
 describe("G-026: an invalid Collection 'from' reports SYG412 once", () => {
   function Item() { return h('li', null, 'x') }
   for (const [label, from] of [['a number', 5], ['an object without get()', { set: () => {} }]]) {

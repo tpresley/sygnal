@@ -146,17 +146,9 @@ export function checkSentCommand(component: any, cmd: any): void {
   })
 }
 
-/** The dev entry check: checkSentCommand on every value of an instance's ELEMENT sink */
+/** The dev entry check: checkSentCommand runs on every ELEMENT value through the core's onElementCommand hook (checks/next.ts) */
 export const elementCommandsCheck: DiagnosticCheck = {
   id: 'elementCommands',
-  onModel(component) {
-    const el$ = component?.model$?.ELEMENT
-    if (!el$ || typeof el$.map != 'function') return
-    component.model$.ELEMENT = el$.map((v: any) => {
-      for (const cmd of ([] as any[]).concat(v)) checkSentCommand(component, cmd)
-      return v
-    })
-  },
 }
 
 /** Publish the element command hook on the core bridge. Returns an uninstall function. */

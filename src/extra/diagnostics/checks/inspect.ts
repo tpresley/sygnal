@@ -6,12 +6,10 @@
  *   onIntent    registers the instance (name, parent, kind) and its intent
  *               action names; claims the EVENTS.select() types seen since the
  *               previous onIntent (intent runs synchronously right before it)
- *   onModel     action -> sinks; and wraps the component's own EVENTS model
- *               stream (component.model$.EVENTS, before initSinks merges it)
- *               in an identity map that records the emitted types. Since
- *               B-023 the driver-side emitter name (onBusEmit) is the
- *               emitting component's, but it is only a name, and this
- *               graph is per instance, so the per-instance tap stays.
+ *   onModel     action -> sinks
+ *   onSink      (checks/next.ts: eventEmitted) the EVENTS types the instance emitted. Since
+ *               B-023 the driver-side emitter name (onBusEmit) is the emitting
+ *               component's, but it is only a name, and this graph is per instance
  *   onReducer   which model-only actions actually ran (=> dispatched by next(),
  *               unless a request named them as reply actions: replies.ts, 'reply')
  *   onBusEmit   EVENTS types seen on the bus
@@ -19,8 +17,8 @@
  *   onRender    (PLAN-4 CT-1) the controls the instance renders: its own vtree, up to the
  *               isolated child components, through ./controls' vnode -> control map
  *   onDispose   prunes the instance
- *   (PLAN-4 2-C) onIntent / onModel also install the action log (./actionLog) on the instance;
- *               inspect({ actions }) lists the recent actions (the last RECENT_MAX, any instance)
+ *   (PLAN-4 2-C) the action log (./actionLog: actionHooks, a layer of checks/next.ts) feeds
+ *               inspect({ actions }): the recent actions (the last RECENT_MAX, any instance)
  * Selectors come from the DOM check (real DOM) or from renderComponent (mock
  * DOM, passed in as options.selectors). The same shape is produced statically
  * by `sygnal-check --graph`; the JSON Schema is
@@ -33,7 +31,7 @@
  */
 import type {DiagnosticCheck} from '../index'
 import type {InspectGraph, InspectComponent, InspectOptions, InspectSelector, InspectDiagnostic, InspectChild, InspectResource, InspectControl, InspectRecentAction} from './public'
-import {trackActions, trackActionStreams, clockNow} from './actionLog'
+import {clockNow} from './actionLog'
 import type {ActionListener, ActionRecord} from './actionLog'
 import {bridge, onReset, nameOf, isPlainObject, BUILTIN_ACTIONS, replySeen} from './shared'
 import {checkEventBus} from './events'
@@ -83,21 +81,14 @@ const uniq = <T>(list: Iterable<T>): T[] => [...new Set(list)]
 const NEXT_KIND: Record<string, Kind> = {root: 'root', child: 'child', item: 'collection-item', page: 'switchable'}
 
 function kindOf(c: any): Kind {
-  // PLAN-4.6 R4: the next core's instance view says it (checks/next.ts)
-  if (c && c.__next) return NEXT_KIND[c.__next.kind] || 'child'
-  const s = (c && c.sources) || {}
-  if (typeof s.__parentComponentNumber !== 'number') return 'root'
-  // Collection items get PARENT: null (src/component.ts instantiateCollection)
-  if ('PARENT' in s && s.PARENT === null) return 'collection-item'
-  // switchable() adds a lower-case `state` source next to the component's own (src/switchable.ts)
-  if (c.stateSourceName !== 'state' && 'state' in s && s.state !== s[c.stateSourceName]) return 'switchable'
-  return 'child'
+  // PLAN-4.6 R4: the core's instance view says it (checks/next.ts)
+  return (c && c.__next && NEXT_KIND[c.__next.kind]) || 'child'
 }
 
 function ensure(c: any): Rec {
   let r = records.get(c)
   if (!r) {
-    const parent = c && (c.__next ? c.__next.parentId : c.sources && c.sources.__parentComponentNumber)
+    const parent = c && c.__next && c.__next.parentId
     r = {
       instance: c,
       id: String(c && c._componentNumber),
@@ -138,29 +129,17 @@ export const inspectCheck: DiagnosticCheck = {
 
   onIntent(component, actionNames) {
     attachDevtools()
-    trackActions(component, actionListener)
     const r = ensure(component)
     const intent$ = component && component.intent$
-    r.intentActions = intent$ && typeof intent$.addListener === 'function' ? null : (actionNames || [])
+    r.intentActions = actionNames || []
     r.injected = new Set((intent$ && typeof intent$ === 'object' && intent$.__sygnalTestActions) || [])
     for (const t of pendingSelects) r.eventsSelected.add(t)
     pendingSelects = []
   },
 
   onModel(component, modelMap) {
-    trackActionStreams(component)
     const r = ensure(component)
     r.modelMap = modelMap || {}
-    const model$ = component && component.model$
-    const events$ = model$ && model$.EVENTS
-    if (events$ && typeof events$.map === 'function' && !events$.__sygnalInspect) {
-      const tapped = events$.map((ev: any) => {
-        if (ev && typeof ev.type === 'string') r.eventsEmitted.add(ev.type)
-        return ev
-      })
-      tapped.__sygnalInspect = true
-      model$.EVENTS = tapped
-    }
   },
 
   onRender(component, root) {
@@ -182,7 +161,7 @@ export const inspectCheck: DiagnosticCheck = {
   },
 }
 
-/** PLAN-4.6 R4 (next core, onSink): an EVENTS value the instance sent */
+/** PLAN-4.6 R4 (onSink): an EVENTS value the instance sent */
 export function eventEmitted(component: any, ev: any): void {
   const r = records.get(component)
   if (r && ev && typeof ev.type === 'string') r.eventsEmitted.add(ev.type)

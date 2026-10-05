@@ -2,7 +2,7 @@
 // PLAN-4.6 parity: the §5 timing rules. What both cores guarantee, and the D165 changes
 // (synchronous reducers, INITIALIZE at construction, BOOTSTRAP a microtask after the first render).
 import { it, expect } from 'vitest'
-import { parity, itNext, mount, h, click, until, sleep, microtasks, xs } from './harness.js'
+import { parity, mount, h, click, until, sleep, microtasks, xs } from './harness.js'
 
 function Counter({ state }) { return h('button', { className: 'b' }, String(state.n)) }
 Counter.initialState = { n: 0 }
@@ -81,19 +81,19 @@ parity('parity: timing rules both cores keep', () => {
 })
 
 parity('parity: D165 timing changes (new behaviour)', () => {
-  itNext('D165 synchronous reducers', 'a STATE reducer is applied when its action is processed: STATE.stream listeners see it synchronously', async () => {
+  it('a STATE reducer is applied when its action is processed: STATE.stream listeners see it synchronously [D165 synchronous reducers]', async () => {
     const m = mount(Counter)
     await until(() => expect(m.text('.b')).toBe('0'))
     click(m.$('.b'))
     expect(m.state().n).toBe(1) // no microtask awaited
   })
 
-  itNext('D165 INITIALIZE at construction', 'the initial state is on STATE.stream when run() returns', () => {
+  it('the initial state is on STATE.stream when run() returns [D165 INITIALIZE at construction]', () => {
     const m = mount(Counter)
     expect(m.state()).toEqual({ n: 0 })
   })
 
-  itNext('D165 INITIALIZE at construction', "a model INITIALIZE entry has run when run() returns", () => {
+  it("a model INITIALIZE entry has run when run() returns [D165 INITIALIZE at construction]", () => {
     function C({ state }) { return h('p', null, String(state.n)) }
     C.initialState = { n: 1 }
     C.model = { INITIALIZE: (s) => ({ ...s, n: s.n + 1 }) }
@@ -101,7 +101,7 @@ parity('parity: D165 timing changes (new behaviour)', () => {
     expect(m.state()).toEqual({ n: 2 })
   })
 
-  itNext('D165 BOOTSTRAP a microtask after the first render', 'BOOTSTRAP is dispatched within microtasks of the first patch (no 10 ms timer)', async () => {
+  it('BOOTSTRAP is dispatched within microtasks of the first patch (no 10 ms timer) [D165 BOOTSTRAP a microtask after the first render]', async () => {
     const seen = []
     function C({ state }) { return h('p', { className: 'c' }, String(state.n)) }
     C.initialState = { n: 1 }

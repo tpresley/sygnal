@@ -6,8 +6,8 @@ describe('ClientOnly component', () => {
     expect(ClientOnly.preventInstantiation).toBe(true)
   })
 
-  it('has label set to clientonly', () => {
-    expect(ClientOnly.label).toBe('clientonly')
+  it('has componentName set to clientonly', () => {
+    expect(ClientOnly.componentName).toBe('clientonly')
   })
 
   it('produces a vnode with sel "clientonly"', () => {

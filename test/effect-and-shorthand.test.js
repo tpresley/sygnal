@@ -1,35 +1,30 @@
 import { describe, it, expect, afterEach, vi, beforeEach } from 'vitest'
-import { setup } from '../src/cycle/run/index'
-import { withState } from '../src/cycle/state/index'
 import { mockDOMSource } from '../src/cycle/dom/index'
 import xs from 'xstream'
 
-if (typeof globalThis.window === 'undefined') {
-  globalThis.window = undefined
-}
 
-import component, { ABORT } from '../src/component.js'
+import { ABORT } from '../src/shared.js'
+import run from '../src/extra/run.js'
 import eventBusDriver from '../src/extra/eventDriver.js'
 import logDriver from '../src/extra/logDriver.js'
 import { createElement } from '../src/pragma/index.js'
 
 
+// R5 (06 §3): the harness runs the component with run() (the core), with the same drivers it had
+// under the removed component() + setup + withState harness
+function startApp(view, drivers) {
+  const app = run(view, drivers, { useDefaultDrivers: false })
+  return { sources: app.sources, sinks: app.sinks, dispose: () => app.dispose(), setState: (v) => app.__runtime.setState('root', () => v) }
+}
+
 function createTestComponent(componentDef, mockConfig = {}) {
-  const name = componentDef.name || 'TestComponent'
   const view = componentDef
-  const { intent, model, initialState, calculated } = componentDef
 
-  const app = component({ name, view, intent, model, initialState, calculated })
-  const wrapped = withState(app, 'STATE')
-  const mockDOM = () => mockDOMSource(mockConfig)
-
-  const { sources, sinks, run: _run } = setup(wrapped, {
-    DOM: mockDOM,
+  const { sources, sinks, dispose, setState } = startApp(view, {
+    DOM: () => mockDOMSource(mockConfig),
     EVENTS: eventBusDriver,
     LOG: logDriver,
   })
-
-  const dispose = _run()
 
   const states = []
   let stateListener
@@ -209,263 +204,5 @@ describe('EFFECT sink', () => {
   })
 })
 
-
-describe('Model shorthand (ACTION | DRIVER)', () => {
-  let testEnv
-
-  afterEach(() => {
-    if (testEnv) {
-      testEnv.dispose()
-      testEnv = null
-    }
-  })
-
-  it('expands shorthand to equivalent object entry', async () => {
-    let effectRan = false
-
-    function ShortComp() {
-      return createElement('div', null, 'test')
-    }
-    ShortComp.initialState = { count: 0 }
-    ShortComp.intent = ({ DOM }) => ({
-      DO_THING: DOM.select('.btn').events('click'),
-    })
-    ShortComp.model = {
-      'DO_THING | EFFECT': () => { effectRan = true },
-    }
-
-    testEnv = createTestComponent(ShortComp, {
-      '.btn': { click: xs.of({}) },
-    })
-
-    await settle(100)
-    expect(effectRan).toBe(true)
-  })
-
-  it('works with EVENTS sink', async () => {
-    const events = []
-
-    function ShortComp() {
-      return createElement('div', null, 'test')
-    }
-    ShortComp.initialState = {}
-    ShortComp.intent = ({ DOM }) => ({
-      NOTIFY: DOM.select('.btn').events('click'),
-    })
-    ShortComp.model = {
-      'NOTIFY | EVENTS': () => ({ type: 'test-event', data: 'hello' }),
-    }
-
-    testEnv = createTestComponent(ShortComp, {
-      '.btn': { click: xs.of({}) },
-    })
-
-    testEnv.sinks.EVENTS.addListener({
-      next: v => events.push(v),
-      error: () => {},
-    })
-
-    await settle(100)
-    expect(events.some(e => e.type === 'test-event')).toBe(true)
-  })
-
-  it('works with whitespace around pipe', async () => {
-    let effectRan = false
-
-    function ShortComp() {
-      return createElement('div', null, 'test')
-    }
-    ShortComp.initialState = {}
-    ShortComp.intent = ({ DOM }) => ({
-      ACT: DOM.select('.btn').events('click'),
-    })
-    ShortComp.model = {
-      '  ACT   |   EFFECT  ': () => { effectRan = true },
-    }
-
-    testEnv = createTestComponent(ShortComp, {
-      '.btn': { click: xs.of({}) },
-    })
-
-    await settle(100)
-    expect(effectRan).toBe(true)
-  })
-
-  it('throws on invalid shorthand format', () => {
-    function BadComp() {
-      return createElement('div', null, 'test')
-    }
-    BadComp.initialState = {}
-    BadComp.intent = ({ DOM }) => ({
-      ACT: DOM.select('.btn').events('click'),
-    })
-    BadComp.model = {
-      'ACT|': () => {},
-    }
-
-    expect(() => {
-      createTestComponent(BadComp, {
-        '.btn': { click: xs.of({}) },
-      })
-    }).toThrow('Invalid shorthand')
-  })
-
-  it('throws if intent action name contains pipe', () => {
-    function BadComp() {
-      return createElement('div', null, 'test')
-    }
-    BadComp.initialState = {}
-    BadComp.intent = ({ DOM }) => ({
-      'MY|ACTION': DOM.select('.btn').events('click'),
-    })
-    BadComp.model = {
-      'MY|ACTION': (state) => state,
-    }
-
-    expect(() => {
-      createTestComponent(BadComp, {
-        '.btn': { click: xs.of({}) },
-      })
-    }).toThrow("contains '|'")
-  })
-
-  it('can mix shorthand and longhand in the same model', async () => {
-    let effectRan = false
-
-    function MixComp() {
-      return createElement('div', null, 'test')
-    }
-    MixComp.initialState = { count: 0 }
-    MixComp.intent = ({ DOM }) => ({
-      INCREMENT: DOM.select('.inc').events('click'),
-      SIDE_EFFECT: DOM.select('.fx').events('click'),
-    })
-    MixComp.model = {
-      // Longhand (regular state reducer)
-      INCREMENT: (state) => ({ ...state, count: state.count + 1 }),
-      // Shorthand
-      'SIDE_EFFECT | EFFECT': () => { effectRan = true },
-    }
-
-    testEnv = createTestComponent(MixComp, {
-      '.inc': { click: xs.of({}) },
-      '.fx': { click: xs.of({}) },
-    })
-
-    await settle(100)
-    expect(effectRan).toBe(true)
-    const last = testEnv.states[testEnv.states.length - 1]
-    expect(last.count).toBe(1)
-  })
-
-  it('warns on duplicate action/sink from shorthand and longhand', () => {
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
-
-    function DupComp() {
-      return createElement('div', null, 'test')
-    }
-    DupComp.initialState = {}
-    DupComp.intent = ({ DOM }) => ({
-      FIRE: DOM.select('.btn').events('click'),
-    })
-    DupComp.model = {
-      FIRE: {
-        EFFECT: () => {},
-      },
-      'FIRE | EFFECT': () => {},
-    }
-
-    const env = createTestComponent(DupComp, {
-      '.btn': { click: xs.never() },
-    })
-
-    expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining("Duplicate model entry for action 'FIRE' on sink 'EFFECT'"),
-    )
-
-    env.dispose()
-    warnSpy.mockRestore()
-  })
-
-  it('warns on duplicate action/sink from two shorthand entries', () => {
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
-
-    function DupComp() {
-      return createElement('div', null, 'test')
-    }
-    DupComp.initialState = {}
-    DupComp.intent = ({ DOM }) => ({
-      ACT: DOM.select('.btn').events('click'),
-    })
-    DupComp.model = {
-      'ACT | EVENTS': () => ({ type: 'a', data: 1 }),
-      ' ACT|EVENTS ': () => ({ type: 'b', data: 2 }),
-    }
-
-    const env = createTestComponent(DupComp, {
-      '.btn': { click: xs.never() },
-    })
-
-    expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining("Duplicate model entry for action 'ACT' on sink 'EVENTS'"),
-    )
-
-    env.dispose()
-    warnSpy.mockRestore()
-  })
-
-  it('warns on duplicate when plain function overlaps shorthand STATE', () => {
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
-
-    function DupComp() {
-      return createElement('div', null, 'test')
-    }
-    DupComp.initialState = { x: 0 }
-    DupComp.intent = ({ DOM }) => ({
-      ACT: DOM.select('.btn').events('click'),
-    })
-    DupComp.model = {
-      ACT: (state) => ({ ...state, x: 1 }),
-      'ACT | STATE': (state) => ({ ...state, x: 2 }),
-    }
-
-    const env = createTestComponent(DupComp, {
-      '.btn': { click: xs.never() },
-    })
-
-    expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining("Duplicate model entry for action 'ACT' on sink 'STATE'"),
-    )
-
-    env.dispose()
-    warnSpy.mockRestore()
-  })
-
-  it('does not warn when different actions target the same sink', () => {
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
-
-    function OkComp() {
-      return createElement('div', null, 'test')
-    }
-    OkComp.initialState = {}
-    OkComp.intent = ({ DOM }) => ({
-      A: DOM.select('.a').events('click'),
-      B: DOM.select('.b').events('click'),
-    })
-    OkComp.model = {
-      'A | EFFECT': () => {},
-      'B | EFFECT': () => {},
-    }
-
-    const env = createTestComponent(OkComp, {
-      '.a': { click: xs.never() },
-      '.b': { click: xs.never() },
-    })
-
-    const dupWarns = warnSpy.mock.calls.filter(c => c[0]?.includes?.('Duplicate'))
-    expect(dupWarns).toHaveLength(0)
-
-    env.dispose()
-    warnSpy.mockRestore()
-  })
-})
+// R5 (D164): the 'ACTION | SINK' model keys were removed; their tests went with them (SYG612
+// reports the form in dev, test/p46-r4-diagnostics.test.js)

@@ -366,7 +366,7 @@ import { renderComponent } from 'sygnal'
 
 const t = renderComponent(Lane, { strict: true })
 await t.ready()
-t.expectNoDiagnostics()   // fails on SYG501/504/508 (and SYG106) as well
+t.expectNoDiagnostics()   // fails on SYG508 (and SYG106) as well; SYG612 always
 t.dispose()               // restores the previous strict setting
 ` },
 

@@ -1,12 +1,11 @@
 // @vitest-environment jsdom
-// PLAN-4.6 R2: the next core's hosts and markers, through run() with the internal options (hooks,
-// the runtime API). Next core only (SYGNAL_CORE=next); the behaviour both cores share is in
+// PLAN-4.6 R2: the core's hosts and markers, through run() with the internal options (hooks,
+// the runtime API); the public behaviour is in
 // test/parity/ (collection, switchable, suspense-lazy, reset-state).
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { run, createElement as h, xs, Collection, Switchable, Portal, Transition, Suspense, lazy } from '../src/index.js'
 import { Fragment } from '../src/cycle/dom/snabbdom.js'
 
-const NEXT = globalThis.__SYGNAL_CORE__ === 'next'
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 let apps = []
@@ -21,7 +20,7 @@ function mount(App, drivers = {}, options = {}) {
 }
 const click = (el) => el.dispatchEvent(new MouseEvent('click', { bubbles: true }))
 
-describe.skipIf(!NEXT)('PLAN-4.6 R2 next core: hosts', () => {
+describe('PLAN-4.6 R2 next core: hosts', () => {
   it("the Collection's DOM is today's: one div with the marker's props as element properties", async () => {
     function Item({ state }) { return h('li', null, state.t) }
     function App() { return h('ul', null, h(Collection, { of: Item, from: 'rows', className: 'list', extra: 5 })) }
@@ -87,7 +86,7 @@ describe.skipIf(!NEXT)('PLAN-4.6 R2 next core: hosts', () => {
   })
 })
 
-describe.skipIf(!NEXT)('PLAN-4.6 R2 next core: markers', () => {
+describe('PLAN-4.6 R2 next core: markers', () => {
   it('lazy: the owner renders again when the import resolves, with no state write', async () => {
     let resolve
     const LazyKid = lazy(() => new Promise((r) => { resolve = r }))

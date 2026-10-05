@@ -2,9 +2,9 @@
 import { describe, it, expect, afterEach, vi } from 'vitest'
 import { renderComponent } from '../src/extra/testing.js'
 import { createElement as h } from '../src/pragma/index.js'
-import { Switchable, Collection, ABORT, switchable } from '../src/index.js'
+import { Switchable, Collection, ABORT } from '../src/index.js'
 import { event } from '../src/extra/reducers.js'
-import { StateSource } from '../src/cycle/state/index.js'
+import { StateSource } from '../src/cycle/state/StateSource.js'
 import xs from 'xstream'
 
 let t
@@ -350,54 +350,8 @@ describe('R4-1: a hidden page reads the current state', () => {
 })
 
 describe('R4-10: a page switched back in never shows its old output', () => {
-  // switchable() directly: each page's DOM sink is a stream the test drives
-  const setup = () => {
-    const name$ = xs.create()
-    const doms = {}, pages = {}
-    const page = (n) => (sources) => { pages[n] = sources.__switchPage; return { DOM: (doms[n] = xs.create()) } }
-    const state = new StateSource(xs.of({}).remember(), 'STATE')
-    const sinks = switchable({ a: page('a'), b: page('b') }, name$, 'a')({ STATE: state, DOM: {} })
-    const out = []
-    const listener = { next: v => out.push(v), error() {}, complete() {} }
-    sinks.DOM.addListener(listener)
-    // as a page component's render pipeline does
-    for (const n of ['a', 'b']) pages[n].shown$.addListener({ next() {}, error() {}, complete() {} })
-    return { name$, doms, pages, out, stop: () => { sinks.DOM.removeListener(listener); sinks.__dispose() } }
-  }
-
-  it('the remembered output is shown when nothing changed while hidden', () => {
-    const s = setup()
-    s.doms.a.shamefullySendNext('A1')
-    s.name$.shamefullySendNext('b')
-    s.doms.b.shamefullySendNext('B1')
-    s.name$.shamefullySendNext('a')
-    expect(s.out.filter(Boolean)).toEqual(['A1', 'B1', 'A1'])
-    s.stop()
-  })
-
-  it('a page that skipped a render while hidden waits for its fresh output', () => {
-    const s = setup()
-    s.doms.a.shamefullySendNext('A1')
-    s.name$.shamefullySendNext('b')
-    s.doms.b.shamefullySendNext('B1')
-    s.pages.a.mark() // what a page component does when it skips a render while hidden
-    s.name$.shamefullySendNext('a')
-    expect(s.out.filter(Boolean)).toEqual(['A1', 'B1'])
-    s.doms.a.shamefullySendNext('A2')
-    expect(s.out.filter(Boolean)).toEqual(['A1', 'B1', 'A2'])
-    s.stop()
-  })
-
-  it('falls back to the remembered output when no fresh one comes, so a switch never gets stuck', async () => {
-    const s = setup()
-    s.doms.a.shamefullySendNext('A1')
-    s.name$.shamefullySendNext('b')
-    s.pages.a.mark()
-    s.name$.shamefullySendNext('a')
-    await vi.waitFor(() => expect(s.out.filter(Boolean)).toEqual(['A1', 'A1']), { timeout: 2000, interval: 20 })
-    s.stop()
-  })
-
+  // (R5: the switchable() factory's remembered-output cases went with the old core; the tree case
+  // below pins the behaviour)
   it('in a component tree, the old content of a page changed while hidden is never rendered', async () => {
     function A({ state }) { return h('section', { className: 'a' }, `count ${state.count}`) }
     function B() { return h('section', { className: 'b' }, 'b') }
@@ -430,14 +384,3 @@ describe('R4-10: a page switched back in never shows its old output', () => {
   })
 })
 
-describe('R4-11: switchable() with a name stream passes stateSourceName on', () => {
-  it('pages get the custom state source (and the state marker)', () => {
-    const got = {}
-    const page = (n) => (sources) => { got[n] = sources; return { DOM: xs.never() } }
-    const src = new StateSource(xs.of({ v: 1 }).remember(), 'APP')
-    switchable({ a: page('a'), b: page('b') }, xs.never(), 'a', { stateSourceName: 'APP' })({ APP: src, DOM: {} })
-    expect(got.a.state).toBeInstanceOf(StateSource)
-    expect(got.a.APP).toBe(got.a.state)
-    expect(got.b.__switchPage).toBeTruthy()
-  })
-})

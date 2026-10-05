@@ -111,8 +111,8 @@ export async function effectShorthandTests() {
     )
   })
 
-  // Test: Model shorthand 'ACTION | DRIVER' syntax
-  await runTest(CAT, "'ACTION | DRIVER' shorthand expands correctly", async () => {
+  // Test: an EFFECT sends a command to a child (6.0: the object form; 'ACTION | SINK' keys were removed)
+  await runTest(CAT, 'EFFECT sends a command to a child', async () => {
     const { id, el } = mount()
 
     const cmd = createCommand()
@@ -145,7 +145,7 @@ export async function effectShorthandTests() {
     })
 
     App.model = {
-      'SEND | EFFECT': () => cmd.send('label', 'shorthand-works'),
+      SEND: { EFFECT: () => cmd.send('label', 'shorthand-works') },
     }
 
     run(App, {}, { mountPoint: id })
@@ -160,48 +160,7 @@ export async function effectShorthandTests() {
     await wait(150)
     assert(
       el.querySelector('.sh-child')?.textContent === 'shorthand-works',
-      'Shorthand EFFECT should have sent command to child'
-    )
-  })
-
-  // Test: Shorthand with whitespace around pipe
-  await runTest(CAT, "shorthand works with whitespace around '|'", async () => {
-    const { id, el } = mount()
-
-    let ran = false
-
-    function App({ state }) {
-      return (
-        <div>
-          <button className="ws-btn">Go</button>
-          <div className="ws-result">{state.done ? 'done' : 'waiting'}</div>
-        </div>
-      )
-    }
-
-    App.initialState = { done: false }
-
-    App.intent = ({ DOM }) => ({
-      GO: DOM.select('.ws-btn').events('click'),
-    })
-
-    App.model = {
-      '  GO  |  EFFECT  ': (state, data, next) => {
-        ran = true
-        next('FINISH')
-      },
-      FINISH: (state) => ({ ...state, done: true }),
-    }
-
-    run(App, {}, { mountPoint: id })
-
-    await waitFor(() => el.querySelector('.ws-result'))
-    el.querySelector('.ws-btn').click()
-    await wait(150)
-    assert(ran, 'EFFECT with whitespace-padded shorthand should have run')
-    assert(
-      el.querySelector('.ws-result')?.textContent === 'done',
-      'next() from shorthand EFFECT should update state'
+      'The EFFECT should have sent the command to the child'
     )
   })
 

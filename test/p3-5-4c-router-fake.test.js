@@ -7,7 +7,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { renderComponent } from '../src/extra/testing.js'
 import { createElement as h } from '../src/pragma/index.js'
 import { Switchable } from '../src/switchable.js'
-import { ABORT } from '../src/component.js'
+import { ABORT } from '../src/shared.js'
 import { makeRouter } from '../src/extra/router.js'
 
 const router = makeRouter({ routes: { home: '/', task: '/tasks/:id', login: '/login', admin: '/admin', notFound: '*' } })

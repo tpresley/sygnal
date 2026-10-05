@@ -4,7 +4,7 @@
 // redirect, the admin guard, the unsaved-changes Editor, and the route title in HEAD.
 import { it, expect, beforeEach, afterEach, vi } from 'vitest'
 import run from '../src/extra/run.js'
-import { ABORT } from '../src/component.js'
+import { ABORT } from '../src/shared.js'
 import { createElement as h } from '../src/pragma/index.js'
 import { Switchable } from '../src/switchable.js'
 import { makeRouter } from '../src/extra/router.js'

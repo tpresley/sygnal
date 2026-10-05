@@ -4,7 +4,7 @@ import type { RootComponent } from 'sygnal'
 
 type State = { count: number }
 
-const Counter: RootComponent<State> = (_props: any, state: State) => ( // expect: SYG501
+const Counter: RootComponent<State> = (_props: any, state: State) => ( // expect: SYG501 error
   <div className="counter">
     <button className="inc">+</button>
     <button className="reset">0</button>
@@ -22,7 +22,7 @@ Counter.intent = ({ DOM, EVENTS }) => ({
 
 Counter.model = {
   INC: (state: State) => (state.count > 9 ? state : { ...state, count: state.count + 1 }),
-  'RESET | EVENTS': () => ({ type: 'RESET_DONE' }), // expect: SYG504, SYG505
+  'RESET | EVENTS': () => ({ type: 'RESET_DONE' }), // expect: SYG504 error, SYG505
   RESET_DONE: (state: State) => ({ ...state, count: 0 }),
 } satisfies Record<string, any>
 

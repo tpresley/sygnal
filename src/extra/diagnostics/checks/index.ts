@@ -44,9 +44,8 @@
  * | SYG301 | RxJS operator used on an xstream stream                | rxjsHints.ts   |
  * | SYG401 | Collection `from` missing or not an array              | collections.ts |
  * | SYG421 | invalid data (dataset) key in a view                   | dataset.ts     |
- * | SYG501 | strict: view uses positional (props, state, ...) args  | strict.ts      |
+ * | SYG612 | a form 6.0 removed (also SYG501/504 statically)        | next.ts        |
  * | SYG502 | retired in 6.0 (never reported; GS-4)                  | —              |
- * | SYG504 | strict: 'ACTION | SINK' shorthand model key           | strict.ts      |
  * | SYG508 | strict: select()/errors() round trip on a reply source | replies.ts    |
  * | —      | D152: shared statics frozen (initialState deep)        | statics.ts     |
  * | —      | inspect(): the runtime app graph (2B)                  | inspect.ts     |
@@ -82,10 +81,6 @@ import {staticsCheck} from './statics'
 import {installRxjsHints} from './rxjsHints'
 import {inspectCheck, installInspect} from './inspect'
 import {nextHooks} from './next'
-
-// PLAN-4.6 R1-R4 (internal, deleted at R5): the examples' Vitest loads this entry as a setup
-// file (sygnal/vite); SYGNAL_CORE=next there selects the next core, as test/setup-core.js does
-if ((globalThis as any).process?.env?.SYGNAL_CORE === 'next') (globalThis as any).__SYGNAL_CORE__ = 'next'
 
 export {checkEventBus} from './events'
 export {configureStrict, isStrictEnabled} from './strict'
@@ -136,7 +131,7 @@ export function installChecks(): () => void {
   const uninstallControls = installControlHooks()
   const uninstallTimers = installTimerHooks()
   const uninstallElementCommands = installElementCommandHooks()
-  // PLAN-4.6 R4: the next core reads its hooks from the bridge once per app (checks/next.ts)
+  // PLAN-4.6 R4: the core reads its hooks from the bridge once per app (checks/next.ts)
   ;(core.layers ||= new Set()).add(nextHooks)
   const uninstall = () => {
     core.layers?.delete(nextHooks)

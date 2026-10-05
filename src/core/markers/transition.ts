@@ -1,14 +1,13 @@
 /**
- * PLAN-4.6 next core: the Transition marker (R2), registered on import by the public `Transition`
+ * PLAN-4.6 core: the Transition marker (R2), registered on import by the public `Transition`
  * module. A template rewrite (registry `pres`): the `transition` marker is replaced by its first
  * child (walked on, at the marker's path), with snabbdom hooks that add the classes as today
- * (component.ts applyTransitionHooks; a copy until R5 deletes that core):
+ * (the 5.x core's applyTransitionHooks):
  * `${name}-enter|leave-from` + `-active`, two frames later `-from` becomes `-to`, and at the end
  * (transitionend, or `duration` ms) `-active` and `-to` go. A user's insert/remove hooks on the
  * child still run. G-279: a leaving element pokes the DOM driver once it is gone.
  */
 import {pres} from '../registry'
-import {NEXT_CORE} from '../build'
 import {pokeDOM} from '../../cycle/dom/utils'
 
 function onEnd(el: any, duration: number | undefined, cb: () => void): void {
@@ -54,8 +53,7 @@ export function transitionHooks(vnode: any, name: string, duration?: number): an
   return vnode
 }
 
-// D175: registered only where the next core can run (a production build drops it)
-if (NEXT_CORE) pres.transition = (n) => {
+pres.transition = (n) => {
   const child = n.children?.[0], props = n.data?.props || {}
   // no element child: the text child (or the marker itself, left as it is: today's behaviour)
   if (!child?.sel) return child || n

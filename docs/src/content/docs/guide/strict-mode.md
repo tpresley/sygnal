@@ -3,28 +3,28 @@ title: Strict Mode
 description: Keep every component in Sygnal's canonical forms
 ---
 
-Sygnal often accepts more than one way to write the same thing. A model entry can use the object form or the `'ACTION | SINK'` shorthand, an event can be emitted with `event()`, `emit()` or a hand-built `{ type, data }` object, and so on. All of these keep working. Strict mode flags every form except the canonical one, so a codebase (and any agent working on it) reads the same everywhere.
+Sygnal often accepts more than one way to write the same thing. An event can be emitted with `event()`, `emit()` or a hand-built `{ type, data }` object, a side effect can hide in a STATE reducer, and so on. All of these keep working. Strict mode flags every form except the canonical one, so a codebase (and any agent working on it) reads the same everywhere.
 
-Strict mode is off by default. Its rules are SYG501 to SYG508; SYG502 is retired in 6.0 and never reported.
+Strict mode is off by default. Its rules are SYG501 to SYG508; SYG502 is retired in 6.0 and never reported. SYG501, SYG504 and SYG506 now flag forms Sygnal 6.0 **removed** (positional views, `'ACTION | SINK'` keys, `CHILD.select('Name')`): they are errors, and at run time the dev checks report the same forms as [SYG612](/reference/errors/#syg612) whether or not strict mode is on. See [Migrating to 6.0](/guide/migrating-to-6/).
 
 ## The rules
 
 | Code | Canonical form | Flagged | Static | Runtime | `--fix` |
 |---|---|---|---|---|---|
-| [SYG501](/reference/errors/#syg501) | `function C({ state, context, ...props })` | positional `(props, state, context)` view arguments | yes | yes | no |
+| [SYG501](/reference/errors/#syg501) | `function C({ state, context, ...props })` | positional `(props, state, context)` view arguments (removed in 6.0) | yes | SYG612 | no |
 | [SYG502](/reference/errors/#syg502) | Retired in 6.0 | — (see [below](#syg502-retired-in-60)) | — | — | — |
 | [SYG503](/reference/errors/#syg503) | `ACTION: { EFFECT: (state, data, next) => { … } }` | a STATE reducer that runs a side effect and returns `ABORT` | yes (heuristic) | no | no |
-| [SYG504](/reference/errors/#syg504) | `ACTION: { SINK: fn }` | `'ACTION \| SINK'` shorthand keys | yes | yes | yes |
+| [SYG504](/reference/errors/#syg504) | `ACTION: { SINK: fn }` | `'ACTION \| SINK'` shorthand keys (removed in 6.0) | yes | SYG612 | yes |
 | [SYG505](/reference/errors/#syg505) | `ACTION: { EVENTS: event('TYPE', fn) }` | `emit('TYPE', fn)` and a raw `EVENTS: s => ({ type, data })` | yes | no | yes |
-| [SYG506](/reference/errors/#syg506) | `CHILD.select(ChildFn)` | `CHILD.select('ChildName')` | yes | no | yes, when the name is in scope |
+| [SYG506](/reference/errors/#syg506) | `CHILD.select(ChildFn)` | `CHILD.select('ChildName')` (removed in 6.0) | yes | SYG612 | yes, when the name is in scope |
 | [SYG507](/reference/errors/#syg507) | `.context` for data that crosses levels | a prop passed on unchanged through 3 component levels | yes (info) | no | no |
 | [SYG508](/reference/errors/#syg508) | reply actions `{ url, ok: 'LOADED', error: 'FAILED' }` | `HTTP.select('c')` / `HTTP.errors('c')` reading back the component's own `category: 'c'` request | yes | yes | no |
 
-All strict findings are warnings, except SYG507, which is info.
+Strict findings are warnings, except SYG501, SYG504 and SYG506, which are errors (the forms no longer work), and SYG507, which is info.
 
-Strict mode also raises one non-strict code: [SYG106](/reference/errors/#syg106) (a parent prop named `state`, `children`, `slots`, `context`, `peers` or `uid` that the view overwrites) is an **error** instead of a warning while runtime strict mode is on. SYG106 is a runtime check of `sygnal/diagnostics`; `sygnal-check` has no static rule for it.
+Strict mode also raises one non-strict code: [SYG106](/reference/errors/#syg106) (a parent prop named `state`, `children`, `slots`, `context` or `uid` that the view overwrites) is an **error** instead of a warning while runtime strict mode is on. SYG106 is a runtime check of `sygnal/diagnostics`; `sygnal-check` has no static rule for it.
 
-### SYG501: destructure the view's first argument
+### SYG501: destructure the view's argument (removed form)
 
 ```jsx
 // Flagged:
@@ -55,7 +55,7 @@ Player.model = {
 }
 ```
 
-### SYG504: object form for every non-STATE sink
+### SYG504: object form for every non-STATE sink (removed form)
 
 ```jsx
 TaskCard.model = {
@@ -81,7 +81,7 @@ Lane.model = {
 }
 ```
 
-### SYG506: select children by component reference
+### SYG506: select children by component reference (removed form)
 
 ```jsx
 import TaskCard from './TaskCard.jsx'
@@ -92,7 +92,7 @@ Lane.intent = ({ CHILD }) => ({
 })
 ```
 
-A string name breaks when a minifier renames the function.
+6.0 matches children by their function only; a string name never matches (and broke under minification before).
 
 ### SYG507: use context for data that travels down
 
@@ -182,14 +182,14 @@ import { renderComponent } from 'sygnal'
 
 const t = renderComponent(Lane, { strict: true })
 await t.ready()
-t.expectNoDiagnostics()   // fails on SYG501/504/508 (and SYG106) as well
+t.expectNoDiagnostics()   // fails on SYG508 (and SYG106) as well; SYG612 always
 t.dispose()               // restores the previous strict setting
 ```
 
 ## Limits
 
-- The runtime only checks what it can detect reliably: SYG501, SYG504 and SYG508. SYG503, SYG505, SYG506 and SYG507 are static only (`sygnal-check --strict`), because at runtime `emit()` and `{ EVENTS }` look the same, a side effect looks like any other call, and `CHILD.select()` arguments aren't visible.
-- SYG501 at runtime uses the view's declared arity, so a default value or a rest parameter (`(props, state = {})`) can hide a positional use. The static rule doesn't have this gap.
+- The runtime strict check is SYG508. SYG503, SYG505 and SYG507 are static only (`sygnal-check --strict`), because at runtime `emit()` and `{ EVENTS }` look the same and a side effect looks like any other call. The removed forms (SYG501, SYG504, SYG506 statically) are SYG612 at run time.
+- SYG612 for a positional view uses the view's declared arity, so a default value or a rest parameter (`(props, state = {})`) can hide a positional use. The static SYG501 rule doesn't have this gap.
 - Every runtime switch (`run(App, drivers, { diagnostics: { strict: true } })`, `configureStrict(true)`, `globalThis.__SYGNAL_STRICT__ = true`, the Vite plugin's `diagnostics.strict`, `renderComponent(C, { strict: true })`) needs the `sygnal/diagnostics` entry loaded; the Vite plugin and its Vitest setup add it for you.
 - The strict codes' severities are registered by the `sygnal/diagnostics` entry, so `getCodeInfo('SYG501')` only returns them once that entry is loaded.
 - SYG503 is a heuristic: it looks for a call whose result is unused on the path to `return ABORT`.

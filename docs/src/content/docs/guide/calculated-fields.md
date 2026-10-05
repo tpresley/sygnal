@@ -73,15 +73,9 @@ Component.calculated = {
 }
 ```
 
-## Controlling Storage
+## Storage
 
-By default, calculated fields are stored in the actual state, recomputed on every change, including a change made by a child component or Collection item through its `state` / `from` slice. So the state stream, devtools and a test's `t.state` always see current values. To prevent this:
-
-```jsx
-UserProfile.storeCalculatedInState = false
-```
-
-When set to `false`, calculated fields are still available in the view and reducers but don't persist in the state tree. This is useful when calculated values are expensive or transient.
+Calculated fields are stored in the actual state, recomputed on every change, including a change made by a child component or Collection item through its `state` / `from` slice. So the state stream, devtools and a test's `t.state` always see current values. A value only the view needs can be computed in the view instead. (6.0 removed the `storeCalculatedInState` switch; see [Migrating to 6.0](/guide/migrating-to-6/#storecalculatedinstate).)
 
 ## Name Collision Warning
 

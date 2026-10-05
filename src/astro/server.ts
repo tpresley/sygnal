@@ -6,8 +6,7 @@ import onError from 'virtual:sygnal/astro-on-error'
 function looksLikeSygnalComponent(Component: any): boolean {
   if (typeof Component !== 'function') return false
   return Boolean(
-    Component.isSygnalComponent ||
-      Component.model ||
+    Component.model ||
       Component.intent ||
       Component.initialState ||
       Component.componentName

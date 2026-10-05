@@ -1,4 +1,4 @@
-// PLAN-4.6 R2-R4: the next core's resolver for lazy components, registered on import (D157)
+// the core's resolver for lazy components, registered on import (D157)
 import './core/markers/lazy';
 
 export function lazy(loadFn: () => Promise<any>): any {
@@ -28,9 +28,8 @@ export function lazy(loadFn: () => Promise<any>): any {
       cachedComponent = mod.default || mod;
       (LazyWrapper as any).__sygnalLazyLoadedComponent = cachedComponent;
       // Copy static properties so the component works on next render
-      const statics = ['model', 'intent', 'hmrActions', 'context', 'peers', 'components',
-        'initialState', 'calculated', 'storeCalculatedInState', 'DOMSourceName',
-        'stateSourceName', 'onError', 'debug', 'componentName', 'connections', 'resources', 'route', 'head', 'uses', 'timers', 'persist', 'viewTransitions'];
+      const statics = ['model', 'intent', 'context', 'initialState', 'calculated', 'isolatedState',
+        'onError', 'debug', 'componentName', 'connections', 'resources', 'route', 'head', 'uses', 'timers', 'persist', 'viewTransitions'];
       for (const key of statics) {
         if (cachedComponent[key] !== undefined && (LazyWrapper as any)[key] === undefined) {
           (LazyWrapper as any)[key] = cachedComponent[key];

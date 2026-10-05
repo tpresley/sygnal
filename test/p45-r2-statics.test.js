@@ -5,13 +5,14 @@
 //   in dev. A wrapper-built initial state is marked owned() and left alone.
 // - G-280: `component({ view, model, initialState })` (options rather than statics on the view)
 //   was no longer frozen at all. The options given to component() are frozen like statics.
+//   (R5: component() is gone; defineComponent() assigns the options as statics, so they are.)
 import { describe, it, expect, afterEach, vi } from 'vitest'
 import { setupChecks } from './diagnostics/helpers.js'
 import { _resetDiagnostics } from '../src/extra/diagnostics/index.js'
 
 vi.mock('sygnal', async () => await import('../src/index.ts'))
 
-const { run, component } = await import('../src/index.ts')
+const { run, defineComponent } = await import('../src/index.ts')
 const { createElement: h } = await import('../src/pragma/index.js')
 const { defineElement } = await import('../src/element.ts')
 const { renderComponent } = await import('../src/extra/testing.ts')
@@ -80,12 +81,12 @@ describe('P45-R2 G-275: wrapper-built initial state is not frozen', () => {
   })
 })
 
-describe('P45-R2 G-280: component() options are frozen like statics', () => {
-  it('component({ view, model, initialState }): initialState deeply, model at the top level', async () => {
+describe('P45-R2 G-280: defineComponent() options are frozen like statics (R5: was component())', () => {
+  it('defineComponent({ view, model, initialState }): initialState deeply, model at the top level', async () => {
     setupChecks()
     const initialState = { items: [1], nested: { a: 1 } }
     const model = { ADD: (s) => ({ ...s, items: [...s.items, 2] }) }
-    const C = component({ name: 'C', view: List, model, initialState })
+    const C = defineComponent({ name: 'C', view: List, model, initialState })
     document.body.innerHTML = '<div id="root"></div>'
     const app = run(C, {}, { mountPoint: '#root', diagnostics: 'collect' })
     cleanups.push(() => app.dispose())

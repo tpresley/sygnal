@@ -1,5 +1,5 @@
 // SYG501: views that use the positional (props, state, context) arguments.
-function Counter(props, state) { // expect: SYG501
+function Counter(props, state) { // expect: SYG501 error
   return (
     <div className="counter">
       <button className="inc">+</button>
@@ -11,10 +11,10 @@ function Counter(props, state) { // expect: SYG501
 }
 
 // a plain function rendered as a component tag is checked too
-const Badge = ({ label }, state, context) => <i className={context.theme}>{label}{state.count}</i> // expect: SYG501
+const Badge = ({ label }, state, context) => <i className={context.theme}>{label}{state.count}</i> // expect: SYG501 error
 
 // a first-param name starting with _ is dropped from the rewrite
-function Panel(_props, { count }) { // expect: SYG501
+function Panel(_props, { count }) { // expect: SYG501 error
   return <section>{count}</section>
 }
 

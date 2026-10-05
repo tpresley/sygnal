@@ -231,7 +231,7 @@ export function makeFetchDriver(options: any = {}) {
         errors: make(true),
         isolateSource: (_: any, scope: any) => source(ns.concat(scope)),
         isolateSink: (sink$: any, scope: any) => sink$.map((req: any) => tagRequest(req, scope)),
-        // PLAN-4.6: the same per value (the next core scopes a request without a stream per instance)
+        // PLAN-4.6: the same per value (the core scopes a request without a stream per instance)
         isolateValue: tagRequest,
         // the core sends a component's `resources` static here (PLAN-3 3-A)
         __sygnalStatic: 'resources',

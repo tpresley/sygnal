@@ -8,10 +8,8 @@ import onError from 'virtual:sygnal/astro-on-error'
 
 interface SygnalComponent {
   (args: any): any;
-  isSygnalComponent?: boolean;
   model?: any;
   intent?: any;
-  hmrActions?: any;
   connections?: any;
   resources?: any;
   route?: any;
@@ -21,13 +19,8 @@ interface SygnalComponent {
   timers?: any;
   viewTransitions?: any;
   context?: any;
-  peers?: any;
-  components?: any;
   initialState?: any;
   calculated?: any;
-  storeCalculatedInState?: any;
-  DOMSourceName?: string;
-  stateSourceName?: string;
   onError?: (error: Error, info: { componentName: string }) => any;
   debug?: boolean;
   componentName?: string;
@@ -41,8 +34,7 @@ interface AstroMetadata {
 function looksLikeSygnalComponent(Component: any): Component is SygnalComponent {
   if (typeof Component !== 'function') return false
   return Boolean(
-    Component.isSygnalComponent ||
-      Component.model ||
+    Component.model ||
       Component.intent ||
       Component.initialState ||
       Component.componentName
@@ -73,15 +65,9 @@ export default (element: any) => {
     const Wrapped: any = (args: any) => Component({ ...islandProps, ...args, props: islandProps })
     Wrapped.model = Component.model
     Wrapped.intent = Component.intent
-    Wrapped.hmrActions = Component.hmrActions
     Wrapped.context = Component.context
-    Wrapped.peers = Component.peers
-    Wrapped.components = Component.components
     Wrapped.initialState = Component.initialState
     Wrapped.calculated = Component.calculated
-    Wrapped.storeCalculatedInState = Component.storeCalculatedInState
-    Wrapped.DOMSourceName = Component.DOMSourceName
-    Wrapped.stateSourceName = Component.stateSourceName
     Wrapped.onError = Component.onError
     Wrapped.debug = Component.debug
     Wrapped.connections = Component.connections

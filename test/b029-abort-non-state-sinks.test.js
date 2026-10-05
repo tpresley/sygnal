@@ -57,6 +57,7 @@ describe('B-029: ABORT from non-STATE sinks is silent', () => {
     expect(err.mock.calls.filter(c => /SYG21[68]/.test(String(c[0])))).toEqual([])
   })
 
+  // G-334 (R5): kept behaviour, ported from an 'ACTION | SINK' key to the object form (D164)
   it('custom driver sink: a conditional ABORT sends nothing to the driver, with no diagnostics', async () => {
     const err = vi.spyOn(console, 'error').mockImplementation(() => {})
     const sent = []
@@ -65,7 +66,7 @@ describe('B-029: ABORT from non-STATE sinks is silent', () => {
     App.initialState = { n: 0 }
     App.model = {
       SAVE: { API: (s, d) => (d ? { save: d } : ABORT) },
-      'QUICK | API': (s, d) => (d ? { quick: d } : ABORT), // shorthand path
+      QUICK: { API: (s, d) => (d ? { quick: d } : ABORT) },
     }
     t = renderComponent(App, { drivers: { API } })
     t.simulateAction('SAVE', 0)
@@ -83,7 +84,7 @@ describe('B-029: ABORT from non-STATE sinks is silent', () => {
     let ran = 0
     function App(p) { return view(p) }
     App.initialState = { n: 0 }
-    App.model = { 'POKE | EFFECT': () => { ran++; return ABORT } }
+    App.model = { POKE: { EFFECT: () => { ran++; return ABORT } } }
     t = renderComponent(App)
     t.simulateAction('POKE')
     await t.settle()

@@ -6,12 +6,11 @@
 // overwrites the slice, and still runs the removed forms).
 import { describe, it, expect, afterEach, beforeEach } from 'vitest'
 import '../src/extra/diagnostics/checks/index.js'
-import { run, createElement as h, Collection, xs, component } from '../src/index.js'
+import { run, createElement as h, Collection, xs, defineComponent } from '../src/index.js'
 import { configureDiagnostics, getDiagnostics, clearDiagnostics } from '../src/extra/diagnostics/index.js'
 import { resetChecks } from '../src/extra/diagnostics/checks/index.js'
 
-const NEXT = process.env.SYGNAL_CORE == 'next'
-const d = NEXT ? describe : describe.skip
+const d = describe
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 let apps = []
 beforeEach(() => { clearDiagnostics(); resetChecks() })
@@ -111,10 +110,10 @@ d('SYG612: a form 6.0 removed, met at runtime (D173), once each, with the migrat
     await sleep(20)
     expect(forms()).toEqual(['child-select-name', 'collection-of-name'])
   })
-  it('the component() factory as the root', async () => {
-    const App = component({ name: 'Fac', view: () => h('div', null, 'f'), initialState: {} })
+  it('defineComponent() (the factory\'s replacement, R5) makes an ordinary function component: nothing to report', async () => {
+    const App = defineComponent({ name: 'Fac', view: () => h('div', null, 'f'), initialState: {} })
     start(App)
     await sleep(20)
-    expect(forms()).toContain('component-factory')
+    expect(forms()).toEqual([])
   })
 })

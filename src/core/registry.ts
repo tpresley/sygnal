@@ -1,5 +1,5 @@
 /**
- * PLAN-4.6 next core: the module registries (04-hooks-contract §2.1). A feature module fills them
+ * PLAN-4.6 core: the module registries (04-hooks-contract §2.1). A feature module fills them
  * when it is imported; the core only looks them up, so an app that never imports the module pays
  * nothing (D157). R2 fills hosts (core/hosts: Collection, Switchable) and the markers
  * (core/markers: Portal, Transition, ClientOnly, Suspense, lazy), each imported by its public

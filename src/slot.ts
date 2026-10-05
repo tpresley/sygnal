@@ -4,7 +4,7 @@ const Slot = (props: any) => {
   const {children, ...sanitizedProps} = props;
   return h('slot', {props: sanitizedProps}, children);
 };
-(Slot as any).label = 'slot';
+(Slot as any).componentName = 'slot';
 (Slot as any).preventInstantiation = true;
 
 export {Slot};

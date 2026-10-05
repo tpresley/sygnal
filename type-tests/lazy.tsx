@@ -43,5 +43,7 @@ Chart.initialState = undefined
 
 // Still assignable where a Component is expected
 const asComponent: Component<any, ChartProps> = Chart
+// (R5: .components was removed, D163)
+// @ts-expect-error a component has no .components registry
 Page.components = { Settings }
 void asComponent

@@ -110,49 +110,6 @@ export async function disposalTests() {
     delete window.__disposeStateCapture
   })
 
-  // Test: DISPOSE with model shorthand
-  await runTest(CAT, "'DISPOSE | EFFECT' shorthand fires on removal", async () => {
-    const { id, el } = mount()
-
-    window.__shorthandDisposeRan = false
-
-    function Child({ state } = {}) {
-      return <div className="sh-child">Child</div>
-    }
-    Child.model = {
-      'DISPOSE | EFFECT': () => { window.__shorthandDisposeRan = true },
-    }
-
-    function App({ state }) {
-      return (
-        <div>
-          <button className="sh-toggle">Toggle</button>
-          {state.show ? <Child state="c" /> : <div className="sh-gone">Gone</div>}
-        </div>
-      )
-    }
-
-    App.initialState = { show: true, c: {} }
-    App.intent = ({ DOM }) => ({
-      TOGGLE: DOM.click('.sh-toggle'),
-    })
-    App.model = {
-      TOGGLE: (state) => ({ ...state, show: !state.show }),
-    }
-
-    run(App, {}, { mountPoint: id })
-
-    await waitFor(() => el.querySelector('.sh-child'))
-    assert(window.__shorthandDisposeRan === false, 'Shorthand DISPOSE should not fire yet')
-
-    el.querySelector('.sh-toggle').click()
-    await waitFor(() => el.querySelector('.sh-gone'))
-    await wait(100)
-    assert(window.__shorthandDisposeRan === true, 'Shorthand DISPOSE EFFECT should fire on removal')
-
-    delete window.__shorthandDisposeRan
-  })
-
   // Test: DISPOSE fires for Collection items when removed
   await runTest(CAT, 'DISPOSE fires for Collection items removed from array', async () => {
     const { id, el } = mount()

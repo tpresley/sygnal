@@ -89,8 +89,6 @@ describe('vite-plugin-sygnal', () => {
       const result = serveConfig(plugin, { command: 'build' })
       expect(result).toEqual({
         ssr: { noExternal: ['sygnal'] },
-        // PLAN-4.6 D175: production builds strip the next core
-        define: { __SYGNAL_NEXT_CORE__: 'false' },
         resolve: RESOLVE,
         oxc: {
           jsx: {

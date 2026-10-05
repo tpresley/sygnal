@@ -69,8 +69,8 @@ export function defineElement(tag: string, Component: any, options: ElementOptio
     swap(Component); // HMR: the defining module ran again
     return prior!;
   }
-  if (typeof Component !== 'function' || Component.isSygnalComponent) {
-    throw new TypeError(`defineElement('${tag}'): pass a plain function component (not a component() result)`);
+  if (typeof Component !== 'function') {
+    throw new TypeError(`defineElement('${tag}'): pass a function component`);
   }
 
   const types: Record<string, ElementPropType> = Array.isArray(options.props)
@@ -185,18 +185,15 @@ export function defineElement(tag: string, Component: any, options: ElementOptio
     // Hot swap (defineElement again for this tag): the new component, this element's state
     #swap() {
       if (!this.#app) return;
-      // (PLAN-4.6 next core: the state through the runtime API, 04 §3.9)
-      const rt = (this.#app as any).__runtime;
-      this.#app.hmr(this.#component(), rt ? rt.getState() : this.#app.sources.STATE.stream._v);
+      // (the state through the runtime API, 04 §3.9)
+      this.#app.hmr(this.#component(), (this.#app as any).__runtime.getState());
       this.#releaseDevtools();
     }
 
     #setProp(name: string, value: any) {
       this.#props[name] = value;
       const set = (state: any) => ({...state, [name]: value});
-      const rt = (this.#app as any)?.__runtime;
-      if (rt) rt.setState('root', set);
-      else this.#app?.sinks.STATE.shamefullySendNext(set);
+      (this.#app as any)?.__runtime?.setState('root', set);
     }
 
     // A per-instance copy of the component whose initialState includes the current props

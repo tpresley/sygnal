@@ -16,16 +16,16 @@ Panel.isolatedState = true
 // @ts-expect-error isolatedState is a boolean
 Panel.isolatedState = 'yes'
 
-// ─── idfield ────────────────────────────────────────────────────────────────
+// ─── idfield (removed in 6.0, D164) ─────────────────────────────────────────
 
-type Row = { key: string; label: string }
+type Row = { id: string; label: string }
 type ListState = { rows: Row[] }
 const RowView: Component<Row> = ({ state }) => <li>{state.label}</li>
 
-const ok: CollectionProps<{}, ListState> = { of: RowView, from: 'rows', idfield: 'key' }
-// @ts-expect-error idfield is a field name (string)
-const bad: CollectionProps<{}, ListState> = { of: RowView, from: 'rows', idfield: 1 }
+const ok: CollectionProps<{}, ListState> = { of: RowView, from: 'rows' }
+// @ts-expect-error idfield was removed: items are keyed by their id field
+const bad: CollectionProps<{}, ListState> = { of: RowView, from: 'rows', idfield: 'key' }
 void ok; void bad
 
-const List: Component<ListState> = () => <ul><Collection of={RowView} from="rows" idfield="key" /></ul>
+const List: Component<ListState> = () => <ul><Collection of={RowView} from="rows" /></ul>
 void List

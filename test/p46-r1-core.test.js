@@ -1,11 +1,10 @@
 // @vitest-environment jsdom
-// PLAN-4.6 R1: the next core's own contracts, through run() with the internal options (hooks,
-// the runtime API) and public drivers. Next core only (SYGNAL_CORE=next, npm run test:next): the
-// current core has no hooks. The behaviour both cores share is in test/parity/.
+// PLAN-4.6 R1: the core's own contracts, through run() with the internal options (hooks, the
+// runtime API) and public drivers (R1-R4 ran them on the new core only; one core since R5). The
+// public behaviour is in test/parity/.
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { run, createElement as h, makeDOMDriver, xs } from '../src/index.js'
 
-const NEXT = globalThis.__SYGNAL_CORE__ === 'next'
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const ticks = async (n = 20) => { for (let i = 0; i < n; i++) await Promise.resolve() }
 
@@ -21,7 +20,7 @@ function mount(App, drivers = {}, options = {}) {
 }
 const click = (el) => el.dispatchEvent(new MouseEvent('click', { bubbles: true }))
 
-describe.skipIf(!NEXT)('PLAN-4.6 R1 next core: hooks (04-hooks-contract §2.2)', () => {
+describe('PLAN-4.6 R1 next core: hooks (04-hooks-contract §2.2)', () => {
   it('lifetime, action and render hooks fire in the contract order, with InstanceViews', async () => {
     const log = []
     function Kid({ state }) { return h('i', { className: 'k' }, String(state.v)) }
@@ -111,7 +110,7 @@ describe.skipIf(!NEXT)('PLAN-4.6 R1 next core: hooks (04-hooks-contract §2.2)',
   })
 })
 
-describe.skipIf(!NEXT)('PLAN-4.6 R1 next core: tag children and cells', () => {
+describe('PLAN-4.6 R1 next core: tag children and cells', () => {
   it('state="key", a lens, isolatedState (local; with a key: a default while the slice is missing)', async () => {
     function Show({ state }) { return h('i', { className: 'v' }, JSON.stringify(state)) }
     Show.intent = ({ DOM }) => ({ BUMP: DOM.click('.v') })
@@ -172,7 +171,7 @@ describe.skipIf(!NEXT)('PLAN-4.6 R1 next core: tag children and cells', () => {
   })
 })
 
-describe.skipIf(!NEXT)('PLAN-4.6 R1 next core: sink scoping, context tracking', () => {
+describe('PLAN-4.6 R1 next core: sink scoping, context tracking', () => {
   const driver = (withValue) => (sink$) => {
     const got = []
     sink$.addListener({ next: (v) => got.push(v) })

@@ -12,7 +12,7 @@ import { describe, it, expect, afterEach, vi } from 'vitest'
 import { renderComponent } from '../src/extra/testing.js'
 import { createElement as h } from '../src/pragma/index.js'
 import { Collection } from '../src/index.js'
-import { ABORT } from '../src/component.js'
+import { ABORT } from '../src/shared.js'
 import { _resetDiagnostics } from '../src/extra/diagnostics/index.js'
 
 let t

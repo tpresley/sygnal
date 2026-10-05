@@ -9,7 +9,7 @@
  * xstream equivalent and the SYG301 docs link. The error is also reported
  * (collected / printed per the diagnostics mode; in 'error' mode report()
  * throws the DiagnosticError itself). It works anywhere a stream is used
- * (intent, peers, drivers), with no hook in component.ts.
+ * (intent, peers, drivers), with no hook in the core.
  *
  * Caveat: `typeof stream.pipe === 'function'` is true while this entry is
  * loaded (dev only).

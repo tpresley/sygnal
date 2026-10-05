@@ -1,7 +1,8 @@
-import { describe, it, expect } from 'vitest'
+// @vitest-environment jsdom
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import processDrag from '../src/extra/processDrag.js'
 import processForm from '../src/extra/processForm.js'
-import collection from '../src/collection.js'
+import { run, createElement as h, Collection } from '../src/index.js'
 
 
 describe('input validation', () => {
@@ -84,34 +85,31 @@ describe('input validation', () => {
   })
 
 
-  describe('collection', () => {
-    it('throws when component is not a function', () => {
-      expect(() => collection('not-a-function', {})).toThrow(
-        'collection: first argument (component) must be a function'
-      )
-    })
+  // R5: the collection() factory is gone; <Collection of={...}> is validated by the core (SYG411):
+  // the owner renders its error fallback
+  describe('Collection of', () => {
+    let app
+    afterEach(() => { app?.dispose(); app = undefined; document.body.innerHTML = ''; vi.restoreAllMocks() })
+    const render = async (of) => {
+      vi.spyOn(console, 'error').mockImplementation(() => {})
+      document.body.innerHTML = '<div id="root"></div>'
+      function App() { return h('div', null, h(Collection, { of, from: 'items' })) }
+      App.initialState = { items: [{ id: 1 }] }
+      app = run(App)
+      await app.__runtime.flushed()
+      return console.error.mock.calls.filter((c) => String(c[0]).includes('SYG411'))
+    }
 
-    it('throws when component is null', () => {
-      expect(() => collection(null, {})).toThrow(
-        'collection: first argument (component) must be a function'
-      )
-    })
+    for (const [label, of] of [['a string', 'not-a-function'], ['null', null], ['an object', {}], ['undefined', undefined]]) {
+      it(`reports SYG411 when of is ${label}`, async () => {
+        expect((await render(of)).length).toBeGreaterThan(0)
+        expect(document.querySelector('[data-sygnal-error]')).toBeTruthy()
+      })
+    }
 
-    it('throws when component is an object', () => {
-      expect(() => collection({}, {})).toThrow(
-        'collection: first argument (component) must be a function'
-      )
-    })
-
-    it('throws when component is undefined', () => {
-      expect(() => collection(undefined, {})).toThrow(
-        'collection: first argument (component) must be a function'
-      )
-    })
-
-    it('does not throw when component is a function', () => {
-      const mockComponent = () => ({})
-      expect(() => collection(mockComponent, 'items')).not.toThrow()
+    it('does not report when of is a component function', async () => {
+      expect(await render(() => h('i', null, 'item'))).toEqual([])
+      expect(document.querySelector('i').textContent).toBe('item')
     })
   })
 })

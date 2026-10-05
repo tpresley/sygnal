@@ -13,16 +13,14 @@
  *
  * | Code   | Rule (canonical form)                    | Runtime mechanism                       |
  * |--------|------------------------------------------|-----------------------------------------|
- * | SYG501 | C1 destructure the view's first argument | onModel: component.view.length > 1      |
- * | SYG502 | retired in 6.0 (PLAN-4 GS-4): returning the state object a reducer got is "no      |
- * |        | change", the same as ABORT. Never reported; the code entry stays (documented).   |
- * | SYG504 | C5 object form, no 'ACTION | SINK' keys  | onModel: raw model keys containing '|'  |
  * | SYG508 | reply actions, not select()/errors()     | replies.ts: a request with a category   |
  * |        | round trip (PLAN-3 §1.1)                 | the same instance select()ed on a       |
  * |        |                                          | reply-capable source                    |
- * | SYG503, SYG505, SYG506, SYG507: static only (sygnal-check --strict); the
- *   runtime can't tell emit() from { EVENTS }, a side effect from a pure
- *   reducer, or see CHILD.select() arguments without a core hook.
+ *
+ * SYG501 (positional views) and SYG504 ('ACTION | SINK' keys) are forms Sygnal 6.0 removed
+ * (D164): at run time they are SYG612 (checks/next.ts, strict or not); `sygnal-check --strict`
+ * still reports them under their own codes, with --fix. SYG502 is retired (PLAN-4 GS-4). SYG503,
+ * SYG505, SYG506, SYG507: static only (sygnal-check --strict).
  *
  * Every finding is reported once per component name (+ action / key).
  * The SYG5xx severities are registered here (registerCodes) and passed
@@ -31,7 +29,7 @@
 import type {DiagnosticCheck} from '../index'
 import {CODE_TITLES, STRICT_CODE_SEVERITY, registerCodes} from '../codes'
 import type {DiagnosticSeverity} from '../codes'
-import {bridge, report, once, nameOf} from './shared'
+import {bridge} from './shared'
 
 registerCodes(Object.keys(STRICT_CODE_SEVERITY).map(code =>
   [code, STRICT_CODE_SEVERITY[code], CODE_TITLES[code]] as [string, DiagnosticSeverity, string]))
@@ -51,48 +49,7 @@ export function isStrictEnabled(): boolean {
   return flag === undefined ? (globalThis as any).__SYGNAL_STRICT__ === true : flag === true
 }
 
-const strictReport = (code: string, details: Parameters<typeof report>[1]) =>
-  report(code, {severity: STRICT_CODE_SEVERITY[code], ...details})
-
+/** The strict check's runtime half is SYG508 (replies.ts); this entry keeps the flag. */
 export const strictCheck: DiagnosticCheck = {
   id: 'strict',
-
-  onModel(component) {
-    // PLAN-4.6 R4: on the next core, positional views and 'A | S' keys are removed forms (D164),
-    // reported by checks/next.ts (D173: SYG612) whether or not strict is on
-    if (!isStrictEnabled() || !component || component.__next) return
-    const name = nameOf(component)
-
-    // SYG501 — view(props, state, context, peers): positional use of the 2nd+ args.
-    // (A default value or a rest parameter stops Function.length, so this can
-    // miss `(props, state = {})`, but it never flags a single-argument view.)
-    const view = component.view
-    if (typeof view === 'function' && view.length > 1 && !view.__sygnalLazy && once(`SYG501:${name}`)) {
-      const extra = ['state', 'context', 'peers'].slice(0, view.length - 1)
-      strictReport('SYG501', {
-        component,
-        message: `The view takes ${view.length} positional arguments (props, ${extra.join(', ')})`,
-        fix: `Destructure the first argument instead: function ${name}({ ${extra.join(', ')}, ...props })`,
-        data: {arity: view.length},
-      })
-    }
-
-    // SYG504 — 'ACTION | SINK' shorthand keys
-    const model = component.model
-    if (!model || typeof model !== 'object') return
-    for (const key of Object.keys(model)) {
-      if (!key.includes('|')) continue
-      const [action, sink] = key.split('|').map(s => s.trim())
-      if (!action || !sink || !once(`SYG504:${name}:${key}`)) continue
-      const rewrite = sink === 'EVENTS'
-        ? `${action}: { EVENTS: event('TYPE', (state, data) => payload) }`
-        : `${action}: { ${sink}: (state, data, next) => ... }`
-      strictReport('SYG504', {
-        component,
-        message: `Model key '${key}' uses the 'ACTION | SINK' shorthand`,
-        fix: `Use the object form: ${rewrite} (merge it into an existing '${action}' entry if there is one)`,
-        data: {key, action, sink},
-      })
-    }
-  },
 }

@@ -1,5 +1,5 @@
 /**
- * PLAN-4.6 next core: running one action (03-proposal §3, 04 §2.4.1).
+ * PLAN-4.6 core: running one action (03-proposal §3, 04 §2.4.1).
  *
  * The action's handlers run in model order with (pre, data, next, props), where `pre` is the
  * state (calculated fields included) from before the action, for every sink:

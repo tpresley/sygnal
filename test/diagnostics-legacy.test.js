@@ -17,8 +17,6 @@ import { getCodeInfo } from '../src/extra/diagnostics/codes.js'
 import { renderComponent } from '../src/extra/testing.js'
 import { createElement } from '../src/pragma/index.js'
 import { until } from './support/wait.js'
-import collection from '../src/collection.js'
-import switchable from '../src/switchable.js'
 
 const settle = (ms = 60) => new Promise(r => setTimeout(r, ms))
 
@@ -142,7 +140,8 @@ describe('fail()', () => {
 
 describe('retrofitted call sites', () => {
   it('every SYG code used in the retrofitted files is registered', () => {
-    const files = ['component.ts', 'collection.ts', 'switchable.ts', 'pragma/index.ts']
+    // (R5: the core's modules; component.ts and the collection()/switchable() factories are gone)
+    const files = ['core/define.ts', 'core/instance.ts', 'core/runtime.ts', 'core/actions.ts', 'core/cell.ts', 'core/statics.ts', 'core/hosts/collection.ts', 'core/hosts/switchable.ts', 'pragma/index.ts']
     const used = new Set()
     for (const f of files) {
       const src = readFileSync(new URL(`../src/${f}`, import.meta.url), 'utf8')
@@ -151,14 +150,6 @@ describe('retrofitted call sites', () => {
     expect(used.size).toBeGreaterThan(30)
     const missing = [...used].filter(c => !getCodeInfo(c) || !getCodeInfo(c).title)
     expect(missing).toEqual([])
-  })
-
-  it('collection() and switchable() argument errors carry codes', () => {
-    expect(() => collection(null, {})).toThrow('[Sygnal SYG411] collection: first argument (component) must be a function')
-    let thrown
-    try { switchable({}, undefined, '') } catch (e) { thrown = e }
-    expect(thrown.code).toBe('SYG419')
-    expect(() => switchable({}, 42, '')).toThrow('[Sygnal SYG419]')
   })
 
   it('a throwing view prints SYG406 with the original error in off mode', async () => {

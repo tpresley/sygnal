@@ -227,4 +227,3 @@ function renderToString(
 - **No requests** — drivers don't run, so `resources` render as `'loading'` unless the `cache` option has them; seed it in a loader with `cache.set(request, data)` and send `cache.dehydrate()` to the client ([Server rendering](/guide/resources/#server-rendering)).
 - **Refs are not populated** — No DOM exists, so `createRef()` objects remain `{ current: null }`.
 - **Lazy components** — `lazy()` wrappers render their loading placeholder. For SSR, import components directly instead.
-- **Factory components** — Components created via the `component()` factory (with `isSygnalComponent`) render a placeholder `<div>` since the view function can't be extracted from the wrapped factory.

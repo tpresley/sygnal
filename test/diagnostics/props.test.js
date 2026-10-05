@@ -18,14 +18,14 @@ function parentRendering(childProps) {
 }
 
 describe('SYG106 — reserved prop names', () => {
-  it('reports a prop named context / peers / slots that the view overwrites', async () => {
+  it('reports a prop named context / slots that the view overwrites (R5: not peers, which 6.0 no longer passes)', async () => {
     t = renderComponent(parentRendering({ title: 'a', context: 'mine', peers: 1, slots: 2 }))
     // G-176: the child reports when it is instantiated, which a loaded machine does later than a
     // fixed 120ms (and a late report then leaked into the next test): wait for it
-    await until(() => expect(diagnostics('SYG106')).toHaveLength(3))
+    await until(() => expect(diagnostics('SYG106')).toHaveLength(2))
     await settle(120)
     const found = diagnostics('SYG106')
-    expect(found.map(d => d.data.prop).sort()).toEqual(['context', 'peers', 'slots'])
+    expect(found.map(d => d.data.prop).sort()).toEqual(['context', 'slots'])
     expect(found[0].severity).toBe('warn')
     expect(found[0].component).toBe('Card')
   })

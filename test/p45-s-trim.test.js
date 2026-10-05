@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// P45-S: the byte trim rewrote three internal paths of src/component.ts without changing their
+// P45-S: the byte trim rewrote three internal paths of the old core without changing their
 // behaviour: the calculated fields' setup (topological order, cycle message, memo), the
 // Collection sort prop, and the Transition hooks. These pin that behaviour on the real code.
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
@@ -7,14 +7,17 @@ import { renderComponent } from '../src/extra/testing.js'
 import { createElement as h } from '../src/pragma/index.js'
 import { Collection } from '../src/collection.js'
 import { run, makeDOMDriver, Transition } from '../src/index.js'
-import component from '../src/component.js'
 
 let t
 afterEach(() => { t?.dispose(); t = null; vi.restoreAllMocks(); vi.unstubAllGlobals() })
 
+// R5: the SYG209 message through run() (the definition is normalized at start), as
+// parity/calculated does; the component() factory is gone
 const cycleMessage = (calculated) => {
+  function C() { return null }
+  C.calculated = calculated
   try {
-    component({ name: 'C', sources: {}, view: () => null, calculated })
+    run(C, {}, { useDefaultDrivers: false }).dispose()
   } catch (e) {
     return e.message
   }

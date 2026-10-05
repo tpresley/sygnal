@@ -1,14 +1,7 @@
-import {setup} from '../cycle/run/index';
-import {withState} from '../cycle/state/index';
-import {makeDOMDriver} from '../cycle/dom/index';
-import eventBusDriver from './eventDriver';
-import logDriver from './logDriver';
-import component, {ABORT, optionsOf} from '../component';
 import {configureDiagnostics, isDiagnosticsEnabled} from './diagnostics/index';
 import {warn} from './diagnostics/legacy';
 import type {DiagnosticsMode, DiagnosticsOptions} from './diagnostics/index';
-import {start as startNext} from '../core/runtime';
-import {NEXT_CORE} from '../core/build';
+import {start} from '../core/runtime';
 
 interface RunDiagnosticsOptions extends DiagnosticsOptions {
   /** Strict (canonical-form) runtime checks; needs the 'sygnal/diagnostics' dev entry (G-036). */
@@ -36,6 +29,8 @@ interface SygnalRunResult {
   sinks: any;
   dispose: () => void;
   hmr?: (newComponent: any, explicitState?: any) => void;
+  /** internal: the app's runtime API (devtools, HMR, sygnal/element, Vike) */
+  __runtime?: any;
 }
 
 function resolveHotModule(incoming: any): any {
@@ -80,168 +75,47 @@ export default function run(
     }
   }
 
-  const {mountPoint = '#root', fragments = true, useDefaultDrivers = true, onError, uid} = options;
-  // PLAN-4.6 R1-R4 (internal, deleted at R5): the next core, selected by a global flag that the
-  // test setup sets from SYGNAL_CORE=next. Not documented, not in the types
-  if (NEXT_CORE && (globalThis as any).__SYGNAL_CORE__ === 'next') {
-    // (R4) an HMR swap: the kept state is the new root's first state, and the instances made at
-    // its start get no BOOTSTRAP (as the current core's `__hmr` source); no 0/20 ms re-sends
-    const started = startNext(app, drivers, {...options, __hooks: (options as any).__hooks, __state: hmrSwap?.s, __swap: !!hmrSwap} as any);
-    liveApps++;
-    let off = false;
-    const exposed: SygnalRunResult = {
-      sources: started.sources,
-      sinks: started.sinks,
-      dispose: () => {
-        if (off) return;
-        off = true;
-        liveApps--;
-        // G-212: unregister from DevTools (a later app, or this app's hot-swapped successor, registers)
-        if (typeof window !== 'undefined' && window.__SYGNAL_DEVTOOLS_APP__ === exposed) window.__SYGNAL_DEVTOOLS_APP__ = undefined;
-        started.dispose();
-        if (strict !== undefined) core.strict = prevStrict;
-      },
-    };
-    (exposed as any).__runtime = started.api;
-    // G-214: the uid option, as the current core's __uid source
-    if (uid !== undefined) Object.defineProperty(exposed.sources, '__uid', {value: uid.replace(/[^\w-]+/g, '_'), enumerable: false, configurable: true});
-    if (typeof window !== 'undefined') window.__SYGNAL_DEVTOOLS_APP__ ||= exposed;
-    // (R4, 04 §3.12) hmr(): this app's current state through the runtime API (runtime.getState(),
-    // no STATE.stream._v), then the new component started with it
-    let current = app;
-    exposed.hmr = (newComponent: any, explicitState?: any) => {
-      const mod = resolveHotModule(newComponent) || {default: current};
-      const state = explicitState !== undefined ? explicitState : (exposed as any).__runtime.getState();
-      if (typeof window !== 'undefined') window.__SYGNAL_HMR_LAST_CAPTURED_STATE = state;
-      const wasRegistered = typeof window !== 'undefined' && window.__SYGNAL_DEVTOOLS_APP__ === exposed;
-      exposed.dispose();
-      current = mod.default;
-      const updated: any = run(current, drivers, options, state === undefined ? undefined : {u: true, s: state});
-      exposed.sources = updated.sources;
-      exposed.sinks = updated.sinks;
-      (exposed as any).__runtime = updated.__runtime;
-      // the registration follows the swap (the successor is this same object)
-      if (typeof window !== 'undefined' && (window.__SYGNAL_DEVTOOLS_APP__ === updated || wasRegistered)) window.__SYGNAL_DEVTOOLS_APP__ = exposed;
-      const d = updated.dispose;
-      exposed.dispose = () => { if (typeof window !== 'undefined' && window.__SYGNAL_DEVTOOLS_APP__ === exposed) window.__SYGNAL_DEVTOOLS_APP__ = undefined; d(); };
-    };
-    return exposed;
-  }
-  if (!app.isSygnalComponent) {
-    app = component(optionsOf(app, app.name || app.componentName || app.label || 'FUNCTIONAL_COMPONENT'));
-  }
-
-  // G-212: no page-wide persisted state. A hot swap sets the new component's initialState
-  // itself (swapToComponent), and hmr() reads this app's own STATE stream.
-
-  const wrapped = withState(app, 'STATE');
-
-  const baseDrivers = useDefaultDrivers
-    ? {
-        EVENTS: eventBusDriver,
-        DOM: makeDOMDriver(mountPoint, {snabbdomOptions: {experimental: {fragments}}} as any),
-        LOG: logDriver,
-        // 3-B2: the mount point, for persist() to tell whether it starts over server markup
-        __m: () => mountPoint,
-      }
-    : {};
-
-  // GS-11: the hook is a source (`__e`) every component inherits, so it is per app. G-206: the
-  // uid root is the root component's `__uid` source (the Component constructor reads it); anything
-  // but [A-Za-z0-9_-] becomes '_' (renderToString's root too)
-  const combinedDrivers = {...baseDrivers, ...drivers, ...(onError && {__e: () => onError}), ...(uid && {__uid: () => uid.replace(/[^\w-]+/g, '_')}), ...(hmrSwap && {__hmr: () => hmrSwap})};
-
-  const {sources, sinks, run: _run} = setup(wrapped, combinedDrivers as any);
-  const rawDispose = _run();
+  const {uid} = options;
+  // (R4) an HMR swap: the kept state is the new root's first state, and the instances made at
+  // its start get no BOOTSTRAP (as the 5.x core's `__hmr` source); no 0/20 ms re-sends
+  const started = start(app, drivers, {...options, __hooks: (options as any).__hooks, __state: hmrSwap?.s, __swap: !!hmrSwap} as any);
   liveApps++;
-  let disposed = false;
-
-  const dispose = () => {
-    if (disposed) return;
-    disposed = true;
-    liveApps--;
-    // G-212: unregister from DevTools (a later app, or this app's hot-swapped successor, registers)
-    if (typeof window !== 'undefined' && window.__SYGNAL_DEVTOOLS_APP__ === exposed) window.__SYGNAL_DEVTOOLS_APP__ = undefined;
-    // Trigger the component's dispose() which fires the DISPOSE action and dispose$ stream
-    if (typeof (sinks as any).__dispose === 'function') {
-      try { (sinks as any).__dispose(); } catch (_) {}
-    }
-    rawDispose();
-    if (strict !== undefined) core.strict = prevStrict;
+  let off = false;
+  const exposed: SygnalRunResult = {
+    sources: started.sources,
+    sinks: started.sinks,
+    dispose: () => {
+      if (off) return;
+      off = true;
+      liveApps--;
+      // G-212: unregister from DevTools (a later app, or this app's hot-swapped successor, registers)
+      if (typeof window !== 'undefined' && window.__SYGNAL_DEVTOOLS_APP__ === exposed) window.__SYGNAL_DEVTOOLS_APP__ = undefined;
+      started.dispose();
+      if (strict !== undefined) core.strict = prevStrict;
+    },
   };
-
-  const exposed: SygnalRunResult = {sources, sinks, dispose};
-
-  // Store app reference for DevTools time-travel (root STATE fallback). G-212: the first
-  // live app on the page keeps it (a second app or a custom element doesn't take it over)
-  if (typeof window !== 'undefined') {
-    window.__SYGNAL_DEVTOOLS_APP__ ||= exposed;
-  }
-
-  const swapToComponent = (newComponent: any, state?: any) => {
-    const resolvedState = typeof state === 'undefined' ? app.initialState : state;
-    // G-216: the swap is this app's (its successor's __hmr source), never page-wide, so an app
-    // constructed meanwhile doesn't take this state; nor is it written into the component's
-    // initialState static, which another app (or a custom element) may share
-    const swap = {u: true, s: resolvedState};
+  (exposed as any).__runtime = started.api;
+  // G-214: the uid option, as the 5.x core's __uid source
+  if (uid !== undefined) Object.defineProperty(exposed.sources, '__uid', {value: uid.replace(/[^\w-]+/g, '_'), enumerable: false, configurable: true});
+  if (typeof window !== 'undefined') window.__SYGNAL_DEVTOOLS_APP__ ||= exposed;
+  // (R4, 04 §3.12) hmr(): this app's current state through the runtime API (runtime.getState(),
+  // no STATE.stream._v), then the new component started with it
+  let current = app;
+  exposed.hmr = (newComponent: any, explicitState?: any) => {
+    const mod = resolveHotModule(newComponent) || {default: current};
+    const state = explicitState !== undefined ? explicitState : (exposed as any).__runtime.getState();
+    if (typeof window !== 'undefined') window.__SYGNAL_HMR_LAST_CAPTURED_STATE = state;
+    const wasRegistered = typeof window !== 'undefined' && window.__SYGNAL_DEVTOOLS_APP__ === exposed;
     exposed.dispose();
-    const updated = run(newComponent.default || newComponent, drivers, options, swap);
+    current = mod.default;
+    const updated: any = run(current, drivers, options, state === undefined ? undefined : {u: true, s: state});
     exposed.sources = updated.sources;
     exposed.sinks = updated.sinks;
-    exposed.dispose = updated.dispose;
-
-    if (
-      typeof resolvedState !== 'undefined' &&
-      updated?.sinks?.STATE &&
-      typeof updated.sinks.STATE.shamefullySendNext === 'function'
-    ) {
-      const restore = () => updated.sinks.STATE.shamefullySendNext(() => ({...resolvedState}));
-      setTimeout(restore, 0);
-      setTimeout(restore, 20);
-    }
-
-    const state$ = updated?.sources?.STATE?.stream;
-    if (typeof state$?.setDebugListener === 'function') {
-      state$.setDebugListener({
-        next: () => {
-          state$.setDebugListener(null);
-          swap.s = undefined;
-          setTimeout(() => { swap.u = false; }, 100);
-        },
-      });
-    } else {
-      swap.s = undefined;
-      swap.u = false;
-    }
+    (exposed as any).__runtime = updated.__runtime;
+    // the registration follows the swap (the successor is this same object)
+    if (typeof window !== 'undefined' && (window.__SYGNAL_DEVTOOLS_APP__ === updated || wasRegistered)) window.__SYGNAL_DEVTOOLS_APP__ = exposed;
+    const d = updated.dispose;
+    exposed.dispose = () => { if (typeof window !== 'undefined' && window.__SYGNAL_DEVTOOLS_APP__ === exposed) window.__SYGNAL_DEVTOOLS_APP__ = undefined; d(); };
   };
-
-
-  const hmr = (newComponent: any, explicitState?: any) => {
-    const moduleToUse = resolveHotModule(newComponent) || {default: app};
-    // Swap with a captured state (recorded for the HMR tooling)
-    const swapWith = (state: any) => {
-      if (typeof window !== 'undefined') window.__SYGNAL_HMR_LAST_CAPTURED_STATE = state;
-      swapToComponent(moduleToUse, state);
-    };
-
-    // State to keep, in order: explicit, this app's current state (G-212: never a page-wide value)
-    let state = explicitState;
-    if (typeof state === 'undefined') state = exposed?.sources?.STATE?.stream?._v;
-    if (typeof state !== 'undefined') return swapWith(state);
-
-    const stateSink = exposed?.sinks?.STATE;
-    if (stateSink && typeof stateSink.shamefullySendNext === 'function') {
-      stateSink.shamefullySendNext((current: any) => {
-        swapWith(current);
-        return ABORT;
-      });
-      return;
-    }
-
-    swapToComponent(moduleToUse);
-  };
-
-  exposed.hmr = hmr;
-
   return exposed;
 }

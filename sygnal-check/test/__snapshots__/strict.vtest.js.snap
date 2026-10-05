@@ -2,11 +2,11 @@
 
 exports[`strict bad fixtures > model-forms.jsx 1`] = `
 [
-  "test/fixtures/strict/bad/model-forms.jsx:28:22 SYG506 Lane: CHILD.select('TodoItem') matches the child by its name as a string, which breaks when the code is minified (pass the component function: \`CHILD.select(TodoItem)\`)",
-  "test/fixtures/strict/bad/model-forms.jsx:29:23 SYG506 Lane: CHILD.select('Unknown') matches the child by its name as a string, which breaks when the code is minified (pass the component function: \`CHILD.select(Unknown)\` (import Unknown first))",
+  "test/fixtures/strict/bad/model-forms.jsx:28:22 SYG506 [error] Lane: CHILD.select('TodoItem') matches the child by its name as a string, which Sygnal 6.0 removed (children are matched by their component function) (pass the component function: \`CHILD.select(TodoItem)\`)",
+  "test/fixtures/strict/bad/model-forms.jsx:29:23 SYG506 [error] Lane: CHILD.select('Unknown') matches the child by its name as a string, which Sygnal 6.0 removed (children are matched by their component function) (pass the component function: \`CHILD.select(Unknown)\` (import Unknown first))",
   "test/fixtures/strict/bad/model-forms.jsx:33:11 SYG505 Lane: model entry 'DELETE' uses emit() (use the object form with event(): \`DELETE: { EVENTS: event('DELETE_LANE', (state) => ({ laneId: state.id })) }\`)",
-  "test/fixtures/strict/bad/model-forms.jsx:34:3 SYG504 Lane: model key 'PLAY | EFFECT' uses the 'ACTION | SINK' shorthand (use the object form: \`PLAY: { EFFECT: () => cmd.send('play') }\`)",
-  "test/fixtures/strict/bad/model-forms.jsx:35:3 SYG504 Lane: model key 'PING | EVENTS' uses the 'ACTION | SINK' shorthand (use the object form: \`PING: { EVENTS: event('PING', (state) => state.id) }\`)",
+  "test/fixtures/strict/bad/model-forms.jsx:34:3 SYG504 [error] Lane: model key 'PLAY | EFFECT' uses the 'ACTION | SINK' shorthand, which Sygnal 6.0 removed (use the object form: \`PLAY: { EFFECT: () => cmd.send('play') }\`)",
+  "test/fixtures/strict/bad/model-forms.jsx:35:3 SYG504 [error] Lane: model key 'PING | EVENTS' uses the 'ACTION | SINK' shorthand, which Sygnal 6.0 removed (use the object form: \`PING: { EVENTS: event('PING', (state) => state.id) }\`)",
   "test/fixtures/strict/bad/model-forms.jsx:35:20 SYG505 Lane: the EVENTS sink of 'PING' builds the { type: 'PING', data } object by hand (use the object form with event(): \`PING: { EVENTS: event('PING', (state) => state.id) }\`)",
   "test/fixtures/strict/bad/model-forms.jsx:38:5 SYG505 Lane: model entry 'MARK' spreads emit() into the object form (replace the spread with an EVENTS sink: \`EVENTS: event('MARKED', (state) => state.id)\`)",
   "test/fixtures/strict/bad/model-forms.jsx:41:13 SYG505 Lane: the EVENTS sink of 'MOVE' builds the { type: 'MOVE_LANE', data } object by hand (use the object form with event(): \`MOVE: { EVENTS: event('MOVE_LANE', (state) => ({ laneId: state.id })) }\`)",
@@ -15,9 +15,9 @@ exports[`strict bad fixtures > model-forms.jsx 1`] = `
 
 exports[`strict bad fixtures > positional-view.jsx 1`] = `
 [
-  "test/fixtures/strict/bad/positional-view.jsx:2:25 SYG501 Counter: the view uses positional arguments (props, state) (destructure the first argument: \`function Counter({ state, ...props })\`)",
-  "test/fixtures/strict/bad/positional-view.jsx:14:27 SYG501 Badge: the view uses positional arguments (props, state, context) (destructure the first argument: \`const Badge = ({ label, state, context }) => …\`)",
-  "test/fixtures/strict/bad/positional-view.jsx:17:24 SYG501 Panel: the view uses positional arguments (props, state) (destructure the first argument: \`function Panel({ state: { count } })\`)",
+  "test/fixtures/strict/bad/positional-view.jsx:2:25 SYG501 [error] Counter: the view uses positional arguments (props, state), which Sygnal 6.0 removed: a view gets one argument (destructure the first argument: \`function Counter({ state, ...props })\`)",
+  "test/fixtures/strict/bad/positional-view.jsx:14:27 SYG501 [error] Badge: the view uses positional arguments (props, state, context), which Sygnal 6.0 removed: a view gets one argument (destructure the first argument: \`const Badge = ({ label, state, context }) => …\`)",
+  "test/fixtures/strict/bad/positional-view.jsx:17:24 SYG501 [error] Panel: the view uses positional arguments (props, state), which Sygnal 6.0 removed: a view gets one argument (destructure the first argument: \`function Panel({ state: { count } })\`)",
 ]
 `;
 
@@ -45,8 +45,8 @@ exports[`strict bad fixtures > select-roundtrip.jsx 1`] = `
 
 exports[`strict bad fixtures > typed.tsx 1`] = `
 [
-  "test/fixtures/strict/bad/typed.tsx:7:53 SYG501 Counter: the view uses positional arguments (props, state) (destructure the first argument: \`const Counter = ({ state }) => …\`)",
-  "test/fixtures/strict/bad/typed.tsx:25:3 SYG504 Counter: model key 'RESET | EVENTS' uses the 'ACTION | SINK' shorthand (use the object form: \`RESET: { EVENTS: event('RESET_DONE') }\`)",
+  "test/fixtures/strict/bad/typed.tsx:7:53 SYG501 [error] Counter: the view uses positional arguments (props, state), which Sygnal 6.0 removed: a view gets one argument (destructure the first argument: \`const Counter = ({ state }) => …\`)",
+  "test/fixtures/strict/bad/typed.tsx:25:3 SYG504 [error] Counter: model key 'RESET | EVENTS' uses the 'ACTION | SINK' shorthand, which Sygnal 6.0 removed (use the object form: \`RESET: { EVENTS: event('RESET_DONE') }\`)",
   "test/fixtures/strict/bad/typed.tsx:25:21 SYG505 Counter: the EVENTS sink of 'RESET' builds the { type: 'RESET_DONE', data } object by hand (use the object form with event(): \`RESET: { EVENTS: event('RESET_DONE') }\`)",
 ]
 `;

@@ -2,7 +2,7 @@
 // PLAN-4.6 parity: .context, and D168 (context read-tracking: a context change re-renders only the
 // components that read a changed key).
 import { it, expect } from 'vitest'
-import { parity, itNext, mount, h, click, until, sleep } from './harness.js'
+import { parity, mount, h, click, until, sleep } from './harness.js'
 
 function make(views) {
   function ReadsA({ state, context }) { views.a++; return h('i', { className: 'ra' }, `${state.t}:${context.a}`) }
@@ -31,7 +31,7 @@ parity('parity: context', () => {
     expect(m.text('.rn')).toBe('N')
   })
 
-  itNext('D168 context read-tracking', 'a context change re-renders only the components that read the changed key', async () => {
+  it('a context change re-renders only the components that read the changed key [D168 context read-tracking]', async () => {
     const views = { a: 0, b: 0, none: 0 }
     const m = mount(make(views))
     await until(() => expect(m.text('.ra') + m.text('.rb')).toBe('A:1B:1'))

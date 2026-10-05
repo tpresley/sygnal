@@ -9,18 +9,7 @@ import { createServer } from 'vite';
 import { chromium } from 'playwright';
 
 const HOST = '127.0.0.1';
-const NEXT = process.env.SYGNAL_CORE === 'next';
 
-/**
- * PLAN-4.6 (R4; deleted at R5): the tests left out on the next core, by name, with the reason.
- * Only removed forms (D164): R5 deletes the tests with them. They run (and must pass) on the
- * current core; on the next core a failure among them is listed, not counted.
- */
-const NEXT_EXCLUDED = {
-  "'ACTION | DRIVER' shorthand expands correctly": "DELETE-R5: 'A | SINK' keys (D164)",
-  "shorthand works with whitespace around '|'": "DELETE-R5: 'A | SINK' keys (D164)",
-  "'DISPOSE | EFFECT' shorthand fires on removal": "DELETE-R5: 'A | SINK' keys (D164)",
-};
 const TIMEOUT = 90000; // the full suite takes ~27 s (PLAN-4 1-F)
 
 /**
@@ -99,10 +88,6 @@ async function run() {
     await page.exposeFunction('__pwType', (selector, text, delay) =>
       page.locator(selector).pressSequentially(text, { delay }));
 
-    // PLAN-4.6 R1-R4 (deleted at R5): SYGNAL_CORE=next runs the suite on the next component core
-    // (run()'s internal flag, set before the app's modules load)
-    if (NEXT) await page.addInitScript(() => { globalThis.__SYGNAL_CORE__ = 'next'; });
-
     await page.goto(url);
 
     // Wait for tests to complete
@@ -128,33 +113,14 @@ async function run() {
     }));
 
     // Print results
-    const { passed, tests, error } = results;
-    let { failed } = results;
-    const excluded = NEXT ? tests.filter(t => t.status === 'fail' && NEXT_EXCLUDED[t.name]) : [];
-    if (excluded.length) {
-      failed -= excluded.length;
-      for (const t of excluded) { t.status = 'excluded'; }
-    }
+    const { passed, failed, tests, error } = results;
 
     if (error) {
       console.error('Test runner error:', error);
       process.exit(1);
     }
 
-    console.log(`\nBrowser Tests${NEXT ? ' (next core)' : ''}: ${passed} passed, ${failed} failed, ${passed + failed} total${excluded.length ? `, ${excluded.length} excluded (R5)` : ''}\n`);
-
-    if (NEXT) {
-      // per test file (category): the R2-R4 phases bring the rest
-      const by = new Map();
-      for (const t of tests) {
-        const c = by.get(t.category) || { pass: 0, fail: 0 };
-        if (t.status !== 'excluded') c[t.status === 'pass' ? 'pass' : 'fail']++;
-        by.set(t.category, c);
-      }
-      for (const [c, n] of by) console.log(`  ${n.fail ? 'FAIL' : 'ok  '} ${c}: ${n.pass} passed, ${n.fail} failed`);
-      for (const t of excluded) console.log(`  excluded on next: ${t.name} (${NEXT_EXCLUDED[t.name]})`);
-      console.log('');
-    }
+    console.log(`\nBrowser Tests: ${passed} passed, ${failed} failed, ${passed + failed} total\n`);
 
     if (failed > 0) {
       const failures = tests.filter(t => t.status === 'fail');

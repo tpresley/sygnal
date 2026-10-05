@@ -1,5 +1,5 @@
 /**
- * PLAN-4.6 next core: a component instance (03-proposal §5).
+ * PLAN-4.6 core: a component instance (03-proposal §5).
  *
  * - Created synchronously: the state cell, the initial state written, onCreate, INITIALIZE
  *   queued, the intent subscribed (an emission on subscribe only queues: it is drained after the
@@ -56,13 +56,13 @@ const idOf = (n: any, path: string) => {
 }
 
 /**
- * a component vnode's props, without what the pragma adds for the current core (until R5) and
- * without `resetState` (D174: read at creation, like `state`, never a prop of the child)
+ * a component vnode's props, without `resetState` (D174: read at creation, like `state`, never a
+ * prop of the child)
  */
 function propsOf(p: any) {
   if (!p) return {}
-  if (!('sygnalOptions' in p || 'sygnalFactory' in p || 'resetState' in p)) return p
-  const {sygnalOptions, sygnalFactory, resetState, ...rest} = p
+  if (!('resetState' in p)) return p
+  const {resetState, ...rest} = p
   return rest
 }
 

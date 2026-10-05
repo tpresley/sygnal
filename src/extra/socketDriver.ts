@@ -253,7 +253,7 @@ export function makeSocketDriver(options: any = {}) {
       },
       isolateSource: (_: any, scope: any) => source(ns.concat(scope)),
       isolateSink: (sink: any, scope: any) => sink.map((v: any) => tag(v, scope)),
-      // PLAN-4.6: the same per value (the next core scopes a value without a stream per instance)
+      // PLAN-4.6: the same per value (the core scopes a value without a stream per instance)
       isolateValue: tag,
       // the core sends a component's `connections` static here (PLAN-3 2-B)
       __sygnalStatic: 'connections',

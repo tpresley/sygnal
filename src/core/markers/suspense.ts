@@ -1,7 +1,7 @@
 /**
- * PLAN-4.6 next core: Suspense (R2), registered on import by the public `Suspense` module. A
+ * PLAN-4.6 core: Suspense (R2), registered on import by the public `Suspense` module. A
  * post-processor (registry `posts`) of the injected vnode of an instance whose template has a
- * `suspense` marker (today's processSuspensePost, a copy until R5 deletes that core):
+ * `suspense` marker (the 5.x core's processSuspensePost):
  * - the core injects a child whose READY is false with data-sygnal-ready="false", and a lazy
  *   component still loading renders data-sygnal-lazy="loading";
  * - a boundary with a `fallback` shows it (in a data-sygnal-suspense="pending" div) while any
@@ -10,7 +10,6 @@
  *   by its own instance.
  */
 import {posts} from '../registry'
-import {NEXT_CORE} from '../build'
 
 function hasNotReadyChild(v: any): boolean {
   if (!v || !v.sel) return false
@@ -37,5 +36,4 @@ export function suspensePost(v: any): any {
   return out ? {...v, children: out} : v
 }
 
-// D175: registered only where the next core can run (a production build drops it)
-if (NEXT_CORE) posts.suspense = suspensePost
+posts.suspense = suspensePost
