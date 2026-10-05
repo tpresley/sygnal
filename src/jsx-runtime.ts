@@ -4,7 +4,12 @@
 import { createElement } from './pragma/index'
 export { Fragment } from './cycle/dom/fragment'
 
-const createTag = (createElement as any).a
+// G-351: a 'sygnal' without `.a` (an older core next to this runtime): createElement itself
+const createTag = (createElement as any).a || ((t: any, p: any, c: any[], k: any) => {
+  const { children, ...rest } = p
+  if (k !== undefined) rest.key = k
+  return createElement(t, rest, ...c)
+})
 
 export function jsx(type: any, props: any, key?: any): any {
   if (props == null) return createElement(type, null)

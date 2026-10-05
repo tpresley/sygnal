@@ -299,6 +299,8 @@ export const createElementWithModules = (modules: Record<string, any>) => {
     return vnode
   }
   const ce = (sel: any, data: any, ...children: any[]): any => ca(sel, data, children)
+  // P46-P: the JSX runtime's element path (its props object is the data as is: sanitizeData
+  // skips `children`)
   ;(ce as any).a = ca
   ;(ce as any).$r = routes
   return ce
@@ -307,11 +309,6 @@ export const createElementWithModules = (modules: Record<string, any>) => {
 export const createElement = createElementWithModules(defaultModules)
 /** G-350 (tests): the sizes of the tag cache and of a createElement's route cache */
 export const __cacheSizes = (ce: any) => ({ tags: Object.keys(tags).length, routes: ce.$r.size })
-/**
- * P46-P: the JSX runtime's path for an element tag: the JSX props object is the data as is
- * (sanitizeData skips `children`), no copy without `children` and no spread of the children
- */
-export const createTag = (createElement as any).a
 
 export default {
   createElement,
