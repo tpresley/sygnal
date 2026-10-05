@@ -131,3 +131,23 @@ This lists every existing test that pokes a core internal the rewrite deletes, o
 Mixed files (p45-c-scheduler, scheduler-p45c.jsx, p4-pf1, p4-2r-fixes, component.test, effect-and-shorthand, diagnostics/wiring, testing-simulate, diagnostics/strict) are counted once, under their majority disposition; their rows say how the cases split.
 
 **R1–R4 bookkeeping:** the CURRENT-ONLY and DELETE-R5 files are the "current-core-only" list PLAN-4.6 §4 asks the tracker to keep. When `SYGNAL_CORE=next` runs the root vitest suite (R1), they are excluded by path, through a list the test matrix reads, not by `it.skip` in each file. Every PORT item must be green on both cores before its phase exits.
+
+## 6. R3 status (statics, replies, behaviors, persist, commands, ELEMENT, controls, View Transitions)
+
+**Added to `test:next`** (green on the next core): `p46-r3-review`, `p46-r3-g315-strip`, `command`, `copied/signup-form.copied`, `driverFactories`, `head`, `p3-2a-socket`, `p3-5-1-fake`, `p3-5-4a-switchable`, `p3-5-4c-router-fake`, `p3-6b-test-traps`, `p3-g160-connections-fake`, `p3-g167-statics-no-model`, `p3-g189-reply-after-delayed-send`, `p3-head-pause`, `p3-resource-empty-string`, `p4-2a2-ssr-behaviors`, `p4-3a-element-commands`, `p4-3a-recipes`, `p4-3b-doc-samples`, `p4-3b2-persist-astro`, `p4-3b2-persist-hydrate`, `p4-3c-timers`, `p4-3d-recipes`, `p4-3r-persist`, `p4-4g1-doc-samples`, `p4-4g1-undo-coalesce`, `p4-4p-controls-doc-samples`, `p4-p1b-doc-samples`, `p45-r-g257`, `plan2-4r-fetch`, `plan2-e2-fetch-driver`, `router`, `router-docs`, `router-ssr`. Parity: the statics, fetch, behaviors and reentrancy-with-statics areas run on next (`NEXT_DONE` has R3), plus `parity/commands` (both cores).
+
+**R3-area suites with cases still failing on next**, by blocker (each case's R3 behaviour passes; what fails is another phase's):
+
+| File (failing / total on next) | Blocker |
+|---|---|
+| `p3-1a-replies` (1/25) | R5: `component({ ...isolateOpts })` (§4, already PORT) |
+| `p3-1c-fakes` (3/25), `p3-2c-socket-fakes` (2/24), `p3-3a-resources` (1/18), `plan2-4r-isolation` (2/6), `p3-5-4c-router-fake-docs` (1/8) | R4: renderComponent's child fakes (`inject` → `wrapSources`): a child-only HTTP / socket / router sink has no fake on next. The root's fakes (model sinks, `connections`, `resources`) work |
+| `p4-3b-persist` (3/31), `p4-4g1-persist-plain` (1/9), `p4-3d-behaviors` (1/28), `p4-3c-recipe` (2/3), `p4-4a1/4b1/4b2-doc-samples` (behaviors, STATE.watch samples) | R4: `t.actions` (the action log via hooks); state and DOM assertions before it pass |
+| `p4-3b-persist` SYG223/SYG224, `p4-3b2-persist-vike` (2/3), `p4-2b-gs1-behaviors` SYG127 (3/16), `p4-3c-timers-run` SYG643 (2/6), `p4-3r-view-transitions` / `p4-p1b-view-transitions` SYG645 (3/8, 1/12), `p3-1d-reply-checks` (7/12), `p3-2b-connections` SYG112 (1/23), `p3-5-3-cache` SYG630–633 + inspect (5/46), `p3-5-5-cache-ssr` / `p3-6a-cache-path` SYG635 (1/16, 1/18), `router-features` SYG132/133/112 (3/28), `plan2-e2-run` SYG609 (2/4), `diagnostics/controls` (11/19) | R4: the `sygnal/diagnostics` checks run through the current core's instance hooks (`onModel`, `model$` taps) |
+| `p3-5-5-vike-seed` (2/3) | R4: Vike integration |
+| `p4-ct1-controls` HMR (1/25), `p4-2r-fixes` (6/19), `p45-d-lazy-wiring` (19/35) | R4 (HMR, devtools) and R5 (`.peers`, `hmrActions`, internal sinks shape) |
+| `bugfixes-1h` B-003 case | CURRENT-ONLY (D165, §2) |
+| `bugfixes-1f` (5/29) | R4 (SYG104) and R5 (`.components`, `hmrActions`) |
+| `devtools-actions`, `devtools-copy-as-test`, `p4-2c-actions` | R4 (devtools, action log) |
+
+**Browser suite on next** (`npm --prefix browser-tests run test:next`): 171/186. Green in R3's areas: Socket driver, Router, Fetch driver, Timers frame, Persist, Element commands, Controls, View Transitions except SYG645 (R4). Failing, not R3: Commands 0/4 and Effect & Shorthand 2, Disposal 1 (`'A | EFFECT'` keys, D164: PORT in R5; `parity/commands` covers commands$ in canonical form), Diagnostics 3 (R4), Custom elements 4 (R4: `sinks.STATE.shamefullySendNext`, `hmr`).
