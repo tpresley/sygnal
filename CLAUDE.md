@@ -24,9 +24,9 @@ npm --prefix sygnal-check test       # static checker package (492 tests, *.vtes
 npm --prefix docs run build          # docs site + internal link check
 node scripts/gen-error-docs.mjs      # regenerate docs reference/errors.md from sygnal-check/explanations.json
 node scripts/check-doc-samples.mjs   # sygnal-check --strict on every docs code sample (552 checked, 13 skipped by marker)
-node scripts/size-gate.mjs           # size report: kanban gzip (nativeGlobalThis: false, and the default) and src/core/**
-                                     #   alone; informational until the new core's budget is set (D182); `--budget <bytes>`
-                                     #   gates the first number (needs build + examples/kanban install)
+node scripts/size-gate.mjs           # size gate: kanban gzip with nativeGlobalThis: false <= 42,300 B gated (D48, D185;
+                                     #   needs build + examples/kanban install); also prints the default (globalthis-aliased)
+                                     #   size and src/core/** alone. `--budget <bytes>` overrides
 ```
 
 This is a **library package** — no dev server. Verify changes via `npm run build` + `npm test`. Build before testing: tests and examples import `dist/`.

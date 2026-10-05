@@ -8,10 +8,9 @@
 //       Reported only: what apps actually ship.
 // and reports (c) the component core alone (src/core/**, everything else external), min + gzip.
 //
-// PLAN-4.6 D182: the core was rewritten (src/core/), and its budget is decided at the end of the
-// plan, so the gate is informational for now: it reports and exits 0. `--budget <bytes>` gates
-// (a) against that budget (exit 1 when over). Needs `npm run build` and `npm install --prefix
-// examples/kanban` first.
+// (a) is gated against BUDGET (D48; PLAN-4.6 D185: 42,300 B for the rewritten core, as before
+// it): exit 1 when over. `--budget <bytes>` overrides it. Needs `npm run build` and
+// `npm install --prefix examples/kanban` first.
 //
 // The size is `gzip -c <bundle> | wc -c` (the gzip CLI's default level and header, as
 // the gate was measured before this script), falling back to zlib when gzip is missing.
@@ -23,16 +22,15 @@ import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import zlib from 'node:zlib'
 
-// PLAN-4.6 D182: no budget until the end of the plan (the old core's was 42,300 B; PLAN-4.5
-// shipped 41,343 B)
-const BUDGET = undefined
+// D48; PLAN-4.6 D185 re-enabled it at 42,300 B (D182 had made it informational during the rewrite)
+const BUDGET = 42300
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const kanban = path.join(repo, 'examples', 'kanban')
 const budgetArg = process.argv.indexOf('--budget')
 const budget = budgetArg > 0 ? Number(process.argv[budgetArg + 1]) : BUDGET
 // R2-8: a missing or non-numeric --budget (NaN) would make the comparison always pass
-if (budget !== undefined && (!Number.isFinite(budget) || budget <= 0)) {
+if (!Number.isFinite(budget) || budget <= 0) {
   console.error(`size-gate: --budget must be a positive number of bytes (got ${budgetArg > 0 ? JSON.stringify(process.argv[budgetArg + 1] ?? '') : budget}).`)
   process.exit(2)
 }
@@ -108,14 +106,10 @@ const core = await coreAlone()
 
 const fmt = n => n.toLocaleString('en-US')
 console.log('kanban production bundle, gzip -c | wc -c:')
-console.log(`  ${gated.label}: ${fmt(gated.gzip)} B  (${budget === undefined ? 'informational, budget TBD (D182); PLAN-4.5: 41,343 B' : `budget ${fmt(budget)} B, ${budget - gated.gzip >= 0 ? `${fmt(budget - gated.gzip)} B headroom` : `${fmt(gated.gzip - budget)} B OVER`}`})`)
+console.log(`  ${gated.label}: ${fmt(gated.gzip)} B  (budget ${fmt(budget)} B, ${budget - gated.gzip >= 0 ? `${fmt(budget - gated.gzip)} B headroom` : `${fmt(gated.gzip - budget)} B OVER`})`)
 console.log(`  ${shipped.label}: ${fmt(shipped.gzip)} B  (informational; ${fmt(gated.gzip - shipped.gzip)} B less)`)
 console.log(`  ${core.label}: ${fmt(core.raw)} B min / ${fmt(core.gzip)} B gzip  (informational)`)
 
-if (budget === undefined) {
-  console.log('size-gate: informational, budget TBD (D182)')
-  process.exit(0)
-}
 if (gated.gzip > budget) {
   console.error(`size-gate: FAIL: ${fmt(gated.gzip)} B > ${fmt(budget)} B`)
   process.exit(1)
