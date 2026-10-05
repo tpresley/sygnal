@@ -22,7 +22,7 @@ import {defHooks} from '../core/registry';
  *   dispose stops them, app dispose stops all; SSR runs no drivers.
  * - Sources that have a current value (media, storage, visibility, online) send it when they
  *   start; intersection / resize send what their observer reports (each element once at first).
- * - Commands, sent on the driver's sink from a model entry (the first key is the method):
+ * - Commands, sent on the driver's sink from a model entry (the method: a key the driver knows):
  *   `{ copy: text, ok?, error? }` and `{ paste: true, ok, error? }` (the clipboard, data
  *   `{ text }`), `{ setItem: key, value, area?, json? }` / `{ removeItem: key, area? }` (storage;
  *   this page's `storage` declarations hear a change; an unchanged value is silent, G-384).
@@ -257,9 +257,12 @@ export const browserDriver = (sources: BrowserSource[], runners: Map<any, any>) 
       if (!v || typeof v != 'object') return;
       const id = v.__emitterId;
       if ('browser' in v && id !== undefined) return update(id, v.browser, v.__emitterName);
-      const m = Object.keys(v)[0], f = cmd[m];
+      // G-388: the method is any key the driver knows ({ ok, copy } too); G-389: a handler that
+      // throws (a value JSON can't encode, a clipboard without the method) fails like a rejection
+      const k = Object.keys(v), m = k.find(k => k in cmd) || k[0], f = cmd[m];
       if (!f) return diag('SYG663', m, v, v.__emitterName, 0, Object.keys(cmd));
-      f(v, (x: any) => v.ok && reply(id, v.ok, x), (x: any) => v.error ? reply(id, v.error, x) : diag('SYG665', m, v, v.__emitterName, x));
+      const fail = (x: any) => v.error ? reply(id, v.error, x) : diag('SYG665', m, v, v.__emitterName, x);
+      try { f(v, (x: any) => v.ok && reply(id, v.ok, x), fail); } catch (x) { fail(failed(x)); }
     },
     error: noop,
     complete: stopAll,

@@ -105,3 +105,81 @@ describe('G-384: same-page storage writes', () => {
     expect(n).toBe(1)
   })
 })
+
+// a component that sends `cmd` on click and records its ok / error replies
+const commander = (cmd, log) => {
+  function C() { return h('button', null, 'go') }
+  C.initialState = {}
+  C.intent = ({ DOM }) => ({ GO: DOM.select('button').events('click') })
+  C.model = {
+    GO: { BROWSER: () => cmd },
+    OK: (s, d) => (log.push(['ok', d]), s),
+    BAD: (s, d) => (log.push(['error', d]), s),
+  }
+  return C
+}
+
+describe('G-388 / G-389: commands', () => {
+  it('a command is recognised by any known key, not only the first ({ ok, copy })', async () => {
+    const written = []
+    stub('navigator', { ...navigator, clipboard: { writeText: async (t) => { written.push(t) } } })
+    const log = []
+    app = run(commander({ ok: 'OK', copy: 'hello' }, log), { BROWSER: makeBrowserDriver() }, { mountPoint: '#root' })
+    await tick()
+    document.querySelector('button').click()
+    await tick()
+    expect(written).toEqual(['hello'])
+    expect(log).toEqual([['ok', { text: 'hello' }]])
+  })
+
+  it('{ ok, copy } in the fake too', async () => {
+    const log = []
+    const t = renderComponent(commander({ ok: 'OK', copy: 'hi' }, log))
+    await t.ready()
+    await t.simulateEvent('button', 'click')
+    await t.settle()
+    expect(t.browser.clipboard()).toBe('hi')
+    expect(log).toEqual([['ok', { text: 'hi' }]])
+    t.dispose()
+  })
+
+  it('a value JSON.stringify throws on (BigInt) goes to the error action', async () => {
+    const log = []
+    app = run(commander({ setItem: 'k', value: { n: 1n }, json: true, ok: 'OK', error: 'BAD' }, log), { BROWSER: makeBrowserDriver() }, { mountPoint: '#root' })
+    await tick()
+    document.querySelector('button').click()
+    await tick()
+    expect(log.length).toBe(1)
+    expect(log[0][0]).toBe('error')
+    expect(log[0][1].name).toBe('TypeError')
+    expect(localStorage.getItem('k')).toBe(null)
+  })
+
+  it('a cyclic value in the fake goes to the error action too', async () => {
+    const log = [], v = {}; v.self = v
+    const t = renderComponent(commander({ setItem: 'k', value: v, json: true, error: 'BAD' }, log))
+    await t.ready()
+    await t.simulateEvent('button', 'click')
+    await t.settle()
+    expect(log.map(e => e[0])).toEqual(['error'])
+    t.dispose()
+  })
+
+  it('a clipboard without writeText: the error action; with none named, SYG665 (not a thrown driver error)', async () => {
+    setupChecks()
+    stub('navigator', { ...navigator, clipboard: {} })
+    const log = []
+    app = run(commander({ copy: 'x', error: 'BAD' }, log), { BROWSER: makeBrowserDriver() }, { mountPoint: '#root' })
+    await tick()
+    document.querySelector('button').click()
+    await tick()
+    expect(log.map(e => e[0])).toEqual(['error'])
+    app.dispose()
+    document.body.innerHTML = '<div id="root"></div>'
+    app = run(commander({ copy: 'x' }, log), { BROWSER: makeBrowserDriver() }, { mountPoint: '#root', diagnostics: 'collect' })
+    await tick()
+    document.querySelector('button').click()
+    await tick()
+    expect(diagnostics('SYG665').map(d => d.data.failure.name)).toEqual(['TypeError'])
+  })
+})

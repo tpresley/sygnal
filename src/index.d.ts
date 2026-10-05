@@ -2756,8 +2756,8 @@ export interface BrowserPosition { latitude: number; longitude: number; accuracy
 
 /**
  * PLAN-5 B-3: a command for the browser driver's sink, from a model entry
- * (`COPY: { BROWSER: (state) => ({ copy: state.link, ok: 'COPIED' }) }`); the first key is the
- * method. `ok` / `error` name reply actions (copy/paste: `{ text }`; a failure `{ name, message }`).
+ * (`COPY: { BROWSER: (state) => ({ copy: state.link, ok: 'COPIED' }) }`); the method is its
+ * `copy`, `paste`, `setItem` or `removeItem` key, in any order. `ok` / `error` name reply actions (copy/paste: `{ text }`; a failure `{ name, message }`).
  */
 export type BrowserCommand =
   | { copy: string; ok?: string; error?: string }

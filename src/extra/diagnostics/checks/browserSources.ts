@@ -42,7 +42,7 @@ function onBrowserSource(code: string, name: string, spec: any, component?: stri
     devReport('SYG663', {
       component,
       message: `BROWSER command '${name}' is unknown; it is not run`,
-      fix: `The first key is the method: ${(commands || []).map(c => `{ ${c}: … }`).join(', ') || 'this driver takes no commands'}`,
+      fix: `Name the method as a key of the command: ${(commands || []).map(c => `{ ${c}: … }`).join(', ') || 'this driver takes no commands'}`,
       data: {name, command: spec},
     })
     return

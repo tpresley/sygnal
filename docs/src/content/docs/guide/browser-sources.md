@@ -82,7 +82,7 @@ Each [Collection](/guide/collections/) item declares its own sources, so `inters
 
 ## Commands: the clipboard and storage writes
 
-Reading or writing the clipboard is something a user asks for, not something to watch, so it is a command: a model entry sends it to the driver's sink, and the answer comes back as a reply action. The first key is the method:
+Reading or writing the clipboard is something a user asks for, not something to watch, so it is a command: a model entry sends it to the driver's sink, and the answer comes back as a reply action. The method is its `copy`, `paste`, `setItem` or `removeItem` key (in any order with `ok` and `error`); a value the method can't take (a `json` value with a BigInt or a cycle) fails like a refusal, through `error`:
 
 | Command | Does | Reply |
 |---|---|---|
