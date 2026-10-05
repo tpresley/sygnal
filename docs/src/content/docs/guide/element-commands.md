@@ -48,6 +48,8 @@ The documented methods:
 
 The options are passed to the method as one object, except for `close`, which gets `returnValue` as its argument. A popover is an element rendered with `attrs: { popover: 'auto' }` (or `'manual'`); its `toggle` event reaches intent as `DOM.toggle('.tip')`, with `newState` `'open'` or `'closed'`.
 
+The browser's declarative forms need no model: `<button popovertarget="tip">` toggles a popover and `<button commandfor="dlg" command="show-modal">` opens a dialog. JSX writes these as attributes, as it does `popovertargetaction`, `closedby`, `interestfor` and `anchor`, and an `aria-*` boolean as `"true"` / `"false"`.
+
 The value of the `ELEMENT` entry is a command, or a reducer that returns one: `(state, data) => command`. Return `ABORT` to send nothing. An **array** sends several commands, in order:
 
 ```jsx
