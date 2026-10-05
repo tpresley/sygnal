@@ -6,7 +6,7 @@ Tracks progress for [PLAN-4.6.md](PLAN-4.6.md) (component core rewrite). The coo
 
 **Integration branch:** `plan46-integration`, cut from `plan45-complete` (`d900c522`) on 2026-10-04, with `claude/component-core-rewrite-experiment` (the study) merged (`45eefb2`). Worktree `.claude/worktrees/plan-4-execution-7ae8e8`. The release stays held (D56).
 
-**State:** R0–R3 merged. R4 running; review of R3 running.
+**State:** R0–R3 merged. R4 running (incl. R3 review fixes G-318…G-323).
 
 ## Phases
 
@@ -79,10 +79,17 @@ Tracks progress for [PLAN-4.6.md](PLAN-4.6.md) (component core rewrite). The coo
 | G-315 | review R2 | Low | build | Two top-level `xs.create()` calls survive the D175 strip | Fixed (R3) |
 | G-316 | review R2 | Low | core/portal | Late-target Portal retry can double-mount or leak (inherited) | Fixed (R3) |
 | G-317 | review R2 | Low | core/hosts | `lazy()` as a Collection `of` or Switchable page never resolves (same as today; coordinator: fix on next) | Fixed (R3) |
+| G-318 | review R3 | High | core/portal | A Portal first reached by a patch (SSR hydration, or swapping a `<div>` for a `<Portal>` at the same position) never mounts (regression). Confirmed | → R4 |
+| G-319 | review R3 | Med | core/hosts | A Collection inside a hidden Switchable page isn't reconciled while hidden: removed rows keep running background statics, new rows don't start them. Confirmed; coordinator: fix for parity | → R4 |
+| G-320 | review R3 | Low/Med | core/runtime | Statics step skipped while renders throw. Confirmed | → R4 |
+| G-321 | review R3 | Low | core/cell | Write-back strips a real id equal to the row's index. Confirmed | → R4 |
+| G-322 | review R3 | Low | core/cell | `uid()` collides between index keys and id keys (duplicate DOM ids). Confirmed | → R4 |
+| G-323 | review R3 | Low | core/statics | A new statics-declaring instance forces an extra full render pass. Confirmed | → R4 |
 | G-291 | 0-S | Low | Collection | Id-less items under filter/sort are keyed by filtered/sorted index (likely a latent bug) | → Q23 |
 
 ## Log
 
+- 2026-10-04 — Review of R3: 6 findings (G-318…G-323, one regression), sent to R4. New core alone: 43.7 KB min / 15.9 KB gz (R1: 9.6 KB gz).
 - 2026-10-04 — D182: size gate informational during PLAN-4.6; new-core size reported per merge; budget decided at the end.
 - 2026-10-04 — R3 merged (`b0613ee`); all gates green (41,453 B); browser on next 175/186. D180, D181. R4 and a review of R3 started.
 - 2026-10-04 — Review of R2: 12 findings (G-306…G-317, 2 regressions), sent to R3.
