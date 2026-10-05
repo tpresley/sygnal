@@ -202,7 +202,9 @@ export async function elementTestsP2b() {
     const app = run(Host, {}, { mountPoint: id })
     try {
       await waitFor(() => q(el, '.n')?.textContent === '1' && meta(q(el, 'p2b-board-g212')) === '1|false|0|0')
-      app.sinks.STATE.shamefullySendNext((s) => ({ ...s, n: 7 }))
+      // (06 §2 PORT: the next core's runtime API; the current core's STATE sink)
+      const set7 = (s) => ({ ...s, n: 7 })
+      app.__runtime ? app.__runtime.setState('root', set7) : app.sinks.STATE.shamefullySendNext(set7)
       await waitFor(() => q(el, '.n').textContent === '7')
       const inner = q(el, 'p2b-board-g212')
       q(inner, '.btn').click()

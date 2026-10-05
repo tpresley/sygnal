@@ -14,7 +14,9 @@
  *   diagnostics core's instance hooks); its behaviour is covered on the next core by the test named.
  * - DECIDED: the old behaviour a decision changes on the next core (the parity / R4 tests pin the new one).
  *
- * Usage: node scripts/test-next.mjs [--no-examples] [--list]
+ * Then the browser suite (browser-tests test:next) and the count gate (perf-gate --core=next).
+ *
+ * Usage: node scripts/test-next.mjs [--no-examples] [--no-browser] [--no-perf] [--list]
  */
 import { spawnSync } from 'node:child_process'
 import path from 'node:path'
@@ -132,6 +134,11 @@ if (process.argv.includes('--list')) {
 const env = { ...process.env, SYGNAL_CORE: 'next' }
 const run = (cmd, args) => spawnSync(cmd, args, { cwd: repo, env, stdio: 'inherit', shell: process.platform === 'win32' }).status ?? 1
 
+const no = (k) => process.argv.includes('--no-' + k)
 let status = run('npx', ['vitest', 'run', ...Object.keys(EXCLUDED_FILES).flatMap((f) => ['--exclude', f]), '-t', pattern])
-if (!status && !process.argv.includes('--no-examples')) status = run('node', ['scripts/test-examples.mjs', ...EXAMPLES])
+if (!status && !no('examples')) status = run('node', ['scripts/test-examples.mjs', ...EXAMPLES])
+// R4: the browser suite (its R5 removed-form tests are listed in browser-tests/run-headless.mjs)
+// and the count gate, on the next core
+if (!status && !no('browser')) status = run('npm', ['--prefix', 'browser-tests', 'run', 'test:next'])
+if (!status && !no('perf')) status = run('node', ['scripts/perf-gate.mjs', '--core=next'])
 process.exit(status)
