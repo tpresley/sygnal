@@ -2,7 +2,7 @@
 // PLAN-4.6 R5: fixes of the R4 review (G-324 ... G-335), each pinned here (failing first).
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { renderComponent } from '../src/extra/testing.js'
-import { createElement as h } from '../src/index.js'
+import { run, createElement as h } from '../src/index.js'
 
 let t
 afterEach(() => { t?.dispose(); t = null; vi.useRealTimers(); vi.restoreAllMocks(); document.body.innerHTML = '' })
@@ -72,5 +72,27 @@ describe("G-326: an input's next() cursor expires after a macrotask (moving the 
     t.simulateAction('LOAD')
     expect((await t.next()).phase).toBe('loading')
     expect((await t.next()).phase).toBe('done')
+  })
+})
+
+describe('G-331: one throwing queue item does not discard the rest of the queue', () => {
+  it('a throwing setState function (devtools, Vike, element) is reported; the action queued after it runs', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    let app
+    function App({ state }) { return h('p', { className: 'v' }, state.v) }
+    App.initialState = { v: 'a' }
+    App.intent = ({ DOM }) => ({ GO: DOM.click('.v') })
+    App.model = {
+      GO: { EFFECT: (s, d, next) => { app.__runtime.setState('root', () => { throw new Error('bad setState') }); next('B') } },
+      B: (s) => ({ ...s, v: 'b' }),
+    }
+    document.body.innerHTML = '<div id="root"></div>'
+    app = run(App, {}, { mountPoint: '#root' })
+    try {
+      await app.__runtime.flushed()
+      document.querySelector('.v').click()
+      await vi.waitFor(() => expect(document.querySelector('.v').textContent).toBe('b'), { timeout: 1000, interval: 5 })
+      expect(console.error.mock.calls.some((c) => String(c[0]).includes('SYG2'))).toBe(true)
+    } finally { app.dispose() }
   })
 })
