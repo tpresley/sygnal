@@ -839,7 +839,7 @@ Severity: `warn` · Reported by: the Sygnal runtime (every app, production inclu
 
 Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
 
-The `form` behavior hears `input` and `focusout` on its form element and reads the event target's `name` as a path in `values` (`email`, `addresses.7.city` for the row with id 7). A named field inside the form whose name is not a field of `values` is ignored: its value never reaches `state.form` and it is never validated. It is usually a typo, a renamed field, a row name built with the index instead of the row's `id`, or an input that belongs to something else (a search box) placed inside the form element. Reported once per name; fields without a `name` are skipped silently.
+The `form` behavior hears `input` and `focusout` on its form element and reads the event target's `name` as a path in `values` (`email`, `addresses.7.city` for the row with id 7). A named field inside the form whose name is not a field of `values` is ignored: its value never reaches `state.form` and it is never validated. It is usually a typo, a renamed field, a row name built with the index instead of the row's `id`, or an input that belongs to something else (a search box) placed inside the form element. Reported once per name, on `input`; fields without a `name` are skipped silently, and so is a `focusout` from a named element that isn't a field (a `<button name="intent">`). A field whose value is `undefined` (an optional field: `values: { nick: undefined }`) is a field.
 
 **Fix:** Name the input after a path in `values` (`name="email"`, or `name={f.email.name}` from `state.form.fields`), add the field to `values`, or move the unrelated input out of the form element.
 
@@ -869,7 +869,7 @@ A `form.SUBMIT` (the form element's submit, or `simulateAction('form.SUBMIT')`) 
 
 Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
 
-On a valid submit the form dispatches the `submit` action with the schema's output (trimmed, transformed values), not with `state.form.values`. A top-level key of `values` that the output doesn't have was stripped by the schema, usually because the schema doesn't declare it (`z.object()` and `v.object()` drop unknown keys), so the submit action never gets that field. Reported once per key.
+On a valid submit the form dispatches the `submit` action with the schema's output (trimmed, transformed values), not with `state.form.values`. A top-level key of `values` that the output doesn't have was stripped (or renamed) by the schema, usually because the schema doesn't declare it (`z.object()` and `v.object()` drop unknown keys), so the submit action never gets that field. Reported once per key, and only when every key of the output is a key of `values`: an output with keys of its own comes from a schema that reshapes the values (a `transform` that renames), which is left alone.
 
 **Fix:** Declare the field in the schema, make the schema keep unknown keys (`z.looseObject`, `v.looseObject`), or remove the field from `values` if it isn't part of the form.
 
@@ -902,6 +902,16 @@ Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
 Field arrays name their fields by row id (`addresses.7.city`), so errors, touched state, server errors and focus stay with a row when another row is removed. An array of objects in `values` whose rows have no `id` falls back to the index, and after a removal the next row inherits the removed row's errors and touched state. `form.ADD` gives new rows the next id itself; the start values need ids too. Reported when the component is created.
 
 **Fix:** Give each row a unique `id` in `values`: `addresses: [{ id: 1, street: '', city: '' }]`, render rows with a Collection, and name their inputs `addresses.${state.id}.city`.
+
+### SYG237
+
+**Two forms in one component listen on the same form selector**
+
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+Each `form` behavior hears `input`, `focusout` and `submit` on its form element, found by the `form` option inside the host component (default `'form'`). Two `form` uses in one component with the same selector (both left at the default, usually) both match every form element of the view, so typing in one form changes the other's values too (when the names overlap) and each submit is handled by both. Reported when the component is created.
+
+**Fix:** Give each form element its own class and pass it as the `form` option: `uses = { login: form(loginSchema, { ..., form: '.login' }), news: form(newsSchema, { ..., form: '.news' }) }` with `<form className="login">` and `<form className="news">`.
 
 ## SYG3xx: Streams
 

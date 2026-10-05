@@ -59,6 +59,23 @@ That is the whole wiring: there is no intent for the fields.
 
 Reserve the height of the error lines in your CSS (`min-height`). A field's error appears when it loses focus, which happens on the mouse*down* of a click elsewhere: if the new line pushes the button down before the mouse*up*, the click is lost.
 
+### Field types
+
+What `state.form.values[name]` gets from each kind of field, and how to bind it:
+
+| Field | Value | Bind |
+|---|---|---|
+| `<input>` (text, email, password, search, tel, url), `<textarea>` | The text | `value={f.email.value}` |
+| `<input type="number">`, `range`, `date`, `time` | The text as the browser gives it (`'42'`, `'2026-10-05'`; `''` when empty) | `value={f.age.value}`; convert in the schema: `z.coerce.number()`, `v.pipe(v.string(), v.transform(Number), v.number())` |
+| `<input type="radio">` (same `name`) | The checked radio's `value` | `checked={f.size.value === 'm'}` |
+| `<input type="checkbox">` on a boolean | `checked` | `checked={f.agree.value}` |
+| Checkboxes sharing a `name` on an array | The array of the checked boxes' `value`s (checking adds it, unchecking removes it) | `values: { tags: [] }`, `<input type="checkbox" name="tags" value="news" checked={f.tags.value.includes('news')} />` |
+| `<select>` | The selected option's `value` | `value={f.country.value}` |
+| `<select multiple>` | The array of selected `value`s | `selected={f.colors.value.includes('red')}` on each `<option>` |
+| A form-associated custom element (`<wa-input>`, `<wa-select>`) | Its `value` | `value={f.nick.value}` |
+| A form-associated custom checkbox or switch (`<wa-checkbox>`, `<wa-switch>`: a hyphenated tag with a boolean `checked`) | `checked` (as a group on an array, like checkboxes) | `checked={f.news.value}` |
+| `<input type="file">` | Not handled: the form ignores it | Leave `value` unbound; read `e.target.files` in your own intent and keep the files out of `values` |
+
 ### Any Standard Schema
 
 `form()` takes any object with `~standard.validate`: zod (3.24 and later), valibot (1.0 and later), arktype, or one you write. A schema's issue paths become field names, and an issue without a path is a form-level message (`state.form.error`, shown after a submit):
@@ -80,7 +97,7 @@ export const signupSchema = {
 }
 ```
 
-An async schema (valibot's `pipeAsync`, zod's async refinements) works too: `state.form.validating` is `true` while it runs, and a submit waits for it. Something that isn't a Standard Schema is [SYG231](/reference/errors/#syg231).
+An async schema (valibot's `pipeAsync`, zod's async refinements) works too: `state.form.validating` is `true` while it runs (also at the start, until its first answer), `state.form.valid` is `false` meanwhile, and a submit waits for it. The schema first runs when the component starts, not when `form()` is called. Something that isn't a Standard Schema is [SYG231](/reference/errors/#syg231).
 
 ### The slice, the options and the actions
 
@@ -91,8 +108,8 @@ An async schema (valibot's `pipeAsync`, zod's async refinements) works too: `sta
 | `values`, `initial` | The current values, and the ones the form started with (or was last saved or reset with) |
 | `errors` | Every current schema error by field name, shown or not |
 | `touched`, `server`, `remote`, `pending` | Blurred fields; [server errors](#server-errors); [check](#async-checks) results; checks running |
-| `submitting`, `submitted`, `submitCount`, `queued`, `validating` | Submit state: sent and not answered yet; `form.DONE` arrived; attempts; waiting for a check; an async schema runs |
-| `fields`, `valid`, `dirty`, `error` | Calculated: per-field view data; no errors; values differ from `initial`; the form-level message |
+| `submitting`, `submitted`, `submitCount`, `queued`, `validating` | Submit state: sent and not answered yet; `form.DONE` arrived; attempts; a submit waits for a check or an async schema; an async schema runs |
+| `fields`, `valid`, `dirty`, `error` | Calculated: per-field view data; no errors (and not `validating`); values differ from `initial`; the form-level message |
 
 The options:
 
@@ -102,14 +119,14 @@ The options:
 | `submit` | The host action a valid submit dispatches with the schema's output ([SYG234](/reference/errors/#syg234) when the model has no such entry) |
 | `check` | [Async checks](#async-checks) by field name |
 | `show` | `'blur'` (default), `'input'` or `'submit'`: when a schema error shows |
-| `form` | The form element's selector, default `'form'` |
+| `form` | The form element's selector, default `'form'`. Give each form its own when a component has two ([below](#two-forms-in-one-component)) |
 | `http` | The driver sink the checks' requests go to, default `'HTTP'` |
 
 The actions, named after the `uses` key (`form.CHANGE` for `uses = { form: … }`):
 
 | Action | Data |
 |---|---|
-| `form.CHANGE` | `{ name, value }`: from the form element's `input` events (a checkbox gives `checked`) |
+| `form.CHANGE` | `{ name, value }`: from the form element's `input` events ([field types](#field-types); a checkbox gives `checked`, and its `value` as `item`) |
 | `form.BLUR` | The field name, from `focusout` |
 | `form.SUBMIT` | From the form element's `submit` (default prevented) |
 | `form.ADD` / `form.REMOVE` | `{ field, value }` / `{ field, id }`: [field array](#field-arrays) rows |
@@ -119,9 +136,44 @@ The actions, named after the `uses` key (`form.CHANGE` for `uses = { form: … }
 
 As for any behavior, a host model entry with the same name runs after the form's: `'form.DONE': (state) => ({ ...state, done: true })` shows a confirmation. Trigger an action from elsewhere with an intent action of that name, or `t.simulateAction('form.RESET')` in a test.
 
+### Two forms in one component
+
+Each `form` use listens on its `form` selector inside the component, so two uses left at the default `'form'` would both hear every form element: typing in one changes the other, and each submit is handled twice. Give each form element a class and pass it ([SYG237](/reference/errors/#syg237) warns otherwise); the first invalid field focused on submit is then also searched in that form only:
+
+```jsx
+import { form } from 'sygnal'
+import { loginSchema, newsSchema } from './schemas.js'
+
+function Account({ state }) {
+  const login = state.login.fields, news = state.news.fields
+  return (
+    <div>
+      <form className="login" noValidate>
+        <input name="email" aria-label="Email" value={login.email.value} />
+        <button type="submit">Sign in</button>
+      </form>
+      <form className="news" noValidate>
+        <input name="email" aria-label="Newsletter email" value={news.email.value} />
+        <button type="submit">Subscribe</button>
+      </form>
+    </div>
+  )
+}
+
+Account.uses = {
+  login: form(loginSchema, { values: { email: '' }, submit: 'SIGN_IN', form: '.login' }),
+  news: form(newsSchema, { values: { email: '' }, submit: 'SUBSCRIBE', form: '.news' }),
+}
+
+Account.model = {
+  SIGN_IN: { HTTP: (state, values) => ({ url: '/api/sign-in', method: 'POST', json: values, ok: 'login.DONE', error: 'login.ERRORS' }) },
+  SUBSCRIBE: { HTTP: (state, values) => ({ url: '/api/newsletter', method: 'POST', json: values, ok: 'news.DONE', error: 'news.ERRORS' }) },
+}
+```
+
 ## Field arrays
 
-Rows of an array of objects are named by their `id`, not their position: `addresses.7.city`. So a row's errors, touched state and focus stay with it when another row is removed. Render the rows with a [Collection](/guide/collections/), pass `fields` down, and add and remove rows with `form.ADD` and `form.REMOVE`:
+Rows of an array of objects are named by their `id`, not their position: `addresses.7.city` (`addresses.0.city` names nothing when the rows have ids, also in a server error map, where it becomes the form-level message). So a row's errors, touched state and focus stay with it when another row is removed. Render the rows with a [Collection](/guide/collections/), pass `fields` down, and add and remove rows with `form.ADD` and `form.REMOVE`:
 
 ```jsx
 import { Collection, form } from 'sygnal'
@@ -280,10 +332,10 @@ The behavior covers the common form. When a form needs its own state layout or f
 |---|---|
 | `checkForm(schema, values)` | `{ errors, value }`: errors by field name and the schema's output; a Promise for an async schema |
 | `formErrors(schema, values)` | Only the errors (`{}` when valid) |
-| `setField(values, name, value)`, `getField(values, name)` | Immutable set and get by field name (rows by id) |
+| `setField(values, name, value)`, `getField(values, name)`, `hasField(values, name)` | Immutable set and get by field name (rows by id); whether the field exists (also with an `undefined` value) |
 | `fieldName(values, path)`, `fieldNames(values)` | An issue path as a field name; every field name of `values` |
 | `replyErrors(reply, values?)` | Server errors (a reply, a map or a list of issues) as field errors |
-| `focusInvalid(errors)` | An `ELEMENT` command that focuses the first field with an error, children included; `ABORT` when there is none |
+| `focusInvalid(errors, within?)` | An `ELEMENT` command that focuses the first field with an error, children included; with `within` (the form element's selector), only a field inside that element; `ABORT` when there is none |
 
 ```jsx
 import { formErrors, setField, focusInvalid, ABORT } from 'sygnal'
@@ -313,7 +365,7 @@ Profile.model = {
   },
   SUBMIT: {
     STATE: (state) => ({ ...state, submitted: true }),
-    ELEMENT: (state) => focusInvalid(state.errors),
+    ELEMENT: (state) => focusInvalid(state.errors, '.profile'),
     HTTP: (state) => (Object.keys(state.errors).length ? ABORT : { url: '/api/profile', method: 'PUT', json: state.values }),
   },
 }
@@ -321,7 +373,7 @@ Profile.model = {
 
 ## Diagnostics
 
-With the dev checks on (the Vite plugin in dev, `renderComponent` in tests): [SYG230](/reference/errors/#syg230) a field inside the form whose name isn't in `values`, [SYG231](/reference/errors/#syg231) a schema that isn't a Standard Schema, [SYG232](/reference/errors/#syg232) a submit dropped while one is in progress (info), [SYG233](/reference/errors/#syg233) a value the schema strips from its output, [SYG234](/reference/errors/#syg234) a `submit` action the model doesn't have, [SYG235](/reference/errors/#syg235) a `check` for an unknown field, or a check request that sets `ok`/`error`/`latest`, and [SYG236](/reference/errors/#syg236) array rows without an `id`. `sygnal-check` knows `form`: an option typo is [SYG127](/reference/errors/#syg127), and fields inside the form element are not reported as uncontrolled ([SYG111](/reference/errors/#syg111)).
+With the dev checks on (the Vite plugin in dev, `renderComponent` in tests): [SYG230](/reference/errors/#syg230) a field inside the form whose name isn't in `values`, [SYG231](/reference/errors/#syg231) a schema that isn't a Standard Schema, [SYG232](/reference/errors/#syg232) a submit dropped while one is in progress (info), [SYG233](/reference/errors/#syg233) a value the schema strips from its output, [SYG234](/reference/errors/#syg234) a `submit` action the model doesn't have, [SYG235](/reference/errors/#syg235) a `check` for an unknown field, or a check request that sets `ok`/`error`/`latest`, [SYG236](/reference/errors/#syg236) array rows without an `id`, and [SYG237](/reference/errors/#syg237) two forms in one component on the same selector. `sygnal-check` knows `form`: an option typo is [SYG127](/reference/errors/#syg127), and fields inside the form element are not reported as uncontrolled ([SYG111](/reference/errors/#syg111)).
 
 ## processForm()
 
@@ -387,7 +439,25 @@ The stream emits an object with:
 
 An `<input>`, `<textarea>` or `<select>` with a `value` prop (or a checkbox/radio with `checked`) is **controlled**: on every render, Sygnal writes the value from your view into the element, like React does. That keeps the field in sync with state (clearing a field after "Add" works even when both happen in the same tick), but it means the field must update state as the user types. Otherwise any re-render resets what they typed.
 
-A form-associated custom element (one whose class has `static formAssociated = true`, such as Web Awesome's `<wa-input>` or `<wa-rating>`) with a `value` or `checked` prop is controlled the same way. To refuse a value the user entered, return a new state object (`{ ...state }`, or one with an error message): the render puts the state's value back. `ABORT` doesn't render, so the field keeps what the user entered.
+A form-associated custom element (one whose class has `static formAssociated = true`, such as Web Awesome's `<wa-input>` or `<wa-rating>`) with a `value` or `checked` prop is controlled the same way.
+
+To refuse what the user entered, return `ABORT` (or the state unchanged): the state stays as it was, and because the action came from an `input` or `change` event, the component still renders, so the field shows the state's value again. A digits-only field:
+
+```jsx
+import { ABORT } from 'sygnal'
+
+function Pin({ state }) {
+  return <input className="pin" aria-label="PIN" inputMode="numeric" value={state.pin} />
+}
+
+Pin.initialState = { pin: '' }
+Pin.intent = ({ DOM }) => ({ PIN: DOM.input('.pin').value() })
+Pin.model = {
+  PIN: (state, pin) => /^\d{0,6}$/.test(pin) ? { ...state, pin } : ABORT,
+}
+```
+
+This applies only while the `input` or `change` event is being handled (an intent that delays the action, with `debounce` for example, gets no extra render). `ABORT` from any other action (a click, a timer, a reply) still renders nothing.
 
 Pick one of two patterns:
 

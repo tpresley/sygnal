@@ -210,6 +210,7 @@ export const CODE_TITLES: Record<string, string> = {
   SYG234: 'Form submit action has no model entry',
   SYG235: 'Form check names an unknown field or sets reply fields',
   SYG236: 'Form array rows without an id',
+  SYG237: 'Two forms in one component listen on the same form selector',
   SYG402: 'Context is not an object',
   SYG403: 'Invalid context entry',
   SYG404: 'Context stream errored',
@@ -341,6 +342,7 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG234: 'warn',
   SYG235: 'warn',
   SYG236: 'warn',
+  SYG237: 'warn',
   SYG421: 'error',
   SYG611: 'error',
   // PLAN-3 5-4b: router (SYG620 is reported by the router itself, like SYG611) and G-167

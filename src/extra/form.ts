@@ -19,14 +19,19 @@
  *
  * Slice (state.form): values, initial, errors (all current schema errors by name), touched,
  * server (server errors), remote (async check results: '' passed), pending (name -> value being
- * checked), submitting, submitted, submitCount, queued (a submit waits for a check), validating
+ * checked), submitting, submitted, submitCount, queued (a submit waits for a check or an async
+ * schema), validating
  * (an async schema runs); calculated: fields (per name: { name, value, error, invalid, touched,
  * dirty, pending }; `error` is what to show), valid, dirty, error (form-level message).
  *
- * Actions: form.CHANGE ({ name, value }), form.BLUR (name), form.SUBMIT, form.ADD ({ field,
+ * Actions: form.CHANGE ({ name, value, item? }: G-376: a checkbox gives `checked`, and `item`, its
+ * value, which toggles membership when the field is an array; <select multiple> an array of the
+ * selected values; type=file is ignored), form.BLUR (name), form.SUBMIT, form.ADD ({ field,
  * value }), form.REMOVE ({ field, id }), form.ERRORS (an error reply or a map: server errors),
  * form.DONE (saved), form.RESET (values?); internal: form.RESULT (an async schema's result),
- * form.CHECKED_<name> (a check's reply; a failed check passes: the server checks on submit).
+ * form.CHECKED_<name> (a check's reply; a failed check passes: the server checks on submit),
+ * form.VALIDATE (the first validation, when the host starts: G-375; `valid` is false until the
+ * schema answered).
  *
  * Each action is one step function, `(slice, data, key) => outcome | null` (null: no change),
  * the outcome `{ s: new slice, focus: ELEMENT command, req: a check request, send: 1 (dispatch
@@ -40,10 +45,11 @@
  * that sets reply fields. The host checks (SYG234 submit, SYG235 check names, SYG236 row ids)
  * run when the host is created.
  */
+import xs from './xstreamCompat'
 import {defineBehavior} from './behaviors'
 import {ABORT} from '../shared'
 import {isStandardSchema} from './standardSchema'
-import {checkForm, fieldNames, getField, setField, replyErrors, focusInvalid} from './formHelpers'
+import {checkForm, fieldNames, getField, hasField, setField, replyErrors, focusInvalid} from './formHelpers'
 
 const dev = (...a: any[]): any => (globalThis as any).__SYGNAL_DIAGNOSTICS__?.form?.(...a)
 const keys = (o: any) => Object.keys(o).filter(k => o[k])
@@ -55,7 +61,7 @@ const drop = (o: any, p: string) => {
 
 export const form = (schema: any, o: any = {}): any => {
   isStandardSchema(schema) || dev(231, schema)
-  const {values = {}, submit, check: checks = {}, show = 'blur', http = 'HTTP'} = o
+  const {values = {}, submit, check: checks = {}, show = 'blur', http = 'HTTP', form: sel = 'form'} = o
   const cache = new WeakMap(), checked = Object.keys(checks)
   // the schema's result, once per values object; an async one replaces its Promise when it settles
   const v = (vals: any): any => {
@@ -66,9 +72,11 @@ export const form = (schema: any, o: any = {}): any => {
     }
     return r
   }
-  const known = (s: any, n: any) => {
-    const k = n && getField(s.values, n) !== undefined
-    n && !k && dev(230, n, s.values)
+  // G-379: a field is a path of values (an undefined value too); `quiet`: no SYG230 (a focusout
+  // from a named button)
+  const known = (s: any, n: any, quiet?: any) => {
+    const k = n && hasField(s.values, n)
+    n && !k && !quiet && dev(230, n, s.values)
     return k
   }
   // new values: errors now (sync schema), or after the schema's Promise (RESULT)
@@ -89,33 +97,42 @@ export const form = (schema: any, o: any = {}): any => {
   // a submit with s's errors: blocked (focus the first), a check to run or to wait for, or sent
   const attempt = (s: any, k: string) => {
     const bad = [...keys(s.errors), ...keys(s.remote)], f = due(s)
-    return bad.length ? {s: {...s, queued: false}, focus: focusInvalid(bad)}
+    return bad.length ? {s: {...s, queued: false}, focus: focusInvalid(bad, sel)}
       : f ? ask(s, f, k, true)
       : Object.keys(s.pending).length ? {s: {...s, queued: true}}
       : {s: {...s, queued: false, submitting: true}, send: 1}
   }
-  const fresh = (vals: any) => edit({initial: vals, touched: {}, server: {}, remote: {}, pending: {},
-    submitting: false, submitted: false, submitCount: 0, queued: false, errors: {}}, vals)
+  const base = (vals: any) => ({initial: vals, values: vals, touched: {}, server: {}, remote: {}, pending: {},
+    submitting: false, submitted: false, submitCount: 0, queued: false, errors: {}})
+  const fresh = (vals: any) => edit(base(vals), vals)
+  const group = (cur: any, d: any) => {
+    if (!Array.isArray(cur) || !('item' in d)) return d.value
+    const r = cur.filter(x => x !== d.item)
+    return d.value ? [...r, d.item] : r
+  }
 
   const steps: Record<string, (s: any, d: any, k: string) => any> = {
-    CHANGE: (s, d) => known(s, d?.name) ? edit(s, setField(s.values, d.name, d.value), {
+    // G-376: a checkbox (`item`: its value) on an array field is one of a group: checked adds
+    // its value, unchecked removes it
+    CHANGE: (s, d) => known(s, d?.name) ? edit(s, setField(s.values, d.name, group(getField(s.values, d.name), d)), {
       server: drop(drop(s.server, d.name), ''), remote: drop(s.remote, d.name), pending: drop(s.pending, d.name), queued: false,
       touched: show == 'input' ? {...s.touched, [d.name]: true} : s.touched,
     }) : null,
     BLUR: (s, n, k) => {
-      if (!known(s, n)) return null
+      if (!known(s, n, 1)) return null
       const t = show == 'submit' || s.touched[n] ? s.touched : {...s.touched, [n]: true}, x = {...s, touched: t}
       return due(s, n) ? ask(x, n, k, s.queued) : t != s.touched ? {s: x} : null
     },
     SUBMIT: (s, _, k) => {
       if (s.submitting || s.queued) return void dev(232, s)
       const n = {...s, submitCount: s.submitCount + 1}, r = v(s.values)
-      return r.then ? {s: {...n, validating: true}, wait: {values: s.values, submit: 1}} : attempt({...n, errors: r.errors}, k)
+      // G-371: a submit waiting for an async schema is queued (a second one is dropped)
+      return r.then ? {s: {...n, validating: true, queued: true}, wait: {values: s.values, submit: 1}} : attempt({...n, errors: r.errors}, k)
     },
     RESULT: (s, d, k) => {
       if (d.values !== s.values) return
       const n = {...s, errors: v(d.values).errors, validating: false}
-      return d.submit ? attempt(n, k) : {s: n}
+      return d.submit && !s.submitting ? attempt(n, k) : {s: n}
     },
     ADD: (s, {field, value}) => {
       const rows = getField(s.values, field) || []
@@ -128,10 +145,12 @@ export const form = (schema: any, o: any = {}): any => {
     },
     ERRORS: (s, d) => {
       const e = replyErrors(d, s.values)
-      return {s: {...s, server: e, submitting: false, queued: false}, focus: focusInvalid(e)}
+      return {s: {...s, server: e, submitting: false, queued: false}, focus: focusInvalid(e, sel)}
     },
     DONE: (s) => ({s: {...s, submitting: false, submitted: true, initial: s.values, server: {}, touched: {}}}),
     RESET: (s, d) => fresh(d && typeof d == 'object' ? d : s.initial),
+    // G-375: the first validation, when the host starts (form() doesn't validate at module load)
+    VALIDATE: (s) => edit(s, s.values),
   }
   // a check's reply (ok and error: an error reply carries an Error and passes)
   for (const f of checked) steps['CHECKED_' + f] = (s, d, k) => {
@@ -162,11 +181,18 @@ export const form = (schema: any, o: any = {}): any => {
 
   return defineBehavior({
     form: schema,
-    initialState: {...fresh(values).s, validating: false},
+    // validating until VALIDATE (sync) or its RESULT (async): not valid yet (G-375)
+    initialState: {...base(values), validating: true},
     intent: ({DOM}: any) => {
-      const f = DOM.select(o.form || 'form')
+      const f = DOM.select(sel)
       return {
-        CHANGE: f.events('input').map(({target: t}: any) => ({name: t.name, value: t.type == 'checkbox' ? t.checked : t.value})),
+        VALIDATE: xs.of(0),
+        // G-376: a checkbox (native, or a hyphenated tag with a boolean `checked`: a
+        // form-associated custom checkbox / switch) gives `checked` and its value as `item`; a
+        // <select multiple> the selected values; type=file is left alone; others give `value`
+        CHANGE: f.events('input').filter(({target: t}: any) => t.type != 'file').map(({target: t}: any) =>
+          t.type == 'checkbox' || /-/.test(t.tagName) && typeof t.checked == 'boolean' ? {name: t.name, value: t.checked, item: t.value}
+          : {name: t.name, value: t.type == 'select-multiple' ? [...t.selectedOptions].map((o: any) => o.value) : t.value}),
         BLUR: f.events('focusout').map((e: any) => e.target.name),
         SUBMIT: f.events('submit', {preventDefault: true}),
       }
@@ -182,7 +208,7 @@ export const form = (schema: any, o: any = {}): any => {
         }
         return out
       },
-      valid: (s: any) => !keys(s.errors).length && !keys(s.remote).length,
+      valid: (s: any) => !s.validating && !keys(s.errors).length && !keys(s.remote).length,
       dirty: (s: any) => JSON.stringify(s.values) != JSON.stringify(s.initial),
       error: (s: any) => s.server[''] || (s.submitCount && s.errors['']) || '',
     },

@@ -3,7 +3,7 @@
  * `npm run test:types`; never executed.
  */
 import { describe, it, expectTypeOf } from 'vitest'
-import { form, checkForm, formErrors, setField, getField, fieldName, fieldNames, replyErrors, focusInvalid, ABORT } from 'sygnal'
+import { form, checkForm, formErrors, setField, getField, hasField, fieldName, fieldNames, replyErrors, focusInvalid, ABORT } from 'sygnal'
 import type { Component, UsesState, UsesActions, FormField, FormState, FieldErrors, StandardSchemaLike, ElementCommand } from 'sygnal'
 
 type Values = { email: string; addresses: { id: number; city: string }[] }
@@ -17,7 +17,7 @@ describe('F-1: form', () => {
     expectTypeOf<S['form']['fields']>().toEqualTypeOf<Record<string, FormField>>()
     expectTypeOf<S['form']['submitting']>().toEqualTypeOf<boolean>()
     expectTypeOf<S['form']['error']>().toEqualTypeOf<string>()
-    expectTypeOf<UsesActions<typeof uses>['form.CHANGE']>().toEqualTypeOf<{ name: string; value: any }>()
+    expectTypeOf<UsesActions<typeof uses>['form.CHANGE']>().toEqualTypeOf<{ name: string; value: any; item?: any }>()
     expectTypeOf<UsesActions<typeof uses>['form.REMOVE']>().toEqualTypeOf<{ field: string; id: any }>()
     expectTypeOf<FormState<Values>['errors']>().toEqualTypeOf<FieldErrors>()
 
@@ -43,5 +43,7 @@ describe('F-1: form', () => {
     const r = checkForm(schema, v)
     if (!('then' in r)) expectTypeOf(r.errors).toEqualTypeOf<FieldErrors>()
     expectTypeOf(focusInvalid({ email: 'Bad' })).toEqualTypeOf<ElementCommand | ABORT>()
+    expectTypeOf(focusInvalid(['email'], '.signup')).toEqualTypeOf<ElementCommand | ABORT>()
+    expectTypeOf(hasField({ a: undefined }, 'a')).toEqualTypeOf<boolean>()
   })
 })

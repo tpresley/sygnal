@@ -904,9 +904,9 @@ export interface FormState<V = any> {
   /** `form.DONE` arrived */
   submitted: boolean;
   submitCount: number;
-  /** A submit waits for an async check */
+  /** A submit waits for an async check or an async schema */
   queued: boolean;
-  /** An async schema is running */
+  /** The schema hasn't answered for the current values yet (an async one is running; also at the start) */
   validating: boolean;
 }
 
@@ -914,7 +914,7 @@ export interface FormState<V = any> {
 export interface FormCalculated {
   /** Every field of `values` by name (leaves, arrays, and array rows' fields by row id) */
   fields: Record<string, FormField>;
-  /** No schema error and no failed check */
+  /** No schema error and no failed check, and not `validating` */
   valid: boolean;
   dirty: boolean;
   /** The form-level message: a server error without a field, or a schema issue without a path after a submit */
@@ -945,8 +945,8 @@ export interface FormOptions<V = any> {
 }
 
 export interface FormActions {
-  /** A field changed (the form element's input events): `{ name, value }` */
-  CHANGE: { name: string; value: any };
+  /** A field changed (the form element's input events): `{ name, value }`; a checkbox gives `checked` as `value` and its own value as `item` (on an array field: added or removed) */
+  CHANGE: { name: string; value: any; item?: any };
   /** A field lost focus (focusout): its name */
   BLUR: string;
   /** The form element's submit (default prevented) */
@@ -986,14 +986,16 @@ export function formErrors(schema: StandardSchemaLike, values: any): FieldErrors
 export function setField<V>(values: V, name: string, value: any): V
 /** The value at a field name. */
 export function getField(values: any, name: string): any
+/** Whether `name` is a field of `values` (its path exists, also when the value is undefined; rows by id). */
+export function hasField(values: any, name: string): boolean
 /** The field name of a schema issue path (array indexes become row ids). */
 export function fieldName(values: any, path?: ReadonlyArray<any>): string
 /** Every field name of `values` (leaves, arrays, rows' fields). */
 export function fieldNames(values: any): string[]
 /** Server errors (an error reply, a map, or a list of issues) as field errors; '' for a form-level message. */
 export function replyErrors(reply: any, values?: any): FieldErrors
-/** An ELEMENT command focusing the first field (DOM order) named in `names` (or with a message in an errors map), children included; ABORT when none. */
-export function focusInvalid(names: string[] | FieldErrors): ElementCommand | ABORT
+/** An ELEMENT command focusing the first field (DOM order) named in `names` (or with a message in an errors map), children included; with `within` (the form element's selector), only fields inside it; ABORT when none. */
+export function focusInvalid(names: string[] | FieldErrors, within?: string): ElementCommand | ABORT
 
 /** A `selection` slice: the selected ids, as strings, in selection order. */
 export interface SelectionState { selected: string[] }

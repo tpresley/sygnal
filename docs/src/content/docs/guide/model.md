@@ -57,7 +57,7 @@ MyComponent.model = {
 }
 ```
 
-Returning the state object the reducer received means the same thing: no state is emitted and nothing re-renders, so `(state, x) => x ? { ...state, x } : state` is a no-op when `x` is empty. The docs use `ABORT` because it says so explicitly. (Before 6.0, returning `state` produced a new state and strict mode flagged it as SYG502; that rule is retired.)
+Returning the state object the reducer received means the same thing: no state is emitted and nothing re-renders, so `(state, x) => x ? { ...state, x } : state` is a no-op when `x` is empty. The docs use `ABORT` because it says so explicitly. (Before 6.0, returning `state` produced a new state and strict mode flagged it as SYG502; that rule is retired.) One exception to "nothing re-renders": an action triggered by typing in a field (an `input` or `change` event) re-renders its component, so a controlled field that the reducer refused shows the state's value again (see [Controlled Inputs](/guide/forms/#controlled-inputs)).
 
 Because the same object means "no change", a reducer that changes the state in place and returns it has no effect. In dev, Sygnal reports that as [SYG222](/reference/errors/#syg222). Return a new object:
 

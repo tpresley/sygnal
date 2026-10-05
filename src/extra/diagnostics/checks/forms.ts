@@ -9,20 +9,22 @@
  *   232  (slice) a submit while submitting or while a queued submit waits for a check: SYG232
  *        (info, every time); the submit is dropped
  *   233  (values, output) a valid submit: each top-level `values` key missing from the schema's
- *        output, SYG233 (warn, once per key): the schema strips it (zod's z.object does)
+ *        output, SYG233 (warn, once per key): the schema strips it (zod's z.object does). G-377:
+ *        only when every output key is a values key (an output with other keys reshapes: a rename)
  *   235  (field, request) a check's request with `ok` / `error` / `latest` keys, which the form
  *        overwrites: SYG235 (warn, once per field)
  * Host checks (onModel, once per component name), for each `uses` entry made by form():
  *   SYG234 (warn) `submit` missing, not a host model entry, or one of the form's own action names
  *   SYG235 (warn) a `check` key that isn't a field of `values`
  *   SYG236 (warn) an array of objects in `values` with a row without an `id`
+ *   SYG237 (warn) two form uses of one host with the same form selector (G-374)
  */
 import type {DiagnosticCheck} from '../index'
 import {devReport, once, nameOf} from './shared'
 import {docsUrlFor} from '../codes'
-import {getField} from '../../formHelpers'
+import {hasField} from '../../formHelpers'
 
-const FORM_ACTIONS = ['CHANGE', 'BLUR', 'SUBMIT', 'ADD', 'REMOVE', 'ERRORS', 'DONE', 'RESET', 'RESULT']
+const FORM_ACTIONS = ['CHANGE', 'BLUR', 'SUBMIT', 'ADD', 'REMOVE', 'ERRORS', 'DONE', 'RESET', 'RESULT', 'VALIDATE']
 const RESERVED = ['ok', 'error', 'latest']
 
 const what = (v: any): string =>
@@ -50,15 +52,16 @@ export function reportForm(code: number, a?: any, b?: any): any {
   } else if (code == 232) {
     devReport('SYG232', {
       component: 'form',
-      message: `form: a submit was dropped: ${a?.submitting ? 'the previous submit is still being sent (no form.DONE / form.ERRORS yet)' : 'a submit is already queued, waiting for an async check'}`,
+      message: `form: a submit was dropped: ${a?.submitting ? 'the previous submit is still being sent (no form.DONE / form.ERRORS yet)' : 'a submit is already queued, waiting for an async check or an async schema'}`,
       fix: `Disable the submit button while state.form.submitting (or queued) is true; answer the submit with ok: 'form.DONE', error: 'form.ERRORS'`,
     })
   } else if (code == 233) {
+    if (!b || typeof b != 'object' || Object.keys(b).some(k => !(k in (a || {})))) return
     for (const k of Object.keys(a || {})) {
-      if (b && typeof b == 'object' && !(k in b) && once(`SYG233:${k}`)) devReport('SYG233', {
+      if (!(k in b) && once(`SYG233:${k}`)) devReport('SYG233', {
         component: 'form',
-        message: `form: values.${k} is not in the schema's output, so the submit action doesn't get it (the schema strips keys it doesn't declare)`,
-        fix: `Declare '${k}' in the schema (or make the schema keep unknown keys), or remove it from values`,
+        message: `form: values.${k} is not in the schema's output (stripped or renamed), so the submit action doesn't get it under that name (a schema strips keys it doesn't declare)`,
+        fix: `Declare '${k}' in the schema (or make the schema keep unknown keys), or remove it from values; if the schema renames it on purpose, ignore this`,
         data: {key: k},
       })
     }
@@ -88,10 +91,22 @@ export const formsCheck: DiagnosticCheck = {
   onModel(component) {
     const view = component?.view, uses = view?.uses
     if (!uses || typeof uses != 'object') return
-    const name = nameOf(component)
+    const name = nameOf(component), sels: Record<string, string> = {}
     for (const key of Object.keys(uses)) {
       const b = uses[key]
-      if (!b?.form || !once(`SYG23x:${name}:${key}`)) continue
+      if (!b?.form) continue
+      // G-374: each form listens on its selector inside the host, so two with one selector hear
+      // each other's fields and submits
+      const sel = b.options?.form || 'form'
+      if (sel in sels) {
+        if (once(`SYG237:${name}:${sel}`)) devReport('SYG237', {
+          component,
+          message: `${name}'s forms '${sels[sel]}' and '${key}' both listen on '${sel}', so each hears the other's fields and submits`,
+          fix: `Give each form element its own class and pass it: ${sels[sel]}: form(schema, { ..., form: '.${sels[sel]}' }), ${key}: form(schema, { ..., form: '.${key}' })`,
+          data: {keys: [sels[sel], key], form: sel},
+        })
+      } else sels[sel] = key
+      if (!once(`SYG23x:${name}:${key}`)) continue
       const o = b.options || {}, values = o.values || {}
       const model = Object.keys(view.model || {}).map(a => a.split('|')[0].trim())
       if (typeof o.submit != 'string' || !model.includes(o.submit) || FORM_ACTIONS.includes(o.submit)) {
@@ -105,7 +120,7 @@ export const formsCheck: DiagnosticCheck = {
         })
       }
       for (const f of Object.keys(o.check || {})) {
-        if (getField(values, f) === undefined) devReport('SYG235', {
+        if (!hasField(values, f)) devReport('SYG235', {
           component,
           message: `${name}'s form '${key}' has a check for '${f}', which isn't a field of its values; it never runs`,
           fix: `Use a field name from values (${Object.keys(values).join(', ')})`,
