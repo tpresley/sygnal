@@ -19,7 +19,7 @@ export interface FromReactOptions<P = any> {
    * the callback's argument (an array when it gets more than one).
    */
   events?: Record<string, string> | readonly string[]
-  /** The component's props from the widget's (default: all but className, class, id, style, attrs) */
+  /** The component's props from the widget's (default: all but the host's className, class, id, style, attrs, tabIndex, hidden; D215) */
   props?: (props: P) => Record<string, any>
   /** Element commands, called with the instance */
   commands?: Record<string, (instance: ReactInstance, options: Record<string, any>, el: HTMLElement) => unknown>
@@ -29,9 +29,9 @@ export interface FromReactOptions<P = any> {
   name?: string
   /** What server rendering puts in the host */
   fallback?: WidgetDefinition['fallback']
-  /** More prop names for the host element */
+  /** More prop names for the host element (also a component-only one: aria-*, role, title) */
   hostProps?: string[]
-  /** Prop names that stay off the host and go only to the component */
+  /** Prop names that stay off the host and go only to the component (aria-*, role and title always do) */
   ownProps?: string[]
 }
 

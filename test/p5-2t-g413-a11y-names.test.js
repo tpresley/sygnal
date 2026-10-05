@@ -3,8 +3,8 @@
 // - Menu / Select / Combobox take aria-label, aria-labelledby and aria-describedby from their
 //   props and put them on the control (Menu's trigger, Select's trigger, Combobox's input), not
 //   on the host; without a `label`, no aria-labelledby points at a missing label element.
-// - fromReact: host-only attributes (tabIndex, role, aria-*, title, hidden) go to the host only,
-//   not to the component as well (no second tab stop, no duplicated role).
+// - fromReact (D215, 3-G): tabIndex and hidden go to the host only (no second tab stop); aria-*,
+//   role and title to the component only (p5-3g-react-props.test.js); data-* to both.
 import { it, expect, afterEach } from 'vitest'
 import { createElement as r } from 'react'
 import { createElement as h } from '../src/pragma/index.js'
@@ -87,14 +87,16 @@ it('with a label: the label names the control, as before', async () => {
   expect(dangling(t.query('.s'))).toEqual([])
 })
 
-it('fromReact: tabIndex, role, aria-*, title and hidden stay on the host', async () => {
+it('fromReact (D215): tabIndex and hidden stay on the host; role, aria-* and title go to the component only; data-* to both', async () => {
   let got
   const W = fromReact((p) => { got = p; return r('span', { className: 'in' }, 'x') })
-  function A() { return h('div', null, h(W, { className: 'w', tabIndex: 0, role: 'img', 'aria-label': 'Chart', title: 'Chart', hidden: false, value: 3 })) }
+  function A() { return h('div', null, h(W, { className: 'w', tabIndex: 0, role: 'img', 'aria-label': 'Chart', title: 'Chart', hidden: false, 'data-kind': 'pie', value: 3 })) }
   await real(A)
   const host = t.query('.w')
   expect(host.getAttribute('tabindex')).toBe('0')
-  expect(host.getAttribute('role')).toBe('img')
-  expect(host.getAttribute('aria-label')).toBe('Chart')
-  expect(Object.keys(got).sort()).toEqual(['value'])
+  expect(host.hasAttribute('role')).toBe(false)
+  expect(host.hasAttribute('aria-label')).toBe(false)
+  expect(host.hasAttribute('title')).toBe(false)
+  expect(host.dataset.kind).toBe('pie')
+  expect(Object.keys(got).sort()).toEqual(['aria-label', 'data-kind', 'role', 'title', 'value'])
 })

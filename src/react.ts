@@ -14,12 +14,17 @@
  *   its own name (`['onChange']` → 'onChange'; React's names never collide with native events).
  *   The detail is the callback's argument (an array when it gets more than one). The component
  *   gets a callback for each, and a callback passed as a prop runs first.
- * - Props: all but the host's: `className`, `class`, `id`, `style`, `attrs`, and (G-413) `tabIndex`,
- *   `role`, `aria-*`, `title`, `hidden`; `ownProps: ['aria-label']` sends one to the component
- *   only. `props` maps them: `props: (p) => ({ ...p, size: 'small' })`.
+ * - Props (D215): `className`, `class`, `id`, `style`, `attrs`, `tabIndex` and `hidden` go to the
+ *   host only (one tab stop); `aria-*`, `role` and `title` to the component only (a labelled
+ *   React control gets its own name; the host div is generic); `data-*` to both; the rest to the
+ *   component (`name`, `placeholder`, `lang`, `dir` also to the host, as for any widget).
+ *   `ownProps: ['tabIndex']` sends a host prop to the component instead; `hostProps: ['role']`
+ *   puts a component-only one on the host too. `props` maps the component's props:
+ *   `props: (p) => ({ ...p, size: 'small' })`.
  * - Unmount: `root.unmount()` in a microtask (React refuses a synchronous unmount while it is
  *   rendering, which a callback → action → re-render chain can be in), and only once the host
- *   has left the document (G-412: inside a <Transition>, the content stays during the leave).
+ *   has left the document (G-412: inside a <Transition>, the content stays during the leave),
+ *   seen in shadow roots too (G-437); a destroyed host still in the DOM after 10 s unmounts then.
  * - SSR: the host with the `fallback` (no React on the server here).
  * - preact/compat: alias `react` and `react-dom` to `preact/compat`, and `react-dom/client` to
  *   `preact/compat/client`, in the bundler; the adapter only uses createElement, createRoot and
@@ -33,9 +38,11 @@ import {flushSync} from 'react-dom'
 import {createRoot} from 'react-dom/client'
 import {defineWidget} from './index'
 
-// the host's props (the component doesn't get them): G-413, tabIndex / role / aria-* / title /
-// hidden too, so a focusable or labelled host isn't doubled inside (two tab stops, two roles)
-const HOST = /^(className|class|id|style|attrs|tab[iI]ndex|role|title|hidden)$|^aria-/
+// D215: the host's own props (the component doesn't get them): tabIndex / hidden too, so a
+// focusable host isn't doubled inside (two tab stops)
+const HOST = /^(className|class|id|style|attrs|tab[iI]ndex|hidden)$/
+// D215 (G-436): the component's own (kept off the host): a React control names itself
+const OWN = /^(aria-|role$|title$)/
 
 const fail = (m: string): never => {
   throw new Error(`[Sygnal SYG667] ${m}. https://sygnal.js.org/reference/errors#syg667`)
@@ -43,10 +50,18 @@ const fail = (m: string): never => {
 
 // G-412: run f once the host has left the document. A host still in it is leaving with a delay
 // (a <Transition> leave animation): its React content stays until the element is removed.
+// G-437: the removal can happen inside a shadow root (sygnal/element `shadow: true`), which a
+// document observer doesn't see: every root on the way up (shadow roots, then the document) is
+// observed. A destroyed host that stays in the DOM (a leave whose transitionend never comes, a
+// tree left in place) is unmounted after LATE ms anyway, so no React root or observer leaks.
+const LATE = 10000
 const gone = (el: any, f: () => void) => {
   if (!el.isConnected) return f()
-  const o: MutationObserver = new MutationObserver(() => { if (!el.isConnected) o.disconnect(), f() })
-  o.observe(el.ownerDocument, {childList: true, subtree: true})
+  let t: any
+  const done = () => { o.disconnect(); clearTimeout(t); f() }
+  const o: MutationObserver = new MutationObserver(() => { if (!el.isConnected) done() })
+  for (let r = el.getRootNode(); r; r = r.host?.getRootNode()) o.observe(r, {childList: true, subtree: true})
+  t = setTimeout(done, LATE)
 }
 
 /**
@@ -79,7 +94,9 @@ export function fromReact(Comp: any, options: any = {}): any {
     name: o.name || Comp.displayName || Comp.name,
     fallback: o.fallback,
     hostProps: o.hostProps,
-    ownProps: o.ownProps,
+    // D215: aria-* / role / title stay off the host unless hostProps names one (the list is the
+    // option's; its includes() also matches those patterns, which is all defineWidget asks of it)
+    ownProps: Object.assign([...(o.ownProps || [])], {includes: (k: string) => !!o.ownProps?.includes(k) || OWN.test(k) && !o.hostProps?.includes(k)}),
     events: Object.keys(events),
     commands: o.commands,
     mount: (el: any, p: any, d: any) => {
