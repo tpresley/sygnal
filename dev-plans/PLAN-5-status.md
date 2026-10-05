@@ -6,7 +6,7 @@ Tracks progress for [PLAN-5.md](PLAN-5.md) (ecosystem components and integration
 
 **Integration branch:** `plan5-integration`, cut from `plan46-complete` (`7146161`) on 2026-10-05, in worktree `.claude/worktrees/plan-4-execution-7ae8e8`. The release stays held (D56).
 
-**State:** Phase 2: 2-B, 2-V, 2-U, 2-A merged; 2-Z and 2-R merged; 2-S, 2-T merged (Phase 2 complete); Phase 3: 3-R, 3-D merged; 3-F merged; 3-G merged; running 3-H, 3-I, 3-J (hydration), 3-K (2-A/2-S review fixes, SYG148–149). Known flaky test `p5-1s-forms` (fixed in 2-R).
+**State:** Phase 2: 2-B, 2-V, 2-U, 2-A merged; 2-Z and 2-R merged; 2-S, 2-T merged (Phase 2 complete); Phase 3: 3-R, 3-D merged; 3-F merged; 3-G merged; 3-H merged; running 3-I, 3-J (hydration), 3-K, 3-L (2-A/2-S review fixes, SYG148–149). Known flaky test `p5-1s-forms` (fixed in 2-R).
 
 ## 0-A baseline (2026-10-05)
 
@@ -82,6 +82,7 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 
 | ID | Date | Decision | By |
 |---|---|---|---|
+| D218 | 2026-10-05 | `defineBehavior` options from 3-H stay public as named: `persist: false` (the behavior's slice is never saved/restored by `persist()`) and `undoStep: ['ACTION']` (intermediate actions form one gesture; `undo()` records one entry when the named action completes it, none if cancelled). Coordinator: G-454's half rule applies to every item of another list; `helpId` set on first interaction (G-453); SYG435's contiguous-run heuristic accepted | User + coordinator |
 | D217 | 2026-10-05 | Hydration (G-456): fix in PLAN-5 as workstream 3-J, first trying the cheaper design (build the hydration vnode from the DOM with the client vnode as template, dropping snabbdom's `toVNode`); spend up to ≈320 B of core only if the cuts don't work | User |
 | D216 | 2026-10-05 | Coordinator: the recipe tests (`npm run test:recipes -- --install --browser`) join the coordinator's merge gate, not `npm test` (≈150 MB of devDependencies, ~1 min per engine); the SYG705 icon-helper rule (3-G, G-433) stays a warning — it reports only literal icon names / icon-package imports without a literal label | Coordinator |
 | D215 | 2026-10-05 | `fromReact` prop routing (user: `data-*` to both; coordinator for the rest, per review of 2-T): `data-*` → host and component; `tabIndex`, `hidden` → host only; `aria-*`, `role`, `title` → the component only (a labelled React control must get its own name; the host `div` is generic) — G-436 | User + coordinator |
@@ -215,6 +216,13 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 | G-470 | review 3-G | Low | zag | SYG669: a plain `<slot>` with a form field (no `$p`) reported as `<Slot>` — detect markers by the pragma's marker flag; `$669` set even when diagnostics are off (order-dependent) | → 3-K |
 | G-471 | review 3-G | Low | sygnal-check | SYG705 icon rule: FP for an `icon('trash')` helper emitting sr-only text; FN for `icon(X, { title })` when the helper ignores `title` (the recipe's does) — drop `title` from the label keys or make the recipe helper honour it | → 3-K |
 | G-472 | review 3-G | Low | react / zag | Docs: a React component that doesn't forward `aria-*`/`role` loses its name under D215 (use `hostProps`); the 10 s unmount bound for hosts left in the DOM; `free()` should clear `vn` before `release` | → 3-K |
+| G-473 | review 3-H | Med | undo | A recorded action during a gesture records the half-dragged value and drops `base[0]`: the pre-drag order becomes unreachable (probe: past `["1,3,2,4","1,3,2,4,5"]`); UNDO mid-gesture likewise. Confirmed | → 3-L |
+| G-474 | review 3-H | Med | sortable | `sort.END` on unmount restores into data the unmounting action replaced (probe: fresh `[2,5,6]` became `5,2,6`). Restore only if the list is still the drag's own array. Confirmed | → 3-L |
+| G-475 | review 3-H | Low/Med | sortable | INIT/`live` reset a restored or synced keyboard drag to idle without moving the item back (HMR, persisted item host, two hosts sharing a slice): half-moved list, no DROPPED, undo `base` pending | → 3-L |
+| G-476 | review 3-H | Low | persist / docs | `persist: false` covers only the root's own `uses`; child/item sortables still save `items[i].sort`; docs read as unconditional | → 3-L |
+| G-477 | review 3-H | Low/Med | undo | `track`/`resetOn`/`coalesce` naming a gesture behavior's actions are silently ignored (e.g. `track: ['sort.UP']` records no drags); SYG226 skips `sort.*` | → 3-L |
+| G-478 | review 3-H | Low | diagnostics | SYG435 false positive with VirtualCollection's pinned focused row (non-contiguous shown ids) and stray `[data-id]` elements; O(n²) scan on every press even after reporting (dev) | → 3-L |
+| G-479 | review 3-H | Low | undo | `history.base` stays after a cancelled gesture (docs say only while dragging) | → 3-L |
 | G-408 | 2-R × 2-Z | Low | process | Two parallel workstreams registered the same code (SYG666); fixed at merge (2-R's → SYG668). Briefs now assign code numbers | Fixed (process) |
 | G-394 | review 2-V | High | VirtualCollection | An inline `estimateSize` function (the guide's own pattern) clears every measured row height on each owner render; rows aren't re-measured. Confirmed | → 2-S |
 | G-395 | review 2-V | Med/High | VirtualCollection | SYG430 "grows" misfires on a bounded container above viewport height that fits its rows; clamping then leaves unreachable blank rows. Confirmed | → 2-S |
@@ -247,6 +255,7 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 - 2026-10-05 — Review of 3-F: G-457…G-462 (no high). 3-I started.
 - 2026-10-05 — 3-G merged (clean): D214 `renderComponent({ context })`, D215 routing, `test:recipes`, G-433…G-443. Behaviour: fromReact `aria-*`/`role`/`title` to the component; a destroyed fromReact host left in the DOM unmounts after 10 s; Combobox `allowCustomValue` submits the text. D216, G-463.
 - 2026-10-05 — Gates after 3-G: vitest 3,296, browser 314/313/313, sygnal-check 618, samples 672, core 41,840 B; recipes vitest 19/19, Firefox/WebKit 15/15, Chromium flaky (G-467). G-456 spike done; user D217. Review of 3-G: G-468…G-472. 3-J (hydration) and 3-K (G-463…G-465, G-467…G-472) started.
+- 2026-10-05 — 3-H merged (clean; G-444…G-455, SYG435, undo gestures, `persist: false`, `sort.HELP`/`END`); gates green: vitest 3,321, browser 318/317/317, sygnal-check 619, samples 672, recipes 19 + 15×3, core 41,840 B. User: D218. Review of 3-H: G-473…G-479. 3-L started.
 - 2026-10-05 — 2-R merged (6 conflicts; SYG666 clash renumbered to SYG668); all gates green on three engines (279/279); core 41,825 B. D212, G-408.
 - 2026-10-05 — 2-Z merged; three engines 276/276; core 41,771 B. D211.
 - 2026-10-05 — Review of 2-U + 2-V: 14 findings (G-394…G-407). 2-S started.
