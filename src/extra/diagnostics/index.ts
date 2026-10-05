@@ -74,7 +74,7 @@
  *   A check that throws (other than a DiagnosticError from 'error' mode) is
  *   isolated: the exception is reported as SYG900 and other checks still run.
  *
- * --- Hooks (called from src/component.ts, marked `// [diagnostics hook]`) ----
+ * --- Hooks (dispatched by checks/next.ts from the core's hook layer) ----
  *
  *   onIntent(component, actionNames, selectorsUsed?)
  *     after intent is built. actionNames = keys of the intent object ([] for a

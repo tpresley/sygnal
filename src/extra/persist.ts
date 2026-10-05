@@ -6,7 +6,7 @@ import {warn} from './diagnostics/legacy';
  *   TodoApp.persist = persist({ key: 'todo-app', pick: ['todos', 'filter'], version: 2, migrate })
  *
  * The core has no persistence code: a root component calls `persist.setup(this)` once, in its
- * constructor (src/component.ts); an app that never imports persist() pays 0 B.
+ * root setup (src/core/runtime.ts rootShim); an app that never imports persist() pays 0 B.
  *
  * - Stored as JSON `{ version, state }` under `key`; `state` has the picked top-level keys
  *   (`pick`), or all but `omit` and the calculated fields. `format: 'plain'` (4-G1, D143) stores

@@ -1,6 +1,6 @@
 /*
  * Tiny helpers shared by the core and the helper modules (behaviors, undo, the dev entry), kept
- * out of component.ts so importing them never pulls the core in.
+ * out of the core so importing them never pulls it in.
  */
 
 /** The "no change / send nothing" sentinel (a registered symbol: the same in every copy) */

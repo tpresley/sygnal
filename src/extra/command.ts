@@ -14,11 +14,11 @@ export interface Command {
   send(type: string, data?: any): void;
   /** @internal — raw stream used by component wiring */
   _stream: Stream<CommandMessage>;
-  /** @internal — marker for component.ts detection */
+  /** @internal — marker for the core's detection */
   __sygnalCommand: true;
-  /** @internal — stamped by component.ts when wired to a child */
+  /** @internal — stamped by the core when wired to a child */
   _targetComponentId?: number;
-  /** @internal — stamped by component.ts when wired to a child */
+  /** @internal — stamped by the core when wired to a child */
   _targetComponentName?: string;
 }
 

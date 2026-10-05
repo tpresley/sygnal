@@ -11,7 +11,7 @@ import { viewFunctions } from './syg501-positional-view.js'
 
 const RESERVED = new Set([
   'state', 'children', 'slots', 'context', 'peers', 'uid', 'key', 'className', 'class', 'id', 'style',
-  'props', 'attrs', 'on', 'hook', 'ref', 'dataset', 'of', 'from', 'current', 'sygnalFactory', 'sygnalOptions',
+  'props', 'attrs', 'on', 'hook', 'ref', 'dataset', 'of', 'from', 'current',
 ])
 const NOT_COMPONENT = new Set(['Fragment', 'Portal', 'Transition', 'Suspense', 'ClientOnly', 'Slot', 'Collection', 'Switchable'])
 const isComponentTag = (name) => !!name && /^[A-Z]/.test(name) && !NOT_COMPONENT.has(name.split('.')[0])

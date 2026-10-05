@@ -1023,7 +1023,7 @@ const fakeStorage = (rec: Record<string, any>) => {
     subscribe: (f: (k: string, v: string | null) => void) => (subs!.add(f), () => { subs!.delete(f); }),
   };
 };
-// a model next() call, seen through the component's debug log (component.ts makeOnAction /
+// a model next() call, seen through the component's debug log (the 5.x core's makeOnAction /
 // makeEffectHandler: "... next() action: <TYPE> 400ms delay")
 const RESERVED_SINKS = /^(STATE|EFFECT|PARENT|READY|DOM|ELEMENT)$/;
 // E2: a source name that a driver would provide (fake sources are made only for these)

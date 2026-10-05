@@ -105,7 +105,7 @@ export const fromShim = (shim: any, src: DefSource): DefSource => ({
 const RESOURCE = (s: any, {name, ...r}: any) => ({...s, [name]: r})
 
 /**
- * The definition-time built-ins, in today's order (component.ts:363-376): `resources` (PLAN-3
+ * The definition-time built-ins, in the 5.x core's order: `resources` (PLAN-3
  * 3-A: the RESOURCE entry first in the model; each resource reads `{ status: 'idle' }` until
  * written), then `uses` (GS-1: each behavior's own merge() on the shim, D114; the core only
  * loops over `uses`).
@@ -206,7 +206,7 @@ function pipeline(view: ComponentFn, transform: Transform, override?: Partial<De
   let src = sourceOf(view)
   if (override) src = {...src, ...override}
   // G-172: a root without a model renders from `initialState || true`, decided before the
-  // built-ins add a model (as today, component.ts:356)
+  // built-ins add a model (as in 5.x)
   if (root && src.model === undefined && !src.initialState) src = {...src, initialState: true}
   src = builtIns(src, view)
   if (root) src = root(src)
@@ -220,7 +220,7 @@ function pipeline(view: ComponentFn, transform: Transform, override?: Partial<De
  * steps of today's constructor: a behavior's slice is part of the root's initialState
  * (behaviors.ts's root merge: the slice wins over an initialState key of its name), then
  * `setup(src)`: persist's root setup (it may restore into the initialState and rewrites the
- * model; persist.ts, root only as today, component.ts:378).
+ * model; persist.ts, root only, as in 5.x).
  */
 export function rootDef(view: ComponentFn, transform: Transform, override?: Partial<DefSource> & {name?: string; testActions?: string[]}, setup?: (src: DefSource) => DefSource): CoreDef {
   const d = normalize(view, pipeline(view, transform, override, (src) => {

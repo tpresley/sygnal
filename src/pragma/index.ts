@@ -2,7 +2,7 @@
 import * as is from './is'
 
 // P45-B: a vnode this pragma made whose subtree has no component (or other marker the view
-// walk handles), no form field and no vnode from elsewhere. component.ts's view walk skips it
+// walk handles), no form field and no vnode from elsewhere. the core's view walk skips it
 // (and, at the root, the whole walk). The flag is on the prototype, not enumerable, so the
 // vnode's own fields are snabbdom's six. Checked by name (`$p`), not by class: the JSX runtime
 // entries carry their own copy of this file.

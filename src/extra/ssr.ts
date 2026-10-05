@@ -154,7 +154,7 @@ function withResources(def: any, state: any): any {
 
 // PLAN-4 GS-9: uid(name?) as on the client: the root is 'u'; a child component adds its path in
 // the parent's view (or its `id` prop), as getComponentIdFromElement and instantiateSubComponents
-// in component.ts do; a Collection item adds its key, a Switchable page its name; anything but
+// in the core do; a Collection item adds its key, a Switchable page its name; anything but
 // each part encoded by uidPart (G-214); in the root option anything but [A-Za-z0-9_-] becomes '_'
 // (as run() does). SSR ids = hydration ids
 const makeUid = (base: string) => (n?: string) => n ? base + '-' + n : base
