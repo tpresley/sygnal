@@ -16,6 +16,7 @@
  *   (the owner treats the Switchable as ready).
  */
 import {hosts} from '../registry'
+import {resolve} from './collection'
 import {NEXT_CORE} from '../build'
 import {Inst, shallowEq} from '../instance'
 import {Cell, keyCell, lensCell, localCell} from '../cell'
@@ -23,7 +24,8 @@ import {isObj} from '../define'
 import {uidPart} from '../../shared'
 import {error as logError, fail} from '../../extra/diagnostics/legacy'
 
-interface Page { inst: Inst; i: any; view: any }
+/** `view`: the page component as given; `fn`: as resolved (a lazy() page: the loaded one, G-317) */
+interface Page { inst: Inst; i: any; view: any; fn: any }
 
 const OF_FIX = 'Use of={{ name: Component }}', CUR_FIX = "Set current to a key of 'of'"
 
@@ -67,7 +69,10 @@ export class SwitchableHost {
     this.uidBase = owner.uid(uidPart(id.replace(/.*::(r\.)?/, '')))
     this.props = props
     this.kids = children
-    for (const name in props.of) this.pages[name] = {inst: this.make(name, props.of[name]), i: undefined, view: props.of[name]}
+    for (const name in props.of) {
+      const view = props.of[name], fn = resolve(view, owner)
+      this.pages[name] = {inst: this.make(name, fn), i: undefined, view, fn}
+    }
     this.setProps(props, children)
   }
 
@@ -91,12 +96,22 @@ export class SwitchableHost {
       this.kids = children
       for (const n in this.pages) this.pages[n].inst.setProps(props, children)
     }
+    // G-317: a lazy() page that has loaded is made again with the loaded component
+    for (const n in this.pages) {
+      const p = this.pages[n], fn = resolve(p.view, this.owner)
+      if (fn !== p.fn) {
+        const shown = p.inst.shown
+        p.inst.dispose()
+        p.inst = this.make(n, p.fn = fn)
+        p.inst.shown = shown
+      }
+    }
     const page = this.pages[cur]
     if (page) {
       // D83: shown with another instance key than it was last shown with: made again
       if (page.i !== undefined && page.i !== props.instance) {
         page.inst.dispose()
-        page.inst = this.make(cur, page.view)
+        page.inst = this.make(cur, page.fn)
       }
       page.i = props.instance
     }

@@ -60,26 +60,29 @@ export function keyCell(parent: Cell, k: string, owner?: string | false, dflt?: 
 
 /**
  * state={{ get, set }} (no get: SYG410, the parent's whole state). G-298: a get() that throws
- * keeps the last value (SYG410, and `onErr` for the app's onError)
+ * keeps the last value (SYG410, and `onErr` for the app's onError). `dflt`, `has()`: as keyCell's
+ * (G-314, D179: an isolated child's initialState read while the lensed slice is undefined)
  */
-export function lensCell(parent: Cell, lens: any, owner: string, onErr?: (e: any) => void): Cell {
+export function lensCell(parent: Cell, lens: any, owner: string, onErr?: (e: any) => void, dflt?: any): Cell & {has?(): boolean} {
   if (typeof lens?.get != 'function') {
     logError('SYG410', owner, `Sub-component 'state' prop ${isObj(lens) ? 'has no get()' : `is a ${typeof lens}`}; it gets the parent's whole state`, 'Use a state key string or { get, set }')
     return parent
   }
-  let lp: any = {}, lv: any
+  let lp: any = {}, lv: any, raw: any
   return {
     get() {
       const p = parent.get()
       if (p !== lp) {
         lp = p
-        try { lv = lens.get(p) } catch (e) {
+        try { raw = lv = lens.get(p) } catch (e) {
           logError('SYG410', owner, "Sub-component 'state' lens get() threw; it keeps its last value", 'Guard the getter against missing data', e)
           onErr?.(e)
         }
+        if (lv === undefined) lv = dflt
       }
       return lv
     },
+    has() { this.get(); return raw !== undefined },
     set(v) {
       if (typeof lens.set != 'function') return
       const p = parent.get(), n = lens.set(p, v)
@@ -132,11 +135,15 @@ export function calcCell(base: Cell, def: CoreDef): CalcCell {
 // ------------------------------------------------------------------ Collection items
 
 /**
- * An item's key: the truthy `id` of an object item, else its raw index in the state array (D169:
- * not its filtered/sorted position). An index and an equal id are the same key, as today, so an
- * id-less item that writes itself back with its index as `id` keeps its instance.
+ * An item's key: the `id` of an object item (anything but undefined / null, compared as a string,
+ * as today's stringified keys), else its raw index in the state array (D169: not its
+ * filtered/sorted position), in a namespace of its own ('\0' + index: G-306/G-307, so an index
+ * never collides with an id).
  */
-export const keyOf = (it: any, i: number) => (isObj(it) && it.id ? it.id : i)
+export const keyOf = (it: any, i: number): string => (isObj(it) && it.id != null ? '' + it.id : '\0' + i)
+/** the key as it appears in an item's uid (an index key: the index, as today) */
+export const keyName = (k: string) => (k[0] == '\0' ? k.slice(1) : k)
+const hasId = (it: any) => isObj(it) && it.id != null
 
 const EMPTY: any[] = []
 export type Index = () => [items: any[], byKey: Map<any, number>]
@@ -157,7 +164,7 @@ export function indexer(arr: Cell): Index {
 
 /**
  * A Collection item: the element of its key. An id-less element is a copy with its index as `id`
- * (a primitive `{ value, id }`, written back as the primitive). Writing `undefined` removes the
+ * (a primitive `{ value, id }`, written back as the primitive); that `id` is not written back. Writing `undefined` removes the
  * element; the other elements keep their identity (PF-1).
  */
 export function itemCell(arr: Cell, index: Index, key: any): Cell {
@@ -170,7 +177,7 @@ export function itemCell(arr: Cell, index: Index, key: any): Cell {
       const raw = a[j]
       if (raw === lraw) return lval
       lraw = raw
-      return (lval = isObj(raw) ? (raw.id ? raw : {...raw, id: j}) : {value: raw, id: j})
+      return (lval = isObj(raw) ? (hasId(raw) ? raw : {...raw, id: j}) : {value: raw, id: j})
     },
     set(v) {
       const [a, m] = index(), j = m.get(key)
@@ -179,7 +186,11 @@ export function itemCell(arr: Cell, index: Index, key: any): Cell {
       const cur = a[j]
       if (v === cur || (v === lval && cur === lraw)) return
       const n = a.slice()
-      n[j] = isObj(cur) || !isObj(v) ? v : v.value
+      if (isObj(cur) || !isObj(v)) {
+        // G-306: the index id an id-less element was given is not stored
+        if (isObj(cur) && !hasId(cur) && isObj(v) && v.id === j) { v = {...v}; delete v.id }
+        n[j] = v
+      } else n[j] = v.value
       arr.set(n)
     },
   }

@@ -317,6 +317,12 @@ Covers `sygnal`, `sygnal-check` and `create-sygnal-app`. A few fixes change beha
 - **Dev statics freeze** (D152 follow-ups). Host values in a `sygnal/element` (`el.items = hostArray`) and Vike's `pageContext.data` or hydrated state are no longer frozen, so the host can still change them (G-275); `renderComponent`'s `initialState` option is copied (shallow) rather than marked in place, so passing a component's own `initialState`, a sealed fixture or a Proxy no longer exempts the static from the freeze, freezes the fixture or throws (G-289); the options of `component({ view, model, initialState })` are frozen like a component's statics (G-280).
 - **A hand-written main that calls two components with the same sources** (`A(sources); B(sources)`): B is a root too, so its patch is held and batched like A's (G-281). Not yet when B is isolated (`isolate(B, 'b')(sources)`): it gets a copy of the sources and is treated as a child (G-288, known).
 - **Messages.** SYG218 says "returned null" / "returned an array" instead of "returned a object".
+- **With the 6.0 component core** (PLAN-4.6 R3):
+  - Collection item keys: an `id` of `0` (or any id but `undefined` / `null`) is the item's id; before, a falsy id was replaced by the item's index. Ids compare as strings (`'1'` and `1` are one item, as before), and an id never collides with an id-less item's index (G-307). An id-less item that writes itself back no longer stores the index it was given as `id`, so removing an item before it can't make it collide with a sibling (G-306).
+  - A Collection whose `from` key is missing when it is created renders once the key appears (D178); before, it rendered nothing for its whole life. SYG401 still warns, now saying it "renders nothing until it exists".
+  - `lazy()` works as a Collection's `of` and as a Switchable page (G-317); before, it stayed on its loading placeholder.
+  - A `Portal` whose target appears after it renders mounts its latest content once (before: an update during the retry could mount it twice), and one removed while retrying never mounts (G-316).
+  - A `viewTransitions` action whose new state is equal to the old one asks for no View Transition (it renders the same view).
 
 ### Performance
 

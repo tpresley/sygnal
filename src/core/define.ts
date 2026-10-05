@@ -87,17 +87,44 @@ export const sourceOf = (view: ComponentFn): DefSource => ({
 /**
  * The definition shim (spike finding 5): the instance fields a behavior's existing
  * `merge(component, key)` reads and writes, so behaviors / undo / selection run unchanged, once
- * per function. `isSubComponent: true` sends a slice to `_idle` (defaults while missing); R3's
- * `uses` hook folds `_idle` into a root's initialState. fromShim() reads the result back.
+ * per function. `isSubComponent: true` sends a slice to `_idle` (the defaults a bound
+ * sub-component reads until it writes them); an `isolatedState` definition gets it in its
+ * initialState, as today. A root gets the slices in its initialState (rootDef). fromShim()
+ * reads the result back.
  */
 export const shimOf = (src: DefSource, view: ComponentFn): any => ({
-  model: src.model, intent: src.intent, initialState: src.initialState, view,
-  stateSourceName: 'STATE', isSubComponent: true, isolatedState: false, _idle: src.idle, _behaviorActions: src.behaviorActions,
+  model: src.model, intent: src.intent, initialState: src.initialState, view, name: nameOf(view),
+  stateSourceName: 'STATE', isSubComponent: true, isolatedState: !!view.isolatedState, _idle: src.idle, _behaviorActions: src.behaviorActions,
 })
 export const fromShim = (shim: any, src: DefSource): DefSource => ({
   ...src, model: shim.model, intent: shim.intent, initialState: shim.initialState,
   idle: shim._idle, behaviorActions: shim._behaviorActions || src.behaviorActions,
 })
+
+/** the built-in RESOURCE reducer (a model RESOURCE entry replaces it) */
+const RESOURCE = (s: any, {name, ...r}: any) => ({...s, [name]: r})
+
+/**
+ * The definition-time built-ins, in today's order (component.ts:363-376): `resources` (PLAN-3
+ * 3-A: the RESOURCE entry first in the model; each resource reads `{ status: 'idle' }` until
+ * written), then `uses` (GS-1: each behavior's own merge() on the shim, D114; the core only
+ * loops over `uses`).
+ */
+function builtIns(src: DefSource, view: ComponentFn): DefSource {
+  const res = view.resources
+  if (res) {
+    const idle: Record<string, any> = {...src.idle}
+    for (const k in res) idle[k] = {status: 'idle'}
+    src = {...src, model: {RESOURCE, ...src.model}, idle}
+  }
+  const uses = view.uses
+  if (uses) {
+    const shim = shimOf(src, view)
+    for (const k in uses) uses[k]?.merge?.(shim, k)
+    src = fromShim(shim, src)
+  }
+  return src
+}
 
 export function normalize(view: ComponentFn, src: DefSource): CoreDef {
   const name = nameOf(view)
@@ -148,7 +175,7 @@ export function normalize(view: ComponentFn, src: DefSource): CoreDef {
 
 const defs = new WeakMap<ComponentFn, CoreDef>()
 /** the statics a Def was made from: a later assignment (a test, a hot edit) makes a new Def */
-const KEYS = ['model', 'intent', 'initialState', 'calculated', 'context', 'isolatedState', 'onError', 'componentName']
+const KEYS = ['model', 'intent', 'initialState', 'calculated', 'context', 'isolatedState', 'onError', 'componentName', 'uses', 'resources']
 const read = new WeakMap<CoreDef, any[]>()
 const stale = (d: CoreDef, view: any) => {
   const r = read.get(d)!
@@ -166,12 +193,45 @@ export function defOf(view: ComponentFn, transform?: (src: DefSource, view: Comp
   let d = override ? undefined : store.get(view)
   if (d && !stale(d, view)) return d
   const r = KEYS.map(k => view[k])
-  let src = sourceOf(view)
-  if (override) src = {...src, ...override}
-  for (const h of defHooks) src = h(src, view) || src
-  if (transform) src = transform(src, view) || src
-  d = normalize(view, src)
+  d = normalize(view, pipeline(view, transform, override))
   if (override?.name) (d as any).name = override.name
   if (!override) store.set(view, d), read.set(d, r)
+  return d
+}
+
+type Transform = ((src: DefSource, view: ComponentFn) => DefSource | void) | undefined
+
+/** the statics, through the built-ins, a root's own steps, the definition hooks and the app's transformDef */
+function pipeline(view: ComponentFn, transform: Transform, override?: Partial<DefSource> & {name?: string}, root?: (src: DefSource) => DefSource): DefSource {
+  let src = sourceOf(view)
+  if (override) src = {...src, ...override}
+  // G-172: a root without a model renders from `initialState || true`, decided before the
+  // built-ins add a model (as today, component.ts:356)
+  if (root && src.model === undefined && !src.initialState) src = {...src, initialState: true}
+  src = builtIns(src, view)
+  if (root) src = root(src)
+  for (const h of defHooks) src = h(src, view) || src
+  if (transform) src = transform(src, view) || src
+  return src
+}
+
+/**
+ * An app's root Def (uncached; renderComponent's `override` too). As defOf, plus the root-only
+ * steps of today's constructor: a behavior's slice is part of the root's initialState
+ * (behaviors.ts's root merge: the slice wins over an initialState key of its name), then
+ * `setup(src)`: persist's root setup (it may restore into the initialState and rewrites the
+ * model; persist.ts, root only as today, component.ts:378).
+ */
+export function rootDef(view: ComponentFn, transform: Transform, override?: Partial<DefSource> & {name?: string}, setup?: (src: DefSource) => DefSource): CoreDef {
+  const d = normalize(view, pipeline(view, transform, override, (src) => {
+    const uses = view.uses, idle = src.idle
+    if (uses && idle) {
+      const sl: Record<string, any> = {}
+      for (const k in uses) if (k in idle) sl[k] = idle[k]
+      src = {...src, initialState: {...(isObj(src.initialState) ? src.initialState : {}), ...sl}}
+    }
+    return setup ? setup(src) : src
+  }))
+  if (override?.name) (d as any).name = override.name
   return d
 }

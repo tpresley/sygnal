@@ -9,8 +9,9 @@
  */
 import xs from '../extra/xstreamCompat'
 
-const SP: any = Object.getPrototypeOf(xs.create()), NO = (xs.create() as any)._prod
-let down: any[] | null = null, outer: any
+// G-315: probed on first use (a top-level probe would survive the D175 strip of production builds)
+let SP: any, NO: any, down: any[] | null = null, outer: any
+const probe = () => { if (!SP) { const s: any = xs.create(); SP = Object.getPrototypeOf(s); NO = s._prod } }
 
 function removeQueued(this: any, il: any) {
   if (this._target) return this._target._remove(il)
@@ -23,6 +24,7 @@ function removeQueued(this: any, il: any) {
 
 /** run f with _remove queuing into q (nested calls share the outermost swap) */
 export function tearDown(f: () => void, q: any[]) {
+  probe()
   const prev = down
   if (!prev) { outer = SP._remove; SP._remove = removeQueued }
   down = q
@@ -31,6 +33,7 @@ export function tearDown(f: () => void, q: any[]) {
 
 /** stop the queued streams; a stop that leaves its upstream without listeners queues it here too */
 export function stopQueued(q: any[]) {
+  probe()
   for (let i = 0; i < q.length; i++) {
     const s = q[i]
     if (s._stopID === 0 && !s._ils.length) {
@@ -42,8 +45,8 @@ export function stopQueued(q: any[]) {
 }
 
 /** the instance behind an intent's sources object (the source getters read it) */
-export const INST = Symbol('sygnal.inst')
+export const INST = /*#__PURE__*/ Symbol('sygnal.inst')
 /** the queue's action type for a state write (runtime setState, a child's seeded slice) */
-export const SET = Symbol('setState')
+export const SET = /*#__PURE__*/ Symbol('setState')
 /** a child's seeded slice (D174), written even when it reads its initialState as the default */
-export const SEED = Symbol('seed')
+export const SEED = /*#__PURE__*/ Symbol('seed')

@@ -126,6 +126,16 @@ export const OPS = {
     { name: 'fetch: create 1k rows, each fetching', setup: `h.click('#clear'); await h.waitFor(() => h.n('.row') === 0); await h.settle()`, act: `h.click('#run')`, done: `h.text('.loaded') === '1000'` },
     { name: 'fetch: reload one row (1k)', setup: `h.click('#clear'); await h.waitFor(() => h.n('.row') === 0); h.click('#run'); await h.waitFor(() => h.text('.loaded') === '1000'); await h.settle(); window.__d = h.text('.row:nth-child(2) .det')`, act: `h.click('.row:nth-child(2) .reload')`, done: `h.text('.row:nth-child(2) .det') !== window.__d` },
   ],
+  // PLAN-4.6 R3: statics (a timer declared per Collection item) and the persist write path
+  timers: [
+    { name: 'timers: create 1k rows, each declaring a timer', setup: `h.click('#clear'); await h.waitFor(() => h.n('.row') === 0); await h.settle()`, act: `h.click('#run')`, done: `h.n('.row') === 1000` },
+    { name: 'timers: toggle one row\'s timer (1k)', setup: `${runRows(1000)}; window.__o = h.text('.row:nth-child(2) .on')`, act: `h.click('.row:nth-child(2) .toggle')`, done: `h.text('.row:nth-child(2) .on') !== window.__o` },
+    { name: 'timers: new spec for every 10th row (1k)', setup: `${runRows(1000)}; window.__b = h.text('.bumped')`, act: `h.click('#update')`, done: `h.text('.bumped') === String(+window.__b + 100)` },
+  ],
+  persist: [
+    { name: 'persist: create 1k rows, written', setup: `h.click('#clear'); await h.waitFor(() => h.n('.row') === 0 && !(localStorage.getItem('bench-persist') || '').includes('label')); await h.settle()`, act: `h.click('#run')`, done: `h.n('.row') === 1000 && (localStorage.getItem('bench-persist') || '').split('label').length > 1000` },
+    { name: 'persist: change one row of 1k, written', setup: `${runRows(1000)}; await h.waitFor(() => (localStorage.getItem('bench-persist') || '').split('label').length > 1000); window.__l = h.text('.row:nth-child(2) .lbl') + '!'`, act: `h.click('.row:nth-child(2) .bump')`, done: `h.text('.row:nth-child(2) .lbl') === window.__l && localStorage.getItem('bench-persist').includes(JSON.stringify(window.__l))` },
+  ],
   input: [
     { name: 'keystroke (1k list)', setup: `await h.waitFor(() => h.q('.draft')); await h.settle(); window.__want = h.q('.draft').value + 'a'`, act: `h.type('.draft', 'a')`, done: `h.text('.echo') === window.__want` },
   ],
@@ -136,6 +146,6 @@ export function pagesFor(fw, scenario) {
   if (fw === 'sygnal' && scenario === 'table') return [['sygnal', 'table'], ['sygnal (Collection)', 'table-coll']]
   if (fw === 'next' && scenario === 'table') return [['next', 'table'], ['next (Collection)', 'table-coll']]
   if (scenario === 'tags') return fw === 'vue' ? [] : [[fw, fw === 'react' ? 'counters' : 'counters-tags']]
-  if (['coll-calc', 'switch', 'fetch'].includes(scenario) && fw !== 'sygnal' && fw !== 'next') return []
+  if (['coll-calc', 'switch', 'fetch', 'timers', 'persist'].includes(scenario) && fw !== 'sygnal' && fw !== 'next') return []
   return [[fw, scenario]]
 }

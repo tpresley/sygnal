@@ -24,11 +24,12 @@ import logDriver from '../extra/logDriver'
 import {NOT_SINK} from '../shared'
 import {error as logError, callHook} from '../extra/diagnostics/legacy'
 import type {ComponentFn, DefSource, Hooks, RuntimeAPI, ActionCause} from './hooks'
-import {CoreDef, defOf} from './define'
+import {CoreDef, defOf, rootDef} from './define'
 import {rootCell} from './cell'
 import {Inst} from './instance'
 import {viewOf} from './view'
 import {stopQueued, INST, SET, SEED} from './teardown'
+import {scanSources} from './statics'
 // the public ClientOnly is a separate bundle (sygnal/vike/ClientOnly) with no core of its own, so
 // its marker handler registers with the core (the other markers register from their modules)
 import './markers/clientonly'
@@ -71,6 +72,8 @@ export class App {
   flushes = 0
   /** bumped on every state write (context memo) */
   ver = 0
+  /** render epoch: bumped when a render threw (G-311: every instance injects its kids again once) */
+  ep = 0
   root!: Inst
   last: any
   vdomL: any
@@ -96,8 +99,15 @@ export class App {
   initState: any
   /** D168 hook point: R4's dev check re-runs a sample of the views context tracking skipped */
   ctxSkip: ((inst: Inst) => void) | null = null
-  /** R3 hook point: statics recomputed after each render pass */
+  /** the statics step, recomputed after each render pass (statics.ts; set when a driver takes a static) */
   afterRender: (() => void) | null = null
+  /** [sink, static] of the drivers that take a static; the reply-capable sources (statics.ts) */
+  stat: Array<[string, string]> = []
+  rep: string[] = []
+  /** a definition's [sink, static] pairs (this app's drivers) */
+  stc = new WeakMap<CoreDef, Array<[string, string]> | null>()
+  /** the live instances that declare a static */
+  statics = new Set<Inst>()
   defs = new WeakMap<ComponentFn, CoreDef>()
   waiters: Array<() => void> = []
   scopeN = 0
@@ -135,7 +145,12 @@ export class App {
           const f = q[i + 2], c = inst.cell
           const v = typeof f == 'function' ? f(c.get()) : f
           if (v !== c.get()) c.set(v)
-        } else if (q[i + 1] === SEED) inst.cell.set(q[i + 2])
+        } else if (q[i + 1] === SEED) {
+          // G-309: decided when it is applied: a parent write queued before it keeps the slice (D174)
+          const d = q[i + 2], b = d.b
+          if (d.r || !(b.has ? b.has() : b.get() !== undefined)) inst.cell.set(d.v)
+          else this.hooks.onStateSeed?.(viewOf(inst), b.get(), d.v)
+        }
         else inst.handle(q[i + 1], q[i + 2], q[i + 3])
         if (this.watchers.size) this.notify()
       }
@@ -220,6 +235,8 @@ export class App {
           this.rendering = false
           this.caught(this.root, 'SYG406', 'Render threw; the page keeps its last render', e, 'view')
           v = this.last
+          // G-311: the instances that rendered before the throw are injected at the next render
+          this.ep++
           break
         }
         this.afterRender?.()
@@ -232,19 +249,24 @@ export class App {
     }
     this.tail = true
     try {
+      // G-311 (c): what the throwing pass queued (a new child's INITIALIZE / seed) is still applied
+      if (this.queue.length) this.drain()
       if (v !== this.last) {
         this.last = v
         this.hooks.onPatch?.(v)
         this.vdomL?.next(v)
       }
       if (this.dq.length) this.stopLater()
-    } finally { this.tail = false }
-    if (this.born.length) {
-      const b = this.born.splice(0)
-      queueMicrotask(() => { for (const i of b) if (!i.disposed) this.dispatch(i, 'BOOTSTRAP', undefined, 'built-in') })
+    } finally {
+      // G-313: a throwing patch / onPatch still ends the startup log and dispatches BOOTSTRAP
+      this.tail = false
+      if (this.born.length) {
+        const b = this.born.splice(0)
+        queueMicrotask(() => { for (const i of b) if (!i.disposed) this.dispatch(i, 'BOOTSTRAP', undefined, 'built-in') })
+      }
+      if (this.dirty) { this.chained = true; this.dirty = false; this.commit() }
+      if (this.early) { this.early = false; this.log = {} }
     }
-    if (this.dirty) { this.chained = true; this.dirty = false; this.commit() }
-    if (this.early) { this.early = false; this.log = {} }
   }
 
   // ---------------------------------------------------------------- sinks
@@ -370,10 +392,13 @@ export class App {
       for (const k in added) {
         const a = added[k], b = H[k]
         if (!a) continue
+        // G-312: a wrapping layer that returns nothing keeps what the layers below gave
         H[k] = !b ? a
-          : k == 'wrapHandler' ? (i: any, t: any, s: any, f: any) => a(i, t, s, b(i, t, s, f))
-          : k == 'wrapSources' ? (i: any, s: any) => a(i, b(i, s) || s)
-          : k == 'transformDef' ? (src: any, v: any) => a(b(src, v) || src, v)
+          : k == 'wrapHandler' ? (i: any, t: any, s: any, f: any) => { const x = b(i, t, s, f) || f; return a(i, t, s, x) || x }
+          : k == 'wrapSources' ? (i: any, s: any) => { const x = b(i, s) || s; return a(i, x) || x }
+          : k == 'transformDef' ? (src: any, v: any) => { const x = b(src, v) || src; return a(x, v) || x }
+          // onElementCommand: false (not run) from either layer
+          : k == 'onElementCommand' ? (i: any, c: any) => { const x = b(i, c); return a(i, c) === false || x === false ? false : undefined }
           : (...args: any[]) => { b(...args); a(...args) }
       }
     }
@@ -409,6 +434,29 @@ function byId(i: Inst, id: number): Inst | undefined {
   }
 }
 
+/**
+ * The root shim a root setup (persist, GS-5: `Root.persist.setup(component)`, root only as today)
+ * runs on before the root exists (04 §3.2, §4 #1): the instance fields it reads and writes today.
+ * It may restore into `initialState` and rewrite `model` (both read back into the root's Def);
+ * `sources.STATE.stream`, `_dispose$` and `vdom$` are the root's, linked once it exists (the
+ * returned function); `action$.shamefullySendNext` dispatches to the root (RESTORE).
+ */
+function rootShim(app: App, Root: ComponentFn, src: DefSource): [any, () => void] {
+  const st$ = xs.create(), dsp$ = xs.create()
+  const shim = {
+    name: (Root as any).componentName || Root.name || 'FUNCTION_COMPONENT', view: Root,
+    model: src.model, initialState: src.initialState, calculated: src.calculated, stateSourceName: 'STATE',
+    sources: {...app.sources, STATE: {stream: st$}},
+    vdom$: app.vdom$, _dispose$: dsp$,
+    action$: {shamefullySendNext: (a: any) => { if (app.root) app.dispatch(app.root, a.type, a.data, 'built-in') }},
+  }
+  return [shim, () => {
+    const r = app.root
+    r.stateSource().stream.addListener({next: (v: any) => st$.shamefullySendNext(v), error: () => {}})
+    r.dispose$().addListener({next: (v: any) => dsp$.shamefullySendNext(v), error: () => {}})
+  }]
+}
+
 export interface Started {
   app: App
   sources: Record<string, any>
@@ -436,16 +484,27 @@ export function start(Root: ComponentFn, drivers: Record<string, any> = {}, opts
     const src = app.sources[n] = all[n](p, n)
     if (src && typeof src == 'object') try { src._isCycleSource = n } catch (_) {}
   }
+  scanSources(app)
   app.vdom$ = xs.create({start: (l: any) => { app.vdomL = l; if (app.last) l.next(app.last) }, stop: () => { app.vdomL = null }})
   for (const n in all) {
     if (n == 'DOM') app.proxies.DOM.imitate(app.vdom$)
-    else if (!NOT_SINK.test(n)) app.proxies[n].imitate(app.sink(n))
+    // a PARENT driver (sygnal/element) gets the root's PARENT values, as under Cycle's run
+    else if (!NOT_SINK.test(n) || n == 'PARENT') app.proxies[n].imitate(app.sink(n))
   }
   const was = app.draining
   app.draining = true
+  let link: (() => void) | undefined
   try {
-    app.root = new Inst(app, app.def(Root, opts.__override), null, rootCell(app), app.sources.DOM, {}, [], undefined,
+    const setup = (Root as any).persist?.setup
+    const def = rootDef(Root, app.hooks.transformDef, opts.__override, typeof setup == 'function' ? (src) => {
+      const [shim, l] = rootShim(app, Root, src)
+      link = l
+      setup(shim)
+      return {...src, model: shim.model, initialState: shim.initialState}
+    } : undefined)
+    app.root = new Inst(app, def, null, rootCell(app), app.sources.DOM, {}, [], undefined,
       opts.uid ? opts.uid.replace(/[^\w-]+/g, '_') : 'u', 'root')
+    link?.()
   } catch (e) {
     app.draining = was
     app.dispose()
@@ -456,7 +515,7 @@ export function start(Root: ComponentFn, drivers: Record<string, any> = {}, opts
   app.commit()
   let dom$: any
   const sinks: Record<string, any> = {__dispose: () => app.dispose()}
-  for (const n of [...Object.keys(all), 'PARENT']) {
+  for (const n of new Set([...Object.keys(all), 'PARENT'])) {
     if (n == 'DOM') Object.defineProperty(sinks, n, {get: () => dom$ ||= app.vdom$.remember(), enumerable: true})
     else if (!NOT_SINK.test(n) || n == 'PARENT') Object.defineProperty(sinks, n, {get: () => app.exposed(n), enumerable: true})
   }

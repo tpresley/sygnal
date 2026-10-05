@@ -20,10 +20,10 @@
  * - Removed items are disposed synchronously in the render that drops them (G-257: a move between
  *   two Collections is one patch).
  */
-import {hosts} from '../registry'
+import {hosts, resolvers} from '../registry'
 import {NEXT_CORE} from '../build'
 import {Inst, shallowEq} from '../instance'
-import {Cell, Index, indexer, itemCell, keyCell, keyOf} from '../cell'
+import {Cell, Index, indexer, itemCell, keyCell, keyOf, keyName} from '../cell'
 import {CoreDef, isObj} from '../define'
 import {uidPart} from '../../shared'
 import {viewOf} from '../view'
@@ -72,7 +72,7 @@ export function sortFn(p: any): ((a: any, b: any) => number) | undefined {
 const OWN = new Set(['of', 'from', 'filter', 'sort', 'idfield', 'className'])
 const NONE: any[] = []
 
-/** the array cell for `from`, or null (renders nothing) */
+/** the array cell for `from` (D178: a missing key renders once it appears), or null for an invalid `from` (renders nothing) */
 function arrayCell(owner: Inst, from: any): Cell | null {
   const oc = owner.cell, name = owner.def.name
   if (from === undefined) {
@@ -86,10 +86,8 @@ function arrayCell(owner: Inst, from: any): Cell | null {
     const cs = oc.get(), calc = owner.def.calcNames?.has(from)
     if (isObj(cs) && !(from in cs) && !calc) {
       const arrays = Object.keys(cs).filter(k => Array.isArray(cs[k]))
-      warn('SYG401', name, `Collection from="${from}" is not in state${arrays.length ? ` (array fields: '${arrays.join("', '")}')` : ''}; it renders nothing`, 'Set it to an array in initialState')
-      return null
-    }
-    if (isObj(cs) && !Array.isArray(cs[from])) warn('SYG401', name, `Collection 'from' field '${from}' is not an array; it renders nothing`, 'Set it to an array in initialState')
+      warn('SYG401', name, `Collection from="${from}" is not in state${arrays.length ? ` (array fields: '${arrays.join("', '")}')` : ''}; it renders nothing until it exists`, 'Set it to an array in initialState')
+    } else if (isObj(cs) && !Array.isArray(cs[from])) warn('SYG401', name, `Collection 'from' field '${from}' is not an array; it renders nothing`, 'Set it to an array in initialState')
     return keyCell(oc, from, calc && name, undefined, 'Collection')
   }
   if (isObj(from) && typeof from.get == 'function') {
@@ -122,6 +120,12 @@ function arrayCell(owner: Inst, from: any): Cell | null {
   return null
 }
 
+/** a component function through the view resolvers (lazy: the loaded one; the owner renders again when it loads) */
+export function resolve(view: any, owner: Inst) {
+  for (const r of resolvers) view = r(view, owner) || view
+  return view
+}
+
 export class CollectionHost {
   /** key -> item instance */
   items = new Map<any, Inst>()
@@ -144,6 +148,8 @@ export class CollectionHost {
   key: any
   /** the marker's props the container was made from */
   mp: any
+  /** the app's render epoch it last rendered at (G-311) */
+  ep = 0
 
   constructor(public owner: Inst, props: Record<string, any>, children: any[], id: string, marker: any) {
     const of = props.of
@@ -152,14 +158,18 @@ export class CollectionHost {
     this.uidBase = owner.uid(uidPart(id.replace(/.*::(r\.)?/, '')))
     this.arr = arrayCell(owner, props.from)
     this.index = this.arr && indexer(this.arr)
-    this.def = owner.app.def(of)
+    this.def = owner.app.def(this.view = resolve(of, owner))
     this.setProps(props, children, marker, id)
   }
 
+  /** the item component (a lazy() one: the loaded component once it has loaded, G-317) */
+  view: any
+
   setProps(props: Record<string, any>, children: any[], marker?: any, id?: string) {
-    if (this.props && props.of !== this.props.of && typeof props.of == 'function') {
-      // another item component: the items are made again
-      this.def = this.owner.app.def(props.of)
+    const v = typeof props.of == 'function' ? resolve(props.of, this.owner) : this.view
+    if (v !== this.view) {
+      // another item component (or a lazy one loaded): the items are made again
+      this.def = this.owner.app.def(this.view = v)
       this.clear()
     }
     this.props = props
@@ -196,19 +206,20 @@ export class CollectionHost {
   /** the visible keys in order: filter and sort over the raw array; a duplicate key once */
   list(a: any[], m: Map<any, number>): any[] {
     const {filter, sort} = this.props
-    if (sort !== this.ls) { this.ls = sort; this.cmp = sortFn(sort) }
+    const cmp = sort !== this.ls ? sortFn(sort) : this.cmp
     let idx: number[] | null = null
-    if (typeof filter == 'function' || this.cmp) {
+    if (typeof filter == 'function' || cmp) {
       idx = []
       for (let i = 0; i < a.length; i++) if (typeof filter != 'function' || filter(a[i], i, a)) idx.push(i)
-      const cmp = this.cmp
       if (cmp) idx.sort((x, y) => cmp(a[x], a[y]))
     }
+    // G-311: the inputs are kept only once the list was made (a throwing filter / sort is retried)
+    this.ls = sort; this.cmp = cmp
     const n = idx ? idx.length : a.length, keys: any[] = []
     for (let x = 0; x < n; x++) {
       const i = idx ? idx[x] : x, k = keyOf(a[i], i)
       // D169: a duplicate key renders its first element (R4 reports it)
-      if (m.get(k) !== i) { const H = this.owner.app.hooks; H.onDuplicateKey && H.onDuplicateKey(viewOf(this.owner), k); continue }
+      if (m.get(k) !== i) { const H = this.owner.app.hooks; H.onDuplicateKey && H.onDuplicateKey(viewOf(this.owner), k[0] == '\0' ? i : a[i].id); continue }
       keys.push(k)
     }
     return keys
@@ -216,21 +227,24 @@ export class CollectionHost {
 
   render(): any {
     if (this.disposed) return this.outv
-    let changed = !this.outv
+    // G-311: after a render that threw, every container is made again once
+    const app = this.owner.app
+    let changed = !this.outv || this.ep !== app.ep
+    this.ep = app.ep
     if (this.index) {
       const [a, m] = this.index()
       const {filter, sort} = this.props
       if (a !== this.la || filter !== this.lf || sort !== this.ls) {
-        this.la = a; this.lf = filter
         const keys = this.list(a, m), seen = new Set(keys)
+        this.la = a; this.lf = filter
         for (const [k, inst] of this.items) if (!seen.has(k)) { inst.dispose(); this.items.delete(k) }
-        const o = this.owner, app = o.app, shown: Inst[] = []
+        const o = this.owner, shown: Inst[] = []
         for (const k of keys) {
           let inst = this.items.get(k)
           if (!inst) {
             const scope = app.scope()
             inst = new Inst(app, this.def, o, itemCell(this.arr!, this.index, k), o.dom && o.dom.isolateSource(o.dom, scope),
-              this.ip, this.kids, scope, this.uidBase + '-' + uidPart(String(k)), 'item')
+              this.ip, this.kids, scope, this.uidBase + '-' + uidPart(keyName(k)), 'item')
             this.items.set(k, inst)
           }
           shown.push(inst)

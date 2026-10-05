@@ -40,6 +40,9 @@ import {backoff} from './backoff';
 
 const SCOPE = '__sygnalScope';
 const scopeOf = (v: any): any[] => v[SCOPE] || [];
+/** a copy of a sink value tagged with one more (outer) scope */
+const tag = (v: any, scope: any) => v && typeof v == 'object'
+  ? Object.defineProperty(keepSender(v, {...v}), SCOPE, {value: [scope, ...scopeOf(v)]}) : v;
 
 export function makeSocketDriver(options: any = {}) {
   return (sink$: Stream<any>) => {
@@ -249,8 +252,9 @@ export function makeSocketDriver(options: any = {}) {
         return xs.create<any>({start: l => { subs.add((sub = {l, name, ns})); }, stop: () => { subs.delete(sub); }});
       },
       isolateSource: (_: any, scope: any) => source(ns.concat(scope)),
-      isolateSink: (sink: any, scope: any) => sink.map((v: any) => v && typeof v == 'object'
-        ? Object.defineProperty(keepSender(v, {...v}), SCOPE, {value: [scope, ...scopeOf(v)]}) : v),
+      isolateSink: (sink: any, scope: any) => sink.map((v: any) => tag(v, scope)),
+      // PLAN-4.6: the same per value (the next core scopes a value without a stream per instance)
+      isolateValue: tag,
       // the core sends a component's `connections` static here (PLAN-3 2-B)
       __sygnalStatic: 'connections',
       ...replies,

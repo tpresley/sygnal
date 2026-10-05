@@ -2000,6 +2000,11 @@ export function renderComponent(
       }
     }
   }
+  // PLAN-4.6 R3 (next core): the root's connections / resources statics get their fakes as
+  // inject() gives them on the current core (G-160, 3-A); a child's are R4's port (wrapSources)
+  if (nextCore) for (const [st, n] of [['connections', socketSink], ['resources', resourceSink]]) {
+    if (componentDef[st] && !allDrivers[n]) { allDrivers[n] = () => fake(n); faked.add(n); }
+  }
   let sources: any, sinks: any, rawDispose: () => void;
   try {
     if (NEXT_CORE && (globalThis as any).__SYGNAL_CORE__ === 'next') {
@@ -2008,6 +2013,20 @@ export function renderComponent(
       // The diagnostics-hook bookkeeping (t.actions, child fakes, SYG103/104 owners) is R4's
       const p = startNext(componentDef, allDrivers, {
         useDefaultDrivers: false, onError: options.onError,
+        // PLAN-4.6 R3: t.commands('ELEMENT') records the commands sent and checks them as
+        // recordCommands does (SYG641 when sent; mock DOM: SYG640/641 by the view); the mock DOM
+        // doesn't run them (false). (R4: the dev entry's own check moves to this hook; until then
+        // the send check runs here whether or not the dev entry is loaded)
+        __hooks: {onElementCommand: (iv: any, v: any) => {
+          bump();
+          const c = {get name() { return iv.name; }, get _disposed() { return iv.disposed; }, get sources() { return iv.sources; }, DOMSourceName: 'DOM'};
+          for (const cmd of ([] as any[]).concat(v)) if (cmd) {
+            commandLog.push(cmd);
+            checkSentCommand(c, cmd);
+            if (!real) checkCommand(c, cmd);
+          }
+          return real ? undefined : false;
+        }},
         __override: {intent: bare ? undefined : wrappedIntent, model: bare ? undefined : model, initialState: init, name: compName},
       });
       ({sources, sinks} = p);

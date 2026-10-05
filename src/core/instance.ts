@@ -25,6 +25,7 @@ import {hosts, posts, pres, resolvers} from './registry'
 import {handle} from './actions'
 import {viewOf} from './view'
 import {makeCommandSource} from '../extra/command'
+import {attach, detach} from './statics'
 
 const ERR_FIX = 'See the attached error'
 
@@ -130,8 +131,16 @@ export class Inst {
   wd: any; so: any; el: any
   iv: any
   cmds: any
+  /** the app's render epoch it last rendered at (G-311) */
+  ep = 0
   /** pending next() timers (G-300) */
   timers: Set<any> | null = null
+  // statics.ts: the [sink, static] pairs it declares, the last values sent, the state / shown
+  // flag they were computed from; its reply streams
+  st: Array<[string, string]> | null = null
+  sv: Record<string, any> | null = null
+  sS: any; sH: any
+  rep: any[] | null = null
 
   constructor(
     public app: App, public def: CoreDef, public parent: Inst | null, base: Cell,
@@ -158,17 +167,19 @@ export class Inst {
         const b: any = base, has = b.has ? b.has() : b.get() !== undefined
         // the parent's slice is written as a queued action (before INITIALIZE), so a child that
         // fails to start (G-295) never touches it: the drain skips a disposed instance
-        if (reset || (!has && def.model)) app.dispatch(this, SEED, init, 'built-in')
+        if (reset || (!has && def.model)) app.dispatch(this, SEED, {v: init, r: reset, b}, 'built-in')
         else if (has) H.onStateSeed?.(viewOf(this), b.get(), init)
       }
     } else if (def.idle && isObj(this.cell.raw()) && !parent) this.cell.set(this.cell.raw())
     H.onCreate?.(viewOf(this))
     if (def.handlers.has('INITIALIZE')) app.dispatch(this, 'INITIALIZE', init, 'built-in')
+    if (app.stat.length || app.rep.length) attach(this)
     if (def.intent) {
       try { this.subscribe() } catch (e) {
         // G-295: undone (its queued actions are skipped, no STATE watcher, onDispose pairs onCreate)
         this.disposed = true
         app.watchers.delete(this)
+        detach(this)
         H.onDispose?.(viewOf(this))
         throw e
       }
@@ -358,7 +369,9 @@ export class Inst {
       this.view(state, ctx)
       this.reconcile()
     }
-    let kidsDirty = false
+    // G-311: after a render that threw (the app's epoch moved), the kids are injected again once
+    let kidsDirty = this.ep !== this.app.ep
+    this.ep = this.app.ep
     for (const k of this.kids.values()) {
       const v = k.render()
       if (v !== k.last || k.ready !== k.lr) { k.last = v; k.lr = k.ready; kidsDirty = true }
@@ -468,7 +481,7 @@ export class Inst {
       }
       const dflt = def.isolated ? def.initialState : undefined
       const cell = typeof st == 'string' ? keyCell(this.cell, st, calcOf?.has(st) && this.def.name, dflt)
-        : st !== undefined ? lensCell(this.cell, st, this.def.name, (e) => app.appError(this, e, 'view'))
+        : st !== undefined ? lensCell(this.cell, st, this.def.name, (e) => app.appError(this, e, 'view'), dflt)
         : def.isolated ? localCell(app, this.cell) : this.cell
       const scope = app.scope()
       return new Inst(app, def, this, cell, this.dom && this.dom.isolateSource(this.dom, scope), props, children, scope,
@@ -510,6 +523,9 @@ export class Inst {
     this.disposed = true
     app.hooks.onDispose?.(viewOf(this))
     if (this.disp$) this.disp$.shamefullySendComplete()
+    // G-144: the replies end now (after DISPOSE and dispose$), so the drivers drop its timers and
+    // abort its requests; its statics are no longer recomputed
+    if (this.st || this.rep) detach(this)
     this.ac?.abort()
     if (this.timers) { this.timers.forEach(clearTimeout); this.timers = null }
     this.kids.forEach(k => k.dispose())

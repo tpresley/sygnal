@@ -8,6 +8,9 @@
  * - an update patches the portal's content; a removal removes it;
  * - the children move into the placeholder unprocessed (components inside a Portal are not
  *   instantiated, as today).
+ * G-316 (next core only): the mount state lives in one object the placeholder's successive
+ * vnodes share (`_p`, handed on by postpatch), so a late-target retry mounts the latest children
+ * once, and a removal cancels a pending retry. `_portalVnode` stays on the current vnode (testing).
  */
 import {pres} from '../registry'
 import {NEXT_CORE} from '../build'
@@ -20,13 +23,16 @@ let patch: any
 const notFound = (target: string) => warn('SYG417', 'Portal', `Target '${target}' not found; content not rendered`, 'Render the target first')
 const box = (children: any[]) => ({sel: 'div', data: {}, children, text: undefined, elm: undefined, key: undefined})
 
-function mount(vnode: any, target: string, children: any[]): void {
+interface PortalState { v: any; kids: any[]; pv: any; c: any; t: any; dead: boolean }
+
+function mount(st: PortalState, target: string): boolean {
   const container = document.querySelector(target)
-  if (!container) return void notFound(target)
+  if (!container) return false
   const anchor = document.createElement('div')
   container.appendChild(anchor)
-  vnode.data._portalVnode = (patch ||= snabbdomInit(defaultModules))(anchor, box(children))
-  vnode.data._portalContainer = container
+  st.pv = st.v.data._portalVnode = (patch ||= snabbdomInit(defaultModules))(anchor, box(st.kids))
+  st.c = st.v.data._portalContainer = container
+  return true
 }
 
 export function portalPlaceholder(target: string, children: any[]): any {
@@ -39,30 +45,35 @@ export function portalPlaceholder(target: string, children: any[]): any {
       portalChildren,
       hook: {
         insert: (vnode: any) => {
+          const st: PortalState = vnode.data._p = {v: vnode, kids: portalChildren, pv: null, c: null, t: 0, dead: false}
           let attempts = 0
           const tryMount = () => {
-            if (vnode.data._portalVnode) return
-            if (document.querySelector(target)) {
-              mount(vnode, target, portalChildren)
-              if (attempts) pokeDOM(vnode.data._portalContainer)
-            } else if (attempts++ < 10) setTimeout(tryMount, 5)
+            st.t = 0
+            if (st.dead || st.pv) return
+            if (mount(st, target)) { if (attempts) pokeDOM(st.c) }
+            else if (attempts++ < 10) st.t = setTimeout(tryMount, 5)
             else notFound(target)
           }
           tryMount()
         },
         postpatch: (oldVnode: any, newVnode: any) => {
-          const prev = oldVnode.data?._portalVnode, container = oldVnode.data?._portalContainer
-          const kids = newVnode.data?.portalChildren || []
-          if (!prev || !container) {
-            if (!newVnode.data._portalVnode) mount(newVnode, target, kids)
-            return
-          }
-          newVnode.data._portalVnode = patch(prev, box(kids))
-          newVnode.data._portalContainer = container
+          const st: PortalState | undefined = oldVnode.data?._p
+          if (!st) return
+          newVnode.data._p = st
+          st.v = newVnode
+          st.kids = newVnode.data?.portalChildren || []
+          // not mounted yet: the pending retry mounts these children
+          if (!st.pv) return
+          st.pv = newVnode.data._portalVnode = patch(st.pv, box(st.kids))
+          newVnode.data._portalContainer = st.c
         },
         destroy: (vnode: any) => {
-          const pv = vnode.data?._portalVnode
-          if (pv && pv.elm && pv.elm.parentNode) pv.elm.parentNode.removeChild(pv.elm)
+          const st: PortalState | undefined = vnode.data?._p
+          if (!st) return
+          st.dead = true
+          clearTimeout(st.t)
+          const el = st.pv?.elm
+          if (el && el.parentNode) el.parentNode.removeChild(el)
         },
       },
     },

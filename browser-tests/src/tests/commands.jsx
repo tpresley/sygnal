@@ -38,7 +38,7 @@ export async function commandTests() {
     })
 
     App.model = {
-      'SEND | EFFECT': () => cmd.send('increment'),
+      SEND: { EFFECT: () => cmd.send('increment') },
     }
 
     run(App, {}, { mountPoint: id })
@@ -101,8 +101,8 @@ export async function commandTests() {
     })
 
     App.model = {
-      'CMD_HELLO | EFFECT': () => cmd.send('set-label', 'Hello'),
-      'CMD_WORLD | EFFECT': () => cmd.send('set-label', 'World'),
+      CMD_HELLO: { EFFECT: () => cmd.send('set-label', 'Hello') },
+      CMD_WORLD: { EFFECT: () => cmd.send('set-label', 'World') },
     }
 
     run(App, {}, { mountPoint: id })
@@ -166,8 +166,8 @@ export async function commandTests() {
     })
 
     App.model = {
-      'CMD_A | EFFECT': () => cmd.send('a'),
-      'CMD_B | EFFECT': () => cmd.send('b'),
+      CMD_A: { EFFECT: () => cmd.send('a') },
+      CMD_B: { EFFECT: () => cmd.send('b') },
     }
 
     run(App, {}, { mountPoint: id })
@@ -236,9 +236,9 @@ export async function commandTests() {
     })
 
     App.model = {
-      'INC_ALPHA | EFFECT':   () => cmdAlpha.send('increment'),
-      'INC_BETA | EFFECT':    () => cmdBeta.send('increment'),
-      'RESET_ALPHA | EFFECT': () => cmdAlpha.send('reset'),
+      INC_ALPHA: { EFFECT: () => cmdAlpha.send('increment') },
+      INC_BETA: { EFFECT: () => cmdBeta.send('increment') },
+      RESET_ALPHA: { EFFECT: () => cmdAlpha.send('reset') },
       INC_BOTH: {
         EFFECT: () => { cmdAlpha.send('increment'); cmdBeta.send('increment') },
       },
