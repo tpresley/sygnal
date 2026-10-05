@@ -6,7 +6,7 @@ import { resolve } from 'node:path'
 import sygnal from 'sygnal/vite'
 const profile = process.argv.includes('--profile')
 const root = resolve(import.meta.dirname, '.')
-const pages = ['table', 'table-coll', 'counters', 'counters-tags', 'deep', 'input', 'coll-calc', 'switch', 'fetch']
+const pages = ['table', 'table-coll', 'counters', 'counters-tags', 'deep', 'input', 'coll-calc', 'switch', 'fetch', 'timers', 'persist']
 await build({
   root, configFile: false, logLevel: 'warn', mode: 'production', base: './', plugins: [sygnal()],
   // PLAN-4.6 D175: sygnal/vite strips the next core from production builds; this target opts back in
