@@ -110,3 +110,15 @@ Line count: 1. It carries the facts an agent would otherwise get wrong without o
 **SKILL.md** (≈ 110 B, if Phase 4 makes room): "Chart/editor/grid/carousel library → `defineWidget` tag; table → TanStack in the view; i18n → `.context.t` + `persist` (recipes)."
 
 **Offline copy:** the recipes are not in `scripts/copy-guides.mjs`'s `GUIDES`, so `node_modules/sygnal/dist/guide/` doesn't have them; the line above uses the site URL. Adding them (`recipes/charts`, ...) is a Phase 4 choice (≈ 59 KB of Markdown for the nine pages).
+
+## 3-D: sortable lists (B-1)
+
+**One `llms.txt` line** (rank 3: in "More (guides)", next to the behaviors / forms pointer):
+
+```md
+- Reorderable list: `List.uses = { sort: sortable({ from: 'tasks', item: '.task', handle: '.grip' }) }` (mouse, touch, keyboard); items `<li className="task" data-id={state.id}><button className="grip" aria-label=… aria-describedby={context.sort.helpId}>` (context `sort: (s) => s.sort`; style from `context.sort.dragging` / `over` / `after`), host `<p role="status" aria-live="assertive">{state.sort.message}</p>`, save in `'sort.DROPPED': (state, { id, index, fromIndex }) => …`; two lists `from: ['todo', 'done']` + `data-list="todo"`. HTML5 / file drops: `makeDragDriver`. Guide: https://sygnal.js.org/guide/drag-and-drop/
+```
+
+Line count: 1. It names what agents would get wrong: the id attribute on the item element (SYG145), the live region (SYG724), that the list is already reordered when `sort.DROPPED` arrives, and `sortable` vs `makeDragDriver`.
+
+**SKILL.md** (≈ 110 B, if Phase 4 makes room): "Drag to reorder → `uses = { sort: sortable({ from, item, handle }) }` + live region (guide: drag-and-drop)."

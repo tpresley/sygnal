@@ -1038,6 +1038,62 @@ export function selection(options?: SelectionOptions): Behavior<SelectionState, 
 /** Is `id` in a `selection` slice? Ids compare as strings. */
 export function isSelected(slice: SelectionState | undefined | null, id: string | number): boolean
 
+/** A `sortable` slice: the drag state the view styles from, and the live-region text. */
+export interface SortableState {
+  /** The id (as a string) of the item being moved, or null */
+  dragging: string | null;
+  /** The id the pointer is over (pointer drags), or null */
+  over: string | null;
+  /** true: the item lands after `over`; false: before it */
+  after: boolean;
+  /** The `from` key the item would land in (pointer drags; two lists) */
+  list: string | null;
+  mode: 'pointer' | 'keyboard' | null;
+  /** The text for an ARIA live region: lift, move, drop and cancel announcements */
+  message: string;
+  /** A `uid()` id for the instructions element the handles' `aria-describedby` names (null until the host starts) */
+  helpId: string | null;
+  /** Internal: the pointer press before the threshold */
+  press: { id: string; x: number; y: number } | null;
+  /** Internal: where the item started */
+  origin: { list: string; index: number } | null;
+}
+export interface SortableOptions {
+  /** The host state key of the list; an array of keys allows moves between lists (each container marked `data-list="<key>"`) */
+  from: string | string[];
+  /** Selector of each item's element, which carries its id in `attr` (default `[data-id]`) */
+  item?: string;
+  /** Selector of the part that starts a drag and takes keyboard focus (default: the item) */
+  handle?: string;
+  /** 'y' (default): ArrowUp / ArrowDown move, ArrowLeft / ArrowRight change lists; 'x': the other way round */
+  axis?: 'x' | 'y';
+  /** Pixels a pointer moves before a drag starts (default 4) */
+  threshold?: number;
+  /** The item element's attribute that holds its id (default 'data-id') */
+  attr?: string;
+  /** The id field of the list's items (default 'id') */
+  idField?: string;
+  /** An item's name in announcements (default: its title, name, label or id) */
+  label?: (item: any) => string;
+  /** Announcement texts. `extra`: lift, true for a keyboard lift; move / drop, the list key when the item changed lists */
+  messages?: Partial<Record<'lift' | 'move' | 'drop' | 'cancel', (label: string, position: number, count: number, extra?: any) => string>>;
+}
+/** 'sort.DROPPED': one completed move (pointer drop, or keyboard drop away from where it started) */
+export interface SortableDropped { id: string; list: string; index: number; fromList: string; fromIndex: number }
+export interface SortableActions {
+  INIT: any; PRESS: any; MOVE: any; UP: any; CANCEL: any;
+  KEY: { key: string; id?: string };
+  DROPPED: SortableDropped;
+}
+
+/**
+ * Drag-and-drop reordering of `state[from]` by pointer (mouse, touch, pen) and keyboard (PLAN-5
+ * B-1): `uses = { sort: sortable({ from: 'tasks', item: '.task', handle: '.grip' }) }`. Works on
+ * Collection items (it listens on the host's root). 'sort.DROPPED' fires once per completed move;
+ * `state.sort.message` is the live-region text.
+ */
+export function sortable(options: SortableOptions): Behavior<SortableState, SortableActions, {}, SortableOptions>
+
 /** `state.history` of `undoable()` / `undo()`: snapshots of `state[key]`, newest last in `past`. */
 export interface UndoHistory<T = any> { past: T[]; future: T[] }
 export interface UndoOptions {

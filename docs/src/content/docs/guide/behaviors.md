@@ -118,6 +118,10 @@ Read the selection with `isSelected(state.sel, id)`. Ids compare as strings, so 
 
 `undo({ key: 'doc' })` records the changes to `state.doc` and adds `history.UNDO` and `history.REDO`. See [Undo and Redo](/advanced/undo/).
 
+### Sortable
+
+`sortable({ from: 'tasks', item: '.task', handle: '.grip' })` reorders `state.tasks` by mouse, touch and keyboard, announces each step in `state.sort.message` for a live region, and dispatches `sort.DROPPED` once per completed move. See [Drag and Drop](/guide/drag-and-drop/#sortable-lists).
+
 ### Form
 
 `form(schema, { values, submit })` is a form with validation: `state.form` holds the values, errors and touched fields, the fields inside the form element are matched by `name`, and a valid submit dispatches the `submit` action with the validated values. See [Forms](/guide/forms/).

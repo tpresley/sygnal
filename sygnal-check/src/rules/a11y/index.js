@@ -14,6 +14,7 @@ import positiveTabindex from './syg706-positive-tabindex.js'
 import aria from './syg707-aria.js'
 import idReference from './syg708-id-reference.js'
 import uiName from './syg722-ui-name.js'
+import sortable from './syg724-sortable.js'
 
 export const a11yRules = [
   clickTarget,      // SYG701, SYG704 (cross intent/view)
@@ -24,6 +25,7 @@ export const a11yRules = [
   aria,             // SYG707
   idReference,      // SYG708
   uiName,           // SYG722 (Menu / Select / Combobox, PLAN-5 2-T)
+  sortable,         // SYG724 (the sortable behavior's handle and live region)
 ]
 
 /** The same rules reporting at error severity (the a11y: 'error' opt-in, D144). */

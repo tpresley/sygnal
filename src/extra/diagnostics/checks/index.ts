@@ -35,6 +35,7 @@
  * | SYG127 | behavior key in initialState / unresolvable uses entry | behaviors.ts   |
  * | SYG230 | form: field name not in values; SYG231 not a Standard Schema; SYG232 submit dropped (info); SYG233 value missing from the schema output | forms.ts |
  * | SYG234 | form submit action has no model entry; SYG235 check names an unknown field / sets reply fields; SYG236 rows without an id | forms.ts |
+ * | SYG145 | sortable: item without its id attribute; SYG146 item / handle selector matches nothing; SYG147 from is not an array | sortable.ts |
  * | SYG116 | EVENTS value with no string type (a function)          | events.ts      |
  * | SYG130 | href() names no route / leaves out a param             | router.ts      |
  * | SYG131 | route params the pattern doesn't use                   | router.ts      |
@@ -85,6 +86,7 @@ import {installWidgetHooks} from './widgets'
 import {installVirtualHooks} from './virtual'
 import {behaviorsCheck} from './behaviors'
 import {formsCheck, installFormHooks} from './forms'
+import {installSortableHooks} from './sortable'
 import {datasetCheck} from './dataset'
 import {strictCheck} from './strict'
 import {repliesCheck} from './replies'
@@ -153,6 +155,7 @@ export function installChecks(): () => void {
   const uninstallWidgets = installWidgetHooks()
   const uninstallVirtual = installVirtualHooks()
   const uninstallForms = installFormHooks()
+  const uninstallSortable = installSortableHooks()
   // PLAN-4.6 R4: the core reads its hooks from the bridge once per app (checks/next.ts)
   ;(core.layers ||= new Set()).add(nextHooks)
   const uninstall = () => {
@@ -168,6 +171,7 @@ export function installChecks(): () => void {
     uninstallWidgets()
     uninstallVirtual()
     uninstallForms()
+    uninstallSortable()
     if (core.__uninstallChecks === uninstall) core.__uninstallChecks = undefined
   }
   core.__uninstallChecks = uninstall

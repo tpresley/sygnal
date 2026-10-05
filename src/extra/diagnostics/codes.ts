@@ -163,6 +163,10 @@ export const CODE_TITLES: Record<string, string> = {
   SYG142: 'Widget command not declared',
   SYG143: 'Widget tag used as a selector',
   SYG144: 'Widget event the host element also fires natively',
+  // PLAN-5 B-1 (3-D): the sortable behavior (checks/sortable.ts; sortable.ts calls the bridge's sortable hook)
+  SYG145: 'Sortable item without its id attribute',
+  SYG146: 'Sortable item or handle selector matches nothing',
+  SYG147: 'Sortable list key is not an array in the host state',
   // PLAN-5 V-1: VirtualCollection (checks/virtual.ts)
   SYG430: 'VirtualCollection has no bounded height',
   SYG431: 'VirtualCollection items without ids',
@@ -305,6 +309,8 @@ export const CODE_TITLES: Record<string, string> = {
   SYG708: 'Label or ARIA reference to an id that is not rendered',
   // PLAN-5 2-T (D211): Zag UI parts (sygnal-check rules/a11y/syg722-ui-name.js)
   SYG722: 'Menu, Select or Combobox without an accessible name',
+  // PLAN-5 B-1 (3-D): static only (sygnal-check)
+  SYG724: 'Sortable handle not keyboard-accessible, or no live region',
   SYG901: "Retired in 6.0: Sub-component sink stream errored",
   SYG902: "Retired in 6.0: EFFECT stream errored",
   SYG903: "Retired in 6.0: Component factory returned invalid sinks",
@@ -406,6 +412,10 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG142: 'error',
   SYG143: 'warn',
   SYG144: 'info',
+  // PLAN-5 B-1 (3-D): the sortable behavior (checks/sortable.ts)
+  SYG145: 'warn',
+  SYG146: 'warn',
+  SYG147: 'warn',
   SYG660: 'error',
   SYG661: 'error',
   SYG662: 'error',
@@ -432,6 +442,8 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG707: 'warn',
   SYG708: 'warn',
   SYG722: 'warn',
+  // PLAN-5 B-1 (3-D): static only (sygnal-check)
+  SYG724: 'warn',
 }
 
 export function getCodeInfo(code: string): DiagnosticCodeInfo | undefined {

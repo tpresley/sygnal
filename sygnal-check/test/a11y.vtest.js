@@ -57,7 +57,7 @@ describe('a11y lane plumbing', () => {
   it('a11y rules are core rules (on by default)', () => {
     expect(a11yRules.length).toBeGreaterThan(0)
     for (const r of a11yRules) expect(coreRules).toContain(r)
-    expect(a11yRules.flatMap(r => r.codes).sort()).toEqual(['SYG701', 'SYG702', 'SYG703', 'SYG704', 'SYG705', 'SYG706', 'SYG707', 'SYG708', 'SYG722'])
+    expect(a11yRules.flatMap(r => r.codes).sort()).toEqual(['SYG701', 'SYG702', 'SYG703', 'SYG704', 'SYG705', 'SYG706', 'SYG707', 'SYG708', 'SYG722', 'SYG724'])
   })
 
   // D144 (amends D111): warn even under strict; a11y: 'error' is the explicit opt-in
