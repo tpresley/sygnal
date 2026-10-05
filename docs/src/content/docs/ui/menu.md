@@ -115,7 +115,7 @@ it('records the picked action', async () => {
 })
 ```
 
-To test the keyboard and focus, render it with `dom: 'real'` in jsdom (Zag needs `ResizeObserver`, `CSS.escape` and `Element.prototype.scrollTo`, which jsdom lacks: stub them in a setup file) or in a real browser. Sygnal's browser suite runs all three Zag parts in Chromium, Firefox and WebKit.
+To test the keyboard and focus, render it with `dom: 'real'` in jsdom (`renderComponent` adds the `ResizeObserver`, `CSS.escape` and `Element.prototype.scrollTo` that Zag needs and jsdom lacks, for the test's lifetime) or in a real browser. Sygnal's browser suite runs all three Zag parts in Chromium, Firefox and WebKit.
 
 ## Size
 

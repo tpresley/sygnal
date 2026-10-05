@@ -162,15 +162,7 @@ it('stores the rating', async () => {
 })
 ```
 
-To run the React component or the machine itself, use `renderComponent(Review, { dom: 'real' })` (in a jsdom test environment), click with `t.query(...)`, and wait for the state with `t.next`. In jsdom, Zag's positioning and list scrolling need `ResizeObserver`, `CSS.escape` and `Element.prototype.scrollTo`; stub them in a setup file:
-
-```js
-// vitest.setup.js
-globalThis.ResizeObserver ||= class { observe() {} unobserve() {} disconnect() {} }
-globalThis.CSS ||= {}
-CSS.escape ||= (s) => String(s).replace(/[^\w-]/g, (c) => '\\' + c)
-Element.prototype.scrollTo ||= function () {}
-```
+To run the React component or the machine itself, use `renderComponent(Review, { dom: 'real' })` (in a jsdom test environment), click with `t.query(...)`, and wait for the state with `t.next`. Zag's positioning and list scrolling use `ResizeObserver`, `CSS.escape` and `Element.prototype.scrollTo`, which jsdom lacks: while a `dom: 'real'` test runs, `renderComponent` adds the missing ones (a `ResizeObserver` that observes nothing, a `scrollTo` that does nothing) and removes them when the last test instance is disposed. An implementation the environment already has is kept. Outside `renderComponent` (a test that calls `run()` itself), stub them in a setup file.
 
 ## Server rendering
 

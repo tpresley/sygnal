@@ -1350,10 +1350,12 @@ const elementHas = (target: any, m: string, tag = typeof target == 'function' &&
  * showModal() set `open`; close(returnValue) clears it, sets returnValue and fires `close`; the
  * popover methods fire `beforetoggle` / `toggle` (with oldState / newState); scrollIntoView()
  * does nothing (spy on it after renderComponent). A browser's own methods are never replaced.
+ * PLAN-5 2-T (D211): also ResizeObserver (observes nothing), CSS.escape and
+ * Element.prototype.scrollTo (does nothing), which Zag's machines use.
  */
 let domFakes: (() => void) | undefined;
 function fakeElementMethods(W: any): () => void {
-  const added: Array<[any, string]> = [];
+  const added: Array<[any, string, any?]> = [];
   const add = (proto: any, name: string, fn: Function) => {
     if (proto && !(name in proto)) { proto[name] = fn; added.push([proto, name]); }
   };
@@ -1386,7 +1388,25 @@ function fakeElementMethods(W: any): () => void {
     return shown.has(this);
   });
   add(W.Element?.prototype, 'scrollIntoView', function () {});
-  return () => added.forEach(([proto, name]) => { delete proto[name]; });
+  // PLAN-5 2-T (D211): what Zag's machines (sygnal/ui/menu, select, combobox; fromZag) need:
+  // ResizeObserver (positioning), CSS.escape (selectors) and scrollTo (the highlighted option)
+  add(W.Element?.prototype, 'scrollTo', function () {});
+  const RO = class { observe() {} unobserve() {} disconnect() {} };
+  const esc = (s: any) => String(s).replace(/[^\w-]/g, (c) => '\\' + c);
+  // (a global the environment declares as undefined counts as missing)
+  const set = (g: any, name: string, v: any) => {
+    if (g[name]) return;
+    // defined over it (Vitest's jsdom globals are accessors that would store into the window)
+    const own = Object.getOwnPropertyDescriptor(g, name);
+    if (own && !own.configurable) return;
+    Object.defineProperty(g, name, {value: v, configurable: true, writable: true});
+    added.push([g, name, own]);
+  };
+  for (const g of new Set([W, globalThis])) {
+    set(g, 'ResizeObserver', RO);
+    g.CSS ? set(g.CSS, 'escape', esc) : set(g, 'CSS', {escape: esc});
+  }
+  return () => added.forEach(([proto, name, own]) => { delete proto[name]; if (own) Object.defineProperty(proto, name, own); });
 }
 
 export function renderComponent(

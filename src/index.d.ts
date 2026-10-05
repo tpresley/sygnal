@@ -2987,7 +2987,9 @@ export interface RenderOptions {
    * `value`, `disabled`, focus, refs and Portals are real. simulateEvent then dispatches a real
    * event on the first element matching any CSS selector (a value/checked init is set on the
    * element first; 'click' runs the default action and skips disabled controls; 'focus'/'blur'
-   * move focus). Read elements with `t.query(sel)` / `t.queryAll(sel)` / `t.container`.
+   * move focus). Read elements with `t.query(sel)` / `t.queryAll(sel)` / `t.container`. While
+   * it runs, what jsdom lacks is added (and removed after): the `<dialog>` and popover methods,
+   * scrollIntoView, and for Zag's machines ResizeObserver, CSS.escape and Element#scrollTo.
    */
   dom?: 'mock' | 'real';
   /**
