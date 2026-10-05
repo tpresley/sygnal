@@ -97,6 +97,7 @@ export default defineConfig({
             { label: 'Code Editor', slug: 'recipes/code-editor' },
             { label: 'Carousel', slug: 'recipes/carousel' },
             { label: 'Data Table', slug: 'recipes/data-table' },
+            { label: 'Data Grid', slug: 'recipes/data-grid' },
           ],
         },
         {
