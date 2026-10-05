@@ -51,6 +51,7 @@ export default defineConfig({
             { label: 'Document Head', slug: 'guide/head' },
             { label: 'Custom Drivers', slug: 'guide/custom-drivers' },
             { label: 'Collections', slug: 'guide/collections' },
+            { label: 'Virtual Collections', slug: 'guide/virtual-collections' },
             { label: 'Behaviors', slug: 'guide/behaviors' },
             { label: 'Switchable', slug: 'guide/switchable' },
             { label: 'Context', slug: 'guide/context' },
