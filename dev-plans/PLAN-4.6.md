@@ -153,7 +153,7 @@ After each phase: a `/code-review high` of the phase diff (and of each fix pass)
   - Collection remove ≤ 1.5×;
   - Collection select ≤ 8× (now 17×; the rest is snabbdom-bound);
   - leaf 30 deep ≤ 1.5×.
-- **Size:** gated core at R5 below 41,343 B (the spike projects it; §9 Q10).
+- **Size (D182):** not a merge gate during PLAN-4.6 (no intermediate releases). Every merge reports the new core's size (`src/core/**` alone, and kanban on the next core) for information; the new core's budget is decided at the end of the plan.
 - **Spike 0-S go criteria:**
   - mount 1k and Collection create/replace/select/remove at least 1.5× faster than the current core;
   - projected production core ≤ 41,343 B;
@@ -219,7 +219,7 @@ All recommendations below were accepted, with these changes: Q4 context tracking
 |---|---|---|
 | P46-Q1 | Run PLAN-4.6 before PLAN-5, if spike 0-S meets §4's criteria | Yes |
 | P46-Q2 | Policy: 6.0 may remove alternative/undocumented forms that cost core complexity (reverses PLAN-1's "nothing is removed" for this major), with a migration guide | Yes |
-| P46-Q3 | Size target | Gated core below 41,343 B at R5; PLAN-5 inherits the freed bytes |
+| P46-Q3 | Size target | **Superseded by D182:** decided at the end of the plan; reported per merge meanwhile |
 | P46-Q4 | Context dependency tracking | Not in this plan (§2) |
 | P46-Q5 | Eval spend | ≈ $27 Opus regression at R5; + ≈ $5 Haiku tier 1 if agent docs change |
 

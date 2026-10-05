@@ -24,6 +24,7 @@ Tracks progress for [PLAN-4.6.md](PLAN-4.6.md) (component core rewrite). The coo
 
 | ID | Date | Decision | By |
 |---|---|---|---|
+| D182 | 2026-10-04 | No intermediate releases come off `plan46-integration` until the new core is complete, so the old core's size budget (size gate ≤ 42,300 B) no longer gates PLAN-4.6 merges (D175's strip stays, harmless). Each merge reports the **new core's size** for information: `src/core/**` alone (min + gzip) and kanban on the next core. The new core's budget is decided at the end of the plan (replaces D170's "below 41,343 B at R5" target) | User |
 | D181 | 2026-10-04 | SYG401's explanation text (sygnal-check `explanations.js:339`) is reworded for D178 at R5 with the other docs | Coordinator |
 | D180 | 2026-10-04 | Replies resolving in separate microtasks get one flush/patch each on next (fetch page: 1,001 patches vs 97 on current; latency still better, 249 vs 272 ms). R4's perf pass measures bounded coalescing (e.g. wait an extra microtask hop while commits keep arriving, no timers) on the fetch page, keystroke and leaf update, and keeps it only if latency doesn't regress. Internal; no API | Coordinator |
 | D179 | 2026-10-04 | D174's seed-only-while-undefined rule and `resetState` apply to lens bindings as well as `state="key"` (same "no silent overwrite" intent) | Coordinator |
@@ -82,6 +83,7 @@ Tracks progress for [PLAN-4.6.md](PLAN-4.6.md) (component core rewrite). The coo
 
 ## Log
 
+- 2026-10-04 — D182: size gate informational during PLAN-4.6; new-core size reported per merge; budget decided at the end.
 - 2026-10-04 — R3 merged (`b0613ee`); all gates green (41,453 B); browser on next 175/186. D180, D181. R4 and a review of R3 started.
 - 2026-10-04 — Review of R2: 12 findings (G-306…G-317, 2 regressions), sent to R3.
 - 2026-10-04 — R2 merged (`62cfaec`); all gates green (size 41,474 B). D177–D179. R3 and a review of R2 started.
