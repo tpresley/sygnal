@@ -6,7 +6,7 @@ Tracks progress for [PLAN-4.6.md](PLAN-4.6.md) (component core rewrite). The coo
 
 **Integration branch:** `plan46-integration`, cut from `plan45-complete` (`d900c522`) on 2026-10-04, with `claude/component-core-rewrite-experiment` (the study) merged (`45eefb2`). Worktree `.claude/worktrees/plan-4-execution-7ae8e8`. The release stays held (D56).
 
-**State:** R0–R4 merged; the full suite passes on both cores. R5 running; review of R4 running.
+**State:** R0–R4 merged; the full suite passes on both cores. R5 running (incl. R4 review fixes G-324…G-335).
 
 ## Phases
 
@@ -86,10 +86,23 @@ Tracks progress for [PLAN-4.6.md](PLAN-4.6.md) (component core rewrite). The coo
 | G-321 | review R3 | Low | core/cell | Write-back strips a real id equal to the row's index. Confirmed | Documented limit (05 §3.4; today's item state carries the injected index id too) |
 | G-322 | review R3 | Low | core/cell | `uid()` collides between index keys and id keys (duplicate DOM ids). Confirmed | Fixed (R4) |
 | G-323 | review R3 | Low | core/statics | A new statics-declaring instance forces an extra full render pass. Confirmed | Fixed (R4) |
+| G-324 | review R4 | High | testing | Child-only fake replies never reach an intent-less component (silent test failure). Confirmed | → R5 |
+| G-325 | review R4 | Med/High | testing | False SYG102 for a root with a model and no intent under renderComponent + dev entry. Confirmed | → R5 |
+| G-326 | review R4 | Med | testing | The input-armed `t.next()` cursor never expires (documented "move the clock by hand" pattern returns a past state). Confirmed | → R5 |
+| G-327 | review R4 | Med | diagnostics | SYG423 false positives for non-deterministic views. Confirmed | → R5 |
+| G-328 | review R4 | Med | portal | Portal ↔ plain div at the same position keeps adding content to the target (pre-existing, both cores). Confirmed | → R5 |
+| G-329 | review R4 | Low/Med | diagnostics | SYG612 false positive for uppercase real elements (`h('SPAN')`). Confirmed | → R5 |
+| G-330 | review R4 | Low/Med | core/runtime | A throwing dev layer factory stops `run()`. Confirmed | → R5 |
+| G-331 | review R4 | Low | core/runtime | One throw in `handle()`/a SET item discards the rest of the queue | → R5 |
+| G-332 | review R4 | Low | diagnostics | SYG612 `seenDefs` not reset by `resetChecks()`. Confirmed | → R5 |
+| G-333 | review R4 | Low | diagnostics | SYG425 warns for `initialState` keys whose value is `undefined` | → R5 |
+| G-334 | review R4 | Low/Med | tests | Three excluded tests cover kept behaviour with removed-form fixtures; port, don't delete (§4) | → R5 |
+| G-335 | review R4 | Low | testing | Array/Date child-sink values recorded as plain objects (pre-existing) | → R5 |
 | G-291 | 0-S | Low | Collection | Id-less items under filter/sort are keyed by filtered/sorted index (likely a latent bug) | → Q23 |
 
 ## Log
 
+- 2026-10-04 — Review of R4: 12 findings (G-324…G-335), sent to R5.
 - 2026-10-04 — R4 merged (`4574951`); full suite green on both cores. D183. R5 and a review of R4 started.
 - 2026-10-04 — Review of R3: 6 findings (G-318…G-323, one regression), sent to R4. New core alone: 43.7 KB min / 15.9 KB gz (R1: 9.6 KB gz).
 - 2026-10-04 — D182: size gate informational during PLAN-4.6; new-core size reported per merge; budget decided at the end.
