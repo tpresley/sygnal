@@ -48,6 +48,34 @@ describe('G-339: SYG403 says context entries are functions of state only', () =>
   })
 })
 
+describe("G-346: a simulate* call's cursor expiry timer does not outlive the next() that used it", () => {
+  function App({ state }) { return h('div', null, String(state.n)) }
+  App.initialState = { n: 0 }
+  App.model = { INC: (s) => ({ ...s, n: s.n + 1 }) }
+
+  it('no pending timer after simulateAction + next() under fake timers', async () => {
+    vi.useFakeTimers()
+    t = renderComponent(App)
+    await t.ready()
+    t.simulateAction('INC')
+    const s = await t.next()
+    expect(s.n).toBe(1)
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it("G-326 kept: a macrotask between the call and next() expires the cursor (next() gets the state after)", async () => {
+    App.model.LATER = { EFFECT: (s, d, next) => next('INC', null, 50) }
+    try {
+      t = renderComponent(App)
+      await t.ready()
+      t.simulateAction('LATER')
+      await sleep(0)
+      const s = await t.next()
+      expect(s.n).toBe(1)
+    } finally { delete App.model.LATER }
+  })
+})
+
 describe('G-343: defineComponent names and statics', () => {
   it("an inline view in the options object is not named 'view'", () => {
     const C = defineComponent({ view: ({ state }) => h('b', null, 'x'), initialState: {} })

@@ -2010,8 +2010,18 @@ export function renderComponent(
   // doesn't make a much later next() return an old state).
   let fromInput = false;
   let readyAt = 0, cursor: number | undefined, shown: number | undefined, arming = 0, cursorUsed = false;
+  // G-346: one expiry timer at a time, cleared once a next() uses the cursor (no timer is left
+  // pending after `await t.next()`, e.g. vi.getTimerCount() under fake timers)
+  let expiry: any = 0;
+  const unexpire = () => { if (expiry) { clearTimeout(expiry); expiry = 0; } };
+  const expire = (id: number) => {
+    unexpire();
+    expiry = setTimeout(() => { expiry = 0; if (id == arming && !cursorUsed) cursor = undefined; });
+  };
   const readyPromise = new Promise<void>(r => {
     markReady = () => {
+      // G-346: the fallback (no first render) has nothing left to do
+      clearTimeout(fallback);
       readyAt = states.length;
       isReady = true;
       pump();
@@ -2025,7 +2035,7 @@ export function renderComponent(
     shown = undefined;
     const id = ++arming;
     cursorUsed = false;
-    readyPromise.then(() => setTimeout(() => { if (id == arming && !cursorUsed) cursor = undefined; }));
+    readyPromise.then(() => { if (id == arming && !cursorUsed && !disposed) expire(id); });
     // 4-A1: on the real DOM, ready() also waits until the first render is in the DOM
     // R4-8: rejected by dispose()
     return drive(new Promise<void>((resolve, reject) => {
@@ -2045,8 +2055,7 @@ export function renderComponent(
     fromInput = true; cursorUsed = false;
     // G-326: like ready()'s, the cursor expires at the next macrotask unless a next() used it,
     // so a test that moves the clock (or waits) before next() gets the state after the call
-    const id = ++arming;
-    setTimeout(() => { if (id == arming && !cursorUsed) cursor = undefined; });
+    expire(++arming);
     inputs.push({go, missing});
     pump();
   };
@@ -2775,6 +2784,7 @@ export function renderComponent(
     if (cursor === undefined || (cursor < 0 && !isReady)) return drive(waitMatch(cursor === undefined && syncAt !== undefined ? syncAt : states.length, predicate, timeoutMs, 'next'), () => disposed);
     const id = arming;
     cursorUsed = true;
+    unexpire();
     const p = waitMatch(cursor < 0 ? readyAt : cursor, predicate, timeoutMs, 'next');
     // the first next() from the cursor to resolve disarms it (sequential next() calls move on)
     p.then(() => { if (id == arming) cursor = undefined; }, noop);
@@ -2861,6 +2871,7 @@ export function renderComponent(
     clearTimeout(timer);
     clearTimeout(fallback);
     clearTimeout(retryTimer);
+    unexpire();
     // G-070: an event still waiting for an element that never rendered fails the test
     const head = inputs[0];
     if (head && head.until && head.missing && !failure) failure = head.missing();
