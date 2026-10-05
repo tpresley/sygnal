@@ -102,23 +102,25 @@ const release = (v: any) => {
 }
 
 // G-410 (dev only): what a render must not contain: a component (data.c), a widget tag, special JSX.
-// G-439: a marker is an object vnode (not the pragma's plain-element vnode, `$p`) whose sel is a
-// special name, with or without props (`<Suspense>`, `h(Transition, null)`); `<Slot>` too (a
-// plain <slot> element is a `$p` vnode unless a child of it is a field or a component)
+// G-439 / G-470: a marker is a vnode the pragma made from a marker function (`data.m`), with or
+// without props (`<Suspense>`, `h(Transition, null)`, `<Slot>`); a plain <slot> element is not,
+// whatever its children
 const SPECIAL: any = {transition: 'Transition', portal: 'Portal', collection: 'Collection', switchable: 'Switchable',
   suspense: 'Suspense', clientonly: 'ClientOnly', 'virtual-collection': 'VirtualCollection', slot: 'Slot'}
 const foreign = (v: any, out: string[]): string[] => {
   if (!v || typeof v != 'object') return out
   if (Array.isArray(v)) { v.forEach(c => foreign(c, out)); return out }
   const d = v.data
-  let t = d?.c ? v.sel : v.sel == 'widget' && d?.ww ? d.ww.def.name || 'widget' : !v.$p && v.text === undefined && SPECIAL[v.sel]
+  let t = d?.c ? v.sel : v.sel == 'widget' && d?.ww ? d.ww.def.name || 'widget' : d?.m && SPECIAL[v.sel]
   if (t) out.includes(t = '<' + t + '>') || out.push(t)
   return foreign(v.children, out)
 }
 
 function start(zag: any, render: any, o: any, el: any, p0: any, dispatch: any, error: any, w: any): any {
   // live: 0 while start() runs (a throwing draw throws: SYG660), then 1 (it goes to error: SYG661)
-  let props = p0, memo: any, on = 1, busy = 0, again = 0, live = 0
+  // f669: this instance's render had foreign content (G-470: per instance, not on the widget tag,
+  // so another app or test, or diagnostics turned on later, still gets its report)
+  let props = p0, memo: any, on = 1, busy = 0, again = 0, live = 0, f669 = 0
   let vn: any = el.appendChild(document.createElement('div'))
   const id = p0.id ?? 'sygnal-zag-' + ++ids
   // the instance (the part's per-instance fields too); the props mapping gets it from the start
@@ -155,9 +157,10 @@ function start(zag: any, render: any, o: any, el: any, p0: any, dispatch: any, e
       do {
         again = 0
         const out = render(api(), props, x)
-        // G-439: SYG669 is once per widget tag: after it, no more walks
-        const dev = (globalThis as any).__SYGNAL_DIAGNOSTICS__?.widget, tg = w()
-        if (dev && !tg.$669) { const f = foreign(out, []); f.length && (tg.$669 = 1, dev(669, tg, undefined, f)) }
+        // G-439: once found, this instance's render isn't walked again (the report is once per
+        // widget tag: checks/widgets.ts)
+        const dev = (globalThis as any).__SYGNAL_DIAGNOSTICS__?.widget
+        if (dev && !f669) { const f = foreign(out, []); f.length && (f669 = 1, dev(669, w(), undefined, f)) }
         vn = patch(vn, Array.isArray(out) ? h('div', {style: {display: 'contents'}}, out) : out || h('!', ''))
       } while (again && on)
     } catch (e) {

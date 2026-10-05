@@ -14,6 +14,9 @@
 //
 // PLAN-5 1-F (D196): regenerated; the only change is `aria-hidden: true` → `"true"` (an aria-*
 // boolean is stringified).
+//
+// PLAN-5 3-K (G-470): regenerated; the only change is `data.m` (the marker function) on the eight
+// marker vnodes (Collection, Switchable, Portal, Transition, Suspense twice, ClientOnly, Slot).
 import { describe, it, expect, vi } from 'vitest'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { createElement as h, createElementWithModules } from '../src/pragma/index.js'

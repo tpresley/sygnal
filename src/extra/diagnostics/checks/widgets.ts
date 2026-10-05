@@ -18,7 +18,7 @@
  * runtime doesn't see which listener a selector serves. SYG142 for an undeclared command sent to a
  * widget's host is reported by the element command check (checks/elementCommands.ts).
  */
-import {devReport, once, nameOf} from './shared'
+import {devReport, once, unsee, nameOf} from './shared'
 import {DEV_CODE_SEVERITY} from '../codes'
 
 /** a widget's name for messages: `name` from its definition, else its host tag */
@@ -66,13 +66,17 @@ export function reportWidget(code: number, w: any, owner?: any, x?: any): any {
     })
   }
   if (code == 669) {
-    if (!once(`SYG669:${idOf(w)}`)) return
-    return devReport('SYG669', {
+    // G-470: once per widget tag, counted only when reported (not with diagnostics off)
+    const k = `SYG669:${idOf(w)}`
+    if (!once(k)) return
+    const d = devReport('SYG669', {
       component: name,
       message: `${name}'s fromZag render returned ${x.join(', ')}; the adapter patches its render outside the component tree, so they don't run there (a component isn't instantiated, a widget doesn't mount, special JSX renders as an unknown element)`,
       fix: `Render plain elements in the fromZag render (with Zag's prop getters spread on them), pass data in through the widget's props, and put components, widgets and special JSX around the widget tag in the view`,
       data: {found: x},
     })
+    if (!d) unsee(k)
+    return d
   }
   const phase = PHASE[code]
   if (!phase) return

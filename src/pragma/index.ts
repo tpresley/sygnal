@@ -298,9 +298,10 @@ export const createElementWithModules = (modules: Record<string, any>) => {
         return sel(data || {}, children)
       }
       data ||= {}
-      // preventInstantiation (Portal/Suspense/...): a marker vnode without `data.c`; its children
+      // preventInstantiation (Portal/Suspense/...): a marker vnode, its function in `data.m` (G-470:
+      // how a check tells it from a plain element of that tag), not `data.c`; its children
       // stay an array (they read vnode.children), as for every component below
-      if (!(sel as any).preventInstantiation) fn = sel
+      fn = sel
       sel = (sel as any).componentName || sel.name || 'FUNCTION_COMPONENT'
     }
     // B-011: a vnode is either text-only (`text`, no children) or has a children array,
@@ -312,7 +313,7 @@ export const createElementWithModules = (modules: Record<string, any>) => {
     let plain = !isComponent && is.string(sel) && !(t & 5)
     if (typeof text === 'undefined') plain = !!(flatten(children, kids = []) & +plain)
     const d = data ? sanitizeData(data, modules, isComponent ? croutes : routes, isComponent) : {}
-    if (fn) d.c = fn
+    if (fn) d[fn.preventInstantiation ? 'm' : 'c'] = fn
     const key = k !== undefined ? k : data ? data.key : undefined
     const vnode = plain ? new (Plain as any)(sel, d, kids, text, key) : { sel, data: d, children: kids, text, elm: undefined, key }
     if (t & 2) applySvg(vnode)
