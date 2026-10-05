@@ -1922,7 +1922,7 @@ export function renderComponent(
     ...(hd && {[headSink]: hd.driver}),
     // (it stands down when a timer driver is passed under another key: one runs the timers)
     ...(tm && {[timerSink]: (s$: any) => timerDriver(tm)(s$.filter(() => !Object.keys(sources || {}).some(k => k != timerSink && sources[k]?.__sygnalStatic == 'timers')))}),
-    ...(bw && {[browserSink]: (s$: any) => browserDriver([bw.src], bw.runners)(s$.filter(() => !Object.keys(sources || {}).some(k => k != browserSink && sources[k]?.__sygnalStatic == 'browser')))}),
+    ...(bw && {[browserSink]: (s$: any, n: string) => browserDriver([bw.src], bw.runners)(s$.filter(() => !Object.keys(sources || {}).some(k => k != browserSink && sources[k]?.__sygnalStatic == 'browser')), n)}),
     ...(rt && {[routerSink]: routerDriver}),
     ...drivers,
     ...(options.onError && {__e: () => options.onError}),

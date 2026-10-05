@@ -910,6 +910,13 @@ export const EXPLANATIONS = {
     explanation: "A browser source or command failed: the user denied the geolocation or clipboard permission, the API isn't available (no `navigator.clipboard` outside a secure context, no `navigator.geolocation`), the position timed out, or storage is blocked or full. Its spec names no `error` action, so the component never hears about it and keeps waiting. Reported once per component, entry and kind of failure.",
     fix: "Name an `error` action and handle it: `here: { geolocation: true, action: 'POS', error: 'GEO_FAILED' }` with `GEO_FAILED: (state, { code, message }) => ...`, or `COPY: { BROWSER: (state) => ({ copy: state.link, ok: 'COPIED', error: 'COPY_FAILED' }) }` with `COPY_FAILED: (state, { name, message }) => ...`. Ask for permission-gated sources from a user action, and say why.",
   },
+  SYG666: {
+    title: "Browser source has no element to observe",
+    severity: "warn",
+    reportedBy: ["dev-entry"],
+    explanation: "An `intersection` or `resize` entry of a component's `browser` declaration has nothing to observe, so its action never comes. Either no DOM source reached the browser driver for the instance (the app runs without a DOM driver, or the declaration was sent from outside a component's `browser` static), or, under `renderComponent(C, { dom: 'real' })`, the entry's selector matches no element the component renders (a typo, or an element rendered only later). The `t.browser` fake still sends its initial report, so the test can pass while the real app observes nothing. Reported once per component, entry and reason.",
+    fix: "Run the app with a DOM driver (`run(App, drivers, { mountPoint })`) and declare the entry in the component's own `browser` static. Use a selector the component's own view renders, or `true` for its root element: `cover: { intersection: '.cover', action: 'SEEN' }` with `<img className=\"cover\" />` in the view. Declare the entry only while its element exists: `chart: state.open && { resize: '.chart', action: 'SIZE' }`.",
+  },
   SYG701: {
     title: "Click listener on a non-interactive element",
     severity: "warn",

@@ -197,6 +197,7 @@ The `browser` option sets the environment at the start: `renderComponent(Theme, 
 | [SYG663](/reference/errors/#syg663) (error) | A spec the driver can't start (no known source key, no `action`, an `intersection` / `resize` target that is neither a selector nor `true`), or a command with an unknown method |
 | [SYG664](/reference/errors/#syg664) (error) | A spec whose source `makeBrowserDriverWith(...)` wasn't given |
 | [SYG665](/reference/errors/#syg665) (warning) | A source or command failed and names no `error` action |
+| [SYG666](/reference/errors/#syg666) (warning) | An `intersection` / `resize` entry has nothing to observe: no DOM source reached the driver, or (in `renderComponent` with `dom: 'real'`) its selector matches no element of the component |
 | [SYG643](/reference/errors/#syg643) (warning) | The component declares `browser`, but no browser driver is registered. `sygnal-check` reports it too when it can read the app's `run()` call |
 
 Deferred loading of a component when it scrolls into view is [`lazy(…, { when: 'visible' })`](/advanced/lazy-loading/#loading-when-visible-or-idle).

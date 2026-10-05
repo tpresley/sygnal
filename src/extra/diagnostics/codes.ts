@@ -283,6 +283,8 @@ export const CODE_TITLES: Record<string, string> = {
   SYG663: 'Invalid browser-source spec or command',
   SYG664: 'Browser source not in the driver',
   SYG665: 'Browser source failed with no error action',
+  // PLAN-5 2-R (G-383, G-387)
+  SYG666: 'Browser source has no element to observe',
   // PLAN-4 GS-3: a11y lane (static only, sygnal-check)
   SYG701: 'Click listener on a non-interactive element',
   SYG702: 'Form field without an accessible label',
@@ -398,6 +400,7 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG663: 'error',
   SYG664: 'error',
   SYG665: 'warn',
+  SYG666: 'warn',
   // PLAN-5 V-1: VirtualCollection (checks/virtual.ts, through the core bridge)
   SYG430: 'warn',
   SYG431: 'warn',

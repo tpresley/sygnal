@@ -9,6 +9,9 @@
  * SYG664 — a kind the driver wasn't made with (`makeBrowserDriverWith(...)` without its source).
  * SYG665 — a source or command failed (permission denied, API missing, storage blocked) and its
  *          spec names no `error` action, so nothing else would say so.
+ * SYG666 — an intersection / resize declaration with nothing to observe: no DOM source reached
+ *          the driver for the instance (extra 'dom'), or, in renderComponent's fake with
+ *          `dom: 'real'`, its selector matches no element of the component (extra 'none').
  *
  * A component declaring `browser` with no browser driver is SYG643 (checks/timers.ts).
  */
@@ -59,6 +62,19 @@ function onBrowserSource(code: string, name: string, spec: any, component?: stri
       message: `browser entry '${name}' uses the ${extra} source, which this browser driver wasn't made with; it is not started`,
       fix: `Add it: makeBrowserDriverWith(${SOURCE[extra]}, …), or use makeBrowserDriver() (every source)`,
       data: {name, spec, kind: extra},
+    })
+  } else if (code == 'SYG666') {
+    if (!once(`SYG666:${component}:${name}:${extra}`)) return
+    const k = KINDS.find(k => spec && k in spec) || 'intersection', target = spec?.[k]
+    devReport('SYG666', {
+      component,
+      message: extra == 'none'
+        ? `browser entry '${name}' observes ${brief(target)}, which matches no element of the component; it reports nothing`
+        : `browser entry '${name}' (${k}) has no DOM to observe: the component's DOM source didn't reach the browser driver; it reports nothing`,
+      fix: extra == 'none'
+        ? `Use a selector the component's own view renders (or true for its root element), and declare the entry only while that element exists`
+        : `Run the app with a DOM driver (run() with a mount point) and declare intersection / resize in a component's own \`browser\` static`,
+      data: {name, spec, reason: extra},
     })
   } else if (code == 'SYG665') {
     if (!once(`SYG665:${component}:${name}:${extra?.name ?? extra?.code}`)) return
