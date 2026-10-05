@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// PLAN-5 2-Z (U-1): Menu, Select and Combobox from sygnal/ui/zag (fromZag widgets). Canonical
+// PLAN-5 2-Z (U-1): Menu, Select and Combobox from sygnal/ui/menu, sygnal/ui/select and sygnal/ui/combobox (fromZag widgets). Canonical
 // forms: a class on the tag, DOM.select(...).events(...).detail() in the intent, ELEMENT commands.
 // jsdom (dom: 'real') with dispatched keyboard events; the browser suite
 // (browser-tests/src/tests/ui-zag-p5z.jsx) runs them in Chromium, Firefox and WebKit with real input.
@@ -7,7 +7,9 @@ import { describe, it, expect, afterEach } from 'vitest'
 import { createElement as h } from '../src/pragma/index.js'
 import { renderComponent } from '../src/extra/testing.js'
 import { renderToString } from '../src/extra/ssr.ts'
-import { Menu, Select, Combobox } from '../src/ui-zag.ts'
+import { Menu } from '../src/ui-menu.ts'
+import { Select } from '../src/ui-select.ts'
+import { Combobox } from '../src/ui-combobox.ts'
 
 // jsdom lacks what Zag uses: ResizeObserver (positioning), CSS.escape (selectors) and scrollTo
 // (scrolling the highlighted option into view)

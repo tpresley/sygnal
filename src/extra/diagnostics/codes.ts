@@ -285,7 +285,7 @@ export const CODE_TITLES: Record<string, string> = {
   SYG663: 'Invalid browser-source spec or command',
   SYG664: 'Browser source not in the driver',
   SYG665: 'Browser source failed with no error action',
-  // PLAN-5 W-2 (D203): the adapter entries (sygnal/react, sygnal/zag, sygnal/ui/zag): SYG666 from
+  // PLAN-5 W-2 (D203): the adapter entries (sygnal/react, sygnal/zag, sygnal/ui/menu|select|combobox): SYG666 from
   // sygnal/vite (an entry imported without its optional peer dependencies), SYG667 thrown by
   // fromZag / fromReact
   SYG666: 'Adapter peer dependency missing',

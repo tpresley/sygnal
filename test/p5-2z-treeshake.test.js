@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const dist = (f) => path.join(root, 'dist', f)
-const ENTRIES = { sygnal: dist('index.esm.js'), 'sygnal/ui': dist('ui.esm.js'), 'sygnal/zag': dist('zag.esm.js'), 'sygnal/ui/zag': dist('ui-zag.esm.js'), 'sygnal/react': dist('react.esm.js') }
+const ENTRIES = { sygnal: dist('index.esm.js'), 'sygnal/ui': dist('ui.esm.js'), 'sygnal/zag': dist('zag.esm.js'), 'sygnal/ui/menu': dist('ui-menu.esm.js'), 'sygnal/ui/select': dist('ui-select.esm.js'), 'sygnal/ui/combobox': dist('ui-combobox.esm.js'), 'sygnal/react': dist('react.esm.js') }
 
 // Rollup: the entries resolve to the build, everything else (xstream, snabbdom, @zag-js/*, react) is external
 const bundle = async (contents) => {
@@ -60,7 +60,7 @@ describe('adapter tree-shaking', () => {
 
   it('Rollup: an app using one Zag part keeps only that part (fromZag once)', async () => {
     for (const part of ['Menu', 'Select', 'Combobox']) {
-      const code = await bundle(`import { run, createElement as h } from 'sygnal'\nimport { ${part} } from 'sygnal/ui/zag'\nglobalThis.k = ${part}\n${APP}`)
+      const code = await bundle(`import { run, createElement as h } from 'sygnal'\nimport { ${part} } from 'sygnal/ui/${part.toLowerCase()}'\nglobalThis.k = ${part}\n${APP}`)
       for (const other of ['Menu', 'Select', 'Combobox']) expect(code.includes(MARKS[other]), `${part}: ${other}`).toBe(other === part)
       expect(code.split(MARKS.fromZag).length - 1, part).toBe(1)
     }
@@ -82,7 +82,7 @@ describe('adapter tree-shaking', () => {
 
   for (const part of ['Menu', 'Select', 'Combobox']) {
     it(`esbuild: an app using only ${part} bundles only its own Zag machine`, async () => {
-      const pkgs = await inputs(`import { run, createElement as h } from 'sygnal'\nimport { ${part} } from 'sygnal/ui/zag'\nglobalThis.k = ${part}\n${APP}`)
+      const pkgs = await inputs(`import { run, createElement as h } from 'sygnal'\nimport { ${part} } from 'sygnal/ui/${part.toLowerCase()}'\nglobalThis.k = ${part}\n${APP}`)
       expect(pkgs).toContain('@zag-js/' + part.toLowerCase())
       expect(pkgs).toContain('@zag-js/vanilla')
       for (const other of ['menu', 'select', 'combobox']) if (other !== part.toLowerCase()) expect(pkgs, other).not.toContain('@zag-js/' + other)

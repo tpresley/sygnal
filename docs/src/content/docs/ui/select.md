@@ -1,6 +1,6 @@
 ---
 title: Select
-description: An accessible custom select (WAI-ARIA select-only combobox) from sygnal/ui/zag, built on the Zag.js select machine
+description: An accessible custom select (WAI-ARIA select-only combobox) from sygnal/ui/select, built on the Zag.js select machine
 ---
 
 `Select` is a custom select: a button that shows the chosen option and opens a listbox, following the [WAI-ARIA select-only combobox pattern](https://www.w3.org/WAI/ARIA/apg/patterns/combobox/examples/combobox-select-only/). Keyboard, focus and typeahead come from [Zag.js](https://zagjs.com)'s select machine, rendered with [`fromZag`](/guide/adapters/#zag-machines-fromzag). It is a [widget](/guide/widgets/) tag.
@@ -8,7 +8,7 @@ description: An accessible custom select (WAI-ARIA select-only combobox) from sy
 A native `<select>` is smaller and works everywhere; use `Select` when the options need custom styling, or several values with checkmarks.
 
 ```jsx
-import { Select } from 'sygnal/ui/zag'
+import { Select } from 'sygnal/ui/select'
 
 const SIZES = [
   { value: 's', label: 'Small' },
@@ -36,7 +36,7 @@ Order.model = {
 
 The value is controlled: the select shows `state.size`, and `value-change` reports the user's choice. Leave `value` out (or use `defaultValue`) to let the select keep its own value.
 
-Install Zag's packages first (see [Menu](/ui/menu/#install)).
+Install Zag's packages first: `npm install @zag-js/vanilla@~1.45.0 @zag-js/select@~1.45.0` (see [Menu](/ui/menu/#install)).
 
 ## Props
 

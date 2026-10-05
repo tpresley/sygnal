@@ -529,9 +529,12 @@ const ZAG = '~1.45.0'
 const ADAPTER_PEERS: Record<string, string[]> = {
   react: ['react', 'react-dom'],
   zag: ['@zag-js/vanilla'],
-  'ui/zag': ['@zag-js/vanilla', '@zag-js/menu', '@zag-js/select', '@zag-js/combobox'],
+  // D211: one subpath per Zag part, each needing only its own machine
+  'ui/menu': ['@zag-js/vanilla', '@zag-js/menu'],
+  'ui/select': ['@zag-js/vanilla', '@zag-js/select'],
+  'ui/combobox': ['@zag-js/vanilla', '@zag-js/combobox'],
 }
-const ADAPTER_RE = /(?:\bfrom|\bimport)\s*\(?\s*['"]sygnal\/(react|zag|ui\/zag)['"]/g
+const ADAPTER_RE = /(?:\bfrom|\bimport)\s*\(?\s*['"]sygnal\/(react|zag|ui\/(?:menu|select|combobox))['"]/g
 
 /** The adapter entries an app module imports (statically or dynamically), or null */
 function adapterImports(code: string, id: string): string[] | null {

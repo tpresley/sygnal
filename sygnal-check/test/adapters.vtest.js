@@ -1,7 +1,7 @@
 /**
  * PLAN-5 2-Z (W-2): the adapters' widgets in sygnal-check. fromZag (sygnal/zag) and fromReact
  * (sygnal/react) calls make widget tags like defineWidget (their events and commands come from
- * the options), and Menu / Select / Combobox from 'sygnal/ui/zag' are known widget tags: their
+ * the options), and Menu / Select / Combobox from their ui subpaths (D211) are known widget tags: their
  * className counts for SYG110, their events for SYG141, their commands for SYG142, and the tag
  * as a selector is SYG143.
  */
@@ -21,10 +21,12 @@ function check(files, opts = {}) {
 }
 const codes = (ds) => ds.map(d => d.code).sort()
 
-describe('sygnal/ui/zag tags', () => {
+describe('sygnal/ui/menu|select|combobox tags', () => {
   const app = (intent, model = '') => ({
     'Order.jsx': `
-import { Menu, Select, Combobox } from 'sygnal/ui/zag'
+import { Menu } from 'sygnal/ui/menu'
+import { Select } from 'sygnal/ui/select'
+import { Combobox } from 'sygnal/ui/combobox'
 export function Order({ state }) {
   return <div>
     <Menu className="actions" label="Actions" items={['edit']} />

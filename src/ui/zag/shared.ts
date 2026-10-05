@@ -1,6 +1,6 @@
 /*
  * PLAN-5 2-Z: helpers the Zag-based parts (Menu, Select, Combobox) share. '../../zag' becomes the
- * external 'sygnal/zag' and '../../index' the external 'sygnal' in the 'sygnal/ui/zag' build.
+ * external 'sygnal/zag' and '../../index' the external 'sygnal' in the 'sygnal/ui/menu', 'sygnal/ui/select' and 'sygnal/ui/combobox' builds.
  */
 
 /** An item as the parts take it: a string, or { value, label?, disabled? } (Menu also { separator: true }) */

@@ -1,10 +1,12 @@
-// PLAN-5 2-Z: the Zag-based UI parts (sygnal/ui/zag: Menu, Select, Combobox, on fromZag) and the
+// PLAN-5 2-Z: the Zag-based UI parts (sygnal/ui/menu, sygnal/ui/select, sygnal/ui/combobox, on fromZag) and the
 // React adapter (sygnal/react) in a real engine (BROWSER=chromium|firefox|webkit), driven by
 // Playwright's trusted pointer and keyboard (window.__pw / __pwInput): roles and accessible
 // names, keyboard navigation, typeahead, selection, filtering (Combobox), Escape / outside
 // click, focus return, controlled values, and Zag's positioning.
 import { run } from 'sygnal'
-import { Menu, Select, Combobox } from 'sygnal/ui/zag'
+import { Menu } from 'sygnal/ui/menu'
+import { Select } from 'sygnal/ui/select'
+import { Combobox } from 'sygnal/ui/combobox'
 import { fromReact } from 'sygnal/react'
 import { createElement as r, useState } from 'react'
 import { mountOnScreen, clearStage, assert, runTest as run_, wait } from '../harness.js'

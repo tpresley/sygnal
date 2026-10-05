@@ -1,12 +1,12 @@
 ---
 title: Menu
-description: An accessible menu button (WAI-ARIA menu) from sygnal/ui/zag, built on the Zag.js menu machine
+description: An accessible menu button (WAI-ARIA menu) from sygnal/ui/menu, built on the Zag.js menu machine
 ---
 
 `Menu` is a menu button: a trigger that opens a list of actions, following the [WAI-ARIA menu button pattern](https://www.w3.org/WAI/ARIA/apg/patterns/menu-button/). The keyboard handling, focus management and typeahead come from [Zag.js](https://zagjs.com)'s menu machine; Sygnal renders it with [`fromZag`](/guide/adapters/#zag-machines-fromzag). It is a [widget](/guide/widgets/) tag: render it with a class, and read its events in the intent like any element's.
 
 ```jsx
-import { Menu } from 'sygnal/ui/zag'
+import { Menu } from 'sygnal/ui/menu'
 
 const ACTIONS = [
   { value: 'rename', label: 'Rename' },
@@ -38,10 +38,12 @@ Card.model = {
 
 ## Install
 
-The Zag-based parts live in `sygnal/ui/zag`, a subpath of their own, so `sygnal/ui` (Dialog, Popover, Tabs…) never needs Zag. They need Zag's packages, which are optional peer dependencies of `sygnal`, in one version:
+Each Zag-based part has a subpath of its own (`sygnal/ui/menu`, `sygnal/ui/select`, `sygnal/ui/combobox`), so `sygnal/ui` (Dialog, Popover, Tabs…) never needs Zag, and a part needs only Zag's runtime and its own machine. They are optional peer dependencies of `sygnal`; install them in one version:
 
 ```bash
-npm install @zag-js/vanilla@~1.45.0 @zag-js/menu@~1.45.0 @zag-js/select@~1.45.0 @zag-js/combobox@~1.45.0
+npm install @zag-js/vanilla@~1.45.0 @zag-js/menu@~1.45.0       # Menu (sygnal/ui/menu)
+npm install @zag-js/vanilla@~1.45.0 @zag-js/select@~1.45.0     # Select (sygnal/ui/select)
+npm install @zag-js/vanilla@~1.45.0 @zag-js/combobox@~1.45.0   # Combobox (sygnal/ui/combobox)
 ```
 
 Without them, `sygnal/vite` stops with [SYG666](/reference/errors/#syg666), which names the missing packages.

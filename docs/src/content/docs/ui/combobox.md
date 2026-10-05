@@ -1,12 +1,12 @@
 ---
 title: Combobox
-description: An accessible autocomplete input (WAI-ARIA combobox) from sygnal/ui/zag, built on the Zag.js combobox machine
+description: An accessible autocomplete input (WAI-ARIA combobox) from sygnal/ui/combobox, built on the Zag.js combobox machine
 ---
 
 `Combobox` is a text input with a list of suggestions that narrows as the user types, following the [WAI-ARIA combobox pattern](https://www.w3.org/WAI/ARIA/apg/patterns/combobox/). Keyboard handling and the active option come from [Zag.js](https://zagjs.com)'s combobox machine, rendered with [`fromZag`](/guide/adapters/#zag-machines-fromzag). It is a [widget](/guide/widgets/) tag.
 
 ```jsx
-import { Combobox } from 'sygnal/ui/zag'
+import { Combobox } from 'sygnal/ui/combobox'
 
 const CITIES = ['Amsterdam', 'Berlin', 'Lisbon', 'London', 'Paris', 'Prague']
 
@@ -30,7 +30,7 @@ Trip.model = {
 
 Typing `lo` leaves London in the list; Down and Enter pick it, the input shows "London", and `value-change` sends `'London'`.
 
-Install Zag's packages first (see [Menu](/ui/menu/#install)).
+Install Zag's packages first: `npm install @zag-js/vanilla@~1.45.0 @zag-js/combobox@~1.45.0` (see [Menu](/ui/menu/#install)).
 
 ## Filtering
 
@@ -40,7 +40,7 @@ By default the list shows the items whose label contains the text, ignoring case
 - `filter={false}` turns it off: the app passes the items to show, from the `input-change` event. Use it for server-side search (with [`makeFetchDriver`](/guide/http/)):
 
 ```jsx
-import { Combobox } from 'sygnal/ui/zag'
+import { Combobox } from 'sygnal/ui/combobox'
 
 function Search({ state }) {
   return <Combobox className="user" label="User" items={state.matches} filter={false} placeholder="Search users" />
