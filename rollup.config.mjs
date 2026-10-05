@@ -225,6 +225,31 @@ export default [
 		]
   },
 
+  // 'sygnal/ui' (PLAN-5 U-1, D202): the headless UI parts. Every part's '../index' import
+  // becomes the external 'sygnal' (0 B in the core bundle, one core per app); each part
+  // tree-shakes on its own (module-level defineBehavior calls are /*#__PURE__*/).
+  {
+    input: 'src/ui.ts',
+    external: (id) => isExternal(id) || id === 'sygnal',
+    output: [
+      { file: pkg.exports['./ui'].require, format: 'cjs', ...sourcemapOptions },
+      { file: pkg.exports['./ui'].import, format: 'es', ...sourcemapOptions }
+    ],
+		plugins: [
+			{
+				name: 'sygnal-ui-core-external',
+				resolveId(source, importer) {
+					if (source === '../index' && importer && /[\\/]src[\\/]ui[\\/]/.test(importer)) {
+						return { id: 'sygnal', external: true }
+					}
+					return null
+				},
+			},
+			typescript({ tsconfig: './tsconfig.json' }),
+			resolve({ extensions: ['.mjs', '.js', '.ts', '.json'] }),
+		]
+  },
+
   // sygnal/vite aliases xstream's `globalthis` dependency to this stub (G-099).
   // CommonJS: xstream require()s it. `exports: 'default'` → module.exports = fn.
   {

@@ -101,6 +101,7 @@ async function run() {
     // D199 (spike 0-S6): real pointer/keyboard input on an element, through Playwright's locator
     // (CSS selectors pierce open shadow roots). `await window.__pw('click', '#test-3 .save')`.
     // Fails within 4 s (inside a test's own limit) with Playwright's reason.
+    let cdp = null; // a CDP session (Chromium): touch input, the accessibility tree
     await page.exposeFunction('__pw', async (action, selector, arg) => {
       const loc = selector && page.locator(selector);
       const timeout = 4000;
@@ -112,8 +113,27 @@ async function run() {
         case 'fill': return void await loc.fill(arg, { timeout });
         case 'type': return void await loc.pressSequentially(arg, { timeout });
         case 'mouse-away': return void await page.mouse.move(0, 0);
-        case 'role': return loc.getByRole(arg.role, { name: arg.name, exact: true }).count();
+        // PLAN-5 2-U: other getByRole options pass through (expanded, selected, includeHidden...)
+        case 'role': { const { role, ...o } = arg; return loc.getByRole(role, { exact: true, ...o }).count(); }
         case 'aria': return loc.ariaSnapshot();
+        // PLAN-5 2-U (from spikes 0-S3/0-S4): the engine's own accessibility tree (Chromium, CDP),
+        // which Playwright's role queries don't consult (they ignore modal inertness): the node
+        // with this role and name is 'exposed', 'ignored' or 'absent'; with `in`, the role of the
+        // live region / container it must be inside; with `prop`, that property's value instead
+        // ('expanded', 'description', ...). Other engines: null.
+        case 'ax': {
+          if (ENGINE !== 'chromium') return null;
+          cdp ||= await page.context().newCDPSession(page);
+          const { nodes } = await cdp.send('Accessibility.getFullAXTree');
+          const byId = new Map(nodes.map(n => [n.nodeId, n]));
+          const n = nodes.find(x => x.role?.value === arg.role && x.name?.value === arg.name);
+          if (!n) return 'absent';
+          if (arg.prop) return n[arg.prop]?.value ?? n.properties?.find(p => p.name === arg.prop)?.value?.value ?? null;
+          if (n.ignored) return 'ignored';
+          if (!arg.in) return 'exposed';
+          for (let p = n; (p = byId.get(p.parentId));) if (p.role?.value === arg.in) return p.ignored ? 'ignored' : 'exposed';
+          return 'outside ' + arg.in;
+        }
         default: throw new Error(`__pw: unknown action '${action}'`);
       }
     });
@@ -121,7 +141,6 @@ async function run() {
     // steps [['move', x, y, steps?] | ['down'] | ['up'] | ['key', name] | ['wait', ms] |
     // ['touchStart' | 'touchMove', x, y] | ['touchEnd']]. Touch goes through CDP
     // (Input.dispatchTouchEvent): Chromium only; elsewhere a touch step throws.
-    let cdp = null;
     await page.exposeFunction('__pwInput', async (steps) => {
       for (const [op, a, b, n] of steps) {
         if (op === 'move') await page.mouse.move(a, b, { steps: n || 1 });

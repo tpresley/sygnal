@@ -62,3 +62,15 @@ Line count: 1. **SKILL.md** (≈ 120 B, if Phase 4 makes room): "Watch visibilit
 Line count: 1. It names what agents get wrong with virtual lists (a bounded height, state in the array, the jump as an element command) and the threshold from the 2-V numbers.
 
 **SKILL.md** (≈ 120 B, if Phase 4 makes room): "Long list (≥ ~1k rows) → `<VirtualCollection>` with a fixed-height class; jump: `ELEMENT { scrollToIndex | scrollToId }` (guide: virtual-collections)."
+
+## 2-U: UI parts (U-1, T-1; `sygnal/ui`, D202)
+
+**One `llms.txt` line** (PLAN-5 docs rules, rank 3: guide pages only, reached from one line). It fits after "More (guides)" (line 247 at 0-A):
+
+```md
+- UI parts (`import { dialog, popover, tooltip, tabs, tabsAttrs, accordion, accordionAttrs, disclosure, disclosureAttrs, Toaster } from 'sygnal/ui'`; native HTML, unstyled): behaviors over your own markup in `uses` (`Profile.uses = { profile: dialog({ dialog: '.profile', trigger: '.edit', close: '.cancel' }) }` → `state.profile.open`, `'profile.CLOSED'`; for tabs/accordion/disclosure spread `tabsAttrs(state.tabs, uid).tab('general')` etc. for roles, ids and ARIA), and `<Toaster />` once + `EVENTS: event('TOAST', { text, kind, timeoutMs })` from anywhere (needs `makeTimerDriver()`). Guides: https://sygnal.js.org/ui/overview/ (dialog, popover, tooltip, tabs, accordion, disclosure, toaster)
+```
+
+Line count: 1. The pages aren't shipped in `dist/guide` (copy-guides flattens page names, so `ui/overview` would land as `overview.md`); Phase 4 can add them to `GUIDES` with a rename if agents need them offline.
+
+**SKILL.md:** nothing (39 B left). Candidate (≈ 120 B): "Dialog/popover/tooltip/tabs/accordion/disclosure/toasts → `sygnal/ui` behaviors + `<Toaster />` (guide: ui/overview)."
