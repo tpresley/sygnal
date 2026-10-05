@@ -170,9 +170,12 @@ const clean = (obj: any): any => {
 // One pass over the JSX props into snabbdom's module buckets (audit rec 6):
 // - `<module>-<name>` (on-click, attrs-href, data-task-id → dataset.taskId) and `<module>={...}`
 //   go to that module's bucket (`data` is snabbdom's `dataset`)
-// - for, role, tabindex, aria-* and the popover / invoker / anchor attributes (ATTRS) go to
-//   attrs; an aria-* boolean is written as "true"/"false" (D196: snabbdom writes true as "",
-//   which ARIA doesn't read as true); key is dropped; anything else is a prop
+// - on an element tag, for, role, tabindex, aria-* and the popover / invoker / anchor attributes
+//   (ATTRS) go to attrs (G-370: a component placeholder keeps them as props); an aria-* true is
+//   written as "true" (D196: snabbdom writes true as "", which ARIA doesn't read as true), false
+//   as "false" for a state whose values include false (G-372: ARIA_FALSE), else (an IDREF, a
+//   string, a number) it removes the attribute, as null does; key is dropped; anything else is a
+//   prop
 // - an undefined value is skipped (a `<module>-<name>` one still makes its bucket)
 // A bucket is the object passed (`lent`) until a second source adds to it; then it is a copy.
 // sanitizeData doesn't re-enter, so `lent` is per call (null until a bucket is lent).
@@ -197,18 +200,22 @@ const add = (out: any, b: string, v: any): void => {
 // (3: `class`, made a map first); else the bucket's `name` (no bucket: the data's own key; 4:
 // aria-*, a boolean stringified)
 const ATTRS = /^(for|role|tabindex|popovertarget(action)?|command(for)?|closedby|interestfor|anchor|aria-.*)$/
-const route = (key: string, modules: Record<string, any>): any => {
+// G-372: the WAI-ARIA 1.2 states and properties whose value set includes "false" (true/false,
+// tristate, and the tokens aria-current / aria-invalid / aria-haspopup)
+const ARIA_FALSE = /^aria-(atomic|busy|checked|current|disabled|expanded|grabbed|haspopup|hidden|invalid|modal|multi(line|selectable)|pressed|re(adonly|quired)|selected)$/
+// `c`: a component placeholder (G-370: ATTRS stay props)
+const route = (key: string, modules: Record<string, any>, c?: any): any => {
   if (key == 'ref' || key == 'key' || key == 'children') return 0
   const dash = key.indexOf('-')
   const prefix = dash > -1 && key.slice(0, dash)
   // G-152: data-task-id → dataset key taskId (a hyphenated dataset key makes the DOM throw)
   if (prefix && modules[prefix] !== undefined) return [modules[prefix] || prefix, prefix == 'data' ? key.slice(dash + 1).replace(/-([a-z])/g, (_, c) => c.toUpperCase()) : key.slice(dash + 1), 1]
-  if (modules.attrs !== undefined && ATTRS.test(key)) return ['attrs', key, prefix == 'aria' && 4]
+  if (!c && modules.attrs !== undefined && ATTRS.test(key)) return ['attrs', key, prefix == 'aria' && 4]
   if (modules[key] !== undefined) return [modules[key] || key, 0, key == 'class' && modules.class !== undefined ? 3 : 2]
   return [modules.props !== undefined && 'props', key]
 }
 const own = Object.prototype.hasOwnProperty
-const sanitizeData = (data: any, modules: Record<string, any>, routes: Map<string, any>): any => {
+const sanitizeData = (data: any, modules: Record<string, any>, routes: Map<string, any>, c?: any): any => {
   const out: any = {}
   lent = null
   for (const key in data) {
@@ -217,7 +224,7 @@ const sanitizeData = (data: any, modules: Record<string, any>, routes: Map<strin
     const val = data[key]
     let r = routes.get(key)
     // G-350: capped (data-dependent keys, e.g. `data-${id}`, are routed but not kept)
-    if (r === undefined && (r = route(key, modules), routes.size < 1024)) routes.set(key, r)
+    if (r === undefined && (r = route(key, modules, c), routes.size < 1024)) routes.set(key, r)
     if (!r) continue
     const [b, name, kind] = r
     if (kind == 1) {
@@ -225,7 +232,7 @@ const sanitizeData = (data: any, modules: Record<string, any>, routes: Map<strin
       if (val !== undefined) o[name] = val
     } else if (val === undefined) continue
     else if (kind & 2) add(out, b, kind == 3 ? toClassMap(val) : val)
-    else if (b) bucket(out, b)[name] = kind && val === !!val ? '' + val : val
+    else if (b) bucket(out, b)[name] = kind ? val === true ? 'true' : val === false ? ARIA_FALSE.test(key) && 'false' : val ?? false : val
     else out[key] = val
   }
   const props = out.props
@@ -262,7 +269,8 @@ const defaultModules: Record<string, string> = {
 }
 
 export const createElementWithModules = (modules: Record<string, any>) => {
-  const routes = new Map<string, any>()
+  // G-370: a component placeholder's keys route without ATTRS, so in their own cache
+  const routes = new Map<string, any>(), croutes = new Map<string, any>()
   // the children as one array (`k`: a key that wins over data.key: the JSX runtime's own)
   const ca = (sel: any, data: any, children: any[], k?: any): any => {
     if (typeof sel === 'undefined') {
@@ -299,7 +307,7 @@ export const createElementWithModules = (modules: Record<string, any>) => {
     const t = tagBits(sel)
     let plain = !isComponent && is.string(sel) && !(t & 5)
     if (typeof text === 'undefined') plain = !!(flatten(children, kids = []) & +plain)
-    const d = data ? sanitizeData(data, modules, routes) : {}
+    const d = data ? sanitizeData(data, modules, isComponent ? croutes : routes, isComponent) : {}
     if (fn) d.c = fn
     const key = k !== undefined ? k : data ? data.key : undefined
     const vnode = plain ? new (Plain as any)(sel, d, kids, text, key) : { sel, data: d, children: kids, text, elm: undefined, key }

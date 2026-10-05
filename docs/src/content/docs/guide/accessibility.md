@@ -191,6 +191,10 @@ EmailField.model = { EMAIL: (state, email) => ({ ...state, email, error: email.i
 
 A `uid('x')` reference needs an element in the same component with `id={uid('x')}`; a literal id may be anywhere in the checked files.
 
+## ARIA values in JSX
+
+An `aria-*` attribute set to `true` renders `"true"`. Set to `false`, it renders `"false"` on the ARIA states that have a false value (`aria-expanded`, `aria-hidden`, `aria-pressed`, `aria-checked`, `aria-selected`, `aria-disabled`, `aria-invalid`, `aria-current`, `aria-haspopup`, `aria-busy`, `aria-modal`, `aria-required`, `aria-readonly`, `aria-multiline`, `aria-multiselectable`, `aria-atomic`, `aria-grabbed`); on any other `aria-*` (a label, an id reference, a number) `false` removes the attribute, so `aria-describedby={hasError && uid('error')}` doesn't announce "false". `null` and `undefined` remove it. Passed to a component, `role`, `for`, `tabindex` and `aria-*` are ordinary props: the component gets the value as written.
+
 ## Ids with uid()
 
 Labels and ARIA references need ids, and ids must be unique on the page, which a literal id isn't once the component is rendered twice. Every view gets a `uid` prop: `uid()` is an id for this component instance, and `uid('email')` an id derived from it. They are stable across renders and the same on the server and the client, so they are safe with [SSR](/integration/ssr/#stable-ids-uid). See [Forms](/guide/forms/#labels-and-ids-uid) for a full example. The checks understand `uid()`: SYG702 and SYG708 match `for={uid('email')}` with `id={uid('email')}`.
