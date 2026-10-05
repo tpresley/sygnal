@@ -15,7 +15,8 @@
  * closes on a second Escape otherwise)), `returnFocus` (true: when the dialog closes and the
  * focus was lost, which WebKit does after a mouse click, the element that opened it gets it
  * (G-407: the clicked trigger, recorded by OPEN), else the trigger; a selector names another
- * element; false: leave it to the browser).
+ * element; false: leave it to the browser. G-430: the opener is focused from the close event, so
+ * a dialog rendered only while open needs no command target).
  * State: { open, returnValue }. Actions: OPEN, CLOSE (data: the returnValue), CLOSED (the close
  * event's returnValue), TOGGLED (from the toggle event), CANCEL (Escape: a host entry can react;
  * the cancel event, or with cancelable: false the Escape keydown in the dialog (G-429): closedby
@@ -38,8 +39,6 @@ const lost = () => {
 }
 // an ELEMENT target (D102 spec command): focus `sel` only when the focus was lost
 const refocus = (sel: any) => on(sel, 'focus', (el: any, o: any) => { lost() && el.focus(o) })
-// G-407: the element that opened the dialog (OPEN records it on the dialog), when the focus was lost
-const opener = (sel: any) => on(sel, 'focus', (d: any, o: any) => { lost() && d._opener?.isConnected && d._opener.focus(o) })
 
 const base = /*#__PURE__*/ defineBehavior({
   initialState: {open: false, returnValue: ''},
@@ -64,13 +63,19 @@ const base = /*#__PURE__*/ defineBehavior({
         return {[m]: on(o.dialog, m, (el: any) => {
           if (el.open) return
           // G-407: who opened it: the clicked trigger, else the element with the focus
-          const a = document.activeElement
-          el._opener = by?.nodeType == 1 ? by : a != document.body ? a : null
-          if (o.cancelable === false && !el.hasAttribute('closedby')) {
-            el.setAttribute('closedby', 'none')
-            // G-429: only while open (the attribute is the behavior's, not the host's)
-            el.addEventListener('close', () => el.removeAttribute('closedby'), {once: true})
-          }
+          const a = document.activeElement, op: any = by?.nodeType == 1 ? by : a != document.body ? a : null
+          const cb = o.cancelable === false && !el.hasAttribute('closedby')
+          if (cb) el.setAttribute('closedby', 'none')
+          // on close: G-429 the closedby it set goes (it is the behavior's, not the host's); G-430
+          // the element that opened it gets the focus back when it was lost, here rather than by a
+          // command (a dialog the host renders only while open is gone by then), and nothing
+          // keeps the opener after that. Capture: at the target it runs before the DOM driver's
+          // listener, so before CLOSED (whose trigger fallback would take the focus first: a
+          // browser-sent event runs the microtasks between listeners)
+          el.addEventListener('close', () => {
+            cb && el.removeAttribute('closedby')
+            if ((o.returnFocus ?? true) === true && op?.isConnected && lost()) op.focus()
+          }, {once: true, capture: true})
           el[m]()
         })}
       },
@@ -81,9 +86,10 @@ const base = /*#__PURE__*/ defineBehavior({
       STATE: (s: any, returnValue: string) => (!s.open && s.returnValue === returnValue ? ABORT : {...s, open: false, returnValue}),
       ELEMENT: (s: any, _d: any, _n: any, _p: any, o: any) => {
         const f = o.returnFocus ?? true, sel = f === true ? o.trigger : f
-        if (!s.open || f === false) return ABORT
-        // true: the element that opened it, else the trigger (each only when the focus was lost)
-        return f === true ? [{focus: opener(o.dialog)}, ...(sel ? [{focus: refocus(sel)}] : [])] : {focus: refocus(sel)}
+        if (!s.open || !sel) return ABORT
+        // true: the element that opened it (OPEN's close listener, G-430), else the trigger; a
+        // selector: that element (each only when the focus was lost)
+        return {focus: refocus(sel)}
       },
     },
     CANCEL: () => ABORT,

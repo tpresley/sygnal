@@ -48,7 +48,7 @@ A click on `.edit-profile` opens the dialog and a click on `.cancel` closes it. 
 | `cancelable` | `true` | `false` keeps Escape from closing it: the `cancel` event is prevented, and opening it sets `closedby="none"` (Chromium closes a dialog on a second Escape otherwise; the attribute goes again when it closes). `CANCEL` still runs on each Escape. In a browser without `closedby`, a second Escape can still close it; the `CLOSED` action tells you |
 | `returnFocus` | `true` | When the dialog closes and the focus was lost, focus the element that opened it (the clicked trigger, when several match `trigger`), else the trigger. A selector names another element; `false` leaves the focus to the browser |
 
-The browser returns the focus to the element that had it before the dialog opened. Safari doesn't focus a button when it is clicked, so after a mouse click the focus would go back to the page itself; `returnFocus` focuses the trigger instead. It does nothing when the browser already moved the focus somewhere.
+The browser returns the focus to the element that had it before the dialog opened. Safari doesn't focus a button when it is clicked, so after a mouse click the focus would go back to the page itself; `returnFocus` focuses the trigger instead. It does nothing when the browser already moved the focus somewhere. It works for a dialog the host renders only while it is open, too.
 
 ## State and actions
 

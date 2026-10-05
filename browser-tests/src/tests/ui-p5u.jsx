@@ -9,7 +9,8 @@
 //
 // WebKit's Tab skips buttons (macOS "keyboard navigation" off), so the Tab checks press Alt+Tab
 // there, as Safari users do.
-import { run, makeTimerDriver, event } from 'sygnal'
+import { run, makeTimerDriver, event, getDiagnostics, clearDiagnostics } from 'sygnal'
+import { resetChecks } from 'sygnal/diagnostics'
 import {
   dialog, popover, tooltip, tabs, tabsAttrs, accordion, accordionAttrs, disclosure, disclosureAttrs, Toaster,
 } from 'sygnal/ui'
@@ -831,4 +832,71 @@ export async function uiTestsP5U() {
       await until(() => live(el, 'Card saved').length === 0, 'Enter')
     } finally { app.dispose() }
   })
+
+  // ── PLAN-5 3-F ───────────────────────────────────────────────────────
+  // G-429: cancelable: false (closedby="none") still runs a host CANCEL entry on Escape, and the
+  // attribute it set goes when the dialog closes
+  function Strict({ state }) {
+    return (
+      <div>
+        <button className="strict-open">Open strict</button>
+        <dialog className="strict" aria-label="Strict"><button className="strict-done">Done</button></dialog>
+        <p className="strict-cancels">{String(state.cancels)}</p>
+      </div>
+    )
+  }
+  Strict.initialState = { cancels: 0 }
+  Strict.uses = { strict: dialog({ dialog: '.strict', trigger: '.strict-open', close: '.strict-done', cancelable: false }) }
+  Strict.model = { 'strict.CANCEL': (state) => ({ ...state, cancels: state.cancels + 1 }) }
+
+  await runTest('Dialog (G-429): cancelable: false: Escape keeps it open and runs CANCEL (each press); closedby goes on close', async () => {
+    const { id, app, $ } = await mount(Strict)
+    try {
+      await window.__pw('press', `${id} .strict-open`, 'Enter')
+      await until(() => isOpen($('.strict')), 'open')
+      assert($('.strict').getAttribute('closedby') === 'none', `closedby ${$('.strict').getAttribute('closedby')}`)
+      await key('Escape')
+      await until(() => $('.strict-cancels').textContent === '1', () => `CANCEL ran ${$('.strict-cancels').textContent} times`)
+      await key('Escape')
+      await until(() => $('.strict-cancels').textContent === '2', () => `CANCEL ran ${$('.strict-cancels').textContent} times`)
+      assert(isOpen($('.strict')), 'closed by Escape')
+      await window.__pw('click', `${id} .strict-done`)
+      await until(() => !isOpen($('.strict')), 'closed by Done')
+      // (the close event is a task after the dialog closed)
+      await until(() => !$('.strict').hasAttribute('closedby'), 'closedby left on the closed dialog')
+    } finally { app.dispose() }
+  })
+
+  // G-430: returnFocus with a dialog rendered only while it is open: the opener gets the focus
+  // back, with no SYG640 for the dialog that is gone
+  function Transient({ state }) {
+    return (
+      <div>
+        <button className="t-open">Open transient</button>
+        {state.t.open && <dialog className="transient" aria-label="Transient"><button className="t-done">Done</button></dialog>}
+      </div>
+    )
+  }
+  Transient.uses = { t: dialog({ dialog: '.transient', trigger: '.t-open', close: '.t-done' }) }
+
+  await runTest('Dialog (G-430): rendered only while open: the focus returns to the opener, no SYG640', async () => {
+    resetChecks()
+    clearDiagnostics()
+    const { id, el } = mountOnScreen()
+    el.className = 'ui-p5u'
+    const app = run(Transient, {}, { mountPoint: id, diagnostics: 'collect' })
+    const $ = (s) => el.querySelector(s)
+    await until(() => el.firstElementChild, 'mounted')
+    try {
+      // OPEN renders the dialog and opens it in the same patch's commands
+      await window.__pw('click', `${id} .t-open`)
+      await until(() => $('.transient')?.open, () => `open: ${!!$('.transient')}`)
+      await window.__pw('click', `${id} .t-done`)
+      await until(() => !$('.transient'), 'removed')
+      await until(() => activeName() === 't-open', activeName)
+      await wait(1200)
+      const codes = getDiagnostics().map((d) => d.code)
+      assert(!codes.includes('SYG640') && !codes.includes('SYG641'), `diagnostics: ${codes.join(', ')}`)
+    } finally { app.dispose() }
+  }, 9000)
 }
