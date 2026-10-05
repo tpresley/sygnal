@@ -151,10 +151,10 @@ describe('Toaster', () => {
     App.model = { GO: { EVENTS: event('TOAST', { text: 'Done', kind: 'warning' }) } }
     t = renderComponent(App)
     await t.ready()
-    expect(t.state.toaster).toEqual({ toasts: [], next: 1, paused: false })
+    expect(t.state.toaster).toEqual({ toasts: [], next: 1, paused: false, hover: false, focus: false })
     t.simulateEvent('.go', 'click')
     await t.settle()
-    expect(t.state.toaster.toasts).toEqual([{ id: 1, kind: 'warning', text: 'Done', timeoutMs: 5000, paused: false, rev: 0 }])
+    expect(t.state.toaster.toasts).toEqual([{ id: 't1', kind: 'warning', text: 'Done', timeoutMs: 5000, paused: false, rev: 0 }])
     const html = t.html()
     expect(html).toContain('class="toaster corner" aria-label="Alerts"')
     expect(html).toContain('aria-label="Close: Done"')

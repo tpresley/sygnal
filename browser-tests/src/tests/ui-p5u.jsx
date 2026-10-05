@@ -675,6 +675,62 @@ export async function uiTestsP5U() {
     } finally { app.dispose() }
   })
 
+  // PLAN-5 2-S G-399: the focus and the pointer pause apart; Dismiss by keyboard moves the focus on
+  await runTest('Toaster (G-399): keyboard Dismiss moves the focus to the next toast; the pointer leaving keeps a focused region paused; nothing stays paused', async () => {
+    const { id, app, el, $ } = await mount(toasterApp())
+    try {
+      await window.__pw('click', `${id} .notify`)
+      await window.__pw('click', `${id} .notify-quick`)
+      await until(() => live(el, 'Saved').length === 1 && live(el, 'Copied').length === 1, 'shown')
+      await window.__pw('focus', dismissOf('Saved'))
+      await until(() => $('.toaster').hasAttribute('data-paused'), 'paused by the focus')
+      // the pointer comes and goes: the focus still holds it
+      await window.__pw('hover', dismissOf('Copied'))
+      await window.__pw('mouse-away')
+      await wait(700)
+      assert(live(el, 'Copied').length === 1, 'Copied expired while the focus was in the region')
+      await key('Enter')
+      await until(() => live(el, 'Saved').length === 0, 'Enter dismissed Saved')
+      assert(activeName() === 'Dismiss: Copied', `focus after Dismiss: ${activeName()}`)
+      await wait(600)
+      assert(live(el, 'Copied').length === 1, 'Copied expired while focused')
+      await key('Enter')
+      await until(() => live(el, 'Copied').length === 0, 'Enter dismissed Copied')
+      assert(!el.querySelector('.toaster').contains(document.activeElement), `focus left in the region: ${activeName()}`)
+      await until(() => !el.querySelectorAll('.toast').length, 'removed', 1000)
+      await until(() => !$('.toaster').hasAttribute('data-paused'), 'still paused after the last toast went')
+      // the next toast's timer runs
+      await window.__pw('click', `${id} .notify-quick`)
+      await until(() => live(el, 'Copied').length === 1, 'shown again')
+      await until(() => live(el, 'Copied').length === 0, 'the next toast never expired', 2500)
+    } finally { app.dispose() }
+  })
+
+  // PLAN-5 2-S G-404: a Toaster in a shadow root (sygnal/element) moves into a modal dialog there
+  await runTest('Toaster (G-404): in a shadow root, it moves into that root\'s open modal dialog and back', async () => {
+    const { el } = mountOnScreen()
+    el.className = 'ui-p5u'
+    const host = document.createElement('div')
+    el.appendChild(host)
+    const root = host.attachShadow({ mode: 'open' })
+    const sheet = document.createElement('style')
+    sheet.textContent = '.toaster { inset: auto 16px 16px auto; margin: 0; } dialog { margin: auto; }'
+    const point = document.createElement('div')
+    root.append(sheet, point)
+    function App() { return <div><dialog className="modal" aria-label="Modal"><p>modal</p></dialog><Toaster state="toaster" /></div> }
+    App.initialState = { toaster: { toasts: [{ id: 'a', text: 'Hi', kind: 'info', timeoutMs: 0, paused: false, rev: 0 }], next: 1, paused: false, hover: false, focus: false } }
+    const app = run(App, { TIMER: makeTimerDriver() }, { mountPoint: point })
+    try {
+      await until(() => root.querySelector('.toast'), 'mounted')
+      const $ = (s) => root.querySelector(s)
+      $('.modal').showModal()
+      await until(() => $('.toaster').parentNode === $('.modal'), () => `in ${$('.toaster').parentNode?.className}`)
+      assert($('.toaster').matches(':popover-open'), 'region shown in the dialog')
+      $('.modal').close()
+      await until(() => $('.toaster').parentNode === $('.toaster-home'), 'back home')
+    } finally { app.dispose() }
+  })
+
   await runTest('Toaster: a toast whose Dismiss button had the focus when the modal closed is back home and still dismissed by Enter', async () => {
     const { id, app, el, $ } = await mount(toasterApp())
     try {
