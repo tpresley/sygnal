@@ -3,7 +3,7 @@
 // keys, undo / persist interplay, the instructions id, filtered lists, native dragstart, a press
 // during a keyboard drag, drops after the last item of another list, unmount mid-drag.
 import { describe, it, expect, afterEach, beforeEach } from 'vitest'
-import { renderComponent, renderToString, Collection, sortable } from '../src/index.js'
+import { renderComponent, renderToString, Collection, sortable, persist } from '../src/index.js'
 import { createElement as h } from '../src/pragma/index.js'
 import { setupChecks } from './diagnostics/helpers.js'
 
@@ -245,6 +245,66 @@ describe('3-H G-448 / G-453: the instructions id', () => {
     t.simulateEvent('.grip', 'pointerdown', { clientX: 0, clientY: 0, within: '.task[data-id="1"]' })
     await t.next(s => s.sort.helpId)
     expect(t.html()).toContain(`aria-describedby="${t.state.sort.helpId}"`)
+  })
+})
+
+describe('3-H G-452: persist and restored drag state', () => {
+  const stale = { dragging: '2', over: '3', after: true, list: 'tasks', mode: 'pointer', press: { id: '2', x: 0, y: 0 }, origin: { list: 'tasks', index: 1 }, message: 'Picked up B', helpId: 'x-sort-help' }
+  function Saved(props) { return TaskList(props) }
+  Saved.initialState = TaskList.initialState
+  Saved.uses = { sort: sortable({ from: 'tasks', item: '.task', handle: '.grip' }) }
+  Saved.context = TaskList.context
+  Saved.persist = persist({ key: 'tasks-app', debounceMs: 0 })
+
+  it('persist leaves the sortable slice out (saved mid-drag)', async () => {
+    t = renderComponent(Saved, { dom: 'real' }); await t.ready()
+    ptr(grip(2), 'pointerdown', { clientX: 5, clientY: 5 })
+    ptr(grip(3), 'pointermove', { clientX: 5, clientY: 60 })
+    await t.next(s => s.sort.dragging === '2')
+    await t.settle()
+    const saved = t.storage('tasks-app').state
+    expect(Object.keys(saved).sort()).toEqual(['dropped', 'tasks'])
+  })
+
+  it('a stored slice (saved by an older version) is not restored: no live listeners, no stale drag', async () => {
+    t = renderComponent(Saved, { dom: 'real', storage: { 'tasks-app': { version: 1, state: { tasks: TASKS, dropped: [], sort: stale } } } })
+    await t.ready()
+    expect(t.state.sort).toMatchObject({ dragging: null, press: null, mode: null })
+    document.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: 50, clientY: 50 }))
+    document.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: 50, clientY: 50 }))
+    await t.settle()
+    expect(t.actions.filter(a => /^sort\.(MOVE|UP)$/.test(a.type))).toEqual([])
+  })
+
+  it('stale drag state in a Collection-item host\'s data (restored with the parent\'s) is reset when it starts and arms nothing', async () => {
+    Tree.initialState = { groups: [{ id: 1, children: [{ id: 2 }, { id: 3 }], sort: { ...stale, list: 'children', origin: { list: 'children', index: 0 } } }, { id: 9, children: [] }] }
+    t = renderComponent(Tree, { dom: 'real' }); await t.ready()
+    await t.settle()
+    expect(t.state.groups[0].sort).toMatchObject({ dragging: null, press: null, mode: null })
+    expect(innerNode(1, 2).closest('.node')).toBeTruthy()
+  })
+
+  it('drag state written into a running host (a sync, devtools) arms no listeners; the next press starts clean', async () => {
+    function Host({ state }) { return h('div', null, h('button', { type: 'button', className: 'inject' }, 'x'), h(Tree, { state: 'tree' })) }
+    Tree.initialState = undefined
+    Host.initialState = { tree: { groups: groups([1, [2, 3]], [9]) } }
+    Host.intent = ({ DOM }) => ({ INJECT: DOM.click('.inject') })
+    Host.model = { INJECT: (s) => ({ ...s, tree: { ...s.tree, groups: s.tree.groups.map((g, i) => (i ? g : { ...g, sort: { ...stale, list: 'children', dragging: null, mode: null, origin: null } })) } }) }
+    t = renderComponent(Host, { dom: 'real' }); await t.ready()
+    t.query('.inject').click()
+    await t.next(s => s.tree.groups[0].sort?.press)
+    // a move far from the stale press would start a drag if its listeners were live
+    document.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: 300, clientY: 300 }))
+    await t.settle()
+    expect(t.state.tree.groups[0].sort.dragging).toBe(null)
+    // a real press replaces the stale one and drags
+    const g = innerNode(1, 3).querySelector('.grip')
+    ptr(g, 'pointerdown', { clientX: 5, clientY: 50 })
+    await t.next(s => s.tree.groups[0].sort.press?.id === '3')
+    ptr(innerNode(1, 2), 'pointermove', { clientX: 5, clientY: 5 })
+    await t.next(s => s.tree.groups[0].sort.dragging === '3')
+    ptr(innerNode(1, 2), 'pointerup', { clientX: 5, clientY: 5 })
+    await t.next(s => s.tree.groups[0].children.map(c => c.id).join() === '3,2')
   })
 })
 

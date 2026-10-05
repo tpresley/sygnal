@@ -788,6 +788,8 @@ export interface BehaviorDefinition<SLICE = any, ACTIONS = {}, CALCULATED = {}, 
    * name is sent to the host as written. They join the host's own `timers`.
    */
   timers?: (slice: SLICE, options: OPTIONS, key: string) => Timers;
+  /** `false`: the slice is UI state (sortable's drag): a root's `persist()` neither saves nor restores it */
+  persist?: false;
 }
 
 /** One use of a behavior (a `defineBehavior()` factory's result), for a component's `uses`. */
