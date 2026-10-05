@@ -38,6 +38,7 @@ import initialStateSub from './syg405-initial-state.js'
 import childSelectGrandchild from './syg129-child-select-grandchild.js'
 import sinkDriver from './syg609-sink-driver.js'
 import removedForms from './syg612-removed-forms.js'
+import widgets from './syg140-widgets.js'
 import { strictRules } from './strict/index.js'
 import { a11yRules, errorA11yRules } from './a11y/index.js'
 
@@ -58,6 +59,7 @@ export const coreRules = [
   initialStateSub, // SYG405 statically (PLAN-4 4-G2)
   childSelectGrandchild, // SYG129 (PLAN-4 4-G2, PLAN-3 G-187)
   sinkDriver, // SYG609 statically (PLAN-4 4-G2)
+  widgets, // SYG140-SYG144 (PLAN-5 W-1)
   removedForms, // SYG612 statically (PLAN-4.6 R5): forms 6.0 removed
   ...a11yRules, // SYG701-708 (PLAN-4 GS-3): warn, also under --strict; error with a11y: 'error' (D144)
 ]

@@ -393,6 +393,56 @@ Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
 
 **Fix:** `makeRouter({ routes, navigate })` with `import { navigate } from 'vike/client/router'`, using a route table that mirrors the Vike routes; or read the route from Vike's page context and drop the router.
 
+### SYG140
+
+**Widget emitted an undeclared event**
+
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`), `sygnal-check`
+
+A widget made with `defineWidget()` called `emit(name, detail)` with a name that is not in its `events` list. The event is still dispatched (a bubbling `CustomEvent` on the host), but `events` is what the docs, sygnal-check and the other widget diagnostics read: a listener for the declared name never hears this one, which is usually a typo (`emit('chnage', d)`) or a declaration that was never added. The dev entry reports it once per widget and name when it is emitted; sygnal-check reports a literal `emit('x')` inside `mount()` when `events` is a literal list.
+
+**Fix:** Add the name to the widget's `events` (`defineWidget({ events: ['pick', 'clear'], ... })`), or emit one of the declared names.
+
+### SYG141
+
+**Listener for an event the widget does not declare**
+
+Severity: `warn` · Reported by: `sygnal-check`
+
+The intent listens for an event on a widget's host (`DOM.select('.due').events('pikc')`, or a widget control: `DOM.select(Due).events('pikc')`) that the widget doesn't list in its `events` and that no element fires natively, so the action never fires. sygnal-check resolves the selector through the static `className` and `id` of the elements the component's own view renders: it reports only when every element with that class or id is a widget host and the widgets' `events` are literal lists. Native event names (`click`, `focus`, `change`...) are never reported, since the host or its content fires them. The runtime can't tell which listener a selector serves, so this code is static only.
+
+**Fix:** Listen for one of the widget's declared events (`DOM.select('.due').events('pick').detail()`), or add the name to the widget's `events` and emit it from `mount()`.
+
+### SYG142
+
+**Widget command not declared, or a reserved name**
+
+Severity: `error` · Reported by: the dev checks (`sygnal/diagnostics`), `sygnal-check`
+
+An element command (`ELEMENT: { open: '.due' }`) reached a widget's host, but the widget declares no command of that name and the host element has no such method, so it can't run (for a non-widget element this is SYG641). The message lists the commands the widget declares. A widget's declared command wins over a native method of the same name (`focus` runs the widget's `focus`). The same code is thrown by `defineWidget()` in dev for a command named `close` or `togglePopover`: element commands pass those two methods `returnValue` and `force` instead of the options object, so the names are reserved. sygnal-check reports both for literal commands and definitions.
+
+**Fix:** Send one of the widget's commands, or add the command to its definition: `defineWidget({ commands: { open: (instance, options) => instance.open() } })`. Rename a `close` command (`dismiss`) or a `togglePopover` command (`toggle`).
+
+### SYG143
+
+**Widget tag used as a selector**
+
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`), `sygnal-check`
+
+The tag `defineWidget()` returned was used where a selector is expected: `DOM.select(DatePicker)`, `DOM.click(DatePicker)`, `ELEMENT: { open: DatePicker }` or inside a template string. A widget tag is a JSX tag, not a selector (several hosts of the same widget may render), so it matches nothing and the action never fires. The dev entry reports it once per widget; sygnal-check reports it for intent selectors and element command targets.
+
+**Fix:** Give the widget a `className` and select that: `<DatePicker className="due" />` with `DOM.select('.due').events('pick')` and `ELEMENT: { open: '.due' }`. Or make it a control (the alternative form): `const { Due } = controls({ Due: DatePicker })`, then `DOM.select(Due)` and `{ open: Due }`.
+
+### SYG144
+
+**Widget event the host element also fires natively**
+
+Severity: `info` · Reported by: the dev checks (`sygnal/diagnostics`), `sygnal-check`
+
+A widget declares an event whose name the browser also uses (`'change'`, `'input'`, `'select'`, `'toggle'`...). Native events of that name fire on the host or bubble up from inside it (flatpickr's own input fires `change` as well), so a listener on the host gets both the widget's `CustomEvent` and the native event, and `.detail()` is `undefined` for the native one. Information only: it may be what you want. The dev entry reports it once per widget when a host mounts (names the host element knows as `on<name>`); sygnal-check reports the literal `events` entries it recognises.
+
+**Fix:** Give the widget's event its own name (`'pick'` for a date picker's selection, `'rate'` for a rating) and emit that, or make the listener handle both (`.filter((e) => e instanceof CustomEvent)`).
+
 ## SYG2xx: State and reducers
 
 ### SYG201
@@ -1771,6 +1821,36 @@ Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
 A component declares `viewTransitions` (for example `Board.viewTransitions = ['MOVE']`), but the app's DOM driver can't run View Transitions, so those actions patch the page at once, without the animation, and nothing else says so. The static only asks: the transition is run by the DOM driver from `makeViewTransitionDOMDriver()`, which is opt-in so that apps without View Transitions don't ship it, and `run()`'s default DOM driver is the plain one. Reported once per component when it starts. Not reported under `renderComponent` (the mock DOM and the `dom: 'real'` container don't animate). Browsers without the API and `prefers-reduced-motion: reduce` also patch at once, silently: that is the intended fallback, not this warning. The same code reports a `viewTransitions` static that is not an array (`Board.viewTransitions = true`, or a single string): it lists no action, so nothing animates (the core tolerates the value instead of throwing in every reducer; a string is matched as a substring, which is never what was meant).
 
 **Fix:** Give `run()` the View Transition DOM driver: `run(App, { DOM: makeViewTransitionDOMDriver('#root') })` with `import { makeViewTransitionDOMDriver } from 'sygnal'` (use the same mount point as before). Or remove the `viewTransitions` static. For a value that isn't an array, list the action names in one: `Board.viewTransitions = ['MOVE']`.
+
+### SYG660
+
+**Widget mount threw**
+
+Severity: `error` · Reported by: the Sygnal runtime (every app, production included), the dev checks (`sygnal/diagnostics`)
+
+A widget's `mount(el, props, emit)` threw when its host entered the page (or on the first client patch after server rendering). The widget is not mounted. The error goes to the app's `onError` hook with phase `'widget'`, and the component that renders the widget shows its `onError` fallback in the widget's place on its next render (an empty error `<div>` without one); the rest of its view keeps working. Without the dev entry it is logged as `[Sygnal SYG660]` followed by the error.
+
+**Fix:** Fix `mount()` (a missing library import, an option the library rejects, a prop that is `undefined` on the first render). Give the component that renders the widget an `.onError` to show a custom fallback.
+
+### SYG661
+
+**Widget update threw**
+
+Severity: `error` · Reported by: the Sygnal runtime (every app, production included), the dev checks (`sygnal/diagnostics`)
+
+A widget's `update(instance, props, el)` threw when the props it was rendered with changed (a widget without `update` is remounted instead, so its `mount()` threw). As for SYG660, the error goes to the app's `onError` hook with phase `'widget'` and the owner's `onError` fallback replaces the widget on its next render. Without the dev entry it is logged as `[Sygnal SYG661]` followed by the error.
+
+**Fix:** Fix `update()` for every value the view can pass (`null`, an empty list, a value of another type). `update` gets the newest props each time they change (a shallow compare), so it should not keep the props it was first given.
+
+### SYG662
+
+**Widget unmount threw**
+
+Severity: `error` · Reported by: the Sygnal runtime (every app, production included), the dev checks (`sygnal/diagnostics`)
+
+A widget's `unmount(instance, el)` threw when its host left the page. The host is removed anyway, but what `unmount` didn't finish (listeners on `document`, timers, observers) may keep running. The error goes to the app's `onError` hook with phase `'widget'`; there is no fallback to show, since the widget is gone. Without the dev entry it is logged as `[Sygnal SYG662]` followed by the error.
+
+**Fix:** Fix `unmount()`, for example by guarding a library's `destroy()` that throws when called twice or after its element was removed.
 
 ## SYG9xx: Internal
 

@@ -239,9 +239,9 @@ describe('I4 element commands consult spec.commands before native methods (D102)
 })
 
 describe("I5 onError phase 'widget'", () => {
-  it('is in the public type union only: the runtime exports no way for a widget to report it', () => {
-    // 0-A finding: AppErrorPhase lists 'widget' (src/index.d.ts) and core hooks list it
-    // (src/core/hooks.ts), but reporting needs the owning instance (Runtime.appError, internal).
-    expect(Object.keys(sygnal).filter(k => /widget|reportError|appError/i.test(k))).toEqual([])
+  it('is reported only through defineWidget (W-1): no public way to report it otherwise', () => {
+    // 0-A finding: reporting needs the owning instance (Runtime.appError, internal). PLAN-5 W-1's
+    // defineWidget reports it through its owner (test/p5-w1-widget.test.js, errors).
+    expect(Object.keys(sygnal).filter(k => /widget|reportError|appError/i.test(k))).toEqual(['defineWidget'])
   })
 })

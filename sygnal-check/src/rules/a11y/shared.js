@@ -20,6 +20,7 @@
  */
 import { walk, unwrap, isFunction, jsxName, jsxAttrExpr, propName, stringValue } from '../../ast.js'
 import { resolveControlJSX } from '../../model/controls.js'
+import { resolveWidgetJSX } from '../../model/widgets.js'
 import { evalStrings, tokenize, DYN } from '../../strings.js'
 import { hyperscriptSel } from '../../selectors.js'
 import { findBinding } from '../../scope.js'
@@ -82,7 +83,7 @@ export function describe(project, file, el) {
   let control = null
   if (isIntrinsic(name)) { tag = name; kind = 'html' } else if (TRANSPARENT.has(name)) kind = 'transparent'
   else {
-    control = resolveControlJSX(project, file, opening)
+    control = resolveControlJSX(project, file, opening) || resolveWidgetJSX(project, file, opening)
     if (control?.element) { tag = control.element; kind = 'control' } else kind = 'component'
   }
   const { attrs, spread } = collectAttrs(opening)

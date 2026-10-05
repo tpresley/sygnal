@@ -521,6 +521,12 @@ export interface RenderResult {
   query: (selector: string) => Element | null;
   /** Every element matching a selector in the rendered tree (Portals included), as query() */
   queryAll: (selector: string) => Element[];
+  /**
+   * PLAN-5 W-1: a widget's host by selector or control: `.props` (what the view passed it),
+   * `.instance` (`dom: 'real'`: what mount returned) and `.emit(name, detail)` (the event its
+   * emit() dispatches, through simulateEvent)
+   */
+  widget: (target: any) => {readonly props: any; readonly instance: any; emit: (name: string, detail?: any) => void};
 }
 
 const isScope = (s: string) => s.startsWith('.___');
@@ -1215,11 +1221,10 @@ let savedStrict: any;
  * methods of form fields and media, and (with a DOM) the prototype of the control's tag.
  */
 const COMMON_METHODS = ['play', 'pause', 'load', 'fastSeek', 'showPicker', 'requestSubmit', 'reset', 'checkValidity', 'reportValidity', 'setCustomValidity', 'setSelectionRange', 'setRangeText', 'stepUp', 'stepDown', 'requestFullscreen', 'scroll', 'scrollTo', 'scrollBy', 'animate', 'requestPointerLock'];
-const elementHas = (target: any, m: string): boolean => {
+const elementHas = (target: any, m: string, tag = typeof target == 'function' && typeof target.spec == 'string' ? target.spec : 'div'): boolean => {
   if (NATIVE_COMMAND_NAMES.includes(m) || COMMON_METHODS.includes(m)) return true;
   if (typeof document == 'undefined') return false;
   try {
-    const tag = typeof target == 'function' && typeof target.spec == 'string' ? target.spec : 'div';
     return typeof (document.createElement(tag) as any)[m] == 'function';
   } catch (_) {
     return false;
@@ -1387,11 +1392,22 @@ export function renderComponent(
   // (SYG641 when sent, SYG640 when the target is still missing from its view after 1 s)
   const commandLog: any[] = [];
   const commandTimers = new Set<any>();
+  // PLAN-5 W-1 (F-c): the widget whose host a target matches in the rendered tree (its commands
+  // run for a selector target too, D196); an undeclared one is SYG142, as on the real DOM
+  const widgetOf = (target: any): any => {
+    if (typeof target == 'function' && !target.__sygnalControl) return;
+    const sel = tryParse(norm(String(selOf(target) ?? '')));
+    const ch = sel && vtree && findAll(vtree, sel, [], [])[0];
+    return ch && ch[ch.length - 1]?.data?.ww;
+  };
   const checkCommand = (c: any, cmd: any) => {
     if (typeof cmd != 'object' || Array.isArray(cmd)) return;
     const m = Object.keys(cmd)[0], target = cmd[m];
     if (m === undefined) return;
-    if (!target?.spec?.commands?.[m] && !elementHas(target, m)) return reportElementCommand(c, cmd, {});
+    const w = target?.spec?.commands ? undefined : widgetOf(target);
+    if (w ? !w.commands[m] && !elementHas(0, m, w.def.tag || 'div') : !target?.spec?.commands?.[m] && !elementHas(target, m)) {
+      return reportElementCommand(c, cmd, w ? {tagName: w.def.tag || 'div', __sygnalWidget: {w}} : {});
+    }
     const sel = target == null ? '' : String(target);
     const id = setTimeout(() => {
       commandTimers.delete(id);
@@ -2555,6 +2571,24 @@ export function renderComponent(
     return queryIn(s);
   };
 
+  // PLAN-5 W-1: a widget host (selector or control): the props it was rendered with (the mock
+  // DOM: the host vnode's; real: the mounted instance's), its instance (real) and emit, which
+  // sends the CustomEvent its emit() would (through simulateEvent, so in input order)
+  const widget = (target: any) => {
+    const sel = String(selOf(target));
+    const host = (): any => {
+      const el: any = query(sel);
+      const r = real ? el?.__sygnalWidget : el?._v?.data?.ww && {p: el._v.data.wp};
+      if (!r) throw new Error(`[Sygnal] t.widget('${sel}'): no ${el ? `mounted widget is the matched <${el.localName}>` : 'element matches it'}. Give the widget a className and pass its selector (t.widget('.due')), or pass its control`);
+      return r;
+    };
+    return {
+      get props() { return host().p; },
+      get instance() { return host().i; },
+      emit: (name: string, detail?: any) => simulateEvent(target, name, {detail} as any),
+    };
+  };
+
   const simulateEvent = (target: any, type: string, init: SimulatedEventInit = {}) => {
     simAt = states.length; due();
     throwFailure();
@@ -2958,5 +2992,6 @@ export function renderComponent(
     container,
     query,
     queryAll,
+    widget,
   };
 }

@@ -6,7 +6,8 @@
  *   - no element (`element` falsy): SYG640 (warn): nothing in the sending instance's DOM scope
  *     matched the target within about 1 s;
  *   - an element, but neither the control's spec command nor a method of the element: SYG641
- *     (error). It names the control's declared commands.
+ *     (error). It names the control's declared commands. When the element is a widget's host
+ *     (PLAN-5 W-1, `__sygnalWidget`): SYG142 (error), naming the widget's declared commands.
  * installElementCommandHooks() publishes it on the core bridge.
  *
  * When a command is sent (checkSentCommand, from the elementCommands check's onModel, which wraps
@@ -104,6 +105,20 @@ export function reportElementCommand(component: any, cmd: any, el?: any): void {
         ? `Give the method a control or a selector: { ${method}: Email }`
         : `Render the element in ${name}'s view, or send the command from the component that renders it: a child component's elements are isolated from its parent, and a command reaches only its sender's own elements (in a Collection, each item sends its own)`,
       data,
+    })
+  }
+  // PLAN-5 W-1: the matched element is a widget's host (selector or control target): SYG142 names
+  // the widget's declared commands
+  const widget = el.__sygnalWidget?.w
+  if (widget) {
+    const declared = Object.keys(widget.commands)
+    const hint = closest(method, [...declared, ...NATIVE_COMMAND_NAMES])
+    return send('SYG142', {
+      component,
+      message: `${what} in ${name}: the matched ${tagOf(el)} is a widget's host, and the widget declares no '${method}' command` +
+        (hint ? ` (did you mean '${hint}'?)` : '') + (declared.length ? `; it declares: ${declared.join(', ')}` : '; it declares none'),
+      fix: `Add '${method}' to the widget's commands (defineWidget({ commands: { ${method}: (instance, options) => … } })), or send one it declares`,
+      data: {...data, element: tagOf(el), commands: declared},
     })
   }
   const commands = control && target.spec && typeof target.spec == 'object' && target.spec.commands

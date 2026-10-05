@@ -615,6 +615,7 @@ The [Testing guide's options table](/integration/testing/#options) lists the res
 | `timers` | `() => ActiveTimer[]` | The [timers](/guide/timers/#testing) running now: each spec plus `name`, `action`, `component` |
 | `storage` | `(key) => { version, state } \| undefined` | The fake storage's entry for `key` ([persist()](/guide/persistence/#testing)); with `format: 'plain'`, the stored keys (TS: `t.storage<Entry>(key)`). `settle()` makes the pending writes first |
 | `query`, `queryAll` | `(selector \| control) => Element \| null`, `Element[]` | Elements of the latest render (snapshots on the mock DOM, real elements with `dom: 'real'`) |
+| `widget` | `(selector \| control) => { props, instance, emit(name, detail?) }` | A [widget's](/guide/widgets/#testing) host: the props the view passed it, the instance `mount` returned (`dom: 'real'`), and `emit`, which sends the event its `emit()` would |
 | `container` | `Element \| null` | `dom: 'real'`: the mount element |
 | `inspect` | `(options?) => InspectGraph` | App graph of the rendered tree (needs `sygnal/diagnostics`); `{ actions: true }` (or a number: the last n) adds `recentActions` |
 | `state$`, `dom$`, `events$`, `sinks`, `sources` | | Live streams and driver objects |
@@ -659,6 +660,8 @@ function renderToString(
 | `uid` | `string` | `'u'` | The root of the [`uid()`](#uid-view-and-reducer-prop) ids; the same value as `run()`'s `uid` on the client |
 
 See [SSR](/integration/ssr/#rendertostringoptions) for every option.
+
+A custom element's (a hyphenated tag's) props are written as attributes, with camelCase names in kebab-case (`withClear` → `with-clear`); function and object props have no attribute form and are left out ([Web components](/guide/web-components/#server-rendering)). A [widget](/guide/widgets/#server-rendering) renders its host with its `fallback` inside.
 
 ### Examples
 
@@ -771,6 +774,39 @@ Widget.isolatedState = true
 ## controls()
 
 `controls({ Name: 'input', Save: 'button' })` returns element tokens that the view renders (`<Save>Save</Save>`, a `<button data-control="Save">`) and the intent, element commands, behaviors and tests select (`DOM.click(Save)`). An [alternative form](/advanced/alternative-forms/#controls-instead-of-class-selectors) to class selectors; see [Controls](/guide/controls/).
+
+---
+
+## defineWidget()
+
+`defineWidget({ tag, mount, update, unmount, events, commands, fallback })` wraps a framework-agnostic widget (a date picker, a chart, an editor) as a JSX tag. The view renders it like an element and the intent selects it by class; it is also a control spec (`controls({ Due: DatePicker })`). See [Widgets](/guide/widgets/).
+
+```jsx
+const DatePicker = defineWidget({
+  tag: 'input',
+  mount: (el, props, emit) => flatpickr(el, { defaultDate: props.value, onChange: ([date]) => emit('pick', date) }),
+  update: (picker, props) => picker.setDate(props.value, false),
+  unmount: (picker) => picker.destroy(),
+  events: ['pick'],
+  commands: { open: (picker) => picker.open() },
+})
+// <label>Due <DatePicker className="due" value={state.due} /></label>
+// DUE: DOM.select('.due').events('pick').detail()      OPEN: { ELEMENT: { open: '.due' } }
+```
+
+| Field | Description |
+|-------|-------------|
+| `tag` | The host element (default `'div'`); it has no children of its own |
+| `mount(el, props, emit)` | Called once the host is in the page; returns the instance |
+| `update(instance, props, el)` | Called with the newest props when they change (shallow); without it, a change remounts |
+| `unmount(instance, el)` | Called when the host leaves the page |
+| `events` | The names `emit(name, detail)` dispatches (bubbling `CustomEvent`s on the host) |
+| `commands` | Element commands, `(instance, options, el) => …`; they win over native methods of the same name; `close` and `togglePopover` are reserved |
+| `fallback` | What [server rendering](/guide/widgets/#server-rendering) puts inside the host: a vnode, a string, or `(props, h) => vnode` |
+| `hostProps` | More prop names to put on the host (besides `id`, `className`, `style`, `title`, `name`, `placeholder`, `role`, `tabindex`, `hidden`, `lang`, `dir`, `attrs`, `aria-*`, `data-*`) |
+| `name` | A name for diagnostics |
+
+A `mount`/`update` that throws is reported to `onError` with the phase `'widget'` and the owning component's `onError` fallback renders in its place ([SYG660–662](/reference/errors/#syg660)). Types: `Widget<P, I, EV, TAG>`, `WidgetDefinition`, `WidgetHostProps`.
 
 ---
 
@@ -1448,7 +1484,7 @@ See [From code](/integration/debugging/#from-code-copyastest-and-getactions) for
 
 ## sygnal/element
 
-`defineElement(tag, Component, options?)` from `sygnal/element` publishes a component as a custom element (props from attributes and properties, sinks as DOM events, optional shadow root).
+`defineElement(tag, Component, options?)` from `sygnal/element` publishes a component as a custom element (props from attributes and properties, sinks as DOM events, optional shadow root). See [Web components: publishing](/guide/web-components/#publishing-a-component-as-a-custom-element).
 
 ---
 
@@ -1603,6 +1639,7 @@ DOM.click('.item').data('id')            // e.target.dataset.id (walks up via cl
 DOM.click('.task').data('taskId')        // camelCase name → data-task-id attribute
 DOM.keydown('.input').key()              // e.key
 DOM.click('.btn').target()               // e.target
+DOM.select('.due').events('pick').detail()  // e.detail (a CustomEvent's payload)
 ```
 
 Each method optionally accepts a transform function:
@@ -1619,6 +1656,7 @@ DOM.click('.item').data('id', Number)    // Parse data attribute as number
 | `.data(name, fn?)` | `dataset[name]` of `e.target` or its nearest ancestor with the attribute | `name` camelCase or kebab-case: `'taskId'` and `'task-id'` both read `data-task-id` (via `closest('[data-task-id]')`) |
 | `.key(fn?)` | `e.key` | For keyboard events |
 | `.target(fn?)` | `e.target` | The DOM element |
+| `.detail(fn?)` | `e.detail` | A `CustomEvent`'s payload: a [widget's](/guide/widgets/) `emit(name, detail)`, a [web component's](/guide/web-components/) event, a `defineElement` element's sink |
 
 Returns enriched streams — chainable with `.compose()`, `.filter()`, etc.
 

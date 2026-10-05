@@ -11,6 +11,8 @@
     "sygnal": "file:.."
   },
   "devDependencies": {
+    "@awesome.me/webawesome": "^3.14.0",
+    "flatpickr": "^4.6.13",
     "playwright": "1.63.0",
     "vite": "^6.4.1"
   }

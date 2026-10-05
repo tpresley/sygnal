@@ -94,6 +94,24 @@ async function run() {
     // G-146: real keyboard input for the tests (typed by Playwright at full speed)
     await page.exposeFunction('__pwType', (selector, text, delay) =>
       page.locator(selector).pressSequentially(text, { delay }));
+    // PLAN-5 0-S6 (D199, adopted): real pointer/keyboard input for the web-component tests.
+    // Playwright's CSS locators pierce open shadow roots ('#test-3 .email input' is wa-input's inner <input>).
+    await page.exposeFunction('__pw', async (action, selector, arg) => {
+      const loc = selector && page.locator(selector);
+      const timeout = 4000; // fail inside the test's own time limit, with Playwright's reason
+      switch (action) {
+        case 'click': return void await loc.click({ timeout, ...arg });
+        case 'hover': return void await loc.hover({ timeout, ...arg });
+        case 'focus': return void await loc.focus({ timeout });
+        case 'press': return void await loc.press(arg, { timeout });
+        case 'fill': return void await loc.fill(arg, { timeout });
+        case 'type': return void await loc.pressSequentially(arg, { timeout });
+        case 'mouse-away': return void await page.mouse.move(0, 0);
+        case 'role': return loc.getByRole(arg.role, { name: arg.name, exact: true }).count();
+        case 'aria': return loc.ariaSnapshot();
+        default: throw new Error(`__pw: unknown action '${action}'`);
+      }
+    });
 
     await page.goto(url);
 

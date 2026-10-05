@@ -11,7 +11,8 @@
  *
  *   analyzeCommands(project, comp) → Command[]
  *   Command = { action, method, methodNode, node (the command object), file,
- *               control: Control | null, selector: string | null, targetNode, dynamic }
+ *               control: Control | null, selector: string | null, targetNode, dynamic,
+ *               widgetTag: Widget | null (a defineWidget() tag as the target: SYG143) }
  *
  * The lists mirror the runtime (src/extra/diagnostics/checks/elementCommands.ts); a drift test
  * (test/commands-timers.vtest.js) reads that file.
@@ -20,6 +21,7 @@ import { unwrap, isFunction, propName, stringValue } from '../ast.js'
 import { resolveExpr } from './resolve.js'
 import { returnedExpressions } from './intent.js'
 import { resolveControl } from './controls.js'
+import { resolveWidget } from './widgets.js'
 
 /** The element commands Sygnal documents and types (the core runs any method of the element, D133) */
 export const NATIVE_COMMAND_NAMES = ['focus', 'blur', 'select', 'click', 'scrollIntoView', 'showModal', 'show', 'close', 'showPopover', 'hidePopover', 'togglePopover']
@@ -92,9 +94,11 @@ export function analyzeCommands(project, comp) {
       const targetNode = unwrap(first.value)
       const control = resolveControl(project, file, targetNode)
       const selector = control ? null : stringValue(targetNode)
+      // PLAN-5 W-1: a widget tag as the target matches nothing (SYG143, rules/syg140-widgets.js)
+      const widgetTag = control || selector != null ? null : resolveWidget(project, file, targetNode)
       out.push({
         action: sv.action, method, methodNode: first.key, node, file,
-        control, selector, targetNode, dynamic: !control && selector == null,
+        control, selector, targetNode, dynamic: !control && selector == null, widgetTag,
       })
     }
   }

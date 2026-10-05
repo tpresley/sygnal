@@ -222,7 +222,7 @@ Passing a component where a control or selector is expected (`DOM.click(NewTodo)
 
 ## Widget controls, for library authors
 
-A spec can be an object instead of an element name. This is the contract a widget library builds on: `controls({ Rating: stars })` gives a control that renders whatever the spec's `vnode()` returns, stamped with `data-control`, and that every API above accepts, whatever the spec.
+To wrap a third-party widget (flatpickr, Chart.js), use [`defineWidget`](/guide/widgets/): it builds this spec for you, and also gives a tag you can render and select by class. A spec can be an object instead of an element name. This is the contract a widget library builds on: `controls({ Rating: stars })` gives a control that renders whatever the spec's `vnode()` returns, stamped with `data-control`, and that every API above accepts, whatever the spec.
 
 ```jsx
 // stars.js
@@ -267,7 +267,7 @@ Review.model = {
 
 - **`kind`**: a free-form name (`'widget'`), shown by `inspect()` and in diagnostics.
 - **`vnode(props, children, h)`** returns the one element the control renders. Build it with the `h` argument, which is Sygnal's own `createElement` (`h(tag, props, ...children)`, the same as JSX). Don't import `createElement` into a widget: under the automatic JSX runtime that would bundle a second copy. Returning anything but one element vnode (a component, a fragment, text) is [SYG125](#diagnostics). The control stamps `data-control` on the vnode, keeps its hooks, and copies the `key` prop onto it when it has none.
-- **`commands`** (optional): element commands of the widget's own. `ELEMENT: { flash: Rating, ms: 300 }` calls `stars.commands.flash(element, { ms: 300 })` with the control's rendered element. A spec command is looked up before the element's own method of the same name, so a widget can, for example, define `focus` to focus an input inside it. A selector target has no spec, so only the element's methods apply to it. For TypeScript, add the command names to `ElementCommandRegistry` ([element commands](/guide/element-commands/)).
+- **`commands`** (optional): element commands of the widget's own. `ELEMENT: { flash: Rating, ms: 300 }` calls `stars.commands.flash(element, { ms: 300 })` with the control's rendered element. A spec command is looked up before the element's own method of the same name, so a widget can, for example, define `focus` to focus an input inside it. A selector target has no spec, so only the element's methods apply to it (a [`defineWidget`](/guide/widgets/) host is the exception: its commands are found through the element). For TypeScript, add the command names to `ElementCommandRegistry` ([element commands](/guide/element-commands/)).
 - **Props type**: a typed spec (`ControlSpecObject<P>`) gives the control the props `P`, through its phantom `__props` field.
 
 ## Diagnostics

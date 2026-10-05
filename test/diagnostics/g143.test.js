@@ -75,6 +75,17 @@ describe('SYG115 — unknown DOM event shorthand', () => {
     expect(diagnostics('SYG115')).toEqual([])
   })
 
+  it("PLAN-5 0-S6: hyphenated custom-element events (DOM['wa-hover'](sel)) are not reported", async () => {
+    const App = named('Rated', () => view())
+    App.initialState = { v: 0 }
+    App.intent = ({ DOM }) => ({ HOVER: DOM['wa-hover']('.go').detail((d) => d.value), CHANGE: DOM.select('.go').events('wa-change') })
+    App.model = { HOVER: (s, v) => ({ ...s, v }), CHANGE: s => s }
+    t = renderComponent(App)
+    t.simulateEvent('.go', 'wa-hover', { detail: { value: 3 } })
+    await t.waitForState(s => s.v === 3)
+    expect(diagnostics('SYG115')).toEqual([])
+  })
+
   it('still behaves like the core shorthand (the stream is the same as DOM.select().events())', async () => {
     const App = named('Custom', () => view())
     App.initialState = { n: 0 }

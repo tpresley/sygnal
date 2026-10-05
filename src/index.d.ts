@@ -546,6 +546,109 @@ export type ControlsOf<SPECS> = {
  */
 export function controls<const SPECS extends Record<string, ControlSpec>>(spec: SPECS): ControlsOf<SPECS>
 
+// ── Widgets (PLAN-5 W-1) ───────────────────────────────────────────
+
+/**
+ * Props a widget tag puts on its host element (they reach the widget's `mount`/`update` too,
+ * except `key`): id, className/class, style, title, name, placeholder, role, tabindex, hidden,
+ * lang, dir, attrs, aria-*, data-* (and the definition's `hostProps`). A host takes no `ref`:
+ * the widget owns its element (reach it through the widget's `commands`).
+ */
+export type WidgetHostProps = {
+  key?: string | number;
+  id?: string;
+  className?: string;
+  class?: string | ReadonlyArray<unknown> | Record<string, boolean | null | undefined>;
+  style?: string | Record<string, any>;
+  title?: string;
+  name?: string;
+  placeholder?: string;
+  role?: string;
+  tabindex?: number | string;
+  tabIndex?: number;
+  hidden?: boolean;
+  lang?: string;
+  dir?: string;
+  attrs?: Record<string, any>;
+  [aria: `aria-${string}`]: any;
+  [data: `data-${string}`]: any;
+}
+
+/** The element type of a widget's host tag (`'input'` → `HTMLInputElement`). */
+export type WidgetElementOf<TAG extends string> =
+  TAG extends keyof HTMLElementTagNameMap ? HTMLElementTagNameMap[TAG] : HTMLElement
+
+/** A widget's `emit(name, detail)`: dispatches a bubbling `CustomEvent` named `name` on the host. */
+export type WidgetEmit<EV extends string = string> = (name: EV, detail?: unknown) => void
+
+/** The object passed to `defineWidget()`. */
+export interface WidgetDefinition<P = {}, I = unknown, EV extends string = string, TAG extends string = 'div'> {
+  /** A name for diagnostics and inspect() (`'DatePicker'`); the host tag stands in without one */
+  name?: string;
+  /** The host element (default `'div'`). It has no children of its own: the widget owns its content. */
+  tag?: TAG;
+  /**
+   * Called once the host is in the document (or on the first client patch after SSR) with the
+   * props the view passed. Returns the instance that `update`, `unmount` and `commands` get.
+   */
+  mount(el: WidgetElementOf<TAG>, props: P, emit: WidgetEmit<EV>): I;
+  /** Called with the newest props when they change (shallow compare). Without it, a change remounts. */
+  update?(instance: I, props: P, el: WidgetElementOf<TAG>): void;
+  /** Called when the host leaves the DOM. */
+  unmount?(instance: I, el: WidgetElementOf<TAG>): void;
+  /** The events `emit` dispatches (bubbling CustomEvents on the host; read them with `.detail()`) */
+  events?: readonly EV[];
+  /**
+   * Element commands (`ELEMENT: { open: '.due' }` or `{ open: Due }`), called with the instance.
+   * A command wins over a native method of the same name; `close` and `togglePopover` are
+   * reserved (SYG142). Register the names in `ElementCommandRegistry` to type the commands.
+   */
+  commands?: Record<string, (instance: I, options: Record<string, any>, el: WidgetElementOf<TAG>) => unknown>;
+  /** What SSR renders inside the host until the client mounts (not for void hosts like `input`) */
+  fallback?: VNode | string | ((props: P, h: ControlH) => VNode | string);
+  /** More prop names to put on the host element as well */
+  hostProps?: readonly string[];
+}
+
+/**
+ * A widget (`defineWidget()`): a JSX tag that renders its host element, selected like any
+ * element (`className`, `DOM.select('.due').events('pick').detail()`), and also a control spec
+ * (`controls({ Due: DatePicker })`, the alternative form).
+ */
+export interface Widget<P = {}, I = unknown, EV extends string = string, TAG extends string = string> extends ControlSpecObject<P & WidgetHostProps> {
+  (props: P & WidgetHostProps): JSX.Element;
+  readonly kind: 'widget';
+  /** The declared events */
+  readonly events: readonly EV[];
+  /** The control-spec commands, `(hostElement, options)` (D102) */
+  readonly commands: Record<string, (elm: Element, options: Record<string, unknown>) => void>;
+  readonly def: WidgetDefinition<P, I, EV, any>;
+  /** Phantom, types only */
+  __props?: P & WidgetHostProps;
+}
+
+/**
+ * Wraps a framework-agnostic widget (a date picker, a chart, an editor) as a JSX tag:
+ *
+ *   const DatePicker = defineWidget({
+ *     tag: 'input',
+ *     mount: (el, props: { value?: Date }, emit) =>
+ *       flatpickr(el, { defaultDate: props.value, onChange: ([d]) => emit('pick', d) }),
+ *     update: (fp, props) => fp.setDate(props.value ?? '', false),
+ *     unmount: (fp) => fp.destroy(),
+ *     events: ['pick'],
+ *     commands: { open: (fp) => fp.open() },
+ *   })
+ *   // view:   <label>Due <DatePicker className="due" value={state.due} /></label>
+ *   // intent: DUE: DOM.select('.due').events('pick').detail()
+ *   // model:  OPEN: { ELEMENT: { open: '.due' } }
+ *
+ * The host keeps its widget instance across renders and keyed moves; `update` gets the newest
+ * props. A `mount`/`update` that throws is reported to `onError` with phase `'widget'` and the
+ * owner's `onError` fallback renders in its place.
+ */
+export function defineWidget<P = {}, I = unknown, const EV extends string = string, const TAG extends string = 'div'>(definition: WidgetDefinition<P, I, EV, TAG>): Widget<P, I, EV, TAG>
+
 /**
  * The target of an element command: a control, or a selector. It is looked up in the view of the
  * component instance that sends the command (a child's elements are isolated from its parent; a
@@ -1235,8 +1338,8 @@ export type DiagnosticsOptions = {
 /**
  * Where an error reported to the app-level `onError` hook happened (PLAN-4 GS-11). `'intent'`: an
  * intent stream errored (it stops emitting; `action` is its action name). `'context'`: a
- * `.context` entry threw (it keeps its last value). `'widget'` is reserved for widgets (PLAN-5);
- * nothing in the core reports it.
+ * `.context` entry threw (it keeps its last value). `'widget'`: a `defineWidget` widget's `mount`,
+ * `update` or `unmount` threw (`componentName` is the component that renders it).
  */
 export type AppErrorPhase = 'view' | 'reducer' | 'effect' | 'intent' | 'context' | 'declaration' | 'driver' | 'instantiate' | 'dispose' | 'widget'
 
@@ -2870,6 +2973,24 @@ export interface RenderResult<STATE = any> {
     (selector: string): Element[];
     <CONTROL extends AnyControl>(control: CONTROL): Array<ControlElementOf<CONTROL>>;
   };
+  /**
+   * A widget's host (PLAN-5 W-1), by selector (`'.due'`) or control. `props`: what the view
+   * passed the widget (mock DOM: the rendered host's; `dom: 'real'`: the mounted widget's).
+   * `instance` (`dom: 'real'`): what `mount` returned. `emit(name, detail)`: the CustomEvent the
+   * widget's emit() dispatches, sent like `simulateEvent`. Reading `props`/`instance` throws
+   * when no widget host matches.
+   */
+  widget: {
+    <P = any, I = any>(selector: string): WidgetHandle<P, I>;
+    <CONTROL extends AnyControl>(control: CONTROL): WidgetHandle<CONTROL extends { readonly [CONTROL]: { props: infer P } } ? P : any>;
+  };
+}
+
+/** `t.widget(target)` (PLAN-5 W-1) */
+export interface WidgetHandle<P = any, I = any> {
+  readonly props: P;
+  readonly instance: I | undefined;
+  emit(name: string, detail?: unknown): void;
 }
 
 /**
