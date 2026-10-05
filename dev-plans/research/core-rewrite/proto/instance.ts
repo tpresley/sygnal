@@ -14,6 +14,7 @@ import {Cell, calcCell, keyCell, lensCell, localCell, isObj} from './cell'
 import {Def, defOf} from './define'
 import {hosts, posts, pres, resolvers} from './registry'
 import {checkStatics} from './statics'
+import {tearDown} from './runtime'
 import type {App} from './runtime'
 
 export const isAbort = (v: any) => typeof v == 'symbol' && v.description == 'sygnal.ABORT'
@@ -104,13 +105,11 @@ export class Inst {
 
   // ---------------------------------------------------------------- sources (the stream edge)
   sources() {
-    const so: any = {
-      DOM: wrapDOM(this.dom),
-      STATE: this.stateSource(() => this.cell.get()),
-      CHILD: {select: (fn: any) => (this.hub ||= xs.create()).filter((e: any) => e.c === fn).map((e: any) => e.v)},
-    }
-    Object.defineProperty(so, 'dispose$', {get: () => (this.disp$ ||= xs.create())})
-    for (const n in this.app.sources) if (!(n in so)) Object.defineProperty(so, n, {get: () => this.src(n), enumerable: true})
+    // driver sources, STATE and dispose$ are getters on one prototype per app (created on first read)
+    const so = Object.create(this.app.srcProto())
+    so.__i = this
+    so.DOM = wrapDOM(this.dom)
+    so.CHILD = {select: (fn: any) => (this.hub ||= xs.create()).filter((e: any) => e.c === fn).map((e: any) => e.v)}
     return so
   }
   /** STATE facade: the stream / watch exist only if the intent asks for them */
@@ -327,7 +326,7 @@ export class Inst {
     this.app.hooks.onDispose?.(this)
     if (this.disp$) { this.disp$.shamefullySendNext(true); this.disp$.shamefullySendComplete() }
     this.ac?.abort()
-    for (const s of this.subs) s.unsubscribe()
+    tearDown(() => { for (const s of this.subs) s.unsubscribe() }, this.app.dq)
     this.subs.length = 0
     this.kids.forEach(k => k.dispose())
     this.kids.clear()

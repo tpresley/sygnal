@@ -31,6 +31,36 @@ export interface Hooks {
   onPatch?(vnode: any): void
 }
 
+// ------------------------------------------------------------------ teardown
+// xstream stops a stream left without listeners in a setTimeout of its own (one per stream: 1,000+
+// timers to unmount 1k items). While an instance unsubscribes (tearDown), _remove queues the stream
+// instead (_stopID 0: an _add before the stop cancels it, as xstream's clearTimeout would), and the
+// queue is stopped synchronously when the flush (or the dispose outside one) ends: no timer at all.
+// Scoped to the dispose call, but still a Stream.prototype swap (PLAN-4.5's tearDown, minus timers).
+const SP: any = Object.getPrototypeOf(xs.create()), NO = (xs.create() as any)._prod, rm = SP._remove
+let down: any[] | null = null
+function removeQueued(this: any, il: any) {
+  if (this._target) return this._target._remove(il)
+  const a = this._ils, i = a.indexOf(il)
+  if (i < 0) return
+  a.splice(i, 1)
+  if (this._prod !== NO && !a.length) { this._err = NO; this._stopID = 0; down!.push(this) }
+  else if (a.length == 1) this._pruneCycles()
+}
+export function tearDown(f: () => void, q: any[]) {
+  const outer = down
+  down = q; SP._remove = removeQueued
+  try { f() } finally { down = outer; if (!outer) SP._remove = rm }
+}
+export function stopQueued(q: any[]) {
+  // each stop can leave its upstream without listeners: it is queued too, and stopped in this loop
+  for (let i = 0; i < q.length; i++) {
+    const s = q[i]
+    if (s._stopID === 0 && !s._ils.length) { s._stopID = NO; tearDown(() => s._prod !== NO && s._stopNow(), q) }
+  }
+  q.length = 0
+}
+
 const LOOP = 100
 const macro = (f: () => void) => {
   if (typeof MessageChannel == 'undefined') return void setTimeout(f)
@@ -63,6 +93,8 @@ export class App {
   hooks: Hooks
   stCache = new WeakMap<Def, any>()
   disposed = false
+  /** streams the disposed instances left without listeners, stopped at the end of the flush */
+  dq: any[] = []
 
   constructor(hooks: Hooks = {}) { this.hooks = hooks }
 
@@ -79,6 +111,7 @@ export class App {
     } finally {
       q.length = 0
       this.draining = false
+      if (!this.flushing && this.dq.length) stopQueued(this.dq)
     }
   }
   commit() {
@@ -112,6 +145,8 @@ export class App {
       this.flushing = false
     }
     if (v !== this.last) { this.last = v; this.hooks.onPatch?.(v); this.vdomL?.next(v) }
+    // after the patch: the disposed instances' streams (no timer; the DOM listeners go here)
+    if (this.dq.length) stopQueued(this.dq)
     if (this.born.length) {
       const b = this.born.splice(0)
       queueMicrotask(() => { for (const i of b) if (!i.disposed) this.dispatch(i, 'BOOTSTRAP', undefined) })
@@ -126,6 +161,17 @@ export class App {
   sink(name: string) {
     return (this.out[name] ||= xs.create({start: (l: any) => { this.outL[name] = l }, stop: () => { delete this.outL[name] }}))
   }
+  /** the prototype of every instance's intent sources: a getter per driver, STATE, dispose$ */
+  sp: any
+  srcProto() {
+    if (this.sp) return this.sp
+    const p: any = {}
+    const def = (n: string, get: (i: Inst) => any) => Object.defineProperty(p, n, {get() { return get(this.__i) }, enumerable: true})
+    for (const n in this.sources) if (n !== 'DOM') def(n, (i) => i.src(n))
+    def('STATE', (i) => i.stateSource(() => i.cell.get()))
+    def('dispose$', (i) => (i.disp$ ||= xs.create()))
+    return (this.sp = p)
+  }
   /** the [sink, static] pairs of the drivers that take a static this definition declares */
   staticsFor(def: Def) {
     let s = this.stCache.get(def)
@@ -137,8 +183,25 @@ export class App {
   }
   dispose() {
     this.root.dispose()
+    stopQueued(this.dq)
     this.disposed = true
     for (const n in this.sources) this.sources[n]?.dispose?.()
+  }
+}
+
+/** the built-in EVENTS bus (as src/extra/eventDriver.ts: synchronous, select(type | types | nothing)) */
+function eventsDriver(sink$: any) {
+  const ls = new Set<(e: any) => void>()
+  sink$.addListener({next: (e: any) => ls.forEach(l => l(e)), error: () => {}})
+  return {
+    select: (type?: string | string[]) => {
+      const types = type == null ? null : ([] as string[]).concat(type)
+      let l: any
+      return xs.create({
+        start: (L: any) => ls.add(l = (e: any) => (!types || types.includes(e?.type)) && L.next((e && e.data) || null)),
+        stop: () => ls.delete(l),
+      })
+    },
   }
 }
 
@@ -146,7 +209,7 @@ export interface RunOptions { mountPoint?: string | Element; hooks?: Hooks }
 
 export function run(Root: any, drivers: Record<string, any> = {}, {mountPoint = '#root', hooks}: RunOptions = {}) {
   const app = new App(hooks)
-  const all: Record<string, any> = {DOM: makeDOMDriver(mountPoint), ...drivers}
+  const all: Record<string, any> = {DOM: makeDOMDriver(mountPoint), EVENTS: eventsDriver, ...drivers}
   // the Cycle run loop, reduced: a proxy sink per driver, the driver's source, then the sinks imitated
   const proxies: Record<string, any> = {}
   for (const n in all) {

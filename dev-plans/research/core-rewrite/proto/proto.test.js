@@ -678,6 +678,26 @@ describe('9. reentrancy: FIFO, run-to-completion, no nested flush, one patch', (
     m.app.dispose(); apps = []
   })
 
+  it('teardown: removed items stop their intent streams synchronously at the end of the flush, with no timer', async () => {
+    const stopped = []
+    function It({ state }) { return h('li', { className: 'it' }, String(state.id)) }
+    It.intent = ({ DOM }) => ({ C: DOM.click('.it').map(() => 1), T: xs.create({ start: () => {}, stop: () => stopped.push('own') }).map(x => x) })
+    It.model = { C: (s) => s, T: (s) => s }
+    function L() { return h('ul', null, h('button', { className: 'clear' }), h(Collection, { of: It, from: 'items' })) }
+    L.initialState = { items: Array.from({ length: 50 }, (_, i) => ({ id: i + 1 })) }
+    L.intent = ({ DOM }) => ({ CLEAR: DOM.click('.clear') })
+    L.model = { CLEAR: (s) => ({ ...s, items: [] }) }
+    const m = mount(L)
+    await until(() => expect(m.$$('.it').length).toBe(50))
+    const st = globalThis.setTimeout, stacks = []
+    // (a stop cascading from an older xstream timer, left by an earlier test, is not this teardown's)
+    vi.spyOn(globalThis, 'setTimeout').mockImplementation(function (f, ms) { const k = new Error().stack; if (String(f).includes('_stopNow') && !k.includes('listOnTimeout')) stacks.push(k); return st(f, ms) })
+    click('.clear')
+    await until(() => expect(m.$$('.it').length).toBe(0))
+    expect(stopped.length).toBe(50)
+    expect(stacks).toEqual([])
+  })
+
   it('G-257 / D153 grow: every render adds an item with intent (a chain of new components) and it completes', async () => {
     function Leaf({ state }) { return h('i', { className: 'leaf' }, String(state.n)) }
     Leaf.intent = ({ DOM }) => ({ C: DOM.click('.leaf') })

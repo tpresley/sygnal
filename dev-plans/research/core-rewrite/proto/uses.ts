@@ -22,7 +22,12 @@ defHooks.push((src, view) => {
   return {
     ...src,
     model: shim.model,
-    intent: shim.intent,
+    // behaviors spread the sources ({...so}): give them own getters (the core's are on a prototype)
+    intent: shim.intent && ((so: any) => {
+      const own: any = {}
+      for (const k in so) Object.defineProperty(own, k, {get: () => so[k], enumerable: true})
+      return shim.intent(own)
+    }),
     // a root starts with the slices (as today's root merge); a child reads them as defaults
     initialState: shim._idle ? {...(src.initialState ?? {}), ...shim._idle} : src.initialState,
     idle: shim._idle,

@@ -5,7 +5,7 @@ import { resolve } from 'node:path'
 import sygnal from 'sygnal/vite'
 const profile = process.argv.includes('--profile')
 const root = resolve(import.meta.dirname, '.')
-const pages = ['table', 'table-coll', 'counters', 'deep', 'input']
+const pages = ['table', 'table-coll', 'counters', 'deep', 'input', 'coll-calc', 'switch', 'fetch']
 await build({
   root, configFile: false, logLevel: 'warn', mode: 'production', base: './', plugins: [sygnal()],
   define: { 'process.env.NODE_ENV': '"production"' },

@@ -77,6 +77,8 @@ window.__h = {
 
 const runRows = (n) => `h.click('#clear'); await h.waitFor(() => h.n('.row') === 0); h.click('#${n === 1000 ? 'run' : 'runlots'}'); await h.waitFor(() => h.n('.row') === ${n}); await h.settle()`
 
+const switchA = `if (h.n('.counter') === 0) { h.click('#create'); await h.waitFor(() => h.n('.pa .counter') === 500) } h.click('#show-a'); await h.waitFor(() => h.n('.pa .counter') === 500); await h.settle()`
+
 export const OPS = {
   table: [
     { name: 'create 1k rows', setup: `h.click('#clear'); await h.waitFor(() => h.n('.row') === 0); await h.settle()`, act: `h.click('#run')`, done: `h.n('.row') === 1000` },
@@ -101,6 +103,23 @@ export const OPS = {
   deep: [
     { name: 'leaf update, 30 deep', setup: `await h.waitFor(() => h.q('.leaf')); await h.settle(); window.__v = h.text('.leaf .val')`, act: `h.click('.leaf .inc')`, done: `h.text('.leaf .val') === String(+window.__v + 1)` },
   ],
+  // spike 0-S (PLAN-4.6): the hard features, Sygnal current core vs the prototype only
+  'coll-calc': [
+    { name: 'calc: create 1k rows', setup: `h.click('#clear'); await h.waitFor(() => h.n('.row') === 0); await h.settle()`, act: `h.click('#run')`, done: `h.n('.row') === 1000` },
+    { name: 'calc: toggle filter (1k -> 500)', setup: runRows(1000), act: `h.click('#filter')`, done: `h.n('.row') === 500` },
+    { name: 'calc: re-sort 1k', setup: `${runRows(1000)}; window.__f = h.text('.row .col-id')`, act: `h.click('#sort')`, done: `h.text('.row .col-id') !== window.__f` },
+    { name: 'calc: update every 10th (1k)', setup: runRows(1000), act: `h.click('#update')`, done: `h.text('.bumped') === '100'` },
+    { name: 'calc: bump one row (1k)', setup: `${runRows(1000)}; window.__l = h.text('.row:nth-child(2) .len')`, act: `h.click('.row:nth-child(2) .bump')`, done: `h.text('.row:nth-child(2) .len') === String(+window.__l + 1)` },
+  ],
+  switch: [
+    { name: 'switch: show other page (500)', setup: switchA, act: `h.click('#show-b')`, done: `h.n('.pb .counter') === 500` },
+    { name: 'switch: show page changed while hidden', setup: `${switchA}; h.click('#bump-b'); window.__b = (window.__b || 0) + 1; await h.settle()`, act: `h.click('#show-b')`, done: `h.n('.pb .counter') === 500 && h.text('.pb .counter .val') === String(window.__b)` },
+    { name: 'switch: update 1 of 500 (page hidden)', setup: `${switchA}; window.__v = h.text('.pa .counter:nth-child(250) .val')`, act: `h.click('.pa .counter:nth-child(250) .inc')`, done: `h.text('.pa .counter:nth-child(250) .val') === String(+window.__v + 1)` },
+  ],
+  fetch: [
+    { name: 'fetch: create 1k rows, each fetching', setup: `h.click('#clear'); await h.waitFor(() => h.n('.row') === 0); await h.settle()`, act: `h.click('#run')`, done: `h.text('.loaded') === '1000'` },
+    { name: 'fetch: reload one row (1k)', setup: `h.click('#clear'); await h.waitFor(() => h.n('.row') === 0); h.click('#run'); await h.waitFor(() => h.text('.loaded') === '1000'); await h.settle(); window.__d = h.text('.row:nth-child(2) .det')`, act: `h.click('.row:nth-child(2) .reload')`, done: `h.text('.row:nth-child(2) .det') !== window.__d` },
+  ],
   input: [
     { name: 'keystroke (1k list)', setup: `await h.waitFor(() => h.q('.draft')); await h.settle(); window.__want = h.q('.draft').value + 'a'`, act: `h.type('.draft', 'a')`, done: `h.text('.echo') === window.__want` },
   ],
@@ -110,5 +129,6 @@ export const OPS = {
 export function pagesFor(fw, scenario) {
   if (fw === 'sygnal' && scenario === 'table') return [['sygnal', 'table'], ['sygnal (Collection)', 'table-coll']]
   if (fw === 'next' && scenario === 'table') return [['next', 'table'], ['next (Collection)', 'table-coll']]
+  if (['coll-calc', 'switch', 'fetch'].includes(scenario) && fw !== 'sygnal' && fw !== 'next') return []
   return [[fw, scenario]]
 }

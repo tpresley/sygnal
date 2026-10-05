@@ -10,7 +10,7 @@ const profile = process.argv.includes('--profile')
 const only = process.argv.find(a => a.startsWith('--only='))?.slice(7)
 const root = resolve(import.meta.dirname)
 const outBase = resolve(root, profile ? 'dist-profile' : 'dist')
-const SCENARIOS = { sygnal: ['table', 'table-coll', 'counters', 'deep', 'input'], react: ['table', 'counters', 'deep', 'input'], vue: ['table', 'counters', 'deep', 'input'] }
+const SCENARIOS = { sygnal: ['table', 'table-coll', 'counters', 'deep', 'input', 'coll-calc', 'switch', 'fetch'], react: ['table', 'counters', 'deep', 'input'], vue: ['table', 'counters', 'deep', 'input'] }
 const PLUGINS = { sygnal: () => [sygnal()], react: () => [react()], vue: () => [vue()] }
 
 for (const fw of Object.keys(SCENARIOS)) {

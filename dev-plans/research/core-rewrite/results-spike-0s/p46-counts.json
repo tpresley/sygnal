@@ -1,0 +1,216 @@
+{
+  "date": "2026-10-05T00:19:28.205Z",
+  "chromium": "145.0.7632.6",
+  "counts": {
+    "patches: select row, 1k Collection": {
+      "sygnal": {
+        "patches": 1,
+        "streams": 0,
+        "timeouts": 3,
+        "intervals": 0
+      },
+      "next": {
+        "patches": 1,
+        "streams": 0,
+        "timeouts": 2,
+        "intervals": 0
+      }
+    },
+    "patches: update every 10th, 1k Collection": {
+      "sygnal": {
+        "patches": 1,
+        "streams": 0,
+        "timeouts": 3,
+        "intervals": 0
+      },
+      "next": {
+        "patches": 1,
+        "streams": 0,
+        "timeouts": 2,
+        "intervals": 0
+      }
+    },
+    "patches: remove row, 1k Collection": {
+      "sygnal": {
+        "patches": 1,
+        "streams": 0,
+        "timeouts": 9,
+        "intervals": 0
+      },
+      "next": {
+        "patches": 1,
+        "streams": 0,
+        "timeouts": 2,
+        "intervals": 0
+      }
+    },
+    "patches: leaf click, 30 deep": {
+      "sygnal": {
+        "patches": 1,
+        "streams": 0,
+        "timeouts": 3,
+        "intervals": 0
+      },
+      "next": {
+        "patches": 1,
+        "streams": 0,
+        "timeouts": 2,
+        "intervals": 0
+      }
+    },
+    "patches: update 1 of 1k counters": {
+      "sygnal": {
+        "patches": 1,
+        "streams": 0,
+        "timeouts": 3,
+        "intervals": 0
+      },
+      "next": {
+        "patches": 1,
+        "streams": 0,
+        "timeouts": 2,
+        "intervals": 0
+      }
+    },
+    "patches: calc toggle filter": {
+      "sygnal": {
+        "patches": 1,
+        "streams": 0,
+        "timeouts": 9,
+        "intervals": 0
+      },
+      "next": {
+        "patches": 1,
+        "streams": 0,
+        "timeouts": 2,
+        "intervals": 0
+      }
+    },
+    "patches: calc bump one row": {
+      "sygnal": {
+        "patches": 1,
+        "streams": 0,
+        "timeouts": 2,
+        "intervals": 0
+      },
+      "next": {
+        "patches": 1,
+        "streams": 0,
+        "timeouts": 1,
+        "intervals": 0
+      }
+    },
+    "patches: switch show other page": {
+      "sygnal": {
+        "patches": 1,
+        "streams": 14028,
+        "timeouts": 5,
+        "intervals": 0
+      },
+      "next": {
+        "patches": 1,
+        "streams": 500,
+        "timeouts": 2,
+        "intervals": 0
+      }
+    },
+    "patches: fetch create 1k (all replied)": {
+      "sygnal": {
+        "patches": 97,
+        "streams": 28000,
+        "timeouts": 1006,
+        "intervals": 0
+      },
+      "next": {
+        "patches": 102,
+        "streams": 4000,
+        "timeouts": 2,
+        "intervals": 0
+      }
+    },
+    "mount 1k counters": {
+      "sygnal": {
+        "patches": 1,
+        "streams": 22000,
+        "timeouts": 5,
+        "intervals": 0
+      },
+      "next": {
+        "patches": 1,
+        "streams": 1000,
+        "timeouts": 2,
+        "intervals": 0
+      }
+    },
+    "unmount 1k counters": {
+      "sygnal": {
+        "patches": 1,
+        "streams": 0,
+        "timeouts": 9,
+        "intervals": 0
+      },
+      "next": {
+        "patches": 1,
+        "streams": 0,
+        "timeouts": 2,
+        "intervals": 0
+      }
+    },
+    "create 1k Collection rows": {
+      "sygnal": {
+        "patches": 1,
+        "streams": 27000,
+        "timeouts": 5,
+        "intervals": 0
+      },
+      "next": {
+        "patches": 1,
+        "streams": 2000,
+        "timeouts": 2,
+        "intervals": 0
+      }
+    },
+    "clear 1k Collection rows": {
+      "sygnal": {
+        "patches": 1,
+        "streams": 0,
+        "timeouts": 9,
+        "intervals": 0
+      },
+      "next": {
+        "patches": 1,
+        "streams": 0,
+        "timeouts": 2,
+        "intervals": 0
+      }
+    },
+    "create 1k calc rows (filter+sort)": {
+      "sygnal": {
+        "patches": 1,
+        "streams": 22000,
+        "timeouts": 5,
+        "intervals": 0
+      },
+      "next": {
+        "patches": 1,
+        "streams": 1000,
+        "timeouts": 2,
+        "intervals": 0
+      }
+    },
+    "create 1k fetch rows": {
+      "sygnal": {
+        "patches": 97,
+        "streams": 28000,
+        "timeouts": 1006,
+        "intervals": 0
+      },
+      "next": {
+        "patches": 102,
+        "streams": 4000,
+        "timeouts": 2,
+        "intervals": 0
+      }
+    }
+  }
+}
