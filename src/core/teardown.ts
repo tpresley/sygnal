@@ -42,3 +42,7 @@ export function stopQueued(q: any[]) {
 
 /** the instance behind an intent's sources object (the source getters read it) */
 export const INST = Symbol('sygnal.inst')
+/** the queue's action type for a state write (runtime setState, a child's seeded slice) */
+export const SET = Symbol('setState')
+/** a child's seeded slice (D174), written even when it reads its initialState as the default */
+export const SEED = Symbol('seed')

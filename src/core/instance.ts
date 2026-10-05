@@ -18,7 +18,7 @@ import {StateSource} from '../cycle/state/StateSource'
 import {uidPart} from '../shared'
 import {warn, error as logError, fail} from '../extra/diagnostics/legacy'
 import type {App} from './runtime'
-import {tearDown, INST} from './teardown'
+import {tearDown, INST, SEED} from './teardown'
 import {CoreDef, defOf, isObj} from './define'
 import {Cell, CalcCell, calcCell, keyCell, lensCell, localCell} from './cell'
 import {hosts, posts, pres, resolvers} from './registry'
@@ -151,13 +151,23 @@ export class Inst {
       if (!parent || (def.isolated && (base as any).local)) this.cell.set(init)
       else if (def.isolated) {
         const b: any = base, has = b.has ? b.has() : b.get() !== undefined
-        if (reset || (!has && def.model)) this.cell.set(init)
+        // the parent's slice is written as a queued action (before INITIALIZE), so a child that
+        // fails to start (G-295) never touches it: the drain skips a disposed instance
+        if (reset || (!has && def.model)) app.dispatch(this, SEED, init, 'built-in')
         else if (has) H.onStateSeed?.(viewOf(this), b.get(), init)
       }
     } else if (def.idle && isObj(this.cell.raw()) && !parent) this.cell.set(this.cell.raw())
     H.onCreate?.(viewOf(this))
     if (def.handlers.has('INITIALIZE')) app.dispatch(this, 'INITIALIZE', init, 'built-in')
-    if (def.intent) this.subscribe()
+    if (def.intent) {
+      try { this.subscribe() } catch (e) {
+        // G-295: undone (its queued actions are skipped, no STATE watcher, onDispose pairs onCreate)
+        this.disposed = true
+        app.watchers.delete(this)
+        H.onDispose?.(viewOf(this))
+        throw e
+      }
+    }
     if (def.handlers.has('BOOTSTRAP')) app.born.push(this)
   }
 

@@ -28,7 +28,7 @@ import {CoreDef, defOf} from './define'
 import {rootCell} from './cell'
 import {Inst} from './instance'
 import {viewOf} from './view'
-import {stopQueued, INST} from './teardown'
+import {stopQueued, INST, SET, SEED} from './teardown'
 // the public ClientOnly is a separate bundle (sygnal/vike/ClientOnly) with no core of its own, so
 // its marker handler registers with the core (the other markers register from their modules)
 import './markers/clientonly'
@@ -40,7 +40,6 @@ const LOOP = 100, HARD = 1000
 const G: any = globalThis
 const SI: ((f: () => void) => void) | undefined = typeof G.setImmediate == 'function' ? G.setImmediate.bind(G) : undefined
 const MC: any = typeof G.MessageChannel == 'function' ? G.MessageChannel : undefined
-const SET = Symbol('setState')
 const ERR_FIX = 'See the attached error'
 
 export interface StartOptions {
@@ -129,7 +128,8 @@ export class App {
           const f = q[i + 2], c = inst.cell
           const v = typeof f == 'function' ? f(c.get()) : f
           if (v !== c.get()) c.set(v)
-        } else inst.handle(q[i + 1], q[i + 2], q[i + 3])
+        } else if (q[i + 1] === SEED) inst.cell.set(q[i + 2])
+        else inst.handle(q[i + 1], q[i + 2], q[i + 3])
         if (this.watchers.size) this.notify()
       }
     } finally {
