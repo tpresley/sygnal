@@ -185,13 +185,18 @@ export function defineElement(tag: string, Component: any, options: ElementOptio
     // Hot swap (defineElement again for this tag): the new component, this element's state
     #swap() {
       if (!this.#app) return;
-      this.#app.hmr(this.#component(), this.#app.sources.STATE.stream._v);
+      // (PLAN-4.6 next core: the state through the runtime API, 04 §3.9)
+      const rt = (this.#app as any).__runtime;
+      this.#app.hmr(this.#component(), rt ? rt.getState() : this.#app.sources.STATE.stream._v);
       this.#releaseDevtools();
     }
 
     #setProp(name: string, value: any) {
       this.#props[name] = value;
-      this.#app?.sinks.STATE.shamefullySendNext((state: any) => ({...state, [name]: value}));
+      const set = (state: any) => ({...state, [name]: value});
+      const rt = (this.#app as any)?.__runtime;
+      if (rt) rt.setState('root', set);
+      else this.#app?.sinks.STATE.shamefullySendNext(set);
     }
 
     // A per-instance copy of the component whose initialState includes the current props
@@ -224,7 +229,7 @@ export function defineElement(tag: string, Component: any, options: ElementOptio
     // the slot back, so a host app that starts later gets it
     #releaseDevtools() {
       const w = window as any;
-      if (w.__SYGNAL_DEVTOOLS_APP__?.sinks === this.#app.sinks) w.__SYGNAL_DEVTOOLS_APP__ = undefined;
+      if (w.__SYGNAL_DEVTOOLS_APP__ === this.#app || w.__SYGNAL_DEVTOOLS_APP__?.sinks === this.#app.sinks) w.__SYGNAL_DEVTOOLS_APP__ = undefined;
     }
   }
 

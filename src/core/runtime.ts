@@ -21,7 +21,7 @@ import xs from '../extra/xstreamCompat'
 import {makeDOMDriver} from '../cycle/dom/index'
 import eventBusDriver from '../extra/eventDriver'
 import logDriver from '../extra/logDriver'
-import {NOT_SINK} from '../shared'
+import {NOT_SINK, isAbort} from '../shared'
 import {error as logError, callHook} from '../extra/diagnostics/legacy'
 import type {ComponentFn, DefSource, Hooks, RuntimeAPI, ActionCause} from './hooks'
 import {CoreDef, defOf, rootDef} from './define'
@@ -152,7 +152,8 @@ export class App {
         if (q[i + 1] === SET) {
           const f = q[i + 2], c = inst.cell
           const v = typeof f == 'function' ? f(c.get()) : f
-          if (v !== c.get()) c.set(v)
+          // (ABORT: no change, as from a reducer)
+          if (v !== c.get() && !isAbort(v)) c.set(v)
         } else if (q[i + 1] === SEED) {
           // G-309: decided when it is applied: a parent write queued before it keeps the slice (D174)
           const d = q[i + 2], b = d.b
