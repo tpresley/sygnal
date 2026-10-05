@@ -488,7 +488,8 @@ export function start(Root: ComponentFn, drivers: Record<string, any> = {}, opts
   app.vdom$ = xs.create({start: (l: any) => { app.vdomL = l; if (app.last) l.next(app.last) }, stop: () => { app.vdomL = null }})
   for (const n in all) {
     if (n == 'DOM') app.proxies.DOM.imitate(app.vdom$)
-    else if (!NOT_SINK.test(n)) app.proxies[n].imitate(app.sink(n))
+    // a PARENT driver (sygnal/element) gets the root's PARENT values, as under Cycle's run
+    else if (!NOT_SINK.test(n) || n == 'PARENT') app.proxies[n].imitate(app.sink(n))
   }
   const was = app.draining
   app.draining = true
@@ -514,7 +515,7 @@ export function start(Root: ComponentFn, drivers: Record<string, any> = {}, opts
   app.commit()
   let dom$: any
   const sinks: Record<string, any> = {__dispose: () => app.dispose()}
-  for (const n of [...Object.keys(all), 'PARENT']) {
+  for (const n of new Set([...Object.keys(all), 'PARENT'])) {
     if (n == 'DOM') Object.defineProperty(sinks, n, {get: () => dom$ ||= app.vdom$.remember(), enumerable: true})
     else if (!NOT_SINK.test(n) || n == 'PARENT') Object.defineProperty(sinks, n, {get: () => app.exposed(n), enumerable: true})
   }
