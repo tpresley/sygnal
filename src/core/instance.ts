@@ -131,11 +131,12 @@ export class Inst {
     this.cell = def.calculated || def.idle ? calcCell(base, def) : {get: () => base.get(), set: (v) => base.set(v), raw: () => base.get()}
     const H = app.hooks
     // the initial state, synchronously (INITIALIZE at construction, D165): a root (or the state an
-    // HMR swap keeps), an isolated child's local state, or its default while its slice is undefined
+    // HMR swap keeps), an isolated child's local state; an isolated child bound to a slice writes it
+    // when it has a model (its INITIALIZE, as today), else reads initialState while the slice is missing
     let init = !parent && app.initState !== undefined ? app.initState : def.initialState
     // a root without a model renders from `initialState || true` (G-172, as today)
     if (!parent && !def.model && !init) init = true
-    if (init !== undefined && (!parent || (def.isolated && ((base as any).local || this.cell.raw() === undefined)))) this.cell.set(init)
+    if (init !== undefined && (!parent || (def.isolated && ((base as any).local || def.model)))) this.cell.set(init)
     else if (def.idle && isObj(this.cell.raw()) && !parent) this.cell.set(this.cell.raw())
     H.onCreate?.(viewOf(this))
     if (def.handlers.has('INITIALIZE')) app.dispatch(this, 'INITIALIZE', init, 'built-in')
@@ -250,6 +251,7 @@ export class Inst {
       }
       // the same values: the same object, so readers see no change
       if (this.cv && shallowEq(v, this.cv)) v = this.cv
+      else if (this.cv && app.hooks.onContextChanged) app.hooks.onContextChanged(viewOf(this), v, Object.keys(v).filter(k => v[k] !== this.cv[k]))
     }
     this.cver = app.ver
     return (this.cv = v)

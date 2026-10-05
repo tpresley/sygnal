@@ -21,6 +21,7 @@ const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 /** R1: the runtime (store, queue, flush, cells, calculated, context, tag children, actions, teardown) */
 export const FILES = [
   'test/parity/',
+  'test/p46-r1-core.test.js',
   'test/p46-r1-pragma-data-c.test.js',
   'test/copied/kanban.copied.test.js',
   'test/copied/todomvc.copied.test.js',
