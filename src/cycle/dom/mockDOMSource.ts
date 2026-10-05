@@ -123,7 +123,8 @@ export class MockedDOMSource {
 
   /** PLAN-4.6: isolateSink for one vnode (a copy, with the scope class) */
   public isolateValue(vnode: any, scope: string): any {
-    return !vnode || (vnode.sel && vnode.sel.indexOf(SCOPE_PREFIX + scope) !== -1) ? vnode : {...vnode, sel: vnode.sel + `.${SCOPE_PREFIX}${scope}`};
+    // G-305: the scope's class token exactly (scope s1 is not s14)
+    return !vnode || (vnode.sel && vnode.sel.split('.').indexOf(SCOPE_PREFIX + scope) > 0) ? vnode : {...vnode, sel: vnode.sel + `.${SCOPE_PREFIX}${scope}`};
   }
 
   public isolateSink(sink: any, scope: string): any {
