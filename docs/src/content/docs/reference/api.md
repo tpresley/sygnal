@@ -793,13 +793,15 @@ Defines a reusable [behavior](/guide/behaviors/#writing-a-behavior): state, inte
 ```typescript
 function defineBehavior(definition: {
   initialState: Slice;
-  intent?: (sources, options) => { [action: string]: Stream<any> };
-  model?: { [action: string]: Reducer | { [sink: string]: Reducer } };   // reducers get the slice
+  intent?: (sources, options, key) => { [action: string]: Stream<any> };
+  // handlers: (slice, data, next, props, options, key); HOST: (state, data, next, props, options, key) => state
+  model?: { [action: string]: Handler | { [sink: string]: Handler; HOST?: HostReducer } };
   calculated?: { [field: string]: (slice) => any };
+  timers?: (slice, options, key) => { [name: string]: TimerSpec | false };
 }): (options?) => Behavior
 ```
 
-Returns a factory: call it with the options of one use (`disclosure({ toggle: '.toggle' })`). Options that name a key of `initialState` set that key's starting value. The intent gets the host's sources and the options; actions are named without the key.
+Returns a factory: call it with the options of one use (`disclosure({ toggle: '.toggle' })`). Options that name a key of `initialState` set that key's starting value. The intent gets the host's sources, the options and the use's key; actions are named without the key. Model handlers get the slice, then the options and the key after `props`; a `HOST` entry is a reducer on the host's whole state. `timers` declares timers for the host (`'<key>.<name>'`; a spec action naming one of the behavior's actions is namespaced). [Guide](/guide/behaviors/#options-the-key-host-state-and-timers).
 
 ---
 

@@ -120,7 +120,7 @@ Read the selection with `isSelected(state.sel, id)`. Ids compare as strings, so 
 
 ## Writing a behavior
 
-`defineBehavior()` takes the same parts as a component, without a view: `initialState`, `intent`, `model` and `calculated`. It returns a factory: call it with the options of one use.
+`defineBehavior()` takes the same parts as a component, without a view: `initialState`, `intent`, `model`, `calculated` and `timers`. It returns a factory: call it with the options of one use.
 
 ```jsx
 // behaviors/disclosure.js
@@ -169,6 +169,33 @@ Product.uses = { more: disclosure({ toggle: '.toggle' }) }
 
 Two components can use the same behavior, and so can every item of a [Collection](/guide/collections/): each instance gets its own slice. In a Collection item (or any child that gets its state from its parent), `state[key]` reads as the behavior's initial state until the first action writes it.
 
+### Options, the key, host state and timers
+
+Every model handler of a behavior gets the use's options and its key after the usual arguments: `(slice, data, next, props, options, key)`, and the intent gets `(sources, options, key)`. `props.state` is the host's whole state.
+
+Two more parts are for behaviors that reach past their slice:
+
+- **`HOST`**: a model entry `{ HOST: (state, data, next, props, options, key) => newState }` is a reducer on the host's whole state, for a behavior that edits a host field (reordering `state[options.from]`, say). `ABORT`, or the same state, means no change. Use it in place of `STATE` in an entry.
+- **`timers: (slice, options, key) => ({ name: spec })`** declares [timers](/guide/timers/) for the host, as the `timers` static does (the app needs `makeTimerDriver()`). The host sees them as `'<key>.<name>'`; a spec whose `action` names one of the behavior's actions is sent to that action (`'SHOW'` arrives as `'tip.SHOW'`), any other action name goes to the host as written. They run alongside the host's own `timers`.
+
+```jsx
+// behaviors/hoverDelay.js
+import { defineBehavior } from 'sygnal'
+
+export const hoverDelay = defineBehavior({
+  initialState: { pending: false, open: false },
+  intent: ({ DOM }, { target }) => ({ ENTER: DOM.mouseenter(target), LEAVE: DOM.mouseleave(target) }),
+  timers: (slice, { delay = 300 }) => ({ show: slice.pending && { after: delay, action: 'SHOW' } }),
+  model: {
+    ENTER: (slice) => ({ ...slice, pending: true }),
+    LEAVE: (slice) => ({ ...slice, pending: false, open: false }),
+    SHOW: (slice) => ({ ...slice, pending: false, open: true }),
+  },
+})
+```
+
+`Card.uses = { tip: hoverDelay({ target: '.help', delay: 500 }) }` opens `state.tip.open` half a second after the pointer enters `.help`. A behavior that sends a driver request names its [reply actions](/guide/http/) with the key, so they reach its own model: `ok: key + '.LOADED'`.
+
 ## Extending a behavior's actions
 
 The host can trigger a behavior action, and add its own entry for one. Both use the namespaced name:
@@ -210,7 +237,7 @@ The merge rules:
 | A value sink (`EVENTS`, `PARENT`, a driver) for a behavior action | Replaces the behavior's value for that sink. |
 | A reducer for another action that changes `state[key]` | The slice's calculated fields are recomputed. |
 
-A behavior's [reply actions](/guide/http/) (`ok: 'LOADED'` on a request it sends) arrive under the name it gives, without the key.
+A behavior's [reply actions](/guide/http/) (`ok: 'LOADED'` on a request it sends) arrive under the name it gives; to reach its own model, it names them with its key (`ok: key + '.LOADED'`, see above).
 
 ## Testing
 

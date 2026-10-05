@@ -29,8 +29,18 @@
  *   A host intent action of the same name makes it host-owned (removed from the map).
  * - renderComponent marks the streams it adds for simulateAction (`__sygnalTestActions`); they
  *   are merged with a behavior trigger of the same name instead of overriding it.
- * - Limitations: a behavior's reply actions (`ok: 'LOADED'` on a driver request) arrive under
- *   the name it gives, not namespaced; a host intent must return an object (not one stream).
+ * - D197 (PLAN-5): every model handler gets `(slice, data, next, props, options, key)`: the
+ *   use's options and its key in `uses` (so a driver request can name a reply action
+ *   `key + '.LOADED'`); the intent gets `(sources, options, key)`.
+ * - D197: `HOST: (state, data, next, props, options, key) => state` in a model entry is a STATE
+ *   reducer on the host's whole state (sortable reorders the host's array); ABORT or the same
+ *   state is no change; the slice's calculated fields are recomputed when it changed.
+ * - D197: `timers: (slice, options, key) => ({ name: spec })` declares timers (makeTimerDriver)
+ *   for the host: named '<key>.<name>', a spec's action / frame naming one of the behavior's
+ *   actions is namespaced as next() does. They join the host's own `timers` static through an
+ *   accessor on the component function (installed once; the host's own value is kept as is and
+ *   can still be assigned), which reads the host's current `uses`.
+ * - Limitations: a host intent must return an object (not one stream).
  */
 import xs from './xstreamCompat'
 import {isAbort} from '../shared'
@@ -50,9 +60,34 @@ const calcOf = (calcs: any) => (r: any) => {
   return r
 }
 
+// the hosts whose `timers` static is an accessor (D197); the accessor's getter: the host's own
+// timers plus each behavior's (from the host's current `uses`)
+const timed = new WeakSet<any>()
+const addTimers = (v: any): void => {
+  if (timed.has(v)) return
+  timed.add(v)
+  let own = v.timers
+  const all = (st: any) => {
+    const o: any = {}, f = own
+    if (typeof f == 'function') Object.assign(o, f(st))
+    else if (f && typeof f == 'object') for (const r in f) o[r] = f[r](st)
+    const u = v.uses
+    for (const k in u) {
+      const b = u[k], t = b?.timers?.(st?.[k] ?? b.state, b.options, k), rn = (a: any) => a in (b.model || {}) ? k + '.' + a : a
+      for (const n in t) {
+        const x = t[n]
+        o[k + '.' + n] = x && {...x, ...(x.action && {action: rn(x.action)}), ...(x.frame && {frame: rn(x.frame)})}
+      }
+    }
+    return o
+  }
+  Object.defineProperty(v, 'timers', {configurable: true, enumerable: true, get: () => all, set: (x: any) => { own = x }})
+}
+
 const mergeBehavior = (c: any, k: string, b: any): void => {
   const S = c.stateSourceName, calcs = b.calculated, calc = calcOf(calcs), model = c.model = {...c.model}, slice = b.state
-  const owned = c._behaviorActions ||= {}, ns = (a: string) => k + '.' + a
+  const owned = c._behaviorActions ||= {}, ns = (a: string) => k + '.' + a, opts = b.options
+  if (b.timers && c.view) addTimers(c.view)
   if (c.isSubComponent && !c.isolatedState) c._idle = {...c._idle, [k]: slice}
   else c.initialState = {...(typeof c.initialState == 'object' ? c.initialState : {}), [k]: slice}
 
@@ -69,9 +104,14 @@ const mergeBehavior = (c: any, k: string, b: any): void => {
 
   for (const a in b.model) {
     const e = sinksOf(b.model[a], S), m: any = {}, host = model[ns(a)]
-    for (const s in e) m[s] = (st: any, d: any, next: any, ...x: any[]) => {
-      const r = e[s](st?.[k], d, next && ((t: string, ...y: any[]) => next(t in b.model ? ns(t) : t, ...y)), ...x)
-      return s != S || isAbort(r) ? r : r === st[k] ? st : {...st, [k]: calc(r)}
+    for (const s in e) {
+      // HOST: a STATE reducer on the host's whole state (D197)
+      const whole = s == 'HOST'
+      m[whole ? S : s] = (st: any, d: any, next: any, p: any) => {
+        const r = e[s](whole ? st : st?.[k], d, next && ((t: string, ...y: any[]) => next(t in b.model ? ns(t) : t, ...y)), p, opts, k)
+        return whole ? (isAbort(r) || r === st || !r || r[k] === st?.[k] ? r : {...r, [k]: calc(r[k])})
+          : s != S || isAbort(r) ? r : r === st[k] ? st : {...st, [k]: calc(r)}
+      }
     }
     if (host) {
       const hs = sinksOf(host, S)
@@ -96,7 +136,7 @@ const mergeBehavior = (c: any, k: string, b: any): void => {
     c.intent = (so: any) => {
       const o: any = {}
       for (const [k, b, slice] of list) {
-        const st = so[S], i = b.intent?.({...so, [S]: st?.select({get: (s: any) => s?.[k] ?? slice})}, b.options)
+        const st = so[S], i = b.intent?.({...so, [S]: st?.select({get: (s: any) => s?.[k] ?? slice})}, b.options, k)
         for (const a in i) o[k + '.' + a] = i[a], owned[k + '.' + a] = k
       }
       const h = own?.(so), test = h?.__sygnalTestActions || []
@@ -109,8 +149,8 @@ const mergeBehavior = (c: any, k: string, b: any): void => {
 }
 
 /**
- * defineBehavior({ initialState, intent?, model?, calculated? }) returns a factory; call it with
- * the options for one use (`pager({ pageSize: 10, next: Newer })`) in a component's `uses`.
+ * defineBehavior({ initialState, intent?, model?, calculated?, timers? }) returns a factory; call
+ * it with the options for one use (`pager({ pageSize: 10, next: Newer })`) in a component's `uses`.
  */
 export const defineBehavior = (def: any) => (options: any = {}): any => {
   const init = {...def.initialState}, b: any = {...def, options}
