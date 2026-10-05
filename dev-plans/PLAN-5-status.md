@@ -45,7 +45,8 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 | 0-S4 | Toast top layer (confirm 0-S3's finding, 3 engines) | ✅ done (spike, not merged) | `exp/p5-s4` (`b91e30f`) | 2026-10-05 | Six strategies × 3 engines: only **`popover="manual"` re-parented into the topmost open modal** passes everything (on top, clickable, Tab-reachable and in the a11y tree inside the modal; survives close/reopen/removal; correct under transformed dialogs; Collection/Transition/timers keep working). Portal (S-5's fallback) fails (no component instantiation, fixed target, dies with the dialog). Needs a one-line core fix: `IsolateModule.getRootElement` throws for an element moved out of its component (−39 B). Toaster ≈ +0.94 KB gzip (+1.5 KB with the timer driver). Open: delegator bubbling still follows DOM parents (G-356), SYG202 on canonical item self-removal (G-357), real screen-reader check |
 | 1-F | Foundations | ✅ merged | `p5-1f` (`707e54b`) | 2026-10-05 | D196 pragma attrs (+63 B), moved-element isolation incl. bubbling via `__sygnalHome` (−27 B), form-associated custom-element sync (+42 B), D197 `defineBehavior` (`timers`, options/key in handlers, `HOST` reducer; 0 B), D194 `focusWithin` (0 B), D199 diagnostics/check items, test helpers, G-355 fixed (test isolation, not a router bug). After merge with 1-W: **41,5xx B**; vitest 2,818; browser 213/214 on all three engines (G-358) |
 | 1-R | Fixes: G-358 (merge interaction), 1-W review (G-359…G-369), D200 | ✅ merged | `p5-1r` (`451d9d5`) | 2026-10-05 | All 12 fixed (G-358 was the test: its view bound a value it never updated, which D196's re-sync correctly restores). Widget hosts keyed by widget + place (no reuse across widgets/plain/fallback); per-instance failures with recovery; Portal content destroyed on removal; Transition and refs on widgets; library classes kept; SSR IDL names + both kebab and lowercase attributes; SYG141/142 relaxed for unknown hosts; `__sw`; `dispatch`. Chromium/Firefox/WebKit 214/214; core **41,500 B** (800 B headroom); widget used ≈ 1.27 KB |
-| R-1F | Review of 1-F + 1-F1 | 🟡 running | | | |
+| R-1F | Review of 1-F + 1-F1 | ✅ done | | 2026-10-05 | 12 findings G-370…G-381 (2 high) |
+| 1-S | Fixes G-370…G-381 + D205 + D201 `t.widget().dispatch` | 🟡 running | `p5-1s` | | |
 | 2-U | sygnal/ui native parts + Toaster | 🟡 running | `p5-2u` | | |
 | 2-V | VirtualCollection | 🟡 running | `p5-2v` | | |
 | 2-B | Browser sources + B-4 | 🟡 running | `p5-2b` | | |
@@ -114,12 +115,25 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 | G-367 | review 1-W | Low | widget | Remount path without `update`: a throwing `mount` reported as SYG661, stale record. Confirmed | Fixed (1-R) |
 | G-368 | review 1-W | Low | widget | `ref` silently dropped (guide says every prop reaches the widget) | Fixed (1-R) |
 | G-369 | review 1-W | Low | testing | Mock-DOM command check with a control wrapping a widget uses the wrong host tag; `widgetOf` not scoped | Fixed (1-R) |
+| G-370 | review 1-F | High | pragma | D196 attribute routing also applies to component tags: props named `anchor`, `command`, `commandfor`, `closedby`, `popovertarget(action)`, `interestfor` no longer reach components (`role`/`for`/`tabindex`/`aria-*` already didn't). Confirmed | → 1-S |
+| G-371 | review 1-F1 | High/Med | forms | Async schema: two submits before validation settles dispatch the submit action twice (double POST). Confirmed | → 1-S |
+| G-372 | review 1-F | Med | pragma/a11y | `aria-*={false}` renders `"false"` on string/IDREF ARIA attributes (`aria-label={cond && label}` announces "false"); `null` → `"null"` (pre-existing). Confirmed | → 1-S |
+| G-373 | review 1-F1 | Med | forms | `focusInvalid` not scoped to the form element: focuses a same-named field in another form or an earlier child. Confirmed | → 1-S |
+| G-374 | review 1-F1 | Med/Low | forms | Two `form` uses in one host default to the same `'form'` selector and listen to each other, with no diagnostic. Confirmed | → 1-S |
+| G-375 | review 1-F1 | Low/Med | forms | Async schema: initial state has no errors, so `valid` starts true; `form()` runs `validate` at module load. Confirmed | → 1-S |
+| G-376 | review 1-F1 | Low/Med | forms | Field types beyond text/checkbox unsupported and undocumented (custom checkboxes, select multiple, checkbox groups, number/date coercion, file) | → 1-S |
+| G-377 | review 1-F1 | Low | diagnostics | SYG233 false positives for schemas that reshape output (renames) | → 1-S |
+| G-378 | review 1-F | Low | behaviors | A behavior model entry with both `STATE` and `HOST` silently loses `STATE`. Confirmed | → 1-S |
+| G-379 | review 1-F1 | Low | forms | Presence checks use `!== undefined` (optional fields ignored + SYG230/235); named buttons raise SYG230 on focusout | → 1-S |
+| G-380 | review 1-F1 | Low | forms | `replyErrors`/`getField` fall back from row id to index, misplacing index-keyed server errors | → 1-S |
+| G-381 | review 1-F | Low | DOM | No guard against a `__sygnalHome` cycle (infinite loop / stack overflow) | → 1-S |
 | G-356 | 0-S4 | Low | DOM/isolation | An element moved out of its component's DOM (toast re-parented into a modal): `IsolateModule.getRootElement` throws ("No root element found"); with the fix, the delegator's simulated bubbling still follows DOM parents, so intermediate scopes miss the moved region's events | Fixed (1-F; `__sygnalHome` for movers) |
 | G-357 | 0-S4 | Low | diagnostics | SYG202 reported for `() => undefined` on Collection items although llms.txt documents it as the canonical self-removal | Fixed (1-F) |
 | G-355 | 0-B | Low | router test | WebKit: 'link click, back, scroll restore, focus, document.title' (router-5-4b) fails: scroll not restored after back (`scrollY 1663`). Chromium/Firefox pass | Fixed (1-F: the test shared history with an earlier suite; not a router bug) |
 
 ## Log
 
+- 2026-10-05 — Review of 1-F + 1-F1: 12 findings (G-370…G-381). 1-S started.
 - 2026-10-05 — D205 (ABORT restores controlled fields), D206 (form size accepted). Review of 1-F + 1-F1 and Phase 2 (2-U, 2-V, 2-B) started.
 - 2026-10-05 — 1-F1 merged (all gates green, three engines 216/216). D202–D204 (user: UI as a `sygnal` subpath; fromZag + React adapters; Lucide recipe).
 - 2026-10-05 — 1-R merged (all gates green, three engines 214/214; 41,500 B). D201. 1-F1 running.
