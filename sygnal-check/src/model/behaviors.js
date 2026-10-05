@@ -77,7 +77,7 @@ export const FIRST_PARTY = {
   // (SYG111); its model is open (CHECKED_<field> per `check` entry); the host action named by
   // `submit` is dispatched with next() (a trigger for SYG102); options are the 2nd argument.
   form: {
-    stateKeys: ['values', 'initial', 'errors', 'touched', 'server', 'remote', 'pending', 'submitting', 'submitted', 'submitCount', 'queued', 'validating'],
+    stateKeys: ['values', 'initial', 'errors', 'touched', 'server', 'remote', 'pending', 'submitting', 'submitted', 'submitCount', 'queued', 'validating', 'validated'],
     calculated: ['fields', 'valid', 'dirty', 'error'],
     model: null,
     options: ['values', 'submit', 'form', 'check', 'show', 'http'],

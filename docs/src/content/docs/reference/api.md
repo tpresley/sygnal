@@ -917,7 +917,7 @@ function form<V>(schema: StandardSchemaLike, options: {
 
 | | |
 |---|---|
-| State | `values`, `initial`, `errors`, `touched`, `server`, `remote`, `pending`, `submitting`, `submitted`, `submitCount`, `queued`, `validating`; calculated `fields` (per name: `{ name, value, error, invalid, touched, dirty, pending }`), `valid`, `dirty`, `error` |
+| State | `values`, `initial`, `errors`, `touched`, `server`, `remote`, `pending`, `submitting`, `submitted`, `submitCount`, `queued`, `validating`, `validated`; calculated `fields` (per name: `{ name, value, error, invalid, touched, dirty, pending }`), `valid`, `dirty`, `error` |
 | Actions | `CHANGE` (`{ name, value }`), `BLUR` (name), `SUBMIT`, `ADD` (`{ field, value }`), `REMOVE` (`{ field, id }`), `ERRORS` (server errors), `DONE`, `RESET` (values?) |
 
 Fields are matched by `name` inside the form element (`form` option, default `'form'`); rows of an array by id (`addresses.7.city`). A valid submit dispatches the host's `submit` action with the schema's output; an invalid one focuses the first invalid field. Diagnostics: [SYG230](/reference/errors/#syg230)–[SYG236](/reference/errors/#syg236).

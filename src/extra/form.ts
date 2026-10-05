@@ -20,9 +20,10 @@
  * Slice (state.form): values, initial, errors (all current schema errors by name), touched,
  * server (server errors), remote (async check results: '' passed), pending (name -> value being
  * checked), submitting, submitted, submitCount, queued (a submit waits for a check or an async
- * schema), validating
- * (an async schema runs); calculated: fields (per name: { name, value, error, invalid, touched,
- * dirty, pending }; `error` is what to show), valid, dirty, error (form-level message).
+ * schema), validating (an async schema runs), validated (the schema has answered since the start
+ * or the last reset); calculated: fields (per name: { name, value, error, invalid, touched,
+ * dirty, pending }; `error` is what to show), valid (G-382: the last answer's, kept while an async
+ * schema re-validates), dirty, error (form-level message).
  *
  * Actions: form.CHANGE ({ name, value, item? }: G-376: a checkbox gives `checked`, and `item`, its
  * value, which toggles membership when the field is an array; <select multiple> an array of the
@@ -82,7 +83,7 @@ export const form = (schema: any, o: any = {}): any => {
   // new values: errors now (sync schema), or after the schema's Promise (RESULT)
   const edit = (s: any, vals: any, x?: any) => {
     const r = v(vals), a = !!r.then
-    return {s: {...s, ...x, values: vals, validating: a, ...(!a && {errors: r.errors})}, wait: a && {values: vals}}
+    return {s: {...s, ...x, values: vals, validating: a, ...(!a && {errors: r.errors, validated: true})}, wait: a && {values: vals}}
   }
   // the first check due: no schema error, a value, and not checked or running for it
   const due = (s: any, only?: string) => checked.find(f => {
@@ -103,7 +104,7 @@ export const form = (schema: any, o: any = {}): any => {
       : {s: {...s, queued: false, submitting: true}, send: 1}
   }
   const base = (vals: any) => ({initial: vals, values: vals, touched: {}, server: {}, remote: {}, pending: {},
-    submitting: false, submitted: false, submitCount: 0, queued: false, errors: {}})
+    submitting: false, submitted: false, submitCount: 0, queued: false, errors: {}, validated: false})
   const fresh = (vals: any) => edit(base(vals), vals)
   const group = (cur: any, d: any) => {
     if (!Array.isArray(cur) || !('item' in d)) return d.value
@@ -131,7 +132,7 @@ export const form = (schema: any, o: any = {}): any => {
     },
     RESULT: (s, d, k) => {
       if (d.values !== s.values) return
-      const n = {...s, errors: v(d.values).errors, validating: false}
+      const n = {...s, errors: v(d.values).errors, validating: false, validated: true}
       return d.submit && !s.submitting ? attempt(n, k) : {s: n}
     },
     ADD: (s, {field, value}) => {
@@ -181,7 +182,7 @@ export const form = (schema: any, o: any = {}): any => {
 
   return defineBehavior({
     form: schema,
-    // validating until VALIDATE (sync) or its RESULT (async): not valid yet (G-375)
+    // validating until VALIDATE (sync) or its RESULT (async): not valid yet (G-375, not validated)
     initialState: {...base(values), validating: true},
     intent: ({DOM}: any) => {
       const f = DOM.select(sel)
@@ -208,7 +209,8 @@ export const form = (schema: any, o: any = {}): any => {
         }
         return out
       },
-      valid: (s: any) => !s.validating && !keys(s.errors).length && !keys(s.remote).length,
+      // G-382: an async schema re-validating keeps the last answer's validity (no flicker)
+      valid: (s: any) => s.validated && !keys(s.errors).length && !keys(s.remote).length,
       dirty: (s: any) => JSON.stringify(s.values) != JSON.stringify(s.initial),
       error: (s: any) => s.server[''] || (s.submitCount && s.errors['']) || '',
     },

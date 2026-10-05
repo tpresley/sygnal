@@ -912,13 +912,15 @@ export interface FormState<V = any> {
   queued: boolean;
   /** The schema hasn't answered for the current values yet (an async one is running; also at the start) */
   validating: boolean;
+  /** The schema has answered at least once since the start (or the last `form.RESET`) */
+  validated: boolean;
 }
 
 /** A `form` slice's calculated fields. */
 export interface FormCalculated {
   /** Every field of `values` by name (leaves, arrays, and array rows' fields by row id) */
   fields: Record<string, FormField>;
-  /** No schema error and no failed check, and not `validating` */
+  /** No schema error and no failed check, as of the schema's last answer (false until its first; an async re-validation keeps the previous value) */
   valid: boolean;
   dirty: boolean;
   /** The form-level message: a server error without a field, or a schema issue without a path after a submit */
