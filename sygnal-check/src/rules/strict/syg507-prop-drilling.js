@@ -13,7 +13,7 @@ const RESERVED = new Set([
   'state', 'children', 'slots', 'context', 'peers', 'uid', 'key', 'className', 'class', 'id', 'style',
   'props', 'attrs', 'on', 'hook', 'ref', 'dataset', 'of', 'from', 'current',
 ])
-const NOT_COMPONENT = new Set(['Fragment', 'Portal', 'Transition', 'Suspense', 'ClientOnly', 'Slot', 'Collection', 'Switchable'])
+const NOT_COMPONENT = new Set(['Fragment', 'Portal', 'Transition', 'Suspense', 'ClientOnly', 'Slot', 'Collection', 'VirtualCollection', 'Switchable'])
 const isComponentTag = (name) => !!name && /^[A-Z]/.test(name) && !NOT_COMPONENT.has(name.split('.')[0])
 
 /** How `fn` refers to its prop `p`: { local?: string, propsParam?: string } or null. */

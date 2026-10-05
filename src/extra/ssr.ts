@@ -400,6 +400,11 @@ function processSSRTree(vnode: any, context: Record<string, any>, parentState: a
     return renderCollection(vnode, context, parentState, childUid(uid, vnode, path))
   }
 
+  // PLAN-5 V-1: a VirtualCollection renders its no-layout window (the first rows) in its container
+  if (sel === 'virtual-collection') {
+    return renderVirtual(vnode, context, parentState, childUid(uid, vnode, path))
+  }
+
   // Switchable: render the active component
   if (sel === 'switchable') {
     return renderSwitchable(vnode, context, parentState, childUid(uid, vnode, path))
@@ -572,6 +577,37 @@ function renderCollection(vnode: any, context: Record<string, any>, parentState:
     elm: undefined,
     key: undefined,
   }
+}
+
+/**
+ * PLAN-5 V-1: a VirtualCollection on the server: the client's markup (extra/virtual.ts) for the
+ * window it computes without layout, the first 10 rows + overscan, with the spacer as tall as
+ * every row's estimate. The client measures and moves the window once it has layout.
+ */
+function renderVirtual(vnode: any, context: Record<string, any>, parentState: any, uid: string): any {
+  const p = vnode.data?.props || {}, est = p.estimateSize, size = est > 0 ? est : 32
+  const items = p.from && parentState && Array.isArray(parentState[p.from]) ? parentState[p.from] : []
+  const n = Math.min(items.length, 10 + (p.overscan >= 0 ? p.overscan : 5))
+  const first = renderCollection({data: {props: {of: p.of, from: 'v'}}}, context, {v: items.slice(0, n)}, uid)
+  const role = p.role === undefined ? 'list' : p.role
+  const rows = first.children.map((r: any, i: number) => {
+    if (!r || !r.sel) return r
+    const own = r.data?.attrs?.role || r.data?.props?.role, attrs: any = {...r.data?.attrs, 'data-index': i}
+    if (role == 'list' || own) attrs['aria-posinset'] = i + 1, attrs['aria-setsize'] = items.length
+    if (role == 'list' && !own) attrs.role = 'listitem'
+    return {...r, data: {...r.data, attrs}}
+  })
+  const attrs: any = {tabindex: p.tabIndex ?? 0}
+  if (role != null) attrs.role = role
+  for (const k of ['id', 'aria-label', 'aria-labelledby', 'aria-describedby']) if (p[k] != null) attrs[k] = p[k]
+  let total = 0
+  for (let i = 0; i < items.length; i++) total += typeof est == 'function' ? (est(items[i], i) > 0 ? est(items[i], i) : 32) : size
+  const div = (data: any, children: any[]) => ({sel: 'div', data, children, text: undefined, elm: undefined, key: undefined})
+  return div({props: p.className ? {className: p.className} : {}, attrs, style: {overflowY: 'auto', overflowAnchor: 'none', ...p.style}}, [
+    div({style: {position: 'relative', width: '100%', height: total + 'px'}}, [
+      div({style: {position: 'absolute', top: '0', left: '0', width: '100%', transform: 'translateY(0px)'}}, rows),
+    ]),
+  ])
 }
 
 /**

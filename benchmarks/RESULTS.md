@@ -185,3 +185,31 @@ Same machine and method as above, `npm --prefix browser-tests run perf -- --runs
 Busy (click → idle): edit 31.8 → 25.3 ms, swap 25.9 → 24.0 ms; create, append and clear unchanged (clear still ≈ 300 ms of teardown).
 
 Size: kanban gated bundle 41,129 → 41,171 B (**+42 B**; the bundle prototype's +28 B was measured on `dist/index.esm.js` at gzip -9 and without the duplicate-id ordering). Tests: `test/p4-pf1-collection-lookups.test.js` (17; 7 failed first: 5 identity checks and the two O(n) work counters).
+
+## PLAN-5 V-1: `<VirtualCollection>` (2-V, 2026-10-05)
+
+The `virtual` scenario of `audit/` (`lib/ops.mjs`): a 640 px scroll container of 32 px rows (id + label), 10,000 and 100,000 rows. Pages: `sygnal/virtual` (`<VirtualCollection>`, jump with `ELEMENT: { scrollToIndex }`), `sygnal/virtual-coll` (a plain Collection, jump with `ELEMENT: { scrollTo }`), `react/virtual` (React 19 + `@tanstack/virtual-core` 3.17.11 through a `useVirtualizer` hook equivalent to `@tanstack/react-virtual`'s), `react/virtual-plain` (every row). "Scroll by a page" and the jump wait until the target row is rendered and at the container's top; a plain list has every row, so only the scroll and its paint remain (its CPU is the cost of scrolling a big DOM).
+
+```bash
+npm --prefix benchmarks run build
+npm --prefix benchmarks run bench -- --fw=sygnal,react --scenario=virtual --no-memory
+```
+
+Chromium 153, medians (create: 6 fresh pages for 10k, 4 for 100k; the others 8 after 3 warm-ups). Each cell: **paint** (event → next frame) / latency (event → DOM done) / main-thread CPU, ms:
+
+| Op | VirtualCollection | Collection | React + TanStack Virtual | React (plain) |
+|---|---:|---:|---:|---:|
+| create 10k | 17.8 / 6.9 / 10.0 | 158.7 / 145.1 / 161.2 | 16.6 / 4.2 / 7.4 | 233.7 / 222.2 / 236.3 |
+| scroll by a page (10k) | 18.1 / 17.7 / 4.1 | 17.1 / 0.1 / 32.1 | 18.2 / 17.9 / 3.3 | 17.0 / 0.1 / 24.1 |
+| jump to row 9,000 (10k) | 18.6 / 18.2 / 4.1 | 21.5 / 18.4 / 36.7 | 17.8 / 17.6 / 3.9 | 17.2 / 0.5 / 27.1 |
+| create 100k | 40.8 / 40.1 / 48.3 | 1,600 / 1,451 / 1,603 | 16.2 / 15.4 / 22.5 | 11,900 / 11,767 / 11,903 |
+| scroll by a page (100k) | 22.0 / 21.6 / 12.0 | 17.0 / 0.1 / 370.1 | 18.3 / 17.9 / 7.9 | 17.4 / 0.1 / 165.5 |
+| jump to row 9,000 (100k) | 22.2 / 21.8 / 12.7 | 54.7 / 18.0 / 380.8 | 18.9 / 18.5 / 8.3 | 33.1 / 0.5 / 177.4 |
+
+- A virtual list renders a scroll in the next frame (the scroll event comes with the frame), like TanStack's own React adapter. Scroll and jump are at React + TanStack's latency at 10k (≤ 0.6 ms apart) and 1.2× at 100k.
+- Create: 6.9 ms for 10k (React + TanStack 4.2), 40 ms for 100k (15.4). At 100k, about a quarter is the Collection core's key index (`core/cell.ts` `indexer`: a key string per item, one `Map` of 100k) that every Collection builds; `VirtualCollection` reuses its keys when there is no `filter`, `sort` or duplicate id (no second pass); that and making the SYG431 id scan dev-only took 100k from 54 to 40 ms.
+- A plain Collection creates 1,000 rows in about 14.5 ms (a frame), 10,000 in 145 ms; scrolling it costs the main thread 32 ms at 10k and 370 ms at 100k (layout and paint of the whole list).
+
+**Default threshold (S-7):** use `VirtualCollection` from about **1,000 rows** (where a plain Collection's create passes a frame), or earlier for expensive rows; a plain Collection below a few hundred. The guide (`guide/virtual-collections`) states it.
+
+Size: 0 B in kanban when unused (41,500 → 41,475 B gated: gzip noise from the reordered bundle; `test/p5-v1-treeshake.test.js`); used, +8.8 KB gzipped (virtual-core 6.0 KB, the host 2.8 KB).

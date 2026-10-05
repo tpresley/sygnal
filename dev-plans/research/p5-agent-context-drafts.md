@@ -50,3 +50,15 @@ Line count: 6 with the heading (5 bullets). It relies on the Behaviors section (
 ```
 
 Line count: 1. **SKILL.md** (≈ 120 B, if Phase 4 makes room): "Watch visibility/size/media/storage/network → `browser` static + `makeBrowserDriver()` (guide: browser-sources)."
+
+## 2-V: VirtualCollection (V-1)
+
+**One line** (appended to "More (guides)" in §4, or as a bullet under the Collection example; PLAN-5 puts V-1 in tier 3: guide pages reached from one pointer):
+
+```md
+- Long lists (from ~1,000 rows): `<VirtualCollection of={Row} from="rows" className="rows" estimateSize={32} />` (Collection's props; give `.rows` a fixed height; only rows in view have components, so keep row state in the array); jump with `ELEMENT: { scrollToIndex: '.rows', index }` or `{ scrollToId: '.rows', id }`. Guide: https://sygnal.js.org/guide/virtual-collections/
+```
+
+Line count: 1. It names what agents get wrong with virtual lists (a bounded height, state in the array, the jump as an element command) and the threshold from the 2-V numbers.
+
+**SKILL.md** (≈ 120 B, if Phase 4 makes room): "Long list (≥ ~1k rows) → `<VirtualCollection>` with a fixed-height class; jump: `ELEMENT { scrollToIndex | scrollToId }` (guide: virtual-collections)."

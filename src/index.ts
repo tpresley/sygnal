@@ -4,6 +4,7 @@
 export { ABORT } from "./shared"
 export { defineComponent } from "./defineComponent"
 export { Collection } from "./collection"
+export { VirtualCollection } from "./extra/virtual"
 export { Switchable } from "./switchable"
 export { Portal, default as portal } from "./portal"
 export { Transition } from "./transition"

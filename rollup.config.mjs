@@ -51,6 +51,18 @@ const jsxCorePragma = () => ({
 	},
 })
 
+// PLAN-5 V-1: @tanstack/virtual-core (VirtualCollection) is bundled into the core entries (a
+// devDependency: apps don't install it; tree-shaken when unused). Its dist reads
+// `process.env.NODE_ENV` for debug-only memo keys, which would throw in a browser without a
+// bundler (the UMD build, native ESM): it becomes "production" there
+const virtualCoreEnv = () => ({
+	name: 'sygnal-virtual-core-env',
+	transform(code, id) {
+		if (!/[\\/]@tanstack[\\/]virtual-core[\\/]/.test(id) || !code.includes('process.env.NODE_ENV')) return null
+		return { code: code.replace(/process\.env\.NODE_ENV/g, '"production"'), map: null }
+	},
+})
+
 const sourcemapOptions = {
 	sourcemap: true,
 	sourcemapExcludeSources: false,
@@ -67,6 +79,7 @@ export default [
 			...sourcemapOptions,
 		},
 		plugins: [
+			virtualCoreEnv(),
 			typescript({ tsconfig: './tsconfig.json' }),
 			resolve({ extensions: ['.mjs', '.js', '.ts', '.json'] }),
 			commonjs(),
@@ -83,6 +96,7 @@ export default [
 		],
 		plugins: [
 			xstreamInterop(),
+			virtualCoreEnv(),
 			typescript({ tsconfig: './tsconfig.json' }),
 			resolve({ extensions: ['.mjs', '.js', '.ts', '.json'] }),
 			commonjs()

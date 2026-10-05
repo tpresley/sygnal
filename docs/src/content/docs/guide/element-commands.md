@@ -254,6 +254,8 @@ TaskList.model = {
 }
 ```
 
+In a [`<VirtualCollection>`](/guide/virtual-collections/#jumping-to-a-row) most rows aren't rendered, so the list jumps instead: its container takes `{ scrollToIndex: '.rows', index }` and `{ scrollToId: '.rows', id }`, sent by the component that renders it.
+
 ## Testing
 
 [`renderComponent`](/integration/testing/) records every command the rendered tree sends. `t.commands('ELEMENT')` lists them in order, one entry per command (arrays flattened), as sent. With the mock DOM (the default) they are only recorded; with `dom: 'real'` they also run, so the test can check the focus or the dialog:

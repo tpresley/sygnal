@@ -73,7 +73,7 @@ npm --prefix benchmarks run retained               # heap and DOM nodes 200 ms, 
 
 Without the quiet wait, a Collection's trailing teardown from the setup landed in the next op and roughly doubled it, so ratios recorded before P45-0 (the audit, `dev-plans/research/p45-perf-baseline.md`) are higher for Collection ops than this harness's.
 
-Scenarios and apps (`audit/apps/{sygnal,react,vue}`): `table` (js-framework-benchmark style; Sygnal also as `table-coll`, one Collection item per row), `counters` (1,000 components with their own state), `deep` (a leaf 30 components deep), `input` (keystroke with a 1,000-item list). The `table` ops include P-3's **clear 2k rows** (clear after an append).
+Scenarios and apps (`audit/apps/{sygnal,react,vue}`): `table` (js-framework-benchmark style; Sygnal also as `table-coll`, one Collection item per row), `counters` (1,000 components with their own state), `deep` (a leaf 30 components deep), `input` (keystroke with a 1,000-item list). The `table` ops include P-3's **clear 2k rows** (clear after an append). `virtual` (PLAN-5 V-1): 10k / 100k rows in a scroll container, created, scrolled by a page and jumped to row 9,000, with `<VirtualCollection>`, a plain Collection, React + TanStack Virtual (`@tanstack/virtual-core`, a devDependency here) and plain React; results in `RESULTS.md`.
 
 ## js-framework-benchmark entries
 

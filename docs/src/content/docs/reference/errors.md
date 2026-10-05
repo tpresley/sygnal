@@ -1368,6 +1368,56 @@ An `isolatedState` component is bound to a slice of its parent's state (`state="
 
 **Fix:** Add `resetState` to the tag (`<Panel state="panel" resetState />`) to start the component from its `initialState`, replacing the slice. To keep the parent's data, initialize the missing keys in the parent's state.
 
+### SYG430
+
+**VirtualCollection has no bounded height**
+
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+A `<VirtualCollection>` is its own scroll container (`overflow-y: auto`) and renders the rows that fit in its height. Its element is either 0 px tall, so no row is in view, or as tall as all of its rows (its height comes from its content, e.g. no `height` in its class), so it never scrolls and would render every row. In the second case Sygnal renders only the rows within the viewport's height, and rows further down the page stay empty. Reported once per VirtualCollection and case.
+
+**Fix:** Give its `className` a bounded height: `.rows { height: 400px }` or `max-height`, or in a flex column `flex: 1; min-height: 0`. Check that a parent with `display: none` isn't the cause of a 0 height.
+
+### SYG431
+
+**VirtualCollection items without ids**
+
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+Items of a `<VirtualCollection>`'s array have no `id`, so they are keyed by their index (as in a Collection, D169). A VirtualCollection keeps a measured height and an instance per key: when items are added, removed or reordered, both follow the position, not the item, so rows get each other's heights and a row's instance shows another item. Reported once per VirtualCollection.
+
+**Fix:** Give every item a unique `id`, e.g. `rows: data.map((r) => ({ id: r.key, ...r }))`.
+
+### SYG432
+
+**VirtualCollection item does not render one element**
+
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+The item component of a `<VirtualCollection>` rendered a fragment (an array of elements) or text. A VirtualCollection measures each row's root element and sets `data-index`, `aria-posinset` and `aria-setsize` on it; a fragment has no root element, so its rows can't be measured (later rows overlap or leave gaps) or announced in position. Reported once per VirtualCollection.
+
+**Fix:** Return one element from the item's view: wrap its content in a `<div>` (or an `<li>`).
+
+### SYG433
+
+**VirtualCollection scroll target not in the list**
+
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+An element command `{ scrollToIndex: target, index }` or `{ scrollToId: target, id }` reached a `<VirtualCollection>` with an index outside its rows (an index counts the rows after `filter` and `sort`, from 0) or an id that no shown item has (not in the array, or filtered out). It didn't scroll.
+
+**Fix:** Send an integer index from 0 to the number of shown rows minus 1, or the id of an item the filter keeps: `{ scrollToId: '.rows', id: row.id }`.
+
+### SYG434
+
+**Invalid VirtualCollection estimateSize or overscan**
+
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+`estimateSize` must be a positive number (a row's height in px before it is measured) or a function `(item, index) => px`, and `overscan` a number ≥ 0 (rows rendered beyond each edge). Another value is ignored: 32 px and 5 rows are used instead.
+
+**Fix:** Pass `estimateSize={32}` (about your row height) or `(item) => (item.expanded ? 120 : 32)`, and `overscan={5}`.
+
 ## SYG5xx: Strict mode (canonical forms)
 
 ### SYG501

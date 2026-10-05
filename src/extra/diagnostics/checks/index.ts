@@ -30,6 +30,7 @@
  * | SYG143 | widget tag used as a selector                          | widgets.ts     |
  * | SYG144 | declared widget event the host also fires (info)       | widgets.ts     |
  * | SYG660 | widget mount / update / unmount threw (660/661/662)    | widgets.ts     |
+ * | SYG430 | VirtualCollection: no bounded height; SYG431 items without ids; SYG432 item not one element; SYG433 scroll target not in the list; SYG434 bad estimateSize / overscan | virtual.ts |
  * | SYG125 | control given component statics / bad spec vnode()     | controls.ts    |
  * | SYG127 | behavior key in initialState / unresolvable uses entry | behaviors.ts   |
  * | SYG230 | form: field name not in values; SYG231 not a Standard Schema; SYG232 submit dropped (info); SYG233 value missing from the schema output | forms.ts |
@@ -79,6 +80,7 @@ import {shorthandCheck} from './shorthand'
 import {controlsCheck, installControlHooks} from './controls'
 import {elementCommandsCheck, installElementCommandHooks} from './elementCommands'
 import {installWidgetHooks} from './widgets'
+import {installVirtualHooks} from './virtual'
 import {behaviorsCheck} from './behaviors'
 import {formsCheck, installFormHooks} from './forms'
 import {datasetCheck} from './dataset'
@@ -147,6 +149,7 @@ export function installChecks(): () => void {
   const uninstallBrowser = installBrowserSourceHooks()
   const uninstallElementCommands = installElementCommandHooks()
   const uninstallWidgets = installWidgetHooks()
+  const uninstallVirtual = installVirtualHooks()
   const uninstallForms = installFormHooks()
   // PLAN-4.6 R4: the core reads its hooks from the bridge once per app (checks/next.ts)
   ;(core.layers ||= new Set()).add(nextHooks)
@@ -161,6 +164,7 @@ export function installChecks(): () => void {
     uninstallBrowser()
     uninstallElementCommands()
     uninstallWidgets()
+    uninstallVirtual()
     uninstallForms()
     if (core.__uninstallChecks === uninstall) core.__uninstallChecks = undefined
   }

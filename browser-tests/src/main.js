@@ -39,6 +39,7 @@ import { webAwesomeTestsP5W3 } from './tests/webawesome-p5w3.jsx'
 import { formTestsP5F1 } from './tests/forms-p5f1.jsx'
 import { browserSourceTestsP5_2B } from './tests/browser-sources-p5-2b.jsx'
 import { fixesTestsP5_1S } from './tests/fixes-p5-1s.jsx'
+import { virtualTestsP5V1 } from './tests/virtual-p5v1.jsx'
 import { getResults } from './harness.js'
 
 async function runAll() {
@@ -87,6 +88,7 @@ async function runAll() {
     formTestsP5F1,
     browserSourceTestsP5_2B,
     fixesTestsP5_1S,
+    virtualTestsP5V1,
   ]
   for (const suite of suites) if (!only || suite.name.toLowerCase().includes(only.toLowerCase())) await suite()
 
