@@ -140,3 +140,32 @@ describe('3-H G-446: held Space / Enter', () => {
     expect(droppedActions()).toHaveLength(1)
   })
 })
+
+describe('3-H G-450: native drag and drop', () => {
+  it('a native dragstart (an image or link in the item) is prevented while a pointer is pressed', async () => {
+    function Row({ state }) { return h('li', { className: 'row', 'data-id': state.id }, h('img', { alt: '', src: 'data:,' }), h('a', { href: '#x' }, state.id)) }
+    function Rows() { return h('ul', null, h(Collection, { of: Row, from: 'rows' })) }
+    Rows.initialState = { rows: [{ id: 'a' }, { id: 'b' }] }
+    Rows.uses = { sort: sortable({ from: 'rows', item: '.row' }) }
+    t = renderComponent(Rows, { dom: 'real' }); await t.ready()
+    const img = t.query('.row[data-id="a"] img')
+    const before = new Event('dragstart', { bubbles: true, cancelable: true })
+    img.dispatchEvent(before)
+    expect(before.defaultPrevented).toBe(false)
+    ptr(img, 'pointerdown', { clientX: 5, clientY: 5 })
+    await t.next(s => s.sort.press?.id === 'a')
+    const during = new Event('dragstart', { bubbles: true, cancelable: true })
+    img.dispatchEvent(during)
+    expect(during.defaultPrevented).toBe(true)
+    ptr(img, 'pointermove', { clientX: 5, clientY: 40 })
+    await t.next(s => s.sort.dragging === 'a')
+    const dragging = new Event('dragstart', { bubbles: true, cancelable: true })
+    t.query('.row[data-id="a"] a').dispatchEvent(dragging)
+    expect(dragging.defaultPrevented).toBe(true)
+    document.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: 5, clientY: 40 }))
+    await t.next(s => !s.sort.press)
+    const after = new Event('dragstart', { bubbles: true, cancelable: true })
+    img.dispatchEvent(after)
+    expect(after.defaultPrevented).toBe(false)
+  })
+})

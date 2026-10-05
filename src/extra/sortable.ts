@@ -31,8 +31,8 @@
  *
  * Collection items are isolated, so the behavior listens on the host's ROOT (`DOM.events`), which
  * hears the events that bubble out of the items (G-145), and reads the item from
- * `target.closest(item)` and its id from `attr`. Pointer moves, the release, Escape and
- * `selectstart` (no text selection while pressed) are document listeners, subscribed only while
+ * `target.closest(item)` and its id from `attr`. Pointer moves, the release, Escape, `selectstart`
+ * and `dragstart` (no text selection, no native drag while pressed) are document listeners, subscribed only while
  * a press or a drag is active. The item under the pointer comes from `elementFromPoint` (a touch
  * pointer is implicitly captured by the pressed element, so its events keep that target); no
  * pointer capture.
@@ -195,10 +195,11 @@ export const sortable = (options: any = {}): any => {
             return {id, x: e.clientX || 0, y: e.clientY || 0}
           })
           .filter((d: any) => d != null),
-        // no text selection while a pointer is pressed (the listener only filters)
+        // no text selection and no native drag (an image or link in the item: its dragstart
+        // would cancel the pointer, G-450) while a pointer is pressed (the listeners only filter)
         MOVE: on((s: any) => s.press, () => xs.merge(
           doc.events('pointermove').map(pt),
-          doc.events('selectstart', {preventDefault: true}).filter(() => false))),
+          xs.merge(doc.events('selectstart', {preventDefault: true}), doc.events('dragstart', {preventDefault: true})).filter(() => false))),
         UP: on((s: any) => s.press, () => doc.events('pointerup').map(pt)),
         CANCEL: on((s: any) => s.press, () => xs.merge(
           doc.events('pointercancel'),
