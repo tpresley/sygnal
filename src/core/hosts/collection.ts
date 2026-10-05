@@ -20,7 +20,7 @@
  * - Removed items are disposed synchronously in the render that drops them (G-257: a move between
  *   two Collections is one patch).
  */
-import {hosts} from '../registry'
+import {hosts, resolvers} from '../registry'
 import {NEXT_CORE} from '../build'
 import {Inst, shallowEq} from '../instance'
 import {Cell, Index, indexer, itemCell, keyCell, keyOf, keyName} from '../cell'
@@ -120,6 +120,12 @@ function arrayCell(owner: Inst, from: any): Cell | null {
   return null
 }
 
+/** a component function through the view resolvers (lazy: the loaded one; the owner renders again when it loads) */
+export function resolve(view: any, owner: Inst) {
+  for (const r of resolvers) view = r(view, owner) || view
+  return view
+}
+
 export class CollectionHost {
   /** key -> item instance */
   items = new Map<any, Inst>()
@@ -150,14 +156,18 @@ export class CollectionHost {
     this.uidBase = owner.uid(uidPart(id.replace(/.*::(r\.)?/, '')))
     this.arr = arrayCell(owner, props.from)
     this.index = this.arr && indexer(this.arr)
-    this.def = owner.app.def(of)
+    this.def = owner.app.def(this.view = resolve(of, owner))
     this.setProps(props, children, marker, id)
   }
 
+  /** the item component (a lazy() one: the loaded component once it has loaded, G-317) */
+  view: any
+
   setProps(props: Record<string, any>, children: any[], marker?: any, id?: string) {
-    if (this.props && props.of !== this.props.of && typeof props.of == 'function') {
-      // another item component: the items are made again
-      this.def = this.owner.app.def(props.of)
+    const v = typeof props.of == 'function' ? resolve(props.of, this.owner) : this.view
+    if (v !== this.view) {
+      // another item component (or a lazy one loaded): the items are made again
+      this.def = this.owner.app.def(this.view = v)
       this.clear()
     }
     this.props = props

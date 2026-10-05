@@ -20,6 +20,13 @@ if (NEXT_CORE) resolvers.push((view, owner) => {
   if (!w) waiting.set(view, w = new WeakSet())
   if (!w.has(owner)) {
     w.add(owner)
-    view.__sygnalLazyPromise?.then(() => { w!.delete(owner); owner.refresh() })
+    // settled (loaded, or failed: lazy() catches): the owner renders again, and so do the wrapper's
+    // own instances (a failed load renders its error placeholder: G-310)
+    view.__sygnalLazyPromise?.then(() => {
+      w!.delete(owner)
+      const force = (k: any) => { if (k.def?.view === view && !k.disposed) k.forced = true }
+      for (const k of owner.kids.values()) k.insts ? k.insts().forEach(force) : force(k)
+      owner.refresh()
+    })
   }
 })
