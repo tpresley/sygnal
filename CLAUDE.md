@@ -5,8 +5,10 @@ Reactive component framework built on Cycle.js patterns. All source is TypeScrip
 ## Build & Test
 
 ```bash
-npm run build          # Rollup → dist/ (16 inputs: core UMD/CJS/ESM, JSX runtimes, sygnal/diagnostics,
-                       #   sygnal/devtools, sygnal/element, sygnal/vite, Astro, Vike) + bundled .d.ts
+npm run build          # Rollup → dist/ (23 configs: core UMD + CJS/ESM, sygnal/jsx, jsx-runtime,
+                       #   jsx-dev-runtime, sygnal/diagnostics, sygnal/devtools, sygnal/element, sygnal/ui,
+                       #   sygnal/zag, sygnal/ui/menu, sygnal/ui/select, sygnal/ui/combobox, sygnal/react,
+                       #   the globalthis shim, sygnal/vite, Astro (3), Vike (4)) + bundled .d.ts
 npm run build:all      # same as build (kept for prepublishOnly)
 npm test               # the full gate, in order:
                        #   vitest run          library tests in test/ (2,583; test/parity/: the core's behaviour contract)
@@ -75,6 +77,14 @@ MyComponent.onError = (error, { componentName }) => fallbackVNode  // Error boun
 - `src/defineComponent.ts` — `defineComponent(opts)`: an ordinary function component with the options as statics
 - `src/shared.ts` — `ABORT`, `isAbort`, `uidPart`, `NOT_SINK` (no core import)
 - `src/extra/ref.ts` — `createRef()` and `createRef$()` for DOM element access
+- `src/extra/widget.ts` — `defineWidget()` (PLAN-5 W-1): a third-party widget as a JSX tag (opaque host, `mount`/`update`/`unmount`, dispatched events, commands, `ownProps`, `error(e)`); the `widget` marker rewritten through `pres.widget`
+- `src/extra/virtual.ts` — `<VirtualCollection>` (PLAN-5 V-1, on `@tanstack/virtual-core`)
+- `src/extra/browserSources.ts` — the `browser` static's sources and `makeBrowserDriver()` / `makeBrowserDriverWith()` (PLAN-5 B-3)
+- `src/extra/form.ts`, `src/extra/formHelpers.ts` — the `form` behavior and its helpers (Standard Schema, PLAN-5 F-1)
+- `src/ui.ts`, `src/ui/` — `sygnal/ui`: headless parts on native HTML (dialog, popover, tooltip, tabs, accordion, disclosure, Toaster)
+- `src/ui/zag/` + `src/ui-menu.ts`, `src/ui-select.ts`, `src/ui-combobox.ts` — Menu, Select, Combobox on Zag machines (`fromZag`), one subpath each (`sygnal/ui/menu|select|combobox`, D211); types `src/ui-*.d.ts` (shared: `src/ui-zag-types.d.ts`)
+- `src/zag.ts` — `sygnal/zag`: `fromZag(zag, render, options)`, a Zag.js machine as a widget tag (`@zag-js/vanilla`, a private snabbdom patch)
+- `src/react.ts` — `sygnal/react`: `fromReact(Component, options)`, a React (or preact/compat) component as a widget tag
 - `src/extra/` — Helpers (processForm, processDrag, eventDriver, driverFactories, `fetchDriver.ts` (`makeFetchDriver`: opt-in HTTP driver, `HTTP.select(category)`/`HTTP.errors(category)`, `latest: true` aborts superseded requests), reducers `set`/`toggle`/`event`/`emit`, etc.)
 - `src/extra/testing.ts` — `renderComponent()`: mock DOM by default or `dom: 'real'` (real DOM driver in `document.body`; `t.container`/`t.query`/`t.queryAll`), `simulateEvent`/`simulateAction`, `ready`/`next`/`waitForState`/`settle`, `t.state`, `html`, `sinkValues`/`emitted`, fakes for driverless sinks (`t.respond`/`t.fail`/`t.requests`, e.g. for `makeFetchDriver`), works under fake timers (`vi.useFakeTimers()`: the waits drive the clock), `expectNoDiagnostics`, `inspect`
 - `src/extra/diagnostics/` — Diagnostics core: `codes.ts` (SYG code registry: severity, title; `docsUrlFor()` → `https://sygnal.js.org/reference/errors#sygnnn`), `index.ts` (modes, `report()`, hooks, `getDiagnostics`/`onDiagnostic`), `legacy.ts` (coded console messages that print even when off)

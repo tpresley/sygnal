@@ -66,6 +66,8 @@ export const CODES = {
   SYG706: { severity: 'warn', title: 'Positive tabIndex' },
   SYG707: { severity: 'warn', title: 'Unknown ARIA attribute or invalid role' },
   SYG708: { severity: 'warn', title: 'Label or ARIA reference to an id that is not rendered' },
+  // PLAN-5 2-T (D211): rules/a11y/syg722-ui-name.js
+  SYG722: { severity: 'warn', title: 'Menu, Select or Combobox without an accessible name' },
   // strict mode (--strict), dev-plans/PLAN-1-canonical-forms.md; severities match
   // STRICT_CODE_SEVERITY in src/extra/diagnostics/codes.ts
   SYG501: { severity: 'error', title: "Removed in 6.0: view with positional arguments", strict: true },

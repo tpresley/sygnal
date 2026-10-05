@@ -439,7 +439,7 @@ The tag `defineWidget()` returned was used where a selector is expected: `DOM.se
 
 Severity: `info` · Reported by: the dev checks (`sygnal/diagnostics`), `sygnal-check`
 
-A widget declares an event whose name the browser also uses (`'change'`, `'input'`, `'select'`, `'toggle'`...). Native events of that name fire on the host or bubble up from inside it (flatpickr's own input fires `change` as well), so a listener on the host gets both the widget's `CustomEvent` and the native event, and `.detail()` is `undefined` for the native one. Information only: it may be what you want. The dev entry reports it once per widget when a host mounts (names the host element knows as `on<name>`); sygnal-check reports the literal `events` entries it recognises.
+A widget declares an event whose name the browser also uses (`'change'`, `'input'`, `'select'`, `'toggle'`...). Native events of that name fire on the host or bubble up from inside it (flatpickr's own input fires `change` as well), so a listener on the host gets both the widget's `CustomEvent` and the native event, and `.detail()` is `undefined` for the native one. Information only: it may be what you want. The dev entry reports it once per widget when a host mounts (names the host element knows as `on<name>`); sygnal-check reports the literal `events` entries it recognises. Sygnal's own parts are not reported (`Menu`'s `select` is its documented event, and nothing inside the menu fires a native `select`).
 
 **Fix:** Give the widget's event its own name (`'pick'` for a date picker's selection, `'rate'` for a rating) and emit that, or make the listener handle both (`.filter((e) => e instanceof CustomEvent)`).
 
@@ -2028,9 +2028,9 @@ A browser source or command failed: the user denied the geolocation or clipboard
 
 Severity: `error` · Reported by: the Sygnal runtime (every app, production included)
 
-A module imports one of Sygnal's adapter entries, but a package that entry needs isn't installed. The adapters keep their libraries as optional peer dependencies, so an app that doesn't use them never installs them: `sygnal/react` needs `react` and `react-dom` (or a `preact/compat` alias), `sygnal/zag` needs `@zag-js/vanilla`, and `sygnal/ui/zag` (Menu, Select, Combobox) needs `@zag-js/vanilla`, `@zag-js/menu`, `@zag-js/select` and `@zag-js/combobox`. The `sygnal/vite` plugin reports it when it transforms the importing module, before the bundler fails to resolve the import inside Sygnal's own files with a less helpful message.
+A module imports one of Sygnal's adapter entries, but a package that entry needs isn't installed. The adapters keep their libraries as optional peer dependencies, so an app that doesn't use them never installs them: `sygnal/react` needs `react` and `react-dom` (or a `preact/compat` alias), `sygnal/zag` needs `@zag-js/vanilla`, and `sygnal/ui/menu`, `sygnal/ui/select` and `sygnal/ui/combobox` each need `@zag-js/vanilla` and their own machine (`@zag-js/menu`, `@zag-js/select`, `@zag-js/combobox`). The `sygnal/vite` plugin reports it when it transforms the importing module, before the bundler fails to resolve the import inside Sygnal's own files with a less helpful message.
 
-**Fix:** Install what the message lists: `npm install react react-dom` for `sygnal/react`; `npm install @zag-js/vanilla@1.45 @zag-js/menu@1.45 @zag-js/select@1.45 @zag-js/combobox@1.45` for `sygnal/ui/zag` (the Zag packages must share one version). For Preact, alias `react`, `react-dom` and `react-dom/client` to `preact/compat` (and `preact/compat/client`) in the bundler config.
+**Fix:** Install what the message lists: `npm install react react-dom` for `sygnal/react`; `npm install @zag-js/vanilla@1.45 @zag-js/menu@1.45` for `sygnal/ui/menu` (likewise `@zag-js/select` for `sygnal/ui/select`, `@zag-js/combobox` for `sygnal/ui/combobox`) (the Zag packages must share one version). For Preact, alias `react`, `react-dom` and `react-dom/client` to `preact/compat` (and `preact/compat/client`) in the bundler config.
 
 ### SYG667
 
@@ -2051,6 +2051,16 @@ Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
 An `intersection` or `resize` entry of a component's `browser` declaration has nothing to observe, so its action never comes. Either no DOM source reached the browser driver for the instance (the app runs without a DOM driver, or the declaration was sent from outside a component's `browser` static), or, under `renderComponent(C, { dom: 'real' })`, the entry's selector matches no element the component renders (a typo, or an element rendered only later). The `t.browser` fake still sends its initial report, so the test can pass while the real app observes nothing. Reported once per component, entry and reason.
 
 **Fix:** Run the app with a DOM driver (`run(App, drivers, { mountPoint })`) and declare the entry in the component's own `browser` static. Use a selector the component's own view renders, or `true` for its root element: `cover: { intersection: '.cover', action: 'SEEN' }` with `<img className="cover" />` in the view. Declare the entry only while its element exists: `chart: state.open && { resize: '.chart', action: 'SIZE' }`.
+
+### SYG669
+
+**Sygnal component inside a fromZag render**
+
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+A `fromZag(zag, render)` widget's `render` returned a Sygnal component (`<Badge />`), a widget tag (`<Icon />`, `<Menu />`), or special JSX (`<Transition>`, `<Portal>`, `<Collection>`, `<Switchable>`, `<Suspense>`, `<ClientOnly>`, `<VirtualCollection>`). The adapter patches its render into the widget host with a snabbdom patch of its own, outside the component tree, so none of these run there: a component isn't instantiated, a widget doesn't mount, and a marker renders as an unknown element. Only plain elements (with Zag's prop getters spread on them) work inside the render. Reported once per widget.
+
+**Fix:** Render plain elements in the `render` function (`<span className="badge">{props.text}</span>` instead of `<Badge text={props.text} />`). Pass data in through the widget's props, and put components, widgets and special JSX around the widget tag in the component's view instead of inside it.
 
 ## SYG9xx: Internal
 
@@ -2175,3 +2185,13 @@ Severity: `warn` · Reported by: `sygnal-check`
 A `<label for>`, `aria-describedby` or `aria-labelledby` names an id that no element renders, so the label or description is attached to nothing (often a typo, or an id that was renamed on one side only). A literal id may be rendered anywhere in the checked files; a `uid('x')` reference needs an element in the same component with `id={uid('x')}`. When some id in the project is dynamic (`id={props.id}`), literal references are not checked, and dynamic references never are. It is a warning, also under `--strict`; `--a11y=error` (or `a11y: 'error'` in `check()` and the Vite plugin's `check` options) makes it an error.
 
 **Fix:** Render the target with the same id, or fix the reference. Inside a component, use `uid('x')` on both sides: `<input id={uid('email')} aria-describedby={uid('email-error')} />` and `<p id={uid('email-error')}>`.
+
+### SYG722
+
+**Menu, Select or Combobox without an accessible name**
+
+Severity: `warn` · Reported by: `sygnal-check`
+
+A `<Menu>`, `<Select>` or `<Combobox>` from `sygnal/ui/menu`, `sygnal/ui/select` or `sygnal/ui/combobox` has no `label`, `aria-label` or `aria-labelledby`. The part names its control from them (Menu's trigger text is its `label`; Select's trigger and Combobox's input are labelled by the visible `label`, or take `aria-label` / `aria-labelledby` directly), so without any of them a screen reader announces an unnamed menu button or combobox. A dynamic value or a spread counts as a name; an empty string doesn't. It is a warning, also under `--strict`; `--a11y=error` (or `a11y: 'error'` in `check()` and the Vite plugin's `check` options) makes it an error.
+
+**Fix:** Give it a visible label: `<Select className="size" label="Size" items={SIZES} />`. When the label is elsewhere on the page, point at it with `aria-labelledby="<its id>"`; for an icon-only Menu trigger, use `aria-label="More actions"`.

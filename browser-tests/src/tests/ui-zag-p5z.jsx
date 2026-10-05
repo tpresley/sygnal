@@ -1,10 +1,12 @@
-// PLAN-5 2-Z: the Zag-based UI parts (sygnal/ui/zag: Menu, Select, Combobox, on fromZag) and the
+// PLAN-5 2-Z: the Zag-based UI parts (sygnal/ui/menu, sygnal/ui/select, sygnal/ui/combobox, on fromZag) and the
 // React adapter (sygnal/react) in a real engine (BROWSER=chromium|firefox|webkit), driven by
 // Playwright's trusted pointer and keyboard (window.__pw / __pwInput): roles and accessible
 // names, keyboard navigation, typeahead, selection, filtering (Combobox), Escape / outside
 // click, focus return, controlled values, and Zag's positioning.
 import { run } from 'sygnal'
-import { Menu, Select, Combobox } from 'sygnal/ui/zag'
+import { Menu } from 'sygnal/ui/menu'
+import { Select } from 'sygnal/ui/select'
+import { Combobox } from 'sygnal/ui/combobox'
 import { fromReact } from 'sygnal/react'
 import { createElement as r, useState } from 'react'
 import { mountOnScreen, clearStage, assert, runTest as run_, wait } from '../harness.js'
@@ -263,6 +265,27 @@ export async function uiZagTestsP5Z() {
       await window.__pw('click', `${id} .city [role=option][data-value=Prague]`)
       await until(() => $('.out').textContent === 'Prague', () => $('.out').textContent)
       await until(() => $('.city [data-part=content]').hidden, 'closed')
+    } finally { app.dispose() }
+  })
+
+  // PLAN-5 2-T (G-413): names from aria-label / aria-labelledby props reach the control
+  await runTest('G-413: aria-label / aria-labelledby props name the Combobox input and the Select trigger', async () => {
+    function Named() {
+      return (
+        <div>
+          <h3 id="p5t-dest">Destination</h3>
+          <p id="p5t-hint">Where you go</p>
+          <Combobox className="city" aria-label="Town" aria-describedby="p5t-hint" items={['Paris', 'Prague']} />
+          <Select className="size" aria-labelledby="p5t-dest" items={['S', 'M']} />
+        </div>
+      )
+    }
+    const { id, app, $ } = await mount(Named)
+    try {
+      assert(await role(id, { role: 'combobox', name: 'Town' }) === 1, 'no combobox named "Town"')
+      assert(await role(id, { role: 'combobox', name: 'Destination' }) === 1, 'no combobox named "Destination"')
+      assert(!$('.city').hasAttribute('aria-label') && !$('.size').hasAttribute('aria-labelledby'), 'naming props left on the host')
+      assert($('.city input').getAttribute('aria-describedby') === 'p5t-hint', 'no description on the input')
     } finally { app.dispose() }
   })
 

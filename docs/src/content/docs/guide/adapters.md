@@ -53,14 +53,14 @@ Review.model = {
 }
 ```
 
-The tag renders a host `<div class="rating">` and a React root inside it. Every render passes the newest props to the component (`value`, `max`); `className`, `class`, `id`, `style` and `attrs` stay on the host. When the component calls `onChange(4)`, the adapter dispatches a `rate` event on the host with `4` as its detail. When the host leaves the page, the React root unmounts.
+The tag renders a host `<div class="rating">` and a React root inside it. Every render passes the newest props to the component (`value`, `max`); `className`, `class`, `id`, `style`, `attrs`, `tabIndex`, `role`, `title`, `hidden` and `aria-*` stay on the host and don't reach the component (a focusable or labelled host isn't doubled inside it: no second tab stop or role); list one in `ownProps` to send it to the component instead. When the component calls `onChange(4)`, the adapter dispatches a `rate` event on the host with `4` as its detail. When the host leaves the page, the React root unmounts.
 
 | Option | |
 |---|---|
 | `events` | `{ eventName: 'onCallback' }`: each callback prop becomes a DOM event with that name. An array (`['onChange']`) uses the callback's own name as the event name. The detail is the callback's argument, or an array of them when it gets several. A callback you pass as a prop still runs, first |
 | `props` | `(props) => componentProps`, when the component's props differ from the tag's |
 | `commands` | Element commands, called with `{ root, el, props }` |
-| `tag`, `name`, `fallback`, `hostProps` | As in [`defineWidget`](/guide/widgets/#the-definition) |
+| `tag`, `name`, `fallback`, `hostProps`, `ownProps` | As in [`defineWidget`](/guide/widgets/#the-definition) |
 
 Prefer event names of your own (`'rate'`) to the browser's (`'change'`): the component's own `<input>`s fire native `change` events that bubble out of the host too.
 
@@ -136,7 +136,7 @@ Toolbar.model = {
 ```
 
 - **`zag`** is the machine package as a namespace (`import * as menu from '@zag-js/menu'`): its `machine` and `connect`.
-- **`render(api, props, instance)`** returns one element. `api` is the machine's connected API: spread its prop getters on your elements (`{...api.getTriggerProps()}`); they carry the ARIA attributes, the ids and the event handlers. It runs again whenever the machine's state changes and when the tag gets new props, and the result is patched into the host.
+- **`render(api, props, instance)`** returns one element. `api` is the machine's connected API: spread its prop getters on your elements (`{...api.getTriggerProps()}`); they carry the ARIA attributes, the ids and the event handlers. It runs again whenever the machine's state changes and when the tag gets new props, and the result is patched into the host. Render **plain elements only**: the adapter patches the result itself, outside the component tree, so a Sygnal component, a widget tag or special JSX (`<Transition>`, `<Portal>`, `<Collection>`…) inside it doesn't run. Pass data in through the tag's props, and keep components and widgets around the tag in the view ([SYG669](/reference/errors/#syg669) in dev).
 - **Props** go to the machine as they are (`open`, `value`, `positioning`...), always the newest ones: a controlled prop such as `open={state.menuOpen}` drives the machine. `options.props(props, instance)` maps them when they differ (Select turns `value: 'm'` into Zag's `['m']`).
 - **`events`**: `{ eventName: 'onCallback' }` dispatches the callback's details object; `{ eventName: ['onCallback', (details) => detail] }` dispatches what the function returns.
 - **`commands`**: `{ name: (api, options, instance) => … }` for `ELEMENT`.
@@ -162,15 +162,7 @@ it('stores the rating', async () => {
 })
 ```
 
-To run the React component or the machine itself, use `renderComponent(Review, { dom: 'real' })` (in a jsdom test environment), click with `t.query(...)`, and wait for the state with `t.next`. In jsdom, Zag's positioning and list scrolling need `ResizeObserver`, `CSS.escape` and `Element.prototype.scrollTo`; stub them in a setup file:
-
-```js
-// vitest.setup.js
-globalThis.ResizeObserver ||= class { observe() {} unobserve() {} disconnect() {} }
-globalThis.CSS ||= {}
-CSS.escape ||= (s) => String(s).replace(/[^\w-]/g, (c) => '\\' + c)
-Element.prototype.scrollTo ||= function () {}
-```
+To run the React component or the machine itself, use `renderComponent(Review, { dom: 'real' })` (in a jsdom test environment), click with `t.query(...)`, and wait for the state with `t.next`. Zag's positioning and list scrolling use `ResizeObserver`, `CSS.escape` and `Element.prototype.scrollTo`, which jsdom lacks: while a `dom: 'real'` test runs, `renderComponent` adds the missing ones (a `ResizeObserver` that observes nothing, a `scrollTo` that does nothing) and removes them when the last test instance is disposed. An implementation the environment already has is kept. Outside `renderComponent` (a test that calls `run()` itself), stub them in a setup file.
 
 ## Server rendering
 
@@ -193,5 +185,6 @@ Gzipped, added to a small app:
 |---|---|
 | [SYG666](/reference/errors/#syg666) | An adapter entry is imported, but a package it needs isn't installed (`sygnal/vite`) |
 | [SYG667](/reference/errors/#syg667) | `fromZag` or `fromReact` got something that isn't a machine package or a component |
+| [SYG669](/reference/errors/#syg669) | A `fromZag` render returned a Sygnal component, a widget tag or special JSX, which can't run there (dev) |
 
 The widget codes ([SYG140–144](/guide/widgets/#diagnostics), [SYG660–662](/reference/errors/#syg660)) apply to adapters as to any widget.

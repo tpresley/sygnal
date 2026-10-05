@@ -31,6 +31,8 @@ export interface FromReactOptions<P = any> {
   fallback?: WidgetDefinition['fallback']
   /** More prop names for the host element */
   hostProps?: string[]
+  /** Prop names that stay off the host and go only to the component */
+  ownProps?: string[]
 }
 
 /**

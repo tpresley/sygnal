@@ -255,8 +255,8 @@ export default [
   // (optional peerDependencies: an app that doesn't import the entry never needs them), and their
   // core import becomes the external 'sygnal' (0 B in the core bundle, one core per app).
   // 'sygnal/zag': fromZag (@zag-js/vanilla, a private snabbdom patch).
-  // 'sygnal/ui/zag': Menu, Select, Combobox on fromZag ('../../zag' → the external 'sygnal/zag',
-  // so an app using both ships fromZag once). 'sygnal/react': fromReact (react, react-dom).
+  // 'sygnal/ui/menu', 'sygnal/ui/select', 'sygnal/ui/combobox': the parts on fromZag ('../../zag'
+  // → the external 'sygnal/zag', so an app using several ships fromZag once). 'sygnal/react': fromReact (react, react-dom).
   {
     input: 'src/zag.ts',
     external: (id) => isExternal(id) || id === 'sygnal' || /^@zag-js\//.test(id),
@@ -279,12 +279,14 @@ export default [
 		]
   },
 
-  {
-    input: 'src/ui-zag.ts',
+  // D211: one subpath per Zag part ('sygnal/ui/menu', '…/select', '…/combobox'), so an app installs
+  // only the Zag machine it uses. Each part's shared helpers (src/ui/zag/shared.ts) are inlined.
+  ...['menu', 'select', 'combobox'].map((part) => ({
+    input: `src/ui-${part}.ts`,
     external: (id) => isExternal(id) || /^sygnal(\/zag)?$/.test(id) || /^@zag-js\//.test(id),
     output: [
-      { file: pkg.exports['./ui/zag'].require, format: 'cjs', ...sourcemapOptions },
-      { file: pkg.exports['./ui/zag'].import, format: 'es', ...sourcemapOptions }
+      { file: pkg.exports[`./ui/${part}`].require, format: 'cjs', ...sourcemapOptions },
+      { file: pkg.exports[`./ui/${part}`].import, format: 'es', ...sourcemapOptions }
     ],
 		plugins: [
 			{
@@ -299,7 +301,7 @@ export default [
 			typescript({ tsconfig: './tsconfig.json' }),
 			resolve({ extensions: ['.mjs', '.js', '.ts', '.json'] }),
 		]
-  },
+  })),
 
   {
     input: 'src/react.ts',

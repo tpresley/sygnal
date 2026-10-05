@@ -593,8 +593,10 @@ export interface WidgetDefinition<P = {}, I = unknown, EV extends string = strin
   /**
    * Called once the host is in the document (or on the first client patch after SSR) with the
    * props the view passed. Returns the instance that `update`, `unmount` and `commands` get.
+   * `error(e)` reports a later failure the widget catches itself (a library's own re-render): it
+   * is handled like a throwing `update` (SYG661, the owner's `onError` fallback in its place).
    */
-  mount(el: WidgetElementOf<TAG>, props: P, dispatch: WidgetDispatch<EV>): I;
+  mount(el: WidgetElementOf<TAG>, props: P, dispatch: WidgetDispatch<EV>, error: (e: unknown) => void): I;
   /** Called with the newest props when they change (shallow compare; `style`/`attrs` objects by their entries). Without it, a change remounts. */
   update?(instance: I, props: P, el: WidgetElementOf<TAG>): void;
   /** Called when the host leaves the DOM. */
@@ -611,6 +613,8 @@ export interface WidgetDefinition<P = {}, I = unknown, EV extends string = strin
   fallback?: VNode | string | ((props: P, h: ControlH) => VNode | string);
   /** More prop names to put on the host element as well */
   hostProps?: readonly string[];
+  /** Prop names that stay off the host (the widget applies them itself, e.g. `aria-label` on its own control) */
+  ownProps?: readonly string[];
 }
 
 /**
@@ -2987,7 +2991,9 @@ export interface RenderOptions {
    * `value`, `disabled`, focus, refs and Portals are real. simulateEvent then dispatches a real
    * event on the first element matching any CSS selector (a value/checked init is set on the
    * element first; 'click' runs the default action and skips disabled controls; 'focus'/'blur'
-   * move focus). Read elements with `t.query(sel)` / `t.queryAll(sel)` / `t.container`.
+   * move focus). Read elements with `t.query(sel)` / `t.queryAll(sel)` / `t.container`. While
+   * it runs, what jsdom lacks is added (and removed after): the `<dialog>` and popover methods,
+   * scrollIntoView, and for Zag's machines ResizeObserver, CSS.escape and Element#scrollTo.
    */
   dom?: 'mock' | 'real';
   /**

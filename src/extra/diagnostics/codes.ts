@@ -285,13 +285,15 @@ export const CODE_TITLES: Record<string, string> = {
   SYG663: 'Invalid browser-source spec or command',
   SYG664: 'Browser source not in the driver',
   SYG665: 'Browser source failed with no error action',
-  // PLAN-5 W-2 (D203): the adapter entries (sygnal/react, sygnal/zag, sygnal/ui/zag): SYG666 from
+  // PLAN-5 W-2 (D203): the adapter entries (sygnal/react, sygnal/zag, sygnal/ui/menu|select|combobox): SYG666 from
   // sygnal/vite (an entry imported without its optional peer dependencies), SYG667 thrown by
   // fromZag / fromReact
   SYG666: 'Adapter peer dependency missing',
   SYG667: 'Invalid adapter argument',
   // PLAN-5 2-R (G-383, G-387)
   SYG668: 'Browser source has no element to observe',
+  // PLAN-5 2-T (G-410): Sygnal components / widget tags / special JSX inside a fromZag render
+  SYG669: 'Sygnal component inside a fromZag render',
   // PLAN-4 GS-3: a11y lane (static only, sygnal-check)
   SYG701: 'Click listener on a non-interactive element',
   SYG702: 'Form field without an accessible label',
@@ -301,6 +303,8 @@ export const CODE_TITLES: Record<string, string> = {
   SYG706: 'Positive tabIndex',
   SYG707: 'Unknown ARIA attribute or invalid role',
   SYG708: 'Label or ARIA reference to an id that is not rendered',
+  // PLAN-5 2-T (D211): Zag UI parts (sygnal-check rules/a11y/syg722-ui-name.js)
+  SYG722: 'Menu, Select or Combobox without an accessible name',
   SYG901: "Retired in 6.0: Sub-component sink stream errored",
   SYG902: "Retired in 6.0: EFFECT stream errored",
   SYG903: "Retired in 6.0: Component factory returned invalid sinks",
@@ -411,6 +415,7 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG666: 'error',
   SYG667: 'error',
   SYG668: 'warn',
+  SYG669: 'warn',
   // PLAN-5 V-1: VirtualCollection (checks/virtual.ts, through the core bridge)
   SYG430: 'warn',
   SYG431: 'warn',
@@ -426,6 +431,7 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG706: 'warn',
   SYG707: 'warn',
   SYG708: 'warn',
+  SYG722: 'warn',
 }
 
 export function getCodeInfo(code: string): DiagnosticCodeInfo | undefined {

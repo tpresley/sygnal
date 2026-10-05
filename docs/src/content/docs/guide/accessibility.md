@@ -3,7 +3,7 @@ title: Accessibility
 description: The SYG7xx accessibility checks in sygnal-check and the Vite dev checker
 ---
 
-`sygnal-check` has an accessibility lane, SYG701 to SYG708. It finds the markup mistakes that lock keyboard and screen-reader users out without any visible sign: a clickable `<div>`, a field without a label, an icon button with no name. Like the other checks, it reads your source, so it works the same in the editor, in CI and in the dev server.
+`sygnal-check` has an accessibility lane, SYG701 to SYG708 and SYG722. It finds the markup mistakes that lock keyboard and screen-reader users out without any visible sign: a clickable `<div>`, a field without a label, an icon button with no name. Like the other checks, it reads your source, so it works the same in the editor, in CI and in the dev server.
 
 ## Severity
 
@@ -190,6 +190,30 @@ EmailField.model = { EMAIL: (state, email) => ({ ...state, email, error: email.i
 ```
 
 A `uid('x')` reference needs an element in the same component with `id={uid('x')}`; a literal id may be anywhere in the checked files.
+
+### SYG722: Menu, Select or Combobox without an accessible name
+
+A [Menu](/ui/menu/), [Select](/ui/select/) or [Combobox](/ui/combobox/) without `label`, `aria-label` or `aria-labelledby`. The part names its control from them (Menu's trigger text is its `label`), so without one the menu button or combobox is announced without a name. Give it a visible `label`; when the label is elsewhere, point at it with `aria-labelledby`; for an icon-only menu trigger, use `aria-label`:
+
+```jsx
+import { Select } from 'sygnal/ui/select'
+import { Menu } from 'sygnal/ui/menu'
+
+// Flagged: <Select className="size" items={SIZES} />
+
+function Sizes({ state }) {
+  return (
+    <div>
+      <Select className="size" label="Size" items={['S', 'M', 'L']} value={state.size} />
+      <Menu className="more" label="⋯" aria-label="More actions" items={['Duplicate', 'Delete']} />
+    </div>
+  )
+}
+
+Sizes.initialState = { size: null }
+Sizes.intent = ({ DOM }) => ({ SIZE: DOM.select('.size').events('value-change').detail() })
+Sizes.model = { SIZE: (state, size) => ({ ...state, size }) }
+```
 
 ## ARIA values in JSX
 

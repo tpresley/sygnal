@@ -1,5 +1,5 @@
 // PLAN-5 2-Z (W-2, D209): SYG666. A module that imports an adapter entry (sygnal/react,
-// sygnal/zag, sygnal/ui/zag) without its optional peer dependencies installed is reported by
+// sygnal/zag, sygnal/ui/menu, sygnal/ui/select, sygnal/ui/combobox) without its optional peer dependencies installed is reported by
 // sygnal/vite when it transforms that module, naming what to install. Packaging checks for the
 // adapter entries (exports, optional peers, externals) are in the same file.
 import { describe, it, expect } from 'vitest'
@@ -34,10 +34,15 @@ describe('SYG666 (sygnal/vite)', () => {
       .rejects.toThrow(/\[Sygnal SYG666\] 'sygnal\/react' needs react-dom, which isn't installed: npm install react-dom\..*errors#syg666/)
   })
 
-  it('sygnal/ui/zag lists every missing Zag package', async () => {
+  it('D211: each ui part subpath needs only @zag-js/vanilla and its own machine', async () => {
     const p = plugin()
-    await expect(run(p, "import { Menu } from 'sygnal/ui/zag'", ['@zag-js/vanilla', '@zag-js/menu']))
-      .rejects.toThrow(/'sygnal\/ui\/zag' needs @zag-js\/select, @zag-js\/combobox, which aren't installed: npm install @zag-js\/select@~1\.45\.0 @zag-js\/combobox@~1\.45\.0/)
+    await expect(run(p, "import { Menu } from 'sygnal/ui/menu'", []))
+      .rejects.toThrow(/'sygnal\/ui\/menu' needs @zag-js\/vanilla, @zag-js\/menu, which aren't installed: npm install @zag-js\/vanilla@~1\.45\.0 @zag-js\/menu@~1\.45\.0\./)
+    expect(await run(p, "import { Menu } from 'sygnal/ui/menu'", ['@zag-js/vanilla', '@zag-js/menu'])).toBe(null)
+    await expect(run(p, "import { Select } from 'sygnal/ui/select'", ['@zag-js/vanilla', '@zag-js/menu']))
+      .rejects.toThrow(/'sygnal\/ui\/select' needs @zag-js\/select, which isn't installed: npm install @zag-js\/select@~1\.45\.0\./)
+    await expect(run(p, "import { Combobox } from 'sygnal/ui/combobox'", ['@zag-js/vanilla']))
+      .rejects.toThrow(/'sygnal\/ui\/combobox' needs @zag-js\/combobox/)
   })
 
   it('sygnal/zag (also a dynamic import) without @zag-js/vanilla', async () => {
@@ -54,8 +59,9 @@ describe('SYG666 (sygnal/vite)', () => {
 })
 
 describe('adapter entries packaging (D209)', () => {
-  it('exports sygnal/react, sygnal/zag and sygnal/ui/zag with types', () => {
-    for (const e of ['./react', './zag', './ui/zag']) {
+  it('exports sygnal/react, sygnal/zag and the per-part ui subpaths with types (D211: no sygnal/ui/zag)', () => {
+    expect(pkg.exports['./ui/zag']).toBeUndefined()
+    for (const e of ['./react', './zag', './ui/menu', './ui/select', './ui/combobox']) {
       expect(pkg.exports[e], e).toBeTruthy()
       for (const f of ['types', 'import', 'require']) expect(fs.existsSync(new URL('../' + pkg.exports[e][f], import.meta.url)), `${e} ${f}`).toBe(true)
     }
@@ -72,13 +78,17 @@ describe('adapter entries packaging (D209)', () => {
 
   it('the builds keep the peers and the core external (no Zag or React code inside)', () => {
     const read = (f) => fs.readFileSync(new URL('../dist/' + f, import.meta.url), 'utf8')
-    const zag = read('zag.esm.js'), ui = read('ui-zag.esm.js'), react = read('react.esm.js')
+    const zag = read('zag.esm.js'), react = read('react.esm.js')
     expect(zag).toMatch(/^import \{ VanillaMachine \} from '@zag-js\/vanilla';$/m)
     expect(zag).toMatch(/^import \{ defineWidget \} from 'sygnal';$/m)
     expect(zag).not.toMatch(/class VanillaMachine/)
-    expect(ui).toMatch(/^import \{ fromZag \} from 'sygnal\/zag';$/m)
-    expect(ui).toMatch(/from '@zag-js\/menu'/)
-    expect(ui).not.toMatch(/function fromZag|VanillaMachine/)
+    for (const part of ['menu', 'select', 'combobox']) {
+      const ui = read(`ui-${part}.esm.js`)
+      expect(ui).toMatch(/^import \{ fromZag \} from 'sygnal\/zag';$/m)
+      expect(ui).toMatch(new RegExp(`from '@zag-js/${part}'`))
+      for (const other of ['menu', 'select', 'combobox']) if (other !== part) expect(ui, `${part}: ${other}`).not.toMatch(new RegExp(`@zag-js/${other}`))
+      expect(ui).not.toMatch(/function fromZag|VanillaMachine/)
+    }
     expect(react).toMatch(/^import \{ createRoot \} from 'react-dom\/client';$/m)
     expect(react).not.toMatch(/__SECRET_INTERNALS|ReactCurrentOwner/)
     // the native parts and the core don't reference them

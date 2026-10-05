@@ -36,6 +36,11 @@
  * - Commands: `commands: { open: (api, options, x) => api.setOpen(true) }` (D102 element commands).
  * - The instance (`t.widget(sel).instance` with `dom: 'real'`) is `x`: `{ el, api(), machine,
  *   refresh() }` plus whatever the part keeps on it.
+ * - Errors (G-409): a render that throws while the widget mounts stops the machine and is SYG660;
+ *   on a later, machine-driven redraw it stops the machine and goes to the widget's error path
+ *   (mount's `error`): SYG661 and the owner's onError fallback in its place.
+ * - The render is plain elements only (G-410): it is patched outside the component tree, so a
+ *   Sygnal component, a widget tag or special JSX inside it can't run (SYG669 in dev).
  * - Wrong arguments throw SYG667 when the widget is defined.
  *
  * Separate entry: rollup turns './index' into the external 'sygnal' and keeps snabbdom and
@@ -88,8 +93,28 @@ const fail = (m: string): never => {
 
 let ids = 0
 
-function start(zag: any, render: any, o: any, el: any, p0: any, dispatch: any): any {
-  let props = p0, memo: any, on = 1, busy = 0, again = 0
+// snabbdom's destroy pass over a rendered tree, without removing it from the DOM (G-412)
+const release = (v: any) => {
+  const d = v?.data
+  if (d) { d.hook?.destroy?.(v); (eventListenersModule.destroy as any)(v) }
+  v?.children?.forEach(release)
+}
+
+// G-410 (dev only): what a render must not contain: a component (data.c), a widget tag, special JSX
+const SPECIAL: any = {transition: 'Transition', portal: 'Portal', collection: 'Collection', switchable: 'Switchable',
+  suspense: 'Suspense', clientonly: 'ClientOnly', 'virtual-collection': 'VirtualCollection'}
+const foreign = (v: any, out: string[]): string[] => {
+  if (!v || typeof v != 'object') return out
+  if (Array.isArray(v)) { v.forEach(c => foreign(c, out)); return out }
+  const d = v.data
+  let t = d?.c ? v.sel : v.sel == 'widget' && d?.ww ? d.ww.def.name || 'widget' : d?.props && SPECIAL[v.sel]
+  if (t) out.includes(t = '<' + t + '>') || out.push(t)
+  return foreign(v.children, out)
+}
+
+function start(zag: any, render: any, o: any, el: any, p0: any, dispatch: any, error: any, w: any): any {
+  // live: 0 while start() runs (a throwing draw throws: SYG660), then 1 (it goes to error: SYG661)
+  let props = p0, memo: any, on = 1, busy = 0, again = 0, live = 0
   let vn: any = el.appendChild(document.createElement('div'))
   const id = p0.id ?? 'sygnal-zag-' + ++ids
   // the instance (the part's per-instance fields too); the props mapping gets it from the start
@@ -126,9 +151,22 @@ function start(zag: any, render: any, o: any, el: any, p0: any, dispatch: any): 
       do {
         again = 0
         const out = render(api(), props, x)
+        const dev = (globalThis as any).__SYGNAL_DIAGNOSTICS__?.widget
+        if (dev) { const f = foreign(out, []); f.length && dev(669, w(), undefined, f) }
         vn = patch(vn, Array.isArray(out) ? h('div', {style: {display: 'contents'}}, out) : out || h('!', ''))
       } while (again && on)
+    } catch (e) {
+      // G-409: the machine stops; a machine-driven redraw (an event handler, a watcher) hands the
+      // error to the widget (SYG661 + the owner's onError fallback) instead of throwing into Zag
+      halt()
+      if (!live) throw e
+      error(e)
     } finally { busy = 0 }
+  }
+  const halt = () => {
+    if (!on) return
+    on = 0
+    try { m.stop() } catch (_) {}
   }
   Object.assign(x, {
     machine: m,
@@ -139,14 +177,17 @@ function start(zag: any, render: any, o: any, el: any, p0: any, dispatch: any): 
       if (!on) return
       on = 0
       m.stop()
-      // the rendered content's destroy hooks (refs in the render) run; the host is leaving anyway
-      vn = patch(vn, h('!', ''))
+      // G-412: the content stays (a <Transition> leave animates the host with it); its destroy
+      // hooks run (refs in the render) and its listeners come off, as a patch to nothing would do
+      release(vn)
     },
   })
   m.subscribe(draw)
   draw()
-  m.start()
+  // G-409: a start() or second draw that throws leaves no running machine (then SYG660)
+  try { m.start() } catch (e) { halt(); throw e }
   draw()
+  live = 1
   return x
 }
 
@@ -156,21 +197,25 @@ function start(zag: any, render: any, o: any, el: any, p0: any, dispatch: any): 
  * renders its parts with the prop getters spread (`<button {...api.getTriggerProps()}>`).
  * Options: `events` (dispatched name → Zag callback, or [callback, details → detail]), `props`
  * ((widgetProps, x) → machine props), `commands` ((api, options, x) → …), and defineWidget's
- * `tag`, `name`, `fallback`, `hostProps`.
+ * `tag`, `name`, `fallback`, `hostProps`, `ownProps`.
  */
 export function fromZag(zag: any, render: any, options: any = {}): any {
   if (!zag || !zag.machine || typeof zag.connect != 'function') fail('fromZag(zag, render): the first argument is not a Zag machine package (import * as menu from \'@zag-js/menu\')')
   if (typeof render != 'function') fail('fromZag(zag, render): render must be a function (api, props) => vnode')
   const o = options, commands: any = {}
+  let tag: any
   for (const c in o.commands) commands[c] = (x: any, opt: any) => o.commands[c](x.api(), opt, x)
-  return defineWidget({
+  return tag = defineWidget({
     tag: o.tag,
     name: o.name,
     fallback: o.fallback,
     hostProps: o.hostProps,
+    ownProps: o.ownProps,
+    // D211: a first-party part (sygnal/ui/menu…): its event names are documented, no SYG144
+    $own: o.$own,
     events: Object.keys(o.events || {}),
     commands,
-    mount: (el: any, p: any, dispatch: any) => start(zag, render, o, el, p, dispatch),
+    mount: (el: any, p: any, dispatch: any, error: any) => start(zag, render, o, el, p, dispatch, error, () => tag),
     update: (x: any, p: any) => x.set(p),
     unmount: (x: any) => x.stop(),
   })

@@ -1,12 +1,12 @@
 ---
 title: Combobox
-description: An accessible autocomplete input (WAI-ARIA combobox) from sygnal/ui/zag, built on the Zag.js combobox machine
+description: An accessible autocomplete input (WAI-ARIA combobox) from sygnal/ui/combobox, built on the Zag.js combobox machine
 ---
 
 `Combobox` is a text input with a list of suggestions that narrows as the user types, following the [WAI-ARIA combobox pattern](https://www.w3.org/WAI/ARIA/apg/patterns/combobox/). Keyboard handling and the active option come from [Zag.js](https://zagjs.com)'s combobox machine, rendered with [`fromZag`](/guide/adapters/#zag-machines-fromzag). It is a [widget](/guide/widgets/) tag.
 
 ```jsx
-import { Combobox } from 'sygnal/ui/zag'
+import { Combobox } from 'sygnal/ui/combobox'
 
 const CITIES = ['Amsterdam', 'Berlin', 'Lisbon', 'London', 'Paris', 'Prague']
 
@@ -30,7 +30,7 @@ Trip.model = {
 
 Typing `lo` leaves London in the list; Down and Enter pick it, the input shows "London", and `value-change` sends `'London'`.
 
-Install Zag's packages first (see [Menu](/ui/menu/#install)).
+Install Zag's packages first: `npm install @zag-js/vanilla@~1.45.0 @zag-js/combobox@~1.45.0` (see [Menu](/ui/menu/#install)).
 
 ## Filtering
 
@@ -40,7 +40,7 @@ By default the list shows the items whose label contains the text, ignoring case
 - `filter={false}` turns it off: the app passes the items to show, from the `input-change` event. Use it for server-side search (with [`makeFetchDriver`](/guide/http/)):
 
 ```jsx
-import { Combobox } from 'sygnal/ui/zag'
+import { Combobox } from 'sygnal/ui/combobox'
 
 function Search({ state }) {
   return <Combobox className="user" label="User" items={state.matches} filter={false} placeholder="Search users" />
@@ -62,6 +62,7 @@ Search.model = {
 | Prop | | |
 |---|---|---|
 | `label` | | The visible label, linked to the input (its accessible name). Give every combobox one |
+| `aria-label`, `aria-labelledby`, `aria-describedby` | | Name or describe the input when there is no visible `label` (or in addition to it); they go on the input, not the host |
 | `items` | (required) | Strings, or `{ value, label, disabled }` objects |
 | `value` | | Controlled: the value (an array with `multiple`); `null` for none |
 | `defaultValue` | | The start value when `value` is left out |
@@ -73,7 +74,8 @@ Search.model = {
 | `selectionBehavior` | `'replace'` | What the input shows after a pick: `'replace'` (the label), `'clear'`, or `'preserve'` (the typed text). With `multiple`: `'clear'` |
 | `closeOnSelect` | `true` | With `multiple`: `false` |
 | `loopFocus` | `true` | The arrow keys wrap |
-| `multiple`, `name`, `form`, `disabled`, `readOnly`, `required`, `invalid`, `positioning`, `open` | | As in Zag's combobox |
+| `name` | | The form field: hidden inputs submit the value (one per value with `multiple`), not the label the input shows |
+| `multiple`, `form`, `disabled`, `readOnly`, `required`, `invalid`, `positioning`, `open` | | As in Zag's combobox |
 
 ## Events and commands
 
@@ -98,6 +100,10 @@ Commands for `ELEMENT`: `open`, `close`, `clear`, and `focus` (the input).
 ## Styling
 
 Zag's data attributes: `[data-scope="combobox"]` with `[data-part="root"]`, `"label"`, `"control"`, `"input"`, `"trigger"`, `"positioner"`, `"content"`, `"item"`, `"item-text"` and `"item-indicator"`; `data-state`, `data-highlighted` and `data-disabled` as for [Select](/ui/select/#styling).
+
+## Positioning
+
+The listbox renders inside the widget's host, next to the input, and Zag positions it with `position: absolute` (the `--x` / `--y` variables on the positioner). Inside a container that clips its content (`overflow: hidden` or `auto`: a card, a scrolling panel, a table cell), the open listbox is cut off at the container's edge. Pass `positioning={{ strategy: 'fixed' }}` there: the positioner is then placed relative to the viewport and escapes the clipping (it still follows the input when the page scrolls; an ancestor with a `transform`, `filter` or `contain` still clips it). Other options go in the same object: `positioning={{ placement: 'bottom-end', gutter: 4, strategy: 'fixed' }}`.
 
 ## Testing
 

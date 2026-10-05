@@ -61,6 +61,7 @@ Task.model = {
 | `commands` | Element commands, called with the instance: `open: (picker, options) => picker.open()`. |
 | `fallback` | What [server rendering](#server-rendering) puts inside the host. |
 | `hostProps` | More prop names to put on the host element. |
+| `ownProps` | Prop names that stay off the host although they would go there (the widget applies them itself, e.g. `aria-label` on its own control). |
 | `name` | A name for diagnostics (`'DatePicker'`). |
 
 **The host is the widget's.** Sygnal renders the host element and never its content: the widget can add, move and remove elements inside it, and a re-render doesn't touch them. Children passed to the tag are ignored.
@@ -132,7 +133,7 @@ A widget works inside a [`<Portal>`](/advanced/portals/), and unmounts when the 
 
 ## Transitions
 
-A widget inside a [`<Transition>`](/advanced/transitions/) gets the enter and leave classes on its host. `unmount` runs when the leave starts, while the host fades out.
+A widget inside a [`<Transition>`](/advanced/transitions/) gets the enter and leave classes on its host. `unmount` runs when the leave starts, while the host fades out: leave the content in place there and stop only what runs (the adapters do: `fromZag` stops its machine and keeps the rendered parts, `fromReact` unmounts its React root once the host is gone).
 
 ## Testing
 

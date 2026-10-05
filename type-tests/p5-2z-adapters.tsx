@@ -1,13 +1,15 @@
 /**
  * PLAN-5 2-Z: types for the adapter entries: fromZag (sygnal/zag), Menu / Select / Combobox
- * (sygnal/ui/zag), fromReact (sygnal/react). Their results are widget tags (Widget), so they
+ * (sygnal/ui/menu, sygnal/ui/select, sygnal/ui/combobox), fromReact (sygnal/react). Their results are widget tags (Widget), so they
  * render as JSX tags with their props plus the host props, and work as controls.
  */
 import { controls } from 'sygnal'
 import type { Widget } from 'sygnal'
 import { fromZag, zagProps } from 'sygnal/zag'
 import type { ZagInstance, ZagElementProps } from 'sygnal/zag'
-import { Menu, Select, Combobox } from 'sygnal/ui/zag'
+import { Menu } from 'sygnal/ui/menu'
+import { Select } from 'sygnal/ui/select'
+import { Combobox } from 'sygnal/ui/combobox'
 import { fromReact } from 'sygnal/react'
 import type { ReactInstance } from 'sygnal/react'
 import * as menu from '@zag-js/menu'
@@ -51,7 +53,7 @@ const bad = <Select className="size" label="Size" />
 // @ts-expect-error: not an inputBehavior
 const bad2 = <Combobox className="c" items={[]} inputBehavior="nope" />
 void m; void s; void sm; void c; void c2; void bad; void bad2
-expectType<Equal<typeof Menu, Widget<import('sygnal/ui/zag').MenuProps, ZagInstance, 'select' | 'open-change'>>>()
+expectType<Equal<typeof Menu, Widget<import('sygnal/ui/menu').MenuProps, ZagInstance, 'select' | 'open-change'>>>()
 const { Size } = controls({ Size: Select })
 void Size
 
