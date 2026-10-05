@@ -386,6 +386,14 @@ export class Inst {
     return (this.outv = this.parent ? this.app.scopeValue(this.parent, 'DOM', v, this) : v)
   }
 
+  /**
+   * G-319 (a hidden Switchable page, or below one): no render, but its Collections follow their
+   * arrays, so removed items stop and new ones start (statics, replies) while hidden
+   */
+  sync() {
+    if (!this.disposed) for (const k of this.kids.values()) k.sync?.()
+  }
+
   /** calls the view with one argument (D164); the onError boundary */
   view(state: any, ctx: any) {
     const def = this.def

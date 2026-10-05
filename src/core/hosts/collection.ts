@@ -234,13 +234,22 @@ export class CollectionHost {
     return keys
   }
 
-  render(): any {
-    if (this.disposed) return this.outv
-    // G-311: after a render that threw, every container is made again once
+  /**
+   * G-319: on a hidden Switchable page (no render): the items follow the array (removed ones are
+   * disposed, new ones created, so their background statics and replies run), with no view call
+   */
+  sync() {
+    if (this.disposed) return
+    this.items_()
+    for (const i of this.shown) i.sync()
+  }
+
+  /** the item instances for the current array, filter and sort; true when the list changed */
+  items_(): boolean {
+    if (!this.index) return false
     const app = this.owner.app
-    let changed = !this.outv || this.ep !== app.ep
-    this.ep = app.ep
-    if (this.index) {
+    let changed = false
+    {
       const [a, m] = this.index()
       const {filter, sort} = this.props
       if (a !== this.la || filter !== this.lf || sort !== this.ls) {
@@ -258,10 +267,20 @@ export class CollectionHost {
           }
           shown.push(inst)
         }
-        if (!changed && (shown.length != this.shown.length || shown.some((s, i) => s !== this.shown[i]))) changed = true
+        if (shown.length != this.shown.length || shown.some((s, i) => s !== this.shown[i])) changed = true
         this.shown = shown
       }
     }
+    return changed
+  }
+
+  render(): any {
+    if (this.disposed) return this.outv
+    // G-311: after a render that threw, every container is made again once
+    const app = this.owner.app
+    let changed = !this.outv || this.ep !== app.ep
+    this.ep = app.ep
+    if (this.items_()) changed = true
     const shown = this.shown, out: any[] = Array(shown.length)
     let j = 0
     for (let i = 0; i < shown.length; i++) {

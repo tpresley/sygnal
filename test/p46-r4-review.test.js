@@ -2,7 +2,7 @@
 // PLAN-4.6 R4: fixes of the R3 review's findings (G-318...G-323), on the next core. Each test is a
 // behaviour both cores meet (the current core is the oracle), unless it says otherwise.
 import { describe, it, expect, afterEach } from 'vitest'
-import { run, createElement as h, Portal } from '../src/index.js'
+import { run, createElement as h, Portal, xs, Collection, Switchable } from '../src/index.js'
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 let apps = []
@@ -32,5 +32,39 @@ describe('G-318: a Portal first reached by a patch (not an insert) mounts', () =
     expect(document.querySelector('#modal .hi')?.textContent).toBe('hi')
     // (switching back to the plain div patches the placeholder div in place: its content stays
     // in the target on both cores, an inherited limit of the placeholder being a div)
+  })
+})
+
+/** a connections driver that logs declarations ([decl, sender, names]) and stopped replies ([stop, sender]) */
+function recDriver(log) {
+  return (sink$) => {
+    sink$.addListener({ next: (v) => log.push(['decl', v.__emitterId, Object.keys(v.connections || {}).join()]) })
+    const src = { __sygnalStatic: 'connections', __sygnalReplies: true,
+      replies: (id) => xs.create({ start: () => {}, stop: () => log.push(['stop', id]) }),
+      isolateSource: () => src, isolateSink: (s$) => s$, isolateValue: (v) => v }
+    return src
+  }
+}
+
+describe('G-319: a Collection on a hidden Switchable page follows its array', () => {
+  it('removed rows stop and new rows declare their background statics while the page is hidden', async () => {
+    document.body.innerHTML = '<div id="root"></div>'
+    const log = []
+    function Item({ state }) { return h('li', null, String(state.id)) }
+    Item.connections = (s) => ({ ['c' + s.id]: { socket: '/i/' + s.id, background: true } })
+    function List() { return h('ul', null, h(Collection, { of: Item, from: 'rows' })) }
+    function Other() { return h('p', null, 'other') }
+    function App({ state }) { return h('div', null, h('button', { className: 'sw' }, 's'), h('button', { className: 'del' }, 'd'), h(Switchable, { of: { list: List, other: Other }, current: state.cur })) }
+    App.initialState = { cur: 'list', rows: [{ id: 1 }, { id: 2 }] }
+    App.intent = ({ DOM }) => ({ SW: DOM.click('.sw'), DEL: DOM.click('.del') })
+    App.model = { SW: (s) => ({ ...s, cur: s.cur == 'list' ? 'other' : 'list' }), DEL: (s) => ({ ...s, rows: [{ id: 2 }, { id: 3 }] }) }
+    start(App, { SOCK: recDriver(log) })
+    await sleep(40)
+    click('.sw'); await sleep(40)
+    const n = log.length
+    click('.del'); await sleep(40)
+    const hidden = log.slice(n)
+    expect(hidden.filter(e => e[0] == 'stop')).toHaveLength(1)
+    expect(hidden.some(e => e[0] == 'decl' && e[2] == 'c3')).toBe(true)
   })
 })
