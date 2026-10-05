@@ -17,13 +17,19 @@
  * (G-407: the clicked trigger, recorded by OPEN), else the trigger; a selector names another
  * element; false: leave it to the browser).
  * State: { open, returnValue }. Actions: OPEN, CLOSE (data: the returnValue), CLOSED (the close
- * event's returnValue), TOGGLED (from the toggle event), CANCEL (Escape: a host entry can react),
+ * event's returnValue), TOGGLED (from the toggle event), CANCEL (Escape: a host entry can react;
+ * the cancel event, or with cancelable: false the Escape keydown in the dialog (G-429): closedby
+ * "none" stops the cancel event, and OPEN removes the attribute again when the dialog closes),
  * SYNC (G-400: the dialog left the page while open: `open: false`).
  * G-400: OPEN / CLOSE send commands that check the dialog itself (showModal only on a closed
  * one, close only on an open one), so a state that is out of step can't block them.
  */
-import {ABORT, defineBehavior} from '../index'
+import {ABORT, defineBehavior, xs} from '../index'
 import {gone, on} from './shared'
+
+// G-429: Escape in this dialog (not in a dialog nested in it, nor with a popover open inside it:
+// Escape closes that first)
+const esc = (e: any) => e.key == 'Escape' && !e.isComposing && e.target?.closest?.('dialog') == e.ownerTarget && !e.ownerTarget?.querySelector?.(':popover-open')
 
 // the focus went nowhere: body, a detached element, or inside a dialog that just closed
 const lost = () => {
@@ -42,7 +48,12 @@ const base = /*#__PURE__*/ defineBehavior({
     ...(close && {CLOSE: DOM.click(close).mapTo('')}),
     TOGGLED: DOM.toggle(d).map((e: any) => e.newState == 'open'),
     CLOSED: DOM.close(d).map((e: any) => e.target?.returnValue ?? ''),
-    CANCEL: DOM.select(d).events('cancel', {preventDefault: cancelable === false}),
+    // G-429: with cancelable: false the dialog has closedby="none", so Escape fires no cancel
+    // event: CANCEL is the Escape keydown (the cancel event, which a browser without closedby
+    // still fires, is only prevented)
+    CANCEL: cancelable === false
+      ? xs.merge(DOM.select(d).events('cancel', {preventDefault: true}).filter(() => false), DOM.select(d).events('keydown').filter(esc))
+      : DOM.select(d).events('cancel'),
     ...(STATE && {SYNC: gone(DOM, STATE, d, (e: any) => e.open)}),
   }),
   model: {
@@ -55,7 +66,11 @@ const base = /*#__PURE__*/ defineBehavior({
           // G-407: who opened it: the clicked trigger, else the element with the focus
           const a = document.activeElement
           el._opener = by?.nodeType == 1 ? by : a != document.body ? a : null
-          if (o.cancelable === false && !el.hasAttribute('closedby')) el.setAttribute('closedby', 'none')
+          if (o.cancelable === false && !el.hasAttribute('closedby')) {
+            el.setAttribute('closedby', 'none')
+            // G-429: only while open (the attribute is the behavior's, not the host's)
+            el.addEventListener('close', () => el.removeAttribute('closedby'), {once: true})
+          }
           el[m]()
         })}
       },
