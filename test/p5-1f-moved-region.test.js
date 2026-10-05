@@ -116,3 +116,34 @@ describe('G-356: a region moved out of the app', () => {
     expect(errors).toEqual([])
   })
 })
+
+// PLAN-5 1-S G-381: a __sygnalHome cycle (a home inside the moved element, or two elements naming
+// each other) no longer loops forever (getRootElement) or overflows the stack (bubbling): a home
+// is followed only when it isn't inside the element, and at most 99 times per walk / event
+describe('G-381: __sygnalHome cycles', () => {
+  function Box({ state }) {
+    return h('div', { className: 'box' },
+      h('section', { className: 'a', hook: state.self ? { insert: (v) => { v.elm.__sygnalHome = v.elm.querySelector('.in') } } : undefined },
+        h('button', { className: 'in' }, 'in')),
+      h('section', { className: 'b', hook: state.self ? undefined : { insert: (v) => { const a = v.elm.parentNode.querySelector('.a'); a.__sygnalHome = v.elm; v.elm.__sygnalHome = a } } },
+        h('button', { className: 'other' }, 'other')))
+  }
+  Box.intent = ({ DOM }) => ({ IN: DOM.click('.in'), OTHER: DOM.click('.other'), BOX: DOM.click('.box') })
+  Box.model = { IN: (s) => ({ ...s, n: s.n + 1 }), OTHER: (s) => ({ ...s, n: s.n + 10 }), BOX: (s) => ({ ...s, box: s.box + 1 }) }
+
+  it('a home inside the element is not followed (it bubbles to the parent)', async () => {
+    t = renderComponent(Box, { dom: 'real', initialState: { self: true, n: 0, box: 0 } }); await t.ready()
+    expect(() => t.simulateEvent('.in', 'click')).not.toThrow()
+    await t.settle()
+    expect(t.state.n).toBe(1)
+    expect(t.state.box).toBe(1)
+  })
+
+  it('two elements naming each other: the walk ends', async () => {
+    t = renderComponent(Box, { dom: 'real', initialState: { self: false, n: 0, box: 0 } }); await t.ready()
+    expect(() => t.simulateEvent('.in', 'click')).not.toThrow()
+    expect(() => t.simulateEvent('.other', 'click')).not.toThrow()
+    await t.settle()
+    expect(t.state.n).toBe(11)
+  })
+})

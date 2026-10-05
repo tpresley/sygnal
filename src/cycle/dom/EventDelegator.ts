@@ -1,6 +1,6 @@
 import xs, {Stream, Subscription} from 'xstream';
 import {ScopeChecker} from './ScopeChecker';
-import {IsolateModule} from './IsolateModule';
+import {IsolateModule, upOf} from './IsolateModule';
 import {getSelectors, isEqualNamespace} from './utils';
 import {ElementFinder} from './ElementFinder';
 import {EventsFnOptions} from './DOMSource';
@@ -448,8 +448,8 @@ export class EventDelegator {
     }
 
     // G-356: a moved element bubbles to its home (an element of its component), not to the
-    // element it was moved into
-    const up = ((elm as any).__sygnalHome || elm.parentNode) as Element;
+    // element it was moved into (G-381: upOf counts the homes on the event)
+    const up = upOf(elm, event) as Element;
     let newRoot: Element | undefined = rootElement;
     let newIndex = index;
     let newListeners = listeners;
