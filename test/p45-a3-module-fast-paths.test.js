@@ -29,7 +29,9 @@ describe('P45-A: DOM module fast paths', () => {
       selectModule.update(vnode(sel, props), vnode(sel, props, elm))
       controlledInputModule.update(vnode(sel, props), vnode(sel, props, elm))
       selectModule.post()
-      expect(touched, sel).toEqual([])
+      // PLAN-5 D196: a hyphenated tag's element is asked whether it is form-associated (its
+      // constructor), and nothing else when it isn't
+      expect(touched.filter(k => !(sel.includes('-') && k === 'constructor')), sel).toEqual([])
     }
   })
 

@@ -20,8 +20,8 @@ const createTextElement = (text: any): any => is.text(text) ? new (Plain as any)
 // A tag whose tree isn't plain: a form field (a superset of isField: a re-run view with the same
 // output keeps its last vnode (P46-P sameTree), which would skip the controlled-input module's
 // re-sync of the DOM value) or a host the view walk knows by its string tag (<collection>,
-// <switchable>)
-const FIELD = /^(input|textarea|select)/i
+// <switchable>). D196: a custom element (a hyphenated tag) may be a form-associated field
+const FIELD = /^(input|textarea|select)|-/i
 // P46-P: by tag: 1 a form field (FIELD: a prefix), 4 a host (<collection>, <switchable>), 2 an SVG
 // tag. G-350: keyed by the tag part of the selector (before its first '#' or '.'), so dynamic
 // selectors (`li#row-${id}`) don't grow it. A selector with an id or class keeps only bit 1, as
