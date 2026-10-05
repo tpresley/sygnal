@@ -521,9 +521,22 @@ type ElementSinkValue =
 
 - The first key of a command is the method; the other keys are its options, passed as one object (`close` gets `returnValue`). Any other method the element has also runs; add it to the `ElementCommandRegistry` interface for TypeScript.
 - A control made from a spec object with `commands` is asked first: `{ open: DueDate }` calls `spec.commands.open(element, options)`.
-- The target is looked up in the sending instance's own view (children and Collection items are isolated). The command runs after the next patch at which the target exists; it gives up after about 1 s ([SYG640](/reference/errors/#syg640)). An unknown or DOM-mutating method is [SYG641](/reference/errors/#syg641).
+- The target is looked up in the sending instance's own view (children and Collection items are isolated); [`focusWithin(selector)`](#focuswithin) reaches inside them. The command runs after the next patch at which the target exists; it gives up after about 1 s ([SYG640](/reference/errors/#syg640)). An unknown or DOM-mutating method is [SYG641](/reference/errors/#syg641).
 - An array runs its commands in order; `ABORT` sends nothing. Nothing runs during server rendering.
 - In tests: `t.commands('ELEMENT')` lists the commands sent; with `dom: 'real'` they also run.
+
+---
+
+## focusWithin()
+
+An `ELEMENT` focus target that reaches inside the sender's children (PLAN-5). [Guide](/guide/element-commands/#focusing-inside-children-focuswithin).
+
+```typescript
+function focusWithin(selector: string): WithinTarget
+// ELEMENT: { focus: focusWithin('.title'), preventScroll?: boolean }
+```
+
+Focuses the first element under the sender's root element that matches `selector` (a child component's or a Collection item's included), with the command's options. It runs after the next patch, so an item the same action adds is there; no match does nothing (`renderComponent()` reports [SYG640](/reference/errors/#syg640) when nothing in the view matches).
 
 ---
 

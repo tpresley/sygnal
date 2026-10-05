@@ -575,7 +575,7 @@ type RegisteredElementCommand = {
  * names (a spec's commands, `play`, `reset`...) in `ElementCommandRegistry`.
  */
 export type ElementCommand =
-  | { focus: ElementTarget; preventScroll?: boolean; focusVisible?: boolean }
+  | { focus: ElementTarget | WithinTarget; preventScroll?: boolean; focusVisible?: boolean }
   | { blur: ElementTarget }
   | { select: ElementTarget }
   | { click: ElementTarget }
@@ -587,6 +587,23 @@ export type ElementCommand =
   | { hidePopover: ElementTarget }
   | { togglePopover: ElementTarget; force?: boolean }
   | RegisteredElementCommand
+
+/** A `focusWithin(selector)` target (D194): `{ focus: focusWithin('.title') }`. */
+export interface WithinTarget {
+  /** The selector, searched under the sender's root element (children included). */
+  readonly within: string
+}
+
+/**
+ * An ELEMENT target that reaches inside the sender's children (PLAN-5 D194): `{ focus:
+ * focusWithin(selector), ...options }` focuses the first element under the sender's root element
+ * that matches `selector`, a child component's or a Collection item's included (a plain `{ focus:
+ * '.x' }` stays in the sender's own isolated scope). It runs after the next patch, so an item the
+ * same action adds is there. No match: nothing happens.
+ *
+ *   ADD: { STATE: addRow, ELEMENT: (s) => ({ focus: focusWithin(`[data-id="${s.next}"] .title`) }) }
+ */
+export function focusWithin(selector: string): WithinTarget
 
 /** What the `ELEMENT` sink takes: one command or several (run in order). */
 export type ElementCommands = ElementCommand | readonly ElementCommand[]

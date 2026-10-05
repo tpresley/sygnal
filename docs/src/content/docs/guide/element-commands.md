@@ -76,6 +76,44 @@ Methods that change the DOM Sygnal renders (`remove`, `append`, `setAttribute` a
 
 The target is looked up in the view of the **component instance that sent the command**, the same scope its intent's `DOM` has. An element inside a child component is isolated from its parent, and each item of a [Collection](/guide/collections/) reaches only its own elements. To focus or scroll something a child renders, send the command from the child's own model. If more than one element matches, the first one gets the command.
 
+### Focusing inside children: `focusWithin`
+
+To focus an element a child renders (a field of a child form, the input of a Collection item the same action adds), use `focusWithin(selector)` as the target. It looks for `selector` anywhere under the sender's root element, children included, and focuses the first match with the command's options:
+
+```jsx
+import { Collection, focusWithin } from 'sygnal'
+
+function Row({ state }) {
+  return (
+    <li data-id={state.id}>
+      <input className="title" aria-label="Title" value={state.title} />
+    </li>
+  )
+}
+Row.intent = ({ DOM }) => ({ TITLE: DOM.input('.title').value() })
+Row.model = { TITLE: (state, title) => ({ ...state, title }) }
+
+export function Checklist({ state }) {
+  return (
+    <div>
+      <button className="add">Add item</button>
+      <ul><Collection of={Row} from="rows" /></ul>
+    </div>
+  )
+}
+Checklist.initialState = { rows: [], next: 1 }
+Checklist.intent = ({ DOM }) => ({ ADD: DOM.click('.add') })
+Checklist.model = {
+  ADD: {
+    STATE: (state) => ({ ...state, rows: [...state.rows, { id: state.next, title: '' }], next: state.next + 1 }),
+    // the new row renders in the same patch, before the command runs
+    ELEMENT: (state) => ({ focus: focusWithin(`[data-id="${state.next}"] .title`) }),
+  },
+}
+```
+
+The reducer for `ELEMENT` sees the state before the action, so `state.next` is the new row's id. Prefer the child's own model when the child decides; `focusWithin` is for a parent that does (adding a row, submitting a form whose fields are child components). If nothing matches, nothing happens; `renderComponent()` reports [SYG640](/reference/errors/#syg640) when nothing in the view, children included, matches.
+
 ## When it runs
 
 A command runs once the render that its action may cause is on the page, so it reaches an element that the same action renders (the error message under a field, a new row, a dialog that a state flag adds):

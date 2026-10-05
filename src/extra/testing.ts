@@ -1392,11 +1392,13 @@ export function renderComponent(
     const m = Object.keys(cmd)[0], target = cmd[m];
     if (m === undefined) return;
     if (!target?.spec?.commands?.[m] && !elementHas(target, m)) return reportElementCommand(c, cmd, {});
-    const sel = target == null ? '' : String(target);
+    // D194: focusWithin(selector) looks under the sender's root, children included
+    const within = target?.within, sel = within ?? (target == null ? '' : String(target));
     const id = setTimeout(() => {
       commandTimers.delete(id);
       if (disposed || (sel && !tryParse(sel))) return;
-      if (!sel || !vtree || !probe(sel, scopeOf(c) || undefined).own) reportElementCommand(c, cmd);
+      const p = sel && vtree && probe(sel, scopeOf(c) || undefined);
+      if (!p || !(p.own || (within != null && p.child))) reportElementCommand(c, cmd);
     }, 1e3);
     commandTimers.add(id);
   };
