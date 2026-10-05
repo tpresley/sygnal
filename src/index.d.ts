@@ -1062,10 +1062,10 @@ export interface SortableState {
   message: string;
   /** A `uid()` id for the instructions element the handles' `aria-describedby` names, unique per host (null until the first focus, press or key inside the host) */
   helpId: string | null;
-  /** Internal: the pointer press before the threshold */
-  press: { id: string; x: number; y: number } | null;
-  /** Internal: where the item started */
-  origin: { list: string; index: number } | null;
+  /** Internal: the pointer press before the threshold (`n`: the instance that started it) */
+  press: { id: string; x: number; y: number; n: number } | null;
+  /** Internal: where the item started (`n`: a keyboard drag's instance) */
+  origin: { list: string; index: number; n?: number } | null;
 }
 export interface SortableOptions {
   /** The host state key of the list; an array of keys allows moves between lists (each container marked `data-list="<key>"`) */
@@ -1104,7 +1104,11 @@ export interface SortableActions {
 export function sortable(options: SortableOptions): Behavior<SortableState, SortableActions, {}, SortableOptions>
 
 /** `state.history` of `undoable()` / `undo()`: snapshots of `state[key]`, newest last in `past`. */
-export interface UndoHistory<T = any> { past: T[]; future: T[] }
+export interface UndoHistory<T = any> {
+  past: T[]; future: T[];
+  /** Internal (`undo()` with a gesture behavior, `undoStep`): [the value before the gesture in progress, the value after its last step] */
+  base?: [T, T];
+}
 export interface UndoOptions {
   /** The state key whose value is snapshotted */
   key: string;

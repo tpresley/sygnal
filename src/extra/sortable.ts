@@ -46,8 +46,9 @@
  * belongs to a nested list, whose ids may repeat this host's: G-444/G-445): the press, key, the
  * item under the pointer (the outermost one there) and the focus target are resolved among them.
  *
- * Focus: each keyboard step (but Tab) sends `{ focus: focusWithin('<item>[<attr>="<id>"] <handle>') }`
- * (D194): the keyed Collection may move the focused node when the list reorders. A keyboard
+ * Focus: each keyboard step (but Tab) sends `{ focus: <target> }`, a focusWithin-style target
+ * (D194: `within` '<item>[<attr>="<id>"] <handle>', the first match among this host's own items):
+ * the keyed Collection may move the focused node when the list reorders. A keyboard
  * drag drops at its current position when focus moves to another element (Tab, a click
  * elsewhere: focusout with a relatedTarget) or on any pointer press (a press on a handle then
  * starts a pointer press at once, G-451); focus lost to nothing (the window, a node move) keeps
@@ -55,10 +56,10 @@
  *
  * Dev diagnostics through the core bridge's `sortable` hook (checks/sortable.ts): SYG145 an item
  * without `attr`, SYG146 `item` / `handle` matching nothing under the host at the first
- * interaction, SYG147 a `from` key that isn't an array in the host state.
+ * interaction, SYG147 a `from` key that isn't an array in the host state, SYG435 (3-H) a list
+ * shown in another order than its array's (a Collection's sort / filter).
  */
 import {defineBehavior} from './behaviors'
-import {focusWithin} from './focusWithin'
 import {ABORT, isAbort} from '../shared'
 import xs from './xstreamCompat'
 import {dropRepeats} from './xstreamExtras'
@@ -145,11 +146,12 @@ export const sortable = (options: any = {}): any => {
     const up = it.parentElement?.closest?.(item)
     return !(up && inside(up, r))
   }
-  // focus the moved item's handle: D194's focusWithin, keeping to this host's own items (G-445)
+  // focus the moved item's handle: a focusWithin target (D194: the sender's root, a `focus` spec
+  // command) that keeps to this host's own items (G-445)
   const focus = (_s: any, d: any) => {
     if (d.key == 'Tab' || d.id == null) return ABORT
     const sel = ':scope ' + one(item) + `[${attr}="${S(d.id).replace(/["\\]/g, '\\$&')}"]` + (handle ? ' ' + one(handle) : '')
-    return {focus: {...focusWithin(sel), spec: {commands: {focus: (root: any, o: any) => {
+    return {focus: {within: sel, toString: () => '', spec: {commands: {focus: (root: any, o: any) => {
       for (const el of root.querySelectorAll?.(sel) || []) if (own(handle ? el.closest(item) : el, root)) return el.focus(o)
     }}}}}
   }

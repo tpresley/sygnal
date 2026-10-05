@@ -159,6 +159,10 @@ Editor.persist = persist({ key: 'note', pick: ['doc'] })
 
 After a reload the note is back and the history starts empty, so the first undo doesn't reach into the previous visit.
 
+## Gestures: one step per drag
+
+A behavior on the same host can mark its actions as one gesture with [`undoStep`](/guide/behaviors/#persisted-state-and-undo-steps). [`sortable`](/guide/drag-and-drop/#undo-and-persist) does: with `undo({ key: 'tasks' })`, a whole drag, pointer or keyboard, is one undo step, recorded when the item is dropped (`sort.DROPPED`). The live keyboard moves and a cancelled drag (Escape, a drop where it started) add no step. While a drag is in progress, `state.history.base` holds the value from before it. This works with `undo()` (the behavior), in either `uses` order; `undoable()` can't see the host's behaviors. With `track`, list the completing action (`'sort.DROPPED'`) to record drags.
+
 ## SYG226
 
 A name in `track` or `resetOn` with no model entry is [SYG226](/reference/errors/#syg226) (a warning): its changes are never recorded, or the history is never cleared. It is usually a typo or a renamed action. `sygnal-check` reports it statically; `undoable()` reports it when diagnostics are on, and `undo()` when the component is first created. For `undo()`, the names are the host component's actions, including other behaviors' namespaced ones (`'pager.NEXT'`).

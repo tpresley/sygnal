@@ -85,9 +85,11 @@ The behavior listens on the host's root element, so it hears the presses and key
 | `list` | Pointer drags: the list the item would land in (several lists) |
 | `mode` | `'pointer'`, `'keyboard'` or `null` |
 | `message` | The announcement to render in a live region: picked up, moved, dropped, cancelled |
-| `helpId` | A [`uid()`](/guide/forms/#labels-and-ids-uid) id for the instructions element, unique to this host (two lists on a page get two ids); `null` until the host has started |
+| `helpId` | A [`uid()`](/guide/forms/#labels-and-ids-uid) id for the instructions element, unique to this host (two lists on a page get two ids); `null` until the first focus, press or key inside the host |
 
-`sort.DROPPED` fires once per completed move with `{ id, list, index, fromList, fromIndex }`: after a pointer drop, or a keyboard drop away from where the item started. The list in the state is already in its new order. Add a host entry for it to save the order. The other actions (`sort.PRESS`, `MOVE`, `UP`, `CANCEL`, `KEY`, `INIT`) are the behavior's own.
+`helpId` is set when the host is first used, not when it starts, so nothing is written into the state of a host that is never touched (a Collection item's state is its parent's data). A handle has its description by the time it is focused. The server renders no `helpId`, and neither does the client's first render, so hydration matches.
+
+`sort.DROPPED` fires once per completed move with `{ id, list, index, fromList, fromIndex }`: after a pointer drop, or a keyboard drop away from where the item started. The list in the state is already in its new order. Add a host entry for it to save the order. The other actions (`sort.PRESS`, `MOVE`, `UP`, `CANCEL`, `KEY`, `INIT`, `HELP`, `END`) are the behavior's own.
 
 ### Keyboard
 
@@ -101,13 +103,15 @@ The behavior listens on the host's root element, so it hears the presses and key
 | Escape | Put it back where it started |
 | Tab | Drop it where it is; focus moves on |
 
-Focus stays on the moved item's handle after each step (an [`ELEMENT` command](/guide/element-commands/) through [`focusWithin`](/guide/element-commands/#focusing-inside-children-focuswithin), since the keyed Collection may move the focused element). If focus moves to another element while an item is lifted (a click elsewhere, a screen reader's own navigation) or a pointer is pressed anywhere, the item is dropped where it is, as Tab does. Losing focus to nothing (switching windows) keeps the item lifted.
+Focus stays on the moved item's handle after each step (an [`ELEMENT` command](/guide/element-commands/) through [`focusWithin`](/guide/element-commands/#focusing-inside-children-focuswithin), since the keyed Collection may move the focused element). If focus moves to another element while an item is lifted (a click elsewhere, a screen reader's own navigation) or a pointer is pressed anywhere, the item is dropped where it is, as Tab does; a press on a handle then starts a pointer drag at once. Losing focus to nothing (switching windows) keeps the item lifted. A held Space or Enter (the key's auto-repeat) doesn't drop and lift again.
+
+If the host is removed while an item is lifted (a route change, a parent hiding it), the drag is cancelled: the item goes back where it started and no `sort.DROPPED` fires, so state that outlives the host (a parent's) isn't left half-moved. A pointer drag in progress is dropped the same way.
 
 ### Pointer and touch
 
 A press on a handle followed by a move past `threshold` starts a drag. While it moves, `over` and `after` say where the item would land, for a drop indicator; the list itself changes on release (a release over nothing, or outside the list, cancels). Escape cancels a pointer drag too. Mouse, pen and touch work the same way (Pointer Events, with document listeners only while a press is active).
 
-For touch, give the handle `touch-action: none`, or the browser scrolls the page instead (and cancels the drag). While a pointer is pressed the behavior blocks text selection; `user-select: none` on the handle also keeps a long press from selecting its text.
+For touch, give the handle `touch-action: none`, or the browser scrolls the page instead (and cancels the drag). While a pointer is pressed the behavior blocks text selection and the browser's own drag of an image or link inside the item (`dragstart`); `user-select: none` on the handle also keeps a long press from selecting its text.
 
 ### Several lists
 
@@ -138,7 +142,7 @@ Board.initialState = { todo: [{ id: 'a', title: 'Draft' }, { id: 'b', title: 'Re
 Board.uses = { sort: sortable({ from: ['todo', 'done'], item: '.card', handle: '.grip' }) }
 ```
 
-`sort.DROPPED`'s `fromList` and `list` say where the item came from and went.
+`sort.DROPPED`'s `fromList` and `list` say where the item came from and went. Over an item of the other list, the pointer's half of it decides: the upper half (the left half with `axis: 'x'`) lands before it, the lower half after it, so the end of a list is reached over its last item. Within the item's own list it lands before the hovered item when moving up and after it when moving down.
 
 ### Accessibility
 
@@ -149,7 +153,17 @@ Board.uses = { sort: sortable({ from: ['todo', 'done'], item: '.card', handle: '
 
 ### Nested sortables
 
-A sortable inside a sortable's item (sorted lanes, each with sorted cards) works: a press or key belongs to the innermost sortable whose items contain it, and a host's own root element is never one of its items. Give each level its own handle.
+A sortable inside a sortable's item (sorted lanes, each with sorted cards) works: a press or key belongs to the innermost sortable whose items contain it, and a host's own root element is never one of its items. A host's items are the item elements below its root that aren't inside another of them, so the ids may repeat between the levels (lane `1` holding card `1`): the item under the pointer, the one a key is on and the handle that gets focus are always the host's own. Give each level its own handle.
+
+### Filtered and sorted lists
+
+`sortable` moves entries of the array in the state: the arrow keys swap the item with its neighbour in the array, the positions it announces count the array, and a pointer drop lands next to the entry it is dropped on. Render the list in that order. Under a Collection's `sort`, a move changes nothing you can see (the Collection sorts it back); under a `filter`, a keyboard step can pass entries that are hidden, and the positions count them. For a list that can be reordered, sort the array itself (once, for a starting order) instead of the Collection, and hide the handles while a filter hides entries. In development, [SYG435](/reference/errors/#syg435) warns when a list's items are shown in another order than the array's, or with entries hidden between them.
+
+### Undo and persist
+
+With the [`undo`](/advanced/undo/) behavior on the same host, a drag is one undo step: `uses = { sort: sortable({ from: 'tasks' }), history: undo({ key: 'tasks' }) }` records the order from before the drag when the item is dropped, and a cancelled drag records nothing. The live keyboard moves aren't steps of their own, and the order of the two in `uses` doesn't matter.
+
+[`persist()`](/guide/persistence/) never saves or restores `state.sort` (it is UI state). Drag state that comes back another way, in a Collection item's saved data or from another tab, doesn't resume a drag: it is reset when the host starts or at the next press or key.
 
 ### Testing
 
@@ -176,7 +190,7 @@ it('moves a task down with the keyboard', async () => {
 
 ### Diagnostics
 
-With `sygnal/diagnostics` loaded (the Vite plugin loads it in development): [SYG145](/reference/errors/#syg145) an item element without the id attribute, [SYG146](/reference/errors/#syg146) an `item` or `handle` selector that matches nothing at the first interaction, [SYG147](/reference/errors/#syg147) a `from` key that isn't an array in the host's state. `sygnal-check` knows `sortable`'s options (a typo is [SYG127](/reference/errors/#syg127)) and reports [SYG724](/reference/errors/#syg724).
+With `sygnal/diagnostics` loaded (the Vite plugin loads it in development): [SYG145](/reference/errors/#syg145) an item element without the id attribute, [SYG146](/reference/errors/#syg146) an `item` or `handle` selector that matches nothing at the first interaction, [SYG147](/reference/errors/#syg147) a `from` key that isn't an array in the host's state, [SYG435](/reference/errors/#syg435) a list shown in another order than its array's (a Collection's `sort` or `filter`). `sygnal-check` knows `sortable`'s options (a typo is [SYG127](/reference/errors/#syg127)) and reports [SYG724](/reference/errors/#syg724).
 
 ## HTML5 drag and drop: makeDragDriver
 
