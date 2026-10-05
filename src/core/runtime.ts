@@ -54,7 +54,7 @@ export interface StartOptions {
   /** internal: the root's state at start (an HMR swap) */
   __state?: any
   /** internal: renderComponent's root (test intent, initial state, name) */
-  __override?: Partial<DefSource> & {name?: string}
+  __override?: Partial<DefSource> & {name?: string; testActions?: string[]}
 }
 
 export class App {
@@ -97,8 +97,8 @@ export class App {
   stopping = false
   disposed = false
   initState: any
-  /** D168 hook point: R4's dev check re-runs a sample of the views context tracking skipped */
-  ctxSkip: ((inst: Inst) => void) | null = null
+  /** D168 hook point (onContextSkip): a view context tracking skipped, with the context before and after */
+  ctxSkip: ((inst: Inst, prev: any, next: any) => void) | null = null
   /** the statics step, recomputed after each render pass (statics.ts; set when a driver takes a static) */
   afterRender: (() => void) | null = null
   /** [sink, static] of the drivers that take a static; the reply-capable sources (statics.ts) */
@@ -120,6 +120,11 @@ export class App {
     this.hooks = {...opts.__hooks}
     this.layers = [opts.__hooks || {}]
     this.initState = opts.__state
+    this.compose()
+    // the 'sygnal/diagnostics' dev entry's checks, as one more layer of hooks (04 §2.2: what the
+    // bridge installs becomes hooks, read once per app); nothing without the dev entry
+    const d = G.__SYGNAL_DIAGNOSTICS__?.nextHooks
+    if (d) this.addHooks(d(this.api()))
   }
 
   def(view: ComponentFn, override?: StartOptions['__override']) {
@@ -387,6 +392,7 @@ export class App {
   compose() {
     const H: any = this.hooks
     for (const k in H) delete H[k]
+    this.ctxSkip = null
     for (const layer of this.layers) {
       const added: any = layer
       for (const k in added) {
@@ -402,6 +408,9 @@ export class App {
           : (...args: any[]) => { b(...args); a(...args) }
       }
     }
+    // D168's safety net (R4): a view context tracking skipped, offered for a re-run check
+    const cs = H.onContextSkip
+    if (cs) this.ctxSkip = (i, a, b) => cs(viewOf(i), (c: any) => i.def.view({...i.props, state: i.cell.get(), children: i.children, slots: i.slots, context: c, uid: i.uid}), a, b, [...(i.keys || [])])
   }
 
   dispose() {

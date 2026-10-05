@@ -20,7 +20,7 @@ import {reportSafely, once, nameOf, isPlainObject} from './shared'
 const describe = (v: any): string =>
   v === null ? 'null' : v === undefined ? 'undefined' : Array.isArray(v) ? 'an array' : typeof v === 'object' ? 'an object' : `a ${typeof v}`
 
-function checkCollection(component: any, el: any): void {
+export function checkCollection(component: any, el: any): void {
   const props = (el && el.data && el.data.props) || {}
   const from = props.from
   const of = props.of

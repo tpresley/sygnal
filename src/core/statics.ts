@@ -24,6 +24,7 @@ import type {App} from './runtime'
 import type {CoreDef} from './define'
 import {objIsEqual} from '../cycle/state/objIsEqual'
 import {send} from './actions'
+import {viewOf} from './view'
 
 /** the drivers' statics and reply-capable sources (once per app, at start) */
 export function scanSources(app: App) {
@@ -96,6 +97,7 @@ export function checkStatics(inst: Inst) {
     const out = {[k]: v}
     if (n in sv && objIsEqual(out, sv[n])) continue
     sv[n] = out
+    inst.app.hooks.onSink?.(viewOf(inst), null, n, out)
     send(inst, n, out)
   }
 }

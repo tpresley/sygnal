@@ -161,6 +161,9 @@ export class Inst {
     let init = !parent && app.initState !== undefined ? app.initState : def.initialState
     // a root without a model renders from `initialState || true` (G-172, as today)
     if (!parent && !def.model && !init) init = true
+    // R4: a shallow copy, as today's INITIALIZE reducer made ({...initialState}): the static is
+    // shared by every instance (and the dev entry freezes it, D152), the state is the instance's
+    else if (isObj(init)) init = {...init}
     if (init !== undefined) {
       if (!parent || (def.isolated && (base as any).local)) this.cell.set(init)
       else if (def.isolated) {
@@ -329,8 +332,8 @@ export class Inst {
       if (keys.has(ALL)) return true
       for (const k of keys) if (ctx[k] !== last[k]) return true
     }
-    // D168: skipped. R4's dev check re-runs a sample of these views (app.ctxSkip)
-    this.app.ctxSkip?.(this)
+    // D168: skipped. The dev check (onContextSkip) re-runs a sample of these views
+    this.app.ctxSkip?.(this, last, ctx)
     this.lctx = ctx
     return false
   }

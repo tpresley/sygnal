@@ -152,6 +152,7 @@ export class CollectionHost {
   ep = 0
 
   constructor(public owner: Inst, props: Record<string, any>, children: any[], id: string, marker: any) {
+    this.hostProps(props)
     const of = props.of
     if (!of) fail('SYG411', owner, "Collection is missing 'of'", 'Use of={ItemComponent}')
     if (typeof of != 'function') fail('SYG411', owner, `Collection 'of' is a ${typeof of}`, 'Use of={ItemComponent}')
@@ -162,10 +163,18 @@ export class CollectionHost {
     this.setProps(props, children, marker, id)
   }
 
+  /** onHostProps (R4): the Collection checks of the dev entry (SYG401 for a missing `from`, D173's string `of`) */
+  hostProps(props: Record<string, any>) {
+    const H = this.owner.app.hooks
+    if (H.onHostProps) H.onHostProps(viewOf(this.owner), 'collection', props)
+  }
+
   /** the item component (a lazy() one: the loaded component once it has loaded, G-317) */
   view: any
 
   setProps(props: Record<string, any>, children: any[], marker?: any, id?: string) {
+    // (the constructor called the hook before its own checks)
+    if (this.props) this.hostProps(props)
     const v = typeof props.of == 'function' ? resolve(props.of, this.owner) : this.view
     if (v !== this.view) {
       // another item component (or a lazy one loaded): the items are made again

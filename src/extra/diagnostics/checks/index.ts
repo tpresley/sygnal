@@ -81,6 +81,7 @@ import {viewTransitionsCheck} from './viewTransitions'
 import {staticsCheck} from './statics'
 import {installRxjsHints} from './rxjsHints'
 import {inspectCheck, installInspect} from './inspect'
+import {nextHooks} from './next'
 
 // PLAN-4.6 R1-R4 (internal, deleted at R5): the examples' Vitest loads this entry as a setup
 // file (sygnal/vite); SYGNAL_CORE=next there selects the next core, as test/setup-core.js does
@@ -135,7 +136,10 @@ export function installChecks(): () => void {
   const uninstallControls = installControlHooks()
   const uninstallTimers = installTimerHooks()
   const uninstallElementCommands = installElementCommandHooks()
+  // PLAN-4.6 R4: the next core reads its hooks from the bridge once per app (checks/next.ts)
+  core.nextHooks = nextHooks
   const uninstall = () => {
+    if (core.nextHooks === nextHooks) core.nextHooks = undefined
     unregister.forEach(fn => fn())
     uninstallHints()
     uninstallInspect()

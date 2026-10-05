@@ -228,6 +228,50 @@ export function trackActionStreams(c: any): void {
   }
 }
 
+/**
+ * PLAN-4.6 R4: the same log on the next core, from its hooks (04 §3.3) instead of instance
+ * patches: onAction opens the record (the core passes the cause: 'intent', 'next', 'reply',
+ * 'built-in', 'simulateAction'), wrapHandler sees which sinks produced a value. Same records,
+ * same cause rules: a built-in type is 'built-in' unless simulated; an intent action a behavior
+ * owns is 'behavior'. `only(inst)`: the instances to record (renderComponent: its own tree).
+ */
+export function actionHooks(listener: ActionListener, only?: (inst: any) => boolean): any {
+  const cur = new WeakMap<object, [ActionRecord, string[]]>()
+  return {
+    onAction(inst: any, a: any) {
+      if (only && !only(inst)) return
+      const type = String(a.type), owned = inst.def.behaviorActions
+      const cause: ActionCause = a.cause == 'simulateAction' ? a.cause : BUILT_IN.test(type) ? 'built-in'
+        : a.cause == 'next' || a.cause == 'reply' ? a.cause
+        : owned && Object.prototype.hasOwnProperty.call(owned, type) ? 'behavior' : 'intent'
+      const rec: ActionRecord = {type, data: a.data, component: inst.name, instance: String(inst.id), sinks: [], cause, time: clockNow()}
+      const hs = inst.def.handlers.get(type) || [], order = hs.map((h: any) => h[0])
+      cur.set(inst, [rec, order])
+      try { listener.action(rec, inst) } catch (_) { /* a listener never breaks the app */ }
+      // a constant / `true` entry always sends (EFFECT runs functions only)
+      for (const [sink, h] of hs) if (typeof h != 'function' && sink != 'EFFECT') addSink(listener, rec, order, sink, undefined)
+    },
+    wrapHandler(inst: any, type: string, sink: string, fn: any) {
+      const c = cur.get(inst)
+      if (!c || c[0].type !== type || typeof fn != 'function') return
+      const [rec, order] = c, isState = sink == 'STATE', isEffect = sink == 'EFFECT'
+      return function (this: any, state: any) {
+        const r = fn.apply(this, arguments)
+        if (!isAbort(r) && (isEffect || typeof r != 'symbol') && !(isState && r === state)) addSink(listener, rec, order, sink, fn[ORIGINAL] || fn)
+        return r
+      }
+    },
+  }
+}
+
+function addSink(l: ActionListener, rec: ActionRecord, order: string[], sink: string, reducer: any): void {
+  if (!rec.sinks.includes(sink)) {
+    rec.sinks.push(sink)
+    rec.sinks.sort((a, b) => order.indexOf(a) - order.indexOf(b))
+  }
+  try { l.sink?.(rec, sink, reducer) } catch (_) { /* ignore */ }
+}
+
 /** Run `fn` with `cause` as the cause of the next action `c` runs (synchronously). */
 export function withCause<T>(c: any, cause: ActionCause, fn: () => T): T {
   const log = logOf(c)

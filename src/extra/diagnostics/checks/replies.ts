@@ -74,7 +74,7 @@ function readingSource(component: any, sink: string, source: any) {
   return wrapped
 }
 
-function checkRequest(component: any, sink: string, req: any, modelActions: string[]) {
+export function checkRequest(component: any, sink: string, req: any, modelActions: string[]) {
   if (!req || typeof req !== 'object') return
   const name = nameOf(component)
   let replies = false

@@ -58,7 +58,9 @@ export const strictCheck: DiagnosticCheck = {
   id: 'strict',
 
   onModel(component) {
-    if (!isStrictEnabled() || !component) return
+    // PLAN-4.6 R4: on the next core, positional views and 'A | S' keys are removed forms (D164),
+    // reported by checks/next.ts (D173: SYG612) whether or not strict is on
+    if (!isStrictEnabled() || !component || component.__next) return
     const name = nameOf(component)
 
     // SYG501 — view(props, state, context, peers): positional use of the 2nd+ args.

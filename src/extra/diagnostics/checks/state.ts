@@ -31,7 +31,7 @@ const SKIP = new Set(['INITIALIZE'])
 // SYG222: the instance's STATE reducers, wrapped (see the header)
 const WRAPPED = Symbol('SYG222')
 
-function watchMutation(component: any, action: string, fn: any): any {
+export function watchMutation(component: any, action: string, fn: any): any {
   if (typeof fn !== 'function' || fn[WRAPPED]) return fn
   const wrapped: any = (state: any, ...rest: any[]) => {
     if (!isPlainObject(state)) return fn(state, ...rest)
@@ -69,6 +69,8 @@ export const stateCheck: DiagnosticCheck = {
 
   // SYG222: onIntent runs before initModel$ reads `component.model`
   onIntent(component) {
+    // (the next core: checks/next.ts wraps the reducers through wrapHandler)
+    if (component?.__next) return
     const model = component?.model
     if (!isPlainObject(model)) return
     const S = component.stateSourceName || 'STATE'

@@ -217,6 +217,10 @@ export const CODE_TITLES: Record<string, string> = {
   SYG420: 'JSX tag is undefined',
   SYG421: 'Invalid data (dataset) key',
   SYG422: 'Invalid timer spec',
+  // PLAN-4.6 R4: the next core's dev checks (checks/next.ts; dev entry)
+  SYG423: 'Context change skipped a view whose output it changes',
+  SYG424: 'Duplicate Collection item id',
+  SYG425: 'isolatedState slice lacks initialState keys',
   SYG601: 'Missing or invalid sources',
   SYG602: 'Intent is not a function',
   SYG603: 'Intent returned an invalid value',
@@ -228,6 +232,8 @@ export const CODE_TITLES: Record<string, string> = {
   SYG609: 'Sink or source has no driver',
   SYG610: "Request has a 'then' or 'catch' key",
   SYG611: 'Socket message not sent or connection not opened',
+  // PLAN-4.6 R4 (D173): a form 6.0 removed, met at runtime (checks/next.ts; dev entry)
+  SYG612: 'Removed in 6.0',
   SYG620: 'Router command not performed',
   // PLAN-3 5-3: makeFetchDriver's cache, invalidation and validation (dev entry; SYG634 static only)
   SYG630: 'Cached request is not idempotent',
@@ -331,6 +337,12 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   // resources declared with no driver registered
   SYG422: 'error',
   SYG643: 'warn',
+  // PLAN-4.6 R4 (checks/next.ts): D168 context-tracking safety net, D169 duplicate ids, D174 kept
+  // slice, D173 removed forms
+  SYG423: 'warn',
+  SYG424: 'warn',
+  SYG425: 'warn',
+  SYG612: 'error',
   // PLAN-4 D131 (element.ts, through the core bridge; a console warning in dev with diagnostics off)
   SYG644: 'warn',
   // PLAN-4 GS-12 (viewTransitions.ts): the static set, but the app's DOM driver isn't makeViewTransitionDOMDriver()
