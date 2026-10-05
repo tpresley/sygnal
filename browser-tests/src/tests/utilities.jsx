@@ -50,7 +50,7 @@ export async function utilityTests() {
     run(App, {}, { mountPoint: id })
     await waitFor(() => el.querySelector('.my-form'))
     // Submit the form programmatically
-    el.querySelector('.my-form').dispatchEvent(new Event('submit', { bubbles: true }))
+    el.querySelector('.my-form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
     await waitFor(() => el.querySelector('.result')?.textContent !== 'no', 2000)
   })
 

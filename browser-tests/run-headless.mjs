@@ -29,9 +29,9 @@ const EXPECTED_CONSOLE_ERRORS = [
   { test: 'composition > isolatedState: throws without flag',
     match: [/\[Sygnal SYG405\] Bad: .*Sub-component threw/] },
   { test: 'features > Error without onError renders data-sygnal-error',
-    match: [/\[Sygnal SYG406\] Broken: View threw/, /no handler/] },
+    match: [/\[Sygnal SYG406\] Broken: View threw/, /no handler|\bError\b/] },  // Firefox prints the attached Error as just 'Error'
   { test: 'features > Reducer error preserves previous state',
-    match: [/\[Sygnal SYG216\] App: Reducer for 'BAD' threw/, /reducer crash/] },
+    match: [/\[Sygnal SYG216\] App: Reducer for 'BAD' threw/, /reducer crash|\bError\b/] },
 ];
 
 function expectedEntry(text) {
