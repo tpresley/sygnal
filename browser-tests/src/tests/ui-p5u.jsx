@@ -1040,4 +1040,33 @@ export async function uiTestsP5U() {
       await until(() => activeName() === 'after', activeName)
     } finally { app.dispose() }
   })
+
+  // G-458: the focus came into the region from an element far down the page, then a click on the
+  // page took it; a later mouse Dismiss of the last toast doesn't focus (and scroll to) that
+  // element. (WebKit doesn't focus a clicked button: nothing to return there.)
+  await runTest('Toaster (G-458): a mouse Dismiss after the focus left does not scroll back to where it came from', async () => {
+    const { id, app, el } = await mount(toasterApp())
+    const far = document.createElement('button')
+    far.className = 'p5-3i-far'
+    far.textContent = 'Far'
+    far.style.cssText = 'position: absolute; top: 3000px; left: 0;'
+    document.body.appendChild(far)
+    try {
+      await window.__pw('click', `${id} .notify`)
+      await until(() => live(el, 'Saved').length === 1, 'shown')
+      await window.__pw('focus', '.p5-3i-far')
+      await window.__pw('focus', dismissOf('Saved'))
+      window.scrollTo(0, 0)
+      // a click on the page outside anything focusable: the focus goes to body
+      await window.__pwInput([['move', 1000, 600], ['down'], ['up']])
+      await until(() => document.activeElement === document.body, activeName)
+      await wait(30)
+      const y = window.scrollY
+      await window.__pw('click', dismissOf('Saved'))
+      await until(() => live(el, 'Saved').length === 0, 'dismissed')
+      await wait(60)
+      assert(document.activeElement !== far, 'focus went back to the element far down the page')
+      assert(window.scrollY === y, `the page scrolled from ${y} to ${window.scrollY}`)
+    } finally { far.remove(); window.scrollTo(0, 0); app.dispose() }
+  })
 }
