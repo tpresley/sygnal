@@ -27,7 +27,9 @@
  * - G-401: rows are keyed (a row's element is its own). The row holding the focus stays rendered
  *   while scrolled out (pinned at its own offset, out of the window's flow) until the focus leaves
  *   the list, and no row element is moved in the DOM (a move blurs it in every engine): a window
- *   that loses rows at its front while its end changes is patched in two steps.
+ *   that loses rows at its front while its end changes is patched in two steps. G-424: the pin
+ *   follows the row's key through a reorder (filter, sort, a new array), and a row element a
+ *   reorder moves gets the focus back (when it went nowhere; preventScroll).
  * - Row heights: `estimateSize` (a number, or `(item, index) => number`, default 32) until a row is
  *   rendered; then its measured height (ResizeObserver follows later changes, applied in the next
  *   frame: G-402). A 0 measurement (no layout: jsdom) keeps the estimate. A new function at each
@@ -43,15 +45,18 @@
  *   the rows around it are measured. An id not in the (filtered) list: SYG433 in dev, no scroll.
  * - Without layout (SSR, the mock DOM, jsdom), the window is the first 10 rows' estimate + overscan.
  * - The container must have a bounded height. When it has none (0 tall: SYG430) or grows with its
- *   rows (it would render every row: SYG430), the window is clamped to the viewport's height. A
- *   max-height (or a height in a length unit, where Typed OM tells) bounds it (G-395).
+ *   rows (it would render every row: SYG430), the window is clamped to the viewport's height.
+ *   Whether it grows is measured (G-395, G-427): a max-height that fits the rows bounds it; a
+ *   percentage of an unbounded parent, calc() or fit-content that follows the rows doesn't.
  *   Items without `id`: SYG431 (index keys: rows and measured heights follow the position).
+ * - `viewTransitionName="row"` names each keyed row's root element as Collection does (`row-<id>`,
+ *   class `row`; G-417), as its SSR markup does.
  *
  * Dev text lives in 'sygnal/diagnostics' (checks/virtual.ts), reached through the core bridge as
  * `virtual(code, owner, extra)`; production reports nothing.
  */
 import {hosts} from '../core/registry'
-import {CollectionHost} from '../core/hosts/collection'
+import {CollectionHost, named} from '../core/hosts/collection'
 import {Inst} from '../core/instance'
 import {itemCell, keyName, keyOf} from '../core/cell'
 import {chainHooks} from '../pragma/index'
@@ -67,6 +72,8 @@ const ROWS0 = 10
 const dev = (code: number, owner: any, x?: any): any => (globalThis as any).__SYGNAL_DIAGNOSTICS__?.virtual?.(code, owner, x)
 
 const px = (n: number) => n + 'px'
+/** the element with the focus in `el`'s root (its shadow root: G-426), if any */
+const act = (el: any): any => el && (el.getRootNode?.() || el.ownerDocument)?.activeElement
 /** the props the container's vnode data is made from (not estimateSize / overscan: G-394) */
 const BOX = (x: string) => x != 'estimateSize' && x != 'overscan'
 const same = (a: any, b: any, d?: any): boolean => {
@@ -102,6 +109,8 @@ export class VirtualHost extends CollectionHost {
   declare sz: (i: number) => number
   /** a first patch step that only removed rows ran (G-401) */
   declare p1: boolean
+  /** the element in the list with the focus before a patch (G-424) */
+  declare fa: any
   declare warned: number
   declare un: (() => void) | undefined
 
@@ -205,7 +214,7 @@ export class VirtualHost extends CollectionHost {
       return {width: r.width, height: v.options.initialRect!.height}
     }
     const vh = win?.innerHeight || 0
-    if (vh && total > vh && r.height >= total - 1 && this.grows(el, win)) {
+    if (vh && total > vh && r.height >= total - 1 && this.grows(el)) {
       this.warn(2, {reason: 'grows', height: r.height})
       return {width: r.width, height: vh}
     }
@@ -213,17 +222,21 @@ export class VirtualHost extends CollectionHost {
   }
 
   /**
-   * G-395: as tall as its rows and taller than the viewport is "grows" only when nothing bounds
-   * it: a max-height does (it fits its rows), and so does a height in a length unit (Typed OM:
-   * Chromium, WebKit; elsewhere, without a max-height, it is taken as growing)
+   * G-395 / G-427: as tall as its rows and taller than the viewport is "grows" only when its
+   * height follows its content. Measured, not parsed (a max-height that is a percentage of an
+   * unbounded parent, calc(), fit-content, a flex or grid item): the spacer is made 1e6 px taller
+   * for one forced layout and put back before anything renders (no resize is observed); a
+   * container that grows with it is unbounded, one bounded by a max-height that fits its rows
+   * stops at it
    */
-  grows(el: any, win: any): boolean {
-    try {
-      const mh = win.getComputedStyle(el).maxHeight
-      if (mh && mh != 'none') return false
-      const h = el.computedStyleMap?.().get('height')
-      return !h || h.value == 'auto' || h.unit == 'percent'
-    } catch (_) { return true }
+  grows(el: any): boolean {
+    const s = el.firstElementChild?.style
+    if (!s) return true
+    const h = s.height, a = el.offsetHeight
+    s.height = (parseFloat(h) || 0) + 1e6 + 'px'
+    const b = el.offsetHeight
+    s.height = h
+    return b - a > 5e5
   }
 
   warn(bit: number, x: any) {
@@ -250,7 +263,12 @@ export class VirtualHost extends CollectionHost {
     const old = this.all
     if (all.length == old.length && all.every((x, i) => x === old[i])) return false
     this.all = all
-    if (this.fk !== undefined && (this.fi = all.indexOf(this.fk)) < 0) this.fk = undefined
+    if (this.fk !== undefined) {
+      if ((this.fi = all.indexOf(this.fk)) < 0) this.fk = undefined
+      // G-424: the focused row's new index (or none): a new extractor, since the virtualizer
+      // memoizes the indexes on it and on the range (a reorder can keep both)
+      this.re = (r: any) => this.range(r)
+    }
     // a new key function: the virtualizer re-reads the keys (its measurements are by key)
     this.gk = (i: number) => this.all[i]
     this.opts()
@@ -350,7 +368,16 @@ export class VirtualHost extends CollectionHost {
       vc: {commands: {scrollToIndex: 1, scrollToId: 1}},
       hook: {
         insert: (y: any) => this.attach(y.elm),
-        postpatch: (_: any, y: any) => y.elm !== this.el && this.attach(y.elm),
+        // G-424: a row element the patch moves (a reorder) loses the focus in every engine: the
+        // element in the list that had it gets it back when it is still on the page and the
+        // focus went nowhere
+        prepatch: () => { const a = act(this.el); this.fa = a && this.el.contains(a) ? a : null },
+        postpatch: (_: any, y: any) => {
+          const a = this.fa, b = act(a)
+          this.fa = null
+          if (a?.isConnected && a !== b && (!b || b === a.ownerDocument.body)) a.focus({preventScroll: true})
+          y.elm !== this.el && this.attach(y.elm)
+        },
         destroy: () => this.detach(),
       },
     })
@@ -367,7 +394,9 @@ export class VirtualHost extends CollectionHost {
     }
     // G-401: which row holds the focus (a focusout to outside the list: none)
     const fin = (e: any) => this.focus(this.all[this.rowOf(e.target)?.getAttribute('data-index')])
-    const fout = (e: any) => el.contains(e.relatedTarget) || this.focus(undefined)
+    // G-428: no relatedTarget while the focus is still in the list: the window lost the focus
+    // (another window, devtools), and it comes back to the same element
+    const fout = (e: any) => el.contains(e.relatedTarget || act(el)) || this.focus(undefined)
     el.addEventListener('focusin', fin)
     el.addEventListener('focusout', fout)
     const un = this.v!._didMount()
@@ -405,11 +434,12 @@ export class VirtualHost extends CollectionHost {
     const lw = this.lw
     if (!lw || lw[0] !== start || lw[1] !== total || lw[2] !== si[0]) changed = true
     const out: any[] = []
+    const vn = this.props.viewTransitionName
     for (let j = 0; j < shown.length; j++) {
       const inst = shown[j], x = inst.render(), i = si[j]
       if (x !== inst.last) { inst.last = x; changed = true }
-      // an item without state yet (or a removed one) is left out
-      if (x !== undefined) out.push(this.deco(inst, x, i, n, list, i === pin && ms[i] ? px(ms[i].start - start) : undefined))
+      // an item without state yet (or a removed one) is left out; G-417: named as a Collection's
+      if (x !== undefined) out.push(this.deco(inst, vn ? named(inst, x, vn) : x, i, n, list, i === pin && ms[i] ? px(ms[i].start - start) : undefined))
     }
     const data = this.box()
     if (data !== lw?.[3]) changed = true

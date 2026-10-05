@@ -45,10 +45,10 @@ A click on `.edit-profile` opens the dialog and a click on `.cancel` closes it. 
 | `trigger` | | Its clicks open the dialog |
 | `close` | | Its clicks close the dialog, with the return value `''` |
 | `modal` | `true` | `false` opens it with `show()`: not modal, the page stays usable |
-| `cancelable` | `true` | `false` keeps Escape from closing it: the `cancel` event is prevented, and opening it sets `closedby="none"` (Chromium closes a dialog on a second Escape otherwise). In a browser without `closedby`, a second Escape can still close it; the `CLOSED` action tells you |
+| `cancelable` | `true` | `false` keeps Escape from closing it: the `cancel` event is prevented, and opening it sets `closedby="none"` (Chromium closes a dialog on a second Escape otherwise; the attribute goes again when it closes). `CANCEL` still runs on each Escape. In a browser without `closedby`, a second Escape can still close it; the `CLOSED` action tells you |
 | `returnFocus` | `true` | When the dialog closes and the focus was lost, focus the element that opened it (the clicked trigger, when several match `trigger`), else the trigger. A selector names another element; `false` leaves the focus to the browser |
 
-The browser returns the focus to the element that had it before the dialog opened. Safari doesn't focus a button when it is clicked, so after a mouse click the focus would go back to the page itself; `returnFocus` focuses the trigger instead. It does nothing when the browser already moved the focus somewhere.
+The browser returns the focus to the element that had it before the dialog opened. Safari doesn't focus a button when it is clicked, so after a mouse click the focus would go back to the page itself; `returnFocus` focuses the trigger instead. It does nothing when the browser already moved the focus somewhere. It works for a dialog the host renders only while it is open, too.
 
 ## State and actions
 
@@ -60,7 +60,7 @@ The browser returns the focus to the element that had it before the dialog opene
 | `profile.CLOSE` | the return value | Closes it with that return value |
 | `profile.CLOSED` | the return value | The dialog closed, whichever way: sets `open: false` and `returnValue` |
 | `profile.TOGGLED` | `true` / `false` | The dialog's `toggle` event: a dialog opened without the model (for example with `commandfor`) sets `open: true` |
-| `profile.CANCEL` | the event | Escape was pressed (the dialog closes next, unless `cancelable: false`) |
+| `profile.CANCEL` | the event | Escape was pressed (the dialog closes next, unless `cancelable: false`). The `cancel` event; with `cancelable: false`, the Escape `keydown` in the dialog (`closedby="none"` stops the `cancel` event) |
 | `profile.SYNC` | `false` | The dialog left the page while open (a page change, a conditional render): sets `open: false`, as no close event comes |
 
 `OPEN` and `CLOSE` check the dialog itself before they act: `showModal()` only on a closed dialog, `close()` only on an open one. A dialog removed while open opens again when it is back.

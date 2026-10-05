@@ -24,8 +24,11 @@ export const idsOf = (s: any, uid: any, fallback: string) => (kind: string, v?: 
   return uid ? uid(n) : n
 }
 
-/** an ELEMENT target whose `m` command runs `run(element, options)` (a D102 spec command) */
-export const on = (sel: any, m: string, run: (el: any, o: any) => void): any => ({toString: () => '' + sel, spec: {commands: {[m]: run}}})
+/**
+ * an ELEMENT target whose `m` command runs `run(element, options)` (a D102 spec command). G-425:
+ * `__sel` is the selector renderComponent's `t.commands('ELEMENT')` logs in its place
+ */
+export const on = (sel: any, m: string, run: (el: any, o: any) => void): any => ({toString: () => '' + sel, __sel: sel, spec: {commands: {[m]: run}}})
 
 /**
  * G-400: SYNC's trigger for a dialog / popover behavior: `false` when its element left the page
@@ -50,6 +53,8 @@ export const gone = (DOM: any, STATE: any, sel: any, isOpen: (el: any) => boolea
  */
 export const keyed = (b: any): any => {
   const merge = b.merge
+  // G-423: renderToString gives a missing `id` the same key (extra/ssr.ts withUses)
+  b.keyed = 1
   b.merge = (c: any, k: string) => {
     const id = b.options?.id ?? k
     b.calculated = {...b.calculated, id: (s: any) => s.id ?? id}

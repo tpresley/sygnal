@@ -497,7 +497,8 @@ export interface RenderResult {
   diagnostics: Diagnostic[];
   /**
    * PLAN-4 GS-2: the element commands (`ELEMENT`) the tree's instances sent, one entry per
-   * command (arrays flattened), as sent: `[{ focus: Email }]`. The mock DOM only records them;
+   * command (arrays flattened), as sent: `[{ focus: Email }]` (a sygnal/ui dialog / popover
+   * command as its selector: `{ showModal: '.profile' }`). The mock DOM only records them;
    * `dom: 'real'` also runs them. Any other sink name: its sinkValues.
    */
   commands: (sinkName?: string) => any[];
@@ -2076,7 +2077,9 @@ export function renderComponent(
         bump();
         const c = {get name() { return iv.name; }, get _disposed() { return iv.disposed; }, get sources() { return iv.sources; }, DOMSourceName: 'DOM'};
         for (const cmd of ([] as any[]).concat(v)) if (cmd) {
-          commandLog.push(cmd);
+          // G-425: a sygnal/ui target (a selector with a guarded command) is logged as its selector
+          const m = typeof cmd == 'object' && Object.keys(cmd)[0], x = m && cmd[m];
+          commandLog.push(x?.__sel !== undefined ? {...cmd, [m as string]: x.__sel} : cmd);
           if (!core.__uninstallChecks) checkSentCommand(c, cmd);
           if (!real) checkCommand(c, cmd);
         }

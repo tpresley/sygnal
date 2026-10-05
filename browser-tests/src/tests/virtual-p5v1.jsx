@@ -229,4 +229,88 @@ export async function virtualTestsP5V1() {
     assert(n < Math.ceil(window.innerHeight / 32) + 12, `rows: ${n}`)
     app.dispose()
   })
+
+  // ── PLAN-5 3-F ───────────────────────────────────────────────────────
+  // G-427: "grows" is measured: a max-height that is a percentage of an unbounded parent, a calc()
+  // of one, and fit-content follow the rows (SYG430, the window clamped); the measurement leaves
+  // the page where it was
+  for (const [what, style] of [['max-height: 100% of an auto parent', { maxHeight: '100%' }], ['height: fit-content', { height: 'fit-content' }], ['height: calc(100% + 0px) of an auto parent', { height: 'calc(100% + 0px)' }]]) {
+    await runTest(CAT, `G-427: ${what} grows with its rows: SYG430, the viewport's rows`, async () => {
+      resetChecks()
+      clearDiagnostics()
+      let scrolls = 0
+      const on = () => scrolls++
+      window.addEventListener('scroll', on)
+      const y = window.scrollY
+      try {
+        const { el, app } = await start(makeList(rows(10000), { style }), { diagnostics: 'collect' })
+        await until(() => getDiagnostics().some(d => d.code === 'SYG430'), () => `no SYG430; rows ${el.querySelectorAll('.row').length}`)
+        await frame()
+        const n = el.querySelectorAll('.row').length
+        assert(n < Math.ceil(window.innerHeight / 32) + 12, `rows: ${n}`)
+        assert(window.scrollY === y && scrolls === 0, `the page scrolled: ${y} → ${window.scrollY} (${scrolls} events)`)
+        app.dispose()
+      } finally { window.removeEventListener('scroll', on) }
+    })
+  }
+
+  await runTest(CAT, 'G-427: a calc() max-height that fits its rows (taller than the viewport) bounds it: every row, no SYG430', async () => {
+    resetChecks()
+    clearDiagnostics()
+    const n = Math.ceil(window.innerHeight / 32) + 10
+    const { el, app } = await start(makeList(rows(n), { style: { maxHeight: `calc(${n * 32}px + 50vh)` } }), { diagnostics: 'collect' })
+    await until(() => labels(el).length === n, () => `rows ${labels(el).length} of ${n}`)
+    await wait(50)
+    assert(!getDiagnostics().some(d => d.code === 'SYG430'), 'no SYG430')
+    app.dispose()
+  })
+
+  // G-424: a reorder while the focused row is pinned out of view keeps it (by key) and its focus
+  function Sorted({ state }) {
+    return <div><VirtualCollection of={Row} from="rows" className="rows" estimateSize={32} style={{ height: '320px' }} /><p className="outside">outside</p></div>
+  }
+  Sorted.model = { REV: (s) => ({ ...s, rows: [...s.rows].reverse() }) }
+
+  await runTest(CAT, 'G-424: a reorder with the focused row scrolled out keeps the row and the focus', async () => {
+    Sorted.initialState = { rows: rows(2000) }
+    const { el, app, box } = await start(Sorted, {}, true)
+    try {
+      await window.__pw('focus', `#${el.id} [data-index="2"] .bump`)
+      const btn = document.activeElement
+      box.scrollTop = 32 * 400
+      await until(() => !labels(el).slice(1).includes('Row 3') && labels(el).includes('Row 401'), () => `scrolled: ${labels(el).slice(0, 3)}`)
+      app.__runtime.dispatch('root', 'REV')
+      await until(() => btn.closest('[data-index]')?.getAttribute('data-index') === '1997', () => `index ${btn.closest('[data-index]')?.getAttribute('data-index')}, connected ${btn.isConnected}`)
+      await frame(); await wait(30)
+      assert(btn.isConnected && document.activeElement === btn, `focus: ${document.activeElement?.className}, connected ${btn.isConnected}`)
+      assert(btn.closest('.row').querySelector('.lbl').textContent === 'Row 3', 'the same row')
+      // the window shows the reversed rows
+      assert(labels(el).includes('Row 1600'), `window: ${labels(el).slice(0, 4)}`)
+    } finally { app.dispose(); clearStage() }
+  }, 6000)
+
+  // G-428: a focusout with no relatedTarget while the focus stays (the window lost it) keeps the
+  // row pinned; a real move of the focus out of the list (a click outside) lets it go
+  await runTest(CAT, 'G-428: focusout without relatedTarget keeps the pinned row; a click outside lets it go', async () => {
+    Sorted.initialState = { rows: rows(2000) }
+    const { el, app, box } = await start(Sorted, {}, true)
+    try {
+      await window.__pw('focus', `#${el.id} [data-index="2"] .bump`)
+      const btn = document.activeElement
+      box.scrollTop = 32 * 400
+      await until(() => labels(el).includes('Row 401'), 'scrolled')
+      // what a window blur sends (Playwright keeps every page focused)
+      btn.dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: null }))
+      await wait(30)
+      box.scrollTop = 32 * 800
+      await until(() => labels(el).includes('Row 801'), 'scrolled again')
+      await frame(); await wait(30)
+      assert(btn.isConnected && document.activeElement === btn, `kept: ${btn.isConnected}, focus ${document.activeElement?.className}`)
+      // a real click on something not focusable outside the list: the focus goes to body
+      await window.__pw('click', `#${el.id} .outside`)
+      await until(() => document.activeElement !== btn, 'blurred')
+      box.scrollTop = 32 * 1200
+      await until(() => !btn.isConnected, () => `let go: ${btn.isConnected}`)
+    } finally { app.dispose(); clearStage() }
+  }, 6000)
 }

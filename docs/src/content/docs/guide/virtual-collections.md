@@ -52,7 +52,7 @@ People.model = {
 .people { height: 480px; }
 ```
 
-The element is its own scroll container (`overflow-y: auto`), so **give its class a bounded height**: `height`, `max-height`, or `flex: 1` with `min-height: 0` in a flex column. Without one it grows with its rows and would render all of them; Sygnal then renders only a viewport's height of rows and reports [SYG430](/reference/errors/#syg430). A `max-height` taller than its rows is fine: the container fits them, and they all render.
+The element is its own scroll container (`overflow-y: auto`), so **give its class a bounded height**: `height`, `max-height`, or `flex: 1` with `min-height: 0` in a flex column. Without one it grows with its rows and would render all of them; Sygnal then renders only a viewport's height of rows and reports [SYG430](/reference/errors/#syg430). A `max-height` taller than its rows is fine: the container fits them, and they all render. A percentage `height` or `max-height` bounds it only when its parent has a height itself (`max-height: 100%` of a parent that grows doesn't); Sygnal measures this rather than reading the CSS.
 
 ## Props
 
@@ -66,6 +66,7 @@ The element is its own scroll container (`overflow-y: auto`), so **give its clas
 | `role` | `'list'` | The container's role. With `list`, rows without a role of their own get `role="listitem"`. `null` sets none |
 | `tabIndex` | `0` | Focusable, so the keyboard scrolls it |
 | `aria-label`, `aria-labelledby`, `aria-describedby`, `id`, `style` | | Set on the container (`style` after the defaults) |
+| `viewTransitionName` | | As on [Collection](/guide/view-transitions/#collection-items): each row with an `id` gets `view-transition-name: <prefix>-<id>`, so a sort in a `viewTransitions` action animates the rows in view |
 
 ## Row state lives in the array
 
@@ -135,7 +136,7 @@ it('jumps to row 9,000', async () => {
 })
 ```
 
-Scrolling, measured heights and real jumps need a browser: Sygnal's own tests for them run in Chromium, Firefox and WebKit. `renderToString` renders the container and the first rows; the client measures and moves the window once the page has layout.
+Scrolling, measured heights and real jumps need a browser: Sygnal's own tests for them run in Chromium, Firefox and WebKit. `renderToString` renders the container and the first rows, numbered and named as the client numbers and names them; the client measures and moves the window once the page has layout. The client's first render makes the rows again (as it does every element of the server markup with a class or an id, and what is inside it), so a focus or text typed in a row before the app started is not kept.
 
 ## When to use it
 

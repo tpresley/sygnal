@@ -231,6 +231,20 @@ export const EXPLANATIONS = {
     explanation: "`sortable({ from })` reorders `state[from]` (each key of an array `from` for moves between lists). When the host starts, a `from` key whose value is missing or not an array is reported: nothing in it can be found, so no item can be moved. The message suggests a close array key of the state when there is one. Reported once per key; a list that arrives later should start as an empty array.",
     fix: "Name the array in the host's state (`from: 'tasks'` for `initialState: { tasks: [...] }`), and start a list that is loaded later as `[]`.",
   },
+  SYG148: {
+    title: "Collection viewTransitionName is not a CSS identifier",
+    severity: "warn",
+    reportedBy: ["dev-entry"],
+    explanation: "A `<Collection>` or `<VirtualCollection>` has a `viewTransitionName` that is not a string starting a CSS identifier (a letter, `_`, `-` followed by a letter or `_`, or `--`; then letters, digits, `-` and `_`). Each item's name is `<prefix>-<id>`, so with a prefix such as `'1card'`, `'my card'` or `'card.x'` every name is invalid CSS: the browser ignores the `view-transition-name` and nothing animates, with no error. The dev entry reports it once per component and prefix when the Collection renders.",
+    fix: "Use a CSS identifier as the prefix: `viewTransitionName=\"card\"` (letters, digits, `-` and `_`, not starting with a digit). The ids are escaped for you.",
+  },
+  SYG149: {
+    title: "Two items with the same view-transition name",
+    severity: "warn",
+    reportedBy: ["dev-entry"],
+    explanation: "After a render, two elements on the page have the same `view-transition-name` from Collections with the same `viewTransitionName` prefix: the same item `id` is in two of them at once (an 'All' list and a 'Favorites' list both named `card`). A name must be unique when a View Transition starts, so the browser skips the whole transition (Chromium logs `Unexpected duplicate view-transition-name`). The same prefix on several Collections is meant for one item moving between them, never shown in two at once. The dev entry checks the rendered page after each patch while a Collection with a prefix is rendered, and reports each name once.",
+    fix: "Give Collections that can show the same item at the same time different prefixes (`viewTransitionName=\"all\"` and `viewTransitionName=\"fav\"`), or set the item's own `style={{ viewTransitionName }}` where it needs one.",
+  },
   SYG201: {
     title: "STATE reducer dropped keys from the previous state",
     severity: "warn",
@@ -634,7 +648,7 @@ export const EXPLANATIONS = {
     title: "VirtualCollection has no bounded height",
     severity: "warn",
     reportedBy: ["dev-entry"],
-    explanation: "A `<VirtualCollection>` is its own scroll container (`overflow-y: auto`) and renders the rows that fit in its height. Its element is either 0 px tall, so no row is in view, or as tall as all of its rows (its height comes from its content, e.g. no `height` in its class), so it never scrolls and would render every row. In the second case Sygnal renders only the rows within the viewport's height, and rows further down the page stay empty. Reported once per VirtualCollection and case.",
+    explanation: "A `<VirtualCollection>` is its own scroll container (`overflow-y: auto`) and renders the rows that fit in its height. Its element is either 0 px tall, so no row is in view, or as tall as all of its rows (its height comes from its content, e.g. no `height` in its class, or a `max-height: 100%`, `calc()` of a percentage or `fit-content` that resolves against a parent without a height; Sygnal measures whether the height follows the rows), so it never scrolls and would render every row. In the second case Sygnal renders only the rows within the viewport's height, and rows further down the page stay empty. Reported once per VirtualCollection and case.",
     fix: "Give its `className` a bounded height: `.rows { height: 400px }` or `max-height`, or in a flex column `flex: 1; min-height: 0`. Check that a parent with `display: none` isn't the cause of a 0 height.",
   },
   SYG431: {

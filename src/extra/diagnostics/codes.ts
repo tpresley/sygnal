@@ -167,6 +167,9 @@ export const CODE_TITLES: Record<string, string> = {
   SYG145: 'Sortable item without its id attribute',
   SYG146: 'Sortable item or handle selector matches nothing',
   SYG147: 'Sortable list key is not an array in the host state',
+  // PLAN-5 3-F G-419: a Collection's viewTransitionName (checks/next.ts)
+  SYG148: 'Collection viewTransitionName is not a CSS identifier',
+  SYG149: 'Two items with the same view-transition name',
   // PLAN-5 V-1: VirtualCollection (checks/virtual.ts)
   SYG430: 'VirtualCollection has no bounded height',
   SYG431: 'VirtualCollection items without ids',
@@ -416,6 +419,9 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG145: 'warn',
   SYG146: 'warn',
   SYG147: 'warn',
+  // PLAN-5 3-F G-419 (checks/next.ts: onHostProps, onPatch)
+  SYG148: 'warn',
+  SYG149: 'warn',
   SYG660: 'error',
   SYG661: 'error',
   SYG662: 'error',

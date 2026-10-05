@@ -159,7 +159,7 @@ The lowercase `<collection>` tag works too, without an import.
 | `filter` | `(item) => boolean` | No | Filter function — only items returning `true` are rendered |
 | `sort` | `string \| object \| array \| function` | No | Sort items — string (field name, `"asc"`, or `"desc"`), object (`{ field: "asc" \| "desc" \| 1 \| -1 }`), array (multi-field), or comparator function |
 | `className` | `string` | No | CSS class for the wrapping container element |
-| `viewTransitionName` | `string` | No | A CSS identifier prefix (`"card"`): each item with an `id` gets `view-transition-name: card-<id>` and `view-transition-class: card` on its root element (its own style wins), for [View Transitions](/guide/view-transitions/#collection-items) |
+| `viewTransitionName` | `string` | No | A CSS identifier prefix (`"card"`): each item with an `id` gets `view-transition-name: card-<id>` and `view-transition-class: card` on its root element (its own style values win; undefined ones do not), for [View Transitions](/guide/view-transitions/#collection-items) |
 
 ### Item Keys
 
@@ -1350,7 +1350,7 @@ Board.viewTransitions = ['MOVE']
 App.viewTransitions = ['ROUTE']   // the router's reply action: route changes
 ```
 
-When a listed action's `STATE` reducer changes the state, the render it causes runs as a View Transition. Any component of the app can list its own actions. Without `makeViewTransitionDOMDriver()` the render applies at once, and dev reports [SYG645](/reference/errors/#syg645). Elements are matched by `view-transition-name` (a `style={{ viewTransitionName }}`), which must be unique on the page.
+When a listed action's `STATE` reducer changes the state, the render it causes runs as a View Transition. Any component of the app can list its own actions. Without `makeViewTransitionDOMDriver()` the render applies at once, and dev reports [SYG645](/reference/errors/#syg645). Elements are matched by `view-transition-name` (a `style={{ viewTransitionName }}`, or a Collection's or VirtualCollection's [`viewTransitionName`](/guide/view-transitions/#collection-items) prop, which names each item with an `id` `<prefix>-<id>`), which must be unique on the page.
 
 ---
 

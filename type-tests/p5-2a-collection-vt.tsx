@@ -1,5 +1,5 @@
 // PLAN-5 2-A (A-1): <Collection viewTransitionName="card" /> takes a string prefix.
-import { Collection } from 'sygnal'
+import { Collection, VirtualCollection } from 'sygnal'
 
 const Row = ({ state }: { state: { id: number } }) => <li>{state.id}</li>
 
@@ -8,3 +8,8 @@ export const ok = <ul><Collection of={Row} from="rows" viewTransitionName="row" 
 export const fn = <ul><Collection of={Row} from="rows" viewTransitionName={(item: any) => 'row-' + item.id} /></ul>
 // @ts-expect-error a string prefix, not a boolean
 export const bool = <ul><Collection of={Row} from="rows" viewTransitionName={true} /></ul>
+
+// PLAN-5 3-F G-417: VirtualCollection takes the same prefix
+export const virtual = <VirtualCollection of={Row} from="rows" className="rows" viewTransitionName="row" />
+// @ts-expect-error a string prefix, not a function
+export const virtualFn = <VirtualCollection of={Row} from="rows" viewTransitionName={(item: any) => 'row-' + item.id} />

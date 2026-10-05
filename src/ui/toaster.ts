@@ -25,6 +25,7 @@
  *   (spike 0-S4). `__sygnalHome` keeps its events in this component (G-356). The region is the
  *   only child of a wrapper (`.toaster-home`), so the moved element has no siblings to patch.
  *   G-404: the dialogs of the region's own root (a shadow root) are looked at and observed too.
+ *   G-426: the focus is that root's activeElement (in a shadow root the document's is the host).
  *
  * Class hooks: .toaster-home, .toaster (+ `className`), .toaster-status, .toaster-alert,
  * .toaster-list, .toast, .toast-text, .toast-dismiss. Data attributes: data-kind on .toast,
@@ -46,6 +47,11 @@ const topModal = (root: any) => {
   return order[order.length - 1]
 }
 const show = (el: any) => { try { el.matches(':popover-open') || el.showPopover() } catch (_) {} }
+// the element with the focus in `el`'s root
+const act = (el: any) => (el.getRootNode?.() || document).activeElement
+// G-428: a focusout that leaves `t`: not to an element inside it, and with no relatedTarget not
+// while the focus is still inside (the window lost the focus: it comes back to the same element)
+const left = (t: any, e: any) => !(t && t.contains?.(e.relatedTarget || act(t)))
 // a toast on its way out (its Transition's leave classes)
 const leaving = (b: any) => /-leave-/.test(b.closest?.('.toast')?.className || '')
 
@@ -54,15 +60,18 @@ const placement = {
     const el = v.elm, home = el.parentNode, root = el.getRootNode?.() || document
     el.__sygnalHome = home
     show(el)
-    // G-399: the focus in the region, and where it came from (where it goes back to)
-    el.addEventListener('focusin', (e: any) => { if (!el.contains(e.relatedTarget)) { el._f = 1; el._from = e.relatedTarget } })
-    el.addEventListener('focusout', (e: any) => { if (!el.contains(e.relatedTarget)) el._f = 0 })
+    // G-399: the focus in the region, and where it came from (where it goes back to). G-432: a
+    // focus from nowhere (the region's own refocus after a move, the browser's after a modal
+    // closed, the window focused again) keeps the last element it came from
+    el.addEventListener('focusin', (e: any) => { if (!el.contains(e.relatedTarget)) { el._f = 1; el._from = e.relatedTarget || el._from } })
+    el.addEventListener('focusout', (e: any) => { if (left(el, e)) el._f = 0 })
     // a Dismiss button with the focus (keyboard; a click that focused it): the focus moves to the
     // next toast's Dismiss button, else the previous one's, else back where it came from, before
     // the button goes (a removed focused element gets no focusout in Chromium)
     el.addEventListener('click', (e: any) => {
       const b = e.target?.closest?.('.toast-dismiss')
-      if (!b || !b.contains(document.activeElement)) return
+      // G-426: the root's activeElement (in a shadow root, the document's is the host)
+      if (!b || !b.contains(act(el))) return
       const bs = [...el.querySelectorAll('.toast-dismiss')].filter((x: any) => x === b || !leaving(x)), i = bs.indexOf(b)
       const to: any = bs[i + 1] || bs[i - 1] || (el._from?.isConnected && !el.contains(el._from) && el._from)
       to ? to.focus() : b.blur()
@@ -72,7 +81,7 @@ const placement = {
       const to = topModal(root) || home
       if (el.parentNode !== to) {
         // a move blurs a focused Dismiss button: give the focus back
-        const f: any = el.contains(document.activeElement) && document.activeElement
+        const a = act(el), f: any = el.contains(a) && a
         to.appendChild(el)
         f && f.focus()
       }
@@ -83,7 +92,7 @@ const placement = {
     const mo = el._mo = new MutationObserver((rs) => {
       // G-399: the focused element was removed (a toast dismissed some other way): no focusout
       // in Chromium, so the region would stay paused; send one
-      if (el._f && !el.contains(document.activeElement)) { el._f = 0; el.dispatchEvent(new FocusEvent('focusout', {bubbles: true})) }
+      if (el._f && !el.contains(act(el))) { el._f = 0; el.dispatchEvent(new FocusEvent('focusout', {bubbles: true})) }
       if (home.isConnected && (!el.isConnected || (el.parentNode !== home && !modal(el.parentNode)) || rs.some((r) => r.type == 'attributes'))) place()
     })
     const opts = {subtree: true, childList: true, attributes: true, attributeFilter: ['open']}
@@ -150,7 +159,7 @@ export const Toaster = /*#__PURE__*/ Object.assign(function Toaster({state, labe
     DISMISS: EVENTS.select('TOAST_DISMISS'),
     // G-399: the pointer and the focus apart (the timers stop while either is in the region)
     HOVER: xs.merge(DOM.pointerover('.toaster').filter(crossing).mapTo(true), DOM.pointerout('.toaster').filter(crossing).mapTo(false)),
-    FOCUS: xs.merge(DOM.focusin('.toaster').filter(crossing).mapTo(true), DOM.focusout('.toaster').filter(crossing).mapTo(false)),
+    FOCUS: xs.merge(DOM.focusin('.toaster').filter(crossing).mapTo(true), DOM.focusout('.toaster').filter((e: any) => left(e.ownerTarget, e)).mapTo(false)),
   }),
   model: {
     TOAST: (s: any, d: any) => {

@@ -9,7 +9,8 @@
 //
 // WebKit's Tab skips buttons (macOS "keyboard navigation" off), so the Tab checks press Alt+Tab
 // there, as Safari users do.
-import { run, makeTimerDriver, event } from 'sygnal'
+import { run, makeTimerDriver, event, getDiagnostics, clearDiagnostics } from 'sygnal'
+import { resetChecks } from 'sygnal/diagnostics'
 import {
   dialog, popover, tooltip, tabs, tabsAttrs, accordion, accordionAttrs, disclosure, disclosureAttrs, Toaster,
 } from 'sygnal/ui'
@@ -829,6 +830,145 @@ export async function uiTestsP5U() {
       await window.__pw('focus', dismissOf('Card saved'))
       await key('Enter')
       await until(() => live(el, 'Card saved').length === 0, 'Enter')
+    } finally { app.dispose() }
+  })
+
+  // ── PLAN-5 3-F ───────────────────────────────────────────────────────
+  // G-429: cancelable: false (closedby="none") still runs a host CANCEL entry on Escape, and the
+  // attribute it set goes when the dialog closes
+  function Strict({ state }) {
+    return (
+      <div>
+        <button className="strict-open">Open strict</button>
+        <dialog className="strict" aria-label="Strict"><button className="strict-done">Done</button></dialog>
+        <p className="strict-cancels">{String(state.cancels)}</p>
+      </div>
+    )
+  }
+  Strict.initialState = { cancels: 0 }
+  Strict.uses = { strict: dialog({ dialog: '.strict', trigger: '.strict-open', close: '.strict-done', cancelable: false }) }
+  Strict.model = { 'strict.CANCEL': (state) => ({ ...state, cancels: state.cancels + 1 }) }
+
+  await runTest('Dialog (G-429): cancelable: false: Escape keeps it open and runs CANCEL (each press); closedby goes on close', async () => {
+    const { id, app, $ } = await mount(Strict)
+    try {
+      await window.__pw('press', `${id} .strict-open`, 'Enter')
+      await until(() => isOpen($('.strict')), 'open')
+      assert($('.strict').getAttribute('closedby') === 'none', `closedby ${$('.strict').getAttribute('closedby')}`)
+      await key('Escape')
+      await until(() => $('.strict-cancels').textContent === '1', () => `CANCEL ran ${$('.strict-cancels').textContent} times`)
+      await key('Escape')
+      await until(() => $('.strict-cancels').textContent === '2', () => `CANCEL ran ${$('.strict-cancels').textContent} times`)
+      assert(isOpen($('.strict')), 'closed by Escape')
+      await window.__pw('click', `${id} .strict-done`)
+      await until(() => !isOpen($('.strict')), 'closed by Done')
+      // (the close event is a task after the dialog closed)
+      await until(() => !$('.strict').hasAttribute('closedby'), 'closedby left on the closed dialog')
+    } finally { app.dispose() }
+  })
+
+  // G-430: returnFocus with a dialog rendered only while it is open: the opener gets the focus
+  // back, with no SYG640 for the dialog that is gone
+  function Transient({ state }) {
+    return (
+      <div>
+        <button className="t-open">Open transient</button>
+        {state.t.open && <dialog className="transient" aria-label="Transient"><button className="t-done">Done</button></dialog>}
+      </div>
+    )
+  }
+  Transient.uses = { t: dialog({ dialog: '.transient', trigger: '.t-open', close: '.t-done' }) }
+
+  await runTest('Dialog (G-430): rendered only while open: the focus returns to the opener, no SYG640', async () => {
+    resetChecks()
+    clearDiagnostics()
+    const { id, el } = mountOnScreen()
+    el.className = 'ui-p5u'
+    const app = run(Transient, {}, { mountPoint: id, diagnostics: 'collect' })
+    const $ = (s) => el.querySelector(s)
+    await until(() => el.firstElementChild, 'mounted')
+    try {
+      // OPEN renders the dialog and opens it in the same patch's commands
+      await window.__pw('click', `${id} .t-open`)
+      await until(() => $('.transient')?.open, () => `open: ${!!$('.transient')}`)
+      await window.__pw('click', `${id} .t-done`)
+      await until(() => !$('.transient'), 'removed')
+      await until(() => activeName() === 't-open', activeName)
+      await wait(1200)
+      const codes = getDiagnostics().map((d) => d.code)
+      assert(!codes.includes('SYG640') && !codes.includes('SYG641'), `diagnostics: ${codes.join(', ')}`)
+    } finally { app.dispose() }
+  }, 9000)
+
+  // G-426: a Toaster in a shadow root reads the focus from that root (the document's is the host)
+  await runTest('Toaster (G-426): in a shadow root, a focused Dismiss keeps the region paused through mutations, and Enter moves the focus on', async () => {
+    const { el } = mountOnScreen()
+    el.className = 'ui-p5u'
+    const host = document.createElement('div')
+    el.appendChild(host)
+    const root = host.attachShadow({ mode: 'open' })
+    const sheet = document.createElement('style')
+    sheet.textContent = '.toaster { inset: auto 16px 16px auto; margin: 0; }'
+    const point = document.createElement('div')
+    root.append(sheet, point)
+    const t = (id, text) => ({ id, text, kind: 'info', timeoutMs: 0, paused: false, rev: 0 })
+    function App() { return <div><Toaster state="toaster" /></div> }
+    App.initialState = { toaster: { toasts: [t('a', 'One'), t('b', 'Two')], next: 1, paused: false, hover: false, focus: false } }
+    const app = run(App, { TIMER: makeTimerDriver() }, { mountPoint: point })
+    const $ = (s) => root.querySelector(s)
+    try {
+      await until(() => root.querySelectorAll('.toast').length === 2, 'mounted')
+      await window.__pw('focus', '[aria-label="Dismiss: One"]')
+      await until(() => $('.toaster').hasAttribute('data-paused'), 'paused')
+      assert(document.activeElement === host && root.activeElement === $('[aria-label="Dismiss: One"]'), 'focus in the shadow root')
+      // a mutation in the root: the region's observer runs
+      point.appendChild(document.createElement('span'))
+      await wait(60)
+      assert($('.toaster').hasAttribute('data-paused'), 'unpaused by a mutation (a false focusout)')
+      await key('Enter')
+      await until(() => root.activeElement?.getAttribute('aria-label') === 'Dismiss: Two', () => `focus on ${root.activeElement?.getAttribute('aria-label') || root.activeElement?.tagName}`)
+    } finally { app.dispose() }
+  })
+
+  // G-428: a focusout with no relatedTarget while the focus stays (the window lost it) keeps the
+  // region paused; a real move of the focus out of it resumes
+  await runTest('Toaster (G-428): focusout without relatedTarget keeps it paused; a click outside resumes', async () => {
+    const { id, app, el, $ } = await mount(toasterApp())
+    try {
+      await window.__pw('click', `${id} .notify`)
+      await until(() => live(el, 'Saved').length === 1, 'shown')
+      await window.__pw('focus', dismissOf('Saved'))
+      await until(() => $('.toaster').hasAttribute('data-paused'), 'paused')
+      const b = document.activeElement
+      b.dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: null }))
+      await wait(60)
+      assert($('.toaster').hasAttribute('data-paused') && document.activeElement === b, 'resumed by a window blur')
+      // a real click on the page outside anything focusable: the focus goes to body
+      await window.__pwInput([['move', 1000, 600], ['down'], ['up']])
+      await until(() => !$('.toaster').hasAttribute('data-paused'), () => `still paused; focus ${activeName()}`)
+    } finally { app.dispose() }
+  })
+
+  // G-432: the focus coming back into the region from nowhere (after a modal round trip) keeps
+  // where it came from: dismissing the last toast gives the focus back there
+  await runTest('Toaster (G-432): after a modal round trip, Dismiss of the last toast returns the focus where it came from', async () => {
+    const { id, app, el, $ } = await mount(toasterApp())
+    try {
+      await window.__pw('click', `${id} .notify`)
+      await until(() => live(el, 'Saved').length === 1, 'shown')
+      await window.__pw('focus', `${id} .after`)
+      await window.__pw('focus', dismissOf('Saved'))
+      $('.modal').showModal()
+      await until(() => $('.toaster').parentNode === $('.modal'), 'in the modal')
+      $('.modal').close()
+      await until(() => $('.toaster').parentNode === $('.toaster-home'), 'back home')
+      await wait(30)
+      // back to the toast with no element before it (the closed modal's focus is gone)
+      document.activeElement?.blur()
+      await window.__pw('focus', dismissOf('Saved'))
+      await key('Enter')
+      await until(() => live(el, 'Saved').length === 0, 'dismissed')
+      await until(() => activeName() === 'after', activeName)
     } finally { app.dispose() }
   })
 }
