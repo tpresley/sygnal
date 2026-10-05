@@ -99,4 +99,20 @@ describe('Collection viewTransitionName (PLAN-5 A-1)', () => {
     await t.next()
     expect(names('.a')).toEqual(['card-1/card', 'card-2/card', 'card-3/card'])
   })
+
+  // G-421: the named vnode is cached per item: snabbdom skips an item whose vnode is the same
+  // object (its update hook doesn't run), so an unchanged item costs no patch
+  it('G-421: an item whose state is the same object keeps the same named vnode (no patch)', async () => {
+    const updated = []
+    const HookItem = ({ state }) => h('li', { className: 'item', hook: { update: () => updated.push(state.id) } }, String(state.id) + (state.t || ''))
+    function L() { return h('ul', { className: 'a' }, h(Collection, { of: HookItem, from: 'a', viewTransitionName: 'card' })) }
+    L.initialState = { a: [{ id: 1 }, { id: 2 }, { id: 3 }] }
+    L.model = { EDIT: (s) => ({ ...s, a: [{ ...s.a[0], t: '!' }, s.a[1], s.a[2]] }) }
+    t = renderComponent(L, { dom: 'real' })
+    await t.ready()
+    t.simulateAction('EDIT')
+    await t.settle()
+    expect(t.container.querySelector('.item').textContent).toBe('1!')
+    expect(updated).toEqual([1])
+  })
 })
