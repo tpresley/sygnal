@@ -14,6 +14,7 @@ import { resetChecks } from 'sygnal/diagnostics'
 import {
   dialog, popover, tooltip, tabs, tabsAttrs, accordion, accordionAttrs, disclosure, disclosureAttrs, Toaster,
 } from 'sygnal/ui'
+import { Combobox } from 'sygnal/ui/combobox'
 import { mountOnScreen, clearStage, assert, runTest as run_, wait } from '../harness.js'
 
 const CAT = 'UI parts (PLAN-5 2-U)'
@@ -899,6 +900,48 @@ export async function uiTestsP5U() {
       assert(!codes.includes('SYG640') && !codes.includes('SYG641'), `diagnostics: ${codes.join(', ')}`)
     } finally { app.dispose() }
   }, 9000)
+
+  // ── PLAN-5 3-I ───────────────────────────────────────────────────────
+  // G-457: cancelable: false: an Escape a Zag combobox inside handles (it closes its list and
+  // prevents the keydown) runs no CANCEL; the next one, with the list closed, on a button does
+  function Picker({ state }) {
+    return (
+      <div>
+        <button className="pick-open">Open picker</button>
+        <dialog className="picker" aria-label="Picker">
+          <Combobox className="city" label="City" items={['London', 'Lisbon', 'Paris']} />
+          <button className="pick-done">Done</button>
+        </dialog>
+        <p className="pick-cancels">{String(state.cancels)}</p>
+      </div>
+    )
+  }
+  Picker.initialState = { cancels: 0 }
+  Picker.uses = { picker: dialog({ dialog: '.picker', trigger: '.pick-open', close: '.pick-done', cancelable: false }) }
+  Picker.model = { 'picker.CANCEL': (state) => ({ ...state, cancels: state.cancels + 1 }) }
+
+  await runTest('Dialog (G-457): cancelable: false: Escape that a Zag combobox inside handles runs no CANCEL', async () => {
+    const { id, app, $ } = await mount(Picker)
+    try {
+      await window.__pw('press', `${id} .pick-open`, 'Enter')
+      await until(() => isOpen($('.picker')), 'open')
+      await window.__pw('type', `${id} .city input`, 'l')
+      await until(() => !$('.city [data-part=content]').hidden, 'list open while typing')
+      // the list open: Zag's layer takes the Escape (stopPropagation in the capture phase)
+      await key('Escape')
+      await until(() => $('.city [data-part=content]').hidden, 'Escape closes the list')
+      // the list closed: the input's own keydown handles Escape and prevents it (the case G-457
+      // is about: it bubbles to the dialog)
+      await key('Escape')
+      await wait(80)
+      assert($('.pick-cancels').textContent === '0', `CANCEL ran ${$('.pick-cancels').textContent} times for the combobox's Escape`)
+      assert(isOpen($('.picker')), 'the dialog closed')
+      await window.__pw('focus', `${id} .pick-done`)
+      await key('Escape')
+      await until(() => $('.pick-cancels').textContent === '1', () => `CANCEL ran ${$('.pick-cancels').textContent} times`)
+      assert(isOpen($('.picker')), 'closed by Escape')
+    } finally { app.dispose() }
+  })
 
   // G-426: a Toaster in a shadow root reads the focus from that root (the document's is the host)
   await runTest('Toaster (G-426): in a shadow root, a focused Dismiss keeps the region paused through mutations, and Enter moves the focus on', async () => {

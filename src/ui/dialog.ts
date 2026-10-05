@@ -20,7 +20,9 @@
  * State: { open, returnValue }. Actions: OPEN, CLOSE (data: the returnValue), CLOSED (the close
  * event's returnValue), TOGGLED (from the toggle event), CANCEL (Escape: a host entry can react;
  * the cancel event, or with cancelable: false the Escape keydown in the dialog (G-429): closedby
- * "none" stops the cancel event, and OPEN removes the attribute again when the dialog closes),
+ * "none" stops the cancel event, and OPEN removes the attribute again when the dialog closes;
+ * G-457: not an Escape an element inside handled (defaultPrevented) or an IME one, and not for a
+ * non-modal dialog, which Escape doesn't cancel either way),
  * SYNC (G-400: the dialog left the page while open: `open: false`).
  * G-400: OPEN / CLOSE send commands that check the dialog itself (showModal only on a closed
  * one, close only on an open one), so a state that is out of step can't block them.
@@ -29,8 +31,11 @@ import {ABORT, defineBehavior, xs} from '../index'
 import {gone, on} from './shared'
 
 // G-429: Escape in this dialog (not in a dialog nested in it, nor with a popover open inside it:
-// Escape closes that first)
-const esc = (e: any) => e.key == 'Escape' && !e.isComposing && e.target?.closest?.('dialog') == e.ownerTarget && !e.ownerTarget?.querySelector?.(':popover-open')
+// Escape closes that first). G-457: not one an element inside handled (a Zag combobox or menu
+// closing its list prevents it: the browser sends no cancel then either), nor one that ends an
+// IME composition (Safari sends keyCode 229 with isComposing false)
+const esc = (e: any) => e.key == 'Escape' && !e.defaultPrevented && !e.isComposing && e.keyCode != 229 &&
+  e.target?.closest?.('dialog') == e.ownerTarget && !e.ownerTarget?.querySelector?.(':popover-open')
 
 // the focus went nowhere: body, a detached element, or inside a dialog that just closed
 const lost = () => {
@@ -42,17 +47,20 @@ const refocus = (sel: any) => on(sel, 'focus', (el: any, o: any) => { lost() && 
 
 const base = /*#__PURE__*/ defineBehavior({
   initialState: {open: false, returnValue: ''},
-  intent: ({DOM, STATE}: any, {dialog: d, trigger, close, cancelable}: any) => ({
+  intent: ({DOM, STATE}: any, {dialog: d, trigger, close, cancelable, modal}: any) => ({
     ...(trigger && {OPEN: DOM.click(trigger)}),
     ...(close && {CLOSE: DOM.click(close).mapTo('')}),
     TOGGLED: DOM.toggle(d).map((e: any) => e.newState == 'open'),
     CLOSED: DOM.close(d).map((e: any) => e.target?.returnValue ?? ''),
     // G-429: with cancelable: false the dialog has closedby="none", so Escape fires no cancel
     // event: CANCEL is the Escape keydown (the cancel event, which a browser without closedby
-    // still fires, is only prevented)
-    CANCEL: cancelable === false
-      ? xs.merge(DOM.select(d).events('cancel', {preventDefault: true}).filter(() => false), DOM.select(d).events('keydown').filter(esc))
-      : DOM.select(d).events('cancel'),
+    // still fires, is only prevented). G-457: a non-modal one (show()) gets no cancel event from
+    // Escape with cancelable: true either, so no CANCEL: only its cancel event, prevented
+    CANCEL: cancelable !== false
+      ? DOM.select(d).events('cancel')
+      : modal === false
+        ? DOM.select(d).events('cancel', {preventDefault: true})
+        : xs.merge(DOM.select(d).events('cancel', {preventDefault: true}).filter(() => false), DOM.select(d).events('keydown').filter(esc)),
     ...(STATE && {SYNC: gone(DOM, STATE, d, (e: any) => e.open)}),
   }),
   model: {
