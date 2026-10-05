@@ -592,8 +592,9 @@ function renderVirtual(vnode: any, context: Record<string, any>, parentState: an
   const role = p.role === undefined ? 'list' : p.role
   const rows = first.children.map((r: any, i: number) => {
     if (!r || !r.sel) return r
-    const attrs: any = {...r.data?.attrs, 'data-index': i, 'aria-posinset': i + 1, 'aria-setsize': items.length}
-    if (role == 'list' && !r.data?.attrs?.role && !r.data?.props?.role) attrs.role = 'listitem'
+    const own = r.data?.attrs?.role || r.data?.props?.role, attrs: any = {...r.data?.attrs, 'data-index': i}
+    if (role == 'list' || own) attrs['aria-posinset'] = i + 1, attrs['aria-setsize'] = items.length
+    if (role == 'list' && !own) attrs.role = 'listitem'
     return {...r, data: {...r.data, attrs}}
   })
   const attrs: any = {tabindex: p.tabIndex ?? 0}

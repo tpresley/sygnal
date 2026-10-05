@@ -96,9 +96,23 @@ describe('mock DOM: Collection semantics with a window', () => {
     await t.ready()
     expect(seen).toBe('warm')
     expect(t.query('.box').getAttribute('role')).toBe('listbox')
-    // not a list: the items keep no listitem role of their own
+    // not a list: no listitem role, and no position on an element without a role
     expect(t.query('.it').getAttribute('role')).toBe(null)
-    expect(t.query('.it').getAttribute('aria-posinset')).toBe('1')
+    expect(t.query('.it').getAttribute('aria-posinset')).toBe(null)
+    expect(t.query('.it').getAttribute('data-index')).toBe('0')
+    t.dispose()
+  })
+
+  it('rows with their own role (options in a listbox) keep it and get their position', async () => {
+    function Opt({ state }) { return h('div', { className: 'opt', attrs: { role: 'option', 'aria-selected': 'false' } }, state.label) }
+    function L() { return h(VirtualCollection, { of: Opt, from: 'rows', className: 'box', role: 'listbox', 'aria-label': 'Pick' }) }
+    L.initialState = { rows: rows(40) }
+    const t = renderComponent(L)
+    await t.ready()
+    const o = t.queryAll('.opt')[2]
+    expect(o.getAttribute('role')).toBe('option')
+    expect(o.getAttribute('aria-posinset')).toBe('3')
+    expect(o.getAttribute('aria-setsize')).toBe('40')
     t.dispose()
   })
 

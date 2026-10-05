@@ -211,8 +211,10 @@ export class VirtualHost extends CollectionHost {
       // a fragment or text: nothing to measure or label
       if (!(this.warned & 8)) { this.warned |= 8; dev(432, this.owner, {component: this.def.name}) }
     } else {
-      const d = x.data || {}, attrs: any = {...d.attrs, 'data-index': i, 'aria-posinset': i + 1, 'aria-setsize': n}
-      if (list && !d.attrs?.role && !d.props?.role) attrs.role = 'listitem'
+      // the position for a row with a role (its own, or listitem in a list): not on a generic element
+      const d = x.data || {}, role = d.attrs?.role || d.props?.role, attrs: any = {...d.attrs, 'data-index': i}
+      if (list || role) attrs['aria-posinset'] = i + 1, attrs['aria-setsize'] = n
+      if (list && !role) attrs.role = 'listitem'
       const data = {...d, attrs}
       chainHooks(data, {insert: (y: any) => this.v?.measureElement(y.elm)})
       out = {...x, data}
