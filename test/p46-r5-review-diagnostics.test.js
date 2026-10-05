@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // PLAN-4.6 R5: fixes of the R4 review in the dev entry's checks for the core (checks/next.ts) and
 // the runtime (G-327, G-329, G-330, G-332, G-333), each pinned here (failing first).
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import '../src/extra/diagnostics/checks/index.js'
 import { run, createElement as h } from '../src/index.js'
 import { configureDiagnostics, getDiagnostics, clearDiagnostics } from '../src/extra/diagnostics/index.js'
@@ -88,5 +88,24 @@ describe("G-333: SYG425 ignores initialState keys whose value is undefined", () 
     start(App)
     await sleep(20)
     expect(codes('SYG425').map((d) => d.data.missing)).toEqual([['body']])
+  })
+})
+
+describe('G-330: a throwing hook-layer factory does not stop run()', () => {
+  it('the app starts without that layer, and SYG900 reports it', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const core = globalThis.__SYGNAL_DIAGNOSTICS__
+    const bad = () => { throw new Error('boom') }
+    core.layers.add(bad)
+    try {
+      function App({ state }) { return h('p', { className: 'ok' }, String(state.n)) }
+      App.initialState = { n: 1 }
+      start(App)
+      await sleep(20)
+      expect(document.querySelector('.ok').textContent).toBe('1')
+      const said = [...warn.mock.calls, ...err.mock.calls].map((c) => String(c[0]))
+      expect(said.some((m) => m.includes('SYG900')) || codes('SYG900').length > 0).toBe(true)
+    } finally { core.layers.delete(bad) }
   })
 })

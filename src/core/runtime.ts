@@ -126,7 +126,12 @@ export class App {
     // the dev entries' hooks ('sygnal/diagnostics', 'sygnal/devtools'), one layer each (04 §2.2:
     // what the bridge holds becomes hooks, read once per app); none without a dev entry
     const L = G.__SYGNAL_DIAGNOSTICS__?.layers
-    if (L) for (const f of L) this.addHooks(f(this.api()))
+    // G-330: a throwing layer factory (a dev-entry bug) is reported and skipped; the app starts
+    if (L) for (const f of L) {
+      let h
+      try { h = f(this.api()) } catch (e) { logError('SYG900', 'run', 'A dev-tools hook layer threw while the app started; it is skipped', 'Report this as a Sygnal bug', e); continue }
+      this.addHooks(h)
+    }
   }
 
   def(view: ComponentFn, override?: StartOptions['__override']) {
