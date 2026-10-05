@@ -29,6 +29,9 @@ import {rootCell} from './cell'
 import {Inst} from './instance'
 import {viewOf} from './view'
 import {stopQueued, INST} from './teardown'
+// the public ClientOnly is a separate bundle (sygnal/vike/ClientOnly) with no core of its own, so
+// its marker handler registers with the core (the other markers register from their modules)
+import './markers/clientonly'
 
 const LOOP = 100, HARD = 1000
 // the macrotask, captured at load (a test's fake timers don't hold the ping): Node drains a
@@ -86,6 +89,8 @@ export class App {
   initState: any
   /** D168 hook point: R4's dev check re-runs a sample of the views context tracking skipped */
   ctxSkip: ((inst: Inst) => void) | null = null
+  /** D169 hook point: a Collection key that appears more than once (R4's dev warning) */
+  dupKey: ((owner: Inst, key: any) => void) | null = null
   /** R3 hook point: statics recomputed after each render pass */
   afterRender: (() => void) | null = null
   defs = new WeakMap<ComponentFn, CoreDef>()
@@ -277,6 +282,8 @@ export class App {
     if (child) {
       d.props$ = get(i => i.props$ || seeded(i, 'props$', i.props))
       d.children$ = get(i => i.children$ || seeded(i, 'children$', i.children))
+      // a Command passed as a prop (createCommand): its messages, as today's `commands$`
+      d.commands$ = get(i => i.commands())
     }
     return (this.desc[k] = d)
   }
@@ -333,7 +340,10 @@ function seeded(i: any, k: string, v: any) {
 }
 function byId(i: Inst, id: number): Inst | undefined {
   if (i.id === id) return i
-  for (const k of i.kids.values()) if (k instanceof Inst) { const f = byId(k, id); if (f) return f }
+  for (const k of i.kids.values()) {
+    if (k instanceof Inst) { const f = byId(k, id); if (f) return f }
+    else if (k.insts) for (const j of k.insts()) { const f = byId(j, id); if (f) return f }
+  }
 }
 
 export interface Started {

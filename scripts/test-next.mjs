@@ -50,8 +50,8 @@ export const FILES = [
   'test/xstream-extras-3d.test.js',
 ]
 
-/** the examples whose features are all in the phases done (R2 adds kanban, todomvc, advanced-feature-tests) */
-export const EXAMPLES = ['ai-panel-spa', 'getting-started', 'hmr-smoke', 'playground', 'ssr', 'ts-example-2048']
+/** the examples whose features are all in the phases done (R2 added kanban, todomvc, advanced-feature-tests) */
+export const EXAMPLES = ['advanced-feature-tests', 'ai-panel-spa', 'getting-started', 'hmr-smoke', 'kanban', 'playground', 'ssr', 'todomvc', 'ts-example-2048']
 
 const env = { ...process.env, SYGNAL_CORE: 'next' }
 const run = (cmd, args) => spawnSync(cmd, args, { cwd: repo, env, stdio: 'inherit', shell: process.platform === 'win32' }).status ?? 1

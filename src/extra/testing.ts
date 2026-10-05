@@ -1,6 +1,7 @@
 import {setup} from '../cycle/run/index';
 import {withState} from '../cycle/state/index';
 import {start as startNext} from '../core/runtime';
+import {NEXT_CORE} from '../core/build';
 import {mockDOMSource} from '../cycle/dom/mockDOMSource';
 import {makeDOMDriver} from '../cycle/dom/makeDOMDriver';
 import {enrichEventStream} from '../cycle/dom/enrichEventStream';
@@ -1876,7 +1877,7 @@ export function renderComponent(
     initialState: init,
   });
   let started = false;
-  const nextCore = (globalThis as any).__SYGNAL_CORE__ === "next";
+  const nextCore = NEXT_CORE && (globalThis as any).__SYGNAL_CORE__ === "next";
   const onEvents = (path: string[], type: string, on?: boolean) => {
     const k = path.join('\u0000');
     if (on === undefined) {
@@ -2000,7 +2001,7 @@ export function renderComponent(
   }
   let sources: any, sinks: any, rawDispose: () => void;
   try {
-    if ((globalThis as any).__SYGNAL_CORE__ === 'next') {
+    if (NEXT_CORE && (globalThis as any).__SYGNAL_CORE__ === 'next') {
       // PLAN-4.6 R1 (internal, until R4 ports renderComponent onto the hooks): the next core runs
       // the same root (the test intent, model, initial state and name) with the same drivers.
       // The diagnostics-hook bookkeeping (t.actions, child fakes, SYG103/104 owners) is R4's

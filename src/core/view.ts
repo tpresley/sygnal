@@ -16,13 +16,20 @@ class View implements InstanceView {
   get context() { return this.i.context() }
   get isRoot() { return !this.i.parent }
   get kind() { return this.i.kind }
-  get shown() { return this.i.shown }
+  /** false on a hidden Switchable page and below it */
+  get shown() {
+    for (let i: any = this.i; i; i = i.parent) if (!i.shown) return false
+    return true
+  }
   get disposed() { return this.i.disposed }
   get uid() { return this.i.uidBase }
   get sources() { return this.i.sources() }
   children(): InstanceView[] {
     const out: InstanceView[] = []
-    this.i.kids.forEach((k: any) => { if (k.def && k.app) out.push(viewOf(k)) })
+    this.i.kids.forEach((k: any) => {
+      if (k.def && k.app) out.push(viewOf(k))
+      else if (k.insts) for (const j of k.insts()) out.push(viewOf(j))
+    })
     return out
   }
 }

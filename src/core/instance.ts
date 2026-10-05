@@ -24,6 +24,7 @@ import {Cell, CalcCell, calcCell, keyCell, lensCell, localCell} from './cell'
 import {hosts, posts, pres, resolvers} from './registry'
 import {handle} from './actions'
 import {viewOf} from './view'
+import {makeCommandSource} from '../extra/command'
 
 const ERR_FIX = 'See the attached error'
 
@@ -49,11 +50,14 @@ const idOf = (n: any, path: string) => {
   return `${n.sel}::${(id && JSON.stringify(id).replace(/"/g, '')) || path}`
 }
 
-/** a component vnode's props, without what the pragma adds for the current core (until R5) */
+/**
+ * a component vnode's props, without what the pragma adds for the current core (until R5) and
+ * without `resetState` (D174: read at creation, like `state`, never a prop of the child)
+ */
 function propsOf(p: any) {
   if (!p) return {}
-  if (!('sygnalOptions' in p || 'sygnalFactory' in p)) return p
-  const {sygnalOptions, sygnalFactory, ...rest} = p
+  if (!('sygnalOptions' in p || 'sygnalFactory' in p || 'resetState' in p)) return p
+  const {sygnalOptions, sygnalFactory, resetState, ...rest} = p
   return rest
 }
 
@@ -80,7 +84,7 @@ let IDS = 0
 
 /** a child that failed to instantiate: renders the owner's error fallback (SYG408) */
 class Failed {
-  last: any; lr = true; ready = true; def: any = null; disposed = false
+  last: any; lr = true; ready = true; def: any = null; disposed = false; shown = true
   constructor(public outv: any) {}
   render() { return this.outv }
   setProps() {}
@@ -90,6 +94,8 @@ class Failed {
 export class Inst {
   readonly id = IDS++
   disposed = false
+  /** in dispose(), while dispose$ emits: its actions run at once */
+  dying = false
   ready: boolean
   shown = true
   /** the decorated cell (calculated fields, idle defaults) and the raw value */
@@ -118,11 +124,12 @@ export class Inst {
   hub: Set<(e: any) => void> | null = null
   wd: any; so: any; el: any
   iv: any
+  cmds: any
 
   constructor(
     public app: App, public def: CoreDef, public parent: Inst | null, base: Cell,
     public dom: any, props: Record<string, any>, children: any[], public scope: string | undefined,
-    uidBase: string, public kind: 'root' | 'child' | 'item' | 'page' = parent ? 'child' : 'root',
+    uidBase: string, public kind: 'root' | 'child' | 'item' | 'page' = parent ? 'child' : 'root', reset = false,
   ) {
     this.props = props
     this.setChildren(children)
@@ -131,13 +138,21 @@ export class Inst {
     this.cell = def.calculated || def.idle ? calcCell(base, def) : {get: () => base.get(), set: (v) => base.set(v), raw: () => base.get()}
     const H = app.hooks
     // the initial state, synchronously (INITIALIZE at construction, D165): a root (or the state an
-    // HMR swap keeps), an isolated child's local state; an isolated child bound to a slice writes it
-    // when it has a model (its INITIALIZE, as today), else reads initialState while the slice is missing
+    // HMR swap keeps), an isolated child's local state. D174: an isolated child bound to a slice
+    // (state="key" or a lens) seeds it with initialState only while it is undefined (with a model,
+    // as today's INITIALIZE; without one it reads initialState while the slice is missing), and
+    // `resetState` replaces it at creation; an existing slice is kept (onStateSeed: R4's warning)
     let init = !parent && app.initState !== undefined ? app.initState : def.initialState
     // a root without a model renders from `initialState || true` (G-172, as today)
     if (!parent && !def.model && !init) init = true
-    if (init !== undefined && (!parent || (def.isolated && ((base as any).local || def.model)))) this.cell.set(init)
-    else if (def.idle && isObj(this.cell.raw()) && !parent) this.cell.set(this.cell.raw())
+    if (init !== undefined) {
+      if (!parent || (def.isolated && (base as any).local)) this.cell.set(init)
+      else if (def.isolated) {
+        const b: any = base, has = b.has ? b.has() : b.get() !== undefined
+        if (reset || (!has && def.model)) this.cell.set(init)
+        else if (has) H.onStateSeed?.(viewOf(this), b.get(), init)
+      }
+    } else if (def.idle && isObj(this.cell.raw()) && !parent) this.cell.set(this.cell.raw())
     H.onCreate?.(viewOf(this))
     if (def.handlers.has('INITIALIZE')) app.dispatch(this, 'INITIALIZE', init, 'built-in')
     if (def.intent) this.subscribe()
@@ -163,7 +178,7 @@ export class Inst {
         if (s == null) continue
         if (typeof s.subscribe != 'function') fail('SYG603', this, `intent entry '${type}' is not a stream`, 'Return { ACTION: stream$ }')
         this.subs.push(s.subscribe({
-          next: (d: any) => app.dispatch(this, type, d, 'intent'),
+          next: (d: any) => this.dying ? handle(this, type, d, 'intent') : app.dispatch(this, type, d, 'intent'),
           // (no code of its own yet: R4's diagnostics may add one)
           error: (e: any) => { console.error(`[Sygnal] ${def.name}: intent stream '${type}' errored; it stops emitting`, e); app.appError(this, e, 'intent', type) },
         }))
@@ -231,6 +246,19 @@ export class Inst {
     this.props$?.shamefullySendNext(props)
     this.children$?.shamefullySendNext(this.children)
   }
+  /** commands$: the source of the first Command among the props (undefined without one) */
+  commands(): any {
+    if (this.cmds !== undefined) return this.cmds
+    for (const k in this.props) {
+      const c = this.props[k]
+      if (c && c.__sygnalCommand) {
+        c._targetComponentName = this.def.name
+        c._targetComponentId = this.id
+        return (this.cmds = makeCommandSource(c))
+      }
+    }
+    return (this.cmds = undefined)
+  }
   /** a PARENT value from a child: to this instance's CHILD.select listeners */
   toChild(e: any) {
     this.hub?.forEach(f => f(e))
@@ -277,6 +305,13 @@ export class Inst {
     return false
   }
 
+  /** render again in the next flush though no input changed (a lazy component loaded) */
+  refresh() {
+    if (this.disposed) return
+    this.forced = true
+    this.app.commit()
+  }
+
   setReady(r: boolean) {
     if (r !== this.ready) {
       this.ready = r
@@ -311,7 +346,7 @@ export class Inst {
     }
     if (!viewDirty && !kidsDirty) return this.outv
     let v = this.kids.size ? this.inject(this.tmpl, 'r') : this.tmpl
-    if (this.postSels) for (const s of this.postSels) v = posts[s](v, viewOf(this))
+    if (this.postSels) for (const s of this.postSels) v = posts[s](v, this)
     this.app.hooks.onRender?.(viewOf(this), v)
     return (this.outv = this.parent ? this.app.scopeValue(this.parent, 'DOM', v, this) : v)
   }
@@ -354,25 +389,27 @@ export class Inst {
     const seen = new Set<string>()
     let ps: string[] | null = null
     const walk = (n: any, path: string, parent: any, idx: number): void => {
-      if (!n || !n.sel || n.$p) return
+      if (!n || n.$p) return
       const sel = n.sel
-      if (pres[sel]) {
-        const r = pres[sel](n, viewOf(this))
+      // a fragment (no sel): its children are walked in place (G-256)
+      if (sel && pres[sel]) {
+        const r = pres[sel](n, this)
+        if (r === n) return
         if (parent) (parent.children = parent.children.slice())[idx] = r
         else this.tmpl = r
         return walk(r, path, parent, idx)
       }
-      const data = n.data, host = hosts[sel]
+      const data = n.data, host = sel && hosts[sel]
       if (data?.c || host) {
         const id = idOf(n, path)
         seen.add(id)
         const props = propsOf(data.props), children = n.children || (n.text != null ? [{text: n.text}] : [])
         let view = data.c
-        if (view) for (const r of resolvers) view = r(view, viewOf(this)) || view
+        if (view) for (const r of resolvers) view = r(view, this) || view
         let k = this.kids.get(id)
         if (k && view && k.def && k.def.view !== view) { k.dispose(); this.kids.delete(id); k = undefined }
-        if (k) k.setProps(props, children)
-        else this.kids.set(id, host ? host(this, props, children) : this.child(view, props, children, id))
+        if (k) k.setProps(props, children, n, id)
+        else this.kids.set(id, host ? this.host(host, props, children, id, n) : this.child(view, props, children, id, !!data.props?.resetState))
         return
       }
       if (posts[sel] && !(ps ||= []).includes(sel)) ps.push(sel)
@@ -384,8 +421,25 @@ export class Inst {
     if (this.kids.size > seen.size) for (const [id, k] of this.kids) if (!seen.has(id)) { k.dispose(); this.kids.delete(id) }
   }
 
-  /** a tag child: state="key" | state={lens} | none (the parent's state) | isolatedState */
-  child(view: any, props: Record<string, any>, children: any[], id: string): any {
+  /** a host (Collection, Switchable); one that throws renders the owner's error fallback (SYG408) */
+  host(make: any, props: Record<string, any>, children: any[], id: string, n: any): any {
+    try { return make(this, props, children, id, n) } catch (err) { return this.failed(err) }
+  }
+
+  /** the owner's error fallback for a child that failed to instantiate (SYG408) */
+  failed(err: any): Failed {
+    const e = err instanceof Error ? err : new Error(String(err))
+    let out: any = errorDiv(this.def.name)
+    if (this.def.onError) {
+      try { out = this.def.onError(e, {componentName: this.def.name}) || out }
+      catch (fe) { logError('SYG407', this, 'onError threw; rendering an empty error <div>', 'Make onError return a vnode', fe) }
+    }
+    this.app.caught(this, 'SYG408', 'Sub-component threw; rendering the error fallback', e, 'instantiate')
+    return new Failed(out)
+  }
+
+  /** a tag child: state="key" | state={lens} | none (the parent's state) | isolatedState (D174: `resetState`) */
+  child(view: any, props: Record<string, any>, children: any[], id: string, reset = false): any {
     const app = this.app
     try {
       const def = app.def(view)
@@ -399,22 +453,15 @@ export class Inst {
         : def.isolated ? localCell(app, this.cell) : this.cell
       const scope = app.scope()
       return new Inst(app, def, this, cell, this.dom && this.dom.isolateSource(this.dom, scope), props, children, scope,
-        this.uid(uidPart(id.replace(/.*::(r\.)?/, ''))))
+        this.uid(uidPart(id.replace(/.*::(r\.)?/, ''))), 'child', reset)
     } catch (err) {
-      const e = err instanceof Error ? err : new Error(String(err))
-      let out: any = errorDiv(this.def.name)
-      if (this.def.onError) {
-        try { out = this.def.onError(e, {componentName: this.def.name}) || out }
-        catch (fe) { logError('SYG407', this, 'onError threw; rendering an empty error <div>', 'Make onError return a vnode', fe) }
-      }
-      app.caught(this, 'SYG408', 'Sub-component threw; rendering the error fallback', e, 'instantiate')
-      return new Failed(out)
+      return this.failed(err)
     }
   }
 
   inject(n: any, path: string): any {
-    if (!n || !n.sel || n.$p) return n
-    if (n.data?.c || hosts[n.sel]) {
+    if (!n || n.$p) return n
+    if (n.data?.c || (n.sel && hosts[n.sel])) {
       const k = this.kids.get(idOf(n, path))
       return k && (k.ready ? k.outv : notReady(k.outv))
     }
@@ -438,9 +485,12 @@ export class Inst {
     if (this.disposed) return
     const app = this.app
     if (this.def.handlers.has('DISPOSE')) handle(this, 'DISPOSE', undefined, 'built-in')
+    // dispose$: the actions it drives run now, while the instance still exists (as today: a
+    // `CLEANUP: dispose$` action's driver sinks go out)
+    if (this.disp$) { this.dying = true; try { this.disp$.shamefullySendNext(true) } finally { this.dying = false } }
     this.disposed = true
     app.hooks.onDispose?.(viewOf(this))
-    if (this.disp$) { this.disp$.shamefullySendNext(true); this.disp$.shamefullySendComplete() }
+    if (this.disp$) this.disp$.shamefullySendComplete()
     this.ac?.abort()
     this.kids.forEach(k => k.dispose())
     this.kids.clear()

@@ -4,6 +4,8 @@ import {h} from './cycle/dom/index';
 import type {Lens} from './cycle/state/types';
 import {fail} from './extra/diagnostics/legacy';
 import {NOT_SINK} from './shared';
+// PLAN-4.6 R2-R4: the next core's handler for this marker, registered on import (D157)
+import './core/hosts/collection';
 
 let COLLECTION_COUNT = 0;
 

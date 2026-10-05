@@ -8,6 +8,7 @@ import {configureDiagnostics, isDiagnosticsEnabled} from './diagnostics/index';
 import {warn} from './diagnostics/legacy';
 import type {DiagnosticsMode, DiagnosticsOptions} from './diagnostics/index';
 import {start as startNext} from '../core/runtime';
+import {NEXT_CORE} from '../core/build';
 
 interface RunDiagnosticsOptions extends DiagnosticsOptions {
   /** Strict (canonical-form) runtime checks; needs the 'sygnal/diagnostics' dev entry (G-036). */
@@ -74,7 +75,7 @@ export default function run(
   const {mountPoint = '#root', fragments = true, useDefaultDrivers = true, onError, uid} = options;
   // PLAN-4.6 R1-R4 (internal, deleted at R5): the next core, selected by a global flag that the
   // test setup sets from SYGNAL_CORE=next. Not documented, not in the types
-  if ((globalThis as any).__SYGNAL_CORE__ === 'next') {
+  if (NEXT_CORE && (globalThis as any).__SYGNAL_CORE__ === 'next') {
     const started = startNext(app, drivers, {...options, __hooks: (options as any).__hooks, __state: hmrSwap?.s} as any);
     liveApps++;
     let off = false;

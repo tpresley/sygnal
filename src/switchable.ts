@@ -3,6 +3,8 @@ import {dropRepeats} from './extra/xstreamExtras';
 import {h} from './cycle/dom/index';
 import {fail} from './extra/diagnostics/legacy';
 import {uidPart} from './shared';
+// PLAN-4.6 R2-R4: the next core's handler for this marker, registered on import (D157)
+import './core/hosts/switchable';
 
 
 interface SwitchableOptions {
