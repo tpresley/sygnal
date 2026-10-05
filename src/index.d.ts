@@ -1455,7 +1455,14 @@ export type CollectionProps<PROPS = any, STATE = any> = {
   from: CollectionFrom<STATE>;
   filter?: Filter;
   sort?: SortSpec;
-} & Omit<PROPS, 'of' | 'from' | 'filter' | 'sort'>
+  /**
+   * PLAN-5 A-1: a CSS identifier such as `'card'`. Each item with an `id` gets
+   * `view-transition-name: card-<id>` and `view-transition-class: card` on its root element (its
+   * own style wins), so an action in a `viewTransitions` static animates the items between their
+   * places, and between Collections with the same prefix. Items without an `id` get none.
+   */
+  viewTransitionName?: string;
+} & Omit<PROPS, 'of' | 'from' | 'filter' | 'sort' | 'viewTransitionName'>
 
 export type SwitchableProps<PROPS = any> = {
   of: Record<string, AnyComponent>;
