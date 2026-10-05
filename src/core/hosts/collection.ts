@@ -97,7 +97,14 @@ function arrayCell(owner: Inst, from: any): Cell | null {
         const p = oc.get()
         if (p !== lp) {
           lp = p
-          lv = from.get(p)
+          let g: any
+          try { g = from.get(p) } catch (e) {
+            // G-298: keeps the items it had
+            logError('SYG412', name, "Collection 'from' getter threw; it keeps its items", 'Guard the getter against missing data', e)
+            owner.app.appError(owner, e, 'view')
+            return lv
+          }
+          lv = g
           if (!Array.isArray(lv)) { warn('SYG401', name, "Collection 'from' getter returned a non-array; it renders nothing", 'Return an array from get()', lv); lv = NONE }
         }
         return lv

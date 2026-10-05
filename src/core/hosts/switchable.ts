@@ -61,7 +61,7 @@ export class SwitchableHost {
     check(owner, props)
     const st = props.state, calc = typeof st == 'string' && owner.def.calcNames?.has(st)
     this.cell = typeof st == 'string' ? keyCell(owner.cell, st, calc && owner.def.name, undefined, 'Switchable sub-component')
-      : st !== undefined ? lensCell(owner.cell, st, owner.def.name)
+      : st !== undefined ? lensCell(owner.cell, st, owner.def.name, (e) => owner.app.appError(owner, e, 'view'))
       : owner.cell
     this.uidBase = owner.uid(uidPart(id.replace(/.*::(r\.)?/, '')))
     this.props = props

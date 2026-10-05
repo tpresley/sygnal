@@ -198,7 +198,14 @@ export class App {
         this.dirty = false
         if (this.watchers.size) this.notify()
         this.rendering = true
-        v = this.root.render()
+        try { v = this.root.render() } catch (e) {
+          // G-298: an error that escaped every boundary (a hook, a host): reported; the DOM keeps
+          // its last render and the flush still ends (BOOTSTRAP, teardown, waiters)
+          this.rendering = false
+          this.caught(this.root, 'SYG406', 'Render threw; the page keeps its last render', e, 'view')
+          v = this.last
+          break
+        }
         this.afterRender?.()
         this.rendering = false
         if (this.queue.length) this.drain()

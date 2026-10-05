@@ -47,7 +47,10 @@ function extractSlots(children: any[]): [any[], Record<string, any[]>] {
 /** an instance's id among its parent's children: its `id` prop, else its path in the view */
 const idOf = (n: any, path: string) => {
   const id = n.data?.props?.id
-  return `${n.sel}::${(id && JSON.stringify(id).replace(/"/g, '')) || path}`
+  let s: any
+  // (G-298: an id JSON can't encode, a BigInt, is used as its string)
+  if (id) try { s = JSON.stringify(id) } catch (_) { s = String(id) }
+  return `${n.sel}::${(s && s.replace(/"/g, '')) || path}`
 }
 
 /**
@@ -463,7 +466,7 @@ export class Inst {
       }
       const dflt = def.isolated ? def.initialState : undefined
       const cell = typeof st == 'string' ? keyCell(this.cell, st, calcOf?.has(st) && this.def.name, dflt)
-        : st !== undefined ? lensCell(this.cell, st, this.def.name)
+        : st !== undefined ? lensCell(this.cell, st, this.def.name, (e) => app.appError(this, e, 'view'))
         : def.isolated ? localCell(app, this.cell) : this.cell
       const scope = app.scope()
       return new Inst(app, def, this, cell, this.dom && this.dom.isolateSource(this.dom, scope), props, children, scope,
