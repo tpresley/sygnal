@@ -58,8 +58,8 @@ async function counted(fw, page, setup, act, done, trail = 500) {
 
 const rows1k = `h.click('#run'); await h.waitFor(() => h.n('.row') === 1000)`
 const counters1k = `h.click('#create'); await h.waitFor(() => h.n('.counter') === 1000)`
-// R2 added Collection and Switchable; fetch (replies, statics) is R3
-const NEXT_PAGES = new Set(['deep', 'counters-tags', 'table-coll', 'counters', 'coll-calc', 'switch'])
+// R2 added Collection and Switchable; R3 fetch (replies, statics)
+const NEXT_PAGES = new Set(['deep', 'counters-tags', 'table-coll', 'counters', 'coll-calc', 'switch', 'fetch'])
 const CASES = [
   ['patches: select row, 1k Collection', 'table-coll', rows1k, `h.click('.row:nth-child(2) .lbl')`, `h.q('.row:nth-child(2)').classList.contains('danger')`],
   ['patches: update every 10th, 1k Collection', 'table-coll', rows1k, `h.click('#update')`, `h.text('.row .lbl').endsWith('!!!')`],
