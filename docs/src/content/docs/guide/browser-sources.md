@@ -188,6 +188,8 @@ it('shows the photo once it is seen, then stops watching', async () => {
 | `t.browser.deny('geolocation', 'clipboard')` | Those permissions are refused from now on (a running geolocation declaration fails with code 1) |
 | `t.browser.active()` | The running declarations: `{ name, ...spec, component }` |
 
+As with the real observers, an `intersection` declaration hears `{ visible: false, ratio: 0, index: 0, dataset: {} }` when it starts and a `resize` one `{ width: 0, height: 0, index: 0, dataset: {} }`, so a model that counts reports must ignore a first "not visible". The fake doesn't look for the elements under the mock DOM; with `renderComponent(C, { dom: 'real' })` a selector that matches no element of the component after it renders is [SYG666](/reference/errors/#syg666).
+
 The `browser` option sets the environment at the start: `renderComponent(Theme, { browser: { media: { '(prefers-color-scheme: dark)': true }, storage: { theme: '"dark"' }, online: false, deny: ['geolocation'] } })`. By default no media query matches, storage is empty, the page is visible and online, and nothing is denied. The commands (`copy`, `paste`, `setItem`, `removeItem`) run against the fake too. If the test passes its own browser driver in `drivers`, the fake stands down and `t.browser` throws (`browserSink` renames the fake's sink).
 
 ## Diagnostics

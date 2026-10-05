@@ -183,3 +183,38 @@ describe('G-388 / G-389: commands', () => {
     expect(diagnostics('SYG665').map(d => d.data.failure.name)).toEqual(['TypeError'])
   })
 })
+
+describe('G-387: the t.browser fake reports at start, and checks selectors under dom: real', () => {
+  function Card({ state }) { return h('div', { className: 'card' }, [h('img', { className: 'cover' }), h('p', null, String(state.n))]) }
+  Card.initialState = { n: 0, seen: null, size: null }
+  Card.browser = () => ({ cover: { intersection: '.cover', action: 'SEEN' }, size: { resize: true, action: 'SIZE' } })
+  Card.model = { SEEN: (s, d) => ({ ...s, n: s.n + 1, seen: d }), SIZE: (s, d) => ({ ...s, size: d }) }
+
+  it('intersection starts with { visible: false, ratio: 0 }, resize with { width: 0, height: 0 }, as the observers do', async () => {
+    const t = renderComponent(Card)
+    await t.ready()
+    await t.settle()
+    expect(t.state.seen).toEqual({ visible: false, ratio: 0, index: 0, dataset: {} })
+    expect(t.state.size).toEqual({ width: 0, height: 0, index: 0, dataset: {} })
+    expect(t.state.n).toBe(1)
+    await t.browser.intersect('.cover', true)
+    expect(t.state.seen).toEqual({ visible: true, ratio: 1, index: 0, dataset: {} })
+    t.dispose()
+  })
+
+  it('dom: real: a selector that matches no element of the component is SYG666', async () => {
+    setupChecks()
+    function Typo() { return h('div', null, [h('img', { className: 'cover' })]) }
+    Typo.initialState = {}
+    Typo.browser = () => ({ cover: { intersection: '.covr', action: 'SEEN' }, ok: { intersection: '.cover', action: 'SEEN' }, me: { resize: true, action: 'SEEN' } })
+    Typo.model = { SEEN: (s) => s }
+    const t = renderComponent(Typo, { dom: 'real', diagnostics: 'collect' })
+    await t.ready()
+    await t.settle()
+    await tick()
+    const d = diagnostics('SYG666')
+    expect(d.map(x => [x.data.name, x.data.reason])).toEqual([['cover', 'none']])
+    expect(d[0].message).toMatch(/\.covr/)
+    t.dispose()
+  })
+})

@@ -3063,7 +3063,7 @@ export interface BrowserFakeOptions {
 
 /** PLAN-5 B-3: `t.browser` */
 export interface BrowserFake {
-  /** the declarations of `intersection: target` hear `{ visible, ratio: 1 | 0, index: 0, dataset: {}, ...data }`; `at`: only the at-th of them (start order). Throws when nothing declares it */
+  /** the declarations of `intersection: target` hear `{ visible, ratio: 1 | 0, index: 0, dataset: {}, ...data }`; `at`: only the at-th of them (start order). Throws when nothing declares it. (Each declaration also hears `{ visible: false, ratio: 0, index: 0, dataset: {} }` when it starts, and a resize one `{ width: 0, height: 0, index: 0, dataset: {} }`, as the observers report) */
   intersect(target: string | true, visible?: boolean, data?: Partial<BrowserIntersection> & { at?: number }): Promise<void>;
   /** the declarations of `resize: target` hear `{ width, height, index: 0, dataset: {}, ...size }`. Throws when nothing declares it */
   resize(target: string | true, size: Partial<BrowserResize> & { at?: number }): Promise<void>;
