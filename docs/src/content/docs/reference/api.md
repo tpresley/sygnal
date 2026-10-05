@@ -31,7 +31,7 @@ function run(
 | `fragments` | `boolean` | `true` | Enable JSX fragment support in the DOM driver |
 | `useDefaultDrivers` | `boolean` | `true` | Include default drivers (DOM, STATE, EVENTS, LOG) |
 | `diagnostics` | `DiagnosticsMode \| { mode?, ignore?, strict? }` | `'off'` (`'warn'` in the Vite dev server) | Runtime [diagnostics](/guide/diagnostics/): `'off'`, `'collect'`, `'warn'` or `'error'`, plus codes to ignore and [strict mode](/guide/strict-mode/) (`strict: true` needs `sygnal/diagnostics`; without a `mode` it also turns diagnostics on). Takes precedence over the dev flag the Vite plugin sets |
-| `onError` | `(error, info) => void` | none | [App-level error hook](/advanced/error-boundaries/#app-level-error-hook) for reporting: called once per error, after the component's own `onError` boundary, with `{ componentName?, action?, phase, driver? }` (`phase`: `'view'`, `'reducer'`, `'effect'`, `'driver'`, `'instantiate'`) |
+| `onError` | `(error, info) => void` | none | [App-level error hook](/advanced/error-boundaries/#app-level-error-hook) for reporting: called once per error, after the component's own `onError` boundary, with `{ componentName?, action?, phase, driver? }` (`phase`: `'view'`, `'reducer'`, `'effect'`, `'driver'`, `'instantiate'`, `'dispose'`) |
 | `uid` | `string` | `'u'` | The root of this app's [`uid()`](#uid-view-and-reducer-prop) ids. Give each app on a page its own, and pass the same value to `renderToString` when hydrating ([SSR](/integration/ssr/#stable-ids-uid)) |
 
 ### Returns: SygnalApp

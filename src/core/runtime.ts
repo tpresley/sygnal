@@ -225,7 +225,7 @@ export class App {
   stopLater() {
     if (this.stopping) return
     this.stopping = true
-    this.macro(() => { this.stopping = false; stopQueued(this.dq) })
+    this.macro(() => { this.stopping = false; stopQueued(this.dq, this.stopErr) })
   }
   pong() {
     this.ping = false
@@ -349,6 +349,11 @@ export class App {
   }
 
   // ---------------------------------------------------------------- errors
+  /** G-342/G-267: a stream's stop() threw while an instance's streams were torn down */
+  stopErr = (e: any, inst: any) => {
+    console.error(`[Sygnal] ${inst ? inst.def.name + ': ' : ''}a stream's stop() threw while it was torn down; the other streams stopped`, e)
+    inst ? this.appError(inst, e, 'dispose') : callHook(this.opts.onError, e, {phase: 'dispose'})
+  }
   appError(inst: Inst, e: any, phase: string, action?: string) {
     const info: any = {componentName: inst.def.name, action, phase}
     callHook(this.opts.onError, e, info)
@@ -436,7 +441,7 @@ export class App {
   dispose() {
     if (this.disposed) return
     try { this.root?.dispose() } finally {
-      stopQueued(this.dq)
+      stopQueued(this.dq, this.stopErr)
       this.disposed = true
       for (const n in this.sources) try { this.sources[n]?.dispose?.() } catch (_) {}
       for (const n in this.proxies) try { this.proxies[n]._c() } catch (_) {}

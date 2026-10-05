@@ -1236,7 +1236,7 @@ export type DiagnosticsOptions = {
  * Where an error reported to the app-level `onError` hook happened (PLAN-4 GS-11). `'widget'` is
  * reserved for widgets (PLAN-5); nothing in the core reports it.
  */
-export type AppErrorPhase = 'view' | 'reducer' | 'effect' | 'declaration' | 'driver' | 'instantiate' | 'widget'
+export type AppErrorPhase = 'view' | 'reducer' | 'effect' | 'declaration' | 'driver' | 'instantiate' | 'dispose' | 'widget'
 
 /** What the app-level `onError` hook gets with the error */
 export interface AppErrorInfo {

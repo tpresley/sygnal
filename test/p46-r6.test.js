@@ -3,7 +3,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import xs from 'xstream'
 import { renderComponent } from '../src/extra/testing.js'
-import { run, createElement as h } from '../src/index.js'
+import { run, createElement as h, Collection, Transition } from '../src/index.js'
 
 let t, app
 afterEach(() => {
@@ -45,5 +45,79 @@ describe('G-339: SYG403 says context entries are functions of state only', () =>
     expect(msg).toContain('functions of state only')
     expect(msg).toContain('migrating-to-6#leftovers')
     expect(msg).not.toContain('state key')
+  })
+})
+
+describe('G-342: behaviour kept from tests deleted with the old core', () => {
+  it('G-264: a props object lent to a child is not written', async () => {
+    document.body.innerHTML = '<div id="root"></div>'
+    const shared = Object.freeze({ label: 'L' })
+    const open = { label: 'M' }
+    function Child({ label }) { return h('b', { className: 'c' }, label) }
+    function App() { return h('div', null, h(Child, shared), h(Child, open), h(Child, { props: open })) }
+    App.initialState = {}
+    app = run(App, {}, { mountPoint: '#root' })
+    await sleep(20)
+    expect([...document.querySelectorAll('.c')].map(e => e.textContent).slice(0, 2)).toEqual(['L', 'M'])
+    expect(open).toEqual({ label: 'M' })
+    expect(shared).toEqual({ label: 'L' })
+  })
+
+  it('G-267: a producer whose stop() throws does not keep the other streams running, and the error is reported', async () => {
+    document.body.innerHTML = '<div id="root"></div>'
+    const errors = []
+    vi.spyOn(console, 'error').mockImplementation((...a) => errors.push(a))
+    const uncaught = []
+    const onUncaught = (e) => uncaught.push(e)
+    process.on('uncaughtException', onUncaught)
+    const appErrors = []
+    let stopped = 0
+    const mk = (id) => xs.create({ start() {}, stop() { if (id === 1) throw new Error('boom'); stopped++ } })
+    function Item({ state }) { return h('li', null, String(state.id)) }
+    Item.intent = ({ STATE }) => ({ X: STATE.stream.map(s => mk(s.id)).flatten() })
+    Item.model = { X: (s) => s }
+    function App() { return h('ul', null, h(Collection, { of: Item, from: 'items' })) }
+    App.initialState = { items: [{ id: 1 }, { id: 2 }, { id: 3 }] }
+    App.intent = ({ DOM }) => ({ CLR: DOM.select('ul').events('click') })
+    App.model = { CLR: () => ({ items: [] }) }
+    try {
+      app = run(App, {}, { mountPoint: '#root', onError: (e, info) => appErrors.push([e, info]) })
+      await sleep(20)
+      document.querySelector('ul').dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      await sleep(50)
+    } finally { process.off('uncaughtException', onUncaught) }
+    expect(stopped).toBe(2)
+    expect(document.querySelectorAll('li').length).toBe(0)
+    // reported: to the app's onError, and logged
+    expect(appErrors.map(([e]) => e.message)).toContain('boom')
+    expect(errors.some(a => a.some(x => x?.message === 'boom' || String(x).includes('boom')))).toBe(true)
+    expect(uncaught).toEqual([])
+  })
+
+  it('B-003: a sink sees the reducer result of an action in the same tick', async () => {
+    const seen = []
+    let l
+    const $ = xs.create({ start(x) { l = x }, stop() {} })
+    function C() { return h('div', null) }
+    C.initialState = { n: 0 }
+    C.intent = () => ({ INC: $.filter(e => e === 'inc'), LOOK: $.filter(e => e === 'look') })
+    C.model = { INC: (s) => ({ ...s, n: s.n + 1 }), LOOK: { EFFECT: (s) => { seen.push(s.n) } } }
+    t = renderComponent(C)
+    await t.ready(); await t.settle()
+    l.next('inc'); l.next('look')
+    await t.settle()
+    expect(seen).toEqual([1])
+  })
+
+  it('a child gets its children as written (markers unprocessed); the HTML is the same', async () => {
+    let seen
+    function Wrap({ children }) { seen = children; return h('div', { className: 'wrap' }, ...children) }
+    function App() { return h('div', null, h(Wrap, null, h(Transition, { name: 'fade' }, h('p', null, 'x')))) }
+    App.initialState = {}
+    t = renderComponent(App)
+    await t.ready(); await t.settle()
+    expect(seen[0].sel).toBe('transition')
+    expect(t.html()).toContain('<div class="wrap"><p')
+    expect(t.html()).toContain('>x</p></div>')
   })
 })

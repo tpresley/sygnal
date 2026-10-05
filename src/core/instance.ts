@@ -549,7 +549,7 @@ export class Inst {
     this.kids.forEach(k => k.dispose())
     this.kids.clear()
     const subs = this.subs
-    if (subs.length) tearDown(() => { for (const s of subs) s.unsubscribe() }, app.dq)
+    if (subs.length) tearDown(() => { for (const s of subs) s.unsubscribe() }, app.dq, this)
     this.subs = []
     if (this.st$) app.watchers.delete(this)
     this.hub = null

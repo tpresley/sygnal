@@ -310,6 +310,10 @@ function Page({ state }) {
 
 A view's context reads are recorded, and a context change re-renders only the components whose view read a changed key. This only affects a view that relied on being re-rendered for a side effect, which views shouldn't have. In development, the dev checks re-run a sample of the skipped views and report [SYG423](/reference/errors/#syg423) when one would have rendered differently (for example a view that read the context through a value kept from an earlier render).
 
+### Children are passed as written
+
+A component's `children` are the vnodes its parent wrote, before Sygnal processes them: a `<Transition>`, `<Portal>` or `<Suspense>` child arrives as its marker vnode (`children[0].sel === 'transition'`), not as the element it renders. Rendering `{children}` gives the same HTML as in 5.x; only a view that inspected its children's `sel` or hooks sees the difference.
+
 ### Unchanged
 
 - **Switchable**: a hidden page still renders when it is first shown, as in 5.x.
