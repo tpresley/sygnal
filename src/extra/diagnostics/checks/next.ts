@@ -19,7 +19,7 @@
  *
  * Only while diagnostics are on (the checks' own rule); production builds never load this.
  */
-import {bridge, devReport, reportSafely, once, nameOf, isPlainObject} from './shared'
+import {bridge, devReport, reportSafely, once, onReset, nameOf, isPlainObject} from './shared'
 import {DEV_CODE_SEVERITY} from '../codes'
 import {watchMutation} from './state'
 import {checkRequest} from './replies'
@@ -60,7 +60,9 @@ function removed(component: any, name: string, anchor: string, detail?: string):
 }
 
 /** the removed forms a definition shows (statics, view arity, model keys), once per function */
-const seenDefs = new WeakSet<object>()
+let seenDefs = new WeakSet<object>()
+// G-332: resetChecks() forgets them (as the once() dedupe)
+onReset(() => { seenDefs = new WeakSet<object>() })
 function removedStatics(f: any): void {
   const view = f.view
   if (!view || seenDefs.has(view)) return

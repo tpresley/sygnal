@@ -57,3 +57,15 @@ describe('G-329: SYG612 string-tags is not reported for an uppercase real elemen
     expect(codes('SYG612').map((d) => d.data.form)).toEqual(['string-tags'])
   })
 })
+
+describe('G-332: resetChecks() forgets the definitions SYG612 has seen', () => {
+  function Old(props, extra) { return h('div', null, 'x') }
+  Old.initialState = {}
+  for (const n of [1, 2]) {
+    it(`a positional view is reported again after resetChecks() (run ${n})`, async () => {
+      start(Old)
+      await sleep(20)
+      expect(codes('SYG612').map((d) => d.data.form)).toEqual(['positional-views'])
+    })
+  }
+})
