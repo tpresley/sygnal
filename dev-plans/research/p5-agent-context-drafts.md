@@ -50,3 +50,13 @@ Line count: 6 with the heading (5 bullets). It relies on the Behaviors section (
 ```
 
 Line count: 1. **SKILL.md** (≈ 120 B, if Phase 4 makes room): "Watch visibility/size/media/storage/network → `browser` static + `makeBrowserDriver()` (guide: browser-sources)."
+
+## 2-A: Collection move transitions (A-1)
+
+**No new line**: extend the existing View Transitions entry in "More (guides)":
+
+```md
+View Transitions (`viewTransitions = ['MOVE']` + `makeViewTransitionDOMDriver`; `<Collection viewTransitionName="card" />` names each item `card-<id>` so moves and reorders animate, across Collections with the same prefix) https://sygnal.js.org/guide/view-transitions/
+```
+
+Line count: 0 (the existing line grows by ≈ 120 B). SKILL.md: nothing.

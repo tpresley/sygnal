@@ -159,6 +159,7 @@ The lowercase `<collection>` tag works too, without an import.
 | `filter` | `(item) => boolean` | No | Filter function — only items returning `true` are rendered |
 | `sort` | `string \| object \| array \| function` | No | Sort items — string (field name, `"asc"`, or `"desc"`), object (`{ field: "asc" \| "desc" \| 1 \| -1 }`), array (multi-field), or comparator function |
 | `className` | `string` | No | CSS class for the wrapping container element |
+| `viewTransitionName` | `string` | No | A CSS identifier prefix (`"card"`): each item with an `id` gets `view-transition-name: card-<id>` and `view-transition-class: card` on its root element (its own style wins), for [View Transitions](/guide/view-transitions/#collection-items) |
 
 ### Item Keys
 

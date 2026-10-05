@@ -38,6 +38,7 @@ Each item in the `items` array becomes the state for one `TodoItem` instance. If
 | `filter` | Function | Filter function — only items returning `true` are shown |
 | `sort` | String, Object, Array, or Function | Sort items — see [Sorting](#sorting) below |
 | `className` | String | CSS class for the wrapping container |
+| `viewTransitionName` | String | A prefix such as `"card"`: each item with an `id` gets `view-transition-name: card-<id>`, so a reorder or a move animates in a [View Transition](/guide/view-transitions/#collection-items) |
 
 ## Filtering
 
