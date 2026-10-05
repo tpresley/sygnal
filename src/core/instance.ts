@@ -165,7 +165,7 @@ export class Inst {
         const b: any = base, has = b.has ? b.has() : b.get() !== undefined
         // the parent's slice is written as a queued action (before INITIALIZE), so a child that
         // fails to start (G-295) never touches it: the drain skips a disposed instance
-        if (reset || (!has && def.model)) app.dispatch(this, SEED, init, 'built-in')
+        if (reset || (!has && def.model)) app.dispatch(this, SEED, {v: init, r: reset, b}, 'built-in')
         else if (has) H.onStateSeed?.(viewOf(this), b.get(), init)
       }
     } else if (def.idle && isObj(this.cell.raw()) && !parent) this.cell.set(this.cell.raw())
@@ -477,7 +477,7 @@ export class Inst {
       }
       const dflt = def.isolated ? def.initialState : undefined
       const cell = typeof st == 'string' ? keyCell(this.cell, st, calcOf?.has(st) && this.def.name, dflt)
-        : st !== undefined ? lensCell(this.cell, st, this.def.name, (e) => app.appError(this, e, 'view'))
+        : st !== undefined ? lensCell(this.cell, st, this.def.name, (e) => app.appError(this, e, 'view'), dflt)
         : def.isolated ? localCell(app, this.cell) : this.cell
       const scope = app.scope()
       return new Inst(app, def, this, cell, this.dom && this.dom.isolateSource(this.dom, scope), props, children, scope,

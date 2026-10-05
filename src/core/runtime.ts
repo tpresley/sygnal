@@ -143,7 +143,12 @@ export class App {
           const f = q[i + 2], c = inst.cell
           const v = typeof f == 'function' ? f(c.get()) : f
           if (v !== c.get()) c.set(v)
-        } else if (q[i + 1] === SEED) inst.cell.set(q[i + 2])
+        } else if (q[i + 1] === SEED) {
+          // G-309: decided when it is applied: a parent write queued before it keeps the slice (D174)
+          const d = q[i + 2], b = d.b
+          if (d.r || !(b.has ? b.has() : b.get() !== undefined)) inst.cell.set(d.v)
+          else this.hooks.onStateSeed?.(viewOf(inst), b.get(), d.v)
+        }
         else inst.handle(q[i + 1], q[i + 2], q[i + 3])
         if (this.watchers.size) this.notify()
       }

@@ -60,26 +60,29 @@ export function keyCell(parent: Cell, k: string, owner?: string | false, dflt?: 
 
 /**
  * state={{ get, set }} (no get: SYG410, the parent's whole state). G-298: a get() that throws
- * keeps the last value (SYG410, and `onErr` for the app's onError)
+ * keeps the last value (SYG410, and `onErr` for the app's onError). `dflt`, `has()`: as keyCell's
+ * (G-314, D179: an isolated child's initialState read while the lensed slice is undefined)
  */
-export function lensCell(parent: Cell, lens: any, owner: string, onErr?: (e: any) => void): Cell {
+export function lensCell(parent: Cell, lens: any, owner: string, onErr?: (e: any) => void, dflt?: any): Cell & {has?(): boolean} {
   if (typeof lens?.get != 'function') {
     logError('SYG410', owner, `Sub-component 'state' prop ${isObj(lens) ? 'has no get()' : `is a ${typeof lens}`}; it gets the parent's whole state`, 'Use a state key string or { get, set }')
     return parent
   }
-  let lp: any = {}, lv: any
+  let lp: any = {}, lv: any, raw: any
   return {
     get() {
       const p = parent.get()
       if (p !== lp) {
         lp = p
-        try { lv = lens.get(p) } catch (e) {
+        try { raw = lv = lens.get(p) } catch (e) {
           logError('SYG410', owner, "Sub-component 'state' lens get() threw; it keeps its last value", 'Guard the getter against missing data', e)
           onErr?.(e)
         }
+        if (lv === undefined) lv = dflt
       }
       return lv
     },
+    has() { this.get(); return raw !== undefined },
     set(v) {
       if (typeof lens.set != 'function') return
       const p = parent.get(), n = lens.set(p, v)
