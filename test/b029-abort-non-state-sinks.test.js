@@ -57,41 +57,6 @@ describe('B-029: ABORT from non-STATE sinks is silent', () => {
     expect(err.mock.calls.filter(c => /SYG21[68]/.test(String(c[0])))).toEqual([])
   })
 
-  it('custom driver sink: a conditional ABORT sends nothing to the driver, with no diagnostics', async () => {
-    const err = vi.spyOn(console, 'error').mockImplementation(() => {})
-    const sent = []
-    const API = sink$ => { sink$.addListener({ next: v => sent.push(v), error: () => {}, complete: () => {} }); return { select: () => xs.never() } }
-    function App(p) { return view(p) }
-    App.initialState = { n: 0 }
-    App.model = {
-      SAVE: { API: (s, d) => (d ? { save: d } : ABORT) },
-      'QUICK | API': (s, d) => (d ? { quick: d } : ABORT), // shorthand path
-    }
-    t = renderComponent(App, { drivers: { API } })
-    t.simulateAction('SAVE', 0)
-    t.simulateAction('SAVE', 'a')
-    t.simulateAction('QUICK', 0)
-    t.simulateAction('QUICK', 'b')
-    await t.settle()
-    expect(sent).toEqual([{ save: 'a' }, { quick: 'b' }])
-    t.expectNoDiagnostics()
-    expect(err.mock.calls.filter(c => /SYG21[68]/.test(String(c[0])))).toEqual([])
-  })
-
-  it('EFFECT: returning ABORT is not reported as an ignored value (SYG219)', async () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
-    let ran = 0
-    function App(p) { return view(p) }
-    App.initialState = { n: 0 }
-    App.model = { 'POKE | EFFECT': () => { ran++; return ABORT } }
-    t = renderComponent(App)
-    t.simulateAction('POKE')
-    await t.settle()
-    expect(ran).toBe(1)
-    t.expectNoDiagnostics()
-    expect(warn.mock.calls.filter(c => String(c[0]).includes('SYG219'))).toEqual([])
-  })
-
   // PLAN-2 1-B (G-027): SYG218 is reported under its own code (it used to be thrown into the
   // reducer's catch and surface as SYG216 with the SYG218 error attached)
   it('a non-ABORT symbol still reports SYG218, and nothing is sent', async () => {

@@ -13,7 +13,9 @@ vi.mock('sygnal', () => ({
     runs.push({ component, drivers, options })
     return {
       sources: {},
-      sinks: { STATE: { shamefullySendNext: (reducer) => { state = reducer(state) } } },
+      sinks: {},
+      // the runtime API the wrapper swaps the Page through (R5: no STATE sink pushes)
+      __runtime: { setState: (_id, reducer) => { state = reducer(state) } },
       dispose() {},
     }
   },
@@ -28,7 +30,7 @@ afterAll(() => {
 
 const { onRenderClient } = await import('../dist/vike/onRenderClient.mjs')
 
-// Depth-first search for the vnode carrying the Page's sygnalOptions
+// Depth-first search for the vnode carrying the Page (its component function in data.c)
 function findPage(vnode) {
   if (!vnode || typeof vnode !== 'object') return null
   if (vnode.key === '__vike_page__') return vnode
@@ -52,8 +54,10 @@ describe('vike client: component names (G-037)', () => {
     expect(Root.name).toBe('VikeLayoutWrapper')
 
     const first = findPage(Root({ state }))
-    expect(first.data.props.sygnalOptions.name).toBe('Page')
-    expect(first.data.props.sygnalOptions.view).toBe(Page)
+    // R5: the vnode carries the component function (data.c), named as the user's Page
+    expect(first.data.c.name).toBe('Page')
+    expect(first.data.c({ state: {} }).text).toBe('home')
+    expect(first.data.props.sygnalOptions).toBeUndefined()
 
     // Client-side navigation to another page also named 'Page'
     function AboutPage() { return { sel: 'p', data: {}, children: [], text: 'about' } }
@@ -61,8 +65,8 @@ describe('vike client: component names (G-037)', () => {
     onRenderClient({ Page: AboutPage, config: { Layout: [Layout] }, data: { title: 'About' }, urlPathname: '/about' })
     expect(runs).toHaveLength(1) // the shell stays mounted
     const second = findPage(Root({ state }))
-    expect(second.data.props.sygnalOptions.name).toBe('Page')
-    expect(second.data.props.sygnalOptions.view).toBe(AboutPage)
+    expect(second.data.c.name).toBe('Page')
+    expect(second.data.c({ state: {} }).text).toBe('about')
     // the selector still changes so the Page sub-component is swapped
     expect(second.sel).not.toBe(first.sel)
     expect(Root.context.urlPathname()).toBe('/about')
@@ -73,7 +77,7 @@ describe('vike client: component names (G-037)', () => {
     Page.componentName = 'Dashboard'
     onRenderClient({ Page, config: { Layout: [Layout] }, data: {} })
     const page = findPage(runs[0].component({ state }))
-    expect(page.data.props.sygnalOptions.name).toBe('Dashboard')
+    expect(page.data.c.componentName).toBe('Dashboard')
   })
 
   it('urlPathname context falls back to the location when Vike does not provide it (G-046)', () => {

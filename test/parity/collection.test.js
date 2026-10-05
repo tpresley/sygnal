@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // PLAN-4.6 parity: Collection (spike 0-S §2, ported to the public API), G-257 (PLAN-4.5), D169.
 import { it, expect, vi } from 'vitest'
-import { parity, itNext, needs, mount, h, click, until, sleep, Collection } from './harness.js'
+import { parity, mount, h, click, until, sleep, Collection } from './harness.js'
 
 function Row({ state }) { return h('li', { className: 'row', 'data-id': String(state.id) }, state.text, h('button', { className: 'edit' }, 'e'), h('button', { className: 'del' }, 'x')) }
 Row.intent = ({ DOM }) => ({ EDIT: DOM.click('.edit'), DEL: DOM.click('.del') })
@@ -86,7 +86,7 @@ parity('parity: Collection filter, sort, removal, write-back (PF-1 cases)', () =
     await sleep(20)
     expect(views).toBe(v)
   })
-}, 'R2')
+})
 
 parity('parity: G-257 cross-Collection move of items with intent + model', () => {
   function Item({ state }) { return h('li', { className: 'item' }, h('button', { className: 'x' }, state.id + ':' + (state.n || 0))) }
@@ -125,7 +125,7 @@ parity('parity: G-257 cross-Collection move of items with intent + model', () =>
     click(m.$$('.r .x')[1])
     await until(() => expect(m.$$('.r .item').map((e) => e.textContent)).toEqual(['z:0', 'x:1']))
   })
-}, 'R2')
+})
 
 parity('parity: D169 id-less items under filter/sort are keyed by raw index; duplicate ids warn', () => {
   // an id-less item's instance keeps its identity when a filter change moves it in the shown list
@@ -145,7 +145,7 @@ parity('parity: D169 id-less items under filter/sort are keyed by raw index; dup
     await until(() => expect(m.$$('.note').map((e) => e.textContent)).toEqual(['a', 'b', 'c']))
   })
 
-  itNext('D169 raw-index keys (G-291)', "showing a filtered-out item creates only that item; the others keep their instances", async () => {
+  it("showing a filtered-out item creates only that item; the others keep their instances [D169 raw-index keys (G-291)]", async () => {
     boots.length = 0; disposed.length = 0
     const m = mount(L)
     await until(() => expect(boots.sort()).toEqual(['b', 'c']))
@@ -158,7 +158,7 @@ parity('parity: D169 id-less items under filter/sort are keyed by raw index; dup
 
   // the next core keeps a hook point (one instance per id; the first element renders); the
   // warning itself is R4's diagnostics
-  needs('R4').itNext('D169 duplicate ids warn in dev', 'duplicate item ids: a dev warning names the id', async () => {
+  it('duplicate item ids: a dev warning names the id [D169 duplicate ids warn in dev]', async () => {
     // the warning is the dev entry's (SYG424), as every dev check
     await import('../../src/extra/diagnostics/checks/index.js')
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
@@ -169,4 +169,4 @@ parity('parity: D169 id-less items under filter/sort are keyed by raw index; dup
     await sleep(30)
     expect(warn.mock.calls.some((c) => /duplicate/i.test(String(c[0])) && String(c[0]).includes('7'))).toBe(true)
   })
-}, 'R2')
+})

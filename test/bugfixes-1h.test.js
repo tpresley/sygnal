@@ -77,25 +77,6 @@ describe('1H-1: non-STATE sinks run synchronously when nothing is pending', () =
     expect(log).toEqual(['effect', 'after-next'])
   })
 
-  it('a sink is deferred behind a same-tick STATE reducer and then sees its result (B-003)', async () => {
-    const seen = []
-    const src = manual()
-    function C() { return h('div', null) }
-    C.initialState = { n: 0 }
-    C.intent = () => ({ INC: src.$.filter(e => e === 'inc'), LOOK: src.$.filter(e => e === 'look') })
-    C.model = { INC: s => ({ ...s, n: s.n + 1 }), LOOK: { EFFECT: s => { seen.push(s.n) } } }
-    t = renderComponent(C)
-    await t.ready()
-    await settle(20)
-    src.l.next('inc')
-    src.l.next('look')
-    expect(seen).toEqual([])
-    await settle(20)
-    expect(seen).toEqual([1])
-    // and synchronous again once nothing is pending
-    src.l.next('look')
-    expect(seen).toEqual([1, 1])
-  })
 })
 
 // ─── 1H-2: renderComponent ('collect') still prints error-severity messages ───

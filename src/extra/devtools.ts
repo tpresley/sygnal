@@ -15,13 +15,10 @@ declare global {
   interface Window {
     __SYGNAL_DEVTOOLS__?: SygnalDevTools;
     __SYGNAL_DEVTOOLS_APP__?: {
-      sinks?: { STATE?: { shamefullySendNext: (fn: any) => void } };
+      __runtime?: { setState: (id: any, fn: (s: any) => any) => void };
     };
     __SYGNAL_DEVTOOLS_PAGE__?: boolean;
     SYGNAL_DEBUG?: string | false;
-    __SYGNAL_HMR_UPDATING?: boolean;
-    __SYGNAL_HMR_STATE?: unknown;
-    __SYGNAL_HMR_PERSISTED_STATE?: unknown;
     __SYGNAL_HMR_LAST_CAPTURED_STATE?: unknown;
     Cyclejs?: { sinks?: any };
     CyclejsDevTool_startGraphSerializer?: (sinks: any) => void;
@@ -161,7 +158,7 @@ export class SygnalDevTools {
       hasIntent: !!instance.intent,
       hasContext: !!instance.context,
       hasCalculated: !!instance.calculated,
-      components: Object.keys(instance.components || {}),
+      components: [],
       parentId: null,
       children: [],
       debug: instance._debug,
@@ -361,9 +358,8 @@ export class SygnalDevTools {
     if (meta && meta._instanceRef) {
       const instance = meta._instanceRef.deref();
       if (instance) {
-        // (the next core: through the app's runtime API)
-        if (instance.__api) instance.__api.setDebug(componentId, enabled);
-        else instance._debug = enabled;
+        // (through the app's runtime API)
+        instance.__api?.setDebug(componentId, enabled);
         meta.debug = enabled;
         this._post('DEBUG_TOGGLED', {componentId, enabled});
       }
@@ -379,44 +375,28 @@ export class SygnalDevTools {
     if (typeof window === 'undefined') return;
 
     const newState = this._safeClone(state);
-    const apply = (sink: any) => {
-      sink.shamefullySendNext(() => ({...newState}));
-      this._post('TIME_TRAVEL_APPLIED', {
-        componentId,
-        componentName,
-        state: newState,
-      });
-    };
 
-    // Try per-component time-travel via the component's STATE sink (reducer stream)
+    // Per-component time travel through the app's runtime API
     const meta = this._components.get(componentId);
     if (meta) {
       const instance = meta._instanceRef?.deref();
       if (!instance) {
         console.warn(`[Sygnal DevTools] _timeTravel: WeakRef for component #${componentId} (${componentName}) has been GC'd`);
       } else if (instance.__api) {
-        // PLAN-4.6 R4 (next core): the runtime's setState (a queued action, one patch)
+        // the runtime's setState (a queued action, one patch)
         instance.__api.setState(componentId, () => ({...newState}));
         this._post('TIME_TRAVEL_APPLIED', {componentId, componentName, state: newState});
         return;
-      } else {
-        // sinks[stateSourceName] is the reducer stream — push a reducer that replaces state
-        const stateSinkName = instance.stateSourceName || 'STATE';
-        const stateSink = instance.sinks?.[stateSinkName];
-        if (stateSink?.shamefullySendNext) return apply(stateSink);
-        console.warn(`[Sygnal DevTools] _timeTravel: component #${componentId} (${componentName}) has no STATE sink with shamefullySendNext. sinkName=${stateSinkName}, hasSinks=${!!instance.sinks}, sinkKeys=${instance.sinks ? Object.keys(instance.sinks).join(',') : 'none'}`);
       }
     } else {
       console.warn(`[Sygnal DevTools] _timeTravel: no meta for componentId ${componentId}`);
     }
 
-    // Fall back to root STATE sink for root-level components
+    // Fall back to the root's state
     const app = window.__SYGNAL_DEVTOOLS_APP__;
-    if ((app as any)?.__runtime) {
-      (app as any).__runtime.setState('root', () => ({...newState}));
+    if (app?.__runtime) {
+      app.__runtime.setState('root', () => ({...newState}));
       this._post('TIME_TRAVEL_APPLIED', {componentId, componentName, state: newState});
-    } else if (app?.sinks?.STATE?.shamefullySendNext) {
-      apply(app.sinks.STATE);
     } else {
       console.warn(`[Sygnal DevTools] _timeTravel: no fallback root STATE sink available`);
     }

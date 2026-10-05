@@ -1,17 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import xs from 'xstream'
 import { set, toggle, emit, event } from '../src/extra/reducers.js'
-import { setup } from '../src/cycle/run/index'
-import { withState } from '../src/cycle/state/index'
 import { mockDOMSource } from '../src/cycle/dom/index'
 
-// Ensure `window` is defined so component.js `window?.` optional chaining
-// doesn't throw ReferenceError in Node (where `window` is undeclared).
-if (typeof globalThis.window === 'undefined') {
-  globalThis.window = undefined
-}
-
-import component from '../src/component.js'
+import run from '../src/extra/run.js'
 import eventBusDriver from '../src/extra/eventDriver.js'
 import logDriver from '../src/extra/logDriver.js'
 import { createElement } from '../src/pragma/index.js'
@@ -175,19 +167,14 @@ describe('event() runtime integration', () => {
   const settle = (ms = 100) => new Promise((r) => setTimeout(r, ms))
 
   function runApp(App) {
-    const app = component({
-      name: App.name,
-      view: App,
-      intent: App.intent,
-      model: App.model,
-      initialState: App.initialState,
-    })
-    const { sources, sinks, run: start } = setup(withState(app, 'STATE'), {
+    // R5 (06 §3): run() with the drivers the removed component() + setup harness had
+    const app = run(App, {
       DOM: () => mockDOMSource({}),
       EVENTS: eventBusDriver,
       LOG: logDriver,
-    })
-    const dispose = start()
+    }, { useDefaultDrivers: false })
+    const { sources, sinks } = app
+    const dispose = () => app.dispose()
     // Keep the DOM sink subscribed so sub-components get instantiated
     const domListener = { next: () => {}, error: () => {}, complete: () => {} }
     sinks.DOM.addListener(domListener)

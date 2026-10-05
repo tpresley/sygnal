@@ -8,7 +8,7 @@ import { createElement as h } from '../src/pragma/index.js'
 import { Collection } from '../src/collection.js'
 import { Portal } from '../src/portal.js'
 import { createRef } from '../src/extra/ref.js'
-import { ABORT } from '../src/component.js'
+import { ABORT } from '../src/shared.js'
 import { _resetDiagnostics } from '../src/extra/diagnostics/index.js'
 
 let t

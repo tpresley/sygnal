@@ -300,14 +300,6 @@ describe('G-036: run() diagnostics.strict', () => {
     expect(isStrictEnabled()).toBe(true)
   })
 
-  it('strict checks report through run()', async () => {
-    function Positional(props, state) { return h('div', null, String(state.n)) }
-    Positional.initialState = { n: 0 }
-    app = run(Positional, drivers, { useDefaultDrivers: false, diagnostics: { mode: 'collect', strict: true } })
-    await settle(20)
-    expect(getDiagnostics().map(d => d.code)).toContain('SYG501')
-  })
-
   it("without the 'sygnal/diagnostics' dev entry it warns once (SYG608) and nothing else changes", () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const c = core()

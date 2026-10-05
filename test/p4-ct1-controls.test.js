@@ -7,7 +7,7 @@ import { renderComponent } from '../src/extra/testing.js'
 import { createElement as h } from '../src/pragma/index.js'
 import { jsx } from '../src/jsx-runtime.js'
 import { Collection } from '../src/collection.js'
-import { ABORT } from '../src/component.js'
+import { ABORT } from '../src/shared.js'
 import { controls } from '../src/extra/controls.js'
 import { renderToString } from '../src/extra/ssr.js'
 import run from '../src/extra/run.js'
@@ -57,9 +57,7 @@ describe('controls()', () => {
   it('is not a component: no instantiation options, no isolation, no wrapper', () => {
     const v = h(Add, null, 'x')
     expect(v.sel).toBe('button')
-    expect(v.data.sygnalOptions).toBeUndefined()
-    expect(v.data.sygnalFactory).toBeUndefined()
-    expect(Add.isSygnalComponent).toBeUndefined()
+    expect(v.data.c).toBeUndefined()
   })
 
   it('works through the automatic JSX runtime (key and children)', () => {

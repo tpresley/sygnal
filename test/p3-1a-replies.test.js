@@ -5,7 +5,6 @@
 import { it, expect, beforeEach, afterEach, vi, describe } from 'vitest'
 import xs from 'xstream'
 import run from '../src/extra/run.js'
-import component from '../src/component.js'
 import { createElement as h } from '../src/pragma/index.js'
 import { Collection } from '../src/collection.js'
 import { makeFetchDriver } from '../src/extra/fetchDriver.js'
@@ -286,32 +285,20 @@ describe('delivery to the exact instance', () => {
     expect(text('.child')).toBe('ckid')
   })
 
-  it('unisolated instances sharing one HTTP source (no scope) each get only their own reply', async () => {
+  // R5 (06 §4): ported from component({ ...isolateOpts }) (removed, D162) to two sibling tag
+  // children of the same component: each gets only the reply to its own request
+  it('sibling instances of one component, one HTTP driver: each gets only its own reply', async () => {
     const f = stubFetch()
     const seen = { a: [], b: [] }
-    const make = (name, url) => ({
-      name,
-      model: {
-        BOOTSTRAP: { HTTP: () => ({ url, ok: 'GOT', error: 'BAD' }) },
-        GOT: (s, body) => { seen[name].push(body.v); return s },
-        BAD: s => s,
-      },
-      // HTTP (and everything but STATE) unisolated: both instances share the same source object
-      isolateOpts: { STATE: name, '*': null },
-    })
-    const App = sources => {
-      const a = component({ ...make('a', '/a'), sources })
-      const b = component({ ...make('b', '/b'), sources })
-      expect(a.HTTP).toBeDefined()
-      return {
-        HTTP: xs.merge(a.HTTP, b.HTTP),
-        STATE: xs.merge(a.STATE, b.STATE),
-        __dispose: () => { a.__dispose(); b.__dispose() },
-      }
+    function Kid({ state }) { return h('i', { className: 'k-' + state.name }, (seen[state.name] || []).join()) }
+    Kid.model = {
+      BOOTSTRAP: { HTTP: (s) => ({ url: s.url, ok: 'GOT', error: 'BAD' }) },
+      GOT: (s, body) => { seen[s.name].push(body.v); return s },
+      BAD: (s) => s,
     }
-    App.isSygnalComponent = true
-    App.initialState = { a: {}, b: {} }
-    app = run(App, { HTTP: makeFetchDriver({ fetch: f.fetch }) }, { useDefaultDrivers: false })
+    function App() { return h('div', null, h(Kid, { state: 'a' }), h(Kid, { state: 'b' })) }
+    App.initialState = { a: { name: 'a', url: '/a' }, b: { name: 'b', url: '/b' } }
+    start(App, { HTTP: makeFetchDriver({ fetch: f.fetch }) })
     await until(() => f.calls.length === 2, 'both requests')
     f.respond(f.call('/b'), { v: 'B' })
     f.respond(f.call('/a'), { v: 'A' })

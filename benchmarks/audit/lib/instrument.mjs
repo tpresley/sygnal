@@ -31,8 +31,6 @@ const HOOKS = {
 }
 
 // Builds apps/sygnal/<page>.html for each page into outDir/sygnal (unminified, production mode).
-// fw: 'sygnal' (the shipped core) or 'next' (PLAN-4.6 R1-R4: the next core's apps, with the
-// D175 strip turned off by __SYGNAL_NEXT_CORE__)
 export async function buildInstrumented({ pages, outDir, logLevel = 'warn', fw = 'sygnal' }) {
   const applied = new Set()
   const counters = {
@@ -50,7 +48,7 @@ export async function buildInstrumented({ pages, outDir, logLevel = 'warn', fw =
   await build({
     root, configFile: false, logLevel, mode: 'production', base: './',
     plugins: [counters, sygnal()],
-    define: { 'process.env.NODE_ENV': '"production"', ...(fw === 'next' && { __SYGNAL_NEXT_CORE__: 'true' }) },
+    define: { 'process.env.NODE_ENV': '"production"' },
     build: {
       outDir: resolve(outDir, fw), emptyOutDir: true, minify: false,
       rollupOptions: { input: Object.fromEntries(pages.map(s => [s, resolve(root, `apps/${fw}`, `${s}.html`)])) },

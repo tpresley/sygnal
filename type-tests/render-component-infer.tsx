@@ -1,6 +1,6 @@
 // PLAN-3 1-T / G-142: renderComponent infers the state type, so test predicates need no
 // annotation under strict (no TS7006 in `t.next(s => ...)`); untyped usage stays `any`
-import { renderComponent, component } from 'sygnal'
+import { renderComponent, defineComponent } from 'sygnal'
 import type { Component, RenderResult, ActionsOf, IntentSources } from 'sygnal'
 
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends (<T>() => T extends B ? 1 : 2) ? true : false
@@ -75,11 +75,14 @@ async function check() {
   await u.next(s => s.whatever === 1)
   const fromAny = renderComponent(null as any)
   assert<IsAny<typeof fromAny.state>>()
-  const viaFactory = renderComponent(component({ view: ({ state }) => <div>{state.x}</div> }))
-  assert<IsAny<typeof viaFactory.state>>()
-  const factoryComponent = component({ view: ({ state }) => <div>{state.x}</div> })
-  const fromFactory = renderComponent(factoryComponent)
-  assert<IsAny<typeof fromFactory.state>>()
+  // R5: defineComponent() (the component() factory's replacement) infers like a function component
+  const viaDefine = renderComponent(defineComponent({ view: ({ state }: any) => <div>{state.x}</div> }))
+  void viaDefine.state
+  const defined = defineComponent<State>({ name: 'Defined', view: ({ state }) => <div>{state.label}</div>, initialState: { count: 0, label: '' } })
+  const fromDefined = renderComponent(defined)
+  assert<Equal<typeof fromDefined.state, State>>()
+  // @ts-expect-error defineComponent needs a view
+  defineComponent({ initialState: {} })
 
   // explicit state type for an untyped component
   const explicit = renderComponent<State>(Untyped)

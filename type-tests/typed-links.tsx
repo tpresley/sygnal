@@ -138,10 +138,10 @@ TaskCard.model = {
 
 expectType<Equal<ParentPayloadOf<typeof TaskCard>, { type: 'delete'; taskId: string }>>()
 
-// Shorthand 'ACTION | PARENT' entries are picked up as well, unioned with object-form ones
+// Object-form PARENT entries are unioned (R5: 'ACTION | PARENT' keys were removed, D164)
 function Toggle() { return <div /> }
 Toggle.model = {
-  'FLIP | PARENT': (state: { on: boolean }) => state.on,
+  FLIP: { PARENT: (state: { on: boolean }) => state.on },
   NAME: { PARENT: () => 'name' },
 }
 expectType<Equal<ParentPayloadOf<typeof Toggle>, boolean | string>>()
@@ -160,14 +160,16 @@ type LaneState = { id: string; title: string; tasks: { id: string; title: string
 const laneIntent = ({ CHILD }: IntentSources<LaneState>) => ({
   DELETE_TASK: CHILD.select(TaskCard).map((e) => e.taskId),
   ANY_CHILD:   CHILD.select(Plain),                  // falls back to Stream<any>
-  BY_NAME:     CHILD.select('TaskCard'),             // string form stays any
   EXPLICIT:    CHILD.select<number>(Plain),          // explicit type argument still works
 })
 
 type LaneActions = ActionsOf<typeof laneIntent>
 expectType<Equal<LaneActions['DELETE_TASK'], string>>()
 expectType<Equal<ReturnType<typeof isAny<LaneActions['ANY_CHILD']>>, true>>()
-expectType<Equal<ReturnType<typeof isAny<LaneActions['BY_NAME']>>, true>>()
+// R5 (D163): CHILD.select('Name') was removed
+// @ts-expect-error CHILD.select takes the component, not its name
+const byName = ({ CHILD }: IntentSources<LaneState>) => CHILD.select('TaskCard')
+void byName
 expectType<Equal<LaneActions['EXPLICIT'], number>>()
 
 const badLaneIntent = ({ CHILD }: IntentSources<LaneState>) => ({

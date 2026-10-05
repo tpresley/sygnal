@@ -5,7 +5,6 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { run, createElement as h, xs, Collection, Switchable, Portal, lazy } from '../src/index.js'
 import { App as CoreApp } from '../src/core/runtime'
 
-const NEXT = globalThis.__SYGNAL_CORE__ === 'next'
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 let apps = []
@@ -22,7 +21,7 @@ function mount(App, drivers = {}, options = {}) {
 }
 const click = (el) => el.dispatchEvent(new MouseEvent('click', { bubbles: true }))
 
-describe.skipIf(!NEXT)('PLAN-4.6 R3: R2 review fixes (next core)', () => {
+describe('PLAN-4.6 R3: R2 review fixes (next core)', () => {
   it('G-306: an id-less item that wrote itself back keeps its place after a removal before it; no made-up id is stored', async () => {
     function Item({ state }) { return h('li', null, `${state.t}`) }
     Item.intent = ({ DOM }) => ({ T: DOM.click('li') })

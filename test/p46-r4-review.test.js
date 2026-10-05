@@ -68,8 +68,7 @@ describe('G-320: statics keep following the state while a render throws', () => 
 
 describe('G-322: an id-less item and an item whose id equals its index get different uids', () => {
   // (the current core gives both 'u-0-0': next core only, with renderToString matching it)
-  const nextOnly = process.env.SYGNAL_CORE == 'next' ? it : it.skip
-  nextOnly('[{ t }, { id: 0 }] renders two distinct ids, and the server renders the same ones', async () => {
+  it('[{ t }, { id: 0 }] renders two distinct ids, and the server renders the same ones', async () => {
     document.body.innerHTML = '<div id="root"></div>'
     function Item({ state, uid }) { return h('li', { attrs: { id: uid() } }, String(state.t)) }
     function App() { return h('ul', null, h(Collection, { of: Item, from: 'rows' })) }
@@ -85,8 +84,7 @@ describe('G-322: an id-less item and an item whose id equals its index get diffe
 })
 
 describe('G-323: a new instance that declares a static costs no extra render pass (next core internals)', () => {
-  const nextOnly = process.env.SYGNAL_CORE == 'next' ? it : it.skip
-  nextOnly('adding a row with connections renders the root once', async () => {
+  it('adding a row with connections renders the root once', async () => {
     const { Inst } = await import('../src/core/instance.js')
     document.body.innerHTML = '<div id="root"></div>'
     function Item({ state }) { return h('li', null, String(state.id)) }

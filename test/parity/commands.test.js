@@ -28,4 +28,4 @@ parity('parity: commands$ (createCommand)', () => {
     click(m.$('.a')); click(m.$('.a')); click(m.$('.b')); click(m.$('.l'))
     await until(() => expect([m.text('.x'), m.text('.y')]).toEqual(['2:Hello', '1:-']))
   })
-}, 'R3')
+})

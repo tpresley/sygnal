@@ -5,9 +5,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { renderComponent } from '../src/extra/testing.js'
 import { createElement as h } from '../src/pragma/index.js'
 import { ABORT } from '../src/index.js'
-import collection, { Collection } from '../src/collection.js'
-import switchable from '../src/switchable.js'
-import { StateSource } from '../src/cycle/state/index.js'
+import { Collection } from '../src/collection.js'
+import { Switchable } from '../src/switchable.js'
 import xs from 'xstream'
 import run from '../src/extra/run.js'
 import { renderToString } from '../src/extra/ssr.ts'
@@ -149,21 +148,22 @@ describe('G-214 (4): STATE.select(...).watch() ends on dispose', () => {
   })
 })
 
-describe("G-214 (5): collection() / switchable() without a __uid source use the root 'u'", () => {
-  const listen = (sinks) => { for (const k in sinks) sinks[k]?.addListener?.({ next() {}, error() {} }) }
-  it('collection(): item uids are u-<key>', async () => {
+// R5: ported from the removed collection() / switchable() factories to the JSX markers
+describe("G-214 (5): Collection items and Switchable pages without a uid option use the root 'u'", () => {
+  it("a Collection item's and a Switchable page's uid() start at 'u' and end with the item key / page name", async () => {
     const seen = []
-    const Item = (so) => { seen.push(so.__uid); return { EVENTS: xs.never() } }
-    const STATE = new StateSource(xs.of({ items: [{ id: 'k' }] }).remember(), 'STATE')
-    listen(collection(Item, 'items')({ STATE, EVENTS: { select: () => xs.never() } }))
-    await sleep(20)
-    expect(seen).toEqual(['u-k'])
-  })
-  it('switchable(): page uids are u-<name>', () => {
-    const seen = []
-    const Page = (so) => { seen.push(so.__uid); return { EVENTS: xs.never() } }
-    switchable({ a: Page }, xs.of('a').remember())({ EVENTS: xs.never() })
-    expect(seen).toEqual(['u-a'])
+    function Item({ uid }) { seen.push(uid()); return h('i', null, 'i') }
+    function Page({ uid }) { seen.push(uid()); return h('b', null, 'p') }
+    function App() { return h('div', null, h(Collection, { of: Item, from: 'items' }), h(Switchable, { of: { a: Page }, current: 'a' })) }
+    App.initialState = { items: [{ id: 'k' }] }
+    document.body.innerHTML = '<div id="root"></div>'
+    const app = run(App, {}, { diagnostics: 'off' })
+    try {
+      await app.__runtime.flushed()
+      expect(seen.length).toBe(2)
+      expect(seen[0]).toMatch(/^u-.*-k$/)
+      expect(seen[1]).toMatch(/^u-.*-a$/)
+    } finally { app.dispose(); document.body.innerHTML = '' }
   })
 })
 
@@ -247,31 +247,6 @@ describe("G-216: an app's hot swap is scoped to that app (the __hmr source)", ()
       expect(text('#b')).toBe('B100')
       expect(text('#a')).toBe('A5')
       expect(getState(b)).toEqual({ name: 'B', n: 100 })
-      expect(window.__SYGNAL_HMR_UPDATING).toBeUndefined()
-      expect(window.__SYGNAL_HMR_STATE).toBeUndefined()
-    } finally { a.dispose(); b?.dispose(); document.body.innerHTML = '' }
-  })
-
-  it('hmrActions fire in the swapped-in app only', async () => {
-    const fired = []
-    function A({ state }) { return h('b', null, String(state.r)) }
-    A.initialState = { r: 0 }
-    A.hmrActions = 'REFRESH'
-    A.model = { REFRESH: s => (fired.push('A'), { ...s, r: s.r + 1 }) }
-    function B({ state }) { return h('i', null, String(state.r)) }
-    B.initialState = { r: 0 }
-    B.hmrActions = 'REFRESH'
-    B.model = { REFRESH: s => (fired.push('B'), { ...s, r: s.r + 1 }) }
-    document.body.innerHTML = '<div id="a"></div><div id="b"></div>'
-    const a = run(A, {}, { mountPoint: '#a', diagnostics: 'off' })
-    let b
-    try {
-      await until(() => text('#a') === '0', 'app A')
-      a.hmr(A)
-      b = run(B, {}, { mountPoint: '#b' })
-      await until(() => fired.length > 0, 'an hmrAction')
-      await sleep(150)
-      expect(fired).toEqual(['A'])
     } finally { a.dispose(); b?.dispose(); document.body.innerHTML = '' }
   })
 })

@@ -249,30 +249,18 @@ export const createElementWithModules = (modules: Record<string, any>) => {
     // It gets this createElement: the JSX runtime entries carry their own copy of the pragma.
     if (sel?.__sygnalControl) return sel.__sygnalControl(data, children, ce)
     const isComponent = is.fun(sel)
-    // PLAN-4.6 (R1-R4): the next core instantiates a component from the vnode's `data.c` (the
-    // component function); the current core reads `sygnalOptions`. Both, until R5
+    // the core instantiates a component from the vnode's `data.c` (the component function, with
+    // its statics); `sel` is its name
     let fn: any
     if (isComponent) {
       if ((sel as any).__sygnalFragment || sel.name === 'Fragment') {
         return sel(data || {}, children)
       }
       data ||= {}
-      if (!(sel as any).isSygnalComponent) {
-        const name = (sel as any).componentName || (sel as any).label || sel.name || 'FUNCTION_COMPONENT'
-        const view = sel
-        const { model, intent, hmrActions, context, peers, components, initialState, isolatedState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, onError, debug, preventInstantiation } = sel as any
-        // preventInstantiation (Portal/Suspense/...): a marker vnode without sygnalOptions; its
-        // children stay an array (they read vnode.children), as for every component below
-        if (!preventInstantiation) {
-          data.sygnalOptions = { name, view, model, intent, hmrActions, context, peers, components, initialState, isolatedState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, onError, debug }
-          fn = sel
-        }
-        sel = name
-      } else {
-        const factory = sel
-        sel = (sel as any).componentName || (sel as any).label || sel.name || 'sygnal-factory'
-        data.sygnalFactory = factory
-      }
+      // preventInstantiation (Portal/Suspense/...): a marker vnode without `data.c`; its children
+      // stay an array (they read vnode.children), as for every component below
+      if (!(sel as any).preventInstantiation) fn = sel
+      sel = (sel as any).componentName || sel.name || 'FUNCTION_COMPONENT'
     }
     // B-011: a vnode is either text-only (`text`, no children) or has a children array,
     // never both; snabbdom's diff mishandles a vnode with both. A component placeholder

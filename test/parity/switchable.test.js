@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // PLAN-4.6 parity: Switchable (spike 0-S §3, ported to the public API), G-292 and D172 (hidden pages).
 import { it, expect } from 'vitest'
-import { parity, itNext, mount, h, click, until, sleep, xs, Switchable } from './harness.js'
+import { parity, mount, h, click, until, sleep, xs, Switchable } from './harness.js'
 
 let renders, disposed
 function Counter({ state }) { renders[state.tag] = (renders[state.tag] || 0) + 1; return h('section', { className: state.tag }, h('button', { className: 'inc' }, `${state.tag}:${state.n}`)) }
@@ -85,19 +85,19 @@ parity('parity: Switchable hidden pages kept alive, current, instance', () => {
     expect(m.$('.pg')).toBe(null)
     expect(m.state().v).toBe(3)
   })
-}, 'R2')
+})
 
 parity('parity: an isolatedState page next to a state-bound page (G-292)', () => {
   // On the current core the isolatedState page's local state leaks into the sibling page's
   // STATE source: Counter renders Local's { k: 0 } ('undefined:undefined'). Found in R0 while
   // porting the spike's Switchable tests; the spike core (and so the next core) keeps them apart.
-  itNext('G-292 current-core bug', 'the state-bound page renders its own slice, not the isolated sibling\'s local state', async () => {
+  it('the state-bound page renders its own slice, not the isolated sibling\'s local state [G-292 current-core bug]', async () => {
     renders = {}; disposed = []
     const m = mount(tabs(Local))
     await until(() => expect(m.text('.inc')).toBe('pa:0'), 500)
   })
 
-  itNext('G-292 current-core bug', 'local state survives switches; an instance change re-creates the current isolated page (fresh state, DISPOSE)', async () => {
+  it('local state survives switches; an instance change re-creates the current isolated page (fresh state, DISPOSE) [G-292 current-core bug]', async () => {
     renders = {}; disposed = []
     const m = mount(tabs(Local))
     await until(() => expect(m.text('.inc')).toBe('pa:0'), 500)
@@ -113,7 +113,7 @@ parity('parity: an isolatedState page next to a state-bound page (G-292)', () =>
     await until(() => expect(m.text('.linc')).toBe('local:0'))
     expect(disposed).toEqual(['local'])
   })
-}, 'R2')
+})
 
 parity('parity: D172 hidden pages render on first show (G-121; no `lazy` prop)', () => {
   // D172 (supersedes D166): today's behaviour is kept. A hidden page is created at mount and runs
@@ -156,4 +156,4 @@ parity('parity: D172 hidden pages render on first show (G-121; no `lazy` prop)',
     await until(() => expect(m.text('.hid')).toBe('h2')) // first shown: rendered with the current state
     expect(log.views).toBeGreaterThan(0)
   })
-}, 'R2')
+})

@@ -1,17 +1,11 @@
 import { describe, it, expect, afterEach } from 'vitest'
-import { setup } from '../src/cycle/run/index'
-import { withState } from '../src/cycle/state/index'
+import run from '../src/extra/run.js'
+import { ABORT } from '../src/shared.js'
 import { mockDOMSource } from '../src/cycle/dom/index'
 import xs from 'xstream'
 import delay from 'xstream/extra/delay'
 
-// Ensure `window` is defined so component.js `window?.` optional chaining
-// doesn't throw ReferenceError in Node (where `window` is undeclared).
-if (typeof globalThis.window === 'undefined') {
-  globalThis.window = undefined
-}
 
-import component, { ABORT } from '../src/component.js'
 import eventBusDriver from '../src/extra/eventDriver.js'
 import logDriver from '../src/extra/logDriver.js'
 import { createElement } from '../src/pragma/index.js'
@@ -19,40 +13,22 @@ import { createElement } from '../src/pragma/index.js'
 
 // ─── Test helper ───────────────────────────────────────────────────────────────
 
+// R5 (06 §3): the harness runs the component with run() (the core), with the same drivers it had
+// under the removed component() + setup + withState harness
+function startApp(view, drivers) {
+  const app = run(view, drivers, { useDefaultDrivers: false })
+  // setState: replace the root's state through the runtime API (the old harness pushed into STATE.stream)
+  return { sources: app.sources, sinks: app.sinks, dispose: () => app.dispose(), setState: (v) => app.__runtime.setState('root', () => v) }
+}
+
 function createTestComponent(componentDef, mockConfig = {}) {
-  const name = componentDef.name || 'TestComponent'
   const view = componentDef
-  const {
-    intent,
-    model,
-    context,
-    initialState,
-    calculated,
-    storeCalculatedInState,
-  } = componentDef
 
-  const app = component({
-    name,
-    view,
-    intent,
-    model,
-    context,
-    initialState,
-    calculated,
-    storeCalculatedInState,
-  })
-
-  const wrapped = withState(app, 'STATE')
-
-  const mockDOM = () => mockDOMSource(mockConfig)
-
-  const { sources, sinks, run: _run } = setup(wrapped, {
-    DOM: mockDOM,
+  const { sources, sinks, dispose, setState } = startApp(view, {
+    DOM: () => mockDOMSource(mockConfig),
     EVENTS: eventBusDriver,
     LOG: logDriver,
   })
-
-  const dispose = _run()
 
   // Helper: collect state values
   const states = []
@@ -83,16 +59,13 @@ function createTestComponent(componentDef, mockConfig = {}) {
     sinks,
     states,
     vnodes,
+    setState,
     dispose() {
       if (stateListener && sources.STATE?.stream) {
         sources.STATE.stream.removeListener(stateListener)
       }
       if (vnodeListener && sinks.DOM) {
         sinks.DOM.removeListener(vnodeListener)
-      }
-      // Trigger the component's dispose() which fires the DISPOSE action and dispose$ stream
-      if (typeof sinks.__dispose === 'function') {
-        try { sinks.__dispose() } catch (_) {}
       }
       dispose()
     },
@@ -465,8 +438,10 @@ describe('component integration (mockDOMSource)', () => {
         RECEIVED: (state, data) => ({ ...state, received: data }),
       }
 
+      // (D165: the intent is subscribed at creation, so a click stream that emits at once would
+      // be handled before this test listens on EVENTS: the click comes a few ms later)
       testEnv = createTestComponent(EventComp, {
-        '.emit': { click: xs.of({}) },
+        '.emit': { click: xs.of({}).compose(delay(5)) },
       })
 
       // Also listen on the EVENTS source directly
@@ -635,8 +610,9 @@ describe('component integration (mockDOMSource)', () => {
         },
       }
 
+      // (D165: the click comes after this test listens on EVENTS, as above)
       testEnv = createTestComponent(MultiSink, {
-        '.action': { click: xs.of({}) },
+        '.action': { click: xs.of({}).compose(delay(5)) },
       })
 
       testEnv.sources.EVENTS.select('THING_DONE').addListener({
@@ -706,24 +682,6 @@ describe('component integration (mockDOMSource)', () => {
 
 
   describe('error messages include component name', () => {
-    it('sources validation error includes component name', () => {
-      expect(() => {
-        component({
-          name: 'BadSources',
-          view: () => createElement('div'),
-        })('not-a-sources-object')
-      }).toThrow('[Sygnal SYG601] BadSources:')
-    })
-
-    it('sources validation error for null sources includes name', () => {
-      expect(() => {
-        component({
-          name: 'NullSources',
-          view: () => createElement('div'),
-        })(null)
-      }).toThrow('[Sygnal SYG601] NullSources:')
-    })
-
     it('intent validation error includes component name', () => {
       function BadIntent({ state }) {
         return createElement('div', null, 'test')
@@ -901,9 +859,9 @@ describe('component integration (mockDOMSource)', () => {
       const initialRenders = renderCount
 
       // Rapid-fire state changes synchronously
-      testEnv.sources.STATE.stream.shamefullySendNext({ count: 1 })
-      testEnv.sources.STATE.stream.shamefullySendNext({ count: 2 })
-      testEnv.sources.STATE.stream.shamefullySendNext({ count: 3 })
+      testEnv.setState({ count: 1 })
+      testEnv.setState({ count: 2 })
+      testEnv.setState({ count: 3 })
       await settle()
 
       // State should reflect final value
@@ -937,7 +895,7 @@ describe('component integration (mockDOMSource)', () => {
       testEnv = createTestComponent(App)
       await settle()
 
-      testEnv.sources.STATE.stream.shamefullySendNext({ count: 5 })
+      testEnv.setState({ count: 5 })
       await settle()
 
       expect(lastRenderedState.count).toBe(5)
@@ -964,11 +922,11 @@ describe('component integration (mockDOMSource)', () => {
       await settle()
 
       // Push updates with small delays to test debounce coalescing
-      testEnv.sources.STATE.stream.shamefullySendNext({ value: 'a' })
+      testEnv.setState({ value: 'a' })
       await new Promise(r => setTimeout(r, 0))
-      testEnv.sources.STATE.stream.shamefullySendNext({ value: 'b' })
+      testEnv.setState({ value: 'b' })
       await new Promise(r => setTimeout(r, 0))
-      testEnv.sources.STATE.stream.shamefullySendNext({ value: 'c' })
+      testEnv.setState({ value: 'c' })
       await settle()
 
       // The last rendered value must be the final state

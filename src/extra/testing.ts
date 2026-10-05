@@ -1,16 +1,12 @@
-import {setup} from '../cycle/run/index';
-import {withState} from '../cycle/state/index';
 import {start as startNext} from '../core/runtime';
-import {NEXT_CORE} from '../core/build';
 import {mockDOMSource} from '../cycle/dom/mockDOMSource';
 import {makeDOMDriver} from '../cycle/dom/makeDOMDriver';
 import {enrichEventStream} from '../cycle/dom/enrichEventStream';
 import eventBusDriver from './eventDriver';
 import logDriver from './logDriver';
-import component from '../component';
 import {ownedCopy} from './owned';
 import {renderToInnerHtml} from './ssr';
-import {_getDiagnosticsConfig, configureDiagnostics, getDiagnosticsMode, isDiagnosticsEnabled, onDiagnostic, registerCheck, report} from './diagnostics/index';
+import {_getDiagnosticsConfig, configureDiagnostics, getDiagnosticsMode, isDiagnosticsEnabled, onDiagnostic, report} from './diagnostics/index';
 import xs from './xstreamCompat';
 import {tagRequest, inScope, makeFetchDriver} from './fetchDriver';
 import {senderOf} from './replies';
@@ -22,7 +18,7 @@ import {makeReplies} from './replies';
 import type {Stream} from 'xstream';
 import type {Diagnostic, DiagnosticsMode} from './diagnostics/index';
 import type {InspectGraph, InspectOptions} from './diagnostics/checks/public';
-import {trackActions, trackActionStreams, withCause, actionHooks} from './diagnostics/checks/actionLog';
+import {actionHooks} from './diagnostics/checks/actionLog';
 import type {ActionCause, ActionListener, ActionRecord} from './diagnostics/checks/actionLog';
 import {reportElementCommand, checkSentCommand, NATIVE_COMMAND_NAMES} from './diagnostics/checks/elementCommands';
 
@@ -1358,78 +1354,15 @@ export function renderComponent(
   // the "the full tree has rendered" / settle() quiet windows
   let activity = 0, lastActivity = clockNow();
   const bump = () => { activity++; lastActivity = clockNow(); };
-  const mine = (c: any) => c?.sources?.[c.DOMSourceName || 'DOM']?._hub === hub.$;
   // 4-A1 (real DOM): states recorded when a view in the tree last ran (see onModel)
   let viewTag = 0;
   const recorded = () => states.length;
   // G-053: model next() calls of the tree's components (for the timeout explanations)
   type Scheduled = {type: string; delay: number; at: number; due: number; by: string};
   const scheduled: Scheduled[] = [];
-  // G-064: listeners on the driverless sinks of descendants (removed when they're disposed)
-  const childSinks = new Map<any, Array<[any, any]>>();
-  // PLAN-3 1-C (G-151): a sink in a descendant's model that no driver provides (the root's
-  // model doesn't name it) gets the fake as a real source before the component wires its
-  // actions and sinks, so the core stamps its requests and delivers the reply actions, as under run()
-  // with the driver. Its descendants inherit it; their requests reach its sink.
-  const injected = new Map<any, string[]>();
   // 2-C: component number (a request's sender) → name, for t.connections (a tagged copy of a
   // value keeps the sender, not the name)
   const senderNames = new Map<any, string>();
-  const inject = (c: any) => {
-    const m = c.model, src = c.sources, names: string[] = [];
-    if (!m || typeof m != 'object' || !src || !Array.isArray(c.sourceNames)) return;
-    for (const k in m) {
-      const e = m[k], [, sink] = k.split('|');
-      for (const n of sink ? [sink.trim()] : e && typeof e == 'object' ? Object.keys(e) : []) {
-        if (n in src || RESERVED_SINKS.test(n) || n == c.stateSourceName || names.includes(n)) continue;
-        src[n] = fake(n).at(nsOf(c));
-        c.sourceNames.push(n);
-        names.push(n);
-      }
-    }
-    // G-160: a component with a connections static gets the socket fake even when no model entry
-    // names the sink (a read-only SSE feed), unless a driver provides it
-    // 3-A: likewise the resources static and resourceSink
-    for (const [st, n] of [['connections', socketSink], ['resources', resourceSink]]) {
-      if (c.view?.[st] && !(n in src) && !names.includes(n)) {
-        src[n] = fake(n).at(nsOf(c));
-        c.sourceNames.push(n);
-        names.push(n);
-      }
-    }
-    if (names.length) injected.set(c, names);
-  };
-  const recordChildSinks = (c: any) => {
-    const extra = injected.get(c);
-    if (!extra) return;
-    childSinks.set(c, []);
-    // subscribed after the constructor, as a parent's sinks would be; actions start >= 1ms later
-    queueMicrotask(() => {
-      const list = childSinks.get(c), sk = c.sinks || {};
-      if (disposed || !list) return;
-      // R4-2: a child's request is tagged with its place in the tree (the fake's scope)
-      const ns = nsOf(c);
-      for (const k of extra) {
-        if (typeof sk[k]?.addListener != 'function') continue;
-        const l = {next: (v: any) => record(k, ns.reduceRight(tag, v), true), error: noop, complete: noop};
-        sk[k].addListener(l);
-        list.push([sk[k], l]);
-      }
-    });
-  };
-  const watchNext = (c: any) => {
-    const log = c.log;
-    if (typeof log != 'function') return;
-    c.log = function (this: any, msg: any, now?: boolean) {
-      const m = now && typeof msg == 'string' && msg.match(NEXT_LOG);
-      if (m) {
-        const at = clockNow();
-        if (scheduled.length > 50) scheduled.splice(0, scheduled.length - 50);
-        scheduled.push({type: m[1], delay: +m[2], at, due: at + +m[2], by: c.name});
-      }
-      return log.apply(this, arguments as any);
-    };
-  };
   // PLAN-4 2-C (GS-10): t.actions, from the action log (./diagnostics/checks/actionLog), which
   // patches each instance of this tree from the onIntent / onModel hooks (0 B in apps)
   const t0 = clockNow();
@@ -1438,7 +1371,6 @@ export function renderComponent(
   const stateReducer = new WeakMap<TestAction, Function>();
   const resulting = new WeakMap<TestAction, {s: any}>();
   let awaiting: TestAction[] = [];
-  let rootC: any;
   const actionListener: ActionListener = {
     action(r) {
       const e: TestAction = {type: r.type, data: r.data, component: r.component, instance: r.instance, sinks: r.sinks, cause: r.cause, at: r.time - t0};
@@ -1457,20 +1389,6 @@ export function renderComponent(
   // (SYG641 when sent, SYG640 when the target is still missing from its view after 1 s)
   const commandLog: any[] = [];
   const commandTimers = new Set<any>();
-  const recordCommands = (c: any) => {
-    const el$ = c.model$?.ELEMENT;
-    if (!el$) return;
-    c.model$.ELEMENT = el$.map((v: any) => {
-      bump();
-      for (const cmd of ([] as any[]).concat(v)) if (cmd) {
-        commandLog.push(cmd);
-        // the dev entry checks them itself (its elementCommands check)
-        if (!core.__uninstallChecks) checkSentCommand(c, cmd);
-        if (!real) checkCommand(c, cmd);
-      }
-      return v;
-    }).filter(() => real);
-  };
   const checkCommand = (c: any, cmd: any) => {
     if (typeof cmd != 'object' || Array.isArray(cmd)) return;
     const m = Object.keys(cmd)[0], target = cmd[m];
@@ -1484,73 +1402,6 @@ export function renderComponent(
     }, 1e3);
     commandTimers.add(id);
   };
-  const offCheck = registerCheck({
-    id: 'renderComponent',
-    // R2-3: the harness's bookkeeping (G-064 child sinks, G-053 next() delays, settle()'s
-    // activity) also runs with diagnostics: 'off'; what it reports still obeys the mode
-    always: true,
-    onRender: bump,
-    onReducer: bump,
-    onIntent(c: any) {
-      bump();
-      if (mine(c)) senderNames.set(c._componentNumber, c.name);
-      if (mine(c)) inject(c);
-      if (mine(c)) {
-        trackActions(c, actionListener);
-        if (c.sources?.__parentComponentNumber === undefined) rootC = c;
-      }
-      // PLAN-3 5-4c: a sub-component declaring `route` with no router (fake or driver) to answer it
-      if (mine(c) && c.view?.route && !(routerSink in (c.sources || {}))) failWith(new Error(`[Sygnal] ${c.name} declares \`route\`, and nothing answers it: pass the app's router, renderComponent(${compName}, { router }) (the object makeRouter() returns), or a ${routerSink} driver in drivers`));
-      const sc = scopeOf(c);
-      if (sc) owners.set(sc, c.name);
-      if (c.sources[c.DOMSourceName || 'DOM']?._hub == hub.$) scopeIds.set(sc || '', c._componentNumber);
-    },
-    onModel(c: any) {
-      if (!mine(c)) return;
-      trackActionStreams(c);
-      recordCommands(c);
-      watchNext(c);
-      recordChildSinks(c);
-      // 4-A1 (real DOM): note how many states were recorded when a view in the tree runs (its
-      // render parameters are computed right before the call), so each emitted tree is tagged
-      // with the states it shows; the render pipeline lags the state until the next flush (P45-C)
-      const crp = c.collectRenderParameters;
-      if (real && typeof crp == 'function') {
-        c.collectRenderParameters = function (this: any) {
-          const p$ = crp.apply(this, arguments as any);
-          return p$ && typeof p$.map == 'function' ? p$.map((p: any) => { viewTag = recorded(); return p; }) : p$;
-        };
-      }
-    },
-    // E2: an intent that reads a driver-like source with no driver (HTTP.select(...) without
-    // drivers: { HTTP }) gets the scriptable fake (t.respond / t.fail), shared by name
-    sources(c: any, s: any) {
-      if (!mine(c) || typeof Proxy != 'function') return;
-      // R4-2: scoped to the component (it sees the replies to its own and its descendants' requests)
-      const ns = nsOf(c);
-      return new Proxy(s, {
-        get: (t: any, k: any) => typeof k == 'string' && !(k in t) && DRIVER_NAME.test(k) ? fake(k).at(ns) : t[k],
-      });
-    },
-    // 1H-11: forget a disposed child's listeners, so they aren't checked on every render.
-    // R2-4: not before its DISPOSE action has been processed: this hook runs first, and
-    // dispose() tears the child's streams down on the next macrotask, so remove them after that
-    onDispose(c: any) {
-      const own = childSinks.get(c);
-      if (own) {
-        setTimeout(() => setTimeout(() => {
-          if (childSinks.get(c) !== own) return;
-          childSinks.delete(c);
-          own.forEach(([s, l]) => { try { s.removeListener(l); } catch (_) {} });
-        }));
-      }
-      const sc = scopeOf(c);
-      if (!sc) return;
-      owners.delete(sc);
-      scopeIds.delete(sc);
-      listeners.forEach((path, k) => { if (path.filter(isScope).pop() == sc) listeners.delete(k); });
-    },
-  });
   const raise = (code: string, component: string, message: string, fix: string, data: any) => {
     try { report(code, {component, message, fix, data}); } catch (e) { setTimeout(() => { throw e; }); }
   };
@@ -1611,7 +1462,6 @@ export function renderComponent(
   };
 
   const restore = () => {
-    offCheck();
     offDiag();
     if (ownBridge && core.elementCommand === reportElementCommand) core.elementCommand = undefined;
     if (!--active) {
@@ -1631,7 +1481,6 @@ export function renderComponent(
     });
     return p;
   };
-  const actions = port();
   const hub = port();
 
   // E2: scriptable fake sources (t.respond / t.fail) for sinks/sources with no driver. Same
@@ -1821,40 +1670,11 @@ export function renderComponent(
     sending = listed ? value : undefined;
     try { f.in$.shamefullySendNext(v); } finally { sending = tapped = undefined; }
   };
-  // R4-2: a component's scope path for the child-only fake: its ancestors' numbers below the root
-  const parentOf = new Map<any, any>();
-  const nsOf = (c: any): any[] => {
-    const p = c.sources?.__parentComponentNumber;
-    if (p === undefined) return [];
-    parentOf.set(c._componentNumber, p);
-    const ns = [c._componentNumber];
-    for (let n = p; parentOf.has(n); n = parentOf.get(n)) ns.unshift(n);
-    return ns;
-  };
-
-  const names = Object.keys(model)
-    .map(k => k.split('|')[0].trim())
-    .filter(n => n != 'INITIALIZE');
+  const names = Object.keys(model).filter(n => n != 'INITIALIZE');
   // GS-1: a behavior's actions ('pager.NEXT') can be simulated too; behaviors.ts merges these
   // marked streams (__sygnalTestActions) with the behavior's own trigger
   const uses = componentDef.uses || {};
   for (const k in uses) for (const a in uses[k]?.model || {}) names.push(k + '.' + a);
-  const actionStream = (type: string) =>
-    actions.$.filter((a: any) => a.type == type).map((a: any) => a.data);
-
-  const wrappedIntent = (sources: any) => {
-    const res = intent ? intent(sources) : {};
-    if (res && typeof res.addListener == 'function') return xs.merge(res, actions.$);
-    const out: any = {...res};
-    const added = names.filter(n => !(n in out));
-    for (const n of new Set([...Object.keys(out), ...added])) {
-      out[n] = out[n] ? xs.merge(out[n], actionStream(n)) : actionStream(n);
-    }
-    Object.defineProperty(out, '__sygnalTestActions', {value: added});
-    return out;
-  };
-
-  const {context, calculated, storeCalculatedInState, onError, hmrActions, components} = componentDef;
   // G-275: the caller's initialState is owned (the dev statics freeze leaves it alone). G-289: a
   // copy is marked, not the caller's object
   const init = initialState !== undefined ? ownedCopy(initialState) : componentDef.initialState;
@@ -1863,21 +1683,7 @@ export function renderComponent(
   // model run() uses, and renders.
   // (behavior actions count: a host with only `uses` still gets the simulateAction streams)
   const bare = !intent && !Object.keys(model).length && !names.length && init === undefined;
-  const app = component({
-    name: componentDef.name || componentDef.componentName || 'TestComponent',
-    view: componentDef,
-    intent: bare ? undefined : wrappedIntent,
-    model: bare ? undefined : model,
-    hmrActions,
-    components,
-    context,
-    calculated,
-    storeCalculatedInState,
-    onError,
-    initialState: init,
-  });
   let started = false;
-  const nextCore = NEXT_CORE && (globalThis as any).__SYGNAL_CORE__ === "next";
   const onEvents = (path: string[], type: string, on?: boolean) => {
     const k = path.join('\u0000');
     if (on === undefined) {
@@ -1992,23 +1798,22 @@ export function renderComponent(
   };
   const faked = new Set<string>();
   for (const k in model) {
-    const e = model[k], [, sink] = k.split('|');
-    for (const n of sink ? [sink.trim()] : e && typeof e == 'object' ? Object.keys(e) : []) {
+    const e = model[k];
+    for (const n of e && typeof e == 'object' ? Object.keys(e) : []) {
       if (!allDrivers[n] && !/^(STATE|EFFECT|PARENT|READY|ELEMENT|PERSIST)$/.test(n)) {
         allDrivers[n] = () => fake(n);
         faked.add(n);
       }
     }
   }
-  // PLAN-4.6 R3/R4 (next core): the connections / resources statics of any component in the tree
-  // get their fakes as inject() gives them on the current core (G-160, 3-A). The next core reads
-  // its drivers once, at start, so the two fakes are drivers from the start (unused otherwise)
-  if (nextCore) for (const n of [socketSink, resourceSink]) {
+  // G-160, 3-A: the connections / resources statics of any component in the tree get their
+  // fakes. The core reads its drivers once, at start, so the two fakes are drivers from the
+  // start (unused otherwise)
+  for (const n of [socketSink, resourceSink]) {
     if (!allDrivers[n]) { allDrivers[n] = () => fake(n); faked.add(n); }
   }
-  // PLAN-4.6 R4: on the next core the harness's bookkeeping is a layer of the app's hooks
-  // (04 §3.4) instead of the registerCheck() instance patching above: the same records, from
-  // InstanceViews. `api`: the runtime API (simulateAction dispatches through it)
+  // PLAN-4.6 R4: the harness's bookkeeping is a layer of the app's hooks (04 §3.4), recorded
+  // from InstanceViews. `api`: the runtime API (simulateAction dispatches through it)
   let api: any;
   const testActions: string[] = [];
   const isRes = (n: string) => RESERVED_SINKS.test(n) || n == 'PERSIST';
@@ -2105,28 +1910,19 @@ export function renderComponent(
       },
     };
   };
-  let sources: any, sinks: any, rawDispose: () => void;
+  let sources: any, sinks: any;
   try {
-    if (NEXT_CORE && (globalThis as any).__SYGNAL_CORE__ === 'next') {
-      // PLAN-4.6 R1 (internal, until R4 ports renderComponent onto the hooks): the next core runs
-      // the same root (the test intent, model, initial state and name) with the same drivers.
-      // The diagnostics-hook bookkeeping (t.actions, child fakes, SYG103/104 owners) is R4's
-      const p = startNext(componentDef, allDrivers, {
-        useDefaultDrivers: false, onError: options.onError,
-        __hooks: nextHooks(),
-        // simulateAction dispatches through the runtime (cause 'simulateAction'), so the root runs
-        // its own intent; testActions: the model actions it doesn't name (wiring, inspect())
-        __override: {intent: intent ? (s: any) => { const r = intent(s); if (r && typeof r == 'object') testActions.push(...names.filter(n => !(n in r))); return r; } : undefined,
-          model: bare ? undefined : model, initialState: init, name: compName, testActions},
-      });
-      ({sources, sinks} = p);
-      api = p.api;
-      rawDispose = () => {};
-    } else {
-      const p: any = setup(withState(app, 'STATE') as any, allDrivers);
-      ({sources, sinks} = p);
-      rawDispose = p.run();
-    }
+    // the root runs with the test intent, model, initial state and name, and the drivers above
+    const p = startNext(componentDef, allDrivers, {
+      useDefaultDrivers: false, onError: options.onError,
+      __hooks: nextHooks(),
+      // simulateAction dispatches through the runtime (cause 'simulateAction'), so the root runs
+      // its own intent; testActions: the model actions it doesn't name (wiring, inspect())
+      __override: {intent: intent ? (s: any) => { const r = intent(s); if (r && typeof r == 'object') testActions.push(...names.filter(n => !(n in r))); return r; } : undefined,
+        model: bare ? undefined : model, initialState: init, name: compName, testActions},
+    });
+    ({sources, sinks} = p);
+    api = p.api;
   } catch (e) {
     restore();
     container?.remove();
@@ -2150,7 +1946,7 @@ export function renderComponent(
     // the harness didn't deliver (a real element's click(), a driver answering at once) can be
     // recorded before the test's next() call in the same tick: a next() called in that tick
     // starts at the first such state (internal; a later tick starts after the call, as documented)
-    if (nextCore && syncAt === undefined) { syncAt = states.length - 1; queueMicrotask(() => { syncAt = undefined; }); }
+    if (syncAt === undefined) { syncAt = states.length - 1; queueMicrotask(() => { syncAt = undefined; }); }
     // 2-C: the actions whose STATE reducer ran since the last state produced this one
     for (const e of awaiting) resulting.set(e, {s});
     awaiting = [];
@@ -2220,7 +2016,7 @@ export function renderComponent(
   });
   const ready = () => {
     // (next core, D176: a state of this tick, e.g. from a simulate* call just before, is "now")
-    cursor = isReady ? (nextCore ? Math.min(fromInput && cursor !== undefined && cursor >= 0 ? cursor : states.length, syncAt ?? states.length) : states.length) : -1;
+    cursor = isReady ? Math.min(fromInput && cursor !== undefined && cursor >= 0 ? cursor : states.length, syncAt ?? states.length) : -1;
     fromInput = false;
     shown = undefined;
     const id = ++arming;
@@ -2237,14 +2033,12 @@ export function renderComponent(
   const later = (go: Input['go'], missing?: Input['missing']) => {
     const was = fromInput && cursor !== undefined ? cursor : undefined;
     cursor = shown = undefined;
-    // PLAN-4.6 R1 (next core): an input's STATE reducer is applied synchronously (D165), so the
-    // state it causes can be recorded before the test's next() call: next() starts at the input
-    // (R4: several simulate* calls in the same tick: the cursor stays at the first one's state)
-    if (nextCore) {
-      cursor = was ?? states.length;
-      if (!fromInput) queueMicrotask(() => { fromInput = false; });
-      fromInput = true; arming++; cursorUsed = false;
-    }
+    // D165: an input's STATE reducer is applied synchronously, so the state it causes can be
+    // recorded before the test's next() call: next() starts at the input (several simulate*
+    // calls in the same tick: the cursor stays at the first one's state)
+    cursor = was ?? states.length;
+    if (!fromInput) queueMicrotask(() => { fromInput = false; });
+    fromInput = true; arming++; cursorUsed = false;
     inputs.push({go, missing});
     pump();
   };
@@ -2362,7 +2156,7 @@ export function renderComponent(
   const simulateAction = (type: string, data?: any) => {
     simAt = states.length; due();
     throwFailure();
-    later(() => (nextCore ? api.dispatch('root', type, data, 'simulateAction') : withCause(rootC, 'simulateAction', () => actions.emit({type, data})), true));
+    later(() => (api.dispatch('root', type, data, 'simulateAction'), true));
   };
 
   // E2: t.respond / t.fail. PLAN-3 1-C: the request is chosen by content (G-140, E2 13-t4):
@@ -3066,12 +2860,9 @@ export function renderComponent(
     subs.forEach(([s, l]) => {
       try { s.removeListener(l); } catch (_) {}
     });
-    childSinks.forEach(list => list.forEach(([s, l]) => { try { s.removeListener(l); } catch (_) {} }));
-    childSinks.clear();
     try { sinks.__dispose?.(); } catch (_) {}
     // E4: unmount (the container and the Portal content mounted outside it)
     const mounted = real ? roots() : [];
-    rawDispose();
     // 2-C: every fake connection closes (as the app's own close: no close action)
     // 5-1: and every fetch still in flight is aborted
     fakes.forEach(f => { f.ws.src.dispose(); f.ws.conns.clear(); f.http.dispose(); });

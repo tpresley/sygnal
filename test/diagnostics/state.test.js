@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { setupChecks, diagnostics, settle, later, times } from './helpers.js'
 import { renderComponent } from '../../src/extra/testing.js'
 import { createElement } from '../../src/pragma/index.js'
-import { ABORT } from '../../src/component.js'
+import { ABORT } from '../../src/shared.js'
 import { set, toggle } from '../../src/extra/reducers.js'
 import { until } from '../support/wait.js'
 

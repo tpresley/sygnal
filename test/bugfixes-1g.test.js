@@ -3,11 +3,6 @@ import { describe, it, expect, afterEach } from 'vitest'
 import xs from 'xstream'
 import { readFileSync } from 'node:fs'
 
-if (typeof globalThis.window === 'undefined') {
-  globalThis.window = undefined
-}
-
-import { pickCombine } from '../src/cycle/state/pickCombine.js'
 import { createElement as h } from '../src/pragma/index.js'
 import { renderComponent } from '../src/extra/testing.js'
 import { Collection } from '../src/collection.js'
@@ -23,54 +18,37 @@ afterEach(() => {
   _resetDiagnostics()
 })
 
-// ─── B-010: pickCombine re-emits on a pure reorder ───────────────────────────
+// ─── B-010: a Collection follows a permutation of its items ───────────────────
+// (R5: ported from the removed pickCombine to a Collection rendered by the core)
 
-describe('B-010: pickCombine follows a permutation of the instances', () => {
-  const item = (key) => ({ _key: key, DOM: xs.of(key).remember() })
-  const inst = (items) => ({ dict: new Map(items.map(i => [i._key, i])), arr: items })
-  // G-213 (3-R): a removal is emitted at once only while its Collection is the only one alive, so
-  // each test stops its combine (xstream stops a stream a task after its last listener leaves)
-  let stops = []
-  const watch = (inst$, out) => {
-    const s = inst$.compose(pickCombine('DOM')), l = { next: v => out.push(v.join('')) }
-    s.addListener(l)
-    stops.push(() => s.removeListener(l))
-  }
-  afterEach(async () => { stops.forEach(f => f()); stops = []; await settle(5) })
+describe('B-010: a Collection follows a permutation of its items', () => {
+  function Item({ state }) { return h('li', null, state.id) }
+  function List({ state }) { return h('ul', null, h(Collection, { of: Item, from: 'items' })) }
+  List.model = { SET: (s, items) => ({ ...s, items }) }
+  const order = (t) => t.queryAll('li').map((e) => e.textContent).join('')
+  const ids = (str) => [...str].map((id) => ({ id }))
 
-  it('emits the new order for swap, reverse and move without any item emission', () => {
-    const a = item('a'), b = item('b'), c = item('c')
-    const inst$ = xs.create()
-    const out = []
-    watch(inst$, out)
-    inst$.shamefullySendNext(inst([a, b, c]))
-    inst$.shamefullySendNext(inst([b, a, c]))   // swap
-    inst$.shamefullySendNext(inst([c, a, b]))   // reverse
-    inst$.shamefullySendNext(inst([a, b, c]))   // move c to the end
-    expect(out[out.length - 1]).toBe('abc')
-    expect(out).toContain('bac')
-    expect(out).toContain('cab')
+  it('renders the new order for swap, reverse and move, keeping the item instances', async () => {
+    List.initialState = { items: ids('abc') }
+    t = renderComponent(List)
+    await t.ready()
+    expect(order(t)).toBe('abc')
+    for (const next of ['bac', 'cab', 'abc']) {
+      t.simulateAction('SET', ids(next))
+      await t.next()
+      await settle()
+      expect(order(t)).toBe(next)
+    }
   })
 
-  it('does not re-emit when the order is unchanged', () => {
-    const a = item('a'), b = item('b')
-    const inst$ = xs.create()
-    const out = []
-    watch(inst$, out)
-    inst$.shamefullySendNext(inst([a, b]))
-    const n = out.length
-    inst$.shamefullySendNext(inst([a, b]))
-    expect(out.length).toBe(n)
-  })
-
-  it('reorders the survivors after a removal in the same update', () => {
-    const a = item('a'), b = item('b'), c = item('c')
-    const inst$ = xs.create()
-    const out = []
-    watch(inst$, out)
-    inst$.shamefullySendNext(inst([a, b, c]))
-    inst$.shamefullySendNext(inst([c, a]))
-    expect(out[out.length - 1]).toBe('ca')
+  it('reorders the survivors after a removal in the same update', async () => {
+    List.initialState = { items: ids('abc') }
+    t = renderComponent(List)
+    await t.ready()
+    t.simulateAction('SET', ids('ca'))
+    await t.next()
+    await settle()
+    expect(order(t)).toBe('ca')
   })
 })
 

@@ -314,48 +314,5 @@ describe('devtools time-travel mechanism', () => {
     })
   })
 
-  describe('real Sygnal component time-travel', () => {
-    it('renderComponent basic check', async () => {
-      function Counter({ state }) {
-        return { sel: 'div', data: {}, children: [String(state.count)] }
-      }
-      Counter.model = {
-        INCREMENT: (state) => ({ ...state, count: state.count + 1 }),
-      }
-      Counter.initialState = { count: 0 }
-
-      const result = renderComponent(Counter)
-
-      // Wait for initial state to be emitted
-      await new Promise(r => setTimeout(r, 50))
-      console.log('initial states:', JSON.stringify(result.states))
-
-      result.simulateAction('INCREMENT')
-      await new Promise(r => setTimeout(r, 200))
-      console.log('states after INCREMENT:', JSON.stringify(result.states))
-
-      const stateSink = result.sinks.STATE
-      console.log('sinks keys:', Object.keys(result.sinks))
-      console.log('STATE sink type:', stateSink?.constructor?.name)
-      console.log('STATE sink._prod:', stateSink?._prod?.constructor?.name)
-      console.log('STATE sink._ils length:', stateSink?._ils?.length)
-
-      // Subscribe directly to STATE sink to see what it emits
-      const sinkValues = []
-      stateSink.addListener({ next: v => sinkValues.push(typeof v === 'function' ? 'reducer-fn' : v) })
-
-      // Push a reducer — this is what _timeTravel does
-      stateSink.shamefullySendNext(() => ({ count: 99 }))
-      await new Promise(r => setTimeout(r, 200))
-      console.log('sinkValues after push:', JSON.stringify(sinkValues))
-      console.log('states after time-travel:', JSON.stringify(result.states))
-
-      result.dispose()
-
-      // The key question: did the state change?
-      const hasCount99 = result.states.some(s => s.count === 99)
-      console.log('Has count=99 in states?', hasCount99)
-      expect(hasCount99).toBe(true)
-    })
-  })
+  // (R5: the old core's STATE-sink time travel went with it; test/p46-r4-devtools covers time travel)
 })

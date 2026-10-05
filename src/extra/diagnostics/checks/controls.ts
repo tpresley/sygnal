@@ -57,8 +57,8 @@ const describe = (v: any): string =>
   : Array.isArray(v) ? `an array of ${v.length}`
   : typeof v != 'object' ? `a ${typeof v} (${JSON.stringify(v)})`
   : typeof v.sel != 'string' ? (v.text !== undefined ? 'a text vnode' : 'a fragment')
-  // the pragma's component placeholder (its options end up in data.props)
-  : v.data && v.data.props && (v.data.props.sygnalOptions || v.data.props.sygnalFactory) ? `the component <${v.sel}>`
+  // the pragma's component placeholder (the component function in data.c)
+  : v.data && typeof v.data.c == 'function' ? `the component <${v.sel}>`
   : 'an element vnode'
 
 function onControl(control: any, vnode: any): void {

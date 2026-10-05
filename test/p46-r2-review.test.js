@@ -4,7 +4,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { run, createElement as h, xs, Slot, renderComponent, mockDOMSource } from '../src/index.js'
 
-const NEXT = globalThis.__SYGNAL_CORE__ === 'next'
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const ticks = async (n = 30) => { for (let i = 0; i < n; i++) await Promise.resolve() }
 
@@ -34,7 +33,7 @@ describe('G-294: a change inside a named slot re-renders the child (both cores)'
   })
 })
 
-describe.skipIf(!NEXT)('PLAN-4.6 R2 review fixes (next core)', () => {
+describe('PLAN-4.6 R2 review fixes (next core)', () => {
   it('G-295: a child whose intent throws leaves no trace (no slice written, no watcher, onCreate paired with onDispose)', async () => {
     const created = [], disposed = []
     function Bad({ state }) { return h('i', null, String(state.k)) }

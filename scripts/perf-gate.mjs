@@ -34,8 +34,7 @@ const opt = (k) => argv.find(a => a.startsWith(`--${k}=`))?.slice(k.length + 3)
 const gateFile = opt('gate') ? path.resolve(opt('gate')) : path.join(audit, 'gate.json')
 const RUNS = Math.max(1, Number(opt('runs') ?? 1) || 1)
 const JSON_OUT = opt('json')
-// PLAN-4.6 R1-R4 (deleted at R5): --core=next measures the next core's apps (apps/next)
-const FW = opt('core') === 'next' ? 'next' : 'sygnal'
+const FW = 'sygnal'
 const install = argv.includes('--install') || /^(1|true|yes)$/i.test(process.env.TEST_EXAMPLES_INSTALL || '')
 const fail = (msg) => { console.error(`perf-gate: ${msg}`); process.exit(2) }
 const t0 = Date.now()
@@ -124,7 +123,6 @@ if (!argv.includes('--no-build')) {
   }
 }
 const s = await lib.openSession({ chromium, outDir, fw: FW })
-if (FW === 'next') console.log('perf-gate: the next core (apps/next, __SYGNAL_NEXT_CORE__)')
 const runs = []
 try {
   for (let i = 0; i < RUNS; i++) runs.push(await measure(s))

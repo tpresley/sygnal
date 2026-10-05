@@ -83,10 +83,6 @@ import {installRxjsHints} from './rxjsHints'
 import {inspectCheck, installInspect} from './inspect'
 import {nextHooks} from './next'
 
-// PLAN-4.6 R1-R4 (internal, deleted at R5): the examples' Vitest loads this entry as a setup
-// file (sygnal/vite); SYGNAL_CORE=next there selects the next core, as test/setup-core.js does
-if ((globalThis as any).process?.env?.SYGNAL_CORE === 'next') (globalThis as any).__SYGNAL_CORE__ = 'next'
-
 export {checkEventBus} from './events'
 export {configureStrict, isStrictEnabled} from './strict'
 export type {EventBusSummary} from './events'

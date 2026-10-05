@@ -20,26 +20,4 @@ describe("strict mode in the built entries", () => {
     }
   })
 
-  it('renderComponent({ strict: true }) reports SYG501/SYG504 with the dist checks; off by default', async () => {
-    const sygnal = await import('sygnal')
-    const checks = await import('sygnal/diagnostics')
-    expect(checks.isStrictEnabled()).toBe(false)
-    expect(checks.getCodeInfo('SYG504')).toMatchObject({ severity: 'warn' })
-
-    function Card(props, state) { return sygnal.createElement('div', null, 'x') }
-    Card.initialState = { n: 0 }
-    Card.model = { 'PING | EFFECT': () => {} }
-
-    let t = sygnal.renderComponent(Card)
-    await new Promise(r => setTimeout(r, 30))
-    t.dispose()
-    expect(t.diagnostics.filter(d => /^SYG5/.test(d.code))).toEqual([])
-
-    t = sygnal.renderComponent(Card, { strict: true })
-    await new Promise(r => setTimeout(r, 30))
-    t.dispose()
-    expect(t.diagnostics.filter(d => /^SYG5/.test(d.code)).map(d => [d.code, d.severity]).sort())
-      .toEqual([['SYG501', 'warn'], ['SYG504', 'warn']])
-    expect(checks.isStrictEnabled()).toBe(false)
-  })
 })

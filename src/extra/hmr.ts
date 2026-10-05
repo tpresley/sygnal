@@ -10,7 +10,6 @@ interface HotModule {
 interface SygnalApp {
   hmr: (next: any, state?: any) => void;
   dispose?: () => void;
-  sources?: {STATE?: {stream?: {_v?: any}}};
 }
 
 function normalizeModule(maybeModule: any): ModuleWithDefault | null {
@@ -44,8 +43,8 @@ export default function enableHMR(
         next = normalizeModule(loaded);
       }
       if (next) {
-        const explicitState = app?.sources?.STATE?.stream?._v;
-        app.hmr(next, explicitState);
+        // (hmr() keeps the app's current state, read through the runtime API)
+        app.hmr(next);
       }
     } finally {
       applying = false;

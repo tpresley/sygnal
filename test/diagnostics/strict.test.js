@@ -5,7 +5,7 @@ import { configureStrict, isStrictEnabled, listCodes, getCodeInfo } from '../../
 import { configureDiagnostics, getDiagnostics } from '../../src/extra/diagnostics/index.js'
 import { renderComponent } from '../../src/extra/testing.js'
 import { createElement } from '../../src/pragma/index.js'
-import { ABORT } from '../../src/component.js'
+import { ABORT } from '../../src/shared.js'
 import { set } from '../../src/extra/reducers.js'
 import { until } from '../support/wait.js'
 
@@ -71,17 +71,6 @@ describe('strict mode switch', () => {
 })
 
 describe('SYG501 — positional view arguments', () => {
-  it('reports a view that takes (props, state, context)', async () => {
-    function Lane(props, state, context) { return createElement('div', null, String(state.count)) }
-    t = renderComponent(make({ view: Lane }), { strict: true })
-    await until(() => expect(diagnostics('SYG501')).toHaveLength(1))   // G-176: wait for the report
-    await settle(50)
-    const found = diagnostics('SYG501')
-    expect(found).toHaveLength(1)
-    expect(found[0]).toMatchObject({ severity: 'warn', component: 'Lane', data: { arity: 3 } })
-    expect(found[0].fix).toContain('function Lane({ state, context, ...props })')
-  })
-
   it('does not report a destructured single-argument view', async () => {
     function Lane({ state, context }) { return createElement('div', null, String(state.count)) }
     t = renderComponent(make({ view: Lane }), { strict: true })
@@ -94,22 +83,6 @@ describe('SYG501 — positional view arguments', () => {
 // ABORT, and is never reported. Covered in test/p4-2a-gs4-same-object.test.js.
 
 describe('SYG504 — shorthand model keys', () => {
-  it("reports 'ACTION | SINK' keys with the object-form rewrite", async () => {
-    const App = make({
-      model: {
-        GO: s => ({ ...s, count: s.count + 1 }),
-        'GO | EFFECT': () => {},
-        'PING | EVENTS': () => ({ type: 'PING', data: 1 }),
-      },
-    })
-    t = renderComponent(App, { strict: true })
-    await settle(50)
-    const found = diagnostics('SYG504')
-    expect(found.map(d => d.data.key)).toEqual(['GO | EFFECT', 'PING | EVENTS'])
-    expect(found[0].fix).toContain('GO: { EFFECT: (state, data, next) => ... }')
-    expect(found[1].fix).toContain("PING: { EVENTS: event('TYPE', (state, data) => payload) }")
-  })
-
   it('does not report object-form entries', async () => {
     const App = make({ model: { GO: { STATE: s => ({ ...s, count: 1 }), EFFECT: () => {} } } })
     t = renderComponent(App, { strict: true })
@@ -118,21 +91,4 @@ describe('SYG504 — shorthand model keys', () => {
   })
 })
 
-describe('dedupe', () => {
-  it('reports once per component name across live instances', async () => {
-    configureDiagnostics({ mode: 'collect' })
-    function Lane(props, state) { return createElement('div', null, 'x') }
-    const App = make({ view: Lane })
-    const outer = renderComponent(App, { strict: true })
-    await settle(30)
-    t = renderComponent(App, { strict: true })
-    await settle(30)
-    expect(diagnostics('SYG501')).toHaveLength(1)
-    t.dispose()
-    outer.dispose()
-    // G-051: the dedupe is reset when the next outermost renderComponent starts
-    t = renderComponent(App, { strict: true })
-    await settle(30)
-    expect(diagnostics('SYG501')).toHaveLength(2)
-  })
-})
+

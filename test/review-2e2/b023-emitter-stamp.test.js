@@ -24,6 +24,8 @@ App.intent = ({ EVENTS }) => ({ GOT: EVENTS.select('PINGED') })
 App.model = { GOT: { STATE: s => ({ ...s, n: s.n + 1 }), EVENTS: () => ({ type: 'ROOT_EV', data: 0 }) } }
 
 describe('B-023: EVENTS emitter stamp', () => {
+  // R5 (D165, PLAN-4.6 §5): FIFO run-to-completion: the PING action's EVENTS cascade (App's GOT
+  // and its ROOT_EV) finishes before the next simulated input (HELLO) is handled
   it('onBusEmit and the sink value name the emitting component', async () => {
     const seen = []
     track({ onBusEmit(type, emitter) { seen.push(`${type}:${emitter}`) } })
@@ -34,7 +36,7 @@ describe('B-023: EVENTS emitter stamp', () => {
     t.simulateEvent('.hello', 'click')
     await t.waitForState(s => s.n === 1)
     await wait(20)
-    expect(seen).toEqual(['PINGED:Item', 'HELLO:Panel', 'ROOT_EV:App'])
+    expect(seen).toEqual(['PINGED:Item', 'ROOT_EV:App', 'HELLO:Panel'])
     const raw = []
     t.sinks.EVENTS.addListener({ next: v => raw.push(v.__emitterName) })
     t.simulateEvent('.hello', 'click')

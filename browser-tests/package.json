@@ -5,8 +5,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "test": "node run-headless.mjs",
-    "test:next": "SYGNAL_CORE=next node run-headless.mjs"
+    "test": "node run-headless.mjs"
   },
   "dependencies": {
     "sygnal": "file:.."

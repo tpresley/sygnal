@@ -1,9 +1,10 @@
 'use strict'
 
 // export sygnal core functions
-export { default as component, ABORT } from "./component"
-export { default as collection, Collection } from "./collection"
-export { default as switchable, Switchable } from "./switchable"
+export { ABORT } from "./shared"
+export { defineComponent } from "./defineComponent"
+export { Collection } from "./collection"
+export { Switchable } from "./switchable"
 export { Portal, default as portal } from "./portal"
 export { Transition } from "./transition"
 export { Suspense } from "./suspense"

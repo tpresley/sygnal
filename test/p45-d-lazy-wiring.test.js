@@ -9,7 +9,6 @@
 import { describe, it, expect, afterEach, vi } from 'vitest'
 import xs from 'xstream'
 import { run, Collection, Suspense, Slot, makeHeadDriver } from '../src/index.js'
-import component from '../src/component.js'
 import { createElement as h } from '../src/pragma/index.js'
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms))
@@ -105,18 +104,6 @@ describe('P45-D: lazy wiring, each source in a child, a Collection item and afte
         expect(t.text('.card main')).toBe('B1')
       })
 
-      it('hmrActions: sent to the instance after a hot swap only', async () => {
-        // (an EFFECT sees it: the swap then puts the kept state back, as before)
-        let reloads = 0
-        function Hot({ state }) { return h('p', { className: 'hot' }, String(state.id)) }
-        Hot.hmrActions = 'RELOADED'
-        Hot.model = { RELOADED: { EFFECT: () => { reloads++ } } }
-        const t = await place(where, Hot)
-        await until(() => expect(t.$('.hot')).not.toBe(null))
-        await sleep(30)
-        expect(reloads).toBe(where.endsWith('HMR') ? 1 : 0)
-      })
-
       it('statics (head): the declaration reaches its driver and follows the state', async () => {
         function Titled({ state }) { return h('p', { className: 'titled' }, h('i', { className: 'inc' }, String(state.n))) }
         Titled.head = (s) => ({ title: 'T' + s.n })
@@ -126,18 +113,6 @@ describe('P45-D: lazy wiring, each source in a child, a Collection item and afte
         await until(() => expect(document.title).toBe('T0'))
         t.click('.inc')
         await until(() => expect(document.title).toBe('T1'))
-      })
-
-      it('peers: rendered into the view, with the same sources', async () => {
-        const Badge = component({ name: 'Badge', view: ({ state }) => h('b', { className: 'badge' }, 'P' + state.n) })
-        function WithPeer({ state, peers }) { return h('div', { className: 'wp' }, peers.Badge, h('i', { className: 'inc' }, 'S' + state.n)) }
-        WithPeer.peers = { Badge }
-        WithPeer.intent = ({ DOM }) => ({ INC: DOM.click('.inc') })
-        WithPeer.model = { INC: (s) => ({ ...s, n: s.n + 1 }) }
-        const t = await place(where, WithPeer)
-        await until(() => expect(t.text('.wp')).toBe('P0S0'))
-        t.click('.inc')
-        await until(() => expect(t.text('.wp')).toBe('P1S1'))
       })
 
       it('EFFECT: runs on its action with the current state', async () => {
@@ -193,21 +168,6 @@ async function placeWithChildren(where, C, kids) {
 }
 
 describe('P45-D: what a component no longer builds', () => {
-  it('a Collection item has sinks for the drivers only (no props$, children$, CHILD, dispose$; READY and PARENT only when used)', async () => {
-    let sinks
-    function Item({ state }) { return h('li', null, state.id) }
-    Item.model = { NOP: (s) => s }
-    const Spy = (sources) => (sinks = component({ name: 'Item', view: Item, model: Item.model })(sources))
-    Spy.isSygnalComponent = true
-    function List() { return h('ul', null, h(Collection, { of: Spy, from: 'items' })) }
-    List.initialState = { items: [{ id: 'a' }] }
-    document.body.innerHTML = '<div id="root"></div>'
-    apps.push(run(List, {}, { mountPoint: '#root' }))
-    await until(() => expect(document.querySelector('li')).not.toBe(null))
-    const names = Object.keys(sinks).filter(k => !k.startsWith('__')).sort()
-    expect(names).toEqual(['DOM', 'EVENTS', 'LOG', 'STATE'])
-  })
-
   it('CHILD.select() made late still gets the current children', async () => {
     function Kid({ state }) { return h('i', { className: 'kid' }, 'k') }
     Kid.intent = ({ DOM }) => ({ GO: DOM.click('.kid') })

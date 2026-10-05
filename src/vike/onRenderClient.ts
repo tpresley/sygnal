@@ -100,24 +100,6 @@ function componentVNode(comp: any, key: string, stateField: any, children: any[]
         state: stateField,
         // G-207: the uid() base, as onRenderHtml gives this shell component (see uidPart)
         id: uidPart(key),
-        sygnalOptions: {
-          name,
-          view: comp,
-          model: comp.model,
-          intent: comp.intent,
-          hmrActions: comp.hmrActions,
-          context: comp.context,
-          peers: comp.peers,
-          components: comp.components,
-          initialState: owned(compInitialState),
-          isolatedState: true,
-          calculated: comp.calculated,
-          storeCalculatedInState: comp.storeCalculatedInState,
-          DOMSourceName: comp.DOMSourceName,
-          stateSourceName: comp.stateSourceName,
-          onError: comp.onError,
-          debug: comp.debug,
-        },
       },
     },
     children,
@@ -133,11 +115,9 @@ function componentVNode(comp: any, key: string, stateField: any, children: any[]
  * view picks up the new Page component on navigation without being recreated.
  */
 function pageChildVNode(pageState: any, stateField: any = 'page'): any {
-  // Include pageNavCounter in sel so instantiateSubComponents detects a
-  // component swap even when both pages have the same function name (e.g. 'Page').
+  // a new function per navigation, so the Page is made again even when both pages are the same
+  // function (e.g. 'Page'); the nav counter in `sel` keeps the vnodes apart
   const sel = currentPageName + '__nav' + pageNavCounter
-  // (next core) a new function per navigation, so the Page is made again even when both pages
-  // are the same function (as the nav counter in `sel` does for the current core)
   if (pageFnNav !== pageNavCounter) { pageFnNav = pageNavCounter; pageFn = shellFn(currentPage, undefined, false) }
   return {
     sel,
@@ -147,29 +127,6 @@ function pageChildVNode(pageState: any, stateField: any = 'page'): any {
         state: stateField,
         // G-207: the Page's uid() base, as onRenderHtml gives it (the same across navigations)
         id: uidPart('page'),
-        sygnalOptions: {
-          // G-037: diagnostics, devtools and onError name the component by
-          // `name`; keep the user's name (the nav counter is only in `sel`).
-          name: currentPageName,
-          view: currentPage,
-          model: currentPage.model,
-          intent: currentPage.intent,
-          hmrActions: currentPage.hmrActions,
-          context: currentPage.context,
-          peers: currentPage.peers,
-          components: currentPage.components,
-          // PLAN-3 5-5: no initialState: `pageState` is the page's root slice already, and an
-          // INITIALIZE (sent a tick later) would overwrite the replies the page's statics got
-          // in between, e.g. a resource served from the seeded cache
-          initialState: undefined,
-          isolatedState: true,
-          calculated: currentPage.calculated,
-          storeCalculatedInState: currentPage.storeCalculatedInState,
-          DOMSourceName: currentPage.DOMSourceName,
-          stateSourceName: currentPage.stateSourceName,
-          onError: currentPage.onError,
-          debug: currentPage.debug,
-        },
       },
     },
     children: [],
@@ -349,8 +306,8 @@ export function onRenderClient(pageContext: PageContext) {
       // replace the page slice, keeping every shell slice (G-106, D50)
       const swapPage = (state: any) => ({ ...state, page: newPageState })
       // (PLAN-4.6 next core: through the runtime API, 04 §3.11)
-      if ((currentApp as any).__runtime) (currentApp as any).__runtime.setState('root', swapPage)
-      else if (currentApp.sinks?.STATE?.shamefullySendNext) currentApp.sinks.STATE.shamefullySendNext(swapPage)
+      const rt = (currentApp as any).__runtime
+      rt?.setState('root', swapPage)
     } else {
       // First load: read hydrated state or build from initialState
       let initialState: any

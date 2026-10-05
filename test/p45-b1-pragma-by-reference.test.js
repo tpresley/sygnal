@@ -30,8 +30,10 @@ describe('P45-B: nested prop objects by reference', () => {
     const v = h(Child, { cfg, items })
     expect(v.data.props.cfg).toBe(cfg)
     expect(v.data.props.items).toBe(items)
-    expect(v.data.props.sygnalOptions.initialState).toBe(Child.initialState)
-    expect(v.data.props.sygnalOptions.model).toBe(Child.model)
+    // R5: the statics travel on the component function itself (data.c), not copied into options
+    expect(v.data.c).toBe(Child)
+    expect(v.data.c.initialState).toBe(Child.initialState)
+    expect(v.data.c.model).toBe(Child.model)
   })
 
   it('a bucket that gets more entries is a copy; the objects passed are not written to', () => {

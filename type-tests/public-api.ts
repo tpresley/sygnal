@@ -380,7 +380,9 @@ describe('Component type', () => {
   it('is callable (view function) with required state', () => {
     type C = Component<{ count: number }>
     // state, context and uid (PLAN-4 GS-9) are required (not optional) since the framework always provides them
-    expectTypeOf<C>().toBeCallableWith({ state: { count: 0 }, context: {}, uid: (n?: string) => n || 'u' }, { count: 0 }, {}, {})
+    expectTypeOf<C>().toBeCallableWith({ state: { count: 0 }, context: {}, uid: (n?: string) => n || 'u' })
+    // R5 (D164): the view takes one argument (positional views were removed)
+    expectTypeOf<C>().parameters.toEqualTypeOf<[Parameters<C>[0]]>()
   })
 
   it('has optional static properties', () => {

@@ -7,7 +7,6 @@ import xs from 'xstream'
 import { renderComponent } from '../src/extra/testing.js'
 import { createElement as h } from '../src/pragma/index.js'
 import { Collection } from '../src/collection.js'
-import { makeCollection, StateSource } from '../src/cycle/state/index.js'
 
 let t
 afterEach(() => { t?.dispose(); t = null; vi.restoreAllMocks() })
@@ -108,25 +107,10 @@ describe('PF-1: reorder, remove, add', () => {
   })
 })
 
-describe('PF-1: items without ids, primitives, duplicates, idfield', () => {
-  it('items without ids are keyed by index; a write-back adds the index as their id (unchanged behaviour)', async () => {
-    function List() { return h('ul', null, h(Collection, { of: Row, from: 'rows' })) }
-    List.initialState = { rows: [{ text: 'a' }, { text: 'b' }, { text: 'c' }] }
-    await mount(List)
-    t.queryAll('.edit')[1].click(); await t.next(s => s.rows[1].text === 'b!')
-    expect(t.state.rows).toEqual([{ text: 'a', id: 0 }, { text: 'b!', id: 1 }, { text: 'c', id: 2 }])
-    expect(texts(t)).toEqual(['a', 'b!', 'c'])
-  })
-
-  it('an id of 0 is replaced by the index (unchanged behaviour)', async () => {
-    const seen = []
-    function Item({ state }) { seen.push(state); return h('li', null, state.text) }
-    function List() { return h('ul', null, h(Collection, { of: Item, from: 'rows' })) }
-    List.initialState = { rows: [{ id: 5, text: 'a' }, { id: 0, text: 'b' }] }
-    await mount(List)
-    expect(seen.find(s => s.text === 'b')).toEqual({ id: 1, text: 'b' })
-  })
-
+// R5: the old core's id-less / id 0 / duplicate keying (G-306, G-307, D177: test/parity/collection,
+// p46-r2-review), `idfield` (D164) and makeCollection's itemKey count (parity/collection PF-1) went
+// with it
+describe('PF-1: primitives', () => {
   it('primitive items arrive as { value, id } and are written back as primitives', async () => {
     function P({ state }) { return h('li', { className: 'row' }, String(state.value), h('button', { className: 'edit' }, '+')) }
     P.intent = ({ DOM }) => ({ INC: DOM.click('.edit') })
@@ -141,27 +125,6 @@ describe('PF-1: items without ids, primitives, duplicates, idfield', () => {
     expect(texts(t)).toEqual(['11', '2', '13'])
   })
 
-  it('duplicate ids: one item instance per id, and a write-back gives every duplicate the first match (unchanged behaviour)', async () => {
-    let views = 0
-    function D({ state }) { views++; return h('li', { className: 'row' }, state.text, h('button', { className: 'edit' }, 'e')) }
-    D.intent = Row.intent
-    D.model = Row.model
-    function List() { return h('ul', null, h(Collection, { of: D, from: 'rows' })) }
-    List.initialState = { rows: [{ id: 1, text: 'a' }, { id: 1, text: 'b' }, { id: 2, text: 'c' }] }
-    await mount(List)
-    // both rows render the first item's state: one instance appears twice
-    expect(texts(t)).toEqual(['a', 'a', 'c'])
-    t.queryAll('.edit')[2].click(); await t.next(s => s.rows[2].text === 'c!')
-    expect(t.state.rows.map(r => r.text)).toEqual(['a', 'a', 'c!'])
-  })
-
-  it('idfield: items are written back by that field', async () => {
-    function List() { return h('ul', null, h(Collection, { of: Row, from: 'rows', idfield: 'key' })) }
-    List.initialState = { rows: [{ key: 'p', text: 'a' }, { key: 'q', text: 'b' }] }
-    await mount(List)
-    t.queryAll('.edit')[1].click(); await t.next(s => s.rows[1].text === 'b!')
-    expect(t.state.rows).toEqual([{ key: 'p', text: 'a' }, { key: 'q', text: 'b!' }])
-  })
 })
 
 describe('PF-1: filter, sort, calculated, custom lens', () => {
@@ -213,30 +176,6 @@ describe('PF-1: filter, sort, calculated, custom lens', () => {
 })
 
 describe('PF-1: O(1) per item', () => {
-  it('a state change calls itemKey O(n) times, not O(n²), when the order is unchanged', () => {
-    const n = 300
-    let calls = 0
-    const itemKey = (s, i) => { calls++; return s.id }
-    const item = (sources) => { sources.state.stream.addListener({ next: () => {} }); return {} }
-    const rows = Array.from({ length: n }, (_, i) => ({ id: i + 1, text: String(i) }))
-    const state$ = xs.createWithMemory()
-    const C = makeCollection({ item, itemKey, collectSinks: (inst) => ({ x: inst.pickMerge('x') }), channel: 'state' })
-    const sinks = C({ state: new StateSource(state$, 'state') })
-    sinks.x.addListener({ next: () => {} })
-    state$.shamefullySendNext(rows)
-    const next = rows.map((r, i) => i === 150 ? { ...r, text: 'edited' } : r)
-    calls = 0
-    state$.shamefullySendNext(next)
-    // the fold keys each item once (n); each item's lens checks its last index (n)
-    expect(calls).toBeLessThanOrEqual(3 * n)
-    // a reorder rescans only the moved items' lenses
-    const swapped = [...next]; [swapped[1], swapped[n - 2]] = [swapped[n - 2], swapped[1]]
-    calls = 0
-    state$.shamefullySendNext(swapped)
-    expect(calls).toBeLessThan(6 * n)
-    sinks.__dispose()
-  })
-
   it('an item write-back does not search the array per item', async () => {
     const n = 200
     function List() { return h('ul', null, h(Collection, { of: Row, from: 'rows' })) }

@@ -46,4 +46,4 @@ parity('parity: undo through `uses`', () => {
     await until(() => expect(notes()).toEqual(['a:0', 'bx:1']))
     expect(m.state().notes[0]).toMatchObject({ id: 1, doc: 'a' })
   })
-}, 'R3')
+})

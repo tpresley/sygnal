@@ -21,7 +21,6 @@
  *   two Collections is one patch).
  */
 import {hosts, resolvers} from '../registry'
-import {NEXT_CORE} from '../build'
 import {Inst, shallowEq} from '../instance'
 import {Cell, Index, indexer, itemCell, keyCell, keyOf, keyName} from '../cell'
 import {CoreDef, isObj} from '../define'
@@ -301,5 +300,4 @@ export class CollectionHost {
   }
 }
 
-// D175: registered only where the next core can run (a production build drops it)
-if (NEXT_CORE) hosts.collection = (owner, props, children, id, marker) => new CollectionHost(owner, props, children, id, marker)
+hosts.collection = (owner, props, children, id, marker) => new CollectionHost(owner, props, children, id, marker)

@@ -4,7 +4,7 @@
 // path } on start and on every change. The first 10 tests are the 5-0c spike's, ported.
 import { it, expect, beforeEach, afterEach, vi } from 'vitest'
 import run from '../src/extra/run.js'
-import { ABORT } from '../src/component.js'
+import { ABORT } from '../src/shared.js'
 import { createElement as h } from '../src/pragma/index.js'
 import { Switchable } from '../src/switchable.js'
 import { makeRouter } from '../src/extra/router.js'

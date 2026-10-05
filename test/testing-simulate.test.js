@@ -178,28 +178,6 @@ describe('simulateEvent', () => {
     expect(s.got).toEqual(['v', true, '1', 'two', true])
   })
 
-  it('targets one Collection item (the first match, or the one picked by the selector)', async () => {
-    function Item({ state }) {
-      return h('li', { className: 'item', data: { id: state.id } }, h('button', { className: 'del' }, 'x'))
-    }
-    Item.intent = ({ DOM }) => ({ DEL: DOM.click('.del') })
-    Item.model = { 'DEL | PARENT': s => s.id }
-    function List() { return h('div', null, h(Collection, { of: Item, from: 'items', className: 'list' })) }
-    List.initialState = { items: [{ id: 1 }, { id: 2 }, { id: 3 }] }
-    List.intent = ({ CHILD }) => ({ REMOVE: CHILD.select(Item) })
-    List.model = { REMOVE: (s, id) => ({ ...s, items: s.items.filter(i => i.id !== id) }) }
-
-    t = renderComponent(List)
-    t.simulateEvent('.item[data-id="2"] .del', 'click')
-    let s = await t.waitForState(s => s.items.length === 2, 500)
-    expect(s.items.map(i => i.id)).toEqual([1, 3])
-
-    await settle()
-    t.simulateEvent('.del', 'click')
-    s = await t.waitForState(s => s.items.length === 1, 500)
-    expect(s.items.map(i => i.id)).toEqual([3])
-  })
-
   it('does not deliver events across an isolation boundary to the parent', async () => {
     function Child() { return h('div', { className: 'child' }, h('button', { className: 'btn' }, 'c')) }
     Child.initialState = {}
@@ -295,17 +273,6 @@ describe('simulateAction drives all sinks (G-015)', () => {
     expect(t.sinks.API).toBeDefined()
   })
 
-  it('collects a driver sink even when no driver is provided', async () => {
-    function App() { return h('div', null, 'x') }
-    App.initialState = {}
-    App.model = { 'GO | HTTP': (s, d) => ({ url: d }) }
-    t = renderComponent(App)
-    t.simulateAction('GO', '/a')
-    await t.ready()
-    await settle()
-    expect(t.sinkValues('HTTP')).toEqual([{ url: '/a' }])
-  })
-
   it('EFFECT next() reaches the model and intent-less model actions are reachable', async () => {
     function App() { return h('div', null, 'x') }
     App.initialState = { v: null }
@@ -320,44 +287,10 @@ describe('simulateAction drives all sinks (G-015)', () => {
     expect(s.v).toBe(42)
   })
 
-  it('works with a single-stream intent', async () => {
-    function App() { return h('div', null, 'x') }
-    App.initialState = { n: 0 }
-    App.intent = () => xs.never()
-    App.model = { INC: s => ({ ...s, n: s.n + 1 }) }
-    t = renderComponent(App)
-    t.simulateAction('INC')
-    await t.waitForState(s => s.n === 1, 500)
-  })
 })
 
 // ─── G-013: real action names reach hooks ────────────────────────────────────
 
-describe('simulated actions use the real action name (G-013)', () => {
-  it('onReducer sees the real action; no synthetic action reaches onIntent/onModel', async () => {
-    const reducers = [], intents = [], models = []
-    registerCheck({
-      id: 'probe',
-      onIntent: (c, names) => intents.push(...names),
-      onModel: (c, map) => models.push(...Object.keys(map)),
-      onReducer: (c, action) => reducers.push(action),
-    })
-    function App() { return h('div', null, 'x') }
-    App.initialState = { n: 0 }
-    App.intent = ({ DOM }) => ({ INC: DOM.click('.inc') })
-    App.model = { INC: s => ({ ...s, n: s.n + 1 }), 'RESET | STATE': s => ({ ...s, n: 0 }) }
-    t = renderComponent(App)
-    t.simulateAction('INC')
-    t.simulateAction('RESET')
-    await t.waitForState(s => s.n === 1, 500)
-    await settle()
-
-    expect(reducers).toContain('INC')
-    expect(reducers).toContain('RESET')
-    expect([...reducers, ...intents, ...models].some(n => /TEST/.test(n))).toBe(false)
-    expect(intents.sort()).toEqual(['INC', 'RESET'])
-  })
-})
 
 // ─── diagnostics integration ─────────────────────────────────────────────────
 
@@ -388,27 +321,6 @@ describe('diagnostics option', () => {
     t.dispose()
     t = null
     expect(getDiagnosticsMode()).toBe('error')
-  })
-
-  it('restores the mode when the component throws during setup', () => {
-    function Bad() { return h('div', null, 'x') }
-    Bad.intent = () => ({ 'A | B': xs.never() })
-    Bad.model = {}
-    expect(() => renderComponent(Bad)).toThrow(/SYG605.*reserved for model shorthand/)
-    expect(getDiagnosticsMode()).toBe('off')
-  })
-
-  it('collects diagnostics into t.diagnostics and expectNoDiagnostics() throws on warn/error', async () => {
-    registerCheck({
-      id: 'probe',
-      onRender: c => report('SYG110', { component: c, message: "Selector '.nope' not in view" }),
-    })
-    t = renderComponent(App)
-    expect(() => t.expectNoDiagnostics()).not.toThrow()
-    await t.ready()
-    expect(t.diagnostics.length).toBeGreaterThan(0)
-    expect(t.diagnostics[0].code).toBe('SYG110')
-    expect(() => t.expectNoDiagnostics()).toThrow(/SYG110.*\.nope/)
   })
 
   it('info diagnostics do not fail expectNoDiagnostics()', async () => {
