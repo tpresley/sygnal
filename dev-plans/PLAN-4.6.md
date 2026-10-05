@@ -13,7 +13,7 @@ Streams stay at the edges: intent, drivers, `STATE.stream`/`watch`, `dispose$`. 
 
 **Release:** part of the held 6.0.0 major (D56). Runs **after PLAN-4.5 (tag `plan45-complete`) and before PLAN-5**; PLAN-5 rebases onto `plan46-integration`. No version bumps, tags on main, PR to main or publish.
 
-**Status:** draft for the user's review. Spike 0-S **met all four go criteria** (§1a). No core code until §9 is answered.
+**Status:** approved 2026-10-04 (D161–D170; §9 answered). Spike 0-S met all four go criteria (§1a). R0 running.
 
 **Inputs:**
 
@@ -114,7 +114,7 @@ The design is study 03 §1–§6. In short:
 | Hooks | `transformDef`, `onCreate`/`onDispose`/`onRender`, `onAction`/`wrapHandler`/`onReducer`/`onNext`, `wrapSources`, runtime-provided `setState`, for behaviors, persist, diagnostics, devtools and testing |
 
 **Changes to the proposal:**
-1. **Context dependency tracking (study 03 §5, §7 #7) is out of the first cut.** A context change re-renders the components below it, as today. The Proxy adds hidden behaviour and isn't needed for the rewrite; reconsider it after R5 with measurements.
+1. **Context dependency tracking (study 03 §5, §7 #7) is in (D168):** a view's context reads are recorded, and a context change re-renders only the components that read a changed key. Safety net: with diagnostics on, a sample of skipped views is re-run and a differing vnode is reported (a new SYG code, R4).
 2. **The dual-core switch is internal.** It is selected by an internal option on `run()` (and an env flag for the test matrix), not a documented `run({ core })` option, and it is deleted in R5.
 3. **Every fix pass gets a review** (PLAN-4.5 lesson: R2 introduced G-283).
 4. **The flush contract** (spike finding 3): actions drain run-to-completion; a flush renders top-down, recomputes statics, drains anything queued, and repeats until stable; then it emits one vnode. A loop guard (100 passes, then a `MessageChannel` hop, no timers) replaces G-260/G-283's timers.
@@ -168,7 +168,10 @@ After each phase: a `/code-review high` of the phase diff (and of each fix pass)
 | Intent subscribed at creation; INITIALIZE synchronous; BOOTSTRAP in a microtask after the first commit (not at 10 ms) | Timing only | Tests with fake timers that advanced 10 ms for BOOTSTRAP (renderComponent's waits hide it). Removes D153's first-render gate and the G-284 fake-timer caveat |
 | Driver/sink values reach drivers in the same order, possibly earlier in the tick (no ancestor hubs) | Timing only | Nothing documented |
 | Every non-STATE sink sees the pre-action state (the documented rule), with no `STATE_SNAPSHOT` bookkeeping | No | — |
-| The §9 API removals the user accepts | **Yes** | Migration guide; SYG50x strict codes already flag most |
+| The §9 API removals (D162–D164) | **Yes** | Migration guide; SYG50x strict codes already flag most |
+| Context changes re-render only components that read a changed key (D168) | No (fewer renders) | A view relying on re-rendering for a side effect (not supported) |
+| New opt-in `<Switchable lazy>`: a hidden page isn't rendered until first shown; its intent, actions and background statics run from mount (D166) | No (new prop) | — |
+| Id-less Collection items under filter/sort keyed by raw index; duplicate ids warn in dev (D169) | Fix | Apps relying on the latent filtered-index keying |
 
 ## 6. Process
 
@@ -190,7 +193,6 @@ After each phase: a `/code-review high` of the phase diff (and of each fix pass)
 - Replacing xstream (streams stay at the edges) or snabbdom.
 - Signals.
 - New canonical forms.
-- Context dependency tracking (§2).
 - Pragma or DOM-driver speed work beyond `data.c`. Single-view ops are bound there; a later plan can take it.
 - Fixing G-282 (`renderComponent` `props` option): that is new public API, which PLAN-5 owns. R4 keeps the hook it would need.
 
@@ -207,7 +209,9 @@ After each phase: a `/code-review high` of the phase diff (and of each fix pass)
 | Scope creep into PLAN-5 | §7; PLAN-5's features only via the hooks contract |
 | Effort (est. 2–3× PLAN-4.5) | Phase exits are independently mergeable; the old core stays the default until R5, so the plan can pause after any phase |
 
-## 9. Decisions needed (recommendation first)
+## 9. Decisions (answered 2026-10-04; D161–D170 in the tracker)
+
+All recommendations below were accepted, with these changes: Q4 context tracking is **in** (D168); Q19 hidden pages render at mount as today, plus an **opt-in `lazy` prop** (D166); Q8 includes `<Collection of="Name">` (D163).
 
 **Plan:**
 

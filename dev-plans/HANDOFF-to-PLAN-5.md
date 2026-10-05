@@ -104,3 +104,10 @@ Nothing blocks PLAN-4. Two items would help:
 - **Ergonomics gap from P45-EV (G-282):** `renderComponent(Comp, { props })` is not an option, and unknown options aren't reported: agents guessed `props:` for a props-only component and got an empty render (task 08, both PLAN-4 and PLAN-4.5 runs). Candidate: a `props` option or a diagnostic for unknown options (new public API → user decision).
 - G-284: with fake timers never advanced, raw `run()` stops after ~99 flushes (documented). A `MessageChannel` reset fixes it for +42 B (D159).
 - Collection select (8.6 ms, 17× React) and single-component select (3.2 ms, 6× React) are still above their warn-only targets; mount 1k is at the 3× line. The next lever is change detection / per-item render cost (P45-E was not needed for the other targets).
+
+## PLAN-4.6 runs before PLAN-5 (2026-10-04, D161)
+
+- PLAN-4.6 (`dev-plans/PLAN-4.6.md`) rewrites the component core: synchronous per-app store, state cells, one flush, definitions normalized once, explicit hooks. PLAN-5 rebases onto `plan46-integration` when it closes, not `plan45-integration`.
+- PLAN-5's features attach through the hooks API (`transformDef`, statics, the marker registry), not instance patching.
+- 6.0 removes the forms in D162–D164: custom source names, the `component({...})` factory (→ `defineComponent`), `.components`/string tags/string `of`/`CHILD.select('Name')`, `'ACTION | SINK'`, positional view args, `.peers`, `hmrActions`, `storeCalculatedInState`. Check PLAN-5's specs for any use (S-1 widgets use controls and the pragma marker, which stay).
+- Budgets are restated at PLAN-4.6's close (projected core ≈ 35–37 KB, vs 41,343 B now).
