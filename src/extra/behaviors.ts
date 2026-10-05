@@ -34,7 +34,8 @@
  *   `key + '.LOADED'`); the intent gets `(sources, options, key)`.
  * - D197: `HOST: (state, data, next, props, options, key) => state` in a model entry is a STATE
  *   reducer on the host's whole state (sortable reorders the host's array); ABORT or the same
- *   state is no change; the slice's calculated fields are recomputed when it changed.
+ *   state is no change; the slice's calculated fields are recomputed when it changed. G-378:
+ *   with a STATE in the same entry, STATE runs first and HOST gets its result.
  * - D197: `timers: (slice, options, key) => ({ name: spec })` declares timers (makeTimerDriver)
  *   for the host: named '<key>.<name>', a spec's action / frame naming one of the behavior's
  *   actions is namespaced as next() does. They join the host's own `timers` static through an
@@ -53,6 +54,13 @@ const sinksOf = (e: any, S: string): any => {
     if (typeof v != 'function') o[s] = s == 'EFFECT' ? () => {} : v === true || v === undefined ? (_: any, d: any) => d : () => v
   }
   return o
+}
+
+// two STATE reducers in turn: the second gets the first's state (the given one when it ABORTs);
+// an ABORT from the second keeps the first's
+const seq = (bf: any, hf: any) => (st: any, ...x: any[]) => {
+  const r = bf(st, ...x), q = hf(isAbort(r) ? st : r, ...x)
+  return isAbort(q) ? r : q
 }
 
 const calcOf = (calcs: any) => (r: any) => {
@@ -105,23 +113,22 @@ const mergeBehavior = (c: any, k: string, b: any): void => {
   for (const a in b.model) {
     const e = sinksOf(b.model[a], S), m: any = {}, host = model[ns(a)]
     for (const s in e) {
-      // HOST: a STATE reducer on the host's whole state (D197)
-      const whole = s == 'HOST'
-      m[whole ? S : s] = (st: any, d: any, next: any, p: any) => {
+      // HOST: a STATE reducer on the host's whole state (D197). G-378: with a STATE in the same
+      // entry, STATE runs first and HOST gets the state with its update (seq)
+      const whole = s == 'HOST', o = whole ? S : s
+      const f = (st: any, d: any, next: any, p: any) => {
         const r = e[s](whole ? st : st?.[k], d, next && ((t: string, ...y: any[]) => next(t in b.model ? ns(t) : t, ...y)), p, opts, k)
         return whole ? (isAbort(r) || r === st || !r || r[k] === st?.[k] ? r : {...r, [k]: calc(r[k])})
           : s != S || isAbort(r) ? r : r === st[k] ? st : {...st, [k]: calc(r)}
       }
+      m[o] = !m[o] ? f : whole ? seq(m[o], f) : seq(f, m[o])
     }
     if (host) {
       const hs = sinksOf(host, S)
       for (const s in hs) {
         const bf = m[s], hf = hs[s]
         m[s] = !bf ? hf
-          : s == S ? (st: any, ...x: any[]) => {
-              const r = bf(st, ...x), q = hf(isAbort(r) ? st : r, ...x)
-              return isAbort(q) ? r : q
-            }
+          : s == S ? seq(bf, hf)
           : s == 'EFFECT' ? (...x: any[]) => { bf(...x); hf(...x) }
           : hf
       }

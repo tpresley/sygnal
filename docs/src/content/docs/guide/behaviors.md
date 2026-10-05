@@ -179,7 +179,7 @@ Every model handler of a behavior gets the use's options and its key after the u
 
 Two more parts are for behaviors that reach past their slice:
 
-- **`HOST`**: a model entry `{ HOST: (state, data, next, props, options, key) => newState }` is a reducer on the host's whole state, for a behavior that edits a host field (reordering `state[options.from]`, say). `ABORT`, or the same state, means no change. Use it in place of `STATE` in an entry.
+- **`HOST`**: a model entry `{ HOST: (state, data, next, props, options, key) => newState }` is a reducer on the host's whole state, for a behavior that edits a host field (reordering `state[options.from]`, say). `ABORT`, or the same state, means no change. An entry can have both: `STATE` runs first (on the slice), then `HOST` gets the whole state with that update applied; an `ABORT` from one keeps the other's change.
 - **`timers: (slice, options, key) => ({ name: spec })`** declares [timers](/guide/timers/) for the host, as the `timers` static does (the app needs `makeTimerDriver()`). The host sees them as `'<key>.<name>'`; a spec whose `action` names one of the behavior's actions is sent to that action (`'SHOW'` arrives as `'tip.SHOW'`), any other action name goes to the host as written. They run alongside the host's own `timers`.
 
 ```jsx

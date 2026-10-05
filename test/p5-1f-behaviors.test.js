@@ -227,3 +227,39 @@ describe('the behaviors guide sample (hoverDelay)', () => {
     expect(t.state.tip.open).toBe(true)
   })
 })
+
+// PLAN-5 1-S G-378: STATE and HOST in one behavior model entry compose: STATE (on the slice)
+// first, then HOST on the whole state with that update applied (before: one silently replaced
+// the other, by key order)
+describe('1-S G-378: STATE and HOST in one entry', () => {
+  for (const order of ['STATE first', 'HOST first']) it(`both apply (${order} in the entry)`, async () => {
+    const STATE = (s) => ({ ...s, n: s.n + 1 })
+    const HOST = (st, d, next, props, opts, key) => ({ ...st, hostN: st.hostN + 1, seen: st[key].n })
+    const b = defineBehavior({ initialState: { n: 0 }, model: { GO: order == 'STATE first' ? { STATE, HOST } : { HOST, STATE } } })
+    function C({ state }) { return h('div', null, String(state.hostN)) }
+    C.uses = { b: b() }
+    C.initialState = { hostN: 0 }
+    t = renderComponent(C)
+    await t.ready()
+    t.simulateAction('b.GO'); await t.settle()
+    expect(t.state.b.n).toBe(1)
+    expect(t.state.hostN).toBe(1)
+    // HOST sees the slice STATE wrote
+    expect(t.state.seen).toBe(1)
+  })
+  it('ABORT from either keeps the other', async () => {
+    const b = defineBehavior({ initialState: { n: 0 }, model: {
+      S_ONLY: { STATE: (s) => ({ ...s, n: s.n + 1 }), HOST: () => ABORT },
+      H_ONLY: { STATE: () => ABORT, HOST: (st) => ({ ...st, hostN: st.hostN + 1 }) },
+    } })
+    function C() { return h('div') }
+    C.uses = { b: b() }
+    C.initialState = { hostN: 0 }
+    t = renderComponent(C)
+    await t.ready()
+    t.simulateAction('b.S_ONLY'); await t.settle()
+    t.simulateAction('b.H_ONLY'); await t.settle()
+    expect(t.state.b.n).toBe(1)
+    expect(t.state.hostN).toBe(1)
+  })
+})
