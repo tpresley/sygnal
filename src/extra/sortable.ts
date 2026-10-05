@@ -46,8 +46,9 @@
  * Focus: each keyboard step (but Tab) sends `{ focus: focusWithin('<item>[<attr>="<id>"] <handle>') }`
  * (D194): the keyed Collection may move the focused node when the list reorders. A keyboard
  * drag drops at its current position when focus moves to another element (Tab, a click
- * elsewhere: focusout with a relatedTarget) or on any pointer press; focus lost to nothing (the
- * window, a node move) keeps the drag.
+ * elsewhere: focusout with a relatedTarget) or on any pointer press (a press on a handle then
+ * starts a pointer press at once, G-451); focus lost to nothing (the window, a node move) keeps
+ * the drag.
  *
  * Dev diagnostics through the core bridge's `sortable` hook (checks/sortable.ts): SYG145 an item
  * without `attr`, SYG146 `item` / `handle` matching nothing under the host at the first
@@ -123,6 +124,13 @@ export const sortable = (options: any = {}): any => {
     : list && lists.includes(list) && list != f.list ? {list, to: (st[list] || []).length, after: true}
     : null
   const where = (f: any, n: any) => n.list != f.list ? n.list : undefined
+  // a keyboard drag ends where the item is (DROPPED when it moved)
+  const drop = (st: any, k: string, next: any) => {
+    const s = st[k], f = find(st, s.dragging), o = s.origin
+    if (!f) return put(st, k, idle)
+    if (o.list != f.list || o.index != f.index) next('DROPPED', {id: s.dragging, list: f.list, index: f.index, fromList: o.list, fromIndex: o.index}, 0)
+    return put(st, k, {...idle, message: msg.drop(label(f.item), f.index + 1, f.size, where(o, f))})
+  }
   // an element below the host's root `r` (the root is an item of an outer sortable; in
   // renderComponent's mock DOM, where the event's target is the root, it counts)
   const inside = (el: any, r: any) => el !== r ? !r?.contains || r.contains(el) : !r.nodeType
@@ -220,8 +228,12 @@ export const sortable = (options: any = {}): any => {
         for (const l of lists) Array.isArray(st?.[l]) || dev(147, l, st, k)
         return p?.uid ? put(st, k, {helpId: p.uid(k + '-help')}) : ABORT
       }},
-      PRESS: {HOST: (st: any, d: any, _n: any, _p: any, _o: any, k: string) =>
-        !st[k].dragging && find(st, d.id) ? put(st, k, {press: d}) : ABORT},
+      PRESS: {HOST: (st: any, d: any, next: any, _p: any, _o: any, k: string) => {
+        const s = st[k]
+        if (s.mode == 'pointer' || !find(st, d.id)) return ABORT
+        // during a keyboard drag: it drops where it is, and the press starts (G-451)
+        return put(s.mode == 'keyboard' ? drop(st, k, next) : st, k, {press: d})
+      }},
       MOVE: {HOST: (st: any, d: any, _n: any, _p: any, _o: any, k: string) => {
         const s = st[k], p = s.press, f = p && find(st, p.id)
         if (!f) return ABORT
@@ -257,10 +269,7 @@ export const sortable = (options: any = {}): any => {
           if (!s.dragging) return LIFT.test(key)
             ? put(st, k, {...idle, dragging: S(id), mode: 'keyboard', origin: {list: f.list, index: f.index}, message: msg.lift(l, f.index + 1, f.size, true)})
             : ABORT
-          if (LIFT.test(key) || key == 'Tab') {
-            if (o.list != f.list || o.index != f.index) next('DROPPED', {id: s.dragging, list: f.list, index: f.index, fromList: o.list, fromIndex: o.index}, 0)
-            return put(st, k, {...idle, message: msg.drop(l, f.index + 1, f.size, where(o, f))})
-          }
+          if (LIFT.test(key) || key == 'Tab') return drop(st, k, next)
           if (key == 'Escape') {
             const back = move(st, f, o.list, o.index)
             return put(back, k, {...idle, message: msg.cancel(l, o.index + 1, back[o.list].length)})

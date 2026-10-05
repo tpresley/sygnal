@@ -141,6 +141,26 @@ describe('3-H G-446: held Space / Enter', () => {
   })
 })
 
+describe('3-H G-451: a pointer press on a handle during a keyboard drag', () => {
+  it('drops the keyboard drag where it is and starts the press (one press, not two)', async () => {
+    t = renderComponent(TaskList, { dom: 'real' }); await t.ready()
+    grip(3).focus()
+    press('Enter'); await t.next(s => s.sort.dragging === '3')
+    press('ArrowUp'); await t.next(s => order(s) === '1,3,2,4')
+    ptr(grip(4), 'pointerdown', { clientX: 5, clientY: 100 })
+    await t.next(s => s.sort.press?.id === '4')
+    expect(t.state.sort).toMatchObject({ dragging: null, mode: null })
+    expect(t.state.sort.message).toBe('Dropped C at position 2 of 4.')
+    ptr(grip(1), 'pointermove', { clientX: 5, clientY: 5 })
+    await t.next(s => s.sort.dragging === '4')
+    ptr(grip(1), 'pointerup', { clientX: 5, clientY: 5 })
+    await t.next(s => s.sort.dragging === null)
+    expect(order(t.state)).toBe('4,1,3,2')
+    await t.settle()
+    expect(t.state.dropped).toEqual(['3:2->1', '4:3->0'])
+  })
+})
+
 describe('3-H G-450: native drag and drop', () => {
   it('a native dragstart (an image or link in the item) is prevented while a pointer is pressed', async () => {
     function Row({ state }) { return h('li', { className: 'row', 'data-id': state.id }, h('img', { alt: '', src: 'data:,' }), h('a', { href: '#x' }, state.id)) }
