@@ -55,6 +55,8 @@ This lists every existing test that pokes a core internal the rewrite deletes, o
 | `test/p3-5-3-cache.test.js` (43) | `app.sources.STATE.stream._v` in a helper | ≈ 4 | PORT (a listener, as `parity/harness` `state()`) | |
 | `test/devtools-copy-as-test.test.js` (3) | `STATE.stream._v` in a helper | 3 | PORT (same) | |
 | `test/inspect.test.js` (9) | hand-built instance objects (`_componentNumber`, `stateSourceName`, `__parentComponentNumber`) | 1 | PORT (an `InstanceView`-shaped fake) | |
+| `test/bugfixes-1h.test.js` (1 of its cases) | 1H-1 / B-003 "a sink is deferred behind a same-tick STATE reducer and then sees its result" (L80): pins the microtask reducer | 1 | CURRENT-ONLY (R2, D165: reducers are synchronous; every sink sees the pre-action state) | `parity/timing` synchronous reducers |
+| `test/p45-r3-scheduler.test.js` (G-284 case) | "more than 100 renders wait for the clock; advancing it now and then keeps them going" (L69): pins the timer-based loop guard | 1 | CURRENT-ONLY (R2, D165: the loop guard hops a MessageChannel / setImmediate, no timer) | `parity/reentrancy` G-283 / G-284 |
 | `test/p45-r2-g281.test.js` (2) | `sources.__k`, `setup`/`withState`, `component({ DOMSourceName: 'DOM2' })` | whole | DELETE-R5 (root detection by peers/sources goes with D164 `.peers`; DOMSourceName D162) | |
 | `test/p45-r-g262.test.js` (2) | depth `__d`, `.peers`, `component({`, factories | whole | DELETE-R5 | |
 

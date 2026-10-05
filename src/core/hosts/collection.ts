@@ -167,7 +167,8 @@ export class CollectionHost {
       const p = marker.data?.props || {}
       if (!shallowEq(p, this.mp) || marker.key !== this.key) {
         this.mp = p
-        this.data = {...marker.data, props: p.key === undefined ? {...p, key: id} : p}
+        // isCollection: as the current core's container (testing's html() leaves its props out, G-040)
+        this.data = {...marker.data, isCollection: true, props: p.key === undefined ? {...p, key: id} : p}
         this.key = marker.key
         this.outv = undefined
       }

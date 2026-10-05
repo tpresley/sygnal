@@ -18,7 +18,7 @@ import { fileURLToPath } from 'node:url'
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
-/** R1: the runtime (store, queue, flush, cells, calculated, context, tag children, actions, teardown) */
+/** R1: the runtime (store, queue, flush, cells, calculated, context, tag children, actions, teardown); R2 below */
 export const FILES = [
   'test/parity/',
   'test/p46-r1-core.test.js',
@@ -48,6 +48,27 @@ export const FILES = [
   'test/review-2e2/r4-strict-restore.test.js',
   'test/testing-simulate-closest.test.js',
   'test/xstream-extras-3d.test.js',
+  // R2: hosts (Collection, Switchable), markers (Portal, Transition, ClientOnly, Suspense, lazy, Slot),
+  // fragments, D174, and the R1 review fixes (G-294...G-305)
+  'test/p46-r2-hosts.test.js',
+  'test/p46-r2-review.test.js',
+  'test/p46-g290-symboltree.test.js',
+  'test/clientonly.test.js',
+  'test/g047-new-item-render-3d.test.js',
+  'test/g144-fragment-isolation.test.js',
+  'test/g145-bubbling-out-of-children.test.js',
+  'test/kanban-timing.test.js',
+  'test/p4-2a2-uid-roots.test.js',
+  'test/p45-d-g255-g256.test.js',
+  'test/p45-d-teardown.test.js',
+  'test/p45-r2-dom-poke.test.js',
+  'test/plan2-3f-context.test.js',
+  'test/plan2-3f-switchable.test.js',
+  'test/plan2-e4-real-dom.test.js',
+  'test/review-2e2/b025-switchable-mock.test.js',
+  'test/review-2e2/g040-html-collection.test.js',
+  'test/slot.test.js',
+  'test/suspense.test.js',
 ]
 
 /** the examples whose features are all in the phases done (R2 added kanban, todomvc, advanced-feature-tests) */
