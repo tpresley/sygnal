@@ -4,19 +4,25 @@
  * runtime reports the same code in development (the dev entry, D173).
  *
  *   X.components / X.peers / X.hmrActions / X.storeCalculatedInState /
- *   X.DOMSourceName / X.stateSourceName = …        on any identifier
+ *   X.DOMSourceName / X.stateSourceName = …        on a component (G-336: X has component
+ *                                                   statics, or is bound to a function; never a
+ *                                                   parameter or a plain object like `draft.peers`)
  *   X.label = …                                     on a component (a name; use componentName)
  *   import { component, collection, switchable } from 'sygnal'   (the removed factories)
- *   <Collection of="Name">                          (a name; pass the component)
- *   <Collection idfield="key">                      (items are keyed by `id`)
+ *   <Collection of="Name">                          (a name; pass the component) - G-336: only
+ *   <Collection idfield="key">                      (items are keyed by `id`)   sygnal's Collection
  *
  * Positional views ('positional-views'), 'ACTION | SINK' keys ('pipe-keys') and
  * CHILD.select('Name') ('child-select-name') are SYG501 / SYG504 / SYG506 (--strict, with --fix).
  *
  * --fix: removes a `X.storeCalculatedInState = …` statement (calculated fields are always
  * stored), and a `X.DOMSourceName = 'DOM'` / `X.stateSourceName = 'STATE'` one (the default).
+ * G-337: only a statement in a statement list (module body, block, switch case); one that is
+ * the body of an `if` / loop / label is reported without a fix (deleting it would make the next
+ * statement the body).
  */
-import { walk, unwrap, memberName, stringValue } from '../ast.js'
+import { walk, unwrap, memberName, stringValue, isFunction } from '../ast.js'
+import { findBinding } from '../scope.js'
 
 const GUIDE = 'https://sygnal.js.org/guide/migrating-to-6'
 
@@ -32,7 +38,10 @@ const STATICS = {
 const DEFAULT_SOURCE = { DOMSourceName: 'DOM', stateSourceName: 'STATE' }
 const FACTORIES = new Set(['component', 'collection', 'switchable'])
 
-function removal(file, stmt) {
+const STATEMENT_LISTS = new Set(['Program', 'BlockStatement', 'StaticBlock', 'SwitchCase', 'TSModuleBlock'])
+
+function removal(file, stmt, parent) {
+  if (!parent || !STATEMENT_LISTS.has(parent.type)) return undefined
   let end = stmt.end
   if (file.source[end] === '\n') end++
   return [{ file: file.path, start: stmt.start, end, text: '' }]
@@ -47,6 +56,21 @@ export default {
       const file = project.files.get(p)
       if (!file?.ast) continue
       const componentNames = new Set((file.components || []).map(c => c.name))
+      // G-336: X in `X.peers = …` is a component when it has component statics in this file, or
+      // is bound to a function (an old component with a view and only removed statics)
+      const isComponent = (ident) => {
+        if (componentNames.has(ident.name)) return true
+        const b = findBinding(file, ident.name, ident)
+        return !!b && (b.kind === 'function' || (b.kind === 'var' && isFunction(unwrap(b.init))))
+      }
+      // G-336: the local names sygnal's Collection is imported under
+      const collectionNames = new Set()
+      for (const st of file.ast.program.body) {
+        if (st.type !== 'ImportDeclaration' || st.source?.value !== 'sygnal' || st.importKind === 'type') continue
+        for (const s of st.specifiers || []) {
+          if (s.type === 'ImportSpecifier' && (s.imported.name ?? s.imported.value) === 'Collection') collectionNames.add(s.local.name)
+        }
+      }
       const say = (node, component, anchor, what, fix, data = {}, edits) => report({
         code: 'SYG612',
         component,
@@ -57,18 +81,18 @@ export default {
         data: { form: anchor, ...data },
         edits,
       })
-      walk(file.ast.program, (n) => {
+      walk(file.ast.program, (n, parent) => {
         // X.static = …
         if (n.type === 'ExpressionStatement') {
           const e = unwrap(n.expression)
           if (e.type === 'AssignmentExpression' && e.operator === '=' && e.left.type === 'MemberExpression') {
             const obj = unwrap(e.left.object)
             const prop = memberName(e.left)
-            if (obj.type === 'Identifier' && Object.hasOwn(STATICS, prop)) {
+            if (obj.type === 'Identifier' && Object.hasOwn(STATICS, prop) && isComponent(obj)) {
               const [anchor, what, fix] = STATICS[prop]
               const value = stringValue(e.right)
               const fixable = prop === 'storeCalculatedInState' || (prop in DEFAULT_SOURCE && value === DEFAULT_SOURCE[prop])
-              say(e.left, obj.name, anchor, `${obj.name} sets ${what}`, fix, { static: prop }, fixable ? removal(file, n) : undefined)
+              say(e.left, obj.name, anchor, `${obj.name} sets ${what}`, fix, { static: prop }, fixable ? removal(file, n, parent) : undefined)
             } else if (obj.type === 'Identifier' && prop === 'label' && componentNames.has(obj.name)) {
               say(e.left, obj.name, 'leftovers', `${obj.name}.label names the component`, `use the function's name, or ${obj.name}.componentName = …`, { static: 'label' })
             }
@@ -91,7 +115,7 @@ export default {
           return false
         }
         // <Collection of="Name" idfield="key">
-        if (n.type === 'JSXOpeningElement' && n.name?.type === 'JSXIdentifier' && n.name.name === 'Collection') {
+        if (n.type === 'JSXOpeningElement' && n.name?.type === 'JSXIdentifier' && collectionNames.has(n.name.name)) {
           for (const a of n.attributes || []) {
             if (a.type !== 'JSXAttribute') continue
             const an = a.name?.name

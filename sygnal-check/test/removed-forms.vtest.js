@@ -75,4 +75,84 @@ App.stateSourceName = 'APP'
     expect(out).not.toContain('DOMSourceName')
     expect(out).toContain("App.stateSourceName = 'APP'")
   })
+
+  it('G-336: the statics on objects, parameters and drafts are not components', () => {
+    const found = run(`
+function App({ state }) { return <div>{state.peers.length}</div> }
+App.initialState = { peers: [] }
+App.model = {
+  RESET: (state) => { const draft = { ...state }; draft.peers = []; return draft },
+}
+const registry = {}
+registry.components = { App }
+const cfg = { stateSourceName: 'X' }
+cfg.stateSourceName = 'STATE'
+cfg.DOMSourceName = 'DOM'
+function setup(options) { options.hmrActions = []; options.storeCalculatedInState = true }
+`)
+    expect(found).toEqual([])
+  })
+
+  it('G-336: a view-only function with a removed static is still reported', () => {
+    const found = run(`
+import Badge from './Badge'
+function Layout() { return <main><Badge /></main> }
+Layout.components = { Badge }
+const Side = () => <aside />
+Side.peers = { Badge }
+`)
+    expect(found.map(d => d.data.form)).toEqual(['components', 'peers'])
+  })
+
+  it('G-336: --fix leaves stateSourceName on a plain object', () => {
+    const file = setup(`const cfg = {}
+cfg.stateSourceName = 'STATE'
+export default cfg
+`)
+    fixFiles([file], { cwd: dir })
+    expect(fs.readFileSync(file, 'utf8')).toContain("cfg.stateSourceName = 'STATE'")
+  })
+
+  it("G-336: <Collection> is only sygnal's (a local Collection component is not checked)", () => {
+    const local = run(`
+function Collection({ of, idfield }) { return <section>{of}{idfield}</section> }
+Collection.initialState = {}
+function App() { return <Collection of="books" idfield="isbn" /> }
+`)
+    expect(local).toEqual([])
+    const aliased = run(`
+import { Collection as List } from 'sygnal'
+function App() { return <List of="Row" from="rows" /> }
+App.initialState = { rows: [] }
+`)
+    expect(aliased.map(d => d.data.form)).toEqual(['collection-of-name'])
+  })
+
+  it('G-337: --fix does not delete a statement that is the body of an if (the next one would become it)', () => {
+    const src = `function App({ state }) { return <div>{state.n}</div> }
+App.initialState = { n: 0 }
+if (import.meta.env.DEV) App.storeCalculatedInState = true
+App.model = { INC: (state) => ({ n: state.n + 1 }) }
+`
+    const found = run(src)
+    expect(found.map(d => d.data.form)).toEqual(['storecalculatedinstate'])
+    expect(found[0].edits).toBeFalsy()
+    const file = setup(src)
+    fixFiles([file], { cwd: dir })
+    expect(fs.readFileSync(file, 'utf8')).toBe(src)
+  })
+
+  it('G-337: --fix still removes it inside a block', () => {
+    const file = setup(`function App({ state }) { return <div>{state.n}</div> }
+App.initialState = { n: 0 }
+if (import.meta.env.DEV) {
+  App.storeCalculatedInState = true
+}
+App.model = { INC: (state) => ({ n: state.n + 1 }) }
+`)
+    fixFiles([file], { cwd: dir })
+    const out = fs.readFileSync(file, 'utf8')
+    expect(out).not.toContain('storeCalculatedInState')
+    expect(out).toContain('App.model = {')
+  })
 })
