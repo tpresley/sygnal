@@ -48,7 +48,7 @@ function gzipSize(file) {
   return zlib.gzipSync(fs.readFileSync(file)).length
 }
 
-async function measure(label, pluginOptions) {
+async function measure(label, pluginOptions, define) {
   const outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sygnal-size-gate-'))
   try {
     // Same as examples/kanban/vite.config.js (`plugins: [sygnal()]`), with the plugin options
@@ -57,6 +57,7 @@ async function measure(label, pluginOptions) {
       configFile: false,
       logLevel: 'warn',
       plugins: [sygnal(pluginOptions)],
+      ...(define && { define }),
       build: { outDir, emptyOutDir: true },
     })
     const assets = path.join(outDir, 'assets')
@@ -71,11 +72,15 @@ async function measure(label, pluginOptions) {
 
 const gated = await measure('(a) nativeGlobalThis: false (gated)', { nativeGlobalThis: false })
 const shipped = await measure('(b) default (native globalThis)', {})
+// PLAN-4.6 (D182, informational; deleted at R5): kanban with the next core kept in the build
+// (D175 strips it from production builds); it still contains the current core until R5
+const next = await measure('(c) next core enabled (__SYGNAL_NEXT_CORE__; both cores until R5)', {}, { __SYGNAL_NEXT_CORE__: 'true' })
 
 const fmt = n => n.toLocaleString('en-US')
 console.log('kanban production bundle, gzip -c | wc -c:')
 console.log(`  ${gated.label}: ${fmt(gated.gzip)} B  (budget ${fmt(budget)} B, ${budget - gated.gzip >= 0 ? `${fmt(budget - gated.gzip)} B headroom` : `${fmt(gated.gzip - budget)} B OVER`})`)
 console.log(`  ${shipped.label}: ${fmt(shipped.gzip)} B  (informational; ${fmt(gated.gzip - shipped.gzip)} B less)`)
+console.log(`  ${next.label}: ${fmt(next.gzip)} B  (informational)`)
 
 if (gated.gzip > budget) {
   console.error(`size-gate: FAIL: ${fmt(gated.gzip)} B > ${fmt(budget)} B`)
