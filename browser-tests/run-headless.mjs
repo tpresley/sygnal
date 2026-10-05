@@ -3,6 +3,9 @@
  * Starts a Vite dev server, opens the test page in headless Chromium,
  * waits for tests to complete, and exits with appropriate code.
  * BROWSER=firefox|webkit runs the suite in another engine (opt-in; the gate uses Chromium).
+ * BROWSER_TESTS_ONLY=<substring> runs only the matching suites. Tests get real input through
+ * window.__pwType (typing), window.__pw (locator actions) and window.__pwInput (mouse, keys,
+ * Chromium touch).
  */
 
 import { createServer as createNetServer } from 'node:net';
@@ -94,11 +97,12 @@ async function run() {
     // G-146: real keyboard input for the tests (typed by Playwright at full speed)
     await page.exposeFunction('__pwType', (selector, text, delay) =>
       page.locator(selector).pressSequentially(text, { delay }));
-    // PLAN-5 0-S6 (D199, adopted): real pointer/keyboard input for the web-component tests.
-    // Playwright's CSS locators pierce open shadow roots ('#test-3 .email input' is wa-input's inner <input>).
+    // D199 (spike 0-S6): real pointer/keyboard input on an element, through Playwright's locator
+    // (CSS selectors pierce open shadow roots). `await window.__pw('click', '#test-3 .save')`.
+    // Fails within 4 s (inside a test's own limit) with Playwright's reason.
     await page.exposeFunction('__pw', async (action, selector, arg) => {
       const loc = selector && page.locator(selector);
-      const timeout = 4000; // fail inside the test's own time limit, with Playwright's reason
+      const timeout = 4000;
       switch (action) {
         case 'click': return void await loc.click({ timeout, ...arg });
         case 'hover': return void await loc.hover({ timeout, ...arg });
@@ -112,8 +116,30 @@ async function run() {
         default: throw new Error(`__pw: unknown action '${action}'`);
       }
     });
+    // D199 (spike 0-S5): a scripted sequence of trusted pointer/key input at page coordinates:
+    // steps [['move', x, y, steps?] | ['down'] | ['up'] | ['key', name] | ['wait', ms] |
+    // ['touchStart' | 'touchMove', x, y] | ['touchEnd']]. Touch goes through CDP
+    // (Input.dispatchTouchEvent): Chromium only; elsewhere a touch step throws.
+    let cdp = null;
+    await page.exposeFunction('__pwInput', async (steps) => {
+      for (const [op, a, b, n] of steps) {
+        if (op === 'move') await page.mouse.move(a, b, { steps: n || 1 });
+        else if (op === 'down') await page.mouse.down();
+        else if (op === 'up') await page.mouse.up();
+        else if (op === 'key') await page.keyboard.press(a);
+        else if (op === 'wait') await new Promise(r => setTimeout(r, a));
+        else if (op === 'touchStart' || op === 'touchMove' || op === 'touchEnd') {
+          if (ENGINE !== 'chromium') throw new Error(`__pwInput: touch input needs Chromium (CDP), not ${ENGINE}`);
+          cdp ||= await page.context().newCDPSession(page);
+          await cdp.send('Input.dispatchTouchEvent', { type: op, touchPoints: op === 'touchEnd' ? [] : [{ x: a, y: b }] });
+        } else throw new Error(`__pwInput: unknown step '${op}'`);
+      }
+    });
 
-    await page.goto(url);
+    // D199 (spike 0-S6): BROWSER_TESTS_ONLY=<substring> runs only the suites whose function name
+    // contains it, case-insensitive (main.js reads ?only=)
+    const only = process.env.BROWSER_TESTS_ONLY;
+    await page.goto(only ? `${url}?only=${encodeURIComponent(only)}` : url);
 
     // Wait for tests to complete
     let waitError = null;
@@ -157,7 +183,11 @@ async function run() {
       process.exit(1);
     }
 
-    console.log(`\nBrowser Tests (${ENGINE} ${browser.version()}): ${passed} passed, ${failed} failed, ${passed + failed} total\n`);
+    console.log(`\nBrowser Tests (${ENGINE} ${browser.version()}): ${passed} passed, ${failed} failed, ${passed + failed} total${only ? ` (BROWSER_TESTS_ONLY=${only})` : ''}\n`);
+    if (only && passed + failed === 0) {
+      console.error(`BROWSER_TESTS_ONLY=${only} matched no suite (main.js runs the suites whose function name contains it)`);
+      process.exit(1);
+    }
 
     if (failed > 0) {
       const failures = tests.filter(t => t.status === 'fail');

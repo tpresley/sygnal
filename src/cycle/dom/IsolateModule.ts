@@ -47,13 +47,16 @@ export class IsolateModule {
       return elm;
     }
 
+    // G-356 (D196): an element a hook moved out of its component's DOM (a toaster region
+    // re-parented into an open modal <dialog>) names where it belongs as `__sygnalHome` (an
+    // element of its component), so it stays in its component's scope. With no scope root above
+    // elm (moved without one, or out of the app) the event has no scope here (before: threw
+    // 'No root element found')
     let curr = elm;
     while (!this.namespaceByElement.has(curr)) {
-      curr = curr.parentNode as Element;
-      if (!curr) {
+      curr = ((curr as any).__sygnalHome || curr.parentNode) as Element;
+      if (!curr || curr.tagName === 'HTML') {
         return undefined;
-      } else if (curr.tagName === 'HTML') {
-        throw new Error('No root element found, this should not happen at all');
       }
     }
     return curr;

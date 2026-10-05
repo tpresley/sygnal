@@ -20,8 +20,8 @@ const createTextElement = (text: any): any => is.text(text) ? new (Plain as any)
 // A tag whose tree isn't plain: a form field (a superset of isField: a re-run view with the same
 // output keeps its last vnode (P46-P sameTree), which would skip the controlled-input module's
 // re-sync of the DOM value) or a host the view walk knows by its string tag (<collection>,
-// <switchable>)
-const FIELD = /^(input|textarea|select)/i
+// <switchable>). D196: a custom element (a hyphenated tag) may be a form-associated field
+const FIELD = /^(input|textarea|select)|-/i
 // P46-P: by tag: 1 a form field (FIELD: a prefix), 4 a host (<collection>, <switchable>), 2 an SVG
 // tag. G-350: keyed by the tag part of the selector (before its first '#' or '.'), so dynamic
 // selectors (`li#row-${id}`) don't grow it. A selector with an id or class keeps only bit 1, as
@@ -169,7 +169,9 @@ const clean = (obj: any): any => {
 // One pass over the JSX props into snabbdom's module buckets (audit rec 6):
 // - `<module>-<name>` (on-click, attrs-href, data-task-id → dataset.taskId) and `<module>={...}`
 //   go to that module's bucket (`data` is snabbdom's `dataset`)
-// - for, role, tabindex and aria-* go to attrs; key is dropped; anything else is a prop
+// - for, role, tabindex, aria-* and the popover / invoker / anchor attributes (ATTRS) go to
+//   attrs; an aria-* boolean is written as "true"/"false" (D196: snabbdom writes true as "",
+//   which ARIA doesn't read as true); key is dropped; anything else is a prop
 // - an undefined value is skipped (a `<module>-<name>` one still makes its bucket)
 // A bucket is the object passed (`lent`) until a second source adds to it; then it is a copy.
 // sanitizeData doesn't re-enter, so `lent` is per call (null until a bucket is lent).
@@ -191,14 +193,16 @@ const add = (out: any, b: string, v: any): void => {
 }
 // P46-P: where a key goes, by key (per modules map; 0: skipped): [bucket, name, kind]. kind 1: a
 // `<module>-<name>` key (its bucket is made even for undefined); 2: a module's own object
-// (3: `class`, made a map first); else the bucket's `name` (no bucket: the data's own key)
+// (3: `class`, made a map first); else the bucket's `name` (no bucket: the data's own key; 4:
+// aria-*, a boolean stringified)
+const ATTRS = /^(for|role|tabindex|popovertarget(action)?|command(for)?|closedby|interestfor|anchor|aria-.*)$/
 const route = (key: string, modules: Record<string, any>): any => {
   if (key == 'ref' || key == 'key' || key == 'children') return 0
   const dash = key.indexOf('-')
   const prefix = dash > -1 && key.slice(0, dash)
   // G-152: data-task-id → dataset key taskId (a hyphenated dataset key makes the DOM throw)
   if (prefix && modules[prefix] !== undefined) return [modules[prefix] || prefix, prefix == 'data' ? key.slice(dash + 1).replace(/-([a-z])/g, (_, c) => c.toUpperCase()) : key.slice(dash + 1), 1]
-  if (modules.attrs !== undefined && (key == 'for' || key == 'role' || key == 'tabindex' || prefix == 'aria')) return ['attrs', key]
+  if (modules.attrs !== undefined && ATTRS.test(key)) return ['attrs', key, prefix == 'aria' && 4]
   if (modules[key] !== undefined) return [modules[key] || key, 0, key == 'class' && modules.class !== undefined ? 3 : 2]
   return [modules.props !== undefined && 'props', key]
 }
@@ -219,8 +223,8 @@ const sanitizeData = (data: any, modules: Record<string, any>, routes: Map<strin
       const o = bucket(out, b)
       if (val !== undefined) o[name] = val
     } else if (val === undefined) continue
-    else if (kind) add(out, b, kind == 3 ? toClassMap(val) : val)
-    else if (b) bucket(out, b)[name] = val
+    else if (kind & 2) add(out, b, kind == 3 ? toClassMap(val) : val)
+    else if (b) bucket(out, b)[name] = kind && val === !!val ? '' + val : val
     else out[key] = val
   }
   const props = out.props

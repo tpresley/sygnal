@@ -33,48 +33,56 @@ import { delegatorLeakTestsP45A } from './tests/delegator-leak-p45a.jsx'
 import { schedulerTestsP45C } from './tests/scheduler-p45c.jsx'
 import { lazyTeardownTestsP45D } from './tests/lazy-teardown-p45d.jsx'
 import { reviewFixesTestsP45R } from './tests/review-fixes-p45r.jsx'
+import { foundationsTestsP5_1F } from './tests/foundations-p5-1f.jsx'
 import { widgetTestsP5W1 } from './tests/widget-p5w1.jsx'
 import { webAwesomeTestsP5W3 } from './tests/webawesome-p5w3.jsx'
 import { getResults } from './harness.js'
 
 async function runAll() {
-  await coreTests()
-  await eventTests()
-  await compositionTests()
-  await featureTests()
-  await utilityTests()
-  await renderingTests()
-  await slotTests()
-  await commandTests()
-  await effectShorthandTests()
-  await testingUtilityTests()
-  await ssrHydrationTests()
-  await disposalTests()
-  await diagnosticsTests()
-  await bugfixTests()
-  await bugfixTests1G()
-  await bugfixTests1H()
-  await reviewTests2E2()
-  await apiFixTests3D()
-  await renderingTests1A()
-  await fetchDriverTestsE2()
-  await socketDriverTests2A()
-  await routerTests5_4b()
-  await domIsolationTests()
-  await controlsTests()
-  await nonBubblingTests1F()
-  await elementTestsP2b()
-  await elementCommandTests3A()
-  await timerFrameTests3K()
-  await persistTests3B()
-  await viewTransitionTestsP1b()
-  await g213Tests()
-  await delegatorLeakTestsP45A()
-  await schedulerTestsP45C()
-  await lazyTeardownTestsP45D()
-  await reviewFixesTestsP45R()
-  await widgetTestsP5W1()
-  await webAwesomeTestsP5W3()
+  // BROWSER_TESTS_ONLY=<substring> (run-headless.mjs → ?only=): only the suites whose function
+  // name contains it, case-insensitive (the dev server keeps the names)
+  const only = new URLSearchParams(location.search).get('only')
+  const suites = [
+    coreTests,
+    eventTests,
+    compositionTests,
+    featureTests,
+    utilityTests,
+    renderingTests,
+    slotTests,
+    commandTests,
+    effectShorthandTests,
+    testingUtilityTests,
+    ssrHydrationTests,
+    disposalTests,
+    diagnosticsTests,
+    bugfixTests,
+    bugfixTests1G,
+    bugfixTests1H,
+    reviewTests2E2,
+    apiFixTests3D,
+    renderingTests1A,
+    fetchDriverTestsE2,
+    socketDriverTests2A,
+    routerTests5_4b,
+    domIsolationTests,
+    controlsTests,
+    nonBubblingTests1F,
+    elementTestsP2b,
+    elementCommandTests3A,
+    timerFrameTests3K,
+    persistTests3B,
+    viewTransitionTestsP1b,
+    g213Tests,
+    delegatorLeakTestsP45A,
+    schedulerTestsP45C,
+    lazyTeardownTestsP45D,
+    reviewFixesTestsP45R,
+    foundationsTestsP5_1F,
+    widgetTestsP5W1,
+    webAwesomeTestsP5W3,
+  ]
+  for (const suite of suites) if (!only || suite.name.toLowerCase().includes(only.toLowerCase())) await suite()
 
   const results = getResults()
   const passed = results.filter(r => r.status === 'pass').length

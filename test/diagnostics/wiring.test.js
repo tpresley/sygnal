@@ -82,6 +82,16 @@ describe('SYG102 — model entry is unreachable', () => {
     expect(found[0].text).toContain("next('RESET')")
   })
 
+  it("D199: a behavior's own actions (a timer, next() or a reply triggers them) are not reported", async () => {
+    const component = { name: 'Tip', intent$: { 'tip.HOVER': xs.never() }, _behaviorActions: { 'tip.HOVER': 'tip', 'tip.SHOW': 'tip', 'tip.HIDE': 'tip' } }
+    onIntent(component, ['tip.HOVER'], undefined)
+    onModel(component, { 'tip.HOVER': ['STATE'], 'tip.SHOW': ['STATE'], 'tip.HIDE': ['STATE'], 'tip.CUSTOM': ['STATE'] })
+    // the host's own 'tip.CUSTOM' (not the behavior's) still is
+    await until(() => expect(diagnostics('SYG102')).toHaveLength(1))
+    await settle(10)
+    expect(diagnostics('SYG102').map(d => d.data.action)).toEqual(['tip.CUSTOM'])
+  })
+
   it('does not report model-only actions that renderComponent injects for simulateAction', async () => {
     function App() { return createElement('div', null, 'x') }
     App.initialState = { n: 0 }

@@ -67,6 +67,8 @@ The stream emits an object with:
 
 An `<input>`, `<textarea>` or `<select>` with a `value` prop (or a checkbox/radio with `checked`) is **controlled**: on every render, Sygnal writes the value from your view into the element, like React does. That keeps the field in sync with state (clearing a field after "Add" works even when both happen in the same tick), but it means the field must update state as the user types. Otherwise any re-render resets what they typed.
 
+A form-associated custom element (one whose class has `static formAssociated = true`, such as Web Awesome's `<wa-input>` or `<wa-rating>`) with a `value` or `checked` prop is controlled the same way. To refuse a value the user entered, return a new state object (`{ ...state }`, or one with an error message): the render puts the state's value back. `ABORT` doesn't render, so the field keeps what the user entered.
+
 Pick one of two patterns:
 
 **Controlled**: bind `value` to state and update state on `input`:

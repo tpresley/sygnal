@@ -29,6 +29,12 @@
  * `[data-control="Draft"]`. A control for any other tag is an ancestor like
  * its element; a spec-object control (element unknown) is skipped with its
  * children.
+ *
+ * A parent's listener (D199): input events bubble out of a child component to the elements its
+ * parent rendered around it (G-145), so a field is listened to when, at EVERY place the
+ * component is rendered (`<Row />`, `<Collection of={Row} />`), the parent listens for an input
+ * event on an element around that place (a form behavior on the `<form>`,
+ * `DOM.select('.signup').events('input')`).
  */
 import { walk, unwrap, isFunction, jsxName, jsxAttr, jsxAttrExpr, memberName, stringValue } from '../ast.js'
 import { sourceAliases, isSourceRef, DOM_SOURCE_METHODS } from '../model/intent.js'
@@ -290,6 +296,43 @@ function selectorFor(f) {
   return cls ? `.${cls}` : f.el.tag
 }
 
+// D199 (from spike 0-S2): where a component is rendered (<Comp> or <Collection of={Comp}>) in
+// another component's view, with the intrinsic elements around that place (innermost first)
+function renderSites(project, name) {
+  const out = []
+  for (const p of project.components) {
+    if (!p.view || !isFunction(p.view) || p.name === name) continue
+    const visit = (root, ancestors) => walk(root, (n) => {
+      if (n.type !== 'JSXElement') return true
+      const opening = n.openingElement, tag = jsxName(opening.name)
+      const of = /^collection$/i.test(tag) ? unwrap(jsxAttrExpr(jsxAttr(opening, 'of'))) : null
+      if (tag === name || (of?.type === 'Identifier' && of.name === name)) { out.push({ parent: p, ancestors }); return false }
+      if (isComponentTag(tag) && !TRANSPARENT.has(tag)) return false
+      const inner = isComponentTag(tag) ? ancestors : [elementInfo(p.file, opening, null), ...ancestors]
+      for (const ch of n.children) visit(ch, inner)
+      return false
+    })
+    visit(p.view.body, [])
+  }
+  return out
+}
+
+/**
+ * The listeners of a component's own intent and of its behaviors (null: can't see the intent)
+ */
+function listenersOf(project, comp) {
+  let listeners = []
+  if (comp.staticProps.intent) {
+    if (!comp.intent || !comp.intent.fn) return null
+    listeners = intentListeners(comp.intent.file, comp.intent.fn, project)
+  }
+  for (const sel of comp.behaviorSelectors || []) {
+    if (sel.selector != null) listeners.push({ chain: [sel.selector], event: sel.method === 'select' ? UNKNOWN : sel.method })
+  }
+  for (const c of assumedListened(project, comp.uses)) listeners.push({ chain: [c.selector], event: UNKNOWN })
+  return listeners
+}
+
 export default {
   id: 'controlled-input',
   codes: ['SYG111'],
@@ -309,9 +352,19 @@ export default {
         if (sel.selector != null) listeners.push({ chain: [sel.selector], event: sel.method === 'select' ? UNKNOWN : sel.method })
       }
       for (const c of assumedListened(project, comp.uses)) listeners.push({ chain: [c.selector], event: UNKNOWN })
+      // D199 (from spike 0-S2): input events bubble out of a child (a Collection item) to an element
+      // its parent rendered, so a parent listener around EVERY place it is rendered (a form
+      // behavior on the <form>, DOM.select('.signup').events('input')) keeps its fields in state
+      let sites
+      const parentListens = (relevant) => {
+        sites ??= renderSites(project, comp.name).map(s => ({ ...s, listeners: listenersOf(project, s.parent) }))
+        return sites.length > 0 && sites.every(s => s.listeners?.some(l => relevant(l.event) &&
+          s.ancestors.some((a, i) => listens(l.chain, a, s.ancestors.slice(i + 1)))))
+      }
       for (const f of controlledFields(project, comp.file, comp.view)) {
         const relevant = (ev) => ev === UNKNOWN || TEXT_EVENTS.has(ev) || (f.kind === 'toggle' && ev === 'click')
         if (listeners.some(l => relevant(l.event) && listens(l.chain, f.el, f.ancestors))) continue
+        if (parentListens(relevant)) continue
         const what = describe(f)
         const sel = selectorFor(f)
         // the argument the fix suggests: the control itself, or the selector string

@@ -403,7 +403,7 @@
   "data": {
    "attrs": {
     "a": 1,
-    "aria-hidden": true,
+    "aria-hidden": "true",
     "aria-label": "L",
     "for": "x",
     "role": "button",

@@ -81,7 +81,7 @@ describe('SYG202 — STATE reducer returned undefined', () => {
     expect(found[0].fix).toContain('ABORT')
   })
 
-  it('a Collection item returning undefined (documented removal) is info, not warn', async () => {
+  it('a Collection item returning undefined (documented self-removal) is not reported (G-357)', async () => {
     const { Collection } = await import('../../src/collection.js')
     function Item({ state }) { return createElement('li', { className: 'item' }, createElement('button', { className: 'rm' }, String(state.id))) }
     Item.intent = ({ DOM }) => ({ REMOVE: DOM.select('.rm').events('click') })
@@ -92,12 +92,23 @@ describe('SYG202 — STATE reducer returned undefined', () => {
     await t.ready()
     t.simulateEvent('.rm', 'click')
     await t.waitForState(s => s.items.length === 1)
-    await until(() => expect(diagnostics('SYG202')).toHaveLength(1))   // G-176: wait for the report
-    await settle(50)
+    await settle(100)
+    expect(diagnostics('SYG202')).toEqual([])
+  })
+
+  it('a child rendered by tag returning undefined is info', async () => {
+    function Child({ state }) { return createElement('button', { className: 'wipe' }, String(state.n)) }
+    Child.intent = ({ DOM }) => ({ WIPE: DOM.select('.wipe').events('click') })
+    Child.model = { WIPE: () => undefined }
+    function Parent() { return createElement('div', null, createElement(Child, { state: 'child' })) }
+    Parent.initialState = { child: { n: 1 } }
+    t = renderComponent(Parent)
+    await t.ready()
+    t.simulateEvent('.wipe', 'click')
+    await until(() => expect(diagnostics('SYG202')).toHaveLength(1))
     const found = diagnostics('SYG202')
-    expect(found).toHaveLength(1)
     expect(found[0].severity).toBe('info')
-    expect(found[0].message).toContain('Collection item')
+    expect(found[0].message).toContain('only a Collection item removes itself')
   })
 
   it('does not report ABORT or a returned state', async () => {

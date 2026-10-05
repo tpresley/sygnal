@@ -361,9 +361,11 @@ type ElementSinkValue =
 ` },
   apiDefineBehavior: { page: 'reference/api.md', lang: 'typescript', code: `function defineBehavior(definition: {
   initialState: Slice;
-  intent?: (sources, options) => { [action: string]: Stream<any> };
-  model?: { [action: string]: Reducer | { [sink: string]: Reducer } };   // reducers get the slice
+  intent?: (sources, options, key) => { [action: string]: Stream<any> };
+  // handlers: (slice, data, next, props, options, key); HOST: (state, data, next, props, options, key) => state
+  model?: { [action: string]: Handler | { [sink: string]: Handler; HOST?: HostReducer } };
   calculated?: { [field: string]: (slice) => any };
+  timers?: (slice, options, key) => { [name: string]: TimerSpec | false };
 }): (options?) => Behavior
 ` },
   apiPager: { page: 'reference/api.md', lang: 'typescript', code: `function pager(options?: { pageSize?: number; page?: number; total?: number | null; next?: Control | string; prev?: Control | string }): Behavior

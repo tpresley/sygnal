@@ -17,6 +17,7 @@
  * per action per component name. Not reported for:
  *   - synthetic actions (`__*`) and INITIALIZE (whole-state replacement; HYDRATE is an
  *     ordinary action since 6.0, D66)
+ *   - SYG202: a Collection item (`() => undefined` is its documented self-removal, G-357)
  *   - keys that are calculated fields (they are re-derived after the reducer)
  *   - keys whose previous value was undefined
  * The set()/toggle() helpers always spread the previous state, so they can't
@@ -74,15 +75,16 @@ export const stateCheck: DiagnosticCheck = {
     const name = nameOf(component)
 
     if (nextState === undefined) {
-      if (!once(`SYG202:${name}:${action}`)) return
-      // Returning undefined from a Collection item's reducer is the documented way to remove
-      // the item, so only the root (where it wipes the whole app state) is a warning.
+      // G-357: returning undefined from a Collection item's reducer is the documented way to
+      // remove the item: not reported. In another sub-component it is info, in the root (where
+      // it wipes the whole app state) a warning.
+      if (component?.__next?.kind === 'item' || !once(`SYG202:${name}:${action}`)) return
       const sub = !!component?.isSubComponent
       report('SYG202', {
         component,
         severity: sub ? 'info' : 'warn',
         message: `The STATE reducer for '${action}' returned undefined` +
-          (sub ? ' (this removes the item if the component is a Collection item)' : ''),
+          (sub ? ' (only a Collection item removes itself this way)' : ''),
         fix: `Return the new state, e.g. (state, data) => ({ ...state, ... }), or return ABORT to leave the state unchanged`,
         data: {action},
       })

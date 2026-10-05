@@ -678,7 +678,7 @@ type RegisteredElementCommand = {
  * names (a spec's commands, `play`, `reset`...) in `ElementCommandRegistry`.
  */
 export type ElementCommand =
-  | { focus: ElementTarget; preventScroll?: boolean; focusVisible?: boolean }
+  | { focus: ElementTarget | WithinTarget; preventScroll?: boolean; focusVisible?: boolean }
   | { blur: ElementTarget }
   | { select: ElementTarget }
   | { click: ElementTarget }
@@ -691,6 +691,23 @@ export type ElementCommand =
   | { togglePopover: ElementTarget; force?: boolean }
   | RegisteredElementCommand
 
+/** A `focusWithin(selector)` target (D194): `{ focus: focusWithin('.title') }`. */
+export interface WithinTarget {
+  /** The selector, searched under the sender's root element (children included). */
+  readonly within: string
+}
+
+/**
+ * An ELEMENT target that reaches inside the sender's children (PLAN-5 D194): `{ focus:
+ * focusWithin(selector), ...options }` focuses the first element under the sender's root element
+ * that matches `selector`, a child component's or a Collection item's included (a plain `{ focus:
+ * '.x' }` stays in the sender's own isolated scope). It runs after the next patch, so an item the
+ * same action adds is there. No match: nothing happens.
+ *
+ *   ADD: { STATE: addRow, ELEMENT: (s) => ({ focus: focusWithin(`[data-id="${s.next}"] .title`) }) }
+ */
+export function focusWithin(selector: string): WithinTarget
+
 /** What the `ELEMENT` sink takes: one command or several (run in order). */
 export type ElementCommands = ElementCommand | readonly ElementCommand[]
 
@@ -702,20 +719,64 @@ export type ElementCommands = ElementCommand | readonly ElementCommand[]
  */
 export type BehaviorSources<SLICE = any> = IntentSources<SLICE> & { [source: string]: any }
 
-/** The object passed to `defineBehavior()`. Reducers and sinks get the slice, not the host state. */
+/** A behavior model handler's 4th argument: the host's props, context, uid and its whole state. */
+export type BehaviorProps = ReducerExtras<Record<string, any>, any> & { state: any; signal?: AbortSignal }
+
+/**
+ * A behavior model handler: `(slice, data, next, props, options, key)`. `options` are the use's
+ * options (`pager({ pageSize: 10 })`), `key` its key in `uses` (`'pager'`), e.g. to name a reply
+ * action `key + '.LOADED'` (D197).
+ */
+export type BehaviorHandler<SLICE = any, OPTIONS = any, RETURN = any> = (
+  slice: SLICE,
+  data: any,
+  next: NextFunction<any>,
+  props: BehaviorProps,
+  options: OPTIONS,
+  key: string
+) => RETURN | ABORT | undefined
+
+/** One behavior model entry: a slice reducer, or an object of sinks (STATE, HOST, EFFECT, ELEMENT, EVENTS, drivers). */
+export type BehaviorModelEntry<SLICE = any, OPTIONS = any> =
+  | BehaviorHandler<SLICE, OPTIONS, SLICE>
+  | ABORT
+  | {
+      /** A reducer on the slice: ABORT, or the slice itself, means no change. */
+      STATE?: BehaviorHandler<SLICE, OPTIONS, SLICE> | ABORT;
+      /**
+       * D197: a reducer on the host's WHOLE state (for a behavior that edits a host field, e.g.
+       * reorders `state[options.from]`); return the new host state. ABORT, or the same state,
+       * means no change. Use it instead of STATE in an entry.
+       */
+      HOST?: (state: any, data: any, next: NextFunction<any>, props: BehaviorProps, options: OPTIONS, key: string) => any;
+      EFFECT?: (slice: SLICE, data: any, next: NextFunction<any>, props: BehaviorProps, options: OPTIONS, key: string) => void | Promise<void>;
+      ELEMENT?: BehaviorHandler<SLICE, OPTIONS, ElementCommands> | ElementCommands;
+      [sink: string]: BehaviorHandler<SLICE, OPTIONS, any> | string | number | boolean | object | null | undefined;
+    }
+
+/** The object passed to `defineBehavior()`. Reducers and sinks get the slice, not the host state (HOST: the host state). */
 export interface BehaviorDefinition<SLICE = any, ACTIONS = {}, CALCULATED = {}, OPTIONS = Record<string, any>> {
   /** The slice a host starts with (`state[key]`); options naming one of its keys override it. */
   initialState: SLICE;
-  /** Actions named without the key (`NEXT`); the host sees them as `'<key>.NEXT'`. */
-  intent?: (sources: BehaviorSources<SLICE>, options: OPTIONS) => { [ACTION in keyof ACTIONS]: Stream<ACTIONS[ACTION]> };
+  /** Actions named without the key (`NEXT`); the host sees them as `'<key>.NEXT'`. `key`: the use's key in `uses`. */
+  intent?: (sources: BehaviorSources<SLICE>, options: OPTIONS, key: string) => { [ACTION in keyof ACTIONS]: Stream<ACTIONS[ACTION]> };
   /**
    * Model entries on the slice: ABORT, or the slice itself, means no change. `next('X')` names
-   * the behavior's own actions. (The slice's calculated fields are there at runtime, but typed
-   * only on the host's state: TypeScript can't infer them while typing these functions.)
+   * the behavior's own actions. Handlers get `(slice, data, next, props, options, key)`; a
+   * `HOST` entry gets the host's whole state. (The slice's calculated fields are there at
+   * runtime, but typed only on the host's state: TypeScript can't infer them while typing these
+   * functions.)
    */
-  model?: ComponentModel<SLICE, {}, {}, {}, {}>;
+  model?: { [action: string]: BehaviorModelEntry<SLICE, OPTIONS> };
   /** Fields of the slice (`state.pager.offset`), stored on it and recomputed when it changes. */
   calculated?: { [FIELD in keyof CALCULATED]: (slice: SLICE) => CALCULATED[FIELD] };
+  /**
+   * D197: timers for the host (`makeTimerDriver()`), from the slice: `{ name: spec }`, as the
+   * `timers` static. The host sees them as `'<key>.<name>'`; a spec's `action` (or `frame`)
+   * naming one of the behavior's actions is namespaced (`'SHOW'` → `'<key>.SHOW'`), any other
+   * name is sent to the host as written. They join the host's own `timers`.
+   */
+  timers?: (slice: SLICE, options: OPTIONS, key: string) => Timers;
 }
 
 /** One use of a behavior (a `defineBehavior()` factory's result), for a component's `uses`. */
