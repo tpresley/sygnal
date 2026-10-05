@@ -20,6 +20,9 @@ npm test               # the full gate, in order:
                        #                       objects and heap vs benchmarks/audit/gate.json (~10 s; needs
                        #                       benchmarks/ installed; limits only go down)
 npm run test:examples  # only the example suites (TEST_EXAMPLES_INSTALL=1 or --install runs npm install first)
+npm run test:recipes   # the docs recipes' code (dev-plans/research/p5-recipes, G-441): recipe tests + docs-sync;
+                       #   --browser[=chromium,firefox,webkit] adds the real-browser run; not in npm test (own
+                       #   ~150 MB devDependencies: TEST_RECIPES_INSTALL=1 or --install runs npm ci there first)
 node scripts/perf-gate.mjs --runs=3  # the count gate alone, 3 runs with min … max per metric
 node scripts/perf-report.mjs         # timing ratios to React vs the timing targets (warn-only, ~1.5 min, not in npm test);
                                      #   harness: benchmarks/audit (see benchmarks/README.md)
@@ -46,6 +49,7 @@ npm install --prefix examples/kanban     # its file:../.. link; other examples: 
 npm install --prefix examples/todomvc    # test/copied and the devtools Copy-as-test tests import it
 npm ci --prefix benchmarks               # Vite + sygnal/vite for test:perf-gate (also: TEST_EXAMPLES_INSTALL=1 npm test)
 npm ci --prefix docs                     # Astro/Starlight, for npm --prefix docs run build
+PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm ci --prefix dev-plans/research/p5-recipes   # for npm run test:recipes
 npm run build
 ```
 

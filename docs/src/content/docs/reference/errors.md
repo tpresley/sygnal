@@ -2108,7 +2108,7 @@ An `intersection` or `resize` entry of a component's `browser` declaration has n
 
 Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
 
-A `fromZag(zag, render)` widget's `render` returned a Sygnal component (`<Badge />`), a widget tag (`<Icon />`, `<Menu />`), or special JSX (`<Transition>`, `<Portal>`, `<Collection>`, `<Switchable>`, `<Suspense>`, `<ClientOnly>`, `<VirtualCollection>`). The adapter patches its render into the widget host with a snabbdom patch of its own, outside the component tree, so none of these run there: a component isn't instantiated, a widget doesn't mount, and a marker renders as an unknown element. Only plain elements (with Zag's prop getters spread on them) work inside the render. Reported once per widget.
+A `fromZag(zag, render)` widget's `render` returned a Sygnal component (`<Badge />`), a widget tag (`<Icon />`, `<Menu />`), or special JSX (`<Transition>`, `<Portal>`, `<Collection>`, `<Switchable>`, `<Suspense>`, `<ClientOnly>`, `<VirtualCollection>`, `<Slot>`, with or without props). The adapter patches its render into the widget host with a snabbdom patch of its own, outside the component tree, so none of these run there: a component isn't instantiated, a widget doesn't mount, and a marker renders as an unknown element. Only plain elements (with Zag's prop getters spread on them) work inside the render. Reported once per widget.
 
 **Fix:** Render plain elements in the `render` function (`<span className="badge">{props.text}</span>` instead of `<Badge text={props.text} />`). Pass data in through the widget's props, and put components, widgets and special JSX around the widget tag in the component's view instead of inside it.
 
@@ -2202,7 +2202,7 @@ The intent listens for clicks on an `<a>` that has no `href`. Without `href` an 
 
 Severity: `warn` · Reported by: `sygnal-check`
 
-A `<button>` has no text content and no `aria-label`, `aria-labelledby` or `title`, so screen readers announce only "button". This is usually an icon-only button: an `<i>`, an `<svg>` without `<title>`, or an `<img alt="">`. Only literal children are checked: a button whose children include an expression (`{state.label}`) or a child component is not reported. It is a warning, also under `--strict`; `--a11y=error` (or `a11y: 'error'` in `check()` and the Vite plugin's `check` options) makes it an error.
+A `<button>` has no text content and no `aria-label`, `aria-labelledby` or `title`, so screen readers announce only "button". This is usually an icon-only button: an `<i>`, an `<svg>` without `<title>`, or an `<img alt="">`. Only literal children are checked: a button whose children include an expression (`{state.label}`), a function call or a child component is not reported. One call is known: an icon helper, a function named `icon` or `renderIcon` called with a string or an icon imported from an icon package (`lucide`, `@lucide/*`, `@mdi/*`, or a module whose name contains `icon`, such as `@tabler/icons` or `./icons.js`), as in the [icons recipe](https://sygnal.js.org/recipes/icons/): `<button>{icon(Trash2)}</button>` is reported unless the call's options name the icon (`icon(Trash2, { label: 'Delete' })`). It is a warning, also under `--strict`; `--a11y=error` (or `a11y: 'error'` in `check()` and the Vite plugin's `check` options) makes it an error.
 
 **Fix:** Put text in the button, or for an icon-only button add `aria-label="Close"` and mark the icon `aria-hidden="true"`.
 

@@ -255,6 +255,36 @@ describe('SYG705 button without an accessible name', () => {
   })
 })
 
+describe('SYG705: icon helper calls (G-433)', () => {
+  const ICONS = `import { Trash2, Plus } from 'lucide'
+import { Bell } from '@tabler/icons'
+import { icon } from './icon.jsx'
+`
+  const iconView = (jsx) => ICONS + view(jsx)
+  it('flags a button whose only child is icon(<imported icon>) or icon("name"), without a label', () => {
+    expect(one(iconView(`<div>
+    <button className="a">{icon(Trash2)}</button>
+    <button className="b">{icon(Bell, { size: 16 })}</button>
+    <button className="c">{icon('trash')}</button>
+    <button className="d">{ui.renderIcon(Plus)}</button>
+    <button className="e"> {icon(Plus)} {icon(Trash2, { label: '' })} </button>
+  </div>`))).toEqual(['SYG705 6', 'SYG705 7', 'SYG705 8', 'SYG705 9', 'SYG705 10'])
+  })
+  it('accepts a labelled icon, text next to it, aria-label on the button, and calls it does not know', () => {
+    expect(one(iconView(`<div>
+    <button aria-label="Remove">{icon(Trash2)}</button>
+    <button>{icon(Plus)} Add</button>
+    <button>{icon(Trash2, { label: 'Delete' })}</button>
+    <button>{icon(Trash2, { label: state.l })}</button>
+    <button>{icon(Trash2, opts)}</button>
+    <button>{icon(Trash2, { ...opts })}</button>
+    <button>{icon(localData)}</button>
+    <button>{label(Trash2)}</button>
+    <button>{icon(state.icon)}</button>
+  </div>`))).toEqual([])
+  })
+})
+
 describe('SYG706 positive tabIndex', () => {
   it('flags tabIndex > 0', () => {
     expect(one(view(`<div>

@@ -39,7 +39,9 @@ export const Carousel = defineWidget({
   mount: (el, props, dispatch) => {
     fill(el, props.photos)
     const embla = EmblaCarousel(el, { loop: false })
-    embla.on('select', () => dispatch('slide', embla.selectedScrollSnap()))
+    // reInit (new photos) can move the selection without a select event: report both
+    const report = () => dispatch('slide', embla.selectedScrollSnap())
+    embla.on('select', report).on('reInit', report)
     return embla
   },
   update: (embla, props, el) => {
@@ -69,8 +71,8 @@ export function Gallery({ state }) {
   return (
     <section aria-roledescription="carousel" aria-label="Photos">
       <Carousel className="photos" photos={state.photos} />
-      <button className="prev" aria-label="Previous photo" disabled={state.index === 0}>‹</button>
-      <button className="next" aria-label="Next photo" disabled={state.index === last}>›</button>
+      <button className="prev" aria-label="Previous photo" aria-disabled={state.index === 0}>‹</button>
+      <button className="next" aria-label="Next photo" aria-disabled={state.index === last}>›</button>
       {state.photos.map((photo, i) => (
         <button className="dot" data={{ index: i }} aria-label={`Show photo ${i + 1}`}
           aria-current={i === state.index ? 'true' : undefined} />
@@ -110,7 +112,9 @@ Gallery.model = {
 .photos .slide { flex: 0 0 100%; min-width: 0; }
 ```
 
-The buttons don't change `index` themselves. They ask Embla to scroll, and `index` follows from the `slide` event, the same way it does after a swipe: Embla decides where the carousel stops, and the state always says where it is.
+The buttons don't change `index` themselves. They ask Embla to scroll, and `index` follows from the `slide` event, the same way it does after a swipe: Embla decides where the carousel stops, and the state always says where it is. The widget also reports the slide after `reInit()`: when the photos shrink below the current one, Embla moves to the last slide without a `select` event.
+
+At the ends, Previous and Next are marked `aria-disabled` rather than `disabled`: a `disabled` button loses focus as it is pressed (keyboard users land on the page body), while an `aria-disabled` one keeps it, is announced as unavailable, and a press does nothing (Embla doesn't scroll past the ends). Style it with `[aria-disabled="true"]`.
 
 ## Testing
 
@@ -131,7 +135,8 @@ test('the buttons send commands, and the shown slide comes back as state', async
   t.widget('.photos').dispatch('slide', 2)
   await t.next((state) => state.index === 2)
   expect(t.query('.where').textContent).toBe('Photo 3 of 3')
-  expect(t.query('.next').disabled).toBe(true)
+  expect(t.query('.next').getAttribute('aria-disabled')).toBe('true')
+  expect(t.query('.prev').getAttribute('aria-disabled')).toBe('false')
   t.dispose()
 })
 ```
@@ -145,7 +150,7 @@ Measured with Vite, minified and gzipped, Sygnal not included: **9 KB** for Embl
 ## Pitfalls
 
 - **Build the slides in the widget.** Children passed to a widget tag are ignored, and markup rendered next to the host isn't inside the viewport. Pass the slides' data as a prop and build them in `mount`/`update`, as `fill` does.
-- **`reInit()` after the slides change.** Embla measures the slides when it starts; without `reInit()` it keeps scrolling over the old ones.
+- **`reInit()` after the slides change.** Embla measures the slides when it starts; without `reInit()` it keeps scrolling over the old ones. `reInit()` emits `reInit`, not `select`, so listen to both to keep `index` right.
 - **Initial state belongs to the page.** `Gallery` keeps its photos in `initialState`, which is fine for the root component or a page. A child component rendered by a parent can't have an `initialState` ([SYG405](/reference/errors/#syg405)): there, drop it, and pass `photos` and `index` down in the parent's state.
 - **Name commands after what they do.** A command called `scrollTo` would replace the host `<div>`'s own `scrollTo()` method for element commands; `goTo` avoids the confusion.
 - **Accessibility.** Give the carousel a name and each slide its position (`role="group"`, `aria-roledescription="slide"`, `aria-label="2 of 3"`), give the icon buttons labels, and announce the current slide (`aria-live="polite"`). Don't auto-play; if you add it, add a pause button and stop on focus or hover.

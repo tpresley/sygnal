@@ -586,6 +586,7 @@ function renderComponent(
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `initialState` | `any` | Component's `.initialState` | Override the component's initial state |
+| `context` | `Record<string, any>` | none | The ancestors' context, for testing a child alone; the component's own `.context` entries win ([Testing](/integration/testing/#context)) |
 | `drivers` | `object` | `{}` | Additional drivers beyond the defaults |
 | `diagnostics` | `DiagnosticsMode` | `'collect'` (or the current mode) | Diagnostics mode while rendered |
 | `strict` | `boolean` | unchanged | Strict-mode runtime checks while rendered |

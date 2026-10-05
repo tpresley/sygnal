@@ -3016,6 +3016,13 @@ export type FakeCacheEntry = {
 export interface RenderOptions {
   /** Override initial state (defaults to component's .initialState) */
   initialState?: any;
+  /**
+   * D214: context from the ancestors the rendered component would have, for testing a child
+   * alone: `renderComponent(Greeting, { context: { lang: 'fr' } })`. The view, reducers and
+   * descendants read it as `context.lang`; the component's own `.context` entries win over a key
+   * of the same name. Fixed values for the test's lifetime.
+   */
+  context?: Record<string, any>;
   /** Mock DOM configuration — maps selectors to event streams */
   mockConfig?: Record<string, any>;
   /** The app-level error hook, as run()'s `onError` (PLAN-4 GS-11) */

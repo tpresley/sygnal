@@ -141,15 +141,21 @@ export const SalesEChart = defineWidget({
     const chart = echarts.init(el)
     chart.setOption(option(props))
     chart.on('click', (params) => dispatch('bar-select', params.dataIndex))
-    return chart
+    // ECharts measures the element once: redraw at the new size when the host resizes
+    const observer = new ResizeObserver(() => chart.resize())
+    observer.observe(el)
+    return { chart, observer }
   },
-  update: (chart, props) => chart.setOption(option(props)),
-  unmount: (chart) => chart.dispose(),
+  update: ({ chart }, props) => chart.setOption(option(props)),
+  unmount: ({ chart, observer }) => {
+    observer.disconnect()
+    chart.dispose()
+  },
   events: ['bar-select'],
 })
 ```
 
-`setOption` merges the new option into the chart, so `update` can pass the whole option every time. Give the host a height in CSS (`.sales { height: 240px; }`): ECharts measures the element when it starts.
+`setOption` merges the new option into the chart, so `update` can pass the whole option every time. Give the host a height in CSS (`.sales { height: 240px; }`): ECharts measures the element when it starts, and only again on `chart.resize()`, which the `ResizeObserver` calls when the host changes size (a resized window, a sidebar that opens). The instance is `{ chart, observer }`, so `unmount` can stop both. (Chart.js watches its canvas's container itself; with `maintainAspectRatio: false` it follows the container's height.)
 
 ## Size
 

@@ -6,8 +6,8 @@ export function Gallery({ state }) {
   return (
     <section aria-roledescription="carousel" aria-label="Photos">
       <Carousel className="photos" photos={state.photos} />
-      <button className="prev" aria-label="Previous photo" disabled={state.index === 0}>‹</button>
-      <button className="next" aria-label="Next photo" disabled={state.index === last}>›</button>
+      <button className="prev" aria-label="Previous photo" aria-disabled={state.index === 0}>‹</button>
+      <button className="next" aria-label="Next photo" aria-disabled={state.index === last}>›</button>
       {state.photos.map((photo, i) => (
         <button className="dot" data={{ index: i }} aria-label={`Show photo ${i + 1}`}
           aria-current={i === state.index ? 'true' : undefined} />

@@ -16,7 +16,9 @@
  * `data-highlighted`.
  *
  * Forms (G-411): with `name`, hidden inputs submit the value (one per value when `multiple`);
- * the visible input, which shows the label, has no name.
+ * the visible input, which shows the label, has no name. `form` goes on the hidden inputs (G-434).
+ * With `allowCustomValue` (single), the typed text is submitted when it isn't the selected item's
+ * label (an item's label submits that item's value; G-435).
  *
  * Props: `label`, `items` (strings or { value, label?, disabled? }), `value` (controlled: a
  * string, an array when `multiple`, null for none), `defaultValue`, `placeholder`, `filter`, and
@@ -41,11 +43,22 @@ const shown = (all: any[], f: any, q: string) => {
 const setText = (x: any, q: string) => { if (x.q !== q) x.q = q, x.refresh() }
 
 // G-411: forms get the value, not the label the input shows: the visible input has no name; one
-// hidden input per value (a single combobox: one, '' when empty) carries `name`
+// hidden input per value (a single combobox: one, '' when empty) carries `name`.
+// G-435: a single combobox with `allowCustomValue` submits what the input holds when it isn't the
+// selected item's label: the value of an item whose label it is, else the text itself.
+const submitted = (api: any, x: any): string => {
+  const v = api.value[0] ?? ''
+  if (!x.custom) return v
+  const q = api.inputValue, sel = x.items.find((i: any) => i.value === v)
+  if (sel && sel.label === q) return v
+  return x.items.find((i: any) => i.label === q)?.value ?? q
+}
 const hidden = (api: any, p: any, x: any) => {
   if (p.name == null) return null
-  const v = api.value, vs = x.multiple ? v : [v[0] ?? '']
-  return vs.map((value: string, i: number) => h('input', {key: 'h' + i, type: 'hidden', name: p.name, form: p.form, disabled: !!p.disabled, value}))
+  const vs = x.multiple ? api.value : [submitted(api, x)]
+  // G-434: `form` as an attribute (HTMLInputElement.form is a read-only property)
+  const attrs = p.form == null ? undefined : {form: p.form}
+  return vs.map((value: string, i: number) => h('input', {key: 'h' + i, type: 'hidden', name: p.name, attrs, disabled: !!p.disabled, value}))
 }
 
 export const Combobox: any = /*#__PURE__*/ fromZag(combobox, (api: any, p: any, x: any) => {
@@ -65,9 +78,11 @@ export const Combobox: any = /*#__PURE__*/ fromZag(combobox, (api: any, p: any, 
   ownProps: [...NAMING, 'name'],
   props: ({items, label, placeholder, value, defaultValue, filter, 'aria-label': _l, 'aria-labelledby': _b, 'aria-describedby': _d, ...p}: any, x: any) => {
     x.multiple = !!p.multiple
+    x.custom = !!p.allowCustomValue
+    x.items = norm(items)
     return {
       ...p,
-      collection: collectionOf(combobox, shown(norm(items), filter, x.q || '')),
+      collection: collectionOf(combobox, shown(x.items, filter, x.q || '')),
       value: arr(value),
       defaultValue: arr(defaultValue),
       // typing only (not the label a selection writes): the filter text, and input-change

@@ -47,7 +47,7 @@ function Counter({ state, context, label }) {  // 1st arg: parent props + state,
 }
 Counter.initialState = { count: 0 }                    // root only: a child gets state from its parent (SYG405)
 Counter.calculated = { double: state => state.count * 2 } // or [['count'], fn]; read as state.double
-Counter.context = { total: state => state.count }        // all descendants: ({ context }) => context.total
+Counter.context = { total: state => state.count }        // itself + descendants: ({ context }) => context.total
 Counter.intent = ({ DOM }) => ({                          // sources: DOM STATE EVENTS CHILD props$ commands$ dispose$ + drivers
   INC:   DOM.click('.inc'),
   RESET: DOM.click('.reset'),

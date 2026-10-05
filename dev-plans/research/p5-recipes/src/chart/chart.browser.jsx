@@ -65,6 +65,11 @@ export const tests = {
 
     await pw('click', '.bump')
     await waitFor(() => chart.getOption().series[0].data[2] === 6, 'update reached the chart')
+
+    // G-442: the host resizes, the chart follows (the ResizeObserver calls chart.resize())
+    const before = chart.getWidth()
+    el.style.width = `${Math.round(before / 2)}px`
+    await waitFor(() => chart.getWidth() === Math.round(before / 2), `chart width follows the host (was ${before})`)
     t.dispose()
     assert(chart.isDisposed(), 'disposed on unmount')
   },

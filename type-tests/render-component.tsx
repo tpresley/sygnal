@@ -5,6 +5,10 @@ function Counter({ state }: any) { return <div>{state.n}</div> }
 
 async function check() {
   const t: RenderResult = renderComponent(Counter, { initialState: { n: 0 }, diagnostics: 'collect', strict: true })
+  // D214: ancestor context for a child tested alone
+  renderComponent(Counter, { context: { lang: 'fr', user: { id: 1 } } })
+  // @ts-expect-error context is an object of values
+  renderComponent(Counter, { context: 'fr' })
   await t.ready()
   t.simulateEvent('.inc', 'click', { key: 'Enter', target: { value: 'x' } })
   t.simulateAction('INC')

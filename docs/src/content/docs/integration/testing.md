@@ -571,6 +571,7 @@ expect(graph.recentActions.map(a => a.type)).toEqual(['INITIALIZE', 'INC', 'SET'
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `initialState` | `any` | the component's `.initialState` | Initial state for the render |
+| `context` | `object` | none | The context the component's ancestors would give it, for testing a child alone (see [Context](#context)) |
 | `drivers` | `object` | `{}` | Extra drivers beyond DOM, EVENTS, STATE and LOG |
 | `diagnostics` | `'off' \| 'collect' \| 'warn' \| 'error'` | `'collect'` (or the current mode) | Diagnostics mode while rendered |
 | `strict` | `boolean` | unchanged | Strict-mode runtime checks while rendered |
@@ -638,6 +639,21 @@ The timing options (and a timeout passed to `next()`, `waitForState()` or `settl
 | `query`, `queryAll` | `(selector) => Element \| null`, `Element[]` | Elements of the latest render: snapshots on the mock DOM ([Reading Output](#reading-output)), real elements with `dom: 'real'` |
 | `container` | `Element \| null` | `dom: 'real'`: the mount element (`null` with the mock DOM) |
 | `widget` | `(selector \| control) => { props, instance, emit }` | A [widget's](/guide/widgets/#testing) host: the props the view passed it, the instance `mount` returned (`dom: 'real'`), and `emit(name, detail)` |
+
+## Context
+
+A component that reads `context` gets it from its ancestors' `.context`. Tested alone it has no ancestors, so pass what they would give it:
+
+```jsx
+import { renderComponent } from 'sygnal'
+import { Greeting } from './Greeting.jsx'
+
+const t = renderComponent(Greeting, { context: { lang: 'fr' } })
+await t.ready()
+expect(t.html()).toContain('Bonjour')
+```
+
+The view, the reducers (`extra.context`) and the component's children read these values as they would in the app. The component's own `.context` entries win over a key of the same name, and they are in its own `context` too. The values are fixed for the test; to test a change of context, render the parent instead.
 
 ## Mock DOM Streams
 

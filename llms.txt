@@ -22,7 +22,7 @@ function Counter({ state, context, label }) {  // 1st arg: parent props + state,
 }
 Counter.initialState = { count: 0 }                    // root only: a child gets state from its parent (SYG405)
 Counter.calculated = { double: state => state.count * 2 } // or [['count'], fn]; read as state.double
-Counter.context = { total: state => state.count }        // all descendants: ({ context }) => context.total
+Counter.context = { total: state => state.count }        // itself + descendants: ({ context }) => context.total
 Counter.intent = ({ DOM }) => ({                          // sources: DOM STATE EVENTS CHILD props$ commands$ dispose$ + drivers
   INC:   DOM.click('.inc'),
   RESET: DOM.click('.reset'),
@@ -269,7 +269,7 @@ import TaskList from './TaskList.jsx'
 let t
 afterEach(() => t?.dispose())
 it('picks, then removes a task', async () => {
-  t = renderComponent(TaskList, { strict: true })   // also: initialState, drivers, mockConfig, diagnostics, timeoutMs, settleMs, eventWaitMs
+  t = renderComponent(TaskList, { strict: true })   // also: initialState, context, drivers, mockConfig, diagnostics, timeoutMs, settleMs, eventWaitMs
   t.simulateEvent('.pick', 'click')                 // first match; bubbles; reaches child components too
   await t.next(s => s.picked === 1)                 // a state emitted after this call
   t.simulateEvent('.task[data-id="2"] .remove', 'click')

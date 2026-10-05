@@ -8,6 +8,7 @@ PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install --prefix dev-plans/research/p5-re
 npm --prefix dev-plans/research/p5-recipes test                 # vitest: the docs' tests (mock DOM) + docs drift
 BROWSER=chromium npm --prefix dev-plans/research/p5-recipes run test:browser   # also firefox, webkit; ONLY=<dir>
 node dev-plans/research/p5-recipes/size.mjs                     # gzip size each recipe adds (Sygnal external)
+npm run test:recipes [-- --browser]                              # from the root: vitest (+ the three engines)
 ```
 
 - `src/<recipe>/` holds the files the page shows verbatim (`src/docs-sync.test.js` fails when a page and its files differ), the page's own test (`*.test.jsx`, vitest + jsdom), and `*.browser.jsx`: the recipe mounted with `renderComponent(..., { dom: 'real' })` in a real browser, driven by real Playwright input (`run-browser.mjs`, Playwright 1.63.0, the browsers browser-tests already installed). Console errors fail the browser run.

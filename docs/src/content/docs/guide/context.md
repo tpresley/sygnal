@@ -42,6 +42,23 @@ DeepChild.model = {
 }
 ```
 
+## A Component's Own Context
+
+A component's view and reducers see its own `.context` entries too, merged over its ancestors' (an entry of the same name replaces the ancestor's for the component and its descendants):
+
+```jsx
+function Cart({ state, context }) {
+  return <p>{context.itemCount} items for {context.currentUser.name}</p>
+}
+Cart.context = { itemCount: (state) => state.items.length }
+```
+
+## Testing a Component That Reads Context
+
+`renderComponent(DeepChild, { context: { theme: 'dark', currentUser: { name: 'Ada' } } })` gives the component the context its ancestors would ([Testing](/integration/testing/#context)).
+
+## Recalculation
+
 Context values are automatically recalculated when the source component's state changes, and see its current [calculated fields](/guide/calculated-fields/), also after a child or Collection item writes through a lens.
 
 ## Vike Integration

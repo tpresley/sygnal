@@ -23,7 +23,9 @@ export const Carousel = defineWidget({
   mount: (el, props, dispatch) => {
     fill(el, props.photos)
     const embla = EmblaCarousel(el, { loop: false })
-    embla.on('select', () => dispatch('slide', embla.selectedScrollSnap()))
+    // reInit (new photos) can move the selection without a select event: report both
+    const report = () => dispatch('slide', embla.selectedScrollSnap())
+    embla.on('select', report).on('reInit', report)
     return embla
   },
   update: (embla, props, el) => {

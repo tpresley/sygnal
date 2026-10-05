@@ -284,6 +284,7 @@ interface InspectComponent {
 ```typescript
 interface RenderOptions {
   initialState?: any
+  context?: Record<string, any>   // the ancestors' context (D214)
   mockConfig?: Record<string, any>
   drivers?: Record<string, any>
   diagnostics?: DiagnosticsMode

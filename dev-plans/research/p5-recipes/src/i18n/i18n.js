@@ -43,7 +43,8 @@ i18n.init({
 const fixed = {}
 export const translator = (locale) => (fixed[locale] ||= i18n.getFixedT(locale))
 
+// The browser's language; 'en' on the server (Node 21+ has a navigator too, with the server's)
 export function detectLocale() {
-  const lang = typeof navigator === 'undefined' ? 'en' : navigator.language.slice(0, 2)
+  const lang = typeof window === 'undefined' ? 'en' : (navigator.language || '').slice(0, 2)
   return lang in LOCALES ? lang : 'en'
 }

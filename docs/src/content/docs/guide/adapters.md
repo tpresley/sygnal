@@ -53,7 +53,16 @@ Review.model = {
 }
 ```
 
-The tag renders a host `<div class="rating">` and a React root inside it. Every render passes the newest props to the component (`value`, `max`); `className`, `class`, `id`, `style`, `attrs`, `tabIndex`, `role`, `title`, `hidden` and `aria-*` stay on the host and don't reach the component (a focusable or labelled host isn't doubled inside it: no second tab stop or role); list one in `ownProps` to send it to the component instead. When the component calls `onChange(4)`, the adapter dispatches a `rate` event on the host with `4` as its detail. When the host leaves the page, the React root unmounts.
+The tag renders a host `<div class="rating">` and a React root inside it. Every render passes the newest props to the component (`value`, `max`); the props are routed between the host and the component:
+
+| Props | Go to |
+|---|---|
+| `className`, `class`, `id`, `style`, `attrs`, `tabIndex`, `hidden` | the host only (one tab stop) |
+| `aria-*`, `role`, `title` | the component only: a React control names itself, so `<IconButton aria-label="Delete" />` labels the component's `<button>`, not the generic host `<div>` |
+| `data-*` | both |
+| everything else | the component (`name`, `placeholder`, `lang` and `dir` also go on the host, as for any widget) |
+
+List a host prop in `ownProps` to send it to the component instead, or a component-only one in `hostProps` to put it on the host too. When the component calls `onChange(4)`, the adapter dispatches a `rate` event on the host with `4` as its detail. When the host leaves the page (also inside a shadow root, as with `sygnal/element`'s `shadow: true`), the React root unmounts; a host that is destroyed but stays in the page is unmounted after 10 seconds.
 
 | Option | |
 |---|---|
