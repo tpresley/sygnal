@@ -91,3 +91,27 @@ export function makeInsert(
 // re-emits the DOM source of the app whose root contains `el` (makeDOMDriver listens on its root)
 export const POKE = 'sygnal-dom';
 export const pokeDOM = (el: any): any => el?.dispatchEvent(new Event(POKE, {bubbles: true}));
+
+const obj = (o: any) => o !== null && typeof o == 'object' && !Array.isArray(o);
+/**
+ * P46-P: two vnodes' data are the same for the DOM modules: the same keys, each value identical
+ * or a shallow-equal object (a module bucket: props, attrs, class, dataset, style, ...)
+ */
+export function sameData(a: any, b: any): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  let n = 0;
+  for (const k in a) {
+    n++;
+    const x = a[k], y = b[k];
+    if (x !== y) {
+      if (!obj(x) || !obj(y)) return false;
+      let m = 0;
+      for (const j in x) { m++; if (x[j] !== y[j]) return false; }
+      for (const _ in y) m--;
+      if (m) return false;
+    }
+  }
+  for (const _ in b) n--;
+  return !n;
+}

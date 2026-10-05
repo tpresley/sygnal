@@ -78,6 +78,8 @@ export class App {
   ep = 0
   root!: Inst
   last: any
+  /** P46-P: a view ran but kept its last vnode (the flush still emits, as when it changed) */
+  ran = false
   vdomL: any
   vdom$: any
   sources: Record<string, any> = {}
@@ -273,7 +275,8 @@ export class App {
     try {
       // G-311 (c): what the throwing pass queued (a new child's INITIALIZE / seed) is still applied
       if (this.queue.length) this.drain()
-      if (v !== this.last) {
+      if (v !== this.last || this.ran) {
+        this.ran = false
         this.last = v
         this.hooks.onPatch?.(v)
         this.vdomL?.next(v)

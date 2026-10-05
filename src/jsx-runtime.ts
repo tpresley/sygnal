@@ -1,8 +1,12 @@
-import { createElement } from './pragma/index'
+import { createElement, createTag } from './pragma/index'
 export { Fragment } from './cycle/dom/snabbdom'
 
 export function jsx(type: any, props: any, key?: any): any {
   if (props == null) return createElement(type, null)
+  if (typeof type == 'string') {
+    const c = props.children
+    return createTag(type, props, c === undefined ? [] : Array.isArray(c) ? c : [c], key)
+  }
   const { children, ...rest } = props
   if (key !== undefined) rest.key = key
   if (children === undefined) return createElement(type, rest)
