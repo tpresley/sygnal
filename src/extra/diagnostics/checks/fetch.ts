@@ -68,7 +68,7 @@ function checkOne(component: any, sink: string, req: any, where: string) {
   }
 }
 
-function check(component: any, sink: string, req: any) {
+export function check(component: any, sink: string, req: any) {
   if (!req || typeof req !== 'object') return
   const name = nameOf(component)
   const res = req.resources

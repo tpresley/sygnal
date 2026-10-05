@@ -73,6 +73,12 @@ export interface Def {
   readonly statics: ReadonlyArray<string>
   readonly behaviorActions: Readonly<Record<string, string>>
   readonly onError?: (error: any, info: {componentName: string}) => any
+  /**
+   * R4 (renderComponent's root only): the model actions the test may dispatch with
+   * simulateAction that the intent doesn't name (wiring's SYG101/SYG102, inspect(); today's
+   * `__sygnalTestActions` on the intent object)
+   */
+  readonly testActions?: readonly string[]
 }
 
 /** Where an action came from (testing's t.actions `cause`, devtools, the action log) */
@@ -115,6 +121,8 @@ export interface ActionRecord {
   readonly cause: ActionCause
   /** the instance that runs it */
   readonly target: InstanceView
+  /** a reply: the source (driver name) that delivered it (R4: devtools' replySink) */
+  readonly source?: string
 }
 
 // ---------------------------------------------------------------------------------- 2. hooks
@@ -163,8 +171,18 @@ export interface Hooks {
   wrapHandler?(inst: InstanceView, type: string, sink: string, fn: any): any
   /** the STATE reducer of an action ran (`next` is what was written; `prev === next`: no change) */
   onReducer?(inst: InstanceView, type: string, prev: any, next: any): void
-  /** a non-STATE sink produced a value (stamped with `__emitterId`/`__emitterName`) */
-  onSink?(inst: InstanceView, type: string, sink: string, value: any): void
+  /**
+   * a non-STATE sink produced a value (before it is stamped with `__emitterId`/`__emitterName`).
+   * R4: a declaration static sent to a driver (`{ resources }`, `{ connections }`, `{ timers }`,
+   * ...) comes here too, with `type` null
+   */
+  onSink?(inst: InstanceView, type: string | null, sink: string, value: any): void
+  /**
+   * R4 (04 §4 #3): a host's props when it is created and each time its owner re-renders it
+   * (`sel`: 'collection' | 'switchable'), before it renders; the Collection checks (SYG401 for a
+   * missing `from`) read them here
+   */
+  onHostProps?(owner: InstanceView, sel: string, props: Record<string, any>): void
   /** a model next(type, data, ms) was scheduled (replaces testing's NEXT_LOG debug-text parsing) */
   onNext?(inst: InstanceView, type: string, data: any, ms: number): void
   /**
@@ -191,10 +209,13 @@ export interface Hooks {
   /** a child's READY flag changed (devtools, Suspense diagnostics) */
   onReady?(inst: InstanceView, child: InstanceView, ready: boolean): void
   /**
-   * D168 safety net (dev only): a view the tracker skipped was re-run and gave a different vnode.
-   * The core reports it with the R4 SYG code; the hook lets tests and devtools see it.
+   * D168 safety net (dev only; R4): context tracking skipped this view's re-render (the context
+   * changed, but no key the view read). `render(ctx)` calls the view again with the instance's
+   * current inputs and that context (a fresh template, nothing injected or patched), so the
+   * consumer can compare `render(prev)` with `render(next)` on a sample of skips and report a
+   * difference (sygnal/diagnostics: SYG423). `keysRead`: the keys the last view call read.
    */
-  onContextMiss?(inst: InstanceView, keysRead: string[], changed: string[]): void
+  onContextSkip?(inst: InstanceView, render: (context: any) => any, prev: any, next: any, keysRead: string[]): void
 
   // ------------------------------------------------------------------ errors
   /** the app-level error hook (run()'s `onError`, GS-11), with the phase the error came from */
@@ -225,6 +246,8 @@ export interface RuntimeAPI {
   addHooks(hooks: Hooks): () => void
   /** a resolved promise after the current flush (testing's settle without polling) */
   flushed(): Promise<void>
+  /** R4: debug logging for one instance on / off (the DevTools toggle; core/debug.ts) */
+  setDebug(target: 'root' | InstanceView | number, on: boolean): void
 }
 
 // ---------------------------------------------------------------------------------- 1. registries

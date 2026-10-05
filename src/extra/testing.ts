@@ -22,7 +22,7 @@ import {makeReplies} from './replies';
 import type {Stream} from 'xstream';
 import type {Diagnostic, DiagnosticsMode} from './diagnostics/index';
 import type {InspectGraph, InspectOptions} from './diagnostics/checks/public';
-import {trackActions, trackActionStreams, withCause} from './diagnostics/checks/actionLog';
+import {trackActions, trackActionStreams, withCause, actionHooks} from './diagnostics/checks/actionLog';
 import type {ActionCause, ActionListener, ActionRecord} from './diagnostics/checks/actionLog';
 import {reportElementCommand, checkSentCommand, NATIVE_COMMAND_NAMES} from './diagnostics/checks/elementCommands';
 
@@ -2000,11 +2000,111 @@ export function renderComponent(
       }
     }
   }
-  // PLAN-4.6 R3 (next core): the root's connections / resources statics get their fakes as
-  // inject() gives them on the current core (G-160, 3-A); a child's are R4's port (wrapSources)
-  if (nextCore) for (const [st, n] of [['connections', socketSink], ['resources', resourceSink]]) {
-    if (componentDef[st] && !allDrivers[n]) { allDrivers[n] = () => fake(n); faked.add(n); }
+  // PLAN-4.6 R3/R4 (next core): the connections / resources statics of any component in the tree
+  // get their fakes as inject() gives them on the current core (G-160, 3-A). The next core reads
+  // its drivers once, at start, so the two fakes are drivers from the start (unused otherwise)
+  if (nextCore) for (const n of [socketSink, resourceSink]) {
+    if (!allDrivers[n]) { allDrivers[n] = () => fake(n); faked.add(n); }
   }
+  // PLAN-4.6 R4: on the next core the harness's bookkeeping is a layer of the app's hooks
+  // (04 §3.4) instead of the registerCheck() instance patching above: the same records, from
+  // InstanceViews. `api`: the runtime API (simulateAction dispatches through it)
+  let api: any;
+  const testActions: string[] = [];
+  const isRes = (n: string) => RESERVED_SINKS.test(n) || n == 'PERSIST';
+  // a component's place in the tree below the root (the child-only fakes' scope path, R4-2)
+  const nsCache = new Map<number, any[]>();
+  const nsOfView = (iv: any): any[] => {
+    if (iv.isRoot) return [];
+    let ns = nsCache.get(iv.id);
+    if (!ns) {
+      const p = api?.get(iv.parentId);
+      nsCache.set(iv.id, ns = (p ? nsOfView(p) : []).concat(iv.id));
+    }
+    return ns;
+  };
+  const viewScope = (iv: any) => {
+    const d = iv.sources.DOM;
+    return d && d._hub === hub.$ && (d._path || []).filter(isScope).pop();
+  };
+  // the child-only sinks of an instance (no driver: its sends are recorded and answered by the fake)
+  const childSinks2 = (iv: any) => [...iv.def.sinks].filter((n: string) => !(n in allDrivers) && !isRes(n));
+  const replySubs = new Map<any, Array<[any, any]>>();
+  const nextHooks = () => {
+    const log = actionHooks(actionListener);
+    return {
+      ...log,
+      onCreate(iv: any) {
+        log.onCreate(iv);
+        bump();
+        // (every instance, with or without an intent: SYG104 names the child, inspect() its id)
+        const sc = viewScope(iv);
+        if (sc) owners.set(sc, iv.name);
+        if (iv.sources.DOM?._hub == hub.$) scopeIds.set(sc || '', iv.id);
+        senderNames.set(iv.id, iv.name);
+        if (iv.def.view?.route && !(routerSink in allDrivers)) failWith(new Error(`[Sygnal] ${iv.name} declares \`route\`, and nothing answers it: pass the app's router, renderComponent(${compName}, { router }) (the object makeRouter() returns), or a ${routerSink} driver in drivers`));
+      },
+      wrapSources(iv: any, so: any) {
+        const extra = childSinks2(iv);
+        // the replies to its child-only requests (as the core subscribes a driver's replies)
+        if (extra.length) {
+          const subs: Array<[any, any]> = [];
+          for (const n of extra) {
+            const r$ = fake(n).at(nsOfView(iv)).replies(iv.id), l = {next: (a: any) => a && api?.dispatch(iv.id, a.type, a.data, 'reply'), error: noop, complete: noop};
+            r$.addListener(l);
+            subs.push([r$, l]);
+          }
+          replySubs.set(iv.id, subs);
+        }
+        if (typeof Proxy != 'function') return;
+        // E2 / G-151: a source no driver provides (driver-like name, or one of its sinks) is the
+        // scriptable fake, scoped to the component (R4-2)
+        let ns: any[] | undefined;
+        return new Proxy(so, {
+          get: (t: any, k: any) => typeof k == 'string' && !(k in t) && (DRIVER_NAME.test(k) || extra.includes(k)) ? fake(k).at(ns ||= nsOfView(iv)) : t[k],
+          has: (t: any, k: any) => k in t || (typeof k == 'string' && extra.includes(k)),
+        });
+      },
+      onRender() { bump(); if (real) viewTag = recorded(); },
+      onReducer() { bump(); },
+      onNext(iv: any, type: string, _d: any, ms: number) {
+        const at = clockNow();
+        if (scheduled.length > 50) scheduled.splice(0, scheduled.length - 50);
+        scheduled.push({type, delay: ms, at, due: at + ms, by: iv.name});
+      },
+      // G-064 / G-151: a value on a sink no driver takes: recorded (t.sinkValues, t.requests) and
+      // sent to the fake, stamped with its sender and tagged with its place in the tree
+      onSink(iv: any, type: any, sink: string, v: any) {
+        bump();
+        if (type === null || sink in allDrivers || isRes(sink)) return;
+        if (v && typeof v == 'object') v = Object.defineProperties({...v}, {__emitterId: {value: iv.id, configurable: true}, __emitterName: {value: iv.name, configurable: true}});
+        record(sink, nsOfView(iv).reduceRight(tag, v), true);
+      },
+      onDispose(iv: any) {
+        nsCache.delete(iv.id);
+        const subs = replySubs.get(iv.id);
+        if (subs) { replySubs.delete(iv.id); subs.forEach(([s, l]) => { try { s.removeListener(l); } catch (_) {} }); }
+        const sc = viewScope(iv);
+        if (!sc) return;
+        owners.delete(sc);
+        scopeIds.delete(sc);
+        listeners.forEach((path, k) => { if (path.filter(isScope).pop() == sc) listeners.delete(k); });
+      },
+      // t.commands('ELEMENT') records the commands sent and checks them as recordCommands does
+      // (SYG641 when sent, unless the dev entry does; mock DOM: SYG640/641 by the view); the
+      // mock DOM doesn't run them (false)
+      onElementCommand(iv: any, v: any) {
+        bump();
+        const c = {get name() { return iv.name; }, get _disposed() { return iv.disposed; }, get sources() { return iv.sources; }, DOMSourceName: 'DOM'};
+        for (const cmd of ([] as any[]).concat(v)) if (cmd) {
+          commandLog.push(cmd);
+          if (!core.__uninstallChecks) checkSentCommand(c, cmd);
+          if (!real) checkCommand(c, cmd);
+        }
+        return real ? undefined : false;
+      },
+    };
+  };
   let sources: any, sinks: any, rawDispose: () => void;
   try {
     if (NEXT_CORE && (globalThis as any).__SYGNAL_CORE__ === 'next') {
@@ -2013,23 +2113,14 @@ export function renderComponent(
       // The diagnostics-hook bookkeeping (t.actions, child fakes, SYG103/104 owners) is R4's
       const p = startNext(componentDef, allDrivers, {
         useDefaultDrivers: false, onError: options.onError,
-        // PLAN-4.6 R3: t.commands('ELEMENT') records the commands sent and checks them as
-        // recordCommands does (SYG641 when sent; mock DOM: SYG640/641 by the view); the mock DOM
-        // doesn't run them (false). (R4: the dev entry's own check moves to this hook; until then
-        // the send check runs here whether or not the dev entry is loaded)
-        __hooks: {onElementCommand: (iv: any, v: any) => {
-          bump();
-          const c = {get name() { return iv.name; }, get _disposed() { return iv.disposed; }, get sources() { return iv.sources; }, DOMSourceName: 'DOM'};
-          for (const cmd of ([] as any[]).concat(v)) if (cmd) {
-            commandLog.push(cmd);
-            checkSentCommand(c, cmd);
-            if (!real) checkCommand(c, cmd);
-          }
-          return real ? undefined : false;
-        }},
-        __override: {intent: bare ? undefined : wrappedIntent, model: bare ? undefined : model, initialState: init, name: compName},
+        __hooks: nextHooks(),
+        // simulateAction dispatches through the runtime (cause 'simulateAction'), so the root runs
+        // its own intent; testActions: the model actions it doesn't name (wiring, inspect())
+        __override: {intent: intent ? (s: any) => { const r = intent(s); if (r && typeof r == 'object') testActions.push(...names.filter(n => !(n in r))); return r; } : undefined,
+          model: bare ? undefined : model, initialState: init, name: compName, testActions},
       });
       ({sources, sinks} = p);
+      api = p.api;
       rawDispose = () => {};
     } else {
       const p: any = setup(withState(app, 'STATE') as any, allDrivers);
@@ -2051,9 +2142,15 @@ export function renderComponent(
   };
 
   const states: any[] = [];
+  let syncAt: number | undefined;
   const stateStream: Stream<any> = sources.STATE?.stream || xs.never();
   listen(stateStream, s => {
     states.push(s);
+    // PLAN-4.6 R4 (D176, next core): a reducer runs synchronously, so a state caused by input
+    // the harness didn't deliver (a real element's click(), a driver answering at once) can be
+    // recorded before the test's next() call in the same tick: a next() called in that tick
+    // starts at the first such state (internal; a later tick starts after the call, as documented)
+    if (nextCore && syncAt === undefined) { syncAt = states.length - 1; queueMicrotask(() => { syncAt = undefined; }); }
     // 2-C: the actions whose STATE reducer ran since the last state produced this one
     for (const e of awaiting) resulting.set(e, {s});
     awaiting = [];
@@ -2111,6 +2208,7 @@ export function renderComponent(
   // the first next() that started at it resolving. If no next() has used it by the
   // macrotask after ready() resolves, it expires (an un-awaited ready() in a beforeEach
   // doesn't make a much later next() return an old state).
+  let fromInput = false;
   let readyAt = 0, cursor: number | undefined, shown: number | undefined, arming = 0, cursorUsed = false;
   const readyPromise = new Promise<void>(r => {
     markReady = () => {
@@ -2121,7 +2219,9 @@ export function renderComponent(
     };
   });
   const ready = () => {
-    cursor = isReady ? states.length : -1;
+    // (next core, D176: a state of this tick, e.g. from a simulate* call just before, is "now")
+    cursor = isReady ? (nextCore ? Math.min(fromInput && cursor !== undefined && cursor >= 0 ? cursor : states.length, syncAt ?? states.length) : states.length) : -1;
+    fromInput = false;
     shown = undefined;
     const id = ++arming;
     cursorUsed = false;
@@ -2135,10 +2235,16 @@ export function renderComponent(
   };
   const readyWaiters = new Set<(e: Error) => void>();
   const later = (go: Input['go'], missing?: Input['missing']) => {
+    const was = fromInput && cursor !== undefined ? cursor : undefined;
     cursor = shown = undefined;
     // PLAN-4.6 R1 (next core): an input's STATE reducer is applied synchronously (D165), so the
     // state it causes can be recorded before the test's next() call: next() starts at the input
-    if (nextCore) { cursor = states.length; arming++; cursorUsed = false; }
+    // (R4: several simulate* calls in the same tick: the cursor stays at the first one's state)
+    if (nextCore) {
+      cursor = was ?? states.length;
+      if (!fromInput) queueMicrotask(() => { fromInput = false; });
+      fromInput = true; arming++; cursorUsed = false;
+    }
     inputs.push({go, missing});
     pump();
   };
@@ -2256,7 +2362,7 @@ export function renderComponent(
   const simulateAction = (type: string, data?: any) => {
     simAt = states.length; due();
     throwFailure();
-    later(() => (withCause(rootC, 'simulateAction', () => actions.emit({type, data})), true));
+    later(() => (nextCore ? api.dispatch('root', type, data, 'simulateAction') : withCause(rootC, 'simulateAction', () => actions.emit({type, data})), true));
   };
 
   // E2: t.respond / t.fail. PLAN-3 1-C: the request is chosen by content (G-140, E2 13-t4):
@@ -2864,7 +2970,7 @@ export function renderComponent(
     checkMs('next', timeoutMs);
     // 4-A1/G-129: right after a wait, start after the state it returned (real DOM: the state the DOM shows)
     if (cursor === undefined && shown !== undefined) return drive(waitMatch(Math.min(shown, states.length), predicate, timeoutMs, 'next'), () => disposed);
-    if (cursor === undefined || (cursor < 0 && !isReady)) return drive(waitMatch(states.length, predicate, timeoutMs, 'next'), () => disposed);
+    if (cursor === undefined || (cursor < 0 && !isReady)) return drive(waitMatch(cursor === undefined && syncAt !== undefined ? syncAt : states.length, predicate, timeoutMs, 'next'), () => disposed);
     const id = arming;
     cursorUsed = true;
     const p = waitMatch(cursor < 0 ? readyAt : cursor, predicate, timeoutMs, 'next');

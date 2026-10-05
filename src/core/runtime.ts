@@ -21,7 +21,7 @@ import xs from '../extra/xstreamCompat'
 import {makeDOMDriver} from '../cycle/dom/index'
 import eventBusDriver from '../extra/eventDriver'
 import logDriver from '../extra/logDriver'
-import {NOT_SINK} from '../shared'
+import {NOT_SINK, isAbort} from '../shared'
 import {error as logError, callHook} from '../extra/diagnostics/legacy'
 import type {ComponentFn, DefSource, Hooks, RuntimeAPI, ActionCause} from './hooks'
 import {CoreDef, defOf, rootDef} from './define'
@@ -53,8 +53,10 @@ export interface StartOptions {
   __hooks?: Hooks
   /** internal: the root's state at start (an HMR swap) */
   __state?: any
+  /** internal: an HMR swap: the instances its first flush makes get no BOOTSTRAP (as today's `__hmr`) */
+  __swap?: boolean
   /** internal: renderComponent's root (test intent, initial state, name) */
-  __override?: Partial<DefSource> & {name?: string}
+  __override?: Partial<DefSource> & {name?: string; testActions?: string[]}
 }
 
 export class App {
@@ -97,8 +99,8 @@ export class App {
   stopping = false
   disposed = false
   initState: any
-  /** D168 hook point: R4's dev check re-runs a sample of the views context tracking skipped */
-  ctxSkip: ((inst: Inst) => void) | null = null
+  /** D168 hook point (onContextSkip): a view context tracking skipped, with the context before and after */
+  ctxSkip: ((inst: Inst, prev: any, next: any) => void) | null = null
   /** the statics step, recomputed after each render pass (statics.ts; set when a driver takes a static) */
   afterRender: (() => void) | null = null
   /** [sink, static] of the drivers that take a static; the reply-capable sources (statics.ts) */
@@ -120,6 +122,11 @@ export class App {
     this.hooks = {...opts.__hooks}
     this.layers = [opts.__hooks || {}]
     this.initState = opts.__state
+    this.compose()
+    // the dev entries' hooks ('sygnal/diagnostics', 'sygnal/devtools'), one layer each (04 §2.2:
+    // what the bridge holds becomes hooks, read once per app); none without a dev entry
+    const L = G.__SYGNAL_DIAGNOSTICS__?.layers
+    if (L) for (const f of L) this.addHooks(f(this.api()))
   }
 
   def(view: ComponentFn, override?: StartOptions['__override']) {
@@ -129,29 +136,31 @@ export class App {
   scope() { return 's' + ++this.scopeN }
 
   // ---------------------------------------------------------------- queue
-  dispatch(inst: Inst, type: any, data: any, cause: ActionCause = 'intent') {
+  /** `src`: for a reply, the source that delivered it (the action log's replySink) */
+  dispatch(inst: Inst, type: any, data: any, cause: ActionCause = 'intent', src?: string) {
     if (this.disposed) return
-    this.queue.push(inst, type, data, cause)
+    this.queue.push(inst, type, data, cause, src)
     if (!this.draining && !this.rendering) this.drain()
   }
   drain() {
     this.draining = true
     const q = this.queue
     try {
-      for (let i = 0; i < q.length; i += 4) {
+      for (let i = 0; i < q.length; i += 5) {
         const inst: Inst = q[i]
         if (inst.disposed) continue
         if (q[i + 1] === SET) {
           const f = q[i + 2], c = inst.cell
           const v = typeof f == 'function' ? f(c.get()) : f
-          if (v !== c.get()) c.set(v)
+          // (ABORT: no change, as from a reducer)
+          if (v !== c.get() && !isAbort(v)) c.set(v)
         } else if (q[i + 1] === SEED) {
           // G-309: decided when it is applied: a parent write queued before it keeps the slice (D174)
           const d = q[i + 2], b = d.b
           if (d.r || !(b.has ? b.has() : b.get() !== undefined)) inst.cell.set(d.v)
           else this.hooks.onStateSeed?.(viewOf(inst), b.get(), d.v)
         }
-        else inst.handle(q[i + 1], q[i + 2], q[i + 3])
+        else inst.handle(q[i + 1], q[i + 2], q[i + 3], q[i + 4])
         if (this.watchers.size) this.notify()
       }
     } finally {
@@ -237,6 +246,8 @@ export class App {
           v = this.last
           // G-311: the instances that rendered before the throw are injected at the next render
           this.ep++
+          // G-320: the statics still follow the state (a throwing render doesn't freeze them)
+          try { this.afterRender?.() } catch (_) { /* reported by the statics step */ }
           break
         }
         this.afterRender?.()
@@ -260,6 +271,8 @@ export class App {
     } finally {
       // G-313: a throwing patch / onPatch still ends the startup log and dispatches BOOTSTRAP
       this.tail = false
+      // an HMR swap: what the start rendered was already bootstrapped in the old app
+      if (this.opts.__swap) { this.opts.__swap = false; this.born.length = 0 }
       if (this.born.length) {
         const b = this.born.splice(0)
         queueMicrotask(() => { for (const i of b) if (!i.disposed) this.dispatch(i, 'BOOTSTRAP', undefined, 'built-in') })
@@ -369,6 +382,7 @@ export class App {
       setState: (t, s) => { const i = find(t); if (i) app.dispatch(i, SET, s, 'setState') },
       dispatch: (t, type, data, cause = 'simulateAction') => { const i = find(t); if (i) app.dispatch(i, type, data, cause) },
       addHooks: (h) => app.addHooks(h),
+      setDebug: (t, on) => { const i = find(t); if (i) i.debug = on },
       flushed: () => new Promise<void>(r => (app.scheduled || app.flushing ? app.waiters.push(r) : r())),
     }
   }
@@ -387,6 +401,7 @@ export class App {
   compose() {
     const H: any = this.hooks
     for (const k in H) delete H[k]
+    this.ctxSkip = null
     for (const layer of this.layers) {
       const added: any = layer
       for (const k in added) {
@@ -402,6 +417,9 @@ export class App {
           : (...args: any[]) => { b(...args); a(...args) }
       }
     }
+    // D168's safety net (R4): a view context tracking skipped, offered for a re-run check
+    const cs = H.onContextSkip
+    if (cs) this.ctxSkip = (i, a, b) => cs(viewOf(i), (c: any) => i.def.view({...i.props, state: i.cell.get(), children: i.children, slots: i.slots, context: c, uid: i.uid}), a, b, [...(i.keys || [])])
   }
 
   dispose() {

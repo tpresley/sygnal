@@ -1208,6 +1208,36 @@ A component's `timers` static declares a timer that `makeTimerDriver()` can't ru
 
 **Fix:** Use `tick: state.running && { every: 100, action: 'TICK' }`, `done: state.armed && { after: 5000, action: 'EXPIRE' }` or `frame: state.animating && { frame: 'FRAME' }`. To stop a timer, return a falsy value for it instead of an invalid spec.
 
+### SYG423
+
+**Context change skipped a view whose output it changes**
+
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+A component reads context, the context changed, and Sygnal did not re-render the component, because its view read none of the changed keys during its last call. Sygnal 6.0 re-renders a component on a context change only when its view read a key that changed. With `sygnal/diagnostics` loaded, a sample of the skipped views is called again with the new context; when the result differs, the page shows a stale render and this is reported. A read Sygnal can't see causes it: a context value kept from an earlier render and read later, a function that reads context after the view returned, or reflection such as `Object.getOwnPropertyDescriptor(context, 'theme')`.
+
+**Fix:** Read the entries in the view itself, `context.theme` or `function C({ context: { theme } })`, on every call. Pass a value you need later as a prop or keep it in state instead of a saved context object.
+
+### SYG424
+
+**Duplicate Collection item id**
+
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+Two or more items in a `<Collection>`'s array have the same `id`. A Collection keys its items by `id` (an item without one by its index in the array), so only the first item with that id renders, and the item component's writes go to that first item. The others are not shown.
+
+**Fix:** Give every item a unique `id` when it is created, for example from a counter in state or `crypto.randomUUID()`. Items with no `id` at all are keyed by their index.
+
+### SYG425
+
+**isolatedState slice lacks initialState keys**
+
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+An `isolatedState` component is bound to a slice of its parent's state (`state="key"` or a lens) that already exists, so it keeps that slice and its `initialState` is not applied (since 6.0 the parent's data wins). The slice lacks keys that `initialState` defines, so the component's view and reducers see them as undefined.
+
+**Fix:** Add `resetState` to the tag (`<Panel state="panel" resetState />`) to start the component from its `initialState`, replacing the slice. To keep the parent's data, initialize the missing keys in the parent's state.
+
 ## SYG5xx: Strict mode (canonical forms)
 
 ### SYG501
@@ -1601,6 +1631,16 @@ Severity: `error` · Reported by: the Sygnal runtime (every app, production incl
 A value sent to a `makeSocketDriver()` sink could not be acted on. Either a send (`{ to: 'room', json }`) names a connection that this component instance has not declared, that has closed for good (`reconnect: false`, or a URL the browser rejected), or that is a server-sent events connection, which is read-only. Or a declared connection has neither a `socket` nor an `sse` URL. Or the value is neither `{ connections }` nor `{ to, … }`. Connection names are per component instance: a parent cannot send on a child's connection. The message is dropped; a connection that is only (re)connecting is not an error, its sends are queued.
 
 **Fix:** Declare the connection first, `{ connections: { room: { socket: '/ws/rooms/general', message: 'RECEIVED' } } }`, then send on it from the same component: `{ to: 'room', json: { text } }`. Use a WebSocket (`socket:`) for two-way traffic.
+
+### SYG612
+
+**Removed in 6.0**
+
+Severity: `error` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+A component uses a form that Sygnal 6.0 removed, so it is ignored or fails at run time: a component named by a string tag or registered in `.components`, `<Collection of="Name">`, `CHILD.select('Name')`, an `'ACTION | SINK'` model key, `.peers`, `hmrActions`, a view with positional parameters (`function C(props, state)`), `DOMSourceName` / `stateSourceName`, `storeCalculatedInState`, or the `component({ ... })` factory. The message names the form and links to its section of the migration guide. Reported once per form and component, in development only.
+
+**Fix:** Follow the linked section of the migration guide (https://sygnal.js.org/guide/migrating-to-6): import components and use them as JSX tags, pass the component function to `of` and `CHILD.select`, use object-form model entries, destructure the view's one argument, and write function components with statics.
 
 ### SYG620
 

@@ -212,6 +212,7 @@ Covers `sygnal`, `sygnal-check` and `create-sygnal-app`. A few fixes change beha
   - the SYG502 rule is removed (retired, see Changed).
 - **`create-sygnal-app`:** `README.md` in the package.
 
+- **Dev diagnostics of the 6.0 component core** (PLAN-4.6 R4, `sygnal/diagnostics`): [SYG423](https://sygnal.js.org/reference/errors#syg423) (warn) when a context change skipped a view that renders differently with the new context (a sample of the skipped views is called again, D168); [SYG424](https://sygnal.js.org/reference/errors#syg424) (warn) for duplicate Collection ids (only the first renders, D169/D177); [SYG425](https://sygnal.js.org/reference/errors#syg425) (warn) when an `isolatedState` child keeps an existing slice that lacks keys its `initialState` defines, suggesting `resetState` (D174); [SYG612](https://sygnal.js.org/reference/errors#syg612) (error, once per form and component) for a form 6.0 removed met at run time, with a link to its section of the migration guide (D173).
 - **`resetState` prop** (PLAN-4.6, D174). `<Editor state="doc" resetState />` replaces an `isolatedState` child's slice with its `initialState` when the child is created; without it an existing slice is kept and `initialState` only fills a missing one. It is read at creation, like `state`, and is not a prop of the child. In the JSX types next to `state`.
 
 ### Changed
@@ -323,6 +324,13 @@ Covers `sygnal`, `sygnal-check` and `create-sygnal-app`. A few fixes change beha
   - `lazy()` works as a Collection's `of` and as a Switchable page (G-317); before, it stayed on its loading placeholder.
   - A `Portal` whose target appears after it renders mounts its latest content once (before: an update during the retry could mount it twice), and one removed while retrying never mounts (G-316).
   - A `viewTransitions` action whose new state is equal to the old one asks for no View Transition (it renders the same view).
+- **With the 6.0 component core** (PLAN-4.6 R4):
+  - `sygnal/diagnostics`, `sygnal/devtools`, `renderComponent`, `sygnal/element`, Vike, Astro, `renderToString` and `run().hmr()` work on it unchanged. A hot swap starts the new component with the kept state at once (no re-sends 0 and 20 ms later) and sends no `BOOTSTRAP` to the components that start with it, as before.
+  - A `<Collection>` on a hidden `Switchable` page follows its array while hidden: a removed item is disposed (its connections close, its timers stop) and a new one starts its `background: true` statics, without a view call (G-319).
+  - A `Portal` first reached by a patch rather than an insert (hydrating server markup, or replacing a plain `div` at the same position) mounts its content (G-318).
+  - A declaration static (`connections`, `resources`, ...) keeps following the state while a sibling's render throws (G-320).
+  - `uid()` in an item without an `id` uses `_i<index>` for its part, so an item whose `id` is `0` and the first id-less item no longer render the same DOM ids (G-322); `renderToString` matches.
+  - An `isolatedState` child's state starts as a shallow copy of its `initialState`, as the `INITIALIZE` reducer made it, so a reducer that mutates the state never changes the shared static.
 
 ### Performance
 

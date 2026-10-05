@@ -26,6 +26,7 @@ import {handle} from './actions'
 import {viewOf} from './view'
 import {makeCommandSource} from '../extra/command'
 import {attach, detach} from './statics'
+import {dbg} from './debug'
 
 const ERR_FIX = 'See the attached error'
 
@@ -98,6 +99,8 @@ class Failed {
 export class Inst {
   readonly id = IDS++
   disposed = false
+  /** debug logging for this instance (the DevTools toggle; core/debug.ts) */
+  debug = false
   /** in dispose(), while dispose$ emits: its actions run at once */
   dying = false
   ready: boolean
@@ -161,6 +164,9 @@ export class Inst {
     let init = !parent && app.initState !== undefined ? app.initState : def.initialState
     // a root without a model renders from `initialState || true` (G-172, as today)
     if (!parent && !def.model && !init) init = true
+    // R4: a shallow copy, as today's INITIALIZE reducer made ({...initialState}): the static is
+    // shared by every instance (and the dev entry freezes it, D152), the state is the instance's
+    else if (isObj(init)) init = {...init}
     if (init !== undefined) {
       if (!parent || (def.isolated && (base as any).local)) this.cell.set(init)
       else if (def.isolated) {
@@ -172,6 +178,7 @@ export class Inst {
       }
     } else if (def.idle && isObj(this.cell.raw()) && !parent) this.cell.set(this.cell.raw())
     H.onCreate?.(viewOf(this))
+    dbg(this, () => 'Instantiated')
     if (def.handlers.has('INITIALIZE')) app.dispatch(this, 'INITIALIZE', init, 'built-in')
     if (app.stat.length || app.rep.length) attach(this)
     if (def.intent) {
@@ -329,8 +336,8 @@ export class Inst {
       if (keys.has(ALL)) return true
       for (const k of keys) if (ctx[k] !== last[k]) return true
     }
-    // D168: skipped. R4's dev check re-runs a sample of these views (app.ctxSkip)
-    this.app.ctxSkip?.(this)
+    // D168: skipped. The dev check (onContextSkip) re-runs a sample of these views
+    this.app.ctxSkip?.(this, last, ctx)
     this.lctx = ctx
     return false
   }
@@ -367,6 +374,7 @@ export class Inst {
       this.forced = false
       this.ls = state; this.lp = this.props; this.lc = this.raw; this.lctx = ctx
       this.view(state, ctx)
+      dbg(this, () => 'View rendered')
       this.reconcile()
     }
     // G-311: after a render that threw (the app's epoch moved), the kids are injected again once
@@ -381,6 +389,14 @@ export class Inst {
     if (this.postSels) for (const s of this.postSels) v = posts[s](v, this)
     this.app.hooks.onRender?.(viewOf(this), v)
     return (this.outv = this.parent ? this.app.scopeValue(this.parent, 'DOM', v, this) : v)
+  }
+
+  /**
+   * G-319 (a hidden Switchable page, or below one): no render, but its Collections follow their
+   * arrays, so removed items stop and new ones start (statics, replies) while hidden
+   */
+  sync() {
+    if (!this.disposed) for (const k of this.kids.values()) k.sync?.()
   }
 
   /** calls the view with one argument (D164); the onError boundary */
@@ -508,8 +524,8 @@ export class Inst {
   }
 
   // ---------------------------------------------------------------- actions
-  handle(type: string, data: any, cause: any) {
-    handle(this, type, data, cause)
+  handle(type: string, data: any, cause: any, src?: string) {
+    handle(this, type, data, cause, src)
   }
 
   // ---------------------------------------------------------------- dispose

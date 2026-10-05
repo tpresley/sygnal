@@ -67,7 +67,7 @@ let busTypes = new Set<string>()
 const RECENT_MAX = 200
 let recent: ActionRecord[] = []
 let epoch = clockNow()
-const actionListener: ActionListener = {
+export const actionListener: ActionListener = {
   action(r) { if (recent.push(r) > RECENT_MAX) recent.shift() },
 }
 
@@ -80,7 +80,11 @@ onReset(() => {
 })
 const uniq = <T>(list: Iterable<T>): T[] => [...new Set(list)]
 
+const NEXT_KIND: Record<string, Kind> = {root: 'root', child: 'child', item: 'collection-item', page: 'switchable'}
+
 function kindOf(c: any): Kind {
+  // PLAN-4.6 R4: the next core's instance view says it (checks/next.ts)
+  if (c && c.__next) return NEXT_KIND[c.__next.kind] || 'child'
   const s = (c && c.sources) || {}
   if (typeof s.__parentComponentNumber !== 'number') return 'root'
   // Collection items get PARENT: null (src/component.ts instantiateCollection)
@@ -93,7 +97,7 @@ function kindOf(c: any): Kind {
 function ensure(c: any): Rec {
   let r = records.get(c)
   if (!r) {
-    const parent = c && c.sources && c.sources.__parentComponentNumber
+    const parent = c && (c.__next ? c.__next.parentId : c.sources && c.sources.__parentComponentNumber)
     r = {
       instance: c,
       id: String(c && c._componentNumber),
@@ -176,6 +180,12 @@ export const inspectCheck: DiagnosticCheck = {
   onDispose(component) {
     records.delete(component)
   },
+}
+
+/** PLAN-4.6 R4 (next core, onSink): an EVENTS value the instance sent */
+export function eventEmitted(component: any, ev: any): void {
+  const r = records.get(component)
+  if (r && ev && typeof ev.type === 'string') r.eventsEmitted.add(ev.type)
 }
 
 /**

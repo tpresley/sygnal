@@ -151,3 +151,9 @@ Mixed files (p45-c-scheduler, scheduler-p45c.jsx, p4-pf1, p4-2r-fixes, component
 | `devtools-actions`, `devtools-copy-as-test`, `p4-2c-actions` | R4 (devtools, action log) |
 
 **Browser suite on next** (`npm --prefix browser-tests run test:next`): 175/186. Green in R3's areas: Socket driver, Router, Fetch driver, Timers frame, Persist, Element commands, Controls, View Transitions except SYG645 (R4). Commands ported to object-form models (was 0/4 on next; §4 PORT done). Failing, not R3: Effect & Shorthand 2 and Disposal 1 (they test the `'A | EFFECT'` syntax itself, D164: R5), Diagnostics 3 (R4), Custom elements 4 (R4: `sinks.STATE.shamefullySendNext`, `hmr`).
+
+## 7. R4 status (diagnostics, devtools, testing, integrations)
+
+`npm run test:next` (scripts/test-next.mjs) runs **every** root vitest file on the next core, minus the list in the script (`node scripts/test-next.mjs --list`): 3 whole files and 38 tests, each with its disposition (DELETE-R5: removed forms; CURRENT-ONLY: the scheduler, render-lag stamps, sinks objects, the diagnostics core's instance hooks without the dev entry; DECIDED: G-306/G-307/D177, D165 FIFO ordering in b023), then the 9 examples, the browser suite (3 'A | SINK' tests excluded, R5) and the count gate (`perf-gate --core=next`).
+
+Ported in R4 (both cores): `p4-p2b-run-instances`, `p4-2r-fixes` (G-216), `p4-p2b-element` pins and `browser-tests element-p2b` → `runtime.setState` / `getState` when `app.__runtime` exists. New: `p46-r4-review` (G-318…G-323), `p46-r4-devtools` (time travel, debug toggle: replaces the CURRENT-ONLY time-travel internals), `p46-r4-diagnostics` (SYG423/425/612), `p46-r4-integrations` (SSR `data.c`, HMR), `p46-r4-testing-docs` (D176). Parity: the action-log and D169 areas run on next (NEXT_DONE has R4).

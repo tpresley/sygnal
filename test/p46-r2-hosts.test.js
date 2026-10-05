@@ -44,7 +44,7 @@ describe.skipIf(!NEXT)('PLAN-4.6 R2 next core: hosts', () => {
     await m.rt.flushed()
     const kids = m.rt.root.children()
     expect(kids.map((k) => [k.name, k.kind, k.shown, k.uid])).toEqual([
-      ['Item', 'item', true, 'u-0-x'], ['Item', 'item', true, 'u-0-1'],
+      ['Item', 'item', true, 'u-0-x'], ['Item', 'item', true, 'u-0-_i1'], // G-322: an index key is _i<n>
       ['A', 'page', true, 'u-1-a'], ['B', 'page', false, 'u-1-b'],
     ])
     expect(m.rt.get(kids[3].id).name).toBe('B')

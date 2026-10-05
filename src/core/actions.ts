@@ -20,19 +20,23 @@ import {runElementCommands} from '../extra/elementCommands'
 import {viewOf} from './view'
 import {checkStatics} from './statics'
 import {objIsEqual} from '../cycle/state/objIsEqual'
+import {dbg} from './debug'
 
-export function handle(inst: Inst, type: string, data: any, cause: any) {
-  const hs = inst.def.handlers.get(type)
+export function handle(inst: Inst, type: string, data: any, cause: any, src?: string) {
+  const hs = inst.def.handlers.get(type), app = inst.app, H = app.hooks
+  // (an action with no model entry is seen too: the action log lists it with no sinks)
+  if (H.onAction) H.onAction(viewOf(inst), {type, data, cause, target: viewOf(inst), source: src})
+  dbg(inst, () => `<${type}> Action triggered`)
   if (!hs) return
-  const app = inst.app, H = app.hooks, def = inst.def
-  if (H.onAction) H.onAction(viewOf(inst), {type, data, cause, target: viewOf(inst)})
+  const def = inst.def
   const pre = inst.cell.get()
   let props: any, outs: any[] | undefined
   const next = (t: string, d?: any, ms: any = 10, effect?: boolean) => {
     if (typeof ms !== 'number') fail('SYG215', inst, `next() delay in '${type}' must be a number`, "Use next('ACTION', data, ms)")
     // G-300: none for an instance being disposed; dispose() clears the pending ones
-    if (inst.disposed || inst.dying) return
+    if (inst.disposed || inst.dying) return dbg(inst, () => `next(${t}) ignored: disposed`)
     H.onNext?.(viewOf(inst), t, d, ms)
+    dbg(inst, () => `<${type}> ${effect ? 'EFFECT triggered' : 'Triggered'} a next() action: <${t}> ${ms}ms delay`)
     const ts = inst.timers ||= new Set()
     const id = setTimeout(() => { ts.delete(id); inst.disposed || app.dispatch(inst, t, d, 'next') }, ms)
     ts.add(id)
@@ -61,6 +65,7 @@ export function handle(inst: Inst, type: string, data: any, cause: any) {
     if (sink == 'STATE') {
       if (v === pre) continue
       H.onReducer?.(viewOf(inst), type, pre, v)
+      dbg(inst, () => `<${type}> State reducer added`)
       inst.cell.set(v)
       // GS-12: this app's DOM driver patches inside a View Transition (makeViewTransitionDOMDriver
       // reads the flag on its IsolateModule); includes?.: a non-array static lists nothing (G-228).
@@ -72,6 +77,7 @@ export function handle(inst: Inst, type: string, data: any, cause: any) {
     if (typeof v == 'symbol') { logError('SYG218', inst, `Reducer for '${type}' returned a symbol; nothing sent`, 'Return a value, or ABORT to send nothing'); continue }
     if (v === undefined) warn('SYG217', inst, `Reducer for '${type}' sent undefined to the driver`, 'Return a value, or ABORT to send nothing')
     if (H.onSink) H.onSink(viewOf(inst), type, sink, v)
+    dbg(inst, () => `<${type}> Data sent to [${sink}]: ${JSON.stringify(v)}`)
     if (sink == 'PARENT') {
       const e = {name: def.name, component: def.view, value: v}
       if (inst.parent) inst.parent.toChild(e)

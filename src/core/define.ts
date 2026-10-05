@@ -222,7 +222,7 @@ function pipeline(view: ComponentFn, transform: Transform, override?: Partial<De
  * `setup(src)`: persist's root setup (it may restore into the initialState and rewrites the
  * model; persist.ts, root only as today, component.ts:378).
  */
-export function rootDef(view: ComponentFn, transform: Transform, override?: Partial<DefSource> & {name?: string}, setup?: (src: DefSource) => DefSource): CoreDef {
+export function rootDef(view: ComponentFn, transform: Transform, override?: Partial<DefSource> & {name?: string; testActions?: string[]}, setup?: (src: DefSource) => DefSource): CoreDef {
   const d = normalize(view, pipeline(view, transform, override, (src) => {
     const uses = view.uses, idle = src.idle
     if (uses && idle) {
@@ -233,5 +233,6 @@ export function rootDef(view: ComponentFn, transform: Transform, override?: Part
     return setup ? setup(src) : src
   }))
   if (override?.name) (d as any).name = override.name
+  if (override?.testActions) (d as any).testActions = override.testActions
   return d
 }

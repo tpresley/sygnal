@@ -31,7 +31,9 @@ const HOOKS = {
 }
 
 // Builds apps/sygnal/<page>.html for each page into outDir/sygnal (unminified, production mode).
-export async function buildInstrumented({ pages, outDir, logLevel = 'warn' }) {
+// fw: 'sygnal' (the shipped core) or 'next' (PLAN-4.6 R1-R4: the next core's apps, with the
+// D175 strip turned off by __SYGNAL_NEXT_CORE__)
+export async function buildInstrumented({ pages, outDir, logLevel = 'warn', fw = 'sygnal' }) {
   const applied = new Set()
   const counters = {
     name: 'perf-counters',
@@ -48,10 +50,10 @@ export async function buildInstrumented({ pages, outDir, logLevel = 'warn' }) {
   await build({
     root, configFile: false, logLevel, mode: 'production', base: './',
     plugins: [counters, sygnal()],
-    define: { 'process.env.NODE_ENV': '"production"' },
+    define: { 'process.env.NODE_ENV': '"production"', ...(fw === 'next' && { __SYGNAL_NEXT_CORE__: 'true' }) },
     build: {
-      outDir: resolve(outDir, 'sygnal'), emptyOutDir: true, minify: false,
-      rollupOptions: { input: Object.fromEntries(pages.map(s => [s, resolve(root, 'apps/sygnal', `${s}.html`)])) },
+      outDir: resolve(outDir, fw), emptyOutDir: true, minify: false,
+      rollupOptions: { input: Object.fromEntries(pages.map(s => [s, resolve(root, `apps/${fw}`, `${s}.html`)])) },
     },
   })
   const missing = Object.keys(HOOKS).filter(k => !applied.has(k))
@@ -73,7 +75,7 @@ export const READ = `return { ...window.__perf }`
 
 // A browser + static server over outDir. `chromium` is a Playwright BrowserType (the gate
 // passes browser-tests' copy, so it runs the same Chromium as `npm run test:browser`).
-export async function openSession({ chromium, outDir }) {
+export async function openSession({ chromium, outDir, fw = 'sygnal' }) {
   const server = await serve(outDir)
   const browser = await chromium.launch({ headless: true, args: ['--js-flags=--expose-gc'] })
   const pageErrors = []
@@ -83,7 +85,7 @@ export async function openSession({ chromium, outDir }) {
     const p = await ctx.newPage()
     p.on('pageerror', e => pageErrors.push(`${page}: ${e.message}`))
     await p.addInitScript(COUNT + HELPERS)
-    await p.goto(`${server.url}/sygnal/apps/sygnal/${page}.html`)
+    await p.goto(`${server.url}/${fw}/apps/${fw}/${page}.html`)
     await p.waitForFunction(() => document.querySelector('#main')?.children.length > 0)
     const cdp = await ctx.newCDPSession(p)
     const run = (code) => p.evaluate(`(async () => { const h = window.__h; ${code} })()`)

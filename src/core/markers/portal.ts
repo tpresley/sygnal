@@ -35,6 +35,20 @@ function mount(st: PortalState, target: string): boolean {
   return true
 }
 
+/** mount the portal's children into its target (retried while the target isn't rendered yet) */
+function start(vnode: any, target: string, kids: any[]) {
+  const st: PortalState = vnode.data._p = {v: vnode, kids, pv: null, c: null, t: 0, dead: false}
+  let attempts = 0
+  const tryMount = () => {
+    st.t = 0
+    if (st.dead || st.pv) return
+    if (mount(st, target)) { if (attempts) pokeDOM(st.c) }
+    else if (attempts++ < 10) st.t = setTimeout(tryMount, 5)
+    else notFound(target)
+  }
+  tryMount()
+}
+
 export function portalPlaceholder(target: string, children: any[]): any {
   const portalChildren = children || []
   return {
@@ -44,21 +58,12 @@ export function portalPlaceholder(target: string, children: any[]): any {
       attrs: {'data-sygnal-portal': target},
       portalChildren,
       hook: {
-        insert: (vnode: any) => {
-          const st: PortalState = vnode.data._p = {v: vnode, kids: portalChildren, pv: null, c: null, t: 0, dead: false}
-          let attempts = 0
-          const tryMount = () => {
-            st.t = 0
-            if (st.dead || st.pv) return
-            if (mount(st, target)) { if (attempts) pokeDOM(st.c) }
-            else if (attempts++ < 10) st.t = setTimeout(tryMount, 5)
-            else notFound(target)
-          }
-          tryMount()
-        },
+        insert: (vnode: any) => start(vnode, target, portalChildren),
         postpatch: (oldVnode: any, newVnode: any) => {
           const st: PortalState | undefined = oldVnode.data?._p
-          if (!st) return
+          // G-318: reached by a patch, never inserted (hydration over server markup, or a plain
+          // div at the same position before): it starts here, as the current core mounts it
+          if (!st) return void start(newVnode, target, newVnode.data?.portalChildren || [])
           newVnode.data._p = st
           st.v = newVnode
           st.kids = newVnode.data?.portalChildren || []

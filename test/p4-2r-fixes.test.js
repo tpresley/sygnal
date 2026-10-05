@@ -17,6 +17,12 @@ import { setupChecks, settle, diagnostics } from './diagnostics/helpers.js'
 import { _resetDiagnostics, configureDiagnostics } from '../src/extra/diagnostics/index.js'
 import { defineElement } from '../src/element.ts'
 
+// PLAN-4.6 R4 (06 §2 PORT): the root's state through the runtime API on the next core
+// (app.__runtime), the current core's sink / stream internals otherwise
+const setState = (app, f) => (app.__runtime ? app.__runtime.setState('root', f) : app.sinks.STATE.shamefullySendNext(f))
+const getState = (app) => (app.__runtime ? app.__runtime.getState() : app.sources.STATE.stream._v)
+
+
 let t
 beforeEach(() => { setupChecks() })
 afterEach(() => { try { t?.dispose() } catch (_) {} t = null; _resetDiagnostics() })
@@ -232,7 +238,7 @@ describe("G-216: an app's hot swap is scoped to that app (the __hmr source)", ()
     let b
     try {
       await until(() => text('#a') === 'A1', 'app A')
-      a.sinks.STATE.shamefullySendNext(s => ({ ...s, count: 5 }))
+      setState(a, s => ({ ...s, count: 5 }))
       await until(() => text('#a') === 'A5', 'A at 5')
       a.hmr(Counter)
       b = run(Other, {}, { mountPoint: '#b' })   // inside A's swap window
@@ -240,7 +246,7 @@ describe("G-216: an app's hot swap is scoped to that app (the __hmr source)", ()
       await sleep(150)
       expect(text('#b')).toBe('B100')
       expect(text('#a')).toBe('A5')
-      expect(b.sources.STATE.stream._v).toEqual({ name: 'B', n: 100 })
+      expect(getState(b)).toEqual({ name: 'B', n: 100 })
       expect(window.__SYGNAL_HMR_UPDATING).toBeUndefined()
       expect(window.__SYGNAL_HMR_STATE).toBeUndefined()
     } finally { a.dispose(); b?.dispose(); document.body.innerHTML = '' }

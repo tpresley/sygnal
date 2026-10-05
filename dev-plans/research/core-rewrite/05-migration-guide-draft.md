@@ -208,7 +208,11 @@ Hidden pages without `lazy` render at mount, as before. With `lazy`, a hidden pa
 
 ### 3.4 Collection keys (D169)
 
-Items without an `id` under `filter`/`sort` are now keyed by their index in the state array, not in the filtered or sorted list (G-291). Showing or hiding an item no longer re-creates the items after it. Two items with the same `id` warn in development; give them unique ids.
+Items without an `id` under `filter`/`sort` are now keyed by their index in the state array, not in the filtered or sorted list (G-291). Showing or hiding an item no longer re-creates the items after it. Two items with the same `id` warn in development (SYG424); only the first renders (D177); give them unique ids.
+
+An item without an `id` still sees its index as `state.id`, as before. Writing it back no longer stores that index as an `id` (G-306: today a write-back adds it, which later collides with a sibling's index after a removal). Known limit (G-321): an id-less item's reducer that sets `id` to the item's own current index (`{...s, id: 0}` on the first item) can't be told from the copy it got, so that `id` isn't stored either. Assign ids when the items are created (in the parent), not from the item.
+
+`uid()` in an id-less item uses `_i<index>` for its part (G-322): an item with `id: 0` and the id-less first item no longer render the same DOM ids.
 
 ## 4. For R5
 

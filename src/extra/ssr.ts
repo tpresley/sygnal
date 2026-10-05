@@ -5,6 +5,10 @@
  * Handles sub-components, Collections, Suspense boundaries, and Portals.
  */
 import {uidPart} from '../shared'
+import {NEXT_CORE} from '../core/build'
+
+/** PLAN-4.6 R1-R4 (deleted at R5): renderToString matches the next core's client where they differ */
+const nextCore = () => NEXT_CORE && (globalThis as any).__SYGNAL_CORE__ === 'next'
 
 // Void elements that must not have closing tags
 const VOID_ELEMENTS = new Set([
@@ -381,7 +385,8 @@ function processSSRTree(vnode: any, context: Record<string, any>, parentState: a
 
   // Sub-component: render recursively
   const props = vnode.data?.props || {}
-  if (props.sygnalOptions || typeof props.sygnalFactory === 'function') {
+  // (PLAN-4.6: the pragma's `data.c`, the component function; `sygnalOptions` until R5)
+  if (typeof vnode.data?.c === 'function' || props.sygnalOptions || typeof props.sygnalFactory === 'function') {
     return renderSubComponent(vnode, context, parentState, childUid(uid, vnode, path))
   }
 
@@ -421,7 +426,10 @@ function renderSubComponent(vnode: any, context: Record<string, any>, parentStat
 
   // Get the component definition (view function with static properties)
   let componentDef: any
-  if (sygnalOptions) {
+  // PLAN-4.6 (04 §3.10): the component function on the vnode carries its statics; nothing is
+  // copied onto it (no options object)
+  if (typeof vnode.data?.c === 'function') componentDef = vnode.data.c
+  else if (sygnalOptions) {
     componentDef = sygnalOptions.view
     // Copy static properties
     if (!componentDef.initialState && sygnalOptions.initialState) {
@@ -548,7 +556,8 @@ function renderCollection(vnode: any, context: Record<string, any>, parentState:
     // the collection's itemKey)
     const isItemObj = itemState && typeof itemState === 'object' && !Array.isArray(itemState)
     const keyed: any = isItemObj ? {...itemState, [idField]: itemState[idField] || index} : {[idField]: index}
-    const itemUid = uid + '-' + uidPart(keyed.id !== undefined ? keyed.id : index)
+    // PLAN-4.6 G-322 (next core): an id-less item's uid part is `_i<index>` (core/cell.ts keyName)
+    const itemUid = uid + '-' + (nextCore() ? (isItemObj && itemState.id != null ? uidPart(itemState.id) : '_i' + index) : uidPart(keyed.id !== undefined ? keyed.id : index))
     // GS-1: an item host's behavior slices (the client reads them as defaults, behaviors.ts)
     itemState = withUses(itemComponent, itemState)
     // Build context for this item

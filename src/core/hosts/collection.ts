@@ -152,6 +152,7 @@ export class CollectionHost {
   ep = 0
 
   constructor(public owner: Inst, props: Record<string, any>, children: any[], id: string, marker: any) {
+    this.hostProps(props)
     const of = props.of
     if (!of) fail('SYG411', owner, "Collection is missing 'of'", 'Use of={ItemComponent}')
     if (typeof of != 'function') fail('SYG411', owner, `Collection 'of' is a ${typeof of}`, 'Use of={ItemComponent}')
@@ -162,10 +163,18 @@ export class CollectionHost {
     this.setProps(props, children, marker, id)
   }
 
+  /** onHostProps (R4): the Collection checks of the dev entry (SYG401 for a missing `from`, D173's string `of`) */
+  hostProps(props: Record<string, any>) {
+    const H = this.owner.app.hooks
+    if (H.onHostProps) H.onHostProps(viewOf(this.owner), 'collection', props)
+  }
+
   /** the item component (a lazy() one: the loaded component once it has loaded, G-317) */
   view: any
 
   setProps(props: Record<string, any>, children: any[], marker?: any, id?: string) {
+    // (the constructor called the hook before its own checks)
+    if (this.props) this.hostProps(props)
     const v = typeof props.of == 'function' ? resolve(props.of, this.owner) : this.view
     if (v !== this.view) {
       // another item component (or a lazy one loaded): the items are made again
@@ -225,13 +234,22 @@ export class CollectionHost {
     return keys
   }
 
-  render(): any {
-    if (this.disposed) return this.outv
-    // G-311: after a render that threw, every container is made again once
+  /**
+   * G-319: on a hidden Switchable page (no render): the items follow the array (removed ones are
+   * disposed, new ones created, so their background statics and replies run), with no view call
+   */
+  sync() {
+    if (this.disposed) return
+    this.items_()
+    for (const i of this.shown) i.sync()
+  }
+
+  /** the item instances for the current array, filter and sort; true when the list changed */
+  items_(): boolean {
+    if (!this.index) return false
     const app = this.owner.app
-    let changed = !this.outv || this.ep !== app.ep
-    this.ep = app.ep
-    if (this.index) {
+    let changed = false
+    {
       const [a, m] = this.index()
       const {filter, sort} = this.props
       if (a !== this.la || filter !== this.lf || sort !== this.ls) {
@@ -244,15 +262,25 @@ export class CollectionHost {
           if (!inst) {
             const scope = app.scope()
             inst = new Inst(app, this.def, o, itemCell(this.arr!, this.index, k), o.dom && o.dom.isolateSource(o.dom, scope),
-              this.ip, this.kids, scope, this.uidBase + '-' + uidPart(keyName(k)), 'item')
+              this.ip, this.kids, scope, this.uidBase + '-' + keyName(k), 'item')
             this.items.set(k, inst)
           }
           shown.push(inst)
         }
-        if (!changed && (shown.length != this.shown.length || shown.some((s, i) => s !== this.shown[i]))) changed = true
+        if (shown.length != this.shown.length || shown.some((s, i) => s !== this.shown[i])) changed = true
         this.shown = shown
       }
     }
+    return changed
+  }
+
+  render(): any {
+    if (this.disposed) return this.outv
+    // G-311: after a render that threw, every container is made again once
+    const app = this.owner.app
+    let changed = !this.outv || this.ep !== app.ep
+    this.ep = app.ep
+    if (this.items_()) changed = true
     const shown = this.shown, out: any[] = Array(shown.length)
     let j = 0
     for (let i = 0; i < shown.length; i++) {

@@ -125,8 +125,14 @@ export class SwitchableHost {
   insts(): Inst[] { return Object.values(this.pages).map(p => p.inst) }
 
   /** only the current page renders (G-121); a hidden page keeps its last vnode and catches up when shown */
+  /** G-319: a hidden page's Collections follow their arrays (no view call) */
+  sync() {
+    if (!this.disposed) for (const n in this.pages) this.pages[n].inst.sync()
+  }
+
   render(): any {
     if (this.disposed) return this.outv
+    for (const n in this.pages) if (n !== this.cur) this.pages[n].inst.sync()
     const page = this.pages[this.cur]
     return (this.outv = page ? page.inst.render() : undefined)
   }

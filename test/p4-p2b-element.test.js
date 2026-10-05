@@ -8,6 +8,12 @@ import { createElement as h } from '../src/pragma/index.js'
 import { defineElement } from '../src/element.ts'
 import { getDiagnosticsMode, _resetDiagnostics } from '../src/extra/diagnostics/index.js'
 
+// PLAN-4.6 R4 (06 §2): the pins port to the runtime API on the next core (app.__runtime:
+// setState / getState); the current core's sink / stream internals otherwise
+const setState = (app, f) => (app.__runtime ? app.__runtime.setState('root', f) : app.sinks.STATE.shamefullySendNext(f))
+const getState = (app) => (app.__runtime ? app.__runtime.getState() : app.sources.STATE.stream._v)
+
+
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 const until = async (cond, what, ms = 2000) => {
   for (const end = Date.now() + ms; !cond(); await sleep(5)) {
@@ -56,7 +62,7 @@ describe('core internals sygnal/element relies on (pinned)', () => {
     const app = run(Board, { PARENT: s$ => { s$.addListener({ next: v => seen.push(v) }) } }, { mountPoint: '#root' })
     apps.push(app)
     await until(() => document.querySelector('.btn'), 'render')
-    app.sinks.STATE.shamefullySendNext(s => ({ ...s, tasks: [{ id: 'a', name: 'A' }] }))
+    setState(app, s => ({ ...s, tasks: [{ id: 'a', name: 'A' }] }))
     await until(() => document.querySelector('.task'), 'task')
     document.querySelector('.task').click()
     await until(() => seen.length === 1, 'PARENT value')
@@ -69,10 +75,10 @@ describe('core internals sygnal/element relies on (pinned)', () => {
     const app = run(Board, {}, { mountPoint: '#root' })
     apps.push(app)
     await until(() => meta(document) === '0|false|0|0', 'render')
-    app.sinks.STATE.shamefullySendNext(s => ({ ...s, count: 5 }))
+    setState(app, s => ({ ...s, count: 5 }))
     await until(() => meta(document) === '5|false|0|0', 'reducer applied')
-    expect(app.sources.STATE.stream._v.count).toBe(5)
-    app.sinks.STATE.shamefullySendNext(() => ABORT)
+    expect(getState(app).count).toBe(5)
+    setState(app, () => ABORT)
     expect(typeof app.hmr).toBe('function')
   })
 })
@@ -282,7 +288,7 @@ describe('defineElement', () => {
     const host = run(Board, {}, { mountPoint: '#root' })
     apps.push(host)
     await until(() => document.querySelector('#root .board'), 'host')
-    host.sinks.STATE.shamefullySendNext(s => ({ ...s, heading: 'host', count: 9 }))
+    setState(host, s => ({ ...s, heading: 'host', count: 9 }))
     await until(() => meta(document.querySelector('#root')) === '9|false|0|0', 'host count 9')
     host.hmr(Board)
     document.querySelector('#el').innerHTML = `<${t} count="3"></${t}>`
