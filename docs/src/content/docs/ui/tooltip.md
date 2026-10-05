@@ -70,6 +70,8 @@ The trigger gets an anchor name and the tip refers to it. The anchor name must b
 
 `inset: auto` and `margin` replace the popover's default centring. Browsers without CSS anchor positioning need JavaScript positioning: see [Floating UI for older browsers](/ui/overview/#floating-ui-for-older-browsers).
 
+Safari 26 places the tip wrongly when the trigger is inside a `position: fixed` element (a fixed toolbar or header) and the page is scrolled: the tip moves up by the scroll distance. Triggers in the normal flow of the page are placed correctly. For triggers in a fixed bar, the Floating UI recipe works in every browser.
+
 ## Accessibility
 
 - `aria-describedby` on the trigger points at the tip, so screen readers read the tip as the trigger's description. The trigger still needs its own name (its text or `aria-label`).

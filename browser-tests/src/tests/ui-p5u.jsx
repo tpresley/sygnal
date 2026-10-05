@@ -42,6 +42,7 @@ const css = () => {
 const runTest = (name, fn, ms = 8000) => run_(CAT, name, async () => {
   if (!hasPw()) return
   css()
+  window.scrollTo(0, 0)
   try { await fn() } catch (e) {
     // a TypeError in the test itself: say where
     throw e instanceof TypeError ? new Error(`${e.message} @ ${String(e.stack).split('\n').slice(0, 3).join(' | ')}`) : e
@@ -423,6 +424,38 @@ export async function uiTestsP5U() {
     } finally { app.dispose() }
   })
 
+  await runTest('Tooltip: anchor positioning on a scrolled page (an in-flow trigger; a trigger in a position: fixed bar, except WebKit)', async () => {
+    const tall = document.body.style.minHeight
+    document.body.style.minHeight = '10000px'
+    const host = document.createElement('div')
+    host.id = 'probe-flow'
+    host.className = 'ui-p5u'
+    host.style.cssText = 'position: absolute; top: 3000px; left: 0; width: 600px;'
+    document.body.appendChild(host)
+    window.scrollTo(0, 2900)
+    const app = run(Toolbar, { TIMER: makeTimerDriver() }, { mountPoint: '#probe-flow' })
+    try {
+      await until(() => host.querySelector('.save-btn'), 'mounted')
+      await window.__pw('focus', '#probe-flow .save-btn')
+      await until(() => isOpen(host.querySelector('.tip')), 'shown', 2000)
+      const b = host.querySelector('.save-btn').getBoundingClientRect(), t = host.querySelector('.tip').getBoundingClientRect()
+      assert(Math.abs(t.bottom + 6 - b.top) <= 2, `in-flow: tip bottom ${t.bottom} + 6 vs anchor top ${b.top} (scrollY ${window.scrollY})`)
+    } finally { app.dispose(); host.remove() }
+    // the stage is position: fixed. WebKit 26.6 offsets a tip anchored inside a fixed element by
+    // the page's scroll (documented on the Tooltip page); Chromium and Firefox place it right
+    if (ENGINE !== 'webkit') {
+      const { id, app: app2, $ } = await mount(Toolbar)
+      try {
+        window.scrollTo(0, 2900)
+        await window.__pw('focus', `${id} .save-btn`)
+        await until(() => isOpen($('.tip')), 'shown in the fixed bar', 2000)
+        const b = $('.save-btn').getBoundingClientRect(), t = $('.tip').getBoundingClientRect()
+        assert(Math.abs(t.bottom + 6 - b.top) <= 2, `fixed bar: tip bottom ${t.bottom} + 6 vs anchor top ${b.top} (scrollY ${window.scrollY})`)
+      } finally { app2.dispose() }
+    }
+    document.body.style.minHeight = tall
+    window.scrollTo(0, 0)
+  })
   // ── Tabs ─────────────────────────────────────────────────────────────
   await runTest('Tabs: roles and names; the arrow keys move focus and selection (wrap), Home / End; a click selects', async () => {
     const { id, app, $ } = await mount(tabsApp({ selected: 'general' }))
