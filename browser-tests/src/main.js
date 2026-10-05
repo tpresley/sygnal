@@ -41,6 +41,7 @@ import { browserSourceTestsP5_2B } from './tests/browser-sources-p5-2b.jsx'
 import { fixesTestsP5_1S } from './tests/fixes-p5-1s.jsx'
 import { virtualTestsP5V1 } from './tests/virtual-p5v1.jsx'
 import { uiTestsP5U } from './tests/ui-p5u.jsx'
+import { fixesTestsP5_2R, fixesTestsP5_2R_after } from './tests/fixes-p5-2r.jsx'
 import { getResults } from './harness.js'
 
 async function runAll() {
@@ -91,8 +92,15 @@ async function runAll() {
     fixesTestsP5_1S,
     virtualTestsP5V1,
     uiTestsP5U,
+    fixesTestsP5_2R,
+    fixesTestsP5_2R_after,
   ]
-  for (const suite of suites) if (!only || suite.name.toLowerCase().includes(only.toLowerCase())) await suite()
+  for (const suite of suites) {
+    if (only && !suite.name.toLowerCase().includes(only.toLowerCase())) continue
+    await suite()
+    // G-391: the browser context back to its defaults (offline, permissions, media emulation)
+    await window.__pwBrowser?.('reset')
+  }
 
   const results = getResults()
   const passed = results.filter(r => r.status === 'pass').length

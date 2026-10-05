@@ -33,7 +33,7 @@ const SOURCES = {
   geolocationSource: 'watchPosition',
   clipboardSource: 'writeText',
 }
-const DRIVER = ['geolocation', "'browser'", '__sygnalStatic: \'browser\'']
+const DRIVER = ['geolocation', "'browser' in v", '__sygnalStatic: \'browser\'']
 const WHEN = ['data-sygnal-when', 'requestIdleCallback']
 const APP = `
   function App({ state }) { return h('p', null, String(state.n)) }

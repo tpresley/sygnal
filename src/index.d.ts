@@ -2009,12 +2009,15 @@ export type LazyComponent<PROPS = any> = ((
 /**
  * PLAN-5 B-4: `when` defers the import until a placeholder is visible ('visible',
  * IntersectionObserver; `rootMargin` to start earlier) or the browser is idle after it is on the
- * page ('idle', requestIdleCallback with a 2 s timeout). Meanwhile a Suspense boundary shows its
- * fallback; SSR renders the placeholder and never loads.
+ * page ('idle', requestIdleCallback with a 2 s timeout). The placeholder stays in its place: a
+ * Suspense boundary waits for it (its fallback) only once the import has started. SSR renders the
+ * placeholder and never loads.
  */
 export interface LazyOptions {
   when?: 'visible' | 'idle'
   rootMargin?: string
+  /** the placeholder's min-height (a number: px; or a CSS length), e.g. the component's expected height */
+  placeholderHeight?: number | string
 }
 
 export function lazy<PROPS = any>(
