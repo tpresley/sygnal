@@ -76,6 +76,20 @@ describe('G-353: the same-output check gives up on a large tree', () => {
   })
 })
 
+describe('G-354: only the data object\'s own properties are routed', () => {
+  it('inherited enumerable props are skipped (as the rest-spread copy did)', async () => {
+    const { createElement: ce } = await import('../src/pragma/index.ts')
+    const { jsx } = await import('../src/jsx-runtime.ts')
+    const data = Object.create({ inherited: 1, 'data-x': 2, className: 'no' })
+    data.title = 't'
+    expect(ce('p', data).data).toEqual({ props: { title: 't' } })
+    data.children = 'c'
+    const v = jsx('p', data)
+    expect(v.data).toEqual({ props: { title: 't' } })
+    expect(v.text).toBe('c')
+  })
+})
+
 describe('G-350: the pragma caches stay bounded', () => {
   it('dynamic selectors and data keys do not grow the caches', async () => {
     const { createElement: ce, createElementWithModules, __cacheSizes } = await import('../src/pragma/index.ts')

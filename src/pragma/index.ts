@@ -202,10 +202,13 @@ const route = (key: string, modules: Record<string, any>): any => {
   if (modules[key] !== undefined) return [modules[key] || key, 0, key == 'class' && modules.class !== undefined ? 3 : 2]
   return [modules.props !== undefined && 'props', key]
 }
+const own = Object.prototype.hasOwnProperty
 const sanitizeData = (data: any, modules: Record<string, any>, routes: Map<string, any>): any => {
   const out: any = {}
   lent = null
   for (const key in data) {
+    // G-354: own properties only, as the rest-spread copy had (about 1 ns a call)
+    if (!own.call(data, key)) continue
     const val = data[key]
     let r = routes.get(key)
     // G-350: capped (data-dependent keys, e.g. `data-${id}`, are routed but not kept)
