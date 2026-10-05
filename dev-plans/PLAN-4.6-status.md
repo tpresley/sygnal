@@ -6,7 +6,7 @@ Tracks progress for [PLAN-4.6.md](PLAN-4.6.md) (component core rewrite). The coo
 
 **Integration branch:** `plan46-integration`, cut from `plan45-complete` (`d900c522`) on 2026-10-04, with `claude/component-core-rewrite-experiment` (the study) merged (`45eefb2`). Worktree `.claude/worktrees/plan-4-execution-7ae8e8`. The release stays held (D56).
 
-**State:** R0, R1 merged. R2 running (incl. R1 review fixes G-294…G-305).
+**State:** R0, R1, R2 merged. R3 running; review of R2 running.
 
 ## Phases
 
@@ -15,8 +15,8 @@ Tracks progress for [PLAN-4.6.md](PLAN-4.6.md) (component core rewrite). The coo
 | 0-S | Spike: prototype + hard features, measure, project size | ✅ merged | `p46-spike` (`3d8af23`) | 2026-10-04 | **Go**: 40/40 tests; mount 1.9–2.2×, Collection 1.6–9× faster; kanban 30.4 KB (proj. 35–37 KB vs 41.3); streams/item 1; race class impossible. Findings → PLAN-4.6 §1a, Q18–Q23 |
 | R0 | Decisions, hooks contract, parity/reentrancy/race tests | ✅ merged | `p46-r0` (`f48a112`) | 2026-10-04 | `src/core/hooks.ts` + 04-hooks-contract (13 consumers mapped); `test/parity/` 74 tests (53 pass + 21 expected-fail on current); 06 inventory (41 port, 17 delete at R5, 9 current-only); G-290 fixed (−2 B); 05 migration draft |
 | R1 | Runtime core (both cores selectable) | ✅ merged | `p46-r1` (`4d91475`) | 2026-10-04 | `src/core/` ≈1,600 lines (9.6 KB gz alone); `test:next` in `npm test` (148 pass, 45 skipped for R2–R4); parity on next 31 pass; 6 of 9 examples pass on next (the rest need R2). Tags page: mount 2.0×, update-1 2.4×, unmount 2.3× faster; 1 stream per component. Size gate fails as planned (both cores: 49,289 B) → D175 |
-| R2 | Hosts and markers (+ D174, D175, D166 test rewrite) | 🟡 running | `p46-r2` | | |
-| R3 | Extensions (statics, replies, commands, behaviors) | ⬜ | | | |
+| R2 | Hosts and markers (+ D174, D175, D166 test rewrite) | ✅ merged | `p46-r2` (`62cfaec`) | 2026-10-04 | Collection/Switchable hosts, marker registry (Portal, Transition, ClientOnly, Lazy, Suspense), D174 `resetState`, D175 strip (size 41,474 B), R1 review fixes. Next core: parity 64 pass / 15 skip; test:next 318; all 9 examples; browser 155/186 (rest R3–R5). Collection create 1.8×, replace 2.8×, select 2.2×, remove 10×, mount 2.2× faster; streams/item 1–2 |
+| R3 | Extensions (statics, replies, commands, behaviors) | 🟡 running | `p46-r3` | | |
 | R4 | Tooling and integrations | ⬜ | | | |
 | R5 | Cut-over, delete old core, gates, eval | ⬜ | | | |
 
@@ -24,6 +24,9 @@ Tracks progress for [PLAN-4.6.md](PLAN-4.6.md) (component core rewrite). The coo
 
 | ID | Date | Decision | By |
 |---|---|---|---|
+| D179 | 2026-10-04 | D174's seed-only-while-undefined rule and `resetState` apply to lens bindings as well as `state="key"` (same "no silent overwrite" intent) | Coordinator |
+| D178 | 2026-10-04 | A Collection whose `from` key is missing at creation renders once the key appears (today: SYG401 and nothing for its life, `src/component.ts:1432`); SYG401 still warns; its text becomes "renders nothing until it exists". CHANGELOG fix | Coordinator |
+| D177 | 2026-10-04 | Duplicate Collection ids: only the first item renders, with the D169 dev warning (today one instance's vnode is placed twice, which snabbdom can't patch correctly). CHANGELOG | Coordinator |
 | D176 | 2026-10-04 | `defineComponent` is added and the `component` export removed together in R5 (an earlier export would flip the current core's expected-fail parity test). The `simulate*` → `await t.next()` contract under synchronous reducers (R1's input-armed cursor) is decided in R4, asking the user if it changes documented testing behaviour | Coordinator |
 | D175 | 2026-10-04 | Size during R2–R4: production builds strip the next core (a build-time constant from `sygnal/vite` guards the `run()`/`renderComponent` branch), so the size gate keeps measuring the shipped core; the bench `next` target opts back in. Deleted at R5 | Coordinator |
 | D174 | 2026-10-04 | `isolatedState` + `state="key"`: by default `initialState` seeds the slice only while it is `undefined` (parent data kept); a new tag prop **`resetState`** replaces the slice with `initialState` at creation; a dev-only warning (diagnostics, new code in R4) when the existing slice lacks keys `initialState` defines, naming them and suggesting `resetState` or initializing them in the parent. Today's behaviour (always overwrite) changes. New public prop | User |
@@ -49,22 +52,23 @@ Tracks progress for [PLAN-4.6.md](PLAN-4.6.md) (component core rewrite). The coo
 | G-290 | 0-S | Med | DOM driver | `SymbolTree.delete` runs `Object.keys(siblings)` per removal: O(n²) on large removals (480 calls × 500 keys in one Switchable switch). Affects the current core too when many siblings go at once | → R1 |
 | G-292 | R0 | Med | Switchable | Current core: a page bound with `state="pageA"` next to a sibling page with `isolatedState` gets the sibling's local state (renders `undefined:undefined`) | New core only (D171); parity-pinned |
 | G-293 | R0 | Low | process | D166 was asked on a wrong premise (the spike described its prototype's Switchable, not today's); verify current behaviour before asking the user about a "change" | Fixed (D172) |
-| G-294 | review R1 | High | core/instance | A change inside a named `<Slot>` never re-renders the child (dirty check compares only the default slot). Confirmed | → R2 |
-| G-295 | review R1 | Med | core/instance | A child whose intent throws during subscribe has already seeded state, fired onCreate, queued INITIALIZE and joined watchers; never disposed. Confirmed | → R2 |
-| G-296 | review R1 | Med | core/runtime, testing | Sink values emitted during start() are dropped before renderComponent/run() callers attach listeners. Confirmed | → R2 |
-| G-297 | review R1 | Med | core/runtime | Removing a hook layer also removes layers added after it. Confirmed | → R2 |
-| G-298 | review R1 | Med/Low | core/runtime | No catch around the flush: a throwing lens/hook freezes the app with no onError. Confirmed | → R2 |
-| G-299 | review R1 | Low | testing | TDZ `retry` error when renderComponent's start fails on next. Confirmed | → R2 |
-| G-300 | review R1 | Low | core/actions | `next()` timers not cleared on dispose | → R2 |
-| G-301 | review R1 | Low | core/runtime | `api.flushed()` never resolves after dispose or a throwing flush | → R2 |
-| G-302 | review R1 | Low | core/teardown | Disposed streams stop at the end of the flush instead of the next macrotask (a shared `.remember()`/`periodic` remounted in the next flush restarts). Coordinator: restore xstream's macrotask stop via the existing macro ping (no setTimeout) | → R2 |
-| G-303 | review R1 | Low | core/runtime | Driver errors skip `hooks.onError` | → R2 |
-| G-304 | review R1 | Low | core (efficiency) | Per-render allocations (isolate key, context Proxy, handler props), O(watchers) notify per action, full-tree flush walk | → R2 (measure) |
-| G-305 | review R1 | Low | mock DOM | Scope check matches by prefix (`s1` vs `s14`) | → R2 |
+| G-294 | review R1 | High | core/instance | A change inside a named `<Slot>` never re-renders the child (dirty check compares only the default slot). Confirmed | Fixed (R2) |
+| G-295 | review R1 | Med | core/instance | A child whose intent throws during subscribe has already seeded state, fired onCreate, queued INITIALIZE and joined watchers; never disposed. Confirmed | Fixed (R2) |
+| G-296 | review R1 | Med | core/runtime, testing | Sink values emitted during start() are dropped before renderComponent/run() callers attach listeners. Confirmed | Fixed (R2) |
+| G-297 | review R1 | Med | core/runtime | Removing a hook layer also removes layers added after it. Confirmed | Fixed (R2) |
+| G-298 | review R1 | Med/Low | core/runtime | No catch around the flush: a throwing lens/hook freezes the app with no onError. Confirmed | Fixed (R2) |
+| G-299 | review R1 | Low | testing | TDZ `retry` error when renderComponent's start fails on next. Confirmed | Fixed (R2) |
+| G-300 | review R1 | Low | core/actions | `next()` timers not cleared on dispose | Fixed (R2) |
+| G-301 | review R1 | Low | core/runtime | `api.flushed()` never resolves after dispose or a throwing flush | Fixed (R2) |
+| G-302 | review R1 | Low | core/teardown | Disposed streams stop at the end of the flush instead of the next macrotask (a shared `.remember()`/`periodic` remounted in the next flush restarts). Coordinator: restore xstream's macrotask stop via the existing macro ping (no setTimeout) | Fixed (R2) |
+| G-303 | review R1 | Low | core/runtime | Driver errors skip `hooks.onError` | Fixed (R2) |
+| G-304 | review R1 | Low | core (efficiency) | Per-render allocations (isolate key, context Proxy, handler props), O(watchers) notify per action, full-tree flush walk | Partly (R2: isolate-key cache reverted, no gain; rest → R4 perf pass) |
+| G-305 | review R1 | Low | mock DOM | Scope check matches by prefix (`s1` vs `s14`) | Fixed (R2) |
 | G-291 | 0-S | Low | Collection | Id-less items under filter/sort are keyed by filtered/sorted index (likely a latent bug) | → Q23 |
 
 ## Log
 
+- 2026-10-04 — R2 merged (`62cfaec`); all gates green (size 41,474 B). D177–D179. R3 and a review of R2 started.
 - 2026-10-04 — Review of R1: 12 findings (G-294…G-305), sent to R2.
 - 2026-10-04 — R1 merged (`4d91475`); gates green except size (planned: both cores ship, 49,289 B). D174 (user: isolatedState keeps parent data, `resetState` prop, dev warning), D175, D176. R2 and a review of R1 started.
 - 2026-10-04 — R0 merged (`f48a112`); all gates green (vitest 2,649 + 21 expected-fail; 41,341 B). D166 re-decided as D172 (keep today, no prop); D171, D173. R1 started.
