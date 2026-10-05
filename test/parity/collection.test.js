@@ -159,6 +159,8 @@ parity('parity: D169 id-less items under filter/sort are keyed by raw index; dup
   // the next core keeps a hook point (one instance per id; the first element renders); the
   // warning itself is R4's diagnostics
   needs('R4').itNext('D169 duplicate ids warn in dev', 'duplicate item ids: a dev warning names the id', async () => {
+    // the warning is the dev entry's (SYG424), as every dev check
+    await import('../../src/extra/diagnostics/checks/index.js')
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     function Item({ state }) { return h('li', { className: 'dup' }, state.t) }
     function D() { return h('ul', null, h(Collection, { of: Item, from: 'items' })) }
