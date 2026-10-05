@@ -89,6 +89,15 @@ export default defineConfig({
           ],
         },
         {
+          label: 'Recipes',
+          items: [
+            { label: 'Overview', slug: 'recipes/overview' },
+            { label: 'Charts', slug: 'recipes/charts' },
+            { label: 'Rich Text', slug: 'recipes/rich-text' },
+            { label: 'Code Editor', slug: 'recipes/code-editor' },
+          ],
+        },
+        {
           label: 'Advanced',
           items: [
             { label: 'Error Boundaries', slug: 'advanced/error-boundaries' },
