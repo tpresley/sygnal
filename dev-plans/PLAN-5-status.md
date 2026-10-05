@@ -6,7 +6,7 @@ Tracks progress for [PLAN-5.md](PLAN-5.md) (ecosystem components and integration
 
 **Integration branch:** `plan5-integration`, cut from `plan46-complete` (`7146161`) on 2026-10-05, in worktree `.claude/worktrees/plan-4-execution-7ae8e8`. The release stays held (D56).
 
-**State:** Phase 2: 2-B, 2-V, 2-U, 2-A merged; 2-Z and 2-R merged; 2-S merged; running: 2-T (D211/D212 follow-ups + 2-Z review fixes G-409…G-416); Phase 3: 3-R merged; running 3-D (B-1 `sortable`, codes SYG145–147/724), 3-F (2-A/2-S review fixes, SYG148–149). Known flaky test `p5-1s-forms` (fixed in 2-R).
+**State:** Phase 2: 2-B, 2-V, 2-U, 2-A merged; 2-Z and 2-R merged; 2-S, 2-T merged (Phase 2 complete); Phase 3: 3-R, 3-D merged; running 3-F (2-A/2-S review fixes, SYG148–149). Known flaky test `p5-1s-forms` (fixed in 2-R).
 
 ## 0-A baseline (2026-10-05)
 
@@ -82,6 +82,9 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 
 | ID | Date | Decision | By |
 |---|---|---|---|
+| D215 | 2026-10-05 | `fromReact` prop routing (user: `data-*` to both; coordinator for the rest, per review of 2-T): `data-*` → host and component; `tabIndex`, `hidden` → host only; `aria-*`, `role`, `title` → the component only (a labelled React control must get its own name; the host `div` is generic) — G-436 | User + coordinator |
+| D214 | 2026-10-05 | `renderComponent(C, { context: {...} })`: supplies ancestor context to the rendered root for testing a child alone (testing only, 0 B core). Also document that a component's view and reducers see its own `.context` entries (verified: `instance.ts` `context()` merges the component's entries over the parent's) | User |
+| D213 | 2026-10-05 | `defineWidget` keeps the 2-T additions public: `ownProps` (props never placed on the host) and `mount`'s 4th parameter `error(e)` (report a later render failure to the owner's `onError`, SYG661) | User |
 | D212 | 2026-10-05 | 2-R follow-ups (coordinator): D103 wording — a deferred `lazy(…, { when })` placeholder doesn't hold its Suspense boundary; the boundary shows its fallback only once the import has started (docs updated by 2-R); timing-sensitive tests `p45-r2-dom-poke` "emits once the element is gone" (`sleep(40)`) and p5-1s "an async schema: validating until its first result" get deterministic waits in 2-T; **process**: briefs for parallel workstreams now assign diagnostic code numbers explicitly (2-R and 2-Z both took SYG666; 2-R's became SYG668 at merge) — G-408 | Coordinator |
 | D211 | 2026-10-05 | 2-Z follow-ups (coordinator; next follow-up pass 2-T): **per-part subpaths** `sygnal/ui/menu`, `sygnal/ui/select`, `sygnal/ui/combobox` (a Menu user installs only `@zag-js/menu` + `@zag-js/vanilla`), replacing the aggregate `sygnal/ui/zag`; Menu keeps its `select` event and SYG144 skips first-party parts; `renderComponent({ dom: 'real' })` provides the jsdom stubs Zag needs (`ResizeObserver`, `CSS.escape`, `Element.prototype.scrollTo`) when missing; a static SYG72x rule for Menu/Select/Combobox without an accessible name; the missing CHANGELOG entry for 2-Z; CLAUDE.md entry list (19 inputs, `src/ui`, `src/ui/zag`, adapters) | Coordinator |
 | D210 | 2026-10-05 | 2-A: `<Collection viewTransitionName="card">` (string prefix; `card-<id>` names + `view-transition-class`) lives in the core Collection host (+120 B), so SSR output, renderComponent and page-started transitions get names. No FLIP fallback: all three evergreen engines support same-document View Transitions (D195) | User |
@@ -171,6 +174,16 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 | G-431 | review 2-S | Low | ssr / virtual | Client virtual rows keyed, SSR rows not → hydration replaces every row (focus/typed text lost); SSR `data-index` shifts after null-rendering rows. Plausible | → 3-F |
 | G-432 | review 2-S | Low | ui/toaster | Re-parent into a modal then refocus sets `_from = null`; dismissing the last toast blurs instead of returning focus | → 3-F |
 | G-433 | 3-R report | Low | sygnal-check | SYG705 misses an icon-only button whose content is a call (`<button>{icon(Trash2)}</button>`); icons page tells readers to label it | → later pass |
+| G-434 | review 2-T | High | ui/combobox | `<Combobox name form>` throws on render: hidden inputs get `form` as a DOM prop (getter-only `HTMLInputElement.form`) → SYG660. Use `attrs`. Confirmed by reading | → 3-G |
+| G-435 | review 2-T | Med | ui/combobox | With `allowCustomValue`, the typed text is no longer submitted (hidden inputs carry only `api.value`) | → 3-G |
+| G-436 | review 2-T | Med | react | Widened HOST regex sends `aria-*`/`role`/`title` only to the host div: `fromReact(IconButton)` with `aria-label` renders an unnamed button. Route per D215 | → 3-G |
+| G-437 | review 2-T | Med | react | Deferred `root.unmount()` observes `ownerDocument` only: removals inside shadow roots (`sygnal/element` `shadow: true`) never fire → React root + observer leak; also a host destroyed but left in the DOM. Observe `getRootNode()` + a fallback | → 3-G |
+| G-438 | review 2-T | Low/Med | zag | After a G-409 halt, `stop()` returns before `release(vn)`: refs keep detached elements, destroy hooks/listeners never run | → 3-G |
+| G-439 | review 2-T | Low | zag | SYG669 misses prop-less markers (`<Suspense>`, `<ClientOnly>`, `h(Transition, null)`) and `<Slot>`; the walk runs every draw after reporting (dev cost) | → 3-G |
+| G-440 | review 2-T | Low | vite plugin | SYG666 misses template-literal dynamic imports (`` import(`sygnal/zag`) ``); `CSS.escape` stub doesn't escape a leading digit | → 3-G |
+| G-441 | review 3-R | Med | process | Recipe tests and docs-sync (`dev-plans/research/p5-recipes/`) aren't run by any gate: an API change can break all 8 pages while `npm test` stays green. Add to a gate (opt-in script + coordinator gate list at least) | → 3-G |
+| G-442 | review 3-R | Med/Low | docs recipes | ECharts never resizes (no ResizeObserver); Embla `index` stale after the list shrinks (`reInit` emits no `select`); Tiptap/CodeMirror labels captured at mount (i18n page says translate labels); Tiptap un-normalised draft reset on any prop change | → 3-G |
+| G-443 | review 3-R | Low | docs recipes | i18n: `addResourceBundle` "in the reply's action" → in an EFFECT; carousel Prev/Next `disabled` at the ends drops focus (use `aria-disabled`); `detectLocale` SSR guard wrong on Node ≥21 (global `navigator`) | → 3-G |
 | G-408 | 2-R × 2-Z | Low | process | Two parallel workstreams registered the same code (SYG666); fixed at merge (2-R's → SYG668). Briefs now assign code numbers | Fixed (process) |
 | G-394 | review 2-V | High | VirtualCollection | An inline `estimateSize` function (the guide's own pattern) clears every measured row height on each owner render; rows aren't re-measured. Confirmed | → 2-S |
 | G-395 | review 2-V | Med/High | VirtualCollection | SYG430 "grows" misfires on a bounded container above viewport height that fits its rows; clamping then leaves unreachable blank rows. Confirmed | → 2-S |
@@ -197,6 +210,7 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 - 2026-10-05 — 2-S merged (G-394…G-407 fixed; behaviour changes: Collection SSR applies filter/sort/props, Toaster HOVER/FOCUS + `'t<n>'` ids, keyed virtual rows with two-step patch); gates green, three engines 286/286, core 41,825 B. Review of 2-A: 5 findings (G-417…G-421), no high severity; 2-S follow-ups G-422/G-423. All to a later fix pass 3-F.
 - 2026-10-05 — Review of 2-S: 9 findings (G-424…G-432), to 3-F; G-422 closed (no `ui` entries in FIRST_PARTY).
 - 2026-10-05 — 3-R merged (docs only: Recipes section, 8 pages, tested in `dev-plans/research/p5-recipes/` — not in `npm test`); gates green, samples 666 clean, docs 87 pages. Open for the user: `renderComponent` `context` option (API), document a view reading its own `.context`, ship recipes offline (Phase 4). G-433. 3-F started (G-417…G-421, G-423…G-432; codes SYG148–149).
+- 2026-10-05 — 2-T merged (clean; per-part `sygnal/ui/menu|select|combobox`, jsdom stubs, SYG669, SYG722, `ownProps`, `mount` `error(e)`); gates green, three engines 287/287, core 41,825 B. User: D213–D215. Review of 2-T: 7 findings (G-434…G-440, one high). Review of 3-R: G-441…G-443. 3-D merged (8 additive conflicts; SYG722+SYG724 kept; explanations/errors regenerated). 3-G started (G-433…G-443, D214, D215).
 - 2026-10-05 — 2-R merged (6 conflicts; SYG666 clash renumbered to SYG668); all gates green on three engines (279/279); core 41,825 B. D212, G-408.
 - 2026-10-05 — 2-Z merged; three engines 276/276; core 41,771 B. D211.
 - 2026-10-05 — Review of 2-U + 2-V: 14 findings (G-394…G-407). 2-S started.
