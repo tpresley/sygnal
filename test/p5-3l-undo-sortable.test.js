@@ -42,6 +42,40 @@ const withUndo = (opts = {}, first = 'sort') => {
 }
 const lift = async (id) => { grip(id).focus(); press(' '); await t.next(s => s.sort.dragging === String(id)) }
 
+describe('3-L G-474: END restores only into the lists the drag made', () => {
+  const Sub = (props) => TaskList(props)
+  Object.assign(Sub, { uses: { sort: sortable({ from: 'tasks', item: '.task', handle: '.grip' }) } })
+  function Page({ state }) {
+    return h('div', null, state.show ? h(Sub, { state: 'list' }) : h('p', null, 'hidden'))
+  }
+  Page.initialState = { show: true, list: { tasks: TASKS } }
+  Page.model = {
+    GO: (s) => ({ ...s, show: false, list: { ...s.list, tasks: [{ id: 2, title: 'B' }, { id: 5, title: 'E' }, { id: 6, title: 'F' }] } }),
+    HIDE: (s) => ({ ...s, show: false }),
+  }
+
+  it('an action that hides the host and replaces its list: the new list is left as it is', async () => {
+    t = renderComponent(Page, { dom: 'real' }); await t.ready()
+    await (async () => { grip(2).focus(); press(' '); await t.next(s => s.list.sort?.dragging === '2') })()
+    press('ArrowDown'); await t.next(s => order(s.list) === '1,3,2,4')
+    t.simulateAction('GO')
+    await t.next(s => !s.show)
+    await t.settle()
+    expect(order(t.state.list)).toBe('2,5,6')
+    expect(t.state.list.sort).toMatchObject({ dragging: null, mode: null, origin: null })
+  })
+
+  it('the drag\'s own list still goes back', async () => {
+    t = renderComponent(Page, { dom: 'real' }); await t.ready()
+    grip(2).focus(); press(' '); await t.next(s => s.list.sort?.dragging === '2')
+    press('ArrowDown'); await t.next(s => order(s.list) === '1,3,2,4')
+    t.simulateAction('HIDE')
+    await t.next(s => !s.show)
+    await t.settle()
+    expect(order(t.state.list)).toBe('1,2,3,4')
+  })
+})
+
 describe('3-L G-478: SYG435 looks at the list container, in data-index order, and stops scanning once reported', () => {
   const make = (view) => {
     function L(props) { return view(props) }
