@@ -132,7 +132,7 @@ A widget works inside a [`<Portal>`](/advanced/portals/), and unmounts when the 
 
 ## Transitions
 
-A widget inside a [`<Transition>`](/advanced/transitions/) gets the enter and leave classes on its host. `unmount` runs when the leave starts, while the host fades out.
+A widget inside a [`<Transition>`](/advanced/transitions/) gets the enter and leave classes on its host. `unmount` runs when the leave starts, while the host fades out: leave the content in place there and stop only what runs (the adapters do: `fromZag` stops its machine and keeps the rendered parts, `fromReact` unmounts its React root once the host is gone).
 
 ## Testing
 

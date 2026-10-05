@@ -93,6 +93,13 @@ const fail = (m: string): never => {
 
 let ids = 0
 
+// snabbdom's destroy pass over a rendered tree, without removing it from the DOM (G-412)
+const release = (v: any) => {
+  const d = v?.data
+  if (d) { d.hook?.destroy?.(v); eventListenersModule.destroy!(v, undefined as any) }
+  v?.children?.forEach(release)
+}
+
 // G-410 (dev only): what a render must not contain: a component (data.c), a widget tag, special JSX
 const SPECIAL: any = {transition: 'Transition', portal: 'Portal', collection: 'Collection', switchable: 'Switchable',
   suspense: 'Suspense', clientonly: 'ClientOnly', 'virtual-collection': 'VirtualCollection'}
@@ -170,8 +177,9 @@ function start(zag: any, render: any, o: any, el: any, p0: any, dispatch: any, e
       if (!on) return
       on = 0
       m.stop()
-      // the rendered content's destroy hooks (refs in the render) run; the host is leaving anyway
-      vn = patch(vn, h('!', ''))
+      // G-412: the content stays (a <Transition> leave animates the host with it); its destroy
+      // hooks run (refs in the render) and its listeners come off, as a patch to nothing would do
+      release(vn)
     },
   })
   m.subscribe(draw)

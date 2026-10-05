@@ -17,7 +17,8 @@
  * - Props: all but `className`, `class`, `id`, `style` and `attrs` (those are the host's); `props`
  *   maps them instead: `props: (p) => ({ ...p, size: 'small' })`.
  * - Unmount: `root.unmount()` in a microtask (React refuses a synchronous unmount while it is
- *   rendering, which a callback → action → re-render chain can be in).
+ *   rendering, which a callback → action → re-render chain can be in), and only once the host
+ *   has left the document (G-412: inside a <Transition>, the content stays during the leave).
  * - SSR: the host with the `fallback` (no React on the server here).
  * - preact/compat: alias `react` and `react-dom` to `preact/compat`, and `react-dom/client` to
  *   `preact/compat/client`, in the bundler; the adapter only uses createElement, createRoot and
@@ -35,6 +36,14 @@ const HOST = /^(className|class|id|style|attrs)$/
 
 const fail = (m: string): never => {
   throw new Error(`[Sygnal SYG667] ${m}. https://sygnal.js.org/reference/errors#syg667`)
+}
+
+// G-412: run f once the host has left the document. A host still in it is leaving with a delay
+// (a <Transition> leave animation): its React content stays until the element is removed.
+const gone = (el: any, f: () => void) => {
+  if (!el.isConnected) return f()
+  const o = new MutationObserver(() => { if (!el.isConnected) o.disconnect(), f() })
+  o.observe(el.ownerDocument, {childList: true, subtree: true})
 }
 
 /**
@@ -75,6 +84,6 @@ export function fromReact(Comp: any, options: any = {}): any {
       return i
     },
     update: draw,
-    unmount: (i: any) => { queueMicrotask(() => i.root.unmount()) },
+    unmount: (i: any) => { queueMicrotask(() => gone(i.el, () => i.root.unmount())) },
   })
 }
