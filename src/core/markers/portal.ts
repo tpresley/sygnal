@@ -51,7 +51,9 @@ function start(vnode: any, target: string, kids: any[]) {
 export function portalPlaceholder(target: string, children: any[]): any {
   const portalChildren = children || []
   return {
-    sel: 'div',
+    // G-328: a selector a plain div can't match, so snabbdom replaces (destroy / insert) the
+    // placeholder when a plain div takes its place, or the reverse, instead of patching it
+    sel: 'div.sygnal-portal',
     data: {
       style: {display: 'none'},
       attrs: {'data-sygnal-portal': target},

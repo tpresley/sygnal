@@ -30,8 +30,7 @@ describe('G-318: a Portal first reached by a patch (not an insert) mounts', () =
     click('button')
     await sleep(60)
     expect(document.querySelector('#modal .hi')?.textContent).toBe('hi')
-    // (switching back to the plain div patches the placeholder div in place: its content stays
-    // in the target on both cores, an inherited limit of the placeholder being a div)
+    // (switching back: G-328, test/p46-r5-review)
   })
 })
 

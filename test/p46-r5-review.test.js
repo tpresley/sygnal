@@ -2,7 +2,7 @@
 // PLAN-4.6 R5: fixes of the R4 review (G-324 ... G-335), each pinned here (failing first).
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { renderComponent } from '../src/extra/testing.js'
-import { run, createElement as h } from '../src/index.js'
+import { run, createElement as h, Portal } from '../src/index.js'
 
 let t
 afterEach(() => { t?.dispose(); t = null; vi.useRealTimers(); vi.restoreAllMocks(); document.body.innerHTML = '' })
@@ -110,5 +110,26 @@ describe('G-335: child-only sink values keep their type in t.sinkValues()', () =
     expect(t.sinkValues('API')).toEqual([[1, 2]])
     expect(Array.isArray(t.sinkValues('API')[0])).toBe(true)
     expect(t.sinkValues('LOGX')[0]).toBeInstanceOf(Date)
+  })
+})
+
+describe('G-328: a Portal and a plain div at the same position take turns without leaking content', () => {
+  it('open / closed twice: the target holds the content only while open', async () => {
+    document.body.innerHTML = '<div id="modal"></div><div id="root"></div>'
+    function App({ state }) { return h('div', null, h('button', null, 'x'), state.open ? h(Portal, { target: '#modal' }, h('p', { className: 'hi' }, 'hi')) : h('div', null, 'closed')) }
+    App.initialState = { open: false }
+    App.intent = ({ DOM }) => ({ T: DOM.click('button') })
+    App.model = { T: (s) => ({ ...s, open: !s.open }) }
+    const app = run(App, {}, { mountPoint: '#root' })
+    try {
+      await app.__runtime.flushed()
+      const counts = []
+      for (let i = 0; i < 4; i++) {
+        document.querySelector('button').click()
+        await new Promise((r) => setTimeout(r, 30))
+        counts.push(document.querySelectorAll('#modal .hi').length)
+      }
+      expect(counts).toEqual([1, 0, 1, 0])
+    } finally { app.dispose() }
   })
 })
