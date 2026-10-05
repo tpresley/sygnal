@@ -70,13 +70,14 @@ describe('declarations', () => {
     app = run(List, { BROWSER: makeBrowserDriver() }, { mountPoint: '#root' })
     await tick()
     const lis = [...document.querySelectorAll('.item')]
-    expect(observers.length).toBe(2)
-    expect(observers.map(o => [...o.els][0])).toEqual(lis)
+    // G-390: one observer per driver for a kind and its options, observing each item's root
+    expect(observers.length).toBe(1)
+    expect([...observers[0].els]).toEqual(lis)
     fire(lis[1], { isIntersecting: true, intersectionRatio: 1 })
     await tick()
     expect([...document.querySelectorAll('.item')].map(e => e.textContent)).toEqual(['not', 'seen'])
-    // the seen item's declaration became falsy: its observer is disconnected
-    expect(observers[1].off).toBe(true)
+    // the seen item's declaration became falsy: its element is let go
+    expect([...observers[0].els]).toEqual([lis[0]])
     expect(observers[0].off).toBeUndefined()
   })
 

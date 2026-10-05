@@ -218,3 +218,57 @@ describe('G-387: the t.browser fake reports at start, and checks selectors under
     t.dispose()
   })
 })
+
+describe('G-390: shared observers', () => {
+  function Item({ state }) { return h('li', { className: 'item' }, [h('span', { className: 'n' }, String(state.id))]) }
+  Item.browser = () => ({ me: { intersection: true, action: 'SEEN' }, n: { intersection: '.n', action: 'SEEN' }, sz: { resize: '.n', action: 'SZ' } })
+  Item.model = { SEEN: (s) => ({ ...s, seen: (s.seen || 0) + 1 }), SZ: (s) => s }
+  function List({ state }) { return h('div', null, [h('b', null, String(state.n)), h('ul', null, [h(Collection, { of: Item, from: 'items' })])]) }
+  List.initialState = { n: 0, items: Array.from({ length: 100 }, (_, i) => ({ id: i + 1 })) }
+  List.intent = ({ DOM }) => ({ INC: DOM.select('b').events('click') })
+  List.model = { INC: (s) => ({ ...s, n: s.n + 1 }) }
+
+  it('a 100-item Collection: one observer per kind and options, each element observed once; one query per (instance, selector) a patch', async () => {
+    app = run(List, { BROWSER: makeBrowserDriver() }, { mountPoint: '#root' })
+    await tick()
+    expect(observers.length).toBe(2) // IntersectionObserver (both entries: same options), ResizeObserver
+    expect(observers.map(o => o.els.size)).toEqual([200, 100])
+    const qsa = Element.prototype.querySelectorAll
+    let q = 0
+    Element.prototype.querySelectorAll = function (s) { if (s.includes('.n')) q++; return qsa.call(this, s) }
+    try {
+      document.querySelector('b').click()
+      await tick()
+    } finally { Element.prototype.querySelectorAll = qsa }
+    expect(q).toBe(100) // '.n' is declared twice per item (intersection, resize): queried once
+  })
+
+  it('options differ: separate observers; a declaration joining an observed element hears its last report; the last one gone disconnects', async () => {
+    function C({ state }) { return h('div', { className: 'c' }, String(state.a) + String(state.b)) }
+    C.initialState = { a: 0, b: 0, on: false, done: false }
+    C.browser = (s) => ({
+      a: !s.done && { intersection: true, action: 'A' },
+      b: s.on && !s.done && { intersection: true, action: 'B' },
+      c: !s.done && { intersection: true, action: 'A', threshold: 0.5 },
+    })
+    C.intent = ({ DOM }) => ({ ON: DOM.select('.c').events('click') })
+    C.model = {
+      A: (s, d) => ({ ...s, a: s.a + (d.visible ? 1 : 0) }),
+      B: (s, d) => ({ ...s, b: s.b + (d.visible ? 1 : 0) }),
+      ON: (s) => s.on ? { ...s, done: true } : { ...s, on: true },
+    }
+    app = run(C, { BROWSER: makeBrowserDriver() }, { mountPoint: '#root' })
+    await tick()
+    expect(observers.length).toBe(2)
+    const el = observers[0].els.values().next().value
+    fire(el, { isIntersecting: true, intersectionRatio: 1 })
+    await tick()
+    expect(el.textContent).toBe('20') // a heard both observers' report
+    document.querySelector('.c').click() // b starts on the observed element: it hears the last report
+    await tick()
+    expect(el.textContent).toBe('21')
+    document.querySelector('.c').click() // all stop
+    await tick()
+    expect(observers.map(o => o.off)).toEqual([true, true])
+  })
+})
