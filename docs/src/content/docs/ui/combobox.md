@@ -68,13 +68,13 @@ Search.model = {
 | `defaultValue` | | The start value when `value` is left out |
 | `placeholder` | | The input's placeholder |
 | `filter` | contains | A function `(item, text) => boolean`, or `false` |
-| `allowCustomValue` | `false` | Keep text that matches no item when the input loses focus |
+| `allowCustomValue` | `false` | Keep text that matches no item when the input loses focus. With `name` (single), that text is what the form submits; text equal to an item's label submits the item's value |
 | `openOnClick` | `false` | Open the list when the input is clicked |
 | `inputBehavior` | `'none'` | `'autohighlight'` highlights the first match; `'autocomplete'` also completes the text |
 | `selectionBehavior` | `'replace'` | What the input shows after a pick: `'replace'` (the label), `'clear'`, or `'preserve'` (the typed text). With `multiple`: `'clear'` |
 | `closeOnSelect` | `true` | With `multiple`: `false` |
 | `loopFocus` | `true` | The arrow keys wrap |
-| `name` | | The form field: hidden inputs submit the value (one per value with `multiple`), not the label the input shows |
+| `name` | | The form field: hidden inputs submit the value (one per value with `multiple`), not the label the input shows. `form` (a form's id) goes on those hidden inputs |
 | `multiple`, `form`, `disabled`, `readOnly`, `required`, `invalid`, `positioning`, `open` | | As in Zag's combobox |
 
 ## Events and commands
