@@ -5,6 +5,8 @@
  * Handles sub-components, Collections, Suspense boundaries, and Portals.
  */
 import {uidPart, vtStyle} from '../shared'
+import {sortFn} from '../core/hosts/collection'
+import {keyOf} from '../core/cell'
 
 // Void elements that must not have closing tags
 const VOID_ELEMENTS = new Set([
@@ -513,23 +515,72 @@ function renderSubComponent(vnode: any, context: Record<string, any>, parentStat
   return processSSRTree(result, childContext, childState, uid, 'r')
 }
 
+/** the Collection's own props (core/hosts/collection.ts OWN): the others go to every item */
+const COLLECTION_OWN = new Set(['of', 'from', 'filter', 'sort', 'idfield', 'className', 'viewTransitionName'])
+/** the VirtualCollection container's props (extra/virtual.ts OWN) */
+const VIRTUAL_OWN = /^(estimateSize|overscan|role|tabIndex|style|id|aria-(label|labelledby|describedby))$/
+
 /**
- * Render a Collection by iterating over the state array.
+ * PLAN-5 2-S G-396: the items a Collection shows, as the client's host lists them
+ * (core/hosts/collection.ts arrayCell + list()): `from` a state key (missing or not an array:
+ * none, D178), a `{ get }` lens, or none (the owner's state is the array, or its `value`); then
+ * `filter` (item, index, array) and `sort` (every form sortFn takes); a duplicate key once (D177).
+ * Each entry: [the item, its raw index]
  */
-function renderCollection(vnode: any, context: Record<string, any>, parentState: any, uid: string): any {
+function collectionItems(props: any, parentState: any): any[][] {
+  const {from, filter, sort} = props
+  let a: any
+  if (from === undefined) a = !Array.isArray(parentState) && Array.isArray(parentState?.value) ? parentState.value : parentState
+  else if (typeof from === 'string') a = parentState?.[from]
+  else if (from && typeof from === 'object' && typeof from.get === 'function') {
+    try { a = from.get(parentState) } catch (_) { a = undefined }
+  }
+  if (!Array.isArray(a)) return []
+  let idx: number[] = a.map((_: any, i: number) => i)
+  try {
+    if (typeof filter === 'function') idx = idx.filter((i) => filter(a[i], i, a))
+    const cmp = sort ? sortFn(sort) : undefined
+    if (cmp) idx.sort((x, y) => cmp(a[x], a[y]))
+  } catch (_) { /* as the client: a throwing filter / sort renders the array as it is */ }
+  const first = new Map<string, number>(), out: any[][] = []
+  for (let i = 0; i < a.length; i++) { const k = keyOf(a[i], i); if (!first.has(k)) first.set(k, i) }
+  for (const i of idx) if (first.get(keyOf(a[i], i)) === i) out.push([a[i], i])
+  return out
+}
+
+/** a component's children split into slots (as renderSubComponent: `<Slot name>` children by name, the rest `default`) */
+function slotsOf(children: any[]): Record<string, any[]> {
+  const slots: Record<string, any[]> = {}
+  for (const child of children) {
+    const name = child && child.sel === 'slot' ? child.data?.props?.name || 'default' : 'default'
+    ;(slots[name] ||= []).push(...(child && child.sel === 'slot' ? child.children || [] : [child]))
+  }
+  return slots
+}
+
+/**
+ * Render a Collection: its items (collectionItems: from, filter, sort), each with the other
+ * props and the Collection's children, as the client's host gives them (G-396). `limit`: only
+ * the first that many (a VirtualCollection's window); `skip`: props that aren't the items'.
+ */
+function renderCollection(vnode: any, context: Record<string, any>, parentState: any, uid: string, limit?: number, skip?: RegExp): any {
   const props = vnode.data?.props || {}
-  const {of: itemComponent, from, className, viewTransitionName: vtn} = props
+  const {of: itemComponent, className, viewTransitionName: vtn} = props
 
-  if (!itemComponent || !from || !parentState) {
+  if (!itemComponent || typeof itemComponent !== 'function') {
     return {sel: 'div', data: {}, children: [], text: undefined, elm: undefined, key: undefined}
   }
 
-  const items = parentState[from]
-  if (!Array.isArray(items)) {
-    return {sel: 'div', data: {}, children: [], text: undefined, elm: undefined, key: undefined}
-  }
+  let items = collectionItems(props, parentState)
+  const count = items.length
+  if (limit !== undefined) items = items.slice(0, limit)
+  const itemProps: Record<string, any> = {}
+  for (const k in props) if (!COLLECTION_OWN.has(k) && !(skip && skip.test(k)) && k !== 'key' && k !== 'children') itemProps[k] = props[k]
+  const kids = vnode.children || []
+  const slots = slotsOf(kids)
 
-  const renderedItems = items.map((itemState: any, index: number) => {
+  const renderedItems = items.map(([raw, index]: any[]) => {
+    let itemState = raw
     // GS-9: the key the client's Collection gives this item
     const isItemObj = itemState && typeof itemState === 'object' && !Array.isArray(itemState)
     // PLAN-4.6 G-322: an id-less item's uid part is `_i<index>` (core/cell.ts keyName)
@@ -551,9 +602,10 @@ function renderCollection(vnode: any, context: Record<string, any>, parentState:
     let itemVnode: any
     try {
       itemVnode = itemComponent({
+        ...itemProps,
         state: itemState,
-        children: [],
-        slots: {},
+        children: slots.default || kids,
+        slots,
         context: itemContext,
         uid: makeUid(itemUid),
       })
@@ -586,13 +638,15 @@ function renderCollection(vnode: any, context: Record<string, any>, parentState:
 /**
  * PLAN-5 V-1: a VirtualCollection on the server: the client's markup (extra/virtual.ts) for the
  * window it computes without layout, the first 10 rows + overscan, with the spacer as tall as
- * every row's estimate. The client measures and moves the window once it has layout.
+ * every row's estimate. The client measures and moves the window once it has layout. G-396: the
+ * rows are the Collection's (from, filter, sort, the other props and the children to every
+ * item); aria-setsize and the spacer count the filtered list.
  */
 function renderVirtual(vnode: any, context: Record<string, any>, parentState: any, uid: string): any {
   const p = vnode.data?.props || {}, est = p.estimateSize, size = est > 0 ? est : 32
-  const items = p.from && parentState && Array.isArray(parentState[p.from]) ? parentState[p.from] : []
-  const n = Math.min(items.length, 10 + (p.overscan >= 0 ? p.overscan : 5))
-  const first = renderCollection({data: {props: {of: p.of, from: 'v'}}}, context, {v: items.slice(0, n)}, uid)
+  const n = 10 + (p.overscan >= 0 ? p.overscan : 5)
+  const first = renderCollection(vnode, context, parentState, uid, n, VIRTUAL_OWN)
+  const items = typeof p.of === 'function' ? collectionItems(p, parentState) : []
   const role = p.role === undefined ? 'list' : p.role
   const rows = first.children.map((r: any, i: number) => {
     if (!r || !r.sel) return r
@@ -605,7 +659,10 @@ function renderVirtual(vnode: any, context: Record<string, any>, parentState: an
   if (role != null) attrs.role = role
   for (const k of ['id', 'aria-label', 'aria-labelledby', 'aria-describedby']) if (p[k] != null) attrs[k] = p[k]
   let total = 0
-  for (let i = 0; i < items.length; i++) total += typeof est == 'function' ? (est(items[i], i) > 0 ? est(items[i], i) : 32) : size
+  for (let i = 0; i < items.length; i++) {
+    const s = typeof est == 'function' ? est(items[i][0], i) : size
+    total += s > 0 ? s : 32
+  }
   const div = (data: any, children: any[]) => ({sel: 'div', data, children, text: undefined, elm: undefined, key: undefined})
   return div({props: p.className ? {className: p.className} : {}, attrs, style: {overflowY: 'auto', overflowAnchor: 'none', ...p.style}}, [
     div({style: {position: 'relative', width: '100%', height: total + 'px'}}, [
