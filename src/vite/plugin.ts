@@ -534,7 +534,8 @@ const ADAPTER_PEERS: Record<string, string[]> = {
   'ui/select': ['@zag-js/vanilla', '@zag-js/select'],
   'ui/combobox': ['@zag-js/vanilla', '@zag-js/combobox'],
 }
-const ADAPTER_RE = /(?:\bfrom|\bimport)\s*\(?\s*['"]sygnal\/(react|zag|ui\/(?:menu|select|combobox))['"]/g
+// G-440: a dynamic import's specifier may be a template literal without substitutions
+const ADAPTER_RE = /(?:\bfrom|\bimport)\s*\(?\s*(['"`])sygnal\/(react|zag|ui\/(?:menu|select|combobox))\1/g
 const ADAPTER_ID = /^sygnal\/(react|zag|ui\/(?:menu|select|combobox))$/
 
 /**
@@ -557,7 +558,9 @@ function adapterImports(ctx: any, code: string, id: string): string[] | null {
       if (!n || typeof n != 'object') return
       if (Array.isArray(n)) return n.forEach(walk)
       if (/^(Import|Export(Named|All))Declaration$|^ImportExpression$/.test(n.type)) {
-        const m = ADAPTER_ID.exec(n.source?.value ?? '')
+        // G-440: import(`sygnal/zag`): a template literal without substitutions is a known specifier
+        const src = n.source, q = src?.type == 'TemplateLiteral' && !src.expressions?.length ? src.quasis?.[0]?.value?.cooked : src?.value
+        const m = ADAPTER_ID.exec(q ?? '')
         if (m) found.add(m[1])
       }
       for (const k in n) if (k != 'type' && typeof n[k] == 'object') walk(n[k])
@@ -567,7 +570,7 @@ function adapterImports(ctx: any, code: string, id: string): string[] | null {
     // strings and templates blanked too: a keyword there is text, not an import
     const noStrings = blankOut(code, true)
     for (const m of noComments.matchAll(ADAPTER_RE)) {
-      if (noStrings.startsWith(m[0].slice(0, m[0][0] == 'f' ? 4 : 6), m.index!)) found.add(m[1])
+      if (noStrings.startsWith(m[0].slice(0, m[0][0] == 'f' ? 4 : 6), m.index!)) found.add(m[2])
     }
   }
   return found.size ? [...found] : null

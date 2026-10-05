@@ -1392,7 +1392,20 @@ function fakeElementMethods(W: any): () => void {
   // ResizeObserver (positioning), CSS.escape (selectors) and scrollTo (the highlighted option)
   add(W.Element?.prototype, 'scrollTo', function () {});
   const RO = class { observe() {} unobserve() {} disconnect() {} };
-  const esc = (s: any) => String(s).replace(/[^\w-]/g, (c) => '\\' + c);
+  // G-440: CSSOM's serialize-an-identifier (a leading digit, or '-' + digit, is hex-escaped)
+  const esc = (v: any) => {
+    const s = String(v);
+    let out = '';
+    for (let i = 0; i < s.length; i++) {
+      const c = s.charCodeAt(i), ch = s[i], hex = '\\' + c.toString(16) + ' ';
+      out += !c ? '\uFFFD'
+        : c < 32 || c == 127 || (c > 47 && c < 58 && (!i || i == 1 && s[0] == '-')) ? hex
+        : !i && ch == '-' && s.length == 1 ? '\\-'
+        : c > 127 || /[\w-]/.test(ch) ? ch
+        : '\\' + ch;
+    }
+    return out;
+  };
   // (a global the environment declares as undefined counts as missing)
   const set = (g: any, name: string, v: any) => {
     if (g[name]) return;
