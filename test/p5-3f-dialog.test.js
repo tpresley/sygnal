@@ -9,8 +9,14 @@ import { dialog } from '../src/ui.ts'
 import run from '../src/extra/run.js'
 import { setupChecks, diagnostics, settle } from './diagnostics/helpers.js'
 
+// G-459: the fakes are installed by each test and the originals put back (an `||=` kept the
+// first test's synchronous close for the rest: order-dependent)
+const P = HTMLDialogElement.prototype
+const own = { showModal: Object.getOwnPropertyDescriptor(P, 'showModal'), close: Object.getOwnPropertyDescriptor(P, 'close') }
+const restore = () => { for (const k in own) own[k] ? Object.defineProperty(P, k, own[k]) : delete P[k] }
+
 let t
-afterEach(() => { try { t?.dispose() } catch (_) {} t = null; document.body.innerHTML = '' })
+afterEach(() => { try { t?.dispose() } catch (_) {} t = null; document.body.innerHTML = ''; restore() })
 
 function strict(cancelable) {
   function Strict({ state }) {
@@ -27,8 +33,8 @@ function strict(cancelable) {
 
 describe('G-429: CANCEL with cancelable: false', () => {
   it('real DOM: an Escape keydown in the dialog runs CANCEL (not one in a nested dialog); closedby goes on close', async () => {
-    HTMLDialogElement.prototype.showModal ||= function () { this.open = true }
-    HTMLDialogElement.prototype.close ||= function () { this.open = false; this.dispatchEvent(new Event('close')) }
+    P.showModal = function () { this.open = true }
+    P.close = function () { this.open = false; this.dispatchEvent(new Event('close')) }
     t = renderComponent(strict(false), { dom: 'real' })
     await t.ready()
     t.query('.open').click()
@@ -79,9 +85,9 @@ describe('G-430: returnFocus with a dialog rendered only while open', () => {
   afterEach(() => { app?.dispose(); app = null })
   const start = async () => {
     setupChecks()
-    HTMLDialogElement.prototype.showModal ||= function () { this.open = true }
+    P.showModal = function () { this.open = true }
     // as browsers: open goes false at once, the close event is a task later
-    HTMLDialogElement.prototype.close ||= function () { this.open = false; setTimeout(() => this.dispatchEvent(new Event('close'))) }
+    P.close = function () { this.open = false; setTimeout(() => this.dispatchEvent(new Event('close'))) }
     document.body.innerHTML = '<div id="root"></div>'
     app = run(Transient, {}, { mountPoint: '#root', diagnostics: 'collect' })
     await settle(60)

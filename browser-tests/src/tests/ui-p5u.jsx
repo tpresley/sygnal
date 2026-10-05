@@ -902,6 +902,32 @@ export async function uiTestsP5U() {
   }, 9000)
 
   // ── PLAN-5 3-I ───────────────────────────────────────────────────────
+  // G-459: G-430 with an opener that is not the trigger's first match (the CLOSED fallback
+  // focuses that one): the second trigger opened it and gets the focus back
+  function Twice({ state }) {
+    return (
+      <div>
+        <button className="t2-open first">Open one</button>
+        <button className="t2-open second">Open two</button>
+        {state.t.open && <dialog className="transient2" aria-label="Transient"><button className="t2-done">Done</button></dialog>}
+      </div>
+    )
+  }
+  Twice.uses = { t: dialog({ dialog: '.transient2', trigger: '.t2-open', close: '.t2-done' }) }
+
+  await runTest('Dialog (G-459): rendered only while open, opened by the second of two triggers: the focus returns to that one', async () => {
+    const { id, app, $ } = await mount(Twice)
+    try {
+      await window.__pw('click', `${id} .second`)
+      await until(() => $('.transient2')?.open, 'open')
+      await window.__pw('click', `${id} .t2-done`)
+      await until(() => !$('.transient2'), 'removed')
+      await until(() => document.activeElement === $('.second'), () => `focus on ${activeName()}`)
+      await wait(60)
+      assert(document.activeElement === $('.second'), `focus moved on to ${activeName()}`)
+    } finally { app.dispose() }
+  })
+
   // G-457: cancelable: false: an Escape a Zag combobox inside handles (it closes its list and
   // prevents the keydown) runs no CANCEL; the next one, with the list closed, on a button does
   function Picker({ state }) {

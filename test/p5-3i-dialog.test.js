@@ -100,6 +100,63 @@ describe('G-457: CANCEL with cancelable: false', () => {
   })
 })
 
+describe('G-459 (G-430): returnFocus to an opener that is not the trigger the fallback finds', () => {
+  // two triggers with the trigger's class: the CLOSED fallback (focus the trigger) finds the
+  // first one; the second opened it
+  function Two({ state }) {
+    return h('div', null,
+      h('button', { className: 't-open first' }, 'Open 1'),
+      h('button', { className: 't-open second' }, 'Open 2'),
+      h('button', { className: 'other' }, 'Other'),
+      state.t.open ? h('dialog', { className: 'transient' }, h('button', { className: 't-done' }, 'Done')) : null)
+  }
+  Two.uses = { t: dialog({ dialog: '.transient', trigger: '.t-open', close: '.t-done' }) }
+  const $ = (s) => document.querySelector(s)
+  const start = async () => {
+    setupChecks()
+    document.body.innerHTML = '<div id="root"></div>'
+    app = run(Two, {}, { mountPoint: '#root', diagnostics: 'collect' })
+    await settle(60)
+  }
+
+  it('the close event a task after close(): the second trigger (the opener) gets the focus back', async () => {
+    await start()
+    $('.second').focus()
+    $('.second').click()
+    await settle(60)
+    expect($('.transient').open).toBe(true)
+    $('.t-done').focus()
+    $('.t-done').click()
+    // the focus was in the dialog that closed: lost (as WebKit after a mouse click)
+    $('.t-done').blur()
+    await settle(200)
+    expect($('.transient')).toBe(null)
+    expect(document.activeElement).toBe($('.second'))
+  })
+
+  it('a synchronous close event: the same', async () => {
+    fakes({ sync: true })
+    await start()
+    $('.second').click()
+    await settle(60)
+    $('.t-done').focus()
+    $('.t-done').click()
+    $('.t-done')?.blur()
+    await settle(200)
+    expect(document.activeElement).toBe($('.second'))
+  })
+
+  it('the focus somewhere else already: left there', async () => {
+    await start()
+    $('.second').click()
+    await settle(60)
+    $('.t-done').click()
+    $('.other').focus()
+    await settle(200)
+    expect(document.activeElement).toBe($('.other'))
+  })
+})
+
 describe('G-461: OPEN when showModal() throws', () => {
   // (the state shows `open`, so OPEN patches and its command runs in the microtask after it)
   function Host({ state }) {
