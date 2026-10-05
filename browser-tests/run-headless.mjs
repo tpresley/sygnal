@@ -77,7 +77,8 @@ async function run() {
   let browser;
   try {
     browser = await playwright[ENGINE].launch({ headless: true });
-    const page = await browser.newPage();
+    // (a context of its own: browser.newPage()'s can't open the second page __pwBrowser('otherTab') needs)
+    const page = await (await browser.newContext()).newPage();
 
     // Console errors: expected ones (EXPECTED_CONSOLE_ERRORS) are counted,
     // anything else fails the run.
@@ -134,6 +135,32 @@ async function run() {
           await cdp.send('Input.dispatchTouchEvent', { type: op, touchPoints: op === 'touchEnd' ? [] : [{ x: a, y: b }] });
         } else throw new Error(`__pwInput: unknown step '${op}'`);
       }
+    });
+
+    // PLAN-5 2-B: the browser context's state for the browser-source tests:
+    // ['offline', bool] (setOffline), ['grant', [permission...]] (grantPermissions for the page's
+    // origin; resolves to '' or the engine's refusal), ['clearPermissions'], ['emulateMedia',
+    // { colorScheme }] (page.emulateMedia), ['geolocation',
+    // { latitude, longitude, accuracy? }] (setGeolocation), ['otherTab', key, value] (a second page
+    // of the same origin writes localStorage, null removes; the test page gets the `storage` event),
+    // ['engine'] (the engine's name)
+    await page.exposeFunction('__pwBrowser', async (op, a, b) => {
+      const ctx = page.context();
+      if (op === 'engine') return ENGINE;
+      if (op === 'offline') return void await ctx.setOffline(!!a);
+      if (op === 'grant') return ctx.grantPermissions(a, { origin: new URL(url).origin }).then(() => '', e => e.message.split('\n')[0]);
+      if (op === 'clearPermissions') return void await ctx.clearPermissions();
+      if (op === 'geolocation') return void await ctx.setGeolocation(a);
+      if (op === 'emulateMedia') return void await page.emulateMedia(a);
+      if (op === 'otherTab') {
+        const other = await ctx.newPage();
+        try {
+          await other.goto(`${url}g095-frame.html`);
+          await other.evaluate(([k, v]) => v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v), [a, b]);
+        } finally { await other.close(); }
+        return;
+      }
+      throw new Error(`__pwBrowser: unknown op '${op}'`);
     });
 
     // D199 (spike 0-S6): BROWSER_TESTS_ONLY=<substring> runs only the suites whose function name
