@@ -29,3 +29,21 @@ describe('G-338: a single-stream intent (removed) fails with a message naming th
     expect(err.message).not.toContain('_prod')
   })
 })
+
+describe('G-339: SYG403 says context entries are functions of state only', () => {
+  it('a state-key string entry (removed) is skipped with the 6.0 fix text', async () => {
+    const errors = []
+    vi.spyOn(console, 'error').mockImplementation((...a) => errors.push(a.map(String).join(' ')))
+    function Leaf({ context }) { return h('i', null, String(context.user)) }
+    function App() { return h('div', null, h(Leaf)) }
+    App.initialState = { currentUser: 'ann' }
+    App.context = { user: 'currentUser' }
+    t = renderComponent(App)
+    await t.ready()
+    const msg = errors.find(e => e.includes('SYG403'))
+    expect(msg).toBeTruthy()
+    expect(msg).toContain('functions of state only')
+    expect(msg).toContain('migrating-to-6#leftovers')
+    expect(msg).not.toContain('state key')
+  })
+})
