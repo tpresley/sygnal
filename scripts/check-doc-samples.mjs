@@ -126,6 +126,8 @@ for (const s of samples) {
     // comments ("// Flagged: …") show non-canonical code on purpose
     if (/\/\/\s*docs-check:\s*allow/.test(line) || /^\s*(\/\/|\*|\/\*)/.test(line)) return
     for (const [code, re, label] of PATTERNS) {
+      // a widget's mount(el, props, emit) parameter is not the removed emit() helper (PLAN-5 W-1)
+      if (label === 'emit() helper' && /\bdefineWidget\(/.test(s.code)) continue
       if (re.test(line)) patternHits.push({ id: s.id, line: n + 1, code, label, text: line.trim() })
     }
   })

@@ -53,6 +53,9 @@ export class DocumentDOMSource {
     options?: EventsFnOptions,
     bubbles?: boolean
   ): EnrichedEventStream<DocumentEventMap[K]>;
+  // PLAN-5 0-S6: any other name (a custom element's 'wa-hover', a widget's or element's
+  // CustomEvent): the overload above only typed the built-in names (types only)
+  public events(eventType: string, options?: EventsFnOptions, bubbles?: boolean): EnrichedEventStream<Event>;
   public events(
     eventType: string,
     options: EventsFnOptions = {},

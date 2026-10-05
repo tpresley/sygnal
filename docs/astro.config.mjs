@@ -59,6 +59,8 @@ export default defineConfig({
             { label: 'Forms & Focus', slug: 'guide/forms' },
             { label: 'Element Commands', slug: 'guide/element-commands' },
             { label: 'Controls', slug: 'guide/controls' },
+            { label: 'Widgets', slug: 'guide/widgets' },
+            { label: 'Web Components', slug: 'guide/web-components' },
             { label: 'Accessibility', slug: 'guide/accessibility' },
             { label: 'Drag and Drop', slug: 'guide/drag-and-drop' },
             { label: 'View Transitions', slug: 'guide/view-transitions' },

@@ -635,6 +635,7 @@ The timing options (and a timeout passed to `next()`, `waitForState()` or `settl
 | `dispose` | `() => void` | Tear down the tree (fires `DISPOSE`) and restore the diagnostics settings |
 | `query`, `queryAll` | `(selector) => Element \| null`, `Element[]` | Elements of the latest render: snapshots on the mock DOM ([Reading Output](#reading-output)), real elements with `dom: 'real'` |
 | `container` | `Element \| null` | `dom: 'real'`: the mount element (`null` with the mock DOM) |
+| `widget` | `(selector \| control) => { props, instance, emit }` | A [widget's](/guide/widgets/#testing) host: the props the view passed it, the instance `mount` returned (`dom: 'real'`), and `emit(name, detail)` |
 
 ## Mock DOM Streams
 

@@ -34,7 +34,9 @@ const KNOWN = new Set((
 ).split(' '))
 
 const isKnown = (name: string): boolean => {
-  if (KNOWN.has(name)) return true
+  // PLAN-5 0-S6: a hyphenated name is a custom element's event (DOM['wa-hover']('.food')): no
+  // standard DOM event has a hyphen, and a bracketed name is no typo for one
+  if (KNOWN.has(name) || name.includes('-')) return true
   const on = 'on' + name
   const g: any = globalThis
   try {
