@@ -6,7 +6,7 @@ Tracks progress for [PLAN-4.6.md](PLAN-4.6.md) (component core rewrite). The coo
 
 **Integration branch:** `plan46-integration`, cut from `plan45-complete` (`d900c522`) on 2026-10-04, with `claude/component-core-rewrite-experiment` (the study) merged (`45eefb2`). Worktree `.claude/worktrees/plan-4-execution-7ae8e8`. The release stays held (D56).
 
-**State:** R0, R1, R2 merged. R3 running (incl. R2 review fixes G-306…G-317).
+**State:** R0–R3 merged. R4 running; review of R3 running.
 
 ## Phases
 
@@ -16,14 +16,16 @@ Tracks progress for [PLAN-4.6.md](PLAN-4.6.md) (component core rewrite). The coo
 | R0 | Decisions, hooks contract, parity/reentrancy/race tests | ✅ merged | `p46-r0` (`f48a112`) | 2026-10-04 | `src/core/hooks.ts` + 04-hooks-contract (13 consumers mapped); `test/parity/` 74 tests (53 pass + 21 expected-fail on current); 06 inventory (41 port, 17 delete at R5, 9 current-only); G-290 fixed (−2 B); 05 migration draft |
 | R1 | Runtime core (both cores selectable) | ✅ merged | `p46-r1` (`4d91475`) | 2026-10-04 | `src/core/` ≈1,600 lines (9.6 KB gz alone); `test:next` in `npm test` (148 pass, 45 skipped for R2–R4); parity on next 31 pass; 6 of 9 examples pass on next (the rest need R2). Tags page: mount 2.0×, update-1 2.4×, unmount 2.3× faster; 1 stream per component. Size gate fails as planned (both cores: 49,289 B) → D175 |
 | R2 | Hosts and markers (+ D174, D175, D166 test rewrite) | ✅ merged | `p46-r2` (`62cfaec`) | 2026-10-04 | Collection/Switchable hosts, marker registry (Portal, Transition, ClientOnly, Lazy, Suspense), D174 `resetState`, D175 strip (size 41,474 B), R1 review fixes. Next core: parity 64 pass / 15 skip; test:next 318; all 9 examples; browser 155/186 (rest R3–R5). Collection create 1.8×, replace 2.8×, select 2.2×, remove 10×, mount 2.2× faster; streams/item 1–2 |
-| R3 | Extensions (statics, replies, commands, behaviors) | 🟡 running | `p46-r3` | | |
-| R4 | Tooling and integrations | ⬜ | | | |
+| R3 | Extensions (statics, replies, commands, behaviors) | ✅ merged | `p46-r3` (`b0613ee`) | 2026-10-04 | Statics (generic path, G-158 buffering), replies, fetch/socket `isolateValue`, commands/ELEMENT/controls, `resources`/`uses` at definition time, persist via a root shim, View Transitions; R2 review fixes. Next: parity 78 pass / 4 skip (R4/R5); test:next 720; browser 175/186 (rest R4/R5). Timers page create 52 → 32 ms, persist create 45 → 25 ms; fetch rows 28 → 2 streams, 1,006 → 2 timeouts; fetch replies: 1,001 patches vs 97 → R4 (D180). Size 41,453 B |
+| R4 | Tooling and integrations | 🟡 running | `p46-r4` | | |
 | R5 | Cut-over, delete old core, gates, eval | ⬜ | | | |
 
 ## Decisions
 
 | ID | Date | Decision | By |
 |---|---|---|---|
+| D181 | 2026-10-04 | SYG401's explanation text (sygnal-check `explanations.js:339`) is reworded for D178 at R5 with the other docs | Coordinator |
+| D180 | 2026-10-04 | Replies resolving in separate microtasks get one flush/patch each on next (fetch page: 1,001 patches vs 97 on current; latency still better, 249 vs 272 ms). R4's perf pass measures bounded coalescing (e.g. wait an extra microtask hop while commits keep arriving, no timers) on the fetch page, keystroke and leaf update, and keeps it only if latency doesn't regress. Internal; no API | Coordinator |
 | D179 | 2026-10-04 | D174's seed-only-while-undefined rule and `resetState` apply to lens bindings as well as `state="key"` (same "no silent overwrite" intent) | Coordinator |
 | D178 | 2026-10-04 | A Collection whose `from` key is missing at creation renders once the key appears (today: SYG401 and nothing for its life, `src/component.ts:1432`); SYG401 still warns; its text becomes "renders nothing until it exists". CHANGELOG fix | Coordinator |
 | D177 | 2026-10-04 | Duplicate Collection ids: only the first item renders, with the D169 dev warning (today one instance's vnode is placed twice, which snabbdom can't patch correctly). CHANGELOG | Coordinator |
@@ -64,22 +66,23 @@ Tracks progress for [PLAN-4.6.md](PLAN-4.6.md) (component core rewrite). The coo
 | G-303 | review R1 | Low | core/runtime | Driver errors skip `hooks.onError` | Fixed (R2) |
 | G-304 | review R1 | Low | core (efficiency) | Per-render allocations (isolate key, context Proxy, handler props), O(watchers) notify per action, full-tree flush walk | Partly (R2: isolate-key cache reverted, no gain; rest → R4 perf pass) |
 | G-305 | review R1 | Low | mock DOM | Scope check matches by prefix (`s1` vs `s14`) | Fixed (R2) |
-| G-306 | review R2 | High | core/cell | Id-less Collection item gets a made-up `id` written back; after a removal it collides with a sibling's index key and one item disappears (regression). Confirmed | → R3 |
-| G-307 | review R2 | Med | core/cell | `id: 0` treated as no id; ids and indices share a key space; `'1'`/`1` same uid. Confirmed | → R3 |
-| G-308 | review R2 | Med | core/collection | D178 not implemented (missing `from` never renders). Confirmed | → R3 |
-| G-309 | review R2 | Med | core/instance | SEED re-check missing at drain: a parent action queued before it is overwritten (D174/D179). Confirmed | → R3 |
-| G-310 | review R2 | Med | core/lazy | A failed lazy import stays "loading" forever (regression). Confirmed | → R3 |
-| G-311 | review R2 | Med/Low | core/runtime | Flush catch leaves partial bookkeeping (stale siblings, stale Collection, undrained queue) | → R3 |
-| G-312 | review R2 | Low/Med | core/runtime | Layered `transformDef`/`wrapSources`/`wrapHandler` lose lower layers when an upper returns void. Confirmed | → R3 |
-| G-313 | review R2 | Low | core/runtime | `early` flag never cleared after a throwing first flush | → R3 |
-| G-314 | review R2 | Low | core/cell | Lens-bound isolated child has no `initialState` default (D179 parity with key binding). Confirmed | → R3 |
-| G-315 | review R2 | Low | build | Two top-level `xs.create()` calls survive the D175 strip | → R3 |
-| G-316 | review R2 | Low | core/portal | Late-target Portal retry can double-mount or leak (inherited) | → R3 |
-| G-317 | review R2 | Low | core/hosts | `lazy()` as a Collection `of` or Switchable page never resolves (same as today; coordinator: fix on next) | → R3 |
+| G-306 | review R2 | High | core/cell | Id-less Collection item gets a made-up `id` written back; after a removal it collides with a sibling's index key and one item disappears (regression). Confirmed | Fixed (R3) |
+| G-307 | review R2 | Med | core/cell | `id: 0` treated as no id; ids and indices share a key space; `'1'`/`1` same uid. Confirmed | Fixed (R3) |
+| G-308 | review R2 | Med | core/collection | D178 not implemented (missing `from` never renders). Confirmed | Fixed (R3) |
+| G-309 | review R2 | Med | core/instance | SEED re-check missing at drain: a parent action queued before it is overwritten (D174/D179). Confirmed | Fixed (R3) |
+| G-310 | review R2 | Med | core/lazy | A failed lazy import stays "loading" forever (regression). Confirmed | Fixed (R3) |
+| G-311 | review R2 | Med/Low | core/runtime | Flush catch leaves partial bookkeeping (stale siblings, stale Collection, undrained queue) | Fixed (R3) |
+| G-312 | review R2 | Low/Med | core/runtime | Layered `transformDef`/`wrapSources`/`wrapHandler` lose lower layers when an upper returns void. Confirmed | Fixed (R3) |
+| G-313 | review R2 | Low | core/runtime | `early` flag never cleared after a throwing first flush | Fixed (R3) |
+| G-314 | review R2 | Low | core/cell | Lens-bound isolated child has no `initialState` default (D179 parity with key binding). Confirmed | Fixed (R3) |
+| G-315 | review R2 | Low | build | Two top-level `xs.create()` calls survive the D175 strip | Fixed (R3) |
+| G-316 | review R2 | Low | core/portal | Late-target Portal retry can double-mount or leak (inherited) | Fixed (R3) |
+| G-317 | review R2 | Low | core/hosts | `lazy()` as a Collection `of` or Switchable page never resolves (same as today; coordinator: fix on next) | Fixed (R3) |
 | G-291 | 0-S | Low | Collection | Id-less items under filter/sort are keyed by filtered/sorted index (likely a latent bug) | → Q23 |
 
 ## Log
 
+- 2026-10-04 — R3 merged (`b0613ee`); all gates green (41,453 B); browser on next 175/186. D180, D181. R4 and a review of R3 started.
 - 2026-10-04 — Review of R2: 12 findings (G-306…G-317, 2 regressions), sent to R3.
 - 2026-10-04 — R2 merged (`62cfaec`); all gates green (size 41,474 B). D177–D179. R3 and a review of R2 started.
 - 2026-10-04 — Review of R1: 12 findings (G-294…G-305), sent to R2.
