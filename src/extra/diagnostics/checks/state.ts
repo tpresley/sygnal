@@ -67,25 +67,7 @@ export function watchMutation(component: any, action: string, fn: any): any {
 export const stateCheck: DiagnosticCheck = {
   id: 'state',
 
-  // SYG222: onIntent runs before initModel$ reads `component.model`
-  onIntent(component) {
-    // (the core: checks/next.ts wraps the reducers through wrapHandler)
-    if (component?.__next) return
-    const model = component?.model
-    if (!isPlainObject(model)) return
-    const S = component.stateSourceName || 'STATE'
-    const out: Record<string, any> = {}
-    for (const key of Object.keys(model)) {
-      const entry = model[key]
-      const bar = key.indexOf('|')
-      out[key] = bar >= 0
-        ? (key.slice(bar + 1).trim() === S ? watchMutation(component, key.slice(0, bar).trim(), entry) : entry)
-        : typeof entry === 'function'
-          ? watchMutation(component, key, entry)
-          : isPlainObject(entry) && typeof entry[S] === 'function' ? {...entry, [S]: watchMutation(component, key, entry[S])} : entry
-    }
-    component.model = out
-  },
+  // SYG222: checks/next.ts wraps the STATE reducers (watchMutation) through wrapHandler
 
   onReducer(component, action, prevState, nextState) {
     if (typeof action !== 'string' || action.startsWith('__') || SKIP.has(action)) return

@@ -188,11 +188,11 @@ describe('t.inspect() (renderComponent)', () => {
 describe('inspect() / getDevTools().inspect', () => {
   // (Switchable can't be rendered by renderComponent's mock DOM yet, so the kind
   // detection is checked on component-shaped objects.)
-  it('derives the kind from the sources the core builds', () => {
-    const parent = { _componentNumber: 90001, name: 'Host', sources: {}, stateSourceName: 'STATE' }
-    const STATE = {}
-    const mk = (n, name, extra) => ({ _componentNumber: n, name, stateSourceName: 'STATE', sources: { __parentComponentNumber: 90001, STATE, ...extra } })
-    const comps = [parent, mk(90002, 'Tagged', {}), mk(90003, 'Row', { PARENT: null }), mk(90004, 'Tab', { state: {} })]
+  // R5: the kind comes from the core's instance view (checks/next.ts's facade: `__next.kind`)
+  it("derives the kind from the core's instance view", () => {
+    const mk = (n, name, kind, parentId) => ({ _componentNumber: n, name, stateSourceName: 'STATE', sources: {}, __next: { kind, parentId } })
+    const parent = mk(90001, 'Host', 'root', undefined)
+    const comps = [parent, mk(90002, 'Tagged', 'child', 90001), mk(90003, 'Row', 'item', 90001), mk(90004, 'Tab', 'page', 90001)]
     for (const c of comps) { inspectCheck.onIntent(c, []); inspectCheck.onModel(c, {}) }
     try {
       const g = inspect({ ids: [90001, 90002, 90003, 90004], diagnostics: [] })

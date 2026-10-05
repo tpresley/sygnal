@@ -9,7 +9,7 @@ npm run build          # Rollup → dist/ (16 inputs: core UMD/CJS/ESM, JSX runt
                        #   sygnal/devtools, sygnal/element, sygnal/vite, Astro, Vike) + bundled .d.ts
 npm run build:all      # same as build (kept for prepublishOnly)
 npm test               # the full gate, in order:
-                       #   vitest run          library tests in test/ (2,600; test/parity/: the core's behaviour contract)
+                       #   vitest run          library tests in test/ (2,583; test/parity/: the core's behaviour contract)
                        #   test:examples       each example's own suite (9 examples, 105 tests)
                        #   test:types          tsc on type-tests/
                        #   test:browser        browser-tests/ (184)
@@ -20,7 +20,7 @@ npm run test:examples  # only the example suites (TEST_EXAMPLES_INSTALL=1 or --i
 node scripts/perf-gate.mjs --runs=3  # the count gate alone, 3 runs with min … max per metric
 node scripts/perf-report.mjs         # timing ratios to React vs the timing targets (warn-only, ~1.5 min, not in npm test);
                                      #   harness: benchmarks/audit (see benchmarks/README.md)
-npm --prefix sygnal-check test       # static checker package (496 tests, *.vtest.js)
+npm --prefix sygnal-check test       # static checker package (492 tests, *.vtest.js)
 npm --prefix docs run build          # docs site + internal link check
 node scripts/gen-error-docs.mjs      # regenerate docs reference/errors.md from sygnal-check/explanations.json
 node scripts/check-doc-samples.mjs   # sygnal-check --strict on every docs code sample (552 checked, 13 skipped by marker)

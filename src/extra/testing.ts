@@ -96,22 +96,22 @@ import {reportElementCommand, checkSentCommand, NATIVE_COMMAND_NAMES} from './di
  * - Sinks named in the model without a driver get a no-op driver so their
  *   output stays observable. sinkValues: EVENTS entries drop the devtools
  *   stamps, PARENT entries are unwrapped from {name, component, value}.
- *   G-064: a descendant's model sink with no driver (not in its sourceNames) is
- *   recorded straight from its model$ (subscribed via the onModel hook, removed
- *   in onDispose); a passed driver puts the name in sourceNames, so it wins.
+ *   G-064: a descendant's model sink with no driver is recorded from the core's onSink
+ *   hook and sent to the fake (its replies subscribed in onCreate, G-324; removed in
+ *   onDispose); a passed driver wins.
  * - G-065: ready() arms a cursor (states.length when the component became
  *   ready, or at the call once ready) that the next next() starts from; any
  *   other t.* call disarms it.
  * - G-053: timing options eventWaitMs / settleMs / timeoutMs. Model next() calls
- *   are seen by wrapping each tree component's `log` (component.ts logs every
- *   next() with "next() action: <TYPE> Nms delay"); wait timeouts name them.
- * - Input is buffered until 12ms after the first render: root and child
- *   action streams subscribe 1-10ms (BOOTSTRAP) after construction. With no
- *   render within 30ms (e.g. a model but no initialState), the 12ms start then.
- *   dispose() before ready leaves the buffered calls undelivered.
+ *   are seen through the core's onNext hook; wait timeouts name them.
+ * - Input is buffered until 12ms after the first render. With no render within 30ms
+ *   (e.g. a model but no initialState), the 12ms start then. dispose() before ready
+ *   leaves the buffered calls undelivered. D165/D176: an input's reducer runs when it is
+ *   delivered, so a next() in the same tick starts at the state it causes; the cursor
+ *   expires at the next macrotask (G-326).
  * - "Rendered by the whole tree" = the root rendered the state and no render,
  *   reducer, state or input happened anywhere for 10ms (checked twice; capped at
- *   250ms). Child renders are seen through the onRender diagnostics hook.
+ *   250ms). Child renders are seen through the core's onRender hook.
  * - dispose() fires the component's DISPOSE action via sinks.__dispose.
  * - E11: fake timers (vi.useFakeTimers(), Jest's modern timers). The harness's own timers are
  *   faked with the app's, and its time is the clock's (clockNow). ready()/next()/
@@ -126,21 +126,20 @@ import {reportElementCommand, checkSentCommand, NATIVE_COMMAND_NAMES} from './di
  *   event. The pump runs a macrotask after a render (the patch is a microtask after the sink
  *   emits) and each input waits for a QUIET_MS-quiet tree (capped at 100ms).
  * - 4-A1 real-mode waits: the driver's vnode input is gated. Each emitted tree is tagged with
- *   the number of states recorded when a view in the tree last ran (viewTag; renders lag the
- *   state until the next render flush). A wait that matches holds renders of later states, resolves
+ *   the number of states recorded when a view in the tree last ran (viewTag; a render
+ *   follows the state in the next flush, a microtask later). A wait that matches holds renders of later states, resolves
  *   once its state is patched (and the tree is quiet, or a later state arrived), and releases
  *   the held render on the next macrotask, so the code after `await` reads the DOM of the
  *   state it got. The next next() starts after that state (`shown`), so the held states still
  *   match it. ready() resolves after the first patch; query()/queryAll()/html() before the
  *   first render throw (G-125).
- * - PLAN-4 2-C (GS-10) t.actions: ./diagnostics/checks/actionLog patches each instance of this
- *   tree (onIntent: its makeOnAction/makeEffectHandler wrap the reducers; onModel: its action$
- *   and reply streams), so nothing is in the core. simulateAction() marks its injection on the
- *   root (withCause). t.explain() pairs each action whose STATE reducer produced a value with
- *   the next recorded root state.
+ * - PLAN-4 2-C (GS-10) t.actions: ./diagnostics/checks/actionLog's actionHooks, a layer of the
+ *   app's hooks (onAction, wrapHandler), so nothing is in the core. simulateAction() dispatches
+ *   through the runtime API with the cause 'simulateAction'. t.explain() pairs each action whose
+ *   STATE reducer produced a value with the next recorded root state.
  * - SYG103/104: the mock DOM source reports each events() call (selector path,
- *   isolation scopes included as '.___scope'); a diagnostics check's onIntent
- *   maps each component's innermost scope to its name. The nearest '.___'
+ *   isolation scopes included as '.___scope'); the onCreate hook maps each
+ *   component's innermost scope to its name. The nearest '.___'
  *   class on a vnode or its ancestors is the scope that owns it.
  */
 
@@ -1026,7 +1025,6 @@ const fakeStorage = (rec: Record<string, any>) => {
 };
 // a model next() call, seen through the component's debug log (component.ts makeOnAction /
 // makeEffectHandler: "... next() action: <TYPE> 400ms delay")
-const NEXT_LOG = /next\(\) action: <(.*)> (\d+)ms delay$/;
 const RESERVED_SINKS = /^(STATE|EFFECT|PARENT|READY|DOM|ELEMENT)$/;
 // E2: a source name that a driver would provide (fake sources are made only for these)
 const DRIVER_NAME = /^[A-Z][A-Z0-9_]*$/;

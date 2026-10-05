@@ -8,11 +8,9 @@
  *          X.select('cat') / X.errors('cat') where reply actions would do.
  *
  * Mechanism:
- *   onModel  for every sink whose source is reply-capable
- *            (`__sygnalReplies === true`: makeFetchDriver, driverFromAsync, the
- *            socket driver), wraps the component's own model stream for that
- *            sink (component.model$[sink], before initSinks stamps and merges
- *            it) in an identity map that checks each request as it is sent.
+ *   onSink   (checks/next.ts: checkRequest) every value an instance sends to a
+ *            reply-capable sink (`__sygnalReplies === true`: makeFetchDriver,
+ *            driverFromAsync, the socket driver) is checked as it is sent.
  *            The names it sees feed inspect()'s 'reply' trigger.
  *   sources  (strict only) wraps those sources for the intent, recording the
  *            select()/errors() categories the instance reads.
@@ -20,8 +18,8 @@
  * `selector` property is not known at run time; sygnal-check covers it).
  * Reported once per component name and action / category.
  *
- * `{ connections }` values (the `connections` static, which the core sends on
- * the same model stream, or one a model entry sends) are checked the same way:
+ * `{ connections }` values (the `connections` static, which the core sends to
+ * the same sink, or one a model entry sends) are checked the same way:
  * each connection's message / open / close / error and its SSE `events` names.
  */
 import type {DiagnosticCheck} from '../index'
@@ -56,7 +54,6 @@ function replyNames(req: any, router?: boolean): Array<[string, string, string?]
 /** instance → 'SINK\0category' → the select/errors call that read it */
 const selected = new WeakMap<object, Map<string, string>>()
 
-const replying = (component: any, name: string) => component?.sources?.[name]?.__sygnalReplies === true
 
 function readingSource(component: any, sink: string, source: any) {
   const wrapped = Object.create(source)
@@ -127,19 +124,5 @@ export const repliesCheck: DiagnosticCheck = {
         return cache.get(k)
       },
     })
-  },
-
-  onModel(component, modelMap) {
-    const model$ = component?.model$
-    if (!model$ || typeof model$ !== 'object') return
-    const modelActions = Object.keys(modelMap || {})
-    for (const sink of Object.keys(model$)) {
-      const s$ = model$[sink]
-      if (!replying(component, sink) || !s$ || typeof s$.map !== 'function') continue
-      model$[sink] = s$.map((req: any) => {
-        checkRequest(component, sink, req, modelActions)
-        return req
-      })
-    }
   },
 }
