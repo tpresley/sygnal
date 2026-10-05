@@ -15,7 +15,7 @@ const ENTRIES = {
   embla: 'src/embla/Gallery.jsx',
   'tanstack table': 'src/table/People.jsx',
   'ag grid': 'src/aggrid/Stock.jsx',
-  'lucide (3 icons)': 'src/icons/Toolbar.jsx',
+  'lucide (4 icons)': 'src/icons/Toolbar.jsx',
   i18next: 'src/i18n/App.jsx',
 }
 
