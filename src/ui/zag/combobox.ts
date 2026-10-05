@@ -17,8 +17,9 @@
  *
  * Forms (G-411): with `name`, hidden inputs submit the value (one per value when `multiple`);
  * the visible input, which shows the label, has no name. `form` goes on the hidden inputs (G-434).
- * With `allowCustomValue` (single), the typed text is submitted when it isn't the selected item's
- * label (an item's label submits that item's value; G-435).
+ * With `allowCustomValue` (single), the selected value is submitted unless the user typed since
+ * the last selection; then the typed text (an item's exact label submits that item's value; G-435,
+ * G-468).
  *
  * Props: `label`, `items` (strings or { value, label?, disabled? }), `value` (controlled: a
  * string, an array when `multiple`, null for none), `defaultValue`, `placeholder`, `filter`, and
@@ -44,13 +45,15 @@ const setText = (x: any, q: string) => { if (x.q !== q) x.q = q, x.refresh() }
 
 // G-411: forms get the value, not the label the input shows: the visible input has no name; one
 // hidden input per value (a single combobox: one, '' when empty) carries `name`.
-// G-435: a single combobox with `allowCustomValue` submits what the input holds when it isn't the
-// selected item's label: the value of an item whose label it is, else the text itself.
+// G-435 / G-468: a single combobox with `allowCustomValue` submits the selected value unless the
+// user typed since the last selection (`x.t`: set by input-change, cleared by a selection, a value
+// change or a new controlled value); then the value of an item whose label the text is, else the
+// text itself. So `selectionBehavior` 'preserve' / 'clear', items relabelled after a pick and a
+// `defaultValue` before the items load all submit the value.
 const submitted = (api: any, x: any): string => {
   const v = api.value[0] ?? ''
-  if (!x.custom) return v
-  const q = api.inputValue, sel = x.items.find((i: any) => i.value === v)
-  if (sel && sel.label === q) return v
+  if (!x.custom || !x.t) return v
+  const q = api.inputValue
   return x.items.find((i: any) => i.label === q)?.value ?? q
 }
 const hidden = (api: any, p: any, x: any) => {
@@ -80,14 +83,19 @@ export const Combobox: any = /*#__PURE__*/ fromZag(combobox, (api: any, p: any, 
     x.multiple = !!p.multiple
     x.custom = !!p.allowCustomValue
     x.items = norm(items)
+    // G-468: a new controlled value ends the typing
+    const v = arr(value), k = v && JSON.stringify(v)
+    if (k !== x.v) x.v = k, x.t = 0
     return {
       ...p,
       collection: collectionOf(combobox, shown(x.items, filter, x.q || '')),
-      value: arr(value),
+      value: v,
       defaultValue: arr(defaultValue),
       // typing only (not the label a selection writes): the filter text, and input-change
       // G-414: the app's own callbacks (p.onInputValueChange / p.onOpenChange) run first
-      onInputValueChange: (d: any) => { p.onInputValueChange?.(d); if (d.reason == 'input-change') setText(x, d.inputValue), x.dispatch('input-change', d.inputValue) },
+      onInputValueChange: (d: any) => { p.onInputValueChange?.(d); if (d.reason == 'input-change') x.t = 1, setText(x, d.inputValue), x.dispatch('input-change', d.inputValue) },
+      onSelect: (d: any) => { x.t = 0; p.onSelect?.(d) },
+      onValueChange: (d: any) => { x.t = 0; p.onValueChange?.(d) },
       onOpenChange: (d: any) => { p.onOpenChange?.(d); d.open || setText(x, '') },
     }
   },

@@ -16,6 +16,19 @@ Labelled.initialState = { label: 'Snippet' }
 Labelled.intent = ({ DOM }) => ({ FRENCH: DOM.click('.french') })
 Labelled.model = { FRENCH: (state) => ({ ...state, label: 'Extrait' }) }
 
+// no label, and another prop that changes (G-469)
+function Unlabelled({ state }) {
+  return (
+    <section>
+      <CodeEditor className="bare" code="x" n={state.n} />
+      <button type="button" className="bump">+</button>
+    </section>
+  )
+}
+Unlabelled.initialState = { n: 0 }
+Unlabelled.intent = ({ DOM }) => ({ BUMP: DOM.click('.bump') })
+Unlabelled.model = { BUMP: (state) => ({ ...state, n: state.n + 1 }) }
+
 export const tests = {
   async 'CodeMirror: the focus command, typing reaches the state, Reset replaces the document, unmount destroys'() {
     const t = renderComponent(Snippet, { dom: 'real' })
@@ -52,6 +65,23 @@ export const tests = {
     await waitFor(() => t.query('.labelled .cm-content').getAttribute('aria-label') === 'Extrait', 'label updated')
     assert(t.widget('.labelled').instance === view, 'same view')
     equal(view.state.doc.toString(), 'x')
+    t.dispose()
+  },
+
+  async 'CodeMirror: without a label, an update reconfigures nothing (G-469)'() {
+    const t = renderComponent(Unlabelled, { dom: 'real' })
+    await t.ready()
+    await waitFor(() => t.query('.bare .cm-content'), 'editor mounted')
+    const view = t.widget('.bare').instance
+    assert(!t.query('.bare .cm-content').hasAttribute('aria-label'), 'no aria-label')
+    let dispatched = 0
+    const own = view.dispatch
+    view.dispatch = (...a) => { dispatched++; return own.apply(view, a) }
+    await pw('click', '.bump')
+    await t.waitForState((state) => state.n === 1)
+    await t.settle()
+    equal(t.widget('.bare').props.n, 1, 'update ran')
+    equal(dispatched, 0, 'transactions on an update without a label')
     t.dispose()
   },
 }

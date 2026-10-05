@@ -142,7 +142,7 @@ export default Layout
 Layout state persists across client-side page navigations. The Layout and Page each manage their own state slice — they are composed into a single reactive graph via a synthetic wrapper component.
 
 :::note
-During SSR, the Layout receives page content via the `innerHTML` prop for the initial HTML render. On the client, the Layout receives the Page as `children` within the reactive component tree.
+Render the Page where the Layout places `children`, as above: the server puts the Page's HTML there, and on the client the Page is that child in the reactive component tree. (A Layout written for the server only can place the `innerHTML` prop instead; one that renders neither gets the Page after it.)
 :::
 
 ## Head

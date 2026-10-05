@@ -1331,6 +1331,7 @@
  "collection": {
   "children": [],
   "data": {
+   "m": "fn",
    "props": {
     "className": "list",
     "filter": "fn:filt",
@@ -1347,6 +1348,7 @@
  "switchable": {
   "children": [],
   "data": {
+   "m": "fn",
    "props": {
     "current": "a",
     "of": {
@@ -1377,6 +1379,7 @@
    }
   ],
   "data": {
+   "m": "fn",
    "props": {
     "target": "#modal"
    }
@@ -1398,6 +1401,7 @@
    }
   ],
   "data": {
+   "m": "fn",
    "props": {
     "duration": 200,
     "name": "fade"
@@ -1422,6 +1426,7 @@
    }
   ],
   "data": {
+   "m": "fn",
    "props": {
     "fallback": {
      "data": {},
@@ -1447,6 +1452,7 @@
    }
   ],
   "data": {
+   "m": "fn",
    "props": {
     "fallback": "wait"
    }
@@ -1468,6 +1474,7 @@
    }
   ],
   "data": {
+   "m": "fn",
    "props": {
     "fallback": "ssr"
    }
@@ -1489,6 +1496,7 @@
    }
   ],
   "data": {
+   "m": "fn",
    "props": {
     "name": "header"
    }

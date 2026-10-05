@@ -170,7 +170,8 @@ const clean = (obj: any): any => {
 // One pass over the JSX props into snabbdom's module buckets (audit rec 6):
 // - `<module>-<name>` (on-click, attrs-href, data-task-id → dataset.taskId) and `<module>={...}`
 //   go to that module's bucket (`data` is snabbdom's `dataset`)
-// - on an element tag, for, role, tabindex, aria-* and the popover / invoker / anchor attributes
+// - on an element tag, for, role, tabindex, aria-*, form and list (G-463: getter-only DOM
+//   properties, which the props module would throw on) and the popover / invoker / anchor attributes
 //   (ATTRS) go to attrs (G-370: a component placeholder keeps them as props); an aria-* true is
 //   written as "true" (D196: snabbdom writes true as "", which ARIA doesn't read as true), false
 //   as "false" for a state whose values include false (G-372: ARIA_FALSE), else (an IDREF, a
@@ -199,7 +200,7 @@ const add = (out: any, b: string, v: any): void => {
 // `<module>-<name>` key (its bucket is made even for undefined); 2: a module's own object
 // (3: `class`, made a map first); else the bucket's `name` (no bucket: the data's own key; 4:
 // aria-*, a boolean stringified)
-const ATTRS = /^(for|role|tabindex|popovertarget(action)?|command(for)?|closedby|interestfor|anchor|aria-.*)$/
+const ATTRS = /^(for|form|list|role|tabindex|popovertarget(action)?|command(for)?|closedby|interestfor|anchor|aria-.*)$/
 // G-372: the WAI-ARIA 1.2 states and properties whose value set includes "false" (true/false,
 // tristate, and the tokens aria-current / aria-invalid / aria-haspopup), by a prefix no other
 // ARIA 1.2/1.3 attribute has: atomic, busy, checked, current, disabled, expanded, grabbed,
@@ -297,9 +298,10 @@ export const createElementWithModules = (modules: Record<string, any>) => {
         return sel(data || {}, children)
       }
       data ||= {}
-      // preventInstantiation (Portal/Suspense/...): a marker vnode without `data.c`; its children
+      // preventInstantiation (Portal/Suspense/...): a marker vnode, its function in `data.m` (G-470:
+      // how a check tells it from a plain element of that tag), not `data.c`; its children
       // stay an array (they read vnode.children), as for every component below
-      if (!(sel as any).preventInstantiation) fn = sel
+      fn = sel
       sel = (sel as any).componentName || sel.name || 'FUNCTION_COMPONENT'
     }
     // B-011: a vnode is either text-only (`text`, no children) or has a children array,
@@ -311,7 +313,7 @@ export const createElementWithModules = (modules: Record<string, any>) => {
     let plain = !isComponent && is.string(sel) && !(t & 5)
     if (typeof text === 'undefined') plain = !!(flatten(children, kids = []) & +plain)
     const d = data ? sanitizeData(data, modules, isComponent ? croutes : routes, isComponent) : {}
-    if (fn) d.c = fn
+    if (fn) d[fn.preventInstantiation ? 'm' : 'c'] = fn
     const key = k !== undefined ? k : data ? data.key : undefined
     const vnode = plain ? new (Plain as any)(sel, d, kids, text, key) : { sel, data: d, children: kids, text, elm: undefined, key }
     if (t & 2) applySvg(vnode)

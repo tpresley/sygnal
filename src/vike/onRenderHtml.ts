@@ -190,25 +190,30 @@ export function onRenderHtml(pageContext: PageContext) {
   // If Layout(s) and/or Wrapper(s) are defined, render them wrapping the page content.
   // HTML is rendered INSIDE #page-view so the structure matches the client-side
   // wrapper component. Nesting order: Wrapper > Layout > Page.
-  // Each shell component receives page content via a placeholder in its children slot.
+  // Each shell component receives the page content as a placeholder. G-464: a placeholder element
+  // as its `children` (`<main>{children}</main>`, as on the client), and, for a Layout written
+  // for the server only, the `innerHTML` prop.
   let pageViewContent = pageHtml
   if (hasShell) {
+    const SLOT = '<sygnal-page-slot></sygnal-page-slot>'
+    const PLACEHOLDER = '<!--SYGNAL_PAGE_SLOT-->'
     // Wrap from innermost to outermost (reverse order)
     for (let i = shell.length - 1; i >= 0; i--) {
       const { comp, key } = shell[i]
-      const PLACEHOLDER = '<!--SYGNAL_PAGE_SLOT-->'
+      const slot = { sel: 'sygnal-page-slot', data: {}, children: [], text: undefined, elm: undefined, key: undefined }
       const compHtml = renderToString(comp, {
         state: comp.initialState || {},
         // G-207: the uid root and `id` prop the client's nested instance has
         uid: uidRoot(i),
-        props: { innerHTML: PLACEHOLDER, id: uidPart(key) },
+        props: { innerHTML: PLACEHOLDER, id: uidPart(key), children: [slot] },
         head: shellHeads,
         cache,
         onError: config.sygnalOnError,
       })
-      const splitIdx = compHtml.indexOf(PLACEHOLDER)
+      let splitIdx = compHtml.indexOf(SLOT), len = SLOT.length
+      if (splitIdx === -1) splitIdx = compHtml.indexOf(PLACEHOLDER), len = PLACEHOLDER.length
       if (splitIdx !== -1) {
-        pageViewContent = compHtml.substring(0, splitIdx) + pageViewContent + compHtml.substring(splitIdx + PLACEHOLDER.length)
+        pageViewContent = compHtml.substring(0, splitIdx) + pageViewContent + compHtml.substring(splitIdx + len)
       } else {
         // Fallback: component didn't use children/innerHTML, wrap content after it
         pageViewContent = compHtml + pageViewContent

@@ -68,7 +68,7 @@ Search.model = {
 | `defaultValue` | | The start value when `value` is left out |
 | `placeholder` | | The input's placeholder |
 | `filter` | contains | A function `(item, text) => boolean`, or `false` |
-| `allowCustomValue` | `false` | Keep text that matches no item when the input loses focus. With `name` (single), that text is what the form submits; text equal to an item's label submits the item's value |
+| `allowCustomValue` | `false` | Keep text that matches no item when the input loses focus. With `name` (single), the form submits the selected item's value, or, when the user typed since the last selection, the typed text (text equal to an item's label submits the item's value) |
 | `openOnClick` | `false` | Open the list when the input is clicked |
 | `inputBehavior` | `'none'` | `'autohighlight'` highlights the first match; `'autocomplete'` also completes the text |
 | `selectionBehavior` | `'replace'` | What the input shows after a pick: `'replace'` (the label), `'clear'`, or `'preserve'` (the typed text). With `multiple`: `'clear'` |

@@ -9,12 +9,18 @@ function Draft({ state }) {
     <section>
       <RichText className="draft" label={state.label} html={state.html} />
       <button type="button" className="french">FR</button>
+      <button type="button" className="load">Load</button>
     </section>
   )
 }
 Draft.initialState = { label: 'Notes', html: 'Hello' }
-Draft.intent = ({ DOM }) => ({ EDIT: DOM.select('.draft').events('edit').detail(), FRENCH: DOM.click('.french') })
-Draft.model = { EDIT: (state, html) => ({ ...state, html }), FRENCH: (state) => ({ ...state, label: 'Notes (FR)' }) }
+Draft.intent = ({ DOM }) => ({ EDIT: DOM.select('.draft').events('edit').detail(), FRENCH: DOM.click('.french'), LOAD: DOM.click('.load') })
+Draft.model = {
+  EDIT: (state, html) => ({ ...state, html }),
+  FRENCH: (state) => ({ ...state, label: 'Notes (FR)' }),
+  // a later un-normalised draft from state (G-469)
+  LOAD: (state) => ({ ...state, html: 'Loaded draft' }),
+}
 
 export const tests = {
   async 'Tiptap: typing reaches the state, Bold/Italic commands format the selection, state resets the content, unmount destroys'() {
@@ -37,7 +43,9 @@ export const tests = {
     await t.waitForState((state) => /<strong>/.test(state.html))
     await pw('click', '.make-italic')
     await t.waitForState((state) => /<em>/.test(state.html))
-    assert(editor.isFocused, 'the command focused the editor')
+    // G-467: Tiptap's focus command focuses in the next animation frame (in Chromium; WebKit
+    // focuses at once), after the transaction the state already has
+    await waitFor(() => editor.isFocused, 'the command focused the editor')
 
     // state → editor (no edit event echoed back for a content set from state)
     await pw('click', '.clear')
@@ -61,6 +69,25 @@ export const tests = {
     await waitFor(() => t.query('.draft .ProseMirror').getAttribute('aria-label') === 'Notes (FR)', 'label updated')
     equal(t.query('.draft .ProseMirror').getAttribute('role'), 'textbox', 'other attributes kept')
     equal(editor.state.selection.from, 3, 'content not reset by the label change')
+    t.dispose()
+  },
+
+  async 'Tiptap: an un-normalised draft set later from state is normalised too; a label change then keeps the selection (G-469)'() {
+    const t = renderComponent(Draft, { dom: 'real' })
+    await t.ready()
+    await waitFor(() => t.query('.draft .ProseMirror'), 'editor mounted')
+    await t.waitForState((state) => state.html === '<p>Hello</p>')
+    const editor = t.widget('.draft').instance
+    await pw('click', '.load')
+    await t.waitForState((state) => state.html === '<p>Loaded draft</p>')
+    equal(editor.getHTML(), '<p>Loaded draft</p>')
+    let sets = 0
+    editor.on('transaction', ({ transaction }) => { if (transaction.docChanged) sets++ })
+    editor.commands.setTextSelection(4)
+    await pw('click', '.french')
+    await waitFor(() => t.query('.draft .ProseMirror').getAttribute('aria-label') === 'Notes (FR)', 'label updated')
+    equal(sets, 0, 'content set again on the label change')
+    equal(editor.state.selection.from, 4, 'selection kept')
     t.dispose()
   },
 }

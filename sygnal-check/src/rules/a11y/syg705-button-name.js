@@ -12,10 +12,14 @@
  * string literal or an identifier imported from an icon package (`lucide`,
  * `@lucide/*`, any specifier with `icon` in it such as `@tabler/icons` or
  * `./icons.js`, `@mdi/js`). It renders no text, so it is 'none' unless its
- * second argument names it: an object literal with a `label`, `title`,
- * `aria-label` or `ariaLabel` property ('text' when a non-empty literal string,
- * else 'unknown'); a second argument that isn't an object literal, or one with
- * a spread, is 'unknown'. Any other call stays 'unknown'.
+ * second argument names it: an object literal with a `label` property ('text'
+ * when a non-empty literal string, else 'unknown'); a second argument that
+ * isn't an object literal, or one with a spread, is 'unknown'. Any other call
+ * stays 'unknown'.
+ * G-471 (3-K): `label` only, the one option the recipe's helper reads (`title`,
+ * `aria-label` there name nothing). A helper of that name that renders its own
+ * screen-reader text is reported too: `// sygnal-ignore SYG705`, or put the
+ * name on the button (`aria-label`).
  */
 import { unwrap, stringValue, propName } from '../../ast.js'
 import { findBinding } from '../../scope.js'
@@ -23,7 +27,7 @@ import { attr, attrString, describe, elementsOf, componentName } from './shared.
 
 const ICON_FN = /^(render)?icon$/i
 const ICON_MODULE = /^(lucide(-static)?$|@lucide\/|@mdi\/)|icon/i
-const ICON_LABELS = new Set(['label', 'title', 'aria-label', 'ariaLabel'])
+const ICON_LABELS = new Set(['label'])
 
 /** 'none' | 'text' | 'unknown' for an icon helper call, or null when the call isn't one */
 function iconCall(file, e) {

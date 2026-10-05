@@ -139,6 +139,8 @@ let seen = new Set<string>()
 
 /** true the first time `key` is seen (dedupes reports, e.g. per component name). */
 export const once = (key: string): boolean => (seen.has(key) ? false : (seen.add(key), true))
+/** undo once(key): the report it guarded wasn't made (G-470: diagnostics off) */
+export const unsee = (key: string): void => void seen.delete(key)
 
 /**
  * Forget only the once() dedupe set (G-051: renderComponent calls it through the core bridge

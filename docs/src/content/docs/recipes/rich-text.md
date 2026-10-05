@@ -21,6 +21,13 @@ import StarterKit from '@tiptap/starter-kit'
 
 const editorProps = (props) => ({ attributes: { role: 'textbox', 'aria-multiline': 'true', 'aria-label': props.label } })
 
+// the state gets the HTML as Tiptap writes it ('Hi' → '<p>Hi</p>'), so update() doesn't see a
+// difference and reset the content (and the selection) on the next prop change
+const dispatches = new WeakMap()
+const normalise = (editor, html) => {
+  if (editor.getHTML() !== html) dispatches.get(editor)('edit', editor.getHTML())
+}
+
 export const RichText = defineWidget({
   name: 'RichText',
   mount: (el, props, dispatch) => {
@@ -31,13 +38,15 @@ export const RichText = defineWidget({
       editorProps: editorProps(props),
       onUpdate: ({ editor }) => dispatch('edit', editor.getHTML()),
     })
-    // the state gets the HTML as Tiptap writes it ('Hi' → '<p>Hi</p>'), so update() doesn't
-    // see a difference and reset the content on the next prop change
-    if (editor.getHTML() !== props.html) dispatch('edit', editor.getHTML())
+    dispatches.set(editor, dispatch)
+    normalise(editor, props.html)
     return editor
   },
   update: (editor, props) => {
-    if (props.html !== editor.getHTML()) editor.commands.setContent(props.html, { emitUpdate: false })
+    if (props.html !== editor.getHTML()) {
+      editor.commands.setContent(props.html, { emitUpdate: false })
+      normalise(editor, props.html)
+    }
     // a new label (another language): Tiptap's options are read at mount, so set them again
     if (props.label !== editor.options.editorProps.attributes['aria-label']) editor.setOptions({ editorProps: editorProps(props) })
   },
@@ -135,7 +144,7 @@ Measured with Vite, minified and gzipped, Sygnal not included: Tiptap with `Star
 ## Pitfalls
 
 - **Compare before `setContent`.** Without the `props.html !== editor.getHTML()` check, every keystroke would set the content again and move the cursor to the end.
-- **Tiptap normalises HTML.** `getHTML()` returns the editor's own serialisation (`<p>Hello</p>`, an empty document is `<p></p>`), which may differ from the HTML you started with. Store what `getHTML()` returns; then the comparison in `update` holds.
+- **Tiptap normalises HTML.** `getHTML()` returns the editor's own serialisation (`<p>Hello</p>`, an empty document is `<p></p>`), which may differ from the HTML you started with. Store what `getHTML()` returns; then the comparison in `update` holds. The widget does this for HTML that comes from state: after `mount` and after a `setContent` in `update`, it sends an `edit` with the normalised HTML when it differs, so a later prop change (a new label) doesn't set the content again and lose the selection.
 - **Keep `emitUpdate: false`.** Without it, a reset from state comes back as an `edit` event: harmless here (the same HTML), but a second action for every external change.
 - **Toolbar state.** To show which marks are active (`aria-pressed` on the Bold button), add an `onSelectionUpdate` / `onTransaction` callback that dispatches `editor.isActive('bold')` as an event of its own, and keep it in state.
 - **Untrusted HTML.** Tiptap only keeps what its extensions know, but HTML you save and show elsewhere (`innerHTML`) still needs sanitising there.

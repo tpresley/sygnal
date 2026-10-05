@@ -283,6 +283,22 @@ import { icon } from './icon.jsx'
     <button>{icon(state.icon)}</button>
   </div>`))).toEqual([])
   })
+  it('G-471: only `label` names the icon (the recipe helper ignores title / aria-label)', () => {
+    expect(one(iconView(`<div>
+    <button className="a">{icon(Trash2, { title: 'Delete' })}</button>
+    <button className="b">{icon(Trash2, { 'aria-label': 'Delete' })}</button>
+    <button className="c">{icon(Trash2, { ariaLabel: 'Delete', size: 16 })}</button>
+    <button className="d">{icon(Trash2, { label: 'Delete', title: 'Delete' })}</button>
+  </div>`))).toEqual(['SYG705 6', 'SYG705 7', 'SYG705 8'])
+  })
+  it('G-471: a helper of that name with its own screen-reader text is silenced by sygnal-ignore or a button aria-label', () => {
+    expect(one(iconView(`<div>
+    <button className="a">{icon('trash')}</button>
+    {/* sygnal-ignore SYG705 */}
+    <button className="b">{icon('trash')}</button>
+    <button className="c" aria-label="Delete">{icon('trash')}</button>
+  </div>`))).toEqual(['SYG705 6'])
+  })
 })
 
 describe('SYG706 positive tabIndex', () => {

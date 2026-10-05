@@ -1,5 +1,5 @@
 import { renderComponent } from 'sygnal'
-import { Chart } from 'chart.js'
+import { Chart, animator } from 'chart.js'
 import { Sales } from './Sales.jsx'
 import { SalesEChart } from './SalesEChart.js'
 import * as echarts from 'echarts/core'
@@ -15,6 +15,11 @@ export const tests = {
     equal(chart.data.datasets[0].data, [12, 19, 7, 4], 'initial data')
     assert(canvas.getAttribute('role') === 'img' && canvas.getAttribute('aria-label') === 'Sales by month', 'host a11y attributes')
 
+    // G-467: the bars grow from the axis (Chart.js's 1 s entry animation), and a click is hit-tested
+    // against the bar as drawn: aimed at a bar read while it grows (or before its first frame, when
+    // it has no height yet) the click could land on its edge and miss. Wait for the animation to
+    // end, then aim at the bar's middle
+    await waitFor(() => !animator.running(chart), 'entry animation done')
     const bar = chart.getDatasetMeta(0).data[1]
     const box = canvas.getBoundingClientRect()
     await pw('mouse', null, [box.left + bar.x, box.top + (bar.y + bar.base) / 2])
