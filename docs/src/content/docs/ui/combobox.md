@@ -73,7 +73,8 @@ Search.model = {
 | `selectionBehavior` | `'replace'` | What the input shows after a pick: `'replace'` (the label), `'clear'`, or `'preserve'` (the typed text). With `multiple`: `'clear'` |
 | `closeOnSelect` | `true` | With `multiple`: `false` |
 | `loopFocus` | `true` | The arrow keys wrap |
-| `multiple`, `name`, `form`, `disabled`, `readOnly`, `required`, `invalid`, `positioning`, `open` | | As in Zag's combobox |
+| `name` | | The form field: hidden inputs submit the value (one per value with `multiple`), not the label the input shows |
+| `multiple`, `form`, `disabled`, `readOnly`, `required`, `invalid`, `positioning`, `open` | | As in Zag's combobox |
 
 ## Events and commands
 

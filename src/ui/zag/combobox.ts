@@ -15,6 +15,9 @@
  * control, input, trigger, positioner, content, item, item-text, item-indicator), `data-state`,
  * `data-highlighted`.
  *
+ * Forms (G-411): with `name`, hidden inputs submit the value (one per value when `multiple`);
+ * the visible input, which shows the label, has no name.
+ *
  * Props: `label`, `items` (strings or { value, label?, disabled? }), `value` (controlled: a
  * string, an array when `multiple`, null for none), `defaultValue`, `placeholder`, `filter`, and
  * Zag's combobox props (`multiple`, `name`, `form`, `disabled`, `readOnly`, `required`,
@@ -37,13 +40,26 @@ const shown = (all: any[], f: any, q: string) => {
 // the filter text: what the user typed; '' when the list closes
 const setText = (x: any, q: string) => { if (x.q !== q) x.q = q, x.refresh() }
 
-export const Combobox: any = /*#__PURE__*/ fromZag(combobox, (api: any, p: any) =>
-  h('div', api.getRootProps(),
+// G-411: forms get the value, not the label the input shows: the visible input has no name; one
+// hidden input per value (a single combobox: one, '' when empty) carries `name`
+const hidden = (api: any, p: any, x: any) => {
+  if (p.name == null) return null
+  const v = api.value, vs = x.multiple ? v : [v[0] ?? '']
+  return vs.map((value: string, i: number) => h('input', {key: 'h' + i, type: 'hidden', name: p.name, form: p.form, disabled: !!p.disabled, value}))
+}
+
+export const Combobox: any = /*#__PURE__*/ fromZag(combobox, (api: any, p: any, x: any) => {
+  const input = api.getInputProps()
+  delete input.attrs.name
+  delete input.attrs.form
+  return h('div', api.getRootProps(),
     p.label != null && h('label', api.getLabelProps(), p.label),
     h('div', api.getControlProps(),
-      h('input', {...api.getInputProps(), placeholder: p.placeholder}),
+      h('input', {...input, placeholder: p.placeholder}),
       h('button', api.getTriggerProps(), '▾')),
-    h('div', api.getPositionerProps(), h('div', api.getContentProps(), options(h, api)))), {
+    h('div', api.getPositionerProps(), h('div', api.getContentProps(), options(h, api))),
+    hidden(api, p, x))
+}, {
   name: 'Combobox',
   props: ({items, label, placeholder, value, defaultValue, filter, ...p}: any, x: any) => {
     x.multiple = !!p.multiple
