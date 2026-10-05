@@ -433,7 +433,7 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
 
     transform(this: any, code: string, id: string, opts?: { ssr?: boolean }) {
       // SYG666 (PLAN-5 W-2): an adapter entry imported without its optional peers; every mode
-      const adapters = adapterImports(code, id)
+      const adapters = adapterImports(this, code, id)
       if (adapters) return checkPeers(this, adapters, id).then(() => devTransform.call(this, code, id, opts))
       return devTransform.call(this, code, id, opts)
     },
@@ -535,12 +535,41 @@ const ADAPTER_PEERS: Record<string, string[]> = {
   'ui/combobox': ['@zag-js/vanilla', '@zag-js/combobox'],
 }
 const ADAPTER_RE = /(?:\bfrom|\bimport)\s*\(?\s*['"]sygnal\/(react|zag|ui\/(?:menu|select|combobox))['"]/g
+const ADAPTER_ID = /^sygnal\/(react|zag|ui\/(?:menu|select|combobox))$/
 
-/** The adapter entries an app module imports (statically or dynamically), or null */
-function adapterImports(code: string, id: string): string[] | null {
+/**
+ * The adapter entries an app module imports (statically, dynamically or in a re-export), or null.
+ * G-415: real imports only. The module's AST from the plugin context's parse() (Vite and Rollup
+ * provide it; the code is plain JS by then); when there is none, or the code doesn't parse, a
+ * scan of the code with comments blanked whose `from` / `import` keyword isn't inside a string
+ * or template literal. A literal that mentions an entry (a docs snippet) is never an import.
+ */
+function adapterImports(ctx: any, code: string, id: string): string[] | null {
   if (!code.includes('sygnal/') || id.includes('node_modules') || !/\.[cm]?[jt]sx?$/.test(cleanId(id))) return null
+  const noComments = blankOut(code, false)
+  if (!ADAPTER_RE.test(noComments)) return null
+  ADAPTER_RE.lastIndex = 0
   const found = new Set<string>()
-  for (const m of blankOut(code, false).matchAll(ADAPTER_RE)) found.add(m[1])
+  let ast: any = null
+  try { ast = typeof ctx?.parse == 'function' ? ctx.parse(code) : null } catch (_) {}
+  if (ast) {
+    const walk = (n: any): void => {
+      if (!n || typeof n != 'object') return
+      if (Array.isArray(n)) return n.forEach(walk)
+      if (/^(Import|Export(Named|All))Declaration$|^ImportExpression$/.test(n.type)) {
+        const m = ADAPTER_ID.exec(n.source?.value ?? '')
+        if (m) found.add(m[1])
+      }
+      for (const k in n) if (k != 'type' && typeof n[k] == 'object') walk(n[k])
+    }
+    walk(ast)
+  } else {
+    // strings and templates blanked too: a keyword there is text, not an import
+    const noStrings = blankOut(code, true)
+    for (const m of noComments.matchAll(ADAPTER_RE)) {
+      if (noStrings.startsWith(m[0].slice(0, m[0][0] == 'f' ? 4 : 6), m.index!)) found.add(m[1])
+    }
+  }
   return found.size ? [...found] : null
 }
 
