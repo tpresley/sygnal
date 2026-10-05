@@ -56,7 +56,7 @@ export default defineConfig({
             { label: 'Context', slug: 'guide/context' },
             { label: 'Parent-Child Communication', slug: 'guide/parent-child' },
             { label: 'Calculated Fields', slug: 'guide/calculated-fields' },
-            { label: 'Forms & Focus', slug: 'guide/forms' },
+            { label: 'Forms', slug: 'guide/forms' },
             { label: 'Element Commands', slug: 'guide/element-commands' },
             { label: 'Controls', slug: 'guide/controls' },
             { label: 'Widgets', slug: 'guide/widgets' },
