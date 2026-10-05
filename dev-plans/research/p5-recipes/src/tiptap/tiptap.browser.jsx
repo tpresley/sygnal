@@ -43,7 +43,9 @@ export const tests = {
     await t.waitForState((state) => /<strong>/.test(state.html))
     await pw('click', '.make-italic')
     await t.waitForState((state) => /<em>/.test(state.html))
-    assert(editor.isFocused, 'the command focused the editor')
+    // G-467: Tiptap's focus command focuses in the next animation frame (in Chromium; WebKit
+    // focuses at once), after the transaction the state already has
+    await waitFor(() => editor.isFocused, 'the command focused the editor')
 
     // state → editor (no edit event echoed back for a content set from state)
     await pw('click', '.clear')
