@@ -3,7 +3,7 @@
 // keys, undo / persist interplay, the instructions id, filtered lists, native dragstart, a press
 // during a keyboard drag, drops after the last item of another list, unmount mid-drag.
 import { describe, it, expect, afterEach, beforeEach } from 'vitest'
-import { renderComponent, renderToString, Collection, sortable, persist } from '../src/index.js'
+import { renderComponent, renderToString, Collection, sortable, persist, undo } from '../src/index.js'
 import { createElement as h } from '../src/pragma/index.js'
 import { setupChecks } from './diagnostics/helpers.js'
 
@@ -245,6 +245,84 @@ describe('3-H G-448 / G-453: the instructions id', () => {
     t.simulateEvent('.grip', 'pointerdown', { clientX: 0, clientY: 0, within: '.task[data-id="1"]' })
     await t.next(s => s.sort.helpId)
     expect(t.html()).toContain(`aria-describedby="${t.state.sort.helpId}"`)
+  })
+})
+
+describe('3-H G-447: undo records one step per completed drop', () => {
+  const make = (first, opts = {}) => {
+    function L(props) { return TaskList(props) }
+    L.initialState = { tasks: TASKS, dropped: [] }
+    const s = sortable({ from: 'tasks', item: '.task', handle: '.grip' }), u = undo({ key: 'tasks', ...opts })
+    L.uses = first === 'sort' ? { sort: s, history: u } : { history: u, sort: s }
+    L.context = TaskList.context
+    L.model = { ...TaskList.model }
+    return L
+  }
+  const past = () => t.state.history.past.map(a => a.map(x => x.id).join())
+
+  for (const first of ['sort', 'history']) {
+    it(`keyboard and pointer drops, a cancelled drag (uses: ${first} first)`, async () => {
+      t = renderComponent(make(first), { dom: 'real' }); await t.ready()
+      // a keyboard drag of three steps: one entry, the order before it
+      grip(2).focus()
+      press(' '); await t.next(s => s.sort.dragging === '2')
+      press('ArrowDown'); await t.next(s => order(s) === '1,3,2,4')
+      press('ArrowDown'); await t.next(s => order(s) === '1,3,4,2')
+      press('ArrowUp'); await t.next(s => order(s) === '1,3,2,4')
+      expect(past()).toEqual([])                       // nothing until the drop
+      press('Enter'); await t.next(s => s.sort.dragging === null)
+      await t.next(s => s.history.past.length === 1)
+      expect(past()).toEqual(['1,2,3,4'])
+      expect(t.state.history.canUndo).toBe(true)
+      // a cancelled keyboard drag adds none
+      grip(1).focus()
+      press(' '); await t.next(s => s.sort.dragging === '1')
+      press('ArrowDown'); await t.next(s => order(s) === '3,1,2,4')
+      press('Escape'); await t.next(s => s.sort.dragging === null)
+      await t.settle()
+      expect(past()).toEqual(['1,2,3,4'])
+      // a cancelled pointer drag adds none; a pointer drop adds one
+      ptr(grip(4), 'pointerdown', { clientX: 5, clientY: 100 })
+      ptr(grip(1), 'pointermove', { clientX: 5, clientY: 5 })
+      await t.next(s => s.sort.dragging === '4')
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }))
+      await t.next(s => s.sort.dragging === null)
+      ptr(grip(4), 'pointerdown', { clientX: 5, clientY: 100 })
+      ptr(grip(1), 'pointermove', { clientX: 5, clientY: 5 })
+      await t.next(s => s.sort.dragging === '4')
+      ptr(grip(1), 'pointerup', { clientX: 5, clientY: 5 })
+      await t.next(s => order(s) === '4,1,3,2')
+      await t.next(s => s.history.past.length === 2)
+      expect(past()).toEqual(['1,2,3,4', '1,3,2,4'])
+      expect(t.state.dropped).toEqual(['2:1->2', '4:3->0'])
+      // undo walks back one drop at a time; redo forward
+      t.simulateAction('history.UNDO'); await t.next(s => order(s) === '1,3,2,4')
+      t.simulateAction('history.UNDO'); await t.next(s => order(s) === '1,2,3,4')
+      expect(t.state.history.canUndo).toBe(false)
+      t.simulateAction('history.REDO'); await t.next(s => order(s) === '1,3,2,4')
+    })
+  }
+
+  it('other actions are still recorded on their own; a recorded change between drags starts a new base', async () => {
+    const L = make('sort')
+    L.intent = ({ DOM }) => ({ REVERSE: DOM.click('.reverse') })
+    L.model = { ...L.model, REVERSE: (s) => ({ ...s, tasks: [...s.tasks].reverse() }) }
+    const view = L
+    function W(props) { return h('div', null, h('button', { type: 'button', className: 'reverse' }, 'R'), view(props)) }
+    Object.assign(W, { initialState: L.initialState, uses: L.uses, context: L.context, model: L.model, intent: L.intent })
+    t = renderComponent(W, { dom: 'real' }); await t.ready()
+    grip(1).focus()
+    press(' '); await t.next(s => s.sort.dragging === '1')
+    press('ArrowDown'); await t.next(s => order(s) === '2,1,3,4')
+    press('Escape'); await t.next(s => s.sort.dragging === null)   // cancelled: a base stays pending
+    t.query('.reverse').click(); await t.next(s => order(s) === '4,3,2,1')
+    expect(past()).toEqual(['1,2,3,4'])
+    grip(4).focus()
+    press(' '); await t.next(s => s.sort.dragging === '4')
+    press('ArrowDown'); await t.next(s => order(s) === '3,4,2,1')
+    press(' '); await t.next(s => s.sort.dragging === null)
+    await t.next(s => s.history.past.length === 2)
+    expect(past()).toEqual(['1,2,3,4', '4,3,2,1'])
   })
 })
 

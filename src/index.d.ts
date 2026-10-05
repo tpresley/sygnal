@@ -790,6 +790,13 @@ export interface BehaviorDefinition<SLICE = any, ACTIONS = {}, CALCULATED = {}, 
   timers?: (slice: SLICE, options: OPTIONS, key: string) => Timers;
   /** `false`: the slice is UI state (sortable's drag): a root's `persist()` neither saves nor restores it */
   persist?: false;
+  /**
+   * The actions that complete one undoable step (sortable: `['DROPPED']`). With `undo()` on the
+   * same host, the behavior's other actions are steps of a gesture: their changes to the undo
+   * key aren't recorded; the completing action records the value from before the gesture as
+   * one entry (none for a gesture that ends without it), whatever the `uses` order.
+   */
+  undoStep?: string[];
 }
 
 /** One use of a behavior (a `defineBehavior()` factory's result), for a component's `uses`. */

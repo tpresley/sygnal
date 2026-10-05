@@ -164,6 +164,8 @@ export const sortable = (options: any = {}): any => {
     initialState: {...idle, helpId: null},
     // drag state is UI state: persist() leaves this slice out (G-452)
     persist: false,
+    // with undo(): a drag is one undo step, recorded at its drop (G-447)
+    undoStep: ['DROPPED'],
     intent: ({DOM, STATE}: any) => {
       // `me`: this instance's token in the press / drag it starts (G-452): drag state it didn't
       // start (restored by persist, synced, written by devtools) arms no document listener
