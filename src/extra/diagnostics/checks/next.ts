@@ -258,9 +258,11 @@ export function nextHooks(_api: any): any {
       skips.set(iv, n)
       if ((n > 2 && n % SAMPLE) || budget >= CAP) return
       if (!budget++) queueMicrotask(() => { budget = 0 })
-      let a, b
-      try { a = render(prev); b = render(next) } catch (_) { return }
-      if (same(a, b)) return
+      let a, b, c
+      try { a = render(prev); b = render(next); c = render(prev) } catch (_) { return }
+      // G-327: a control render: a view whose output differs between two calls with the same
+      // context (a render counter, Date.now(), Math.random(), generated ids) proves nothing
+      if (same(a, b) || !same(a, c)) return
       const name = iv.name
       const changed = Object.keys(next).filter(k => next[k] !== prev[k])
       if (!once(`SYG423:${name}`)) return
