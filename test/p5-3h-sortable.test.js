@@ -94,3 +94,49 @@ describe('3-H G-444 / G-445: nested sortables with ids repeated between the leve
     await t.next(s => s.sort.dragging === null)
   })
 })
+
+function Task({ state, context }) {
+  const { dragging, over, after, helpId } = context.sort
+  const id = String(state.id)
+  const cls = ['task', dragging === id && 'dragging', over === id && dragging !== id && (after ? 'drop-after' : 'drop-before')]
+  return h('li', { className: cls.filter(Boolean).join(' '), 'data-id': state.id },
+    h('button', { type: 'button', className: 'grip', 'aria-label': `Reorder ${state.title}`, 'aria-describedby': helpId || undefined }, '⠿'),
+    h('span', { className: 'title' }, state.title))
+}
+function TaskList({ state }) {
+  return h('section', { className: 'board' },
+    h('p', { id: state.sort.helpId || undefined, className: 'help', hidden: true }, 'Press Space to pick up a task.'),
+    h('ul', { className: 'tasks' }, h(Collection, { of: Task, from: 'tasks' })),
+    h('p', { className: 'announce', role: 'status' }, state.sort.message))
+}
+const TASKS = [{ id: 1, title: 'A' }, { id: 2, title: 'B' }, { id: 3, title: 'C' }, { id: 4, title: 'D' }]
+TaskList.initialState = { tasks: TASKS, dropped: [] }
+TaskList.uses = { sort: sortable({ from: 'tasks', item: '.task', handle: '.grip' }) }
+TaskList.context = { sort: (state) => state.sort }
+TaskList.model = { 'sort.DROPPED': (s, d) => ({ ...s, dropped: [...s.dropped, `${d.id}:${d.fromIndex}->${d.index}`] }) }
+const grip = (id) => t.query(`.task[data-id="${id}"] .grip`)
+const droppedActions = () => t.actions.filter(a => a.type === 'sort.DROPPED')
+
+describe('3-H G-446: held Space / Enter', () => {
+  it('auto-repeated lift keys neither drop nor lift again (still default-prevented)', async () => {
+    t = renderComponent(TaskList, { dom: 'real' }); await t.ready()
+    grip(2).focus()
+    press(' ')
+    await t.next(s => s.sort.dragging === '2')
+    const held = new KeyboardEvent('keydown', { key: ' ', repeat: true, bubbles: true, cancelable: true })
+    grip(2).dispatchEvent(held)
+    press('Enter', { repeat: true })
+    await sleep(30)
+    expect(held.defaultPrevented).toBe(true)
+    expect(t.state.sort.dragging).toBe('2')
+    press('ArrowDown')
+    await t.next(s => order(s) === '1,3,2,4')
+    press('Enter')
+    await t.next(s => s.sort.dragging === null)
+    press('Enter', { repeat: true })
+    await sleep(30)
+    expect(t.state.sort.dragging).toBe(null)
+    await t.settle()
+    expect(droppedActions()).toHaveLength(1)
+  })
+})

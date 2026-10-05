@@ -204,7 +204,8 @@ export const sortable = (options: any = {}): any => {
           doc.events('pointercancel'),
           doc.events('keydown', {preventDefault: (e: any) => e.key == 'Escape'}).filter((e: any) => e.key == 'Escape'))),
         KEY: xs.merge(
-          DOM.events('keydown', {preventDefault: lift}).filter(lift).map(take),
+          // a held Space / Enter (auto-repeat) neither drops nor lifts again (G-446)
+          DOM.events('keydown', {preventDefault: lift}).filter((e: any) => !e.repeat && lift(e)).map(take),
           on((s: any) => s.mode == 'keyboard', () => xs.merge(
             DOM.events('keydown', {preventDefault: keyed(KEYS)}).filter(step).map(take),
             // focus moved to another element, or a pointer press anywhere: drop where it is
