@@ -162,15 +162,17 @@ async function run() {
     // { colorScheme }] (page.emulateMedia), ['geolocation',
     // { latitude, longitude, accuracy? }] (setGeolocation), ['otherTab', key, value] (a second page
     // of the same origin writes localStorage, null removes; the test page gets the `storage` event),
-    // ['engine'] (the engine's name), ['reset'] (G-391: online, no permissions granted, no media
-    // emulation; main.js calls it after every suite, so a suite's changes don't reach the next)
+    // ['engine'] (the engine's name), ['reset'] (G-391: online, no permissions granted, the default
+    // media emulation; main.js calls it after every suite, so a suite's changes don't reach the next)
     await page.exposeFunction('__pwBrowser', async (op, a, b) => {
       const ctx = page.context();
       if (op === 'engine') return ENGINE;
       if (op === 'reset') {
         await ctx.setOffline(false);
         await ctx.clearPermissions();
-        await page.emulateMedia({ colorScheme: null, reducedMotion: null });
+        // the context's defaults ('light', 'no-preference'; null would fall back to the OS's
+        // setting, which WebKit follows: a dark-mode Mac stays dark)
+        await page.emulateMedia({ colorScheme: 'light', reducedMotion: 'no-preference' });
         return;
       }
       if (op === 'offline') return void await ctx.setOffline(!!a);

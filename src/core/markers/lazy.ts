@@ -32,9 +32,9 @@ resolvers.push((view, owner) => {
     view.__sygnalLazyStarted?.then(again)
     view.__sygnalLazyPromise?.then(() => { set.done = true; again(); set.clear() })
   }
-  if (!w.done && !w.has(owner)) {
-    w.add(owner)
-    const set = w
-    owner.dispose$?.().addListener({next: () => set.delete(owner), error() {}, complete() {}})
+  const set = w
+  if (!set.done && !set.has(owner)) {
+    set.add(owner)
+    owner.dispose$?.().addListener({next: () => set.delete(owner)})
   }
 })
