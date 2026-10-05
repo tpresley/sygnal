@@ -38,7 +38,8 @@
  *   refresh() }` plus whatever the part keeps on it.
  * - Errors (G-409): a render that throws while the widget mounts stops the machine and is SYG660;
  *   on a later, machine-driven redraw it stops the machine and goes to the widget's error path
- *   (mount's `error`): SYG661 and the owner's onError fallback in its place.
+ *   (mount's `error`): SYG661 and the owner's onError fallback in its place. Either way the
+ *   rendered content is released (refs nulled, destroy hooks, listeners off; G-438).
  * - The render is plain elements only (G-410): it is patched outside the component tree, so a
  *   Sygnal component, a widget tag or special JSX inside it can't run (SYG669 in dev).
  * - Wrong arguments throw SYG667 when the widget is defined.
@@ -159,7 +160,8 @@ function start(zag: any, render: any, o: any, el: any, p0: any, dispatch: any, e
       // G-409: the machine stops; a machine-driven redraw (an event handler, a watcher) hands the
       // error to the widget (SYG661 + the owner's onError fallback) instead of throwing into Zag
       halt()
-      if (!live) throw e
+      // G-438: a failed mount has no unmount: its content is released here
+      if (!live) { free(); throw e }
       error(e)
     } finally { busy = 0 }
   }
@@ -168,24 +170,29 @@ function start(zag: any, render: any, o: any, el: any, p0: any, dispatch: any, e
     on = 0
     try { m.stop() } catch (_) {}
   }
+  // G-412: the content stays (a <Transition> leave animates the host with it); its destroy hooks
+  // run (refs in the render) and its listeners come off, as a patch to nothing would do. Once,
+  // and only for a rendered vnode (before the first draw, vn is the placeholder element).
+  const free = () => {
+    if (vn?.sel !== undefined) release(vn)
+    vn = 0
+  }
   Object.assign(x, {
     machine: m,
     api,
     refresh: () => { memo = 0; m.notify() },
     set: (p: any) => { props = p; x.refresh() },
+    // G-438: after a halt (G-409) the machine is already stopped, and the content is still released
     stop: () => {
-      if (!on) return
+      const was = on
       on = 0
-      m.stop()
-      // G-412: the content stays (a <Transition> leave animates the host with it); its destroy
-      // hooks run (refs in the render) and its listeners come off, as a patch to nothing would do
-      release(vn)
+      try { was && m.stop() } finally { free() }
     },
   })
   m.subscribe(draw)
   draw()
   // G-409: a start() or second draw that throws leaves no running machine (then SYG660)
-  try { m.start() } catch (e) { halt(); throw e }
+  try { m.start() } catch (e) { halt(); free(); throw e }
   draw()
   live = 1
   return x
