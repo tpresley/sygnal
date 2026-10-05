@@ -85,3 +85,32 @@ describe('G-426: a region in a shadow root', () => {
     app.dispose()
   })
 })
+
+describe('G-432: a re-parent with the focus in the region', () => {
+  it('keeps where the focus came from: dismissing the last toast gives it back there', async () => {
+    HTMLElement.prototype.showPopover ||= function () {}
+    // jsdom has no :modal; a dialog with data-modal stands for a modal one
+    const matches = Element.prototype.matches
+    vi.spyOn(Element.prototype, 'matches').mockImplementation(function (s) { return s == ':modal' ? this.hasAttribute('data-modal') && this.hasAttribute('open') : matches.call(this, s) })
+    t = renderComponent(toasterApp(), { dom: 'real' })
+    await t.ready()
+    t.simulateEvent('.notify', 'click')
+    await t.settle()
+    const plain = t.query('.plain'), b = t.query('.toast-dismiss')
+    plain.focus()
+    b.focus()
+    const region = document.querySelector('.toaster')
+    const dlg = document.createElement('dialog')
+    dlg.setAttribute('data-modal', '')
+    document.body.appendChild(dlg)
+    // the move blurs the button (as browsers do), then the region refocuses it
+    const append = dlg.appendChild.bind(dlg)
+    dlg.appendChild = (n) => { if (n.contains(document.activeElement)) document.activeElement.blur(); return append(n) }
+    dlg.setAttribute('open', '')
+    await new Promise((r) => setTimeout(r, 30))
+    expect(region.parentNode).toBe(dlg)
+    expect(document.activeElement).toBe(b)
+    b.click()
+    expect(document.activeElement).toBe(plain)
+  })
+})

@@ -78,10 +78,11 @@ const placement = {
     const place = () => {
       const to = topModal(root) || home
       if (el.parentNode !== to) {
-        // a move blurs a focused Dismiss button: give the focus back
-        const a = act(el), f: any = el.contains(a) && a
+        // a move blurs a focused Dismiss button: give the focus back (G-432: where it came from
+        // stays; the refocus has no relatedTarget)
+        const a = act(el), f: any = el.contains(a) && a, from = el._from
         to.appendChild(el)
-        f && f.focus()
+        if (f) { f.focus(); el._from = from }
       }
       // a moved popover is closed: show it again (on top of the dialog it is in)
       show(el)
