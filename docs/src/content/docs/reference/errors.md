@@ -2012,6 +2012,26 @@ A browser source or command failed: the user denied the geolocation or clipboard
 
 **Fix:** Name an `error` action and handle it: `here: { geolocation: true, action: 'POS', error: 'GEO_FAILED' }` with `GEO_FAILED: (state, { code, message }) => ...`, or `COPY: { BROWSER: (state) => ({ copy: state.link, ok: 'COPIED', error: 'COPY_FAILED' }) }` with `COPY_FAILED: (state, { name, message }) => ...`. Ask for permission-gated sources from a user action, and say why.
 
+### SYG666
+
+**Adapter peer dependency missing**
+
+Severity: `error` · Reported by: the Sygnal runtime (every app, production included)
+
+A module imports one of Sygnal's adapter entries, but a package that entry needs isn't installed. The adapters keep their libraries as optional peer dependencies, so an app that doesn't use them never installs them: `sygnal/react` needs `react` and `react-dom` (or a `preact/compat` alias), `sygnal/zag` needs `@zag-js/vanilla`, and `sygnal/ui/zag` (Menu, Select, Combobox) needs `@zag-js/vanilla`, `@zag-js/menu`, `@zag-js/select` and `@zag-js/combobox`. The `sygnal/vite` plugin reports it when it transforms the importing module, before the bundler fails to resolve the import inside Sygnal's own files with a less helpful message.
+
+**Fix:** Install what the message lists: `npm install react react-dom` for `sygnal/react`; `npm install @zag-js/vanilla@1.45 @zag-js/menu@1.45 @zag-js/select@1.45 @zag-js/combobox@1.45` for `sygnal/ui/zag` (the Zag packages must share one version). For Preact, alias `react`, `react-dom` and `react-dom/client` to `preact/compat` (and `preact/compat/client`) in the bundler config.
+
+### SYG667
+
+**Invalid adapter argument**
+
+Severity: `error` · Reported by: the Sygnal runtime (every app, production included)
+
+`fromZag(zag, render, options)` got a first argument that isn't a Zag machine package (an object with `machine` and `connect`, as `import * as menu from '@zag-js/menu'` gives), or a `render` that isn't a function; or `fromReact(Component, options)` got something that isn't a React component (a function, or an object such as `memo()` or `forwardRef()` returns). It is thrown when the widget is defined, at module load, so the app doesn't start with a widget that can't mount.
+
+**Fix:** Pass the whole machine package and a render function: `fromZag(menu, (api, props) => <div>...</div>, { events: { select: ['onSelect', (d) => d.value] } })` with `import * as menu from '@zag-js/menu'` (not the default import or `menu.machine`). For React, pass the component itself: `fromReact(StarRating, { events: { rate: 'onChange' } })`, not an element (`<StarRating />`) or a tag name.
+
 ## SYG9xx: Internal
 
 ### SYG900

@@ -283,6 +283,11 @@ export const CODE_TITLES: Record<string, string> = {
   SYG663: 'Invalid browser-source spec or command',
   SYG664: 'Browser source not in the driver',
   SYG665: 'Browser source failed with no error action',
+  // PLAN-5 W-2 (D203): the adapter entries (sygnal/react, sygnal/zag, sygnal/ui/zag): SYG666 from
+  // sygnal/vite (an entry imported without its optional peer dependencies), SYG667 thrown by
+  // fromZag / fromReact
+  SYG666: 'Adapter peer dependency missing',
+  SYG667: 'Invalid adapter argument',
   // PLAN-4 GS-3: a11y lane (static only, sygnal-check)
   SYG701: 'Click listener on a non-interactive element',
   SYG702: 'Form field without an accessible label',
@@ -398,6 +403,8 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG663: 'error',
   SYG664: 'error',
   SYG665: 'warn',
+  SYG666: 'error',
+  SYG667: 'error',
   // PLAN-5 V-1: VirtualCollection (checks/virtual.ts, through the core bridge)
   SYG430: 'warn',
   SYG431: 'warn',
