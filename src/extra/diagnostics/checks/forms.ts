@@ -16,6 +16,7 @@
  *   SYG234 (warn) `submit` missing, not a host model entry, or one of the form's own action names
  *   SYG235 (warn) a `check` key that isn't a field of `values`
  *   SYG236 (warn) an array of objects in `values` with a row without an `id`
+ *   SYG237 (warn) two form uses of one host with the same form selector (G-374)
  */
 import type {DiagnosticCheck} from '../index'
 import {devReport, once, nameOf} from './shared'
@@ -88,10 +89,22 @@ export const formsCheck: DiagnosticCheck = {
   onModel(component) {
     const view = component?.view, uses = view?.uses
     if (!uses || typeof uses != 'object') return
-    const name = nameOf(component)
+    const name = nameOf(component), sels: Record<string, string> = {}
     for (const key of Object.keys(uses)) {
       const b = uses[key]
-      if (!b?.form || !once(`SYG23x:${name}:${key}`)) continue
+      if (!b?.form) continue
+      // G-374: each form listens on its selector inside the host, so two with one selector hear
+      // each other's fields and submits
+      const sel = b.options?.form || 'form'
+      if (sel in sels) {
+        if (once(`SYG237:${name}:${sel}`)) devReport('SYG237', {
+          component,
+          message: `${name}'s forms '${sels[sel]}' and '${key}' both listen on '${sel}', so each hears the other's fields and submits`,
+          fix: `Give each form element its own class and pass it: ${sels[sel]}: form(schema, { ..., form: '.${sels[sel]}' }), ${key}: form(schema, { ..., form: '.${key}' })`,
+          data: {keys: [sels[sel], key], form: sel},
+        })
+      } else sels[sel] = key
+      if (!once(`SYG23x:${name}:${key}`)) continue
       const o = b.options || {}, values = o.values || {}
       const model = Object.keys(view.model || {}).map(a => a.split('|')[0].trim())
       if (typeof o.submit != 'string' || !model.includes(o.submit) || FORM_ACTIONS.includes(o.submit)) {

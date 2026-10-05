@@ -413,6 +413,13 @@ export const EXPLANATIONS = {
     explanation: "Field arrays name their fields by row id (`addresses.7.city`), so errors, touched state, server errors and focus stay with a row when another row is removed. An array of objects in `values` whose rows have no `id` falls back to the index, and after a removal the next row inherits the removed row's errors and touched state. `form.ADD` gives new rows the next id itself; the start values need ids too. Reported when the component is created.",
     fix: "Give each row a unique `id` in `values`: `addresses: [{ id: 1, street: '', city: '' }]`, render rows with a Collection, and name their inputs `addresses.${state.id}.city`.",
   },
+  SYG237: {
+    title: "Two forms in one component listen on the same form selector",
+    severity: "warn",
+    reportedBy: ["dev-entry"],
+    explanation: "Each `form` behavior hears `input`, `focusout` and `submit` on its form element, found by the `form` option inside the host component (default `'form'`). Two `form` uses in one component with the same selector (both left at the default, usually) both match every form element of the view, so typing in one form changes the other's values too (when the names overlap) and each submit is handled by both. Reported when the component is created.",
+    fix: "Give each form element its own class and pass it as the `form` option: `uses = { login: form(loginSchema, { ..., form: '.login' }), news: form(newsSchema, { ..., form: '.news' }) }` with `<form className=\"login\">` and `<form className=\"news\">`.",
+  },
   SYG301: {
     title: "RxJS operator used on an xstream stream",
     severity: "error",

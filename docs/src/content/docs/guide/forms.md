@@ -102,7 +102,7 @@ The options:
 | `submit` | The host action a valid submit dispatches with the schema's output ([SYG234](/reference/errors/#syg234) when the model has no such entry) |
 | `check` | [Async checks](#async-checks) by field name |
 | `show` | `'blur'` (default), `'input'` or `'submit'`: when a schema error shows |
-| `form` | The form element's selector, default `'form'` |
+| `form` | The form element's selector, default `'form'`. Give each form its own when a component has two ([below](#two-forms-in-one-component)) |
 | `http` | The driver sink the checks' requests go to, default `'HTTP'` |
 
 The actions, named after the `uses` key (`form.CHANGE` for `uses = { form: … }`):
@@ -118,6 +118,41 @@ The actions, named after the `uses` key (`form.CHANGE` for `uses = { form: … }
 | `form.RESET` | Back to `initial`, or to the values given |
 
 As for any behavior, a host model entry with the same name runs after the form's: `'form.DONE': (state) => ({ ...state, done: true })` shows a confirmation. Trigger an action from elsewhere with an intent action of that name, or `t.simulateAction('form.RESET')` in a test.
+
+### Two forms in one component
+
+Each `form` use listens on its `form` selector inside the component, so two uses left at the default `'form'` would both hear every form element: typing in one changes the other, and each submit is handled twice. Give each form element a class and pass it ([SYG237](/reference/errors/#syg237) warns otherwise); the first invalid field focused on submit is then also searched in that form only:
+
+```jsx
+import { form } from 'sygnal'
+import { loginSchema, newsSchema } from './schemas.js'
+
+function Account({ state }) {
+  const login = state.login.fields, news = state.news.fields
+  return (
+    <div>
+      <form className="login" noValidate>
+        <input name="email" aria-label="Email" value={login.email.value} />
+        <button type="submit">Sign in</button>
+      </form>
+      <form className="news" noValidate>
+        <input name="email" aria-label="Newsletter email" value={news.email.value} />
+        <button type="submit">Subscribe</button>
+      </form>
+    </div>
+  )
+}
+
+Account.uses = {
+  login: form(loginSchema, { values: { email: '' }, submit: 'SIGN_IN', form: '.login' }),
+  news: form(newsSchema, { values: { email: '' }, submit: 'SUBSCRIBE', form: '.news' }),
+}
+
+Account.model = {
+  SIGN_IN: { HTTP: (state, values) => ({ url: '/api/sign-in', method: 'POST', json: values, ok: 'login.DONE', error: 'login.ERRORS' }) },
+  SUBSCRIBE: { HTTP: (state, values) => ({ url: '/api/newsletter', method: 'POST', json: values, ok: 'news.DONE', error: 'news.ERRORS' }) },
+}
+```
 
 ## Field arrays
 
@@ -321,7 +356,7 @@ Profile.model = {
 
 ## Diagnostics
 
-With the dev checks on (the Vite plugin in dev, `renderComponent` in tests): [SYG230](/reference/errors/#syg230) a field inside the form whose name isn't in `values`, [SYG231](/reference/errors/#syg231) a schema that isn't a Standard Schema, [SYG232](/reference/errors/#syg232) a submit dropped while one is in progress (info), [SYG233](/reference/errors/#syg233) a value the schema strips from its output, [SYG234](/reference/errors/#syg234) a `submit` action the model doesn't have, [SYG235](/reference/errors/#syg235) a `check` for an unknown field, or a check request that sets `ok`/`error`/`latest`, and [SYG236](/reference/errors/#syg236) array rows without an `id`. `sygnal-check` knows `form`: an option typo is [SYG127](/reference/errors/#syg127), and fields inside the form element are not reported as uncontrolled ([SYG111](/reference/errors/#syg111)).
+With the dev checks on (the Vite plugin in dev, `renderComponent` in tests): [SYG230](/reference/errors/#syg230) a field inside the form whose name isn't in `values`, [SYG231](/reference/errors/#syg231) a schema that isn't a Standard Schema, [SYG232](/reference/errors/#syg232) a submit dropped while one is in progress (info), [SYG233](/reference/errors/#syg233) a value the schema strips from its output, [SYG234](/reference/errors/#syg234) a `submit` action the model doesn't have, [SYG235](/reference/errors/#syg235) a `check` for an unknown field, or a check request that sets `ok`/`error`/`latest`, [SYG236](/reference/errors/#syg236) array rows without an `id`, and [SYG237](/reference/errors/#syg237) two forms in one component on the same selector. `sygnal-check` knows `form`: an option typo is [SYG127](/reference/errors/#syg127), and fields inside the form element are not reported as uncontrolled ([SYG111](/reference/errors/#syg111)).
 
 ## processForm()
 

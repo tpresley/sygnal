@@ -903,6 +903,16 @@ Field arrays name their fields by row id (`addresses.7.city`), so errors, touche
 
 **Fix:** Give each row a unique `id` in `values`: `addresses: [{ id: 1, street: '', city: '' }]`, render rows with a Collection, and name their inputs `addresses.${state.id}.city`.
 
+### SYG237
+
+**Two forms in one component listen on the same form selector**
+
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+Each `form` behavior hears `input`, `focusout` and `submit` on its form element, found by the `form` option inside the host component (default `'form'`). Two `form` uses in one component with the same selector (both left at the default, usually) both match every form element of the view, so typing in one form changes the other's values too (when the names overlap) and each submit is handled by both. Reported when the component is created.
+
+**Fix:** Give each form element its own class and pass it as the `form` option: `uses = { login: form(loginSchema, { ..., form: '.login' }), news: form(newsSchema, { ..., form: '.news' }) }` with `<form className="login">` and `<form className="news">`.
+
 ## SYG3xx: Streams
 
 ### SYG301

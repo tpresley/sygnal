@@ -132,3 +132,42 @@ describe('G-373: an invalid submit focuses a field of its own form', () => {
     expect(focusInvalid({ a: '' }, 'form')).toBe(ABORT)
   })
 })
+
+describe('G-374: two form uses with the same form selector (SYG237)', () => {
+  const ok = sync()
+  const host = (a, b) => {
+    function C({ state }) {
+      return h('div', null,
+        h('form', { className: 'login' }, h('input', { name: 'email', value: state.login.values.email })),
+        h('form', { className: 'news' }, h('input', { name: 'email', value: state.news.values.email })))
+    }
+    C.uses = { login: form(ok, { values: { email: '' }, submit: 'LOGIN', ...a }), news: form(ok, { values: { email: '' }, submit: 'SUB', ...b }) }
+    C.model = { LOGIN: { EFFECT: () => {} }, SUB: { EFFECT: () => {} } }
+    return C
+  }
+
+  it('both on the default: warned once, naming both keys and the selector', async () => {
+    t = renderComponent(host({}, {}))
+    await t.ready()
+    const d = diagnostics('SYG237')
+    expect(d).toHaveLength(1)
+    expect(d[0].severity).toBe('warn')
+    expect(d[0].message).toMatch(/'login' and 'news'/)
+    expect(d[0].message).toMatch(/'form'/)
+  })
+
+  it('the same explicit selector is warned too', async () => {
+    t = renderComponent(host({ form: '.f' }, { form: '.f' }))
+    await t.ready()
+    expect(diagnostics('SYG237')).toHaveLength(1)
+  })
+
+  it('distinct selectors: no warning, and each form hears only its own fields', async () => {
+    t = renderComponent(host({ form: '.login' }, { form: '.news' }))
+    await t.ready()
+    expect(diagnostics('SYG237')).toHaveLength(0)
+    t.simulateEvent('.news input', 'input', { value: 'n@x.y' }); await t.settle()
+    expect(t.state.login.values.email).toBe('')
+    expect(t.state.news.values.email).toBe('n@x.y')
+  })
+})

@@ -679,6 +679,18 @@
     "docsUrl": "https://sygnal.js.org/reference/errors#syg236"
   },
   {
+    "code": "SYG237",
+    "title": "Two forms in one component listen on the same form selector",
+    "severity": "warn",
+    "strict": false,
+    "reportedBy": [
+      "dev-entry"
+    ],
+    "explanation": "Each `form` behavior hears `input`, `focusout` and `submit` on its form element, found by the `form` option inside the host component (default `'form'`). Two `form` uses in one component with the same selector (both left at the default, usually) both match every form element of the view, so typing in one form changes the other's values too (when the names overlap) and each submit is handled by both. Reported when the component is created.",
+    "fix": "Give each form element its own class and pass it as the `form` option: `uses = { login: form(loginSchema, { ..., form: '.login' }), news: form(newsSchema, { ..., form: '.news' }) }` with `<form className=\"login\">` and `<form className=\"news\">`.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg237"
+  },
+  {
     "code": "SYG301",
     "title": "RxJS operator used on an xstream stream",
     "severity": "error",
