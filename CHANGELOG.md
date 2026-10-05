@@ -212,6 +212,8 @@ Covers `sygnal`, `sygnal-check` and `create-sygnal-app`. A few fixes change beha
   - the SYG502 rule is removed (retired, see Changed).
 - **`create-sygnal-app`:** `README.md` in the package.
 
+- **`resetState` prop** (PLAN-4.6, D174). `<Editor state="doc" resetState />` replaces an `isolatedState` child's slice with its `initialState` when the child is created; without it an existing slice is kept and `initialState` only fills a missing one. It is read at creation, like `state`, and is not a prop of the child. In the JSX types next to `state`.
+
 ### Changed
 
 - **A STATE reducer that returns the object it received means "no change"** ([Model](https://sygnal.js.org/guide/model/#aborting-an-action)), exactly like `ABORT`: no state is emitted and nothing re-renders, in components and Collection items alike. The entry's other sinks are unchanged. Before, it emitted the same object as a new state and re-rendered. A reducer that changes the state in place and returns it therefore has no effect; the dev entry reports it as SYG222. Immer's `produce()` works as a STATE reducer as is (a recipe that changes nothing returns the original).
@@ -355,6 +357,8 @@ These are fixes, but code or tests may depend on the old behavior:
 - **The DOM source emits after Sygnal's patches only** (PLAN-4.5). `DOM.select(…).elements()` (and anything built on the DOM driver's root element) emitted on every change inside the app's root, watched with a `MutationObserver`; it now emits after each patch. Changes another script makes to the app's DOM no longer make it emit. Sygnal's own changes outside a patch still emit: a `Transition` removing its element after the leave transition, a `Portal` mounting into a target that appeared later.
 - **In dev, mutating a component's statics throws** (PLAN-4.5, D152). With diagnostics on, a component's static `initialState` is deep-frozen and its `model`, `context` and `calculated` are frozen (values passed in, such as `renderComponent()`'s `initialState` option, are not), so code that changed the initial state in place (an item of an initial array, say) gets a TypeError (SYG216 or SYG406) in dev. Create new objects instead; production is unchanged.
 - **JSX: nested prop objects are passed by reference** (PLAN-4.5). The JSX pragma no longer deep-copies `style`, `attrs`, `props`, `on`, `hook`, `class` and `data` objects, or a component's object and array props: the vnode holds the object you passed, as in React, Vue and snabbdom. Changing such an object in place and rendering it again can leave the DOM as it was (the next diff compares the object with itself); create a new object instead. An entry set to `undefined` is still dropped, and an object Sygnal adds to (`attrs={…}` plus `aria-label`, a `ref` on an element with a `hook`) is copied, never written to.
+
+- **`isolatedState` with a `state` prop keeps the parent's data** (PLAN-4.6, D174; with the 6.0 component core). An `isolatedState` child bound to a slice (`<Editor state="doc" />`) uses its `initialState` only while `state.doc` is `undefined`; an existing slice is kept (before: the child's `INITIALIZE` replaced it whenever the child was created). A parent that relied on a re-mounted child starting fresh adds the new `resetState` prop (see Added).
 
 ### Breaking changes (TypeScript)
 

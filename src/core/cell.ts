@@ -38,9 +38,10 @@ export function localCell(app: {commit(): void}, parent: Cell): Cell {
 
 /**
  * state="key". `owner`: the parent's name when `k` is one of its calculated fields (SYG409:
- * writes ignored). `dflt`: an isolated child's initialState, read while the slice is undefined.
+ * writes ignored; `what` names the writer in the message). `dflt`: an isolated child's
+ * initialState, read while the slice is undefined. `has()`: the slice itself is defined (D174).
  */
-export function keyCell(parent: Cell, k: string, owner?: string | false, dflt?: any): Cell {
+export function keyCell(parent: Cell, k: string, owner?: string | false, dflt?: any, what = 'Sub-component'): Cell & {has(): boolean} {
   let lp: any = {}, lv: any
   return {
     get() {
@@ -49,22 +50,36 @@ export function keyCell(parent: Cell, k: string, owner?: string | false, dflt?: 
       return lv
     },
     set(v) {
-      if (owner) return warn('SYG409', owner, `Sub-component tried to update calculated field '${k}'; ignored`, 'Bind it to a non-calculated field')
+      if (owner) return warn('SYG409', owner, `${what} tried to update calculated field '${k}'; ignored`, 'Bind it to a non-calculated field')
       const p = parent.get()
       if (p?.[k] !== v) parent.set({...p, [k]: v})
     },
+    has: () => parent.get()?.[k] !== undefined,
   }
 }
 
-/** state={{ get, set }} (no get: SYG410, the parent's whole state) */
-export function lensCell(parent: Cell, lens: any, owner: string): Cell {
+/**
+ * state={{ get, set }} (no get: SYG410, the parent's whole state). G-298: a get() that throws
+ * keeps the last value (SYG410, and `onErr` for the app's onError)
+ */
+export function lensCell(parent: Cell, lens: any, owner: string, onErr?: (e: any) => void): Cell {
   if (typeof lens?.get != 'function') {
     logError('SYG410', owner, `Sub-component 'state' prop ${isObj(lens) ? 'has no get()' : `is a ${typeof lens}`}; it gets the parent's whole state`, 'Use a state key string or { get, set }')
     return parent
   }
   let lp: any = {}, lv: any
   return {
-    get() { const p = parent.get(); if (p !== lp) { lp = p; lv = lens.get(p) } return lv },
+    get() {
+      const p = parent.get()
+      if (p !== lp) {
+        lp = p
+        try { lv = lens.get(p) } catch (e) {
+          logError('SYG410', owner, "Sub-component 'state' lens get() threw; it keeps its last value", 'Guard the getter against missing data', e)
+          onErr?.(e)
+        }
+      }
+      return lv
+    },
     set(v) {
       if (typeof lens.set != 'function') return
       const p = parent.get(), n = lens.set(p, v)
@@ -109,6 +124,63 @@ export function calcCell(base: Cell, def: CoreDef): CalcCell {
       const c = {...add(v)}
       ls = c; lr = c
       base.set(c)
+    },
+  }
+}
+
+
+// ------------------------------------------------------------------ Collection items
+
+/**
+ * An item's key: the truthy `id` of an object item, else its raw index in the state array (D169:
+ * not its filtered/sorted position). An index and an equal id are the same key, as today, so an
+ * id-less item that writes itself back with its index as `id` keeps its instance.
+ */
+export const keyOf = (it: any, i: number) => (isObj(it) && it.id ? it.id : i)
+
+const EMPTY: any[] = []
+export type Index = () => [items: any[], byKey: Map<any, number>]
+
+/** one per Collection: the key -> raw index map (first occurrence), rebuilt once per array identity, shared by its items */
+export function indexer(arr: Cell): Index {
+  let la: any, map = new Map<any, number>()
+  return () => {
+    const g = arr.get(), a = Array.isArray(g) ? g : EMPTY
+    if (a !== la) {
+      la = a
+      map = new Map()
+      for (let i = 0; i < a.length; i++) { const k = keyOf(a[i], i); if (!map.has(k)) map.set(k, i) }
+    }
+    return [a, map]
+  }
+}
+
+/**
+ * A Collection item: the element of its key. An id-less element is a copy with its index as `id`
+ * (a primitive `{ value, id }`, written back as the primitive). Writing `undefined` removes the
+ * element; the other elements keep their identity (PF-1).
+ */
+export function itemCell(arr: Cell, index: Index, key: any): Cell {
+  let lraw: any = {}, lval: any
+  return {
+    get() {
+      const [a, m] = index(), j = m.get(key)
+      // removed: its last state (a disposing item's DISPOSE / dispose$ handlers read it, as today)
+      if (j === undefined) return lval
+      const raw = a[j]
+      if (raw === lraw) return lval
+      lraw = raw
+      return (lval = isObj(raw) ? (raw.id ? raw : {...raw, id: j}) : {value: raw, id: j})
+    },
+    set(v) {
+      const [a, m] = index(), j = m.get(key)
+      if (j === undefined) return
+      if (v === undefined) return arr.set(a.filter((_: any, x: number) => x !== j))
+      const cur = a[j]
+      if (v === cur || (v === lval && cur === lraw)) return
+      const n = a.slice()
+      n[j] = isObj(cur) || !isObj(v) ? v : v.value
+      arr.set(n)
     },
   }
 }

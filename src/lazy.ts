@@ -1,3 +1,6 @@
+// PLAN-4.6 R2-R4: the next core's resolver for lazy components, registered on import (D157)
+import './core/markers/lazy';
+
 export function lazy(loadFn: () => Promise<any>): any {
   let cachedComponent: any = null;
   let loadError: any = null;

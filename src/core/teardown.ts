@@ -1,10 +1,11 @@
 /**
- * PLAN-4.6 next core: synchronous teardown (D165 / Q18). xstream stops a stream left without
+ * PLAN-4.6 next core: teardown without timers (D165 / Q18). xstream stops a stream left without
  * listeners in a setTimeout of its own (1-2k timers to unmount 1k components). While an instance
  * unsubscribes (tearDown), Stream.prototype._remove queues such a stream instead (_stopID 0: an
  * _add before the stop cancels it, as xstream's clearTimeout would), and stopQueued() stops the
- * queue synchronously when the drain / flush ends: no timer. The swap is scoped to the call
- * (PLAN-4.5's tearDown, narrowed; R5 deletes the current core's permanent one).
+ * queue at the first macrotask after the drain / flush (G-302: xstream's timing; the runtime's
+ * setImmediate / MessageChannel ping, no setTimeout). The swap is scoped to the call (PLAN-4.5's
+ * tearDown, narrowed; R5 deletes the current core's permanent one).
  */
 import xs from '../extra/xstreamCompat'
 
@@ -42,3 +43,7 @@ export function stopQueued(q: any[]) {
 
 /** the instance behind an intent's sources object (the source getters read it) */
 export const INST = Symbol('sygnal.inst')
+/** the queue's action type for a state write (runtime setState, a child's seeded slice) */
+export const SET = Symbol('setState')
+/** a child's seeded slice (D174), written even when it reads its initialState as the default */
+export const SEED = Symbol('seed')

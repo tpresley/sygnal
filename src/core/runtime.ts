@@ -15,7 +15,7 @@
  *   a MessageChannel message. No setTimeout anywhere.
  * - teardown (D165 / Q18): while an instance unsubscribes, Stream.prototype._remove queues the
  *   streams it leaves without listeners instead of arming xstream's stop timer, and the queue is
- *   stopped synchronously when the drain / flush ends. The swap is scoped to dispose().
+ *   stopped at the first macrotask after the drain / flush (G-302). The swap is scoped to dispose().
  */
 import xs from '../extra/xstreamCompat'
 import {makeDOMDriver} from '../cycle/dom/index'
@@ -28,7 +28,10 @@ import {CoreDef, defOf} from './define'
 import {rootCell} from './cell'
 import {Inst} from './instance'
 import {viewOf} from './view'
-import {stopQueued, INST} from './teardown'
+import {stopQueued, INST, SET, SEED} from './teardown'
+// the public ClientOnly is a separate bundle (sygnal/vike/ClientOnly) with no core of its own, so
+// its marker handler registers with the core (the other markers register from their modules)
+import './markers/clientonly'
 
 const LOOP = 100, HARD = 1000
 // the macrotask, captured at load (a test's fake timers don't hold the ping): Node drains a
@@ -37,7 +40,6 @@ const LOOP = 100, HARD = 1000
 const G: any = globalThis
 const SI: ((f: () => void) => void) | undefined = typeof G.setImmediate == 'function' ? G.setImmediate.bind(G) : undefined
 const MC: any = typeof G.MessageChannel == 'function' ? G.MessageChannel : undefined
-const SET = Symbol('setState')
 const ERR_FIX = 'See the attached error'
 
 export interface StartOptions {
@@ -77,11 +79,19 @@ export class App {
   proxies: Record<string, any> = {}
   bus: Record<string, any> = {}
   busL: Record<string, any> = {}
+  /** G-296: before the first flush emitted, the sink values sent, per sink */
+  early = true
+  log: Record<string, any[]> = {}
+  ex: Record<string, any> = {}
+  exL: Record<string, any> = {}
   hooks: Hooks
+  /** run()'s hooks, then each addHooks() layer (G-297) */
+  layers: Hooks[]
   born: Inst[] = []
   watchers = new Set<Inst>()
   /** streams the disposed instances left without listeners, stopped when the drain / flush ends */
   dq: any[] = []
+  stopping = false
   disposed = false
   initState: any
   /** D168 hook point: R4's dev check re-runs a sample of the views context tracking skipped */
@@ -98,6 +108,7 @@ export class App {
 
   constructor(public opts: StartOptions = {}) {
     this.hooks = {...opts.__hooks}
+    this.layers = [opts.__hooks || {}]
     this.initState = opts.__state
   }
 
@@ -124,13 +135,14 @@ export class App {
           const f = q[i + 2], c = inst.cell
           const v = typeof f == 'function' ? f(c.get()) : f
           if (v !== c.get()) c.set(v)
-        } else inst.handle(q[i + 1], q[i + 2], q[i + 3])
+        } else if (q[i + 1] === SEED) inst.cell.set(q[i + 2])
+        else inst.handle(q[i + 1], q[i + 2], q[i + 3])
         if (this.watchers.size) this.notify()
       }
     } finally {
       q.length = 0
       this.draining = false
-      if (!this.flushing && this.dq.length) stopQueued(this.dq)
+      if (!this.flushing && this.dq.length) this.stopLater()
     }
   }
   /** STATE.stream: the instances whose state changed emit it */
@@ -170,6 +182,16 @@ export class App {
     }
     this.mc.port2.postMessage(0)
   }
+  /**
+   * G-302: the streams disposed instances left without listeners stop at the first macrotask, as
+   * xstream's own deferred stop does (a shared stream unmounted in one flush and mounted again in
+   * the next keeps running), but through macro(): no setTimeout per stream
+   */
+  stopLater() {
+    if (this.stopping) return
+    this.stopping = true
+    this.macro(() => { this.stopping = false; stopQueued(this.dq) })
+  }
   pong() {
     this.ping = false
     this.flushes = 0
@@ -177,7 +199,14 @@ export class App {
   }
   flush() {
     this.scheduled = false
-    if (this.disposed) return
+    if (this.disposed) return this.release()
+    try { this.flushOnce() } finally { this.release() }
+  }
+  /** G-301: flushed() resolves once nothing is scheduled, after a throwing flush, or on dispose */
+  release() {
+    if (this.waiters.length && (!this.scheduled || this.disposed)) for (const w of this.waiters.splice(0)) w()
+  }
+  flushOnce() {
     this.flushing = true
     let v: any, n = 0
     try {
@@ -185,7 +214,14 @@ export class App {
         this.dirty = false
         if (this.watchers.size) this.notify()
         this.rendering = true
-        v = this.root.render()
+        try { v = this.root.render() } catch (e) {
+          // G-298: an error that escaped every boundary (a hook, a host): reported; the DOM keeps
+          // its last render and the flush still ends (BOOTSTRAP, teardown, waiters)
+          this.rendering = false
+          this.caught(this.root, 'SYG406', 'Render threw; the page keeps its last render', e, 'view')
+          v = this.last
+          break
+        }
         this.afterRender?.()
         this.rendering = false
         if (this.queue.length) this.drain()
@@ -201,14 +237,14 @@ export class App {
         this.hooks.onPatch?.(v)
         this.vdomL?.next(v)
       }
-      if (this.dq.length) stopQueued(this.dq)
+      if (this.dq.length) this.stopLater()
     } finally { this.tail = false }
     if (this.born.length) {
       const b = this.born.splice(0)
       queueMicrotask(() => { for (const i of b) if (!i.disposed) this.dispatch(i, 'BOOTSTRAP', undefined, 'built-in') })
     }
     if (this.dirty) { this.chained = true; this.dirty = false; this.commit() }
-    if (this.waiters.length && !this.scheduled) for (const w of this.waiters.splice(0)) w()
+    if (this.early) { this.early = false; this.log = {} }
   }
 
   // ---------------------------------------------------------------- sinks
@@ -217,13 +253,30 @@ export class App {
     return this.bus[n] ||= xs.create({start: (l: any) => { this.busL[n] = l }, stop: () => { delete this.busL[n] }})
   }
   out(n: string, v: any) {
+    // G-296: until the first flush has emitted, a sink's values are kept for a listener added
+    // right after run() / renderComponent (sinks[n], as Cycle's run buffered its sinks)
+    if (this.early) (this.log[n] ||= []).push(v)
     const l = this.busL[n]
     if (!l) return
     try { l.next(v) } catch (e) {
-      // GS-11: a driver that throws handling a sink value goes to the app's onError ('driver')
-      callHook(this.opts.onError, e, {phase: 'driver', driver: n})
+      // GS-11: a driver that throws handling a sink value goes to the app's onError ('driver'),
+      // and to the hooks' onError (G-303)
+      const info: any = {phase: 'driver', driver: n}
+      callHook(this.opts.onError, e, info)
+      this.hooks.onError?.(e, info)
       queueMicrotask(() => { throw e })
     }
+  }
+  /** run()'s sinks[n]: the bus, with the values sent before the first flush replayed to its first listener (G-296) */
+  exposed(n: string) {
+    return this.ex[n] ||= xs.create({
+      start: (l: any) => {
+        const early = this.early ? this.log[n] : undefined
+        if (early) for (const v of early.slice()) l.next(v)
+        this.sink(n).addListener(this.exL[n] = {next: (v: any) => l.next(v), error: (e: any) => l.error(e), complete: () => l.complete()})
+      },
+      stop: () => { this.sink(n).removeListener(this.exL[n]) },
+    })
   }
   /**
    * The value-level fallback (a source without isolateValue): one stream per instance and key
@@ -277,6 +330,8 @@ export class App {
     if (child) {
       d.props$ = get(i => i.props$ || seeded(i, 'props$', i.props))
       d.children$ = get(i => i.children$ || seeded(i, 'children$', i.children))
+      // a Command passed as a prop (createCommand): its messages, as today's `commands$`
+      d.commands$ = get(i => i.commands())
     }
     return (this.desc[k] = d)
   }
@@ -295,19 +350,33 @@ export class App {
       flushed: () => new Promise<void>(r => (app.scheduled || app.flushing ? app.waiters.push(r) : r())),
     }
   }
+  /**
+   * A layer of hooks on top of run()'s own (devtools connecting late, a dev entry). G-297: the
+   * remover drops only its own layer; the hooks are composed again from the layers left.
+   */
   addHooks(h: Hooks) {
-    const H: any = this.hooks, added: any = h
-    const prev: Record<string, any> = {}
-    for (const k in added) {
-      const a = added[k], b = H[k]
-      prev[k] = b
-      H[k] = !b ? a
-        : k == 'wrapHandler' ? (i: any, t: any, s: any, f: any) => a(i, t, s, b(i, t, s, f))
-        : k == 'wrapSources' ? (i: any, s: any) => a(i, b(i, s) || s)
-        : k == 'transformDef' ? (src: any, v: any) => a(b(src, v) || src, v)
-        : (...args: any[]) => { b(...args); a(...args) }
+    this.layers.push(h)
+    this.compose()
+    return () => {
+      const i = this.layers.indexOf(h)
+      if (i >= 0) { this.layers.splice(i, 1); this.compose() }
     }
-    return () => { for (const k in prev) H[k] = prev[k] }
+  }
+  compose() {
+    const H: any = this.hooks
+    for (const k in H) delete H[k]
+    for (const layer of this.layers) {
+      const added: any = layer
+      for (const k in added) {
+        const a = added[k], b = H[k]
+        if (!a) continue
+        H[k] = !b ? a
+          : k == 'wrapHandler' ? (i: any, t: any, s: any, f: any) => a(i, t, s, b(i, t, s, f))
+          : k == 'wrapSources' ? (i: any, s: any) => a(i, b(i, s) || s)
+          : k == 'transformDef' ? (src: any, v: any) => a(b(src, v) || src, v)
+          : (...args: any[]) => { b(...args); a(...args) }
+      }
+    }
   }
 
   dispose() {
@@ -318,6 +387,7 @@ export class App {
       for (const n in this.sources) try { this.sources[n]?.dispose?.() } catch (_) {}
       for (const n in this.proxies) try { this.proxies[n]._c() } catch (_) {}
       this.mc?.port1.close()
+      this.release()
     }
   }
 }
@@ -333,7 +403,10 @@ function seeded(i: any, k: string, v: any) {
 }
 function byId(i: Inst, id: number): Inst | undefined {
   if (i.id === id) return i
-  for (const k of i.kids.values()) if (k instanceof Inst) { const f = byId(k, id); if (f) return f }
+  for (const k of i.kids.values()) {
+    if (k instanceof Inst) { const f = byId(k, id); if (f) return f }
+    else if (k.insts) for (const j of k.insts()) { const f = byId(j, id); if (f) return f }
+  }
 }
 
 export interface Started {
@@ -385,7 +458,7 @@ export function start(Root: ComponentFn, drivers: Record<string, any> = {}, opts
   const sinks: Record<string, any> = {__dispose: () => app.dispose()}
   for (const n of [...Object.keys(all), 'PARENT']) {
     if (n == 'DOM') Object.defineProperty(sinks, n, {get: () => dom$ ||= app.vdom$.remember(), enumerable: true})
-    else if (!NOT_SINK.test(n) || n == 'PARENT') Object.defineProperty(sinks, n, {get: () => app.sink(n), enumerable: true})
+    else if (!NOT_SINK.test(n) || n == 'PARENT') Object.defineProperty(sinks, n, {get: () => app.exposed(n), enumerable: true})
   }
   const sources: Record<string, any> = {...app.sources}
   Object.defineProperty(sources, 'STATE', {get: () => app.root.stateSource(), enumerable: true})

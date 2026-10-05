@@ -34,6 +34,8 @@ The new core replaces all of it with three layers:
 | `resolvers` | `(view, owner) => view \| undefined` | lazy |
 | statics | `__sygnalStatic` / `__sygnalReplies` / `replies(id)` / optional `isolateValue` on a driver source | timers, fetch `resources`, socket `connections`, router `route`, head, testing fakes, PLAN-5 browser sources |
 
+**Owners (R2):** registry entries are core modules, so hosts, `pres`, `posts` and `resolvers` get the owner's raw instance (a resolver calls `owner.refresh()` to render it again); hooks get `InstanceView`s. Each registration is guarded by D175's build constant (`src/core/build.ts`), so a production build that strips the next core drops them too.
+
 **`transformDef` / `defHooks`** (spike finding 5): a definition hook runs a behavior's existing `merge(component, key)` on a **definition shim** (`model`, `intent`, `initialState`, `_idle`, `stateSourceName: 'STATE'`, `isSubComponent: true`, `view`). So `behaviors.ts`, `undo.ts` and `selection.ts` work unchanged. They run once per function instead of once per instance. The slice goes to `idle` (the defaults a sub-component reads until it writes them) and, for a root, into `initialState`. That matches today's root merge (`behaviors.ts:57`) vs sub-component `_idle` (`behaviors.ts:56`).
 
 ### 2.2 Hooks (per app; all optional; called as `hooks.x?.(…)`)
@@ -55,6 +57,8 @@ The new core replaces all of it with three layers:
 | `onElementCommand(inst, cmd)` | before an ELEMENT command runs after the patch | `model$.ELEMENT` replacement (testing `recordCommands`, checks/elementCommands) |
 | `onStateChanged` / `onPropsChanged` / `onContextChanged` / `onReady` | in the flush, when they changed | the `window.__SYGNAL_DEVTOOLS__?.connected` checks |
 | `onContextMiss(inst, read, changed)` | dev only: a skipped view re-run gave a different vnode (D168) | new |
+| `onStateSeed(inst, slice, initialState)` | an `isolatedState` child bound to an existing slice keeps it (D174; R2) | R4's dev warning (keys `initialState` defines that the slice lacks) |
+| `onDuplicateKey(owner, key)` | a Collection item key appears more than once; its first element renders (D169; R2) | R4's dev warning |
 | `onError(error, info)` | errors with a phase | `sources.__e` / run()'s `onError` |
 
 **Rules:**
@@ -108,12 +112,10 @@ The new core replaces all of it with three layers:
   - When the vnode differs structurally from the cached one, the core reports it (a new SYG code in the R4 range) and calls `onContextMiss`.
   - The residual risk is a read after the view returned. It can't happen in a synchronous view, but a read through a closure kept in an event handler would escape tracking. Views never bind events, so that is unsupported anyway.
 
-### 2.6 `<Switchable lazy>` (D166)
+### 2.6 Hidden Switchable pages (D172, superseding D166's `lazy` prop)
 
-- **Without `lazy`:** every page is rendered at mount, as today.
-- **With `lazy`:** a hidden page is created at mount (its INITIALIZE, intent, actions, BOOTSTRAP and `background: true` statics run). Its view is first called when the page is first shown, with the current state. After that it behaves like any hidden page: render skipped while hidden, re-rendered on show.
-- **READY:** a lazy page that has never rendered still reports READY from its model; Suspense is unaffected.
-- **Types:** the prop goes into `index.d.ts` with the Switchable props (R2).
+- Every page is created at mount (its INITIALIZE, intent, actions, BOOTSTRAP, PARENT and `background: true` statics run from then on). A hidden page's view is first called when it is first shown, with the current state, as today (G-121). After that its render is skipped while hidden and it renders on show if its inputs changed. No new prop.
+- **READY:** the Switchable stays ready for its owner, as today.
 
 ## 3. Consumers: what they use today, and the hook that replaces it
 

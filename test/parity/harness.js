@@ -23,7 +23,7 @@ import * as sygnal from '../../src/index.js'
 export const CORE = (process.env.SYGNAL_CORE || 'current').toLowerCase()
 if (CORE != 'current' && CORE != 'next') throw new Error(`SYGNAL_CORE=${CORE}: unknown core (current | next)`)
 /** the PLAN-4.6 phases the next core implements */
-export const NEXT_DONE = new Set(['R1'])
+export const NEXT_DONE = new Set(['R1', 'R2'])
 const later = (phase) => CORE == 'next' && !NEXT_DONE.has(phase)
 const skipNote = (phase) => `[next core: needs PLAN-4.6 ${phase}]`
 

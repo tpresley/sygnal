@@ -1,6 +1,7 @@
 import {setup} from '../cycle/run/index';
 import {withState} from '../cycle/state/index';
 import {start as startNext} from '../core/runtime';
+import {NEXT_CORE} from '../core/build';
 import {mockDOMSource} from '../cycle/dom/mockDOMSource';
 import {makeDOMDriver} from '../cycle/dom/makeDOMDriver';
 import {enrichEventStream} from '../cycle/dom/enrichEventStream';
@@ -1876,7 +1877,7 @@ export function renderComponent(
     initialState: init,
   });
   let started = false;
-  const nextCore = (globalThis as any).__SYGNAL_CORE__ === "next";
+  const nextCore = NEXT_CORE && (globalThis as any).__SYGNAL_CORE__ === "next";
   const onEvents = (path: string[], type: string, on?: boolean) => {
     const k = path.join('\u0000');
     if (on === undefined) {
@@ -1886,8 +1887,9 @@ export function renderComponent(
       // G-039: subscribed / unsubscribed listeners (a just-mounted child subscribes late)
       const lk = k + '\u0000' + type;
       live.set(lk, (live.get(lk) || 0) + (on ? 1 : -1));
-      // (the next core subscribes the intent while starting, before retry exists: a microtask later)
-      if (on) started ? retry(0) : queueMicrotask(() => retry(0));
+      // (the next core subscribes the intent while starting, before retry exists: a microtask
+      // later; G-299: not at all when the start threw)
+      if (on) started ? retry(0) : queueMicrotask(() => { if (started) retry(0); });
     }
   };
   // E4: the real DOM driver (as run() sets it up) patching into a fresh container
@@ -2000,7 +2002,7 @@ export function renderComponent(
   }
   let sources: any, sinks: any, rawDispose: () => void;
   try {
-    if ((globalThis as any).__SYGNAL_CORE__ === 'next') {
+    if (NEXT_CORE && (globalThis as any).__SYGNAL_CORE__ === 'next') {
       // PLAN-4.6 R1 (internal, until R4 ports renderComponent onto the hooks): the next core runs
       // the same root (the test intent, model, initial state and name) with the same drivers.
       // The diagnostics-hook bookkeeping (t.actions, child fakes, SYG103/104 owners) is R4's

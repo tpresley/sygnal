@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// PLAN-4.6 parity: Switchable (spike 0-S §3, ported to the public API), G-292 and D166.
+// PLAN-4.6 parity: Switchable (spike 0-S §3, ported to the public API), G-292 and D172 (hidden pages).
 import { it, expect } from 'vitest'
 import { parity, itNext, mount, h, click, until, sleep, xs, Switchable } from './harness.js'
 
@@ -115,32 +115,35 @@ parity('parity: an isolatedState page next to a state-bound page (G-292)', () =>
   })
 }, 'R2')
 
-parity('parity: D166 hidden-page rendering and <Switchable lazy>', () => {
-  // NOTE (R0 finding, see the R0 report): the current core does NOT call a hidden page's view at
-  // mount; it renders a page when it is first shown (G-121 skips renders while hidden). D166
-  // assumed "render at mount, as today". The test below is written for D166 as decided and
-  // fails on the current core; the `lazy` test passes on both, since today's behaviour already
-  // is what `lazy` asks for.
-  itNext('D166 hidden pages render at mount', 'without `lazy`, a hidden page is rendered at mount', async () => {
+parity('parity: D172 hidden pages render on first show (G-121; no `lazy` prop)', () => {
+  // D172 (supersedes D166): today's behaviour is kept. A hidden page is created at mount and runs
+  // from then on, but its view is first called when it is first shown. R0's D166 tests ("render
+  // at mount" and a `lazy` prop) were rewritten in R2.
+  it('a page never shown has its view called only when it is first shown', async () => {
     let views = 0
     function Hidden() { views++; return h('p', { className: 'hid' }, 'h') }
     function Shown() { return h('p', { className: 'shown' }, 's') }
-    function P() { return h('div', null, h(Switchable, { of: { s: Shown, h: Hidden }, current: 's' })) }
-    P.initialState = {}
+    function P({ state }) { return h('div', null, h('button', { className: 'flip' }), h(Switchable, { of: { s: Shown, h: Hidden }, current: state.page })) }
+    P.initialState = { page: 's' }
+    P.intent = ({ DOM }) => ({ FLIP: DOM.click('.flip') })
+    P.model = { FLIP: (s) => ({ ...s, page: 'h' }) }
     const m = mount(P)
     await until(() => expect(m.$('.shown')).toBeTruthy())
     await sleep(20)
-    expect(views).toBeGreaterThan(0)
+    expect(views).toBe(0)
     expect(m.$('.hid')).toBe(null)
+    click(m.$('.flip'))
+    await until(() => expect(m.$('.hid')).toBeTruthy())
+    expect(views).toBeGreaterThan(0)
   })
 
-  it("`lazy`: a hidden page's view isn't called until it is first shown; its intent, actions, BOOTSTRAP and PARENT run from mount", async () => {
+  it("a hidden page's intent, actions, BOOTSTRAP and PARENT run from mount, before its view is first called", async () => {
     const log = { views: 0, boot: 0 }
     function Hidden({ state }) { log.views++; return h('p', { className: 'hid' }, `h${state.n}`) }
     Hidden.intent = () => ({ TICK: xs.periodic(5).take(2) })
     Hidden.model = { TICK: { STATE: (s) => ({ ...s, n: s.n + 1 }), PARENT: (s) => s.n + 1 }, BOOTSTRAP: { EFFECT: () => log.boot++ } }
     function Shown() { return h('p', { className: 'shown' }, 's') }
-    function P({ state }) { return h('div', null, h('button', { className: 'flip' }), h(Switchable, { of: { s: Shown, h: Hidden }, current: state.page, state: 'h', lazy: true }), h('b', { className: 'got' }, state.got.join())) }
+    function P({ state }) { return h('div', null, h('button', { className: 'flip' }), h(Switchable, { of: { s: Shown, h: Hidden }, current: state.page, state: 'h' }), h('b', { className: 'got' }, state.got.join())) }
     P.initialState = { page: 's', h: { n: 0 }, got: [] }
     P.intent = ({ DOM, CHILD }) => ({ FLIP: DOM.click('.flip'), GOT: CHILD.select(Hidden) })
     P.model = { FLIP: (s) => ({ ...s, page: 'h' }), GOT: (s, v) => ({ ...s, got: [...s.got, v] }) }

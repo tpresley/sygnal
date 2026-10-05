@@ -298,6 +298,14 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
         },
       }
 
+      // PLAN-4.6 D175 (R2-R4; deleted at R5): a production build strips the next component core
+      // (run()'s internal next-core branch is dead code, src/core/build.ts), so the shipped
+      // bundle and the size gate carry only the current core. A project that defines the
+      // constant itself keeps its value (the benchmarks' `next` target sets true)
+      if (env.command === 'build' && !isVitest && !(config?.define && '__SYGNAL_NEXT_CORE__' in config.define)) {
+        result.define = { __SYGNAL_NEXT_CORE__: 'false' }
+      }
+
       // G-099: xstream's `require('globalthis')` gets the native-globalThis
       // stub. An alias (not resolveId) so it also applies to pre-bundling.
       // R2-7: not when the user's config already aliases `globalthis`.

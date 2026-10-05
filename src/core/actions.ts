@@ -28,9 +28,12 @@ export function handle(inst: Inst, type: string, data: any, cause: any) {
   let props: any
   const next = (t: string, d?: any, ms: any = 10, effect?: boolean) => {
     if (typeof ms !== 'number') fail('SYG215', inst, `next() delay in '${type}' must be a number`, "Use next('ACTION', data, ms)")
-    if (effect && inst.disposed) return
+    // G-300: none for an instance being disposed; dispose() clears the pending ones
+    if (inst.disposed || inst.dying) return
     H.onNext?.(viewOf(inst), t, d, ms)
-    setTimeout(() => inst.disposed || app.dispatch(inst, t, d, 'next'), ms)
+    const ts = inst.timers ||= new Set()
+    const id = setTimeout(() => { ts.delete(id); inst.disposed || app.dispatch(inst, t, d, 'next') }, ms)
+    ts.add(id)
   }
   for (const [sink, h0] of hs) {
     const h = H.wrapHandler ? H.wrapHandler(viewOf(inst), type, sink, h0) : h0

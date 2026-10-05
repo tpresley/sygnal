@@ -177,6 +177,14 @@ export interface Hooks {
   onPropsChanged?(inst: InstanceView, props: any): void
   /** an instance's context changed; `keys`: the keys that changed (D168) */
   onContextChanged?(inst: InstanceView, context: any, keys: string[]): void
+  /**
+   * D174: an `isolatedState` child bound to a slice that already exists (state="key" or a lens,
+   * without `resetState`) keeps the parent's data instead of its initialState. R4's dev warning
+   * reports the keys `initialState` defines that the slice lacks.
+   */
+  onStateSeed?(inst: InstanceView, slice: any, initialState: any): void
+  /** D169: a Collection item key (id, or raw index) that appears more than once; only its first element renders. R4's dev warning */
+  onDuplicateKey?(owner: InstanceView, key: any): void
   /** a child's READY flag changed (devtools, Suspense diagnostics) */
   onReady?(inst: InstanceView, child: InstanceView, ready: boolean): void
   /**
@@ -218,28 +226,37 @@ export interface RuntimeAPI {
 
 // ---------------------------------------------------------------------------------- 1. registries
 
-/** A child that renders in place of a marker vnode (Collection, Switchable) */
+/**
+ * A child that renders in place of a marker vnode (Collection, Switchable). The registry entries
+ * are core modules: they get the owner's raw instance (R2), unlike hooks.
+ */
 export interface Host {
   /** render with the latest props; return the vnode to inject (the cached one when nothing changed) */
   render(): any
-  setProps(props: Record<string, any>, children: any[]): void
+  /** the latest props and children; `marker` / `id`: the marker vnode and its id in the owner */
+  setProps(props: Record<string, any>, children: any[], marker?: any, id?: string): void
   dispose(): void
-  /** READY of its instances (Suspense) */
+  /** READY of its instances (Suspense); Collection and Switchable stay ready, as today */
   readonly ready: boolean
+  /** its instances (byId, InstanceView.children) */
+  insts(): any[]
 }
 
 export interface Registry {
   /** marker sel -> host factory (Collection, Switchable) */
-  hosts: Record<string, (owner: InstanceView, props: Record<string, any>, children: any[]) => Host>
+  hosts: Record<string, (owner: any, props: Record<string, any>, children: any[], id: string, marker: any) => Host>
   /**
    * marker sel -> template rewrite during the reconcile walk (Portal, Transition, ClientOnly,
    * Slot): replace the marker with a plain vnode and keep walking its children.
    */
-  pres: Record<string, (vnode: any, owner: InstanceView) => any>
+  pres: Record<string, (vnode: any, owner: any) => any>
   /** marker sel -> post-processor of the injected vnode of an instance whose template had it (Suspense) */
-  posts: Record<string, (vnode: any, owner: InstanceView) => any>
-  /** component function -> the function to instantiate (lazy: the loaded component once resolved) */
-  resolvers: Array<(view: ComponentFn, owner: InstanceView) => ComponentFn | undefined>
+  posts: Record<string, (vnode: any, owner: any) => any>
+  /**
+   * component function -> the function to instantiate (lazy: the loaded component once resolved;
+   * `owner.refresh()` renders the owner again when it loads)
+   */
+  resolvers: Array<(view: ComponentFn, owner: any) => ComponentFn | undefined>
   /** definition time, every app: behaviors (`uses`), undo, selection, pager, persist, resources */
   defHooks: Array<(src: DefSource, view: ComponentFn) => DefSource | void>
 }

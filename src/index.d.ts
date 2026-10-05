@@ -61,10 +61,13 @@ export type StateProp = string | Lense<any, any>
 /**
  * The JSX attributes of a component whose view takes PROPS: `state` becomes an optional
  * slice name or lens, and the framework-provided `context` and `slots` are not passed.
+ * `resetState` (6.0): for an `isolatedState` child bound with `state`, replace the slice with
+ * the child's `initialState` when it is created (by default an existing slice is kept and
+ * `initialState` only seeds a missing one). Read at creation, like `state`; not a prop of the child.
  */
 export type ElementProps<PROPS> =
   0 extends (1 & PROPS) ? PROPS
-  : 'state' extends keyof PROPS ? WithoutViewOnlyProps<PROPS> & { state?: StateProp }
+  : 'state' extends keyof PROPS ? WithoutViewOnlyProps<PROPS> & { state?: StateProp; resetState?: boolean }
   : PROPS
 
 /** PROPS without `state`, `context`, `slots` and `uid` (keeps optionality and index signatures, unlike Omit). */

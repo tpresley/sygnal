@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // PLAN-4.6 parity: Collection (spike 0-S §2, ported to the public API), G-257 (PLAN-4.5), D169.
 import { it, expect, vi } from 'vitest'
-import { parity, itNext, mount, h, click, until, sleep, Collection } from './harness.js'
+import { parity, itNext, needs, mount, h, click, until, sleep, Collection } from './harness.js'
 
 function Row({ state }) { return h('li', { className: 'row', 'data-id': String(state.id) }, state.text, h('button', { className: 'edit' }, 'e'), h('button', { className: 'del' }, 'x')) }
 Row.intent = ({ DOM }) => ({ EDIT: DOM.click('.edit'), DEL: DOM.click('.del') })
@@ -156,7 +156,9 @@ parity('parity: D169 id-less items under filter/sort are keyed by raw index; dup
     expect(disposed).toEqual([])
   })
 
-  itNext('D169 duplicate ids warn in dev', 'duplicate item ids: a dev warning names the id', async () => {
+  // the next core keeps a hook point (one instance per id; the first element renders); the
+  // warning itself is R4's diagnostics
+  needs('R4').itNext('D169 duplicate ids warn in dev', 'duplicate item ids: a dev warning names the id', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     function Item({ state }) { return h('li', { className: 'dup' }, state.t) }
     function D() { return h('ul', null, h(Collection, { of: Item, from: 'items' })) }
