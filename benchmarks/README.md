@@ -9,7 +9,7 @@
 | `RESULTS.md` | Recorded results (P-3, PF-1) |
 | `audit/baseline-5.4.0/`, `audit/results-plan4/`, `audit/report.html` | The audit's recorded runs and report |
 
-One `package.json` here covers the harness and the gate: Vite 7, React 19.3, Vue 3.5, and Playwright pinned to browser-tests' version (1.58.2), so both use the same Chromium.
+One `package.json` here covers the harness and the gate: Vite 7, React 19.3, Vue 3.5, and Playwright pinned to browser-tests' version (1.63.0, Chromium 153; D191), so both use the same Chromium.
 
 ## Setup
 

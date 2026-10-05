@@ -16,7 +16,7 @@
   "devDependencies": {
     "@vitejs/plugin-react": "^5.0.0",
     "@vitejs/plugin-vue": "^6.0.0",
-    "playwright": "1.58.2",
+    "playwright": "1.63.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "source-map-js": "^1.2.1",
