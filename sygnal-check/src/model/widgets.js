@@ -1,5 +1,8 @@
 /**
- * Widgets (PLAN-5 W-1): `defineWidget({ tag, mount, update, unmount, events, commands })`.
+ * Widgets (PLAN-5 W-1): `defineWidget({ tag, mount, update, unmount, events, commands })`, and
+ * (W-2) the adapters' widgets: `fromZag(zag, render, { events, commands })` from 'sygnal/zag',
+ * `fromReact(Comp, { events, commands })` from 'sygnal/react', and the Menu / Select / Combobox
+ * tags of 'sygnal/ui/zag'.
  *
  * A widget tag (`<DatePicker className="due" />`) renders its host element in the scope of the
  * view that uses it (it is not a child component), so its className/id count for SYG110/SYG640
@@ -18,13 +21,39 @@ import { resolveExpr, bindingValue } from './resolve.js'
 
 const SYGNAL_MODULE = /^sygnal(\/|$)/
 
-export function isDefineWidgetCall(file, node) {
+// PLAN-5 W-2: the adapters make widgets too. The function, its module, and the index of the
+// argument with the definition / options (tag, events, commands)
+const MAKERS = {
+  defineWidget: [SYGNAL_MODULE, 0],
+  fromZag: [/^sygnal\/zag$/, 2],     // fromZag(zag, render, { events: { name: 'onX' }, commands })
+  fromReact: [/^sygnal\/react$/, 1], // fromReact(Comp, { events: { name: 'onX' } | ['onX'], commands })
+}
+
+/** the index of the definition argument of a widget-making call (defineWidget, fromZag, fromReact), or -1 */
+function defIndex(file, node) {
   node = unwrap(node)
-  if (node?.type !== 'CallExpression') return false
+  if (node?.type !== 'CallExpression') return -1
   const callee = unwrap(node.callee)
-  if (callee?.type !== 'Identifier') return false
+  if (callee?.type !== 'Identifier') return -1
   const b = findBinding(file, callee.name, callee)
-  return !!b && b.kind === 'import' && b.imported === 'defineWidget' && SYGNAL_MODULE.test(b.source)
+  const m = b && b.kind === 'import' && Object.hasOwn(MAKERS, b.imported) && MAKERS[b.imported]
+  return m && m[0].test(b.source) ? m[1] : -1
+}
+
+export function isDefineWidgetCall(file, node) {
+  return defIndex(file, node) >= 0
+}
+
+// PLAN-5 2-Z: the widget tags of 'sygnal/ui/zag' (div hosts), with their events and commands
+const UI_ZAG = {
+  Menu: [['select', 'open-change'], ['open', 'close']],
+  Select: [['value-change', 'open-change'], ['open', 'close', 'clear', 'focus']],
+  Combobox: [['value-change', 'input-change', 'open-change'], ['open', 'close', 'clear', 'focus']],
+}
+/** the Widget a binding imported from 'sygnal/ui/zag' names, or null */
+function uiZagWidget(b, name) {
+  const w = b && b.kind === 'import' && b.source === 'sygnal/ui/zag' && Object.hasOwn(UI_ZAG, b.imported) && UI_ZAG[b.imported]
+  return w ? { name, element: 'div', kind: 'widget', events: w[0], commands: w[1], file: null, call: null, def: null } : null
 }
 
 // names of an object literal's keys, or of an array literal's strings; null when not literal
@@ -47,7 +76,8 @@ const cache = new WeakMap() // call → Widget
 
 export function widgetOfCall(file, call, name) {
   if (cache.has(call)) return cache.get(call)
-  const def = unwrap(call.arguments[0])
+  const i = Math.max(0, defIndex(file, call))
+  const def = unwrap(call.arguments[i])
   let element = 'div', events = null, commands = null
   if (def?.type === 'ObjectExpression') {
     events = []; commands = []
@@ -56,10 +86,12 @@ export function widgetOfCall(file, call, name) {
       const k = propName(p)
       const v = p.type === 'ObjectProperty' ? p.value : null
       if (k === 'tag') element = stringValue(v)
-      else if (k === 'events') events = names(v, true)
+      // an adapter's events: an object (event name → callback) or, for fromReact, an array
+      else if (k === 'events') events = i && unwrap(v)?.type !== 'ArrayExpression' ? names(v) : names(v, true)
       else if (k === 'commands') commands = v ? names(v) : null
     }
-  } else element = null
+  } else if (i && !def) events = [], commands = []   // an adapter without options: no events
+  else element = null
   const w = { name, element, kind: 'widget', events, commands, file, call, def: def?.type === 'ObjectExpression' ? def : null }
   cache.set(call, w)
   return w
@@ -67,6 +99,8 @@ export function widgetOfCall(file, call, name) {
 
 /** The widget an expression (Identifier, member, import) refers to, or null. */
 export function resolveWidget(project, file, node) {
+  const z = node?.type === 'Identifier' && uiZagWidget(findBinding(file, node.name, node), node.name)
+  if (z) return z
   const r = resolveExpr(project, file, node)
   if (!r || !isDefineWidgetCall(r.file, r.node)) return null
   return widgetOfCall(r.file, unwrap(r.node), node.name || null)
@@ -76,7 +110,10 @@ export function resolveWidget(project, file, node) {
 export function resolveWidgetJSX(project, file, opening) {
   const n = opening.name
   if (n.type !== 'JSXIdentifier' || !/^[A-Z]/.test(n.name)) return null
-  const r = bindingValue(project, file, findBinding(file, n.name, opening))
+  const b = findBinding(file, n.name, opening)
+  const z = uiZagWidget(b, n.name)
+  if (z) return z
+  const r = bindingValue(project, file, b)
   if (!r || !isDefineWidgetCall(r.file, r.node)) return null
   return widgetOfCall(r.file, unwrap(r.node), n.name)
 }
