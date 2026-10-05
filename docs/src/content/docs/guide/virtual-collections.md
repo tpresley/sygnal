@@ -136,7 +136,7 @@ it('jumps to row 9,000', async () => {
 })
 ```
 
-Scrolling, measured heights and real jumps need a browser: Sygnal's own tests for them run in Chromium, Firefox and WebKit. `renderToString` renders the container and the first rows; the client measures and moves the window once the page has layout.
+Scrolling, measured heights and real jumps need a browser: Sygnal's own tests for them run in Chromium, Firefox and WebKit. `renderToString` renders the container and the first rows, numbered and named as the client numbers and names them; the client measures and moves the window once the page has layout. The client's first render makes the rows again (as it does every element of the server markup with a class or an id, and what is inside it), so a focus or text typed in a row before the app started is not kept.
 
 ## When to use it
 

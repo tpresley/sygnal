@@ -569,7 +569,7 @@ function slotsOf(children: any[]): Record<string, any[]> {
  * props and the Collection's children, as the client's host gives them (G-396). `limit`: only
  * the first that many (a VirtualCollection's window); `skip`: props that aren't the items'.
  */
-function renderCollection(vnode: any, context: Record<string, any>, parentState: any, uid: string, limit?: number, skip?: RegExp): any {
+function renderCollection(vnode: any, context: Record<string, any>, parentState: any, uid: string, limit?: number, skip?: RegExp, deco?: (row: any, i: number) => any): any {
   const props = vnode.data?.props || {}
   const {of: itemComponent, className, viewTransitionName: vtn} = props
 
@@ -585,7 +585,7 @@ function renderCollection(vnode: any, context: Record<string, any>, parentState:
   const kids = vnode.children || []
   const slots = slotsOf(kids)
 
-  const renderedItems = items.map(([raw, index]: any[]) => {
+  const renderedItems = items.map(([raw, index]: any[], pos: number) => {
     let itemState = raw
     // GS-9: the key the client's Collection gives this item
     const isItemObj = itemState && typeof itemState === 'object' && !Array.isArray(itemState)
@@ -621,9 +621,12 @@ function renderCollection(vnode: any, context: Record<string, any>, parentState:
 
     const out = processSSRTree(itemVnode, itemContext, itemState, itemUid, 'r')
     // PLAN-5 A-1: the names the client's Collection gives a keyed item's root element
-    return vtn && isItemObj && itemState.id != null && out?.sel
+    const named = vtn && isItemObj && itemState.id != null && out?.sel
       ? {...out, data: {...out.data, style: vtStyle(vtn, itemState.id, out.data?.style)}}
       : out
+    // a VirtualCollection's row decoration, with the row's position in the list (G-431: counted
+    // before the rows that render nothing are left out, as the client counts them)
+    return deco && named?.sel ? deco(named, pos) : named
   }).filter((v: any) => v != null)
 
   const containerData: any = {}
@@ -651,16 +654,14 @@ function renderCollection(vnode: any, context: Record<string, any>, parentState:
 function renderVirtual(vnode: any, context: Record<string, any>, parentState: any, uid: string): any {
   const p = vnode.data?.props || {}, est = p.estimateSize, size = est > 0 ? est : 32
   const n = 10 + (p.overscan >= 0 ? p.overscan : 5)
-  const first = renderCollection(vnode, context, parentState, uid, n, VIRTUAL_OWN)
   const items = typeof p.of === 'function' ? collectionItems(p, parentState) : []
   const role = p.role === undefined ? 'list' : p.role
-  const rows = first.children.map((r: any, i: number) => {
-    if (!r || !r.sel) return r
+  const rows = renderCollection(vnode, context, parentState, uid, n, VIRTUAL_OWN, (r: any, i: number) => {
     const own = r.data?.attrs?.role || r.data?.props?.role, attrs: any = {...r.data?.attrs, 'data-index': i}
     if (role == 'list' || own) attrs['aria-posinset'] = i + 1, attrs['aria-setsize'] = items.length
     if (role == 'list' && !own) attrs.role = 'listitem'
     return {...r, data: {...r.data, attrs}}
-  })
+  }).children
   const attrs: any = {tabindex: p.tabIndex ?? 0}
   if (role != null) attrs.role = role
   for (const k of ['id', 'aria-label', 'aria-labelledby', 'aria-describedby']) if (p[k] != null) attrs[k] = p[k]
