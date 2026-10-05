@@ -15,7 +15,7 @@
  *   a MessageChannel message. No setTimeout anywhere.
  * - teardown (D165 / Q18): while an instance unsubscribes, Stream.prototype._remove queues the
  *   streams it leaves without listeners instead of arming xstream's stop timer, and the queue is
- *   stopped synchronously when the drain / flush ends. The swap is scoped to dispose().
+ *   stopped at the first macrotask after the drain / flush (G-302). The swap is scoped to dispose().
  */
 import xs from '../extra/xstreamCompat'
 import {makeDOMDriver} from '../cycle/dom/index'
@@ -91,6 +91,7 @@ export class App {
   watchers = new Set<Inst>()
   /** streams the disposed instances left without listeners, stopped when the drain / flush ends */
   dq: any[] = []
+  stopping = false
   disposed = false
   initState: any
   /** D168 hook point: R4's dev check re-runs a sample of the views context tracking skipped */
@@ -143,7 +144,7 @@ export class App {
     } finally {
       q.length = 0
       this.draining = false
-      if (!this.flushing && this.dq.length) stopQueued(this.dq)
+      if (!this.flushing && this.dq.length) this.stopLater()
     }
   }
   /** STATE.stream: the instances whose state changed emit it */
@@ -182,6 +183,16 @@ export class App {
       this.mc.port1.unref?.()
     }
     this.mc.port2.postMessage(0)
+  }
+  /**
+   * G-302: the streams disposed instances left without listeners stop at the first macrotask, as
+   * xstream's own deferred stop does (a shared stream unmounted in one flush and mounted again in
+   * the next keeps running), but through macro(): no setTimeout per stream
+   */
+  stopLater() {
+    if (this.stopping) return
+    this.stopping = true
+    this.macro(() => { this.stopping = false; stopQueued(this.dq) })
   }
   pong() {
     this.ping = false
@@ -228,7 +239,7 @@ export class App {
         this.hooks.onPatch?.(v)
         this.vdomL?.next(v)
       }
-      if (this.dq.length) stopQueued(this.dq)
+      if (this.dq.length) this.stopLater()
     } finally { this.tail = false }
     if (this.born.length) {
       const b = this.born.splice(0)

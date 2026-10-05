@@ -214,7 +214,7 @@ parity('parity: startup races (G-266, G-257 grow) and teardown', () => {
     await until(() => expect(stopped.length).toBe(50))
   })
 
-  needs('R2').itNext('D165 / Q18 teardown: scoped _remove swap, 0 timers', 'teardown: removed items stop their intent streams synchronously at the end of the flush, with no xstream stop timer', async () => {
+  needs('R2').itNext('D165 / Q18 teardown: scoped _remove swap, 0 timers', 'teardown: removed items stop their intent streams at the first macrotask after the flush (G-302: as xstream), with no xstream stop timer', async () => {
     const stopped = []
     function It({ state }) { return h('li', { className: 'it' }, String(state.id)) }
     It.intent = ({ DOM }) => ({ C: DOM.click('.it').map(() => 1), T: xs.create({ start: () => {}, stop: () => stopped.push('own') }).map((x) => x) })
@@ -231,7 +231,7 @@ parity('parity: startup races (G-266, G-257 grow) and teardown', () => {
     vi.spyOn(globalThis, 'setTimeout').mockImplementation(function (f, ms) { const k = new Error().stack; if (String(f).includes('_stopNow') && !k.includes('listOnTimeout')) stacks.push(k); return st(f, ms) })
     click(m.$('.clear'))
     await until(() => expect(m.$$('.it').length).toBe(0))
-    expect(stopped.length).toBe(50)
+    await until(() => expect(stopped.length).toBe(50))
     expect(stacks).toEqual([])
   })
 
@@ -257,7 +257,7 @@ parity('parity: startup races (G-266, G-257 grow) and teardown', () => {
     await until(() => expect(stopped.length).toBe(50))
   })
 
-  itNext('D165 / Q18 teardown: scoped _remove swap, 0 timers', 'teardown (tag children): removed children stop their intent streams synchronously at the end of the flush, with no xstream stop timer', async () => {
+  itNext('D165 / Q18 teardown: scoped _remove swap, 0 timers', 'teardown (tag children): removed children stop their intent streams at the first macrotask after the flush (G-302: as xstream), with no xstream stop timer', async () => {
     const stopped = []
     const m = mount(tagList(stopped))
     await until(() => expect(m.$$('.it').length).toBe(50))
@@ -266,7 +266,7 @@ parity('parity: startup races (G-266, G-257 grow) and teardown', () => {
     vi.spyOn(globalThis, 'setTimeout').mockImplementation(function (f, ms) { const k = new Error().stack; if (String(f).includes('_stopNow') && !k.includes('listOnTimeout')) stacks.push(k); return st(f, ms) })
     click(m.$('.clear'))
     await until(() => expect(m.$$('.it').length).toBe(0))
-    expect(stopped.length).toBe(50)
+    await until(() => expect(stopped.length).toBe(50))
     expect(stacks).toEqual([])
   })
 
