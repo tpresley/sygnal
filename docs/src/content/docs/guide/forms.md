@@ -57,6 +57,8 @@ That is the whole wiring: there is no intent for the fields.
 - **A valid submit** dispatches the `submit` action (`SIGN_UP`) with the schema's output: the trimmed, transformed values (`email` lower-cased here), not the raw ones. `state.form.submitting` is `true` until the host answers with `form.DONE` (saved) or `form.ERRORS` ([server errors](#server-errors)); a second submit meanwhile is dropped, so a double click sends once.
 - **Labels and errors**: each field has a label and its error text is linked with `aria-describedby`, with ids from [`uid()`](#labels-and-ids-uid), so the form passes the [accessibility checks](/guide/accessibility/). `aria-invalid={f.email.invalid}` renders `"true"` or `"false"`.
 
+Reserve the height of the error lines in your CSS (`min-height`). A field's error appears when it loses focus, which happens on the mouse*down* of a click elsewhere: if the new line pushes the button down before the mouse*up*, the click is lost.
+
 ### Any Standard Schema
 
 `form()` takes any object with `~standard.validate`: zod (3.24 and later), valibot (1.0 and later), arktype, or one you write. A schema's issue paths become field names, and an issue without a path is a form-level message (`state.form.error`, shown after a submit):
