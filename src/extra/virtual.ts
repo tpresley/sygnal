@@ -48,12 +48,14 @@
  *   rows (it would render every row: SYG430), the window is clamped to the viewport's height. A
  *   max-height (or a height in a length unit, where Typed OM tells) bounds it (G-395).
  *   Items without `id`: SYG431 (index keys: rows and measured heights follow the position).
+ * - `viewTransitionName="row"` names each keyed row's root element as Collection does (`row-<id>`,
+ *   class `row`; G-417), as its SSR markup does.
  *
  * Dev text lives in 'sygnal/diagnostics' (checks/virtual.ts), reached through the core bridge as
  * `virtual(code, owner, extra)`; production reports nothing.
  */
 import {hosts} from '../core/registry'
-import {CollectionHost} from '../core/hosts/collection'
+import {CollectionHost, named} from '../core/hosts/collection'
 import {Inst} from '../core/instance'
 import {itemCell, keyName, keyOf} from '../core/cell'
 import {chainHooks} from '../pragma/index'
@@ -427,11 +429,12 @@ export class VirtualHost extends CollectionHost {
     const lw = this.lw
     if (!lw || lw[0] !== start || lw[1] !== total || lw[2] !== si[0]) changed = true
     const out: any[] = []
+    const vn = this.props.viewTransitionName
     for (let j = 0; j < shown.length; j++) {
       const inst = shown[j], x = inst.render(), i = si[j]
       if (x !== inst.last) { inst.last = x; changed = true }
-      // an item without state yet (or a removed one) is left out
-      if (x !== undefined) out.push(this.deco(inst, x, i, n, list, i === pin && ms[i] ? px(ms[i].start - start) : undefined))
+      // an item without state yet (or a removed one) is left out; G-417: named as a Collection's
+      if (x !== undefined) out.push(this.deco(inst, vn ? named(inst, x, vn) : x, i, n, list, i === pin && ms[i] ? px(ms[i].start - start) : undefined))
     }
     const data = this.box()
     if (data !== lw?.[3]) changed = true

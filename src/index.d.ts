@@ -1495,7 +1495,9 @@ export type VirtualCollectionProps<PROPS = any, STATE = any> = {
   'aria-label'?: string;
   'aria-labelledby'?: string;
   'aria-describedby'?: string;
-} & Omit<PROPS, 'of' | 'from' | 'filter' | 'sort' | 'className' | 'estimateSize' | 'overscan' | 'role' | 'tabIndex' | 'style' | 'id'>
+  /** As Collection's (G-417): each row with an `id` gets `view-transition-name: <prefix>-<id>` and `view-transition-class: <prefix>` */
+  viewTransitionName?: string;
+} & Omit<PROPS, 'of' | 'from' | 'filter' | 'sort' | 'className' | 'estimateSize' | 'overscan' | 'role' | 'tabIndex' | 'style' | 'id' | 'viewTransitionName'>
 
 /** Where `scrollToIndex` / `scrollToId` put the row: 'auto' (default) scrolls only when it isn't in view */
 export type ScrollToAlign = 'auto' | 'start' | 'center' | 'end'

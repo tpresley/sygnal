@@ -309,9 +309,9 @@ export class CollectionHost {
 
 /**
  * A-1: the item's vnode with its view-transition name (cached per item, so an unchanged item
- * keeps its vnode)
+ * keeps its vnode). VirtualCollection's rows too (extra/virtual.ts, G-417)
  */
-function named(inst: any, v: any, p: string): any {
+export function named(inst: any, v: any, p: string): any {
   const k = inst.k
   if (!v.sel || k[0] == '\0') return v
   if (inst.vi !== v || inst.vp !== p) {

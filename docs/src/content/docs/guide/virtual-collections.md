@@ -66,6 +66,7 @@ The element is its own scroll container (`overflow-y: auto`), so **give its clas
 | `role` | `'list'` | The container's role. With `list`, rows without a role of their own get `role="listitem"`. `null` sets none |
 | `tabIndex` | `0` | Focusable, so the keyboard scrolls it |
 | `aria-label`, `aria-labelledby`, `aria-describedby`, `id`, `style` | | Set on the container (`style` after the defaults) |
+| `viewTransitionName` | | As on [Collection](/guide/view-transitions/#collection-items): each row with an `id` gets `view-transition-name: <prefix>-<id>`, so a sort in a `viewTransitions` action animates the rows in view |
 
 ## Row state lives in the array
 

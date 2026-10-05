@@ -47,6 +47,7 @@ It is the DOM driver that `run()` creates by default (it also takes the same opt
 - Items without an `id` (keyed by their index) get no name: they have no identity to move with. An item whose view returns a fragment, not one element, gets none either.
 - The item's own `style` wins: a `viewTransitionName` or `viewTransitionClass` set in its view replaces the Collection's.
 - It is only a name. The animation runs when an action in a `viewTransitions` static changes the list (a reorder, a move, a removal), with the driver from `makeViewTransitionDOMDriver()`; other changes update the list at once. Server-side rendering renders the same names.
+- A [VirtualCollection](/guide/virtual-collections/) takes the same prop and names its rendered rows the same way; rows outside the window have no element, so only the rows in view animate.
 
 ## Recipe: moving cards between lanes
 
