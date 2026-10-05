@@ -19,12 +19,16 @@ Tracks progress for [PLAN-4.6.md](PLAN-4.6.md) (component core rewrite). The coo
 | R3 | Extensions (statics, replies, commands, behaviors) | ✅ merged | `p46-r3` (`b0613ee`) | 2026-10-04 | Statics (generic path, G-158 buffering), replies, fetch/socket `isolateValue`, commands/ELEMENT/controls, `resources`/`uses` at definition time, persist via a root shim, View Transitions; R2 review fixes. Next: parity 78 pass / 4 skip (R4/R5); test:next 720; browser 175/186 (rest R4/R5). Timers page create 52 → 32 ms, persist create 45 → 25 ms; fetch rows 28 → 2 streams, 1,006 → 2 timeouts; fetch replies: 1,001 patches vs 97 → R4 (D180). Size 41,453 B |
 | R4 | Tooling and integrations | ✅ merged | `p46-r4` (`4574951`) | 2026-10-04 | Diagnostics/devtools via hook layers from `__SYGNAL_DIAGNOSTICS__.layers`; renderComponent as one hook layer (D176 internal: every documented pattern passes on both cores); SSR `data.c`, Vike, Astro, element, HMR. New dev codes SYG423 (context skip check), SYG424 (duplicate id), SYG425 (isolatedState missing keys), SYG612 (removed in 6.0). Next: root suite 2,695 pass, examples 9/9, browser 183 (+3 R5), perf gate (streams/item 1, unmount timers 2, heap 0.67 MB). `src/core` 47.0 KB min / 17.4 KB gz; kanban with both cores 51.7 KB gz |
 | R5 | Cut-over, delete old core, gates, eval | ✅ merged | `p46-r5` (`6ce8a90`) | 2026-10-04 | Old core deleted (−10.6k lines); removals D162–D164 (+ SYG211/213/413/414/419/601/604/605/607/901–903 retired; SYG501/504/506 → "Removed in 6.0", static SYG612 rule in sygnal-check); `defineComponent`; migration guide (`guide/migrating-to-6`); docs/llms/skill/CLAUDE.md updated; count gate: streams/item 1, unmount timers 2, heap 1.0 MB. vitest 2,582, browser 184, examples 9/9. Kanban **40,608 B** (−735 B vs PLAN-4.5); `src/core` 17.4 KB gz. Mount 1k 38.9 → 17.8 ms (1.4× React); Collection replace 56.6 → 23.6, remove 12.2 → 1.4 (1.0× React), create 10k 899 → 238 (beats React) |
+| P46-P | Spike: pragma/snabbdom hot path for select ops (D186) | 🟡 running | `p46-perf-spike` | | measured only; findings decide whether a small perf phase follows |
 | P46-EV | Regression eval (Opus tiers 1–2 + ergo; Haiku tier 1) | ⬜ | | | after the R5 review fixes |
 
 ## Decisions
 
 | ID | Date | Decision | By |
 |---|---|---|---|
+| D186 | 2026-10-04 | Collection select (7.5× React) and single-view select (6.5×) are above their warn-only targets; the remaining cost is the JSX pragma and snabbdom's diff. A small measured spike (P46-P) on that path runs before PLAN-5 | User |
+| D185 | 2026-10-04 | Size budget for the new core: keep the D48 gate at **42,300 B** (kanban, nativeGlobalThis false) and re-enable it as a failing gate; PLAN-5 starts with 1,692 B of headroom (kanban 40,608 B) | User |
+| D184 | 2026-10-04 | Agent context: `resetState` gets one `llms.txt` line (canonical for an `isolatedState` child bound to a parent slice; SYG425 points to it); `defineComponent` stays docs-only, not canonical (function + statics is the one form); SKILL.md unchanged | User |
 | D183 | 2026-10-04 | R4 perf pass: fetch replies keep one patch per reply (they resolve in separate macrotasks; joining them would need a timer or frame wait, which the design rules out; a bounded microtask hop changed nothing). A context Proxy per instance was reverted (no gain; it would keep a context object passed as a prop identical across renders). b023: an action's EVENTS cascade finishing before the next simulated input is covered by D165 (FIFO run-to-completion) | Coordinator |
 | D182 | 2026-10-04 | No intermediate releases come off `plan46-integration` until the new core is complete, so the old core's size budget (size gate ≤ 42,300 B) no longer gates PLAN-4.6 merges (D175's strip stays, harmless). Each merge reports the **new core's size** for information: `src/core/**` alone (min + gzip) and kanban on the next core. The new core's budget is decided at the end of the plan (replaces D170's "below 41,343 B at R5" target) | User |
 | D181 | 2026-10-04 | SYG401's explanation text (sygnal-check `explanations.js:339`) is reworded for D178 at R5 with the other docs | Coordinator |
@@ -103,6 +107,7 @@ Tracks progress for [PLAN-4.6.md](PLAN-4.6.md) (component core rewrite). The coo
 
 ## Log
 
+- 2026-10-04 — D184–D186 (user): resetState in llms.txt; size gate back at 42,300 B; perf spike before PLAN-5 (P46-P started).
 - 2026-10-04 — R5 merged (`6ce8a90`): one core; all gates green; kanban 40,608 B. Review of R5 started; eval held until its fixes land.
 - 2026-10-04 — Review of R4: 12 findings (G-324…G-335), sent to R5.
 - 2026-10-04 — R4 merged (`4574951`); full suite green on both cores. D183. R5 and a review of R4 started.
