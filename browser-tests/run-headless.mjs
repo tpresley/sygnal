@@ -2,11 +2,18 @@
  * Headless browser test runner using Playwright.
  * Starts a Vite dev server, opens the test page in headless Chromium,
  * waits for tests to complete, and exits with appropriate code.
+ * BROWSER=firefox|webkit runs the suite in another engine (opt-in; the gate uses Chromium).
  */
 
 import { createServer as createNetServer } from 'node:net';
 import { createServer } from 'vite';
-import { chromium } from 'playwright';
+import * as playwright from 'playwright';
+
+const ENGINE = process.env.BROWSER || 'chromium';
+if (!['chromium', 'firefox', 'webkit'].includes(ENGINE)) {
+  console.error(`BROWSER must be chromium, firefox or webkit (got '${ENGINE}')`);
+  process.exit(1);
+}
 
 const HOST = '127.0.0.1';
 
@@ -66,7 +73,7 @@ async function run() {
 
   let browser;
   try {
-    browser = await chromium.launch({ headless: true });
+    browser = await playwright[ENGINE].launch({ headless: true });
     const page = await browser.newPage();
 
     // Console errors: expected ones (EXPECTED_CONSOLE_ERRORS) are counted,
@@ -102,6 +109,18 @@ async function run() {
       // a page crash or closed target also rejects the wait: say which, and show the page's console
       console.error(`Browser tests did not finish (limit ${TIMEOUT} ms)${waitError ? `: ${waitError.message.split('\n')[0]}` : ''}`);
       for (const m of consoleMsgs.slice(-20)) console.error('  ' + m);
+      // where it stopped: the summary and the last rows the harness rendered (the hang is after them)
+      const progress = await page.evaluate(() => ({
+        summary: document.getElementById('summary')?.textContent,
+        rows: [...document.querySelectorAll('#results-body tr')].slice(-5).map(tr => tr.textContent),
+        fails: [...document.querySelectorAll('#results-body tr')]
+          .filter(tr => tr.querySelector('td.fail')).map(tr => tr.textContent),
+      })).catch(() => null);
+      if (progress) {
+        console.error(`  progress: ${progress.summary}`);
+        for (const r of progress.fails) console.error(`  FAIL: ${r}`);
+        for (const r of progress.rows) console.error(`  last: ${r}`);
+      }
       process.exit(1);
     }
 
@@ -120,7 +139,7 @@ async function run() {
       process.exit(1);
     }
 
-    console.log(`\nBrowser Tests: ${passed} passed, ${failed} failed, ${passed + failed} total\n`);
+    console.log(`\nBrowser Tests (${ENGINE} ${browser.version()}): ${passed} passed, ${failed} failed, ${passed + failed} total\n`);
 
     if (failed > 0) {
       const failures = tests.filter(t => t.status === 'fail');

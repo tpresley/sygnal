@@ -12,7 +12,8 @@ npm test               # the full gate, in order:
                        #   vitest run          library tests in test/ (2,583; test/parity/: the core's behaviour contract)
                        #   test:examples       each example's own suite (9 examples, 105 tests)
                        #   test:types          tsc on type-tests/
-                       #   test:browser        browser-tests/ (184)
+                       #   test:browser        browser-tests/ (184; Chromium. Opt-in other engines:
+                       #                       BROWSER=firefox|webkit npm --prefix browser-tests test)
                        #   test:perf-gate      count gate (PLAN-4.5/4.6): DOM patches, streams, timers, retained
                        #                       objects and heap vs benchmarks/audit/gate.json (~10 s; needs
                        #                       benchmarks/ installed; limits only go down)
@@ -35,7 +36,9 @@ This is a **library package** — no dev server. Verify changes via `npm run bui
 
 ```bash
 npm ci
-npm ci --prefix browser-tests
+npm ci --prefix browser-tests            # Playwright 1.63.0 (pinned; benchmarks/ pins the same): chromium-1243,
+                                         #   firefox-1543, webkit-2359 from ~/Library/Caches/ms-playwright (D191);
+                                         #   no install script, so npm ci downloads no browsers
 npm ci --prefix sygnal-check             # @babel/parser for vite-plugin-dev and inspect-kanban tests
 npm install --prefix examples/kanban     # its file:../.. link; other examples: TEST_EXAMPLES_INSTALL=1 npm test
 npm install --prefix examples/todomvc    # test/copied and the devtools Copy-as-test tests import it
