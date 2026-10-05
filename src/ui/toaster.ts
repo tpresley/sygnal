@@ -70,17 +70,21 @@ const placement = {
   },
 }
 
-// ── one toast ────────────────────────────────────────────────────────
-function ToastItem({state, dismissLabel, transition, duration}: any) {
+// ── one toast ──────────────────────────────────────────────────────
+// (statics through a /*#__PURE__*/ Object.assign, so every bundler drops an unused Toaster; a
+// componentName, so diagnostics and DevTools name them in minified builds too)
+const ToastItem = /*#__PURE__*/ Object.assign(function ToastItem({state, dismissLabel, transition, duration}: any) {
   return h(Transition, {name: transition, duration},
     h('div', {className: 'toast', 'data-kind': state.kind},
       h('span', {className: 'toast-text'}, state.text),
       h('button', {type: 'button', className: 'toast-dismiss', 'aria-label': dismissLabel + ': ' + state.text}, dismissLabel)))
-}
-ToastItem.intent = ({DOM}: any) => ({DISMISS: DOM.click('.toast-dismiss')})
-// a replaced toast (rev) gets a new timer name, so its timer starts over
-;(ToastItem as any).timers = (s: any) => ({['expire' + (s?.rev || '')]: s?.timeoutMs > 0 && !s.paused && {after: s.timeoutMs, action: 'EXPIRE'}})
-ToastItem.model = {DISMISS: () => undefined, EXPIRE: () => undefined}
+}, {
+  componentName: 'ToastItem',
+  intent: ({DOM}: any) => ({DISMISS: DOM.click('.toast-dismiss')}),
+  // a replaced toast (rev) gets a new timer name, so its timer starts over
+  timers: (s: any) => ({['expire' + (s?.rev || '')]: s?.timeoutMs > 0 && !s.paused && {after: s.timeoutMs, action: 'EXPIRE'}}),
+  model: {DISMISS: () => undefined, EXPIRE: () => undefined},
+})
 
 // ── the toaster ──────────────────────────────────────────────────────
 const polite = (t: any) => t.kind != 'error'
@@ -90,7 +94,7 @@ const crossing = (e: any) => !e.ownerTarget?.contains?.(e.relatedTarget)
 const paused = (s: any, p: boolean) => ({...s, paused: p, toasts: s.toasts.map((t: any) => ({...t, paused: p}))})
 
 /** Renders the toasts that `event('TOAST', { text, kind, timeoutMs })` sends from anywhere. Render it once: `<Toaster />`. */
-export function Toaster({state, label = 'Notifications', dismissLabel = 'Dismiss', transition = 'toast', duration = 200, className}: any) {
+export const Toaster = /*#__PURE__*/ Object.assign(function Toaster({state, label = 'Notifications', dismissLabel = 'Dismiss', transition = 'toast', duration = 200, className}: any) {
   const list = (filter: any) => h(Collection, {of: ToastItem, from: 'toasts', filter, className: 'toaster-list', dismissLabel, transition, duration})
   return h('div', {className: 'toaster-home'},
     h('section', {
@@ -99,30 +103,32 @@ export function Toaster({state, label = 'Notifications', dismissLabel = 'Dismiss
     },
     h('div', {className: 'toaster-status', role: 'status', 'aria-live': 'polite'}, list(polite)),
     h('div', {className: 'toaster-alert', role: 'alert'}, list(urgent))))
-}
-Toaster.isolatedState = true
-Toaster.initialState = {toasts: [] as any[], next: 1, paused: false}
-Toaster.intent = ({EVENTS, DOM}: any) => ({
-  TOAST: EVENTS.select('TOAST'),
-  DISMISS: EVENTS.select('TOAST_DISMISS'),
-  PAUSE: xs.merge(DOM.pointerover('.toaster'), DOM.focusin('.toaster')).filter(crossing),
-  RESUME: xs.merge(DOM.pointerout('.toaster'), DOM.focusout('.toaster')).filter(crossing),
+}, {
+  componentName: 'Toaster',
+  isolatedState: true,
+  initialState: {toasts: [] as any[], next: 1, paused: false},
+  intent: ({EVENTS, DOM}: any) => ({
+    TOAST: EVENTS.select('TOAST'),
+    DISMISS: EVENTS.select('TOAST_DISMISS'),
+    PAUSE: xs.merge(DOM.pointerover('.toaster'), DOM.focusin('.toaster')).filter(crossing),
+    RESUME: xs.merge(DOM.pointerout('.toaster'), DOM.focusout('.toaster')).filter(crossing),
+  }),
+  model: {
+    TOAST: (s: any, d: any) => {
+      const t = typeof d == 'string' ? {text: d} : d || {}
+      const i = t.id == null ? -1 : s.toasts.findIndex((x: any) => x.id === t.id)
+      const toast = {...t, id: t.id ?? s.next, kind: t.kind || 'info', timeoutMs: t.timeoutMs ?? 5000, paused: s.paused, rev: i < 0 ? 0 : s.toasts[i].rev + 1}
+      return {
+        ...s,
+        next: t.id == null ? s.next + 1 : s.next,
+        toasts: i < 0 ? [...s.toasts, toast] : s.toasts.map((x: any, j: number) => (j == i ? toast : x)),
+      }
+    },
+    DISMISS: (s: any, id: any) => {
+      const toasts = id == null ? [] : s.toasts.filter((x: any) => x.id !== id)
+      return toasts.length == s.toasts.length ? ABORT : {...s, toasts}
+    },
+    PAUSE: (s: any, _d: any, _n: any, p: any) => (p.pauseOnHover === false || s.paused ? ABORT : paused(s, true)),
+    RESUME: (s: any) => (s.paused ? paused(s, false) : ABORT),
+  },
 })
-Toaster.model = {
-  TOAST: (s: any, d: any) => {
-    const t = typeof d == 'string' ? {text: d} : d || {}
-    const i = t.id == null ? -1 : s.toasts.findIndex((x: any) => x.id === t.id)
-    const toast = {...t, id: t.id ?? s.next, kind: t.kind || 'info', timeoutMs: t.timeoutMs ?? 5000, paused: s.paused, rev: i < 0 ? 0 : s.toasts[i].rev + 1}
-    return {
-      ...s,
-      next: t.id == null ? s.next + 1 : s.next,
-      toasts: i < 0 ? [...s.toasts, toast] : s.toasts.map((x: any, j: number) => (j == i ? toast : x)),
-    }
-  },
-  DISMISS: (s: any, id: any) => {
-    const toasts = id == null ? [] : s.toasts.filter((x: any) => x.id !== id)
-    return toasts.length == s.toasts.length ? ABORT : {...s, toasts}
-  },
-  PAUSE: (s: any, _d: any, _n: any, p: any) => (p.pauseOnHover === false || s.paused ? ABORT : paused(s, true)),
-  RESUME: (s: any) => (s.paused ? paused(s, false) : ABORT),
-}

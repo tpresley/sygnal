@@ -51,6 +51,18 @@ describe('sygnal/ui tree-shaking', () => {
     for (const [part, m] of Object.entries(MARKS)) expect(code.includes(m), part).toBe(false)
   }, 30000)
 
+  // esbuild keeps top-level property assignments (`Toaster.model = …`): the statics go through a
+  // /*#__PURE__*/ Object.assign so it drops an unused component too
+  it('esbuild: an app using only dialog contains no other part', async () => {
+    const { build } = await import('esbuild')
+    const r = await build({
+      stdin: { contents: `import { dialog } from 'sygnal/ui'\nglobalThis.k = dialog`, resolveDir: root, loader: 'js' },
+      bundle: true, minify: true, write: false, format: 'esm', alias: { 'sygnal/ui': ui }, external: ['sygnal'], logLevel: 'silent',
+    })
+    const code = r.outputFiles[0].text
+    for (const [other, m] of Object.entries(MARKS)) expect(code.includes(m.replace(/^popover: p,$/, 'popover:')), other).toBe(other === 'dialog')
+  }, 30000)
+
   for (const part of Object.keys(MARKS)) {
     it(`an app using only ${part} contains no other part`, async () => {
       // the behaviors that come with an attribute helper are imported with it
