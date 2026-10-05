@@ -2000,6 +2000,11 @@ export function renderComponent(
       }
     }
   }
+  // PLAN-4.6 R3 (next core): the root's connections / resources statics get their fakes as
+  // inject() gives them on the current core (G-160, 3-A); a child's are R4's port (wrapSources)
+  if (nextCore) for (const [st, n] of [['connections', socketSink], ['resources', resourceSink]]) {
+    if (componentDef[st] && !allDrivers[n]) { allDrivers[n] = () => fake(n); faked.add(n); }
+  }
   let sources: any, sinks: any, rawDispose: () => void;
   try {
     if (NEXT_CORE && (globalThis as any).__SYGNAL_CORE__ === 'next') {
