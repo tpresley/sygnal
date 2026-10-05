@@ -6,3 +6,6 @@ body { font: 13px system-ui, sans-serif; margin: 8px; }
 .remove { cursor: pointer; }
 .counter { display: inline-flex; gap: 2px; margin: 1px; }
 .lvl { padding-left: 1px; }
+/* PLAN-5 V-1: the virtual scenario (VirtualCollection vs Collection vs React + TanStack Virtual vs React) */
+.rows { height: 640px; overflow-y: auto; }
+.rows .row { height: 32px; box-sizing: border-box; align-items: center; }

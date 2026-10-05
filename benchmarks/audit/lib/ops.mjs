@@ -141,6 +141,24 @@ export const OPS = {
     { name: 'persist: create 1k rows, written', setup: `h.click('#clear'); await h.waitFor(() => h.n('.row') === 0 && !(localStorage.getItem('bench-persist') || '').includes('label')); await h.settle()`, act: `h.click('#run')`, done: `h.n('.row') === 1000 && (localStorage.getItem('bench-persist') || '').split('label').length > 1000` },
     { name: 'persist: change one row of 1k, written', setup: `${runRows(1000)}; await h.waitFor(() => (localStorage.getItem('bench-persist') || '').split('label').length > 1000); window.__l = h.text('.row:nth-child(2) .lbl') + '!'`, act: `h.click('.row:nth-child(2) .bump')`, done: `h.text('.row:nth-child(2) .lbl') === window.__l && localStorage.getItem('bench-persist').includes(JSON.stringify(window.__l))` },
   ],
+  // PLAN-5 V-1: a 640 px scroll container of 10k / 100k rows (32 px): VirtualCollection, a plain
+  // Collection, React + TanStack Virtual, plain React. Every page marks a row's position with
+  // data-index. "scroll by a page" and the jump wait until the target row is rendered and at the
+  // container's top (a plain list has every row, so only the scroll and its paint remain)
+  virtual: [
+    ...[10000, 100000].flatMap((n) => {
+      const k = n === 10000 ? '10k' : '100k', run = `h.click('#clear'); await h.waitFor(() => !h.q('.rows .row')); h.click('#run${k}'); await h.waitFor(() => h.q('.rows').scrollHeight >= ${n * 32}); h.q('.rows').scrollTop = 0; await h.settle(100)`
+      const mark = `h.q('.rows').addEventListener('scroll', () => { document.body.dataset.scrolled = Math.random() }, { once: true })`
+      const at = (i) => `(() => { const r = h.q('.rows [data-index="${i}"]'), b = h.q('.rows'); return !!r && Math.abs(r.getBoundingClientRect().top - b.getBoundingClientRect().top) < 1 })()`
+      return [
+        { name: `virtual: create ${k} rows`, setup: `h.click('#clear'); await h.waitFor(() => !h.q('.rows .row')); await h.settle()`, act: `h.click('#run${k}')`, done: `!!h.q('.rows .row') && h.q('.rows').scrollHeight >= ${n * 32}`, iterations: n === 10000 ? 6 : 4, fresh: true },
+        // (a scroll mutates no DOM in a plain list: the container's first scroll event marks <body>, so
+        // measure()'s MutationObserver checks `done` then too; the same for every page)
+        { name: `virtual: scroll by a page (${k})`, setup: run, act: `${mark}; h.q('.rows').scrollTop += 640`, done: `${at(20)} && !!h.q('.rows [data-index="39"]')`, iterations: 8 },
+        { name: `virtual: jump to row 9,000 (${k})`, setup: run, act: `${mark}; h.click('#jump')`, done: at(9000), iterations: 8 },
+      ]
+    }),
+  ],
   input: [
     { name: 'keystroke (1k list)', setup: `await h.waitFor(() => h.q('.draft')); await h.settle(); window.__want = h.q('.draft').value + 'a'`, act: `h.type('.draft', 'a')`, done: `h.text('.echo') === window.__want` },
   ],
@@ -149,6 +167,9 @@ export const OPS = {
 // app page for a framework + scenario; Sygnal also has the Collection-per-row table
 export function pagesFor(fw, scenario) {
   if (fw === 'sygnal' && scenario === 'table') return [['sygnal', 'table'], ['sygnal (Collection)', 'table-coll']]
+  // PLAN-5 V-1
+  if (scenario === 'virtual') return fw === 'sygnal' ? [['sygnal (VirtualCollection)', 'virtual'], ['sygnal (Collection)', 'virtual-coll']]
+    : fw === 'react' ? [['react (TanStack Virtual)', 'virtual'], ['react (plain)', 'virtual-plain']] : []
   if (scenario === 'last-row') return fw === 'sygnal' ? [['sygnal', 'table']] : []
   if (scenario === 'tags') return fw === 'vue' ? [] : [[fw, fw === 'react' ? 'counters' : 'counters-tags']]
   if (['coll-calc', 'switch', 'fetch', 'timers', 'persist'].includes(scenario) && fw !== 'sygnal') return []
