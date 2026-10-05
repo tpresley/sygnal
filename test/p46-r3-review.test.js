@@ -101,7 +101,9 @@ describe.skipIf(!NEXT)('PLAN-4.6 R3: R2 review fixes (next core)', () => {
     function A({ state }) { return h('p', { className: 'a' }, String(state)) }
     function Item({ state }) { return h('li', null, String(state.value)) }
     let bad = true
-    function App() { return h('div', null, h('button', null, 'x'), h(A, { state: 'n' }), h(Collection, { of: Item, from: 'rows', filter: (x) => { if (x === 99 && bad) throw new Error('bad'); return true } }), h('i', { className: 'other' }, 'k')) }
+    // a stable filter: the retry must not depend on a new function per render
+    const filter = (x) => { if (x === 99 && bad) throw new Error('bad'); return true }
+    function App() { return h('div', null, h('button', null, 'x'), h(A, { state: 'n' }), h(Collection, { of: Item, from: 'rows', filter }), h('i', { className: 'other' }, 'k')) }
     App.initialState = { n: 1, rows: [1, 2], z: 0 }
     App.intent = ({ DOM }) => ({ GO: DOM.click('button'), FIX: DOM.click('.other') })
     App.model = { GO: (s) => ({ ...s, n: 2, rows: [1, 99] }), FIX: (s) => ({ ...s, z: s.z + 1 }) }

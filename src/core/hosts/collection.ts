@@ -148,6 +148,8 @@ export class CollectionHost {
   key: any
   /** the marker's props the container was made from */
   mp: any
+  /** the app's render epoch it last rendered at (G-311) */
+  ep = 0
 
   constructor(public owner: Inst, props: Record<string, any>, children: any[], id: string, marker: any) {
     const of = props.of
@@ -204,14 +206,15 @@ export class CollectionHost {
   /** the visible keys in order: filter and sort over the raw array; a duplicate key once */
   list(a: any[], m: Map<any, number>): any[] {
     const {filter, sort} = this.props
-    if (sort !== this.ls) { this.ls = sort; this.cmp = sortFn(sort) }
+    const cmp = sort !== this.ls ? sortFn(sort) : this.cmp
     let idx: number[] | null = null
-    if (typeof filter == 'function' || this.cmp) {
+    if (typeof filter == 'function' || cmp) {
       idx = []
       for (let i = 0; i < a.length; i++) if (typeof filter != 'function' || filter(a[i], i, a)) idx.push(i)
-      const cmp = this.cmp
       if (cmp) idx.sort((x, y) => cmp(a[x], a[y]))
     }
+    // G-311: the inputs are kept only once the list was made (a throwing filter / sort is retried)
+    this.ls = sort; this.cmp = cmp
     const n = idx ? idx.length : a.length, keys: any[] = []
     for (let x = 0; x < n; x++) {
       const i = idx ? idx[x] : x, k = keyOf(a[i], i)
@@ -224,15 +227,18 @@ export class CollectionHost {
 
   render(): any {
     if (this.disposed) return this.outv
-    let changed = !this.outv
+    // G-311: after a render that threw, every container is made again once
+    const app = this.owner.app
+    let changed = !this.outv || this.ep !== app.ep
+    this.ep = app.ep
     if (this.index) {
       const [a, m] = this.index()
       const {filter, sort} = this.props
       if (a !== this.la || filter !== this.lf || sort !== this.ls) {
-        this.la = a; this.lf = filter
         const keys = this.list(a, m), seen = new Set(keys)
+        this.la = a; this.lf = filter
         for (const [k, inst] of this.items) if (!seen.has(k)) { inst.dispose(); this.items.delete(k) }
-        const o = this.owner, app = o.app, shown: Inst[] = []
+        const o = this.owner, shown: Inst[] = []
         for (const k of keys) {
           let inst = this.items.get(k)
           if (!inst) {

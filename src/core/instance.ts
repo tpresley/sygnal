@@ -131,6 +131,8 @@ export class Inst {
   wd: any; so: any; el: any
   iv: any
   cmds: any
+  /** the app's render epoch it last rendered at (G-311) */
+  ep = 0
   /** pending next() timers (G-300) */
   timers: Set<any> | null = null
   // statics.ts: the [sink, static] pairs it declares, the last values sent, the state / shown
@@ -367,7 +369,9 @@ export class Inst {
       this.view(state, ctx)
       this.reconcile()
     }
-    let kidsDirty = false
+    // G-311: after a render that threw (the app's epoch moved), the kids are injected again once
+    let kidsDirty = this.ep !== this.app.ep
+    this.ep = this.app.ep
     for (const k of this.kids.values()) {
       const v = k.render()
       if (v !== k.last || k.ready !== k.lr) { k.last = v; k.lr = k.ready; kidsDirty = true }

@@ -72,6 +72,8 @@ export class App {
   flushes = 0
   /** bumped on every state write (context memo) */
   ver = 0
+  /** render epoch: bumped when a render threw (G-311: every instance injects its kids again once) */
+  ep = 0
   root!: Inst
   last: any
   vdomL: any
@@ -233,6 +235,8 @@ export class App {
           this.rendering = false
           this.caught(this.root, 'SYG406', 'Render threw; the page keeps its last render', e, 'view')
           v = this.last
+          // G-311: the instances that rendered before the throw are injected at the next render
+          this.ep++
           break
         }
         this.afterRender?.()
@@ -245,19 +249,24 @@ export class App {
     }
     this.tail = true
     try {
+      // G-311 (c): what the throwing pass queued (a new child's INITIALIZE / seed) is still applied
+      if (this.queue.length) this.drain()
       if (v !== this.last) {
         this.last = v
         this.hooks.onPatch?.(v)
         this.vdomL?.next(v)
       }
       if (this.dq.length) this.stopLater()
-    } finally { this.tail = false }
-    if (this.born.length) {
-      const b = this.born.splice(0)
-      queueMicrotask(() => { for (const i of b) if (!i.disposed) this.dispatch(i, 'BOOTSTRAP', undefined, 'built-in') })
+    } finally {
+      // G-313: a throwing patch / onPatch still ends the startup log and dispatches BOOTSTRAP
+      this.tail = false
+      if (this.born.length) {
+        const b = this.born.splice(0)
+        queueMicrotask(() => { for (const i of b) if (!i.disposed) this.dispatch(i, 'BOOTSTRAP', undefined, 'built-in') })
+      }
+      if (this.dirty) { this.chained = true; this.dirty = false; this.commit() }
+      if (this.early) { this.early = false; this.log = {} }
     }
-    if (this.dirty) { this.chained = true; this.dirty = false; this.commit() }
-    if (this.early) { this.early = false; this.log = {} }
   }
 
   // ---------------------------------------------------------------- sinks
