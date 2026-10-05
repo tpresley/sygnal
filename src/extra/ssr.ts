@@ -385,7 +385,8 @@ function processSSRTree(vnode: any, context: Record<string, any>, parentState: a
 
   // Sub-component: render recursively
   const props = vnode.data?.props || {}
-  if (props.sygnalOptions || typeof props.sygnalFactory === 'function') {
+  // (PLAN-4.6: the pragma's `data.c`, the component function; `sygnalOptions` until R5)
+  if (typeof vnode.data?.c === 'function' || props.sygnalOptions || typeof props.sygnalFactory === 'function') {
     return renderSubComponent(vnode, context, parentState, childUid(uid, vnode, path))
   }
 
@@ -425,7 +426,10 @@ function renderSubComponent(vnode: any, context: Record<string, any>, parentStat
 
   // Get the component definition (view function with static properties)
   let componentDef: any
-  if (sygnalOptions) {
+  // PLAN-4.6 (04 §3.10): the component function on the vnode carries its statics; nothing is
+  // copied onto it (no options object)
+  if (typeof vnode.data?.c === 'function') componentDef = vnode.data.c
+  else if (sygnalOptions) {
     componentDef = sygnalOptions.view
     // Copy static properties
     if (!componentDef.initialState && sygnalOptions.initialState) {
