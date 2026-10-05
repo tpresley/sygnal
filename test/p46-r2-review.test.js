@@ -135,15 +135,18 @@ describe.skipIf(!NEXT)('PLAN-4.6 R2 review fixes (next core)', () => {
     function App({ state }) { return h('div', null, state.show ? h(Kid) : null) }
     App.initialState = { show: true }
     App.intent = () => ({})
+    // the id of the model's 1000 ms next() timer (counting all timers was flaky under load)
+    const ids = []
+    const set = globalThis.setTimeout
+    vi.spyOn(globalThis, 'setTimeout').mockImplementation((f, ms, ...a) => { const id = set(f, ms, ...a); if (ms === 1000) ids.push(id); return id })
     const m = mount(App, {}, { __hooks: { onAction: (i, a) => actions.push(a.type) } })
     const clear = vi.spyOn(globalThis, 'clearTimeout')
     await vi.advanceTimersByTimeAsync(0)
     expect(actions).toContain('GO')
-    const before = vi.getTimerCount()
+    expect(ids.length).toBe(1)
     m.rt.setState('root', { show: false })
     await vi.advanceTimersByTimeAsync(0)
-    expect(clear).toHaveBeenCalled()
-    expect(vi.getTimerCount()).toBe(before - 1)
+    expect(clear.mock.calls.some((c) => c[0] === ids[0])).toBe(true)
     await vi.advanceTimersByTimeAsync(2000)
     expect(actions).not.toContain('LATER')
   })
