@@ -26,13 +26,9 @@
  * `.code` is the diagnostic code. It does not go through report(): the throw
  * itself is the signal, in every mode.
  *
- *   caught(code, component, message, fix, err, phase, action?)
- *
- * For a call site that catches an exception and keeps running (reducer,
- * EFFECT, sub-component instantiation): error() under `code`, except that an
- * error thrown by fail() is reported under ITS code (G-027 / G-044), with the
- * call site's message appended in parentheses. Then the app's onError hook
- * (PLAN-4 GS-11) gets the error with `phase` and `action`.
+ * A call site that catches an exception and keeps running reports it with the
+ * core's caught() (src/core/runtime.ts: an error thrown by fail() under ITS code,
+ * G-027 / G-044), then the app's onError hook (callHook, PLAN-4 GS-11).
  *
  * `error` is also published on the core bridge
  * (globalThis.__SYGNAL_DIAGNOSTICS__.error) for the separately bundled JSX
@@ -71,19 +67,10 @@ export function fail(code: string, component: any, message: string, fix?: string
   throw err
 }
 
-export function caught(code: string, component: any, message: string, fix: string | undefined, err: any, phase: string, action?: string): void {
-  const s = err && err.sygnal
-  s ? error(err.code, s[0], `${s[1]} (${message})`, s[2], err) : error(code, component, message, fix, err)
-  appError(component, err, phase, action)
-}
-
-// PLAN-4 GS-11: the app's error hook (run(App, drivers, { onError })), reporting only. It travels
-// with the sources (`__e`, a driver run() adds), so each app has its own. A throwing hook is
-// logged once and swallowed
+// PLAN-4 GS-11: the app's error hook (run(App, drivers, { onError })), reporting only (each app
+// has its own). A throwing hook is logged once and swallowed
 export const callHook = (hook: any, err: any, info: any): void => {
   try { hook && hook(err, info) } catch (e) { console.error(e) }
 }
-export const appError = (component: any, err: any, phase: string, action?: string): void =>
-  callHook(component.sources.__e, err, {componentName: component.name, action, phase})
 
 ;(globalThis as any).__SYGNAL_DIAGNOSTICS__.error = error

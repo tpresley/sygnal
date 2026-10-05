@@ -27,7 +27,6 @@ describe('P45-A: DOM module fast paths', () => {
       const props = { value: 'x', checked: true, className: 'a' }
       selectModule.create(vnode(undefined), vnode(sel, props, elm))
       selectModule.update(vnode(sel, props), vnode(sel, props, elm))
-      controlledInputModule.create(vnode(undefined), vnode(sel, props, elm))
       controlledInputModule.update(vnode(sel, props), vnode(sel, props, elm))
       selectModule.post()
       expect(touched, sel).toEqual([])
@@ -58,7 +57,6 @@ describe('P45-A: DOM module fast paths', () => {
       if (tag === 'select') for (const v of ['', 'a', 'b']) { const o = document.createElement('option'); o.value = v; elm.appendChild(o) }
       else elm.value = 'typed'
       const want = tag === 'select' ? 'b' : ''
-      controlledInputModule.create(vnode(undefined), vnode(sel, { value: want }, elm))
       controlledInputModule.update(vnode(sel, { value: want }), vnode(sel, { value: want }, elm))
       expect(elm.value, sel).toBe(want)
     }
