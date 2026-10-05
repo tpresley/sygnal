@@ -42,6 +42,55 @@ const withUndo = (opts = {}, first = 'sort') => {
 }
 const lift = async (id) => { grip(id).focus(); press(' '); await t.next(s => s.sort.dragging === String(id)) }
 
+describe('3-L G-473: a recorded action, UNDO or REDO during a drag', () => {
+  for (const first of ['sort', 'history']) {
+    it(`a recorded action mid-drag keeps the order from before the drag reachable (uses: ${first} first)`, async () => {
+      t = renderComponent(withUndo({}, first), { dom: 'real' }); await t.ready()
+      await lift(2)
+      press('ArrowDown'); await t.next(s => order(s) === '1,3,2,4')
+      t.simulateAction('ADD'); await t.next(s => order(s) === '1,3,2,4,5')
+      expect(t.state.sort.dragging).toBe('2')
+      press('ArrowDown'); await t.next(s => order(s) === '1,3,4,2,5')
+      press('Enter'); await t.next(s => s.sort.dragging === null)
+      await t.next(s => s.history.past.length === 2)
+      expect(past()).toEqual(['1,2,3,4', '1,3,2,4,5'])
+      expect(t.state.history.base).toBe(undefined)
+      t.simulateAction('history.UNDO'); await t.next(s => order(s) === '1,3,2,4,5')
+      t.simulateAction('history.UNDO'); await t.next(s => order(s) === '1,2,3,4')
+    })
+  }
+
+  it('UNDO mid-drag undoes the drag so far (the pre-drag order); REDO brings it back; the drag goes on', async () => {
+    t = renderComponent(withUndo(), { dom: 'real' }); await t.ready()
+    await lift(2)
+    press('ArrowDown'); await t.next(s => order(s) === '1,3,2,4')
+    press('ArrowDown'); await t.next(s => order(s) === '1,3,4,2')
+    t.simulateAction('history.UNDO'); await t.next(s => order(s) === '1,2,3,4')
+    expect(past()).toEqual([])
+    expect(future()).toEqual(['1,3,4,2'])
+    expect(t.state.history.base).toBe(undefined)
+    t.simulateAction('history.REDO'); await t.next(s => order(s) === '1,3,4,2')
+    expect(past()).toEqual(['1,2,3,4'])
+    // the drag is still live: it moves from where the item is, and its drop is one more step
+    // (the reorder moved the item's node: jsdom drops the focus, which keeps the drag)
+    grip(2).focus()
+    press('ArrowUp'); await t.next(s => order(s) === '1,3,2,4')
+    press('Enter'); await t.next(s => s.sort.dragging === null)
+    await t.next(s => s.history.past.length === 2)
+    expect(past()).toEqual(['1,2,3,4', '1,3,4,2'])
+  })
+
+  it('UNDO mid-drag with earlier steps: the drag so far is one step back, the earlier one the next', async () => {
+    t = renderComponent(withUndo(), { dom: 'real' }); await t.ready()
+    t.simulateAction('ADD'); await t.next(s => order(s) === '1,2,3,4,5')
+    await lift(1)
+    press('ArrowDown'); await t.next(s => order(s) === '2,1,3,4,5')
+    t.simulateAction('history.UNDO'); await t.next(s => order(s) === '1,2,3,4,5')
+    t.simulateAction('history.UNDO'); await t.next(s => order(s) === '1,2,3,4')
+    expect(future()).toEqual(['1,2,3,4,5', '2,1,3,4,5'])
+  })
+})
+
 describe('3-L G-474: END restores only into the lists the drag made', () => {
   const Sub = (props) => TaskList(props)
   Object.assign(Sub, { uses: { sort: sortable({ from: 'tasks', item: '.task', handle: '.grip' }) } })
@@ -73,6 +122,111 @@ describe('3-L G-474: END restores only into the lists the drag made', () => {
     await t.next(s => !s.show)
     await t.settle()
     expect(order(t.state.list)).toBe('1,2,3,4')
+  })
+})
+
+describe('3-L G-475: drag state this instance did not start, with the END rule', () => {
+  it('a key from another instance (a second host of the slice): the item goes back, nothing pending in undo', async () => {
+    t = renderComponent(withUndo(), { dom: 'real' }); await t.ready()
+    await lift(2)
+    press('ArrowDown'); await t.next(s => order(s) === '1,3,2,4')
+    expect(t.state.history.base).toBeTruthy()
+    t.simulateAction('sort.KEY', { key: ' ', id: '1', n: 12345 })
+    await t.next(s => s.sort.dragging === '1')
+    expect(order(t.state)).toBe('1,2,3,4')
+    expect(t.state.history.base).toBe(undefined)
+    expect(past()).toEqual([])
+  })
+
+  it('a second host mounted mid-drag (its INIT): the item goes back to where it started', async () => {
+    const Sub = (props) => TaskList(props)
+    Object.assign(Sub, { uses: { sort: sortable({ from: 'tasks', item: '.task', handle: '.grip' }) } })
+    function Two({ state }) {
+      return h('div', null, h('div', { className: 'a' }, h(Sub, { state: 'list' })), state.two ? h('div', { className: 'b' }, h(Sub, { state: 'list' })) : null)
+    }
+    Two.initialState = { two: false, list: { tasks: TASKS } }
+    Two.model = { TWO: (s) => ({ ...s, two: true }) }
+    t = renderComponent(Two, { dom: 'real' }); await t.ready()
+    grip(2).focus(); press(' '); await t.next(s => s.list.sort?.dragging === '2')
+    press('ArrowDown'); await t.next(s => order(s.list) === '1,3,2,4')
+    t.simulateAction('TWO')
+    await t.next(s => s.two && s.list.sort.dragging === null)
+    expect(order(t.state.list)).toBe('1,2,3,4')
+  })
+
+  it('a keyboard drag restored with data the drag did not make (a persisted item host): idle, the data as it is', async () => {
+    function Group({ state }) { return h('li', null, h('ul', null, h(Collection, { of: Task, from: 'children' }))) }
+    Group.uses = { sort: sortable({ from: 'children', item: '.task', handle: '.grip' }) }
+    function Tree() { return h('ul', null, h(Collection, { of: Group, from: 'groups' })) }
+    Tree.initialState = { groups: [{ id: 1, children: [{ id: 3, title: 'C' }, { id: 2, title: 'B' }], sort: { dragging: '2', over: null, after: false, list: null, mode: 'keyboard', press: null, origin: { list: 'children', index: 0, n: 1 }, message: '' } }] }
+    t = renderComponent(Tree, { dom: 'real' }); await t.ready()
+    await t.settle()
+    expect(t.state.groups[0].sort).toMatchObject({ dragging: null, mode: null, origin: null })
+    expect(t.state.groups[0].children.map(c => c.id).join()).toBe('3,2')
+  })
+})
+
+describe('3-L G-477: track / resetOn / coalesce naming the gesture\'s actions', () => {
+  const drag = async (id, key = 'ArrowDown') => {
+    await lift(id)
+    const before = order(t.state)
+    press(key); await t.next(s => order(s) !== before)
+    press('Enter'); await t.next(s => s.sort.dragging === null)
+  }
+
+  it('track naming any of sortable\'s actions records its drops', async () => {
+    t = renderComponent(withUndo({ track: ['sort.UP'] }), { dom: 'real' }); await t.ready()
+    await drag(1)
+    await t.next(s => s.history.past.length === 1)
+    expect(past()).toEqual(['1,2,3,4'])
+    t.simulateAction('ADD'); await t.next(s => s.tasks.length === 5)
+    expect(past()).toEqual(['1,2,3,4'])                 // ADD isn't tracked
+    expect(diagnostics('SYG226')).toHaveLength(0)
+  })
+
+  it('resetOn naming sort.DROPPED clears the history at each drop', async () => {
+    t = renderComponent(withUndo({ resetOn: ['sort.DROPPED'] }), { dom: 'real' }); await t.ready()
+    t.simulateAction('ADD'); await t.next(s => s.history.past.length === 1)
+    await drag(1)
+    await t.next(s => s.history.past.length === 0)
+    expect(t.state.history.base).toBe(undefined)
+  })
+
+  it('coalesce naming sort.DROPPED joins quick drops into one step', async () => {
+    t = renderComponent(withUndo({ coalesce: ['sort.DROPPED'], coalesceMs: 5000 }), { dom: 'real' }); await t.ready()
+    await drag(1)
+    await t.next(s => s.history.past.length === 1)
+    await drag(2)
+    await t.settle()
+    expect(past()).toEqual(['1,2,3,4'])
+    t.simulateAction('ADD'); await t.next(s => s.tasks.length === 5)
+    expect(t.state.history.past.length).toBe(2)          // not listed: its own step
+  })
+
+  it('SYG226 reports a name under the behavior\'s key that is none of its actions', async () => {
+    t = renderComponent(withUndo({ track: ['sort.DROPED', 'sort.DROPPED'] }), { dom: 'real' }); await t.ready()
+    const d = diagnostics('SYG226')
+    expect(d).toHaveLength(1)
+    expect(d[0].data).toEqual({ action: 'sort.DROPED' })
+  })
+})
+
+describe('3-L G-479: a cancelled drag leaves no base', () => {
+  it('Escape, and a drag moved back to where it started', async () => {
+    t = renderComponent(withUndo(), { dom: 'real' }); await t.ready()
+    await lift(1)
+    press('ArrowDown'); await t.next(s => order(s) === '2,1,3,4')
+    expect(t.state.history.base).toBeTruthy()
+    press('Escape'); await t.next(s => s.sort.dragging === null)
+    expect(t.state.history.base).toBe(undefined)
+    await lift(1)
+    press('ArrowDown'); await t.next(s => order(s) === '2,1,3,4')
+    press('ArrowUp'); await t.next(s => order(s) === '1,2,3,4')
+    expect(t.state.history.base).toBe(undefined)
+    press('Enter'); await t.next(s => s.sort.dragging === null)
+    await t.settle()
+    expect(t.state.history).toMatchObject({ past: [], future: [] })
+    expect(t.state.history.base).toBe(undefined)
   })
 })
 
