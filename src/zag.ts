@@ -179,10 +179,12 @@ function start(zag: any, render: any, o: any, el: any, p0: any, dispatch: any, e
   }
   // G-412: the content stays (a <Transition> leave animates the host with it); its destroy hooks
   // run (refs in the render) and its listeners come off, as a patch to nothing would do. Once,
-  // and only for a rendered vnode (before the first draw, vn is the placeholder element).
+  // and only for a rendered vnode (before the first draw, vn is the placeholder element). G-472:
+  // vn is cleared first, so a destroy hook that stops the widget (or throws) doesn't release twice
   const free = () => {
-    if (vn?.sel !== undefined) release(vn)
+    const v = vn
     vn = 0
+    if (v?.sel !== undefined) release(v)
   }
   Object.assign(x, {
     machine: m,

@@ -62,7 +62,9 @@ The tag renders a host `<div class="rating">` and a React root inside it. Every 
 | `data-*` | both |
 | everything else | the component (`name`, `placeholder`, `lang` and `dir` also go on the host, as for any widget) |
 
-List a host prop in `ownProps` to send it to the component instead, or a component-only one in `hostProps` to put it on the host too. When the component calls `onChange(4)`, the adapter dispatches a `rate` event on the host with `4` as its detail. When the host leaves the page (also inside a shadow root, as with `sygnal/element`'s `shadow: true`), the React root unmounts; a host that is destroyed but stays in the page is unmounted after 10 seconds.
+List a host prop in `ownProps` to send it to the component instead, or a component-only one in `hostProps` to put it on the host too. A React component that doesn't pass `aria-*` and `role` on to its element (it takes only the props it names) gets no accessible name this way: fix the component to spread them, or list them in `hostProps` (`hostProps: ['role', 'aria-label']`) so the host carries the role and the name. When the component calls `onChange(4)`, the adapter dispatches a `rate` event on the host with `4` as its detail.
+
+When the host leaves the page (also inside a shadow root, as with `sygnal/element`'s `shadow: true`), the React root unmounts. A host can also be destroyed while its element stays in the page, for example during a `<Transition>` leave that never gets its `transitionend`. The React root then stays mounted until the element is removed, and for at most 10 seconds, so no root or observer is leaked. A component's cleanup (`useEffect` returns) can therefore run up to 10 seconds after the host was destroyed.
 
 | Option | |
 |---|---|
