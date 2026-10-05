@@ -81,10 +81,37 @@ Rows.initialState = { rows: [{ id: 'r1', text: 'First' }, { id: 'r2', text: 'Sec
 Rows.uses = { sort: sortable({ from: 'rows', item: '.row' }) }
 Rows.context = { sort: (state) => state.sort }
 
+// 3-H G-444/G-445: nested sortables whose ids repeat between the levels
+function Leaf({ state }) {
+  return (
+    <li className="node leaf" data-id={state.id} style={{ height: '24px', listStyle: 'none' }}>
+      <button type="button" className="grip" aria-label={`Move leaf ${state.id}`} style={{ touchAction: 'none' }}>⠿</button> leaf {state.id}
+    </li>
+  )
+}
+function Group({ state }) {
+  return (
+    <li className="node group" data-id={state.id} style={{ listStyle: 'none', border: '1px solid #ccc', margin: '2px 0' }}>
+      <button type="button" className="grip" aria-label={`Move group ${state.id}`} style={{ touchAction: 'none', height: '24px' }}>⠿</button> group {state.id}
+      <ul style={{ margin: 0, paddingLeft: '24px' }}><Collection of={Leaf} from="children" /></ul>
+    </li>
+  )
+}
+Group.uses = { sort: sortable({ from: 'children', item: '.node', handle: '.grip' }) }
+function Tree() { return <ul className="tree" style={{ margin: 0, padding: 0 }}><Collection of={Group} from="groups" /></ul> }
+Tree.uses = { sort: sortable({ from: 'groups', item: '.node', handle: '.grip' }) }
+
 const input = (steps) => window.__pwInput(steps)
 
 export async function sortableTestsP5_3D() {
-  if (typeof window.__pwInput !== 'function') return
+  // 3-H G-455: real input is the point of this suite: without the runner's helpers (the page
+  // opened by hand) it fails instead of passing silently
+  if (typeof window.__pwInput !== 'function' || typeof window.__pw !== 'function') {
+    await runTest(CAT, 'real input (window.__pwInput / __pw from run-headless.mjs)', async () => {
+      assert(false, 'window.__pwInput is missing: run the suite with npm --prefix browser-tests test')
+    })
+    return
+  }
   const setup = async (C = TaskList, n = 4, sel = '.task') => {
     const { id, el } = mountOnScreen()
     const app = run(C, {}, { mountPoint: id })
@@ -257,10 +284,96 @@ export async function sortableTestsP5_3D() {
     try {
       assert(await window.__pw('role', id, { role: 'button', name: 'Reorder Build prototype' }) === 1, 'grip named')
       assert(await window.__pw('role', id, { role: 'status' }) === 1, 'one status region')
+      // 3-H G-448: the instructions id is set at the first focus inside the host
+      await window.__pw('focus', `${id} .task[data-id="2"] .grip`)
+      await waitFor(() => q('p[hidden]').id)
       const help = q('p[hidden]')
-      assert(help.id && help.id === q('.grip').getAttribute('aria-describedby'), 'aria-describedby names the instructions: ' + help.id)
+      assert(help.id === q('.task[data-id="2"] .grip').getAttribute('aria-describedby'), 'aria-describedby names the instructions: ' + help.id)
+      assert(help.id === q('.task[data-id="4"] .grip').getAttribute('aria-describedby'), 'every grip is described')
+      // G-455: the engine's accessibility tree (Chromium, CDP) has the description; other engines can't be asked (null)
       const desc = await window.__pw('ax', null, { role: 'button', name: 'Reorder Build prototype', prop: 'description' })
-      assert(desc === null || /^Press Space or Enter to pick up a task/.test(desc), 'accessible description: ' + desc)
+      if (ENGINE === 'chromium') assert(/^Press Space or Enter to pick up a task/.test(desc || ''), 'accessible description: ' + desc)
+      else assert(desc === null, 'ax is Chromium-only: ' + desc)
+    } finally { done() }
+  }, 6000)
+
+  await runTest(CAT, 'keyboard: Space and the arrow keys on a focusable item (no handle) do not scroll its scroll container', async () => {
+    const { id, el, q, order, done } = await setup(Rows, 3, '.row')
+    try {
+      // a scroll container shorter than the list: Space / ArrowDown would scroll it by default
+      el.style.cssText = 'margin: 8px; height: 60px; overflow-y: auto'
+      assert(el.scrollHeight > el.clientHeight + 20, `the stage scrolls: ${el.scrollHeight} > ${el.clientHeight}`)
+      el.scrollTop = 0
+      const y = window.scrollY
+      await window.__pw('focus', `${id} .row[data-id="r1"]`)
+      await input([['key', 'Space']])
+      await waitFor(() => q('.row[data-id="r1"]').classList.contains('dragging'))
+      await input([['key', 'ArrowDown']])
+      await waitFor(() => order('.row') === 'r2,r1,r3')
+      await input([['wait', 50]])
+      assert(el.scrollTop === 0, 'the container did not scroll: ' + el.scrollTop)
+      await input([['key', 'Space']])
+      await waitFor(() => !q('.dragging'))
+      await input([['wait', 50]])
+      assert(el.scrollTop === 0 && window.scrollY === y, `no scroll: ${el.scrollTop}, ${window.scrollY}`)
+      // the check can fail: Space on a focusable element that isn't sortable scrolls its container
+      const box = document.createElement('div')
+      box.className = 'plain-box'
+      box.style.cssText = 'height: 40px; overflow-y: auto'
+      box.innerHTML = '<div class="plain" tabindex="0" style="height: 20px">plain</div><div style="height: 300px"></div>'
+      el.after(box)
+      await window.__pw('focus', '.plain-box .plain')
+      await input([['key', 'Space'], ['wait', 150]])
+      assert(box.scrollTop > 0, 'a plain Space scrolls its container: ' + box.scrollTop)
+    } finally { done() }
+  }, 6000)
+
+  await runTest(CAT, 'nested, repeated ids (3-H G-444): a mouse drag of outer 3 over inner 2 of group 1 lands before group 1', async () => {
+    Tree.initialState = { groups: [{ id: 1, children: [{ id: 2 }] }, { id: 2, children: [] }, { id: 3, children: [] }] }
+    const { el, center, done } = await setup(Tree, 3, '.group')
+    try {
+      const groups = () => [...el.querySelectorAll('.group')].map(e => e.dataset.id).join()
+      const [x, y] = center('.group[data-id="3"] > .grip'), [lx, ly] = center('.group[data-id="1"] .leaf[data-id="2"]')
+      await input([['move', x, y], ['down'], ['move', x, y - 3], ['move', lx, ly, 8], ['wait', 50], ['up']])
+      await waitFor(() => groups() === '3,1,2').catch(() => { throw new Error('order: ' + groups()) })
+      assert(el.querySelector('.group[data-id="1"] .leaf[data-id="2"]'), 'group 1 keeps its leaf')
+    } finally { done() }
+  }, 6000)
+
+  await runTest(CAT, 'nested, repeated ids (3-H G-445): Space on outer group 3 lifts it, arrows move it, focus stays on its grip', async () => {
+    Tree.initialState = { groups: [{ id: 1, children: [{ id: 3 }] }, { id: 2, children: [] }, { id: 3, children: [] }] }
+    const { id, el, q, done } = await setup(Tree, 3, '.group')
+    try {
+      const groups = () => [...el.querySelectorAll('.group')].map(e => e.dataset.id).join()
+      const grip = () => q('.group[data-id="3"] > .grip')
+      await window.__pw('focus', `${id} .group[data-id="3"] > .grip`)
+      await input([['key', 'Space'], ['wait', 50]])
+      assert(document.activeElement === grip(), 'focus stayed on the outer grip: ' + document.activeElement?.outerHTML.slice(0, 80))
+      await input([['key', 'ArrowUp']])
+      await waitFor(() => groups() === '1,3,2')
+      await waitFor(() => document.activeElement === grip(), 1000)
+      await input([['key', 'ArrowUp']])
+      await waitFor(() => groups() === '3,1,2')
+      await waitFor(() => document.activeElement === grip(), 1000)
+      await input([['key', 'Enter']])
+      assert(q('.group[data-id="1"] .leaf[data-id="3"]'), 'the inner 3 stayed in group 1')
+    } finally { done() }
+  }, 6000)
+
+  await runTest(CAT, 'two lists (3-H G-454): a mouse drop on the lower half of the other list\'s last item lands after it', async () => {
+    const { el, q, center, done } = await setup(Board, 2, '.card')
+    try {
+      const ids = (s) => [...el.querySelectorAll(`${s} .card`)].map(e => e.dataset.id).join()
+      // b into done first (the empty list), then a below b's middle
+      let [x, y] = center('.card[data-id="b"] .grip'), [dx, dy] = center('.done')
+      await input([['move', x, y], ['down'], ['move', x + 3, y + 3], ['move', dx, dy, 8], ['wait', 50], ['up']])
+      await waitFor(() => ids('.done') === 'b')
+      ;[x, y] = center('.card[data-id="a"] .grip')
+      const r = q('.card[data-id="b"]').getBoundingClientRect()
+      await input([['move', x, y], ['down'], ['move', x + 3, y + 3], ['move', r.x + 40, r.y + r.height * 0.8, 8], ['wait', 50]])
+      await waitFor(() => q('.card[data-id="b"]') && q('.dragging'))
+      await input([['up']])
+      await waitFor(() => ids('.done') === 'b,a').catch(() => { throw new Error('done: ' + ids('.done')) })
     } finally { done() }
   }, 6000)
 
