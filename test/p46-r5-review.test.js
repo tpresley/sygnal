@@ -24,3 +24,18 @@ describe('G-324: a child-only fake sink answers an intent-less child', () => {
     expect(t.html()).toContain('yes')
   })
 })
+
+describe('G-325: a root with a model and no intent: its model actions are simulate-only, not unreachable', () => {
+  it('no SYG102 with the dev entry loaded', async () => {
+    await import('../src/extra/diagnostics/checks/index.js')
+    function Counter({ state }) { return h('div', null, String(state.n)) }
+    Counter.initialState = { n: 0 }
+    Counter.model = { INC: (s) => ({ ...s, n: s.n + 1 }), RESET: (s) => ({ ...s, n: 0 }) }
+    t = renderComponent(Counter)
+    await t.ready()
+    t.simulateAction('INC')
+    await t.next()
+    await t.settle()
+    expect(t.diagnostics.filter((d) => d.code === 'SYG102')).toEqual([])
+  })
+})

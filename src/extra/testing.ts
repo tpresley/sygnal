@@ -1914,7 +1914,9 @@ export function renderComponent(
   };
   let sources: any, sinks: any;
   try {
-    // the root runs with the test intent, model, initial state and name, and the drivers above
+    // the root runs with the test intent, model, initial state and name, and the drivers above.
+    // G-325: without an intent, every model action is simulate-only (no false SYG102)
+    if (!intent) testActions.push(...names);
     const p = startNext(componentDef, allDrivers, {
       useDefaultDrivers: false, onError: options.onError,
       __hooks: nextHooks(),
