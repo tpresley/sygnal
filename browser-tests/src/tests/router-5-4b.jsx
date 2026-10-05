@@ -10,7 +10,17 @@ export async function routerTests5_4b() {
   await runTest(CAT, 'link click, back, scroll restore, focus, document.title', async () => {
     const start = location.pathname + location.search
     const title0 = document.title
-    history.replaceState(null, '', '/rt')
+    // G-355: the test's own history entry and page height, so earlier suites don't matter.
+    // - An earlier suite navigates an iframe it then removes (rendering-1a, G-095), which adds a
+    //   session-history entry for that iframe; replacing the current entry (the one after it) and
+    //   pushing from there, WebKit's history.back() went past it to the entry before the iframe
+    //   navigation ('/', no router key, scrollRestoration 'auto': the browser's own scroll). A
+    //   pushed entry is the test's own.
+    // - The test mounts off-screen (left: -9999px), which adds no scrollable height: the page was
+    //   tall enough only because of the results table; a spacer makes it scroll to 600 alone.
+    history.pushState(null, '', '/rt')
+    const spacer = document.body.appendChild(document.createElement('div'))
+    spacer.style.height = '4000px'
     const router = makeRouter({ routes: { home: '/', task: '/tasks/:id', notFound: '*' }, base: '/rt' })
     const { href } = router
     const Home = () => <div><h1 className="h">Home</h1><div style={{ height: '3000px' }}>tall</div><a className="t2" href={href('task', { id: 2 })}>two</a></div>
@@ -46,6 +56,7 @@ export async function routerTests5_4b() {
     } finally {
       app.dispose()
       await wait(10)
+      spacer.remove()
       window.scrollTo(0, 0)
       history.replaceState(null, '', start)
       document.title = title0
