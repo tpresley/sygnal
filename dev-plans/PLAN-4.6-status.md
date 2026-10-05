@@ -6,7 +6,7 @@ Tracks progress for [PLAN-4.6.md](PLAN-4.6.md) (component core rewrite). The coo
 
 **Integration branch:** `plan46-integration`, cut from `plan45-complete` (`d900c522`) on 2026-10-04, with `claude/component-core-rewrite-experiment` (the study) merged (`45eefb2`). Worktree `.claude/worktrees/plan-4-execution-7ae8e8`. The release stays held (D56).
 
-**State:** R0, R1, R2 merged. R3 running; review of R2 running.
+**State:** R0, R1, R2 merged. R3 running (incl. R2 review fixes G-306…G-317).
 
 ## Phases
 
@@ -64,10 +64,23 @@ Tracks progress for [PLAN-4.6.md](PLAN-4.6.md) (component core rewrite). The coo
 | G-303 | review R1 | Low | core/runtime | Driver errors skip `hooks.onError` | Fixed (R2) |
 | G-304 | review R1 | Low | core (efficiency) | Per-render allocations (isolate key, context Proxy, handler props), O(watchers) notify per action, full-tree flush walk | Partly (R2: isolate-key cache reverted, no gain; rest → R4 perf pass) |
 | G-305 | review R1 | Low | mock DOM | Scope check matches by prefix (`s1` vs `s14`) | Fixed (R2) |
+| G-306 | review R2 | High | core/cell | Id-less Collection item gets a made-up `id` written back; after a removal it collides with a sibling's index key and one item disappears (regression). Confirmed | → R3 |
+| G-307 | review R2 | Med | core/cell | `id: 0` treated as no id; ids and indices share a key space; `'1'`/`1` same uid. Confirmed | → R3 |
+| G-308 | review R2 | Med | core/collection | D178 not implemented (missing `from` never renders). Confirmed | → R3 |
+| G-309 | review R2 | Med | core/instance | SEED re-check missing at drain: a parent action queued before it is overwritten (D174/D179). Confirmed | → R3 |
+| G-310 | review R2 | Med | core/lazy | A failed lazy import stays "loading" forever (regression). Confirmed | → R3 |
+| G-311 | review R2 | Med/Low | core/runtime | Flush catch leaves partial bookkeeping (stale siblings, stale Collection, undrained queue) | → R3 |
+| G-312 | review R2 | Low/Med | core/runtime | Layered `transformDef`/`wrapSources`/`wrapHandler` lose lower layers when an upper returns void. Confirmed | → R3 |
+| G-313 | review R2 | Low | core/runtime | `early` flag never cleared after a throwing first flush | → R3 |
+| G-314 | review R2 | Low | core/cell | Lens-bound isolated child has no `initialState` default (D179 parity with key binding). Confirmed | → R3 |
+| G-315 | review R2 | Low | build | Two top-level `xs.create()` calls survive the D175 strip | → R3 |
+| G-316 | review R2 | Low | core/portal | Late-target Portal retry can double-mount or leak (inherited) | → R3 |
+| G-317 | review R2 | Low | core/hosts | `lazy()` as a Collection `of` or Switchable page never resolves (same as today; coordinator: fix on next) | → R3 |
 | G-291 | 0-S | Low | Collection | Id-less items under filter/sort are keyed by filtered/sorted index (likely a latent bug) | → Q23 |
 
 ## Log
 
+- 2026-10-04 — Review of R2: 12 findings (G-306…G-317, 2 regressions), sent to R3.
 - 2026-10-04 — R2 merged (`62cfaec`); all gates green (size 41,474 B). D177–D179. R3 and a review of R2 started.
 - 2026-10-04 — Review of R1: 12 findings (G-294…G-305), sent to R2.
 - 2026-10-04 — R1 merged (`4d91475`); gates green except size (planned: both cores ship, 49,289 B). D174 (user: isolatedState keeps parent data, `resetState` prop, dev warning), D175, D176. R2 and a review of R1 started.
