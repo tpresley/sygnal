@@ -39,3 +39,38 @@ describe('G-325: a root with a model and no intent: its model actions are simula
     expect(t.diagnostics.filter((d) => d.code === 'SYG102')).toEqual([])
   })
 })
+
+describe("G-326: an input's next() cursor expires after a macrotask (moving the clock by hand)", () => {
+  function C({ state }) { return h('div', null, String(state.phase)) }
+  C.initialState = { phase: 'idle' }
+  C.model = {
+    LOAD: { STATE: (s) => ({ ...s, phase: 'loading' }), EFFECT: (s, d, next) => next('DONE', null, 40) },
+    DONE: (s) => ({ ...s, phase: 'done' }),
+  }
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+
+  it('simulateAction, a wait, then next(): the state after the call, not the one already past', async () => {
+    t = renderComponent(C)
+    await t.ready()
+    t.simulateAction('LOAD')
+    await sleep(10)
+    expect((await t.next()).phase).toBe('done')
+  })
+
+  it('fake timers: simulateAction, advanceTimersByTimeAsync, then next() (testing.md: move the clock by hand)', async () => {
+    vi.useFakeTimers()
+    t = renderComponent(C)
+    await t.ready()
+    t.simulateAction('LOAD')
+    await vi.advanceTimersByTimeAsync(5)
+    expect((await t.next()).phase).toBe('done')
+  })
+
+  it('in the same tick, next() still starts at the input (D176)', async () => {
+    t = renderComponent(C)
+    await t.ready()
+    t.simulateAction('LOAD')
+    expect((await t.next()).phase).toBe('loading')
+    expect((await t.next()).phase).toBe('done')
+  })
+})

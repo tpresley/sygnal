@@ -2042,7 +2042,11 @@ export function renderComponent(
     // calls in the same tick: the cursor stays at the first one's state)
     cursor = was ?? states.length;
     if (!fromInput) queueMicrotask(() => { fromInput = false; });
-    fromInput = true; arming++; cursorUsed = false;
+    fromInput = true; cursorUsed = false;
+    // G-326: like ready()'s, the cursor expires at the next macrotask unless a next() used it,
+    // so a test that moves the clock (or waits) before next() gets the state after the call
+    const id = ++arming;
+    setTimeout(() => { if (id == arming && !cursorUsed) cursor = undefined; });
     inputs.push({go, missing});
     pump();
   };
