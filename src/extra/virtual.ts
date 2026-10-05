@@ -27,7 +27,9 @@
  * - G-401: rows are keyed (a row's element is its own). The row holding the focus stays rendered
  *   while scrolled out (pinned at its own offset, out of the window's flow) until the focus leaves
  *   the list, and no row element is moved in the DOM (a move blurs it in every engine): a window
- *   that loses rows at its front while its end changes is patched in two steps.
+ *   that loses rows at its front while its end changes is patched in two steps. G-424: the pin
+ *   follows the row's key through a reorder (filter, sort, a new array), and a row element a
+ *   reorder moves gets the focus back (when it went nowhere; preventScroll).
  * - Row heights: `estimateSize` (a number, or `(item, index) => number`, default 32) until a row is
  *   rendered; then its measured height (ResizeObserver follows later changes, applied in the next
  *   frame: G-402). A 0 measurement (no layout: jsdom) keeps the estimate. A new function at each
@@ -67,6 +69,8 @@ const ROWS0 = 10
 const dev = (code: number, owner: any, x?: any): any => (globalThis as any).__SYGNAL_DIAGNOSTICS__?.virtual?.(code, owner, x)
 
 const px = (n: number) => n + 'px'
+/** the element with the focus in `el`'s root (its shadow root: G-426), if any */
+const act = (el: any): any => el && (el.getRootNode?.() || el.ownerDocument)?.activeElement
 /** the props the container's vnode data is made from (not estimateSize / overscan: G-394) */
 const BOX = (x: string) => x != 'estimateSize' && x != 'overscan'
 const same = (a: any, b: any, d?: any): boolean => {
@@ -102,6 +106,8 @@ export class VirtualHost extends CollectionHost {
   declare sz: (i: number) => number
   /** a first patch step that only removed rows ran (G-401) */
   declare p1: boolean
+  /** the element in the list with the focus before a patch (G-424) */
+  declare fa: any
   declare warned: number
   declare un: (() => void) | undefined
 
@@ -250,7 +256,12 @@ export class VirtualHost extends CollectionHost {
     const old = this.all
     if (all.length == old.length && all.every((x, i) => x === old[i])) return false
     this.all = all
-    if (this.fk !== undefined && (this.fi = all.indexOf(this.fk)) < 0) this.fk = undefined
+    if (this.fk !== undefined) {
+      if ((this.fi = all.indexOf(this.fk)) < 0) this.fk = undefined
+      // G-424: the focused row's new index (or none): a new extractor, since the virtualizer
+      // memoizes the indexes on it and on the range (a reorder can keep both)
+      this.re = (r: any) => this.range(r)
+    }
     // a new key function: the virtualizer re-reads the keys (its measurements are by key)
     this.gk = (i: number) => this.all[i]
     this.opts()
@@ -350,7 +361,16 @@ export class VirtualHost extends CollectionHost {
       vc: {commands: {scrollToIndex: 1, scrollToId: 1}},
       hook: {
         insert: (y: any) => this.attach(y.elm),
-        postpatch: (_: any, y: any) => y.elm !== this.el && this.attach(y.elm),
+        // G-424: a row element the patch moves (a reorder) loses the focus in every engine: the
+        // element in the list that had it gets it back when it is still on the page and the
+        // focus went nowhere
+        prepatch: () => { const a = act(this.el); this.fa = a && this.el.contains(a) ? a : null },
+        postpatch: (_: any, y: any) => {
+          const a = this.fa, b = act(a)
+          this.fa = null
+          if (a?.isConnected && a !== b && (!b || b === a.ownerDocument.body)) a.focus({preventScroll: true})
+          y.elm !== this.el && this.attach(y.elm)
+        },
         destroy: () => this.detach(),
       },
     })
