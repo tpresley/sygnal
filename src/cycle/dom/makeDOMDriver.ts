@@ -65,16 +65,18 @@ function makeDOMReady$(): Stream<null> {
 
 // G-456 (D217): the app's first patch adopts markup already in the mount point (server HTML, an
 // Astro island, a Vike page). Its old vnode is built from the DOM with the client's vnode as the
-// template (by position): an element with the client's tag takes the client's selector and key
-// (so component roots and Collection items match), and its data is what the modules need to
-// reach the client's from what the server wrote: the dataset (stale keys go: data-sygnal-ssr),
-// class and id as props on a bare selector (the className module clears stale ones), each
-// attribute the client sets as an attribute or a prop with the server's value (nothing is
-// written again: an iframe's src isn't reloaded). Any other attribute is removed (a style only
-// when the client sets none). Text nodes are kept; whitespace and comments where the client has
-// no text go, as does any other node that doesn't match (snabbdom then makes the client's in its
-// place: no cascade). An element whose hook has an insert and no postpatch (a Transition's
-// enter, a measured row, the toaster region) is made again in place, as before
+// template, by position (no toVNode): an element with the client's tag takes the client's
+// selector and key (so component roots and Collection items match), and its data is what the
+// modules need to reach the client's from what the server wrote: the dataset (stale keys go:
+// data-sygnal-ssr), the class as the className prop (the className module drops stale classes),
+// and each attribute the client sets as an attribute or a prop, with the server's value (nothing
+// is written again: an iframe's src isn't reloaded). Any other attribute is removed now (a style
+// only when the client sets none; class and id are left alone on a selector with them, as
+// `h('p#a.b')`). A single text child keeps its text node. Whitespace and comments where the
+// client has no text go; any other node that doesn't match stays as a placeholder that snabbdom
+// replaces with the client's node, in place (the lists stay aligned, so the nodes after it are
+// still adopted). An element whose hook has an insert and no postpatch (a Transition's enter, a
+// measured row, the toaster region, a lazy() placeholder) is made again that way, as before
 const adopt = (e: any, v: any): any => {
   const c = v.children || [], out: any[] = [];
   let j = 0;
@@ -86,12 +88,12 @@ const adopt = (e: any, v: any): any => {
     if (t == 3 && w && !w.sel && w.text != null) n = {text: x.data, elm: x};
     else if (t == 1 && x.localName == w?.sel?.split(/[#.]/, 1)[0] && !(k?.insert && !k.postpatch)) {
       const p = d.props || {}, a = d.attrs || {}, o: any = {}, at: any = {}, pr: any = {}, f = x.firstChild;
+      o.class = 'className';
       for (const m in p) o[m == 'htmlFor' ? 'for' : m.toLowerCase()] = m;
       for (const {name: m, value: y} of [...x.attributes])
         m in a ? at[m] = y
-        : /^data-/.test(m) || m == 'style' && d.style ? 0
-        : !d.ns && /^(class|id)$/.test(m) ? w.sel == x.localName && (pr[m == 'id' ? m : 'className'] = y)
-        : m in o ? pr[o[m]] = y
+        : /^data-/.test(m) || m == 'style' && d.style || w.sel != x.localName && /^(class|id)$/.test(m) ? 0
+        : m in o && !d.ns ? pr[o[m]] = y
         : x.removeAttribute(m);
       const s = w.text != null && f?.nodeType == 3 && !f.nextSibling;
       n = {sel: w.sel, data: {dataset: {...x.dataset}, attrs: at, props: pr}, children: s ? undefined : adopt(x, w), text: s ? f.data : undefined, elm: x, key: w.key};
