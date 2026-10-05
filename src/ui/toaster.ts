@@ -60,8 +60,10 @@ const placement = {
     const el = v.elm, home = el.parentNode, root = el.getRootNode?.() || document
     el.__sygnalHome = home
     show(el)
-    // G-399: the focus in the region, and where it came from (where it goes back to)
-    el.addEventListener('focusin', (e: any) => { if (!el.contains(e.relatedTarget)) { el._f = 1; el._from = e.relatedTarget } })
+    // G-399: the focus in the region, and where it came from (where it goes back to). G-432: a
+    // focus from nowhere (the region's own refocus after a move, the browser's after a modal
+    // closed, the window focused again) keeps the last element it came from
+    el.addEventListener('focusin', (e: any) => { if (!el.contains(e.relatedTarget)) { el._f = 1; el._from = e.relatedTarget || el._from } })
     el.addEventListener('focusout', (e: any) => { if (left(el, e)) el._f = 0 })
     // a Dismiss button with the focus (keyboard; a click that focused it): the focus moves to the
     // next toast's Dismiss button, else the previous one's, else back where it came from, before
@@ -78,11 +80,10 @@ const placement = {
     const place = () => {
       const to = topModal(root) || home
       if (el.parentNode !== to) {
-        // a move blurs a focused Dismiss button: give the focus back (G-432: where it came from
-        // stays; the refocus has no relatedTarget)
-        const a = act(el), f: any = el.contains(a) && a, from = el._from
+        // a move blurs a focused Dismiss button: give the focus back
+        const a = act(el), f: any = el.contains(a) && a
         to.appendChild(el)
-        if (f) { f.focus(); el._from = from }
+        f && f.focus()
       }
       // a moved popover is closed: show it again (on top of the dialog it is in)
       show(el)
