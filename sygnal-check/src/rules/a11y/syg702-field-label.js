@@ -58,7 +58,7 @@ export default {
       }
       const ctx = labelState(project, info.file, info.el)
       if (ctx !== 'none') continue
-      const what = info.kind === 'control' ? `control <${info.name}> (a <${info.tag}>)` : `<${info.tag}>`
+      const what = info.kind === 'control' ? `${info.control?.kind === 'widget' ? 'widget' : 'control'} <${info.name}> (a <${info.tag}>)` : `<${info.tag}>`
       const sibling = unlinkedSiblingLabel(project, info)
       report({
         code: 'SYG702',

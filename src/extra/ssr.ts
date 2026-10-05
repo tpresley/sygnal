@@ -365,6 +365,14 @@ function processSSRTree(vnode: any, context: Record<string, any>, parentState: a
     }
   }
 
+  // PLAN-5 W-1 widget marker: the host element with the widget's `fallback` inside (processed like
+  // any children); the client patch replaces the fallback and mounts the widget (extra/widget.ts)
+  if (sel === 'widget' && vnode.data?.ww) {
+    const {ww, wp, h} = vnode.data, fb = ww.def.fallback, host = ww.$ssr(vnode)
+    if (fb != null) host.children = [].concat(typeof fb == 'function' ? fb(wp, h) : fb).map((c: any) => typeof c == 'object' ? c : {text: String(c)})
+    return processSSRTree(host, context, parentState, uid, path)
+  }
+
   // Slot: unwrap to children
   if (sel === 'slot') {
     const children = vnode.children || []
@@ -665,7 +673,7 @@ function vnodeToHtml(vnode: any): string {
   const {tag, id, selectorClasses} = parseSelector(sel)
 
   // Build attributes from VNode data
-  const attrs = buildAttributes(vnode.data || {}, id, selectorClasses)
+  const attrs = buildAttributes(vnode.data || {}, id, selectorClasses, tag.includes('-'))
 
   // Opening tag
   let html = `<${tag}`
@@ -750,24 +758,32 @@ function parseSelector(sel: string): {tag: string; id: string | null; selectorCl
 function buildAttributes(
   data: any,
   selectorId: string | null,
-  selectorClasses: string[]
+  selectorClasses: string[],
+  custom?: boolean
 ): Array<[string, any]> {
   const result: Array<[string, any]> = []
   const classNames: string[] = [...selectorClasses]
 
   // From data.props (DOM properties like className, htmlFor, etc.)
   if (data.props) {
-    for (const [key, val] of Object.entries(data.props)) {
+    for (let [key, val] of Object.entries(data.props)) {
       if (key === 'className') {
         if (typeof val === 'string' && val) classNames.push(val)
       } else if (key === 'htmlFor') {
         result.push(['for', val])
       } else if (key === 'innerHTML' || key === 'textContent') {
         // Skip — handled separately if needed
-      } else if (typeof val === 'boolean') {
-        if (val) result.push([key, true])
-      } else if (val != null) {
-        result.push([key, val])
+      } else if (custom && (typeof val === 'function' || (val && typeof val === 'object'))) {
+        // PLAN-5 D199: a custom element's function / object property has no attribute form
+      } else {
+        // PLAN-5 D199: a custom element's camelCase property is written as its kebab-case
+        // attribute (withClear → with-clear), the form Lit-style elements read on upgrade
+        if (custom) key = key.replace(/[A-Z]/g, (c) => '-' + c.toLowerCase())
+        if (typeof val === 'boolean') {
+          if (val) result.push([key, true])
+        } else if (val != null) {
+          result.push([key, val])
+        }
       }
     }
   }

@@ -256,7 +256,8 @@ function controlledFields(project, file, view) {
       // a control for an element is that element (G-203); any other capitalised tag is a
       // child scope (incl. Collection) or a spec-object control whose element isn't known
       const control = isComponentTag(name) && !TRANSPARENT.has(name) ? resolveControlJSX(project, file, opening) : null
-      if (isComponentTag(name) && !TRANSPARENT.has(name) && !control?.element) return false
+      // PLAN-5 W-1: a widget's value is the widget's prop, not the host field's (skipped)
+      if (isComponentTag(name) && !TRANSPARENT.has(name) && (!control?.element || control.kind === 'widget')) return false
       if (/^(collection|switchable)$/.test(name)) return false
       let inner = ancestors
       if (!isComponentTag(name) || control) {

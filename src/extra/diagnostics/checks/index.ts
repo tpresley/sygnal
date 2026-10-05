@@ -25,6 +25,11 @@
  * | SYG635 | cache: true / staleTime / prefetch without queryCache() | fetch.ts       |
  * | SYG115 | unknown DOM event shorthand (DOM.key(...))             | shorthand.ts   |
  * | SYG124 | component where a control or selector is expected      | controls.ts    |
+ * | SYG140 | widget emitted an event it doesn't declare             | widgets.ts     |
+ * | SYG142 | widget command not declared (also a reserved name)     | elementCommands.ts, widgets.ts |
+ * | SYG143 | widget tag used as a selector                          | widgets.ts     |
+ * | SYG144 | declared widget event the host also fires (info)       | widgets.ts     |
+ * | SYG660 | widget mount / update / unmount threw (660/661/662)    | widgets.ts     |
  * | SYG125 | control given component statics / bad spec vnode()     | controls.ts    |
  * | SYG127 | behavior key in initialState / unresolvable uses entry | behaviors.ts   |
  * | SYG116 | EVENTS value with no string type (a function)          | events.ts      |
@@ -68,6 +73,7 @@ import {domCheck} from './dom'
 import {shorthandCheck} from './shorthand'
 import {controlsCheck, installControlHooks} from './controls'
 import {elementCommandsCheck, installElementCommandHooks} from './elementCommands'
+import {installWidgetHooks} from './widgets'
 import {behaviorsCheck} from './behaviors'
 import {datasetCheck} from './dataset'
 import {strictCheck} from './strict'
@@ -131,6 +137,7 @@ export function installChecks(): () => void {
   const uninstallControls = installControlHooks()
   const uninstallTimers = installTimerHooks()
   const uninstallElementCommands = installElementCommandHooks()
+  const uninstallWidgets = installWidgetHooks()
   // PLAN-4.6 R4: the core reads its hooks from the bridge once per app (checks/next.ts)
   ;(core.layers ||= new Set()).add(nextHooks)
   const uninstall = () => {
@@ -142,6 +149,7 @@ export function installChecks(): () => void {
     uninstallControls()
     uninstallTimers()
     uninstallElementCommands()
+    uninstallWidgets()
     if (core.__uninstallChecks === uninstall) core.__uninstallChecks = undefined
   }
   core.__uninstallChecks = uninstall

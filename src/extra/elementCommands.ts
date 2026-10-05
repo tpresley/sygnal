@@ -11,7 +11,9 @@
  *
  * The method: D102 first, a control whose spec object declares `commands` runs
  * `commands[method](element, options)` (it overrides a native method of the same name; only the
- * control itself carries a spec, a template-string selector doesn't). Then the element's own
+ * control itself carries a spec, a template-string selector doesn't). A widget host
+ * (src/extra/widget.ts) carries its widget's commands, which win the same way for a selector
+ * target (PLAN-5 D196: `{ focus: '.editor' }` runs the widget's `focus`). Then the element's own
  * method: `close` gets `returnValue` as its argument (D118), `togglePopover` its `force` (a
  * boolean, or no argument: a browser that only takes a boolean treats an object as true), every
  * other method the options object (focus { preventScroll }, scrollIntoView { block, inline,
@@ -37,7 +39,7 @@ export function runElementCommands(c: any, cmds: any): void {
     const m = Object.keys(cmd)[0], {[m]: t, ...o} = cmd, s = dom.select('' + t).elements();
     let els: any, n = 0, k = 0, l: any;
     const run = (last?: any) => {
-      const e = !c._disposed && els?.[0], f = t?.spec?.commands?.[m];
+      const e = !c._disposed && els?.[0], f = t?.spec?.commands?.[m] || e?.__sygnalWidget?.w.commands[m];
       if (!l || !e && !last) return;
       s.removeListener(l);
       clearInterval(i);

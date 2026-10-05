@@ -157,6 +157,12 @@ export const CODE_TITLES: Record<string, string> = {
   SYG131: 'Route params the pattern does not use',
   SYG132: 'Declaration static that is never sent',
   SYG133: 'SPA router inside a Vike app',
+  // PLAN-5 W-1: widgets (defineWidget; checks/widgets.ts, checks/elementCommands.ts; SYG141 static only)
+  SYG140: 'Widget emitted an undeclared event',
+  SYG141: 'Listener for an event the widget does not declare',
+  SYG142: 'Widget command not declared, or a reserved name',
+  SYG143: 'Widget tag used as a selector',
+  SYG144: 'Widget event the host element also fires natively',
   // SYG2xx state & reducers (1A)
   SYG201: 'STATE reducer dropped keys from the previous state',
   SYG202: 'STATE reducer returned undefined',
@@ -254,6 +260,10 @@ export const CODE_TITLES: Record<string, string> = {
   SYG644: 'Custom element prop hides an HTMLElement member',
   // PLAN-4 GS-12 (D129): View Transitions (checks/viewTransitions.ts; dev entry)
   SYG645: "viewTransitions that can't run",
+  // PLAN-5 W-1: a widget's mount / update / unmount threw (checks/widgets.ts; dev entry)
+  SYG660: 'Widget mount threw',
+  SYG661: 'Widget update threw',
+  SYG662: 'Widget unmount threw',
   // PLAN-4 GS-3: a11y lane (static only, sygnal-check)
   SYG701: 'Click listener on a non-interactive element',
   SYG702: 'Form field without an accessible label',
@@ -347,6 +357,16 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG644: 'warn',
   // PLAN-4 GS-12 (viewTransitions.ts): the static set, but the app's DOM driver isn't makeViewTransitionDOMDriver()
   SYG645: 'warn',
+  // PLAN-5 W-1: widgets (checks/widgets.ts, checks/elementCommands.ts; SYG141 static only, listed
+  // so the entry knows its title)
+  SYG140: 'warn',
+  SYG141: 'warn',
+  SYG142: 'error',
+  SYG143: 'warn',
+  SYG144: 'info',
+  SYG660: 'error',
+  SYG661: 'error',
+  SYG662: 'error',
   // PLAN-4 GS-3: a11y lane, static only (sygnal-check; warn, also under --strict; error with --a11y=error, D144); listed so the entry knows its title
   SYG701: 'warn',
   SYG702: 'warn',

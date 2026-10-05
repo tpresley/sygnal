@@ -19,6 +19,7 @@ import { hyperscriptSel } from '../selectors.js'
 import { findBinding } from '../scope.js'
 import { resolveExpr, bindingValue } from './resolve.js'
 import { resolveControlJSX } from './controls.js'
+import { resolveWidgetJSX } from './widgets.js'
 
 const TRANSPARENT = new Set(['Fragment', 'Portal', 'Transition', 'Suspense', 'ClientOnly', 'Slot', 'React.Fragment'])
 const COLLECTION = new Set(['Collection', 'collection'])
@@ -239,6 +240,18 @@ function handleElement(project, file, el, sink, visited) {
   if (control) {
     if (!sink.controls.has(control)) sink.controls.set(control, [])
     sink.controls.get(control).push(opening)
+  }
+
+  // PLAN-5 W-1: a widget tag renders its host element here (opaque: no children of its own)
+  const widget = !control && isComponentTag(name) && !TRANSPARENT.has(name) ? resolveWidgetJSX(project, file, opening) : null
+  if (widget) {
+    handleHtmlAttrs(project, file, opening, sink)
+    if (widget.element) sink.elements.push({ node: el, file, tag: widget.element, widget })
+    for (const a of opening.attributes) {
+      const v = a.type === 'JSXAttribute' ? jsxAttrExpr(a) : a.argument
+      if (v && v.type !== 'StringLiteral') visitInto(project, file, v, sink, visited)
+    }
+    return
   }
 
   if (!control && isComponentTag(name) && !TRANSPARENT.has(name)) {

@@ -73,6 +73,7 @@ export default {
         const file = sel.file || intent.file
         if (sel.global) continue
         if (sel.component) continue // SYG124 (rules/syg124-controls.js)
+        if (sel.widgetTag) continue // SYG143 (rules/syg140-widgets.js)
         for (const control of sel.controls || []) checkControl(project, report, comp, sel, control, view, injected)
         if (sel.dynamic) {
           if (sel.behavior) continue // an option value we can't follow: the behavior may use it any way

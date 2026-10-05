@@ -39,6 +39,7 @@ const show = (cmd) => cmd.file.source.slice(cmd.node.start, cmd.node.end).replac
 
 function checkMethod(cmd, comp, report) {
   const { method, control } = cmd
+  if (control?.kind === 'widget' && control.events !== undefined) return   // a defineWidget() spec: SYG142 (rules/syg140-widgets.js)
   const specCommands = control ? control.commands : []   // null: a spec whose commands can't be listed
   if (specCommands?.includes(method) || NATIVE_COMMAND_NAMES.includes(method)) return
   const base = { component: comp.name, file: cmd.file, node: cmd.methodNode }

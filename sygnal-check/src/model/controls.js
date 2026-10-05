@@ -24,11 +24,13 @@
  *     whose scope the lookup starts in (needed for synthetic nodes)
  *   resolveControlJSX(project, file, opening) → Control | null    <Add> / <C.Add>
  *   resolveSelectorControls(project, file, sel)                   intent selector post-pass
- *                     (also sets sel.component for a component argument: SYG124)
+ *                     (also sets sel.component for a component argument: SYG124, and
+ *                     sel.widgetTag for a defineWidget() tag: SYG143)
  */
 import { walk, unwrap, propName, memberName, stringValue } from '../ast.js'
 import { findBinding, findTopLevel } from '../scope.js'
 import { resolveExpr } from './resolve.js'
+import { resolveWidget } from './widgets.js'
 
 const MAX_DEPTH = 8
 const SYGNAL_MODULE = /^sygnal(\/|$)/
@@ -45,10 +47,13 @@ export function isControlsCall(file, node) {
   return !!b && b.kind === 'import' && b.imported === 'controls' && SYGNAL_MODULE.test(b.source)
 }
 
-function specOf(value) {
+function specOf(value, project, file) {
   const v = unwrap(value)
   const tag = stringValue(v)
   if (tag != null) return { element: tag, kind: null, commands: [] }
+  // PLAN-5 W-1: a defineWidget() result: its host tag, kind 'widget', its commands and events
+  const w = v && project && (v.type === 'Identifier' || v.type === 'MemberExpression') ? resolveWidget(project, file, v) : null
+  if (w) return { element: w.element, kind: 'widget', commands: w.commands, events: w.events }
   if (v?.type === 'ObjectExpression') {
     const k = v.properties.find(p => p.type === 'ObjectProperty' && propName(p) === 'kind')
     return { element: null, kind: k ? stringValue(k.value) : null, commands: specCommands(v) }
@@ -89,7 +94,7 @@ export function controlsOf(project, file) {
         if (p.type !== 'ObjectProperty') continue
         const key = propName(p)
         if (key == null) continue
-        const c = { key, file, call: n, keyNode: p.key, ...specOf(p.value), selector: controlSelector(key) }
+        const c = { key, file, call: n, keyNode: p.key, ...specOf(p.value, project, file), selector: controlSelector(key) }
         controls.push(c)
         if (seen.has(key)) info.duplicates.push({ control: c, first: seen.get(key) })
         else seen.set(key, c)
@@ -247,6 +252,9 @@ export function resolveSelectorControls(project, file, sel) {
     if (controls.length) Object.assign(sel, { controls, selector: text, dynamic: false })
     return
   }
+  // PLAN-5 W-1: a widget tag used as a selector matches nothing (SYG143, rules/syg140-widgets.js)
+  const widget = resolveWidget(project, file, arg)
+  if (widget) { sel.widgetTag = widget; return }
   const component = componentArg(project, file, arg)
   if (component) sel.component = component
 }

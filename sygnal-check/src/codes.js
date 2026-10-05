@@ -27,6 +27,12 @@ export const CODES = {
   SYG124: { severity: 'error', title: 'Component used as a control or selector' },
   SYG125: { severity: 'error', title: 'Control given .intent, .model or .initialState' },
   SYG126: { severity: 'info', title: 'Control rendered but never listened to' },
+  // PLAN-5 W-1 widgets (rules/syg140-widgets.js; SYG142 also for a widget target in rules/syg640)
+  SYG140: { severity: 'warn', title: 'Widget emitted an undeclared event' },
+  SYG141: { severity: 'warn', title: 'Listener for an event the widget does not declare' },
+  SYG142: { severity: 'error', title: 'Widget command not declared, or a reserved name' },
+  SYG143: { severity: 'warn', title: 'Widget tag used as a selector' },
+  SYG144: { severity: 'info', title: 'Widget event the host element also fires natively' },
   // PLAN-4 GS-1 behaviors (model/behaviors.js)
   SYG127: { severity: 'error', title: 'Behavior collision or unresolvable uses entry' },
   SYG128: { severity: 'error', title: 'Duplicate control key' },
