@@ -16,6 +16,27 @@ export function mount() {
   return { id: `#${id}`, el }
 }
 
+// D199 (from spike 0-S6): #test-containers is off-screen (left: -9999px), and real pointer input
+// (window.__pw / __pwInput) needs an element on screen: mountOnScreen() mounts into a fixed stage
+// on top of the page; clearStage() empties it (call it when the test ends)
+let stage
+export function mountOnScreen() {
+  if (!stage) {
+    stage = document.createElement('div')
+    stage.style.cssText = 'position: fixed; top: 0; left: 0; width: 800px; z-index: 10000; background: #fff;'
+    document.body.appendChild(stage)
+  }
+  const id = `test-${testCounter++}`
+  const el = document.createElement('div')
+  el.id = id
+  el.style.margin = '8px'
+  stage.appendChild(el)
+  return { id: `#${id}`, el }
+}
+export function clearStage() {
+  if (stage) stage.replaceChildren()
+}
+
 export function assert(condition, message) {
   if (!condition) throw new Error(message || 'Assertion failed')
 }

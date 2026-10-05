@@ -90,7 +90,7 @@ MyComponent.onError = (error, { componentName }) => fallbackVNode  // Error boun
 - `sygnal-check/` — Separate package: static checker (`@babel/parser`), rules in `src/rules/` (strict ones in `src/rules/strict/`), `--fix`, `--graph`, `explain` (`src/explanations.js` → `explanations.json`, the source of the docs error reference), MCP server (`src/mcp.js`). Tests are `*.vtest.js` (not collected by the root vitest)
 - `test/` — Library vitest suites; `test/docs-errors.test.js` fails when `docs/.../reference/errors.md` is out of date
 - `type-tests/` — `tsc`-checked type tests (`test:types`); `type-tests/registry/` compiles the SygnalEvents augmentation separately
-- `browser-tests/` — Real-browser suite (`test:browser`, free port)
+- `browser-tests/` — Real-browser suite (`test:browser`, free port). `BROWSER=firefox|webkit` runs another cached Playwright engine (never download browsers); `BROWSER_TESTS_ONLY=<substring>` runs only the suites whose function name contains it (`main.js` list). Real input for tests: `window.__pwType(sel, text)`, `window.__pw(action, sel, arg)` (Playwright locator: click, hover, focus, press, fill, type, mouse-away, role, aria) and `window.__pwInput(steps)` (mouse move/down/up, keys, waits; touch via CDP, Chromium only); pointer input needs an on-screen element: `mountOnScreen()` / `clearStage()` from `harness.js`
 - `examples/` — Example apps, each with its own Vite/Vitest config and `npm test`; excluded from the root vitest
 - `docs/` — Starlight docs site (sygnal.js.org); `docs/scripts/check-links.mjs` runs after `astro build`
 - `scripts/` — `test-examples.mjs` (test:examples), `gen-error-docs.mjs` (`--check` for drift), `check-doc-samples.mjs`, `size-gate.mjs`
