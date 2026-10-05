@@ -96,3 +96,19 @@ describe('G-331: one throwing queue item does not discard the rest of the queue'
     } finally { app.dispose() }
   })
 })
+
+describe('G-335: child-only sink values keep their type in t.sinkValues()', () => {
+  it('an array and a Date sent from a child stay an array and a Date', async () => {
+    function Saver() { return h('button', { className: 'save' }, 's') }
+    Saver.intent = ({ DOM }) => ({ SAVE: DOM.click('.save') })
+    Saver.model = { SAVE: { API: () => [1, 2], LOGX: () => new Date(0) } }
+    function App() { return h('div', null, h(Saver, { state: 'saver' })) }
+    App.initialState = { saver: {} }
+    t = renderComponent(App)
+    t.simulateEvent('.save', 'click')
+    await t.settle()
+    expect(t.sinkValues('API')).toEqual([[1, 2]])
+    expect(Array.isArray(t.sinkValues('API')[0])).toBe(true)
+    expect(t.sinkValues('LOGX')[0]).toBeInstanceOf(Date)
+  })
+})

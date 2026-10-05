@@ -1632,7 +1632,8 @@ export function renderComponent(
   // remembering the string, so t.requests still shows what the component sent
   const STR = '__sygnalString';
   const tag = (v: any, scope: any) => {
-    if (typeof v != 'string' && !(v && typeof v == 'object')) return v;
+    // (G-335: a request is a string or a plain object; an array, a Date, ... is sent as is)
+    if (typeof v != 'string' && !(v && typeof v == 'object' && (Object.getPrototypeOf(v) === Object.prototype || Object.getPrototypeOf(v) === null))) return v;
     const r = tagRequest(v, scope), str = typeof v == 'string' ? v : v[STR];
     if (str !== undefined) Object.defineProperty(r, STR, {value: str});
     return r;
@@ -1884,7 +1885,8 @@ export function renderComponent(
       onSink(iv: any, type: any, sink: string, v: any) {
         bump();
         if (type === null || sink in allDrivers || isRes(sink)) return;
-        if (v && typeof v == 'object') v = Object.defineProperties({...v}, {__emitterId: {value: iv.id, configurable: true}, __emitterName: {value: iv.name, configurable: true}});
+        // G-335: only a plain object is copied and stamped (an array or a Date keeps its type)
+        if (v && typeof v == 'object' && (Object.getPrototypeOf(v) === Object.prototype || Object.getPrototypeOf(v) === null)) v = Object.defineProperties({...v}, {__emitterId: {value: iv.id, configurable: true}, __emitterName: {value: iv.name, configurable: true}});
         record(sink, nsOfView(iv).reduceRight(tag, v), true);
       },
       onDispose(iv: any) {
