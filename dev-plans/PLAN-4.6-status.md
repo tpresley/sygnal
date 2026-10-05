@@ -21,7 +21,7 @@ Tracks progress for [PLAN-4.6.md](PLAN-4.6.md) (component core rewrite). The coo
 | R5 | Cut-over, delete old core, gates, eval | ✅ merged | `p46-r5` (`6ce8a90`) | 2026-10-04 | Old core deleted (−10.6k lines); removals D162–D164 (+ SYG211/213/413/414/419/601/604/605/607/901–903 retired; SYG501/504/506 → "Removed in 6.0", static SYG612 rule in sygnal-check); `defineComponent`; migration guide (`guide/migrating-to-6`); docs/llms/skill/CLAUDE.md updated; count gate: streams/item 1, unmount timers 2, heap 1.0 MB. vitest 2,582, browser 184, examples 9/9. Kanban **40,608 B** (−735 B vs PLAN-4.5); `src/core` 17.4 KB gz. Mount 1k 38.9 → 17.8 ms (1.4× React); Collection replace 56.6 → 23.6, remove 12.2 → 1.4 (1.0× React), create 10k 899 → 238 (beats React) |
 | P46-P | Spike: pragma/snabbdom hot path for select ops (D186) | ✅ merged | `p46-perf-spike` (`e262199`) | 2026-10-04 | Same-output vnode reuse, one module update hook, faster JSX element path, cached pragma lookups: Collection select 3.5 → 1.65 ms (3.2× React), single-view select 3.15 → 1.55 (3.0×), keystroke 1.35 → 0.9 (1.1×). +806 B (41,414 B). Found the JSX pragma shipped twice (~2 KB). Merge exposed G-348 |
 | P46-Q | G-348 regression, pragma dedupe (D188), D187 follow-ups | ✅ merged | `p46-q` (`098b68a`) | 2026-10-04 | G-348: testing harness tagged re-emitted (same-output) vnodes stale and held inputs up to 300 ms; fixed in `testing.ts` + test. JSX runtime entries share the core pragma (entries 17 → 1.4 KB; kanban −349 B, not the ≈2 KB expected: gzip had already absorbed most of the copy). `'intent'`/`'context'` AppErrorPhase; SSR multi-child Portal wrapper `div.sygnal-portal` (hydration patches it). Size **41,210 B** (1,090 B headroom). Select ops 1.4–1.6 ms (≈3× React), keystroke ≈1× |
-| R7 | Review of P46-P + P46-Q | 🟡 running | | | before the eval |
+| R7 | Review of P46-P + P46-Q, then fixes (G-349…G-354) | 🟡 fixes running | `p46-r7` | | before the eval |
 | R6 | Fixes from the R5 review (G-336…G-347), D184 llms line, D185 size gate | ✅ merged | `p46-r6` (`c9e3e56`) | 2026-10-04 | All 12 fixed; pragma corpus restored; `'dispose'` AppErrorPhase (G-267 errors now reported); `resetState` llms line (291 lines); size gate failing again at 42,300 B: **40,766 B** (1,534 B headroom). vitest 2,688, browser 184, sygnal-check 498 |
 | P46-EV | Regression eval (Opus tiers 1–2 + ergo; Haiku tier 1) | ⬜ | | | after R6 and P46-P |
 
@@ -121,10 +121,17 @@ Tracks progress for [PLAN-4.6.md](PLAN-4.6.md) (component core rewrite). The coo
 | G-346 | review R5 | Low | testing | Each `simulate*` leaves a pending cursor-expiry timer. Confirmed | Fixed (R6) |
 | G-347 | review R5 | Low | cleanup | Dead old-core residue (controlledInputModule render-seq, legacy.ts helpers, stale doc pointers) | Fixed (R6) |
 | G-348 | P46-P merge | Med | testing | `p4-3c-recipe` stopwatch: after the spike, `renderComponent({dom:'real'})` kept a stale render tag on re-emitted (same-output) vnodes and held inputs up to 300 ms | Fixed (P46-Q) |
+| G-349 | review R7 | Low/Med | core/render | Same-output reuse skips `update`/`postpatch` of a stable (hoisted) `hook` object (regression from P46-P). Confirmed | → R7 fixes |
+| G-350 | review R7 | Low | pragma | New pragma caches (`tags`, `routes`) grow without bound with dynamic selectors/keys | → R7 fixes |
+| G-351 | review R7 | Low | jsx-runtime | Runtime depends on `createElement.a`; version skew → "createTag is not a function" | → R7 fixes |
+| G-352 | review R7 | Low | docs | SSR Portal wrapper markup change not in CHANGELOG | → R7 fixes |
+| G-353 | review R7 | Low | perf | `sameTree` worst case (large view, last row changes) unmeasured | → R7 fixes |
+| G-354 | review R7 | Low | pragma | JSX fast path iterates inherited enumerable props | → R7 fixes |
 | G-291 | 0-S | Low | Collection | Id-less items under filter/sort are keyed by filtered/sorted index (likely a latent bug) | → Q23 |
 
 ## Log
 
+- 2026-10-04 — Review R7: 6 findings (G-349…G-354; one small regression from P46-P). Fix pass started.
 - 2026-10-04 — P46-Q merged (`098b68a`); all gates green, 41,210 B. Review R7 of P46-P + P46-Q started; eval after it.
 - 2026-10-04 — P46-P merged (`e262199`); select ops ~2× faster; D188 (user). Gate run after the merge: 1 deterministic failure (G-348, stopwatch recipe). P46-Q started (G-348 first, then dedupe + D187). Eval waits for P46-Q.
 - 2026-10-04 — R6 merged (`c9e3e56`); all gates green, size gate failing-mode at 42,300 B (40,766 B). D187. Waiting on P46-P.
