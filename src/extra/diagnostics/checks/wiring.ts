@@ -4,7 +4,8 @@
  *          with next(), which is only known at call time). An action a request
  *          names as a reply action, or `connections` names (`ok: 'LOADED'`, PLAN-3) counts as
  *          triggered: replyNamesOf() reads the names from the sink functions'
- *          source
+ *          source. A behavior's own actions (D199: in `_behaviorActions`) are not
+ *          reported
  * SYG609 — a model sink or an intent source has no driver (warn; see below)
  *
  * Mechanism: onIntent records the intent's action names per component;
@@ -103,8 +104,11 @@ export const wiringCheck: DiagnosticCheck = {
     }
 
     const replies = replyNamesOf(component)
+    // D199: a behavior's own actions ('tip.SHOW') are its business: a timer, next() or a reply
+    // may trigger them (the behavior-owned map, behaviors.ts)
+    const owned = component?._behaviorActions || {}
     for (const action of modelActions) {
-      if (isInternalAction(action) || actions.includes(action) || injected.has(action) || replies.has(action)) continue
+      if (isInternalAction(action) || actions.includes(action) || injected.has(action) || replies.has(action) || action in owned) continue
       if (!once(`SYG102:${name}:${action}`)) continue
       report('SYG102', {
         component,

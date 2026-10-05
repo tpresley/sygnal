@@ -9,9 +9,17 @@
  *     imports and re-exports), or
  *   - a first-party behavior imported from 'sygnal' (pager, selection, undo),
  *     modelled below as known definitions.
- * A call of anything else (a package's behavior, a wrapper function) is
+ *   - D199 (PLAN-5): a factory function that returns such a call with the options it got,
+ *     `(opts) => base(opts)`, `(opts = {}) => base({ delay: 300, ...opts })`,
+ *     `(opts) => defineBehavior({ ... })(opts)`: checked as a direct use (its options at the
+ *     use site are the behavior's).
+ * A call of anything else (a package's behavior, a wrapper that changes the options) is
  * opaque: the rules assume nothing about it. A value that is not a call (an
  * object literal, an uncalled factory) is invalid (SYG127).
+ *
+ * D197: a behavior reads its options in the intent (2nd parameter), in `timers` (2nd) and in
+ * its model handlers (5th: `(slice, data, next, props, options, key)`, HOST entries too); a
+ * `timers` spec's action is a trigger like a next() target.
  *
  *   analyzeUses(project, comp) → {
  *     known: boolean,                  // the uses object itself was readable
@@ -32,7 +40,7 @@
  *     stateKeys: string[] | null, calculated: string[],
  *     model: Map<ACTION, string[] (sinks)> | null (unknown),
  *     intentActions: string[] | null (unknown),  // unconditional intent actions
- *     listens: [{ option, method, action|null, node? }],  // DOM.<method>(option)
+ *     listens: [{ option, method, action|null, node? }],  // DOM.<method>(option); method 'select': any event
  *     optionNames: Set<string> | null (null: reads options in a way we can't follow),
  *     nextTargets: string[], replyTargets: string[], dynamic: boolean,
  *   }
@@ -42,6 +50,7 @@ import { findBinding } from '../scope.js'
 import { resolveExpr } from './resolve.js'
 import { analyzeModel } from './modelEntries.js'
 import { analyzeIntent, selectorValue, returnedExpressions } from './intent.js'
+import { analyzeTimers } from './timers.js'
 import { resolveSelectorControls, resolveControl } from './controls.js'
 import { GLOBAL_SELECTORS } from '../selectors.js'
 
@@ -83,14 +92,20 @@ export function sygnalImport(file, ident) {
 const isDefineBehaviorCall = (file, node) =>
   node?.type === 'CallExpression' && sygnalImport(file, node.callee) === 'defineBehavior'
 
+// A FIRST_PARTY entry: `listens` items are [option, action, method = 'click'] (a null action: the
+// option's element is listened to for events of any action); `defaults`: an option's value when
+// the use leaves it out (its selector is still listened to); `nextOptions`: options naming a HOST
+// action the behavior dispatches (a trigger); `optionsArg`: which call argument holds the options;
+// `model: null`: actions that can't be listed (open)
 function firstPartyDef(name) {
   const fp = FIRST_PARTY[name]
   return {
     name, firstParty: true, file: null, node: null,
     stateKeys: fp.stateKeys, calculated: fp.calculated,
-    model: new Map(fp.model.map(a => [a, ['STATE']])),
+    model: fp.model ? new Map(fp.model.map(a => [a, ['STATE']])) : null,
     intentActions: [],
-    listens: fp.listens.map(([option, action]) => ({ option, method: 'click', action })),
+    listens: fp.listens.map(([option, action, method = 'click']) => ({ option, method, action })),
+    defaults: fp.defaults || {}, nextOptions: fp.nextOptions || [], optionsArg: fp.optionsArg || 0,
     optionNames: new Set([...fp.options]),
     nextTargets: [], replyTargets: [], dynamic: false,
   }
@@ -104,7 +119,7 @@ function userDef(project, file, call, name) {
   const def = {
     name, firstParty: false, file, node: call,
     stateKeys: null, calculated: [], model: null, intentActions: null,
-    listens: [], optionNames: null, nextTargets: [], replyTargets: [], dynamic: false,
+    listens: [], optionNames: null, nextTargets: [], replyTargets: [], dynamic: false, nextOptions: [],
   }
   defCache.set(call, def)
   const keys = project.objectKeys(file, call.arguments[0])
@@ -122,16 +137,33 @@ function userDef(project, file, call, name) {
     const m = analyzeModel(project, at('model').file, at('model').node)
     if (m.known) {
       def.model = new Map()
-      for (const e of m.entries) def.model.set(e.action, [...new Set([...(def.model.get(e.action) || []), ...e.sinks])])
+      // HOST (D197) is a STATE reducer on the host's whole state
+      for (const e of m.entries) def.model.set(e.action, [...new Set([...(def.model.get(e.action) || []), ...e.sinks.map(k => k === 'HOST' ? 'STATE' : k)])])
     }
     def.nextTargets = m.nextTargets.map(t => t.name)
     def.replyTargets = m.replyTargets.map(t => t.name)
     def.dynamic = m.dynamicNext.length > 0 || m.replyDynamic.length > 0
   } else def.model = new Map()
+  // D197: the timers' actions are triggers (namespaced when the behavior has the action)
+  let read = new Set()
+  if (at('timers')) {
+    const tm = analyzeTimers(project, at('timers').file, at('timers').node)
+    for (const t of tm.targets) def.nextTargets.push(t.name)
+    // an action named by an option ({ action: ping }): the use's option value is the trigger
+    const tf = resolveExpr(project, at('timers').file, at('timers').node)
+    const op = tf?.node && isFunction(tf.node) ? optionParam(tf.file, tf.node, 1) : null
+    for (const d of tm.dynamic) {
+      const o = op?.optionOf(d.node)
+      if (o) def.nextOptions.push(o)
+      else def.dynamic = true
+    }
+    read = merge(read, op ? op.names : null)
+  }
+  if (at('model')) read = merge(read, modelOptionsRead(project, at('model').file, at('model').node))
   const stateOptions = def.stateKeys || []
   if (!at('intent')) {
     def.intentActions = []
-    def.optionNames = def.stateKeys ? new Set(stateOptions) : null
+    def.optionNames = def.stateKeys && read ? new Set([...stateOptions, ...read]) : null
     return def
   }
   const r = resolveExpr(project, at('intent').file, at('intent').node)
@@ -140,7 +172,7 @@ function userDef(project, file, call, name) {
   const intent = analyzeIntent(r.file, fn)
   def.intentActions = intent.known ? intent.actions.map(a => a.name) : null
   const opts = optionParam(r.file, fn)
-  def.optionNames = opts.names && def.stateKeys ? new Set([...opts.names, ...stateOptions]) : null
+  def.optionNames = opts.names && read && def.stateKeys ? new Set([...opts.names, ...read, ...stateOptions]) : null
   for (const sel of intent.selectors) {
     const option = opts.optionOf(sel.node)
     if (option) def.listens.push({ option, method: sel.method, action: actionOf(r.file, fn, sel.node) })
@@ -148,14 +180,50 @@ function userDef(project, file, call, name) {
   return def
 }
 
+// option-name sets, null: unknown (read in a way we can't follow)
+const merge = (a, b) => a && b ? new Set([...a, ...b]) : null
+
+/** The option names a function reads through its parameter `index` (null: can't tell). */
+function optionsRead(project, file, node, index) {
+  const r = resolveExpr(project, file, node)
+  if (!r?.node || !isFunction(r.node)) return null
+  return optionParam(r.file, r.node, index).names
+}
+
+/** The option names a behavior's model handlers read (5th parameter), entries' sinks included. */
+function modelOptionsRead(project, file, node) {
+  const r = resolveExpr(project, file, node)
+  if (r?.node?.type !== 'ObjectExpression') return null
+  let out = new Set()
+  const handler = (f, n) => {
+    const h = resolveExpr(project, f, n)
+    if (h?.node && isFunction(h.node)) out = merge(out, optionParam(h.file, h.node, 4).names)
+    return h
+  }
+  for (const p of r.node.properties) {
+    if (p.type === 'SpreadElement') return null
+    if (p.type === 'ObjectMethod') { out = merge(out, optionParam(r.file, p, 4).names); continue }
+    const v = handler(r.file, p.value)
+    if (v?.node?.type === 'ObjectExpression') {
+      for (const q of v.node.properties) {
+        if (q.type === 'SpreadElement') return null
+        if (q.type === 'ObjectMethod') out = merge(out, optionParam(v.file, q, 4).names)
+        else handler(v.file, q.value)
+      }
+    }
+  }
+  return out
+}
+
 /**
- * The options parameter of a behavior intent (its 2nd parameter):
+ * The options parameter of a behavior intent (its 2nd parameter; `index`: another one, the 5th
+ * of a model handler, D197):
  *   ({ DOM }, { next, prev: back })  → names { next, prev }, next → 'next', back → 'prev'
  *   ({ DOM }, o) with o.next reads   → names { next }
  * names is null when the options are used another way (passed on, spread, rest).
  */
-function optionParam(file, fn) {
-  let p = fn.params[1]
+function optionParam(file, fn, index = 1) {
+  let p = fn.params[index]
   if (p?.type === 'AssignmentPattern') p = p.left
   const locals = new Map()
   let names = new Set()
@@ -212,7 +280,7 @@ function actionOf(file, fn, node) {
 }
 
 /** Resolve one `uses` value. */
-function resolveEntry(project, file, value) {
+function resolveEntry(project, file, value, depth = 0) {
   const v = unwrap(value)
   if (!v) return { status: 'invalid', reason: 'empty' }
   if (v.type === 'CallExpression') {
@@ -224,6 +292,14 @@ function resolveEntry(project, file, value) {
     const r = isDefineBehaviorCall(file, callee) ? { file, node: callee } : resolveExpr(project, file, callee)
     if (r && isDefineBehaviorCall(r.file, r.node)) {
       return { status: 'resolved', def: userDef(project, r.file, r.node, calleeName(callee)), call: v, file }
+    }
+    // D199: a factory function returning a behavior call with the options it got
+    if (r && isFunction(r.node)) {
+      const inner = wrapperCall(r.file, r.node)
+      if (inner) {
+        const res = depth < 4 ? resolveEntry(project, r.file, inner, depth + 1) : { status: 'opaque' }
+        if (res.status === 'resolved') return { ...res, call: v, file, def: { ...res.def, name: calleeName(callee) || res.def.name } }
+      }
     }
     // a first-party behavior re-exported through a relative module
     if (r?.node?.type === 'Identifier' && r.file !== file) {
@@ -238,10 +314,30 @@ function resolveEntry(project, file, value) {
     const r = resolveExpr(project, file, v)
     if (!r || r.node === v) return { status: 'opaque' }
     if (isDefineBehaviorCall(r.file, r.node)) return { status: 'invalid', reason: 'factory', name: calleeName(v) }
-    if (r.node.type === 'CallExpression') return resolveEntry(project, r.file, r.node)
+    if (r.node.type === 'CallExpression') return depth < 8 ? resolveEntry(project, r.file, r.node, depth + 1) : { status: 'opaque' }
     return literalInvalid(r.node) || { status: 'opaque' }
   }
   return literalInvalid(v) || { status: 'opaque' }
+}
+
+/**
+ * A factory function's behavior call that gets the function's options unchanged (D199): the one
+ * returned expression is a call whose options argument is the first parameter, or an object of
+ * defaults with that parameter spread last. null otherwise.
+ */
+function wrapperCall(file, fn) {
+  let p = fn.params[0]
+  if (p?.type === 'AssignmentPattern') p = p.left
+  if (p?.type !== 'Identifier' || fn.params.length > 1) return null
+  const rets = returnedExpressions(fn).map(unwrap)
+  if (rets.length !== 1 || rets[0]?.type !== 'CallExpression') return null
+  const call = rets[0], a = unwrap(call.arguments[0])
+  if (call.arguments.length !== 1) return null
+  const last = a?.type === 'ObjectExpression' ? a.properties[a.properties.length - 1] : null
+  const passes = a?.type === 'Identifier' ? a.name === p.name
+    : !!last && last.type === 'SpreadElement' && unwrap(last.argument)?.type === 'Identifier' &&
+      unwrap(last.argument).name === p.name && a.properties.slice(0, -1).every(q => q.type === 'ObjectProperty')
+  return passes ? call : null
 }
 
 function literalInvalid(n) {
@@ -278,7 +374,7 @@ export function analyzeUses(project, comp) {
     // options: the call's first argument (an object literal, or a const bound to one)
     const call = res.call
     if (call) {
-      const arg = call.arguments[0]
+      const arg = call.arguments[res.def?.optionsArg || 0]
       if (arg) {
         const a = resolveExpr(project, res.file, arg)
         if (a?.node?.type === 'ObjectExpression') {
@@ -298,8 +394,20 @@ export function analyzeUses(project, comp) {
         e.intent = true
         entry.actions.set(a, e)
       }
+      // options naming an action the behavior dispatches: the use's literal value is a trigger
+      // (a copy of the def per use: a user def is shared); a non-literal value: unknown names
+      for (const o of def.nextOptions || []) {
+        const opt = entry.options.get(o)
+        if (!opt) continue
+        const name = stringValue(opt.node)
+        entry.def = name ? { ...entry.def, nextTargets: [...entry.def.nextTargets, name] } : { ...entry.def, dynamic: true }
+      }
       for (const l of def.listens) {
         const opt = entry.options.get(l.option)
+        if (!opt && def.defaults?.[l.option]) {
+          entry.selectors.push({ selector: def.defaults[l.option], node: entry.node, method: l.method, global: false, file: entry.file, behavior: key, option: l.option })
+          continue
+        }
         if (!opt) continue
         if (l.action) {
           const e = entry.actions.get(l.action) || { intent: false, sinks: [] }

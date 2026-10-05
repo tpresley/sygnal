@@ -2363,10 +2363,12 @@ export function renderComponent(
   // 5-1: a number (or a `status` option) is an HTTP error response the driver turns into its
   // Error('HTTP 404: url') with `status` / `body`; an Error or a message is a network failure
   // (the fetch rejects with it)
+  // D199: `{ status, body }` (not an Error) is an error response too, as the JSDoc says
   const failureOf = (error: any, o: any) => {
-    const status = typeof error == 'number' ? error : o.status;
+    const resp = !!error && typeof error == 'object' && !(error instanceof Error) && typeof error.status == 'number';
+    const status = typeof error == 'number' ? error : resp ? error.status : o.status;
     const x = typeof error == 'string' ? new Error(error) : error;
-    return {status, x, body: o.body ?? (x && typeof x == 'object' ? x.body : undefined)};
+    return {status, x, resp, body: o.body ?? (x && typeof x == 'object' ? x.body : undefined)};
   };
   const fail = (name: string, error: any, opts?: FakeReplyTarget) =>
     reply('fail', name, true, opts,
@@ -2375,8 +2377,8 @@ export function renderComponent(
         status !== undefined ? e.settle(true, fakeResponse(status, body, urlOf(e))) : e.settle(false, x);
       },
       (category, o, e) => {
-        const {status, x, body} = failureOf(error, o);
-        const err = typeof error == 'number' ? Object.assign(new Error(`HTTP ${status}`), {status}) : x;
+        const {status, x, resp, body} = failureOf(error, o);
+        const err = typeof error == 'number' || resp ? Object.assign(new Error(`HTTP ${status}`), {status}) : x;
         return {error: err, category, request: e?.req, status: status ?? x?.status, body};
       });
 
@@ -2652,6 +2654,9 @@ export function renderComponent(
       const vval = p.value ?? d.attrs?.value;
       const target: any = {
         tagName: el?.sel.split(/[.#]/)[0].toUpperCase(),
+        // D199 (spike 0-S2): name/id/type/getAttribute, so listeners that delegate by name
+        // (`e.target.name`, a form-level input listener) work on the mock DOM as on the real one
+        ...(el && {name: attrOf(el, 'name') ?? '', id: attrOf(el, 'id') ?? '', type: attrOf(el, 'type') ?? '', getAttribute: (n: string) => attrOf(el, n)}),
         value: vval == null ? vval : String(vval),
         checked: p.checked ?? d.attrs?.checked,
         ...('value' in init && {value}),
