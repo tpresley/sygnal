@@ -86,6 +86,10 @@ Zag's data attributes: `[data-scope="select"]` with `[data-part="root"]`, `"labe
 .size [data-part='item'][data-highlighted] { background: #eef2ff; }
 ```
 
+## Positioning
+
+The listbox renders inside the widget's host, next to the trigger, and Zag positions it with `position: absolute` (the `--x` / `--y` variables on the positioner). Inside a container that clips its content (`overflow: hidden` or `auto`: a card, a scrolling panel, a table cell), the open listbox is cut off at the container's edge. Pass `positioning={{ strategy: 'fixed' }}` there: the positioner is then placed relative to the viewport and escapes the clipping (it still follows the trigger when the page scrolls; an ancestor with a `transform`, `filter` or `contain` still clips it). Other options go in the same object: `positioning={{ placement: 'bottom-end', gutter: 4, strategy: 'fixed' }}`.
+
 ## Testing
 
 ```jsx

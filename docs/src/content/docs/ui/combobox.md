@@ -101,6 +101,10 @@ Commands for `ELEMENT`: `open`, `close`, `clear`, and `focus` (the input).
 
 Zag's data attributes: `[data-scope="combobox"]` with `[data-part="root"]`, `"label"`, `"control"`, `"input"`, `"trigger"`, `"positioner"`, `"content"`, `"item"`, `"item-text"` and `"item-indicator"`; `data-state`, `data-highlighted` and `data-disabled` as for [Select](/ui/select/#styling).
 
+## Positioning
+
+The listbox renders inside the widget's host, next to the input, and Zag positions it with `position: absolute` (the `--x` / `--y` variables on the positioner). Inside a container that clips its content (`overflow: hidden` or `auto`: a card, a scrolling panel, a table cell), the open listbox is cut off at the container's edge. Pass `positioning={{ strategy: 'fixed' }}` there: the positioner is then placed relative to the viewport and escapes the clipping (it still follows the input when the page scrolls; an ancestor with a `transform`, `filter` or `contain` still clips it). Other options go in the same object: `positioning={{ placement: 'bottom-end', gutter: 4, strategy: 'fixed' }}`.
+
 ## Testing
 
 ```jsx
