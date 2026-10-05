@@ -237,15 +237,28 @@ export function trackActionStreams(c: any): void {
  */
 export function actionHooks(listener: ActionListener, only?: (inst: any) => boolean): any {
   const cur = new WeakMap<object, [ActionRecord, string[]]>()
+  // INITIALIZE: the next core writes the initial state at creation (no action, unless the model
+  // has an INITIALIZE entry); today's log has an INITIALIZE record with STATE, so it is opened here
+  const init = new WeakMap<object, ActionRecord>()
   return {
+    onCreate(inst: any) {
+      const d = inst.def
+      if ((only && !only(inst)) || d.initialState === undefined || !(inst.isRoot || d.isolated)) return
+      const rec: ActionRecord = {type: 'INITIALIZE', data: d.initialState, component: inst.name, instance: String(inst.id), sinks: [], cause: 'built-in', time: clockNow()}
+      init.set(inst, rec)
+      try { listener.action(rec, inst) } catch (_) { /* ignore */ }
+      addSink(listener, rec, ['STATE'], 'STATE', undefined)
+    },
     onAction(inst: any, a: any) {
       if (only && !only(inst)) return
       const type = String(a.type), owned = inst.def.behaviorActions
+      const hs = inst.def.handlers.get(type) || [], order = hs.map((h: any) => h[0])
+      const opened = type == 'INITIALIZE' && init.get(inst)
+      if (opened) { init.delete(inst); cur.set(inst, [opened, order]); return }
       const cause: ActionCause = a.cause == 'simulateAction' ? a.cause : BUILT_IN.test(type) ? 'built-in'
         : a.cause == 'next' || a.cause == 'reply' ? a.cause
         : owned && Object.prototype.hasOwnProperty.call(owned, type) ? 'behavior' : 'intent'
       const rec: ActionRecord = {type, data: a.data, component: inst.name, instance: String(inst.id), sinks: [], cause, time: clockNow()}
-      const hs = inst.def.handlers.get(type) || [], order = hs.map((h: any) => h[0])
       cur.set(inst, [rec, order])
       try { listener.action(rec, inst) } catch (_) { /* a listener never breaks the app */ }
       // a constant / `true` entry always sends (EFFECT runs functions only)

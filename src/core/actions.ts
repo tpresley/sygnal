@@ -22,10 +22,11 @@ import {checkStatics} from './statics'
 import {objIsEqual} from '../cycle/state/objIsEqual'
 
 export function handle(inst: Inst, type: string, data: any, cause: any) {
-  const hs = inst.def.handlers.get(type)
-  if (!hs) return
-  const app = inst.app, H = app.hooks, def = inst.def
+  const hs = inst.def.handlers.get(type), app = inst.app, H = app.hooks
+  // (an action with no model entry is seen too: the action log lists it with no sinks)
   if (H.onAction) H.onAction(viewOf(inst), {type, data, cause, target: viewOf(inst)})
+  if (!hs) return
+  const def = inst.def
   const pre = inst.cell.get()
   let props: any, outs: any[] | undefined
   const next = (t: string, d?: any, ms: any = 10, effect?: boolean) => {

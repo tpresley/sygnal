@@ -99,6 +99,8 @@ class Facade {
   get modelMap(): Record<string, string[]> {
     const m: Record<string, string[]> = {}
     this.__next.def.handlers.forEach((hs: any[], a: string) => { m[a] = hs.map(h => h[0]) })
+    // the built-in INITIALIZE (today's model map ends with it for every component)
+    if (!m.INITIALIZE) m.INITIALIZE = ['STATE']
     return m
   }
   get sources() { return this._so || this.__next.sources }
@@ -164,6 +166,7 @@ export function nextHooks(_api: any): any {
   return {
     onCreate(iv: any) {
       if (!on()) return
+      log.onCreate(iv)
       const f = fac(iv)
       removedStatics(f)
       if (!iv.def.intent) wire(iv, [])
