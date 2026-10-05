@@ -37,7 +37,7 @@ export function handle(inst: Inst, type: string, data: any, cause: any) {
     ts.add(id)
   }
   for (const [sink, h0] of hs) {
-    const h = H.wrapHandler ? H.wrapHandler(viewOf(inst), type, sink, h0) : h0
+    const h = H.wrapHandler ? H.wrapHandler(viewOf(inst), type, sink, h0) || h0 : h0
     if (sink == 'EFFECT') {
       if (typeof h != 'function') continue
       const failed = (e: any) => app.caught(inst, 'SYG214', `EFFECT handler '${type}' threw`, e, 'effect', type)

@@ -383,10 +383,13 @@ export class App {
       for (const k in added) {
         const a = added[k], b = H[k]
         if (!a) continue
+        // G-312: a wrapping layer that returns nothing keeps what the layers below gave
         H[k] = !b ? a
-          : k == 'wrapHandler' ? (i: any, t: any, s: any, f: any) => a(i, t, s, b(i, t, s, f))
-          : k == 'wrapSources' ? (i: any, s: any) => a(i, b(i, s) || s)
-          : k == 'transformDef' ? (src: any, v: any) => a(b(src, v) || src, v)
+          : k == 'wrapHandler' ? (i: any, t: any, s: any, f: any) => { const x = b(i, t, s, f) || f; return a(i, t, s, x) || x }
+          : k == 'wrapSources' ? (i: any, s: any) => { const x = b(i, s) || s; return a(i, x) || x }
+          : k == 'transformDef' ? (src: any, v: any) => { const x = b(src, v) || src; return a(x, v) || x }
+          // onElementCommand: false (not run) from either layer
+          : k == 'onElementCommand' ? (i: any, c: any) => { const x = b(i, c); return a(i, c) === false || x === false ? false : undefined }
           : (...args: any[]) => { b(...args); a(...args) }
       }
     }
