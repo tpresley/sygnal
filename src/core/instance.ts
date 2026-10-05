@@ -130,6 +130,8 @@ export class Inst {
   wd: any; so: any; el: any
   iv: any
   cmds: any
+  /** pending next() timers (G-300) */
+  timers: Set<any> | null = null
 
   constructor(
     public app: App, public def: CoreDef, public parent: Inst | null, base: Cell,
@@ -509,6 +511,7 @@ export class Inst {
     app.hooks.onDispose?.(viewOf(this))
     if (this.disp$) this.disp$.shamefullySendComplete()
     this.ac?.abort()
+    if (this.timers) { this.timers.forEach(clearTimeout); this.timers = null }
     this.kids.forEach(k => k.dispose())
     this.kids.clear()
     const subs = this.subs
