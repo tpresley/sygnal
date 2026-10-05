@@ -2,7 +2,9 @@
 // P45-R2 G-276 / G-277 / G-279: the `sygnal-dom` event (G-261) that makes an app's DOM source
 // emit for a DOM change Sygnal makes outside a patch (a Transition's leave, a late Portal).
 // - G-276: it was listened for on the first root element only; a patch that replaces the root
-//   (mount point `#app`, view `<div id="app">`: `div` vs `div#app`) left the app without it.
+//   left the app without it. (Here the view's root is the mount point (`<div id="app">` at `#app`)
+//   and a later patch changes its key. The first patch used to replace it (`div` vs toVNode's
+//   `div#app`); since 3-J (G-456) it adopts it.)
 // - G-277: it kept bubbling past the app's root: an app nested in another (an island, a custom
 //   element) made the outer app's DOM source emit too, and it reached document.
 // - G-279: a Transition's leave poked right after its own remove callback, but an element that
@@ -35,14 +37,15 @@ function mount(App, id, probe = () => 1, parent = document.body) {
   return { seen, first: el }
 }
 
-describe('P45-R2 G-276: the root element replaced by the first patch', () => {
+describe('P45-R2 G-276: the root element replaced by a patch', () => {
   it('a poke inside the new root still emits', async () => {
-    function App() { return h('div', { id: 'app' }, h('p', { className: 'kid' }, 'hi')) }
-    App.initialState = {}
+    function App({ state }) { return h('div', { id: 'app', key: state.k }, h('p', { className: 'kid' }, 'hi')) }
+    App.initialState = { k: 1 }
+    App.model = { BOOTSTRAP: () => ({ k: 2 }) }
     const m = mount(App, 'app')
     await until(() => expect(document.querySelector('.kid')).toBeTruthy())
+    await until(() => expect(document.querySelector('#app')).not.toBe(m.first)) // the shape this is about
     await sleep(20)
-    expect(document.querySelector('#app')).not.toBe(m.first) // the shape this is about
     const before = m.seen.length
     pokeDOM(document.querySelector('.kid'))
     expect(m.seen.length).toBe(before + 1)
