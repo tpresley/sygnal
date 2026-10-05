@@ -74,7 +74,7 @@ Three cases, three ways to make the icon accessible:
 | The only content of a button or link | **Remove** | The button carries the name (`aria-label`); the icon stays hidden. |
 | Meaning on its own, no text | **Saved / Offline** | Pass `label`: the icon gets `role="img"` and an `aria-label`. |
 
-sygnal-check reports a button with no accessible name ([SYG705](/reference/errors/#syg705)) when the `<svg>` is written inside it, and when its only content is an `icon(...)` call with an icon imported from `lucide` (or another icon package) and no `label`: `<button>{icon(Trash2)}</button>` is reported, `<button aria-label="Remove">{icon(Trash2)}</button>` is not. It knows only a function named `icon` (or `renderIcon`); a helper with another name, or an icon passed through a variable, isn't checked, so assert the button's name in a test as below.
+sygnal-check reports a button with no accessible name ([SYG705](/reference/errors/#syg705)) when the `<svg>` is written inside it, and when its only content is an `icon(...)` call with an icon imported from `lucide` (or another icon package) and no `label`: `<button>{icon(Trash2)}</button>` is reported, `<button aria-label="Remove">{icon(Trash2)}</button>` is not. Only `label` names the icon, as in the helper above (`title` or `aria-label` in the options are ignored by the helper, so they don't count). It knows only a function named `icon` (or `renderIcon`); a helper with another name, or an icon passed through a variable, isn't checked, so assert the button's name in a test as below. If your own `icon` helper renders screen-reader text itself, put the name on the button instead, or silence the line with `// sygnal-ignore SYG705`.
 
 ```css
 .icon { vertical-align: -0.125em; width: 1.25em; height: 1.25em; }
