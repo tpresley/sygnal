@@ -14,6 +14,7 @@ import { resetChecks } from 'sygnal/diagnostics'
 import {
   dialog, popover, tooltip, tabs, tabsAttrs, accordion, accordionAttrs, disclosure, disclosureAttrs, Toaster,
 } from 'sygnal/ui'
+import { Combobox } from 'sygnal/ui/combobox'
 import { mountOnScreen, clearStage, assert, runTest as run_, wait } from '../harness.js'
 
 const CAT = 'UI parts (PLAN-5 2-U)'
@@ -900,6 +901,74 @@ export async function uiTestsP5U() {
     } finally { app.dispose() }
   }, 9000)
 
+  // ── PLAN-5 3-I ───────────────────────────────────────────────────────
+  // G-459: G-430 with an opener that is not the trigger's first match (the CLOSED fallback
+  // focuses that one): the second trigger opened it and gets the focus back
+  function Twice({ state }) {
+    return (
+      <div>
+        <button className="t2-open first">Open one</button>
+        <button className="t2-open second">Open two</button>
+        {state.t.open && <dialog className="transient2" aria-label="Transient"><button className="t2-done">Done</button></dialog>}
+      </div>
+    )
+  }
+  Twice.uses = { t: dialog({ dialog: '.transient2', trigger: '.t2-open', close: '.t2-done' }) }
+
+  await runTest('Dialog (G-459): rendered only while open, opened by the second of two triggers: the focus returns to that one', async () => {
+    const { id, app, $ } = await mount(Twice)
+    try {
+      await window.__pw('click', `${id} .second`)
+      await until(() => $('.transient2')?.open, 'open')
+      await window.__pw('click', `${id} .t2-done`)
+      await until(() => !$('.transient2'), 'removed')
+      await until(() => document.activeElement === $('.second'), () => `focus on ${activeName()}`)
+      await wait(60)
+      assert(document.activeElement === $('.second'), `focus moved on to ${activeName()}`)
+    } finally { app.dispose() }
+  })
+
+  // G-457: cancelable: false: an Escape a Zag combobox inside handles (it closes its list and
+  // prevents the keydown) runs no CANCEL; the next one, with the list closed, on a button does
+  function Picker({ state }) {
+    return (
+      <div>
+        <button className="pick-open">Open picker</button>
+        <dialog className="picker" aria-label="Picker">
+          <Combobox className="city" label="City" items={['London', 'Lisbon', 'Paris']} />
+          <button className="pick-done">Done</button>
+        </dialog>
+        <p className="pick-cancels">{String(state.cancels)}</p>
+      </div>
+    )
+  }
+  Picker.initialState = { cancels: 0 }
+  Picker.uses = { picker: dialog({ dialog: '.picker', trigger: '.pick-open', close: '.pick-done', cancelable: false }) }
+  Picker.model = { 'picker.CANCEL': (state) => ({ ...state, cancels: state.cancels + 1 }) }
+
+  await runTest('Dialog (G-457): cancelable: false: Escape that a Zag combobox inside handles runs no CANCEL', async () => {
+    const { id, app, $ } = await mount(Picker)
+    try {
+      await window.__pw('press', `${id} .pick-open`, 'Enter')
+      await until(() => isOpen($('.picker')), 'open')
+      await window.__pw('type', `${id} .city input`, 'l')
+      await until(() => !$('.city [data-part=content]').hidden, 'list open while typing')
+      // the list open: Zag's layer takes the Escape (stopPropagation in the capture phase)
+      await key('Escape')
+      await until(() => $('.city [data-part=content]').hidden, 'Escape closes the list')
+      // the list closed: the input's own keydown handles Escape and prevents it (the case G-457
+      // is about: it bubbles to the dialog)
+      await key('Escape')
+      await wait(80)
+      assert($('.pick-cancels').textContent === '0', `CANCEL ran ${$('.pick-cancels').textContent} times for the combobox's Escape`)
+      assert(isOpen($('.picker')), 'the dialog closed')
+      await window.__pw('focus', `${id} .pick-done`)
+      await key('Escape')
+      await until(() => $('.pick-cancels').textContent === '1', () => `CANCEL ran ${$('.pick-cancels').textContent} times`)
+      assert(isOpen($('.picker')), 'closed by Escape')
+    } finally { app.dispose() }
+  })
+
   // G-426: a Toaster in a shadow root reads the focus from that root (the document's is the host)
   await runTest('Toaster (G-426): in a shadow root, a focused Dismiss keeps the region paused through mutations, and Enter moves the focus on', async () => {
     const { el } = mountOnScreen()
@@ -970,5 +1039,34 @@ export async function uiTestsP5U() {
       await until(() => live(el, 'Saved').length === 0, 'dismissed')
       await until(() => activeName() === 'after', activeName)
     } finally { app.dispose() }
+  })
+
+  // G-458: the focus came into the region from an element far down the page, then a click on the
+  // page took it; a later mouse Dismiss of the last toast doesn't focus (and scroll to) that
+  // element. (WebKit doesn't focus a clicked button: nothing to return there.)
+  await runTest('Toaster (G-458): a mouse Dismiss after the focus left does not scroll back to where it came from', async () => {
+    const { id, app, el } = await mount(toasterApp())
+    const far = document.createElement('button')
+    far.className = 'p5-3i-far'
+    far.textContent = 'Far'
+    far.style.cssText = 'position: absolute; top: 3000px; left: 0;'
+    document.body.appendChild(far)
+    try {
+      await window.__pw('click', `${id} .notify`)
+      await until(() => live(el, 'Saved').length === 1, 'shown')
+      await window.__pw('focus', '.p5-3i-far')
+      await window.__pw('focus', dismissOf('Saved'))
+      window.scrollTo(0, 0)
+      // a click on the page outside anything focusable: the focus goes to body
+      await window.__pwInput([['move', 1000, 600], ['down'], ['up']])
+      await until(() => document.activeElement === document.body, activeName)
+      await wait(30)
+      const y = window.scrollY
+      await window.__pw('click', dismissOf('Saved'))
+      await until(() => live(el, 'Saved').length === 0, 'dismissed')
+      await wait(60)
+      assert(document.activeElement !== far, 'focus went back to the element far down the page')
+      assert(window.scrollY === y, `the page scrolled from ${y} to ${window.scrollY}`)
+    } finally { far.remove(); window.scrollTo(0, 0); app.dispose() }
   })
 }

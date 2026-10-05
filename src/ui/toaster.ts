@@ -62,13 +62,22 @@ const placement = {
     show(el)
     // G-399: the focus in the region, and where it came from (where it goes back to). G-432: a
     // focus from nowhere (the region's own refocus after a move, the browser's after a modal
-    // closed, the window focused again) keeps the last element it came from
-    el.addEventListener('focusin', (e: any) => { if (!el.contains(e.relatedTarget)) { el._f = 1; el._from = e.relatedTarget || el._from } })
+    // closed, the window focused again) keeps the last element it came from. G-458: but not one
+    // a press in the region gave: the user comes back from nowhere after a click on the page took
+    // the focus, and a mouse Dismiss would focus (and scroll to) an element left long ago. (A focus
+    // that comes back from another element names that one; a focus that left to a modal comes
+    // back from nowhere when it closes and keeps it: G-432)
+    el.addEventListener('pointerdown', () => { el._p = 1 })
+    el.addEventListener('focusin', (e: any) => {
+      if (!el.contains(e.relatedTarget)) { el._f = 1; el._from = e.relatedTarget || (el._p ? null : el._from) }
+      el._p = 0
+    })
     el.addEventListener('focusout', (e: any) => { if (left(el, e)) el._f = 0 })
     // a Dismiss button with the focus (keyboard; a click that focused it): the focus moves to the
     // next toast's Dismiss button, else the previous one's, else back where it came from, before
     // the button goes (a removed focused element gets no focusout in Chromium)
     el.addEventListener('click', (e: any) => {
+      el._p = 0
       const b = e.target?.closest?.('.toast-dismiss')
       // G-426: the root's activeElement (in a shadow root, the document's is the host)
       if (!b || !b.contains(act(el))) return

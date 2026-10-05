@@ -15,7 +15,7 @@
  *   rendered differently), SYG424 (D169/D177: duplicate Collection ids), SYG425 (D174: an
  *   isolatedState child kept a slice that lacks its initialState keys), SYG148 / SYG149 (G-419:
  *   a Collection's viewTransitionName that isn't an identifier, the same name twice on the
- *   page after a patch), SYG612 (D173: a form
+ *   page after a patch, G-460: on rendered elements), SYG612 (D173: a form
  *   6.0 removed, met at runtime; once per form and component, with a link to the migration
  *   guide).
  *
@@ -167,26 +167,55 @@ function vtPrefix(name: string, p: any): boolean {
 }
 
 /**
+ * G-460: an element the browser renders (a View Transition captures only those): not in a
+ * display: none subtree (a hidden tab panel, a list shown only at another width). checkVisibility()
+ * where there is one; else (jsdom) no display: none on it or an ancestor
+ */
+function rendered(el: any): boolean {
+  if (!el?.isConnected) return false
+  if (typeof el.checkVisibility == 'function') return el.checkVisibility()
+  const cs = el.ownerDocument?.defaultView?.getComputedStyle
+  for (let n = el; n && n.nodeType == 1; n = n.parentNode) if (n.hidden || cs?.(n).display == 'none') return false
+  return true
+}
+
+/**
  * G-419 SYG149: two elements of the patched page with the same view-transition-name from
  * Collections with the same prefix (the same id shown in two of them): the browser skips the
- * whole View Transition. Walks the vnode tree (dev only, while a named Collection exists)
+ * whole View Transition. Walks the vnode tree (dev only, while a named Collection is mounted);
+ * G-460: a name found twice is checked on the DOM after the patch (a microtask later; when a View
+ * Transition defers the patch, again a little later): only rendered elements count
  */
 function vtDuplicates(root: any, prefixes: Set<string>): void {
-  const seen = new Set<string>(), stack = [root]
+  const seen = new Map<string, any[]>(), dup: any[][] = []
+  const stack = [root]
   while (stack.length) {
     const v = stack.pop()
     if (!v || typeof v != 'object') continue
     const st = v.data?.style, n = st?.viewTransitionName
     if (typeof n == 'string' && prefixes.has(st.viewTransitionClass)) {
-      if (!seen.has(n)) seen.add(n)
-      else if (once(`SYG149:${n}`)) devReport('SYG149', {
-        component: 'Collection',
-        message: `Two elements on the page have view-transition-name '${n}': Collections with viewTransitionName="${st.viewTransitionClass}" show the item with that id at the same time. Names must be unique when a View Transition starts, so the browser skips every transition while both are shown`,
-        fix: `Give Collections that can show the same item at once different prefixes (viewTransitionName="${st.viewTransitionClass}" and another), or name the item yourself with its own style`,
-        data: {name: n, prefix: st.viewTransitionClass},
-      })
+      const g = seen.get(n)
+      if (!g) seen.set(n, [v])
+      else if (g.push(v) == 2) dup.push(g)
     }
     if (Array.isArray(v.children)) for (let i = v.children.length; i--;) stack.push(v.children[i])
+  }
+  if (dup.length) queueMicrotask(() => vtRendered(root, dup, 0))
+}
+
+function vtRendered(root: any, dup: any[][], tries: number): void {
+  // the patch of `root` has run when it has its element (a View Transition patches in its update
+  // callback, after this microtask; kept vnodes have their old elements before that)
+  if (!root.elm && tries < 10) return void setTimeout(() => vtRendered(root, dup, tries + 1), 50)
+  for (const g of dup) {
+    const v = g[0], st = v.data.style, n = st.viewTransitionName
+    if (g.filter(x => rendered(x.elm)).length < 2 || !once(`SYG149:${n}`)) continue
+    devReport('SYG149', {
+      component: 'Collection',
+      message: `Two elements on the page have view-transition-name '${n}': Collections with viewTransitionName="${st.viewTransitionClass}" show the item with that id at the same time. Names must be unique when a View Transition starts, so the browser skips every transition while both are shown`,
+      fix: `Give Collections that can show the same item at once different prefixes (viewTransitionName="${st.viewTransitionClass}" and another), or name the item yourself with its own style`,
+      data: {name: n, prefix: st.viewTransitionClass},
+    })
   }
 }
 
@@ -208,8 +237,9 @@ export function nextHooks(_api: any): any {
   const skips = new WeakMap<object, number>()
   let budget = 0
   const log = actionHooks(recentActions, () => on())
-  // G-419: the viewTransitionName prefixes this app's Collections use
-  const vtp = new Set<string>()
+  // G-419: the viewTransitionName prefixes this app's Collections use; G-460: per instance that
+  // renders them, so the SYG149 walk stops once every one of them is disposed
+  const vtp = new Map<any, Set<string>>()
   return {
     onCreate(iv: any) {
       if (!on()) return
@@ -246,6 +276,7 @@ export function nextHooks(_api: any): any {
       H.onReducer(fac(iv), type, prev, next, 'STATE')
     },
     onDispose(iv: any) {
+      vtp.delete(iv)
       H.onDispose(fac(iv))
     },
     onAction(iv: any, a: any) { log.onAction(iv, a) },
@@ -275,12 +306,19 @@ export function nextHooks(_api: any): any {
       if (typeof props.of == 'string') removed(f, f.name, 'collection-of-name', `of="${props.of}"`)
       try { checkCollection(f, {data: {props}}) } catch (_) { /* ignore */ }
       // G-419: SYG148 for a prefix that isn't an identifier; a valid one is checked for
-      // duplicate names after each patch (SYG149)
+      // duplicate names after each patch (SYG149). G-460: a falsy one names nothing (as the host)
       const p = props.viewTransitionName
-      if (p != null) vtPrefix(f.name, p) && vtp.add(p)
+      if (p && vtPrefix(f.name, p)) {
+        let s = vtp.get(owner)
+        if (!s) vtp.set(owner, s = new Set())
+        s.add(p)
+      }
     },
     onPatch(vnode: any) {
-      if (vtp.size && on()) try { vtDuplicates(vnode, vtp) } catch (_) { /* a check never breaks the app */ }
+      if (!vtp.size || !on()) return
+      const all = new Set<string>()
+      for (const s of vtp.values()) for (const p of s) all.add(p)
+      try { vtDuplicates(vnode, all) } catch (_) { /* a check never breaks the app */ }
     },
     onDuplicateKey(owner: any, key: any) {
       if (!on()) return

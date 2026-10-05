@@ -313,4 +313,98 @@ export async function virtualTestsP5V1() {
       await until(() => !btn.isConnected, () => `let go: ${btn.isConnected}`)
     } finally { app.dispose(); clearStage() }
   }, 6000)
+
+  // ── PLAN-5 3-I ───────────────────────────────────────────────────────
+  // G-462 (a): an unbounded container under an ancestor with CSS zoom below 0.5: its first rect
+  // (getBoundingClientRect) is scaled by the zoom, so it wasn't "as tall as its rows" and the
+  // window was 0.4 × every row (thousands of instances: the page hung). The 1e6 px probe itself
+  // isn't affected (offsetHeight isn't scaled in any of the three engines)
+  await runTest(CAT, 'G-462: an unbounded container under an ancestor with zoom: 0.4 grows: SYG430, the viewport\'s rows', async () => {
+    resetChecks()
+    clearDiagnostics()
+    function Zoomed() { return <div className="zoomed" style={{ zoom: '0.4' }}><VirtualCollection of={Row} from="rows" className="rows" estimateSize={32} /></div> }
+    Zoomed.initialState = { rows: rows(10000) }
+    const { el, app } = await start(Zoomed, { diagnostics: 'collect' })
+    try {
+      await until(() => getDiagnostics().some(d => d.code === 'SYG430'), () => `no SYG430; rows ${el.querySelectorAll('.row').length}`)
+      await frame()
+      const n = el.querySelectorAll('.row').length
+      assert(n < Math.ceil(window.innerHeight / 32) + 12, `rows: ${n}`)
+    } finally { app.dispose() }
+  }, 10000)
+
+  // G-462 (b): the "grows" probe (the spacer 1e6 px taller for one forced layout) with the list
+  // mid-page and the page scrolled to the content below it (the scroll anchor): the page doesn't
+  // move, and no scroll event fires (before: Firefox scrolled 1e6 px and back, two scroll
+  // events; WebKit ended 2,404 px lower)
+  await runTest(CAT, 'G-462: the grows probe mid-page (scroll anchoring below the list) leaves the page where it was', async () => {
+    resetChecks()
+    clearDiagnostics()
+    const page = document.createElement('div')
+    page.innerHTML = '<div style="height: 1500px">above</div><div class="p53i-list"></div><p class="p53i-below" style="height: 3000px">below</p>'
+    document.body.appendChild(page)
+    const point = page.querySelector('.p53i-list')
+    let scrolls = 0
+    const on = () => scrolls++
+    const app = run(makeList(rows(1000), { style: {} }), {}, { mountPoint: point, diagnostics: 'collect' })
+    try {
+      await until(() => point.querySelector('.rows .row') && getDiagnostics().some(d => d.code === 'SYG430'), () => 'no SYG430')
+      await frame(); await wait(30)
+      const box = point.querySelector('.rows')
+      // the content below the list at the top of the viewport
+      window.scrollTo(0, page.querySelector('.p53i-below').getBoundingClientRect().top + window.scrollY - 100)
+      await frame(); await frame()
+      const y = window.scrollY
+      assert(y > 1500 + 31000, `scrolled below the list: ${y}`)
+      window.addEventListener('scroll', on)
+      const styles = () => [page, point, document.body, document.documentElement].map((n) => (n.hasAttribute('style') ? JSON.stringify(n.getAttribute('style')) : 'none')).join(' | ')
+      const before = styles()
+      // a resize: the virtualizer's rect callback measures again (bound() → grows())
+      box.style.width = '90%'
+      await frame(); await frame(); await wait(50)
+      box.style.width = ''
+      await frame(); await frame(); await wait(50)
+      assert(window.scrollY === y && scrolls === 0, `the page moved: ${y} → ${window.scrollY} (${scrolls} scroll events)`)
+      // the ancestors' style attributes are as they were (none stays none)
+      assert(styles() === before, `style attributes: ${before} → ${styles()}`)
+    } finally { window.removeEventListener('scroll', on); app.dispose(); page.remove(); window.scrollTo(0, 0) }
+  }, 10000)
+
+  // G-462 (c): a row whose focused element is inside a shadow root (a custom element with an open
+  // shadow root): a reorder that moves the row gives the focus back to that element (G-424)
+  if (!customElements.get('p53i-field')) {
+    customElements.define('p53i-field', class extends HTMLElement {
+      connectedCallback() {
+        if (this.shadowRoot) return
+        this.attachShadow({ mode: 'open' }).innerHTML = '<button class="inner">inner</button>'
+      }
+    })
+  }
+  function FieldRow({ state }) {
+    return <div className="row" style={{ height: '32px' }}><span className="lbl">{state.label}</span><p53i-field /></div>
+  }
+  function Fields({ state }) {
+    return <div><VirtualCollection of={FieldRow} from="rows" className="rows" estimateSize={32} style={{ height: '320px' }} /></div>
+  }
+  Fields.model = { REV: (s) => ({ ...s, rows: [...s.rows].reverse() }) }
+
+  await runTest(CAT, 'G-462: a reorder with the focus inside a shadow root in the scrolled-out row keeps that focus', async () => {
+    Fields.initialState = { rows: rows(2000) }
+    const { el, app, box } = await start(Fields, {}, true)
+    try {
+      const host = el.querySelector('[data-index="2"] p53i-field'), inner = host.shadowRoot.querySelector('.inner')
+      inner.focus()
+      // (WebKit scrolls a focused element in a shadow root into view a frame later)
+      await frame(); await wait(30)
+      assert(document.activeElement === host && host.shadowRoot.activeElement === inner, 'focus in the shadow root')
+      box.scrollTop = 32 * 400
+      await until(() => !labels(el).slice(1).includes('Row 3') && labels(el).includes('Row 401'), () => `scrolled: ${labels(el).slice(0, 3)}`)
+      assert(host.isConnected && host.shadowRoot.activeElement === inner, 'pinned with its focus')
+      app.__runtime.dispatch('root', 'REV')
+      await until(() => host.closest('[data-index]')?.getAttribute('data-index') === '1997', () => `index ${host.closest('[data-index]')?.getAttribute('data-index')}, connected ${host.isConnected}`)
+      await frame(); await wait(30)
+      assert(host.isConnected && document.activeElement === host && host.shadowRoot.activeElement === inner,
+        `focus: ${document.activeElement?.tagName}, in the root: ${host.shadowRoot.activeElement?.className}`)
+    } finally { app.dispose(); clearStage() }
+  }, 6000)
 }

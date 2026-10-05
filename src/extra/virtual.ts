@@ -29,7 +29,8 @@
  *   the list, and no row element is moved in the DOM (a move blurs it in every engine): a window
  *   that loses rows at its front while its end changes is patched in two steps. G-424: the pin
  *   follows the row's key through a reorder (filter, sort, a new array), and a row element a
- *   reorder moves gets the focus back (when it went nowhere; preventScroll).
+ *   reorder moves gets the focus back (when it went nowhere; preventScroll; G-462: the element
+ *   inside a shadow root in the row when the focus is there).
  * - Row heights: `estimateSize` (a number, or `(item, index) => number`, default 32) until a row is
  *   rendered; then its measured height (ResizeObserver follows later changes, applied in the next
  *   frame: G-402). A 0 measurement (no layout: jsdom) keeps the estimate. A new function at each
@@ -48,6 +49,8 @@
  *   rows (it would render every row: SYG430), the window is clamped to the viewport's height.
  *   Whether it grows is measured (G-395, G-427): a max-height that fits the rows bounds it; a
  *   percentage of an unbounded parent, calc() or fit-content that follows the rows doesn't.
+ *   G-462: also under an ancestor's CSS zoom, and the measurement doesn't move the page (scroll
+ *   anchoring is off around it meanwhile).
  *   Items without `id`: SYG431 (index keys: rows and measured heights follow the position).
  * - `viewTransitionName="row"` names each keyed row's root element as Collection does (`row-<id>`,
  *   class `row`; G-417), as its SSR markup does.
@@ -74,6 +77,11 @@ const dev = (code: number, owner: any, x?: any): any => (globalThis as any).__SY
 const px = (n: number) => n + 'px'
 /** the element with the focus in `el`'s root (its shadow root: G-426), if any */
 const act = (el: any): any => el && (el.getRootNode?.() || el.ownerDocument)?.activeElement
+/** G-462: the focused element itself when it is inside open shadow roots (`a` is their host) */
+const deep = (a: any): any => {
+  while (a?.shadowRoot?.activeElement) a = a.shadowRoot.activeElement
+  return a
+}
 /** the props the container's vnode data is made from (not estimateSize / overscan: G-394) */
 const BOX = (x: string) => x != 'estimateSize' && x != 'overscan'
 const same = (a: any, b: any, d?: any): boolean => {
@@ -214,7 +222,8 @@ export class VirtualHost extends CollectionHost {
       return {width: r.width, height: v.options.initialRect!.height}
     }
     const vh = win?.innerHeight || 0
-    if (vh && total > vh && r.height >= total - 1 && this.grows(el)) {
+    // G-462: (the rect is scaled by an ancestor's CSS zoom, clientHeight isn't, as the sizes)
+    if (vh && total > vh && Math.max(r.height, el.clientHeight || 0) >= total - 1 && this.grows(el)) {
       this.warn(2, {reason: 'grows', height: r.height})
       return {width: r.width, height: vh}
     }
@@ -227,15 +236,26 @@ export class VirtualHost extends CollectionHost {
    * unbounded parent, calc(), fit-content, a flex or grid item): the spacer is made 1e6 px taller
    * for one forced layout and put back before anything renders (no resize is observed); a
    * container that grows with it is unbounded, one bounded by a max-height that fits its rows
-   * stops at it
+   * stops at it. G-462: with scroll anchoring off in the scrollers around it meanwhile (the
+   * content after the list moves by 1e6 px and back: the page would move with it, or in WebKit not
+   * quite back)
    */
   grows(el: any): boolean {
     const s = el.firstElementChild?.style
     if (!s) return true
+    const up: any[] = []
+    for (let n = el.parentElement || el.getRootNode?.().host; n?.style; n = n.parentElement || n.getRootNode?.().host) {
+      up.push(n, n.getAttribute('style'))
+      n.style.overflowAnchor = 'none'
+    }
     const h = s.height, a = el.offsetHeight
     s.height = (parseFloat(h) || 0) + 1e6 + 'px'
     const b = el.offsetHeight
     s.height = h
+    // (laid out again before anchoring is back)
+    void el.offsetHeight
+    // (the style attribute as it was: none stays none)
+    for (let i = 0; i < up.length; i += 2) up[i + 1] == null ? up[i].removeAttribute('style') : up[i].setAttribute('style', up[i + 1])
     return b - a > 5e5
   }
 
@@ -371,7 +391,9 @@ export class VirtualHost extends CollectionHost {
         // G-424: a row element the patch moves (a reorder) loses the focus in every engine: the
         // element in the list that had it gets it back when it is still on the page and the
         // focus went nowhere
-        prepatch: () => { const a = act(this.el); this.fa = a && this.el.contains(a) ? a : null },
+        // G-462: none when the cached vnode is patched again (snabbdom calls no postpatch then:
+        // nothing would let go of the element); in a shadow root in a row, its focused element
+        prepatch: (o: any, y: any) => { const a = o !== y && act(this.el); this.fa = a && this.el.contains(a) ? deep(a) : null },
         postpatch: (_: any, y: any) => {
           const a = this.fa, b = act(a)
           this.fa = null

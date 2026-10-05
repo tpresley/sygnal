@@ -4,15 +4,18 @@
 // ::view-transition-group per item that moves, and none under prefers-reduced-motion (emulated
 // for real here). All three engines run same-document View Transitions (D195's evergreen floor),
 // so there is no FLIP fallback.
-import { run, Collection, makeViewTransitionDOMDriver } from 'sygnal'
+import { run, Collection, makeViewTransitionDOMDriver, getDiagnostics, clearDiagnostics } from 'sygnal'
+import { resetChecks } from 'sygnal/diagnostics'
 import { mount, assert, runTest, waitFor, wait } from '../harness.js'
 
 const CAT = 'Collection view-transition names (PLAN-5 A-1)'
 
-function spyVT() {
+function spyVT(quiet) {
   const real = document.startViewTransition, calls = []
   document.startViewTransition = function (cb) {
     const t = real.call(document, cb)
+    // (quiet: a transition expected to be skipped rejects its promises: handled here)
+    if (quiet) for (const p of ['ready', 'finished', 'updateCallbackDone']) t[p]?.catch(() => {})
     calls.push(t)
     return t
   }
@@ -50,6 +53,24 @@ const travelled = () => document.documentElement.getAnimations({ subtree: true }
   .filter(a => (a.effect?.pseudoElement || '').startsWith('::view-transition-group(p52a-'))
   .filter(a => { const k = a.effect.getKeyframes(); return k.length > 1 && k[0].transform && k[0].transform != k[k.length - 1].transform })
   .map(a => a.effect.pseudoElement.slice('::view-transition-group(p52a-'.length, -1)).sort().join()
+
+// PLAN-5 3-I G-460: SYG149 counts rendered elements only: the second list, in a display: none
+// panel, has the same ids under the same prefix; shown (in a View Transition, so the patch runs in
+// its update callback, after the check's first look), both are on the page
+function Panels({ state }) {
+  return (
+    <div>
+      <ul className="a"><Collection of={Item} from="items" viewTransitionName="p53i" /></ul>
+      <div className="panel" style={{ display: state.shown ? 'block' : 'none' }}>
+        <ul className="b"><Collection of={Item} from="items" viewTransitionName="p53i" /></ul>
+      </div>
+    </div>
+  )
+}
+Panels.initialState = { items: [{ id: 1 }, { id: 2 }], shown: false }
+Panels.intent = ({ DOM }) => ({ SHOW: DOM.select('document').events('p53i-show') })
+Panels.model = { SHOW: (s) => ({ ...s, shown: true }) }
+Panels.viewTransitions = ['SHOW']
 
 async function start() {
   const { id, el } = mount()
@@ -104,6 +125,27 @@ export async function collectionViewTransitionTestsP5_2A() {
       // 1 flies to the other list; 2, 3 and the list below them (4) move up a place
       assert(travelled() == '1,2,3,4', `items that travel: ${travelled()}`)
       await spy.calls[0].finished
+    } finally { spy.restore(); app.dispose() }
+  })
+
+  await runTest(CAT, 'G-460: SYG149 ignores a list in a display: none panel, and reports it once the panel is shown', async () => {
+    resetChecks()
+    clearDiagnostics()
+    // the transition with both lists shown is skipped (that is what SYG149 warns of): its promises
+    // reject (InvalidStateError); Chromium also logs the name (EXPECTED_CONSOLE_ERRORS)
+    const spy = spyVT(true)
+    const { id, el } = mount()
+    const app = run(Panels, { DOM: makeViewTransitionDOMDriver(id) }, { mountPoint: id, diagnostics: 'collect' })
+    const syg149 = () => getDiagnostics().filter((d) => d.code == 'SYG149').map((d) => d.data.name).sort().join()
+    try {
+      await waitFor(() => el.querySelectorAll('.item').length == 4)
+      await wait(150)
+      assert(syg149() == '', `SYG149 for hidden items: ${syg149()}`)
+      fire('p53i-show')
+      await waitFor(() => spy.calls.length == 1, 1000)
+      await waitFor(() => getComputedStyle(el.querySelector('.panel')).display == 'block', 1000)
+      await waitFor(() => syg149() == 'p53i-1,p53i-2', 1500).catch(() => {})
+      assert(syg149() == 'p53i-1,p53i-2', `SYG149 once shown: ${syg149() || 'none'}`)
     } finally { spy.restore(); app.dispose() }
   })
 

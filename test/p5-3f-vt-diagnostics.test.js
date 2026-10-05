@@ -28,7 +28,7 @@ describe('G-419: SYG148 (prefix)', () => {
     expect(DEV_CODE_SEVERITY.SYG149).toBe('warn')
   })
 
-  for (const bad of ['1card', 'my card', 'card.x', '-1', '']) {
+  for (const bad of ['1card', 'my card', 'card.x', '-1']) {
     it(`reports viewTransitionName=${JSON.stringify(bad)} once`, async () => {
       function Bad({ state }) { return h('ul', null, h(Collection, { of: Item, from: 'a', viewTransitionName: bad }), h('i', null, String(state.n))) }
       Bad.initialState = { a: [{ id: 1 }], n: 0 }

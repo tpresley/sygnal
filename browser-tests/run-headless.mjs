@@ -35,6 +35,9 @@ const EXPECTED_CONSOLE_ERRORS = [
     match: [/\[Sygnal SYG406\] Broken: View threw/, /no handler|\bError\b/] },  // Firefox prints the attached Error as just 'Error'
   { test: 'features > Reducer error preserves previous state',
     match: [/\[Sygnal SYG216\] App: Reducer for 'BAD' threw/, /reducer crash|\bError\b/] },
+  // PLAN-5 3-I G-460: the transition SYG149 warns of (Chromium logs the duplicate name)
+  { test: 'Collection view-transition names > G-460: SYG149 ... once the panel is shown',
+    match: [/Unexpected duplicate view-transition-name: p53i-/] },
 ];
 
 function expectedEntry(text) {
