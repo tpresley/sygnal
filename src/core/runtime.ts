@@ -190,7 +190,14 @@ export class App {
   }
   flush() {
     this.scheduled = false
-    if (this.disposed) return
+    if (this.disposed) return this.release()
+    try { this.flushOnce() } finally { this.release() }
+  }
+  /** G-301: flushed() resolves once nothing is scheduled, after a throwing flush, or on dispose */
+  release() {
+    if (this.waiters.length && (!this.scheduled || this.disposed)) for (const w of this.waiters.splice(0)) w()
+  }
+  flushOnce() {
     this.flushing = true
     let v: any, n = 0
     try {
@@ -229,7 +236,6 @@ export class App {
     }
     if (this.dirty) { this.chained = true; this.dirty = false; this.commit() }
     if (this.early) { this.early = false; this.log = {} }
-    if (this.waiters.length && !this.scheduled) for (const w of this.waiters.splice(0)) w()
   }
 
   // ---------------------------------------------------------------- sinks
@@ -369,6 +375,7 @@ export class App {
       for (const n in this.sources) try { this.sources[n]?.dispose?.() } catch (_) {}
       for (const n in this.proxies) try { this.proxies[n]._c() } catch (_) {}
       this.mc?.port1.close()
+      this.release()
     }
   }
 }
