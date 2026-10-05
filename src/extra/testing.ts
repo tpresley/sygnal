@@ -1848,10 +1848,9 @@ export function renderComponent(
         if (iv.sources.DOM?._hub == hub.$) scopeIds.set(sc || '', iv.id);
         senderNames.set(iv.id, iv.name);
         if (iv.def.view?.route && !(routerSink in allDrivers)) failWith(new Error(`[Sygnal] ${iv.name} declares \`route\`, and nothing answers it: pass the app's router, renderComponent(${compName}, { router }) (the object makeRouter() returns), or a ${routerSink} driver in drivers`));
-      },
-      wrapSources(iv: any, so: any) {
+        // the replies to its child-only requests (as the core subscribes a driver's replies).
+        // G-324: here, for every instance: wrapSources runs only for an instance with an intent
         const extra = childSinks2(iv);
-        // the replies to its child-only requests (as the core subscribes a driver's replies)
         if (extra.length) {
           const subs: Array<[any, any]> = [];
           for (const n of extra) {
@@ -1861,6 +1860,9 @@ export function renderComponent(
           }
           replySubs.set(iv.id, subs);
         }
+      },
+      wrapSources(iv: any, so: any) {
+        const extra = childSinks2(iv);
         if (typeof Proxy != 'function') return;
         // E2 / G-151: a source no driver provides (driver-like name, or one of its sinks) is the
         // scriptable fake, scoped to the component (R4-2)
