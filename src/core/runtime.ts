@@ -53,6 +53,8 @@ export interface StartOptions {
   __hooks?: Hooks
   /** internal: the root's state at start (an HMR swap) */
   __state?: any
+  /** internal: an HMR swap: the instances its first flush makes get no BOOTSTRAP (as today's `__hmr`) */
+  __swap?: boolean
   /** internal: renderComponent's root (test intent, initial state, name) */
   __override?: Partial<DefSource> & {name?: string; testActions?: string[]}
 }
@@ -267,6 +269,8 @@ export class App {
     } finally {
       // G-313: a throwing patch / onPatch still ends the startup log and dispatches BOOTSTRAP
       this.tail = false
+      // an HMR swap: what the start rendered was already bootstrapped in the old app
+      if (this.opts.__swap) { this.opts.__swap = false; this.born.length = 0 }
       if (this.born.length) {
         const b = this.born.splice(0)
         queueMicrotask(() => { for (const i of b) if (!i.disposed) this.dispatch(i, 'BOOTSTRAP', undefined, 'built-in') })

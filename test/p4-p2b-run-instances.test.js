@@ -12,6 +12,12 @@ import run from '../src/extra/run.js'
 import { createElement as h } from '../src/pragma/index.js'
 import { configureDiagnostics, getDiagnosticsMode, _resetDiagnostics } from '../src/extra/diagnostics/index.js'
 
+// PLAN-4.6 R4 (06 §2 PORT): the root's state through the runtime API on the next core
+// (app.__runtime), the current core's sink / stream internals otherwise
+const setState = (app, f) => (app.__runtime ? app.__runtime.setState('root', f) : app.sinks.STATE.shamefullySendNext(f))
+const getState = (app) => (app.__runtime ? app.__runtime.getState() : app.sources.STATE.stream._v)
+
+
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 const until = async (cond, what, ms = 2000) => {
   for (const end = Date.now() + ms; !cond(); await sleep(5)) {
@@ -57,13 +63,13 @@ describe('G-212: HMR state is per app', () => {
     document.body.innerHTML = '<div id="a"></div><div id="b"></div>'
     const a = start(Counter, '#a', { diagnostics: 'off' })
     await until(() => text('#a b') === '1', 'app A')
-    a.sinks.STATE.shamefullySendNext(s => ({ ...s, count: 7 }))
+    setState(a, s => ({ ...s, count: 7 }))
     await until(() => text('#a b') === '7', 'app A count 7')
 
     // a second app starts and changes its state after A's last change
     const b = start(Other, '#b')
     await until(() => text('#b p') === 'B:100', 'app B')
-    b.sinks.STATE.shamefullySendNext(s => ({ ...s, n: 101 }))
+    setState(b, s => ({ ...s, n: 101 }))
     await until(() => text('#b p') === 'B:101', 'app B 101')
 
     a.hmr(CounterV2)
@@ -78,14 +84,14 @@ describe('G-212: HMR state is per app', () => {
     document.body.innerHTML = '<div id="a"></div><div id="b"></div>'
     const a = start(Counter, '#a', { diagnostics: 'off' })
     await until(() => text('#a b') === '1', 'app A')
-    a.sinks.STATE.shamefullySendNext(s => ({ ...s, count: 5 }))
+    setState(a, s => ({ ...s, count: 5 }))
     await until(() => text('#a b') === '5', 'app A count 5')
 
     // B starts inside A's swap window (G-216: the swap is A's own __hmr source)
     a.hmr(Counter)
     const b = start(Other, '#b')
     await sleep(40)
-    const bState = b.sources.STATE.stream._v
+    const bState = getState(b)
     expect(bState?.label).toBeUndefined()
     expect(bState?.count).toBeUndefined()
   })
@@ -110,20 +116,21 @@ describe('G-212: DevTools registration with several apps', () => {
     await until(() => !!document.querySelector('#a i'), 'A swapped')
     await sleep(40)
     // time travel through the registered app reaches A (the fallback the bridge uses)
-    window.__SYGNAL_DEVTOOLS_APP__.sinks.STATE.shamefullySendNext(() => ({ label: 'A', count: 42 }))
+    setState(window.__SYGNAL_DEVTOOLS_APP__, () => ({ label: 'A', count: 42 }))
     await until(() => text('#a b') === '42', 'A time-travelled')
     expect(text('#b p')).toBe('B:100')
 
     // B's swap leaves A registered
     b.hmr(Other)
     await sleep(40)
-    window.__SYGNAL_DEVTOOLS_APP__.sinks.STATE.shamefullySendNext(() => ({ label: 'A', count: 43 }))
+    setState(window.__SYGNAL_DEVTOOLS_APP__, () => ({ label: 'A', count: 43 }))
     await until(() => text('#a b') === '43', 'A still registered')
 
     a.dispose()
     apps.splice(apps.indexOf(a), 1)
     expect(window.__SYGNAL_DEVTOOLS_APP__ === a).toBe(false)
-    expect(window.__SYGNAL_DEVTOOLS_APP__?.sinks?.STATE).not.toBe(a.sinks.STATE)
+    // (the current core's STATE sink; the next core's app has none: the previous line covers it)
+    if (!a.__runtime) expect(window.__SYGNAL_DEVTOOLS_APP__?.sinks?.STATE).not.toBe(a.sinks.STATE)
   })
 })
 

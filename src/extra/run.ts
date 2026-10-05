@@ -38,6 +38,14 @@ interface SygnalRunResult {
   hmr?: (newComponent: any, explicitState?: any) => void;
 }
 
+function resolveHotModule(incoming: any): any {
+  if (!incoming) return null;
+  if (Array.isArray(incoming)) return resolveHotModule(incoming.find(Boolean));
+  if (incoming.default && typeof incoming.default === 'function') return incoming;
+  if (typeof incoming === 'function') return {default: incoming};
+  return null;
+}
+
 export default function run(
   app: any,
   drivers: Record<string, any> = {},
@@ -76,7 +84,9 @@ export default function run(
   // PLAN-4.6 R1-R4 (internal, deleted at R5): the next core, selected by a global flag that the
   // test setup sets from SYGNAL_CORE=next. Not documented, not in the types
   if (NEXT_CORE && (globalThis as any).__SYGNAL_CORE__ === 'next') {
-    const started = startNext(app, drivers, {...options, __hooks: (options as any).__hooks, __state: hmrSwap?.s} as any);
+    // (R4) an HMR swap: the kept state is the new root's first state, and the instances made at
+    // its start get no BOOTSTRAP (as the current core's `__hmr` source); no 0/20 ms re-sends
+    const started = startNext(app, drivers, {...options, __hooks: (options as any).__hooks, __state: hmrSwap?.s, __swap: !!hmrSwap} as any);
     liveApps++;
     let off = false;
     const exposed: SygnalRunResult = {
@@ -86,11 +96,35 @@ export default function run(
         if (off) return;
         off = true;
         liveApps--;
+        // G-212: unregister from DevTools (a later app, or this app's hot-swapped successor, registers)
+        if (typeof window !== 'undefined' && window.__SYGNAL_DEVTOOLS_APP__ === exposed) window.__SYGNAL_DEVTOOLS_APP__ = undefined;
         started.dispose();
         if (strict !== undefined) core.strict = prevStrict;
       },
     };
     (exposed as any).__runtime = started.api;
+    // G-214: the uid option, as the current core's __uid source
+    if (uid !== undefined) Object.defineProperty(exposed.sources, '__uid', {value: uid.replace(/[^\w-]+/g, '_'), enumerable: false, configurable: true});
+    if (typeof window !== 'undefined') window.__SYGNAL_DEVTOOLS_APP__ ||= exposed;
+    // (R4, 04 §3.12) hmr(): this app's current state through the runtime API (runtime.getState(),
+    // no STATE.stream._v), then the new component started with it
+    let current = app;
+    exposed.hmr = (newComponent: any, explicitState?: any) => {
+      const mod = resolveHotModule(newComponent) || {default: current};
+      const state = explicitState !== undefined ? explicitState : (exposed as any).__runtime.getState();
+      if (typeof window !== 'undefined') window.__SYGNAL_HMR_LAST_CAPTURED_STATE = state;
+      const wasRegistered = typeof window !== 'undefined' && window.__SYGNAL_DEVTOOLS_APP__ === exposed;
+      exposed.dispose();
+      current = mod.default;
+      const updated: any = run(current, drivers, options, state === undefined ? undefined : {u: true, s: state});
+      exposed.sources = updated.sources;
+      exposed.sinks = updated.sinks;
+      (exposed as any).__runtime = updated.__runtime;
+      // the registration follows the swap (the successor is this same object)
+      if (typeof window !== 'undefined' && (window.__SYGNAL_DEVTOOLS_APP__ === updated || wasRegistered)) window.__SYGNAL_DEVTOOLS_APP__ = exposed;
+      const d = updated.dispose;
+      exposed.dispose = () => { if (typeof window !== 'undefined' && window.__SYGNAL_DEVTOOLS_APP__ === exposed) window.__SYGNAL_DEVTOOLS_APP__ = undefined; d(); };
+    };
     return exposed;
   }
   if (!app.isSygnalComponent) {
@@ -181,13 +215,6 @@ export default function run(
     }
   };
 
-  const resolveHotModule = (incoming: any): any => {
-    if (!incoming) return null;
-    if (Array.isArray(incoming)) return resolveHotModule(incoming.find(Boolean));
-    if (incoming.default && typeof incoming.default === 'function') return incoming;
-    if (typeof incoming === 'function') return {default: incoming};
-    return null;
-  };
 
   const hmr = (newComponent: any, explicitState?: any) => {
     const moduleToUse = resolveHotModule(newComponent) || {default: app};
