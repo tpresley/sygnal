@@ -301,6 +301,28 @@ export default [
 		]
   },
 
+  {
+    input: 'src/react.ts',
+    external: (id) => isExternal(id) || id === 'sygnal' || /^react(-dom)?(\/|$)/.test(id),
+    output: [
+      { file: pkg.exports['./react'].require, format: 'cjs', ...sourcemapOptions },
+      { file: pkg.exports['./react'].import, format: 'es', ...sourcemapOptions }
+    ],
+		plugins: [
+			{
+				name: 'sygnal-react-core-external',
+				resolveId(source, importer) {
+					if (source === './index' && importer && /[\\/]src[\\/]react\.ts$/.test(importer)) {
+						return { id: 'sygnal', external: true }
+					}
+					return null
+				},
+			},
+			typescript({ tsconfig: './tsconfig.json' }),
+			resolve({ extensions: ['.mjs', '.js', '.ts', '.json'] }),
+		]
+  },
+
   // sygnal/vite aliases xstream's `globalthis` dependency to this stub (G-099).
   // CommonJS: xstream require()s it. `exports: 'default'` → module.exports = fn.
   {

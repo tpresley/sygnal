@@ -56,6 +56,11 @@
       "import": "./dist/zag.esm.js",
       "require": "./dist/zag.cjs.js"
     },
+    "./react": {
+      "types": "./src/react.d.ts",
+      "import": "./dist/react.esm.js",
+      "require": "./dist/react.cjs.js"
+    },
     "./shims/globalthis": "./dist/shims/globalthis.cjs",
     "./vite": {
       "types": "./src/vite/plugin.d.ts",
