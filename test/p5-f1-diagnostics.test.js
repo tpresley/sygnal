@@ -97,8 +97,18 @@ describe('SYG233: values key stripped by the schema', () => {
     t.simulateEvent('.f', 'submit'); await t.settle()
     const d = diagnostics('SYG233')
     expect(d).toHaveLength(1)
-    expect(d[0].message).toMatch(/values\.nickname is not in the schema's output/)
+    expect(d[0].message).toMatch(/values\.nickname is not in the schema's output \(stripped or renamed\)/)
     expect(t.emitted.at(-1).data).toEqual({ email: '' })
+  })
+  // 1-S G-377: a schema that reshapes its output (a key not in values) renames rather than strips:
+  // not reported
+  it('not for an output that has keys values lacks (a transform that renames)', async () => {
+    const schema = z.object({ email: z.string(), nickname: z.string() }).transform(({ nickname, ...x }) => ({ ...x, handle: nickname }))
+    t = renderComponent(host(schema, { values: { email: '', nickname: '' } }))
+    await t.ready()
+    t.simulateEvent('.f', 'submit'); await t.settle()
+    expect(diagnostics('SYG233')).toEqual([])
+    expect(t.emitted.at(-1).data).toEqual({ email: '', handle: '' })
   })
 })
 

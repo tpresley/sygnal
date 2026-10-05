@@ -869,7 +869,7 @@ A `form.SUBMIT` (the form element's submit, or `simulateAction('form.SUBMIT')`) 
 
 Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
 
-On a valid submit the form dispatches the `submit` action with the schema's output (trimmed, transformed values), not with `state.form.values`. A top-level key of `values` that the output doesn't have was stripped by the schema, usually because the schema doesn't declare it (`z.object()` and `v.object()` drop unknown keys), so the submit action never gets that field. Reported once per key.
+On a valid submit the form dispatches the `submit` action with the schema's output (trimmed, transformed values), not with `state.form.values`. A top-level key of `values` that the output doesn't have was stripped (or renamed) by the schema, usually because the schema doesn't declare it (`z.object()` and `v.object()` drop unknown keys), so the submit action never gets that field. Reported once per key, and only when every key of the output is a key of `values`: an output with keys of its own comes from a schema that reshapes the values (a `transform` that renames), which is left alone.
 
 **Fix:** Declare the field in the schema, make the schema keep unknown keys (`z.looseObject`, `v.looseObject`), or remove the field from `values` if it isn't part of the form.
 

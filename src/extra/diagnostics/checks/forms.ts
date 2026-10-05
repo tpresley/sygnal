@@ -9,7 +9,8 @@
  *   232  (slice) a submit while submitting or while a queued submit waits for a check: SYG232
  *        (info, every time); the submit is dropped
  *   233  (values, output) a valid submit: each top-level `values` key missing from the schema's
- *        output, SYG233 (warn, once per key): the schema strips it (zod's z.object does)
+ *        output, SYG233 (warn, once per key): the schema strips it (zod's z.object does). G-377:
+ *        only when every output key is a values key (an output with other keys reshapes: a rename)
  *   235  (field, request) a check's request with `ok` / `error` / `latest` keys, which the form
  *        overwrites: SYG235 (warn, once per field)
  * Host checks (onModel, once per component name), for each `uses` entry made by form():
@@ -55,11 +56,12 @@ export function reportForm(code: number, a?: any, b?: any): any {
       fix: `Disable the submit button while state.form.submitting (or queued) is true; answer the submit with ok: 'form.DONE', error: 'form.ERRORS'`,
     })
   } else if (code == 233) {
+    if (!b || typeof b != 'object' || Object.keys(b).some(k => !(k in (a || {})))) return
     for (const k of Object.keys(a || {})) {
-      if (b && typeof b == 'object' && !(k in b) && once(`SYG233:${k}`)) devReport('SYG233', {
+      if (!(k in b) && once(`SYG233:${k}`)) devReport('SYG233', {
         component: 'form',
-        message: `form: values.${k} is not in the schema's output, so the submit action doesn't get it (the schema strips keys it doesn't declare)`,
-        fix: `Declare '${k}' in the schema (or make the schema keep unknown keys), or remove it from values`,
+        message: `form: values.${k} is not in the schema's output (stripped or renamed), so the submit action doesn't get it under that name (a schema strips keys it doesn't declare)`,
+        fix: `Declare '${k}' in the schema (or make the schema keep unknown keys), or remove it from values; if the schema renames it on purpose, ignore this`,
         data: {key: k},
       })
     }
