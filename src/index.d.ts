@@ -1051,7 +1051,7 @@ export interface SortableState {
   mode: 'pointer' | 'keyboard' | null;
   /** The text for an ARIA live region: lift, move, drop and cancel announcements */
   message: string;
-  /** A `uid()` id for the instructions element the handles' `aria-describedby` names (null until the host starts) */
+  /** A `uid()` id for the instructions element the handles' `aria-describedby` names, unique per host (null until the first focus, press or key inside the host) */
   helpId: string | null;
   /** Internal: the pointer press before the threshold */
   press: { id: string; x: number; y: number } | null;
@@ -1081,7 +1081,7 @@ export interface SortableOptions {
 /** 'sort.DROPPED': one completed move (pointer drop, or keyboard drop away from where it started) */
 export interface SortableDropped { id: string; list: string; index: number; fromList: string; fromIndex: number }
 export interface SortableActions {
-  INIT: any; PRESS: any; MOVE: any; UP: any; CANCEL: any;
+  INIT: any; HELP: any; PRESS: any; MOVE: any; UP: any; CANCEL: any;
   KEY: { key: string; id?: string };
   DROPPED: SortableDropped;
 }

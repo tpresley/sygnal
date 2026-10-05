@@ -19,10 +19,12 @@
  *             container; keyboard: unused)
  *   mode      'pointer' | 'keyboard' | null
  *   message   the text for an ARIA live region (lift / move / drop / cancel)
- *   helpId    a uid() id for the instructions element the handles' aria-describedby names
- *             (set when the host starts: unique per host instance, stable across SSR)
+ *   helpId    a uid() id for the instructions element the handles' aria-describedby names:
+ *             unique per host instance, null until the first focus, press or key inside the
+ *             host (G-448: nothing is written at startup). The server renders none, nor does
+ *             the client's first render, so hydration matches (G-453); a focused handle has it
  *   press, origin: internal (the pointer press before the threshold; where the item started)
- * Actions: sort.PRESS, MOVE, UP, CANCEL (pointer), KEY (keyboard), INIT (the start), and
+ * Actions: sort.PRESS, MOVE, UP, CANCEL (pointer), KEY (keyboard), INIT (the start), HELP, and
  * sort.DROPPED ({ id, list, index, fromList, fromIndex }) once per completed move: the host adds
  * an entry for it to save the order.
  *
@@ -196,6 +198,9 @@ export const sortable = (options: any = {}): any => {
       }
       return {
         INIT: xs.of(0),
+        // the first focus, press or key inside the host sets the instructions id (G-448: no
+        // write at startup, so a Collection-item host's parent data stays clean until it is used)
+        HELP: on((s: any) => !s.helpId, () => xs.merge(DOM.events('focusin'), DOM.events('pointerdown'), DOM.events('keydown')).mapTo(0)),
         PRESS: DOM.events('pointerdown')
           .filter((e: any) => e.isPrimary !== false && !e.button)
           .map((e: any) => {
@@ -226,11 +231,14 @@ export const sortable = (options: any = {}): any => {
       }
     },
     model: {
-      // the instructions id (uid: unique per host) and SYG147 (dev)
-      INIT: {HOST: (st: any, _d: any, _n: any, p: any, _o: any, k: string) => {
+      // SYG147 (dev)
+      INIT: {HOST: (st: any, _d: any, _n: any, _p: any, _o: any, k: string) => {
         for (const l of lists) Array.isArray(st?.[l]) || dev(147, l, st, k)
-        return p?.uid ? put(st, k, {helpId: p.uid(k + '-help')}) : ABORT
+        return ABORT
       }},
+      // the instructions id: a uid() of the host (unique per host instance)
+      HELP: {HOST: (st: any, _d: any, _n: any, p: any, _o: any, k: string) =>
+        st[k].helpId || !p?.uid ? ABORT : put(st, k, {helpId: p.uid(k + '-help')})},
       PRESS: {HOST: (st: any, d: any, next: any, _p: any, _o: any, k: string) => {
         const s = st[k]
         if (s.mode == 'pointer' || !find(st, d.id)) return ABORT

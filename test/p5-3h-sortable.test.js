@@ -3,7 +3,7 @@
 // keys, undo / persist interplay, the instructions id, filtered lists, native dragstart, a press
 // during a keyboard drag, drops after the last item of another list, unmount mid-drag.
 import { describe, it, expect, afterEach, beforeEach } from 'vitest'
-import { renderComponent, Collection, sortable } from '../src/index.js'
+import { renderComponent, renderToString, Collection, sortable } from '../src/index.js'
 import { createElement as h } from '../src/pragma/index.js'
 import { setupChecks } from './diagnostics/helpers.js'
 
@@ -207,6 +207,44 @@ describe('3-H G-454: a pointer drop in another list lands before or after the ho
     expect(order(t.state, 'done')).toBe('4,3')
     expect(await drag(3, 4, 119)).toBe(false)
     expect(order(t.state, 'done')).toBe('3,4')
+  })
+})
+
+describe('3-H G-448 / G-453: the instructions id', () => {
+  it('nothing is written into Collection-item hosts at startup; the first focus inside a host sets its unique id', async () => {
+    Tree.initialState = { groups: groups([1, [2]], [2]) }
+    t = renderComponent(Tree, { dom: 'real' }); await t.ready()
+    await t.settle()
+    expect(t.state.groups.map(g => 'sort' in g)).toEqual([false, false])
+    expect(t.state.sort.helpId).toBe(null)
+    innerNode(1, 2).querySelector('.grip').focus()
+    await t.next(s => s.groups[0].sort?.helpId)
+    const inner = t.state.groups[0].sort.helpId
+    expect(inner).toMatch(/sort-help$/)
+    expect('sort' in t.state.groups[1]).toBe(false)     // a host nothing happened in
+    expect(t.state.sort.helpId).toMatch(/sort-help$/)   // the outer host heard the focus too
+    expect(t.state.sort.helpId).not.toBe(inner)
+  })
+
+  it('a root host: no aria-describedby before the first focus (as on the server); the focused handle is described', async () => {
+    const server = renderToString(TaskList)
+    expect(server).not.toContain('aria-describedby')
+    t = renderComponent(TaskList, { dom: 'real' }); await t.ready()
+    await t.settle()
+    expect(t.state.sort.helpId).toBe(null)
+    expect(t.query('.grip').hasAttribute('aria-describedby')).toBe(false)
+    grip(3).focus()
+    await t.next(s => s.sort.helpId)
+    await sleep(10)
+    expect(grip(3).getAttribute('aria-describedby')).toBe(t.query('.help').id)
+    expect(t.query('.help').id).toBe(t.state.sort.helpId)
+  })
+
+  it('a press or a key sets it too (no focus event: a mock DOM, a button Safari does not focus)', async () => {
+    t = renderComponent(TaskList); await t.ready()
+    t.simulateEvent('.grip', 'pointerdown', { clientX: 0, clientY: 0, within: '.task[data-id="1"]' })
+    await t.next(s => s.sort.helpId)
+    expect(t.html()).toContain(`aria-describedby="${t.state.sort.helpId}"`)
   })
 })
 
