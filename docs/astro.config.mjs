@@ -89,6 +89,20 @@ export default defineConfig({
           ],
         },
         {
+          label: 'Recipes',
+          items: [
+            { label: 'Overview', slug: 'recipes/overview' },
+            { label: 'Charts', slug: 'recipes/charts' },
+            { label: 'Rich Text', slug: 'recipes/rich-text' },
+            { label: 'Code Editor', slug: 'recipes/code-editor' },
+            { label: 'Carousel', slug: 'recipes/carousel' },
+            { label: 'Data Table', slug: 'recipes/data-table' },
+            { label: 'Data Grid', slug: 'recipes/data-grid' },
+            { label: 'Icons', slug: 'recipes/icons' },
+            { label: 'Translations (i18n)', slug: 'recipes/i18n' },
+          ],
+        },
+        {
           label: 'Advanced',
           items: [
             { label: 'Error Boundaries', slug: 'advanced/error-boundaries' },

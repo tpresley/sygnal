@@ -1,0 +1,28 @@
+{
+  "name": "sygnal-p5-recipes",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:browser": "node run-browser.mjs"
+  },
+  "devDependencies": {
+    "@codemirror/lang-javascript": "^6.2.5",
+    "@tanstack/table-core": "^9.2.6",
+    "@tiptap/core": "^3.31.4",
+    "@tiptap/pm": "^3.31.4",
+    "@tiptap/starter-kit": "^3.31.4",
+    "ag-grid-community": "^36.2.0",
+    "chart.js": "^4.5.1",
+    "codemirror": "^6.0.2",
+    "echarts": "^6.1.0",
+    "embla-carousel": "^8.6.0",
+    "i18next": "^26.4.2",
+    "jsdom": "^29.1.1",
+    "lucide": "^1.52.0",
+    "playwright": "1.63.0",
+    "sygnal": "file:../../..",
+    "vite": "^8.3.2",
+    "vitest": "^5.0.3"
+  }
+}
