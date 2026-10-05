@@ -19,7 +19,8 @@ Tracks progress for [PLAN-4.6.md](PLAN-4.6.md) (component core rewrite). The coo
 | R3 | Extensions (statics, replies, commands, behaviors) | ✅ merged | `p46-r3` (`b0613ee`) | 2026-10-04 | Statics (generic path, G-158 buffering), replies, fetch/socket `isolateValue`, commands/ELEMENT/controls, `resources`/`uses` at definition time, persist via a root shim, View Transitions; R2 review fixes. Next: parity 78 pass / 4 skip (R4/R5); test:next 720; browser 175/186 (rest R4/R5). Timers page create 52 → 32 ms, persist create 45 → 25 ms; fetch rows 28 → 2 streams, 1,006 → 2 timeouts; fetch replies: 1,001 patches vs 97 → R4 (D180). Size 41,453 B |
 | R4 | Tooling and integrations | ✅ merged | `p46-r4` (`4574951`) | 2026-10-04 | Diagnostics/devtools via hook layers from `__SYGNAL_DIAGNOSTICS__.layers`; renderComponent as one hook layer (D176 internal: every documented pattern passes on both cores); SSR `data.c`, Vike, Astro, element, HMR. New dev codes SYG423 (context skip check), SYG424 (duplicate id), SYG425 (isolatedState missing keys), SYG612 (removed in 6.0). Next: root suite 2,695 pass, examples 9/9, browser 183 (+3 R5), perf gate (streams/item 1, unmount timers 2, heap 0.67 MB). `src/core` 47.0 KB min / 17.4 KB gz; kanban with both cores 51.7 KB gz |
 | R5 | Cut-over, delete old core, gates, eval | ✅ merged | `p46-r5` (`6ce8a90`) | 2026-10-04 | Old core deleted (−10.6k lines); removals D162–D164 (+ SYG211/213/413/414/419/601/604/605/607/901–903 retired; SYG501/504/506 → "Removed in 6.0", static SYG612 rule in sygnal-check); `defineComponent`; migration guide (`guide/migrating-to-6`); docs/llms/skill/CLAUDE.md updated; count gate: streams/item 1, unmount timers 2, heap 1.0 MB. vitest 2,582, browser 184, examples 9/9. Kanban **40,608 B** (−735 B vs PLAN-4.5); `src/core` 17.4 KB gz. Mount 1k 38.9 → 17.8 ms (1.4× React); Collection replace 56.6 → 23.6, remove 12.2 → 1.4 (1.0× React), create 10k 899 → 238 (beats React) |
-| P46-P | Spike: pragma/snabbdom hot path for select ops (D186) | 🟡 running | `p46-perf-spike` | | measured only; findings decide whether a small perf phase follows |
+| P46-P | Spike: pragma/snabbdom hot path for select ops (D186) | ✅ merged | `p46-perf-spike` (`e262199`) | 2026-10-04 | Same-output vnode reuse, one module update hook, faster JSX element path, cached pragma lookups: Collection select 3.5 → 1.65 ms (3.2× React), single-view select 3.15 → 1.55 (3.0×), keystroke 1.35 → 0.9 (1.1×). +806 B (41,414 B). Found the JSX pragma shipped twice (~2 KB). Merge exposed G-348 |
+| P46-Q | G-348 regression, pragma dedupe (D188), D187 follow-ups | 🟡 running | `p46-q` | | |
 | R6 | Fixes from the R5 review (G-336…G-347), D184 llms line, D185 size gate | ✅ merged | `p46-r6` (`c9e3e56`) | 2026-10-04 | All 12 fixed; pragma corpus restored; `'dispose'` AppErrorPhase (G-267 errors now reported); `resetState` llms line (291 lines); size gate failing again at 42,300 B: **40,766 B** (1,534 B headroom). vitest 2,688, browser 184, sygnal-check 498 |
 | P46-EV | Regression eval (Opus tiers 1–2 + ergo; Haiku tier 1) | ⬜ | | | after R6 and P46-P |
 
@@ -27,6 +28,7 @@ Tracks progress for [PLAN-4.6.md](PLAN-4.6.md) (component core rewrite). The coo
 
 | ID | Date | Decision | By |
 |---|---|---|---|
+| D188 | 2026-10-04 | Merge all four perf-spike changes (+806 B), and in the same follow-up pass make `sygnal/jsx-runtime` share the core's pragma (expected ≈ −2 KB) with the D187 follow-ups | User |
 | D187 | 2026-10-04 | R6 follow-ups, folded into the post-spike pass: add the `'intent'` and `'context'` phases the core already reports to `AppErrorPhase` and the error-boundaries table; the SSR portal placeholder gets the `sygnal-portal` class so hydration patches it (G-318 path); trim the pragma's stale `SPECIAL` entries (G-146 stamp, `sygnal-factory`) if the perf spike doesn't already | Coordinator |
 | D186 | 2026-10-04 | Collection select (7.5× React) and single-view select (6.5×) are above their warn-only targets; the remaining cost is the JSX pragma and snabbdom's diff. A small measured spike (P46-P) on that path runs before PLAN-5 | User |
 | D185 | 2026-10-04 | Size budget for the new core: keep the D48 gate at **42,300 B** (kanban, nativeGlobalThis false) and re-enable it as a failing gate; PLAN-5 starts with 1,692 B of headroom (kanban 40,608 B) | User |
@@ -117,10 +119,12 @@ Tracks progress for [PLAN-4.6.md](PLAN-4.6.md) (component core rewrite). The coo
 | G-345 | review R5 | Low | docs | Portal placeholder class (G-328) not in CHANGELOG | Fixed (R6) |
 | G-346 | review R5 | Low | testing | Each `simulate*` leaves a pending cursor-expiry timer. Confirmed | Fixed (R6) |
 | G-347 | review R5 | Low | cleanup | Dead old-core residue (controlledInputModule render-seq, legacy.ts helpers, stale doc pointers) | Fixed (R6) |
+| G-348 | P46-P merge | Med | timers/render | `p4-3c-recipe` stopwatch: reset shows '00:02.7' instead of '00:00.0' after the spike merge (deterministic; passed on dc5ef79) | → P46-Q |
 | G-291 | 0-S | Low | Collection | Id-less items under filter/sort are keyed by filtered/sorted index (likely a latent bug) | → Q23 |
 
 ## Log
 
+- 2026-10-04 — P46-P merged (`e262199`); select ops ~2× faster; D188 (user). Gate run after the merge: 1 deterministic failure (G-348, stopwatch recipe). P46-Q started (G-348 first, then dedupe + D187). Eval waits for P46-Q.
 - 2026-10-04 — R6 merged (`c9e3e56`); all gates green, size gate failing-mode at 42,300 B (40,766 B). D187. Waiting on P46-P.
 - 2026-10-04 — Review of R5: 12 findings (G-336…G-347; none in the core runtime's flush/state paths); R6 started.
 - 2026-10-04 — D184–D186 (user): resetState in llms.txt; size gate back at 42,300 B; perf spike before PLAN-5 (P46-P started).
