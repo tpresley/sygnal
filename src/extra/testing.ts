@@ -1887,8 +1887,9 @@ export function renderComponent(
       // G-039: subscribed / unsubscribed listeners (a just-mounted child subscribes late)
       const lk = k + '\u0000' + type;
       live.set(lk, (live.get(lk) || 0) + (on ? 1 : -1));
-      // (the next core subscribes the intent while starting, before retry exists: a microtask later)
-      if (on) started ? retry(0) : queueMicrotask(() => retry(0));
+      // (the next core subscribes the intent while starting, before retry exists: a microtask
+      // later; G-299: not at all when the start threw)
+      if (on) started ? retry(0) : queueMicrotask(() => { if (started) retry(0); });
     }
   };
   // E4: the real DOM driver (as run() sets it up) patching into a fresh container
