@@ -92,7 +92,10 @@ describe('P45-R2 G-279: a Transition leave on an element with a style.remove', (
     vi.spyOn(window, 'getComputedStyle').mockImplementation((el) => el.classList?.contains('t') ? { 'transition-property': 'opacity' } : gcs(el))
     const t = document.querySelector('.t')
     document.querySelector('.hide').dispatchEvent(new MouseEvent('click', { bubbles: true }))
-    await sleep(40) // the Transition's leave is done; the style's remove is pending
+    // D212: deterministic: the leave starts (its classes go on), then ends (they come off in the
+    // same callback that hands the element to the style module's remove, which stays pending)
+    await until(() => expect(t.classList.contains('fade-leave-active')).toBe(true))
+    await until(() => expect(t.classList.contains('fade-leave-active')).toBe(false))
     expect(t.parentNode).toBeTruthy()
     const before = m.seen.length
     t.dispatchEvent(new Event('transitionend'))

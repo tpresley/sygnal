@@ -75,11 +75,20 @@ describe('G-375: the first validation runs when the host starts, not at module l
   })
 
   it('an async schema: validating (not valid) until its first result, then its errors', async () => {
-    t = renderComponent(host(slow(20, need)))
+    // D212: deterministic: validate's results come when the test releases them (no timer race
+    // between the schema and ready())
+    const pending = []
+    const gated = { '~standard': { version: 1, vendor: 'test', validate: (v) => new Promise((r) => pending.push(() => {
+      const issues = need(v)
+      r(issues.length ? { issues } : { value: v })
+    })) } }
+    t = renderComponent(host(gated))
     await t.ready()
     expect(t.state.form.validating).toBe(true)
     expect(t.state.form.valid).toBe(false)
-    await t.next(s => !s.form.validating)
+    expect(pending.length).toBeGreaterThan(0)
+    pending.splice(0).forEach((go) => go())
+    await t.waitForState(s => !s.form.validating)
     expect(t.state.form.errors).toEqual({ a: 'Need a' })
     expect(t.state.form.valid).toBe(false)
   })
