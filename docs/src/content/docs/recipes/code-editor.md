@@ -8,7 +8,7 @@ description: A CodeMirror 6 editor as a Sygnal widget tag, with its document in 
 ## Install
 
 ```sh
-npm install codemirror @codemirror/lang-javascript
+npm install codemirror @codemirror/state @codemirror/lang-javascript
 ```
 
 ## The widget
@@ -17,7 +17,12 @@ npm install codemirror @codemirror/lang-javascript
 // CodeEditor.js
 import { defineWidget } from 'sygnal'
 import { EditorView, basicSetup } from 'codemirror'
+import { Compartment } from '@codemirror/state'
 import { javascript } from '@codemirror/lang-javascript'
+
+// the label can change (another language): it lives in a compartment that update() reconfigures
+const labelling = new Compartment()
+const label = (props) => EditorView.contentAttributes.of({ 'aria-label': props.label })
 
 export const CodeEditor = defineWidget({
   name: 'CodeEditor',
@@ -27,7 +32,7 @@ export const CodeEditor = defineWidget({
     extensions: [
       basicSetup,
       javascript(),
-      EditorView.contentAttributes.of({ 'aria-label': props.label }),
+      labelling.of(label(props)),
       EditorView.updateListener.of((update) => {
         if (update.docChanged) dispatch('edit', update.state.doc.toString())
       }),
@@ -36,6 +41,7 @@ export const CodeEditor = defineWidget({
   update: (view, props) => {
     const code = view.state.doc.toString()
     if (props.code !== code) view.dispatch({ changes: { from: 0, to: code.length, insert: props.code } })
+    if (props.label !== view.contentDOM.getAttribute('aria-label')) view.dispatch({ effects: labelling.reconfigure(label(props)) })
   },
   unmount: (view) => view.destroy(),
   events: ['edit'],
@@ -119,6 +125,6 @@ Measured with Vite, minified and gzipped, Sygnal not included: `basicSetup` with
 
 - **Keep the comparison in `update`.** Replacing the document on every render would reset the cursor and the undo history while the user types.
 - **A reset is also an edit.** The transaction `update` dispatches changes the document, so the listener sends it back as an `edit` with the same code. That costs one extra action and changes nothing. To skip it, add an annotation to the transaction (`annotations: Transaction.remote.of(true)` from `@codemirror/state`) and ignore updates that carry it.
-- **Change configuration with compartments.** `mount` builds the extensions once. To switch the language, the theme or `readOnly` from props, wrap that extension in a `Compartment` and reconfigure it in `update` (`view.dispatch({ effects: compartment.reconfigure(...) })`).
+- **Change configuration with compartments.** `mount` builds the extensions once. The label is in a `Compartment` that `update` reconfigures when the `label` prop changes (a translated app switching language); do the same to switch the language mode, the theme or `readOnly` from props (`view.dispatch({ effects: compartment.reconfigure(...) })`). `@codemirror/state` is installed with `codemirror`; list it yourself so there is one copy (two copies break compartments).
 - **Label the editable element.** The host `<div>` is not what receives the keyboard. `EditorView.contentAttributes` puts `aria-label` on CodeMirror's `.cm-content`, the element a screen reader announces.
 - **Tab.** CodeMirror doesn't trap Tab by default, so keyboard users can leave the editor. Adding `indentWithTab` changes that; if you do, tell users that Escape then Tab leaves the editor.

@@ -23,6 +23,26 @@ Album.initialState = { photos }
 Album.intent = ({ DOM }) => ({ ADD: DOM.click('.add-photo') })
 Album.model = { ADD: (state) => ({ ...state, photos: [...state.photos, { src: pixel('black'), alt: 'Black' }] }) }
 
+// the photos shrink under the selected slide (G-442: reInit moves the selection, no select event)
+function Shrinking({ state }) {
+  return (
+    <main>
+      <Carousel className="photos shrinking" photos={state.photos} />
+      <button className="drop">Drop</button>
+      <p className="at">{state.index}</p>
+    </main>
+  )
+}
+Shrinking.initialState = { photos, index: 0 }
+Shrinking.intent = ({ DOM }) => ({
+  SLIDE: DOM.select('.shrinking').events('slide').detail(),
+  DROP: DOM.click('.drop'),
+})
+Shrinking.model = {
+  SLIDE: (state, index) => ({ ...state, index }),
+  DROP: (state) => ({ ...state, photos: state.photos.slice(0, 1) }),
+}
+
 export const tests = {
   async 'Embla: next/dot commands scroll, a real drag comes back as state, unmount destroys'() {
     const t = renderComponent(Gallery, { dom: 'real', initialState: { photos, index: 0 } })
@@ -41,7 +61,7 @@ export const tests = {
 
     await pw('click', '.dot[data-index="2"]')
     await t.waitForState((state) => state.index === 2)
-    assert(t.query('.next').disabled, 'next is disabled on the last photo')
+    equal(t.query('.next').getAttribute('aria-disabled'), 'true', 'next is aria-disabled on the last photo')
 
     // a real drag to the right goes back one slide (Embla's own pointer handling)
     const [x, y] = centre(t.query('.photos'))
@@ -61,6 +81,35 @@ export const tests = {
     await waitFor(() => embla.slideNodes().length === 4, 'four slides after update')
     assert(t.widget('.album').instance === embla, 'same instance')
     equal(t.query('.album .slide').getAttribute('aria-label'), '1 of 4')
+    t.dispose()
+  },
+
+  async 'Embla: when the photos shrink below the shown one, the index follows (reInit)'() {
+    const t = renderComponent(Shrinking, { dom: 'real' })
+    await t.ready()
+    await waitFor(() => t.widget('.shrinking').instance, 'carousel mounted')
+    const embla = t.widget('.shrinking').instance
+    embla.scrollTo(2, true)
+    await t.waitForState((state) => state.index === 2)
+    await pw('click', '.drop')
+    await waitFor(() => embla.slideNodes().length === 1, 'one slide after update')
+    // (waitForState would match the history: index 0 at the start)
+    await waitFor(() => t.state.index === 0, 'index follows the shrink')
+    equal(embla.selectedScrollSnap(), 0)
+    t.dispose()
+  },
+
+  async 'Embla: Prev / Next at the ends are aria-disabled and keep focus'() {
+    const t = renderComponent(Gallery, { dom: 'real', initialState: { photos, index: 0 } })
+    await t.ready()
+    await waitFor(() => t.widget('.photos').instance, 'carousel mounted')
+    equal(t.query('.prev').getAttribute('aria-disabled'), 'true')
+    await pw('press', '.next', 'Enter')
+    await t.waitForState((state) => state.index === 1)
+    await pw('press', '.next', 'Enter')
+    await t.waitForState((state) => state.index === 2)
+    equal(t.query('.next').getAttribute('aria-disabled'), 'true')
+    assert(document.activeElement === t.query('.next'), 'focus stays on Next at the end')
     t.dispose()
   },
 }

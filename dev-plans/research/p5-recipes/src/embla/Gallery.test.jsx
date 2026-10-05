@@ -14,6 +14,7 @@ test('the buttons send commands, and the shown slide comes back as state', async
   t.widget('.photos').dispatch('slide', 2)
   await t.next((state) => state.index === 2)
   expect(t.query('.where').textContent).toBe('Photo 3 of 3')
-  expect(t.query('.next').disabled).toBe(true)
+  expect(t.query('.next').getAttribute('aria-disabled')).toBe('true')
+  expect(t.query('.prev').getAttribute('aria-disabled')).toBe('false')
   t.dispose()
 })

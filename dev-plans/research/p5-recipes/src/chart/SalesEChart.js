@@ -20,9 +20,15 @@ export const SalesEChart = defineWidget({
     const chart = echarts.init(el)
     chart.setOption(option(props))
     chart.on('click', (params) => dispatch('bar-select', params.dataIndex))
-    return chart
+    // ECharts measures the element once: redraw at the new size when the host resizes
+    const observer = new ResizeObserver(() => chart.resize())
+    observer.observe(el)
+    return { chart, observer }
   },
-  update: (chart, props) => chart.setOption(option(props)),
-  unmount: (chart) => chart.dispose(),
+  update: ({ chart }, props) => chart.setOption(option(props)),
+  unmount: ({ chart, observer }) => {
+    observer.disconnect()
+    chart.dispose()
+  },
   events: ['bar-select'],
 })

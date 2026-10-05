@@ -8,6 +8,7 @@
   },
   "devDependencies": {
     "@codemirror/lang-javascript": "^6.2.5",
+    "@codemirror/state": "^6.7.6",
     "@tanstack/table-core": "^9.2.6",
     "@tiptap/core": "^3.31.4",
     "@tiptap/pm": "^3.31.4",
