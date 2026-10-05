@@ -201,8 +201,11 @@ const add = (out: any, b: string, v: any): void => {
 // aria-*, a boolean stringified)
 const ATTRS = /^(for|role|tabindex|popovertarget(action)?|command(for)?|closedby|interestfor|anchor|aria-.*)$/
 // G-372: the WAI-ARIA 1.2 states and properties whose value set includes "false" (true/false,
-// tristate, and the tokens aria-current / aria-invalid / aria-haspopup)
-const ARIA_FALSE = /^aria-(atomic|busy|checked|current|disabled|expanded|grabbed|haspopup|hidden|invalid|modal|multi(line|selectable)|pressed|re(adonly|quired)|selected)$/
+// tristate, and the tokens aria-current / aria-invalid / aria-haspopup), by a prefix no other
+// ARIA 1.2/1.3 attribute has: atomic, busy, checked, current, disabled, expanded, grabbed,
+// haspopup, hidden, invalid, modal, multiline, multiselectable, pressed, readonly, required,
+// selected (sel: not setsize)
+const ARIA_FALSE = /^aria-(at|bu|ch|cu|di|ex|gr|ha|hi|in|mo|mu|pr|re[aq]|sel)/
 // `c`: a component placeholder (G-370: ATTRS stay props)
 const route = (key: string, modules: Record<string, any>, c?: any): any => {
   if (key == 'ref' || key == 'key' || key == 'children') return 0
@@ -232,7 +235,7 @@ const sanitizeData = (data: any, modules: Record<string, any>, routes: Map<strin
       if (val !== undefined) o[name] = val
     } else if (val === undefined) continue
     else if (kind & 2) add(out, b, kind == 3 ? toClassMap(val) : val)
-    else if (b) bucket(out, b)[name] = kind ? val === true ? 'true' : val === false ? ARIA_FALSE.test(key) && 'false' : val ?? false : val
+    else if (b) bucket(out, b)[name] = kind ? val === !!val ? (val || ARIA_FALSE.test(key)) && '' + val : val ?? false : val
     else out[key] = val
   }
   const props = out.props

@@ -118,6 +118,10 @@ describe('1-S G-372: aria-* false and null', () => {
     expect(v.elm.hasAttribute(`aria-${s}`)).toBe(false)
     expect(h('div', { [`aria-${s}`]: true }).data.attrs).toEqual({ [`aria-${s}`]: 'true' })
   })
+  it('every other WAI-ARIA 1.3 attribute: false is not "false"', () => {
+    const OTHERS = ['activedescendant', 'autocomplete', 'braillelabel', 'brailleroledescription', 'colcount', 'colindex', 'colindextext', 'colspan', 'controls', 'describedby', 'description', 'details', 'dropeffect', 'errormessage', 'flowto', 'keyshortcuts', 'label', 'labelledby', 'level', 'live', 'orientation', 'owns', 'placeholder', 'posinset', 'relevant', 'roledescription', 'rowcount', 'rowindex', 'rowindextext', 'rowspan', 'setsize', 'sort', 'valuemax', 'valuemin', 'valuenow', 'valuetext']
+    for (const s of OTHERS) expect(h('div', { [`aria-${s}`]: false }).data.attrs[`aria-${s}`]).toBe(false)
+  })
   it('null on a boolean state removes it too', () => {
     const patch = init([attributesModule, propsModule])
     const root = document.createElement('div')
