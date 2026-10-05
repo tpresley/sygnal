@@ -155,7 +155,9 @@ Signup.intent = ({ DOM }) => ({
 })
 Signup.model = {
   SUBMIT: (s, { email, stars, stars2, news, plain }) => ({ ...s, submitted: { email, stars: stars ?? null, stars2, news: news ?? null, plain } }),
-  LIVE: (s, { email, event }) => ({ ...s, live: [...(s.live || []), `${event.target.value}/${email}`] }),
+  // D196: wa-input is controlled (value={state.email}), so the model takes the typed value (a model
+  // that kept the old email would have the render put it back, as for a plain <input value>)
+  LIVE: (s, { email, event }) => ({ ...s, email: event.target.value, live: [...(s.live || []), `${event.target.value}/${email}`] }),
 }
 
 // ── 4. Collection isolation ───────────────────────────────────────────────────────────────
