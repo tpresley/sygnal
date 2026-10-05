@@ -6,7 +6,7 @@ Tracks progress for [PLAN-5.md](PLAN-5.md) (ecosystem components and integration
 
 **Integration branch:** `plan5-integration`, cut from `plan46-complete` (`7146161`) on 2026-10-05, in worktree `.claude/worktrees/plan-4-execution-7ae8e8`. The release stays held (D56).
 
-**State:** Phase 0 done (D192). Phase 1 running: 1-F (foundations) and 1-W (widgets + web components) in parallel; F-1 after 1-F.
+**State:** Phase 1: 1-W and 1-F merged; 1-R (fixes) running; 1-F1 (forms) next.
 
 ## 0-A baseline (2026-10-05)
 
@@ -43,7 +43,8 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 | 0-A | Interfaces on the new core, E1–E6 re-run, ROADMAP | ✅ merged | `exp/p5-0a` (`c063cf4`) | 2026-10-05 | All 5 PLAN-4 interfaces hold (15 tests, `test/p5-0a-interfaces.test.js`); E1–E6 pass unchanged; ROADMAP §18; `research/p5-0a-baseline.md` (D189 plug-in point: render hook + `widget` marker, registered on first `defineWidget`). Only Chromium launches with Playwright 1.58.2 → D191. Eval estimate ≈ $70 (tasks 30–34 both arms Opus+Haiku, F-1 A/B), ≈ $100 more for a full learn-time re-run |
 | 0-B | Playwright bump to the cached Firefox/WebKit builds (D191) | ✅ merged | `p5-0b-playwright` (`4572d9e`) | 2026-10-05 | Playwright 1.63.0 (only release matching the cached builds; nothing downloaded) in browser-tests + benchmarks; `BROWSER=firefox\|webkit` opt-in. Coordinator fixes: Firefox submit test made cancelable; Firefox error-text patterns. Browser suite: Chromium 153 184/184, Firefox 155 184/184, WebKit 26.6 183/184 (G-355). Perf gate unchanged |
 | 0-S4 | Toast top layer (confirm 0-S3's finding, 3 engines) | ✅ done (spike, not merged) | `exp/p5-s4` (`b91e30f`) | 2026-10-05 | Six strategies × 3 engines: only **`popover="manual"` re-parented into the topmost open modal** passes everything (on top, clickable, Tab-reachable and in the a11y tree inside the modal; survives close/reopen/removal; correct under transformed dialogs; Collection/Transition/timers keep working). Portal (S-5's fallback) fails (no component instantiation, fixed target, dies with the dialog). Needs a one-line core fix: `IsolateModule.getRootElement` throws for an element moved out of its component (−39 B). Toaster ≈ +0.94 KB gzip (+1.5 KB with the timer driver). Open: delegator bubbling still follows DOM parents (G-356), SYG202 on canonical item self-removal (G-357), real screen-reader check |
-| 1-F | Foundations | 🟡 running | `p5-1f` | | |
+| 1-F | Foundations | ✅ merged | `p5-1f` (`707e54b`) | 2026-10-05 | D196 pragma attrs (+63 B), moved-element isolation incl. bubbling via `__sygnalHome` (−27 B), form-associated custom-element sync (+42 B), D197 `defineBehavior` (`timers`, options/key in handlers, `HOST` reducer; 0 B), D194 `focusWithin` (0 B), D199 diagnostics/check items, test helpers, G-355 fixed (test isolation, not a router bug). After merge with 1-W: **41,5xx B**; vitest 2,818; browser 213/214 on all three engines (G-358) |
+| 1-R | Fixes: G-358 (merge interaction), 1-W review (G-359…G-369), D200 | 🟡 running | `p5-1r` | | |
 | 1-W | Widgets + web components | ✅ merged | `p5-1w` (`2c6053c`) | 2026-10-05 | `defineWidget` (tag canonical + control form; Portal support; D196 command precedence), `.detail()`, custom-event typings, SYG115 fix, `renderToString` custom elements, codes SYG140–144 + SYG660–662, guides `widgets` and `web-components` (Using + Publishing). flatpickr + Web Awesome browser tests in all three engines (Chromium/Firefox 208/208, WebKit 207 = G-355). Size: unused **41,419 B** (+23: D196 line +16, `.detail()` +7); used ≈ 1.1 KB (target 0.9). Review running |
 | 0-S6 | Web components via tags/controls (3 engines) | ✅ done (spike, not merged) | `exp/p5-s6` (`81eb5a9`) | 2026-10-05 | Real Web Awesome 3.14 works canonically (tag + class) and as controls: 18 browser tests × Chromium/Firefox/WebKit (pointer + keyboard, shadow-DOM events, forms, Collection isolation, a11y names, late upgrade, SSR, publish + consume with `defineElement`). WA fires plain `change`/`input` (+ `wa-*` for library events; not CustomEvents). Fixed: custom event names in `events()` types (0 B), SYG115 on hyphenated shorthands (dev). sygnal-check had no false positives. +7 B core (`.detail()`). Caveats: `name` via `attrs` for some elements, Firefox FormData one keystroke behind, dashed JSX props, `renderToString` writes function/object props, controlled drift on custom elements. Guide outline drafted |
 | 0-S1 | Widget as a tag + control kind (D189) | ✅ done (spike, not merged) | `exp/p5-s1` (`77aeaba`) | 2026-10-05 | `defineWidget` works as a tag (canonical) and a control: real flatpickr, 22 runtime + 3 Chromium + 3 sygnal-check + type tests; instance survives re-renders/keyed moves, newest props only, Collection isolation, `'widget'` errors to app onError + owner fallback, SSR host + fallback, `t.widget`, `.detail()`. Core: +7 B unused (`.detail()`); ≈ +1.27 KB when used (over 0-A's 450–750 B estimate; dev strings to move behind the dev bridge). Fixed false SYG110/SYG640 on widget tags in sygnal-check. Codes sketched SYG140–144, 660–663. Open questions → Phase-1 batch |
@@ -80,12 +81,25 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 
 | ID | Found | Sev | Area | Description | Status |
 |---|---|---|---|---|---|
-| G-356 | 0-S4 | Low | DOM/isolation | An element moved out of its component's DOM (toast re-parented into a modal): `IsolateModule.getRootElement` throws ("No root element found"); with the fix, the delegator's simulated bubbling still follows DOM parents, so intermediate scopes miss the moved region's events | → Phase 1 (T-1) |
-| G-357 | 0-S4 | Low | diagnostics | SYG202 reported for `() => undefined` on Collection items although llms.txt documents it as the canonical self-removal | → Phase 1 |
-| G-355 | 0-B | Low | router (PLAN-3) | WebKit: 'link click, back, scroll restore, focus, document.title' (router-5-4b) fails: scroll not restored after back (`scrollY 1663`). Chromium/Firefox pass | Open (Phase 1) |
+| G-358 | 1-F × 1-W merge | Med | web components | Web Awesome 'form-associated: processForm on input — FormData vs the element value per keystroke' times out on all three engines after merging 1-F (custom-element value sync / hyphenated tags non-plain) with 1-W | → 1-R |
+| G-359 | review 1-W | High | widget/Portal | A widget inside a removed `<Portal>` is never unmounted (Portal destroy removes its content without running destroy hooks). Confirmed | → 1-R |
+| G-360 | review 1-W | Med/High | widget | A host reused by snabbdom for a non-widget vnode (same sel/key; incl. the error fallback) is never unmounted. Confirmed | → 1-R |
+| G-361 | review 1-W | Med | widget | Failure map keyed by `id ?? widget`, never cleared: healthy siblings and same-key other widgets render the fallback; fallback persists after recovery. Confirmed | → 1-R |
+| G-362 | review 1-W | Med | widget | Shallow compare includes object host props (`style`/`attrs`/`class`), so every render remounts/updates. Confirmed | → 1-R |
+| G-363 | review 1-W | Med | widget/Transition | Transition around a widget does nothing (widget host hooks replace Transition's); shared hook object hazard. Confirmed | → 1-R |
+| G-364 | review 1-W | Med | widget | A `className` change wipes classes the library added to the host. Confirmed | → 1-R |
+| G-365 | review 1-W | Med/Low | SSR | camelCase→kebab for custom elements is wrong for IDL names (`tabIndex`→`tab-index`) and regresses Lit's lowercase default attributes. Confirmed (IDL) | → 1-R |
+| G-366 | review 1-W | Med/Low | sygnal-check | SYG141/SYG142 false positives when the host (custom element or library-driven element) provides the event/method; SYG142 is an error. Confirmed | → 1-R |
+| G-367 | review 1-W | Low | widget | Remount path without `update`: a throwing `mount` reported as SYG661, stale record. Confirmed | → 1-R |
+| G-368 | review 1-W | Low | widget | `ref` silently dropped (guide says every prop reaches the widget) | → 1-R |
+| G-369 | review 1-W | Low | testing | Mock-DOM command check with a control wrapping a widget uses the wrong host tag; `widgetOf` not scoped | → 1-R |
+| G-356 | 0-S4 | Low | DOM/isolation | An element moved out of its component's DOM (toast re-parented into a modal): `IsolateModule.getRootElement` throws ("No root element found"); with the fix, the delegator's simulated bubbling still follows DOM parents, so intermediate scopes miss the moved region's events | Fixed (1-F; `__sygnalHome` for movers) |
+| G-357 | 0-S4 | Low | diagnostics | SYG202 reported for `() => undefined` on Collection items although llms.txt documents it as the canonical self-removal | Fixed (1-F) |
+| G-355 | 0-B | Low | router test | WebKit: 'link click, back, scroll restore, focus, document.title' (router-5-4b) fails: scroll not restored after back (`scrollY 1663`). Chromium/Firefox pass | Fixed (1-F: the test shared history with an earlier suite; not a router bug) |
 
 ## Log
 
+- 2026-10-05 — 1-F merged (3 conflicts with 1-W resolved); one cross-branch browser failure (G-358). Review of 1-W: 11 findings (G-359…G-369). 1-R started.
 - 2026-10-05 — 1-W merged (gates green; 41,419 B). D200. Review of 1-W started.
 - 2026-10-05 — Decision batch answered (D193–D198; D199 coordinator). Phase 0 closed (D192). Phase 1: 1-F and 1-W started.
 - 2026-10-05 — 0-S4 done (toasts: manual popover re-parented into the open modal). All Phase 0 spikes done.
