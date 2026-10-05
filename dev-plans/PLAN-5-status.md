@@ -6,7 +6,7 @@ Tracks progress for [PLAN-5.md](PLAN-5.md) (ecosystem components and integration
 
 **Integration branch:** `plan5-integration`, cut from `plan46-complete` (`7146161`) on 2026-10-05, in worktree `.claude/worktrees/plan-4-execution-7ae8e8`. The release stays held (D56).
 
-**State:** Phase 2: 2-B, 2-V, 2-U, 2-A merged; 2-Z and 2-R merged; running: 2-S (2-U/2-V review fixes), review of 2-Z; then 2-T (D211/D212 follow-ups + 2-Z review fixes), then Phase 3. Known flaky test `p5-1s-forms` (fixed in 2-R).
+**State:** Phase 2: 2-B, 2-V, 2-U, 2-A merged; 2-Z and 2-R merged; running: 2-S (2-U/2-V review fixes), 2-T (D211/D212 follow-ups + 2-Z review fixes G-409…G-416); then Phase 3. Known flaky test `p5-1s-forms` (fixed in 2-R).
 
 ## 0-A baseline (2026-10-05)
 
@@ -146,6 +146,14 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 | G-391 | review 2-B | Low | browser-tests | `__pwBrowser` context changes (offline, permissions, media) aren't reset between suites | Fixed (2-R) |
 | G-392 | 2-U | Low | sygnal-check | SYG105 false positive for every Toaster user (`TOAST` "emitted but nothing selects it"); `sygnal/ui` behaviors not in `FIRST_PARTY` (option typos unchecked) | Fixed (2-R) |
 | G-393 | 2-U | Low | core/testing | A root component with a `model` but no `initialState` renders nothing under `renderComponent`, with no diagnostic (verify against today's documented behaviour, G-172) | Fixed (2-R) |
+| G-409 | review 2-Z | Med | zag | A render error during a machine-driven redraw escapes the widget error boundary (unhandled rejection, no SYG661/onError/fallback); a throwing second draw in `start()` leaks the started machine. Confirmed | → 2-T |
+| G-410 | review 2-Z | Med | zag | Sygnal components, widget tags and special JSX inside a `fromZag` render silently render as bogus elements. Confirmed | → 2-T |
+| G-411 | review 2-Z | Med | ui/combobox | Form submission sends the label (visible input's `name`), and `""` for `multiple`. Confirmed | → 2-T |
+| G-412 | review 2-Z | Med/Low | zag, react | A widget inside `<Transition>` goes empty during its leave animation (`stop()` clears content; React microtask unmount). Confirmed (zag) | → 2-T |
+| G-413 | review 2-Z | Med/Low | a11y | `aria-*` props land on the host, not the control (unnamed combobox); Select without `label` references a missing element; `fromReact` forwards host attrs to the component too (double tab stops). Confirmed | → 2-T |
+| G-414 | review 2-Z | Low | ui/combobox | User `onOpenChange`/`onInputValueChange` props dropped. Confirmed | → 2-T |
+| G-415 | review 2-Z | Low | vite plugin | SYG666 fires on string literals mentioning the adapter entries (breaks the build). Confirmed | → 2-T |
+| G-416 | review 2-Z | Low | docs | Zag positioners render inside the host (clipped by `overflow: hidden`); document `positioning={{ strategy: 'fixed' }}` | → 2-T |
 | G-408 | 2-R × 2-Z | Low | process | Two parallel workstreams registered the same code (SYG666); fixed at merge (2-R's → SYG668). Briefs now assign code numbers | Fixed (process) |
 | G-394 | review 2-V | High | VirtualCollection | An inline `estimateSize` function (the guide's own pattern) clears every measured row height on each owner render; rows aren't re-measured. Confirmed | → 2-S |
 | G-395 | review 2-V | Med/High | VirtualCollection | SYG430 "grows" misfires on a bounded container above viewport height that fits its rows; clamping then leaves unreachable blank rows. Confirmed | → 2-S |
@@ -168,6 +176,7 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 
 ## Log
 
+- 2026-10-05 — Review of 2-Z: 8 findings (G-409…G-416). 2-T started (codes assigned: SYG669, SYG722–723).
 - 2026-10-05 — 2-R merged (6 conflicts; SYG666 clash renumbered to SYG668); all gates green on three engines (279/279); core 41,825 B. D212, G-408.
 - 2026-10-05 — 2-Z merged; three engines 276/276; core 41,771 B. D211.
 - 2026-10-05 — Review of 2-U + 2-V: 14 findings (G-394…G-407). 2-S started.
