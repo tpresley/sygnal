@@ -24,7 +24,9 @@
  * (an async schema runs); calculated: fields (per name: { name, value, error, invalid, touched,
  * dirty, pending }; `error` is what to show), valid, dirty, error (form-level message).
  *
- * Actions: form.CHANGE ({ name, value }), form.BLUR (name), form.SUBMIT, form.ADD ({ field,
+ * Actions: form.CHANGE ({ name, value, item? }: G-376: a checkbox gives `checked`, and `item`, its
+ * value, which toggles membership when the field is an array; <select multiple> an array of the
+ * selected values; type=file is ignored), form.BLUR (name), form.SUBMIT, form.ADD ({ field,
  * value }), form.REMOVE ({ field, id }), form.ERRORS (an error reply or a map: server errors),
  * form.DONE (saved), form.RESET (values?); internal: form.RESULT (an async schema's result),
  * form.CHECKED_<name> (a check's reply; a failed check passes: the server checks on submit),
@@ -103,9 +105,16 @@ export const form = (schema: any, o: any = {}): any => {
   const base = (vals: any) => ({initial: vals, values: vals, touched: {}, server: {}, remote: {}, pending: {},
     submitting: false, submitted: false, submitCount: 0, queued: false, errors: {}})
   const fresh = (vals: any) => edit(base(vals), vals)
+  const group = (cur: any, d: any) => {
+    if (!Array.isArray(cur) || !('item' in d)) return d.value
+    const r = cur.filter(x => x !== d.item)
+    return d.value ? [...r, d.item] : r
+  }
 
   const steps: Record<string, (s: any, d: any, k: string) => any> = {
-    CHANGE: (s, d) => known(s, d?.name) ? edit(s, setField(s.values, d.name, d.value), {
+    // G-376: a checkbox (`item`: its value) on an array field is one of a group: checked adds
+    // its value, unchecked removes it
+    CHANGE: (s, d) => known(s, d?.name) ? edit(s, setField(s.values, d.name, group(getField(s.values, d.name), d)), {
       server: drop(drop(s.server, d.name), ''), remote: drop(s.remote, d.name), pending: drop(s.pending, d.name), queued: false,
       touched: show == 'input' ? {...s.touched, [d.name]: true} : s.touched,
     }) : null,
@@ -178,7 +187,12 @@ export const form = (schema: any, o: any = {}): any => {
       const f = DOM.select(sel)
       return {
         VALIDATE: xs.of(0),
-        CHANGE: f.events('input').map(({target: t}: any) => ({name: t.name, value: t.type == 'checkbox' ? t.checked : t.value})),
+        // G-376: a checkbox (native, or a hyphenated tag with a boolean `checked`: a
+        // form-associated custom checkbox / switch) gives `checked` and its value as `item`; a
+        // <select multiple> the selected values; type=file is left alone; others give `value`
+        CHANGE: f.events('input').filter(({target: t}: any) => t.type != 'file').map(({target: t}: any) =>
+          t.type == 'checkbox' || /-/.test(t.tagName) && typeof t.checked == 'boolean' ? {name: t.name, value: t.checked, item: t.value}
+          : {name: t.name, value: t.type == 'select-multiple' ? [...t.selectedOptions].map((o: any) => o.value) : t.value}),
         BLUR: f.events('focusout').map((e: any) => e.target.name),
         SUBMIT: f.events('submit', {preventDefault: true}),
       }

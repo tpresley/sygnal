@@ -59,6 +59,23 @@ That is the whole wiring: there is no intent for the fields.
 
 Reserve the height of the error lines in your CSS (`min-height`). A field's error appears when it loses focus, which happens on the mouse*down* of a click elsewhere: if the new line pushes the button down before the mouse*up*, the click is lost.
 
+### Field types
+
+What `state.form.values[name]` gets from each kind of field, and how to bind it:
+
+| Field | Value | Bind |
+|---|---|---|
+| `<input>` (text, email, password, search, tel, url), `<textarea>` | The text | `value={f.email.value}` |
+| `<input type="number">`, `range`, `date`, `time` | The text as the browser gives it (`'42'`, `'2026-10-05'`; `''` when empty) | `value={f.age.value}`; convert in the schema: `z.coerce.number()`, `v.pipe(v.string(), v.transform(Number), v.number())` |
+| `<input type="radio">` (same `name`) | The checked radio's `value` | `checked={f.size.value === 'm'}` |
+| `<input type="checkbox">` on a boolean | `checked` | `checked={f.agree.value}` |
+| Checkboxes sharing a `name` on an array | The array of the checked boxes' `value`s (checking adds it, unchecking removes it) | `values: { tags: [] }`, `<input type="checkbox" name="tags" value="news" checked={f.tags.value.includes('news')} />` |
+| `<select>` | The selected option's `value` | `value={f.country.value}` |
+| `<select multiple>` | The array of selected `value`s | `selected={f.colors.value.includes('red')}` on each `<option>` |
+| A form-associated custom element (`<wa-input>`, `<wa-select>`) | Its `value` | `value={f.nick.value}` |
+| A form-associated custom checkbox or switch (`<wa-checkbox>`, `<wa-switch>`: a hyphenated tag with a boolean `checked`) | `checked` (as a group on an array, like checkboxes) | `checked={f.news.value}` |
+| `<input type="file">` | Not handled: the form ignores it | Leave `value` unbound; read `e.target.files` in your own intent and keep the files out of `values` |
+
 ### Any Standard Schema
 
 `form()` takes any object with `~standard.validate`: zod (3.24 and later), valibot (1.0 and later), arktype, or one you write. A schema's issue paths become field names, and an issue without a path is a form-level message (`state.form.error`, shown after a submit):
@@ -109,7 +126,7 @@ The actions, named after the `uses` key (`form.CHANGE` for `uses = { form: … }
 
 | Action | Data |
 |---|---|
-| `form.CHANGE` | `{ name, value }`: from the form element's `input` events (a checkbox gives `checked`) |
+| `form.CHANGE` | `{ name, value }`: from the form element's `input` events ([field types](#field-types); a checkbox gives `checked`, and its `value` as `item`) |
 | `form.BLUR` | The field name, from `focusout` |
 | `form.SUBMIT` | From the form element's `submit` (default prevented) |
 | `form.ADD` / `form.REMOVE` | `{ field, value }` / `{ field, id }`: [field array](#field-arrays) rows |

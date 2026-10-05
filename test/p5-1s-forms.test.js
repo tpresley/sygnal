@@ -253,3 +253,86 @@ describe('G-380: row segments are ids only (no index fallback)', () => {
     expect(getField({ r: [{ id: 3, v: 1 }, { v: 2 }] }, 'r.1.v')).toBe(2)
   })
 })
+
+describe('G-376: field types', () => {
+  if (!customElements.get('x-check')) {
+    customElements.define('x-check', class extends HTMLElement {
+      static formAssociated = true
+      constructor() { super(); this._c = false }
+      get checked() { return this._c }
+      set checked(v) { this._c = !!v }
+    })
+    customElements.define('x-text', class extends HTMLElement {
+      static formAssociated = true
+      constructor() { super(); this._v = '' }
+      get value() { return this._v }
+      set value(v) { this._v = String(v) }
+    })
+  }
+  const opt = (v, sel) => h('option', { value: v, selected: sel }, v)
+  function C({ state }) {
+    const v = state.form.values
+    return h('form', { className: 'f' },
+      h('select', { name: 'colors', multiple: true }, opt('red', v.colors.includes('red')), opt('green', v.colors.includes('green')), opt('blue', v.colors.includes('blue'))),
+      ...['a', 'b', 'c'].map(x => h('input', { type: 'checkbox', name: 'tags', value: x, className: 'tag-' + x, checked: v.tags.includes(x) })),
+      h('input', { type: 'checkbox', name: 'agree', className: 'agree', checked: v.agree }),
+      h('x-check', { name: 'news', className: 'news', checked: v.news }),
+      h('x-text', { name: 'nick', className: 'nick', value: v.nick }),
+      h('input', { type: 'number', name: 'age', value: v.age }),
+      h('input', { type: 'file', name: 'avatar' }))
+  }
+  C.uses = { form: form(sync(), { values: { colors: [], tags: ['a'], agree: false, news: false, nick: '', age: '' }, submit: 'SAVE' }) }
+  C.model = { SAVE: { EFFECT: () => {} } }
+
+  it('<select multiple>: the selected values, as an array', async () => {
+    t = renderComponent(C, { dom: 'real' })
+    await t.ready()
+    const s = t.query('select')
+    s.options[0].selected = true; s.options[2].selected = true
+    t.simulateEvent('select', 'input'); await t.settle()
+    expect(t.state.form.values.colors).toEqual(['red', 'blue'])
+  })
+
+  it('same-named checkboxes on an array value: a group (checking adds its value, unchecking removes it)', async () => {
+    t = renderComponent(C, { dom: 'real' })
+    await t.ready()
+    t.simulateEvent('.tag-c', 'input', { checked: true }); await t.settle()
+    expect(t.state.form.values.tags).toEqual(['a', 'c'])
+    t.simulateEvent('.tag-a', 'input', { checked: false }); await t.settle()
+    expect(t.state.form.values.tags).toEqual(['c'])
+    expect(t.query('.tag-a').checked).toBe(false)
+    expect(t.query('.tag-c').checked).toBe(true)
+  })
+
+  it('a single checkbox on a boolean value: checked', async () => {
+    t = renderComponent(C, { dom: 'real' })
+    await t.ready()
+    t.simulateEvent('.agree', 'input', { checked: true }); await t.settle()
+    expect(t.state.form.values.agree).toBe(true)
+  })
+
+  it('a form-associated custom checkbox (a hyphenated tag with a boolean `checked`): checked; a custom text field: value', async () => {
+    t = renderComponent(C, { dom: 'real' })
+    await t.ready()
+    t.simulateEvent('.news', 'input', { checked: true }); await t.settle()
+    expect(t.state.form.values.news).toBe(true)
+    t.simulateEvent('.nick', 'input', { value: 'ada' }); await t.settle()
+    expect(t.state.form.values.nick).toBe('ada')
+  })
+
+  it('number: the string as typed (coerce in the schema)', async () => {
+    t = renderComponent(C, { dom: 'real' })
+    await t.ready()
+    t.simulateEvent('[name="age"]', 'input', { value: '42' }); await t.settle()
+    expect(t.state.form.values.age).toBe('42')
+  })
+
+  it('type=file is ignored (no SYG230, values unchanged)', async () => {
+    t = renderComponent(C, { dom: 'real' })
+    await t.ready()
+    const before = t.state.form.values
+    t.simulateEvent('[name="avatar"]', 'input'); await t.settle()
+    expect(t.state.form.values).toBe(before)
+    expect(diagnostics('SYG230')).toEqual([])
+  })
+})

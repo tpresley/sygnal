@@ -945,8 +945,8 @@ export interface FormOptions<V = any> {
 }
 
 export interface FormActions {
-  /** A field changed (the form element's input events): `{ name, value }` */
-  CHANGE: { name: string; value: any };
+  /** A field changed (the form element's input events): `{ name, value }`; a checkbox gives `checked` as `value` and its own value as `item` (on an array field: added or removed) */
+  CHANGE: { name: string; value: any; item?: any };
   /** A field lost focus (focusout): its name */
   BLUR: string;
   /** The form element's submit (default prevented) */
