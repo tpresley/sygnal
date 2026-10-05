@@ -38,3 +38,22 @@ describe('G-327: SYG423 does not report a view whose output differs between two 
     expect(codes('SYG423')).toEqual([])
   })
 })
+
+describe('G-329: SYG612 string-tags is not reported for an uppercase real element', () => {
+  it("h('SPAN') and h(el.tagName) render elements, with no SYG612", async () => {
+    function App() { return h('div', null, h('SPAN', { className: 'raw' }, 'raw'), h('DIV.x', null, 'y')) }
+    App.initialState = { a: 1 }
+    start(App)
+    await sleep(20)
+    expect(codes('SYG612')).toEqual([])
+    expect(document.querySelector('.raw').textContent).toBe('raw')
+  })
+
+  it('a PascalCase string tag (a removed .components name) is still reported', async () => {
+    function App() { return h('div', null, h('Badge', null, 'b')) }
+    App.initialState = { a: 1 }
+    start(App)
+    await sleep(20)
+    expect(codes('SYG612').map((d) => d.data.form)).toEqual(['string-tags'])
+  })
+})

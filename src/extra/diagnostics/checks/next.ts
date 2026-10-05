@@ -73,14 +73,13 @@ function removedStatics(f: any): void {
   if (isPlainObject(model)) for (const k of Object.keys(model)) if (k.includes('|')) removed(f, name, 'pipe-keys', `'${k}'`)
 }
 
-/** string tags and component() factories left in a rendered vnode (the next core renders them as elements) */
+/** string tags left in a rendered vnode (the core renders them as elements) */
 function removedTags(f: any, v: any, depth = 0): void {
   if (!v || typeof v != 'object' || depth > 300) return
   const sel = v.sel
-  if (typeof sel == 'string' && /^[A-Z]/.test(sel) && !(v.data && v.data.c)) {
-    if (v.data && v.data.props && v.data.props.sygnalFactory) removed(f, f.name, 'component-factory', `<${sel}>`)
-    else removed(f, f.name, 'string-tags', `<${sel}>`)
-  }
+  // G-329: a component name is PascalCase; an all-caps tag (h('SPAN'), h(el.tagName)) is an element
+  const tag = typeof sel == 'string' ? sel.split(/[.#]/)[0] : ''
+  if (/^[A-Z]/.test(tag) && /[a-z]/.test(tag) && !(v.data && v.data.c)) removed(f, f.name, 'string-tags', `<${tag}>`)
   const kids = v.children
   if (Array.isArray(kids)) for (const k of kids) removedTags(f, k, depth + 1)
 }
