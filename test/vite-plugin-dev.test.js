@@ -66,6 +66,10 @@ describe('vite plugin — dev checks import (deliverable 1)', () => {
     expect(JSON.stringify(config)).not.toContain('diagnostics')
     expect(config.optimizeDeps).toBeUndefined()
     expect(config.test).toBeUndefined()
+    // PLAN-4.6 D175: the next core is stripped from production builds (a project's own value wins)
+    expect(config.define).toEqual({ __SYGNAL_NEXT_CORE__: 'false' })
+    expect(configure(sygnal(), { command: 'build', config: { define: { __SYGNAL_NEXT_CORE__: 'true' } } }).define).toBeUndefined()
+    expect(configure(sygnal(), { command: 'serve' }).define).toBeUndefined()
     return Promise.all([
       resolve(plugin, 'virtual:sygnal/dev', '/src/main.js'),
       resolve(plugin, 'sygnal', '/src/main.js'),

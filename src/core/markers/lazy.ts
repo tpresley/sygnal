@@ -7,11 +7,13 @@
  * again (Inst.refresh: no state write, unlike the current core's `__sygnalLazyTick`).
  */
 import {resolvers} from '../registry'
+import {NEXT_CORE} from '../build'
 
 /** wrapper -> the owners waiting for it */
 const waiting = new WeakMap<any, WeakSet<any>>()
 
-resolvers.push((view, owner) => {
+// D175: registered only where the next core can run (a production build drops it)
+if (NEXT_CORE) resolvers.push((view, owner) => {
   if (!view.__sygnalLazy) return
   if (view.__sygnalLazyLoaded()) return view.__sygnalLazyLoadedComponent || undefined
   let w = waiting.get(view)

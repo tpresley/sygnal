@@ -16,6 +16,7 @@
  *   (the owner treats the Switchable as ready).
  */
 import {hosts} from '../registry'
+import {NEXT_CORE} from '../build'
 import {Inst, shallowEq} from '../instance'
 import {Cell, keyCell, lensCell, localCell} from '../cell'
 import {isObj} from '../define'
@@ -122,4 +123,5 @@ export class SwitchableHost {
   }
 }
 
-hosts.switchable = (owner, props, children, id) => new SwitchableHost(owner, props, children, id)
+// D175: registered only where the next core can run (a production build drops it)
+if (NEXT_CORE) hosts.switchable = (owner, props, children, id) => new SwitchableHost(owner, props, children, id)

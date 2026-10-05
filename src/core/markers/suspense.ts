@@ -10,6 +10,7 @@
  *   by its own instance.
  */
 import {posts} from '../registry'
+import {NEXT_CORE} from '../build'
 
 function hasNotReadyChild(v: any): boolean {
   if (!v || !v.sel) return false
@@ -36,4 +37,5 @@ export function suspensePost(v: any): any {
   return out ? {...v, children: out} : v
 }
 
-posts.suspense = suspensePost
+// D175: registered only where the next core can run (a production build drops it)
+if (NEXT_CORE) posts.suspense = suspensePost

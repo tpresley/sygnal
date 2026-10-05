@@ -10,6 +10,7 @@
  *   instantiated, as today).
  */
 import {pres} from '../registry'
+import {NEXT_CORE} from '../build'
 import {init as snabbdomInit} from '../../cycle/dom/snabbdom'
 import defaultModules from '../../cycle/dom/modules'
 import {pokeDOM} from '../../cycle/dom/utils'
@@ -72,4 +73,5 @@ export function portalPlaceholder(target: string, children: any[]): any {
   }
 }
 
-pres.portal = (n) => portalPlaceholder(n.data?.props?.target, n.children || [])
+// D175: registered only where the next core can run (a production build drops it)
+if (NEXT_CORE) pres.portal = (n) => portalPlaceholder(n.data?.props?.target, n.children || [])

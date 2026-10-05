@@ -5,8 +5,10 @@
  * its fallback (extra/ssr.ts, unchanged).
  */
 import {pres} from '../registry'
+import {NEXT_CORE} from '../build'
 
-pres.clientonly = (n) => {
+// D175: registered only where the next core can run (a production build drops it)
+if (NEXT_CORE) pres.clientonly = (n) => {
   const c = n.children || []
   if (c.length < 2) return c.length ? c[0] : {sel: 'div', data: {}, children: [], text: undefined, elm: undefined, key: undefined}
   return {sel: 'div', data: {}, children: c, text: undefined, elm: undefined, key: undefined}

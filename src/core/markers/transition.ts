@@ -8,6 +8,7 @@
  * child still run. G-279: a leaving element pokes the DOM driver once it is gone.
  */
 import {pres} from '../registry'
+import {NEXT_CORE} from '../build'
 import {pokeDOM} from '../../cycle/dom/utils'
 
 function onEnd(el: any, duration: number | undefined, cb: () => void): void {
@@ -53,7 +54,8 @@ export function transitionHooks(vnode: any, name: string, duration?: number): an
   return vnode
 }
 
-pres.transition = (n) => {
+// D175: registered only where the next core can run (a production build drops it)
+if (NEXT_CORE) pres.transition = (n) => {
   const child = n.children?.[0], props = n.data?.props || {}
   // no element child: the text child (or the marker itself, left as it is: today's behaviour)
   if (!child?.sel) return child || n
