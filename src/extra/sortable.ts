@@ -236,7 +236,9 @@ export const sortable = (options: any = {}): any => {
       KEY: {
         HOST: (st: any, {key, id}: any, next: any, _p: any, _o: any, k: string) => {
           const s = st[k], f = find(st, s.dragging ?? id)
-          if (!f || s.mode == 'pointer' || s.press) return ABORT
+          if (s.mode == 'pointer' || s.press) return ABORT
+          // the lifted item left the list (removed by another action): the drag ends
+          if (!f) return s.dragging ? put(st, k, idle) : ABORT
           const l = label(f.item), o = s.origin
           if (!s.dragging) return LIFT.test(key)
             ? put(st, k, {...idle, dragging: S(id), mode: 'keyboard', origin: {list: f.list, index: f.index}, message: msg.lift(l, f.index + 1, f.size, true)})

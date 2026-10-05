@@ -93,6 +93,22 @@ describe('sortable: keyboard (mock DOM)', () => {
     expect(dropped()).toEqual([{ id: '1', list: 'tasks', index: 1, fromList: 'tasks', fromIndex: 0 }])
   })
 
+  it('a lifted item removed by another action ends the drag at the next key', async () => {
+    function L({ state }) { return h('div', null, h('button', { type: 'button', className: 'drop-all' }, 'Clear'), TaskList({ state })) }
+    L.initialState = TaskList.initialState
+    L.uses = TaskList.uses
+    L.context = TaskList.context
+    L.intent = ({ DOM }) => ({ CLEAR: DOM.click('.drop-all') })
+    L.model = { CLEAR: (s) => ({ ...s, tasks: s.tasks.filter(x => x.id !== 2) }) }
+    t = renderComponent(L); await t.ready()
+    key(2, ' '); await t.next(s => s.sort.dragging === '2')
+    t.simulateEvent('.drop-all', 'click'); await t.next(s => s.tasks.length === 3)
+    key(1, 'ArrowDown')                       // any key on a handle while the drag is stale
+    await t.next(s => s.sort.dragging === null)
+    expect(t.state.sort.mode).toBe(null)
+    expect(order(t.state)).toBe('1,3,4')
+  })
+
   it('every keyboard step but Tab sends a focusWithin command for the moved item\'s handle', async () => {
     t = renderComponent(TaskList); await t.ready()
     key(1, ' '); await t.next(s => s.sort.dragging === '1')
