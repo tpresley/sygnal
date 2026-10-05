@@ -6,7 +6,7 @@ Tracks progress for [PLAN-5.md](PLAN-5.md) (ecosystem components and integration
 
 **Integration branch:** `plan5-integration`, cut from `plan46-complete` (`7146161`) on 2026-10-05, in worktree `.claude/worktrees/plan-4-execution-7ae8e8`. The release stays held (D56).
 
-**State:** Phase 2: 2-B, 2-V, 2-U, 2-A merged; 2-Z and 2-R merged; 2-S, 2-T merged (Phase 2 complete); Phase 3: 3-R, 3-D merged; 3-F merged; 3-G merged; 3-H merged; running 3-I, 3-J (hydration), 3-K, 3-L (2-A/2-S review fixes, SYG148–149). Known flaky test `p5-1s-forms` (fixed in 2-R).
+**State:** Phase 2: 2-B, 2-V, 2-U, 2-A merged; 2-Z and 2-R merged; 2-S, 2-T merged (Phase 2 complete); Phase 3: 3-R, 3-D merged; 3-F merged; 3-G merged; 3-H merged; 3-J, 3-K merged; running 3-I, 3-L, 3-M (2-A/2-S review fixes, SYG148–149). Known flaky test `p5-1s-forms` (fixed in 2-R).
 
 ## 0-A baseline (2026-10-05)
 
@@ -223,6 +223,14 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 | G-477 | review 3-H | Low/Med | undo | `track`/`resetOn`/`coalesce` naming a gesture behavior's actions are silently ignored (e.g. `track: ['sort.UP']` records no drags); SYG226 skips `sort.*` | → 3-L |
 | G-478 | review 3-H | Low | diagnostics | SYG435 false positive with VirtualCollection's pinned focused row (non-contiguous shown ids) and stray `[data-id]` elements; O(n²) scan on every press even after reporting (dev) | → 3-L |
 | G-479 | review 3-H | Low | undo | `history.base` stays after a cancelled gesture (docs say only while dragging) | → 3-L |
+| G-480 | 3-K report | Med | core / ssr | Any vnode with `sel === 'slot'` is treated as the `<Slot>` marker (`instance.ts` `extractSlots`, `ssr.ts`): a plain `<slot>` element (e.g. in a `sygnal/element` `shadow: true` component) is swallowed. Detect by the marker flag `data.m` (3-K) | → 3-M |
+| G-481 | review 3-J | High | dom (hydration) | A Fragment child occupies one vnode slot but several DOM nodes: every later sibling is mis-paired (replaced or adopted as the wrong vnode) — typed text/focus lost after any component returning `<>…</>`. Confirmed by probe | → 3-M |
+| G-482 | review 3-J | Med | dom (hydration) | `data-*` the client sets as attrs are stripped (dataset copy includes them; dataset module deletes): `data-sygnal-suspense`, `data-sygnal-ready`, `data-sygnal-error`, portal placeholder, user attrs. Confirmed | → 3-M |
+| G-483 | review 3-J | Med | dom (hydration) | Non-SSR mount over placeholder content (a spinner) adopts it; its inline `style` declarations stay on the app root (style exception). Read server declarations into the old vnode. Confirmed | → 3-M |
+| G-484 | review 3-J | Med | dom (hydration) | `<textarea>abc</textarea>` server markup is emptied (text child removed, value not re-set). Now hit by our own `renderToString` after G-465 (3-K writes textarea text content). Confirmed | → 3-M |
+| G-485 | review 3-J | Med | dom (hydration) | `create`/`init` hooks never run on adopted elements; a user `insert` hook plus `ref`/`autoFocus` (which add `postpatch`) is adopted and `insert` never runs. Confirmed | → 3-M |
+| G-486 | review 3-J | Low/Med | dom (hydration) | Selector class/id (`h('p.card')`, `div.sygnal-portal`) never corrected over stale server class/id; docs claim otherwise | → 3-M |
+| G-487 | review 3-J | Low | dom (hydration) | Attributes the user changed before start-up that the client doesn't render are removed (`<details open>`, `<dialog open>`); docs claim user changes are kept; custom elements that build their own light DOM lose it (pre-existing; docs) | → 3-M |
 | G-408 | 2-R × 2-Z | Low | process | Two parallel workstreams registered the same code (SYG666); fixed at merge (2-R's → SYG668). Briefs now assign code numbers | Fixed (process) |
 | G-394 | review 2-V | High | VirtualCollection | An inline `estimateSize` function (the guide's own pattern) clears every measured row height on each owner render; rows aren't re-measured. Confirmed | → 2-S |
 | G-395 | review 2-V | Med/High | VirtualCollection | SYG430 "grows" misfires on a bounded container above viewport height that fits its rows; clamping then leaves unreachable blank rows. Confirmed | → 2-S |
@@ -256,6 +264,7 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 - 2026-10-05 — 3-G merged (clean): D214 `renderComponent({ context })`, D215 routing, `test:recipes`, G-433…G-443. Behaviour: fromReact `aria-*`/`role`/`title` to the component; a destroyed fromReact host left in the DOM unmounts after 10 s; Combobox `allowCustomValue` submits the text. D216, G-463.
 - 2026-10-05 — Gates after 3-G: vitest 3,296, browser 314/313/313, sygnal-check 618, samples 672, core 41,840 B; recipes vitest 19/19, Firefox/WebKit 15/15, Chromium flaky (G-467). G-456 spike done; user D217. Review of 3-G: G-468…G-472. 3-J (hydration) and 3-K (G-463…G-465, G-467…G-472) started.
 - 2026-10-05 — 3-H merged (clean; G-444…G-455, SYG435, undo gestures, `persist: false`, `sort.HELP`/`END`); gates green: vitest 3,321, browser 318/317/317, sygnal-check 619, samples 672, recipes 19 + 15×3, core 41,840 B. User: D218. Review of 3-H: G-473…G-479. 3-L started.
+- 2026-10-05 — 3-J merged (clean; +116 B core → 41,956 B); gates green: vitest 3,378, browser 321/320/320 (recipes Chromium flaky once, G-467 — fixed in 3-K). 3-K merged (2 additive conflicts; +13 B core). Review of 3-J: G-481…G-487 (one high: Fragment mis-pairing). G-480 (plain `<slot>`). 3-M started (hydration review fixes + G-480).
 - 2026-10-05 — 2-R merged (6 conflicts; SYG666 clash renumbered to SYG668); all gates green on three engines (279/279); core 41,825 B. D212, G-408.
 - 2026-10-05 — 2-Z merged; three engines 276/276; core 41,771 B. D211.
 - 2026-10-05 — Review of 2-U + 2-V: 14 findings (G-394…G-407). 2-S started.
