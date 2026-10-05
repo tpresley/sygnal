@@ -128,18 +128,24 @@ describe.skipIf(!NEXT)('PLAN-4.6 R2 review fixes (next core)', () => {
 
   it('G-300: a disposed instance keeps no next() timer', async () => {
     vi.useFakeTimers()
+    const actions = []
     function Kid() { return h('i', null, 'k') }
     Kid.intent = () => ({ GO: xs.of(1) })
     Kid.model = { GO: { EFFECT: (s, d, next) => next('LATER', 1, 1000) }, LATER: (s) => s }
     function App({ state }) { return h('div', null, state.show ? h(Kid) : null) }
     App.initialState = { show: true }
     App.intent = () => ({})
-    const m = mount(App)
+    const m = mount(App, {}, { __hooks: { onAction: (i, a) => actions.push(a.type) } })
+    const clear = vi.spyOn(globalThis, 'clearTimeout')
     await vi.advanceTimersByTimeAsync(0)
-    expect(vi.getTimerCount()).toBeGreaterThan(0)
+    expect(actions).toContain('GO')
+    const before = vi.getTimerCount()
     m.rt.setState('root', { show: false })
     await vi.advanceTimersByTimeAsync(0)
-    expect(vi.getTimerCount()).toBe(0)
+    expect(clear).toHaveBeenCalled()
+    expect(vi.getTimerCount()).toBe(before - 1)
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(actions).not.toContain('LATER')
   })
 
   it('G-301: flushed() resolves after dispose and after a throwing flush', async () => {
