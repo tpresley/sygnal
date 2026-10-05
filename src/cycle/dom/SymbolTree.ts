@@ -1,33 +1,30 @@
-type Node<Payload> = [Payload | undefined, InternalTree<Payload>];
+// [payload, children, number of children]: the count makes delete's "is this node empty" O(1)
+// (G-290: Object.keys(children) per removal made removing n siblings O(n²))
+type Node<Payload> = [Payload | undefined, InternalTree<Payload>, number];
 
 interface InternalTree<Payload> {
   [name: string]: Node<Payload>;
 }
 
 export default class SymbolTree<Payload, T> {
-  private tree: Node<Payload> = [undefined, {}];
+  private tree: Node<Payload> = [, {}, 0];
 
   constructor(private mapper: (t: T) => string) {}
 
   public get(
     path: Array<T>,
     mkDefaultElement?: () => Payload,
-    max?: number
+    max = path.length
   ): Payload | undefined {
     let curr = this.tree;
-    const _max = max !== undefined ? max : path.length;
-    for (let i = 0; i < _max; i++) {
+    for (let i = 0; i < max; i++) {
       const n = this.mapper(path[i]);
-      let child: Node<Payload> = curr[1][n];
-      if (!child) {
-        if (mkDefaultElement) {
-          child = [undefined, {}];
-          curr[1][n] = child;
-        } else {
-          return undefined;
-        }
+      if (!curr[1][n]) {
+        if (!mkDefaultElement) return undefined;
+        curr[2]++; // G-290: count the children
+        curr[1][n] = [, {}, 0];
       }
-      curr = child;
+      curr = curr[1][n];
     }
     if (mkDefaultElement && !curr[0]) {
       curr[0] = mkDefaultElement();
@@ -39,8 +36,8 @@ export default class SymbolTree<Payload, T> {
   public delete(path: Array<T>, max = path.length, node = this.tree, i = 0): boolean {
     if (i < max) {
       const k = this.mapper(path[i]), child = node[1][k];
-      if (child && this.delete(path, max, child, i + 1)) delete node[1][k];
+      if (child && this.delete(path, max, child, i + 1)) delete node[1][k], node[2]--;
     } else node[0] = undefined;
-    return !node[0] && !Object.keys(node[1]).length;
+    return !node[0] && !node[2];
   }
 }
