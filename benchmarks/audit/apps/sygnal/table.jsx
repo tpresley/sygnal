@@ -11,6 +11,7 @@ function App({ state }) {
         <button id="update">Update every 10th row</button>
         <button id="clear">Clear</button>
         <button id="swaprows">Swap Rows</button>
+        <button id="updatelast">Update last row</button>
       </div>
       <div className="table">
         {state.rows.map(row => (
@@ -32,6 +33,7 @@ App.intent = ({ DOM }) => ({
   UPDATE: DOM.click('#update'),
   CLEAR: DOM.click('#clear'),
   SWAP: DOM.click('#swaprows'),
+  UPDATELAST: DOM.click('#updatelast'),
   SELECT: DOM.click('.lbl').data('id', Number),
   REMOVE: DOM.click('.remove').data('id', Number),
 })
@@ -46,6 +48,8 @@ App.model = {
     const rows = state.rows.slice(); const t = rows[1]; rows[1] = rows[998]; rows[998] = t
     return { ...state, rows }
   },
+  // P46-R7 (G-353): only the last row changes: the same-output check's worst case
+  UPDATELAST: (state) => ({ ...state, rows: state.rows.map((r, i) => (i === state.rows.length - 1 ? { ...r, label: r.label + ' !!!' } : r)) }),
   SELECT: (state, id) => ({ ...state, selected: id }),
   REMOVE: (state, id) => ({ ...state, rows: state.rows.filter(r => r.id !== id) }),
 }

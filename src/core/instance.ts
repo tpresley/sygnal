@@ -87,15 +87,20 @@ export function shallowEq(a: any, b: any) {
  * the same tags, keys, text and data (each bucket shallow-equal). A re-run view whose output is
  * the same keeps its last vnode, so the patch skips that subtree by identity.
  * G-349: a vnode with a `hook` is never the same (its update/postpatch run on every patch, a
- * hoisted hook object too; refs and autoFocus chain their hooks there)
+ * hoisted hook object too; refs and autoFocus chain their hooks there).
+ * G-353: at most SAME_MAX vnodes are compared; a larger tree is not the same (it patches, as
+ * before P46-P), so a big view whose last row changed doesn't walk the whole tree before the patch
  */
-export function sameTree(a: any, b: any): boolean {
+const SAME_MAX = 1000
+let left = 0
+export const sameTree = (a: any, b: any): boolean => (left = SAME_MAX, same(a, b))
+function same(a: any, b: any): boolean {
   if (a === b) return true
-  if (!a || !b || a.sel !== b.sel || a.key !== b.key || a.text !== b.text || b.data?.hook || !sameData(a.data, b.data)) return false
+  if (--left < 0 || !a || !b || a.sel !== b.sel || a.key !== b.key || a.text !== b.text || b.data?.hook || !sameData(a.data, b.data)) return false
   const x = a.children, y = b.children
   if (x === y) return true
   if (!x || !y || x.length !== y.length) return false
-  for (let i = 0; i < x.length; i++) if (!sameTree(x[i], y[i])) return false
+  for (let i = 0; i < x.length; i++) if (!same(x[i], y[i])) return false
   return true
 }
 

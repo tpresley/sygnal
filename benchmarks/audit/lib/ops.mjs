@@ -95,6 +95,11 @@ export const OPS = {
     { name: 'clear 1k after a select', setup: `${runRows(1000)}; h.click('.row:nth-child(2) .lbl'); await h.waitFor(() => h.q('.row:nth-child(2)').classList.contains('danger')); await h.settle(300)`, act: `h.click('#clear')`, done: `h.n('.row') === 0`, iterations: 5, fresh: true },
     { name: 'select row (10k)', setup: runRows(10000), act: `h.click('.row:nth-child(2) .lbl')`, done: `h.q('.row:nth-child(2)').classList.contains('danger')`, iterations: 4, fresh: true },
   ],
+  // P46-R7 (G-353): one view of 1k rows where only the last row changes: P46-P's same-output
+  // check (sameTree) compares the whole tree before the diff finds the change. Sygnal's table page only
+  'last-row': [
+    { name: 'update last row (1k, one view)', setup: `${runRows(1000)}; window.__l = h.text('.row:last-child .lbl')`, act: `h.click('#updatelast')`, done: `h.text('.row:last-child .lbl') === window.__l + ' !!!'` },
+  ],
   counters: [
     { name: 'mount 1k components', setup: `h.click('#destroy'); await h.waitFor(() => h.n('.counter') === 0); await h.settle()`, act: `h.click('#create')`, done: `h.n('.counter') === 1000` },
     { name: 'update 1 of 1k', setup: `if (h.n('.counter') !== 1000) { h.click('#create'); await h.waitFor(() => h.n('.counter') === 1000) } await h.settle(); window.__v = h.text('.counter:nth-child(500) .val')`, act: `h.click('.counter:nth-child(500) .inc')`, done: `h.text('.counter:nth-child(500) .val') === String(+window.__v + 1)` },
@@ -144,6 +149,7 @@ export const OPS = {
 // app page for a framework + scenario; Sygnal also has the Collection-per-row table
 export function pagesFor(fw, scenario) {
   if (fw === 'sygnal' && scenario === 'table') return [['sygnal', 'table'], ['sygnal (Collection)', 'table-coll']]
+  if (scenario === 'last-row') return fw === 'sygnal' ? [['sygnal', 'table']] : []
   if (scenario === 'tags') return fw === 'vue' ? [] : [[fw, fw === 'react' ? 'counters' : 'counters-tags']]
   if (['coll-calc', 'switch', 'fetch', 'timers', 'persist'].includes(scenario) && fw !== 'sygnal') return []
   return [[fw, scenario]]

@@ -45,6 +45,37 @@ describe('G-349: a vnode with a hook object is never reused', () => {
   })
 })
 
+describe('G-353: the same-output check gives up on a large tree', () => {
+  it('stops comparing after a node budget (a change at the end of a big view is not walked to)', async () => {
+    const { sameTree } = await import('../src/core/instance.ts')
+    const row = (i, label) => h('div', { className: 'row', key: i }, h('span', null, String(i)), h('a', null, label))
+    const a = h('div', null, Array.from({ length: 1000 }, (_, i) => row(i, 'x')))
+    const b = h('div', null, Array.from({ length: 1000 }, (_, i) => row(i, 'x')))
+    let reads = 0
+    const last = b.children[999]
+    const sel = last.sel
+    Object.defineProperty(last, 'sel', { get: () => (reads++, sel) })
+    expect(sameTree(a, b)).toBe(false)
+    expect(reads).toBe(0)
+    // a small tree is still compared to the end
+    const c = h('ul', null, h('li', null, 'a'), h('li', null, 'b'))
+    const d = h('ul', null, h('li', null, 'a'), h('li', null, 'b'))
+    expect(sameTree(c, d)).toBe(true)
+  })
+
+  it('a large view with the same output still renders right', async () => {
+    function App({ state }) { return h('div', null, Array.from({ length: 600 }, (_, i) => h('p', { key: i }, h('b', null, String(i)), String(state.k)))) }
+    App.initialState = { k: 1, n: 0 }
+    const m = mount(App)
+    await m.rt.flushed(); await ticks()
+    const p0 = m.el.querySelector('p')
+    await step(m, (s) => ({ ...s, n: 1 }))
+    expect(m.el.querySelector('p')).toBe(p0)
+    await step(m, (s) => ({ ...s, k: 2 }))
+    expect(m.el.querySelectorAll('p')[599].textContent).toBe('5992')
+  })
+})
+
 describe('G-350: the pragma caches stay bounded', () => {
   it('dynamic selectors and data keys do not grow the caches', async () => {
     const { createElement: ce, createElementWithModules, __cacheSizes } = await import('../src/pragma/index.ts')
