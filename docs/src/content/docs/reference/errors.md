@@ -1458,6 +1458,16 @@ Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
 
 **Fix:** Pass `estimateSize={32}` (about your row height) or `(item) => (item.expanded ? 120 : 32)`, and `overscan={5}`.
 
+### SYG435
+
+**Sortable list shown filtered or in another order**
+
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+`sortable` moves entries of `state[from]`: the arrow keys swap the item with its neighbour in the array, Home / End move it to the array's ends, the announced positions count the array, and a pointer drop lands next to the entry it is dropped on. When the list is rendered from a `<Collection>` with `sort` (or `filter` that hides entries between shown ones), the shown order isn't the array's: under a sort a move changes nothing visible (the Collection sorts it back), and under a filter a keyboard step can pass hidden entries and the positions count entries nobody sees. At a keyboard pick-up or a pointer press the dev entry compares the host's own rendered items with the array and reports this once per list.
+
+**Fix:** Reorder only a list that is shown as it is stored: drop the Collection's `sort` for a reorderable list (sort the array itself, once, if it needs an initial order), and while a filter hides entries hide the drag handles (or render the full list) so a move can't pass hidden ones.
+
 ## SYG5xx: Strict mode (canonical forms)
 
 ### SYG501

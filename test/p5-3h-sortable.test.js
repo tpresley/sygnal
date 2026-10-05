@@ -5,7 +5,7 @@
 import { describe, it, expect, afterEach, beforeEach } from 'vitest'
 import { renderComponent, renderToString, Collection, sortable, persist, undo } from '../src/index.js'
 import { createElement as h } from '../src/pragma/index.js'
-import { setupChecks } from './diagnostics/helpers.js'
+import { setupChecks, diagnostics } from './diagnostics/helpers.js'
 
 let t
 beforeEach(() => setupChecks())
@@ -431,6 +431,49 @@ describe('3-H: the host unmounted mid-drag', () => {
     press('ArrowDown'); await t.next(s => order(s) === '1,3,2,4')
     t.dispose(); t = null
     await sleep(20)
+  })
+})
+
+describe('3-H G-449: a list shown filtered or sorted (SYG435)', () => {
+  const make = (props) => {
+    function L({ state }) { return h('ul', null, h(Collection, { of: Task, from: 'tasks', ...props })) }
+    L.initialState = { tasks: [{ id: 1, title: 'D' }, { id: 2, title: 'B', done: true }, { id: 3, title: 'A' }, { id: 4, title: 'C' }] }
+    L.uses = { sort: sortable({ from: 'tasks', item: '.task', handle: '.grip' }) }
+    L.context = { sort: (s) => s.sort }
+    return L
+  }
+
+  it('a Collection with sort: reported at a keyboard pick-up (once)', async () => {
+    t = renderComponent(make({ sort: 'title' }), { dom: 'real' }); await t.ready()
+    expect([...t.queryAll('.task')].map(e => e.dataset.id).join()).toBe('3,2,4,1')
+    grip(3).focus()
+    press(' '); await t.next(s => s.sort.dragging === '3')
+    press('Escape'); await t.next(s => s.sort.dragging === null)
+    press(' '); await t.next(s => s.sort.dragging === '3')
+    const d = diagnostics('SYG435')
+    expect(d).toHaveLength(1)
+    expect(d[0].message).toMatch(/state\.tasks is shown in another order \(a Collection with sort\?\)/)
+    expect(d[0].data).toEqual({ from: 'tasks', key: 'sort' })
+  })
+
+  it('a filter hiding an entry between shown ones: reported at a pointer press', async () => {
+    t = renderComponent(make({ filter: (x) => !x.done }), { dom: 'real' }); await t.ready()
+    ptr(grip(1), 'pointerdown', { clientX: 5, clientY: 5 })
+    await t.next(s => s.sort.press)
+    expect(diagnostics('SYG435')[0].message).toMatch(/with entries hidden between the shown ones \(a Collection with filter\?\)/)
+    expect(t.state.sort.press).toEqual({ id: '1', x: 5, y: 5, n: expect.any(Number) })   // the dev ids aren't stored
+  })
+
+  it('not reported for a list shown as stored, or a filter that keeps one run of it', async () => {
+    t = renderComponent(make({ filter: (x) => x.id > 2 }), { dom: 'real' }); await t.ready()
+    grip(3).focus()
+    press(' '); await t.next(s => s.sort.dragging === '3')
+    press('Escape'); await t.next(s => s.sort.dragging === null)
+    t.dispose()
+    t = renderComponent(make({}), { dom: 'real' }); await t.ready()
+    ptr(grip(1), 'pointerdown', { clientX: 5, clientY: 5 })
+    await t.next(s => s.sort.press)
+    expect(diagnostics('SYG435')).toHaveLength(0)
   })
 })
 

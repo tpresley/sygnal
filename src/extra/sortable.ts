@@ -154,6 +154,8 @@ export const sortable = (options: any = {}): any => {
     }}}}}
   }
 
+  // dev: SYG435, the list shown in another order than the array's (G-449)
+  const check = (st: any, seen: any, k: string) => seen && dev(435, seen, st, lists, idField, k)
   // a press or key handler: drag state this instance didn't start (its token `n` isn't the
   // event's: restored, synced) is dropped first (G-452)
   const live = (h: any) => (st: any, d: any, next: any, _p: any, _o: any, k: string) => {
@@ -206,10 +208,16 @@ export const sortable = (options: any = {}): any => {
       }
       const keyed = (keys: RegExp, kb?: any) => (e: any) => keys.test(e.key) && (kb || e.key != 'Tab') && gripOf(e, true) != null
       const lift = keyed(LIFT), step = keyed(KEYS, 1)
+      // dev (SYG435): this host's own items' ids in the order they're shown (computed by the
+      // diagnostics entry only)
+      const shown = (e: any) => dev(435, () => {
+        const r = e.ownerTarget || e.currentTarget
+        return [...r.querySelectorAll(item)].filter((it: any) => own(it, r)).map(idOf)
+      })
       const take = (e: any) => {
         const id = gripOf(e, true)
         claimed.add(e)
-        return {key: e.key == 'Spacebar' ? ' ' : e.key, id, n: me}
+        return {key: e.key == 'Spacebar' ? ' ' : e.key, id, n: me, seen: LIFT.test(e.key) && shown(e)}
       }
       return {
         INIT: xs.of(0),
@@ -225,7 +233,7 @@ export const sortable = (options: any = {}): any => {
             if (id == null) return null
             claimed.add(e)
             root = e.ownerTarget || e.currentTarget
-            return {id, x: e.clientX || 0, y: e.clientY || 0, n: me}
+            return {id, x: e.clientX || 0, y: e.clientY || 0, n: me, seen: shown(e)}
           })
           .filter((d: any) => d != null),
         // no text selection and no native drag (an image or link in the item: its dragstart
@@ -262,9 +270,10 @@ export const sortable = (options: any = {}): any => {
       // the instructions id: a uid() of the host (unique per host instance)
       HELP: {HOST: (st: any, _d: any, _n: any, p: any, _o: any, k: string) =>
         st[k].helpId || !p?.uid ? ABORT : put(st, k, {helpId: p.uid(k + '-help')})},
-      PRESS: {HOST: live((st: any, d: any, next: any, k: string) => {
+      PRESS: {HOST: live((st: any, {seen, ...d}: any, next: any, k: string) => {
         const s = st[k]
         if (s.mode == 'pointer' || !find(st, d.id)) return ABORT
+        check(st, seen, k)
         // during a keyboard drag: it drops where it is, and the press starts (G-451)
         return put(s.mode == 'keyboard' ? drop(st, k, next) : st, k, {press: d})
       })},
@@ -294,14 +303,14 @@ export const sortable = (options: any = {}): any => {
         return s.press ? put(st, k, {...idle, message: f ? msg.cancel(label(f.item), f.index + 1, f.size) : ''}) : ABORT
       }},
       KEY: {
-        HOST: live((st: any, {key, id, n: me}: any, next: any, k: string) => {
+        HOST: live((st: any, {key, id, n: me, seen}: any, next: any, k: string) => {
           const s = st[k], f = find(st, s.dragging ?? id)
           if (s.mode == 'pointer' || s.press) return ABORT
           // the lifted item left the list (removed by another action): the drag ends
           if (!f) return s.dragging ? put(st, k, idle) : ABORT
           const l = label(f.item), o = s.origin
           if (!s.dragging) return LIFT.test(key)
-            ? put(st, k, {...idle, dragging: S(id), mode: 'keyboard', origin: {list: f.list, index: f.index, n: me}, message: msg.lift(l, f.index + 1, f.size, true)})
+            ? (check(st, seen, k), put(st, k, {...idle, dragging: S(id), mode: 'keyboard', origin: {list: f.list, index: f.index, n: me}, message: msg.lift(l, f.index + 1, f.size, true)}))
             : ABORT
           if (LIFT.test(key) || key == 'Tab') return drop(st, k, next)
           if (key == 'Escape') {
