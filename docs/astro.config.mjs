@@ -96,6 +96,7 @@ export default defineConfig({
             { label: 'Rich Text', slug: 'recipes/rich-text' },
             { label: 'Code Editor', slug: 'recipes/code-editor' },
             { label: 'Carousel', slug: 'recipes/carousel' },
+            { label: 'Data Table', slug: 'recipes/data-table' },
           ],
         },
         {
