@@ -366,6 +366,8 @@ type ElementSinkValue =
   model?: { [action: string]: Handler | { [sink: string]: Handler; HOST?: HostReducer } };
   calculated?: { [field: string]: (slice) => any };
   timers?: (slice, options, key) => { [name: string]: TimerSpec | false };
+  persist?: false;      // UI state: a root's persist() neither saves nor restores the slice
+  undoStep?: string[];  // the actions that complete one undo() step (the others are gesture steps)
 }): (options?) => Behavior
 ` },
   apiPager: { page: 'reference/api.md', lang: 'typescript', code: `function pager(options?: { pageSize?: number; page?: number; total?: number | null; next?: Control | string; prev?: Control | string }): Behavior
