@@ -96,3 +96,17 @@ Line count: 0 (the existing line grows by ≈ 120 B). SKILL.md: nothing.
 Line count: 1. It names what agents would get wrong: the separate subpath (not `sygnal/ui`), the kebab event names (`value-change`, not `change`), `label` as the accessible name, and that the adapters are opt-in.
 
 **SKILL.md** (≈ 130 B, if Phase 4 makes room): "Menu/Select/Combobox → `sygnal/ui/zag` widget tags (events `select` / `value-change`); React or Zag component → `fromReact` / `fromZag` (guide: adapters)."
+
+## 3-R: recipes (§1.4, B-2 i18n, P5-Q4 icons)
+
+**One `llms.txt` line** (rank 3: guide pages reached from one pointer; in "More (guides)"):
+
+```md
+- Third-party libraries (tested recipes): charts (Chart.js, ECharts), rich text (Tiptap), code editor (CodeMirror), carousel (Embla), data grid (AG Grid) are `defineWidget` tags; TanStack Table v9 runs in the view as a pure function of state (`constructTable` per render, settings in state); icons: `lucide` data → SVG vnodes with a helper called in the view (`{icon(Plus)}`, not a component); i18n: i18next `getFixedT(locale)` once per locale in `App.context = { t }`, the locale in state saved with `persist()` (never `changeLanguage()`). https://sygnal.js.org/recipes/overview/
+```
+
+Line count: 1. It carries the facts an agent would otherwise get wrong without opening a page: which libraries are widgets and which are not, the v9 table API name, icons as a function rather than a component, and the locale living in state.
+
+**SKILL.md** (≈ 110 B, if Phase 4 makes room): "Chart/editor/grid/carousel library → `defineWidget` tag; table → TanStack in the view; i18n → `.context.t` + `persist` (recipes)."
+
+**Offline copy:** the recipes are not in `scripts/copy-guides.mjs`'s `GUIDES`, so `node_modules/sygnal/dist/guide/` doesn't have them; the line above uses the site URL. Adding them (`recipes/charts`, ...) is a Phase 4 choice (≈ 59 KB of Markdown for the nine pages).
