@@ -2088,7 +2088,7 @@ An `intersection` or `resize` entry of a component's `browser` declaration has n
 
 Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
 
-A `fromZag(zag, render)` widget's `render` returned a Sygnal component (`<Badge />`), a widget tag (`<Icon />`, `<Menu />`), or special JSX (`<Transition>`, `<Portal>`, `<Collection>`, `<Switchable>`, `<Suspense>`, `<ClientOnly>`, `<VirtualCollection>`). The adapter patches its render into the widget host with a snabbdom patch of its own, outside the component tree, so none of these run there: a component isn't instantiated, a widget doesn't mount, and a marker renders as an unknown element. Only plain elements (with Zag's prop getters spread on them) work inside the render. Reported once per widget.
+A `fromZag(zag, render)` widget's `render` returned a Sygnal component (`<Badge />`), a widget tag (`<Icon />`, `<Menu />`), or special JSX (`<Transition>`, `<Portal>`, `<Collection>`, `<Switchable>`, `<Suspense>`, `<ClientOnly>`, `<VirtualCollection>`, `<Slot>`, with or without props). The adapter patches its render into the widget host with a snabbdom patch of its own, outside the component tree, so none of these run there: a component isn't instantiated, a widget doesn't mount, and a marker renders as an unknown element. Only plain elements (with Zag's prop getters spread on them) work inside the render. Reported once per widget.
 
 **Fix:** Render plain elements in the `render` function (`<span className="badge">{props.text}</span>` instead of `<Badge text={props.text} />`). Pass data in through the widget's props, and put components, widgets and special JSX around the widget tag in the component's view instead of inside it.
 
