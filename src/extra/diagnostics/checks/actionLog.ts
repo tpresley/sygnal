@@ -52,6 +52,8 @@ export interface ActionRecord {
   cause: ActionCause
   /** clock time (fake-timer aware) when the action reached the model */
   time: number
+  /** (next core) a reply: the source that delivered it */
+  source?: string
 }
 
 export interface ActionListener {
@@ -258,7 +260,7 @@ export function actionHooks(listener: ActionListener, only?: (inst: any) => bool
       const cause: ActionCause = a.cause == 'simulateAction' ? a.cause : BUILT_IN.test(type) ? 'built-in'
         : a.cause == 'next' || a.cause == 'reply' ? a.cause
         : owned && Object.prototype.hasOwnProperty.call(owned, type) ? 'behavior' : 'intent'
-      const rec: ActionRecord = {type, data: a.data, component: inst.name, instance: String(inst.id), sinks: [], cause, time: clockNow()}
+      const rec: ActionRecord = {type, data: a.data, component: inst.name, instance: String(inst.id), sinks: [], cause, time: clockNow(), ...(a.source !== undefined && {source: a.source})}
       cur.set(inst, [rec, order])
       try { listener.action(rec, inst) } catch (_) { /* a listener never breaks the app */ }
       // a constant / `true` entry always sends (EFFECT runs functions only)

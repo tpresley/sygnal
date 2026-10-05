@@ -16,7 +16,8 @@
  * A session runs from the recorder's start (or the last clearActions()) to now. getSession()
  * turns it into a SessionRecording for one instance (./copyAsTest generates the test).
  */
-import {trackActions, trackActionStreams, clockNow} from './diagnostics/checks/actionLog'
+import {trackActions, trackActionStreams, clockNow, actionHooks} from './diagnostics/checks/actionLog'
+import {addLayer, devFacade} from './devtoolsNext'
 import type {ActionListener, ActionRecord, ActionCause} from './diagnostics/checks/actionLog'
 
 export type {ActionCause}
@@ -123,7 +124,7 @@ function ensure(c: any): Inst {
   const id = idOf(c)
   let i = insts.get(id)
   if (!i || i.c !== c) {
-    const p = c && c.sources && c.sources.__parentComponentNumber
+    const p = c && (c.__next ? c.__next.parentId : c.sources && c.sources.__parentComponentNumber)
     i = {c, id, name: c && c.name, parent: typeof p == 'number' ? String(p) : null, stateName: (c && c.stateSourceName) || 'STATE',
       inSession: true, hasInitial: false, disposed: false}
     ;(i as any).order = ++created
@@ -145,7 +146,7 @@ const listener: ActionListener = {
     else if (!info.hasInitial) { info.initial = c.currentState; info.hasInitial = true }
     const a: DevtoolsAction = {seq: ++seq, type: r.type, data: r.data, component: r.component, instance: r.instance,
       parent: info.parent, sinks: r.sinks, cause: r.cause, at: r.time - epoch}
-    const slot = replySlot.get(c)
+    const slot = (r as any).source ?? replySlot.get(c)
     if (slot !== undefined && (r.cause == 'reply' || r.type == 'RESOURCE')) {
       a.replySink = slot
       a.replyKind = c.sources && c.sources[slot] && c.sources[slot].__sygnalStatic === 'resources' ? 'fetch' : 'other'
@@ -209,6 +210,21 @@ const check = {
 
 let unregister: (() => void) | undefined
 
+/** PLAN-4.6 R4: the same recorder on the next core, from its hooks (per app; a facade per instance) */
+function nextLayer(api: any): any {
+  const L: ActionListener = {
+    action: (r, iv) => listener.action(r, devFacade(iv, api)),
+    sink: (r, sink, reducer) => listener.sink!(r, sink, reducer),
+  }
+  const log = actionHooks(L)
+  return {
+    ...log,
+    onCreate(iv: any) { ensure(devFacade(iv, api)); log.onCreate(iv) },
+    onReducer(iv: any, name: string, prev: any, next: any) { check.onReducer(devFacade(iv, api), name, prev, next, 'STATE') },
+    onDispose(iv: any) { check.onDispose(devFacade(iv, api)) },
+  }
+}
+
 /**
  * Start recording actions (idempotent; 'sygnal/devtools' does it on import in a browser). Only
  * components created afterwards are recorded. Returns a function that stops recording.
@@ -217,7 +233,8 @@ export function recordActions(): () => void {
   if (!unregister) {
     const core = (globalThis as any).__SYGNAL_DIAGNOSTICS__
     if (!core || typeof core.registerCheck != 'function') return () => {}
-    unregister = core.registerCheck(check)
+    const off = core.registerCheck(check), offNext = addLayer(nextLayer)
+    unregister = () => { off(); offNext() }
   }
   return stopRecording
 }

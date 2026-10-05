@@ -121,6 +121,8 @@ export interface ActionRecord {
   readonly cause: ActionCause
   /** the instance that runs it */
   readonly target: InstanceView
+  /** a reply: the source (driver name) that delivered it (R4: devtools' replySink) */
+  readonly source?: string
 }
 
 // ---------------------------------------------------------------------------------- 2. hooks
@@ -244,6 +246,8 @@ export interface RuntimeAPI {
   addHooks(hooks: Hooks): () => void
   /** a resolved promise after the current flush (testing's settle without polling) */
   flushed(): Promise<void>
+  /** R4: debug logging for one instance on / off (the DevTools toggle; core/debug.ts) */
+  setDebug(target: 'root' | InstanceView | number, on: boolean): void
 }
 
 // ---------------------------------------------------------------------------------- 1. registries

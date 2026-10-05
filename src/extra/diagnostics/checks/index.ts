@@ -137,9 +137,9 @@ export function installChecks(): () => void {
   const uninstallTimers = installTimerHooks()
   const uninstallElementCommands = installElementCommandHooks()
   // PLAN-4.6 R4: the next core reads its hooks from the bridge once per app (checks/next.ts)
-  core.nextHooks = nextHooks
+  ;(core.layers ||= new Set()).add(nextHooks)
   const uninstall = () => {
-    if (core.nextHooks === nextHooks) core.nextHooks = undefined
+    core.layers?.delete(nextHooks)
     unregister.forEach(fn => fn())
     uninstallHints()
     uninstallInspect()

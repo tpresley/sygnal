@@ -22,10 +22,10 @@ import {checkStatics} from './statics'
 import {objIsEqual} from '../cycle/state/objIsEqual'
 import {dbg} from './debug'
 
-export function handle(inst: Inst, type: string, data: any, cause: any) {
+export function handle(inst: Inst, type: string, data: any, cause: any, src?: string) {
   const hs = inst.def.handlers.get(type), app = inst.app, H = app.hooks
   // (an action with no model entry is seen too: the action log lists it with no sinks)
-  if (H.onAction) H.onAction(viewOf(inst), {type, data, cause, target: viewOf(inst)})
+  if (H.onAction) H.onAction(viewOf(inst), {type, data, cause, target: viewOf(inst), source: src})
   dbg(inst, () => `<${type}> Action triggered`)
   if (!hs) return
   const def = inst.def

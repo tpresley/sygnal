@@ -5,6 +5,8 @@ import type {DevtoolsAction, SessionRecording} from './devtoolsActions';
 import {sessionToTest} from './copyAsTest';
 import type {CopyAsTestOptions, CopyAsTestResult} from './copyAsTest';
 
+import {addLayer, devtoolsHooks} from './devtoolsNext';
+
 const DEVTOOLS_SOURCE = '__SYGNAL_DEVTOOLS_PAGE__';
 const EXTENSION_SOURCE = '__SYGNAL_DEVTOOLS_EXTENSION__';
 const DEFAULT_MAX_HISTORY = 200;
@@ -98,6 +100,8 @@ export class SygnalDevTools {
 
     // PLAN-4 3-E (GS-10): the action log (recorded from now on, connected or not)
     recordActions();
+    // PLAN-4.6 R4: the next core's apps read this bridge's hooks (devtoolsNext.ts)
+    addLayer((api: any) => devtoolsHooks(this, api));
     onAction((a, kind) => {
       if (!this.connected) return;
       if (kind == 'reset') { this._dirty.clear(); this._post('ACTIONS_RESET', {actions: []}); return; }
@@ -357,7 +361,9 @@ export class SygnalDevTools {
     if (meta && meta._instanceRef) {
       const instance = meta._instanceRef.deref();
       if (instance) {
-        instance._debug = enabled;
+        // (the next core: through the app's runtime API)
+        if (instance.__api) instance.__api.setDebug(componentId, enabled);
+        else instance._debug = enabled;
         meta.debug = enabled;
         this._post('DEBUG_TOGGLED', {componentId, enabled});
       }
@@ -388,6 +394,11 @@ export class SygnalDevTools {
       const instance = meta._instanceRef?.deref();
       if (!instance) {
         console.warn(`[Sygnal DevTools] _timeTravel: WeakRef for component #${componentId} (${componentName}) has been GC'd`);
+      } else if (instance.__api) {
+        // PLAN-4.6 R4 (next core): the runtime's setState (a queued action, one patch)
+        instance.__api.setState(componentId, () => ({...newState}));
+        this._post('TIME_TRAVEL_APPLIED', {componentId, componentName, state: newState});
+        return;
       } else {
         // sinks[stateSourceName] is the reducer stream — push a reducer that replaces state
         const stateSinkName = instance.stateSourceName || 'STATE';
@@ -401,7 +412,10 @@ export class SygnalDevTools {
 
     // Fall back to root STATE sink for root-level components
     const app = window.__SYGNAL_DEVTOOLS_APP__;
-    if (app?.sinks?.STATE?.shamefullySendNext) {
+    if ((app as any)?.__runtime) {
+      (app as any).__runtime.setState('root', () => ({...newState}));
+      this._post('TIME_TRAVEL_APPLIED', {componentId, componentName, state: newState});
+    } else if (app?.sinks?.STATE?.shamefullySendNext) {
       apply(app.sinks.STATE);
     } else {
       console.warn(`[Sygnal DevTools] _timeTravel: no fallback root STATE sink available`);

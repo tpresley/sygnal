@@ -57,7 +57,7 @@ export function attach(inst: Inst) {
     if (!def.sinks.has(n) && !st?.some(s => s[0] == n)) continue
     const src = inst.src(n), r$ = (typeof src?.replies == 'function' ? src : app.sources[n]).replies(inst.id)
     ;(inst.rep ||= []).push(r$)
-    r$.subscribe({next: (a: any) => a && app.dispatch(inst, a.type, a.data, 'reply')})
+    r$.subscribe({next: (a: any) => a && app.dispatch(inst, a.type, a.data, 'reply', n)})
   }
 }
 
