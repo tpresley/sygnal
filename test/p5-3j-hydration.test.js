@@ -11,11 +11,20 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
 import { run, renderToString, Collection, VirtualCollection, Portal, Transition, createRef } from '../src/index.js'
 import { createElement as h } from '../src/pragma/index.js'
+import { Toaster } from '../src/ui/toaster.ts'
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms))
-let apps = []
-beforeEach(() => { vi.stubGlobal('requestAnimationFrame', (f) => setTimeout(f, 1)) })
-afterEach(() => { apps.forEach(a => a.dispose()); apps = []; document.body.innerHTML = ''; vi.unstubAllGlobals() })
+let apps = [], errors
+beforeEach(() => {
+  vi.stubGlobal('requestAnimationFrame', (f) => setTimeout(f, 1))
+  errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+})
+afterEach(() => {
+  apps.forEach(a => a.dispose()); apps = []; document.body.innerHTML = ''; vi.unstubAllGlobals()
+  const logged = errors.mock.calls
+  vi.restoreAllMocks()
+  expect(logged).toEqual([])
+})
 
 /** HTML with each element's attributes in name order (an adopted element keeps the server's order) */
 function norm(html) {
@@ -303,6 +312,22 @@ describe('3-J: hooks', () => {
     const vc = document.querySelector('.vc')
     expect(vc).toBeTruthy()
     expect(r.all.includes(vc)).toBe(true)
+    // the server's rows are made again (keyed, insert-only hook); the client's rows render
+    expect(r.byT['row-1']).toBeTruthy()
+    expect(r.keptT('row-1')).toBe(false)
+    expect(r.now('row-1')?.textContent).toBe('one')
+    expect(document.querySelectorAll('[data-t="row-1"]').length).toBe(1)
+  })
+
+  it('the toaster region (placed by its insert hook) is made again in its adopted home', async () => {
+    const App = app(() => h('div', { className: 'page' }, h('p', { 'data-t': 'p' }, 'p'), h(Toaster)))
+    const r = await hydrate(App)
+    const home = r.all.find(e => e.className == 'toaster-home'), region = r.all.find(e => e.localName == 'section')
+    expect(home.isConnected).toBe(true)
+    expect(region.isConnected).toBe(false)
+    expect(document.querySelectorAll('section.toaster').length).toBe(1)
+    expect(document.querySelector('section.toaster').parentNode).toBe(home)
+    expect(r.keptT('p')).toBe(true)
   })
 
   it('a ref and autoFocus on adopted elements', async () => {
@@ -359,6 +384,14 @@ describe('3-J: other shapes', () => {
     const want = await fresh(App)
     const r = await hydrate(App, { server: '<main><div class="sel" id="sid"><p>x</p></div></main>' })
     expect(r.kept.length).toBe(r.all.length)
+    expect(r.html()).toBe(want)
+  })
+
+  it('an element with an innerHTML prop', async () => {
+    const App = app(() => h('div', { className: 'md', innerHTML: '<b>bold</b> text', 'data-t': 'md' }))
+    const want = await fresh(App)
+    const r = await hydrate(App)
+    expect(r.keptT('md')).toBe(true)
     expect(r.html()).toBe(want)
   })
 
