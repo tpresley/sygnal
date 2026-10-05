@@ -154,6 +154,17 @@ A plain Collection costs about 14 ms per 1,000 rows to create, every row stays i
 
 It doesn't do (yet): horizontal lists, grids, sticky group headers, or scrolling with the page instead of its own container.
 
+## Without a bundler
+
+`VirtualCollection` uses `@tanstack/virtual-core`, a dependency of Sygnal that bundlers resolve and tree-shake. Loaded as native ES modules straight in the browser (an import map or a CDN, no build step), it needs two things a bundler would otherwise provide:
+
+- an import map entry for `@tanstack/virtual-core` (Sygnal imports it by name), next to the ones for `sygnal`, `snabbdom` and `xstream`;
+- `process.env.NODE_ENV`, which the virtualizer reads when it is created. Define it before the app loads:
+
+```html
+<script>globalThis.process ??= { env: { NODE_ENV: 'production' } }</script>
+```
+
 ## Diagnostics
 
 | Code | When |
