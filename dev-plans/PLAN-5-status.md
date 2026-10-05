@@ -159,8 +159,17 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 | G-419 | review 2-A | Low | diagnostics | No dev check for an invalid `viewTransitionName` prefix (not an ident) or the same prefix on two Collections showing one id (duplicate names skip the transition) | → 3-F |
 | G-420 | review 2-A | Low | docs | `reference/api.md` view-transitions entry doesn't mention Collection's `viewTransitionName` | → 3-F |
 | G-421 | review 2-A | Low | tests | `p5-2a-collection-vt-names` "keeps its vnode" test doesn't assert vnode identity | → 3-F |
-| G-422 | 2-S report | Low | sygnal-check | FIRST_PARTY entries for the new actions: dialog/popover `SYNC`, Toaster `HOVER`/`FOCUS` (replacing `PAUSE`/`RESUME`) | → 3-F |
+| G-422 | 2-S report | Low | sygnal-check | FIRST_PARTY entries for the new actions: dialog/popover `SYNC`, Toaster `HOVER`/`FOCUS` (replacing `PAUSE`/`RESUME`) | Closed: review of 2-S found `FIRST_PARTY` has no `ui` behaviours, nothing to update |
 | G-423 | 2-S report | Low | ssr / ui | SSR `withUses` fills a missing slice with `id: null` → server ids use the fallback prefix (`tabs`), client `keyed()` uses the `uses` key: hydration id mismatch when they differ | → 3-F |
+| G-424 | review 2-S | Med/High | virtual | Reorder/sort with the same count and range keeps TanStack's cached indexes (rangeExtractor identity unchanged), so the focused row's pin points at another item; the focused instance is disposed (G-401 regresses). Recreate `this.re` when `fi`/`fk` change; add a test. Confirmed | → 3-F |
+| G-425 | review 2-S | Med | docs / testing | Dialog/popover commands now carry `on()` objects; `t.commands('ELEMENT')` logs them as-is, so the Testing examples in `ui/dialog.md` and `ui/popover.md` fail as written (unit tests hide it via `String(v)`). Make the log show the selector, or fix docs + tests. Confirmed | → 3-F |
+| G-426 | review 2-S | Med | ui/toaster | Shadow roots (G-404): `document.activeElement` is the host, so fake focusouts restart timers, Dismiss loses focus, re-parent doesn't restore it. Use the root's `activeElement` | → 3-F |
+| G-427 | review 2-S | Med | virtual | `grows()` treats any `max-height` ≠ none (e.g. `100%` of an auto parent) and Typed OM `calc()`/`fit-content` heights as bounded: renders every row, no SYG430 | → 3-F |
+| G-428 | review 2-S | Low/Med | virtual, toaster | focusout with `relatedTarget` null (window blur, devtools) unpins the focused row and removes it; focus returns to body | → 3-F |
+| G-429 | review 2-S | Low/Med | ui/dialog | `cancelable: false` → `closedby="none"` likely suppresses `cancel`, so a host `CANCEL` entry never runs (docs say it fires); attribute never removed. Plausible | → 3-F |
+| G-430 | review 2-S | Low | ui/dialog | returnFocus `focus(opener)` targets a dialog rendered only while open → SYG640 on every close; `_opener` retains a detached trigger. Plausible | → 3-F |
+| G-431 | review 2-S | Low | ssr / virtual | Client virtual rows keyed, SSR rows not → hydration replaces every row (focus/typed text lost); SSR `data-index` shifts after null-rendering rows. Plausible | → 3-F |
+| G-432 | review 2-S | Low | ui/toaster | Re-parent into a modal then refocus sets `_from = null`; dismissing the last toast blurs instead of returning focus | → 3-F |
 | G-408 | 2-R × 2-Z | Low | process | Two parallel workstreams registered the same code (SYG666); fixed at merge (2-R's → SYG668). Briefs now assign code numbers | Fixed (process) |
 | G-394 | review 2-V | High | VirtualCollection | An inline `estimateSize` function (the guide's own pattern) clears every measured row height on each owner render; rows aren't re-measured. Confirmed | → 2-S |
 | G-395 | review 2-V | Med/High | VirtualCollection | SYG430 "grows" misfires on a bounded container above viewport height that fits its rows; clamping then leaves unreachable blank rows. Confirmed | → 2-S |
@@ -185,6 +194,7 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 
 - 2026-10-05 — Review of 2-Z: 8 findings (G-409…G-416). 2-T started (codes assigned: SYG669, SYG722–723).
 - 2026-10-05 — 2-S merged (G-394…G-407 fixed; behaviour changes: Collection SSR applies filter/sort/props, Toaster HOVER/FOCUS + `'t<n>'` ids, keyed virtual rows with two-step patch); gates green, three engines 286/286, core 41,825 B. Review of 2-A: 5 findings (G-417…G-421), no high severity; 2-S follow-ups G-422/G-423. All to a later fix pass 3-F.
+- 2026-10-05 — Review of 2-S: 9 findings (G-424…G-432), to 3-F; G-422 closed (no `ui` entries in FIRST_PARTY).
 - 2026-10-05 — 2-R merged (6 conflicts; SYG666 clash renumbered to SYG668); all gates green on three engines (279/279); core 41,825 B. D212, G-408.
 - 2026-10-05 — 2-Z merged; three engines 276/276; core 41,771 B. D211.
 - 2026-10-05 — Review of 2-U + 2-V: 14 findings (G-394…G-407). 2-S started.
