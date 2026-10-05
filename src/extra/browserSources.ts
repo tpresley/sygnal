@@ -12,7 +12,7 @@ import {defHooks} from '../core/registry';
  *   run(App, { BROWSER: makeBrowserDriver() })
  *
  * - Declaration: `C.browser = (state) => ({ [name]: spec | falsy })` (or an object of such
- *   functions), the spec's kind being its first known key: `intersection` / `resize` (a selector in
+ *   functions), the spec's kind being the source key it has (the first of KINDS): `intersection` / `resize` (a selector in
  *   the component's own DOM, or `true` for its root element), `media` (a query), `storage` (a key;
  *   `area: 'session'`, `json: true`), `visibility: true`, `online: true`, `geolocation` (true or
  *   PositionOptions). `action` names the action; `error` (geolocation, storage) the failure one.

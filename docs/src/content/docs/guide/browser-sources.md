@@ -40,7 +40,7 @@ A spec whose source the driver wasn't made with is [SYG664](/reference/errors/#s
 
 ## The browser static
 
-`browser` takes the state (with its calculated fields) and returns an object of named specs, or a falsy value for "not now". A spec's first known key names its source, and `action` names the action each event is delivered as:
+`browser` takes the state (with its calculated fields) and returns an object of named specs, or a falsy value for "not now". One key of a spec names its source (a spec has exactly one of them), and `action` names the action each event is delivered as:
 
 | Spec | Watches | Action data |
 |---|---|---|

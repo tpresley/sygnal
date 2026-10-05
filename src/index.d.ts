@@ -2676,7 +2676,7 @@ interface BrowserSpecBase<ACTION extends string> {
   background?: boolean;
 }
 /**
- * PLAN-5 B-3: one entry of a `browser` static; its first known key is its kind:
+ * PLAN-5 B-3: one entry of a `browser` static; its one source key is its kind:
  * - `intersection`: the elements a selector matches in this component (`true`: its root element)
  *   entering or leaving the viewport (IntersectionObserver), data `BrowserIntersection`;
  * - `resize`: their content-box size (ResizeObserver), data `BrowserResize`;
