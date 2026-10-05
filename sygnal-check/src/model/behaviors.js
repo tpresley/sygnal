@@ -92,15 +92,15 @@ export const FIRST_PARTY = {
   // PLAN-5 B-1: sortable({ from, item, handle, ... }) (src/extra/sortable.ts). It listens on the
   // host's root and finds the item / handle from the event target (delegated: items are usually
   // rendered by Collection children, so the selectors may match elements of the views the host
-  // renders, not only its own; SYG110 still reports one rendered nowhere). INIT and the pointer
+  // renders, not only its own; SYG110 still reports one rendered nowhere). INIT, HELP, END and the pointer
   // actions come from its intent; DROPPED is dispatched with next() (a host entry extends it).
   sortable: {
     stateKeys: ['dragging', 'over', 'after', 'list', 'mode', 'press', 'origin', 'message', 'helpId'],
     calculated: [],
-    model: ['INIT', 'PRESS', 'MOVE', 'UP', 'CANCEL', 'KEY', 'DROPPED'],
+    model: ['INIT', 'HELP', 'END', 'PRESS', 'MOVE', 'UP', 'CANCEL', 'KEY', 'DROPPED'],
     options: ['from', 'item', 'handle', 'axis', 'threshold', 'attr', 'idField', 'label', 'messages'],
     listens: [['item', 'PRESS', 'select', true], ['handle', 'KEY', 'select', true]],
-    intent: ['INIT', 'PRESS', 'MOVE', 'UP', 'CANCEL', 'KEY', 'DROPPED'],
+    intent: ['INIT', 'HELP', 'END', 'PRESS', 'MOVE', 'UP', 'CANCEL', 'KEY', 'DROPPED'],
   },
   undo: {
     stateKeys: ['past', 'future'],
