@@ -130,6 +130,8 @@ export class Inst {
   wd: any; so: any; el: any
   iv: any
   cmds: any
+  /** its parent DOM source's isolateValue for its scope (G-304) */
+  isoV: any
   /** pending next() timers (G-300) */
   timers: Set<any> | null = null
 

@@ -29,7 +29,8 @@ if (!process.argv.includes('--no-build')) {
       plugins: [{ name: 'counters', enforce: 'pre', transform(code, id) {
         for (const [file, find, add] of HOOKS) if (file.test(id) && code.includes(find)) { applied.add(find); return code.replace(find, find + ' ' + add) }
       } }, sygnal()],
-      define: { 'process.env.NODE_ENV': '"production"' },
+      // PLAN-4.6 D175: the next target opts back in to the next core (sygnal/vite strips it in builds)
+      define: { 'process.env.NODE_ENV': '"production"', ...(fw === 'next' && { __SYGNAL_NEXT_CORE__: 'true' }) },
       build: { outDir: resolve(outDir, fw), emptyOutDir: true, minify: false, rollupOptions: { input: Object.fromEntries(PAGES.map(p => [p, resolve(root, 'apps', fw, p + '.html')])) } },
     })
     if (applied.size !== HOOKS.length) throw new Error(`counter hooks missing in the ${fw} build`)
