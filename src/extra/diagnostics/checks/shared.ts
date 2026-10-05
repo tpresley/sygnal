@@ -139,6 +139,8 @@ let seen = new Set<string>()
 
 /** true the first time `key` is seen (dedupes reports, e.g. per component name). */
 export const once = (key: string): boolean => (seen.has(key) ? false : (seen.add(key), true))
+/** whether once(`key`) has reported already (a check can skip its work: SYG435) */
+export const onced = (key: string): boolean => seen.has(key)
 
 /**
  * Forget only the once() dedupe set (G-051: renderComponent calls it through the core bridge

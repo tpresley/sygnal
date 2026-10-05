@@ -171,7 +171,7 @@ export const sortable = (options: any = {}): any => {
     persist: false,
     // with undo(): a drag is one undo step, recorded at its drop (G-447)
     undoStep: ['DROPPED'],
-    intent: ({DOM, STATE, dispose$}: any) => {
+    intent: ({DOM, STATE, dispose$}: any, _o: any, key: string) => {
       // `me`: this instance's token in the press / drag it starts (G-452): drag state it didn't
       // start (restored by persist, synced, written by devtools) arms no document listener
       const doc = DOM.select('document'), slice$ = STATE.stream, me = Math.random()
@@ -214,8 +214,8 @@ export const sortable = (options: any = {}): any => {
       // diagnostics entry only)
       const shown = (e: any) => dev(435, () => {
         const r = e.ownerTarget || e.currentTarget
-        return [...r.querySelectorAll(item)].filter((it: any) => own(it, r)).map(idOf)
-      })
+        return [[...r.querySelectorAll(item)].filter((it: any) => own(it, r)), r]
+      }, key, lists, idOf)
       const take = (e: any) => {
         const id = gripOf(e, true)
         claimed.add(e)
