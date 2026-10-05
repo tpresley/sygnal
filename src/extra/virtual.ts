@@ -60,6 +60,10 @@ const ROWS0 = 10
 const dev = (code: number, owner: any, x?: any): any => (globalThis as any).__SYGNAL_DIAGNOSTICS__?.virtual?.(code, owner, x)
 
 const px = (n: number) => n + 'px'
+const same = (a: any, b: any, d?: any): boolean => {
+  const k = Object.keys(a)
+  return k.length == Object.keys(b).length && k.every(x => a[x] === b[x] || !d && x == 'style' && a[x] && b[x] && typeof a[x] == 'object' && same(a[x], b[x], 1))
+}
 
 export class VirtualHost extends CollectionHost {
   // (no field initializers: the base constructor calls setProps() before they would run)
@@ -83,11 +87,12 @@ export class VirtualHost extends CollectionHost {
     for (const k in props) (OWN.test(k) ? vp : rest)[k] = props[k]
     rest.className = props.className
     if (!this.dc) { this.dc = new WeakMap(); this.all = NONE; this.warned = 0 }
-    const was = this.vp
+    const was = this.vp, cls = this.props?.className
     this.vp = vp
     super.setProps(rest, children, marker, id)
     if (!was || vp.estimateSize !== was.estimateSize || vp.overscan !== was.overscan) this.opts(was && vp.estimateSize !== was.estimateSize)
-    this.cd = undefined
+    // the container's data is made again when its props change (a style object one level deep)
+    if (!was || cls !== rest.className || !same(vp, was)) this.cd = undefined
   }
 
   /** the virtualizer, (re)configured from the props and the current list */
@@ -154,9 +159,13 @@ export class VirtualHost extends CollectionHost {
     if (!this.index) return false
     const [a, m] = this.index(), {filter, sort} = this.props
     if (a === this.la && filter === this.lf && sort === this.ls) return false
-    this.all = this.list(a, m)
+    // no filter, no sort and no duplicate key: the index's keys are the list, in order (100k rows:
+    // no second pass making keys)
+    if (typeof filter != 'function' && !sort && m.size == a.length) { this.all = [...m.keys()]; this.ls = sort; this.cmp = undefined }
+    else this.all = this.list(a, m)
     this.la = a; this.lf = filter
-    if (a.length && !(this.warned & 4) && a.some((x, i) => keyOf(x, i)[0] == '\0')) { this.warned |= 4; dev(431, this.owner, {count: a.length}) }
+    // SYG431 (dev only: a pass over the array)
+    if (a.length && !(this.warned & 4) && (globalThis as any).__SYGNAL_DIAGNOSTICS__?.virtual && a.some((x, i) => keyOf(x, i)[0] == '\0')) { this.warned |= 4; dev(431, this.owner, {count: a.length}) }
     // a new key function: the virtualizer re-reads the keys (its measurements are by key)
     this.gk = (i: number) => this.all[i]
     this.opts()

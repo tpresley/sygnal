@@ -116,6 +116,42 @@ describe('mock DOM: Collection semantics with a window', () => {
     t.dispose()
   })
 
+  it('sort / filter on and off again: back to array order (also with a duplicate id); container props follow', async () => {
+    function L({ state }) {
+      return h(VirtualCollection, { of: Row, from: 'rows', className: 'rows', sort: state.sorted ? { id: 'desc' } : undefined, filter: state.odd ? (r) => r.id % 2 : undefined, 'aria-label': state.sorted ? 'Sorted' : 'Rows' })
+    }
+    L.initialState = { rows: rows(30), sorted: true, odd: false }
+    L.intent = ({ DOM }) => ({ T: DOM.click('.rows') })
+    L.model = { T: (s) => (s.odd ? { ...s, odd: false, rows: [...s.rows, { id: 1, label: 'dup' }] } : s.sorted ? { ...s, sorted: false } : { ...s, odd: true }) }
+    const t = renderComponent(L, { diagnostics: 'off' })
+    await t.ready()
+    const first = () => t.queryAll('.row .lbl').slice(0, 3).map(e => e.textContent)
+    expect(first()).toEqual(['r30', 'r29', 'r28'])
+    expect(t.query('.rows').getAttribute('aria-label')).toBe('Sorted')
+    t.simulateEvent('.rows', 'click'); await t.settle()
+    expect(first()).toEqual(['r1', 'r2', 'r3'])
+    expect(t.query('.rows').getAttribute('aria-label')).toBe('Rows')
+    t.simulateEvent('.rows', 'click'); await t.settle()
+    expect(first()).toEqual(['r1', 'r3', 'r5'])
+    expect(t.query('.row').getAttribute('aria-setsize')).toBe('15')
+    // a duplicate id (the list path, not the index's keys): array order, the first of the two
+    t.simulateEvent('.rows', 'click'); await t.settle()
+    expect(first()).toEqual(['r1', 'r2', 'r3'])
+    expect(t.query('.row').getAttribute('aria-setsize')).toBe('30')
+    t.dispose()
+  })
+
+  it('estimateSize as a function gets the item and its index', async () => {
+    const seen = []
+    function L() { return h(VirtualCollection, { of: Row, from: 'rows', className: 'rows', estimateSize: (item, i) => { seen.push([item.id, i]); return item.big ? 100 : 20 } }) }
+    L.initialState = { rows: rows(40, (i) => ({ big: i % 2 })) }
+    const t = renderComponent(L)
+    await t.ready()
+    expect(seen).toContainEqual([1, 0])
+    expect(seen).toContainEqual([2, 1])
+    t.dispose()
+  })
+
   it('scrollToIndex / scrollToId are recorded element commands, with no SYG641', async () => {
     setupChecks()
     const t = renderComponent(list())
