@@ -25,19 +25,17 @@ function host() {
   return C
 }
 
+// (the states the waits return are checked, not t.state: under load the schema may have answered
+// again by the time the test reads it)
 it('valid stays true while a still-valid edit re-validates; validating shows the run', async () => {
   t = renderComponent(host())
   await t.ready()
-  expect(t.state.form.valid).toBe(false) // no answer yet
-  await t.waitForState(s => !s.form.validating)
-  expect(t.state.form.valid).toBe(true)
-  const seen = []
+  expect((await t.waitForState(() => true)).form.valid).toBe(false) // the first state: no answer yet
+  expect((await t.waitForState(s => !s.form.validating)).form.valid).toBe(true)
   t.simulateEvent('.f input', 'input', { value: 'xy' })
-  await t.next(s => s.form.validating)
-  seen.push(t.state.form.valid)
-  await t.next(s => !s.form.validating)
-  seen.push(t.state.form.valid)
-  expect(seen).toEqual([true, true])
+  const during = await t.next(s => s.form.validating)
+  const after = await t.next(s => !s.form.validating)
+  expect([during.form.valid, after.form.valid]).toEqual([true, true])
 })
 
 it('valid becomes false when the new answer has errors (and back once fixed)', async () => {
@@ -45,16 +43,16 @@ it('valid becomes false when the new answer has errors (and back once fixed)', a
   await t.ready()
   await t.waitForState(s => !s.form.validating)
   t.simulateEvent('.f input', 'input', { value: '' })
-  await t.next(s => s.form.validating)
-  expect(t.state.form.valid).toBe(true) // the previous answer, until the new one
-  await t.next(s => !s.form.validating)
-  expect(t.state.form.valid).toBe(false)
-  expect(t.state.form.errors).toEqual({ a: 'Need a' })
+  let s = await t.next(s => s.form.validating)
+  expect(s.form.valid).toBe(true) // the previous answer, until the new one
+  s = await t.next(s => !s.form.validating)
+  expect(s.form.valid).toBe(false)
+  expect(s.form.errors).toEqual({ a: 'Need a' })
   t.simulateEvent('.f input', 'input', { value: 'z' })
-  await t.next(s => s.form.validating)
-  expect(t.state.form.valid).toBe(false) // still the previous (invalid) answer
-  await t.next(s => !s.form.validating)
-  expect(t.state.form.valid).toBe(true)
+  s = await t.next(s => s.form.validating)
+  expect(s.form.valid).toBe(false) // still the previous (invalid) answer
+  s = await t.next(s => !s.form.validating)
+  expect(s.form.valid).toBe(true)
 })
 
 it('after form.RESET: not valid until the schema answers again', async () => {
@@ -62,8 +60,8 @@ it('after form.RESET: not valid until the schema answers again', async () => {
   await t.ready()
   await t.waitForState(s => !s.form.validating)
   t.simulateAction('form.RESET', { a: 'new' })
-  await t.next(s => s.form.validating && s.form.values.a === 'new')
-  expect(t.state.form.valid).toBe(false)
-  await t.next(s => !s.form.validating)
-  expect(t.state.form.valid).toBe(true)
+  let s = await t.next(s => s.form.validating && s.form.values.a === 'new')
+  expect(s.form.valid).toBe(false)
+  s = await t.next(s => !s.form.validating)
+  expect(s.form.valid).toBe(true)
 })
