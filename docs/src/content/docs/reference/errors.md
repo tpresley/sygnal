@@ -479,7 +479,7 @@ Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
 
 Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
 
-A `<Collection>` or `<VirtualCollection>` has a `viewTransitionName` that is not a string starting a CSS identifier (a letter, `_`, `-` followed by a letter or `_`, or `--`; then letters, digits, `-` and `_`). Each item's name is `<prefix>-<id>`, so with a prefix such as `'1card'`, `'my card'` or `'card.x'` every name is invalid CSS: the browser ignores the `view-transition-name` and nothing animates, with no error. The dev entry reports it once per component and prefix when the Collection renders.
+A `<Collection>` or `<VirtualCollection>` has a `viewTransitionName` that is not a string starting a CSS identifier (a letter, `_`, `-` followed by a letter or `_`, or `--`; then letters, digits, `-` and `_`). Each item's name is `<prefix>-<id>`, so with a prefix such as `'1card'`, `'my card'` or `'card.x'` every name is invalid CSS: the browser ignores the `view-transition-name` and nothing animates, with no error. The dev entry reports it once per component and prefix when the Collection renders. An empty string, `0` or `false` names no item and is not reported.
 
 **Fix:** Use a CSS identifier as the prefix: `viewTransitionName="card"` (letters, digits, `-` and `_`, not starting with a digit). The ids are escaped for you.
 
@@ -489,7 +489,7 @@ A `<Collection>` or `<VirtualCollection>` has a `viewTransitionName` that is not
 
 Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
 
-After a render, two elements on the page have the same `view-transition-name` from Collections with the same `viewTransitionName` prefix: the same item `id` is in two of them at once (an 'All' list and a 'Favorites' list both named `card`). A name must be unique when a View Transition starts, so the browser skips the whole transition (Chromium logs `Unexpected duplicate view-transition-name`). The same prefix on several Collections is meant for one item moving between them, never shown in two at once. The dev entry checks the rendered page after each patch while a Collection with a prefix is rendered, and reports each name once.
+After a render, two rendered elements on the page (not in a `display: none` subtree, such as a hidden tab panel: the browser doesn't capture those) have the same `view-transition-name` from Collections with the same `viewTransitionName` prefix: the same item `id` is in two of them at once (an 'All' list and a 'Favorites' list both named `card`). A name must be unique when a View Transition starts, so the browser skips the whole transition (Chromium logs `Unexpected duplicate view-transition-name`). The same prefix on several Collections is meant for one item moving between them, never shown in two at once. The dev entry checks the rendered page after each patch while a Collection with a prefix is mounted, and reports each name once.
 
 **Fix:** Give Collections that can show the same item at the same time different prefixes (`viewTransitionName="all"` and `viewTransitionName="fav"`), or set the item's own `style={{ viewTransitionName }}` where it needs one.
 
