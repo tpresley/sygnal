@@ -6,7 +6,7 @@ Tracks progress for [PLAN-5.md](PLAN-5.md) (ecosystem components and integration
 
 **Integration branch:** `plan5-integration`, cut from `plan46-complete` (`7146161`) on 2026-10-05, in worktree `.claude/worktrees/plan-4-execution-7ae8e8`. The release stays held (D56).
 
-**State:** Phase 0: 0-A, 0-S1, 0-S2, 0-S3 running; 0-S4…S6 next.
+**State:** Phase 0 spikes all done; decision batch before Phase 1.
 
 ## 0-A baseline (2026-10-05)
 
@@ -42,7 +42,7 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 |---|---|---|---|---|---|
 | 0-A | Interfaces on the new core, E1–E6 re-run, ROADMAP | ✅ merged | `exp/p5-0a` (`c063cf4`) | 2026-10-05 | All 5 PLAN-4 interfaces hold (15 tests, `test/p5-0a-interfaces.test.js`); E1–E6 pass unchanged; ROADMAP §18; `research/p5-0a-baseline.md` (D189 plug-in point: render hook + `widget` marker, registered on first `defineWidget`). Only Chromium launches with Playwright 1.58.2 → D191. Eval estimate ≈ $70 (tasks 30–34 both arms Opus+Haiku, F-1 A/B), ≈ $100 more for a full learn-time re-run |
 | 0-B | Playwright bump to the cached Firefox/WebKit builds (D191) | ✅ merged | `p5-0b-playwright` (`4572d9e`) | 2026-10-05 | Playwright 1.63.0 (only release matching the cached builds; nothing downloaded) in browser-tests + benchmarks; `BROWSER=firefox\|webkit` opt-in. Coordinator fixes: Firefox submit test made cancelable; Firefox error-text patterns. Browser suite: Chromium 153 184/184, Firefox 155 184/184, WebKit 26.6 183/184 (G-355). Perf gate unchanged |
-| 0-S4 | Toast top layer (confirm 0-S3's finding, 3 engines) | 🟡 running | `exp/p5-s4` | | |
+| 0-S4 | Toast top layer (confirm 0-S3's finding, 3 engines) | ✅ done (spike, not merged) | `exp/p5-s4` (`b91e30f`) | 2026-10-05 | Six strategies × 3 engines: only **`popover="manual"` re-parented into the topmost open modal** passes everything (on top, clickable, Tab-reachable and in the a11y tree inside the modal; survives close/reopen/removal; correct under transformed dialogs; Collection/Transition/timers keep working). Portal (S-5's fallback) fails (no component instantiation, fixed target, dies with the dialog). Needs a one-line core fix: `IsolateModule.getRootElement` throws for an element moved out of its component (−39 B). Toaster ≈ +0.94 KB gzip (+1.5 KB with the timer driver). Open: delegator bubbling still follows DOM parents (G-356), SYG202 on canonical item self-removal (G-357), real screen-reader check |
 | 0-S6 | Web components via tags/controls (3 engines) | ✅ done (spike, not merged) | `exp/p5-s6` (`81eb5a9`) | 2026-10-05 | Real Web Awesome 3.14 works canonically (tag + class) and as controls: 18 browser tests × Chromium/Firefox/WebKit (pointer + keyboard, shadow-DOM events, forms, Collection isolation, a11y names, late upgrade, SSR, publish + consume with `defineElement`). WA fires plain `change`/`input` (+ `wa-*` for library events; not CustomEvents). Fixed: custom event names in `events()` types (0 B), SYG115 on hyphenated shorthands (dev). sygnal-check had no false positives. +7 B core (`.detail()`). Caveats: `name` via `attrs` for some elements, Firefox FormData one keystroke behind, dashed JSX props, `renderToString` writes function/object props, controlled drift on custom elements. Guide outline drafted |
 | 0-S1 | Widget as a tag + control kind (D189) | ✅ done (spike, not merged) | `exp/p5-s1` (`77aeaba`) | 2026-10-05 | `defineWidget` works as a tag (canonical) and a control: real flatpickr, 22 runtime + 3 Chromium + 3 sygnal-check + type tests; instance survives re-renders/keyed moves, newest props only, Collection isolation, `'widget'` errors to app onError + owner fallback, SSR host + fallback, `t.widget`, `.detail()`. Core: +7 B unused (`.detail()`); ≈ +1.27 KB when used (over 0-A's 450–750 B estimate; dev strings to move behind the dev bridge). Fixed false SYG110/SYG640 on widget tags in sygnal-check. Codes sketched SYG140–144, 660–663. Open questions → Phase-1 batch |
 | 0-S2 | Forms: behavior vs helpers | ✅ done (spike, not merged) | `exp/p5-s2` (`b088427`) | 2026-10-05 | Both shapes on one signup+address form, 31 tests, 0 B core, 0 strict/a11y findings. **A (`form` behavior via `uses`)**: 57 user lines (18 wiring), name delegation on the `<form>` (array rows by id), queued submit, async schema/check, server errors + focus; ≈ 3.1 KB used. **B (helpers)**: 89 lines (50 wiring), ≈ 0.6 KB. Recommends A as the A/B lead (trim to ≤ 2.4 KB). Open questions → Phase-1 batch (P5-Q11…) |
@@ -61,10 +61,13 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 
 | ID | Found | Sev | Area | Description | Status |
 |---|---|---|---|---|---|
+| G-356 | 0-S4 | Low | DOM/isolation | An element moved out of its component's DOM (toast re-parented into a modal): `IsolateModule.getRootElement` throws ("No root element found"); with the fix, the delegator's simulated bubbling still follows DOM parents, so intermediate scopes miss the moved region's events | → Phase 1 (T-1) |
+| G-357 | 0-S4 | Low | diagnostics | SYG202 reported for `() => undefined` on Collection items although llms.txt documents it as the canonical self-removal | → Phase 1 |
 | G-355 | 0-B | Low | router (PLAN-3) | WebKit: 'link click, back, scroll restore, focus, document.title' (router-5-4b) fails: scroll not restored after back (`scrollY 1663`). Chromium/Firefox pass | Open (Phase 1) |
 
 ## Log
 
+- 2026-10-05 — 0-S4 done (toasts: manual popover re-parented into the open modal). All Phase 0 spikes done.
 - 2026-10-05 — 0-S6 done (web components with real Web Awesome, three engines).
 - 2026-10-05 — 0-S5 done (sortable as a behavior).
 - 2026-10-05 — 0-B merged (Playwright 1.63, three engines); browser suite 184/184/183. 0-S4 and 0-S6 started.
