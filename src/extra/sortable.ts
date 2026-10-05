@@ -24,7 +24,8 @@
  *             host (G-448: nothing is written at startup). The server renders none, nor does
  *             the client's first render, so hydration matches (G-453); a focused handle has it
  *   press, origin: internal (the pointer press before the threshold; where the item started)
- * Actions: sort.PRESS, MOVE, UP, CANCEL (pointer), KEY (keyboard), INIT (the start), HELP, and
+ * Actions: sort.PRESS, MOVE, UP, CANCEL (pointer), KEY (keyboard), INIT (the start), HELP, END
+ * (unmounted: a drag in progress is cancelled, a keyboard-moved item goes back), and
  * sort.DROPPED ({ id, list, index, fromList, fromIndex }) once per completed move: the host adds
  * an entry for it to save the order.
  *
@@ -166,7 +167,7 @@ export const sortable = (options: any = {}): any => {
     persist: false,
     // with undo(): a drag is one undo step, recorded at its drop (G-447)
     undoStep: ['DROPPED'],
-    intent: ({DOM, STATE}: any) => {
+    intent: ({DOM, STATE, dispose$}: any) => {
       // `me`: this instance's token in the press / drag it starts (G-452): drag state it didn't
       // start (restored by persist, synced, written by devtools) arms no document listener
       const doc = DOM.select('document'), slice$ = STATE.stream, me = Math.random()
@@ -212,6 +213,8 @@ export const sortable = (options: any = {}): any => {
       }
       return {
         INIT: xs.of(0),
+        // the host is unmounted (its state may live on in a parent's)
+        END: dispose$.mapTo(0),
         // the first focus, press or key inside the host sets the instructions id (G-448: no
         // write at startup, so a Collection-item host's parent data stays clean until it is used)
         HELP: on((s: any) => !s.helpId, () => xs.merge(DOM.events('focusin'), DOM.events('pointerdown'), DOM.events('keydown')).mapTo(0)),
@@ -249,6 +252,12 @@ export const sortable = (options: any = {}): any => {
       INIT: {HOST: (st: any, _d: any, _n: any, _p: any, _o: any, k: string) => {
         for (const l of lists) Array.isArray(st?.[l]) || dev(147, l, st, k)
         return st[k].press || st[k].dragging ? put(st, k, idle) : ABORT
+      }},
+      // unmounted mid-drag: the drag is cancelled (no DROPPED; a keyboard drag's item goes back
+      // where it started), so data that outlives the host isn't left half-moved or stuck
+      END: {HOST: (st: any, _d: any, _n: any, _p: any, _o: any, k: string) => {
+        const s = st[k], f = s.mode == 'keyboard' && find(st, s.dragging), o = s.origin
+        return s.press || s.dragging ? put(f ? move(st, f, o.list, o.index) : st, k, idle) : ABORT
       }},
       // the instructions id: a uid() of the host (unique per host instance)
       HELP: {HOST: (st: any, _d: any, _n: any, p: any, _o: any, k: string) =>

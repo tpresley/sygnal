@@ -386,6 +386,54 @@ describe('3-H G-452: persist and restored drag state', () => {
   })
 })
 
+describe('3-H: the host unmounted mid-drag', () => {
+  const SubTasks = (props) => TaskList(props)
+  Object.assign(SubTasks, { uses: { sort: sortable({ from: 'tasks', item: '.task', handle: '.grip' }) }, context: TaskList.context, model: TaskList.model })
+  function Page({ state }) {
+    return h('div', null, h('button', { type: 'button', className: 'toggle' }, 'Toggle'), state.show ? h(SubTasks, { state: 'list' }) : h('p', null, 'hidden'))
+  }
+  Page.initialState = { show: true, list: { tasks: TASKS, dropped: [] } }
+  Page.intent = ({ DOM }) => ({ TOGGLE: DOM.click('.toggle') })
+  Page.model = { TOGGLE: (s) => ({ ...s, show: !s.show }) }
+
+  it('a keyboard drag is cancelled: the list goes back to where it started, no DROPPED, the slice is idle', async () => {
+    t = renderComponent(Page, { dom: 'real' }); await t.ready()
+    grip(2).focus()
+    press(' '); await t.next(s => s.list.sort?.dragging === '2')
+    press('ArrowDown'); await t.next(s => order(s.list) === '1,3,2,4')
+    t.query('.toggle').click()
+    await t.next(s => !s.show)
+    expect(order(t.state.list)).toBe('1,2,3,4')
+    expect(t.state.list.sort).toMatchObject({ dragging: null, mode: null, origin: null, press: null })
+    await t.settle()
+    expect(t.state.list.dropped).toEqual([])
+    t.query('.toggle').click()
+    await t.next(s => s.show)
+    await sleep(10)
+    expect(t.query('.dragging')).toBe(null)
+  })
+
+  it('a pointer press or drag is dropped from the slice', async () => {
+    t = renderComponent(Page, { dom: 'real' }); await t.ready()
+    ptr(grip(1), 'pointerdown', { clientX: 5, clientY: 5 })
+    ptr(grip(3), 'pointermove', { clientX: 5, clientY: 60 })
+    await t.next(s => s.list.sort?.dragging === '1')
+    t.query('.toggle').click()
+    await t.next(s => !s.show)
+    expect(t.state.list.sort).toMatchObject({ dragging: null, press: null, mode: null })
+    expect(order(t.state.list)).toBe('1,2,3,4')
+  })
+
+  it('disposing the app mid-drag is clean', async () => {
+    t = renderComponent(TaskList, { dom: 'real' }); await t.ready()
+    grip(2).focus()
+    press(' '); await t.next(s => s.sort.dragging === '2')
+    press('ArrowDown'); await t.next(s => order(s) === '1,3,2,4')
+    t.dispose(); t = null
+    await sleep(20)
+  })
+})
+
 describe('3-H G-450: native drag and drop', () => {
   it('a native dragstart (an image or link in the item) is prevented while a pointer is pressed', async () => {
     function Row({ state }) { return h('li', { className: 'row', 'data-id': state.id }, h('img', { alt: '', src: 'data:,' }), h('a', { href: '#x' }, state.id)) }

@@ -1090,7 +1090,7 @@ export interface SortableOptions {
 /** 'sort.DROPPED': one completed move (pointer drop, or keyboard drop away from where it started) */
 export interface SortableDropped { id: string; list: string; index: number; fromList: string; fromIndex: number }
 export interface SortableActions {
-  INIT: any; HELP: any; PRESS: any; MOVE: any; UP: any; CANCEL: any;
+  INIT: any; HELP: any; END: any; PRESS: any; MOVE: any; UP: any; CANCEL: any;
   KEY: { key: string; id?: string };
   DROPPED: SortableDropped;
 }
