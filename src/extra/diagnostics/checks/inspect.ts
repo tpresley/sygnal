@@ -83,7 +83,7 @@ const uniq = <T>(list: Iterable<T>): T[] => [...new Set(list)]
 const NEXT_KIND: Record<string, Kind> = {root: 'root', child: 'child', item: 'collection-item', page: 'switchable'}
 
 function kindOf(c: any): Kind {
-  // PLAN-4.6 R4: the next core's instance view says it (checks/next.ts)
+  // PLAN-4.6 R4: the core's instance view says it (checks/next.ts)
   if (c && c.__next) return NEXT_KIND[c.__next.kind] || 'child'
   const s = (c && c.sources) || {}
   if (typeof s.__parentComponentNumber !== 'number') return 'root'
@@ -182,7 +182,7 @@ export const inspectCheck: DiagnosticCheck = {
   },
 }
 
-/** PLAN-4.6 R4 (next core, onSink): an EVENTS value the instance sent */
+/** PLAN-4.6 R4 (onSink): an EVENTS value the instance sent */
 export function eventEmitted(component: any, ev: any): void {
   const r = records.get(component)
   if (r && ev && typeof ev.type === 'string') r.eventsEmitted.add(ev.type)

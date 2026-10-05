@@ -1,6 +1,6 @@
 /**
- * PLAN-4.6 next core: the documented debug logging (integration/debugging: `Component.debug =
- * true`, `window.SYGNAL_DEBUG = 'true'` / `SYGNAL_DEBUG=true` in Node), as the current core's
+ * PLAN-4.6 core: the documented debug logging (integration/debugging: `Component.debug =
+ * true`, `window.SYGNAL_DEBUG = 'true'` / `SYGNAL_DEBUG=true` in Node), as the 5.x core's
  * `log()`: `[<id> | <Name>] <message>` on the console, and to a connected DevTools extension
  * (onDebugLog). `inst.debug`: the DevTools toggle for one instance. The message is built only
  * when logging is on.

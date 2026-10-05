@@ -70,10 +70,10 @@ function uidPart(key: string): string {
 }
 
 /**
- * PLAN-4.6 R4 (04 §3.11): the next core instantiates a component from the vnode's `data.c`, a
+ * PLAN-4.6 R4 (04 §3.11): the core instantiates a component from the vnode's `data.c`, a
  * component function, and reads its statics there (no options object). A shell component or a
  * Page is wrapped once (a per-app / per-navigation function) with the statics the options
- * below give the current core: isolatedState, and the initial state.
+ * gave the 5.x core: isolatedState, and the initial state.
  */
 const shellFns = new WeakMap<any, any>()
 function shellFn(comp: any, initialState: any, cache = true): any {
@@ -305,7 +305,7 @@ export function onRenderClient(pageContext: PageContext) {
       const newPageState = { ...(Page.initialState || {}), ...data }
       // replace the page slice, keeping every shell slice (G-106, D50)
       const swapPage = (state: any) => ({ ...state, page: newPageState })
-      // (PLAN-4.6 next core: through the runtime API, 04 §3.11)
+      // (PLAN-4.6 core: through the runtime API, 04 §3.11)
       const rt = (currentApp as any).__runtime
       rt?.setState('root', swapPage)
     } else {

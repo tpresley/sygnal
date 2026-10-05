@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-// PLAN-4.6 R2: the next core's hosts and markers, through run() with the internal options (hooks,
-// the runtime API). Next core only (SYGNAL_CORE=next); the behaviour both cores share is in
+// PLAN-4.6 R2: the core's hosts and markers, through run() with the internal options (hooks,
+// the runtime API); the public behaviour is in
 // test/parity/ (collection, switchable, suspense-lazy, reset-state).
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { run, createElement as h, xs, Collection, Switchable, Portal, Transition, Suspense, lazy } from '../src/index.js'

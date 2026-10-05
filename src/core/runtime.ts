@@ -1,5 +1,5 @@
 /**
- * PLAN-4.6 next core: the app runtime, one per run() (03-proposal §3, 04 §2.4: the flush contract).
+ * PLAN-4.6 core: the app runtime, one per run() (03-proposal §3, 04 §2.4: the flush contract).
  *
  * - dispatch(): one FIFO queue, run to completion. An action dispatched while the queue drains
  *   (a driver answering synchronously during sink delivery, an EFFECT, a PARENT, a hook) is
@@ -495,7 +495,7 @@ export interface Started {
 }
 
 /**
- * Start an app on the next core: the drivers (run()'s defaults unless useDefaultDrivers is
+ * Start an app: the drivers (run()'s defaults unless useDefaultDrivers is
  * false), the root instance, the first flush. Returns run()'s shape (sources with the root's
  * STATE, sinks: one stream per driver sink, DOM and the root's PARENT) plus the runtime API.
  */

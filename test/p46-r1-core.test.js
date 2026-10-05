@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-// PLAN-4.6 R1: the next core's own contracts, through run() with the internal options (hooks,
-// the runtime API) and public drivers. Next core only (SYGNAL_CORE=next, npm run test:next): the
-// current core has no hooks. The behaviour both cores share is in test/parity/.
+// PLAN-4.6 R1: the core's own contracts, through run() with the internal options (hooks, the
+// runtime API) and public drivers (R1-R4 ran them on the new core only; one core since R5). The
+// public behaviour is in test/parity/.
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { run, createElement as h, makeDOMDriver, xs } from '../src/index.js'
 

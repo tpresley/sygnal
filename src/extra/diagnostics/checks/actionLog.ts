@@ -52,7 +52,7 @@ export interface ActionRecord {
   cause: ActionCause
   /** clock time (fake-timer aware) when the action reached the model */
   time: number
-  /** (next core) a reply: the source that delivered it */
+  /** a reply: the source that delivered it */
   source?: string
 }
 
@@ -231,7 +231,7 @@ export function trackActionStreams(c: any): void {
 }
 
 /**
- * PLAN-4.6 R4: the same log on the next core, from its hooks (04 §3.3) instead of instance
+ * PLAN-4.6 R4: the same log on the core, from its hooks (04 §3.3) instead of instance
  * patches: onAction opens the record (the core passes the cause: 'intent', 'next', 'reply',
  * 'built-in', 'simulateAction'), wrapHandler sees which sinks produced a value. Same records,
  * same cause rules: a built-in type is 'built-in' unless simulated; an intent action a behavior
@@ -239,7 +239,7 @@ export function trackActionStreams(c: any): void {
  */
 export function actionHooks(listener: ActionListener, only?: (inst: any) => boolean): any {
   const cur = new WeakMap<object, [ActionRecord, string[]]>()
-  // INITIALIZE: the next core writes the initial state at creation (no action, unless the model
+  // INITIALIZE: the core writes the initial state at creation (no action, unless the model
   // has an INITIALIZE entry); today's log has an INITIALIZE record with STATE, so it is opened here
   const init = new WeakMap<object, ActionRecord>()
   return {

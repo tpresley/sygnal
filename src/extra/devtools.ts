@@ -97,7 +97,7 @@ export class SygnalDevTools {
 
     // PLAN-4 3-E (GS-10): the action log (recorded from now on, connected or not)
     recordActions();
-    // PLAN-4.6 R4: the next core's apps read this bridge's hooks (devtoolsNext.ts)
+    // PLAN-4.6 R4: the apps read this bridge's hooks (devtoolsNext.ts)
     addLayer((api: any) => devtoolsHooks(this, api));
     onAction((a, kind) => {
       if (!this.connected) return;

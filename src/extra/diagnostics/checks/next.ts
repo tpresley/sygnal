@@ -1,7 +1,7 @@
 /**
  * PLAN-4.6 R4: the dev entry's checks on the next component core (src/core/).
  *
- * The next core has no instance to patch and no diagnostics calls of its own: it reads this
+ * The core has no instance to patch and no diagnostics calls of its own: it reads this
  * entry's hooks once per app (`__SYGNAL_DIAGNOSTICS__.nextHooks(api)`, 04-hooks-contract §2.2)
  * and calls them with read-only InstanceViews. This module maps them onto the existing checks:
  *
@@ -11,7 +11,7 @@
  * - what the checks did by patching an instance becomes a hook: SYG222's reducer wrapping
  *   (wrapHandler), the reply / fetch / EVENTS taps of a sink (onSink), the ELEMENT check
  *   (onElementCommand), the Collection check (onHostProps), the action log (actionLog.ts);
- * - the next core's own dev codes: SYG423 (D168: a view context tracking skipped would have
+ * - the core's own dev codes: SYG423 (D168: a view context tracking skipped would have
  *   rendered differently), SYG424 (D169/D177: duplicate Collection ids), SYG425 (D174: an
  *   isolatedState child kept a slice that lacks its initialState keys), SYG612 (D173: a form
  *   6.0 removed, met at runtime; once per form and component, with a link to the migration
@@ -146,7 +146,7 @@ function same(a: any, b: any, d = 0): boolean {
 
 const SAMPLE = 16, CAP = 20
 
-/** The hooks one app on the next core gets (installChecks publishes this on the bridge). */
+/** The hooks one app gets (installChecks publishes this on the bridge). */
 export function nextHooks(_api: any): any {
   const core = bridge(), H = core.hooks
   const on = () => H.on()

@@ -1,5 +1,5 @@
 /**
- * PLAN-4.6 next core: the read-only InstanceView hooks and tools get (04 §2.3), never the raw
+ * PLAN-4.6 core: the read-only InstanceView hooks and tools get (04 §2.3), never the raw
  * instance. Made on the first hook call that needs it (an app without hooks makes none).
  */
 import type {InstanceView} from './hooks'

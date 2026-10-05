@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
-// PLAN-4.6 R2: fixes of the R1 review (G-294 ... G-305) on the next core. Next core only
-// (SYGNAL_CORE=next, npm run test:next); a few cases run on both cores where the behaviour is shared.
+// PLAN-4.6 R2: fixes of the R1 review (G-294 ... G-305) on the new core (one core since R5).
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { run, createElement as h, xs, Slot, renderComponent, mockDOMSource } from '../src/index.js'
 

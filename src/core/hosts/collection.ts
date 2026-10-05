@@ -1,5 +1,5 @@
 /**
- * PLAN-4.6 next core: the Collection host (03-proposal §2 hosts/, R2). Registered on import (the
+ * PLAN-4.6 core: the Collection host (03-proposal §2 hosts/, R2). Registered on import (the
  * public `Collection` module imports this file); the core only looks `hosts.collection` up.
  *
  * It stands where the `<Collection>` marker was in its owner's template and renders the items
@@ -16,7 +16,7 @@
  * - The other props go to every item (`className` is the container's), and the Collection's
  *   children are each item's children.
  * - The DOM is today's: one `div` with the marker's props (className and the rest set as element
- *   properties, as the current core does), whose children are the items' vnodes.
+ *   properties, as the 5.x core did), whose children are the items' vnodes.
  * - Removed items are disposed synchronously in the render that drops them (G-257: a move between
  *   two Collections is one patch).
  */
@@ -185,7 +185,7 @@ export class CollectionHost {
       const p = marker.data?.props || {}
       if (!shallowEq(p, this.mp) || marker.key !== this.key) {
         this.mp = p
-        // isCollection: as the current core's container (testing's html() leaves its props out, G-040)
+        // isCollection: as the 5.x core's container (testing's html() leaves its props out, G-040)
         this.data = {...marker.data, isCollection: true, props: p.key === undefined ? {...p, key: id} : p}
         this.key = marker.key
         this.outv = undefined

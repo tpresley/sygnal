@@ -6,8 +6,6 @@
  */
 import {uidPart} from '../shared'
 
-/** PLAN-4.6 R1-R4 (deleted at R5): renderToString matches the next core's client where they differ */
-
 // Void elements that must not have closing tags
 const VOID_ELEMENTS = new Set([
   'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input',

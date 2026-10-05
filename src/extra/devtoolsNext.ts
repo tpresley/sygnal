@@ -1,7 +1,7 @@
 /**
  * PLAN-4.6 R4: 'sygnal/devtools' on the next component core (04 §3.5).
  *
- * The next core calls no `window.__SYGNAL_DEVTOOLS__` method itself: each app reads the dev
+ * The core calls no `window.__SYGNAL_DEVTOOLS__` method itself: each app reads the dev
  * entries' hook layers once (`__SYGNAL_DIAGNOSTICS__.layers`), and this file's layer maps the
  * hooks onto the bridge's existing methods (onComponentCreated, onStateChanged, ...). The bridge
  * keeps a facade per instance with the fields it reads from today's instances (currentState,
@@ -10,7 +10,7 @@
  */
 const facades = new WeakMap<object, any>()
 
-/** the bridge's view of a next-core instance (an InstanceView + its app's runtime API) */
+/** the bridge's view of a core instance (an InstanceView + its app's runtime API) */
 export function devFacade(iv: any, api: any): any {
   let f = facades.get(iv)
   if (f) return f
@@ -74,7 +74,7 @@ export function devtoolsHooks(dt: any, api: any): any {
   }
 }
 
-/** register a hook layer factory with the next core (read by each app at its start) */
+/** register a hook layer factory with the core (read by each app at its start) */
 export function addLayer(f: (api: any) => any): () => void {
   const core = (globalThis as any).__SYGNAL_DIAGNOSTICS__
   if (!core) return () => {}

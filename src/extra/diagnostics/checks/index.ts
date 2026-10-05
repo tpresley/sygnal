@@ -131,7 +131,7 @@ export function installChecks(): () => void {
   const uninstallControls = installControlHooks()
   const uninstallTimers = installTimerHooks()
   const uninstallElementCommands = installElementCommandHooks()
-  // PLAN-4.6 R4: the next core reads its hooks from the bridge once per app (checks/next.ts)
+  // PLAN-4.6 R4: the core reads its hooks from the bridge once per app (checks/next.ts)
   ;(core.layers ||= new Set()).add(nextHooks)
   const uninstall = () => {
     core.layers?.delete(nextHooks)

@@ -217,7 +217,7 @@ export const CODE_TITLES: Record<string, string> = {
   SYG420: 'JSX tag is undefined',
   SYG421: 'Invalid data (dataset) key',
   SYG422: 'Invalid timer spec',
-  // PLAN-4.6 R4: the next core's dev checks (checks/next.ts; dev entry)
+  // PLAN-4.6 R4: the core's dev checks (checks/next.ts; dev entry)
   SYG423: 'Context change skipped a view whose output it changes',
   SYG424: 'Duplicate Collection item id',
   SYG425: 'isolatedState slice lacks initialState keys',

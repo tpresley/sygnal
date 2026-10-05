@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
-// PLAN-4.6 R3: fixes of the R2 review (G-306 ... G-317) on the next core. Next core only
-// (SYGNAL_CORE=next, npm run test:next), except where noted.
+// PLAN-4.6 R3: fixes of the R2 review (G-306 ... G-317) on the new core (one core since R5).
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { run, createElement as h, xs, Collection, Switchable, Portal, lazy } from '../src/index.js'
 import { App as CoreApp } from '../src/core/runtime'

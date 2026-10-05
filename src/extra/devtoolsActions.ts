@@ -210,7 +210,7 @@ const check = {
 
 let unregister: (() => void) | undefined
 
-/** PLAN-4.6 R4: the same recorder on the next core, from its hooks (per app; a facade per instance) */
+/** PLAN-4.6 R4: the same recorder on the core, from its hooks (per app; a facade per instance) */
 function nextLayer(api: any): any {
   const L: ActionListener = {
     action: (r, iv) => listener.action(r, devFacade(iv, api)),

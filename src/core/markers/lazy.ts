@@ -1,10 +1,10 @@
 /**
- * PLAN-4.6 next core: lazy() components (R2), registered on import by the public `lazy` module.
+ * PLAN-4.6 core: lazy() components (R2), registered on import by the public `lazy` module.
  * A view resolver (registry `resolvers`): until the import resolves, the LazyWrapper itself is
  * the component (it renders the data-sygnal-lazy="loading" placeholder Suspense waits for, or
  * the error placeholder); once it has, the loaded component replaces it under the same id (a
  * new instance, its state slice as the wrapper's). When the promise settles the owner renders
- * again (Inst.refresh: no state write, unlike the current core's `__sygnalLazyTick`).
+ * again (Inst.refresh: no state write, unlike the 5.x core's `__sygnalLazyTick`).
  */
 import {resolvers} from '../registry'
 

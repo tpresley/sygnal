@@ -1694,7 +1694,7 @@ export function renderComponent(
       // G-039: subscribed / unsubscribed listeners (a just-mounted child subscribes late)
       const lk = k + '\u0000' + type;
       live.set(lk, (live.get(lk) || 0) + (on ? 1 : -1));
-      // (the next core subscribes the intent while starting, before retry exists: a microtask
+      // (the core subscribes the intent while starting, before retry exists: a microtask
       // later; G-299: not at all when the start threw)
       if (on) started ? retry(0) : queueMicrotask(() => { if (started) retry(0); });
     }
@@ -1948,7 +1948,7 @@ export function renderComponent(
   const stateStream: Stream<any> = sources.STATE?.stream || xs.never();
   listen(stateStream, s => {
     states.push(s);
-    // PLAN-4.6 R4 (D176, next core): a reducer runs synchronously, so a state caused by input
+    // PLAN-4.6 R4 (D176): a reducer runs synchronously, so a state caused by input
     // the harness didn't deliver (a real element's click(), a driver answering at once) can be
     // recorded before the test's next() call in the same tick: a next() called in that tick
     // starts at the first such state (internal; a later tick starts after the call, as documented)
@@ -2021,7 +2021,7 @@ export function renderComponent(
     };
   });
   const ready = () => {
-    // (next core, D176: a state of this tick, e.g. from a simulate* call just before, is "now")
+    // (D176: a state of this tick, e.g. from a simulate* call just before, is "now")
     cursor = isReady ? Math.min(fromInput && cursor !== undefined && cursor >= 0 ? cursor : states.length, syncAt ?? states.length) : -1;
     fromInput = false;
     shown = undefined;

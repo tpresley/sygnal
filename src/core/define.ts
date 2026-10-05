@@ -1,5 +1,5 @@
 /**
- * PLAN-4.6 next core: definitions, normalized once per component function (03-proposal §1.4).
+ * PLAN-4.6 core: definitions, normalized once per component function (03-proposal §1.4).
  *
  * defOf(view) reads the component's statics into a DefSource, runs the definition hooks on it
  * (registry.defHooks, then an app's transformDef), and normalizes it into a Def:

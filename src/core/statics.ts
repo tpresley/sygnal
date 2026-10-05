@@ -1,5 +1,5 @@
 /**
- * PLAN-4.6 next core: declaration statics and reply actions (04-hooks-contract §2.1 "statics",
+ * PLAN-4.6 core: declaration statics and reply actions (04-hooks-contract §2.1 "statics",
  * §3.7; spike 0-S proto/statics.ts). The core names no static: a driver source marked
  * `__sygnalStatic: 'timers'` (makeTimerDriver; 'resources' makeFetchDriver, 'connections'
  * makeSocketDriver, 'route' the router, 'head' makeHeadDriver, a testing fake) takes that static

@@ -337,7 +337,7 @@ export function sourcesFor(component: any): any {
 }
 
 // Bridge for the separately bundled 'sygnal/diagnostics' checks entry.
-// PLAN-4.6 R4: the hook dispatchers too, for the dev entry's next-core adapter (checks/next.ts)
+// PLAN-4.6 R4: the hook dispatchers too, for the dev entry's core adapter (checks/next.ts)
 ;(globalThis as any).__SYGNAL_DIAGNOSTICS__ = { registerCheck, report, hooks: { onIntent, onModel, onRender, onReducer, onDispose, sourcesFor, on: isDiagnosticsEnabled } }
 
 export function _resetDiagnostics(): void {

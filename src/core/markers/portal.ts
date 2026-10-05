@@ -1,14 +1,14 @@
 /**
- * PLAN-4.6 next core: the Portal marker (R2), registered on import by the public `Portal` module.
+ * PLAN-4.6 core: the Portal marker (R2), registered on import by the public `Portal` module.
  * A template rewrite (registry `pres`): the `portal` marker becomes a hidden placeholder whose
  * hooks patch its children into the target with a separate snabbdom patch function. As today
- * (component.ts createPortalPlaceholder; a copy until R5 deletes that core):
+ * (the 5.x core's createPortalPlaceholder):
  * - the target is looked up on insert; one rendered later is retried 10 times, 5 ms apart, and a
  *   late mount pokes the DOM driver (G-261 pokeDOM); never found: SYG417;
  * - an update patches the portal's content; a removal removes it;
  * - the children move into the placeholder unprocessed (components inside a Portal are not
  *   instantiated, as today).
- * G-316 (next core only): the mount state lives in one object the placeholder's successive
+ * G-316: the mount state lives in one object the placeholder's successive
  * vnodes share (`_p`, handed on by postpatch), so a late-target retry mounts the latest children
  * once, and a removal cancels a pending retry. `_portalVnode` stays on the current vnode (testing).
  */
@@ -63,7 +63,7 @@ export function portalPlaceholder(target: string, children: any[]): any {
         postpatch: (oldVnode: any, newVnode: any) => {
           const st: PortalState | undefined = oldVnode.data?._p
           // G-318: reached by a patch, never inserted (hydration over server markup, or a plain
-          // div at the same position before): it starts here, as the current core mounts it
+          // div at the same position before): it starts here, as the 5.x core mounted it
           if (!st) return void start(newVnode, target, newVnode.data?.portalChildren || [])
           newVnode.data._p = st
           st.v = newVnode

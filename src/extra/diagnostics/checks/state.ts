@@ -69,7 +69,7 @@ export const stateCheck: DiagnosticCheck = {
 
   // SYG222: onIntent runs before initModel$ reads `component.model`
   onIntent(component) {
-    // (the next core: checks/next.ts wraps the reducers through wrapHandler)
+    // (the core: checks/next.ts wraps the reducers through wrapHandler)
     if (component?.__next) return
     const model = component?.model
     if (!isPlainObject(model)) return

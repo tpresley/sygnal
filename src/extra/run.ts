@@ -77,7 +77,7 @@ export default function run(
 
   const {uid} = options;
   // (R4) an HMR swap: the kept state is the new root's first state, and the instances made at
-  // its start get no BOOTSTRAP (as the current core's `__hmr` source); no 0/20 ms re-sends
+  // its start get no BOOTSTRAP (as the 5.x core's `__hmr` source); no 0/20 ms re-sends
   const started = start(app, drivers, {...options, __hooks: (options as any).__hooks, __state: hmrSwap?.s, __swap: !!hmrSwap} as any);
   liveApps++;
   let off = false;
@@ -95,7 +95,7 @@ export default function run(
     },
   };
   (exposed as any).__runtime = started.api;
-  // G-214: the uid option, as the current core's __uid source
+  // G-214: the uid option, as the 5.x core's __uid source
   if (uid !== undefined) Object.defineProperty(exposed.sources, '__uid', {value: uid.replace(/[^\w-]+/g, '_'), enumerable: false, configurable: true});
   if (typeof window !== 'undefined') window.__SYGNAL_DEVTOOLS_APP__ ||= exposed;
   // (R4, 04 §3.12) hmr(): this app's current state through the runtime API (runtime.getState(),
