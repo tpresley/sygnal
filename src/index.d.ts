@@ -861,6 +861,137 @@ export interface PagerActions { NEXT: any; PREV: any; GOTO: number; SET_TOTAL: n
  */
 export function pager(options?: PagerOptions): Behavior<PagerState, PagerActions, PagerCalculated, PagerOptions>
 
+// ── Forms (PLAN-5 F-1, D193) ───────────────────────────────────────
+
+/** Field errors by field name (`'email'`, `'addresses.7.city'`; `''` = form-level). */
+export type FieldErrors = Record<string, string>
+
+/** One field of a `form` slice: `state.form.fields.email`, `state.form.fields['addresses.7.city']`. */
+export interface FormField {
+  /** The field name, for `name={f.name}` (the path in `values`; rows of an array by id) */
+  name: string;
+  value: any;
+  /** What to show: a server or check error at once, a schema error once the field is touched (per `show`) or after a submit; '' when none */
+  error: string;
+  /** `!!error`, for `aria-invalid={f.email.invalid}` */
+  invalid: boolean;
+  touched: boolean;
+  /** The value differs from `initial` */
+  dirty: boolean;
+  /** Its async `check` is running */
+  pending: boolean;
+}
+
+/** A `form` slice's stored fields: `state.form`. */
+export interface FormState<V = any> {
+  values: V;
+  /** The values the form started with (or was last saved / reset with) */
+  initial: V;
+  /** Every current schema error by field name, shown or not */
+  errors: FieldErrors;
+  touched: Record<string, boolean>;
+  /** Server errors (`form.ERRORS`) */
+  server: FieldErrors;
+  /** Async check results by field name ('' = passed) */
+  remote: FieldErrors;
+  /** Field name → the value its check is running for */
+  pending: Record<string, any>;
+  /** A valid submit was dispatched and has no `form.DONE` / `form.ERRORS` yet */
+  submitting: boolean;
+  /** `form.DONE` arrived */
+  submitted: boolean;
+  submitCount: number;
+  /** A submit waits for an async check */
+  queued: boolean;
+  /** An async schema is running */
+  validating: boolean;
+}
+
+/** A `form` slice's calculated fields. */
+export interface FormCalculated {
+  /** Every field of `values` by name (leaves, arrays, and array rows' fields by row id) */
+  fields: Record<string, FormField>;
+  /** No schema error and no failed check */
+  valid: boolean;
+  dirty: boolean;
+  /** The form-level message: a server error without a field, or a schema issue without a path after a submit */
+  error: string;
+}
+
+/** An async per-field check through a driver (a request with reply actions). */
+export interface FormFieldCheck {
+  /** The driver request for a value (without `ok` / `error` / `latest`: the form sets them, SYG235) */
+  request: (value: any) => Record<string, any>;
+  /** The message for a reply body, or a falsy value when the value is fine */
+  error?: (body: any) => string | false | null | undefined;
+}
+
+export interface FormOptions<V = any> {
+  /** The start values; field names are paths in it (rows of an array of objects need an `id`, SYG236) */
+  values: V;
+  /** The host action a valid submit dispatches with the schema's output (SYG234 when it has no model entry) */
+  submit: string;
+  /** Async checks by field name: run on blur and before a submit, which waits for them */
+  check?: Record<string, FormFieldCheck>;
+  /** When a schema error shows: after the field's blur (default), on input, or only after a submit */
+  show?: 'blur' | 'input' | 'submit';
+  /** The form element's selector (default 'form'): input, focusout and submit are heard on it */
+  form?: string;
+  /** The driver sink the checks' requests go to (default 'HTTP') */
+  http?: string;
+}
+
+export interface FormActions {
+  /** A field changed (the form element's input events): `{ name, value }` */
+  CHANGE: { name: string; value: any };
+  /** A field lost focus (focusout): its name */
+  BLUR: string;
+  /** The form element's submit (default prevented) */
+  SUBMIT: any;
+  /** Adds a row to an array field (with the next id): `{ field: 'addresses', value: { street: '' } }` */
+  ADD: { field: string; value?: Record<string, any> };
+  /** Removes a row by id: `{ field: 'addresses', id }` */
+  REMOVE: { field: string; id: any };
+  /** Server errors: an error reply (`{ status, body: { errors } }`) or a map `{ name: message }`; focuses the first */
+  ERRORS: any;
+  /** The submit was saved: `initial` becomes `values` */
+  DONE: any;
+  /** Back to `initial` (or to the values given) */
+  RESET: any;
+}
+
+/**
+ * A form with validation (PLAN-5 F-1), any Standard Schema validator (zod, valibot, arktype, a
+ * hand-written object):
+ *
+ *   Signup.uses = { form: form(signupSchema, { values: { email: '', password: '' }, submit: 'SIGN_UP' }) }
+ *   // view: const f = state.form.fields; <form><input name="email" value={f.email.value} aria-invalid={f.email.invalid} /></form>
+ *   // the host's SIGN_UP gets the schema's output
+ *
+ * Fields are matched by `name=` inside the form element (Collection items' fields too). A failed
+ * submit focuses the first invalid field. The host answers its submit with `form.DONE` /
+ * `form.ERRORS` (reply actions `ok: 'form.DONE', error: 'form.ERRORS'`). Throws SYG231 when
+ * `schema` isn't a Standard Schema.
+ */
+export function form<V = any>(schema: StandardSchemaLike, options: FormOptions<V>): Behavior<FormState<V>, FormActions, FormCalculated, FormOptions<V>>
+
+/** A Standard Schema's result for `values`: errors by field name, and the output when there are none. A Promise for an async schema. */
+export function checkForm(schema: StandardSchemaLike, values: any): { errors: FieldErrors; value: any } | Promise<{ errors: FieldErrors; value: any }>
+/** The errors only ({} when valid); a Promise of them for an async schema. */
+export function formErrors(schema: StandardSchemaLike, values: any): FieldErrors | Promise<FieldErrors>
+/** `values` with the field at `name` set (immutable; rows of an array by id). */
+export function setField<V>(values: V, name: string, value: any): V
+/** The value at a field name. */
+export function getField(values: any, name: string): any
+/** The field name of a schema issue path (array indexes become row ids). */
+export function fieldName(values: any, path?: ReadonlyArray<any>): string
+/** Every field name of `values` (leaves, arrays, rows' fields). */
+export function fieldNames(values: any): string[]
+/** Server errors (an error reply, a map, or a list of issues) as field errors; '' for a form-level message. */
+export function replyErrors(reply: any, values?: any): FieldErrors
+/** An ELEMENT command focusing the first field (DOM order) named in `names` (or with a message in an errors map), children included; ABORT when none. */
+export function focusInvalid(names: string[] | FieldErrors): ElementCommand | ABORT
+
 /** A `selection` slice: the selected ids, as strings, in selection order. */
 export interface SelectionState { selected: string[] }
 export interface SelectionCalculated { count: number }
