@@ -927,6 +927,7 @@ function checkForm(schema: StandardSchemaLike, values: any): { errors: FieldErro
 function formErrors(schema: StandardSchemaLike, values: any): FieldErrors | Promise<FieldErrors>
 function setField<V>(values: V, name: string, value: any): V
 function getField(values: any, name: string): any
+function hasField(values: any, name: string): boolean   // the path exists (an undefined value too)
 function fieldName(values: any, path?: ReadonlyArray<any>): string
 function fieldNames(values: any): string[]
 function replyErrors(reply: any, values?: any): FieldErrors

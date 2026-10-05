@@ -47,7 +47,7 @@ import xs from './xstreamCompat'
 import {defineBehavior} from './behaviors'
 import {ABORT} from '../shared'
 import {isStandardSchema} from './standardSchema'
-import {checkForm, fieldNames, getField, setField, replyErrors, focusInvalid} from './formHelpers'
+import {checkForm, fieldNames, getField, hasField, setField, replyErrors, focusInvalid} from './formHelpers'
 
 const dev = (...a: any[]): any => (globalThis as any).__SYGNAL_DIAGNOSTICS__?.form?.(...a)
 const keys = (o: any) => Object.keys(o).filter(k => o[k])
@@ -70,9 +70,11 @@ export const form = (schema: any, o: any = {}): any => {
     }
     return r
   }
-  const known = (s: any, n: any) => {
-    const k = n && getField(s.values, n) !== undefined
-    n && !k && dev(230, n, s.values)
+  // G-379: a field is a path of values (an undefined value too); `quiet`: no SYG230 (a focusout
+  // from a named button)
+  const known = (s: any, n: any, quiet?: any) => {
+    const k = n && hasField(s.values, n)
+    n && !k && !quiet && dev(230, n, s.values)
     return k
   }
   // new values: errors now (sync schema), or after the schema's Promise (RESULT)
@@ -108,7 +110,7 @@ export const form = (schema: any, o: any = {}): any => {
       touched: show == 'input' ? {...s.touched, [d.name]: true} : s.touched,
     }) : null,
     BLUR: (s, n, k) => {
-      if (!known(s, n)) return null
+      if (!known(s, n, 1)) return null
       const t = show == 'submit' || s.touched[n] ? s.touched : {...s.touched, [n]: true}, x = {...s, touched: t}
       return due(s, n) ? ask(x, n, k, s.queued) : t != s.touched ? {s: x} : null
     },

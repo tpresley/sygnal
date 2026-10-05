@@ -171,3 +171,85 @@ describe('G-374: two form uses with the same form selector (SYG237)', () => {
     expect(t.state.news.values.email).toBe('n@x.y')
   })
 })
+
+describe('G-379: a field whose value is undefined is a field; focusout from a named button is ignored', () => {
+  function C({ state }) {
+    const v = state.form.values
+    return h('form', { className: 'f' },
+      h('input', { name: 'email', value: v.email }),
+      h('input', { name: 'nick', value: v.nick ?? '' }),
+      h('input', { name: 'address.city', value: v.address.city ?? '' }),
+      h('button', { type: 'submit', name: 'intent', value: 'save' }, 'Save'))
+  }
+  C.uses = { form: form(sync(), {
+    values: { email: '', nick: undefined, address: { city: undefined } },
+    submit: 'SAVE',
+    check: { nick: { request: (nick) => ({ url: '/api/nick', query: { nick } }) } },
+  }) }
+  C.model = { SAVE: { EFFECT: () => {} } }
+
+  it('an optional (undefined) field takes input; no SYG230 / SYG235', async () => {
+    t = renderComponent(C)
+    await t.ready()
+    t.simulateEvent('[name="nick"]', 'input', { value: 'ada' }); await t.settle()
+    t.simulateEvent('[name="address.city"]', 'input', { value: 'Paris' }); await t.settle()
+    expect(t.state.form.values.nick).toBe('ada')
+    expect(t.state.form.values.address.city).toBe('Paris')
+    expect(diagnostics('SYG230')).toEqual([])
+    expect(diagnostics('SYG235')).toEqual([])
+  })
+
+  it('focusout from a named button: no SYG230, no change', async () => {
+    t = renderComponent(C)
+    await t.ready()
+    const before = t.state.form
+    t.simulateEvent('button', 'focusout'); await t.settle()
+    expect(diagnostics('SYG230')).toEqual([])
+    expect(t.state.form.touched).toEqual(before.touched)
+  })
+
+  it('an unknown name on input is still SYG230', async () => {
+    function D({ state }) { return h('form', null, h('input', { name: 'emial', value: '' })) }
+    D.uses = { form: form(sync(), { values: { email: '' }, submit: 'SAVE' }) }
+    D.model = { SAVE: { EFFECT: () => {} } }
+    t = renderComponent(D)
+    await t.ready()
+    t.simulateEvent('[name="emial"]', 'input', { value: 'x' }); await t.settle()
+    expect(diagnostics('SYG230')).toHaveLength(1)
+  })
+
+  it('hasField: by `in` along the path (rows by id)', async () => {
+    const { hasField } = await import('../src/index.js')
+    const v = { a: undefined, b: { c: undefined }, rows: [{ id: 7, x: undefined }], tags: ['p'] }
+    expect(hasField(v, 'a')).toBe(true)
+    expect(hasField(v, 'b.c')).toBe(true)
+    expect(hasField(v, 'rows.7.x')).toBe(true)
+    expect(hasField(v, 'tags.0')).toBe(true)
+    expect(hasField(v, 'z')).toBe(false)
+    expect(hasField(v, 'b.z')).toBe(false)
+    expect(hasField(v, 'rows.0.x')).toBe(false)
+    expect(hasField(v, 'tags.3')).toBe(false)
+    expect(hasField(v, 'a.b')).toBe(false)
+  })
+})
+
+describe('G-380: row segments are ids only (no index fallback)', () => {
+  it('replyErrors: an index-keyed name on rows with ids is form-level', async () => {
+    const { replyErrors } = await import('../src/index.js')
+    const values = { addresses: [{ id: 1, city: '' }, { id: 2, city: '' }] }
+    expect(replyErrors({ 'addresses.0.city': 'Bad city' }, values)).toEqual({ '': 'Bad city' })
+    expect(replyErrors({ 'addresses.2.city': 'Bad city' }, values)).toEqual({ 'addresses.2.city': 'Bad city' })
+    // the first row's index (0) is no row id: before, it fell back to index 0 (row id 1)
+    expect(replyErrors({ 'addresses.1.city': 'Bad city' }, values)).toEqual({ 'addresses.1.city': 'Bad city' })
+  })
+  it('getField / setField: no index fallback for rows with ids; plain arrays by index', async () => {
+    const { getField, setField } = await import('../src/index.js')
+    const values = { addresses: [{ id: 5, city: 'a' }], tags: ['x', 'y'] }
+    expect(getField(values, 'addresses.0.city')).toBe(undefined)
+    expect(getField(values, 'addresses.5.city')).toBe('a')
+    expect(setField(values, 'addresses.0.city', 'b')).toBe(values)
+    expect(getField(values, 'tags.1')).toBe('y')
+    // a row without an id in a mixed array is still reached by its index (SYG236 warns)
+    expect(getField({ r: [{ id: 3, v: 1 }, { v: 2 }] }, 'r.1.v')).toBe(2)
+  })
+})

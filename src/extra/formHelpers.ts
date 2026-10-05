@@ -6,7 +6,8 @@
  * Field names: a field's `name=` attribute is its path in `values`, dot-separated. A segment
  * inside an array of objects is the row's `id` (not its index), so touched/errors follow a row
  * when another row is removed: `addresses.7.street` is `values.addresses.find(r => r.id == 7).street`.
- * An array of non-objects (or rows without an id) uses the index.
+ * An array of non-objects (or rows without an id) uses the index; a row with an id is named by
+ * its id only (G-380: `addresses.0.city` is no field when the rows have ids).
  *
  * Validation: any Standard Schema (`schema['~standard'].validate`: zod, valibot, arktype, a
  * hand-written object), no dependency. A sync schema validates inside reducers; an async one
@@ -20,11 +21,12 @@ export type FieldErrors = Record<string, string>
 export type FormCheck = {errors: FieldErrors; value: any}
 
 const isRow = (r: any) => r?.id != null
-// the key of segment `s` in `v`: an array's row with that id (else the index), an object's key
+// the key of segment `s` in `v`: an array's row with that id, else the index unless the element
+// there is a row (G-380: a row is named by its id only; -1, no element), an object's key
 const key = (v: any, s: string): any => {
   if (!Array.isArray(v)) return s
   const i = v.findIndex(r => isRow(r) && r.id + '' == s)
-  return i < 0 ? +s : i
+  return i < 0 && !isRow(v[+s]) ? +s : i
 }
 
 /** the field name (id-based path) of a schema issue path (index-based) */
@@ -41,6 +43,17 @@ export const fieldName = (values: any, path: ReadonlyArray<any> = []): string =>
 /** the value at a field name (undefined when there is none) */
 export const getField = (values: any, name: string): any =>
   name.split('.').reduce((v, s) => v?.[key(v, s)], values)
+
+/** whether `name` is a field of `values`: its path exists (G-379: also when the value is undefined) */
+export const hasField = (values: any, name: string): boolean => {
+  let v = values
+  for (const s of name.split('.')) {
+    const k = v && typeof v == 'object' ? key(v, s) : -1
+    if (!(k in Object(v))) return false
+    v = v[k]
+  }
+  return true
+}
 
 /** `values` with the field at `name` set to `value` (immutable; an unknown row is left alone) */
 export const setField = (values: any, name: string, value: any): any => {
@@ -107,7 +120,7 @@ export const replyErrors = (reply: any, values?: any): FieldErrors => {
   const out: FieldErrors = Array.isArray(e) ? errorsOf(values, e) : {}
   if (e && typeof e == 'object' && !Array.isArray(e)) for (const k in e) {
     const m = [].concat(e[k])[0] + ''
-    k && values && getField(values, k) === undefined ? out[''] ||= m : out[k] = m
+    k && values && !hasField(values, k) ? out[''] ||= m : out[k] = m
   }
   return Object.keys(out).length ? out : {'': 'Request failed' + (reply?.status ? ` (${reply.status})` : '')}
 }

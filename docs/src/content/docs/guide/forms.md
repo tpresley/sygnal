@@ -156,7 +156,7 @@ Account.model = {
 
 ## Field arrays
 
-Rows of an array of objects are named by their `id`, not their position: `addresses.7.city`. So a row's errors, touched state and focus stay with it when another row is removed. Render the rows with a [Collection](/guide/collections/), pass `fields` down, and add and remove rows with `form.ADD` and `form.REMOVE`:
+Rows of an array of objects are named by their `id`, not their position: `addresses.7.city` (`addresses.0.city` names nothing when the rows have ids, also in a server error map, where it becomes the form-level message). So a row's errors, touched state and focus stay with it when another row is removed. Render the rows with a [Collection](/guide/collections/), pass `fields` down, and add and remove rows with `form.ADD` and `form.REMOVE`:
 
 ```jsx
 import { Collection, form } from 'sygnal'
@@ -315,7 +315,7 @@ The behavior covers the common form. When a form needs its own state layout or f
 |---|---|
 | `checkForm(schema, values)` | `{ errors, value }`: errors by field name and the schema's output; a Promise for an async schema |
 | `formErrors(schema, values)` | Only the errors (`{}` when valid) |
-| `setField(values, name, value)`, `getField(values, name)` | Immutable set and get by field name (rows by id) |
+| `setField(values, name, value)`, `getField(values, name)`, `hasField(values, name)` | Immutable set and get by field name (rows by id); whether the field exists (also with an `undefined` value) |
 | `fieldName(values, path)`, `fieldNames(values)` | An issue path as a field name; every field name of `values` |
 | `replyErrors(reply, values?)` | Server errors (a reply, a map or a list of issues) as field errors |
 | `focusInvalid(errors, within?)` | An `ELEMENT` command that focuses the first field with an error, children included; with `within` (the form element's selector), only a field inside that element; `ABORT` when there is none |

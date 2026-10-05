@@ -839,7 +839,7 @@ Severity: `warn` · Reported by: the Sygnal runtime (every app, production inclu
 
 Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
 
-The `form` behavior hears `input` and `focusout` on its form element and reads the event target's `name` as a path in `values` (`email`, `addresses.7.city` for the row with id 7). A named field inside the form whose name is not a field of `values` is ignored: its value never reaches `state.form` and it is never validated. It is usually a typo, a renamed field, a row name built with the index instead of the row's `id`, or an input that belongs to something else (a search box) placed inside the form element. Reported once per name; fields without a `name` are skipped silently.
+The `form` behavior hears `input` and `focusout` on its form element and reads the event target's `name` as a path in `values` (`email`, `addresses.7.city` for the row with id 7). A named field inside the form whose name is not a field of `values` is ignored: its value never reaches `state.form` and it is never validated. It is usually a typo, a renamed field, a row name built with the index instead of the row's `id`, or an input that belongs to something else (a search box) placed inside the form element. Reported once per name, on `input`; fields without a `name` are skipped silently, and so is a `focusout` from a named element that isn't a field (a `<button name="intent">`). A field whose value is `undefined` (an optional field: `values: { nick: undefined }`) is a field.
 
 **Fix:** Name the input after a path in `values` (`name="email"`, or `name={f.email.name}` from `state.form.fields`), add the field to `values`, or move the unrelated input out of the form element.
 

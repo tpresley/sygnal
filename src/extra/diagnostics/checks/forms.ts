@@ -21,7 +21,7 @@
 import type {DiagnosticCheck} from '../index'
 import {devReport, once, nameOf} from './shared'
 import {docsUrlFor} from '../codes'
-import {getField} from '../../formHelpers'
+import {hasField} from '../../formHelpers'
 
 const FORM_ACTIONS = ['CHANGE', 'BLUR', 'SUBMIT', 'ADD', 'REMOVE', 'ERRORS', 'DONE', 'RESET', 'RESULT', 'VALIDATE']
 const RESERVED = ['ok', 'error', 'latest']
@@ -118,7 +118,7 @@ export const formsCheck: DiagnosticCheck = {
         })
       }
       for (const f of Object.keys(o.check || {})) {
-        if (getField(values, f) === undefined) devReport('SYG235', {
+        if (!hasField(values, f)) devReport('SYG235', {
           component,
           message: `${name}'s form '${key}' has a check for '${f}', which isn't a field of its values; it never runs`,
           fix: `Use a field name from values (${Object.keys(values).join(', ')})`,

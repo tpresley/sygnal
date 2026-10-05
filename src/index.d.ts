@@ -986,6 +986,8 @@ export function formErrors(schema: StandardSchemaLike, values: any): FieldErrors
 export function setField<V>(values: V, name: string, value: any): V
 /** The value at a field name. */
 export function getField(values: any, name: string): any
+/** Whether `name` is a field of `values` (its path exists, also when the value is undefined; rows by id). */
+export function hasField(values: any, name: string): boolean
 /** The field name of a schema issue path (array indexes become row ids). */
 export function fieldName(values: any, path?: ReadonlyArray<any>): string
 /** Every field name of `values` (leaves, arrays, rows' fields). */
