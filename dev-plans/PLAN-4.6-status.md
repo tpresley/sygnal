@@ -6,7 +6,7 @@ Tracks progress for [PLAN-4.6.md](PLAN-4.6.md) (component core rewrite). The coo
 
 **Integration branch:** `plan46-integration`, cut from `plan45-complete` (`d900c522`) on 2026-10-04, with `claude/component-core-rewrite-experiment` (the study) merged (`45eefb2`). Worktree `.claude/worktrees/plan-4-execution-7ae8e8`. The release stays held (D56).
 
-**State:** R0–R3 merged. R4 running (incl. R3 review fixes G-318…G-323).
+**State:** R0–R4 merged; the full suite passes on both cores. R5 running; review of R4 running.
 
 ## Phases
 
@@ -17,13 +17,14 @@ Tracks progress for [PLAN-4.6.md](PLAN-4.6.md) (component core rewrite). The coo
 | R1 | Runtime core (both cores selectable) | ✅ merged | `p46-r1` (`4d91475`) | 2026-10-04 | `src/core/` ≈1,600 lines (9.6 KB gz alone); `test:next` in `npm test` (148 pass, 45 skipped for R2–R4); parity on next 31 pass; 6 of 9 examples pass on next (the rest need R2). Tags page: mount 2.0×, update-1 2.4×, unmount 2.3× faster; 1 stream per component. Size gate fails as planned (both cores: 49,289 B) → D175 |
 | R2 | Hosts and markers (+ D174, D175, D166 test rewrite) | ✅ merged | `p46-r2` (`62cfaec`) | 2026-10-04 | Collection/Switchable hosts, marker registry (Portal, Transition, ClientOnly, Lazy, Suspense), D174 `resetState`, D175 strip (size 41,474 B), R1 review fixes. Next core: parity 64 pass / 15 skip; test:next 318; all 9 examples; browser 155/186 (rest R3–R5). Collection create 1.8×, replace 2.8×, select 2.2×, remove 10×, mount 2.2× faster; streams/item 1–2 |
 | R3 | Extensions (statics, replies, commands, behaviors) | ✅ merged | `p46-r3` (`b0613ee`) | 2026-10-04 | Statics (generic path, G-158 buffering), replies, fetch/socket `isolateValue`, commands/ELEMENT/controls, `resources`/`uses` at definition time, persist via a root shim, View Transitions; R2 review fixes. Next: parity 78 pass / 4 skip (R4/R5); test:next 720; browser 175/186 (rest R4/R5). Timers page create 52 → 32 ms, persist create 45 → 25 ms; fetch rows 28 → 2 streams, 1,006 → 2 timeouts; fetch replies: 1,001 patches vs 97 → R4 (D180). Size 41,453 B |
-| R4 | Tooling and integrations | 🟡 running | `p46-r4` | | |
-| R5 | Cut-over, delete old core, gates, eval | ⬜ | | | |
+| R4 | Tooling and integrations | ✅ merged | `p46-r4` (`4574951`) | 2026-10-04 | Diagnostics/devtools via hook layers from `__SYGNAL_DIAGNOSTICS__.layers`; renderComponent as one hook layer (D176 internal: every documented pattern passes on both cores); SSR `data.c`, Vike, Astro, element, HMR. New dev codes SYG423 (context skip check), SYG424 (duplicate id), SYG425 (isolatedState missing keys), SYG612 (removed in 6.0). Next: root suite 2,695 pass, examples 9/9, browser 183 (+3 R5), perf gate (streams/item 1, unmount timers 2, heap 0.67 MB). `src/core` 47.0 KB min / 17.4 KB gz; kanban with both cores 51.7 KB gz |
+| R5 | Cut-over, delete old core, gates, eval | 🟡 running | `p46-r5` | | |
 
 ## Decisions
 
 | ID | Date | Decision | By |
 |---|---|---|---|
+| D183 | 2026-10-04 | R4 perf pass: fetch replies keep one patch per reply (they resolve in separate macrotasks; joining them would need a timer or frame wait, which the design rules out; a bounded microtask hop changed nothing). A context Proxy per instance was reverted (no gain; it would keep a context object passed as a prop identical across renders). b023: an action's EVENTS cascade finishing before the next simulated input is covered by D165 (FIFO run-to-completion) | Coordinator |
 | D182 | 2026-10-04 | No intermediate releases come off `plan46-integration` until the new core is complete, so the old core's size budget (size gate ≤ 42,300 B) no longer gates PLAN-4.6 merges (D175's strip stays, harmless). Each merge reports the **new core's size** for information: `src/core/**` alone (min + gzip) and kanban on the next core. The new core's budget is decided at the end of the plan (replaces D170's "below 41,343 B at R5" target) | User |
 | D181 | 2026-10-04 | SYG401's explanation text (sygnal-check `explanations.js:339`) is reworded for D178 at R5 with the other docs | Coordinator |
 | D180 | 2026-10-04 | Replies resolving in separate microtasks get one flush/patch each on next (fetch page: 1,001 patches vs 97 on current; latency still better, 249 vs 272 ms). R4's perf pass measures bounded coalescing (e.g. wait an extra microtask hop while commits keep arriving, no timers) on the fetch page, keystroke and leaf update, and keeps it only if latency doesn't regress. Internal; no API | Coordinator |
@@ -79,16 +80,17 @@ Tracks progress for [PLAN-4.6.md](PLAN-4.6.md) (component core rewrite). The coo
 | G-315 | review R2 | Low | build | Two top-level `xs.create()` calls survive the D175 strip | Fixed (R3) |
 | G-316 | review R2 | Low | core/portal | Late-target Portal retry can double-mount or leak (inherited) | Fixed (R3) |
 | G-317 | review R2 | Low | core/hosts | `lazy()` as a Collection `of` or Switchable page never resolves (same as today; coordinator: fix on next) | Fixed (R3) |
-| G-318 | review R3 | High | core/portal | A Portal first reached by a patch (SSR hydration, or swapping a `<div>` for a `<Portal>` at the same position) never mounts (regression). Confirmed | → R4 |
-| G-319 | review R3 | Med | core/hosts | A Collection inside a hidden Switchable page isn't reconciled while hidden: removed rows keep running background statics, new rows don't start them. Confirmed; coordinator: fix for parity | → R4 |
-| G-320 | review R3 | Low/Med | core/runtime | Statics step skipped while renders throw. Confirmed | → R4 |
-| G-321 | review R3 | Low | core/cell | Write-back strips a real id equal to the row's index. Confirmed | → R4 |
-| G-322 | review R3 | Low | core/cell | `uid()` collides between index keys and id keys (duplicate DOM ids). Confirmed | → R4 |
-| G-323 | review R3 | Low | core/statics | A new statics-declaring instance forces an extra full render pass. Confirmed | → R4 |
+| G-318 | review R3 | High | core/portal | A Portal first reached by a patch (SSR hydration, or swapping a `<div>` for a `<Portal>` at the same position) never mounts (regression). Confirmed | Fixed (R4) |
+| G-319 | review R3 | Med | core/hosts | A Collection inside a hidden Switchable page isn't reconciled while hidden: removed rows keep running background statics, new rows don't start them. Confirmed; coordinator: fix for parity | Fixed (R4) |
+| G-320 | review R3 | Low/Med | core/runtime | Statics step skipped while renders throw. Confirmed | Fixed (R4) |
+| G-321 | review R3 | Low | core/cell | Write-back strips a real id equal to the row's index. Confirmed | Documented limit (05 §3.4; today's item state carries the injected index id too) |
+| G-322 | review R3 | Low | core/cell | `uid()` collides between index keys and id keys (duplicate DOM ids). Confirmed | Fixed (R4) |
+| G-323 | review R3 | Low | core/statics | A new statics-declaring instance forces an extra full render pass. Confirmed | Fixed (R4) |
 | G-291 | 0-S | Low | Collection | Id-less items under filter/sort are keyed by filtered/sorted index (likely a latent bug) | → Q23 |
 
 ## Log
 
+- 2026-10-04 — R4 merged (`4574951`); full suite green on both cores. D183. R5 and a review of R4 started.
 - 2026-10-04 — Review of R3: 6 findings (G-318…G-323, one regression), sent to R4. New core alone: 43.7 KB min / 15.9 KB gz (R1: 9.6 KB gz).
 - 2026-10-04 — D182: size gate informational during PLAN-4.6; new-core size reported per merge; budget decided at the end.
 - 2026-10-04 — R3 merged (`b0613ee`); all gates green (41,453 B); browser on next 175/186. D180, D181. R4 and a review of R3 started.
