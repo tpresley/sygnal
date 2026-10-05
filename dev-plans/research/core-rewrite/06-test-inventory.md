@@ -14,12 +14,12 @@ This lists every existing test that pokes a core internal the rewrite deletes, o
 
 ## 1. Totals
 
-| Disposition | Files | Cases affected (approx.) |
-|---|---|---|
-| PORT | 22 | ≈ 95 |
-| DELETE-R5 | 30 (incl. 4 type-test files, 1 fixture) | ≈ 75 |
-| CURRENT-ONLY | 14 | ≈ 60 |
-| **Total** | **66** (61 runtime test files + 5 type-test/fixture files) | **≈ 230** |
+| Disposition | Files (by majority disposition) |
+|---|---|
+| PORT | 41 (11 in §2, 6 in §3, 24 in §4) |
+| DELETE-R5 | 17 (3 in §2, 9 in §4, 5 type-test files) + 1 fixture |
+| CURRENT-ONLY | 9 (all in §2) |
+| **Total** | **67** files (62 runtime test files + 5 type-test files) + 1 fixture; **≈ 230** test cases affected |
 
 - Whole-file rewrites or deletions: 24 files. The rest have a few affected cases each.
 - Biggest single items:
@@ -121,11 +121,11 @@ This lists every existing test that pokes a core internal the rewrite deletes, o
 
 | | PORT | DELETE-R5 | CURRENT-ONLY |
 |---|---|---|---|
-| §2 internals | 10 files | 3 files | 9 files |
-| §3 harnesses | 6 files (≈ 85 cases; ≈ 10 cases DELETE-R5) | — | — |
-| §4 forms (runtime) | 21 files | 10 files (+ the fixture) | — |
-| §4 type tests | — | 5 files | — |
+| §2 internals (23 files) | 11 | 3 | 9 |
+| §3 harnesses (6 files) | 6 (≈ 10 of their cases DELETE-R5) | — | — |
+| §4 forms, runtime (33 files) | 24 | 9 (+ the fixture) | — |
+| §4 type tests (5 files) | — | 5 | — |
 
-Some files appear in two columns because their cases split; the §1 totals count each file once, under its majority disposition.
+Mixed files (p45-c-scheduler, scheduler-p45c.jsx, p4-pf1, p4-2r-fixes, component.test, effect-and-shorthand, diagnostics/wiring, testing-simulate, diagnostics/strict) are counted once, under their majority disposition; their rows say how the cases split.
 
 **R1–R4 bookkeeping:** the CURRENT-ONLY and DELETE-R5 files are the "current-core-only" list PLAN-4.6 §4 asks the tracker to keep. When `SYGNAL_CORE=next` runs the root vitest suite (R1), they are excluded by path, through a list the test matrix reads, not by `it.skip` in each file. Every PORT item must be green on both cores before its phase exits.
