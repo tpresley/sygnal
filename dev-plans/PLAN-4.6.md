@@ -13,7 +13,7 @@ Streams stay at the edges: intent, drivers, `STATE.stream`/`watch`, `dispose$`. 
 
 **Release:** part of the held 6.0.0 major (D56). Runs **after PLAN-4.5 (tag `plan45-complete`) and before PLAN-5**; PLAN-5 rebases onto `plan46-integration`. No version bumps, tags on main, PR to main or publish.
 
-**Status:** draft for the user's review. Spike 0-S is running (§3). No core code until the spike reports and §9 is answered.
+**Status:** draft for the user's review. Spike 0-S **met all four go criteria** (§1a). No core code until §9 is answered.
 
 **Inputs:**
 
@@ -62,6 +62,41 @@ Streams stay at the edges: intent, drivers, `STATE.stream`/`watch`, `dispose$`. 
 - Single-view ops (table, keystroke) don't change: they are bound by the pragma, snabbdom and the DOM driver.
 - **Caveat:** the prototype covers only the canonical subset the benchmarks use. Spike 0-S checks whether the gains hold once the hard features are in.
 
+## 1a. Spike 0-S results (`p46-spike`, merged; `research/core-rewrite/proto/`, `results-spike-0s/`)
+
+The prototype was extended with:
+- calculated fields;
+- Collection filter, every sort form and cross-Collection moves;
+- Switchable with hidden pages;
+- Suspense/READY/Lazy through a marker registry;
+- the generic statics path with the real `makeTimerDriver`;
+- the real `makeFetchDriver` with per-item scope tagging and replies;
+- `undo` through a definition-time hook;
+- action-log hooks;
+- reentrancy.
+
+That is about 1,155 lines in 9 modules. **40/40 behaviour tests pass**, including PLAN-4.5's race scenarios.
+
+| Criterion | Result |
+|---|---|
+| ≥ 1.5× faster on mount and Collection ops | **Met** (two runs, current → prototype, ms): mount 1k 37–42 → 18–21 (1.9–2.2×); Collection create 44–48 → 24–27 (1.6–2.0×), replace 55–62 → 20–23 (2.7×), select 7–8 → 3.2–3.4 (2.2×), remove 12–13 → 1.4–1.6 (9×), create 10k 884–904 → 198–224 (beats React's 275–284); filter+sort+calculated create 50–52 → 28–29 (1.8×); fetch per row create 271–283 → 122–131 (2.2×). Below 1.5×: update 1 of 1k (1.1–1.3×), keystroke (1.2–1.3×), re-sort (1.2–1.6×), Switchable show (0.6–0.9×; an O(n²) in the DOM driver's `SymbolTree.delete`; 1.0× once fixed) |
+| Projected size ≤ 41,343 B | **Met.** Kanban on the prototype is **30,431 B** gzip (current 41,343); the prototype core is 7.7 KB bundled. Production features projected at +4.5–6.5 KB → **≈ 35–37 KB** |
+| PLAN-4.5 race class impossible by construction | **Met.** No startup timers, gates, holds or hop counting. INITIALIZE writes state before the intent subscribes; new instances subscribe during the flush, which loops render → statics → drain until stable, then emits one vnode. Tests cover G-257, G-266 (startup with fake timers never advanced, 0 timers) and G-283 (a non-settling loop arms 0 timers) |
+| Semantic differences listed | Yes → §9 Q18–Q23 |
+
+**Counts** (current → prototype):
+- patches per update: 1 → 1;
+- streams per Collection item: 22 → **1** (table rows 27 → 2, fetch rows 28 → 4);
+- `setTimeout`s to unmount 1k: 9 → **2** (the harness's own).
+
+**Spike findings that change this plan:**
+1. **Teardown still needs a `Stream.prototype._remove` swap,** scoped to `dispose()` (study 03's "no prototype patch" doesn't hold). Without it, xstream defers each stream's stop to its own `setTimeout`: 1–2k timers per 1k unmount. → Q18.
+2. **The DOM driver has an O(n²) path** (`SymbolTree.delete` runs `Object.keys(siblings)` per removal). It is fixed in R1 (count children), which also helps the current core.
+3. **The flush loop "render → statics → drain until stable, then one patch"** is what makes the race class impossible. It becomes the core contract (§2).
+4. **Registry pattern** (hosts, post-processors, pre-processors, resolvers, definition hooks): Portal/Transition/ClientOnly fit `pres` without core changes.
+5. **Definition-time hooks run behaviours' existing `merge()` on a definition shim,** so `undo` worked unchanged. This lowers R3's risk.
+6. **The spike implemented context read-tracking** (the proposal's §7 #7) and it worked. It stays a decision (Q4).
+
 ## 2. Design (study 03, with these changes)
 
 The design is study 03 §1–§6. In short:
@@ -82,15 +117,16 @@ The design is study 03 §1–§6. In short:
 1. **Context dependency tracking (study 03 §5, §7 #7) is out of the first cut.** A context change re-renders the components below it, as today. The Proxy adds hidden behaviour and isn't needed for the rewrite; reconsider it after R5 with measurements.
 2. **The dual-core switch is internal.** It is selected by an internal option on `run()` (and an env flag for the test matrix), not a documented `run({ core })` option, and it is deleted in R5.
 3. **Every fix pass gets a review** (PLAN-4.5 lesson: R2 introduced G-283).
-4. **R0 writes the parity tests first:** the §5 timing changes, the reentrancy cases, and PLAN-4.5's race scenarios (G-257 one-patch move, G-266 INITIALIZE before intent, G-283 runaway loop) as tests both cores must pass, or that document the intended change.
+4. **The flush contract** (spike finding 3): actions drain run-to-completion; a flush renders top-down, recomputes statics, drains anything queued, and repeats until stable; then it emits one vnode. A loop guard (100 passes, then a `MessageChannel` hop, no timers) replaces G-260/G-283's timers.
+5. **R0 writes the parity tests first:** the §5 timing changes, the reentrancy cases, and PLAN-4.5's race scenarios (G-257 one-patch move, G-266 INITIALIZE before intent, G-283 runaway loop) as tests both cores must pass, or that document the intended change.
 
 ## 3. Phases
 
 | Phase | Content | Exit | Size |
 |---|---|---|---|
-| **0-S** spike (running) | Extend the prototype with calculated fields, Collection filter/sort/move, Switchable with hidden pages, Suspense/READY/Lazy, a generic static, fetch scope tagging, one behavior via `transformDef`, action-log hooks, reentrancy; measure speed, counts and size; project the production size | Go/no-go against §4's criteria | — |
-| **R0** decisions and parity tests | §9 answered; `Hooks` contract written; parity + reentrancy + race tests, failing first where the behaviour changes | User decisions; tests reviewed | 0 |
-| **R1** runtime | `src/core/`: runtime, cells, define, instance, actions, tag children; the pragma emits `data.c = fn` (no per-render options object); both cores selectable | Canonical-subset tests and examples green on both cores | measured, not gated (both cores ship in dev builds only) |
+| **0-S** spike ✅ (met all criteria) | Extend the prototype with calculated fields, Collection filter/sort/move, Switchable with hidden pages, Suspense/READY/Lazy, a generic static, fetch scope tagging, one behavior via `transformDef`, action-log hooks, reentrancy; measure speed, counts and size; project the production size | Go/no-go against §4's criteria | — |
+| **R0** decisions and parity tests | §9 answered; `Hooks` contract written; the spike's 40 tests ported into a parity suite, plus the reentrancy and race tests, failing first where the behaviour changes | User decisions; tests reviewed | 0 |
+| **R1** runtime | `src/core/`: runtime, cells, define, instance, actions, tag children, registry; the DOM driver's `SymbolTree` O(n²) fix; the pragma emits `data.c = fn` (no per-render options object); both cores selectable | Canonical-subset tests and examples green on both cores | measured, not gated (both cores ship in dev builds only) |
 | **R2** hosts and markers | Collection, Switchable, marker registry: Portal, Transition, ClientOnly, Lazy, Suspense/READY, Slot | `browser-tests` green on `next` | — |
 | **R3** extensions | Statics, replies, fetch/socket scope chains, commands, ELEMENT, controls; behaviors/undo/selection/persist via `transformDef` | PLAN-3/4 suites green on `next` | — |
 | **R4** tooling and integrations | Diagnostics, devtools (inspection view, time travel via `setState`), testing (`renderComponent` via hooks; no `NEXT_LOG` parsing), SSR, Vike, Astro, `sygnal/element`, `sygnal/vite` HMR | Full `npm test` on `next`, docs samples, perf gate | — |
@@ -204,3 +240,14 @@ After each phase: a `/code-review high` of the phase diff (and of each fix pass)
 | # | Question | Recommendation |
 |---|---|---|
 | P46-Q17 | Synchronous STATE reducers; INITIALIZE at construction; BOOTSTRAP a microtask after the first commit | Accept |
+
+**Raised by spike 0-S:**
+
+| # | Question | Recommendation |
+|---|---|---|
+| P46-Q18 | Teardown: keep a `Stream.prototype._remove` swap scoped to `dispose()` (0 timers), or accept xstream's one `setTimeout` per stream (≈ 1–2k per 1k unmount) | Keep the scoped swap (it is PLAN-4.5's mechanism, narrowed); revisit if xstream ever exposes a synchronous stop |
+| P46-Q19 | Switchable hidden pages: render each page at mount (today), or on first show (spike: cheaper mount, slower first show) | Render at mount, as today (no visible change; first show stays fast) |
+| P46-Q20 | A child's `initialState` when its state slice is undefined: today SYG405 + error fallback; the spike used it as the slice | Keep today's behaviour (SYG405); `isolatedState` is the documented way to own state |
+| P46-Q21 | Within one action, a component that declares a static has its driver values buffered until after the static (G-158), so an EFFECT may run before an earlier-listed driver send | Accept; undocumented ordering. Document "sinks of one action run in model order, statics first" if anyone asks |
+| P46-Q22 | `STATE.stream` / `STATE.watch` change detection: the spike compared shallowly at the flush; today `stream` drops repeats by identity and `watch` compares deeply | Keep today's semantics exactly (identity for `stream`, deep for `watch`) |
+| P46-Q23 | Collection: id-less items under filter/sort keyed by raw index (spike) vs filtered/sorted index (today, looks like a latent bug); duplicate ids share one instance (write to the first) | Raw index (fix the latent bug; CHANGELOG); duplicate ids → a dev warning |
