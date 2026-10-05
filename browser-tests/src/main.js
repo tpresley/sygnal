@@ -46,6 +46,7 @@ import { uiZagTestsP5Z } from './tests/ui-zag-p5z.jsx'
 import { fixesTestsP5_2R, fixesTestsP5_2R_after } from './tests/fixes-p5-2r.jsx'
 import { sortableTestsP5_3D } from './tests/sortable-p5-3d.jsx'
 import { fixesTestsP5_3G } from './tests/fixes-p5-3g.jsx'
+import { fixesTestsP5_3K } from './tests/fixes-p5-3k.jsx'
 import { getResults } from './harness.js'
 
 async function runAll() {
@@ -102,6 +103,7 @@ async function runAll() {
     fixesTestsP5_2R_after,
     sortableTestsP5_3D,
     fixesTestsP5_3G,
+    fixesTestsP5_3K,
   ]
   for (const suite of suites) {
     if (only && !suite.name.toLowerCase().includes(only.toLowerCase())) continue
