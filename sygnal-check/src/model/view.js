@@ -22,7 +22,8 @@ import { resolveControlJSX } from './controls.js'
 import { resolveWidgetJSX } from './widgets.js'
 
 const TRANSPARENT = new Set(['Fragment', 'Portal', 'Transition', 'Suspense', 'ClientOnly', 'Slot', 'React.Fragment'])
-const COLLECTION = new Set(['Collection', 'collection'])
+// PLAN-5 V-1: a VirtualCollection is a Collection here (its rows are isolated items, its className the container's)
+const COLLECTION = new Set(['Collection', 'collection', 'VirtualCollection'])
 const SWITCHABLE = new Set(['Switchable', 'switchable'])
 
 export function newSink() {

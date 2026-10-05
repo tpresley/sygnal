@@ -692,6 +692,10 @@ export type ElementCommand =
   | { showPopover: ElementTarget }
   | { hidePopover: ElementTarget }
   | { togglePopover: ElementTarget; force?: boolean }
+  /** A `<VirtualCollection>`'s container: scroll to the row at `index` (of the filtered, sorted rows) */
+  | { scrollToIndex: ElementTarget; index: number; align?: ScrollToAlign; behavior?: 'auto' | 'smooth' }
+  /** A `<VirtualCollection>`'s container: scroll to the row whose item has this `id` */
+  | { scrollToId: ElementTarget; id: string | number; align?: ScrollToAlign; behavior?: 'auto' | 'smooth' }
   | RegisteredElementCommand
 
 /** A `focusWithin(selector)` target (D194): `{ focus: focusWithin('.title') }`. */
@@ -1445,6 +1449,36 @@ export type CollectionProps<PROPS = any, STATE = any> = {
   sort?: SortSpec;
 } & Omit<PROPS, 'of' | 'from' | 'filter' | 'sort'>
 
+/**
+ * VirtualCollection props (PLAN-5 V-1): Collection's, plus the scroll container's. Pass the parent
+ * component's state type as STATE to type-check `from`, as for Collection.
+ */
+export type VirtualCollectionProps<PROPS = any, STATE = any> = {
+  of: AnyComponent;
+  from: CollectionFrom<STATE>;
+  filter?: Filter;
+  sort?: SortSpec;
+  /** The scroll container's class; give it a bounded height (`height`, `max-height`, or a flex item with `min-height: 0`) */
+  className?: string;
+  /** A row's height in px before it is measured: a number (default 32) or `(item, index) => px` */
+  estimateSize?: number | ((item: any, index: number) => number);
+  /** Rows rendered beyond each edge of the view (default 5) */
+  overscan?: number;
+  /** The container's role (default `'list'`; its rows get `role="listitem"` unless they have a role). `null`: none */
+  role?: string | null;
+  /** The container's tabIndex (default 0: the keyboard scrolls it) */
+  tabIndex?: number;
+  /** The container's inline style, after `overflow-y: auto; overflow-anchor: none` */
+  style?: Record<string, string | number>;
+  id?: string;
+  'aria-label'?: string;
+  'aria-labelledby'?: string;
+  'aria-describedby'?: string;
+} & Omit<PROPS, 'of' | 'from' | 'filter' | 'sort' | 'className' | 'estimateSize' | 'overscan' | 'role' | 'tabIndex' | 'style' | 'id'>
+
+/** Where `scrollToIndex` / `scrollToId` put the row: 'auto' (default) scrolls only when it isn't in view */
+export type ScrollToAlign = 'auto' | 'start' | 'center' | 'end'
+
 export type SwitchableProps<PROPS = any> = {
   of: Record<string, AnyComponent>;
   current: string;
@@ -1933,6 +1967,15 @@ export function defineComponent<
 export function portal(...args: any[]): any
 
 export function Collection<PROPS extends { [prop: string]: any }, STATE = any>(props: CollectionProps<PROPS, STATE>): JSX.Element
+/**
+ * PLAN-5 V-1: a Collection that renders only the rows in view (+ `overscan`). Same `of` / `from` /
+ * `filter` / `sort`; the element is its own scroll container (give `className` a bounded height).
+ * Rows scrolled out are disposed and made again when they come back: keep row state in the array.
+ * Jump with element commands: `{ scrollToIndex: '.rows', index }`, `{ scrollToId: '.rows', id }`.
+ *
+ *   <VirtualCollection of={Row} from="rows" className="rows" estimateSize={32} />
+ */
+export function VirtualCollection<PROPS extends { [prop: string]: any }, STATE = any>(props: VirtualCollectionProps<PROPS, STATE>): JSX.Element
 export function Switchable<PROPS extends { [prop: string]: any }>(props: SwitchableProps<PROPS>): JSX.Element
 export function Portal(props: PortalProps): JSX.Element
 export function Transition(props: TransitionProps): JSX.Element

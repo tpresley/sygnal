@@ -995,6 +995,66 @@
     "docsUrl": "https://sygnal.js.org/reference/errors#syg425"
   },
   {
+    "code": "SYG430",
+    "title": "VirtualCollection has no bounded height",
+    "severity": "warn",
+    "strict": false,
+    "reportedBy": [
+      "dev-entry"
+    ],
+    "explanation": "A `<VirtualCollection>` is its own scroll container (`overflow-y: auto`) and renders the rows that fit in its height. Its element is either 0 px tall, so no row is in view, or as tall as all of its rows (its height comes from its content, e.g. no `height` in its class), so it never scrolls and would render every row. In the second case Sygnal renders only the rows within the viewport's height, and rows further down the page stay empty. Reported once per VirtualCollection and case.",
+    "fix": "Give its `className` a bounded height: `.rows { height: 400px }` or `max-height`, or in a flex column `flex: 1; min-height: 0`. Check that a parent with `display: none` isn't the cause of a 0 height.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg430"
+  },
+  {
+    "code": "SYG431",
+    "title": "VirtualCollection items without ids",
+    "severity": "warn",
+    "strict": false,
+    "reportedBy": [
+      "dev-entry"
+    ],
+    "explanation": "Items of a `<VirtualCollection>`'s array have no `id`, so they are keyed by their index (as in a Collection, D169). A VirtualCollection keeps a measured height and an instance per key: when items are added, removed or reordered, both follow the position, not the item, so rows get each other's heights and a row's instance shows another item. Reported once per VirtualCollection.",
+    "fix": "Give every item a unique `id`, e.g. `rows: data.map((r) => ({ id: r.key, ...r }))`.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg431"
+  },
+  {
+    "code": "SYG432",
+    "title": "VirtualCollection item does not render one element",
+    "severity": "warn",
+    "strict": false,
+    "reportedBy": [
+      "dev-entry"
+    ],
+    "explanation": "The item component of a `<VirtualCollection>` rendered a fragment (an array of elements) or text. A VirtualCollection measures each row's root element and sets `data-index`, `aria-posinset` and `aria-setsize` on it; a fragment has no root element, so its rows can't be measured (later rows overlap or leave gaps) or announced in position. Reported once per VirtualCollection.",
+    "fix": "Return one element from the item's view: wrap its content in a `<div>` (or an `<li>`).",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg432"
+  },
+  {
+    "code": "SYG433",
+    "title": "VirtualCollection scroll target not in the list",
+    "severity": "warn",
+    "strict": false,
+    "reportedBy": [
+      "dev-entry"
+    ],
+    "explanation": "An element command `{ scrollToIndex: target, index }` or `{ scrollToId: target, id }` reached a `<VirtualCollection>` with an index outside its rows (an index counts the rows after `filter` and `sort`, from 0) or an id that no shown item has (not in the array, or filtered out). It didn't scroll.",
+    "fix": "Send an integer index from 0 to the number of shown rows minus 1, or the id of an item the filter keeps: `{ scrollToId: '.rows', id: row.id }`.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg433"
+  },
+  {
+    "code": "SYG434",
+    "title": "Invalid VirtualCollection estimateSize or overscan",
+    "severity": "warn",
+    "strict": false,
+    "reportedBy": [
+      "dev-entry"
+    ],
+    "explanation": "`estimateSize` must be a positive number (a row's height in px before it is measured) or a function `(item, index) => px`, and `overscan` a number ≥ 0 (rows rendered beyond each edge). Another value is ignored: 32 px and 5 rows are used instead.",
+    "fix": "Pass `estimateSize={32}` (about your row height) or `(item) => (item.expanded ? 120 : 32)`, and `overscan={5}`.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg434"
+  },
+  {
     "code": "SYG501",
     "title": "Removed in 6.0: view with positional arguments",
     "severity": "error",
