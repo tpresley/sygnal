@@ -85,11 +85,13 @@ export function shallowEq(a: any, b: any) {
 /**
  * P46-P: two pragma-plain trees (no component, form field or foreign vnode) that render the same:
  * the same tags, keys, text and data (each bucket shallow-equal). A re-run view whose output is
- * the same keeps its last vnode, so the patch skips that subtree by identity
+ * the same keeps its last vnode, so the patch skips that subtree by identity.
+ * G-349: a vnode with a `hook` is never the same (its update/postpatch run on every patch, a
+ * hoisted hook object too; refs and autoFocus chain their hooks there)
  */
 export function sameTree(a: any, b: any): boolean {
   if (a === b) return true
-  if (!a || !b || a.sel !== b.sel || a.key !== b.key || a.text !== b.text || !sameData(a.data, b.data)) return false
+  if (!a || !b || a.sel !== b.sel || a.key !== b.key || a.text !== b.text || b.data?.hook || !sameData(a.data, b.data)) return false
   const x = a.children, y = b.children
   if (x === y) return true
   if (!x || !y || x.length !== y.length) return false
