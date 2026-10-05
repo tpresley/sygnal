@@ -19,7 +19,8 @@
  *
  * Slice (state.form): values, initial, errors (all current schema errors by name), touched,
  * server (server errors), remote (async check results: '' passed), pending (name -> value being
- * checked), submitting, submitted, submitCount, queued (a submit waits for a check), validating
+ * checked), submitting, submitted, submitCount, queued (a submit waits for a check or an async
+ * schema), validating
  * (an async schema runs); calculated: fields (per name: { name, value, error, invalid, touched,
  * dirty, pending }; `error` is what to show), valid, dirty, error (form-level message).
  *
@@ -110,12 +111,13 @@ export const form = (schema: any, o: any = {}): any => {
     SUBMIT: (s, _, k) => {
       if (s.submitting || s.queued) return void dev(232, s)
       const n = {...s, submitCount: s.submitCount + 1}, r = v(s.values)
-      return r.then ? {s: {...n, validating: true}, wait: {values: s.values, submit: 1}} : attempt({...n, errors: r.errors}, k)
+      // G-371: a submit waiting for an async schema is queued (a second one is dropped)
+      return r.then ? {s: {...n, validating: true, queued: true}, wait: {values: s.values, submit: 1}} : attempt({...n, errors: r.errors}, k)
     },
     RESULT: (s, d, k) => {
       if (d.values !== s.values) return
       const n = {...s, errors: v(d.values).errors, validating: false}
-      return d.submit ? attempt(n, k) : {s: n}
+      return d.submit && !s.submitting ? attempt(n, k) : {s: n}
     },
     ADD: (s, {field, value}) => {
       const rows = getField(s.values, field) || []

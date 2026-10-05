@@ -50,7 +50,7 @@ export function reportForm(code: number, a?: any, b?: any): any {
   } else if (code == 232) {
     devReport('SYG232', {
       component: 'form',
-      message: `form: a submit was dropped: ${a?.submitting ? 'the previous submit is still being sent (no form.DONE / form.ERRORS yet)' : 'a submit is already queued, waiting for an async check'}`,
+      message: `form: a submit was dropped: ${a?.submitting ? 'the previous submit is still being sent (no form.DONE / form.ERRORS yet)' : 'a submit is already queued, waiting for an async check or an async schema'}`,
       fix: `Disable the submit button while state.form.submitting (or queued) is true; answer the submit with ok: 'form.DONE', error: 'form.ERRORS'`,
     })
   } else if (code == 233) {

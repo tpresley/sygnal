@@ -91,7 +91,7 @@ An async schema (valibot's `pipeAsync`, zod's async refinements) works too: `sta
 | `values`, `initial` | The current values, and the ones the form started with (or was last saved or reset with) |
 | `errors` | Every current schema error by field name, shown or not |
 | `touched`, `server`, `remote`, `pending` | Blurred fields; [server errors](#server-errors); [check](#async-checks) results; checks running |
-| `submitting`, `submitted`, `submitCount`, `queued`, `validating` | Submit state: sent and not answered yet; `form.DONE` arrived; attempts; waiting for a check; an async schema runs |
+| `submitting`, `submitted`, `submitCount`, `queued`, `validating` | Submit state: sent and not answered yet; `form.DONE` arrived; attempts; a submit waits for a check or an async schema; an async schema runs |
 | `fields`, `valid`, `dirty`, `error` | Calculated: per-field view data; no errors; values differ from `initial`; the form-level message |
 
 The options:
