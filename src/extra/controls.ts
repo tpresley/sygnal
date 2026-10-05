@@ -12,8 +12,8 @@
  *
  * A control is not a component: the pragma recognises it by its `__sygnalControl` render hook
  * (src/pragma/index.ts) and calls it with the props, the children and its own createElement.
- * This module must not import createElement: the automatic JSX runtime bundles its own copy of
- * the pragma, and a second copy would cost an app using controls ~700 B.
+ * The JSX runtime entries use the core's pragma (D188), so the `h` passed in is the core
+ * createElement; the hook keeps it a parameter (spec.vnode's contract, D101/D116).
  *
  * A spec is an intrinsic tag name or a spec object { kind, vnode(props, children, h), commands? }
  * (the frozen contract D101/D116, PLAN-5 widgets build on it). vnode() must return one element

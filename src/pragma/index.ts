@@ -4,8 +4,8 @@ import * as is from './is'
 // P45-B: a vnode this pragma made whose subtree has no component (or other marker the view
 // walk handles), no form field and no vnode from elsewhere. the core's view walk skips it
 // (and, at the root, the whole walk). The flag is on the prototype, not enumerable, so the
-// vnode's own fields are snabbdom's six. Checked by name (`$p`), not by class: the JSX runtime
-// entries carry their own copy of this file.
+// vnode's own fields are snabbdom's six. Checked by name (`$p`), not by class (a second copy of
+// the core, e.g. Astro's SSR bundle, makes its own).
 function Plain(this: any, sel: any, data: any, children: any, text: any, key: any) {
   this.sel = sel
   this.data = data
@@ -243,16 +243,15 @@ export const createElementWithModules = (modules: Record<string, any>) => {
   const ca = (sel: any, data: any, children: any[], k?: any): any => {
     if (typeof sel === 'undefined') {
       sel = 'UNDEFINED'
-      // The JSX runtime entries bundle this file standalone and must not carry a second
-      // diagnostics core, so it goes through the core's bridge (G-044: collected like the
-      // other codes), or, without a core, prints the same pre-formatted text.
+      // Through the diagnostics bridge (G-044: collected like the other codes), or, with
+      // diagnostics not loaded, the same pre-formatted text.
       const msg = 'A JSX tag is undefined, so <UNDEFINED> is rendered instead', fix = 'Import or define the component in this file'
       const core = (globalThis as any).__SYGNAL_DIAGNOSTICS__
       if (core && core.error) core.error('SYG420', 'JSX', msg, fix)
       else console.error(`[Sygnal SYG420] JSX: ${msg}. ${fix}. https://sygnal.js.org/reference/errors#syg420`)
     }
     // CT-1: a control (src/extra/controls.ts) renders its element itself and stamps its marker.
-    // It gets this createElement: the JSX runtime entries carry their own copy of the pragma.
+    // It gets this createElement (the JSX runtime entries use the core's, D188).
     const isComponent = is.fun(sel)
     if (isComponent && (sel as any).__sygnalControl) return (sel as any).__sygnalControl(data, children, ce)
     // the core instantiates a component from the vnode's `data.c` (the component function, with
