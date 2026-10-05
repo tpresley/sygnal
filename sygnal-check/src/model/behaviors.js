@@ -7,7 +7,7 @@
  * A `uses` value resolves when it is a call of
  *   - a `defineBehavior({ ... })` factory (same file, or through relative
  *     imports and re-exports), or
- *   - a first-party behavior imported from 'sygnal' (pager, selection, undo, form),
+ *   - a first-party behavior imported from 'sygnal' (pager, selection, undo, form, sortable),
  *     modelled below as known definitions.
  *   - D199 (PLAN-5): a factory function that returns such a call with the options it got,
  *     `(opts) => base(opts)`, `(opts = {}) => base({ delay: 300, ...opts })`,
@@ -89,6 +89,19 @@ export const FIRST_PARTY = {
     nextOptions: ['submit'],
     optionsArg: 1,
   },
+  // PLAN-5 B-1: sortable({ from, item, handle, ... }) (src/extra/sortable.ts). It listens on the
+  // host's root and finds the item / handle from the event target (delegated: items are usually
+  // rendered by Collection children, so the selectors may match elements of the views the host
+  // renders, not only its own; SYG110 still reports one rendered nowhere). INIT and the pointer
+  // actions come from its intent; DROPPED is dispatched with next() (a host entry extends it).
+  sortable: {
+    stateKeys: ['dragging', 'over', 'after', 'list', 'mode', 'press', 'origin', 'message', 'helpId'],
+    calculated: [],
+    model: ['INIT', 'PRESS', 'MOVE', 'UP', 'CANCEL', 'KEY', 'DROPPED'],
+    options: ['from', 'item', 'handle', 'axis', 'threshold', 'attr', 'idField', 'label', 'messages'],
+    listens: [['item', 'PRESS', 'select', true], ['handle', 'KEY', 'select', true]],
+    intent: ['INIT', 'PRESS', 'MOVE', 'UP', 'CANCEL', 'KEY', 'DROPPED'],
+  },
   undo: {
     stateKeys: ['past', 'future'],
     calculated: ['canUndo', 'canRedo'],
@@ -157,8 +170,9 @@ export function sygnalImport(file, ident) {
 const isDefineBehaviorCall = (file, node) =>
   node?.type === 'CallExpression' && sygnalImport(file, node.callee) === 'defineBehavior'
 
-// A FIRST_PARTY entry: `listens` items are [option, action, method = 'click'] (a null action: the
-// option's element is listened to for events of any action); `defaults`: an option's value when
+// A FIRST_PARTY entry: `listens` items are [option, action, method = 'click', delegated = false] (a
+// null action: the option's element is listened to for events of any action; delegated: heard
+// on the host's root, so the element may be rendered by a child, SYG104 doesn't apply); `defaults`: an option's value when
 // the use leaves it out (its selector is still listened to); `nextOptions`: options naming a HOST
 // action the behavior dispatches (a trigger); `optionsArg`: which call argument holds the options;
 // `model: null`: actions that can't be listed (open)
@@ -169,7 +183,7 @@ function firstPartyDef(name) {
     stateKeys: fp.stateKeys, calculated: fp.calculated,
     model: fp.model ? new Map(fp.model.map(a => [a, ['STATE']])) : null,
     intentActions: fp.intent || [],
-    listens: fp.listens.map(([option, action, method = 'click']) => ({ option, method, action })),
+    listens: fp.listens.map(([option, action, method = 'click', delegated = false]) => ({ option, method, action, delegated })),
     defaults: fp.defaults || {}, nextOptions: fp.nextOptions || [], optionsArg: fp.optionsArg || 0,
     optionNames: new Set([...fp.options]),
     nextTargets: [], replyTargets: [], dynamic: false,
@@ -480,7 +494,7 @@ export function analyzeUses(project, comp) {
           entry.actions.set(l.action, e)
         }
         const v = selectorValue(opt.node, opt.file)
-        const sel = { ...v, node: opt.node, method: l.method, global: v.selector != null && GLOBAL_SELECTORS.has(v.selector.trim()), file: opt.file, behavior: key, option: l.option }
+        const sel = { ...v, node: opt.node, method: l.method, global: v.selector != null && GLOBAL_SELECTORS.has(v.selector.trim()), file: opt.file, behavior: key, option: l.option, delegated: l.delegated }
         resolveSelectorControls(project, opt.file, sel)
         entry.selectors.push(sel)
       }

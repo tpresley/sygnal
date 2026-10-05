@@ -443,6 +443,36 @@ A widget declares an event whose name the browser also uses (`'change'`, `'input
 
 **Fix:** Give the widget's event its own name (`'pick'` for a date picker's selection, `'rate'` for a rating) and emit that, or make the listener handle both (`.filter((e) => e instanceof CustomEvent)`).
 
+### SYG145
+
+**Sortable item without its id attribute**
+
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+The `sortable` behavior finds the item a pointer press or a key is on with `event.target.closest(item)` and reads its id from the item element's `attr` attribute (`data-id` by default), then looks that id up in `state[from]` (by `idField`, `id` by default). An item element without the attribute can't be matched to an entry of the list, so the press or key is ignored and the item can't be moved. Usually the item renders its id under another attribute name, or the `item` selector matches an element inside the one that carries the id. Reported once per `item` selector, at the first press or key on such an item.
+
+**Fix:** Render the id on the item element (`<li className="task" data-id={state.id}>`), point `item` at the element that carries it, or name the attribute: `sortable({ from: 'tasks', item: '.task', attr: 'data-key' })`.
+
+### SYG146
+
+**Sortable item or handle selector matches nothing**
+
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+At the host's first pointer press or key press, the `sortable` behavior checks its selectors against what the host rendered (its children and Collection items included): `item` is reported when elements carry the id attribute (`attr`) but none matches `item`, and `handle` when items exist but none contains an element matching `handle`. Either way no item can be picked up, by pointer or keyboard. An empty list can't tell a typo from no items, so the check waits for a later interaction. Reported once per selector.
+
+**Fix:** Use the selector of the elements the items render: `item: '.task'` for `<li className="task" data-id={id}>`, `handle: '.grip'` for the drag handle inside it, or leave `handle` out to drag the whole item.
+
+### SYG147
+
+**Sortable list key is not an array in the host state**
+
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+`sortable({ from })` reorders `state[from]` (each key of an array `from` for moves between lists). When the host starts, a `from` key whose value is missing or not an array is reported: nothing in it can be found, so no item can be moved. The message suggests a close array key of the state when there is one. Reported once per key; a list that arrives later should start as an empty array.
+
+**Fix:** Name the array in the host's state (`from: 'tasks'` for `initialState: { tasks: [...] }`), and start a list that is loaded later as `[]`.
+
 ## SYG2xx: State and reducers
 
 ### SYG201
@@ -2175,3 +2205,13 @@ Severity: `warn` · Reported by: `sygnal-check`
 A `<label for>`, `aria-describedby` or `aria-labelledby` names an id that no element renders, so the label or description is attached to nothing (often a typo, or an id that was renamed on one side only). A literal id may be rendered anywhere in the checked files; a `uid('x')` reference needs an element in the same component with `id={uid('x')}`. When some id in the project is dynamic (`id={props.id}`), literal references are not checked, and dynamic references never are. It is a warning, also under `--strict`; `--a11y=error` (or `a11y: 'error'` in `check()` and the Vite plugin's `check` options) makes it an error.
 
 **Fix:** Render the target with the same id, or fix the reference. Inside a component, use `uid('x')` on both sides: `<input id={uid('email')} aria-describedby={uid('email-error')} />` and `<p id={uid('email-error')}>`.
+
+### SYG724
+
+**Sortable handle not keyboard-accessible, or no live region**
+
+Severity: `warn` · Reported by: `sygnal-check`
+
+A `sortable` use whose keyboard path or announcements can't work. Keyboard moves start on the handle (the item when there is no `handle` option): sygnal-check finds the elements that match it in the host's view and the views it renders (Collection items, children) and reports one that can't take focus (not a button, field, link with `href` or `summary`, no `tabIndex` or `tabIndex={-1}`, not contenteditable), or a focusable one other than a `<button>` (SYG705 covers those) with no `aria-label` / `aria-labelledby` / `title` and no content. It also reports a host that renders no live region (an element with `aria-live`, or `role="status"`, `"alert"` or `"log"`) in those views, since the pick-up, move and drop announcements are `state.<key>.message`. Options that aren't literal strings, selectors beyond tag / `.class` / `#id` (or the default `[data-id]`), elements with spread props and views it can't follow are skipped. It is a warning, also under `--strict`; `--a11y=error` makes it an error.
+
+**Fix:** Render the handle as `<button type="button" className="grip" aria-label={'Reorder ' + state.title} aria-describedby={context.sort.helpId}>`, and the message in a live region: `<p role="status" aria-live="assertive">{state.sort.message}</p>`. An app-wide announcer elsewhere: `// sygnal-ignore SYG724`.

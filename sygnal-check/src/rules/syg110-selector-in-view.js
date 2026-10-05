@@ -31,17 +31,17 @@ function patternMatch(sink, kind, name) {
  * (or, with kind 'control', a control: `name` is the Control).
  * @returns {{ child: string, via: string[] } | null}
  */
-export function findInChildren(project, sink, kind, name) {
+export function findInChildren(project, sink, kind, name, has = viewHas) {
   const visited = new Set()
   let frontier = sink.children.map(c => ({ usage: c, path: [c.name] }))
   for (let depth = 0; depth < MAX_CHILD_DEPTH && frontier.length; depth++) {
     const next = []
     for (const { usage, path } of frontier) {
-      if (viewHas(usage.injected, kind, name)) return { child: path[0], via: path }
+      if (has(usage.injected, kind, name)) return { child: path[0], via: path }
       const childSink = usage.ref ? project.viewOf(usage.ref) : null
       if (childSink && !visited.has(childSink)) {
         visited.add(childSink)
-        if (viewHas(childSink, kind, name)) return { child: path[0], via: path }
+        if (has(childSink, kind, name)) return { child: path[0], via: path }
         for (const c of childSink.children) next.push({ usage: c, path: [...path, c.name] })
       }
       for (const c of usage.injected.children) next.push({ usage: c, path: [...path, c.name] })
@@ -93,6 +93,9 @@ export default {
           // JSX a parent passes in as children/slots renders in this component's scope
           if (injected.some(sink => viewHas(sink, kind, name))) continue
           const inChild = findInChildren(project, view, kind, name)
+          // a behavior that listens on the host's root (sortable) hears the children's events,
+          // also from a class a child's dynamic className may produce
+          if (sel.delegated && (inChild || findInChildren(project, view, kind, name, (s, k, n) => !!patternMatch(s, k, n)))) continue
           if (inChild) {
             const child = inChild.child
             const where = inChild.via.length > 1 ? ` (rendered by ${inChild.via.join(' > ')})` : ''
