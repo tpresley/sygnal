@@ -25,6 +25,7 @@
  *   (spike 0-S4). `__sygnalHome` keeps its events in this component (G-356). The region is the
  *   only child of a wrapper (`.toaster-home`), so the moved element has no siblings to patch.
  *   G-404: the dialogs of the region's own root (a shadow root) are looked at and observed too.
+ *   G-426: the focus is that root's activeElement (in a shadow root the document's is the host).
  *
  * Class hooks: .toaster-home, .toaster (+ `className`), .toaster-status, .toaster-alert,
  * .toaster-list, .toast, .toast-text, .toast-dismiss. Data attributes: data-kind on .toast,
@@ -67,7 +68,8 @@ const placement = {
     // the button goes (a removed focused element gets no focusout in Chromium)
     el.addEventListener('click', (e: any) => {
       const b = e.target?.closest?.('.toast-dismiss')
-      if (!b || !b.contains(document.activeElement)) return
+      // G-426: the root's activeElement (in a shadow root, the document's is the host)
+      if (!b || !b.contains(act(el))) return
       const bs = [...el.querySelectorAll('.toast-dismiss')].filter((x: any) => x === b || !leaving(x)), i = bs.indexOf(b)
       const to: any = bs[i + 1] || bs[i - 1] || (el._from?.isConnected && !el.contains(el._from) && el._from)
       to ? to.focus() : b.blur()
@@ -77,7 +79,7 @@ const placement = {
       const to = topModal(root) || home
       if (el.parentNode !== to) {
         // a move blurs a focused Dismiss button: give the focus back
-        const f: any = el.contains(document.activeElement) && document.activeElement
+        const a = act(el), f: any = el.contains(a) && a
         to.appendChild(el)
         f && f.focus()
       }
@@ -88,7 +90,7 @@ const placement = {
     const mo = el._mo = new MutationObserver((rs) => {
       // G-399: the focused element was removed (a toast dismissed some other way): no focusout
       // in Chromium, so the region would stay paused; send one
-      if (el._f && !el.contains(document.activeElement)) { el._f = 0; el.dispatchEvent(new FocusEvent('focusout', {bubbles: true})) }
+      if (el._f && !el.contains(act(el))) { el._f = 0; el.dispatchEvent(new FocusEvent('focusout', {bubbles: true})) }
       if (home.isConnected && (!el.isConnected || (el.parentNode !== home && !modal(el.parentNode)) || rs.some((r) => r.type == 'attributes'))) place()
     })
     const opts = {subtree: true, childList: true, attributes: true, attributeFilter: ['open']}
