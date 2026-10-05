@@ -340,6 +340,7 @@ Covers `sygnal`, `sygnal-check` and `create-sygnal-app`. A few fixes change beha
 - **JSX attributes and the DOM driver** (PLAN-5, D196).
   - An `aria-*` boolean renders as `"true"` / `"false"`: `aria-invalid={true}` was written as `aria-invalid=""` and `aria-expanded={false}` removed the attribute, which assistive technology reads as neither. `attrs={{ 'aria-x': true }}` and `attrs-aria-x` are passed as written.
   - `popovertarget`, `popovertargetaction`, `commandfor`, `command`, `closedby`, `interestfor` and `anchor` are written as attributes. As props they set a property the browser ignores, so `<button popovertarget="menu">` and `<button commandfor="dlg" command="show-modal">` did nothing.
+  - An element a hook moved out of its component's DOM (a notification region re-parented into an open modal `<dialog>`) no longer makes every event inside it throw `No root element found` (G-356). Setting `__sygnalHome` on the moved element to the element it came from keeps its events in the component, bubbling through the home ([Portals](https://sygnal.js.org/advanced/portals/#moving-an-element-with-a-hook)).
 
 ### Performance
 

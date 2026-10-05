@@ -447,15 +447,18 @@ export class EventDelegator {
       );
     }
 
+    // G-356: a moved element bubbles to its home (an element of its component), not to the
+    // element it was moved into
+    const up = ((elm as any).__sygnalHome || elm.parentNode) as Element;
     let newRoot: Element | undefined = rootElement;
     let newIndex = index;
     let newListeners = listeners;
     if (elm === rootElement) {
-      if (index < 0 || !elm.parentNode) {
+      if (index < 0 || !up) {
         return;
       }
       // the parent scope's root that contains elm (G-144: it may have several)
-      newRoot = this.isolateModule.getRootElement(elm.parentNode as Element);
+      newRoot = this.isolateModule.getRootElement(up);
       newIndex--;
       // G-145: like the browser, the event bubbles out of a total scope (a child
       // component) to the parent's own elements; their listeners live in the parent's
@@ -465,10 +468,10 @@ export class EventDelegator {
       }
     }
 
-    if (elm.parentNode && newRoot) {
+    if (up && newRoot) {
       this.bubble(
         eventType,
-        elm.parentNode as Element,
+        up,
         newRoot,
         event,
         newListeners,

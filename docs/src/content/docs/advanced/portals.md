@@ -48,6 +48,33 @@ ModalExample.intent = ({ DOM }) => ({
 
 If the portal target is a container **within** the component's own DOM subtree, normal `DOM.select()` will still work for portal content. The document-level approach is only necessary when the target is outside the component's isolation boundary (which is the typical use case for portals — rendering to `body`, `#modal-root`, etc.).
 
+## Moving an element with a hook
+
+A `Portal` mounts separate content. Sometimes a component's own element has to move instead, for example a notification region that goes into the topmost open modal `<dialog>` so it stays clickable above it, and back when the dialog closes. A snabbdom `insert` hook can move the element; Sygnal keeps patching it wherever it is. Set `__sygnalHome` on the moved element to the element it came from, so its events still belong to the component:
+
+```jsx
+const intoTopModal = {
+  insert: (vnode) => {
+    const el = vnode.elm
+    el.__sygnalHome = el.parentNode
+    const modal = [...document.querySelectorAll('dialog')].find((d) => d.matches(':modal'))
+    if (modal) modal.appendChild(el)
+  },
+}
+
+function Notices({ state }) {
+  return (
+    <div className="notices-home">
+      <section className="notices" hook={intoTopModal}>
+        <button className="clear">Clear</button>
+      </section>
+    </div>
+  )
+}
+```
+
+With `__sygnalHome`, `DOM.click('.clear')` hears the moved button, and the event bubbles through the home to the component's parents (not to the dialog's listeners). Without it, child components inside the moved element (Collection items) still hear their own events, but the component's listeners on its own moved elements don't fire, and an element moved out of the app's root is outside the app. `DOM.select(…).elements()` and `ELEMENT` commands look inside the component's own DOM, so they don't find moved elements; give the moved element a child component for those.
+
 ## Chained Document Selectors
 
 You can also use the chained `.select()` syntax on document sources for cleaner filtering:
