@@ -325,6 +325,11 @@ describe('tabs', () => {
     await t.ready()
     const ids = t.queryAll('.tab').map((b) => b.id)
     expect(new Set(ids).size).toBe(4)
+    // the first write of an item's slice keeps its id prefix
+    t.simulateEvent('.tab', 'click', { data: { value: 'b' } })
+    await t.next((s) => s.cards[0].tabs?.selected === 'b')
+    expect(t.state.cards[0].tabs.id).toBe('tabs')
+    expect(t.queryAll('.tab').map((b) => b.id)).toEqual(ids)
     t.expectNoDiagnostics()
   })
 
