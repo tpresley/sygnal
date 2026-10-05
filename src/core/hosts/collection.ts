@@ -9,7 +9,7 @@
  *   owner's state is the array).
  * - Items are keyed by `id`, an id-less item by its raw index (D169); one key -> index map per
  *   array identity serves every item (cell.ts indexer). A duplicate key renders its first element
- *   only; the dev warning is R4's (app.dupKey is the hook point).
+ *   only; the dev warning is R4's (hooks.onDuplicateKey is the hook point).
  * - `filter` / `sort` (every form today's core accepts; SYG418 for an invalid one) change what
  *   renders and in which order; the state array keeps its order, and an item writes back to its
  *   own element. An item returning `undefined` removes itself.
@@ -26,6 +26,7 @@ import {Inst, shallowEq} from '../instance'
 import {Cell, Index, indexer, itemCell, keyCell, keyOf} from '../cell'
 import {CoreDef, isObj} from '../define'
 import {uidPart} from '../../shared'
+import {viewOf} from '../view'
 import {warn, error as logError, fail} from '../../extra/diagnostics/legacy'
 
 const SORT_FIX = "Use a field name, { field: 'asc'|'desc'|1|-1 }, or a function"
@@ -206,7 +207,7 @@ export class CollectionHost {
     for (let x = 0; x < n; x++) {
       const i = idx ? idx[x] : x, k = keyOf(a[i], i)
       // D169: a duplicate key renders its first element (R4 reports it)
-      if (m.get(k) !== i) { this.owner.app.dupKey?.(this.owner, k); continue }
+      if (m.get(k) !== i) { const H = this.owner.app.hooks; H.onDuplicateKey && H.onDuplicateKey(viewOf(this.owner), k); continue }
       keys.push(k)
     }
     return keys

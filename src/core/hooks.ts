@@ -183,6 +183,8 @@ export interface Hooks {
    * reports the keys `initialState` defines that the slice lacks.
    */
   onStateSeed?(inst: InstanceView, slice: any, initialState: any): void
+  /** D169: a Collection item key (id, or raw index) that appears more than once; only its first element renders. R4's dev warning */
+  onDuplicateKey?(owner: InstanceView, key: any): void
   /** a child's READY flag changed (devtools, Suspense diagnostics) */
   onReady?(inst: InstanceView, child: InstanceView, ready: boolean): void
   /**

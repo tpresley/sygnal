@@ -96,8 +96,6 @@ export class App {
   initState: any
   /** D168 hook point: R4's dev check re-runs a sample of the views context tracking skipped */
   ctxSkip: ((inst: Inst) => void) | null = null
-  /** D169 hook point: a Collection key that appears more than once (R4's dev warning) */
-  dupKey: ((owner: Inst, key: any) => void) | null = null
   /** R3 hook point: statics recomputed after each render pass */
   afterRender: (() => void) | null = null
   defs = new WeakMap<ComponentFn, CoreDef>()
