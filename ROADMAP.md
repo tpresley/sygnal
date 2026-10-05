@@ -321,3 +321,28 @@ Close the everyday gaps that the gap study found between Sygnal and React/Vue ap
 **Controls outcome (1-E, P4-D):** the A/B eval (12 tasks × 5 trials, selectors vs controls) met two of its four bars. Opus passed every task either way, but its wall time rose 1.06× (bar: at most +5%); Haiku's pass rate fell from 91.7% to 73.3% (bar: not lower), mostly because it read a control's name as the button's label (`<Pin>📌</Pin>`, dropping the visible text) and imported one component's controls into a sibling. Learn time (+0.6 s Opus, −1.7 s Haiku) and wiring failures (0% both) met theirs. With mixed results, controls are an alternative form in 6.0 (D141): fully supported and documented, not canonical, and no migration of examples or templates.
 
 **Open:** the 4-E final eval and REPORT-v4 <!-- TODO(4-E): link REPORT-v4 and the measured impact. -->. Components and integrations (widgets, browser sources, the "Web components" guide) follow in PLAN-5.
+
+---
+
+### 18. Ecosystem Components and Integrations (PLAN-5)
+
+**Status:** `IN PROGRESS` for 6.0.0 ([PLAN-5](dev-plans/PLAN-5.md), tracker [PLAN-5-status](dev-plans/PLAN-5-status.md)). Phase 0 (baseline and spikes) runs on `plan5-integration`, on the PLAN-4.6 core (`src/core/`). Every feature attaches through the core's hooks and registries and is designed to add 0 B to an app that doesn't use it; the core has 904 B of the size gate left.
+
+Ready-made answers to what other frameworks solve with their most-used libraries: native features where Sygnal can own the problem, and one integration primitive for framework-agnostic libraries, web components and (opt-in) React/Preact/Vue components. Foreign widgets report through DOM events on their host element, which `intent` reads; views still bind no events.
+
+| Item | What | Priority |
+|---|---|---|
+| W-1 | `defineWidget`: a foreign widget as a tag rendered and selected canonically (`<DatePicker className="due" value={…} />`, `DOM.select('.due').events('change').detail()`), that also works as a control (D189); element commands through the host; `onError` phase `'widget'` | P1 |
+| W-2 | Adapters on `defineWidget` (separate entries): `fromZag`, `sygnal/react` (+ the `preact/compat` alias), `sygnal/vue` on demand | P2 |
+| W-3 | Web components first-class: a "Web components" guide (using, and publishing with `defineElement`), `JSX.IntrinsicElements` augmentation, the `.detail()` stream enricher, custom-element events in `sygnal-check` | P1 |
+| F-1 | Forms with validation as a behavior (`uses = { form: form(schema, …) }`): field state, any Standard Schema validator, focus the first invalid field, `uid`-linked errors, async and server errors; A/B against helpers over `processForm` | P1 |
+| T-1 | Toasts: `EVENTS: event('TOAST', …)` rendered by a `<Toaster>` in a live region, auto-dismiss through `timers` | P2 |
+| A-1 | Collection move transitions: a per-item `view-transition-name` on the View Transitions driver, FLIP only as a fallback | P2 |
+| V-1 | `<VirtualCollection>` on `@tanstack/virtual-core`, with `scrollToIndex` through `createCommand()` | P2 |
+| B-1 | Drag and drop with pointer, touch and keyboard support; `sortable` as a behavior or a driver helper | P3 |
+| B-2 | i18n recipe (i18next, `.context`, a locale driver, `persist` for the locale) | P3 |
+| B-3 | Browser sources pack (intersection, resize, media query, storage, visibility, online, clipboard, geolocation) in the `timers` declaration shape, with test fakes | P2 |
+| B-4 | Deferred loading triggers: `lazy(…, { when: 'visible' \| 'idle' })` | P3 |
+| U-1 | `sygnal-ui`, a separate headless package: native Dialog, Popover, Tooltip; Tabs, Accordion, Disclosure as behaviors; Menu, Select, Combobox on `fromZag`; the Toaster | P2 |
+
+Also docs-only recipes (Chart.js/ECharts, Tiptap, CodeMirror first; Embla, Floating UI, AutoAnimate, TanStack Table, AG Grid, icons later) and a final eval with new tasks 30–34 against React with its usual libraries.
