@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 // PLAN-5 B-4 (D103): lazy(load, { when: 'visible' | 'idle' }): the import starts when the
 // placeholder enters the viewport, or when the browser is idle, not at lazy(). With Suspense the
-// fallback shows meanwhile (the deferred placeholder stays in the pending boundary, observed).
+// fallback shows meanwhile (the deferred placeholder stays in the pending boundary, observed;
+// the fallback is wrapped in a display: contents div holding the placeholders).
 // SSR renders the placeholder and never loads. Real browsers: browser-tests/tests/browser-sources.test.js.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { run, lazy, Suspense, renderToString, renderComponent } from '../src/index.js'
@@ -44,7 +45,7 @@ describe("when: 'visible'", () => {
     Page.initialState = {}
     app = run(Page, {}, { mountPoint: '#root' })
     await sleep(20)
-    const ph = document.querySelector('[data-sygnal-lazy="deferred"]')
+    const ph = document.querySelector('[data-sygnal-when]')
     expect(ph).not.toBe(null)
     expect(load).not.toHaveBeenCalled()
     expect(observers[0].opts).toEqual({ rootMargin: '200px' })
@@ -64,7 +65,7 @@ describe("when: 'visible'", () => {
     await sleep(20)
     expect(document.querySelector('.skeleton')).not.toBe(null)
     const pending = document.querySelector('[data-sygnal-suspense="pending"]')
-    const ph = pending.querySelector('[data-sygnal-lazy="deferred"]')
+    const ph = pending.querySelector('[data-sygnal-when]')
     expect(ph).not.toBe(null)
     expect(load).not.toHaveBeenCalled()
     show(ph)
@@ -90,7 +91,7 @@ describe("when: 'visible'", () => {
     Page.initialState = {}
     app = run(Page, {}, { mountPoint: '#root' })
     await sleep(20)
-    expect(document.querySelectorAll('[data-sygnal-lazy="deferred"]').length).toBe(2)
+    expect(document.querySelectorAll('[data-sygnal-when]').length).toBe(2)
     expect(observers.length).toBe(1)
     expect(observers[0].els.size).toBe(2)
     const mod = await LazyChart.load()
@@ -135,7 +136,7 @@ describe('SSR, tests, and no option', () => {
     function Page() { return h('div', null, [h(Suspense, { fallback: 'Loading' }, [h(LazyChart, { title: 'x' })])]) }
     Page.initialState = {}
     const html = renderToString(Page)
-    expect(html).toContain('data-sygnal-lazy="deferred"')
+    expect(html).toContain('data-sygnal-when="visible"')
     await sleep(5)
     expect(load).not.toHaveBeenCalled()
   })
