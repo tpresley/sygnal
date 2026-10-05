@@ -23,7 +23,7 @@
 import {hosts} from '../registry'
 import {NEXT_CORE} from '../build'
 import {Inst, shallowEq} from '../instance'
-import {Cell, Index, indexer, itemCell, keyCell, keyOf} from '../cell'
+import {Cell, Index, indexer, itemCell, keyCell, keyOf, keyName} from '../cell'
 import {CoreDef, isObj} from '../define'
 import {uidPart} from '../../shared'
 import {viewOf} from '../view'
@@ -208,7 +208,7 @@ export class CollectionHost {
     for (let x = 0; x < n; x++) {
       const i = idx ? idx[x] : x, k = keyOf(a[i], i)
       // D169: a duplicate key renders its first element (R4 reports it)
-      if (m.get(k) !== i) { const H = this.owner.app.hooks; H.onDuplicateKey && H.onDuplicateKey(viewOf(this.owner), k); continue }
+      if (m.get(k) !== i) { const H = this.owner.app.hooks; H.onDuplicateKey && H.onDuplicateKey(viewOf(this.owner), k[0] == '\0' ? i : a[i].id); continue }
       keys.push(k)
     }
     return keys
@@ -230,7 +230,7 @@ export class CollectionHost {
           if (!inst) {
             const scope = app.scope()
             inst = new Inst(app, this.def, o, itemCell(this.arr!, this.index, k), o.dom && o.dom.isolateSource(o.dom, scope),
-              this.ip, this.kids, scope, this.uidBase + '-' + uidPart(String(k)), 'item')
+              this.ip, this.kids, scope, this.uidBase + '-' + uidPart(keyName(k)), 'item')
             this.items.set(k, inst)
           }
           shown.push(inst)
