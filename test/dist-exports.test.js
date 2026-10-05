@@ -20,7 +20,10 @@ const cjsFile = resolve(dist, 'index.cjs.js')
 const esmFile = resolve(dist, 'index.esm.js')
 
 // Exports that are deliberately not functions.
-const NON_FUNCTION_EXPORTS = { ABORT: 'symbol', onlineStatus$: 'object' }
+const NON_FUNCTION_EXPORTS = { ABORT: 'symbol', onlineStatus$: 'object',
+  // PLAN-5 B-3: the browser sources makeBrowserDriverWith() takes
+  intersectionSource: 'object', resizeSource: 'object', mediaSource: 'object', storageSource: 'object',
+  visibilitySource: 'object', onlineSource: 'object', geolocationSource: 'object', clipboardSource: 'object' }
 const EXTRAS = ['concat', 'debounce', 'throttle', 'delay', 'dropRepeats', 'sampleCombine', 'flattenConcurrently', 'flattenSequentially']
 
 // Shared probe body: `s` is the module namespace. Prints JSON {types, calls}.

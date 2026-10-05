@@ -14,6 +14,7 @@ import {makeSocketDriver} from './socketDriver';
 import {makeRouter, paramsOf} from './router';
 import {mergeHead} from './head';
 import {timerDriver} from './timers';
+import {browserDriver} from './browserSources';
 import {makeReplies} from './replies';
 import type {Stream} from 'xstream';
 import type {Diagnostic, DiagnosticsMode} from './diagnostics/index';
@@ -299,6 +300,10 @@ export interface RenderOptions {
   headSink?: string;
   /** PLAN-4 GS-7: the sink the timer fake serves (default 'TIMER'; the real makeTimerDriver()); t.timers() reads it */
   timerSink?: string;
+  /** PLAN-5 B-3: the sink the browser fake serves (default 'BROWSER'); with no driver for it, the real browser driver runs over fake sources that t.browser drives */
+  browserSink?: string;
+  /** PLAN-5 B-3: the browser fake's environment at start (default: no media query matches, empty storage, visible, online, empty clipboard, no position, nothing denied) */
+  browser?: BrowserFakeOptions;
   /** PLAN-3 5-4c: the HEAD fake's titleTemplate ('%s · App'), as makeHeadDriver's */
   titleTemplate?: string;
   /** PLAN-4 GS-11: the app-level error hook, as run()'s `onError` option */
@@ -482,6 +487,8 @@ export interface RenderResult {
   head: () => {title: string | undefined; meta: Record<string, any>; link: any[]};
   /** PLAN-4 GS-7: the timer fake's active timers, in start order: `{ name, every | after | frame, action, background?, component }` */
   timers: () => Array<Record<string, any>>;
+  /** PLAN-5 B-3: the browser fake's controls (see BrowserFake) */
+  browser: BrowserFake;
   /** PLAN-4 GS-5: the fake storage's entry for `key` (`{ version, state }`), undefined when none. Pending writes are flushed by t.settle() */
   storage: (key: string) => any;
   /** Live array of EVENTS sink emissions ({type, data}) */
@@ -1028,6 +1035,93 @@ const fakeStorage = (rec: Record<string, any>) => {
     removeItem: (k: string) => { delete rec[k]; notify(k, null); },
     subscribe: (f: (k: string, v: string | null) => void) => (subs!.add(f), () => { subs!.delete(f); }),
   };
+};
+/** PLAN-5 B-3: renderComponent's `browser` option */
+export interface BrowserFakeOptions {
+  /** media query -> matches */
+  media?: Record<string, boolean>;
+  /** localStorage, key -> stored string */
+  storage?: Record<string, string>;
+  /** sessionStorage, key -> stored string */
+  sessionStorage?: Record<string, string>;
+  visible?: boolean;
+  online?: boolean;
+  clipboard?: string;
+  /** the position a geolocation declaration starts with (coords; the rest default) */
+  position?: Record<string, any>;
+  /** permissions denied from the start */
+  deny?: Array<'geolocation' | 'clipboard'>;
+}
+
+/** PLAN-5 B-3: t.browser. Each input resolves once its actions are reduced and the tree rendered */
+export interface BrowserFake {
+  /** the declarations of `intersection: target` hear `{ visible, ratio (1 or 0), index: 0, dataset: {} , ...data }`; `at`: only the at-th of them (start order). Throws when nothing declares it */
+  intersect: (target: string | true, visible?: boolean, data?: Record<string, any> & {at?: number}) => Promise<void>;
+  /** the declarations of `resize: target` hear `{ width, height, index: 0, dataset: {}, ...size }` */
+  resize: (target: string | true, size: Record<string, any> & {at?: number}) => Promise<void>;
+  /** a position (the coords; accuracy 0, the rest null, timestamp now) or an error `{ code, message }` for the geolocation declarations */
+  geolocation: (position: Record<string, any>) => Promise<void>;
+  /** a media query now matches (or not) */
+  media: (query: string, matches: boolean) => Promise<void>;
+  visibility: (visible: boolean) => Promise<void>;
+  online: (online: boolean) => Promise<void>;
+  /** with a value: another tab writes the key (a non-string is stored as JSON; null removes it); without: the stored string or null */
+  storage: {(key: string): string | null; (key: string, value: any, area?: 'local' | 'session'): Promise<void>};
+  /** with text: the clipboard's text now; without: its text */
+  clipboard: {(): string; (text: string): Promise<void>};
+  /** deny permissions: copy/paste fail with NotAllowedError, geolocation with code 1 (running ones too) */
+  deny: (...kinds: Array<'geolocation' | 'clipboard'>) => void;
+  /** the running declarations: `{ name, ...spec, component }`, in start order */
+  active: () => Array<Record<string, any>>;
+}
+
+/**
+ * PLAN-5 B-3: the browser fake's sources (the real browser driver runs over them): no DOM or
+ * browser API. `live` holds the started declarations ({ k: kind, s: spec, c: its BrowserCtx });
+ * t.browser.* reaches them. `o` is renderComponent's `browser` option (the environment at start).
+ */
+const browserFake = (o: any = {}) => {
+  const live = new Set<any>(), runners = new Map<any, any>();
+  const env: any = {media: {...o.media}, local: {...o.storage}, session: {...o.sessionStorage}, deny: new Set(o.deny || []),
+    visible: o.visible ?? true, online: o.online ?? true, clip: o.clipboard ?? '', pos: o.position};
+  const failed = (x: any) => ({name: x?.name, message: x?.message});
+  const area = (s: any) => env[s.area == 'session' ? 'session' : 'local'];
+  const read = (s: any) => { const v = area(s)[s.storage ?? s.setItem ?? s.removeItem]; return v == null ? null : s.json ? JSON.parse(v) : v; };
+  const pos = (p: any) => ({latitude: 0, longitude: 0, accuracy: 0, altitude: null, altitudeAccuracy: null, heading: null, speed: null, timestamp: Date.now(), ...p});
+  const DENIED = {code: 1, message: 'User denied Geolocation'};
+  // a declaration kind: registered while it runs; `now` gives the value it starts with (undefined: none)
+  const on = (k: string, now?: (s: any, c: any) => any) => (s: any, c: any) => {
+    const e = {k, s, c};
+    live.add(e);
+    if (now) { let v; try { v = now(s, c); } catch (x) { c.fail(failed(x)); } if (v !== undefined) c.send(v); }
+    return () => { live.delete(e); };
+  };
+  const each = (k: string, f: (e: any) => void, key?: any) => [...live].filter(e => e.k == k && (key === undefined || e.s[k] === key)).forEach(f);
+  // a write to the fake storage, seen by the storage declarations of that key and area
+  const write = (key: string, v: any, a = 'local') => {
+    const st = env[a == 'session' ? 'session' : 'local'];
+    v == null ? delete st[key] : st[key] = typeof v == 'string' ? v : JSON.stringify(v);
+    each('storage', e => { if ((e.s.area == 'session' ? 'session' : 'local') == (a == 'session' ? 'session' : 'local')) { try { e.c.send({key, value: read(e.s)}); } catch (x) { e.c.fail(failed(x)); } } }, key);
+  };
+  const clipFail = (fail: any) => fail({name: 'NotAllowedError', message: 'Clipboard permission denied'});
+  const src = {
+    d: {
+      intersection: on('intersection'),
+      resize: on('resize'),
+      media: on('media', s => ({matches: !!env.media[s.media], media: s.media})),
+      storage: on('storage', s => ({key: s.storage, value: read(s)})),
+      visibility: on('visibility', () => ({visible: env.visible})),
+      online: on('online', () => ({online: env.online})),
+      geolocation: on('geolocation', (_, c) => env.deny.has('geolocation') ? void c.fail(DENIED) : env.pos && pos(env.pos)),
+    },
+    c: {
+      copy: (v: any, ok: any, fail: any) => env.deny.has('clipboard') ? clipFail(fail) : (env.clip = '' + v.copy, ok({text: env.clip})),
+      paste: (_: any, ok: any, fail: any) => env.deny.has('clipboard') ? clipFail(fail) : ok({text: env.clip}),
+      setItem: (v: any, ok: any) => { write(v.setItem, v.json ? JSON.stringify(v.value) : '' + v.value, v.area); ok({key: v.setItem}); },
+      removeItem: (v: any, ok: any) => { write(v.removeItem, null, v.area); ok({key: v.removeItem}); },
+    },
+  };
+  return {src, runners, live, env, each, write, pos, DENIED};
 };
 // a model next() call, seen through the component's debug log (the 5.x core's makeOnAction /
 // makeEffectHandler: "... next() action: <TYPE> 400ms delay")
@@ -1810,6 +1904,10 @@ export function renderComponent(
   // unless a driver is passed under timerSink; the test's timers (fake ones too) drive it
   const {timerSink = 'TIMER'} = options;
   const tm = drivers[timerSink] ? undefined : new Map<any, any>();
+  // PLAN-5 B-3: the browser fake (the real browser driver over fake sources, browserFake), unless
+  // a driver is passed under browserSink; t.browser.* drives it
+  const {browserSink = 'BROWSER'} = options;
+  const bw = drivers[browserSink] ? undefined : browserFake(options.browser);
   // PLAN-4 GS-5: the fake storage a root's persist() uses (the __storage source; see persist.ts)
   const store = options.storage || {}, ps = componentDef.persist && {local: fakeStorage(store), session: fakeStorage(store), f: new Set<() => void>()};
   const allDrivers: any = {
@@ -1821,6 +1919,7 @@ export function renderComponent(
     ...(hd && {[headSink]: hd.driver}),
     // (it stands down when a timer driver is passed under another key: one runs the timers)
     ...(tm && {[timerSink]: (s$: any) => timerDriver(tm)(s$.filter(() => !Object.keys(sources || {}).some(k => k != timerSink && sources[k]?.__sygnalStatic == 'timers')))}),
+    ...(bw && {[browserSink]: (s$: any) => browserDriver([bw.src], bw.runners)(s$.filter(() => !Object.keys(sources || {}).some(k => k != browserSink && sources[k]?.__sygnalStatic == 'browser')))}),
     ...(rt && {[routerSink]: routerDriver}),
     ...drivers,
     ...(options.onError && {__e: () => options.onError}),
@@ -2375,6 +2474,58 @@ export function renderComponent(
     inputs.push(input);
     pump();
     return out;
+  };
+  // PLAN-5 B-3: t.browser, the browser fake's controls. An event-like input (intersect, resize,
+  // geolocation) must reach a declaration (else it throws, as t.respond); an environment change
+  // (media, storage, visibility, online, clipboard) is kept and sent to the declarations of it
+  const bwOf = (what: string) => {
+    if (!bw) throw new Error(`[Sygnal] t.browser.${what}(): ${browserSink} has a real driver (passed in drivers); t.browser drives the fake renderComponent provides when no driver is passed`);
+    return bw;
+  };
+  const toLive = (what: string, k: string, key: any, at: number | undefined, f: (e: any) => void) => {
+    const b = bwOf(what);
+    const hits = () => { const l = [...b.live].filter(e => e.k == k && (key === undefined || e.s[k] === key)); return at === undefined ? l : l.slice(at, at + 1); };
+    const desc = `${k}${key === undefined ? '' : ` ${typeof key == 'string' ? `'${key}'` : key}`}`;
+    return scripted(() => hits().length ? hits() : undefined,
+      (waited) => new Error(`[Sygnal] t.browser.${what}(): nothing declares ${desc}${at === undefined ? '' : ` at ${at}`}${waited ? ` (waited ${waited}ms)` : ''}. Declared: ${[...b.live].map(e => `${e.k} ${JSON.stringify(e.s[e.k])}`).join(', ') || 'none'}`),
+      (l: any[]) => { l.forEach(f); });
+  };
+  const envChange = (what: string, f: (b: any) => void) => { const b = bwOf(what); return scripted(() => true, () => new Error(''), () => { f(b); }); };
+  const tBrowser = {
+    intersect: (target: string | true, visible = true, o: any = {}) => {
+      const {at, ...d} = o;
+      return toLive('intersect', 'intersection', target, at, e => e.c.send({visible, ratio: visible ? 1 : 0, index: 0, dataset: {}, ...d}));
+    },
+    resize: (target: string | true, size: any) => {
+      const {at, ...d} = size || {};
+      return toLive('resize', 'resize', target, at, e => e.c.send({width: 0, height: 0, index: 0, dataset: {}, ...d}));
+    },
+    geolocation: (p: any) => {
+      const err = p && 'code' in p;
+      if (!err) bwOf('geolocation').env.pos = p;
+      return toLive('geolocation', 'geolocation', undefined, undefined, e => err ? e.c.fail({code: p.code, message: p.message ?? ''}) : e.c.send(bw!.pos(p)));
+    },
+    media: (query: string, matches: boolean) => envChange('media', b => { b.env.media[query] = matches; b.each('media', (e: any) => e.c.send({matches, media: query}), query); }),
+    visibility: (visible: boolean) => envChange('visibility', b => { b.env.visible = visible; b.each('visibility', (e: any) => e.c.send({visible})); }),
+    online: (online: boolean) => envChange('online', b => { b.env.online = online; b.each('online', (e: any) => e.c.send({online})); }),
+    storage: function (key: string, value?: any, area: 'local' | 'session' = 'local'): any {
+      if (arguments.length < 2) return bwOf('storage').env[area == 'session' ? 'session' : 'local'][key] ?? null;
+      return envChange('storage', b => b.write(key, value, area));
+    },
+    clipboard: function (text?: string): any {
+      if (!arguments.length) return bwOf('clipboard').env.clip;
+      return envChange('clipboard', b => { b.env.clip = '' + text; });
+    },
+    deny: (...kinds: string[]) => {
+      const b = bwOf('deny');
+      kinds.forEach(k => b.env.deny.add(k));
+      if (kinds.includes('geolocation')) b.each('geolocation', (e: any) => e.c.fail(b.DENIED));
+    },
+    active: () => {
+      const b = bwOf('active'), list: any[] = [];
+      b.runners.forEach((r: any) => { for (const name in r.on) { const {s} = r.on[name]; if ([...b.live].some((e: any) => e.s === s)) list.push({name, ...s, component: r.c}); } });
+      return list;
+    },
   };
   // 5-1: the fetch resolves with a Response-like object (status, the body as JSON, or text for a
   // string), which the driver parses as it would a server's (a Response passed in is used as is)
@@ -2995,6 +3146,7 @@ export function renderComponent(
       tm.forEach(r => { for (const name in r.on) { const {ok, d, s} = r.on[name]; if (ok && !d) list.push({name, ...s, action: s.action ?? s.frame, component: r.c}); } });
       return list;
     },
+    browser: tBrowser,
     storage: (key: string) => store[key],
     emitted: sinkValues('EVENTS'),
     diagnostics: collected,

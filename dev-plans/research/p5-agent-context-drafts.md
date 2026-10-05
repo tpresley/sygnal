@@ -40,3 +40,13 @@ Line count: 5 (widgets block, with its heading) + 1 = 6 `llms.txt` lines; 5 with
 Line count: 6 with the heading (5 bullets). It relies on the Behaviors section (`uses`, namespaced actions, host entries run after the behavior's) and the reply-action facts (`ok`/`error`), so it doesn't repeat them.
 
 **SKILL.md** (≈ 150 B, if Phase 4 makes room): "Form with validation → `uses = { form: form(schema, { values, submit }) }`, inputs by `name`, `state.form.fields.x.error` (guide: forms); helpers only when the behavior doesn't fit."
+
+## 2-B: browser sources (B-3) and deferred lazy loading (B-4)
+
+**One guide-pointer line** (in "More (guides)", next to timers):
+
+```md
+- Browser sources: `Card.browser = (state) => ({ seen: !state.seen && { intersection: '.cover', action: 'SEEN' }, dark: { media: '(prefers-color-scheme: dark)', action: 'DARK' } })` + `run(App, { BROWSER: makeBrowserDriver() })` (also `resize`, `storage`, `visibility`, `online`, `geolocation`; clipboard: `{ BROWSER: { copy: text, ok } }`; tests: `t.browser.intersect('.cover', true)`); `lazy(() => import('./Chart'), { when: 'visible' })` defers the import. Guide: https://sygnal.js.org/guide/browser-sources/
+```
+
+Line count: 1. **SKILL.md** (≈ 120 B, if Phase 4 makes room): "Watch visibility/size/media/storage/network → `browser` static + `makeBrowserDriver()` (guide: browser-sources)."

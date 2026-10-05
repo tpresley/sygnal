@@ -3,7 +3,8 @@
  * (DEV_CODE_SEVERITY):
  *
  * SYG643 — a component declares a static that only a registered driver acts on (`timers`:
- *          makeTimerDriver(), `connections`: makeSocketDriver(), `resources`: makeFetchDriver())
+ *          makeTimerDriver(), `connections`: makeSocketDriver(), `resources`: makeFetchDriver(),
+ *          `browser`: makeBrowserDriver())
  *          and no source of the app takes it (no `__sygnalStatic` marker for it), so nothing
  *          happens and nothing else says so. Also closes PLAN-3's "connections without a driver
  *          report nothing" gap. (`route` and `head` are left out: renderComponent asks for the
@@ -20,8 +21,9 @@ const NEEDS: Record<string, string> = {
   timers: 'makeTimerDriver()',
   connections: 'makeSocketDriver()',
   resources: 'makeFetchDriver()',
+  browser: 'makeBrowserDriver()',
 }
-const KEY: Record<string, string> = {timers: 'TIMER', connections: 'WS', resources: 'HTTP'}
+const KEY: Record<string, string> = {timers: 'TIMER', connections: 'WS', resources: 'HTTP', browser: 'BROWSER'}
 
 const brief = (v: any) => { try { return JSON.stringify(v) } catch (_) { return String(v) } }
 
@@ -69,7 +71,7 @@ export const timersCheck: DiagnosticCheck = {
       if (!once(`SYG643:${name}:${k}`)) continue
       devReport('SYG643', {
         component,
-        message: `${name} declares ${name}.${k}, but no ${NEEDS[k]} driver is registered, so ${k == 'timers' ? 'its timers never run' : k == 'connections' ? 'its connections never open' : 'its resources are never fetched'}`,
+        message: `${name} declares ${name}.${k}, but no ${NEEDS[k]} driver is registered, so ${k == 'timers' ? 'its timers never run' : k == 'connections' ? 'its connections never open' : k == 'browser' ? 'its browser sources never start' : 'its resources are never fetched'}`,
         fix: `Register the driver: run(App, { ${KEY[k]}: ${NEEDS[k]} })`,
         data: {static: k, driver: NEEDS[k]},
       })

@@ -272,6 +272,10 @@ export const CODE_TITLES: Record<string, string> = {
   SYG660: 'Widget mount threw',
   SYG661: 'Widget update threw',
   SYG662: 'Widget unmount threw',
+  // PLAN-5 B-3: browser sources (makeBrowserDriver; checks/browserSources.ts; dev entry)
+  SYG663: 'Invalid browser-source spec or command',
+  SYG664: 'Browser source not in the driver',
+  SYG665: 'Browser source failed with no error action',
   // PLAN-4 GS-3: a11y lane (static only, sygnal-check)
   SYG701: 'Click listener on a non-interactive element',
   SYG702: 'Form field without an accessible label',
@@ -383,6 +387,9 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG660: 'error',
   SYG661: 'error',
   SYG662: 'error',
+  SYG663: 'error',
+  SYG664: 'error',
+  SYG665: 'warn',
   // PLAN-4 GS-3: a11y lane, static only (sygnal-check; warn, also under --strict; error with --a11y=error, D144); listed so the entry knows its title
   SYG701: 'warn',
   SYG702: 'warn',
