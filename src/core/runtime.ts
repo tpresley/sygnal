@@ -85,6 +85,8 @@ export class App {
   ex: Record<string, any> = {}
   exL: Record<string, any> = {}
   hooks: Hooks
+  /** run()'s hooks, then each addHooks() layer (G-297) */
+  layers: Hooks[]
   born: Inst[] = []
   watchers = new Set<Inst>()
   /** streams the disposed instances left without listeners, stopped when the drain / flush ends */
@@ -107,6 +109,7 @@ export class App {
 
   constructor(public opts: StartOptions = {}) {
     this.hooks = {...opts.__hooks}
+    this.layers = [opts.__hooks || {}]
     this.initState = opts.__state
   }
 
@@ -322,19 +325,33 @@ export class App {
       flushed: () => new Promise<void>(r => (app.scheduled || app.flushing ? app.waiters.push(r) : r())),
     }
   }
+  /**
+   * A layer of hooks on top of run()'s own (devtools connecting late, a dev entry). G-297: the
+   * remover drops only its own layer; the hooks are composed again from the layers left.
+   */
   addHooks(h: Hooks) {
-    const H: any = this.hooks, added: any = h
-    const prev: Record<string, any> = {}
-    for (const k in added) {
-      const a = added[k], b = H[k]
-      prev[k] = b
-      H[k] = !b ? a
-        : k == 'wrapHandler' ? (i: any, t: any, s: any, f: any) => a(i, t, s, b(i, t, s, f))
-        : k == 'wrapSources' ? (i: any, s: any) => a(i, b(i, s) || s)
-        : k == 'transformDef' ? (src: any, v: any) => a(b(src, v) || src, v)
-        : (...args: any[]) => { b(...args); a(...args) }
+    this.layers.push(h)
+    this.compose()
+    return () => {
+      const i = this.layers.indexOf(h)
+      if (i >= 0) { this.layers.splice(i, 1); this.compose() }
     }
-    return () => { for (const k in prev) H[k] = prev[k] }
+  }
+  compose() {
+    const H: any = this.hooks
+    for (const k in H) delete H[k]
+    for (const layer of this.layers) {
+      const added: any = layer
+      for (const k in added) {
+        const a = added[k], b = H[k]
+        if (!a) continue
+        H[k] = !b ? a
+          : k == 'wrapHandler' ? (i: any, t: any, s: any, f: any) => a(i, t, s, b(i, t, s, f))
+          : k == 'wrapSources' ? (i: any, s: any) => a(i, b(i, s) || s)
+          : k == 'transformDef' ? (src: any, v: any) => a(b(src, v) || src, v)
+          : (...args: any[]) => { b(...args); a(...args) }
+      }
+    }
   }
 
   dispose() {
