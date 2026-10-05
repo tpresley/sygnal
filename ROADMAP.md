@@ -83,7 +83,7 @@ Defer loading of component code until it's needed, reducing initial bundle size.
 - Static properties (model, intent, context, etc.) are copied from the loaded component to the wrapper asynchronously
 - Module is cached — subsequent renders use the cached component instantly
 - Import errors are caught and logged; an error placeholder div is rendered
-- No changes to `component.ts` rendering pipeline needed — the wrapper is a normal component function
+- No changes to `component.ts` (the 5.x core; `src/core/` since PLAN-4.6) rendering pipeline needed — the wrapper is a normal component function
 - Note: lazy-loaded sub-components should NOT use `initialState` (use parent state lens instead)
 
 ---
@@ -134,7 +134,7 @@ Pass multiple named content regions from parent to child — headers, footers, s
 
 **Implementation:**
 - `<Slot name="header">` JSX component (`src/slot.ts`) with `preventInstantiation` pattern — creates a marker VNode with `sel: 'slot'`
-- Slot VNodes are extracted from children by `extractSlots()` in `src/component.ts` before reaching the child component's view function
+- Slot VNodes are extracted from children by `extractSlots()` before reaching the child component's view function (`src/core/instance.ts` since PLAN-4.6; `src/component.ts`, the 5.x core, at the time)
 - Child components receive `slots` in their view parameters: `{ header: VNode[], footer: VNode[], default: VNode[] }`
 - Unnamed children become the `default` slot; `children` parameter continues to work as before (contains only non-slot children, which are also in `slots.default`)
 - A `<Slot>` with no `name` prop contributes to the `default` slot

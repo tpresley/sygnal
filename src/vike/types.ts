@@ -32,7 +32,7 @@ declare global {
        * on the server: called after a component's onError boundary, reporting only. (Vike's own
        * `onError` is a different, server-only hook)
        */
-      sygnalOnError?: (error: any, info: { componentName?: string; action?: string; phase: 'view' | 'reducer' | 'effect' | 'declaration' | 'driver' | 'instantiate' | 'widget'; driver?: string }) => void
+      sygnalOnError?: (error: any, info: { componentName?: string; action?: string; phase: 'view' | 'reducer' | 'effect' | 'declaration' | 'driver' | 'instantiate' | 'dispose' | 'widget'; driver?: string }) => void
       /** Enable/disable SSR for this page (default: true). Set false for SPA mode. */
       ssr?: boolean
     }

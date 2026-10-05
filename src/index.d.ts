@@ -1236,7 +1236,7 @@ export type DiagnosticsOptions = {
  * Where an error reported to the app-level `onError` hook happened (PLAN-4 GS-11). `'widget'` is
  * reserved for widgets (PLAN-5); nothing in the core reports it.
  */
-export type AppErrorPhase = 'view' | 'reducer' | 'effect' | 'declaration' | 'driver' | 'instantiate' | 'widget'
+export type AppErrorPhase = 'view' | 'reducer' | 'effect' | 'declaration' | 'driver' | 'instantiate' | 'dispose' | 'widget'
 
 /** What the app-level `onError` hook gets with the error */
 export interface AppErrorInfo {
@@ -1591,7 +1591,9 @@ export function makeDragDriver(): (sink$: Stream<DragDriverRegistration | DragDr
 
 /**
  * The options `defineComponent()` takes: the view plus the statics a function component carries
- * (`model`, `intent`, `initialState`, ...), and `name` (its `componentName`).
+ * (`model`, `intent`, `initialState`, ...), and `name` (its `componentName`; defaults to the view's
+ * name, or 'Component' for an anonymous inline view). Statics already on the view are copied; the
+ * options override them.
  */
 export type DefineComponentOptions<
   STATE = any,

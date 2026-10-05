@@ -32,14 +32,14 @@ export const EXPLANATIONS = {
     title: "Intent action has no model entry",
     severity: "warn",
     reportedBy: ["dev-entry", "static"],
-    explanation: "The intent returns an action stream whose name has no matching key in `model` (shorthand keys like `'ACTION | SINK'` count as `ACTION`). Events on that stream are produced but nothing handles them, so the action silently does nothing. Built-in actions (`BOOTSTRAP`, `INITIALIZE`, `DISPOSE`, `READY`, and `RESOURCE`, which the core writes for a `resources` static) and internal `__*` actions are never reported. `HYDRATE` is not built in since 6.0: it is an ordinary action name.",
+    explanation: "The intent returns an action stream whose name has no matching key in `model`. Events on that stream are produced but nothing handles them, so the action silently does nothing. Built-in actions (`BOOTSTRAP`, `INITIALIZE`, `DISPOSE`, `READY`, and `RESOURCE`, which the core writes for a `resources` static) and internal `__*` actions are never reported. `HYDRATE` is not built in since 6.0: it is an ordinary action name.",
     fix: "Add a model entry with the same name, e.g. `model = { SAVE: (state) => ({ ...state, saved: true }) }`, or remove or rename the intent action so it matches an existing model key.",
   },
   SYG102: {
     title: "Model entry is unreachable",
     severity: "info",
     reportedBy: ["dev-entry", "static"],
-    explanation: "A model entry has no intent action of the same name and is not a built-in action (`BOOTSTRAP`, `INITIALIZE`, `DISPOSE`, `READY`, `RESOURCE`; `HYDRATE` is an ordinary action since 6.0), so nothing in the intent can trigger it. A request also triggers the reply actions it names (`{ url, ok: 'LOADED', error: 'FAILED' }` sent to a driver sink), and so does a `connections` entry (`message`, `open`, `close`, `error`) or a request a `resources` entry derives (`ok`, `error`). A `RESOURCE` entry replaces the built-in reducer that writes `state[name]` for a `resources` static. It may still be reached through `next('ACTION')`, which the runtime cannot know in advance, so the runtime check reports it as info (and skips components whose intent returns a single stream); it counts the `ok`/`error` string literals it finds in the source of the component's non-STATE sink functions. The static checker also accounts for `next()` calls and reply-action names with string literals and reports it as warn, downgraded to info when a `next()` call or an `ok`/`error` value uses a non-literal name. It also counts the actions a `timers` static names (`{ every: 100, action: 'TICK' }`, `{ frame: 'FRAME' }`), which the timer driver dispatches.",
+    explanation: "A model entry has no intent action of the same name and is not a built-in action (`BOOTSTRAP`, `INITIALIZE`, `DISPOSE`, `READY`, `RESOURCE`; `HYDRATE` is an ordinary action since 6.0), so nothing in the intent can trigger it. A request also triggers the reply actions it names (`{ url, ok: 'LOADED', error: 'FAILED' }` sent to a driver sink), and so does a `connections` entry (`message`, `open`, `close`, `error`) or a request a `resources` entry derives (`ok`, `error`). A `RESOURCE` entry replaces the built-in reducer that writes `state[name]` for a `resources` static. It may still be reached through `next('ACTION')`, which the runtime cannot know in advance, so the runtime check reports it as info; it counts the `ok`/`error` string literals it finds in the source of the component's non-STATE sink functions. The static checker also accounts for `next()` calls and reply-action names with string literals and reports it as warn, downgraded to info when a `next()` call or an `ok`/`error` value uses a non-literal name. It also counts the actions a `timers` static names (`{ every: 100, action: 'TICK' }`, `{ frame: 'FRAME' }`), which the timer driver dispatches.",
     fix: "Add the action to the component's `intent`, name it in a request (`HTTP: (state) => ({ url, ok: 'ACTION' })`), dispatch it with `next('ACTION')` from another entry, or remove the dead model entry.",
   },
   SYG103: {
@@ -354,8 +354,8 @@ export const EXPLANATIONS = {
     title: "Invalid context entry",
     severity: "error",
     reportedBy: ["runtime"],
-    explanation: "A `.context` entry value is not a state key string, a boolean, or a function of state. That entry is skipped each time context is computed, so descendants read `undefined` for it; the other entries still work. It is logged, not thrown.",
-    fix: "Use a state key string (`{ user: 'currentUser' }`), `true` to copy the same-named state key, or a function (`{ user: state => state.currentUser }`).",
+    explanation: "A `.context` entry value is not a function. Context entries are functions of state only: the state-key string (`{ user: 'currentUser' }`) and `true` entries Sygnal accepted before 6.0 were removed. That entry is skipped each time context is computed, so descendants read `undefined` for it; the other entries still work. It is logged, not thrown.",
+    fix: "Write each entry as a function of state: `{ user: state => state.currentUser }`. See https://sygnal.js.org/guide/migrating-to-6#leftovers.",
   },
   SYG404: {
     title: "Context stream errored",
@@ -410,7 +410,7 @@ export const EXPLANATIONS = {
     title: "Collection 'of' is missing or not a component",
     severity: "error",
     reportedBy: ["runtime"],
-    explanation: "A `<Collection>` has no `of` prop, `of` is not a function or string, or `of` is a string that does not name a component registered in `.components`. This is thrown while the parent's view is processed, so the Collection cannot render. It is also thrown when the exported `collection()` helper is called with a first argument that is not a function.",
+    explanation: "A `<Collection>` has no `of` prop, or `of` is not a component function (a component name as a string, `<Collection of=\"Row\">`, is a form Sygnal 6.0 removed; it is also reported as SYG612). This is thrown while the parent's view is processed, so the Collection cannot render.",
     fix: "Pass the item component function itself: `<Collection of={TaskCard} from=\"tasks\" />`.",
   },
   SYG412: {
@@ -585,7 +585,7 @@ export const EXPLANATIONS = {
     title: "Intent returned an invalid value",
     severity: "error",
     reportedBy: ["runtime"],
-    explanation: "The intent function returned something other than a stream or an object of streams, often `undefined` because an arrow function used a block body without `return`. It is thrown when the component is constructed.",
+    explanation: "The intent function returned something other than an object of streams: often `undefined` because an arrow function used a block body without `return`, or a single stream of `{ type, data }` objects (a form Sygnal 6.0 removed; the message names it). It is also thrown when an entry of the object is not a stream. It is thrown when the component is constructed.",
     fix: "Return an object of action streams, e.g. `intent = ({ DOM }) => ({ CLICK: DOM.select('.btn').events('click') })` (note the parentheses around the object).",
   },
   SYG604: {
@@ -648,7 +648,7 @@ export const EXPLANATIONS = {
     title: "Removed in 6.0",
     severity: "error",
     reportedBy: ["dev-entry", "static"],
-    explanation: "A component uses a form that Sygnal 6.0 removed, so it is ignored or fails at run time: a component named by a string tag or registered in `.components`, `<Collection of=\"Name\">`, `CHILD.select('Name')`, an `'ACTION | SINK'` model key, `.peers`, `hmrActions`, a view with positional parameters (`function C(props, state)`), `DOMSourceName` / `stateSourceName`, `storeCalculatedInState`, or the `component({ ... })` factory. The dev checks report it at run time, once per form and component, in development only. `sygnal-check` reports the statics, the factory imports, `<Collection of=\"Name\">` and `idfield` statically, always (not only under `--strict`), and `--fix` deletes `storeCalculatedInState` and default source names; positional views, `'ACTION | SINK'` keys and `CHILD.select('Name')` are SYG501, SYG504 and SYG506 under `--strict`. The message names the form and links to its section of the migration guide.",
+    explanation: "A component uses a form that Sygnal 6.0 removed, so it is ignored or fails at run time: a component named by a string tag or registered in `.components`, `<Collection of=\"Name\">`, `CHILD.select('Name')`, an `'ACTION | SINK'` model key, `.peers`, `hmrActions`, a view with positional parameters (`function C(props, state)`), `DOMSourceName` / `stateSourceName`, `storeCalculatedInState`, or the `component({ ... })` factory. A single-stream intent throws SYG603 and string / `true` context entries are SYG403 instead. The dev checks report it at run time, once per form and component, in development only. `sygnal-check` reports the statics on a component (a function with component statics, or a view), the factory imports, and `<Collection of=\"Name\">` and `idfield` on the `Collection` imported from `sygnal` statically, always (not only under `--strict`), and `--fix` deletes `storeCalculatedInState` and default source names (a statement in a block or the module body only); `.label` and `idfield` are reported only statically; positional views, `'ACTION | SINK'` keys and `CHILD.select('Name')` are SYG501, SYG504 and SYG506 under `--strict`. The message names the form and links to its section of the migration guide.",
     fix: "Follow the linked section of the migration guide (https://sygnal.js.org/guide/migrating-to-6): import components and use them as JSX tags, pass the component function to `of` and `CHILD.select`, use object-form model entries, destructure the view's one argument, and write function components with statics (or use `defineComponent`).",
   },
   SYG620: {

@@ -70,7 +70,9 @@ function removedStatics(f: any): void {
   const name = f.name
   if (view.isSygnalComponent) removed(f, name, 'component-factory')
   for (const [k, anchor] of STATICS) if (view[k] !== undefined && !(k == 'components' && isPlainObject(view[k]) && !Object.keys(view[k]).length)) removed(f, name, anchor, k)
-  if (typeof view == 'function' && view.length > 1 && !view.__sygnalLazy && !view.isSygnalComponent) removed(f, name, 'positional-views', `${view.length} parameters`)
+  // G-343: a defineComponent() wrapper's own arity is 1; the view it calls is __sygnalView
+  const arity = typeof view == 'function' ? (view.__sygnalView || view).length : 0
+  if (arity > 1 && !view.__sygnalLazy && !view.isSygnalComponent) removed(f, name, 'positional-views', `${arity} parameters`)
   const model = view.model
   if (isPlainObject(model)) for (const k of Object.keys(model)) if (k.includes('|')) removed(f, name, 'pipe-keys', `'${k}'`)
 }

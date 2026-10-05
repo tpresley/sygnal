@@ -1,0 +1,1858 @@
+{
+ "text child": {
+  "children": "<undef>",
+  "data": {},
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "div",
+  "text": "hello"
+ },
+ "number child 0": {
+  "children": "<undef>",
+  "data": {},
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "span",
+  "text": "0"
+ },
+ "number child 5": {
+  "children": "<undef>",
+  "data": {},
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "span",
+  "text": "5"
+ },
+ "no children": {
+  "children": [],
+  "data": {},
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "div",
+  "text": "<undef>"
+ },
+ "empty props, no children": {
+  "children": [],
+  "data": {},
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "div",
+  "text": "<undef>"
+ },
+ "two text children": {
+  "children": [
+   {
+    "children": "<undef>",
+    "data": "<undef>",
+    "elm": "<undef>",
+    "key": "<undef>",
+    "sel": "<undef>",
+    "text": "a"
+   },
+   {
+    "children": "<undef>",
+    "data": "<undef>",
+    "elm": "<undef>",
+    "key": "<undef>",
+    "sel": "<undef>",
+    "text": "b"
+   }
+  ],
+  "data": {},
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "p",
+  "text": "<undef>"
+ },
+ "mixed children": {
+  "children": [
+   {
+    "children": "<undef>",
+    "data": "<undef>",
+    "elm": "<undef>",
+    "key": "<undef>",
+    "sel": "<undef>",
+    "text": "a"
+   },
+   {
+    "children": "<undef>",
+    "data": {},
+    "elm": "<undef>",
+    "key": "<undef>",
+    "sel": "b",
+    "text": "x"
+   },
+   {
+    "children": "<undef>",
+    "data": "<undef>",
+    "elm": "<undef>",
+    "key": "<undef>",
+    "sel": "<undef>",
+    "text": 3
+   }
+  ],
+  "data": {},
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "p",
+  "text": "<undef>"
+ },
+ "nested arrays": {
+  "children": [
+   {
+    "children": "<undef>",
+    "data": {},
+    "elm": "<undef>",
+    "key": "<undef>",
+    "sel": "li",
+    "text": "1"
+   },
+   {
+    "children": "<undef>",
+    "data": {},
+    "elm": "<undef>",
+    "key": "<undef>",
+    "sel": "li",
+    "text": "2"
+   },
+   {
+    "children": "<undef>",
+    "data": {},
+    "elm": "<undef>",
+    "key": "<undef>",
+    "sel": "li",
+    "text": "3"
+   },
+   {
+    "children": "<undef>",
+    "data": "<undef>",
+    "elm": "<undef>",
+    "key": "<undef>",
+    "sel": "<undef>",
+    "text": "tail"
+   }
+  ],
+  "data": {},
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "ul",
+  "text": "<undef>"
+ },
+ "single nested array of text": {
+  "children": [
+   {
+    "children": "<undef>",
+    "data": "<undef>",
+    "elm": "<undef>",
+    "key": "<undef>",
+    "sel": "<undef>",
+    "text": "only"
+   }
+  ],
+  "data": {},
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "div",
+  "text": "<undef>"
+ },
+ "null/bool/undefined children": {
+  "children": [
+   "<undef>",
+   "<undef>",
+   "<undef>",
+   "<undef>",
+   {
+    "children": "<undef>",
+    "data": "<undef>",
+    "elm": "<undef>",
+    "key": "<undef>",
+    "sel": "<undef>",
+    "text": "x"
+   },
+   {
+    "children": "<undef>",
+    "data": "<undef>",
+    "elm": "<undef>",
+    "key": "<undef>",
+    "sel": "<undef>",
+    "text": 0
+   },
+   {
+    "children": "<undef>",
+    "data": "<undef>",
+    "elm": "<undef>",
+    "key": "<undef>",
+    "sel": "<undef>",
+    "text": ""
+   }
+  ],
+  "data": {},
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "div",
+  "text": "<undef>"
+ },
+ "only null child": {
+  "children": [
+   "<undef>"
+  ],
+  "data": {},
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "div",
+  "text": "<undef>"
+ },
+ "object non-vnode child": {
+  "children": [
+   "<undef>",
+   "<undef>"
+  ],
+  "data": {},
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "div",
+  "text": "<undef>"
+ },
+ "key and id": {
+  "children": "<undef>",
+  "data": {
+   "props": {
+    "id": "i1"
+   }
+  },
+  "elm": "<undef>",
+  "key": "k1",
+  "sel": "li",
+  "text": "x"
+ },
+ "numeric key": {
+  "children": [],
+  "data": {},
+  "elm": "<undef>",
+  "key": 3,
+  "sel": "li",
+  "text": "<undef>"
+ },
+ "className": {
+  "children": [],
+  "data": {
+   "props": {
+    "className": "a b"
+   }
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "div",
+  "text": "<undef>"
+ },
+ "className undefined": {
+  "children": [],
+  "data": {},
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "div",
+  "text": "<undef>"
+ },
+ "className null": {
+  "children": [],
+  "data": {
+   "props": {
+    "className": null
+   }
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "div",
+  "text": "<undef>"
+ },
+ "class string": {
+  "children": [],
+  "data": {
+   "class": {
+    "a": true,
+    "b": true,
+    "c": true
+   }
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "div",
+  "text": "<undef>"
+ },
+ "class array": {
+  "children": [],
+  "data": {
+   "class": {
+    "a": true,
+    "c": true,
+    "d": true,
+    "e": true
+   }
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "div",
+  "text": "<undef>"
+ },
+ "class object": {
+  "children": [],
+  "data": {
+   "class": {
+    "off": false,
+    "on": true
+   }
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "div",
+  "text": "<undef>"
+ },
+ "class empty string": {
+  "children": [],
+  "data": {
+   "class": {}
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "div",
+  "text": "<undef>"
+ },
+ "class-* keys": {
+  "children": [],
+  "data": {
+   "class": {
+    "active": true,
+    "hidden": false
+   }
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "div",
+  "text": "<undef>"
+ },
+ "style object": {
+  "children": [],
+  "data": {
+   "style": {
+    "--v": 1,
+    "color": "red",
+    "fontSize": "12px"
+   }
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "div",
+  "text": "<undef>"
+ },
+ "style delayed/remove": {
+  "children": [],
+  "data": {
+   "style": {
+    "delayed": {
+     "opacity": "1"
+    },
+    "opacity": "0",
+    "remove": {
+     "opacity": "0"
+    }
+   }
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "div",
+  "text": "<undef>"
+ },
+ "style string": {
+  "children": [],
+  "data": {
+   "style": "color: red"
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "div",
+  "text": "<undef>"
+ },
+ "style-* keys": {
+  "children": [],
+  "data": {
+   "style": {
+    "color": "blue",
+    "margin": 0
+   }
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "div",
+  "text": "<undef>"
+ },
+ "attrs object": {
+  "children": [],
+  "data": {
+   "attrs": {
+    "href": "/x",
+    "title": "t"
+   }
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "a",
+  "text": "<undef>"
+ },
+ "attrs + aria + role + for + tabindex": {
+  "children": [],
+  "data": {
+   "attrs": {
+    "a": 1,
+    "aria-hidden": true,
+    "aria-label": "L",
+    "for": "x",
+    "role": "button",
+    "tabindex": 0
+   }
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "label",
+  "text": "<undef>"
+ },
+ "attrs-* keys": {
+  "children": [],
+  "data": {
+   "attrs": {
+    "href": "/y",
+    "target": "_blank"
+   }
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "a",
+  "text": "<undef>"
+ },
+ "props object + loose props": {
+  "children": [],
+  "data": {
+   "props": {
+    "checked": true,
+    "type": "text",
+    "value": "v",
+    "x": {
+     "deep": 1
+    }
+   }
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "input",
+  "text": "<undef>"
+ },
+ "props-* keys": {
+  "children": [],
+  "data": {
+   "props": {
+    "foo": 1
+   }
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "div",
+  "text": "<undef>"
+ },
+ "loose props": {
+  "children": [],
+  "data": {
+   "props": {
+    "arr": [
+     1,
+     2
+    ],
+    "hidden": false,
+    "href": "/z",
+    "obj": {
+     "a": [
+      1,
+      {
+       "b": 2
+      }
+     ]
+    },
+    "tabIndex": 2,
+    "title": "t",
+    "value": 0
+   }
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "a",
+  "text": "<undef>"
+ },
+ "undefined loose props": {
+  "children": [],
+  "data": {
+   "props": {
+    "name": "n"
+   }
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "input",
+  "text": "<undef>"
+ },
+ "null loose props": {
+  "children": [],
+  "data": {
+   "props": {
+    "checked": null,
+    "value": null
+   }
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "input",
+  "text": "<undef>"
+ },
+ "on object": {
+  "children": [],
+  "data": {
+   "on": {
+    "click": "fn:click",
+    "input": "fn:input"
+   }
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "button",
+  "text": "<undef>"
+ },
+ "on-* keys": {
+  "children": [],
+  "data": {
+   "on": {
+    "click": "fn:click",
+    "input": "fn:input"
+   }
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "button",
+  "text": "<undef>"
+ },
+ "on with array handler": {
+  "children": [],
+  "data": {
+   "on": {
+    "click": [
+     "fn:click",
+     1
+    ]
+   }
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "button",
+  "text": "<undef>"
+ },
+ "hook object": {
+  "children": [],
+  "data": {
+   "hook": {
+    "insert": "fn:insertHook"
+   }
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "div",
+  "text": "<undef>"
+ },
+ "hook-* keys": {
+  "children": [],
+  "data": {
+   "hook": {
+    "insert": "fn:insertHook"
+   }
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "div",
+  "text": "<undef>"
+ },
+ "data object": {
+  "children": [],
+  "data": {
+   "dataset": {
+    "fooBar": "x",
+    "id": "1"
+   }
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "div",
+  "text": "<undef>"
+ },
+ "data-* keys": {
+  "children": [],
+  "data": {
+   "dataset": {
+    "aBC": 1,
+    "id": "7",
+    "taskId": "t"
+   }
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "div",
+  "text": "<undef>"
+ },
+ "data object + data-*": {
+  "children": [],
+  "data": {
+   "dataset": {
+    "a": "1",
+    "b": "2"
+   }
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "div",
+  "text": "<undef>"
+ },
+ "dataset key (not a module)": {
+  "children": [],
+  "data": {
+   "props": {
+    "dataset": {
+     "a": 1
+    }
+   }
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "div",
+  "text": "<undef>"
+ },
+ "hyphenated non-module keys": {
+  "children": [],
+  "data": {
+   "attrs": {
+    "aria-x-y": 2
+   },
+   "props": {
+    "-lead": 3,
+    "x-foo": 1
+   }
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "div",
+  "text": "<undef>"
+ },
+ "ref function": {
+  "children": [],
+  "data": {
+   "hook": {
+    "destroy": "fn",
+    "insert": "fn",
+    "postpatch": "fn"
+   }
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "div",
+  "text": "<undef>"
+ },
+ "ref object": {
+  "children": [],
+  "data": {
+   "hook": {
+    "destroy": "fn",
+    "insert": "fn",
+    "postpatch": "fn"
+   }
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "div",
+  "text": "<undef>"
+ },
+ "ref with existing hook": {
+  "children": [],
+  "data": {
+   "hook": {
+    "destroy": "fn",
+    "insert": "fn",
+    "postpatch": "fn"
+   }
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "div",
+  "text": "<undef>"
+ },
+ "ref null": {
+  "children": [],
+  "data": {},
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "div",
+  "text": "<undef>"
+ },
+ "autoFocus": {
+  "children": [],
+  "data": {
+   "_autoFocus": true,
+   "_autoSelect": false,
+   "hook": {
+    "insert": "fn",
+    "postpatch": "fn"
+   },
+   "props": {
+    "value": "x"
+   }
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "input",
+  "text": "<undef>"
+ },
+ "autoSelect": {
+  "children": [],
+  "data": {
+   "_autoFocus": false,
+   "_autoSelect": true,
+   "hook": {
+    "insert": "fn",
+    "postpatch": "fn"
+   },
+   "props": {}
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "input",
+  "text": "<undef>"
+ },
+ "autoFocus false": {
+  "children": [],
+  "data": {
+   "props": {
+    "autoFocus": false
+   }
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "input",
+  "text": "<undef>"
+ },
+ "autoFocus + ref + hook": {
+  "children": [],
+  "data": {
+   "_autoFocus": true,
+   "_autoSelect": false,
+   "hook": {
+    "destroy": "fn",
+    "insert": "fn",
+    "postpatch": "fn"
+   },
+   "props": {}
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "input",
+  "text": "<undef>"
+ },
+ "textarea / select / option": {
+  "children": [
+   {
+    "children": "<undef>",
+    "data": {
+     "props": {
+      "value": "a"
+     }
+    },
+    "elm": "<undef>",
+    "key": "<undef>",
+    "sel": "option",
+    "text": "A"
+   },
+   {
+    "children": "<undef>",
+    "data": {
+     "props": {
+      "selected": true,
+      "value": "b"
+     }
+    },
+    "elm": "<undef>",
+    "key": "<undef>",
+    "sel": "option",
+    "text": "B"
+   }
+  ],
+  "data": {
+   "props": {
+    "value": "b"
+   }
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "select",
+  "text": "<undef>"
+ },
+ "textarea": {
+  "children": [],
+  "data": {
+   "props": {
+    "rows": 3,
+    "value": "text"
+   }
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "textarea",
+  "text": "<undef>"
+ },
+ "selector sel": {
+  "children": "<undef>",
+  "data": {
+   "props": {
+    "className": "c"
+   }
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "div#main.a.b",
+  "text": "x"
+ },
+ "svg": {
+  "children": [
+   {
+    "children": [],
+    "data": {
+     "attrs": {
+      "class": "p",
+      "d": "M0 0",
+      "fill": "none"
+     },
+     "ns": "http://www.w3.org/2000/svg"
+    },
+    "elm": "<undef>",
+    "key": "<undef>",
+    "sel": "path",
+    "text": "<undef>"
+   },
+   {
+    "children": [
+     {
+      "children": "<undef>",
+      "data": {
+       "attrs": {},
+       "ns": "http://www.w3.org/2000/svg"
+      },
+      "elm": "<undef>",
+      "key": "<undef>",
+      "sel": "title",
+      "text": "T"
+     },
+     {
+      "children": [
+       {
+        "children": "<undef>",
+        "data": {
+         "attrs": {},
+         "ns": "http://www.w3.org/2000/svg"
+        },
+        "elm": "<undef>",
+        "key": "<undef>",
+        "sel": "text",
+        "text": "label"
+       }
+      ],
+      "data": {
+       "attrs": {
+        "href": "#x"
+       },
+       "ns": "http://www.w3.org/2000/svg"
+      },
+      "elm": "<undef>",
+      "key": "<undef>",
+      "sel": "a",
+      "text": "<undef>"
+     },
+     {
+      "children": [],
+      "data": {
+       "attrs": {
+        "href": "i.png"
+       },
+       "ns": "http://www.w3.org/2000/svg"
+      },
+      "elm": "<undef>",
+      "key": "<undef>",
+      "sel": "image",
+      "text": "<undef>"
+     }
+    ],
+    "data": {
+     "attrs": {
+      "transform": "t"
+     },
+     "ns": "http://www.w3.org/2000/svg"
+    },
+    "elm": "<undef>",
+    "key": "<undef>",
+    "sel": "g",
+    "text": "<undef>"
+   },
+   {
+    "children": [
+     {
+      "children": [
+       {
+        "children": "<undef>",
+        "data": {
+         "props": {
+          "title": "keep"
+         }
+        },
+        "elm": "<undef>",
+        "key": "<undef>",
+        "sel": "span",
+        "text": "x"
+       }
+      ],
+      "data": {
+       "props": {
+        "className": "html"
+       }
+      },
+      "elm": "<undef>",
+      "key": "<undef>",
+      "sel": "div",
+      "text": "<undef>"
+     }
+    ],
+    "data": {
+     "attrs": {
+      "width": 5
+     },
+     "ns": "http://www.w3.org/2000/svg"
+    },
+    "elm": "<undef>",
+    "key": "<undef>",
+    "sel": "foreignObject",
+    "text": "<undef>"
+   }
+  ],
+  "data": {
+   "attrs": {
+    "class": "icon",
+    "stroke-width": 2,
+    "viewBox": "0 0 10 10",
+    "width": 20
+   },
+   "ns": "http://www.w3.org/2000/svg"
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "svg",
+  "text": "<undef>"
+ },
+ "svg with style/on/class/hook": {
+  "children": [
+   {
+    "children": [],
+    "data": {
+     "attrs": {
+      "r": 1
+     },
+     "ns": "http://www.w3.org/2000/svg"
+    },
+    "elm": "<undef>",
+    "key": "<undef>",
+    "sel": "circle",
+    "text": "<undef>"
+   }
+  ],
+  "data": {
+   "attrs": {},
+   "class": {
+    "a": true
+   },
+   "hook": {
+    "insert": "fn:insertHook"
+   },
+   "ns": "http://www.w3.org/2000/svg",
+   "on": {
+    "click": "fn:click"
+   },
+   "style": {
+    "color": "red"
+   }
+  },
+  "elm": "<undef>",
+  "key": "s",
+  "sel": "svg",
+  "text": "<undef>"
+ },
+ "svg with selector sel (not in map)": {
+  "children": [
+   {
+    "children": [],
+    "data": {
+     "attrs": {
+      "x": 1
+     },
+     "ns": "http://www.w3.org/2000/svg"
+    },
+    "elm": "<undef>",
+    "key": "<undef>",
+    "sel": "rect",
+    "text": "<undef>"
+   }
+  ],
+  "data": {
+   "props": {
+    "viewBox": "0 0 1 1"
+   }
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "svg.icon",
+  "text": "<undef>"
+ },
+ "svg undefined className": {
+  "children": [],
+  "data": {
+   "attrs": {
+    "fill": "x"
+   },
+   "ns": "http://www.w3.org/2000/svg"
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "svg",
+  "text": "<undef>"
+ },
+ "svg text child": {
+  "children": [
+   {
+    "children": "<undef>",
+    "data": {
+     "attrs": {
+      "x": 1
+     },
+     "ns": "http://www.w3.org/2000/svg"
+    },
+    "elm": "<undef>",
+    "key": "<undef>",
+    "sel": "text",
+    "text": "hi"
+   }
+  ],
+  "data": {
+   "attrs": {},
+   "ns": "http://www.w3.org/2000/svg"
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "svg",
+  "text": "<undef>"
+ },
+ "svg with h() children": {
+  "children": [
+   {
+    "children": "<undef>",
+    "data": {
+     "attrs": {
+      "x": 1,
+      "y": 2
+     },
+     "ns": "http://www.w3.org/2000/svg"
+    },
+    "elm": "<undef>",
+    "key": "<undef>",
+    "sel": "rect",
+    "text": "<undef>"
+   },
+   {
+    "children": [
+     {
+      "children": "<undef>",
+      "data": {
+       "attrs": {
+        "x1": 0
+       },
+       "ns": "http://www.w3.org/2000/svg"
+      },
+      "elm": "<undef>",
+      "key": "<undef>",
+      "sel": "line",
+      "text": "<undef>"
+     }
+    ],
+    "data": {
+     "attrs": {},
+     "ns": "http://www.w3.org/2000/svg"
+    },
+    "elm": "<undef>",
+    "key": "<undef>",
+    "sel": "g",
+    "text": "<undef>"
+   }
+  ],
+  "data": {
+   "attrs": {},
+   "ns": "http://www.w3.org/2000/svg"
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "svg",
+  "text": "<undef>"
+ },
+ "html child with svg leaf": {
+  "children": [
+   {
+    "children": [],
+    "data": {
+     "attrs": {
+      "x": 1
+     },
+     "ns": "http://www.w3.org/2000/svg"
+    },
+    "elm": "<undef>",
+    "key": "<undef>",
+    "sel": "rect",
+    "text": "<undef>"
+   }
+  ],
+  "data": {},
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "div",
+  "text": "<undef>"
+ },
+ "fragment root": {
+  "children": [
+   {
+    "children": [],
+    "data": {},
+    "elm": "<undef>",
+    "key": "<undef>",
+    "sel": "a",
+    "text": "<undef>"
+   },
+   {
+    "children": "<undef>",
+    "data": "<undef>",
+    "elm": "<undef>",
+    "key": "<undef>",
+    "sel": "<undef>",
+    "text": "txt"
+   },
+   {
+    "children": [],
+    "data": {},
+    "elm": "<undef>",
+    "key": "<undef>",
+    "sel": "b",
+    "text": "<undef>"
+   }
+  ],
+  "data": {},
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "<undef>",
+  "text": "<undef>"
+ },
+ "fragment single text": {
+  "children": "<undef>",
+  "data": "<undef>",
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "<undef>",
+  "text": "only"
+ },
+ "fragment in parent": {
+  "children": [
+   {
+    "children": [
+     {
+      "children": [],
+      "data": {},
+      "elm": "<undef>",
+      "key": "<undef>",
+      "sel": "i",
+      "text": "<undef>"
+     },
+     {
+      "children": [],
+      "data": {},
+      "elm": "<undef>",
+      "key": "<undef>",
+      "sel": "b",
+      "text": "<undef>"
+     }
+    ],
+    "data": {},
+    "elm": "<undef>",
+    "key": "<undef>",
+    "sel": "<undef>",
+    "text": "<undef>"
+   }
+  ],
+  "data": {},
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "div",
+  "text": "<undef>"
+ },
+ "component": {
+  "children": [],
+  "data": {
+   "c": "fn:Child",
+   "on": {
+    "click": "fn:click"
+   },
+   "props": {
+    "cfg": {
+     "deep": {
+      "x": 1
+     }
+    },
+    "items": [
+     1,
+     {
+      "a": 2
+     }
+    ],
+    "name": "n"
+   }
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "Child",
+  "text": "<undef>"
+ },
+ "component with key/id/state": {
+  "children": [],
+  "data": {
+   "c": "fn:Child",
+   "props": {
+    "id": "cid",
+    "state": "slice"
+   }
+  },
+  "elm": "<undef>",
+  "key": "c1",
+  "sel": "Child",
+  "text": "<undef>"
+ },
+ "component with children": {
+  "children": [
+   {
+    "children": "<undef>",
+    "data": {},
+    "elm": "<undef>",
+    "key": "<undef>",
+    "sel": "p",
+    "text": "kid"
+   },
+   {
+    "children": "<undef>",
+    "data": "<undef>",
+    "elm": "<undef>",
+    "key": "<undef>",
+    "sel": "<undef>",
+    "text": "text"
+   },
+   "<undef>"
+  ],
+  "data": {
+   "c": "fn:Child"
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "Child",
+  "text": "<undef>"
+ },
+ "component with text child only": {
+  "children": [
+   {
+    "children": "<undef>",
+    "data": "<undef>",
+    "elm": "<undef>",
+    "key": "<undef>",
+    "sel": "<undef>",
+    "text": "just text"
+   }
+  ],
+  "data": {
+   "c": "fn:Child"
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "Child",
+  "text": "<undef>"
+ },
+ "component no props": {
+  "children": [],
+  "data": {
+   "c": "fn:Child"
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "Child",
+  "text": "<undef>"
+ },
+ "component className/class/style/attrs": {
+  "children": [],
+  "data": {
+   "attrs": {
+    "t": 1
+   },
+   "c": "fn:Child",
+   "class": {
+    "a": true,
+    "b": true
+   },
+   "dataset": {
+    "x": "1"
+   },
+   "props": {
+    "className": "x"
+   },
+   "style": {
+    "c": 1
+   }
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "Child",
+  "text": "<undef>"
+ },
+ "collection": {
+  "children": [],
+  "data": {
+   "props": {
+    "className": "list",
+    "filter": "fn:filt",
+    "from": "items",
+    "of": "fn:Item",
+    "sort": "name"
+   }
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "collection",
+  "text": "<undef>"
+ },
+ "switchable": {
+  "children": [],
+  "data": {
+   "props": {
+    "current": "a",
+    "of": {
+     "a": "fn:Child",
+     "b": "fn:Item"
+    },
+    "state": "x"
+   }
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "switchable",
+  "text": "<undef>"
+ },
+ "portal": {
+  "children": [
+   {
+    "children": "<undef>",
+    "data": {
+     "props": {
+      "className": "dialog"
+     }
+    },
+    "elm": "<undef>",
+    "key": "<undef>",
+    "sel": "div",
+    "text": "hi"
+   }
+  ],
+  "data": {
+   "props": {
+    "target": "#modal"
+   }
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "portal",
+  "text": "<undef>"
+ },
+ "transition": {
+  "children": [
+   {
+    "children": "<undef>",
+    "data": {},
+    "elm": "<undef>",
+    "key": "t",
+    "sel": "div",
+    "text": "x"
+   }
+  ],
+  "data": {
+   "props": {
+    "duration": 200,
+    "name": "fade"
+   }
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "transition",
+  "text": "<undef>"
+ },
+ "suspense": {
+  "children": [
+   {
+    "children": [],
+    "data": {
+     "c": "fn:Child"
+    },
+    "elm": "<undef>",
+    "key": "<undef>",
+    "sel": "Child",
+    "text": "<undef>"
+   }
+  ],
+  "data": {
+   "props": {
+    "fallback": {
+     "data": {},
+     "sel": "div",
+     "text": "loading"
+    }
+   }
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "suspense",
+  "text": "<undef>"
+ },
+ "suspense string fallback": {
+  "children": [
+   {
+    "children": "<undef>",
+    "data": {},
+    "elm": "<undef>",
+    "key": "<undef>",
+    "sel": "p",
+    "text": "x"
+   }
+  ],
+  "data": {
+   "props": {
+    "fallback": "wait"
+   }
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "suspense",
+  "text": "<undef>"
+ },
+ "clientonly": {
+  "children": [
+   {
+    "children": "<undef>",
+    "data": {},
+    "elm": "<undef>",
+    "key": "<undef>",
+    "sel": "div",
+    "text": "client"
+   }
+  ],
+  "data": {
+   "props": {
+    "fallback": "ssr"
+   }
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "clientonly",
+  "text": "<undef>"
+ },
+ "slot": {
+  "children": [
+   {
+    "children": "<undef>",
+    "data": {},
+    "elm": "<undef>",
+    "key": "<undef>",
+    "sel": "h1",
+    "text": "H"
+   }
+  ],
+  "data": {
+   "props": {
+    "name": "header"
+   }
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "slot",
+  "text": "<undef>"
+ },
+ "lazy marker": {
+  "children": [],
+  "data": {
+   "c": "fn:LazyView",
+   "props": {
+    "a": 1
+   }
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "LazyView",
+  "text": "<undef>"
+ },
+ "control element": {
+  "children": [],
+  "data": {
+   "attrs": {
+    "data-control": "Draft"
+   },
+   "props": {
+    "className": "draft",
+    "value": "v"
+   }
+  },
+  "elm": "<undef>",
+  "key": "d",
+  "sel": "input",
+  "text": "<undef>"
+ },
+ "control spec": {
+  "children": [
+   {
+    "children": "<undef>",
+    "data": {},
+    "elm": "<undef>",
+    "key": "<undef>",
+    "sel": "p",
+    "text": "in"
+   }
+  ],
+  "data": {
+   "attrs": {
+    "data-control": "Box",
+    "x": 1
+   },
+   "props": {
+    "className": "b"
+   }
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "section",
+  "text": "<undef>"
+ },
+ "control no props": {
+  "children": [],
+  "data": {
+   "attrs": {
+    "data-control": "Draft"
+   }
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "input",
+  "text": "<undef>"
+ },
+ "createElementWithModules without props": {
+  "children": [],
+  "data": {
+   "attrs": {
+    "a": 1,
+    "aria-label": "l",
+    "for": "f"
+   },
+   "className": "c",
+   "data-x": "1",
+   "id": "x",
+   "on": {
+    "click": "fn:click"
+   }
+  },
+  "elm": "<undef>",
+  "key": "k",
+  "sel": "div",
+  "text": "<undef>"
+ },
+ "createElementWithModules with data module": {
+  "children": [],
+  "data": {
+   "dataset": {
+    "aB": 1
+   },
+   "props": {
+    "id": "x",
+    "on-click": "fn:click",
+    "style-color": "red"
+   }
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "div",
+  "text": "<undef>"
+ },
+ "jsx runtime: children array + key": {
+  "children": [
+   {
+    "children": "<undef>",
+    "data": {},
+    "elm": "<undef>",
+    "key": "k1",
+    "sel": "li",
+    "text": "a"
+   },
+   {
+    "children": "<undef>",
+    "data": {},
+    "elm": "<undef>",
+    "key": "k2",
+    "sel": "li",
+    "text": "b"
+   }
+  ],
+  "data": {
+   "props": {
+    "className": "l"
+   }
+  },
+  "elm": "<undef>",
+  "key": "root",
+  "sel": "ul",
+  "text": "<undef>"
+ },
+ "jsx runtime: single child": {
+  "children": "<undef>",
+  "data": {},
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "p",
+  "text": "x"
+ },
+ "jsx runtime: no props": {
+  "children": [],
+  "data": {},
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "br",
+  "text": "<undef>"
+ },
+ "jsx runtime: component": {
+  "children": [
+   {
+    "children": "<undef>",
+    "data": {},
+    "elm": "<undef>",
+    "key": "<undef>",
+    "sel": "b",
+    "text": "1"
+   }
+  ],
+  "data": {
+   "c": "fn:Child",
+   "props": {
+    "a": 1
+   }
+  },
+  "elm": "<undef>",
+  "key": "ck",
+  "sel": "Child",
+  "text": "<undef>"
+ },
+ "jsx runtime: svg": {
+  "children": [
+   {
+    "children": [],
+    "data": {
+     "attrs": {
+      "class": "p",
+      "d": "M"
+     },
+     "ns": "http://www.w3.org/2000/svg"
+    },
+    "elm": "<undef>",
+    "key": "<undef>",
+    "sel": "path",
+    "text": "<undef>"
+   }
+  ],
+  "data": {
+   "attrs": {
+    "viewBox": "0 0 1 1"
+   },
+   "ns": "http://www.w3.org/2000/svg"
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "svg",
+  "text": "<undef>"
+ },
+ "deep tree": {
+  "children": [
+   {
+    "children": [
+     {
+      "children": "<undef>",
+      "data": {
+       "props": {
+        "className": "title"
+       }
+      },
+      "elm": "<undef>",
+      "key": "<undef>",
+      "sel": "h1",
+      "text": "T"
+     },
+     {
+      "children": [
+       {
+        "children": "<undef>",
+        "data": {
+         "class": {
+          "active": false
+         },
+         "props": {
+          "href": "#1"
+         }
+        },
+        "elm": "<undef>",
+        "key": 1,
+        "sel": "a",
+        "text": "L1"
+       },
+       {
+        "children": "<undef>",
+        "data": {
+         "class": {
+          "active": true
+         },
+         "props": {
+          "href": "#2"
+         }
+        },
+        "elm": "<undef>",
+        "key": 2,
+        "sel": "a",
+        "text": "L2"
+       },
+       {
+        "children": "<undef>",
+        "data": {
+         "class": {
+          "active": false
+         },
+         "props": {
+          "href": "#3"
+         }
+        },
+        "elm": "<undef>",
+        "key": 3,
+        "sel": "a",
+        "text": "L3"
+       }
+      ],
+      "data": {},
+      "elm": "<undef>",
+      "key": "<undef>",
+      "sel": "nav",
+      "text": "<undef>"
+     }
+    ],
+    "data": {},
+    "elm": "<undef>",
+    "key": "<undef>",
+    "sel": "header",
+    "text": "<undef>"
+   },
+   {
+    "children": [
+     {
+      "children": [],
+      "data": {
+       "on": {
+        "input": "fn:input"
+       },
+       "props": {
+        "className": "draft",
+        "value": "x"
+       }
+      },
+      "elm": "<undef>",
+      "key": "<undef>",
+      "sel": "input",
+      "text": "<undef>"
+     },
+     {
+      "children": [],
+      "data": {
+       "c": "fn:Child",
+       "props": {
+        "n": 1
+       }
+      },
+      "elm": "<undef>",
+      "key": "<undef>",
+      "sel": "Child",
+      "text": "<undef>"
+     },
+     {
+      "children": [
+       {
+        "children": "<undef>",
+        "data": {
+         "dataset": {
+          "id": "a"
+         }
+        },
+        "elm": "<undef>",
+        "key": "a",
+        "sel": "li",
+        "text": "a"
+       },
+       {
+        "children": "<undef>",
+        "data": {
+         "dataset": {
+          "id": "b"
+         }
+        },
+        "elm": "<undef>",
+        "key": "b",
+        "sel": "li",
+        "text": "b"
+       }
+      ],
+      "data": {},
+      "elm": "<undef>",
+      "key": "<undef>",
+      "sel": "ul",
+      "text": "<undef>"
+     }
+    ],
+    "data": {},
+    "elm": "<undef>",
+    "key": "<undef>",
+    "sel": "main",
+    "text": "<undef>"
+   }
+  ],
+  "data": {
+   "props": {
+    "className": "app"
+   }
+  },
+  "elm": "<undef>",
+  "key": "<undef>",
+  "sel": "div",
+  "text": "<undef>"
+ }
+}

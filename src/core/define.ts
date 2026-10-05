@@ -152,7 +152,7 @@ export function normalize(view: ComponentFn, src: DefSource): CoreDef {
       for (const k in src.context) {
         const f = src.context[k]
         if (typeof f == 'function') context.push([k, f])
-        else logError('SYG403', name, `Invalid context entry '${k}'; skipping it`, 'Use a state key or state => value')
+        else logError('SYG403', name, `Invalid context entry '${k}' (a ${typeof f}); skipping it`, 'Context entries are functions of state only: { name: state => value }. See https://sygnal.js.org/guide/migrating-to-6#leftovers')
       }
     }
   }

@@ -1,5 +1,7 @@
 # Performance baseline (PLAN-4 GS-16, prototype P-3)
 
+> **Historical (PLAN-4.6):** the `src/component.ts` paths below are the 5.x core, deleted at PLAN-4.6 R5; the component core is `src/core/` now. The analysis is kept as recorded.
+
 Measure only, not gating. Recorded 2026-10-03 on branch `p4-p3-perf` (from `plan4-integration` at 284a648, Sygnal 5.4.0 + the PLAN-4 work merged so far).
 
 > **Since PLAN-4.5 P45-0** the P-3 runner (`browser-tests/perf/`) is retired. Its method (quiet-page wait, paint and busy) and its clear-2k op are part of the audit harness in `benchmarks/audit/`, and the js-framework-benchmark smoke run is `npm --prefix benchmarks run jfb`. How to run everything, including the count gate in `npm test`: [README.md](README.md). The commands below are kept as the record of how these results were produced.

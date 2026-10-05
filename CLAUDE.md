@@ -24,9 +24,9 @@ npm --prefix sygnal-check test       # static checker package (492 tests, *.vtes
 npm --prefix docs run build          # docs site + internal link check
 node scripts/gen-error-docs.mjs      # regenerate docs reference/errors.md from sygnal-check/explanations.json
 node scripts/check-doc-samples.mjs   # sygnal-check --strict on every docs code sample (552 checked, 13 skipped by marker)
-node scripts/size-gate.mjs           # size report: kanban gzip (nativeGlobalThis: false, and the default) and src/core/**
-                                     #   alone; informational until the new core's budget is set (D182); `--budget <bytes>`
-                                     #   gates the first number (needs build + examples/kanban install)
+node scripts/size-gate.mjs           # size gate: kanban gzip with nativeGlobalThis: false <= 42,300 B gated (D48, D185;
+                                     #   needs build + examples/kanban install); also prints the default (globalthis-aliased)
+                                     #   size and src/core/** alone. `--budget <bytes>` overrides
 ```
 
 This is a **library package** — no dev server. Verify changes via `npm run build` + `npm test`. Build before testing: tests and examples import `dist/`.
@@ -105,7 +105,7 @@ All `@cycle/*` packages have been absorbed into `src/cycle/`. The only external 
 
 ## Canonical Forms and Diagnostics
 
-Docs, examples, `llms.txt` and the skill use only the canonical forms in `dev-plans/PLAN-1-canonical-forms.md`: destructured views `function C({ state, context, ...props })`, `ABORT` for "no change", `EFFECT` for side effects, the object form for every non-STATE sink (no `'ACTION | SINK'` keys), `EVENTS: event('TYPE', fn)` (not `emit()` or raw `{ type, data }`), `CHILD.select(ChildFn)`, `.context` for deep data. Strict mode (SYG503–508: `sygnal-check --strict`, `configureStrict`, `renderComponent({ strict })`) flags the alternatives; the docs list them only on `advanced/alternative-forms`. The forms 6.0 removed (D162–D164: positional views, `'A | SINK'` keys, `CHILD.select('Name')`, `.components`/string tags, `.peers`, `hmrActions`, source names, `storeCalculatedInState`, `component()`) are SYG612 (dev runtime; `sygnal-check` always) and SYG501/504/506 (`--strict`); `guide/migrating-to-6` documents each. Retired codes keep their numbers and docs entries ("Retired in 6.0", `reportedBy: ['retired']`). All examples and templates are strict-clean.
+Docs, examples, `llms.txt` and the skill use only the canonical forms in `dev-plans/PLAN-1-canonical-forms.md`: destructured views `function C({ state, context, ...props })`, `ABORT` for "no change", `EFFECT` for side effects, the object form for every non-STATE sink (no `'ACTION | SINK'` keys), `EVENTS: event('TYPE', fn)` (not `emit()` or raw `{ type, data }`), `CHILD.select(ChildFn)`, `.context` for deep data. Strict mode (SYG503, SYG505, SYG507, SYG508: `sygnal-check --strict`, `configureStrict`, `renderComponent({ strict })`) flags the alternatives that still work (SYG501/504/506 are removed-form errors now, SYG502 is retired); the docs list them only on `advanced/alternative-forms`. The forms 6.0 removed (D162–D164: positional views, `'A | SINK'` keys, `CHILD.select('Name')`, `.components`/string tags, `.peers`, `hmrActions`, source names, `storeCalculatedInState`, `component()`) are SYG612 (dev runtime; `sygnal-check` always, statics only on components) and SYG501/504/506 (`--strict`); a single-stream intent is SYG603 (thrown), string / `true` context entries SYG403; `guide/migrating-to-6` documents each. Retired codes keep their numbers and docs entries ("Retired in 6.0", `reportedBy: ['retired']`). All examples and templates are strict-clean.
 
 To add a diagnostic code: add it to both tables in `src/extra/diagnostics/codes.ts` (inside the workstream range), add its explanation to `sygnal-check/src/explanations.js`, regenerate `sygnal-check/explanations.json` (`node sygnal-check/bin/sygnal-check.js explain --all --json > sygnal-check/explanations.json`), then `node scripts/gen-error-docs.mjs`. Drift tests cover each step.
 

@@ -10,7 +10,9 @@
 import xs from '../extra/xstreamCompat'
 
 // G-315: probed on first use (a top-level probe would survive the D175 strip of production builds)
-let SP: any, NO: any, down: any[] | null = null, outer: any
+let SP: any, NO: any, down: any[] | null = null, outer: any, owner: any
+// G-342/G-267: the instance a queued stream was left by (its stop() error is reported for it)
+const owners = new WeakMap<object, any>()
 const probe = () => { if (!SP) { const s: any = xs.create(); SP = Object.getPrototypeOf(s); NO = s._prod } }
 
 function removeQueued(this: any, il: any) {
@@ -18,27 +20,33 @@ function removeQueued(this: any, il: any) {
   const a = this._ils, i = a.indexOf(il)
   if (i < 0) return
   a.splice(i, 1)
-  if (this._prod !== NO && !a.length) { this._err = NO; this._stopID = 0; down!.push(this) }
+  if (this._prod !== NO && !a.length) { this._err = NO; this._stopID = 0; down!.push(this); if (owner) owners.set(this, owner) }
   else if (a.length == 1) this._pruneCycles()
 }
 
-/** run f with _remove queuing into q (nested calls share the outermost swap) */
-export function tearDown(f: () => void, q: any[]) {
+/** run f with _remove queuing into q (nested calls share the outermost swap); `by`: the instance */
+export function tearDown(f: () => void, q: any[], by?: any) {
   probe()
-  const prev = down
+  const prev = down, prevBy = owner
   if (!prev) { outer = SP._remove; SP._remove = removeQueued }
   down = q
-  try { f() } finally { down = prev; if (!prev) SP._remove = outer }
+  if (by) owner = by
+  try { f() } finally { down = prev; owner = prevBy; if (!prev) SP._remove = outer }
 }
 
-/** stop the queued streams; a stop that leaves its upstream without listeners queues it here too */
-export function stopQueued(q: any[]) {
+/**
+ * stop the queued streams; a stop that leaves its upstream without listeners queues it here too.
+ * A throwing stop() (a producer's) stops nothing else from stopping; G-342/G-267: it is reported
+ * through `err` (with the instance that left the stream), not swallowed
+ */
+export function stopQueued(q: any[], err?: (e: any, by: any) => void) {
   probe()
   for (let i = 0; i < q.length; i++) {
     const s = q[i]
     if (s._stopID === 0 && !s._ils.length) {
       s._stopID = NO
-      tearDown(() => { if (s._prod !== NO) try { s._stopNow() } catch (_) {} }, q)
+      const by = owners.get(s)
+      tearDown(() => { if (s._prod !== NO) try { s._stopNow() } catch (e) { err?.(e, by) } }, q, by)
     }
   }
   q.length = 0
