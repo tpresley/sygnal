@@ -6,7 +6,7 @@ Tracks progress for [PLAN-5.md](PLAN-5.md) (ecosystem components and integration
 
 **Integration branch:** `plan5-integration`, cut from `plan46-complete` (`7146161`) on 2026-10-05, in worktree `.claude/worktrees/plan-4-execution-7ae8e8`. The release stays held (D56).
 
-**State:** Phase 2: 2-B, 2-V, 2-U, 2-A merged; running: review of 2-U+2-V, 2-Z (fromZag + Menu/Select/Combobox + fromReact), 2-R (fixes). Known flaky test `p5-1s-forms` (fixed in 2-R).
+**State:** Phase 2: 2-B, 2-V, 2-U, 2-A merged; running: 2-Z (fromZag + Menu/Select/Combobox + fromReact), 2-R (fixes), 2-S (2-U/2-V review fixes). Known flaky test `p5-1s-forms` (fixed in 2-R).
 
 ## 0-A baseline (2026-10-05)
 
@@ -142,6 +142,20 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 | G-391 | review 2-B | Low | browser-tests | `__pwBrowser` context changes (offline, permissions, media) aren't reset between suites | → 2-R |
 | G-392 | 2-U | Low | sygnal-check | SYG105 false positive for every Toaster user (`TOAST` "emitted but nothing selects it"); `sygnal/ui` behaviors not in `FIRST_PARTY` (option typos unchecked) | → 2-R |
 | G-393 | 2-U | Low | core/testing | A root component with a `model` but no `initialState` renders nothing under `renderComponent`, with no diagnostic (verify against today's documented behaviour, G-172) | → 2-R (verify) |
+| G-394 | review 2-V | High | VirtualCollection | An inline `estimateSize` function (the guide's own pattern) clears every measured row height on each owner render; rows aren't re-measured. Confirmed | → 2-S |
+| G-395 | review 2-V | Med/High | VirtualCollection | SYG430 "grows" misfires on a bounded container above viewport height that fits its rows; clamping then leaves unreachable blank rows. Confirmed | → 2-S |
+| G-396 | review 2-V | Med/High | SSR | `renderVirtual` ignores filter, sort, lens/missing `from`, pass-through props and children (hydration mismatch). Confirmed | → 2-S |
+| G-397 | review 2-U | Med/High | ui/tabs | Removing the selected tab leaves every tab `tabindex=-1` and every panel hidden. Confirmed | → 2-S |
+| G-398 | review 2-U | Med | ui/toaster | Auto ids collide with user ids (and `'7'` vs `7`): a toast stays invisible and stuck in state. Confirmed | → 2-S |
+| G-399 | review 2-U | Med | ui/toaster | One pause flag shared by pointer and focus: timers resume under keyboard focus; removed Dismiss button can leave the region paused | → 2-S |
+| G-400 | review 2-U | Med | ui/dialog, popover | Unmounting an open dialog/popover leaves `open: true`, so it can never be reopened | → 2-S |
+| G-401 | review 2-V | Med | VirtualCollection | Focus lost when the focused row scrolls out (keep the focused index in range) | → 2-S |
+| G-402 | review 2-V | Low/Med | VirtualCollection | ResizeObserver loop errors from synchronous measurement + patch | → 2-S |
+| G-403 | review 2-U | Low/Med | ui/tooltip | ENTER/LEAVE share one state across pointer and focus (touch taps never show; mouse-out hides a focused tip); one document keydown listener per instance | → 2-S |
+| G-404 | review 2-U | Low/Med | ui/toaster | Modal dialogs inside shadow DOM (sygnal/element) aren't seen | → 2-S |
+| G-405 | review 2-U | Low | ui/dialog | `cancelable: false` doesn't reliably stop Escape in Chromium (CloseWatcher) | → 2-S |
+| G-406 | review 2-U | Low | ui/popover | OPEN then CLOSE in one tick leaves it open (state mirrored from async `toggle`) | → 2-S |
+| G-407 | review 2-U/2-V | Low | misc | VirtualCollection `getItemKey` rebuilt on every array change (6.7 ms/flush at 100k); native ESM without a bundler hits virtual-core's `process.env.NODE_ENV`; Dialog `returnFocus` targets the first matching trigger; `idsOf` collisions / host reducers dropping the `keyed()` prefix | → 2-S |
 | G-382 | 1-S | Low | forms | `valid` is false while an async schema re-validates, so `disabled={!valid}` flickers per keystroke; keep the previous validity after the first answer | → 2-R |
 | G-356 | 0-S4 | Low | DOM/isolation | An element moved out of its component's DOM (toast re-parented into a modal): `IsolateModule.getRootElement` throws ("No root element found"); with the fix, the delegator's simulated bubbling still follows DOM parents, so intermediate scopes miss the moved region's events | Fixed (1-F; `__sygnalHome` for movers) |
 | G-357 | 0-S4 | Low | diagnostics | SYG202 reported for `() => undefined` on Collection items although llms.txt documents it as the canonical self-removal | Fixed (1-F) |
@@ -149,6 +163,7 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 
 ## Log
 
+- 2026-10-05 — Review of 2-U + 2-V: 14 findings (G-394…G-407). 2-S started.
 - 2026-10-05 — Resumed. 2-A merged (D210, user: naming in the core); gates green on three engines (267/267) except the known flaky `p5-1s-forms` test (2-R). Review of 2-U+2-V, 2-Z and 2-R started.
 - 2026-10-05 — D209 (user): dependency rule; `@tanstack/virtual-core` moved to `dependencies` (^3.17.11), external in the npm builds; all gates green.
 - 2026-10-05 — 2-V and 2-U merged (resolved additive conflicts); all gates green on three engines (262/262; samples 621). Review of 2-B: 9 findings (G-383…G-391); 2-U follow-ups G-392/G-393.
