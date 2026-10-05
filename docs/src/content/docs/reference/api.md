@@ -930,7 +930,7 @@ function getField(values: any, name: string): any
 function fieldName(values: any, path?: ReadonlyArray<any>): string
 function fieldNames(values: any): string[]
 function replyErrors(reply: any, values?: any): FieldErrors
-function focusInvalid(names: string[] | FieldErrors): ElementCommand | ABORT
+function focusInvalid(names: string[] | FieldErrors, within?: string): ElementCommand | ABORT   // within: the form's selector
 type FieldErrors = Record<string, string>   // by field name; '' = form-level
 ```
 

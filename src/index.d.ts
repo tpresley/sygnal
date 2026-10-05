@@ -992,8 +992,8 @@ export function fieldName(values: any, path?: ReadonlyArray<any>): string
 export function fieldNames(values: any): string[]
 /** Server errors (an error reply, a map, or a list of issues) as field errors; '' for a form-level message. */
 export function replyErrors(reply: any, values?: any): FieldErrors
-/** An ELEMENT command focusing the first field (DOM order) named in `names` (or with a message in an errors map), children included; ABORT when none. */
-export function focusInvalid(names: string[] | FieldErrors): ElementCommand | ABORT
+/** An ELEMENT command focusing the first field (DOM order) named in `names` (or with a message in an errors map), children included; with `within` (the form element's selector), only fields inside it; ABORT when none. */
+export function focusInvalid(names: string[] | FieldErrors, within?: string): ElementCommand | ABORT
 
 /** A `selection` slice: the selected ids, as strings, in selection order. */
 export interface SelectionState { selected: string[] }

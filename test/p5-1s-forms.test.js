@@ -99,3 +99,36 @@ describe('G-375: the first validation runs when the host starts, not at module l
     expect(t.state.form.valid).toBe(true)
   })
 })
+
+describe('G-373: an invalid submit focuses a field of its own form', () => {
+  const req = sync((v) => v.email ? [] : [{ message: 'Need an email', path: ['email'] }])
+  // a child component with a field of the same name, before the forms in page order
+  function Search() { return h('div', { className: 'search' }, h('input', { name: 'email', className: 'se' })) }
+  function C({ state }) {
+    return h('div', null,
+      h(Search),
+      h('form', { className: 'login' }, h('input', { name: 'email', className: 'le', value: state.login.values.email })),
+      h('form', { className: 'reg' }, h('div', null, h('input', { name: 'email', className: 're', value: state.reg.values.email }))))
+  }
+  C.uses = {
+    login: form(req, { values: { email: '' }, submit: 'LOGIN', form: '.login' }),
+    reg: form(req, { values: { email: '' }, submit: 'REG', form: '.reg' }),
+  }
+  C.model = { LOGIN: { EFFECT: () => {} }, REG: { EFFECT: () => {} } }
+
+  it('the second form focuses its own field (not a child component\'s, not the first form\'s)', async () => {
+    t = renderComponent(C, { dom: 'real' })
+    await t.ready(); await t.settle()
+    t.simulateEvent('.reg', 'submit'); await t.settle(); await sleep(30)
+    expect(document.activeElement?.className).toBe('re')
+    t.simulateEvent('.login', 'submit'); await t.settle(); await sleep(30)
+    expect(document.activeElement?.className).toBe('le')
+  })
+
+  it('focusInvalid(names, within) prefixes each name with the form selector', async () => {
+    const { focusInvalid, ABORT } = await import('../src/index.js')
+    expect(focusInvalid(['a', 'b.1.c'], '.reg').focus.within).toBe('.reg [name="a"],.reg [name="b.1.c"]')
+    expect(focusInvalid({ a: 'x' }).focus.within).toBe('[name="a"]')
+    expect(focusInvalid({ a: '' }, 'form')).toBe(ABORT)
+  })
+})

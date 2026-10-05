@@ -115,10 +115,12 @@ export const replyErrors = (reply: any, values?: any): FieldErrors => {
 /**
  * An ELEMENT command that focuses the first field, in DOM order, whose `name` is one of `names`
  * (a list, or an errors map: its names with a message; '' is skipped), anywhere in the sender's view, fields
- * of child components and Collection items included (`focusWithin`, D194). ABORT when there is
- * nothing to focus: `ELEMENT: (state) => focusInvalid(state.errors)`.
+ * of child components and Collection items included (`focusWithin`, D194). With `within` (a
+ * selector: the form element's), only fields inside a matching element (G-373: a second form,
+ * or a child component's field of the same name outside the form, isn't focused). ABORT when
+ * there is nothing to focus: `ELEMENT: (state) => focusInvalid(state.errors, '.signup')`.
  */
-export const focusInvalid = (names: string[] | FieldErrors): any => {
+export const focusInvalid = (names: string[] | FieldErrors, within?: string): any => {
   const list = (Array.isArray(names) ? names : Object.keys(names).filter(n => names[n])).filter(n => n)
-  return list.length ? {focus: focusWithin(list.map(n => `[name=${JSON.stringify(n)}]`).join())} : ABORT
+  return list.length ? {focus: focusWithin(list.map(n => `${within ? within + ' ' : ''}[name=${JSON.stringify(n)}]`).join())} : ABORT
 }

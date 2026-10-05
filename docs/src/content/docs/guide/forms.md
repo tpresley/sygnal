@@ -283,7 +283,7 @@ The behavior covers the common form. When a form needs its own state layout or f
 | `setField(values, name, value)`, `getField(values, name)` | Immutable set and get by field name (rows by id) |
 | `fieldName(values, path)`, `fieldNames(values)` | An issue path as a field name; every field name of `values` |
 | `replyErrors(reply, values?)` | Server errors (a reply, a map or a list of issues) as field errors |
-| `focusInvalid(errors)` | An `ELEMENT` command that focuses the first field with an error, children included; `ABORT` when there is none |
+| `focusInvalid(errors, within?)` | An `ELEMENT` command that focuses the first field with an error, children included; with `within` (the form element's selector), only a field inside that element; `ABORT` when there is none |
 
 ```jsx
 import { formErrors, setField, focusInvalid, ABORT } from 'sygnal'
@@ -313,7 +313,7 @@ Profile.model = {
   },
   SUBMIT: {
     STATE: (state) => ({ ...state, submitted: true }),
-    ELEMENT: (state) => focusInvalid(state.errors),
+    ELEMENT: (state) => focusInvalid(state.errors, '.profile'),
     HTTP: (state) => (Object.keys(state.errors).length ? ABORT : { url: '/api/profile', method: 'PUT', json: state.values }),
   },
 }

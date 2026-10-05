@@ -59,7 +59,7 @@ const drop = (o: any, p: string) => {
 
 export const form = (schema: any, o: any = {}): any => {
   isStandardSchema(schema) || dev(231, schema)
-  const {values = {}, submit, check: checks = {}, show = 'blur', http = 'HTTP'} = o
+  const {values = {}, submit, check: checks = {}, show = 'blur', http = 'HTTP', form: sel = 'form'} = o
   const cache = new WeakMap(), checked = Object.keys(checks)
   // the schema's result, once per values object; an async one replaces its Promise when it settles
   const v = (vals: any): any => {
@@ -93,7 +93,7 @@ export const form = (schema: any, o: any = {}): any => {
   // a submit with s's errors: blocked (focus the first), a check to run or to wait for, or sent
   const attempt = (s: any, k: string) => {
     const bad = [...keys(s.errors), ...keys(s.remote)], f = due(s)
-    return bad.length ? {s: {...s, queued: false}, focus: focusInvalid(bad)}
+    return bad.length ? {s: {...s, queued: false}, focus: focusInvalid(bad, sel)}
       : f ? ask(s, f, k, true)
       : Object.keys(s.pending).length ? {s: {...s, queued: true}}
       : {s: {...s, queued: false, submitting: true}, send: 1}
@@ -134,7 +134,7 @@ export const form = (schema: any, o: any = {}): any => {
     },
     ERRORS: (s, d) => {
       const e = replyErrors(d, s.values)
-      return {s: {...s, server: e, submitting: false, queued: false}, focus: focusInvalid(e)}
+      return {s: {...s, server: e, submitting: false, queued: false}, focus: focusInvalid(e, sel)}
     },
     DONE: (s) => ({s: {...s, submitting: false, submitted: true, initial: s.values, server: {}, touched: {}}}),
     RESET: (s, d) => fresh(d && typeof d == 'object' ? d : s.initial),
@@ -173,7 +173,7 @@ export const form = (schema: any, o: any = {}): any => {
     // validating until VALIDATE (sync) or its RESULT (async): not valid yet (G-375)
     initialState: {...base(values), validating: true},
     intent: ({DOM}: any) => {
-      const f = DOM.select(o.form || 'form')
+      const f = DOM.select(sel)
       return {
         VALIDATE: xs.of(0),
         CHANGE: f.events('input').map(({target: t}: any) => ({name: t.name, value: t.type == 'checkbox' ? t.checked : t.value})),
