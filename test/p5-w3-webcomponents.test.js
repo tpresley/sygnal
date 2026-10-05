@@ -68,13 +68,21 @@ describe('web components in the mock DOM (W-3)', () => {
 })
 
 describe('renderToString with custom elements (W-3, D199)', () => {
-  it('skips function and object props and writes camelCase props as kebab-case attributes', () => {
+  it('1-R (G-365): IDL names get their HTML attribute; aria* reflection names are kebab-case', () => {
+    function Page() {
+      return h('my-x', { tabIndex: 0, readOnly: true, maxLength: 3, minLength: 1, contentEditable: 'true', accessKey: 'k', inputMode: 'numeric', enterKeyHint: 'go', spellCheck: true, ariaLabel: 'L', htmlFor: 'q' })
+    }
+    Page.initialState = {}
+    expect(renderToString(Page)).toBe('<my-x tabindex="0" readonly maxlength="3" minlength="1" contenteditable="true" accesskey="k" inputmode="numeric" enterkeyhint="go" spellcheck aria-label="L" for="q" data-sygnal-ssr=""></my-x>')
+  })
+
+  it('skips function and object props and writes camelCase props as kebab-case and lowercase attributes', () => {
     function Page() {
       return h('div', null,
         h('wa-rating', { className: 'food', label: 'Food', value: 4, readonly: true, disabled: false, getSymbol: () => '*', config: { a: 1 }, withClear: true, maxValue: 5 }),
         h('input', { className: 'plain', readOnly: true, value: 'x' }))
     }
     Page.initialState = {}
-    expect(renderToString(Page)).toBe('<div data-sygnal-ssr=""><wa-rating class="food" label="Food" value="4" readonly with-clear max-value="5"></wa-rating><input class="plain" readOnly value="x"></div>')
+    expect(renderToString(Page)).toBe('<div data-sygnal-ssr=""><wa-rating class="food" label="Food" value="4" readonly with-clear withclear max-value="5" maxvalue="5"></wa-rating><input class="plain" readOnly value="x"></div>')
   })
 })

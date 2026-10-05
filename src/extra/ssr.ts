@@ -755,6 +755,10 @@ function parseSelector(sel: string): {tag: string; id: string | null; selectorCl
 /**
  * Build an ordered list of [attrName, attrValue] from VNode data.
  */
+// 1-R G-365: camelCase HTML IDL properties whose content attribute is their lowercase name
+const IDL_ATTRS = /^(tabIndex|readOnly|maxLength|minLength|contentEditable|accessKey|inputMode|enterKeyHint|spellCheck|autoFocus|autoComplete|autoCapitalize|autoPlay|noValidate|formAction|formEnctype|formMethod|formNoValidate|formTarget|crossOrigin|referrerPolicy|useMap|isMap|dateTime|colSpan|rowSpan|srcSet|allowFullscreen|playsInline|noModule|popoverTarget|popoverTargetAction|encType)$/
+const kebab = (k: string): string => k.replace(/[A-Z]/g, (c) => '-' + c.toLowerCase())
+
 function buildAttributes(
   data: any,
   selectorId: string | null,
@@ -776,13 +780,23 @@ function buildAttributes(
       } else if (custom && (typeof val === 'function' || (val && typeof val === 'object'))) {
         // PLAN-5 D199: a custom element's function / object property has no attribute form
       } else {
-        // PLAN-5 D199: a custom element's camelCase property is written as its kebab-case
-        // attribute (withClear → with-clear), the form Lit-style elements read on upgrade
-        if (custom) key = key.replace(/[A-Z]/g, (c) => '-' + c.toLowerCase())
-        if (typeof val === 'boolean') {
-          if (val) result.push([key, true])
-        } else if (val != null) {
-          result.push([key, val])
+        // PLAN-5 D199 / 1-R G-365: a custom element's camelCase property as attributes. A
+        // reflected HTML IDL name gets its attribute (tabIndex → tabindex, readOnly → readonly),
+        // an ARIA reflection its aria-* one (ariaLabel → aria-label). Any other camelCase name is
+        // written twice: kebab-case (withClear → with-clear: Web Awesome / Shoelace's declared
+        // attributes, Stencil's default, sygnal/element's defineElement) and lowercase
+        // (withclear: Lit's and FAST's default attribute name); the element reads the one it
+        // observes and ignores the other
+        const keys = !custom || !/[A-Z]/.test(key) ? [key]
+          : IDL_ATTRS.test(key) ? [key.toLowerCase()]
+          : /^aria[A-Z]/.test(key) ? [kebab(key)]
+          : [kebab(key), key.toLowerCase()]
+        for (const k of keys) {
+          if (typeof val === 'boolean') {
+            if (val) result.push([k, true])
+          } else if (val != null) {
+            result.push([k, val])
+          }
         }
       }
     }
