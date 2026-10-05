@@ -105,7 +105,7 @@ The behavior listens on the host's root element, so it hears the presses and key
 
 Focus stays on the moved item's handle after each step (an [`ELEMENT` command](/guide/element-commands/) through [`focusWithin`](/guide/element-commands/#focusing-inside-children-focuswithin), since the keyed Collection may move the focused element). If focus moves to another element while an item is lifted (a click elsewhere, a screen reader's own navigation) or a pointer is pressed anywhere, the item is dropped where it is, as Tab does; a press on a handle then starts a pointer drag at once. Losing focus to nothing (switching windows) keeps the item lifted. A held Space or Enter (the key's auto-repeat) doesn't drop and lift again.
 
-If the host is removed while an item is lifted (a route change, a parent hiding it), the drag is cancelled: the item goes back where it started and no `sort.DROPPED` fires, so state that outlives the host (a parent's) isn't left half-moved. A pointer drag in progress is dropped the same way.
+If the host is removed while an item is lifted (a route change, a parent hiding it), the drag is cancelled: the item goes back where it started and no `sort.DROPPED` fires, so state that outlives the host (a parent's) isn't left half-moved. When the action that removes the host also replaces the list (new data loaded), the new list is left as it is. A pointer drag in progress is dropped the same way.
 
 ### Pointer and touch
 
@@ -163,7 +163,9 @@ A sortable inside a sortable's item (sorted lanes, each with sorted cards) works
 
 With the [`undo`](/advanced/undo/) behavior on the same host, a drag is one undo step: `uses = { sort: sortable({ from: 'tasks' }), history: undo({ key: 'tasks' }) }` records the order from before the drag when the item is dropped, and a cancelled drag records nothing. The live keyboard moves aren't steps of their own, and the order of the two in `uses` doesn't matter.
 
-[`persist()`](/guide/persistence/) never saves or restores `state.sort` (it is UI state). Drag state that comes back another way, in a Collection item's saved data or from another tab, doesn't resume a drag: it is reset when the host starts or at the next press or key.
+An action during a drag that changes the list too (an item added) is recorded with the drag so far, so the order from before the drag stays reachable; undo during a drag steps back over the drag so far.
+
+[`persist()`](/guide/persistence/) never saves or restores the root component's `state.sort` (it is UI state). A sortable on a sub-component or a Collection item keeps its slice in the data around it (`state.lanes[0].sort`), so a root `persist()` saves it with that data. Drag state that comes back this way, from another tab, or into a host made again (HMR) doesn't resume a drag: it is reset when the host starts or at the next press or key. A keyboard-moved item goes back where it started when the list is still the one the drag made, as when the host is removed; data that came back from storage is left as it is.
 
 ### Testing
 

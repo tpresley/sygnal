@@ -25,7 +25,9 @@
  *             the client's first render, so hydration matches (G-453); a focused handle has it
  *   press, origin: internal (the pointer press before the threshold; where the item started)
  * Actions: sort.PRESS, MOVE, UP, CANCEL (pointer), KEY (keyboard), INIT (the start), HELP, END
- * (unmounted: a drag in progress is cancelled, a keyboard-moved item goes back), and
+ * (unmounted: a drag in progress is cancelled, a keyboard-moved item goes back if its lists are
+ * still the ones the drag made, 3-L G-474; INIT and a press or key over drag state another
+ * instance started do the same, G-475), and
  * sort.DROPPED ({ id, list, index, fromList, fromIndex }) once per completed move: the host adds
  * an entry for it to save the order.
  *
@@ -71,6 +73,10 @@ const S = String
 const FIELDS = 'button,a,input,select,textarea,label,[contenteditable]'
 // the events a sortable host has taken: an outer (nested) sortable leaves them alone
 const claimed = new WeakSet<any>()
+// the lists a move made (3-L G-474): a keyboard drag that ends without a drop puts its item back
+// only into the lists it left (data another action replaced is left as it is). Module-wide, so a
+// host made again (HMR) still knows them
+const made = new WeakSet<any>()
 // a selector usable as one compound (`.task`, `li[data-x]`), else wrapped in :is()
 const one = (s: string) => /^[\w.#\-[\]="']+$/.test(s) ? s : `:is(${s})`
 
@@ -118,7 +124,15 @@ export const sortable = (options: any = {}): any => {
     dst.splice(Math.max(0, Math.min(to, dst.length)), 0, f.item)
     out[f.list] = src
     out[l] = dst
+    made.add(src).add(dst)
     return out
+  }
+  // a keyboard drag ended without a drop (unmounted, or drag state this instance didn't start:
+  // restored, synced, a host made again): its item goes back where it started when the lists
+  // are still the ones the drag made (G-474 / G-475), else the data is left as it is
+  const back = (st: any, s: any) => {
+    const f = s.mode == 'keyboard' && find(st, s.dragging), o = s.origin
+    return f && o && made.has(st[f.list]) && made.has(st[o.list]) ? move(st, f, o.list, o.index) : st
   }
   const put = (st: any, k: string, s: any) => ({...st, [k]: {...st[k], ...s}})
   // where a pointer drop would land: over an item (in its own list: before it, after it when
@@ -161,7 +175,7 @@ export const sortable = (options: any = {}): any => {
   // a press or key handler: drag state this instance didn't start (its token `n` isn't the
   // event's: restored, synced) is dropped first (G-452)
   const live = (h: any) => (st: any, d: any, next: any, _p: any, _o: any, k: string) => {
-    const s = st[k], c = (s.press || s.dragging) && (s.press || s.origin)?.n !== d.n ? put(st, k, idle) : st, r = h(c, d, next, k)
+    const s = st[k], c = (s.press || s.dragging) && (s.press || s.origin)?.n !== d.n ? put(back(st, s), k, idle) : st, r = h(c, d, next, k)
     return isAbort(r) ? c === st ? r : c : r
   }
 
@@ -171,7 +185,7 @@ export const sortable = (options: any = {}): any => {
     persist: false,
     // with undo(): a drag is one undo step, recorded at its drop (G-447)
     undoStep: ['DROPPED'],
-    intent: ({DOM, STATE, dispose$}: any) => {
+    intent: ({DOM, STATE, dispose$}: any, _o: any, key: string) => {
       // `me`: this instance's token in the press / drag it starts (G-452): drag state it didn't
       // start (restored by persist, synced, written by devtools) arms no document listener
       const doc = DOM.select('document'), slice$ = STATE.stream, me = Math.random()
@@ -214,8 +228,8 @@ export const sortable = (options: any = {}): any => {
       // diagnostics entry only)
       const shown = (e: any) => dev(435, () => {
         const r = e.ownerTarget || e.currentTarget
-        return [...r.querySelectorAll(item)].filter((it: any) => own(it, r)).map(idOf)
-      })
+        return [[...r.querySelectorAll(item)].filter((it: any) => own(it, r)), r]
+      }, key, lists, idOf)
       const take = (e: any) => {
         const id = gripOf(e, true)
         claimed.add(e)
@@ -258,16 +272,17 @@ export const sortable = (options: any = {}): any => {
       }
     },
     model: {
-      // SYG147 (dev); drag state the host starts with (restored with a parent's data) is reset
+      // SYG147 (dev); drag state the host starts with (restored with a parent's data, a host made
+      // again by HMR, a second host of the slice) is reset, as at END
       INIT: {HOST: (st: any, _d: any, _n: any, _p: any, _o: any, k: string) => {
         for (const l of lists) Array.isArray(st?.[l]) || dev(147, l, st, k)
-        return st[k].press || st[k].dragging ? put(st, k, idle) : ABORT
+        return st[k].press || st[k].dragging ? put(back(st, st[k]), k, idle) : ABORT
       }},
       // unmounted mid-drag: the drag is cancelled (no DROPPED; a keyboard drag's item goes back
       // where it started), so data that outlives the host isn't left half-moved or stuck
       END: {HOST: (st: any, _d: any, _n: any, _p: any, _o: any, k: string) => {
-        const s = st[k], f = s.mode == 'keyboard' && find(st, s.dragging), o = s.origin
-        return s.press || s.dragging ? put(f ? move(st, f, o.list, o.index) : st, k, idle) : ABORT
+        const s = st[k]
+        return s.press || s.dragging ? put(back(st, s), k, idle) : ABORT
       }},
       // the instructions id: a uid() of the host (unique per host instance)
       HELP: {HOST: (st: any, _d: any, _n: any, p: any, _o: any, k: string) =>

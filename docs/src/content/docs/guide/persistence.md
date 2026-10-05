@@ -67,7 +67,7 @@ The stored value is JSON, `{ version, state }`, under `key`:
 {"version":2,"state":{"todos":[{"title":"milk","done":false}],"filter":"all"}}
 ```
 
-`state` has the top-level keys listed in `pick`, or, with `omit` instead, every key except those. [Calculated fields](/guide/calculated-fields/) are never saved: they are computed again from the restored state. Pick what has to survive a reload (the user's data, a chosen view) and leave out what doesn't (drafts, loading flags, server data you fetch again, an undo history). A [behavior](/guide/behaviors/#persisted-state-and-undo-steps) whose slice is UI state (`persist: false`, as [`sortable`](/guide/drag-and-drop/)'s drag state) is never saved or restored, even when `pick` names it.
+`state` has the top-level keys listed in `pick`, or, with `omit` instead, every key except those. [Calculated fields](/guide/calculated-fields/) are never saved: they are computed again from the restored state. Pick what has to survive a reload (the user's data, a chosen view) and leave out what doesn't (drafts, loading flags, server data you fetch again, an undo history). A [behavior](/guide/behaviors/#persisted-state-and-undo-steps) of the root component whose slice is UI state (`persist: false`, as [`sortable`](/guide/drag-and-drop/)'s drag state) is never saved or restored, even when `pick` names it. A sub-component's or Collection item's behavior slice is part of the data it lives in and is saved with it.
 
 Values must survive `JSON.stringify`: plain objects, arrays, strings, numbers, booleans and `null`. A `Date` comes back as a string, and a `Map` or `Set` as `{}`.
 
