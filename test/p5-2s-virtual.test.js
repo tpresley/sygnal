@@ -36,7 +36,8 @@ function fakeLayout() {
   Object.defineProperty(P, 'offsetHeight', {
     configurable: true,
     get() {
-      if (isBox(this)) return L.mode == 'grows' ? parseFloat(this.firstElementChild?.style.height || '0') : L.mode == 'zero' ? 0 : L.box
+      // (grows: as tall as its spacer, up to its max-height: G-427 measures it)
+      if (isBox(this)) return L.mode == 'grows' ? Math.min(parseFloat(this.firstElementChild?.style.height || '0'), parseFloat(this.style.maxHeight) || Infinity) : L.mode == 'zero' ? 0 : L.box
       if (this.hasAttribute('data-index')) return Number(this.getAttribute('data-h') || L.row)
       return 0
     },

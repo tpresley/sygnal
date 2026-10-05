@@ -1404,7 +1404,7 @@ An `isolatedState` component is bound to a slice of its parent's state (`state="
 
 Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
 
-A `<VirtualCollection>` is its own scroll container (`overflow-y: auto`) and renders the rows that fit in its height. Its element is either 0 px tall, so no row is in view, or as tall as all of its rows (its height comes from its content, e.g. no `height` in its class), so it never scrolls and would render every row. In the second case Sygnal renders only the rows within the viewport's height, and rows further down the page stay empty. Reported once per VirtualCollection and case.
+A `<VirtualCollection>` is its own scroll container (`overflow-y: auto`) and renders the rows that fit in its height. Its element is either 0 px tall, so no row is in view, or as tall as all of its rows (its height comes from its content, e.g. no `height` in its class, or a `max-height: 100%`, `calc()` of a percentage or `fit-content` that resolves against a parent without a height; Sygnal measures whether the height follows the rows), so it never scrolls and would render every row. In the second case Sygnal renders only the rows within the viewport's height, and rows further down the page stay empty. Reported once per VirtualCollection and case.
 
 **Fix:** Give its `className` a bounded height: `.rows { height: 400px }` or `max-height`, or in a flex column `flex: 1; min-height: 0`. Check that a parent with `display: none` isn't the cause of a 0 height.
 

@@ -45,8 +45,9 @@
  *   the rows around it are measured. An id not in the (filtered) list: SYG433 in dev, no scroll.
  * - Without layout (SSR, the mock DOM, jsdom), the window is the first 10 rows' estimate + overscan.
  * - The container must have a bounded height. When it has none (0 tall: SYG430) or grows with its
- *   rows (it would render every row: SYG430), the window is clamped to the viewport's height. A
- *   max-height (or a height in a length unit, where Typed OM tells) bounds it (G-395).
+ *   rows (it would render every row: SYG430), the window is clamped to the viewport's height.
+ *   Whether it grows is measured (G-395, G-427): a max-height that fits the rows bounds it; a
+ *   percentage of an unbounded parent, calc() or fit-content that follows the rows doesn't.
  *   Items without `id`: SYG431 (index keys: rows and measured heights follow the position).
  * - `viewTransitionName="row"` names each keyed row's root element as Collection does (`row-<id>`,
  *   class `row`; G-417), as its SSR markup does.
@@ -213,7 +214,7 @@ export class VirtualHost extends CollectionHost {
       return {width: r.width, height: v.options.initialRect!.height}
     }
     const vh = win?.innerHeight || 0
-    if (vh && total > vh && r.height >= total - 1 && this.grows(el, win)) {
+    if (vh && total > vh && r.height >= total - 1 && this.grows(el)) {
       this.warn(2, {reason: 'grows', height: r.height})
       return {width: r.width, height: vh}
     }
@@ -221,17 +222,21 @@ export class VirtualHost extends CollectionHost {
   }
 
   /**
-   * G-395: as tall as its rows and taller than the viewport is "grows" only when nothing bounds
-   * it: a max-height does (it fits its rows), and so does a height in a length unit (Typed OM:
-   * Chromium, WebKit; elsewhere, without a max-height, it is taken as growing)
+   * G-395 / G-427: as tall as its rows and taller than the viewport is "grows" only when its
+   * height follows its content. Measured, not parsed (a max-height that is a percentage of an
+   * unbounded parent, calc(), fit-content, a flex or grid item): the spacer is made 1e6 px taller
+   * for one forced layout and put back before anything renders (no resize is observed); a
+   * container that grows with it is unbounded, one bounded by a max-height that fits its rows
+   * stops at it
    */
-  grows(el: any, win: any): boolean {
-    try {
-      const mh = win.getComputedStyle(el).maxHeight
-      if (mh && mh != 'none') return false
-      const h = el.computedStyleMap?.().get('height')
-      return !h || h.value == 'auto' || h.unit == 'percent'
-    } catch (_) { return true }
+  grows(el: any): boolean {
+    const s = el.firstElementChild?.style
+    if (!s) return true
+    const h = s.height, a = el.offsetHeight
+    s.height = (parseFloat(h) || 0) + 1e6 + 'px'
+    const b = el.offsetHeight
+    s.height = h
+    return b - a > 5e5
   }
 
   warn(bit: number, x: any) {
