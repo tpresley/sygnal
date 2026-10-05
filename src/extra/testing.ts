@@ -222,6 +222,13 @@ export type FakeConnectionTarget = string | Record<string, any> | ((connection: 
 export interface RenderOptions {
   /** Override or provide initial state (defaults to component's .initialState) */
   initialState?: any;
+  /**
+   * D214: context from the ancestors the rendered component would have, for testing a child
+   * alone: `renderComponent(Greeting, { context: { lang: 'fr' } })`. The view, reducers and
+   * descendants read it as `context.lang`; the component's own `.context` entries win over a key
+   * of the same name. Fixed values for the test's lifetime.
+   */
+  context?: Record<string, any>;
   /** Mock DOM configuration — maps selectors to event streams */
   mockConfig?: Record<string, any>;
   /** Additional drivers beyond DOM, EVENTS, STATE, and LOG */
@@ -1426,7 +1433,7 @@ export function renderComponent(
   componentDef: any,
   options: RenderOptions = {}
 ): RenderResult {
-  const {initialState, mockConfig = {}, drivers = {}, diagnostics, strict, dom = 'mock', autoConnect = true, socketSink = 'WS', resourceSink = 'HTTP', http: httpOptions} = options;
+  const {initialState, mockConfig = {}, drivers = {}, diagnostics, strict, dom = 'mock', autoConnect = true, socketSink = 'WS', resourceSink = 'HTTP', http: httpOptions, context: ancestors} = options;
   const {intent, model = {}} = componentDef;
   // E4: real DOM mode
   const real = dom == 'real';
@@ -2108,7 +2115,9 @@ export function renderComponent(
       // simulateAction dispatches through the runtime (cause 'simulateAction'), so the root runs
       // its own intent; testActions: the model actions it doesn't name (wiring, inspect())
       __override: {intent: intent ? (s: any) => { const r = intent(s); if (r && typeof r == 'object') testActions.push(...names.filter(n => !(n in r))); return r; } : undefined,
-        model: bare ? undefined : model, initialState: init, name: compName, testActions},
+        model: bare ? undefined : model, initialState: init, name: compName, testActions,
+        // D214: the ancestors' context as constant entries under the component's own
+        ...(ancestors && {context: {...Object.fromEntries(Object.keys(ancestors).map((k) => [k, () => ancestors[k]])), ...componentDef.context}})},
     });
     ({sources, sinks} = p);
     api = p.api;
