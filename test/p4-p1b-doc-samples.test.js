@@ -128,7 +128,9 @@ describe('guide/view-transitions samples', () => {
 
   it('the CSS recipe names the classes the recipe sets', () => {
     expect(S.board).toContain("viewTransitionClass: 'lane'")
-    expect(S.card).toContain("viewTransitionClass: 'card'")
+    // PLAN-5 A-1: the cards' class comes from the Collections' viewTransitionName="card"
+    expect(S.board.match(/viewTransitionName="card"/g)).toHaveLength(2)
+    expect(S.card).not.toContain('viewTransition')
     expect(S.css).toMatch(/::view-transition-new\(\*\.lane\)/)
   })
 })
