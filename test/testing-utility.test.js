@@ -350,6 +350,30 @@ describe('DISPOSE built-in action', () => {
     expect(captured).toEqual([1])
   })
 
+  // G-334 (R5): kept behaviour, ported from an 'ACTION | SINK' key to the object form (D164)
+  it('DISPOSE with an object-form EFFECT entry fires on dispose', async () => {
+    let effectRan = false
+
+    function App() {
+      return createElement('div', null, 'test')
+    }
+    App.initialState = { x: 1 }
+    App.intent = ({ DOM }) => ({
+      _NOOP: DOM.select('.__noop__').events('click'),
+    })
+    App.model = {
+      DISPOSE: { EFFECT: () => { effectRan = true } },
+    }
+
+    t = renderComponent(App)
+    await settle(100)
+
+    expect(effectRan).toBe(false)
+    t.dispose()
+    t = null
+    await settle(100)
+    expect(effectRan).toBe(true)
+  })
 })
 
 

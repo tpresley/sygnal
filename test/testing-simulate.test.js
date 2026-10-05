@@ -178,6 +178,29 @@ describe('simulateEvent', () => {
     expect(s.got).toEqual(['v', true, '1', 'two', true])
   })
 
+  // G-334 (R5): kept behaviour, ported from an 'ACTION | SINK' key to the object form (D164)
+  it('targets one Collection item (the first match, or the one picked by the selector)', async () => {
+    function Item({ state }) {
+      return h('li', { className: 'item', data: { id: state.id } }, h('button', { className: 'del' }, 'x'))
+    }
+    Item.intent = ({ DOM }) => ({ DEL: DOM.click('.del') })
+    Item.model = { DEL: { PARENT: s => s.id } }
+    function List() { return h('div', null, h(Collection, { of: Item, from: 'items', className: 'list' })) }
+    List.initialState = { items: [{ id: 1 }, { id: 2 }, { id: 3 }] }
+    List.intent = ({ CHILD }) => ({ REMOVE: CHILD.select(Item) })
+    List.model = { REMOVE: (s, id) => ({ ...s, items: s.items.filter(i => i.id !== id) }) }
+
+    t = renderComponent(List)
+    t.simulateEvent('.item[data-id="2"] .del', 'click')
+    let s = await t.waitForState(s => s.items.length === 2, 500)
+    expect(s.items.map(i => i.id)).toEqual([1, 3])
+
+    await settle()
+    t.simulateEvent('.del', 'click')
+    s = await t.waitForState(s => s.items.length === 1, 500)
+    expect(s.items.map(i => i.id)).toEqual([3])
+  })
+
   it('does not deliver events across an isolation boundary to the parent', async () => {
     function Child() { return h('div', { className: 'child' }, h('button', { className: 'btn' }, 'c')) }
     Child.initialState = {}
@@ -271,6 +294,18 @@ describe('simulateAction drives all sinks (G-015)', () => {
     expect(t.sinkValues('API')).toEqual([{ url: '/save', body: { id: 1 } }])
     expect(t.sinkValues('PARENT')).toEqual([{ saved: { id: 1 } }])
     expect(t.sinks.API).toBeDefined()
+  })
+
+  // G-334 (R5): kept behaviour, ported from an 'ACTION | SINK' key to the object form (D164)
+  it('collects a driver sink even when no driver is provided', async () => {
+    function App() { return h('div', null, 'x') }
+    App.initialState = {}
+    App.model = { GO: { HTTP: (s, d) => ({ url: d }) } }
+    t = renderComponent(App)
+    t.simulateAction('GO', '/a')
+    await t.ready()
+    await settle()
+    expect(t.sinkValues('HTTP')).toEqual([{ url: '/a' }])
   })
 
   it('EFFECT next() reaches the model and intent-less model actions are reachable', async () => {
