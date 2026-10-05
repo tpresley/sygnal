@@ -2239,8 +2239,12 @@ export function renderComponent(
     cursor = shown = undefined;
     // PLAN-4.6 R1 (next core): an input's STATE reducer is applied synchronously (D165), so the
     // state it causes can be recorded before the test's next() call: next() starts at the input
-    // (R4: several simulate* calls in a row: the cursor stays at the first one's state)
-    if (nextCore) { cursor = was ?? states.length; fromInput = true; arming++; cursorUsed = false; }
+    // (R4: several simulate* calls in the same tick: the cursor stays at the first one's state)
+    if (nextCore) {
+      cursor = was ?? states.length;
+      if (!fromInput) queueMicrotask(() => { fromInput = false; });
+      fromInput = true; arming++; cursorUsed = false;
+    }
     inputs.push({go, missing});
     pump();
   };
