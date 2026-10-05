@@ -70,6 +70,24 @@ function uidPart(key: string): string {
 }
 
 /**
+ * PLAN-4.6 R4 (04 §3.11): the next core instantiates a component from the vnode's `data.c`, a
+ * component function, and reads its statics there (no options object). A shell component or a
+ * Page is wrapped once (a per-app / per-navigation function) with the statics the options
+ * below give the current core: isolatedState, and the initial state.
+ */
+const shellFns = new WeakMap<any, any>()
+function shellFn(comp: any, initialState: any, cache = true): any {
+  let f = cache ? shellFns.get(comp) : undefined
+  if (!f) {
+    f = Object.assign((p: any) => comp(p), comp, { isolatedState: true, initialState })
+    try { Object.defineProperty(f, 'name', { value: comp.name, configurable: true }) } catch (_) {}
+    if (cache) shellFns.set(comp, f)
+  }
+  return f
+}
+let pageFn: any, pageFnNav = -1
+
+/**
  * Build a component vnode that matches what the JSX pragma produces.
  */
 function componentVNode(comp: any, key: string, stateField: any, children: any[], compInitialState?: any): any {
@@ -77,6 +95,7 @@ function componentVNode(comp: any, key: string, stateField: any, children: any[]
   return {
     sel: name,
     data: {
+      c: shellFn(comp, owned(comp.initialState)),
       props: {
         state: stateField,
         // G-207: the uid() base, as onRenderHtml gives this shell component (see uidPart)
@@ -117,9 +136,13 @@ function pageChildVNode(pageState: any, stateField: any = 'page'): any {
   // Include pageNavCounter in sel so instantiateSubComponents detects a
   // component swap even when both pages have the same function name (e.g. 'Page').
   const sel = currentPageName + '__nav' + pageNavCounter
+  // (next core) a new function per navigation, so the Page is made again even when both pages
+  // are the same function (as the nav counter in `sel` does for the current core)
+  if (pageFnNav !== pageNavCounter) { pageFnNav = pageNavCounter; pageFn = shellFn(currentPage, undefined, false) }
   return {
     sel,
     data: {
+      c: pageFn,
       props: {
         state: stateField,
         // G-207: the Page's uid() base, as onRenderHtml gives it (the same across navigations)
@@ -323,10 +346,11 @@ export function onRenderClient(pageContext: PageContext) {
       pageNavCounter++
 
       const newPageState = { ...(Page.initialState || {}), ...data }
-      if (currentApp.sinks?.STATE?.shamefullySendNext) {
-        // replace the page slice, keeping every shell slice (G-106, D50)
-        currentApp.sinks.STATE.shamefullySendNext((state: any) => ({ ...state, page: newPageState }))
-      }
+      // replace the page slice, keeping every shell slice (G-106, D50)
+      const swapPage = (state: any) => ({ ...state, page: newPageState })
+      // (PLAN-4.6 next core: through the runtime API, 04 §3.11)
+      if ((currentApp as any).__runtime) (currentApp as any).__runtime.setState('root', swapPage)
+      else if (currentApp.sinks?.STATE?.shamefullySendNext) currentApp.sinks.STATE.shamefullySendNext(swapPage)
     } else {
       // First load: read hydrated state or build from initialState
       let initialState: any
