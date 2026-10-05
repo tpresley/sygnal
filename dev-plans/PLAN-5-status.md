@@ -6,7 +6,7 @@ Tracks progress for [PLAN-5.md](PLAN-5.md) (ecosystem components and integration
 
 **Integration branch:** `plan5-integration`, cut from `plan46-complete` (`7146161`) on 2026-10-05, in worktree `.claude/worktrees/plan-4-execution-7ae8e8`. The release stays held (D56).
 
-**State:** Phase 2: 2-B, 2-V, 2-U, 2-A merged; 2-Z and 2-R merged; 2-S, 2-T merged (Phase 2 complete); Phase 3: 3-R, 3-D merged; 3-F merged; 3-G merged; 3-H merged; 3-J, 3-K merged; running 3-I, 3-L, 3-M (2-A/2-S review fixes, SYG148–149). Known flaky test `p5-1s-forms` (fixed in 2-R).
+**State:** Phase 2: 2-B, 2-V, 2-U, 2-A merged; 2-Z and 2-R merged; 2-S, 2-T merged (Phase 2 complete); Phase 3: 3-R, 3-D merged; 3-F merged; 3-G merged; 3-H merged; 3-I, 3-J, 3-K merged; running 3-L, 3-M (2-A/2-S review fixes, SYG148–149). Known flaky test `p5-1s-forms` (fixed in 2-R).
 
 ## 0-A baseline (2026-10-05)
 
@@ -231,6 +231,22 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 | G-485 | review 3-J | Med | dom (hydration) | `create`/`init` hooks never run on adopted elements; a user `insert` hook plus `ref`/`autoFocus` (which add `postpatch`) is adopted and `insert` never runs. Confirmed | → 3-M |
 | G-486 | review 3-J | Low/Med | dom (hydration) | Selector class/id (`h('p.card')`, `div.sygnal-portal`) never corrected over stale server class/id; docs claim otherwise | → 3-M |
 | G-487 | review 3-J | Low | dom (hydration) | Attributes the user changed before start-up that the client doesn't render are removed (`<details open>`, `<dialog open>`); docs claim user changes are kept; custom elements that build their own light DOM lose it (pre-existing; docs) | → 3-M |
+| G-488 | 3-I report | Low | ui/dialog | After `showModal()` throws, state stays `open: true` with the dialog closed; the next OPEN is an ABORT (dialog can't be opened again until CLOSE) | → 3-N |
+| G-489 | 3-I report | Low/Med | dom (view transitions) | The View Transition driver leaves the transition promises unhandled: a skipped transition (duplicate names, SYG149) logs an uncaught `InvalidStateError` in every engine. Catching costs a few core bytes | → 3-N |
+| G-490 | review 3-K | Med | dom (hydration) × ssr | Adoption overwrites what the user typed/picked in a server-rendered `<textarea>`/`<select>` before start-up (3-K writes their values as text / `selected`, so `adopt()` sees no `value` attr); option `selected` stripped. Confirmed | → 3-M |
+| G-491 | review 3-K | Med | vike (SSR) | A Wrapper/Layout whose root (or fragment's first element) is `children` leaks `<sygnal-page-slot data-sygnal-ssr="">` (exact-string match misses the stamped attribute) and the Page is appended; client then replaces it. Confirmed | → 3-N |
+| G-492 | review 3-K | Med | pragma (core) | `form`/`list` routed to attrs on custom elements too (`<my-list list={[1,2]}>` → `list="1,2"`), breaking Lit/Stencil/`sygnal/element` properties; SSR too. Restrict to tags without `-`. Confirmed | → 3-M |
+| G-493 | review 3-K | Low | zag | SYG669 no longer reports `<VirtualCollection>` in a fromZag render (control vnode has no `data.m`); `SPECIAL['virtual-collection']` dead | → 3-N |
+| G-494 | review 3-K | Low/Med | ui/combobox | `allowCustomValue`: an app clearing the controlled `value` on input-change resets the typed flag → `''` submitted. Plausible | → 3-N |
+| G-495 | review 3-K | Low | ssr | `<select value>` text matching doesn't trim/collapse whitespace like `option.value`; duplicate values both marked; explicit `selected: false` overridden; textarea leading `\r\n` loses a line | → 3-N |
+| G-496 | review 3-K | Low | testing | `t.html()` (innerHTML mode) now shows a textarea's value as text (real innerHTML never does) | → 3-N |
+| G-497 | review 3-K | Low | tests | `p5-3k-vike-layout-ssr` "hydrates onto the same structure" doesn't assert node identity | → 3-M |
+| G-498 | review 3-I | High | virtual | `grows()` restores ancestors with `setAttribute('style', orig)`, blocked under CSP `style-src` without `unsafe-inline`: Firefox wipes every styled ancestor's inline style; Chromium/WebKit keep `overflow-anchor: none` and log CSP violations per probe. Restore via CSSOM. Probed in 3 engines | → 3-N |
+| G-499 | review 3-I | Low/Med | ui/toaster | `_p` press mark stays set when no click/focusin follows (release outside, touch scroll, right-click): a later modal-close return clears `_from` (G-432 regresses) | → 3-N |
+| G-500 | review 3-I | Low | virtual | Focus restore across shadow roots can take focus back from an element focused elsewhere during the patch; require document active element body/null. Plausible | → 3-N |
+| G-501 | review 3-I | Low | diagnostics | SYG149 retry chains run when `root.elm` never appears (mock DOM, replaced transition vnode, disposed apps); check disposed / stop instead of checking stale `elm` | → 3-N |
+| G-502 | review 3-I | Low | virtual | Under ancestor `zoom < 1`, the clamped SYG430 fallback window is in viewport px vs unzoomed rows (blank half) | → 3-N |
+| G-503 | review 3-I | Low | tests | The `p53i-` duplicate-name console allowlist entry applies to every browser test, not just its own | → 3-N |
 | G-408 | 2-R × 2-Z | Low | process | Two parallel workstreams registered the same code (SYG666); fixed at merge (2-R's → SYG668). Briefs now assign code numbers | Fixed (process) |
 | G-394 | review 2-V | High | VirtualCollection | An inline `estimateSize` function (the guide's own pattern) clears every measured row height on each owner render; rows aren't re-measured. Confirmed | → 2-S |
 | G-395 | review 2-V | Med/High | VirtualCollection | SYG430 "grows" misfires on a bounded container above viewport height that fits its rows; clamping then leaves unreachable blank rows. Confirmed | → 2-S |
@@ -265,6 +281,9 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 - 2026-10-05 — Gates after 3-G: vitest 3,296, browser 314/313/313, sygnal-check 618, samples 672, core 41,840 B; recipes vitest 19/19, Firefox/WebKit 15/15, Chromium flaky (G-467). G-456 spike done; user D217. Review of 3-G: G-468…G-472. 3-J (hydration) and 3-K (G-463…G-465, G-467…G-472) started.
 - 2026-10-05 — 3-H merged (clean; G-444…G-455, SYG435, undo gestures, `persist: false`, `sort.HELP`/`END`); gates green: vitest 3,321, browser 318/317/317, sygnal-check 619, samples 672, recipes 19 + 15×3, core 41,840 B. User: D218. Review of 3-H: G-473…G-479. 3-L started.
 - 2026-10-05 — 3-J merged (clean; +116 B core → 41,956 B); gates green: vitest 3,378, browser 321/320/320 (recipes Chromium flaky once, G-467 — fixed in 3-K). 3-K merged (2 additive conflicts; +13 B core). Review of 3-J: G-481…G-487 (one high: Fragment mis-pairing). G-480 (plain `<slot>`). Gates after 3-K: 1 vitest failure — `p5-3j-hydration` textarea (the G-484 interaction of 3-J × G-465), assigned to 3-M; otherwise green (sygnal-check 621, samples 672, recipes 19 + 17×3, Firefox/WebKit 322/322), core 41,968 B. 3-M started (hydration review fixes + G-480).
+- 2026-10-05 — 3-I merged (clean; G-457…G-462; core unchanged). Behaviour: non-modal + `cancelable:false` emits no CANCEL on Escape; prevented/IME Escape emits none; SYG149 checks rendered elements on the DOM. G-488, G-489. Review of 3-I running. Gates after 3-I: only the known G-484 vitest failure (3,424 passed); browser 330/329/329; recipes 17×3; core 41,968 B.
+- 2026-10-05 — Review of 3-K: G-490…G-497 (G-490, G-492, G-497 added to 3-M; rest to a later pass 3-N).
+- 2026-10-05 — Review of 3-I: G-498…G-503 (one high: CSP-unsafe style restore in `grows()`). 3-L reported (G-473…G-479; coordinator accepts G-476 docs-only and G-473 folding the drag into the interleaved entry). 3-N started (G-488, G-489, G-491, G-493…G-496, G-498…G-503).
 - 2026-10-05 — 2-R merged (6 conflicts; SYG666 clash renumbered to SYG668); all gates green on three engines (279/279); core 41,825 B. D212, G-408.
 - 2026-10-05 — 2-Z merged; three engines 276/276; core 41,771 B. D211.
 - 2026-10-05 — Review of 2-U + 2-V: 14 findings (G-394…G-407). 2-S started.
