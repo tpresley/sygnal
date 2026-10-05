@@ -39,8 +39,7 @@ export class IsolateModule {
   }
 
   public getElements(namespace: Array<Scope>): Array<Element> {
-    const els = this.namespaceTree.get(namespace);
-    return els ? Array.from(els) : [];
+    return [...(this.namespaceTree.get(namespace) || [])];
   }
 
   public getRootElement(elm: Element): Element | undefined {
