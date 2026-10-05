@@ -21,9 +21,22 @@ const createTextElement = (text: any): any => is.text(text) ? new (Plain as any)
 // output keeps its last vnode (P46-P sameTree), which would skip the controlled-input module's
 // re-sync of the DOM value) or a host the view walk knows by its string tag (<collection>,
 // <switchable>)
-const SPECIAL = /^(input|textarea|select|collection$|switchable$)/i
-// P46-P: by tag: 1 SPECIAL, 2 an SVG tag
+const FIELD = /^(input|textarea|select)/i
+// P46-P: by tag: 1 a form field (FIELD: a prefix), 4 a host (<collection>, <switchable>), 2 an SVG
+// tag. G-350: keyed by the tag part of the selector (before its first '#' or '.'), so dynamic
+// selectors (`li#row-${id}`) don't grow it. A selector with an id or class keeps only bit 1, as
+// P46-P's full-selector tests did (the host and SVG tags match the whole selector)
 const tags: Record<string, number> = Object.create(null)
+const bits = (tag: string): number => tags[tag] = +FIELD.test(tag) | (/^(collection|switchable)$/i.test(tag) ? 4 : 0) | (tag in svgTags ? 2 : 0)
+const tagBits = (sel: string): number => {
+  const t = tags[sel]
+  if (t !== undefined) return t
+  let i = 0
+  for (let c; i < sel.length && (c = sel.charCodeAt(i)) != 35 && c != 46; i++);
+  if (i == sel.length) return bits(sel)
+  const tag = sel.slice(0, i)
+  return (tags[tag] ?? bits(tag)) & 1
+}
 
 // Mutates the vnode (and its SVG children, not below a foreignObject: that contains HTML):
 // the props become attributes (className as class, attrs win), and the SVG namespace is set
@@ -189,13 +202,17 @@ const route = (key: string, modules: Record<string, any>): any => {
   if (modules[key] !== undefined) return [modules[key] || key, 0, key == 'class' && modules.class !== undefined ? 3 : 2]
   return [modules.props !== undefined && 'props', key]
 }
+const own = Object.prototype.hasOwnProperty
 const sanitizeData = (data: any, modules: Record<string, any>, routes: Map<string, any>): any => {
   const out: any = {}
   lent = null
   for (const key in data) {
+    // G-354: own properties only, as the rest-spread copy had (about 1 ns a call)
+    if (!own.call(data, key)) continue
     const val = data[key]
     let r = routes.get(key)
-    if (r === undefined) routes.set(key, r = route(key, modules))
+    // G-350: capped (data-dependent keys, e.g. `data-${id}`, are routed but not kept)
+    if (r === undefined && (r = route(key, modules), routes.size < 1024)) routes.set(key, r)
     if (!r) continue
     const [b, name, kind] = r
     if (kind == 1) {
@@ -274,8 +291,8 @@ export const createElementWithModules = (modules: Record<string, any>) => {
     // keeps an array so the component receives its text child via `children`.
     const text = isComponent ? undefined : sanitizeText(children)
     let kids: any
-    const t = tags[sel] ??= +SPECIAL.test(sel) | (sel in svgTags ? 2 : 0)
-    let plain = !isComponent && is.string(sel) && !(t & 1)
+    const t = tagBits(sel)
+    let plain = !isComponent && is.string(sel) && !(t & 5)
     if (typeof text === 'undefined') plain = !!(flatten(children, kids = []) & +plain)
     const d = data ? sanitizeData(data, modules, routes) : {}
     if (fn) d.c = fn
@@ -285,16 +302,16 @@ export const createElementWithModules = (modules: Record<string, any>) => {
     return vnode
   }
   const ce = (sel: any, data: any, ...children: any[]): any => ca(sel, data, children)
+  // P46-P: the JSX runtime's element path (its props object is the data as is: sanitizeData
+  // skips `children`)
   ;(ce as any).a = ca
+  ;(ce as any).$r = routes
   return ce
 }
 
 export const createElement = createElementWithModules(defaultModules)
-/**
- * P46-P: the JSX runtime's path for an element tag: the JSX props object is the data as is
- * (sanitizeData skips `children`), no copy without `children` and no spread of the children
- */
-export const createTag = (createElement as any).a
+/** G-350 (tests): the sizes of the tag cache and of a createElement's route cache */
+export const __cacheSizes = (ce: any) => ({ tags: Object.keys(tags).length, routes: ce.$r.size })
 
 export default {
   createElement,
