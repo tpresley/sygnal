@@ -25,7 +25,7 @@ import {defHooks} from '../core/registry';
  * - Commands, sent on the driver's sink from a model entry (the first key is the method):
  *   `{ copy: text, ok?, error? }` and `{ paste: true, ok, error? }` (the clipboard, data
  *   `{ text }`), `{ setItem: key, value, area?, json? }` / `{ removeItem: key, area? }` (storage;
- *   this page's `storage` declarations see the change: a synthetic `storage` event).
+ *   this page's `storage` declarations hear a change; an unchanged value is silent, G-384).
  * - The core has no code for any of it (0 B): the driver's source is marked `__sygnalStatic:
  *   'browser'` (statics.ts) and answers with reply actions (replies.ts). A component's DOM
  *   (intersection, resize) reaches the driver through a definition hook registered by the first
@@ -125,6 +125,8 @@ const failed = (e: any) => ({name: e?.name, message: e?.message});
  * `json`). Commands `{ setItem: key, value, area?, json? }`, `{ removeItem: key, area? }`.
  * For a component's state that should survive a reload, use persist() instead.
  */
+// this page's storage declarations (every driver's): a write here reaches them directly
+const watching = new Set<(e: any) => void>();
 export const storageSource: BrowserSource = {
   d: {storage: (s, c) => {
     const key = s.storage;
@@ -138,16 +140,19 @@ export const storageSource: BrowserSource = {
       } catch (x) { c.fail(failed(x)); }
     };
     f();
+    watching.add(f);
     g.addEventListener?.('storage', f);
-    return () => g.removeEventListener?.('storage', f);
+    return () => { watching.delete(f); g.removeEventListener?.('storage', f); };
   }},
   c: (() => {
     const write = (v: any, value: any, ok: any, fail: any) => {
       try {
         const a = area(v), key = v.setItem ?? v.removeItem, old = a.getItem(key);
         value == null ? a.removeItem(key) : a.setItem(key, value);
-        // this page's own observers (the browser fires `storage` in the other tabs only)
-        g.dispatchEvent?.(new g.StorageEvent('storage', {key, oldValue: old, newValue: value ?? null, storageArea: a}));
+        // G-384: this page's declarations hear a change (the browser fires `storage` in the other
+        // tabs only), and only a change: a model that writes back what it read settles. Not
+        // dispatched on window, so other `storage` listeners see other tabs' writes only.
+        if (old !== (value ?? null)) [...watching].forEach(f => f({key, storageArea: a}));
         ok({key});
       } catch (x) { fail(failed(x)); }
     };

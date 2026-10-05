@@ -27,7 +27,7 @@ const SOURCES = {
   intersectionSource: 'IntersectionObserver',
   resizeSource: 'ResizeObserver',
   mediaSource: 'matchMedia',
-  storageSource: 'StorageEvent',
+  storageSource: 'sessionStorage',
   visibilitySource: 'visibilitychange',
   onlineSource: "'offline'",
   geolocationSource: 'watchPosition',

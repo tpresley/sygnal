@@ -1098,9 +1098,11 @@ const browserFake = (o: any = {}) => {
   };
   const each = (k: string, f: (e: any) => void, key?: any) => [...live].filter(e => e.k == k && (key === undefined || e.s[k] === key)).forEach(f);
   // a write to the fake storage, seen by the storage declarations of that key and area
+  // G-384: an unchanged value is silent (as the browser's own `storage` event and the real driver)
   const write = (key: string, v: any, a = 'local') => {
-    const st = env[a == 'session' ? 'session' : 'local'];
+    const st = env[a == 'session' ? 'session' : 'local'], old = st[key] ?? null;
     v == null ? delete st[key] : st[key] = typeof v == 'string' ? v : JSON.stringify(v);
+    if (old === (st[key] ?? null)) return;
     each('storage', e => { if ((e.s.area == 'session' ? 'session' : 'local') == (a == 'session' ? 'session' : 'local')) { try { e.c.send({key, value: read(e.s)}); } catch (x) { e.c.fail(failed(x)); } } }, key);
   };
   const clipFail = (fail: any) => fail({name: 'NotAllowedError', message: 'Clipboard permission denied'});
