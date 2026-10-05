@@ -27,6 +27,7 @@ import {viewOf} from './view'
 import {makeCommandSource} from '../extra/command'
 import {attach, detach} from './statics'
 import {dbg} from './debug'
+import {sameData} from '../cycle/dom/utils'
 
 const ERR_FIX = 'See the attached error'
 
@@ -78,6 +79,21 @@ export function shallowEq(a: any, b: any) {
   const ka = Object.keys(a)
   if (ka.length !== Object.keys(b).length) return false
   for (const k of ka) if (a[k] !== b[k]) return false
+  return true
+}
+
+/**
+ * P46-P: two pragma-plain trees (no component, form field or foreign vnode) that render the same:
+ * the same tags, keys, text and data (each bucket shallow-equal). A re-run view whose output is
+ * the same keeps its last vnode, so the patch skips that subtree by identity
+ */
+export function sameTree(a: any, b: any): boolean {
+  if (a === b) return true
+  if (!a || !b || a.sel !== b.sel || a.key !== b.key || a.text !== b.text || !sameData(a.data, b.data)) return false
+  const x = a.children, y = b.children
+  if (x === y) return true
+  if (!x || !y || x.length !== y.length) return false
+  for (let i = 0; i < x.length; i++) if (!sameTree(x[i], y[i])) return false
   return true
 }
 
@@ -363,7 +379,7 @@ export class Inst {
   render(): any {
     if (this.disposed) return this.outv
     const state = this.cell.get(), ctx = this.context()
-    let viewDirty = this.forced || state !== this.ls || !shallowEq(this.props, this.lp) || !sameKids(this.raw, this.lc) || this.ctxChanged(ctx)
+    let same = false, viewDirty = this.forced || state !== this.ls || !shallowEq(this.props, this.lp) || !sameKids(this.raw, this.lc) || this.ctxChanged(ctx)
     // no state (yet): the view isn't called; it keeps its last render (as today's state stream,
     // which skips undefined). A child with none is left out of its parent's vnode
     if (state === undefined && viewDirty) {
@@ -375,9 +391,12 @@ export class Inst {
       if (H.onStateChanged && state !== this.ls && !this.forced) H.onStateChanged(viewOf(this), state)
       this.forced = false
       this.ls = state; this.lp = this.props; this.lc = this.raw; this.lctx = ctx
+      const prev = this.tmpl
       this.view(state, ctx)
       dbg(this, () => 'View rendered')
-      this.reconcile()
+      // P46-P: the same plain output as last time: the last vnode, by identity
+      if (prev?.$p && this.tmpl.$p && this.outv && sameTree(prev, this.tmpl)) { this.tmpl = prev; same = this.app.ran = true }
+      else this.reconcile()
     }
     // G-311: after a render that threw (the app's epoch moved), the kids are injected again once
     let kidsDirty = this.ep !== this.app.ep
@@ -387,6 +406,7 @@ export class Inst {
       if (v !== k.last || k.ready !== k.lr) { k.last = v; k.lr = k.ready; kidsDirty = true }
     }
     if (!viewDirty && !kidsDirty) return this.outv
+    if (same && !kidsDirty) { this.app.hooks.onRender?.(viewOf(this), this.tmpl); return this.outv }
     let v = this.kids.size ? this.inject(this.tmpl, 'r') : this.tmpl
     if (this.postSels) for (const s of this.postSels) v = posts[s](v, this)
     this.app.hooks.onRender?.(viewOf(this), v)

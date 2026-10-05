@@ -20,6 +20,8 @@ const createTextElement = (text: any): any => is.text(text) ? new (Plain as any)
 // A tag the view walk has to see: a form field (G-146 stamp; a superset of isField) or a
 // component name it knows as a string
 const SPECIAL = /^(input|textarea|select|collection$|switchable$|sygnal-factory$)/i
+// P46-P: by tag: 1 SPECIAL, 2 an SVG tag
+const tags: Record<string, number> = Object.create(null)
 
 // Mutates the vnode (and its SVG children, not below a foreignObject: that contains HTML):
 // the props become attributes (className as class, attrs win), and the SVG namespace is set
@@ -172,33 +174,35 @@ const add = (out: any, b: string, v: any): void => {
     (lent ||= {})[b] = 1
   }
 }
-const sanitizeData = (data: any, modules: Record<string, any>): any => {
+// P46-P: where a key goes, by key (per modules map; 0: skipped): [bucket, name, kind]. kind 1: a
+// `<module>-<name>` key (its bucket is made even for undefined); 2: a module's own object
+// (3: `class`, made a map first); else the bucket's `name` (no bucket: the data's own key)
+const route = (key: string, modules: Record<string, any>): any => {
+  if (key == 'ref' || key == 'key' || key == 'children') return 0
+  const dash = key.indexOf('-')
+  const prefix = dash > -1 && key.slice(0, dash)
+  // G-152: data-task-id → dataset key taskId (a hyphenated dataset key makes the DOM throw)
+  if (prefix && modules[prefix] !== undefined) return [modules[prefix] || prefix, prefix == 'data' ? key.slice(dash + 1).replace(/-([a-z])/g, (_, c) => c.toUpperCase()) : key.slice(dash + 1), 1]
+  if (modules.attrs !== undefined && (key == 'for' || key == 'role' || key == 'tabindex' || prefix == 'aria')) return ['attrs', key]
+  if (modules[key] !== undefined) return [modules[key] || key, 0, key == 'class' && modules.class !== undefined ? 3 : 2]
+  return [modules.props !== undefined && 'props', key]
+}
+const sanitizeData = (data: any, modules: Record<string, any>, routes: Map<string, any>): any => {
   const out: any = {}
   lent = null
-  const hasAttrs = modules.attrs !== undefined
   for (const key in data) {
-    let val = data[key]
-    if (key == 'ref' || key == 'key') continue
-    if (key == 'class' && modules.class !== undefined) val = toClassMap(val)
-    const dash = key.indexOf('-')
-    const prefix = dash > -1 && key.slice(0, dash)
-    if (prefix && modules[prefix] !== undefined) {
-      let sub = key.slice(dash + 1)
-      // G-152: data-task-id → dataset key taskId (a hyphenated dataset key makes the DOM throw)
-      if (prefix == 'data') sub = sub.replace(/-([a-z])/g, (_, c) => c.toUpperCase())
-      const o = bucket(out, modules[prefix] || prefix)
-      if (val !== undefined) o[sub] = val
-    } else if (val === undefined) {
-      continue
-    } else if (hasAttrs && (key == 'for' || key == 'role' || key == 'tabindex' || prefix == 'aria')) {
-      bucket(out, 'attrs')[key] = val
-    } else if (modules[key] !== undefined) {
-      add(out, modules[key] || key, val)
-    } else if (modules.props !== undefined) {
-      bucket(out, 'props')[key] = val
-    } else {
-      out[key] = val
-    }
+    const val = data[key]
+    let r = routes.get(key)
+    if (r === undefined) routes.set(key, r = route(key, modules))
+    if (!r) continue
+    const [b, name, kind] = r
+    if (kind == 1) {
+      const o = bucket(out, b)
+      if (val !== undefined) o[name] = val
+    } else if (val === undefined) continue
+    else if (kind) add(out, b, kind == 3 ? toClassMap(val) : val)
+    else if (b) bucket(out, b)[name] = val
+    else out[key] = val
   }
   const props = out.props
   if (props && (props.autoFocus || props.autoSelect)) applyFocusProps(out)
@@ -234,7 +238,9 @@ const defaultModules: Record<string, string> = {
 }
 
 export const createElementWithModules = (modules: Record<string, any>) => {
-  const ce = (sel: any, data: any, ...children: any[]): any => {
+  const routes = new Map<string, any>()
+  // the children as one array (`k`: a key that wins over data.key: the JSX runtime's own)
+  const ca = (sel: any, data: any, children: any[], k?: any): any => {
     if (typeof sel === 'undefined') {
       sel = 'UNDEFINED'
       // The JSX runtime entries bundle this file standalone and must not carry a second
@@ -247,8 +253,8 @@ export const createElementWithModules = (modules: Record<string, any>) => {
     }
     // CT-1: a control (src/extra/controls.ts) renders its element itself and stamps its marker.
     // It gets this createElement: the JSX runtime entries carry their own copy of the pragma.
-    if (sel?.__sygnalControl) return sel.__sygnalControl(data, children, ce)
     const isComponent = is.fun(sel)
+    if (isComponent && (sel as any).__sygnalControl) return (sel as any).__sygnalControl(data, children, ce)
     // the core instantiates a component from the vnode's `data.c` (the component function, with
     // its statics); `sel` is its name
     let fn: any
@@ -267,19 +273,27 @@ export const createElementWithModules = (modules: Record<string, any>) => {
     // keeps an array so the component receives its text child via `children`.
     const text = isComponent ? undefined : sanitizeText(children)
     let kids: any
-    let plain = !isComponent && is.string(sel) && !SPECIAL.test(sel)
+    const t = tags[sel] ??= +SPECIAL.test(sel) | (sel in svgTags ? 2 : 0)
+    let plain = !isComponent && is.string(sel) && !(t & 1)
     if (typeof text === 'undefined') plain = !!(flatten(children, kids = []) & +plain)
-    const d = data ? sanitizeData(data, modules) : {}
+    const d = data ? sanitizeData(data, modules, routes) : {}
     if (fn) d.c = fn
-    const key = data ? data.key : undefined
+    const key = k !== undefined ? k : data ? data.key : undefined
     const vnode = plain ? new (Plain as any)(sel, d, kids, text, key) : { sel, data: d, children: kids, text, elm: undefined, key }
-    if (sel in svgTags) applySvg(vnode)
+    if (t & 2) applySvg(vnode)
     return vnode
   }
+  const ce = (sel: any, data: any, ...children: any[]): any => ca(sel, data, children)
+  ;(ce as any).a = ca
   return ce
 }
 
 export const createElement = createElementWithModules(defaultModules)
+/**
+ * P46-P: the JSX runtime's path for an element tag: the JSX props object is the data as is
+ * (sanitizeData skips `children`), no copy without `children` and no spread of the children
+ */
+export const createTag = (createElement as any).a
 
 export default {
   createElement,
