@@ -46,6 +46,11 @@
       "import": "./dist/ui.esm.js",
       "require": "./dist/ui.cjs.js"
     },
+    "./ui/zag": {
+      "types": "./src/ui-zag.d.ts",
+      "import": "./dist/ui-zag.esm.js",
+      "require": "./dist/ui-zag.cjs.js"
+    },
     "./zag": {
       "types": "./src/zag.d.ts",
       "import": "./dist/zag.esm.js",

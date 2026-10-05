@@ -279,6 +279,28 @@ export default [
 		]
   },
 
+  {
+    input: 'src/ui-zag.ts',
+    external: (id) => isExternal(id) || /^sygnal(\/zag)?$/.test(id) || /^@zag-js\//.test(id),
+    output: [
+      { file: pkg.exports['./ui/zag'].require, format: 'cjs', ...sourcemapOptions },
+      { file: pkg.exports['./ui/zag'].import, format: 'es', ...sourcemapOptions }
+    ],
+		plugins: [
+			{
+				name: 'sygnal-ui-zag-external',
+				resolveId(source, importer) {
+					if (!importer || !/[\\/]src[\\/]ui[\\/]zag[\\/]/.test(importer)) return null
+					if (source === '../../zag') return { id: 'sygnal/zag', external: true }
+					if (source === '../../index') return { id: 'sygnal', external: true }
+					return null
+				},
+			},
+			typescript({ tsconfig: './tsconfig.json' }),
+			resolve({ extensions: ['.mjs', '.js', '.ts', '.json'] }),
+		]
+  },
+
   // sygnal/vite aliases xstream's `globalthis` dependency to this stub (G-099).
   // CommonJS: xstream require()s it. `exports: 'default'` → module.exports = fn.
   {
