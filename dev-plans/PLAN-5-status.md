@@ -6,7 +6,7 @@ Tracks progress for [PLAN-5.md](PLAN-5.md) (ecosystem components and integration
 
 **Integration branch:** `plan5-integration`, cut from `plan46-complete` (`7146161`) on 2026-10-05, in worktree `.claude/worktrees/plan-4-execution-7ae8e8`. The release stays held (D56).
 
-**State:** Phase 2: 2-B, 2-V, 2-U merged; 2-A done (not merged; 120 B vs ≈ 30 B question open); reviews of 2-U/2-V/2-A, 2-Z and the 2-R fix pass not started (paused at the user's request).
+**State:** Phase 2: 2-B, 2-V, 2-U, 2-A merged; running: review of 2-U+2-V, 2-Z (fromZag + Menu/Select/Combobox + fromReact), 2-R (fixes). Known flaky test `p5-1s-forms` (fixed in 2-R).
 
 ## 0-A baseline (2026-10-05)
 
@@ -74,12 +74,13 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 | 2-V | V-1 `<VirtualCollection>` on `@tanstack/virtual-core` | `src/extra/virtual*`, its entry, docs |
 | 2-B | B-3 browser sources (timers declaration shape) + B-4 `lazy(…, { when })` | `src/extra/browserSources*`, `src/lazy.ts` (B-4), docs |
 | 2-Z (next) | W-2 `fromZag` + Menu/Select/Combobox in `sygnal/ui`; `sygnal/react` `fromReact` | after 2-U |
-| 2-A | A-1 Collection move transitions on View Transitions form B | done (`p5-2a`, not merged) |
+| 2-A | A-1 Collection move transitions on View Transitions form B | merged (`7d56c62`) |
 
 ## Decisions
 
 | ID | Date | Decision | By |
 |---|---|---|---|
+| D210 | 2026-10-05 | 2-A: `<Collection viewTransitionName="card">` (string prefix; `card-<id>` names + `view-transition-class`) lives in the core Collection host (+120 B), so SSR output, renderComponent and page-started transitions get names. No FLIP fallback: all three evergreen engines support same-document View Transitions (D195) | User |
 | D209 | 2026-10-05 | P5-Q20 + **dependency rule**: don't bundle actively maintained third-party code into the npm builds (users must get patch/security releases through npm and see them in `npm audit`). Small framework-neutral libraries a feature needs → regular `dependencies` with a caret range, external in CJS/ESM, side-effect free (`@tanstack/virtual-core` `^3.17.11` now); heavy, framework-specific or rarely needed ones → optional peers (React, `@zag-js/*`); absorbing into `src/` only for unmaintained code (Cycle.js) or small patched copies. Only the UMD build bundles runtime dependencies. Recorded in CLAUDE.md | User |
 | D208 | 2026-10-05 | 1-S follow-ups (coordinator): D205 also restores on a same-state return (same meaning as ABORT) and only for actions handled synchronously inside the input/change event (debounced/delayed actions don't restore; documented); G-370's forwarding of `role`/`for`/`tabindex`/`aria-*` to components is a breaking fix (CHANGELOG); SYG237 sits in PLAN-5's 230–239 range; **G-382**: `valid` should keep the previous validity while an async schema re-validates after the first answer (avoid `disabled={!valid}` flicker) — next fix pass | Coordinator |
 | D207 | 2026-10-05 | P5-Q19: `lazy(load, { when: 'visible' \| 'idle' })` keeps the string form; every `lazy()` user carries ≈ +0.55 KB | User |
@@ -148,6 +149,7 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 
 ## Log
 
+- 2026-10-05 — Resumed. 2-A merged (D210, user: naming in the core); gates green on three engines (267/267) except the known flaky `p5-1s-forms` test (2-R). Review of 2-U+2-V, 2-Z and 2-R started.
 - 2026-10-05 — D209 (user): dependency rule; `@tanstack/virtual-core` moved to `dependencies` (^3.17.11), external in the npm builds; all gates green.
 - 2026-10-05 — 2-V and 2-U merged (resolved additive conflicts); all gates green on three engines (262/262; samples 621). Review of 2-B: 9 findings (G-383…G-391); 2-U follow-ups G-392/G-393.
 - 2026-10-05 — 1-S merged (2 additive conflicts with 2-B; CHANGELOG dedup); all gates green on three engines (230/230); core 41,652 B. D207 (user), D208.
