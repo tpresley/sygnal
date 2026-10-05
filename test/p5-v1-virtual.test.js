@@ -329,3 +329,17 @@ describe('codes', () => {
     }
   })
 })
+
+describe('SSR', () => {
+  it('renderToString: the container, the spacer and the first rows (10 + overscan), labelled', async () => {
+    const { renderToString } = await import('../src/extra/ssr.ts')
+    const html = renderToString(list({ overscan: 2 }))
+    expect(html).toContain('role="list"')
+    expect(html).toContain('aria-label="Rows"')
+    expect(html).toContain('height: 32000px')
+    expect((html.match(/class="row"/g) || []).length).toBe(12)
+    expect(html).toContain('aria-posinset="12"')
+    expect(html).toContain('aria-setsize="1000"')
+    expect(html).not.toContain('>r13<')
+  })
+})
