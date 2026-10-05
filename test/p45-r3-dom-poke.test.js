@@ -45,15 +45,18 @@ describe('P45-R3 G-285: the poke listener', () => {
   it('a root replaced by a patch: one listener, on the new root, and pokes still emit', async () => {
     track()
     let n = 0
-    function App() { return h('div', { id: 'app' }, h('p', { className: 'kid' }, 'hi')) }
-    App.initialState = {}
+    // the view's root is the mount point; its key changes after the first render, so that patch
+    // replaces it (the first patch adopts it since 3-J, G-456)
+    function App({ state }) { return h('div', { id: 'app', key: state.k }, h('p', { className: 'kid' }, 'hi')) }
+    App.initialState = { k: 1 }
     App.intent = ({ DOM }) => ({ SEEN: DOM.select('.kid').elements() })
-    App.model = { SEEN: { EFFECT: () => { n++ } } }
+    App.model = { SEEN: { EFFECT: () => { n++ } }, BOOTSTRAP: () => ({ k: 2 }) }
     document.body.innerHTML = '<div id="app"></div>'
     const first = document.querySelector('#app')
     const app = run(App, {}, { mountPoint: '#app' })
     try {
       await until(() => expect(document.querySelector('.kid')).toBeTruthy())
+      await until(() => expect(document.querySelector('#app')).not.toBe(first))
       await sleep(20)
       const root = document.querySelector('#app')
       expect(root).not.toBe(first)

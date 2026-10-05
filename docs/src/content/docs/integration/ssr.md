@@ -174,6 +174,27 @@ const initialState = window.__SYGNAL_STATE__ || App.initialState
 run(App, '#app', { initialState })
 ```
 
+### What the first client render keeps
+
+`run()` doesn't clear the mount point. Its first render patches the server's markup in place and **adopts** each element that matches what the client renders at the same position (the same tag; keyed children such as component roots and `Collection` items match by key). An adopted element stays the same DOM node, so everything the user did before the app started is kept: the focus, text typed into an uncontrolled field, a checked box, the scroll position. The same applies to [Astro islands](/integration/astro/) and [Vike pages](/integration/vike/), which both hydrate this way.
+
+| Server markup | First client render |
+|---|---|
+| An element the client renders with the same tag | Adopted: the same node. Its attributes become the client's: the ones the client also renders keep the server's value (nothing is written again, so an `iframe` or `img` doesn't reload), and attributes the client doesn't render are removed |
+| `class` and `id` | Kept when the client's are the same, changed or removed when they aren't |
+| `data-sygnal-ssr` (the root's marker) | Removed |
+| A text node | Kept, its text set to the client's |
+| Whitespace and comments where the client renders no text (a page template's indentation) | Removed |
+| An element with another tag, or text where the client renders an element | Replaced in place by the client's element; the elements around it are still adopted |
+| An element whose client vnode has an `insert` hook and no `postpatch` hook: a `<Transition>`'s child (its enter runs), a `<VirtualCollection>` row (measured when inserted), the `<Toaster>` region, a `lazy()` placeholder | Made again in place, as a fresh render makes it |
+| An element with a `ref`, `autoFocus`, a widget, or a hook with both `insert` and `postpatch` | Adopted: `ref` points at the server's element, `autoFocus` focuses it, a widget mounts on it. A hook's `postpatch` runs; its `insert` doesn't |
+| A `<Portal>`'s content (the server renders it inline) | Replaced by the Portal's placeholder; the content renders in the target |
+| The mount point's own attributes (`<div id="app" class="shell" data-theme="dark">`) | Kept: they aren't the app's (when the app's root element is the mount point itself, its props are written over them) |
+
+Form fields follow the usual rule for [controlled fields](/guide/forms/): a field with a `value` (or `checked`) prop shows the state, so the client's value replaces what the user typed before start-up; a field without one keeps it.
+
+When the server's markup differs from what the client renders (other state, a mismatched template), the page ends up as a fresh client render would make it. The one exception is a `style` attribute: when the client sets a `style`, it writes its own declarations over the server's, and a declaration only the server wrote stays.
+
 ## Stable ids: uid
 
 [`uid()`](/guide/forms/#labels-and-ids-uid) ids come from each component's position in the tree, not from a counter, so `renderToString` and the client produce the same ids and hydration keeps the server's `for` / `id` pairs. Both start from the root `u`. When a page has more than one app, give each its own root, and the same one on both sides:

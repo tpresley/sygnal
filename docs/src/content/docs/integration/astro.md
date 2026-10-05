@@ -90,5 +90,5 @@ export default defineConfig({
 ## How It Works
 
 - On the server, the component is rendered to HTML with `renderToString()`, using its `initialState` (or the `initialState` prop) and the island props
-- On the client, the island is started with `run()` on the server-rendered element, with the same props
+- On the client, the island is started with `run()` on the server-rendered element, with the same props. Its first render adopts the server's elements, so the focus, typed text and scroll position from before it started are kept ([What the first client render keeps](/integration/ssr/#what-the-first-client-render-keeps))
 - Re-hydrating an island disposes the previous instance first

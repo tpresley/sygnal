@@ -13,7 +13,6 @@
 export {h, fragment as HFragment} from 'snabbdom/build/h.js';
 export {init} from 'snabbdom/build/init.js';
 export type {Options} from 'snabbdom/build/init.js';
-export {toVNode} from 'snabbdom/build/tovnode.js';
 export {vnode} from 'snabbdom/build/vnode.js';
 export type {VNode, VNodeData} from 'snabbdom/build/vnode.js';
 export {Fragment} from './fragment';

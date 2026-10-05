@@ -1,5 +1,5 @@
 import {Driver} from '../run/types';
-import {init, Module, Options as SnabbdomOptions, VNode, toVNode} from './snabbdom';
+import {init, Module, Options as SnabbdomOptions, VNode} from './snabbdom';
 import xs, {Stream, Listener} from 'xstream';
 import {MainDOMSource} from './MainDOMSource';
 import {VNodeWrapper} from './VNodeWrapper';
@@ -63,11 +63,49 @@ function makeDOMReady$(): Stream<null> {
   });
 }
 
-function addRootScope(vnode: VNode): VNode {
-  vnode.data = vnode.data || {};
-  (vnode.data as any).isolate = [];
-  return vnode;
-}
+// G-456 (D217): the app's first patch adopts markup already in the mount point (server HTML, an
+// Astro island, a Vike page). Its old vnode is built from the DOM with the client's vnode as the
+// template, by position (no toVNode): an element with the client's tag takes the client's
+// selector and key (so component roots and Collection items match), and its data is what the
+// modules need to reach the client's from what the server wrote: the dataset (stale keys go:
+// data-sygnal-ssr), the class as the className prop (the className module drops stale classes),
+// and each attribute the client sets as an attribute or a prop, with the server's value (nothing
+// is written again: an iframe's src isn't reloaded). Any other attribute is removed now (a style
+// only when the client sets none; class and id are left alone on a selector with them, as
+// `h('p#a.b')`). A single text child keeps its text node. Whitespace and comments where the
+// client has no text go; any other node that doesn't match stays as a placeholder that snabbdom
+// replaces with the client's node, in place (the lists stay aligned, so the nodes after it are
+// still adopted). An element whose hook has an insert and no postpatch (a Transition's enter, a
+// measured row, the toaster region, a lazy() placeholder) is made again that way, as before
+const adopt = (e: any, v: any): any => {
+  const c = v.children || [], out: any[] = [];
+  let j = 0;
+  for (const x of [...e.childNodes]) {
+    const w = c[j], t = x.nodeType, d = w?.data || {}, k = d.hook;
+    // a node that doesn't match stays in its place under a selector no vnode has: snabbdom makes
+    // the client's node before it and removes it (the lists stay aligned: no other node is paired)
+    let n: any = {sel: '', data: {}, elm: x};
+    if (t == 3 && w && !w.sel && w.text != null) n = {text: x.data, elm: x};
+    else if (t == 1 && x.localName == w?.sel?.split(/[#.]/, 1)[0] && !(k?.insert && !k.postpatch)) {
+      const p = d.props || {}, a = d.attrs || {}, o: any = {}, at: any = {}, pr: any = {}, f = x.firstChild;
+      o.class = 'className';
+      for (const m in p) o[m == 'htmlFor' ? 'for' : m.toLowerCase()] = m;
+      for (const {name: m, value: y} of [...x.attributes])
+        m in a ? at[m] = y
+        : /^data-/.test(m) || m == 'style' && d.style || w.sel != x.localName && /^(class|id)$/.test(m) ? 0
+        : m in o && !d.ns ? pr[o[m]] = y
+        : x.removeAttribute(m);
+      const s = w.text != null && f?.nodeType == 3 && !f.nextSibling;
+      n = {sel: w.sel, data: {dataset: {...x.dataset}, attrs: at, props: pr}, children: s ? undefined : adopt(x, w), text: s ? f.data : undefined, elm: x, key: w.key};
+    } else if (t != 1 && (t != 3 || !/\S/.test(x.data))) {
+      x.remove();
+      continue;
+    }
+    out.push(n);
+    j++;
+  }
+  return out;
+};
 
 function makeDOMDriver(
   container: string | Element | DocumentFragment,
@@ -86,9 +124,11 @@ function makeDOMDriver(
     domDriverInputGuard(vnode$);
     const sanitation$ = xs.create<null>();
 
+    let r: any;
     const firstRoot$ = domReady$.map(() => {
       const firstRoot = getValidNode(container) || document.body;
       vnodeWrapper = new VNodeWrapper(firstRoot);
+      r = {sel: '', data: {isolate: []}, elm: firstRoot};
       return firstRoot;
     });
 
@@ -112,8 +152,10 @@ function makeDOMDriver(
             xs
               .merge(rememberedVNode$.endWhen(sanitation$), sanitation$)
               .map(vnode => vnodeWrapper.call(vnode))
-              .startWith(addRootScope(toVNode(firstRoot)))
-              .fold(patch, toVNode(firstRoot))
+              // the first step gives the root its scope; the second, the app's first patch,
+              // adopts the markup in it (G-456). The root keeps its own attributes (G-466)
+              .startWith(r)
+              .fold((o: any, v: any) => patch(o == r ? {...r, sel: v.sel, key: v.key, children: adopt(firstRoot, v)} : o, v), {...r, data: {}})
               .drop(1)
               .map(unwrapElementFromVNode)
               .startWith(firstRoot as any)
