@@ -146,7 +146,7 @@ test('a picked date becomes the due date', async () => {
   const t = renderComponent(Task)
   await t.ready()
   const date = new Date(2026, 9, 5)
-  t.widget('.due').emit('pick', date)
+  t.widget('.due').dispatch('pick', date)
   await t.next((state) => state.due === date)
   expect(t.widget('.due').props.value).toBe(date)
   t.simulateEvent('.pick-date', 'click')
@@ -156,7 +156,7 @@ test('a picked date becomes the due date', async () => {
 ```
 
 - **`props`**: the props the view passed the widget in the latest render.
-- **`emit(name, detail)`**: sends the event the widget's `dispatch` would, in order with other simulated input.
+- **`dispatch(name, detail)`**: sends the event the widget's `dispatch` would, in order with other simulated input (`emit` is an alias).
 - **`instance`**: with `renderComponent(Task, { dom: 'real' })` the widget really mounts (in jsdom or a browser), and `instance` is what `mount` returned.
 
 ## As a control

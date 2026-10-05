@@ -323,12 +323,12 @@ describe('SSR: the host (+ fallback), mounted on the client', () => {
 })
 
 describe('renderComponent: t.widget(target)', () => {
-  it('mock DOM: .props from the rendered host, .emit through simulateEvent (selector and control)', async () => {
+  it('mock DOM: .props from the rendered host, .dispatch through simulateEvent (selector and control)', async () => {
     const t = renderComponent(Form)
     await t.ready()
     expect(t.widget('.due').props.value).toBe(D1)
     expect(t.widget('.due').instance).toBe(undefined)
-    t.widget('.due').emit('pick', D2)
+    t.widget('.due').dispatch('pick', D2)
     await t.next(s => s.due === D2)
     expect(t.state.due).toBe(D2)
     expect(t.widget('.due').props.value).toBe(D2)
@@ -343,6 +343,15 @@ describe('renderComponent: t.widget(target)', () => {
     t.dispose()
   })
 
+  it('D201: .emit is an alias of .dispatch', async () => {
+    const t = renderComponent(Form)
+    await t.ready()
+    t.widget('.due').emit('pick', D2)
+    await t.next(s => s.due === D2)
+    expect(t.state.due).toBe(D2)
+    t.dispose()
+  })
+
   it('mock DOM, control form', async () => {
     const { Due } = controls({ Due: DatePicker })
     function C({ state }) { return h('label', null, 'Due ', h(Due, { value: state.due })) }
@@ -352,7 +361,7 @@ describe('renderComponent: t.widget(target)', () => {
     const t = renderComponent(C)
     await t.ready()
     expect(t.widget(Due).props.value).toBe(D1)
-    t.widget(Due).emit('pick', D2)
+    t.widget(Due).dispatch('pick', D2)
     await t.next(s => s.due === D2)
     expect(t.widget(Due).props.value).toBe(D2)
     t.dispose()
@@ -364,7 +373,7 @@ describe('renderComponent: t.widget(target)', () => {
     const el = t.query('.due')
     expect(el._flatpickr).toBeTruthy()
     expect(t.widget('.due').instance).toBe(el._flatpickr)
-    t.widget('.due').emit('pick', D2)
+    t.widget('.due').dispatch('pick', D2)
     await t.next(s => s.due === D2)
     expect(t.state.due).toBe(D2)
     expect(t.widget('.due').props.value).toBe(D2)

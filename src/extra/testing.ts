@@ -523,10 +523,10 @@ export interface RenderResult {
   queryAll: (selector: string) => Element[];
   /**
    * PLAN-5 W-1: a widget's host by selector or control: `.props` (what the view passed it),
-   * `.instance` (`dom: 'real'`: what mount returned) and `.emit(name, detail)` (the event its
-   * emit() dispatches, through simulateEvent)
+   * `.instance` (`dom: 'real'`: what mount returned) and `.dispatch(name, detail)` (the event
+   * mount's `dispatch` sends, through simulateEvent; D201: `.emit` is an alias)
    */
-  widget: (target: any) => {readonly props: any; readonly instance: any; emit: (name: string, detail?: any) => void};
+  widget: (target: any) => {readonly props: any; readonly instance: any; dispatch: (name: string, detail?: any) => void; emit: (name: string, detail?: any) => void};
 }
 
 const isScope = (s: string) => s.startsWith('.___');
@@ -2583,8 +2583,9 @@ export function renderComponent(
   };
 
   // PLAN-5 W-1: a widget host (selector or control): the props it was rendered with (the mock
-  // DOM: the host vnode's; real: the mounted instance's), its instance (real) and emit, which
-  // sends the CustomEvent its emit() would (through simulateEvent, so in input order)
+  // DOM: the host vnode's; real: the mounted instance's), its instance (real) and dispatch, which
+  // sends the CustomEvent mount's dispatch() would (through simulateEvent, so in input order);
+  // D201: emit is an alias
   const widget = (target: any) => {
     const sel = String(selOf(target));
     const host = (): any => {
@@ -2593,10 +2594,12 @@ export function renderComponent(
       if (!r) throw new Error(`[Sygnal] t.widget('${sel}'): no ${el ? `mounted widget is the matched <${el.localName}>` : 'element matches it'}. Give the widget a className and pass its selector (t.widget('.due')), or pass its control`);
       return r;
     };
+    const dispatch = (name: string, detail?: any) => simulateEvent(target, name, {detail} as any);
     return {
       get props() { return host().p; },
       get instance() { return host().i; },
-      emit: (name: string, detail?: any) => simulateEvent(target, name, {detail} as any),
+      dispatch,
+      emit: dispatch,
     };
   };
 
