@@ -212,4 +212,4 @@ Chromium 153, medians (create: 6 fresh pages for 10k, 4 for 100k; the others 8 a
 
 **Default threshold (S-7):** use `VirtualCollection` from about **1,000 rows** (where a plain Collection's create passes a frame), or earlier for expensive rows; a plain Collection below a few hundred. The guide (`guide/virtual-collections`) states it.
 
-Size: 0 B in kanban when unused (41,500 → 41,475 B gated: gzip noise from the reordered bundle; `test/p5-v1-treeshake.test.js`); used, +8.7 KB gzipped (virtual-core 6.0 KB, the host 2.7 KB).
+Size: 0 B in kanban when unused (41,500 → 41,475 B gated: gzip noise from the reordered bundle; `test/p5-v1-treeshake.test.js`); used, +8.8 KB gzipped (virtual-core 6.0 KB, the host 2.8 KB).
