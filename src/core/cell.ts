@@ -14,6 +14,7 @@
  * Children read through their parent's decorated cell, so they see its calculated fields, and a
  * child's write stores freshly computed ones (4-F).
  */
+import {uidPart} from '../shared'
 import type {CoreDef} from './define'
 import {isObj} from './define'
 import {warn, error as logError} from '../extra/diagnostics/legacy'
@@ -141,8 +142,12 @@ export function calcCell(base: Cell, def: CoreDef): CalcCell {
  * never collides with an id).
  */
 export const keyOf = (it: any, i: number): string => (isObj(it) && it.id != null ? '' + it.id : '\0' + i)
-/** the key as it appears in an item's uid (an index key: the index, as today) */
-export const keyName = (k: string) => (k[0] == '\0' ? k.slice(1) : k)
+/**
+ * the key as it appears in an item's uid: an id through uidPart; an index key as `_i<index>`
+ * (G-322: uidPart never makes '_' followed by a letter, so an index never collides with an id,
+ * e.g. `[{ t }, { id: 0 }]`; renderToString matches it on the next core)
+ */
+export const keyName = (k: string) => (k[0] == '\0' ? '_i' + k.slice(1) : uidPart(k))
 const hasId = (it: any) => isObj(it) && it.id != null
 
 const EMPTY: any[] = []

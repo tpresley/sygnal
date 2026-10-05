@@ -5,6 +5,10 @@
  * Handles sub-components, Collections, Suspense boundaries, and Portals.
  */
 import {uidPart} from '../shared'
+import {NEXT_CORE} from '../core/build'
+
+/** PLAN-4.6 R1-R4 (deleted at R5): renderToString matches the next core's client where they differ */
+const nextCore = () => NEXT_CORE && (globalThis as any).__SYGNAL_CORE__ === 'next'
 
 // Void elements that must not have closing tags
 const VOID_ELEMENTS = new Set([
@@ -548,7 +552,8 @@ function renderCollection(vnode: any, context: Record<string, any>, parentState:
     // the collection's itemKey)
     const isItemObj = itemState && typeof itemState === 'object' && !Array.isArray(itemState)
     const keyed: any = isItemObj ? {...itemState, [idField]: itemState[idField] || index} : {[idField]: index}
-    const itemUid = uid + '-' + uidPart(keyed.id !== undefined ? keyed.id : index)
+    // PLAN-4.6 G-322 (next core): an id-less item's uid part is `_i<index>` (core/cell.ts keyName)
+    const itemUid = uid + '-' + (nextCore() ? (isItemObj && itemState.id != null ? uidPart(itemState.id) : '_i' + index) : uidPart(keyed.id !== undefined ? keyed.id : index))
     // GS-1: an item host's behavior slices (the client reads them as defaults, behaviors.ts)
     itemState = withUses(itemComponent, itemState)
     // Build context for this item

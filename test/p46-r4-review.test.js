@@ -66,7 +66,25 @@ describe('G-320: statics keep following the state while a render throws', () => 
   })
 })
 
-describe('G-319:a Collection on a hidden Switchable page follows its array', () => {
+describe('G-322: an id-less item and an item whose id equals its index get different uids', () => {
+  // (the current core gives both 'u-0-0': next core only, with renderToString matching it)
+  const nextOnly = process.env.SYGNAL_CORE == 'next' ? it : it.skip
+  nextOnly('[{ t }, { id: 0 }] renders two distinct ids, and the server renders the same ones', async () => {
+    document.body.innerHTML = '<div id="root"></div>'
+    function Item({ state, uid }) { return h('li', { attrs: { id: uid() } }, String(state.t)) }
+    function App() { return h('ul', null, h(Collection, { of: Item, from: 'rows' })) }
+    App.initialState = { rows: [{ t: 'noid' }, { id: 0, t: 'zero' }] }
+    start(App)
+    await sleep(40)
+    const ids = [...document.querySelectorAll('li')].map(l => l.id)
+    expect(new Set(ids).size).toBe(2)
+    const { renderToString } = await import('../src/index.js')
+    const html = renderToString(App)
+    for (const id of ids) expect(html).toContain(`id="${id}"`)
+  })
+})
+
+describe('G-319: a Collection on a hidden Switchable page follows its array', () => {
   it('removed rows stop and new rows declare their background statics while the page is hidden', async () => {
     document.body.innerHTML = '<div id="root"></div>'
     const log = []

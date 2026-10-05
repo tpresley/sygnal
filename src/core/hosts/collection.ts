@@ -262,7 +262,7 @@ export class CollectionHost {
           if (!inst) {
             const scope = app.scope()
             inst = new Inst(app, this.def, o, itemCell(this.arr!, this.index, k), o.dom && o.dom.isolateSource(o.dom, scope),
-              this.ip, this.kids, scope, this.uidBase + '-' + uidPart(keyName(k)), 'item')
+              this.ip, this.kids, scope, this.uidBase + '-' + keyName(k), 'item')
             this.items.set(k, inst)
           }
           shown.push(inst)
