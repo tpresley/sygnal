@@ -242,6 +242,8 @@ export class App {
           v = this.last
           // G-311: the instances that rendered before the throw are injected at the next render
           this.ep++
+          // G-320: the statics still follow the state (a throwing render doesn't freeze them)
+          try { this.afterRender?.() } catch (_) { /* reported by the statics step */ }
           break
         }
         this.afterRender?.()

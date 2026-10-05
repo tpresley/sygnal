@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // PLAN-4.6 R4: fixes of the R3 review's findings (G-318...G-323), on the next core. Each test is a
 // behaviour both cores meet (the current core is the oracle), unless it says otherwise.
-import { describe, it, expect, afterEach } from 'vitest'
+import { describe, it, expect, afterEach, vi } from 'vitest'
 import { run, createElement as h, Portal, xs, Collection, Switchable } from '../src/index.js'
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
@@ -46,7 +46,27 @@ function recDriver(log) {
   }
 }
 
-describe('G-319: a Collection on a hidden Switchable page follows its array', () => {
+describe('G-320: statics keep following the state while a render throws', () => {
+  it("a child's declaration goes out though a sibling Collection's sort throws in the same render", async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    document.body.innerHTML = '<div id="root"></div>'
+    const log = []
+    function Child({ state }) { return h('p', null, String(state.n)) }
+    Child.connections = (s) => ({ ['n' + s.n]: { socket: '/n/' + s.n } })
+    function Item({ state }) { return h('li', null, String(state.v)) }
+    function App() { return h('div', null, h('button', null, 'x'), h(Child, { state: 'kid' }), h(Collection, { of: Item, from: 'rows', sort: (a, b) => { if (a.bad || b.bad) throw new Error('bad sort'); return a.v - b.v } })) }
+    App.initialState = { kid: { n: 1 }, rows: [{ id: 1, v: 1 }] }
+    App.intent = ({ DOM }) => ({ GO: DOM.click('button') })
+    App.model = { GO: (s) => ({ ...s, kid: { n: 2 }, rows: [...s.rows, { id: 2, v: 0, bad: true }] }) }
+    start(App, { SOCK: recDriver(log) })
+    await sleep(40)
+    click('button'); await sleep(60)
+    expect(log.some(e => e[0] == 'decl' && e[2] == 'n2')).toBe(true)
+    vi.restoreAllMocks()
+  })
+})
+
+describe('G-319:a Collection on a hidden Switchable page follows its array', () => {
   it('removed rows stop and new rows declare their background statics while the page is hidden', async () => {
     document.body.innerHTML = '<div id="root"></div>'
     const log = []
