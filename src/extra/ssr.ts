@@ -752,10 +752,23 @@ function renderToStringInternal(componentDef: any, state: any, context: Record<s
   return processSSRTree(vnode, mergedContext, resolvedState, uid, 'r')
 }
 
+// G-465: a form field's `value` (a DOM property) has no attribute on <textarea> / <select>: the
+// textarea's goes in as its text, the select's marks the matching <option> (`sv`: the values, as
+// strings, of the <select> the option is in) as selected
+const fieldValue = (data: any): any => data?.props?.value ?? data?.attrs?.value
+const withoutValue = (data: any): any => {
+  const out = {...data}
+  if (out.props) { out.props = {...out.props}; delete out.props.value }
+  if (out.attrs) { out.attrs = {...out.attrs}; delete out.attrs.value }
+  return out
+}
+const textOf = (v: any): string => v == null ? '' : typeof v != 'object' ? String(v)
+  : v.text != null ? String(v.text) : Array.isArray(v.children) ? v.children.map(textOf).join('') : ''
+
 /**
  * Serialize a VNode tree to an HTML string.
  */
-function vnodeToHtml(vnode: any): string {
+function vnodeToHtml(vnode: any, sv?: string[]): string {
   if (vnode == null) return ''
 
   // Text node
@@ -768,7 +781,7 @@ function vnodeToHtml(vnode: any): string {
     if (vnode.text != null) return escapeHtml(String(vnode.text))
     // Fragment: no selector, but has children — concatenate child HTML
     if (vnode.children && Array.isArray(vnode.children)) {
-      return vnode.children.map((c: any) => vnodeToHtml(c)).join('')
+      return vnode.children.map((c: any) => vnodeToHtml(c, sv)).join('')
     }
     return ''
   }
@@ -776,8 +789,22 @@ function vnodeToHtml(vnode: any): string {
   // Parse selector: tag#id.class1.class2
   const {tag, id, selectorClasses} = parseSelector(sel)
 
+  let data = vnode.data || {}, content: string | undefined
+  const value = fieldValue(data)
+  if (tag == 'textarea' && value != null) {
+    data = withoutValue(data)
+    // the HTML parser drops a leading newline, so one is added before it
+    content = escapeHtml((String(value)[0] == '\n' ? '\n' : '') + value)
+  } else if (tag == 'select' && value != null) {
+    data = withoutValue(data)
+    sv = ([] as any[]).concat(value).map(String)
+  } else if (tag == 'option' && sv && !data.props?.selected && !data.attrs?.selected) {
+    if (sv.includes(String(value ?? textOf(vnode)))) data = {...data, attrs: {...data.attrs, selected: true}}
+  }
+  if (tag != 'select' && tag != 'optgroup' && tag != 'option') sv = undefined
+
   // Build attributes from VNode data
-  const attrs = buildAttributes(vnode.data || {}, id, selectorClasses, tag.includes('-'))
+  const attrs = buildAttributes(data, id, selectorClasses, tag.includes('-'))
 
   // Opening tag
   let html = `<${tag}`
@@ -804,13 +831,15 @@ function vnodeToHtml(vnode: any): string {
 
   // Children — snabbdom uses `text` for single text children (even when
   // `children` holds a text element object). Prioritize `text` when set.
-  if (vnode.text != null) {
+  if (content !== undefined) {
+    html += content
+  } else if (vnode.text != null) {
     html += escapeHtml(String(vnode.text))
   } else if (vnode.children) {
     // children can be an array or a single text element object
     const kids = Array.isArray(vnode.children) ? vnode.children : [vnode.children]
     for (const child of kids) {
-      html += vnodeToHtml(child)
+      html += vnodeToHtml(child, sv)
     }
   }
 
