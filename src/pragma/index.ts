@@ -249,6 +249,9 @@ export const createElementWithModules = (modules: Record<string, any>) => {
     // It gets this createElement: the JSX runtime entries carry their own copy of the pragma.
     if (sel?.__sygnalControl) return sel.__sygnalControl(data, children, ce)
     const isComponent = is.fun(sel)
+    // PLAN-4.6 (R1-R4): the next core instantiates a component from the vnode's `data.c` (the
+    // component function); the current core reads `sygnalOptions`. Both, until R5
+    let fn: any
     if (isComponent) {
       if ((sel as any).__sygnalFragment || sel.name === 'Fragment') {
         return sel(data || {}, children)
@@ -262,6 +265,7 @@ export const createElementWithModules = (modules: Record<string, any>) => {
         // children stay an array (they read vnode.children), as for every component below
         if (!preventInstantiation) {
           data.sygnalOptions = { name, view, model, intent, hmrActions, context, peers, components, initialState, isolatedState, calculated, storeCalculatedInState, DOMSourceName, stateSourceName, onError, debug }
+          fn = sel
         }
         sel = name
       } else {
@@ -278,6 +282,7 @@ export const createElementWithModules = (modules: Record<string, any>) => {
     let plain = !isComponent && is.string(sel) && !SPECIAL.test(sel)
     if (typeof text === 'undefined') plain = !!(flatten(children, kids = []) & +plain)
     const d = data ? sanitizeData(data, modules) : {}
+    if (fn) d.c = fn
     const key = data ? data.key : undefined
     const vnode = plain ? new (Plain as any)(sel, d, kids, text, key) : { sel, data: d, children: kids, text, elm: undefined, key }
     if (sel in svgTags) applySvg(vnode)

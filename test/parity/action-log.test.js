@@ -29,4 +29,4 @@ parity('parity: action log (t.actions, t.explain)', () => {
     expect(e.state).toMatchObject({ n: 1 })
     t.dispose()
   })
-})
+}, 'R4')

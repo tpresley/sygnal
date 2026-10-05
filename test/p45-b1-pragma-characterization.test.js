@@ -55,7 +55,10 @@ function vnode(v, seen = new Set()) {
   const out = {}
   for (const k of Object.keys(v).sort()) {
     const val = v[k]
-    if (k === 'data') out.data = strictObj(val, seen, (b, bv) => BUCKETS.has(b) ? strictObj(bv, seen, (_, x) => loose(x, seen)) : loose(bv, seen))
+    // PLAN-4.6 R1: `data.c` (the component function, for the next core) is new since the fixture
+    // was written; test/p46-r1-pragma-data-c.test.js characterizes it. Deleted with this file at R5
+    if (k === 'data' && val && typeof val.c === 'function') { const { c, ...rest } = val; out.data = strictObj(rest, seen, (b, bv) => BUCKETS.has(b) ? strictObj(bv, seen, (_, x) => loose(x, seen)) : loose(bv, seen)) }
+    else if (k === 'data') out.data = strictObj(val, seen,(b, bv) => BUCKETS.has(b) ? strictObj(bv, seen, (_, x) => loose(x, seen)) : loose(bv, seen))
     else if (k === 'children') out.children = Array.isArray(val) ? val.map(c => vnode(c, seen)) : (val === undefined ? U : loose(val, seen))
     else out[k] = val === undefined ? U : loose(val, seen)
   }

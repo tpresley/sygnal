@@ -1,5 +1,6 @@
 import {setup} from '../cycle/run/index';
 import {withState} from '../cycle/state/index';
+import {start as startNext} from '../core/runtime';
 import {mockDOMSource} from '../cycle/dom/mockDOMSource';
 import {makeDOMDriver} from '../cycle/dom/makeDOMDriver';
 import {enrichEventStream} from '../cycle/dom/enrichEventStream';
@@ -1996,9 +1997,21 @@ export function renderComponent(
   }
   let sources: any, sinks: any, rawDispose: () => void;
   try {
-    const p: any = setup(withState(app, 'STATE') as any, allDrivers);
-    ({sources, sinks} = p);
-    rawDispose = p.run();
+    if ((globalThis as any).__SYGNAL_CORE__ === 'next') {
+      // PLAN-4.6 R1 (internal, until R4 ports renderComponent onto the hooks): the next core runs
+      // the same root (the test intent, model, initial state and name) with the same drivers.
+      // The diagnostics-hook bookkeeping (t.actions, child fakes, SYG103/104 owners) is R4's
+      const p = startNext(componentDef, allDrivers, {
+        useDefaultDrivers: false, onError: options.onError,
+        __override: {intent: bare ? undefined : wrappedIntent, model: bare ? undefined : model, initialState: init, name: compName},
+      });
+      ({sources, sinks} = p);
+      rawDispose = () => {};
+    } else {
+      const p: any = setup(withState(app, 'STATE') as any, allDrivers);
+      ({sources, sinks} = p);
+      rawDispose = p.run();
+    }
   } catch (e) {
     restore();
     container?.remove();

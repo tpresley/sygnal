@@ -53,4 +53,4 @@ parity('parity: Suspense / READY and lazy', () => {
     await until(() => expect(m.text('.heavy')).toBe('heavy 2'))
     expect(m.state().heavy.n).toBe(2)
   })
-})
+}, 'R2')

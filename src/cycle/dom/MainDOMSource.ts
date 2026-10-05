@@ -8,7 +8,7 @@ import {BodyDOMSource} from './BodyDOMSource';
 import {VNode} from './snabbdom';
 import {enrichEventStream, EnrichedEventStream} from './enrichEventStream';
 import {ElementFinder} from './ElementFinder';
-import {makeIsolateSink, getScopeObj, Scope, IsolateSink} from './isolate';
+import {makeIsolateSink, makeIsolateValue, getScopeObj, Scope, IsolateSink} from './isolate';
 import {IsolateModule} from './IsolateModule';
 import {EventDelegator} from './EventDelegator';
 // [diagnostics hook] no-op when diagnostics are off
@@ -38,6 +38,7 @@ export class MainDOMSource {
         source._name
       );
     this.isolateSink = makeIsolateSink(this._namespace) as any;
+    this.isolateValue = makeIsolateValue(this._namespace);
   }
 
   private _elements(): Stream<Array<Element>> {
@@ -146,4 +147,5 @@ export class MainDOMSource {
 
   public isolateSource: (source: MainDOMSource, scope: string) => MainDOMSource;
   public isolateSink: IsolateSink<VNode>;
+  public isolateValue: (node: any, scope: string) => any;
 }

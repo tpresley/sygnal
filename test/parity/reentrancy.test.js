@@ -2,7 +2,7 @@
 // PLAN-4.6 parity: reentrancy and startup races (spike 0-S §9, PLAN-4.5 G-257 / G-260 / G-266 /
 // G-283), ported to the public API. Run-to-completion, FIFO, no nested flush, one patch.
 import { it, expect, vi } from 'vitest'
-import { parity, itNext, mount, forget, h, click, until, sleep, microtasks, xs, Collection } from './harness.js'
+import { parity, itNext, needs, mount, forget, h, click, until, sleep, microtasks, xs, Collection } from './harness.js'
 
 /** a bus driver that delivers every sink value synchronously, during sink delivery */
 const syncBus = () => (sink$) => {
@@ -88,7 +88,7 @@ parity('parity: reentrancy (FIFO, run to completion, one patch)', () => {
     expect(m.patches() - before).toBe(1)
   })
 
-  it('an action arriving during the render flush (a driver replying synchronously to a static) is applied in the same patch', async () => {
+  needs('R3').it('an action arriving during the render flush (a driver replying synchronously to a static) is applied in the same patch', async () => {
     // a minimal static driver: answers each declaration synchronously, inside the flush
     const echo = () => (sink$) => {
       const to = new Map()
@@ -112,7 +112,7 @@ parity('parity: reentrancy (FIFO, run to completion, one patch)', () => {
     expect(m.patches() - before).toBe(1)
   })
 
-  it("the first render, a static's declaration and its synchronous reply are one patch", async () => {
+  needs('R3').it("the first render, a static's declaration and its synchronous reply are one patch", async () => {
     const echo = () => (sink$) => {
       const to = new Map()
       sink$.addListener({ next: (v) => to.get(v.__emitterId)?.next({ type: 'ECHO', data: v.echo }) })
@@ -185,7 +185,7 @@ parity('parity: startup races (G-266, G-257 grow) and teardown', () => {
     expect(seen).toEqual(['1'])
   })
 
-  it('G-257 / D153 grow: every render adds an item with intent (a chain of new components) and it completes', async () => {
+  needs('R2').it('G-257 / D153 grow: every render adds an item with intent (a chain of new components) and it completes', async () => {
     function Leaf({ state }) { return h('i', { className: 'leaf' }, String(state.n)) }
     Leaf.intent = ({ DOM }) => ({ C: DOM.click('.leaf') })
     Leaf.model = { C: (s) => s }
@@ -197,7 +197,7 @@ parity('parity: startup races (G-266, G-257 grow) and teardown', () => {
     await until(() => expect(m.$$('.leaf').length).toBe(30))
   })
 
-  it('teardown: removed items stop their intent streams', async () => {
+  needs('R2').it('teardown: removed items stop their intent streams', async () => {
     const stopped = []
     function It({ state }) { return h('li', { className: 'it' }, String(state.id)) }
     It.intent = ({ DOM }) => ({ C: DOM.click('.it').map(() => 1), T: xs.create({ start: () => {}, stop: () => stopped.push('own') }).map((x) => x) })
@@ -214,7 +214,7 @@ parity('parity: startup races (G-266, G-257 grow) and teardown', () => {
     await until(() => expect(stopped.length).toBe(50))
   })
 
-  itNext('D165 / Q18 teardown: scoped _remove swap, 0 timers', 'teardown: removed items stop their intent streams synchronously at the end of the flush, with no xstream stop timer', async () => {
+  needs('R2').itNext('D165 / Q18 teardown: scoped _remove swap, 0 timers', 'teardown: removed items stop their intent streams synchronously at the end of the flush, with no xstream stop timer', async () => {
     const stopped = []
     function It({ state }) { return h('li', { className: 'it' }, String(state.id)) }
     It.intent = ({ DOM }) => ({ C: DOM.click('.it').map(() => 1), T: xs.create({ start: () => {}, stop: () => stopped.push('own') }).map((x) => x) })
@@ -228,6 +228,41 @@ parity('parity: startup races (G-266, G-257 grow) and teardown', () => {
     await sleep(20)
     const st = globalThis.setTimeout, stacks = []
     // (a stop cascading from an older xstream timer, left by an earlier test, is not this teardown's)
+    vi.spyOn(globalThis, 'setTimeout').mockImplementation(function (f, ms) { const k = new Error().stack; if (String(f).includes('_stopNow') && !k.includes('listOnTimeout')) stacks.push(k); return st(f, ms) })
+    click(m.$('.clear'))
+    await until(() => expect(m.$$('.it').length).toBe(0))
+    expect(stopped.length).toBe(50)
+    expect(stacks).toEqual([])
+  })
+
+  // R1: the same teardown with tag children (no Collection), so the next core's R1 covers it
+  function tagList(stopped) {
+    function It({ n }) { return h('li', { className: 'it' }, String(n)) }
+    It.intent = ({ DOM }) => ({ C: DOM.click('.it').map(() => 1), T: xs.create({ start: () => {}, stop: () => stopped.push('own') }).map((x) => x) })
+    It.model = { C: (s) => s, T: (s) => s }
+    function L({ state }) { return h('ul', null, h('button', { className: 'clear' }), ...(state.show ? Array.from({ length: 50 }, (_, i) => h(It, { id: 'i' + i, n: i })) : [])) }
+    L.initialState = { show: true }
+    L.intent = ({ DOM }) => ({ CLEAR: DOM.click('.clear') })
+    L.model = { CLEAR: (s) => ({ ...s, show: false }) }
+    return L
+  }
+
+  it('teardown (tag children): removed children stop their intent streams', async () => {
+    const stopped = []
+    const m = mount(tagList(stopped))
+    await until(() => expect(m.$$('.it').length).toBe(50))
+    await sleep(20)
+    click(m.$('.clear'))
+    await until(() => expect(m.$$('.it').length).toBe(0))
+    await until(() => expect(stopped.length).toBe(50))
+  })
+
+  itNext('D165 / Q18 teardown: scoped _remove swap, 0 timers', 'teardown (tag children): removed children stop their intent streams synchronously at the end of the flush, with no xstream stop timer', async () => {
+    const stopped = []
+    const m = mount(tagList(stopped))
+    await until(() => expect(m.$$('.it').length).toBe(50))
+    await sleep(20)
+    const st = globalThis.setTimeout, stacks = []
     vi.spyOn(globalThis, 'setTimeout').mockImplementation(function (f, ms) { const k = new Error().stack; if (String(f).includes('_stopNow') && !k.includes('listOnTimeout')) stacks.push(k); return st(f, ms) })
     click(m.$('.clear'))
     await until(() => expect(m.$$('.it').length).toBe(0))
@@ -307,7 +342,7 @@ parity('parity: no timer-dependent startup (G-266 / G-273 / G-274 / G-284 under 
     expect(m.text('.b')).toBe('1')
   })
 
-  itNext('D165 one-clock startup (no first-render gate)', 'G-273: a new item with intent, added under fake timers then vi.clearAllTimers(), appears and responds without the clock', async () => {
+  needs('R2').itNext('D165 one-clock startup (no first-render gate)', 'G-273: a new item with intent, added under fake timers then vi.clearAllTimers(), appears and responds without the clock', async () => {
     function Item({ state }) { return h('li', { className: 'item' }, `${state.id}:${state.n || 0}`) }
     Item.intent = ({ DOM }) => ({ X: DOM.click('.item') })
     Item.model = { X: (s) => ({ ...s, n: (s.n || 0) + 1 }) }
