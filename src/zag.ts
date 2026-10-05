@@ -39,6 +39,8 @@
  * - Errors (G-409): a render that throws while the widget mounts stops the machine and is SYG660;
  *   on a later, machine-driven redraw it stops the machine and goes to the widget's error path
  *   (mount's `error`): SYG661 and the owner's onError fallback in its place.
+ * - The render is plain elements only (G-410): it is patched outside the component tree, so a
+ *   Sygnal component, a widget tag or special JSX inside it can't run (SYG669 in dev).
  * - Wrong arguments throw SYG667 when the widget is defined.
  *
  * Separate entry: rollup turns './index' into the external 'sygnal' and keeps snabbdom and
@@ -91,7 +93,19 @@ const fail = (m: string): never => {
 
 let ids = 0
 
-function start(zag: any, render: any, o: any, el: any, p0: any, dispatch: any, error: any): any {
+// G-410 (dev only): what a render must not contain: a component (data.c), a widget tag, special JSX
+const SPECIAL: any = {transition: 'Transition', portal: 'Portal', collection: 'Collection', switchable: 'Switchable',
+  suspense: 'Suspense', clientonly: 'ClientOnly', 'virtual-collection': 'VirtualCollection'}
+const foreign = (v: any, out: string[]): string[] => {
+  if (!v || typeof v != 'object') return out
+  if (Array.isArray(v)) { v.forEach(c => foreign(c, out)); return out }
+  const d = v.data
+  let t = d?.c ? v.sel : v.sel == 'widget' && d?.ww ? d.ww.def.name || 'widget' : d?.props && SPECIAL[v.sel]
+  if (t) out.includes(t = '<' + t + '>') || out.push(t)
+  return foreign(v.children, out)
+}
+
+function start(zag: any, render: any, o: any, el: any, p0: any, dispatch: any, error: any, w: any): any {
   // live: 0 while start() runs (a throwing draw throws: SYG660), then 1 (it goes to error: SYG661)
   let props = p0, memo: any, on = 1, busy = 0, again = 0, live = 0
   let vn: any = el.appendChild(document.createElement('div'))
@@ -130,6 +144,8 @@ function start(zag: any, render: any, o: any, el: any, p0: any, dispatch: any, e
       do {
         again = 0
         const out = render(api(), props, x)
+        const dev = (globalThis as any).__SYGNAL_DIAGNOSTICS__?.widget
+        if (dev) { const f = foreign(out, []); f.length && dev(669, w(), undefined, f) }
         vn = patch(vn, Array.isArray(out) ? h('div', {style: {display: 'contents'}}, out) : out || h('!', ''))
       } while (again && on)
     } catch (e) {
@@ -179,15 +195,16 @@ export function fromZag(zag: any, render: any, options: any = {}): any {
   if (!zag || !zag.machine || typeof zag.connect != 'function') fail('fromZag(zag, render): the first argument is not a Zag machine package (import * as menu from \'@zag-js/menu\')')
   if (typeof render != 'function') fail('fromZag(zag, render): render must be a function (api, props) => vnode')
   const o = options, commands: any = {}
+  let tag: any
   for (const c in o.commands) commands[c] = (x: any, opt: any) => o.commands[c](x.api(), opt, x)
-  return defineWidget({
+  return tag = defineWidget({
     tag: o.tag,
     name: o.name,
     fallback: o.fallback,
     hostProps: o.hostProps,
     events: Object.keys(o.events || {}),
     commands,
-    mount: (el: any, p: any, dispatch: any, error: any) => start(zag, render, o, el, p, dispatch, error),
+    mount: (el: any, p: any, dispatch: any, error: any) => start(zag, render, o, el, p, dispatch, error, () => tag),
     update: (x: any, p: any) => x.set(p),
     unmount: (x: any) => x.stop(),
   })

@@ -292,6 +292,8 @@ export const CODE_TITLES: Record<string, string> = {
   SYG667: 'Invalid adapter argument',
   // PLAN-5 2-R (G-383, G-387)
   SYG668: 'Browser source has no element to observe',
+  // PLAN-5 2-T (G-410): Sygnal components / widget tags / special JSX inside a fromZag render
+  SYG669: 'Sygnal component inside a fromZag render',
   // PLAN-4 GS-3: a11y lane (static only, sygnal-check)
   SYG701: 'Click listener on a non-interactive element',
   SYG702: 'Form field without an accessible label',
@@ -411,6 +413,7 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG666: 'error',
   SYG667: 'error',
   SYG668: 'warn',
+  SYG669: 'warn',
   // PLAN-5 V-1: VirtualCollection (checks/virtual.ts, through the core bridge)
   SYG430: 'warn',
   SYG431: 'warn',

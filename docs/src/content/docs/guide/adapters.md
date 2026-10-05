@@ -136,7 +136,7 @@ Toolbar.model = {
 ```
 
 - **`zag`** is the machine package as a namespace (`import * as menu from '@zag-js/menu'`): its `machine` and `connect`.
-- **`render(api, props, instance)`** returns one element. `api` is the machine's connected API: spread its prop getters on your elements (`{...api.getTriggerProps()}`); they carry the ARIA attributes, the ids and the event handlers. It runs again whenever the machine's state changes and when the tag gets new props, and the result is patched into the host.
+- **`render(api, props, instance)`** returns one element. `api` is the machine's connected API: spread its prop getters on your elements (`{...api.getTriggerProps()}`); they carry the ARIA attributes, the ids and the event handlers. It runs again whenever the machine's state changes and when the tag gets new props, and the result is patched into the host. Render **plain elements only**: the adapter patches the result itself, outside the component tree, so a Sygnal component, a widget tag or special JSX (`<Transition>`, `<Portal>`, `<Collection>`…) inside it doesn't run. Pass data in through the tag's props, and keep components and widgets around the tag in the view ([SYG669](/reference/errors/#syg669) in dev).
 - **Props** go to the machine as they are (`open`, `value`, `positioning`...), always the newest ones: a controlled prop such as `open={state.menuOpen}` drives the machine. `options.props(props, instance)` maps them when they differ (Select turns `value: 'm'` into Zag's `['m']`).
 - **`events`**: `{ eventName: 'onCallback' }` dispatches the callback's details object; `{ eventName: ['onCallback', (details) => detail] }` dispatches what the function returns.
 - **`commands`**: `{ name: (api, options, instance) => … }` for `ELEMENT`.
@@ -185,5 +185,6 @@ Gzipped, added to a small app:
 |---|---|
 | [SYG666](/reference/errors/#syg666) | An adapter entry is imported, but a package it needs isn't installed (`sygnal/vite`) |
 | [SYG667](/reference/errors/#syg667) | `fromZag` or `fromReact` got something that isn't a machine package or a component |
+| [SYG669](/reference/errors/#syg669) | A `fromZag` render returned a Sygnal component, a widget tag or special JSX, which can't run there (dev) |
 
 The widget codes ([SYG140–144](/guide/widgets/#diagnostics), [SYG660–662](/reference/errors/#syg660)) apply to adapters as to any widget.

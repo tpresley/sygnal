@@ -938,6 +938,13 @@ export const EXPLANATIONS = {
     explanation: "An `intersection` or `resize` entry of a component's `browser` declaration has nothing to observe, so its action never comes. Either no DOM source reached the browser driver for the instance (the app runs without a DOM driver, or the declaration was sent from outside a component's `browser` static), or, under `renderComponent(C, { dom: 'real' })`, the entry's selector matches no element the component renders (a typo, or an element rendered only later). The `t.browser` fake still sends its initial report, so the test can pass while the real app observes nothing. Reported once per component, entry and reason.",
     fix: "Run the app with a DOM driver (`run(App, drivers, { mountPoint })`) and declare the entry in the component's own `browser` static. Use a selector the component's own view renders, or `true` for its root element: `cover: { intersection: '.cover', action: 'SEEN' }` with `<img className=\"cover\" />` in the view. Declare the entry only while its element exists: `chart: state.open && { resize: '.chart', action: 'SIZE' }`.",
   },
+  SYG669: {
+    title: "Sygnal component inside a fromZag render",
+    severity: "warn",
+    reportedBy: ["dev-entry"],
+    explanation: "A `fromZag(zag, render)` widget's `render` returned a Sygnal component (`<Badge />`), a widget tag (`<Icon />`, `<Menu />`), or special JSX (`<Transition>`, `<Portal>`, `<Collection>`, `<Switchable>`, `<Suspense>`, `<ClientOnly>`, `<VirtualCollection>`). The adapter patches its render into the widget host with a snabbdom patch of its own, outside the component tree, so none of these run there: a component isn't instantiated, a widget doesn't mount, and a marker renders as an unknown element. Only plain elements (with Zag's prop getters spread on them) work inside the render. Reported once per widget.",
+    fix: "Render plain elements in the `render` function (`<span className=\"badge\">{props.text}</span>` instead of `<Badge text={props.text} />`). Pass data in through the widget's props, and put components, widgets and special JSX around the widget tag in the component's view instead of inside it.",
+  },
   SYG701: {
     title: "Click listener on a non-interactive element",
     severity: "warn",

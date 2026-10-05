@@ -9,6 +9,8 @@
  *   144  a host mounted — SYG144 (info, once per widget): a declared event name the host element
  *        also fires natively (`'change'` on an `<input>` host), so the intent sees both
  *   660/661/662  mount / update / unmount threw (`extra` is the error) — SYG660–662 (error)
+ *   669  fromZag (G-410): its render returned Sygnal components / widget tags / special JSX
+ *        (`extra`: their tags, e.g. ['<Badge>', '<Transition>']) — SYG669 (warn, once per widget)
  * It returns the reported diagnostic (the widget module logs a bare `[Sygnal SYG66x]` otherwise).
  *
  * SYG141 (listening to an event a widget doesn't declare) is static only (sygnal-check): the
@@ -59,6 +61,15 @@ export function reportWidget(code: number, w: any, owner?: any, x?: any): any {
       message: `${name} declares ${native.map((e: string) => `'${e}'`).join(', ')}, which its <${x.localName}> host also fires natively, so a listener gets both the widget's events and the element's`,
       fix: `Name the widget's event differently (e.g. 'pick' for a date picker's change), or read only what both carry`,
       data: {events: native, element: x.localName},
+    })
+  }
+  if (code == 669) {
+    if (!once(`SYG669:${idOf(w)}`)) return
+    return devReport('SYG669', {
+      component: name,
+      message: `${name}'s fromZag render returned ${x.join(', ')}; the adapter patches its render outside the component tree, so they don't run there (a component isn't instantiated, a widget doesn't mount, special JSX renders as an unknown element)`,
+      fix: `Render plain elements in the fromZag render (with Zag's prop getters spread on them), pass data in through the widget's props, and put components, widgets and special JSX around the widget tag in the view`,
+      data: {found: x},
     })
   }
   const phase = PHASE[code]
