@@ -6,7 +6,7 @@ Tracks progress for [PLAN-5.md](PLAN-5.md) (ecosystem components and integration
 
 **Integration branch:** `plan5-integration`, cut from `plan46-complete` (`7146161`) on 2026-10-05, in worktree `.claude/worktrees/plan-4-execution-7ae8e8`. The release stays held (D56).
 
-**State:** Phase 2: 2-B, 2-V, 2-U, 2-A merged; 2-Z and 2-R merged; running: 2-S (2-U/2-V review fixes), 2-T (D211/D212 follow-ups + 2-Z review fixes G-409…G-416); then Phase 3. Known flaky test `p5-1s-forms` (fixed in 2-R).
+**State:** Phase 2: 2-B, 2-V, 2-U, 2-A merged; 2-Z and 2-R merged; running: 2-S (2-U/2-V review fixes), 2-T (D211/D212 follow-ups + 2-Z review fixes G-409…G-416); Phase 3 started: 3-D (B-1 `sortable`, codes SYG145–147/724), 3-R (docs recipes + B-2 i18n, docs only). Known flaky test `p5-1s-forms` (fixed in 2-R).
 
 ## 0-A baseline (2026-10-05)
 
