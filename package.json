@@ -41,6 +41,11 @@
       "import": "./dist/element.esm.js",
       "require": "./dist/element.cjs.js"
     },
+    "./ui": {
+      "types": "./src/ui.d.ts",
+      "import": "./dist/ui.esm.js",
+      "require": "./dist/ui.cjs.js"
+    },
     "./shims/globalthis": "./dist/shims/globalthis.cjs",
     "./vite": {
       "types": "./src/vite/plugin.d.ts",
