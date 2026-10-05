@@ -44,7 +44,7 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 | 0-B | Playwright bump to the cached Firefox/WebKit builds (D191) | 🟡 running | `p5-0b-playwright` | | |
 | 0-S1 | Widget as a tag + control kind (D189) | ✅ done (spike, not merged) | `exp/p5-s1` (`77aeaba`) | 2026-10-05 | `defineWidget` works as a tag (canonical) and a control: real flatpickr, 22 runtime + 3 Chromium + 3 sygnal-check + type tests; instance survives re-renders/keyed moves, newest props only, Collection isolation, `'widget'` errors to app onError + owner fallback, SSR host + fallback, `t.widget`, `.detail()`. Core: +7 B unused (`.detail()`); ≈ +1.27 KB when used (over 0-A's 450–750 B estimate; dev strings to move behind the dev bridge). Fixed false SYG110/SYG640 on widget tags in sygnal-check. Codes sketched SYG140–144, 660–663. Open questions → Phase-1 batch |
 | 0-S2 | Forms: behavior vs helpers | ✅ done (spike, not merged) | `exp/p5-s2` (`b088427`) | 2026-10-05 | Both shapes on one signup+address form, 31 tests, 0 B core, 0 strict/a11y findings. **A (`form` behavior via `uses`)**: 57 user lines (18 wiring), name delegation on the `<form>` (array rows by id), queued submit, async schema/check, server errors + focus; ≈ 3.1 KB used. **B (helpers)**: 89 lines (50 wiring), ≈ 0.6 KB. Recommends A as the A/B lead (trim to ≤ 2.4 KB). Open questions → Phase-1 batch (P5-Q11…) |
-| 0-S3 | Native Dialog, Popover, Tooltip (3 engines) | 🟡 running | `exp/p5-s3` | | |
+| 0-S3 | Native Dialog, Popover, Tooltip (3 engines) | ✅ done (spike, not merged) | `exp/p5-s3` (`21f43d5`) | 2026-10-05 | **All three native in Chromium, Firefox and WebKit** (via the cached Playwright 1.63 builds): 23 browser tests × 3 engines + 7 mock-DOM tests; focus trap/return, Escape, light dismiss, exact anchor positioning, timer-driven tooltip delays, roles/names; 0 SYG7xx; 0 B core. Sizes when used: Dialog +1.05 KB, Popover +0.98 KB, Tooltip +1.84 KB, all three +2.16 KB (vs Zag dialog 18.5 KB / Floating UI 6.4 KB). **0-S4 answer:** a `popover="manual"` toast above an open modal is drawn but inert (no clicks, no Tab, not in Chromium's a11y tree); inside the open `<dialog>` it works. Gaps: `defineBehavior` lacks `timers`, behavior model can't see options, SYG102 on behavior-owned actions, sygnal-check doesn't follow `uses` through factories, `popovertarget`/`commandfor`/… routed to props. Browser-support floor is a release-policy question |
 | 0-S4 | Toast top layer | ⬜ | | | |
 | 0-S5 | `sortable` behavior | ⬜ | | | |
 | 0-S6 | Web components via controls | ⬜ | | | |
@@ -64,6 +64,7 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 
 ## Log
 
+- 2026-10-05 — 0-S3 done: native Dialog/Popover/Tooltip work in all three engines.
 - 2026-10-05 — 0-S1 done (defineWidget prototype).
 - 2026-10-05 — 0-A merged (interfaces hold; E1–E6 pass). D190, D191 (user: Playwright bump). 0-S2 done (forms A/B). 0-B started.
 - 2026-10-05 — D189 (P5-Q10). 0-A, 0-S1, 0-S2, 0-S3 started.
