@@ -344,7 +344,7 @@ Production builds contain none of the dev checks.
 
 - The server renders the page component to HTML using Sygnal's `renderToString()`, with the component state serialized into a `<script>` tag
 - Layout HTML wraps the page content but lives **outside** the `#page-view` mount point, so it survives Sygnal's DOM patching
-- On the client, Sygnal hydrates the page at `#page-view` using the serialized state
+- On the client, Sygnal hydrates the page at `#page-view` using the serialized state; the first render adopts the server's elements ([What the first client render keeps](/integration/ssr/#what-the-first-client-render-keeps))
 - On client-side navigation, the previous Sygnal app is disposed and a new one is booted for the next page
 - Data from `+data.js` is passed to the client via Vike's `passToClient` and merged into `initialState`
 - Error boundaries are supported — if a page has `.onError`, it is used as a fallback during SSR errors
