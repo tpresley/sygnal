@@ -2037,13 +2037,14 @@ export function renderComponent(
       onCreate(iv: any) {
         log.onCreate(iv);
         bump();
+        // (every instance, with or without an intent: SYG104 names the child, inspect() its id)
+        const sc = viewScope(iv);
+        if (sc) owners.set(sc, iv.name);
+        if (iv.sources.DOM?._hub == hub.$) scopeIds.set(sc || '', iv.id);
         senderNames.set(iv.id, iv.name);
         if (iv.def.view?.route && !(routerSink in allDrivers)) failWith(new Error(`[Sygnal] ${iv.name} declares \`route\`, and nothing answers it: pass the app's router, renderComponent(${compName}, { router }) (the object makeRouter() returns), or a ${routerSink} driver in drivers`));
       },
       wrapSources(iv: any, so: any) {
-        const sc = viewScope(iv);
-        if (sc) owners.set(sc, iv.name);
-        if (iv.sources.DOM?._hub == hub.$) scopeIds.set(sc || '', iv.id);
         const extra = childSinks2(iv);
         // the replies to its child-only requests (as the core subscribes a driver's replies)
         if (extra.length) {
@@ -2207,6 +2208,7 @@ export function renderComponent(
   // the first next() that started at it resolving. If no next() has used it by the
   // macrotask after ready() resolves, it expires (an un-awaited ready() in a beforeEach
   // doesn't make a much later next() return an old state).
+  let fromInput = false;
   let readyAt = 0, cursor: number | undefined, shown: number | undefined, arming = 0, cursorUsed = false;
   const readyPromise = new Promise<void>(r => {
     markReady = () => {
@@ -2217,7 +2219,9 @@ export function renderComponent(
     };
   });
   const ready = () => {
-    cursor = isReady ? states.length : -1;
+    // (next core, D176: a state of this tick, e.g. from a simulate* call just before, is "now")
+    cursor = isReady ? (nextCore ? Math.min(fromInput && cursor !== undefined && cursor >= 0 ? cursor : states.length, syncAt ?? states.length) : states.length) : -1;
+    fromInput = false;
     shown = undefined;
     const id = ++arming;
     cursorUsed = false;
@@ -2231,10 +2235,12 @@ export function renderComponent(
   };
   const readyWaiters = new Set<(e: Error) => void>();
   const later = (go: Input['go'], missing?: Input['missing']) => {
+    const was = fromInput && cursor !== undefined ? cursor : undefined;
     cursor = shown = undefined;
     // PLAN-4.6 R1 (next core): an input's STATE reducer is applied synchronously (D165), so the
     // state it causes can be recorded before the test's next() call: next() starts at the input
-    if (nextCore) { cursor = states.length; arming++; cursorUsed = false; }
+    // (R4: several simulate* calls in a row: the cursor stays at the first one's state)
+    if (nextCore) { cursor = was ?? states.length; fromInput = true; arming++; cursorUsed = false; }
     inputs.push({go, missing});
     pump();
   };

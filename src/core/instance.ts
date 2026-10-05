@@ -26,6 +26,7 @@ import {handle} from './actions'
 import {viewOf} from './view'
 import {makeCommandSource} from '../extra/command'
 import {attach, detach} from './statics'
+import {dbg} from './debug'
 
 const ERR_FIX = 'See the attached error'
 
@@ -98,6 +99,8 @@ class Failed {
 export class Inst {
   readonly id = IDS++
   disposed = false
+  /** debug logging for this instance (the DevTools toggle; core/debug.ts) */
+  debug = false
   /** in dispose(), while dispose$ emits: its actions run at once */
   dying = false
   ready: boolean
@@ -175,6 +178,7 @@ export class Inst {
       }
     } else if (def.idle && isObj(this.cell.raw()) && !parent) this.cell.set(this.cell.raw())
     H.onCreate?.(viewOf(this))
+    dbg(this, () => 'Instantiated')
     if (def.handlers.has('INITIALIZE')) app.dispatch(this, 'INITIALIZE', init, 'built-in')
     if (app.stat.length || app.rep.length) attach(this)
     if (def.intent) {
@@ -370,6 +374,7 @@ export class Inst {
       this.forced = false
       this.ls = state; this.lp = this.props; this.lc = this.raw; this.lctx = ctx
       this.view(state, ctx)
+      dbg(this, () => 'View rendered')
       this.reconcile()
     }
     // G-311: after a render that threw (the app's epoch moved), the kids are injected again once
