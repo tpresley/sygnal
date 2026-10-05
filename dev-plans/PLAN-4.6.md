@@ -13,7 +13,7 @@ Streams stay at the edges: intent, drivers, `STATE.stream`/`watch`, `dispose$`. 
 
 **Release:** part of the held 6.0.0 major (D56). Runs **after PLAN-4.5 (tag `plan45-complete`) and before PLAN-5**; PLAN-5 rebases onto `plan46-integration`. No version bumps, tags on main, PR to main or publish.
 
-**Status:** approved 2026-10-04 (D161–D170; §9 answered). Spike 0-S met all four go criteria (§1a). R0 running.
+**Status:** approved 2026-10-04 (D161–D173). R0 merged; R1 running.
 
 **Inputs:**
 
@@ -168,9 +168,8 @@ After each phase: a `/code-review high` of the phase diff (and of each fix pass)
 | Intent subscribed at creation; INITIALIZE synchronous; BOOTSTRAP in a microtask after the first commit (not at 10 ms) | Timing only | Tests with fake timers that advanced 10 ms for BOOTSTRAP (renderComponent's waits hide it). Removes D153's first-render gate and the G-284 fake-timer caveat |
 | Driver/sink values reach drivers in the same order, possibly earlier in the tick (no ancestor hubs) | Timing only | Nothing documented |
 | Every non-STATE sink sees the pre-action state (the documented rule), with no `STATE_SNAPSHOT` bookkeeping | No | — |
-| The §9 API removals (D162–D164) | **Yes** | Migration guide; SYG50x strict codes already flag most |
+| The §9 API removals (D162–D164) | **Yes** | Migration guide; SYG50x strict codes flag most; at runtime a one-time dev error links to the guide (D173) |
 | Context changes re-render only components that read a changed key (D168) | No (fewer renders) | A view relying on re-rendering for a side effect (not supported) |
-| New opt-in `<Switchable lazy>`: a hidden page isn't rendered until first shown; its intent, actions and background statics run from mount (D166) | No (new prop) | — |
 | Id-less Collection items under filter/sort keyed by raw index; duplicate ids warn in dev (D169) | Fix | Apps relying on the latent filtered-index keying |
 
 ## 6. Process
@@ -211,7 +210,7 @@ After each phase: a `/code-review high` of the phase diff (and of each fix pass)
 
 ## 9. Decisions (answered 2026-10-04; D161–D170 in the tracker)
 
-All recommendations below were accepted, with these changes: Q4 context tracking is **in** (D168); Q19 hidden pages render at mount as today, plus an **opt-in `lazy` prop** (D166); Q8 includes `<Collection of="Name">` (D163).
+All recommendations below were accepted, with these changes: Q4 context tracking is **in** (D168); Q19 superseded: hidden pages keep today's render-on-first-show, **no new prop** (D172, replacing D166); Q8 includes `<Collection of="Name">` (D163).
 
 **Plan:**
 

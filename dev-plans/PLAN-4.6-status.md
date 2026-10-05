@@ -6,15 +6,15 @@ Tracks progress for [PLAN-4.6.md](PLAN-4.6.md) (component core rewrite). The coo
 
 **Integration branch:** `plan46-integration`, cut from `plan45-complete` (`d900c522`) on 2026-10-04, with `claude/component-core-rewrite-experiment` (the study) merged (`45eefb2`). Worktree `.claude/worktrees/plan-4-execution-7ae8e8`. The release stays held (D56).
 
-**State:** approved (D161–D170). R0 running.
+**State:** R0 merged. R1 running.
 
 ## Phases
 
 | ID | Phase | Status | Branch | Merge | Notes |
 |---|---|---|---|---|---|
 | 0-S | Spike: prototype + hard features, measure, project size | ✅ merged | `p46-spike` (`3d8af23`) | 2026-10-04 | **Go**: 40/40 tests; mount 1.9–2.2×, Collection 1.6–9× faster; kanban 30.4 KB (proj. 35–37 KB vs 41.3); streams/item 1; race class impossible. Findings → PLAN-4.6 §1a, Q18–Q23 |
-| R0 | Decisions, hooks contract, parity/reentrancy/race tests | 🟡 running | `p46-r0` | | |
-| R1 | Runtime core (both cores selectable) | ⬜ | | | |
+| R0 | Decisions, hooks contract, parity/reentrancy/race tests | ✅ merged | `p46-r0` (`f48a112`) | 2026-10-04 | `src/core/hooks.ts` + 04-hooks-contract (13 consumers mapped); `test/parity/` 74 tests (53 pass + 21 expected-fail on current); 06 inventory (41 port, 17 delete at R5, 9 current-only); G-290 fixed (−2 B); 05 migration draft |
+| R1 | Runtime core (both cores selectable) | 🟡 running | `p46-r1` | | |
 | R2 | Hosts and markers | ⬜ | | | |
 | R3 | Extensions (statics, replies, commands, behaviors) | ⬜ | | | |
 | R4 | Tooling and integrations | ⬜ | | | |
@@ -24,11 +24,14 @@ Tracks progress for [PLAN-4.6.md](PLAN-4.6.md) (component core rewrite). The coo
 
 | ID | Date | Decision | By |
 |---|---|---|---|
+| D173 | 2026-10-04 | A removed form met at runtime (string tag, `'A \| S'` key, `.peers`, positional view, custom source name, `component(`…) reports a one-time dev error with a link to the migration guide (diagnostics bundle; production silent, 0 core bytes) | User |
+| D172 | 2026-10-04 | **Supersedes D166.** D166 was asked on a wrong premise: today's core already defers a hidden Switchable page's render until it is first shown (G-121). 6.0 keeps that, with **no new prop**. The user preferred an opt-in eager prop "unless there's a compelling reason not to"; the reason: first show is DOM-bound (the view call is cheap and a hidden page has no DOM to pre-create), so the prop would add API for almost no gain. Keeping hidden pages' DOM mounted is a different feature, for PLAN-5 or later | User / coordinator |
+| D171 | 2026-10-04 | G-292 (a Switchable `state="x"` page gets an `isolatedState` sibling's local state) is fixed in the new core only; the parity suite pins it. The old core is deleted at R5 and the release is held, so no user runs it | Coordinator |
 | D170 | 2026-10-04 | Q3, Q5, Q15, Q16, Q21, Q22: core below 41,343 B at R5; ≈ $27 Opus regression eval at R5 + ≈ $5 Haiku if agent docs change; keep `isolatedState` and fix its contradictory docs; fix calculated types; statics-before-driver-sends ordering within one action stays undocumented; `STATE.stream` (identity) and `STATE.watch` (deep) comparisons kept exactly | User |
 | D169 | 2026-10-04 | Q23: id-less Collection items under filter/sort keyed by raw index (fixes G-291); duplicate ids warn in dev | User |
 | D168 | 2026-10-04 | Q4: context read-tracking in the first cut (render only components that read a changed key), with a dev-mode check that re-runs a sample of skipped views and reports a differing vnode. Size was not the reason it was deferred; the residual risk (a read after the view returns) can't happen in pure synchronous views | User |
 | D167 | 2026-10-04 | Q20: a child's `initialState` with an undefined slice stays SYG405 + error fallback, as today | User |
-| D166 | 2026-10-04 | Q19: hidden Switchable pages render at mount, as today; new opt-in `<Switchable lazy>` defers a hidden page's first render until it is first shown (intent, actions, background statics run from mount). New public prop | User |
+| D166 | 2026-10-04 | **Superseded by D172.** Q19: hidden Switchable pages render at mount, as today; new opt-in `<Switchable lazy>` defers a hidden page's first render until it is first shown (intent, actions, background statics run from mount). New public prop | User |
 | D165 | 2026-10-04 | Q17, Q18: synchronous STATE reducers; INITIALIZE at construction; BOOTSTRAP a microtask after the first render (not 10 ms); teardown keeps a `Stream.prototype._remove` swap scoped to `dispose()` (0 timers) | User |
 | D164 | 2026-10-04 | Q9–Q14 (savings): drop `'ACTION \| SINK'` keys, positional view args, `.peers`, `hmrActions`, `storeCalculatedInState`, and the undocumented leftovers (single-stream intent, `.label` as a name, Collection `idfield`, string/`true` context entries, `CHILD.select()` without an argument, `__SYGNAL_HMR_*` declarations) | User |
 | D163 | 2026-10-04 | Q8: drop `.components`, string JSX tags, `<Collection of="Name">` (a name looked up in `.components`; `of={Item}` stays) and `CHILD.select('Name')` | User |
@@ -41,10 +44,13 @@ Tracks progress for [PLAN-4.6.md](PLAN-4.6.md) (component core rewrite). The coo
 | ID | Found | Sev | Area | Description | Status |
 |---|---|---|---|---|---|
 | G-290 | 0-S | Med | DOM driver | `SymbolTree.delete` runs `Object.keys(siblings)` per removal: O(n²) on large removals (480 calls × 500 keys in one Switchable switch). Affects the current core too when many siblings go at once | → R1 |
+| G-292 | R0 | Med | Switchable | Current core: a page bound with `state="pageA"` next to a sibling page with `isolatedState` gets the sibling's local state (renders `undefined:undefined`) | New core only (D171); parity-pinned |
+| G-293 | R0 | Low | process | D166 was asked on a wrong premise (the spike described its prototype's Switchable, not today's); verify current behaviour before asking the user about a "change" | Fixed (D172) |
 | G-291 | 0-S | Low | Collection | Id-less items under filter/sort are keyed by filtered/sorted index (likely a latent bug) | → Q23 |
 
 ## Log
 
+- 2026-10-04 — R0 merged (`f48a112`); all gates green (vitest 2,649 + 21 expected-fail; 41,341 B). D166 re-decided as D172 (keep today, no prop); D171, D173. R1 started.
 - 2026-10-04 — §9 answered (D161–D170): go, removals approved, context tracking in, opt-in lazy Switchable pages. R0 started.
 - 2026-10-04 — Spike 0-S merged (`3d8af23`): go. PLAN-4.6 updated (§1a, Q18–Q23). Perf gate green after merge; spike suite 40/40.
 - 2026-10-04 — Study reviewed (`claude/component-core-rewrite-experiment`). `plan46-integration` cut from `plan45-complete` with the study merged. Spike 0-S started; PLAN-4.6 drafted. D160.
