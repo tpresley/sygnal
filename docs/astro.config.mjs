@@ -63,6 +63,7 @@ export default defineConfig({
             { label: 'Controls', slug: 'guide/controls' },
             { label: 'Widgets', slug: 'guide/widgets' },
             { label: 'Web Components', slug: 'guide/web-components' },
+            { label: 'Adapters', slug: 'guide/adapters' },
             { label: 'Accessibility', slug: 'guide/accessibility' },
             { label: 'Drag and Drop', slug: 'guide/drag-and-drop' },
             { label: 'View Transitions', slug: 'guide/view-transitions' },
@@ -82,6 +83,9 @@ export default defineConfig({
             { label: 'Accordion', slug: 'ui/accordion' },
             { label: 'Disclosure', slug: 'ui/disclosure' },
             { label: 'Toaster', slug: 'ui/toaster' },
+            { label: 'Menu', slug: 'ui/menu' },
+            { label: 'Select', slug: 'ui/select' },
+            { label: 'Combobox', slug: 'ui/combobox' },
           ],
         },
         {
