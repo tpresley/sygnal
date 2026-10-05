@@ -99,6 +99,7 @@ export default defineConfig({
             { label: 'Data Table', slug: 'recipes/data-table' },
             { label: 'Data Grid', slug: 'recipes/data-grid' },
             { label: 'Icons', slug: 'recipes/icons' },
+            { label: 'Translations (i18n)', slug: 'recipes/i18n' },
           ],
         },
         {

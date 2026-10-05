@@ -15,14 +15,14 @@ const PAGES = {
   'data-table.md': ['table/peopleTable.js', 'table/People.jsx', 'table/People.test.jsx'],
   'data-grid.md': ['aggrid/Grid.js', 'aggrid/Stock.jsx', 'aggrid/Stock.test.jsx'],
   'icons.md': ['icons/icon.jsx', 'icons/Toolbar.jsx', 'icons/Toolbar.test.jsx'],
-  'i18n.md': ['i18n/i18n.js', 'i18n/App.jsx', 'i18n/Cart.jsx', 'i18n/App.test.jsx'],
+  'i18n.md': ['i18n/i18n.js', 'i18n/App.jsx', 'i18n/Cart.jsx', 'i18n/App.test.jsx', 'i18n/Cart.test.jsx'],
 }
 
 const blocks = (md) => [...md.matchAll(/^```[\w-]*\n([\s\S]*?)^```$/gm)].map((m) => m[1].trimEnd())
 
 for (const [page, files] of Object.entries(PAGES)) {
   const file = path.join(docs, page)
-  test.skipIf(!fs.existsSync(file))(`${page} shows the tested code`, () => {
+  test(`${page} shows the tested code`, () => {
     const shown = blocks(fs.readFileSync(file, 'utf8'))
     for (const f of files) {
       const code = fs.readFileSync(path.join(here, f), 'utf8').trimEnd()
