@@ -40,3 +40,15 @@ Line count: 5 (widgets block, with its heading) + 1 = 6 `llms.txt` lines; 5 with
 Line count: 6 with the heading (5 bullets). It relies on the Behaviors section (`uses`, namespaced actions, host entries run after the behavior's) and the reply-action facts (`ok`/`error`), so it doesn't repeat them.
 
 **SKILL.md** (≈ 150 B, if Phase 4 makes room): "Form with validation → `uses = { form: form(schema, { values, submit }) }`, inputs by `name`, `state.form.fields.x.error` (guide: forms); helpers only when the behavior doesn't fit."
+
+## 2-U: UI parts (U-1, T-1; `sygnal/ui`, D202)
+
+**One `llms.txt` line** (PLAN-5 docs rules, rank 3: guide pages only, reached from one line). It fits after "More (guides)" (line 247 at 0-A):
+
+```md
+- UI parts (`import { dialog, popover, tooltip, tabs, tabsAttrs, accordion, accordionAttrs, disclosure, disclosureAttrs, Toaster } from 'sygnal/ui'`; native HTML, unstyled): behaviors over your own markup in `uses` (`Profile.uses = { profile: dialog({ dialog: '.profile', trigger: '.edit', close: '.cancel' }) }` → `state.profile.open`, `'profile.CLOSED'`; for tabs/accordion/disclosure spread `tabsAttrs(state.tabs, uid).tab('general')` etc. for roles, ids and ARIA), and `<Toaster />` once + `EVENTS: event('TOAST', { text, kind, timeoutMs })` from anywhere (needs `makeTimerDriver()`). Guides: https://sygnal.js.org/ui/overview/ (dialog, popover, tooltip, tabs, accordion, disclosure, toaster)
+```
+
+Line count: 1. The pages aren't shipped in `dist/guide` (copy-guides flattens page names, so `ui/overview` would land as `overview.md`); Phase 4 can add them to `GUIDES` with a rename if agents need them offline.
+
+**SKILL.md:** nothing (39 B left). Candidate (≈ 120 B): "Dialog/popover/tooltip/tabs/accordion/disclosure/toasts → `sygnal/ui` behaviors + `<Toaster />` (guide: ui/overview)."

@@ -70,6 +70,19 @@ export default defineConfig({
           ],
         },
         {
+          label: 'UI Parts',
+          items: [
+            { label: 'Overview', slug: 'ui/overview' },
+            { label: 'Dialog', slug: 'ui/dialog' },
+            { label: 'Popover', slug: 'ui/popover' },
+            { label: 'Tooltip', slug: 'ui/tooltip' },
+            { label: 'Tabs', slug: 'ui/tabs' },
+            { label: 'Accordion', slug: 'ui/accordion' },
+            { label: 'Disclosure', slug: 'ui/disclosure' },
+            { label: 'Toaster', slug: 'ui/toaster' },
+          ],
+        },
+        {
           label: 'Advanced',
           items: [
             { label: 'Error Boundaries', slug: 'advanced/error-boundaries' },
