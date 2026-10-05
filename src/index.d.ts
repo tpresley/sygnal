@@ -3341,7 +3341,8 @@ export interface RenderResult<STATE = any> {
   diagnostics: Diagnostic[];
   /**
    * PLAN-4 GS-2: the element commands the tree's instances sent on `ELEMENT`, one entry per command
-   * (arrays flattened), as sent: `expect(t.commands('ELEMENT')).toEqual([{ focus: Email }])`. The
+   * (arrays flattened), as sent: `expect(t.commands('ELEMENT')).toEqual([{ focus: Email }])`; a
+   * `sygnal/ui` dialog's or popover's command with its selector: `{ showModal: '.profile' }`. The
    * mock DOM records them (and reports SYG640/SYG641); `dom: 'real'` also runs them (jsdom gets
    * `<dialog>` show/showModal/close, the popover methods and a no-op scrollIntoView). Another sink
    * name gives its sinkValues.
