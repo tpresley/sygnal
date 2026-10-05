@@ -111,3 +111,12 @@ Nothing blocks PLAN-4. Two items would help:
 - PLAN-5's features attach through the hooks API (`transformDef`, statics, the marker registry), not instance patching.
 - 6.0 removes the forms in D162–D164: custom source names, the `component({...})` factory (→ `defineComponent`), `.components`/string tags/string `of`/`CHILD.select('Name')`, `'ACTION | SINK'`, positional view args, `.peers`, `hmrActions`, `storeCalculatedInState`. Check PLAN-5's specs for any use (S-1 widgets use controls and the pragma marker, which stay).
 - Budgets are restated at PLAN-4.6's close (projected core ≈ 35–37 KB, vs 41,343 B now).
+
+## PLAN-4.6 closed (2026-10-05)
+
+- PLAN-5 rebases onto `plan46-integration` (tag `plan46-complete`). Read `PLAN-4.6-status.md` (close-out) and `docs/.../guide/migrating-to-6.md` first.
+- The core is `src/core/` (runtime, instance, cell, define, actions, statics, hosts, markers, teardown, debug). Extensions attach through hooks (`src/core/hooks.ts`, `dev-plans/research/core-rewrite/04-hooks-contract.md`): `transformDef` for definition-time behaviour, the generic `__sygnalStatic` path for browser sources (B-3), the marker registry for new special tags, dev layers via `globalThis.__SYGNAL_DIAGNOSTICS__.layers`. No instance patching.
+- Removed forms (D162–D164) must not appear in PLAN-5 specs; widgets use controls and the pragma marker (unchanged). `defineComponent` exists but is not canonical (D184).
+- Budgets: core **904 B** (41,396 / 42,300 B gated); `llms.txt` 24 lines; SKILL.md 39 B.
+- Count gate: patches 1, streams per Collection item 1, unmount-1k timers 2, ScopeCheckers 0, heap ≤ 1.0 MB.
+- Open design question for later: per-row memoization / finer dependency tracking would close the remaining ~3× on select ops.

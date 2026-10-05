@@ -13,7 +13,7 @@ Streams stay at the edges: intent, drivers, `STATE.stream`/`watch`, `dispose$`. 
 
 **Release:** part of the held 6.0.0 major (D56). Runs **after PLAN-4.5 (tag `plan45-complete`) and before PLAN-5**; PLAN-5 rebases onto `plan46-integration`. No version bumps, tags on main, PR to main or publish.
 
-**Status:** approved 2026-10-04 (D161–D176). R0, R1 merged; R2 running.
+**Status:** complete (2026-10-05), tag `plan46-complete`. Tracker close-out in `PLAN-4.6-status.md`. Next: PLAN-5 rebases onto `plan46-integration`.
 
 **Inputs:**
 

@@ -6,7 +6,7 @@ Tracks progress for [PLAN-4.6.md](PLAN-4.6.md) (component core rewrite). The coo
 
 **Integration branch:** `plan46-integration`, cut from `plan45-complete` (`d900c522`) on 2026-10-04, with `claude/component-core-rewrite-experiment` (the study) merged (`45eefb2`). Worktree `.claude/worktrees/plan-4-execution-7ae8e8`. The release stays held (D56).
 
-**State:** all phases merged (R0–R7, P46-P, P46-Q); all gates green. P46-EV in the user's terminal; then close-out.
+**State:** complete (2026-10-05), tag `plan46-complete`. See Close-out.
 
 ## Phases
 
@@ -23,7 +23,7 @@ Tracks progress for [PLAN-4.6.md](PLAN-4.6.md) (component core rewrite). The coo
 | P46-Q | G-348 regression, pragma dedupe (D188), D187 follow-ups | ✅ merged | `p46-q` (`098b68a`) | 2026-10-04 | G-348: testing harness tagged re-emitted (same-output) vnodes stale and held inputs up to 300 ms; fixed in `testing.ts` + test. JSX runtime entries share the core pragma (entries 17 → 1.4 KB; kanban −349 B, not the ≈2 KB expected: gzip had already absorbed most of the copy). `'intent'`/`'context'` AppErrorPhase; SSR multi-child Portal wrapper `div.sygnal-portal` (hydration patches it). Size **41,210 B** (1,090 B headroom). Select ops 1.4–1.6 ms (≈3× React), keystroke ≈1× |
 | R7 | Review of P46-P + P46-Q, then fixes (G-349…G-354) | ✅ merged | `p46-r7` (`272ce03`) | 2026-10-04 | Hook vnodes never reused; pragma caches bounded (tag part / 1,024 routes); jsx-runtime fallback; `sameTree` compares ≤ 1,000 vnodes (worst case back on par); own-props only. vitest 2,706, browser 184; **41,396 B** (904 B headroom) |
 | R6 | Fixes from the R5 review (G-336…G-347), D184 llms line, D185 size gate | ✅ merged | `p46-r6` (`c9e3e56`) | 2026-10-04 | All 12 fixed; pragma corpus restored; `'dispose'` AppErrorPhase (G-267 errors now reported); `resetState` llms line (291 lines); size gate failing again at 42,300 B: **40,766 B** (1,534 B headroom). vitest 2,688, browser 184, sygnal-check 498 |
-| P46-EV | Regression eval (Opus tiers 1–2 + ergo; Haiku tier 1) | ⬜ commands handed to the user | `p46-ev-opus`, `p46-ev-haiku` | | |
+| P46-EV | Regression eval (Opus tiers 1–2 + ergo; Haiku tier 1) | ✅ no regression | `p46-ev-opus`, `p46-ev-haiku` | 2026-10-05 | Opus 80/80, wall 0.93×, failed runs 0.26 → 0.16; Haiku tier 1 37/40 (PLAN-4: 38/40): the 3 failures fail identically on the PLAN-4.5 build (agent errors). All 80 PLAN-4.5 trials pass the hidden tests on the new build |
 
 ## Decisions
 
@@ -129,8 +129,29 @@ Tracks progress for [PLAN-4.6.md](PLAN-4.6.md) (component core rewrite). The coo
 | G-354 | review R7 | Low | pragma | JSX fast path iterates inherited enumerable props | Fixed (R7) |
 | G-291 | 0-S | Low | Collection | Id-less items under filter/sort are keyed by filtered/sorted index (likely a latent bug) | → Q23 |
 
+## Close-out (2026-10-05)
+
+**What changed:** the component core is rewritten. One synchronous per-app store with a run-to-completion queue, state cells, one flush (render → statics → drain until stable → one patch), definitions normalized once, hooks + marker registry. `src/component.ts` and the cycle state/scheduler/isolate chains are deleted (≈ −10.6k lines). The race class behind most of PLAN-4.5's 39 review issues can't occur by construction (no startup timers, gates, holds or hop counting).
+
+**Counts** (hard gate): patches per update 1; streams per Collection item **1** (PLAN-4.5: 22; PLAN-4 start: 151); `setTimeout`s to unmount 1k **2** (79,013 at PLAN-4.5's start); retained ScopeCheckers 0; heap after 5×1k cycles 0.67 MB.
+
+**Timing** (ms, vs `plan45-complete`, React in brackets): mount 1k 38.9 → ~18 [12.5]; Collection create 1k 44.9 → ~23 [15]; replace 56.6 → ~21 [16]; remove row 12.2 → 1.4 [1.4]; create 10k 899 → 238 [297, faster than React]; Collection select 9.25 → ~1.6 [0.5]; single-view select 3.45 → ~1.5 [0.5]; keystroke 2.0 → ~1.0 [0.9]; leaf 30 deep 2.25 → ~1.2 [0.7]. Heap of a 1k-row Collection 17.6 → 6.5 MB.
+
+**Size:** kanban **41,396 B** gated (budget 42,300 B, D185; 904 B headroom for PLAN-5; PLAN-4.5 ended at 41,343 B). The rewrite itself saved ≈ 735 B; the perf spike spent 806 B and the pragma dedupe saved 349 B. `src/core/**` alone ≈ 17.7 KB gz.
+
+**API (6.0, D161–D185):** removed `component({...})` (→ `defineComponent`), custom source names, `.components`/string tags/`of="Name"`/`CHILD.select('Name')`, `'ACTION | SINK'`, positional views, `.peers`, `hmrActions`, `storeCalculatedInState` and undocumented leftovers; migration guide `guide/migrating-to-6`; SYG612 (dev runtime + always-on static) reports removed forms. Added `defineComponent`, `resetState` (D174), dev codes SYG423/424/425/612, `'dispose'`/`'intent'`/`'context'` onError phases. Behaviour: synchronous reducers, INITIALIZE at construction, BOOTSTRAP after the first render (D165); context read-tracking (D168); Collection keys raw-index/duplicate-first (D169/D177); D178; isolatedState keeps parent data (D174).
+
+**Eval (P46-EV):** no regression. Opus tiers 1–2 + ergo 80/80, wall 0.93× vs PLAN-4.5, cost flat, failed test runs down. Haiku tier 1 37/40 vs 38/40: all three failures are agent errors (they fail identically on the PLAN-4.5 build). Cross-check: all 80 PLAN-4.5 trials pass their hidden tests on the new build.
+
+**Reviews:** every phase and every fix pass reviewed (8 reviews, G-294…G-354, 61 findings: all fixed, documented or decided). One process slip (G-293: a decision asked on an unverified premise) → re-decided (D172) and a memory note.
+
+**Remaining budgets for PLAN-5:** core 904 B; `llms.txt` 24 lines (291/315); SKILL.md 39 B.
+
+**Left for later:** select ops are ~3× React (per-row memo / dependency tracking is a design question); a single-child SSR Portal hydrates by replacement (D188); G-284-style raw `run()` fake-timer notes are obsolete (no startup timers).
+
 ## Log
 
+- 2026-10-05 — P46-EV: no regression (Opus 80/80; Haiku 37/40, failures are agent errors; 80/80 cross-check). **PLAN-4.6 closed; tagged `plan46-complete`.** Next: PLAN-5 rebases onto `plan46-integration`.
 - 2026-10-04 — R7 fixes merged (`272ce03`); all gates green (41,396 B). Eval commands handed to the user; no merges into this worktree until the eval finishes.
 - 2026-10-04 — Review R7: 6 findings (G-349…G-354; one small regression from P46-P). Fix pass started.
 - 2026-10-04 — P46-Q merged (`098b68a`); all gates green, 41,210 B. Review R7 of P46-P + P46-Q started; eval after it.
