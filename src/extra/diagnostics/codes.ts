@@ -163,6 +163,12 @@ export const CODE_TITLES: Record<string, string> = {
   SYG142: 'Widget command not declared',
   SYG143: 'Widget tag used as a selector',
   SYG144: 'Widget event the host element also fires natively',
+  // PLAN-5 V-1: VirtualCollection (checks/virtual.ts)
+  SYG430: 'VirtualCollection has no bounded height',
+  SYG431: 'VirtualCollection items without ids',
+  SYG432: 'VirtualCollection item does not render one element',
+  SYG433: 'VirtualCollection scroll target not in the list',
+  SYG434: 'Invalid VirtualCollection estimateSize or overscan',
   // SYG2xx state & reducers (1A)
   SYG201: 'STATE reducer dropped keys from the previous state',
   SYG202: 'STATE reducer returned undefined',
@@ -383,6 +389,12 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG660: 'error',
   SYG661: 'error',
   SYG662: 'error',
+  // PLAN-5 V-1: VirtualCollection (checks/virtual.ts, through the core bridge)
+  SYG430: 'warn',
+  SYG431: 'warn',
+  SYG432: 'warn',
+  SYG433: 'warn',
+  SYG434: 'warn',
   // PLAN-4 GS-3: a11y lane, static only (sygnal-check; warn, also under --strict; error with --a11y=error, D144); listed so the entry knows its title
   SYG701: 'warn',
   SYG702: 'warn',

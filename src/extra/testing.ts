@@ -1395,7 +1395,7 @@ export function renderComponent(
   // PLAN-5 W-1 (F-c): the widget whose host a target matches among the sender's own elements
   // (1-R G-369: scoped as probe() is; its commands run for a selector target too, D196); an
   // undeclared one is SYG142, as on the real DOM
-  const widgetOf = (target: any, c: any): any => {
+  const widgetOf = (target: any, c: any, k = 'ww'): any => {
     if (typeof target == 'function' && !target.__sygnalControl) return;
     const sel = tryParse(norm(String(selOf(target) ?? '')));
     const scope = scopeOf(c) || undefined;
@@ -1404,15 +1404,18 @@ export function renderComponent(
       for (const v of ch) s = scopeOfV(v) || s;
       return s == scope;
     });
-    return ch && ch[ch.length - 1]?.data?.ww;
+    return ch && ch[ch.length - 1]?.data?.[k];
   };
+  const findVc = (target: any, c: any) => widgetOf(target, c, 'vc');
   const checkCommand = (c: any, cmd: any) => {
     if (typeof cmd != 'object' || Array.isArray(cmd)) return;
     const m = Object.keys(cmd)[0], target = cmd[m];
     if (m === undefined) return;
     const w = target?.spec?.commands ? undefined : widgetOf(target, c);
+    // PLAN-5 V-1: scrollToIndex / scrollToId are methods of a VirtualCollection's container
+    const vc = m.startsWith('scrollTo') && findVc(target, c)?.commands[m];
     // G-369: a control wrapping a widget has its widget's host tag
-    if (w ? !w.commands[m] && !elementHas(0, m, w.def.tag || 'div') : !target?.spec?.commands?.[m] && !elementHas(target, m, target?.spec?.def?.tag)) {
+    if (!vc && (w ? !w.commands[m] && !elementHas(0, m, w.def.tag || 'div') : !target?.spec?.commands?.[m] && !elementHas(target, m, target?.spec?.def?.tag))) {
       return reportElementCommand(c, cmd, w ? {tagName: w.def.tag || 'div', __sw: {w}} : {});
     }
     // D194: focusWithin(selector) looks under the sender's root, children included
