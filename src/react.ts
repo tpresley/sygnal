@@ -14,8 +14,9 @@
  *   its own name (`['onChange']` → 'onChange'; React's names never collide with native events).
  *   The detail is the callback's argument (an array when it gets more than one). The component
  *   gets a callback for each, and a callback passed as a prop runs first.
- * - Props: all but `className`, `class`, `id`, `style` and `attrs` (those are the host's); `props`
- *   maps them instead: `props: (p) => ({ ...p, size: 'small' })`.
+ * - Props: all but the host's: `className`, `class`, `id`, `style`, `attrs`, and (G-413) `tabIndex`,
+ *   `role`, `aria-*`, `title`, `hidden`; `ownProps: ['aria-label']` sends one to the component
+ *   only. `props` maps them: `props: (p) => ({ ...p, size: 'small' })`.
  * - Unmount: `root.unmount()` in a microtask (React refuses a synchronous unmount while it is
  *   rendering, which a callback → action → re-render chain can be in), and only once the host
  *   has left the document (G-412: inside a <Transition>, the content stays during the leave).
@@ -32,7 +33,9 @@ import {flushSync} from 'react-dom'
 import {createRoot} from 'react-dom/client'
 import {defineWidget} from './index'
 
-const HOST = /^(className|class|id|style|attrs)$/
+// the host's props (the component doesn't get them): G-413, tabIndex / role / aria-* / title /
+// hidden too, so a focusable or labelled host isn't doubled inside (two tab stops, two roles)
+const HOST = /^(className|class|id|style|attrs|tab[iI]ndex|role|title|hidden)$|^aria-/
 
 const fail = (m: string): never => {
   throw new Error(`[Sygnal SYG667] ${m}. https://sygnal.js.org/reference/errors#syg667`)
@@ -42,7 +45,7 @@ const fail = (m: string): never => {
 // (a <Transition> leave animation): its React content stays until the element is removed.
 const gone = (el: any, f: () => void) => {
   if (!el.isConnected) return f()
-  const o = new MutationObserver(() => { if (!el.isConnected) o.disconnect(), f() })
+  const o: MutationObserver = new MutationObserver(() => { if (!el.isConnected) o.disconnect(), f() })
   o.observe(el.ownerDocument, {childList: true, subtree: true})
 }
 
@@ -59,7 +62,7 @@ export function fromReact(Comp: any, options: any = {}): any {
   const events: Record<string, string> = Array.isArray(ev) ? Object.fromEntries(ev.map((c: string) => [c, c])) : ev
   const draw = (i: any, p: any) => {
     const q: any = {}
-    for (const k in p) if (!HOST.test(k)) q[k] = p[k]
+    for (const k in p) if (!HOST.test(k) || o.ownProps?.includes(k)) q[k] = p[k]
     const rp = o.props ? o.props(q) : q
     for (const name in events) {
       const cb = events[name], own = rp[cb]
@@ -76,6 +79,7 @@ export function fromReact(Comp: any, options: any = {}): any {
     name: o.name || Comp.displayName || Comp.name,
     fallback: o.fallback,
     hostProps: o.hostProps,
+    ownProps: o.ownProps,
     events: Object.keys(events),
     commands: o.commands,
     mount: (el: any, p: any, d: any) => {

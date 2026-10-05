@@ -62,6 +62,7 @@ Search.model = {
 | Prop | | |
 |---|---|---|
 | `label` | | The visible label, linked to the input (its accessible name). Give every combobox one |
+| `aria-label`, `aria-labelledby`, `aria-describedby` | | Name or describe the input when there is no visible `label` (or in addition to it); they go on the input, not the host |
 | `items` | (required) | Strings, or `{ value, label, disabled }` objects |
 | `value` | | Controlled: the value (an array with `multiple`); `null` for none |
 | `defaultValue` | | The start value when `value` is left out |

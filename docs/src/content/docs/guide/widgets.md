@@ -61,6 +61,7 @@ Task.model = {
 | `commands` | Element commands, called with the instance: `open: (picker, options) => picker.open()`. |
 | `fallback` | What [server rendering](#server-rendering) puts inside the host. |
 | `hostProps` | More prop names to put on the host element. |
+| `ownProps` | Prop names that stay off the host although they would go there (the widget applies them itself, e.g. `aria-label` on its own control). |
 | `name` | A name for diagnostics (`'DatePicker'`). |
 
 **The host is the widget's.** Sygnal renders the host element and never its content: the widget can add, move and remove elements inside it, and a re-render doesn't touch them. Children passed to the tag are ignored.

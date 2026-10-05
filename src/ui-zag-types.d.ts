@@ -7,7 +7,14 @@ export type UiItem = string | number | { value: string | number; label?: string;
 export type UiPositioning = Record<string, any>
 
 
-export interface ListboxProps {
+/** G-413: naming props; they go on the part's control (trigger / input), not the host */
+export interface UiNaming {
+  'aria-label'?: string
+  'aria-labelledby'?: string
+  'aria-describedby'?: string
+}
+
+export interface ListboxProps extends UiNaming {
   /** The visible label (the control's accessible name) */
   label?: any
   items: UiItem[]

@@ -2,10 +2,10 @@
 // Needs @zag-js/vanilla and @zag-js/menu (optional peer dependencies, ~1.45.0).
 import type { Widget } from 'sygnal'
 import type { ZagInstance } from 'sygnal/zag'
-import type { UiItem, UiPositioning } from './ui-zag-types'
-export type { UiItem, UiPositioning } from './ui-zag-types'
+import type { UiItem, UiPositioning, UiNaming } from './ui-zag-types'
+export type { UiItem, UiPositioning, UiNaming } from './ui-zag-types'
 
-export interface MenuProps {
+export interface MenuProps extends UiNaming {
   /** The trigger button's text (its accessible name) */
   label: any
   /** The items; `{ separator: true }` renders a separator */

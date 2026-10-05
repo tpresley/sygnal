@@ -20,10 +20,10 @@
 import * as menu from '@zag-js/menu'
 import {fromZag} from '../../zag'
 import {createElement as h} from '../../index'
-import {norm} from './shared'
+import {NAMING, named, norm} from './shared'
 
 export const Menu: any = /*#__PURE__*/ fromZag(menu, (api: any, p: any) => [
-  h('button', api.getTriggerProps(), p.label),
+  h('button', named(api.getTriggerProps(), {...p, label: 1}, 1), p.label),
   h('div', api.getPositionerProps(),
     h('div', api.getContentProps(),
       norm(p.items).map((i: any) => (i.separator
@@ -31,7 +31,8 @@ export const Menu: any = /*#__PURE__*/ fromZag(menu, (api: any, p: any) => [
         : h('div', {key: i.value, ...api.getItemProps({value: i.value, disabled: !!i.disabled})}, i.label))))),
 ], {
   name: 'Menu',
-  props: ({items, label, ...p}: any) => p,
+  ownProps: NAMING,
+  props: ({items, label, 'aria-label': _l, 'aria-labelledby': _b, 'aria-describedby': _d, ...p}: any) => p,
   events: {select: ['onSelect', (d: any) => d.value], 'open-change': ['onOpenChange', (d: any) => d.open]},
   commands: {open: (api: any) => api.setOpen(true), close: (api: any) => api.setOpen(false)},
   fallback: (p: any, hh: any) => hh('button', {type: 'button', 'aria-haspopup': 'menu', 'aria-expanded': false}, p.label),

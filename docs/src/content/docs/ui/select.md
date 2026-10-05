@@ -43,6 +43,7 @@ Install Zag's packages first: `npm install @zag-js/vanilla@~1.45.0 @zag-js/selec
 | Prop | | |
 |---|---|---|
 | `label` | | The visible label, linked to the trigger (its accessible name). Give every select one |
+| `aria-label`, `aria-labelledby`, `aria-describedby` | | Name or describe the trigger when there is no visible `label` (or in addition to it); they go on the trigger, not the host |
 | `items` | (required) | Strings, or `{ value, label, disabled }` objects. Values are strings |
 | `value` | | Controlled: the value (an array with `multiple`); `null` for none |
 | `defaultValue` | | The start value when `value` is left out |

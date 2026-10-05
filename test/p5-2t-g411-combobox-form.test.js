@@ -29,6 +29,8 @@ it('single and multiple: FormData has the values; the visible input has no name'
   await settle(60)
   expect(t.query('.c [data-part=input]').hasAttribute('name')).toBe(false)
   expect(t.query('.c [data-part=input]').value).toBe('New York')
+  // G-413: name stays off the host too (ownProps)
+  expect(t.query('.c').hasAttribute('name')).toBe(false)
   expect([...new FormData(t.query('.f'))]).toEqual([['city', 'nyc'], ['cities', 'nyc'], ['cities', 'par'], ['none', '']])
 })
 

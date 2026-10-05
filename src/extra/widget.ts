@@ -48,6 +48,8 @@
  *   `close`) is found by the core through `__sw` and wins over the native one, with the
  *   options object (D196, D200).
  * - A widget tag is not a selector: `DOM.select(DatePicker)` matches nothing (SYG143 in dev).
+ * - G-413: `ownProps` names props that stay off the host although they'd go there (a part that
+ *   puts `aria-label` on its own control).
  * - G-409: mount's fourth parameter `error(e)` reports a later failure the widget caught itself
  *   (fromZag's machine-driven redraws): handled as a throwing `update` (SYG661 + fallback).
  * - A `mount`/`update` that throws (SYG660/661): reported to the app's onError with phase
@@ -133,7 +135,7 @@ const hooks: any = {
 /** the host vnode for a widget marker (client: the hooks, the owner and the key k; SSR adds the fallback) */
 function host(n: any, o?: any, k?: any): any {
   const {ww: w, wp: p, h, attrs, r} = n.data, def = w.def, hp: any = {ref: r}
-  for (const x in p) if (HOST.test(x) || def.hostProps?.includes(x)) hp[x] = p[x]
+  for (const x in p) if ((HOST.test(x) || def.hostProps?.includes(x)) && !def.ownProps?.includes(x)) hp[x] = p[x]
   if (hp.className) hp.class = [hp.class, hp.className], delete hp.className
   const v = h(def.tag || 'div', hp), d = v.data
   if (attrs) d.attrs = {...d.attrs, ...attrs}

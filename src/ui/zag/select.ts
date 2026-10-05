@@ -22,25 +22,27 @@
 import * as select from '@zag-js/select'
 import {fromZag} from '../../zag'
 import {createElement as h} from '../../index'
-import {arr, collectionOf, norm, options, valueOut} from './shared'
+import {NAMING, arr, collectionOf, named, norm, options, valueOut} from './shared'
 
 export const Select: any = /*#__PURE__*/ fromZag(select, (api: any, p: any, x: any) => {
   const hidden = api.getHiddenSelectProps(), v = api.value
   // multiple: the options' selected props carry the value (a select's value prop is one string)
   if (x.multiple) delete hidden.props.value
+  if (p.label == null) delete hidden.attrs['aria-labelledby']
   return h('div', api.getRootProps(),
     p.label != null && h('label', api.getLabelProps(), p.label),
     h('div', api.getControlProps(),
-      h('button', api.getTriggerProps(),
+      h('button', named(api.getTriggerProps(), p, 1),
         h('span', api.getValueTextProps(), api.valueAsString || p.placeholder || ''),
         h('span', api.getIndicatorProps(), '▾'))),
-    h('div', api.getPositionerProps(), h('div', api.getContentProps(), options(h, api))),
+    h('div', api.getPositionerProps(), h('div', named(api.getContentProps(), p), options(h, api))),
     h('select', hidden,
       h('option', {value: ''}),
       x.items.map((i: any) => h('option', {key: i.value, value: i.value, selected: v.includes(i.value)}, i.label))))
 }, {
   name: 'Select',
-  props: ({items, label, placeholder, value, defaultValue, ...p}: any, x: any) => {
+  ownProps: [...NAMING, 'name'],
+  props: ({items, label, placeholder, value, defaultValue, 'aria-label': _l, 'aria-labelledby': _b, 'aria-describedby': _d, ...p}: any, x: any) => {
     x.items = norm(items)
     x.multiple = !!p.multiple
     return {...p, collection: collectionOf(select, x.items), value: arr(value), defaultValue: arr(defaultValue)}

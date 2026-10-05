@@ -29,7 +29,7 @@
 import * as combobox from '@zag-js/combobox'
 import {fromZag} from '../../zag'
 import {createElement as h} from '../../index'
-import {arr, collectionOf, norm, options, valueOut} from './shared'
+import {NAMING, arr, collectionOf, named, norm, options, valueOut} from './shared'
 
 const shown = (all: any[], f: any, q: string) => {
   if (f === false || !q) return all
@@ -49,7 +49,7 @@ const hidden = (api: any, p: any, x: any) => {
 }
 
 export const Combobox: any = /*#__PURE__*/ fromZag(combobox, (api: any, p: any, x: any) => {
-  const input = api.getInputProps()
+  const input = named(api.getInputProps(), p, 1)
   delete input.attrs.name
   delete input.attrs.form
   return h('div', api.getRootProps(),
@@ -57,11 +57,12 @@ export const Combobox: any = /*#__PURE__*/ fromZag(combobox, (api: any, p: any, 
     h('div', api.getControlProps(),
       h('input', {...input, placeholder: p.placeholder}),
       h('button', api.getTriggerProps(), '▾')),
-    h('div', api.getPositionerProps(), h('div', api.getContentProps(), options(h, api))),
+    h('div', api.getPositionerProps(), h('div', named(api.getContentProps(), p), options(h, api))),
     hidden(api, p, x))
 }, {
   name: 'Combobox',
-  props: ({items, label, placeholder, value, defaultValue, filter, ...p}: any, x: any) => {
+  ownProps: [...NAMING, 'name'],
+  props: ({items, label, placeholder, value, defaultValue, filter, 'aria-label': _l, 'aria-labelledby': _b, 'aria-describedby': _d, ...p}: any, x: any) => {
     x.multiple = !!p.multiple
     return {
       ...p,

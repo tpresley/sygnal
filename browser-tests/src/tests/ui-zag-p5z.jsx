@@ -268,6 +268,27 @@ export async function uiZagTestsP5Z() {
     } finally { app.dispose() }
   })
 
+  // PLAN-5 2-T (G-413): names from aria-label / aria-labelledby props reach the control
+  await runTest('G-413: aria-label / aria-labelledby props name the Combobox input and the Select trigger', async () => {
+    function Named() {
+      return (
+        <div>
+          <h3 id="p5t-dest">Destination</h3>
+          <p id="p5t-hint">Where you go</p>
+          <Combobox className="city" aria-label="Town" aria-describedby="p5t-hint" items={['Paris', 'Prague']} />
+          <Select className="size" aria-labelledby="p5t-dest" items={['S', 'M']} />
+        </div>
+      )
+    }
+    const { id, app, $ } = await mount(Named)
+    try {
+      assert(await role(id, { role: 'combobox', name: 'Town' }) === 1, 'no combobox named "Town"')
+      assert(await role(id, { role: 'combobox', name: 'Destination' }) === 1, 'no combobox named "Destination"')
+      assert(!$('.city').hasAttribute('aria-label') && !$('.size').hasAttribute('aria-labelledby'), 'naming props left on the host')
+      assert($('.city input').getAttribute('aria-describedby') === 'p5t-hint', 'no description on the input')
+    } finally { app.dispose() }
+  })
+
   // ── React adapter ────────────────────────────────────────────────────
   await runTest('fromReact: a React component inside Sygnal (real clicks, props in, events out, unmount)', async () => {
     const { id, app, $ } = await mount(Review)

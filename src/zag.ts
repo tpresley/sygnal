@@ -96,7 +96,7 @@ let ids = 0
 // snabbdom's destroy pass over a rendered tree, without removing it from the DOM (G-412)
 const release = (v: any) => {
   const d = v?.data
-  if (d) { d.hook?.destroy?.(v); eventListenersModule.destroy!(v, undefined as any) }
+  if (d) { d.hook?.destroy?.(v); (eventListenersModule.destroy as any)(v) }
   v?.children?.forEach(release)
 }
 
@@ -197,7 +197,7 @@ function start(zag: any, render: any, o: any, el: any, p0: any, dispatch: any, e
  * renders its parts with the prop getters spread (`<button {...api.getTriggerProps()}>`).
  * Options: `events` (dispatched name → Zag callback, or [callback, details → detail]), `props`
  * ((widgetProps, x) → machine props), `commands` ((api, options, x) → …), and defineWidget's
- * `tag`, `name`, `fallback`, `hostProps`.
+ * `tag`, `name`, `fallback`, `hostProps`, `ownProps`.
  */
 export function fromZag(zag: any, render: any, options: any = {}): any {
   if (!zag || !zag.machine || typeof zag.connect != 'function') fail('fromZag(zag, render): the first argument is not a Zag machine package (import * as menu from \'@zag-js/menu\')')
@@ -210,6 +210,7 @@ export function fromZag(zag: any, render: any, options: any = {}): any {
     name: o.name,
     fallback: o.fallback,
     hostProps: o.hostProps,
+    ownProps: o.ownProps,
     events: Object.keys(o.events || {}),
     commands,
     mount: (el: any, p: any, dispatch: any, error: any) => start(zag, render, o, el, p, dispatch, error, () => tag),

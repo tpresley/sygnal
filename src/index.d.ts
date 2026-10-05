@@ -613,6 +613,8 @@ export interface WidgetDefinition<P = {}, I = unknown, EV extends string = strin
   fallback?: VNode | string | ((props: P, h: ControlH) => VNode | string);
   /** More prop names to put on the host element as well */
   hostProps?: readonly string[];
+  /** Prop names that stay off the host (the widget applies them itself, e.g. `aria-label` on its own control) */
+  ownProps?: readonly string[];
 }
 
 /**

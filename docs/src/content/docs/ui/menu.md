@@ -53,6 +53,7 @@ Without them, `sygnal/vite` stops with [SYG666](/reference/errors/#syg666), whic
 | Prop | | |
 |---|---|---|
 | `label` | (required) | The trigger's text: its accessible name |
+| `aria-label`, `aria-labelledby`, `aria-describedby` | | Name or describe the trigger when there is no visible `label` (or in addition to it); they go on the trigger, not the host |
 | `items` | (required) | Strings, or `{ value, label, disabled }` objects; `{ separator: true }` draws a separator |
 | `open` | | Controlled open state; follow the `open-change` event |
 | `defaultOpen` | `false` | |

@@ -49,6 +49,8 @@ export interface FromZagOptions<P = any> {
   fallback?: WidgetDefinition['fallback']
   /** More prop names for the host element */
   hostProps?: string[]
+  /** Prop names that stay off the host (the render applies them, e.g. `aria-label` on the trigger) */
+  ownProps?: string[]
 }
 
 /**

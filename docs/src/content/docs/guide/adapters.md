@@ -53,14 +53,14 @@ Review.model = {
 }
 ```
 
-The tag renders a host `<div class="rating">` and a React root inside it. Every render passes the newest props to the component (`value`, `max`); `className`, `class`, `id`, `style` and `attrs` stay on the host. When the component calls `onChange(4)`, the adapter dispatches a `rate` event on the host with `4` as its detail. When the host leaves the page, the React root unmounts.
+The tag renders a host `<div class="rating">` and a React root inside it. Every render passes the newest props to the component (`value`, `max`); `className`, `class`, `id`, `style`, `attrs`, `tabIndex`, `role`, `title`, `hidden` and `aria-*` stay on the host and don't reach the component (a focusable or labelled host isn't doubled inside it: no second tab stop or role); list one in `ownProps` to send it to the component instead. When the component calls `onChange(4)`, the adapter dispatches a `rate` event on the host with `4` as its detail. When the host leaves the page, the React root unmounts.
 
 | Option | |
 |---|---|
 | `events` | `{ eventName: 'onCallback' }`: each callback prop becomes a DOM event with that name. An array (`['onChange']`) uses the callback's own name as the event name. The detail is the callback's argument, or an array of them when it gets several. A callback you pass as a prop still runs, first |
 | `props` | `(props) => componentProps`, when the component's props differ from the tag's |
 | `commands` | Element commands, called with `{ root, el, props }` |
-| `tag`, `name`, `fallback`, `hostProps` | As in [`defineWidget`](/guide/widgets/#the-definition) |
+| `tag`, `name`, `fallback`, `hostProps`, `ownProps` | As in [`defineWidget`](/guide/widgets/#the-definition) |
 
 Prefer event names of your own (`'rate'`) to the browser's (`'change'`): the component's own `<input>`s fire native `change` events that bubble out of the host too.
 

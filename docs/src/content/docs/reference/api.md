@@ -822,6 +822,7 @@ const DatePicker = defineWidget({
 | `commands` | Element commands, `(instance, options, el) => …`; they win over native methods of the same name (`close` and `togglePopover` get the options object too) |
 | `fallback` | What [server rendering](/guide/widgets/#server-rendering) puts inside the host: a vnode, a string, or `(props, h) => vnode` |
 | `hostProps` | More prop names to put on the host (besides `id`, `className`, `style`, `title`, `name`, `placeholder`, `role`, `tabindex`, `hidden`, `lang`, `dir`, `attrs`, `aria-*`, `data-*`) |
+| `ownProps` | Prop names that stay off the host (the widget applies them itself) |
 | `name` | A name for diagnostics |
 
 A `ref` on the tag gets the host element; `key` and `ref` are not passed to the widget. A `mount`/`update` that throws is reported to `onError` with the phase `'widget'` and the owning component's `onError` fallback renders in that widget's place ([SYG660–662](/reference/errors/#syg660)). Types: `Widget<P, I, EV, TAG>`, `WidgetDefinition`, `WidgetHostProps`, `WidgetDispatch`.
