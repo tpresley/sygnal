@@ -74,3 +74,15 @@ Line count: 1. It names what agents get wrong with virtual lists (a bounded heig
 Line count: 1. The pages aren't shipped in `dist/guide` (copy-guides flattens page names, so `ui/overview` would land as `overview.md`); Phase 4 can add them to `GUIDES` with a rename if agents need them offline.
 
 **SKILL.md:** nothing (39 B left). Candidate (≈ 120 B): "Dialog/popover/tooltip/tabs/accordion/disclosure/toasts → `sygnal/ui` behaviors + `<Toaster />` (guide: ui/overview)."
+
+## 2-Z: adapters and Zag parts (W-2, U-1; `sygnal/zag`, `sygnal/ui/zag`, `sygnal/react`, D202/D203)
+
+**One `llms.txt` line** (rank 3: guide pages reached from one pointer; after the 2-U line):
+
+```md
+- Menu / Select / Combobox (`import { Menu, Select, Combobox } from 'sygnal/ui/zag'`; needs `@zag-js/vanilla @zag-js/menu @zag-js/select @zag-js/combobox` ~1.45): widget tags, `<Select className="size" label="Size" items={['S', 'M']} value={state.size} />` + `SIZE: DOM.select('.size').events('value-change').detail()` (Menu: `'select'`; Combobox also `'input-change'`), commands `{ open: '.size' }`. Escape hatch for one React/Preact component or a Zag machine: `fromReact(Comp, { events: { rate: 'onChange' } })` (`sygnal/react`) / `fromZag(machine, render, { events })` (`sygnal/zag`) return widget tags; test them with `dom: 'real'`. Guides: https://sygnal.js.org/ui/menu/ (select, combobox), https://sygnal.js.org/guide/adapters/
+```
+
+Line count: 1. It names what agents would get wrong: the separate subpath (not `sygnal/ui`), the kebab event names (`value-change`, not `change`), `label` as the accessible name, and that the adapters are opt-in.
+
+**SKILL.md** (≈ 130 B, if Phase 4 makes room): "Menu/Select/Combobox → `sygnal/ui/zag` widget tags (events `select` / `value-change`); React or Zag component → `fromReact` / `fromZag` (guide: adapters)."
