@@ -40,9 +40,10 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 
 | ID | Work | Status | Branch | Merge | Notes |
 |---|---|---|---|---|---|
-| 0-A | Interfaces on the new core, E1–E6 re-run, ROADMAP | 🟡 running | `exp/p5-0a` | | |
+| 0-A | Interfaces on the new core, E1–E6 re-run, ROADMAP | ✅ merged | `exp/p5-0a` (`c063cf4`) | 2026-10-05 | All 5 PLAN-4 interfaces hold (15 tests, `test/p5-0a-interfaces.test.js`); E1–E6 pass unchanged; ROADMAP §18; `research/p5-0a-baseline.md` (D189 plug-in point: render hook + `widget` marker, registered on first `defineWidget`). Only Chromium launches with Playwright 1.58.2 → D191. Eval estimate ≈ $70 (tasks 30–34 both arms Opus+Haiku, F-1 A/B), ≈ $100 more for a full learn-time re-run |
+| 0-B | Playwright bump to the cached Firefox/WebKit builds (D191) | 🟡 running | `p5-0b-playwright` | | |
 | 0-S1 | Widget as a tag + control kind (D189) | 🟡 running | `exp/p5-s1` | | |
-| 0-S2 | Forms: behavior vs helpers | 🟡 running | `exp/p5-s2` | | |
+| 0-S2 | Forms: behavior vs helpers | ✅ done (spike, not merged) | `exp/p5-s2` (`b088427`) | 2026-10-05 | Both shapes on one signup+address form, 31 tests, 0 B core, 0 strict/a11y findings. **A (`form` behavior via `uses`)**: 57 user lines (18 wiring), name delegation on the `<form>` (array rows by id), queued submit, async schema/check, server errors + focus; ≈ 3.1 KB used. **B (helpers)**: 89 lines (50 wiring), ≈ 0.6 KB. Recommends A as the A/B lead (trim to ≤ 2.4 KB). Open questions → Phase-1 batch (P5-Q11…) |
 | 0-S3 | Native Dialog, Popover, Tooltip (3 engines) | 🟡 running | `exp/p5-s3` | | |
 | 0-S4 | Toast top layer | ⬜ | | | |
 | 0-S5 | `sortable` behavior | ⬜ | | | |
@@ -52,6 +53,8 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 
 | ID | Date | Decision | By |
 |---|---|---|---|
+| D191 | 2026-10-05 | Firefox/WebKit for PLAN-5 browser tests: bump `browser-tests` (and `benchmarks`) Playwright to the version matching the cached builds (no browser download) | User |
+| D190 | 2026-10-05 | W-1 design from 0-A: the widget tag carries the control render hook and returns a `widget` marker handled by a `pres.widget` registry entry during the owner's reconcile (gives the owner for `'widget'` errors), registered inside the first `defineWidget` call (not on import); declared commands installed as host own-methods (0 B core), with names colliding with specially-handled native methods (`close`, `togglePopover`) rejected; `DOM.select(WidgetTag)` is not canonical (dev warning unless free to support) | Coordinator |
 | D189 | 2026-10-05 | P5-Q10 (widgets vs D141): `defineWidget` returns a **tag** rendered and selected canonically (`<DatePicker className="due" value={…} />`, `DOM.select('.due').events('change').detail()`, ELEMENT commands resolved through the host element), and the same spec also works as a control (`controls({ Due: datePicker })`, alternative form). Docs and agent docs show the tag + selector form. Implemented through the PLAN-4.6 marker registry (0 B when unused). Supersedes D101's "widget is a kind of control" as the only form | User |
 
 ## Gaps
@@ -61,5 +64,6 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 
 ## Log
 
+- 2026-10-05 — 0-A merged (interfaces hold; E1–E6 pass). D190, D191 (user: Playwright bump). 0-S2 done (forms A/B). 0-B started.
 - 2026-10-05 — D189 (P5-Q10). 0-A, 0-S1, 0-S2, 0-S3 started.
 - 2026-10-05 — `plan5-integration` cut from `plan46-complete`. Tracker created; budgets and code reservations recorded. 0-A started.
