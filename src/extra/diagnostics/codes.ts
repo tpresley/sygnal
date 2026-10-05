@@ -176,6 +176,8 @@ export const CODE_TITLES: Record<string, string> = {
   SYG432: 'VirtualCollection item does not render one element',
   SYG433: 'VirtualCollection scroll target not in the list',
   SYG434: 'Invalid VirtualCollection estimateSize or overscan',
+  // PLAN-5 3-H (G-449): sortable over a list shown in another order (checks/sortable.ts)
+  SYG435: 'Sortable list shown filtered or in another order',
   // SYG2xx state & reducers (1A)
   SYG201: 'STATE reducer dropped keys from the previous state',
   SYG202: 'STATE reducer returned undefined',
@@ -438,6 +440,8 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG432: 'warn',
   SYG433: 'warn',
   SYG434: 'warn',
+  // PLAN-5 3-H (G-449): sortable (checks/sortable.ts)
+  SYG435: 'warn',
   // PLAN-4 GS-3: a11y lane, static only (sygnal-check; warn, also under --strict; error with --a11y=error, D144); listed so the entry knows its title
   SYG701: 'warn',
   SYG702: 'warn',

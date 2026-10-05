@@ -19,10 +19,13 @@
  *             container; keyboard: unused)
  *   mode      'pointer' | 'keyboard' | null
  *   message   the text for an ARIA live region (lift / move / drop / cancel)
- *   helpId    a uid() id for the instructions element the handles' aria-describedby names
- *             (set when the host starts: unique per host instance, stable across SSR)
+ *   helpId    a uid() id for the instructions element the handles' aria-describedby names:
+ *             unique per host instance, null until the first focus, press or key inside the
+ *             host (G-448: nothing is written at startup). The server renders none, nor does
+ *             the client's first render, so hydration matches (G-453); a focused handle has it
  *   press, origin: internal (the pointer press before the threshold; where the item started)
- * Actions: sort.PRESS, MOVE, UP, CANCEL (pointer), KEY (keyboard), INIT (the start), and
+ * Actions: sort.PRESS, MOVE, UP, CANCEL (pointer), KEY (keyboard), INIT (the start), HELP, END
+ * (unmounted: a drag in progress is cancelled, a keyboard-moved item goes back), and
  * sort.DROPPED ({ id, list, index, fromList, fromIndex }) once per completed move: the host adds
  * an entry for it to save the order.
  *
@@ -31,30 +34,33 @@
  *
  * Collection items are isolated, so the behavior listens on the host's ROOT (`DOM.events`), which
  * hears the events that bubble out of the items (G-145), and reads the item from
- * `target.closest(item)` and its id from `attr`. Pointer moves, the release, Escape and
- * `selectstart` (no text selection while pressed) are document listeners, subscribed only while
+ * `target.closest(item)` and its id from `attr`. Pointer moves, the release, Escape, `selectstart`
+ * and `dragstart` (no text selection, no native drag while pressed) are document listeners, subscribed only while
  * a press or a drag is active. The item under the pointer comes from `elementFromPoint` (a touch
  * pointer is implicitly captured by the pressed element, so its events keep that target); no
  * pointer capture.
  *
  * Nested sortables: an event is claimed by the first (innermost) sortable host it bubbles
- * through, so an outer sortable ignores the items of an inner one. Under the pointer, the
- * candidates are every item around the element, innermost first; the first whose id is in this
- * host's lists wins.
+ * through, so an outer sortable ignores the items of an inner one. A host's own items are the
+ * item elements below its root that aren't inside another item below it (an item inside an item
+ * belongs to a nested list, whose ids may repeat this host's: G-444/G-445): the press, key, the
+ * item under the pointer (the outermost one there) and the focus target are resolved among them.
  *
- * Focus: each keyboard step (but Tab) sends `{ focus: focusWithin('<item>[<attr>="<id>"] <handle>') }`
- * (D194): the keyed Collection may move the focused node when the list reorders. A keyboard
+ * Focus: each keyboard step (but Tab) sends `{ focus: <target> }`, a focusWithin-style target
+ * (D194: `within` '<item>[<attr>="<id>"] <handle>', the first match among this host's own items):
+ * the keyed Collection may move the focused node when the list reorders. A keyboard
  * drag drops at its current position when focus moves to another element (Tab, a click
- * elsewhere: focusout with a relatedTarget) or on any pointer press; focus lost to nothing (the
- * window, a node move) keeps the drag.
+ * elsewhere: focusout with a relatedTarget) or on any pointer press (a press on a handle then
+ * starts a pointer press at once, G-451); focus lost to nothing (the window, a node move) keeps
+ * the drag.
  *
  * Dev diagnostics through the core bridge's `sortable` hook (checks/sortable.ts): SYG145 an item
  * without `attr`, SYG146 `item` / `handle` matching nothing under the host at the first
- * interaction, SYG147 a `from` key that isn't an array in the host state.
+ * interaction, SYG147 a `from` key that isn't an array in the host state, SYG435 (3-H) a list
+ * shown in another order than its array's (a Collection's sort / filter).
  */
 import {defineBehavior} from './behaviors'
-import {focusWithin} from './focusWithin'
-import {ABORT} from '../shared'
+import {ABORT, isAbort} from '../shared'
 import xs from './xstreamCompat'
 import {dropRepeats} from './xstreamExtras'
 
@@ -99,14 +105,9 @@ export const sortable = (options: any = {}): any => {
   // where an id is: { list, index, item, size }
   const find = (st: any, id: any) => {
     for (const l of lists) {
-      const a = st?.[l], i = Array.isArray(a) ? a.findIndex((x: any) => S(x?.[idField]) === S(id)) : -1
+      const a = st?.[l], i = id != null && Array.isArray(a) ? a.findIndex((x: any) => S(x?.[idField]) === S(id)) : -1
       if (i >= 0) return {list: l, index: i, item: a[i], size: a.length}
     }
-    return null
-  }
-  // the first of the candidate ids (innermost first) that is one of this host's items
-  const pick = (st: any, ids: any) => {
-    for (const id of ids || []) { const f = find(st, id); if (f) return f }
     return null
   }
   // move the item at `f` to list `l` at index `to` (the index it ends at)
@@ -120,59 +121,113 @@ export const sortable = (options: any = {}): any => {
     return out
   }
   const put = (st: any, k: string, s: any) => ({...st, [k]: {...st[k], ...s}})
-  // where a pointer drop would land: over an item (before it; after it when moving down its own
-  // list), or at the end of another list's container
-  const landing = (st: any, f: any, o: any, list: any) =>
-    o ? {list: o.list, to: o.index, after: o.list == f.list && f.index < o.index}
+  // where a pointer drop would land: over an item (in its own list: before it, after it when
+  // moving down; from another list: before or after it by the pointer's half, `low`: G-454), or
+  // at the end of another list's container
+  const landing = (st: any, f: any, o: any, list: any, low?: any) =>
+    o ? o.list == f.list ? {list: o.list, to: o.index, after: f.index < o.index} : {list: o.list, to: o.index + (low ? 1 : 0), after: !!low}
     : list && lists.includes(list) && list != f.list ? {list, to: (st[list] || []).length, after: true}
     : null
   const where = (f: any, n: any) => n.list != f.list ? n.list : undefined
-  const focus = (_s: any, d: any) => d.key == 'Tab' || d.id == null ? ABORT
-    : {focus: focusWithin(":scope " + one(item) + `[${attr}="${S(d.id).replace(/["\\]/g, '\\$&')}"]` + (handle ? ' ' + one(handle) : ''))}
+  // a keyboard drag ends where the item is (DROPPED when it moved)
+  const drop = (st: any, k: string, next: any) => {
+    const s = st[k], f = find(st, s.dragging), o = s.origin
+    if (!f) return put(st, k, idle)
+    if (o.list != f.list || o.index != f.index) next('DROPPED', {id: s.dragging, list: f.list, index: f.index, fromList: o.list, fromIndex: o.index}, 0)
+    return put(st, k, {...idle, message: msg.drop(label(f.item), f.index + 1, f.size, where(o, f))})
+  }
+  // an element below the host's root `r` (the root is an item of an outer sortable; in
+  // renderComponent's mock DOM, where the event's target is the root, it counts)
+  const inside = (el: any, r: any) => el !== r ? !r?.contains || r.contains(el) : !r.nodeType
+  // one of this host's own items: below the root and not inside another item below it (that one
+  // is a nested list's, whose ids may repeat this host's: G-444)
+  const own = (it: any, r: any) => {
+    if (!it || !inside(it, r)) return false
+    const up = it.parentElement?.closest?.(item)
+    return !(up && inside(up, r))
+  }
+  // focus the moved item's handle: a focusWithin target (D194: the sender's root, a `focus` spec
+  // command) that keeps to this host's own items (G-445)
+  const focus = (_s: any, d: any) => {
+    if (d.key == 'Tab' || d.id == null) return ABORT
+    const sel = ':scope ' + one(item) + `[${attr}="${S(d.id).replace(/["\\]/g, '\\$&')}"]` + (handle ? ' ' + one(handle) : '')
+    return {focus: {within: sel, toString: () => '', spec: {commands: {focus: (root: any, o: any) => {
+      for (const el of root.querySelectorAll?.(sel) || []) if (own(handle ? el.closest(item) : el, root)) return el.focus(o)
+    }}}}}
+  }
+
+  // dev: SYG435, the list shown in another order than the array's (G-449)
+  const check = (st: any, seen: any, k: string) => seen && dev(435, seen, st, lists, idField, k)
+  // a press or key handler: drag state this instance didn't start (its token `n` isn't the
+  // event's: restored, synced) is dropped first (G-452)
+  const live = (h: any) => (st: any, d: any, next: any, _p: any, _o: any, k: string) => {
+    const s = st[k], c = (s.press || s.dragging) && (s.press || s.origin)?.n !== d.n ? put(st, k, idle) : st, r = h(c, d, next, k)
+    return isAbort(r) ? c === st ? r : c : r
+  }
 
   const def = {
     initialState: {...idle, helpId: null},
-    intent: ({DOM, STATE}: any) => {
-      const doc = DOM.select('document'), slice$ = STATE.stream
+    // drag state is UI state: persist() leaves this slice out (G-452)
+    persist: false,
+    // with undo(): a drag is one undo step, recorded at its drop (G-447)
+    undoStep: ['DROPPED'],
+    intent: ({DOM, STATE, dispose$}: any) => {
+      // `me`: this instance's token in the press / drag it starts (G-452): drag state it didn't
+      // start (restored by persist, synced, written by devtools) arms no document listener
+      const doc = DOM.select('document'), slice$ = STATE.stream, me = Math.random()
       let root: any, checked: any // this host's root element (from its last press); SYG146 done
       const on = (f: (s: any) => any, s$: () => any) =>
         slice$.map(f).compose(dropRepeats()).map((a: any) => a ? s$() : xs.empty()).flatten()
-      // an element below the host's root (the root itself is an item of an outer sortable)
-      const inside = (el: any) => el !== root && (!root?.contains || root.contains(el))
-      // the pointer's position and what it is over: the ids of the items around the element
-      // there (innermost first), and the data-list container
+      const pressed = (s: any) => s.press?.n === me
+      // the pointer's position and what it is over: the id of this host's item around the
+      // element there (the outermost item below the root: G-444), and the data-list container
       const pt = (e: any) => {
         const x = e.clientX, y = e.clientY, d = typeof document != 'undefined' ? document : null
-        const el = (typeof x == 'number' && d?.elementFromPoint?.(x, y)) || e.target, over: any[] = []
-        for (let it = el?.closest?.(item); it && inside(it); it = it.parentElement?.closest?.(item)) idOf(it) != null && over.push(idOf(it))
-        const box = lists.length > 1 && el?.closest?.('[data-list]')
-        return {x: x || 0, y: y || 0, over, list: box && inside(box) ? box.getAttribute?.('data-list') : null}
+        const el = (typeof x == 'number' && d?.elementFromPoint?.(x, y)) || e.target
+        let o: any
+        for (let it = el?.closest?.(item); it && inside(it, root); it = it.parentElement?.closest?.(item)) o = it
+        // over the item's second half (along the axis): an item from another list lands after it
+        const box = lists.length > 1 && el?.closest?.('[data-list]'), b = o?.getBoundingClientRect?.()
+        return {x: x || 0, y: y || 0, over: o ? idOf(o) : null, list: box && inside(box, root) ? box.getAttribute?.('data-list') : null,
+          low: !!b?.height && (axis == 'x' ? x > b.left + b.width / 2 : y > b.top + b.height / 2)}
       }
       // the id of the item whose handle (or the item itself) the event happened on; `self`: the
       // handle must be the event's own target (keys)
       const gripOf = (e: any, self?: boolean) => {
-        if (!checked) checked = dev(146, e.ownerTarget || e.currentTarget, item, handle, attr)
-        const t = e.target, g = !claimed.has(e) && t?.closest?.(grip)
+        const t = e.target, r = e.ownerTarget || e.currentTarget
+        if (!checked) checked = dev(146, r, item, handle, attr)
+        const g = !claimed.has(e) && t?.closest?.(grip)
         if (!g || self && g !== t) return null
         // no handle: a press or key on a button, link or field inside the item is its own
         const inner = !handle && t !== g && t.closest?.(FIELDS)
         if (inner && inner !== g && (!g.contains || g.contains(inner))) return null
-        // the host's root is not its own item (unless it is the target: renderComponent's mock DOM)
-        const it = handle ? g.closest?.(item) : g, r = e.ownerTarget || e.currentTarget
-        if (!it || it === r && it !== t) return null
+        // one of this host's own items (not its root, not a nested list's item)
+        const it = handle ? g.closest?.(item) : g
+        if (!own(it, r)) return null
         const id = idOf(it)
         if (id == null) dev(145, it, item, attr)
         return id
       }
       const keyed = (keys: RegExp, kb?: any) => (e: any) => keys.test(e.key) && (kb || e.key != 'Tab') && gripOf(e, true) != null
       const lift = keyed(LIFT), step = keyed(KEYS, 1)
+      // dev (SYG435): this host's own items' ids in the order they're shown (computed by the
+      // diagnostics entry only)
+      const shown = (e: any) => dev(435, () => {
+        const r = e.ownerTarget || e.currentTarget
+        return [...r.querySelectorAll(item)].filter((it: any) => own(it, r)).map(idOf)
+      })
       const take = (e: any) => {
         const id = gripOf(e, true)
         claimed.add(e)
-        return {key: e.key == 'Spacebar' ? ' ' : e.key, id}
+        return {key: e.key == 'Spacebar' ? ' ' : e.key, id, n: me, seen: LIFT.test(e.key) && shown(e)}
       }
       return {
         INIT: xs.of(0),
+        // the host is unmounted (its state may live on in a parent's)
+        END: dispose$.mapTo(0),
+        // the first focus, press or key inside the host sets the instructions id (G-448: no
+        // write at startup, so a Collection-item host's parent data stays clean until it is used)
+        HELP: on((s: any) => !s.helpId, () => xs.merge(DOM.events('focusin'), DOM.events('pointerdown'), DOM.events('keydown')).mapTo(0)),
         PRESS: DOM.events('pointerdown')
           .filter((e: any) => e.isPrimary !== false && !e.button)
           .map((e: any) => {
@@ -180,41 +235,57 @@ export const sortable = (options: any = {}): any => {
             if (id == null) return null
             claimed.add(e)
             root = e.ownerTarget || e.currentTarget
-            return {id, x: e.clientX || 0, y: e.clientY || 0}
+            return {id, x: e.clientX || 0, y: e.clientY || 0, n: me, seen: shown(e)}
           })
           .filter((d: any) => d != null),
-        // no text selection while a pointer is pressed (the listener only filters)
-        MOVE: on((s: any) => s.press, () => xs.merge(
+        // no text selection and no native drag (an image or link in the item: its dragstart
+        // would cancel the pointer, G-450) while a pointer is pressed (the listeners only filter)
+        MOVE: on(pressed, () => xs.merge(
           doc.events('pointermove').map(pt),
-          doc.events('selectstart', {preventDefault: true}).filter(() => false))),
-        UP: on((s: any) => s.press, () => doc.events('pointerup').map(pt)),
-        CANCEL: on((s: any) => s.press, () => xs.merge(
+          xs.merge(doc.events('selectstart', {preventDefault: true}), doc.events('dragstart', {preventDefault: true})).filter(() => false))),
+        UP: on(pressed, () => doc.events('pointerup').map(pt)),
+        CANCEL: on(pressed, () => xs.merge(
           doc.events('pointercancel'),
           doc.events('keydown', {preventDefault: (e: any) => e.key == 'Escape'}).filter((e: any) => e.key == 'Escape'))),
         KEY: xs.merge(
-          DOM.events('keydown', {preventDefault: lift}).filter(lift).map(take),
-          on((s: any) => s.mode == 'keyboard', () => xs.merge(
+          // a held Space / Enter (auto-repeat) neither drops nor lifts again (G-446)
+          DOM.events('keydown', {preventDefault: lift}).filter((e: any) => !e.repeat && lift(e)).map(take),
+          on((s: any) => s.mode == 'keyboard' && s.origin?.n === me, () => xs.merge(
             DOM.events('keydown', {preventDefault: keyed(KEYS)}).filter(step).map(take),
             // focus moved to another element, or a pointer press anywhere: drop where it is
             DOM.events('focusout').filter((e: any) => e.relatedTarget),
-            doc.events('pointerdown')).map((d: any) => d.key ? d : {key: 'Tab'}))),
+            doc.events('pointerdown')).map((d: any) => d.key ? d : {key: 'Tab', n: me}))),
       }
     },
     model: {
-      // the instructions id (uid: unique per host) and SYG147 (dev)
-      INIT: {HOST: (st: any, _d: any, _n: any, p: any, _o: any, k: string) => {
+      // SYG147 (dev); drag state the host starts with (restored with a parent's data) is reset
+      INIT: {HOST: (st: any, _d: any, _n: any, _p: any, _o: any, k: string) => {
         for (const l of lists) Array.isArray(st?.[l]) || dev(147, l, st, k)
-        return p?.uid ? put(st, k, {helpId: p.uid(k + '-help')}) : ABORT
+        return st[k].press || st[k].dragging ? put(st, k, idle) : ABORT
       }},
-      PRESS: {HOST: (st: any, d: any, _n: any, _p: any, _o: any, k: string) =>
-        !st[k].dragging && find(st, d.id) ? put(st, k, {press: d}) : ABORT},
+      // unmounted mid-drag: the drag is cancelled (no DROPPED; a keyboard drag's item goes back
+      // where it started), so data that outlives the host isn't left half-moved or stuck
+      END: {HOST: (st: any, _d: any, _n: any, _p: any, _o: any, k: string) => {
+        const s = st[k], f = s.mode == 'keyboard' && find(st, s.dragging), o = s.origin
+        return s.press || s.dragging ? put(f ? move(st, f, o.list, o.index) : st, k, idle) : ABORT
+      }},
+      // the instructions id: a uid() of the host (unique per host instance)
+      HELP: {HOST: (st: any, _d: any, _n: any, p: any, _o: any, k: string) =>
+        st[k].helpId || !p?.uid ? ABORT : put(st, k, {helpId: p.uid(k + '-help')})},
+      PRESS: {HOST: live((st: any, {seen, ...d}: any, next: any, k: string) => {
+        const s = st[k]
+        if (s.mode == 'pointer' || !find(st, d.id)) return ABORT
+        check(st, seen, k)
+        // during a keyboard drag: it drops where it is, and the press starts (G-451)
+        return put(s.mode == 'keyboard' ? drop(st, k, next) : st, k, {press: d})
+      })},
       MOVE: {HOST: (st: any, d: any, _n: any, _p: any, _o: any, k: string) => {
         const s = st[k], p = s.press, f = p && find(st, p.id)
         if (!f) return ABORT
         // past the threshold: the drag starts
         const start = !s.dragging && {dragging: S(p.id), mode: 'pointer', origin: {list: f.list, index: f.index}, message: msg.lift(label(f.item), f.index + 1, f.size, false)}
         if (!s.dragging && Math.hypot(d.x - p.x, d.y - p.y) < threshold) return ABORT
-        const o = pick(st, d.over), L = landing(st, f, o, d.list)
+        const o = find(st, d.over), L = landing(st, f, o, d.list, d.low)
         const next = {...start, over: o ? S(o.item[idField]) : null, list: L?.list ?? null, after: !!L?.after}
         return !start && next.over === s.over && next.list === s.list && next.after === s.after ? ABORT : put(st, k, next)
       }},
@@ -223,7 +294,7 @@ export const sortable = (options: any = {}): any => {
         if (!s.dragging) return s.press ? put(st, k, idle) : ABORT
         const f = find(st, s.dragging)
         // the release point decides (a last move may not have been rendered)
-        const L = f && landing(st, f, pick(st, d.over), d.list)
+        const L = f && landing(st, f, find(st, d.over), d.list, d.low)
         if (!f || !L || L.list == f.list && L.to == f.index) return put(st, k, {...idle, message: f ? msg.cancel(label(f.item), f.index + 1, f.size) : ''})
         const out = move(st, f, L.list, L.to), n = find(out, s.dragging)!
         next('DROPPED', {id: s.dragging, list: n.list, index: n.index, fromList: f.list, fromIndex: f.index}, 0)
@@ -234,19 +305,16 @@ export const sortable = (options: any = {}): any => {
         return s.press ? put(st, k, {...idle, message: f ? msg.cancel(label(f.item), f.index + 1, f.size) : ''}) : ABORT
       }},
       KEY: {
-        HOST: (st: any, {key, id}: any, next: any, _p: any, _o: any, k: string) => {
+        HOST: live((st: any, {key, id, n: me, seen}: any, next: any, k: string) => {
           const s = st[k], f = find(st, s.dragging ?? id)
           if (s.mode == 'pointer' || s.press) return ABORT
           // the lifted item left the list (removed by another action): the drag ends
           if (!f) return s.dragging ? put(st, k, idle) : ABORT
           const l = label(f.item), o = s.origin
           if (!s.dragging) return LIFT.test(key)
-            ? put(st, k, {...idle, dragging: S(id), mode: 'keyboard', origin: {list: f.list, index: f.index}, message: msg.lift(l, f.index + 1, f.size, true)})
+            ? (check(st, seen, k), put(st, k, {...idle, dragging: S(id), mode: 'keyboard', origin: {list: f.list, index: f.index, n: me}, message: msg.lift(l, f.index + 1, f.size, true)}))
             : ABORT
-          if (LIFT.test(key) || key == 'Tab') {
-            if (o.list != f.list || o.index != f.index) next('DROPPED', {id: s.dragging, list: f.list, index: f.index, fromList: o.list, fromIndex: o.index}, 0)
-            return put(st, k, {...idle, message: msg.drop(l, f.index + 1, f.size, where(o, f))})
-          }
+          if (LIFT.test(key) || key == 'Tab') return drop(st, k, next)
           if (key == 'Escape') {
             const back = move(st, f, o.list, o.index)
             return put(back, k, {...idle, message: msg.cancel(l, o.index + 1, back[o.list].length)})
@@ -261,7 +329,7 @@ export const sortable = (options: any = {}): any => {
           }
           const to = key == prevKey ? f.index - 1 : key == nextKey ? f.index + 1 : key == 'Home' ? 0 : key == 'End' ? f.size - 1 : -1
           return to < 0 || to >= f.size || to == f.index ? ABORT : put(move(st, f, f.list, to), k, {message: msg.move(l, to + 1, f.size)})
-        },
+        }),
         // keep focus on the moved item's handle (its node may move or be re-created)
         ELEMENT: focus,
       },

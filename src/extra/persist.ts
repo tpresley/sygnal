@@ -9,7 +9,8 @@ import {warn} from './diagnostics/legacy';
  * root setup (src/core/runtime.ts rootShim); an app that never imports persist() pays 0 B.
  *
  * - Stored as JSON `{ version, state }` under `key`; `state` has the picked top-level keys
- *   (`pick`), or all but `omit` and the calculated fields. `format: 'plain'` (4-G1, D143) stores
+ *   (`pick`), or all but `omit` and the calculated fields. A `uses` key whose behavior is marked
+ *   `persist: false` (sortable: drag state) is left out of both the save and the restore. `format: 'plain'` (4-G1, D143) stores
  *   that object itself, with no envelope; `version` / `migrate` then don't apply (a type error;
  *   ignored here), and a stored value that isn't an object is ignored.
  * - Restore: a synchronous read before INITIALIZE, merged into initialState, so the restore is
@@ -50,9 +51,11 @@ export const setupPersist = (c: any, o: any): void => {
   // works again re-arms the save report
   const bad: any = {};
   const fail = (what: string, e?: any) => bad[what] || (bad[what] = 1, warn('SYG642', c, `persist '${key}': ${what} failed`, undefined, e));
+  // a behavior's slice marked `persist: false` (UI state: sortable's drag) is never saved or restored (3-H G-452)
+  const uses = c.view?.uses || {};
   const only = (s: any) => {
     const out: any = {};
-    for (const k in s) if ((pick ? pick.includes(k) : !omit?.includes(k)) && !(k in calc)) out[k] = s[k];
+    for (const k in s) if ((pick ? pick.includes(k) : !omit?.includes(k)) && !(k in calc) && uses[k]?.persist !== false) out[k] = s[k];
     return out;
   };
   const read = (r: any) => {

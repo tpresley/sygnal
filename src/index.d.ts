@@ -788,6 +788,15 @@ export interface BehaviorDefinition<SLICE = any, ACTIONS = {}, CALCULATED = {}, 
    * name is sent to the host as written. They join the host's own `timers`.
    */
   timers?: (slice: SLICE, options: OPTIONS, key: string) => Timers;
+  /** `false`: the slice is UI state (sortable's drag): a root's `persist()` neither saves nor restores it */
+  persist?: false;
+  /**
+   * The actions that complete one undoable step (sortable: `['DROPPED']`). With `undo()` on the
+   * same host, the behavior's other actions are steps of a gesture: their changes to the undo
+   * key aren't recorded; the completing action records the value from before the gesture as
+   * one entry (none for a gesture that ends without it), whatever the `uses` order.
+   */
+  undoStep?: string[];
 }
 
 /** One use of a behavior (a `defineBehavior()` factory's result), for a component's `uses`. */
@@ -1051,12 +1060,12 @@ export interface SortableState {
   mode: 'pointer' | 'keyboard' | null;
   /** The text for an ARIA live region: lift, move, drop and cancel announcements */
   message: string;
-  /** A `uid()` id for the instructions element the handles' `aria-describedby` names (null until the host starts) */
+  /** A `uid()` id for the instructions element the handles' `aria-describedby` names, unique per host (null until the first focus, press or key inside the host) */
   helpId: string | null;
-  /** Internal: the pointer press before the threshold */
-  press: { id: string; x: number; y: number } | null;
-  /** Internal: where the item started */
-  origin: { list: string; index: number } | null;
+  /** Internal: the pointer press before the threshold (`n`: the instance that started it) */
+  press: { id: string; x: number; y: number; n: number } | null;
+  /** Internal: where the item started (`n`: a keyboard drag's instance) */
+  origin: { list: string; index: number; n?: number } | null;
 }
 export interface SortableOptions {
   /** The host state key of the list; an array of keys allows moves between lists (each container marked `data-list="<key>"`) */
@@ -1081,7 +1090,7 @@ export interface SortableOptions {
 /** 'sort.DROPPED': one completed move (pointer drop, or keyboard drop away from where it started) */
 export interface SortableDropped { id: string; list: string; index: number; fromList: string; fromIndex: number }
 export interface SortableActions {
-  INIT: any; PRESS: any; MOVE: any; UP: any; CANCEL: any;
+  INIT: any; HELP: any; END: any; PRESS: any; MOVE: any; UP: any; CANCEL: any;
   KEY: { key: string; id?: string };
   DROPPED: SortableDropped;
 }
@@ -1095,7 +1104,11 @@ export interface SortableActions {
 export function sortable(options: SortableOptions): Behavior<SortableState, SortableActions, {}, SortableOptions>
 
 /** `state.history` of `undoable()` / `undo()`: snapshots of `state[key]`, newest last in `past`. */
-export interface UndoHistory<T = any> { past: T[]; future: T[] }
+export interface UndoHistory<T = any> {
+  past: T[]; future: T[];
+  /** Internal (`undo()` with a gesture behavior, `undoStep`): [the value before the gesture in progress, the value after its last step] */
+  base?: [T, T];
+}
 export interface UndoOptions {
   /** The state key whose value is snapshotted */
   key: string;

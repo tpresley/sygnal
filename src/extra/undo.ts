@@ -18,6 +18,13 @@
  * return new objects (they do in Sygnal). A model's own UNDO / REDO entry runs after the
  * built-in one (as a host entry for a behavior action does, D123).
  *
+ * Gestures (3-H G-447): another behavior in the host's `uses` that declares `undoStep` (its
+ * actions that complete a step: sortable's DROPPED) makes its other actions gesture steps. Their
+ * changes aren't recorded; `history.base` holds the value from before the gesture until the
+ * completing action records it as one entry. Works in either `uses` order (undo first: the
+ * behavior's actions get host entries that run after them). undo() as a behavior only:
+ * undoable() can't see `uses`.
+ *
  * SYG226 (dev, warn): a `track` / `resetOn` / `coalesce` name with no model entry.
  */
 import { defineBehavior } from './behaviors'
@@ -48,12 +55,39 @@ const check = (model: any, o: UndoOptions, component?: any, skip?: any) => {
   }
 }
 
-const wrap = (model: any, o: UndoOptions, hk: string, ns: string, S = 'STATE'): any => {
+// a history without the pending gesture base
+const settled = (h: any) => { const {base: _, ...o} = h; return o }
+
+const wrap = (model: any, o: UndoOptions, hk: string, ns: string, S = 'STATE', g: any = {}): any => {
   const {key, limit = 100, track, coalesce, coalesceMs = coalesce ? 500 : 0, resetOn = []} = o
   const out: any = {}
   const hist = (s: any) => s?.[hk] || {past: [], future: []}
+  // 3-H G-447: a gesture's actions (`g`: another behavior's actions, 1 a step, 2 the one that
+  // completes it, its `undoStep`). A step's change isn't recorded: `base` keeps [the value before
+  // the gesture's first step, the value after its last]; the completing action records that
+  // first value as one entry. A gesture that ends without it (cancelled) records nothing. The
+  // pre-action state comes from the handler's props (`state`): as the host entry after the
+  // behavior's (undo before it in `uses`), the reducer gets the behavior's result
+  const gw = (f: any, kind: number, name: string) => (s: any, ...x: any[]) => {
+    const r0 = f ? f(s, ...x) : s, r = isAbort(r0) ? s : r0, pre = x[2]?.state || s, none = f ? r0 : ABORT
+    if (!r || typeof r != 'object' || !pre) return none
+    const h = hist(r), b = h.base
+    if (kind == 1) return r[key] === pre[key] ? none
+      : {...r, [hk]: {...h, base: [b && b[1] === pre[key] ? b[0] : pre[key], r[key]]}}
+    if (!b) return none
+    if (b[0] === r[key] || track && !track.includes(name)) return {...r, [hk]: settled(h)}
+    const nh = {...settled(h), past: [...h.past, b[0]].slice(-limit), future: []}
+    last.set(nh.past, [name, Date.now()])
+    return {...r, [hk]: nh}
+  }
+  for (const a in g) if (!(a in model)) out[a] = {[S]: gw(null, g[a], a)}
   for (const a in model) {
     const e = model[a], [name, sink] = a.split('|').map(x => x.trim())
+    if (g[a]) {
+      const f = typeof e == 'function' ? e : e?.[S]
+      out[a] = typeof e == 'function' ? gw(e, g[a], a) : {...e, [S]: gw(typeof f == 'function' ? f : null, g[a], a)}
+      continue
+    }
     const reset = resetOn.includes(name), joins = coalesceMs > 0 && (!coalesce || coalesce.includes(name))
     const f0 = sink ? (sink == S ? e : null) : typeof e == 'function' ? e : e?.[S]
     // a constant STATE value isn't a reducer: the entry is left alone (G-214)
@@ -64,11 +98,11 @@ const wrap = (model: any, o: UndoOptions, hk: string, ns: string, S = 'STATE'): 
     const w = (s: any, ...x: any[]) => {
       const r = f ? f(s, ...x) : s, h = hist(s)
       if (!r || typeof r != 'object' || isAbort(r)) return r
-      if (reset) return h.past.length || h.future.length ? {...r, [hk]: {...h, past: [], future: []}} : r
+      if (reset) return h.past.length || h.future.length || h.base ? {...r, [hk]: {...settled(h), past: [], future: []}} : r
       if (r === s || r[key] === s[key]) return r
       const at = Date.now(), prev = last.get(h.past)
       const join = joins && prev && prev[0] == name && at - prev[1] < coalesceMs && h.past.length
-      const nh = {...h, past: join ? h.past : [...h.past, s[key]].slice(-limit), future: []}
+      const nh = {...settled(h), past: join ? h.past : [...h.past, s[key]].slice(-limit), future: []}
       last.set(nh.past, [name, at])
       return {...r, [hk]: nh}
     }
@@ -78,7 +112,7 @@ const wrap = (model: any, o: UndoOptions, hk: string, ns: string, S = 'STATE'): 
     const h = hist(s), list = h[from]
     if (!list.length) return ABORT
     const v = from == 'past' ? list[list.length - 1] : list[0]
-    return {...s, [key]: v, [hk]: {...h,
+    return {...s, [key]: v, [hk]: {...settled(h),
       [from]: from == 'past' ? list.slice(0, -1) : list.slice(1),
       [to]: to == 'past' ? [...h[to], s[key]] : [s[key], ...h[to]]}}
   }
@@ -130,8 +164,11 @@ export const undo = (options: UndoOptions & { undo?: any, redo?: any }): any => 
     calculated: {canUndo: (h: any) => h.past.length > 0, canRedo: (h: any) => h.future.length > 0},
   })(options), merge = b.merge
   b.merge = (c: any, k: string) => {
-    if (!reported.has(b)) reported.add(b), check(c.model, options, c, c.view?.uses)
-    c.model = wrap(c.model || {}, options, k, k + '.', c.stateSourceName)
+    const u = c.view?.uses, g: any = {}
+    if (!reported.has(b)) reported.add(b), check(c.model, options, c, u)
+    // the gestures of the host's other behaviors (sortable's drag: one step per drop), in either `uses` order
+    for (const n in u) { const s = u[n]?.undoStep; if (s) for (const a in u[n].model) g[n + '.' + a] = s.includes(a) ? 2 : 1 }
+    c.model = wrap(c.model || {}, options, k, k + '.', c.stateSourceName, g)
     merge(c, k)
   }
   return b

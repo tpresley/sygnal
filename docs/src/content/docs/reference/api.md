@@ -854,10 +854,12 @@ function defineBehavior(definition: {
   model?: { [action: string]: Handler | { [sink: string]: Handler; HOST?: HostReducer } };
   calculated?: { [field: string]: (slice) => any };
   timers?: (slice, options, key) => { [name: string]: TimerSpec | false };
+  persist?: false;      // UI state: a root's persist() neither saves nor restores the slice
+  undoStep?: string[];  // the actions that complete one undo() step (the others are gesture steps)
 }): (options?) => Behavior
 ```
 
-Returns a factory: call it with the options of one use (`disclosure({ toggle: '.toggle' })`). Options that name a key of `initialState` set that key's starting value. The intent gets the host's sources, the options and the use's key; actions are named without the key. Model handlers get the slice, then the options and the key after `props`; a `HOST` entry is a reducer on the host's whole state. `timers` declares timers for the host (`'<key>.<name>'`; a spec action naming one of the behavior's actions is namespaced). [Guide](/guide/behaviors/#options-the-key-host-state-and-timers).
+Returns a factory: call it with the options of one use (`disclosure({ toggle: '.toggle' })`). Options that name a key of `initialState` set that key's starting value. The intent gets the host's sources, the options and the use's key; actions are named without the key. Model handlers get the slice, then the options and the key after `props`; a `HOST` entry is a reducer on the host's whole state. `timers` declares timers for the host (`'<key>.<name>'`; a spec action naming one of the behavior's actions is namespaced). [Guide](/guide/behaviors/#options-the-key-host-state-and-timers); `persist` and `undoStep`: [Persisted state and undo steps](/guide/behaviors/#persisted-state-and-undo-steps).
 
 ---
 
@@ -909,10 +911,10 @@ function sortable(options: {
 | | |
 |---|---|
 | Options | `from` (required: the list's state key, or keys for moves between lists, each container marked `data-list`), `item` (`'[data-id]'`), `handle` (default: the item), `attr` (`'data-id'`), `idField` (`'id'`), `axis` (`'y'`), `threshold` (4 px), `label`, `messages` |
-| State | `dragging`, `over`, `after`, `list`, `mode` (`'pointer'` / `'keyboard'` / `null`), `message` (for a live region), `helpId` (a `uid()` id for the instructions); internal `press`, `origin` |
-| Actions | `DROPPED` (`{ id, list, index, fromList, fromIndex }`, once per completed move: add a host entry to save the order); internal `INIT`, `PRESS`, `MOVE`, `UP`, `CANCEL`, `KEY` |
+| State | `dragging`, `over`, `after`, `list`, `mode` (`'pointer'` / `'keyboard'` / `null`), `message` (for a live region), `helpId` (a `uid()` id for the instructions, set at the first focus, press or key inside the host); internal `press`, `origin`. Never saved by `persist()` |
+| Actions | `DROPPED` (`{ id, list, index, fromList, fromIndex }`, once per completed move: add a host entry to save the order); internal `INIT`, `HELP`, `END`, `PRESS`, `MOVE`, `UP`, `CANCEL`, `KEY`. With `undo()` a drag is one undo step |
 
-Keys on a handle: Space / Enter lift and drop, the arrows and Home / End move (the cross axis changes lists), Escape restores, Tab drops. Focus follows the moved item ([`focusWithin`](#focuswithin)). A pointer drag shows `over` / `after` while moving and reorders on release. Dev diagnostics [SYG145](/reference/errors/#syg145)–[SYG147](/reference/errors/#syg147); `sygnal-check` [SYG724](/reference/errors/#syg724).
+Keys on a handle: Space / Enter lift and drop, the arrows and Home / End move (the cross axis changes lists), Escape restores, Tab drops. Focus follows the moved item ([`focusWithin`](#focuswithin)). A pointer drag shows `over` / `after` while moving and reorders on release. Dev diagnostics [SYG145](/reference/errors/#syg145)–[SYG147](/reference/errors/#syg147), [SYG435](/reference/errors/#syg435); `sygnal-check` [SYG724](/reference/errors/#syg724).
 
 ---
 

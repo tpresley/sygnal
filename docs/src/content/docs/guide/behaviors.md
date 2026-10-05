@@ -204,6 +204,15 @@ export const hoverDelay = defineBehavior({
 
 `Card.uses = { tip: hoverDelay({ target: '.help', delay: 500 }) }` opens `state.tip.open` half a second after the pointer enters `.help`. A behavior that sends a driver request names its [reply actions](/guide/http/) with the key, so they reach its own model: `ok: key + '.LOADED'`.
 
+### Persisted state and undo steps
+
+Two markers say how a behavior's state relates to the app's data:
+
+- **`persist: false`**: the slice is UI state (an open menu, a drag in progress). A root's [`persist()`](/guide/persistence/) neither saves nor restores that `uses` key, whatever `pick` / `omit` say.
+- **`undoStep: ['DONE']`**: the actions that complete one undoable step. With the [`undo` behavior](/advanced/undo/) on the same host, the behavior's other actions are steps of a gesture: their changes to the undo key aren't recorded, and `DONE` records the value from before the gesture as one entry. A gesture that ends without `DONE` (cancelled) records nothing. The order of the two in `uses` doesn't matter.
+
+[`sortable`](/guide/drag-and-drop/) declares both: `persist: false`, and `undoStep: ['DROPPED']`, so one drag is one undo step.
+
 ## Extending a behavior's actions
 
 The host can trigger a behavior action, and add its own entry for one. Both use the namespaced name:

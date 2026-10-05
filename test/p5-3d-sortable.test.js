@@ -298,7 +298,10 @@ describe('sortable: the instructions id and two lists on one page', () => {
     const list = (n) => ({ tasks: [{ id: n, title: 'T' + n }], dropped: [] })
     Two.initialState = { a: list(1), b: list(2) }
     t = renderComponent(Two); await t.ready()
-    await t.settle()
+    // 3-H G-448: set at the first focus, press or key inside each host (no write at startup)
+    t.simulateEvent('.grip', 'keydown', { key: 'x', within: '.task[data-id="1"]' })
+    t.simulateEvent('.grip', 'keydown', { key: 'x', within: '.task[data-id="2"]' })
+    await t.next(s => s.a.sort?.helpId && s.b.sort?.helpId)
     const a = t.state.a.sort.helpId, b = t.state.b.sort.helpId
     expect(a).toMatch(/sort-help$/)
     expect(b).toMatch(/sort-help$/)
