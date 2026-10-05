@@ -56,7 +56,10 @@ import { GLOBAL_SELECTORS } from '../selectors.js'
 
 const SYGNAL_MODULE = /^sygnal(\/|$)/
 
-/** The first-party behaviors exported from 'sygnal' (src/extra/pager.ts, selection.ts, undo.ts, form.ts). */
+/**
+ * The first-party behaviors exported from 'sygnal' (src/extra/pager.ts, selection.ts, undo.ts,
+ * form.ts) and 'sygnal/ui' (src/ui/*.ts: dialog, popover, tooltip, tabs, accordion, disclosure).
+ */
 export const FIRST_PARTY = {
   pager: {
     stateKeys: ['page', 'pageSize', 'total'],
@@ -93,6 +96,54 @@ export const FIRST_PARTY = {
     options: ['key', 'limit', 'track', 'coalesce', 'coalesceMs', 'resetOn', 'undo', 'redo'],
     listens: [['undo', 'UNDO'], ['redo', 'REDO']],
   },
+  // PLAN-5 2-U parts (sygnal/ui), G-392. `intent`: actions its intent always dispatches (the
+  // element events of a required option, its timers' actions)
+  dialog: {
+    stateKeys: ['open', 'returnValue'],
+    calculated: [],
+    model: ['OPEN', 'CLOSE', 'TOGGLED', 'CLOSED', 'CANCEL'],
+    options: ['dialog', 'trigger', 'close', 'modal', 'cancelable', 'returnFocus'],
+    listens: [['trigger', 'OPEN'], ['close', 'CLOSE'], ['dialog', null, 'select']],
+    intent: ['TOGGLED', 'CLOSED', 'CANCEL'],
+  },
+  popover: {
+    stateKeys: ['open'],
+    calculated: [],
+    model: ['OPEN', 'CLOSE', 'TOGGLE', 'TOGGLED'],
+    options: ['popover', 'close'],
+    listens: [['close', 'CLOSE'], ['popover', 'TOGGLED', 'select']],
+  },
+  tooltip: {
+    stateKeys: ['open', 'pending'],
+    calculated: [],
+    model: ['ENTER', 'LEAVE', 'SHOW', 'HIDE', 'ESCAPE', 'TOGGLED'],
+    options: ['trigger', 'tip', 'showDelay', 'hideDelay'],
+    listens: [['trigger', 'ENTER', 'select'], ['tip', 'TOGGLED', 'select']],
+    intent: ['LEAVE', 'ESCAPE', 'SHOW', 'HIDE'],
+  },
+  tabs: {
+    stateKeys: ['id', 'selected', 'orientation'],
+    calculated: [],
+    model: ['SELECT', 'MOVE'],
+    options: ['tab', 'selected', 'orientation', 'activation', 'loop', 'id'],
+    listens: [['tab', 'SELECT']],
+    intent: ['MOVE'],
+  },
+  accordion: {
+    stateKeys: ['id', 'expanded', 'collapsible'],
+    calculated: [],
+    model: ['TOGGLE', 'EXPAND', 'COLLAPSE', 'MOVE'],
+    options: ['trigger', 'multiple', 'collapsible', 'expanded', 'loop', 'id'],
+    listens: [['trigger', 'TOGGLE']],
+    intent: ['MOVE'],
+  },
+  disclosure: {
+    stateKeys: ['id', 'open'],
+    calculated: [],
+    model: ['TOGGLE', 'OPEN', 'CLOSE'],
+    options: ['trigger', 'open', 'id'],
+    listens: [['trigger', 'TOGGLE']],
+  },
 }
 
 /** The 'sygnal' export an identifier is bound to (any local name), or null. */
@@ -117,7 +168,7 @@ function firstPartyDef(name) {
     name, firstParty: true, file: null, node: null,
     stateKeys: fp.stateKeys, calculated: fp.calculated,
     model: fp.model ? new Map(fp.model.map(a => [a, ['STATE']])) : null,
-    intentActions: [],
+    intentActions: fp.intent || [],
     listens: fp.listens.map(([option, action, method = 'click']) => ({ option, method, action })),
     defaults: fp.defaults || {}, nextOptions: fp.nextOptions || [], optionsArg: fp.optionsArg || 0,
     optionNames: new Set([...fp.options]),

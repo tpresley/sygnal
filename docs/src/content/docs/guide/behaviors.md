@@ -268,7 +268,7 @@ A `uses` entry that can't work is [SYG127](/reference/errors/#syg127), an error:
 - the value isn't a behavior: a plain object, or the factory without the call (`uses = { pager }` instead of `pager()`);
 - an option the behavior never reads, usually a typo (`pager({ nxt: '.newer' })`). Only `sygnal-check` reports this one.
 
-`sygnal-check` follows `uses` entries to their `defineBehavior()` call in the same file or a relative import, and knows the first-party behaviors, so its other rules ([SYG101](/reference/errors/#syg101), [SYG102](/reference/errors/#syg102), …) see the behavior's actions too. A behavior imported from a package is not checked. The dev checks report SYG127 once per component definition.
+`sygnal-check` follows `uses` entries to their `defineBehavior()` call in the same file or a relative import, and knows the first-party behaviors (the `sygnal/ui` parts too: an option typo such as `dialog({ clse: '.close' })` is SYG127), so its other rules ([SYG101](/reference/errors/#syg101), [SYG102](/reference/errors/#syg102), …) see the behavior's actions too. A behavior imported from a package is not checked. The dev checks report SYG127 once per component definition.
 
 ## TypeScript
 

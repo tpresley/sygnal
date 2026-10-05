@@ -15,7 +15,8 @@ export default {
     const ownerName = (e) => e.component || project.componentAt(e.file, e.node)?.name
 
     for (const s of selected) {
-      if (emittedTypes.has(s.type)) continue
+      // G-392: a first-party component's selects (<Toaster />: TOAST, TOAST_DISMISS) needn't be emitted
+      if (s.implicit || emittedTypes.has(s.type)) continue
       report({
         code: 'SYG105',
         severity: dynamicEmitted.length ? 'info' : undefined,
