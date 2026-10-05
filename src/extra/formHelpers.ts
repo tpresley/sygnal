@@ -97,19 +97,19 @@ export const formErrors = (schema: any, values: any): any => {
  * Server errors as field errors: an error reply (a driver's `{ error, status?, body?, request }`
  * or `{ status, body }`; the body `{ errors }` or the map itself), a map `{ name: message |
  * messages }`, or a list of Standard-Schema-like issues `[{ path, message }]` (index paths
- * become field names with `values`). A reply without field errors becomes a form-level message
- * under ''.
+ * become field names with `values`). With `values`, a message for a name that isn't one of its
+ * fields (`message`, `error`) is the form-level message (''); a reply without any becomes
+ * 'Request failed (status)' under ''.
  */
 export const replyErrors = (reply: any, values?: any): FieldErrors => {
   let e = reply && ('request' in reply || 'body' in reply && 'status' in reply) ? reply.body : reply
   e = e?.errors ?? e
-  if (Array.isArray(e)) return errorsOf(values, e)
-  if (e && typeof e == 'object') {
-    const out: FieldErrors = {}
-    for (const k in e) out[k] = [].concat(e[k])[0] + ''
-    return out
+  const out: FieldErrors = Array.isArray(e) ? errorsOf(values, e) : {}
+  if (e && typeof e == 'object' && !Array.isArray(e)) for (const k in e) {
+    const m = [].concat(e[k])[0] + ''
+    k && values && getField(values, k) === undefined ? out[''] ||= m : out[k] = m
   }
-  return {'': 'Request failed' + (reply?.status ? ` (${reply.status})` : '')}
+  return Object.keys(out).length ? out : {'': 'Request failed' + (reply?.status ? ` (${reply.status})` : '')}
 }
 
 /**

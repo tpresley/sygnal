@@ -4,6 +4,7 @@
 // calculated fields.
 import { describe, it, expect, afterEach } from 'vitest'
 import { renderComponent, form, formErrors, checkForm, setField, getField, fieldName, fieldNames, replyErrors, focusInvalid, ABORT } from '../src/index.js'
+import { z as zod } from 'zod'
 import { createElement as h } from '../src/pragma/index.js'
 import { SignupA, signupWith, signupSchema, zodSchema, valibotSchema, valibotAsyncSchema, emailCheck } from './p5-f1-fixtures.js'
 
@@ -58,6 +59,12 @@ describe('helpers over any Standard Schema', () => {
     expect(replyErrors({ status: 422, body: { errors: [{ path: ['addresses', 1, 'city'], message: 'Bad' }] } }, partial)).toEqual({ 'addresses.9.city': 'Bad' })
     expect(replyErrors({ status: 500, body: 'oops' })).toEqual({ '': 'Request failed (500)' })
     expect(replyErrors({ email: 'Taken' })).toEqual({ email: 'Taken' })
+  })
+  it('replyErrors: names that are not fields of values become the form-level message; no message: Request failed', () => {
+    expect(replyErrors({ status: 500, body: { message: 'Down for maintenance' } }, empty)).toEqual({ '': 'Down for maintenance' })
+    expect(replyErrors({ status: 422, body: { email: 'Taken', error: 'Invalid' } }, empty)).toEqual({ email: 'Taken', '': 'Invalid' })
+    expect(replyErrors({ status: 422, body: {} }, empty)).toEqual({ '': 'Request failed (422)' })
+    expect(replyErrors({ error: new Error('offline'), request: { url: '/x' } }, empty)).toEqual({ '': 'Request failed' })
   })
   it('focusInvalid: a focusWithin command over the named fields, ABORT when none', () => {
     expect(focusInvalid({ email: 'Bad', name: '', '': 'Form' }).focus.within).toBe('[name="email"]')
@@ -262,5 +269,54 @@ describe('the form behavior: options and calculated fields', () => {
     await type('name', 'Ada')
     expect(t.state.profile.values.name).toBe('Ada')
     expect(t.actions.map((a) => a.type)).toContain('profile.CHANGE')
+  })
+})
+
+describe('the docs recipe (guide/forms: a form with validation, an async check, the testing sample)', () => {
+  it('validates, checks the email, posts the cleaned values, maps server errors', async () => {
+    const signup = zod.object({
+      name: zod.string().trim().min(1, 'Enter your name'),
+      email: zod.string().trim().toLowerCase().email('Enter a valid email address'),
+      password: zod.string().min(8, 'Use at least 8 characters'),
+    })
+    function Signup({ state, uid }) {
+      const f = state.form.fields
+      const field = (n, label, type) => [
+        h('label', { for: uid(n) }, label),
+        h('input', { id: uid(n), name: n, type, value: f[n].value, 'aria-invalid': f[n].invalid, 'aria-describedby': uid(n + '-error') }),
+        h('p', { id: uid(n + '-error') }, n === 'email' && f.email.pending ? 'Checking…' : f[n].error),
+      ]
+      return h('form', { className: 'signup', noValidate: true },
+        ...field('name', 'Name'), ...field('email', 'Email', 'email'), ...field('password', 'Password', 'password'),
+        h('p', { role: 'alert' }, state.form.error),
+        h('button', { type: 'submit', disabled: state.form.submitting }, 'Sign up'))
+    }
+    Signup.uses = { form: form(signup, { values: { name: '', email: '', password: '' }, submit: 'SIGN_UP', check: { email: emailCheck } }) }
+    Signup.model = { SIGN_UP: { HTTP: (state, values) => ({ url: '/api/signup', method: 'POST', json: values, ok: 'form.DONE', error: 'form.ERRORS' }) } }
+
+    t = renderComponent(Signup, { strict: true })
+    await t.ready()
+    t.simulateEvent('[name="email"]', 'input', { value: 'nope' })
+    t.simulateEvent('[name="email"]', 'focusout')
+    await t.settle()
+    expect(t.state.form.fields.email.error).toBe('Enter a valid email address')
+    expect(t.query('[name="email"]').getAttribute('aria-invalid')).toBe('true')
+    t.simulateEvent('[name="email"]', 'input', { value: 'Ada@Example.com' })
+    t.simulateEvent('[name="email"]', 'focusout')
+    await t.settle()
+    expect(t.requests('HTTP').at(-1)).toMatchObject({ url: '/api/email-available' })
+    await t.respond('HTTP', { available: true })
+    await type('name', 'Ada')
+    await type('password', 'correct horse')
+    t.simulateEvent('.signup', 'submit')
+    await t.settle()
+    expect(t.requests('HTTP').at(-1)).toMatchObject({ url: '/api/signup', json: { email: 'ada@example.com' } })
+    await t.fail('HTTP', { status: 422, body: { errors: { email: 'Already registered' } } })
+    expect(t.state.form.fields.email.error).toBe('Already registered')
+    expect(t.state.form.submitting).toBe(false)
+    t.simulateAction('form.ERRORS', { status: 503, body: { message: 'Down for maintenance' } })
+    await t.settle()
+    expect(t.query('[role="alert"]').textContent).toBe('Down for maintenance')
+    t.expectNoDiagnostics()
   })
 })
