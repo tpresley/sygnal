@@ -590,6 +590,8 @@ expect(graph.recentActions.map(a => a.type)).toEqual(['INITIALIZE', 'INC', 'SET'
 | `routerScroll`, `routerFocus` | `boolean` (`routerFocus`: or selectors) | `false` | Run the router's scroll restoration / focus handling |
 | `headSink` | `string` | `'HEAD'` | The sink the HEAD fake serves (`t.head()`) |
 | `timerSink` | `string` | `'TIMER'` | The sink the timer fake serves: the real `makeTimerDriver()` on the test's clock, listed by `t.timers()` ([Timers](/guide/timers/#testing)). Pass a driver under this name in `drivers` to use your own |
+| `browserSink` | `string` | `'BROWSER'` | The sink the browser fake serves: the real browser driver over fake sources, driven by `t.browser` ([Browser Sources](/guide/browser-sources/#testing)). Pass a driver under this name in `drivers` to use your own |
+| `browser` | `object` | none | The browser fake's environment at the start (`media`, `storage`, `sessionStorage`, `visible`, `online`, `clipboard`, `position`, `deny`) |
 | `storage` | `object` | `{}` | The fake storage of a root's `persist()`: key to `{ version, state }` (or a raw string), read back with `t.storage(key)`; `t.settle()` makes the pending writes. Used as is, so two calls given the same object share it ([Persistence](/guide/persistence/#testing)) |
 | `titleTemplate` | `string` | none | The HEAD fake's title template (`'%s · App'`) |
 

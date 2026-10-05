@@ -47,6 +47,7 @@ export default defineConfig({
             { label: 'Resources and Caching', slug: 'guide/resources' },
             { label: 'Sockets', slug: 'guide/sockets' },
             { label: 'Timers', slug: 'guide/timers' },
+            { label: 'Browser Sources', slug: 'guide/browser-sources' },
             { label: 'Router', slug: 'guide/router' },
             { label: 'Document Head', slug: 'guide/head' },
             { label: 'Custom Drivers', slug: 'guide/custom-drivers' },

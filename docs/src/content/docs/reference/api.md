@@ -326,15 +326,16 @@ See [Slots guide](/advanced/slots/) for reactive updates and fallback patterns.
 Code-split a component via dynamic import.
 
 ```typescript
-function lazy(loadFn: () => Promise<{ default: Component }>): Component
+function lazy(loadFn: () => Promise<{ default: Component }>, options?: { when?: 'visible' | 'idle'; rootMargin?: string }): Component & { load(): Promise<void> }
 ```
 
 ```jsx
 import { lazy } from 'sygnal'
 const HeavyChart = lazy(() => import('./HeavyChart.jsx'))
+const BelowTheFold = lazy(() => import('./BelowTheFold.jsx'), { when: 'visible' })
 ```
 
-Renders a `<div data-sygnal-lazy="loading">` placeholder until the import resolves. Static properties (intent, model, etc.) are copied from the loaded module's default export.
+Renders a `<div data-sygnal-lazy="loading">` placeholder until the import resolves. Static properties (intent, model, etc.) are copied from the loaded module's default export. `when` defers the import until a placeholder enters the viewport (`'visible'`, `rootMargin`) or the browser is idle (`'idle'`); a Suspense boundary shows its fallback meanwhile, and `renderToString` renders the placeholder. `load()` starts the import now (preloading). Guide: [Lazy Loading](/advanced/lazy-loading/#loading-when-visible-or-idle).
 
 ---
 
@@ -593,6 +594,8 @@ function renderComponent(
 | `dom` | `'mock' \| 'real'` | `'mock'` | `'real'` patches the tree into a real container element ([Real DOM](/integration/testing/#real-dom)) |
 | `onError` | `(error, info) => void` | none | The [app-level error hook](/advanced/error-boundaries/#tests), as `run()`'s `onError` |
 | `timerSink` | `string` | `'TIMER'` | The sink of the timer fake (the real `makeTimerDriver()` on the test's clock), unless a driver is passed under that name |
+| `browserSink` | `string` | `'BROWSER'` | The sink of the browser fake (the real browser driver over fake sources, driven by `t.browser`), unless a driver is passed under that name |
+| `browser` | `BrowserFakeOptions` | (see guide) | The browser fake's environment at the start: `{ media, storage, sessionStorage, visible, online, clipboard, position, deny }` ([Browser Sources](/guide/browser-sources/#testing)) |
 | `storage` | `Record<string, entry \| string>` | `{}` | The fake storage of a root's [`persist()`](/guide/persistence/#testing) (`'local'` and `'session'` alike): key to `{ version, state }` (with `format: 'plain'`, the stored keys) or a raw string. Used as is: writes land in it, and calls given the same object share it |
 
 The [Testing guide's options table](/integration/testing/#options) lists the rest (timing, HTTP, router and head fakes).
@@ -626,6 +629,7 @@ The [Testing guide's options table](/integration/testing/#options) lists the res
 | `explain` | `(predicate) => ExplainedAction \| undefined` | The first action whose resulting state matches, with that state and its STATE reducer |
 | `commands` | `(sinkName = 'ELEMENT') => ElementCommand[]` | The [element commands](/guide/element-commands/#testing) sent, one per command; another sink name gives its `sinkValues` |
 | `timers` | `() => ActiveTimer[]` | The [timers](/guide/timers/#testing) running now: each spec plus `name`, `action`, `component` |
+| `browser` | `BrowserFake` | The [browser fake](/guide/browser-sources/#testing): `intersect`, `resize`, `media`, `storage`, `visibility`, `online`, `geolocation`, `clipboard`, `deny`, `active` |
 | `storage` | `(key) => { version, state } \| undefined` | The fake storage's entry for `key` ([persist()](/guide/persistence/#testing)); with `format: 'plain'`, the stored keys (TS: `t.storage<Entry>(key)`). `settle()` makes the pending writes first |
 | `query`, `queryAll` | `(selector \| control) => Element \| null`, `Element[]` | Elements of the latest render (snapshots on the mock DOM, real elements with `dom: 'real'`) |
 | `widget` | `(selector \| control) => { props, instance, emit(name, detail?) }` | A [widget's](/guide/widgets/#testing) host: the props the view passed it, the instance `mount` returned (`dom: 'real'`), and `emit`, which sends the event its `emit()` would |
@@ -1253,6 +1257,46 @@ Stopwatch.timers = (state) => ({
 | `{ frame: 'ACTION', background? }`: every animation frame (`requestAnimationFrame`, else 16 ms) | `{ t, dt }`: `Date.now()`, ms since the previous frame (0 first) |
 
 The result is compared by name whenever the state changes: a new name starts, a falsy or missing one stops, a changed spec restarts, an equal one keeps running. A hidden Switchable page's timers stop (and start from scratch when it is shown) unless `background: true`. An invalid spec is not started ([SYG422](/reference/errors/#syg422)). Types: `TimerSpec`, `Timers`, `TimerTick`, `TimerAfter`, `TimerFrame`.
+
+---
+
+## makeBrowserDriver()
+
+Runs the components' `browser` statics and the commands sent to its sink. Guide: [Browser Sources](/guide/browser-sources/).
+
+```typescript
+function makeBrowserDriver(): Driver
+function makeBrowserDriverWith(...sources: BrowserSource[]): Driver
+```
+
+```javascript
+run(App, { BROWSER: makeBrowserDriver() })
+// only these sources (the others add no bytes)
+run(App, { BROWSER: makeBrowserDriverWith(intersectionSource, mediaSource) })
+```
+
+The key is free (`BROWSER` by convention): the core finds the driver by the static it takes. Sources: `intersectionSource`, `resizeSource`, `mediaSource`, `storageSource`, `visibilitySource`, `onlineSource`, `geolocationSource`, `clipboardSource`. A component that declares `browser` without the driver is [SYG643](/reference/errors/#syg643) in dev. `renderComponent` provides a fake (`browserSink`, `browser`, `t.browser`).
+
+### browser (Static Property)
+
+```typescript
+// (state: State & Calculated) => { [name]: spec | falsy }
+Card.browser = (state) => ({
+  seen: !state.seen && { intersection: '.cover', action: 'SEEN' },
+})
+```
+
+| Spec | Action data |
+|---|---|
+| `{ intersection: selector \| true, action, threshold?, rootMargin? }`: the matched elements in the component (`true`: its root) entering or leaving the viewport | `{ visible, ratio, index, dataset }` |
+| `{ resize: selector \| true, action }`: their content-box size | `{ width, height, index, dataset }` |
+| `{ media: query, action }`: a media query (its value first) | `{ matches, media }` |
+| `{ storage: key, action, area?: 'session', json?, error? }`: a storage key, other tabs' writes included (its value first) | `{ key, value }` |
+| `{ visibility: true, action }`: the page's visibility (its value first) | `{ visible }` |
+| `{ online: true, action }`: the network (its value first) | `{ online }` |
+| `{ geolocation: true \| PositionOptions, action, error? }`: `watchPosition` (permission-gated) | `{ latitude, longitude, accuracy, altitude, altitudeAccuracy, heading, speed, timestamp }`; `error`: `{ code, message }` |
+
+Any spec takes `background: true`. Compared by name whenever the state changes, as `timers`: a new name starts, a falsy or missing one stops, a changed spec restarts. A hidden Switchable page's sources stop unless `background: true`. Commands from a model entry, on the driver's sink: `{ copy: text, ok?, error? }`, `{ paste: true, ok, error? }` (`{ text }`), `{ setItem: key, value, area?, json? }`, `{ removeItem: key, area? }`. Diagnostics: [SYG663](/reference/errors/#syg663) (invalid spec or command), [SYG664](/reference/errors/#syg664) (source not in the driver), [SYG665](/reference/errors/#syg665) (failed with no `error` action). Types: `BrowserSpec`, `BrowserSources`, `BrowserIntersection`, `BrowserResize`, `BrowserPosition`, `BrowserCommand`.
 
 ---
 
