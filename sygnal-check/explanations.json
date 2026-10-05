@@ -691,6 +691,18 @@
     "docsUrl": "https://sygnal.js.org/reference/errors#syg237"
   },
   {
+    "code": "SYG238",
+    "title": "Root component with a model but no initial state",
+    "severity": "warn",
+    "strict": false,
+    "reportedBy": [
+      "dev-entry"
+    ],
+    "explanation": "A root component (the one passed to `run()` or `renderComponent()`) has a `model` but no `initialState`, so its state is `undefined` and its view doesn't run: the page (or the test's `t.html()`) stays empty until an action sets the whole state. A root without a model renders anyway (from `initialState`, or with no state), and a child gets its state from its parent, so neither is reported. The state may also come from `renderComponent(C, { initialState })` or an HMR swap; then nothing is reported either. Reported once per component.",
+    "fix": "Give the root its start state: `App.initialState = { count: 0 }`. If the state really arrives later (from a request), start from a placeholder such as `{ status: 'loading' }` and render that.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg238"
+  },
+  {
     "code": "SYG301",
     "title": "RxJS operator used on an xstream stream",
     "severity": "error",

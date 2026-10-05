@@ -420,6 +420,13 @@ export const EXPLANATIONS = {
     explanation: "Each `form` behavior hears `input`, `focusout` and `submit` on its form element, found by the `form` option inside the host component (default `'form'`). Two `form` uses in one component with the same selector (both left at the default, usually) both match every form element of the view, so typing in one form changes the other's values too (when the names overlap) and each submit is handled by both. Reported when the component is created.",
     fix: "Give each form element its own class and pass it as the `form` option: `uses = { login: form(loginSchema, { ..., form: '.login' }), news: form(newsSchema, { ..., form: '.news' }) }` with `<form className=\"login\">` and `<form className=\"news\">`.",
   },
+  SYG238: {
+    title: "Root component with a model but no initial state",
+    severity: "warn",
+    reportedBy: ["dev-entry"],
+    explanation: "A root component (the one passed to `run()` or `renderComponent()`) has a `model` but no `initialState`, so its state is `undefined` and its view doesn't run: the page (or the test's `t.html()`) stays empty until an action sets the whole state. A root without a model renders anyway (from `initialState`, or with no state), and a child gets its state from its parent, so neither is reported. The state may also come from `renderComponent(C, { initialState })` or an HMR swap; then nothing is reported either. Reported once per component.",
+    fix: "Give the root its start state: `App.initialState = { count: 0 }`. If the state really arrives later (from a request), start from a placeholder such as `{ status: 'loading' }` and render that.",
+  },
   SYG301: {
     title: "RxJS operator used on an xstream stream",
     severity: "error",
