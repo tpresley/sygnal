@@ -7,7 +7,7 @@
  * A `uses` value resolves when it is a call of
  *   - a `defineBehavior({ ... })` factory (same file, or through relative
  *     imports and re-exports), or
- *   - a first-party behavior imported from 'sygnal' (pager, selection, undo),
+ *   - a first-party behavior imported from 'sygnal' (pager, selection, undo, form),
  *     modelled below as known definitions.
  *   - D199 (PLAN-5): a factory function that returns such a call with the options it got,
  *     `(opts) => base(opts)`, `(opts = {}) => base({ delay: 300, ...opts })`,
@@ -56,7 +56,7 @@ import { GLOBAL_SELECTORS } from '../selectors.js'
 
 const SYGNAL_MODULE = /^sygnal(\/|$)/
 
-/** The first-party behaviors exported from 'sygnal' (src/extra/pager.ts, selection.ts, undo.ts). */
+/** The first-party behaviors exported from 'sygnal' (src/extra/pager.ts, selection.ts, undo.ts, form.ts). */
 export const FIRST_PARTY = {
   pager: {
     stateKeys: ['page', 'pageSize', 'total'],
@@ -71,6 +71,20 @@ export const FIRST_PARTY = {
     model: ['SELECT', 'SELECT_ALL', 'TOGGLE_ALL', 'CLEAR'],
     options: ['multi', 'item', 'all', 'clear', 'attr', 'from', 'idField'],
     listens: [['item', 'SELECT'], ['all', 'TOGGLE_ALL'], ['clear', 'CLEAR']],
+  },
+  // PLAN-5 F-1: form(schema, options) (src/extra/form.ts). It listens to input/focusout/submit on
+  // the form element (option `form`, default 'form'), so fields inside it count as listened
+  // (SYG111); its model is open (CHECKED_<field> per `check` entry); the host action named by
+  // `submit` is dispatched with next() (a trigger for SYG102); options are the 2nd argument.
+  form: {
+    stateKeys: ['values', 'initial', 'errors', 'touched', 'server', 'remote', 'pending', 'submitting', 'submitted', 'submitCount', 'queued', 'validating'],
+    calculated: ['fields', 'valid', 'dirty', 'error'],
+    model: null,
+    options: ['values', 'submit', 'form', 'check', 'show', 'http'],
+    listens: [['form', null, 'select']],
+    defaults: { form: 'form' },
+    nextOptions: ['submit'],
+    optionsArg: 1,
   },
   undo: {
     stateKeys: ['past', 'future'],
