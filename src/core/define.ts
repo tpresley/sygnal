@@ -174,13 +174,17 @@ export function normalize(view: ComponentFn, src: DefSource): CoreDef {
 }
 
 const defs = new WeakMap<ComponentFn, CoreDef>()
-/** the statics a Def was made from: a later assignment (a test, a hot edit) makes a new Def */
-const KEYS = ['model', 'intent', 'initialState', 'calculated', 'context', 'isolatedState', 'onError', 'componentName', 'uses', 'resources']
+/**
+ * the statics a Def was made from: a later assignment (a test, a hot edit) makes a new Def; so
+ * does a definition hook registered since (G-383: the browser driver's, added when the first one
+ * is made, binds a `browser` declarer's DOM), the last entry of the snapshot
+ */
+const KEYS = ['model', 'intent', 'initialState', 'calculated', 'context', 'isolatedState', 'onError', 'componentName', 'uses', 'resources', 'browser']
 const read = new WeakMap<CoreDef, any[]>()
 const stale = (d: CoreDef, view: any) => {
   const r = read.get(d)!
   for (let i = 0; i < KEYS.length; i++) if (r[i] !== view[KEYS[i]]) return true
-  return false
+  return r[KEYS.length] !== defHooks.length
 }
 
 /**
@@ -192,7 +196,7 @@ export function defOf(view: ComponentFn, transform?: (src: DefSource, view: Comp
   const store = transform ? cache! : defs
   let d = override ? undefined : store.get(view)
   if (d && !stale(d, view)) return d
-  const r = KEYS.map(k => view[k])
+  const r = [...KEYS.map(k => view[k]), defHooks.length]
   d = normalize(view, pipeline(view, transform, override))
   if (override?.name) (d as any).name = override.name
   if (!override) store.set(view, d), read.set(d, r)

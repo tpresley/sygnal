@@ -95,7 +95,8 @@ describe('G-375: the first validation runs when the host starts, not at module l
   it('a valid start is valid once validated', async () => {
     t = renderComponent(host(slow(10)))
     await t.ready()
-    await t.next(s => !s.form.validating)
+    // waitForState: the 10 ms answer may already be in when ready() resolves (next() would wait for another)
+    await t.waitForState(s => !s.form.validating)
     expect(t.state.form.valid).toBe(true)
   })
 })

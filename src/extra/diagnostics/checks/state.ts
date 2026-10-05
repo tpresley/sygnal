@@ -3,6 +3,10 @@
  * SYG202 — STATE reducer returned undefined (warn)
  * SYG221 — set() called with a string (error, G-143): the string is spread
  *          into the state as keys '0', '1', ... (one per character)
+ * SYG238 — G-393: a root with a model but no initialState (and no state from renderComponent's
+ *          `initialState` or an HMR swap): its state is undefined, so it renders nothing until an
+ *          action sets one (the 5.x / PLAN-4 behaviour; a root without a model renders from
+ *          `initialState || true`, G-172). onModel, at construction, once per component name.
  * SYG222 — STATE reducer returned the object it got after mutating it in place (warn, dev;
  *          PLAN-4 GS-4): since 6.0 the same object back means "no change", so the mutation
  *          is ignored. Mechanism: onIntent (called before the model is read) wraps the
@@ -69,6 +73,20 @@ export const stateCheck: DiagnosticCheck = {
   id: 'state',
 
   // SYG222: checks/next.ts wraps the STATE reducers (watchMutation) through wrapHandler
+
+  onModel(component) {
+    // SYG238 (G-393): the initial state is set at construction (D165), before onModel
+    const n = component?.__next
+    if (!n?.isRoot || !n.def?.model || n.state !== undefined) return
+    const name = nameOf(component)
+    if (!once(`SYG238:${name}`)) return
+    devReport('SYG238', {
+      component,
+      message: `${name} is a root with a model but no initialState: its state is undefined, so it renders nothing until an action sets one`,
+      fix: `Add ${name}.initialState = { … } (the root's start state; a child gets its state from its parent instead)`,
+      data: {},
+    })
+  },
 
   onReducer(component, action, prevState, nextState) {
     if (typeof action !== 'string' || action.startsWith('__') || SKIP.has(action)) return

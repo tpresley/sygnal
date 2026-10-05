@@ -27,13 +27,13 @@ const SOURCES = {
   intersectionSource: 'IntersectionObserver',
   resizeSource: 'ResizeObserver',
   mediaSource: 'matchMedia',
-  storageSource: 'StorageEvent',
+  storageSource: 'sessionStorage',
   visibilitySource: 'visibilitychange',
   onlineSource: "'offline'",
   geolocationSource: 'watchPosition',
   clipboardSource: 'writeText',
 }
-const DRIVER = ['geolocation', "'browser'", '__sygnalStatic: \'browser\'']
+const DRIVER = ['geolocation', "'browser' in v", '__sygnalStatic: \'browser\'']
 const WHEN = ['data-sygnal-when', 'requestIdleCallback']
 const APP = `
   function App({ state }) { return h('p', null, String(state.n)) }

@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 // PLAN-5 B-4 (D103): lazy(load, { when: 'visible' | 'idle' }): the import starts when the
 // placeholder enters the viewport, or when the browser is idle, not at lazy(). With Suspense the
-// fallback shows meanwhile (the deferred placeholder stays in the pending boundary, observed;
-// the fallback is wrapped in a display: contents div holding the placeholders).
+// deferred placeholder isn't waited for until its import starts (G-385, test/p5-2r-lazy.test.js);
+// then the fallback shows until the component is there.
 // SSR renders the placeholder and never loads. Real browsers: browser-tests/tests/browser-sources.test.js.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { run, lazy, Suspense, renderToString, renderComponent } from '../src/index.js'
@@ -56,17 +56,17 @@ describe("when: 'visible'", () => {
     expect(observers[0].off).toBe(true)
   })
 
-  it('in Suspense: the fallback shows while deferred and loading; the placeholder stays observed', async () => {
+  it('in Suspense: the placeholder stays in place and observed while deferred; the fallback shows while loading', async () => {
     const load = loader()
     const LazyChart = lazy(load, { when: 'visible' })
     function Page() { return h('div', null, [h(Suspense, { fallback: h('p', { className: 'skeleton' }, 'Loading…') }, [h(LazyChart, { title: 'Q3' })])]) }
     Page.initialState = {}
     app = run(Page, {}, { mountPoint: '#root' })
     await sleep(20)
-    expect(document.querySelector('.skeleton')).not.toBe(null)
-    const pending = document.querySelector('[data-sygnal-suspense="pending"]')
-    const ph = pending.querySelector('[data-sygnal-when]')
+    expect(document.querySelector('.skeleton')).toBe(null)
+    const ph = document.querySelector('[data-sygnal-when]')
     expect(ph).not.toBe(null)
+    expect([...observers[0].els]).toEqual([ph])
     expect(load).not.toHaveBeenCalled()
     show(ph)
     await until(() => expect(document.querySelector('.chart')?.textContent).toBe('Q3'))
@@ -137,6 +137,7 @@ describe('SSR, tests, and no option', () => {
     Page.initialState = {}
     const html = renderToString(Page)
     expect(html).toContain('data-sygnal-when="visible"')
+    expect(html).not.toContain('Loading')
     await sleep(5)
     expect(load).not.toHaveBeenCalled()
   })

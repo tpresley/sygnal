@@ -1079,8 +1079,11 @@ export interface BrowserFake {
  * PLAN-5 B-3: the browser fake's sources (the real browser driver runs over them): no DOM or
  * browser API. `live` holds the started declarations ({ k: kind, s: spec, c: its BrowserCtx });
  * t.browser.* reaches them. `o` is renderComponent's `browser` option (the environment at start).
+ * G-387: intersection / resize start with the report a real observer sends for an element at
+ * first (not visible, size 0), and under `dom: 'real'` (`real`) a selector that matches no
+ * element of the component, once it has rendered, is SYG668.
  */
-const browserFake = (o: any = {}) => {
+const browserFake = (o: any = {}, real?: boolean) => {
   const live = new Set<any>(), runners = new Map<any, any>();
   const env: any = {media: {...o.media}, local: {...o.storage}, session: {...o.sessionStorage}, deny: new Set(o.deny || []),
     visible: o.visible ?? true, online: o.online ?? true, clip: o.clipboard ?? '', pos: o.position};
@@ -1096,18 +1099,34 @@ const browserFake = (o: any = {}) => {
     if (now) { let v; try { v = now(s, c); } catch (x) { c.fail(failed(x)); } if (v !== undefined) c.send(v); }
     return () => { live.delete(e); };
   };
+  // dom: 'real': the target's elements after the next render (or now, when there are some)
+  const seen = (k: string) => (s: any, c: any) => {
+    if (real && c.dom) {
+      let sync = true;
+      const $ = c.dom.select(s[k] === true ? '' : '' + s[k]).elements(), l = {next: (els: any[]) => {
+        if (sync && !els.length) return;
+        els.length || c.miss('none');
+        Promise.resolve().then(() => $.removeListener(l));
+      }};
+      $.addListener(l);
+      sync = false;
+    }
+    return {index: 0, dataset: {}, ...(k == 'resize' ? {width: 0, height: 0} : {visible: false, ratio: 0})};
+  };
   const each = (k: string, f: (e: any) => void, key?: any) => [...live].filter(e => e.k == k && (key === undefined || e.s[k] === key)).forEach(f);
   // a write to the fake storage, seen by the storage declarations of that key and area
+  // G-384: an unchanged value is silent (as the browser's own `storage` event and the real driver)
   const write = (key: string, v: any, a = 'local') => {
-    const st = env[a == 'session' ? 'session' : 'local'];
+    const st = env[a == 'session' ? 'session' : 'local'], old = st[key] ?? null;
     v == null ? delete st[key] : st[key] = typeof v == 'string' ? v : JSON.stringify(v);
+    if (old === (st[key] ?? null)) return;
     each('storage', e => { if ((e.s.area == 'session' ? 'session' : 'local') == (a == 'session' ? 'session' : 'local')) { try { e.c.send({key, value: read(e.s)}); } catch (x) { e.c.fail(failed(x)); } } }, key);
   };
   const clipFail = (fail: any) => fail({name: 'NotAllowedError', message: 'Clipboard permission denied'});
   const src = {
     d: {
-      intersection: on('intersection'),
-      resize: on('resize'),
+      intersection: on('intersection', seen('intersection')),
+      resize: on('resize', seen('resize')),
       media: on('media', s => ({matches: !!env.media[s.media], media: s.media})),
       storage: on('storage', s => ({key: s.storage, value: read(s)})),
       visibility: on('visibility', () => ({visible: env.visible})),
@@ -1910,7 +1929,7 @@ export function renderComponent(
   // PLAN-5 B-3: the browser fake (the real browser driver over fake sources, browserFake), unless
   // a driver is passed under browserSink; t.browser.* drives it
   const {browserSink = 'BROWSER'} = options;
-  const bw = drivers[browserSink] ? undefined : browserFake(options.browser);
+  const bw = drivers[browserSink] ? undefined : browserFake(options.browser, real);
   // PLAN-4 GS-5: the fake storage a root's persist() uses (the __storage source; see persist.ts)
   const store = options.storage || {}, ps = componentDef.persist && {local: fakeStorage(store), session: fakeStorage(store), f: new Set<() => void>()};
   const allDrivers: any = {
@@ -1922,7 +1941,7 @@ export function renderComponent(
     ...(hd && {[headSink]: hd.driver}),
     // (it stands down when a timer driver is passed under another key: one runs the timers)
     ...(tm && {[timerSink]: (s$: any) => timerDriver(tm)(s$.filter(() => !Object.keys(sources || {}).some(k => k != timerSink && sources[k]?.__sygnalStatic == 'timers')))}),
-    ...(bw && {[browserSink]: (s$: any) => browserDriver([bw.src], bw.runners)(s$.filter(() => !Object.keys(sources || {}).some(k => k != browserSink && sources[k]?.__sygnalStatic == 'browser')))}),
+    ...(bw && {[browserSink]: (s$: any, n: string) => browserDriver([bw.src], bw.runners)(s$.filter(() => !Object.keys(sources || {}).some(k => k != browserSink && sources[k]?.__sygnalStatic == 'browser')), n)}),
     ...(rt && {[routerSink]: routerDriver}),
     ...drivers,
     ...(options.onError && {__e: () => options.onError}),

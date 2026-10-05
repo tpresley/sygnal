@@ -32,8 +32,8 @@ For a component far down the page, or one nobody needs right away, the `when` op
 ```jsx
 import { lazy, Suspense } from 'sygnal'
 
-// imported when its placeholder (or the Suspense fallback around it) scrolls into view
-const SalesChart = lazy(() => import('./SalesChart.jsx'), { when: 'visible', rootMargin: '200px' })
+// imported when its placeholder scrolls into view (the placeholder is 320 px tall meanwhile)
+const SalesChart = lazy(() => import('./SalesChart.jsx'), { when: 'visible', rootMargin: '200px', placeholderHeight: 320 })
 // imported once the browser is idle after the page has rendered
 const HelpPanel = lazy(() => import('./HelpPanel.jsx'), { when: 'idle' })
 
@@ -41,6 +41,7 @@ export function Dashboard({ state }) {
   return (
     <main>
       <h1>{state.title}</h1>
+      <a className="sales-link" href="#sales">Sales chart</a>
       <HelpPanel />
       <Suspense fallback={<div className="chart-skeleton">Loading chart…</div>}>
         <SalesChart />
@@ -57,12 +58,12 @@ Dashboard.initialState = { title: 'Sales' }
 | `'visible'` | When a placeholder of the component enters the viewport (`IntersectionObserver`; `rootMargin: '200px'` starts it 200 px before). Without `IntersectionObserver`, as soon as the placeholder is on the page |
 | `'idle'` | When the browser is idle after a placeholder is on the page (`requestIdleCallback`, at most 2 s later; a short timeout where there is none, as in Safari) |
 
-Until then the placeholder is the loading one with a `data-sygnal-when` attribute. Inside a Suspense boundary, the boundary shows its fallback the whole time (waiting, then loading), and the deferred placeholder is kept, empty, at the start of the boundary, so it is the fallback that has to scroll into view: give the fallback the size the component will have, and the page doesn't jump when it loads. Every use of the component shares one import, started by whichever placeholder triggers first.
+Until then the placeholder is `<div data-sygnal-lazy="deferred" data-sygnal-when="visible">` (or `"idle"`), in the component's own place. A Suspense boundary doesn't wait for a placeholder whose import hasn't started: it shows its content, with the placeholder where the component will be, so the placeholder can scroll into view on its own. Once the import starts, the boundary shows its fallback until the component is there. `placeholderHeight` (a number in px, or a CSS length) gives the placeholder a minimum height: give it the size the component will have, so the page doesn't jump when it loads, and so that several empty placeholders in a row are not all in view at once. Every use of the component shares one import, started by whichever placeholder triggers first.
 
 `load()` starts the import at once, for example to preload on hover:
 
 ```jsx
-Dashboard.intent = ({ DOM }) => ({ PRELOAD: DOM.mouseenter('.chart-skeleton') })
+Dashboard.intent = ({ DOM }) => ({ PRELOAD: DOM.mouseenter('.sales-link') })
 Dashboard.model = {
   PRELOAD: { EFFECT: () => { SalesChart.load() } },
 }

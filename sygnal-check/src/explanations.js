@@ -420,6 +420,13 @@ export const EXPLANATIONS = {
     explanation: "Each `form` behavior hears `input`, `focusout` and `submit` on its form element, found by the `form` option inside the host component (default `'form'`). Two `form` uses in one component with the same selector (both left at the default, usually) both match every form element of the view, so typing in one form changes the other's values too (when the names overlap) and each submit is handled by both. Reported when the component is created.",
     fix: "Give each form element its own class and pass it as the `form` option: `uses = { login: form(loginSchema, { ..., form: '.login' }), news: form(newsSchema, { ..., form: '.news' }) }` with `<form className=\"login\">` and `<form className=\"news\">`.",
   },
+  SYG238: {
+    title: "Root component with a model but no initial state",
+    severity: "warn",
+    reportedBy: ["dev-entry"],
+    explanation: "A root component (the one passed to `run()` or `renderComponent()`) has a `model` but no `initialState`, so its state is `undefined` and its view doesn't run: the page (or the test's `t.html()`) stays empty until an action sets the whole state. A root without a model renders anyway (from `initialState`, or with no state), and a child gets its state from its parent, so neither is reported. The state may also come from `renderComponent(C, { initialState })` or an HMR swap; then nothing is reported either. Reported once per component.",
+    fix: "Give the root its start state: `App.initialState = { count: 0 }`. If the state really arrives later (from a request), start from a placeholder such as `{ status: 'loading' }` and render that.",
+  },
   SYG301: {
     title: "RxJS operator used on an xstream stream",
     severity: "error",
@@ -893,7 +900,7 @@ export const EXPLANATIONS = {
     title: "Invalid browser-source spec or command",
     severity: "error",
     reportedBy: ["dev-entry"],
-    explanation: "An entry of a component's `browser` static can't be started, or a command sent to the browser driver's sink can't be run, so it is skipped and nothing would happen. A `browser` entry is an object with one key that names its source (`intersection`, `resize`, `media`, `storage`, `visibility`, `online`, `geolocation`) and that names the action its events are delivered as (`action: 'SEEN'`, a string); `intersection` and `resize` take a selector in the component's own view, or `true` for its root element. A command's first key is its method: `copy`, `paste`, `setItem` or `removeItem` (those of the sources the driver was made with). Reported once per component, entry and spec.",
+    explanation: "An entry of a component's `browser` static can't be started, or a command sent to the browser driver's sink can't be run, so it is skipped and nothing would happen. A `browser` entry is an object with one key that names its source (`intersection`, `resize`, `media`, `storage`, `visibility`, `online`, `geolocation`) and that names the action its events are delivered as (`action: 'SEEN'`, a string); `intersection` and `resize` take a selector in the component's own view, or `true` for its root element. A command names its method as one of its keys: `copy`, `paste`, `setItem` or `removeItem` (those of the sources the driver was made with). Reported once per component, entry and spec.",
     fix: "Write the entry as `seen: { intersection: '.cover', action: 'SEEN' }`, `dark: { media: '(prefers-color-scheme: dark)', action: 'DARK' }` (a falsy value stops it: `seen: !state.seen && { ... }`), and a command as `COPY: { BROWSER: (state) => ({ copy: state.link, ok: 'COPIED' }) }`. Clipboard reads and writes are commands, not `browser` entries.",
   },
   SYG664: {
@@ -923,6 +930,13 @@ export const EXPLANATIONS = {
     reportedBy: ["runtime"],
     explanation: "`fromZag(zag, render, options)` got a first argument that isn't a Zag machine package (an object with `machine` and `connect`, as `import * as menu from '@zag-js/menu'` gives), or a `render` that isn't a function; or `fromReact(Component, options)` got something that isn't a React component (a function, or an object such as `memo()` or `forwardRef()` returns). It is thrown when the widget is defined, at module load, so the app doesn't start with a widget that can't mount.",
     fix: "Pass the whole machine package and a render function: `fromZag(menu, (api, props) => <div>...</div>, { events: { select: ['onSelect', (d) => d.value] } })` with `import * as menu from '@zag-js/menu'` (not the default import or `menu.machine`). For React, pass the component itself: `fromReact(StarRating, { events: { rate: 'onChange' } })`, not an element (`<StarRating />`) or a tag name.",
+  },
+  SYG668: {
+    title: "Browser source has no element to observe",
+    severity: "warn",
+    reportedBy: ["dev-entry"],
+    explanation: "An `intersection` or `resize` entry of a component's `browser` declaration has nothing to observe, so its action never comes. Either no DOM source reached the browser driver for the instance (the app runs without a DOM driver, or the declaration was sent from outside a component's `browser` static), or, under `renderComponent(C, { dom: 'real' })`, the entry's selector matches no element the component renders (a typo, or an element rendered only later). The `t.browser` fake still sends its initial report, so the test can pass while the real app observes nothing. Reported once per component, entry and reason.",
+    fix: "Run the app with a DOM driver (`run(App, drivers, { mountPoint })`) and declare the entry in the component's own `browser` static. Use a selector the component's own view renders, or `true` for its root element: `cover: { intersection: '.cover', action: 'SEEN' }` with `<img className=\"cover\" />` in the view. Declare the entry only while its element exists: `chart: state.open && { resize: '.chart', action: 'SIZE' }`.",
   },
   SYG701: {
     title: "Click listener on a non-interactive element",

@@ -45,6 +45,8 @@
  * | SYG663 | browser entry / BROWSER command that can't run         | browserSources.ts |
  * | SYG664 | browser source the driver wasn't made with             | browserSources.ts |
  * | SYG665 | browser source failed with no error action             | browserSources.ts |
+ * | SYG668 | intersection / resize with no element to observe       | browserSources.ts |
+ * | SYG238 | a root with a model but no initialState: renders nothing | state.ts       |
  * | SYG223 | persist pick/omit key not in initialState              | persist.ts     |
  * | SYG224 | persist on a component that isn't the root             | persist.ts     |
  * | SYG645 | viewTransitions without makeViewTransitionDOMDriver(), or not an array | viewTransitions.ts |

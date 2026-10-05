@@ -97,7 +97,7 @@ export const signupSchema = {
 }
 ```
 
-An async schema (valibot's `pipeAsync`, zod's async refinements) works too: `state.form.validating` is `true` while it runs (also at the start, until its first answer), `state.form.valid` is `false` meanwhile, and a submit waits for it. The schema first runs when the component starts, not when `form()` is called. Something that isn't a Standard Schema is [SYG231](/reference/errors/#syg231).
+An async schema (valibot's `pipeAsync`, zod's async refinements) works too: `state.form.validating` is `true` while it runs (also at the start, until its first answer) and a submit waits for it. `state.form.valid` is `false` until the first answer; after that it keeps the last answer's validity while the schema re-validates, so `<button disabled={!state.form.valid}>` doesn't flicker on every keystroke (show progress with `validating`). The schema first runs when the component starts, not when `form()` is called. Something that isn't a Standard Schema is [SYG231](/reference/errors/#syg231).
 
 ### The slice, the options and the actions
 
@@ -108,8 +108,8 @@ An async schema (valibot's `pipeAsync`, zod's async refinements) works too: `sta
 | `values`, `initial` | The current values, and the ones the form started with (or was last saved or reset with) |
 | `errors` | Every current schema error by field name, shown or not |
 | `touched`, `server`, `remote`, `pending` | Blurred fields; [server errors](#server-errors); [check](#async-checks) results; checks running |
-| `submitting`, `submitted`, `submitCount`, `queued`, `validating` | Submit state: sent and not answered yet; `form.DONE` arrived; attempts; a submit waits for a check or an async schema; an async schema runs |
-| `fields`, `valid`, `dirty`, `error` | Calculated: per-field view data; no errors (and not `validating`); values differ from `initial`; the form-level message |
+| `submitting`, `submitted`, `submitCount`, `queued`, `validating`, `validated` | Submit state: sent and not answered yet; `form.DONE` arrived; attempts; a submit waits for a check or an async schema; an async schema runs; the schema has answered since the start or the last reset |
+| `fields`, `valid`, `dirty`, `error` | Calculated: per-field view data; no errors as of the schema's last answer (`false` before the first); values differ from `initial`; the form-level message |
 
 The options:
 

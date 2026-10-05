@@ -217,6 +217,8 @@ export const CODE_TITLES: Record<string, string> = {
   SYG235: 'Form check names an unknown field or sets reply fields',
   SYG236: 'Form array rows without an id',
   SYG237: 'Two forms in one component listen on the same form selector',
+  // PLAN-5 2-R (G-393; checks/state.ts; dev entry)
+  SYG238: 'Root component with a model but no initial state',
   SYG402: 'Context is not an object',
   SYG403: 'Invalid context entry',
   SYG404: 'Context stream errored',
@@ -288,6 +290,8 @@ export const CODE_TITLES: Record<string, string> = {
   // fromZag / fromReact
   SYG666: 'Adapter peer dependency missing',
   SYG667: 'Invalid adapter argument',
+  // PLAN-5 2-R (G-383, G-387)
+  SYG668: 'Browser source has no element to observe',
   // PLAN-4 GS-3: a11y lane (static only, sygnal-check)
   SYG701: 'Click listener on a non-interactive element',
   SYG702: 'Form field without an accessible label',
@@ -354,6 +358,7 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG235: 'warn',
   SYG236: 'warn',
   SYG237: 'warn',
+  SYG238: 'warn',
   SYG421: 'error',
   SYG611: 'error',
   // PLAN-3 5-4b: router (SYG620 is reported by the router itself, like SYG611) and G-167
@@ -405,6 +410,7 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG665: 'warn',
   SYG666: 'error',
   SYG667: 'error',
+  SYG668: 'warn',
   // PLAN-5 V-1: VirtualCollection (checks/virtual.ts, through the core bridge)
   SYG430: 'warn',
   SYG431: 'warn',

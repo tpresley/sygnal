@@ -327,7 +327,7 @@ See [Slots guide](/advanced/slots/) for reactive updates and fallback patterns.
 Code-split a component via dynamic import.
 
 ```typescript
-function lazy(loadFn: () => Promise<{ default: Component }>, options?: { when?: 'visible' | 'idle'; rootMargin?: string }): Component & { load(): Promise<void> }
+function lazy(loadFn: () => Promise<{ default: Component }>, options?: { when?: 'visible' | 'idle'; rootMargin?: string; placeholderHeight?: number | string }): Component & { load(): Promise<void> }
 ```
 
 ```jsx
@@ -336,7 +336,7 @@ const HeavyChart = lazy(() => import('./HeavyChart.jsx'))
 const BelowTheFold = lazy(() => import('./BelowTheFold.jsx'), { when: 'visible' })
 ```
 
-Renders a `<div data-sygnal-lazy="loading">` placeholder until the import resolves. Static properties (intent, model, etc.) are copied from the loaded module's default export. `when` defers the import until a placeholder enters the viewport (`'visible'`, `rootMargin`) or the browser is idle (`'idle'`); a Suspense boundary shows its fallback meanwhile, and `renderToString` renders the placeholder. `load()` starts the import now (preloading). Guide: [Lazy Loading](/advanced/lazy-loading/#loading-when-visible-or-idle).
+Renders a `<div data-sygnal-lazy="loading">` placeholder until the import resolves. Static properties (intent, model, etc.) are copied from the loaded module's default export. `when` defers the import until a placeholder enters the viewport (`'visible'`, `rootMargin`) or the browser is idle (`'idle'`); the placeholder stays in its place (`placeholderHeight`: its min-height), a Suspense boundary shows its fallback only once the import has started, and `renderToString` renders the placeholder. `load()` starts the import now (preloading). Guide: [Lazy Loading](/advanced/lazy-loading/#loading-when-visible-or-idle).
 
 ---
 
@@ -918,7 +918,7 @@ function form<V>(schema: StandardSchemaLike, options: {
 
 | | |
 |---|---|
-| State | `values`, `initial`, `errors`, `touched`, `server`, `remote`, `pending`, `submitting`, `submitted`, `submitCount`, `queued`, `validating`; calculated `fields` (per name: `{ name, value, error, invalid, touched, dirty, pending }`), `valid`, `dirty`, `error` |
+| State | `values`, `initial`, `errors`, `touched`, `server`, `remote`, `pending`, `submitting`, `submitted`, `submitCount`, `queued`, `validating`, `validated`; calculated `fields` (per name: `{ name, value, error, invalid, touched, dirty, pending }`), `valid`, `dirty`, `error` |
 | Actions | `CHANGE` (`{ name, value }`), `BLUR` (name), `SUBMIT`, `ADD` (`{ field, value }`), `REMOVE` (`{ field, id }`), `ERRORS` (server errors), `DONE`, `RESET` (values?) |
 
 Fields are matched by `name` inside the form element (`form` option, default `'form'`); rows of an array by id (`addresses.7.city`). A valid submit dispatches the host's `submit` action with the schema's output; an invalid one focuses the first invalid field. Diagnostics: [SYG230](/reference/errors/#syg230)–[SYG236](/reference/errors/#syg236).
@@ -1298,7 +1298,7 @@ Card.browser = (state) => ({
 | `{ online: true, action }`: the network (its value first) | `{ online }` |
 | `{ geolocation: true \| PositionOptions, action, error? }`: `watchPosition` (permission-gated) | `{ latitude, longitude, accuracy, altitude, altitudeAccuracy, heading, speed, timestamp }`; `error`: `{ code, message }` |
 
-Any spec takes `background: true`. Compared by name whenever the state changes, as `timers`: a new name starts, a falsy or missing one stops, a changed spec restarts. A hidden Switchable page's sources stop unless `background: true`. Commands from a model entry, on the driver's sink: `{ copy: text, ok?, error? }`, `{ paste: true, ok, error? }` (`{ text }`), `{ setItem: key, value, area?, json? }`, `{ removeItem: key, area? }`. Diagnostics: [SYG663](/reference/errors/#syg663) (invalid spec or command), [SYG664](/reference/errors/#syg664) (source not in the driver), [SYG665](/reference/errors/#syg665) (failed with no `error` action). Types: `BrowserSpec`, `BrowserSources`, `BrowserIntersection`, `BrowserResize`, `BrowserPosition`, `BrowserCommand`.
+Any spec takes `background: true`. Compared by name whenever the state changes, as `timers`: a new name starts, a falsy or missing one stops, a changed spec restarts. A hidden Switchable page's sources stop unless `background: true`. Commands from a model entry, on the driver's sink: `{ copy: text, ok?, error? }`, `{ paste: true, ok, error? }` (`{ text }`), `{ setItem: key, value, area?, json? }`, `{ removeItem: key, area? }`. Diagnostics: [SYG663](/reference/errors/#syg663) (invalid spec or command), [SYG664](/reference/errors/#syg664) (source not in the driver), [SYG665](/reference/errors/#syg665) (failed with no `error` action), [SYG666](/reference/errors/#syg666) (intersection / resize with nothing to observe). Types: `BrowserSpec`, `BrowserSources`, `BrowserIntersection`, `BrowserResize`, `BrowserPosition`, `BrowserCommand`.
 
 ---
 

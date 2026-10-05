@@ -912,13 +912,15 @@ export interface FormState<V = any> {
   queued: boolean;
   /** The schema hasn't answered for the current values yet (an async one is running; also at the start) */
   validating: boolean;
+  /** The schema has answered at least once since the start (or the last `form.RESET`) */
+  validated: boolean;
 }
 
 /** A `form` slice's calculated fields. */
 export interface FormCalculated {
   /** Every field of `values` by name (leaves, arrays, and array rows' fields by row id) */
   fields: Record<string, FormField>;
-  /** No schema error and no failed check, and not `validating` */
+  /** No schema error and no failed check, as of the schema's last answer (false until its first; an async re-validation keeps the previous value) */
   valid: boolean;
   dirty: boolean;
   /** The form-level message: a server error without a field, or a schema issue without a path after a submit */
@@ -2016,12 +2018,15 @@ export type LazyComponent<PROPS = any> = ((
 /**
  * PLAN-5 B-4: `when` defers the import until a placeholder is visible ('visible',
  * IntersectionObserver; `rootMargin` to start earlier) or the browser is idle after it is on the
- * page ('idle', requestIdleCallback with a 2 s timeout). Meanwhile a Suspense boundary shows its
- * fallback; SSR renders the placeholder and never loads.
+ * page ('idle', requestIdleCallback with a 2 s timeout). The placeholder stays in its place: a
+ * Suspense boundary waits for it (its fallback) only once the import has started. SSR renders the
+ * placeholder and never loads.
  */
 export interface LazyOptions {
   when?: 'visible' | 'idle'
   rootMargin?: string
+  /** the placeholder's min-height (a number: px; or a CSS length), e.g. the component's expected height */
+  placeholderHeight?: number | string
 }
 
 export function lazy<PROPS = any>(
@@ -2763,8 +2768,8 @@ export interface BrowserPosition { latitude: number; longitude: number; accuracy
 
 /**
  * PLAN-5 B-3: a command for the browser driver's sink, from a model entry
- * (`COPY: { BROWSER: (state) => ({ copy: state.link, ok: 'COPIED' }) }`); the first key is the
- * method. `ok` / `error` name reply actions (copy/paste: `{ text }`; a failure `{ name, message }`).
+ * (`COPY: { BROWSER: (state) => ({ copy: state.link, ok: 'COPIED' }) }`); the method is its
+ * `copy`, `paste`, `setItem` or `removeItem` key, in any order. `ok` / `error` name reply actions (copy/paste: `{ text }`; a failure `{ name, message }`).
  */
 export type BrowserCommand =
   | { copy: string; ok?: string; error?: string }
@@ -3070,7 +3075,7 @@ export interface BrowserFakeOptions {
 
 /** PLAN-5 B-3: `t.browser` */
 export interface BrowserFake {
-  /** the declarations of `intersection: target` hear `{ visible, ratio: 1 | 0, index: 0, dataset: {}, ...data }`; `at`: only the at-th of them (start order). Throws when nothing declares it */
+  /** the declarations of `intersection: target` hear `{ visible, ratio: 1 | 0, index: 0, dataset: {}, ...data }`; `at`: only the at-th of them (start order). Throws when nothing declares it. (Each declaration also hears `{ visible: false, ratio: 0, index: 0, dataset: {} }` when it starts, and a resize one `{ width: 0, height: 0, index: 0, dataset: {} }`, as the observers report) */
   intersect(target: string | true, visible?: boolean, data?: Partial<BrowserIntersection> & { at?: number }): Promise<void>;
   /** the declarations of `resize: target` hear `{ width, height, index: 0, dataset: {}, ...size }`. Throws when nothing declares it */
   resize(target: string | true, size: Partial<BrowserResize> & { at?: number }): Promise<void>;

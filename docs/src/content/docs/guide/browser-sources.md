@@ -82,13 +82,13 @@ Each [Collection](/guide/collections/) item declares its own sources, so `inters
 
 ## Commands: the clipboard and storage writes
 
-Reading or writing the clipboard is something a user asks for, not something to watch, so it is a command: a model entry sends it to the driver's sink, and the answer comes back as a reply action. The first key is the method:
+Reading or writing the clipboard is something a user asks for, not something to watch, so it is a command: a model entry sends it to the driver's sink, and the answer comes back as a reply action. The method is its `copy`, `paste`, `setItem` or `removeItem` key (in any order with `ok` and `error`); a value the method can't take (a `json` value with a BigInt or a cycle) fails like a refusal, through `error`:
 
 | Command | Does | Reply |
 |---|---|---|
 | `{ copy: text, ok, error }` | Writes `text` to the clipboard | `ok`: `{ text }` |
 | `{ paste: true, ok, error }` | Reads the clipboard's text | `ok`: `{ text }` |
-| `{ setItem: key, value, area, json }` | Writes a storage key (`json: true` stores `value` as JSON); this page's `storage` declarations of that key see the change | `ok`: `{ key }` |
+| `{ setItem: key, value, area, json }` | Writes a storage key (`json: true` stores `value` as JSON); this page's `storage` declarations of that key see the change (a write of the value already stored is silent, so a model that writes back what it reads settles; `storage` listeners of your own on `window` hear only other tabs, as in the browser) | `ok`: `{ key }` |
 | `{ removeItem: key, area }` | Removes a storage key | `ok`: `{ key }` |
 
 ```jsx
@@ -188,6 +188,8 @@ it('shows the photo once it is seen, then stops watching', async () => {
 | `t.browser.deny('geolocation', 'clipboard')` | Those permissions are refused from now on (a running geolocation declaration fails with code 1) |
 | `t.browser.active()` | The running declarations: `{ name, ...spec, component }` |
 
+As with the real observers, an `intersection` declaration hears `{ visible: false, ratio: 0, index: 0, dataset: {} }` when it starts and a `resize` one `{ width: 0, height: 0, index: 0, dataset: {} }`, so a model that counts reports must ignore a first "not visible". The fake doesn't look for the elements under the mock DOM; with `renderComponent(C, { dom: 'real' })` a selector that matches no element of the component after it renders is [SYG668](/reference/errors/#syg668).
+
 The `browser` option sets the environment at the start: `renderComponent(Theme, { browser: { media: { '(prefers-color-scheme: dark)': true }, storage: { theme: '"dark"' }, online: false, deny: ['geolocation'] } })`. By default no media query matches, storage is empty, the page is visible and online, and nothing is denied. The commands (`copy`, `paste`, `setItem`, `removeItem`) run against the fake too. If the test passes its own browser driver in `drivers`, the fake stands down and `t.browser` throws (`browserSink` renames the fake's sink).
 
 ## Diagnostics
@@ -197,6 +199,7 @@ The `browser` option sets the environment at the start: `renderComponent(Theme, 
 | [SYG663](/reference/errors/#syg663) (error) | A spec the driver can't start (no known source key, no `action`, an `intersection` / `resize` target that is neither a selector nor `true`), or a command with an unknown method |
 | [SYG664](/reference/errors/#syg664) (error) | A spec whose source `makeBrowserDriverWith(...)` wasn't given |
 | [SYG665](/reference/errors/#syg665) (warning) | A source or command failed and names no `error` action |
+| [SYG668](/reference/errors/#syg668) (warning) | An `intersection` / `resize` entry has nothing to observe: no DOM source reached the driver, or (in `renderComponent` with `dom: 'real'`) its selector matches no element of the component |
 | [SYG643](/reference/errors/#syg643) (warning) | The component declares `browser`, but no browser driver is registered. `sygnal-check` reports it too when it can read the app's `run()` call |
 
 Deferred loading of a component when it scrolls into view is [`lazy(…, { when: 'visible' })`](/advanced/lazy-loading/#loading-when-visible-or-idle).

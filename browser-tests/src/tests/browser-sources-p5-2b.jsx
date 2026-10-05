@@ -192,7 +192,7 @@ export async function browserSourceTestsP5_2B() {
     } finally { stop() }
   })
 
-  await runTest(CAT, "lazy when: 'visible' in Suspense: the fallback shows, then the component", async () => {
+  await runTest(CAT, "lazy when: 'visible' in Suspense: the placeholder waits in place (G-385), then the component", async () => {
     const c = counted()
     const LazyChart = lazy(c.load, { when: 'visible' })
     function Page({ state }) {
@@ -202,9 +202,10 @@ export async function browserSourceTestsP5_2B() {
     Page.model = { NEAR: (s) => ({ ...s, far: false }) }
     const { el, app, stop } = start(Page)
     try {
-      await waitFor(() => el.querySelector('.skeleton'))
+      await waitFor(() => el.querySelector('[data-sygnal-when="visible"]'))
       await wait(150)
-      assert(c.n === 0, 'not loaded while the boundary is below the viewport')
+      assert(!el.querySelector('.skeleton'), 'no fallback while the import has not started')
+      assert(c.n === 0, 'not loaded while the placeholder is below the viewport')
       app.__runtime.dispatch('root', 'NEAR')
       await waitFor(() => el.querySelector('.chart')?.textContent === 'Q3')
       assert(!el.querySelector('.skeleton'), 'the fallback is gone')
