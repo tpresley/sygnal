@@ -15,7 +15,7 @@ import { COUNT, RESET, READ } from './lib/instrument.mjs'
 const root = resolve(import.meta.dirname)
 const outDir = resolve(root, 'dist-p46')
 const OUT = process.argv.find(a => a.startsWith('--out='))?.slice(6) ?? 'results/p46-counts.json'
-const PAGES = ['table-coll', 'counters', 'deep', 'coll-calc', 'switch', 'fetch']
+const PAGES = ['table-coll', 'counters', 'counters-tags', 'deep', 'coll-calc', 'switch', 'fetch']
 const HOOKS = [
   [/node_modules\/snabbdom\/build\/init\.js$/, 'return function patch(oldVnode, vnode) {', 'globalThis.__perf && globalThis.__perf.patches++;'],
   [/node_modules\/xstream\/index\.js$/, 'function Stream(producer) {', 'globalThis.__perf && globalThis.__perf.streams++;'],
@@ -57,6 +57,7 @@ async function counted(fw, page, setup, act, done, trail = 500) {
 
 const rows1k = `h.click('#run'); await h.waitFor(() => h.n('.row') === 1000)`
 const counters1k = `h.click('#create'); await h.waitFor(() => h.n('.counter') === 1000)`
+const NEXT_PAGES = new Set(['deep', 'counters-tags'])
 const CASES = [
   ['patches: select row, 1k Collection', 'table-coll', rows1k, `h.click('.row:nth-child(2) .lbl')`, `h.q('.row:nth-child(2)').classList.contains('danger')`],
   ['patches: update every 10th, 1k Collection', 'table-coll', rows1k, `h.click('#update')`, `h.text('.row .lbl').endsWith('!!!')`],
@@ -68,6 +69,9 @@ const CASES = [
   ['patches: switch show other page', 'switch', `h.click('#create'); await h.waitFor(() => h.n('.pa .counter') === 500)`, `h.click('#show-b')`, `h.n('.pb .counter') === 500`],
   ['patches: fetch create 1k (all replied)', 'fetch', '', `h.click('#run')`, `h.text('.loaded') === '1000'`],
   ['mount 1k counters', 'counters', '', `h.click('#create')`, `h.n('.counter') === 1000`, 1000],
+  ['patches: update 1 of 1k counters (tags)', 'counters-tags', counters1k, `h.click('.counter:nth-child(500) .inc')`, `h.text('.counter:nth-child(500) .val') === '1'`],
+  ['mount 1k counters (tags)', 'counters-tags', '', `h.click('#create')`, `h.n('.counter') === 1000`, 1000],
+  ['unmount 1k counters (tags)', 'counters-tags', counters1k, `h.click('#destroy')`, `h.n('.counter') === 0`, 1500],
   ['unmount 1k counters', 'counters', counters1k, `h.click('#destroy')`, `h.n('.counter') === 0`, 1500],
   ['create 1k Collection rows', 'table-coll', '', `h.click('#run')`, `h.n('.row') === 1000`, 1000],
   ['clear 1k Collection rows', 'table-coll', rows1k, `h.click('#clear')`, `h.n('.row') === 0`, 1500],
@@ -79,6 +83,8 @@ for (const [label, page, setup, act, done, trail] of CASES) {
   out.counts[label] = {}
   const line = [label.padEnd(42)]
   for (const fw of ['sygnal', 'next']) {
+    // PLAN-4.6 R1: the next core has no Collection / Switchable / statics yet (R2, R3): those pages are skipped for it
+    if (fw === 'next' && !NEXT_PAGES.has(page)) { line.push('next: (needs R2/R3)'); continue }
     const r = await counted(fw, page, setup, act, done, trail)
     out.counts[label][fw] = r
     line.push(`${fw}: patches ${r.patches}, streams ${r.streams}${label.includes('1k') && !label.startsWith('patches') ? ` (${(r.streams / 1000).toFixed(1)}/item)` : ''}, setTimeout ${r.timeouts}`)

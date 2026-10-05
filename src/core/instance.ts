@@ -304,7 +304,7 @@ export class Inst {
       if (v !== k.last || k.ready !== k.lr) { k.last = v; k.lr = k.ready; kidsDirty = true }
     }
     if (!viewDirty && !kidsDirty) return this.outv
-    let v = this.inject(this.tmpl, 'r')
+    let v = this.kids.size ? this.inject(this.tmpl, 'r') : this.tmpl
     if (this.postSels) for (const s of this.postSels) v = posts[s](v, viewOf(this))
     this.app.hooks.onRender?.(viewOf(this), v)
     return (this.outv = this.parent ? this.app.scopeValue(this.parent, 'DOM', v, this) : v)

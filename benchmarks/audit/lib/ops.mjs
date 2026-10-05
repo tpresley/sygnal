@@ -100,6 +100,12 @@ export const OPS = {
     { name: 'update 1 of 1k', setup: `if (h.n('.counter') !== 1000) { h.click('#create'); await h.waitFor(() => h.n('.counter') === 1000) } await h.settle(); window.__v = h.text('.counter:nth-child(500) .val')`, act: `h.click('.counter:nth-child(500) .inc')`, done: `h.text('.counter:nth-child(500) .val') === String(+window.__v + 1)` },
     { name: 'unmount 1k components', setup: `if (h.n('.counter') !== 1000) { h.click('#create'); await h.waitFor(() => h.n('.counter') === 1000) } await h.settle()`, act: `h.click('#destroy')`, done: `h.n('.counter') === 0` },
   ],
+  // PLAN-4.6 R1: the counters ops on 1,000 tag children (no Collection); React: its counters page
+  tags: [
+    { name: 'mount 1k components (tags)', setup: `h.click('#destroy'); await h.waitFor(() => h.n('.counter') === 0); await h.settle()`, act: `h.click('#create')`, done: `h.n('.counter') === 1000` },
+    { name: 'update 1 of 1k (tags)', setup: `if (h.n('.counter') !== 1000) { h.click('#create'); await h.waitFor(() => h.n('.counter') === 1000) } await h.settle(); window.__v = h.text('.counter:nth-child(500) .val')`, act: `h.click('.counter:nth-child(500) .inc')`, done: `h.text('.counter:nth-child(500) .val') === String(+window.__v + 1)` },
+    { name: 'unmount 1k components (tags)', setup: `if (h.n('.counter') !== 1000) { h.click('#create'); await h.waitFor(() => h.n('.counter') === 1000) } await h.settle()`, act: `h.click('#destroy')`, done: `h.n('.counter') === 0` },
+  ],
   deep: [
     { name: 'leaf update, 30 deep', setup: `await h.waitFor(() => h.q('.leaf')); await h.settle(); window.__v = h.text('.leaf .val')`, act: `h.click('.leaf .inc')`, done: `h.text('.leaf .val') === String(+window.__v + 1)` },
   ],
@@ -129,6 +135,7 @@ export const OPS = {
 export function pagesFor(fw, scenario) {
   if (fw === 'sygnal' && scenario === 'table') return [['sygnal', 'table'], ['sygnal (Collection)', 'table-coll']]
   if (fw === 'next' && scenario === 'table') return [['next', 'table'], ['next (Collection)', 'table-coll']]
+  if (scenario === 'tags') return fw === 'vue' ? [] : [[fw, fw === 'react' ? 'counters' : 'counters-tags']]
   if (['coll-calc', 'switch', 'fetch'].includes(scenario) && fw !== 'sygnal' && fw !== 'next') return []
   return [[fw, scenario]]
 }
