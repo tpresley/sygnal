@@ -1956,10 +1956,25 @@ export function Slot(props: SlotProps): JSX.Element
  */
 export type LazyComponent<PROPS = any> = ((
   props: PROPS & { state?: any; children?: JSX.Element | JSX.Element[] }
-) => JSX.Element) & Omit<Component<any, PROPS>, never>
+) => JSX.Element) & Omit<Component<any, PROPS>, never> & {
+  /** start the import now (a deferred `when` one too: preload on hover, or in a test); resolves once it has loaded or failed */
+  load(): Promise<void>
+}
+
+/**
+ * PLAN-5 B-4: `when` defers the import until a placeholder is visible ('visible',
+ * IntersectionObserver; `rootMargin` to start earlier) or the browser is idle after it is on the
+ * page ('idle', requestIdleCallback with a 2 s timeout). Meanwhile a Suspense boundary shows its
+ * fallback; SSR renders the placeholder and never loads.
+ */
+export interface LazyOptions {
+  when?: 'visible' | 'idle'
+  rootMargin?: string
+}
 
 export function lazy<PROPS = any>(
-  loadFn: () => Promise<{ default: Component<any, PROPS> } | Component<any, PROPS>>
+  loadFn: () => Promise<{ default: Component<any, PROPS> } | Component<any, PROPS>>,
+  options?: LazyOptions
 ): LazyComponent<PROPS>
 
 /**

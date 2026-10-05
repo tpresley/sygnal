@@ -47,3 +47,11 @@ const asComponent: Component<any, ChartProps> = Chart
 // @ts-expect-error a component has no .components registry
 Page.components = { Settings }
 void asComponent
+
+// PLAN-5 B-4: deferred loading
+const Below = lazy<ChartProps>(() => Promise.resolve({ default: ((({ title }) => <h2>{title}</h2>) as Component<any, ChartProps>) }), { when: 'visible', rootMargin: '200px' })
+const Idle = lazy(() => Promise.resolve((() => <aside />) as Component), { when: 'idle' })
+const preload: Promise<void> = Below.load()
+void preload; void Idle
+// @ts-expect-error when is 'visible' or 'idle'
+lazy(() => Promise.resolve((() => <aside />) as Component), { when: 'soon' })
