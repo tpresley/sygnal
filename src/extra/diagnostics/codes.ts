@@ -303,6 +303,8 @@ export const CODE_TITLES: Record<string, string> = {
   SYG706: 'Positive tabIndex',
   SYG707: 'Unknown ARIA attribute or invalid role',
   SYG708: 'Label or ARIA reference to an id that is not rendered',
+  // PLAN-5 2-T (D211): Zag UI parts (sygnal-check rules/a11y/syg722-ui-name.js)
+  SYG722: 'Menu, Select or Combobox without an accessible name',
   SYG901: "Retired in 6.0: Sub-component sink stream errored",
   SYG902: "Retired in 6.0: EFFECT stream errored",
   SYG903: "Retired in 6.0: Component factory returned invalid sinks",
@@ -429,6 +431,7 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG706: 'warn',
   SYG707: 'warn',
   SYG708: 'warn',
+  SYG722: 'warn',
 }
 
 export function getCodeInfo(code: string): DiagnosticCodeInfo | undefined {

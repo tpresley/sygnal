@@ -1001,6 +1001,13 @@ export const EXPLANATIONS = {
     explanation: "A `<label for>`, `aria-describedby` or `aria-labelledby` names an id that no element renders, so the label or description is attached to nothing (often a typo, or an id that was renamed on one side only). A literal id may be rendered anywhere in the checked files; a `uid('x')` reference needs an element in the same component with `id={uid('x')}`. When some id in the project is dynamic (`id={props.id}`), literal references are not checked, and dynamic references never are. It is a warning, also under `--strict`; `--a11y=error` (or `a11y: 'error'` in `check()` and the Vite plugin's `check` options) makes it an error.",
     fix: "Render the target with the same id, or fix the reference. Inside a component, use `uid('x')` on both sides: `<input id={uid('email')} aria-describedby={uid('email-error')} />` and `<p id={uid('email-error')}>`.",
   },
+  SYG722: {
+    title: "Menu, Select or Combobox without an accessible name",
+    severity: "warn",
+    reportedBy: ["static"],
+    explanation: "A `<Menu>`, `<Select>` or `<Combobox>` from `sygnal/ui/menu`, `sygnal/ui/select` or `sygnal/ui/combobox` has no `label`, `aria-label` or `aria-labelledby`. The part names its control from them (Menu's trigger text is its `label`; Select's trigger and Combobox's input are labelled by the visible `label`, or take `aria-label` / `aria-labelledby` directly), so without any of them a screen reader announces an unnamed menu button or combobox. A dynamic value or a spread counts as a name; an empty string doesn't. It is a warning, also under `--strict`; `--a11y=error` (or `a11y: 'error'` in `check()` and the Vite plugin's `check` options) makes it an error.",
+    fix: "Give it a visible label: `<Select className=\"size\" label=\"Size\" items={SIZES} />`. When the label is elsewhere on the page, point at it with `aria-labelledby=\"<its id>\"`; for an icon-only Menu trigger, use `aria-label=\"More actions\"`.",
+  },
   SYG900: {
     title: "A diagnostics check threw",
     severity: "warn",
