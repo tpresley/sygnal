@@ -103,8 +103,12 @@ export interface TabsAttrs {
   /** Its panel: id, role="tabpanel", aria-labelledby, tabindex="0", hidden (unless selected), data-state */
   panel(value: string | number): PartAttrs
 }
-/** The attributes of a tab set from its slice and the view's `uid`: `const a = tabsAttrs(state.tabs, uid)`. */
-export function tabsAttrs(slice: TabsState | undefined, uid: Uid): TabsAttrs
+/**
+ * The attributes of a tab set from its slice and the view's `uid`: `const a = tabsAttrs(state.tabs, uid)`.
+ * `values`: the tabs' values in order (leave disabled ones out); with it, a `selected` that isn't
+ * one of them (a removed tab) shows the first one selected.
+ */
+export function tabsAttrs(slice: TabsState | undefined, uid: Uid, values?: ReadonlyArray<string | number>): TabsAttrs
 
 // ── Accordion ─────────────────────────────────────────────────────────
 export interface AccordionState {

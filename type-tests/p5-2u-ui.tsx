@@ -7,7 +7,7 @@ import type { Component, UsesState, UsesActions } from 'sygnal'
 import {
   dialog, popover, tooltip, tabs, tabsAttrs, accordion, accordionAttrs, disclosure, disclosureAttrs, Toaster,
 } from 'sygnal/ui'
-import type { DialogState, TabsState, AccordionState, Toast, PartAttrs } from 'sygnal/ui'
+import type { DialogState, TabsState, TabsAttrs, AccordionState, Toast, PartAttrs } from 'sygnal/ui'
 
 describe('2-U: sygnal/ui', () => {
   it('types each behavior slice and its namespaced actions', () => {
@@ -31,6 +31,7 @@ describe('2-U: sygnal/ui', () => {
 
     const Settings: Component<S> = ({ state, uid }) => {
       const t = tabsAttrs(state.tabs, uid)
+      expectTypeOf(tabsAttrs(state.tabs, uid, ['general', 2])).toEqualTypeOf<TabsAttrs>()
       const f = accordionAttrs(state.faq, uid)
       const m = disclosureAttrs(state.more, uid)
       expectTypeOf(t.tab('a')).toEqualTypeOf<PartAttrs>()
