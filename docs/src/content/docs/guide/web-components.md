@@ -118,7 +118,7 @@ Then `<wa-rating value="3" />` is an error (the property is a number), and so ar
 
 ### Server rendering
 
-`renderToString` writes a custom element's props as attributes, the form its library reads when the element upgrades in the browser: camelCase names in kebab-case (`withClear` → `with-clear`), `true` as a bare attribute, `false` and `null` left out. Function and object props have no attribute form and are left out; they are set on the client, when `run()` renders. Sygnal doesn't render the element's shadow DOM on the server (no declarative shadow DOM): the element renders itself once its library loads.
+`renderToString` writes a custom element's props as attributes, the form its library reads when the element upgrades in the browser: `true` as a bare attribute, `false` and `null` left out. A camelCase HTML property gets its attribute (`tabIndex` → `tabindex`, `readOnly` → `readonly`, `ariaLabel` → `aria-label`); any other camelCase name is written both in kebab-case and in lowercase (`withClear` → `with-clear withclear`), since libraries differ: Web Awesome, Shoelace, Stencil and `defineElement` read `with-clear`, Lit's and FAST's default is `withclear`. The element reads the one it knows. To write one exact attribute, pass it in `attrs`. Function and object props have no attribute form and are left out; they are set on the client, when `run()` renders. Sygnal doesn't render the element's shadow DOM on the server (no declarative shadow DOM): the element renders itself once its library loads.
 
 ### As controls
 
@@ -176,8 +176,8 @@ Each element runs the component as its own app. In another Sygnal app it is a we
 | Direction | A third-party widget **into** a Sygnal view | A Sygnal component **out**, as a custom element |
 | Wraps | A framework-agnostic library (flatpickr, Chart.js, Tiptap) | A Sygnal component (view, intent, model) |
 | Result | A JSX tag rendering a host element, selected by class | A custom element tag, usable from any HTML |
-| State | None: props in, `emit` out | The component's own state, fed by props |
-| Events | `emit(name, detail)` → `CustomEvent` on the host | A sink value → `CustomEvent` on the element |
+| State | None: props in, `dispatch` out | The component's own state, fed by props |
+| Events | `dispatch(name, detail)` → `CustomEvent` on the host | A sink value → `CustomEvent` on the element |
 | Methods | `commands`, sent with `ELEMENT` | The element's props as properties |
 | Used by | One app's views | Any page or framework |
 

@@ -66,7 +66,7 @@ describe('tag form (canonical), run() + real DOM + flatpickr', () => {
     const el = document.querySelector('.due')
     expect(el.tagName).toBe('INPUT')
     expect(el._flatpickr).toBeTruthy()
-    expect(el.__sygnalWidget.i).toBe(el._flatpickr)
+    expect(el.__sw.i).toBe(el._flatpickr)
     expect(el._flatpickr.selectedDates[0].getTime()).toBe(D1.getTime())
     expect(log.mount).toBe(1)
     // the label wraps the host (a11y: the input is labelable)
@@ -122,7 +122,7 @@ describe('tag form (canonical), run() + real DOM + flatpickr', () => {
     document.querySelector('.t').click(); await settle()
     expect(document.querySelector('.due')).toBe(null)
     expect(log.unmount).toBe(1)
-    expect(el.__sygnalWidget).toBe(undefined)
+    expect(el.__sw).toBe(undefined)
   })
 })
 
@@ -189,10 +189,10 @@ describe('host identity: keyed moves, Collection isolation', () => {
     mount(L)
     await settle()
     const before = [...document.querySelectorAll('.box')]
-    expect(before.map(e => e.__sygnalWidget.i.id)).toEqual(['a', 'b', 'c'])
+    expect(before.map(e => e.__sw.i.id)).toEqual(['a', 'b', 'c'])
     document.querySelector('.rev').click(); await settle()
     const after = [...document.querySelectorAll('.box')]
-    expect(after.map(e => e.__sygnalWidget.i.id)).toEqual(['c', 'b', 'a'])
+    expect(after.map(e => e.__sw.i.id)).toEqual(['c', 'b', 'a'])
     expect(after).toEqual([...before].reverse())
     expect(mounts).toBe(3)
   })
@@ -220,7 +220,7 @@ describe('commands on the tag form', () => {
     const el = document.querySelector('.w')
     expect(typeof el.reset).toBe('function')
     expect(Object.prototype.hasOwnProperty.call(el, 'focus')).toBe(false)
-    expect(Object.keys(el)).not.toContain('__sygnalWidget')   // non-enumerable
+    expect(Object.keys(el)).not.toContain('__sw')   // non-enumerable
   })
 
   it('D196: ELEMENT { focus: ".w" } runs the widget\'s declared focus, not the native one', async () => {
@@ -233,8 +233,8 @@ describe('commands on the tag form', () => {
     const el = document.querySelector('.w')
     const native = vi.spyOn(HTMLElement.prototype, 'focus')
     document.querySelector('.f').click()
-    await vi.waitFor(() => expect(el.__sygnalWidget.i.focused).toBe(1), { timeout: 1000, interval: 10 })
-    expect(el.__sygnalWidget.i.focusOpts).toEqual({ preventScroll: true })
+    await vi.waitFor(() => expect(el.__sw.i.focused).toBe(1), { timeout: 1000, interval: 10 })
+    expect(el.__sw.i.focusOpts).toEqual({ preventScroll: true })
     expect(native).not.toHaveBeenCalled()
   })
 
@@ -317,7 +317,7 @@ describe('SSR: the host (+ fallback), mounted on the client', () => {
     const el = document.querySelector('.chart')
     expect(el.querySelector('.loading')).toBe(null)
     expect(el.querySelector('canvas')).toBeTruthy()
-    expect(el.__sygnalWidget.i.series).toBe('sales')
+    expect(el.__sw.i.series).toBe('sales')
     expect(server).toBeTruthy()
   })
 })
@@ -388,7 +388,7 @@ describe('.detail(fn?) enricher (W-3)', () => {
 })
 
 describe('D190 guards (without the dev entry)', () => {
-  it('commands named close / togglePopover are refused by the dev entry only (SYG142); here they define', () => {
+  it('commands named close / togglePopover define (D200: not reserved)', () => {
     expect(() => defineWidget({ mount: () => ({}), commands: { close: () => {} } })).not.toThrow()
   })
 
@@ -452,11 +452,10 @@ describe('D190 guards (without the dev entry)', () => {
 })
 
 describe('props, hosts and lifecycle', () => {
-  it('host props go on the element; every prop but key/ref reaches the widget; hostProps adds names', async () => {
+  it('host props go on the element; every prop but key/ref reaches the widget (ref is the host, G-368); hostProps adds names', async () => {
     let got
     const W = defineWidget({ tag: 'section', hostProps: ['lang2'], mount: (el, p) => { got = p; return {} } })
     const ref = { current: null }
-    // a host takes no ref (the widget owns its element; use commands): it is not passed on
     function A() { return h('div', null, h(W, { key: 'k', ref, id: 'w1', className: 'w', 'aria-label': 'Chart', 'data-kind': 'bar', title: 'T', series: [1, 2], lang2: 'x' })) }
     A.initialState = {}
     mount(A)
@@ -469,7 +468,7 @@ describe('props, hosts and lifecycle', () => {
     expect(el.title).toBe('T')
     expect(el.series).toBe(undefined)
     expect(el.lang2).toBe('x')
-    expect(ref.current).toBe(null)
+    expect(ref.current).toBe(el)
     expect(Object.keys(got).sort()).toEqual(['aria-label', 'className', 'data-kind', 'id', 'lang2', 'series', 'title'])
     expect(got.series).toEqual([1, 2])
   })
@@ -488,7 +487,7 @@ describe('props, hosts and lifecycle', () => {
     expect(log).toEqual(['mount 1', 'unmount', 'mount 2'])
   })
 
-  it('another widget with the same host tag in the same place (unkeyed): the first unmounts, the second mounts', async () => {
+  it('another widget with the same host tag in the same place (unkeyed): the first unmounts, the second mounts on a new element', async () => {
     const log = []
     const A1 = defineWidget({ mount: (el) => { log.push('mount a'); return { name: 'a' } }, update: () => log.push('update a'), unmount: () => log.push('unmount a'), commands: { ping: (i) => log.push(`ping ${i.name}`) } })
     const B1 = defineWidget({ mount: (el) => { log.push('mount b'); return { name: 'b' } }, update: () => log.push('update b'), unmount: () => log.push('unmount b'), commands: { ping: (i) => log.push(`ping ${i.name}`) } })
@@ -500,10 +499,12 @@ describe('props, hosts and lifecycle', () => {
     await settle()
     const el = document.querySelector('.w')
     document.querySelector('.t').click(); await settle()
-    expect(document.querySelector('.w')).toBe(el)   // patched in place
+    // 1-R (G-360): the host's key names its widget, so the element is replaced, not patched
+    const el2 = document.querySelector('.w')
+    expect(el2).not.toBe(el)
     expect(log).toEqual(['mount a', 'unmount a', 'mount b'])
-    expect(el.__sygnalWidget.i.name).toBe('b')
-    el.ping()
+    expect(el2.__sw.i.name).toBe('b')
+    el2.ping()
     expect(log.at(-1)).toBe('ping b')
   })
 
@@ -571,10 +572,10 @@ describe('props, hosts and lifecycle', () => {
     await settle(60)
     const el = document.querySelector('#layer .pw')
     expect(el).toBeTruthy()
-    expect(el.__sygnalWidget.i.label).toBe('one')
+    expect(el.__sw.i.label).toBe('one')
     document.querySelector('.b').click(); await settle(60)
     expect(document.querySelector('#layer .pw')).toBe(el)
-    expect(el.__sygnalWidget.i.label).toBe('two')
+    expect(el.__sw.i.label).toBe('two')
     emit('ping', 5); await settle(60)
     expect(document.querySelector('.n').textContent).toBe('5')
   })

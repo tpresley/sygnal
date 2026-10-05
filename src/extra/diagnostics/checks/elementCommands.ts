@@ -7,7 +7,7 @@
  *     matched the target within about 1 s;
  *   - an element, but neither the control's spec command nor a method of the element: SYG641
  *     (error). It names the control's declared commands. When the element is a widget's host
- *     (PLAN-5 W-1, `__sygnalWidget`): SYG142 (error), naming the widget's declared commands.
+ *     (PLAN-5 W-1, `__sw`): SYG142 (error), naming the widget's declared commands.
  * installElementCommandHooks() publishes it on the core bridge.
  *
  * When a command is sent (checkSentCommand, from the elementCommands check's onModel, which wraps
@@ -109,7 +109,7 @@ export function reportElementCommand(component: any, cmd: any, el?: any): void {
   }
   // PLAN-5 W-1: the matched element is a widget's host (selector or control target): SYG142 names
   // the widget's declared commands
-  const widget = el.__sygnalWidget?.w
+  const widget = el.__sw?.w
   if (widget) {
     const declared = Object.keys(widget.commands)
     const hint = closest(method, [...declared, ...NATIVE_COMMAND_NAMES])

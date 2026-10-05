@@ -2,10 +2,8 @@
  * PLAN-5 W-1: widget diagnostics (dev entry; `defineWidget` in src/extra/widget.ts carries no text).
  *
  * The widget module calls `__SYGNAL_DIAGNOSTICS__.widget(code, widgetTag, owner, extra)`:
- *   140  emit(name) — SYG140 (warn) when `name` is not in the widget's `events`: sygnal-check and
+ *   140  dispatch(name) (mount's third parameter) — SYG140 (warn) when `name` is not in the widget's `events`: sygnal-check and
  *        the docs read `events`, so an undeclared name is a typo or a missing declaration
- *   142  each command name at defineWidget(): throws the SYG142 Error for `close` /
- *        `togglePopover` (D190: reserved, the core passes those methods returnValue / force)
  *   143  the widget tag used as a selector (DOM.select(DatePicker), `${DatePicker}`) — SYG143
  *        (warn, once per widget): it matches nothing
  *   144  a host mounted — SYG144 (info, once per widget): a declared event name the host element
@@ -18,7 +16,7 @@
  * widget's host is reported by the element command check (checks/elementCommands.ts).
  */
 import {devReport, once, nameOf} from './shared'
-import {DEV_CODE_SEVERITY, docsUrlFor} from '../codes'
+import {DEV_CODE_SEVERITY} from '../codes'
 
 /** a widget's name for messages: `name` from its definition, else its host tag */
 export const widgetName = (w: any): string => w?.def?.name ? `widget ${w.def.name}` : `widget <${w?.def?.tag || 'div'}>`
@@ -39,17 +37,10 @@ export function reportWidget(code: number, w: any, owner?: any, x?: any): any {
     if (w.events.includes(x) || !once(`SYG140:${idOf(w)}:${x}`)) return
     return devReport('SYG140', {
       component,
-      message: `${name} emitted '${x}', which is not one of its declared events (${w.events.length ? w.events.join(', ') : 'it declares none'})`,
-      fix: `Add '${x}' to the widget's events (defineWidget({ events: [${[...w.events, x].map((e: string) => `'${e}'`).join(', ')}] })), or emit a declared name`,
+      message: `${name} dispatched '${x}', which is not one of its declared events (${w.events.length ? w.events.join(', ') : 'it declares none'})`,
+      fix: `Add '${x}' to the widget's events (defineWidget({ events: [${[...w.events, x].map((e: string) => `'${e}'`).join(', ')}] })), or dispatch a declared name`,
       data: {event: x, events: w.events},
     })
-  }
-  if (code == 142) {
-    if (x != 'close' && x != 'togglePopover') return
-    const err: any = new Error(`[Sygnal SYG142] ${name}: defineWidget: a command can't be named '${x}': element commands pass ${x}() ` +
-      `${x == 'close' ? 'returnValue' : 'force'}, not the options. Rename it (e.g. '${x == 'close' ? 'dismiss' : 'toggle'}'). ${docsUrlFor('SYG142')}`)
-    err.code = 'SYG142'
-    throw err
   }
   if (code == 143) {
     if (!once(`SYG143:${idOf(w)}`)) return

@@ -1392,21 +1392,28 @@ export function renderComponent(
   // (SYG641 when sent, SYG640 when the target is still missing from its view after 1 s)
   const commandLog: any[] = [];
   const commandTimers = new Set<any>();
-  // PLAN-5 W-1 (F-c): the widget whose host a target matches in the rendered tree (its commands
-  // run for a selector target too, D196); an undeclared one is SYG142, as on the real DOM
-  const widgetOf = (target: any): any => {
+  // PLAN-5 W-1 (F-c): the widget whose host a target matches among the sender's own elements
+  // (1-R G-369: scoped as probe() is; its commands run for a selector target too, D196); an
+  // undeclared one is SYG142, as on the real DOM
+  const widgetOf = (target: any, c: any): any => {
     if (typeof target == 'function' && !target.__sygnalControl) return;
     const sel = tryParse(norm(String(selOf(target) ?? '')));
-    const ch = sel && vtree && findAll(vtree, sel, [], [])[0];
+    const scope = scopeOf(c) || undefined;
+    const ch = sel && vtree && findAll(vtree, sel, [], []).find(ch => {
+      let s: any;
+      for (const v of ch) s = scopeOfV(v) || s;
+      return s == scope;
+    });
     return ch && ch[ch.length - 1]?.data?.ww;
   };
   const checkCommand = (c: any, cmd: any) => {
     if (typeof cmd != 'object' || Array.isArray(cmd)) return;
     const m = Object.keys(cmd)[0], target = cmd[m];
     if (m === undefined) return;
-    const w = target?.spec?.commands ? undefined : widgetOf(target);
-    if (w ? !w.commands[m] && !elementHas(0, m, w.def.tag || 'div') : !target?.spec?.commands?.[m] && !elementHas(target, m)) {
-      return reportElementCommand(c, cmd, w ? {tagName: w.def.tag || 'div', __sygnalWidget: {w}} : {});
+    const w = target?.spec?.commands ? undefined : widgetOf(target, c);
+    // G-369: a control wrapping a widget has its widget's host tag
+    if (w ? !w.commands[m] && !elementHas(0, m, w.def.tag || 'div') : !target?.spec?.commands?.[m] && !elementHas(target, m, target?.spec?.def?.tag)) {
+      return reportElementCommand(c, cmd, w ? {tagName: w.def.tag || 'div', __sw: {w}} : {});
     }
     // D194: focusWithin(selector) looks under the sender's root, children included
     const within = target?.within, sel = within ?? (target == null ? '' : String(target));
@@ -2582,7 +2589,7 @@ export function renderComponent(
     const sel = String(selOf(target));
     const host = (): any => {
       const el: any = query(sel);
-      const r = real ? el?.__sygnalWidget : el?._v?.data?.ww && {p: el._v.data.wp};
+      const r = real ? el?.__sw : el?._v?.data?.ww && {p: el._v.data.wp};
       if (!r) throw new Error(`[Sygnal] t.widget('${sel}'): no ${el ? `mounted widget is the matched <${el.localName}>` : 'element matches it'}. Give the widget a className and pass its selector (t.widget('.due')), or pass its control`);
       return r;
     };

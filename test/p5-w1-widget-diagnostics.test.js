@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 // PLAN-5 W-1: widget diagnostics through the dev entry (checks/widgets.ts): SYG140 (emit of an
-// undeclared event), SYG142 (reserved command name), SYG143 (widget tag as a selector), SYG144
+// undeclared event), SYG143 (widget tag as a selector), SYG144
 // (declared event the host fires natively, info), SYG660–662 (mount / update / unmount threw).
-// SYG141 is static only (sygnal-check/test/widgets.vtest.js).
+// SYG141 is static only (sygnal-check/test/widgets.vtest.js); SYG142 (an undeclared command sent to
+// a widget host) is in p5-w1-widget.test.js. D200: `close` / `togglePopover` are no longer reserved.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { setupChecks, diagnostics, settle } from './diagnostics/helpers.js'
 import { createElement as h } from '../src/pragma/index.js'
@@ -50,18 +51,26 @@ describe('SYG140: emit of an undeclared event', () => {
     await settle(60)
     const d = diagnostics('SYG140')
     expect(d).toHaveLength(1)
-    expect(d[0].message).toMatch(/widget Picker emitted 'pikc', which is not one of its declared events \(pick\)/)
+    expect(d[0].message).toMatch(/widget Picker dispatched 'pikc', which is not one of its declared events \(pick\)/)
     expect(d[0].component).toBe('A')
     expect(document.querySelector('.n').textContent).toBe('2')
   })
 })
 
-describe('SYG142: reserved command names', () => {
-  it('defineWidget throws the formatted SYG142 error', () => {
-    expect(() => defineWidget({ mount: () => ({}), commands: { close: () => {} } }))
-      .toThrow(/\[Sygnal SYG142\].*can't be named 'close'.*returnValue.*Rename it \(e\.g\. 'dismiss'\).*errors#syg142/)
-    expect(() => defineWidget({ mount: () => ({}), commands: { togglePopover: () => {} } })).toThrow(/SYG142.*'togglePopover'.*force/)
-    expect(() => defineWidget({ mount: () => ({}), commands: { open: () => {}, focus: () => {} } })).not.toThrow()
+describe('D200: close / togglePopover are ordinary widget command names', () => {
+  it('defineWidget accepts them; ELEMENT { close } runs the widget\'s close with the options object', async () => {
+    const got = []
+    const W = defineWidget({ mount: () => ({ id: 1 }), commands: { close: (i, o) => got.push(['close', i.id, o]), togglePopover: (i, o) => got.push(['toggle', o]) } })
+    function A() { return h('div', null, h(W, { className: 'w' }), h('button', { className: 'go' }, 'go')) }
+    A.initialState = {}
+    A.intent = ({ DOM }) => ({ GO: DOM.click('.go') })
+    A.model = { GO: { ELEMENT: [{ close: '.w', returnValue: 'ok' }, { togglePopover: '.w', force: true }] } }
+    mount(A)
+    await settle()
+    document.querySelector('.go').click()
+    await vi.waitFor(() => expect(got).toHaveLength(2), { timeout: 1000, interval: 10 })
+    expect(got).toEqual([['close', 1, { returnValue: 'ok' }], ['toggle', { force: true }]])
+    expect(diagnostics().filter(d => d.code == 'SYG142' || d.code == 'SYG641')).toEqual([])
   })
 })
 

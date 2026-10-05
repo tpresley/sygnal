@@ -39,7 +39,7 @@ export function runElementCommands(c: any, cmds: any): void {
     const m = Object.keys(cmd)[0], {[m]: t, ...o} = cmd, s = dom.select('' + t).elements();
     let els: any, n = 0, k = 0, l: any;
     const run = (last?: any) => {
-      const e = !c._disposed && els?.[0], f = t?.spec?.commands?.[m] || e?.__sygnalWidget?.w.commands[m];
+      const e = !c._disposed && els?.[0], f = t?.spec?.commands?.[m] || e?.__sw?.w.commands[m];
       if (!l || !e && !last) return;
       s.removeListener(l);
       clearInterval(i);

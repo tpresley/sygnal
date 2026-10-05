@@ -12,7 +12,7 @@ import flatpickr from 'flatpickr'
 
 export const DatePicker = defineWidget({
   tag: 'input',
-  mount: (el, props, emit) => flatpickr(el, { defaultDate: props.value, onChange: ([date]) => emit('pick', date) }),
+  mount: (el, props, dispatch) => flatpickr(el, { defaultDate: props.value, onChange: ([date]) => dispatch('pick', date) }),
   update: (picker, props) => picker.setDate(props.value, false),
   unmount: (picker) => picker.destroy(),
   events: ['pick'],
@@ -47,17 +47,17 @@ Task.model = {
 }
 ```
 
-`<DatePicker className="due" value={state.due} />` renders an `<input class="due">` (the host). Once it is in the page, Sygnal calls `mount` with the element and the props, and keeps what `mount` returns (the instance, here flatpickr's object). When the user picks a date, flatpickr calls `onChange`, the widget calls `emit('pick', date)`, and the intent reads the date with `.detail()`. `OPEN` sends the widget's `open` command to the same element.
+`<DatePicker className="due" value={state.due} />` renders an `<input class="due">` (the host). Once it is in the page, Sygnal calls `mount` with the element and the props, and keeps what `mount` returns (the instance, here flatpickr's object). When the user picks a date, flatpickr calls `onChange`, the widget calls `dispatch('pick', date)`, and the intent reads the date with `.detail()`. `OPEN` sends the widget's `open` command to the same element.
 
 ## The definition
 
 | Field | Meaning |
 |-------|---------|
 | `tag` | The host element: `'div'` by default, `'input'` for a widget that enhances a field, `'canvas'`... |
-| `mount(el, props, emit)` | Called once, when the host enters the page. Build the widget in `el` and return its instance. |
+| `mount(el, props, dispatch)` | Called once, when the host enters the page. Build the widget in `el` and return its instance. `dispatch(name, detail)` sends the widget's [events](#events). |
 | `update(instance, props, el)` | Called with the newest props whenever they change (a shallow compare). Without `update`, a change unmounts and mounts again. |
 | `unmount(instance, el)` | Called when the host leaves the page: destroy the widget, remove its listeners. |
-| `events` | The event names `emit` sends. |
+| `events` | The event names `dispatch` sends. |
 | `commands` | Element commands, called with the instance: `open: (picker, options) => picker.open()`. |
 | `fallback` | What [server rendering](#server-rendering) puts inside the host. |
 | `hostProps` | More prop names to put on the host element. |
@@ -65,15 +65,15 @@ Task.model = {
 
 **The host is the widget's.** Sygnal renders the host element and never its content: the widget can add, move and remove elements inside it, and a re-render doesn't touch them. Children passed to the tag are ignored.
 
-**Props.** Every prop the view passes reaches `mount` and `update` (except `key`). The ones that describe the element also go on the host: `id`, `className`/`class`, `style`, `title`, `name`, `placeholder`, `role`, `tabindex`, `hidden`, `lang`, `dir`, `attrs`, `aria-*` and `data-*`, plus the names in `hostProps`. Other props (`value` above) are the widget's alone, so the widget, not Sygnal, decides what the input shows.
+**Props.** Every prop the view passes reaches `mount` and `update` (except `key` and `ref`). The ones that describe the element also go on the host: `id`, `className`/`class`, `style`, `title`, `name`, `placeholder`, `role`, `tabindex`, `hidden`, `lang`, `dir`, `attrs`, `aria-*` and `data-*`, plus the names in `hostProps`. Other props (`value` above) are the widget's alone, so the widget, not Sygnal, decides what the input shows. Sygnal toggles only its own `className` tokens on the host, so the classes a library adds to it (flatpickr's `flatpickr-input`) stay when the `className` changes. A `ref` gets the host element.
 
-**Updates.** `update` gets the props of the render being patched, every time they change, so it never works from stale values. A render that passes the same values (the same Date object, the same array) doesn't call it. Pass a new value to make it run.
+**Updates.** `update` gets the props of the render being patched, every time they change, so it never works from stale values. A render that passes the same values (the same Date object, the same array) doesn't call it; a `style` or `attrs` object counts as the same when its entries are. Pass a new value to make it run.
 
-**Identity.** The instance lives on the host element, so it survives re-renders, and a keyed host keeps its instance when a list is reordered. A widget in each [Collection](/guide/collections/) item is selected only in its own item, as any element is.
+**Identity.** The instance lives on the host element, so it survives re-renders, and a keyed host keeps its instance when a list is reordered. A widget in each [Collection](/guide/collections/) item is selected only in its own item, as any element is. When something else takes the widget's place (a plain element, another widget, the error fallback), its host leaves the page and `unmount` runs, even when the new element has the same tag and class.
 
 ## Events
 
-`emit(name, detail)` dispatches a bubbling `CustomEvent` named `name` on the host, with `detail` as its payload. Read it in the intent as any DOM event, and take the payload with `.detail()` (or `.detail(fn)` to map it):
+`dispatch(name, detail)`, the third parameter of `mount`, dispatches a bubbling `CustomEvent` named `name` on the host, with `detail` as its payload. Read it in the intent as any DOM event, and take the payload with `.detail()` (or `.detail(fn)` to map it):
 
 ```jsx
 Chart.intent = ({ DOM }) => ({
@@ -81,7 +81,7 @@ Chart.intent = ({ DOM }) => ({
 })
 ```
 
-List every name in `events`. Sygnal checks them: an `emit` of a name that isn't listed is [SYG140](/reference/errors/#syg140), and sygnal-check reports an intent listening for a name the widget doesn't declare ([SYG141](/reference/errors/#syg141)).
+List every name in `events`. Sygnal checks them: a `dispatch` of a name that isn't listed is [SYG140](/reference/errors/#syg140), and sygnal-check reports an intent listening for a near-typo of a declared name ([SYG141](/reference/errors/#syg141)).
 
 Prefer names of your own (`'pick'`, `'rate'`, `'point-select'`) to the browser's (`'change'`, `'input'`). The host and the library's own elements fire native events too, and they bubble the same way: flatpickr's input fires a native `change` when a date is picked, so a widget event named `'change'` would reach the listener twice, once without a `detail`. Declaring such a name is reported as information ([SYG144](/reference/errors/#syg144)).
 
@@ -96,13 +96,13 @@ Editor.model = {
 }
 ```
 
-`setContent: (editor, { html }) => editor.commands.setContent(html)` gets the instance and the options. A declared command wins over the host element's own method of the same name: a widget whose host is a `<div>` can declare `focus` to focus the editable area inside it, and `{ focus: '.body' }` runs it. Without one, the host's own method runs (`focus` on an `input` host). A command the widget doesn't declare and the host doesn't have is [SYG142](/reference/errors/#syg142). `close` and `togglePopover` can't be command names (element commands pass those methods a special argument).
+`setContent: (editor, { html }) => editor.commands.setContent(html)` gets the instance and the options. A declared command wins over the host element's own method of the same name: a widget whose host is a `<div>` can declare `focus` to focus the editable area inside it, and `{ focus: '.body' }` runs it. Without one, the host's own method runs (`focus` on an `input` host). This holds for `close` and `togglePopover` too: a declared one gets the options object (`{ close: '.panel', returnValue: 'ok' }` calls it with `{ returnValue: 'ok' }`). A command the widget doesn't declare and the host doesn't have is [SYG142](/reference/errors/#syg142).
 
 In TypeScript, add the command names and their options to `ElementCommandRegistry` (see [element commands](/guide/element-commands/)).
 
 ## Errors
 
-A `mount` or `update` that throws doesn't take the page down. The error goes to the app's `onError` hook with the phase `'widget'`, and the component that renders the widget shows its [`onError` fallback](/advanced/error-boundaries/) in the widget's place; the rest of its view keeps working ([SYG660](/reference/errors/#syg660), [SYG661](/reference/errors/#syg661)). An `unmount` that throws is reported the same way ([SYG662](/reference/errors/#syg662)).
+A `mount` or `update` that throws doesn't take the page down. The error goes to the app's `onError` hook with the phase `'widget'`, and the component that renders the widget shows its [`onError` fallback](/advanced/error-boundaries/) in that widget's place; the rest of its view keeps working, other widgets included ([SYG660](/reference/errors/#syg660), [SYG661](/reference/errors/#syg661)). The widget is tried again when the view passes it other props, or when it renders again after its fallback left the page (a panel closed and reopened). An `unmount` that throws is reported the same way ([SYG662](/reference/errors/#syg662)).
 
 ## Accessibility
 
@@ -128,7 +128,11 @@ On the client, the first render replaces the fallback and mounts the widget. A v
 
 ## Portals
 
-A widget works inside a [`<Portal>`](/advanced/portals/). Its events are dispatched in the portal's target, outside the component's own element, so listen through the document, as for any content of a portal: `DOM.select('document').select('.due').events('pick').detail()`.
+A widget works inside a [`<Portal>`](/advanced/portals/), and unmounts when the portal is removed. Its events are dispatched in the portal's target, outside the component's own element, so listen through the document, as for any content of a portal: `DOM.select('document').select('.due').events('pick').detail()`.
+
+## Transitions
+
+A widget inside a [`<Transition>`](/advanced/transitions/) gets the enter and leave classes on its host. `unmount` runs when the leave starts, while the host fades out.
 
 ## Testing
 
@@ -152,7 +156,7 @@ test('a picked date becomes the due date', async () => {
 ```
 
 - **`props`**: the props the view passed the widget in the latest render.
-- **`emit(name, detail)`**: sends the event the widget's `emit` would, in order with other simulated input.
+- **`emit(name, detail)`**: sends the event the widget's `dispatch` would, in order with other simulated input.
 - **`instance`**: with `renderComponent(Task, { dom: 'real' })` the widget really mounts (in jsdom or a browser), and `instance` is what `mount` returned.
 
 ## As a control
@@ -172,9 +176,9 @@ The widget tag itself is not a selector: `DOM.select(DatePicker)` matches nothin
 
 | Code | When |
 |------|------|
-| [SYG140](/reference/errors/#syg140) | `emit` of a name not listed in `events` |
-| [SYG141](/reference/errors/#syg141) | The intent listens for an event the widget doesn't declare (sygnal-check) |
-| [SYG142](/reference/errors/#syg142) | A command the widget doesn't declare, or a command named `close` / `togglePopover` |
+| [SYG140](/reference/errors/#syg140) | `dispatch` of a name not listed in `events` |
+| [SYG141](/reference/errors/#syg141) | The intent listens for a near-typo of a declared event (sygnal-check) |
+| [SYG142](/reference/errors/#syg142) | A command the widget doesn't declare and its host doesn't have |
 | [SYG143](/reference/errors/#syg143) | The widget tag used as a selector |
 | [SYG144](/reference/errors/#syg144) | A declared event name the browser also fires (information) |
 | [SYG660](/reference/errors/#syg660)–[662](/reference/errors/#syg662) | `mount`, `update` or `unmount` threw |

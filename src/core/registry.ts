@@ -14,8 +14,9 @@ import type {ComponentFn, DefSource} from './hooks'
  * setProps(props, children, marker, id), dispose(), ready, outv / last, insts() (its instances)
  */
 export const hosts: Record<string, (owner: any, props: Record<string, any>, children: any[], id: string, marker: any) => any> = {}
-/** marker sel -> a template rewrite during the reconcile walk (Portal, Transition, ClientOnly, Slot) */
-export const pres: Record<string, (vnode: any, owner: any) => any> = {}
+/** marker sel -> a template rewrite during the reconcile walk (Portal, Transition, ClientOnly, Slot,
+ * widget); `path` is the marker's place in the owner's template ('r.0.2': a widget's identity) */
+export const pres: Record<string, (vnode: any, owner: any, path: string) => any> = {}
 /** marker sel -> a post-processor of an instance's injected vnode whose template had it (Suspense) */
 export const posts: Record<string, (vnode: any, owner: any) => any> = {}
 /** component function -> the function to instantiate (lazy: the loaded component once resolved) */

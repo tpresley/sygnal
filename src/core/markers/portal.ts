@@ -5,7 +5,8 @@
  * (the 5.x core's createPortalPlaceholder):
  * - the target is looked up on insert; one rendered later is retried 10 times, 5 ms apart, and a
  *   late mount pokes the DOM driver (G-261 pokeDOM); never found: SYG417;
- * - an update patches the portal's content; a removal removes it;
+ * - an update patches the portal's content; a removal patches it to empty (its destroy hooks
+ *   run: G-359) and removes it;
  * - the children move into the placeholder unprocessed (components inside a Portal are not
  *   instantiated, as today).
  * G-316: the mount state lives in one object the placeholder's successive
@@ -79,7 +80,8 @@ export function portalPlaceholder(target: string, children: any[]): any {
           st.dead = true
           clearTimeout(st.t)
           const el = st.pv?.elm
-          if (el && el.parentNode) el.parentNode.removeChild(el)
+          // G-359: patched to empty first, so the content's destroy hooks run (a widget unmounts)
+          if (el) patch(st.pv, box([])), el.remove()
         },
       },
     },
