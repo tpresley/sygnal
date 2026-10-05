@@ -84,6 +84,28 @@ describe('G-322: an id-less item and an item whose id equals its index get diffe
   })
 })
 
+describe('G-323: a new instance that declares a static costs no extra render pass (next core internals)', () => {
+  const nextOnly = process.env.SYGNAL_CORE == 'next' ? it : it.skip
+  nextOnly('adding a row with connections renders the root once', async () => {
+    const { Inst } = await import('../src/core/instance.js')
+    document.body.innerHTML = '<div id="root"></div>'
+    function Item({ state }) { return h('li', null, String(state.id)) }
+    Item.connections = (s) => ({ ['c' + s.id]: { socket: '/i/' + s.id } })
+    function App() { return h('div', null, h('button', null, 'add'), h('ul', null, h(Collection, { of: Item, from: 'rows' }))) }
+    App.initialState = { rows: [{ id: 1 }] }
+    App.intent = ({ DOM }) => ({ ADD: DOM.click('button') })
+    App.model = { ADD: (s) => ({ ...s, rows: [...s.rows, { id: s.rows.length + 1 }] }) }
+    start(App, { SOCK: recDriver([]) })
+    await sleep(40)
+    let roots = 0
+    const orig = Inst.prototype.render
+    const spy = vi.spyOn(Inst.prototype, 'render').mockImplementation(function () { if (!this.parent) roots++; return orig.call(this) })
+    click('button'); await sleep(40)
+    spy.mockRestore()
+    expect(roots).toBe(1)
+  })
+})
+
 describe('G-319: a Collection on a hidden Switchable page follows its array', () => {
   it('removed rows stop and new rows declare their background statics while the page is hidden', async () => {
     document.body.innerHTML = '<div id="root"></div>'

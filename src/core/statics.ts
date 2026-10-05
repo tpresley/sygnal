@@ -51,7 +51,8 @@ export function staticsOf(app: App, def: CoreDef): Array<[string, string]> | nul
 export function attach(inst: Inst) {
   const app = inst.app, def = inst.def
   const st = inst.st = app.stat.length ? staticsOf(app, def) : null
-  if (st) { inst.sv = {}; app.statics.add(inst); app.commit() }
+  // (made in a flush's render: that pass's statics step computes it, G-323; else a flush does)
+  if (st) { inst.sv = {}; app.statics.add(inst); if (!app.flushing) app.commit() }
   for (const n of app.rep) {
     if (!def.sinks.has(n) && !st?.some(s => s[0] == n)) continue
     const src = inst.src(n), r$ = (typeof src?.replies == 'function' ? src : app.sources[n]).replies(inst.id)
