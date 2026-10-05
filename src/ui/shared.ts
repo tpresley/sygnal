@@ -50,6 +50,8 @@ export const gone = (DOM: any, STATE: any, sel: any, isOpen: (el: any) => boolea
  */
 export const keyed = (b: any): any => {
   const merge = b.merge
+  // G-423: renderToString gives a missing `id` the same key (extra/ssr.ts withUses)
+  b.keyed = 1
   b.merge = (c: any, k: string) => {
     const id = b.options?.id ?? k
     b.calculated = {...b.calculated, id: (s: any) => s.id ?? id}

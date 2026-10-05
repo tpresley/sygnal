@@ -126,9 +126,15 @@ function withUses(def: any, state: any): any {
   if (typeof state !== 'object' || Array.isArray(state)) return state
   let out = state
   for (const k in uses) {
-    if (out[k] === undefined && uses[k] && uses[k].state !== undefined) {
+    const u = uses[k]
+    if (!u) continue
+    let v = out[k] === undefined ? u.state : out[k]
+    // G-423: a sygnal/ui part (ui/shared.ts keyed()) names its ids by its `uses` key (or its
+    // `id` option) when the slice has no id, as the client's merge and calculated `id` do
+    if (u.keyed && v && typeof v === 'object' && v.id == null) v = {...v, id: u.options?.id ?? k}
+    if (v !== out[k] && v !== undefined) {
       if (out === state) out = {...state}
-      out[k] = uses[k].state
+      out[k] = v
     }
   }
   return out
