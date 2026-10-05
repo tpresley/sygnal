@@ -18,6 +18,7 @@ import {isObj} from './define'
 import {warn, error as logError, fail} from '../extra/diagnostics/legacy'
 import {runElementCommands} from '../extra/elementCommands'
 import {viewOf} from './view'
+import {checkStatics} from './statics'
 
 export function handle(inst: Inst, type: string, data: any, cause: any) {
   const hs = inst.def.handlers.get(type)
@@ -25,7 +26,7 @@ export function handle(inst: Inst, type: string, data: any, cause: any) {
   const app = inst.app, H = app.hooks, def = inst.def
   if (H.onAction) H.onAction(viewOf(inst), {type, data, cause, target: viewOf(inst)})
   const pre = inst.cell.get()
-  let props: any
+  let props: any, outs: any[] | undefined
   const next = (t: string, d?: any, ms: any = 10, effect?: boolean) => {
     if (typeof ms !== 'number') fail('SYG215', inst, `next() delay in '${type}' must be a number`, "Use next('ACTION', data, ms)")
     // G-300: none for an instance being disposed; dispose() clears the pending ones
@@ -60,6 +61,9 @@ export function handle(inst: Inst, type: string, data: any, cause: any) {
       if (v === pre) continue
       H.onReducer?.(viewOf(inst), type, pre, v)
       inst.cell.set(v)
+      // GS-12: this app's DOM driver patches inside a View Transition (makeViewTransitionDOMDriver
+      // reads the flag on its IsolateModule); includes?.: a non-array static lists nothing (G-228)
+      if (def.view.viewTransitions?.includes?.(type)) { const m = inst.dom?._isolateModule; if (m) m.vt = 1 }
       continue
     }
     if (typeof v == 'symbol') { logError('SYG218', inst, `Reducer for '${type}' returned a symbol; nothing sent`, 'Return a value, or ABORT to send nothing'); continue }
@@ -73,7 +77,14 @@ export function handle(inst: Inst, type: string, data: any, cause: any) {
     else if (sink == 'ELEMENT') {
       H.onElementCommand?.(viewOf(inst), v)
       runElementCommands(inst.el ||= {name: def.name, DOMSourceName: 'DOM', sources: {DOM: inst.dom}, get _disposed() { return inst.disposed }}, v)
-    } else send(inst, sink, v)
+    } else if (inst.st) (outs ||= []).push(sink, v)
+    else send(inst, sink, v)
+  }
+  // G-158 (D170/Q21): a static this action changed reaches its driver before the action's own
+  // driver values (a connection the action opens exists before its first message)
+  if (inst.st) {
+    checkStatics(inst)
+    if (outs) for (let i = 0; i < outs.length; i += 2) send(inst, outs[i], outs[i + 1])
   }
 }
 

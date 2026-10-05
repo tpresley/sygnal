@@ -25,6 +25,7 @@ import {hosts, posts, pres, resolvers} from './registry'
 import {handle} from './actions'
 import {viewOf} from './view'
 import {makeCommandSource} from '../extra/command'
+import {attach, detach} from './statics'
 
 const ERR_FIX = 'See the attached error'
 
@@ -132,6 +133,12 @@ export class Inst {
   cmds: any
   /** pending next() timers (G-300) */
   timers: Set<any> | null = null
+  // statics.ts: the [sink, static] pairs it declares, the last values sent, the state / shown
+  // flag they were computed from; its reply streams
+  st: Array<[string, string]> | null = null
+  sv: Record<string, any> | null = null
+  sS: any; sH: any
+  rep: any[] | null = null
 
   constructor(
     public app: App, public def: CoreDef, public parent: Inst | null, base: Cell,
@@ -164,11 +171,13 @@ export class Inst {
     } else if (def.idle && isObj(this.cell.raw()) && !parent) this.cell.set(this.cell.raw())
     H.onCreate?.(viewOf(this))
     if (def.handlers.has('INITIALIZE')) app.dispatch(this, 'INITIALIZE', init, 'built-in')
+    if (app.stat.length || app.rep.length) attach(this)
     if (def.intent) {
       try { this.subscribe() } catch (e) {
         // G-295: undone (its queued actions are skipped, no STATE watcher, onDispose pairs onCreate)
         this.disposed = true
         app.watchers.delete(this)
+        detach(this)
         H.onDispose?.(viewOf(this))
         throw e
       }
@@ -510,6 +519,9 @@ export class Inst {
     this.disposed = true
     app.hooks.onDispose?.(viewOf(this))
     if (this.disp$) this.disp$.shamefullySendComplete()
+    // G-144: the replies end now (after DISPOSE and dispose$), so the drivers drop its timers and
+    // abort its requests; its statics are no longer recomputed
+    if (this.st || this.rep) detach(this)
     this.ac?.abort()
     if (this.timers) { this.timers.forEach(clearTimeout); this.timers = null }
     this.kids.forEach(k => k.dispose())

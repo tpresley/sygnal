@@ -24,11 +24,12 @@ import logDriver from '../extra/logDriver'
 import {NOT_SINK} from '../shared'
 import {error as logError, callHook} from '../extra/diagnostics/legacy'
 import type {ComponentFn, DefSource, Hooks, RuntimeAPI, ActionCause} from './hooks'
-import {CoreDef, defOf} from './define'
+import {CoreDef, defOf, rootDef} from './define'
 import {rootCell} from './cell'
 import {Inst} from './instance'
 import {viewOf} from './view'
 import {stopQueued, INST, SET, SEED} from './teardown'
+import {scanSources} from './statics'
 // the public ClientOnly is a separate bundle (sygnal/vike/ClientOnly) with no core of its own, so
 // its marker handler registers with the core (the other markers register from their modules)
 import './markers/clientonly'
@@ -96,8 +97,15 @@ export class App {
   initState: any
   /** D168 hook point: R4's dev check re-runs a sample of the views context tracking skipped */
   ctxSkip: ((inst: Inst) => void) | null = null
-  /** R3 hook point: statics recomputed after each render pass */
+  /** the statics step, recomputed after each render pass (statics.ts; set when a driver takes a static) */
   afterRender: (() => void) | null = null
+  /** [sink, static] of the drivers that take a static; the reply-capable sources (statics.ts) */
+  stat: Array<[string, string]> = []
+  rep: string[] = []
+  /** a definition's [sink, static] pairs (this app's drivers) */
+  stc = new WeakMap<CoreDef, Array<[string, string]> | null>()
+  /** the live instances that declare a static */
+  statics = new Set<Inst>()
   defs = new WeakMap<ComponentFn, CoreDef>()
   waiters: Array<() => void> = []
   scopeN = 0
@@ -409,6 +417,29 @@ function byId(i: Inst, id: number): Inst | undefined {
   }
 }
 
+/**
+ * The root shim a root setup (persist, GS-5: `Root.persist.setup(component)`, root only as today)
+ * runs on before the root exists (04 §3.2, §4 #1): the instance fields it reads and writes today.
+ * It may restore into `initialState` and rewrite `model` (both read back into the root's Def);
+ * `sources.STATE.stream`, `_dispose$` and `vdom$` are the root's, linked once it exists (the
+ * returned function); `action$.shamefullySendNext` dispatches to the root (RESTORE).
+ */
+function rootShim(app: App, Root: ComponentFn, src: DefSource): [any, () => void] {
+  const st$ = xs.create(), dsp$ = xs.create()
+  const shim = {
+    name: (Root as any).componentName || Root.name || 'FUNCTION_COMPONENT', view: Root,
+    model: src.model, initialState: src.initialState, calculated: src.calculated, stateSourceName: 'STATE',
+    sources: {...app.sources, STATE: {stream: st$}},
+    vdom$: app.vdom$, _dispose$: dsp$,
+    action$: {shamefullySendNext: (a: any) => { if (app.root) app.dispatch(app.root, a.type, a.data, 'built-in') }},
+  }
+  return [shim, () => {
+    const r = app.root
+    r.stateSource().stream.addListener({next: (v: any) => st$.shamefullySendNext(v), error: () => {}})
+    r.dispose$().addListener({next: (v: any) => dsp$.shamefullySendNext(v), error: () => {}})
+  }]
+}
+
 export interface Started {
   app: App
   sources: Record<string, any>
@@ -436,6 +467,7 @@ export function start(Root: ComponentFn, drivers: Record<string, any> = {}, opts
     const src = app.sources[n] = all[n](p, n)
     if (src && typeof src == 'object') try { src._isCycleSource = n } catch (_) {}
   }
+  scanSources(app)
   app.vdom$ = xs.create({start: (l: any) => { app.vdomL = l; if (app.last) l.next(app.last) }, stop: () => { app.vdomL = null }})
   for (const n in all) {
     if (n == 'DOM') app.proxies.DOM.imitate(app.vdom$)
@@ -443,9 +475,18 @@ export function start(Root: ComponentFn, drivers: Record<string, any> = {}, opts
   }
   const was = app.draining
   app.draining = true
+  let link: (() => void) | undefined
   try {
-    app.root = new Inst(app, app.def(Root, opts.__override), null, rootCell(app), app.sources.DOM, {}, [], undefined,
+    const setup = (Root as any).persist?.setup
+    const def = rootDef(Root, app.hooks.transformDef, opts.__override, typeof setup == 'function' ? (src) => {
+      const [shim, l] = rootShim(app, Root, src)
+      link = l
+      setup(shim)
+      return {...src, model: shim.model, initialState: shim.initialState}
+    } : undefined)
+    app.root = new Inst(app, def, null, rootCell(app), app.sources.DOM, {}, [], undefined,
       opts.uid ? opts.uid.replace(/[^\w-]+/g, '_') : 'u', 'root')
+    link?.()
   } catch (e) {
     app.draining = was
     app.dispose()
