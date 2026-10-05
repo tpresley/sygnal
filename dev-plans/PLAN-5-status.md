@@ -6,7 +6,7 @@ Tracks progress for [PLAN-5.md](PLAN-5.md) (ecosystem components and integration
 
 **Integration branch:** `plan5-integration`, cut from `plan46-complete` (`7146161`) on 2026-10-05, in worktree `.claude/worktrees/plan-4-execution-7ae8e8`. The release stays held (D56).
 
-**State:** Phase 2: 2-B, 2-V, 2-U, 2-A merged; 2-Z and 2-R merged; 2-S, 2-T merged (Phase 2 complete); Phase 3: 3-R, 3-D merged; running 3-F (2-A/2-S review fixes, SYG148–149). Known flaky test `p5-1s-forms` (fixed in 2-R).
+**State:** Phase 2: 2-B, 2-V, 2-U, 2-A merged; 2-Z and 2-R merged; 2-S, 2-T merged (Phase 2 complete); Phase 3: 3-R, 3-D merged; running 3-F, 3-G, 3-H (2-A/2-S review fixes, SYG148–149). Known flaky test `p5-1s-forms` (fixed in 2-R).
 
 ## 0-A baseline (2026-10-05)
 
@@ -184,6 +184,18 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 | G-441 | review 3-R | Med | process | Recipe tests and docs-sync (`dev-plans/research/p5-recipes/`) aren't run by any gate: an API change can break all 8 pages while `npm test` stays green. Add to a gate (opt-in script + coordinator gate list at least) | → 3-G |
 | G-442 | review 3-R | Med/Low | docs recipes | ECharts never resizes (no ResizeObserver); Embla `index` stale after the list shrinks (`reInit` emits no `select`); Tiptap/CodeMirror labels captured at mount (i18n page says translate labels); Tiptap un-normalised draft reset on any prop change | → 3-G |
 | G-443 | review 3-R | Low | docs recipes | i18n: `addResourceBundle` "in the reply's action" → in an EFFECT; carousel Prev/Next `disabled` at the ends drops focus (use `aria-disabled`); `detectLocale` SSR guard wrong on Node ≥21 (global `navigator`) | → 3-G |
+| G-444 | review 3-D | Med/High | sortable | Nested sortables with ids repeated between levels: pointer `pick` resolves an inner item's id to the wrong outer entry (drop lands beside the wrong group). Confirmed by probe | → 3-H |
+| G-445 | review 3-D | Med/High | sortable | Nested + repeated ids: the keyboard focus selector `:scope .item[data-id] .grip` hits an inner grip first → focusout with relatedTarget → immediate drop; arrows dead. Confirmed by probe | → 3-H |
+| G-446 | review 3-D | Med | sortable | Held Space/Enter (`e.repeat`) toggles lift/drop repeatedly (DROPPED + announcements). Confirmed | → 3-H |
+| G-447 | review 3-D | Med | sortable + undo | Undo history depends on `uses` key order: after `sort`, every live keyboard step and Escape is an entry (cancelled drag = net-zero entries); before it, moves never recorded. One entry per completed drop wanted | → 3-H |
+| G-448 | review 3-D | Low/Med | sortable | `sort.INIT` writes the slice into every Collection-item host's state at startup (UI state in parent data/persist/payloads; extra writes) | → 3-H |
+| G-449 | review 3-D | Med/Low | sortable | Filtered/sorted Collections: keyboard moves and announcements use state order (swap with hidden entries; no visible effect under `sort`). Handle or document + diagnose | → 3-H |
+| G-450 | review 3-D | Low/Med | sortable | Native `dragstart` (img/link inside an item without handle) → `pointercancel` cancels the drag; prevent `dragstart` while pressed. Plausible | → 3-H |
+| G-451 | review 3-D | Low | sortable | Pointer press on a handle during a keyboard drag only drops; a second press needed | → 3-H |
+| G-452 | review 3-D | Low | sortable + persist | `persist` saves internal `sort` fields (`press`, `dragging`, `message`); a mid-drag save restores live document listeners | → 3-H |
+| G-453 | review 3-D | Low | sortable / ssr | `helpId` null on the server (no `aria-describedby` until hydration); "stable across SSR" comment wrong | → 3-H |
+| G-454 | review 3-D | Low | docs | Pointer into a non-empty other list can't land after its last item without a gap; document (or allow "after" on the last item's lower half) | → 3-H |
+| G-455 | review 3-D | Low | tests | Browser sortable suite passes silently without `__pwInput`; `desc === null ||` accepts a missing description; Space scroll check on a non-scrollable stage | → 3-H |
 | G-408 | 2-R × 2-Z | Low | process | Two parallel workstreams registered the same code (SYG666); fixed at merge (2-R's → SYG668). Briefs now assign code numbers | Fixed (process) |
 | G-394 | review 2-V | High | VirtualCollection | An inline `estimateSize` function (the guide's own pattern) clears every measured row height on each owner render; rows aren't re-measured. Confirmed | → 2-S |
 | G-395 | review 2-V | Med/High | VirtualCollection | SYG430 "grows" misfires on a bounded container above viewport height that fits its rows; clamping then leaves unreachable blank rows. Confirmed | → 2-S |
@@ -211,6 +223,7 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 - 2026-10-05 — Review of 2-S: 9 findings (G-424…G-432), to 3-F; G-422 closed (no `ui` entries in FIRST_PARTY).
 - 2026-10-05 — 3-R merged (docs only: Recipes section, 8 pages, tested in `dev-plans/research/p5-recipes/` — not in `npm test`); gates green, samples 666 clean, docs 87 pages. Open for the user: `renderComponent` `context` option (API), document a view reading its own `.context`, ship recipes offline (Phase 4). G-433. 3-F started (G-417…G-421, G-423…G-432; codes SYG148–149).
 - 2026-10-05 — 2-T merged (clean; per-part `sygnal/ui/menu|select|combobox`, jsdom stubs, SYG669, SYG722, `ownProps`, `mount` `error(e)`); gates green, three engines 287/287, core 41,825 B. User: D213–D215. Review of 2-T: 7 findings (G-434…G-440, one high). Review of 3-R: G-441…G-443. 3-D merged (8 additive conflicts; SYG722+SYG724 kept; explanations/errors regenerated); gates green: vitest 3,238, browser 300 Chromium / 299 Firefox / 299 WebKit (CDP touch Chromium-only), sygnal-check 614, samples 670, core 41,825 B. 3-G started (G-433…G-443, D214, D215).
+- 2026-10-05 — Review of 3-D: 12 findings (G-444…G-455); INIT adds no undo entry (verified by reviewer). 3-H started (sortable fixes).
 - 2026-10-05 — 2-R merged (6 conflicts; SYG666 clash renumbered to SYG668); all gates green on three engines (279/279); core 41,825 B. D212, G-408.
 - 2026-10-05 — 2-Z merged; three engines 276/276; core 41,771 B. D211.
 - 2026-10-05 — Review of 2-U + 2-V: 14 findings (G-394…G-407). 2-S started.
