@@ -52,7 +52,7 @@ People.model = {
 .people { height: 480px; }
 ```
 
-The element is its own scroll container (`overflow-y: auto`), so **give its class a bounded height**: `height`, `max-height`, or `flex: 1` with `min-height: 0` in a flex column. Without one it grows with its rows and would render all of them; Sygnal then renders only a viewport's height of rows and reports [SYG430](/reference/errors/#syg430).
+The element is its own scroll container (`overflow-y: auto`), so **give its class a bounded height**: `height`, `max-height`, or `flex: 1` with `min-height: 0` in a flex column. Without one it grows with its rows and would render all of them; Sygnal then renders only a viewport's height of rows and reports [SYG430](/reference/errors/#syg430). A `max-height` taller than its rows is fine: the container fits them, and they all render.
 
 ## Props
 
@@ -73,11 +73,12 @@ A row scrolled out of the window is disposed, like a removed Collection item, an
 
 What lives only in the DOM or in the row's instance is lost:
 
-- focus inside the row (it moves to the page);
 - the text of an input whose value isn't in state (bind `value` to state for anything the user types);
 - work in flight: a row's pending request, timer or `EFFECT` ends with its instance.
 
 So keep everything a row needs in its array element, which is the canonical Collection item anyway. Work that must outlive scrolling belongs in the parent.
+
+The focus is the exception: the row that holds it stays rendered while it is scrolled out of view (at its own position, outside the window), so the focus and the keyboard user's place are kept. Once the focus leaves the list, the row goes like any other.
 
 ## Jumping to a row
 
@@ -106,6 +107,8 @@ Rows can have any height, and each can differ. Until a row has been rendered, it
 <VirtualCollection of={Message} from="messages" className="thread" estimateSize={(message) => (message.image ? 240 : 56)} />
 ```
 
+An inline function like this one is a new function at every render; that's fine, it is taken as the same estimate and the measured heights are kept. A numeric `estimateSize` that changes, or a switch between a number and a function, measures the rows again.
+
 A row must render one element, which is what is measured ([SYG432](/reference/errors/#syg432) for a fragment).
 
 ## Accessibility
@@ -113,7 +116,7 @@ A row must render one element, which is what is measured ([SYG432](/reference/er
 - The container is a `list` named by `aria-label` (or `aria-labelledby`), and its rows are `listitem`s with `aria-setsize` (the number of shown rows) and `aria-posinset` (the row's position, from 1), so a screen reader can announce "item 4,201 of 10,000" although only a few rows exist.
 - For another pattern, set the container's `role` and give the rows theirs: `role="listbox"` with rows rendering `role="option"` (their `aria-setsize` and `aria-posinset` are set too).
 - The container is focusable (`tabIndex={0}`), so arrow keys, Page Up/Down, Home and End scroll it.
-- A focused row that scrolls out of the window loses focus. For keyboard navigation between rows, keep the active row in state and send `scrollToIndex` with it before focusing.
+- A focused row that scrolls out of the window keeps the focus: it stays rendered until the focus leaves the list. For keyboard navigation between rows, keep the active row in state and send `scrollToIndex` with it before focusing.
 
 ## Tests and server rendering
 
