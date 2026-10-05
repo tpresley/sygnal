@@ -387,7 +387,25 @@ The stream emits an object with:
 
 An `<input>`, `<textarea>` or `<select>` with a `value` prop (or a checkbox/radio with `checked`) is **controlled**: on every render, Sygnal writes the value from your view into the element, like React does. That keeps the field in sync with state (clearing a field after "Add" works even when both happen in the same tick), but it means the field must update state as the user types. Otherwise any re-render resets what they typed.
 
-A form-associated custom element (one whose class has `static formAssociated = true`, such as Web Awesome's `<wa-input>` or `<wa-rating>`) with a `value` or `checked` prop is controlled the same way. To refuse a value the user entered, return a new state object (`{ ...state }`, or one with an error message): the render puts the state's value back. `ABORT` doesn't render, so the field keeps what the user entered.
+A form-associated custom element (one whose class has `static formAssociated = true`, such as Web Awesome's `<wa-input>` or `<wa-rating>`) with a `value` or `checked` prop is controlled the same way.
+
+To refuse what the user entered, return `ABORT` (or the state unchanged): the state stays as it was, and because the action came from an `input` or `change` event, the component still renders, so the field shows the state's value again. A digits-only field:
+
+```jsx
+import { ABORT } from 'sygnal'
+
+function Pin({ state }) {
+  return <input className="pin" aria-label="PIN" inputMode="numeric" value={state.pin} />
+}
+
+Pin.initialState = { pin: '' }
+Pin.intent = ({ DOM }) => ({ PIN: DOM.input('.pin').value() })
+Pin.model = {
+  PIN: (state, pin) => /^\d{0,6}$/.test(pin) ? { ...state, pin } : ABORT,
+}
+```
+
+This applies only while the `input` or `change` event is being handled (an intent that delays the action, with `debounce` for example, gets no extra render). `ABORT` from any other action (a click, a timer, a reply) still renders nothing.
 
 Pick one of two patterns:
 

@@ -4,6 +4,8 @@
  * The action's handlers run in model order with (pre, data, next, props), where `pre` is the
  * state (calculated fields included) from before the action, for every sink:
  * - STATE: applied at once (D165). ABORT, or the object it was given (GS-4), is no change.
+ *   D205: during an input / change event (an action triggered by typing in a field), no change
+ *   still re-renders the instance, so a controlled field shows the model's value again
  * - EFFECT: run synchronously (preventDefault on the live event still works); `props.signal`
  *   aborts on dispose; a returned value is SYG219, a rejected promise SYG214.
  * - PARENT: straight to the parent's CHILD.select listeners as { name, component, value }.
@@ -61,9 +63,13 @@ export function handle(inst: Inst, type: string, data: any, cause: any, src?: st
         continue
       }
     } else v = h === undefined || h === true ? data : h
+    if (sink == 'STATE' && (isAbort(v) || v === pre)) {
+      // D205: the DOM event being dispatched (window.event) is the one this action came from
+      if (/^(input|change)$/.test((globalThis as any).event?.type)) inst.refresh()
+      continue
+    }
     if (isAbort(v)) continue
     if (sink == 'STATE') {
-      if (v === pre) continue
       H.onReducer?.(viewOf(inst), type, pre, v)
       dbg(inst, () => `<${type}> State reducer added`)
       inst.cell.set(v)

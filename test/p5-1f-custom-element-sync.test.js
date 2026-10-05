@@ -116,9 +116,9 @@ describe('form-associated custom elements are controlled (D196)', () => {
     expect(r.value).toBe(5)
   })
 
-  it('as the forms guide says: a copy of the state puts the value back, ABORT does not render', async () => {
+  it('as the forms guide says: a copy of the state puts the value back, and (D205) so does ABORT', async () => {
     const { ABORT } = await import('../src/index.js')
-    for (const [refuse, expected] of [[(s) => ({ ...s }), 2], [() => ABORT, 5]]) {
+    for (const [refuse, expected] of [[(s) => ({ ...s }), 2], [() => ABORT, 2], [(s) => s, 2]]) {
       function R({ state }) { return h('x-rating', { className: 'r', value: state.v }) }
       R.initialState = { v: 2 }
       R.intent = ({ DOM }) => ({ SET: DOM.select('.r').events('change').map(e => e.target.value) })
