@@ -27,7 +27,9 @@
  * Actions: form.CHANGE ({ name, value }), form.BLUR (name), form.SUBMIT, form.ADD ({ field,
  * value }), form.REMOVE ({ field, id }), form.ERRORS (an error reply or a map: server errors),
  * form.DONE (saved), form.RESET (values?); internal: form.RESULT (an async schema's result),
- * form.CHECKED_<name> (a check's reply; a failed check passes: the server checks on submit).
+ * form.CHECKED_<name> (a check's reply; a failed check passes: the server checks on submit),
+ * form.VALIDATE (the first validation, when the host starts: G-375; `valid` is false until the
+ * schema answered).
  *
  * Each action is one step function, `(slice, data, key) => outcome | null` (null: no change),
  * the outcome `{ s: new slice, focus: ELEMENT command, req: a check request, send: 1 (dispatch
@@ -41,6 +43,7 @@
  * that sets reply fields. The host checks (SYG234 submit, SYG235 check names, SYG236 row ids)
  * run when the host is created.
  */
+import xs from './xstreamCompat'
 import {defineBehavior} from './behaviors'
 import {ABORT} from '../shared'
 import {isStandardSchema} from './standardSchema'
@@ -95,8 +98,9 @@ export const form = (schema: any, o: any = {}): any => {
       : Object.keys(s.pending).length ? {s: {...s, queued: true}}
       : {s: {...s, queued: false, submitting: true}, send: 1}
   }
-  const fresh = (vals: any) => edit({initial: vals, touched: {}, server: {}, remote: {}, pending: {},
-    submitting: false, submitted: false, submitCount: 0, queued: false, errors: {}}, vals)
+  const base = (vals: any) => ({initial: vals, values: vals, touched: {}, server: {}, remote: {}, pending: {},
+    submitting: false, submitted: false, submitCount: 0, queued: false, errors: {}})
+  const fresh = (vals: any) => edit(base(vals), vals)
 
   const steps: Record<string, (s: any, d: any, k: string) => any> = {
     CHANGE: (s, d) => known(s, d?.name) ? edit(s, setField(s.values, d.name, d.value), {
@@ -134,6 +138,8 @@ export const form = (schema: any, o: any = {}): any => {
     },
     DONE: (s) => ({s: {...s, submitting: false, submitted: true, initial: s.values, server: {}, touched: {}}}),
     RESET: (s, d) => fresh(d && typeof d == 'object' ? d : s.initial),
+    // G-375: the first validation, when the host starts (form() doesn't validate at module load)
+    VALIDATE: (s) => edit(s, s.values),
   }
   // a check's reply (ok and error: an error reply carries an Error and passes)
   for (const f of checked) steps['CHECKED_' + f] = (s, d, k) => {
@@ -164,10 +170,12 @@ export const form = (schema: any, o: any = {}): any => {
 
   return defineBehavior({
     form: schema,
-    initialState: {...fresh(values).s, validating: false},
+    // validating until VALIDATE (sync) or its RESULT (async): not valid yet (G-375)
+    initialState: {...base(values), validating: true},
     intent: ({DOM}: any) => {
       const f = DOM.select(o.form || 'form')
       return {
+        VALIDATE: xs.of(0),
         CHANGE: f.events('input').map(({target: t}: any) => ({name: t.name, value: t.type == 'checkbox' ? t.checked : t.value})),
         BLUR: f.events('focusout').map((e: any) => e.target.name),
         SUBMIT: f.events('submit', {preventDefault: true}),
@@ -184,7 +192,7 @@ export const form = (schema: any, o: any = {}): any => {
         }
         return out
       },
-      valid: (s: any) => !keys(s.errors).length && !keys(s.remote).length,
+      valid: (s: any) => !s.validating && !keys(s.errors).length && !keys(s.remote).length,
       dirty: (s: any) => JSON.stringify(s.values) != JSON.stringify(s.initial),
       error: (s: any) => s.server[''] || (s.submitCount && s.errors['']) || '',
     },

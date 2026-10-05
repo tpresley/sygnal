@@ -42,7 +42,9 @@ describe('helpers over any Standard Schema', () => {
   })
   it('a non-Standard-Schema object throws a TypeError (with the dev entry: SYG231, p5-f1-diagnostics)', () => {
     expect(() => formErrors({ parse() {} }, empty)).toThrow(TypeError)
-    expect(() => form({ parse() {} }, { values: empty, submit: 'X' })).toThrow(TypeError)
+    // 1-S G-375: form() doesn't validate at module load; without the dev entry the first
+    // validation (when a host starts) throws
+    expect(() => form({ parse() {} }, { values: empty, submit: 'X' })).not.toThrow()
   })
   it('names: setField / getField by row id, fieldName, fieldNames, replyErrors', () => {
     const v2 = setField(partial, 'addresses.9.street', 'Oak')

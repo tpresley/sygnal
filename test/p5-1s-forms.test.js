@@ -55,3 +55,47 @@ describe('G-371: async schema, a second submit while the first validates', () =>
     expect(C.sent).toBe(1)
   })
 })
+
+describe('G-375: the first validation runs when the host starts, not at module load', () => {
+  const need = (v) => v.a ? [] : [{ message: 'Need a', path: ['a'] }]
+  const host = (schema) => {
+    function C({ state }) { return h('form', { className: 'f' }, h('input', { name: 'a', value: state.form.values.a })) }
+    C.uses = { form: form(schema, { values: { a: '' }, submit: 'SAVE' }) }
+    C.model = { SAVE: { EFFECT: () => {} } }
+    return C
+  }
+
+  it('form() does not call validate', () => {
+    let calls = 0
+    const s = { '~standard': { version: 1, vendor: 'test', validate: (v) => { calls++; return { value: v } } } }
+    const b = form(s, { values: { a: '' }, submit: 'SAVE' })
+    expect(calls).toBe(0)
+    expect(b.state.validating).toBe(true)
+    expect(b.state.valid).toBe(false)
+  })
+
+  it('an async schema: validating (not valid) until its first result, then its errors', async () => {
+    t = renderComponent(host(slow(20, need)))
+    await t.ready()
+    expect(t.state.form.validating).toBe(true)
+    expect(t.state.form.valid).toBe(false)
+    await t.next(s => !s.form.validating)
+    expect(t.state.form.errors).toEqual({ a: 'Need a' })
+    expect(t.state.form.valid).toBe(false)
+  })
+
+  it('a sync schema: its errors are there once the host is ready', async () => {
+    t = renderComponent(host(sync(need)))
+    await t.ready(); await t.settle()
+    expect(t.state.form.validating).toBe(false)
+    expect(t.state.form.errors).toEqual({ a: 'Need a' })
+    expect(t.state.form.valid).toBe(false)
+  })
+
+  it('a valid start is valid once validated', async () => {
+    t = renderComponent(host(slow(10)))
+    await t.ready()
+    await t.next(s => !s.form.validating)
+    expect(t.state.form.valid).toBe(true)
+  })
+})

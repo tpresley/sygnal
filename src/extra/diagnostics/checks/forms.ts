@@ -22,7 +22,7 @@ import {devReport, once, nameOf} from './shared'
 import {docsUrlFor} from '../codes'
 import {getField} from '../../formHelpers'
 
-const FORM_ACTIONS = ['CHANGE', 'BLUR', 'SUBMIT', 'ADD', 'REMOVE', 'ERRORS', 'DONE', 'RESET', 'RESULT']
+const FORM_ACTIONS = ['CHANGE', 'BLUR', 'SUBMIT', 'ADD', 'REMOVE', 'ERRORS', 'DONE', 'RESET', 'RESULT', 'VALIDATE']
 const RESERVED = ['ok', 'error', 'latest']
 
 const what = (v: any): string =>

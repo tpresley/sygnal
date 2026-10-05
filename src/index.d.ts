@@ -904,9 +904,9 @@ export interface FormState<V = any> {
   /** `form.DONE` arrived */
   submitted: boolean;
   submitCount: number;
-  /** A submit waits for an async check */
+  /** A submit waits for an async check or an async schema */
   queued: boolean;
-  /** An async schema is running */
+  /** The schema hasn't answered for the current values yet (an async one is running; also at the start) */
   validating: boolean;
 }
 
@@ -914,7 +914,7 @@ export interface FormState<V = any> {
 export interface FormCalculated {
   /** Every field of `values` by name (leaves, arrays, and array rows' fields by row id) */
   fields: Record<string, FormField>;
-  /** No schema error and no failed check */
+  /** No schema error and no failed check, and not `validating` */
   valid: boolean;
   dirty: boolean;
   /** The form-level message: a server error without a field, or a schema issue without a path after a submit */
