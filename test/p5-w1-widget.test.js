@@ -388,7 +388,7 @@ describe('.detail(fn?) enricher (W-3)', () => {
 })
 
 describe('D190 guards (without the dev entry)', () => {
-  it('commands named close / togglePopover are refused by the dev entry only (SYG142); here they define', () => {
+  it('commands named close / togglePopover define (D200: not reserved)', () => {
     expect(() => defineWidget({ mount: () => ({}), commands: { close: () => {} } })).not.toThrow()
   })
 
@@ -452,11 +452,10 @@ describe('D190 guards (without the dev entry)', () => {
 })
 
 describe('props, hosts and lifecycle', () => {
-  it('host props go on the element; every prop but key/ref reaches the widget; hostProps adds names', async () => {
+  it('host props go on the element; every prop but key/ref reaches the widget (ref is the host, G-368); hostProps adds names', async () => {
     let got
     const W = defineWidget({ tag: 'section', hostProps: ['lang2'], mount: (el, p) => { got = p; return {} } })
     const ref = { current: null }
-    // a host takes no ref (the widget owns its element; use commands): it is not passed on
     function A() { return h('div', null, h(W, { key: 'k', ref, id: 'w1', className: 'w', 'aria-label': 'Chart', 'data-kind': 'bar', title: 'T', series: [1, 2], lang2: 'x' })) }
     A.initialState = {}
     mount(A)
@@ -469,7 +468,7 @@ describe('props, hosts and lifecycle', () => {
     expect(el.title).toBe('T')
     expect(el.series).toBe(undefined)
     expect(el.lang2).toBe('x')
-    expect(ref.current).toBe(null)
+    expect(ref.current).toBe(el)
     expect(Object.keys(got).sort()).toEqual(['aria-label', 'className', 'data-kind', 'id', 'lang2', 'series', 'title'])
     expect(got.series).toEqual([1, 2])
   })
@@ -488,7 +487,7 @@ describe('props, hosts and lifecycle', () => {
     expect(log).toEqual(['mount 1', 'unmount', 'mount 2'])
   })
 
-  it('another widget with the same host tag in the same place (unkeyed): the first unmounts, the second mounts', async () => {
+  it('another widget with the same host tag in the same place (unkeyed): the first unmounts, the second mounts on a new element', async () => {
     const log = []
     const A1 = defineWidget({ mount: (el) => { log.push('mount a'); return { name: 'a' } }, update: () => log.push('update a'), unmount: () => log.push('unmount a'), commands: { ping: (i) => log.push(`ping ${i.name}`) } })
     const B1 = defineWidget({ mount: (el) => { log.push('mount b'); return { name: 'b' } }, update: () => log.push('update b'), unmount: () => log.push('unmount b'), commands: { ping: (i) => log.push(`ping ${i.name}`) } })
@@ -500,10 +499,12 @@ describe('props, hosts and lifecycle', () => {
     await settle()
     const el = document.querySelector('.w')
     document.querySelector('.t').click(); await settle()
-    expect(document.querySelector('.w')).toBe(el)   // patched in place
+    // 1-R (G-360): the host's key names its widget, so the element is replaced, not patched
+    const el2 = document.querySelector('.w')
+    expect(el2).not.toBe(el)
     expect(log).toEqual(['mount a', 'unmount a', 'mount b'])
-    expect(el.__sygnalWidget.i.name).toBe('b')
-    el.ping()
+    expect(el2.__sygnalWidget.i.name).toBe('b')
+    el2.ping()
     expect(log.at(-1)).toBe('ping b')
   })
 

@@ -470,7 +470,7 @@ export class Inst {
       const sel = n.sel
       // a fragment (no sel): its children are walked in place (G-256)
       if (sel && pres[sel]) {
-        const r = pres[sel](n, this)
+        const r = pres[sel](n, this, path)
         if (r === n) return
         if (parent) (parent.children = parent.children.slice())[idx] = r
         else this.tmpl = r
