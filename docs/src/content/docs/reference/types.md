@@ -19,7 +19,7 @@ type Component<
   CONTEXT = {},                      // the context the view and reducers see
   SINK_RETURNS extends NonStateSinkReturns = {},
   PROVIDED_CONTEXT = CONTEXT          // what this component's own .context provides
-> = ((props: ViewProps<STATE & CALCULATED, PROPS, CONTEXT> /* , state, context, peers */) => JSX.Element) & {
+> = ((props: ViewProps<STATE & CALCULATED, PROPS, CONTEXT>) => JSX.Element) & {
   // with CALCULATED, also accepts an intent annotated with IntentSources<STATE>
   intent?: (sources: IntentSources<STATE & CALCULATED, DRIVERS>) => { [ACTION in keyof ACTIONS]?: Stream<any> }
   model?: ComponentModel
@@ -27,7 +27,7 @@ type Component<
   calculated?: Calculated
   context?: Context<PROVIDED_CONTEXT>
   onError?: (error: Error, info: { componentName: string }) => any
-  // … peers, components, isolatedState, storeCalculatedInState, debug, DOMSourceName, stateSourceName
+  // … componentName, isolatedState, debug, connections, resources, route, head, uses, timers, persist, viewTransitions
 }
 ```
 

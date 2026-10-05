@@ -95,20 +95,36 @@ The `get` function extracts child state from parent state. The `set` function me
 
 > Use lenses sparingly. In most cases, property-based state passing is sufficient and much easier to debug.
 
+<a id="isolated-state"></a>
+
 ### Sub-Component Initial State (`isolatedState`)
 
-By default, Sygnal throws an error if a sub-component has `.initialState` without explicitly declaring `.isolatedState = true`. This prevents a common bug where a child's initial state silently overwrites the parent's state slice:
+A sub-component's state comes from its parent, so a sub-component with `.initialState` must also declare `.isolatedState = true`. Without it, Sygnal reports [SYG405](/reference/errors/#syg405) and the parent renders its error fallback in the child's place, because the child's initial state would silently overwrite the state the parent passes in:
 
 ```jsx
-// This will throw an error:
 function Widget({ state }) {
   return <div>Count: {state.count}</div>
 }
-Widget.initialState = { count: 0 }  // Error! No .isolatedState
-
-// Fix: declare isolated state
 Widget.initialState = { count: 0 }
-Widget.isolatedState = true  // Explicitly opt in
+Widget.isolatedState = true  // required with initialState on a sub-component
 ```
 
-When `isolatedState = true`, the child's `initialState` seeds the parent's state slice if it doesn't already exist. The child component manages its own state independently.
+What `isolatedState` does depends on how the parent renders the child:
+
+- **Bound to a slice** (`<Widget state="counter" />`, or a lens): the child reads and writes that slice of the parent's state. Its `initialState` seeds the slice only while the slice is `undefined`; a slice the parent already has is kept, so the parent's data survives the child being unmounted and mounted again. In development, [SYG425](/reference/errors/#syg425) warns when the kept slice lacks keys the child's `initialState` defines. Add the **`resetState`** prop to replace the slice with `initialState` every time the child is created:
+
+  ```jsx
+  function Page({ state }) {
+    return (
+      <div>
+        <Widget state="counter" />
+        <Widget state="scratch" resetState />
+      </div>
+    )
+  }
+  ```
+
+  `resetState` is read when the child is created, like `state`, and is never a prop of the child.
+- **No `state` prop** (`<Widget />`): the state is local to that instance, starts from `initialState`, and is never written to the parent. Each instance has its own.
+
+(Before 6.0 a bound child's `initialState` always overwrote the slice; see [Migrating to 6.0](/guide/migrating-to-6/#behaviour-changes).)

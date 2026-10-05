@@ -4,53 +4,21 @@ description: Non-canonical forms Sygnal still accepts, and their canonical equiv
 ---
 
 :::caution[Non-canonical forms]
-Everything on this page works and is supported, but it is **not** the canonical way to write Sygnal code. The rest of the documentation only uses the canonical forms. You'll find these forms in older code; [strict mode](/guide/strict-mode/) flags each of them, and `sygnal-check --fix` rewrites most of them automatically.
+Everything on this page works and is supported, but it is **not** the canonical way to write Sygnal code. The rest of the documentation only uses the canonical forms. You'll find these forms in older code; [strict mode](/guide/strict-mode/) flags most of them, and `sygnal-check --fix` rewrites most of them automatically.
 :::
+
+Sygnal 6.0 removed several forms that used to be listed here: `'ACTION | SINK'` model keys, positional view arguments, `CHILD.select('Name')`, `.components` and string tags, `.peers`, the `component({ ... })` factory and a few more. They no longer work; [Migrating to 6.0](/guide/migrating-to-6/) shows how to rewrite each one.
 
 | Alternative form | Canonical form | Strict code | `--fix` |
 |---|---|---|---|
-| [`'ACTION \| SINK'` shorthand keys](#model-shorthand) | `ACTION: { SINK: fn }` | SYG504 | yes |
 | [`emit('TYPE', fn)`](#emit) | `ACTION: { EVENTS: event('TYPE', fn) }` | SYG505 | yes |
 | [Raw `{ type, data }` from an EVENTS sink](#raw-events-objects) | `EVENTS: event('TYPE', fn)` | SYG505 | yes (expression bodies) |
-| [Positional view arguments](#positional-view-arguments) | `function C({ state, context, ...props })` | SYG501 | no |
-| [`CHILD.select('Name')`](#childselect-with-a-string) | `CHILD.select(ChildFn)` | SYG506 | yes, when the name is in scope |
 | [`return state` for "no change"](#returning-the-unchanged-state) | `return ABORT` | — (SYG502 retired in 6.0) | no |
 | [Side effect in a STATE reducer + `ABORT`](#side-effects-in-a-state-reducer) | `ACTION: { EFFECT: fn }` | SYG503 | no |
 | [`HTTP.select()`/`errors()` reading back your own request](#selecterrors-round-trip) | `{ url, ok: 'LOADED', error: 'FAILED' }` | SYG508 | no |
 | [Model-sent `{ connections }`](#model-sent-connections) | the `connections` static | — | no |
 | [`driverFromAsync` around `fetch`](#driverfromasync-for-http) | `makeFetchDriver()` | — | no |
 | [Controls](#controls-instead-of-class-selectors) (`controls()`, `<Add>`, `DOM.click(Add)`) | class and attribute selectors: `<button className="add">`, `DOM.click('.add')` | — | the other way: `--fix --controls` converts selectors to controls (opt-in) |
-
-## Model shorthand
-
-A model key can name the action and a single sink, separated by `|`:
-
-```jsx
-// Alternative
-App.model = {
-  'PLAY | EFFECT':  () => playerCmd.send('play'),
-  'DELETE | PARENT': (state) => ({ taskId: state.id }),
-  'LOADED | READY':  () => true,
-  'FETCH | HTTP':    (state) => ({ url: `/api/items/${state.id}` }),
-}
-
-// Canonical
-App.model = {
-  PLAY:   { EFFECT: () => playerCmd.send('play') },
-  DELETE: { PARENT: (state) => ({ taskId: state.id }) },
-  LOADED: { READY: () => true },
-  FETCH:  { HTTP: (state) => ({ url: `/api/items/${state.id}` }) },
-}
-```
-
-Details, for reading existing code:
-
-- The key is `'ACTION | SINK'`: an action name, `|`, and a sink name, with optional whitespace. It must be quoted. It works with every sink, built-in or custom.
-- Shorthand and object-form entries can be mixed in one model. If both define the same action and sink, both reducers run and Sygnal warns ([SYG213](/reference/errors/#syg213)).
-- A key that doesn't split into exactly two non-empty parts throws ([SYG211](/reference/errors/#syg211)).
-- Because `|` is reserved for this syntax, an intent action name containing `|` throws ([SYG605](/reference/errors/#syg605)).
-
-The object form keeps every sink an action drives in one place, so adding a second sink later doesn't mean rewriting the key.
 
 ## emit()
 
@@ -98,42 +66,6 @@ Publisher.model = {
 ```
 
 With `event()` the event name sits next to the call, where `sygnal-check` and the type checker can read it.
-
-## Positional view arguments
-
-The view is called as `view(props, state, context, peers)`, so the second and third arguments can be read positionally:
-
-```jsx
-// Alternative
-const Tile = (props, state) => <div className="tile">{state.value}</div>
-
-// Canonical
-function Tile({ state }) {
-  return <div className="tile">{state.value}</div>
-}
-```
-
-The first argument already contains `state`, `context`, `children`, `slots` and the props, so destructuring it gives every view the same signature.
-
-## CHILD.select with a string
-
-`CHILD.select()` also accepts the child component's name:
-
-```jsx
-// Alternative
-Lane.intent = ({ CHILD }) => ({
-  DELETE_TASK: CHILD.select('TaskCard').map(p => p.taskId),
-})
-
-// Canonical
-import TaskCard from './TaskCard.jsx'
-
-Lane.intent = ({ CHILD }) => ({
-  DELETE_TASK: CHILD.select(TaskCard).map(p => p.taskId),
-})
-```
-
-Name matching breaks when a minifier renames the function, and the parent silently stops receiving the child's events in production. If the child can't be imported (a component resolved at runtime), set a stable name on it: `TaskCard.componentName = 'TaskCard'`.
 
 ## Returning the unchanged state
 
