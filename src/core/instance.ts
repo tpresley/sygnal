@@ -102,6 +102,8 @@ export class Inst {
   cell: CalcCell
   props: Record<string, any>
   children!: any[]
+  /** the children as the parent passed them (slots included) */
+  raw!: any[]
   slots: Record<string, any[]> = {}
   kids = new Map<string, any>()
   uidBase: string
@@ -235,6 +237,8 @@ export class Inst {
     }
   }
   setChildren(children: any[]) {
+    // G-294: the raw children (before the slots are split out) decide whether the view re-runs
+    this.raw = children
     const [kids, slots] = children.length ? extractSlots(children) : [children, {}]
     this.children = kids
     this.slots = slots
@@ -324,7 +328,7 @@ export class Inst {
   render(): any {
     if (this.disposed) return this.outv
     const state = this.cell.get(), ctx = this.context()
-    let viewDirty = this.forced || state !== this.ls || !shallowEq(this.props, this.lp) || !sameKids(this.children, this.lc) || this.ctxChanged(ctx)
+    let viewDirty = this.forced || state !== this.ls || !shallowEq(this.props, this.lp) || !sameKids(this.raw, this.lc) || this.ctxChanged(ctx)
     // no state (yet): the view isn't called; it keeps its last render (as today's state stream,
     // which skips undefined). A child with none is left out of its parent's vnode
     if (state === undefined && viewDirty) {
@@ -335,7 +339,7 @@ export class Inst {
       const H = this.app.hooks
       if (H.onStateChanged && state !== this.ls && !this.forced) H.onStateChanged(viewOf(this), state)
       this.forced = false
-      this.ls = state; this.lp = this.props; this.lc = this.children; this.lctx = ctx
+      this.ls = state; this.lp = this.props; this.lc = this.raw; this.lctx = ctx
       this.view(state, ctx)
       this.reconcile()
     }
