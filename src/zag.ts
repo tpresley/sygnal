@@ -36,6 +36,9 @@
  * - Commands: `commands: { open: (api, options, x) => api.setOpen(true) }` (D102 element commands).
  * - The instance (`t.widget(sel).instance` with `dom: 'real'`) is `x`: `{ el, api(), machine,
  *   refresh() }` plus whatever the part keeps on it.
+ * - Errors (G-409): a render that throws while the widget mounts stops the machine and is SYG660;
+ *   on a later, machine-driven redraw it stops the machine and goes to the widget's error path
+ *   (mount's `error`): SYG661 and the owner's onError fallback in its place.
  * - Wrong arguments throw SYG667 when the widget is defined.
  *
  * Separate entry: rollup turns './index' into the external 'sygnal' and keeps snabbdom and
@@ -88,8 +91,9 @@ const fail = (m: string): never => {
 
 let ids = 0
 
-function start(zag: any, render: any, o: any, el: any, p0: any, dispatch: any): any {
-  let props = p0, memo: any, on = 1, busy = 0, again = 0
+function start(zag: any, render: any, o: any, el: any, p0: any, dispatch: any, error: any): any {
+  // live: 0 while start() runs (a throwing draw throws: SYG660), then 1 (it goes to error: SYG661)
+  let props = p0, memo: any, on = 1, busy = 0, again = 0, live = 0
   let vn: any = el.appendChild(document.createElement('div'))
   const id = p0.id ?? 'sygnal-zag-' + ++ids
   // the instance (the part's per-instance fields too); the props mapping gets it from the start
@@ -128,7 +132,18 @@ function start(zag: any, render: any, o: any, el: any, p0: any, dispatch: any): 
         const out = render(api(), props, x)
         vn = patch(vn, Array.isArray(out) ? h('div', {style: {display: 'contents'}}, out) : out || h('!', ''))
       } while (again && on)
+    } catch (e) {
+      // G-409: the machine stops; a machine-driven redraw (an event handler, a watcher) hands the
+      // error to the widget (SYG661 + the owner's onError fallback) instead of throwing into Zag
+      halt()
+      if (!live) throw e
+      error(e)
     } finally { busy = 0 }
+  }
+  const halt = () => {
+    if (!on) return
+    on = 0
+    try { m.stop() } catch (_) {}
   }
   Object.assign(x, {
     machine: m,
@@ -145,8 +160,10 @@ function start(zag: any, render: any, o: any, el: any, p0: any, dispatch: any): 
   })
   m.subscribe(draw)
   draw()
-  m.start()
+  // G-409: a start() or second draw that throws leaves no running machine (then SYG660)
+  try { m.start() } catch (e) { halt(); throw e }
   draw()
+  live = 1
   return x
 }
 
@@ -170,7 +187,7 @@ export function fromZag(zag: any, render: any, options: any = {}): any {
     hostProps: o.hostProps,
     events: Object.keys(o.events || {}),
     commands,
-    mount: (el: any, p: any, dispatch: any) => start(zag, render, o, el, p, dispatch),
+    mount: (el: any, p: any, dispatch: any, error: any) => start(zag, render, o, el, p, dispatch, error),
     update: (x: any, p: any) => x.set(p),
     unmount: (x: any) => x.stop(),
   })

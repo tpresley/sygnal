@@ -593,8 +593,10 @@ export interface WidgetDefinition<P = {}, I = unknown, EV extends string = strin
   /**
    * Called once the host is in the document (or on the first client patch after SSR) with the
    * props the view passed. Returns the instance that `update`, `unmount` and `commands` get.
+   * `error(e)` reports a later failure the widget catches itself (a library's own re-render): it
+   * is handled like a throwing `update` (SYG661, the owner's `onError` fallback in its place).
    */
-  mount(el: WidgetElementOf<TAG>, props: P, dispatch: WidgetDispatch<EV>): I;
+  mount(el: WidgetElementOf<TAG>, props: P, dispatch: WidgetDispatch<EV>, error: (e: unknown) => void): I;
   /** Called with the newest props when they change (shallow compare; `style`/`attrs` objects by their entries). Without it, a change remounts. */
   update?(instance: I, props: P, el: WidgetElementOf<TAG>): void;
   /** Called when the host leaves the DOM. */

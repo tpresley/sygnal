@@ -48,6 +48,8 @@
  *   `close`) is found by the core through `__sw` and wins over the native one, with the
  *   options object (D196, D200).
  * - A widget tag is not a selector: `DOM.select(DatePicker)` matches nothing (SYG143 in dev).
+ * - G-409: mount's fourth parameter `error(e)` reports a later failure the widget caught itself
+ *   (fromZag's machine-driven redraws): handled as a throwing `update` (SYG661 + fallback).
  * - A `mount`/`update` that throws (SYG660/661): reported to the app's onError with phase
  *   'widget' (D105), and the owner's next render shows its `onError` fallback in that instance's
  *   place (G-361: per instance; a render with other props tries again, and the failure is
@@ -96,7 +98,10 @@ function mount(v: any) {
   const d = (n: string, detail?: any) => { dev(140, w, o, n); el.dispatchEvent(new CustomEvent(n, {detail, bubbles: true})) }
   let i: any
   dev(144, w, o, el)
-  try { i = w.def.mount(el, p, d) } catch (x) { return fail(o, w, v.key, 660, x) }
+  // G-409: mount's fourth parameter reports a later failure (an adapter's own redraw): SYG661,
+  // the owner's onError fallback in this instance's place, as for a throwing update
+  const err = (x: any) => { el[W] && fail(o, w, v.key, 661, x) }
+  try { i = w.def.mount(el, p, d, err) } catch (x) { return fail(o, w, v.key, 660, x) }
   Object.defineProperty(el, W, {value: {w, p, i, e: d}, configurable: true})
   // the tag form's commands: a host method for each one the element doesn't have (D190)
   for (const m in w.def.commands) m in el || (el[m] = (x: any) => el[W]?.w.commands[m]?.(el, x))
