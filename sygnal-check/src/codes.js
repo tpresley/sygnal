@@ -44,6 +44,8 @@ export const CODES = {
   SYG422: { severity: 'error', title: 'Invalid timer spec' },
   // PLAN-4 4-G2 (rules/syg609-sink-driver.js): the run() call registers no driver for a model sink
   SYG609: { severity: 'warn', title: 'Sink or source has no driver' },
+  // PLAN-4.6 R5 (rules/syg612-removed-forms.js): a form 6.0 removed
+  SYG612: { severity: 'error', title: 'Removed in 6.0' },
   SYG634: { severity: 'info', title: 'latest: true with a computed key' },
   // PLAN-4 GS-2 element commands (rules/syg640-element-commands.js), GS-7 (rules/syg422-timers.js)
   SYG640: { severity: 'warn', title: 'Element command target not found' },
@@ -60,12 +62,12 @@ export const CODES = {
   SYG708: { severity: 'warn', title: 'Label or ARIA reference to an id that is not rendered' },
   // strict mode (--strict), dev-plans/PLAN-1-canonical-forms.md; severities match
   // STRICT_CODE_SEVERITY in src/extra/diagnostics/codes.ts
-  SYG501: { severity: 'warn', title: 'View uses positional arguments', strict: true },
+  SYG501: { severity: 'error', title: "Removed in 6.0: view with positional arguments", strict: true },
   SYG502: { severity: 'warn', title: 'Retired in 6.0: STATE reducer signals no change without ABORT', strict: true },
   SYG503: { severity: 'warn', title: 'Side effect in a STATE reducer that returns ABORT', strict: true },
-  SYG504: { severity: 'warn', title: "'ACTION | SINK' shorthand model key", strict: true },
+  SYG504: { severity: 'error', title: "Removed in 6.0: 'ACTION | SINK' model key", strict: true },
   SYG505: { severity: 'warn', title: 'Non-canonical EVENTS emit', strict: true },
-  SYG506: { severity: 'warn', title: 'CHILD.select() with a string component name', strict: true },
+  SYG506: { severity: 'error', title: "Removed in 6.0: CHILD.select() with a component name", strict: true },
   SYG507: { severity: 'info', title: 'Prop drilled through more than 2 component levels', strict: true },
   SYG508: { severity: 'warn', title: 'select()/errors() round trip where reply actions would do', strict: true },
   SYG900: { severity: 'warn', title: 'A diagnostics check threw' },

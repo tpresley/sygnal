@@ -157,7 +157,7 @@ export interface Hooks {
    * happens after this hook (today testing mutates `sources`/`sourceNames` from onIntent).
    */
   wrapSources?(inst: InstanceView, sources: Record<string, any>): Record<string, any>
-  /** the intent's action names (SYG605 wiring checks, inspect()) */
+  /** the intent's action names (the wiring checks, inspect()) */
   onIntent?(inst: InstanceView, actionNames: string[]): void
 
   // ------------------------------------------------------------------ actions

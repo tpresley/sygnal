@@ -14,7 +14,8 @@ describe("strict mode in the built entries", () => {
   it('keeps the strict checks and SYG5xx severities out of the main bundle', () => {
     const main = readFileSync(dist('index.esm.js'), 'utf8')
     const entry = readFileSync(dist('diagnostics.esm.js'), 'utf8')
-    for (const marker of ["uses the 'ACTION | SINK' shorthand", 'positional arguments', 'and returned the same object', 'SYG501']) {
+    // (R5: the runtime SYG501/SYG504 checks went with the removed forms; SYG612 replaces them)
+    for (const marker of ['positional arguments', 'and returned the same object', 'SYG501', 'SYG508']) {
       expect(entry).toContain(marker)
       expect(main).not.toContain(marker)
     }

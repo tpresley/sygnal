@@ -44,9 +44,8 @@
  * | SYG301 | RxJS operator used on an xstream stream                | rxjsHints.ts   |
  * | SYG401 | Collection `from` missing or not an array              | collections.ts |
  * | SYG421 | invalid data (dataset) key in a view                   | dataset.ts     |
- * | SYG501 | strict: view uses positional (props, state, ...) args  | strict.ts      |
+ * | SYG612 | a form 6.0 removed (also SYG501/504 statically)        | next.ts        |
  * | SYG502 | retired in 6.0 (never reported; GS-4)                  | —              |
- * | SYG504 | strict: 'ACTION | SINK' shorthand model key           | strict.ts      |
  * | SYG508 | strict: select()/errors() round trip on a reply source | replies.ts    |
  * | —      | D152: shared statics frozen (initialState deep)        | statics.ts     |
  * | —      | inspect(): the runtime app graph (2B)                  | inspect.ts     |

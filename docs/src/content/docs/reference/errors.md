@@ -563,13 +563,13 @@ BOOTSTRAP:  { EFFECT: () => analytics.track('start') },
 
 ### SYG211
 
-**Invalid model shorthand entry**
+**Retired in 6.0: Invalid model shorthand entry**
 
-Severity: `error` · Reported by: the Sygnal runtime (every app, production included)
+Severity: `error` · Reported by: retired
 
-A model key contains `|` but does not split into exactly two non-empty parts (e.g. `'SAVE |'` or `'A | B | C'`). Model setup throws when the component is initialized.
+Retired in 6.0 and never reported. Before 6.0 it was thrown for a malformed `'ACTION | SINK'` model key (one that did not split into an action and a sink). Sygnal 6.0 removed those keys (the object form is the only form), so there is nothing to split; a removed key is reported as SYG612 (dev) and SYG504 (`sygnal-check --strict`).
 
-**Fix:** Use exactly one action and one sink: `'SAVE | EFFECT': (state) => { ... }`.
+**Fix:** Use the object form: `SAVE: { EFFECT: (state, data, next) => … }`. See https://sygnal.js.org/guide/migrating-to-6#pipe-keys.
 
 ### SYG212
 
@@ -595,13 +595,13 @@ Comp.model = { RESET: (state) => ({ ...state, count: 0 }) }
 
 ### SYG213
 
-**Duplicate model entry for the same action and sink**
+**Retired in 6.0: Duplicate model entry for the same action and sink**
 
-Severity: `warn` · Reported by: the Sygnal runtime (every app, production included)
+Severity: `warn` · Reported by: retired
 
-The same action and sink pair is defined more than once, which can only happen through shorthand keys (e.g. `'SAVE | STATE'` alongside `SAVE: fn` or `SAVE: { STATE: ... }`). Both entries are merged into the sink, so both reducers run for each action (as the warning says), which is rarely what was meant.
+Retired in 6.0 and never reported. Before 6.0 it warned when an `'ACTION | SINK'` key and an object-form entry defined the same action and sink. With the shorthand keys removed in 6.0, an action/sink pair can be defined only once.
 
-**Fix:** Remove the duplicate so each action/sink pair is defined once.
+**Fix:** Nothing to change. Use one object-form entry per action: `SAVE: { STATE: …, EFFECT: … }`.
 
 ### SYG214
 
@@ -817,7 +817,7 @@ RESULTS: DOM.input('.q').value().compose(debounce(300))
 
 Severity: `warn` · Reported by: the Sygnal runtime (every app, production included), the dev checks (`sygnal/diagnostics`), `sygnal-check`
 
-A `<Collection>` needs an array to render. The runtime reports this when `from="field"` names a key that is not in the parent state (or its calculated fields), when that field is not an array, or when a `from={{ get, set }}` getter returns a non-array; the dev entry also reports a `<Collection>` with no `from` whose parent state is not an array. In every case the Collection silently renders no items. `sygnal-check` reports the same mistake statically when `from` is not a key of a statically known `initialState`, or its initial value is a literal that is clearly not an array.
+A `<Collection>` needs an array to render. The runtime reports this when `from="field"` names a key that is not in the parent state (or its calculated fields), when that field is not an array, or when a `from={{ get, set }}` getter returns a non-array; the dev entry also reports a `<Collection>` with no `from` whose parent state is not an array. In every case the Collection renders no items: a missing `from` key until the key appears in the state (it then renders, since 6.0), a non-array value until it becomes an array. `sygnal-check` reports the same mistake statically when `from` is not a key of a statically known `initialState`, or its initial value is a literal that is clearly not an array.
 
 **Fix:** Point `from` at an array field and initialize it in `initialState`, e.g. `initialState = { items: [] }` with `<Collection of={Item} from="items" />`, or make a custom `get()` return an array.
 
@@ -1037,23 +1037,23 @@ After:
 
 ### SYG413
 
-**Unnamed component factory not found**
+**Retired in 6.0: Unnamed component factory not found**
 
-Severity: `error` · Reported by: the Sygnal runtime (every app, production included)
+Severity: `error` · Reported by: retired
 
-The view rendered an unnamed component element (`sygnal-factory`) that carries no component factory or options, so Sygnal has nothing to instantiate. The throw is caught by the parent, which logs it under this code and renders its error fallback in that place.
+Retired in 6.0 and never reported. Before 6.0 it was logged when a view rendered an element carrying neither a component factory nor its options (`sygnal-factory`). Since 6.0 a component vnode carries the component function itself (`data.c`); there are no factories or options objects to lose.
 
-**Fix:** Render the component by referencing a named function in JSX, or give it a stable name with `Comp.componentName = 'Comp'`.
+**Fix:** Nothing to change. Render components as JSX tags of their functions.
 
 ### SYG414
 
-**Component not found**
+**Retired in 6.0: Component not found**
 
-Severity: `error` · Reported by: the Sygnal runtime (every app, production included)
+Severity: `error` · Reported by: retired
 
-The view rendered a component by name, but no factory for that name exists in the parent's `.components` and none was attached to the element. The throw is caught by the parent, which logs it under this code and renders its error fallback in that place.
+Retired in 6.0 and never reported. Before 6.0 it was logged when a view rendered a component by a string name that no `.components` registry entry matched. Sygnal 6.0 removed string tags and `.components`: a component is always referenced by its function. A leftover string tag renders as a plain element and is reported as SYG612 in development.
 
-**Fix:** Import the component and use it directly as a JSX tag, or register it in the parent's `.components` under the name you render.
+**Fix:** Import the component and use it as a JSX tag. See https://sygnal.js.org/guide/migrating-to-6#string-tags.
 
 Before:
 
@@ -1145,13 +1145,13 @@ After:
 
 ### SYG419
 
-**Invalid switchable() 'name$' parameter**
+**Retired in 6.0: Invalid switchable() 'name$' parameter**
 
-Severity: `error` · Reported by: the Sygnal runtime (every app, production included)
+Severity: `error` · Reported by: retired
 
-The exported `switchable()` helper was called without a `name$` argument, or with one that is not a stream, a state key string, or a function of state. It throws immediately because it cannot tell which component to show.
+Retired in 6.0 and never reported. It was thrown by the low-level `switchable()` helper, which Sygnal 6.0 removed together with the `component()` factory. `<Switchable of={...} current={...} />` is the one form.
 
-**Fix:** Pass a stream of component names, a state key string, or a `state => name` function as the second argument to `switchable()`.
+**Fix:** Render `<Switchable of={{ a: A, b: B }} current={state.tab} />` in a view.
 
 ### SYG420
 
@@ -1242,13 +1242,13 @@ An `isolatedState` component is bound to a slice of its parent's state (`state="
 
 ### SYG501
 
-**View uses positional arguments**
+**Removed in 6.0: view with positional arguments**
 
-Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`), `sygnal-check` · Strict mode only
+Severity: `error` · Reported by: `sygnal-check` · Strict mode only
 
-Strict mode only. The view declares more than one parameter and reads `state`, `context` or `peers` positionally, as in `function Lane(props, state)`, instead of destructuring them from its first argument. The canonical form keeps every view's signature the same, so code and tooling can rely on it. The runtime check uses the function's declared arity, so a default value or rest parameter can hide a positional use.
+Strict mode only (`sygnal-check --strict`). The view declares more than one parameter, as in `function Lane(props, state, context)`. Sygnal 6.0 removed positional view arguments (D164): a view is called with one argument, so `state` and `context` are undefined in the second and third parameters. At run time the dev checks report the same form as SYG612 (`positional-views`).
 
-**Fix:** Destructure the first argument: `function Lane({ state, context, ...props })`.
+**Fix:** Destructure the one argument: `function Lane({ state, context, ...props })`. See https://sygnal.js.org/guide/migrating-to-6#positional-views.
 
 Before:
 
@@ -1317,13 +1317,13 @@ PLAY: { EFFECT: () => playerCmd.send('play') }
 
 ### SYG504
 
-**'ACTION | SINK' shorthand model key**
+**Removed in 6.0: 'ACTION | SINK' model key**
 
-Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`), `sygnal-check` · Strict mode only
+Severity: `error` · Reported by: `sygnal-check` · Strict mode only
 
-Strict mode only. A model key uses the `'ACTION | SINK'` shorthand, such as `'SEND | EFFECT': …`. It works, but the canonical form is the object form, which keeps every sink an action drives in one place. `sygnal-check --strict --fix` rewrites it automatically when no other entry handles the same action.
+Strict mode only (`sygnal-check --strict`). A model key uses the `'ACTION | SINK'` shorthand, such as `'SEND | EFFECT': …`. Sygnal 6.0 removed these keys (D164): the object form is the only form. `sygnal-check --strict --fix` rewrites the key when no other entry handles the same action. At run time the dev checks report it as SYG612 (`pipe-keys`).
 
-**Fix:** Use the object form: `SEND: { EFFECT: (state, data, next) => … }`, merging into an existing `SEND` entry if there is one.
+**Fix:** Use the object form: `SEND: { EFFECT: (state, data, next) => … }`, merging into an existing `SEND` entry if there is one. See https://sygnal.js.org/guide/migrating-to-6#pipe-keys.
 
 Before:
 
@@ -1365,13 +1365,13 @@ SAVE:   { EVENTS: event('SAVED', (state) => state.id) }
 
 ### SYG506
 
-**CHILD.select() with a string component name**
+**Removed in 6.0: CHILD.select() with a component name**
 
-Severity: `warn` · Reported by: `sygnal-check` · Strict mode only
+Severity: `error` · Reported by: `sygnal-check` · Strict mode only
 
-Strict mode only (`sygnal-check --strict`). An intent calls `CHILD.select('TaskCard')` with the child's name as a string. Matching by name breaks when a minifier renames the component function, so the parent silently stops receiving the child's PARENT output in production builds. `--fix` replaces the string with the identifier when that name is in scope.
+Strict mode only (`sygnal-check --strict`). An intent calls `CHILD.select('TaskCard')` with the child's name as a string. Sygnal 6.0 removed name lookups (D163): children are matched by their component function. `--fix` replaces the string with the identifier when that name is in scope. At run time the dev checks report it as SYG612 (`child-select-name`).
 
-**Fix:** Pass the component function: `CHILD.select(TaskCard)` (import it first if needed).
+**Fix:** Pass the component function: `CHILD.select(TaskCard)` (import it first if needed). See https://sygnal.js.org/guide/migrating-to-6#child-select-name.
 
 Before:
 
@@ -1450,13 +1450,13 @@ Quote.model = {
 
 ### SYG601
 
-**Missing or invalid sources**
+**Retired in 6.0: Missing or invalid sources**
 
-Severity: `error` · Reported by: the Sygnal runtime (every app, production included)
+Severity: `error` · Reported by: retired
 
-A component was created or called without a sources object, or with sources that are not a plain object. This happens when a component factory is called by hand instead of through `run()` (or `renderComponent()`), or with the wrong argument. It is thrown, because no part of the component can be wired without sources.
+Retired in 6.0 and never reported. It was thrown when a component made by the `component({ ... })` factory was called by hand without a sources object. Sygnal 6.0 removed the factory and its `sources` option; components are always started by `run()` or `renderComponent()`.
 
-**Fix:** Start the app with `run(RootComponent)` and let Sygnal pass sources, or pass a sources object when calling a component factory directly.
+**Fix:** Start the app with `run(App)` (or test it with `renderComponent(App)`). See https://sygnal.js.org/guide/migrating-to-6#component-factory.
 
 ### SYG602
 
@@ -1504,13 +1504,13 @@ Comp.intent = ({ DOM }) => ({ CLICK: DOM.click('.btn') })
 
 ### SYG604
 
-**Invalid hmrActions**
+**Retired in 6.0: Invalid hmrActions**
 
-Severity: `error` · Reported by: the Sygnal runtime (every app, production included)
+Severity: `error` · Reported by: retired
 
-The component's `hmrActions` is neither an action name string nor an array of action name strings. It is thrown when the component is constructed.
+Retired in 6.0 and never reported. It was thrown for an `hmrActions` static that was not an action name or an array of them. Sygnal 6.0 removed `hmrActions`: `sygnal/vite` keeps the state across a hot update; a leftover `hmrActions` is reported as SYG612.
 
-**Fix:** Use a string or an array of strings: `Comp.hmrActions = ['REFRESH']`.
+**Fix:** Remove `hmrActions`; put an action to run after the swap in the model's `BOOTSTRAP`. See https://sygnal.js.org/guide/migrating-to-6#hmractions.
 
 Before:
 
@@ -1526,13 +1526,13 @@ Comp.hmrActions = ['REFRESH']
 
 ### SYG605
 
-**Intent action name contains '|'**
+**Retired in 6.0: Intent action name contains '|'**
 
-Severity: `error` · Reported by: the Sygnal runtime (every app, production included)
+Severity: `error` · Reported by: retired
 
-An intent returns an action whose name contains `|`. The `|` character is reserved for the `'ACTION | SINK'` model shorthand, so such a name would collide with shorthand keys. It is thrown when the component's actions are wired.
+Retired in 6.0 and never reported. `|` was reserved in action names for the `'ACTION | SINK'` model keys, which Sygnal 6.0 removed.
 
-**Fix:** Rename the action so it contains no `|`, e.g. `SAVE_OR_CLOSE` instead of `SAVE|CLOSE`.
+**Fix:** Nothing to change (a name without `|` stays the clearer choice).
 
 Before:
 
@@ -1570,13 +1570,13 @@ Cart.calculated = { total: (state) => state.items.length }
 
 ### SYG607
 
-**State source not found**
+**Retired in 6.0: State source not found**
 
-Severity: `error` · Reported by: the Sygnal runtime (every app, production included)
+Severity: `error` · Reported by: retired
 
-A `switchable()` created with a state key string or a state function was given sources that contain no state source under the configured `stateSourceName` (nor `STATE` or `state`). It is thrown because the current component name cannot be read from state.
+Retired in 6.0 and never reported. It was thrown by the low-level `switchable()` helper when the sources had no state source under its `stateSourceName`. Sygnal 6.0 removed the helper and the custom source names: the state source is always `STATE`.
 
-**Fix:** Include the state source in the sources passed to the switchable, or set `stateSourceName` to the name your state source uses.
+**Fix:** Render `<Switchable>` in a view; remove `stateSourceName`. See https://sygnal.js.org/guide/migrating-to-6#source-names.
 
 ### SYG608
 
@@ -1636,11 +1636,11 @@ A value sent to a `makeSocketDriver()` sink could not be acted on. Either a send
 
 **Removed in 6.0**
 
-Severity: `error` · Reported by: the dev checks (`sygnal/diagnostics`)
+Severity: `error` · Reported by: the dev checks (`sygnal/diagnostics`), `sygnal-check`
 
-A component uses a form that Sygnal 6.0 removed, so it is ignored or fails at run time: a component named by a string tag or registered in `.components`, `<Collection of="Name">`, `CHILD.select('Name')`, an `'ACTION | SINK'` model key, `.peers`, `hmrActions`, a view with positional parameters (`function C(props, state)`), `DOMSourceName` / `stateSourceName`, `storeCalculatedInState`, or the `component({ ... })` factory. The message names the form and links to its section of the migration guide. Reported once per form and component, in development only.
+A component uses a form that Sygnal 6.0 removed, so it is ignored or fails at run time: a component named by a string tag or registered in `.components`, `<Collection of="Name">`, `CHILD.select('Name')`, an `'ACTION | SINK'` model key, `.peers`, `hmrActions`, a view with positional parameters (`function C(props, state)`), `DOMSourceName` / `stateSourceName`, `storeCalculatedInState`, or the `component({ ... })` factory. The dev checks report it at run time, once per form and component, in development only. `sygnal-check` reports the statics, the factory imports, `<Collection of="Name">` and `idfield` statically, always (not only under `--strict`), and `--fix` deletes `storeCalculatedInState` and default source names; positional views, `'ACTION | SINK'` keys and `CHILD.select('Name')` are SYG501, SYG504 and SYG506 under `--strict`. The message names the form and links to its section of the migration guide.
 
-**Fix:** Follow the linked section of the migration guide (https://sygnal.js.org/guide/migrating-to-6): import components and use them as JSX tags, pass the component function to `of` and `CHILD.select`, use object-form model entries, destructure the view's one argument, and write function components with statics.
+**Fix:** Follow the linked section of the migration guide (https://sygnal.js.org/guide/migrating-to-6): import components and use them as JSX tags, pass the component function to `of` and `CHILD.select`, use object-form model entries, destructure the view's one argument, and write function components with statics (or use `defineComponent`).
 
 ### SYG620
 
@@ -1786,33 +1786,33 @@ A diagnostics check itself crashed: one of the `sygnal/diagnostics` runtime chec
 
 ### SYG901
 
-**Sub-component sink stream errored**
+**Retired in 6.0: Sub-component sink stream errored**
 
-Severity: `error` · Reported by: the Sygnal runtime (every app, production included)
+Severity: `error` · Reported by: retired
 
-The stream that merges a component's sub-component sinks emitted an error. The error is logged with the original error attached; because an errored xstream stream stops, sinks from that component's sub-components can stop flowing afterwards.
+Retired in 6.0 and never reported. It was logged when the stream merging a component's sub-component sinks errored, an internal of the core Sygnal 6.0 replaced (PLAN-4.6). The 6.0 core has no such stream: an error in a child's reducer, view or driver value is reported under that phase's own code (SYG216, SYG406, ...) and the app's `onError` hook.
 
-**Fix:** Read the attached error and fix its source, usually a reducer, view or driver stream in one of the sub-components.
+**Fix:** Nothing to change: errors are reported under their phase's own code (SYG216, SYG406, ...) and the app's `onError` hook.
 
 ### SYG902
 
-**EFFECT stream errored**
+**Retired in 6.0: EFFECT stream errored**
 
-Severity: `error` · Reported by: the Sygnal runtime (every app, production included)
+Severity: `error` · Reported by: retired
 
-The stream that runs a component's `EFFECT` model entries emitted an error. It is logged with the original error attached, and the component's EFFECT handlers stop running from then on, so later side effects are silently skipped.
+Retired in 6.0 and never reported. It was logged when the stream running a component's EFFECT entries errored, an internal of the core Sygnal 6.0 replaced (PLAN-4.6). In 6.0 an EFFECT runs synchronously with its action; a throwing EFFECT is reported as SYG216 (with the `onError` hook) and later actions keep running.
 
-**Fix:** Read the attached error and fix the action stream or EFFECT handler that caused it; catch expected failures inside the handler.
+**Fix:** Nothing to change: a throwing EFFECT is reported as SYG216 and the app's `onError` hook, and later actions keep running.
 
 ### SYG903
 
-**Component factory returned invalid sinks**
+**Retired in 6.0: Component factory returned invalid sinks**
 
-Severity: `error` · Reported by: the Sygnal runtime (every app, production included)
+Severity: `error` · Reported by: retired
 
-When instantiating a sub-component, Collection, or Switchable, the factory returned something that is not a sinks object. It is thrown during instantiation; the parent catches it, logs it under this code, and renders its error fallback in that place. This usually means a custom factory passed in place of a Sygnal component is not returning sinks.
+Retired in 6.0 and never reported. It was thrown when a component factory (the removed `component()` / `collection()` / `switchable()` helpers, or a hand-written one) returned something other than a sinks object. Sygnal 6.0 instantiates every component from its function; there are no factories.
 
-**Fix:** Make the factory return an object of sink streams, or pass a regular Sygnal component function instead.
+**Fix:** Nothing to change. Pass component functions to JSX, `of` and `CHILD.select`.
 
 ## Other
 

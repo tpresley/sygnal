@@ -1,5 +1,5 @@
 /**
- * SYG506 (C7): a parent reads child PARENT output with the component
+ * SYG506 (C7; removed in 6.0, D163): a parent reads child PARENT output with the component
  * function, `CHILD.select(TaskCard)`, not its name as a string
  * (`CHILD.select('TaskCard')` breaks under minification).
  *
@@ -71,7 +71,7 @@ export default {
           component: comp.name,
           file,
           node: arg,
-          message: `CHILD.select('${name}') matches the child by its name as a string, which breaks when the code is minified`,
+          message: `CHILD.select('${name}') matches the child by its name as a string, which Sygnal 6.0 removed (children are matched by their component function)`,
           fix: valid
             ? `pass the component function: \`CHILD.select(${name})\`${hint}`
             : 'pass the child component function to CHILD.select()',

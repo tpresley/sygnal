@@ -78,7 +78,7 @@ export default {
         component: v.name,
         file: v.file,
         node: fn.params[1],
-        message: `the view uses positional arguments (props, ${used.join(', ')})`,
+        message: `the view uses positional arguments (props, ${used.join(', ')}), which Sygnal 6.0 removed: a view gets one argument`,
         fix: `destructure the first argument: \`${signature(v.name, fn, canonicalParams(v.file, fn))}\``,
         data: { params: fn.params.length },
       })
