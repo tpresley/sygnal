@@ -797,7 +797,7 @@ Widget.isolatedState = true
 ```jsx
 const DatePicker = defineWidget({
   tag: 'input',
-  mount: (el, props, emit) => flatpickr(el, { defaultDate: props.value, onChange: ([date]) => emit('pick', date) }),
+  mount: (el, props, dispatch) => flatpickr(el, { defaultDate: props.value, onChange: ([date]) => dispatch('pick', date) }),
   update: (picker, props) => picker.setDate(props.value, false),
   unmount: (picker) => picker.destroy(),
   events: ['pick'],
@@ -810,16 +810,16 @@ const DatePicker = defineWidget({
 | Field | Description |
 |-------|-------------|
 | `tag` | The host element (default `'div'`); it has no children of its own |
-| `mount(el, props, emit)` | Called once the host is in the page; returns the instance |
-| `update(instance, props, el)` | Called with the newest props when they change (shallow); without it, a change remounts |
+| `mount(el, props, dispatch)` | Called once the host is in the page; returns the instance. `dispatch(name, detail)` sends an event |
+| `update(instance, props, el)` | Called with the newest props when they change (shallow; `style`/`attrs` objects by their entries); without it, a change remounts |
 | `unmount(instance, el)` | Called when the host leaves the page |
-| `events` | The names `emit(name, detail)` dispatches (bubbling `CustomEvent`s on the host) |
-| `commands` | Element commands, `(instance, options, el) => …`; they win over native methods of the same name; `close` and `togglePopover` are reserved |
+| `events` | The names `dispatch(name, detail)` sends (bubbling `CustomEvent`s on the host) |
+| `commands` | Element commands, `(instance, options, el) => …`; they win over native methods of the same name (`close` and `togglePopover` get the options object too) |
 | `fallback` | What [server rendering](/guide/widgets/#server-rendering) puts inside the host: a vnode, a string, or `(props, h) => vnode` |
 | `hostProps` | More prop names to put on the host (besides `id`, `className`, `style`, `title`, `name`, `placeholder`, `role`, `tabindex`, `hidden`, `lang`, `dir`, `attrs`, `aria-*`, `data-*`) |
 | `name` | A name for diagnostics |
 
-A `mount`/`update` that throws is reported to `onError` with the phase `'widget'` and the owning component's `onError` fallback renders in its place ([SYG660–662](/reference/errors/#syg660)). Types: `Widget<P, I, EV, TAG>`, `WidgetDefinition`, `WidgetHostProps`.
+A `ref` on the tag gets the host element; `key` and `ref` are not passed to the widget. A `mount`/`update` that throws is reported to `onError` with the phase `'widget'` and the owning component's `onError` fallback renders in that widget's place ([SYG660–662](/reference/errors/#syg660)). Types: `Widget<P, I, EV, TAG>`, `WidgetDefinition`, `WidgetHostProps`, `WidgetDispatch`.
 
 ---
 
@@ -1671,7 +1671,7 @@ DOM.click('.item').data('id', Number)    // Parse data attribute as number
 | `.data(name, fn?)` | `dataset[name]` of `e.target` or its nearest ancestor with the attribute | `name` camelCase or kebab-case: `'taskId'` and `'task-id'` both read `data-task-id` (via `closest('[data-task-id]')`) |
 | `.key(fn?)` | `e.key` | For keyboard events |
 | `.target(fn?)` | `e.target` | The DOM element |
-| `.detail(fn?)` | `e.detail` | A `CustomEvent`'s payload: a [widget's](/guide/widgets/) `emit(name, detail)`, a [web component's](/guide/web-components/) event, a `defineElement` element's sink |
+| `.detail(fn?)` | `e.detail` | A `CustomEvent`'s payload: a [widget's](/guide/widgets/) `dispatch(name, detail)`, a [web component's](/guide/web-components/) event, a `defineElement` element's sink |
 
 Returns enriched streams — chainable with `.compose()`, `.filter()`, etc.
 

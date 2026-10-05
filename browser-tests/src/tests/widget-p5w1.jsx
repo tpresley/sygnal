@@ -1,5 +1,5 @@
 // PLAN-5 W-1 (from spike 0-S1; D189/D190/D196): defineWidget with real flatpickr in a real browser
-// (automatic JSX runtime): the tag form selected by className, its emit() read with .detail(),
+// (automatic JSX runtime): the tag form selected by className, its dispatch() read with .detail(),
 // ELEMENT commands through the host (a declared command beats a native method), keyed moves
 // keeping instances, Collection isolation, SSR markup mounted on the client, and the control form.
 import { run, controls, defineWidget, Collection, renderToString } from 'sygnal'
@@ -18,7 +18,7 @@ async function start(App) {
 
 const DatePicker = defineWidget({
   tag: 'input',
-  mount: (el, props, emit) => flatpickr(el, { defaultDate: props.value, onChange: ([d]) => emit('pick', d) }),
+  mount: (el, props, dispatch) => flatpickr(el, { defaultDate: props.value, onChange: ([d]) => dispatch('pick', d) }),
   update: (fp, props) => fp.setDate(props.value ?? null, false),
   unmount: (fp) => fp.destroy(),
   events: ['pick'],
@@ -93,7 +93,7 @@ export async function widgetTestsP5W1() {
     el.querySelector('.rev').click()
     await waitFor(() => el.querySelector('.box').textContent === 'c')
     const after = [...el.querySelectorAll('.box')]
-    assert(after.map(e => e.__sygnalWidget.i.id).join() === 'c,b,a', 'instances moved')
+    assert(after.map(e => e.__sw.i.id).join() === 'c,b,a', 'instances moved')
     assert(after[0] === before[2] && after[2] === before[0], 'elements moved, not recreated')
     assert(mounts === 3, `mounted 3 times (got ${mounts})`)
     app.dispose()
@@ -128,7 +128,7 @@ export async function widgetTestsP5W1() {
     const app = run(Page, {}, { mountPoint: id })
     await waitFor(() => el.querySelector('.chart canvas'))
     assert(!el.querySelector('.loading'), 'fallback replaced')
-    assert(el.querySelector('.chart').__sygnalWidget.i.series === 'sales', 'mounted with its props')
+    assert(el.querySelector('.chart').__sw.i.series === 'sales', 'mounted with its props')
     app.dispose()
   })
 }
@@ -146,11 +146,11 @@ Search.intent = ({ DOM }) => ({ GO: DOM.click('.go') })
 Search.model = { GO: { ELEMENT: { focus: '.search' } } }
 
 const Stars = defineWidget({
-  mount: (el, p, emit) => {
+  mount: (el, p, dispatch) => {
     const b = document.createElement('button')
     b.textContent = '+'
     let n = 0
-    b.onclick = () => emit('rate', ++n)
+    b.onclick = () => dispatch('rate', ++n)
     el.appendChild(b)
     return b
   },

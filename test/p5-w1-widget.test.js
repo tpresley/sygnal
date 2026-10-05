@@ -66,7 +66,7 @@ describe('tag form (canonical), run() + real DOM + flatpickr', () => {
     const el = document.querySelector('.due')
     expect(el.tagName).toBe('INPUT')
     expect(el._flatpickr).toBeTruthy()
-    expect(el.__sygnalWidget.i).toBe(el._flatpickr)
+    expect(el.__sw.i).toBe(el._flatpickr)
     expect(el._flatpickr.selectedDates[0].getTime()).toBe(D1.getTime())
     expect(log.mount).toBe(1)
     // the label wraps the host (a11y: the input is labelable)
@@ -122,7 +122,7 @@ describe('tag form (canonical), run() + real DOM + flatpickr', () => {
     document.querySelector('.t').click(); await settle()
     expect(document.querySelector('.due')).toBe(null)
     expect(log.unmount).toBe(1)
-    expect(el.__sygnalWidget).toBe(undefined)
+    expect(el.__sw).toBe(undefined)
   })
 })
 
@@ -189,10 +189,10 @@ describe('host identity: keyed moves, Collection isolation', () => {
     mount(L)
     await settle()
     const before = [...document.querySelectorAll('.box')]
-    expect(before.map(e => e.__sygnalWidget.i.id)).toEqual(['a', 'b', 'c'])
+    expect(before.map(e => e.__sw.i.id)).toEqual(['a', 'b', 'c'])
     document.querySelector('.rev').click(); await settle()
     const after = [...document.querySelectorAll('.box')]
-    expect(after.map(e => e.__sygnalWidget.i.id)).toEqual(['c', 'b', 'a'])
+    expect(after.map(e => e.__sw.i.id)).toEqual(['c', 'b', 'a'])
     expect(after).toEqual([...before].reverse())
     expect(mounts).toBe(3)
   })
@@ -220,7 +220,7 @@ describe('commands on the tag form', () => {
     const el = document.querySelector('.w')
     expect(typeof el.reset).toBe('function')
     expect(Object.prototype.hasOwnProperty.call(el, 'focus')).toBe(false)
-    expect(Object.keys(el)).not.toContain('__sygnalWidget')   // non-enumerable
+    expect(Object.keys(el)).not.toContain('__sw')   // non-enumerable
   })
 
   it('D196: ELEMENT { focus: ".w" } runs the widget\'s declared focus, not the native one', async () => {
@@ -233,8 +233,8 @@ describe('commands on the tag form', () => {
     const el = document.querySelector('.w')
     const native = vi.spyOn(HTMLElement.prototype, 'focus')
     document.querySelector('.f').click()
-    await vi.waitFor(() => expect(el.__sygnalWidget.i.focused).toBe(1), { timeout: 1000, interval: 10 })
-    expect(el.__sygnalWidget.i.focusOpts).toEqual({ preventScroll: true })
+    await vi.waitFor(() => expect(el.__sw.i.focused).toBe(1), { timeout: 1000, interval: 10 })
+    expect(el.__sw.i.focusOpts).toEqual({ preventScroll: true })
     expect(native).not.toHaveBeenCalled()
   })
 
@@ -317,7 +317,7 @@ describe('SSR: the host (+ fallback), mounted on the client', () => {
     const el = document.querySelector('.chart')
     expect(el.querySelector('.loading')).toBe(null)
     expect(el.querySelector('canvas')).toBeTruthy()
-    expect(el.__sygnalWidget.i.series).toBe('sales')
+    expect(el.__sw.i.series).toBe('sales')
     expect(server).toBeTruthy()
   })
 })
@@ -503,7 +503,7 @@ describe('props, hosts and lifecycle', () => {
     const el2 = document.querySelector('.w')
     expect(el2).not.toBe(el)
     expect(log).toEqual(['mount a', 'unmount a', 'mount b'])
-    expect(el2.__sygnalWidget.i.name).toBe('b')
+    expect(el2.__sw.i.name).toBe('b')
     el2.ping()
     expect(log.at(-1)).toBe('ping b')
   })
@@ -572,10 +572,10 @@ describe('props, hosts and lifecycle', () => {
     await settle(60)
     const el = document.querySelector('#layer .pw')
     expect(el).toBeTruthy()
-    expect(el.__sygnalWidget.i.label).toBe('one')
+    expect(el.__sw.i.label).toBe('one')
     document.querySelector('.b').click(); await settle(60)
     expect(document.querySelector('#layer .pw')).toBe(el)
-    expect(el.__sygnalWidget.i.label).toBe('two')
+    expect(el.__sw.i.label).toBe('two')
     emit('ping', 5); await settle(60)
     expect(document.querySelector('.n').textContent).toBe('5')
   })

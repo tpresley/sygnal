@@ -2,7 +2,7 @@
  * PLAN-5 W-1: types for defineWidget and `.detail()` (W-3); from spike 0-S1.
  * - the host element type from `tag` ('input' → HTMLInputElement)
  * - the tag form: props from mount's annotation, plus the host props (className, aria-*, ...)
- * - emit() names from `events`
+ * - dispatch() names from `events` (mount's third parameter; D200)
  * - the control form: controls({ Due: DatePicker }) takes the widget's props through `__props`
  * - t.widget(selector | control)
  */
@@ -18,12 +18,12 @@ declare function picker(el: HTMLElement, opts: { onChange(d: Date): void }): Pic
 
 const DatePicker = defineWidget({
   tag: 'input',
-  mount: (el, props: { value?: Date; min?: Date }, emit) => {
+  mount: (el, props: { value?: Date; min?: Date }, dispatch) => {
     expectType<Equal<typeof el, HTMLInputElement>>()
-    emit('change', new Date())
+    dispatch('change', new Date())
     // @ts-expect-error: not a declared event
-    emit('chnage', 1)
-    return picker(el, { onChange: (d) => emit('change', d) })
+    dispatch('chnage', 1)
+    return picker(el, { onChange: (d) => dispatch('change', d) })
   },
   update: (fp, props) => { fp.setDate(props.value) },
   unmount: (fp) => fp.destroy(),
@@ -51,9 +51,10 @@ const Chart = defineWidget({
 const chart = <Chart className="chart" series={[1, 2]} aria-label="Sales" data-kind="bar" id="c" style={{ height: '20px' }} />
 // @ts-expect-error series is required
 const noSeries = <Chart className="chart" />
-// @ts-expect-error a host takes no ref
+// 1-R (G-368): ref gets the host element
 const withRef = <Chart series={[]} ref={{ current: null }} />
-void chart; void noSeries; void withRef
+const withRefFn = <Chart series={[]} ref={(el) => { void el }} />
+void chart; void noSeries; void withRef; void withRefFn
 
 type State = { due?: Date }
 const Form: Component<State> = ({ state }) => (

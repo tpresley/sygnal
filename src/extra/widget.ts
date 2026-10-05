@@ -31,7 +31,7 @@
  *   the same tag, another widget, the error fallback) or the reverse: the host is destroyed and
  *   the widget unmounts.
  * - The record `{ w (the tag), p (props), i (instance), e (dispatch) }` lives on the host element
- *   as the non-enumerable `__sygnalWidget`, so the instance survives re-renders and keyed moves
+ *   as the non-enumerable `__sw` (D200: short, the core reads it), so the instance survives re-renders and keyed moves
  *   (snabbdom moves the element). Mount runs on insert, or on the first patch of an element that
  *   has none (SSR hydration). `update` runs when the props change (shallow; an object host prop
  *   such as `style` one level deep, G-362); without `update`, a change remounts (G-367: a mount
@@ -45,7 +45,7 @@
  * - Commands: D102's `spec.commands[name](hostElement, options)` resolves the instance from the
  *   host. For selector targets each command whose name the element doesn't already have is also
  *   a method of the host (D190); a declared command whose name is a native method (`focus`,
- *   `close`) is found by the core through `__sygnalWidget` and wins over the native one, with the
+ *   `close`) is found by the core through `__sw` and wins over the native one, with the
  *   options object (D196, D200).
  * - A widget tag is not a selector: `DOM.select(DatePicker)` matches nothing (SYG143 in dev).
  * - A `mount`/`update` that throws (SYG660/661): reported to the app's onError with phase
@@ -63,8 +63,9 @@
  * thrown mount/update/unmount is logged as `[Sygnal SYG66x]` with the error.
  */
 import {pres} from '../core/registry'
+import {chainHooks} from '../pragma/index'
 
-const W = '__sygnalWidget'
+const W = '__sw'
 
 // props that also go to the host element (every prop but key goes to the widget; ref is the host's)
 const HOST = /^(id|class(Name)?|style|title|name|placeholder|role|tab[iI]ndex|hidden|lang|dir|attrs)$|^(aria|data)-/
@@ -80,16 +81,6 @@ const same = (a: any, b: any, d?: any): any => {
   const k = Object.keys(a)
   return k.length == Object.keys(b).length && k.every(x => a[x] === b[x] ||
     !d && HOST.test(x) && typeof a[x] == 'object' && typeof b[x] == 'object' && a[x] && b[x] && same(a[x], b[x], 1))
-}
-
-// a new hook object: a's hooks, then b's
-const chain = (a: any, b: any): any => {
-  const o = {...a}
-  for (const k in b) {
-    const f = a[k], g = b[k]
-    o[k] = f ? (x: any, y: any) => { f(x, y); g(x, y) } : g
-  }
-  return o
 }
 
 // k: the host's key, the failure's place; [error, the props of the fallback's last render]
@@ -144,7 +135,9 @@ function host(n: any, o?: any, k?: any): any {
   if (o) {
     v.key = k
     d.ww = w; d.wp = p; d.wo = o; v.children = undefined
-    d.hook = chain(chain(hooks, d.hook || {}), n.data.hook || {})
+    // a hook object per host: a ref's hooks (from h), the widget's, then a Transition's (marker)
+    chainHooks(d, hooks)
+    n.data.hook && chainHooks(d, n.data.hook)
   }
   return v
 }
@@ -152,18 +145,19 @@ function host(n: any, o?: any, k?: any): any {
 /** pres.widget: the host, or the owner's fallback where this instance failed */
 function rewrite(n: any, o: any, path: string): any {
   const w = n.data.ww, p = n.data.wp, wf = o.$wf
-  // the instance: the widget and its key in the parent, or its place when unkeyed
-  const k = 'w' + w.$i + (n.key == null ? path : path.replace(/\.\d+$/, '#') + n.key)
+  // the instance: the widget and its key, or its place when unkeyed
+  const k = 'w' + w.$i + (n.key == null ? path : '#' + n.key)
   let f = wf?.get(k)
   // a render with other props than the fallback's last one tries again
   if (f && f[1] && !same(f[1], p)) wf.delete(k), f = 0
   if (!f) return host(n, o, k)
   f[1] = p
   const def = o.def, x = n.data.h('div', {attrs: {'data-sygnal-error': def.name}})
-  let r: any
-  try { r = def.onError?.(f[0], {componentName: def.name}) } catch (_) {}
-  r ||= x
-  return {...r, key: k + '!', data: {...r.data, hook: chain(r.data?.hook || {}, {destroy: () => wf.delete(k)})}}
+  let r: any = x
+  try { r = def.onError?.(f[0], {componentName: def.name}) || x } catch (_) {}
+  // its own key; the failure is forgotten when it leaves the page (a reopened panel tries again)
+  chainHooks((r = {...r, key: k + '!', data: {...r.data}}).data, {destroy: () => wf.delete(k)})
+  return r
 }
 
 /** widget markers among a Portal's children (the core doesn't walk them) */

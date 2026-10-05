@@ -550,12 +550,13 @@ export function controls<const SPECS extends Record<string, ControlSpec>>(spec: 
 
 /**
  * Props a widget tag puts on its host element (they reach the widget's `mount`/`update` too,
- * except `key`): id, className/class, style, title, name, placeholder, role, tabindex, hidden,
- * lang, dir, attrs, aria-*, data-* (and the definition's `hostProps`). A host takes no `ref`:
- * the widget owns its element (reach it through the widget's `commands`).
+ * except `key` and `ref`): id, className/class, style, title, name, placeholder, role, tabindex,
+ * hidden, lang, dir, attrs, aria-*, data-* (and the definition's `hostProps`). `ref` gets the
+ * host element (the widget's own API is reached through its `commands`).
  */
 export type WidgetHostProps = {
   key?: string | number;
+  ref?: { current: Element | null } | ((el: Element | null) => void);
   id?: string;
   className?: string;
   class?: string | ReadonlyArray<unknown> | Record<string, boolean | null | undefined>;
@@ -578,8 +579,10 @@ export type WidgetHostProps = {
 export type WidgetElementOf<TAG extends string> =
   TAG extends keyof HTMLElementTagNameMap ? HTMLElementTagNameMap[TAG] : HTMLElement
 
-/** A widget's `emit(name, detail)`: dispatches a bubbling `CustomEvent` named `name` on the host. */
-export type WidgetEmit<EV extends string = string> = (name: EV, detail?: unknown) => void
+/** A widget's `dispatch(name, detail)` (mount's third parameter): dispatches a bubbling `CustomEvent` named `name` on the host. */
+export type WidgetDispatch<EV extends string = string> = (name: EV, detail?: unknown) => void
+/** @deprecated the earlier name of `WidgetDispatch` */
+export type WidgetEmit<EV extends string = string> = WidgetDispatch<EV>
 
 /** The object passed to `defineWidget()`. */
 export interface WidgetDefinition<P = {}, I = unknown, EV extends string = string, TAG extends string = 'div'> {
@@ -591,17 +594,17 @@ export interface WidgetDefinition<P = {}, I = unknown, EV extends string = strin
    * Called once the host is in the document (or on the first client patch after SSR) with the
    * props the view passed. Returns the instance that `update`, `unmount` and `commands` get.
    */
-  mount(el: WidgetElementOf<TAG>, props: P, emit: WidgetEmit<EV>): I;
-  /** Called with the newest props when they change (shallow compare). Without it, a change remounts. */
+  mount(el: WidgetElementOf<TAG>, props: P, dispatch: WidgetDispatch<EV>): I;
+  /** Called with the newest props when they change (shallow compare; `style`/`attrs` objects by their entries). Without it, a change remounts. */
   update?(instance: I, props: P, el: WidgetElementOf<TAG>): void;
   /** Called when the host leaves the DOM. */
   unmount?(instance: I, el: WidgetElementOf<TAG>): void;
-  /** The events `emit` dispatches (bubbling CustomEvents on the host; read them with `.detail()`) */
+  /** The events `dispatch` sends (bubbling CustomEvents on the host; read them with `.detail()`) */
   events?: readonly EV[];
   /**
    * Element commands (`ELEMENT: { open: '.due' }` or `{ open: Due }`), called with the instance.
-   * A command wins over a native method of the same name; `close` and `togglePopover` are
-   * reserved (SYG142). Register the names in `ElementCommandRegistry` to type the commands.
+   * A command wins over a native method of the same name (`focus`, `close`, `togglePopover`: it
+   * gets the options object). Register the names in `ElementCommandRegistry` to type the commands.
    */
   commands?: Record<string, (instance: I, options: Record<string, any>, el: WidgetElementOf<TAG>) => unknown>;
   /** What SSR renders inside the host until the client mounts (not for void hosts like `input`) */
@@ -632,8 +635,8 @@ export interface Widget<P = {}, I = unknown, EV extends string = string, TAG ext
  *
  *   const DatePicker = defineWidget({
  *     tag: 'input',
- *     mount: (el, props: { value?: Date }, emit) =>
- *       flatpickr(el, { defaultDate: props.value, onChange: ([d]) => emit('pick', d) }),
+ *     mount: (el, props: { value?: Date }, dispatch) =>
+ *       flatpickr(el, { defaultDate: props.value, onChange: ([d]) => dispatch('pick', d) }),
  *     update: (fp, props) => fp.setDate(props.value ?? '', false),
  *     unmount: (fp) => fp.destroy(),
  *     events: ['pick'],
@@ -3038,7 +3041,7 @@ export interface RenderResult<STATE = any> {
    * A widget's host (PLAN-5 W-1), by selector (`'.due'`) or control. `props`: what the view
    * passed the widget (mock DOM: the rendered host's; `dom: 'real'`: the mounted widget's).
    * `instance` (`dom: 'real'`): what `mount` returned. `emit(name, detail)`: the CustomEvent the
-   * widget's emit() dispatches, sent like `simulateEvent`. Reading `props`/`instance` throws
+   * widget's dispatch() sends, sent like `simulateEvent`. Reading `props`/`instance` throws
    * when no widget host matches.
    */
   widget: {

@@ -84,8 +84,9 @@ const svgTags: Record<string, number> = {
   animate: 1, animateMotion: 1, animateTransform: 1, set: 1, mpath: 1,
 }
 
-// Adds snabbdom hooks to data.hook (a copy); a hook already there runs first
-const chainHooks = (data: any, hooks: Record<string, (...args: any[]) => void>): void => {
+// Adds snabbdom hooks to data.hook (a copy); a hook already there runs first (also PLAN-5
+// widget hosts: extra/widget.ts)
+export const chainHooks = (data: any, hooks: Record<string, (...args: any[]) => void>): void => {
   const existing = data.hook || {}
   const hook = { ...existing }
   for (const name in hooks) {

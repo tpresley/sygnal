@@ -8,9 +8,9 @@ Phase 4 syncs agent context within the budgets (`llms.txt` 24 lines left at 0-A,
 
 ```md
 ### Third-party widgets (date pickers, charts, editors)
-- `defineWidget({ tag, mount(el, props, emit), update(instance, props), unmount(instance), events, commands })` makes a JSX tag: `const DatePicker = defineWidget({ tag: 'input', mount: (el, props, emit) => flatpickr(el, { defaultDate: props.value, onChange: ([d]) => emit('pick', d) }), update: (fp, props) => fp.setDate(props.value, false), unmount: (fp) => fp.destroy(), events: ['pick'], commands: { open: (fp) => fp.open() } })`.
+- `defineWidget({ tag, mount(el, props, dispatch), update(instance, props), unmount(instance), events, commands })` makes a JSX tag: `const DatePicker = defineWidget({ tag: 'input', mount: (el, props, dispatch) => flatpickr(el, { defaultDate: props.value, onChange: ([d]) => dispatch('pick', d) }), update: (fp, props) => fp.setDate(props.value, false), unmount: (fp) => fp.destroy(), events: ['pick'], commands: { open: (fp) => fp.open() } })`.
 - View: `<label>Due <DatePicker className="due" value={state.due} /></label>` (the host element; the widget owns its content and keeps its instance across renders). Intent: `DUE: DOM.select('.due').events('pick').detail()` (`.detail(fn?)` = e.detail). Model: `OPEN: { ELEMENT: { open: '.due' } }` runs the widget's command (it wins over a native method of the same name).
-- List every emitted name in `events` and name them yourself (`'pick'`, not `'change'`: SYG140/144); `update` gets the newest props when they change (without it, a change remounts); a throwing `mount`/`update` renders the component's `onError` fallback in its place. Never `DOM.select(DatePicker)`: select its class (SYG143).
+- List every dispatched name in `events` and name them yourself (`'pick'`, not `'change'`: SYG140/144); `update` gets the newest props when they change (without it, a change remounts); a throwing `mount`/`update` renders the component's `onError` fallback in its place. Never `DOM.select(DatePicker)`: select its class (SYG143).
 - Tests: `t.widget('.due').emit('pick', date)`, `t.widget('.due').props.value`; `dom: 'real'` mounts it (`.instance`). Guide: https://sygnal.js.org/guide/widgets/
 ```
 

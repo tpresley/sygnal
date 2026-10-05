@@ -176,8 +176,8 @@ Each element runs the component as its own app. In another Sygnal app it is a we
 | Direction | A third-party widget **into** a Sygnal view | A Sygnal component **out**, as a custom element |
 | Wraps | A framework-agnostic library (flatpickr, Chart.js, Tiptap) | A Sygnal component (view, intent, model) |
 | Result | A JSX tag rendering a host element, selected by class | A custom element tag, usable from any HTML |
-| State | None: props in, `emit` out | The component's own state, fed by props |
-| Events | `emit(name, detail)` → `CustomEvent` on the host | A sink value → `CustomEvent` on the element |
+| State | None: props in, `dispatch` out | The component's own state, fed by props |
+| Events | `dispatch(name, detail)` → `CustomEvent` on the host | A sink value → `CustomEvent` on the element |
 | Methods | `commands`, sent with `ELEMENT` | The element's props as properties |
 | Used by | One app's views | Any page or framework |
 

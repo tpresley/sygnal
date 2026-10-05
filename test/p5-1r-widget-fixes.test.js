@@ -63,7 +63,7 @@ describe('G-360: a host is never patched into a non-widget vnode', () => {
     const el2 = document.querySelector('.x')
     expect(log).toEqual(['m', 'u'])
     expect(el2).not.toBe(el1)
-    expect(el2.__sygnalWidget).toBe(undefined)
+    expect(el2.__sw).toBe(undefined)
     await click()
     expect(log).toEqual(['m', 'u', 'm'])
   })
@@ -98,7 +98,7 @@ describe('G-360: a host is never patched into a non-widget vnode', () => {
     const fb = document.querySelector('.fb')
     expect(fb.textContent).toBe('Chart failed')
     expect(fb.querySelector('canvas')).toBe(null)
-    expect(fb.__sygnalWidget).toBe(undefined)
+    expect(fb.__sw).toBe(undefined)
     expect(log).toEqual(['m', 'u'])
   })
 

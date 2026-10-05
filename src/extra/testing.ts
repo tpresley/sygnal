@@ -1413,7 +1413,7 @@ export function renderComponent(
     const w = target?.spec?.commands ? undefined : widgetOf(target, c);
     // G-369: a control wrapping a widget has its widget's host tag
     if (w ? !w.commands[m] && !elementHas(0, m, w.def.tag || 'div') : !target?.spec?.commands?.[m] && !elementHas(target, m, target?.spec?.def?.tag)) {
-      return reportElementCommand(c, cmd, w ? {tagName: w.def.tag || 'div', __sygnalWidget: {w}} : {});
+      return reportElementCommand(c, cmd, w ? {tagName: w.def.tag || 'div', __sw: {w}} : {});
     }
     // D194: focusWithin(selector) looks under the sender's root, children included
     const within = target?.within, sel = within ?? (target == null ? '' : String(target));
@@ -2589,7 +2589,7 @@ export function renderComponent(
     const sel = String(selOf(target));
     const host = (): any => {
       const el: any = query(sel);
-      const r = real ? el?.__sygnalWidget : el?._v?.data?.ww && {p: el._v.data.wp};
+      const r = real ? el?.__sw : el?._v?.data?.ww && {p: el._v.data.wp};
       if (!r) throw new Error(`[Sygnal] t.widget('${sel}'): no ${el ? `mounted widget is the matched <${el.localName}>` : 'element matches it'}. Give the widget a className and pass its selector (t.widget('.due')), or pass its control`);
       return r;
     };

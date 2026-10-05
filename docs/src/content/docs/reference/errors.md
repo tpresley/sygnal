@@ -1828,7 +1828,7 @@ A component declares `viewTransitions` (for example `Board.viewTransitions = ['M
 
 Severity: `error` · Reported by: the Sygnal runtime (every app, production included), the dev checks (`sygnal/diagnostics`)
 
-A widget's `mount(el, props, emit)` threw when its host entered the page (or on the first client patch after server rendering). The widget is not mounted. The error goes to the app's `onError` hook with phase `'widget'`, and the component that renders the widget shows its `onError` fallback in the widget's place on its next render (an empty error `<div>` without one); the rest of its view keeps working. Without the dev entry it is logged as `[Sygnal SYG660]` followed by the error.
+A widget's `mount(el, props, dispatch)` threw when its host entered the page (or on the first client patch after server rendering). The widget is not mounted. The error goes to the app's `onError` hook with phase `'widget'`, and the component that renders the widget shows its `onError` fallback in the widget's place on its next render (an empty error `<div>` without one); the rest of its view keeps working. Without the dev entry it is logged as `[Sygnal SYG660]` followed by the error.
 
 **Fix:** Fix `mount()` (a missing library import, an option the library rejects, a prop that is `undefined` on the first render). Give the component that renders the widget an `.onError` to show a custom fallback.
 
