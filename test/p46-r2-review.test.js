@@ -65,8 +65,7 @@ describe.skipIf(!NEXT)('PLAN-4.6 R2 review fixes (next core)', () => {
     expect(got).toEqual(['HELLO'])
     const t = renderComponent(App)
     await t.ready()
-    expect(t.sinkValues ? t.sinkValues('EVENTS') : t.emitted('HELLO')).toBeTruthy()
-    expect(t.emitted('HELLO').length).toBe(1)
+    expect(t.sinkValues('EVENTS').map((e) => e.type)).toEqual(['HELLO'])
     t.dispose()
   })
 

@@ -79,6 +79,11 @@ export class App {
   proxies: Record<string, any> = {}
   bus: Record<string, any> = {}
   busL: Record<string, any> = {}
+  /** G-296: before the first flush emitted, the sink values sent, per sink */
+  early = true
+  log: Record<string, any[]> = {}
+  ex: Record<string, any> = {}
+  exL: Record<string, any> = {}
   hooks: Hooks
   born: Inst[] = []
   watchers = new Set<Inst>()
@@ -213,6 +218,7 @@ export class App {
       queueMicrotask(() => { for (const i of b) if (!i.disposed) this.dispatch(i, 'BOOTSTRAP', undefined, 'built-in') })
     }
     if (this.dirty) { this.chained = true; this.dirty = false; this.commit() }
+    if (this.early) { this.early = false; this.log = {} }
     if (this.waiters.length && !this.scheduled) for (const w of this.waiters.splice(0)) w()
   }
 
@@ -222,6 +228,9 @@ export class App {
     return this.bus[n] ||= xs.create({start: (l: any) => { this.busL[n] = l }, stop: () => { delete this.busL[n] }})
   }
   out(n: string, v: any) {
+    // G-296: until the first flush has emitted, a sink's values are kept for a listener added
+    // right after run() / renderComponent (sinks[n], as Cycle's run buffered its sinks)
+    if (this.early) (this.log[n] ||= []).push(v)
     const l = this.busL[n]
     if (!l) return
     try { l.next(v) } catch (e) {
@@ -229,6 +238,17 @@ export class App {
       callHook(this.opts.onError, e, {phase: 'driver', driver: n})
       queueMicrotask(() => { throw e })
     }
+  }
+  /** run()'s sinks[n]: the bus, with the values sent before the first flush replayed to its first listener (G-296) */
+  exposed(n: string) {
+    return this.ex[n] ||= xs.create({
+      start: (l: any) => {
+        const early = this.early ? this.log[n] : undefined
+        if (early) for (const v of early.slice()) l.next(v)
+        this.sink(n).addListener(this.exL[n] = {next: (v: any) => l.next(v), error: (e: any) => l.error(e), complete: () => l.complete()})
+      },
+      stop: () => { this.sink(n).removeListener(this.exL[n]) },
+    })
   }
   /**
    * The value-level fallback (a source without isolateValue): one stream per instance and key
@@ -395,7 +415,7 @@ export function start(Root: ComponentFn, drivers: Record<string, any> = {}, opts
   const sinks: Record<string, any> = {__dispose: () => app.dispose()}
   for (const n of [...Object.keys(all), 'PARENT']) {
     if (n == 'DOM') Object.defineProperty(sinks, n, {get: () => dom$ ||= app.vdom$.remember(), enumerable: true})
-    else if (!NOT_SINK.test(n) || n == 'PARENT') Object.defineProperty(sinks, n, {get: () => app.sink(n), enumerable: true})
+    else if (!NOT_SINK.test(n) || n == 'PARENT') Object.defineProperty(sinks, n, {get: () => app.exposed(n), enumerable: true})
   }
   const sources: Record<string, any> = {...app.sources}
   Object.defineProperty(sources, 'STATE', {get: () => app.root.stateSource(), enumerable: true})
