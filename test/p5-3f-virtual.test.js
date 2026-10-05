@@ -115,3 +115,25 @@ describe('G-424: a reorder with the same count and range', () => {
     })
   }
 })
+
+describe('G-428: a focusout with no relatedTarget', () => {
+  it('while the focus is still in the row (the window lost the focus): the row stays pinned', async () => {
+    const box = await mount(List)
+    const btn = await focusRow3(box)
+    // what a window blur sends: the element stays the document's activeElement
+    btn.dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: null }))
+    await settle()
+    await scroll(box, 6400)
+    expect(btn.isConnected).toBe(true)
+    expect(document.activeElement).toBe(btn)
+  })
+
+  it('when the focus really left (the element is blurred): the row goes', async () => {
+    const box = await mount(List)
+    const btn = await focusRow3(box)
+    btn.blur()
+    await settle()
+    await scroll(box, 6400)
+    expect(btn.isConnected).toBe(false)
+  })
+})

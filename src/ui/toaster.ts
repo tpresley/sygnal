@@ -46,6 +46,11 @@ const topModal = (root: any) => {
   return order[order.length - 1]
 }
 const show = (el: any) => { try { el.matches(':popover-open') || el.showPopover() } catch (_) {} }
+// the element with the focus in `el`'s root
+const act = (el: any) => (el.getRootNode?.() || document).activeElement
+// G-428: a focusout that leaves `t`: not to an element inside it, and with no relatedTarget not
+// while the focus is still inside (the window lost the focus: it comes back to the same element)
+const left = (t: any, e: any) => !(t && t.contains?.(e.relatedTarget || act(t)))
 // a toast on its way out (its Transition's leave classes)
 const leaving = (b: any) => /-leave-/.test(b.closest?.('.toast')?.className || '')
 
@@ -56,7 +61,7 @@ const placement = {
     show(el)
     // G-399: the focus in the region, and where it came from (where it goes back to)
     el.addEventListener('focusin', (e: any) => { if (!el.contains(e.relatedTarget)) { el._f = 1; el._from = e.relatedTarget } })
-    el.addEventListener('focusout', (e: any) => { if (!el.contains(e.relatedTarget)) el._f = 0 })
+    el.addEventListener('focusout', (e: any) => { if (left(el, e)) el._f = 0 })
     // a Dismiss button with the focus (keyboard; a click that focused it): the focus moves to the
     // next toast's Dismiss button, else the previous one's, else back where it came from, before
     // the button goes (a removed focused element gets no focusout in Chromium)
@@ -150,7 +155,7 @@ export const Toaster = /*#__PURE__*/ Object.assign(function Toaster({state, labe
     DISMISS: EVENTS.select('TOAST_DISMISS'),
     // G-399: the pointer and the focus apart (the timers stop while either is in the region)
     HOVER: xs.merge(DOM.pointerover('.toaster').filter(crossing).mapTo(true), DOM.pointerout('.toaster').filter(crossing).mapTo(false)),
-    FOCUS: xs.merge(DOM.focusin('.toaster').filter(crossing).mapTo(true), DOM.focusout('.toaster').filter(crossing).mapTo(false)),
+    FOCUS: xs.merge(DOM.focusin('.toaster').filter(crossing).mapTo(true), DOM.focusout('.toaster').filter((e: any) => left(e.ownerTarget, e)).mapTo(false)),
   }),
   model: {
     TOAST: (s: any, d: any) => {

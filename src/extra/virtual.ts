@@ -387,7 +387,9 @@ export class VirtualHost extends CollectionHost {
     }
     // G-401: which row holds the focus (a focusout to outside the list: none)
     const fin = (e: any) => this.focus(this.all[this.rowOf(e.target)?.getAttribute('data-index')])
-    const fout = (e: any) => el.contains(e.relatedTarget) || this.focus(undefined)
+    // G-428: no relatedTarget while the focus is still in the list: the window lost the focus
+    // (another window, devtools), and it comes back to the same element
+    const fout = (e: any) => el.contains(e.relatedTarget || act(el)) || this.focus(undefined)
     el.addEventListener('focusin', fin)
     el.addEventListener('focusout', fout)
     const un = this.v!._didMount()
