@@ -543,6 +543,88 @@ export async function uiTestsP5U() {
     } finally { app.dispose() }
   })
 
+  // ── PLAN-5 2-S ───────────────────────────────────────────────────────
+  // G-405: cancelable: false holds against a second Escape (Chromium's CloseWatcher closes without
+  // a cancel event otherwise); G-407: returnFocus goes to the trigger that opened it
+  function Locked({ state }) {
+    return (
+      <div>
+        <button className="row-edit" aria-label="Edit 1">Edit 1</button>
+        <button className="row-edit" aria-label="Edit 2">Edit 2</button>
+        <dialog className="locked" aria-label="Locked">
+          <p>Locked</p>
+          <button className="locked-done">Done</button>
+        </dialog>
+        <p className="locked-status">{state.locked.open ? 'open' : 'closed'}</p>
+      </div>
+    )
+  }
+  Locked.uses = { locked: dialog({ dialog: '.locked', trigger: '.row-edit', close: '.locked-done', cancelable: false }) }
+
+  await runTest('Dialog (G-405): cancelable: false stays open after Escape, Escape; (G-407) returnFocus goes to the trigger that opened it', async () => {
+    const { id, app, $ } = await mount(Locked)
+    try {
+      await window.__pw('press', `${id} [aria-label="Edit 2"]`, 'Enter')
+      await until(() => isOpen($('.locked')), 'open')
+      await key('Escape')
+      await wait(50)
+      await key('Escape')
+      await wait(100)
+      assert(isOpen($('.locked')), 'closed by the second Escape')
+      assert($('.locked-status').textContent === 'open', $('.locked-status').textContent)
+      await window.__pw('click', `${id} .locked-done`)
+      await until(() => !isOpen($('.locked')) && $('.locked-status').textContent === 'closed', 'closed by Done')
+      await until(() => activeName() === 'Edit 2', activeName)
+      // a mouse open of the second row: the focus comes back to it, not to the first trigger
+      await window.__pw('click', `${id} [aria-label="Edit 2"]`)
+      await until(() => isOpen($('.locked')), 'reopen')
+      await window.__pw('click', `${id} .locked-done`)
+      await until(() => !isOpen($('.locked')), 'closed again')
+      await until(() => activeName() === 'Edit 2', activeName)
+    } finally { app.dispose() }
+  })
+
+  // G-400: a dialog removed while open (non-modal, so the page is usable) opens again when back;
+  // G-406: a popover's OPEN and CLOSE in one tick leave it closed
+  function Removable({ state }) {
+    return (
+      <div>
+        <button className="toggle-dialog">Toggle the dialog</button>
+        <button className="open-panel">Open</button>
+        {state.shown && <dialog className="panel" aria-label="Panel"><p>Panel</p></dialog>}
+        <button className="blink">Blink</button>
+        <div className="blink-pop" popover="auto" aria-label="Blink">blink</div>
+        <p className="panel-status">{state.panel.open ? 'open' : 'closed'}</p>
+        <p className="blink-status">{state.blink.open ? 'open' : 'closed'}</p>
+      </div>
+    )
+  }
+  Removable.initialState = { shown: true }
+  Removable.uses = {
+    panel: dialog({ dialog: '.panel', trigger: '.open-panel', modal: false }),
+    blink: popover({ popover: '.blink-pop' }),
+  }
+  Removable.intent = ({ DOM }) => ({ TOGGLE: DOM.click('.toggle-dialog'), 'blink.OPEN': DOM.click('.blink'), 'blink.CLOSE': DOM.click('.blink') })
+  Removable.model = { TOGGLE: (state) => ({ ...state, shown: !state.shown }) }
+
+  await runTest('Dialog (G-400): removed while open, back, and opened again; Popover (G-406): OPEN and CLOSE in one tick leave it closed', async () => {
+    const { id, app, $ } = await mount(Removable)
+    try {
+      await window.__pw('click', `${id} .open-panel`)
+      await until(() => $('.panel')?.open && $('.panel-status').textContent === 'open', 'open')
+      await window.__pw('click', `${id} .toggle-dialog`)
+      await until(() => !$('.panel') && $('.panel-status').textContent === 'closed', () => `removed: ${$('.panel-status').textContent}`)
+      await window.__pw('click', `${id} .toggle-dialog`)
+      await until(() => $('.panel'), 'back')
+      await window.__pw('click', `${id} .open-panel`)
+      await until(() => $('.panel').open && $('.panel-status').textContent === 'open', () => `reopened: ${$('.panel').open} ${$('.panel-status').textContent}`)
+      await window.__pw('click', `${id} .blink`)
+      await wait(150)
+      assert(!isOpen($('.blink-pop')), 'the popover stayed open')
+      assert($('.blink-status').textContent === 'closed', $('.blink-status').textContent)
+    } finally { app.dispose() }
+  })
+
   // ── Toaster (0-S4 matrix) ────────────────────────────────────────────
   // the Dismiss button of a live toast (a dismissed one stays in the DOM during its leave transition)
   const dismissOf = (text) => `.toast:not(.toast-leave-active) [aria-label="Dismiss: ${text}"]`

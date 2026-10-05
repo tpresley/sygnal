@@ -48,6 +48,9 @@ There is no `trigger` option: open it with a `popovertarget` button. A button th
 | `filters.CLOSE` | | Hides it (`hidePopover`) |
 | `filters.TOGGLE` | | Toggles it (`togglePopover`) |
 | `filters.TOGGLED` | `true` / `false` | The `toggle` event: sets `open` |
+| `filters.SYNC` | `false` | The popover left the page while open (a page change, a conditional render): sets `open: false`, as no `toggle` event comes |
+
+`OPEN` and `CLOSE` check the popover itself (`:popover-open`), not `state.filters.open`, which follows the `toggle` event a moment later: `OPEN` then `CLOSE` in one go leaves it closed, and `showPopover()` is never called on an open popover.
 
 Open it from somewhere else, for example a keyboard shortcut, with an intent action of the same name: `'filters.OPEN': DOM.keydown('document').filter((e) => e.key === 'f' && e.altKey)`.
 

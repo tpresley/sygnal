@@ -9,34 +9,46 @@
  * the guide). No JavaScript positioning.
  *
  * Options: `trigger`, `tip` (required), `showDelay` (500 ms), `hideDelay` (100 ms).
- * State: { open, pending: null | 'show' | 'hide' }. Actions: ENTER / LEAVE (pointer or focus on
- * the trigger, pointer on the tip: it stays open while hovered, WCAG 1.4.13), SHOW / HIDE (the
- * timers), ESCAPE (hides it at once), TOGGLED. Timers (joined to the host's `timers`):
- * '<key>.show' / '<key>.hide'; one whose state goes away is cancelled, so leaving before the
- * delay never shows the tip. Needs makeTimerDriver() (tests: fake timers).
+ * State: { open, pending: null | 'show' | 'hide', hover, focus }. Actions: ENTER / LEAVE (data
+ * 'hover' | 'focus': the pointer on the trigger or the tip (it stays open while hovered, WCAG
+ * 1.4.13), or the focus on the trigger), SHOW / HIDE (the timers), ESCAPE (hides it at once),
+ * TOGGLED. Timers (joined to the host's `timers`): '<key>.show' / '<key>.hide'; one whose state
+ * goes away is cancelled, so leaving before the delay never shows the tip. Needs
+ * makeTimerDriver() (tests: fake timers).
+ * G-403: the pointer and the focus are tracked apart (it hides once both have left: a mouse
+ * leaving doesn't hide a tip the keyboard focus still shows); touch pointer events are ignored
+ * (a tap focuses the trigger instead); the document keydown listener for Escape is there only
+ * while the tip is shown or about to be, so a page of tooltips has at most the open one's.
  */
-import {ABORT, defineBehavior, xs} from '../index'
+import {ABORT, defineBehavior, dropRepeats, xs} from '../index'
+
+const mouse = (e: any) => e?.pointerType != 'touch'
+const which = (k: any) => (k == 'focus' ? 'focus' : 'hover')
 
 const base = /*#__PURE__*/ defineBehavior({
-  initialState: {open: false, pending: null as null | string},
+  initialState: {open: false, pending: null as null | string, hover: false, focus: false},
   timers: (s: any, o: any) => ({
     show: s?.pending == 'show' && {after: o.showDelay ?? 500, action: 'SHOW'},
     hide: s?.pending == 'hide' && {after: o.hideDelay ?? 100, action: 'HIDE'},
   }),
-  intent: ({DOM}: any, {trigger, tip}: any) => ({
-    ENTER: xs.merge(DOM.pointerenter(trigger), DOM.focus(trigger), DOM.pointerenter(tip)),
-    LEAVE: xs.merge(DOM.pointerleave(trigger), DOM.blur(trigger), DOM.pointerleave(tip)),
-    ESCAPE: DOM.keydown('document').key().filter((k: string) => k == 'Escape'),
+  intent: ({DOM, STATE}: any, {trigger, tip}: any) => ({
+    ENTER: xs.merge(xs.merge(DOM.pointerenter(trigger), DOM.pointerenter(tip)).filter(mouse).mapTo('hover'), DOM.focus(trigger).mapTo('focus')),
+    LEAVE: xs.merge(xs.merge(DOM.pointerleave(trigger), DOM.pointerleave(tip)).filter(mouse).mapTo('hover'), DOM.blur(trigger).mapTo('focus')),
+    ESCAPE: (STATE ? STATE.stream.map((s: any) => !!(s?.open || s?.pending)).compose(dropRepeats()) : xs.of(true))
+      .map((on: boolean) => (on ? DOM.keydown('document').key().filter((k: string) => k == 'Escape') : xs.never()))
+      .flatten(),
     TOGGLED: DOM.toggle(tip).map((e: any) => e.newState == 'open'),
   }),
   model: {
-    ENTER: (s: any) => {
-      const pending = s.open ? null : 'show'
-      return s.pending == pending ? ABORT : {...s, pending}
+    ENTER: (s: any, k: any) => {
+      const n = {...s, [which(k)]: true}, pending = s.open ? null : 'show'
+      return s[which(k)] && s.pending == pending ? ABORT : {...n, pending}
     },
-    LEAVE: (s: any) => {
-      const pending = s.open ? 'hide' : null
-      return s.pending == pending ? ABORT : {...s, pending}
+    LEAVE: (s: any, k: any) => {
+      const n = {...s, [which(k)]: false}
+      // still hovered or focused: as it was
+      const pending = n.hover || n.focus ? s.pending : s.open ? 'hide' : null
+      return !s[which(k)] && s.pending == pending ? ABORT : {...n, pending}
     },
     SHOW: {
       STATE: (s: any) => ({...s, pending: null}),
@@ -55,4 +67,4 @@ const base = /*#__PURE__*/ defineBehavior({
 })
 
 /** A tooltip as a behavior: `uses = { tip: tooltip({ trigger: '.save', tip: '.save-tip', showDelay: 500 }) }`. */
-export const tooltip = (options: any = {}): any => base({...options, open: false, pending: null})
+export const tooltip = (options: any = {}): any => base({...options, open: false, pending: null, hover: false, focus: false})

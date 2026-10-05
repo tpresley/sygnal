@@ -45,8 +45,8 @@ A click on `.edit-profile` opens the dialog and a click on `.cancel` closes it. 
 | `trigger` | | Its clicks open the dialog |
 | `close` | | Its clicks close the dialog, with the return value `''` |
 | `modal` | `true` | `false` opens it with `show()`: not modal, the page stays usable |
-| `cancelable` | `true` | `false` keeps Escape from closing it (the `cancel` event is prevented) |
-| `returnFocus` | `true` | When the dialog closes and the focus was lost, focus the trigger. A selector names another element; `false` leaves the focus to the browser |
+| `cancelable` | `true` | `false` keeps Escape from closing it: the `cancel` event is prevented, and opening it sets `closedby="none"` (Chromium closes a dialog on a second Escape otherwise). In a browser without `closedby`, a second Escape can still close it; the `CLOSED` action tells you |
+| `returnFocus` | `true` | When the dialog closes and the focus was lost, focus the element that opened it (the clicked trigger, when several match `trigger`), else the trigger. A selector names another element; `false` leaves the focus to the browser |
 
 The browser returns the focus to the element that had it before the dialog opened. Safari doesn't focus a button when it is clicked, so after a mouse click the focus would go back to the page itself; `returnFocus` focuses the trigger instead. It does nothing when the browser already moved the focus somewhere.
 
@@ -61,6 +61,9 @@ The browser returns the focus to the element that had it before the dialog opene
 | `profile.CLOSED` | the return value | The dialog closed, whichever way: sets `open: false` and `returnValue` |
 | `profile.TOGGLED` | `true` / `false` | The dialog's `toggle` event: a dialog opened without the model (for example with `commandfor`) sets `open: true` |
 | `profile.CANCEL` | the event | Escape was pressed (the dialog closes next, unless `cancelable: false`) |
+| `profile.SYNC` | `false` | The dialog left the page while open (a page change, a conditional render): sets `open: false`, as no close event comes |
+
+`OPEN` and `CLOSE` check the dialog itself before they act: `showModal()` only on a closed dialog, `close()` only on an open one. A dialog removed while open opens again when it is back.
 
 React to a close in your own model with an entry for the namespaced action. It runs after the behavior's, on the full state:
 

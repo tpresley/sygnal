@@ -20,15 +20,16 @@ export interface DialogOptions {
   close?: BehaviorTarget
   /** true (default): showModal(); false: show() */
   modal?: boolean
-  /** true (default); false: Escape doesn't close it (the cancel event is prevented) */
+  /** true (default); false: Escape doesn't close it (the cancel event is prevented; OPEN sets closedby="none") */
   cancelable?: boolean
   /**
    * On close, when the focus was lost (WebKit after a mouse click), focus this: true (default) =
-   * the trigger, a selector or control = that element, false = leave it to the browser.
+   * the element that opened it (else the trigger), a selector or control = that element, false =
+   * leave it to the browser.
    */
   returnFocus?: boolean | BehaviorTarget
 }
-export interface DialogActions { OPEN: any; CLOSE: string | undefined; CLOSED: string; TOGGLED: boolean; CANCEL: Event }
+export interface DialogActions { OPEN: any; CLOSE: string | undefined; CLOSED: string; TOGGLED: boolean; CANCEL: Event; SYNC: false }
 /**
  * A native <dialog> as a behavior: `uses = { help: dialog({ dialog: '.help', trigger: '.open-help', close: '.close-help' }) }`
  * gives `state.help = { open, returnValue }` and 'help.OPEN' / 'help.CLOSE' (data: the returnValue) /
@@ -44,7 +45,7 @@ export interface PopoverOptions {
   /** A button inside: its clicks dispatch CLOSE */
   close?: BehaviorTarget
 }
-export interface PopoverActions { OPEN: any; CLOSE: any; TOGGLE: any; TOGGLED: boolean }
+export interface PopoverActions { OPEN: any; CLOSE: any; TOGGLE: any; TOGGLED: boolean; SYNC: false }
 /**
  * A popover (Popover API) as a behavior: `uses = { filters: popover({ popover: '.filters' }) }`, opened by a
  * `popovertarget` button or 'filters.OPEN' / 'filters.TOGGLE'; `state.filters.open` follows its toggle event.
@@ -52,7 +53,14 @@ export interface PopoverActions { OPEN: any; CLOSE: any; TOGGLE: any; TOGGLED: b
 export function popover(options: PopoverOptions): Behavior<PopoverState, PopoverActions, {}, PopoverOptions>
 
 // ── Tooltip ───────────────────────────────────────────────────────────
-export interface TooltipState { open: boolean; pending: null | 'show' | 'hide' }
+export interface TooltipState {
+  open: boolean
+  pending: null | 'show' | 'hide'
+  /** The pointer is on the trigger or the tip */
+  hover: boolean
+  /** The trigger has the focus */
+  focus: boolean
+}
 export interface TooltipOptions {
   /** What it describes (pointer and focus) */
   trigger: BehaviorTarget
@@ -63,7 +71,7 @@ export interface TooltipOptions {
   /** ms before it hides (default 100) */
   hideDelay?: number
 }
-export interface TooltipActions { ENTER: any; LEAVE: any; SHOW: any; HIDE: any; ESCAPE: string; TOGGLED: boolean }
+export interface TooltipActions { ENTER: 'hover' | 'focus' | undefined; LEAVE: 'hover' | 'focus' | undefined; SHOW: any; HIDE: any; ESCAPE: string; TOGGLED: boolean }
 /** A tooltip: `uses = { tip: tooltip({ trigger: '.save', tip: '.save-tip' }) }`. Needs makeTimerDriver(). */
 export function tooltip(options: TooltipOptions): Behavior<TooltipState, TooltipActions, {}, TooltipOptions>
 
