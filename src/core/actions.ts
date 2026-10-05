@@ -78,8 +78,8 @@ export function handle(inst: Inst, type: string, data: any, cause: any) {
       else app.out('PARENT', e)
     } else if (sink == 'READY') inst.setReady(!!v)
     else if (sink == 'ELEMENT') {
-      H.onElementCommand?.(viewOf(inst), v)
-      runElementCommands(inst.el ||= {name: def.name, DOMSourceName: 'DOM', sources: {DOM: inst.dom}, get _disposed() { return inst.disposed }}, v)
+      // onElementCommand returning false: recorded, not run (renderComponent's mock DOM)
+      if (H.onElementCommand?.(viewOf(inst), v) !== false) runElementCommands(inst.el ||= {name: def.name, DOMSourceName: 'DOM', sources: {DOM: inst.dom}, get _disposed() { return inst.disposed }}, v)
     } else if (inst.st) (outs ||= []).push(sink, v)
     else send(inst, sink, v)
   }

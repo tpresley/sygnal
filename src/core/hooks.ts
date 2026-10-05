@@ -167,8 +167,11 @@ export interface Hooks {
   onSink?(inst: InstanceView, type: string, sink: string, value: any): void
   /** a model next(type, data, ms) was scheduled (replaces testing's NEXT_LOG debug-text parsing) */
   onNext?(inst: InstanceView, type: string, data: any, ms: number): void
-  /** an ELEMENT command is about to run after the patch (testing records, diagnostics checks) */
-  onElementCommand?(inst: InstanceView, command: any): void
+  /**
+   * an ELEMENT command (or an array of them) was sent; it runs after the next patch (testing
+   * records, diagnostics checks). `false`: not run (renderComponent's mock DOM records only)
+   */
+  onElementCommand?(inst: InstanceView, command: any): void | false
 
   // ------------------------------------------------------------------ state, context, readiness
   /** an instance's (calculated) state changed in this flush (devtools onStateChanged) */
