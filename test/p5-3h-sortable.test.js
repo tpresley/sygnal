@@ -161,6 +161,55 @@ describe('3-H G-451: a pointer press on a handle during a keyboard drag', () => 
   })
 })
 
+describe('3-H G-454: a pointer drop in another list lands before or after the hovered item by its half', () => {
+  function Card({ state }) {
+    return h('li', { className: 'card', 'data-id': state.id }, h('button', { type: 'button', className: 'grip' }, '⠿'), state.id)
+  }
+  function Board() {
+    return h('div', null,
+      h('ul', { 'data-list': 'todo' }, h(Collection, { of: Card, from: 'todo' })),
+      h('ul', { 'data-list': 'done' }, h(Collection, { of: Card, from: 'done' })))
+  }
+  Board.initialState = { todo: [{ id: 1 }, { id: 2 }], done: [{ id: 3 }, { id: 4 }] }
+  Board.uses = { sort: sortable({ from: ['todo', 'done'], item: '.card', handle: '.grip' }) }
+  // mock DOM: the item under the pointer, 20 px tall from y = 100
+  const over = (id) => ({ target: { closest: (s) => (s !== '[data-list]' ? { getAttribute: (a) => (a === 'data-id' ? String(id) : null), getBoundingClientRect: () => ({ top: 100, left: 0, width: 200, height: 20 }) } : null) } })
+  const drag = async (id, to, y) => {
+    t.simulateEvent('.grip', 'pointerdown', { clientX: 0, clientY: 0, within: `.card[data-id="${id}"]` })
+    await t.next(s => s.sort.press)
+    t.simulateEvent('document', 'pointermove', { clientX: 300, clientY: y, ...over(to) })
+    await t.next(s => s.sort.over === String(to))
+    const after = t.state.sort.after
+    t.simulateEvent('document', 'pointerup', { clientX: 300, clientY: y, ...over(to) })
+    await t.next(s => s.sort.dragging === null)
+    return after
+  }
+
+  it('the lower half of the last item: after it (the end of the list, no gap needed)', async () => {
+    t = renderComponent(Board); await t.ready()
+    expect(await drag(1, 4, 115)).toBe(true)
+    expect(order(t.state, 'done')).toBe('3,4,1')
+    await t.settle()
+    expect(droppedActions().map(a => a.data)).toEqual([{ id: '1', list: 'done', index: 2, fromList: 'todo', fromIndex: 0 }])
+  })
+
+  it('the upper half: before it; the lower half of a middle item: after it', async () => {
+    t = renderComponent(Board); await t.ready()
+    expect(await drag(1, 4, 105)).toBe(false)
+    expect(order(t.state, 'done')).toBe('3,1,4')
+    expect(await drag(2, 3, 119)).toBe(true)
+    expect(order(t.state, 'done')).toBe('3,2,1,4')
+  })
+
+  it('in its own list the rule is unchanged (after when moving down, before when moving up)', async () => {
+    t = renderComponent(Board); await t.ready()
+    expect(await drag(3, 4, 101)).toBe(true)
+    expect(order(t.state, 'done')).toBe('4,3')
+    expect(await drag(3, 4, 119)).toBe(false)
+    expect(order(t.state, 'done')).toBe('3,4')
+  })
+})
+
 describe('3-H G-450: native drag and drop', () => {
   it('a native dragstart (an image or link in the item) is prevented while a pointer is pressed', async () => {
     function Row({ state }) { return h('li', { className: 'row', 'data-id': state.id }, h('img', { alt: '', src: 'data:,' }), h('a', { href: '#x' }, state.id)) }

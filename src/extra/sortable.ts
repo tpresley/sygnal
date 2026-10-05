@@ -117,10 +117,11 @@ export const sortable = (options: any = {}): any => {
     return out
   }
   const put = (st: any, k: string, s: any) => ({...st, [k]: {...st[k], ...s}})
-  // where a pointer drop would land: over an item (before it; after it when moving down its own
-  // list), or at the end of another list's container
-  const landing = (st: any, f: any, o: any, list: any) =>
-    o ? {list: o.list, to: o.index, after: o.list == f.list && f.index < o.index}
+  // where a pointer drop would land: over an item (in its own list: before it, after it when
+  // moving down; from another list: before or after it by the pointer's half, `low`: G-454), or
+  // at the end of another list's container
+  const landing = (st: any, f: any, o: any, list: any, low?: any) =>
+    o ? o.list == f.list ? {list: o.list, to: o.index, after: f.index < o.index} : {list: o.list, to: o.index + (low ? 1 : 0), after: !!low}
     : list && lists.includes(list) && list != f.list ? {list, to: (st[list] || []).length, after: true}
     : null
   const where = (f: any, n: any) => n.list != f.list ? n.list : undefined
@@ -164,8 +165,10 @@ export const sortable = (options: any = {}): any => {
         const el = (typeof x == 'number' && d?.elementFromPoint?.(x, y)) || e.target
         let o: any
         for (let it = el?.closest?.(item); it && inside(it, root); it = it.parentElement?.closest?.(item)) o = it
-        const box = lists.length > 1 && el?.closest?.('[data-list]')
-        return {x: x || 0, y: y || 0, over: o ? idOf(o) : null, list: box && inside(box, root) ? box.getAttribute?.('data-list') : null}
+        // over the item's second half (along the axis): an item from another list lands after it
+        const box = lists.length > 1 && el?.closest?.('[data-list]'), b = o?.getBoundingClientRect?.()
+        return {x: x || 0, y: y || 0, over: o ? idOf(o) : null, list: box && inside(box, root) ? box.getAttribute?.('data-list') : null,
+          low: !!b?.height && (axis == 'x' ? x > b.left + b.width / 2 : y > b.top + b.height / 2)}
       }
       // the id of the item whose handle (or the item itself) the event happened on; `self`: the
       // handle must be the event's own target (keys)
@@ -240,7 +243,7 @@ export const sortable = (options: any = {}): any => {
         // past the threshold: the drag starts
         const start = !s.dragging && {dragging: S(p.id), mode: 'pointer', origin: {list: f.list, index: f.index}, message: msg.lift(label(f.item), f.index + 1, f.size, false)}
         if (!s.dragging && Math.hypot(d.x - p.x, d.y - p.y) < threshold) return ABORT
-        const o = find(st, d.over), L = landing(st, f, o, d.list)
+        const o = find(st, d.over), L = landing(st, f, o, d.list, d.low)
         const next = {...start, over: o ? S(o.item[idField]) : null, list: L?.list ?? null, after: !!L?.after}
         return !start && next.over === s.over && next.list === s.list && next.after === s.after ? ABORT : put(st, k, next)
       }},
@@ -249,7 +252,7 @@ export const sortable = (options: any = {}): any => {
         if (!s.dragging) return s.press ? put(st, k, idle) : ABORT
         const f = find(st, s.dragging)
         // the release point decides (a last move may not have been rendered)
-        const L = f && landing(st, f, find(st, d.over), d.list)
+        const L = f && landing(st, f, find(st, d.over), d.list, d.low)
         if (!f || !L || L.list == f.list && L.to == f.index) return put(st, k, {...idle, message: f ? msg.cancel(label(f.item), f.index + 1, f.size) : ''})
         const out = move(st, f, L.list, L.to), n = find(out, s.dragging)!
         next('DROPPED', {id: s.dragging, list: n.list, index: n.index, fromList: f.list, fromIndex: f.index}, 0)
