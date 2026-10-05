@@ -311,9 +311,11 @@ function processSSRTree(vnode: any, context: Record<string, any>, parentState: a
     const children = vnode.children || []
     if (children.length === 0) return null
     if (children.length === 1) return processSSRTree(children[0], context, parentState, uid, `${path}.0`)
+    // P46-Q (D187): the client placeholder's selector (div.sygnal-portal), so hydration patches
+    // this element in place and the Portal mounts from its postpatch (G-318)
     return {
-      sel: 'div',
-      data: {attrs: {'data-sygnal-portal': ''}},
+      sel: 'div.sygnal-portal',
+      data: {attrs: {'data-sygnal-portal': vnode.data?.props?.target ?? ''}},
       children: children.map((c: any, i: number) => processSSRTree(c, context, parentState, uid, `${path}.${i}`)),
       text: undefined,
       elm: undefined,

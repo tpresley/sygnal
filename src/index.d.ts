@@ -1233,16 +1233,18 @@ export type DiagnosticsOptions = {
 }
 
 /**
- * Where an error reported to the app-level `onError` hook happened (PLAN-4 GS-11). `'widget'` is
- * reserved for widgets (PLAN-5); nothing in the core reports it.
+ * Where an error reported to the app-level `onError` hook happened (PLAN-4 GS-11). `'intent'`: an
+ * intent stream errored (it stops emitting; `action` is its action name). `'context'`: a
+ * `.context` entry threw (it keeps its last value). `'widget'` is reserved for widgets (PLAN-5);
+ * nothing in the core reports it.
  */
-export type AppErrorPhase = 'view' | 'reducer' | 'effect' | 'declaration' | 'driver' | 'instantiate' | 'dispose' | 'widget'
+export type AppErrorPhase = 'view' | 'reducer' | 'effect' | 'intent' | 'context' | 'declaration' | 'driver' | 'instantiate' | 'dispose' | 'widget'
 
 /** What the app-level `onError` hook gets with the error */
 export interface AppErrorInfo {
   /** The component whose view, reducer, EFFECT or sub-component threw (not for 'driver') */
   componentName?: string
-  /** The action whose reducer or EFFECT threw ('reducer', 'effect') */
+  /** The action whose reducer or EFFECT threw ('reducer', 'effect'), or whose intent stream errored ('intent') */
   action?: string
   phase: AppErrorPhase
   /** The driver (sink) name, for 'driver' */

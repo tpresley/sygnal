@@ -36,6 +36,21 @@ const xstreamInterop = () => ({
 const shimXstream = (external) => (id, importer, isResolved) =>
 	id === 'xstream' && importer !== XSTREAM_SHIM ? false : external(id, importer, isResolved)
 
+// P46-Q (D188): the JSX runtime entries ('sygnal/jsx', 'sygnal/jsx-runtime',
+// 'sygnal/jsx-dev-runtime') use the core's pragma: their './pragma/index' import becomes the
+// external 'sygnal' (the core entry exports createElement), so an app ships the pragma once.
+// snabbdom stays external too (their Fragment is snabbdom's, tagged in ./cycle/dom/fragment)
+const jsxExternal = (id) => isExternal(id) || id === 'sygnal'
+const jsxCorePragma = () => ({
+	name: 'sygnal-jsx-core-pragma',
+	resolveId(source, importer) {
+		if (source === './pragma/index' && importer && /[\\/]src[\\/]jsx(-runtime|-dev-runtime)?\.ts$/.test(importer)) {
+			return { id: 'sygnal', external: true }
+		}
+		return null
+	},
+})
+
 const sourcemapOptions = {
 	sourcemap: true,
 	sourcemapExcludeSources: false,
@@ -76,11 +91,13 @@ export default [
 
   {
     input: 'src/jsx.ts',
+    external: jsxExternal,
     output: [
       { file: pkg.exports['./jsx'].require, format: 'cjs', ...sourcemapOptions },
       { file: pkg.exports['./jsx'].import, format: 'es', ...sourcemapOptions }
     ],
 		plugins: [
+			jsxCorePragma(),
 			typescript({ tsconfig: './tsconfig.json' }),
 			resolve({ extensions: ['.mjs', '.js', '.ts', '.json'] }),
 			commonjs()
@@ -89,11 +106,13 @@ export default [
 
   {
     input: 'src/jsx-runtime.ts',
+    external: jsxExternal,
     output: [
       { file: pkg.exports['./jsx-runtime'].require, format: 'cjs', ...sourcemapOptions },
       { file: pkg.exports['./jsx-runtime'].import, format: 'es', ...sourcemapOptions }
     ],
 		plugins: [
+			jsxCorePragma(),
 			typescript({ tsconfig: './tsconfig.json' }),
 			resolve({ extensions: ['.mjs', '.js', '.ts', '.json'] }),
 			commonjs()
@@ -102,11 +121,13 @@ export default [
 
   {
     input: 'src/jsx-dev-runtime.ts',
+    external: jsxExternal,
     output: [
       { file: pkg.exports['./jsx-dev-runtime'].require, format: 'cjs', ...sourcemapOptions },
       { file: pkg.exports['./jsx-dev-runtime'].import, format: 'es', ...sourcemapOptions }
     ],
 		plugins: [
+			jsxCorePragma(),
 			typescript({ tsconfig: './tsconfig.json' }),
 			resolve({ extensions: ['.mjs', '.js', '.ts', '.json'] }),
 			commonjs()

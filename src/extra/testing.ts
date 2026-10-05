@@ -1716,6 +1716,11 @@ export function renderComponent(
   let patchedUpTo = 0, lastPatched: any, held: any, gateOut: any;
   const holds: number[] = [];
   const tagOf = (v: any) => renderNo.get(v) ?? states.length;
+  // G-348: each emitted tree is tagged when it arrives, in both listeners (the gate runs first:
+  // the driver subscribes before the harness). A view that runs again with the same output
+  // re-emits its last vnode (P46-P), so the tag left from the earlier emission would read as a
+  // stale render and hold every input until the next real render
+  const tagTree = (v: any) => { if (v && typeof v == 'object') renderNo.set(v, viewTag || states.length); };
   const holdLimit = () => (holds.length ? Math.min(...holds) + 1 : Infinity);
   const toDOM = (v: any) => {
     // the driver patches synchronously when the document is ready; snabbdom sets vnode.elm
@@ -1729,6 +1734,7 @@ export function renderComponent(
         gateOut = out;
         vnode$.addListener(l = {
           next: (v: any) => {
+            tagTree(v);
             // (a state replaced before it ever rendered isn't waited for: the newer render goes in)
             if (tagOf(v) > holdLimit() && patchedUpTo >= holdLimit()) held = v;
             else { held = undefined; toDOM(v); }
@@ -2070,7 +2076,7 @@ export function renderComponent(
       vtree = v;
       index(v);
       renderedUpTo = states.length;
-      if (real && v && typeof v == 'object') renderNo.set(v, viewTag || renderedUpTo);
+      if (real) tagTree(v);
       bump();
       check104();
       arm();

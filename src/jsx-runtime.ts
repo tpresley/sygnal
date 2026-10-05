@@ -1,5 +1,10 @@
-import { createElement, createTag } from './pragma/index'
-export { Fragment } from './cycle/dom/snabbdom'
+// P46-Q (D188): the pragma is the core's. The build makes './pragma/index' the external 'sygnal'
+// (the core entry) and keeps snabbdom external, so an app ships one copy of each; the element
+// fast path is the core createElement's `.a` (the children as one array)
+import { createElement } from './pragma/index'
+export { Fragment } from './cycle/dom/fragment'
+
+const createTag = (createElement as any).a
 
 export function jsx(type: any, props: any, key?: any): any {
   if (props == null) return createElement(type, null)
