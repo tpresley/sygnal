@@ -356,6 +356,7 @@ These are fixes, but code or tests may depend on the old behavior:
 - **HMR globals:** `window.__SYGNAL_HMR_PERSISTED_STATE`, `__SYGNAL_HMR_UPDATING` and `__SYGNAL_HMR_STATE` no longer exist; a hot swap no longer writes into the component's `initialState` static.
 - **Collections:** unchanged items with an id are the same objects after another item writes back (no `{ ...item }` copies).
 - **SSR markup:** `renderToString()` output has `data-sygnal-ssr=""` on its root element, so a test or snapshot that compares the HTML exactly changes.
+- **SSR Portal wrapper:** a `Portal` with more than one child renders, in `renderToString()`, inside `<div class="sygnal-portal" data-sygnal-portal="<target>">` (before: `<div data-sygnal-portal="">`), the client placeholder's selector, so hydration patches it in place. SSR snapshots of such a Portal change, and a CSS rule that hides `.sygnal-portal` (the client's hidden placeholder) also hides that server-rendered portal content until hydration moves it to the target.
 
 - **Hidden Switchable pages don't re-render** and keep their sub-components' state across switches (before: re-created on each switch). Code that relied on a page resetting when it is switched away should reset its state explicitly (for example on the action that switches).
 - **`t.html()` throws before the first render** instead of returning `''`, and **escapes like `innerHTML`**, so stored snapshots containing `&#39;` or `&quot;` in text change.
