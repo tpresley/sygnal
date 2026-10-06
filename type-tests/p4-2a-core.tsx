@@ -7,8 +7,8 @@ import { run, renderComponent, renderToString } from 'sygnal'
 import type { AppErrorHook, AppErrorInfo, AppErrorPhase, RunOptions, RenderOptions, RenderToStringOptions, Component, UidFunction, ViewProps } from 'sygnal'
 
 describe('GS-11: onError', () => {
-  it('has the phase union, incl. the reserved widget phase (D105)', () => {
-    expectTypeOf<AppErrorPhase>().toEqualTypeOf<'view' | 'reducer' | 'effect' | 'intent' | 'context' | 'declaration' | 'driver' | 'instantiate' | 'dispose' | 'widget'>()
+  it('has the phase union, incl. the reserved widget phase (D105) and patch (D223)', () => {
+    expectTypeOf<AppErrorPhase>().toEqualTypeOf<'view' | 'reducer' | 'effect' | 'intent' | 'context' | 'declaration' | 'driver' | 'instantiate' | 'dispose' | 'widget' | 'patch'>()
     expectTypeOf<AppErrorInfo['phase']>().toEqualTypeOf<AppErrorPhase>()
     expectTypeOf<AppErrorInfo['componentName']>().toEqualTypeOf<string | undefined>()
     expectTypeOf<AppErrorInfo['action']>().toEqualTypeOf<string | undefined>()

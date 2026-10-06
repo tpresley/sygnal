@@ -52,3 +52,7 @@ const phase: AppErrorPhase = 'widget'
 const info: AppErrorInfo = { phase: 'widget', componentName: 'Planner' }
 void phase; void info
 renderComponent(() => ok, { onError: (_e, i) => { if (i.phase === 'widget') void i.componentName } })
+
+// 3-V G-537 (D223): the 'patch' phase (a DOM patch threw)
+const patchPhase: AppErrorPhase = 'patch'
+void patchPhase

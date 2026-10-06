@@ -60,6 +60,7 @@ The hook is for reporting only. It is called once per error, after the component
 | `'driver'` | A driver threw while handling a value sent to it; the error is still thrown afterwards, as before | `driver` (the sink name) |
 | `'dispose'` | A stream's `stop()` threw while a removed component's streams were stopped; the other streams still stop (it is also logged) | `componentName` |
 | `'widget'` | A [widget's](/guide/widgets/#errors) `mount` or `update` threw (the owner's fallback renders in its place), or its `unmount` threw | `componentName` (the component that renders the widget) |
+| `'patch'` | The DOM driver's patch threw (a vnode `hook` of your own or a DOM module). Snabbdom stopped half way, so the app's DOM stops updating (its state and events go on); later patches aren't tried, so the error is reported once. Disposing the app still removes what it mounted (a Portal's content) | none |
 
 `'driver'` only covers a driver that throws synchronously while it receives a sink value. Errors inside a driver's own streams, or error events on its sources, are not reported there: handle them where the driver reports them (for HTTP, the `error` [reply action](/guide/http/)).
 

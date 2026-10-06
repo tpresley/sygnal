@@ -161,6 +161,7 @@ function makeDOMDriver(
     const poke = (e: Event) => pl && (e.stopPropagation(), pl.next(cur));
     const off = () => cur?.removeEventListener(POKE, poke);
     const rep = options.reportSnabbdomError || defaultReportSnabbdomError;
+    let dead = 0;
     const rootElement$ = firstRoot$
       .map(
         (firstRoot, P = (o: any, v: any) => patch(o == r ? {...r, sel: v.sel, key: v.key, children: adopt(firstRoot, v)} : o, v)) =>
@@ -171,10 +172,14 @@ function makeDOMDriver(
               // the first step gives the root its scope; the second, the app's first patch,
               // adopts the markup in it (G-456). The root keeps its own attributes (G-466)
               .startWith(r)
-              // A patch that throws (a hook, a module) is reported, and the DOM as it is now is
-              // adopted for this vnode, as on the first patch: the app keeps updating (the stream
-              // erred and the app stopped updating before)
-              .fold((o: any, v: any) => { try { return P(o, v) } catch (e) { rep(e); return P(r, v) } }, {...r, data: {}})
+              // G-540: a patch that throws (a hook, a module) is reported once, and the app's DOM
+              // stops updating: snabbdom stopped half way (some elements patched, created or
+              // removed, the rest not; insert hooks not run), and no vnode tree matches that DOM
+              // (patching on from either tree, or adopting the DOM again, left wrong or duplicated
+              // DOM). The stream doesn't end (its events, the root element), and a patch to no
+              // children (dispose) still runs, so what the last good tree mounted (a Portal's
+              // content) is removed; its errors aren't reported again
+              .fold((o: any, v: any) => { if (!dead || !v.children?.length) try { return P(o, v) } catch (e) { dead++ || rep(e) } return o }, {...r, data: {}})
               .drop(1)
               .map(unwrapElementFromVNode)
               .startWith(firstRoot as any)

@@ -48,6 +48,9 @@ const counter = (view, initialState = { n: 0 }) => {
   return App
 }
 
+/** a derived key (3-V G-541): the path [fragment key, ..., own key or [tag, count]] as nested JSON */
+const K = (...path) => path.reduce((k, s) => JSON.stringify([k, s]), undefined)
+
 describe('flat()', () => {
   it('keeps a tree without fragments by identity', () => {
     const v = h('div', null, h('p', null, 'a'), h('span', { className: 'x' }, h('b', null, 'c')))
@@ -57,7 +60,7 @@ describe('flat()', () => {
   it('splices nested fragments; a keyed one keys its children (own key, else tag and count)', () => {
     const v = h('ul', null, h(Fragment, { key: 'k' }, h('li', null, 'a'), h('li', { key: 'own' }, 'b'), h(Fragment, null, h('li', null, 'c'), 'text')), h('p', null, 'z'))
     const f = flat(v)
-    expect(f.children.map(c => c.key)).toEqual(['k/li#1', 'k/own', 'k/li#2', 'k/undefined#1', undefined])
+    expect(f.children.map(c => c.key)).toEqual([K('k', ['li', 1]), K('k', 'own'), K('k', ['li', 2]), K('k', [null, 1]), undefined])
     expect(f.children.map(c => c.text ?? c.children?.[0]?.text ?? c.text)).toEqual(['a', 'b', 'c', 'text', 'z'])
   })
 
@@ -72,7 +75,7 @@ describe('flat()', () => {
   it("a copy writes its element to the app's vnode and keeps its own", () => {
     const i = h('i', null, 'a'), v = h('div', null, h(Fragment, { key: 'k' }, i))
     const c = flat(v).children[0], c2 = flat(h('p', null, h(Fragment, { key: 'j' }, i))).children[0]
-    expect([c.key, c2.key, c.sel, c.data]).toEqual(['k/i#1', 'j/i#1', 'i', i.data])
+    expect([c.key, c2.key, c.sel, c.data]).toEqual([K('k', ['i', 1]), K('j', ['i', 1]), 'i', i.data])
     c.elm = 'one'; c2.elm = 'two'
     expect([c.elm, c2.elm, i.elm]).toEqual(['one', 'two', 'two'])
   })
@@ -256,7 +259,9 @@ describe('thunk', () => {
 })
 
 describe('a patch that throws', () => {
-  it('is reported, and the app keeps updating (the DOM stream no longer ends)', async () => {
+  // 3-V G-540: the guard no longer adopts the DOM again (that wiped widgets and duplicated
+  // Portals): the error is reported once and the app's DOM stops updating (test/p5-3v-review)
+  it('is reported once; the app no longer patches (the DOM stream still does not end)', async () => {
     let boom = 0
     const App = counter((s) => h('div', null,
       h('p', { hook: { update: () => { if (s.n == 1 && !boom++) throw new Error('hook failed') } } }, 'n=' + s.n),
@@ -265,9 +270,8 @@ describe('a patch that throws', () => {
     await click('.b')
     expect(errors.mock.calls.map(c => String(c[0]))).toEqual(['Error: hook failed'])
     errors.mockClear()
-    await click('.b')
-    expect(document.querySelector('main > div').innerHTML).toBe('<p>n=2</p><i>2</i>')
-    await click('.b')
-    expect(document.querySelector('main > div').innerHTML).toBe('<p>n=3</p><i>3</i>')
+    await click('.b'); await click('.b')
+    expect(document.querySelector('main > div').innerHTML).toBe('<p>n=0</p><i>0</i>')
+    expect(errors).not.toHaveBeenCalled()
   })
 })

@@ -220,8 +220,9 @@ const route = (key: string, modules: Record<string, any>, c?: any): any => {
   // G-152: data-task-id → dataset key taskId (a hyphenated dataset key makes the DOM throw)
   if (prefix && modules[prefix] !== undefined) return [modules[prefix] || prefix, prefix == 'data' ? key.slice(dash + 1).replace(/-([a-z])/g, (_, c) => c.toUpperCase()) : key.slice(dash + 1), 1]
   // G-492: on a custom element (c 2), list is its own property (Lit, sygnal/element). G-519: form
-  // stays an attribute (a form-associated element's `form` is a getter; the attribute links it)
-  if (c != 1 && modules.attrs !== undefined && ATTRS.test(key) && !(c && key == 'list')) return ['attrs', key, prefix == 'aria' && 4]
+  // stays an attribute (a form-associated element's `form` is a getter; the attribute links it).
+  // G-542: there, only a string form (an object is the element's own property: r[3])
+  if (c != 1 && modules.attrs !== undefined && ATTRS.test(key) && !(c && key == 'list')) return ['attrs', key, prefix == 'aria' && 4, c && key == 'form']
   if (modules[key] !== undefined) return [modules[key] || key, 0, key == 'class' && modules.class !== undefined ? 3 : 2]
   return [modules.props !== undefined && 'props', key]
 }
@@ -243,7 +244,7 @@ const sanitizeData = (data: any, modules: Record<string, any>, routes: Map<strin
       if (val !== undefined) o[name] = val
     } else if (val === undefined) continue
     else if (kind & 2) add(out, b, kind == 3 ? toClassMap(val) : val)
-    else if (b) bucket(out, b)[name] = kind ? val === !!val ? (val || ARIA_FALSE.test(key)) && '' + val : val ?? false : val
+    else if (b) bucket(out, r[3] && typeof val != 'string' ? 'props' : b)[name] = kind ? val === !!val ? (val || ARIA_FALSE.test(key)) && '' + val : val ?? false : val
     else out[key] = val
   }
   const props = out.props

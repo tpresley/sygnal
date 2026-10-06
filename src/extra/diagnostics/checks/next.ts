@@ -204,6 +204,11 @@ function vtDuplicates(root: any, prefixes: Set<string>): any[][] {
   return dup
 }
 
+// G-538: a fragment root never gets an element (the DOM driver flattens it into the container):
+// it has run when each of its children has one (a kept child has its old one: a View Transition
+// patch of a fragment root whose children are all kept is checked before it runs)
+const patched = (v: any): any => v.elm || !v.sel && v.children?.every((c: any) => !c || patched(c))
+
 /**
  * G-527: the patches waiting for their SYG149 check ([root vnode, duplicate groups], newest last,
  * at most 8) and one chain of checks over them: a microtask after the first, then every 50 ms
@@ -221,7 +226,7 @@ function vtChecker(live: () => any) {
   const vtRendered = (): void => {
     if (!live()) { q = []; busy = false; return }
     let i = q.length
-    while (i-- && !q[i][0].elm);
+    while (i-- && !patched(q[i][0]));
     if (i >= 0) { vtReport(q[i][1]); q = q.slice(i + 1); tries = 0 }
     else tries++
     if (!q.length || tries > 10) { q = []; busy = false; return }
