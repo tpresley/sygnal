@@ -27,7 +27,7 @@ const FIELD = /^(input|textarea|select)|-/i
 // selectors (`li#row-${id}`) don't grow it. A selector with an id or class keeps only bit 1, as
 // P46-P's full-selector tests did (the host and SVG tags match the whole selector)
 const tags: Record<string, number> = Object.create(null)
-const bits = (tag: string): number => tags[tag] = +FIELD.test(tag) | (/^(collection|switchable)$/i.test(tag) ? 4 : 0) | (tag in svgTags ? 2 : 0)
+const bits = (tag: string): number => tags[tag] = +FIELD.test(tag) | (/^(collection|switchable)$/i.test(tag) ? 4 : 0) | (tag in svgTags ? 2 : 0) | (/-/.test(tag) ? 8 : 0)
 const tagBits = (sel: string): number => {
   const t = tags[sel]
   if (t !== undefined) return t
@@ -35,7 +35,7 @@ const tagBits = (sel: string): number => {
   for (let c; i < sel.length && (c = sel.charCodeAt(i)) != 35 && c != 46; i++);
   if (i == sel.length) return bits(sel)
   const tag = sel.slice(0, i)
-  return (tags[tag] ?? bits(tag)) & 1
+  return (tags[tag] ?? bits(tag)) & 9
 }
 
 // Mutates the vnode (and its SVG children, not below a foreignObject: that contains HTML):
@@ -214,7 +214,8 @@ const route = (key: string, modules: Record<string, any>, c?: any): any => {
   const prefix = dash > -1 && key.slice(0, dash)
   // G-152: data-task-id → dataset key taskId (a hyphenated dataset key makes the DOM throw)
   if (prefix && modules[prefix] !== undefined) return [modules[prefix] || prefix, prefix == 'data' ? key.slice(dash + 1).replace(/-([a-z])/g, (_, c) => c.toUpperCase()) : key.slice(dash + 1), 1]
-  if (!c && modules.attrs !== undefined && ATTRS.test(key)) return ['attrs', key, prefix == 'aria' && 4]
+  // G-492: on a custom element (c 2), form and list are its own properties (Lit, sygnal/element)
+  if (c != 1 && modules.attrs !== undefined && ATTRS.test(key) && !(c && /^(form|list)$/.test(key))) return ['attrs', key, prefix == 'aria' && 4]
   if (modules[key] !== undefined) return [modules[key] || key, 0, key == 'class' && modules.class !== undefined ? 3 : 2]
   return [modules.props !== undefined && 'props', key]
 }
@@ -274,7 +275,7 @@ const defaultModules: Record<string, string> = {
 
 export const createElementWithModules = (modules: Record<string, any>) => {
   // G-370: a component placeholder's keys route without ATTRS, so in their own cache
-  const routes = new Map<string, any>(), croutes = new Map<string, any>()
+  const routes = new Map<string, any>(), croutes = new Map<string, any>(), xroutes = new Map<string, any>()
   // the children as one array (`k`: a key that wins over data.key: the JSX runtime's own)
   const ca = (sel: any, data: any, children: any[], k?: any): any => {
     if (typeof sel === 'undefined') {
@@ -312,7 +313,8 @@ export const createElementWithModules = (modules: Record<string, any>) => {
     const t = tagBits(sel)
     let plain = !isComponent && is.string(sel) && !(t & 5)
     if (typeof text === 'undefined') plain = !!(flatten(children, kids = []) & +plain)
-    const d = data ? sanitizeData(data, modules, isComponent ? croutes : routes, isComponent) : {}
+    // G-492: a custom element (bit 8) routes form and list as props, in its own cache
+    const d = data ? sanitizeData(data, modules, isComponent ? croutes : t & 8 ? xroutes : routes, isComponent || t & 8 && 2) : {}
     if (fn) d[fn.preventInstantiation ? 'm' : 'c'] = fn
     const key = k !== undefined ? k : data ? data.key : undefined
     const vnode = plain ? new (Plain as any)(sel, d, kids, text, key) : { sel, data: d, children: kids, text, elm: undefined, key }
