@@ -151,3 +151,19 @@ describe('3-U G-531: missing keys and key: []', () => {
     expect(() => undoable({}, { key: [] })).toThrow(/key: \[\]/)
   })
 })
+
+describe('3-U G-532: lists made again on each step stay on Escape', () => {
+  it('a host sort.KEY entry that copies the list: Escape leaves the item where it is', async () => {
+    function S({ state }) { return h('ul', null, h(Collection, { of: Card, from: 'tasks' })) }
+    S.initialState = { tasks: [{ id: 1 }, { id: 2 }, { id: 3 }] }
+    S.uses = { sort: sortable({ from: 'tasks', item: '.task', handle: '.grip' }) }
+    S.model = { 'sort.KEY': (st) => ({ ...st, tasks: [...st.tasks] }) }
+    t = renderComponent(S, { dom: 'real' }); await t.ready()
+    grip(2).focus(); press(' '); await t.next(s => s.sort.dragging === '2')
+    const b = ids(t.state.tasks)
+    refocus(t.state); press('ArrowDown'); await t.next(s => ids(s.tasks) !== b)
+    expect(ids(t.state.tasks)).toBe('132')
+    refocus(t.state); press('Escape'); await t.next(s => s.sort.dragging === null)
+    expect(ids(t.state.tasks)).toBe('132')
+  })
+})
