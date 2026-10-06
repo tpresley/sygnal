@@ -62,4 +62,48 @@ export async function routerTests5_4b() {
       document.title = title0
     }
   }, 6000)
+
+  // G-555: the guard owner's initial ROUTE is part of the first flush (before the first patch),
+  // not a task later, where it undid an edit made right after the first render
+  await runTest(CAT, 'initial ROUTE before the first patch; an edit right after it is kept (G-555)', async () => {
+    const start = location.pathname + location.search
+    history.pushState(null, '', '/rt/tasks/1/edit')
+    const router = makeRouter({ routes: { list: '/', edit: '/tasks/:id/edit' }, base: '/rt' })
+    function App({ state }) {
+      return <section><input name="title" value={state.draft ?? 'Write the report'} /><i>{String(state.routes)}</i></section>
+    }
+    App.route = 'ROUTE'
+    App.initialState = { route: router.current(), draft: null, routes: 0 }
+    App.intent = ({ DOM }) => ({ TYPE: DOM.input('input[name="title"]').value() })
+    App.model = {
+      ROUTE: (s, route) => ({ ...s, route, draft: null, routes: s.routes + 1 }),
+      TYPE: (s, draft) => ({ ...s, draft }),
+    }
+    const { id, el } = mount()
+    let atFirstPatch = null
+    // a MutationObserver callback is a microtask: it runs before any task (a timer) does
+    const mo = new MutationObserver(() => {
+      const input = el.querySelector('input[name="title"]')
+      if (!input || atFirstPatch != null) return
+      atFirstPatch = el.querySelector('i').textContent
+      input.value = 'Write the final report'
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+    mo.observe(el, { childList: true, subtree: true })
+    const app = run(App, { ROUTER: router.driver }, { mountPoint: id })
+    try {
+      await waitFor(() => atFirstPatch != null)
+      assert(atFirstPatch === '1', `ROUTE count at the first patch: ${atFirstPatch}`)
+      await wait(50)
+      const input = el.querySelector('input[name="title"]')
+      assert(input.value === 'Write the final report', `field kept the edit: ${input.value}`)
+      assert(app.__runtime.getState().draft === 'Write the final report', `draft: ${app.__runtime.getState().draft}`)
+      assert(el.querySelector('i').textContent === '1', `one ROUTE: ${el.querySelector('i').textContent}`)
+    } finally {
+      mo.disconnect()
+      app.dispose()
+      await wait(10)
+      history.replaceState(null, '', start)
+    }
+  }, 4000)
 }
