@@ -55,6 +55,13 @@ export async function typeInto(el, value) {
   await pause()
 }
 
+/** Pick an option of a <select> by its value (React's onChange on a select listens to `change`; PLAN-5 p5 tier). */
+export async function choose(el, value) {
+  el.focus?.()
+  fireEvent.change(el, { target: { value } })
+  await pause()
+}
+
 export async function setChecked(el, checked) {
   if (el.checked !== checked) fireEvent.click(el)
   await pause()

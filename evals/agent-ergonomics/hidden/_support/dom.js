@@ -65,6 +65,15 @@ export async function typeInto(el, value) {
   await pause()
 }
 
+/** Pick an option of a <select> by its value, like a user: fires `input` and `change` (PLAN-5 p5 tier). */
+export async function choose(el, value) {
+  el.focus?.()
+  el.value = value
+  el.dispatchEvent(new Event('input', { bubbles: true }))
+  el.dispatchEvent(new Event('change', { bubbles: true }))
+  await pause()
+}
+
 /** Toggle a checkbox like a user would: el.click() fires click, input and change. */
 export async function setChecked(el, checked) {
   if (el.checked !== checked) el.click()
