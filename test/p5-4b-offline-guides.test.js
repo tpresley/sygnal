@@ -54,6 +54,12 @@ describe('offline guides (dist/guide)', () => {
     for (const p of ui) expect(outs).toContain(p)
   })
 
+  it('ships every Recipes page in dist/guide/recipes', () => {
+    const outs = entries.map((x) => x.out)
+    const recipes = fs.readdirSync(path.join(docs, 'recipes')).filter((f) => f.endsWith('.md')).map((f) => `recipes/${f}`)
+    for (const p of recipes) expect(outs).toContain(p)
+  })
+
   it('every relative link and in-page anchor resolves offline; no site-relative link is left', () => {
     const bad = []
     for (const { out } of entries) {

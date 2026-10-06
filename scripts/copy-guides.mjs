@@ -28,8 +28,14 @@ export const GUIDES = [
   'ui/overview', 'ui/dialog', 'ui/popover', 'ui/tooltip', 'ui/tabs', 'ui/accordion', 'ui/disclosure',
   'ui/toaster', 'ui/menu', 'ui/select', 'ui/combobox',
 ]
+// PLAN-5 4-B (3-R question): the Recipes section, kept as its own list so it can be dropped
+// without touching GUIDES (dist/guide/recipes/*.md).
+export const RECIPES = [
+  'recipes/overview', 'recipes/charts', 'recipes/code-editor', 'recipes/rich-text', 'recipes/carousel',
+  'recipes/data-table', 'recipes/data-grid', 'recipes/icons', 'recipes/i18n',
+]
 // Sections shipped in a subdirectory of dist/guide (the rest are flat).
-export const SUBDIRS = new Set(['ui'])
+export const SUBDIRS = new Set(['ui', 'recipes'])
 const SITE = 'https://sygnal.js.org'
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -37,7 +43,7 @@ const docs = path.join(repo, 'docs', 'src', 'content', 'docs')
 const out = path.join(repo, 'dist', 'guide')
 
 /** every shipped entry */
-export const allGuides = () => GUIDES
+export const allGuides = () => [...GUIDES, ...RECIPES]
 
 // 'advanced/undo' → ['advanced', 'undo']; 'http' → ['guide', 'http']
 export const parts = (entry) => (entry.includes('/') ? entry.split('/') : ['guide', entry])
