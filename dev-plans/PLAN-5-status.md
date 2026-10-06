@@ -322,7 +322,7 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 - 2026-10-05 — 3-M merged (tracker conflict: kept the coordinator copy). +173 B core (42,141 B). D220. G-517. Gates after 3-M: all green (vitest 3,515, browser 331/330/330, recipes 17×3, perf-gate --runs=3 ok, core 42,141 B).
 - 2026-10-05 — 3-N merged (clean); gates all green (vitest 3,537, browser 336/335/335, recipes 17×3, core 42,141 B). Review of 3-M: G-518…G-523 (one high: stale fragment bounds after hydration stop the app updating; snabbdom fragment limits also cause G-517, G-522). 3-Q started (fragments design + hydration fixes).
 - 2026-10-05 — Review of 3-N: G-524…G-528 (no high). 3-T started.
-- 2026-10-05 — 3-P merged (clean; D219 identity restore with lift snapshot, internal `undoEnd` hint, `base` owner key; sortable +150 B, undo +186 B, core 0). User: D221.
+- 2026-10-05 — 3-P merged (clean; D219 identity restore with lift snapshot, internal `undoEnd` hint, `base` owner key; sortable +150 B, undo +186 B, core 0). User: D221. Gates all green (vitest 3,571, browser 337/336/336, recipes 17×3, samples 673, core 42,141 B).
 - 2026-10-05 — Review of 3-P: the D219 restore holds (no path overwrites foreign data; every miss is "stay"). G-529…G-532 (array-key undo). 3-U started.
 - 2026-10-05 — 2-R merged (6 conflicts; SYG666 clash renumbered to SYG668); all gates green on three engines (279/279); core 41,825 B. D212, G-408.
 - 2026-10-05 — 2-Z merged; three engines 276/276; core 41,771 B. D211.
