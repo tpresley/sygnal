@@ -1674,8 +1674,9 @@ export type DiagnosticsOptions = {
  * intent stream errored (it stops emitting; `action` is its action name). `'context'`: a
  * `.context` entry threw (it keeps its last value). `'widget'`: a `defineWidget` widget's `mount`,
  * `update` or `unmount` threw (`componentName` is the component that renders it). `'patch'`: the
- * DOM driver's patch threw (a vnode hook, a DOM module); the app's DOM stops updating (reported
- * once) and the mount point is marked `data-sygnal-error="patch"` until the app is disposed.
+ * DOM driver's patch threw (a vnode hook, a DOM module, flattening the tree); the app's DOM stops
+ * updating (reported once) and the mount point is marked `data-sygnal-error="patch"` (already when
+ * `onError` runs) until the app is disposed.
  */
 export type AppErrorPhase = 'view' | 'reducer' | 'effect' | 'intent' | 'context' | 'declaration' | 'driver' | 'instantiate' | 'dispose' | 'widget' | 'patch'
 

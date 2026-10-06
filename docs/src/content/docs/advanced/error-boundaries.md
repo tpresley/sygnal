@@ -73,7 +73,7 @@ A component's `onError` covers its view, but an error while the DOM is patched (
 - **The app's DOM stops updating.** The screen keeps what the last patch left; later renders aren't patched.
 - **State and events go on.** Clicks and keys still reach the intents, reducers and effects run, drivers get their values (a save still saves).
 - **The error is reported once**, to `onError` with phase `'patch'` (and the hooks' `onError`); without an `onError` it is logged with `console.error`. This holds for a DOM driver you pass to `run()` too (`makeViewTransitionDOMDriver`).
-- **The mount point is marked** `data-sygnal-error="patch"`: the element `run()` renders into (`mountPoint`, `#root` by default). Disposing the app removes the mark, along with what the app rendered.
+- **The mount point is marked** `data-sygnal-error="patch"`: the element `run()` renders into (`mountPoint`, `#root` by default). The mark is already there when `onError` runs. Disposing the app removes the mark, along with what the app rendered; a new `run()` into the same element clears a mark that a failed app (not disposed) left. A `DocumentFragment` mount point gets no mark: it has no attributes.
 
 The mark lets CSS tell the user, with no JavaScript, that the page is out of date:
 
