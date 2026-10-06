@@ -332,7 +332,7 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 - 2026-10-05 — 3-T merged (clean; G-524…G-528; dialog failure via internal `sygnaldialogfail` → SYNC; virtual window uses `currentCSSZoom`; SYG149 shared retry queue; console allowlist module). Core 0. Gates all green (vitest 3,578, browser 338/337/337, recipes 17×3, core 42,141 B).
 - 2026-10-05 — Review of 3-T: G-533 (Med), G-534; `currentCSSZoom` checked in 3 engines; both added to 3-U.
 - 2026-10-05 — 3-U merged (G-529…G-534; `picks` cache removed; `key: []` throws; undo +101 B, dialog +26 B, core 0). G-535. Review of 3-U: nothing above Low (G-536). Gates after 3-U all green (vitest 3,623, browser 338/337/337).
-- 2026-10-05 — 3-Q merged (clean): fragments flattened before patch (snabbdom `fragments` option unused, run option deprecated), G-517…G-523, patch-error guard; core 42,292 B. User: D222 (budget 42,500 B).
+- 2026-10-05 — 3-Q merged (clean): fragments flattened before patch (snabbdom `fragments` option unused, run option deprecated), G-517…G-523, patch-error guard; core 42,292 B. User: D222 (budget 42,500 B). Gates all green (vitest 3,671, browser 345/344/344, recipes 17×3, perf-gate --runs=3 ok, core 42,292 B, 208 B headroom).
 - 2026-10-05 — 2-R merged (6 conflicts; SYG666 clash renumbered to SYG668); all gates green on three engines (279/279); core 41,825 B. D212, G-408.
 - 2026-10-05 — 2-Z merged; three engines 276/276; core 41,771 B. D211.
 - 2026-10-05 — Review of 2-U + 2-V: 14 findings (G-394…G-407). 2-S started.
