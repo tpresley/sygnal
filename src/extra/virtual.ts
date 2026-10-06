@@ -243,10 +243,11 @@ export class VirtualHost extends CollectionHost {
   grows(el: any): boolean {
     const s = el.firstElementChild?.style
     if (!s) return true
-    const up: any[] = []
-    for (let n = el.parentElement || el.getRootNode?.().host; n?.style; n = n.parentElement || n.getRootNode?.().host) {
-      up.push(n, n.getAttribute('style'))
-      n.style.overflowAnchor = 'none'
+    const up: any[] = [], O = 'overflow-anchor'
+    // (G-498: a slotted element's scroller can be in the shadow tree: its slot first)
+    for (let n = el.assignedSlot || el.parentElement || el.getRootNode?.().host; n?.style; n = n.assignedSlot || n.parentElement || n.getRootNode?.().host) {
+      up.push(n, n.style.getPropertyValue(O), n.style.getPropertyPriority(O), n.hasAttribute('style'))
+      n.style.setProperty(O, 'none')
     }
     const h = s.height, a = el.offsetHeight
     s.height = (parseFloat(h) || 0) + 1e6 + 'px'
@@ -254,8 +255,14 @@ export class VirtualHost extends CollectionHost {
     s.height = h
     // (laid out again before anchoring is back)
     void el.offsetHeight
-    // (the style attribute as it was: none stays none)
-    for (let i = 0; i < up.length; i += 2) up[i + 1] == null ? up[i].removeAttribute('style') : up[i].setAttribute('style', up[i + 1])
+    // G-498: put back through the CSSOM (setting the style attribute is blocked under a CSP
+    // style-src without 'unsafe-inline'); no style attribute stays none (read first: Chromium and
+    // WebKit write the attribute lazily, and would add style="" after the removal)
+    for (let i = 0; i < up.length; i += 4) {
+      const n = up[i]
+      up[i + 1] ? n.style.setProperty(O, up[i + 1], up[i + 2]) : n.style.removeProperty(O)
+      if (!up[i + 3]) n.getAttribute('style'), n.removeAttribute('style')
+    }
     return b - a > 5e5
   }
 

@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- PLAN-5 3-N G-498: a page whose CSP blocks inline styles (style attributes, setAttribute('style')); CSSOM writes are allowed -->
+    <meta http-equiv="Content-Security-Policy" content="style-src 'self'" />
+    <title>3-N CSP frame</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/p5-3n-csp-frame.jsx"></script>
+  </body>
+</html>
