@@ -294,7 +294,7 @@ export class CollectionHost {
       const inst: any = shown[i], v = inst.render()
       if (v !== inst.last) { inst.last = v; changed = true }
       // an item without state yet (or a removed one) is left out
-      if (v !== undefined) { const w = vn ? named(inst, v, vn) : v; out[j++] = this.tr ? this.tr(w) : w }
+      if (v !== undefined) out[j++] = this.tr ? this.tr(vn ? named(inst, v, vn) : v) : vn ? named(inst, v, vn) : v
     }
     out.length = j
     if (!changed) return this.outv
