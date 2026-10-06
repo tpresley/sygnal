@@ -74,3 +74,39 @@ describe('G-557: READY: false on a component whose root is a fragment', () => {
     expect(el.querySelector('.a')).toBe(null)
   })
 })
+
+describe('G-558: the mock DOM scopes a fragment root', () => {
+  function Item({ state }) { return h('li', null, h('button', { className: 'b' }, state.t)) }
+  Item.intent = ({ DOM }) => ({ HIT: DOM.select('.b').events('click') })
+  Item.model = { HIT: (s) => ({ ...s, t: s.t + '!' }) }
+  function List() { return h(Collection, { of: Item, from: 'rows' }) }
+
+  it("t.html() of a list component returning a Collection prints the items directly (r4h P10)", async () => {
+    function App() { return h('ul', null, h(List, { state: 'l' })) }
+    App.initialState = { l: { rows: [{ id: 1, t: 'a' }, { id: 2, t: 'b' }] } }
+    const t = renderComponent(App); await t.ready()
+    expect(t.html()).toBe('<ul><li><button class="b">a</button></li><li><button class="b">b</button></li></ul>')
+    t.simulateEvent('.b', 'click'); await t.settle()
+    expect(t.state.l.rows.map(r => r.t)).toEqual(['a!', 'b'])
+    expect(t.html()).not.toContain('undefined')
+    t.dispose()
+  })
+
+  it('renderComponent of the list component itself', async () => {
+    List.initialState = { rows: [{ id: 1, t: 'a' }] }
+    try {
+      const t = renderComponent(List); await t.ready()
+      expect(t.html()).toBe('<li><button class="b">a</button></li>')
+      t.dispose()
+    } finally { delete List.initialState }
+  })
+
+  it('a <>…</> root with text in a child component', async () => {
+    function Frag() { return h(Fragment, null, h('b', null, 'x'), 'y') }
+    function App() { return h('div', null, h(Frag)) }
+    App.initialState = {}
+    const t = renderComponent(App); await t.ready()
+    expect(t.html()).toBe('<div><b>x</b>y</div>')
+    t.dispose()
+  })
+})
