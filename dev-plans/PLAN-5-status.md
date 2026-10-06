@@ -6,7 +6,7 @@ Tracks progress for [PLAN-5.md](PLAN-5.md) (ecosystem components and integration
 
 **Integration branch:** `plan5-integration`, cut from `plan46-complete` (`7146161`) on 2026-10-05, in worktree `.claude/worktrees/plan-4-execution-7ae8e8`. The release stays held (D56).
 
-**State:** Phase 2: 2-B, 2-V, 2-U, 2-A merged; 2-Z and 2-R merged; 2-S, 2-T merged (Phase 2 complete); Phase 3: 3-R, 3-D merged; 3-F merged; 3-G merged; 3-H merged; 3-I, 3-J, 3-K merged; 3-O merged; 3-M, 3-N merged; 3-P merged; running 3-Q, 3-T (2-A/2-S review fixes, SYG148–149). Known flaky test `p5-1s-forms` (fixed in 2-R).
+**State:** Phase 2: 2-B, 2-V, 2-U, 2-A merged; 2-Z and 2-R merged; 2-S, 2-T merged (Phase 2 complete); Phase 3: 3-R, 3-D merged; 3-F merged; 3-G merged; 3-H merged; 3-I, 3-J, 3-K merged; 3-O merged; 3-M, 3-N merged; 3-P merged; running 3-Q, 3-T, 3-U (2-A/2-S review fixes, SYG148–149). Known flaky test `p5-1s-forms` (fixed in 2-R).
 
 ## 0-A baseline (2026-10-05)
 
@@ -275,6 +275,10 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 | G-526 | review 3-N | Low | virtual / docs | The CSSOM restore reserializes ancestors' `style` attributes (normalised text, unparsed vendor declarations dropped). Document | → 3-T |
 | G-527 | review 3-N | Low | diagnostics | SYG149 starves under View Transition patches < 50 ms apart (each bumps the generation before the retry). Plausible | → 3-T |
 | G-528 | review 3-N | Low | tests | `currentTest` never cleared: allowlisted errors between tests count for the previous test | → 3-T |
+| G-529 | review 3-P | Med | undo | Array `key`: `same()` compares the `{todo, done}` object one level deep (arrays by identity), so a drag back to its start leaves `base` pending forever; UNDO then no-ops and sets `canRedo`. Compare per key. Confirmed | → 3-U |
+| G-530 | review 3-P | Med | undo | Array-key `picks` cache keeps every primitive value combination in a strong Map for the definition's life (editor: 11.9 MB vs 0.1 MB for one key). Confirmed | → 3-U |
+| G-531 | review 3-P | Low | undo | Array key: UNDO writes an own `undefined` property for a missing key; `key: []` accepted silently | → 3-U |
+| G-532 | review 3-P | Low | sortable / docs | Lists re-derived on every step (transforming lens, host `sort.KEY` entries that normalise) never match → Escape/unmount always "stay"; document. Reducer-time mutation of the `drags` map (replay/double-invoke turns Escape into "stay"); note | → 3-U |
 | G-408 | 2-R × 2-Z | Low | process | Two parallel workstreams registered the same code (SYG666); fixed at merge (2-R's → SYG668). Briefs now assign code numbers | Fixed (process) |
 | G-394 | review 2-V | High | VirtualCollection | An inline `estimateSize` function (the guide's own pattern) clears every measured row height on each owner render; rows aren't re-measured. Confirmed | → 2-S |
 | G-395 | review 2-V | Med/High | VirtualCollection | SYG430 "grows" misfires on a bounded container above viewport height that fits its rows; clamping then leaves unreachable blank rows. Confirmed | → 2-S |
@@ -319,6 +323,7 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 - 2026-10-05 — 3-N merged (clean); gates all green (vitest 3,537, browser 336/335/335, recipes 17×3, core 42,141 B). Review of 3-M: G-518…G-523 (one high: stale fragment bounds after hydration stop the app updating; snabbdom fragment limits also cause G-517, G-522). 3-Q started (fragments design + hydration fixes).
 - 2026-10-05 — Review of 3-N: G-524…G-528 (no high). 3-T started.
 - 2026-10-05 — 3-P merged (clean; D219 identity restore with lift snapshot, internal `undoEnd` hint, `base` owner key; sortable +150 B, undo +186 B, core 0). User: D221.
+- 2026-10-05 — Review of 3-P: the D219 restore holds (no path overwrites foreign data; every miss is "stay"). G-529…G-532 (array-key undo). 3-U started.
 - 2026-10-05 — 2-R merged (6 conflicts; SYG666 clash renumbered to SYG668); all gates green on three engines (279/279); core 41,825 B. D212, G-408.
 - 2026-10-05 — 2-Z merged; three engines 276/276; core 41,771 B. D211.
 - 2026-10-05 — Review of 2-U + 2-V: 14 findings (G-394…G-407). 2-S started.
