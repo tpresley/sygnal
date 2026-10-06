@@ -256,7 +256,9 @@ describe('thunk', () => {
 })
 
 describe('a patch that throws', () => {
-  it('is reported, and the app keeps updating (the DOM stream no longer ends)', async () => {
+  // 3-V G-540: the guard no longer adopts the DOM again (that wiped widgets and duplicated
+  // Portals): the error is reported once and the app's DOM stops updating (test/p5-3v-review)
+  it('is reported once; the app no longer patches (the DOM stream still does not end)', async () => {
     let boom = 0
     const App = counter((s) => h('div', null,
       h('p', { hook: { update: () => { if (s.n == 1 && !boom++) throw new Error('hook failed') } } }, 'n=' + s.n),
@@ -265,9 +267,8 @@ describe('a patch that throws', () => {
     await click('.b')
     expect(errors.mock.calls.map(c => String(c[0]))).toEqual(['Error: hook failed'])
     errors.mockClear()
-    await click('.b')
-    expect(document.querySelector('main > div').innerHTML).toBe('<p>n=2</p><i>2</i>')
-    await click('.b')
-    expect(document.querySelector('main > div').innerHTML).toBe('<p>n=3</p><i>3</i>')
+    await click('.b'); await click('.b')
+    expect(document.querySelector('main > div').innerHTML).toBe('<p>n=0</p><i>0</i>')
+    expect(errors).not.toHaveBeenCalled()
   })
 })
