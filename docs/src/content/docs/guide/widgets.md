@@ -54,7 +54,7 @@ Task.model = {
 | Field | Meaning |
 |-------|---------|
 | `tag` | The host element: `'div'` by default, `'input'` for a widget that enhances a field, `'canvas'`... |
-| `mount(el, props, dispatch)` | Called once, when the host enters the page. Build the widget in `el` and return its instance. `dispatch(name, detail)` sends the widget's [events](#events). |
+| `mount(el, props, dispatch, error)` | Called once, when the host enters the page. Build the widget in `el` and return its instance. `dispatch(name, detail)` sends the widget's [events](#events); `error(e)` reports a [later failure](#errors) the widget caught itself. |
 | `update(instance, props, el)` | Called with the newest props whenever they change (a shallow compare). Without `update`, a change unmounts and mounts again. |
 | `unmount(instance, el)` | Called when the host leaves the page: destroy the widget, remove its listeners. |
 | `events` | The event names `dispatch` sends. |
@@ -104,6 +104,32 @@ In TypeScript, add the command names and their options to `ElementCommandRegistr
 ## Errors
 
 A `mount` or `update` that throws doesn't take the page down. The error goes to the app's `onError` hook with the phase `'widget'`, and the component that renders the widget shows its [`onError` fallback](/advanced/error-boundaries/) in that widget's place; the rest of its view keeps working, other widgets included ([SYG660](/reference/errors/#syg660), [SYG661](/reference/errors/#syg661)). The widget is tried again when the view passes it other props, or when it renders again after its fallback left the page (a panel closed and reopened). An `unmount` that throws is reported the same way ([SYG662](/reference/errors/#syg662)).
+
+Some libraries also draw on their own, after `mount` returned: on a resize, a timer or their own state change. Sygnal doesn't see a failure there, so catch it and pass it to `error`, the fourth parameter of `mount`. It is handled like an `update` that throws: [SYG661](/reference/errors/#syg661), the app's `onError` with the phase `'widget'`, and the owner's `onError` fallback in that widget's place (its host leaves the page, so `unmount` runs):
+
+```jsx
+// Sparkline.js
+import { defineWidget } from 'sygnal'
+import { drawSparkline } from './drawSparkline.js'
+
+export const Sparkline = defineWidget({
+  name: 'Sparkline',
+  tag: 'canvas',
+  mount: (el, props, dispatch, error) => {
+    const chart = { points: props.points }
+    chart.observer = new ResizeObserver(() => {
+      try { drawSparkline(el, chart.points) } catch (e) { error(e) }
+    })
+    chart.observer.observe(el)
+    drawSparkline(el, chart.points)
+    return chart
+  },
+  update: (chart, props, el) => { chart.points = props.points; drawSparkline(el, chart.points) },
+  unmount: (chart) => chart.observer.disconnect(),
+})
+```
+
+A failure during `mount` itself is thrown, not passed to `error` (it is [SYG660](/reference/errors/#syg660)); an `error` call after the widget unmounted does nothing.
 
 ## Accessibility
 
@@ -182,7 +208,7 @@ The widget tag itself is not a selector: `DOM.select(DatePicker)` matches nothin
 | [SYG142](/reference/errors/#syg142) | A command the widget doesn't declare and its host doesn't have |
 | [SYG143](/reference/errors/#syg143) | The widget tag used as a selector |
 | [SYG144](/reference/errors/#syg144) | A declared event name the browser also fires (information) |
-| [SYG660](/reference/errors/#syg660)–[662](/reference/errors/#syg662) | `mount`, `update` or `unmount` threw |
+| [SYG660](/reference/errors/#syg660)–[662](/reference/errors/#syg662) | `mount`, `update` or `unmount` threw, or the widget called `error(e)` (SYG661) |
 
 ## Widgets, web components and React components
 

@@ -816,7 +816,7 @@ const DatePicker = defineWidget({
 | Field | Description |
 |-------|-------------|
 | `tag` | The host element (default `'div'`); it has no children of its own |
-| `mount(el, props, dispatch)` | Called once the host is in the page; returns the instance. `dispatch(name, detail)` sends an event |
+| `mount(el, props, dispatch, error)` | Called once the host is in the page; returns the instance. `dispatch(name, detail)` sends an event; `error(e)` reports a later failure the widget caught itself (a library's own redraw), handled like a throwing `update` (SYG661) |
 | `update(instance, props, el)` | Called with the newest props when they change (shallow; `style`/`attrs` objects by their entries); without it, a change remounts |
 | `unmount(instance, el)` | Called when the host leaves the page |
 | `events` | The names `dispatch(name, detail)` sends (bubbling `CustomEvent`s on the host) |
@@ -826,7 +826,23 @@ const DatePicker = defineWidget({
 | `ownProps` | Prop names that stay off the host (the widget applies them itself) |
 | `name` | A name for diagnostics |
 
-A `ref` on the tag gets the host element; `key` and `ref` are not passed to the widget. A `mount`/`update` that throws is reported to `onError` with the phase `'widget'` and the owning component's `onError` fallback renders in that widget's place ([SYG660–662](/reference/errors/#syg660)). Types: `Widget<P, I, EV, TAG>`, `WidgetDefinition`, `WidgetHostProps`, `WidgetDispatch`.
+A `ref` on the tag gets the host element; `key` and `ref` are not passed to the widget. A `mount`/`update` that throws, or a call to `mount`'s `error(e)`, is reported to `onError` with the phase `'widget'` and the owning component's `onError` fallback renders in that widget's place ([SYG660–662](/reference/errors/#syg660)):
+
+```jsx
+const Sparkline = defineWidget({
+  tag: 'canvas',
+  mount: (el, props, dispatch, error) => {
+    const observer = new ResizeObserver(() => {
+      try { drawSparkline(el, props.points) } catch (e) { error(e) }
+    })
+    observer.observe(el)
+    return observer
+  },
+  unmount: (observer) => observer.disconnect(),
+})
+```
+
+Types: `Widget<P, I, EV, TAG>`, `WidgetDefinition`, `WidgetHostProps`, `WidgetDispatch`.
 
 ---
 
