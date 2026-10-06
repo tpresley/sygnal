@@ -54,6 +54,10 @@ People.model = {
 
 The element is its own scroll container (`overflow-y: auto`), so **give its class a bounded height**: `height`, `max-height`, or `flex: 1` with `min-height: 0` in a flex column. Without one it grows with its rows and would render all of them; Sygnal then renders only a viewport's height of rows and reports [SYG430](/reference/errors/#syg430). A `max-height` taller than its rows is fine: the container fits them, and they all render. A percentage `height` or `max-height` bounds it only when its parent has a height itself (`max-height: 100%` of a parent that grows doesn't); Sygnal measures this rather than reading the CSS.
 
+That measurement only happens for a container as tall as all its rows and taller than the viewport. It makes the list's spacer much taller for one forced layout and turns scroll anchoring off (`overflow-anchor: none`) on every ancestor meanwhile, so the page doesn't move. It puts each ancestor's inline style back through the CSSOM (`element.style`), not by rewriting the `style` attribute, because a [Content Security Policy](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CSP) whose `style-src` has no `'unsafe-inline'` blocks attribute writes. The browser then writes those ancestors' `style` attributes again from the declarations it parsed: the text is normalised (`PADDING-TOP:1px` becomes `padding-top: 1px;`), and a declaration it doesn't understand (another engine's vendor prefix) is dropped. Styles you set with JSX `style={{ ... }}` are unaffected. An ancestor without a `style` attribute keeps none.
+
+The viewport-high window is in the rows' own pixels under an ancestor's CSS `zoom` (`zoom: 0.5` renders twice the rows); a CSS `transform` such as `scale()` doesn't change it.
+
 ## Props
 
 `of`, `from`, `filter` and `sort` work as on a [Collection](/guide/collections/): the same keys (an item's `id`, or its index without one), the same duplicate and missing-`from` handling, and an item writes back to its own array element. Any other prop goes to every item, as with a Collection. These are the container's:
