@@ -97,7 +97,7 @@ const adopt = (e: any, v: any, T: any[] = [], P: any = {n: e.firstChild}, f?: an
     } else {
       P.n = x.nextSibling;
       if (t == 3 && w && !w.sel && w.text != null) n = {text: x.data, elm: x};
-      else if (t == 1 && x.localName == w?.sel?.split(/[#.]/, 1)[0] && !(k?.insert && !k.postpatch)) {
+      else if (t == 1 && x.localName == w?.sel?.split(/[#.]/, 1)[0] && !(k && (k.create || k.init || k.u || k.insert && !k.postpatch))) {
         const p = d.props || {}, a = d.attrs || {}, o: any = {}, at: any = {}, pr: any = {}, f = x.firstChild;
         o.class = 'className';
         for (const m in p) o[m == 'htmlFor' ? 'for' : m.toLowerCase()] = m;

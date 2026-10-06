@@ -211,6 +211,49 @@ describe('G-484 / G-490: textarea and select', () => {
   })
 })
 
+describe('G-485: elements whose hooks expect a new element', () => {
+  it('a user insert hook plus a ref: made again, insert runs, the ref points at the new element', async () => {
+    const ref = createRef(), calls = []
+    const App = app(() => h('div', null, h('div', { ref, hook: { insert: (v) => calls.push(v.elm) }, 'data-t': 'h' }, 'chart'), h('p', { 'data-t': 'p' }, 'p')))
+    const r = await hydrate(App)
+    expect(calls).toEqual([r.now('h')])
+    expect(r.keptT('h')).toBe(false)
+    expect(ref.current).toBe(r.now('h'))
+    expect(r.keptT('p')).toBe(true)
+  })
+
+  it('a user insert hook plus autoFocus: made again, insert runs', async () => {
+    const calls = []
+    const App = app(() => h('input', { autoFocus: true, hook: { insert: (v) => calls.push(v.elm) }, 'data-t': 'i' }))
+    const r = await hydrate(App)
+    expect(calls).toEqual([r.now('i')])
+  })
+
+  it('a create hook: made again, create runs', async () => {
+    let n = 0
+    const App = app(() => h('div', null, h('div', { hook: { create: () => n++ }, 'data-t': 'c' }, 'c'), h('p', { 'data-t': 'p' }, 'p')))
+    const r = await hydrate(App)
+    expect(n).toBe(1)
+    expect(r.keptT('p')).toBe(true)
+  })
+
+  it('an init hook: made again, init runs', async () => {
+    let n = 0
+    const App = app(() => h('div', { hook: { init: () => n++ }, 'data-t': 'c' }, 'c'))
+    await hydrate(App)
+    expect(n).toBe(1)
+  })
+
+  it('a ref and autoFocus alone still adopt (unchanged)', async () => {
+    const ref = createRef()
+    const App = app(() => h('input', { ref, autoFocus: true, 'data-t': 'i' }))
+    const r = await hydrate(App, { prep: (t) => { t.i.value = 'typed' } })
+    expect(r.keptT('i')).toBe(true)
+    expect(ref.current).toBe(r.byT.i)
+    expect(r.now('i').value).toBe('typed')
+  })
+})
+
 describe('G-487: open', () => {
   it('a <details> the user opened before start-up stays open; a client-rendered `open` wins', async () => {
     const App = app(() => h('div', null, h('details', { 'data-t': 'd' }, h('summary', null, 's'), 'body'), h('details', { open: false, 'data-t': 'c' }, h('summary', null, 's'))))

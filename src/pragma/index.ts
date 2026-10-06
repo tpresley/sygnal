@@ -89,6 +89,9 @@ const svgTags: Record<string, number> = {
 export const chainHooks = (data: any, hooks: Record<string, (...args: any[]) => void>): void => {
   const existing = data.hook || {}
   const hook = { ...existing }
+  // G-485: `u`, an insert hook of the user's own without a postpatch (hydration makes its
+  // element again, as for any such hook)
+  if (existing.insert && !existing.postpatch) hook.u = 1
   for (const name in hooks) {
     hook[name] = (...args: any[]) => {
       if (existing[name]) existing[name](...args)

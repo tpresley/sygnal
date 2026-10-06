@@ -55,7 +55,8 @@ describe('P45-B: nested prop objects by reference', () => {
     const v = h('input', { hook, ref: () => {}, autoFocus: true })
     expect(hook).toEqual({ insert })
     expect(v.data.hook).not.toBe(hook)
-    expect(Object.keys(v.data.hook).sort()).toEqual(['destroy', 'insert', 'postpatch'])
+    // (u: the passed hook's own insert, without a postpatch; 3-M G-485)
+    expect(Object.keys(v.data.hook).sort()).toEqual(['destroy', 'insert', 'postpatch', 'u'])
   })
 
   it('an undefined entry is dropped (a copy), the object passed is left alone', () => {
