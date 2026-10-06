@@ -31,8 +31,9 @@ export function viewTransition$(vnode$: Stream<VNode>, flags: () => any): Stream
     };
     try {
       // G-489: a transition the browser skips (duplicate names, a newer one) rejects `ready`:
-      // handled (the update still runs; `finished` / `updateCallbackDone` reject only when it throws)
-      d.startViewTransition(update).ready.catch(Object);
+      // handled (the update still runs; `finished` / `updateCallbackDone` reject only when it throws).
+      // (a stand-in without `ready` must not throw here: the update would run twice)
+      d.startViewTransition(update)?.ready?.catch(Object);
     } catch (_) {
       // the browser refused (e.g. an invalid state): patch now
       update();
