@@ -235,12 +235,6 @@ describe('3-J: markup the client renders differently', () => {
       App.initialState = {}
       const want = await fresh(App)
       const r = await hydrate(App, { server })
-      if (name == 'styleDecls') {
-        // a server declaration the client doesn't set stays (the style module writes its own
-        // keys): documented
-        expect(r.html()).toBe('<div style="color: red; margin: 0px">x</div>')
-        return
-      }
       expect(r.html()).toBe(want)
     })
   }

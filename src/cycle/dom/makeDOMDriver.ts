@@ -107,7 +107,6 @@ const adopt = (e: any, v: any, T: any[] = [], P: any = {n: e.firstChild}, f?: an
           /^data-/.test(m) ? m in a && x.removeAttribute(m)
           : m in a ? at[m] = y
           : w.sel != x.localName && /^(class|id)$/.test(m) ? 0
-          : m == 'style' && d.style ? 0
           : m in o && !d.ns ? pr[o[m]] = y
           : x.removeAttribute(m);
         const s = w.text != null && f?.nodeType == 3 && !f.nextSibling;

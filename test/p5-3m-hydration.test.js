@@ -159,3 +159,21 @@ describe('G-482: data-* attributes the client sets as attributes', () => {
     expect(r.kept.length).toBe(r.all.length)
   })
 })
+
+describe('G-483: style declarations only the server wrote', () => {
+  it('a non-SSR mount over a spinner ends equal to a fresh render', async () => {
+    function App() { return h('div', { style: { color: 'red' } }, 'Hi') }
+    App.initialState = {}
+    const want = await fresh(App)
+    const r = await hydrate(App, { server: '<div class="spinner" style="position: fixed; inset: 0px; color: blue" aria-busy="true">Loading…</div>' })
+    expect(r.html()).toBe(want)
+  })
+
+  it('a client style keeps the declarations both set, drops the rest (incl. custom properties)', async () => {
+    const App = app(() => h('div', { style: { marginTop: '2px', '--k': '1' }, 'data-t': 'd' }, 'x'))
+    const r = await hydrate(App, { server: '<main><div data-t="d" style="margin-top: 2px; --k: 1; --gone: 2; padding: 3px">x</div></main>' })
+    expect(r.keptT('d')).toBe(true)
+    const st = r.now('d').style
+    expect([st.marginTop, st.getPropertyValue('--k'), st.getPropertyValue('--gone'), st.padding]).toEqual(['2px', '1', '', ''])
+  })
+})
