@@ -253,3 +253,51 @@ describe('3-O G-508: REDO mid-drag', () => {
     expect(past()).toEqual(['1234'])
   })
 })
+
+// gesture → recorded action → gesture → UNDO×n → REDO×n, under each option; `steps` are run in
+// order, then `undo` / `redo` are the orders after each UNDO / REDO (the last one: a no-op)
+describe('3-O: undo gesture sequences', () => {
+  const run = async (steps) => {
+    for (const s of steps) {
+      if (s === 'ADD') await act('ADD')
+      else if (s === 'lift1' || s === 'lift2') await lift(Number(s[4]))
+      else if (s === 'down') await key('ArrowDown')
+      else if (s === 'up') await key('ArrowUp')
+      else if (s === 'esc') { if (document.activeElement === document.body) grip(t.state.sort.dragging).focus(); press('Escape'); await t.next(x => x.sort.dragging === null); await t.settle() }
+      else if (s === 'drop') await drop()
+      else await drag(Number(s.slice(4)))               // 'drag1', 'drag3'
+    }
+  }
+  const cases = [
+    { name: 'defaults', opts: {}, steps: ['drag1', 'ADD', 'drag3'], end: '21435', undo: ['21345', '2134', '1234', '1234'] },
+    { name: 'track: [ADD]', opts: { track: ['ADD'] }, steps: ['drag1', 'ADD', 'drag3'], end: '21435', undo: ['2134', '2134'], redo: ['21435', '21435'] },
+    { name: 'track: [sort.DROPPED]', opts: { track: ['sort.DROPPED'] }, steps: ['drag1', 'ADD', 'drag3'], end: '21435', undo: ['21345', '1234', '1234'], redo: ['21345', '21435', '21435'] },
+    { name: 'limit: 2', opts: { limit: 2 }, steps: ['drag1', 'ADD', 'drag3'], end: '21435', undo: ['21345', '2134', '2134'] },
+    { name: 'coalesce: [sort.DROPPED]', opts: { coalesce: ['sort.DROPPED'], coalesceMs: 5000 }, steps: ['drag1', 'drag3', 'ADD'], end: '21435', undo: ['2143', '1234', '1234'] },
+    { name: 'coalesceMs alone', opts: { coalesceMs: 5000 }, steps: ['drag1', 'drag3', 'ADD'], end: '21435', undo: ['2143', '2134', '1234', '1234'] },
+    { name: 'resetOn: [ADD]', opts: { resetOn: ['ADD'] }, steps: ['drag1', 'ADD', 'drag3'], end: '21435', undo: ['21345', '21345'] },
+    { name: 'resetOn: [sort.DROPPED]', opts: { resetOn: ['sort.DROPPED'] }, steps: ['ADD', 'drag1'], end: '21345', undo: ['21345'] },
+    { name: 'a recorded action mid-drag', opts: {}, steps: ['lift1', 'down', 'ADD', 'down', 'drop'], end: '23145', undo: ['21345', '1234', '1234'] },
+    { name: 'a cancelled drag, then a drag', opts: {}, steps: ['lift1', 'down', 'esc', 'ADD', 'drag2'], end: '13245', undo: ['12345', '1234', '1234'] },
+    { name: 'a drag moved back, then dropped', opts: {}, steps: ['ADD', 'lift2', 'down', 'up', 'drop', 'drag3'], end: '12435', undo: ['12345', '1234', '1234'] },
+    // open (3-O report): Escape after a recorded action mid-drag restores the item into the
+    // changed list; undo can't tell that change from a move, so it is left pending and the next
+    // change records the half-moved order (as on the 3-L tip)
+    { name: 'a recorded action mid-drag, then cancelled', todo: true, opts: {}, steps: ['lift1', 'down', 'ADD', 'esc', 'ADD'], end: '123456', undo: ['12345', '1234', '1234'] },
+  ]
+  for (const first of ['sort', 'history']) {
+    for (const c of cases) {
+      if (c.todo) { it.todo(`${c.name} (uses: ${first} first)`); continue }
+      it(`${c.name} (uses: ${first} first)`, async () => {
+        t = renderComponent(withUndo(c.opts, first), { dom: 'real' }); await t.ready()
+        await run(c.steps)
+        expect(order(t.state)).toBe(c.end)
+        expect(t.state.history.base).toBe(undefined)
+        for (const o of c.undo) { await act('history.UNDO'); expect(order(t.state)).toBe(o) }
+        const redo = c.redo || [...c.undo.slice(0, -1).reverse().slice(1), c.end, c.end]
+        for (const o of redo) { await act('history.REDO'); expect(order(t.state)).toBe(o) }
+        expect(t.state.history.future).toEqual([])
+      })
+    }
+  }
+})
