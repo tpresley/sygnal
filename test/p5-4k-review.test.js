@@ -140,12 +140,23 @@ describe('G-571: a hop guard for synchronous redirects', () => {
     App.model = { ROUTE: { ROUTER: (s, r) => (r.name == 'a' || r.name == 'b') && n++ < 100 ? { to: r.name == 'a' ? 'b' : 'a', replace: true } : ABORT } }
     start(App, router)
     await sleep(20)
+    // diagnostics off (production): nothing printed
+    const quiet = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    pop('/a')
+    for (let i = 0; i < 100 && n <= 100; i++) await sleep(5)
+    expect(n).toBe(101)
+    expect(quiet.mock.calls.filter(c => String(c[0]).includes('router: more than'))).toHaveLength(0)
+    quiet.mockRestore()
+    pop('/'); await sleep(10)
+    n = 0
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
-    globalThis.__SYGNAL_DIAGNOSTICS__ = {}
+    // (diagnostics on, as in development)
+    const hooks = globalThis.__SYGNAL_DIAGNOSTICS__.hooks, on = hooks.on
+    hooks.on = () => true
     try {
       pop('/a')
       for (let i = 0; i < 100 && n <= 100; i++) await sleep(5)
-    } finally { delete globalThis.__SYGNAL_DIAGNOSTICS__ }
+    } finally { hooks.on = on }
     expect(n).toBe(101)
     const calls = warn.mock.calls.filter(c => String(c[0]).includes('router: more than'))
     warn.mockRestore()

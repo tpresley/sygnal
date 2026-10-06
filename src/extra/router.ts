@@ -173,10 +173,11 @@ export function makeRouter(options: any = {}) {
       };
       // G-571: a redirect made from a ROUTE entry is delivered at once (a chain /secret → /login
       // → /other is one flush, one patch); past HOPS of them before a microtask (a redirect
-      // loop) each next one waits a task, so the loop can't hang the page (dev: a warning, once)
+      // loop) each next one waits a task, so the loop can't hang the page (a warning, once, when the
+      // diagnostics are on: in development)
       if (!hops++) queueMicrotask(() => { hops = 0; });
       if (hops > HOPS) {
-        if (!warned++ && g.__SYGNAL_DIAGNOSTICS__) console.warn(`[Sygnal] router: more than ${HOPS} navigations in one flush (a redirect loop?); each next one waits a task (reported once)`, r.path);
+        if (g.__SYGNAL_DIAGNOSTICS__?.hooks?.on?.() && !warned++) console.warn(`[Sygnal] router: more than ${HOPS} navigations in one flush (a redirect loop?); each next one waits a task (reported once)`, r.path);
         setTimeout(send);
       } else send();
       if (kind != 'start') settle(kind);
