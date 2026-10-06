@@ -122,35 +122,42 @@ export function sameData(a: any, b: any): boolean {
 // one landed at the parent's end, a keyed one never moved, a later patch threw NotFoundError).
 // The children of a keyed fragment (a Collection item, a component's root) take its key and their
 // own key, else their tag and its count among them: they move with it and stay apart from another
-// item's. G-541: as JSON ([prefix, key] or [prefix, [tag, count]]), so no two paths give the same
-// key (a '/' separator did: fragment "src" + "a/b.ts" and fragment "src/a" + "b.ts"). A vnode with no fragment below is kept by identity, as is one already flattened (a
-// cached subtree), so snabbdom still skips unchanged subtrees; so are a keyed fragment's copies
-// while the fragment and its prefix are the same (G-539). A copy (a
+// item's. G-541: no two paths give the same key (a '/' separator did: fragment "src" + "a/b.ts" and
+// fragment "src/a" + "b.ts"). 3-W G-544: each segment is a JSON string (the key as a string) or
+// array ([tag, count], always last), which ends where it ends, appended to the prefix
+// (`"src""a/b.ts"`): a key grows linearly with the nesting (JSON in JSON doubled at each level),
+// and any key String() takes is fine (G-548: a BigInt; two Symbols with the same description share
+// a key; a number key and its string are one key, as in snabbdom). A vnode with no fragment below is kept by identity, as is one already
+// flattened (a cached subtree), so snabbdom still skips unchanged subtrees; so are a keyed
+// fragment's copies while the fragment and its prefix are the same (G-539; a hit compares the
+// parent's prefix, the fragment's own is made on a miss). A hoisted keyed fragment rendered in two
+// places shares its copies, as any hoisted vnode shares its object (render it once). A copy (a
 // parent with new children, a child with a new key) inherits from its vnode and writes its
 // element there too, so the app's vnodes get their `elm` as before (testing and diagnostics read
 // it); it keeps its own (a vnode object reused under another key: the old copy removes its own).
 const flatOf = new WeakMap<any, any>();
 const copy = (y: any, o: any, m?: any) => Object.create(y, {...o, elm: {get: () => m, set: (e: any) => y.elm = m = e}});
+const seg = (k: any, s: any) => (k || '') + JSON.stringify(typeof s == 'object' ? s : String(s));
 export const flat = (v: any): any => {
   if (!v || v.$p || !v.children) return v;
   let r = flatOf.get(v);
   if (!r) {
     const o: any[] = [];
     let d = 0;
-    // (p, m, s: locals of each call)
-    const put = (c: any[], k?: string, n: any = {}, p?: any, m?: any, s?: any) => {
+    // (m, s: locals of each call)
+    const put = (c: any[], k?: string, n: any = {}, m?: any, s?: any) => {
       for (const x of c) {
         // G-539: a keyed fragment's copies are kept per (fragment, prefix), in flatOf (flat() never
         // takes a fragment): an unchanged one (a Collection item that didn't render again) gives
         // snabbdom the same vnodes
         if (x && !x.sel && x.children) d = 1, x.key == null ? put(x.children, k, n)
-          : (m = flatOf.get(x))?.[0] == (p = JSON.stringify([k, x.key])) ? o.push(...m[1])
-          : (s = o.length, put(x.children, p), flatOf.set(x, [p, o.slice(s)]));
+          : (m = flatOf.get(x)) && m[0] === k ? o.push(...m[1])
+          : (s = o.length, put(x.children, seg(k, x.key)), flatOf.set(x, [k, o.slice(s)]));
         else {
           let y = flat(x);
           y !== x && (d = 1);
           if (k && y) {
-            y = copy(y, {key: {value: JSON.stringify([k, y.key ?? [y.sel, n[y.sel] = -~n[y.sel]]])}});
+            y = copy(y, {key: {value: seg(k, y.key ?? [y.sel, n[y.sel] = -~n[y.sel]])}});
           }
           o.push(y);
         }
