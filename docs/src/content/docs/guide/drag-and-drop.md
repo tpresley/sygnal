@@ -109,6 +109,8 @@ If the host is removed while an item is lifted (a route change, a parent hiding 
 
 Cancelling (Escape, the host removed or made again) puts the list back only when nothing else has changed it since the last arrow key: the lists are then exactly the arrays the drag made, and the ones it lifted the item from come back as they were. When anything else changed them in the meantime (an entry edited, added or removed, the list replaced by new data, an undo or redo, another action reordering it, another tab's copy), the item stays where it is and the drag just ends: the behavior doesn't guess where the item belongs in a list that changed under it. Escape then announces that the item stays (`messages.stay`).
 
+The check is by identity, so a list that is made again on every step never matches, and cancelling it always leaves the item where it is: a host whose state comes through a lens that builds new arrays on each read (`get: s => s.tasks.map(...)` or a filter), or a host's own `sort.KEY` entry that returns a new array (normalising or re-sorting the list after each arrow key). Keep the lists the behavior sorts as stored arrays (a plain key or a lens that passes them through) for Escape to put them back. Undo is unaffected: a dropped drag is still one step.
+
 ### Pointer and touch
 
 A press on a handle followed by a move past `threshold` starts a drag. While it moves, `over` and `after` say where the item would land, for a drop indicator; the list itself changes on release (a release over nothing, or outside the list, cancels). Escape cancels a pointer drag too. Mouse, pen and touch work the same way (Pointer Events, with document listeners only while a press is active).
@@ -177,6 +179,8 @@ Board.uses = {
   history: undo({ key: ['todo', 'done'] }),
 }
 ```
+
+Each key is compared on its own, so a drag that moves an item to the other list and back, then drops it, records nothing. An undo restores only the keys the state had when the step was recorded (a key that was missing then is removed, not set to `undefined`); `key: []` throws.
 
 [`persist()`](/guide/persistence/) never saves or restores the root component's `state.sort` (it is UI state). A sortable on a sub-component or a Collection item keeps its slice in the data around it (`state.lanes[0].sort`), so a root `persist()` saves it with that data. Drag state that comes back this way, from another tab, or into a host made again (HMR) doesn't resume a drag: it is reset when the host starts or at the next press or key. Restored or synced drag state leaves the data as it is (only the drag that moved the item, in this page, knows its own lists: another tab's drag never moves anything here); a drag of this page (a host made again, a second host of the same slice) is cancelled by the rules above, so its lists come back when nothing else changed them.
 

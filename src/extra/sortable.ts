@@ -82,7 +82,10 @@ const claimed = new WeakSet<any>()
 // a selector usable as one compound (`.task`, `li[data-x]`), else wrapped in :is()
 const one = (s: string) => /^[\w.#\-[\]="']+$/.test(s) ? s : `:is(${s})`
 // D219: a keyboard drag's lists at lift (`snap`) and after its last step (`made`), under its
-// origin object; the slices a drag ended in without a drop (for undo(): G-510)
+// origin object; the slices a drag ended in without a drop (for undo(): G-510). 3-U G-532: the
+// reducers write it (lift, each step): bookkeeping outside the state, so a reducer replayed or run
+// twice for one action (a dev double-invoke, a devtools replay) can leave `made` one step ahead of
+// the lists, and that drag's Escape / END then "stays" (never a wrong restore: a miss is a stay)
 const drags = new WeakMap<any, any>(), ended = new WeakSet<any>()
 
 const defaults = {

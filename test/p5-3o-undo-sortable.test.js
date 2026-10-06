@@ -27,10 +27,11 @@ const future = () => t.state.history.future.map(ids)
 const ADD = (st) => ({ ...st, tasks: [...st.tasks, { id: st.tasks.length + 1, title: 'N' }] })
 
 // a list with undo({ key: 'tasks', ...opts }) and ADD (recorded unless track leaves it out)
-const withUndo = (opts = {}, first = 'sort') => {
+// (3-U: `key` an array, e.g. ['tasks', 'note'], records the tasks with a note that doesn't change)
+const withUndo = (opts = {}, first = 'sort', key = 'tasks') => {
   function L(props) { return TaskList(props) }
-  L.initialState = { tasks: TASKS }
-  const s = sortable({ from: 'tasks', item: '.task', handle: '.grip' }), u = undo({ key: 'tasks', ...opts })
+  L.initialState = { tasks: TASKS, note: 'n' }
+  const s = sortable({ from: 'tasks', item: '.task', handle: '.grip' }), u = undo({ key, ...opts })
   L.uses = first === 'sort' ? { sort: s, history: u } : { history: u, sort: s }
   L.model = { ADD }
   return L
@@ -290,10 +291,11 @@ describe('3-O: undo gesture sequences', () => {
     { name: 'UNDO and REDO mid-drag, then cancelled', opts: {}, steps: ['lift1', 'down', 'undo', 'redo', 'esc'], end: '1234', undo: ['2134', '1234', '1234'] },
     { name: 'UNDO mid-drag, then dropped', opts: {}, steps: ['lift1', 'down', 'undo', 'drop'], end: '1234', undo: ['1234'], redo: ['2134', '2134'] },
   ]
-  for (const first of ['sort', 'history']) {
+  // 3-U: also with an array key (D221), whose values compare key by key (G-529)
+  for (const key of ['tasks', ['tasks', 'note']]) for (const first of ['sort', 'history']) {
     for (const c of cases) {
-      it(`${c.name} (uses: ${first} first)`, async () => {
-        t = renderComponent(withUndo(c.opts, first), { dom: 'real' }); await t.ready()
+      it(`${c.name} (uses: ${first} first${typeof key == 'string' ? '' : ', key: [tasks, note]'})`, async () => {
+        t = renderComponent(withUndo(c.opts, first, key), { dom: 'real' }); await t.ready()
         await run(c.steps)
         expect(order(t.state)).toBe(c.end)
         expect(t.state.history.base).toBe(undefined)
@@ -301,6 +303,7 @@ describe('3-O: undo gesture sequences', () => {
         const redo = c.redo || [...c.undo.slice(0, -1).reverse().slice(1), c.end, c.end]
         for (const o of redo) { await act('history.REDO'); expect(order(t.state)).toBe(o) }
         expect(t.state.history.future).toEqual([])
+        expect(t.state.note).toBe('n')
       })
     }
   }
