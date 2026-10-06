@@ -290,6 +290,10 @@ describe('3-O: undo gesture sequences', () => {
     { name: 'UNDO twice mid-drag, then cancelled', opts: {}, steps: ['drag1', 'lift1', 'up', 'undo', 'undo', 'esc'], end: '1234', undo: ['1234'], redo: ['2134', '1234', '1234'] },
     { name: 'UNDO and REDO mid-drag, then cancelled', opts: {}, steps: ['lift1', 'down', 'undo', 'redo', 'esc'], end: '1234', undo: ['2134', '1234', '1234'] },
     { name: 'UNDO mid-drag, then dropped', opts: {}, steps: ['lift1', 'down', 'undo', 'drop'], end: '1234', undo: ['1234'], redo: ['2134', '2134'] },
+    // 3-W G-535: a recorded action mid-drag, then the item moved back to where it was lifted and
+    // dropped there (no move, no DROPPED): the drop still ends the gesture, nothing stays pending
+    { name: 'a recorded action mid-drag, moved back, then dropped', opts: {}, steps: ['lift1', 'down', 'ADD', 'up', 'drop'], end: '12345', undo: ['21345', '1234', '1234'] },
+    { name: 'a recorded action mid-drag, moved back, dropped, then a drag', opts: {}, steps: ['lift1', 'down', 'ADD', 'up', 'drop', 'drag3'], end: '12435', undo: ['12345', '21345', '1234', '1234'] },
   ]
   // 3-U: also with an array key (D221), whose values compare key by key (G-529)
   for (const key of ['tasks', ['tasks', 'note']]) for (const first of ['sort', 'history']) {

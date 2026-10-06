@@ -34,8 +34,9 @@
  * drag's `origin` object, never in the state): it puts back the lists it lifted from (no index
  * math). Anything else that changed them (undo, an edit, an ADD, new data, a restored or synced
  * slice: its `origin` is another object) leaves the item where it is, and the drag just ends. The
- * slice such an end leaves is marked (`ended`): undo() reads it through `undoEnd` (internal) and
- * settles the gesture's pending base (G-510).
+ * slice such an end leaves is marked (`ended`), as is a keyboard drop where the item started (no
+ * DROPPED, 3-W G-535): undo() reads it through `undoEnd` (internal) and settles the gesture's
+ * pending base (G-510).
  *
  * Pointer feedback is an indicator (over / after) while the pointer moves; the list is reordered
  * on the drop. Keyboard moves reorder live (the arrow keys), and Escape puts the item back.
@@ -157,12 +158,12 @@ export const sortable = (options: any = {}): any => {
     : list && lists.includes(list) && list != f.list ? {list, to: (st[list] || []).length, after: true}
     : null
   const where = (f: any, n: any) => n.list != f.list ? n.list : undefined
-  // a keyboard drag ends where the item is (DROPPED when it moved)
+  // a keyboard drag ends where the item is (DROPPED when it moved; 3-W G-535: else the slice is
+  // marked ended, so undo() settles the gesture: moved back after another change, it is a step)
   const drop = (st: any, k: string, next: any) => {
-    const s = st[k], f = find(st, s.dragging), o = s.origin
-    if (!f) return stop(st, k, idle)
-    if (o.list != f.list || o.index != f.index) next('DROPPED', {id: s.dragging, list: f.list, index: f.index, fromList: o.list, fromIndex: o.index}, 0)
-    return put(st, k, {...idle, message: msg.drop(label(f.item), f.index + 1, f.size, where(o, f))})
+    const s = st[k], f = find(st, s.dragging), o = s.origin, m = f && (o.list != f.list || o.index != f.index)
+    if (m) next('DROPPED', {id: s.dragging, list: f.list, index: f.index, fromList: o.list, fromIndex: o.index}, 0)
+    return (m ? put : stop)(st, k, f ? {...idle, message: msg.drop(label(f.item), f.index + 1, f.size, where(o, f))} : idle)
   }
   // an element below the host's root `r` (the root is an item of an outer sortable; in
   // renderComponent's mock DOM, where the event's target is the root, it counts)
