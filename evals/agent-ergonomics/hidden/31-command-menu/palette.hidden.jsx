@@ -115,6 +115,14 @@ describe('31 command palette: filtering, keyboard, running commands', () => {
     expect(active()).toBe('Show keyboard shortcuts')
     await type('s')
     expect(active()).toBe('Save')
+
+    await type('o')
+    await key('ArrowDown')
+    await key('ArrowDown')
+    expect(active()).toBe('Toggle dark mode')
+    await type('op')
+    expect(labels()).toEqual(['Open file…', 'Open settings'])
+    expect(active()).toBe('Open file…')
   })
 
   it('Enter runs the active command, clears the field and keeps focus there', async () => {

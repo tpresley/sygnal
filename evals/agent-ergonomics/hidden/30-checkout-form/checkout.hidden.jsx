@@ -285,6 +285,7 @@ describe('30 checkout form: schema validation, a field array, server errors', ()
     await waitFor(() => expect(document.activeElement).toBe(quantity(1)))
     expect(placeButton().disabled).toBe(false)
     expect(textOf(document.querySelector('.done'))).toBe('')
+    expect(alertText(), 'a refused order is not a failure').toBe('')
 
     await typeInto(quantity(1), '3')
     expectValid(quantity(1))
