@@ -68,5 +68,9 @@ describe('undoable / undo', () => {
     Doc.uses = uses
     // @ts-expect-error key is required
     undo({ undo: Undo })
+    // 3-P G-515: several keys, snapshotted together (a sortable's lists)
+    undo({ key: ['todo', 'done'] })
+    // @ts-expect-error key is a string or strings
+    undo({ key: 1 })
   })
 })

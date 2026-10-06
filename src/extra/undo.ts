@@ -46,7 +46,7 @@ const BUILT_IN = /^(BOOTSTRAP|INITIALIZE|DISPOSE|READY|RESOURCE)$/
 const last = new WeakMap<object, [string, number]>()
 const reported = new WeakSet<object>()
 
-export interface UndoOptions { key: string, limit?: number, track?: string[], coalesce?: string[], coalesceMs?: number, resetOn?: string[] }
+export interface UndoOptions { key: string | string[], limit?: number, track?: string[], coalesce?: string[], coalesceMs?: number, resetOn?: string[] }
 
 const actionOf = (a: string) => a.split('|')[0].trim()
 
@@ -81,41 +81,69 @@ const wrap = (model: any, o: UndoOptions, hk: string, ns: string, S = 'STATE', g
   const {key, limit = 100, track, coalesce, coalesceMs = coalesce ? 500 : 0, resetOn = []} = o
   const out: any = {}
   const hist = (s: any) => s?.[hk] || {past: [], future: []}
+  // the value undo keeps: state[key], or (3-P G-515: `key: ['todo', 'done']`) one object of those
+  // keys, the same object while each of them holds the same value (so values compare by identity)
+  const picks: any = {}, keys = typeof key == 'string' ? null : key
+  const val = (s: any) => {
+    if (!keys) return s?.[key as string]
+    let m = picks
+    for (const k of keys) {
+      const x = s?.[k], w = x && typeof x == 'object' ? m.w ||= new WeakMap() : m.p ||= new Map()
+      w.has(x) || w.set(x, {})
+      m = w.get(x)
+    }
+    if (!m.v) { m.v = {}; for (const k of keys) m.v[k] = s?.[k] }
+    return m.v
+  }
+  const set = (s: any, v: any) => keys ? {...s, ...v} : {...s, [key as string]: v}
+  // one more entry in `past` (`join`: the change joins the last one)
+  const rec = (r: any, h: any, v: any, name: string, joins: any) => {
+    const at = Date.now(), prev = last.get(h.past)
+    const join = joins && prev && prev[0] == name && at - prev[1] < coalesceMs && h.past.length
+    const nh = {...settled(h), past: join ? h.past : [...h.past, v].slice(-limit), future: []}
+    last.set(nh.past, [name, at])
+    return {...r, [hk]: nh}
+  }
   // 3-H G-447: a gesture's actions (`g`: another behavior's actions, 1 a step, 2 the one that
   // completes it, its `undoStep`). A step's change isn't recorded: `base` keeps [the value before
   // the gesture's first step, the value after its last]; the completing action records that
   // first value as one entry. A gesture that ends without it (cancelled) records nothing. The
   // pre-action state comes from the handler's props (`state`): as the host entry after the
   // behavior's (undo before it in `uses`), the reducer gets the behavior's result. `all`: the
-  // gesture behavior's actions (G-477: `track` / `coalesce` naming any of them cover its steps)
-  const gw = (f: any, [kind, all]: any, name: string) => {
+  // gesture behavior's actions (G-477: `track` / `coalesce` naming any of them cover its steps);
+  // `n` its key in `uses`, `end` its internal `undoEnd(slice)`: true when the slice an action
+  // left ended the gesture without completing it (3-P G-510: sortable's Escape, unmount, reset)
+  const gw = (f: any, [kind, all, n, end]: any, name: string) => {
     const has = (l?: string[]) => !!l && all.some((x: string) => l.includes(x))
     // G-507: drops join only when `coalesce` names the gesture (two separate drags are two steps)
     const tracked = !track || has(track), joins = coalesceMs > 0 && has(coalesce), reset = resetOn.includes(name)
     return (s: any, ...x: any[]) => {
       const r0 = f ? f(s, ...x) : s, r = isAbort(r0) ? s : r0, pre = x[2]?.state || s, none = f ? r0 : ABORT
       if (!r || typeof r != 'object' || !pre) return none
-      const h = hist(r), b = h.base
+      const h = hist(r), b = h.base, v = val(r), p = val(pre)
       // G-477: resetOn names this gesture action
       if (reset) return h.past.length || h.future.length || b ? {...r, [hk]: {...settled(h), past: [], future: []}} : none
       // G-506: an untracked gesture is an untracked change: nothing recorded, nothing pending
       if (!tracked) return none
       // the base holds while the value is the one the gesture's last step left (G-475: else it
       // was changed outside the gesture, e.g. restored, and the base is stale)
-      const on = b && b[1] === pre[key] && b
-      if (kind == 1) {
-        if (r[key] === pre[key]) return b && !on ? {...r, [hk]: settled(h)} : none
-        const b0 = on ? on[0] : pre[key]
-        // back where the gesture started (Escape, an item moved back): nothing pending (G-479)
-        return {...r, [hk]: same(b0, r[key]) ? settled(h) : {...h, base: [b0, r[key]]}}
+      const on = b && b[1] === p && b, stop = kind == 1 && end?.(r[n])
+      if (kind == 1 && !stop) {
+        if (v === p) return b && !on ? {...r, [hk]: settled(h)} : none
+        const b0 = on ? on[0] : p
+        // back where the gesture started (Escape, an item moved back): nothing pending (G-479);
+        // the base is this behavior's (G-514: a step joins another's pending base and takes it)
+        return {...r, [hk]: same(b0, v) ? settled(h) : {...h, base: [b0, v, n]}}
       }
-      if (!b) return none
-      if (!on || b[0] === r[key]) return {...r, [hk]: settled(h)}
-      const at = Date.now(), prev = last.get(h.past)
-      const join = joins && prev && prev[0] == name && at - prev[1] < coalesceMs && h.past.length
-      const nh = {...settled(h), past: join ? h.past : [...h.past, b[0]].slice(-limit), future: []}
-      last.set(nh.past, [name, at])
-      return {...r, [hk]: nh}
+      // G-514: only the behavior that opened the base completes it
+      if (b && b[2] != null && b[2] !== n || !b && !stop) return none
+      // G-510: ended without completing: what it leaves (the item where it is, or a restore after
+      // the value changed) is one step from the value before the gesture, unless it is that value
+      if (stop) {
+        const b0 = on ? on[0] : p
+        return same(b0, v) ? b ? {...r, [hk]: settled(h)} : none : rec(r, h, b0, name, 0)
+      }
+      return !on || b[0] === v ? {...r, [hk]: settled(h)} : rec(r, h, b[0], name, joins)
     }
   }
   // G-473: a pending gesture's base, recorded before another change: the value from before the
@@ -140,12 +168,10 @@ const wrap = (model: any, o: UndoOptions, hk: string, ns: string, S = 'STATE', g
       const r = f ? f(s, ...x) : s, h = hist(s)
       if (!r || typeof r != 'object' || isAbort(r)) return r
       if (reset) return h.past.length || h.future.length || h.base ? {...r, [hk]: {...settled(h), past: [], future: []}} : r
-      if (r === s || r[key] === s[key]) return r
-      const at = Date.now(), prev = last.get(h.past), b0 = before(h, s[key])
-      const join = !b0 && joins && prev && prev[0] == name && at - prev[1] < coalesceMs && h.past.length
-      const nh = {...settled(h), past: join ? h.past : [...h.past, b0 ? b0[0] : s[key]].slice(-limit), future: []}
-      last.set(nh.past, [name, at])
-      return {...r, [hk]: nh}
+      const v = val(s)
+      if (r === s || val(r) === v) return r
+      const b0 = before(h, v)
+      return rec(r, h, b0 ? b0[0] : v, name, !b0 && joins)
     }
     out[a] = sink || typeof e == 'function' ? w : {...e, [S]: w}
   }
@@ -153,11 +179,11 @@ const wrap = (model: any, o: UndoOptions, hk: string, ns: string, S = 'STATE', g
   // to it (G-473: the drag so far is the step undone), REDO records it (G-508: the drag so far
   // joins the redone step, as with a recorded action; at most `limit`)
   const step = (u: boolean) => (s: any) => {
-    const h = hist(s), b = before(h, s[key]), {past, future} = h
+    const h = hist(s), v = val(s), b = before(h, v), {past, future} = h
     if (!(u ? b || past.length : future.length)) return ABORT
-    return {...s, [key]: u ? b ? b[0] : past[past.length - 1] : future[0], [hk]: {...settled(h),
-      past: u ? b ? past : past.slice(0, -1) : [...past, b ? b[0] : s[key]].slice(-limit),
-      future: u ? [s[key], ...future] : future.slice(1)}}
+    return {...set(s, u ? b ? b[0] : past[past.length - 1] : future[0]), [hk]: {...settled(h),
+      past: u ? b ? past : past.slice(0, -1) : [...past, b ? b[0] : v].slice(-limit),
+      future: u ? [v, ...future] : future.slice(1)}}
   }
   const add = (a: string, f: any) => {
     const own = out[ns + a]
@@ -212,7 +238,7 @@ export const undo = (options: UndoOptions & { undo?: any, redo?: any }): any => 
     // the gestures of the host's other behaviors (sortable's drag: one step per drop), in either `uses` order
     for (const n in u) {
       const s = u[n]?.undoStep, all = Object.keys(u[n]?.model || {}).map(a => n + '.' + a)
-      if (s) for (const a in u[n].model) g[n + '.' + a] = [s.includes(a) ? 2 : 1, all]
+      if (s) for (const a in u[n].model) g[n + '.' + a] = [s.includes(a) ? 2 : 1, all, n, u[n].undoEnd]
     }
     c.model = wrap(c.model || {}, options, k, k + '.', c.stateSourceName, g)
     merge(c, k)

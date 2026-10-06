@@ -17,7 +17,7 @@ describe('sortable', () => {
     expectTypeOf<SortableDropped['index']>().toEqualTypeOf<number>()
 
     sortable({ from: ['todo', 'done'], axis: 'x', threshold: 8, attr: 'data-key', idField: 'key',
-      label: (t) => t.title, messages: { drop: (label, n, m) => `${label}: ${n}/${m}` } })
+      label: (t) => t.title, messages: { drop: (label, n, m) => `${label}: ${n}/${m}`, stay: (label, n, m, list) => `${label} stays: ${list ?? ''} ${n}/${m}` } })
     // @ts-expect-error from is required
     sortable({ item: '.task' })
     // @ts-expect-error axis is 'x' or 'y'

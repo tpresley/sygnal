@@ -1069,8 +1069,8 @@ export interface SortableState {
   helpId: string | null;
   /** Internal: the pointer press before the threshold (`n`: the instance that started it) */
   press: { id: string; x: number; y: number; n: number } | null;
-  /** Internal: where the item started (`n`: a keyboard drag's instance; `at`: [list, index] where its last keyboard step left it) */
-  origin: { list: string; index: number; n?: number; at?: [string, number] } | null;
+  /** Internal: where the item started (`n`: a keyboard drag's instance) */
+  origin: { list: string; index: number; n?: number } | null;
 }
 export interface SortableOptions {
   /** The host state key of the list; an array of keys allows moves between lists (each container marked `data-list="<key>"`) */
@@ -1089,8 +1089,11 @@ export interface SortableOptions {
   idField?: string;
   /** An item's name in announcements (default: its title, name, label or id) */
   label?: (item: any) => string;
-  /** Announcement texts. `extra`: lift, true for a keyboard lift; move / drop, the list key when the item changed lists */
-  messages?: Partial<Record<'lift' | 'move' | 'drop' | 'cancel', (label: string, position: number, count: number, extra?: any) => string>>;
+  /**
+   * Announcement texts. `extra`: lift, true for a keyboard lift; move / drop / stay, the list key when the item changed lists.
+   * `cancel`: Escape put the item back; `stay`: Escape after something else changed the list, so the item stays where it is
+   */
+  messages?: Partial<Record<'lift' | 'move' | 'drop' | 'cancel' | 'stay', (label: string, position: number, count: number, extra?: any) => string>>;
 }
 /** 'sort.DROPPED': one completed move (pointer drop, or keyboard drop away from where it started) */
 export interface SortableDropped { id: string; list: string; index: number; fromList: string; fromIndex: number }
@@ -1108,15 +1111,15 @@ export interface SortableActions {
  */
 export function sortable(options: SortableOptions): Behavior<SortableState, SortableActions, {}, SortableOptions>
 
-/** `state.history` of `undoable()` / `undo()`: snapshots of `state[key]`, newest last in `past`. */
+/** `state.history` of `undoable()` / `undo()`: snapshots of `state[key]` (`key: ['a', 'b']`: of `{ a, b }`), newest last in `past`. */
 export interface UndoHistory<T = any> {
   past: T[]; future: T[];
-  /** Internal (`undo()` with a gesture behavior, `undoStep`): [the value before the gesture in progress, the value after its last step] */
-  base?: [T, T];
+  /** Internal (`undo()` with a gesture behavior, `undoStep`): [the value before the gesture in progress, the value after its last step, the behavior's key in `uses`] */
+  base?: [T, T, string?];
 }
 export interface UndoOptions {
-  /** The state key whose value is snapshotted */
-  key: string;
+  /** The state key whose value is snapshotted; several keys (`['todo', 'done']`: a sortable's lists) are snapshotted together as `{ todo, done }` */
+  key: string | string[];
   /** The most snapshots kept in `past` (default 100) */
   limit?: number;
   /** Only these actions are recorded (default: every action with a STATE reducer) */
