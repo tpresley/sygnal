@@ -1905,10 +1905,14 @@ export function renderComponent(
   // stale render and hold every input until the next real render
   const tagTree = (v: any) => { if (v && typeof v == 'object') renderNo.set(v, viewTag || states.length); };
   const holdLimit = () => (holds.length ? Math.min(...holds) + 1 : Infinity);
+  // G-538: the patches the driver has made (a fragment root never gets an element: flattened, its
+  // children are patched into the container; and a View Transition patches later)
+  let patches = 0;
   const toDOM = (v: any) => {
     // the driver patches synchronously when the document is ready; snabbdom sets vnode.elm
+    const p = patches;
     gateOut?.next(v);
-    if (v?.elm) patchedUpTo = Math.max(patchedUpTo, tagOf(v)), lastPatched = v;
+    if (v?.elm || v && patches > p) patchedUpTo = Math.max(patchedUpTo, tagOf(v)), lastPatched = v;
   };
   const gated = (vnode$: any) => {
     let l: any;
@@ -1976,7 +1980,12 @@ export function renderComponent(
   const store = options.storage || {}, ps = componentDef.persist && {local: fakeStorage(store), session: fakeStorage(store), f: new Set<() => void>()};
   const allDrivers: any = {
     DOM: real
-      ? (vnode$: any, name: string) => trackSource(realDOM(gated(vnode$), name), [], hub.$, onEvents)
+      ? (vnode$: any, name: string) => {
+        const src = realDOM(gated(vnode$), name);
+        // G-538: the root element stream emits after each patch (a fragment root has no element)
+        src._rootElement$.addListener({next: () => patches++});
+        return trackSource(src, [], hub.$, onEvents);
+      }
       : () => mockDOMSource(mockConfig, hub.$, onEvents),
     EVENTS: eventBusDriver,
     LOG: logDriver,
