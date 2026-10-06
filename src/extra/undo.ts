@@ -28,7 +28,11 @@
  * value back to where the gesture started (a cancel) leaves nothing pending, nor does a gesture
  * action after the value was changed outside the gesture (G-475 / G-479). `track` / `coalesce`
  * naming any of a gesture behavior's actions apply to its steps; `resetOn` naming one of them
- * resets the history at that action (G-477).
+ * resets the history at that action (G-477). 3-O: an untracked gesture is like an untracked
+ * action, its changes are never recorded, nor pending (G-506); drops join only when `coalesce`
+ * names a gesture action (G-507); REDO mid-gesture records the value from before the gesture in
+ * place of the current one, as a recorded action does (G-508); "back where it started" compares
+ * arrays and plain objects shallowly (G-509).
  *
  * SYG226 (dev, warn): a `track` / `resetOn` / `coalesce` name with no model entry (nor an action
  * of a behavior in the host's `uses`).
@@ -65,8 +69,13 @@ const check = (model: any, o: UndoOptions, component?: any, skip?: any) => {
 
 // a history without the pending gesture base
 const settled = (h: any) => { const {base: _, ...o} = h; return o }
-// the same list (a gesture step that put every entry back: a cancel)
-const same = (a: any, b: any) => a === b || Array.isArray(a) && Array.isArray(b) && a.length == b.length && a.every((v, i) => v === b[i])
+// the same value (a gesture step that put everything back: a cancel): arrays and plain objects
+// compare their entries by identity (G-509), anything else is itself
+const plain = (x: any) => Array.isArray(x) ? 1 : x && typeof x == 'object' && Object.getPrototypeOf(x) === Object.prototype ? 2 : 0
+const same = (a: any, b: any) => {
+  const k = a !== b && plain(a) && plain(a) == plain(b) && Object.keys(a)
+  return a === b || !!k && k.length == Object.keys(b).length && k.every(i => i in b && a[i] === b[i])
+}
 
 const wrap = (model: any, o: UndoOptions, hk: string, ns: string, S = 'STATE', g: any = {}): any => {
   const {key, limit = 100, track, coalesce, coalesceMs = coalesce ? 500 : 0, resetOn = []} = o
@@ -81,13 +90,16 @@ const wrap = (model: any, o: UndoOptions, hk: string, ns: string, S = 'STATE', g
   // gesture behavior's actions (G-477: `track` / `coalesce` naming any of them cover its steps)
   const gw = (f: any, [kind, all]: any, name: string) => {
     const has = (l?: string[]) => !!l && all.some((x: string) => l.includes(x))
-    const tracked = !track || has(track), joins = coalesceMs > 0 && (!coalesce || has(coalesce)), reset = resetOn.includes(name)
+    // G-507: drops join only when `coalesce` names the gesture (two separate drags are two steps)
+    const tracked = !track || has(track), joins = coalesceMs > 0 && has(coalesce), reset = resetOn.includes(name)
     return (s: any, ...x: any[]) => {
       const r0 = f ? f(s, ...x) : s, r = isAbort(r0) ? s : r0, pre = x[2]?.state || s, none = f ? r0 : ABORT
       if (!r || typeof r != 'object' || !pre) return none
       const h = hist(r), b = h.base
       // G-477: resetOn names this gesture action
       if (reset) return h.past.length || h.future.length || b ? {...r, [hk]: {...settled(h), past: [], future: []}} : none
+      // G-506: an untracked gesture is an untracked change: nothing recorded, nothing pending
+      if (!tracked) return none
       // the base holds while the value is the one the gesture's last step left (G-475: else it
       // was changed outside the gesture, e.g. restored, and the base is stale)
       const on = b && b[1] === pre[key] && b
@@ -98,7 +110,7 @@ const wrap = (model: any, o: UndoOptions, hk: string, ns: string, S = 'STATE', g
         return {...r, [hk]: same(b0, r[key]) ? settled(h) : {...h, base: [b0, r[key]]}}
       }
       if (!b) return none
-      if (!on || b[0] === r[key] || !tracked) return {...r, [hk]: settled(h)}
+      if (!on || b[0] === r[key]) return {...r, [hk]: settled(h)}
       const at = Date.now(), prev = last.get(h.past)
       const join = joins && prev && prev[0] == name && at - prev[1] < coalesceMs && h.past.length
       const nh = {...settled(h), past: join ? h.past : [...h.past, b[0]].slice(-limit), future: []}
@@ -137,14 +149,15 @@ const wrap = (model: any, o: UndoOptions, hk: string, ns: string, S = 'STATE', g
     }
     out[a] = sink || typeof e == 'function' ? w : {...e, [S]: w}
   }
-  const step = (from: 'past' | 'future', to: 'past' | 'future') => (s: any) => {
-    // G-473: mid-gesture, the value from before the gesture is recorded first
-    const h0 = hist(s), b0 = before(h0, s[key]), h = b0 ? {...h0, past: [...h0.past, b0[0]].slice(-limit)} : h0, list = h[from]
-    if (!list.length) return ABORT
-    const v = from == 'past' ? list[list.length - 1] : list[0]
-    return {...s, [key]: v, [hk]: {...settled(h),
-      [from]: from == 'past' ? list.slice(0, -1) : list.slice(1),
-      [to]: to == 'past' ? [...h[to], s[key]] : [s[key], ...h[to]]}}
+  // mid-gesture, the value from before the gesture stands in for the current one: UNDO goes back
+  // to it (G-473: the drag so far is the step undone), REDO records it (G-508: the drag so far
+  // joins the redone step, as with a recorded action; at most `limit`)
+  const step = (u: boolean) => (s: any) => {
+    const h = hist(s), b = before(h, s[key]), {past, future} = h
+    if (!(u ? b || past.length : future.length)) return ABORT
+    return {...s, [key]: u ? b ? b[0] : past[past.length - 1] : future[0], [hk]: {...settled(h),
+      past: u ? b ? past : past.slice(0, -1) : [...past, b ? b[0] : s[key]].slice(-limit),
+      future: u ? [s[key], ...future] : future.slice(1)}}
   }
   const add = (a: string, f: any) => {
     const own = out[ns + a]
@@ -157,8 +170,8 @@ const wrap = (model: any, o: UndoOptions, hk: string, ns: string, S = 'STATE', g
     }
     out[ns + a] = typeof own == 'function' ? both : {...own, [S]: both}
   }
-  add('UNDO', step('past', 'future'))
-  add('REDO', step('future', 'past'))
+  add('UNDO', step(true))
+  add('REDO', step(false))
   return out
 }
 

@@ -794,9 +794,12 @@ export interface BehaviorDefinition<SLICE = any, ACTIONS = {}, CALCULATED = {}, 
    * The actions that complete one undoable step (sortable: `['DROPPED']`). With `undo()` on the
    * same host, the behavior's other actions are steps of a gesture: their changes to the undo
    * key aren't recorded; the completing action records the value from before the gesture as
-   * one entry (none for a gesture that ends without it), whatever the `uses` order. A recorded
-   * change, UNDO or REDO mid-gesture first records the value from before it; `track` /
-   * `coalesce` naming any of the behavior's actions cover its steps.
+   * one entry (none for a gesture that ends without it, or whose steps bring the value back: the
+   * same value, or an array / plain object with the same entries by identity), whatever the
+   * `uses` order. A recorded change, UNDO or REDO mid-gesture first records the value from
+   * before it; `track` / `coalesce` naming any of the behavior's actions cover its steps (a
+   * `track` naming none of them: the gesture is never recorded; drops join only when `coalesce`
+   * names one).
    */
   undoStep?: string[];
 }
@@ -1066,8 +1069,8 @@ export interface SortableState {
   helpId: string | null;
   /** Internal: the pointer press before the threshold (`n`: the instance that started it) */
   press: { id: string; x: number; y: number; n: number } | null;
-  /** Internal: where the item started (`n`: a keyboard drag's instance) */
-  origin: { list: string; index: number; n?: number } | null;
+  /** Internal: where the item started (`n`: a keyboard drag's instance; `at`: [list, index] where its last keyboard step left it) */
+  origin: { list: string; index: number; n?: number; at?: [string, number] } | null;
 }
 export interface SortableOptions {
   /** The host state key of the list; an array of keys allows moves between lists (each container marked `data-list="<key>"`) */
@@ -1120,7 +1123,8 @@ export interface UndoOptions {
   track?: string[];
   /**
    * Changes by one action within this many ms join one undo step (default 0: off; 500 when
-   * `coalesce` is given). Without `coalesce`, every action's quick repeats join
+   * `coalesce` is given). Without `coalesce`, every action's quick repeats join (not a gesture's
+   * drops: those join only when `coalesce` names a gesture action)
    */
   coalesceMs?: number;
   /**
