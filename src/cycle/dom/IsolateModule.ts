@@ -109,7 +109,7 @@ export class IsolateModule {
         if (Array.isArray(namespace)) {
           self.insertElement(namespace, elm as Element);
         }
-        children?.forEach((c: any) => M.has(c) || c?.elm && M.set(c, c.elm));
+        children?.forEach((c: any) => c?.elm && M.set(c, M.get(c) || c.elm));
       },
 
       update(oldVNode: VNode, vNode: VNode) {

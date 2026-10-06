@@ -5,7 +5,7 @@
 // one waits a task (dev: one warning); a normal chain stays synchronous, one patch. The
 // reviewer's probes (rv4j router / chain / text / iso / twice) are the cases below.
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
-import { run } from '../src/index.js'
+import { run, Suspense, renderToString } from '../src/index.js'
 import { createElement as h } from '../src/pragma/index.js'
 import { makeRouter } from '../src/extra/router.js'
 import { ABORT } from '../src/shared.js'
@@ -231,5 +231,50 @@ describe('G-573: the Transition per-item cache and IsolateModule notes', () => {
     old = [...document.querySelectorAll('ol i')]
     patch(B, sh('div', {}, [sh('section', {}, [X])]))
     expect(log).toEqual(['old'])
+  })
+})
+
+describe('G-572: Suspense and a not-ready child whose view returns text', () => {
+  for (const kind of ['text', 'number', 'element']) {
+    it(`a not-ready ${kind} child shows the fallback; ready, its content (rv4j text)`, async () => {
+      function Slow({ state }) { return kind == 'text' ? 'loaded ' + state.n : kind == 'number' ? state.n : h('span', null, 'loaded ' + state.n) }
+      Slow.intent = ({ DOM }) => ({ GO: DOM.select('document').events('p4k-op') })
+      Slow.model = { READY: { READY: () => false }, GO: { READY: () => true } }
+      function App() { return h('div', null, h(Suspense, { fallback: h('em', null, 'wait') }, h(Slow, { state: 'slow' }))) }
+      App.initialState = { slow: { n: 7 } }
+      document.body.innerHTML = '<div id="root"></div>'
+      const app = run(App, {}, { mountPoint: '#root' }); apps.push(app)
+      await sleep(20)
+      const root = document.getElementById('root')
+      expect(root.querySelector('[data-sygnal-suspense="pending"]')).toBeTruthy()
+      expect(root.textContent).toBe('wait')
+      document.dispatchEvent(new CustomEvent('p4k-op'))
+      await sleep(20)
+      expect(root.querySelector('[data-sygnal-suspense]')).toBeNull()
+      expect(root.textContent).toBe(kind == 'number' ? '7' : 'loaded 7')
+    })
+  }
+
+  it('renderToString: a not-ready text child renders as an element child does (its content)', () => {
+    function Slow() { return 'loaded' }
+    Slow.model = { READY: { READY: () => false } }
+    function Slow2() { return h('span', null, 'loaded') }
+    Slow2.model = { READY: { READY: () => false } }
+    function App() { return h('div', null, h(Suspense, { fallback: h('em', null, 'wait') }, h(Slow, { state: 'slow' }))) }
+    App.initialState = { slow: {} }
+    function App2() { return h('div', null, h(Suspense, { fallback: h('em', null, 'wait') }, h(Slow2, { state: 'slow' }))) }
+    expect(renderToString(App2, { state: App.initialState })).toBe('<div data-sygnal-ssr=""><span>loaded</span></div>')
+    expect(renderToString(App, { state: App.initialState })).toBe('<div data-sygnal-ssr="">loaded</div>')
+  })
+
+  it('without a Suspense around it, the text shows (the mark is not rendered)', async () => {
+    function Slow() { return 'plain text' }
+    Slow.model = { READY: { READY: () => false } }
+    function App() { return h('div', null, h(Slow, { state: 'slow' })) }
+    App.initialState = { slow: {} }
+    document.body.innerHTML = '<div id="root"></div>'
+    apps.push(run(App, {}, { mountPoint: '#root' }))
+    await sleep(20)
+    expect(document.getElementById('root').innerHTML).toBe('<div>plain text</div>')
   })
 })
