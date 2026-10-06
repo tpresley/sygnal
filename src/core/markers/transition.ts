@@ -54,12 +54,13 @@ export function transitionHooks(vnode: any, p: {name?: string, duration?: number
 }
 
 pres.transition = (n) => {
-  const child = n.children?.[0], p = n.data?.props || {}, k = p.name + p.duration
+  const child = n.children?.[0], p = n.data?.props || {}, k = Symbol.for(p.name + ' ' + p.duration)
   // no element child: the text child (or the marker itself, left as it is: today's behaviour)
   if (!child?.sel) return child || n
   // 4-I G-559 (D229): a Collection has no element of its own: each item's root element takes the
   // hooks (each item enters and leaves on its own). The host calls `tr` per item vnode; the copy is
-  // kept on that vnode under name + duration (no vnode field ends in a number or 'undefined'), so
-  // an unchanged item keeps its vnode
+  // kept on that vnode for the name and duration, so an unchanged item keeps its vnode (4-J G-566:
+  // under a symbol, which nothing that walks a vnode's fields sees). An item whose root is a
+  // fragment or text has no element to animate: nothing happens
   return child.sel == 'collection' ? {...child, data: {...child.data, tr: (v: any) => v[k] ||= transitionHooks(v, p)}} : transitionHooks(child, p)
 }

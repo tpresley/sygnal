@@ -3,10 +3,15 @@
 // component's cached vnode, a Collection item's copy) under an ancestor that is recreated: destroy
 // hooks get the old element (widgets inside unmount, the scope keeps the new element). G-565:
 // every listening `route` declarer gets its first ROUTE in the flush that declared it (after the
-// first declarer's, which may redirect: G-168), and a navigation reaches them all in one flush. The
-// reviewer's probes (rv4ir i.probe P7, r2 R6, old/h, old/f, old/g*) are the cases below.
+// first declarer's, which may redirect: G-168), and a navigation reaches them all in one flush.
+// G-566: Transition around a Collection keeps its per-item copy off the vnode's fields; hydration
+// and fragment-root items as documented. G-567: a view that returns a string or a number renders
+// it as text (client and renderToString). The reviewer's probes (rv4ir i.probe P7, r2 R6, old/h,
+// old/f, old/g*) are the cases below.
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
-import { run, Collection, defineWidget } from '../src/index.js'
+import { run, renderToString, Collection, Transition, defineWidget } from '../src/index.js'
+import { Fragment } from '../src/cycle/dom/fragment.ts'
+import { pres } from '../src/core/registry.ts'
 import { createElement as h } from '../src/pragma/index.js'
 import { makeRouter } from '../src/extra/router.js'
 import { ABORT } from '../src/shared.js'
@@ -159,3 +164,53 @@ describe('G-565: every listening route declarer gets its first ROUTE before the 
     expect(seen).toEqual(['/', '/tasks/1', '/login'])
   })
 })
+
+describe('G-566: Transition around a Collection', () => {
+  const fade = (props = { name: 'fade', duration: 30 }) => ({ sel: 'transition', data: { props }, children: [{ sel: 'collection', data: { props: {} }, children: [] }] })
+  const li = () => h('li', { key: 'k' }, 'a')
+
+  it("an item's copy with the hooks is kept off the vnode's own fields, per name and duration", () => {
+    const tr = pres.transition(fade()).data.tr, v = li(), keys = Object.keys(v)
+    const c = tr(v)
+    expect(c).not.toBe(v)
+    expect(typeof c.data.hook.insert).toBe('function')
+    expect(Object.keys(v)).toEqual(keys)
+    expect(Object.keys({ ...v })).toEqual(keys)
+    // the next render's tr (a new function) keeps the copy: an unchanged item keeps its vnode
+    expect(pres.transition(fade()).data.tr(v)).toBe(c)
+    expect(pres.transition(fade({ name: 'slide', duration: 30 })).data.tr(v)).not.toBe(c)
+  })
+
+  async function start(Row, hydrate) {
+    function App() { return h('ul', null, h(Transition, { name: 'fade', duration: 30 }, h(Collection, { of: Row, from: 'items' }))) }
+    App.intent = ({ DOM }) => ({ OP: DOM.select('document').events('p4j-op').map(e => e.detail) })
+    App.model = { OP: (s, f) => f(s) }
+    App.initialState = { items: [{ id: 1, t: 'a' }, { id: 2, t: 'b' }] }
+    const html = hydrate ? renderToString(App, { state: App.initialState }) : ''
+    document.body.innerHTML = '<div id="root">' + html + '</div>'
+    const el = document.getElementById('root'), before = [...el.querySelectorAll('li')]
+    const app = run(App, {}, { mountPoint: '#root' }); apps.push(app)
+    await sleep(5)
+    return { el, before }
+  }
+
+  it('hydrating: the server items are made again and enter (documented; rv4ir old/h P6)', async () => {
+    function Row({ state }) { return h('li', { 'data-t': 'r' + state.id }, state.t) }
+    const { el, before } = await start(Row, true)
+    const after = [...el.querySelectorAll('li')]
+    expect(after.map(e => e.textContent)).toEqual(['a', 'b'])
+    expect(after.some(e => before.includes(e))).toBe(false)
+    expect(after.every(e => e.classList.contains('fade-enter-active'))).toBe(true)
+    await sleep(60)
+    expect(after.every(e => !e.className)).toBe(true)
+  })
+
+  it('an item whose root is a fragment: no classes, it goes at once (documented; rv4ir old/f P5)', async () => {
+    function Row({ state }) { return h(Fragment, null, h('li', null, state.t), h('li', null, state.t + '2')) }
+    const { el } = await start(Row, false)
+    expect(el.innerHTML).toBe('<ul><li>a</li><li>a2</li><li>b</li><li>b2</li></ul>')
+    op(s => ({ items: s.items.slice(1) })); await sleep(5)
+    expect(el.innerHTML).toBe('<ul><li>b</li><li>b2</li></ul>')
+  })
+})
+
