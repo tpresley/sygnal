@@ -15,7 +15,8 @@ import {posts} from '../registry'
 function hasNotReadyChild(v: any): boolean {
   if (!v) return false
   const a = v.data?.attrs
-  if (a?.['data-sygnal-ready'] === 'false' || a?.['data-sygnal-lazy'] === 'loading') return true
+  // (4-K G-572: a not-ready child whose view returns text is marked `ready: false`: no element to mark)
+  if (v.ready === false || a?.['data-sygnal-ready'] === 'false' || a?.['data-sygnal-lazy'] === 'loading') return true
   if (v.sel === 'suspense') return false
   return Array.isArray(v.children) && v.children.some(hasNotReadyChild)
 }

@@ -19,6 +19,7 @@ import {SET} from '../core/teardown';
  *   mount order) is the guard owner. It gets each new route at once; the other declarers get it
  *   once its ROUTE ran (in the same flush, G-565), and only if no newer navigation (a redirect
  *   from the guard's ROUTE entry, e.g. `ROUTER: { to: 'login', replace: true }`) happened.
+ *   G-571: past 32 navigations before a microtask (a redirect loop) each next one waits a task.
  * - Commands: `{ to: name, params?, query?, hash?, replace?, scroll? }`, `{ url, replace? }`,
  *   `{ back: true }`, `{ forward: true }`, `{ go: n }`, `{ block: 'ACTION' | false }`,
  *   `{ prefetch: name | url, params?, query? }` (calls options.prefetch(route, url); else a
@@ -55,6 +56,8 @@ const enc = encodeURIComponent;
 const dec = (s: string) => { try { return decodeURIComponent(s); } catch (_) { return s; } };
 const g: any = globalThis;
 const PARAM = /:(\w+)/g;
+// G-571: synchronous navigations (redirects) before a microtask, after which each waits a task
+const HOPS = 32;
 
 /** the names of the params a pattern requires */
 export const paramsOf = (pat: string) => (pat.match(PARAM) || []).map(p => p.slice(1));
@@ -117,7 +120,7 @@ export function makeRouter(options: any = {}) {
     // sender → block action; the last one set gets the attempted navigation
     const blocks = new Map<any, string>();
     const pos = new Map<string, number[]>();
-    let ver = 0, idx = 0, key = '', last = '', force = 0, undo = 0, n = 0;
+    let ver = 0, idx = 0, key = '', last = '', force = 0, undo = 0, n = 0, hops = 0, warned = 0;
     let cur: any = null, cancel: any = null, pendingKind = '';
 
     const newKey = () => Date.now().toString(36) + (n++);
@@ -149,18 +152,34 @@ export function makeRouter(options: any = {}) {
     };
 
     // G-565: `f` runs once the actions queued so far ran: a state write that changes nothing,
-    // queued behind them through the instance's replies (one listening, else a task later). The
-    // first declarer's ROUTE (and any redirect it makes) runs first; the others get theirs in the
-    // same flush, before the patch, as long as no redirect happened (G-168)
-    const after = (s: any, f: any) => listening(s) ? reply(s, SET, (x: any) => (f(), x)) : setTimeout(f);
+    // queued behind them through the replies of the instances `ss` (one listening, else a task
+    // later). The first declarer's ROUTE (and any redirect it makes) runs first; the others get
+    // theirs in the same flush, before the patch, as long as no redirect happened (G-168).
+    // G-570: queued on every listening one and run by the first that is still there (the queue
+    // skips a disposed instance: the first declarer navigating from its DISPOSE / dispose$)
+    const after = (ss: any[], f: any) => {
+      let d = 0;
+      const l = ss.filter(listening), g = (x: any) => (d++ || f(), x);
+      l.length ? l.forEach(s => reply(s, SET, g)) : setTimeout(f);
+    };
 
     const emit = (kind: string) => {
       last = L.href;
       const r = (cur = current()), list = [...declared], v = ++ver;
-      if (list.length) {
+      const send = () => {
+        if (ver != v || !list.length) return;
         reply(list[0][0], list[0][1], r);
-        after(list[0][0], () => { if (ver == v) for (const [s, a] of list.slice(1)) if (declared.get(s) == a) reply(s, a, r); });
-      }
+        after(list.map(x => x[0]), () => { if (ver == v) for (const [s, a] of list.slice(1)) if (declared.get(s) == a) reply(s, a, r); });
+      };
+      // G-571: a redirect made from a ROUTE entry is delivered at once (a chain /secret → /login
+      // → /other is one flush, one patch); past HOPS of them before a microtask (a redirect
+      // loop) each next one waits a task, so the loop can't hang the page (a warning, once, when the
+      // diagnostics are on: in development)
+      if (!hops++) queueMicrotask(() => { hops = 0; });
+      if (hops > HOPS) {
+        if (g.__SYGNAL_DIAGNOSTICS__?.hooks?.on?.() && !warned++) console.warn(`[Sygnal] router: more than ${HOPS} navigations in one flush (a redirect loop?); each next one waits a task (reported once)`, r.path);
+        setTimeout(send);
+      } else send();
       if (kind != 'start') settle(kind);
     };
 
@@ -268,7 +287,7 @@ export function makeRouter(options: any = {}) {
           // between supersedes the route (G-168). A declarer not listening yet (a Vike Layout):
           // a task later
           const v0 = ver, f = () => declared.get(s) == v.route && ver == v0 && reply(s, v.route, cur);
-          if (cur) declared.keys().next().value === s && listening(s) ? f() : after(s, f);
+          if (cur) declared.keys().next().value === s && listening(s) ? f() : after([s], f);
           return;
         }
         // `block` combines with a navigation: { ...proceed, block: false } clears it and goes

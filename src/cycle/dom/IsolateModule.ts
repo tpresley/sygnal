@@ -91,8 +91,17 @@ export class IsolateModule {
     // subtree), and they get the new ones again when the removal starts (S), before the insert
     // hooks. (A vnode that moves to another parent still gives its own destroy hook the new one)
     const M = new Map<any, any>(), S: any[] = [];
+    // G-573: a vnode in the new tree twice: its first note (its element before the patch) wins.
+    // A destroy hook that throws ends the patch before remove / post: the next patch first gives
+    // the vnodes their new elements back and forgets the notes (pre)
     const back = (c: any) => M.has(c) && (S.push(c, c.elm), c.elm = M.get(c));
+    const ret = () => { for (let e; S.length; ) e = S.pop(), S.pop().elm = e; };
     return {
+      pre() {
+        ret();
+        M.clear();
+      },
+
       create(emptyVNode: VNode, vNode: VNode) {
         const {elm, data = {}, children} = vNode;
         const namespace: Array<Scope> = (data as any).isolate;
@@ -100,7 +109,7 @@ export class IsolateModule {
         if (Array.isArray(namespace)) {
           self.insertElement(namespace, elm as Element);
         }
-        children?.forEach((c: any) => c?.elm && M.set(c, c.elm));
+        children?.forEach((c: any) => c?.elm && M.set(c, M.get(c) || c.elm));
       },
 
       update(oldVNode: VNode, vNode: VNode) {
@@ -127,7 +136,7 @@ export class IsolateModule {
 
       remove(vNode: VNode, cb: Function) {
         self.vnodesBeingRemoved.push(vNode.elm as Element);
-        for (let e; S.length; ) e = S.pop(), S.pop().elm = e;
+        ret();
         cb();
       },
 
