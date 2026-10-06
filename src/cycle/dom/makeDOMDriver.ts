@@ -101,9 +101,11 @@ const adopt = (e: any, v: any, T: any[] = [], P: any = {n: e.firstChild}, f?: an
         const p = d.props || {}, a = d.attrs || {}, o: any = {}, at: any = {}, pr: any = {}, f = x.firstChild;
         o.class = 'className';
         for (const m in p) o[m == 'htmlFor' ? 'for' : m.toLowerCase()] = m;
+        // G-482: a data-* attribute the client sets as an attribute isn't in the dataset (the
+        // dataset module would remove it): it goes, and the attributes module writes it again.
         for (const {name: m, value: y} of [...x.attributes])
-          m in a ? at[m] = y
-          : /^data-/.test(m) ? 0
+          /^data-/.test(m) ? m in a && x.removeAttribute(m)
+          : m in a ? at[m] = y
           : w.sel != x.localName && /^(class|id)$/.test(m) ? 0
           : m == 'style' && d.style ? 0
           : m in o && !d.ns ? pr[o[m]] = y

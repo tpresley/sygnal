@@ -138,3 +138,24 @@ describe('G-481: fragments', () => {
     expect(r.html()).toBe(want)
   })
 })
+
+describe('G-482: data-* attributes the client sets as attributes', () => {
+  it('attrs data-* stays (the dataset copy no longer removes it)', async () => {
+    const App = app(() => h('p', { attrs: { 'data-x': '1' }, 'data-t': 'p' }, 'p'))
+    const want = await fresh(App)
+    const r = await hydrate(App)
+    expect(r.keptT('p')).toBe(true)
+    expect(r.now('p').getAttribute('data-x')).toBe('1')
+    expect(r.html()).toBe(want)
+  })
+
+  it('a resolved Suspense boundary keeps data-sygnal-suspense; an old server data-* goes', async () => {
+    const App = app(() => h(Suspense, { fallback: 'wait' }, h('p', { 'data-t': 'p' }, 'content'), h('p', null, 'more')))
+    const r = await hydrate(App, { server: '<main><div data-sygnal-suspense="resolved" data-old="1"><p data-t="p">content</p><p>more</p></div></main>' })
+    const box = document.querySelector('main > div')
+    expect(r.all.includes(box)).toBe(true)
+    expect(box.getAttribute('data-sygnal-suspense')).toBe('resolved')
+    expect(box.hasAttribute('data-old')).toBe(false)
+    expect(r.kept.length).toBe(r.all.length)
+  })
+})
