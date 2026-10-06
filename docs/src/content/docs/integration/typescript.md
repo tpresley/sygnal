@@ -305,14 +305,14 @@ import { Collection } from 'sygnal'
 
 type LaneState = { title: string; tasks: { id: string; title: string }[] }
 
-const TaskCollection = Collection<{ className?: string }, LaneState>
+const TaskCollection = Collection<{}, LaneState>
 
 function Lane({ state }: { state: LaneState }) {
   return (
-    <div>
-      <TaskCollection of={TaskCard} from="tasks" className="tasks" />
+    <ul className="tasks">
+      <TaskCollection of={TaskCard} from="tasks" />
       {/* <TaskCollection of={TaskCard} from="title" />  ✗ 'title' isn't an array field */}
-    </div>
+    </ul>
   )
 }
 ```

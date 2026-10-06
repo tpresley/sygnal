@@ -437,6 +437,7 @@ These are fixes, but code or tests may depend on the old behavior:
 - **`ABORT` during typing re-renders** (PLAN-5, D205): a STATE reducer that refuses an `input`/`change` action (`ABORT`, or the same state) re-renders its component, so a controlled field shows the state's value instead of what was typed. A view that counted renders, or an uncontrolled-looking field with a bound `value` that relied on keeping the typed text, changes.
 - **Component props named `role`, `for`, `tabindex`, `aria-*`** (PLAN-5, G-370): a component now receives them (they were dropped). A component that spreads its props onto an element now passes them on to it.
 
+- **`<Collection>` has no wrapper element** (PLAN-5 4-H, D229, G-554): its items render directly into the parent element (`<ul><Collection /></ul>` gives `ul > li`, before `ul > div > li`, invalid HTML that lost the list semantics), next to any siblings, and two Collections can share one parent. The `<div>` it rendered before is gone, with the props that only went to it: `className`, `style`, `class`, `attrs`, `data` / `data-*`, `on`, `hook` and `ref` on `<Collection>` are ignored, reported as SYG612 in development and by `sygnal-check`, and `className` is a type error. CSS and test selectors that went through the `<div>` (`.list > div > li`), `:first-child` / `:nth-child` counted among the items when the Collection has siblings, and `t.html()` / `renderToString()` snapshots change. `renderToString()` renders the items the same way, so hydration adopts them. `<VirtualCollection>` keeps its scroll container.
 - **`isolatedState` with a `state` prop keeps the parent's data** (PLAN-4.6, D174; with the 6.0 component core). An `isolatedState` child bound to a slice (`<Editor state="doc" />`) uses its `initialState` only while `state.doc` is `undefined`; an existing slice is kept (before: the child's `INITIALIZE` replaced it whenever the child was created). A parent that relied on a re-mounted child starting fresh adds the new `resetState` prop (see Added).
 
 ### Breaking changes (TypeScript)
@@ -462,6 +463,7 @@ Type-level only; JavaScript and runtime behavior are unaffected:
 | `calculated` / `context` entries | also `boolean` (and strings at run time) | functions only (`[deps, fn]` for calculated) | Write `(state) => …` |
 | `component()` / `ComponentFactoryOptions`, `collection()`, `switchable()` | exported | removed; `defineComponent()` / `DefineComponentOptions` added | Function components with statics, or `defineComponent({ view, ... })` |
 | `CollectionProps` | `idfield` | removed | Key items by `id` |
+| `CollectionProps` (4-H, D229) | `className` passed through | `className?: never` | Put the class on your own element around the Collection |
 | `FetchRequest` reply-action keys | `ok`/`error`/`key`/`then` were free app fields | `ok`/`error`/`key` are `string`, `then`/`catch` are `never`, `abort` is `true \| string` | Rename app fields with those names, or nest them |
 
 `FetchInit`, `FetchRequest` and the other fetch and socket types are new.
@@ -484,6 +486,7 @@ Type-level only; JavaScript and runtime behavior are unaffected:
 Most apps need no changes. Check these:
 
 - **Removed forms:** follow [Migrating to 6.0](https://sygnal.js.org/guide/migrating-to-6/). `npx sygnal-check src` (SYG612) and `npx sygnal-check --strict --fix src` (SYG501/504/506) find most of them; in development the dev checks report the rest at run time.
+- **`<Collection className="x">`** (and `style`, `data-*`, ... on it): wrap the Collection in your own element, `<ul className="x"><Collection … /></ul>`; a `<div className="x">` keeps the old markup exactly. Check CSS and test selectors that went through the old `<div>` ([Migrating to 6.0](https://sygnal.js.org/guide/migrating-to-6/#collection-wrapper)).
 - **`isolatedState` children** that should start fresh every time they mount: add `resetState` to the tag.
 - **Tests that drove the clock to start an app** (`run()` under fake timers): drop the `advanceTimersByTimeAsync` before the first assertion; `await Promise.resolve()` is enough. `renderComponent` tests don't change.
 - **Returning the same state object:** a reducer that returned `state` to force a re-render must return a new object (`{ ...state }`). One that changed the state in place and returned it must return a new object (the dev entry's SYG222 points to it), or wrap the reducer in Immer's `produce()` ([recipe](https://sygnal.js.org/guide/model/#writing-updates-as-mutations-with-immer)). `return state` for "no change" can stay; the docs keep `ABORT`.

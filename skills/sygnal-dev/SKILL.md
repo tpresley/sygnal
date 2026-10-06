@@ -135,7 +135,9 @@ function TaskList({ state }) {
   return (
     <div>
       <p className="picked">{state.picked}</p>
-      <Collection of={TaskItem} from="tasks" className="tasks" />
+      <ul className="tasks">
+        <Collection of={TaskItem} from="tasks" />
+      </ul>
     </div>
   )
 }
@@ -144,7 +146,7 @@ TaskList.intent = ({ CHILD }) => ({ PICKED: CHILD.select(TaskItem) })  // the fu
 TaskList.model = { PICKED: (state, { taskId }) => ({ ...state, picked: taskId }) }
 ```
 - Removal in the object form keeps the STATE entry: `REMOVE: { STATE: () => undefined, EVENTS: event('REMOVED', (state) => state.id) }`. Without `STATE: () => undefined` the item stays.
-- `from` names an array field; items are keyed by `.id` (else index). `filter={t => !t.done}`; `sort="title"`, `sort={{ title: 'desc' }}`, an array of those, or a compare function: they only change what renders, and an item's edit is written back to its element by key. Items render inside one `<div>` (`className` sets its class).
+- `from` names an array field; items are keyed by `.id` (else index). `filter={t => !t.done}`; `sort="title"`, `sort={{ title: 'desc' }}`, an array of those, or a compare function: they only change what renders, and an item's edit is written back to its element by key. Items render directly into the parent, no wrapper (`className` on it is SYG612: put it on your own `<ul>`).
 - Switchable: `<Switchable of={{ home: Home, settings: Settings }} current={state.tab} />` (optional `state="slice"`). Hidden pages stay alive; `instance={key}` re-creates the current page with fresh state when the key changes.
 ### Extract a component without changing the markup
 **First**, on the unchanged code, pin the HTML: `expect(t.html()).toMatchSnapshot()` initially and after one interaction (run once with `npx vitest run -u`). Move the elements into the child verbatim (a component adds no wrapper or attributes); props in, `PARENT` out with an id, no `initialState`. The parent renders `<Child name="food" value={state.food} />`, drops the old selectors (SYG104) and listens with `CHILD.select(Child)`. The snapshot must still match.

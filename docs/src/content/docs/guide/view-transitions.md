@@ -187,7 +187,7 @@ Under `prefers-reduced-motion: reduce`, the driver applies every render at once,
 
 ## Recipe: AutoAnimate
 
-[AutoAnimate](https://auto-animate.formkit.com/) (`@formkit/auto-animate`, about 3 KB) animates the children of one element whenever they are added, removed or moved, with FLIP: no action list, and the page stays interactive, so it suits drag-sort and filter-as-you-type lists. Give it the Collection's own `<div>` (the one `className` names) from a [callback ref](/advanced/refs/#callback-refs) on the element around it:
+[AutoAnimate](https://auto-animate.formkit.com/) (`@formkit/auto-animate`, about 3 KB) animates the children of one element whenever they are added, removed or moved, with FLIP: no action list, and the page stays interactive, so it suits drag-sort and filter-as-you-type lists. Give it the element the Collection renders its items into, from a [callback ref](/advanced/refs/#callback-refs) on that element:
 
 ```jsx
 import autoAnimate from '@formkit/auto-animate'
@@ -197,18 +197,17 @@ import { Row } from './Row.jsx'
 // a ref runs on mount and after each patch of its element: set the list up once
 const animated = new WeakSet()
 const animateRows = (el) => {
-  const rows = el?.querySelector('.rows')
-  if (rows && !animated.has(rows)) {
-    animated.add(rows)
-    autoAnimate(rows, { duration: 200 })
+  if (el && !animated.has(el)) {
+    animated.add(el)
+    autoAnimate(el, { duration: 200 })
   }
 }
 
 export function List({ state }) {
   return (
-    <section ref={animateRows}>
-      <Collection of={Row} from="rows" sort={state.order} className="rows" />
-    </section>
+    <ul className="rows" ref={animateRows}>
+      <Collection of={Row} from="rows" sort={state.order} />
+    </ul>
   )
 }
 ```

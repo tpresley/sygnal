@@ -107,7 +107,9 @@ function TaskList({ state }) {
   return (
     <div>
       <p className="picked">{state.picked}</p>
-      <Collection of={TaskItem} from="tasks" className="tasks" />
+      <ul className="tasks">
+        <Collection of={TaskItem} from="tasks" />
+      </ul>
     </div>
   )
 }
@@ -115,7 +117,7 @@ TaskList.initialState = { picked: null, tasks: [{ id: 1, title: 'Write' }, { id:
 TaskList.intent = ({ CHILD }) => ({ PICKED: CHILD.select(TaskItem) })  // the function, not a string
 TaskList.model = { PICKED: (state, { taskId }) => ({ ...state, picked: taskId }) }
 ```
-- `from` names an array field. Items are keyed by `.id` (by index if they have none). `filter={t => !t.done}`; `sort="title"`, `{ title: 'desc' }`, an array of those, or a compare function. Sorting and filtering only change what renders: the state array keeps its order, and an item's edit (`{ ...state, done: true }`) is written back to its element by key. All items render inside one `<div>` (`className` sets its class). Switchable: `<Switchable of={{ home: Home, settings: Settings }} current={state.tab} />` (optional `state="slice"`); hidden pages stay alive, and `instance={key}` re-creates the current page with fresh state when the key changes (a router: `instance={state.route.path}`).
+- `from` names an array field. Items are keyed by `.id` (by index if they have none). `filter={t => !t.done}`; `sort="title"`, `{ title: 'desc' }`, an array of those, or a compare function. Sorting and filtering only change what renders: the state array keeps its order, and an item's edit (`{ ...state, done: true }`) is written back to its element by key. Items render directly into the parent element, with no wrapper (`<Collection className>` is SYG612: put the class on your own `<ul>`). Switchable: `<Switchable of={{ home: Home, settings: Settings }} current={state.tab} />` (optional `state="slice"`); hidden pages stay alive, and `instance={key}` re-creates the current page with fresh state when the key changes (a router: `instance={state.route.path}`).
 ### Behaviors (`uses`): shared state + actions
 - `TaskList.uses = { pager: pager({ pageSize: 10, next: '.newer', prev: '.older' }) }` adds `state.pager` (`{ page, pageSize, total }` + calculated `offset`, `pages`, `hasPrev`, `hasNext`) and the actions `pager.NEXT`, `pager.PREV`, `pager.GOTO`, `pager.SET_TOTAL`; a click on what `next`/`prev` name triggers them. Options set the slice's start values; the key must not also be in `initialState` (SYG127). Also from `'sygnal'`: `selection({ multi: true, item: '.pick', from: 'mails' })` (`data-id` on each item; `isSelected(state.sel, id)`) and `undo({ key: 'doc', undo: '.undo', redo: '.redo' })` (`state.history.canUndo`/`canRedo`; `coalesce: ['TYPE'], coalesceMs: 500` groups only typing, each other action is its own step; `key: ['todo', 'done']` records several keys as one step; `node_modules/sygnal/dist/guide/undo.md`).
 - Your own: `const disclosure = defineBehavior({ initialState: { open: false }, intent: ({ DOM }, { toggle }) => ({ TOGGLE: DOM.click(toggle) }), model: { TOGGLE: (slice) => ({ ...slice, open: !slice.open }) } })`, used as `uses = { more: disclosure({ toggle: '.more' }) }`. Its reducers and `calculated` get and return the slice (`state.more`), its action names have no key, and any sink works. Options: `persist: false` (UI state `persist()` never saves), `undoStep: ['DONE']` (its other actions form one gesture: one undo entry when `DONE` completes it).
