@@ -303,7 +303,7 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 - 2026-10-05 — 3-L merged (1 additive conflict); gates: only the known G-484 vitest failure (3,441 passed), browser 330/329/329, recipes 17×3, core 41,968 B. Review of 3-L: G-504…G-509. 3-O started.
 - 2026-10-05 — 3-O merged (clean; G-504…G-509; restore rule "item still where the last key left it" (`origin.at`); 22-run gesture matrix; undo +48 B, sortable +16 B, core 0); gates: only the known G-484 vitest failure (3,478 passed), browser 330/329/329, recipes 17×3, core 41,968 B. G-510.
 - 2026-10-05 — Review of 3-O: G-511…G-516 (no high). D219 (restore only the drag's own array). 3-P started.
-- 2026-10-05 — 3-M merged (tracker conflict: kept the coordinator copy). +173 B core (42,141 B). D220. G-517.
+- 2026-10-05 — 3-M merged (tracker conflict: kept the coordinator copy). +173 B core (42,141 B). D220. G-517. Gates after 3-M: all green (vitest 3,515, browser 331/330/330, recipes 17×3, perf-gate --runs=3 ok, core 42,141 B).
 - 2026-10-05 — 2-R merged (6 conflicts; SYG666 clash renumbered to SYG668); all gates green on three engines (279/279); core 41,825 B. D212, G-408.
 - 2026-10-05 — 2-Z merged; three engines 276/276; core 41,771 B. D211.
 - 2026-10-05 — Review of 2-U + 2-V: 14 findings (G-394…G-407). 2-S started.
