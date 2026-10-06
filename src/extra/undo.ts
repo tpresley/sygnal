@@ -140,14 +140,15 @@ const wrap = (model: any, o: UndoOptions, hk: string, ns: string, S = 'STATE', g
     }
     out[a] = sink || typeof e == 'function' ? w : {...e, [S]: w}
   }
-  const step = (from: 'past' | 'future', to: 'past' | 'future') => (s: any) => {
-    // G-473: mid-gesture, the value from before the gesture is recorded first
-    const h0 = hist(s), b0 = before(h0, s[key]), h = b0 ? {...h0, past: [...h0.past, b0[0]].slice(-limit)} : h0, list = h[from]
-    if (!list.length) return ABORT
-    const v = from == 'past' ? list[list.length - 1] : list[0]
-    return {...s, [key]: v, [hk]: {...settled(h),
-      [from]: from == 'past' ? list.slice(0, -1) : list.slice(1),
-      [to]: to == 'past' ? [...h[to], s[key]] : [s[key], ...h[to]]}}
+  // mid-gesture, the value from before the gesture stands in for the current one: UNDO goes back
+  // to it (G-473: the drag so far is the step undone), REDO records it (G-508: the drag so far
+  // joins the redone step, as with a recorded action; at most `limit`)
+  const step = (u: boolean) => (s: any) => {
+    const h = hist(s), b = before(h, s[key]), {past, future} = h
+    if (!(u ? b || past.length : future.length)) return ABORT
+    return {...s, [key]: u ? b ? b[0] : past[past.length - 1] : future[0], [hk]: {...settled(h),
+      past: u ? b ? past : past.slice(0, -1) : [...past, b ? b[0] : s[key]].slice(-limit),
+      future: u ? [s[key], ...future] : future.slice(1)}}
   }
   const add = (a: string, f: any) => {
     const own = out[ns + a]
@@ -160,8 +161,8 @@ const wrap = (model: any, o: UndoOptions, hk: string, ns: string, S = 'STATE', g
     }
     out[ns + a] = typeof own == 'function' ? both : {...own, [S]: both}
   }
-  add('UNDO', step('past', 'future'))
-  add('REDO', step('future', 'past'))
+  add('UNDO', step(true))
+  add('REDO', step(false))
   return out
 }
 

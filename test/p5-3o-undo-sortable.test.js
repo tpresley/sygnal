@@ -204,3 +204,25 @@ describe('3-O G-507: coalesceMs alone doesn\'t join drops', () => {
     expect(past()).toEqual(['1234'])
   })
 })
+
+describe('3-O G-508: REDO mid-drag', () => {
+  it('records the order from before the drag (no half-moved step); UNDO then goes back to it', async () => {
+    t = renderComponent(withUndo(), { dom: 'real' }); await t.ready()
+    await act('ADD'); await act('history.UNDO')
+    await lift(2); await key('ArrowDown')
+    await act('history.REDO')
+    expect(order(t.state)).toBe('12345')
+    expect(past()).toEqual(['1234'])
+    expect(t.state.history.base).toBe(undefined)
+    await act('history.UNDO')
+    expect(order(t.state)).toBe('1234')
+  })
+
+  it('keeps to limit', async () => {
+    t = renderComponent(withUndo({ limit: 1 }), { dom: 'real' }); await t.ready()
+    await act('ADD'); await act('history.UNDO')
+    await lift(2); await key('ArrowDown')
+    await act('history.REDO')
+    expect(past()).toEqual(['1234'])
+  })
+})
