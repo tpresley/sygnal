@@ -137,7 +137,7 @@ Editor.model = undoable({
 
 | Option | Default | |
 |---|---|---|
-| `key` | (required) | The state key whose value is recorded |
+| `key` | (required) | The state key whose value is recorded; an array of keys (`['todo', 'done']`) records them together, as one `{ todo, done }` value per step |
 | `limit` | `100` | The most steps kept in `past`; the oldest are dropped |
 | `track` | every action with a STATE reducer | Record only these actions' changes. Built-in actions (`INITIALIZE`, `BOOTSTRAP`, …) are recorded only when listed |
 | `coalesceMs` | `0` (off); `500` with `coalesce` | Changes by the same action within this many ms join one step |
@@ -145,7 +145,7 @@ Editor.model = undoable({
 | `resetOn` | `[]` | Actions that clear the history |
 | `undo`, `redo` | — | (`undo()` only) A selector (or a [control](/guide/controls/)) whose clicks dispatch `UNDO` / `REDO` |
 
-A change is a reducer result whose `state[key]` is a different object than before, so reducers that return new objects (as Sygnal reducers do) are recorded. `UNDO` and `REDO` make no change when there is nothing to undo or redo. A model entry of your own for `UNDO` / `REDO` (`'history.UNDO'` with the behavior) runs after the built-in step.
+A change is a reducer result whose `state[key]` is a different object than before (with an array of keys: any of them), so reducers that return new objects (as Sygnal reducers do) are recorded. `UNDO` and `REDO` make no change when there is nothing to undo or redo. A model entry of your own for `UNDO` / `REDO` (`'history.UNDO'` with the behavior) runs after the built-in step.
 
 Snapshots are the old values themselves, not copies. Keep `key` on the part of the state the user edits (`doc`), not on the whole state, so the history doesn't hold every loading flag and list position too.
 
@@ -161,7 +161,9 @@ After a reload the note is back and the history starts empty, so the first undo 
 
 ## Gestures: one step per drag
 
-A behavior on the same host can mark its actions as one gesture with [`undoStep`](/guide/behaviors/#persisted-state-and-undo-steps). [`sortable`](/guide/drag-and-drop/#undo-and-persist) does: with `undo({ key: 'tasks' })`, a whole drag, pointer or keyboard, is one undo step, recorded when the item is dropped (`sort.DROPPED`). The live keyboard moves and a cancelled drag (Escape, a drop where it started) add no step. While a drag has moved something, `state.history.base` holds the value from before it; it is gone once the drag is dropped or cancelled. Another recorded change during a drag (an item added while one is lifted) records the value from before the drag, so it stays reachable, and the drag so far joins that change's step. UNDO during a drag goes back to the value from before it (the drag so far is the step undone); REDO during a drag records that value too, in place of the half-moved one. This works with `undo()` (the behavior), in either `uses` order; `undoable()` can't see the host's behaviors.
+A behavior on the same host can mark its actions as one gesture with [`undoStep`](/guide/behaviors/#persisted-state-and-undo-steps). [`sortable`](/guide/drag-and-drop/#undo-and-persist) does: with `undo({ key: 'tasks' })`, a whole drag, pointer or keyboard, is one undo step, recorded when the item is dropped (`sort.DROPPED`). The live keyboard moves and a cancelled drag (Escape, a drop where it started) add no step. While a drag has moved something, `state.history.base` holds the value from before it; it is gone once the drag is dropped or cancelled. Another recorded change during a drag (an item added while one is lifted) records the value from before the drag, so it stays reachable, and the drag so far joins that change's step. UNDO during a drag goes back to the value from before it (the drag so far is the step undone); REDO during a drag records that value too, in place of the half-moved one. A drag that ends without a drop after something else changed the list (an item added, an undo; see [Drag and Drop](/guide/drag-and-drop/#keyboard)) leaves the item where it is: when that leaves the value different from the one before the drag, it is recorded as one step, else nothing is; either way nothing stays pending. Only the behavior that started a gesture completes it: with two gesture behaviors on one host, one's completing action doesn't record the other's gesture. This works with `undo()` (the behavior), in either `uses` order; `undoable()` can't see the host's behaviors.
+
+A sortable with several lists (`from: ['todo', 'done']`) moves items between them, so record them together: `undo({ key: ['todo', 'done'] })`. With one of them as the key, an undo after a move between lists puts that list back but not the other, and the item is in both.
 
 `track` and `coalesce` treat a gesture as one action: naming any of the behavior's actions (`'sort.DROPPED'`, `'sort.KEY'`, ...) records drags, or lets quick drops join one step. A `track` list that names none of them leaves drags unrecorded, like any untracked change: undo steps over the tracked changes only, and a drag in progress isn't undone on its own. `coalesceMs` without `coalesce` doesn't join drops: two quick drags are two steps. A name in `resetOn` (`'sort.DROPPED'`) clears the history when that action runs.
 
