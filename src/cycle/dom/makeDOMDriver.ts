@@ -103,10 +103,11 @@ const adopt = (e: any, v: any, T: any[] = [], P: any = {n: e.firstChild}, f?: an
         for (const m in p) o[m == 'htmlFor' ? 'for' : m.toLowerCase()] = m;
         // G-482: a data-* attribute the client sets as an attribute isn't in the dataset (the
         // dataset module would remove it): it goes, and the attributes module writes it again.
+        // G-487: `open` (a <details> the user opened) stays when the client doesn't render it
         for (const {name: m, value: y} of [...x.attributes])
           /^data-/.test(m) ? m in a && x.removeAttribute(m)
           : m in a ? at[m] = y
-          : w.sel != x.localName && /^(class|id)$/.test(m) ? 0
+          : m == 'open' || w.sel != x.localName && /^(class|id)$/.test(m) ? 0
           : m in o && !d.ns ? pr[o[m]] = y
           : x.removeAttribute(m);
         // G-484: a textarea's value no longer follows its text, which goes

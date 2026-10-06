@@ -210,3 +210,28 @@ describe('G-484 / G-490: textarea and select', () => {
     expect(r.keptT('ta') && r.keptT('s') && r.keptT('in')).toBe(true)
   })
 })
+
+describe('G-487: open', () => {
+  it('a <details> the user opened before start-up stays open; a client-rendered `open` wins', async () => {
+    const App = app(() => h('div', null, h('details', { 'data-t': 'd' }, h('summary', null, 's'), 'body'), h('details', { open: false, 'data-t': 'c' }, h('summary', null, 's'))))
+    const r = await hydrate(App, { prep: (t) => { t.d.open = true; t.c.open = true } })
+    expect(r.keptT('d')).toBe(true)
+    expect(r.now('d').open).toBe(true)
+    expect(r.now('c').open).toBe(false)
+  })
+
+  it('a <dialog open> the client renders without open stays open', async () => {
+    const App = app(() => h('dialog', { 'data-t': 'd' }, 'hi'))
+    const r = await hydrate(App, { server: '<main><dialog data-t="d" open="">hi</dialog></main>' })
+    expect(r.keptT('d')).toBe(true)
+    expect(r.now('d').open).toBe(true)
+  })
+
+  it('(documented) a custom element that built its own light DOM is adopted without those children', async () => {
+    customElements.define('p5-3m-self', class extends HTMLElement { connectedCallback() { if (!this.firstChild) this.innerHTML = '<span>own</span>' } })
+    const App = app(() => h('p5-3m-self', { 'data-t': 'x' }))
+    const r = await hydrate(App, { server: '<main><p5-3m-self data-t="x"></p5-3m-self></main>' })
+    expect(r.keptT('x')).toBe(true)
+    expect(r.now('x').innerHTML).toBe('')
+  })
+})
