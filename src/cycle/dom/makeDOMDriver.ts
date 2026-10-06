@@ -70,36 +70,51 @@ function makeDOMReady$(): Stream<null> {
 // modules need to reach the client's from what the server wrote: the dataset (stale keys go:
 // data-sygnal-ssr), the class as the className prop (the className module drops stale classes),
 // and each attribute the client sets as an attribute or a prop, with the server's value (nothing
-// is written again: an iframe's src isn't reloaded). Any other attribute is removed now (a style
-// only when the client sets none; class and id are left alone on a selector with them, as
-// `h('p#a.b')`). A single text child keeps its text node. Whitespace and comments where the
-// client has no text go; any other node that doesn't match stays as a placeholder that snabbdom
-// replaces with the client's node, in place (the lists stay aligned, so the nodes after it are
-// still adopted). An element whose hook has an insert and no postpatch (a Transition's enter, a
-// measured row, the toaster region, a lazy() placeholder) is made again that way, as before
-const adopt = (e: any, v: any): any => {
-  const c = v.children || [], out: any[] = [];
-  let j = 0;
-  for (const x of [...e.childNodes]) {
+// is written again: an iframe's src isn't reloaded). Any other attribute is removed now; so is a
+// style (G-483: the style module writes the client's declarations, so none of the server's
+// stays). A single text child keeps its text node. Whitespace and comments where the client has
+// no text go; any other node that doesn't match stays as a placeholder that snabbdom replaces
+// with the client's node, in place (the lists stay aligned, so the nodes after it are still
+// adopted). Made again that way, as a fresh render makes them: an element whose selector has a
+// class or id (G-486: `h('p.card')`, the Portal placeholder; patching never corrects them), and
+// one whose hook expects a new element (G-485): a create or init hook (a thunk), an insert hook
+// without a postpatch (a Transition's enter, a measured row, the toaster region, a lazy()
+// placeholder, a user's hook; `u`: the user's own when a ref or autoFocus added a postpatch)
+const adopt = (e: any, v: any, T: any[] = [], P: any = {n: e.firstChild}, f?: any): any => {
+  // (a hole, `{cond && <X/>}`, has no node: snabbdom skips it)
+  const c = (v.children || []).filter((z: any) => z), out: any[] = [];
+  for (let j = 0, x: any; (x = P.n) && !(f && j >= c.length);) {
     const w = c[j], t = x.nodeType, d = w?.data || {}, k = d.hook;
     // a node that doesn't match stays in its place under a selector no vnode has: snabbdom makes
     // the client's node before it and removes it (the lists stay aligned: no other node is paired)
     let n: any = {sel: '', data: {}, elm: x};
-    if (t == 3 && w && !w.sel && w.text != null) n = {text: x.data, elm: x};
-    else if (t == 1 && x.localName == w?.sel?.split(/[#.]/, 1)[0] && !(k?.insert && !k.postpatch)) {
-      const p = d.props || {}, a = d.attrs || {}, o: any = {}, at: any = {}, pr: any = {}, f = x.firstChild;
-      o.class = 'className';
-      for (const m in p) o[m == 'htmlFor' ? 'for' : m.toLowerCase()] = m;
-      for (const {name: m, value: y} of [...x.attributes])
-        m in a ? at[m] = y
-        : /^data-/.test(m) || m == 'style' && d.style || w.sel != x.localName && /^(class|id)$/.test(m) ? 0
-        : m in o && !d.ns ? pr[o[m]] = y
-        : x.removeAttribute(m);
-      const s = w.text != null && f?.nodeType == 3 && !f.nextSibling;
-      n = {sel: w.sel, data: {dataset: {...x.dataset}, attrs: at, props: pr}, children: s ? undefined : adopt(x, w), text: s ? f.data : undefined, elm: x, key: w.key};
-    } else if (t != 1 && (t != 3 || !/\S/.test(x.data))) {
-      x.remove();
-      continue;
+    // G-481: a fragment takes as many of the next nodes as it has children (its own fragments
+    // flat in the same run), so the siblings after it stay paired
+    if (w && !w.sel && w.children) {
+      const a = T.length;
+      n = {...w, children: adopt(e, w, T, P, 1)};
+      n.elm = Object.assign(new DocumentFragment(), {parent: e, firstChildNode: T[a], lastChildNode: T[T.length - 1]});
+    } else {
+      P.n = x.nextSibling;
+      if (t == 3 && w && !w.sel && w.text != null) n = {text: x.data, elm: x};
+      else if (t == 1 && x.localName == w?.sel?.split(/[#.]/, 1)[0] && !(k?.insert && !k.postpatch)) {
+        const p = d.props || {}, a = d.attrs || {}, o: any = {}, at: any = {}, pr: any = {}, f = x.firstChild;
+        o.class = 'className';
+        for (const m in p) o[m == 'htmlFor' ? 'for' : m.toLowerCase()] = m;
+        for (const {name: m, value: y} of [...x.attributes])
+          m in a ? at[m] = y
+          : /^data-/.test(m) ? 0
+          : w.sel != x.localName && /^(class|id)$/.test(m) ? 0
+          : m == 'style' && d.style ? 0
+          : m in o && !d.ns ? pr[o[m]] = y
+          : x.removeAttribute(m);
+        const s = w.text != null && f?.nodeType == 3 && !f.nextSibling;
+        n = {...w, data: {dataset: {...x.dataset}, attrs: at, props: pr}, children: s ? undefined : adopt(x, w), text: s ? f.data : undefined, elm: x};
+      } else if (t != 1 && (t != 3 || !/\S/.test(x.data))) {
+        x.remove();
+        continue;
+      }
+      T.push(x);
     }
     out.push(n);
     j++;
