@@ -6,7 +6,7 @@ Tracks progress for [PLAN-5.md](PLAN-5.md) (ecosystem components and integration
 
 **Integration branch:** `plan5-integration`, cut from `plan46-complete` (`7146161`) on 2026-10-05, in worktree `.claude/worktrees/plan-4-execution-7ae8e8`. The release stays held (D56).
 
-**State:** Phase 2: 2-B, 2-V, 2-U, 2-A merged; 2-Z and 2-R merged; 2-S, 2-T merged (Phase 2 complete); Phase 3: 3-R, 3-D merged; 3-F merged; 3-G merged; 3-H merged; 3-I, 3-J, 3-K merged; 3-O merged; 3-M, 3-N merged; running 3-P, 3-Q, 3-T (2-A/2-S review fixes, SYG148–149). Known flaky test `p5-1s-forms` (fixed in 2-R).
+**State:** Phase 2: 2-B, 2-V, 2-U, 2-A merged; 2-Z and 2-R merged; 2-S, 2-T merged (Phase 2 complete); Phase 3: 3-R, 3-D merged; 3-F merged; 3-G merged; 3-H merged; 3-I, 3-J, 3-K merged; 3-O merged; 3-M, 3-N merged; 3-P merged; running 3-Q, 3-T (2-A/2-S review fixes, SYG148–149). Known flaky test `p5-1s-forms` (fixed in 2-R).
 
 ## 0-A baseline (2026-10-05)
 
@@ -82,6 +82,7 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 
 | ID | Date | Decision | By |
 |---|---|---|---|
+| D221 | 2026-10-05 | `undo({ key: ['todo', 'done'] })`: an array of keys is recorded together as one step (multi-list sortable; G-515) — public API (`key: string \| string[]`). Coordinator: END/INIT stay silent on a cancelled drag (Escape announces `messages.stay`) | User + coordinator |
 | D220 | 2026-10-05 | Coordinator: 3-M's +173 B accepted (hydration total 3-J + 3-M ≈ 289 B, inside D217's ≈ 320 B allowance; core 42,141 B, 159 B headroom left for the rest of PLAN-5). Controlled fields keep the documented rule at hydration (state wins; uncontrolled fields keep user input). Hyperscript selector class/id elements and the Portal placeholder are recreated, not adopted | Coordinator |
 | D219 | 2026-10-05 | Coordinator (after three review rounds found restore bugs, G-474 → G-504 → G-511): a cancelled or interrupted keyboard drag (Escape, END on unmount, INIT/live) restores **only if the list is exactly the array the drag's last step produced** (identity, per instance), by putting back the snapshot taken at lift; if anything else changed the list, the item stays where it is and the drag just ends (announced). No index math against foreign data. Undo is told internally that the gesture ended without completing (fixes G-510) | Coordinator |
 | D218 | 2026-10-05 | `defineBehavior` options from 3-H stay public as named: `persist: false` (the behavior's slice is never saved/restored by `persist()`) and `undoStep: ['ACTION']` (intermediate actions form one gesture; `undo()` records one entry when the named action completes it, none if cancelled). Coordinator: G-454's half rule applies to every item of another list; `helpId` set on first interaction (G-453); SYG435's contiguous-run heuristic accepted | User + coordinator |
@@ -255,13 +256,13 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 | G-507 | review 3-L | Low/Med | undo | `coalesceMs` without `coalesce` now merges separate drops within the window (two drags → one step). Require `coalesce` to name a gesture action. Confirmed | → 3-O |
 | G-508 | review 3-L | Low | undo | REDO mid-drag records the half-moved order as its own step (unlike a recorded action); `limit` exceeded after it. Confirmed | → 3-O |
 | G-509 | review 3-L | Low | sortable / undo | `made` survives UNDO (END may rearrange a state the user undid to); `same()` identity-only for custom `undoStep` behaviors with object values. Plausible | → 3-O |
-| G-510 | 3-O report | Low | undo / sortable | Lift, move, a recorded action (ADD), then Escape (or END/INIT restore): undo can't tell the restore from a move, `base` stays pending, the next change records the half-moved order. Needs an internal "gesture ended without completing" signal from the behavior to `undo()` (not public API). `it.todo` in the 3-O matrix | → 3-P |
-| G-511 | review 3-O | Med | sortable | END/INIT/live restore fires whenever the item happens to sit at `origin.at`: re-applies undone drops (UNDO×2 then HIDE → 2134), mutates replaced data (`[5,6,2]` → 526), reorders another action's order. Confirmed | → 3-P (D219) |
-| G-512 | review 3-O | Med | sortable | Escape always moves by `origin.index`: after UNDO×2 mid-drag it redoes the undone drop; after REDO it leaves a pending base that later records the cancelled drag. Confirmed | → 3-P (D219) |
-| G-513 | review 3-O | Low/Med | sortable / docs | Restore after an insert/removal before the item lands one place off or not at all; docs promise "whatever else changed". Confirmed | → 3-P (D219) |
-| G-514 | review 3-O | Low | undo | A gesture's completing action commits another gesture behavior's pending base (two `undoStep` behaviors on one key) | → 3-P |
-| G-515 | review 3-O | Low | docs | Multi-list sortable + `undo({ key: 'a' })` duplicates items on UNDO (one key tracked); document tracking a common parent key | → 3-P |
-| G-516 | review 3-O | Low | sortable + persist | `persist({ sync: true })`: another tab's mid-drag slice can now move the item in this tab. Plausible | → 3-P |
+| G-510 | 3-O report | Low | undo / sortable | Lift, move, a recorded action (ADD), then Escape (or END/INIT restore): undo can't tell the restore from a move, `base` stays pending, the next change records the half-moved order. Needs an internal "gesture ended without completing" signal from the behavior to `undo()` (not public API). `it.todo` in the 3-O matrix | ✅ 3-P |
+| G-511 | review 3-O | Med | sortable | END/INIT/live restore fires whenever the item happens to sit at `origin.at`: re-applies undone drops (UNDO×2 then HIDE → 2134), mutates replaced data (`[5,6,2]` → 526), reorders another action's order. Confirmed | ✅ 3-P |
+| G-512 | review 3-O | Med | sortable | Escape always moves by `origin.index`: after UNDO×2 mid-drag it redoes the undone drop; after REDO it leaves a pending base that later records the cancelled drag. Confirmed | ✅ 3-P |
+| G-513 | review 3-O | Low/Med | sortable / docs | Restore after an insert/removal before the item lands one place off or not at all; docs promise "whatever else changed". Confirmed | ✅ 3-P |
+| G-514 | review 3-O | Low | undo | A gesture's completing action commits another gesture behavior's pending base (two `undoStep` behaviors on one key) | ✅ 3-P |
+| G-515 | review 3-O | Low | docs | Multi-list sortable + `undo({ key: 'a' })` duplicates items on UNDO (one key tracked); document tracking a common parent key | ✅ 3-P |
+| G-516 | review 3-O | Low | sortable + persist | `persist({ sync: true })`: another tab's mid-drag slice can now move the item in this tab. Plausible | ✅ 3-P |
 | G-517 | 3-M report | Low/Med | dom (snabbdom fragments) | A child inserted into a fragment on a later patch is appended at the end of the parent (`<>{a}{cond && b}{c}</>` → b after c). Same on a fresh client render; pre-existing | → 3-Q |
 | G-518 | review 3-M | High | dom (fragments × hydration) | Adopted fragments' `firstChildNode`/`lastChildNode` point at server nodes the first patch removes (fragment's first child recreated: Portal, Transition, lazy, ClientOnly, user insert hook, mismatch); a later insert before the fragment throws `NotFoundError` inside the driver fold → the DOM stream errors and the app stops updating. Common: `<><Portal/>…</>`. Confirmed by probe | → 3-Q |
 | G-519 | review 3-M | Med/High | pragma | G-492 routes `form` as a prop on hyphenated tags: form-associated custom elements (MDN pattern, getter-only `form`) throw and the app renders nothing; the `form` attribute link is lost; SSR still writes the attribute. Keep `form` an attribute | → 3-Q |
@@ -317,6 +318,7 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 - 2026-10-05 — 3-M merged (tracker conflict: kept the coordinator copy). +173 B core (42,141 B). D220. G-517. Gates after 3-M: all green (vitest 3,515, browser 331/330/330, recipes 17×3, perf-gate --runs=3 ok, core 42,141 B).
 - 2026-10-05 — 3-N merged (clean); gates all green (vitest 3,537, browser 336/335/335, recipes 17×3, core 42,141 B). Review of 3-M: G-518…G-523 (one high: stale fragment bounds after hydration stop the app updating; snabbdom fragment limits also cause G-517, G-522). 3-Q started (fragments design + hydration fixes).
 - 2026-10-05 — Review of 3-N: G-524…G-528 (no high). 3-T started.
+- 2026-10-05 — 3-P merged (clean; D219 identity restore with lift snapshot, internal `undoEnd` hint, `base` owner key; sortable +150 B, undo +186 B, core 0). User: D221.
 - 2026-10-05 — 2-R merged (6 conflicts; SYG666 clash renumbered to SYG668); all gates green on three engines (279/279); core 41,825 B. D212, G-408.
 - 2026-10-05 — 2-Z merged; three engines 276/276; core 41,771 B. D211.
 - 2026-10-05 — Review of 2-U + 2-V: 14 findings (G-394…G-407). 2-S started.
