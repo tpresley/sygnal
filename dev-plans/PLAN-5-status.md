@@ -6,7 +6,7 @@ Tracks progress for [PLAN-5.md](PLAN-5.md) (ecosystem components and integration
 
 **Integration branch:** `plan5-integration`, cut from `plan46-complete` (`7146161`) on 2026-10-05, in worktree `.claude/worktrees/plan-4-execution-7ae8e8`. The release stays held (D56).
 
-**State:** Phase 2: 2-B, 2-V, 2-U, 2-A merged; 2-Z and 2-R merged; 2-S, 2-T merged (Phase 2 complete); Phase 3: 3-R, 3-D merged; 3-F merged; 3-G merged; 3-H merged; 3-I, 3-J, 3-K merged; 3-O merged; 3-M, 3-N merged; 3-P merged; 3-Q, 3-T, 3-U merged; next: review 3-Q, then the Phase 3 close-out (2-A/2-S review fixes, SYG148–149). Known flaky test `p5-1s-forms` (fixed in 2-R).
+**State:** Phase 2: 2-B, 2-V, 2-U, 2-A merged; 2-Z and 2-R merged; 2-S, 2-T merged (Phase 2 complete); Phase 3: 3-R, 3-D merged; 3-F merged; 3-G merged; 3-H merged; 3-I, 3-J, 3-K merged; 3-O merged; 3-M, 3-N merged; 3-P merged; 3-Q, 3-T, 3-U merged; running 3-V; then the Phase 3 close-out (2-A/2-S review fixes, SYG148–149). Known flaky test `p5-1s-forms` (fixed in 2-R).
 
 ## 0-A baseline (2026-10-05)
 
@@ -285,7 +285,12 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 | G-534 | review 3-T | Low | ui/dialog | SYNC after a failure keeps the old `returnValue` when OPEN's STATE aborted | ✅ 3-U |
 | G-535 | 3-U report | Low | sortable / undo | Lift, move, a recorded action that changes the list (ADD), move back to the original index, drop: no `sort.DROPPED` (no move) and the list ≠ pre-drag → `base` pending. A drop without a move should signal `undoEnd` | → later pass |
 | G-536 | review 3-U | Low | undo | Absent key vs own `undefined` treated equal; string keys still write an own `undefined` on UNDO (parity with G-531); `k in s` throws on primitive state (guard `typeof s == 'object'`); overlapping `dialog` selectors still take a nested dialog's FAIL (selector misuse) | → later pass |
-| G-537 | D223 | Med | runtime / dom | Patch errors bypass `run({ onError })` (logged only): invisible to error trackers in production. Route with phase `'patch'` | → next fix pass |
+| G-537 | D223 | Med | runtime / dom | Patch errors bypass `run({ onError })` (logged only): invisible to error trackers in production. Route with phase `'patch'` | → 3-V |
+| G-538 | review 3-Q | Med/High | testing | `renderComponent({ dom: 'real' })` of a fragment-root component never settles (fragments have no `elm` after flattening; the harness waits for `v.elm`); same root cause: SYG149 never checks a fragment app root. Confirmed (settle timeout vs 24 ms) | → 3-V |
+| G-539 | review 3-Q | Med | dom (fragments) perf | Keyed fragment children are re-copied on every parent flatten → snabbdom's identity skip lost: 2k fragment Collection items, one changed: 14 ms and 2,000 user `update` hooks per patch vs 2 ms / 1. Memoize per (fragment, prefix). Confirmed | → 3-V |
+| G-540 | review 3-Q | Med | dom (guard) | The patch-error guard re-runs hydration adoption over a live app: widget DOM wiped (stays blank), Portal content duplicated (survives dispose), Transition enter replayed; destroy hooks skipped. Also a persistent error still freezes the app. Confirmed | → 3-V |
+| G-541 | review 3-Q | Low | dom (fragments) | Derived keys use `/` as separator: `<Fragment key="src">` + child `a/b.ts` collides with `<Fragment key="src/a">` + `b.ts` | → 3-V |
+| G-542 | review 3-Q | Low | pragma | `form` always an attribute on custom elements: an object-valued `form` prop renders `form="[object Object]"`; route as attribute only for string values | → 3-V |
 | G-408 | 2-R × 2-Z | Low | process | Two parallel workstreams registered the same code (SYG666); fixed at merge (2-R's → SYG668). Briefs now assign code numbers | Fixed (process) |
 | G-394 | review 2-V | High | VirtualCollection | An inline `estimateSize` function (the guide's own pattern) clears every measured row height on each owner render; rows aren't re-measured. Confirmed | → 2-S |
 | G-395 | review 2-V | Med/High | VirtualCollection | SYG430 "grows" misfires on a bounded container above viewport height that fits its rows; clamping then leaves unreachable blank rows. Confirmed | → 2-S |
@@ -336,6 +341,7 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 - 2026-10-05 — 3-U merged (G-529…G-534; `picks` cache removed; `key: []` throws; undo +101 B, dialog +26 B, core 0). G-535. Review of 3-U: nothing above Low (G-536). Gates after 3-U all green (vitest 3,623, browser 338/337/337).
 - 2026-10-05 — 3-Q merged (clean): fragments flattened before patch (snabbdom `fragments` option unused, run option deprecated), G-517…G-523, patch-error guard; core 42,292 B. User: D222 (budget 42,500 B). Gates all green (vitest 3,671, browser 345/344/344, recipes 17×3, perf-gate --runs=3 ok, core 42,292 B, 208 B headroom).
 - 2026-10-05 — User: D223 (patch errors → `onError`, phase `'patch'`); G-537, to the 3-Q review fix pass.
+- 2026-10-05 — Review of 3-Q: G-538…G-542 (no regression without fragments; perf-gate ok). The guard's recovery by adoption is unsafe (G-540). 3-V started (G-537…G-542).
 - 2026-10-05 — 2-R merged (6 conflicts; SYG666 clash renumbered to SYG668); all gates green on three engines (279/279); core 41,825 B. D212, G-408.
 - 2026-10-05 — 2-Z merged; three engines 276/276; core 41,771 B. D211.
 - 2026-10-05 — Review of 2-U + 2-V: 14 findings (G-394…G-407). 2-S started.
