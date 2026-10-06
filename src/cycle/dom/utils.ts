@@ -132,12 +132,22 @@ export function sameData(a: any, b: any): boolean {
 // fragment's copies while the fragment and its prefix are the same (G-539; a hit compares the
 // parent's prefix, the fragment's own is made on a miss). A hoisted keyed fragment rendered in two
 // places shares its copies, as any hoisted vnode shares its object (render it once). A copy (a
-// parent with new children, a child with a new key) inherits from its vnode and writes its
+// parent with new children, a child with a new key) has its vnode's fields and writes its
 // element there too, so the app's vnodes get their `elm` as before (testing and diagnostics read
 // it); it keeps its own (a vnode object reused under another key: the old copy removes its own).
 const flatOf = new WeakMap<any, any>();
 const cpOf = new WeakMap<any, any>();
-const copy = (y: any, o: any, m?: any) => Object.create(y, {...o, elm: {get: () => m, set: (e: any) => y.elm = m = e}});
+// 4-I G-561: a copy is an instance of one class (the vnode's own fields, `elm` an accessor on its
+// prototype), not Object.create(y) with an own accessor: snabbdom's patch loop read each field
+// through the prototype chain and called a per-object accessor, ~3x slower over a 1k Collection.
+// (y: set again after the fields, as a copy's own y is its vnode's vnode; m starts as the vnode's
+// elm, which snabbdom replaces before reading it)
+class Copy {
+  y: any; m: any
+  constructor(y: any, o: any) { this.y = y; Object.assign(this, y, o).y = y }
+  get elm() { return this.m }
+  set elm(e: any) { this.y.elm = this.m = e }
+}
 const seg = (k: any, s: any) => (k || '') + JSON.stringify(typeof s == 'object' ? s : String(s));
 export const flat = (v: any): any => {
   if (!v || v.$p || !v.children) return v;
@@ -159,16 +169,18 @@ export const flat = (v: any): any => {
           y !== x && (d = 1);
           if (k && y) {
             // 4-H: the copy of an unchanged child under the same key is kept (the fragment is new
-            // when one of its children is: a Collection's), so snabbdom skips the others
-            const q = seg(k, y.key ?? [y.sel, n[y.sel] = -~n[y.sel]]), c = cpOf.get(y);
-            y = c && c[0] === q ? c[1] : (cpOf.set(y, [q, y = copy(y, {key: {value: q}})]), y);
+            // when one of its children is: a Collection's), so snabbdom skips the others. 4-I
+            // G-561: a hit compares the prefix and the child's own part (its key, else its count),
+            // so the key is only built on a miss
+            const s = y.key ?? (n[y.sel] = -~n[y.sel]), c = cpOf.get(y);
+            y = c && c[0] === k && c[1] === s ? c[2] : (cpOf.set(y, [k, s, y = new Copy(y, {key: seg(k, y.key ?? [y.sel, s])})]), y);
           }
           o.push(y);
         }
       }
     };
     put(v.children);
-    flatOf.set(v, r = d ? copy(v, {children: {value: o}}) : v);
+    flatOf.set(v, r = d ? new Copy(v, {children: o}) : v);
   }
   return r;
 };

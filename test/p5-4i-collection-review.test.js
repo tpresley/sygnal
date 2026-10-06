@@ -4,8 +4,10 @@
 // through fragments: Suspense's not-ready probe (G-556), READY: false on a component whose root
 // is a Collection (G-557), the mock DOM's scoping of a fragment root (G-558), and Transition around
 // a Collection (G-559: applied to each item; no false SYG612). The reviewer's probes (r4h new.probe
-// P1b, new4.probe P9, new5.probe P10, new3.probe P8) are the cases below.
+// P1b, new4.probe P9, new5.probe P10, new3.probe P8) are the cases below. G-561: the DOM driver's
+// copies of a keyed fragment's children (flat) are cheap to reuse.
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
+import { flat } from '../src/cycle/dom/utils.ts'
 import { run, renderToString, Collection, Suspense, Transition, lazy } from '../src/index.js'
 import { createElement as h } from '../src/pragma/index.js'
 import { renderComponent } from '../src/extra/testing.js'
@@ -161,5 +163,37 @@ describe('G-559: Transition around a Collection', () => {
     document.dispatchEvent(new Event('p4i-n')); await sleep(10)
     expect(el.querySelector('i').textContent).toBe('2')
     expect(up).toBe(0)
+  })
+})
+
+describe("G-561: a keyed fragment's unchanged children cost little per patch", () => {
+  const li = (t, key) => h('li', key === undefined ? null : { key }, h('span', null, t))
+  const tree = (items) => ({ sel: 'div', data: {}, children: [{ sel: 'ul', data: {}, children: [li('head'), { sel: undefined, data: {}, children: items, key: 'c1' }], key: undefined }], key: undefined })
+
+  it('an unchanged child keeps its copy, and its key is built only on a miss', () => {
+    const items = Array.from({ length: 50 }, (_, i) => li('r' + i, i % 2 ? 'k' + i : undefined))
+    const first = flat(tree(items)).children[0].children
+    const next = items.slice(); next[7] = li('x', 'k7')
+    const spy = vi.spyOn(JSON, 'stringify')
+    const second = flat(tree(next)).children[0].children
+    // the fragment's own segment and the one changed child's key
+    expect(spy.mock.calls.length).toBe(2)
+    spy.mockRestore()
+    // (index 0: the head, a new vnode each time)
+    expect(second.map((c, i) => c === first[i]).indexOf(false, 1)).toBe(8)
+    expect(second.filter((c, i) => i && c !== first[i]).length).toBe(1)
+    expect(second.map(c => c.key)).toEqual(first.map(c => c.key))
+  })
+
+  it("a copy holds the vnode's fields itself and hands its element to the vnode", () => {
+    const item = li('a', 'k')
+    const c = flat(tree([item])).children[0].children[1]
+    expect(Object.getPrototypeOf(c)).not.toBe(item)
+    for (const f of ['sel', 'data', 'children', 'key']) expect(Object.prototype.hasOwnProperty.call(c, f)).toBe(true)
+    expect(c.key).toBe('"c1""k"')
+    const el = document.createElement('li')
+    c.elm = el
+    expect(c.elm).toBe(el)
+    expect(item.elm).toBe(el)
   })
 })
