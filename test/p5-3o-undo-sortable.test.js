@@ -134,6 +134,33 @@ describe('3-O G-504 / G-509: UNDO mid-drag, then the drag ends', () => {
   })
 })
 
+describe('3-O G-509: back where a gesture started, for object values', () => {
+  it('a custom undoStep behavior: an object value put back field by field is no step', async () => {
+    const nudge = defineBehavior({
+      initialState: {},
+      undoStep: ['DONE'],
+      model: {
+        RIGHT: { HOST: (st) => ({ ...st, pos: { ...st.pos, x: st.pos.x + 1 } }) },
+        LEFT: { HOST: (st) => ({ ...st, pos: { ...st.pos, x: st.pos.x - 1 } }) },
+        DONE: ABORT,
+      },
+    })
+    function P() { return h('div', null, 'p') }
+    P.initialState = { pos: { x: 0, y: 0 } }
+    P.uses = { n: nudge(), history: undo({ key: 'pos' }) }
+    t = renderComponent(P); await t.ready()
+    await act('n.RIGHT')
+    expect(t.state.history.base).toBeTruthy()
+    await act('n.LEFT')
+    expect(t.state.pos).toEqual({ x: 0, y: 0 })
+    expect(t.state.history.base).toBe(undefined)
+    await act('n.DONE')
+    expect(t.state.history.past).toEqual([])
+    await act('n.RIGHT'); await act('n.DONE')
+    expect(t.state.history.past).toEqual([{ x: 0, y: 0 }])
+  })
+})
+
 describe('3-O G-505: SYG435 with each item in its own wrapper', () => {
   const make = (view) => {
     function H(props) { return view(props) }

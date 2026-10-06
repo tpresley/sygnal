@@ -28,7 +28,11 @@
  * value back to where the gesture started (a cancel) leaves nothing pending, nor does a gesture
  * action after the value was changed outside the gesture (G-475 / G-479). `track` / `coalesce`
  * naming any of a gesture behavior's actions apply to its steps; `resetOn` naming one of them
- * resets the history at that action (G-477).
+ * resets the history at that action (G-477). 3-O: an untracked gesture is like an untracked
+ * action, its changes are never recorded, nor pending (G-506); drops join only when `coalesce`
+ * names a gesture action (G-507); REDO mid-gesture records the value from before the gesture in
+ * place of the current one, as a recorded action does (G-508); "back where it started" compares
+ * arrays and plain objects shallowly (G-509).
  *
  * SYG226 (dev, warn): a `track` / `resetOn` / `coalesce` name with no model entry (nor an action
  * of a behavior in the host's `uses`).
@@ -65,8 +69,13 @@ const check = (model: any, o: UndoOptions, component?: any, skip?: any) => {
 
 // a history without the pending gesture base
 const settled = (h: any) => { const {base: _, ...o} = h; return o }
-// the same list (a gesture step that put every entry back: a cancel)
-const same = (a: any, b: any) => a === b || Array.isArray(a) && Array.isArray(b) && a.length == b.length && a.every((v, i) => v === b[i])
+// the same value (a gesture step that put everything back: a cancel): arrays and plain objects
+// compare their entries by identity (G-509), anything else is itself
+const plain = (x: any) => Array.isArray(x) ? 1 : x && typeof x == 'object' && Object.getPrototypeOf(x) === Object.prototype ? 2 : 0
+const same = (a: any, b: any) => {
+  const k = a !== b && plain(a) && plain(a) == plain(b) && Object.keys(a)
+  return a === b || !!k && k.length == Object.keys(b).length && k.every(i => i in b && a[i] === b[i])
+}
 
 const wrap = (model: any, o: UndoOptions, hk: string, ns: string, S = 'STATE', g: any = {}): any => {
   const {key, limit = 100, track, coalesce, coalesceMs = coalesce ? 500 : 0, resetOn = []} = o
